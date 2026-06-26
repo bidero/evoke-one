@@ -64,21 +64,21 @@ add_action('wp_footer', function () {
     }
     ?>
     <style>
-        #tl-fab { position:fixed; bottom:24px; right:24px; z-index:99998; width:48px; height:48px; border-radius:50%; background:#3858e9; color:#fff; border:none; cursor:pointer; font-size:20px; box-shadow:0 4px 16px rgba(56,88,233,.45); display:flex; align-items:center; justify-content:center; transition:transform .2s, background .2s; }
+        #tl-fab { position:fixed; bottom:24px; right:24px; z-index:99998; width:48px; height:48px; border-radius:50%; background:#2563eb; color:#fff; border:none; cursor:pointer; font-size:20px; box-shadow:0 4px 16px rgba(37,99,235,.45); display:flex; align-items:center; justify-content:center; transition:transform .2s, background .2s; }
         #tl-fab:hover { transform:scale(1.08); background:#2145d6; }
-        #tl-fab.active { background:#d63638; }
+        #tl-fab.active { background:#dc2626; }
         #tl-fab-tooltip { position:fixed; bottom:80px; right:24px; z-index:99997; background:#1d2327; color:#fff; font-size:12px; padding:5px 10px; border-radius:4px; pointer-events:none; opacity:0; transition:opacity .15s; white-space:nowrap; }
         #tl-fab:hover + #tl-fab-tooltip { opacity:1; }
-        body.tl-edit-mode [data-tl-phrase] { outline:2px dashed #3858e9 !important; outline-offset:2px; cursor:pointer !important; }
-        body.tl-edit-mode [data-tl-phrase]:hover { background:rgba(56,88,233,.08) !important; outline-style:solid !important; }
+        body.tl-edit-mode [data-tl-phrase] { outline:2px dashed #2563eb !important; outline-offset:2px; cursor:pointer !important; }
+        body.tl-edit-mode [data-tl-phrase]:hover { background:rgba(37,99,235,.08) !important; outline-style:solid !important; }
         body.tl-edit-mode [data-tl-phrase].tl-inline { outline-color:#dba617; }
         #tl-side-panel { position:fixed; top:0; right:-420px; width:400px; height:100vh; background:#fff; z-index:99999; box-shadow:-4px 0 24px rgba(0,0,0,.15); display:flex; flex-direction:column; transition:right .3s cubic-bezier(.4,0,.2,1); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
         #tl-side-panel.open { right:0; }
-        #tl-panel-header { background:#3858e9; color:#fff; padding:14px 16px; display:flex; align-items:center; gap:10px; flex-shrink:0; }
+        #tl-panel-header { background:#2563eb; color:#fff; padding:14px 16px; display:flex; align-items:center; gap:10px; flex-shrink:0; }
         #tl-panel-header h3 { margin:0; font-size:14px; font-weight:600; flex:1; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
         #tl-panel-close { background:none; border:none; color:#fff; font-size:20px; cursor:pointer; padding:0; line-height:1; opacity:.8; }
         #tl-panel-close:hover { opacity:1; }
-        #tl-panel-phrase { padding:10px 16px 12px; background:#f0f6fc; border-bottom:1px solid #c3c4c7; flex-shrink:0; }
+        #tl-panel-phrase { padding:10px 16px 12px; background:#eff6ff; border-bottom:1px solid #cbd5e1; flex-shrink:0; }
         #tl-panel-phrase-meta { font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:#8cc4f0; margin-bottom:3px; }
         #tl-panel-pl-text { display:block; font-size:13px; color:#1d2327; font-weight:600; margin-bottom:10px; word-break:break-word; min-height:18px; }
         #tl-panel-type-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; margin-left:6px; vertical-align:middle; }
@@ -86,38 +86,38 @@ add_action('wp_footer', function () {
         #tl-panel-type-badge.inline { background:#fff3cd; color:#856404; }
         #tl-panel-type-badge.new { background:#cce5ff; color:#004085; }
         #tl-panel-dd-wrap { display:flex; align-items:center; gap:6px; }
-        #tl-panel-dd-wrap label { font-size:10px; font-weight:700; text-transform:uppercase; color:#50575e; letter-spacing:.4px; white-space:nowrap; flex-shrink:0; }
-        #tl-panel-dd-key { flex:1; border:1px solid #dcdcde; border-radius:3px; padding:5px 8px; font-size:12px; font-family:monospace; background:#fff; min-width:0; }
-        #tl-panel-dd-key:focus { border-color:#3858e9; outline:none; box-shadow:0 0 0 1px #3858e9; }
+        #tl-panel-dd-wrap label { font-size:10px; font-weight:700; text-transform:uppercase; color:#475569; letter-spacing:.4px; white-space:nowrap; flex-shrink:0; }
+        #tl-panel-dd-key { flex:1; border:1px solid #d1d5db; border-radius:3px; padding:5px 8px; font-size:12px; font-family:monospace; background:#fff; min-width:0; }
+        #tl-panel-dd-key:focus { border-color:#2563eb; outline:none; box-shadow:0 0 0 1px #2563eb; }
         #tl-panel-group-wrap { display:flex; align-items:center; gap:6px; margin-top:6px; }
-        #tl-panel-group-wrap label { font-size:10px; font-weight:700; text-transform:uppercase; color:#50575e; letter-spacing:.4px; white-space:nowrap; flex-shrink:0; }
-        #tl-panel-group-select { flex:1; border:1px solid #dcdcde; border-radius:3px; padding:5px 8px; font-size:12px; background:#fff; }
-        #tl-panel-group-select:focus { border-color:#3858e9; outline:none; box-shadow:0 0 0 1px #3858e9; }
+        #tl-panel-group-wrap label { font-size:10px; font-weight:700; text-transform:uppercase; color:#475569; letter-spacing:.4px; white-space:nowrap; flex-shrink:0; }
+        #tl-panel-group-select { flex:1; border:1px solid #d1d5db; border-radius:3px; padding:5px 8px; font-size:12px; background:#fff; }
+        #tl-panel-group-select:focus { border-color:#2563eb; outline:none; box-shadow:0 0 0 1px #2563eb; }
         #tl-panel-close svg { display:block; }
         #tl-panel-fields { flex:1; overflow-y:auto; padding:16px; }
         .tl-panel-field { margin-bottom:14px; }
-        .tl-panel-field label { display:block; font-size:10px; font-weight:700; text-transform:uppercase; color:#50575e; margin-bottom:4px; letter-spacing:.4px; }
-        .tl-panel-field label .tl-lang-current { background:#3858e9; color:#fff; font-size:9px; padding:1px 5px; border-radius:4px; margin-left:4px; vertical-align:middle; }
-        .tl-panel-field textarea { width:100%; border:1px solid #dcdcde; border-radius:4px; padding:8px 10px; font-size:13px; resize:vertical; min-height:60px; box-sizing:border-box; font-family:inherit; }
-        .tl-panel-field textarea:focus { border-color:#3858e9; outline:none; box-shadow:0 0 0 1px #3858e9; }
+        .tl-panel-field label { display:block; font-size:10px; font-weight:700; text-transform:uppercase; color:#475569; margin-bottom:4px; letter-spacing:.4px; }
+        .tl-panel-field label .tl-lang-current { background:#2563eb; color:#fff; font-size:9px; padding:1px 5px; border-radius:4px; margin-left:4px; vertical-align:middle; }
+        .tl-panel-field textarea { width:100%; border:1px solid #d1d5db; border-radius:4px; padding:8px 10px; font-size:13px; resize:vertical; min-height:60px; box-sizing:border-box; font-family:inherit; }
+        .tl-panel-field textarea:focus { border-color:#2563eb; outline:none; box-shadow:0 0 0 1px #2563eb; }
         .tl-panel-field textarea[data-lang="pl"] { background:#f9f9f9; }
         .tl-panel-field textarea.readonly { background:#f0f0f0; cursor:not-allowed; }
         .tl-panel-info, .tl-panel-info-new { border-radius:4px; padding:10px 12px; font-size:12px; margin-bottom:14px; }
         .tl-panel-info { background:#fff3cd; border:1px solid #ffc107; color:#856404; }
         .tl-panel-info-new { background:#cce5ff; border:1px solid #b8daff; color:#004085; }
-        #tl-panel-footer { padding:12px 16px; border-top:1px solid #dcdcde; flex-shrink:0; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        #tl-panel-footer { padding:12px 16px; border-top:1px solid #d1d5db; flex-shrink:0; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
         #tl-panel-save, #tl-panel-add-to-db, #tl-panel-create-new { border:none; padding:8px 14px; border-radius:4px; font-size:13px; font-weight:600; cursor:pointer; }
-        #tl-panel-save { background:#3858e9; color:#fff; }
-        #tl-panel-add-to-db { background:#00a32a; color:#fff; }
+        #tl-panel-save { background:#2563eb; color:#fff; }
+        #tl-panel-add-to-db { background:#16a34a; color:#fff; }
         #tl-panel-create-new { background:#0073aa; color:#fff; }
         #tl-panel-save:disabled, #tl-panel-add-to-db:disabled, #tl-panel-create-new:disabled { opacity:.6; cursor:default; }
-        #tl-panel-open-admin { font-size:12px; color:#2271b1; text-decoration:none; }
+        #tl-panel-open-admin { font-size:12px; color:#2563eb; text-decoration:none; }
         #tl-panel-status { font-size:12px; flex:1; text-align:right; }
-        #tl-panel-status.ok { color:#00a32a; }
-        #tl-panel-status.err { color:#d63638; }
+        #tl-panel-status.ok { color:#16a34a; }
+        #tl-panel-status.err { color:#dc2626; }
         #tl-overlay { display:none; position:fixed; inset:0; z-index:99990; }
         #tl-overlay.active { display:block; }
-        #tl-add-new-btn { position:fixed; bottom:24px; right:80px; z-index:99998; height:36px; padding:0 14px; border-radius:18px; background:#00a32a; color:#fff; border:none; cursor:pointer; font-size:12px; font-weight:600; box-shadow:0 2px 8px rgba(0,163,42,.35); display:none; align-items:center; gap:6px; transition:transform .2s; }
+        #tl-add-new-btn { position:fixed; bottom:24px; right:80px; z-index:99998; height:36px; padding:0 14px; border-radius:18px; background:#16a34a; color:#fff; border:none; cursor:pointer; font-size:12px; font-weight:600; box-shadow:0 2px 8px rgba(0,163,42,.35); display:none; align-items:center; gap:6px; transition:transform .2s; }
         body.tl-edit-mode #tl-add-new-btn { display:flex; }
     </style>
 
@@ -318,7 +318,7 @@ add_action('wp_footer', function () {
 
             $status.textContent = '';
             $status.className = '';
-            $fields.innerHTML = '<p style="color:#a7aaad;font-size:13px;">Ladowanie...</p>';
+            $fields.innerHTML = '<p style="color:#94a3b8;font-size:13px;">Ladowanie...</p>';
 
             $addToDb.style.display = (type === 'inline' && !isNew) ? 'inline-block' : 'none';
             $save.style.display = (type !== 'inline' && !isNew) ? 'inline-block' : 'none';
@@ -341,7 +341,7 @@ add_action('wp_footer', function () {
                 .then(response => response.json())
                 .then(function(response) {
                     if (!response.success) {
-                        $fields.innerHTML = '<p style="color:#d63638;">Blad pobierania.</p>';
+                        $fields.innerHTML = '<p style="color:#dc2626;">Blad pobierania.</p>';
                         return;
                     }
 
@@ -349,7 +349,7 @@ add_action('wp_footer', function () {
                     if (response.data.dd_key) $ddKeyInput.value = response.data.dd_key;
                     renderFields(response.data.pl || pl, response.data.translations || {}, currentType, response.data.raw, false);
                 })
-                .catch(function() { $fields.innerHTML = '<p style="color:#d63638;">Blad polaczenia.</p>'; });
+                .catch(function() { $fields.innerHTML = '<p style="color:#dc2626;">Blad polaczenia.</p>'; });
         }
 
         function renderFields(pl, translations, type, rawCode, isNew) {
@@ -359,7 +359,7 @@ add_action('wp_footer', function () {
             if (type === 'inline' && rawCode && !isNew) html += `<div class="tl-panel-info"><strong>Fraza inline</strong><br>Zdefiniowana w szablonie: <code>${esc(rawCode)}</code><br>Kliknij "Dodaj do bazy" aby zarzadzac centralnie.</div>`;
 
             const readonly = (type === 'inline' && !isNew) ? 'readonly class="readonly"' : '';
-            html += `<div class="tl-panel-field"><label>Polski <span style="font-size:9px;background:#50575e;color:#fff;padding:1px 5px;border-radius:3px;">bazowy</span></label><textarea data-lang="pl" id="tl-pl-input" ${readonly}>${esc(isNew ? '' : pl)}</textarea></div>`;
+            html += `<div class="tl-panel-field"><label>Polski <span style="font-size:9px;background:#475569;color:#fff;padding:1px 5px;border-radius:3px;">bazowy</span></label><textarea data-lang="pl" id="tl-pl-input" ${readonly}>${esc(isNew ? '' : pl)}</textarea></div>`;
 
             CODES.forEach(function(code) {
                 const current = code === CURRENT_LANG ? '<span class="tl-lang-current">aktualny</span>' : '';

@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 
             <div class="tl-toolbar">
                 <div class="tl-search-wrap">
-                    <span class="dashicons dashicons-search" style="color:#a7aaad;"></span>
+                    <span class="dashicons dashicons-search" style="color:#94a3b8;"></span>
                     <input type="text" id="tl-search" placeholder="Szukaj frazy..." autocomplete="off">
                     <span id="tl-search-count"></span>
                 </div>

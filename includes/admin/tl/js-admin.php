@@ -322,7 +322,7 @@ add_action('admin_footer', function () {
 
     // Languages
     window.tlAddLang = function() {
-        $('#lang-body').append('<tr><td><span class="drag-handle" title="Przeciagnij">☰</span></td><td><input type="text" class="lang-code" placeholder="np. en"></td><td><input type="text" class="lang-name" placeholder="np. Angielski"></td><td><input type="text" class="lang-html" placeholder="np. en-GB"></td><td><div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #c3c4c7;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#a7aaad;font-size:12px;" onclick="tlOpenLangFlag(this)">+</div></td><td><button type="button" class="button-link-delete" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();">Usun</button></td></tr>');
+        $('#lang-body').append('<tr><td><span class="drag-handle" title="Przeciagnij">☰</span></td><td><input type="text" class="lang-code" placeholder="np. en"></td><td><input type="text" class="lang-name" placeholder="np. Angielski"></td><td><input type="text" class="lang-html" placeholder="np. en-GB"></td><td><div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #cbd5e1;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:12px;" onclick="tlOpenLangFlag(this)">+</div></td><td><button type="button" class="button-link-delete" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();">Usun</button></td></tr>');
         if ($('#lang-body').hasClass('ui-sortable')) $('#lang-body').sortable('refresh');
         else initSortable();
         tlMarkDirty();
@@ -360,7 +360,7 @@ add_action('admin_footer', function () {
             if ($el.is('img')) {
                 $el.attr('src', url).data('att', att.id);
             } else {
-                const $img = $('<img>').addClass('tl-lang-flag-preview').attr('src', url).data('att', att.id).css({width:'32px',height:'20px',objectFit:'cover',borderRadius:'2px',border:'1px solid #dcdcde',cursor:'pointer'}).on('click', function() { tlOpenLangFlag(this, langFlagCode); });
+                const $img = $('<img>').addClass('tl-lang-flag-preview').attr('src', url).data('att', att.id).css({width:'32px',height:'20px',objectFit:'cover',borderRadius:'2px',border:'1px solid #d1d5db',cursor:'pointer'}).on('click', function() { tlOpenLangFlag(this, langFlagCode); });
                 $el.replaceWith($img);
             }
             tlMarkDirty();

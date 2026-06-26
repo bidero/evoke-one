@@ -51,7 +51,7 @@ $active_blocks = evk_login_active_blocks();
     Aktywne blokady
     <span style="font-weight:400;color:#6b7280;font-size:12px;margin-left:8px;"><?php echo count($active_blocks); ?> aktywnych</span>
 </p>
-<div style="background:#fff;border:1px solid #dcdcde;border-radius:6px;overflow:hidden;margin-bottom:16px;">
+<div style="background:#fff;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;margin-bottom:16px;">
     <table class="wp-list-table widefat fixed striped" style="border:none;">
         <thead><tr>
             <th>Adres IP</th><th>Użytkownik</th><th>Prób</th>

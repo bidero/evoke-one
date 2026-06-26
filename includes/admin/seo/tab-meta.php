@@ -13,8 +13,8 @@ if (!defined('ABSPATH')) exit;
 
                 <style>
                     .evoke-seo-fields { display:flex; flex-direction:column; gap:8px; max-width:800px; }
-                    .evoke-seo-fields input[type=text], .evoke-seo-fields textarea { width:100%; border:1px solid #8c8f94; border-radius:4px; padding:4px 8px; }
-                    .evoke-seo-fields input:focus, .evoke-seo-fields textarea:focus { border-color:#2271b1; box-shadow:0 0 0 1px #2271b1; outline:none; }
+                    .evoke-seo-fields input[type=text], .evoke-seo-fields textarea { width:100%; border:1px solid #d1d5db; border-radius:6px; padding:4px 8px; }
+                    .evoke-seo-fields input:focus, .evoke-seo-fields textarea:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.12); outline:none; }
                     .evoke-save-seo { min-width:90px !important; white-space:nowrap; }
                 </style>
 
@@ -91,7 +91,7 @@ if (!defined('ABSPATH')) exit;
                             seo_keywords: $row.find('.evoke-seo-keywords').val(),
                             seo_robots: JSON.stringify(robots)
                         }).done(function(r){
-                            $(btn).css({background: r.success ? '#00a32a' : '#d63638', color:'#fff', borderColor: r.success ? '#008a20' : '#b91c1c'});
+                            $(btn).css({background: r.success ? '#16a34a' : '#dc2626', color:'#fff', borderColor: r.success ? '#008a20' : '#b91c1c'});
                             btn.textContent = r.success ? 'Zapisano!' : 'Błąd!';
                         }).always(function(){
                             setTimeout(function(){ btn.textContent='Zapisz'; btn.disabled=false; $(btn).removeAttr('style').css('min-width', origW+'px'); }, 1800);

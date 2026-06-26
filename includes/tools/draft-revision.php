@@ -32,13 +32,13 @@ function evk_dr_row_actions(array $actions, \WP_Post $post): array {
             admin_url('admin.php?action=evk_sync_revision&post=' . $post->ID),
             'evk_sync_' . $post->ID
         );
-        $actions['evk_sync'] = '<a href="' . esc_url($url) . '" style="color:#00a32a;font-weight:bold;">Synchronizuj z oryginałem</a>';
+        $actions['evk_sync'] = '<a href="' . esc_url($url) . '" style="color:#16a34a;font-weight:bold;">Synchronizuj z oryginałem</a>';
     } else {
         $url = wp_nonce_url(
             admin_url('admin.php?action=evk_create_revision&post=' . $post->ID),
             'evk_create_revision_' . $post->ID
         );
-        $actions['evk_revision'] = '<a href="' . esc_url($url) . '" style="color:#2271b1;font-weight:bold;">Utwórz wersję roboczą</a>';
+        $actions['evk_revision'] = '<a href="' . esc_url($url) . '" style="color:#2563eb;font-weight:bold;">Utwórz wersję roboczą</a>';
     }
     return $actions;
 }

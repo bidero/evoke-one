@@ -2,7 +2,7 @@
 if (!defined('ABSPATH')) exit;
 // Evoke ONE — TL tab content. Zmienne z tl_render_page(): $data $langs $codes $tab $base $nonce $ajax_url $stats
 ?>
-<p style="color:#50575e;margin-bottom:6px;">Zdefiniuj klucze Dynamic Data. Uzywaj ich jako <code>{tl_klucz}</code> albo shortcode <code>[tl key="klucz"]</code>.</p><p style="color:#50575e;margin-bottom:6px;">Możesz użyć  <code>{tl:pl=Treść|en=Content|de=Content}</code> by tłumaczyć całe frazy.</p>
+<p style="color:#475569;margin-bottom:6px;">Zdefiniuj klucze Dynamic Data. Uzywaj ich jako <code>{tl_klucz}</code> albo shortcode <code>[tl key="klucz"]</code>.</p><p style="color:#475569;margin-bottom:6px;">Możesz użyć  <code>{tl:pl=Treść|en=Content|de=Content}</code> by tłumaczyć całe frazy.</p>
             <table class="lang-table" id="dd-keys-table">
                 <thead><tr><th style="width:180px;">Klucz</th><th>Fraza PL</th><th style="width:60px;"></th></tr></thead>
                 <tbody id="dd-keys-body">

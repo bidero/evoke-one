@@ -111,7 +111,7 @@ function evk_og_render_meta_box(WP_Post $post): void {
     $url         = get_post_meta($post->ID, '_evk_og_url', true);
 
     if (!has_post_thumbnail($post->ID)) {
-        echo '<p style="color:#d63638;font-size:12px;">Dodaj obrazek wyróżniający i zapisz wpis, aby wygenerować OG.</p>';
+        echo '<p style="color:#dc2626;font-size:12px;">Dodaj obrazek wyróżniający i zapisz wpis, aby wygenerować OG.</p>';
     } else {
         if ($url) {
             $preview_url = $url . '?v=' . time();
@@ -137,7 +137,7 @@ function evk_og_render_meta_box(WP_Post $post): void {
     echo '</div>';
 
     if ($is_disabled) {
-        echo '<p style="font-size:11px;color:#d63638;margin-top:5px;line-height:1.4;">⚠️ Generator jest pominięty. Używane jest oryginalne zdjęcie z biblioteki.</p>';
+        echo '<p style="font-size:11px;color:#dc2626;margin-top:5px;line-height:1.4;">⚠️ Generator jest pominięty. Używane jest oryginalne zdjęcie z biblioteki.</p>';
     }
 
     // Link do ustawień

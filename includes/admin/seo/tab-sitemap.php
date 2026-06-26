@@ -33,14 +33,14 @@ if (!defined('ABSPATH')) exit;
                         <input type="checkbox" class="tl-sm-excluded-id" value="<?php echo esc_attr($sm_post->ID); ?>" <?php checked(in_array((int) $sm_post->ID, $excluded_ids, true)); ?>>
                         <span style="min-width:42px;color:#64748b;font-size:11px;text-transform:uppercase;"><?php echo esc_html($sm_post->post_type); ?></span>
                         <strong style="flex:1;"><?php echo esc_html(get_the_title($sm_post) ?: '(bez tytułu)'); ?></strong>
-                        <code style="color:#50575e;"><?php echo esc_html($sm_post->post_name); ?></code>
+                        <code style="color:#475569;"><?php echo esc_html($sm_post->post_name); ?></code>
                         <span style="color:#94a3b8;">#<?php echo esc_html($sm_post->ID); ?></span>
                     </label>
                     <?php endforeach; ?>
                 </div>
             </div>
 
-            <p style="color:#50575e;margin-bottom:16px;font-size:13px;">
+            <p style="color:#475569;margin-bottom:16px;font-size:13px;">
                 Sprawdź: <a href="<?php echo esc_url(home_url('/wp-sitemap.xml')); ?>" target="_blank">wp-sitemap.xml</a>
             </p>
 
@@ -67,7 +67,7 @@ if (!defined('ABSPATH')) exit;
             <?php if (empty($noindex_found)): ?>
                 <p style="font-size:13px;color:#6b7280;">Żadna strona nie została wykryta jako noindex.</p>
             <?php else: ?>
-                <div style="background:#fff;border:1px solid #dcdcde;border-radius:6px;overflow:hidden;">
+                <div style="background:#fff;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;">
                     <?php foreach ($noindex_found as $pid => $keys): ?>
                     <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-bottom:1px solid #f0f0f1;font-size:13px;">
                         <strong style="min-width:180px;"><a href="<?php echo esc_url(get_edit_post_link($pid)); ?>" target="_blank"><?php echo esc_html(get_the_title($pid)); ?></a> <span style="color:#94a3b8;">#<?php echo $pid; ?></span></strong>

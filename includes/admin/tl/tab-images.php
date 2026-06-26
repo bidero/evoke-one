@@ -2,7 +2,7 @@
 if (!defined('ABSPATH')) exit;
 // Evoke ONE — TL tab content. Zmienne z tl_render_page(): $data $langs $codes $tab $base $nonce $ajax_url $stats
 ?>
-<p style="color:#50575e;margin-bottom:16px;">Wybierz bazowy obrazek PL, a nastepnie przypisz mu alternatywne wersje dla innych jezykow.</p>
+<p style="color:#475569;margin-bottom:16px;">Wybierz bazowy obrazek PL, a nastepnie przypisz mu alternatywne wersje dla innych jezykow.</p>
             <div class="tl-img-grid" id="img-grid">
             <?php foreach ($images as $key => $entry): ?>
                 <div class="tl-img-card" data-key="<?php echo esc_attr($key); ?>">

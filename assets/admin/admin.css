@@ -52,7 +52,7 @@
 .evo-field textarea           { width: 100%; max-width: 100%; min-height: 90px; resize: vertical; font-size: 13px; line-height: 1.6; }
 
 /* Info box */
-.evo-info-box { background: #f8fafc; border: 1px solid #d7dde7; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #374151; margin-bottom: 20px; display: flex; gap: 10px; align-items: flex-start; }
+.evo-info-box { background: #f8fafc; border: 1px solid #d7dde7; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #374151; margin-bottom: 20px; display: flex; gap: 10px; align-items: flex-start; }
 .evo-info-box .dashicons { color: #2563eb; flex-shrink: 0; margin-top: 1px; }
 .evo-info-box code { background: #eef2ff; color: #3730a3; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
@@ -80,7 +80,7 @@
 .evo-sm-box { background: #f8fafc; border: 1px solid #d7dde7; border-radius: 8px; padding: 18px 20px; margin-bottom: 16px; }
 .evo-sm-box h3 { margin: 0 0 8px; font-size: 14px; color: #111827; }
 .evo-sm-box label { display: block; margin: 8px 0; font-size: 13px; }
-.evo-sm-excluded-list { max-height: 320px; overflow: auto; background: #fff; border: 1px solid #dcdcde; border-radius: 6px; padding: 8px 12px; margin-top: 10px; }
+.evo-sm-excluded-list { max-height: 320px; overflow: auto; background: #fff; border: 1px solid #d7dde7; border-radius: 6px; padding: 8px 12px; margin-top: 10px; }
 .evo-sm-excluded-list label { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f0f0f1; font-size: 13px; }
 
 /* IO tab */
@@ -106,7 +106,7 @@
 .evo-modal-bg.open { display: flex; }
 .evo-modal { background: #fff; border-radius: 12px; padding: 28px 28px 22px; max-width: 560px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
 .evo-modal h3 { margin: 0 0 6px; font-size: 16px; color: #111827; }
-.evo-modal p  { margin: 0 0 18px; font-size: 13px; color: #50575e; line-height: 1.6; }
+.evo-modal p  { margin: 0 0 18px; font-size: 13px; color: #475569; line-height: 1.6; }
 .evo-modal-modules { display: flex; flex-direction: column; gap: 0; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 20px; max-height: 340px; overflow-y: auto; }
 .evo-modal-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #f0f0f1; font-size: 13px; background: #fff; }
 .evo-modal-row:last-child { border-bottom: 0; }
@@ -473,3 +473,67 @@
 
 /* Fix WP footer — nie nakłada się na treść */
 #wpcontent { padding-bottom: 40px !important; }
+
+/* =========================================================================
+   EVK DESIGN HARMONIZATION — spójność z Evoke FIELDS
+   Akcent #2563eb, radius przycisków 7px / pól 6px / kart 10–12px.
+   admin.css ładuje się na wszystkich ekranach Evoke ONE (Ustawienia,
+   Tłumaczenia, Newsletter, Wiadomości), więc te reguły harmonizują chrome
+   całej wtyczki. Scope `.wrap` chroni modal mediów i inne ekrany WP.
+   ========================================================================= */
+
+/* ── Przyciski — radius 7px, primary w akcencie Evoke ── */
+.wrap .button,
+.wrap .button-secondary { border-radius: 7px; }
+.wrap .button-primary {
+    background: #2563eb;
+    border-color: #2563eb;
+    box-shadow: none;
+    text-shadow: none;
+    border-radius: 7px;
+    font-weight: 600;
+}
+.wrap .button-primary:hover,
+.wrap .button-primary:focus { background: #1d4ed8; border-color: #1d4ed8; }
+.wrap .button:focus { border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb; }
+
+/* Ikona (dashicon) w przycisku zawsze w jednej linii z tekstem */
+.wrap .button:has(> .dashicons) { display: inline-flex; align-items: center; gap: 6px; }
+.wrap .button > .dashicons {
+    font-size: 16px; width: 16px; height: 16px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+/* ── Pola formularzy — radius 6px + niebieski focus ring (jak FIELDS) ── */
+.wrap input[type=text],
+.wrap input[type=search],
+.wrap input[type=url],
+.wrap input[type=email],
+.wrap input[type=number],
+.wrap input[type=password],
+.wrap input[type=tel],
+.wrap input[type=date],
+.wrap input[type=time],
+.wrap input[type=datetime-local],
+.wrap select,
+.wrap textarea { border-radius: 6px; }
+
+.wrap input[type=text]:focus,
+.wrap input[type=search]:focus,
+.wrap input[type=url]:focus,
+.wrap input[type=email]:focus,
+.wrap input[type=number]:focus,
+.wrap input[type=password]:focus,
+.wrap input[type=tel]:focus,
+.wrap input[type=date]:focus,
+.wrap input[type=time]:focus,
+.wrap input[type=datetime-local]:focus,
+.wrap select:focus,
+.wrap textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    outline: none;
+}
+
+/* ── Karty WP (postbox) — radius i ramka jak FIELDS ── */
+.wrap .postbox { border: 1px solid #d7dde7; border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.05); }

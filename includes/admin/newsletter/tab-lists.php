@@ -17,7 +17,7 @@ $base_url    = admin_url('options-general.php?page=evoke-one&tab=newsletter&subt
 .evk-nl-badge-count{font-size:11px;background:#e2e8f0;padding:1px 7px;border-radius:99px;color:#64748b;}
 .evk-nl-label{display:block;margin-bottom:5px;font-size:12px;font-weight:600;color:#374151;}
 .evk-nl-label-mt{margin-top:12px;}
-.evk-nl-btn-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;min-height:28px;border-radius:4px;cursor:pointer;border:1px solid #c3c4c7;background:#f6f7f7;}
+.evk-nl-btn-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;min-height:28px;border-radius:4px;cursor:pointer;border:1px solid #cbd5e1;background:#f8fafc;}
 .evk-nl-btn-icon .dashicons{font-size:14px;width:14px;height:14px;line-height:1;}
 .evk-nl-bulk-bar{display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;}
 .evk-nl-tbl{width:100%;border-collapse:collapse;font-size:12px;}

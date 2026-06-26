@@ -31,9 +31,9 @@ if (!defined('ABSPATH')) exit;
                         <td>pl-PL</td>
                         <td>
                             <?php if ($pl_flag_url): ?>
-                            <img src="<?php echo esc_url($pl_flag_url); ?>" class="tl-lang-flag-preview" data-att="<?php echo esc_attr($pl_flag_id); ?>" style="width:32px;height:20px;object-fit:cover;border-radius:2px;border:1px solid #dcdcde;cursor:pointer;" onclick="tlOpenLangFlag(this,'pl')">
+                            <img src="<?php echo esc_url($pl_flag_url); ?>" class="tl-lang-flag-preview" data-att="<?php echo esc_attr($pl_flag_id); ?>" style="width:32px;height:20px;object-fit:cover;border-radius:2px;border:1px solid #d1d5db;cursor:pointer;" onclick="tlOpenLangFlag(this,'pl')">
                             <?php else: ?>
-                            <div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #c3c4c7;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#a7aaad;font-size:12px;" onclick="tlOpenLangFlag(this,'pl')">+</div>
+                            <div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #cbd5e1;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:12px;" onclick="tlOpenLangFlag(this,'pl')">+</div>
                             <?php endif; ?>
                         </td>
                         <td></td>
@@ -49,9 +49,9 @@ if (!defined('ABSPATH')) exit;
                         <td><input type="text" class="lang-html" value="<?php echo esc_attr($lang['html']); ?>" placeholder="en-GB"></td>
                         <td>
                             <?php if ($flag_url): ?>
-                            <img src="<?php echo esc_url($flag_url); ?>" class="tl-lang-flag-preview" data-att="<?php echo esc_attr($flag_id); ?>" style="width:32px;height:20px;object-fit:cover;border-radius:2px;border:1px solid #dcdcde;cursor:pointer;" onclick="tlOpenLangFlag(this)">
+                            <img src="<?php echo esc_url($flag_url); ?>" class="tl-lang-flag-preview" data-att="<?php echo esc_attr($flag_id); ?>" style="width:32px;height:20px;object-fit:cover;border-radius:2px;border:1px solid #d1d5db;cursor:pointer;" onclick="tlOpenLangFlag(this)">
                             <?php else: ?>
-                            <div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #c3c4c7;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#a7aaad;font-size:12px;" onclick="tlOpenLangFlag(this)">+</div>
+                            <div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #cbd5e1;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:12px;" onclick="tlOpenLangFlag(this)">+</div>
                             <?php endif; ?>
                         </td>
                         <td><button type="button" class="button-link-delete" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();">Usun</button></td>

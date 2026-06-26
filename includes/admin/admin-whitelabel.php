@@ -60,7 +60,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 
 <style>
 .evk-drag-handle { cursor: grab !important; color: #bbb; transition: color .15s; }
-.evk-drag-handle:hover { color: #2271b1 !important; }
+.evk-drag-handle:hover { color: #2563eb !important; }
 .evk-drag-chosen { box-shadow: 0 3px 16px rgba(0,0,0,.18) !important; z-index: 999; }
 .evk-drag-ghost  { opacity: .35; background: #e8f0fe !important; }
 .evk-bar-row     { transition: background .15s; }
@@ -287,7 +287,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     <?php foreach ($bar_nodes as $node_id => $node_label):
         $checked = in_array($node_id, (array)($wl['bar_nodes_hidden'] ?? []), true);
     ?>
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:7px 10px;background:var(--evo-surface,#f8f8f8);border-radius:4px;border:1px solid <?php echo $checked ? '#2271b1' : 'transparent'; ?>">
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:7px 10px;background:var(--evo-surface,#f8f8f8);border-radius:4px;border:1px solid <?php echo $checked ? '#2563eb' : 'transparent'; ?>">
         <input type="checkbox" name="evk_white_label[bar_nodes_hidden][]" value="<?php echo esc_attr($node_id); ?>" <?php checked($checked); ?>>
         <span style="flex:1;"><?php echo esc_html($node_label); ?></span>
         <code style="font-size:10px;opacity:.4;"><?php echo esc_html($node_id); ?></code>
@@ -400,7 +400,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             color: #6b7280; font-style: italic; opacity: 1;
         }
         .evk-sm-handle { cursor: grab; color: #bbb; flex-shrink: 0; font-size: 16px; }
-        .evk-sm-handle:hover { color: #2271b1; }
+        .evk-sm-handle:hover { color: #2563eb; }
         .evk-sm-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .evk-sm-rename { width: 200px; font-size: 12px; flex-shrink: 0; }
         .evk-sm-eye {
@@ -409,7 +409,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             transition: color .15s;
         }
         .evk-sm-eye.is-hidden { color: #e0e0e0; }
-        .evk-sm-eye:not(.is-hidden) { color: #2271b1; }
+        .evk-sm-eye:not(.is-hidden) { color: #2563eb; }
         .evk-sm-remove { background: none; border: none; color: #ef4444; cursor: pointer; padding: 0; font-size: 16px; line-height: 1; flex-shrink: 0; }
         .evk-sm-remove:hover { color: #b91c1c; }
         @keyframes evk-rotation { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -610,7 +610,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         </button>
     </div>
 
-    <div style="margin-top:14px;padding:10px 14px;background:#f0f6fc;border-left:3px solid #2271b1;border-radius:0 4px 4px 0;font-size:12px;color:#444;line-height:1.7;">
+    <div style="margin-top:14px;padding:10px 14px;background:#eff6ff;border-left:3px solid #2563eb;border-radius:0 4px 4px 0;font-size:12px;color:#444;line-height:1.7;">
         <strong>Jak stworzyć dropdown:</strong>
         1. "Dodaj Dropdown" → ustaw nazwę, ID np. <code>moje-menu</code><br>
         2. "Dodaj Element" → nazwa, URL, w <em>Parent ID</em> wpisz: <code>moje-menu</code>
@@ -628,7 +628,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     font-size: 14px !important; cursor: pointer; flex-shrink: 0;
     opacity: .45; transition: opacity .15s, color .15s;
 }
-.evk-color-reset.is-set   { opacity: 1; color: #2271b1 !important; }
+.evk-color-reset.is-set   { opacity: 1; color: #2563eb !important; }
 .evk-color-reset.is-reset { opacity: .7; color: #b32d2e !important; text-decoration: line-through; }
 input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed #b32d2e; }
 </style>
@@ -759,11 +759,11 @@ function makeRow(item) {
         padding:      '7px 10px',
         background:   isParent ? '#eef3fb' : 'var(--evo-surface,#f8f8f8)',
         borderRadius: '4px',
-        borderLeft:   isParent ? '3px solid #2271b1' : '3px solid #ddd',
+        borderLeft:   isParent ? '3px solid #2563eb' : '3px solid #ddd',
     });
 
     var badge = isParent
-        ? '<span style="font-size:11px;font-weight:700;color:#2271b1;white-space:nowrap;min-width:76px;flex-shrink:0;">▼ DROPDOWN</span>'
+        ? '<span style="font-size:11px;font-weight:700;color:#2563eb;white-space:nowrap;min-width:76px;flex-shrink:0;">▼ DROPDOWN</span>'
         : '<span style="font-size:11px;color:#888;white-space:nowrap;min-width:76px;flex-shrink:0;">→ ELEMENT</span>';
 
     var idField = isParent
@@ -801,7 +801,7 @@ function makeRow(item) {
     $row.find('.evk-f-icon').on('input', function(){
         var cls = $(this).val().trim();
         var $p  = $(this).next('.evk-icon-prev');
-        if (!$p.length) $p = $('<span class="evk-icon-prev dashicons" style="font-size:18px;color:#2271b1;flex-shrink:0;"></span>').insertAfter($(this));
+        if (!$p.length) $p = $('<span class="evk-icon-prev dashicons" style="font-size:18px;color:#2563eb;flex-shrink:0;"></span>').insertAfter($(this));
         $p.attr('class', 'evk-icon-prev dashicons ' + cls);
     });
 

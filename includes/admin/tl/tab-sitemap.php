@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) exit;
 
             <div class="tl-menu-settings">
                 <h3>Zawartość mapy strony</h3>
-                <p style="margin-bottom:14px;color:#50575e;">Wybierz adresy, które wtyczka ma dopisać do <code>wp-sitemap.xml</code>.</p>
+                <p style="margin-bottom:14px;color:#475569;">Wybierz adresy, które wtyczka ma dopisać do <code>wp-sitemap.xml</code>.</p>
                 <label style="display:block;margin:10px 0;">
                     <input type="checkbox" id="tl-sm-enabled" <?php checked(!empty($sitemap_settings['enabled'])); ?>>
                     Włącz sekcję tłumaczeń w <code>wp-sitemap.xml</code>
@@ -51,21 +51,21 @@ if (!defined('ABSPATH')) exit;
 
             <div class="tl-menu-settings" style="max-width:900px;">
                 <h3>Wykluczone strony i wpisy</h3>
-                <p style="margin-bottom:14px;color:#50575e;">Zaznaczone pozycje nie trafią do mapy tłumaczeń ani do standardowych sekcji postów WordPressa.</p>
-                <div style="max-height:360px;overflow:auto;background:#fff;border:1px solid #dcdcde;border-radius:4px;padding:8px 12px;">
+                <p style="margin-bottom:14px;color:#475569;">Zaznaczone pozycje nie trafią do mapy tłumaczeń ani do standardowych sekcji postów WordPressa.</p>
+                <div style="max-height:360px;overflow:auto;background:#fff;border:1px solid #d1d5db;border-radius:4px;padding:8px 12px;">
                     <?php foreach ($sitemap_posts as $sm_post): ?>
                     <label style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f1;">
                         <input type="checkbox" class="tl-sm-excluded-id" value="<?php echo esc_attr($sm_post->ID); ?>" <?php checked(in_array((int) $sm_post->ID, $excluded_ids, true)); ?>>
-                        <span style="min-width:48px;color:#787c82;font-size:11px;text-transform:uppercase;"><?php echo esc_html($sm_post->post_type); ?></span>
+                        <span style="min-width:48px;color:#64748b;font-size:11px;text-transform:uppercase;"><?php echo esc_html($sm_post->post_type); ?></span>
                         <strong style="flex:1;"><?php echo esc_html(get_the_title($sm_post) ?: '(bez tytułu)'); ?></strong>
-                        <code style="color:#50575e;"><?php echo esc_html($sm_post->post_name); ?></code>
-                        <span style="color:#a7aaad;">#<?php echo esc_html($sm_post->ID); ?></span>
+                        <code style="color:#475569;"><?php echo esc_html($sm_post->post_name); ?></code>
+                        <span style="color:#94a3b8;">#<?php echo esc_html($sm_post->ID); ?></span>
                     </label>
                     <?php endforeach; ?>
                 </div>
             </div>
 
-            <p style="color:#50575e;margin:0 0 16px;">
+            <p style="color:#475569;margin:0 0 16px;">
                 Po zapisie sprawdź: <a href="<?php echo esc_url(home_url('/wp-sitemap.xml')); ?>" target="_blank" rel="noopener">wp-sitemap.xml</a>
             </p>
 

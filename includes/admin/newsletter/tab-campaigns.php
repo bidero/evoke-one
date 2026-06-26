@@ -40,7 +40,7 @@ $status_labels = [
 .evk-nl-label{display:block;margin-bottom:5px;font-size:12px;font-weight:600;color:#374151;}
 .evk-nl-label-mt{margin-top:14px;}
 .evk-nl-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:16px;}
-.evk-nl-btn-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;min-height:28px;border-radius:4px;cursor:pointer;border:1px solid #c3c4c7;background:#f6f7f7;text-decoration:none;}
+.evk-nl-btn-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;min-height:28px;border-radius:4px;cursor:pointer;border:1px solid #cbd5e1;background:#f8fafc;text-decoration:none;}
 .evk-nl-btn-icon:hover{background:#f0f0f1;border-color:#8c8f94;}
 .evk-nl-btn-icon .dashicons{font-size:14px;width:14px;height:14px;line-height:1;}
 .evk-nl-tbl{width:100%;border-collapse:collapse;font-size:12px;}

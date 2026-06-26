@@ -76,7 +76,7 @@ if (!defined('ABSPATH')) exit;
                 <?php if (empty($active_blocks)): ?>
                     <p style="color:#6b7280;font-size:13px;">Brak zablokowanych adresów IP.</p>
                 <?php else: ?>
-                    <div style="background:#fff;border:1px solid #dcdcde;border-radius:6px;overflow:hidden;margin-bottom:16px;">
+                    <div style="background:#fff;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;margin-bottom:16px;">
                         <table class="wp-list-table widefat fixed striped" style="border:none;">
                             <thead>
                                 <tr>

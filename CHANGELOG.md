@@ -1,0 +1,34 @@
+# Changelog — Evoke ONE
+
+Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
+
+## [1.10.0] — 2026-06-26
+
+### Zmienione
+
+- **Ujednolicenie wyglądu z Evoke FIELDS (design system).** Cały panel admina
+  dopasowany do tego samego języka wizualnego co wtyczka Evoke FIELDS:
+  akcent `#2563eb`/`#1d4ed8`, zaokrąglenia przycisków 7px, pól 6px, kart 10–12px,
+  spójne ramki (`#d7dde7`/`#d1d5db`), niebieski focus ring `0 0 0 3px rgba(37,99,235,.12)`,
+  ikony (dashicony) zawsze w jednej linii z tekstem przycisku.
+- **Globalna warstwa stylów** w `assets/admin/admin.css` (scope `.wrap`) — harmonizuje
+  przyciski, pola i karty na **wszystkich** ekranach Evoke ONE: Ustawienia, Tłumaczenia,
+  Newsletter, Wiadomości. (`assets/admin/admin.css`)
+- **Moduł Tłumaczenia — przebudowa stylów.** Usunięto resztki palety WordPress-admin
+  (`#2271b1`, `#3858e9`, `#c3c4c7`, `#dcdcde`, `#50575e`…) i zdublowany blok „v3 polish".
+  Zakładki to teraz pille EVK, karty/info-boxy/tabele/pola w tokenach FIELDS, zaokrąglenia
+  3–4px podniesione do 6–10px, focus ring 1px → 3px. (`includes/admin/tl/render.php`
+  oraz `tab-dd/tab-images/tab-io/tab-languages/tab-sitemap/tab-slugs/tab-translations.php`,
+  `includes/admin/tl/js-admin.php`)
+- **Frontendowy edytor tłumaczeń** (FAB + panel) przeniesiony na akcent Evoke `#2563eb`
+  zamiast `#3858e9`. (`includes/41-frontend-inline-editor.php`)
+- **Pozostałe moduły** (SEO, Newsletter, Bezpieczeństwo, White Label, OpenGraph,
+  Narzędzia) — drobne kolory chrome (ramki/teksty/linki/błędy) zmapowane na tokeny FIELDS.
+  W White Label **zachowano** domyślne wartości próbników kolorów (to dane funkcji = realne
+  domyślne kolory menu WordPressa, nie chrome panelu).
+
+### Uwagi
+
+- `includes/admin/tab-other.php` jest plikiem osieroconym (nigdzie nie `require`-owany)
+  i zawiera istniejący wcześniej błąd składni (`?>` w linii 8 zamyka PHP). Nie wpływa na
+  działanie wtyczki; do decyzji: usunąć albo naprawić.
