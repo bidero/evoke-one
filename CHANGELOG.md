@@ -2,6 +2,14 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.11.1] — 2026-06-26
+
+### Zmienione
+
+- **White Label — domyślny stan akordeonów.** Na starcie otwarta jest tylko pierwsza
+  karta („Logo, branding i czcionka"), pozostałe 10 jest zwiniętych (wcześniej buildery
+  startowały otwarte). (`includes/admin/admin-whitelabel.php`)
+
 ## [1.11.0] — 2026-06-26
 
 ### Dodane

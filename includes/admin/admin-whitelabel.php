@@ -318,7 +318,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 </div><!-- /akordeony -->
 
 <!-- WĘZŁY — widoczność -->
-<details class="evk-acc" open>
+<details class="evk-acc">
     <summary><span class="dashicons dashicons-visibility"></span> Pasek górny — widoczność węzłów</summary>
     <div class="evk-acc-body">
 <div style="margin-top:28px;">
@@ -339,7 +339,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div></details>
 
 <!-- WĘZŁY — własne (dodawanie własnych node ID) -->
-<details class="evk-acc" open>
+<details class="evk-acc">
     <summary><span class="dashicons dashicons-plus-alt"></span> Pasek górny — własne węzły</summary>
     <div class="evk-acc-body">
 <div style="margin-top:16px;">
@@ -389,7 +389,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div></details>
 
 <!-- WĘZŁY — kolejność (CSS order / flexbox) -->
-<details class="evk-acc" open>
+<details class="evk-acc">
     <summary><span class="dashicons dashicons-sort"></span> Pasek górny — kolejność węzłów</summary>
     <div class="evk-acc-body">
 <div style="margin-top:24px;">
@@ -427,7 +427,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div></details>
 
 <!-- MENU BOCZNE — połączona sekcja: kolejność + ukrywanie + nazwy -->
-<details class="evk-acc" open>
+<details class="evk-acc">
     <summary><span class="dashicons dashicons-menu"></span> Menu boczne — kolejność, ukrywanie, nazwy</summary>
     <div class="evk-acc-body">
 <div style="margin-top:28px;padding-top:24px;border-top:1px solid var(--evo-border,#e0e0e0);">
@@ -646,7 +646,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div></details>
 
 <!-- WŁASNE MENU PASKA — wewnątrz tej samej formy -->
-<details class="evk-acc" open>
+<details class="evk-acc">
     <summary><span class="dashicons dashicons-admin-links"></span> Pasek górny — własne pozycje i podmenu</summary>
     <div class="evk-acc-body">
 <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--evo-border,#e0e0e0);">
