@@ -68,6 +68,21 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 .evk-order-row   { display: flex; align-items: center; gap: 8px; padding: 6px 10px;
                    background: var(--evo-surface,#f8f8f8); border-radius: 4px; font-size: 13px; }
 .evk-order-row input[type=number] { width: 56px; text-align: center; }
+
+/* Akordeony White Label (karty w stylu Evoke FIELDS) */
+.evk-wl-acc-wrap { display: flex; flex-direction: column; }
+.evk-acc { border: 1px solid #d7dde7; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.05); overflow: hidden; margin-bottom: 14px; }
+.evk-acc > summary { display: flex; align-items: center; gap: 10px; padding: 14px 18px; cursor: pointer; font-size: 14px; font-weight: 700; color: #111827; list-style: none; user-select: none; transition: background .15s; }
+.evk-acc > summary:hover { background: #f8fafc; }
+.evk-acc > summary::-webkit-details-marker { display: none; }
+.evk-acc > summary > .dashicons:first-child { color: #2563eb; font-size: 18px; width: 18px; height: 18px; }
+.evk-acc > summary::after { content: "\f347"; font-family: dashicons; font-size: 20px; color: #94a3b8; margin-left: auto; transition: transform .2s; }
+.evk-acc[open] > summary { border-bottom: 1px solid #eef0f2; }
+.evk-acc[open] > summary::after { transform: rotate(180deg); }
+.evk-acc-body { padding: 18px; }
+.evk-acc-body .evo-section-title:first-child { margin-top: 0; }
+/* Pole „Własny CSS" — większe, edytorskie */
+.evk-wl-css-area { width: 100%; min-height: 320px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.6; tab-size: 2; resize: vertical; }
 </style>
 
 <!-- JEDNA FORMA dla całego modułu White Label -->
@@ -99,10 +114,12 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div>
 </div>
 
-<!-- GRID 2-col -->
-<div class="evk-grid-2col" style="margin-top:24px;">
+<!-- USTAWIENIA — akordeony -->
+<div class="evk-wl-acc-wrap" style="margin-top:24px;">
 
-<div>
+<details class="evk-acc" open>
+    <summary><span class="dashicons dashicons-format-image"></span> Logo, branding i czcionka</summary>
+    <div class="evk-acc-body">
     <p class="evo-section-title">Logo</p>
     <div class="evo-field">
         <label>URL logo (PNG/SVG)</label>
@@ -157,6 +174,11 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         <p class="evo-desc" style="margin:4px 0 0;">Wpisz dokładną nazwę czcionki zarejestrowanej w Bricks (lub systemowej). Czcionka musi być już załadowana przez motyw.</p>
     </div>
 
+    </div></details>
+
+<details class="evk-acc">
+    <summary><span class="dashicons dashicons-admin-generic"></span> Pasek górny — wygląd</summary>
+    <div class="evk-acc-body">
     <p class="evo-section-title">Pasek górny — wygląd</p>
     <div class="evo-field">
         <label>Tytuł w pasku (zastępuje nazwę witryny)</label>
@@ -171,6 +193,11 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         <input type="color" data-field="color_admin_bar_link" data-saved="<?php echo esc_attr($wl['color_admin_bar_link'] ?? ''); ?>" name="evk_white_label[color_admin_bar_link]" value="<?php echo esc_attr($wl['color_admin_bar_link'] ?: '#00b9eb'); ?>">
     </div>
 
+    </div></details>
+
+<details class="evk-acc">
+    <summary><span class="dashicons dashicons-hidden"></span> Ogólne — ukryj elementy</summary>
+    <div class="evk-acc-body">
     <p class="evo-section-title">Ogólne — ukryj elementy</p>
     <?php foreach ([
         'hide_wp_logo'     => 'Logo WordPress w pasku górnym',
@@ -183,9 +210,11 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         <?php echo esc_html($lbl); ?>
     </label>
     <?php endforeach; ?>
-</div>
+    </div></details>
 
-<div>
+<details class="evk-acc">
+    <summary><span class="dashicons dashicons-menu-alt"></span> Kolory — menu boczne i podmenu</summary>
+    <div class="evk-acc-body">
     <p class="evo-section-title">Kolory — menu boczne</p>
     <div class="evk-grid-colors">
 
@@ -256,7 +285,12 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         </div>
     </div>
 
-    <p class="evo-section-title" style="margin-top:16px;">Kolory — sekcja główna</p>
+    </div></details>
+
+<details class="evk-acc">
+    <summary><span class="dashicons dashicons-admin-appearance"></span> Kolory — sekcja główna</summary>
+    <div class="evk-acc-body">
+    <p class="evo-section-title">Kolory — sekcja główna</p>
     <div class="evk-grid-colors">
         <div class="evo-field" style="margin:0;"><label style="font-size:11px;">Tło body (za panelem)</label>
             <input type="color" data-field="color_body_bg" data-saved="<?php echo esc_attr($wl['color_body_bg'] ?? ''); ?>" name="evk_white_label[color_body_bg]" value="<?php echo esc_attr($wl['color_body_bg'] ?: '#f0f0f1'); ?>"></div>
@@ -272,16 +306,22 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             <input type="color" data-field="color_notice_bg" data-saved="<?php echo esc_attr($wl['color_notice_bg'] ?? ''); ?>" name="evk_white_label[color_notice_bg]"    value="<?php echo esc_attr($wl['color_notice_bg']    ?: '#ffffff'); ?>"></div>
     </div>
 
-    <p class="evo-section-title">Własny CSS admina</p>
-    <div class="evo-field">
-        <textarea name="evk_white_label[custom_css_admin]" rows="5" style="width:100%;font-family:monospace;font-size:12px;" placeholder="/* własne style CSS dla /wp-admin/ */"><?php echo esc_textarea($wl['custom_css_admin']); ?></textarea>
+    </div></details>
+
+<details class="evk-acc">
+    <summary><span class="dashicons dashicons-editor-code"></span> Własny CSS admina</summary>
+    <div class="evk-acc-body">
+        <p class="evo-desc" style="margin:0 0 10px;">Style wstrzykiwane do <code>/wp-admin/</code>. Przeciągnij dolny róg pola, aby je powiększyć.</p>
+        <textarea name="evk_white_label[custom_css_admin]" class="evk-wl-css-area" placeholder="/* własne style CSS dla /wp-admin/ */"><?php echo esc_textarea($wl['custom_css_admin']); ?></textarea>
     </div>
-</div>
-</div><!-- /grid -->
+</details>
+</div><!-- /akordeony -->
 
 <!-- WĘZŁY — widoczność -->
+<details class="evk-acc" open>
+    <summary><span class="dashicons dashicons-visibility"></span> Pasek górny — widoczność węzłów</summary>
+    <div class="evk-acc-body">
 <div style="margin-top:28px;">
-    <p class="evo-section-title">Pasek górny — widoczność węzłów</p>
     <p class="evo-desc" style="margin-bottom:12px;">Zaznaczone węzły będą <strong>ukryte</strong> dla wszystkich użytkowników.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;">
     <?php foreach ($bar_nodes as $node_id => $node_label):
@@ -296,9 +336,14 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div>
 </div>
 
+    </div></details>
+
 <!-- WĘZŁY — własne (dodawanie własnych node ID) -->
+<details class="evk-acc" open>
+    <summary><span class="dashicons dashicons-plus-alt"></span> Pasek górny — własne węzły</summary>
+    <div class="evk-acc-body">
 <div style="margin-top:16px;">
-    <p class="evo-section-title">Pasek górny — własne węzły do ukrywania/kolejności</p>
+    <p class="evo-section-title" style="display:none;">Pasek górny — własne węzły do ukrywania/kolejności</p>
     <p class="evo-desc" style="margin-bottom:10px;">
         Dodaj ID węzłów spoza listy (np. z wtyczek). Wpisz ID i etykietę — pojawią się w sekcjach widoczności i kolejności powyżej/poniżej.
     </p>
@@ -341,9 +386,13 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 })(jQuery);
 </script>
 
+    </div></details>
+
 <!-- WĘZŁY — kolejność (CSS order / flexbox) -->
+<details class="evk-acc" open>
+    <summary><span class="dashicons dashicons-sort"></span> Pasek górny — kolejność węzłów</summary>
+    <div class="evk-acc-body">
 <div style="margin-top:24px;">
-    <p class="evo-section-title">Pasek górny — kolejność węzłów</p>
     <p class="evo-desc" style="margin-bottom:12px;">
         <strong>Strefa:</strong> lewa (<code>root-default</code>) lub prawa (<code>top-secondary</code>).
         <strong>Kolejność:</strong> niższa liczba = wcześniej w danej strefie. Zostaw <strong>0</strong> = domyślna kolejność WP.
@@ -375,9 +424,13 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </p>
 </div>
 
+    </div></details>
+
 <!-- MENU BOCZNE — połączona sekcja: kolejność + ukrywanie + nazwy -->
+<details class="evk-acc" open>
+    <summary><span class="dashicons dashicons-menu"></span> Menu boczne — kolejność, ukrywanie, nazwy</summary>
+    <div class="evk-acc-body">
 <div style="margin-top:28px;padding-top:24px;border-top:1px solid var(--evo-border,#e0e0e0);">
-    <p class="evo-section-title">Menu boczne</p>
     <p class="evo-desc" style="margin-bottom:14px;">
         Przeciągaj aby zmienić kolejność. <strong>Oko</strong> ukrywa pozycję dla nie-administratorów.
         Pole nazwy zastępuje oryginalny tytuł. Administratorzy zawsze widzą wszystko.
@@ -590,9 +643,13 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 })(jQuery);
 </script>
 
+    </div></details>
+
 <!-- WŁASNE MENU PASKA — wewnątrz tej samej formy -->
+<details class="evk-acc" open>
+    <summary><span class="dashicons dashicons-admin-links"></span> Pasek górny — własne pozycje i podmenu</summary>
+    <div class="evk-acc-body">
 <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--evo-border,#e0e0e0);">
-    <p class="evo-section-title">Pasek górny — własne pozycje i podmenu</p>
     <p class="evo-desc" style="margin-bottom:16px;">
         Dodaj własne linki. <strong>Dropdown (rodzic)</strong> tworzy rozwijane menu —
         element podmenu musi mieć w polu <em>Parent ID</em> wpisane ID rodzica.
@@ -616,6 +673,8 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         2. "Dodaj Element" → nazwa, URL, w <em>Parent ID</em> wpisz: <code>moje-menu</code>
     </div>
 </div>
+
+    </div></details>
 
 <hr class="evo-divider" style="margin-top:32px;">
 <div class="evo-save-bar"><?php submit_button('Zapisz White Label', 'primary', 'submit', false); ?></div>

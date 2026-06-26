@@ -2,6 +2,35 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.11.0] — 2026-06-26
+
+### Dodane
+
+- **White Label — akordeony.** Długa forma ustawień podzielona na 11 składanych kart
+  (`<details>`) w stylu kart Evoke FIELDS: Logo/branding/czcionka, Pasek górny (wygląd,
+  widoczność/własne/kolejność węzłów, własne pozycje i podmenu), Menu boczne, Kolory
+  (menu+podmenu / sekcja główna), Ukryj elementy, Własny CSS. (`includes/admin/admin-whitelabel.php`)
+- **Pole „Własny CSS admina" powiększone** — z `rows=5` na pole edytorskie (min. 320px,
+  monospace, rozciągane w pionie). (`includes/admin/admin-whitelabel.php`)
+
+### Zmienione
+
+- **Ikony przy przyciskach w całym module Tłumaczeń** (jak w Evoke FIELDS) — „Dodaj
+  frazę/grupę/język/slug/obrazek", „Zapisz…", „Eksportuj", „Rozwiń/Zwiń", „Wykryj slugi"
+  dostały dashicony. (`includes/admin/tl/*.php`, `js-admin.php`)
+- **Akcje wiersza jako ikon-buttony** — „Duplikuj/Usuń frazę", „Usuń" (język/slug/obrazek)
+  zamienione z przycisków tekstowych na kwadratowe ikon-buttony 30×30 (trash na czerwono na
+  hover) — spójne z akcjami grupy. (`includes/admin/tl/tab-translations.php`, `tab-languages.php`,
+  `tab-slugs.php`, `tab-dd.php`, `tab-images.php`, `js-admin.php`)
+- **Jaśniejsze linie pól** — globalny `border-color:#d1d5db` dla inputów/selectów/textarea
+  (zamiast ciemnego WP `#8c8f94`), jak w Evoke FIELDS. (`assets/admin/admin.css`)
+
+### Naprawione
+
+- **Krzywe ikony w przyciskach** — usunięto inline-hacki (`margin-top:-20px`,
+  `vertical-align`), które psuły centrowanie glifu; ikona jest teraz w jednej linii z tekstem.
+  (`includes/admin/tab-io.php`, `includes/admin/tl/tab-io.php`, `includes/admin/other-tlumaczenia.php`)
+
 ## [1.10.0] — 2026-06-26
 
 ### Zmienione

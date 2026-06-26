@@ -26,19 +26,19 @@ if (!defined('ABSPATH')) exit;
                     <?php foreach ($codes as $code): ?>
                     <td><input type="text" class="slug-input slug-<?php echo esc_attr($code); ?>" value="<?php echo esc_attr($slug_entry[$code] ?? ''); ?>" placeholder="np. about-us"></td>
                     <?php endforeach; ?>
-                    <td><button type="button" class="button-link-delete" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();">Usuń</button></td>
+                    <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń slug" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>
                 </tr>
                 <?php endforeach; ?>
                 </tbody>
             </table>
 
             <div style="margin:12px 0;">
-                <button type="button" class="button" onclick="tlAddSlugRow()">+ Dodaj slug</button>
-                <button type="button" class="button" onclick="tlAutoDetectSlugs()" style="margin-left:10px;">Wykryj slugi stron</button>
+                <button type="button" class="button" onclick="tlAddSlugRow()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj slug</button>
+                <button type="button" class="button" onclick="tlAutoDetectSlugs()" style="margin-left:10px;"><span class="dashicons dashicons-search"></span> Wykryj slugi stron</button>
             </div>
 
             <div class="tl-save-bar">
-                <button type="button" class="button button-primary" onclick="tlSaveSlugs()">Zapisz slugi URL</button>
+                <button type="button" class="button button-primary" onclick="tlSaveSlugs()"><span class="dashicons dashicons-saved"></span> Zapisz slugi URL</button>
                 <span class="tl-save-status" id="save-status-slugs"></span>
             </div>
 
@@ -51,7 +51,7 @@ if (!defined('ABSPATH')) exit;
                     CODES.forEach(function(code) {
                         cells += '<td><input type="text" class="slug-input slug-' + code + '" placeholder=""></td>';
                     });
-                    cells += '<td><button type="button" class="button-link-delete" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();">Usuń</button></td>';
+                    cells += '<td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń slug" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();"></button></td>';
                     $('#slug-body').append('<tr class="slug-row">' + cells + '</tr>');
                     tlMarkDirty();
                 };

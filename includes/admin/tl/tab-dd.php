@@ -26,14 +26,14 @@ if (!defined('ABSPATH')) exit;
                             <?php endforeach; ?>
                         </select>
                     </td>
-                    <td><button type="button" class="button-link-delete" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();">Usun</button></td>
+                    <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>
                 </tr>
                 <?php endforeach; ?>
                 </tbody>
             </table>
-            <div style="margin:12px 0;"><button type="button" class="button" onclick="tlDDAddRow()">+ Dodaj klucz</button></div>
+            <div style="margin:12px 0;"><button type="button" class="button" onclick="tlDDAddRow()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj klucz</button></div>
             <div class="tl-save-bar">
-                <button type="button" class="button button-primary" onclick="tlSaveDDKeys()">Zapisz klucze DD</button>
+                <button type="button" class="button button-primary" onclick="tlSaveDDKeys()"><span class="dashicons dashicons-saved"></span> Zapisz klucze DD</button>
                 <span class="tl-save-status" id="save-status-dd"></span>
             </div>
             <script>
@@ -41,7 +41,7 @@ if (!defined('ABSPATH')) exit;
                 const ALL_PL_PHRASES = <?php echo wp_json_encode($all_pl_phrases, JSON_UNESCAPED_UNICODE); ?>;
                 window.tlDDAddRow = function() {
                     const opts = ALL_PL_PHRASES.map(function(p){ const safe=String(p).replace(/"/g,'&quot;'); const label=p.length>80?p.slice(0,77)+'...':p; return `<option value="${safe}">${label}</option>`; }).join('');
-                    $('#dd-keys-body').append(`<tr class="dd-key-row"><td><input type="text" class="dd-key-input" placeholder="np. btn_kontakt" style="width:100%;font-family:monospace;"></td><td><select class="dd-phrase-select" style="width:100%;"><option value="">- wybierz fraze -</option>${opts}</select></td><td><button type="button" class="button-link-delete" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();">Usun</button></td></tr>`);
+                    $('#dd-keys-body').append(`<tr class="dd-key-row"><td><input type="text" class="dd-key-input" placeholder="np. btn_kontakt" style="width:100%;font-family:monospace;"></td><td><select class="dd-phrase-select" style="width:100%;"><option value="">- wybierz fraze -</option>${opts}</select></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td></tr>`);
                     tlMarkDirty();
                 };
                 window.tlSaveDDKeys = function() {

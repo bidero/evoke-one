@@ -516,7 +516,7 @@
 .wrap input[type=time],
 .wrap input[type=datetime-local],
 .wrap select,
-.wrap textarea { border-radius: 6px; }
+.wrap textarea { border: 1px solid #d1d5db; border-radius: 6px; }
 
 .wrap input[type=text]:focus,
 .wrap input[type=search]:focus,

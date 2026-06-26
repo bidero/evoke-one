@@ -54,13 +54,13 @@ if (!defined('ABSPATH')) exit;
                             <div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #cbd5e1;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:12px;" onclick="tlOpenLangFlag(this)">+</div>
                             <?php endif; ?>
                         </td>
-                        <td><button type="button" class="button-link-delete" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();">Usun</button></td>
+                        <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń język" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
             <div class="tl-footer">
-                <button type="button" class="button" onclick="tlAddLang()">+ Dodaj jezyk</button>
-                <button type="button" class="button button-primary" onclick="tlSaveSettings()">Zapisz ustawienia</button>
+                <button type="button" class="button" onclick="tlAddLang()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj język</button>
+                <button type="button" class="button button-primary" onclick="tlSaveSettings()"><span class="dashicons dashicons-saved"></span> Zapisz ustawienia</button>
                 <span class="tl-save-status" id="save-status-settings"></span>
             </div>

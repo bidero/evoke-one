@@ -19,15 +19,15 @@ if (!defined('ABSPATH')) exit;
                         <?php else: ?>
                         <div class="tl-img-preview-empty" data-lang="<?php echo esc_attr($code); ?>" data-att="0" onclick="tlOpenMedia(this,'<?php echo esc_js($code); ?>')">+</div>
                         <?php endif; ?>
-                        <button type="button" class="button" onclick="tlOpenMedia(this.previousElementSibling,'<?php echo esc_js($code); ?>')"><?php echo $att_id?'Zmien':'Wybierz'; ?></button>
-                        <?php if ($att_id): ?><button type="button" class="button-link-delete" style="font-size:12px;" onclick="tlRemoveImage(this,'<?php echo esc_js($code); ?>')">Usun</button><?php endif; ?>
+                        <button type="button" class="button" onclick="tlOpenMedia(this.previousElementSibling,'<?php echo esc_js($code); ?>')"><span class="dashicons dashicons-format-image"></span> <?php echo $att_id?'Zmień':'Wybierz'; ?></button>
+                        <?php if ($att_id): ?><button type="button" class="button button-icon dashicons dashicons-no-alt button-link-delete" title="Usuń obrazek" onclick="tlRemoveImage(this,'<?php echo esc_js($code); ?>')"></button><?php endif; ?>
                     </div>
                     <?php endforeach; ?>
                 </div>
             <?php endforeach; ?>
             </div>
-            <div style="margin-top:16px;margin-bottom:12px;"><button type="button" class="button button-secondary" onclick="tlAddImageCard()">+ Dodaj obrazek</button></div>
+            <div style="margin-top:16px;margin-bottom:12px;"><button type="button" class="button button-secondary" onclick="tlAddImageCard()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj obrazek</button></div>
             <div class="tl-save-bar">
-                <button type="button" class="button button-primary" onclick="tlSaveImages()">Zapisz obrazki</button>
+                <button type="button" class="button button-primary" onclick="tlSaveImages()"><span class="dashicons dashicons-saved"></span> Zapisz obrazki</button>
                 <span class="tl-save-status" id="save-status-images"></span>
             </div>

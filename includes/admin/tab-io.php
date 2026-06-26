@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) exit;
                     <?php endforeach; ?>
                 </div>
                 <button type="button" class="button button-primary" onclick="evoExportSelected()">
-                    <span class="dashicons dashicons-download" style="vertical-align:middle;margin-right:4px;margin-top:-20px"></span> Eksportuj zaznaczone
+                    <span class="dashicons dashicons-download"></span> Eksportuj zaznaczone
                 </button>
             </div>
 

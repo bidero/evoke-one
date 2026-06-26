@@ -70,7 +70,7 @@ if (!defined('ABSPATH')) exit;
             </p>
 
             <div class="tl-save-bar">
-                <button type="button" class="button button-primary" onclick="tlSaveSitemapSettings()">Zapisz mapę strony</button>
+                <button type="button" class="button button-primary" onclick="tlSaveSitemapSettings()"><span class="dashicons dashicons-saved"></span> Zapisz mapę strony</button>
                 <span class="tl-save-status" id="save-status-sitemap"></span>
             </div>
 

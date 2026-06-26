@@ -20,8 +20,8 @@ if (!defined('ABSPATH')) exit;
                     <input type="text" id="tl-search" placeholder="Szukaj frazy..." autocomplete="off">
                     <span id="tl-search-count"></span>
                 </div>
-                <button type="button" class="button" id="btn-expand-all">Rozwin wszystko</button>
-                <button type="button" class="button" id="btn-collapse-all">Zwin wszystko</button>
+                <button type="button" class="button" id="btn-expand-all"><span class="dashicons dashicons-arrow-down-alt2"></span> Rozwiń wszystko</button>
+                <button type="button" class="button" id="btn-collapse-all"><span class="dashicons dashicons-arrow-up-alt2"></span> Zwiń wszystko</button>
             </div>
 
             <div id="groups-wrapper">
@@ -78,15 +78,15 @@ if (!defined('ABSPATH')) exit;
                                     </div>
                                     <?php endforeach; ?>
                                     <div class="tl-row-footer">
-                                        <button type="button" class="button button-small" onclick="tlDuplicateRow(this)">Duplikuj</button>
-                                        <button type="button" class="button-link-delete" style="font-size:12px;margin-left:auto;" onclick="jQuery(this).closest('.tl-row').remove();tlMarkDirty();">Usun fraze</button>
+                                        <button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj frazę" onclick="tlDuplicateRow(this)"></button>
+                                        <button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń frazę" style="margin-left:auto;" onclick="jQuery(this).closest('.tl-row').remove();tlMarkDirty();"></button>
                                     </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                         </div>
                         <div style="padding:10px 14px;border-top:1px solid #f0f0f1;">
-                            <button type="button" class="button" onclick="tlAddRow(this,'<?php echo esc_js($group_id); ?>')">+ Dodaj fraze</button>
+                            <button type="button" class="button" onclick="tlAddRow(this,'<?php echo esc_js($group_id); ?>')"><span class="dashicons dashicons-plus-alt2"></span> Dodaj frazę</button>
                         </div>
                     </div>
                 </div>
@@ -94,9 +94,9 @@ if (!defined('ABSPATH')) exit;
             </div>
 
             <div style="margin-bottom:12px;">
-                <button type="button" class="button button-secondary" onclick="tlAddGroup()">+ Dodaj nowa grupe</button>
+                <button type="button" class="button button-secondary" onclick="tlAddGroup()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj nową grupę</button>
             </div>
             <div class="tl-save-bar">
-                <button type="button" class="button button-primary" id="btn-save-translations" onclick="tlSaveTranslations()">Zapisz Tłumaczenia</button>
+                <button type="button" class="button button-primary" id="btn-save-translations" onclick="tlSaveTranslations()"><span class="dashicons dashicons-saved"></span> Zapisz tłumaczenia</button>
                 <span class="tl-save-status" id="save-status-translations"></span>
             </div>

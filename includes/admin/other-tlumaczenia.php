@@ -53,7 +53,7 @@ $tl_url         = function_exists('tl_base_url') ? tl_base_url() : admin_url('op
     <div>
         Pełne ustawienia tłumaczeń (języki, frazy, slugi URL, sitemap) dostępne są w osobnym panelu.
         <a href="<?php echo esc_url($tl_url); ?>" class="button button-secondary" style="margin-left:12px;">
-            <span class="dashicons dashicons-external" style="font-size:14px;vertical-align:middle;margin-right:4px;line-height:1.6;"></span>
+            <span class="dashicons dashicons-external"></span>
             Otwórz panel tłumaczeń
         </a>
     </div>

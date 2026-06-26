@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) exit;
                 <h3>Eksport danych</h3>
                 <p style="color:#475569;margin-bottom:12px;">Pobierz wszystkie tłumaczenia, ustawienia językow, obrazki, slugi URL i klucze DD jako plik JSON.</p>
                 <button type="button" class="button button-primary" onclick="tlExportAll()">
-                    <span class="dashicons dashicons-download" style="vertical-align:middle;margin-right:4px;"></span>
+                    <span class="dashicons dashicons-download"></span>
                     Eksportuj wszystko
                 </button>
 
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
                         <option value="<?php echo esc_attr($group_id); ?>"><?php echo esc_html($group['name'] ?: $group_id); ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <button type="button" class="button" onclick="tlExportGroup(document.getElementById('tl-export-group').value)">Eksportuj grupę</button>
+                    <button type="button" class="button" onclick="tlExportGroup(document.getElementById('tl-export-group').value)"><span class="dashicons dashicons-download"></span> Eksportuj grupę</button>
                 </div>
             </div>
 
