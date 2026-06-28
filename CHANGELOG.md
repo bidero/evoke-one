@@ -2,6 +2,25 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.13.0] — 2026-06-26
+
+### Dodane
+
+- **Wspólna warstwa komponentów w `admin.css`** (spójność wszystkich modułów):
+  - `.button-icon` (kwadrat 30×30, wariant `button-link-delete`) — wcześniej tylko w module
+    Tłumaczeń; teraz globalny. Usunięto lokalną duplikację z `tl/render.php`.
+  - Jednolite, zaokrąglone **próbniki koloru** (`input[type=color]`) zamiast natywnych swatchy —
+    we wszystkich modułach (White Label, Dark Mode, Dostępność, OpenGraph).
+  - Zdefiniowano zmienne `--evo-border` / `--evo-surface` (były **nieustawione** → 14 użyć
+    leciało na off-token fallbacki `#e0e0e0`/`#f8f8f8`; teraz tokeny FIELDS).
+
+### Zmienione
+
+- **White Label — dopasowanie do design systemu:** szarości chrome (`#bbb`, `#666`, `#888`,
+  `#999`, `#ddd`, `#444`, `#e0e0e0`, `#f8f8f8`, `#e8f0fe`) zmapowane na tokeny FIELDS;
+  próbniki koloru w siatce wypełniają komórki eleganckimi pasami. (`includes/admin/admin-whitelabel.php`)
+- **Newsletter** — ikon-buttony `border-radius` 4 → 7 (spójne z `.button-icon`).
+
 ## [1.12.1] — 2026-06-26
 
 ### Naprawione

@@ -103,12 +103,7 @@ function tl_render_page() {
         .drag-handle { color:#cbd5e1; cursor:move !important; font-size:16px; flex-shrink:0; line-height:1; padding:4px; user-select:none; -webkit-user-select:none; }
         .drag-handle:hover { color:#94a3b8; }
         .tl-row .drag-handle { font-size:14px; padding:2px 4px; }
-        /* Ikon-buttony (akcje grupy/wiersza/tabel) — kwadrat 30x30, glif wycentrowany */
-        .button-icon { width:30px; height:30px; min-height:30px; display:inline-flex !important; align-items:center; justify-content:center; padding:0 !important; line-height:1 !important; border:1px solid #cbd5e1; border-radius:7px; color:#2563eb; background:#f8fafc; flex-shrink:0; box-sizing:border-box; transition:background .15s,border-color .15s,color .15s; }
-        .button-icon:hover { background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; }
-        .button-icon.dashicons::before { font-size:17px; width:17px; height:17px; line-height:1; }
-        .button-icon.button-link-delete { color:#dc2626; border-color:#fca5a5; background:#fff; }
-        .button-icon.button-link-delete:hover { background:#fef2f2; border-color:#dc2626; color:#dc2626; }
+        /* .button-icon (kwadrat 30×30) — definicja wspólna w assets/admin/admin.css */
         .tl-highlight { background:#fff3cd !important; }
         .sortable-placeholder { background:#eff6ff !important; border:2px dashed #93c5fd !important; border-radius:8px; visibility:visible !important; min-height:40px; }
         .tl-group.sortable-placeholder { min-height:60px; }
