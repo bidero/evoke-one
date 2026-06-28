@@ -2,6 +2,20 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.12.1] — 2026-06-26
+
+### Naprawione
+
+- **Edytor kodu (CodeMirror) nie ładował się na stronie „Skrypty PHP".** Bramka enqueue
+  w `includes/snippets/ajax.php` (linia 26) sprawdzała starą zakładkę `tab=other`, a snippety
+  są pod `tab=narzedzia`. Sibling-bramka była już poprawna — ta jedna pozostała po przeniesieniu.
+  Teraz pola snippetów dostają kolorowanie składni i inicjalizację edytora.
+
+### Usunięte
+
+- **`includes/admin/tab-other.php`** — osierocony plik (nigdzie nie `require`-owany) z błędem
+  składni (`?>` w linii 8 zamykał PHP). Jedyny `php -l` error w repo — usunięty.
+
 ## [1.12.0] — 2026-06-26
 
 ### Zmienione

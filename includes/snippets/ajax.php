@@ -23,7 +23,7 @@ add_action('admin_enqueue_scripts', function () {
     $page = $_GET['page'] ?? '';
     $tab  = $_GET['tab']  ?? '';
     $sub  = $_GET['sub']  ?? '';
-    if ($page !== 'evoke-one' || $tab !== 'other' || $sub !== 'snippets') return;
+    if ($page !== 'evoke-one' || $tab !== 'narzedzia' || $sub !== 'snippets') return;
 
     $cm = wp_enqueue_code_editor(['type' => 'application/x-httpd-php']);
     if (!$cm) return;
