@@ -28,7 +28,7 @@ if (!defined('ABSPATH')) exit;
             <?php foreach (($data['groups'] ?? []) as $group_id => $group): $row_count = count($group['rows'] ?? []); ?>
                 <div class="tl-group" data-gid="<?php echo esc_attr($group_id); ?>">
                     <div class="tl-group-header collapsed">
-                        <span class="drag-handle dashicons dashicons-move" title="Przeciagnij"></span>
+                        <span class="drag-handle dashicons dashicons-move" title="Przeciągnij"></span>
                         <div class="tl-group-toggle">
                             <span class="tl-group-toggle-icon">▶</span>
                             <input type="text" class="tl-group-name-input" data-gid="<?php echo esc_attr($group_id); ?>" value="<?php echo esc_attr($group['name'] ?? ''); ?>" placeholder="Nazwa grupy...">
@@ -37,7 +37,7 @@ if (!defined('ABSPATH')) exit;
                         <div class="tl-group-actions">
                             <button type="button" class="button button-icon dashicons dashicons-download" title="Eksportuj" onclick="tlExportGroup('<?php echo esc_js($group_id); ?>');event.stopPropagation();"></button>
                             <button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj" onclick="tlDuplicateGroup(this);event.stopPropagation();"></button>
-                            <button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usun" onclick="if(confirm('Usunąć całą grupę?')){jQuery(this).closest('.tl-group').remove();tlMarkDirty();}event.stopPropagation();"></button>
+                            <button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="if(confirm('Usunąć całą grupę?')){jQuery(this).closest('.tl-group').remove();tlMarkDirty();}event.stopPropagation();"></button>
                         </div>
                     </div>
                     <div class="tl-group-body">
@@ -49,7 +49,7 @@ if (!defined('ABSPATH')) exit;
                         ?>
                             <div class="tl-row" data-rid="<?php echo esc_attr($row_id); ?>">
                                 <div class="tl-row-header">
-                                    <span class="drag-handle" title="Przeciagnij">⠿</span>
+                                    <span class="drag-handle" title="Przeciągnij">⠿</span>
                                     <span class="tl-row-pl-preview tl-row-toggle-trigger"><?php echo esc_html($row_pl ?: '- pusta -'); ?></span>
                                     <div class="tl-lang-pills tl-row-toggle-trigger">
                                         <?php foreach ($codes as $code): ?>

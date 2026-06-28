@@ -162,7 +162,7 @@ function tl_render_page() {
             <a href="<?php echo esc_url(add_query_arg('tab','images',$base)); ?>" class="tl-tab <?php echo $tab==='images'?'active':''; ?>">Obrazki</a>
             <a href="<?php echo esc_url(add_query_arg('tab','slugs',$base)); ?>" class="tl-tab <?php echo $tab==='slugs'?'active':''; ?>">Slugi URL</a>
             <a href="<?php echo esc_url(add_query_arg('tab','dd',$base)); ?>" class="tl-tab <?php echo $tab==='dd'?'active':''; ?>">Dane Dynamiczne</a>
-            <a href="<?php echo esc_url(add_query_arg('tab','languages',$base)); ?>" class="tl-tab <?php echo $tab==='languages'?'active':''; ?>">Jezyki i Ustawienia</a>
+            <a href="<?php echo esc_url(add_query_arg('tab','languages',$base)); ?>" class="tl-tab <?php echo $tab==='languages'?'active':''; ?>">Języki i Ustawienia</a>
         </div>
 
         <div class="tl-panel">

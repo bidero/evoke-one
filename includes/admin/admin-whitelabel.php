@@ -317,10 +317,11 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 </details>
 </div><!-- /akordeony -->
 
-<!-- WĘZŁY — widoczność -->
+<!-- PASEK GÓRNY — węzły (widoczność / własne / kolejność) -->
 <details class="evk-acc">
-    <summary><span class="dashicons dashicons-visibility"></span> Pasek górny — widoczność węzłów</summary>
+    <summary><span class="dashicons dashicons-editor-ul"></span> Pasek górny — węzły</summary>
     <div class="evk-acc-body">
+    <p class="evo-section-title">Widoczność węzłów</p>
 <div style="margin-top:28px;">
     <p class="evo-desc" style="margin-bottom:12px;">Zaznaczone węzły będą <strong>ukryte</strong> dla wszystkich użytkowników.</p>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;">
@@ -336,14 +337,8 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div>
 </div>
 
-    </div></details>
-
-<!-- WĘZŁY — własne (dodawanie własnych node ID) -->
-<details class="evk-acc">
-    <summary><span class="dashicons dashicons-plus-alt"></span> Pasek górny — własne węzły</summary>
-    <div class="evk-acc-body">
-<div style="margin-top:16px;">
-    <p class="evo-section-title" style="display:none;">Pasek górny — własne węzły do ukrywania/kolejności</p>
+<div style="margin-top:18px;">
+    <p class="evo-section-title">Własne węzły</p>
     <p class="evo-desc" style="margin-bottom:10px;">
         Dodaj ID węzłów spoza listy (np. z wtyczek). Wpisz ID i etykietę — pojawią się w sekcjach widoczności i kolejności powyżej/poniżej.
     </p>
@@ -386,13 +381,8 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 })(jQuery);
 </script>
 
-    </div></details>
-
-<!-- WĘZŁY — kolejność (CSS order / flexbox) -->
-<details class="evk-acc">
-    <summary><span class="dashicons dashicons-sort"></span> Pasek górny — kolejność węzłów</summary>
-    <div class="evk-acc-body">
-<div style="margin-top:24px;">
+<div style="margin-top:18px;">
+    <p class="evo-section-title">Kolejność węzłów</p>
     <p class="evo-desc" style="margin-bottom:12px;">
         <strong>Strefa:</strong> lewa (<code>root-default</code>) lub prawa (<code>top-secondary</code>).
         <strong>Kolejność:</strong> niższa liczba = wcześniej w danej strefie. Zostaw <strong>0</strong> = domyślna kolejność WP.

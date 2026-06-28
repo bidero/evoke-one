@@ -341,7 +341,7 @@ add_action('wp_footer', function () {
                 .then(response => response.json())
                 .then(function(response) {
                     if (!response.success) {
-                        $fields.innerHTML = '<p style="color:#dc2626;">Blad pobierania.</p>';
+                        $fields.innerHTML = '<p style="color:#dc2626;">Błąd pobierania.</p>';
                         return;
                     }
 
@@ -349,7 +349,7 @@ add_action('wp_footer', function () {
                     if (response.data.dd_key) $ddKeyInput.value = response.data.dd_key;
                     renderFields(response.data.pl || pl, response.data.translations || {}, currentType, response.data.raw, false);
                 })
-                .catch(function() { $fields.innerHTML = '<p style="color:#dc2626;">Blad polaczenia.</p>'; });
+                .catch(function() { $fields.innerHTML = '<p style="color:#dc2626;">Błąd połączenia.</p>'; });
         }
 
         function renderFields(pl, translations, type, rawCode, isNew) {
@@ -444,12 +444,12 @@ add_action('wp_footer', function () {
                         currentPhrase = pl;
                         setTimeout(closePanel, 1200);
                     } else {
-                        $status.textContent = result.data || 'Blad';
+                        $status.textContent = result.data || 'Błąd';
                         $status.className = 'err';
                     }
                 })
                 .catch(function() {
-                    $status.textContent = 'Blad polaczenia';
+                    $status.textContent = 'Błąd połączenia';
                     $status.className = 'err';
                 })
                 .finally(function() {

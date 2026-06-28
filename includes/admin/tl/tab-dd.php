@@ -49,8 +49,8 @@ if (!defined('ABSPATH')) exit;
                     const payload={};
                     $('#dd-keys-body .dd-key-row').each(function(){ const key=$(this).find('.dd-key-input').val().trim().replace(/\s+/g,'_').toLowerCase(); const phrase=$(this).find('.dd-phrase-select').val(); if(key&&phrase) payload[key]=phrase; });
                     $.post(<?php echo wp_json_encode($ajax_url); ?>,{action:'tl_save_dd_keys',nonce:<?php echo wp_json_encode($nonce); ?>,tl_dd_keys:JSON.stringify(payload)})
-                    .done(function(r){ if(r.success){_dirty=false;$st.addClass('ok').text('Zapisano').show();}else{$st.addClass('err').text(r.data||'Blad').show();} })
-                    .fail(function(){ $st.addClass('err').text('Blad polaczenia').show(); });
+                    .done(function(r){ if(r.success){_dirty=false;$st.addClass('ok').text('Zapisano').show();}else{$st.addClass('err').text(r.data||'Błąd').show();} })
+                    .fail(function(){ $st.addClass('err').text('Błąd połączenia').show(); });
                 };
             })(jQuery);
             </script>

@@ -276,8 +276,8 @@ add_action('admin_footer', function () {
         $btn.prop('disabled', true).text('Zapisywanie...');
         $st.removeClass('ok err').hide();
         $.post(AJAX, { action: 'tl_save_translations', nonce: NONCE, tl_translations: JSON.stringify(collectTranslations()) })
-            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('Zapisano pomyslnie').show(); } else { $st.addClass('err').text(r.data||'Blad zapisu').show(); } })
-            .fail(function() { $st.addClass('err').text('Blad polaczenia').show(); })
+            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('Zapisano pomyslnie').show(); } else { $st.addClass('err').text(r.data||'Błąd zapisu').show(); } })
+            .fail(function() { $st.addClass('err').text('Błąd połączenia').show(); })
             .always(function() { $btn.prop('disabled', false).text('Zapisz Tłumaczenia'); });
     };
 
@@ -322,7 +322,7 @@ add_action('admin_footer', function () {
 
     // Languages
     window.tlAddLang = function() {
-        $('#lang-body').append('<tr><td><span class="drag-handle" title="Przeciagnij">☰</span></td><td><input type="text" class="lang-code" placeholder="np. en"></td><td><input type="text" class="lang-name" placeholder="np. Angielski"></td><td><input type="text" class="lang-html" placeholder="np. en-GB"></td><td><div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #cbd5e1;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:12px;" onclick="tlOpenLangFlag(this)">+</div></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();"></button></td></tr>');
+        $('#lang-body').append('<tr><td><span class="drag-handle" title="Przeciągnij">☰</span></td><td><input type="text" class="lang-code" placeholder="np. en"></td><td><input type="text" class="lang-name" placeholder="np. Angielski"></td><td><input type="text" class="lang-html" placeholder="np. en-GB"></td><td><div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #cbd5e1;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:12px;" onclick="tlOpenLangFlag(this)">+</div></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();"></button></td></tr>');
         if ($('#lang-body').hasClass('ui-sortable')) $('#lang-body').sortable('refresh');
         else initSortable();
         tlMarkDirty();
@@ -342,8 +342,8 @@ add_action('admin_footer', function () {
         const plFlagEl = $('.lang-row-pl').find('.tl-lang-flag-preview, .tl-lang-flag-empty');
         const plFlag = parseInt(plFlagEl.data('att') || 0, 10);
         $.post(AJAX, { action: 'tl_save_settings', nonce: NONCE, payload: JSON.stringify({ tl_languages: langs, tl_menu_location: $('#tl-menu-location').val(), tl_pl_flag: plFlag }) })
-            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('Zapisano - odśwież stronę').show(); } else { $st.addClass('err').text(r.data||'Blad').show(); } })
-            .fail(function() { $st.addClass('err').text('Blad polaczenia').show(); });
+            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('Zapisano - odśwież stronę').show(); } else { $st.addClass('err').text(r.data||'Błąd').show(); } })
+            .fail(function() { $st.addClass('err').text('Błąd połączenia').show(); });
     };
 
     // Flag media picker for languages
@@ -397,7 +397,7 @@ add_action('admin_footer', function () {
             const label = code === 'pl' ? 'PL' : code.toUpperCase();
             return `<div class="tl-img-lang-row"><span class="tl-img-lang-label">${label}</span><div class="tl-img-preview-empty" data-lang="${code}" data-att="0" onclick="tlOpenMedia(this,'${code}')">+</div><button type="button" class="button" onclick="tlOpenMedia(this.previousElementSibling,'${code}')"><span class="dashicons dashicons-format-image"></span> Wybierz</button></div>`;
         }).join('');
-        $('#img-grid').append(`<div class="tl-img-card" data-key="${key}"><div class="tl-img-card-header"><strong style="flex:1;">Tlumaczenie obrazka</strong><button type="button" class="button-link-delete" style="font-size:18px;line-height:1;" onclick="jQuery(this).closest('.tl-img-card').remove();tlMarkDirtyImages();">✕</button></div>${rows}</div>`);
+        $('#img-grid').append(`<div class="tl-img-card" data-key="${key}"><div class="tl-img-card-header"><strong style="flex:1;">Tłumaczenie obrazka</strong><button type="button" class="button-link-delete" style="font-size:18px;line-height:1;" onclick="jQuery(this).closest('.tl-img-card').remove();tlMarkDirtyImages();">✕</button></div>${rows}</div>`);
         tlMarkDirtyImages();
     };
     window.tlSaveImages = function() {
@@ -409,8 +409,8 @@ add_action('admin_footer', function () {
             $(this).find('[data-lang]').each(function() { payload[key][$(this).data('lang')] = parseInt($(this).data('att')||0, 10); });
         });
         $.post(AJAX, { action: 'tl_save_images', nonce: NONCE, tl_images: JSON.stringify(payload) })
-            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('Zapisano').show(); } else { $st.addClass('err').text(r.data||'Blad').show(); } })
-            .fail(function() { $st.addClass('err').text('Blad polaczenia').show(); });
+            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('Zapisano').show(); } else { $st.addClass('err').text(r.data||'Błąd').show(); } })
+            .fail(function() { $st.addClass('err').text('Błąd połączenia').show(); });
     };
 
     // Import
@@ -429,8 +429,8 @@ add_action('admin_footer', function () {
             let json;
             try { json = JSON.parse(ev.target.result); } catch(ex) { $impSt.removeClass('ok err').addClass('err').text('Nieprawidlowy plik JSON').show(); return; }
             $.post(AJAX, { action: 'tl_import', nonce: NONCE, json: JSON.stringify(json) })
-                .done(function(r) { $impSt.removeClass('ok err').addClass(r.success?'ok':'err').text(r.success ? r.data+' - odswiez strone.' : (r.data||'Blad')).show(); })
-                .fail(function() { $impSt.removeClass('ok err').addClass('err').text('Blad polaczenia').show(); });
+                .done(function(r) { $impSt.removeClass('ok err').addClass(r.success?'ok':'err').text(r.success ? r.data+' - odśwież strone.' : (r.data||'Błąd')).show(); })
+                .fail(function() { $impSt.removeClass('ok err').addClass('err').text('Błąd połączenia').show(); });
         };
         reader.readAsText(file);
     }

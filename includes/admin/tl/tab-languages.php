@@ -13,11 +13,11 @@ if (!defined('ABSPATH')) exit;
             </div>
             <div class="tl-menu-settings">
                 <h3>Lokalizacja menu</h3>
-                <p>Wybierz miejsce wyswietlania wtyczki w panelu bocznym:</p>
+                <p>Wybierz miejsce wyświetlania wtyczki w panelu bocznym:</p>
                 <select id="tl-menu-location">
                     <option value="options-general.php" <?php selected($menu_location,'options-general.php'); ?>>Ustawienia</option>
                     <option value="index.php" <?php selected($menu_location,'index.php'); ?>>Kokpit</option>
-                    <option value="tools.php" <?php selected($menu_location,'tools.php'); ?>>Narzedzia</option>
+                    <option value="tools.php" <?php selected($menu_location,'tools.php'); ?>>Narzędzia</option>
                     <option value="none" <?php selected($menu_location,'none'); ?>>Osobna pozycja</option>
                 </select>
             </div>
@@ -43,7 +43,7 @@ if (!defined('ABSPATH')) exit;
                         $flag_url = $flag_id ? tl_get_flag_url($flag_id) : '';
                     ?>
                     <tr>
-                        <td><span class="drag-handle" title="Przeciagnij">☰</span></td>
+                        <td><span class="drag-handle" title="Przeciągnij">☰</span></td>
                         <td><input type="text" class="lang-code" value="<?php echo esc_attr($lang['code']); ?>" placeholder="en"></td>
                         <td><input type="text" class="lang-name" value="<?php echo esc_attr($lang['name']); ?>" placeholder="Angielski"></td>
                         <td><input type="text" class="lang-html" value="<?php echo esc_attr($lang['html']); ?>" placeholder="en-GB"></td>

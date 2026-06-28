@@ -2,41 +2,20 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Evoke ONE Newsletter — Główna zakładka (loader subtabów)
+ * Evoke ONE Newsletter — zakładka w panelu = włącznik + link.
+ * Pełny moduł (listy/szablony/kampanie/raporty) ma własną pozycję w menu bocznym
+ * (includes/newsletter/menu.php) — tu nie duplikujemy całego UI.
  */
 
 $nl_opts   = get_option('evk_newsletter', []);
 $nl_active = !empty($nl_opts['enabled']);
-$subtab    = sanitize_key($_GET['subtab'] ?? 'lists');
-$base      = admin_url('options-general.php?page=evoke-one&tab=newsletter');
-
-$subtabs = [
-    'lists'     => ['label' => 'Listy', 'icon' => 'dashicons-groups'],
-    'templates' => ['label' => 'Szablony', 'icon' => 'dashicons-email-alt'],
-    'campaigns' => ['label' => 'Kampanie', 'icon' => 'dashicons-megaphone'],
-    'reports'   => ['label' => 'Raporty', 'icon' => 'dashicons-chart-bar'],
-    'settings'  => ['label' => 'Ustawienia', 'icon' => 'dashicons-admin-generic'],
-];
-
-if (!array_key_exists($subtab, $subtabs)) $subtab = 'lists';
-
-// Ostrzeżenie SMTP
-$smtp_ok = evk_nl_smtp_is_configured();
+$nl_url    = function_exists('evk_nl_base_url')
+    ? evk_nl_base_url()
+    : admin_url('admin.php?page=evoke-newsletter');
+$smtp_ok   = function_exists('evk_nl_smtp_is_configured') ? evk_nl_smtp_is_configured() : true;
 ?>
 
 <div class="evk-nl-wrap">
-
-    <?php if (!$smtp_ok): ?>
-    <div class="notice notice-warning inline" style="margin:0 0 16px;">
-        <p>
-            <span class="dashicons dashicons-warning" style="color:#f59e0b;"></span>
-            <strong>Newsletter:</strong> SMTP nie jest skonfigurowany — wysyłka maili nie będzie działać.
-            <a href="<?php echo esc_url(admin_url('options-general.php?page=evoke-one&tab=narzedzia&subtab=smtp')); ?>">
-                Przejdź do konfiguracji SMTP →
-            </a>
-        </p>
-    </div>
-    <?php endif; ?>
 
     <!-- Status card — spójny z innymi modułami Evoke ONE -->
     <div class="evo-status-card">
@@ -56,36 +35,34 @@ $smtp_ok = evk_nl_smtp_is_configured();
     </div>
 
     <?php if (!$nl_active): ?>
-    <div style="padding:40px;text-align:center;background:#f8fafc;border-radius:10px;border:1px dashed #cbd5e1;">
+    <div style="padding:40px;text-align:center;background:#f8fafc;border-radius:10px;border:1px dashed #cbd5e1;margin-top:16px;">
         <span class="dashicons dashicons-email-alt" style="font-size:48px;width:48px;height:48px;color:#94a3b8;"></span>
-        <p style="color:#64748b;margin:12px 0 0;">Włącz moduł Newsletter powyżej, aby zarządzać kampaniami email.</p>
+        <p style="color:#64748b;margin:12px 0 0;">Włącz moduł Newsletter powyżej — w pasku bocznym pojawi się osobna pozycja <strong>Newsletter</strong> z pełnym panelem.</p>
     </div>
     <?php else: ?>
 
-    <!-- Subtabs -->
-    <div class="evk-subtabs" style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid #e2e8f0;padding-bottom:0;">
-        <?php foreach ($subtabs as $key => $st): ?>
-        <a href="<?php echo esc_url(add_query_arg('subtab', $key, $base)); ?>"
-           class="evk-subtab <?php echo $subtab === $key ? 'active' : ''; ?>"
-           style="display:flex;align-items:center;gap:6px;padding:10px 18px;text-decoration:none;color:<?php echo $subtab === $key ? '#2563eb' : '#64748b'; ?>;border-bottom:2px solid <?php echo $subtab === $key ? '#2563eb' : 'transparent'; ?>;margin-bottom:-2px;font-weight:<?php echo $subtab === $key ? '600' : '400'; ?>;transition:all .15s;">
-            <span class="dashicons <?php echo esc_attr($st['icon']); ?>" style="font-size:16px;width:16px;height:16px;"></span>
-            <?php echo esc_html($st['label']); ?>
-        </a>
-        <?php endforeach; ?>
+    <?php if (!$smtp_ok): ?>
+    <div class="evo-info-box" style="margin-top:16px;border-color:#fde68a;background:#fffbeb;">
+        <span class="dashicons dashicons-warning" style="color:#d97706;"></span>
+        <div>
+            <strong>SMTP nie jest skonfigurowany</strong> — wysyłka maili nie będzie działać.
+            <a href="<?php echo esc_url(admin_url('options-general.php?page=evoke-one&tab=narzedzia&sub=smtp')); ?>">Przejdź do konfiguracji SMTP →</a>
+        </div>
     </div>
+    <?php endif; ?>
 
-    <!-- Subtab content -->
-    <?php
-    $subtab_file = EVOKE_ONE_DIR . 'includes/admin/newsletter/tab-' . $subtab . '.php';
-    if (file_exists($subtab_file)) {
-        require $subtab_file;
-    } else {
-        echo '<p style="color:#dc2626;">Błąd: plik zakładki nie istnieje (' . esc_html($subtab_file) . ').</p>';
-    }
-    ?>
+    <div class="evo-info-box" style="margin-top:16px;">
+        <span class="dashicons dashicons-info"></span>
+        <div>
+            Pełny panel Newslettera — <strong>Listy, Szablony, Kampanie, Raporty, Ustawienia</strong> —
+            znajdziesz w osobnej pozycji menu w pasku bocznym.
+            <a href="<?php echo esc_url($nl_url); ?>" class="button button-secondary" style="margin-left:12px;">
+                <span class="dashicons dashicons-external"></span>
+                Otwórz panel Newslettera
+            </a>
+        </div>
+    </div>
 
     <?php endif; // module active ?>
 
 </div>
-
-<?php

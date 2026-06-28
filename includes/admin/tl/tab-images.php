@@ -2,12 +2,12 @@
 if (!defined('ABSPATH')) exit;
 // Evoke ONE — TL tab content. Zmienne z tl_render_page(): $data $langs $codes $tab $base $nonce $ajax_url $stats
 ?>
-<p style="color:#475569;margin-bottom:16px;">Wybierz bazowy obrazek PL, a nastepnie przypisz mu alternatywne wersje dla innych jezykow.</p>
+<p style="color:#475569;margin-bottom:16px;">Wybierz bazowy obrazek PL, a następnie przypisz mu alternatywne wersje dla innych języków.</p>
             <div class="tl-img-grid" id="img-grid">
             <?php foreach ($images as $key => $entry): ?>
                 <div class="tl-img-card" data-key="<?php echo esc_attr($key); ?>">
                     <div class="tl-img-card-header">
-                        <strong style="flex:1;">Tlumaczenie obrazka</strong>
+                        <strong style="flex:1;">Tłumaczenie obrazka</strong>
                         <button type="button" class="button-link-delete" style="font-size:18px;line-height:1;" onclick="jQuery(this).closest('.tl-img-card').remove();tlMarkDirtyImages();">✕</button>
                     </div>
                     <?php foreach (array_merge(['pl' => ['name' => 'Polski']], $langs) as $code => $lang): ?>

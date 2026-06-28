@@ -2,6 +2,28 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.14.0] — 2026-06-26
+
+### Zmienione
+
+- **White Label — mniej kart.** Trzy sąsiadujące akordeony „Pasek górny — widoczność /
+  własne / kolejność węzłów" scalone w jeden **„Pasek górny — węzły"** z pod-nagłówkami
+  (11 → 9 kart). Builder własnych pozycji i podmenu zostaje osobno (inne narzędzie).
+  (`includes/admin/admin-whitelabel.php`)
+- **Newsletter — koniec duplikacji UI.** Zakładka „Newsletter" w panelu to teraz **status +
+  link** do osobnego panelu (jak Tłumaczenia). Pełny moduł (listy/szablony/kampanie/raporty)
+  nadal renderowany w osobnej pozycji menu bocznego. (`includes/admin/tab-newsletter.php`)
+- **Diakrytyki w module Tłumaczeń:** „Przeciagnij" → Przeciągnij, „Jezyki" → Języki,
+  „nastepnie/jezykow" → następnie/języków, „Tlumaczenie obrazka" → Tłumaczenie obrazka,
+  „Blad/polaczenia" → Błąd/połączenia, „odswiez" → odśwież, „wyswietlania" → wyświetlania,
+  „Narzedzia" → Narzędzia, tooltip „Usun" → Usuń.
+
+### Naprawione
+
+- **Link „konfiguracja SMTP" w Newsletterze** wskazywał `subtab=smtp`, a zakładka Narzędzia
+  czyta parametr `sub` → trafiał na domyślną podzakładkę. Poprawiono na `sub=smtp`.
+  (`includes/admin/tab-newsletter.php`)
+
 ## [1.13.0] — 2026-06-26
 
 ### Dodane
