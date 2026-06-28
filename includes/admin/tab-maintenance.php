@@ -1,8 +1,20 @@
 <?php
 if (!defined('ABSPATH')) exit;
 /**
- * Evoke ONE — Tab: maintenance
+ * Evoke ONE — Tab: Konserwacja (tryb konserwacji witryny)
+ * Samowystarczalny — definiuje własne zmienne (ładowany z zakładki Narzędzia).
  */
+$pages            = get_pages(['post_status' => 'publish', 'sort_column' => 'post_title']);
+$selected_page_id = (int) get_option('maintenance_page_id', 0);
+$status           = (int) get_option('maintenance_mode', 0);
+$bypass_pass      = get_option('maintenance_bypass_password', '');
+$bypass_hours     = get_option('maintenance_bypass_hours', 1);
+$excluded_paths   = get_option('maintenance_excluded_paths', "/login\n/logmein");
+$selected_page_title = '—';
+if ($selected_page_id) {
+    $p = get_post($selected_page_id);
+    if ($p) $selected_page_title = $p->post_title;
+}
 ?>
 <div class="evo-status-card">
                 <div class="evo-status-icon <?php echo $status ? 'on' : 'off'; ?>">

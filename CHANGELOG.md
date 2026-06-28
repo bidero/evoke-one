@@ -2,6 +2,25 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.12.0] — 2026-06-26
+
+### Zmienione
+
+- **Reorganizacja i przemianowanie zakładek głównych** (panel `Evoke ONE`):
+  - „Wydajność" → **Frontend** (nie zawierała nic o wydajności — to efekty frontu).
+  - „Strona" → **SEO** (zawiera wyłącznie SEO).
+  - „Admin" → **Panel admina**. „Wiadomości" → **Formularze**. Odświeżone ikony.
+  - Klucze URL (`tab=wydajnosc`, `strona`, `admin_panel`, `forminbox`) **bez zmian** —
+    istniejące linki/zakładki działają dalej. (`includes/admin/page.php`)
+- **Przeniesienia podzakładek:**
+  - **Konserwacja**: z „Frontend" → do **Narzędzia** (narzędzie operacyjne ON/OFF witryny).
+    `tab-maintenance.php` jest teraz samowystarczalny (własne zmienne).
+    (`includes/admin/tab-wydajnosc.php`, `tab-narzedzia.php`, `tab-maintenance.php`)
+  - **Tłumaczenia** (włącznik modułu + edytor inline): z „Panel admina" → do **Frontend**
+    (to funkcja frontu). (`includes/admin/tab-admin.php`, `tab-wydajnosc.php`)
+- **Spolszczenie podzakładek Frontend:** „Dark Mode" → **Tryb ciemny**,
+  „Smooth Scroll" → **Płynne przewijanie**. (`includes/admin/tab-wydajnosc.php`)
+
 ## [1.11.1] — 2026-06-26
 
 ### Zmienione

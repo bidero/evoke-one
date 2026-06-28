@@ -119,13 +119,13 @@ function evoke_one_render_settings(): void {
     $base = admin_url('options-general.php?page=evoke-one');
 
     $tabs = [
-        'wydajnosc'      => ['label' => 'Wydajność',      'icon' => 'dashicons-performance'],
-        'strona'         => ['label' => 'Strona',          'icon' => 'dashicons-admin-site-alt3'],
+        'wydajnosc'      => ['label' => 'Frontend',        'icon' => 'dashicons-desktop'],
+        'strona'         => ['label' => 'SEO',             'icon' => 'dashicons-search'],
         'bezpieczenstwo' => ['label' => 'Bezpieczeństwo',  'icon' => 'dashicons-shield'],
         'narzedzia'      => ['label' => 'Narzędzia',       'icon' => 'dashicons-admin-tools'],
-        'admin_panel'    => ['label' => 'Admin',           'icon' => 'dashicons-admin-settings'],
+        'admin_panel'    => ['label' => 'Panel admina',    'icon' => 'dashicons-admin-settings'],
         'newsletter'     => ['label' => 'Newsletter',      'icon' => 'dashicons-email-alt'],
-        'forminbox'      => ['label' => 'Wiadomości',      'icon' => 'dashicons-email'],
+        'forminbox'      => ['label' => 'Formularze',      'icon' => 'dashicons-feedback'],
     ];
 
     if (!array_key_exists($tab, $tabs)) $tab = 'wydajnosc';

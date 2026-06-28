@@ -14,7 +14,6 @@ $subs = [
     'content'      => ['label' => 'Treść',          'icon' => 'dashicons-admin-comments'],
     'whitelabel'   => ['label' => 'White label',    'icon' => 'dashicons-admin-customizer'],
     'roles'        => ['label' => 'Role Manager',   'icon' => 'dashicons-groups'],
-    'tlumaczenia'  => ['label' => 'Tłumaczenia',    'icon' => 'dashicons-translation'],
 ];
 
 if (!array_key_exists($sub, $subs)) $sub = 'interface';
@@ -42,8 +41,5 @@ switch ($sub) {
         break;
     case 'roles':
         require EVOKE_ONE_DIR . 'includes/admin/admin-roles.php';
-        break;
-    case 'tlumaczenia':
-        require EVOKE_ONE_DIR . 'includes/admin/other-tlumaczenia.php';
         break;
 }

@@ -12,6 +12,7 @@ $subs = [
     'smtp'     => ['label' => 'SMTP',                'icon' => 'dashicons-email-alt'],
     'redirect' => ['label' => 'Przekierowania 301',  'icon' => 'dashicons-redo'],
     'logs404'  => ['label' => 'Logi 404',            'icon' => 'dashicons-warning'],
+    'maintenance' => ['label' => 'Konserwacja',      'icon' => 'dashicons-admin-tools'],
     'io'       => ['label' => 'Eksport / Import',    'icon' => 'dashicons-database-import'],
 ];
 
@@ -31,6 +32,9 @@ switch ($sub) {
         break;
     case 'logs404':
         require EVOKE_ONE_DIR . 'includes/admin/tools-logs404.php';
+        break;
+    case 'maintenance':
+        require EVOKE_ONE_DIR . 'includes/admin/tab-maintenance.php';
         break;
     case 'io':
         $sub_file = EVOKE_ONE_DIR . 'includes/admin/tab-io.php';
