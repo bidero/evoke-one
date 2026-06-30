@@ -287,7 +287,7 @@ jQuery(function($) {
             if (res.success) {
                 $('#evk-nl-camp-msg').text('Zapisano!').css('color','#16a34a');
                 if (!$('#evk-nl-camp-id').val() || $('#evk-nl-camp-id').val() === '0') {
-                    setTimeout(function() { location.href = '<?php echo esc_js(add_query_arg('subtab', 'campaigns', evk_nl_base_url())); ?>&campaign_id=' + res.data.id; }, 500);
+                    setTimeout(function() { location.href = '<?php echo esc_url_raw(add_query_arg('subtab', 'campaigns', evk_nl_base_url())); ?>&campaign_id=' + res.data.id; }, 500);
                 } else {
                     setTimeout(function() { location.reload(); }, 500);
                 }

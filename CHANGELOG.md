@@ -2,6 +2,17 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.14.4] — 2026-06-30
+
+### Naprawione
+
+- **Newsletter — zapis kampanii (i szablonu) wracał do zakładki „Listy".** Regresja z
+  v1.14.2: w przekierowaniach JS użyto `esc_js(add_query_arg(...))`, a `esc_js()` zamienia
+  `&` na `&amp;`. Po zapisie URL miał `&amp;subtab=…`, więc parametr `subtab` znikał i router
+  wracał do domyślnej podzakładki (Listy). Zamieniono na `esc_url_raw()` (zostawia `&`
+  dosłownie) w 3 miejscach: zapis kampanii, zapis szablonu, filtr zdarzeń w raportach.
+  (`includes/admin/newsletter/tab-{campaigns,templates,reports}.php`)
+
 ## [1.14.3] — 2026-06-30
 
 ### Zmienione

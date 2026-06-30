@@ -199,7 +199,7 @@ jQuery(function($) {
             if (res.success) {
                 $('#evk-nl-tpl-msg').text('Zapisano!').css('color','#16a34a');
                 if (!$('#evk-nl-template-id').val()||$('#evk-nl-template-id').val()==='0') {
-                    setTimeout(function(){ location.href='<?php echo esc_js(add_query_arg('subtab', 'templates', evk_nl_base_url())); ?>&template_id='+res.data.id; },500);
+                    setTimeout(function(){ location.href='<?php echo esc_url_raw(add_query_arg('subtab', 'templates', evk_nl_base_url())); ?>&template_id='+res.data.id; },500);
                 } else {
                     setTimeout(function(){ location.reload(); },500);
                 }
