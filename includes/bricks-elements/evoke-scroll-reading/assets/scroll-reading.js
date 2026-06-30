@@ -4,11 +4,28 @@
 (function () {
   'use strict';
 
+  // GSAP nie potrafi tweenować koloru podanego jako var(--x) / globalny kolor Bricks.
+  // Rozwijamy go do konkretnej wartości RGB w kontekście danego elementu.
+  function resolveColor(value, ctxEl) {
+    if (!value) return value;
+    var str = String(value).trim();
+    if (str.indexOf('var(') === -1) return str; // już konkretny kolor
+    var probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;color:' + str + ';';
+    (ctxEl || document.body).appendChild(probe);
+    var resolved = getComputedStyle(probe).color;
+    probe.remove();
+    return resolved || str;
+  }
+
   function initAll() {
     document.querySelectorAll('[data-evk-sr]').forEach(function (el) {
       var cfg;
       try { cfg = JSON.parse(el.getAttribute('data-evk-sr')); }
       catch (e) { return; }
+
+      cfg.colorActive = resolveColor(cfg.colorActive, el);
+      cfg.colorDim    = resolveColor(cfg.colorDim, el);
 
       // Cel: cały kontener (nestable — children to dowolne elementy Bricks)
       var splitTypeMap = { words: 'words', chars: 'chars', lines: 'lines' };

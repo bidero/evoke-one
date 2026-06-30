@@ -101,8 +101,19 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 
 	private function resolve_color( $val, string $fallback ): string {
 		if ( empty( $val ) ) return $fallback;
-		if ( is_array( $val ) ) return $val['hex'] ?? $fallback;
-		return (string) $val;
+
+		if ( is_array( $val ) ) {
+			// 1. hex — wartość konkretna z color pickera
+			if ( ! empty( $val['hex'] ) ) return $val['hex'];
+
+			// 2. Bricks zapisuje zmienne (var(--x)) oraz globalne kolory / rgba w 'raw' lub 'rgb'
+			$raw = $val['raw'] ?? $val['rgb'] ?? '';
+			if ( $raw ) return $raw; // np. var(--moj-kolor), rgba(...) — rozwijane w JS
+
+			return $fallback;
+		}
+
+		return (string) $val ?: $fallback;
 	}
 
 	public function render() {

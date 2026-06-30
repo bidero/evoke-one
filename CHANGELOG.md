@@ -2,6 +2,20 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.14.1] — 2026-06-30
+
+### Naprawione
+
+- **Scroll Reading — nie dało się ustawić koloru z poziomu Bricks.** `resolve_color()`
+  czytało wyłącznie `hex`, więc kolory wybrane jako **zmienna Bricks** lub **globalny kolor**
+  (zapisywane w `raw` / `rgb`, np. `var(--moj-kolor)`) były ignorowane i wracał fallback
+  `#000`/`#aaa`. Teraz kolejność `hex → raw → rgb → fallback` (jak w `wave-bg`).
+  (`includes/bricks-elements/evoke-scroll-reading/element.php`)
+- **Scroll Reading — kolory ze zmiennych nie animowały się.** GSAP nie tweenuje koloru
+  podanego jako `var(--x)`. Dodano `resolveColor()`, które rozwija zmienną przez
+  `getComputedStyle` w kontekście elementu przed przekazaniem do GSAP.
+  (`includes/bricks-elements/evoke-scroll-reading/assets/scroll-reading.js`)
+
 ## [1.14.0] — 2026-06-26
 
 ### Zmienione
