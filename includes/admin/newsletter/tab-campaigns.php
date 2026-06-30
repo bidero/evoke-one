@@ -13,7 +13,7 @@ $camp_tpl_id    = (int) ($edit_camp['template_id']        ?? 0);
 $camp_scheduled = $edit_camp['scheduled_at']              ?? '';
 $camp_batch     = (int) ($edit_camp['batch_size']         ?? 50);
 $camp_interval  = (int) ($edit_camp['batch_interval']     ?? 5);
-$camp_tracking  = !empty($edit_camp['tracking_enabled']);
+$camp_tracking  = $edit_camp ? !empty($edit_camp['tracking_enabled']) : true; // nowa kampania = śledzenie domyślnie ON
 $st             = $edit_camp['status']                    ?? '';
 
 $status_labels = [
@@ -288,6 +288,8 @@ jQuery(function($) {
                 $('#evk-nl-camp-msg').text('Zapisano!').css('color','#16a34a');
                 if (!$('#evk-nl-camp-id').val() || $('#evk-nl-camp-id').val() === '0') {
                     setTimeout(function() { location.href = '<?php echo esc_js(add_query_arg('subtab', 'campaigns', evk_nl_base_url())); ?>&campaign_id=' + res.data.id; }, 500);
+                } else {
+                    setTimeout(function() { location.reload(); }, 500);
                 }
             } else { $('#evk-nl-camp-msg').text(res.data?.msg || 'Błąd').css('color','#dc2626'); }
         });

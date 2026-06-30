@@ -2,6 +2,18 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.14.3] — 2026-06-30
+
+### Zmienione
+
+- **Newsletter — śledzenie domyślnie włączone.** Nowa kampania ma checkbox „Śledzenie
+  otwarć i kliknięć" zaznaczony (zgodnie z domyślną wartością DB `tracking_enabled = 1`).
+  Edycja istniejącej kampanii nadal pokazuje jej rzeczywisty stan.
+  (`includes/admin/newsletter/tab-campaigns.php`)
+- **Newsletter — odświeżanie na tej samej zakładce po zapisie.** Zapis edytowanej kampanii
+  lub szablonu przeładowuje teraz stronę na tej samej karcie (wcześniej tylko komunikat
+  „Zapisano!" bez odświeżenia). (`includes/admin/newsletter/tab-{campaigns,templates}.php`)
+
 ## [1.14.2] — 2026-06-30
 
 ### Naprawione
