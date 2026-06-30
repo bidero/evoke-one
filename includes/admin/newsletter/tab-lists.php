@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 $lists       = evk_nl_get_lists();
 $nonce       = wp_create_nonce('evk_nl_nonce');
 $active_list = (int) ($_GET['list_id'] ?? ($lists[0]['id'] ?? 0));
-$base_url    = admin_url('options-general.php?page=evoke-one&tab=newsletter&subtab=lists');
+$base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
 ?>
 <style>
 .evk-nl-lists-layout{display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start;}

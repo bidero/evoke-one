@@ -44,7 +44,7 @@ $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [
         <div class="evk-nl-card">
             <div class="evk-nl-card-head">
                 <strong style="font-size:13px;">Szablony</strong>
-                <a href="<?php echo esc_url(add_query_arg('subtab', 'templates', admin_url('options-general.php?page=evoke-one&tab=newsletter'))); ?>"
+                <a href="<?php echo esc_url(add_query_arg('subtab', 'templates', evk_nl_base_url())); ?>"
                    class="button button-small">+ Nowy</a>
             </div>
             <?php if (empty($templates)): ?>
@@ -52,7 +52,7 @@ $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [
             <?php else: foreach ($templates as $t): $is_cur = (int)$t['id'] === $edit_id; ?>
             <div style="border-bottom:1px solid #f1f5f9;">
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;">
-                    <a href="<?php echo esc_url(add_query_arg(['subtab'=>'templates','template_id'=>$t['id']], admin_url('options-general.php?page=evoke-one&tab=newsletter'))); ?>"
+                    <a href="<?php echo esc_url(add_query_arg(['subtab'=>'templates','template_id'=>$t['id']], evk_nl_base_url())); ?>"
                        style="text-decoration:none;color:<?php echo $is_cur?'#2563eb':'#374151';?>;font-size:13px;font-weight:<?php echo $is_cur?'600':'400';?>;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;"
                        title="<?php echo esc_attr($t['name']); ?>">
                         <?php echo esc_html($t['name']); ?>
@@ -199,7 +199,7 @@ jQuery(function($) {
             if (res.success) {
                 $('#evk-nl-tpl-msg').text('Zapisano!').css('color','#16a34a');
                 if (!$('#evk-nl-template-id').val()||$('#evk-nl-template-id').val()==='0') {
-                    setTimeout(function(){ location.href='?page=evoke-one&tab=newsletter&subtab=templates&template_id='+res.data.id; },500);
+                    setTimeout(function(){ location.href='<?php echo esc_js(add_query_arg('subtab', 'templates', evk_nl_base_url())); ?>&template_id='+res.data.id; },500);
                 }
             } else { $('#evk-nl-tpl-msg').text(res.data?.msg||'Błąd').css('color','#dc2626'); }
         });

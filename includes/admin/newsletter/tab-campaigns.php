@@ -194,8 +194,8 @@ $status_labels = [
                     $stats = evk_nl_campaign_stats((int) $c['id']);
                     $stl   = $status_labels[$c['status']] ?? ['label' => $c['status'], 'color' => '#94a3b8'];
                     $pct   = $stats['total'] > 0 ? round($stats['sent'] / $stats['total'] * 100) : 0;
-                    $rep_url  = add_query_arg(['subtab' => 'reports',   'campaign_id' => $c['id']], admin_url('options-general.php?page=evoke-one&tab=newsletter'));
-                    $edit_url = add_query_arg(['subtab' => 'campaigns', 'campaign_id' => $c['id']], admin_url('options-general.php?page=evoke-one&tab=newsletter'));
+                    $rep_url  = add_query_arg(['subtab' => 'reports',   'campaign_id' => $c['id']], evk_nl_base_url());
+                    $edit_url = add_query_arg(['subtab' => 'campaigns', 'campaign_id' => $c['id']], evk_nl_base_url());
                     $view_url = add_query_arg(['evk_nl' => 'view', 'evk_nl_campaign' => (int) $c['id']], home_url('/'));
                 ?>
                 <tr data-id="<?php echo (int) $c['id']; ?>" data-status="<?php echo esc_attr($c['status']); ?>">
@@ -287,7 +287,7 @@ jQuery(function($) {
             if (res.success) {
                 $('#evk-nl-camp-msg').text('Zapisano!').css('color','#16a34a');
                 if (!$('#evk-nl-camp-id').val() || $('#evk-nl-camp-id').val() === '0') {
-                    setTimeout(function() { location.href = '?page=evoke-one&tab=newsletter&subtab=campaigns&campaign_id=' + res.data.id; }, 500);
+                    setTimeout(function() { location.href = '<?php echo esc_js(add_query_arg('subtab', 'campaigns', evk_nl_base_url())); ?>&campaign_id=' + res.data.id; }, 500);
                 }
             } else { $('#evk-nl-camp-msg').text(res.data?.msg || 'Błąd').css('color','#dc2626'); }
         });

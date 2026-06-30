@@ -2,6 +2,17 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.14.2] — 2026-06-30
+
+### Naprawione
+
+- **Newsletter — klik w listę (kampanię/szablon/raport) wyrzucał do ustawień Evoke ONE.**
+  Pełny panel renderuje się tylko w osobnej pozycji menu (`admin.php?page=evoke-newsletter`),
+  ale pliki podzakładek budowały linki na sztywno do
+  `options-general.php?page=evoke-one&tab=newsletter`. Wszystkie linki przepięte na
+  dynamiczne `evk_nl_base_url()` — zostają w panelu (działa też przy lokalizacji menu
+  „Ustawienia WordPress"). (`includes/admin/newsletter/tab-{lists,campaigns,reports,templates}.php`)
+
 ## [1.14.1] — 2026-06-30
 
 ### Naprawione

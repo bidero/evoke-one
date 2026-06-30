@@ -46,7 +46,7 @@ if ($campaign_id) {
             <ul style="margin:0;padding:0;list-style:none;">
                 <?php foreach ($campaigns as $c): ?>
                 <li style="border-bottom:1px solid #f1f5f9;">
-                    <a href="<?php echo esc_url(add_query_arg(['subtab' => 'reports', 'campaign_id' => $c['id']], admin_url('options-general.php?page=evoke-one&tab=newsletter'))); ?>"
+                    <a href="<?php echo esc_url(add_query_arg(['subtab' => 'reports', 'campaign_id' => $c['id']], evk_nl_base_url())); ?>"
                        style="display:block;padding:10px 14px;text-decoration:none;font-size:12px;
                               color:<?php echo (int)$c['id'] === $campaign_id ? '#2563eb' : '#374151'; ?>;
                               font-weight:<?php echo (int)$c['id'] === $campaign_id ? '600' : '400'; ?>;
@@ -151,7 +151,7 @@ if ($campaign_id) {
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                 <h4 style="margin:0;font-size:13px;font-weight:600;">Logi zdarzeń</h4>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <select id="evk-nl-event-filter" onchange="window.location='<?php echo esc_js(add_query_arg(['subtab' => 'reports', 'campaign_id' => $campaign_id], admin_url('options-general.php?page=evoke-one&tab=newsletter'))); ?>&event_filter='+this.value" style="font-size:12px;">
+                    <select id="evk-nl-event-filter" onchange="window.location='<?php echo esc_js(add_query_arg(['subtab' => 'reports', 'campaign_id' => $campaign_id], evk_nl_base_url())); ?>&event_filter='+this.value" style="font-size:12px;">
                         <option value="" <?php selected('', $filter_ev); ?>>Wszystkie</option>
                         <?php foreach (['sent','open','click','unsubscribe','error','bounce'] as $ev): ?>
                         <option value="<?php echo esc_attr($ev); ?>" <?php selected($ev, $filter_ev); ?>><?php echo esc_html($ev); ?></option>
