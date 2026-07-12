@@ -2,6 +2,13 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.15.3] — 2026-07-12
+
+### Zmienione
+
+- Wydanie testowe updatera z tokenem do repo prywatnego — bez zmian
+  funkcjonalnych względem 1.15.2 (tylko podbicie wersji).
+
 ## [1.15.2] — 2026-07-12
 
 ### Dodane
