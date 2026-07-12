@@ -10,7 +10,9 @@ if (!defined('ABSPATH')) exit;
 // =========================================================================
 
 add_action('admin_init', function () {
-    register_setting('evoke_one_maintenance', 'maintenance_mode');
+    // UWAGA: 'maintenance_mode' celowo NIE jest rejestrowany w tej grupie.
+    // Jest zapisywany wyłącznie przez AJAX toggle (evk_ajax_toggle) — rejestracja
+    // powodowała zerowanie stanu przy zapisie formularza options.php.
     register_setting('evoke_one_maintenance', 'maintenance_bypass_password');
     register_setting('evoke_one_maintenance', 'maintenance_bypass_hours');
     register_setting('evoke_one_maintenance', 'maintenance_page_id');

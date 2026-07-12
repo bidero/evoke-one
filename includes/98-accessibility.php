@@ -84,7 +84,7 @@ function evk_a11y_sanitize($input): array {
     $clean    = [];
     $defaults = evk_a11y_defaults();
 
-    $clean['enabled'] = !empty($input['enabled']) ? 1 : 0;
+    $clean['enabled'] = evk_preserve_toggle($input, 'evk_a11y', 'enabled', 1);
 
     // Checkboxy funkcji
     $features = [

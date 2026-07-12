@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-status-actions">
                         <span class="evo-toggle-label"><?php echo !empty($dm['enabled']) ? 'Włączony' : 'Wyłączony'; ?></span>
                         <label class="evo-toggle">
-                            <input type="checkbox" name="evk_darkmode[enabled]" data-option="evk_darkmode" data-field="enabled" value="1" <?php checked(!empty($dm['enabled'])); ?>>
+                            <input type="checkbox" data-option="evk_darkmode" data-field="enabled" value="1" <?php checked(!empty($dm['enabled'])); ?>>
                             <span class="evo-slider"></span>
                         </label>
                     </div>

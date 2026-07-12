@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-status-actions">
                         <span class="evo-toggle-label"><?php echo !empty($lenis['enabled']) ? 'Włączony' : 'Wyłączony'; ?></span>
                         <label class="evo-toggle">
-                            <input type="checkbox" name="evk_lenis[enabled]" data-option="evk_lenis" data-field="enabled" value="1" <?php checked(!empty($lenis['enabled'])); ?>>
+                            <input type="checkbox" data-option="evk_lenis" data-field="enabled" value="1" <?php checked(!empty($lenis['enabled'])); ?>>
                             <span class="evo-slider"></span>
                         </label>
                     </div>

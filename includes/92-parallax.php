@@ -51,8 +51,7 @@ class EVK_Parallax {
     }
 
     public static function sanitize_settings($input): array {
-        $input = is_array($input) ? $input : [];
-        return ['enabled' => !empty($input['enabled']) ? 1 : 0];
+        return ['enabled' => evk_preserve_toggle($input, 'evk_parallax')];
     }
 
     public function enqueue_scripts(): void {

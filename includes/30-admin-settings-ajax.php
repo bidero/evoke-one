@@ -556,6 +556,32 @@ add_action('wp_ajax_tl_inline_save_full', function () {
 
 
 // =========================================================================
+// HELPER — zachowanie pól przełączników przy zapisie formularza
+// =========================================================================
+
+/**
+ * Zwraca wartość pola przełącznika (np. 'enabled') z zachowaniem stanu.
+ *
+ * Formularze options.php NIE zawierają pól zarządzanych przez AJAX toggle
+ * (evk_ajax_toggle) — WordPress przy zapisie grupy ustawień aktualizuje
+ * wszystkie zarejestrowane opcje, więc brakujący klucz zerował przełącznik.
+ * Zasada: klucz obecny w $input → sanityzuj; klucz nieobecny → zachowaj
+ * aktualnie zapisaną wartość opcji. Zapis przez AJAX toggle zawsze przekazuje
+ * pełną tablicę z kluczem, więc wyłączanie działa poprawnie.
+ */
+function evk_preserve_toggle($input, string $option, string $field = 'enabled', int $default = 0): int {
+    if (is_array($input) && array_key_exists($field, $input)) {
+        return !empty($input[$field]) ? 1 : 0;
+    }
+    $current = get_option($option, null);
+    if (is_array($current) && array_key_exists($field, $current)) {
+        return !empty($current[$field]) ? 1 : 0;
+    }
+    // Opcja nigdy nie zapisana — użyj domyślnej wartości modułu
+    return $default;
+}
+
+// =========================================================================
 // AJAX TOGGLE — uniwersalny handler włączników/wyłączników
 // =========================================================================
 

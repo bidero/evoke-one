@@ -86,7 +86,10 @@ class EVK_DarkMode {
     public function sanitize_settings($input): array {
         $clean = [];
 
-        foreach (['enabled', 'bricks_enabled', 'logo_enabled', 'ripple_enabled', 'wipe_enabled', 'post_trans_enabled'] as $key) {
+        // 'enabled' zarządzany przez AJAX toggle — zachowaj gdy brak w POST
+        $clean['enabled'] = evk_preserve_toggle($input, 'evk_darkmode', 'enabled', 1);
+
+        foreach (['bricks_enabled', 'logo_enabled', 'ripple_enabled', 'wipe_enabled', 'post_trans_enabled'] as $key) {
             $clean[$key] = !empty($input[$key]) ? 1 : 0;
         }
 

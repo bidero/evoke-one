@@ -63,7 +63,7 @@ class EVK_Cursor {
 
     public function sanitize_settings($input): array {
         $clean            = [];
-        $clean['enabled'] = !empty($input['enabled']) ? 1 : 0;
+        $clean['enabled'] = evk_preserve_toggle($input, 'evk_cursor');
         $clean['elements'] = [];
 
         if (!empty($input['elements']) && is_array($input['elements'])) {

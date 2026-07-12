@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) exit;
  */
 ?>
 <form method="post" action="options.php">
-                    <?php settings_fields('evoke_one_other'); ?>
+                    <?php settings_fields('evoke_one_dashboard'); ?>
 
                     <p class="evo-section-title">Kokpit Bricks Builder</p>
                     <div class="evo-info-box">

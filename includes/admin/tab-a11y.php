@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-status-actions">
                         <span class="evo-toggle-label"><?php echo !empty($a11y['enabled']) ? 'Włączony' : 'Wyłączony'; ?></span>
                         <label class="evo-toggle">
-                            <input type="checkbox" name="evk_a11y[enabled]" data-option="evk_a11y" data-field="enabled" value="1" <?php checked(!empty($a11y['enabled'])); ?>>
+                            <input type="checkbox" data-option="evk_a11y" data-field="enabled" value="1" <?php checked(!empty($a11y['enabled'])); ?>>
                             <span class="evo-slider"></span>
                         </label>
                     </div>

@@ -6,7 +6,8 @@ $enabled   = evk_301_is_enabled();
 $redirects = evk_301_get_all();
 $nonce     = wp_create_nonce('evk_tools_nonce');
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_301_toggle'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_301_toggle'])
+    && check_admin_referer('evk_301_toggle_action')) {
     update_option('evk_301_enabled', !empty($_POST['evk_301_enabled']) ? 1 : 0);
     $enabled = evk_301_is_enabled();
 }
@@ -20,10 +21,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_301_toggle'])) {
         <p>Automatyczne przekierowania z licznikiem kliknięć. Obsługuje wildcards (<code>/stara/*</code>).</p>
     </div>
     <form method="post" style="display:contents;">
+        <?php wp_nonce_field('evk_301_toggle_action'); ?>
         <input type="hidden" name="evk_301_toggle" value="1">
         <div class="evo-status-actions">
             <label class="evo-toggle">
-                <input type="checkbox" name="evk_301_enabled" data-option="evk_301_enabled" data-field="_scalar" value="1" <?php checked($enabled); ?> onchange="this.form.submit()">
+                <?php /* bez data-option — zapis wyłącznie przez submit formularza,
+                         wcześniej strzelał podwójnie (AJAX + POST) */ ?>
+                <input type="checkbox" name="evk_301_enabled" value="1" <?php checked($enabled); ?> onchange="this.form.submit()">
                 <span class="evo-slider"></span>
             </label>
         </div>

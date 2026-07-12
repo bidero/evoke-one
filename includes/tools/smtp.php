@@ -32,7 +32,7 @@ add_action('admin_init', function () {
             // Hasło: jeśli puste — zachowaj stare
             $old = evk_smtp_get();
             return [
-                'enabled'     => !empty($input['enabled'])     ? 1 : 0,
+                'enabled'     => evk_preserve_toggle($input, 'evk_smtp'),
                 'host'        => sanitize_text_field($input['host']       ?? ''),
                 'port'        => absint($input['port']                    ?? 587),
                 'encryption'  => in_array($input['encryption'] ?? '', ['tls','ssl','none']) ? $input['encryption'] : 'tls',

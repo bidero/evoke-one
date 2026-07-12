@@ -58,11 +58,14 @@ class EVK_Schema {
             'sanitize_callback' => [$this, 'sanitize_settings'],
         ]);
     }
-    public function sanitize_settings(array $input): array {
+    public function sanitize_settings($input): array {
+        $input = is_array($input) ? $input : [];
         $clean = [];
+        // 'enabled' zarządzany przez AJAX toggle — zachowaj gdy brak w POST
+        $clean['enabled'] = evk_preserve_toggle($input, 'evk_schema', 'enabled', 1);
         // Checkboxy
         $checkboxes = [
-            'enabled', 'block_website', 'block_org', 'block_breadcrumb',
+            'block_website', 'block_org', 'block_breadcrumb',
             'block_webpage', 'block_article', 'block_faq', 'block_product',
         ];
         foreach ($checkboxes as $key) {
@@ -85,7 +88,7 @@ class EVK_Schema {
 		// Opisy per język (z osobnych pól formularza)
 if (isset($_POST['evk_schema_desc']) && is_array($_POST['evk_schema_desc'])) {
     $descs = [];
-    foreach ($_POST['evk_schema_desc'] as $code => $text) {
+    foreach (wp_unslash($_POST['evk_schema_desc']) as $code => $text) {
         $code = sanitize_key($code);
         if ($code) {
             $descs[$code] = sanitize_textarea_field($text);
@@ -97,7 +100,7 @@ if (isset($_POST['evk_schema_desc']) && is_array($_POST['evk_schema_desc'])) {
 }
 // Social links
 if (isset($_POST['evk_schema_socials'])) {
-    $lines = array_filter(array_map('esc_url_raw', explode("\n", $_POST['evk_schema_socials'])));
+    $lines = array_filter(array_map('esc_url_raw', explode("\n", wp_unslash($_POST['evk_schema_socials']))));
     $clean['social_links'] = wp_json_encode(array_values($lines));
 } else {
     $clean['social_links'] = $input['social_links'] ?? $this->defaults['social_links'];
@@ -105,7 +108,7 @@ if (isset($_POST['evk_schema_socials'])) {
 // Waluty per język
 if (isset($_POST['evk_schema_curr']) && is_array($_POST['evk_schema_curr'])) {
     $currs = [];
-    foreach ($_POST['evk_schema_curr'] as $code => $currency) {
+    foreach (wp_unslash($_POST['evk_schema_curr']) as $code => $currency) {
         $code = sanitize_key($code);
         $curr = strtoupper(sanitize_text_field($currency));
         if ($code && $curr) {

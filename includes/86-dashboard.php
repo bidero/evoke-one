@@ -10,6 +10,9 @@ if (!defined('ABSPATH')) exit;
 // =========================================================================
 
 add_action('admin_init', function () {
+    // Osobna grupa 'evoke_one_dashboard' — wcześniej wspólna grupa 'evoke_one_other'
+    // powodowała, że zapis INNEGO formularza z tej grupy (np. zakładki Treść)
+    // zerował wszystkie opcje kokpitu (options.php aktualizuje całą grupę).
     $settings = [
         'evoke_dashboard_active',
         'evoke_dashboard_remove_native',
@@ -23,7 +26,7 @@ add_action('admin_init', function () {
         'evoke_dashboard_shadow',
     ];
     foreach ($settings as $s) {
-        register_setting('evoke_one_other', $s);
+        register_setting('evoke_one_dashboard', $s);
     }
 });
 
@@ -126,9 +129,12 @@ add_action('admin_notices', function () {
 // =========================================================================
 
 add_action('admin_init', function () {
-    register_setting('evoke_one_other', 'evoke_move_bricks_bottom',      ['sanitize_callback' => 'absint']);
-    register_setting('evoke_one_other', 'evoke_disable_global_comments', ['sanitize_callback' => 'absint']);
-    register_setting('evoke_one_other', 'evoke_require_reg_to_comment',  ['sanitize_callback' => 'absint']);
+    // Grupa 'evoke_one_content' — tylko opcje z formularza zakładki Treść.
+    // 'evoke_move_bricks_bottom' celowo NIE jest rejestrowany w żadnej grupie:
+    // nie ma go w żadnym formularzu (zapis wyłącznie przez AJAX toggle),
+    // a rejestracja zerowałaby go przy zapisie grupy.
+    register_setting('evoke_one_content', 'evoke_disable_global_comments', ['sanitize_callback' => 'absint']);
+    register_setting('evoke_one_content', 'evoke_require_reg_to_comment',  ['sanitize_callback' => 'absint']);
 });
 
 // Opcja "Przesuń Bricks na dół" zastąpiona przez edytor menu (86-menu-editor.php)

@@ -26,25 +26,18 @@ if ($selected_page_id) {
                 </div>
                 <div class="evo-status-actions">
                     <span class="evo-toggle-label"><?php echo $status ? 'Włączony' : 'Wyłączony'; ?></span>
-                    <form method="post" action="options.php" style="display:contents;">
-                        <?php settings_fields('evoke_one_maintenance'); ?>
-                        <input type="hidden" name="maintenance_bypass_password" value="<?php echo esc_attr($bypass_pass); ?>">
-                        <input type="hidden" name="maintenance_bypass_hours"    value="<?php echo esc_attr($bypass_hours); ?>">
-                        <input type="hidden" name="maintenance_page_id"         value="<?php echo esc_attr($selected_page_id); ?>">
-                        <input type="hidden" name="maintenance_excluded_paths"  value="<?php echo esc_attr($excluded_paths); ?>">
-                        <label class="evo-toggle">
-                            <input type="checkbox" name="maintenance_mode" data-option="maintenance_mode" data-field="_scalar" value="1" <?php checked(1, $status); ?>>
-                            <span class="evo-slider"></span>
-                        </label>
-                    </form>
+                    <label class="evo-toggle">
+                        <input type="checkbox" data-option="maintenance_mode" data-field="_scalar" value="1" <?php checked(1, $status); ?>>
+                        <span class="evo-slider"></span>
+                    </label>
                 </div>
             </div>
 
             <form method="post" action="options.php">
                 <?php settings_fields('evoke_one_maintenance'); ?>
-                <input type="hidden" name="maintenance_mode"            value="<?php echo esc_attr($status); ?>">
-                <input type="hidden" name="maintenance_bypass_password" value="<?php echo esc_attr($bypass_pass); ?>">
-                <input type="hidden" name="maintenance_bypass_hours"    value="<?php echo esc_attr($bypass_hours); ?>">
+                <?php /* maintenance_mode zapisywany wyłącznie przez AJAX toggle (nie jest już
+                         zarejestrowany w grupie evoke_one_maintenance) — zapis formularza
+                         nie dotyka stanu włącznika. */ ?>
 
                 <p class="evo-section-title">Strona konserwacji</p>
                 <div class="evo-info-box">

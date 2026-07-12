@@ -52,7 +52,7 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
 
 <form method="post" action="options.php" style="margin-top:24px;">
     <?php settings_fields(EVK_INBOX_OPTION . '_group'); ?>
-    <input type="hidden" name="evk_forminbox[enabled]" value="<?php echo (int)!empty($fi['enabled']); ?>">
+    <?php /* 'enabled' zapisywany przez AJAX toggle — sanitizer zachowuje stan przy zapisie formularza */ ?>
 
     <!-- ── MENU ─────────────────────────────────────────────────────── -->
     <p class="evo-section-title">Konfiguracja menu</p>

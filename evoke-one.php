@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.14.4
+ * Version: 1.15.0
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 define('EVOKE_ONE_FILE',    __FILE__);
 define('EVOKE_ONE_DIR',     plugin_dir_path(__FILE__));
 define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
-define('EVOKE_ONE_VERSION', '1.14.4');
+define('EVOKE_ONE_VERSION', '1.15.0');
 
 // Stałe modułu tłumaczeń (zachowane dla kompatybilności z istniejącymi ustawieniami)
 define('TL_MENU_SLUG',        'evoke-tlumaczenia');
@@ -87,6 +87,7 @@ $evoke_one_modules = [
     '96-lenis.php',
     '97-opengraph.php',
     '98-accessibility.php',
+    '99-github-updater.php',
 ];
 
 foreach ($evoke_one_modules as $module) {
@@ -178,13 +179,8 @@ require_once EVOKE_ONE_DIR . 'includes/newsletter/ajax.php';
 require_once EVOKE_ONE_DIR . 'includes/newsletter/public.php';
 require_once EVOKE_ONE_DIR . 'includes/newsletter/settings.php';
 
-// =========================================================================
-// REJESTRACJA USTAWIEŃ SCHEMA (wymaga załadowanej klasy EVK_Schema)
-// =========================================================================
-
-add_action('admin_init', function () {
-    register_setting('evoke_one_schema', 'evk_schema');
-});
+// (Rejestracja ustawień Schema odbywa się w includes/90-schema.php —
+//  wcześniejsza duplikacja tutaj nadpisywała argumenty rejestracji.)
 
 // =========================================================================
 // USUŃ SEKCJĘ USERS Z WP SITEMAP (warunkowo)

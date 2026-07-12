@@ -26,7 +26,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-status-actions">
                         <span class="evo-toggle-label"><?php echo !empty($cursor_settings['enabled']) ? 'Włączony' : 'Wyłączony'; ?></span>
                         <label class="evo-toggle">
-                            <input type="checkbox" name="evk_cursor[enabled]" data-option="evk_cursor" data-field="enabled" value="1" <?php checked(!empty($cursor_settings['enabled'])); ?>>
+                            <input type="checkbox" data-option="evk_cursor" data-field="enabled" value="1" <?php checked(!empty($cursor_settings['enabled'])); ?>>
                             <span class="evo-slider"></span>
                         </label>
                     </div>

@@ -4,11 +4,7 @@ if (!defined('ABSPATH')) exit;
  * Evoke ONE — Other subtab: interface
  */
 ?>
-<!-- Bricks bottom — osobna forma bo to opcja z grupy evoke_one_other -->
-                <form method="post" action="options.php">
-                    <?php settings_fields('evoke_one_other'); ?>
-
-                <!-- Miniatury — własna opcja evk_interface -->
+<!-- Miniatury — własna opcja evk_interface -->
                 <form method="post" action="options.php">
                     <?php settings_fields('evoke_one_interface'); ?>
 

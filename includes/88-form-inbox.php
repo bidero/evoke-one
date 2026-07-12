@@ -83,7 +83,7 @@ add_action('admin_init', function () {
 function evk_inbox_sanitize_settings($input): array {
     $d = evk_inbox_defaults();
     $c = [];
-    $c['enabled']       = !empty($input['enabled']) ? 1 : 0;
+    $c['enabled']       = evk_preserve_toggle($input, EVK_INBOX_OPTION);
     $c['menu_label']    = sanitize_text_field($input['menu_label']    ?? $d['menu_label'])    ?: $d['menu_label'];
     $c['menu_icon']     = sanitize_text_field($input['menu_icon']     ?? $d['menu_icon'])     ?: $d['menu_icon'];
     $c['menu_position'] = max(1, min(100, intval($input['menu_position'] ?? 25)));

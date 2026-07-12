@@ -225,7 +225,7 @@ add_action('admin_init', function () {
             }
 
             $output = [
-                'enabled'                => !empty($input['enabled']) ? 1 : 0,
+                'enabled'                => evk_preserve_toggle($input, 'evk_white_label'),
                 'logo_url'               => array_key_exists('logo_url', $input)           ? esc_url_raw($input['logo_url'])                          : $current['logo_url'],
                 'logo_width'             => array_key_exists('logo_width', $input)         ? max(40, min(400, absint($input['logo_width'])))           : $current['logo_width'],
                 'logo_height'            => array_key_exists('logo_height', $input)        ? max(20, min(200, absint($input['logo_height'])))          : $current['logo_height'],

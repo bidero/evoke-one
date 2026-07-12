@@ -108,7 +108,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div>
     <div class="evo-status-actions">
         <label class="evo-toggle">
-            <input type="checkbox" name="evk_white_label[enabled]" data-option="evk_white_label" data-field="enabled" value="1" <?php checked(1, $wl['enabled']); ?>>
+            <input type="checkbox" data-option="evk_white_label" data-field="enabled" value="1" <?php checked(1, $wl['enabled']); ?>>
             <span class="evo-slider"></span>
         </label>
     </div>

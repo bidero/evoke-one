@@ -19,7 +19,7 @@ $nonce = wp_create_nonce('evk_tools_nonce');
     </div>
     <div class="evo-status-actions">
         <label class="evo-toggle">
-            <input type="checkbox" name="evk_smtp[enabled]" data-option="evk_smtp" data-field="enabled" value="1" <?php checked(1, $s['enabled']); ?>>
+            <input type="checkbox" data-option="evk_smtp" data-field="enabled" value="1" <?php checked(1, $s['enabled']); ?>>
             <span class="evo-slider"></span>
         </label>
     </div>

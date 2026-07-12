@@ -2,6 +2,49 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.15.0] — 2026-07-12
+
+### Naprawione
+
+- **Przełączniki modułów wyłączały się po kliknięciu „Zapisz".** Główna przyczyna:
+  WordPress (`options.php`) przy zapisie formularza aktualizuje WSZYSTKIE opcje
+  zarejestrowane w danej grupie ustawień — także te, których nie ma w formularzu
+  (dostają `null`), a sanitizery zerowały wtedy pole `enabled` zarządzane przez
+  AJAX toggle. Naprawione we wszystkich wariantach:
+  - Nowy helper `evk_preserve_toggle()` (`includes/30-admin-settings-ajax.php`) —
+    sanitizer zachowuje aktualny stan przełącznika, gdy klucza nie ma w POST.
+    Zastosowany w: Parallax, OpenGraph, Dark Mode, Lenis, Dostępność, Kursor,
+    Schema, SMTP, White Label, Skrzynka wiadomości.
+  - Toggle w kartach statusu ujednolicone jako AJAX-only (usunięte `name=` —
+    formularz nie nadpisuje już stanu przełącznika nieaktualną wartością).
+  - **Konserwacja:** ukryte pole `maintenance_mode` w formularzu nadpisywało stan
+    włącznika wartością z momentu załadowania strony; `maintenance_mode` nie jest
+    już rejestrowany w grupie `evoke_one_maintenance` (zapis wyłącznie przez AJAX),
+    usunięty też martwy mini-formularz w karcie statusu.
+  - **Logi 404:** zapis ustawień (Maks. logów / boty) ZAWSZE wyłączał moduł —
+    formularz nie przekazywał `evk_404_enabled`, a handler zerował brakujący klucz.
+  - **Panel admina:** wspólna grupa `evoke_one_other` rozdzielona na
+    `evoke_one_dashboard` i `evoke_one_content` — zapis zakładki „Treść" zerował
+    wszystkie ustawienia Kokpitu Bricks (i odwrotnie).
+  - **Interfejs:** usunięty niedomknięty, zagnieżdżony `<form>` grupy
+    `evoke_one_other` (nieprawidłowy HTML, ryzyko zapisania złej grupy).
+  - **Skrzynka wiadomości:** ukryte pole `enabled` z nieaktualną wartością usunięte
+    z formularza.
+  - **Przekierowania 301:** toggle strzelał podwójnie (AJAX + submit formularza);
+    dodany brakujący nonce (CSRF) do przełącznika.
+- **Schema:** usunięta zdublowana rejestracja `evk_schema` w `evoke-one.php`
+  (nadpisywała argumenty rejestracji z `includes/90-schema.php`); sanitizer
+  przyjmuje teraz bezpiecznie wartości nietablicowe.
+
+### Dodane
+
+- **Aktualizacje wtyczki z GitHub** (`includes/99-github-updater.php`) — wtyczka
+  sprawdza najnowsze wydanie w `github.com/bidero/evoke-one` (Releases; fallback
+  na tagi) i podpina je pod natywny mechanizm aktualizacji WP. Cache 6 h,
+  link „Sprawdź aktualizacje" na liście wtyczek, popup „Zobacz szczegóły wersji",
+  automatyczna zmiana nazwy folderu z zipballa GitHuba na `evoke-one`.
+  Publikacja: podbij wersję → push → utwórz Release z tagiem `vX.Y.Z`.
+
 ## [1.14.4] — 2026-06-30
 
 ### Naprawione

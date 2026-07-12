@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) exit;
  */
 ?>
 <form method="post" action="options.php">
-                    <?php settings_fields('evoke_one_other'); ?>
+                    <?php settings_fields('evoke_one_content'); ?>
 
                     <p class="evo-section-title">Komentarze</p>
                     <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">

@@ -33,9 +33,10 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
         <form method="post" style="display:contents;">
             <?php wp_nonce_field('evk_404_save_action'); ?>
             <input type="hidden" name="evk_404_save" value="1">
-            <input type="hidden" name="evk_404_enabled" data-option="evk_404_enabled" data-field="_scalar" value="<?php echo $enabled ? '0' : '1'; ?>">
+            <input type="hidden" name="evk_404_enabled" value="<?php echo $enabled ? '0' : '1'; ?>">
             <input type="hidden" name="evk_404_max_logs" value="<?php echo esc_attr($max_logs); ?>">
-            <input type="hidden" name="evk_404_skip_bots" data-option="evk_404_skip_bots" data-field="_scalar" value="<?php echo $skip_bots ? '1' : '0'; ?>">
+            <input type="hidden" name="evk_404_skip_bots" value="<?php echo $skip_bots ? '1' : '0'; ?>">
+            <input type="hidden" name="evk_404_bot_list" value="<?php echo esc_attr($bot_list); ?>">
             <label class="evo-toggle">
                 <input type="checkbox" <?php checked($enabled); ?> onchange="this.form.elements['evk_404_enabled'].value=this.checked?'1':'0';this.form.submit()">
                 <span class="evo-slider"></span>
@@ -48,6 +49,9 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
 <form method="post" style="margin-top:20px;">
     <?php wp_nonce_field('evk_404_save_action'); ?>
     <input type="hidden" name="evk_404_save" value="1">
+    <?php /* Stan włącznika przekazywany jawnie — bez tego pola zapis ustawień
+             wyłączał logi 404 (handler zerował brakujący klucz w POST). */ ?>
+    <input type="hidden" name="evk_404_enabled" value="<?php echo $enabled ? '1' : '0'; ?>">
 
     <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
         <div class="evo-field" style="margin:0;display:flex;align-items:center;gap:8px;">

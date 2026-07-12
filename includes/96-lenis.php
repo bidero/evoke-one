@@ -54,7 +54,10 @@ class EVK_Lenis {
     public function sanitize_settings($input): array {
         $clean = [];
 
-        foreach (['enabled', 'auto_raf', 'smooth_wheel', 'sync_touch', 'infinite', 'overscroll'] as $key) {
+        // 'enabled' zarządzany przez AJAX toggle — zachowaj gdy brak w POST
+        $clean['enabled'] = evk_preserve_toggle($input, 'evk_lenis');
+
+        foreach (['auto_raf', 'smooth_wheel', 'sync_touch', 'infinite', 'overscroll'] as $key) {
             $clean[$key] = !empty($input[$key]) ? 1 : 0;
         }
 
