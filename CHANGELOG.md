@@ -2,6 +2,13 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.15.1] — 2026-07-12
+
+### Zmienione
+
+- Wydanie testowe mechanizmu aktualizacji z GitHub — bez zmian funkcjonalnych
+  względem 1.15.0 (tylko podbicie wersji).
+
 ## [1.15.0] — 2026-07-12
 
 ### Naprawione
