@@ -2,6 +2,27 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.15.2] — 2026-07-12
+
+### Dodane
+
+- **Aktualizacje z prywatnego repozytorium GitHub.** Updater obsługuje token
+  (fine-grained PAT z uprawnieniem „Contents: Read"): stała
+  `EVOKE_ONE_GITHUB_TOKEN` w `wp-config.php` (zalecane) lub opcja
+  `evk_one_github_token`. Nagłówek Authorization doklejany też przy pobieraniu
+  paczki aktualizacji (`http_request_args`). Bez tokenu prywatne repo zwraca
+  404 i aktualizacje nie są widoczne. (`includes/99-github-updater.php`)
+
+### Naprawione
+
+- **Newsletter — import liczył duplikaty jako „dodane".** Po imporcie CSV
+  komunikat pokazywał np. „dodano 22076", a lista miała 18477 subskrybentów —
+  adresy powtórzone w pliku lub już obecne na liście były zliczane jako dodane
+  (funkcja zwracała ID istniejącego wpisu). Teraz: „dodano" = wyłącznie nowe
+  wpisy w bazie, duplikaty (w pliku i w bazie) idą do „pominięte"; duplikaty
+  w obrębie pliku wykrywane bez odpytywania bazy. Dane w bazie były poprawne —
+  błędny był tylko licznik. (`includes/newsletter/lists.php`)
+
 ## [1.15.1] — 2026-07-12
 
 ### Zmienione

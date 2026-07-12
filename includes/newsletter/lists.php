@@ -121,8 +121,14 @@ function evk_nl_get_subscriber_by_token(string $token): ?array {
     return $row ?: null;
 }
 
-function evk_nl_add_subscriber(int $list_id, string $email, array $fields = []): int|false {
+/**
+ * Dodaje subskrybenta. Gdy email już istnieje na liście — zwraca ID istniejącego
+ * wpisu (reaktywując wypisanego). Parametr $created (by-ref) pozwala odróżnić
+ * nowy wpis od duplikatu — używane przez import do rzetelnego liczenia.
+ */
+function evk_nl_add_subscriber(int $list_id, string $email, array $fields = [], ?bool &$created = null): int|false {
     global $wpdb;
+    $created = false;
     $email = sanitize_email($email);
     if (!is_email($email)) return false;
 
@@ -158,7 +164,11 @@ function evk_nl_add_subscriber(int $list_id, string $email, array $fields = []):
         'status'     => 1,
         'token'      => $token,
     ]);
-    return $wpdb->insert_id ?: false;
+    if ($wpdb->insert_id) {
+        $created = true;
+        return $wpdb->insert_id;
+    }
+    return false;
 }
 
 function evk_nl_unsubscribe_by_token(string $token): bool {
@@ -186,11 +196,14 @@ function evk_nl_delete_subscriber(int $id): bool {
 /**
  * Importuje listę emaili (tablica) do listy.
  * Zwraca ['added' => N, 'skipped' => N, 'invalid' => N]
+ * added = faktycznie NOWE wpisy w bazie; skipped = duplikaty (w pliku
+ * lub już obecne na liście); invalid = nieprawidłowe adresy.
  */
 function evk_nl_import_emails(int $list_id, array $emails): array {
     $added   = 0;
     $skipped = 0;
     $invalid = 0;
+    $seen    = [];
 
     foreach ($emails as $raw) {
         $email = sanitize_email(trim($raw));
@@ -198,11 +211,22 @@ function evk_nl_import_emails(int $list_id, array $emails): array {
             $invalid++;
             continue;
         }
-        $result = evk_nl_add_subscriber($list_id, $email);
-        if ($result) {
-            $added++;
-        } else {
+        // Duplikat w obrębie importowanego pliku — bez odpytywania bazy
+        $key = strtolower($email);
+        if (isset($seen[$key])) {
             $skipped++;
+            continue;
+        }
+        $seen[$key] = true;
+
+        $created = false;
+        $result  = evk_nl_add_subscriber($list_id, $email, [], $created);
+        if ($result && $created) {
+            $added++;
+        } elseif ($result) {
+            $skipped++; // już na liście (duplikat w bazie)
+        } else {
+            $invalid++;
         }
     }
 

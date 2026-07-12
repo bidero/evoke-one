@@ -14,6 +14,12 @@ if (!defined('ABSPATH')) exit;
  *     Opcjonalnie dołącz do wydania asset "evoke-one.zip" — jeśli go nie ma,
  *     użyty zostanie automatyczny zipball GitHuba (folder jest przemianowywany
  *     na "evoke-one" podczas instalacji).
+ *
+ * REPO PRYWATNE — wymagany token (fine-grained PAT z uprawnieniem
+ * "Contents: Read" do tego repozytorium). Token podaje się POZA kodem wtyczki:
+ *   - w wp-config.php:  define('EVOKE_ONE_GITHUB_TOKEN', 'github_pat_...');
+ *   - lub w opcji WP:   update_option('evk_one_github_token', 'github_pat_...');
+ * Stała ma pierwszeństwo. NIE commituj tokenu do repozytorium.
  */
 
 class EVK_GitHub_Updater {
@@ -48,6 +54,18 @@ class EVK_GitHub_Updater {
         add_action('upgrader_process_complete',              [$this, 'clear_cache'], 10, 2);
         add_filter('plugin_action_links_' . $this->basename, [$this, 'action_links']);
         add_action('admin_init',                             [$this, 'handle_force_check']);
+        add_filter('http_request_args',                      [$this, 'authorize_download'], 10, 2);
+    }
+
+    /**
+     * Token dostępu do repo (repo prywatne). Stała wp-config ma pierwszeństwo.
+     */
+    private function token(): string {
+        if (defined('EVOKE_ONE_GITHUB_TOKEN') && EVOKE_ONE_GITHUB_TOKEN) {
+            return (string) EVOKE_ONE_GITHUB_TOKEN;
+        }
+        $opt = get_option('evk_one_github_token', '');
+        return is_string($opt) ? trim($opt) : '';
     }
 
     // =====================================================================
@@ -95,19 +113,27 @@ class EVK_GitHub_Updater {
 
         if (empty($data['tag_name'])) return null;
 
-        // Preferuj asset .zip (np. evoke-one.zip) — pełna kontrola nad zawartością
-        $package = '';
-        foreach (($data['assets'] ?? []) as $asset) {
-            $name = strtolower($asset['name'] ?? '');
-            if (!empty($asset['browser_download_url'])
-                && substr($name, -4) === '.zip') {
-                $package = $asset['browser_download_url'];
-                break;
+        $api_zipball = 'https://api.github.com/repos/' . self::REPO . '/zipball/' . rawurlencode($data['tag_name']);
+
+        if ($this->token() !== '') {
+            // Repo prywatne: browser_download_url assetów nie działa bez sesji
+            // przeglądarki — pobieramy zipball przez API (nagłówek Authorization
+            // dokleja authorize_download()).
+            $package = $api_zipball;
+        } else {
+            // Repo publiczne: preferuj asset .zip (np. evoke-one.zip)
+            $package = '';
+            foreach (($data['assets'] ?? []) as $asset) {
+                $name = strtolower($asset['name'] ?? '');
+                if (!empty($asset['browser_download_url'])
+                    && substr($name, -4) === '.zip') {
+                    $package = $asset['browser_download_url'];
+                    break;
+                }
             }
-        }
-        if (!$package) {
-            $package = $data['zipball_url']
-                ?? 'https://api.github.com/repos/' . self::REPO . '/zipball/' . rawurlencode($data['tag_name']);
+            if (!$package) {
+                $package = $data['zipball_url'] ?? $api_zipball;
+            }
         }
 
         return [
@@ -121,13 +147,17 @@ class EVK_GitHub_Updater {
 
     /** GET do API GitHub; null przy błędzie HTTP lub JSON. */
     private function api_get(string $url): ?array {
+        $headers = [
+            'Accept'     => 'application/vnd.github+json',
+            // GitHub API wymaga nagłówka User-Agent
+            'User-Agent' => 'EvokeOne-Updater; ' . home_url('/'),
+        ];
+        if ($this->token() !== '') {
+            $headers['Authorization'] = 'Bearer ' . $this->token();
+        }
         $response = wp_remote_get($url, [
             'timeout' => 10,
-            'headers' => [
-                'Accept'     => 'application/vnd.github+json',
-                // GitHub API wymaga nagłówka User-Agent
-                'User-Agent' => 'EvokeOne-Updater; ' . home_url('/'),
-            ],
+            'headers' => $headers,
         ]);
         if (is_wp_error($response)) return null;
         if ((int) wp_remote_retrieve_response_code($response) !== 200) return null;
@@ -165,7 +195,7 @@ class EVK_GitHub_Updater {
         $item->icons        = [];
         $item->banners      = [];
         $item->tested       = get_bloginfo('version');
-        $item->requires_php = '7.4';
+        $item->requires_php = '8.0';
 
         $transient->response[$this->basename] = $item;
         return $transient;
@@ -190,7 +220,7 @@ class EVK_GitHub_Updater {
         $info->homepage      = 'https://github.com/' . self::REPO;
         $info->download_link = $release['package'];
         $info->last_updated  = $release['published_at'];
-        $info->requires_php  = '7.4';
+        $info->requires_php  = '8.0';
         $info->sections      = [
             'description' => 'Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja i inne.',
             'changelog'   => $release['body']
@@ -218,6 +248,29 @@ class EVK_GitHub_Updater {
             return $desired;
         }
         return $source;
+    }
+
+    // =====================================================================
+    // AUTORYZACJA POBIERANIA PACZKI (repo prywatne)
+    // =====================================================================
+
+    /**
+     * WP pobiera paczkę przez download_url() bez naszych nagłówków — doklejamy
+     * Authorization do żądań kierowanych do API GitHuba dla naszego repo.
+     * (Przekierowanie na codeload.github.com używa podpisanego URL-a.)
+     */
+    public function authorize_download($args, $url) {
+        $token = $this->token();
+        if ($token === '') return $args;
+        if (strpos($url, 'https://api.github.com/repos/' . self::REPO . '/') !== 0) return $args;
+
+        if (!isset($args['headers']) || !is_array($args['headers'])) {
+            $args['headers'] = [];
+        }
+        if (empty($args['headers']['Authorization'])) {
+            $args['headers']['Authorization'] = 'Bearer ' . $token;
+        }
+        return $args;
     }
 
     // =====================================================================
