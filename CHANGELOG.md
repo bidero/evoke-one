@@ -2,6 +2,31 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.17.0] — 2026-07-14
+
+### Zmienione
+
+- **Schema — rozdzielenie wydawcy strony od fizycznego obiektu.** Dotąd wybór
+  typu działalności (np. Resort) zmieniał `@type` węzła `#organization`, przez
+  co `WebSite.publisher` wskazywał na obiekt noclegowy. Teraz `#organization`
+  to zawsze czysta `Organization` (wydawca: nazwa operatora — nowe pole,
+  fallback: nazwa obiektu, logo, sameAs, contactPoint), a przy typie innym niż
+  „Organizacja" powstaje osobny węzeł **`#place`** z wybranym `@type` i danymi
+  miejsca: adres, geo, priceRange, amenityFeature, telefon, e-mail, obrazek;
+  powiązany z wydawcą przez `parentOrganization`. `WebPage.about` i
+  `TouristAttraction.containedInPlace` wskazują teraz `#place`.
+  **Uwaga:** na instalacjach z ustawionym typem ≠ „Organizacja" graf zmienia
+  strukturę (jeden węzeł → dwa powiązane). (`includes/90-schema.php`)
+
+### Dodane
+
+- **Schema — nowe pola węzła #place:** link do mapy (`hasMap`), godziny
+  otwarcia (`openingHoursSpecification` — parser reguł „Pn-Pt 08:00-20:00",
+  „Sob 09:00-14:00", „Codziennie 08:00-20:00"; dni po polsku i angielsku,
+  zakresy i listy po przecinku) oraz obsługiwany obszar (`areaServed`, jedna
+  linia = jeden obszar). (`includes/90-schema.php`,
+  `includes/admin/seo/tab-schema.php`)
+
 ## [1.16.0] — 2026-07-14
 
 ### Naprawione

@@ -12,6 +12,7 @@ class EVK_Schema {
         'enabled'          => 1,
         // Dane organizacji
         'org_type'         => 'Organization',
+        'operator_name'    => '',   // wydawca strony (Organization); puste = site_name
         'site_name'        => '',
         'telephone'        => '',
         'email'            => '',
@@ -21,11 +22,14 @@ class EVK_Schema {
         'country'          => 'PL',
         'favicon_url'      => '',
         'contact_type'     => 'customer service',
-        // Dane firmy lokalnej (typy LocalBusiness i pochodne)
+        // Dane firmy lokalnej / miejsca (typy LocalBusiness i pochodne → węzeł #place)
         'geo_lat'          => '',
         'geo_lng'          => '',
         'price_range'      => '',
         'amenities'        => '',   // jedna linia = jedno udogodnienie (amenityFeature)
+        'has_map'          => '',   // URL do Map Google (hasMap)
+        'opening_hours'    => '',   // jedna linia = jedna reguła, np. "Pn-Pt 08:00-20:00"
+        'area_served'      => '',   // jedna linia = jeden obszar (areaServed)
         // TouristAttraction
         'attraction_name'  => '',
         // Social sameAs (JSON array string)
@@ -121,7 +125,7 @@ class EVK_Schema {
         $clean['org_type'] = array_key_exists($org_type, self::org_types()) ? $org_type : 'Organization';
         // Teksty jednoliniowe
         $texts = [
-            'site_name', 'telephone', 'email', 'street_address',
+            'operator_name', 'site_name', 'telephone', 'email', 'street_address',
             'locality', 'postal_code', 'country', 'favicon_url', 'contact_type',
             'geo_lat', 'geo_lng', 'price_range', 'attraction_name',
         ];
@@ -133,8 +137,12 @@ class EVK_Schema {
             $clean[$key] = str_replace(',', '.', $clean[$key]);
             if ($clean[$key] !== '' && !is_numeric($clean[$key])) $clean[$key] = '';
         }
-        // Udogodnienia — jedna linia = jedno amenityFeature
-        $clean['amenities'] = sanitize_textarea_field($input['amenities'] ?? '');
+        // Link do mapy
+        $clean['has_map'] = esc_url_raw($input['has_map'] ?? '');
+        // Pola wieloliniowe (jedna linia = jedna pozycja)
+        foreach (['amenities', 'opening_hours', 'area_served'] as $key) {
+            $clean[$key] = sanitize_textarea_field($input[$key] ?? '');
+        }
         // JSON-y (opisy, social, waluty)
         foreach (['descriptions', 'social_links', 'lang_currencies'] as $key) {
             $raw = $input[$key] ?? '{}';
@@ -193,11 +201,15 @@ if (isset($_POST['evk_schema_curr']) && is_array($_POST['evk_schema_curr'])) {
             $graph[] = $this->build_website($s, $home_url, $lang);
 
         }
-        // 2. Organization
+        // 2. Organization — wydawca strony (zawsze czysta Organization)
         if (!empty($s['block_org'])) {
             $graph[] = $this->build_organization($s, $home_url, $lang);
         }
-        // 2b. TouristAttraction (obiekt/miejsce jako atrakcja turystyczna)
+        // 2b. Miejsce / firma lokalna (#place) — gdy wybrano typ działalności
+        if ($this->has_place($s)) {
+            $graph[] = $this->build_place($s, $home_url, $lang);
+        }
+        // 2c. TouristAttraction (obiekt/miejsce jako atrakcja turystyczna)
         if (!empty($s['block_attraction'])) {
             $graph[] = $this->build_attraction($s, $home_url, $lang);
         }
@@ -278,44 +290,28 @@ return [
     }
     private function build_organization(array $s, string $home_url, string $lang): array {
         $site_name = $s['site_name'] ?: get_bloginfo('name');
+        $org_name  = $s['operator_name'] ?: $site_name;
         // Opis per język
         $descriptions = json_decode($s['descriptions'], true) ?: [];
         $description  = $descriptions[$lang] ?? $descriptions['pl'] ?? get_bloginfo('description');
-        // Typ działalności — tylko z listy dozwolonych
-        $org_type = array_key_exists($s['org_type'] ?? '', self::org_types()) ? $s['org_type'] : 'Organization';
-        // Języki dostępne (z modułu tłumaczeń lub fallback)
+        // Wydawca strony — zawsze czysta Organization; właściwości miejsca
+        // (adres, geo, priceRange, udogodnienia, godziny) idą do węzła #place
         $org = [
-            '@type'        => $org_type,
+            '@type'        => 'Organization',
             '@id'          => $home_url . '#organization',
-            'name'         => $site_name,
+            'name'         => $org_name,
             'url'          => $home_url,
             'description'  => $description,
-            'address'      => [
+        ];
+        // Adres na Organization tylko, gdy nie ma osobnego węzła #place
+        if (!$this->has_place($s)) {
+            $org['address'] = [
                 '@type'           => 'PostalAddress',
                 'streetAddress'   => $s['street_address'],
                 'addressLocality' => $s['locality'],
                 'postalCode'      => $s['postal_code'],
                 'addressCountry'  => $s['country'],
-            ],
-        ];
-        // Właściwości Place/LocalBusiness — nieprawidłowe dla czystej Organization
-        if ($org_type !== 'Organization') {
-            if ($geo = $this->build_geo($s)) {
-                $org['geo'] = $geo;
-            }
-            if (!empty($s['price_range'])) {
-                $org['priceRange'] = $s['price_range'];
-            }
-            $amenities = array_values(array_filter(array_map('trim', explode("\n", (string) $s['amenities']))));
-            if (!empty($amenities)) {
-                $org['amenityFeature'] = array_map(static function ($name) {
-                    return [
-                        '@type' => 'LocationFeatureSpecification',
-                        'name'  => $name,
-                        'value' => true,
-                    ];
-                }, $amenities);
-            }
+            ];
         }
         if ($s['telephone']) {
             $org['telephone'] = $s['telephone'];
@@ -343,7 +339,7 @@ return [
                 '@type'   => 'ImageObject',
                 '@id'     => $home_url . '#logo',
                 'url'     => $logo_url,
-                'caption' => $site_name,
+                'caption' => $org_name,
             ];
         }
         // sameAs — najpierw z ustawień, potem auto-detekcja z menu
@@ -488,7 +484,9 @@ private function build_webpage(WP_Post $post, string $permalink, string $home_ur
         'breadcrumb'  => ['@id' => $permalink . '#breadcrumb'],
     ];
 
-    if (!empty($s['block_org'])) {
+    if ($this->has_place($s)) {
+        $page['about'] = ['@id' => $home_url . '#place'];
+    } elseif (!empty($s['block_org'])) {
         $page['about'] = ['@id' => $home_url . '#organization'];
     }
 
@@ -551,6 +549,76 @@ private function build_webpage(WP_Post $post, string $permalink, string $home_ur
             ],
         ];
     }
+    /**
+     * Węzeł #place — fizyczny obiekt/firma lokalna (Resort, LodgingBusiness…),
+     * osobny od wydawcy strony (#organization). Emitowany, gdy typ
+     * działalności jest inny niż „Organizacja".
+     */
+    private function build_place(array $s, string $home_url, string $lang): array {
+        $site_name = $s['site_name'] ?: get_bloginfo('name');
+        $descriptions = json_decode($s['descriptions'], true) ?: [];
+        $description  = $descriptions[$lang] ?? $descriptions['pl'] ?? get_bloginfo('description');
+        $org_type = array_key_exists($s['org_type'] ?? '', self::org_types()) ? $s['org_type'] : 'LocalBusiness';
+
+        $place = [
+            '@type'       => $org_type,
+            '@id'         => $home_url . '#place',
+            'name'        => $site_name,
+            'url'         => $home_url,
+            'description' => $description,
+            'address'     => [
+                '@type'           => 'PostalAddress',
+                'streetAddress'   => $s['street_address'],
+                'addressLocality' => $s['locality'],
+                'postalCode'      => $s['postal_code'],
+                'addressCountry'  => $s['country'],
+            ],
+        ];
+        if ($s['telephone']) {
+            $place['telephone'] = $s['telephone'];
+        }
+        if ($s['email']) {
+            $place['email'] = $s['email'];
+        }
+        if ($s['favicon_url']) {
+            $place['image'] = (strpos($s['favicon_url'], 'http') === 0)
+                ? $s['favicon_url']
+                : untrailingslashit(get_option('home')) . $s['favicon_url'];
+        }
+        if ($geo = $this->build_geo($s)) {
+            $place['geo'] = $geo;
+        }
+        if (!empty($s['price_range'])) {
+            $place['priceRange'] = $s['price_range'];
+        }
+        $amenities = array_values(array_filter(array_map('trim', explode("\n", (string) $s['amenities']))));
+        if (!empty($amenities)) {
+            $place['amenityFeature'] = array_map(static function ($name) {
+                return [
+                    '@type' => 'LocationFeatureSpecification',
+                    'name'  => $name,
+                    'value' => true,
+                ];
+            }, $amenities);
+        }
+        if (!empty($s['has_map'])) {
+            $place['hasMap'] = $s['has_map'];
+        }
+        $hours = $this->parse_opening_hours((string) $s['opening_hours']);
+        if (!empty($hours)) {
+            $place['openingHoursSpecification'] = $hours;
+        }
+        $areas = array_values(array_filter(array_map('trim', explode("\n", (string) $s['area_served']))));
+        if (!empty($areas)) {
+            $place['areaServed'] = $areas;
+        }
+        // Powiązanie z wydawcą strony
+        if (!empty($s['block_org'])) {
+            $place['parentOrganization'] = ['@id' => $home_url . '#organization'];
+        }
+        return $place;
+    }
+
     private function build_attraction(array $s, string $home_url, string $lang): array {
         $name = $s['attraction_name'] ?: ($s['site_name'] ?: get_bloginfo('name'));
         $descriptions = json_decode($s['descriptions'], true) ?: [];
@@ -582,10 +650,9 @@ private function build_webpage(WP_Post $post, string $permalink, string $home_ur
                 ? $s['favicon_url']
                 : untrailingslashit(get_option('home')) . $s['favicon_url'];
         }
-        // Powiązanie z organizacją — tylko gdy organizacja jest typem Place
-        // (LocalBusiness i pochodne); czysta Organization nie jest miejscem
-        if (!empty($s['block_org']) && ($s['org_type'] ?? 'Organization') !== 'Organization') {
-            $att['containedInPlace'] = ['@id' => $home_url . '#organization'];
+        // Powiązanie z węzłem miejsca (#place), jeśli istnieje
+        if ($this->has_place($s)) {
+            $att['containedInPlace'] = ['@id' => $home_url . '#place'];
         }
         return $att;
     }
@@ -599,6 +666,81 @@ private function build_webpage(WP_Post $post, string $permalink, string $home_ur
             'latitude'  => $s['geo_lat'],
             'longitude' => $s['geo_lng'],
         ];
+    }
+    /** Czy ustawienia definiują osobny węzeł miejsca (#place)? */
+    private function has_place(array $s): bool {
+        $type = $s['org_type'] ?? 'Organization';
+        return $type !== 'Organization' && array_key_exists($type, self::org_types());
+    }
+    /**
+     * Parsuje godziny otwarcia na OpeningHoursSpecification.
+     * Jedna linia = jedna reguła: "Pn-Pt 08:00-20:00", "Sob 09:00-14:00",
+     * "Codziennie 08:00-20:00". Dni po polsku lub angielsku (skróty).
+     */
+    private function parse_opening_hours(string $raw): array {
+        $days_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        $map = [
+            'pn' => 'Monday',    'pon' => 'Monday',    'poniedzialek' => 'Monday',
+            'wt' => 'Tuesday',   'wto' => 'Tuesday',   'wtorek'       => 'Tuesday',
+            'sr' => 'Wednesday', 'sro' => 'Wednesday', 'sroda'        => 'Wednesday',
+            'cz' => 'Thursday',  'czw' => 'Thursday',  'czwartek'     => 'Thursday',
+            'pt' => 'Friday',    'pia' => 'Friday',    'piatek'       => 'Friday',
+            'so' => 'Saturday',  'sob' => 'Saturday',  'sobota'       => 'Saturday',
+            'nd' => 'Sunday',    'ndz' => 'Sunday',    'nie' => 'Sunday', 'niedziela' => 'Sunday',
+            'mo' => 'Monday', 'tu' => 'Tuesday', 'we' => 'Wednesday', 'th' => 'Thursday',
+            'fr' => 'Friday', 'sa' => 'Saturday', 'su' => 'Sunday',
+        ];
+        $resolve = static function (string $token) use ($map): string {
+            foreach ([$token, mb_substr($token, 0, 3), mb_substr($token, 0, 2)] as $key) {
+                if (isset($map[$key])) return $map[$key];
+            }
+            return '';
+        };
+        $specs = [];
+        foreach (preg_split('/\r\n|\r|\n/', $raw) as $line) {
+            $line = trim($line);
+            if ($line === '') continue;
+            // Godziny na końcu linii: 8:00-20:00 / 08.00–20.00
+            if (!preg_match('/(\d{1,2})[:.](\d{2})\s*[-–—]\s*(\d{1,2})[:.](\d{2})\s*$/u', $line, $t)) continue;
+            $opens  = sprintf('%02d:%s', (int) $t[1], $t[2]);
+            $closes = sprintf('%02d:%s', (int) $t[3], $t[4]);
+            $days_part = trim(mb_substr($line, 0, mb_strlen($line) - mb_strlen($t[0])));
+            $norm = str_replace(
+                ['ś', 'ó', 'ą', 'ę', 'ł', 'ż', 'ź', 'ć', 'ń', '.'],
+                ['s', 'o', 'a', 'e', 'l', 'z', 'z', 'c', 'n', ''],
+                mb_strtolower($days_part)
+            );
+            $days = [];
+            if ($norm === '' || strpos($norm, 'codzien') !== false || strpos($norm, 'daily') !== false) {
+                $days = $days_order;
+            } else {
+                foreach (explode(',', $norm) as $chunk) {
+                    $chunk = trim($chunk);
+                    if ($chunk === '') continue;
+                    if (preg_match('/^([a-z]+)\s*[-–—]\s*([a-z]+)$/u', $chunk, $r)) {
+                        $from = array_search($resolve($r[1]), $days_order, true);
+                        $to   = array_search($resolve($r[2]), $days_order, true);
+                        if ($from === false || $to === false) continue;
+                        if ($from <= $to) {
+                            $days = array_merge($days, array_slice($days_order, $from, $to - $from + 1));
+                        } else { // zakres przez niedzielę, np. Sob-Pn
+                            $days = array_merge($days, array_slice($days_order, $from), array_slice($days_order, 0, $to + 1));
+                        }
+                    } elseif ($day = $resolve($chunk)) {
+                        $days[] = $day;
+                    }
+                }
+            }
+            $days = array_values(array_intersect($days_order, array_unique($days)));
+            if (empty($days)) continue;
+            $specs[] = [
+                '@type'     => 'OpeningHoursSpecification',
+                'dayOfWeek' => $days,
+                'opens'     => $opens,
+                'closes'    => $closes,
+            ];
+        }
+        return $specs;
     }
 	private function get_available_languages(): array {
     // Zawsze dodaj polski

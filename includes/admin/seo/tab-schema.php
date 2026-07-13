@@ -36,9 +36,10 @@ if (!defined('ABSPATH')) exit;
                             <option value="<?php echo esc_attr($type_key); ?>" <?php selected($sc['org_type'], $type_key); ?>><?php echo esc_html($type_label); ?> — <?php echo esc_html($type_key); ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <div class="evo-desc">Typ inny niż „Organizacja" odblokowuje pola firmy lokalnej poniżej.</div>
+                        <div class="evo-desc">Typ inny niż „Organizacja" tworzy w grafie osobny węzeł miejsca (#place) z polami firmy lokalnej poniżej; #organization pozostaje czystym wydawcą strony.</div>
                     </div>
-                    <div class="evo-field" style="margin-bottom:0"><label>Nazwa (site_name)</label><input type="text" name="evk_schema[site_name]" value="<?php echo esc_attr($sc['site_name']); ?>" placeholder="np. Stanica Wodna PTTK Ukta"></div>
+                    <div class="evo-field" style="margin-bottom:0"><label>Nazwa obiektu / firmy (site_name)</label><input type="text" name="evk_schema[site_name]" value="<?php echo esc_attr($sc['site_name']); ?>" placeholder="np. Stanica Wodna PTTK Ukta"></div>
+                    <div class="evo-field" style="margin-bottom:0"><label>Nazwa operatora (Organization)</label><input type="text" name="evk_schema[operator_name]" value="<?php echo esc_attr($sc['operator_name']); ?>" placeholder="np. PTTK Oddział Mazurski"><div class="evo-desc">Wydawca strony / właściciel obiektu. Puste = nazwa obiektu.</div></div>
                     <div class="evo-field" style="margin-bottom:0"><label>Telefon</label><input type="text" name="evk_schema[telephone]" value="<?php echo esc_attr($sc['telephone']); ?>" placeholder="+48 000 000 000"></div>
                     <div class="evo-field" style="margin-bottom:0"><label>E-mail</label><input type="text" name="evk_schema[email]" value="<?php echo esc_attr($sc['email']); ?>" placeholder="biuro@domena.pl"></div>
                     <div class="evo-field" style="margin-bottom:0"><label>Ulica i numer</label><input type="text" name="evk_schema[street_address]" value="<?php echo esc_attr($sc['street_address']); ?>" placeholder="ul. Przykładowa 1"></div>
@@ -50,14 +51,17 @@ if (!defined('ABSPATH')) exit;
                 </div>
 
                 <hr class="evo-divider">
-                <p class="evo-section-title">Firma lokalna / obiekt (geo, cennik, udogodnienia)</p>
-                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Pola używane tylko, gdy typ działalności jest inny niż „Organizacja" (LocalBusiness i pochodne — np. obiekt noclegowy, restauracja). Współrzędne znajdziesz np. w Mapach Google (PPM na pinezce).</div></div>
+                <p class="evo-section-title">Miejsce / firma lokalna (węzeł #place)</p>
+                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Pola używane tylko, gdy typ działalności jest inny niż „Organizacja" (LocalBusiness i pochodne — np. obiekt noclegowy, restauracja). Trafiają do osobnego węzła #place powiązanego z #organization przez parentOrganization. Współrzędne znajdziesz np. w Mapach Google (PPM na pinezce).</div></div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:20px;">
                     <div class="evo-field" style="margin-bottom:0"><label>Szerokość geograficzna (latitude)</label><input type="text" name="evk_schema[geo_lat]" value="<?php echo esc_attr($sc['geo_lat']); ?>" placeholder="53.12345"></div>
                     <div class="evo-field" style="margin-bottom:0"><label>Długość geograficzna (longitude)</label><input type="text" name="evk_schema[geo_lng]" value="<?php echo esc_attr($sc['geo_lng']); ?>" placeholder="21.12345"></div>
                     <div class="evo-field" style="margin-bottom:0"><label>Przedział cenowy (priceRange)</label><input type="text" name="evk_schema[price_range]" value="<?php echo esc_attr($sc['price_range']); ?>" placeholder="$$"><div class="evo-desc">Umownie: $ tanio … $$$$ drogo (albo np. „50–200 zł").</div></div>
+                    <div class="evo-field" style="margin-bottom:0"><label>Link do mapy (hasMap)</label><input type="text" name="evk_schema[has_map]" value="<?php echo esc_attr($sc['has_map']); ?>" placeholder="https://maps.google.com/…"><div class="evo-desc">Np. link „Udostępnij" z Map Google.</div></div>
                 </div>
                 <div class="evo-field"><label>Udogodnienia (amenityFeature) — jedno na linię</label><textarea name="evk_schema[amenities]" rows="4" style="max-width:480px;" placeholder="Spływy kajakowe&#10;Pole namiotowe&#10;Sauna"><?php echo esc_textarea($sc['amenities']); ?></textarea></div>
+                <div class="evo-field"><label>Godziny otwarcia (openingHoursSpecification) — jedna reguła na linię</label><textarea name="evk_schema[opening_hours]" rows="3" style="max-width:480px;font-family:monospace;" placeholder="Pn-Pt 08:00-20:00&#10;Sob-Nd 09:00-18:00"><?php echo esc_textarea($sc['opening_hours']); ?></textarea><div class="evo-desc">Format: dni + godziny, np. „Pn-Pt 08:00-20:00", „Sob 09:00-14:00", „Codziennie 08:00-20:00". Dni: Pn, Wt, Śr, Cz, Pt, Sob, Nd (można łączyć przecinkiem i zakresem).</div></div>
+                <div class="evo-field"><label>Obsługiwany obszar (areaServed) — jeden na linię</label><textarea name="evk_schema[area_served]" rows="3" style="max-width:480px;" placeholder="Mazury&#10;Puszcza Piska&#10;Krutynia"><?php echo esc_textarea($sc['area_served']); ?></textarea></div>
 
                 <hr class="evo-divider">
                 <p class="evo-section-title">Atrakcja turystyczna (TouristAttraction)</p>
