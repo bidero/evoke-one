@@ -2,6 +2,56 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.16.0] — 2026-07-14
+
+### Naprawione
+
+- **Newsletter — rola z uprawnieniem „Newsletter" (Role Manager) nie mogła nic
+  zrobić.** Strona Newsletter była widoczna, ale każda akcja AJAX (lista
+  subskrybentów, zapis list, szablonów, kampanie, import, raporty) wymagała
+  `manage_options` i kończyła się błędem 403 — subskrybenci nie ładowali się,
+  szablonów nie dało się zapisać. Teraz wspólny check AJAX akceptuje też
+  `evk_access_newsletter` — jedno uprawnienie daje pełny dostęp do modułu.
+  Uwaga: wstawianie obrazków do szablonów wymaga dodatkowo standardowego
+  `upload_files` (do nadania w Role Managerze). (`includes/newsletter/ajax.php`)
+- **Schema — WebPage nigdy nie pobierał tytułu z Bricksa.** Kod czytał klucz
+  `metaTitle`, który w Bricksie nie istnieje (poprawny to `documentTitle`),
+  więc tytuł zawsze spadał na tytuł wpisu. Teraz Schema używa wspólnego
+  resolvera meta danych (patrz niżej). (`includes/90-schema.php`)
+
+### Dodane
+
+- **SEO — wspólny resolver meta danych** (`evk_seo_get_meta()`,
+  `includes/85-seo.php`). Evoke ONE renderuje komplet meta tagów: tytuł, opis,
+  słowa kluczowe, robots, og:title/type/url/site_name/description/image.
+  Priorytet źródeł per strona:
+  1. Bricks — Ustawienia strony → SEO / Media społecznościowe
+     (`documentTitle`, `metaDescription`, `metaKeywords`, `metaRobots`,
+     `sharingTitle`, `sharingDescription`, `sharingImage`; z fallbackiem na
+     ustawienia aktywnego szablonu treści i renderowaniem dynamic data),
+  2. zakładka SEO Evoke ONE (`_evoke_seo_*`),
+  3. fallback automatyczny (tytuł strony; og:image: generator OG → obrazek
+     wyróżniający).
+  Z resolvera korzystają meta tagi, og:* oraz Schema (WebPage name/description
+  i obrazki w grafie) — `<title>`, og:title i JSON-LD są zawsze spójne.
+  Natywne meta tagi SEO/OG Bricksa są wyłączane filtrami
+  (`bricks/frontend/disable_seo`, `bricks/frontend/disable_opengraph`),
+  żeby nie dublować wpisów w `<head>`. `og:type` odzwierciedla kontekst
+  (blog / article / website), doszedł `og:site_name`.
+- **Schema — typ działalności i dane firmy lokalnej.** Blok Organization ma
+  wybór `@type` z listy ~25 typów (LocalBusiness, LodgingBusiness, Hotel,
+  Pensjonat/B&B, Pole namiotowe, Ośrodek wypoczynkowy, Restauracja, Kawiarnia,
+  Sklep, Usługi profesjonalne, Placówka medyczna, Obiekt sportowy, Biuro
+  podróży, Warsztat, Salon urody i in.). Dla typów innych niż „Organizacja"
+  dostępne: współrzędne `geo` (GeoCoordinates), `priceRange` oraz udogodnienia
+  `amenityFeature` (LocationFeatureSpecification, jedna linia = jedno
+  udogodnienie). (`includes/90-schema.php`, `includes/admin/seo/tab-schema.php`)
+- **Schema — blok TouristAttraction** (przełączany w „Aktywne bloki JSON-LD"):
+  nazwa atrakcji (fallback: nazwa organizacji), opis per język, adres, geo,
+  obrazek; przy typie firmy lokalnej powiązany z organizacją przez
+  `containedInPlace`. WebPage dostał `about` wskazujące na organizację.
+- **SEO — opis łańcucha priorytetów** w zakładce SEO → Meta (info box).
+
 ## [1.15.3] — 2026-07-12
 
 ### Zmienione

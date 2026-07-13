@@ -11,6 +11,7 @@ class EVK_Schema {
     private $defaults = [
         'enabled'          => 1,
         // Dane organizacji
+        'org_type'         => 'Organization',
         'site_name'        => '',
         'telephone'        => '',
         'email'            => '',
@@ -20,6 +21,13 @@ class EVK_Schema {
         'country'          => 'PL',
         'favicon_url'      => '',
         'contact_type'     => 'customer service',
+        // Dane firmy lokalnej (typy LocalBusiness i pochodne)
+        'geo_lat'          => '',
+        'geo_lng'          => '',
+        'price_range'      => '',
+        'amenities'        => '',   // jedna linia = jedno udogodnienie (amenityFeature)
+        // TouristAttraction
+        'attraction_name'  => '',
         // Social sameAs (JSON array string)
         'social_links'     => '',
         // Opisy per język (JSON string: {"pl":"...","en":"...","de":"..."})
@@ -32,6 +40,7 @@ class EVK_Schema {
         'block_article'    => 1,
         'block_faq'        => 1,
         'block_product'    => 1,
+        'block_attraction' => 0,
         // WooCommerce: lista walut per język (JSON: {"en":"EUR","de":"EUR"})
         'lang_currencies'  => '{"en":"EUR","de":"EUR"}',
     ];
@@ -49,6 +58,41 @@ class EVK_Schema {
     // ================================================================
     // USTAWIENIA
     // ================================================================
+    /**
+     * Dozwolone typy działalności bloku Organization (schema.org).
+     * Wszystkie poza 'Organization' dziedziczą z LocalBusiness (= Place),
+     * więc obsługują geo, priceRange i amenityFeature.
+     */
+    public static function org_types(): array {
+        return [
+            'Organization'             => 'Organizacja (domyślne)',
+            'LocalBusiness'            => 'Firma lokalna',
+            'LodgingBusiness'          => 'Obiekt noclegowy',
+            'Hotel'                    => 'Hotel',
+            'BedAndBreakfast'          => 'Pensjonat / B&B',
+            'Campground'               => 'Pole namiotowe / kemping',
+            'Resort'                   => 'Ośrodek wypoczynkowy',
+            'Hostel'                   => 'Hostel / schronisko',
+            'Restaurant'               => 'Restauracja',
+            'CafeOrCoffeeShop'         => 'Kawiarnia',
+            'BarOrPub'                 => 'Bar / pub',
+            'FoodEstablishment'        => 'Gastronomia (ogólnie)',
+            'Store'                    => 'Sklep stacjonarny',
+            'ProfessionalService'      => 'Usługi profesjonalne',
+            'MedicalBusiness'          => 'Placówka medyczna',
+            'Dentist'                  => 'Gabinet stomatologiczny',
+            'SportsActivityLocation'   => 'Obiekt sportowo-rekreacyjny',
+            'TravelAgency'             => 'Biuro podróży',
+            'TouristInformationCenter' => 'Informacja turystyczna',
+            'AutoRepair'               => 'Warsztat samochodowy',
+            'BeautySalon'              => 'Salon urody',
+            'HairSalon'                => 'Salon fryzjerski',
+            'RealEstateAgent'          => 'Biuro nieruchomości',
+            'LegalService'             => 'Kancelaria / usługi prawne',
+            'FinancialService'         => 'Usługi finansowe',
+            'HomeAndConstructionBusiness' => 'Budownictwo / dom i ogród',
+        ];
+    }
     public function get_settings(): array {
         return wp_parse_args(get_option('evk_schema', []), $this->defaults);
     }
@@ -67,18 +111,30 @@ class EVK_Schema {
         $checkboxes = [
             'block_website', 'block_org', 'block_breadcrumb',
             'block_webpage', 'block_article', 'block_faq', 'block_product',
+            'block_attraction',
         ];
         foreach ($checkboxes as $key) {
             $clean[$key] = !empty($input[$key]) ? 1 : 0;
         }
+        // Typ działalności — tylko z listy dozwolonych
+        $org_type = sanitize_text_field($input['org_type'] ?? 'Organization');
+        $clean['org_type'] = array_key_exists($org_type, self::org_types()) ? $org_type : 'Organization';
         // Teksty jednoliniowe
         $texts = [
             'site_name', 'telephone', 'email', 'street_address',
             'locality', 'postal_code', 'country', 'favicon_url', 'contact_type',
+            'geo_lat', 'geo_lng', 'price_range', 'attraction_name',
         ];
         foreach ($texts as $key) {
             $clean[$key] = sanitize_text_field($input[$key] ?? '');
         }
+        // Współrzędne — tylko liczby (kropka dziesiętna, opcjonalny minus)
+        foreach (['geo_lat', 'geo_lng'] as $key) {
+            $clean[$key] = str_replace(',', '.', $clean[$key]);
+            if ($clean[$key] !== '' && !is_numeric($clean[$key])) $clean[$key] = '';
+        }
+        // Udogodnienia — jedna linia = jedno amenityFeature
+        $clean['amenities'] = sanitize_textarea_field($input['amenities'] ?? '');
         // JSON-y (opisy, social, waluty)
         foreach (['descriptions', 'social_links', 'lang_currencies'] as $key) {
             $raw = $input[$key] ?? '{}';
@@ -141,11 +197,20 @@ if (isset($_POST['evk_schema_curr']) && is_array($_POST['evk_schema_curr'])) {
         if (!empty($s['block_org'])) {
             $graph[] = $this->build_organization($s, $home_url, $lang);
         }
+        // 2b. TouristAttraction (obiekt/miejsce jako atrakcja turystyczna)
+        if (!empty($s['block_attraction'])) {
+            $graph[] = $this->build_attraction($s, $home_url, $lang);
+        }
         // Bloki per-strona
         if (is_singular()) {
             global $post;
             $permalink = get_permalink($post->ID);
-            $og_image  = function_exists('get_final_og_image_url') ? get_final_og_image_url() : '';
+            // Ten sam łańcuch źródeł co meta tagi (Bricks → zakładka SEO → fallback)
+            if (function_exists('evk_seo_get_meta')) {
+                $og_image = evk_seo_get_meta($post->ID)['og_image'];
+            } else {
+                $og_image = function_exists('get_final_og_image_url') ? get_final_og_image_url() : '';
+            }
             // 3. BreadcrumbList
             if (!empty($s['block_breadcrumb'])) {
                 $bc = $this->build_breadcrumbs($post, $home_url, $s['site_name']);
@@ -216,9 +281,11 @@ return [
         // Opis per język
         $descriptions = json_decode($s['descriptions'], true) ?: [];
         $description  = $descriptions[$lang] ?? $descriptions['pl'] ?? get_bloginfo('description');
+        // Typ działalności — tylko z listy dozwolonych
+        $org_type = array_key_exists($s['org_type'] ?? '', self::org_types()) ? $s['org_type'] : 'Organization';
         // Języki dostępne (z modułu tłumaczeń lub fallback)
         $org = [
-            '@type'        => 'Organization',
+            '@type'        => $org_type,
             '@id'          => $home_url . '#organization',
             'name'         => $site_name,
             'url'          => $home_url,
@@ -231,6 +298,25 @@ return [
                 'addressCountry'  => $s['country'],
             ],
         ];
+        // Właściwości Place/LocalBusiness — nieprawidłowe dla czystej Organization
+        if ($org_type !== 'Organization') {
+            if ($geo = $this->build_geo($s)) {
+                $org['geo'] = $geo;
+            }
+            if (!empty($s['price_range'])) {
+                $org['priceRange'] = $s['price_range'];
+            }
+            $amenities = array_values(array_filter(array_map('trim', explode("\n", (string) $s['amenities']))));
+            if (!empty($amenities)) {
+                $org['amenityFeature'] = array_map(static function ($name) {
+                    return [
+                        '@type' => 'LocationFeatureSpecification',
+                        'name'  => $name,
+                        'value' => true,
+                    ];
+                }, $amenities);
+            }
+        }
         if ($s['telephone']) {
             $org['telephone'] = $s['telephone'];
         }
@@ -371,61 +457,40 @@ private function build_article(WP_Post $post, string $permalink, string $home_ur
 private function build_webpage(WP_Post $post, string $permalink, string $home_url, string $og_image): array {
     $s = $this->get_settings();
 
-    // Tytuł — fallback przez SEO meta lub nazwę strony
-$bricks_settings = $bricks_settings ?? maybe_unserialize(get_post_meta($post->ID, '_bricks_page_settings', true));
-$title = '';
-
-if (!empty($bricks_settings['metaTitle'])) {
-    $raw = $bricks_settings['metaTitle'];
-    if (class_exists('\Bricks\Frontend') && method_exists('\Bricks\Frontend', 'render_dynamic_data')) {
-        $title = \Bricks\Frontend::render_dynamic_data($raw, $post);
-    } elseif (function_exists('bricks_render_dynamic_data')) {
-        $title = bricks_render_dynamic_data($raw, $post);
+    // Tytuł i opis — ten sam łańcuch źródeł co meta tagi
+    // (Bricks: Ustawienia strony → zakładka SEO Evoke → fallback)
+    if (function_exists('evk_seo_get_meta')) {
+        $meta        = evk_seo_get_meta($post->ID);
+        $title       = $meta['title'];
+        $description = $meta['desc'];
     } else {
-        $title = $raw;
+        $title       = get_the_title($post->ID);
+        $description = '';
     }
-    $title = wp_strip_all_tags($title);
-}
 
-if (empty(trim($title))) {
-    $title = get_the_title($post->ID);
-}
-if (empty(trim($title))) {
-    $title = $s['site_name'] ?: get_bloginfo('name');
-}
-
-    // Opis — SEO meta description, potem excerpt, potem tagline
-$description = '';
-
-// Bricks Builder SEO meta description — z renderowaniem dynamic data
-$bricks_settings = maybe_unserialize(get_post_meta($post->ID, '_bricks_page_settings', true));
-if (!empty($bricks_settings['metaDescription'])) {
-    $raw = $bricks_settings['metaDescription'];
-    // Renderuj tagi dynamic data przez Bricks
-    if (class_exists('\Bricks\Frontend') && method_exists('\Bricks\Frontend', 'render_dynamic_data')) {
-        $description = \Bricks\Frontend::render_dynamic_data($raw, $post);
-    } elseif (function_exists('bricks_render_dynamic_data')) {
-        $description = bricks_render_dynamic_data($raw, $post);
-    } else {
-        $description = $raw;
+    if (empty(trim((string) $title))) {
+        $title = get_the_title($post->ID);
     }
-    $description = wp_strip_all_tags($description);
-}
-
-// Fallback
-if (empty($description)) {
-    $description = get_bloginfo('description');
-}
+    if (empty(trim((string) $title))) {
+        $title = $s['site_name'] ?: get_bloginfo('name');
+    }
+    if (empty($description)) {
+        $description = get_bloginfo('description');
+    }
 
     $page = [
         '@type'       => 'WebPage',
         '@id'         => $permalink . '#webpage',
         'url'         => $permalink,
-        'name'        => $title,
+        'name'        => wp_strip_all_tags($title),
         'description' => wp_strip_all_tags($description),
         'isPartOf'    => ['@id' => $home_url . '#website'],
         'breadcrumb'  => ['@id' => $permalink . '#breadcrumb'],
     ];
+
+    if (!empty($s['block_org'])) {
+        $page['about'] = ['@id' => $home_url . '#organization'];
+    }
 
     if ($og_image) {
         $page['primaryImageOfPage'] = ['@type' => 'ImageObject', 'url' => $og_image];
@@ -486,9 +551,55 @@ if (empty($description)) {
             ],
         ];
     }
+    private function build_attraction(array $s, string $home_url, string $lang): array {
+        $name = $s['attraction_name'] ?: ($s['site_name'] ?: get_bloginfo('name'));
+        $descriptions = json_decode($s['descriptions'], true) ?: [];
+        $description  = $descriptions[$lang] ?? $descriptions['pl'] ?? '';
+
+        $att = [
+            '@type' => 'TouristAttraction',
+            '@id'   => $home_url . '#attraction',
+            'name'  => $name,
+            'url'   => $home_url,
+        ];
+        if ($description) {
+            $att['description'] = $description;
+        }
+        if ($s['street_address'] || $s['locality']) {
+            $att['address'] = [
+                '@type'           => 'PostalAddress',
+                'streetAddress'   => $s['street_address'],
+                'addressLocality' => $s['locality'],
+                'postalCode'      => $s['postal_code'],
+                'addressCountry'  => $s['country'],
+            ];
+        }
+        if ($geo = $this->build_geo($s)) {
+            $att['geo'] = $geo;
+        }
+        if ($s['favicon_url']) {
+            $att['image'] = (strpos($s['favicon_url'], 'http') === 0)
+                ? $s['favicon_url']
+                : untrailingslashit(get_option('home')) . $s['favicon_url'];
+        }
+        // Powiązanie z organizacją — tylko gdy organizacja jest typem Place
+        // (LocalBusiness i pochodne); czysta Organization nie jest miejscem
+        if (!empty($s['block_org']) && ($s['org_type'] ?? 'Organization') !== 'Organization') {
+            $att['containedInPlace'] = ['@id' => $home_url . '#organization'];
+        }
+        return $att;
+    }
     // ================================================================
     // HELPERS
     // ================================================================
+    private function build_geo(array $s): array {
+        if ($s['geo_lat'] === '' || $s['geo_lng'] === '') return [];
+        return [
+            '@type'     => 'GeoCoordinates',
+            'latitude'  => $s['geo_lat'],
+            'longitude' => $s['geo_lng'],
+        ];
+    }
 	private function get_available_languages(): array {
     // Zawsze dodaj polski
     $langs = ['Polish'];

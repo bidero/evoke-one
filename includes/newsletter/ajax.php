@@ -11,7 +11,10 @@ if (!defined('ABSPATH')) exit;
 
 function evk_nl_ajax_check(): void {
     check_ajax_referer('evk_nl_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error(['msg' => 'Brak uprawnień.'], 403);
+    // Dostęp jak strona Newsletter (menu.php): admin LUB rola z evk_access_newsletter (Role Manager)
+    if (!current_user_can('manage_options') && !current_user_can('evk_access_newsletter')) {
+        wp_send_json_error(['msg' => 'Brak uprawnień.'], 403);
+    }
 }
 
 // =========================================================================

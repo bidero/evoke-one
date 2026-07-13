@@ -3,6 +3,14 @@ if (!defined('ABSPATH')) exit;
 ?>
                 <?php $post_types = get_post_types(['public' => true], 'objects'); ?>
 
+                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>
+                    Evoke ONE renderuje wszystkie meta tagi (tytuł, opis, słowa kluczowe, robots, og:*).
+                    Priorytet źródeł per strona: <strong>Bricks → Ustawienia strony → SEO / Media społecznościowe</strong>,
+                    a gdy pole tam jest puste — wartości z tej zakładki. Natywne meta tagi Bricksa są
+                    automatycznie wyłączane, żeby nie dublować wpisów. Obrazek og:image: Media społecznościowe
+                    Bricksa → generator OG → obrazek wyróżniający.
+                </div></div>
+
                 <div class="evk-seo-toolbar">
                     <input type="text" id="evoke-seo-search" placeholder="Szukaj po tytule..." class="evk-seo-search-input">
                     <div class="evk-seo-toolbar-actions">

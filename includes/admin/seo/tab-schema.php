@@ -29,6 +29,15 @@ if (!defined('ABSPATH')) exit;
 
                 <p class="evo-section-title">Dane organizacji</p>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:20px;">
+                    <div class="evo-field" style="margin-bottom:0">
+                        <label>Typ działalności (@type)</label>
+                        <select name="evk_schema[org_type]">
+                            <?php foreach (EVK_Schema::org_types() as $type_key => $type_label): ?>
+                            <option value="<?php echo esc_attr($type_key); ?>" <?php selected($sc['org_type'], $type_key); ?>><?php echo esc_html($type_label); ?> — <?php echo esc_html($type_key); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="evo-desc">Typ inny niż „Organizacja" odblokowuje pola firmy lokalnej poniżej.</div>
+                    </div>
                     <div class="evo-field" style="margin-bottom:0"><label>Nazwa (site_name)</label><input type="text" name="evk_schema[site_name]" value="<?php echo esc_attr($sc['site_name']); ?>" placeholder="np. Stanica Wodna PTTK Ukta"></div>
                     <div class="evo-field" style="margin-bottom:0"><label>Telefon</label><input type="text" name="evk_schema[telephone]" value="<?php echo esc_attr($sc['telephone']); ?>" placeholder="+48 000 000 000"></div>
                     <div class="evo-field" style="margin-bottom:0"><label>E-mail</label><input type="text" name="evk_schema[email]" value="<?php echo esc_attr($sc['email']); ?>" placeholder="biuro@domena.pl"></div>
@@ -39,6 +48,21 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-field" style="margin-bottom:0"><label>Typ kontaktu (contactType)</label><input type="text" name="evk_schema[contact_type]" value="<?php echo esc_attr($sc['contact_type']); ?>" placeholder="booking"></div>
                     <div class="evo-field" style="margin-bottom:0"><label>URL logo / faviconu</label><input type="text" name="evk_schema[favicon_url]" value="<?php echo esc_attr($sc['favicon_url']); ?>" placeholder="/wp-content/uploads/logo.png"><div class="evo-desc">Ścieżka relatywna lub pełny URL.</div></div>
                 </div>
+
+                <hr class="evo-divider">
+                <p class="evo-section-title">Firma lokalna / obiekt (geo, cennik, udogodnienia)</p>
+                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Pola używane tylko, gdy typ działalności jest inny niż „Organizacja" (LocalBusiness i pochodne — np. obiekt noclegowy, restauracja). Współrzędne znajdziesz np. w Mapach Google (PPM na pinezce).</div></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:20px;">
+                    <div class="evo-field" style="margin-bottom:0"><label>Szerokość geograficzna (latitude)</label><input type="text" name="evk_schema[geo_lat]" value="<?php echo esc_attr($sc['geo_lat']); ?>" placeholder="53.12345"></div>
+                    <div class="evo-field" style="margin-bottom:0"><label>Długość geograficzna (longitude)</label><input type="text" name="evk_schema[geo_lng]" value="<?php echo esc_attr($sc['geo_lng']); ?>" placeholder="21.12345"></div>
+                    <div class="evo-field" style="margin-bottom:0"><label>Przedział cenowy (priceRange)</label><input type="text" name="evk_schema[price_range]" value="<?php echo esc_attr($sc['price_range']); ?>" placeholder="$$"><div class="evo-desc">Umownie: $ tanio … $$$$ drogo (albo np. „50–200 zł").</div></div>
+                </div>
+                <div class="evo-field"><label>Udogodnienia (amenityFeature) — jedno na linię</label><textarea name="evk_schema[amenities]" rows="4" style="max-width:480px;" placeholder="Spływy kajakowe&#10;Pole namiotowe&#10;Sauna"><?php echo esc_textarea($sc['amenities']); ?></textarea></div>
+
+                <hr class="evo-divider">
+                <p class="evo-section-title">Atrakcja turystyczna (TouristAttraction)</p>
+                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Osobny obiekt w grafie — włącz go w „Aktywne bloki JSON-LD" poniżej. Używa adresu i współrzędnych z pól powyżej.</div></div>
+                <div class="evo-field"><label>Nazwa atrakcji</label><input type="text" name="evk_schema[attraction_name]" value="<?php echo esc_attr($sc['attraction_name']); ?>" placeholder="np. Stanica Wodna PTTK Ukta nad rzeką Krutynią" style="max-width:480px;"><div class="evo-desc">Puste pole = nazwa organizacji.</div></div>
 
                 <hr class="evo-divider">
                 <p class="evo-section-title">Opis organizacji per język</p>
@@ -78,6 +102,7 @@ if (!defined('ABSPATH')) exit;
                         'block_article'    => 'BlogPosting (wpisy)',
                         'block_faq'        => 'FAQPage (Bricks accordion)',
                         'block_product'    => 'Product (WooCommerce)',
+                        'block_attraction' => 'TouristAttraction',
                     ];
                     foreach ($blocks as $key => $label): ?>
                     <label style="display:flex;align-items:center;gap:9px;background:#f8fafc;border:1px solid #d7dde7;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:500;cursor:pointer;">
