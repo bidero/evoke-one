@@ -45,6 +45,8 @@ class EVK_Schema {
         'block_faq'        => 1,
         'block_product'    => 1,
         'block_attraction' => 0,
+        // Dodatkowe obiekty/usługi podrzędne (JSON: [{"type":..,"name":..,"description":..}])
+        'sub_entities'     => '[]',
         // WooCommerce: lista walut per język (JSON: {"en":"EUR","de":"EUR"})
         'lang_currencies'  => '{"en":"EUR","de":"EUR"}',
     ];
@@ -95,6 +97,25 @@ class EVK_Schema {
             'LegalService'             => 'Kancelaria / usługi prawne',
             'FinancialService'         => 'Usługi finansowe',
             'HomeAndConstructionBusiness' => 'Budownictwo / dom i ogród',
+        ];
+    }
+    /**
+     * Typy podrzędnych obiektów/usług (repeater). Wyłącznie podtypy Place —
+     * dzięki temu można je powiązać z węzłem #place przez containedInPlace.
+     */
+    public static function sub_entity_types(): array {
+        return [
+            'Campground'             => 'Pole namiotowe / kemping',
+            'SportsActivityLocation' => 'Obiekt sportowy / wypożyczalnia sprzętu',
+            'TouristAttraction'      => 'Atrakcja turystyczna',
+            'Restaurant'             => 'Restauracja',
+            'CafeOrCoffeeShop'       => 'Kawiarnia / bar',
+            'EventVenue'             => 'Miejsce wydarzeń / sala',
+            'Playground'             => 'Plac zabaw',
+            'ParkingFacility'        => 'Parking',
+            'Beach'                  => 'Plaża / dostęp do wody',
+            'RiverBodyOfWater'       => 'Rzeka / akwen',
+            'Park'                   => 'Park / teren zielony',
         ];
     }
     public function get_settings(): array {
@@ -183,6 +204,28 @@ if (isset($_POST['evk_schema_curr']) && is_array($_POST['evk_schema_curr'])) {
 } else {
     $clean['lang_currencies'] = $input['lang_currencies'] ?? $this->defaults['lang_currencies'];
 }
+// Podrzędne obiekty/usługi (repeater — równoległe tablice type/name/description)
+if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
+    $sub_raw = wp_unslash($_POST['evk_schema_sub']);
+    $types   = (array) ($sub_raw['type'] ?? []);
+    $names   = (array) ($sub_raw['name'] ?? []);
+    $descs   = (array) ($sub_raw['description'] ?? []);
+    $allowed = self::sub_entity_types();
+    $subs    = [];
+    foreach ($types as $i => $type) {
+        $type = sanitize_text_field($type);
+        $name = sanitize_text_field($names[$i] ?? '');
+        if ($name === '' || !array_key_exists($type, $allowed)) continue;  // wymagany typ + nazwa
+        $subs[] = [
+            'type'        => $type,
+            'name'        => $name,
+            'description' => sanitize_textarea_field($descs[$i] ?? ''),
+        ];
+    }
+    $clean['sub_entities'] = wp_json_encode($subs, JSON_UNESCAPED_UNICODE);
+} else {
+    $clean['sub_entities'] = $input['sub_entities'] ?? $this->defaults['sub_entities'];
+}
         return $clean;
     }
     // ================================================================
@@ -212,6 +255,10 @@ if (isset($_POST['evk_schema_curr']) && is_array($_POST['evk_schema_curr'])) {
         // 2c. TouristAttraction (obiekt/miejsce jako atrakcja turystyczna)
         if (!empty($s['block_attraction'])) {
             $graph[] = $this->build_attraction($s, $home_url, $lang);
+        }
+        // 2d. Podrzędne obiekty/usługi (pole namiotowe, wypożyczalnia itd.)
+        foreach ($this->build_sub_entities($s, $home_url) as $sub) {
+            $graph[] = $sub;
         }
         // Bloki per-strona
         if (is_singular()) {
@@ -303,15 +350,11 @@ return [
             'url'          => $home_url,
             'description'  => $description,
         ];
-        // Adres na Organization tylko, gdy nie ma osobnego węzła #place
-        if (!$this->has_place($s)) {
-            $org['address'] = [
-                '@type'           => 'PostalAddress',
-                'streetAddress'   => $s['street_address'],
-                'addressLocality' => $s['locality'],
-                'postalCode'      => $s['postal_code'],
-                'addressCountry'  => $s['country'],
-            ];
+        // Adres — także na Organization (zalecane pole Google), gdy podano dane.
+        // Ten sam adres trafia na #place; oba węzły to ten sam realny punkt,
+        // powiązany przez parentOrganization.
+        if ($address = $this->build_address($s)) {
+            $org['address'] = $address;
         }
         if ($s['telephone']) {
             $org['telephone'] = $s['telephone'];
@@ -566,14 +609,10 @@ private function build_webpage(WP_Post $post, string $permalink, string $home_ur
             'name'        => $site_name,
             'url'         => $home_url,
             'description' => $description,
-            'address'     => [
-                '@type'           => 'PostalAddress',
-                'streetAddress'   => $s['street_address'],
-                'addressLocality' => $s['locality'],
-                'postalCode'      => $s['postal_code'],
-                'addressCountry'  => $s['country'],
-            ],
         ];
+        if ($address = $this->build_address($s)) {
+            $place['address'] = $address;
+        }
         if ($s['telephone']) {
             $place['telephone'] = $s['telephone'];
         }
@@ -633,14 +672,8 @@ private function build_webpage(WP_Post $post, string $permalink, string $home_ur
         if ($description) {
             $att['description'] = $description;
         }
-        if ($s['street_address'] || $s['locality']) {
-            $att['address'] = [
-                '@type'           => 'PostalAddress',
-                'streetAddress'   => $s['street_address'],
-                'addressLocality' => $s['locality'],
-                'postalCode'      => $s['postal_code'],
-                'addressCountry'  => $s['country'],
-            ];
+        if ($address = $this->build_address($s)) {
+            $att['address'] = $address;
         }
         if ($geo = $this->build_geo($s)) {
             $att['geo'] = $geo;
@@ -656,9 +689,55 @@ private function build_webpage(WP_Post $post, string $permalink, string $home_ur
         }
         return $att;
     }
+    /**
+     * Podrzędne obiekty/usługi (repeater) — osobne węzły Place powiązane
+     * z fizycznym obiektem (#place) przez containedInPlace. Gdy nie ma
+     * węzła #place, stoją samodzielnie (bez powiązania — Organization nie
+     * jest miejscem, więc containedInPlace byłoby nieprawidłowe).
+     */
+    private function build_sub_entities(array $s, string $home_url): array {
+        $raw = json_decode($s['sub_entities'] ?? '[]', true);
+        if (!is_array($raw) || empty($raw)) return [];
+        $allowed   = self::sub_entity_types();
+        $parent_id = $this->has_place($s) ? $home_url . '#place' : '';
+        $out = [];
+        $i   = 0;
+        foreach ($raw as $entry) {
+            $type = $entry['type'] ?? '';
+            $name = trim((string) ($entry['name'] ?? ''));
+            if ($name === '' || !array_key_exists($type, $allowed)) continue;
+            $i++;
+            $node = [
+                '@type' => $type,
+                '@id'   => $home_url . '#entity-' . $i,
+                'name'  => $name,
+            ];
+            if (!empty($entry['description'])) {
+                $node['description'] = (string) $entry['description'];
+            }
+            if ($parent_id) {
+                $node['containedInPlace'] = ['@id' => $parent_id];
+            }
+            $out[] = $node;
+        }
+        return $out;
+    }
     // ================================================================
     // HELPERS
     // ================================================================
+    /** Adres pocztowy — pusty gdy brak ulicy i miejscowości. */
+    private function build_address(array $s): array {
+        if (trim((string) $s['street_address']) === '' && trim((string) $s['locality']) === '') {
+            return [];
+        }
+        return [
+            '@type'           => 'PostalAddress',
+            'streetAddress'   => $s['street_address'],
+            'addressLocality' => $s['locality'],
+            'postalCode'      => $s['postal_code'],
+            'addressCountry'  => $s['country'],
+        ];
+    }
     private function build_geo(array $s): array {
         if ($s['geo_lat'] === '' || $s['geo_lng'] === '') return [];
         return [

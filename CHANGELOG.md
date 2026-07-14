@@ -2,6 +2,30 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.18.0] — 2026-07-14
+
+### Dodane
+
+- **Schema — repeater dodatkowych obiektów i usług (encje podrzędne).** W
+  ustawieniach Schema można dodać dowolną liczbę pozycji (typ + nazwa +
+  opcjonalny opis), np. pole namiotowe (`Campground`), wypożyczalnię kajaków
+  (`SportsActivityLocation`), restaurację, plażę, parking, rzekę/akwen. Każda
+  trafia do grafu jako osobny węzeł `#entity-N`; przy typie działalności innym
+  niż „Organizacja" powiązana z obiektem (`#place`) przez `containedInPlace`.
+  Lista typów ograniczona do podtypów Place (poprawne `containedInPlace`).
+  To poziom danych strukturalnych spotykany w portalach turystycznych.
+  (`includes/90-schema.php`, `includes/admin/seo/tab-schema.php`)
+
+### Zmienione
+
+- **Schema — adres także na węźle `#organization`.** Google zaleca `address`
+  na Organization; po rozdzieleniu z 1.17.0 węzeł wydawcy go nie miał (walidator
+  zgłaszał brak opcjonalnego pola). Teraz adres pojawia się na `#organization`,
+  `#place` i `TouristAttraction`, o ile podano ulicę lub miejscowość — wspólny
+  helper `build_address()`. Gdy adresu brak, pusty `PostalAddress` nie jest już
+  emitowany (dotąd węzeł Organization dostawał pusty blok adresu).
+  (`includes/90-schema.php`)
+
 ## [1.17.0] — 2026-07-14
 
 ### Zmienione

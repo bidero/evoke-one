@@ -7,6 +7,27 @@ if (!defined('ABSPATH')) exit;
             $descs   = json_decode($sc['descriptions'],    true) ?: [];
             $socials = json_decode($sc['social_links'],    true) ?: [];
             $currs   = json_decode($sc['lang_currencies'], true) ?: [];
+            $subs    = json_decode($sc['sub_entities'] ?? '[]', true) ?: [];
+            $sub_types = EVK_Schema::sub_entity_types();
+
+            // Renderuje jeden wiersz repeatera podrzędnych encji
+            $render_sub_row = static function (array $row) use ($sub_types) {
+                $r_type = $row['type'] ?? '';
+                $r_name = $row['name'] ?? '';
+                $r_desc = $row['description'] ?? '';
+                ob_start(); ?>
+                <div class="evk-sub-row">
+                    <select name="evk_schema_sub[type][]">
+                        <?php foreach ($sub_types as $tk => $tl): ?>
+                        <option value="<?php echo esc_attr($tk); ?>" <?php selected($r_type, $tk); ?>><?php echo esc_html($tl); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <input type="text" name="evk_schema_sub[name][]" value="<?php echo esc_attr($r_name); ?>" placeholder="Nazwa, np. Wypożyczalnia kajaków">
+                    <input type="text" name="evk_schema_sub[description][]" value="<?php echo esc_attr($r_desc); ?>" placeholder="Opis (opcjonalnie)">
+                    <button type="button" class="button evk-sub-remove" title="Usuń"><span class="dashicons dashicons-trash"></span></button>
+                </div>
+                <?php return ob_get_clean();
+            };
             ?>
             <form method="post" action="options.php">
                 <?php settings_fields('evoke_one_schema'); ?>
@@ -67,6 +88,37 @@ if (!defined('ABSPATH')) exit;
                 <p class="evo-section-title">Atrakcja turystyczna (TouristAttraction)</p>
                 <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Osobny obiekt w grafie — włącz go w „Aktywne bloki JSON-LD" poniżej. Używa adresu i współrzędnych z pól powyżej.</div></div>
                 <div class="evo-field"><label>Nazwa atrakcji</label><input type="text" name="evk_schema[attraction_name]" value="<?php echo esc_attr($sc['attraction_name']); ?>" placeholder="np. Stanica Wodna PTTK Ukta nad rzeką Krutynią" style="max-width:480px;"><div class="evo-desc">Puste pole = nazwa organizacji.</div></div>
+
+                <hr class="evo-divider">
+                <p class="evo-section-title">Dodatkowe obiekty i usługi (encje podrzędne)</p>
+                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Każda pozycja to osobny węzeł w grafie (np. pole namiotowe, wypożyczalnia kajaków, restauracja, plaża). Gdy ustawiony jest typ działalności inny niż „Organizacja", encje są powiązane z obiektem (#place) przez <code>containedInPlace</code>. To poziom danych spotykany w portalach turystycznych — dokładniej opisuje ofertę niż jeden typ.</div></div>
+                <style>
+                    .evk-sub-row{display:grid;grid-template-columns:230px 1fr 1fr 34px;gap:8px;align-items:center;margin-bottom:8px;}
+                    .evk-sub-row select,.evk-sub-row input{margin:0;}
+                    .evk-sub-remove{display:inline-flex!important;align-items:center;justify-content:center;padding:0!important;width:34px;height:32px;}
+                    .evk-sub-remove .dashicons{font-size:16px;width:16px;height:16px;line-height:1;color:#dc2626;}
+                    @media(max-width:782px){.evk-sub-row{grid-template-columns:1fr;}}
+                </style>
+                <div id="evk-sub-list">
+                    <?php foreach ($subs as $row) { echo $render_sub_row((array) $row); } ?>
+                </div>
+                <template id="evk-sub-tpl"><?php echo $render_sub_row([]); ?></template>
+                <button type="button" class="button" id="evk-sub-add" style="margin-top:6px;"><span class="dashicons dashicons-plus-alt2" style="font-size:15px;width:15px;height:15px;line-height:1;vertical-align:text-bottom;"></span> Dodaj obiekt</button>
+                <script>
+                (function(){
+                    var list = document.getElementById('evk-sub-list');
+                    var tpl  = document.getElementById('evk-sub-tpl');
+                    var add  = document.getElementById('evk-sub-add');
+                    if (!list || !tpl || !add) return;
+                    add.addEventListener('click', function(){
+                        list.appendChild(tpl.content.cloneNode(true));
+                    });
+                    list.addEventListener('click', function(e){
+                        var btn = e.target.closest('.evk-sub-remove');
+                        if (btn) btn.closest('.evk-sub-row').remove();
+                    });
+                })();
+                </script>
 
                 <hr class="evo-divider">
                 <p class="evo-section-title">Opis organizacji per język</p>
