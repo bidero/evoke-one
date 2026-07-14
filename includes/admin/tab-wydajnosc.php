@@ -14,6 +14,7 @@ $subs = [
     'darkmode'    => ['label' => 'Tryb ciemny',        'icon' => 'dashicons-lightbulb'],
     'cursor'      => ['label' => 'Kursor',             'icon' => 'dashicons-arrow-up-alt'],
     'lenis'       => ['label' => 'Płynne przewijanie', 'icon' => 'dashicons-sort'],
+    'fonts'       => ['label' => 'Czcionki (FOUT)',    'icon' => 'dashicons-editor-textcolor'],
     'a11y'        => ['label' => 'Dostępność',         'icon' => 'dashicons-universal-access'],
     'elementy'    => ['label' => 'Elementy Bricks',    'icon' => 'dashicons-screenoptions'],
     'tlumaczenia' => ['label' => 'Tłumaczenia',        'icon' => 'dashicons-translation'],

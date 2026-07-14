@@ -1,0 +1,87 @@
+<?php
+if (!defined('ABSPATH')) exit;
+/**
+ * Evoke ONE — Tab: Optymalizacja czcionek (anti-FOUT)
+ */
+$f        = EVK_Fonts::get_instance()->get_settings();
+$detected = EVK_Fonts::detect_local_fonts();
+?>
+            <form method="post" action="options.php">
+                <?php settings_fields('evoke_one_fonts'); ?>
+
+                <div class="evo-status-card">
+                    <div class="evo-status-icon <?php echo !empty($f['enabled']) ? 'on' : 'off'; ?>">
+                        <span class="dashicons dashicons-editor-textcolor"></span>
+                    </div>
+                    <div class="evo-status-text">
+                        <h3>Optymalizacja czcionek: <?php echo !empty($f['enabled']) ? 'WŁĄCZONA' : 'WYŁĄCZONA'; ?></h3>
+                        <p>Preload lokalnych plików czcionek — ogranicza miganie tekstu (FOUT) bez wpływu na layout i przejścia.</p>
+                    </div>
+                    <div class="evo-status-actions">
+                        <span class="evo-toggle-label"><?php echo !empty($f['enabled']) ? 'Włączona' : 'Wyłączona'; ?></span>
+                        <label class="evo-toggle">
+                            <input type="checkbox" data-option="evk_fonts" data-field="enabled" value="1" <?php checked(!empty($f['enabled'])); ?>>
+                            <span class="evo-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>
+                    FOUT (miganie) bierze się z tego, że plik czcionki zaczyna się pobierać dopiero po
+                    sparsowaniu CSS. <strong>Preload</strong> każe przeglądarce pobrać go od razu przy
+                    wczytywaniu strony — czcionka jest zwykle gotowa przed pierwszym malowaniem i podmiana
+                    nie jest widoczna. To rozwiązanie <strong>czysto addytywne</strong>: nie ukrywa tekstu,
+                    nie zmienia layoutu ani animacji. Wskazuj tylko czcionki widoczne „nad zgięciem"
+                    (nagłówki, tekst główne) — preload wszystkich plików spowalnia start.
+                </div></div>
+
+                <p class="evo-section-title">Pliki czcionek do preload</p>
+                <div class="evo-field">
+                    <label>URL-e plików .woff2 / .woff (jeden na linię)</label>
+                    <textarea name="evk_fonts[preload]" rows="5" style="max-width:640px;font-family:monospace;font-size:12px;" placeholder="/wp-content/uploads/fonts/inter-regular.woff2&#10;/wp-content/uploads/fonts/inter-600.woff2"><?php echo esc_textarea($f['preload']); ?></textarea>
+                    <div class="evo-desc">Ścieżka względna (od „/") lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy <code>crossorigin</code> i właściwy typ MIME automatycznie.</div>
+                </div>
+
+                <?php if (!empty($detected)): ?>
+                <div class="evo-info-box" style="align-items:flex-start;">
+                    <span class="dashicons dashicons-search"></span>
+                    <div style="flex:1;">
+                        <strong>Wykryte lokalne czcionki (.woff2)</strong> — kliknij, aby dopisać do pola powyżej:
+                        <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+                        <?php foreach ($detected as $url):
+                            $rel = str_replace(home_url(), '', $url); ?>
+                            <a href="#" class="evk-font-suggest" data-url="<?php echo esc_attr($rel); ?>" style="font-family:monospace;font-size:12px;text-decoration:none;"><span class="dashicons dashicons-plus-alt2" style="font-size:13px;width:13px;height:13px;vertical-align:middle;"></span> <?php echo esc_html($rel); ?></a>
+                        <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                (function(){
+                    var ta = document.querySelector('textarea[name="evk_fonts[preload]"]');
+                    document.querySelectorAll('.evk-font-suggest').forEach(function(a){
+                        a.addEventListener('click', function(e){
+                            e.preventDefault();
+                            var url = a.getAttribute('data-url');
+                            var cur = ta.value.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean);
+                            if (cur.indexOf(url) === -1) { cur.push(url); ta.value = cur.join('\n'); }
+                            a.style.opacity = '0.45';
+                        });
+                    });
+                })();
+                </script>
+                <?php else: ?>
+                <div class="evo-desc" style="margin-bottom:16px;">Nie znaleziono plików czcionek w typowych folderach (uploads/fonts, omgf, …). URL czcionki znajdziesz w DevTools przeglądarki: zakładka <em>Sieć/Network</em> → filtr <em>Font</em> → skopiuj adres pliku .woff2.</div>
+                <?php endif; ?>
+
+                <hr class="evo-divider">
+                <p class="evo-section-title">Preconnect (opcjonalnie)</p>
+                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Tylko jeśli czcionki są serwowane z <strong>zewnętrznego</strong> hosta/CDN (nie z Twojej domeny). Dla w pełni lokalnych czcionek zostaw puste.</div></div>
+                <div class="evo-field">
+                    <label>Hosty do preconnect (jeden na linię)</label>
+                    <textarea name="evk_fonts[preconnect]" rows="2" style="max-width:480px;font-family:monospace;font-size:12px;" placeholder="https://fonts.gstatic.com"><?php echo esc_textarea($f['preconnect']); ?></textarea>
+                </div>
+
+                <div class="evo-save-bar">
+                    <?php submit_button('Zapisz ustawienia czcionek', 'primary', 'submit', false); ?>
+                </div>
+            </form>

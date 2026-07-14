@@ -2,6 +2,25 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.19.0] — 2026-07-14
+
+### Dodane
+
+- **Optymalizacja czcionek (anti-FOUT)** — nowy moduł w zakładce Frontend →
+  „Czcionki (FOUT)". Preloaduje wskazane lokalne pliki czcionek
+  (`<link rel="preload" as="font" crossorigin>`) najwcześniej w `<head>` (przed
+  arkuszami stylów), dzięki czemu czcionka jest zwykle gotowa przed pierwszym
+  malowaniem i miganie (swap/FOUT) nie występuje. Rozwiązanie czysto addytywne:
+  nie ukrywa tekstu, nie zmienia layoutu ani przejść/animacji.
+  - Pole listy plików do preload (ścieżki względne lub pełne URL-e; woff2/woff/
+    ttf/otf — typ MIME i `crossorigin` doklejane automatycznie).
+  - Auto-wykrywanie lokalnych czcionek `.woff2` w typowych folderach
+    (`uploads/fonts`, `omgf`, `local-google-fonts`, `bricks`…) z podpowiedziami
+    do jednego kliknięcia.
+  - Opcjonalny `preconnect` dla czcionek z zewnętrznego CDN.
+  - Nieaktywny domyślnie; nie ładuje niczego na froncie gdy wyłączony.
+  (`includes/91-fonts.php`, `includes/admin/tab-fonts.php`)
+
 ## [1.18.1] — 2026-07-14
 
 ### Naprawione
