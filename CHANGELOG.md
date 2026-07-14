@@ -2,6 +2,26 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.18.1] — 2026-07-14
+
+### Naprawione
+
+- **Updater — pasek „dostępna aktualizacja" nie znikał po aktualizacji.** Po
+  kliknięciu „Aktualizuj" instalacja przebiegała, ale informacja o nowej wersji
+  wisiała pod wtyczką aż do kolejnej aktualizacji/przeładowania (trzeba było
+  klikać drugi raz). Przyczyna: porównanie wersji GitHub ze stałą
+  `EVOKE_ONE_VERSION`, która jest zamrożona na początek żądania (z plików sprzed
+  nadpisania) — więc tuż po aktualizacji w tym samym żądaniu trzymała jeszcze
+  starą wartość i aktualizacja była ponownie wstrzykiwana do transientu. Teraz
+  porównujemy z wersją, którą WordPress świeżo odczytał z dysku
+  (`$transient->checked`), z fallbackiem na stałą; przy braku aktualizacji
+  wtyczka trafia też do `no_update` (poprawna obsługa listy i auto-aktualizacji).
+  (`includes/99-github-updater.php`)
+
+  > Uwaga: tę poprawkę instalujesz jeszcze starym mechanizmem — pasek może
+  > zachować się po staremu przy aktualizacji **do** 1.18.1. Od 1.18.1 wzwyż
+  > kolejne aktualizacje znikają już od razu.
+
 ## [1.18.0] — 2026-07-14
 
 ### Dodane

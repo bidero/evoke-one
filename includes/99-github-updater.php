@@ -179,26 +179,52 @@ class EVK_GitHub_Updater {
         $release = $this->get_release();
         if (!$release) return $transient;
 
-        if (version_compare($release['version'], EVOKE_ONE_VERSION, '<=')) {
-            // Aktualna wersja — upewnij się, że nie wisi stary wpis
+        $installed = $this->installed_version($transient);
+
+        if (version_compare($release['version'], $installed, '<=')) {
+            // Aktualna wersja — nie wstrzykuj i sprzątnij ewentualny stary wpis
             unset($transient->response[$this->basename]);
+            $transient->no_update[$this->basename] = $this->build_item($installed, '');
             return $transient;
         }
 
-        $item = new stdClass();
-        $item->id           = 'github.com/' . self::REPO;
-        $item->slug         = $this->slug;
-        $item->plugin       = $this->basename;
-        $item->new_version  = $release['version'];
-        $item->url          = 'https://github.com/' . self::REPO;
-        $item->package      = $release['package'];
-        $item->icons        = [];
-        $item->banners      = [];
+        $item               = $this->build_item($release['version'], $release['package']);
         $item->tested       = get_bloginfo('version');
         $item->requires_php = '8.0';
 
         $transient->response[$this->basename] = $item;
         return $transient;
+    }
+
+    /**
+     * Wersja zainstalowana — z danych, które WordPress świeżo odczytał z dysku
+     * (`$transient->checked`), a NIE ze stałej EVOKE_ONE_VERSION.
+     *
+     * Stała jest zamrożona na początek requestu (z plików sprzed nadpisania),
+     * więc tuż po aktualizacji, w tym samym żądaniu, trzymałaby jeszcze starą
+     * wartość — i pasek „dostępna aktualizacja" wisiałby aż do kolejnego
+     * przeładowania (użytkownik musiał klikać „Aktualizuj" drugi raz).
+     * `checked[]` odzwierciedla już nowe pliki na dysku. Fallback na stałą.
+     */
+    private function installed_version($transient): string {
+        if (isset($transient->checked) && is_array($transient->checked)
+            && !empty($transient->checked[$this->basename])) {
+            return (string) $transient->checked[$this->basename];
+        }
+        return EVOKE_ONE_VERSION;
+    }
+
+    private function build_item(string $version, string $package): stdClass {
+        $item              = new stdClass();
+        $item->id          = 'github.com/' . self::REPO;
+        $item->slug        = $this->slug;
+        $item->plugin      = $this->basename;
+        $item->new_version = $version;
+        $item->url         = 'https://github.com/' . self::REPO;
+        $item->package     = $package;
+        $item->icons       = [];
+        $item->banners     = [];
+        return $item;
     }
 
     // =====================================================================
