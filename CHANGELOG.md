@@ -2,6 +2,15 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.19.4] — 2026-07-17
+
+### Zmienione
+
+- **Newsletter — mniejsza minimalna paczka.** Suwak rozmiaru paczki w kampanii
+  pozwala teraz zejść do 5 maili (dotąd minimum 10), ze skokiem co 5 —
+  przydatne przy restrykcyjnych limitach antyspamowych hostingu.
+  (`includes/admin/newsletter/tab-campaigns.php`)
+
 ## [1.19.3] — 2026-07-17
 
 ### Dodane

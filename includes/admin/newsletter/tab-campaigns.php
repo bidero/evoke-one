@@ -107,7 +107,7 @@ $status_labels = [
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
                 <div>
                     <label class="evk-nl-label">Batch: <span id="evk-nl-batch-val"><?php echo $camp_batch; ?></span></label>
-                    <input type="range" id="evk-nl-batch-size" min="10" max="500" step="10"
+                    <input type="range" id="evk-nl-batch-size" min="5" max="500" step="5"
                            value="<?php echo $camp_batch; ?>" style="width:100%;">
                 </div>
                 <div>
