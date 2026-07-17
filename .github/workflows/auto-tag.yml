@@ -1,0 +1,40 @@
+name: Auto-tag wydania
+
+# Po każdym pushu na main tworzy tag "v<wersja>" z nagłówka wtyczki
+# (evoke-one.php), jeśli taki tag jeszcze nie istnieje. Updater wtyczki
+# wykrywa nowe wydania po tagach — dzięki temu wystarczy podbić "Version:"
+# i wypchnąć na main, bez ręcznego tagowania.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Utwórz tag z wersji wtyczki
+        run: |
+          VERSION=$(grep -oP '^\s*\*\s*Version:\s*\K[0-9][0-9.]*' evoke-one.php | head -1)
+          if [ -z "$VERSION" ]; then
+            echo "Nie znaleziono wersji w evoke-one.php" >&2
+            exit 1
+          fi
+          TAG="v$VERSION"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG już istnieje — nic do zrobienia."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "Utworzono tag $TAG."
