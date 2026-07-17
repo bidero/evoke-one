@@ -60,6 +60,7 @@ function evk_nl_process_batch(int $campaign_id): void {
     $delay_ms = max(0, (int) apply_filters('evk_nl_send_delay_ms', 250));
 
     $consecutive_failures = 0;
+    $breaker_tripped      = false;
 
     foreach ($rows as $queue_row) {
         $subscriber = evk_nl_get_subscriber((int) $queue_row['subscriber_id']);
@@ -74,9 +75,10 @@ function evk_nl_process_batch(int $campaign_id): void {
         } else {
             $consecutive_failures++;
             if ($consecutive_failures >= $max_consecutive) {
+                $breaker_tripped = true;
                 evk_nl_log($campaign_id, 'error', null, [
                     'msg' => sprintf(
-                        'Paczka przerwana po %d błędach wysyłki pod rząd (prawdopodobny limit u dostawcy SMTP). Pozostałe maile zostaną wysłane w kolejnej paczce — rozważ mniejszą paczkę lub dłuższy odstęp.',
+                        'Paczka przerwana po %d błędach wysyłki pod rząd (prawdopodobny limit u dostawcy SMTP). Pozostałe maile zostaną wysłane w kolejnej paczce z automatycznie wydłużonym odstępem.',
                         $consecutive_failures
                     ),
                 ]);
@@ -98,11 +100,35 @@ function evk_nl_process_batch(int $campaign_id): void {
     if ($pending_count > 0) {
         // Zaplanuj kolejny batch
         $interval_seconds = max(60, (int) $campaign['batch_interval'] * 60);
+
+        if ($breaker_tripped) {
+            // Automatyczny backoff: każde zadziałanie bezpiecznika podwaja
+            // odstęp przed kolejną paczką (aż do limitu mnożnika); paczka
+            // zakończona bez bezpiecznika zeruje mnożnik.
+            $max_mult = max(1, (int) apply_filters('evk_nl_backoff_max_multiplier', 8));
+            $mult     = min($max_mult, 2 * max(1, (int) get_option('evk_nl_backoff_' . $campaign_id, 1)));
+            update_option('evk_nl_backoff_' . $campaign_id, $mult, false);
+            $interval_seconds *= $mult;
+            evk_nl_log($campaign_id, 'error', null, [
+                'msg' => sprintf(
+                    'Odstęp wydłużony ×%d po limicie SMTP — kolejna paczka za ok. %d min.',
+                    $mult, max(1, (int) round($interval_seconds / 60))
+                ),
+            ]);
+        } else {
+            evk_nl_backoff_reset($campaign_id);
+        }
+
         wp_schedule_single_event(time() + $interval_seconds, 'evk_nl_process_batch', [$campaign_id]);
     } else {
+        evk_nl_backoff_reset($campaign_id);
         evk_nl_update_campaign($campaign_id, ['status' => 'done']);
         evk_nl_log($campaign_id, 'sent', null, ['msg' => 'Wszystkie maile wysłane.']);
     }
+}
+
+function evk_nl_backoff_reset(int $campaign_id): void {
+    delete_option('evk_nl_backoff_' . $campaign_id);
 }
 
 // =========================================================================
@@ -193,6 +219,7 @@ function evk_nl_launch_campaign(int $campaign_id): bool {
 
     // Wyczyść ewentualny poprzedni zaplanowany cron przed dodaniem nowego
     wp_clear_scheduled_hook('evk_nl_process_batch', [$campaign_id]);
+    evk_nl_backoff_reset($campaign_id);
     wp_schedule_single_event($when, 'evk_nl_process_batch', [$campaign_id]);
 
     $when_str = date('Y-m-d H:i:s', $when);
@@ -219,6 +246,7 @@ function evk_nl_cancel_campaign(int $campaign_id): bool {
     $campaign = evk_nl_get_campaign($campaign_id);
     if (!$campaign || !in_array($campaign['status'], ['sending', 'scheduled', 'paused'], true)) return false;
     wp_clear_scheduled_hook('evk_nl_process_batch', [$campaign_id]);
+    evk_nl_backoff_reset($campaign_id);
     global $wpdb;
     $q = evk_nl_table('queue');
     $wpdb->query($wpdb->prepare(

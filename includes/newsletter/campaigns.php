@@ -98,9 +98,10 @@ function evk_nl_update_campaign(int $id, array $data): bool {
 
 function evk_nl_delete_campaign(int $id): bool {
     global $wpdb;
-    // Usuń kolejkę i logi
+    // Usuń kolejkę, logi i stan backoffu
     $wpdb->delete(evk_nl_table('queue'), ['campaign_id' => $id]);
     $wpdb->delete(evk_nl_table('logs'),  ['campaign_id' => $id]);
+    evk_nl_backoff_reset($id);
     return (bool) $wpdb->delete(evk_nl_table('campaigns'), ['id' => $id]);
 }
 

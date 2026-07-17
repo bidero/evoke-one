@@ -2,6 +2,20 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.19.2] — 2026-07-17
+
+### Dodane
+
+- **Newsletter — automatyczny backoff po limicie SMTP.** Gdy bezpiecznik
+  przerwie paczkę (seria błędów wysyłki, np. filtr antyspamowy hostingu typu
+  DCC „slow down"), kolejna paczka rusza z podwojonym odstępem — każde kolejne
+  zadziałanie bezpiecznika podwaja odstęp dalej (×2, ×4, do ×8; filtr
+  `evk_nl_backoff_max_multiplier`), a paczka zakończona bez bezpiecznika zeruje
+  mnożnik. Kampania sama dostosowuje tempo do limitu dostawcy, bez ręcznego
+  zmieniania ustawień. Wydłużenie odstępu jest odnotowywane w logu kampanii.
+  Mnożnik jest zerowany też przy starcie, anulowaniu i usunięciu kampanii.
+  (`includes/newsletter/queue.php`, `includes/newsletter/campaigns.php`)
+
 ## [1.19.1] — 2026-07-17
 
 ### Naprawione
