@@ -52,17 +52,31 @@ function evk_nl_process_batch(int $campaign_id): void {
 
     @set_time_limit(300);
 
+    $interval_seconds = max(60, (int) $campaign['batch_interval'] * 60);
+
     // Bezpiecznik: po serii błędów pod rząd (zwykle limit wysyłki u dostawcy
     // SMTP) przerwij paczkę zamiast dobijać się do serwera — reszta maili
     // zostaje pending i pójdzie w kolejnej paczce bez spalania prób.
     $max_consecutive = max(1, (int) apply_filters('evk_nl_max_consecutive_failures', 3));
-    // Przerwa między mailami w paczce (ms) — łagodzi limity tempa wysyłki
-    $delay_ms = max(0, (int) apply_filters('evk_nl_send_delay_ms', 250));
+
+    // Rozłóż maile równomiernie w czasie zamiast wysyłać serią — filtry
+    // antyspamowe ("too quickly") reagują na chwilowe tempo, nie na średnią.
+    // Okno rozkładu jest przycięte, bo hosting ubija proces PHP po
+    // max_execution_time — przebieg nie może trwać całego odstępu paczki.
+    $spread_window = min((int) floor($interval_seconds * 0.8), max(0, (int) apply_filters('evk_nl_batch_spread_max_seconds', 240)));
+    $spread_ms     = count($rows) > 1 ? (int) floor($spread_window * 1000 / count($rows)) : 0;
+    $delay_ms      = max($spread_ms, max(0, (int) apply_filters('evk_nl_send_delay_ms', 250)));
+
+    // Zapas na wypadek ubicia procesu w trakcie rozłożonej paczki: kolejna
+    // paczka zaplanowana z góry (wysłane maile są już oznaczone, pending
+    // pójdą dalej). Przy normalnym zakończeniu zapas jest przeplanowywany.
+    wp_schedule_single_event(time() + $interval_seconds + $spread_window + 60, 'evk_nl_process_batch', [$campaign_id]);
 
     $consecutive_failures = 0;
     $breaker_tripped      = false;
+    $last_index           = count($rows) - 1;
 
-    foreach ($rows as $queue_row) {
+    foreach ($rows as $i => $queue_row) {
         $subscriber = evk_nl_get_subscriber((int) $queue_row['subscriber_id']);
         if (!$subscriber || (int) $subscriber['status'] !== 1) {
             // Subskrybent wypisany lub usunięty — pomijamy
@@ -86,7 +100,7 @@ function evk_nl_process_batch(int $campaign_id): void {
             }
         }
 
-        if ($delay_ms > 0) usleep($delay_ms * 1000);
+        if ($delay_ms > 0 && $i < $last_index) evk_nl_sleep_ms($delay_ms);
     }
 
     // Zamknij współdzielone połączenie SMTP po paczce
@@ -98,9 +112,6 @@ function evk_nl_process_batch(int $campaign_id): void {
     ));
 
     if ($pending_count > 0) {
-        // Zaplanuj kolejny batch
-        $interval_seconds = max(60, (int) $campaign['batch_interval'] * 60);
-
         if ($breaker_tripped) {
             // Automatyczny backoff: każde zadziałanie bezpiecznika podwaja
             // odstęp przed kolejną paczką (aż do limitu mnożnika); paczka
@@ -119,8 +130,12 @@ function evk_nl_process_batch(int $campaign_id): void {
             evk_nl_backoff_reset($campaign_id);
         }
 
+        // Usuń zapasowy event i zaplanuj właściwy termin (WP odrzuciłby
+        // duplikat hooka z tymi samymi argumentami w oknie 10 minut)
+        wp_clear_scheduled_hook('evk_nl_process_batch', [$campaign_id]);
         wp_schedule_single_event(time() + $interval_seconds, 'evk_nl_process_batch', [$campaign_id]);
     } else {
+        wp_clear_scheduled_hook('evk_nl_process_batch', [$campaign_id]);
         evk_nl_backoff_reset($campaign_id);
         evk_nl_update_campaign($campaign_id, ['status' => 'done']);
         evk_nl_log($campaign_id, 'sent', null, ['msg' => 'Wszystkie maile wysłane.']);
@@ -129,6 +144,18 @@ function evk_nl_process_batch(int $campaign_id): void {
 
 function evk_nl_backoff_reset(int $campaign_id): void {
     delete_option('evk_nl_backoff_' . $campaign_id);
+}
+
+/**
+ * Sen w milisekundach — usleep() powyżej sekundy nie jest przenośne,
+ * więc pełne sekundy śpimy sleep()em.
+ */
+function evk_nl_sleep_ms(int $ms): void {
+    if ($ms <= 0) return;
+    $s = intdiv($ms, 1000);
+    if ($s > 0) sleep($s);
+    $rest = ($ms % 1000) * 1000;
+    if ($rest > 0) usleep($rest);
 }
 
 // =========================================================================

@@ -2,6 +2,20 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.19.3] — 2026-07-17
+
+### Dodane
+
+- **Newsletter — równomierne rozłożenie maili w paczce.** Zamiast wysyłać całą
+  paczkę serią (co ~250 ms), maile są rozkładane równomiernie w oknie czasowym
+  — filtry antyspamowe hostingów („too quickly") reagują na chwilowe tempo,
+  nie na średnią. Okno rozkładu to 80% odstępu paczki, przycięte do 240 s
+  (filtr `evk_nl_batch_spread_max_seconds`), żeby przebieg crona zmieścił się
+  w `max_execution_time` hostingu. Przykład: 10 maili przy odstępie 15 min →
+  jeden mail co ~24 s. Na wypadek ubicia procesu w trakcie rozłożonej paczki
+  kolejna paczka jest planowana z góry (zapasowy event) — kampania nigdy nie
+  zawiśnie w połowie. (`includes/newsletter/queue.php`)
+
 ## [1.19.2] — 2026-07-17
 
 ### Dodane
