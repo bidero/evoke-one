@@ -2,6 +2,29 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.19.1] — 2026-07-17
+
+### Naprawione
+
+- **Newsletter — „SMTP Error: data not accepted." po kilkunastu mailach.**
+  Serwery SMTP (zwłaszcza na hostingach współdzielonych) odrzucały wiadomości
+  po przekroczeniu limitu tempa wysyłki, a wtyczka dodatkowo prowokowała limity,
+  otwierając osobne połączenie SMTP dla każdego maila i wysyłając paczkę bez
+  żadnej przerwy. Zmiany (`includes/newsletter/mailer.php`,
+  `includes/newsletter/queue.php`):
+  - Jedno współdzielone połączenie SMTP na całą paczkę (`SMTPKeepAlive`)
+    zamiast łączenia się od nowa przy każdym mailu; połączenie zamykane po
+    zakończeniu paczki.
+  - Krótka przerwa między kolejnymi mailami w paczce (domyślnie 250 ms,
+    filtr `evk_nl_send_delay_ms`).
+  - Bezpiecznik: po 3 błędach wysyłki pod rząd (filtr
+    `evk_nl_max_consecutive_failures`) paczka jest przerywana zamiast dobijać
+    się do serwera — pozostałe maile zostają w statusie „pending" i idą w
+    kolejnej paczce, bez spalania limitu 3 prób na subskrybenta.
+  - Komunikat błędu w logach zawiera teraz faktyczną odpowiedź serwera SMTP
+    (kod + powód, np. informację o przekroczonym limicie), a nie tylko ogólne
+    „data not accepted".
+
 ## [1.19.0] — 2026-07-14
 
 ### Dodane

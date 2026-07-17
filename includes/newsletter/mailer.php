@@ -52,27 +52,69 @@ function evk_nl_send_mail(array $subscriber, array $campaign, array $template, a
     ]);
 }
 
-function evk_nl_phpmailer_send(array $args) {
-    $smtp = $args['smtp'];
+/**
+ * Współdzielona instancja PHPMailer z SMTPKeepAlive — jedno połączenie SMTP
+ * na całą paczkę zamiast osobnego na każdy mail (mniejsze ryzyko limitów
+ * połączeń u dostawcy). Zamykana przez evk_nl_mailer_close() po paczce;
+ * przy pojedynczych mailach (np. potwierdzenie zapisu) zamyka ją destruktor.
+ */
+function evk_nl_mailer_instance(?array $smtp, bool $close = false): ?PHPMailer\PHPMailer\PHPMailer {
+    static $mailer = null;
+    static $sig    = '';
+
+    if ($close) {
+        if ($mailer instanceof PHPMailer\PHPMailer\PHPMailer) {
+            $mailer->smtpClose();
+            $mailer = null;
+            $sig    = '';
+        }
+        return null;
+    }
+
+    $new_sig = md5(wp_json_encode([$smtp['host'], $smtp['port'], $smtp['username'], $smtp['encryption']]));
+    if ($mailer instanceof PHPMailer\PHPMailer\PHPMailer && $sig === $new_sig) {
+        return $mailer;
+    }
+    if ($mailer instanceof PHPMailer\PHPMailer\PHPMailer) {
+        $mailer->smtpClose();
+    }
 
     require_once ABSPATH . WPINC . '/PHPMailer/PHPMailer.php';
     require_once ABSPATH . WPINC . '/PHPMailer/SMTP.php';
     require_once ABSPATH . WPINC . '/PHPMailer/Exception.php';
 
     $mailer = new PHPMailer\PHPMailer\PHPMailer(true);
+    $mailer->isSMTP();
+    $mailer->SMTPKeepAlive = true;
+    $mailer->XMailer    = ' '; // nie ujawniaj biblioteki (jak Gmail)
+    $mailer->Host       = $smtp['host'];
+    $mailer->SMTPAuth   = true;
+    $mailer->Port       = (int) $smtp['port'];
+    $mailer->Username   = $smtp['username'];
+    $mailer->Password   = $smtp['password'];
+    $mailer->SMTPSecure = ($smtp['encryption'] !== 'none') ? $smtp['encryption'] : '';
+    $mailer->Timeout    = 15;
+    $mailer->CharSet    = PHPMailer\PHPMailer\PHPMailer::CHARSET_UTF8;
+    $mailer->Encoding   = PHPMailer\PHPMailer\PHPMailer::ENCODING_BASE64;
+
+    $sig = $new_sig;
+    return $mailer;
+}
+
+function evk_nl_mailer_close(): void {
+    evk_nl_mailer_instance(null, true);
+}
+
+function evk_nl_phpmailer_send(array $args) {
+    $smtp   = $args['smtp'];
+    $mailer = evk_nl_mailer_instance($smtp);
 
     try {
-        $mailer->isSMTP();
-        $mailer->XMailer = ' '; // nie ujawniaj biblioteki (jak Gmail)
-        $mailer->Host       = $smtp['host'];
-        $mailer->SMTPAuth   = true;
-        $mailer->Port       = (int) $smtp['port'];
-        $mailer->Username   = $smtp['username'];
-        $mailer->Password   = $smtp['password'];
-        $mailer->SMTPSecure = ($smtp['encryption'] !== 'none') ? $smtp['encryption'] : '';
-        $mailer->Timeout    = 15;
-        $mailer->CharSet    = PHPMailer\PHPMailer\PHPMailer::CHARSET_UTF8;
-        $mailer->Encoding   = PHPMailer\PHPMailer\PHPMailer::ENCODING_BASE64;
+        // Wyczyść stan po poprzednim mailu z tej samej paczki
+        $mailer->clearAllRecipients();
+        $mailer->clearAttachments();
+        $mailer->clearCustomHeaders();
+        $mailer->clearReplyTos();
 
         $from_email = !empty($smtp['from_email']) ? $smtp['from_email']
             : (filter_var($smtp['username'], FILTER_VALIDATE_EMAIL) ? $smtp['username'] : get_option('admin_email'));
@@ -117,10 +159,24 @@ function evk_nl_phpmailer_send(array $args) {
         $mailer->send();
         return true;
 
-    } catch (PHPMailer\PHPMailer\Exception $e) {
-        return new WP_Error('mail_error', $e->getMessage());
-    } catch (\Exception $e) {
-        return new WP_Error('mail_error', $e->getMessage());
+    } catch (\Throwable $e) {
+        // "data not accepted" itp. to ogólne komunikaty PHPMailera — dopisz
+        // faktyczną odpowiedź serwera SMTP (kod + powód, np. limit wysyłki)
+        $msg  = trim($e->getMessage());
+        $conn = $mailer->getSMTPInstance();
+        if ($conn) {
+            $err   = $conn->getError();
+            $extra = trim((string) ($err['detail'] ?? ''));
+            if ($extra === '') $extra = trim((string) ($err['error'] ?? ''));
+            if ($extra === '') $extra = trim((string) $conn->getLastReply());
+            if ($extra !== '' && stripos($msg, $extra) === false) {
+                $msg .= ' | Odpowiedź serwera: ' . $extra;
+            }
+        }
+        // Po błędzie połączenie może być w złym stanie — zamknij,
+        // kolejny mail otworzy świeże
+        $mailer->smtpClose();
+        return new WP_Error('mail_error', $msg);
     }
 }
 

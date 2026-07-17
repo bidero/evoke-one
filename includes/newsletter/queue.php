@@ -50,6 +50,17 @@ function evk_nl_process_batch(int $campaign_id): void {
         return;
     }
 
+    @set_time_limit(300);
+
+    // Bezpiecznik: po serii błędów pod rząd (zwykle limit wysyłki u dostawcy
+    // SMTP) przerwij paczkę zamiast dobijać się do serwera — reszta maili
+    // zostaje pending i pójdzie w kolejnej paczce bez spalania prób.
+    $max_consecutive = max(1, (int) apply_filters('evk_nl_max_consecutive_failures', 3));
+    // Przerwa między mailami w paczce (ms) — łagodzi limity tempa wysyłki
+    $delay_ms = max(0, (int) apply_filters('evk_nl_send_delay_ms', 250));
+
+    $consecutive_failures = 0;
+
     foreach ($rows as $queue_row) {
         $subscriber = evk_nl_get_subscriber((int) $queue_row['subscriber_id']);
         if (!$subscriber || (int) $subscriber['status'] !== 1) {
@@ -58,8 +69,26 @@ function evk_nl_process_batch(int $campaign_id): void {
             continue;
         }
 
-        evk_nl_send_single($queue_row, $campaign, $template, $subscriber);
+        if (evk_nl_send_single($queue_row, $campaign, $template, $subscriber)) {
+            $consecutive_failures = 0;
+        } else {
+            $consecutive_failures++;
+            if ($consecutive_failures >= $max_consecutive) {
+                evk_nl_log($campaign_id, 'error', null, [
+                    'msg' => sprintf(
+                        'Paczka przerwana po %d błędach wysyłki pod rząd (prawdopodobny limit u dostawcy SMTP). Pozostałe maile zostaną wysłane w kolejnej paczce — rozważ mniejszą paczkę lub dłuższy odstęp.',
+                        $consecutive_failures
+                    ),
+                ]);
+                break;
+            }
+        }
+
+        if ($delay_ms > 0) usleep($delay_ms * 1000);
     }
+
+    // Zamknij współdzielone połączenie SMTP po paczce
+    evk_nl_mailer_close();
 
     // Sprawdź czy zostały pending
     $pending_count = (int) $wpdb->get_var($wpdb->prepare(
@@ -80,7 +109,7 @@ function evk_nl_process_batch(int $campaign_id): void {
 // WYSYŁKA POJEDYNCZEGO MAILA
 // =========================================================================
 
-function evk_nl_send_single(array $queue_row, array $campaign, array $template, array $subscriber): void {
+function evk_nl_send_single(array $queue_row, array $campaign, array $template, array $subscriber): bool {
     global $wpdb;
     $q = evk_nl_table('queue');
 
@@ -98,13 +127,15 @@ function evk_nl_send_single(array $queue_row, array $campaign, array $template, 
             'error_message' => $error_msg,
         ], ['id' => $queue_row['id']]);
         evk_nl_log((int) $campaign['id'], 'error', (int) $subscriber['id'], ['error' => $error_msg]);
-    } else {
-        $wpdb->update($q, [
-            'status'  => 'sent',
-            'sent_at' => current_time('mysql'),
-        ], ['id' => $queue_row['id']]);
-        evk_nl_log((int) $campaign['id'], 'sent', (int) $subscriber['id']);
+        return false;
     }
+
+    $wpdb->update($q, [
+        'status'  => 'sent',
+        'sent_at' => current_time('mysql'),
+    ], ['id' => $queue_row['id']]);
+    evk_nl_log((int) $campaign['id'], 'sent', (int) $subscriber['id']);
+    return true;
 }
 
 // =========================================================================
