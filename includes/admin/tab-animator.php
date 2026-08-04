@@ -42,10 +42,6 @@ $row_def    = $anim->row_defaults();
             <input type="checkbox" name="evk_animator[builder_preview]" value="1" <?php checked(!empty($a['builder_preview'])); ?> style="margin-top:2px;">
             <span>Animuj w builderze<br><span style="font-weight:400;color:#6b7280;font-size:12px;">Domyślnie wyłączone — animacje w canvasie utrudniają edycję.</span></span>
         </label>
-        <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;flex-basis:280px;">
-            <input type="checkbox" name="evk_animator[style_tab]" value="1" <?php checked(!empty($a['style_tab'])); ?> style="margin-top:2px;">
-            <span>Sekcja w zakładce Style<br><span style="font-weight:400;color:#6b7280;font-size:12px;">Przenosi sekcję „Evoke ONE" z zakładki Content na koniec zakładki Style, za CSS i Attributes. Do paska skrótów po lewej sekcja nie trafi — Bricks buduje go z własnego, zamkniętego zestawu grup.</span></span>
-        </label>
     </div>
 
     <style>

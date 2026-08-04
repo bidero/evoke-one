@@ -2,6 +2,34 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.24.0] — 2026-08-04
+
+### Zmienione
+
+- **Kontrolki Evoke ONE przeniesione do grupy Atrybuty Bricks.** Zamiast własnej
+  sekcji, kontrolki Animatora i Parallaxu dokładają się teraz do istniejącej grupy
+  **Atrybuty**. Powód jest praktyczny: pasek skrótów po lewej jest budowany
+  z zamkniętego zestawu grup Bricks i własnej grupy tam nie wpuści, natomiast grupa
+  Atrybuty ma w nim swoją pozycję — więc kontrolki stają się dostępne jednym
+  kliknięciem, czyli dokładnie tak, jak miało być od początku.
+
+  Wewnątrz grupy blok jest oznaczony separatorami **„Evoke ONE — Animator"**
+  i **„Evoke ONE — Parallax"**, żeby było jasne, skąd pochodzi, gdy sąsiaduje
+  z natywnymi kontrolkami atrybutów.
+
+  Klucz grupy jest **wykrywany w locie** z tablicy przekazywanej przez filtr
+  (kandydaci: `_attributes`, `attributes`), a nie zgadywany. Gdyby żaden nie
+  pasował — inna wersja Bricks, inna nazwa — wtyczka awaryjnie zakłada własną
+  sekcję w zakładce Content, tak jak w 1.23.x. Lepiej mieć sekcję nie tam, gdzie
+  trzeba, niż kontrolki wskazujące na nieistniejącą grupę, czyli niewidoczne.
+  (`includes/anim/bricks-controls.php`)
+
+### Usunięte
+
+- **Przełącznik „Sekcja w zakładce Style".** Stracił sens: grupa Atrybuty sama żyje
+  w zakładce Style, więc nie ma czego przełączać. Ustawienie `style_tab` zniknęło
+  z opcji modułu. (`includes/anim/animator.php`, `includes/admin/tab-animator.php`)
+
 ## [1.23.4] — 2026-08-04
 
 ### Zmienione

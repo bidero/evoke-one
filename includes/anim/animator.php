@@ -23,7 +23,6 @@ class EVK_Animator {
         'enabled'          => 0,
         'reduced_motion'   => 1,   // szanuj prefers-reduced-motion
         'builder_preview'  => 0,   // animuj też w canvasie buildera
-        'style_tab'        => 0,   // sekcja w zakładce Style zamiast Content (eksperymentalnie)
         'animations'       => [],
     ];
 
@@ -79,7 +78,6 @@ class EVK_Animator {
         $clean['enabled']         = evk_preserve_toggle($input, 'evk_animator');
         $clean['reduced_motion']  = !empty($input['reduced_motion'])  ? 1 : 0;
         $clean['builder_preview'] = !empty($input['builder_preview']) ? 1 : 0;
-        $clean['style_tab']       = !empty($input['style_tab'])       ? 1 : 0;
 
         $presets  = evk_anim_presets();
         $triggers = evk_anim_triggers();
