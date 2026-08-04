@@ -44,7 +44,7 @@ $row_def    = $anim->row_defaults();
         </label>
         <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;flex-basis:280px;">
             <input type="checkbox" name="evk_animator[style_tab]" value="1" <?php checked(!empty($a['style_tab'])); ?> style="margin-top:2px;">
-            <span>Sekcja w zakładce Style <span style="color:#b45309;">(eksperymentalne)</span><br><span style="font-weight:400;color:#6b7280;font-size:12px;">Przenosi sekcję „Evoke ONE" z zakładki Content do pionowego paska ikon, za CSS i Attributes. Bricks nie udostępnia klucza na ikonę grupy, więc ikonę dorysowuje CSS. <strong>Jeśli sekcja zniknie z panelu — odznacz.</strong></span></span>
+            <span>Sekcja w zakładce Style<br><span style="font-weight:400;color:#6b7280;font-size:12px;">Przenosi sekcję „Evoke ONE" z zakładki Content na koniec zakładki Style, za CSS i Attributes. Do paska skrótów po lewej sekcja nie trafi — Bricks buduje go z własnego, zamkniętego zestawu grup.</span></span>
         </label>
     </div>
 

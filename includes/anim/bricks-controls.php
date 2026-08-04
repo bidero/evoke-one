@@ -43,55 +43,23 @@ function evk_bricks_controls_tab(): string {
     return !empty(EVK_Animator::get_instance()->get_settings()['style_tab']) ? 'style' : 'content';
 }
 
-// =========================================================================
-// IKONA W PIONOWYM PASKU — tylko w builderze i tylko w trybie 'style'
-// =========================================================================
-
-/**
- * Czy jesteśmy w oknie buildera Bricks?
+/*
+ * QUICK ACCESS BAR — droga zamknięta, świadomie nie próbujemy
  *
- * Reszta wtyczki używa bricks_is_builder_main() jako strażnika POMIJAJĄCEGO
- * („jeśli builder — nie rób"), więc brak funkcji jest tam nieszkodliwy. Tutaj
- * warunek jest odwrotny — coś ma się wydarzyć TYLKO w builderze — więc brak
- * funkcji nie może oznaczać ciszy. Stąd trzy niezależne próby wykrycia.
+ * Pionowy pasek ikon po lewej to #bricks-panel-element-quick-access. Dump z żywej
+ * instalacji pokazał pozycje o indeksach 0–8 BEZ LUKI: 0 = cała zakładka Treść,
+ * 1–8 = grupy własne Bricks (Układ, Typografia, Tło, Obramowanie, Gradient,
+ * Transformacja, CSS, Atrybuty). Grupy dodanej filtrem tam nie ma i nie ma po niej
+ * miejsca — pasek budowany jest z zamkniętego zestawu Bricks.
+ *
+ * Wcześniejsza próba dorysowania ikony CSS-em była martwa z dwóch powodów naraz:
+ * nie było <li> do złapania, a CSS wstrzykiwany przez wp_head trafia do dokumentu
+ * ze stroną (iframe podglądu), nie do okna powłoki buildera, gdzie żyje panel.
+ * Jedyną drogą byłoby wstrzykiwanie <li> JS-em do panelu Vue — kruche wobec
+ * aktualizacji Bricks i nieproporcjonalne do zysku.
+ *
+ * Ikonę nagłówka samej grupy ustawia natomiast klucz 'icon' — patrz niżej.
  */
-function evk_is_bricks_builder(): bool {
-    if (function_exists('bricks_is_builder_main') && bricks_is_builder_main()) return true;
-    if (function_exists('bricks_is_builder')      && bricks_is_builder())      return true;
-    // Builder startuje z ?bricks=run — ostatnia deska ratunku.
-    return isset($_GET['bricks']) && sanitize_key(wp_unslash($_GET['bricks'])) === 'run';
-}
-
-/**
- * Pozycje paska to <li data-balloon="Tytuł grupy"> z osadzonym SVG. Grupa dodana
- * filtrem nie dostaje SVG, bo publiczne API nie zna klucza na ikonę — więc
- * podkładamy ikonę tłem, celując w tooltip. Sam <li> musi istnieć; jeśli Bricks
- * w ogóle nie renderuje grup z filtra w pasku, ten CSS nie ma czego złapać.
- */
-add_action('wp_head', function (): void {
-    if (!evk_is_bricks_builder()) return;
-    if (evk_bricks_controls_tab() !== 'style') return;
-    if (!evk_anim_controls_active() && !evk_parallax_controls_active()) return;
-
-    $svg = rawurlencode(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
-        . 'stroke="#c8c8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        . '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>'
-    );
-
-    // Selektor podciągiem (*=), nie dokładnym dopasowaniem — tooltip może nieść
-    // dodatkowy tekst albo inny cudzysłów zależnie od wersji Bricks.
-    echo '<style id="evk-bricks-group-icon">
-li[data-balloon*="Evoke ONE"] {
-    background-image: url("data:image/svg+xml,' . $svg . '");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 20px 20px;
-    min-height: 40px;
-}
-li[data-balloon*="Evoke ONE"] .bricks-svg-wrapper { display: none; }
-</style>';
-});
 
 // =========================================================================
 // REJESTRACJA FILTRÓW
@@ -165,11 +133,13 @@ function evk_bricks_control_groups($groups) {
     $groups['evk_one'] = [
         'title' => 'Evoke ONE',
         'tab'   => evk_bricks_controls_tab(),
-        // Nazwa z wewnętrznego rejestru SVG Bricks (<span data-name="css3">).
-        // Hipoteza: przy nieznanej nazwie Bricks pomija całą pozycję paska —
-        // dlatego 'html', nazwa potwierdzona jako istniejąca, a nie zmyślona.
-        // Sam wygląd i tak nadpisuje CSS poniżej, podmieniając ikonę na własną.
-        'icon'  => 'html',
+        // Nazwa z wewnętrznego rejestru SVG Bricks — klucz działa, mimo że nie ma
+        // go w dokumentacji filtra. Nazwy potwierdzone na żywej instalacji:
+        // box, tab-layout, tab-typography, tab-background, tab-border,
+        // tab-gradient, tab-transform, css3, html, arrow-left.
+        // 'tab-transform' — najbliższe znaczeniowo animacji i odróżnialne od
+        // tarczy HTML5, którą Bricks daje grupie Atrybuty.
+        'icon'  => 'tab-transform',
     ];
 
     return $groups;

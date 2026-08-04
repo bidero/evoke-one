@@ -2,6 +2,37 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.23.4] — 2026-08-04
+
+### Zmienione
+
+- **Sensowna ikona sekcji „Evoke ONE".** Grupa dostawała `'icon' => 'html'`, czyli
+  tę samą tarczę HTML5 co grupa Atrybuty — nazwa była pożyczona z HTML-a wklejonego
+  przy diagnostyce, byle poprawna. Teraz `'tab-transform'`: znaczeniowo najbliższe
+  animacji i odróżnialne od pozostałych. Przy okazji potwierdzone, że klucz `icon`
+  **działa**, mimo że nie ma go w dokumentacji filtra `control_groups`. Nazwy
+  potwierdzone na żywej instalacji: `box`, `tab-layout`, `tab-typography`,
+  `tab-background`, `tab-border`, `tab-gradient`, `tab-transform`, `css3`, `html`,
+  `arrow-left`. (`includes/anim/bricks-controls.php`)
+
+### Usunięte
+
+- **Martwy CSS dorysowujący ikonę w pasku skrótów.** Dump panelu z żywej instalacji
+  pokazał, że `#bricks-panel-element-quick-access` zawiera pozycje o indeksach 0–8
+  **bez luki** — 0 to cała zakładka Treść, 1–8 to grupy własne Bricks. Grupy dodanej
+  filtrem tam nie ma i nie ma po niej miejsca: pasek budowany jest z zamkniętego
+  zestawu. Wstrzykiwany CSS był martwy z dwóch powodów naraz — nie miał czego
+  złapać, a jako wstrzykiwany przez `wp_head` trafiał do dokumentu ze stroną
+  (iframe podglądu), nie do okna powłoki buildera, gdzie żyje panel. Usunięty wraz
+  z pomocniczym wykrywaniem buildera; powód i dowód zostawione w komentarzu.
+
+### Znane ograniczenia
+
+- Sekcja „Evoke ONE" **nie pojawi się w pasku skrótów po lewej.** Jedyną drogą
+  byłoby wstrzykiwanie `<li>` JavaScriptem do panelu zarządzanego przez Vue —
+  kruche wobec aktualizacji Bricks i nieproporcjonalne do zysku. Sekcja jest
+  natomiast na końcu zakładki Style, za CSS i Attributes, z własną ikoną.
+
 ## [1.23.3] — 2026-08-04
 
 ### Naprawione
