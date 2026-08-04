@@ -65,7 +65,15 @@
     var attr = attrConfig(el);
     var slug = attr.animation || slugFromClass(el);
     var lib  = LIBRARY[slug] || {};
-    var pre  = PRESETS[pick(attr.preset, lib.preset)] || {};
+
+    // Slug wskazany, ale nieobecny w bibliotece — najczęściej skutek zmiany
+    // sluga w panelu przy elemencie, który trzyma starą nazwę. Bez ostrzeżenia
+    // element po prostu nie animuje się i trudno zgadnąć dlaczego.
+    if (slug && !LIBRARY[slug]) {
+      console.warn('[EVK Animator] Brak animacji "' + slug + '" w bibliotece.', el);
+    }
+
+    var pre = PRESETS[pick(attr.preset, lib.preset)] || {};
 
     // from/to: nadpisywane w całości, nie scalane po kluczach — inaczej
     // resztki poprzedniej warstwy wchodziłyby w drogę własnym wartościom.

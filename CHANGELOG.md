@@ -2,6 +2,41 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.22.0] — 2026-08-04
+
+### Dodane
+
+- **Kontrolki Animatora i Parallaxu w panelu elementu Bricks.** Każdy element
+  dostaje dwie grupy w zakładce Content — koniec z wklejaniem klasy
+  `evk-anim-{slug}` z pamięci i ręcznym wpisywaniem `data-parallax`.
+  - **Evoke Animator:** lista rozwijana zasilana biblioteką (nie da się wybrać
+    animacji, której nie ma) plus nadpisania czasu, opóźnienia, staggera,
+    wyzwalacza i startu ScrollTriggera. Puste pole zostawia wartość z biblioteki.
+    Pola nadpisań pokazują się dopiero po wybraniu animacji.
+  - **Evoke Parallax:** włącznik plus siła i skala. Puste pole = wartość globalna
+    z panelu Parallax (widoczna jako placeholder), wypełnione = override dla tego
+    elementu. Ręcznie wpisany `data-parallax` działa bez zmian.
+  - Kontrolki dokładane tylko gdy dany moduł jest włączony — strona z wyłączonym
+    Animatorem i Parallaxem nie płaci nic w payloadzie buildera.
+  - Oba silniki JS zostały **nietknięte** — to wyłącznie nowa warstwa wejścia
+    konfiguracji, czytająca te same atrybuty co dotąd.
+  (`includes/anim/bricks-controls.php`)
+
+- **Ostrzeżenie o nieznanym slugu animacji.** Element wskazujący animację, której
+  nie ma w bibliotece (np. po zmianie sluga w panelu), po cichu się nie animował.
+  Teraz zgłasza to w konsoli wraz z referencją do elementu.
+  (`assets/js/animator.js`)
+
+### Usunięte
+
+- **Spike Fazy 0** (`includes/anim/spike-bricks-controls.php`). Miał sprawdzić na
+  żywej instalacji, czy wolno doklejać kontrolki do cudzych elementów Bricks.
+  Weryfikacja w dokumentacji Bricks zamknęła temat — `bricks/elements/{name}/controls`
+  i `.../control_groups` to oficjalne filtry od wersji 1.3.2 — więc sonda straciła
+  rację bytu. Przy okazji wyszło, że miała zaniżony priorytet hooka `init` (20
+  zamiast `PHP_INT_MAX`), co mogło dać niepełną listę elementów; docelowy kod
+  używa `PHP_INT_MAX`.
+
 ## [1.21.0] — 2026-08-04
 
 ### Dodane
