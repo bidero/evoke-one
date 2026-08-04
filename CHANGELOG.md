@@ -2,6 +2,41 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.20.1] — 2026-08-04
+
+### Zmienione
+
+- **Circular Menu ujednolicony z resztą elementów.** Element odstawał od
+  pozostałych na każdym poziomie poza etykietą. Slug `evoke-circular-menu` →
+  `evk-circular-menu`, klasa `Evoke_Circular_Menu` → `Evk_Circular_Menu`, plik
+  `element-circular-menu.php` → `element.php`, asety z katalogu głównego i `js/`
+  → `assets/circular-menu.{js,css}`, text domain → `evk-circular-menu`, handle
+  skryptu → `evk-circular-menu-js`, ścieżki przez stałą `EVK_CIRCULAR_MENU_URL`
+  zamiast `plugin_dir_url()`. W 1.20.0 slug został świadomie nietknięty (jest
+  zapisywany w danych stron Bricks) — element nie był użyty na produkcji, więc
+  blokada odpadła. Bez zmian: katalog `evoke-circular-menu/`, `namespace Bricks`,
+  klasy CSS `.evk-cm*` i atrybuty `data-*`.
+  (`includes/bricks-elements/evoke-circular-menu/*`,
+  `includes/bricks-elements/loader.php`)
+
+  **Uwaga przy aktualizacji:** strony deweloperskie zawierające stary element
+  stracą go po aktualizacji — trzeba wstawić go na nowo.
+
+### Naprawione
+
+- **Circular Menu nie inicjalizował się w builderze.** `public $scripts` wskazywał
+  na `evk_circular_menu`, a plik JS definiował `evkCircularMenuInit()` — Bricks
+  wołał nieistniejącą funkcję. Na froncie ratował to własny `DOMContentLoaded`,
+  ale w builderze element był martwy (m.in. opcja „Otwórz w builderze" nic nie
+  robiła). Funkcja nazywa się teraz `evk_circular_menu_init()` — zgodnie z tym,
+  jak ma to zrobione Circular Title — i `$scripts` na nią wskazuje. Ponieważ
+  wywołanie leci teraz z dwóch stron (Bricks + `DOMContentLoaded`), doszła flaga
+  `data-evk-cm-ready`: bez niej stackowałyby się listenery, a przy włączonym
+  portalu drugi przebieg nie znalazłby panelu (jest już w `<body>`) i menu cicho
+  przestałoby działać.
+  (`includes/bricks-elements/evoke-circular-menu/assets/circular-menu.js`,
+  `includes/bricks-elements/evoke-circular-menu/element.php`)
+
 ## [1.20.0] — 2026-08-04
 
 ### Zmienione

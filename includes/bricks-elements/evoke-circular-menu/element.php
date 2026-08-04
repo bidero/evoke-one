@@ -2,13 +2,14 @@
 namespace Bricks;
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-class Evoke_Circular_Menu extends \Bricks\Element {
+class Evk_Circular_Menu extends \Bricks\Element {
 
 	public $category = \EVK_BRICKS_CATEGORY;
-	// Slug zapisany w danych stron Bricks — NIE zmieniać (rozwaliłby istniejące instancje).
-	public $name     = 'evoke-circular-menu';
+	public $name     = 'evk-circular-menu';
 	public $icon     = 'ti-menu-alt';
-	public $scripts  = ['evk_circular_menu'];
+	// Nazwa funkcji JS, którą Bricks woła przy renderowaniu elementu —
+	// musi się zgadzać z assets/circular-menu.js.
+	public $scripts  = ['evk_circular_menu_init'];
 	public $nestable = true;
 
 	// Etykieta musi się zgadzać z evk_elements_registry()['circular_menu']['label'].
@@ -31,7 +32,7 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 		return [
 			[
 				'name'  => 'div',
-				'label' => esc_html__( 'Trigger (burger)', 'evoke-circular-menu' ),
+				'label' => esc_html__( 'Trigger (burger)', 'evk-circular-menu' ),
 				'settings' => [
 					'_hidden' => [
 						'_cssClasses' => 'evk-cm-trigger',
@@ -40,7 +41,7 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 			],
 			[
 				'name'  => 'block',
-				'label' => esc_html__( 'Zawartość menu', 'evoke-circular-menu' ),
+				'label' => esc_html__( 'Zawartość menu', 'evk-circular-menu' ),
 				'settings' => [
 					'_hidden' => [
 						'_cssClasses' => 'evk-cm-content',
@@ -55,29 +56,29 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 		$this->controls['openbuilder'] = [
 			'hasDynamicData' => false,
 			'tab'   => 'content',
-			'label' => esc_html__( 'Otwórz w builderze', 'evoke-circular-menu' ),
+			'label' => esc_html__( 'Otwórz w builderze', 'evk-circular-menu' ),
 			'type'  => 'checkbox',
 		];
 
 		// ----- Lokalizacja -----
 		$this->controls['locationSeparator'] = [
-			'label' => esc_html__( 'Lokalizacja', 'evoke-circular-menu' ),
+			'label' => esc_html__( 'Lokalizacja', 'evk-circular-menu' ),
 			'type'  => 'separator',
 		];
 		$this->controls['portalToBody'] = [
 			'hasDynamicData' => false,
 			'tab'    => 'content',
-			'label'  => esc_html__( 'Portal do &lt;body&gt;', 'evoke-circular-menu' ),
+			'label'  => esc_html__( 'Portal do &lt;body&gt;', 'evk-circular-menu' ),
 			'type'   => 'checkbox',
 			'inline' => true,
 			'small'  => true,
 			'default' => true,
-			'description' => esc_html__( 'Przenosi panel menu bezpośrednio do <body>, dzięki czemu nie jest ograniczany przez overflow:hidden ani position rodziców.', 'evoke-circular-menu' ),
+			'description' => esc_html__( 'Przenosi panel menu bezpośrednio do <body>, dzięki czemu nie jest ograniczany przez overflow:hidden ani position rodziców.', 'evk-circular-menu' ),
 		];
 		$this->controls['fromTop'] = [
 			'hasDynamicData' => false,
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Góra (punkt rozwinięcia)', 'evoke-circular-menu' ),
+			'label'       => esc_html__( 'Góra (punkt rozwinięcia)', 'evk-circular-menu' ),
 			'type'        => 'number',
 			'units'       => true,
 			'inline'      => true,
@@ -93,7 +94,7 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 		$this->controls['fromLeft'] = [
 			'hasDynamicData' => false,
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Lewa (punkt rozwinięcia)', 'evoke-circular-menu' ),
+			'label'       => esc_html__( 'Lewa (punkt rozwinięcia)', 'evk-circular-menu' ),
 			'type'        => 'number',
 			'units'       => true,
 			'inline'      => true,
@@ -110,17 +111,17 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 		// ----- Custom toggle -----
 		$this->controls['toggleSeparator'] = [
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Własny przełącznik', 'evoke-circular-menu' ),
+			'label'       => esc_html__( 'Własny przełącznik', 'evk-circular-menu' ),
 			'type'        => 'separator',
-			'description' => esc_html__( 'Elementy z tą klasą będą otwierać/zamykać menu.', 'evoke-circular-menu' ),
+			'description' => esc_html__( 'Elementy z tą klasą będą otwierać/zamykać menu.', 'evk-circular-menu' ),
 		];
 		$this->controls['customtoggle'] = [
-			'label'       => esc_html__( 'Selektor CSS', 'evoke-circular-menu' ),
+			'label'       => esc_html__( 'Selektor CSS', 'evk-circular-menu' ),
 			'type'        => 'text',
 			'placeholder' => '.moj-burger',
 		];
 		$this->controls['lockBodyScrolling'] = [
-			'label'   => esc_html__( 'Blokuj scroll strony', 'evoke-circular-menu' ),
+			'label'   => esc_html__( 'Blokuj scroll strony', 'evk-circular-menu' ),
 			'type'    => 'checkbox',
 			'inline'  => true,
 			'small'   => true,
@@ -129,11 +130,11 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 
 		// ----- Animacja -----
 		$this->controls['animationSeparator'] = [
-			'label' => esc_html__( 'Animacja', 'evoke-circular-menu' ),
+			'label' => esc_html__( 'Animacja', 'evk-circular-menu' ),
 			'type'  => 'separator',
 		];
 		$this->controls['duration'] = [
-			'label'       => esc_html__( 'Czas trwania', 'evoke-circular-menu' ),
+			'label'       => esc_html__( 'Czas trwania', 'evk-circular-menu' ),
 			'type'        => 'number',
 			'unit'        => 's',
 			'inline'      => true,
@@ -142,7 +143,7 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 		$this->controls['easing'] = [
 			'hasDynamicData' => false,
 			'tab'     => 'content',
-			'label'   => esc_html__( 'GSAP easing', 'evoke-circular-menu' ),
+			'label'   => esc_html__( 'GSAP easing', 'evk-circular-menu' ),
 			'type'    => 'select',
 			'options' => [
 				'none'    => 'none',
@@ -165,7 +166,7 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 		$this->controls['customEasing'] = [
 			'hasDynamicData' => false,
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Własny easing', 'evoke-circular-menu' ),
+			'label'       => esc_html__( 'Własny easing', 'evk-circular-menu' ),
 			'type'        => 'text',
 			'inline'      => true,
 			'placeholder' => 'back.out(1.7)',
@@ -175,14 +176,14 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 
 		// ----- Styl zawartości -----
 		$this->controls['contentseparator'] = [
-			'label'       => esc_html__( 'Styl zawartości', 'evoke-circular-menu' ),
-			'description' => esc_html__( 'Możesz też edytować style bezpośrednio na elemencie Zawartość menu.', 'evoke-circular-menu' ),
+			'label'       => esc_html__( 'Styl zawartości', 'evk-circular-menu' ),
+			'description' => esc_html__( 'Możesz też edytować style bezpośrednio na elemencie Zawartość menu.', 'evk-circular-menu' ),
 			'type'        => 'separator',
 		];
 		$this->controls['width'] = [
 			'hasDynamicData' => false,
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Szerokość', 'evoke-circular-menu' ),
+			'label'       => esc_html__( 'Szerokość', 'evk-circular-menu' ),
 			'type'        => 'number',
 			'units'       => true,
 			'inline'      => true,
@@ -198,7 +199,7 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 		$this->controls['height'] = [
 			'hasDynamicData' => false,
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Wysokość', 'evoke-circular-menu' ),
+			'label'       => esc_html__( 'Wysokość', 'evk-circular-menu' ),
 			'type'        => 'number',
 			'units'       => true,
 			'inline'      => true,
@@ -214,7 +215,7 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 		$this->controls['background'] = [
 			'hasDynamicData' => false,
 			'tab'   => 'content',
-			'label' => esc_html__( 'Tło', 'evoke-circular-menu' ),
+			'label' => esc_html__( 'Tło', 'evk-circular-menu' ),
 			'type'  => 'background',
 			'units' => true,
 			'css'   => [
@@ -230,11 +231,11 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 
 		// ----- Dostępność -----
 		$this->controls['accessibilitySeparator'] = [
-			'label' => esc_html__( 'Dostępność', 'evoke-circular-menu' ),
+			'label' => esc_html__( 'Dostępność', 'evk-circular-menu' ),
 			'type'  => 'separator',
 		];
 		$this->controls['closeOnEsc'] = [
-			'label'   => esc_html__( 'Zamknij klawiszem ESC', 'evoke-circular-menu' ),
+			'label'   => esc_html__( 'Zamknij klawiszem ESC', 'evk-circular-menu' ),
 			'type'    => 'checkbox',
 			'inline'  => true,
 			'small'   => true,
@@ -244,18 +245,18 @@ class Evoke_Circular_Menu extends \Bricks\Element {
 
 	public function enqueue_scripts() {
 		wp_enqueue_script( 'evk-gsap' ); // wspólny handle Evoke ONE (dedup)
+		wp_enqueue_style(
+			'evk-circular-menu',
+			EVK_CIRCULAR_MENU_URL . 'assets/circular-menu.css',
+			[],
+			EVK_CIRCULAR_MENU_VERSION
+		);
 		wp_enqueue_script(
-			'evk_circular_menu',
-			plugin_dir_url( __FILE__ ) . 'js/evk-circular-menu.js',
+			'evk-circular-menu-js',
+			EVK_CIRCULAR_MENU_URL . 'assets/circular-menu.js',
 			[ 'evk-gsap', 'bricks-scripts' ],
 			EVK_CIRCULAR_MENU_VERSION,
 			true
-		);
-		wp_enqueue_style(
-			'evk-circular-menu',
-			plugin_dir_url( __FILE__ ) . 'evk-circular-menu.css',
-			[],
-			EVK_CIRCULAR_MENU_VERSION
 		);
 	}
 

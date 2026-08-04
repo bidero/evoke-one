@@ -92,18 +92,18 @@ function evk_elements_registry(): array {
             'label' => 'Circular Menu',
             'desc'  => 'Menu z animacją clip-path (portal do body).',
             'icon'  => 'dashicons-menu-alt',
-            'class' => 'Evoke_Circular_Menu',
+            'class' => 'Evk_Circular_Menu',
             // Klasa żyje w namespace Bricks — guard musi sprawdzić obie formy,
             // inaczej samodzielna wtyczka nigdy nie zostałaby wykryta.
-            'guard' => ['Evoke_Circular_Menu', 'Bricks\\Evoke_Circular_Menu'],
-            // Slug elementu zapisany w danych stron Bricks — NIE zmieniać,
-            // zmiana rozwaliłaby istniejące instancje na żywych stronach.
-            'name'  => 'evoke-circular-menu',
-            'file'  => $dir . 'evoke-circular-menu/element-circular-menu.php',
+            'guard' => ['Evk_Circular_Menu', 'Bricks\\Evk_Circular_Menu'],
+            'name'  => 'evk-circular-menu',
+            'file'  => $dir . 'evoke-circular-menu/element.php',
             'consts'=> [
-                'EVK_CIRCULAR_MENU_VERSION' => '1.0.3',
+                'EVK_CIRCULAR_MENU_VERSION' => '1.1.0',
+                'EVK_CIRCULAR_MENU_URL'     => $url . 'evoke-circular-menu/',
+                'EVK_CIRCULAR_MENU_PATH'    => $dir . 'evoke-circular-menu/',
             ],
-            // asety: self-enqueue w element.php (plugin_dir_url), gsap -> evk-gsap
+            // asety: self-enqueue w element.php (EVK_CIRCULAR_MENU_URL), gsap -> evk-gsap
         ],
         'wave_bg' => [
             'label' => 'Wave Background',
