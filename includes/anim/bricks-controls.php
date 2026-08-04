@@ -35,7 +35,7 @@ function evk_parallax_controls_active(): bool {
  * 'content' (domyślnie) — pewne, sprawdzone, sekcja jest zwykłym zwijanym blokiem.
  * 'style'   — sekcja trafia do pionowego paska ikon po lewej, za CSS i Attributes.
  *             Eksperymentalne: Bricks nie udostępnia klucza na ikonę grupy, więc
- *             ikonę dorysowuje CSS w builderze (patrz evk_bricks_builder_css()).
+ *             ikonę dorysowuje CSS w builderze (patrz sekcja poniżej).
  *             Gdyby grupa nie renderowała się w pasku, wyłącz przełącznik.
  */
 function evk_bricks_controls_tab(): string {
@@ -48,13 +48,28 @@ function evk_bricks_controls_tab(): string {
 // =========================================================================
 
 /**
+ * Czy jesteśmy w oknie buildera Bricks?
+ *
+ * Reszta wtyczki używa bricks_is_builder_main() jako strażnika POMIJAJĄCEGO
+ * („jeśli builder — nie rób"), więc brak funkcji jest tam nieszkodliwy. Tutaj
+ * warunek jest odwrotny — coś ma się wydarzyć TYLKO w builderze — więc brak
+ * funkcji nie może oznaczać ciszy. Stąd trzy niezależne próby wykrycia.
+ */
+function evk_is_bricks_builder(): bool {
+    if (function_exists('bricks_is_builder_main') && bricks_is_builder_main()) return true;
+    if (function_exists('bricks_is_builder')      && bricks_is_builder())      return true;
+    // Builder startuje z ?bricks=run — ostatnia deska ratunku.
+    return isset($_GET['bricks']) && sanitize_key(wp_unslash($_GET['bricks'])) === 'run';
+}
+
+/**
  * Pozycje paska to <li data-balloon="Tytuł grupy"> z osadzonym SVG. Grupa dodana
  * filtrem nie dostaje SVG, bo publiczne API nie zna klucza na ikonę — więc
  * podkładamy ikonę tłem, celując w tooltip. Sam <li> musi istnieć; jeśli Bricks
  * w ogóle nie renderuje grup z filtra w pasku, ten CSS nie ma czego złapać.
  */
 add_action('wp_head', function (): void {
-    if (!function_exists('bricks_is_builder_main') || !bricks_is_builder_main()) return;
+    if (!evk_is_bricks_builder()) return;
     if (evk_bricks_controls_tab() !== 'style') return;
     if (!evk_anim_controls_active() && !evk_parallax_controls_active()) return;
 
@@ -64,14 +79,17 @@ add_action('wp_head', function (): void {
         . '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>'
     );
 
+    // Selektor podciągiem (*=), nie dokładnym dopasowaniem — tooltip może nieść
+    // dodatkowy tekst albo inny cudzysłów zależnie od wersji Bricks.
     echo '<style id="evk-bricks-group-icon">
-li[data-balloon="Evoke ONE"] {
+li[data-balloon*="Evoke ONE"] {
     background-image: url("data:image/svg+xml,' . $svg . '");
     background-repeat: no-repeat;
     background-position: center;
     background-size: 20px 20px;
     min-height: 40px;
 }
+li[data-balloon*="Evoke ONE"] .bricks-svg-wrapper { display: none; }
 </style>';
 });
 
@@ -131,11 +149,10 @@ function evk_bricks_set_attr(array $attributes, string $key, string $name, strin
  * Jedna wspólna sekcja zamiast dwóch osobnych grup — wewnątrz rozdzielona
  * separatorami „Animator" / „Parallax".
  *
- * Zakładka 'content', nie 'style': w Bricks 2.x zakładka Style renderuje grupy
- * jako pionowy pasek ikon (<li> z SVG i tooltipem). Grupa dodana filtrem nie ma
- * ikony — publiczne API zna tylko 'tab' i 'title' — więc w pasku powstaje pusty,
- * niewidoczny element i kontrolki znikają z panelu. 'content' jest jedynym
- * wariantem potwierdzonym na żywej instalacji.
+ * Zakładka zależy od przełącznika (evk_bricks_controls_tab()). Domyślnie 'content'
+ * — zwykły zwijany blok, wariant pewny. Po włączeniu 'style' sekcja ląduje
+ * w pionowym pasku ikon; ikonę trzeba wtedy dorysować CSS-em, bo publiczne API
+ * grup zna wyłącznie 'tab' i 'title'.
  */
 function evk_bricks_control_groups($groups) {
     if (!is_array($groups)) return $groups;

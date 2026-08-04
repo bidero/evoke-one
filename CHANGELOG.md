@@ -2,6 +2,29 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.23.1] — 2026-08-04
+
+### Naprawione
+
+- **Ikona sekcji „Evoke ONE" nie pojawiała się w pionowym pasku.** Sama sekcja
+  trafiała do zakładki Style na właściwe miejsce — na koniec, za CSS i Attributes —
+  ale pozycja w pasku pozostawała pusta. Przyczyną było najpewniej wykrywanie
+  buildera: `bricks_is_builder_main()` była użyta jako warunek **konieczny**
+  (`if (!function_exists(...)) return;`), więc brak tej funkcji oznaczał, że CSS
+  z ikoną w ogóle się nie drukuje. W reszcie wtyczki ta sama funkcja pełni rolę
+  odwrotną — strażnika pomijającego — gdzie jej brak jest nieszkodliwy.
+  Wykrywanie idzie teraz trzema niezależnymi drogami (`bricks_is_builder_main()`,
+  `bricks_is_builder()`, parametr `?bricks=run`). Selektor CSS poluzowany
+  z dokładnego dopasowania tooltipa na dopasowanie podciągiem.
+  (`includes/anim/bricks-controls.php`)
+
+### Potwierdzone
+
+- Emisja atrybutów z kontrolek panelu elementu (naprawa z 1.22.1) działa na żywej
+  instalacji — w źródle strony pojawia się
+  `data-evk-anim="{&quot;animation&quot;:&quot;…&quot;}"`. Encje `&quot;` to
+  normalne escapowanie atrybutu HTML; `getAttribute()` zwraca poprawny JSON.
+
 ## [1.23.0] — 2026-08-04
 
 ### Dodane
