@@ -55,22 +55,49 @@ add_action('init', function (): void {
 }, PHP_INT_MAX);
 
 // =========================================================================
+// ZAPIS ATRYBUTU — helper odporny na kształt tablicy
+// =========================================================================
+
+/**
+ * Bricks grupuje atrybuty po kluczu fragmentu HTML — $attributes[$key]['data-x'] —
+ * tak pokazuje to oficjalna dokumentacja filtra bricks/element/render_attributes.
+ * Wcześniejsze użycia w tym repo zapisywały płasko i po cichu nie działały.
+ * Zamiast wybierać kształt w ciemno, wykrywamy go w locie.
+ *
+ * Dyskryminator jest bezpieczny: w formie płaskiej nie ma atrybutu o nazwie
+ * '_root', a element ustawia sobie 'class' na '_root' przed renderem, więc
+ * w formie grupowanej $attributes['_root'] na pewno istnieje.
+ */
+function evk_bricks_set_attr(array $attributes, string $key, string $name, string $value): array {
+    if (isset($attributes[$key]) && is_array($attributes[$key])) {
+        $attributes[$key][$name] = [$value];
+        return $attributes;
+    }
+    $attributes[$name] = [$value];
+    return $attributes;
+}
+
+// =========================================================================
 // GRUPY
 // =========================================================================
 
 function evk_bricks_control_groups($groups) {
     if (!is_array($groups)) return $groups;
 
+    // unset + dopisanie na końcu: kolejność wstawiania decyduje o kolejności
+    // w panelu, a grupy Evoke mają siedzieć za CSS i Attributes.
+    unset($groups['evk_animator'], $groups['evk_parallax']);
+
     if (evk_anim_controls_active()) {
         $groups['evk_animator'] = [
             'title' => 'Evoke Animator',
-            'tab'   => 'content',
+            'tab'   => 'style',
         ];
     }
     if (evk_parallax_controls_active()) {
         $groups['evk_parallax'] = [
             'title' => 'Evoke Parallax',
-            'tab'   => 'content',
+            'tab'   => 'style',
         ];
     }
     return $groups;
@@ -105,7 +132,7 @@ function evk_bricks_animator_controls(array $controls): array {
     }
 
     $controls['evkAnimAnimation'] = [
-        'tab'         => 'content',
+        'tab'         => 'style',
         'group'       => 'evk_animator',
         'label'       => esc_html__('Animacja', 'evoke-one'),
         'type'        => 'select',
@@ -125,7 +152,7 @@ function evk_bricks_animator_controls(array $controls): array {
     }
 
     $controls['evkAnimTrigger'] = [
-        'tab'      => 'content',
+        'tab'      => 'style',
         'group'    => 'evk_animator',
         'label'    => esc_html__('Wyzwalacz', 'evoke-one'),
         'type'     => 'select',
@@ -141,7 +168,7 @@ function evk_bricks_animator_controls(array $controls): array {
     ];
     foreach ($overrides as $id => [$label, $min, $max, $step]) {
         $controls[$id] = [
-            'tab'         => 'content',
+            'tab'         => 'style',
             'group'       => 'evk_animator',
             'label'       => $label,
             'type'        => 'number',
@@ -154,7 +181,7 @@ function evk_bricks_animator_controls(array $controls): array {
     }
 
     $controls['evkAnimStart'] = [
-        'tab'         => 'content',
+        'tab'         => 'style',
         'group'       => 'evk_animator',
         'label'       => esc_html__('Start (ScrollTrigger)', 'evoke-one'),
         'type'        => 'text',
@@ -167,7 +194,7 @@ function evk_bricks_animator_controls(array $controls): array {
 
 function evk_bricks_parallax_controls(array $controls): array {
     $controls['evkParallax'] = [
-        'tab'     => 'content',
+        'tab'     => 'style',
         'group'   => 'evk_parallax',
         'label'   => esc_html__('Włącz parallax', 'evoke-one'),
         'type'    => 'checkbox',
@@ -176,7 +203,7 @@ function evk_bricks_parallax_controls(array $controls): array {
 
     // Placeholder pokazuje wartość globalną — puste pole ją właśnie oznacza.
     $controls['evkParallaxValue'] = [
-        'tab'         => 'content',
+        'tab'         => 'style',
         'group'       => 'evk_parallax',
         'label'       => esc_html__('Siła', 'evoke-one'),
         'type'        => 'number',
@@ -189,7 +216,7 @@ function evk_bricks_parallax_controls(array $controls): array {
     ];
 
     $controls['evkParallaxScale'] = [
-        'tab'         => 'content',
+        'tab'         => 'style',
         'group'       => 'evk_parallax',
         'label'       => esc_html__('Skala', 'evoke-one'),
         'type'        => 'number',
@@ -229,7 +256,7 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
             $cfg['start'] = sanitize_text_field($s['evkAnimStart']);
         }
 
-        $attributes['data-evk-anim'] = [wp_json_encode($cfg)];
+        $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-anim', wp_json_encode($cfg));
     }
 
     // ── Parallax ──────────────────────────────────────────────────────────
@@ -241,8 +268,8 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
         $scale = (isset($s['evkParallaxScale']) && $s['evkParallaxScale'] !== '')
             ? (string) floatval($s['evkParallaxScale']) : '';
 
-        $attributes['data-parallax'] = [$value];
-        $attributes['data-skala']    = [$scale];
+        $attributes = evk_bricks_set_attr($attributes, $key, 'data-parallax', $value);
+        $attributes = evk_bricks_set_attr($attributes, $key, 'data-skala',    $scale);
     }
 
     return $attributes;

@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.22.1] — 2026-08-04
+
+### Naprawione
+
+- **Kontrolki w panelu elementu nie miały żadnego skutku na froncie.** Zarówno
+  wybrana animacja, jak i włączony Parallax nie robiły nic — atrybuty `data-evk-anim`,
+  `data-parallax` i `data-skala` nigdy nie trafiały do HTML. Przyczyna: filtr
+  `bricks/element/render_attributes` dostaje tablicę **grupowaną po kluczu**
+  fragmentu HTML (`$attributes[$key]['data-x']`), a kod zapisywał ją płasko
+  (`$attributes['data-x']`), więc wartość lądowała obok struktury, z której Bricks
+  buduje tag, i była po cichu ignorowana. Zapis idzie teraz przez wspólny helper
+  wykrywający kształt tablicy w locie.
+  (`includes/anim/bricks-controls.php`)
+- **Ten sam defekt w dwóch starszych miejscach.** Przejścia wpis→wpis w Trybie
+  ciemnym (`inject_post_trans_attrs` — dodatkowo porównywał `$key` z `'root'`
+  zamiast `'_root'`) i podmiana flagi języka na obrazku w przełączniku języków
+  zapisywały atrybuty tak samo płasko. Obie funkcje wyglądały na działające,
+  a nie działały. (`includes/93-darkmode.php`,
+  `includes/70-bricks-language-switcher.php`)
+- **Animator: pole „Opóźnienie" nie działało przy wyzwalaczu „wejście w viewport".**
+  Opóźnienie ustawiano przez `tl.delay()` na już utworzonej osi czasu, co jest
+  no-opem — liczy się względem startu rodzica, który dawno minął. Trafia teraz
+  do varsów osi czasu.
+- **Animator: ryzyko trwale niewidocznej treści.** `fromTo` renderuje stan
+  początkowy natychmiast, więc element od razu dostawał np. `opacity: 0`. Gdyby
+  `onEnter` nie wystrzelił — realne przy elemencie widocznym już w chwili
+  załadowania strony — treść zostawała niewidoczna na stałe. ScrollTrigger jest
+  teraz podpięty w varsach osi czasu z `toggleActions`, więc stan rozstrzyga się
+  przy pierwszym refreshu. (`assets/js/animator.js`)
+
+### Zmienione
+
+- **Grupy „Evoke Animator" i „Evoke Parallax" przeniesione do zakładki Style**,
+  na sam koniec — za CSS i Data attributes. Dotyczy to zarówno obu grup, jak
+  i wszystkich dziewięciu kontrolek. (`includes/anim/bricks-controls.php`)
+
 ## [1.22.0] — 2026-08-04
 
 ### Dodane

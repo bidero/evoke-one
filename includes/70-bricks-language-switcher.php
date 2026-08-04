@@ -438,7 +438,13 @@ add_filter('bricks/element/render_attributes', function($attributes, $key, $elem
         $loop_object = \Bricks\Query::get_loop_object();
 
         if (is_object($loop_object) && !empty($loop_object->flag_url)) {
-            $attributes['src'] = $loop_object->flag_url;
+            // Bricks grupuje atrybuty po kluczu ($attributes[$key]['src']).
+            // Zapis płaski był po cichu ignorowany.
+            if (isset($attributes[$key]) && is_array($attributes[$key])) {
+                $attributes[$key]['src'] = [$loop_object->flag_url];
+            } else {
+                $attributes['src'] = $loop_object->flag_url;
+            }
         }
     }
 

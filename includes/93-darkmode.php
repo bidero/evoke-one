@@ -494,7 +494,9 @@ CSS;
         $title_classes = array_filter(array_map('trim', preg_split('/[\s,]+/', $s['post_trans_title_class'])));
         $image_classes = array_filter(array_map('trim', preg_split('/[\s,]+/', $s['post_trans_image_class'])));
 
-        if ($key !== 'root') return $attributes;
+        // Bricks używa '_root' dla korzenia elementu; 'root' dopuszczone dla
+        // bezpieczeństwa, bo tak było tu sprawdzane wcześniej.
+        if ($key !== '_root' && $key !== 'root') return $attributes;
 
         $el_classes = (array)($element->settings['_cssClasses'] ?? []);
         // Bricks przechowuje klasy jako string lub array
@@ -509,9 +511,15 @@ CSS;
 
         $name = $is_title ? "post-title-{$post_id}" : "post-img-{$post_id}";
 
-        // Dołącz do istniejącego style="" lub dodaj nowy
-        $existing = $attributes['style'] ?? '';
-        $attributes['style'] = trim($existing . " view-transition-name: {$name};");
+        // Bricks grupuje atrybuty po kluczu ($attributes[$key]['style']).
+        // Zapis płaski był po cichu ignorowany — stąd ta funkcja nigdy nie działała.
+        $grouped  = isset($attributes[$key]) && is_array($attributes[$key]);
+        $current  = $grouped ? ($attributes[$key]['style'] ?? '') : ($attributes['style'] ?? '');
+        $existing = is_array($current) ? implode(' ', $current) : (string) $current;
+        $style    = trim($existing . " view-transition-name: {$name};");
+
+        if ($grouped) $attributes[$key]['style'] = [$style];
+        else          $attributes['style']       = $style;
 
         return $attributes;
     }

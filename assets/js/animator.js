@@ -133,16 +133,32 @@
 
   // ── Wyzwalacze ─────────────────────────────────────────────────────────
 
+  // ScrollTrigger w varsach osi czasu, nie ScrollTrigger.create + ręczne onEnter.
+  // Powód: (1) delay podany varsami faktycznie działa — wołanie tl.delay() na już
+  // utworzonej osi czasu jest no-opem, bo liczy się względem startu rodzica;
+  // (2) fromTo renderuje stan początkowy natychmiast, więc element od razu dostaje
+  // np. opacity:0 — gdyby onEnter nie wystrzelił (element widoczny już przy
+  // załadowaniu strony), treść zostałaby niewidoczna na stałe. toggleActions
+  // pozwala ScrollTriggerowi rozstrzygnąć stan przy pierwszym refreshu.
   function attachViewport(el, targets, cfg) {
-    var tl = buildTimeline(targets, cfg, true);
-    ScrollTrigger.create({
-      trigger: el,
-      start:   cfg.start,
-      once:    !cfg.repeat,
-      onEnter:     function () { tl.delay(cfg.delay).play(); },
-      onEnterBack: function () { if (cfg.repeat) tl.play(); },
-      onLeaveBack: function () { if (cfg.repeat) tl.reverse(); },
+    var vars = Object.assign({}, cfg.to, {
+      duration: cfg.duration,
+      ease:     cfg.easing,
     });
+    if (cfg.stagger > 0) vars.stagger = cfg.stagger;
+
+    var tl = gsap.timeline({
+      delay: cfg.delay,
+      scrollTrigger: {
+        trigger:       el,
+        start:         cfg.start,
+        once:          !cfg.repeat,
+        toggleActions: cfg.repeat ? 'play reverse play reverse' : 'play none none none',
+      },
+    });
+
+    if (cfg.from) tl.fromTo(targets, Object.assign({}, cfg.from), vars);
+    else          tl.to(targets, vars);
   }
 
   function attachScrub(el, targets, cfg) {
