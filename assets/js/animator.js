@@ -266,7 +266,17 @@
 
   function start() {
     if (!Object.keys(LIBRARY).length && !document.querySelector('[data-evk-anim]')) return;
-    waitForGSAP(initAll);
+
+    // SplitText musi dzielić tekst PO załadowaniu webfontów. Uruchomiony wcześniej
+    // liczy linie na metrykach fontu zastępczego, a po podmianie fontu podział się
+    // rozjeżdża — GSAP ostrzega o tym w konsoli („SplitText called before fonts
+    // loaded"). Czekamy więc na document.fonts.ready; przy braku Font Loading API
+    // startujemy od razu, jak dotąd.
+    if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+      document.fonts.ready.then(function () { waitForGSAP(initAll); });
+    } else {
+      waitForGSAP(initAll);
+    }
   }
 
   if (document.readyState === 'loading') {

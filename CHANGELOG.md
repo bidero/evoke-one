@@ -2,6 +2,17 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.23.3] — 2026-08-04
+
+### Naprawione
+
+- **Animator dzielił tekst przed załadowaniem webfontów.** Presety `split-lines`,
+  `split-words` i `split-chars` uruchamiały SplitText od razu po `DOMContentLoaded`,
+  więc podział liczył się na metrykach fontu zastępczego. Po podmianie na właściwy
+  font linie się rozjeżdżały, a GSAP zgłaszał w konsoli „SplitText called before
+  fonts loaded". Inicjalizacja czeka teraz na `document.fonts.ready`; przy braku
+  Font Loading API zachowanie jest jak dotąd. (`assets/js/animator.js`)
+
 ## [1.23.2] — 2026-08-04
 
 ### Zmienione
