@@ -42,6 +42,11 @@ class EVK_Animator {
         'scrub'    => 1,
         'repeat'   => 0,
         'order'    => 0,
+        // Własne from/to — trzymane jako tekst („właściwość: wartość" na linię),
+        // żeby pole w panelu wracało dokładnie takie, jakie je wpisano.
+        // Na front idą sparsowane (patrz enqueue_assets()).
+        'from'     => '',
+        'to'       => '',
     ];
 
     public static function get_instance(): self {
@@ -118,6 +123,11 @@ class EVK_Animator {
                 'end'      => sanitize_text_field($row['end']   ?? 'bottom 40%'),
                 'repeat'   => !empty($row['repeat']) ? 1 : 0,
                 'order'    => max(0, min(999, intval($row['order'] ?? 0))),
+                // Zapisujemy tekst po normalizacji przez parser — dzięki temu
+                // do opcji nie trafiają śmieci, a pole w panelu pokazuje to,
+                // co silnik faktycznie dostanie.
+                'from'     => evk_anim_props_to_text(evk_anim_parse_props((string) ($row['from'] ?? ''))),
+                'to'       => evk_anim_props_to_text(evk_anim_parse_props((string) ($row['to']   ?? ''))),
             ];
         }
 
@@ -149,6 +159,16 @@ class EVK_Animator {
         $needs_split = false;
         foreach ($s['animations'] as $row) {
             $row = $this->row_with_defaults($row);
+
+            // Tekst → obiekt dla GSAP. Pusty klucz MUSI zniknąć, a nie pojechać
+            // jako []: w JS pusta tablica jest prawdziwa, więc `lib.from || pre.from`
+            // zatrzymałoby się na niej i preset przestałby działać.
+            foreach (['from', 'to'] as $key) {
+                $props = evk_anim_parse_props((string) $row[$key]);
+                if ($props) $row[$key] = $props;
+                else        unset($row[$key]);
+            }
+
             $library[$row['slug']] = $row;
             if (!empty($presets[$row['preset']]['split'])) $needs_split = true;
         }

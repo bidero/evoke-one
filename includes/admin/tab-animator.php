@@ -54,6 +54,9 @@ $row_def    = $anim->row_defaults();
         .evo-anim-grid .checkbox-label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:#111827; margin-top:20px; cursor:pointer; }
         .evo-anim-grid .checkbox-label input { margin:0; }
         .evo-anim-class { font-family:monospace; font-size:12px; color:#334155; background:#e2e8f0; border-radius:4px; padding:2px 8px; }
+        .evo-anim-fromto { grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .evo-anim-fromto textarea { width:100%; min-height:74px; font-family:monospace; font-size:12px; border:1px solid #d1d5db; border-radius:6px; padding:8px; resize:vertical; }
+        .evo-anim-hint { grid-column:1 / -1; font-size:12px; color:#6b7280; margin-top:-4px; }
     </style>
 
     <hr class="evo-divider">
@@ -117,6 +120,11 @@ $row_def    = $anim->row_defaults();
                 <div><label>Scrub (tylko scrub)</label><input type="number" step="0.1" min="0" max="5" name="evk_animator[animations][<?php echo $index; ?>][scrub]" value="<?php echo esc_attr($r['scrub']); ?>"></div>
                 <div><label>Kolejność (tylko load)</label><input type="number" step="1" min="0" max="999" name="evk_animator[animations][<?php echo $index; ?>][order]" value="<?php echo esc_attr($r['order']); ?>"></div>
                 <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][repeat]" value="1" <?php checked(!empty($r['repeat'])); ?>> Powtarzaj przy każdym wejściu</label></div>
+                <div class="evo-anim-hint">Własne <strong>from/to</strong> — po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div>
+                <div class="evo-anim-fromto">
+                    <div><label>from (stan początkowy)</label><textarea name="evk_animator[animations][<?php echo $index; ?>][from]" placeholder="opacity: 0&#10;y: 40"><?php echo esc_textarea($r['from']); ?></textarea></div>
+                    <div><label>to (stan końcowy)</label><textarea name="evk_animator[animations][<?php echo $index; ?>][to]" placeholder="opacity: 1&#10;y: 0"><?php echo esc_textarea($r['to']); ?></textarea></div>
+                </div>
             </div>
         </div>
         <?php endforeach; ?>
@@ -172,6 +180,11 @@ $row_def    = $anim->row_defaults();
             <div><label>Scrub (tylko scrub)</label><input type="number" step="0.1" min="0" max="5" name="evk_animator[animations][{INDEX}][scrub]" value="<?php echo esc_attr($row_def['scrub']); ?>"></div>
             <div><label>Kolejność (tylko load)</label><input type="number" step="1" min="0" max="999" name="evk_animator[animations][{INDEX}][order]" value="<?php echo esc_attr($row_def['order']); ?>"></div>
             <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][{INDEX}][repeat]" value="1"> Powtarzaj przy każdym wejściu</label></div>
+            <div class="evo-anim-hint">Własne <strong>from/to</strong> — po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div>
+            <div class="evo-anim-fromto">
+                <div><label>from (stan początkowy)</label><textarea name="evk_animator[animations][{INDEX}][from]" placeholder="opacity: 0&#10;y: 40"></textarea></div>
+                <div><label>to (stan końcowy)</label><textarea name="evk_animator[animations][{INDEX}][to]" placeholder="opacity: 1&#10;y: 0"></textarea></div>
+            </div>
         </div>
     </div>
 </script>

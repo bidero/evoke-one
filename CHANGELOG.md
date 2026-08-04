@@ -2,276 +2,82 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
-## [1.24.0] — 2026-08-04
+## [1.25.0] — 2026-08-04
 
-### Zmienione
-
-- **Kontrolki Evoke ONE przeniesione do grupy Atrybuty Bricks.** Zamiast własnej
-  sekcji, kontrolki Animatora i Parallaxu dokładają się teraz do istniejącej grupy
-  **Atrybuty**. Powód jest praktyczny: pasek skrótów po lewej jest budowany
-  z zamkniętego zestawu grup Bricks i własnej grupy tam nie wpuści, natomiast grupa
-  Atrybuty ma w nim swoją pozycję — więc kontrolki stają się dostępne jednym
-  kliknięciem, czyli dokładnie tak, jak miało być od początku.
-
-  Wewnątrz grupy blok jest oznaczony separatorami **„Evoke ONE — Animator"**
-  i **„Evoke ONE — Parallax"**, żeby było jasne, skąd pochodzi, gdy sąsiaduje
-  z natywnymi kontrolkami atrybutów.
-
-  Klucz grupy jest **wykrywany w locie** z tablicy przekazywanej przez filtr
-  (kandydaci: `_attributes`, `attributes`), a nie zgadywany. Gdyby żaden nie
-  pasował — inna wersja Bricks, inna nazwa — wtyczka awaryjnie zakłada własną
-  sekcję w zakładce Content, tak jak w 1.23.x. Lepiej mieć sekcję nie tam, gdzie
-  trzeba, niż kontrolki wskazujące na nieistniejącą grupę, czyli niewidoczne.
-  (`includes/anim/bricks-controls.php`)
-
-### Usunięte
-
-- **Przełącznik „Sekcja w zakładce Style".** Stracił sens: grupa Atrybuty sama żyje
-  w zakładce Style, więc nie ma czego przełączać. Ustawienie `style_tab` zniknęło
-  z opcji modułu. (`includes/anim/animator.php`, `includes/admin/tab-animator.php`)
-
-## [1.23.4] — 2026-08-04
-
-### Zmienione
-
-- **Sensowna ikona sekcji „Evoke ONE".** Grupa dostawała `'icon' => 'html'`, czyli
-  tę samą tarczę HTML5 co grupa Atrybuty — nazwa była pożyczona z HTML-a wklejonego
-  przy diagnostyce, byle poprawna. Teraz `'tab-transform'`: znaczeniowo najbliższe
-  animacji i odróżnialne od pozostałych. Przy okazji potwierdzone, że klucz `icon`
-  **działa**, mimo że nie ma go w dokumentacji filtra `control_groups`. Nazwy
-  potwierdzone na żywej instalacji: `box`, `tab-layout`, `tab-typography`,
-  `tab-background`, `tab-border`, `tab-gradient`, `tab-transform`, `css3`, `html`,
-  `arrow-left`. (`includes/anim/bricks-controls.php`)
-
-### Usunięte
-
-- **Martwy CSS dorysowujący ikonę w pasku skrótów.** Dump panelu z żywej instalacji
-  pokazał, że `#bricks-panel-element-quick-access` zawiera pozycje o indeksach 0–8
-  **bez luki** — 0 to cała zakładka Treść, 1–8 to grupy własne Bricks. Grupy dodanej
-  filtrem tam nie ma i nie ma po niej miejsca: pasek budowany jest z zamkniętego
-  zestawu. Wstrzykiwany CSS był martwy z dwóch powodów naraz — nie miał czego
-  złapać, a jako wstrzykiwany przez `wp_head` trafiał do dokumentu ze stroną
-  (iframe podglądu), nie do okna powłoki buildera, gdzie żyje panel. Usunięty wraz
-  z pomocniczym wykrywaniem buildera; powód i dowód zostawione w komentarzu.
-
-### Znane ograniczenia
-
-- Sekcja „Evoke ONE" **nie pojawi się w pasku skrótów po lewej.** Jedyną drogą
-  byłoby wstrzykiwanie `<li>` JavaScriptem do panelu zarządzanego przez Vue —
-  kruche wobec aktualizacji Bricks i nieproporcjonalne do zysku. Sekcja jest
-  natomiast na końcu zakładki Style, za CSS i Attributes, z własną ikoną.
-
-## [1.23.3] — 2026-08-04
-
-### Naprawione
-
-- **Animator dzielił tekst przed załadowaniem webfontów.** Presety `split-lines`,
-  `split-words` i `split-chars` uruchamiały SplitText od razu po `DOMContentLoaded`,
-  więc podział liczył się na metrykach fontu zastępczego. Po podmianie na właściwy
-  font linie się rozjeżdżały, a GSAP zgłaszał w konsoli „SplitText called before
-  fonts loaded". Inicjalizacja czeka teraz na `document.fonts.ready`; przy braku
-  Font Loading API zachowanie jest jak dotąd. (`assets/js/animator.js`)
-
-## [1.23.2] — 2026-08-04
-
-### Zmienione
-
-- **Nazwa ikony grupy zmieniona ze zmyślonej na istniejącą.** Pozycje pionowego
-  paska to `<li>` z `<span class="bricks-svg-wrapper" data-name="css3">` — Bricks
-  bierze ikonę z własnego rejestru SVG po nazwie. W definicji grupy przekazywane
-  było `'icon' => 'bolt'`, czyli nazwa spoza rejestru. Hipoteza: przy nieznanej
-  nazwie Bricks pomija całą pozycję paska, co tłumaczyłoby brak `<li>` dla sekcji
-  „Evoke ONE" mimo poprawnego renderowania samej sekcji na dole zakładki Style.
-  Teraz przekazywane jest `'html'` — nazwa potwierdzona jako istniejąca. Docelowy
-  wygląd i tak nadpisuje CSS buildera, podmieniając ikonę na własną.
-  (`includes/anim/bricks-controls.php`)
-
-  **To pozostaje hipotezą** — klucz `icon` dla grup kontrolek nie jest częścią
-  publicznego API Bricks i nie da się tego zweryfikować bez żywej instalacji.
-  Jeśli pozycja w pasku nadal się nie pojawi, oznacza to, że pasek jest budowany
-  wyłącznie z grup własnych Bricks i pozostaje zamknięty dla wtyczek — wtedy
-  sekcja zostaje tam, gdzie jest teraz: na dole zakładki Style.
-
-## [1.23.1] — 2026-08-04
-
-### Naprawione
-
-- **Ikona sekcji „Evoke ONE" nie pojawiała się w pionowym pasku.** Sama sekcja
-  trafiała do zakładki Style na właściwe miejsce — na koniec, za CSS i Attributes —
-  ale pozycja w pasku pozostawała pusta. Przyczyną było najpewniej wykrywanie
-  buildera: `bricks_is_builder_main()` była użyta jako warunek **konieczny**
-  (`if (!function_exists(...)) return;`), więc brak tej funkcji oznaczał, że CSS
-  z ikoną w ogóle się nie drukuje. W reszcie wtyczki ta sama funkcja pełni rolę
-  odwrotną — strażnika pomijającego — gdzie jej brak jest nieszkodliwy.
-  Wykrywanie idzie teraz trzema niezależnymi drogami (`bricks_is_builder_main()`,
-  `bricks_is_builder()`, parametr `?bricks=run`). Selektor CSS poluzowany
-  z dokładnego dopasowania tooltipa na dopasowanie podciągiem.
-  (`includes/anim/bricks-controls.php`)
-
-### Potwierdzone
-
-- Emisja atrybutów z kontrolek panelu elementu (naprawa z 1.22.1) działa na żywej
-  instalacji — w źródle strony pojawia się
-  `data-evk-anim="{&quot;animation&quot;:&quot;…&quot;}"`. Encje `&quot;` to
-  normalne escapowanie atrybutu HTML; `getAttribute()` zwraca poprawny JSON.
-
-## [1.23.0] — 2026-08-04
+Wydanie scala iteracje 1.21–1.24, które nigdy nie zostały otagowane. Opisuje stan
+docelowy, a nie drogę do niego — ślepe uliczki (m.in. próba wejścia do paska skrótów
+buildera) zostały udokumentowane w komentarzach w kodzie, żeby nikt nie powtarzał
+ich po raz drugi.
 
 ### Dodane
 
-- **Przełącznik „Sekcja w zakładce Style" (eksperymentalny, domyślnie wyłączony).**
-  Przenosi sekcję „Evoke ONE" z zakładki Content do pionowego paska ikon po lewej,
-  za grupy CSS i Attributes.
-
-  Bricks **nie udostępnia klucza na ikonę grupy kontrolek** — publiczne API filtra
-  `bricks/elements/{name}/control_groups` zna wyłącznie `tab` i `title`, a `$icon`
-  dotyczy elementów, nie grup. Ikonę podkłada więc CSS wstrzykiwany wyłącznie
-  w oknie buildera, celujący w `li[data-balloon="Evoke ONE"]`. Warunek: Bricks
-  musi w ogóle wyrenderować grupę z filtra w pasku — czego nie da się sprawdzić
-  bez żywej instalacji. Stąd przełącznik zamiast zmiany na sztywno: gdyby sekcja
-  zniknęła z panelu, odznaczenie natychmiast przywraca działający stan.
-  (`includes/anim/animator.php`, `includes/anim/bricks-controls.php`,
-  `includes/admin/tab-animator.php`)
-
-## [1.22.2] — 2026-08-04
-
-### Naprawione
-
-- **Kontrolki zniknęły z buildera po 1.22.1.** Przeniesienie grup do zakładki Style
-  (`'tab' => 'style'`) sprawiło, że przestały się renderować w ogóle. Przyczyna:
-  w Bricks 2.x zakładka Style pokazuje grupy kontrolek jako **pionowy pasek ikon** —
-  każda grupa to pozycja z SVG i tooltipem. Grupa dodana filtrem nie ma ikony
-  (publiczne API filtra `bricks/elements/{name}/control_groups` zna wyłącznie
-  `tab` i `title`), więc w pasku powstaje pusty, niewidoczny element. Powrót do
-  zakładki Content — jedynego wariantu potwierdzonego na żywej instalacji.
-  (`includes/anim/bricks-controls.php`)
-
-### Zmienione
-
-- **Jedna sekcja „Evoke ONE" zamiast dwóch osobnych grup.** Kontrolki Animatora
-  i Parallaxu siedzą teraz we wspólnej grupie, rozdzielone nagłówkami sekcji
-  („Animator", „Parallax"). Nagłówek pojawia się tylko dla włączonego modułu —
-  przy jednym aktywnym nie zostaje osierocony. Gdy oba moduły są wyłączone, grupa
-  nie powstaje w ogóle. (`includes/anim/bricks-controls.php`)
-
-### Znane ograniczenia
-
-- Umieszczenie sekcji w **pionowym pasku zakładki Style**, za CSS i Data attributes,
-  pozostaje niezrealizowane. Wymaga nadania grupie ikony, a klucz na ikonę nie jest
-  częścią publicznego API Bricks. W definicji grupy przekazywany jest spekulacyjnie
-  `'icon'` — jeśli Bricks go nie zna, jest ignorowany i nic się nie dzieje.
-- Trzecia zakładka panelu elementu (obok Content i Style) nie jest możliwa — `tab`
-  przyjmuje tylko `'content'` i `'style'`; zakładka WooCommerce to wewnętrzny
-  przypadek Bricks bez publicznego filtra.
-
-## [1.22.1] — 2026-08-04
-
-### Naprawione
-
-- **Kontrolki w panelu elementu nie miały żadnego skutku na froncie.** Zarówno
-  wybrana animacja, jak i włączony Parallax nie robiły nic — atrybuty `data-evk-anim`,
-  `data-parallax` i `data-skala` nigdy nie trafiały do HTML. Przyczyna: filtr
-  `bricks/element/render_attributes` dostaje tablicę **grupowaną po kluczu**
-  fragmentu HTML (`$attributes[$key]['data-x']`), a kod zapisywał ją płasko
-  (`$attributes['data-x']`), więc wartość lądowała obok struktury, z której Bricks
-  buduje tag, i była po cichu ignorowana. Zapis idzie teraz przez wspólny helper
-  wykrywający kształt tablicy w locie.
-  (`includes/anim/bricks-controls.php`)
-- **Ten sam defekt w dwóch starszych miejscach.** Przejścia wpis→wpis w Trybie
-  ciemnym (`inject_post_trans_attrs` — dodatkowo porównywał `$key` z `'root'`
-  zamiast `'_root'`) i podmiana flagi języka na obrazku w przełączniku języków
-  zapisywały atrybuty tak samo płasko. Obie funkcje wyglądały na działające,
-  a nie działały. (`includes/93-darkmode.php`,
-  `includes/70-bricks-language-switcher.php`)
-- **Animator: pole „Opóźnienie" nie działało przy wyzwalaczu „wejście w viewport".**
-  Opóźnienie ustawiano przez `tl.delay()` na już utworzonej osi czasu, co jest
-  no-opem — liczy się względem startu rodzica, który dawno minął. Trafia teraz
-  do varsów osi czasu.
-- **Animator: ryzyko trwale niewidocznej treści.** `fromTo` renderuje stan
-  początkowy natychmiast, więc element od razu dostawał np. `opacity: 0`. Gdyby
-  `onEnter` nie wystrzelił — realne przy elemencie widocznym już w chwili
-  załadowania strony — treść zostawała niewidoczna na stałe. ScrollTrigger jest
-  teraz podpięty w varsach osi czasu z `toggleActions`, więc stan rozstrzyga się
-  przy pierwszym refreshu. (`assets/js/animator.js`)
-
-### Zmienione
-
-- **Grupy „Evoke Animator" i „Evoke Parallax" przeniesione do zakładki Style**,
-  na sam koniec — za CSS i Data attributes. Dotyczy to zarówno obu grup, jak
-  i wszystkich dziewięciu kontrolek. (`includes/anim/bricks-controls.php`)
-
-## [1.22.0] — 2026-08-04
-
-### Dodane
-
-- **Kontrolki Animatora i Parallaxu w panelu elementu Bricks.** Każdy element
-  dostaje dwie grupy w zakładce Content — koniec z wklejaniem klasy
-  `evk-anim-{slug}` z pamięci i ręcznym wpisywaniem `data-parallax`.
-  - **Evoke Animator:** lista rozwijana zasilana biblioteką (nie da się wybrać
-    animacji, której nie ma) plus nadpisania czasu, opóźnienia, staggera,
-    wyzwalacza i startu ScrollTriggera. Puste pole zostawia wartość z biblioteki.
-    Pola nadpisań pokazują się dopiero po wybraniu animacji.
-  - **Evoke Parallax:** włącznik plus siła i skala. Puste pole = wartość globalna
-    z panelu Parallax (widoczna jako placeholder), wypełnione = override dla tego
-    elementu. Ręcznie wpisany `data-parallax` działa bez zmian.
-  - Kontrolki dokładane tylko gdy dany moduł jest włączony — strona z wyłączonym
-    Animatorem i Parallaxem nie płaci nic w payloadzie buildera.
-  - Oba silniki JS zostały **nietknięte** — to wyłącznie nowa warstwa wejścia
-    konfiguracji, czytająca te same atrybuty co dotąd.
-  (`includes/anim/bricks-controls.php`)
-
-- **Ostrzeżenie o nieznanym slugu animacji.** Element wskazujący animację, której
-  nie ma w bibliotece (np. po zmianie sluga w panelu), po cichu się nie animował.
-  Teraz zgłasza to w konsoli wraz z referencją do elementu.
-  (`assets/js/animator.js`)
-
-### Usunięte
-
-- **Spike Fazy 0** (`includes/anim/spike-bricks-controls.php`). Miał sprawdzić na
-  żywej instalacji, czy wolno doklejać kontrolki do cudzych elementów Bricks.
-  Weryfikacja w dokumentacji Bricks zamknęła temat — `bricks/elements/{name}/controls`
-  i `.../control_groups` to oficjalne filtry od wersji 1.3.2 — więc sonda straciła
-  rację bytu. Przy okazji wyszło, że miała zaniżony priorytet hooka `init` (20
-  zamiast `PHP_INT_MAX`), co mogło dać niepełną listę elementów; docelowy kod
-  używa `PHP_INT_MAX`.
-
-## [1.21.0] — 2026-08-04
-
-### Dodane
-
-- **Animator — moduł animacji GSAP dla dowolnego elementu Bricks.** W panelu
-  (*Frontend → Animator*) definiujesz bibliotekę nazwanych animacji; każda dostaje
-  klasę `evk-anim-{slug}`, którą przypinasz dowolnemu elementowi w Bricks. Nie
-  trzeba owijać elementu w kontener ani pisać kodu.
-  - **13 presetów:** fade (+ 4 kierunki), skala, zoom out, obrót, rozmycie,
-    odsłona maską, podział tekstu na linie / słowa / znaki (SplitText).
+- **Animator — moduł animacji GSAP dla dowolnego elementu Bricks.**
+  W *Ustawienia → Evoke ONE → Frontend → Animator* budujesz bibliotekę nazwanych
+  animacji. Każda dostaje slug, a slug daje klasę `evk-anim-{slug}` do przypięcia
+  dowolnemu elementowi. Bez owijania w kontener i bez pisania kodu.
+  - **14 presetów:** fade i 4 kierunki, skala, zoom out, obrót, rozmycie, odsłona
+    maską, podział tekstu na linie / słowa / znaki (SplitText) oraz preset własny.
   - **4 wyzwalacze:** wejście w viewport, scrub przy scrollu, hover (z obsługą
-    fokusa klawiatury), klik, load z sekwencjonowaniem przez pole „kolejność".
+    fokusa klawiatury) i klik, oraz load z sekwencjonowaniem przez pole „kolejność".
+  - **Własne from/to** — dowolne właściwości GSAP w zapisie „właściwość: wartość"
+    po jednej na linię (`opacity: 0`, `y: 40`, `filter: blur(12px)`). Wypełnione
+    pole zastępuje odpowiednik z presetu w całości; puste dziedziczy z presetu.
   - **Trzy warstwy konfiguracji** scalane w kolejności *preset ⊕ wiersz biblioteki
     ⊕ atrybut `data-evk-anim`*. Zmiana definicji w panelu przestawia całą stronę,
-    a pojedynczy element można odchylić bez zakładania nowej definicji. Puste pole
-    czasu lub staggera dziedziczy wartość presetu.
-  - **`prefers-reduced-motion`** — zamiast animacji element dostaje od razu stan
-    końcowy, więc nic nie zostaje niewidoczne. Do wyłączenia w ustawieniach modułu.
-  - Domyślnie **nie animuje w canvasie buildera** (osobny włącznik).
-  - Moduł startuje wyłączony, zgodnie z regułą z 1.20.0.
-  (`includes/anim/animator.php`, `includes/anim/presets.php`,
-  `assets/js/animator.js`, `includes/admin/tab-animator.php`)
+    a pojedynczy element można odchylić bez zakładania nowej definicji.
+  - **`prefers-reduced-motion`** — element dostaje od razu stan końcowy zamiast
+    animacji, więc nic nie zostaje niewidoczne. Do wyłączenia w ustawieniach.
+  - Slug jest osobnym polem, nie pochodną nazwy — zmiana nazwy nie zrywa klas
+    wpisanych już na stronach. Element wskazujący nieznany slug zgłasza to w konsoli.
+  - Domyślnie nie animuje w canvasie buildera (osobny włącznik). Moduł startuje
+    wyłączony, zgodnie z regułą z 1.20.0.
+  (`includes/anim/*`, `assets/js/animator.js`, `includes/admin/tab-animator.php`)
 
-- **Spike Fazy 0 — kontrolki w panelu elementu Bricks.** Diagnostyka pod przyszłe
-  wstrzykiwanie kontrolek Animatora i Parallaxu do cudzych elementów. Nieaktywna,
-  dopóki w `wp-config.php` nie pojawi się `define('EVK_ANIM_CONTROLS_SPIKE', true);`.
-  Instrukcja i kryteria oceny w nagłówku pliku.
-  (`includes/anim/spike-bricks-controls.php`)
+- **Kontrolki Animatora i Parallaxu w panelu elementu Bricks.** Doklejane do
+  **każdego** elementu, wewnątrz natywnej grupy **Atrybuty** — dzięki temu są
+  dostępne jednym kliknięciem z paska skrótów buildera, którego własne grupy
+  wtyczek nie przyjmują. Blok oznaczony separatorami „Evoke ONE — Animator"
+  i „Evoke ONE — Parallax".
+  - **Animator:** lista animacji zasilana biblioteką plus nadpisania czasu,
+    opóźnienia, staggera, wyzwalacza i startu ScrollTriggera.
+  - **Parallax:** włącznik, siła i skala — koniec ręcznego wpisywania
+    `data-parallax`. Puste pole = wartość globalna z panelu (widoczna jako
+    placeholder), wypełnione = override. Ręcznie wpisany atrybut działa bez zmian.
+  - Klucz grupy docelowej wykrywany w locie, z awaryjnym powrotem do własnej sekcji.
+  - Kontrolki dokładane tylko gdy dany moduł jest włączony — strona z wyłączonymi
+    nie płaci nic w payloadzie buildera.
+  (`includes/anim/bricks-controls.php`)
 
 ### Zmienione
 
-- **Rejestracja bibliotek GSAP wydzielona z loadera elementów.** Siedziała w
-  `includes/bricks-elements/loader.php`, przez co Animator — nie będący elementem
-  Bricks — musiałby zależeć od loadera elementów. Handle `evk-gsap`,
-  `evk-scrolltrigger`, `evk-observer`, `evk-splittext` rejestruje teraz
-  `includes/89-gsap.php`, wspólnie dla całej wtyczki. GSAP nadal ładuje się raz,
-  niezależnie od tego, ile funkcji jest włączonych.
+- **Rejestracja bibliotek GSAP wydzielona z loadera elementów** do
+  `includes/89-gsap.php`. Handle `evk-gsap`, `evk-scrolltrigger`, `evk-observer`,
+  `evk-splittext` są teraz wspólne dla całej wtyczki, więc Animator nie zależy od
+  loadera elementów Bricks. GSAP nadal ładuje się raz, niezależnie od tego, ile
+  funkcji jest włączonych.
+
+### Naprawione
+
+- **Atrybuty ustawiane filtrem nie trafiały do HTML.** Filtr
+  `bricks/element/render_attributes` dostaje tablicę grupowaną po kluczu fragmentu
+  (`$attributes[$key]['data-x']`), a kod w trzech miejscach zapisywał ją płasko —
+  wartość lądowała obok struktury, z której Bricks buduje tag, i była po cichu
+  ignorowana. Dotyczyło to kontrolek Evoke ONE, przejść wpis→wpis w Trybie ciemnym
+  (dodatkowo porównywał `$key` z `'root'` zamiast `'_root'`) oraz podmiany flagi
+  języka w przełączniku języków. Dwie ostatnie funkcje wyglądały na działające,
+  a nie działały. (`includes/anim/bricks-controls.php`, `includes/93-darkmode.php`,
+  `includes/70-bricks-language-switcher.php`)
+- **Animator dzielił tekst przed załadowaniem webfontów.** Presety `split-*`
+  uruchamiały SplitText zaraz po `DOMContentLoaded`, więc podział liczył się na
+  metrykach fontu zastępczego i po podmianie fontu linie się rozjeżdżały (GSAP
+  zgłaszał „SplitText called before fonts loaded"). Inicjalizacja czeka teraz na
+  `document.fonts.ready`.
+- **Animator: pole „Opóźnienie" nie działało przy wyzwalaczu viewport** —
+  `tl.delay()` na już utworzonej osi czasu jest no-opem. Trafia teraz do varsów.
+- **Animator: ryzyko trwale niewidocznej treści.** `fromTo` renderuje stan
+  początkowy natychmiast, więc nieodpalony `onEnter` zostawiał element na
+  `opacity: 0`. ScrollTrigger idzie teraz w varsach osi czasu z `toggleActions`,
+  dzięki czemu stan rozstrzyga się przy pierwszym refreshu.
 
 ## [1.20.1] — 2026-08-04
 

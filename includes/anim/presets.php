@@ -98,7 +98,58 @@ function evk_anim_presets(): array {
             'duration' => 0.5,
             'stagger'  => 0.015,
         ],
+        // Bez from/to — wartości bierze się wyłącznie z pól „Własne from/to"
+        // w wierszu biblioteki. Silnik schodzi wtedy warstwę niżej.
+        'custom' => [
+            'label'    => 'Własne (from/to poniżej)',
+            'duration' => 0.8,
+        ],
     ];
+}
+
+/**
+ * Zamienia zapis „właściwość: wartość" (po jednej na linię) na tablicę dla GSAP.
+ *
+ *   opacity: 0
+ *   y: 40
+ *   filter: blur(12px)
+ *
+ * Liczby trafiają do JSON-a jako liczby, reszta jako tekst — GSAP rozumie oba.
+ * Nazwy właściwości ograniczone do bezpiecznego zestawu znaków; wartości i tak
+ * jadą przez wp_json_encode / esc_attr, ale limit liczby pól chroni przed
+ * wklejeniem czegoś absurdalnego.
+ */
+function evk_anim_parse_props(string $text): array {
+    $out   = [];
+    $lines = preg_split('/\r\n|\r|\n/', $text);
+
+    foreach ($lines as $line) {
+        if (count($out) >= 20) break;
+
+        $line = trim($line);
+        if ($line === '' || strpos($line, ':') === false) continue;
+
+        [$prop, $value] = explode(':', $line, 2);
+        $prop  = trim($prop);
+        $value = trim($value);
+
+        // Właściwości GSAP/CSS: litery, cyfry, myślnik, podkreślenie.
+        if ($prop === '' || !preg_match('/^[A-Za-z][A-Za-z0-9_-]*$/', $prop)) continue;
+        if ($value === '') continue;
+
+        $out[$prop] = is_numeric($value) ? (float) $value : sanitize_text_field($value);
+    }
+
+    return $out;
+}
+
+/** Odwrotność evk_anim_parse_props() — tablica z powrotem na tekst do pola w panelu. */
+function evk_anim_props_to_text(array $props): string {
+    $lines = [];
+    foreach ($props as $prop => $value) {
+        $lines[] = $prop . ': ' . $value;
+    }
+    return implode("\n", $lines);
 }
 
 /** Wyzwalacze — klucz => etykieta w panelu. */
