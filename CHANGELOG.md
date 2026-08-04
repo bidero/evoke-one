@@ -2,6 +2,44 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.21.0] — 2026-08-04
+
+### Dodane
+
+- **Animator — moduł animacji GSAP dla dowolnego elementu Bricks.** W panelu
+  (*Frontend → Animator*) definiujesz bibliotekę nazwanych animacji; każda dostaje
+  klasę `evk-anim-{slug}`, którą przypinasz dowolnemu elementowi w Bricks. Nie
+  trzeba owijać elementu w kontener ani pisać kodu.
+  - **13 presetów:** fade (+ 4 kierunki), skala, zoom out, obrót, rozmycie,
+    odsłona maską, podział tekstu na linie / słowa / znaki (SplitText).
+  - **4 wyzwalacze:** wejście w viewport, scrub przy scrollu, hover (z obsługą
+    fokusa klawiatury), klik, load z sekwencjonowaniem przez pole „kolejność".
+  - **Trzy warstwy konfiguracji** scalane w kolejności *preset ⊕ wiersz biblioteki
+    ⊕ atrybut `data-evk-anim`*. Zmiana definicji w panelu przestawia całą stronę,
+    a pojedynczy element można odchylić bez zakładania nowej definicji. Puste pole
+    czasu lub staggera dziedziczy wartość presetu.
+  - **`prefers-reduced-motion`** — zamiast animacji element dostaje od razu stan
+    końcowy, więc nic nie zostaje niewidoczne. Do wyłączenia w ustawieniach modułu.
+  - Domyślnie **nie animuje w canvasie buildera** (osobny włącznik).
+  - Moduł startuje wyłączony, zgodnie z regułą z 1.20.0.
+  (`includes/anim/animator.php`, `includes/anim/presets.php`,
+  `assets/js/animator.js`, `includes/admin/tab-animator.php`)
+
+- **Spike Fazy 0 — kontrolki w panelu elementu Bricks.** Diagnostyka pod przyszłe
+  wstrzykiwanie kontrolek Animatora i Parallaxu do cudzych elementów. Nieaktywna,
+  dopóki w `wp-config.php` nie pojawi się `define('EVK_ANIM_CONTROLS_SPIKE', true);`.
+  Instrukcja i kryteria oceny w nagłówku pliku.
+  (`includes/anim/spike-bricks-controls.php`)
+
+### Zmienione
+
+- **Rejestracja bibliotek GSAP wydzielona z loadera elementów.** Siedziała w
+  `includes/bricks-elements/loader.php`, przez co Animator — nie będący elementem
+  Bricks — musiałby zależeć od loadera elementów. Handle `evk-gsap`,
+  `evk-scrolltrigger`, `evk-observer`, `evk-splittext` rejestruje teraz
+  `includes/89-gsap.php`, wspólnie dla całej wtyczki. GSAP nadal ładuje się raz,
+  niezależnie od tego, ile funkcji jest włączonych.
+
 ## [1.20.1] — 2026-08-04
 
 ### Zmienione

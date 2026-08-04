@@ -39,6 +39,12 @@ add_action('admin_enqueue_scripts', function (string $hook) {
         'rowStart' => count($cursor_settings['elements'] ?? []) + 100,
     ]);
 
+    // Animator
+    $anim_settings = EVK_Animator::get_instance()->get_settings();
+    wp_localize_script('evoke-one-admin', 'evoOneAnimData', [
+        'rowStart' => count($anim_settings['animations'] ?? []) + 100,
+    ]);
+
     // SEO
     wp_localize_script('evoke-one-admin', 'evoSeoAjax', [
         'url'   => admin_url('admin-ajax.php'),
@@ -75,6 +81,7 @@ function evoke_one_get_io_modules(): array {
         'evk_darkmode'        => 'Dark Mode',
         'evk_cursor'          => 'Kursor',
         'evk_lenis'           => 'Smooth Scroll (Lenis)',
+        'evk_animator'        => 'Animator',
         'evk_parallax'        => 'Parallax',
         'evk_a11y'            => 'Dostępność',
         // SEO & OG

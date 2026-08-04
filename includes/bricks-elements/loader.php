@@ -170,12 +170,9 @@ add_action('init', function (): void {
 add_action('wp_enqueue_scripts', function (): void {
     if (!class_exists('\Bricks\Frontend')) return;
 
-    // Wspólne biblioteki — jeden handle, brak duplikatów między elementami.
-    // (Rejestracja jest tania; faktyczne pobranie tylko gdy element ich użyje.)
-    wp_register_script('evk-gsap', 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js', [], '3.13.0', true);
-    wp_register_script('evk-scrolltrigger', 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js', ['evk-gsap'], '3.13.0', true);
-    wp_register_script('evk-observer', 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/Observer.min.js', ['evk-gsap'], '3.13.0', true);
-    wp_register_script('evk-splittext', 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/SplitText.min.js', ['evk-gsap'], '3.13.0', true);
+    // Wspólne biblioteki GSAP — rejestrowane w includes/89-gsap.php, żeby
+    // Animator (nie będący elementem Bricks) korzystał z tych samych handle'ów.
+    evk_register_gsap_libs();
 
     // Handle skryptów/stylów, których oczekuje element->enqueue_scripts()
     $reg    = evk_elements_registry();

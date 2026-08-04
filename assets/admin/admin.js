@@ -353,4 +353,16 @@
         };
     }
 
+    /* =========================================================
+       ANIMATOR TAB — dodawanie wierszy biblioteki
+       ========================================================= */
+    if (typeof evoOneAnimData !== 'undefined') {
+        window.evkAnimRowIndex = parseInt(evoOneAnimData.rowStart, 10);
+        window.evkAddAnimRow = function () {
+            var tpl  = document.getElementById('evo-anim-row-template').innerHTML;
+            var html = tpl.replace(/{INDEX}/g, evkAnimRowIndex++);
+            document.getElementById('evo-anim-repeater-container').insertAdjacentHTML('beforeend', html);
+        };
+    }
+
 })(jQuery);
