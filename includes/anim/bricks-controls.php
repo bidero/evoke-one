@@ -165,9 +165,11 @@ function evk_bricks_control_groups($groups) {
     $groups['evk_one'] = [
         'title' => 'Evoke ONE',
         'tab'   => evk_bricks_controls_tab(),
-        // Klucz nieudokumentowany — Bricks zignoruje go, jeśli go nie zna.
-        // Nic na nim nie polega, ale gdyby był wspierany, dostajemy ikonę gratis.
-        'icon'  => 'bolt',
+        // Nazwa z wewnętrznego rejestru SVG Bricks (<span data-name="css3">).
+        // Hipoteza: przy nieznanej nazwie Bricks pomija całą pozycję paska —
+        // dlatego 'html', nazwa potwierdzona jako istniejąca, a nie zmyślona.
+        // Sam wygląd i tak nadpisuje CSS poniżej, podmieniając ikonę na własną.
+        'icon'  => 'html',
     ];
 
     return $groups;

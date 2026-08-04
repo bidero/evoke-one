@@ -2,6 +2,26 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.23.2] — 2026-08-04
+
+### Zmienione
+
+- **Nazwa ikony grupy zmieniona ze zmyślonej na istniejącą.** Pozycje pionowego
+  paska to `<li>` z `<span class="bricks-svg-wrapper" data-name="css3">` — Bricks
+  bierze ikonę z własnego rejestru SVG po nazwie. W definicji grupy przekazywane
+  było `'icon' => 'bolt'`, czyli nazwa spoza rejestru. Hipoteza: przy nieznanej
+  nazwie Bricks pomija całą pozycję paska, co tłumaczyłoby brak `<li>` dla sekcji
+  „Evoke ONE" mimo poprawnego renderowania samej sekcji na dole zakładki Style.
+  Teraz przekazywane jest `'html'` — nazwa potwierdzona jako istniejąca. Docelowy
+  wygląd i tak nadpisuje CSS buildera, podmieniając ikonę na własną.
+  (`includes/anim/bricks-controls.php`)
+
+  **To pozostaje hipotezą** — klucz `icon` dla grup kontrolek nie jest częścią
+  publicznego API Bricks i nie da się tego zweryfikować bez żywej instalacji.
+  Jeśli pozycja w pasku nadal się nie pojawi, oznacza to, że pasek jest budowany
+  wyłącznie z grup własnych Bricks i pozostaje zamknięty dla wtyczek — wtedy
+  sekcja zostaje tam, gdzie jest teraz: na dole zakładki Style.
+
 ## [1.23.1] — 2026-08-04
 
 ### Naprawione
