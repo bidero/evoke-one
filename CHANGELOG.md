@@ -2,6 +2,24 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.23.0] — 2026-08-04
+
+### Dodane
+
+- **Przełącznik „Sekcja w zakładce Style" (eksperymentalny, domyślnie wyłączony).**
+  Przenosi sekcję „Evoke ONE" z zakładki Content do pionowego paska ikon po lewej,
+  za grupy CSS i Attributes.
+
+  Bricks **nie udostępnia klucza na ikonę grupy kontrolek** — publiczne API filtra
+  `bricks/elements/{name}/control_groups` zna wyłącznie `tab` i `title`, a `$icon`
+  dotyczy elementów, nie grup. Ikonę podkłada więc CSS wstrzykiwany wyłącznie
+  w oknie buildera, celujący w `li[data-balloon="Evoke ONE"]`. Warunek: Bricks
+  musi w ogóle wyrenderować grupę z filtra w pasku — czego nie da się sprawdzić
+  bez żywej instalacji. Stąd przełącznik zamiast zmiany na sztywno: gdyby sekcja
+  zniknęła z panelu, odznaczenie natychmiast przywraca działający stan.
+  (`includes/anim/animator.php`, `includes/anim/bricks-controls.php`,
+  `includes/admin/tab-animator.php`)
+
 ## [1.22.2] — 2026-08-04
 
 ### Naprawione

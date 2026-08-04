@@ -29,6 +29,52 @@ function evk_parallax_controls_active(): bool {
     return !empty(EVK_Parallax::get_instance()->get_settings()['enabled']);
 }
 
+/**
+ * Zakładka panelu, w której ląduje sekcja Evoke ONE.
+ *
+ * 'content' (domyślnie) — pewne, sprawdzone, sekcja jest zwykłym zwijanym blokiem.
+ * 'style'   — sekcja trafia do pionowego paska ikon po lewej, za CSS i Attributes.
+ *             Eksperymentalne: Bricks nie udostępnia klucza na ikonę grupy, więc
+ *             ikonę dorysowuje CSS w builderze (patrz evk_bricks_builder_css()).
+ *             Gdyby grupa nie renderowała się w pasku, wyłącz przełącznik.
+ */
+function evk_bricks_controls_tab(): string {
+    if (!class_exists('EVK_Animator')) return 'content';
+    return !empty(EVK_Animator::get_instance()->get_settings()['style_tab']) ? 'style' : 'content';
+}
+
+// =========================================================================
+// IKONA W PIONOWYM PASKU — tylko w builderze i tylko w trybie 'style'
+// =========================================================================
+
+/**
+ * Pozycje paska to <li data-balloon="Tytuł grupy"> z osadzonym SVG. Grupa dodana
+ * filtrem nie dostaje SVG, bo publiczne API nie zna klucza na ikonę — więc
+ * podkładamy ikonę tłem, celując w tooltip. Sam <li> musi istnieć; jeśli Bricks
+ * w ogóle nie renderuje grup z filtra w pasku, ten CSS nie ma czego złapać.
+ */
+add_action('wp_head', function (): void {
+    if (!function_exists('bricks_is_builder_main') || !bricks_is_builder_main()) return;
+    if (evk_bricks_controls_tab() !== 'style') return;
+    if (!evk_anim_controls_active() && !evk_parallax_controls_active()) return;
+
+    $svg = rawurlencode(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
+        . 'stroke="#c8c8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+        . '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>'
+    );
+
+    echo '<style id="evk-bricks-group-icon">
+li[data-balloon="Evoke ONE"] {
+    background-image: url("data:image/svg+xml,' . $svg . '");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 20px 20px;
+    min-height: 40px;
+}
+</style>';
+});
+
 // =========================================================================
 // REJESTRACJA FILTRÓW
 // =========================================================================
@@ -101,7 +147,7 @@ function evk_bricks_control_groups($groups) {
 
     $groups['evk_one'] = [
         'title' => 'Evoke ONE',
-        'tab'   => 'content',
+        'tab'   => evk_bricks_controls_tab(),
         // Klucz nieudokumentowany — Bricks zignoruje go, jeśli go nie zna.
         // Nic na nim nie polega, ale gdyby był wspierany, dostajemy ikonę gratis.
         'icon'  => 'bolt',
@@ -132,7 +178,7 @@ function evk_bricks_animator_controls(array $controls): array {
     // Nagłówek sekcji wewnątrz wspólnej grupy — dodawany tylko gdy sekcja istnieje,
     // żeby przy jednym włączonym module nie został osierocony nagłówek.
     $controls['evkSepAnimator'] = [
-        'tab'   => 'content',
+        'tab'   => evk_bricks_controls_tab(),
         'group' => 'evk_one',
         'type'  => 'separator',
         'label' => esc_html__('Animator', 'evoke-one'),
@@ -148,7 +194,7 @@ function evk_bricks_animator_controls(array $controls): array {
     }
 
     $controls['evkAnimAnimation'] = [
-        'tab'         => 'content',
+        'tab'         => evk_bricks_controls_tab(),
         'group'       => 'evk_one',
         'label'       => esc_html__('Animacja', 'evoke-one'),
         'type'        => 'select',
@@ -168,7 +214,7 @@ function evk_bricks_animator_controls(array $controls): array {
     }
 
     $controls['evkAnimTrigger'] = [
-        'tab'      => 'content',
+        'tab'      => evk_bricks_controls_tab(),
         'group'    => 'evk_one',
         'label'    => esc_html__('Wyzwalacz', 'evoke-one'),
         'type'     => 'select',
@@ -184,7 +230,7 @@ function evk_bricks_animator_controls(array $controls): array {
     ];
     foreach ($overrides as $id => [$label, $min, $max, $step]) {
         $controls[$id] = [
-            'tab'         => 'content',
+            'tab'         => evk_bricks_controls_tab(),
             'group'       => 'evk_one',
             'label'       => $label,
             'type'        => 'number',
@@ -197,7 +243,7 @@ function evk_bricks_animator_controls(array $controls): array {
     }
 
     $controls['evkAnimStart'] = [
-        'tab'         => 'content',
+        'tab'         => evk_bricks_controls_tab(),
         'group'       => 'evk_one',
         'label'       => esc_html__('Start (ScrollTrigger)', 'evoke-one'),
         'type'        => 'text',
@@ -210,14 +256,14 @@ function evk_bricks_animator_controls(array $controls): array {
 
 function evk_bricks_parallax_controls(array $controls): array {
     $controls['evkSepParallax'] = [
-        'tab'   => 'content',
+        'tab'   => evk_bricks_controls_tab(),
         'group' => 'evk_one',
         'type'  => 'separator',
         'label' => esc_html__('Parallax', 'evoke-one'),
     ];
 
     $controls['evkParallax'] = [
-        'tab'     => 'content',
+        'tab'     => evk_bricks_controls_tab(),
         'group'   => 'evk_one',
         'label'   => esc_html__('Włącz parallax', 'evoke-one'),
         'type'    => 'checkbox',
@@ -226,7 +272,7 @@ function evk_bricks_parallax_controls(array $controls): array {
 
     // Placeholder pokazuje wartość globalną — puste pole ją właśnie oznacza.
     $controls['evkParallaxValue'] = [
-        'tab'         => 'content',
+        'tab'         => evk_bricks_controls_tab(),
         'group'       => 'evk_one',
         'label'       => esc_html__('Siła', 'evoke-one'),
         'type'        => 'number',
@@ -239,7 +285,7 @@ function evk_bricks_parallax_controls(array $controls): array {
     ];
 
     $controls['evkParallaxScale'] = [
-        'tab'         => 'content',
+        'tab'         => evk_bricks_controls_tab(),
         'group'       => 'evk_one',
         'label'       => esc_html__('Skala', 'evoke-one'),
         'type'        => 'number',
