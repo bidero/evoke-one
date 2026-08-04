@@ -4,7 +4,7 @@ if (!defined('ABSPATH')) exit;
 /**
  * Evoke ONE — kontrolki Animatora i Parallaxu w panelu elementu Bricks
  *
- * Dokłada dwie grupy kontrolek do KAŻDEGO zarejestrowanego elementu Bricks,
+ * Dokłada jedną wspólną sekcję „Evoke ONE" do KAŻDEGO zarejestrowanego elementu,
  * przez oficjalne filtry `bricks/elements/{name}/control_groups` i
  * `.../controls` (dostępne od Bricks 1.3.2). Ustawienia trafiają na front jako
  * atrybuty `data-*` przez `bricks/element/render_attributes`.
@@ -81,25 +81,32 @@ function evk_bricks_set_attr(array $attributes, string $key, string $name, strin
 // GRUPY
 // =========================================================================
 
+/**
+ * Jedna wspólna sekcja zamiast dwóch osobnych grup — wewnątrz rozdzielona
+ * separatorami „Animator" / „Parallax".
+ *
+ * Zakładka 'content', nie 'style': w Bricks 2.x zakładka Style renderuje grupy
+ * jako pionowy pasek ikon (<li> z SVG i tooltipem). Grupa dodana filtrem nie ma
+ * ikony — publiczne API zna tylko 'tab' i 'title' — więc w pasku powstaje pusty,
+ * niewidoczny element i kontrolki znikają z panelu. 'content' jest jedynym
+ * wariantem potwierdzonym na żywej instalacji.
+ */
 function evk_bricks_control_groups($groups) {
     if (!is_array($groups)) return $groups;
 
-    // unset + dopisanie na końcu: kolejność wstawiania decyduje o kolejności
-    // w panelu, a grupy Evoke mają siedzieć za CSS i Attributes.
-    unset($groups['evk_animator'], $groups['evk_parallax']);
+    // unset + dopisanie na końcu: kolejność wstawiania decyduje o kolejności w panelu.
+    unset($groups['evk_animator'], $groups['evk_parallax'], $groups['evk_one']);
 
-    if (evk_anim_controls_active()) {
-        $groups['evk_animator'] = [
-            'title' => 'Evoke Animator',
-            'tab'   => 'style',
-        ];
-    }
-    if (evk_parallax_controls_active()) {
-        $groups['evk_parallax'] = [
-            'title' => 'Evoke Parallax',
-            'tab'   => 'style',
-        ];
-    }
+    if (!evk_anim_controls_active() && !evk_parallax_controls_active()) return $groups;
+
+    $groups['evk_one'] = [
+        'title' => 'Evoke ONE',
+        'tab'   => 'content',
+        // Klucz nieudokumentowany — Bricks zignoruje go, jeśli go nie zna.
+        // Nic na nim nie polega, ale gdyby był wspierany, dostajemy ikonę gratis.
+        'icon'  => 'bolt',
+    ];
+
     return $groups;
 }
 
@@ -122,6 +129,15 @@ function evk_bricks_controls($controls) {
 function evk_bricks_animator_controls(array $controls): array {
     $settings = EVK_Animator::get_instance()->get_settings();
 
+    // Nagłówek sekcji wewnątrz wspólnej grupy — dodawany tylko gdy sekcja istnieje,
+    // żeby przy jednym włączonym module nie został osierocony nagłówek.
+    $controls['evkSepAnimator'] = [
+        'tab'   => 'content',
+        'group' => 'evk_one',
+        'type'  => 'separator',
+        'label' => esc_html__('Animator', 'evoke-one'),
+    ];
+
     // Lista zasilana biblioteką — nie da się wybrać animacji, której nie ma.
     $options = ['' => '— brak —'];
     foreach ((array) $settings['animations'] as $row) {
@@ -132,8 +148,8 @@ function evk_bricks_animator_controls(array $controls): array {
     }
 
     $controls['evkAnimAnimation'] = [
-        'tab'         => 'style',
-        'group'       => 'evk_animator',
+        'tab'         => 'content',
+        'group'       => 'evk_one',
         'label'       => esc_html__('Animacja', 'evoke-one'),
         'type'        => 'select',
         'options'     => $options,
@@ -152,8 +168,8 @@ function evk_bricks_animator_controls(array $controls): array {
     }
 
     $controls['evkAnimTrigger'] = [
-        'tab'      => 'style',
-        'group'    => 'evk_animator',
+        'tab'      => 'content',
+        'group'    => 'evk_one',
         'label'    => esc_html__('Wyzwalacz', 'evoke-one'),
         'type'     => 'select',
         'options'  => $trigger_options,
@@ -168,8 +184,8 @@ function evk_bricks_animator_controls(array $controls): array {
     ];
     foreach ($overrides as $id => [$label, $min, $max, $step]) {
         $controls[$id] = [
-            'tab'         => 'style',
-            'group'       => 'evk_animator',
+            'tab'         => 'content',
+            'group'       => 'evk_one',
             'label'       => $label,
             'type'        => 'number',
             'min'         => $min,
@@ -181,8 +197,8 @@ function evk_bricks_animator_controls(array $controls): array {
     }
 
     $controls['evkAnimStart'] = [
-        'tab'         => 'style',
-        'group'       => 'evk_animator',
+        'tab'         => 'content',
+        'group'       => 'evk_one',
         'label'       => esc_html__('Start (ScrollTrigger)', 'evoke-one'),
         'type'        => 'text',
         'placeholder' => esc_html__('z biblioteki', 'evoke-one'),
@@ -193,9 +209,16 @@ function evk_bricks_animator_controls(array $controls): array {
 }
 
 function evk_bricks_parallax_controls(array $controls): array {
+    $controls['evkSepParallax'] = [
+        'tab'   => 'content',
+        'group' => 'evk_one',
+        'type'  => 'separator',
+        'label' => esc_html__('Parallax', 'evoke-one'),
+    ];
+
     $controls['evkParallax'] = [
-        'tab'     => 'style',
-        'group'   => 'evk_parallax',
+        'tab'     => 'content',
+        'group'   => 'evk_one',
         'label'   => esc_html__('Włącz parallax', 'evoke-one'),
         'type'    => 'checkbox',
         'default' => false,
@@ -203,8 +226,8 @@ function evk_bricks_parallax_controls(array $controls): array {
 
     // Placeholder pokazuje wartość globalną — puste pole ją właśnie oznacza.
     $controls['evkParallaxValue'] = [
-        'tab'         => 'style',
-        'group'       => 'evk_parallax',
+        'tab'         => 'content',
+        'group'       => 'evk_one',
         'label'       => esc_html__('Siła', 'evoke-one'),
         'type'        => 'number',
         'min'         => -1,
@@ -216,8 +239,8 @@ function evk_bricks_parallax_controls(array $controls): array {
     ];
 
     $controls['evkParallaxScale'] = [
-        'tab'         => 'style',
-        'group'       => 'evk_parallax',
+        'tab'         => 'content',
+        'group'       => 'evk_one',
         'label'       => esc_html__('Skala', 'evoke-one'),
         'type'        => 'number',
         'min'         => 1,

@@ -2,6 +2,37 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.22.2] — 2026-08-04
+
+### Naprawione
+
+- **Kontrolki zniknęły z buildera po 1.22.1.** Przeniesienie grup do zakładki Style
+  (`'tab' => 'style'`) sprawiło, że przestały się renderować w ogóle. Przyczyna:
+  w Bricks 2.x zakładka Style pokazuje grupy kontrolek jako **pionowy pasek ikon** —
+  każda grupa to pozycja z SVG i tooltipem. Grupa dodana filtrem nie ma ikony
+  (publiczne API filtra `bricks/elements/{name}/control_groups` zna wyłącznie
+  `tab` i `title`), więc w pasku powstaje pusty, niewidoczny element. Powrót do
+  zakładki Content — jedynego wariantu potwierdzonego na żywej instalacji.
+  (`includes/anim/bricks-controls.php`)
+
+### Zmienione
+
+- **Jedna sekcja „Evoke ONE" zamiast dwóch osobnych grup.** Kontrolki Animatora
+  i Parallaxu siedzą teraz we wspólnej grupie, rozdzielone nagłówkami sekcji
+  („Animator", „Parallax"). Nagłówek pojawia się tylko dla włączonego modułu —
+  przy jednym aktywnym nie zostaje osierocony. Gdy oba moduły są wyłączone, grupa
+  nie powstaje w ogóle. (`includes/anim/bricks-controls.php`)
+
+### Znane ograniczenia
+
+- Umieszczenie sekcji w **pionowym pasku zakładki Style**, za CSS i Data attributes,
+  pozostaje niezrealizowane. Wymaga nadania grupie ikony, a klucz na ikonę nie jest
+  częścią publicznego API Bricks. W definicji grupy przekazywany jest spekulacyjnie
+  `'icon'` — jeśli Bricks go nie zna, jest ignorowany i nic się nie dzieje.
+- Trzecia zakładka panelu elementu (obok Content i Style) nie jest możliwa — `tab`
+  przyjmuje tylko `'content'` i `'style'`; zakładka WooCommerce to wewnętrzny
+  przypadek Bricks bez publicznego filtra.
+
 ## [1.22.1] — 2026-08-04
 
 ### Naprawione
