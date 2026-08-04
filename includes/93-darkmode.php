@@ -10,7 +10,7 @@ class EVK_DarkMode {
     private static $instance = null;
 
     private $defaults = [
-        'enabled'           => 1,
+        'enabled'           => 0,
         // Przełącznik
         'toggle_selector'   => '.brxe-toggle-mode',
         // Przejście między stronami (wipe)
@@ -87,7 +87,7 @@ class EVK_DarkMode {
         $clean = [];
 
         // 'enabled' zarządzany przez AJAX toggle — zachowaj gdy brak w POST
-        $clean['enabled'] = evk_preserve_toggle($input, 'evk_darkmode', 'enabled', 1);
+        $clean['enabled'] = evk_preserve_toggle($input, 'evk_darkmode');
 
         foreach (['bricks_enabled', 'logo_enabled', 'ripple_enabled', 'wipe_enabled', 'post_trans_enabled'] as $key) {
             $clean[$key] = !empty($input[$key]) ? 1 : 0;
@@ -589,6 +589,7 @@ CSS;
     var savedMode = localStorage.getItem(storageKey) || 'light';
     html.setAttribute('data-theme', savedMode);
     if (savedMode === 'dark') html.classList.add('dark');
+    window.evkTheme = savedMode;
 
     window.addEventListener('DOMContentLoaded', function () {
         requestAnimationFrame(function () {
@@ -661,6 +662,10 @@ CSS;
         } else {
             html.classList.remove('dark');
         }
+        window.evkTheme = mode;
+        // Sygnał dla elementów, które wyliczają kolory w JS (np. Scroll Reading) —
+        // bez niego trzymają wartości wyliczone przy starcie strony aż do odświeżenia.
+        document.dispatchEvent(new CustomEvent('evk:theme-change', { detail: { mode: mode } }));
     }
 
     // ── Overlay nawigacyjny: zakrywa ekran PRZED przeładowaniem ──

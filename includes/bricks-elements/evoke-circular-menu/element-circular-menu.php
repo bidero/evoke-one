@@ -4,18 +4,20 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Evoke_Circular_Menu extends \Bricks\Element {
 
-	public $category = 'general';
+	public $category = \EVK_BRICKS_CATEGORY;
+	// Slug zapisany w danych stron Bricks — NIE zmieniać (rozwaliłby istniejące instancje).
 	public $name     = 'evoke-circular-menu';
 	public $icon     = 'ti-menu-alt';
 	public $scripts  = ['evk_circular_menu'];
 	public $nestable = true;
 
+	// Etykieta musi się zgadzać z evk_elements_registry()['circular_menu']['label'].
 	public function get_label() {
-		return esc_html__( 'Evoke Circular Menu', 'evoke-circular-menu' );
+		return 'Circular Menu';
 	}
 
 	public function get_keywords() {
-		return [ 'hamburger', 'menu', 'circular', 'nav', 'toggle', 'fullscreen' ];
+		return [ 'evoke', 'circular', 'menu', 'hamburger', 'nav', 'toggle', 'fullscreen' ];
 	}
 
 	/**

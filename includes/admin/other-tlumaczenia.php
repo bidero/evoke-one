@@ -3,8 +3,8 @@ if (!defined('ABSPATH')) exit;
 /**
  * Evoke ONE — Admin subtab: Tłumaczenia (włącznik modułu)
  */
-$tl_enabled     = !empty(get_option('evk_tl_module_enabled', 1));
-$tl_fab_enabled = !empty(get_option('evk_tl_fab_enabled', 1));
+$tl_enabled     = !empty(get_option('evk_tl_module_enabled', 0));
+$tl_fab_enabled = !empty(get_option('evk_tl_fab_enabled', 0));
 $tl_url         = function_exists('tl_base_url') ? tl_base_url() : admin_url('options-general.php?page=evoke-tlumaczenia');
 ?>
 

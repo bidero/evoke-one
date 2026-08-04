@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.19.4
+ * Version: 1.20.0
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 define('EVOKE_ONE_FILE',    __FILE__);
 define('EVOKE_ONE_DIR',     plugin_dir_path(__FILE__));
 define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
-define('EVOKE_ONE_VERSION', '1.19.4');
+define('EVOKE_ONE_VERSION', '1.20.0');
 
 // Stałe modułu tłumaczeń (zachowane dla kompatybilności z istniejącymi ustawieniami)
 define('TL_MENU_SLUG',        'evoke-tlumaczenia');
@@ -72,6 +72,7 @@ if (function_exists('tl_get_languages') || evoke_one_check_conflicts()) {
 // ── Pliki płaskie (tłumaczenia, SEO, moduły) ─────────────────────────────
 $evoke_one_modules = [
     '00-context-safety.php',
+    '01-install.php',
     '20-helpers-cache-inline.php',
     '30-admin-settings-ajax.php',
     '31-admin-page.php',
@@ -98,7 +99,7 @@ foreach ($evoke_one_modules as $module) {
 // ── Moduł tłumaczeń (warunkowo) ───────────────────────────────────────────
 // Ładowany w całości tylko gdy włączony. Admin page (31-admin-page.php) ładowany
 // zawsze — żeby toggle był dostępny nawet gdy moduł wyłączony.
-$evk_tl_enabled = !empty(get_option('evk_tl_module_enabled', 1));
+$evk_tl_enabled = !empty(get_option('evk_tl_module_enabled', 0));
 if ($evk_tl_enabled) {
     $evoke_tl_modules = [
         '10-language-system.php',
@@ -201,6 +202,7 @@ add_filter('wp_sitemaps_add_provider', function ($provider, $name) {
 // =========================================================================
 
 register_activation_hook(__FILE__, function () {
+    evk_one_maybe_install();
     evk_nl_create_tables();
     evk_nl_flush_rewrite();
 });

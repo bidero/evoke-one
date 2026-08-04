@@ -75,6 +75,9 @@
 .evo-slider-thumb { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 18px; height: 18px; background: #fff; border: 2px solid #64748b; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.15); pointer-events: none; transition: border-color .15s, box-shadow .15s; }
 .evo-slider-wrap:hover .evo-slider-thumb { border-color: #475569; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
 .evo-slider-value { min-width: 56px; padding: 6px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; font-weight: 500; color: #334155; text-align: center; font-family: monospace; }
+/* Wariant edytowalny — wartość wpisywana ręcznie zamiast tylko wyświetlanej. */
+.evo-field input[type=number].evo-slider-value { width: 84px; min-width: 84px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; font-weight: 500; color: #334155; text-align: center; font-family: monospace; box-shadow: none; }
+.evo-field input[type=number].evo-slider-value:focus { border-color: #64748b; box-shadow: 0 0 0 2px rgba(100,116,139,.15); }
 
 /* Sitemap tab */
 .evo-sm-box { background: #f8fafc; border: 1px solid #d7dde7; border-radius: 8px; padding: 18px 20px; margin-bottom: 16px; }

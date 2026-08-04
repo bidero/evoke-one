@@ -3,15 +3,20 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 class Evk_Circular_Title extends \Bricks\Element {
 
-    public $category     = 'general';
+    public $category     = EVK_BRICKS_CATEGORY;
     public $name         = 'evk-circular-title';
-    public $icon         = 'ti-text';
+    public $icon         = 'ti-reload';
     public $tag          = 'span';
     public $css_selector = '';
     public $scripts      = ['evk_circular_title_init'];
 
+    // Etykieta musi się zgadzać z evk_elements_registry()['circular_title']['label'].
     public function get_label() {
-        return esc_html__( 'Kołowy tytuł', 'evoke-circular-title' );
+        return 'Circular Title';
+    }
+
+    public function get_keywords() {
+        return [ 'evoke', 'circular', 'title', 'kołowy', 'tytuł', 'text', 'rotate' ];
     }
 
     public function set_control_groups() {

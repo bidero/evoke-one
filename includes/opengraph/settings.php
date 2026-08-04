@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 function evk_og_defaults(): array {
     return [
         // Włącznik
-        'enabled'     => 1,
+        'enabled'     => 0,
 
         // Globalne
         'width'       => 1200,
@@ -231,7 +231,7 @@ add_action('admin_init', function () {
 function evk_og_sanitize_settings($input): array {
     $clean = [];
 
-    $clean['enabled'] = evk_preserve_toggle($input, 'evk_og', 'enabled', 1);
+    $clean['enabled'] = evk_preserve_toggle($input, 'evk_og');
 
     $clean['width']   = max(400, min(2400, intval($input['width']   ?? 1200)));
     $clean['height']  = max(200, min(1400, intval($input['height']  ?? 630)));

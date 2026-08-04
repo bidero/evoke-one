@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) exit;
 add_action('wp_footer', function () {
     if (!current_user_can('manage_options')) return;
     if (tl_is_bricks_editor() || is_admin()) return;
-    if (empty(get_option('evk_tl_fab_enabled', 1))) return;
+    if (empty(get_option('evk_tl_fab_enabled', 0))) return;
 
     $lang = get_current_lang();
     $langs = tl_get_languages();

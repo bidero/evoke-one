@@ -3,14 +3,19 @@ defined( 'ABSPATH' ) || exit;
 
 class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 
-	public $category = 'general';
+	public $category = EVK_BRICKS_CATEGORY;
 	public $name     = 'evk-horizontal-scroll';
-	public $icon     = 'ti-layout-media-right';
+	public $icon     = 'ti-arrows-horizontal';
 	public $tag      = 'div';
 	public $nestable = true;
 
+	// Etykieta musi się zgadzać z evk_elements_registry()['hscroll']['label'].
 	public function get_label() {
-		return esc_html__( 'Poziomy Scroll', 'evk-horizontal-scroll' );
+		return 'Horizontal Scroll';
+	}
+
+	public function get_keywords() {
+		return [ 'evoke', 'horizontal', 'scroll', 'poziomy', 'pin', 'slider' ];
 	}
 
 	public function enqueue_scripts() {

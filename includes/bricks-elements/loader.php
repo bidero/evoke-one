@@ -4,11 +4,25 @@ if (!defined('ABSPATH')) exit;
  * Evoke ONE — Elementy Bricks (zintegrowane elementy + wspólne biblioteki)
  *
  * - Każdy element ma osobny włącznik (opcja evk_elements, domyślnie OFF).
+ * - Wszystkie elementy trafiają do własnej grupy „Evoke ONE" w builderze
+ *   (EVK_BRICKS_CATEGORY) — nie mieszają się z elementami Bricks.
+ * - Etykieta elementu w builderze = etykieta z evk_elements_registry().
+ *   Zmieniając jedną, zmień drugą — nazwy mają być spójne w panelu i builderze.
  * - Wspólne biblioteki (GSAP / ScrollTrigger / Observer) rejestrowane raz pod
  *   stałymi handle'ami — dzięki temu nie dublują się między elementami.
  * - Guard coexistence: jeśli samodzielna wtyczka elementu jest aktywna
  *   (klasa już istnieje), Evoke ONE pomija rejestrację (zero konfliktu).
  */
+
+/** Slug grupy elementów w builderze Bricks. */
+const EVK_BRICKS_CATEGORY = 'evoke-one';
+
+/** Nazwa grupy widoczna w panelu elementów Bricks. */
+add_filter('bricks/builder/i18n', function ($i18n) {
+    if (!is_array($i18n)) return $i18n;
+    $i18n[EVK_BRICKS_CATEGORY] = 'Evoke ONE';
+    return $i18n;
+});
 
 function evk_elements_registry(): array {
     $dir = EVOKE_ONE_DIR . 'includes/bricks-elements/';
@@ -53,11 +67,11 @@ function evk_elements_registry(): array {
             'name'  => 'evk-scroll-reading',
             'file'  => $dir . 'evoke-scroll-reading/element.php',
             'consts'=> [
-                'EVK_SR_VERSION' => '1.0.1',
+                'EVK_SR_VERSION' => '1.1.0',
                 'EVK_SR_URL'     => $url . 'evoke-scroll-reading/',
                 'EVK_SR_PATH'    => $dir . 'evoke-scroll-reading/',
             ],
-            'script'=> ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.js', ['evk-gsap', 'evk-scrolltrigger', 'evk-splittext'], '1.0.1'],
+            'script'=> ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.js', ['evk-gsap', 'evk-scrolltrigger', 'evk-splittext'], '1.1.0'],
             'style' => ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.css', '1.0.1'],
         ],
         'circular_title' => [
@@ -79,6 +93,11 @@ function evk_elements_registry(): array {
             'desc'  => 'Menu z animacją clip-path (portal do body).',
             'icon'  => 'dashicons-menu-alt',
             'class' => 'Evoke_Circular_Menu',
+            // Klasa żyje w namespace Bricks — guard musi sprawdzić obie formy,
+            // inaczej samodzielna wtyczka nigdy nie zostałaby wykryta.
+            'guard' => ['Evoke_Circular_Menu', 'Bricks\\Evoke_Circular_Menu'],
+            // Slug elementu zapisany w danych stron Bricks — NIE zmieniać,
+            // zmiana rozwaliłaby istniejące instancje na żywych stronach.
             'name'  => 'evoke-circular-menu',
             'file'  => $dir . 'evoke-circular-menu/element-circular-menu.php',
             'consts'=> [
@@ -107,6 +126,17 @@ function evk_elements_enabled(): array {
     return array_merge($def, (array) get_option('evk_elements', []));
 }
 
+/**
+ * Czy klasa elementu pochodzi z samodzielnej wtyczki (już załadowana)?
+ * Sprawdza wszystkie warianty nazwy klasy z wpisu rejestru.
+ */
+function evk_element_class_loaded(array $el): bool {
+    foreach ((array) ($el['guard'] ?? [$el['class']]) as $class) {
+        if (class_exists($class)) return true;
+    }
+    return false;
+}
+
 // ── Rejestracja elementów w Bricks (tylko włączone) ──────────────────────
 add_action('init', function (): void {
     if (!class_exists('\Bricks\Elements')) return;
@@ -117,7 +147,7 @@ add_action('init', function (): void {
 
     foreach ($reg as $key => $el) {
         if (empty($en[$key])) continue;
-        if (class_exists($el['class'])) continue;   // samodzielna wtyczka aktywna → pomiń
+        if (evk_element_class_loaded($el)) continue;   // samodzielna wtyczka aktywna → pomiń
         if (!is_readable($el['file'])) continue;
 
         foreach ($el['consts'] as $c => $v) {

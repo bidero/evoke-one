@@ -9,7 +9,7 @@ class EVK_Schema {
     // Domyślne ustawienia
     // ----------------------------------------------------------------
     private $defaults = [
-        'enabled'          => 1,
+        'enabled'          => 0,
         // Dane organizacji
         'org_type'         => 'Organization',
         'operator_name'    => '',   // wydawca strony (Organization); puste = site_name
@@ -131,7 +131,7 @@ class EVK_Schema {
         $input = is_array($input) ? $input : [];
         $clean = [];
         // 'enabled' zarządzany przez AJAX toggle — zachowaj gdy brak w POST
-        $clean['enabled'] = evk_preserve_toggle($input, 'evk_schema', 'enabled', 1);
+        $clean['enabled'] = evk_preserve_toggle($input, 'evk_schema');
         // Checkboxy
         $checkboxes = [
             'block_website', 'block_org', 'block_breadcrumb',

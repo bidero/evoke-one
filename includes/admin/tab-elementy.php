@@ -15,6 +15,7 @@ $loaded = $GLOBALS['evk_loaded_elements'] ?? [];
         <span class="dashicons dashicons-info"></span>
         <div>
             Elementy Bricks są częścią Evoke ONE — włącz tylko te, których używasz (domyślnie wyłączone).
+            Włączone elementy znajdziesz w builderze w grupie <strong>Evoke ONE</strong>, pod tymi samymi nazwami co poniżej.
             Wspólne biblioteki (<strong>GSAP, ScrollTrigger, Observer</strong>) ładowane są raz, bez duplikowania między elementami.
             Jeśli wykryję aktywną samodzielną wtyczkę danego elementu, Evoke ONE ustępuje jej miejsca — bez podwójnej rejestracji.
         </div>
@@ -24,7 +25,7 @@ $loaded = $GLOBALS['evk_loaded_elements'] ?? [];
         <p style="color:#dc2626;">Loader elementów nie został załadowany.</p>
     <?php else: foreach ($reg as $key => $el):
         $on         = !empty($en[$key]);
-        $standalone = class_exists($el['class']) && empty($loaded[$key]);
+        $standalone = evk_element_class_loaded($el) && empty($loaded[$key]);
     ?>
     <div class="evo-status-card" style="margin-bottom:12px;">
         <div class="evo-status-icon <?php echo $on ? 'on' : 'off'; ?>">

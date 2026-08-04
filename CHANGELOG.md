@@ -2,6 +2,62 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.20.0] — 2026-08-04
+
+### Zmienione
+
+- **Świeża instalacja startuje z wyłączonymi modułami.** Tryb ciemny,
+  Dostępność, Schema, OpenGraph, Tłumaczenia (wraz z edytorem inline) i Mapa
+  strony miały domyślne `enabled = 1`, więc po instalacji działały od razu.
+  Teraz domyślną wartością jest `0` — po instalacji nic nie rusza frontu,
+  dopóki nie włączy się modułu ręcznie. Istniejące strony są chronione:
+  jednorazowa migracja (`includes/01-install.php`) wykrywa wcześniejszą
+  konfigurację i zapisuje te moduły jawnie jako włączone, więc zmiana
+  domyślnych niczego nie wyłącza na działającej witrynie.
+  (`includes/01-install.php`, `includes/93-darkmode.php`,
+  `includes/98-accessibility.php`, `includes/90-schema.php`,
+  `includes/opengraph/settings.php`, `includes/30-admin-settings-ajax.php`,
+  `evoke-one.php`)
+- **Smooth Scroll: domyślny lerp 0.08.** Zamiast 0.1 — wartość domyślna
+  odpowiada teraz ustawieniu używanemu w projektach.
+  (`includes/96-lenis.php`)
+- **Elementy Bricks w grupie „Evoke ONE".** Wszystkie sześć elementów siedziało
+  w kategorii `general`, wymieszane z elementami Bricks. Mają teraz własną
+  grupę w panelu buildera. (`includes/bricks-elements/loader.php`)
+- **Spójne nazwy elementów Bricks.** Etykiety były wymieszane językowo i
+  niekonsekwentnie prefiksowane („Evoke Circular Menu", „Kołowy tytuł",
+  „Poziomy Scroll", „Evoke Wave Background"). Teraz odpowiadają jeden do
+  jednego nazwom z zakładki *Frontend → Elementy Bricks*: Marquee, Horizontal
+  Scroll, Scroll Reading, Circular Title, Circular Menu, Wave Background.
+  Każdy element ma też własną, niepowtarzalną ikonę i słowa kluczowe
+  (m.in. `evoke`, żeby wyszukiwarka buildera pokazywała cały zestaw).
+  Slugi elementów (`$name`) pozostały bez zmian — są zapisane w danych stron
+  Bricks i ich zmiana rozwaliłaby istniejące instancje.
+  (`includes/bricks-elements/*/element*.php`)
+
+### Naprawione
+
+- **Suwak lerp nie pozwalał zapisać konkretnej wartości.** Wartość szła z
+  suwaka `<input type="range">` o kroku 0.01 na zakresie 0.01–1, więc trafienie
+  np. w 0.08 wymagało pikselowej precyzji. Pole obok suwaka jest teraz
+  edytowalne i to ono niesie zapisywaną wartość — suwak nim tylko steruje.
+  (`includes/admin/tab-lenis.php`, `assets/admin/admin.js`,
+  `assets/admin/admin.css`)
+- **Scroll Reading ignorował zmianę trybu ciemnego.** Kolory podane jako
+  zmienne CSS (globalne kolory Bricks z odpowiednikiem w dark mode) są
+  rozwijane w JS, bo GSAP nie potrafi tweenować `var(--x)`. Wyliczenie
+  następowało raz, przy starcie strony, więc przełączenie motywu nie zmieniało
+  koloru tekstu — dopiero odświeżenie. Element nasłuchuje teraz zmiany motywu
+  (zdarzenie `evk:theme-change` z modułu Dark Mode, `MutationObserver` na
+  `data-theme`/`.dark` dla dowolnego innego przełącznika oraz
+  `prefers-color-scheme`), przelicza kolory i przebudowuje oś czasu.
+  (`includes/bricks-elements/evoke-scroll-reading/assets/scroll-reading.js`,
+  `includes/93-darkmode.php`)
+- **Circular Menu: nieskuteczny guard koegzystencji.** Klasa żyje w namespace
+  `Bricks`, a sprawdzenie szukało jej w globalnym — samodzielna wtyczka nigdy
+  nie zostałaby wykryta. Guard sprawdza teraz obie formy nazwy klasy.
+  (`includes/bricks-elements/loader.php`, `includes/admin/tab-elementy.php`)
+
 ## [1.19.4] — 2026-07-17
 
 ### Zmienione

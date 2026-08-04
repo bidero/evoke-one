@@ -3,14 +3,19 @@ defined( 'ABSPATH' ) || exit;
 
 class Evk_Scroll_Reading_Element extends \Bricks\Element {
 
-	public $category = 'general';
+	public $category = EVK_BRICKS_CATEGORY;
 	public $name     = 'evk-scroll-reading';
-	public $icon     = 'ti-text';
+	public $icon     = 'ti-align-left';
 	public $tag      = 'div';
 	public $nestable = true;   // ← kluczowe
 
+	// Etykieta musi się zgadzać z evk_elements_registry()['scroll_reading']['label'].
 	public function get_label() {
-		return esc_html__( 'Evoke Scroll Reading', 'evk-scroll-reading' );
+		return 'Scroll Reading';
+	}
+
+	public function get_keywords() {
+		return [ 'evoke', 'scroll', 'reading', 'text', 'tekst', 'split', 'highlight' ];
 	}
 
 	public function enqueue_scripts() {

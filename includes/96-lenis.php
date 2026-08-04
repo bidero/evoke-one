@@ -13,7 +13,7 @@ class EVK_Lenis {
         'enabled'             => 0,
         'auto_raf'            => 1,
         'duration'            => 1.0,
-        'lerp'                => 0.1,
+        'lerp'                => 0.08,
         'wheel_multiplier'    => 1.0,
         'smooth_wheel'        => 1,
         'orientation'         => 'vertical',
@@ -63,7 +63,7 @@ class EVK_Lenis {
 
         $floats = [
             'duration'         => [0.1, 10.0,  1.0],
-            'lerp'             => [0.01, 1.0,   0.1],
+            'lerp'             => [0.01, 1.0,   0.08],
             'wheel_multiplier' => [0.1, 10.0,  1.0],
             'sync_touch_lerp'  => [0.01, 1.0,   0.075],
             'touch_multiplier' => [0.1, 10.0,  1.0],

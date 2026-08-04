@@ -3,14 +3,19 @@ defined( 'ABSPATH' ) || exit;
 
 class Evk_Wave_Bg_Element extends \Bricks\Element {
 
-	public $category = 'general';
+	public $category = EVK_BRICKS_CATEGORY;
 	public $name     = 'evk-wave-bg';
 	public $icon     = 'ti-brush-alt';
 	public $tag      = 'div';
 	public $nestable = false;
 
+	// Etykieta musi się zgadzać z evk_elements_registry()['wave_bg']['label'].
 	public function get_label() {
-		return 'Evoke Wave Background';
+		return 'Wave Background';
+	}
+
+	public function get_keywords() {
+		return [ 'evoke', 'wave', 'background', 'tło', 'gradient', 'three', 'webgl' ];
 	}
 
 	public function set_controls() {

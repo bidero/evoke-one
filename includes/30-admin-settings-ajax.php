@@ -85,7 +85,7 @@ function tl_sanitize_slugs_payload($input): array {
 
 function tl_get_sitemap_settings(): array {
     $defaults = [
-        'enabled'                  => 1,
+        'enabled'                  => 0,
         'include_home'             => 1,
         'include_pages'            => 1,
         'include_posts'            => 1,

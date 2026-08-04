@@ -37,12 +37,14 @@ if (!defined('ABSPATH')) exit;
                         <div class="evo-slider-wrap">
                             <div class="evo-slider-track">
                                 <div class="evo-slider-fill" id="fill-lerp"></div>
-                                <input type="range" class="evo-range" id="lenis_lerp" name="evk_lenis[lerp]" min="0.01" max="1" step="0.01" value="<?php echo esc_attr($lenis['lerp']); ?>">
+                                <!-- Suwak steruje tylko wizualnie — zapisywana jest wartość z pola obok,
+                                     dzięki temu da się ustawić dokładną liczbę (np. 0.08). -->
+                                <input type="range" class="evo-range" id="lenis_lerp" min="0.01" max="1" step="0.005" value="<?php echo esc_attr($lenis['lerp']); ?>">
                                 <div class="evo-slider-thumb" id="thumb-lerp"></div>
                             </div>
-                            <span class="evo-slider-value" id="value-lerp"><?php echo esc_html($lenis['lerp']); ?></span>
+                            <input type="number" class="evo-slider-value" id="value-lerp" name="evk_lenis[lerp]" min="0.01" max="1" step="0.005" value="<?php echo esc_attr($lenis['lerp']); ?>">
                         </div>
-                        <div class="evo-desc">Im mniej, tym płynniej (0.01 – 1.0).</div>
+                        <div class="evo-desc">Im mniej, tym płynniej (0.01 – 1.0). Domyślnie 0.08 — wartość można wpisać ręcznie.</div>
                     </div>
                     <div class="evo-field" style="margin-bottom:0;">
                         <label>Wheel Multiplier</label>

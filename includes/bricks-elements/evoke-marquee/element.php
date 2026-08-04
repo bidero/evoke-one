@@ -3,13 +3,18 @@ defined( 'ABSPATH' ) || exit;
 
 class Evk_Marquee_Element extends \Bricks\Element {
 
-	public $category = 'general';
+	public $category = EVK_BRICKS_CATEGORY;
 	public $name     = 'evk-marquee';
 	public $icon     = 'ti-infinite';
 	public $tag      = 'div';
 
+	// Etykieta musi się zgadzać z evk_elements_registry()['marquee']['label'].
 	public function get_label() {
 		return 'Marquee';
+	}
+
+	public function get_keywords() {
+		return [ 'evoke', 'marquee', 'ticker', 'scroll', 'infinite' ];
 	}
 
 	public function enqueue_scripts() {

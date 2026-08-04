@@ -7,7 +7,7 @@ if (!defined('ABSPATH')) exit;
 // 4. ADMIN PAGE
 // ====================================================================
 add_action('admin_menu', function () {
-    if (empty(get_option('evk_tl_module_enabled', 1))) return;
+    if (empty(get_option('evk_tl_module_enabled', 0))) return;
     $parent = get_option('tl_menu_location', 'options-general.php');
     if ($parent === 'none') {
         add_menu_page(TL_MENU_TITLE, TL_MENU_TITLE, 'evk_access_translations', TL_MENU_SLUG, 'tl_render_page', 'dashicons-translation', 81);

@@ -61,20 +61,51 @@
     /* =========================================================
        RANGE SLIDER HELPER
        ========================================================= */
+    /* Gdy element wartości jest polem <input> (a nie <span>), staje się on
+       źródłem zapisywanej wartości — suwak tylko nim steruje. Dzięki temu
+       można wpisać dokładną liczbę, której nie da się trafić suwakiem. */
     function initSlider(inputId, fillId, thumbId, valueId, min, max) {
         var input = document.getElementById(inputId),
             fill  = document.getElementById(fillId),
             thumb = document.getElementById(thumbId),
             val   = document.getElementById(valueId);
-        if (!input) return;
-        function upd() {
-            var v = parseFloat(input.value), pct = ((v - min) / (max - min)) * 100;
+        if (!input || !val) return;
+
+        var isField = val.tagName === 'INPUT';
+
+        function paint(v) {
+            if (isNaN(v)) return;
+            var pct = ((v - min) / (max - min)) * 100;
             fill.style.width = pct + '%';
             thumb.style.left = pct + '%';
-            val.textContent  = v.toFixed(2);
         }
-        input.addEventListener('input', upd);
-        upd();
+
+        function fromRange() {
+            var v = parseFloat(input.value);
+            paint(v);
+            if (isField) { val.value = v; } else { val.textContent = v.toFixed(2); }
+        }
+
+        function fromField() {
+            var v = parseFloat(val.value);
+            if (isNaN(v)) return;
+            input.value = Math.max(min, Math.min(max, v));
+            paint(parseFloat(input.value));
+        }
+
+        input.addEventListener('input', fromRange);
+
+        if (isField) {
+            val.addEventListener('input', fromField);
+            val.addEventListener('change', function () {
+                var v = parseFloat(val.value);
+                val.value = isNaN(v) ? input.value : Math.max(min, Math.min(max, v));
+                fromField();
+            });
+            paint(parseFloat(val.value));
+        } else {
+            fromRange();
+        }
     }
 
     /* Parallax tab sliders */
