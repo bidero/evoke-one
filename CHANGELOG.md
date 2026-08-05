@@ -2,6 +2,37 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.27.3] — 2026-08-05
+
+### Naprawione
+
+- **Stacking Cards: ostatnia karta nie zatrzymywała się na swoim schodku, tylko
+  wjeżdżała na poprzednie.** Dwie osobne przyczyny, obie zmierzone w Chromium na
+  kartach 100vh — poprzednia próba naprawy (1.27.1/1.27.2) nie mogła zadziałać.
+
+  Po pierwsze, „Zapas pod stosem" szedł w `padding-bottom` kontenera, a sticky
+  trzyma element wyłącznie w granicach **content boxa** rodzica. Padding leży poza
+  nim, więc nie przedłużał fazy przyklejenia ani o piksel: 0 px, 120 px i 400 px
+  paddingu dawały identyczny przebieg, a karta stała 0 px. Zapas realizuje teraz
+  pusty element pod ostatnią kartą — mierzalnie działa.
+
+  Po drugie, sticky zwalnia karty w kolejności **odwrotnej** do ich `top`, a odstęp
+  między zwolnieniami to dokładnie różnica tych wartości. Przy schodkowaniu przez
+  `top` ostatnia karta ruszała pierwsza i wchodziła na poprzednie. Wszystkie karty
+  mają teraz wspólny `top`, a schodek robi `transform` — obraz ten sam, ale
+  zwolnienie równoczesne i schodki zostają nienaruszone, aż stos zjedzie z ekranu.
+  Układ przepływu na to nie wpływał, więc zmiany odstępów nic by nie dały.
+
+### Zmienione
+
+- **Stacking Cards: automatyczny zapas to połowa wysokości ostatniej karty**
+  (mierzonej, bo karty bywają na 100vh) zamiast „liczba kart × schodek", czyli
+  kilkudziesięciu pikseli. Wartość można nadpisać w dowolnej jednostce CSS.
+  Wbrew temu, co mówił poprzedni opis kontrolki, zapas **nie** zostawia pustego
+  miejsca pod stosem — wychodzące karty przykrywają go sobą.
+- **Stacking Cards: zapas przelicza się przy zmianie rozmiaru okna.** Przy
+  kartach na 100vh obrót telefonu zmieniał wysokość karty, a zapas zostawał stary.
+
 ## [1.27.2] — 2026-08-04
 
 ### Naprawione

@@ -113,12 +113,12 @@ function evk_elements_registry(): array {
             'name'  => 'evk-stacking-cards',
             'file'  => $dir . 'evoke-stacking-cards/element.php',
             'consts'=> [
-                'EVK_SC_VERSION' => '1.2.0',
+                'EVK_SC_VERSION' => '1.3.0',
                 'EVK_SC_URL'     => $url . 'evoke-stacking-cards/',
                 'EVK_SC_PATH'    => $dir . 'evoke-stacking-cards/',
             ],
-            'script'=> ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.js', ['evk-gsap', 'evk-scrolltrigger'], '1.2.0'],
-            'style' => ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.css', '1.2.0'],
+            'script'=> ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.js', ['evk-gsap', 'evk-scrolltrigger'], '1.3.0'],
+            'style' => ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.css', '1.3.0'],
         ],
         'wave_bg' => [
             'label' => 'Wave Background',

@@ -3,6 +3,11 @@
  * Cały układ stoi na position:sticky. Zmienne ustawia JS z konfiguracji elementu,
  * dzięki czemu bez JS-a (albo poniżej breakpointu) karty po prostu układają się
  * jedna pod drugą — degradacja jest bezpieczna.
+ *
+ * Wszystkie karty mają WSPÓLNY `top`. Schodkowanie robi transform ustawiany
+ * przez JS — sticky zwalnia karty w kolejności odwrotnej do `top`, więc schodek
+ * przez `top` powodowałby, że ostatnia karta rusza pierwsza i wchodzi na
+ * poprzednie. Szczegóły w stacking-cards.js.
  */
 
 .evk-sc {
@@ -20,7 +25,7 @@
     overflow: visible;
 }
 
-.evk-sc.is-active > * {
+.evk-sc.is-active > *:not(.evk-sc-space) {
     position: sticky;
     top: var(--evk-sc-offset);
     /* Karta pod spodem nie może przykryć tej wchodzącej. */
@@ -29,15 +34,25 @@
 }
 
 /* Poniżej breakpointu (albo bez JS) zwykły przepływ — bez przyklejania. */
-.evk-sc:not(.is-active) > * {
+.evk-sc:not(.is-active) > *:not(.evk-sc-space) {
     position: relative;
     top: auto;
 }
 
 /* Cień oddziela karty od siebie — bez niego stos czyta się płasko.
    Domyślnie rzucany do góry, bo to krawędź, którą widać przy nakładaniu. */
-.evk-sc.has-shadow.is-active > * {
+.evk-sc.has-shadow.is-active > *:not(.evk-sc-space) {
     box-shadow: var(--evk-sc-shadow, 0 -8px 30px rgba(0, 0, 0, .18));
+}
+
+/* Zapas pod stosem: pusty element, bo sticky trzyma kartę wyłącznie w granicach
+   content boxa rodzica — padding-bottom nie przedłuża przyklejenia ani o piksel.
+   Ujemny margines kasuje `gap`, żeby zadana wysokość znaczyła dokładnie tyle,
+   ile mówi. */
+.evk-sc-space {
+    flex: 0 0 auto;
+    margin-top: calc(-1 * var(--evk-sc-gap));
+    pointer-events: none;
 }
 
 /* Uwaga: karty powinny mieć własne tło ustawione w Bricks. Nie narzucamy go tutaj,
@@ -45,7 +60,7 @@
    i nadpisał kolor ustawiony przez użytkownika. */
 
 @media (prefers-reduced-motion: reduce) {
-    .evk-sc.is-active > * {
+    .evk-sc.is-active > *:not(.evk-sc-space) {
         will-change: auto;
     }
 }

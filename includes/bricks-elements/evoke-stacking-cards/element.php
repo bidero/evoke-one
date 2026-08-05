@@ -151,7 +151,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'label'       => esc_html__( 'Zapas pod stosem', 'evk-stacking-cards' ),
 			'type'        => 'text',
 			'placeholder' => esc_html__( 'automat', 'evk-stacking-cards' ),
-			'description' => esc_html__( 'Sticky trzyma kartę tylko dopóki kontener ma pod nią miejsce. Puste = liczba kart × schodek. Przy wysokich kartach to za mało i ostatnia karta odkleja się za szybko — wpisz wtedy np. 50vh. Im większy zapas, tym dłużej ostatnia karta stoi, ale i tym więcej pustego miejsca pod stosem.', 'evk-stacking-cards' ),
+			'description' => esc_html__( 'Jak długo gotowy stos stoi, zanim odjedzie w górę. Puste = połowa wysokości ostatniej karty. Można podać dowolną jednostkę CSS, np. 50vh albo 300px. Zapas nie zostawia pustego miejsca — wychodzący stos przykrywa go sobą.', 'evk-stacking-cards' ),
 		];
 
 		$this->controls['sep_responsive'] = [
