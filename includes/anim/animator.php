@@ -65,6 +65,44 @@ class EVK_Animator {
         add_action('admin_init', [$this, 'register_settings']);
         if (empty($this->get_settings()['enabled'])) return; // nie ładuj asetów gdy wyłączone
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets'], 20);
+        // Priorytet 1 — musi trafić do <head> przed pierwszym malowaniem.
+        add_action('wp_head', [$this, 'render_preveil'], 1);
+    }
+
+    /**
+     * Zasłona przeciw błyskowi treści.
+     *
+     * Skrypt animatora leci ze stopki, razem z GSAP z CDN. Zanim dojedzie
+     * i nałoży stan początkowy (np. opacity: 0), element stoi wyrenderowany
+     * normalnie — widać go, potem skacze do stanu „from" i dopiero animuje.
+     *
+     * Klasę na <html> ustawia mikroskrypt, a nie PHP: przy wyłączonym
+     * JavaScripcie nie wejdzie w ogóle, więc treść nigdy nie zniknie.
+     * Do tego bezpiecznik czasowy — awaria CDN-u nie może ukryć strony na stałe.
+     *
+     * visibility, nie opacity: zachowuje layout, więc pomiary ScrollTriggera
+     * pozostają poprawne.
+     */
+    public function render_preveil(): void {
+        $s = $this->get_settings();
+        if (empty($s['enabled']) || empty($s['animations'])) return;
+        if (empty($s['builder_preview'])
+            && function_exists('bricks_is_builder_main') && bricks_is_builder_main()) {
+            return;
+        }
+        ?>
+<style id="evk-anim-preveil">
+.evk-anim-pending [data-evk-anim],
+.evk-anim-pending [class*="evk-anim-"] { visibility: hidden !important; }
+</style>
+<script id="evk-anim-preveil-js">
+(function () {
+    var h = document.documentElement;
+    h.classList.add('evk-anim-pending');
+    setTimeout(function () { h.classList.remove('evk-anim-pending'); }, 3000);
+})();
+</script>
+        <?php
     }
 
     public function get_settings(): array {
@@ -192,6 +230,10 @@ class EVK_Animator {
             'library'        => $library,
             'presets'        => $presets,
             'reducedMotion'  => !empty($s['reduced_motion']),
+            // Czekanie na webfonty ma sens WYŁĄCZNIE przy podziale tekstu —
+            // tylko tam metryki fontu decydują o łamaniu linii. Przy pozostałych
+            // animacjach to czyste opóźnienie startu i źródło błysku treści.
+            'needsFonts'     => $needs_split,
         ]) . ';', 'before');
     }
 }

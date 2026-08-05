@@ -49,13 +49,16 @@ function evk_stacking_cards_init() {
                 root.style.setProperty('--evk-sc-shadow', cfg.shadowValue || '0 -8px 30px rgba(0,0,0,.18)');
             }
 
-            // Ostatnia karta przykleja się najniżej, a kontener kończy się tuż za
-            // nią — jej faza sticky trwałaby ułamek sekundy i wizualnie sunęłaby
-            // dalej po poprzednich zamiast stanąć na swoim schodku. Dokładamy
-            // tyle miejsca pod stosem, ile wynosi całe schodkowanie.
-            if (stagger > 0) {
-                root.style.paddingBottom = ((cards.length - 1) * stagger) + 'px';
-            }
+            // Sticky trzyma kartę tylko dopóki kontener ma pod nią miejsce.
+            // Kontener kończy się tuż za ostatnią kartą, więc odkleja się ona
+            // niemal natychmiast i sunie w górę po poprzednich zamiast stanąć
+            // na swoim schodku. Zapas pod stosem przedłuża fazę sticky.
+            //
+            // Domyślnie: liczba kart × schodek. Przy wysokich kartach to bywa za
+            // mało — wtedy służy kontrolka „Zapas pod stosem" (np. 50vh).
+            var reserve = (cfg.bottomSpace || '').trim();
+            if (!reserve && stagger > 0) reserve = (cards.length * stagger) + 'px';
+            if (reserve) root.style.paddingBottom = reserve;
 
             cards.forEach(function (card, i) {
                 // Schodkowanie: każda kolejna karta zatrzymuje się nieco niżej,
@@ -69,16 +72,31 @@ function evk_stacking_cards_init() {
                 // Ostatnia karta nie ma nic nad sobą — nie ma czego przyciemniać.
                 if (i === cards.length - 1) return;
 
-                var vars = {};
-                if (cfg.shrink) vars.scale = cfg.minScale || 0.9;
+                // fromTo, nie to: karta nie ma ustawionego filter, więc stan
+                // wyjściowy to `none`. GSAP podstawia wtedy za brakującą funkcję
+                // wartość zerową — brightness(0), czyli CZERŃ — i scrub przewija
+                // od czarnego. Stan początkowy musi być podany jawnie.
+                var fromVars = {};
+                var toVars   = {};
+
+                if (cfg.shrink) {
+                    fromVars.scale = 1;
+                    toVars.scale   = cfg.minScale || 0.9;
+                }
                 // brightness, nie opacity: karta ma ciemnieć, a nie prześwitywać.
                 // Przy opacity widać przez nią tło strony i stos się rozłazi.
-                if (cfg.dim > 0) vars.filter = 'brightness(' + (1 - cfg.dim) + ')';
-                if (!Object.keys(vars).length) return;
+                if (cfg.dim > 0) {
+                    fromVars.filter = 'brightness(1)';
+                    toVars.filter   = 'brightness(' + (1 - cfg.dim) + ')';
+                }
+                if (!Object.keys(toVars).length) return;
 
-                vars.ease = 'none';
+                toVars.ease = 'none';
+                // Bez tego GSAP renderuje stan „from" od razu, zanim wyzwalacz
+                // w ogóle wejdzie w zakres.
+                toVars.immediateRender = false;
 
-                var tl = gsap.to(card, Object.assign(vars, {
+                var tl = gsap.fromTo(card, fromVars, Object.assign(toVars, {
                     scrollTrigger: {
                         trigger: cards[i + 1],
                         start:   'top bottom',

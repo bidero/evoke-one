@@ -311,12 +311,20 @@
     return true;
   }
 
+  /** Zdejmuje zasłonę z <html> (patrz render_preveil() w includes/anim/animator.php). */
+  function unveil() {
+    document.documentElement.classList.remove('evk-anim-pending');
+  }
+
   function initAll() {
     document.querySelectorAll('[class*="evk-anim-"], [data-evk-anim]').forEach(function (el) {
       if (el.dataset.evkAnimReady === '1') return;
       if (initOne(el)) el.dataset.evkAnimReady = '1';
     });
     runLoadQueue();
+    // Bezwarunkowo — także gdy część elementów się nie zainicjalizowała.
+    // Stany „from" są już nałożone, więc nie ma czym błysnąć.
+    unveil();
   }
 
   function waitForGSAP(cb, tries) {
@@ -329,18 +337,24 @@
       setTimeout(function () { waitForGSAP(cb, tries + 1); }, 100);
     } else {
       console.warn('[EVK Animator] Brak GSAP/ScrollTrigger.');
+      unveil();   // GSAP nie dojechał — treść nie może zostać ukryta
     }
   }
 
   function start() {
-    if (!Object.keys(LIBRARY).length && !document.querySelector('[data-evk-anim]')) return;
+    if (!Object.keys(LIBRARY).length && !document.querySelector('[data-evk-anim]')) {
+      unveil();
+      return;
+    }
 
-    // SplitText musi dzielić tekst PO załadowaniu webfontów. Uruchomiony wcześniej
-    // liczy linie na metrykach fontu zastępczego, a po podmianie fontu podział się
-    // rozjeżdża — GSAP ostrzega o tym w konsoli („SplitText called before fonts
-    // loaded"). Czekamy więc na document.fonts.ready; przy braku Font Loading API
-    // startujemy od razu, jak dotąd.
-    if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+    // Na webfonty czekamy TYLKO przy podziale tekstu: jedynie tam metryki fontu
+    // decydują o łamaniu linii. Przy pozostałych animacjach to czyste opóźnienie
+    // startu, przez które element zdąży mrugnąć w stanie docelowym.
+    var waitFonts = G.needsFonts
+        && document.fonts && document.fonts.ready
+        && typeof document.fonts.ready.then === 'function';
+
+    if (waitFonts) {
       document.fonts.ready.then(function () { waitForGSAP(initAll); });
     } else {
       waitForGSAP(initAll);

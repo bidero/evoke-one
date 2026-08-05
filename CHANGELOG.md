@@ -2,6 +2,45 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.27.2] — 2026-08-04
+
+### Naprawione
+
+- **Błysk elementu przed animacją.** Po odświeżeniu element był przez moment
+  widoczny w stanie docelowym, potem skakał do stanu początkowego i dopiero
+  animował. Skrypt animatora ładuje się ze stopki razem z GSAP z CDN, więc przez
+  ten czas element stał wyrenderowany normalnie. Doszła zasłona: `<head>` dostaje
+  regułę ukrywającą elementy z animacją, a silnik zdejmuje ją zaraz po nałożeniu
+  stanów początkowych.
+
+  Klasę na `<html>` ustawia mikroskrypt, nie PHP — przy wyłączonym JavaScripcie
+  nie wejdzie w ogóle i treść pozostaje widoczna. Do tego bezpiecznik czasowy
+  (3 s) oraz zdjęcie zasłony, gdy GSAP w ogóle nie dojedzie: awaria CDN-u nie może
+  ukryć strony na stałe. Użyto `visibility`, nie `opacity` — zachowuje layout,
+  więc pomiary ScrollTriggera pozostają poprawne.
+
+- **Czekanie na webfonty tylko tam, gdzie ma sens.** Od 1.23.3 animator czekał na
+  `document.fonts.ready` przed **każdą** animacją, choć metryki fontu mają
+  znaczenie wyłącznie przy podziale tekstu. Przy wolnych fontach dokładało to
+  setki milisekund i było główną przyczyną błysku. Teraz czeka tylko przy
+  presetach `split-*`. (`includes/anim/animator.php`, `assets/js/animator.js`)
+
+- **Stacking Cards: środkowa karta czerniała w połowie przewijania.** `gsap.to()`
+  na karcie bez ustawionego `filter` startuje od `none`, a GSAP podstawia za
+  brakującą funkcję wartość zerową — czyli `brightness(0)`, czyli czerń — i scrub
+  przewijał od czarnego. Stan początkowy jest teraz podany jawnie przez `fromTo`
+  z `brightness(1)` plus `immediateRender: false`. (Ease był ustawiony poprawnie
+  i nie miał z tym związku.)
+
+### Dodane
+
+- **Stacking Cards: kontrolka „Zapas pod stosem".** Sticky trzyma kartę tylko
+  dopóki kontener ma pod nią miejsce — bez zapasu ostatnia karta odkleja się
+  niemal natychmiast i sunie w górę po poprzednich. Puste pole = *liczba kart ×
+  schodek*. Przy wysokich kartach to za mało; wtedy wpisuje się np. `50vh`.
+  Kompromis jest nieusuwalny: im dłużej ostatnia karta stoi, tym więcej pustego
+  miejsca pod stosem. (`includes/bricks-elements/evoke-stacking-cards/*`)
+
 ## [1.27.1] — 2026-08-04
 
 ### Zmienione
