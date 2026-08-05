@@ -120,13 +120,30 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 
 		$this->controls['dim'] = [
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Przygaszenie', 'evk-stacking-cards' ),
+			'label'       => esc_html__( 'Przyciemnienie', 'evk-stacking-cards' ),
 			'type'        => 'number',
 			'min'         => 0,
-			'max'         => 1,
+			'max'         => 0.8,
 			'step'        => 0.05,
-			'default'     => 0,
-			'description' => esc_html__( '0 = bez przygaszania. 0.4 = karta pod spodem gaśnie do 60% krycia.', 'evk-stacking-cards' ),
+			'default'     => 0.25,
+			'description' => esc_html__( 'Karta pod spodem ciemnieje, ale zostaje nieprzezroczysta — nie prześwituje przez nią tło. 0 = bez przyciemniania.', 'evk-stacking-cards' ),
+		];
+
+		$this->controls['shadow'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Cień kart', 'evk-stacking-cards' ),
+			'type'        => 'checkbox',
+			'default'     => true,
+			'description' => esc_html__( 'Oddziela karty od siebie — bez cienia stos bywa płaski.', 'evk-stacking-cards' ),
+		];
+
+		$this->controls['shadow_value'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Cień (CSS)', 'evk-stacking-cards' ),
+			'type'        => 'text',
+			'default'     => '0 -8px 30px rgba(0,0,0,.18)',
+			'placeholder' => '0 -8px 30px rgba(0,0,0,.18)',
+			'required'    => [ 'shadow', '=', true ],
 		];
 
 		$this->controls['sep_responsive'] = [
@@ -156,7 +173,9 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'stagger'   => (int) ( $s['stagger_offset'] ?? 0 ),
 			'shrink'    => ! isset( $s['shrink'] ) || ! empty( $s['shrink'] ),
 			'minScale'  => (float) ( $s['min_scale'] ?? 0.9 ),
-			'dim'       => (float) ( $s['dim'] ?? 0 ),
+			'dim'       => (float) ( $s['dim'] ?? 0.25 ),
+			'shadow'    => ! isset( $s['shadow'] ) || ! empty( $s['shadow'] ),
+			'shadowValue'  => sanitize_text_field( $s['shadow_value'] ?? '' ) ?: '0 -8px 30px rgba(0,0,0,.18)',
 			'disableBelow' => (int) ( $s['disable_below'] ?? 768 ),
 		];
 

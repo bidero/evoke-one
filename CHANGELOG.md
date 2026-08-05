@@ -2,6 +2,27 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.27.1] — 2026-08-04
+
+### Zmienione
+
+- **Stacking Cards: karta pod spodem ciemnieje zamiast prześwitywać.** Wcześniej
+  efekt szedł przez `opacity`, więc przez kartę widać było tło strony i stos się
+  rozłaził. Teraz `filter: brightness()` — karta zostaje nieprzezroczysta, po
+  prostu ciemniejsza. Kontrolka nazywa się „Przyciemnienie", domyślnie 0.25.
+- **Stacking Cards: cień kart.** Nowy włącznik (domyślnie włączony) plus pole na
+  własną wartość CSS. Domyślnie cień rzucany do góry — to ta krawędź, którą widać
+  przy nakładaniu. Bez cienia stos czyta się płasko.
+
+### Naprawione
+
+- **Stacking Cards: ostatnia karta nie zatrzymywała się na swoim schodku.**
+  Kontener kończył się tuż za nią, więc jej faza `sticky` trwała ułamek chwili
+  i karta sunęła dalej po poprzednich zamiast stanąć. Przy włączonym schodkowaniu
+  kontener dostaje teraz na dole tyle miejsca, ile wynosi całe schodkowanie
+  — każda karta, łącznie z ostatnią, dojeżdża do swojej pozycji i na niej zostaje.
+  (`includes/bricks-elements/evoke-stacking-cards/assets/stacking-cards.js`)
+
 ## [1.27.0] — 2026-08-04
 
 ### Dodane

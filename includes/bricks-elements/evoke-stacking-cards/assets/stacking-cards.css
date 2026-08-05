@@ -34,6 +34,16 @@
     top: auto;
 }
 
+/* Cień oddziela karty od siebie — bez niego stos czyta się płasko.
+   Domyślnie rzucany do góry, bo to krawędź, którą widać przy nakładaniu. */
+.evk-sc.has-shadow.is-active > * {
+    box-shadow: var(--evk-sc-shadow, 0 -8px 30px rgba(0, 0, 0, .18));
+}
+
+/* Uwaga: karty powinny mieć własne tło ustawione w Bricks. Nie narzucamy go tutaj,
+   bo selektor `.evk-sc.is-active > *` wygrałby specyficznością z klasą Bricks
+   i nadpisał kolor ustawiony przez użytkownika. */
+
 @media (prefers-reduced-motion: reduce) {
     .evk-sc.is-active > * {
         will-change: auto;

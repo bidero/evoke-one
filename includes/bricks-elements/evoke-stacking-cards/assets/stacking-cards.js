@@ -37,12 +37,25 @@ function evk_stacking_cards_init() {
         function teardown() {
             triggers.forEach(function (t) { t.kill(); });
             triggers = [];
-            gsap.set(cards, { clearProps: 'transform,opacity' });
-            root.classList.remove('is-active');
+            gsap.set(cards, { clearProps: 'transform,filter' });
+            root.style.paddingBottom = '';
+            root.classList.remove('is-active', 'has-shadow');
         }
 
         function setup() {
             root.classList.add('is-active');
+            if (cfg.shadow) {
+                root.classList.add('has-shadow');
+                root.style.setProperty('--evk-sc-shadow', cfg.shadowValue || '0 -8px 30px rgba(0,0,0,.18)');
+            }
+
+            // Ostatnia karta przykleja się najniżej, a kontener kończy się tuż za
+            // nią — jej faza sticky trwałaby ułamek sekundy i wizualnie sunęłaby
+            // dalej po poprzednich zamiast stanąć na swoim schodku. Dokładamy
+            // tyle miejsca pod stosem, ile wynosi całe schodkowanie.
+            if (stagger > 0) {
+                root.style.paddingBottom = ((cards.length - 1) * stagger) + 'px';
+            }
 
             cards.forEach(function (card, i) {
                 // Schodkowanie: każda kolejna karta zatrzymuje się nieco niżej,
@@ -53,12 +66,14 @@ function evk_stacking_cards_init() {
                 // Karty wyżej w stosie muszą leżeć nad wcześniejszymi.
                 card.style.zIndex = String(i + 1);
 
-                // Ostatnia karta nie ma nic nad sobą — nie ma czego przygaszać.
+                // Ostatnia karta nie ma nic nad sobą — nie ma czego przyciemniać.
                 if (i === cards.length - 1) return;
 
                 var vars = {};
                 if (cfg.shrink) vars.scale = cfg.minScale || 0.9;
-                if (cfg.dim > 0) vars.opacity = 1 - cfg.dim;
+                // brightness, nie opacity: karta ma ciemnieć, a nie prześwitywać.
+                // Przy opacity widać przez nią tło strony i stos się rozłazi.
+                if (cfg.dim > 0) vars.filter = 'brightness(' + (1 - cfg.dim) + ')';
                 if (!Object.keys(vars).length) return;
 
                 vars.ease = 'none';
