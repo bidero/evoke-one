@@ -248,6 +248,22 @@ function evk_bricks_animator_controls(array $controls): array {
         ];
     }
 
+    // Kolejność nie da się warunkować na evkAnimTrigger: wyzwalacz bywa pusty
+    // („— z biblioteki —"), a wtedy 'load' przychodzi z wiersza biblioteki,
+    // o którym panel elementu nic nie wie. Stąd informacja w etykiecie.
+    $controls['evkAnimOrder'] = [
+        'tab'         => evk_bricks_controls_tab(),
+        'group'       => evk_bricks_target_group(),
+        'label'       => esc_html__('Kolejność (tylko wczytanie strony)', 'evoke-one'),
+        'type'        => 'number',
+        'min'         => 0,
+        'max'         => 999,
+        'step'        => 1,
+        'placeholder' => esc_html__('z biblioteki', 'evoke-one'),
+        'description' => esc_html__('Krok sekwencji startowej. Elementy z tym samym numerem ruszają razem, kolejny numer czeka, aż poprzedni krok się skończy. Opóźnienie liczy się od początku swojego kroku.', 'evoke-one'),
+        'required'    => $required,
+    ];
+
     $controls['evkAnimStart'] = [
         'tab'         => evk_bricks_controls_tab(),
         'group'       => evk_bricks_target_group(),
@@ -326,6 +342,10 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
         }
         foreach (['evkAnimDuration' => 'duration', 'evkAnimDelay' => 'delay', 'evkAnimStagger' => 'stagger'] as $id => $prop) {
             if (isset($s[$id]) && $s[$id] !== '') $cfg[$prop] = floatval($s[$id]);
+        }
+        // Osobno, bo kolejność to numer kroku — pętla obok rzutuje na float.
+        if (isset($s['evkAnimOrder']) && $s['evkAnimOrder'] !== '') {
+            $cfg['order'] = intval($s['evkAnimOrder']);
         }
         if (!empty($s['evkAnimStart'])) {
             $cfg['start'] = sanitize_text_field($s['evkAnimStart']);

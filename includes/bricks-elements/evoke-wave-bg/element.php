@@ -407,11 +407,19 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		);
 		?>
 <script type="module">
-import * as THREE from 'https://esm.sh/three@0.128.0';
-import { EffectComposer } from 'https://esm.sh/three@0.128.0/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass }     from 'https://esm.sh/three@0.128.0/examples/jsm/postprocessing/RenderPass.js';
-import { ShaderPass }     from 'https://esm.sh/three@0.128.0/examples/jsm/postprocessing/ShaderPass.js';
-import gsap from 'https://esm.sh/gsap';
+import * as THREE from 'https://esm.sh/three@0.185.1';
+import { EffectComposer } from 'https://esm.sh/three@0.185.1/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass }     from 'https://esm.sh/three@0.185.1/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass }     from 'https://esm.sh/three@0.185.1/examples/jsm/postprocessing/ShaderPass.js';
+import gsap from 'https://esm.sh/gsap@<?php echo EVK_GSAP_VERSION; ?>';
+
+// three ≥0.152 domyślnie włącza zarządzanie kolorem: `new THREE.Color('#hex')`
+// przelicza sRGB na przestrzeń liniową. Ten element podaje kolory wprost do
+// własnego ShaderMaterial i renderuje przez EffectComposer bez OutputPass, więc
+// nic tej konwersji nie odwraca — gradient wyszedłby ciemniejszy niż dotąd.
+// Wyłączenie przywraca zachowanie sprzed 0.152, czyli dokładnie ten obraz,
+// który jest na stronach dziś.
+THREE.ColorManagement.enabled = false;
 
 const CONFIG       = <?php echo $cfg_js; ?>;
 const CONTAINER_ID = <?php echo wp_json_encode( $uid ); ?>;

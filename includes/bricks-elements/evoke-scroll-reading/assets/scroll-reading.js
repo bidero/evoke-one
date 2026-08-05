@@ -68,8 +68,22 @@
       var splitTypeMap = { words: 'words', chars: 'chars', lines: 'lines' };
       var splitBy = splitTypeMap[cfg.splitType] || 'words';
 
+      // tag + aria, bo element jest nestable — dzielimy KONTENER z dowolnymi
+      // dziećmi Bricks, a nie pojedynczy nagłówek.
+      //
+      // aria:'none' — domyślne 'auto' ustawia na kontenerze aria-label z surowego
+      // textContent (na granicy bloków wyrazy się sklejają: „ProjektujemyRobimy")
+      // i oznacza każdy kawałek aria-hidden. Zmierzone w drzewie dostępności:
+      // nagłówek i odnośnik traciły przez to swoje nazwy, a etykieta lądowała na
+      // elemencie o roli generic, gdzie i tak nie jest wiarygodnie ogłaszana.
+      //
+      // tag:'span' — domyślne div-y wchodzą do drzewa dostępności jako bloki;
+      // spany są dla niego przezroczyste. Wygląd bez zmian, bo CSS elementu
+      // celuje w klasy, nie w znaczniki.
       var split = new SplitText(el, {
         type: splitBy,
+        tag: 'span',
+        aria: 'none',
         wordsClass: 'evk-sr-word',
         charsClass: 'evk-sr-char',
         linesClass: 'evk-sr-line',

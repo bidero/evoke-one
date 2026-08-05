@@ -74,6 +74,36 @@ function evk_anim_presets(): array {
             'to'       => ['clipPath' => 'inset(0% 0% 0% 0%)',   'y' => 0],
             'duration' => 1.0,
         ],
+        'mask-left' => [
+            'label'    => 'Odsłona maską (z lewej)',
+            'from'     => ['clipPath' => 'inset(0% 100% 0% 0%)'],
+            'to'       => ['clipPath' => 'inset(0% 0% 0% 0%)'],
+            'duration' => 1.0,
+        ],
+        'mask-right' => [
+            'label'    => 'Odsłona maską (z prawej)',
+            'from'     => ['clipPath' => 'inset(0% 0% 0% 100%)'],
+            'to'       => ['clipPath' => 'inset(0% 0% 0% 0%)'],
+            'duration' => 1.0,
+        ],
+        'flip-x' => [
+            'label'    => 'Flip 3D (w poziomie)',
+            'from'     => ['opacity' => 0, 'rotationX' => -70, 'transformPerspective' => 800],
+            'to'       => ['opacity' => 1, 'rotationX' => 0],
+            'duration' => 1.0,
+        ],
+        'flip-y' => [
+            'label'    => 'Flip 3D (w pionie)',
+            'from'     => ['opacity' => 0, 'rotationY' => -70, 'transformPerspective' => 800],
+            'to'       => ['opacity' => 1, 'rotationY' => 0],
+            'duration' => 1.0,
+        ],
+        'skew-in' => [
+            'label'    => 'Skew',
+            'from'     => ['opacity' => 0, 'skewY' => 6, 'y' => 40],
+            'to'       => ['opacity' => 1, 'skewY' => 0, 'y' => 0],
+            'duration' => 0.9,
+        ],
         'split-lines' => [
             'label'    => 'Tekst po liniach',
             'split'    => 'lines',
@@ -81,6 +111,18 @@ function evk_anim_presets(): array {
             'to'       => ['opacity' => 1, 'y' => 0],
             'duration' => 0.7,
             'stagger'  => 0.08,
+        ],
+        // 'mask' => 'lines' każe SplitText owinąć każdą linię w overflow:hidden,
+        // dzięki czemu tekst wyjeżdża zza krawędzi zamiast po prostu się przesuwać.
+        // Wymaga GSAP 3.13+ (ładujemy dokładnie tę wersję).
+        'split-lines-mask' => [
+            'label'    => 'Tekst po liniach (zza maski)',
+            'split'    => 'lines',
+            'mask'     => 'lines',
+            'from'     => ['yPercent' => 110],
+            'to'       => ['yPercent' => 0],
+            'duration' => 0.9,
+            'stagger'  => 0.1,
         ],
         'split-words' => [
             'label'    => 'Tekst po słowach',

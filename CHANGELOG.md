@@ -2,6 +2,244 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.28.1] — 2026-08-05
+
+### Naprawione
+
+- **Opóźnienie nie działało przy wyzwalaczu „wczytanie strony".** Kolejka startowa
+  wstawiała animacje na oś czasu pod pozycją `'+=' + opóźnienie`, a w GSAP `'+='`
+  liczy się od **końca** dotychczasowej osi, nie od jej początku — opóźnienia
+  sumowały się z czasami trwania wszystkich wcześniejszych animacji. Zmierzone:
+  ustawione 0 / 0,3 / 0,6 s dawało starty 0 / 1,1 / 2,5 s, a cała sekwencja
+  ciągnęła się 3,3 s zamiast 1,4 s. Pojedynczy element na stronie działał
+  poprawnie, dlatego usterka umykała przy pobieżnym teście.
+
+  Pozycja jest teraz liczbowa, czyli bezwzględna względem początku sekwencji —
+  wpisana wartość znaczy dokładnie tyle, ile mówi etykieta.
+
+- **Błędny `aria-label` w Scroll Reading.** Etykietę dokładał SplitText: domyślne
+  `aria: "auto"` ustawia ją z surowego `textContent` kontenera i oznacza każdy
+  kawałek `aria-hidden`. Element jest nestable, więc dzieli **kontener z dowolnymi
+  dziećmi Bricks** — na granicy bloków wyrazy się sklejały („ProjektujemyRobimy"),
+  a co gorsza cała treść znikała z drzewa dostępności: zmierzone w Chromium
+  nagłówek i odnośnik zostawały bez nazw, przez co link stawał się dla czytnika
+  ekranu bezimienny.
+
+  Podział woła teraz SplitText z `aria: 'none'` i `tag: 'span'`. Po zmianie drzewo
+  dostępności pokazuje `heading: "Projektujemy"` i `link: "piszemy o tym"`, a żaden
+  kawałek nie jest ukryty. Wygląd bez zmian — CSS elementu celuje w klasy, nie
+  w znaczniki, co potwierdzono pomiarem `display` dla wszystkich trzech trybów
+  podziału.
+
+- **Ten sam błąd w Animatorze, ale tylko na kontenerach.** Przy pojedynczym
+  nagłówku czy akapicie zachowanie GSAP-a jest poprawne — element ma własną rolę,
+  więc `aria-label` działa, a ukrycie kawałków jest zalecane. Psuje się dopiero
+  na elemencie z wieloma dziećmi, więc `aria: 'none'` włącza się wyłącznie tam.
+  Znacznik zostaje domyślny: SplitText nakłada `display` i `position` tylko gdy
+  `tag !== 'span'`, a na pudełkach `inline` transformacje nie działają.
+
+### Dodane
+
+- **„Kolejność" w kontrolkach elementu Bricks.** Dotąd była wyłącznie w bibliotece,
+  więc każdy element ustawiany w panelu siedział w kroku zerowym.
+- **„Kolejność" wreszcie coś znaczy.** Po przejściu na pozycje bezwzględne samo
+  sortowanie nie wpływałoby na nic. Teraz to **krok sekwencji**: elementy z tym
+  samym numerem ruszają razem, kolejny numer czeka, aż poprzedni krok się skończy,
+  a opóźnienie liczy się od początku swojego kroku.
+
+## [1.28.0] — 2026-08-05
+
+### Naprawione
+
+- **Scroll zacinał się na telefonie na całej stronie.** Regresja z 1.27.3: Stacking
+  Cards nasłuchiwały `resize` i na każde zdarzenie wołały `ScrollTrigger.refresh()`.
+  Na telefonie `resize` wypala przy każdym chowaniu i pokazywaniu paska adresu,
+  czyli w trakcie przewijania, a refresh przemierza **wszystkie** triggery na
+  stronie — także Animatora. Stąd zacięcie wszędzie, nie tylko przy stosie.
+
+  Rozpórka przelicza się teraz w zdarzeniu `refreshInit`, tuż przed pomiarem
+  ScrollTriggera: pomiar zostaje spójny, ale o czas refreshu decyduje ScrollTrigger,
+  a nie my. Do tego cała wtyczka ustawia `ScrollTrigger.config({ignoreMobileResize:
+  true})`, więc sam pasek adresu nie wywołuje już przemiaru w żadnym module.
+
+- **Lenis nie był spięty ze ScrollTriggerem.** Brakowało `lenis.on('scroll',
+  ScrollTrigger.update)`, przez co ScrollTrigger polegał na natywnych zdarzeniach
+  scrolla, które Lenis modyfikuje — scrub potrafił zostawać w tyle za obrazem.
+  Lenis jechał też własną pętlą `requestAnimationFrame` obok tickera GSAP-a;
+  teraz, gdy GSAP jest na stronie, obie animacje idą z jednego zegara.
+
+- **Moduł Kursor ładował drugą kopię GSAP-a** (własny handle `gsap`, wersja 3.12.2)
+  obok wspólnej z `includes/89-gsap.php`. Na stronie z Animatorem albo elementem
+  Bricks pobierały się dwie biblioteki w dwóch różnych wersjach. Teraz korzysta ze
+  wspólnego handle'a.
+
+### Zmienione
+
+- **Wszystkie biblioteki zewnętrzne podbite do najnowszych wydań:**
+
+  | Biblioteka | Było | Jest |
+  |---|---|---|
+  | GSAP | 3.13.0 (a w Marquee i Horizontal Scroll 3.12.5, w Kursorze 3.12.2) | **3.15.0** wszędzie |
+  | Lenis | `@studio-freight/lenis` 1.0.42 | **`lenis` 1.3.26** |
+  | three.js | 0.128.0 | **0.185.1** |
+  | Chart.js | 4.4.0 | **4.5.1** |
+  | SortableJS | 1.15.2 | **1.15.7** |
+
+- **Dwie kontrolki Smooth Scroll wreszcie coś robią.** Paczka `@studio-freight/lenis`
+  została porzucona na 1.0.42, a wtyczka wysyłała jej opcje z gałęzi 1.3:
+  `touchInertiaExponent` i `overscroll` w tamtej wersji nie istniały i były po cichu
+  ignorowane. Widełki suwaka bezwładności (1.0–5.0, domyślnie 1.7) od początku
+  opisywały wersję 1.3 — po podbiciu zgadzają się z biblioteką. Arkusz Lenisa
+  zaktualizowany do wydania 1.3.26.
+
+- **Wave Background wyłącza zarządzanie kolorem three.js.** Od 0.152 `new
+  THREE.Color('#hex')` przelicza sRGB na przestrzeń liniową. Element podaje kolory
+  wprost do własnego ShaderMaterial i renderuje przez EffectComposer bez OutputPass,
+  więc nic tej konwersji nie odwraca — sprawdzone: `#3366ff` dałoby
+  `[0.033, 0.133, 1]` zamiast `[0.2, 0.4, 1]`, czyli wyraźnie ciemniejszy gradient.
+  `ColorManagement.enabled = false` zachowuje obraz sprzed podbicia.
+
+## [1.27.3] — 2026-08-05
+
+### Naprawione
+
+- **Stacking Cards: ostatnia karta nie zatrzymywała się na swoim schodku, tylko
+  wjeżdżała na poprzednie.** Dwie osobne przyczyny, obie zmierzone w Chromium na
+  kartach 100vh — poprzednia próba naprawy (1.27.1/1.27.2) nie mogła zadziałać.
+
+  Po pierwsze, „Zapas pod stosem" szedł w `padding-bottom` kontenera, a sticky
+  trzyma element wyłącznie w granicach **content boxa** rodzica. Padding leży poza
+  nim, więc nie przedłużał fazy przyklejenia ani o piksel: 0 px, 120 px i 400 px
+  paddingu dawały identyczny przebieg, a karta stała 0 px. Zapas realizuje teraz
+  pusty element pod ostatnią kartą — mierzalnie działa.
+
+  Po drugie, sticky zwalnia karty w kolejności **odwrotnej** do ich `top`, a odstęp
+  między zwolnieniami to dokładnie różnica tych wartości. Przy schodkowaniu przez
+  `top` ostatnia karta ruszała pierwsza i wchodziła na poprzednie. Wszystkie karty
+  mają teraz wspólny `top`, a schodek robi `transform` — obraz ten sam, ale
+  zwolnienie równoczesne i schodki zostają nienaruszone, aż stos zjedzie z ekranu.
+  Układ przepływu na to nie wpływał, więc zmiany odstępów nic by nie dały.
+
+### Zmienione
+
+- **Stacking Cards: automatyczny zapas to połowa wysokości ostatniej karty**
+  (mierzonej, bo karty bywają na 100vh) zamiast „liczba kart × schodek", czyli
+  kilkudziesięciu pikseli. Wartość można nadpisać w dowolnej jednostce CSS.
+  Wbrew temu, co mówił poprzedni opis kontrolki, zapas **nie** zostawia pustego
+  miejsca pod stosem — wychodzące karty przykrywają go sobą.
+- **Stacking Cards: zapas przelicza się przy zmianie rozmiaru okna.** Przy
+  kartach na 100vh obrót telefonu zmieniał wysokość karty, a zapas zostawał stary.
+
+## [1.27.2] — 2026-08-04
+
+### Naprawione
+
+- **Błysk elementu przed animacją.** Po odświeżeniu element był przez moment
+  widoczny w stanie docelowym, potem skakał do stanu początkowego i dopiero
+  animował. Skrypt animatora ładuje się ze stopki razem z GSAP z CDN, więc przez
+  ten czas element stał wyrenderowany normalnie. Doszła zasłona: `<head>` dostaje
+  regułę ukrywającą elementy z animacją, a silnik zdejmuje ją zaraz po nałożeniu
+  stanów początkowych.
+
+  Klasę na `<html>` ustawia mikroskrypt, nie PHP — przy wyłączonym JavaScripcie
+  nie wejdzie w ogóle i treść pozostaje widoczna. Do tego bezpiecznik czasowy
+  (3 s) oraz zdjęcie zasłony, gdy GSAP w ogóle nie dojedzie: awaria CDN-u nie może
+  ukryć strony na stałe. Użyto `visibility`, nie `opacity` — zachowuje layout,
+  więc pomiary ScrollTriggera pozostają poprawne.
+
+- **Czekanie na webfonty tylko tam, gdzie ma sens.** Od 1.23.3 animator czekał na
+  `document.fonts.ready` przed **każdą** animacją, choć metryki fontu mają
+  znaczenie wyłącznie przy podziale tekstu. Przy wolnych fontach dokładało to
+  setki milisekund i było główną przyczyną błysku. Teraz czeka tylko przy
+  presetach `split-*`. (`includes/anim/animator.php`, `assets/js/animator.js`)
+
+- **Stacking Cards: środkowa karta czerniała w połowie przewijania.** `gsap.to()`
+  na karcie bez ustawionego `filter` startuje od `none`, a GSAP podstawia za
+  brakującą funkcję wartość zerową — czyli `brightness(0)`, czyli czerń — i scrub
+  przewijał od czarnego. Stan początkowy jest teraz podany jawnie przez `fromTo`
+  z `brightness(1)` plus `immediateRender: false`. (Ease był ustawiony poprawnie
+  i nie miał z tym związku.)
+
+### Dodane
+
+- **Stacking Cards: kontrolka „Zapas pod stosem".** Sticky trzyma kartę tylko
+  dopóki kontener ma pod nią miejsce — bez zapasu ostatnia karta odkleja się
+  niemal natychmiast i sunie w górę po poprzednich. Puste pole = *liczba kart ×
+  schodek*. Przy wysokich kartach to za mało; wtedy wpisuje się np. `50vh`.
+  Kompromis jest nieusuwalny: im dłużej ostatnia karta stoi, tym więcej pustego
+  miejsca pod stosem. (`includes/bricks-elements/evoke-stacking-cards/*`)
+
+## [1.27.1] — 2026-08-04
+
+### Zmienione
+
+- **Stacking Cards: karta pod spodem ciemnieje zamiast prześwitywać.** Wcześniej
+  efekt szedł przez `opacity`, więc przez kartę widać było tło strony i stos się
+  rozłaził. Teraz `filter: brightness()` — karta zostaje nieprzezroczysta, po
+  prostu ciemniejsza. Kontrolka nazywa się „Przyciemnienie", domyślnie 0.25.
+- **Stacking Cards: cień kart.** Nowy włącznik (domyślnie włączony) plus pole na
+  własną wartość CSS. Domyślnie cień rzucany do góry — to ta krawędź, którą widać
+  przy nakładaniu. Bez cienia stos czyta się płasko.
+
+### Naprawione
+
+- **Stacking Cards: ostatnia karta nie zatrzymywała się na swoim schodku.**
+  Kontener kończył się tuż za nią, więc jej faza `sticky` trwała ułamek chwili
+  i karta sunęła dalej po poprzednich zamiast stanąć. Przy włączonym schodkowaniu
+  kontener dostaje teraz na dole tyle miejsca, ile wynosi całe schodkowanie
+  — każda karta, łącznie z ostatnią, dojeżdża do swojej pozycji i na niej zostaje.
+  (`includes/bricks-elements/evoke-stacking-cards/assets/stacking-cards.js`)
+
+## [1.27.0] — 2026-08-04
+
+### Dodane
+
+- **Nowy element Bricks: Stacking Cards.** Karty nakładające się przy scrollu.
+  Element nestable — kontener plus karty jako dzieci, trzy na start.
+  - **Mechanika na `position: sticky`, nie na `ScrollTrigger.pin`.** Sticky nie
+    tworzy pin-spacerów, nie przelicza wysokości i nie rozjeżdża layoutu przy
+    zmianie rozmiaru okna. GSAP dokłada wyłącznie skalowanie i przygaszanie kart,
+    które zostają pod spodem.
+  - Kontrolki: offset od góry, odstęp między kartami, schodkowanie (każda kolejna
+    karta zatrzymuje się niżej, więc widać krawędzie tych pod spodem), skala
+    docelowa, przygaszenie, wyłączenie poniżej zadanej szerokości.
+  - Breakpoint przez `matchMedia`, nie przez pomiar przy starcie — obrót telefonu
+    przełącza tryb bez przeładowania strony.
+  - Bez JS-a albo poniżej breakpointu karty układają się normalnie, jedna pod
+    drugą. Degradacja jest bezpieczna: `sticky` włącza dopiero klasa dodawana
+    przez skrypt.
+  - Element startuje wyłączony, jak reszta — *Frontend → Elementy Bricks*.
+  (`includes/bricks-elements/evoke-stacking-cards/*`,
+  `includes/bricks-elements/loader.php`, `includes/30-admin-settings-ajax.php`)
+
+## [1.26.0] — 2026-08-04
+
+### Dodane
+
+- **Cel animacji: sam element, jego dzieci albo selektor w środku.** Nowe pole
+  w wierszu biblioteki. Do tej pory animator celował zawsze w jeden element, przez
+  co **pole „stagger" nie robiło nic poza tekstem** — nie miało czego rozsuwać,
+  choć w panelu wyglądało na sprawne. Teraz siatka kart z celem „dzieci elementu"
+  i staggerem pojawia się jedna po drugiej. Błędna składnia selektora jest łapana
+  i zgłaszana w konsoli zamiast wywalać inicjalizację całej strony.
+- **Pin przy wyzwalaczu scrub.** Element trzyma się ekranu, dopóki animacja się nie
+  dokończy. Świadomie tylko przy scrubie — przy pozostałych wyzwalaczach nie ma
+  czego przytrzymywać, a pin tworzy pin-spacer rozpychający layout.
+- **6 nowych presetów:** odsłona maską z lewej i z prawej, flip 3D w poziomie
+  i w pionie, skew oraz **tekst po liniach zza maski** (`mask: "lines"` z GSAP 3.13
+  — SplitText sam robi owijki `overflow:hidden`, bez ręcznego CSS-u). Razem 20.
+
+### Naprawione
+
+- **Podział tekstu nie przeżywał zmiany szerokości okna.** Tekst dzielony był raz;
+  po zmianie rozmiaru łamanie linii się zmieniało, a kawałki zostawały
+  z poprzedniego rozmiaru i animacja się rozjeżdżała. Presety `split-*` używają
+  teraz `SplitText.create()` z `autoSplit`, a `onSplit()` zwraca oś czasu, dzięki
+  czemu GSAP sam sprząta ją przed kolejnym podziałem zamiast zostawiać tweeny na
+  nieistniejących węzłach. Kolejka animacji „load" nie odtwarza się przy ponownym
+  podziale — wejście na stronę było już raz. Przy GSAP starszym niż 3.13 zachowanie
+  wraca do jednorazowego podziału. (`assets/js/animator.js`)
+
 ## [1.25.0] — 2026-08-04
 
 Wydanie scala iteracje 1.21–1.24, które nigdy nie zostały otagowane. Opisuje stan

@@ -3,7 +3,15 @@ if (!defined('ABSPATH')) exit;
 
 /**
  * Evoke One — Moduł Smooth Scroll (Lenis)
+ *
+ * Paczka `@studio-freight/lenis` została porzucona na 1.0.42 — biblioteka żyje
+ * dalej pod nazwą `lenis`. Stara wersja nie znała `touchInertiaExponent`ani
+ * `overscroll`, więc dwie kontrolki w panelu były martwe: widełki suwaka
+ * bezwładności (1.0–5.0, domyślnie 1.7) opisują opcję z 1.3, nie z 1.0.42.
  */
+
+/** Wersja Lenisa — pojedyncze miejsce dla URL-a i cache-bustera. */
+const EVK_LENIS_VERSION = '1.3.26';
 
 class EVK_Lenis {
 
@@ -88,12 +96,19 @@ class EVK_Lenis {
         $s = $this->get_settings();
         if (empty($s['enabled'])) return;
         if (function_exists('bricks_is_builder_main') && bricks_is_builder_main()) return;
+        // Odpowiednik dist/lenis.css z przypiętej wersji — trzymamy go inline,
+        // żeby nie dokładać osobnego żądania. Przy podbiciu Lenisa sprawdź,
+        // czy arkusz się nie zmienił: https://unpkg.com/lenis/dist/lenis.css
         echo '<style id="evk-lenis-css">
 html.lenis,html.lenis body{height:auto;}
-.lenis.lenis-smooth{scroll-behavior:auto!important;}
-.lenis.lenis-smooth [data-lenis-prevent]{overscroll-behavior:contain;}
-.lenis.lenis-stopped{overflow:hidden;}
-.lenis.lenis-scrolling iframe{pointer-events:none;}
+.lenis:not(.lenis-autoToggle).lenis-stopped{overflow:clip;}
+.lenis [data-lenis-prevent],
+.lenis [data-lenis-prevent-wheel],
+.lenis [data-lenis-prevent-touch],
+.lenis [data-lenis-prevent-vertical],
+.lenis [data-lenis-prevent-horizontal]{overscroll-behavior:contain;}
+.lenis.lenis-smooth iframe{pointer-events:none;}
+.lenis.lenis-autoToggle{transition-property:overflow;transition-duration:1ms;transition-behavior:allow-discrete;}
 </style>';
     }
 
@@ -105,14 +120,15 @@ html.lenis,html.lenis body{height:auto;}
 
         wp_enqueue_script(
             'evk-lenis-lib',
-            'https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js',
+            'https://unpkg.com/lenis@' . EVK_LENIS_VERSION . '/dist/lenis.min.js',
             [],
-            '1.0.42',
+            EVK_LENIS_VERSION,
             true
         );
 
         $js = sprintf(
             "document.addEventListener('DOMContentLoaded',function(){
+    var autoRaf = %s;
     var lenis = new Lenis({
         duration: %s,
         lerp: %s,
@@ -127,18 +143,40 @@ html.lenis,html.lenis body{height:auto;}
         infinite: %s,
         overscroll: %s,
     });
-    if (%s) {
-        function raf(time){ lenis.raf(time); requestAnimationFrame(raf); }
-        requestAnimationFrame(raf);
+    window.evkLenis = lenis;
+
+    var rafId = null;
+    function raf(time){ lenis.raf(time); rafId = requestAnimationFrame(raf); }
+    if (autoRaf) rafId = requestAnimationFrame(raf);
+
+    // Spięcie z GSAP-em. Bez lenis.on('scroll', ScrollTrigger.update) ScrollTrigger
+    // polega na natywnych zdarzeniach scrolla, które Lenis modyfikuje — scrub
+    // zostaje w tyle za obrazem. Bez wspólnego tickera lecą dwie niezależne pętle
+    // rAF, każda z własnym czasem. Lenis i GSAP jadą z dwóch różnych CDN-ów i oba
+    // lądują w stopce, więc kolejność nie jest gwarantowana — stąd odpytanie.
+    function when(test, done, tries){
+        tries = tries || 0;
+        if (test()) { done(); return; }
+        if (tries < 50) setTimeout(function(){ when(test, done, tries + 1); }, 100);
     }
+    when(function(){ return window.ScrollTrigger; }, function(){
+        lenis.on('scroll', ScrollTrigger.update);
+    });
+    when(function(){ return window.gsap; }, function(){
+        if (!autoRaf) return;   // pętlę prowadzi ktoś inny — nie odbieramy jej
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        gsap.ticker.add(function(t){ lenis.raf(t * 1000); });
+        gsap.ticker.lagSmoothing(0);
+    });
+
     document.querySelectorAll('a[href^=\"#\"]').forEach(function(anchor){
         anchor.addEventListener('click', function(e){
             e.preventDefault();
             lenis.scrollTo(this.getAttribute('href'));
         });
     });
-    window.evkLenis = lenis;
 });",
+            $s['auto_raf']     ? 'true' : 'false',
             number_format($s['duration'],         2, '.', ''),
             number_format($s['lerp'],             3, '.', ''),
             number_format($s['wheel_multiplier'], 2, '.', ''),
@@ -150,8 +188,7 @@ html.lenis,html.lenis body{height:auto;}
             number_format($s['touch_multiplier'], 2, '.', ''),
             number_format($s['touch_inertia'],    2, '.', ''),
             $s['infinite']     ? 'true' : 'false',
-            $s['overscroll']   ? 'true' : 'false',
-            $s['auto_raf']     ? 'true' : 'false'
+            $s['overscroll']   ? 'true' : 'false'
         );
 
         wp_add_inline_script('evk-lenis-lib', $js);

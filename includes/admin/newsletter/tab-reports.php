@@ -101,7 +101,7 @@ if ($campaign_id) {
         <script>
         (function() {
             var script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js';
             script.onload = function() {
                 new Chart(document.getElementById('evk-nl-stats-chart'), {
                     type: 'bar',
