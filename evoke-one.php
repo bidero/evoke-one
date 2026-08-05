@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.28.3
+ * Version: 1.29.0
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 define('EVOKE_ONE_FILE',    __FILE__);
 define('EVOKE_ONE_DIR',     plugin_dir_path(__FILE__));
 define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
-define('EVOKE_ONE_VERSION', '1.28.3');
+define('EVOKE_ONE_VERSION', '1.29.0');
 
 // Stałe modułu tłumaczeń (zachowane dla kompatybilności z istniejącymi ustawieniami)
 define('TL_MENU_SLUG',        'evoke-tlumaczenia');
@@ -161,6 +161,7 @@ foreach ($evoke_tools_modules as $module) {
 require_once EVOKE_ONE_DIR . 'includes/88-form-inbox.php';
 require_once EVOKE_ONE_DIR . 'includes/bricks-elements/loader.php';
 require_once EVOKE_ONE_DIR . 'includes/anim/animator.php';
+require_once EVOKE_ONE_DIR . 'includes/anim/bgshift.php';
 require_once EVOKE_ONE_DIR . 'includes/anim/bricks-controls.php';
 require_once EVOKE_ONE_DIR . 'includes/97-security.php';
 

@@ -2,6 +2,32 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.29.0] — 2026-08-05
+
+### Dodane
+
+- **Przenikanie tła przy scrollu.** Nowy moduł: kolor tła przewija się płynnie od
+  sekcji do sekcji podczas przewijania strony. Włącznik przy każdym elemencie
+  w builderze (Atrybuty → Evoke ONE → Tło przy scrollu), ustawienia długości
+  przejścia i wygładzania w panelu (Frontend → Tło przy scrollu).
+
+  Kolor **nie jest animowany na samych sekcjach**. Gdyby każda przewijała własne
+  tło, przez całe przejście na granicy sąsiadowałyby dwa różne kolory i widać
+  byłoby szew — efekt czytałby się jak przenikanie prostokątów, nie jak jedno tło.
+  Zamiast tego pod całą stroną leży jedna warstwa: sekcja oddaje jej swój kolor
+  i sama robi się przezroczysta.
+
+  **Bez osobnej kontrolki na kolor.** Silnik odczytuje `background-color`
+  z `getComputedStyle`, gdzie kolory globalne Bricks są już rozwinięte do `rgb()`.
+  Dzięki temu nie powstaje drugie źródło prawdy, które rozjeżdżałoby się przy
+  każdej zmianie koloru sekcji. Zmiana motywu przelicza kolory i przebudowuje oś
+  czasu, tak samo jak w Scroll Reading.
+
+  Sekcja z tłem graficznym albo gradientowym nie ma czego oddać — wypada
+  z łańcucha z ostrzeżeniem w konsoli, zamiast wstawiać w niego przezroczystą
+  dziurę. Przy systemowej redukcji ruchu kolor przeskakuje na granicy sekcji
+  zamiast się przewijać.
+
 ## [1.28.3] — 2026-08-05
 
 ### Naprawione

@@ -15,6 +15,7 @@ $subs = [
     'cursor'      => ['label' => 'Kursor',             'icon' => 'dashicons-arrow-up-alt'],
     'lenis'       => ['label' => 'Płynne przewijanie', 'icon' => 'dashicons-sort'],
     'animator'    => ['label' => 'Animator',           'icon' => 'dashicons-controls-play'],
+    'bgshift'     => ['label' => 'Tło przy scrollu',   'icon' => 'dashicons-art'],
     'fonts'       => ['label' => 'Czcionki (FOUT)',    'icon' => 'dashicons-editor-textcolor'],
     'a11y'        => ['label' => 'Dostępność',         'icon' => 'dashicons-universal-access'],
     'elementy'    => ['label' => 'Elementy Bricks',    'icon' => 'dashicons-screenoptions'],

@@ -24,6 +24,10 @@ function evk_anim_controls_active(): bool {
     return !empty(EVK_Animator::get_instance()->get_settings()['enabled']);
 }
 
+function evk_bgshift_controls_active(): bool {
+    return function_exists('evk_bgshift_enabled') && evk_bgshift_enabled();
+}
+
 function evk_parallax_controls_active(): bool {
     if (!class_exists('EVK_Parallax')) return false;
     return !empty(EVK_Parallax::get_instance()->get_settings()['enabled']);
@@ -84,7 +88,8 @@ function evk_bricks_controls_tab(): string {
 
 add_action('init', function (): void {
     if (!class_exists('\Bricks\Elements')) return;
-    if (!evk_anim_controls_active() && !evk_parallax_controls_active()) return;
+    if (!evk_anim_controls_active() && !evk_parallax_controls_active()
+        && !evk_bgshift_controls_active()) return;
 
     $elements = \Bricks\Elements::$elements ?? null;
     if (!is_array($elements)) return;
@@ -145,7 +150,8 @@ function evk_bricks_control_groups($groups) {
     // Grupy z wersji 1.22.x–1.23.x — usuwane, żeby nie zostawały puste sekcje.
     unset($groups['evk_animator'], $groups['evk_parallax'], $groups['evk_one']);
 
-    if (!evk_anim_controls_active() && !evk_parallax_controls_active()) return $groups;
+    if (!evk_anim_controls_active() && !evk_parallax_controls_active()
+        && !evk_bgshift_controls_active()) return $groups;
 
     if (evk_bricks_target_group($groups) === 'evk_one') {
         $groups['evk_one'] = [
@@ -171,6 +177,9 @@ function evk_bricks_controls($controls) {
 
     if (evk_anim_controls_active()) {
         $controls = evk_bricks_animator_controls($controls);
+    }
+    if (evk_bgshift_controls_active()) {
+        $controls = evk_bricks_bgshift_controls($controls);
     }
     if (evk_parallax_controls_active()) {
         $controls = evk_bricks_parallax_controls($controls);
@@ -276,6 +285,26 @@ function evk_bricks_animator_controls(array $controls): array {
     return $controls;
 }
 
+function evk_bricks_bgshift_controls(array $controls): array {
+    $controls['evkSepBgShift'] = [
+        'tab'   => evk_bricks_controls_tab(),
+        'group' => evk_bricks_target_group(),
+        'type'  => 'separator',
+        'label' => esc_html__('Evoke ONE — Tło przy scrollu', 'evoke-one'),
+    ];
+
+    $controls['evkBgShift'] = [
+        'tab'         => evk_bricks_controls_tab(),
+        'group'       => evk_bricks_target_group(),
+        'label'       => esc_html__('Przenikaj tło przy scrollu', 'evoke-one'),
+        'type'        => 'checkbox',
+        'default'     => false,
+        'description' => esc_html__('Sekcja oddaje swój kolor tła wspólnej warstwie pod stroną i sama robi się przezroczysta. Kolor przewija się płynnie do następnej takiej sekcji — bez szwu na granicy. Ustaw tło sekcji normalnie, także kolorem globalnym; nie ma osobnego pola na kolor. Sekcja z tłem graficznym albo gradientowym zostanie pominięta.', 'evoke-one'),
+    ];
+
+    return $controls;
+}
+
 function evk_bricks_parallax_controls(array $controls): array {
     $controls['evkSepParallax'] = [
         'tab'   => evk_bricks_controls_tab(),
@@ -352,6 +381,13 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
         }
 
         $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-anim', wp_json_encode($cfg));
+    }
+
+    // ── Tło przy scrollu ──────────────────────────────────────────────────
+    // Sam znacznik — kolor silnik odczytuje z getComputedStyle sekcji, więc nie
+    // ma tu czego przekazywać i nie powstaje drugie źródło prawdy.
+    if (evk_bgshift_controls_active() && !empty($s['evkBgShift'])) {
+        $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-bg', '');
     }
 
     // ── Parallax ──────────────────────────────────────────────────────────
