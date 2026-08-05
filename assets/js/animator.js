@@ -16,6 +16,7 @@
   var PRESETS = G.presets || {};
 
   var loadQueue = [];
+  var loadQueueRan = false;
 
   // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -85,6 +86,10 @@
       from:     from,
       to:       to,
       split:    pick(attr.split, lib.split, pre.split, ''),
+      mask:     pick(attr.mask, lib.mask, pre.mask, ''),
+      targets:  pick(attr.targets, lib.targets, 'self'),
+      selector: pick(attr.selector, lib.selector, ''),
+      pin:      !!pick(attr.pin, lib.pin, false),
       trigger:  pick(attr.trigger, lib.trigger, 'viewport'),
       easing:   pick(attr.easing, lib.easing, 'power2.out'),
       duration: num(pick(attr.duration, lib.duration, pre.duration), 0.8),
@@ -98,19 +103,27 @@
     };
   }
 
-  /** Cele animacji: kawałki po SplitText albo sam element. */
+  /**
+   * Cele animacji: sam element, jego dzieci albo selektor w środku.
+   * To dopiero nadaje sens polu „stagger" poza tekstem — pojedynczy element
+   * nie ma czego rozsuwać.
+   */
   function resolveTargets(el, cfg) {
-    if (!cfg.split || typeof SplitText === 'undefined') return [el];
-    var map = { lines: 'lines', words: 'words', chars: 'chars' };
-    var type = map[cfg.split];
-    if (!type) return [el];
-    var split = new SplitText(el, {
-      type: type,
-      linesClass: 'evk-anim-line',
-      wordsClass: 'evk-anim-word',
-      charsClass: 'evk-anim-char',
-    });
-    return split[type] && split[type].length ? split[type] : [el];
+    if (cfg.targets === 'children') {
+      var kids = Array.prototype.slice.call(el.children);
+      return kids.length ? kids : [el];
+    }
+    if (cfg.targets === 'selector' && cfg.selector) {
+      var found;
+      // Błędna składnia selektora rzuca wyjątkiem i wywaliłaby całą inicjalizację.
+      try { found = el.querySelectorAll(cfg.selector); }
+      catch (e) {
+        console.warn('[EVK Animator] Nieprawidłowy selektor celu:', cfg.selector, el);
+        return [el];
+      }
+      return found.length ? Array.prototype.slice.call(found) : [el];
+    }
+    return [el];
   }
 
   // ── Budowa osi czasu ───────────────────────────────────────────────────
@@ -159,6 +172,7 @@
 
     if (cfg.from) tl.fromTo(targets, Object.assign({}, cfg.from), vars);
     else          tl.to(targets, vars);
+    return tl;
   }
 
   function attachScrub(el, targets, cfg) {
@@ -168,12 +182,17 @@
         start:   cfg.start,
         end:     cfg.end,
         scrub:   cfg.scrub > 0 ? cfg.scrub : true,
+        // Pin wyłącznie przy scrubie. Przy pozostałych wyzwalaczach nie ma sensu
+        // (nie ma czego przytrzymywać), a tworzy pin-spacer, który rozpycha layout.
+        pin:           cfg.pin ? el : false,
+        anticipatePin: cfg.pin ? 1 : 0,
       },
     });
     var vars = Object.assign({}, cfg.to, { ease: 'none' });
     if (cfg.stagger > 0) vars.stagger = cfg.stagger;
     if (cfg.from) tl.fromTo(targets, Object.assign({}, cfg.from), vars);
     else          tl.to(targets, vars);
+    return tl;
   }
 
   function attachInteractive(el, targets, cfg) {
@@ -195,13 +214,18 @@
     }
 
     el._evkAnimAbort = ac;
+    return tl;
   }
 
   function queueLoad(el, targets, cfg) {
+    // Kolejka startowa odpala się raz. Ponowny podział tekstu przy zmianie
+    // szerokości okna nie ma odtwarzać animacji wejściowej — ona już była.
+    if (loadQueueRan) return;
     loadQueue.push({ el: el, targets: targets, cfg: cfg });
   }
 
   function runLoadQueue() {
+    loadQueueRan = true;
     if (!loadQueue.length) return;
     loadQueue.sort(function (a, b) { return a.cfg.order - b.cfg.order; });
 
@@ -220,26 +244,70 @@
 
   // ── Init ───────────────────────────────────────────────────────────────
 
+  /** Podpina animację pod wybrany wyzwalacz i ZWRACA oś czasu (albo null dla load). */
+  function buildAnimation(el, targets, cfg) {
+    switch (cfg.trigger) {
+      case 'scrub': return attachScrub(el, targets, cfg);
+      case 'hover':
+      case 'click': return attachInteractive(el, targets, cfg);
+      case 'load':  queueLoad(el, targets, cfg); return null;
+      default:      return attachViewport(el, targets, cfg);
+    }
+  }
+
+  /**
+   * Podział tekstu z ponownym podziałem po zmianie szerokości okna.
+   *
+   * Bez autoSplit tekst dzielony jest raz: po resize łamanie linii się zmienia,
+   * a kawałki zostają z poprzedniego rozmiaru i animacja się rozjeżdża.
+   * onSplit MUSI zwrócić oś czasu — GSAP sprząta ją wtedy sam przed kolejnym
+   * podziałem, zamiast zostawiać osierocone tweeny na nieistniejących węzłach.
+   */
+  function initSplit(el, cfg) {
+    var map  = { lines: 'lines', words: 'words', chars: 'chars' };
+    var type = map[cfg.split];
+    if (!type) { buildAnimation(el, [el], cfg); return true; }
+
+    var opts = {
+      type:       type,
+      linesClass: 'evk-anim-line',
+      wordsClass: 'evk-anim-word',
+      charsClass: 'evk-anim-char',
+      autoSplit:  true,
+      onSplit:    function (self) {
+        var pieces = self[type];
+        return buildAnimation(el, (pieces && pieces.length) ? pieces : [el], cfg);
+      },
+    };
+    // mask: 'lines' — GSAP sam robi owijki overflow:hidden pod odsłonę zza maski.
+    if (cfg.mask) opts.mask = cfg.mask;
+
+    if (typeof SplitText.create === 'function') {
+      SplitText.create(el, opts);
+    } else {
+      // GSAP < 3.13 nie zna autoSplit/onSplit — jednorazowy podział, jak dotąd.
+      var split  = new SplitText(el, opts);
+      var pieces = split[type];
+      buildAnimation(el, (pieces && pieces.length) ? pieces : [el], cfg);
+    }
+    return true;
+  }
+
   function initOne(el) {
     var cfg = buildConfig(el);
     if (!cfg) return false;   // brak konfiguracji → spróbuj ponownie później
 
-    var targets = resolveTargets(el, cfg);
-
     // Reduced motion: żadnego ruchu, ale stan końcowy musi być widoczny —
     // inaczej element z opacity:0 we from zostałby niewidzialny na stałe.
+    // Przy podziale tekstu nie ma po co dzielić: i tak nic się nie animuje.
     if (prefersReduced()) {
-      if (cfg.to) gsap.set(targets, cfg.to);
+      if (cfg.to) gsap.set(resolveTargets(el, cfg), cfg.to);
       return true;
     }
 
-    switch (cfg.trigger) {
-      case 'scrub': attachScrub(el, targets, cfg); break;
-      case 'hover':
-      case 'click': attachInteractive(el, targets, cfg); break;
-      case 'load':  queueLoad(el, targets, cfg); break;
-      default:      attachViewport(el, targets, cfg);
-    }
+    if (cfg.split && typeof SplitText !== 'undefined') return initSplit(el, cfg);
+
+    buildAnimation(el, resolveTargets(el, cfg), cfg);
     return true;
   }
 

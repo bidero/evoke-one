@@ -2,6 +2,34 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.26.0] — 2026-08-04
+
+### Dodane
+
+- **Cel animacji: sam element, jego dzieci albo selektor w środku.** Nowe pole
+  w wierszu biblioteki. Do tej pory animator celował zawsze w jeden element, przez
+  co **pole „stagger" nie robiło nic poza tekstem** — nie miało czego rozsuwać,
+  choć w panelu wyglądało na sprawne. Teraz siatka kart z celem „dzieci elementu"
+  i staggerem pojawia się jedna po drugiej. Błędna składnia selektora jest łapana
+  i zgłaszana w konsoli zamiast wywalać inicjalizację całej strony.
+- **Pin przy wyzwalaczu scrub.** Element trzyma się ekranu, dopóki animacja się nie
+  dokończy. Świadomie tylko przy scrubie — przy pozostałych wyzwalaczach nie ma
+  czego przytrzymywać, a pin tworzy pin-spacer rozpychający layout.
+- **6 nowych presetów:** odsłona maską z lewej i z prawej, flip 3D w poziomie
+  i w pionie, skew oraz **tekst po liniach zza maski** (`mask: "lines"` z GSAP 3.13
+  — SplitText sam robi owijki `overflow:hidden`, bez ręcznego CSS-u). Razem 20.
+
+### Naprawione
+
+- **Podział tekstu nie przeżywał zmiany szerokości okna.** Tekst dzielony był raz;
+  po zmianie rozmiaru łamanie linii się zmieniało, a kawałki zostawały
+  z poprzedniego rozmiaru i animacja się rozjeżdżała. Presety `split-*` używają
+  teraz `SplitText.create()` z `autoSplit`, a `onSplit()` zwraca oś czasu, dzięki
+  czemu GSAP sam sprząta ją przed kolejnym podziałem zamiast zostawiać tweeny na
+  nieistniejących węzłach. Kolejka animacji „load" nie odtwarza się przy ponownym
+  podziale — wejście na stronę było już raz. Przy GSAP starszym niż 3.13 zachowanie
+  wraca do jednorazowego podziału. (`assets/js/animator.js`)
+
 ## [1.25.0] — 2026-08-04
 
 Wydanie scala iteracje 1.21–1.24, które nigdy nie zostały otagowane. Opisuje stan

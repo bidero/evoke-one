@@ -42,6 +42,11 @@ class EVK_Animator {
         'scrub'    => 1,
         'repeat'   => 0,
         'order'    => 0,
+        // Cel animacji: sam element, jego dzieci albo selektor w środku.
+        // Dopiero 'children'/'selector' nadaje sens polu 'stagger' poza tekstem.
+        'targets'  => 'self',
+        'selector' => '',
+        'pin'      => 0,   // tylko przy wyzwalaczu 'scrub'
         // Własne from/to — trzymane jako tekst („właściwość: wartość" na linię),
         // żeby pole w panelu wracało dokładnie takie, jakie je wpisano.
         // Na front idą sparsowane (patrz enqueue_assets()).
@@ -123,6 +128,10 @@ class EVK_Animator {
                 'end'      => sanitize_text_field($row['end']   ?? 'bottom 40%'),
                 'repeat'   => !empty($row['repeat']) ? 1 : 0,
                 'order'    => max(0, min(999, intval($row['order'] ?? 0))),
+                'targets'  => in_array($row['targets'] ?? '', ['self', 'children', 'selector'], true)
+                    ? $row['targets'] : 'self',
+                'selector' => sanitize_text_field($row['selector'] ?? ''),
+                'pin'      => !empty($row['pin']) ? 1 : 0,
                 // Zapisujemy tekst po normalizacji przez parser — dzięki temu
                 // do opcji nie trafiają śmieci, a pole w panelu pokazuje to,
                 // co silnik faktycznie dostanie.
