@@ -2,6 +2,26 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.29.2] — 2026-08-05
+
+### Naprawione
+
+- **Tryb ciemny nie wracał do pełnej jasności po włączeniu tła przy scrollu.**
+  Warstwa tła zostawała o jeden motyw w tyle: po przełączeniu na ciemny trzymała
+  kolor jasny, a po powrocie do jasnego — ciemny.
+
+  Moduł trybu ciemnego dokłada `transition: background-color` między innymi na
+  `section` (domyślne `global_selectors`). W trakcie trwającego przejścia
+  `getComputedStyle` zwraca wartość **animowaną**, nie docelową — a silnik tła
+  odczytuje kolor sekcji dokładnie w tym momencie, tuż po zdjęciu klasy
+  przezroczystości. Trafiał więc albo w kolor poprzedniego motywu, albo w samą
+  przezroczystość, przez co sekcje wypadały z łańcucha jako „bez własnego koloru".
+
+  Pomiar odbywa się teraz przy wyłączonych przejściach (klasa `evk-bg-measure`),
+  a obie zmiany klas są commitowane zanim przejścia wrócą — inaczej powrót do
+  przezroczystości animowałby się przez 0,4 s i widać byłoby mignięcie kolorem
+  sekcji. Sprawdzone dziesięcioma przełączeniami tam i z powrotem, bez dryfu.
+
 ## [1.29.1] — 2026-08-05
 
 ### Naprawione

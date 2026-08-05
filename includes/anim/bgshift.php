@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) exit;
  */
 
 /** Wersja asetów modułu — osobna od wersji wtyczki, żeby cache-buster był celny. */
-const EVK_BGSHIFT_VERSION = '1.0.0';
+const EVK_BGSHIFT_VERSION = '1.0.1';
 
 class EVK_Bg_Shift {
 
@@ -87,6 +87,13 @@ class EVK_Bg_Shift {
    przebić — kolor nie ginie, silnik odczytuje go przed zdjęciem tła. */
 .evk-bg-handoff {
     background-color: transparent !important;
+}
+/* Zakładana wyłącznie na czas pomiaru koloru. Tryb ciemny dokłada na sekcje
+   `transition: background-color`, a wtedy getComputedStyle zwraca wartość
+   w trakcie animacji zamiast docelowej — silnik odczytałby kolor poprzedniego
+   motywu. Szczegóły w readColors() w assets/js/bg-shift.js. */
+.evk-bg-measure {
+    transition: none !important;
 }
 </style>
         <?php

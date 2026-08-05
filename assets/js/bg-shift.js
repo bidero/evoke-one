@@ -43,11 +43,29 @@
    * Odczyt kolorów. Sekcje są w tym momencie przezroczyste (klasa handoff),
    * więc trzeba ją zdjąć na czas pomiaru — inaczej odczytalibyśmy własną
    * przezroczystość zamiast koloru ustawionego w Bricks.
+   *
+   * PRZEJŚCIA MUSZĄ BYĆ WYŁĄCZONE NA CZAS POMIARU. Moduł trybu ciemnego dokłada
+   * `transition: background-color` między innymi na `section`, a getComputedStyle
+   * zwraca wtedy wartość W TRAKCIE animacji, nie docelową — czyli kolor
+   * poprzedniego motywu albo samą przezroczystość tuż po zdjęciu klasy.
+   * Bez tego warstwa zostawała o jeden motyw w tyle i po powrocie do jasnego
+   * trzymała ciemny kolor.
+   *
+   * Obie zmiany klas commitujemy jeszcze przy wyłączonych przejściach (stąd
+   * wymuszony przeliczenie układu w środku), inaczej powrót do przezroczystości
+   * animowałby się przez 0,4 s i widać byłoby mignięcie kolorem sekcji.
    */
   function readColors(list) {
-    list.forEach(function (el) { el.classList.remove('evk-bg-handoff'); });
+    list.forEach(function (el) {
+      el.classList.add('evk-bg-measure');
+      el.classList.remove('evk-bg-handoff');
+    });
     var out = list.map(function (el) { return getComputedStyle(el).backgroundColor; });
+
     list.forEach(function (el) { el.classList.add('evk-bg-handoff'); });
+    void document.documentElement.offsetHeight;   // commit przy wyłączonych przejściach
+    list.forEach(function (el) { el.classList.remove('evk-bg-measure'); });
+
     return out;
   }
 
