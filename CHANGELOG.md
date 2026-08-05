@@ -2,6 +2,58 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.28.0] — 2026-08-05
+
+### Naprawione
+
+- **Scroll zacinał się na telefonie na całej stronie.** Regresja z 1.27.3: Stacking
+  Cards nasłuchiwały `resize` i na każde zdarzenie wołały `ScrollTrigger.refresh()`.
+  Na telefonie `resize` wypala przy każdym chowaniu i pokazywaniu paska adresu,
+  czyli w trakcie przewijania, a refresh przemierza **wszystkie** triggery na
+  stronie — także Animatora. Stąd zacięcie wszędzie, nie tylko przy stosie.
+
+  Rozpórka przelicza się teraz w zdarzeniu `refreshInit`, tuż przed pomiarem
+  ScrollTriggera: pomiar zostaje spójny, ale o czas refreshu decyduje ScrollTrigger,
+  a nie my. Do tego cała wtyczka ustawia `ScrollTrigger.config({ignoreMobileResize:
+  true})`, więc sam pasek adresu nie wywołuje już przemiaru w żadnym module.
+
+- **Lenis nie był spięty ze ScrollTriggerem.** Brakowało `lenis.on('scroll',
+  ScrollTrigger.update)`, przez co ScrollTrigger polegał na natywnych zdarzeniach
+  scrolla, które Lenis modyfikuje — scrub potrafił zostawać w tyle za obrazem.
+  Lenis jechał też własną pętlą `requestAnimationFrame` obok tickera GSAP-a;
+  teraz, gdy GSAP jest na stronie, obie animacje idą z jednego zegara.
+
+- **Moduł Kursor ładował drugą kopię GSAP-a** (własny handle `gsap`, wersja 3.12.2)
+  obok wspólnej z `includes/89-gsap.php`. Na stronie z Animatorem albo elementem
+  Bricks pobierały się dwie biblioteki w dwóch różnych wersjach. Teraz korzysta ze
+  wspólnego handle'a.
+
+### Zmienione
+
+- **Wszystkie biblioteki zewnętrzne podbite do najnowszych wydań:**
+
+  | Biblioteka | Było | Jest |
+  |---|---|---|
+  | GSAP | 3.13.0 (a w Marquee i Horizontal Scroll 3.12.5, w Kursorze 3.12.2) | **3.15.0** wszędzie |
+  | Lenis | `@studio-freight/lenis` 1.0.42 | **`lenis` 1.3.26** |
+  | three.js | 0.128.0 | **0.185.1** |
+  | Chart.js | 4.4.0 | **4.5.1** |
+  | SortableJS | 1.15.2 | **1.15.7** |
+
+- **Dwie kontrolki Smooth Scroll wreszcie coś robią.** Paczka `@studio-freight/lenis`
+  została porzucona na 1.0.42, a wtyczka wysyłała jej opcje z gałęzi 1.3:
+  `touchInertiaExponent` i `overscroll` w tamtej wersji nie istniały i były po cichu
+  ignorowane. Widełki suwaka bezwładności (1.0–5.0, domyślnie 1.7) od początku
+  opisywały wersję 1.3 — po podbiciu zgadzają się z biblioteką. Arkusz Lenisa
+  zaktualizowany do wydania 1.3.26.
+
+- **Wave Background wyłącza zarządzanie kolorem three.js.** Od 0.152 `new
+  THREE.Color('#hex')` przelicza sRGB na przestrzeń liniową. Element podaje kolory
+  wprost do własnego ShaderMaterial i renderuje przez EffectComposer bez OutputPass,
+  więc nic tej konwersji nie odwraca — sprawdzone: `#3366ff` dałoby
+  `[0.033, 0.133, 1]` zamiast `[0.2, 0.4, 1]`, czyli wyraźnie ciemniejszy gradient.
+  `ColorManagement.enabled = false` zachowuje obraz sprzed podbicia.
+
 ## [1.27.3] — 2026-08-05
 
 ### Naprawione

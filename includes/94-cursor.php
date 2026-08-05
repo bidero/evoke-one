@@ -123,8 +123,12 @@ class EVK_Cursor {
             ];
         }
 
-        wp_enqueue_script('gsap', 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js', [], null, true);
-        wp_add_inline_script('gsap', $this->get_cursor_js(
+        // Wspólny handle z includes/89-gsap.php. Wcześniej moduł ciągnął własną
+        // kopię GSAP-a spod innego URL-a — na stronie z Animatorem albo elementem
+        // Bricks ładowały się dwie biblioteki naraz, w dwóch różnych wersjach.
+        evk_register_gsap_libs();
+        wp_enqueue_script('evk-gsap');
+        wp_add_inline_script('evk-gsap', $this->get_cursor_js(
             wp_json_encode($js_elements),
             $s['cursor_default']
         ));

@@ -37,11 +37,11 @@ function evk_elements_registry(): array {
             'name'  => 'evk-marquee',
             'file'  => $dir . 'evoke-marquee/element.php',
             'consts'=> [
-                'EVK_MARQUEE_VERSION' => '1.5.1',
+                'EVK_MARQUEE_VERSION' => '1.5.2',
                 'EVK_MARQUEE_URL'     => $url . 'evoke-marquee/',
                 'EVK_MARQUEE_PATH'    => $dir . 'evoke-marquee/',
             ],
-            'script'=> ['evk-marquee', $url . 'evoke-marquee/assets/marquee.js', ['evk-gsap', 'evk-observer'], '1.5.1'],
+            'script'=> ['evk-marquee', $url . 'evoke-marquee/assets/marquee.js', ['evk-gsap', 'evk-observer'], '1.5.2'],
             'style' => ['evk-marquee', $url . 'evoke-marquee/assets/marquee.css', '1.5.1'],
         ],
         'hscroll' => [
@@ -52,11 +52,11 @@ function evk_elements_registry(): array {
             'name'  => 'evk-horizontal-scroll',
             'file'  => $dir . 'evoke-horizontal-scroll/element.php',
             'consts'=> [
-                'EVK_HSCROLL_VERSION' => '1.1.1',
+                'EVK_HSCROLL_VERSION' => '1.1.2',
                 'EVK_HSCROLL_URL'     => $url . 'evoke-horizontal-scroll/',
                 'EVK_HSCROLL_PATH'    => $dir . 'evoke-horizontal-scroll/',
             ],
-            'script'=> ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.js', ['evk-gsap', 'evk-scrolltrigger'], '1.1.1'],
+            'script'=> ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.js', ['evk-gsap', 'evk-scrolltrigger'], '1.1.2'],
             'style' => ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.css', '1.1.1'],
         ],
         'scroll_reading' => [
@@ -113,11 +113,11 @@ function evk_elements_registry(): array {
             'name'  => 'evk-stacking-cards',
             'file'  => $dir . 'evoke-stacking-cards/element.php',
             'consts'=> [
-                'EVK_SC_VERSION' => '1.3.0',
+                'EVK_SC_VERSION' => '1.3.1',
                 'EVK_SC_URL'     => $url . 'evoke-stacking-cards/',
                 'EVK_SC_PATH'    => $dir . 'evoke-stacking-cards/',
             ],
-            'script'=> ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.js', ['evk-gsap', 'evk-scrolltrigger'], '1.3.0'],
+            'script'=> ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.js', ['evk-gsap', 'evk-scrolltrigger'], '1.3.1'],
             'style' => ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.css', '1.3.0'],
         ],
         'wave_bg' => [
@@ -128,7 +128,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-wave-bg',
             'file'  => $dir . 'evoke-wave-bg/element.php',
             'consts'=> [
-                'EVK_WB_VERSION' => '1.2.0',
+                'EVK_WB_VERSION' => '1.2.1',
                 'EVK_WB_PATH'    => $dir . 'evoke-wave-bg/',
             ],
             // asety: self-contained ESM w render()

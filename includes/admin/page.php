@@ -60,7 +60,7 @@ add_action('admin_enqueue_scripts', function (string $hook) {
     wp_enqueue_media();
 
     wp_enqueue_script('sortablejs',
-        'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js',
+        'https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js',
         [], '1.15.2', true);
 });
 

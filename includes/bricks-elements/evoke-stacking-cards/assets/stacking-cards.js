@@ -51,13 +51,12 @@ function evk_stacking_cards_init() {
             ? window.matchMedia('(min-width: ' + below + 'px)')
             : null;
 
-        var triggers    = [];
-        var active      = false;
-        var spacer      = null;
-        var resizeTimer = null;
+        var triggers = [];
+        var active   = false;
+        var spacer   = null;
 
         function sizeSpacer() {
-            if (!spacer) return;
+            if (!spacer || !spacer.parentNode) return;
             var manual = (cfg.bottomSpace || '').trim();
             if (manual !== '') { spacer.style.height = manual; return; }
             // Automat: pół wysokości ostatniej karty. Mierzone, bo karty bywają
@@ -68,6 +67,7 @@ function evk_stacking_cards_init() {
 
         function teardown() {
             active = false;
+            ScrollTrigger.removeEventListener('refreshInit', sizeSpacer);
             triggers.forEach(function (t) { t.kill(); });
             triggers = [];
             gsap.set(cards, { clearProps: 'transform,filter' });
@@ -92,6 +92,17 @@ function evk_stacking_cards_init() {
             }
             root.appendChild(spacer);
             sizeSpacer();
+
+            // Wysokość rozpórki zależy od wysokości ostatniej karty, a ta przy
+            // 100vh zmienia się z oknem — trzeba ją przeliczać. NIE robi tego
+            // własny nasłuch `resize`: na telefonie chowanie paska adresu wypala
+            // resize w trakcie przewijania, a każdy wymuszony ScrollTrigger.refresh()
+            // przemierza WSZYSTKIE triggery na stronie i widocznie tnie scroll
+            // (regresja 1.27.3). 'refreshInit' odpala się tuż przed pomiarem
+            // ScrollTriggera, więc rozpórka jest zawsze spójna z jego miarą,
+            // a o czas refreshu decyduje ScrollTrigger — z ignoreMobileResize
+            // ustawionym w includes/89-gsap.php pasek adresu go nie wywołuje.
+            ScrollTrigger.addEventListener('refreshInit', sizeSpacer);
 
             // Ostatnia karta jest przesunięta transformem o lastStep w dół, więc
             // wystaje tyle samo poniżej kontenera. Padding oddziela stos od
@@ -159,17 +170,6 @@ function evk_stacking_cards_init() {
 
         apply();
         if (mq && mq.addEventListener) mq.addEventListener('change', apply);
-
-        // Automatyczny zapas zależy od wysokości karty, a ta przy 100vh zmienia
-        // się z oknem. Bez tego po obrocie ekranu stos trzymałby starą miarę.
-        window.addEventListener('resize', function () {
-            if (!active) return;
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(function () {
-                sizeSpacer();
-                ScrollTrigger.refresh();
-            }, 150);
-        });
     });
 }
 
