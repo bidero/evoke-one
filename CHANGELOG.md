@@ -2,6 +2,31 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.28.3] — 2026-08-05
+
+### Naprawione
+
+- **Wave Background renderował scenę dwa razy na każdą klatkę.** Pętla wołała
+  `renderer.render()`, a zaraz po nim `composer.render()` (komentarz mówił „jak
+  w referencji"). Ostatni `ShaderPass` renderuje na ekran przez
+  `setRenderTarget(null)` nieprzezroczystym materiałem, więc i tak nadpisuje
+  wszystko — potwierdzone porównaniem zrzutów płótna: obraz jest identyczny co do
+  piksela z pierwszym przebiegiem i bez niego. Był to pełny, wyrzucany przebieg
+  ciężkiego shadera z szumem na każdą klatkę, przy dwukrotnym DPR na telefonie.
+
+- **`removeEventListener` w `destroy()` nigdy niczego nie usuwał.** Nasłuch
+  `resize` zakładany był przez `this.resize.bind(this)`, a zdejmowany przez
+  kolejne `.bind()`, czyli inną funkcję. Referencja trzymana jest teraz w polu.
+
+### Zmienione
+
+- **Wave Background włącza `preserveDrawingBuffer`.** Element bywa tłem dla tekstu
+  z `mix-blend-mode`, a tryb mieszania zmusza przeglądarkę do odczytania pikseli
+  płótna. Przy domyślnym `false` WebGL wolno porzucić bufor zaraz po wyświetleniu
+  — odczyt trafia wtedy na pustkę i tekst miesza się z niczym zamiast z falą.
+  Koszt to jedna kopia bufora na klatkę, czyli mniej niż usunięty wyżej przebieg
+  sceny.
+
 ## [1.28.2] — 2026-08-05
 
 ### Naprawione
