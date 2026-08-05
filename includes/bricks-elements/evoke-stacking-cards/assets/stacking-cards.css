@@ -1,0 +1,41 @@
+/* Evoke ONE — Stacking Cards
+ *
+ * Cały układ stoi na position:sticky. Zmienne ustawia JS z konfiguracji elementu,
+ * dzięki czemu bez JS-a (albo poniżej breakpointu) karty po prostu układają się
+ * jedna pod drugą — degradacja jest bezpieczna.
+ */
+
+.evk-sc {
+    --evk-sc-offset: 80px;
+    --evk-sc-gap: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--evk-sc-gap);
+}
+
+/* Sticky działa tylko wtedy, gdy żaden przodek nie ma overflow innego niż visible.
+   Bricks bywa hojny w overflow:hidden — stąd jawne przywrócenie na kontenerze. */
+.evk-sc,
+.evk-sc > * {
+    overflow: visible;
+}
+
+.evk-sc.is-active > * {
+    position: sticky;
+    top: var(--evk-sc-offset);
+    /* Karta pod spodem nie może przykryć tej wchodzącej. */
+    transform-origin: center top;
+    will-change: transform;
+}
+
+/* Poniżej breakpointu (albo bez JS) zwykły przepływ — bez przyklejania. */
+.evk-sc:not(.is-active) > * {
+    position: relative;
+    top: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .evk-sc.is-active > * {
+        will-change: auto;
+    }
+}

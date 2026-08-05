@@ -627,7 +627,7 @@ add_action('wp_ajax_evk_ajax_toggle', function () {
         'evk_tl_fab_enabled'             => ['_scalar'],
         'evk_forminbox'                  => ['enabled'],
         'evk_snippets_enabled'          => ['_scalar'],
-        'evk_elements'                  => ['marquee', 'hscroll', 'scroll_reading', 'circular_title', 'circular_menu', 'wave_bg'],
+        'evk_elements'                  => ['marquee', 'hscroll', 'scroll_reading', 'circular_title', 'circular_menu', 'stacking_cards', 'wave_bg'],
         'evk_cleanup'                   => ['disable_xmlrpc', 'remove_rss'],
     ];
 

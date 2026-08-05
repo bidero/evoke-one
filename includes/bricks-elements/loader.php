@@ -105,6 +105,21 @@ function evk_elements_registry(): array {
             ],
             // asety: self-enqueue w element.php (EVK_CIRCULAR_MENU_URL), gsap -> evk-gsap
         ],
+        'stacking_cards' => [
+            'label' => 'Stacking Cards',
+            'desc'  => 'Karty nakładające się przy scrollu (position: sticky, bez pinu).',
+            'icon'  => 'dashicons-images-alt2',
+            'class' => 'Evk_Stacking_Cards_Element',
+            'name'  => 'evk-stacking-cards',
+            'file'  => $dir . 'evoke-stacking-cards/element.php',
+            'consts'=> [
+                'EVK_SC_VERSION' => '1.0.0',
+                'EVK_SC_URL'     => $url . 'evoke-stacking-cards/',
+                'EVK_SC_PATH'    => $dir . 'evoke-stacking-cards/',
+            ],
+            'script'=> ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.js', ['evk-gsap', 'evk-scrolltrigger'], '1.0.0'],
+            'style' => ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.css', '1.0.0'],
+        ],
         'wave_bg' => [
             'label' => 'Wave Background',
             'desc'  => 'Animowane tło gradientowe Three.js (samodzielny moduł ESM).',
@@ -122,7 +137,7 @@ function evk_elements_registry(): array {
 }
 
 function evk_elements_enabled(): array {
-    $def = ['marquee' => 0, 'hscroll' => 0, 'scroll_reading' => 0, 'circular_title' => 0, 'circular_menu' => 0, 'wave_bg' => 0];
+    $def = ['marquee' => 0, 'hscroll' => 0, 'scroll_reading' => 0, 'circular_title' => 0, 'circular_menu' => 0, 'stacking_cards' => 0, 'wave_bg' => 0];
     return array_merge($def, (array) get_option('evk_elements', []));
 }
 

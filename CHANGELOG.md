@@ -2,6 +2,28 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.27.0] — 2026-08-04
+
+### Dodane
+
+- **Nowy element Bricks: Stacking Cards.** Karty nakładające się przy scrollu.
+  Element nestable — kontener plus karty jako dzieci, trzy na start.
+  - **Mechanika na `position: sticky`, nie na `ScrollTrigger.pin`.** Sticky nie
+    tworzy pin-spacerów, nie przelicza wysokości i nie rozjeżdża layoutu przy
+    zmianie rozmiaru okna. GSAP dokłada wyłącznie skalowanie i przygaszanie kart,
+    które zostają pod spodem.
+  - Kontrolki: offset od góry, odstęp między kartami, schodkowanie (każda kolejna
+    karta zatrzymuje się niżej, więc widać krawędzie tych pod spodem), skala
+    docelowa, przygaszenie, wyłączenie poniżej zadanej szerokości.
+  - Breakpoint przez `matchMedia`, nie przez pomiar przy starcie — obrót telefonu
+    przełącza tryb bez przeładowania strony.
+  - Bez JS-a albo poniżej breakpointu karty układają się normalnie, jedna pod
+    drugą. Degradacja jest bezpieczna: `sticky` włącza dopiero klasa dodawana
+    przez skrypt.
+  - Element startuje wyłączony, jak reszta — *Frontend → Elementy Bricks*.
+  (`includes/bricks-elements/evoke-stacking-cards/*`,
+  `includes/bricks-elements/loader.php`, `includes/30-admin-settings-ajax.php`)
+
 ## [1.26.0] — 2026-08-04
 
 ### Dodane
