@@ -2,6 +2,20 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.29.1] — 2026-08-05
+
+### Naprawione
+
+- **Nie dało się włączyć przełącznika „Tło przy scrollu".** Przełączniki modułów
+  zapisują się przez AJAX, a ten sprawdza opcję i pole względem białej listy
+  w `includes/30-admin-settings-ajax.php`. Nowa opcja `evk_bgshift` na tę listę
+  nie trafiła, więc każde kliknięcie kończyło się odpowiedzią `not_allowed`.
+
+  Przy okazji ta sama opcja została dopisana do mapy eksportu, pętli importu
+  i mapy grupowania w panelu — bez tego ustawienia modułu ginęłyby po cichu przy
+  przenoszeniu konfiguracji między instalacjami. Do mapy grupowania dopisany też
+  `evk_animator`, którego nigdy tam nie było — ta sama luka, ten sam plik.
+
 ## [1.29.0] — 2026-08-05
 
 ### Dodane

@@ -241,6 +241,8 @@
                 'evk_darkmode':                 'evk_darkmode',
                 'evk_cursor':                   'evk_cursor',
                 'evk_lenis':                    'evk_lenis',
+                'evk_animator':                 'evk_animator',
+                'evk_bgshift':                  'evk_bgshift',
                 'evk_parallax_value':           'evk_parallax',
                 'evk_parallax_scale':           'evk_parallax',
                 'evk_a11y':                     'evk_a11y',
