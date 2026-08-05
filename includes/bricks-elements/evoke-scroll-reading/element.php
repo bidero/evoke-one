@@ -50,15 +50,16 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 		];
 
 		$this->controls['split_type'] = [
-			'tab'     => 'content',
-			'label'   => 'Podziel na',
-			'type'    => 'select',
-			'options' => [
+			'tab'         => 'content',
+			'label'       => 'Podziel na',
+			'type'        => 'select',
+			'options'     => [
 				'words' => 'Słowa',
 				'chars' => 'Znaki',
 				'lines' => 'Linie',
 			],
-			'default' => 'words',
+			'default'     => 'words',
+			'description' => 'Podział na znaki bywa czytany literami przez czytniki ekranu — nadaje się do krótkich napisów, nie do akapitów.',
 		];
 
 		// ── SCROLL TRIGGER ─────────────────────────────────────────────────

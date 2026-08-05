@@ -2,6 +2,51 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.28.1] — 2026-08-05
+
+### Naprawione
+
+- **Opóźnienie nie działało przy wyzwalaczu „wczytanie strony".** Kolejka startowa
+  wstawiała animacje na oś czasu pod pozycją `'+=' + opóźnienie`, a w GSAP `'+='`
+  liczy się od **końca** dotychczasowej osi, nie od jej początku — opóźnienia
+  sumowały się z czasami trwania wszystkich wcześniejszych animacji. Zmierzone:
+  ustawione 0 / 0,3 / 0,6 s dawało starty 0 / 1,1 / 2,5 s, a cała sekwencja
+  ciągnęła się 3,3 s zamiast 1,4 s. Pojedynczy element na stronie działał
+  poprawnie, dlatego usterka umykała przy pobieżnym teście.
+
+  Pozycja jest teraz liczbowa, czyli bezwzględna względem początku sekwencji —
+  wpisana wartość znaczy dokładnie tyle, ile mówi etykieta.
+
+- **Błędny `aria-label` w Scroll Reading.** Etykietę dokładał SplitText: domyślne
+  `aria: "auto"` ustawia ją z surowego `textContent` kontenera i oznacza każdy
+  kawałek `aria-hidden`. Element jest nestable, więc dzieli **kontener z dowolnymi
+  dziećmi Bricks** — na granicy bloków wyrazy się sklejały („ProjektujemyRobimy"),
+  a co gorsza cała treść znikała z drzewa dostępności: zmierzone w Chromium
+  nagłówek i odnośnik zostawały bez nazw, przez co link stawał się dla czytnika
+  ekranu bezimienny.
+
+  Podział woła teraz SplitText z `aria: 'none'` i `tag: 'span'`. Po zmianie drzewo
+  dostępności pokazuje `heading: "Projektujemy"` i `link: "piszemy o tym"`, a żaden
+  kawałek nie jest ukryty. Wygląd bez zmian — CSS elementu celuje w klasy, nie
+  w znaczniki, co potwierdzono pomiarem `display` dla wszystkich trzech trybów
+  podziału.
+
+- **Ten sam błąd w Animatorze, ale tylko na kontenerach.** Przy pojedynczym
+  nagłówku czy akapicie zachowanie GSAP-a jest poprawne — element ma własną rolę,
+  więc `aria-label` działa, a ukrycie kawałków jest zalecane. Psuje się dopiero
+  na elemencie z wieloma dziećmi, więc `aria: 'none'` włącza się wyłącznie tam.
+  Znacznik zostaje domyślny: SplitText nakłada `display` i `position` tylko gdy
+  `tag !== 'span'`, a na pudełkach `inline` transformacje nie działają.
+
+### Dodane
+
+- **„Kolejność" w kontrolkach elementu Bricks.** Dotąd była wyłącznie w bibliotece,
+  więc każdy element ustawiany w panelu siedział w kroku zerowym.
+- **„Kolejność" wreszcie coś znaczy.** Po przejściu na pozycje bezwzględne samo
+  sortowanie nie wpływałoby na nic. Teraz to **krok sekwencji**: elementy z tym
+  samym numerem ruszają razem, kolejny numer czeka, aż poprzedni krok się skończy,
+  a opóźnienie liczy się od początku swojego kroku.
+
 ## [1.28.0] — 2026-08-05
 
 ### Naprawione

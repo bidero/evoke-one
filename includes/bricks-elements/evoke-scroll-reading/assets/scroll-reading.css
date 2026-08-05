@@ -6,7 +6,8 @@
   /* słowa/znaki będą inline, zachowaj naturalny flow tekstu */
 }
 
-/* SplitText tworzy div-y dla lines — spraw żeby zachowywały się jak inline */
+/* Kawałki są spanami (patrz tag:'span' w scroll-reading.js) — linia musi
+   zachowywać się jak blok, żeby łamanie tekstu zostało nienaruszone. */
 .evk-sr-line {
   display: block;
 }

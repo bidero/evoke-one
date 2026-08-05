@@ -229,13 +229,28 @@
     if (!loadQueue.length) return;
     loadQueue.sort(function (a, b) { return a.cfg.order - b.cfg.order; });
 
-    var master = gsap.timeline();
+    var master    = gsap.timeline();
+    var stepStart = 0;      // moment startu bieżącego kroku
+    var stepOrder = null;
+
     loadQueue.forEach(function (item) {
-      var cfg  = item.cfg;
+      var cfg = item.cfg;
+
+      // 'order' to KROK sekwencji: elementy z tym samym numerem ruszają razem,
+      // kolejny numer czeka, aż poprzedni krok się skończy. Kolejka jest już
+      // posortowana po 'order', więc master.duration() w chwili zmiany numeru
+      // to dokładnie koniec kroku poprzedniego.
+      if (stepOrder !== null && cfg.order !== stepOrder) stepStart = master.duration();
+      stepOrder = cfg.order;
+
       var vars = Object.assign({}, cfg.to, { duration: cfg.duration, ease: cfg.easing });
       if (cfg.stagger > 0) vars.stagger = cfg.stagger;
-      // Pozycja bezwzględna — 'order' ustala kolejność, 'delay' odstęp od startu.
-      var pos = cfg.delay > 0 ? '+=' + cfg.delay : '<';
+
+      // LICZBA = pozycja bezwzględna względem początku osi. Wcześniej było tu
+      // '+=' + delay, które w GSAP liczy się od KOŃCA dotychczasowej osi —
+      // opóźnienia sumowały się z czasami trwania poprzednich animacji.
+      // Ustawione 0 / 0,3 / 0,6 dawało starty 0 / 1,1 / 2,5.
+      var pos = stepStart + cfg.delay;
       if (cfg.from) master.fromTo(item.targets, Object.assign({}, cfg.from), vars, pos);
       else          master.to(item.targets, vars, pos);
     });
@@ -268,8 +283,19 @@
     var type = map[cfg.split];
     if (!type) { buildAnimation(el, [el], cfg); return true; }
 
+    // aria warunkowo. Domyślne 'auto' jest POPRAWNE dla pojedynczego nagłówka czy
+    // akapitu: element ma własną rolę, więc aria-label działa, a ukrycie kawałków
+    // jest tam zalecane. Psuje się na kontenerze z wieloma dziećmi — aria-label
+    // sklejałby ich teksty w jeden ciąg, a aria-hidden odbierał nazwy nagłówkom
+    // i odnośnikom w środku.
+    //
+    // Znacznik zostaje domyślny (div). SplitText nakłada `display` i `position`
+    // WYŁĄCZNIE gdy tag !== 'span' — przy spanach kawałki zostają inline, a na
+    // pudełkach inline transformacje nie działają, więc cała animacja by padła.
+    // Scroll Reading może sobie pozwolić na spany, bo ma własny CSS na te klasy.
     var opts = {
       type:       type,
+      aria:       el.children.length > 1 ? 'none' : 'auto',
       linesClass: 'evk-anim-line',
       wordsClass: 'evk-anim-word',
       charsClass: 'evk-anim-char',

@@ -67,12 +67,12 @@ function evk_elements_registry(): array {
             'name'  => 'evk-scroll-reading',
             'file'  => $dir . 'evoke-scroll-reading/element.php',
             'consts'=> [
-                'EVK_SR_VERSION' => '1.1.0',
+                'EVK_SR_VERSION' => '1.2.0',
                 'EVK_SR_URL'     => $url . 'evoke-scroll-reading/',
                 'EVK_SR_PATH'    => $dir . 'evoke-scroll-reading/',
             ],
-            'script'=> ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.js', ['evk-gsap', 'evk-scrolltrigger', 'evk-splittext'], '1.1.0'],
-            'style' => ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.css', '1.0.1'],
+            'script'=> ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.js', ['evk-gsap', 'evk-scrolltrigger', 'evk-splittext'], '1.2.0'],
+            'style' => ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.css', '1.2.0'],
         ],
         'circular_title' => [
             'label' => 'Circular Title',
