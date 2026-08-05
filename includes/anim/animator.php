@@ -82,6 +82,13 @@ class EVK_Animator {
      *
      * visibility, nie opacity: zachowuje layout, więc pomiary ScrollTriggera
      * pozostają poprawne.
+     *
+     * NAZWA KLASY NIE MOŻE ZAWIERAĆ CIĄGU „evk-anim-". Silnik zbiera elementy
+     * selektorem [class*="evk-anim-"], a querySelectorAll przeszukuje dokument
+     * razem z <html> — korzeń strony wpadał wtedy do wyników jak zwykły element
+     * z animacją i silnik szukał w bibliotece animacji o slugu „pending"
+     * (tak było do 1.28.1). Dopasowanie jest po PODCIĄGU, nie po prefiksie,
+     * więc sam brak prefiksu nie wystarczy.
      */
     public function render_preveil(): void {
         $s = $this->get_settings();
@@ -92,14 +99,14 @@ class EVK_Animator {
         }
         ?>
 <style id="evk-anim-preveil">
-.evk-anim-pending [data-evk-anim],
-.evk-anim-pending [class*="evk-anim-"] { visibility: hidden !important; }
+.evk-veil [data-evk-anim],
+.evk-veil [class*="evk-anim-"] { visibility: hidden !important; }
 </style>
 <script id="evk-anim-preveil-js">
 (function () {
     var h = document.documentElement;
-    h.classList.add('evk-anim-pending');
-    setTimeout(function () { h.classList.remove('evk-anim-pending'); }, 3000);
+    h.classList.add('evk-veil');
+    setTimeout(function () { h.classList.remove('evk-veil'); }, 3000);
 })();
 </script>
         <?php

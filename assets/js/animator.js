@@ -337,9 +337,13 @@
     return true;
   }
 
-  /** Zdejmuje zasłonę z <html> (patrz render_preveil() w includes/anim/animator.php). */
+  /**
+   * Zdejmuje zasłonę z <html> (patrz render_preveil() w includes/anim/animator.php).
+   * Nazwa klasy celowo poza przestrzenią „evk-anim-" — inaczej selektor w initAll()
+   * łapie sam korzeń dokumentu i silnik szuka animacji o slugu z tej klasy.
+   */
   function unveil() {
-    document.documentElement.classList.remove('evk-anim-pending');
+    document.documentElement.classList.remove('evk-veil');
   }
 
   function initAll() {

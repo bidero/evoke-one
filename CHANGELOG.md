@@ -2,6 +2,24 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.28.2] — 2026-08-05
+
+### Naprawione
+
+- **Ostrzeżenie `[EVK Animator] Brak animacji "pending" w bibliotece` w konsoli.**
+  Klasa zasłony z 1.27.2 nazywała się `evk-anim-pending`, czyli wpadła w przestrzeń
+  nazw slugów animacji. Silnik zbiera elementy selektorem `[class*="evk-anim-"]`,
+  a `querySelectorAll` przeszukuje dokument razem z `<html>` — korzeń strony
+  trafiał więc do wyników jak zwykły element z animacją i silnik szukał w bibliotece
+  animacji o slugu „pending".
+
+  Skutek był wyłącznie kosmetyczny: konfiguracja nie miała `from` ani `to`, więc na
+  `<html>` nic się nie działo. Hałas był jednak mylący, bo to ostrzeżenie istnieje
+  po to, żeby łapać literówki w slugach. Klasa nazywa się teraz `evk-veil` i leży
+  poza tą przestrzenią; warunek jest zapisany w komentarzu przy `render_preveil()`,
+  bo dopasowanie idzie po podciągu, nie po prefiksie — sam brak prefiksu nie
+  wystarczy.
+
 ## [1.28.1] — 2026-08-05
 
 ### Naprawione
