@@ -18,6 +18,37 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		return [ 'evoke', 'wave', 'background', 'tło', 'gradient', 'three', 'webgl' ];
 	}
 
+	/**
+	 * Gotowe zestawy sześciu kolorów gradientu.
+	 *
+	 * Wariantów geometrii element ma sześć plus w pełni własny — kształtów nie
+	 * brakuje. Brakowało szybkiego wyboru kolorystyki: dotąd trzeba było ustawić
+	 * sześć pickerów po kolei, żeby wyjść poza jedno domyślne zestawienie.
+	 *
+	 * Kolory palety 'custom' są JEDNOCZEŚNIE wartościami domyślnymi pickerów —
+	 * jedna tablica zamiast dwóch kopii, które i tak by się rozjechały.
+	 * 'custom' musi zostać domyślną paletą: gotowa zmieniłaby wygląd wszystkich
+	 * teł już wstawionych na strony.
+	 */
+	private static function palettes(): array {
+		return [
+			'custom' => [ 'label' => '✏ Własne kolory',
+				'colors' => [ '#F2E6DB', '#71D9E9', '#8c3dd0', '#D03F83', '#F43FF9', '#8c3dd0' ] ],
+			'aurora' => [ 'label' => 'Zorza',
+				'colors' => [ '#0B1026', '#123A5B', '#2BD9B4', '#63E6BE', '#7A5CFF', '#2D1B69' ] ],
+			'sunset' => [ 'label' => 'Zachód',
+				'colors' => [ '#1A0B2E', '#7B2D6B', '#D9455F', '#F2793D', '#FFC15E', '#5B1E5B' ] ],
+			'ocean'  => [ 'label' => 'Ocean',
+				'colors' => [ '#021B2B', '#04395E', '#0A6E8A', '#25A6A0', '#7FD8BE', '#0B4F6C' ] ],
+			'ember'  => [ 'label' => 'Żar',
+				'colors' => [ '#170A05', '#4A1105', '#8C2A0B', '#D9531E', '#F2A65A', '#6B1A08' ] ],
+			'mint'   => [ 'label' => 'Mięta',
+				'colors' => [ '#F2F7F5', '#B8E0D2', '#6FBF9B', '#3E8E7E', '#245F5A', '#8FD9C0' ] ],
+			'mono'   => [ 'label' => 'Monochrom',
+				'colors' => [ '#0A0A0A', '#2B2B2B', '#4F4F4F', '#8A8A8A', '#C7C7C7', '#3D3D3D' ] ],
+		];
+	}
+
 	public function set_controls() {
 
 		// ── POZYCJONOWANIE ─────────────────────────────────────────────────────
@@ -122,13 +153,25 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'label' => 'Kolory gradientu',
 		];
 
-		$color_defaults = [ '#F2E6DB', '#71D9E9', '#8c3dd0', '#D03F83', '#F43FF9', '#8c3dd0' ];
+		$palettes = self::palettes();
+
+		$this->controls['palette'] = [
+			'tab'         => 'content',
+			'label'       => 'Paleta',
+			'type'        => 'select',
+			'options'     => array_map( fn( $p ) => $p['label'], $palettes ),
+			'default'     => 'custom',
+			'description' => 'Gotowy zestaw sześciu kolorów. „Własne" zostawia pola poniżej.',
+		];
+
+		$color_defaults = $palettes['custom']['colors'];
 		for ( $i = 1; $i <= 6; $i++ ) {
 			$this->controls[ 'color_' . $i ] = [
-				'tab'     => 'content',
-				'label'   => 'Kolor ' . $i,
-				'type'    => 'color',
-				'default' => [ 'hex' => $color_defaults[ $i - 1 ] ],
+				'tab'      => 'content',
+				'label'    => 'Kolor ' . $i,
+				'type'     => 'color',
+				'default'  => [ 'hex' => $color_defaults[ $i - 1 ] ],
+				'required' => [ 'palette', '=', 'custom' ],
 			];
 		}
 
@@ -347,10 +390,19 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			$gradient = 'linear-gradient(to bottom,' . implode( ',', $stops ) . ')';
 			$mask_css = "-webkit-mask-image:{$gradient};mask-image:{$gradient};";
 		}
-		$color_defaults = [ '#F2E6DB', '#71D9E9', '#8c3dd0', '#D03F83', '#F43FF9', '#8c3dd0' ];
-		$colors = [];
-		for ( $i = 1; $i <= 6; $i++ ) {
-			$colors[] = $this->color_hex( $s[ 'color_' . $i ] ?? null, $color_defaults[ $i - 1 ] );
+		// Gotowa paleta wygrywa z pickerami — te są wtedy w panelu ukryte,
+		// więc czytanie ich dałoby kolory, których nikt nie widzi.
+		$palettes    = self::palettes();
+		$palette_key = $s['palette'] ?? 'custom';
+
+		if ( $palette_key !== 'custom' && isset( $palettes[ $palette_key ] ) ) {
+			$colors = $palettes[ $palette_key ]['colors'];
+		} else {
+			$color_defaults = $palettes['custom']['colors'];
+			$colors = [];
+			for ( $i = 1; $i <= 6; $i++ ) {
+				$colors[] = $this->color_hex( $s[ 'color_' . $i ] ?? null, $color_defaults[ $i - 1 ] );
+			}
 		}
 
 		$variation_map = [ 'v0' => 0, 'v1' => 1, 'v2' => 2, 'v3' => 3, 'v4' => 4, 'v5' => 5 ];

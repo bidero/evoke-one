@@ -2,6 +2,20 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.34.0] — 2026-08-06
+
+### Dodane
+
+- **Sześć gotowych palet Wave Background**: Zorza, Zachód, Ocean, Żar, Mięta
+  i Monochrom. Wariantów geometrii element miał już sześć plus w pełni własny —
+  brakowało szybkiego wyboru kolorystyki, bo dotąd trzeba było ustawić sześć
+  pickerów po kolei, żeby wyjść poza jedno domyślne zestawienie.
+
+  **Domyślnie nic się nie zmienia**: paletą domyślną są „Własne kolory", więc
+  tła już wstawione na strony wyglądają dokładnie tak jak dotąd. Po wybraniu
+  gotowej palety pola kolorów znikają z panelu — czytanie ich dawałoby wtedy
+  kolory, których nikt nie widzi.
+
 ## [1.33.0] — 2026-08-06
 
 ### Dodane
