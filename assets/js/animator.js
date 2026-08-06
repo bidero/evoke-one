@@ -20,10 +20,17 @@
 
   // ── Helpers ────────────────────────────────────────────────────────────
 
+  /**
+   * Polityka ruchu jest wspólna dla całej wtyczki — patrz includes/anim/motion.php.
+   * Własny fallback, żeby silnik nie zależał od kolejności ładowania skryptów;
+   * przy braku helpera pytamy sam system, bo bezpieczniej uszanować preferencję
+   * niż ją zignorować.
+   */
   function prefersReduced() {
-    return !!G.reducedMotion
-        && window.matchMedia
-        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (window.evkMotion && typeof window.evkMotion.reduced === 'function') {
+      return window.evkMotion.reduced();
+    }
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
   function pick() {

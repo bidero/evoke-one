@@ -421,6 +421,14 @@ import gsap from 'https://esm.sh/gsap@<?php echo EVK_GSAP_VERSION; ?>';
 // który jest na stronach dziś.
 THREE.ColorManagement.enabled = false;
 
+/** Wspólna polityka ruchu — patrz includes/anim/motion.php. */
+function evkWbReduced() {
+    if (window.evkMotion && typeof window.evkMotion.reduced === 'function') {
+        return window.evkMotion.reduced();
+    }
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
 const CONFIG       = <?php echo $cfg_js; ?>;
 const CONTAINER_ID = <?php echo wp_json_encode( $uid ); ?>;
 
@@ -782,6 +790,11 @@ class EvkWaveBackground {
         // wyrzucany przebieg sceny na każdą klatkę, czyli podwojona praca
         // shadera przy dwukrotnym DPR na telefonie.
         this.composer.render();
+
+        // Redukcja ruchu: jedna klatka i koniec. Gradient zostaje na ekranie —
+        // to element dekoracyjny, więc jego zniknięcie zmieniłoby układ strony —
+        // ale pętla rAF nie startuje. Wspólna polityka: includes/anim/motion.php.
+        if (evkWbReduced()) return;
 
         this.rafId = requestAnimationFrame(() => this.render());
     }

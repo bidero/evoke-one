@@ -36,8 +36,23 @@ class EvkArcTitle {
             this.inner.style.animation = 'none';
             return;
         }
+        // Redukcja ruchu: tekst zostaje ułożony po okręgu, ale się nie obraca —
+        // ani od prędkości scrolla, ani przez ScrollTrigger. Zatrzymujemy też
+        // animację CSS, bo bez tego okrąg kręciłby się dalej sam.
+        // Wspólna polityka: includes/anim/motion.php.
+        if (EvkArcTitle.reduced()) {
+            this.inner.style.animation = 'none';
+            return;
+        }
         if (this.velocity) this.initVelocity();
         else if (this.scroll) this.initScrollTrigger();
+    }
+
+    static reduced() {
+        if (window.evkMotion && typeof window.evkMotion.reduced === 'function') {
+            return window.evkMotion.reduced();
+        }
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
 
     updateContent() {

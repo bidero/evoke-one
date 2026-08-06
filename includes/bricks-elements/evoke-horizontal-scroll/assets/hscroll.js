@@ -66,6 +66,14 @@
 		var mm = gsap.matchMedia();
 		var query = '(min-width: ' + (C.disableBelow > 0 ? C.disableBelow : 0) + 'px)';
 
+		// Redukcja ruchu wpina się w istniejący mechanizm zamiast obok niego:
+		// dopisana klauzula sprawia, że blok się nie uruchamia, a gsap.matchMedia
+		// sam posprząta po pinie — treść wraca do pionowego przepływu i pozostaje
+		// w całości dostępna. Wspólna polityka: includes/anim/motion.php.
+		if (!window.evkMotion || window.evkMotion.respect !== false) {
+			query += ' and (prefers-reduced-motion: no-preference)';
+		}
+
 		mm.add(query, function () {
 			root.classList.add('evk-hscroll--active');
 			setWidths();

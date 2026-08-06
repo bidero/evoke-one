@@ -2,6 +2,41 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.30.0] — 2026-08-06
+
+### Dodane
+
+- **Redukcja ruchu obowiązuje w całej wtyczce.** Dotąd `prefers-reduced-motion`
+  respektowały **tylko** Animator i Tło przy scrollu. Marquee, Horizontal Scroll,
+  Scroll Reading, Circular Title, Circular Menu, Stacking Cards, Wave Background,
+  Parallax, Lenis i Kursor animowały niezależnie od preferencji użytkownika.
+
+  Doszedł nowy przełącznik **Dostępność → Ruch na stronie**. Opcja jest osobna od
+  ustawień widżetu dostępności, mimo że stoi w tej samej zakładce: widżet bywa
+  wyłączony, a polityka ruchu ma obowiązywać zawsze. Dotychczasowa wartość
+  z Animatora jest przejmowana, więc nikt nie traci konfiguracji.
+
+  Zasada wspólna dla wszystkich silników: **ruch znika, stan końcowy zostaje**.
+  Nic nie może stać się niewidoczne ani niedostępne.
+
+  | Moduł | Przy redukcji ruchu |
+  |---|---|
+  | Stacking Cards | zwykły przepływ — ta sama ścieżka co poniżej breakpointu |
+  | Marquee | treść stoi, pętla nie rusza |
+  | Horizontal Scroll | pionowy przepływ zamiast pinu |
+  | Scroll Reading | od razu kolor **docelowy**, nie przygaszony |
+  | Circular Title | tekst po okręgu bez obrotu |
+  | Circular Menu | otwiera się natychmiast — nawigacja musi zostać dostępna |
+  | Wave Background | jedna klatka, bez pętli |
+  | Parallax | transform raz, z zerowym przesunięciem; skala zachowana |
+  | Lenis | przewijanie natywne |
+  | Kursor | własny kursor nie powstaje |
+
+  Polityka żyje w jednym miejscu (`includes/anim/motion.php`) i trafia na front
+  jako `window.evkMotion.reduced()`. Każdy silnik ma własny kilkulinijkowy
+  fallback pytający wprost `matchMedia`, więc nie zależy od kolejności ładowania
+  skryptów — a przy braku helpera domyślnie **szanuje** preferencję.
+
 ## [1.29.2] — 2026-08-05
 
 ### Naprawione

@@ -160,10 +160,22 @@ function evk_stacking_cards_init() {
             ScrollTrigger.refresh();
         }
 
+        /** Wspólna polityka ruchu — patrz includes/anim/motion.php. */
+        function reduced() {
+            if (window.evkMotion && typeof window.evkMotion.reduced === 'function') {
+                return window.evkMotion.reduced();
+            }
+            return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        }
+
         function apply() {
             // Flaga zamiast triggers.length — przy wyłączonym zmniejszaniu
             // i przyciemnianiu żaden trigger nie powstaje, a stos i tak działa.
-            var on = mq ? mq.matches : true;
+            //
+            // Redukcja ruchu idzie tą samą ścieżką co breakpoint: karty układają
+            // się jedna pod drugą w zwykłym przepływie. Treść zostaje w całości
+            // dostępna, znika tylko nakładanie i przewijanie kart.
+            var on = (mq ? mq.matches : true) && !reduced();
             if (on && !active) setup();
             else if (!on && active) teardown();
         }

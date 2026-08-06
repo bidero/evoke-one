@@ -23,7 +23,15 @@ function evk_circular_menu_init_one( root ) {
     var isBuilder   = ! bricksIsFrontend;
     var openBuilder = root.getAttribute( 'data-open-builder' ) === '1';
     var usePortal   = root.getAttribute( 'data-portal' ) !== '0';
-    var duration    = parseFloat( root.getAttribute( 'data-duration' ) ) || 0.4;
+    // Redukcja ruchu: menu MUSI się nadal otwierać i zamykać — zerujemy sam czas
+    // trwania, więc clip-path przeskakuje zamiast się rozwijać. Wyłączenie
+    // animacji nie może odebrać dostępu do nawigacji.
+    // Wspólna polityka: includes/anim/motion.php.
+    var reduced = ( window.evkMotion && typeof window.evkMotion.reduced === 'function' )
+        ? window.evkMotion.reduced()
+        : !! ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
+
+    var duration    = reduced ? 0 : ( parseFloat( root.getAttribute( 'data-duration' ) ) || 0.4 );
     var easing      = root.getAttribute( 'data-easing' ) || 'none';
     var customToggleSel = root.getAttribute( 'data-customtoggle' ) || '';
     var lockScroll  = root.getAttribute( 'data-lock-scroll' ) === '1';

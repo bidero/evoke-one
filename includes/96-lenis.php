@@ -129,6 +129,17 @@ html.lenis,html.lenis body{height:auto;}
         $js = sprintf(
             "document.addEventListener('DOMContentLoaded',function(){
     var autoRaf = %s;
+
+    // Redukcja ruchu: przewijanie zostaje natywne. Lenis nie powstaje w ogóle —
+    // wygładzanie zmienia tempo każdego ruchu strony, więc nie da się go
+    // „przyciszyć”, można tylko z niego zrezygnować. Kotwice działają dalej,
+    // bo bez Lenisa obsługuje je przeglądarka.
+    // Wspólna polityka: includes/anim/motion.php.
+    var evkReduced = (window.evkMotion && typeof window.evkMotion.reduced === 'function')
+        ? window.evkMotion.reduced()
+        : !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    if (evkReduced) return;
+
     var lenis = new Lenis({
         duration: %s,
         lerp: %s,

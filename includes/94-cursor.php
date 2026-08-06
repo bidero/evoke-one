@@ -151,6 +151,14 @@ class EVK_Cursor {
     document.addEventListener('DOMContentLoaded', function () {
         if (window.innerWidth <= <?php echo $mobile_bp; ?>) return;
 
+        // Redukcja ruchu: własny kursor w ogóle nie powstaje, zostaje systemowy.
+        // Kursor to czysta dekoracja podążająca za wskaźnikiem z bezwładnością —
+        // dla kogoś, kto prosi o mniej ruchu, jest ruchem stale obecnym na ekranie.
+        // Wspólna polityka: includes/anim/motion.php.
+        if (window.evkMotion && typeof window.evkMotion.reduced === 'function'
+            ? window.evkMotion.reduced()
+            : (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+
         var cursorSize    = <?php echo $cursor_size; ?>;
         var defaultBg     = '<?php echo $bg_color; ?>';
         var defaultBlend  = '<?php echo $blend_mode; ?>';

@@ -33,6 +33,14 @@
     return (h.getAttribute('data-theme') || '') + '|' + (h.classList.contains('dark') ? 'dark' : '');
   }
 
+  /** Wspólna polityka ruchu — patrz includes/anim/motion.php. */
+  function reduced() {
+    if (window.evkMotion && typeof window.evkMotion.reduced === 'function') {
+      return window.evkMotion.reduced();
+    }
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
   function build(inst) {
     inst.dim    = resolveColor(inst.cfg.colorDim, inst.el);
     inst.active = resolveColor(inst.cfg.colorActive, inst.el);
@@ -40,6 +48,14 @@
     if (inst.tl) {
       if (inst.tl.scrollTrigger) inst.tl.scrollTrigger.kill();
       inst.tl.kill();
+    }
+
+    // Redukcja ruchu: od razu kolor docelowy, bez rozjaśniania przy scrollu.
+    // Kolor DOCELOWY, nie wyjściowy — przygaszony tekst zostałby nieczytelny.
+    if (reduced()) {
+      inst.tl = null;
+      gsap.set(inst.targets, { color: inst.active });
+      return;
     }
 
     gsap.set(inst.targets, { color: inst.dim });

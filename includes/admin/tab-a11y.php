@@ -27,6 +27,27 @@ if (!defined('ABSPATH')) exit;
                     </div>
                 </div>
 
+                <!-- POLITYKA RUCHU -->
+                <p class="evo-section-title">Ruch na stronie</p>
+                <div class="evo-field">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="evk_motion[respect_reduced]" value="1"
+                               <?php checked(evk_motion_respect_reduced()); ?>>
+                        Szanuj systemowe ograniczenie animacji
+                    </label>
+                    <div class="evo-desc" style="max-width:70ch;">
+                        Gdy odwiedzający ma w systemie włączone <code>prefers-reduced-motion</code>,
+                        wszystkie efekty Evoke ONE zatrzymują ruch, ale <strong>zachowują stan
+                        końcowy</strong> — nic nie znika i nic nie zostaje niewidoczne.
+                        Karty układają się jedna pod drugą, marquee stoi, tekst Scroll Reading
+                        dostaje od razu kolor docelowy, tło Wave renderuje jedną klatkę,
+                        parallax nie przesuwa, płynne przewijanie i własny kursor się nie włączają,
+                        a menu otwiera się natychmiast zamiast rozwijać.<br><br>
+                        To ustawienie działa niezależnie od tego, czy widżet dostępności powyżej
+                        jest włączony — dlatego ma osobną opcję, a nie pole w jego konfiguracji.
+                    </div>
+                </div>
+
                 <!-- WŁĄCZONE FUNKCJE -->
                 <p class="evo-section-title">Włączone funkcje</p>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:24px;">

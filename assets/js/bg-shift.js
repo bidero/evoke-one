@@ -23,8 +23,12 @@
   var themeSig = null;
   var pending  = false;
 
+  /** Wspólna polityka ruchu — patrz includes/anim/motion.php. */
   function reduced() {
-    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (window.evkMotion && typeof window.evkMotion.reduced === 'function') {
+      return window.evkMotion.reduced();
+    }
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
   /** Kolor „pusty" — sekcja bez własnego tła nie ma czego oddać warstwie. */

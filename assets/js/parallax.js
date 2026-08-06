@@ -123,6 +123,23 @@ document.addEventListener('DOMContentLoaded', () => {
             ticking = false;
         };
 
+        // Redukcja ruchu: transform nakładamy RAZ, z zerowym przesunięciem, i tu
+        // kończymy. Wyjście MUSI być przed IntersectionObserverem — jego callback
+        // też woła updateTransform(), więc postawione niżej nic by nie dało.
+        // Skala zostaje: element bywa przeskalowany właśnie po to, żeby ruch nie
+        // odsłaniał krawędzi, a jej zdjęcie zmieniłoby kadrowanie.
+        // Wspólna polityka: includes/anim/motion.php.
+        const reduced = (window.evkMotion && typeof window.evkMotion.reduced === 'function')
+            ? window.evkMotion.reduced()
+            : !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+        if (reduced) {
+            targetElement.style.transform = isImg
+                ? `translate3d(-50%, -50%, 0) scale(${customScale})`
+                : `translate3d(0, 0, 0) scale(${customScale})`;
+            return;
+        }
+
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 isVisible = entry.isIntersecting;

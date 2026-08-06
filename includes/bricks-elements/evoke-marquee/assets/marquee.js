@@ -71,6 +71,14 @@
     document.head.appendChild(s);
   }
 
+  /** Wspólna polityka ruchu — patrz includes/anim/motion.php. */
+  function evkMarqueeReduced() {
+    if (window.evkMotion && typeof window.evkMotion.reduced === 'function') {
+      return window.evkMotion.reduced();
+    }
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
   function initMarquee(container) {
     if (container.dataset.evkInit) return;
     container.dataset.evkInit = '1';
@@ -92,6 +100,11 @@
     // Zbierz wszystkie .evk-marquee-item ze wszystkich tracków
     var items = gsap.utils.toArray(container.querySelectorAll('.evk-marquee-item'));
     if (!items.length) return;
+
+    // Redukcja ruchu: treść zostaje na miejscu w zwykłym przepływie, pętla nie
+    // rusza i Observer nie powstaje. Nic nie znika — marquee bez ruchu to po
+    // prostu rząd elementów. Wspólna polityka: includes/anim/motion.php.
+    if (evkMarqueeReduced()) return;
 
     var gap = parseFloat(getComputedStyle(container.querySelector('.evk-marquee-track')).gap) || 80;
 
