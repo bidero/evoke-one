@@ -128,7 +128,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-wave-bg',
             'file'  => $dir . 'evoke-wave-bg/element.php',
             'consts'=> [
-                'EVK_WB_VERSION' => '1.2.1',
+                'EVK_WB_VERSION' => '1.3.0',
                 'EVK_WB_PATH'    => $dir . 'evoke-wave-bg/',
             ],
             // asety: self-contained ESM w render()

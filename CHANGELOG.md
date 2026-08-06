@@ -2,6 +2,109 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.29.2] — 2026-08-05
+
+### Naprawione
+
+- **Tryb ciemny nie wracał do pełnej jasności po włączeniu tła przy scrollu.**
+  Warstwa tła zostawała o jeden motyw w tyle: po przełączeniu na ciemny trzymała
+  kolor jasny, a po powrocie do jasnego — ciemny.
+
+  Moduł trybu ciemnego dokłada `transition: background-color` między innymi na
+  `section` (domyślne `global_selectors`). W trakcie trwającego przejścia
+  `getComputedStyle` zwraca wartość **animowaną**, nie docelową — a silnik tła
+  odczytuje kolor sekcji dokładnie w tym momencie, tuż po zdjęciu klasy
+  przezroczystości. Trafiał więc albo w kolor poprzedniego motywu, albo w samą
+  przezroczystość, przez co sekcje wypadały z łańcucha jako „bez własnego koloru".
+
+  Pomiar odbywa się teraz przy wyłączonych przejściach (klasa `evk-bg-measure`),
+  a obie zmiany klas są commitowane zanim przejścia wrócą — inaczej powrót do
+  przezroczystości animowałby się przez 0,4 s i widać byłoby mignięcie kolorem
+  sekcji. Sprawdzone dziesięcioma przełączeniami tam i z powrotem, bez dryfu.
+
+## [1.29.1] — 2026-08-05
+
+### Naprawione
+
+- **Nie dało się włączyć przełącznika „Tło przy scrollu".** Przełączniki modułów
+  zapisują się przez AJAX, a ten sprawdza opcję i pole względem białej listy
+  w `includes/30-admin-settings-ajax.php`. Nowa opcja `evk_bgshift` na tę listę
+  nie trafiła, więc każde kliknięcie kończyło się odpowiedzią `not_allowed`.
+
+  Przy okazji ta sama opcja została dopisana do mapy eksportu, pętli importu
+  i mapy grupowania w panelu — bez tego ustawienia modułu ginęłyby po cichu przy
+  przenoszeniu konfiguracji między instalacjami. Do mapy grupowania dopisany też
+  `evk_animator`, którego nigdy tam nie było — ta sama luka, ten sam plik.
+
+## [1.29.0] — 2026-08-05
+
+### Dodane
+
+- **Przenikanie tła przy scrollu.** Nowy moduł: kolor tła przewija się płynnie od
+  sekcji do sekcji podczas przewijania strony. Włącznik przy każdym elemencie
+  w builderze (Atrybuty → Evoke ONE → Tło przy scrollu), ustawienia długości
+  przejścia i wygładzania w panelu (Frontend → Tło przy scrollu).
+
+  Kolor **nie jest animowany na samych sekcjach**. Gdyby każda przewijała własne
+  tło, przez całe przejście na granicy sąsiadowałyby dwa różne kolory i widać
+  byłoby szew — efekt czytałby się jak przenikanie prostokątów, nie jak jedno tło.
+  Zamiast tego pod całą stroną leży jedna warstwa: sekcja oddaje jej swój kolor
+  i sama robi się przezroczysta.
+
+  **Bez osobnej kontrolki na kolor.** Silnik odczytuje `background-color`
+  z `getComputedStyle`, gdzie kolory globalne Bricks są już rozwinięte do `rgb()`.
+  Dzięki temu nie powstaje drugie źródło prawdy, które rozjeżdżałoby się przy
+  każdej zmianie koloru sekcji. Zmiana motywu przelicza kolory i przebudowuje oś
+  czasu, tak samo jak w Scroll Reading.
+
+  Sekcja z tłem graficznym albo gradientowym nie ma czego oddać — wypada
+  z łańcucha z ostrzeżeniem w konsoli, zamiast wstawiać w niego przezroczystą
+  dziurę. Przy systemowej redukcji ruchu kolor przeskakuje na granicy sekcji
+  zamiast się przewijać.
+
+## [1.28.3] — 2026-08-05
+
+### Naprawione
+
+- **Wave Background renderował scenę dwa razy na każdą klatkę.** Pętla wołała
+  `renderer.render()`, a zaraz po nim `composer.render()` (komentarz mówił „jak
+  w referencji"). Ostatni `ShaderPass` renderuje na ekran przez
+  `setRenderTarget(null)` nieprzezroczystym materiałem, więc i tak nadpisuje
+  wszystko — potwierdzone porównaniem zrzutów płótna: obraz jest identyczny co do
+  piksela z pierwszym przebiegiem i bez niego. Był to pełny, wyrzucany przebieg
+  ciężkiego shadera z szumem na każdą klatkę, przy dwukrotnym DPR na telefonie.
+
+- **`removeEventListener` w `destroy()` nigdy niczego nie usuwał.** Nasłuch
+  `resize` zakładany był przez `this.resize.bind(this)`, a zdejmowany przez
+  kolejne `.bind()`, czyli inną funkcję. Referencja trzymana jest teraz w polu.
+
+### Zmienione
+
+- **Wave Background włącza `preserveDrawingBuffer`.** Element bywa tłem dla tekstu
+  z `mix-blend-mode`, a tryb mieszania zmusza przeglądarkę do odczytania pikseli
+  płótna. Przy domyślnym `false` WebGL wolno porzucić bufor zaraz po wyświetleniu
+  — odczyt trafia wtedy na pustkę i tekst miesza się z niczym zamiast z falą.
+  Koszt to jedna kopia bufora na klatkę, czyli mniej niż usunięty wyżej przebieg
+  sceny.
+
+## [1.28.2] — 2026-08-05
+
+### Naprawione
+
+- **Ostrzeżenie `[EVK Animator] Brak animacji "pending" w bibliotece` w konsoli.**
+  Klasa zasłony z 1.27.2 nazywała się `evk-anim-pending`, czyli wpadła w przestrzeń
+  nazw slugów animacji. Silnik zbiera elementy selektorem `[class*="evk-anim-"]`,
+  a `querySelectorAll` przeszukuje dokument razem z `<html>` — korzeń strony
+  trafiał więc do wyników jak zwykły element z animacją i silnik szukał w bibliotece
+  animacji o slugu „pending".
+
+  Skutek był wyłącznie kosmetyczny: konfiguracja nie miała `from` ani `to`, więc na
+  `<html>` nic się nie działo. Hałas był jednak mylący, bo to ostrzeżenie istnieje
+  po to, żeby łapać literówki w slugach. Klasa nazywa się teraz `evk-veil` i leży
+  poza tą przestrzenią; warunek jest zapisany w komentarzu przy `render_preveil()`,
+  bo dopasowanie idzie po podciągu, nie po prefiksie — sam brak prefiksu nie
+  wystarczy.
+
 ## [1.28.1] — 2026-08-05
 
 ### Naprawione

@@ -612,7 +612,19 @@ class EvkWaveBackground {
         this.scene = new THREE.Scene();
 
         // Renderer — alpha:true, przezroczyste tło; kontener może mieć własne CSS background
-        this.renderer = new THREE.WebGLRenderer({ alpha: true, powerPreference: 'high-performance' });
+        //
+        // preserveDrawingBuffer: element bywa tłem dla tekstu z mix-blend-mode.
+        // Tryb mieszania zmusza przeglądarkę do odczytania pikseli płótna, a przy
+        // domyślnym `false` WebGL wolno je porzucić zaraz po wyświetleniu — odczyt
+        // trafia wtedy na pusty bufor i tekst miesza się z niczym zamiast z falą.
+        // Objawia się to migotaniem na czarno/biało co kilka sekund, bo pętla
+        // renderowania i kompozytor rozjeżdżają się fazowo. Koszt to jedna kopia
+        // bufora na klatkę — mniej niż przebieg sceny, który wyżej usunęliśmy.
+        this.renderer = new THREE.WebGLRenderer({
+            alpha: true,
+            powerPreference: 'high-performance',
+            preserveDrawingBuffer: true,
+        });
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.setSize(this.width, this.height);
         this.renderer.setClearColor(0x000000, 0);
@@ -687,7 +699,11 @@ class EvkWaveBackground {
     }
 
     setupResize() {
-        window.addEventListener('resize', this.resize.bind(this));
+        // Referencja trzymana w polu: .bind() tworzy za każdym wywołaniem NOWĄ
+        // funkcję, więc removeEventListener z osobnym .bind() nigdy niczego nie
+        // zdejmował i nasłuch przeżywał destroy().
+        this.onResize = this.resize.bind(this);
+        window.addEventListener('resize', this.onResize);
     }
 
     resize() {
@@ -759,15 +775,19 @@ class EvkWaveBackground {
             this.effect1.uniforms.uNoiseSeed.value = Math.random();
         }
 
-        // Oba calle — jak w referencji
-        this.renderer.render(this.scene, this.camera);
+        // Tylko composer. Referencja wołała tu jeszcze renderer.render(), ale
+        // ostatni ShaderPass i tak renderuje na ekran przez setRenderTarget(null)
+        // nieprzezroczystym materiałem, więc nadpisuje wszystko — sprawdzone
+        // porównaniem zrzutów: obraz jest identyczny co do piksela. Był to pełny,
+        // wyrzucany przebieg sceny na każdą klatkę, czyli podwojona praca
+        // shadera przy dwukrotnym DPR na telefonie.
         this.composer.render();
 
         this.rafId = requestAnimationFrame(() => this.render());
     }
 
     destroy() {
-        window.removeEventListener('resize', this.resize.bind(this));
+        window.removeEventListener('resize', this.onResize);
         cancelAnimationFrame(this.rafId);
         this.plane.geometry.dispose();
         this.plane.material.dispose();

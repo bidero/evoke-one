@@ -236,6 +236,7 @@ add_action('wp_ajax_tl_export', function () {
         'evk_cursor'          => fn() => ['evk_cursor'          => get_option('evk_cursor', [])],
         'evk_lenis'           => fn() => ['evk_lenis'           => get_option('evk_lenis', [])],
         'evk_animator'        => fn() => ['evk_animator'        => get_option('evk_animator', [])],
+        'evk_bgshift'         => fn() => ['evk_bgshift'         => get_option('evk_bgshift', [])],
         'evk_forminbox'       => fn() => ['evk_forminbox' => get_option('evk_forminbox', [])],
         'evk_parallax'        => fn() => [
             'evk_parallax'       => get_option('evk_parallax', []),
@@ -373,7 +374,7 @@ add_action('wp_ajax_tl_import', function () {
     if ($should('tl_dd_keys')          && isset($data['tl_dd_keys']))          { update_option('tl_dd_keys',          $data['tl_dd_keys']); $imported++; }
 
     // Frontend modules
-    foreach (['evk_darkmode','evk_cursor','evk_lenis','evk_animator','evk_a11y','evk_schema','evk_og','evk_security','evk_smtp'] as $opt) {
+    foreach (['evk_darkmode','evk_cursor','evk_lenis','evk_animator','evk_bgshift','evk_a11y','evk_schema','evk_og','evk_security','evk_smtp'] as $opt) {
         $mod = str_replace(['evk_','evoke_one_'], ['evk_','evk_'], $opt);
         if ($should($mod) && isset($data[$opt])) { update_option($opt, $data[$opt]); $imported++; }
     }
@@ -606,6 +607,7 @@ add_action('wp_ajax_evk_ajax_toggle', function () {
         'evk_og'                    => ['enabled'],
         'evk_fonts'                 => ['enabled'],
         'evk_animator'              => ['enabled'],
+        'evk_bgshift'               => ['enabled'],
         'evk_white_label'           => ['enabled'],
         'evk_newsletter'            => ['enabled'],
         'evk_security'              => ['limit_login_enabled', 'hide_wp_version', 'rest_block_all', 'disable_bundled_themes'],
