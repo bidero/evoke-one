@@ -2,6 +2,36 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.35.0] — 2026-08-06
+
+### Poprawione
+
+- **Animator nie zostawia już po sobie śladu w stylu inline.** GSAP kończył
+  animację wejścia na `transform: translate(0px, 0px)` i `filter: blur(0px)`.
+  To **nie jest** `none`: element pozostawał przez to na stałe blokiem
+  zawierającym dla potomków pozycjonowanych absolutnie i osobnym kontekstem
+  układania — długo po tym, jak animacja się skończyła. Na zwykłym divie nie
+  widać tego wcale, ale wystarczyło przypiąć animację do czegoś, czego układem
+  steruje inny skrypt (slider, popup, sticky), żeby zaczęło się psuć bez powodu.
+
+  Po wejściu **bez powtarzania** czyszczone są teraz `transform`, `filter`
+  i `clip-path` — tylko te trzy, bo tylko one tworzą blok zawierający, a własne
+  `to` wpisane w panelu może celowo zostawiać kolor czy tło. Wygląd bez zmian:
+  stan końcowy wejścia to z definicji przesunięcie 0, skala 1 i rozmycie 0.
+
+  Nie dotyczy hovera, kliku, scruba ani powtarzanych wejść — tam stan końcowy
+  jest znaczący i czyszczenie zdejmowałoby efekt.
+
+- **Efekt tekstowy odmawia pracy na kontenerze.** `TextPlugin` wpisuje tekst
+  przez `innerHTML`, a docelowy tekst brany był z `textContent`. Na elemencie
+  z zawartością jedno z drugim dawało katastrofę: treść wszystkich potomków
+  sklejała się w jeden ciąg bez odstępów i **zastępowała cały ich znacznik**.
+  Zgłoszone na korzeniu slidera — wychodziły z tego wszystkie slajdy sklejone
+  w jeden akapit, bez stylów.
+
+  Silnik pomija teraz takie elementy i mówi w konsoli, co zrobić zamiast tego.
+  Na pojedynczym nagłówku czy akapicie efekt działa jak dotąd.
+
 ## [1.34.0] — 2026-08-06
 
 ### Dodane

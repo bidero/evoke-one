@@ -240,6 +240,13 @@ module.exports = async function (t) {
   t.check('uniesienie zmienia cień (lift)',
     after.lift && after.lift.boxShadow !== rest.lift.boxShadow,
     after.lift ? after.lift.boxShadow : 'brak presetu');
+
+  // Stan najechania MUSI zostać, dopóki kursor jest na elemencie. Sprzątanie
+  // transformacji po animacji (1.35.0) obowiązuje wyłącznie wejścia — puszczone
+  // tutaj zdejmowałoby uniesienie w chwili, gdy dojedzie do końca.
+  t.check('uniesienie utrzymuje się po najechaniu',
+    after.lift && after.lift.transform !== 'none' && after.lift.transform !== rest.lift.transform,
+    after.lift ? after.lift.transform : 'brak presetu');
   t.check('podkreślenie dojeżdża do pełnej szerokości',
     after['underline-sweep'] && after['underline-sweep'].bgSize === '100% 2px',
     after['underline-sweep'] ? after['underline-sweep'].bgSize : 'brak presetu');

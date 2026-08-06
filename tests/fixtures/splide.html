@@ -1,0 +1,91 @@
+<link rel="stylesheet" href="../../node_modules/@splidejs/splide/dist/css/splide.min.css">
+<style>
+  body { margin: 0; font: 16px system-ui; background: #fff; }
+  .wrap { padding: 20px; }
+  .slide-body { padding: 24px; background: #eef; }
+  .slide-body h3 { margin: 0 0 8px; color: #135; }
+  .slide-body p  { margin: 0; color: #468; }
+</style>
+
+<div class="wrap">
+  <!-- Kontrola negatywna dla efektu tekstowego: zwykły nagłówek bez dzieci.
+       NAD sliderem, bo wyzwalacz „wejście w kadr" nie odpali dla elementu
+       poniżej ekranu, a stan „from" (pusty tekst) jest nakładany od razu. -->
+  <h2 id="plain" data-evk-anim="pisz">Napis</h2>
+
+  <!-- Klasa animacji siedzi na KORZENIU slidera — dokładnie tak, jak zgłoszone. -->
+  <div class="splide" id="slider" data-evk-anim="wejscie">
+    <div class="splide__track">
+      <ul class="splide__list">
+        <li class="splide__slide"><div class="slide-body"><h3>Pierwszy</h3><p>Treść jeden</p></div></li>
+        <li class="splide__slide"><div class="slide-body"><h3>Drugi</h3><p>Treść dwa</p></div></li>
+        <li class="splide__slide"><div class="slide-body"><h3>Trzeci</h3><p>Treść trzy</p></div></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script src="../../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../../node_modules/gsap/dist/ScrollTrigger.min.js"></script>
+<script src="../../node_modules/gsap/dist/TextPlugin.min.js"></script>
+<script src="../../node_modules/@splidejs/splide/dist/js/splide.min.js"></script>
+<script>
+/* Odwzorowanie payloadu z includes/anim/animator.php. Preset wybiera ?preset=,
+ * żeby ten sam fixture obsłużył „rozmycie z dołu" i „maszynę do pisania".
+ */
+(function () {
+  var params = new URLSearchParams(location.search);
+  var preset = params.get('preset') || 'blur-up';
+
+  window.evkAnimator = {
+    library: {
+      wejscie: { slug: 'wejscie', preset: preset, trigger: 'viewport',
+                 duration: 0.6, stagger: 0, delay: 0, easing: '', order: 0,
+                 start: 'top 99%', targets: 'self' },
+      pisz:    { slug: 'pisz', preset: 'typewriter', trigger: 'viewport',
+                 duration: 0.6, stagger: 0, delay: 0, easing: '', order: 0,
+                 start: 'top 99%', targets: 'self' },
+    },
+    presets: {
+      'blur-up':    { from: { opacity: 0, y: 30, filter: 'blur(10px)' },
+                      to:   { opacity: 1, y: 0,  filter: 'blur(0px)' }, duration: 1.0 },
+      'fade-up':    { from: { opacity: 0, y: 40 }, to: { opacity: 1, y: 0 }, duration: 0.8 },
+      'typewriter': { textFx: 'type', duration: 0.6, easing: 'none' },
+    },
+    reducedMotion: false, needsFonts: false,
+  };
+
+  // Splide montuje się na DOMContentLoaded, tak jak slider Bricks.
+  document.addEventListener('DOMContentLoaded', function () {
+    new Splide('#slider', { type: 'fade', rewind: true, autoplay: false, arrows: false, pagination: false }).mount();
+  });
+
+  window.__slider = function () {
+    var root   = document.getElementById('slider');
+    var slides = Array.prototype.slice.call(root.querySelectorAll('.splide__slide'));
+    var inline = root.style;
+    return {
+      // Styl INLINE, nie computed: chodzi o to, co zostawił po sobie GSAP.
+      inlineTransform: inline.transform || '',
+      inlineFilter:    inline.filter || '',
+      // Ile slajdów jest realnie widocznych — w trybie fade ma być jeden.
+      visible: slides.filter(function (s) {
+        return parseFloat(getComputedStyle(s).opacity) > 0.5;
+      }).length,
+      // Czy slajdy nadal leżą na sobie (fade), czy rozjechały się w pionie.
+      tops: slides.map(function (s) { return Math.round(s.getBoundingClientRect().top); }),
+      headings: slides.map(function (s) {
+        var h = s.querySelector('h3');
+        return h ? h.textContent : null;
+      }),
+      // Liczba potomków-elementów: efekt tekstowy na kontenerze spłaszcza je
+      // do jednego węzła tekstowego, więc spadek do zera jest sygnałem usterki.
+      descendants: root.querySelectorAll('*').length,
+      childTags: Array.prototype.slice.call(root.children).map(function (c) { return c.tagName; }),
+    };
+  };
+
+  window.__plain = function () { return document.getElementById('plain').textContent; };
+})();
+</script>
+<script src="../../assets/js/animator.js"></script>

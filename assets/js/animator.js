@@ -164,6 +164,27 @@
   }
 
   /**
+   * Efekty tekstowe wolno puszczać WYŁĄCZNIE na elementy bez dzieci-elementów.
+   *
+   * TextPlugin i ScrambleTextPlugin wpisują tekst przez innerHTML, a docelowy
+   * tekst bierzemy z textContent. Na kontenerze jedno z drugim daje katastrofę:
+   * textContent skleja treść wszystkich potomków w jeden ciąg bez odstępów,
+   * a wpisanie go z powrotem kasuje całe znaczniki i style w środku. Zgłoszone
+   * na korzeniu slidera — wychodziły z tego wszystkie slajdy sklejone w jeden
+   * akapit. To nie jest przypadek do obsłużenia, tylko do zablokowania.
+   */
+  function textSafeTargets(el, targets) {
+    var safe = targets.filter(function (t) { return t.children.length === 0; });
+    if (safe.length !== targets.length) {
+      console.warn('[EVK Animator] Efekt tekstowy pomija element, który ma w środku inne '
+        + 'elementy — wtyczka tekstowa zastąpiłaby całą jego zawartość zlepkiem tekstu. '
+        + 'Ustaw „Cel animacji" na sam tekst (np. selektorem) albo przypnij animację '
+        + 'bezpośrednio do nagłówka lub akapitu.', el);
+    }
+    return safe;
+  }
+
+  /**
    * Varsy dla wtyczek tekstowych. Wartość jest FUNKCJĄ — GSAP rozwiązuje ją
    * osobno dla każdego celu, dzięki czemu jedna oś czasu obsługuje wiele
    * elementów z różną treścią. Przy scramble funkcją jest cały obiekt
@@ -220,6 +241,25 @@
    * pozycję), a efekty tekstowe mają działać przy każdym z nich — rozsypane po
    * czterech funkcjach obsłużyłyby tylko ten wyzwalacz, o którym ktoś pamiętał.
    */
+  /**
+   * Czy po animacji sprzątamy inline'owy zapis transformacji.
+   *
+   * GSAP zostawia po sobie `transform: translate(0px, 0px)` i `filter: blur(0px)`.
+   * To NIE jest `none`: element pozostaje wtedy na stałe blokiem zawierającym
+   * dla potomków pozycjonowanych absolutnie i osobnym kontekstem układania —
+   * długo po tym, jak animacja się skończyła. Na zwykłym divie nie widać tego
+   * wcale, ale wystarczy przypiąć animację do czegoś, czego układem steruje
+   * inny skrypt (slider, popup, sticky), żeby zaczęło się psuć bez powodu.
+   *
+   * Sprzątamy tylko przy wejściach BEZ powtarzania, bo tylko tam stan końcowy
+   * jest z definicji stanem naturalnym elementu: przesunięcie 0, skala 1,
+   * rozmycie 0. Przy hoverze, kliku i scrubie stan końcowy jest znaczący,
+   * a przy powtarzaniu oś czasu jeszcze się cofa — tam czyszczenie psułoby efekt.
+   */
+  function cleansUp(cfg) {
+    return !cfg.repeat && (cfg.trigger === 'viewport' || cfg.trigger === 'load');
+  }
+
   function tweenVars(targets, cfg, override) {
     var vars = Object.assign({}, cfg.to, {
       duration: cfg.duration,
@@ -227,6 +267,12 @@
     }, override || {});
     if (cfg.stagger > 0) vars.stagger = cfg.stagger;
     if (cfg.textFx) Object.assign(vars, textFxVars(targets, cfg));
+
+    // Wyliczone właściwości, nie clearProps:true — własne „to" wpisane w panelu
+    // może celowo zostawiać kolor czy tło i nie wolno go kasować. Opacity też
+    // zostaje: kończy na 1, więc nie szkodzi, a ktoś może celowo animować do 0,8.
+    if (cleansUp(cfg)) vars.clearProps = 'transform,filter,clipPath';
+
     return vars;
   }
 
@@ -422,8 +468,15 @@
     // Dwa efekty nie przechodzą przez żaden wyzwalacz, bo nie są tweenem
     // od–do: pętla po słowach kręci się od razu i w kółko, a śledzenie
     // kursora czeka na ruch wskaźnika. Pole „Wyzwalacz" nic dla nich nie znaczy.
-    if (cfg.pointer)              return attachPointer(el, targets, cfg);
-    if (cfg.textFx === 'words')   return attachWords(el, targets, cfg);
+    if (cfg.pointer) return attachPointer(el, targets, cfg);
+
+    // Efekty tekstowe przepisują zawartość, więc nie mogą dostać kontenera.
+    if (cfg.textFx) {
+      targets = textSafeTargets(el, targets);
+      if (!targets.length) return null;
+    }
+
+    if (cfg.textFx === 'words') return attachWords(el, targets, cfg);
 
     switch (cfg.trigger) {
       case 'scrub': return attachScrub(el, targets, cfg);
