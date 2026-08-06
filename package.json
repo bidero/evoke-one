@@ -1,0 +1,12 @@
+{
+  "name": "evoke-one",
+  "private": true,
+  "description": "Testy wtyczki Evoke ONE — same devDependencies, wtyczka nie ma zależności runtime.",
+  "scripts": {
+    "test": "node tests/run.js"
+  },
+  "devDependencies": {
+    "gsap": "3.15.0",
+    "playwright-core": "^1.56.0"
+  }
+}

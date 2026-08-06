@@ -1,0 +1,21 @@
+<style>
+  body { margin: 0; }
+  .sp { height: 150vh; }
+  /* Parallax rusza wyłącznie przy tle graficznym — stąd data URI zamiast koloru. */
+  .px { height: 400px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%23334455'/%3E%3C/svg%3E"); }
+</style>
+<div class="sp"></div>
+<div class="px" data-parallax="0.4" data-skala="1.2">x</div>
+<div class="sp"></div>
+<script>window.evkParallaxSettings = { defaultValue: 0.3, defaultScale: 1.2 };</script>
+<script src="../../assets/js/parallax.js"></script>
+<script>
+  // Silnik transformuje TWORZONĄ warstwę tła, nie sam kontener.
+  window.__bg = function () {
+    var el = document.querySelector('.px > div');
+    if (!el) return null;
+    var cs = getComputedStyle(el);
+    return { transform: cs.transform, opacity: cs.opacity, size: cs.backgroundSize,
+             hasImage: cs.backgroundImage !== 'none' };
+  };
+</script>
