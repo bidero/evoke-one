@@ -275,6 +275,28 @@ function evk_anim_presets(): array {
             'easing'   => 'none',
         ],
 
+        // ── Efekty wskaźnika ───────────────────────────────────────────────
+        //
+        // Nie są tweenem od–do, tylko śledzeniem kursora, więc działają
+        // NIEZALEŻNIE OD WYZWALACZA — pole „Wyzwalacz" nic dla nich nie znaczy.
+        // 'to' opisuje stan spoczynku i jest potrzebne w jednym miejscu:
+        // przy redukcji ruchu silnik nakłada je zamiast podpinać śledzenie.
+        // 'strength' skaluje wychylenie; można je nadpisać w data-evk-anim.
+        'magnetic' => [
+            'label'    => 'Wskaźnik: przyciąganie',
+            'pointer'  => 'magnetic',
+            'strength' => 0.35,
+            'to'       => ['x' => 0, 'y' => 0],
+            'duration' => 0.5,
+        ],
+        'tilt' => [
+            'label'    => 'Wskaźnik: przechył 3D',
+            'pointer'  => 'tilt',
+            'strength' => 1.0,
+            'to'       => ['rotationX' => 0, 'rotationY' => 0],
+            'duration' => 0.5,
+        ],
+
         // Bez from/to — wartości bierze się wyłącznie z pól „Własne from/to"
         // w wierszu biblioteki. Silnik schodzi wtedy warstwę niżej.
         'custom' => [

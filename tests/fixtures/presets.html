@@ -94,6 +94,11 @@
     return out;
   };
 
+  // Efekty wskaźnika same się wyłączają tam, gdzie nie ma czego śledzić.
+  // Gdyby przeglądarka testowa raportowała dotyk, testy wskaźnika byłyby
+  // fałszywie zielone — dlatego stan jest widoczny dla testu.
+  window.__hoverCapable = !window.matchMedia || window.matchMedia('(hover: hover)').matches;
+
   /** Najechanie na wszystkie pudełka naraz — wyzwalacz hover słucha na elemencie. */
   window.__hoverAll = function () {
     Object.keys(lib).forEach(function (key) {

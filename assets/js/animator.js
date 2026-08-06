@@ -93,6 +93,12 @@
     // przeniesie funkcji, która by ją odczytała. Varsy składa textFxVars().
     var textFx = pick(attr.textFx, lib.textFx, pre.textFx, '');
 
+    // Efekty wskaźnika też nie są tweenem od–do. 'to' niosą jako stan
+    // spoczynku dla ścieżki redukcji ruchu — i to samo 'to' przepuszcza je
+    // przez bramkę niżej, więc nie ma tu dla nich osobnego warunku.
+    // Że każdy taki preset stan spoczynku ma, pilnuje tests/presets.test.js.
+    var pointer = pick(attr.pointer, lib.pointer, pre.pointer, '');
+
     if (!from && !to && !textFx) return null;
 
     return {
@@ -100,6 +106,8 @@
       to:       to,
       textFx:   textFx,
       words:    attr.words || lib.words || null,
+      pointer:  pointer,
+      strength: num(pick(attr.strength, lib.strength, pre.strength), 0.35),
       split:    pick(attr.split, lib.split, pre.split, ''),
       mask:     pick(attr.mask, lib.mask, pre.mask, ''),
       targets:  pick(attr.targets, lib.targets, 'self'),
@@ -312,6 +320,61 @@
     return tl;
   }
 
+  // ── Efekty wskaźnika ───────────────────────────────────────────────────
+
+  /** Maksymalny przechył przy sile 1. Wyżej robi się z tego karuzela. */
+  var TILT_MAX_DEG = 12;
+
+  /**
+   * Śledzenie kursora zamiast tweenu od–do. quickTo zamiast gsap.to na każdym
+   * ruchu myszy: tworzy JEDEN tween i tylko przestawia mu cel, więc pod
+   * pointermove nie powstają setki obiektów na sekundę.
+   *
+   * Wychylenie liczymy w połówkach pudełka (−1…1 od środka do krawędzi), więc
+   * ta sama siła znaczy to samo dla przycisku i dla karty na pół ekranu.
+   */
+  function attachPointer(el, targets, cfg) {
+    // Na dotyku nie ma czego śledzić: pointermove przychodzi dopiero przy
+    // przeciąganiu palcem, więc element odskakiwałby przy próbie przewinięcia.
+    if (window.matchMedia && !window.matchMedia('(hover: hover)').matches) return null;
+
+    var tilt = cfg.pointer === 'tilt';
+    var ease = { duration: 0.5, ease: 'power3' };
+
+    if (tilt) gsap.set(targets, { transformPerspective: 800, transformOrigin: 'center center' });
+
+    var setA = gsap.quickTo(targets, tilt ? 'rotationY' : 'x', ease);
+    var setB = gsap.quickTo(targets, tilt ? 'rotationX' : 'y', ease);
+
+    var ac   = new AbortController();
+    var opts = { signal: ac.signal };
+
+    el.addEventListener('pointermove', function (e) {
+      var r  = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      var dx = (e.clientX - (r.left + r.width  / 2)) / (r.width  / 2);
+      var dy = (e.clientY - (r.top  + r.height / 2)) / (r.height / 2);
+
+      if (tilt) {
+        // Znak przy osi X odwrócony: kursor u góry ma odchylić górną krawędź OD
+        // patrzącego, a nie do niego.
+        setA(dx * TILT_MAX_DEG * cfg.strength);
+        setB(-dy * TILT_MAX_DEG * cfg.strength);
+      } else {
+        setA(dx * (r.width  / 2) * cfg.strength);
+        setB(dy * (r.height / 2) * cfg.strength);
+      }
+    }, opts);
+
+    var rest = function () { setA(0); setB(0); };
+    el.addEventListener('pointerleave', rest, opts);
+    // Wskaźnik potrafi zniknąć bez pointerleave (przewinięcie, zmiana karty).
+    el.addEventListener('pointercancel', rest, opts);
+
+    el._evkAnimAbort = ac;
+    return null;   // brak osi czasu — nie ma czym sterować z zewnątrz
+  }
+
   function queueLoad(el, targets, cfg) {
     // Kolejka startowa odpala się raz. Ponowny podział tekstu przy zmianie
     // szerokości okna nie ma odtwarzać animacji wejściowej — ona już była.
@@ -356,9 +419,11 @@
 
   /** Podpina animację pod wybrany wyzwalacz i ZWRACA oś czasu (albo null dla load). */
   function buildAnimation(el, targets, cfg) {
-    // Pętla po słowach nie jest tweenem od–do, więc nie przechodzi przez
-    // żaden z wyzwalaczy — kręci się od razu i w kółko.
-    if (cfg.textFx === 'words') return attachWords(el, targets, cfg);
+    // Dwa efekty nie przechodzą przez żaden wyzwalacz, bo nie są tweenem
+    // od–do: pętla po słowach kręci się od razu i w kółko, a śledzenie
+    // kursora czeka na ruch wskaźnika. Pole „Wyzwalacz" nic dla nich nie znaczy.
+    if (cfg.pointer)              return attachPointer(el, targets, cfg);
+    if (cfg.textFx === 'words')   return attachWords(el, targets, cfg);
 
     switch (cfg.trigger) {
       case 'scrub': return attachScrub(el, targets, cfg);

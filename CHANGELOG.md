@@ -2,6 +2,26 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.33.0] — 2026-08-06
+
+### Dodane
+
+- **Dwa efekty wskaźnika: przyciąganie i przechył 3D.** Element idzie za
+  kursorem albo odchyla się od niego — klasyczny efekt „magnetycznego"
+  przycisku, którego dotąd nie było czym zrobić.
+
+  Nie są tweenem od–do, tylko śledzeniem kursora, więc **działają niezależnie
+  od wyzwalacza** — pole „Wyzwalacz" nic dla nich nie znaczy. Siłę niesie
+  preset; można ją nadpisać na elemencie przez `data-evk-anim`.
+
+  Wychylenie liczone jest w połówkach pudełka, więc ta sama siła znaczy to
+  samo dla małego przycisku i dla karty na pół ekranu.
+
+  **Na dotyku efekt się nie włącza.** `pointermove` przychodzi tam dopiero
+  przy przeciąganiu palcem, więc element odskakiwałby przy próbie przewinięcia
+  strony. Przy `prefers-reduced-motion` element dostaje stan spoczynku i nie
+  reaguje na kursor w ogóle.
+
 ## [1.32.0] — 2026-08-06
 
 ### Dodane

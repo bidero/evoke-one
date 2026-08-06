@@ -30,12 +30,23 @@ module.exports = async function (t) {
   const noLabel = keys.filter((k) => !presets[k].label);
   t.check('każdy ma etykietę', !noLabel.length, noLabel.join(', ') || 'brak braków');
 
-  // Dwa wyjątki z definicji: 'custom' bierze from/to z pól w panelu, a presety
-  // tekstowe składają varsy w silniku (docelowym tekstem jest treść elementu).
+  // Wyjątki z definicji: 'custom' bierze from/to z pól w panelu, presety
+  // tekstowe składają varsy w silniku, a wskaźnikowe śledzą kursor i niosą
+  // samo 'to' jako stan spoczynku.
+  const marked = (k) => presets[k].textFx || presets[k].pointer;
   const incomplete = keys.filter(
-    (k) => k !== 'custom' && !presets[k].textFx && (!presets[k].from || !presets[k].to));
+    (k) => k !== 'custom' && !marked(k) && (!presets[k].from || !presets[k].to));
   t.check('każdy ma from i to albo znacznik', !incomplete.length,
     incomplete.join(', ') || 'brak braków');
+
+  const badPtr = keys.filter(
+    (k) => presets[k].pointer && !['magnetic', 'tilt'].includes(presets[k].pointer));
+  t.check('znaczniki wskaźnika znane silnikowi', !badPtr.length, badPtr.join(', ') || 'brak odstępstw');
+
+  // Preset wskaźnikowy bez stanu spoczynku zostawiłby element przekrzywiony
+  // na stałe u kogoś z włączoną redukcją ruchu.
+  const noRest = keys.filter((k) => presets[k].pointer && !presets[k].to);
+  t.check('preset wskaźnika ma stan spoczynku', !noRest.length, noRest.join(', ') || 'brak braków');
 
   const badFx = keys.filter(
     (k) => presets[k].textFx && !['type', 'scramble', 'words'].includes(presets[k].textFx));
@@ -143,6 +154,71 @@ module.exports = async function (t) {
     half.typewriter && half.typewriter.text.length < 'typewriter'.length,
     JSON.stringify(half.typewriter && half.typewriter.text));
   await mid.close();
+
+  // ── Efekty wskaźnika ───────────────────────────────────────────────────
+  // Ruch myszy przez page.mouse, nie przez dispatchEvent: silnik słucha
+  // pointermove, a syntetyczne zdarzenie nie niesie wiarygodnych współrzędnych.
+  t.section('efekty wskaźnika');
+
+  const ptr = await t.open('presets.html', {
+    viewport: { width: 1200, height: 1000 }, head, query: 'mode=viewport', settle: 1600,
+  });
+
+  // Bez tego cała sekcja byłaby fałszywie zielona: silnik wyłącza śledzenie
+  // tam, gdzie przeglądarka raportuje dotyk zamiast wskaźnika.
+  t.check('przeglądarka raportuje wskaźnik', await ptr.evaluate(() => window.__hoverCapable), '');
+
+  /** Liczby z WNĘTRZA nawiasu — inaczej „3" z nazwy matrix3d wchodzi do wyniku. */
+  const matrix = (s) => {
+    const m = /\(([^)]*)\)/.exec(s || '');
+    return m ? m[1].split(',').map((v) => Number(v.trim())) : [];
+  };
+  /** Przesunięcie w poziomie: matrix ma je na 4, matrix3d na 12. */
+  const shiftX = (m) => (m.length === 16 ? m[12] : m[4]) || 0;
+
+  async function nudge(id, fx) {
+    const b = await ptr.locator('#p-' + id).boundingBox();
+    await ptr.mouse.move(b.x + b.width * fx, b.y + b.height / 2);
+    await ptr.waitForTimeout(700);
+    return matrix((await ptr.evaluate(() => window.__state()))[id].transform);
+  }
+
+  // Przyciąganie: kursor przy prawej krawędzi ma przesunąć element w prawo.
+  const magRight = await nudge('magnetic', 0.95);
+  t.check('przyciąganie idzie za kursorem w prawo', shiftX(magRight) > 2,
+    'x = ' + shiftX(magRight).toFixed(1));
+
+  const magLeft = await nudge('magnetic', 0.05);
+  t.check('i wraca w lewo za kursorem', shiftX(magLeft) < -2,
+    'x = ' + shiftX(magLeft).toFixed(1));
+
+  // Przechył: macierz 3D ma 16 pól, płaska 6. Sam fakt przejścia na 3D dowodzi
+  // obrotu — porównywanie kątów wprost byłoby przepisywaniem matematyki GSAP-a.
+  const tilt = await nudge('tilt', 0.95);
+  t.check('przechył obraca w 3D', tilt.length === 16 && Math.abs(tilt[0] - 1) > 0.001,
+    tilt.length + ' pól macierzy');
+
+  // Zjazd z elementu wraca do spoczynku.
+  await ptr.mouse.move(5, 5);
+  await ptr.waitForTimeout(800);
+  const off = matrix((await ptr.evaluate(() => window.__state()))['magnetic'].transform);
+  t.check('po zjeździe wraca do spoczynku', Math.abs(shiftX(off)) < 1,
+    'x = ' + shiftX(off).toFixed(2));
+
+  t.check('bez błędów JS', !ptr.errors.length, ptr.errors.join(' | ') || 'brak');
+  await ptr.close();
+
+  // KONTROLA NEGATYWNA: przy redukcji ruchu ten sam ruch myszy nie ma nic zmienić.
+  const ptrRm = await t.open('presets.html', {
+    viewport: { width: 1200, height: 1000 }, head, query: 'mode=viewport', reduce: true, settle: 900,
+  });
+  const rb = await ptrRm.locator('#p-magnetic').boundingBox();
+  await ptrRm.mouse.move(rb.x + rb.width * 0.95, rb.y + rb.height / 2);
+  await ptrRm.waitForTimeout(700);
+  const rmPtr = matrix((await ptrRm.evaluate(() => window.__state()))['magnetic'].transform);
+  t.check('redukcja ruchu — kursor nie rusza elementem',
+    Math.abs(shiftX(rmPtr)) < 1, 'x = ' + shiftX(rmPtr).toFixed(2));
+  await ptrRm.close();
 
   // ── Ten sam zestaw na wyzwalaczu najechania ────────────────────────────
   t.section('budowa osi czasu — wyzwalacz najechania');
