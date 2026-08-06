@@ -39,10 +39,15 @@ add_action('admin_enqueue_scripts', function (string $hook) {
         'rowStart' => count($cursor_settings['elements'] ?? []) + 100,
     ]);
 
-    // Animator
+    // Animator. jquery-ui-sortable siedzi w rdzeniu WordPressa — przeciąganie
+    // wierszy biblioteki nie wymaga dokładania własnej biblioteki.
+    wp_enqueue_script('jquery-ui-sortable');
+
     $anim_settings = EVK_Animator::get_instance()->get_settings();
     wp_localize_script('evoke-one-admin', 'evoOneAnimData', [
         'rowStart' => count($anim_settings['animations'] ?? []) + 100,
+        'url'      => admin_url('admin-ajax.php'),
+        'nonce'    => wp_create_nonce('evk_anim_reorder'),
     ]);
 
     // SEO

@@ -2,6 +2,24 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.37.0] — 2026-08-06
+
+### Dodane
+
+- **Wiersze biblioteki animacji można przeciągać.** Uchwytem jest nagłówek
+  wiersza, a nowa kolejność zapisuje się od razu przez AJAX — bez klikania
+  „Zapisz bibliotekę animacji".
+
+  Kolejność jest **wyłącznie porządkowa**: silnik czyta bibliotekę po slugu,
+  a o sekwencji na stronie decyduje pole „Kolejność" w wierszu. To zmiana dla
+  wygody przy dłuższej liście, nie zmiana zachowania strony.
+
+  Zapis **nie może zgubić konfiguracji**. Wiersz dodany przyciskiem i jeszcze
+  niezapisany nie ma sluga, więc serwer go pomija; wiersz zapisany, którego nie
+  było na przysłanej liście (np. druga otwarta karta), ląduje na końcu zamiast
+  wypaść. Zwykły zapis formularza działa po przestawieniu jak dotąd — PHP
+  zachowuje kolejność pól z ciała żądania.
+
 ## [1.36.0] — 2026-08-06
 
 ### Dodane

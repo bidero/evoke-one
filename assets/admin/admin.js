@@ -365,6 +365,53 @@
             var html = tpl.replace(/{INDEX}/g, evkAnimRowIndex++);
             document.getElementById('evo-anim-repeater-container').insertAdjacentHTML('beforeend', html);
         };
+
+        /* Przenoszenie wierszy.
+         *
+         * Sam formularz działa poprawnie po przestawieniu bez żadnej pomocy:
+         * PHP zachowuje kolejność kluczy z ciała POST, czyli kolejność DOM,
+         * a sanitize_settings() iteruje po niej foreachem. Przeindeksowywanie
+         * pól nie jest więc potrzebne — AJAX służy tylko temu, żeby nowy układ
+         * przetrwał bez klikania „Zapisz".
+         */
+        var $box = $('#evo-anim-repeater-container');
+
+        if ($box.length && $.fn.sortable) {
+            $box.sortable({
+                handle              : '.evo-anim-row-header',
+                items               : '> .evo-anim-row',
+                placeholder         : 'evo-anim-row-placeholder',
+                forcePlaceholderSize: true,
+                axis                : 'y',
+                tolerance           : 'pointer',
+                // Bez tego uchwyt łapie też przycisk „Usuń" w nagłówku.
+                cancel              : 'button, input, select, textarea, a',
+                update              : function () { saveOrder(); },
+            });
+        }
+
+        function saveOrder() {
+            // Slugi, nie indeksy: wiersz świeżo dodany przyciskiem nie ma jeszcze
+            // sluga i serwer ma go pominąć, a nie przesunąć cokolwiek innego.
+            var order = $box.find('> .evo-anim-row input[name*="[slug]"]')
+                .map(function () { return $(this).val(); }).get()
+                .filter(function (s) { return s !== ''; });
+
+            if (!order.length) return;
+
+            var $note = $('#evo-anim-order-note').text('Zapisuję kolejność…').show();
+
+            $.post(evoOneAnimData.url, {
+                action: 'evk_anim_reorder',
+                nonce : evoOneAnimData.nonce,
+                order : order,
+            }).done(function (res) {
+                $note.text(res && res.success ? 'Kolejność zapisana.' : 'Nie udało się zapisać kolejności.');
+                setTimeout(function () { $note.fadeOut(); }, 2000);
+            }).fail(function () {
+                $note.text('Nie udało się zapisać kolejności — zmiana zostanie zapisana wraz z formularzem.');
+            });
+        }
     }
 
 })(jQuery);

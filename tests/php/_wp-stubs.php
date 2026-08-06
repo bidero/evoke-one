@@ -48,6 +48,23 @@ function wp_add_inline_script($handle, $data, $position = 'after') {
 function is_admin() { return false; }
 function checked($a, $b = true, $echo = true) { if ($a == $b) echo ' checked'; }
 
+// ── AJAX ────────────────────────────────────────────────────────────────
+// wp_send_json_* normalnie kończą żądanie — tu rzucamy wyjątkiem, żeby test
+// mógł zobaczyć odpowiedź zamiast tracić cały proces.
+class EVK_Test_Json extends Exception {
+    public $payload;
+    public function __construct(array $payload) { $this->payload = $payload; parent::__construct('json'); }
+}
+function wp_send_json_success($data = null) { throw new EVK_Test_Json(['success' => true,  'data' => $data]); }
+function wp_send_json_error($data = null, $code = 0) { throw new EVK_Test_Json(['success' => false, 'data' => $data]); }
+function check_ajax_referer($action, $field = false, $die = true) { return 1; }
+function current_user_can($cap) { return true; }
+function wp_unslash($v) { return $v; }
+function absint($v) { return abs((int) $v); }
+function wp_list_pluck($list, $field) {
+    return array_map(function ($row) use ($field) { return is_array($row) ? ($row[$field] ?? null) : null; }, $list);
+}
+
 /** Odpala wszystkie callbacki podpięte pod hook i zwraca wypisaną treść. */
 function evk_test_fire($hook) {
     ob_start();

@@ -670,3 +670,57 @@ add_action('wp_ajax_evk_save_option', function () {
     update_option($option, $value);
     wp_send_json_success(['option' => $option, 'value' => $value]);
 });
+
+// =========================================================================
+// AJAX — kolejność wierszy biblioteki animacji
+// =========================================================================
+
+/**
+ * Zapisuje nową kolejność wierszy po przeciągnięciu w panelu Animatora.
+ *
+ * Kolejność jest WYŁĄCZNIE porządkowa: silnik czyta bibliotekę po slugu,
+ * a sekwencją startową steruje pole „Kolejność" w wierszu. To udogodnienie
+ * dla oka, nie zmiana zachowania strony.
+ *
+ * Przyjmujemy same slugi, nie całe wiersze — nie ma powodu przepychać przez
+ * sieć konfiguracji, której i tak nie zmieniamy, ani ryzykować, że częściowo
+ * wypełniony formularz nadpisze zapisane wartości.
+ */
+add_action('wp_ajax_evk_anim_reorder', function () {
+    check_ajax_referer('evk_anim_reorder', 'nonce');
+    if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
+
+    $order = array_map('sanitize_title', (array) wp_unslash($_POST['order'] ?? []));
+
+    $opt = get_option('evk_animator', []);
+    if (!is_array($opt) || empty($opt['animations']) || !is_array($opt['animations'])) {
+        wp_send_json_error('brak biblioteki', 400);
+    }
+
+    // Wiersze pod slugiem — po nim, a nie po pozycji, dopasowujemy kolejność.
+    $by_slug = [];
+    foreach ($opt['animations'] as $row) {
+        if (is_array($row) && !empty($row['slug'])) $by_slug[$row['slug']] = $row;
+    }
+
+    // W panelu mogą stać wiersze DODANE PRZYCISKIEM I JESZCZE NIEZAPISANE —
+    // ich slugów nie znamy, więc po prostu je pomijamy. A wiersze zapisane,
+    // których nie było na liście (wyścig dwóch kart), lądują na końcu zamiast
+    // wypaść. Dzięki obu regułom przeciągnięcie nie może niczego zgubić.
+    $sorted = [];
+    foreach ($order as $slug) {
+        if (isset($by_slug[$slug])) {
+            $sorted[] = $by_slug[$slug];
+            unset($by_slug[$slug]);
+        }
+    }
+    foreach ($by_slug as $row) $sorted[] = $row;
+
+    $opt['animations'] = $sorted;
+    update_option('evk_animator', $opt);
+
+    wp_send_json_success([
+        'order'   => wp_list_pluck($sorted, 'slug'),
+        'ignored' => count($order) - count($sorted) + count($by_slug),
+    ]);
+});

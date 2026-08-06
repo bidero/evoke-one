@@ -46,7 +46,12 @@ $row_def    = $anim->row_defaults();
 
     <style>
         .evo-anim-row { background:#f8fafc; border:1px solid #d7dde7; border-radius:8px; padding:20px; margin-bottom:16px; position:relative; }
-        .evo-anim-row-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #e5e7eb; padding-bottom:12px; }
+        .evo-anim-row-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #e5e7eb; padding-bottom:12px; cursor:grab; }
+        .evo-anim-row-header:active { cursor:grabbing; }
+        .evo-anim-grip { color:#9ca3af; margin-right:6px; vertical-align:-3px; }
+        /* Miejsce po przeciąganym wierszu — bez tego lista skacze pod kursorem. */
+        .evo-anim-row-placeholder { border:2px dashed #c7d2e0; border-radius:8px; background:#eef2f7; margin-bottom:16px; }
+        #evo-anim-order-note { display:none; font-size:12px; color:#4b5563; margin:0 0 12px; }
         .evo-anim-row-title { font-size:14px; font-weight:600; color:#111827; }
         .evo-anim-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
         .evo-anim-grid label { display:block; font-size:12px; font-weight:600; color:#4b5563; margin-bottom:4px; }
@@ -67,8 +72,13 @@ $row_def    = $anim->row_defaults();
             Każda animacja dostaje klasę <code>evk-anim-{slug}</code> — wpisz ją elementowi w Bricks
             (Style → CSS → Classes). <strong>Slug jest kluczem</strong>: zmiana sluga zrywa powiązanie
             z elementami, które go już używają. Nazwa służy tylko Tobie i można ją zmieniać dowolnie.
+            <br><br>Wiersze możesz <strong>przeciągać za nagłówek</strong> — nowa kolejność zapisuje się
+            od razu. Jest ona wyłącznie porządkowa: o sekwencji na stronie decyduje pole
+            <strong>Kolejność</strong>, a nie pozycja wiersza na tej liście.
         </div>
     </div>
+
+    <p id="evo-anim-order-note"></p>
 
     <div id="evo-anim-repeater-container">
         <?php foreach ($rows as $index => $raw):
@@ -76,6 +86,7 @@ $row_def    = $anim->row_defaults();
         <div class="evo-anim-row">
             <div class="evo-anim-row-header">
                 <div class="evo-anim-row-title">
+                    <span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
                     <?php echo $r['label'] !== '' ? esc_html($r['label']) : 'Animacja #' . ($index + 1); ?>
                     <?php if ($r['slug'] !== ''): ?>
                         <span class="evo-anim-class">.evk-anim-<?php echo esc_html($r['slug']); ?></span>
@@ -155,7 +166,10 @@ $row_def    = $anim->row_defaults();
 <script type="text/template" id="evo-anim-row-template">
     <div class="evo-anim-row">
         <div class="evo-anim-row-header">
-            <div class="evo-anim-row-title">Nowa animacja</div>
+            <div class="evo-anim-row-title">
+                <span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
+                Nowa animacja
+            </div>
             <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-anim-row').remove()">
                 <span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;"></span> Usuń
             </button>
