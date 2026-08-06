@@ -1,0 +1,47 @@
+<style>
+  body { margin: 0; font: 16px system-ui; }
+  .spacer { height: 2400px; background: linear-gradient(#fff, #eee); }
+</style>
+
+<!-- Marquee daleko pod ekranem: przy pauzie ma stać, przy wyłączonej — jechać. -->
+<div class="spacer"></div>
+<div class="evk-marquee-container" id="m">
+  <div class="evk-marquee-track">
+    <span class="evk-marquee-item">Alfa</span>
+    <span class="evk-marquee-item">Beta</span>
+    <span class="evk-marquee-item">Gamma</span>
+  </div>
+</div>
+<div class="spacer"></div>
+
+<link rel="stylesheet" href="../../includes/bricks-elements/evoke-marquee/assets/marquee.css">
+<script>
+/* Konfiguracja z ?cfg= — odwzorowanie atrybutu, który drukuje element.php.
+ * Ustawiamy ją PRZED marquee.js, bo silnik czyta atrybut na DOMContentLoaded.
+ */
+(function () {
+  var raw = new URLSearchParams(location.search).get('cfg') || '{}';
+  document.getElementById('m').setAttribute('data-evk-marquee', raw);
+
+  // Ile razy Observer realnie zareagował na przewijanie. To ta praca kosztuje
+  // procesor, gdy marquee stoi poza kadrem — samo wstrzymanie osi czasu nie.
+  window.__work = 0;
+  var origKill = null;
+  window.addEventListener('load', function () {
+    origKill = gsap.killTweensOf;
+    gsap.killTweensOf = function () {
+      window.__work++;
+      return origKill.apply(gsap, arguments);
+    };
+  });
+
+  window.__pos = function () {
+    var el = document.querySelector('#m .evk-marquee-item');
+    return Math.round(el.getBoundingClientRect().left);
+  };
+})();
+</script>
+<script src="../../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../../node_modules/gsap/dist/ScrollTrigger.min.js"></script>
+<script src="../../node_modules/gsap/dist/Observer.min.js"></script>
+<script src="../../includes/bricks-elements/evoke-marquee/assets/marquee.js"></script>

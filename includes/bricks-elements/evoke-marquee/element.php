@@ -142,6 +142,37 @@ class Evk_Marquee_Element extends \Bricks\Element {
 			'step'    => 0.1,
 			'default' => 2,
 		];
+
+		// ── PAUZA POZA EKRANEM ─────────────────────────────────────────────────
+
+		$this->controls['sep_pause'] = [
+			'tab'   => 'content',
+			'type'  => 'separator',
+			'label' => 'Pauza poza ekranem',
+		];
+
+		// Domyślnie włączone — to dotychczasowe zachowanie, wcześniej zaszyte
+		// na sztywno w marquee.js. Wyłączenie ma sens tylko wtedy, gdy pętla
+		// musi trwać także niewidoczna (np. dwa marquee zsynchronizowane ze sobą).
+		$this->controls['pause_offscreen'] = [
+			'tab'         => 'content',
+			'label'       => 'Pauzuj poza ekranem',
+			'type'        => 'checkbox',
+			'default'     => true,
+			'description' => 'Wstrzymuje pętlę i przestaje reagować na przewijanie, gdy marquee jest poza kadrem.',
+		];
+
+		$this->controls['pause_offset'] = [
+			'tab'         => 'content',
+			'label'       => 'Zapas (px)',
+			'type'        => 'number',
+			'min'         => 0,
+			'max'         => 2000,
+			'step'        => 50,
+			'default'     => 200,
+			'required'    => [ 'pause_offscreen', '=', true ],
+			'description' => 'O ile pikseli przed wejściem w kadr pętla ma już działać.',
+		];
 	}
 
 	public function render() {
@@ -153,6 +184,11 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		$max_scale    = $this->settings['max_scale']    ?? 12;
 		$gap          = $this->settings['gap']          ?? '80px';
 		$slow_down    = $this->settings['slow_down']    ?? 2;
+		// Brak klucza = element zapisany przed 1.36.0. Domyślnie włączone,
+		// bo taka była dotychczasowa, zaszyta na sztywno wartość.
+		$pause_offscreen = ! array_key_exists( 'pause_offscreen', $this->settings )
+			|| ! empty( $this->settings['pause_offscreen'] );
+		$pause_offset    = $this->settings['pause_offset'] ?? 200;
 
 		if ( empty( $items ) ) {
 			return $this->render_element_placeholder( [ 'title' => 'Dodaj elementy w zakładce Treść.' ] );
@@ -165,6 +201,8 @@ class Evk_Marquee_Element extends \Bricks\Element {
 			'slowDown'          => (float) $slow_down,
 			'direction'         => $direction,
 			'reverseOnScrollUp' => $reverse_on_scroll_up,
+			'pauseOffscreen'    => $pause_offscreen,
+			'pauseOffset'       => max( 0, (int) $pause_offset ),
 		] ) );
 
 		$gap_css    = is_array( $gap ) ? ( $gap['value'] . $gap['unit'] ) : $gap;

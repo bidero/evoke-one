@@ -95,6 +95,10 @@
       slowDown         : cfg.slowDown         || 2,
       direction        : cfg.direction        || 'left',
       reverseOnScrollUp: cfg.reverseOnScrollUp || false,
+      // Brak klucza = element zapisany przed 1.36.0, gdy pauza była zaszyta
+      // na sztywno z zapasem 200 px. Domyślne muszą to odtwarzać.
+      pauseOffscreen   : cfg.pauseOffscreen === undefined ? true : !!cfg.pauseOffscreen,
+      pauseOffset      : cfg.pauseOffset === undefined ? 200 : Math.max(0, cfg.pauseOffset),
     };
 
     // Zbierz wszystkie .evk-marquee-item ze wszystkich tracków
@@ -120,10 +124,20 @@
     var baseTimeScale = CFG.direction === 'right' ? -1 : 1;
     tl.timeScale(baseTimeScale);
 
+    // Widoczność steruje NIE TYLKO pętlą, ale i reakcją na przewijanie.
+    // Sama wstrzymana oś czasu kosztuje niewiele — prawdziwe marnowanie
+    // procesora siedziało niżej: Observer łapie KAŻDE przewinięcie strony
+    // i przy każdym zabijał tweeny oraz tworzył nowy na timeScale, także gdy
+    // marquee stało dawno poza kadrem. Przy kilku marquee na długiej stronie
+    // robiła się z tego stała mielonka przez cały scroll.
+    var visible = true;
+
     Observer.create({
       target   : window,
       type     : 'wheel,touch,scroll',
       onChangeY: function(self) {
+        if (!visible) return;
+
         var velocity   = Math.abs(self.velocityY || self.deltaY * 10);
         var multiplier = Math.min(1 + velocity / (CFG.divisor * 10), CFG.maxScale);
 
@@ -145,16 +159,34 @@
       },
     });
 
-    // Pauzuj poza viewport z 200px zapasem
-    ScrollTrigger.create({
-      trigger     : container,
-      start       : 'top bottom+=200',
-      end         : 'bottom top-=200',
-      onEnter     : function() { tl.play(); },
-      onLeave     : function() { tl.pause(); },
-      onEnterBack : function() { tl.play(); },
-      onLeaveBack : function() { tl.pause(); },
+    // Pauza poza kadrem. Wyłączona = pętla i reakcja na scroll działają zawsze,
+    // co ma sens tylko wtedy, gdy dwa marquee mają zostać ze sobą zsynchronizowane.
+    if (!CFG.pauseOffscreen) return;
+
+    var pad = CFG.pauseOffset;
+    var on  = function() { visible = true;  tl.play(); };
+    var off = function() {
+      visible = false;
+      // Tweeny rozpędzające timeScale mogłyby dokończyć się po pauzie i zostawić
+      // oś czasu rozpędzoną na powrót do kadru — stąd jawne zabicie i reset.
+      gsap.killTweensOf(tl, 'timeScale');
+      tl.timeScale(baseTimeScale);
+      tl.pause();
+    };
+
+    var st = ScrollTrigger.create({
+      trigger  : container,
+      start    : 'top bottom+=' + pad,
+      end      : 'bottom top-=' + pad,
+      onToggle : function (self) { if (self.isActive) on(); else off(); },
     });
+
+    // Stan początkowy trzeba nałożyć samemu. ScrollTrigger zgłasza dopiero
+    // ZMIANĘ stanu, a marquee stojące daleko pod ekranem nigdy w kadr nie
+    // wjechało — więc nie dostawało też sygnału wyjścia i jechało od załadowania
+    // strony aż do pierwszego zbliżenia. Przy kilku marquee na długiej stronie
+    // wszystkie mieliły w tle, zanim ktokolwiek je zobaczył.
+    if (st.isActive) on(); else off();
   }
 
   function boot() {

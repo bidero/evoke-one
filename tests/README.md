@@ -52,6 +52,7 @@ zaokrągla kanały przy interpolacji.
 | `motion.test.js` | dziesięć silników ignorowało `prefers-reduced-motion`; ruch ma zniknąć, ale stan końcowy ma zostać widoczny (1.30.0) |
 | `controls.test.js` | atrybuty zapisywane płasko nie docierały na stronę; „Kolejność” równa zero jest znacząca i nie może wypaść jak pusta (1.24.0, 1.28.1) |
 | `presets.test.js` | literówka w tablicy presetów nie wywala niczego głośno — po prostu cicho nie działa; easing z presetu był przykrywany domyślną wartością wiersza; stan najechania nałożony przy redukcji ruchu zostawiał przycisk trwale uniesiony (1.31.0–1.33.0) |
+| `marquee.test.js` | pętla jechała od załadowania strony, choć marquee stało 2400 px niżej — ScrollTrigger zgłasza zmianę stanu, a nie stan początkowy; Observer reagował na każde przewinięcie także poza kadrem (1.36.0) |
 | `splide.test.js` | animator zostawiał po sobie inline `transform: translate(0px,0px)` i `filter: blur(0px)` — to nie jest `none`, więc element na stałe zostawał blokiem zawierającym dla potomków pozycjonowanych absolutnie; efekt tekstowy na kontenerze spłaszczał całą jego zawartość do jednego węzła tekstowego (1.35.0) |
 | `wave-bg.test.js` | gotowa paleta jako domyślna przemalowałaby wszystkie tła już wstawione na strony; paleta z niepełnym zestawem zostawia w gradiencie czerń (1.34.0) |
 

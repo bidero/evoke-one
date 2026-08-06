@@ -2,6 +2,28 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.36.0] — 2026-08-06
+
+### Dodane
+
+- **Marquee: kontrolki pauzy poza kadrem.** Przełącznik „Pauzuj poza ekranem"
+  (domyślnie włączony, czyli dotychczasowe zachowanie) i „Zapas (px)" z domyślnym
+  200. Wyłączenie ma sens tylko wtedy, gdy dwa marquee mają zostać ze sobą
+  zsynchronizowane.
+
+### Poprawione
+
+- **Marquee jechało od załadowania strony, nawet stojąc daleko pod ekranem.**
+  Pauza reagowała na wyjście z kadru, ale element, w który nigdy nie wjechano,
+  takiego sygnału nie dostawał — ScrollTrigger zgłasza **zmianę** stanu, a nie
+  stan początkowy. Przy kilku marquee na długiej stronie wszystkie mieliły w tle,
+  zanim ktokolwiek je zobaczył. Stan początkowy jest teraz nakładany jawnie.
+
+- **Przewijanie strony poza kadrem nie wykonuje już pracy.** `Observer` łapie
+  każde przewinięcie i przy każdym zabijał tweeny oraz tworzył nowy na
+  `timeScale` — także gdy marquee stało dawno poza ekranem i było wstrzymane.
+  To tam siedziało realne obciążenie procesora, nie w samej wstrzymanej osi czasu.
+
 ## [1.35.0] — 2026-08-06
 
 ### Poprawione
