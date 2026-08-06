@@ -98,7 +98,7 @@
       selector: pick(attr.selector, lib.selector, ''),
       pin:      !!pick(attr.pin, lib.pin, false),
       trigger:  pick(attr.trigger, lib.trigger, 'viewport'),
-      easing:   pick(attr.easing, lib.easing, 'power2.out'),
+      easing:   pick(attr.easing, lib.easing, pre.easing, 'power2.out'),
       duration: num(pick(attr.duration, lib.duration, pre.duration), 0.8),
       delay:    num(pick(attr.delay, lib.delay), 0),
       stagger:  num(pick(attr.stagger, lib.stagger, pre.stagger), 0),
@@ -334,7 +334,14 @@
     // inaczej element z opacity:0 we from zostałby niewidzialny na stałe.
     // Przy podziale tekstu nie ma po co dzielić: i tak nic się nie animuje.
     if (prefersReduced()) {
-      if (cfg.to) gsap.set(resolveTargets(el, cfg), cfg.to);
+      // Wyjątek: wyzwalacze interaktywne. Tam stanem spoczynku jest 'from',
+      // a 'to' to stan NAJECHANIA — nałożony na stałe zostawiłby przycisk
+      // trwale uniesiony i podświetlony. Nie ma też wejścia do dokończenia,
+      // więc najbezpieczniej nie ruszać elementu wcale: zostaje taki, jak
+      // wyrenderował go CSS, czyli na pewno widoczny.
+      if (cfg.trigger !== 'hover' && cfg.trigger !== 'click' && cfg.to) {
+        gsap.set(resolveTargets(el, cfg), cfg.to);
+      }
       return true;
     }
 

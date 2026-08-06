@@ -10,6 +10,18 @@ if (!defined('ABSPATH')) exit;
  * 'split' (lines|words|chars) każe silnikowi rozbić tekst przez SplitText
  * i animować kawałki ze staggerem — dlatego preset ze splitem dociąga
  * handle 'evk-splittext'.
+ *
+ * 'easing' jest opcjonalne i wchodzi tylko wtedy, gdy wiersz biblioteki ma
+ * pole easingu puste („— z presetu —"). Bez tego preset nie mógłby narzucić
+ * krzywej, a część efektów bez niej nie istnieje: „odbicie" z liniowym
+ * easingiem to zwykłe skalowanie.
+ *
+ * WŁAŚCIWOŚCI STATYCZNE (podkład pod animowaną wartość — np. gradient pod
+ * animowanym background-size) PODAJEMY TYLKO WE 'from'. Zmierzone w Chromium:
+ * GSAP nakłada je przy starcie i zostają, a wynik jest identyczny jak przy
+ * powtórzeniu ich w 'to'. Trzymanie ich po jednej stronie ma tę zaletę, że
+ * własne 'to' wpisane w panelu zastępuje wyłącznie wartości animowane
+ * i nie gubi podkładu.
  */
 
 function evk_anim_presets(): array {
@@ -103,6 +115,99 @@ function evk_anim_presets(): array {
             'from'     => ['opacity' => 0, 'skewY' => 6, 'y' => 40],
             'to'       => ['opacity' => 1, 'skewY' => 0, 'y' => 0],
             'duration' => 0.9,
+        ],
+        // transformOrigin w obu stanach: to nie jest wartość animowana, tylko
+        // punkt zaczepienia obrotu. Podana raz we 'from' zostaje — ale przy
+        // wychyleniu musi obowiązywać także po cofnięciu osi czasu (hover),
+        // więc tu wyjątkowo idzie po obu stronach.
+        'swing-in' => [
+            'label'    => 'Wychylenie',
+            'from'     => ['opacity' => 0, 'rotation' => -9, 'y' => -30, 'transformOrigin' => 'top center'],
+            'to'       => ['opacity' => 1, 'rotation' => 0,  'y' => 0,   'transformOrigin' => 'top center'],
+            'duration' => 0.9,
+            'easing'   => 'back.out(1.7)',
+        ],
+        'bounce-in' => [
+            'label'    => 'Odbicie',
+            'from'     => ['opacity' => 0, 'scale' => 0.4],
+            'to'       => ['opacity' => 1, 'scale' => 1],
+            'duration' => 0.9,
+            'easing'   => 'back.out(2.2)',
+        ],
+        'roll-in' => [
+            'label'    => 'Wtoczenie',
+            'from'     => ['opacity' => 0, 'x' => -120, 'rotation' => -120],
+            'to'       => ['opacity' => 1, 'x' => 0,    'rotation' => 0],
+            'duration' => 1.0,
+            'easing'   => 'power3.out',
+        ],
+        'blur-up' => [
+            'label'    => 'Rozmycie z dołu',
+            'from'     => ['opacity' => 0, 'y' => 30, 'filter' => 'blur(10px)'],
+            'to'       => ['opacity' => 1, 'y' => 0,  'filter' => 'blur(0px)'],
+            'duration' => 1.0,
+        ],
+        // Maska + przesunięcie: treść wyjeżdża zza własnej krawędzi zamiast
+        // przelatywać przez pół ekranu. Krótki dystans jest tu celowy.
+        'slide-mask-left' => [
+            'label'    => 'Wjazd zza maski (z lewej)',
+            'from'     => ['clipPath' => 'inset(0% 100% 0% 0%)', 'x' => -40],
+            'to'       => ['clipPath' => 'inset(0% 0% 0% 0%)',   'x' => 0],
+            'duration' => 1.0,
+            'easing'   => 'power3.out',
+        ],
+        'slide-mask-right' => [
+            'label'    => 'Wjazd zza maski (z prawej)',
+            'from'     => ['clipPath' => 'inset(0% 0% 0% 100%)', 'x' => 40],
+            'to'       => ['clipPath' => 'inset(0% 0% 0% 0%)',   'x' => 0],
+            'duration' => 1.0,
+            'easing'   => 'power3.out',
+        ],
+
+        // ── Stany najechania ───────────────────────────────────────────────
+        //
+        // Do wyzwalacza „Hover": silnik buduje z nich WSTRZYMANĄ oś czasu,
+        // gra ją do przodu na wejściu wskaźnika i fokusie, cofa na wyjściu.
+        // Stan 'from' jest więc stanem spoczynku elementu i musi wyglądać
+        // jak jego zwykły wygląd — stąd np. jawny cień wyjściowy w 'lift'.
+        'lift' => [
+            'label'    => 'Hover: uniesienie',
+            'from'     => ['y' => 0,  'scale' => 1,    'boxShadow' => '0 2px 6px rgba(0,0,0,0.08)'],
+            'to'       => ['y' => -6, 'scale' => 1.02, 'boxShadow' => '0 18px 40px rgba(0,0,0,0.18)'],
+            'duration' => 0.35,
+            'easing'   => 'power2.out',
+        ],
+        'glow' => [
+            'label'    => 'Hover: poświata',
+            'from'     => ['filter' => 'brightness(1) saturate(1)'],
+            'to'       => ['filter' => 'brightness(1.1) saturate(1.2)'],
+            'duration' => 0.35,
+            'easing'   => 'power2.out',
+        ],
+        // Podkreślenie rysowane gradientem tła: currentColor bierze kolor
+        // tekstu, więc działa na dowolnej typografii bez dodatkowego pola.
+        // Gradient, powtarzanie i pozycja to podkład — nie animują się.
+        'underline-sweep' => [
+            'label'    => 'Hover: podkreślenie',
+            'from'     => [
+                'backgroundImage'    => 'linear-gradient(currentColor, currentColor)',
+                'backgroundRepeat'   => 'no-repeat',
+                'backgroundPosition' => '0% 100%',
+                'backgroundSize'     => '0% 2px',
+            ],
+            'to'       => ['backgroundSize' => '100% 2px'],
+            'duration' => 0.35,
+            'easing'   => 'power2.out',
+        ],
+        // Ramka rysowana cieniem wewnętrznym, nie border — border zmienia
+        // rozmiar pudełka i przy najechaniu przesuwałby sąsiadów.
+        // Kolor jawny, nie currentColor: GSAP musi umieć rozłożyć go na kanały.
+        'border-draw' => [
+            'label'    => 'Hover: rysowana ramka',
+            'from'     => ['boxShadow' => 'inset 0 0 0 0px rgba(17,24,39,0.9)'],
+            'to'       => ['boxShadow' => 'inset 0 0 0 2px rgba(17,24,39,0.9)'],
+            'duration' => 0.35,
+            'easing'   => 'power2.out',
         ],
         'split-lines' => [
             'label'    => 'Tekst po liniach',
@@ -205,11 +310,17 @@ function evk_anim_triggers(): array {
     ];
 }
 
-/** Krzywe easingu GSAP dostępne w panelu. */
+/**
+ * Krzywe easingu GSAP dostępne w panelu.
+ *
+ * To jednocześnie lista dopuszczalnych wartości przy zapisie. Pusta wartość
+ * („— z presetu —") jest obsługiwana osobno w EVK_Animator::sanitize_settings()
+ * i oznacza dziedziczenie po preseecie — tak samo jak przy czasie i staggerze.
+ */
 function evk_anim_easings(): array {
     return [
         'none', 'power1.out', 'power2.out', 'power3.out', 'power4.out',
-        'power2.inOut', 'power3.inOut', 'back.out(1.7)', 'expo.out',
-        'circ.out', 'sine.inOut', 'elastic.out(1, 0.5)',
+        'power2.inOut', 'power3.inOut', 'back.out(1.7)', 'back.out(2.2)',
+        'expo.out', 'circ.out', 'sine.inOut', 'bounce.out', 'elastic.out(1, 0.5)',
     ];
 }

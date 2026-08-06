@@ -1,0 +1,99 @@
+<style>
+  body { margin: 0; font: 14px system-ui; background: #fff; }
+  #grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 8px; }
+  .p { height: 56px; background: #345; color: #fff; padding: 4px; overflow: hidden; }
+</style>
+<div id="grid"></div>
+
+<script src="../../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../../node_modules/gsap/dist/ScrollTrigger.min.js"></script>
+<script src="../../node_modules/gsap/dist/SplitText.min.js"></script>
+<script>
+/* Strona buduje się z PRAWDZIWEJ tablicy presetów wstrzykniętej przez test
+ * (window.__presets pochodzi z tests/php/presets.php). Dzięki temu nowy preset
+ * jest sprawdzany od razu, bez dopisywania czegokolwiek tutaj.
+ *
+ * Tryb wybiera parametr ?mode=:
+ *   viewport  — każdy preset na wyzwalaczu wejścia w kadr
+ *   hover     — każdy preset na wyzwalaczu najechania
+ *   ease      — jeden preset z własną krzywą, easing dziedziczony z presetu
+ *   ease-off  — ten sam preset z krzywą narzuconą w wierszu (kontrola negatywna)
+ */
+(function () {
+  var PRESETS = window.__presets.presets;
+  var mode    = new URLSearchParams(location.search).get('mode') || 'viewport';
+  var grid    = document.getElementById('grid');
+  var lib     = {};
+
+  function row(preset, extra) {
+    return Object.assign({
+      slug: preset, preset: preset,
+      trigger:  mode === 'hover' ? 'hover' : 'viewport',
+      duration: '', stagger: '', delay: 0, easing: '',
+      start: 'top 99%', end: 'bottom 40%', scrub: 1, repeat: 0, order: 0,
+      targets: 'self', selector: '', pin: 0,
+    }, extra || {});
+  }
+
+  function box(slug) {
+    var el = document.createElement('div');
+    el.className = 'p';
+    el.id = 'p-' + slug;
+    el.setAttribute('data-evk-anim', slug);
+    el.textContent = slug;
+    grid.appendChild(el);
+    return el;
+  }
+
+  if (mode === 'ease' || mode === 'ease-off') {
+    // bounce-in ma w preseecie back.out(2.2) — krzywa z przeregulowaniem,
+    // więc skala przekracza po drodze 1. Przy krzywej bez przeregulowania
+    // („none" narzucone w wierszu) nigdy tego nie robi. Różnica jest mierzalna
+    // i to ona dowodzi, że dziedziczenie easingu z presetu faktycznie działa.
+    lib['bounce-in'] = row('bounce-in', mode === 'ease-off' ? { easing: 'none' } : {});
+    var el = box('bounce-in');
+
+    window.__maxScale = 0;
+    gsap.ticker.add(function () {
+      var t = getComputedStyle(el).transform;
+      if (t === 'none') return;
+      window.__maxScale = Math.max(window.__maxScale, new DOMMatrixReadOnly(t).a);
+    });
+  } else {
+    Object.keys(PRESETS).forEach(function (key) {
+      if (key === 'custom') return;   // bez from/to z definicji — nie ma czego budować
+      lib[key] = row(key);
+      box(key);
+    });
+  }
+
+  window.evkAnimator = { library: lib, presets: PRESETS, reducedMotion: false, needsFonts: false };
+
+  /** Stan każdego pudełka po zakończeniu animacji. */
+  window.__state = function () {
+    var out = {};
+    Object.keys(lib).forEach(function (key) {
+      var el = document.getElementById('p-' + key);
+      var s  = getComputedStyle(el);
+      out[key] = {
+        opacity:    +parseFloat(s.opacity).toFixed(3),
+        clipPath:   s.clipPath,
+        visibility: s.visibility,
+        transform:  s.transform,
+        boxShadow:  s.boxShadow,
+        bgSize:     s.backgroundSize,
+      };
+    });
+    return out;
+  };
+
+  /** Najechanie na wszystkie pudełka naraz — wyzwalacz hover słucha na elemencie. */
+  window.__hoverAll = function () {
+    Object.keys(lib).forEach(function (key) {
+      document.getElementById('p-' + key)
+        .dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+    });
+  };
+})();
+</script>
+<script src="../../assets/js/animator.js"></script>

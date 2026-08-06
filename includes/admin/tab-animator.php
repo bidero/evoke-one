@@ -107,6 +107,7 @@ $row_def    = $anim->row_defaults();
                 <div>
                     <label>Easing</label>
                     <select name="evk_animator[animations][<?php echo $index; ?>][easing]">
+                        <option value="" <?php selected($r['easing'], ''); ?>>— z presetu —</option>
                         <?php foreach ($easings as $e): ?>
                         <option value="<?php echo esc_attr($e); ?>" <?php selected($r['easing'], $e); ?>><?php echo esc_html($e); ?></option>
                         <?php endforeach; ?>
@@ -177,6 +178,7 @@ $row_def    = $anim->row_defaults();
             <div>
                 <label>Easing</label>
                 <select name="evk_animator[animations][{INDEX}][easing]">
+                    <option value="" <?php selected($row_def['easing'], ''); ?>>— z presetu —</option>
                     <?php foreach ($easings as $e): ?>
                     <option value="<?php echo esc_attr($e); ?>" <?php selected($row_def['easing'], $e); ?>><?php echo esc_html($e); ?></option>
                     <?php endforeach; ?>

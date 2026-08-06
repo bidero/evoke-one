@@ -33,10 +33,12 @@ class EVK_Animator {
         'trigger'  => 'viewport',
         // Puste = dziedzicz z presetu. Twarda wartość domyślna przesłaniałaby
         // czasy presetów (np. stagger 0.08 w split-lines) i cicho je gasiła.
+        // Easing z tego samego powodu: preset „bounce-in" bez własnej krzywej
+        // nie odbija, a domyślne power2.out zawsze by ją przykryło.
         'duration' => '',
         'stagger'  => '',
         'delay'    => 0,
-        'easing'   => 'power2.out',
+        'easing'   => '',
         'start'    => 'top 85%',
         'end'      => 'bottom 40%',
         'scrub'    => 1,
@@ -151,7 +153,13 @@ class EVK_Animator {
 
             $preset  = isset($presets[$row['preset'] ?? ''])   ? $row['preset']  : 'fade-up';
             $trigger = isset($triggers[$row['trigger'] ?? '']) ? $row['trigger'] : 'viewport';
-            $easing  = in_array($row['easing'] ?? '', $easings, true) ? $row['easing'] : 'power2.out';
+
+            // Pusty easing jest ZNACZĄCY („— z presetu —"), więc przechodzi
+            // obok listy dopuszczalnych wartości, a nie przez nią. Wiersze
+            // zapisane wcześniej mają jawne power2.out i nic w nich nie zmienia.
+            $raw_easing = $row['easing'] ?? '';
+            $easing     = ($raw_easing === '' || in_array($raw_easing, $easings, true))
+                ? $raw_easing : 'power2.out';
 
             // Pole puste → zapisz pusty string, żeby silnik zszedł do wartości presetu.
             $inherit = function ($val, float $min, float $max) {

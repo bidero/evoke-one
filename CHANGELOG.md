@@ -2,6 +2,45 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.31.0] — 2026-08-06
+
+### Dodane
+
+- **Dziesięć nowych presetów Animatora** — biblioteka rośnie z 20 do 30.
+
+  Wejścia: **Wychylenie**, **Odbicie**, **Wtoczenie**, **Rozmycie z dołu**,
+  **Wjazd zza maski** (z lewej i z prawej).
+
+  Stany najechania na istniejącym wyzwalaczu „Hover": **uniesienie**,
+  **poświata**, **podkreślenie**, **rysowana ramka**. Stanem spoczynku jest
+  tam `from`, a `to` — stanem najechania; oś czasu gra do przodu na wejściu
+  wskaźnika i na fokusie, cofa się na wyjściu. Podkreślenie rysuje się
+  gradientem tła w `currentColor`, więc bierze kolor tekstu i nie wymaga
+  osobnego pola. Ramka idzie cieniem wewnętrznym, nie `border` — `border`
+  zmieniałby rozmiar pudełka i przy najechaniu przesuwał sąsiadów.
+
+- **Preset może narzucić krzywą easingu.** Pole „Easing" w wierszu biblioteki
+  ma nową wartość **„— z presetu —"** i to ona jest odtąd domyślna dla nowych
+  wierszy. Bez tego „Odbicie" nie odbijało: twarda wartość domyślna wiersza
+  zawsze przykrywała krzywą presetu — dokładnie ten sam problem, który wcześniej
+  dotyczył czasu i staggera.
+
+  **Wiersze zapisane wcześniej nie zmieniają zachowania** — mają jawnie
+  zapisane `power2.out` i tak zostaje. Żeby wiersz przejął krzywą presetu,
+  trzeba w nim wybrać „— z presetu —".
+
+  Do listy easingów doszły `back.out(2.2)` i `bounce.out`.
+
+### Poprawione
+
+- **Redukcja ruchu nie zostawia już przycisku trwale w stanie najechania.**
+  Silnik nakładał przy `prefers-reduced-motion` stan `to` każdej animacji, co
+  dla wyzwalaczy „Hover" i „Klik" oznaczało wygląd po najechaniu — na stałe.
+  Teraz przy tych dwóch wyzwalaczach element nie jest ruszany wcale: nie ma
+  wejścia do dokończenia, a zostawiony tak, jak wyrenderował go CSS, jest na
+  pewno widoczny. Dla pozostałych wyzwalaczy bez zmian — stan końcowy nadal
+  jest nakładany od razu.
+
 ## [1.30.0] — 2026-08-06
 
 ### Dodane
