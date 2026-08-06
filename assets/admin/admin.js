@@ -376,24 +376,34 @@
          */
         var $box = $('#evo-anim-repeater-container');
 
-        if ($box.length && $.fn.sortable) {
-            $box.sortable({
-                handle              : '.evo-anim-row-header',
-                items               : '> .evo-anim-row',
-                placeholder         : 'evo-anim-row-placeholder',
-                forcePlaceholderSize: true,
-                axis                : 'y',
-                tolerance           : 'pointer',
-                // Bez tego uchwyt łapie też przycisk „Usuń" w nagłówku.
-                cancel              : 'button, input, select, textarea, a',
-                update              : function () { saveOrder(); },
-            });
+        if ($box.length) {
+            // SortableJS, nie jQuery UI — tą samą biblioteką jedzie już
+            // przeciąganie w Białych etykietach i w warstwach OG, więc te same
+            // klasy dają ten sam wygląd i nie dokładamy drugiej zależności.
+            if (typeof Sortable === 'undefined') {
+                // GŁOŚNO. Cichy warunek na brak biblioteki sprawił, że
+                // przeciąganie nie działało w 1.37.0 i nikt tego nie zauważył.
+                console.error('[Evoke ONE] Brak biblioteki Sortable — przeciąganie wierszy '
+                    + 'animacji nie zadziała. Sprawdź, czy handle „sortablejs" jest ładowany.');
+            } else {
+                Sortable.create($box[0], {
+                    handle     : '.evo-anim-row-header',
+                    draggable  : '.evo-anim-row',
+                    animation  : 150,
+                    ghostClass : 'evk-drag-ghost',
+                    chosenClass: 'evk-drag-chosen',
+                    // Bez tego uchwyt łapie też przycisk „Usuń" w nagłówku.
+                    filter             : 'button, input, select, textarea, a',
+                    preventOnFilter    : false,
+                    onEnd              : function () { saveOrder(); },
+                });
+            }
         }
 
         function saveOrder() {
             // Slugi, nie indeksy: wiersz świeżo dodany przyciskiem nie ma jeszcze
             // sluga i serwer ma go pominąć, a nie przesunąć cokolwiek innego.
-            var order = $box.find('> .evo-anim-row input[name*="[slug]"]')
+            var order = $box.children('.evo-anim-row').find('input[name*="[slug]"]')
                 .map(function () { return $(this).val(); }).get()
                 .filter(function (s) { return s !== ''; });
 

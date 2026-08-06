@@ -1,0 +1,70 @@
+<style>
+  body { margin: 0; font: 13px system-ui; background: #fff; }
+  .evo-anim-row { background: #f8fafc; border: 1px solid #d7dde7; padding: 12px; margin-bottom: 10px; }
+  .evo-anim-row-header { display: flex; justify-content: space-between; align-items: center; }
+  /* Siatka pól tylko zaśmieca pomiar pozycji — w tym teście chodzi o wiersze. */
+  .evo-anim-grid { display: none; }
+</style>
+
+<div id="mount"></div>
+
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<script src="../../node_modules/sortablejs/Sortable.min.js"></script>
+<script>
+/* Markup zakładki przychodzi z PRAWDZIWEGO tab-animator.php (window.__tab
+ * wstrzykiwane przez test). Musi stać w DOM, zanim ruszy admin.js — skrypt
+ * panelu jest zwykłym IIFE i szuka kontenera od razu przy uruchomieniu.
+ */
+document.getElementById('mount').innerHTML = window.__tab;
+
+// Podglądamy, z czym admin.js woła Sortable — i przepuszczamy wywołanie dalej,
+// żeby biblioteka realnie się podpięła.
+window.__sortableCalls = [];
+var origCreate = Sortable.create;
+Sortable.create = function (el, opts) {
+  window.__sortableCalls.push({ id: el.id, opts: opts });
+  return origCreate.call(Sortable, el, opts);
+};
+
+// ?nosortable=1 odtwarza usterkę 1.37.0: admin.js rusza, zanim biblioteka
+// przeciągania trafi na stronę. To kontrola negatywna całego pliku — bez niej
+// „Sortable podpięty" świeciłoby na zielono także przy teście, który nic nie bada.
+if (new URLSearchParams(location.search).get('nosortable') === '1') {
+  window.__realSortable = window.Sortable;
+  delete window.Sortable;
+}
+
+// Odwzorowanie wp_localize_script('evoke-one-admin', 'evoOneAnimData', …)
+window.evoOneAnimData = { rowStart: 100, url: '/fake-ajax', nonce: 'testnonce' };
+
+// Co admin.js wysłał — zamiast realnego żądania.
+window.__posts = [];
+window.__failNext = new URLSearchParams(location.search).get('fail') === '1';
+
+jQuery.post = function (url, data) {
+  window.__posts.push({ url: url, data: data });
+  var fail = window.__failNext;
+  var api = {
+    done: function (cb) { if (!fail) cb({ success: true, data: { order: data.order } }); return api; },
+    fail: function (cb) { if (fail) cb(); return api; },
+  };
+  return api;
+};
+
+window.__order = function () {
+  return Array.prototype.map.call(
+    document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row input[name*="[slug]"]'),
+    function (i) { return i.value; }
+  );
+};
+
+/** Przestawia wiersz i uruchamia ścieżkę, którą biblioteka woła po upuszczeniu. */
+window.__moveAndDrop = function (from, to) {
+  var box  = document.getElementById('evo-anim-repeater-container');
+  var rows = box.querySelectorAll(':scope > .evo-anim-row');
+  box.insertBefore(rows[from], to >= rows.length ? null : rows[to]);
+  var call = window.__sortableCalls[0];
+  if (call && typeof call.opts.onEnd === 'function') call.opts.onEnd({});
+};
+</script>
+<script src="../../assets/admin/admin.js"></script>

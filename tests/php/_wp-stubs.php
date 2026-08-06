@@ -12,8 +12,9 @@ define('ABSPATH', 1);
 
 $GLOBALS['hooks']    = [];
 $GLOBALS['options']  = [];
-$GLOBALS['enqueued'] = [];
-$GLOBALS['inline']   = [];
+$GLOBALS['enqueued']  = [];
+$GLOBALS['inline']    = [];
+$GLOBALS['localized'] = [];
 
 function add_filter($hook, $cb, $prio = 10, $args = 1) { $GLOBALS['hooks'][$hook][] = $cb; }
 function add_action($hook, $cb, $prio = 10, $args = 1) { $GLOBALS['hooks'][$hook][] = $cb; }
@@ -27,7 +28,9 @@ function register_setting(...$a) {}
 
 function esc_html__($s, $d = '') { return $s; }
 function esc_html_e($s, $d = '') { echo $s; }
-function esc_attr($s) { return $s; }
+function esc_attr($s) { return htmlspecialchars((string) $s, ENT_QUOTES); }
+function esc_html($s) { return htmlspecialchars((string) $s, ENT_QUOTES); }
+function esc_url($s) { return (string) $s; }
 function esc_js($s) { return $s; }
 function sanitize_key($s) { return strtolower(preg_replace('/[^a-z0-9_\-]/i', '', (string) $s)); }
 function sanitize_title($s) {
@@ -44,6 +47,9 @@ function wp_enqueue_script($handle, $src = '', $deps = [], $ver = false, $args =
 }
 function wp_add_inline_script($handle, $data, $position = 'after') {
     $GLOBALS['inline'][] = ['handle' => $handle, 'data' => $data, 'position' => $position];
+}
+function wp_localize_script($handle, $name, $data) {
+    $GLOBALS['localized'][$name] = $data;
 }
 function is_admin() { return false; }
 function checked($a, $b = true, $echo = true) { if ($a == $b) echo ' checked'; }

@@ -2,6 +2,31 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.37.1] — 2026-08-06
+
+### Poprawione
+
+- **Przeciąganie wierszy biblioteki animacji w ogóle nie działało.** Skrypt
+  panelu deklarował zależność `['jquery']`, a bibliotekę przeciągania brał
+  osobnym `wp_enqueue_script` **niżej w tej samej funkcji**. WordPress drukuje
+  skrypty w kolejności zgłoszeń, więc `admin.js` lądował pierwszy — w chwili
+  jego uruchomienia biblioteki jeszcze nie było. Warunek sprawdzający jej
+  obecność połykał to **bez jednego słowa w konsoli**.
+
+  Biblioteka jest teraz **zadeklarowaną zależnością**, a nie kwestią kolejności,
+  i stoi w kodzie przed skryptem panelu. Jej brak **krzyczy w konsoli** zamiast
+  znikać w warunku — to ta cisza sprawiła, że usterka pojechała dalej.
+
+### Zmienione
+
+- **Przeciąganie idzie na SortableJS, nie na jQuery UI.** Panel używał już
+  SortableJS w Białych etykietach i w warstwach OG; wprowadzenie drugiej
+  biblioteki było niepotrzebne. Te same klasy `evk-drag-ghost` / `evk-drag-chosen`
+  dają teraz ten sam wygląd przeciągania w całym panelu.
+
+- **Podwójny enqueue SortableJS usunięty.** Był zgłaszany dwa razy, w tym raz
+  z numerem wersji rozjeżdżającym się z adresem (`1.15.2` przy pliku `1.15.7`).
+
 ## [1.37.0] — 2026-08-06
 
 ### Dodane

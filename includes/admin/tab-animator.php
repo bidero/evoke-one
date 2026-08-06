@@ -49,8 +49,9 @@ $row_def    = $anim->row_defaults();
         .evo-anim-row-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #e5e7eb; padding-bottom:12px; cursor:grab; }
         .evo-anim-row-header:active { cursor:grabbing; }
         .evo-anim-grip { color:#9ca3af; margin-right:6px; vertical-align:-3px; }
-        /* Miejsce po przeciąganym wierszu — bez tego lista skacze pod kursorem. */
-        .evo-anim-row-placeholder { border:2px dashed #c7d2e0; border-radius:8px; background:#eef2f7; margin-bottom:16px; }
+        /* Te same klasy, co przy przeciąganiu w Białych etykietach i warstwach OG. */
+        .evk-drag-chosen { box-shadow:0 3px 16px rgba(0,0,0,.18) !important; z-index:999; }
+        .evk-drag-ghost  { opacity:.35; background:#eff6ff !important; }
         #evo-anim-order-note { display:none; font-size:12px; color:#4b5563; margin:0 0 12px; }
         .evo-anim-row-title { font-size:14px; font-weight:600; color:#111827; }
         .evo-anim-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }

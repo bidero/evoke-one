@@ -16,9 +16,18 @@ add_action('admin_enqueue_scripts', function (string $hook) {
     wp_enqueue_style('evoke-one-admin',
         EVOKE_ONE_URL . 'assets/admin/admin.css', [], EVOKE_ONE_VERSION);
 
+    // SortableJS — wspólna biblioteka przeciągania całego panelu (Białe etykiety,
+    // warstwy OG, biblioteka animacji). Musi stać PRZED admin.js i być jego
+    // zależnością: WordPress drukuje skrypty w kolejności zgłoszeń, więc samo
+    // enqueue niżej w tej funkcji zostawiłoby admin.js bez biblioteki w chwili
+    // uruchomienia — dokładnie tak nie działało przeciąganie wierszy w 1.37.0.
+    wp_enqueue_script('sortablejs',
+        'https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js',
+        [], '1.15.7', true);
+
     wp_enqueue_script('evoke-one-admin',
         EVOKE_ONE_URL . 'assets/admin/admin.js',
-        ['jquery'], EVOKE_ONE_VERSION, true);
+        ['jquery', 'sortablejs'], EVOKE_ONE_VERSION, true);
 
     // Sitemap
     wp_localize_script('evoke-one-admin', 'evoSitemapAjax', [
@@ -39,10 +48,7 @@ add_action('admin_enqueue_scripts', function (string $hook) {
         'rowStart' => count($cursor_settings['elements'] ?? []) + 100,
     ]);
 
-    // Animator. jquery-ui-sortable siedzi w rdzeniu WordPressa — przeciąganie
-    // wierszy biblioteki nie wymaga dokładania własnej biblioteki.
-    wp_enqueue_script('jquery-ui-sortable');
-
+    // Animator
     $anim_settings = EVK_Animator::get_instance()->get_settings();
     wp_localize_script('evoke-one-admin', 'evoOneAnimData', [
         'rowStart' => count($anim_settings['animations'] ?? []) + 100,
@@ -63,10 +69,6 @@ add_action('admin_enqueue_scripts', function (string $hook) {
     ]);
 
     wp_enqueue_media();
-
-    wp_enqueue_script('sortablejs',
-        'https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js',
-        [], '1.15.2', true);
 });
 
 // =========================================================================
