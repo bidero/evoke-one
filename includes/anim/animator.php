@@ -54,6 +54,9 @@ class EVK_Animator {
         // Na front idą sparsowane (patrz enqueue_assets()).
         'from'     => '',
         'to'       => '',
+        // Lista słów dla presetu „zmieniające się słowa" — po jednym na linię.
+        // Trzymana jak from/to: tekstem w opcji, tablicą na froncie.
+        'words'    => '',
     ];
 
     public static function get_instance(): self {
@@ -190,6 +193,7 @@ class EVK_Animator {
                 // co silnik faktycznie dostanie.
                 'from'     => evk_anim_props_to_text(evk_anim_parse_props((string) ($row['from'] ?? ''))),
                 'to'       => evk_anim_props_to_text(evk_anim_parse_props((string) ($row['to']   ?? ''))),
+                'words'    => evk_anim_words_to_text(evk_anim_parse_words((string) ($row['words'] ?? ''))),
             ];
         }
 
@@ -217,8 +221,11 @@ class EVK_Animator {
         $presets = evk_anim_presets();
 
         // Biblioteka kluczowana slugiem — silnik czyta ją po klasie evk-anim-{slug}.
-        $library    = [];
+        $library     = [];
         $needs_split = false;
+        $needs_text  = false;
+        $needs_scr   = false;
+
         foreach ($s['animations'] as $row) {
             $row = $this->row_with_defaults($row);
 
@@ -231,12 +238,27 @@ class EVK_Animator {
                 else        unset($row[$key]);
             }
 
+            // Słowa z tego samego powodu: pusta tablica przesłoniłaby brak listy.
+            $words = evk_anim_parse_words((string) $row['words']);
+            if ($words) $row['words'] = $words;
+            else        unset($row['words']);
+
             $library[$row['slug']] = $row;
-            if (!empty($presets[$row['preset']]['split'])) $needs_split = true;
+
+            $preset = $presets[$row['preset']] ?? [];
+            if (!empty($preset['split'])) $needs_split = true;
+
+            // Wtyczki tekstowe dociągamy tylko tam, gdzie są faktycznie użyte —
+            // to dwa dodatkowe pobrania z CDN-u na stronę, która ich nie potrzebuje.
+            $fx = $preset['textFx'] ?? '';
+            if ($fx === 'type' || $fx === 'words') $needs_text = true;
+            if ($fx === 'scramble')                $needs_scr  = true;
         }
 
         $deps = ['evk-gsap', 'evk-scrolltrigger'];
         if ($needs_split) $deps[] = 'evk-splittext';
+        if ($needs_text)  $deps[] = 'evk-textplugin';
+        if ($needs_scr)   $deps[] = 'evk-scrambletext';
 
         wp_enqueue_script('evk-animator', EVOKE_ONE_URL . 'assets/js/animator.js',
             $deps, EVOKE_ONE_VERSION, true);

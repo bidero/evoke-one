@@ -10,8 +10,10 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  */
 define('ABSPATH', 1);
 
-$GLOBALS['hooks']   = [];
-$GLOBALS['options'] = [];
+$GLOBALS['hooks']    = [];
+$GLOBALS['options']  = [];
+$GLOBALS['enqueued'] = [];
+$GLOBALS['inline']   = [];
 
 function add_filter($hook, $cb, $prio = 10, $args = 1) { $GLOBALS['hooks'][$hook][] = $cb; }
 function add_action($hook, $cb, $prio = 10, $args = 1) { $GLOBALS['hooks'][$hook][] = $cb; }
@@ -28,11 +30,21 @@ function esc_html_e($s, $d = '') { echo $s; }
 function esc_attr($s) { return $s; }
 function esc_js($s) { return $s; }
 function sanitize_key($s) { return strtolower(preg_replace('/[^a-z0-9_\-]/i', '', (string) $s)); }
+function sanitize_title($s) {
+    $s = strtolower(trim((string) $s));
+    return trim(preg_replace('/-+/', '-', preg_replace('/[^a-z0-9]+/', '-', $s)), '-');
+}
 function sanitize_text_field($s) { return trim(strip_tags((string) $s)); }
 function wp_parse_args($a, $d) { return array_merge($d, is_array($a) ? $a : []); }
 function wp_json_encode($v) { return json_encode($v, JSON_UNESCAPED_UNICODE); }
-function wp_enqueue_script(...$a) {}
-function wp_add_inline_script(...$a) {}
+// Enqueue'y zapisujemy zamiast połykać: literówka w nazwie handle'a niczego
+// nie wywala — skrypt po prostu nie trafia na stronę i efekt cicho nie działa.
+function wp_enqueue_script($handle, $src = '', $deps = [], $ver = false, $args = false) {
+    $GLOBALS['enqueued'][$handle] = ['src' => $src, 'deps' => (array) $deps];
+}
+function wp_add_inline_script($handle, $data, $position = 'after') {
+    $GLOBALS['inline'][] = ['handle' => $handle, 'data' => $data, 'position' => $position];
+}
 function is_admin() { return false; }
 function checked($a, $b = true, $echo = true) { if ($a == $b) echo ' checked'; }
 

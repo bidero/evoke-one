@@ -25,6 +25,11 @@ function evk_register_gsap_libs(): void {
     wp_register_script('evk-observer',      $cdn . 'Observer.min.js',      ['evk-gsap'], EVK_GSAP_VERSION, true);
     wp_register_script('evk-splittext',     $cdn . 'SplitText.min.js',     ['evk-gsap'], EVK_GSAP_VERSION, true);
 
+    // Efekty tekstowe Animatora. Od GSAP 3.13 wszystkie wtyczki są darmowe
+    // i leżą na cdnjs obok reszty — nie ma potrzeby hostowania ich u siebie.
+    wp_register_script('evk-textplugin',    $cdn . 'TextPlugin.min.js',    ['evk-gsap'], EVK_GSAP_VERSION, true);
+    wp_register_script('evk-scrambletext',  $cdn . 'ScrambleTextPlugin.min.js', ['evk-gsap'], EVK_GSAP_VERSION, true);
+
     // Na telefonie chowanie i pokazywanie paska adresu wypala `resize` w trakcie
     // przewijania. Bez tego ScrollTrigger przemierza wtedy wszystkie triggery na
     // stronie i scroll widocznie się zacina — mimo że zmieniła się sama wysokość

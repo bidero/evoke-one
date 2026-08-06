@@ -30,14 +30,60 @@ module.exports = async function (t) {
   const noLabel = keys.filter((k) => !presets[k].label);
   t.check('każdy ma etykietę', !noLabel.length, noLabel.join(', ') || 'brak braków');
 
-  // 'custom' jest jedynym wyjątkiem z definicji — bierze from/to z pól w panelu.
-  const incomplete = keys.filter((k) => k !== 'custom' && (!presets[k].from || !presets[k].to));
-  t.check('każdy ma from i to', !incomplete.length, incomplete.join(', ') || 'brak braków');
+  // Dwa wyjątki z definicji: 'custom' bierze from/to z pól w panelu, a presety
+  // tekstowe składają varsy w silniku (docelowym tekstem jest treść elementu).
+  const incomplete = keys.filter(
+    (k) => k !== 'custom' && !presets[k].textFx && (!presets[k].from || !presets[k].to));
+  t.check('każdy ma from i to albo znacznik', !incomplete.length,
+    incomplete.join(', ') || 'brak braków');
+
+  const badFx = keys.filter(
+    (k) => presets[k].textFx && !['type', 'scramble', 'words'].includes(presets[k].textFx));
+  t.check('znaczniki tekstowe znane silnikowi', !badFx.length, badFx.join(', ') || 'brak odstępstw');
 
   // Krzywa spoza listy dopuszczalnych wartości to najczęściej literówka
   // w nawiasach — GSAP przyjmuje ją, ale traktuje jak brak easingu.
   const badEase = keys.filter((k) => presets[k].easing && !data.easings.includes(presets[k].easing));
   t.check('easingi presetów z listy', !badEase.length, badEase.join(', ') || 'brak odstępstw');
+
+  // ── Co PHP wystawia na stronę ──────────────────────────────────────────
+  // Literówka w nazwie handle'a niczego nie wywala: skrypt po prostu nie
+  // trafia na stronę, a efekt cicho nie działa. Z przeglądarki tego nie widać,
+  // bo fixture ładuje wtyczki GSAP sam.
+  t.section('wtyczki GSAP i lista słów po stronie PHP');
+
+  const enq = (rows) => JSON.parse(phpOutput('animator-enqueue.php', JSON.stringify(JSON.stringify(rows))));
+
+  const plain = enq([{ slug: 'a', preset: 'fade-up' }]);
+  t.check('bez presetu tekstowego — bez wtyczek tekstowych',
+    !plain.deps.includes('evk-textplugin') && !plain.deps.includes('evk-scrambletext'),
+    plain.deps.join(', '));
+
+  const typed = enq([{ slug: 'a', preset: 'typewriter' }]);
+  t.check('maszyna do pisania dociąga TextPlugin',
+    typed.deps.includes('evk-textplugin') && !typed.deps.includes('evk-scrambletext'),
+    typed.deps.join(', '));
+
+  const scr = enq([{ slug: 'a', preset: 'scramble' }]);
+  t.check('losowe znaki dociągają ScrambleTextPlugin',
+    scr.deps.includes('evk-scrambletext'), scr.deps.join(', '));
+
+  // Pole w panelu → opcja → payload. Pusta linia ma wypaść, bo pusty krok
+  // wyglądałby jak zawieszenie animacji.
+  const words = enq([{ slug: 'a', preset: 'rotating-words', words: 'szybciej\n\n  prościej  \ntaniej' }]);
+  t.check('lista słów przeżywa zapis w panelu',
+    JSON.stringify(words.library.a.words) === JSON.stringify(['szybciej', 'prościej', 'taniej']),
+    JSON.stringify(words.library.a.words));
+
+  const many = enq([{ slug: 'a', preset: 'rotating-words',
+    words: Array.from({ length: 25 }, (_, i) => 'w' + i).join('\n') }]);
+  t.check('lista słów przycięta do 20', many.library.a.words.length === 20,
+    many.library.a.words.length + ' pozycji');
+
+  // Wiersz bez listy nie może wystawić pustej tablicy — w JS jest prawdziwa
+  // i przesłoniłaby brak konfiguracji.
+  t.check('brak listy = brak klucza', !('words' in typed.library.a),
+    Object.keys(typed.library.a).join(', '));
 
   // ── Silnik buduje każdy preset ─────────────────────────────────────────
   t.section('budowa osi czasu — wyzwalacz wejścia w kadr');
@@ -69,7 +115,34 @@ module.exports = async function (t) {
     st['underline-sweep'] && st['underline-sweep'].bgSize === '100% 2px',
     st['underline-sweep'] ? st['underline-sweep'].bgSize : 'brak presetu');
 
+  // ── Efekty tekstowe ────────────────────────────────────────────────────
+  // Maszyna do pisania i losowe znaki nadpisują treść elementu w trakcie
+  // animacji, więc jedyne, co naprawdę trzeba udowodnić, to że NA KOŃCU
+  // wracają do tekstu wyjściowego. Element, który zostaje z „przepisz" albo
+  // z losowym ciągiem, jest gorszy niż brak efektu.
+  t.check('maszyna do pisania dopisuje do końca',
+    st.typewriter && st.typewriter.text === 'typewriter', st.typewriter && st.typewriter.text);
+  t.check('losowe znaki wracają do treści',
+    st.scramble && st.scramble.text === 'scramble', st.scramble && st.scramble.text);
+
+  const WORDS = ['szybciej', 'prościej', 'taniej'];
+  t.check('zmieniające się słowa pokazują słowo z listy',
+    st['rotating-words'] && WORDS.some((w) => w.startsWith(st['rotating-words'].text)),
+    st['rotating-words'] && JSON.stringify(st['rotating-words'].text));
+
   await page.close();
+
+  // KONTROLA NEGATYWNA dla maszyny do pisania: w połowie animacji tekstu ma
+  // być MNIEJ niż docelowo. Bez tego „na końcu zgadza się treść" świeci
+  // na zielono także wtedy, gdy efekt nie ruszył wcale.
+  const mid = await t.open('presets.html', {
+    viewport: { width: 1200, height: 1000 }, head, query: 'mode=viewport', settle: 500,
+  });
+  const half = await mid.evaluate(() => window.__state());
+  t.check('w połowie tekst niepełny (kontrola)',
+    half.typewriter && half.typewriter.text.length < 'typewriter'.length,
+    JSON.stringify(half.typewriter && half.typewriter.text));
+  await mid.close();
 
   // ── Ten sam zestaw na wyzwalaczu najechania ────────────────────────────
   t.section('budowa osi czasu — wyzwalacz najechania');
@@ -148,4 +221,28 @@ module.exports = async function (t) {
     !Object.keys(rmAfter).filter((k) => rmAfter[k].opacity < 0.99).length,
     Object.keys(rmState).length + ' elementów');
   await rm.close();
+
+  // ── Redukcja ruchu — efekty tekstowe ───────────────────────────────────
+  // Tu nie ma „stanu końcowego" do nałożenia: docelowym tekstem jest treść,
+  // którą element już ma. Silnik ma go więc zostawić w spokoju — także
+  // pętli po słowach, która inaczej kręciłaby się w nieskończoność.
+  t.section('redukcja ruchu — efekty tekstowe');
+
+  const rt = await t.open('presets.html', {
+    viewport: { width: 1200, height: 1000 }, head, query: 'mode=viewport', reduce: true, settle: 900,
+  });
+  const rtA = await rt.evaluate(() => window.__state());
+  await rt.waitForTimeout(700);
+  const rtB = await rt.evaluate(() => window.__state());
+
+  t.check('maszyna do pisania nie rusza treści',
+    rtA.typewriter && rtA.typewriter.text === 'typewriter', rtA.typewriter && rtA.typewriter.text);
+  t.check('losowe znaki nie ruszają treści',
+    rtA.scramble && rtA.scramble.text === 'scramble', rtA.scramble && rtA.scramble.text);
+  t.check('pętla po słowach stoi',
+    rtA['rotating-words'] && rtB['rotating-words']
+      && rtA['rotating-words'].text === rtB['rotating-words'].text
+      && rtB['rotating-words'].text === 'rotating-words',
+    rtB['rotating-words'] && rtB['rotating-words'].text);
+  await rt.close();
 };

@@ -2,6 +2,31 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.32.0] — 2026-08-06
+
+### Dodane
+
+- **Trzy presety tekstowe** na darmowych wtyczkach GSAP: **maszyna do pisania**,
+  **losowe znaki** i **zmieniające się słowa**.
+
+  Pracują na treści elementu, więc mają sens wyłącznie tam, gdzie w środku jest
+  czysty tekst — znaczniki w środku zostaną zastąpione.
+
+  „Zmieniające się słowa" potrzebują listy w nowym polu **Słowa** w wierszu
+  biblioteki (po jednym na linię, maksymalnie 20). Pole „Czas" steruje wtedy
+  samym przejściem; każde słowo stoi 1,4 s. Bez listy preset nic nie robi
+  i mówi o tym w konsoli.
+
+  `TextPlugin` i `ScrambleTextPlugin` dociągają się **tylko na stronach, gdzie
+  któryś wiersz biblioteki faktycznie ich używa** — tak samo jak `SplitText`.
+
+### Zmienione
+
+- **Varsy tweenu składa jedna funkcja zamiast czterech kopii.** Każdy z czterech
+  wyzwalaczy budował je u siebie, więc nowa właściwość działałaby tylko w tym,
+  o którym ktoś pamiętał. Bez zmian w zachowaniu — przy scrubie nadal decyduje
+  scroll, a nie pole „Czas".
+
 ## [1.31.0] — 2026-08-06
 
 ### Dodane

@@ -245,6 +245,36 @@ function evk_anim_presets(): array {
             'duration' => 0.5,
             'stagger'  => 0.015,
         ],
+        // ── Efekty tekstowe ────────────────────────────────────────────────
+        //
+        // Te presety nie mają from/to i mieć nie mogą: docelowym tekstem jest
+        // treść, którą element ma już w sobie, a tablica w PHP nie przeniesie
+        // funkcji, która by ją odczytała. Zamiast tego niosą znacznik 'textFx',
+        // a varsy dla wtyczki składa silnik (patrz textFxVars w animator.js).
+        //
+        // Pracują na treści elementu, więc mają sens wyłącznie na elementach
+        // z czystym tekstem — znaczniki w środku zostaną zastąpione.
+        'typewriter' => [
+            'label'    => 'Tekst: maszyna do pisania',
+            'textFx'   => 'type',
+            'duration' => 1.8,
+            'easing'   => 'none',
+        ],
+        'scramble' => [
+            'label'    => 'Tekst: losowe znaki',
+            'textFx'   => 'scramble',
+            'duration' => 1.4,
+            'easing'   => 'none',
+        ],
+        // Wymaga listy słów w polu „Słowa" wiersza biblioteki — bez niej
+        // silnik nie ma czym cyklować i preset nic nie robi.
+        'rotating-words' => [
+            'label'    => 'Tekst: zmieniające się słowa',
+            'textFx'   => 'words',
+            'duration' => 0.6,
+            'easing'   => 'none',
+        ],
+
         // Bez from/to — wartości bierze się wyłącznie z pól „Własne from/to"
         // w wierszu biblioteki. Silnik schodzi wtedy warstwę niżej.
         'custom' => [
@@ -288,6 +318,28 @@ function evk_anim_parse_props(string $text): array {
     }
 
     return $out;
+}
+
+/**
+ * Lista słów dla presetu „zmieniające się słowa" — po jednym na linię.
+ *
+ * Limit jest po to, żeby wklejenie całego akapitu nie zbudowało osi czasu
+ * na kilkaset kroków. Puste linie wypadają, bo pusty krok wyglądałby jak
+ * zawieszenie animacji.
+ */
+function evk_anim_parse_words(string $text): array {
+    $out = [];
+    foreach (preg_split('/\r\n|\r|\n/', $text) as $line) {
+        if (count($out) >= 20) break;
+        $word = sanitize_text_field(trim($line));
+        if ($word !== '') $out[] = $word;
+    }
+    return $out;
+}
+
+/** Odwrotność evk_anim_parse_words() — z powrotem na tekst do pola w panelu. */
+function evk_anim_words_to_text(array $words): string {
+    return implode("\n", $words);
 }
 
 /** Odwrotność evk_anim_parse_props() — tablica z powrotem na tekst do pola w panelu. */

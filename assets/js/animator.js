@@ -87,11 +87,19 @@
     // resztki poprzedniej warstwy wchodziłyby w drogę własnym wartościom.
     var from = attr.from || lib.from || pre.from || null;
     var to   = attr.to   || lib.to   || pre.to   || null;
-    if (!from && !to) return null;
+
+    // Efekty tekstowe nie mają i nie mogą mieć from/to: docelowym tekstem jest
+    // treść, którą element ma już w sobie, a tablica presetów w PHP nie
+    // przeniesie funkcji, która by ją odczytała. Varsy składa textFxVars().
+    var textFx = pick(attr.textFx, lib.textFx, pre.textFx, '');
+
+    if (!from && !to && !textFx) return null;
 
     return {
       from:     from,
       to:       to,
+      textFx:   textFx,
+      words:    attr.words || lib.words || null,
       split:    pick(attr.split, lib.split, pre.split, ''),
       mask:     pick(attr.mask, lib.mask, pre.mask, ''),
       targets:  pick(attr.targets, lib.targets, 'self'),
@@ -133,21 +141,100 @@
     return [el];
   }
 
+  // ── Efekty tekstowe ────────────────────────────────────────────────────
+
+  /**
+   * Docelowy tekst jest treścią elementu, więc trzeba go zapamiętać, ZANIM
+   * wtyczka zacznie go nadpisywać. Zapis na węźle, nie w zmiennej: przy
+   * autoSplit i przy ponownej inicjalizacji ta sama funkcja dostaje te same
+   * węzły i nie może wtedy zapamiętać połowy animacji.
+   */
+  function rememberText(targets) {
+    targets.forEach(function (el) {
+      if (el._evkText === undefined) el._evkText = el.textContent;
+    });
+  }
+
+  /**
+   * Varsy dla wtyczek tekstowych. Wartość jest FUNKCJĄ — GSAP rozwiązuje ją
+   * osobno dla każdego celu, dzięki czemu jedna oś czasu obsługuje wiele
+   * elementów z różną treścią. Przy scramble funkcją jest cały obiekt
+   * konfiguracji, bo rozwiązywanie sięga tylko poziomu właściwości.
+   */
+  function textFxVars(targets, cfg) {
+    rememberText(targets);
+
+    if (cfg.textFx === 'scramble') {
+      return {
+        scrambleText: function (i, el) {
+          return { text: el._evkText, chars: 'upperCase', speed: 0.6 };
+        },
+      };
+    }
+    return { text: function (i, el) { return el._evkText; } };
+  }
+
+  /** Maszyna do pisania zaczyna od pustego pola; scramble miesza w miejscu. */
+  function textFxFrom(cfg) {
+    return cfg.textFx === 'type' ? { text: '' } : null;
+  }
+
+  /**
+   * Zmieniające się słowa — jedyny efekt, który nie jest pojedynczym tweenem,
+   * tylko pętlą. Przerwa między słowami jest stała: pole „Czas" steruje samym
+   * przejściem, a doszywanie drugiej liczby do panelu byłoby nieproporcjonalne
+   * do zysku.
+   */
+  var WORD_HOLD = 1.4;
+
+  function attachWords(el, targets, cfg) {
+    var words = cfg.words || [];
+    if (words.length < 2) {
+      console.warn('[EVK Animator] Preset „zmieniające się słowa" potrzebuje co najmniej dwóch słów '
+        + '— uzupełnij pole „Słowa" w wierszu biblioteki.', el);
+      return null;
+    }
+
+    rememberText(targets);
+    var tl = gsap.timeline({ repeat: -1, delay: cfg.delay });
+    words.forEach(function (word) {
+      tl.to(targets, { duration: cfg.duration, ease: cfg.easing, text: word });
+      tl.to(targets, { duration: WORD_HOLD });   // tween bez właściwości = postój
+    });
+    return tl;
+  }
+
   // ── Budowa osi czasu ───────────────────────────────────────────────────
 
-  function buildTimeline(targets, cfg, paused) {
-    var tl = gsap.timeline({ paused: !!paused });
+  /**
+   * Varsy tweenu w jednym miejscu. Wyzwalacze różnią się tylko tym, co
+   * dokładają na wierzchu (scrub kasuje czas i krzywą, kolejka startowa podaje
+   * pozycję), a efekty tekstowe mają działać przy każdym z nich — rozsypane po
+   * czterech funkcjach obsłużyłyby tylko ten wyzwalacz, o którym ktoś pamiętał.
+   */
+  function tweenVars(targets, cfg, override) {
     var vars = Object.assign({}, cfg.to, {
       duration: cfg.duration,
       ease:     cfg.easing,
-    });
+    }, override || {});
     if (cfg.stagger > 0) vars.stagger = cfg.stagger;
+    if (cfg.textFx) Object.assign(vars, textFxVars(targets, cfg));
+    return vars;
+  }
 
-    if (cfg.from) {
-      tl.fromTo(targets, Object.assign({}, cfg.from), vars);
-    } else {
-      tl.to(targets, vars);
-    }
+  /** Stan wyjściowy: własny z konfiguracji albo dorobiony przez efekt tekstowy. */
+  function startVars(cfg) {
+    if (cfg.from) return Object.assign({}, cfg.from);
+    return cfg.textFx ? textFxFrom(cfg) : null;
+  }
+
+  function buildTimeline(targets, cfg, paused) {
+    var tl    = gsap.timeline({ paused: !!paused });
+    var vars  = tweenVars(targets, cfg);
+    var start = startVars(cfg);
+
+    if (start) tl.fromTo(targets, start, vars);
+    else       tl.to(targets, vars);
     return tl;
   }
 
@@ -161,11 +248,8 @@
   // załadowaniu strony), treść zostałaby niewidoczna na stałe. toggleActions
   // pozwala ScrollTriggerowi rozstrzygnąć stan przy pierwszym refreshu.
   function attachViewport(el, targets, cfg) {
-    var vars = Object.assign({}, cfg.to, {
-      duration: cfg.duration,
-      ease:     cfg.easing,
-    });
-    if (cfg.stagger > 0) vars.stagger = cfg.stagger;
+    var vars  = tweenVars(targets, cfg);
+    var start = startVars(cfg);
 
     var tl = gsap.timeline({
       delay: cfg.delay,
@@ -177,8 +261,8 @@
       },
     });
 
-    if (cfg.from) tl.fromTo(targets, Object.assign({}, cfg.from), vars);
-    else          tl.to(targets, vars);
+    if (start) tl.fromTo(targets, start, vars);
+    else       tl.to(targets, vars);
     return tl;
   }
 
@@ -195,10 +279,14 @@
         anticipatePin: cfg.pin ? 1 : 0,
       },
     });
-    var vars = Object.assign({}, cfg.to, { ease: 'none' });
-    if (cfg.stagger > 0) vars.stagger = cfg.stagger;
-    if (cfg.from) tl.fromTo(targets, Object.assign({}, cfg.from), vars);
-    else          tl.to(targets, vars);
+    // Przy scrubie o czasie decyduje scroll, nie pole „Czas" — stąd krzywa
+    // liniowa i usunięty duration (klucz z wartością undefined nie jest tym
+    // samym co brak klucza dla części wtyczek).
+    var vars = tweenVars(targets, cfg, { ease: 'none' });
+    delete vars.duration;
+    var start = startVars(cfg);
+    if (start) tl.fromTo(targets, start, vars);
+    else       tl.to(targets, vars);
     return tl;
   }
 
@@ -250,16 +338,16 @@
       if (stepOrder !== null && cfg.order !== stepOrder) stepStart = master.duration();
       stepOrder = cfg.order;
 
-      var vars = Object.assign({}, cfg.to, { duration: cfg.duration, ease: cfg.easing });
-      if (cfg.stagger > 0) vars.stagger = cfg.stagger;
+      var vars  = tweenVars(item.targets, cfg);
+      var start = startVars(cfg);
 
       // LICZBA = pozycja bezwzględna względem początku osi. Wcześniej było tu
       // '+=' + delay, które w GSAP liczy się od KOŃCA dotychczasowej osi —
       // opóźnienia sumowały się z czasami trwania poprzednich animacji.
       // Ustawione 0 / 0,3 / 0,6 dawało starty 0 / 1,1 / 2,5.
       var pos = stepStart + cfg.delay;
-      if (cfg.from) master.fromTo(item.targets, Object.assign({}, cfg.from), vars, pos);
-      else          master.to(item.targets, vars, pos);
+      if (start) master.fromTo(item.targets, start, vars, pos);
+      else       master.to(item.targets, vars, pos);
     });
     loadQueue = [];
   }
@@ -268,6 +356,10 @@
 
   /** Podpina animację pod wybrany wyzwalacz i ZWRACA oś czasu (albo null dla load). */
   function buildAnimation(el, targets, cfg) {
+    // Pętla po słowach nie jest tweenem od–do, więc nie przechodzi przez
+    // żaden z wyzwalaczy — kręci się od razu i w kółko.
+    if (cfg.textFx === 'words') return attachWords(el, targets, cfg);
+
     switch (cfg.trigger) {
       case 'scrub': return attachScrub(el, targets, cfg);
       case 'hover':
@@ -375,7 +467,11 @@
     tries = tries || 0;
     if (window.gsap && window.ScrollTrigger) {
       gsap.registerPlugin(ScrollTrigger);
-      if (window.SplitText) gsap.registerPlugin(SplitText);
+      // Wtyczki opcjonalne — dociągane tylko gdy któryś wiersz biblioteki
+      // ich potrzebuje (patrz enqueue_assets() w includes/anim/animator.php).
+      if (window.SplitText)          gsap.registerPlugin(SplitText);
+      if (window.TextPlugin)         gsap.registerPlugin(TextPlugin);
+      if (window.ScrambleTextPlugin) gsap.registerPlugin(ScrambleTextPlugin);
       cb();
     } else if (tries < 50) {
       setTimeout(function () { waitForGSAP(cb, tries + 1); }, 100);

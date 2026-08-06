@@ -8,6 +8,8 @@
 <script src="../../node_modules/gsap/dist/gsap.min.js"></script>
 <script src="../../node_modules/gsap/dist/ScrollTrigger.min.js"></script>
 <script src="../../node_modules/gsap/dist/SplitText.min.js"></script>
+<script src="../../node_modules/gsap/dist/TextPlugin.min.js"></script>
+<script src="../../node_modules/gsap/dist/ScrambleTextPlugin.min.js"></script>
 <script>
 /* Strona buduje się z PRAWDZIWEJ tablicy presetów wstrzykniętej przez test
  * (window.__presets pochodzi z tests/php/presets.php). Dzięki temu nowy preset
@@ -25,13 +27,17 @@
   var grid    = document.getElementById('grid');
   var lib     = {};
 
+  // Lista słów jedzie w każdym wierszu — czyta ją wyłącznie preset
+  // „zmieniające się słowa", reszcie nie przeszkadza.
+  var WORDS = ['szybciej', 'prościej', 'taniej'];
+
   function row(preset, extra) {
     return Object.assign({
       slug: preset, preset: preset,
       trigger:  mode === 'hover' ? 'hover' : 'viewport',
       duration: '', stagger: '', delay: 0, easing: '',
       start: 'top 99%', end: 'bottom 40%', scrub: 1, repeat: 0, order: 0,
-      targets: 'self', selector: '', pin: 0,
+      targets: 'self', selector: '', pin: 0, words: WORDS,
     }, extra || {});
   }
 
@@ -82,6 +88,7 @@
         transform:  s.transform,
         boxShadow:  s.boxShadow,
         bgSize:     s.backgroundSize,
+        text:       el.textContent,
       };
     });
     return out;
