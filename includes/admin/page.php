@@ -51,9 +51,12 @@ add_action('admin_enqueue_scripts', function (string $hook) {
     // Animator
     $anim_settings = EVK_Animator::get_instance()->get_settings();
     wp_localize_script('evoke-one-admin', 'evoOneAnimData', [
-        'rowStart' => count($anim_settings['animations'] ?? []) + 100,
-        'url'      => admin_url('admin-ajax.php'),
-        'nonce'    => wp_create_nonce('evk_anim_reorder'),
+        'rowStart'   => count($anim_settings['animations'] ?? []) + 100,
+        'url'        => admin_url('admin-ajax.php'),
+        'nonce'      => wp_create_nonce('evk_anim_reorder'),
+        // Osobny nonce, bo osobna akcja: zapis całej biblioteki to znacznie
+        // więcej niż przestawienie kolejności i nie ma powodu dzielić uprawnienia.
+        'saveNonce'  => wp_create_nonce('evk_anim_save'),
     ]);
 
     // SEO

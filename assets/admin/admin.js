@@ -422,6 +422,75 @@
                 $note.text('Nie udało się zapisać kolejności — zmiana zostanie zapisana wraz z formularzem.');
             });
         }
+
+        /* Zapis całej biblioteki bez przeładowania strony.
+         *
+         * Formularz zostaje zwykłym formularzem celującym w options.php —
+         * przechwytujemy tylko wysłanie. Gdy AJAX padnie, puszczamy je dalej
+         * normalną drogą: awaria skryptu nie może być jedyną drogą zapisu.
+         */
+        var $form = $box.closest('form');
+
+        $form.on('submit', function (e) {
+            if ($form.data('evkFallback')) return;   // druga próba — puść normalnie
+            e.preventDefault();
+
+            var $btn  = $form.find('[type=submit]').prop('disabled', true);
+            var $note = $('#evo-anim-order-note').text('Zapisuję…').show();
+
+            // Ciąg pól, nie obiekt — i tylko pola należące do biblioteki.
+            //
+            // Kolejność: $.param() na liście par zachowuje kolejność DOM,
+            // a PHP zachowuje kolejność, w jakiej klucze pojawiły się w ciele
+            // żądania — dzięki temu przestawione wiersze zapisują się same.
+            // Przepuszczenie tego przez obiekt JS wszystko psuje: klucze
+            // wyglądające na liczby są w obiekcie porządkowane NUMERYCZNIE,
+            // więc animations {1,2,0} wracało do 0,1,2 i przeciągnięcie
+            // znikało w zapisie.
+            //
+            // Filtr: settings_fields() dokłada własne option_page, _wpnonce
+            // i action=update. To ostatnie zderzyłoby się z naszą akcją —
+            // w żądaniu byłyby DWA pola „action" i o routingu decydowałoby to,
+            // które z nich wygra przy parsowaniu. Endpointowi nic z tych pól
+            // nie jest potrzebne, więc po prostu ich nie wysyłamy.
+            var fields = $form.serializeArray().filter(function (pair) {
+                return pair.name.indexOf('evk_animator[') === 0;
+            });
+
+            var body = $.param(fields)
+                + '&action=evk_anim_save'
+                + '&nonce=' + encodeURIComponent(evoOneAnimData.saveNonce);
+
+            $.post(evoOneAnimData.url, body).done(function (res) {
+                $btn.prop('disabled', false);
+                if (res && res.success) {
+                    $note.text('Zapisano (' + res.data.count + ' animacji).');
+                    refreshBadges();
+                    setTimeout(function () { $note.fadeOut(); }, 2500);
+                } else {
+                    $note.text('Nie udało się zapisać — wysyłam formularz normalnie.');
+                    $form.data('evkFallback', true).trigger('submit');
+                }
+            }).fail(function () {
+                $btn.prop('disabled', false);
+                $note.text('Nie udało się zapisać — wysyłam formularz normalnie.');
+                $form.data('evkFallback', true).trigger('submit');
+            });
+        });
+
+        /** Plakietki .evk-anim-{slug} w nagłówkach po zapisie zgadzają się ze slugami. */
+        function refreshBadges() {
+            $box.children('.evo-anim-row').each(function () {
+                var slug  = $(this).find('input[name*="[slug]"]').val();
+                var $badge = $(this).find('.evo-anim-class');
+                if (!slug) { $badge.remove(); return; }
+                if (!$badge.length) {
+                    $badge = $('<span class="evo-anim-class"></span>')
+                        .appendTo($(this).find('.evo-anim-row-title'));
+                }
+                $badge.text('.evk-anim-' + slug);
+            });
+        }
     }
 
 })(jQuery);

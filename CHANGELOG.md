@@ -2,6 +2,40 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.38.0] — 2026-08-06
+
+### Dodane
+
+- **Biblioteka animacji zapisuje się bez przeładowania strony.** Przycisk
+  „Zapisz bibliotekę animacji" wysyła teraz formularz przez AJAX — strona nie
+  skacze, a pozycja przewinięcia i rozwinięte wiersze zostają na miejscu.
+  Plakietki `.evk-anim-{slug}` w nagłówkach odświeżają się po zapisie.
+
+  **Sanityzacja jest wspólna z dotychczasową drogą** — endpoint woła tę samą
+  metodę, którą wywołuje `options.php`. Drugi zestaw reguł czyszczenia
+  rozjechałby się z pierwszym, a różnica wyszłaby dopiero na żywej stronie.
+  Pilnuje tego test porównujący obie drogi.
+
+  **Awaria AJAX-a nie blokuje zapisu**: przy błędzie formularz wysyła się
+  zwykłą drogą, z przeładowaniem. Przełącznik „włączony" żyje poza formularzem
+  i zapis biblioteki go nie gasi.
+
+  Ograniczenie bez zmian wobec dotychczasowego zapisu: `max_input_vars`
+  (domyślnie 1000) tnie bardzo duże biblioteki tak samo przy AJAX-ie, jak przy
+  zwykłym POST — przy ~20 polach na wiersz limit zaczyna się liczyć od około
+  50 wierszy.
+
+### Poprawione
+
+- **Przeciągnięcie wiersza ginęło przy zapisie formularza.** Ładunek szedł jako
+  obiekt JavaScriptu, a klucze wyglądające na liczby są w obiekcie porządkowane
+  **numerycznie** — `animations` w kolejności `{1, 2, 0}` wracało do `0, 1, 2`
+  i przestawienie znikało bez śladu. Pola jadą teraz listą par w kolejności DOM.
+
+- **W żądaniu zapisu były dwa pola `action`.** Formularz ustawień dokłada własne
+  `action=update`, które zderzało się z akcją AJAX-a — o routingu decydowało to,
+  które wygra przy parsowaniu. Pola formularza ustawień nie są już wysyłane.
+
 ## [1.37.1] — 2026-08-06
 
 ### Poprawione

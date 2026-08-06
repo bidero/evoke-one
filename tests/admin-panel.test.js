@@ -89,7 +89,77 @@ module.exports = async function (t) {
     /zapisana/i.test(await page.evaluate(() => document.getElementById('evo-anim-order-note').textContent)),
     await page.evaluate(() => document.getElementById('evo-anim-order-note').textContent));
 
+  // ── Zapis całego formularza bez przeładowania ──────────────────────────
+  t.section('zapis biblioteki bez przeładowania');
+
+  await page.evaluate(() => {
+    window.__posts = [];
+    document.querySelector('#evo-anim-repeater-container').closest('form')
+      .querySelector('[type=submit]').click();
+  });
+  await page.waitForTimeout(150);
+
+  const submits = await page.evaluate(() => window.__submits);
+  t.check('wysłanie formularza zostaje przechwycone',
+    submits.length === 1 && submits[0].prevented === true, JSON.stringify(submits));
+
+  const saves = await page.evaluate(() => window.__posts);
+  const field = (body, name) => {
+    const m = new RegExp('(?:^|&)' + name + '=([^&]*)').exec(body || '');
+    return m ? decodeURIComponent(m[1]) : null;
+  };
+
+  t.check('idzie zapis całej biblioteki',
+    saves.length === 1 && field(saves[0].data, 'action') === 'evk_anim_save',
+    saves.map((x) => field(x.data, 'action')).join(', ') || 'brak');
+  t.check('zapis ma własny nonce', saves[0] && field(saves[0].data, 'nonce') === 'savenonce',
+    saves[0] && field(saves[0].data, 'nonce'));
+
+  // Ładunek jest SUROWYM ciągiem z serialize(), a nie obiektem — i to jest
+  // istotne. Klucze wyglądające na liczby są w obiekcie JS porządkowane
+  // numerycznie, więc przepuszczenie tego przez obiekt cofałoby przestawione
+  // wiersze do pierwotnej kolejności, cicho gubiąc przeciągnięcie.
+  const body = saves[0] && saves[0].data;
+  t.check('ładunek to ciąg pól, nie obiekt', typeof body === 'string',
+    typeof body);
+  t.check('ładunek zagnieżdżony jak w zwykłym formularzu',
+    typeof body === 'string' && body.indexOf('evk_animator%5Banimations%5D') !== -1,
+    typeof body === 'string' ? body.slice(0, 60) : '');
+
+  // settings_fields() dokłada własne action=update. Dwa pola „action" w jednym
+  // żądaniu to loteria routingu — pola formularza ustawień nie mają tu wstępu.
+  t.check('w żądaniu jest dokładnie jedno pole action',
+    (String(body).match(/(?:^|&)action=/g) || []).length === 1,
+    (String(body).match(/(?:^|&)action=[^&]*/g) || []).join(' + '));
+  t.check('pola formularza ustawień odfiltrowane',
+    String(body).indexOf('option_page') === -1 && String(body).indexOf('_wpnonce') === -1,
+    String(body).slice(0, 60));
+
+  // Kolejność slugów w ciele żądania = kolejność wierszy w panelu. PHP zachowuje
+  // kolejność pojawiania się kluczy, więc to ona ląduje w opcji.
+  const bodySlugs = typeof body === 'string'
+    ? decodeURIComponent(body).match(/\[slug\]=([^&]*)/g).map((m) => m.split('=')[1])
+    : [];
+  t.check('ładunek niesie kolejność po przeciągnięciu',
+    bodySlugs.join(',') === 'beta,gamma,alfa', bodySlugs.join(','));
+
   await page.close();
+
+  // KONTROLA NEGATYWNA: gdy zapis padnie, formularz MUSI pójść zwykłą drogą.
+  // Awaria skryptu nie może być jedyną drogą zapisu konfiguracji.
+  const bad2 = await t.open('anim-tab.html', { viewport: V, head, query: 'fail=1', settle: 300 });
+  await bad2.evaluate(() => {
+    document.querySelector('#evo-anim-repeater-container').closest('form')
+      .querySelector('[type=submit]').click();
+  });
+  await bad2.waitForTimeout(200);
+  const s2 = await bad2.evaluate(() => window.__submits);
+  // Dwa wysłania: przechwycone i to puszczone dalej. Kolejność w tablicy zależy
+  // od tego, że atrapa $.post odpowiada synchronicznie — znaczące jest to, że
+  // JEDNO z nich przeszło bez blokady, czyli formularz realnie się wysłał.
+  t.check('po nieudanym zapisie formularz idzie normalnie',
+    s2.length === 2 && s2.some((x) => x.prevented === false), JSON.stringify(s2));
+  await bad2.close();
 
   // ── Kontrola negatywna: brak biblioteki ────────────────────────────────
   // Odtworzenie usterki 1.37.0. Ma być GŁOŚNA — cisza sprawiła, że pojechała

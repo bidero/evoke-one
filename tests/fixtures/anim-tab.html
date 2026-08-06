@@ -35,7 +35,7 @@ if (new URLSearchParams(location.search).get('nosortable') === '1') {
 }
 
 // Odwzorowanie wp_localize_script('evoke-one-admin', 'evoOneAnimData', …)
-window.evoOneAnimData = { rowStart: 100, url: '/fake-ajax', nonce: 'testnonce' };
+window.evoOneAnimData = { rowStart: 100, url: '/fake-ajax', nonce: 'testnonce', saveNonce: 'savenonce' };
 
 // Co admin.js wysłał — zamiast realnego żądania.
 window.__posts = [];
@@ -68,3 +68,15 @@ window.__moveAndDrop = function (from, to) {
 };
 </script>
 <script src="../../assets/admin/admin.js"></script>
+<script>
+/* Rejestrator wysłań formularza — MUSI stać po admin.js, żeby w fazie bąbelkowej
+ * biec za jego handlerem i zobaczyć, czy tamten zablokował domyślne działanie.
+ * Sam blokuje zawsze, bo nawigacja do options.php w teście nic nie wnosi.
+ */
+window.__submits = [];
+jQuery(document.querySelector('#evo-anim-repeater-container').closest('form'))
+  .on('submit', function (e) {
+    window.__submits.push({ prevented: e.isDefaultPrevented() });
+    e.preventDefault();
+  });
+</script>

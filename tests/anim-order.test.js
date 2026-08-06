@@ -50,4 +50,36 @@ module.exports = async function (t) {
   const none = run([], ['a']);
   t.check('brak biblioteki kończy się błędem, nie zapisem',
     none.response && none.response.success === false, JSON.stringify(none.response));
+
+  // ── Zapis całej biblioteki bez przeładowania ───────────────────────────
+  // Endpoint AJAX i zwykły formularz przez options.php MUSZĄ dawać ten sam
+  // wynik — obie drogi idą przez tę samą sanityzację. Drugi zestaw reguł
+  // rozjechałby się z pierwszym, a różnica wyszłaby dopiero na żywej stronie.
+  t.section('zapis całej biblioteki');
+
+  const save = (payload) => JSON.parse(phpOutput('anim-save.php',
+    JSON.stringify(JSON.stringify(payload))));
+
+  const ok = save({
+    reduced_motion: '1',
+    animations: { 0: { slug: 'beta', label: 'B', preset: 'fade-up', delay: '0.3' },
+                  1: { slug: 'alfa', label: 'A', preset: 'blur-up' } },
+  });
+
+  t.check('zapis się udaje', ok.response && ok.response.success === true,
+    JSON.stringify(ok.response && ok.response.data));
+  t.check('wynik identyczny jak przez options.php', ok.same === true, String(ok.same));
+  t.check('kolejność z formularza zachowana',
+    ok.saved.animations.map((r) => r.slug).join(',') === 'beta,alfa',
+    ok.saved.animations.map((r) => r.slug).join(','));
+
+  // Przełącznik „włączony" nie jest częścią formularza — steruje nim osobny
+  // AJAX toggle. Zapis biblioteki nie może go po drodze zgasić.
+  t.check('przełącznik modułu przeżywa zapis', ok.saved.enabled === 1,
+    'enabled=' + ok.saved.enabled);
+
+  const junk = save({ animations: { 0: { slug: '', label: 'bez sluga' } } });
+  t.check('wiersz bez sluga odpada w sanityzacji',
+    junk.response.success === true && junk.saved.animations.length === 0,
+    JSON.stringify(junk.response.data));
 };

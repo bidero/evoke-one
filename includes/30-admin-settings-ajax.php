@@ -724,3 +724,36 @@ add_action('wp_ajax_evk_anim_reorder', function () {
         'ignored' => count($order) - count($sorted) + count($by_slug),
     ]);
 });
+
+/**
+ * Zapis całej biblioteki animacji bez przeładowania strony.
+ *
+ * Sanityzację REUŻYWAMY, nie przepisujemy — leci ta sama metoda, którą wywołuje
+ * options.php przez register_setting(). Drugie miejsce z regułami czyszczenia
+ * rozjechałoby się z pierwszym i różnica wyszłaby dopiero na żywej stronie.
+ *
+ * Klient wysyła zwykłe form.serialize(), więc PHP samo rozkłada nazwy
+ * evk_animator[animations][0][slug] w zagnieżdżoną tablicę. Kolejność pól
+ * w ciele żądania to kolejność wierszy w panelu, a sanityzacja iteruje po niej
+ * foreachem — przestawienie wierszy zapisuje się więc samo, bez osobnego kroku.
+ */
+add_action('wp_ajax_evk_anim_save', function () {
+    check_ajax_referer('evk_anim_save', 'nonce');
+    if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
+
+    if (!class_exists('EVK_Animator')) wp_send_json_error('brak modułu', 400);
+
+    $input = wp_unslash($_POST['evk_animator'] ?? null);
+    if (!is_array($input)) wp_send_json_error('brak danych', 400);
+
+    // Przełącznik „włączony" nie jest częścią formularza — steruje nim osobny
+    // AJAX toggle. Wewnątrz sanityzacji chroni go evk_preserve_toggle(), więc
+    // nie wolno go tu podstawiać ani zerować.
+    $clean = EVK_Animator::get_instance()->sanitize_settings($input);
+    update_option('evk_animator', $clean);
+
+    wp_send_json_success([
+        'count' => count($clean['animations']),
+        'slugs' => wp_list_pluck($clean['animations'], 'slug'),
+    ]);
+});
