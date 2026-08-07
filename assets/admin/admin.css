@@ -39,6 +39,7 @@
 
     /* ── Stany ── */
     --evo-danger:      #dc2626;
+    --evo-danger-dark: #b91c1c;
     --evo-danger-soft: #fef2f2;
     --evo-danger-line: #fecaca;
     --evo-on:          #16a34a;
@@ -847,8 +848,11 @@
     background: var(--evo-accent-dark);
     border-color: var(--evo-accent-dark);
 }
-/* Ikona w przycisku zawsze w jednej linii z tekstem. */
-.evo-panel .button:has(> .dashicons) { display: inline-flex; align-items: center; gap: 6px; }
+/* Ikona w przycisku zawsze w jednej linii z tekstem. `vertical-align` jest tu
+   konieczne: inline-flex siada na linii bazowej i przycisk w zdaniu zjeżdża
+   w dół — zakładki dopisywały sobie `vertical-align:middle` inline właśnie
+   z tego powodu. */
+.evo-panel .button:has(> .dashicons) { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
 .evo-panel .button > .dashicons { font-size: 16px; width: 16px; height: 16px; line-height: 1; flex-shrink: 0; }
 
 /* Przycisk „Dodaj animację" — ghost z kreską, jak wszystkie „dodaj" w Fields. */
@@ -987,3 +991,410 @@
     box-shadow: 0 -2px 14px rgba(15, 23, 42, .06);
     z-index: 5;
 }
+
+/* =========================================================================
+   KOMPONENTY ZAKŁADEK
+   =========================================================================
+   Idiomy, które każda zakładka pisała sobie sama w atrybucie `style`.
+
+   Atrybut inline wygrywa z każdym arkuszem — więc dopóki pole niosło
+   `border-radius:5px`, skóra Fields była wobec niego bezsilna, choć reguła
+   dla niego istniała i była poprawna. Drugi, cichszy koszt: `color:#6b7280`
+   wygląda dziś jak token, ale przestaje za nim nadążać przy zmianie palety.
+   Pilnuje tego tests/admin-tabs.test.js — mierzy WYRENDEROWANĄ zakładkę,
+   nie szuka tekstu w źródle.
+   ========================================================================= */
+
+/* ── Tekst pomocniczy ── */
+.evo-hint      { font-size: 12px; color: var(--evo-text-muted); }
+.evo-hint-sm   { font-size: 11px; color: var(--evo-text-dim); line-height: 1.4; }
+/* Dopisek w etykiecie — „Klasa tytułu (na liście, bez kropki)". */
+.evo-label-note { font-size: 11px; font-weight: 400; color: var(--evo-text-faint); }
+.evo-mono      { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.evo-muted     { color: var(--evo-text-muted); }
+.evo-faint     { color: var(--evo-text-faint); }
+.evo-accent-tx { color: var(--evo-accent); }
+.evo-danger-tx { color: var(--evo-danger); }
+
+/* ── Ikony (dashicon w tekście) ──
+   Dashicons dziedziczą rozmiar czcionki rodzica i rozjeżdżają linię bazową;
+   ta trójka trzyma je w kwadracie o znanym boku. */
+.evo-ico    { font-size: 16px; width: 16px; height: 16px; line-height: 1; flex-shrink: 0; }
+.evo-ico-sm { font-size: 14px; width: 14px; height: 14px; line-height: 1; flex-shrink: 0; }
+.evo-ico-lg { font-size: 24px; width: 24px; height: 24px; line-height: 1; flex-shrink: 0; }
+
+/* ── Ramka informacyjna: warianty stanu ── */
+.evo-info-box.is-ok   { background: #f0fdf4; border-color: #86efac; }
+.evo-info-box.is-ok   .dashicons { color: var(--evo-on); }
+.evo-info-box.is-warn { background: #fffbeb; border-color: #fde68a; }
+.evo-info-box.is-warn .dashicons { color: #d97706; }
+
+/* ── Karta wyboru ──
+   Etykieta owijająca checkbox albo radio. Stan bierzemy z `:has(:checked)`,
+   a nie z klasy dopisywanej w PHP: klasa opisywała stan Z CHWILI RENDEROWANIA
+   i po kliknięciu zostawała nieaktualna aż do przeładowania strony. */
+.evo-choice {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 14px;
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius-md);
+    background: var(--evo-surface);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--evo-text);
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+.evo-choice:hover { border-color: var(--evo-accent-line); }
+.evo-choice input { margin: 0; flex: 0 0 auto; }
+.evo-choice:has(input:checked) {
+    border-color: var(--evo-accent);
+    background: var(--evo-accent-soft);
+}
+/* Wariant z opisem pod tytułem — checkbox równa się z pierwszą linią. */
+.evo-choice-stack { align-items: flex-start; }
+.evo-choice-stack > span { display: flex; flex-direction: column; gap: 2px; }
+
+/* ── Tabela mapowań (klucz → nazwa) ── */
+.evo-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.evo-table th {
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--evo-text-dim);
+    border-bottom: 1px solid var(--evo-border);
+}
+.evo-table td { padding: 6px 10px; vertical-align: middle; }
+.evo-table tbody tr { border-bottom: 1px solid var(--evo-border-soft); }
+.evo-table tbody tr:hover { background: var(--evo-surface); }
+.evo-table .is-center { text-align: center; }
+.evo-table .is-right  { text-align: right; white-space: nowrap; }
+.evo-table .is-tight  { padding: 6px 4px; }
+/* Pusty stan — komunikat zamiast pustej ramki. */
+.evo-empty {
+    padding: 16px 10px;
+    text-align: center;
+    color: var(--evo-text-faint);
+    font-style: italic;
+}
+.evo-table tbody tr:has(> .evo-empty):hover { background: transparent; }
+
+/* ── Siatka pól ──
+   Szerokość kolumny jest cechą KONKRETNEJ siatki, nie palety, więc zostaje
+   przy elemencie — ale jako zmienna, nie jako pełna deklaracja układu. */
+.evo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(var(--evo-col, 220px), 1fr));
+    gap: var(--evo-gap, 14px);
+}
+.evo-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--evo-gap, 20px); }
+.evo-grid .evo-field,
+.evo-grid-2 .evo-field { margin: 0; }
+
+/* ── Pasek narzędzi nad tabelą ── */
+.evo-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.evo-toolbar-spacer { margin-left: auto; }
+
+/* ── Plakietka zmiennej ({{klucz}}) ── */
+.evo-chip {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--evo-accent-soft);
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--evo-accent-dark);
+    cursor: pointer;
+    transition: background .12s;
+}
+.evo-chip:hover { background: #dbeafe; }
+.evo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+
+/* ── Podgląd (monospace, tło jak karta) ── */
+.evo-preview {
+    width: 100%;
+    min-height: 220px;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius-sm);
+    background: var(--evo-surface);
+    color: var(--evo-text-soft);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ── Sekcja zwijana bez ramki karty (details w treści zakładki) ── */
+.evo-fold { border: 1px solid var(--evo-border); border-radius: var(--evo-radius-md); margin-top: 12px; }
+.evo-fold > summary {
+    padding: 10px 14px;
+    background: var(--evo-surface);
+    border-radius: var(--evo-radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--evo-text-soft);
+    cursor: pointer;
+    user-select: none;
+}
+.evo-fold[open] > summary { border-radius: var(--evo-radius-md) var(--evo-radius-md) 0 0; }
+.evo-fold-body { padding: 14px; }
+
+/* ── Przycisk-ikona w wierszu tabeli (bez ramki, sam glif) ── */
+.evo-btn-plain {
+    padding: 2px 4px;
+    border: 0;
+    background: none;
+    color: var(--evo-text-dim);
+    cursor: pointer;
+    line-height: 1;
+    border-radius: var(--evo-radius-sm);
+}
+.evo-btn-plain:hover { background: var(--evo-surface); color: var(--evo-text); }
+.evo-btn-plain.is-danger { color: var(--evo-danger); }
+.evo-btn-plain.is-danger:hover { background: var(--evo-danger-soft); }
+
+/* ── Odstępy ──
+   Minimalna skala, tylko te wartości, które zakładki i tak już powtarzały
+   w atrybucie `style`. Nie jest to biblioteka narzędziowa — dopisywanie tu
+   kolejnych stopni oznacza, że komponent gdzieś nie istnieje. */
+.evo-m0    { margin: 0; }
+.evo-mt    { margin-top: 16px; }
+.evo-mt-lg { margin-top: 24px; }
+.evo-mb-sm { margin-bottom: 10px; }
+.evo-mb    { margin-bottom: 16px; }
+.evo-mb-lg { margin-bottom: 24px; }
+.evo-ml    { margin-left: 10px; }
+
+/* ── Szerokości pól ──
+   Pole o szerokości 80 px to decyzja o TYM polu, nie o palecie — ale
+   powtarzana w trzydziestu plikach przestaje być decyzją, a staje się
+   przypadkiem. Cztery stopnie wystarczyły na wszystkie zakładki. */
+.evo-panel .evo-w-xs { max-width: 80px; }
+.evo-panel .evo-w-sm { max-width: 160px; }
+.evo-panel .evo-w-md { max-width: 200px; }
+.evo-panel .evo-w-lg { max-width: 260px; }
+.evo-panel .evo-w-full { width: 100%; max-width: 100%; }
+
+/* ── Wiersz pól obok siebie (pole rozciągliwe + wąski dodatek) ── */
+.evo-inline { display: flex; align-items: center; gap: 4px; }
+.evo-inline > input[type=text] { flex: 1; min-width: 0; }
+/* Wąska lista „wstaw pole" — sam glif ▾, bez miejsca na tekst. */
+.evo-panel .evo-select-thin { width: 38px; flex: 0 0 auto; padding-left: 4px; padding-right: 20px; background-position: right 5px center; }
+/* Nagłówek kolumny nad tabelą — nie sekcja, więc bez wersalików. */
+.evo-col-title { font-size: 13px; font-weight: 600; color: var(--evo-text-soft); }
+
+/* ── Pole na kod / szablon ── */
+.evo-panel .evo-code-area {
+    padding: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+/* ── Akapit opisowy o czytelnej długości wiersza ── */
+.evo-prose { max-width: 70ch; }
+/* ── Pole na kod HEX obok próbnika ── */
+.evo-panel .evo-w-hex { width: 100px; max-width: 100px; }
+
+/* ── Próbnik koloru: wartość użytkownika wchodzi ZMIENNĄ, nie deklaracją ──
+   Inline z danymi jest w porządku, ale gdy niesie `background:#…`, przestaje
+   być widoczne dla arkusza: nie da się dołożyć ramki ani stanu najechania
+   bez `!important`. Ze zmienną tło ma jedno źródło, a element — normalny CSS. */
+.evo-color-swatch { background: var(--evo-swatch, var(--evo-bg)); }
+.evo-hidden { display: none !important; }
+
+/* ── Rząd pól obok siebie (etykieta nad polem, pola w linii) ── */
+.evo-inline-fields { display: flex; gap: 24px; flex-wrap: wrap; }
+.evo-inline-fields .evo-field { margin-bottom: 0; }
+.evo-panel .evo-w-xl { width: 100%; max-width: 340px; }
+
+/* ── Drobiazgi układu, których zakładki potrzebują częściej niż raz ── */
+.evo-grow     { flex: 1; min-width: 0; }
+.evo-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evo-mb-xs    { margin-bottom: 6px; }
+.evo-inline   { gap: var(--evo-gap, 4px); }
+
+/* Kreska rozdzielająca duże sekcje zakładki. */
+.evo-section-break { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--evo-border); }
+
+/* Kompaktowy wariant karty wyboru — lista węzłów paska. */
+.evo-choice-sm { padding: 7px 10px; border-radius: 4px; }
+.evo-choice-id { font-size: 10px; opacity: .5; }
+
+/* Etykieta jednostki obok pola liczbowego („szer.", „wys."). */
+.evo-panel .evo-unit-label { margin: 0; font-size: 12px; font-weight: 500; color: var(--evo-text-dim); text-transform: none; letter-spacing: 0; }
+
+/* Siatka kolorów: etykiety są krótkie i stoją nad próbnikiem. */
+.evk-grid-colors .evo-field { margin: 0; }
+.evk-grid-colors label { font-size: 12px; }
+.evo-grid-sep { grid-column: 1 / -1; height: 1px; background: var(--evo-border); margin: 2px 0; }
+
+/* Identyfikator w ramce — nie do edycji, tylko do odczytania. */
+.evo-code-tag {
+    width: 180px;
+    padding: 4px 8px;
+    background: var(--evo-surface);
+    border: 1px solid var(--evo-border);
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+/* Przycisk o wymowie destrukcyjnej — tekst, nie tło. */
+.wrap .button.evo-btn-danger { color: var(--evo-danger); flex-shrink: 0; }
+.wrap .button.evo-btn-danger:hover { background: var(--evo-danger-soft); border-color: var(--evo-danger-line); color: var(--evo-danger); }
+
+/* Komunikat „ładowanie…". */
+.evo-loading { padding: 12px 0; font-size: 13px; color: var(--evo-text-dim); }
+
+/* Wąskie pola w siatce kolejności węzłów. */
+.evo-panel .evo-w-side { width: 60px; padding-left: 6px; padding-right: 18px; background-position: right 4px center; }
+.evo-panel .evo-w-num  { width: 52px; text-align: center; }
+
+/* ── Konstruktor paska górnego ──
+   Wiersz rysował się w JS przez `.css({…})` z literałami kolorów. Reguła
+   w arkuszu robi to samo, a przy okazji przestaje wygrywać z resztą skóry:
+   styl z `.css()` ląduje w atrybucie `style` i jest nie do nadpisania. */
+.evk-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+    padding: 7px 10px;
+    border-radius: 4px;
+    border-left: 3px solid var(--evo-border-soft);
+    background: var(--evo-surface);
+}
+.evk-bar-row.is-parent { background: #eef3fb; border-left-color: var(--evo-accent); }
+.evk-bar-badge {
+    min-width: 76px;
+    font-size: 11px;
+    color: var(--evo-text-faint);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.evk-bar-badge.is-parent { color: var(--evo-accent); font-weight: 700; }
+.evk-bar-target { display: flex; align-items: center; gap: 3px; font-size: 11px; white-space: nowrap; cursor: pointer; flex-shrink: 0; }
+.evk-bar-row .evk-drag-handle { font-size: 18px; flex-shrink: 0; color: var(--evo-border-dash); cursor: move; }
+.evk-bar-row .evk-drag-handle:hover { color: var(--evo-text-faint); }
+.evk-icon-prev { font-size: 18px; color: var(--evo-accent); flex-shrink: 0; }
+.evo-panel .evo-w-120 { width: 120px; flex-shrink: 0; }
+.evo-panel .evo-w-130 { width: 130px; flex-shrink: 0; }
+.evo-panel .evo-w-140 { width: 140px; flex-shrink: 0; }
+
+/* ── Wyróżniona wskazówka (kreska z boku, nie ramka dookoła) ── */
+.evo-callout {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: var(--evo-accent-soft);
+    border-left: 3px solid var(--evo-accent);
+    border-radius: 0 4px 4px 0;
+    font-size: 12px;
+    color: var(--evo-text-soft);
+    line-height: 1.7;
+}
+
+/* =========================================================================
+   WHITE LABEL — przeniesione z trzech bloków <style> w zakładce
+   =========================================================================
+   Bloki stały w dokumencie PO arkuszu i wygrywały przy równej specyficzności,
+   więc warstwa komponentów była wobec nich bezsilna — dokładnie ta usterka
+   wyszła w Animatorze w 1.43.0. Kolory zamienione na tokeny wszędzie, gdzie
+   miały dokładny odpowiednik; zostały tylko odcienie bez pary w palecie.
+   ========================================================================= */
+
+/* ── Przeciąganie ── */
+.evk-drag-handle { cursor: grab !important; color: var(--evo-border-dash); transition: color .15s; }
+.evk-drag-handle:hover { color: var(--evo-accent) !important; }
+.evk-drag-chosen { box-shadow: 0 3px 16px rgba(0, 0, 0, .18) !important; z-index: 999; }
+.evk-drag-ghost  { opacity: .35; background: var(--evo-accent-soft) !important; }
+.evk-bar-row     { transition: background .15s; }
+
+/* ── Siatka kolejności węzłów ── */
+.evk-order-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.evk-order-row  { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--evo-surface); border-radius: 4px; font-size: 13px; }
+.evk-order-row input[type=number] { width: 56px; text-align: center; }
+
+/* ── Akordeony White Label (karty jak w Evoke Fields) ── */
+.evk-wl-acc-wrap { display: flex; flex-direction: column; }
+.evk-acc {
+    margin-bottom: 14px;
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius-card);
+    background: var(--evo-bg);
+    box-shadow: var(--evo-shadow-row);
+    overflow: hidden;
+}
+.evk-acc > summary {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px;
+    font-size: 14px; font-weight: 700; color: var(--evo-text);
+    cursor: pointer; list-style: none; user-select: none;
+    transition: background .15s;
+}
+.evk-acc > summary:hover { background: var(--evo-surface); }
+.evk-acc > summary::-webkit-details-marker { display: none; }
+.evk-acc > summary > .dashicons:first-child { color: var(--evo-accent); font-size: 18px; width: 18px; height: 18px; }
+.evk-acc > summary::after { content: "\f347"; font-family: dashicons; font-size: 20px; color: var(--evo-text-faint); margin-left: auto; transition: transform .2s; }
+.evk-acc[open] > summary { border-bottom: 1px solid var(--evo-border-soft); }
+.evk-acc[open] > summary::after { transform: rotate(180deg); }
+.evk-acc-body { padding: 18px; }
+.evk-acc-body .evo-section-title:first-child { margin-top: 0; }
+
+/* Pole „Własny CSS" — edytorskie, nie jednoliniowe. */
+.evo-panel .evk-wl-css-area {
+    width: 100%; min-height: 320px; height: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px; line-height: 1.6; tab-size: 2; resize: vertical;
+}
+
+/* ── Menu boczne: wiersze kolejności ── */
+.evk-sm-row {
+    display: flex; align-items: center; gap: 8px;
+    max-width: 600px; margin-bottom: 5px; padding: 7px 10px;
+    background: var(--evo-surface);
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius-sm);
+    font-size: 13px;
+    transition: border-color .15s, background .15s;
+}
+.evk-sm-row.is-hidden { opacity: .5; background: #fafafa; }
+.evk-sm-row.is-sep    { background: #f0f4ff; border-style: dashed; color: var(--evo-text-muted); font-style: italic; opacity: 1; }
+.evk-sm-handle { flex-shrink: 0; font-size: 16px; color: var(--evo-border-dash); cursor: grab; }
+.evk-sm-handle:hover { color: var(--evo-accent); }
+.evk-sm-label  { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.evo-panel .evk-sm-rename { width: 200px; flex-shrink: 0; }
+.evk-sm-eye {
+    flex-shrink: 0; padding: 0; border: none; background: none;
+    font-size: 17px; line-height: 1; color: var(--evo-border-dash);
+    cursor: pointer; transition: color .15s;
+}
+.evk-sm-eye.is-hidden { color: var(--evo-border); }
+.evk-sm-eye:not(.is-hidden) { color: var(--evo-accent); }
+.evk-sm-remove {
+    flex-shrink: 0; padding: 0; border: none; background: none;
+    font-size: 16px; line-height: 1; color: var(--evo-danger); cursor: pointer;
+}
+.evk-sm-remove:hover { color: var(--evo-danger-dark); }
+@keyframes evk-rotation { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.evk-spin { display: inline-block; animation: evk-rotation 1s linear infinite; }
+
+/* ── Próbnik koloru z przyciskiem „przywróć" ── */
+.evk-color-wrap { display: flex; align-items: center; gap: 4px; }
+.evk-color-reset {
+    flex-shrink: 0;
+    padding: 0 5px !important; min-height: 26px !important; line-height: 1 !important;
+    font-size: 14px !important; cursor: pointer;
+    opacity: .45; transition: opacity .15s, color .15s;
+}
+.evk-color-reset.is-set   { opacity: 1;  color: var(--evo-accent) !important; }
+.evk-color-reset.is-reset { opacity: .7; color: var(--evo-danger) !important; text-decoration: line-through; }
+input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-danger); }

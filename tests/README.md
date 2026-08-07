@@ -53,6 +53,7 @@ zaokrągla kanały przy interpolacji.
 | `controls.test.js` | atrybuty zapisywane płasko nie docierały na stronę; „Kolejność” równa zero jest znacząca i nie może wypaść jak pusta; trójstanowe przełączniki wysyłają `'0'`, które dla `!empty()` jest puste — jawne „Nie" cicho wracałoby do wartości z biblioteki (1.24.0, 1.28.1, 1.40.0) |
 | `presets.test.js` | literówka w tablicy presetów nie wywala niczego głośno — po prostu cicho nie działa; easing z presetu był przykrywany domyślną wartością wiersza; stan najechania nałożony przy redukcji ruchu zostawiał przycisk trwale uniesiony (1.31.0–1.33.0) |
 | `admin-style.test.js` | checkbox w etykiecie flex bez `flex-shrink: 0` ściska się w poziomie i przestaje być kwadratem; skóra panelu nie może dryfować — mierzone są akcent, promienie, tła i jednolita wysokość kontrolki; symetria paska zwiniętego wiersza, strzałka listy rozwijanej i wspólna dolna krawędź pól i checkboxów w wierszu siatki (1.41.0, 1.43.0, 1.43.1) |
+| `admin-tabs.test.js` | atrybut `style=` przy kontrolce wygrywa z każdym arkuszem — skóra Fields miała regułę dla pola i nie robiła nic, bo pole niosło własne `border-radius:5px`; literał koloru w inline wygląda jak token, ale przestaje za nim nadążać przy zmianie palety (1.44.0) |
 | `admin-panel.test.js` | skrypt panelu deklarował zależność `['jquery']`, a bibliotekę przeciągania brał osobnym enqueue niżej — WordPress drukował admin.js pierwszy i biblioteki jeszcze nie było; cichy warunek połykał to bez śladu w konsoli (1.37.1) |
 | `anim-order.test.js` | przestawienie wierszy w panelu nie może zgubić konfiguracji — ani wiersza świeżo dodanego i niezapisanego, ani takiego, którego nie było na przysłanej liście; zapis przez AJAX musi dawać wynik identyczny z zapisem przez `options.php` (1.37.0, 1.38.0) |
 | `loop.test.js` | zapętlona pozycja wpuszczona do wspólnej osi kolejki startowej daje rodzicowi czas trwania 1e10 — kolejny krok sekwencji ruszyłby po dziesięciu miliardach sekund, czyli nigdy (1.39.0) |
@@ -68,6 +69,7 @@ tests/
   lib/harness.js      przeglądarka, asercje, ścieżka do Chromium, wyjście z PHP
   fixtures/*.html     strony ładowane przez goto; ścieżki względne do korzenia
   php/_wp-stubs.php   atrapy WordPressa — tyle, ile potrzebują testowane pliki
+  php/tab.php         renderer dowolnej zakładki panelu (prawdziwe moduły)
   php/*.php           generatory wyjścia PHP (nagłówki, atrybuty)
 ```
 

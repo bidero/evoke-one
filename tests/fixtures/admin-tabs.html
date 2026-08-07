@@ -1,0 +1,118 @@
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  /* Tyle otoczki wp-admin, ile realnie wpływa na mierzone kontrolki. WordPress
+     nadaje polom własną wysokość i ramkę — bez tego test mierzyłby pola nagie,
+     a więc łatwiejsze do „naprawienia" niż w prawdziwym panelu. */
+  body { margin: 0; background: #f0f0f1; font: 13px -apple-system, system-ui, sans-serif; }
+  input[type=text], input[type=search], input[type=url], input[type=email],
+  input[type=number], input[type=password], select, textarea {
+    border: 1px solid #8c8f94; border-radius: 3px; background: #fff; color: #2c3338;
+    padding: 0 8px; line-height: 2; min-height: 30px; box-shadow: 0 0 0 transparent;
+  }
+  select { padding: 0 24px 0 8px; }
+  textarea { padding: 6px 8px; }
+  .button { display: inline-block; border: 1px solid #2271b1; border-radius: 3px;
+    background: #f6f7f7; color: #2271b1; padding: 0 10px; line-height: 2.15384615;
+    min-height: 30px; font-size: 13px; cursor: pointer; }
+  .button-primary { background: #2271b1; border-color: #2271b1; color: #fff; }
+</style>
+
+<div class="wrap">
+  <h1>Evoke ONE</h1>
+  <div class="evo-panel" id="panel"></div>
+</div>
+
+<script>
+/* Markup zakładki z PRAWDZIWEGO pliku (window.__tab z testu, przez tests/php/tab.php).
+   Skrypty zakładki nie są uruchamiane — mierzymy wygląd, nie zachowanie, a jQuery
+   i tak nie ma tu być. */
+document.getElementById('panel').innerHTML = window.__tab;
+
+/** Czy element jest w ogóle rysowany. Ukryta podzakładka ma zerowe prostokąty
+ *  i zmierzona wysokość 0 wyglądałaby jak usterka skóry. */
+function shown(el) {
+  return el.getClientRects().length > 0;
+}
+
+/** Krótki, jednoznaczny opis elementu — po nim odnajduje się go w pliku. */
+function where(el) {
+  var n = el.getAttribute('name') || el.id || el.className || '';
+  return el.tagName.toLowerCase() + (el.type ? '[' + el.type + ']' : '') +
+         (n ? ' „' + String(n).slice(0, 42) + '"' : '');
+}
+
+/**
+ * Kontrolki jednoliniowe: pola tekstowe i listy rozwijane.
+ *
+ * Skóra Fields daje im JEDNOLITĄ wysokość i promień — to po nich najszybciej
+ * widać, że zakładka poszła własną drogą. Pola koloru, checkboxy i pola ukryte
+ * mają w Fields osobny kształt i tu nie należą.
+ */
+window.__controls = function () {
+  var sel = '#panel input[type=text], #panel input[type=url], #panel input[type=email], ' +
+            '#panel input[type=number], #panel input[type=search], #panel input[type=tel], ' +
+            '#panel input:not([type]), #panel select';
+  return Array.prototype.filter.call(document.querySelectorAll(sel), shown).map(function (el) {
+    var s = getComputedStyle(el);
+    return {
+      where:  where(el),
+      h:      Math.round(el.getBoundingClientRect().height),
+      radius: s.borderTopLeftRadius,
+      border: s.borderTopColor,
+      size:   s.fontSize,
+      /* Inline'owy wygląd jest przyczyną, a nie objawem — raportujemy go obok
+         pomiaru, żeby komunikat wskazywał, co dokładnie zdjąć z pliku. */
+      inline: el.getAttribute('style') || '',
+    };
+  });
+};
+
+/** Wieloliniowe: promień i ramka; wysokość ustala liczba wierszy. */
+window.__textareas = function () {
+  return Array.prototype.filter.call(document.querySelectorAll('#panel textarea'), shown)
+    .map(function (el) {
+      var s = getComputedStyle(el);
+      return { where: where(el), radius: s.borderTopLeftRadius, border: s.borderTopColor,
+               inline: el.getAttribute('style') || '' };
+    });
+};
+
+/** Przyciski — promień 7 px i akcent na primary. */
+window.__buttons = function () {
+  return Array.prototype.filter.call(document.querySelectorAll('#panel .button'), shown)
+    .map(function (el) {
+      var s = getComputedStyle(el);
+      return {
+        where:   where(el),
+        radius:  s.borderTopLeftRadius,
+        primary: el.classList.contains('button-primary'),
+        bg:      s.backgroundColor,
+      };
+    });
+};
+
+/**
+ * Elementy malujące się literałem koloru w atrybucie `style`.
+ *
+ * To jest właściwa cena inline'a: token przestaje cokolwiek znaczyć. Zmiana
+ * `--evo-accent` przemalowuje panel wszędzie POZA takim miejscem, a rozjazd
+ * wychodzi dopiero na zrzucie ekranu. `var(--evo-…)` w inline jest w porządku
+ * — zmienna nadal wiąże element z paletą.
+ */
+window.__hardColors = function () {
+  var LITERAL = /(?:^|[:\s,(])(#[0-9a-f]{3,8}\b|rgba?\()/i;
+  return Array.prototype.map.call(document.querySelectorAll('#panel [style]'), function (el) {
+    var decls = el.getAttribute('style').split(';').map(function (d) { return d.trim(); })
+      .filter(function (d) {
+        return /^(color|background|background-color|border|border-[a-z-]*color|box-shadow|outline)\s*:/i.test(d)
+            && LITERAL.test(d.slice(d.indexOf(':')));
+      });
+    return decls.length ? { where: where(el), decls: decls } : null;
+  }).filter(Boolean);
+};
+
+/** Ile inline'owych atrybutów style zostało w wyrenderowanej zakładce. */
+window.__inlineCount = function () {
+  return document.querySelectorAll('#panel [style]').length;
+};
+</script>

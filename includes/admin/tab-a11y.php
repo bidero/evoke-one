@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) exit;
                 <!-- STATUS -->
                 <div class="evo-status-card">
                     <div class="evo-status-icon <?php echo !empty($a11y['enabled']) ? 'on' : 'off'; ?>">
-                        <span class="dashicons dashicons-universal-access" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>
+                        <span class="dashicons dashicons-universal-access evo-ico-lg"></span>
                     </div>
                     <div class="evo-status-text">
                         <h3>Moduł Dostępności: <?php echo !empty($a11y['enabled']) ? 'WŁĄCZONY' : 'WYŁĄCZONY'; ?></h3>
@@ -35,7 +35,7 @@ if (!defined('ABSPATH')) exit;
                                <?php checked(evk_motion_respect_reduced()); ?>>
                         Szanuj systemowe ograniczenie animacji
                     </label>
-                    <div class="evo-desc" style="max-width:70ch;">
+                    <div class="evo-desc evo-prose">
                         Gdy odwiedzający ma w systemie włączone <code>prefers-reduced-motion</code>,
                         wszystkie efekty Evoke ONE zatrzymują ruch, ale <strong>zachowują stan
                         końcowy</strong> — nic nie znika i nic nie zostaje niewidoczne.
@@ -50,7 +50,7 @@ if (!defined('ABSPATH')) exit;
 
                 <!-- WŁĄCZONE FUNKCJE -->
                 <p class="evo-section-title">Włączone funkcje</p>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:24px;">
+                <div class="evo-grid evo-mb-lg" style="--evo-col:200px;--evo-gap:10px">
                     <?php
                     $features = [
                         'enable_high_contrast'    => 'Wysoki Kontrast',
@@ -69,7 +69,7 @@ if (!defined('ABSPATH')) exit;
                         'enable_saturation'        => 'Nasycenie Kolorów',
                     ];
                     foreach ($features as $key => $label): ?>
-                    <label style="display:flex;align-items:center;gap:9px;background:#f8fafc;border:1px solid #d7dde7;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:500;cursor:pointer;">
+                    <label class="evo-choice">
                         <input type="checkbox" name="evk_a11y[<?php echo $key; ?>]" value="1" <?php checked(!empty($a11y[$key])); ?>>
                         <?php echo esc_html($label); ?>
                     </label>
@@ -79,32 +79,32 @@ if (!defined('ABSPATH')) exit;
                 <!-- POZYCJA -->
                 <hr class="evo-divider">
                 <p class="evo-section-title">Pozycja przycisku</p>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:20px;">
-                    <div class="evo-field" style="margin-bottom:0;">
+                <div class="evo-grid evo-mb" style="--evo-col:180px">
+                    <div class="evo-field">
                         <label>Strona</label>
                         <select name="evk_a11y[position_side]">
                             <option value="right" <?php selected($a11y['position_side'], 'right'); ?>>Prawa (right)</option>
                             <option value="left"  <?php selected($a11y['position_side'], 'left'); ?>>Lewa (left)</option>
                         </select>
                     </div>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>Odległość od prawej</label>
-                        <input type="text" name="evk_a11y[position_right]" value="<?php echo esc_attr($a11y['position_right']); ?>" placeholder="20px" style="max-width:100px;">
+                        <input type="text" name="evk_a11y[position_right]" value="<?php echo esc_attr($a11y['position_right']); ?>" placeholder="20px" class="evo-w-xs">
                     </div>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>Odległość od lewej</label>
-                        <input type="text" name="evk_a11y[position_left]" value="<?php echo esc_attr($a11y['position_left']); ?>" placeholder="20px" style="max-width:100px;">
+                        <input type="text" name="evk_a11y[position_left]" value="<?php echo esc_attr($a11y['position_left']); ?>" placeholder="20px" class="evo-w-xs">
                     </div>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>Odległość od dołu</label>
-                        <input type="text" name="evk_a11y[position_bottom]" value="<?php echo esc_attr($a11y['position_bottom']); ?>" placeholder="20px" style="max-width:100px;">
+                        <input type="text" name="evk_a11y[position_bottom]" value="<?php echo esc_attr($a11y['position_bottom']); ?>" placeholder="20px" class="evo-w-xs">
                     </div>
                 </div>
 
                 <!-- KOLORY -->
                 <hr class="evo-divider">
                 <p class="evo-section-title">Kolory</p>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:20px;">
+                <div class="evo-grid evo-mb" style="--evo-col:200px">
                     <?php
                     $color_fields = [
                         'color_primary'     => 'Kolor główny (przycisk, nagłówek, aktywne)',
@@ -114,16 +114,15 @@ if (!defined('ABSPATH')) exit;
                         'color_option_icon' => 'Ikony opcji',
                     ];
                     foreach ($color_fields as $key => $label): ?>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label><?php echo esc_html($label); ?></label>
-                        <div style="display:flex;align-items:center;gap:8px;">
+                        <div class="evo-color-row">
                             <input type="color" value="<?php echo esc_attr($a11y[$key]); ?>"
-                                oninput="this.nextElementSibling.value=this.value"
-                                style="width:40px;height:32px;border:1px solid #d1d5db;border-radius:5px;cursor:pointer;padding:2px;">
+                                oninput="this.nextElementSibling.value=this.value">
                             <input type="text" name="evk_a11y[<?php echo $key; ?>]"
                                 value="<?php echo esc_attr($a11y[$key]); ?>"
                                 oninput="var v=this.value;if(/^#[0-9a-fA-F]{3,6}$/.test(v))this.previousElementSibling.value=v;"
-                                style="width:90px;font-family:monospace;font-size:12px;">
+                                class="evo-mono evo-w-hex">
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -132,31 +131,31 @@ if (!defined('ABSPATH')) exit;
                 <!-- WYMIARY -->
                 <hr class="evo-divider">
                 <p class="evo-section-title">Wymiary</p>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:20px;">
-                    <div class="evo-field" style="margin-bottom:0;">
+                <div class="evo-grid evo-mb" style="--evo-col:180px">
+                    <div class="evo-field">
                         <label>Szerokość menu</label>
-                        <input type="text" name="evk_a11y[widget_width]" value="<?php echo esc_attr($a11y['widget_width']); ?>" placeholder="450px" style="max-width:100px;">
+                        <input type="text" name="evk_a11y[widget_width]" value="<?php echo esc_attr($a11y['widget_width']); ?>" placeholder="450px" class="evo-w-xs">
                     </div>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>Rozmiar przycisku</label>
-                        <input type="text" name="evk_a11y[button_size]" value="<?php echo esc_attr($a11y['button_size']); ?>" placeholder="50px" style="max-width:100px;">
+                        <input type="text" name="evk_a11y[button_size]" value="<?php echo esc_attr($a11y['button_size']); ?>" placeholder="50px" class="evo-w-xs">
                     </div>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>Zaokrąglenie przycisku</label>
-                        <input type="text" name="evk_a11y[button_border_radius]" value="<?php echo esc_attr($a11y['button_border_radius']); ?>" placeholder="100px" style="max-width:100px;">
+                        <input type="text" name="evk_a11y[button_border_radius]" value="<?php echo esc_attr($a11y['button_border_radius']); ?>" placeholder="100px" class="evo-w-xs">
                     </div>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>Rozmiar ikony przycisku</label>
-                        <input type="text" name="evk_a11y[button_icon_size]" value="<?php echo esc_attr($a11y['button_icon_size']); ?>" placeholder="40px" style="max-width:100px;">
+                        <input type="text" name="evk_a11y[button_icon_size]" value="<?php echo esc_attr($a11y['button_icon_size']); ?>" placeholder="40px" class="evo-w-xs">
                     </div>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>Kolumny siatki (CSS)</label>
-                        <input type="text" name="evk_a11y[grid_columns]" value="<?php echo esc_attr($a11y['grid_columns']); ?>" placeholder="1fr 1fr" style="max-width:120px;">
+                        <input type="text" name="evk_a11y[grid_columns]" value="<?php echo esc_attr($a11y['grid_columns']); ?>" placeholder="1fr 1fr" class="evo-w-sm">
                         <div class="evo-desc">np. <code>1fr 1fr</code> lub <code>1fr 1fr 1fr</code></div>
                     </div>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>Odstęp siatki</label>
-                        <input type="text" name="evk_a11y[grid_gap]" value="<?php echo esc_attr($a11y['grid_gap']); ?>" placeholder="5px" style="max-width:80px;">
+                        <input type="text" name="evk_a11y[grid_gap]" value="<?php echo esc_attr($a11y['grid_gap']); ?>" placeholder="5px" class="evo-w-xs">
                     </div>
                 </div>
 
@@ -167,9 +166,9 @@ if (!defined('ABSPATH')) exit;
                     <span class="dashicons dashicons-info"></span>
                     <div>Strony, na których widget dostępności <strong>nie zostanie załadowany</strong>. Wpisz jedną ścieżkę URL na linię (np. <code>/kontakt</code>, <code>/koszyk</code>, <code>/en/</code>). Dopasowanie częściowe — <code>/konto</code> wyklucza <code>/konto</code>, <code>/konto/zamowienia</code> itd.</div>
                 </div>
-                <div class="evo-field" style="margin-bottom:24px;">
+                <div class="evo-field evo-mb-lg">
                     <label>Wykluczone ścieżki URL</label>
-                    <textarea name="evk_a11y[exclude_urls]" rows="5" style="max-width:480px;font-family:monospace;font-size:12px;" placeholder="/kontakt&#10;/koszyk&#10;/konto"><?php echo esc_textarea($a11y['exclude_urls'] ?? ''); ?></textarea>
+                    <textarea name="evk_a11y[exclude_urls]" rows="5" class="evo-mono evo-code-area" style="max-width:480px" placeholder="/kontakt&#10;/koszyk&#10;/konto"><?php echo esc_textarea($a11y['exclude_urls'] ?? ''); ?></textarea>
                     <div class="evo-desc">Jedna ścieżka na linię. Dopasowanie do <code>$_SERVER['REQUEST_URI']</code>.</div>
                 </div>
 
@@ -181,26 +180,26 @@ if (!defined('ABSPATH')) exit;
                     <div>Selektory CSS wykluczone z działania filtrów kolorów i kontrastu. Jeden selektor na linię. Widget jest zawsze wykluczony automatycznie.</div>
                 </div>
 
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;">
-                    <div class="evo-field" style="margin-bottom:0;">
+                <div class="evo-grid evo-mb" style="--evo-col:200px;--evo-gap:16px">
+                    <div class="evo-field">
                         <label>Filtry kolorów i saturacji</label>
-                        <textarea name="evk_a11y[filter_exclusions]" rows="5" style="max-width:100%;font-family:monospace;font-size:12px;"><?php echo esc_textarea($a11y['filter_exclusions']); ?></textarea>
+                        <textarea name="evk_a11y[filter_exclusions]" rows="5" class="evo-mono evo-code-area evo-w-full"><?php echo esc_textarea($a11y['filter_exclusions']); ?></textarea>
                         <div class="evo-desc">Wykluczenia dla: filtrów protanopia, deuteranopia, tritanopia, grayscale, saturation.</div>
                     </div>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>Wysoki kontrast</label>
-                        <textarea name="evk_a11y[contrast_exclusions]" rows="5" style="max-width:100%;font-family:monospace;font-size:12px;"><?php echo esc_textarea($a11y['contrast_exclusions']); ?></textarea>
+                        <textarea name="evk_a11y[contrast_exclusions]" rows="5" class="evo-mono evo-code-area evo-w-full"><?php echo esc_textarea($a11y['contrast_exclusions']); ?></textarea>
                         <div class="evo-desc">Wykluczenia dla: high contrast medium/high/ultra.</div>
                     </div>
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>Saturacja (osobna lista)</label>
-                        <textarea name="evk_a11y[saturation_exclusions]" rows="5" style="max-width:100%;font-family:monospace;font-size:12px;"><?php echo esc_textarea($a11y['saturation_exclusions']); ?></textarea>
+                        <textarea name="evk_a11y[saturation_exclusions]" rows="5" class="evo-mono evo-code-area evo-w-full"><?php echo esc_textarea($a11y['saturation_exclusions']); ?></textarea>
                         <div class="evo-desc">Wykluczenia dla: saturate low/high/none.</div>
                     </div>
                 </div>
 
-                <div class="evo-info-box" style="border-color:#86efac;background:#f0fdf4;">
-                    <span class="dashicons dashicons-info" style="color:#16a34a;"></span>
+                <div class="evo-info-box is-ok">
+                    <span class="dashicons dashicons-info"></span>
                     <div>Podgląd generowanego CSS możesz sprawdzić w DevTools (zakładka Sources → evk-accessibility-css-inline). Zmiany w wykluczeniach wchodzą w życie po zapisaniu.</div>
                 </div>
 

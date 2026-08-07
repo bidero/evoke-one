@@ -2,6 +2,65 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.44.0] — 2026-08-07
+
+### Zmienione
+
+- **Cztery najgęstsze zakładki panelu przeszły na warstwę komponentów.**
+  Skrzynka wiadomości, White Label, Dark Mode i Dostępność miały razem
+  **342 atrybuty `style=`**; zostało **55**, i to wyłącznie wymiary konkretnego
+  pola (`width:150px`) albo zmienne siatki (`--evo-col:190px`).
+
+  Sedno nie jest kosmetyczne. Atrybut inline **wygrywa z każdym arkuszem**,
+  więc skóra Evoke Fields z 1.43.0 nie miała jak dosięgnąć pola, które niosło
+  własne `border-radius:5px;padding:5px 8px`. Reguła dla niego istniała i była
+  poprawna — i nie robiła nic. Ta sama usterka co w Animatorze w 1.43.0, tylko
+  że tam winowajcą był blok `<style>`, a tu atrybut przy kontrolce.
+
+  Drugi koszt jest cichszy: `color:#6b7280` wygląda dziś jak token, ale
+  przestaje za nim nadążać. Cała obietnica przejścia na tokeny — „zmiana
+  palety to podmiana jednego bloku" — kończy się na pierwszym takim atrybucie.
+  W czterech zakładkach było ich **130**.
+
+- **Trzy bloki `<style>` z White Label (68 linii) wróciły do `admin.css`**,
+  z kolorami zamienionymi na tokeny. Stały w dokumencie po arkuszu i wygrywały
+  przy równej specyficzności — warstwa komponentów była wobec nich bezsilna.
+
+- **Wiersz dodany przyciskiem wygląda tak samo jak zapisany.** Szablony wierszy
+  w JS niosły własną kopię tych samych stylów co PHP; obie strony dostały te
+  same klasy.
+
+- **Stan karty wyboru bierze się z `:has(:checked)`, nie z PHP.** Klasa
+  dopisywana przy renderowaniu opisywała stan **z chwili wysłania strony**
+  i po kliknięciu zostawała nieaktualna aż do przeładowania.
+
+- **Wartość próbnika koloru wchodzi zmienną (`--evo-swatch`), nie deklaracją
+  tła.** Inline z danymi użytkownika jest w porządku; inline z `background:#…`
+  zamyka element na wszelki dalszy CSS bez `!important`.
+
+### Dodane
+
+- **`tests/admin-tabs.test.js`** — 40 sprawdzeń, cztery zakładki. Renderuje
+  **prawdziwy plik zakładki** przez `tests/php/tab.php` i **mierzy** wysokość,
+  promień, ramkę i rozmiar tekstu każdej kontrolki, promień przycisków oraz
+  akcent przycisku głównego. Nie szuka tekstu `style="` w źródle — sprawdza
+  wynik, więc świadoma decyzja o innym kształcie pola też będzie widoczna
+  i trzeba ją będzie dopisać jako wyjątek.
+
+  Osobny blok pilnuje, żeby żaden atrybut `style` nie malował się **literałem
+  koloru**. `var(--evo-…)` w inline jest w porządku — zmienna nadal wiąże
+  element z paletą.
+
+- **`tests/php/tab.php`** — generyczny renderer zakładek. Ładuje **prawdziwe
+  moduły** (`includes/…`), a atrapą jest tylko to, czego moduł szuka na
+  zewnątrz: baza i funkcje WordPressa.
+
+- **Warstwa komponentów w `admin.css`**: `.evo-choice` (karta wyboru),
+  `.evo-table` z `.evo-empty` (tabele mapowań), `.evo-grid` / `.evo-grid-2`
+  (siatki pól ze zmienną szerokością kolumny), `.evo-toolbar`, `.evo-chip`,
+  `.evo-preview`, `.evo-fold`, `.evo-callout`, `.evo-btn-plain`, `.evo-hint`,
+  `.evo-ico*`, warianty `.evo-info-box.is-ok` / `.is-warn` i skala odstępów.
+
 ## [1.43.1] — 2026-08-07
 
 ### Poprawione

@@ -58,32 +58,6 @@ foreach ((array) $menu as $item) {
 $bar_order = $wl['bar_nodes_order'] ?? [];
 ?>
 
-<style>
-.evk-drag-handle { cursor: grab !important; color: #cbd5e1; transition: color .15s; }
-.evk-drag-handle:hover { color: #2563eb !important; }
-.evk-drag-chosen { box-shadow: 0 3px 16px rgba(0,0,0,.18) !important; z-index: 999; }
-.evk-drag-ghost  { opacity: .35; background: #eff6ff !important; }
-.evk-bar-row     { transition: background .15s; }
-.evk-order-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 8px; }
-.evk-order-row   { display: flex; align-items: center; gap: 8px; padding: 6px 10px;
-                   background: var(--evo-surface,#f8fafc); border-radius: 4px; font-size: 13px; }
-.evk-order-row input[type=number] { width: 56px; text-align: center; }
-
-/* Akordeony White Label (karty w stylu Evoke FIELDS) */
-.evk-wl-acc-wrap { display: flex; flex-direction: column; }
-.evk-acc { border: 1px solid #d7dde7; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.05); overflow: hidden; margin-bottom: 14px; }
-.evk-acc > summary { display: flex; align-items: center; gap: 10px; padding: 14px 18px; cursor: pointer; font-size: 14px; font-weight: 700; color: #111827; list-style: none; user-select: none; transition: background .15s; }
-.evk-acc > summary:hover { background: #f8fafc; }
-.evk-acc > summary::-webkit-details-marker { display: none; }
-.evk-acc > summary > .dashicons:first-child { color: #2563eb; font-size: 18px; width: 18px; height: 18px; }
-.evk-acc > summary::after { content: "\f347"; font-family: dashicons; font-size: 20px; color: #94a3b8; margin-left: auto; transition: transform .2s; }
-.evk-acc[open] > summary { border-bottom: 1px solid #eef0f2; }
-.evk-acc[open] > summary::after { transform: rotate(180deg); }
-.evk-acc-body { padding: 18px; }
-.evk-acc-body .evo-section-title:first-child { margin-top: 0; }
-/* Pole „Własny CSS" — większe, edytorskie */
-.evk-wl-css-area { width: 100%; min-height: 320px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.6; tab-size: 2; resize: vertical; }
-</style>
 
 <!-- JEDNA FORMA dla całego modułu White Label -->
 <form method="post" action="options.php" id="evk-wl-form">
@@ -100,7 +74,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 <!-- STATUS -->
 <div class="evo-status-card">
     <div class="evo-status-icon <?php echo !empty($wl['enabled']) ? 'on' : 'off'; ?>">
-        <span class="dashicons dashicons-admin-customizer" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>
+        <span class="dashicons dashicons-admin-customizer evo-ico-lg"></span>
     </div>
     <div class="evo-status-text">
         <h3>White Label: <?php echo !empty($wl['enabled']) ? 'WŁĄCZONY' : 'WYŁĄCZONY'; ?></h3>
@@ -123,8 +97,8 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     <p class="evo-section-title">Logo</p>
     <div class="evo-field">
         <label>URL logo (PNG/SVG)</label>
-        <div style="display:flex;gap:8px;align-items:center;">
-            <input type="url" name="evk_white_label[logo_url]" value="<?php echo esc_attr($wl['logo_url']); ?>" id="evk-wl-logo-url" style="flex:1;" placeholder="https://...">
+        <div class="evo-inline">
+            <input type="url" name="evk_white_label[logo_url]" value="<?php echo esc_attr($wl['logo_url']); ?>" id="evk-wl-logo-url" class="evo-grow" placeholder="https://...">
             <button type="button" class="button" id="evk-wl-logo-pick">Wybierz</button>
         </div>
         <?php if (!empty($wl['logo_url'])): ?>
@@ -133,10 +107,10 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div>
     <div class="evo-field">
         <label>Wymiary logo (px)</label>
-        <div style="display:flex;gap:12px;align-items:center;">
-            <label style="font-size:12px;color:#64748b;margin:0;">szer.</label>
+        <div class="evo-inline" style="--evo-gap:12px">
+            <label class="evo-unit-label">szer.</label>
             <input type="number" name="evk_white_label[logo_width]" value="<?php echo esc_attr($wl['logo_width']); ?>" min="40" max="400" style="width:80px;" placeholder="160">
-            <label style="font-size:12px;color:#64748b;margin:0;">wys.</label>
+            <label class="evo-unit-label">wys.</label>
             <input type="number" name="evk_white_label[logo_height]" value="<?php echo esc_attr($wl['logo_height'] ?? 60); ?>" min="20" max="200" style="width:80px;" placeholder="60">
         </div>
     </div>
@@ -152,17 +126,17 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div>
     <div class="evo-field">
         <label>Logo w stopce admina (z lewej strony tekstu)</label>
-        <div style="display:flex;gap:8px;align-items:center;">
-            <input type="url" name="evk_white_label[footer_logo_url]" value="<?php echo esc_attr($wl['footer_logo_url'] ?? ''); ?>" id="evk-wl-footer-logo-url" style="flex:1;" placeholder="https://...">
+        <div class="evo-inline">
+            <input type="url" name="evk_white_label[footer_logo_url]" value="<?php echo esc_attr($wl['footer_logo_url'] ?? ''); ?>" id="evk-wl-footer-logo-url" class="evo-grow" placeholder="https://...">
             <button type="button" class="button" id="evk-wl-footer-logo-pick">Wybierz</button>
         </div>
         <?php if (!empty($wl['footer_logo_url'])): ?>
         <img src="<?php echo esc_url($wl['footer_logo_url']); ?>" style="max-height:40px;max-width:120px;margin-top:6px;border-radius:3px;">
         <?php endif; ?>
-        <div style="display:flex;gap:12px;align-items:center;margin-top:8px;">
-            <label style="font-size:12px;color:#64748b;margin:0;">szer.</label>
+        <div class="evo-inline" style="--evo-gap:12px;margin-top:8px">
+            <label class="evo-unit-label">szer.</label>
             <input type="number" name="evk_white_label[footer_logo_width]" value="<?php echo esc_attr($wl['footer_logo_width'] ?? 32); ?>" min="16" max="300" style="width:72px;" placeholder="32">
-            <label style="font-size:12px;color:#64748b;margin:0;">wys.</label>
+            <label class="evo-unit-label">wys.</label>
             <input type="number" name="evk_white_label[footer_logo_height]" value="<?php echo esc_attr($wl['footer_logo_height'] ?? 32); ?>" min="16" max="200" style="width:72px;" placeholder="32">
         </div>
     </div>
@@ -205,7 +179,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         'hide_screen_opts' => 'Opcje ekranu',
         'hide_footer_wp'   => 'Informacja o WP w stopce',
     ] as $key => $lbl): ?>
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:10px;">
+    <label class="checkbox-label evo-mb-sm">
         <input type="checkbox" name="evk_white_label[<?php echo $key; ?>]" value="1" <?php checked(1, $wl[$key] ?? 0); ?>>
         <?php echo esc_html($lbl); ?>
     </label>
@@ -218,57 +192,57 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     <p class="evo-section-title">Kolory — menu boczne</p>
     <div class="evk-grid-colors">
 
-        <div class="evo-field" style="margin:0;">
-            <label style="font-size:12px;">Tło sidebara</label>
+        <div class="evo-field">
+            <label>Tło sidebara</label>
             <input type="color" data-field="color_menu_bg" data-saved="<?php echo esc_attr($wl['color_menu_bg'] ?? ''); ?>" name="evk_white_label[color_menu_bg]"
                    value="<?php echo esc_attr($wl['color_menu_bg'] ?: '#1d2327'); ?>">
         </div>
-        <div class="evo-field" style="margin:0;">
-            <label style="font-size:12px;">Tekst pozycji</label>
+        <div class="evo-field">
+            <label>Tekst pozycji</label>
             <input type="color" data-field="color_menu_text" data-saved="<?php echo esc_attr($wl['color_menu_text'] ?? ''); ?>" name="evk_white_label[color_menu_text]"
                    value="<?php echo esc_attr($wl['color_menu_text'] ?: '#a7aaad'); ?>">
         </div>
-        <div class="evo-field" style="margin:0;">
-            <label style="font-size:12px;">Ikony</label>
+        <div class="evo-field">
+            <label>Ikony</label>
             <input type="color" data-field="color_menu_icon" data-saved="<?php echo esc_attr($wl['color_menu_icon'] ?? ''); ?>" name="evk_white_label[color_menu_icon]"
                    value="<?php echo esc_attr($wl['color_menu_icon'] ?: '#a7aaad'); ?>">
         </div>
 
-        <div style="grid-column:1/-1;height:1px;background:var(--evo-border,#d7dde7);margin:2px 0;"></div>
+        <div class="evo-grid-sep"></div>
 
-        <div class="evo-field" style="margin:0;">
-            <label style="font-size:12px;">Tło hover (pozycja główna)</label>
+        <div class="evo-field">
+            <label>Tło hover (pozycja główna)</label>
             <input type="color" data-field="color_menu_hover" data-saved="<?php echo esc_attr($wl['color_menu_hover'] ?? ''); ?>" name="evk_white_label[color_menu_hover]"
                    value="<?php echo esc_attr($wl['color_menu_hover'] ?: '#2271b1'); ?>">
         </div>
-        <div class="evo-field" style="margin:0;">
-            <label style="font-size:12px;">Tekst hover</label>
+        <div class="evo-field">
+            <label>Tekst hover</label>
             <input type="color" data-field="color_menu_hover_text" data-saved="<?php echo esc_attr($wl['color_menu_hover_text'] ?? ''); ?>" name="evk_white_label[color_menu_hover_text]"
                    value="<?php echo esc_attr($wl['color_menu_hover_text'] ?: '#ffffff'); ?>">
         </div>
 
-        <div style="grid-column:1/-1;height:1px;background:var(--evo-border,#d7dde7);margin:2px 0;"></div>
+        <div class="evo-grid-sep"></div>
 
-        <div class="evo-field" style="margin:0;">
-            <label style="font-size:12px;">Tło aktywnej pozycji</label>
+        <div class="evo-field">
+            <label>Tło aktywnej pozycji</label>
             <input type="color" data-field="color_menu_active" data-saved="<?php echo esc_attr($wl['color_menu_active'] ?? ''); ?>" name="evk_white_label[color_menu_active]"
                    value="<?php echo esc_attr($wl['color_menu_active'] ?: '#2271b1'); ?>">
         </div>
-        <div class="evo-field" style="margin:0;">
-            <label style="font-size:12px;">Tekst aktywnej pozycji</label>
+        <div class="evo-field">
+            <label>Tekst aktywnej pozycji</label>
             <input type="color" data-field="color_menu_active_text" data-saved="<?php echo esc_attr($wl['color_menu_active_text'] ?? ''); ?>" name="evk_white_label[color_menu_active_text]"
                    value="<?php echo esc_attr($wl['color_menu_active_text'] ?: '#ffffff'); ?>">
         </div>
 
-        <div style="grid-column:1/-1;height:1px;background:var(--evo-border,#d7dde7);margin:2px 0;"></div>
+        <div class="evo-grid-sep"></div>
 
-        <div class="evo-field" style="margin:0;">
-            <label style="font-size:12px;">Badge (kółko licznika)</label>
+        <div class="evo-field">
+            <label>Badge (kółko licznika)</label>
             <input type="color" data-field="color_menu_badge" data-saved="<?php echo esc_attr($wl['color_menu_badge'] ?? ''); ?>" name="evk_white_label[color_menu_badge]"
                    value="<?php echo esc_attr($wl['color_menu_badge'] ?: '#2271b1'); ?>">
         </div>
-        <div class="evo-field" style="margin:0;">
-            <label style="font-size:12px;">Tekst badge</label>
+        <div class="evo-field">
+            <label>Tekst badge</label>
             <input type="color" data-field="color_menu_badge_text" data-saved="<?php echo esc_attr($wl['color_menu_badge_text'] ?? ''); ?>" name="evk_white_label[color_menu_badge_text]"
                    value="<?php echo esc_attr($wl['color_menu_badge_text'] ?: '#ffffff'); ?>">
         </div>
@@ -277,10 +251,10 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 
     <p class="evo-section-title" style="margin-top:16px;">Kolory — aktywna pozycja podmenu</p>
     <div class="evk-grid-colors">
-        <div class="evo-field" style="margin:0;"><label style="font-size:12px;">Tło aktywnej poz. podmenu</label>
+        <div class="evo-field"><label>Tło aktywnej poz. podmenu</label>
             <input type="color" data-field="color_submenu_current_bg" data-saved="<?php echo esc_attr($wl['color_submenu_current_bg'] ?? ''); ?>" name="evk_white_label[color_submenu_current_bg]" value="<?php echo esc_attr($wl['color_submenu_current_bg'] ?: '#2271b1'); ?>">
         </div>
-        <div class="evo-field" style="margin:0;"><label style="font-size:12px;">Tekst aktywnej poz. podmenu</label>
+        <div class="evo-field"><label>Tekst aktywnej poz. podmenu</label>
             <input type="color" data-field="color_submenu_current_tx" data-saved="<?php echo esc_attr($wl['color_submenu_current_tx'] ?? ''); ?>" name="evk_white_label[color_submenu_current_tx]" value="<?php echo esc_attr($wl['color_submenu_current_tx'] ?: '#ffffff'); ?>">
         </div>
     </div>
@@ -292,15 +266,15 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     <div class="evk-acc-body">
     <p class="evo-section-title">Kolory — sekcja główna</p>
     <div class="evk-grid-colors">
-        <div class="evo-field" style="margin:0;"><label style="font-size:11px;">Tło body (za panelem)</label>
+        <div class="evo-field"><label>Tło body (za panelem)</label>
             <input type="color" data-field="color_body_bg" data-saved="<?php echo esc_attr($wl['color_body_bg'] ?? ''); ?>" name="evk_white_label[color_body_bg]" value="<?php echo esc_attr($wl['color_body_bg'] ?: '#f0f0f1'); ?>"></div>
-        <div class="evo-field" style="margin:0;"><label>Tło treści</label>
+        <div class="evo-field"><label>Tło treści</label>
             <input type="color" data-field="color_content_bg" data-saved="<?php echo esc_attr($wl['color_content_bg'] ?? ''); ?>" name="evk_white_label[color_content_bg]"   value="<?php echo esc_attr($wl['color_content_bg']   ?: '#f0f0f1'); ?>"></div>
-        <div class="evo-field" style="margin:0;"><label>Tekst</label>
+        <div class="evo-field"><label>Tekst</label>
             <input type="color" data-field="color_content_text" data-saved="<?php echo esc_attr($wl['color_content_text'] ?? ''); ?>" name="evk_white_label[color_content_text]" value="<?php echo esc_attr($wl['color_content_text'] ?: '#1d2327'); ?>"></div>
-        <div class="evo-field" style="margin:0;"><label>Linki</label>
+        <div class="evo-field"><label>Linki</label>
             <input type="color" data-field="color_link" data-saved="<?php echo esc_attr($wl['color_link'] ?? ''); ?>" name="evk_white_label[color_link]"         value="<?php echo esc_attr($wl['color_link']         ?: '#2271b1'); ?>"></div>
-        <div class="evo-field" style="margin:0;"><label>Przyciski</label>
+        <div class="evo-field"><label>Przyciski</label>
             <input type="color" data-field="color_primary" data-saved="<?php echo esc_attr($wl['color_primary'] ?? ''); ?>" name="evk_white_label[color_primary]"      value="<?php echo esc_attr($wl['color_primary']      ?: '#2563eb'); ?>"></div>
         <div class="evo-field" style="margin:0;grid-column:1/-1;"><label>Tło powiadomień</label>
             <input type="color" data-field="color_notice_bg" data-saved="<?php echo esc_attr($wl['color_notice_bg'] ?? ''); ?>" name="evk_white_label[color_notice_bg]"    value="<?php echo esc_attr($wl['color_notice_bg']    ?: '#ffffff'); ?>"></div>
@@ -324,14 +298,14 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     <p class="evo-section-title">Widoczność węzłów</p>
 <div style="margin-top:28px;">
     <p class="evo-desc" style="margin-bottom:12px;">Zaznaczone węzły będą <strong>ukryte</strong> dla wszystkich użytkowników.</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;">
+    <div class="evo-grid" style="--evo-col:210px;--evo-gap:8px">
     <?php foreach ($bar_nodes as $node_id => $node_label):
         $checked = in_array($node_id, (array)($wl['bar_nodes_hidden'] ?? []), true);
     ?>
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:7px 10px;background:var(--evo-surface,#f8fafc);border-radius:4px;border:1px solid <?php echo $checked ? '#2563eb' : 'transparent'; ?>">
+    <label class="evo-choice evo-choice-sm">
         <input type="checkbox" name="evk_white_label[bar_nodes_hidden][]" value="<?php echo esc_attr($node_id); ?>" <?php checked($checked); ?>>
-        <span style="flex:1;"><?php echo esc_html($node_label); ?></span>
-        <code style="font-size:10px;opacity:.4;"><?php echo esc_html($node_id); ?></code>
+        <span class="evo-grow"><?php echo esc_html($node_label); ?></span>
+        <code class="evo-choice-id"><?php echo esc_html($node_id); ?></code>
     </label>
     <?php endforeach; ?>
     </div>
@@ -344,19 +318,19 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </p>
     <div id="evk-bar-nodes-extra" style="max-width:560px;">
     <?php foreach ($bar_nodes_extra as $nid => $nlbl): ?>
-        <div class="evk-extra-node-row" style="display:flex;gap:8px;margin-bottom:6px;align-items:center;">
+        <div class="evk-extra-node-row evo-inline evo-mb-xs">
             <input type="text" name="evk_white_label[bar_nodes_extra][<?php echo esc_attr($nid); ?>]"
                    value="<?php echo esc_attr($nlbl); ?>"
-                   placeholder="Etykieta" style="flex:1;">
-            <code style="width:180px;padding:4px 8px;background:var(--evo-surface,#f8fafc);border:1px solid var(--evo-border,#d7dde7);border-radius:3px;font-size:12px;"><?php echo esc_html($nid); ?></code>
+                   placeholder="Etykieta" class="evo-grow">
+            <code class="evo-code-tag"><?php echo esc_html($nid); ?></code>
             <input type="hidden" name="evk_white_label[bar_nodes_extra][<?php echo esc_attr($nid); ?>]" value="<?php echo esc_attr($nlbl); ?>">
-            <button type="button" class="button evk-remove-extra-node" style="flex-shrink:0;color:#b32d2e;">✕</button>
+            <button type="button" class="button evk-remove-extra-node evo-btn-danger">✕</button>
         </div>
     <?php endforeach; ?>
     </div>
-    <div style="display:flex;gap:8px;margin-top:8px;align-items:center;max-width:560px;">
-        <input type="text" id="evk-new-node-id"  placeholder="node-id (np. my-plugin-node)" style="flex:1;font-family:monospace;font-size:12px;">
-        <input type="text" id="evk-new-node-lbl" placeholder="Etykieta" style="width:180px;">
+    <div class="evo-inline" style="margin-top:8px;max-width:560px">
+        <input type="text" id="evk-new-node-id"  placeholder="node-id (np. my-plugin-node)" class="evo-mono evo-grow">
+        <input type="text" id="evk-new-node-lbl" placeholder="Etykieta" class="evo-w-md">
         <button type="button" class="button" id="evk-add-node-btn">+ Dodaj</button>
     </div>
 </div>
@@ -367,10 +341,10 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         var id  = $('#evk-new-node-id').val().trim().replace(/[^a-z0-9\-_]/gi,'');
         var lbl = $('#evk-new-node-lbl').val().trim();
         if (!id || !lbl) return;
-        var row = $('<div class="evk-extra-node-row" style="display:flex;gap:8px;margin-bottom:6px;align-items:center;">'
-            + '<input type="text" name="evk_white_label[bar_nodes_extra]['+id+']" value="'+$('<span>').text(lbl).html()+'" placeholder="Etykieta" style="flex:1;">'
-            + '<code style="width:180px;padding:4px 8px;background:var(--evo-surface,#f8fafc);border:1px solid var(--evo-border,#d7dde7);border-radius:3px;font-size:12px;">'+$('<span>').text(id).html()+'</code>'
-            + '<button type="button" class="button evk-remove-extra-node" style="flex-shrink:0;color:#b32d2e;">✕</button>'
+        var row = $('<div class="evk-extra-node-row evo-inline evo-mb-xs">'
+            + '<input type="text" name="evk_white_label[bar_nodes_extra]['+id+']" value="'+$('<span>').text(lbl).html()+'" placeholder="Etykieta" class="evo-grow">'
+            + '<code class="evo-code-tag">'+$('<span>').text(id).html()+'</code>'
+            + '<button type="button" class="button evk-remove-extra-node evo-btn-danger">✕</button>'
             + '</div>');
         $('#evk-bar-nodes-extra').append(row);
         $('#evk-new-node-id,#evk-new-node-lbl').val('');
@@ -398,18 +372,18 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             ?? 'left';
     ?>
     <div class="evk-order-row">
-        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?php echo esc_attr($node_id); ?>"><?php echo esc_html($node_label); ?></span>
-        <select name="evk_white_label[bar_nodes_side][<?php echo esc_attr($node_id); ?>]" style="width:60px;font-size:11px;padding:2px 3px;">
+        <span class="evo-grow evo-ellipsis" title="<?php echo esc_attr($node_id); ?>"><?php echo esc_html($node_label); ?></span>
+        <select name="evk_white_label[bar_nodes_side][<?php echo esc_attr($node_id); ?>]" class="evo-w-side">
             <option value="left"  <?php selected($side_val, 'left');  ?>>◀ L</option>
             <option value="right" <?php selected($side_val, 'right'); ?>>R ▶</option>
         </select>
         <input type="number" name="evk_white_label[bar_nodes_order][<?php echo esc_attr($node_id); ?>]"
-               value="<?php echo $order_val; ?>" min="0" max="99" step="1" placeholder="0" style="width:52px;text-align:center;">
+               value="<?php echo $order_val; ?>" min="0" max="99" step="1" placeholder="0" class="evo-w-num">
     </div>
     <?php endforeach; ?>
     </div>
-    <p style="font-size:12px;color:#94a3b8;margin-top:8px;">
-        <span class="dashicons dashicons-info-outline" style="font-size:14px;vertical-align:middle;"></span>
+    <p class="evo-hint evo-faint" style="margin-top:8px">
+        <span class="dashicons dashicons-info-outline evo-ico-sm"></span>
         Zmiana strefy przenosi węzeł między lewą a prawą stroną paska. Kolejność 0 = nie zmieniam.
     </p>
 </div>
@@ -420,57 +394,26 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 <details class="evk-acc">
     <summary><span class="dashicons dashicons-menu"></span> Menu boczne — kolejność, ukrywanie, nazwy</summary>
     <div class="evk-acc-body">
-<div style="margin-top:28px;padding-top:24px;border-top:1px solid var(--evo-border,#d7dde7);">
+<div class="evo-section-break">
     <p class="evo-desc" style="margin-bottom:14px;">
         Przeciągaj aby zmienić kolejność. <strong>Oko</strong> ukrywa pozycję dla nie-administratorów.
         Pole nazwy zastępuje oryginalny tytuł. Administratorzy zawsze widzą wszystko.
     </p>
 
-    <style>
-        .evk-sm-row {
-            display: flex; align-items: center; gap: 8px;
-            padding: 7px 10px; margin-bottom: 5px; max-width: 600px;
-            background: var(--evo-surface, #f8fafc);
-            border: 1px solid var(--evo-border, #d7dde7);
-            border-radius: 6px; font-size: 13px;
-            transition: border-color .15s, background .15s;
-        }
-        .evk-sm-row.is-hidden {
-            opacity: .5; background: #fafafa;
-        }
-        .evk-sm-row.is-sep {
-            background: #f0f4ff; border-style: dashed;
-            color: #6b7280; font-style: italic; opacity: 1;
-        }
-        .evk-sm-handle { cursor: grab; color: #cbd5e1; flex-shrink: 0; font-size: 16px; }
-        .evk-sm-handle:hover { color: #2563eb; }
-        .evk-sm-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .evk-sm-rename { width: 200px; font-size: 12px; flex-shrink: 0; }
-        .evk-sm-eye {
-            background: none; border: none; cursor: pointer; padding: 0;
-            color: #cbd5e1; font-size: 17px; flex-shrink: 0; line-height: 1;
-            transition: color .15s;
-        }
-        .evk-sm-eye.is-hidden { color: #d7dde7; }
-        .evk-sm-eye:not(.is-hidden) { color: #2563eb; }
-        .evk-sm-remove { background: none; border: none; color: #ef4444; cursor: pointer; padding: 0; font-size: 16px; line-height: 1; flex-shrink: 0; }
-        .evk-sm-remove:hover { color: #b91c1c; }
-        @keyframes evk-rotation { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    </style>
 
     <div id="evk-sm-list">
-        <div id="evk-sm-loading" style="color:#64748b;font-size:13px;padding:12px 0;">
-            <span class="dashicons dashicons-update" style="animation:evk-rotation 1s linear infinite;display:inline-block;"></span>
+        <div id="evk-sm-loading" class="evo-loading">
+            <span class="dashicons dashicons-update evk-spin"></span>
             Ładuję pozycje menu…
         </div>
     </div>
 
     <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
         <button type="button" class="button" id="evk-sm-add-sep">+ Dodaj separator</button>
-        <button type="button" class="button" id="evk-sm-reset" style="color:#b32d2e;">Resetuj kolejność</button>
+        <button type="button" class="button evo-btn-danger" id="evk-sm-reset">Resetuj kolejność</button>
     </div>
-    <p style="font-size:12px;color:#94a3b8;margin-top:8px;">
-        <span class="dashicons dashicons-info-outline" style="font-size:13px;vertical-align:middle;"></span>
+    <p class="evo-hint evo-faint" style="margin-top:8px">
+        <span class="dashicons dashicons-info-outline evo-ico-sm"></span>
         Ikona oka = widoczność dla nie-adminów &nbsp;·&nbsp; Pole tekstowe = własna nazwa pozycji
     </p>
 </div>
@@ -639,25 +582,25 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 <details class="evk-acc">
     <summary><span class="dashicons dashicons-admin-links"></span> Pasek górny — własne pozycje i podmenu</summary>
     <div class="evk-acc-body">
-<div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--evo-border,#d7dde7);">
+<div class="evo-section-break">
     <p class="evo-desc" style="margin-bottom:16px;">
         Dodaj własne linki. <strong>Dropdown (rodzic)</strong> tworzy rozwijane menu —
         element podmenu musi mieć w polu <em>Parent ID</em> wpisane ID rodzica.
-        Kolejność zmieniasz przeciągając uchwyt <span class="dashicons dashicons-menu" style="vertical-align:middle;font-size:14px;"></span>.
+        Kolejność zmieniasz przeciągając uchwyt <span class="dashicons dashicons-menu evo-ico-sm"></span>.
     </p>
 
     <div id="evk-bar-builder"></div>
 
     <div class="evk-bar-toolbar">
-        <button type="button" class="button" id="evk-bar-add-parent" style="display:inline-flex;align-items:center;gap:4px;">
-            <span class="dashicons dashicons-menu" style="font-size:16px;width:16px;height:16px;line-height:1;"></span>Dodaj Dropdown
+        <button type="button" class="button" id="evk-bar-add-parent">
+            <span class="dashicons dashicons-menu evo-ico"></span>Dodaj Dropdown
         </button>
-        <button type="button" class="button" id="evk-bar-add-item" style="display:inline-flex;align-items:center;gap:4px;">
-            <span class="dashicons dashicons-plus" style="font-size:16px;width:16px;height:16px;line-height:1;"></span>Dodaj Element
+        <button type="button" class="button" id="evk-bar-add-item">
+            <span class="dashicons dashicons-plus evo-ico"></span>Dodaj Element
         </button>
     </div>
 
-    <div style="margin-top:14px;padding:10px 14px;background:#eff6ff;border-left:3px solid #2563eb;border-radius:0 4px 4px 0;font-size:12px;color:#374151;line-height:1.7;">
+    <div class="evo-callout">
         <strong>Jak stworzyć dropdown:</strong>
         1. "Dodaj Dropdown" → ustaw nazwę, ID np. <code>moje-menu</code><br>
         2. "Dodaj Element" → nazwa, URL, w <em>Parent ID</em> wpisz: <code>moje-menu</code>
@@ -670,17 +613,6 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 <div class="evo-save-bar"><?php submit_button('Zapisz White Label', 'primary', 'submit', false); ?></div>
 </form>
 
-<style>
-.evk-color-wrap { display:flex; gap:4px; align-items:center; }
-.evk-color-reset {
-    padding: 0 5px !important; min-height: 26px !important; line-height: 1 !important;
-    font-size: 14px !important; cursor: pointer; flex-shrink: 0;
-    opacity: .45; transition: opacity .15s, color .15s;
-}
-.evk-color-reset.is-set   { opacity: 1; color: #2563eb !important; }
-.evk-color-reset.is-reset { opacity: .7; color: #b32d2e !important; text-decoration: line-through; }
-input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed #b32d2e; }
-</style>
 
 <script>
 (function($){
@@ -800,44 +732,35 @@ function makeRow(item) {
     item = item || {};
     var isParent = (item.type === 'parent');
 
-    var $row = $('<div class="evk-bar-row"></div>').css({
-        display:      'flex',
-        gap:          '6px',
-        alignItems:   'center',
-        marginBottom: '5px',
-        padding:      '7px 10px',
-        background:   isParent ? '#eef3fb' : 'var(--evo-surface,#f8fafc)',
-        borderRadius: '4px',
-        borderLeft:   isParent ? '3px solid #2563eb' : '3px solid #e5e7eb',
-    });
+    var $row = $('<div class="evk-bar-row"></div>').addClass(isParent ? 'is-parent' : 'is-item');
 
     var badge = isParent
-        ? '<span style="font-size:11px;font-weight:700;color:#2563eb;white-space:nowrap;min-width:76px;flex-shrink:0;">▼ DROPDOWN</span>'
-        : '<span style="font-size:11px;color:#94a3b8;white-space:nowrap;min-width:76px;flex-shrink:0;">→ ELEMENT</span>';
+        ? '<span class="evk-bar-badge is-parent">▼ DROPDOWN</span>'
+        : '<span class="evk-bar-badge">→ ELEMENT</span>';
 
     var idField = isParent
-        ? '<input type="text" class="evk-f-id" placeholder="ID (auto)" title="Używany jako Parent ID dla elementów podmenu" style="width:140px;flex-shrink:0;" value="'+esc(item.id||'')+'">' : '';
+        ? '<input type="text" class="evk-f-id" placeholder="ID (auto)" title="Używany jako Parent ID dla elementów podmenu" class="evo-w-140" value="'+esc(item.id||'')+'">' : '';
 
     var hrefField = isParent ? '' :
-        '<input type="text" class="evk-f-href" placeholder="/strona lub https://..." style="flex:1;" value="'+esc(item.href||'')+'">';
+        '<input type="text" class="evk-f-href evo-grow" placeholder="/strona lub https://..." value="'+esc(item.href||'')+'">';
 
     var parentField = isParent ? '' :
-        '<input type="text" class="evk-f-parent" placeholder="Parent ID" title="Zostaw puste = samodzielny element" style="width:120px;flex-shrink:0;" value="'+esc(item.parent||'')+'">';
+        '<input type="text" class="evk-f-parent" placeholder="Parent ID" title="Zostaw puste = samodzielny element" class="evo-w-120" value="'+esc(item.parent||'')+'">';
 
-    var targetField = '<label style="font-size:11px;white-space:nowrap;cursor:pointer;flex-shrink:0;">'
-        + '<input type="checkbox" class="evk-f-target" style="margin-right:3px;"'+(item.target==='_blank'?' checked':'')+'>_blank</label>';
+    var targetField = '<label class="evk-bar-target">'
+        + '<input type="checkbox" class="evk-f-target"'+(item.target==='_blank'?' checked':'')+'>_blank</label>';
 
     $row.html(
-        '<span class="evk-drag-handle dashicons dashicons-menu" style="font-size:18px;flex-shrink:0;" title="Przeciągnij aby zmienić kolejność"></span>'
+        '<span class="evk-drag-handle dashicons dashicons-menu" title="Przeciągnij aby zmienić kolejność"></span>'
         + badge
         + '<input type="hidden" class="evk-f-type" value="' + (isParent?'parent':'item') + '">' 
-        + '<input type="text" class="evk-f-title" placeholder="Tytuł *" style="flex:1;" value="'+esc(item.title||'')+'">' 
+        + '<input type="text" class="evk-f-title evo-grow" placeholder="Tytuł *" value="'+esc(item.title||'')+'">' 
         + idField
         + hrefField
-        + '<input type="text" class="evk-f-icon" placeholder="dashicons-xxx" style="width:130px;flex-shrink:0;" title="np. dashicons-admin-home" value="'+esc(item.icon||'')+'">' 
+        + '<input type="text" class="evk-f-icon" placeholder="dashicons-xxx" class="evo-w-130" title="np. dashicons-admin-home" value="'+esc(item.icon||'')+'">' 
         + parentField
         + targetField
-        + '<button type="button" class="button evk-row-del" title="Usuń" style="flex-shrink:0;"><span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;line-height:1.4;"></span></button>'
+        + '<button type="button" class="button evk-row-del evo-btn-danger" title="Usuń"><span class="dashicons dashicons-trash evo-ico"></span></button>'
     );
 
     if (isParent) {
@@ -850,7 +773,7 @@ function makeRow(item) {
     $row.find('.evk-f-icon').on('input', function(){
         var cls = $(this).val().trim();
         var $p  = $(this).next('.evk-icon-prev');
-        if (!$p.length) $p = $('<span class="evk-icon-prev dashicons" style="font-size:18px;color:#2563eb;flex-shrink:0;"></span>').insertAfter($(this));
+        if (!$p.length) $p = $('<span class="evk-icon-prev dashicons"></span>').insertAfter($(this));
         $p.attr('class', 'evk-icon-prev dashicons ' + cls);
     });
 
