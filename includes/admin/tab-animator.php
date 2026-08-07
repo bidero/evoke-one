@@ -44,27 +44,6 @@ $row_def    = $anim->row_defaults();
         </label>
     </div>
 
-    <style>
-        .evo-anim-row { background:#f8fafc; border:1px solid #d7dde7; border-radius:8px; padding:20px; margin-bottom:16px; position:relative; }
-        .evo-anim-row-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #e5e7eb; padding-bottom:12px; cursor:grab; }
-        .evo-anim-row-header:active { cursor:grabbing; }
-        .evo-anim-grip { color:#9ca3af; margin-right:6px; vertical-align:-3px; }
-        /* Te same klasy, co przy przeciąganiu w Białych etykietach i warstwach OG. */
-        .evk-drag-chosen { box-shadow:0 3px 16px rgba(0,0,0,.18) !important; z-index:999; }
-        .evk-drag-ghost  { opacity:.35; background:#eff6ff !important; }
-        #evo-anim-order-note { display:none; font-size:12px; color:#4b5563; margin:0 0 12px; }
-        .evo-anim-row-title { font-size:14px; font-weight:600; color:#111827; }
-        .evo-anim-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
-        .evo-anim-grid label { display:block; font-size:12px; font-weight:600; color:#4b5563; margin-bottom:4px; }
-        .evo-anim-grid input[type=text], .evo-anim-grid input[type=number], .evo-anim-grid select { width:100%; border:1px solid #d1d5db; border-radius:6px; font-size:13px; }
-        /* Wygląd i niekurczliwość pola: komponent .evo-check w admin.css. */
-        .evo-anim-grid .checkbox-label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--evo-text); margin-top:20px; cursor:pointer; }
-        .evo-anim-grid .checkbox-label input { margin:0; flex:0 0 auto; }
-        .evo-anim-class { font-family:monospace; font-size:12px; color:#334155; background:#e2e8f0; border-radius:4px; padding:2px 8px; }
-        .evo-anim-fromto { grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-        .evo-anim-fromto textarea { width:100%; min-height:74px; font-family:monospace; font-size:12px; border:1px solid #d1d5db; border-radius:6px; padding:8px; resize:vertical; }
-        .evo-anim-hint { grid-column:1 / -1; font-size:12px; color:#6b7280; margin-top:-4px; }
-    </style>
 
     <hr class="evo-divider">
     <p class="evo-section-title">Biblioteka animacji</p>

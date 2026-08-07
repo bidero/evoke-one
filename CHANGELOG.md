@@ -2,6 +2,35 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.43.0] — 2026-08-07
+
+### Zmienione
+
+- **Panel wygląda jak Evoke Fields.** Paleta była już wspólna — obie wtyczki
+  stoją na tym samym `#2563eb`, `#d7dde7`, `#f8fafc`, `#eef2f7` — więc różnice
+  siedziały w **kształtach**: jednolita wysokość kontrolki **38 px**, promień
+  **7 px** na przyciskach, pierścień fokusu `0 0 0 3px rgba(37,99,235,.12)`,
+  wersalikowe etykiety pól, ciemny dymek podpowiedzi, przyciski „dodaj" jako
+  ghost z kreską, wiersz biblioteki jako **biała karta z promieniem 12 px**.
+
+  Zestaw tokenów urósł o obramowania, stany, cienie i wymiary, więc dalsze
+  zmiany wyglądu to nadal podmiana wartości w jednym bloku.
+
+- **Zakładka Animator nie ma już własnego bloku `<style>`.** Stał on
+  w dokumencie **po** arkuszu i wygrywał przy równej specyficzności — dopóki
+  tam był, warstwa komponentów była wobec niego bezsilna i skóra nie miała jak
+  zadziałać. Reguły przeniesione do `assets/admin/admin.css`.
+
+  To samo dotyczy pozostałych zakładek i jest następnym krokiem; ta wersja
+  domyka Animator jako wzorzec.
+
+### Uwaga o teście
+
+`tests/admin-style.test.js` zmienił rolę. Zaczął jako „przejście na tokeny
+niczego nie przemalowało" (1.41.0); teraz pilnuje, że **skóra nie dryfuje** —
+mierzy akcent, promienie, tła i wysokość kontrolki. Ta wersja przemalowuje
+celowo, więc wzorzec został przestawiony na wartości z Fields.
+
 ## [1.42.0] — 2026-08-07
 
 ### Dodane

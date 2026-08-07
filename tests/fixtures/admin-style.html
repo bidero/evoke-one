@@ -45,7 +45,10 @@ window.__styles = function () {
   [['panel', '.evo-panel'], ['card', '.evo-status-card'], ['info', '.evo-info-box'],
    ['row', '.evo-anim-row'], ['header', '.evo-anim-row-header'],
    ['title', '.evo-anim-row-title'], ['badge', '.evo-anim-class'],
-   ['hint', '.evo-anim-hint'], ['note', '.evo-note'], ['field', '.evo-anim-grid input[type=text]']
+   ['hint', '.evo-anim-hint'], ['note', '.evo-note'],
+   // Przycisk główny i pole niosą akcent oraz jednolitą wysokość kontrolki —
+   // dwie rzeczy, po których najszybciej widać, że skóra się rozjechała.
+   ['btn', '.evo-panel .button-primary'], ['field', '.evo-anim-grid input[type=text]']
   ].forEach(function (pair) {
     var el = document.querySelector(pair[1]);
     if (!el) { out[pair[0]] = null; return; }
@@ -53,7 +56,7 @@ window.__styles = function () {
     out[pair[0]] = {
       bg: s.backgroundColor, color: s.color,
       border: s.borderTopColor + ' ' + s.borderTopWidth,
-      radius: s.borderTopLeftRadius, size: s.fontSize,
+      radius: s.borderTopLeftRadius, size: s.fontSize, h: s.height,
     };
   });
   return out;

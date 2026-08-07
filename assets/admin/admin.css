@@ -12,28 +12,58 @@
    jest refaktorem, nie przemalowaniem; pilnuje tego tests/admin-style.test.js.
    ========================================================================= */
 .wrap {
+    /* ── Powierzchnie ── */
     --evo-bg:          #fff;
     --evo-surface:     #f8fafc;
     --evo-surface-alt: #eef2f7;
-    --evo-border:      #d7dde7;
-    --evo-border-soft: #e5e7eb;
-    --evo-border-field:#d1d5db;
 
+    /* ── Obramowania ── */
+    --evo-border:       #d7dde7;   /* karty i boksy */
+    --evo-border-soft:  #eef0f2;   /* separatory wewnątrz kart */
+    --evo-border-field: #d1d5db;   /* pola formularza */
+    --evo-border-dash:  #cbd5e1;   /* przyciski „dodaj", uchwyty */
+
+    /* ── Tekst ── */
     --evo-text:        #111827;
     --evo-text-soft:   #374151;
     --evo-text-muted:  #6b7280;
     --evo-text-dim:    #64748b;
+    --evo-text-faint:  #94a3b8;
 
+    /* ── Akcent ── */
     --evo-accent:      #2563eb;
-    --evo-danger:      #dc2626;
+    --evo-accent-dark: #1d4ed8;
+    --evo-accent-soft: #eff6ff;
+    --evo-accent-line: #93c5fd;
+    --evo-focus:       0 0 0 3px rgba(37, 99, 235, .12);
 
+    /* ── Stany ── */
+    --evo-danger:      #dc2626;
+    --evo-danger-soft: #fef2f2;
+    --evo-danger-line: #fecaca;
+    --evo-on:          #16a34a;
+
+    /* ── Kod w tekście ── */
+    --evo-code-bg:   #eef2ff;
+    --evo-code-text: #3730a3;
+
+    /* ── Kształt ── */
+    --evo-radius-card: 12px;
     --evo-radius:      10px;
     --evo-radius-md:   8px;
     --evo-radius-sm:   6px;
-    --evo-shadow:      0 12px 30px rgba(15, 23, 42, .06);
+    --evo-radius-btn:  7px;
 
-    /* Minimalny cel dotykowy — używany w regułach mobilnych niżej. */
-    --evo-tap:         44px;
+    /* ── Cienie ── */
+    --evo-shadow:       0 12px 30px rgba(15, 23, 42, .06);
+    --evo-shadow-card:  0 1px 3px  rgba(15, 23, 42, .06);
+    --evo-shadow-row:   0 1px 2px  rgba(15, 23, 42, .05);
+    --evo-shadow-field: 0 1px 2px  rgba(0, 0, 0, .04);
+    --evo-shadow-pop:   0 4px 12px rgba(15, 23, 42, .1);
+
+    /* ── Wymiary ── */
+    --evo-field-h: 38px;
+    --evo-tap:     44px;
 }
 
 /* Evoke One — Admin Panel Styles */
@@ -722,3 +752,214 @@
 .evo-anim-row.is-collapsed .evo-anim-row-header { margin-bottom: 0; border-bottom: 0; padding-bottom: 0; }
 .evo-anim-caret { transition: transform .15s; color: var(--evo-text-dim); }
 .evo-anim-row.is-collapsed .evo-anim-caret { transform: rotate(-90deg); }
+
+/* =========================================================================
+   SKÓRA EVOKE FIELDS
+   =========================================================================
+   Kolory były już wspólne — Fields i Evoke ONE stoją na tej samej palecie
+   (#2563eb, #d7dde7, #f8fafc, #eef2f7). Różnice, które realnie widać, są
+   w KSZTAŁTACH: jednolita wysokość pola 38 px, promień 7 px na przyciskach,
+   pierścień fokusu, ikonowe przyciski 30×30, przyciski „dodaj" jako ghost
+   z kreską, ciemny dymek podpowiedzi.
+
+   Ta sekcja domyka je dla zakładki Animator i komponentów wspólnych. Reguły
+   wcześniejsze w pliku zostają — sprzątnie je przemiecenie zakładek, które
+   i tak musi przejść przez wszystkie pliki.
+   ========================================================================= */
+
+/* ── Pola formularza ── */
+.evo-panel input[type=text],
+.evo-panel input[type=url],
+.evo-panel input[type=email],
+.evo-panel input[type=number],
+.evo-panel select {
+    height: var(--evo-field-h);
+    box-sizing: border-box;
+    padding: 0 10px;
+    border: 1px solid var(--evo-border-field);
+    border-radius: var(--evo-radius-sm);
+    background: var(--evo-bg);
+    box-shadow: var(--evo-shadow-field);
+    font-size: 13px;
+}
+.evo-panel textarea {
+    border: 1px solid var(--evo-border-field);
+    border-radius: var(--evo-radius-sm);
+    background: var(--evo-bg);
+    box-shadow: var(--evo-shadow-field);
+}
+.evo-panel input:focus,
+.evo-panel select:focus,
+.evo-panel textarea:focus {
+    border-color: var(--evo-accent);
+    box-shadow: var(--evo-focus);
+    outline: none;
+}
+
+/* Etykieta pola — wersalikowa, jak w Fields. */
+.evo-anim-grid > div > label {
+    display: block;
+    margin: 0 0 5px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--evo-text-dim);
+}
+/* Etykieta checkboxa zostaje zdaniem, nie nagłówkiem. */
+.evo-anim-grid > div > label.checkbox-label {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--evo-text);
+}
+
+/* ── Przyciski ── */
+.evo-panel .button { border-radius: var(--evo-radius-btn); }
+.evo-panel .button-primary {
+    background: var(--evo-accent);
+    border-color: var(--evo-accent);
+    box-shadow: none;
+    text-shadow: none;
+    font-weight: 600;
+}
+.evo-panel .button-primary:hover {
+    background: var(--evo-accent-dark);
+    border-color: var(--evo-accent-dark);
+}
+/* Ikona w przycisku zawsze w jednej linii z tekstem. */
+.evo-panel .button:has(> .dashicons) { display: inline-flex; align-items: center; gap: 6px; }
+.evo-panel .button > .dashicons { font-size: 16px; width: 16px; height: 16px; line-height: 1; flex-shrink: 0; }
+
+/* Przycisk „Dodaj animację" — ghost z kreską, jak wszystkie „dodaj" w Fields. */
+#evo-anim-repeater-container ~ .button {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 6px;
+    height: auto !important;
+    padding: 9px 16px !important;
+    border: 1px dashed var(--evo-border-dash) !important;
+    border-radius: var(--evo-radius-md) !important;
+    background: var(--evo-bg) !important;
+    color: #475569 !important;
+    box-shadow: none !important;
+    font-size: 13px;
+    font-weight: 500;
+    transition: border-color .15s, color .15s, background .15s;
+}
+#evo-anim-repeater-container ~ .button:hover {
+    border-color: var(--evo-accent) !important;
+    color: var(--evo-accent) !important;
+    background: #f8fbff !important;
+}
+
+/* ── Biblioteka animacji: struktura (przeniesiona z <style> w zakładce) ──
+   Dopóki zakładka niosła własny blok stylów, stał on w dokumencie PO arkuszu
+   i wygrywał przy równej specyficzności — warstwa komponentów była wobec niego
+   bezsilna. Jedno źródło, tutaj. */
+.evo-anim-row { margin-bottom: 16px; position: relative; }
+.evo-anim-row-header { display: flex; justify-content: space-between; align-items: center; cursor: grab; }
+.evo-anim-row-header:active { cursor: grabbing; }
+.evo-anim-row-title { font-size: 14px; font-weight: 600; color: var(--evo-text); }
+.evo-anim-grip { margin-right: 6px; vertical-align: -3px; }
+.evo-anim-caret { vertical-align: -3px; }
+.evo-anim-grid { display: grid; gap: 16px; }
+.evo-anim-grid .checkbox-label { display: flex; align-items: center; gap: 8px; margin-top: 20px; cursor: pointer; }
+.evo-anim-grid .checkbox-label input { margin: 0; flex: 0 0 auto; }
+.evo-anim-class { font-family: monospace; font-size: 12px; padding: 2px 8px; }
+.evo-anim-fromto { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.evo-anim-fromto textarea { width: 100%; min-height: 74px; font-family: monospace; font-size: 12px; padding: 8px; resize: vertical; }
+.evo-anim-hint { grid-column: 1 / -1; font-size: 12px; color: var(--evo-text-muted); margin-top: -4px; }
+.evo-anim-grid input[type=text], .evo-anim-grid input[type=number], .evo-anim-grid select { width: 100%; }
+#evo-anim-order-note { display: none; font-size: 12px; color: #4b5563; margin: 0 0 12px; }
+
+/* ── Wiersz biblioteki jako karta Fields ── */
+/* Bez overflow:hidden — obcinałby dymki podpowiedzi wychodzące poza wiersz.
+   Fields ma dokładnie tę samą uwagę przy swoich wierszach repeatera. */
+.evo-anim-row {
+    padding: 0;
+    background: var(--evo-bg);
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius-card);
+    box-shadow: var(--evo-shadow-row);
+    transition: border-color .15s, box-shadow .15s;
+}
+.evo-anim-row:hover { border-color: var(--evo-border-dash); box-shadow: 0 1px 4px rgba(15, 23, 42, .06); }
+
+.evo-anim-row-header {
+    margin: 0;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--evo-border-soft);
+    background: var(--evo-bg);
+    border-radius: var(--evo-radius-card) var(--evo-radius-card) 0 0;
+    user-select: none;
+}
+.evo-anim-row.is-collapsed .evo-anim-row-header {
+    border-bottom-color: transparent;
+    border-radius: var(--evo-radius-card);
+}
+
+.evo-anim-grid { padding: 18px 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+.evo-anim-grip  { color: var(--evo-border-dash); cursor: move; }
+.evo-anim-grip:hover { color: var(--evo-text-faint); }
+.evo-anim-caret { color: var(--evo-text-faint); }
+
+/* Przycisk usuwania — kwadrat 30×30 z czerwonym stanem najechania. */
+.evo-anim-row-header .evo-btn-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 30px;
+    padding: 0 10px;
+    background: var(--evo-surface);
+    border: 1px solid #e2e8f0;
+    border-radius: var(--evo-radius-btn);
+    color: var(--evo-text-dim);
+    line-height: 1;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.evo-anim-row-header .evo-btn-remove:hover {
+    background: var(--evo-danger-soft);
+    color: var(--evo-danger);
+    border-color: var(--evo-danger-line);
+}
+
+/* Miejsce po przeciąganym wierszu. */
+.evk-drag-ghost {
+    opacity: 1;
+    background: var(--evo-accent-soft) !important;
+    border: 2px dashed var(--evo-accent-line) !important;
+    border-radius: var(--evo-radius-card);
+}
+.evk-drag-chosen { box-shadow: var(--evo-shadow-pop) !important; }
+
+/* ── Podpowiedź: ciemny dymek Fields ── */
+.evo-tip { background: var(--evo-border-dash); color: #fff; }
+.evo-tip:hover, .evo-tip:focus-visible { background: var(--evo-accent); }
+.evo-tip::after {
+    background: #1e293b;
+    border-radius: var(--evo-radius-sm);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, .2);
+    max-width: 240px;
+}
+
+/* ── Sekcja zwijana ── */
+.evo-note { border-radius: var(--evo-radius-md); }
+.evo-note > summary { color: var(--evo-text-soft); font-weight: 600; }
+.evo-note code { background: var(--evo-code-bg); color: var(--evo-code-text); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
+/* ── Plakietka klasy ── */
+.evo-anim-class { background: var(--evo-code-bg); color: var(--evo-code-text); border-radius: 4px; }
+
+/* ── Pasek zapisu — przyklejony, jak w Fields ── */
+.evo-save-bar {
+    position: sticky;
+    bottom: 0;
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius);
+    box-shadow: 0 -2px 14px rgba(15, 23, 42, .06);
+    z-index: 5;
+}

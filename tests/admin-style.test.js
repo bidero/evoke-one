@@ -8,29 +8,35 @@
  *    etykiecie i polu powiększonym przez WordPressa do 25 px poniżej 782 px
  *    był ściskany w poziomie. Mierzymy prostokąt, nie oglądamy.
  *
- * 2. **Przejście na tokeny CSS niczego nie może przemalować.** Wyliczone
- *    kolory kluczowych komponentów muszą zostać te same — to jedyny sensowny
- *    test na „refaktor nic nie popsuł". Wartości wzorcowe siedzą w tym pliku
- *    celowo, bo o niezmienność WOBEC NICH chodzi; odczyt z tego samego źródła
- *    co kod nie dowiódłby niczego.
+ * 2. **Skóra panelu nie dryfuje.** Wzorzec zaczął życie jako „przejście na
+ *    tokeny niczego nie przemalowało" (1.41.0), a w 1.43.0 został przestawiony
+ *    na wartości z Evoke Fields — bo TA wersja przemalowuje celowo. Odtąd
+ *    pilnuje czegoś innego, ale równie konkretnego: że kolejne zmiany nie
+ *    ruszają wyglądu przypadkiem. Wartości siedzą w tym pliku celowo; odczyt
+ *    z tego samego źródła co kod nie dowiódłby niczego.
  */
 
 const { phpOutput } = require('./lib/harness');
 
-/** Wzorzec sprzed przejścia na tokeny (1.41.0). */
-const BEFORE = {
+/** Wzorzec skóry Evoke Fields (1.43.0). */
+const SKIN = {
   // .evo-panel ma border-top: 0 (przykleja się do paska zakładek), więc górna
   // krawędź jest celowo zerowa — to nie usterka, tylko kształt komponentu.
   panel:  { bg: 'rgb(255, 255, 255)', border: 'rgb(0, 0, 0) 0px', radius: '0px' },
   card:   { bg: 'rgb(248, 250, 252)', border: 'rgb(215, 221, 231) 1px', radius: '10px' },
   info:   { bg: 'rgb(248, 250, 252)', border: 'rgb(215, 221, 231) 1px', radius: '10px' },
-  row:    { bg: 'rgb(248, 250, 252)', border: 'rgb(215, 221, 231) 1px', radius: '8px' },
+  // Wiersz to teraz KARTA jak w Fields: białe tło, promień 12 px.
+  row:    { bg: 'rgb(255, 255, 255)', border: 'rgb(215, 221, 231) 1px', radius: '12px' },
   title:  { color: 'rgb(17, 24, 39)', size: '14px' },
-  badge:  { bg: 'rgb(226, 232, 240)', color: 'rgb(51, 65, 85)' },
+  // Plakietka klasy przeszła na kolory „kodu w tekście" z Fields.
+  badge:  { bg: 'rgb(238, 242, 255)', color: 'rgb(55, 48, 163)' },
   hint:   { color: 'rgb(107, 114, 128)', size: '12px' },
-  // Sekcja zwijana z 1.42.0 — od początku na tokenach, więc wzorzec jest
-  // jej stanem wyjściowym, nie punktem odniesienia sprzed refaktoru.
-  note:   { bg: 'rgb(248, 250, 252)', border: 'rgb(215, 221, 231) 1px', radius: '10px' },
+  note:   { bg: 'rgb(248, 250, 252)', border: 'rgb(215, 221, 231) 1px', radius: '8px' },
+  // Akcent i promień przycisku — bez tego dryf koloru akcentu przechodziłby
+  // niezauważony, a to on najbardziej niesie tożsamość skóry.
+  btn:    { bg: 'rgb(37, 99, 235)', radius: '7px' },
+  // Jednolita wysokość kontrolki to znak rozpoznawczy Fields.
+  field:  { h: '38px', radius: '6px' },
 };
 
 module.exports = async function (t) {
@@ -80,17 +86,17 @@ module.exports = async function (t) {
     Math.abs(tight.w - tight.h) <= 1, tight.w + '×' + tight.h);
   await one.close();
 
-  // ── Tokeny nie przemalowały panelu ─────────────────────────────────────
-  t.section('przejście na tokeny nic nie zmieniło');
+  // ── Skóra Evoke Fields ─────────────────────────────────────────────────
+  t.section('panel trzyma się skóry Evoke Fields');
 
   const p = await t.open('admin-style.html', { viewport: { width: 1400, height: 900 }, head, settle: 200 });
   const now = await p.evaluate(() => window.__styles());
 
-  Object.keys(BEFORE).forEach((key) => {
-    const want = BEFORE[key];
+  Object.keys(SKIN).forEach((key) => {
+    const want = SKIN[key];
     const got  = now[key];
     const diff = got ? Object.keys(want).filter((k) => want[k] !== got[k]) : ['brak elementu'];
-    t.check('„' + key + '" wygląda jak przed refaktorem', !diff.length,
+    t.check('„' + key + '" zgodny ze skórą', !diff.length,
       diff.map((k) => k + ': ' + (got ? got[k] : '—') + ' ≠ ' + want[k]).join(', ') || 'bez zmian');
   });
 
