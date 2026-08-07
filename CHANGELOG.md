@@ -2,6 +2,31 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.43.1] — 2026-08-07
+
+### Poprawione
+
+Trzy usterki wizualne zgłoszone po 1.43.0 — każda o innej przyczynie, wszystkie
+zmierzone, nie zgadnięte.
+
+- **Pasek zwiniętego wiersza siedział krzywo.** Nagłówek miał `padding` 12 px
+  u góry i **0 u dołu**: reguła zwijania z 1.42.0 zerowała dolny, bo powstała,
+  gdy wiersz miał jeszcze własny padding. Po przejściu na kartę Fields (wiersz
+  bez paddingu) treść zjechała 6 px w dół. Przy zwinięciu znika teraz **tylko
+  kreska**.
+
+- **Listy rozwijane straciły strzałkę.** Skrót `background: #fff` skasował
+  `background-image`, a to nim rysowana jest strzałka `<select>` — razem
+  ze skrótem `padding` zniknął też zapas po prawej. Strzałkę **rysujemy teraz
+  sami** (inline SVG) zamiast liczyć, że cudza reguła przetrwa nasze
+  nadpisania; przy okazji da się ją sprawdzić testem.
+
+- **Checkboxy nie stały w linii z polami.** Ich etykieta dziedziczyła
+  `margin-bottom: 5px` po etykietach nagłówkowych i podnosiła checkbox
+  dokładnie o tyle nad sąsiednie pole — zmierzone 703,5 przy polu na 708,5.
+  Siatka dostała też `align-items: end`, bo pola mają nad sobą etykietę,
+  a checkboxy nie.
+
 ## [1.43.0] — 2026-08-07
 
 ### Zmienione

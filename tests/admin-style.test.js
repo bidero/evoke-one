@@ -101,5 +101,35 @@ module.exports = async function (t) {
   });
 
   t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
+
+  // ── Trzy usterki zgłoszone po 1.43.0 ───────────────────────────────────
+  t.section('detale zgłoszone z panelu');
+
+  // 1. „Paski nie wyglądają równo": nagłówek zwiniętego wiersza miał
+  //    padding 12 px u góry i 0 u dołu — reguła zwijania zerowała dolny,
+  //    bo powstała, gdy wiersz miał jeszcze własny padding.
+  const bar = await p.evaluate(() => window.__bar());
+  t.check('zwinięty pasek ma symetryczny padding', bar.padTop === bar.padBottom,
+    bar.padTop + ' / ' + bar.padBottom);
+  t.check('tytuł wyśrodkowany w pasku', Math.abs(bar.barMid - bar.titleMid) <= 1,
+    'środek paska ' + bar.barMid.toFixed(1) + ', tytułu ' + bar.titleMid.toFixed(1));
+
+  // 2. „Na select brakuje strzałek": skrót `background` skasował obraz tła.
+  const sel = await p.evaluate(() => window.__select());
+  t.check('lista rozwijana ma strzałkę', sel.image !== 'none' && /url\(/.test(sel.image),
+    sel.image.slice(0, 40));
+  t.check('jest miejsce na strzałkę', sel.padRight >= 24, sel.padRight + 'px');
+
+  // 3. „Teksty nie są wyrównane w pionie z polami": etykieta checkboxa
+  //    dziedziczyła margin-bottom: 5px po etykietach nagłówkowych i podnosiła
+  //    checkbox o tyle nad pole w tym samym wierszu (703,5 przy 708,5).
+  const align = await p.evaluate(() => window.__rowAlign());
+  const mixed = align.filter((r) => r.mixed);
+  t.check('są wiersze z polem i checkboxem obok siebie', mixed.length > 0,
+    mixed.length + ' z ' + align.length + ' wierszy');
+  const off = mixed.filter((r) => r.spread > 1);
+  t.check('kończą się na tej samej wysokości', !off.length,
+    off.map((r) => r.spread + 'px różnicy').join(', ') || 'równo');
+
   await p.close();
 };

@@ -62,6 +62,60 @@ window.__styles = function () {
   return out;
 };
 
+/* Geometria paska zwiniętego wiersza. „Nierówny pasek" to była asymetria
+ * paddingu: 12 px u góry, 0 u dołu — treść siedziała 6 px za nisko. */
+window.__bar = function () {
+  var row = document.querySelector('#panel .evo-anim-row');
+  row.classList.add('is-collapsed');
+  var hd = row.querySelector('.evo-anim-row-header');
+  var ti = hd.querySelector('.evo-anim-row-title');
+  var s  = getComputedStyle(hd);
+  var hb = hd.getBoundingClientRect(), tb = ti.getBoundingClientRect();
+  var out = {
+    padTop:    parseFloat(s.paddingTop),
+    padBottom: parseFloat(s.paddingBottom),
+    barMid:    hb.top + hb.height / 2,
+    titleMid:  tb.top + tb.height / 2,
+  };
+  row.classList.remove('is-collapsed');
+  return out;
+};
+
+/* Lista rozwijana musi mieć strzałkę I miejsce na nią. Skrót `background`
+ * kasował obraz tła, a skrót `padding` — zapas po prawej. */
+window.__select = function () {
+  var s = getComputedStyle(document.querySelector('#panel .evo-anim-grid select'));
+  return { image: s.backgroundImage, padRight: parseFloat(s.paddingRight) };
+};
+
+/* Kontrolki i checkboxy stojące w tym samym wierszu siatki muszą kończyć się
+ * na tej samej wysokości. Grupujemy po DOLNEJ krawędzi KOMÓRKI — to ona jest
+ * wspólna przy align-items:end; górna różni się, bo komórki mają różną wysokość
+ * (pole ma nad sobą etykietę, checkbox nie). */
+window.__rowAlign = function () {
+  var rows = {};
+  document.querySelectorAll('#panel .evo-anim-grid > div').forEach(function (c) {
+    var cb = c.querySelector('.checkbox-label');
+    var ct = c.querySelector('input[type=text], input[type=number], select');
+    var el = cb || ct;
+    if (!el) return;
+    var key = Math.round(c.getBoundingClientRect().bottom);
+    (rows[key] = rows[key] || []).push({
+      kind: cb ? 'cb' : 'fld',
+      bottom: Math.round(el.getBoundingClientRect().bottom * 2) / 2,
+    });
+  });
+  return Object.keys(rows).map(function (k) {
+    var v = rows[k];
+    return {
+      mixed: v.some(function (x) { return x.kind === 'cb'; })
+          && v.some(function (x) { return x.kind === 'fld'; }),
+      spread: Math.max.apply(null, v.map(function (x) { return x.bottom; }))
+            - Math.min.apply(null, v.map(function (x) { return x.bottom; })),
+    };
+  });
+};
+
 /* Niezmiennik, nie przypadek układu: pole wyboru nie ma prawa się kurczyć.
  * Sam pomiar prostokąta zależy od tego, czy długa etykieta trafi akurat
  * w wąską kolumnę — a to zmienia się przy każdym dołożeniu pola do wiersza. */

@@ -749,7 +749,6 @@
 /* Wiersz zwijany. Ukrywamy treść, nagłówek zostaje — to on jest uchwytem
    i przełącznikiem naraz. */
 .evo-anim-row.is-collapsed .evo-anim-grid { display: none; }
-.evo-anim-row.is-collapsed .evo-anim-row-header { margin-bottom: 0; border-bottom: 0; padding-bottom: 0; }
 .evo-anim-caret { transition: transform .15s; color: var(--evo-text-dim); }
 .evo-anim-row.is-collapsed .evo-anim-caret { transform: rotate(-90deg); }
 
@@ -778,14 +777,30 @@
     padding: 0 10px;
     border: 1px solid var(--evo-border-field);
     border-radius: var(--evo-radius-sm);
-    background: var(--evo-bg);
+    /* background-COLOR, nie skrót. Skrót kasuje background-image, a WordPress
+       rysuje strzałkę <select> właśnie obrazem tła — po `background: #fff`
+       listy zostawały bez strzałki. */
+    background-color: var(--evo-bg);
     box-shadow: var(--evo-shadow-field);
     font-size: 13px;
+}
+/* Strzałkę listy rysujemy SAMI, zamiast liczyć na to, że przetrwa ta z arkusza
+   WordPressa. Skoro i tak nadpisujemy tło oraz padding, poleganie na cudzej
+   regule jest kruche — i właśnie tak zniknęła po `background: #fff`.
+   Własny obraz jest przy okazji sprawdzalny w teście. */
+.evo-panel select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 28px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2364748b' d='M1.4 1.7 6 6.3l4.6-4.6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px 7px;
 }
 .evo-panel textarea {
     border: 1px solid var(--evo-border-field);
     border-radius: var(--evo-radius-sm);
-    background: var(--evo-bg);
+    background-color: var(--evo-bg);
     box-shadow: var(--evo-shadow-field);
 }
 .evo-panel input:focus,
@@ -806,8 +821,12 @@
     letter-spacing: .4px;
     color: var(--evo-text-dim);
 }
-/* Etykieta checkboxa zostaje zdaniem, nie nagłówkiem. */
+/* Etykieta checkboxa zostaje zdaniem, nie nagłówkiem — i NIE dziedziczy
+   dolnego marginesu etykiet nagłówkowych. Te 5 px pod nią podnosiło checkbox
+   o tyle samo nad pole stojące w tym samym wierszu siatki: zmierzone 703,5
+   przy polu na 708,5. */
 .evo-anim-grid > div > label.checkbox-label {
+    margin-bottom: 0;
     text-transform: none;
     letter-spacing: 0;
     font-size: 13px;
@@ -864,8 +883,10 @@
 .evo-anim-row-title { font-size: 14px; font-weight: 600; color: var(--evo-text); }
 .evo-anim-grip { margin-right: 6px; vertical-align: -3px; }
 .evo-anim-caret { vertical-align: -3px; }
-.evo-anim-grid { display: grid; gap: 16px; }
-.evo-anim-grid .checkbox-label { display: flex; align-items: center; gap: 8px; margin-top: 20px; cursor: pointer; }
+/* align-items: end — pola mają nad sobą etykietę, a checkboxy nie. Bez tego
+   ich wiersze startują od góry i pudełka nie stoją w jednej linii. */
+.evo-anim-grid { display: grid; gap: 16px; align-items: end; }
+.evo-anim-grid .checkbox-label { display: flex; align-items: center; gap: 8px; min-height: var(--evo-field-h); cursor: pointer; }
 .evo-anim-grid .checkbox-label input { margin: 0; flex: 0 0 auto; }
 .evo-anim-class { font-family: monospace; font-size: 12px; padding: 2px 8px; }
 .evo-anim-fromto { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -895,6 +916,9 @@
     border-radius: var(--evo-radius-card) var(--evo-radius-card) 0 0;
     user-select: none;
 }
+/* Zwinięty pasek: znika TYLKO kreska. Zerowanie padding-bottom (z czasów, gdy
+   wiersz miał własny padding) zostawiało 12 px u góry i 0 u dołu — treść
+   siedziała wtedy krzywo i pasek wyglądał na przekrzywiony. */
 .evo-anim-row.is-collapsed .evo-anim-row-header {
     border-bottom-color: transparent;
     border-radius: var(--evo-radius-card);
