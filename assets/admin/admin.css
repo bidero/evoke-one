@@ -1,3 +1,41 @@
+/* =========================================================================
+   TOKENY
+   =========================================================================
+   Jedyne miejsce z kolorami. Komponenty niżej sięgają wyłącznie po zmienne,
+   dzięki czemu zmiana wyglądu całego panelu to podmiana wartości w tym bloku,
+   a nie przemiatanie kilkuset deklaracji i trzydziestu plików zakładek.
+
+   Zakres na .wrap, nie :root — panel żyje wewnątrz wp-admin i nie ma powodu,
+   żeby jego zmienne wyciekały na resztę kokpitu.
+
+   Wartości są dokładnie tymi, które panel miał wcześniej. Przejście na tokeny
+   jest refaktorem, nie przemalowaniem; pilnuje tego tests/admin-style.test.js.
+   ========================================================================= */
+.wrap {
+    --evo-bg:          #fff;
+    --evo-surface:     #f8fafc;
+    --evo-surface-alt: #eef2f7;
+    --evo-border:      #d7dde7;
+    --evo-border-soft: #e5e7eb;
+    --evo-border-field:#d1d5db;
+
+    --evo-text:        #111827;
+    --evo-text-soft:   #374151;
+    --evo-text-muted:  #6b7280;
+    --evo-text-dim:    #64748b;
+
+    --evo-accent:      #2563eb;
+    --evo-danger:      #dc2626;
+
+    --evo-radius:      10px;
+    --evo-radius-md:   8px;
+    --evo-radius-sm:   6px;
+    --evo-shadow:      0 12px 30px rgba(15, 23, 42, .06);
+
+    /* Minimalny cel dotykowy — używany w regułach mobilnych niżej. */
+    --evo-tap:         44px;
+}
+
 /* Evoke One — Admin Panel Styles */
 
 #wpbody-content .wrap { max-width: 100%; }
@@ -5,23 +43,23 @@
 #wpbody-content .wrap > h1 { display: flex; align-items: center; gap: 10px; margin: 18px 0 14px; font-size: 23px; }
 
 /* Tabs */
-.evo-tabs { display: flex; gap: 6px; padding: 6px; margin: 14px 0 0; border: 1px solid #d7dde7; border-radius: 10px 10px 0 0; background: #eef2f7; flex-wrap: wrap; }
+.evo-tabs { display: flex; gap: 6px; padding: 6px; margin: 14px 0 0; border: 1px solid var(--evo-border); border-radius: 10px 10px 0 0; background: var(--evo-surface-alt); flex-wrap: wrap; }
 .evo-tab { border: 0; margin: 0; border-radius: 7px; padding: 9px 16px; color: #4b5563; background: transparent; font-size: 13px; font-weight: 500; text-decoration: none; transition: background .15s, color .15s, box-shadow .15s; display: flex; align-items: center; gap: 7px; }
 .evo-tab:hover { background: #fff; color: #1d4ed8; }
-.evo-tab.active { background: #fff; color: #111827; font-weight: 600; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
+.evo-tab.active { background: #fff; color: var(--evo-text); font-weight: 600; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
 .evo-tab .dashicons { font-size: 16px; width: 16px; height: 16px; line-height: 1; }
 
 /* Panel */
-.evo-panel { border: 1px solid #d7dde7; border-top: 0; border-radius: 0 0 10px 10px; padding: 28px 28px 24px; background: #fff; box-shadow: 0 12px 30px rgba(15,23,42,.06); }
+.evo-panel { border: 1px solid var(--evo-border); border-top: 0; border-radius: 0 0 10px 10px; padding: 28px 28px 24px; background: #fff; box-shadow: 0 12px 30px rgba(15,23,42,.06); }
 
 /* Status card */
-.evo-status-card { display: flex; align-items: center; gap: 20px; background: #f8fafc; border: 1px solid #d7dde7; border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; }
+.evo-status-card { display: flex; align-items: center; gap: 20px; background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; }
 .evo-status-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .evo-status-icon.on  { background: #dcfce7; color: #16a34a; }
 .evo-status-icon.off { background: #f1f5f9; color: #94a3b8; }
 .evo-status-icon .dashicons { font-size: 24px; width: 24px; height: 24px; line-height: 1; }
-.evo-status-text h3 { margin: 0 0 3px; font-size: 15px; color: #111827; }
-.evo-status-text p  { margin: 0; font-size: 13px; color: #64748b; }
+.evo-status-text h3 { margin: 0 0 3px; font-size: 15px; color: var(--evo-text); }
+.evo-status-text p  { margin: 0; font-size: 13px; color: var(--evo-text-dim); }
 .evo-status-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 
 /* Toggle switch */
@@ -31,74 +69,74 @@
 .evo-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
 .evo-toggle input:checked + .evo-slider { background: #16a34a; }
 .evo-toggle input:checked + .evo-slider:before { transform: translateX(22px); }
-.evo-toggle-label { font-size: 13px; font-weight: 500; color: #374151; }
+.evo-toggle-label { font-size: 13px; font-weight: 500; color: var(--evo-text-soft); }
 
 /* Section headings and fields */
-.evo-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #64748b; margin: 0 0 14px; }
+.evo-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--evo-text-dim); margin: 0 0 14px; }
 .evo-field { margin-bottom: 20px; }
-.evo-field label { display: block; font-size: 13px; font-weight: 600; color: #111827; margin-bottom: 5px; }
-.evo-field .evo-desc { font-size: 12px; color: #6b7280; margin-top: 5px; line-height: 1.5; }
+.evo-field label { display: block; font-size: 13px; font-weight: 600; color: var(--evo-text); margin-bottom: 5px; }
+.evo-field .evo-desc { font-size: 12px; color: var(--evo-text-muted); margin-top: 5px; line-height: 1.5; }
 .evo-field input[type=text],
 .evo-field input[type=number],
 .evo-field select,
-.evo-field textarea { border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; color: #111827; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.04); transition: border-color .15s, box-shadow .15s; }
+.evo-field textarea { border: 1px solid var(--evo-border-field); border-radius: 6px; font-size: 13px; color: var(--evo-text); background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.04); transition: border-color .15s, box-shadow .15s; }
 .evo-field input[type=text]:focus,
 .evo-field input[type=number]:focus,
 .evo-field select:focus,
-.evo-field textarea:focus { border-color: #2563eb; outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+.evo-field textarea:focus { border-color: var(--evo-accent); outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
 .evo-field input[type=text]   { width: 100%; max-width: 420px; }
 .evo-field input[type=number] { width: 90px; }
 .evo-field select             { min-width: 200px; }
 .evo-field textarea           { width: 100%; max-width: 100%; min-height: 90px; resize: vertical; font-size: 13px; line-height: 1.6; }
 
 /* Info box */
-.evo-info-box { background: #f8fafc; border: 1px solid #d7dde7; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #374151; margin-bottom: 20px; display: flex; gap: 10px; align-items: flex-start; }
-.evo-info-box .dashicons { color: #2563eb; flex-shrink: 0; margin-top: 1px; }
+.evo-info-box { background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--evo-text-soft); margin-bottom: 20px; display: flex; gap: 10px; align-items: flex-start; }
+.evo-info-box .dashicons { color: var(--evo-accent); flex-shrink: 0; margin-top: 1px; }
 .evo-info-box code { background: #eef2ff; color: #3730a3; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
 /* Divider and save bar */
-.evo-divider { border: none; border-top: 1px solid #e5e7eb; margin: 24px 0; }
-.evo-save-bar { display: flex; align-items: center; gap: 12px; margin: 24px -28px -24px; padding: 14px 28px; background: rgba(255,255,255,.94); backdrop-filter: blur(8px); border-top: 1px solid #e5e7eb; border-radius: 0 0 10px 10px; }
-.evo-save-bar .button-primary { background: #2563eb; border-color: #2563eb; }
+.evo-divider { border: none; border-top: 1px solid var(--evo-border-soft); margin: 24px 0; }
+.evo-save-bar { display: flex; align-items: center; gap: 12px; margin: 24px -28px -24px; padding: 14px 28px; background: rgba(255,255,255,.94); backdrop-filter: blur(8px); border-top: 1px solid var(--evo-border-soft); border-radius: 0 0 10px 10px; }
+.evo-save-bar .button-primary { background: var(--evo-accent); border-color: var(--evo-accent); }
 .evo-save-bar .button-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
 
 /* Maintenance-specific */
 .evo-bypass-preview { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px 14px; margin-top: 10px; font-size: 12px; color: #0369a1; word-break: break-all; }
-.evo-paths-preview { background: #f8fafc; border: 1px solid #d7dde7; border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 12px; color: #374151; font-family: monospace; line-height: 1.8; }
+.evo-paths-preview { background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 12px; color: var(--evo-text-soft); font-family: monospace; line-height: 1.8; }
 .evo-paths-preview .evo-path-hardcoded { color: #94a3b8; }
 
 /* Range sliders */
 .evo-slider-wrap { display: flex; align-items: center; gap: 16px; }
-.evo-slider-track { flex: 1; position: relative; height: 6px; background: #e5e7eb; border-radius: 3px; }
-.evo-slider-fill { position: absolute; left: 0; top: 0; height: 100%; background: #64748b; border-radius: 3px; transition: width .1s; }
+.evo-slider-track { flex: 1; position: relative; height: 6px; background: var(--evo-border-soft); border-radius: 3px; }
+.evo-slider-fill { position: absolute; left: 0; top: 0; height: 100%; background: var(--evo-text-dim); border-radius: 3px; transition: width .1s; }
 .evo-range { position: absolute; top: 50%; transform: translateY(-50%); width: 100%; height: 24px; margin: 0; opacity: 0; cursor: pointer; z-index: 2; }
-.evo-slider-thumb { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 18px; height: 18px; background: #fff; border: 2px solid #64748b; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.15); pointer-events: none; transition: border-color .15s, box-shadow .15s; }
+.evo-slider-thumb { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 18px; height: 18px; background: #fff; border: 2px solid var(--evo-text-dim); border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.15); pointer-events: none; transition: border-color .15s, box-shadow .15s; }
 .evo-slider-wrap:hover .evo-slider-thumb { border-color: #475569; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
-.evo-slider-value { min-width: 56px; padding: 6px 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; font-weight: 500; color: #334155; text-align: center; font-family: monospace; }
+.evo-slider-value { min-width: 56px; padding: 6px 10px; background: var(--evo-surface); border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; font-weight: 500; color: #334155; text-align: center; font-family: monospace; }
 /* Wariant edytowalny — wartość wpisywana ręcznie zamiast tylko wyświetlanej. */
-.evo-field input[type=number].evo-slider-value { width: 84px; min-width: 84px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; font-weight: 500; color: #334155; text-align: center; font-family: monospace; box-shadow: none; }
-.evo-field input[type=number].evo-slider-value:focus { border-color: #64748b; box-shadow: 0 0 0 2px rgba(100,116,139,.15); }
+.evo-field input[type=number].evo-slider-value { width: 84px; min-width: 84px; background: var(--evo-surface); border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; font-weight: 500; color: #334155; text-align: center; font-family: monospace; box-shadow: none; }
+.evo-field input[type=number].evo-slider-value:focus { border-color: var(--evo-text-dim); box-shadow: 0 0 0 2px rgba(100,116,139,.15); }
 
 /* Sitemap tab */
-.evo-sm-box { background: #f8fafc; border: 1px solid #d7dde7; border-radius: 8px; padding: 18px 20px; margin-bottom: 16px; }
-.evo-sm-box h3 { margin: 0 0 8px; font-size: 14px; color: #111827; }
+.evo-sm-box { background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 8px; padding: 18px 20px; margin-bottom: 16px; }
+.evo-sm-box h3 { margin: 0 0 8px; font-size: 14px; color: var(--evo-text); }
 .evo-sm-box label { display: block; margin: 8px 0; font-size: 13px; }
-.evo-sm-excluded-list { max-height: 320px; overflow: auto; background: #fff; border: 1px solid #d7dde7; border-radius: 6px; padding: 8px 12px; margin-top: 10px; }
+.evo-sm-excluded-list { max-height: 320px; overflow: auto; background: #fff; border: 1px solid var(--evo-border); border-radius: 6px; padding: 8px 12px; margin-top: 10px; }
 .evo-sm-excluded-list label { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f0f0f1; font-size: 13px; }
 
 /* IO tab */
 .evo-io-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 10px; margin: 14px 0 20px; }
-.evo-io-module { display: flex; align-items: center; gap: 9px; background: #f8fafc; border: 1px solid #d7dde7; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 500; color: #111827; cursor: pointer; transition: border-color .15s, background .15s; }
+.evo-io-module { display: flex; align-items: center; gap: 9px; background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 500; color: var(--evo-text); cursor: pointer; transition: border-color .15s, background .15s; }
 .evo-io-module:hover { background: #eff6ff; border-color: #93c5fd; }
 .evo-io-module input[type=checkbox] { margin: 0; flex-shrink: 0; }
-.evo-io-module.selected { background: #eff6ff; border-color: #2563eb; }
-.evo-io-box { background: #f8fafc; border: 1px solid #d7dde7; border-radius: 8px; padding: 20px 22px; margin-bottom: 16px; }
-.evo-io-box h3 { margin: 0 0 10px; font-size: 15px; color: #111827; }
-.evo-io-select-all { font-size: 12px; color: #2563eb; cursor: pointer; text-decoration: underline; margin-left: 6px; }
+.evo-io-module.selected { background: #eff6ff; border-color: var(--evo-accent); }
+.evo-io-box { background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 8px; padding: 20px 22px; margin-bottom: 16px; }
+.evo-io-box h3 { margin: 0 0 10px; font-size: 15px; color: var(--evo-text); }
+.evo-io-select-all { font-size: 12px; color: var(--evo-accent); cursor: pointer; text-decoration: underline; margin-left: 6px; }
 
 /* Drop zone */
-.evo-drop-zone { border: 2px dashed #d7dde7; border-radius: 8px; padding: 32px; text-align: center; color: #64748b; font-size: 14px; cursor: pointer; background: #fafafa; transition: all .2s; }
-.evo-drop-zone.drag-over { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
+.evo-drop-zone { border: 2px dashed var(--evo-border); border-radius: 8px; padding: 32px; text-align: center; color: var(--evo-text-dim); font-size: 14px; cursor: pointer; background: #fafafa; transition: all .2s; }
+.evo-drop-zone.drag-over { border-color: var(--evo-accent); background: #eff6ff; color: var(--evo-accent); }
 .evo-drop-zone input[type=file] { display: none; }
 .evo-import-status { margin-top: 10px; padding: 8px 14px; border-radius: 6px; font-size: 13px; display: none; }
 .evo-import-status.ok  { background: #d4edda; color: #155724; border: 1px solid #b7dfbe; display: block; }
@@ -108,20 +146,20 @@
 .evo-modal-bg { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 100000; align-items: center; justify-content: center; }
 .evo-modal-bg.open { display: flex; }
 .evo-modal { background: #fff; border-radius: 12px; padding: 28px 28px 22px; max-width: 560px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,.2); }
-.evo-modal h3 { margin: 0 0 6px; font-size: 16px; color: #111827; }
+.evo-modal h3 { margin: 0 0 6px; font-size: 16px; color: var(--evo-text); }
 .evo-modal p  { margin: 0 0 18px; font-size: 13px; color: #475569; line-height: 1.6; }
-.evo-modal-modules { display: flex; flex-direction: column; gap: 0; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-bottom: 20px; max-height: 340px; overflow-y: auto; }
+.evo-modal-modules { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--evo-border-soft); border-radius: 8px; overflow: hidden; margin-bottom: 20px; max-height: 340px; overflow-y: auto; }
 .evo-modal-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #f0f0f1; font-size: 13px; background: #fff; }
 .evo-modal-row:last-child { border-bottom: 0; }
-.evo-modal-row-name { font-weight: 500; color: #111827; display: flex; align-items: center; gap: 8px; }
-.evo-modal-row-name .dashicons { color: #2563eb; font-size: 16px; width: 16px; height: 16px; }
+.evo-modal-row-name { font-weight: 500; color: var(--evo-text); display: flex; align-items: center; gap: 8px; }
+.evo-modal-row-name .dashicons { color: var(--evo-accent); font-size: 16px; width: 16px; height: 16px; }
 .evo-modal-row-actions { display: flex; gap: 8px; }
-.evo-modal-row-actions button { border: 1px solid #d1d5db; background: #fff; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; }
-.evo-modal-btn-overwrite { color: #dc2626; border-color: #fca5a5; }
-.evo-modal-btn-overwrite:hover { background: #fef2f2; border-color: #dc2626; }
-.evo-modal-btn-skip { color: #6b7280; }
+.evo-modal-row-actions button { border: 1px solid var(--evo-border-field); background: #fff; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; }
+.evo-modal-btn-overwrite { color: var(--evo-danger); border-color: #fca5a5; }
+.evo-modal-btn-overwrite:hover { background: #fef2f2; border-color: var(--evo-danger); }
+.evo-modal-btn-skip { color: var(--evo-text-muted); }
 .evo-modal-btn-skip:hover { background: #f3f4f6; }
-.evo-modal-btn-done { background: #2563eb; color: #fff; border-color: #2563eb; border-radius: 6px; padding: 8px 20px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.evo-modal-btn-done { background: var(--evo-accent); color: #fff; border-color: var(--evo-accent); border-radius: 6px; padding: 8px 20px; font-size: 13px; font-weight: 500; cursor: pointer; }
 .evo-modal-btn-done:hover { background: #1d4ed8; }
 .evo-modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
 .evo-modal-row.skipped { opacity: .4; }
@@ -130,7 +168,7 @@
 
 /* Dark Mode color picker */
 .evo-color-row { display: flex; align-items: center; gap: 10px; }
-.evo-color-swatch { width: 32px; height: 32px; border-radius: 6px; border: 1px solid #d1d5db; cursor: pointer; padding: 0; background: none; }
+.evo-color-swatch { width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--evo-border-field); cursor: pointer; padding: 0; background: none; }
 
 /* SEO — fix button width on click */
 .evoke-save-seo { min-width: 90px !important; white-space: nowrap; }
@@ -333,7 +371,7 @@
     flex-wrap: wrap;
     gap: 0;
     margin-bottom: 24px;
-    border-bottom: 2px solid #e5e7eb;
+    border-bottom: 2px solid var(--evo-border-soft);
 }
 .evk-subtab {
     display: flex;
@@ -342,7 +380,7 @@
     padding: 8px 14px;
     font-size: 13px;
     font-weight: 500;
-    color: #374151;
+    color: var(--evo-text-soft);
     text-decoration: none;
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
@@ -350,13 +388,13 @@
     transition: color .15s, border-color .15s;
 }
 .evk-subtab:hover {
-    color: #2563eb;
+    color: var(--evo-accent);
     border-bottom-color: #93c5fd;
 }
 .evk-subtab.is-active {
     font-weight: 700;
-    color: #2563eb;
-    border-bottom-color: #2563eb;
+    color: var(--evo-accent);
+    border-bottom-color: var(--evo-accent);
 }
 .evk-subtab .dashicons {
     font-size: 15px;
@@ -420,7 +458,7 @@
     flex-wrap: wrap;
 }
 .evk-seo-search-input {
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--evo-border-field);
     border-radius: 6px;
     padding: 7px 12px;
     font-size: 13px;
@@ -479,7 +517,7 @@
 
 /* =========================================================================
    EVK DESIGN HARMONIZATION — spójność z Evoke FIELDS
-   Akcent #2563eb, radius przycisków 7px / pól 6px / kart 10–12px.
+   Akcent var(--evo-accent), radius przycisków 7px / pól 6px / kart 10–12px.
    admin.css ładuje się na wszystkich ekranach Evoke ONE (Ustawienia,
    Tłumaczenia, Newsletter, Wiadomości), więc te reguły harmonizują chrome
    całej wtyczki. Scope `.wrap` chroni modal mediów i inne ekrany WP.
@@ -489,8 +527,8 @@
 .wrap .button,
 .wrap .button-secondary { border-radius: 7px; }
 .wrap .button-primary {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: var(--evo-accent);
+    border-color: var(--evo-accent);
     box-shadow: none;
     text-shadow: none;
     border-radius: 7px;
@@ -498,7 +536,7 @@
 }
 .wrap .button-primary:hover,
 .wrap .button-primary:focus { background: #1d4ed8; border-color: #1d4ed8; }
-.wrap .button:focus { border-color: #2563eb; box-shadow: 0 0 0 1px #2563eb; }
+.wrap .button:focus { border-color: var(--evo-accent); box-shadow: 0 0 0 1px var(--evo-accent); }
 
 /* Ikona (dashicon) w przycisku zawsze w jednej linii z tekstem */
 .wrap .button:has(> .dashicons) { display: inline-flex; align-items: center; gap: 6px; }
@@ -519,7 +557,7 @@
 .wrap input[type=time],
 .wrap input[type=datetime-local],
 .wrap select,
-.wrap textarea { border: 1px solid #d1d5db; border-radius: 6px; }
+.wrap textarea { border: 1px solid var(--evo-border-field); border-radius: 6px; }
 
 .wrap input[type=text]:focus,
 .wrap input[type=search]:focus,
@@ -533,16 +571,20 @@
 .wrap input[type=datetime-local]:focus,
 .wrap select:focus,
 .wrap textarea:focus {
-    border-color: #2563eb;
+    border-color: var(--evo-accent);
     box-shadow: 0 0 0 3px rgba(37,99,235,.12);
     outline: none;
 }
 
 /* ── Karty WP (postbox) — radius i ramka jak FIELDS ── */
-.wrap .postbox { border: 1px solid #d7dde7; border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.05); }
+.wrap .postbox { border: 1px solid var(--evo-border); border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.05); }
 
 /* ── Zmienne dziedziczone przez moduły (były niezdefiniowane → off-token fallbacki) ── */
-.wrap { --evo-border: #d7dde7; --evo-surface: #f8fafc; }
+/* Zmienne definiuje wyłącznie blok TOKENY na górze pliku. Stała tu kiedyś
+   ich druga, częściowa deklaracja — po przejściu na tokeny zamieniłaby się
+   w samoodwołanie `--evo-border: var(--evo-border)`, a taka deklaracja jest
+   nieprawidłowa i ZERUJE zmienną: karta statusu i ramka informacyjna traciły
+   przez to tło i obramowanie. */
 
 /* ── Ikon-buttony (kwadrat 30×30) — WSPÓLNE dla wszystkich modułów ──
    Glif jako dashicon na samym buttonie (::before) albo dziecko .dashicons. */
@@ -550,26 +592,95 @@
     width: 30px; height: 30px; min-height: 30px; padding: 0 !important;
     display: inline-flex !important; align-items: center; justify-content: center;
     line-height: 1 !important; border: 1px solid #cbd5e1; border-radius: 7px;
-    color: #2563eb; background: #f8fafc; flex-shrink: 0; box-sizing: border-box;
+    color: var(--evo-accent); background: var(--evo-surface); flex-shrink: 0; box-sizing: border-box;
     transition: background .15s, border-color .15s, color .15s;
 }
 .wrap .button-icon:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
 .wrap .button-icon.dashicons::before,
 .wrap .button-icon > .dashicons { font-size: 17px; width: 17px; height: 17px; line-height: 1; }
-.wrap .button-icon.button-link-delete { color: #dc2626; border-color: #fca5a5; background: #fff; }
-.wrap .button-icon.button-link-delete:hover { background: #fef2f2; border-color: #dc2626; color: #dc2626; }
+.wrap .button-icon.button-link-delete { color: var(--evo-danger); border-color: #fca5a5; background: #fff; }
+.wrap .button-icon.button-link-delete:hover { background: #fef2f2; border-color: var(--evo-danger); color: var(--evo-danger); }
 
 /* ── Próbnik koloru — jednolity, zaokrąglony (zamiast natywnego swatcha) ── */
 .wrap input[type=color] {
     -webkit-appearance: none; -moz-appearance: none; appearance: none;
     width: 56px; height: 34px; padding: 2px; cursor: pointer;
-    border: 1px solid #d1d5db; border-radius: 6px; background: #fff;
+    border: 1px solid var(--evo-border-field); border-radius: 6px; background: #fff;
     box-shadow: 0 1px 2px rgba(0,0,0,.04); vertical-align: middle;
 }
-.wrap input[type=color]:hover { border-color: #2563eb; }
-.wrap input[type=color]:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); outline: none; }
+.wrap input[type=color]:hover { border-color: var(--evo-accent); }
+.wrap input[type=color]:focus { border-color: var(--evo-accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); outline: none; }
 .wrap input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
 .wrap input[type=color]::-webkit-color-swatch { border: none; border-radius: 4px; }
 .wrap input[type=color]::-moz-color-swatch { border: none; border-radius: 4px; }
 /* W siatce kolorów White Label próbniki wypełniają komórkę (eleganckie pasy) */
 .wrap .evk-grid-colors input[type=color] { width: 100%; max-width: 100%; height: 36px; }
+
+/* =========================================================================
+   KOMPONENTY WSPÓLNE — przeniesione z inline'owych <style> w zakładkach
+   ========================================================================= */
+
+/* Etykieta z checkboxem.
+ *
+ * flex-shrink: 0 na polu jest OBOWIĄZKOWE. Etykieta jest kontenerem flex,
+ * a checkbox domyślnie może się kurczyć — przy długim tekście i wąskiej
+ * kolumnie siatki pole ściska się w poziomie i przestaje być kwadratem.
+ * Zmierzone: przy 480 px pierwszy checkbox w Animatorze schodził do 21×25,
+ * przy 782 px do 24×25. Poniżej 782 px WordPress powiększa pola do 25 px,
+ * więc spłaszczenie jest tam najbardziej widoczne — ale nie zaczyna się tam.
+ */
+.evo-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--evo-text);
+    cursor: pointer;
+}
+.evo-check input[type=checkbox] {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+/* Ta sama reguła dla wszystkiego, co już używa .checkbox-label — usterka
+   dotyczyła każdego takiego miejsca w panelu, nie tylko Animatora. */
+.wrap .checkbox-label input[type=checkbox],
+.wrap label input[type=checkbox] {
+    flex: 0 0 auto;
+}
+
+/* =========================================================================
+   MOBILE
+   ========================================================================= */
+
+@media screen and (max-width: 782px) {
+    /* Zakładki przewijają się w poziomie zamiast łamać w cztery rzędy,
+       które zjadały pół ekranu, zanim cokolwiek było widać. */
+    .evo-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .evo-tabs::-webkit-scrollbar { display: none; }
+    .evo-tab { white-space: nowrap; flex: 0 0 auto; }
+
+    /* Cele dotykowe. Przyciski panelu bywały wysokie na 28 px. */
+    .evo-panel .button,
+    .evo-panel button:not(.evo-btn-icon) {
+        min-height: var(--evo-tap);
+    }
+
+    /* Pasek zapisu przestaje przykrywać ostatnie pole formularza. */
+    .evo-save-bar { position: static; backdrop-filter: none; }
+}
+
+@media screen and (max-width: 600px) {
+    .evo-panel { padding: 18px 14px 14px; }
+    .evo-save-bar { margin: 18px -14px -14px; padding: 12px 14px; }
+
+    /* Karta statusu: przełącznik zjeżdża pod tekst zamiast go ściskać. */
+    .evo-status-card { flex-wrap: wrap; gap: 14px; padding: 16px; }
+    .evo-status-actions { margin-left: 0; width: 100%; }
+}

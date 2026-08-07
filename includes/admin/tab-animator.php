@@ -57,8 +57,9 @@ $row_def    = $anim->row_defaults();
         .evo-anim-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
         .evo-anim-grid label { display:block; font-size:12px; font-weight:600; color:#4b5563; margin-bottom:4px; }
         .evo-anim-grid input[type=text], .evo-anim-grid input[type=number], .evo-anim-grid select { width:100%; border:1px solid #d1d5db; border-radius:6px; font-size:13px; }
-        .evo-anim-grid .checkbox-label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:#111827; margin-top:20px; cursor:pointer; }
-        .evo-anim-grid .checkbox-label input { margin:0; }
+        /* Wygląd i niekurczliwość pola: komponent .evo-check w admin.css. */
+        .evo-anim-grid .checkbox-label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--evo-text); margin-top:20px; cursor:pointer; }
+        .evo-anim-grid .checkbox-label input { margin:0; flex:0 0 auto; }
         .evo-anim-class { font-family:monospace; font-size:12px; color:#334155; background:#e2e8f0; border-radius:4px; padding:2px 8px; }
         .evo-anim-fromto { grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
         .evo-anim-fromto textarea { width:100%; min-height:74px; font-family:monospace; font-size:12px; border:1px solid #d1d5db; border-radius:6px; padding:8px; resize:vertical; }

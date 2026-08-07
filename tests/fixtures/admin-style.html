@@ -1,0 +1,71 @@
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  /* Tyle otoczki wp-admin, ile realnie wpływa na mierzone komponenty.
+     Poniżej 782 px WordPress powiększa pola dotykowe — i to właśnie tam
+     wychodziło spłaszczenie checkboxów w Animatorze. */
+  body { margin: 0; background: #f0f0f1; font: 13px -apple-system, system-ui, sans-serif; }
+  @media screen and (max-width: 782px) {
+    input[type=checkbox] { -webkit-appearance: none; appearance: none; border: 1px solid #8c8f94;
+      background: #fff; height: 1.5625rem; width: 1.5625rem; }
+  }
+</style>
+
+<div class="wrap"><div class="evo-panel" id="panel"></div></div>
+
+<!-- Wymuszony ciasny układ. Spłaszczenie checkboxa zależy od tego, czy długa
+     etykieta trafi w wąską kolumnę siatki — a to przetasowuje się przy każdej
+     zmianie liczby pól w wierszu. Tu ściskamy jawnie, żeby sprawdzenie miało
+     zęby niezależnie od tego, ile pól akurat ma Animator. -->
+<div class="wrap">
+  <div class="evo-panel" style="width:260px">
+    <div class="evo-anim-grid" id="tight">
+      <div><label class="checkbox-label"><input type="checkbox"> Powtarzaj przy każdym wejściu w kadr</label></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Markup zakładki z PRAWDZIWEGO tab-animator.php (window.__tab z testu). */
+document.getElementById('panel').innerHTML = window.__tab;
+
+/** Wyliczone wartości kluczowych komponentów — punkt odniesienia refaktoru. */
+window.__styles = function () {
+  var out = {};
+  [['panel', '.evo-panel'], ['card', '.evo-status-card'], ['info', '.evo-info-box'],
+   ['row', '.evo-anim-row'], ['header', '.evo-anim-row-header'],
+   ['title', '.evo-anim-row-title'], ['badge', '.evo-anim-class'],
+   ['hint', '.evo-anim-hint'], ['field', '.evo-anim-grid input[type=text]']
+  ].forEach(function (pair) {
+    var el = document.querySelector(pair[1]);
+    if (!el) { out[pair[0]] = null; return; }
+    var s = getComputedStyle(el);
+    out[pair[0]] = {
+      bg: s.backgroundColor, color: s.color,
+      border: s.borderTopColor + ' ' + s.borderTopWidth,
+      radius: s.borderTopLeftRadius, size: s.fontSize,
+    };
+  });
+  return out;
+};
+
+/* Niezmiennik, nie przypadek układu: pole wyboru nie ma prawa się kurczyć.
+ * Sam pomiar prostokąta zależy od tego, czy długa etykieta trafi akurat
+ * w wąską kolumnę — a to zmienia się przy każdym dołożeniu pola do wiersza. */
+window.__shrink = function () {
+  return Array.prototype.map.call(
+    document.querySelectorAll('.evo-anim-grid .checkbox-label input[type=checkbox]'),
+    function (el) { return getComputedStyle(el).flexShrink; }
+  );
+};
+
+/** Wymiary wszystkich checkboxów — kwadratowość mierzymy, nie zakładamy. */
+window.__checkboxes = function () {
+  return Array.prototype.map.call(
+    document.querySelectorAll('.evo-anim-grid .checkbox-label input[type=checkbox]'),
+    function (el) {
+      var r = el.getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height) };
+    }
+  );
+};
+</script>

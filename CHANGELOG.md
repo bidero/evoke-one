@@ -2,6 +2,34 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.41.0] — 2026-08-07
+
+### Poprawione
+
+- **Checkboxy w Animatorze bywały spłaszczone.** Etykieta jest kontenerem
+  `flex`, a pole wyboru bez `flex-shrink: 0` może się kurczyć — przy długim
+  tekście i wąskiej kolumnie siatki ściskało się w poziomie i przestawało być
+  kwadratem. Zmierzone: przy 480 px schodziło do 21×25, przy 782 px do 24×25.
+  Poniżej 782 px WordPress powiększa pola do 25 px, więc widać to tam najlepiej
+  — ale usterka nie zaczyna się na telefonie.
+
+  Reguła obowiązuje **wszystkie** checkboxy panelu, nie tylko te w Animatorze.
+
+### Zmienione
+
+- **Kolory panelu przeniesione do tokenów CSS.** Jeden blok zmiennych na
+  `.wrap` jest odtąd jedynym miejscem z kolorami; komponenty sięgają wyłącznie
+  po zmienne. **Wygląd bez zmian** — to refaktor, nie przemalowanie, i pilnuje
+  tego osobny test porównujący wyliczone wartości kluczowych komponentów.
+
+  Dzięki temu zmiana wyglądu całego panelu sprowadza się do podmiany wartości
+  w jednym bloku, zamiast przemiatania kilkuset deklaracji i trzydziestu plików.
+
+- **Dopracowanie mobilne.** Zakładki przewijają się w poziomie zamiast łamać
+  w cztery rzędy zjadające pół ekranu; przyciski panelu mają pełny cel dotykowy;
+  pasek zapisu przestaje przykrywać ostatnie pole formularza; karta statusu
+  przenosi przełącznik pod tekst zamiast go ściskać.
+
 ## [1.40.0] — 2026-08-07
 
 ### Dodane
