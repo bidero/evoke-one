@@ -400,6 +400,63 @@
             }
         }
 
+        /* Zwijanie wierszy.
+         *
+         * Nagłówek pełni dwie role naraz: jest uchwytem przeciągania i
+         * przełącznikiem zwinięcia. Rozstrzygamy je po DYSTANSIE ruchu.
+         *
+         * Uczciwie: w Chromium z natywnym przeciąganiem SortableJS sam połyka
+         * kliknięcie po upuszczeniu i próg okazuje się wtedy niepotrzebny —
+         * zmierzone, jego usunięcie niczego tam nie psuje. Zostaje jako
+         * zabezpieczenie dla ścieżek, gdzie biblioteka zachowuje się inaczej
+         * (tryb zastępczy, dotyk), bo koszt to trzy linijki, a objaw byłby
+         * wredny: wiersz zwijałby się sam przy każdym przestawieniu.
+         */
+        var COLLAPSE_KEY = 'evkAnimCollapsed';
+        var DRAG_SLOP    = 5;   // px — poniżej tego traktujemy ruch jak kliknięcie
+
+        function collapsedSet() {
+            try { return JSON.parse(localStorage.getItem(COLLAPSE_KEY)) || []; }
+            catch (e) { return []; }
+        }
+
+        function rememberCollapsed() {
+            // Zapisujemy tylko wiersze ze slugiem — świeżo dodany go nie ma,
+            // a klucz oparty na pozycji rozjeżdżałby się przy pierwszym
+            // przeciągnięciu i zwijał przypadkowy wiersz po przeładowaniu.
+            var slugs = $box.children('.evo-anim-row.is-collapsed')
+                .map(function () { return $(this).find('input[name*="[slug]"]').val(); })
+                .get().filter(function (v) { return v; });
+            try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(slugs)); } catch (e) {}
+        }
+
+        function restoreCollapsed() {
+            var saved = collapsedSet();
+            if (!saved.length) return;
+            $box.children('.evo-anim-row').each(function () {
+                var slug = $(this).find('input[name*="[slug]"]').val();
+                if (slug && saved.indexOf(slug) !== -1) $(this).addClass('is-collapsed');
+            });
+        }
+
+        var pressX = 0, pressY = 0;
+
+        $box.on('pointerdown', '.evo-anim-row-header', function (e) {
+            pressX = e.clientX; pressY = e.clientY;
+        });
+
+        $box.on('click', '.evo-anim-row-header', function (e) {
+            // Przycisk „Usuń" i pola formularza mają swoje zadania.
+            if ($(e.target).closest('button, input, select, textarea, a').length) return;
+            if (Math.abs(e.clientX - pressX) > DRAG_SLOP
+                || Math.abs(e.clientY - pressY) > DRAG_SLOP) return;   // to było przeciągnięcie
+
+            $(this).closest('.evo-anim-row').toggleClass('is-collapsed');
+            rememberCollapsed();
+        });
+
+        restoreCollapsed();
+
         function saveOrder() {
             // Slugi, nie indeksy: wiersz świeżo dodany przyciskiem nie ma jeszcze
             // sluga i serwer ma go pominąć, a nie przesunąć cokolwiek innego.

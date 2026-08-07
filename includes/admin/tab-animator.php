@@ -68,17 +68,17 @@ $row_def    = $anim->row_defaults();
 
     <hr class="evo-divider">
     <p class="evo-section-title">Biblioteka animacji</p>
-    <div class="evo-info-box" style="margin-bottom:16px;">
-        <span class="dashicons dashicons-info"></span>
-        <div>
+    <details class="evo-note">
+        <summary>Jak to działa</summary>
+        <div class="evo-note-body">
             Każda animacja dostaje klasę <code>evk-anim-{slug}</code> — wpisz ją elementowi w Bricks
             (Style → CSS → Classes). <strong>Slug jest kluczem</strong>: zmiana sluga zrywa powiązanie
             z elementami, które go już używają. Nazwa służy tylko Tobie i można ją zmieniać dowolnie.
-            <br><br>Wiersze możesz <strong>przeciągać za nagłówek</strong> — nowa kolejność zapisuje się
-            od razu. Jest ona wyłącznie porządkowa: o sekwencji na stronie decyduje pole
-            <strong>Kolejność</strong>, a nie pozycja wiersza na tej liście.
+            <br><br>Wiersze <strong>przeciągasz za nagłówek</strong>, a klikasz go, żeby zwinąć —
+            stan zwinięcia jest zapamiętywany. Kolejność wierszy jest wyłącznie porządkowa:
+            o sekwencji na stronie decyduje pole <strong>Kolejność</strong>.
         </div>
-    </div>
+    </details>
 
     <p id="evo-anim-order-note"></p>
 
@@ -88,7 +88,7 @@ $row_def    = $anim->row_defaults();
         <div class="evo-anim-row">
             <div class="evo-anim-row-header">
                 <div class="evo-anim-row-title">
-                    <span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
+                    <span class="dashicons dashicons-arrow-down-alt2 evo-anim-caret" aria-hidden="true"></span><span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
                     <?php echo $r['label'] !== '' ? esc_html($r['label']) : 'Animacja #' . ($index + 1); ?>
                     <?php if ($r['slug'] !== ''): ?>
                         <span class="evo-anim-class">.evk-anim-<?php echo esc_html($r['slug']); ?></span>
@@ -132,7 +132,7 @@ $row_def    = $anim->row_defaults();
                 <div><label>Start (ScrollTrigger)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][start]" value="<?php echo esc_attr($r['start']); ?>" placeholder="top 85%"></div>
                 <div><label>End (tylko scrub)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][end]" value="<?php echo esc_attr($r['end']); ?>" placeholder="bottom 40%"></div>
                 <div><label>Scrub (tylko scrub)</label><input type="number" step="0.1" min="0" max="5" name="evk_animator[animations][<?php echo $index; ?>][scrub]" value="<?php echo esc_attr($r['scrub']); ?>"></div>
-                <div><label title="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku.">Kolejność (krok, tylko load)</label><input type="number" step="1" min="0" max="999" name="evk_animator[animations][<?php echo $index; ?>][order]" value="<?php echo esc_attr($r['order']); ?>"></div>
+                <div><label>Kolejność<span class="evo-tip" tabindex="0" role="note" data-tip="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku." aria-label="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku.">?</span></label><input type="number" step="1" min="0" max="999" name="evk_animator[animations][<?php echo $index; ?>][order]" value="<?php echo esc_attr($r['order']); ?>"></div>
                 <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][repeat]" value="1" <?php checked(!empty($r['repeat'])); ?>> Powtarzaj przy każdym wejściu</label></div>
                 <div><label class="checkbox-label" title="Animacja kręci się bez końca. To co innego niż „Powtarzaj przy każdym wejściu”, które odtwarza ją ponownie dopiero po powrocie elementu w kadr."><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][loop]" value="1" <?php checked(!empty($r['loop'])); ?>> Zapętl</label></div>
                 <div><label class="checkbox-label" title="Zamiast skakać do stanu początkowego, animacja wraca płynnie tam i z powrotem."><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][loop_yoyo]" value="1" <?php checked(!empty($r['loop_yoyo'])); ?>> Pętla z odbiciem</label></div>
@@ -146,12 +146,12 @@ $row_def    = $anim->row_defaults();
                 </div>
                 <div><label>Selektor (gdy wybrany)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][selector]" value="<?php echo esc_attr($r['selector']); ?>" placeholder=".karta"></div>
                 <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][pin]" value="1" <?php checked(!empty($r['pin'])); ?>> Pin (tylko scrub)</label></div>
-                <div class="evo-anim-hint">Własne <strong>from/to</strong> — po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div>
+                <details class="evo-note" style="grid-column:1/-1"><summary>Własne from/to</summary><div class="evo-note-body">Po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div></details>
                 <div class="evo-anim-fromto">
                     <div><label>from (stan początkowy)</label><textarea name="evk_animator[animations][<?php echo $index; ?>][from]" placeholder="opacity: 0&#10;y: 40"><?php echo esc_textarea($r['from']); ?></textarea></div>
                     <div><label>to (stan końcowy)</label><textarea name="evk_animator[animations][<?php echo $index; ?>][to]" placeholder="opacity: 1&#10;y: 0"><?php echo esc_textarea($r['to']); ?></textarea></div>
                 </div>
-                <div class="evo-anim-hint">Pole <strong>Słowa</strong> działa wyłącznie z presetem <em>Tekst: zmieniające się słowa</em> — po jednym słowie na linię, maksymalnie 20. Pole <strong>Czas</strong> steruje wtedy samym przejściem; każde słowo stoi 1,4 s.</div>
+                <details class="evo-note" style="grid-column:1/-1"><summary>Lista słów</summary><div class="evo-note-body">Działa wyłącznie z presetem <em>Tekst: zmieniające się słowa</em> — po jednym słowie na linię, maksymalnie 20. Pole <strong>Czas</strong> steruje wtedy samym przejściem; każde słowo stoi 1,4 s.</div></details>
                 <div class="evo-anim-fromto">
                     <div><label>Słowa (tylko preset „zmieniające się słowa")</label><textarea name="evk_animator[animations][<?php echo $index; ?>][words]" placeholder="szybciej&#10;prościej&#10;taniej"><?php echo esc_textarea($r['words']); ?></textarea></div>
                 </div>
@@ -171,7 +171,7 @@ $row_def    = $anim->row_defaults();
     <div class="evo-anim-row">
         <div class="evo-anim-row-header">
             <div class="evo-anim-row-title">
-                <span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
+                <span class="dashicons dashicons-arrow-down-alt2 evo-anim-caret" aria-hidden="true"></span><span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
                 Nowa animacja
             </div>
             <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-anim-row').remove()">
@@ -212,7 +212,7 @@ $row_def    = $anim->row_defaults();
             <div><label>Start (ScrollTrigger)</label><input type="text" name="evk_animator[animations][{INDEX}][start]" value="<?php echo esc_attr($row_def['start']); ?>" placeholder="top 85%"></div>
             <div><label>End (tylko scrub)</label><input type="text" name="evk_animator[animations][{INDEX}][end]" value="<?php echo esc_attr($row_def['end']); ?>" placeholder="bottom 40%"></div>
             <div><label>Scrub (tylko scrub)</label><input type="number" step="0.1" min="0" max="5" name="evk_animator[animations][{INDEX}][scrub]" value="<?php echo esc_attr($row_def['scrub']); ?>"></div>
-            <div><label title="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku.">Kolejność (krok, tylko load)</label><input type="number" step="1" min="0" max="999" name="evk_animator[animations][{INDEX}][order]" value="<?php echo esc_attr($row_def['order']); ?>"></div>
+            <div><label>Kolejność<span class="evo-tip" tabindex="0" role="note" data-tip="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku." aria-label="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku.">?</span></label><input type="number" step="1" min="0" max="999" name="evk_animator[animations][{INDEX}][order]" value="<?php echo esc_attr($row_def['order']); ?>"></div>
             <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][{INDEX}][repeat]" value="1"> Powtarzaj przy każdym wejściu</label></div>
             <div><label class="checkbox-label" title="Animacja kręci się bez końca. To co innego niż „Powtarzaj przy każdym wejściu”, które odtwarza ją ponownie dopiero po powrocie elementu w kadr."><input type="checkbox" name="evk_animator[animations][{INDEX}][loop]" value="1"> Zapętl</label></div>
             <div><label class="checkbox-label" title="Zamiast skakać do stanu początkowego, animacja wraca płynnie tam i z powrotem."><input type="checkbox" name="evk_animator[animations][{INDEX}][loop_yoyo]" value="1"> Pętla z odbiciem</label></div>
@@ -226,12 +226,12 @@ $row_def    = $anim->row_defaults();
             </div>
             <div><label>Selektor (gdy wybrany)</label><input type="text" name="evk_animator[animations][{INDEX}][selector]" value="" placeholder=".karta"></div>
             <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][{INDEX}][pin]" value="1"> Pin (tylko scrub)</label></div>
-            <div class="evo-anim-hint">Własne <strong>from/to</strong> — po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div>
+            <details class="evo-note" style="grid-column:1/-1"><summary>Własne from/to</summary><div class="evo-note-body">Po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div></details>
             <div class="evo-anim-fromto">
                 <div><label>from (stan początkowy)</label><textarea name="evk_animator[animations][{INDEX}][from]" placeholder="opacity: 0&#10;y: 40"></textarea></div>
                 <div><label>to (stan końcowy)</label><textarea name="evk_animator[animations][{INDEX}][to]" placeholder="opacity: 1&#10;y: 0"></textarea></div>
             </div>
-            <div class="evo-anim-hint">Pole <strong>Słowa</strong> działa wyłącznie z presetem <em>Tekst: zmieniające się słowa</em> — po jednym słowie na linię, maksymalnie 20. Pole <strong>Czas</strong> steruje wtedy samym przejściem; każde słowo stoi 1,4 s.</div>
+            <details class="evo-note" style="grid-column:1/-1"><summary>Lista słów</summary><div class="evo-note-body">Działa wyłącznie z presetem <em>Tekst: zmieniające się słowa</em> — po jednym słowie na linię, maksymalnie 20. Pole <strong>Czas</strong> steruje wtedy samym przejściem; każde słowo stoi 1,4 s.</div></details>
             <div class="evo-anim-fromto">
                 <div><label>Słowa (tylko preset „zmieniające się słowa")</label><textarea name="evk_animator[animations][{INDEX}][words]" placeholder="szybciej&#10;prościej&#10;taniej"></textarea></div>
             </div>

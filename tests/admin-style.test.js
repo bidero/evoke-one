@@ -28,6 +28,9 @@ const BEFORE = {
   title:  { color: 'rgb(17, 24, 39)', size: '14px' },
   badge:  { bg: 'rgb(226, 232, 240)', color: 'rgb(51, 65, 85)' },
   hint:   { color: 'rgb(107, 114, 128)', size: '12px' },
+  // Sekcja zwijana z 1.42.0 — od początku na tokenach, więc wzorzec jest
+  // jej stanem wyjściowym, nie punktem odniesienia sprzed refaktoru.
+  note:   { bg: 'rgb(248, 250, 252)', border: 'rgb(215, 221, 231) 1px', radius: '10px' },
 };
 
 module.exports = async function (t) {

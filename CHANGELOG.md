@@ -2,6 +2,28 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.42.0] — 2026-08-07
+
+### Dodane
+
+- **Wiersze biblioteki animacji można zwijać.** Kliknięcie nagłówka zwija
+  i rozwija wiersz, a **stan jest zapamiętywany** — przeżywa przeładowanie
+  strony i zapis przez AJAX. Nowe wiersze startują rozwinięte, bo dopiero się
+  je wypełnia.
+
+  Nagłówek pełni dwie role naraz: jest uchwytem przeciągania i przełącznikiem.
+  Rozstrzyga je **dystans**, nie typ zdarzenia — biblioteka przeciągania
+  wypuszcza `click` także po upuszczeniu wiersza, więc bez progu każde
+  przeciągnięcie zwijałoby go przy okazji.
+
+- **Opisy zeszły z ekranu.** Długa pomoc w zakładce Animator jest teraz sekcją
+  zwijaną (`<details>`, domyślnie zamkniętą), a wskazówki przy polach —
+  podpowiedziami przy ikonce „?".
+
+  Podpowiedź pokazuje się na **najechaniu i na fokusie**. Sam hover wykluczałby
+  klawiaturę, a na dotyku nie istnieje w ogóle; `aria-label` niesie tę samą
+  treść, więc czytnik ekranu nie zostaje z niczym.
+
 ## [1.41.0] — 2026-08-07
 
 ### Poprawione

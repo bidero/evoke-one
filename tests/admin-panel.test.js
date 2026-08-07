@@ -161,6 +161,68 @@ module.exports = async function (t) {
     s2.length === 2 && s2.some((x) => x.prevented === false), JSON.stringify(s2));
   await bad2.close();
 
+  // ── Zwijanie wierszy ───────────────────────────────────────────────────
+  // Nagłówek jest uchwytem przeciągania I przełącznikiem naraz. SortableJS
+  // wypuszcza `click` także po upuszczeniu wiersza, więc bez progu dystansu
+  // każde przeciągnięcie zwijałoby go przy okazji.
+  t.section('zwijanie wierszy i pamięć stanu');
+
+  const c1 = await t.open('anim-tab.html', { viewport: V, head, settle: 250 });
+
+  const collapsed = () => c1.evaluate(() => Array.prototype.map.call(
+    document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row'),
+    (r) => r.classList.contains('is-collapsed')));
+
+  t.check('na start wszystkie rozwinięte', (await collapsed()).every((v) => !v),
+    JSON.stringify(await collapsed()));
+
+  await c1.locator('#evo-anim-repeater-container > .evo-anim-row').first()
+    .locator('.evo-anim-row-title').click();
+  await c1.waitForTimeout(100);
+  t.check('kliknięcie nagłówka zwija wiersz', (await collapsed())[0] === true,
+    JSON.stringify(await collapsed()));
+
+  t.check('stan trafia do pamięci przeglądarki',
+    JSON.parse(await c1.evaluate(() => localStorage.getItem('evkAnimCollapsed'))).join(',') === 'alfa',
+    await c1.evaluate(() => localStorage.getItem('evkAnimCollapsed')));
+
+  // Przycisk „Usuń" siedzi w nagłówku — nie może przy okazji zwijać.
+  await c1.evaluate(() => {
+    document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row')[1]
+      .querySelector('.evo-anim-row-header button').click();
+  });
+  await c1.waitForTimeout(100);
+  const afterRemove = await collapsed();
+  t.check('klik w „Usuń" usuwa, a nie zwija', afterRemove.length === 2,
+    afterRemove.length + ' wierszy');
+
+  // Przeciągnięcie nie może przy okazji zwijać. Zmierzone: w Chromium robi to
+  // sam SortableJS, połykając kliknięcie po upuszczeniu — próg dystansu
+  // w admin.js jest zabezpieczeniem na ścieżki, gdzie biblioteka zachowuje się
+  // inaczej, i tego akurat ten test NIE dowodzi.
+  const box = await c1.locator('#evo-anim-repeater-container > .evo-anim-row')
+    .nth(1).locator('.evo-anim-row-title').boundingBox();
+  await c1.mouse.move(box.x + 10, box.y + box.height / 2);
+  await c1.mouse.down();
+  await c1.mouse.move(box.x + 10, box.y + box.height / 2 + 40, { steps: 6 });
+  await c1.mouse.up();
+  await c1.waitForTimeout(150);
+  t.check('ruch powyżej progu nie zwija', (await collapsed())[1] === false,
+    JSON.stringify(await collapsed()));
+  await c1.close();
+
+  // Stan przeżywa przeładowanie — o to chodzi w „zapamiętuje się".
+  const c2 = await t.open('anim-tab.html', { viewport: V, head, settle: 250 });
+  await c2.evaluate(() => localStorage.setItem('evkAnimCollapsed', JSON.stringify(['beta'])));
+  await c2.reload();
+  await c2.waitForTimeout(250);
+  const restored = await c2.evaluate(() => Array.prototype.map.call(
+    document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row'),
+    (r) => r.classList.contains('is-collapsed')));
+  t.check('po przeładowaniu stan odtworzony', restored[1] === true && restored[0] === false,
+    JSON.stringify(restored));
+  await c2.close();
+
   // ── Kontrola negatywna: brak biblioteki ────────────────────────────────
   // Odtworzenie usterki 1.37.0. Ma być GŁOŚNA — cisza sprawiła, że pojechała
   // na produkcję. Bez tego bloku sekcja wyżej świeciłaby na zielono także wtedy,

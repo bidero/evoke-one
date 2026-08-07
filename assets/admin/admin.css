@@ -684,3 +684,41 @@
     .evo-status-card { flex-wrap: wrap; gap: 14px; padding: 16px; }
     .evo-status-actions { margin-left: 0; width: 100%; }
 }
+
+/* =========================================================================
+   SEKCJA ZWIJANA I PODPOWIEDŹ
+   ========================================================================= */
+
+/* Pomoc kontekstowa na <details> — natywne, dostępne z klawiatury i działa
+   bez JavaScriptu. Własna implementacja byłaby tu wyłącznie gorsza. */
+.evo-note { border: 1px solid var(--evo-border); border-radius: var(--evo-radius); background: var(--evo-surface); margin-bottom: 16px; }
+.evo-note > summary { cursor: pointer; padding: 10px 14px; font-size: 12px; font-weight: 600; color: var(--evo-text-dim); list-style: none; display: flex; align-items: center; gap: 8px; }
+.evo-note > summary::-webkit-details-marker { display: none; }
+.evo-note > summary::before { content: '\f345'; font-family: dashicons; font-size: 16px; transition: transform .15s; }
+.evo-note[open] > summary::before { transform: rotate(90deg); }
+.evo-note > summary:focus-visible { outline: 2px solid var(--evo-accent); outline-offset: -2px; }
+.evo-note-body { padding: 0 14px 14px; font-size: 13px; color: var(--evo-text-soft); line-height: 1.6; }
+
+/* Podpowiedź przy polu.
+ *
+ * Widoczna na HOVER I NA FOKUSIE. Sam hover wykluczałby klawiaturę, a na
+ * dotyku nie istnieje w ogóle — stąd tabindex i :focus-visible.
+ * aria-label niesie tę samą treść, więc czytnik ekranu nie zostaje z niczym. */
+.evo-tip { position: relative; display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; margin-left: 5px; border-radius: 50%; background: var(--evo-border); color: var(--evo-text-dim); font-size: 11px; font-weight: 700; cursor: help; vertical-align: -3px; }
+.evo-tip:focus-visible { outline: 2px solid var(--evo-accent); outline-offset: 2px; }
+.evo-tip::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    width: max-content; max-width: 260px; padding: 8px 10px;
+    background: var(--evo-text); color: #fff; border-radius: var(--evo-radius-sm);
+    font-size: 12px; font-weight: 400; line-height: 1.45; text-align: left;
+    opacity: 0; visibility: hidden; transition: opacity .12s; z-index: 20; pointer-events: none;
+}
+.evo-tip:hover::after, .evo-tip:focus-visible::after { opacity: 1; visibility: visible; }
+
+/* Wiersz zwijany. Ukrywamy treść, nagłówek zostaje — to on jest uchwytem
+   i przełącznikiem naraz. */
+.evo-anim-row.is-collapsed .evo-anim-grid { display: none; }
+.evo-anim-row.is-collapsed .evo-anim-row-header { margin-bottom: 0; border-bottom: 0; padding-bottom: 0; }
+.evo-anim-caret { transition: transform .15s; color: var(--evo-text-dim); }
+.evo-anim-row.is-collapsed .evo-anim-caret { transform: rotate(-90deg); }

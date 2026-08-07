@@ -12,6 +12,17 @@
 
 <div class="wrap"><div class="evo-panel" id="panel"></div></div>
 
+<!-- Próbki komponentów, które nadal żyją w innych zakładkach, ale wypadły
+     z Animatora (opisy przeszły na sekcje zwijane w 1.42.0). Bez nich token
+     dla nich przestałby być pilnowany przez cokolwiek. -->
+<div class="wrap">
+  <div class="evo-panel">
+    <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Próbka</div></div>
+    <div class="evo-anim-grid"><div class="evo-anim-hint">Próbka</div></div>
+    <details class="evo-note"><summary>Próbka</summary><div class="evo-note-body">Treść</div></details>
+  </div>
+</div>
+
 <!-- Wymuszony ciasny układ. Spłaszczenie checkboxa zależy od tego, czy długa
      etykieta trafi w wąską kolumnę siatki — a to przetasowuje się przy każdej
      zmianie liczby pól w wierszu. Tu ściskamy jawnie, żeby sprawdzenie miało
@@ -34,7 +45,7 @@ window.__styles = function () {
   [['panel', '.evo-panel'], ['card', '.evo-status-card'], ['info', '.evo-info-box'],
    ['row', '.evo-anim-row'], ['header', '.evo-anim-row-header'],
    ['title', '.evo-anim-row-title'], ['badge', '.evo-anim-class'],
-   ['hint', '.evo-anim-hint'], ['field', '.evo-anim-grid input[type=text]']
+   ['hint', '.evo-anim-hint'], ['note', '.evo-note'], ['field', '.evo-anim-grid input[type=text]']
   ].forEach(function (pair) {
     var el = document.querySelector(pair[1]);
     if (!el) { out[pair[0]] = null; return; }
