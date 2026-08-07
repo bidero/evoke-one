@@ -282,6 +282,109 @@ function evk_bricks_animator_controls(array $controls): array {
         'required'    => $required,
     ];
 
+    $controls['evkAnimEnd'] = [
+        'tab'         => evk_bricks_controls_tab(),
+        'group'       => evk_bricks_target_group(),
+        'label'       => esc_html__('Koniec (tylko scrub)', 'evoke-one'),
+        'type'        => 'text',
+        'placeholder' => esc_html__('z biblioteki', 'evoke-one'),
+        'required'    => $required,
+    ];
+
+    $controls['evkAnimScrub'] = [
+        'tab'         => evk_bricks_controls_tab(),
+        'group'       => evk_bricks_target_group(),
+        'label'       => esc_html__('Scrub (tylko scrub)', 'evoke-one'),
+        'type'        => 'number',
+        'min'         => 0,
+        'max'         => 5,
+        'step'        => 0.1,
+        'placeholder' => esc_html__('z biblioteki', 'evoke-one'),
+        'required'    => $required,
+    ];
+
+    $easing_options = ['' => esc_html__('— z biblioteki —', 'evoke-one')];
+    foreach (evk_anim_easings() as $e) {
+        $easing_options[$e] = $e;
+    }
+
+    $controls['evkAnimEasing'] = [
+        'tab'      => evk_bricks_controls_tab(),
+        'group'    => evk_bricks_target_group(),
+        'label'    => esc_html__('Easing', 'evoke-one'),
+        'type'     => 'select',
+        'options'  => $easing_options,
+        'default'  => '',
+        'required' => $required,
+    ];
+
+    $controls['evkAnimTargets'] = [
+        'tab'      => evk_bricks_controls_tab(),
+        'group'    => evk_bricks_target_group(),
+        'label'    => esc_html__('Cel animacji', 'evoke-one'),
+        'type'     => 'select',
+        'options'  => [
+            ''         => esc_html__('— z biblioteki —', 'evoke-one'),
+            'self'     => esc_html__('Sam element', 'evoke-one'),
+            'children' => esc_html__('Dzieci elementu', 'evoke-one'),
+            'selector' => esc_html__('Selektor w środku', 'evoke-one'),
+        ],
+        'default'  => '',
+        'required' => $required,
+    ];
+
+    $controls['evkAnimSelector'] = [
+        'tab'         => evk_bricks_controls_tab(),
+        'group'       => evk_bricks_target_group(),
+        'label'       => esc_html__('Selektor celu', 'evoke-one'),
+        'type'        => 'text',
+        'placeholder' => '.karta',
+        'required'    => ['evkAnimTargets', '=', 'selector'],
+    ];
+
+    /*
+     * Wartości logiczne jako SELECT, nie checkbox.
+     *
+     * Checkbox ma dwa stany, a potrzebne są trzy: „z biblioteki", „tak" i „nie".
+     * Odznaczony checkbox znaczyłby „nie" i odbierałby możliwość zwykłego
+     * dziedziczenia — a jednocześnie nie dałoby się nim WYŁĄCZYĆ czegoś, co
+     * w bibliotece jest włączone.
+     */
+    $bool_options = [
+        ''  => esc_html__('— z biblioteki —', 'evoke-one'),
+        '1' => esc_html__('Tak', 'evoke-one'),
+        '0' => esc_html__('Nie', 'evoke-one'),
+    ];
+
+    $bools = [
+        'evkAnimRepeat'   => esc_html__('Powtarzaj przy każdym wejściu', 'evoke-one'),
+        'evkAnimLoop'     => esc_html__('Zapętl', 'evoke-one'),
+        'evkAnimLoopYoyo' => esc_html__('Pętla z odbiciem', 'evoke-one'),
+        'evkAnimPin'      => esc_html__('Pin (tylko scrub)', 'evoke-one'),
+    ];
+    foreach ($bools as $id => $label) {
+        $controls[$id] = [
+            'tab'      => evk_bricks_controls_tab(),
+            'group'    => evk_bricks_target_group(),
+            'label'    => $label,
+            'type'     => 'select',
+            'options'  => $bool_options,
+            'default'  => '',
+            'required' => $required,
+        ];
+    }
+
+    // Lista słów ma sens per element — każdy może cyklować po innych.
+    $controls['evkAnimWords'] = [
+        'tab'         => evk_bricks_controls_tab(),
+        'group'       => evk_bricks_target_group(),
+        'label'       => esc_html__('Słowa (preset „zmieniające się słowa")', 'evoke-one'),
+        'type'        => 'textarea',
+        'placeholder' => esc_html__('szybciej', 'evoke-one'),
+        'description' => esc_html__('Po jednym słowie na linię. Puste = lista z biblioteki.', 'evoke-one'),
+        'required'    => $required,
+    ];
+
     return $controls;
 }
 
@@ -376,8 +479,33 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
         if (isset($s['evkAnimOrder']) && $s['evkAnimOrder'] !== '') {
             $cfg['order'] = intval($s['evkAnimOrder']);
         }
-        if (!empty($s['evkAnimStart'])) {
-            $cfg['start'] = sanitize_text_field($s['evkAnimStart']);
+        if (isset($s['evkAnimScrub']) && $s['evkAnimScrub'] !== '') {
+            $cfg['scrub'] = floatval($s['evkAnimScrub']);
+        }
+
+        foreach (['evkAnimStart' => 'start', 'evkAnimEnd' => 'end',
+                  'evkAnimEasing' => 'easing', 'evkAnimTargets' => 'targets',
+                  'evkAnimSelector' => 'selector'] as $id => $prop) {
+            if (!empty($s[$id])) $cfg[$prop] = sanitize_text_field($s[$id]);
+        }
+
+        /*
+         * Wartości logiczne przez !== '', NIE przez !empty().
+         *
+         * Kontrolka jest trójstanowa i wysyła '' / '1' / '0'. Dla !empty()
+         * ciąg '0' jest PUSTY, więc jawne „Nie" wypadałoby tak samo jak
+         * „z biblioteki" — nie dałoby się wyłączyć w elemencie czegoś, co
+         * w bibliotece jest włączone. Ta sama pułapka co przy „Kolejności"
+         * równej zero, domknięta w 1.28.1.
+         */
+        foreach (['evkAnimRepeat' => 'repeat', 'evkAnimLoop' => 'loop',
+                  'evkAnimLoopYoyo' => 'loopYoyo', 'evkAnimPin' => 'pin'] as $id => $prop) {
+            if (isset($s[$id]) && $s[$id] !== '') $cfg[$prop] = $s[$id] ? 1 : 0;
+        }
+
+        if (!empty($s['evkAnimWords'])) {
+            $words = evk_anim_parse_words((string) $s['evkAnimWords']);
+            if ($words) $cfg['words'] = $words;
         }
 
         $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-anim', wp_json_encode($cfg));

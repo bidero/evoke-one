@@ -2,6 +2,23 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.40.0] — 2026-08-07
+
+### Dodane
+
+- **Panel elementu w Bricks nadgania bibliotekę.** Doszły nadpisania, których
+  dotąd brakowało: **easing**, **koniec** i **scrub**, **cel animacji**
+  z **selektorem**, **powtarzanie**, **zapętlenie** i **odbicie**, **pin**
+  oraz **lista słów** (per element ma sens — każdy może cyklować po innych).
+
+  Świadomie poza zakresem zostają **from/to** — dwa pola wielolinijkowe,
+  których miejsce jest w bibliotece; przy każdym elemencie byłyby ścianą tekstu.
+
+  **Przełączniki są trójstanowe**, nie zwykłymi checkboxami: „z biblioteki",
+  „Tak", „Nie". Checkbox ma dwa stany, a odznaczony znaczyłby „Nie" i odbierał
+  możliwość zwykłego dziedziczenia — jednocześnie nie dając rady **wyłączyć**
+  w elemencie czegoś, co w bibliotece jest włączone.
+
 ## [1.39.0] — 2026-08-07
 
 ### Dodane
