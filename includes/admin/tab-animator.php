@@ -133,6 +133,8 @@ $row_def    = $anim->row_defaults();
                 <div><label>Scrub (tylko scrub)</label><input type="number" step="0.1" min="0" max="5" name="evk_animator[animations][<?php echo $index; ?>][scrub]" value="<?php echo esc_attr($r['scrub']); ?>"></div>
                 <div><label title="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku.">Kolejność (krok, tylko load)</label><input type="number" step="1" min="0" max="999" name="evk_animator[animations][<?php echo $index; ?>][order]" value="<?php echo esc_attr($r['order']); ?>"></div>
                 <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][repeat]" value="1" <?php checked(!empty($r['repeat'])); ?>> Powtarzaj przy każdym wejściu</label></div>
+                <div><label class="checkbox-label" title="Animacja kręci się bez końca. To co innego niż „Powtarzaj przy każdym wejściu”, które odtwarza ją ponownie dopiero po powrocie elementu w kadr."><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][loop]" value="1" <?php checked(!empty($r['loop'])); ?>> Zapętl</label></div>
+                <div><label class="checkbox-label" title="Zamiast skakać do stanu początkowego, animacja wraca płynnie tam i z powrotem."><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][loop_yoyo]" value="1" <?php checked(!empty($r['loop_yoyo'])); ?>> Pętla z odbiciem</label></div>
                 <div>
                     <label>Cel animacji</label>
                     <select name="evk_animator[animations][<?php echo $index; ?>][targets]">
@@ -211,6 +213,8 @@ $row_def    = $anim->row_defaults();
             <div><label>Scrub (tylko scrub)</label><input type="number" step="0.1" min="0" max="5" name="evk_animator[animations][{INDEX}][scrub]" value="<?php echo esc_attr($row_def['scrub']); ?>"></div>
             <div><label title="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku.">Kolejność (krok, tylko load)</label><input type="number" step="1" min="0" max="999" name="evk_animator[animations][{INDEX}][order]" value="<?php echo esc_attr($row_def['order']); ?>"></div>
             <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][{INDEX}][repeat]" value="1"> Powtarzaj przy każdym wejściu</label></div>
+            <div><label class="checkbox-label" title="Animacja kręci się bez końca. To co innego niż „Powtarzaj przy każdym wejściu”, które odtwarza ją ponownie dopiero po powrocie elementu w kadr."><input type="checkbox" name="evk_animator[animations][{INDEX}][loop]" value="1"> Zapętl</label></div>
+            <div><label class="checkbox-label" title="Zamiast skakać do stanu początkowego, animacja wraca płynnie tam i z powrotem."><input type="checkbox" name="evk_animator[animations][{INDEX}][loop_yoyo]" value="1"> Pętla z odbiciem</label></div>
             <div>
                 <label>Cel animacji</label>
                 <select name="evk_animator[animations][{INDEX}][targets]">

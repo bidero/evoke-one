@@ -122,6 +122,11 @@
       start:    pick(attr.start, lib.start, 'top 85%'),
       end:      pick(attr.end, lib.end, 'bottom 40%'),
       repeat:   !!pick(attr.repeat, lib.repeat, false),
+      // Pętla to co innego niż 'repeat': tamto znaczy „odtwórz ponownie przy
+      // każdym wejściu w kadr", to — „kręć się bez końca". Nazwy zostają
+      // rozłączne, bo mieszanie ich w panelu byłoby nie do rozplątania.
+      loop:     !!pick(attr.loop, lib.loop, false),
+      loopYoyo: !!pick(attr.loopYoyo, lib.loop_yoyo, lib.loopYoyo, false),
       order:    num(pick(attr.order, lib.order), 0),
     };
   }
@@ -257,6 +262,10 @@
    * a przy powtarzaniu oś czasu jeszcze się cofa — tam czyszczenie psułoby efekt.
    */
   function cleansUp(cfg) {
+    // Pętla nigdy nie dobiega do końca, więc clearProps i tak by nie wystrzelił —
+    // ale zostawianie tu tej ścieżki byłoby miną: wystarczyłoby, żeby ktoś
+    // kiedyś dołożył pętli skończoną liczbę powtórzeń.
+    if (cfg.loop) return false;
     return !cfg.repeat && (cfg.trigger === 'viewport' || cfg.trigger === 'load');
   }
 
@@ -306,11 +315,15 @@
     var start = startVars(cfg);
 
     var tl = gsap.timeline({
-      delay: cfg.delay,
+      delay:  cfg.delay,
+      repeat: cfg.loop ? -1 : 0,
+      yoyo:   !!(cfg.loop && cfg.loopYoyo),
       scrollTrigger: {
         trigger:       el,
         start:         cfg.start,
-        once:          !cfg.repeat,
+        // Pętla nie może być „raz i koniec" — bez tego ScrollTrigger zabiłby
+        // wyzwalacz po pierwszym wejściu i przy powrocie do kadru nic by nie było.
+        once:          !cfg.loop && !cfg.repeat,
         toggleActions: cfg.repeat ? 'play reverse play reverse' : 'play none none none',
       },
     });
@@ -455,6 +468,20 @@
       // opóźnienia sumowały się z czasami trwania poprzednich animacji.
       // Ustawione 0 / 0,3 / 0,6 dawało starty 0 / 1,1 / 2,5.
       var pos = stepStart + cfg.delay;
+
+      // Zapętlone pozycje NIE mogą wejść do wspólnej osi. Dziecko z repeat:-1
+      // daje rodzicowi nieskończony czas trwania — zmierzone: master.duration()
+      // zwraca wtedy 1e10, wartownik nieskończoności GSAP-a. Kolejny krok
+      // sekwencji startowałby więc po dziesięciu miliardach sekund, czyli nigdy.
+      // Zapętlone dostają własną oś, odsuniętą o tę samą pozycję — sekwencja
+      // liczy się dalej tak, jakby ich w niej nie było.
+      if (cfg.loop) {
+        var solo = gsap.timeline({ repeat: -1, yoyo: !!cfg.loopYoyo, delay: pos });
+        if (start) solo.fromTo(item.targets, start, vars);
+        else       solo.to(item.targets, vars);
+        return;
+      }
+
       if (start) master.fromTo(item.targets, start, vars, pos);
       else       master.to(item.targets, vars, pos);
     });

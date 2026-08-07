@@ -43,6 +43,10 @@ class EVK_Animator {
         'end'      => 'bottom 40%',
         'scrub'    => 1,
         'repeat'   => 0,
+        // Pętla to co innego niż 'repeat'. Tamto znaczy „odtwórz ponownie przy
+        // każdym wejściu w kadr", to — „kręć się bez końca".
+        'loop'      => 0,
+        'loop_yoyo' => 0,
         'order'    => 0,
         // Cel animacji: sam element, jego dzieci albo selektor w środku.
         // Dopiero 'children'/'selector' nadaje sens polu 'stagger' poza tekstem.
@@ -182,7 +186,9 @@ class EVK_Animator {
                 'scrub'    => max(0.0,  min(5.0,  floatval($row['scrub']    ?? 1))),
                 'start'    => sanitize_text_field($row['start'] ?? 'top 85%'),
                 'end'      => sanitize_text_field($row['end']   ?? 'bottom 40%'),
-                'repeat'   => !empty($row['repeat']) ? 1 : 0,
+                'repeat'    => !empty($row['repeat'])    ? 1 : 0,
+                'loop'      => !empty($row['loop'])      ? 1 : 0,
+                'loop_yoyo' => !empty($row['loop_yoyo']) ? 1 : 0,
                 'order'    => max(0, min(999, intval($row['order'] ?? 0))),
                 'targets'  => in_array($row['targets'] ?? '', ['self', 'children', 'selector'], true)
                     ? $row['targets'] : 'self',

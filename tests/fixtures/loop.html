@@ -1,0 +1,67 @@
+<style>
+  body { margin: 0; font: 16px system-ui; }
+  .box { height: 50px; background: #345; color: #fff; margin: 6px; }
+</style>
+
+<div class="box" id="a">A</div>
+<div class="box" id="b">B</div>
+
+<script src="../../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../../node_modules/gsap/dist/ScrollTrigger.min.js"></script>
+<script>
+/* Odwzorowanie payloadu z includes/anim/animator.php.
+ *
+ *   ?mode=viewport  A zapętlona, B zwykła (kontrola)
+ *   ?mode=yoyo      A zapętlona z odbiciem
+ *   ?mode=queue     wyzwalacz „wczytanie strony": A zapętlona w kroku 0,
+ *                   B w kroku 1 — B MUSI ruszyć mimo zapętlonego poprzednika
+ */
+(function () {
+  var mode = new URLSearchParams(location.search).get('mode') || 'viewport';
+
+  var base = { preset: 'fade-up', duration: 0.4, stagger: 0, delay: 0, easing: 'none',
+               start: 'top 99%', end: 'bottom 40%', scrub: 1, repeat: 0, order: 0,
+               targets: 'self', selector: '', pin: 0 };
+
+  function row(extra) { return Object.assign({}, base, extra); }
+
+  var lib;
+  if (mode === 'queue') {
+    lib = {
+      a: row({ slug: 'a', trigger: 'load', loop: 1, order: 0 }),
+      b: row({ slug: 'b', trigger: 'load', order: 1 }),
+    };
+  } else {
+    lib = {
+      a: row({ slug: 'a', trigger: 'viewport', loop: 1, loop_yoyo: mode === 'yoyo' ? 1 : 0 }),
+      b: row({ slug: 'b', trigger: 'viewport' }),
+    };
+  }
+
+  document.getElementById('a').setAttribute('data-evk-anim', 'a');
+  document.getElementById('b').setAttribute('data-evk-anim', 'b');
+
+  window.evkAnimator = {
+    library: lib,
+    presets: { 'fade-up': { from: { opacity: 0, y: 40 }, to: { opacity: 1, y: 0 }, duration: 0.8 } },
+    reducedMotion: false, needsFonts: false,
+  };
+
+  window.__op = function () {
+    return ['a', 'b'].map(function (id) {
+      return +parseFloat(getComputedStyle(document.getElementById(id)).opacity).toFixed(3);
+    });
+  };
+
+  /* Konfiguracja osi czasu prosto z GSAP-a — sprawdzamy, co silnik ZBUDOWAŁ,
+   * a nie co powinien był zbudować. Rozróżnienie „pętla" od „pętla z odbiciem"
+   * po samym przebiegu opacity jest chwiejne; tu jest jednoznaczne.
+   */
+  window.__loops = function () {
+    return gsap.globalTimeline.getChildren(false, false, true)
+      .filter(function (t) { return typeof t.repeat === 'function' && t.repeat() === -1; })
+      .map(function (t) { return { yoyo: !!t.yoyo() }; });
+  };
+})();
+</script>
+<script src="../../assets/js/animator.js"></script>

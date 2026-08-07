@@ -2,6 +2,29 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.39.0] — 2026-08-07
+
+### Dodane
+
+- **Zapętlanie animacji.** Dwa nowe pola w wierszu biblioteki: **Zapętl**
+  i **Pętla z odbiciem**. Pierwsze puszcza animację bez końca, drugie sprawia,
+  że zamiast skakać do stanu początkowego wraca płynnie tam i z powrotem.
+
+  To **co innego niż „Powtarzaj przy każdym wejściu"**, które odtwarza animację
+  dopiero po powrocie elementu w kadr. Nazwy są rozłączne, żeby nie było
+  wątpliwości, które pole robi co.
+
+  Przy `prefers-reduced-motion` pętla **nie startuje wcale** — ruch ciągły jest
+  dokładnie tym, czego ta preferencja dotyczy. Treść zostaje widoczna w stanie
+  końcowym, jak przy pozostałych animacjach.
+
+  Uwaga o sekwencji startowej: zapętlona pozycja **wypada z rachunku kroków**
+  zamiast go zatrzymywać. Nieskończona animacja nie ma końca, na który dałoby
+  się czekać, więc kolejny krok rusza natychmiast. Wewnętrznie zapętlone
+  pozycje dostają własną oś czasu — wpuszczenie ich do wspólnej dałoby jej
+  czas trwania 1e10 (wartownik nieskończoności GSAP-a) i cała reszta sekwencji
+  stanęłaby po cichu na zawsze.
+
 ## [1.38.0] — 2026-08-06
 
 ### Dodane
