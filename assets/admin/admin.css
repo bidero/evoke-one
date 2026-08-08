@@ -1539,28 +1539,39 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     align-items: center;
     gap: 12px;
 }
-/* Scena podglądu.
+/* KADR podglądu — to on obcina, nie scena.
  *
- * `overflow: hidden` jest KONIECZNE: presety wjeżdżające z boku startują poza
- * pudełkiem i bez obcięcia rozpychałyby wiersz w poziomie.
- *
- * Bez elementów-dzieci w środku — to nie jest ozdoba, tylko warunek działania
- * efektów tekstowych: TextPlugin i ScrambleTextPlugin wpisują tekst przez
- * innerHTML, a na kontenerze z dziećmi silnik je odrzuca (textSafeTargets).
- * Stagger widać więc przy presetach dzielących tekst, nie przy „dzieciach".
+ * Domyślnym celem animacji jest „sam element", więc GSAP przesuwa SCENĘ.
+ * `overflow: hidden` na scenie obcina wyłącznie jej dzieci — samej siebie nie
+ * obetnie. Zmierzone przed poprawką: preset „fade z lewej" wypychał scenę
+ * 10 px poza wiersz przy 1200 px i 14 px przy 390 px, już 50 ms po starcie.
+ * Kadr jest nieruchomy i to w nim scena się chowa.
  */
-.evo-anim-preview-stage {
+.evo-anim-preview-frame {
     flex: 0 0 auto;
     width: 240px;
-    min-height: 68px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 14px;
+    height: 68px;
     overflow: hidden;
     background: var(--evo-surface);
     border: 1px dashed var(--evo-border-dash);
     border-radius: var(--evo-radius-md);
+}
+
+/* Scena — element, który realnie animujemy.
+ *
+ * Bez elementów-dzieci w środku: to nie ozdoba, tylko warunek działania efektów
+ * tekstowych. TextPlugin i ScrambleTextPlugin wpisują tekst przez innerHTML,
+ * a na kontenerze z dziećmi silnik je odrzuca (textSafeTargets). Stagger widać
+ * więc przy presetach dzielących tekst, nie przy celu „dzieci".
+ */
+.evo-anim-preview-stage {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    box-sizing: border-box;
     font-size: 14px;
     font-weight: 600;
     color: var(--evo-text);
@@ -1570,5 +1581,5 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 
 @media screen and (max-width: 600px) {
     .evo-anim-preview { flex-direction: column; align-items: stretch; }
-    .evo-anim-preview-stage { width: 100%; }
+    .evo-anim-preview-frame { width: 100%; }
 }

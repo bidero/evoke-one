@@ -704,9 +704,16 @@
               + '<span class="dashicons dashicons-controls-play"></span></button>')
                 .insertBefore($row.find('.evo-anim-row-header .evo-btn-remove'));
 
+            // Scena siedzi w KADRZE, który ją obcina. Przy domyślnym celu
+            // („sam element") GSAP animuje samą scenę, a `overflow: hidden`
+            // na niej obcina tylko jej dzieci — nie ją. Zmierzone: preset
+            // „fade z lewej" wypychał scenę 10 px poza wiersz na 1200 px
+            // i 14 px na 390 px, i to już 50 ms po starcie.
             $row.find('.evo-anim-grid').append(
                 '<div class="evo-anim-preview">'
-              +   '<div class="evo-anim-preview-stage">' + PREVIEW_SAMPLE + '</div>'
+              +   '<div class="evo-anim-preview-frame">'
+              +     '<div class="evo-anim-preview-stage">' + PREVIEW_SAMPLE + '</div>'
+              +   '</div>'
               +   '<span class="evo-anim-preview-note">Kliknij ▶, żeby odegrać.</span>'
               + '</div>');
         }

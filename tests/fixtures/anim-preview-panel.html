@@ -76,6 +76,32 @@ window.__ui = function () {
     });
 };
 
+/** Ile scena WIDOCZNIE wychodzi poza wiersz.
+ *
+ *  `getBoundingClientRect()` ignoruje obcięcie, więc sama geometria nic tu nie
+ *  mówi: scena zawsze „wystaje", bo GSAP ją przesuwa. Liczy się to, co widać —
+ *  czyli scena przycięta przez wszystkich przodków z `overflow: hidden`. */
+window.__overflowOut = function (i) {
+  var st  = document.querySelectorAll('.evo-anim-preview-stage')[i || 0];
+  var row = document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row')[i || 0];
+  var s = st.getBoundingClientRect(), o = row.getBoundingClientRect();
+  var left = -1e9, right = 1e9;
+  for (var n = st.parentElement; n; n = n.parentElement) {
+    if (getComputedStyle(n).overflowX === 'hidden') {
+      var c = n.getBoundingClientRect();
+      left  = Math.max(left, c.left);
+      right = Math.min(right, c.right);
+    }
+  }
+  return {
+    raw:     Math.round(Math.max(0, o.left - s.left, s.right - o.right)),
+    visible: Math.round(Math.max(0, o.left - Math.max(s.left, left),
+                                    Math.min(s.right, right) - o.right)),
+    docScroll: document.documentElement.scrollWidth,
+    win: window.innerWidth,
+  };
+};
+
 window.__stageState = function (i) {
   var st = document.querySelectorAll('.evo-anim-preview-stage')[i || 0];
   var s  = getComputedStyle(st);

@@ -242,5 +242,36 @@ module.exports = async function (t) {
     dur !== null && Math.abs(dur - 3) < 0.01,
     'czas trwania osi: ' + dur + ' (preset sam z siebie ma 0,8)');
 
+  // ── Podgląd nie wyjeżdża poza wiersz ──────────────────────────────────
+  // Domyślnym celem animacji jest „sam element", więc GSAP przesuwa SCENĘ —
+  // a `overflow: hidden` na niej obcina wyłącznie jej dzieci, nie ją samą.
+  // Zmierzone przed poprawką: „fade z lewej" wypychał ją 13 px poza wiersz.
+  // Dlatego scena siedzi w nieruchomym KADRZE, który ją obcina.
+  t.section('podgląd zostaje w swoim kadrze');
+
+  for (const width of [1200, 390]) {
+    const o = await t.open('anim-preview-panel.html', {
+      viewport: { width, height: 900 }, head: panelHead, settle: 250,
+    });
+
+    // Preset przesuwający w bok — statyczne „fade" niczego by nie pokazało.
+    await o.evaluate(() => window.__setField(0, 'preset', 'fade-left'));
+    await o.locator('.evo-anim-play').first().click();
+    await o.waitForTimeout(50);
+
+    const ov = await o.evaluate(() => window.__overflowOut(0));
+
+    // Kontrola sensowności: gdyby scena w ogóle się nie ruszała, „nic nie
+    // wystaje" byłoby prawdą bez żadnej zasługi kadru.
+    t.check(width + ' px — scena realnie się przesuwa', ov.raw > 0,
+      'geometria wychodzi ' + ov.raw + ' px poza wiersz');
+    t.check(width + ' px — ale nic z niej nie widać poza wierszem', ov.visible === 0,
+      'widoczne wyjście: ' + ov.visible + ' px');
+    t.check(width + ' px — strona nie przewija się w poziomie',
+      ov.docScroll <= ov.win + 1, ov.docScroll + ' vs ' + ov.win);
+
+    await o.close();
+  }
+
   await pan.close();
 };

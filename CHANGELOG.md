@@ -2,6 +2,30 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.47.1] — 2026-08-08
+
+### Naprawione
+
+- **Podgląd animacji wyjeżdżał poza wiersz** — zgłoszone z panelu, potwierdzone
+  pomiarem: preset „fade z lewej" wypychał scenę **13 px poza wiersz**, i to
+  już 50 ms po starcie. Tak samo na 1200 px, jak i na 390 px.
+
+  Przyczyna: domyślnym celem animacji jest **sam element**, więc GSAP przesuwa
+  scenę — a `overflow: hidden` na scenie obcina wyłącznie jej **dzieci**, nie
+  ją samą. Scena siedzi teraz w nieruchomym **kadrze**, który ją obcina.
+
+  Test mierzy to, co WIDAĆ: scenę przyciętą przez wszystkich przodków
+  z `overflow: hidden`. Sama geometria niczego by nie pokazała —
+  `getBoundingClientRect()` ignoruje obcięcie, więc scena „wystaje" zawsze.
+  Do pary idzie kontrola sensowności: gdyby scena w ogóle się nie ruszała,
+  „nic nie wystaje" byłoby prawdą bez zasługi kadru.
+
+- **Migotanie testu presetów najechania.** Sprawdzenie „po najechaniu nadal
+  wszystko widoczne" próbkowało stan po sztywnych 900 ms. W izolacji to
+  wystarczało, ale przy pełnym zestawie animacja bywała jeszcze w drodze.
+  Czekamy teraz na **warunek**, nie na zegar — a że usterka, której to
+  sprawdzenie broni, nie kończy się nigdy, czekanie niczego nie osłabia.
+
 ## [1.47.0] — 2026-08-08
 
 ### Dodane

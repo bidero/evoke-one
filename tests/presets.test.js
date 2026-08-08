@@ -234,7 +234,18 @@ module.exports = async function (t) {
     !Object.keys(rest).filter((k) => rest[k].visibility === 'hidden').length, 'ok');
 
   await hov.evaluate(() => window.__hoverAll());
-  await hov.waitForTimeout(900);
+
+  // Czekamy na WARUNEK, nie na zegar. Sztywne 900 ms wystarczało w izolacji,
+  // ale przy pełnym zestawie (kilkanaście równoległych przeglądarek) animacja
+  // najechania bywała jeszcze w drodze i sprawdzenie „nadal wszystko widoczne"
+  // migotało. Usterka, której to sprawdzenie broni — element zostający
+  // niewidoczny po najechaniu — nie kończy się NIGDY, więc czekanie na warunek
+  // niczego nie osłabia: przy realnym błędzie i tak upłynie termin.
+  await hov.waitForFunction(() => {
+    var s = window.__state();
+    return Object.keys(s).every(function (k) { return s[k].opacity >= 0.99; });
+  }, null, { timeout: 5000 }).catch(function () {});
+
   const after = await hov.evaluate(() => window.__state());
 
   t.check('uniesienie zmienia cień (lift)',
