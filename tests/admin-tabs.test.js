@@ -29,8 +29,25 @@ const FIELD = {
 const BTN_RADIUS = '7px';      // --evo-radius-btn
 const ACCENT     = [37, 99, 235];
 
+/**
+ * Boks sekcji — wzorzec z zakładki OpenGraph, przeniesiony do arkusza
+ * w 1.45.0. To on niesie „podział na boksy", o który chodziło.
+ */
+const BOX = {
+  bg:     'rgb(255, 255, 255)',     // --evo-bg
+  border: 'rgb(215, 221, 231) 1px', // --evo-border
+  radius: '8px',                    // --evo-radius-md
+};
+/* Nagłówek boksu jest ETYKIETĄ, nie tytułem: 11 px, 700, wersaliki.
+   Oryginał w tab-og.php miał `font-size` dwa razy (13 px, potem 11 px) —
+   wygrywała druga i taki kształt zostaje. */
+const BOX_TITLE = { size: '11px', weight: '700', transform: 'uppercase' };
+
 /** Zakładki objęte przemieceniem. Kolejne dopisujemy tu, gdy przejdą sweep. */
-const TABS = ['forminbox', 'a11y', 'darkmode', 'whitelabel'];
+const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel'];
+
+/** Zakładki, które mają już treść w boksach. */
+const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel'];
 
 module.exports = async function (t) {
   for (const slug of TABS) {
@@ -80,6 +97,30 @@ module.exports = async function (t) {
     const badPrim = prim.filter((b) => !near(rgb(b.bg), ACCENT, 2));
     t.check('przycisk główny w akcencie', !prim.length || !badPrim.length,
       badPrim.map((b) => b.bg).join(', ') || prim.length + ' szt.');
+
+    // ── Boksy sekcji ────────────────────────────────────────────────────
+    if (BOXED.includes(slug)) {
+      const boxes = await p.evaluate(() => window.__boxes());
+      t.check('są boksy sekcji', boxes.length > 0, boxes.length + ' szt.');
+
+      const badBox = boxes.filter((b) =>
+        b.bg !== BOX.bg || b.border !== BOX.border || b.radius !== BOX.radius);
+      t.check('boksy w jednym kształcie', !badBox.length,
+        badBox.slice(0, 3).map((b) => b.text + ': ' + b.bg + ' / ' + b.border + ' / ' + b.radius)
+          .join(' | ') || boxes.length + ' szt. zgodnych');
+
+      // Nagłówek jest częścią wzorca, nie ozdobą — bez wersalikowej etykiety
+      // boks jest tylko ramką wokół treści.
+      const titled = boxes.filter((b) => b.title);
+      t.check('każdy boks ma nagłówek', titled.length === boxes.length,
+        titled.length + ' z ' + boxes.length);
+      const badTitle = titled.filter((b) =>
+        b.title.size !== BOX_TITLE.size || b.title.weight !== BOX_TITLE.weight ||
+        b.title.transform !== BOX_TITLE.transform);
+      t.check('nagłówki jako wersalikowa etykieta', !badTitle.length,
+        badTitle.map((b) => b.text + ': ' + b.title.size + '/' + b.title.weight +
+          '/' + b.title.transform).join(' | ') || 'zgodne');
+    }
 
     // ── Kolory z palety, nie z atrybutu ─────────────────────────────────
     // Inline'owy `color:#6b7280` wygląda dziś tak samo jak token, ale przestaje

@@ -32,116 +32,122 @@ $row_def    = $anim->row_defaults();
         </div>
     </div>
 
-    <p class="evo-section-title">Zachowanie globalne</p>
-    <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
-        <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;flex-basis:280px;">
-            <input type="checkbox" name="evk_animator[reduced_motion]" value="1" <?php checked(!empty($a['reduced_motion'])); ?> style="margin-top:2px;">
-            <span>Szanuj „ogranicz ruch"<br><span style="font-weight:400;color:#6b7280;font-size:12px;">Przy <code>prefers-reduced-motion: reduce</code> element od razu dostaje stan końcowy, bez animacji.</span></span>
-        </label>
-        <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;flex-basis:280px;">
-            <input type="checkbox" name="evk_animator[builder_preview]" value="1" <?php checked(!empty($a['builder_preview'])); ?> style="margin-top:2px;">
-            <span>Animuj w builderze<br><span style="font-weight:400;color:#6b7280;font-size:12px;">Domyślnie wyłączone — animacje w canvasie utrudniają edycję.</span></span>
-        </label>
+    <div class="evo-box">
+        <h3>Zachowanie globalne</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
+            <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;flex-basis:280px;">
+                <input type="checkbox" name="evk_animator[reduced_motion]" value="1" <?php checked(!empty($a['reduced_motion'])); ?> style="margin-top:2px;">
+                <span>Szanuj „ogranicz ruch"<br><span style="font-weight:400;color:#6b7280;font-size:12px;">Przy <code>prefers-reduced-motion: reduce</code> element od razu dostaje stan końcowy, bez animacji.</span></span>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;flex-basis:280px;">
+                <input type="checkbox" name="evk_animator[builder_preview]" value="1" <?php checked(!empty($a['builder_preview'])); ?> style="margin-top:2px;">
+                <span>Animuj w builderze<br><span style="font-weight:400;color:#6b7280;font-size:12px;">Domyślnie wyłączone — animacje w canvasie utrudniają edycję.</span></span>
+            </label>
+        </div>
+
+
     </div>
 
-
-    <hr class="evo-divider">
-    <p class="evo-section-title">Biblioteka animacji</p>
-    <details class="evo-note">
-        <summary>Jak to działa</summary>
-        <div class="evo-note-body">
-            Każda animacja dostaje klasę <code>evk-anim-{slug}</code> — wpisz ją elementowi w Bricks
-            (Style → CSS → Classes). <strong>Slug jest kluczem</strong>: zmiana sluga zrywa powiązanie
-            z elementami, które go już używają. Nazwa służy tylko Tobie i można ją zmieniać dowolnie.
-            <br><br>Wiersze <strong>przeciągasz za nagłówek</strong>, a klikasz go, żeby zwinąć —
-            stan zwinięcia jest zapamiętywany. Kolejność wierszy jest wyłącznie porządkowa:
-            o sekwencji na stronie decyduje pole <strong>Kolejność</strong>.
-        </div>
-    </details>
-
-    <p id="evo-anim-order-note"></p>
-
-    <div id="evo-anim-repeater-container">
-        <?php foreach ($rows as $index => $raw):
-            $r = $anim->row_with_defaults((array) $raw); ?>
-        <div class="evo-anim-row">
-            <div class="evo-anim-row-header">
-                <div class="evo-anim-row-title">
-                    <span class="dashicons dashicons-arrow-down-alt2 evo-anim-caret" aria-hidden="true"></span><span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
-                    <?php echo $r['label'] !== '' ? esc_html($r['label']) : 'Animacja #' . ($index + 1); ?>
-                    <?php if ($r['slug'] !== ''): ?>
-                        <span class="evo-anim-class">.evk-anim-<?php echo esc_html($r['slug']); ?></span>
-                    <?php endif; ?>
-                </div>
-                <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-anim-row').remove()">
-                    <span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;"></span> Usuń
-                </button>
+    <div class="evo-box">
+        <h3>Biblioteka animacji</h3>
+        <details class="evo-note">
+            <summary>Jak to działa</summary>
+            <div class="evo-note-body">
+                Każda animacja dostaje klasę <code>evk-anim-{slug}</code> — wpisz ją elementowi w Bricks
+                (Style → CSS → Classes). <strong>Slug jest kluczem</strong>: zmiana sluga zrywa powiązanie
+                z elementami, które go już używają. Nazwa służy tylko Tobie i można ją zmieniać dowolnie.
+                <br><br>Wiersze <strong>przeciągasz za nagłówek</strong>, a klikasz go, żeby zwinąć —
+                stan zwinięcia jest zapamiętywany. Kolejność wierszy jest wyłącznie porządkowa:
+                o sekwencji na stronie decyduje pole <strong>Kolejność</strong>.
             </div>
-            <div class="evo-anim-grid">
-                <div><label>Nazwa</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][label]" value="<?php echo esc_attr($r['label']); ?>" placeholder="np. Nagłówki sekcji"></div>
-                <div><label>Slug (klasa)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][slug]" value="<?php echo esc_attr($r['slug']); ?>" placeholder="fade-up"></div>
-                <div>
-                    <label>Preset</label>
-                    <select name="evk_animator[animations][<?php echo $index; ?>][preset]">
-                        <?php foreach ($presets as $key => $p): ?>
-                        <option value="<?php echo esc_attr($key); ?>" <?php selected($r['preset'], $key); ?>><?php echo esc_html($p['label']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
+        </details>
+
+        <p id="evo-anim-order-note"></p>
+
+        <div id="evo-anim-repeater-container">
+            <?php foreach ($rows as $index => $raw):
+                $r = $anim->row_with_defaults((array) $raw); ?>
+            <div class="evo-anim-row">
+                <div class="evo-anim-row-header">
+                    <div class="evo-anim-row-title">
+                        <span class="dashicons dashicons-arrow-down-alt2 evo-anim-caret" aria-hidden="true"></span><span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
+                        <?php echo $r['label'] !== '' ? esc_html($r['label']) : 'Animacja #' . ($index + 1); ?>
+                        <?php if ($r['slug'] !== ''): ?>
+                            <span class="evo-anim-class">.evk-anim-<?php echo esc_html($r['slug']); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-anim-row').remove()">
+                        <span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;"></span> Usuń
+                    </button>
                 </div>
-                <div>
-                    <label>Wyzwalacz</label>
-                    <select name="evk_animator[animations][<?php echo $index; ?>][trigger]">
-                        <?php foreach ($triggers as $key => $label): ?>
-                        <option value="<?php echo esc_attr($key); ?>" <?php selected($r['trigger'], $key); ?>><?php echo esc_html($label); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div>
-                    <label>Easing</label>
-                    <select name="evk_animator[animations][<?php echo $index; ?>][easing]">
-                        <option value="" <?php selected($r['easing'], ''); ?>>— z presetu —</option>
-                        <?php foreach ($easings as $e): ?>
-                        <option value="<?php echo esc_attr($e); ?>" <?php selected($r['easing'], $e); ?>><?php echo esc_html($e); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div><label>Czas (s)</label><input type="number" step="0.05" min="0.05" max="10" name="evk_animator[animations][<?php echo $index; ?>][duration]" value="<?php echo esc_attr($r['duration']); ?>" placeholder="z presetu"></div>
-                <div><label>Opóźnienie (s)</label><input type="number" step="0.05" min="0" max="10" name="evk_animator[animations][<?php echo $index; ?>][delay]" value="<?php echo esc_attr($r['delay']); ?>"></div>
-                <div><label>Stagger (s)</label><input type="number" step="0.005" min="0" max="2" name="evk_animator[animations][<?php echo $index; ?>][stagger]" value="<?php echo esc_attr($r['stagger']); ?>" placeholder="z presetu"></div>
-                <div><label>Start (ScrollTrigger)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][start]" value="<?php echo esc_attr($r['start']); ?>" placeholder="top 85%"></div>
-                <div><label>End (tylko scrub)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][end]" value="<?php echo esc_attr($r['end']); ?>" placeholder="bottom 40%"></div>
-                <div><label>Scrub (tylko scrub)</label><input type="number" step="0.1" min="0" max="5" name="evk_animator[animations][<?php echo $index; ?>][scrub]" value="<?php echo esc_attr($r['scrub']); ?>"></div>
-                <div><label>Kolejność<span class="evo-tip" tabindex="0" role="note" data-tip="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku." aria-label="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku.">?</span></label><input type="number" step="1" min="0" max="999" name="evk_animator[animations][<?php echo $index; ?>][order]" value="<?php echo esc_attr($r['order']); ?>"></div>
-                <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][repeat]" value="1" <?php checked(!empty($r['repeat'])); ?>> Powtarzaj przy każdym wejściu</label></div>
-                <div><label class="checkbox-label" title="Animacja kręci się bez końca. To co innego niż „Powtarzaj przy każdym wejściu”, które odtwarza ją ponownie dopiero po powrocie elementu w kadr."><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][loop]" value="1" <?php checked(!empty($r['loop'])); ?>> Zapętl</label></div>
-                <div><label class="checkbox-label" title="Zamiast skakać do stanu początkowego, animacja wraca płynnie tam i z powrotem."><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][loop_yoyo]" value="1" <?php checked(!empty($r['loop_yoyo'])); ?>> Pętla z odbiciem</label></div>
-                <div>
-                    <label>Cel animacji</label>
-                    <select name="evk_animator[animations][<?php echo $index; ?>][targets]">
-                        <option value="self"<?php selected($r['targets'],'self'); ?>>Sam element</option>
-                        <option value="children"<?php selected($r['targets'],'children'); ?>>Dzieci elementu</option>
-                        <option value="selector"<?php selected($r['targets'],'selector'); ?>>Selektor w środku</option>
-                    </select>
-                </div>
-                <div><label>Selektor (gdy wybrany)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][selector]" value="<?php echo esc_attr($r['selector']); ?>" placeholder=".karta"></div>
-                <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][pin]" value="1" <?php checked(!empty($r['pin'])); ?>> Pin (tylko scrub)</label></div>
-                <details class="evo-note" style="grid-column:1/-1"><summary>Własne from/to</summary><div class="evo-note-body">Po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div></details>
-                <div class="evo-anim-fromto">
-                    <div><label>from (stan początkowy)</label><textarea name="evk_animator[animations][<?php echo $index; ?>][from]" placeholder="opacity: 0&#10;y: 40"><?php echo esc_textarea($r['from']); ?></textarea></div>
-                    <div><label>to (stan końcowy)</label><textarea name="evk_animator[animations][<?php echo $index; ?>][to]" placeholder="opacity: 1&#10;y: 0"><?php echo esc_textarea($r['to']); ?></textarea></div>
-                </div>
-                <details class="evo-note" style="grid-column:1/-1"><summary>Lista słów</summary><div class="evo-note-body">Działa wyłącznie z presetem <em>Tekst: zmieniające się słowa</em> — po jednym słowie na linię, maksymalnie 20. Pole <strong>Czas</strong> steruje wtedy samym przejściem; każde słowo stoi 1,4 s.</div></details>
-                <div class="evo-anim-fromto">
-                    <div><label>Słowa (tylko preset „zmieniające się słowa")</label><textarea name="evk_animator[animations][<?php echo $index; ?>][words]" placeholder="szybciej&#10;prościej&#10;taniej"><?php echo esc_textarea($r['words']); ?></textarea></div>
+                <div class="evo-anim-grid">
+                    <div><label>Nazwa</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][label]" value="<?php echo esc_attr($r['label']); ?>" placeholder="np. Nagłówki sekcji"></div>
+                    <div><label>Slug (klasa)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][slug]" value="<?php echo esc_attr($r['slug']); ?>" placeholder="fade-up"></div>
+                    <div>
+                        <label>Preset</label>
+                        <select name="evk_animator[animations][<?php echo $index; ?>][preset]">
+                            <?php foreach ($presets as $key => $p): ?>
+                            <option value="<?php echo esc_attr($key); ?>" <?php selected($r['preset'], $key); ?>><?php echo esc_html($p['label']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Wyzwalacz</label>
+                        <select name="evk_animator[animations][<?php echo $index; ?>][trigger]">
+                            <?php foreach ($triggers as $key => $label): ?>
+                            <option value="<?php echo esc_attr($key); ?>" <?php selected($r['trigger'], $key); ?>><?php echo esc_html($label); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Easing</label>
+                        <select name="evk_animator[animations][<?php echo $index; ?>][easing]">
+                            <option value="" <?php selected($r['easing'], ''); ?>>— z presetu —</option>
+                            <?php foreach ($easings as $e): ?>
+                            <option value="<?php echo esc_attr($e); ?>" <?php selected($r['easing'], $e); ?>><?php echo esc_html($e); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div><label>Czas (s)</label><input type="number" step="0.05" min="0.05" max="10" name="evk_animator[animations][<?php echo $index; ?>][duration]" value="<?php echo esc_attr($r['duration']); ?>" placeholder="z presetu"></div>
+                    <div><label>Opóźnienie (s)</label><input type="number" step="0.05" min="0" max="10" name="evk_animator[animations][<?php echo $index; ?>][delay]" value="<?php echo esc_attr($r['delay']); ?>"></div>
+                    <div><label>Stagger (s)</label><input type="number" step="0.005" min="0" max="2" name="evk_animator[animations][<?php echo $index; ?>][stagger]" value="<?php echo esc_attr($r['stagger']); ?>" placeholder="z presetu"></div>
+                    <div><label>Start (ScrollTrigger)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][start]" value="<?php echo esc_attr($r['start']); ?>" placeholder="top 85%"></div>
+                    <div><label>End (tylko scrub)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][end]" value="<?php echo esc_attr($r['end']); ?>" placeholder="bottom 40%"></div>
+                    <div><label>Scrub (tylko scrub)</label><input type="number" step="0.1" min="0" max="5" name="evk_animator[animations][<?php echo $index; ?>][scrub]" value="<?php echo esc_attr($r['scrub']); ?>"></div>
+                    <div><label>Kolejność<span class="evo-tip" tabindex="0" role="note" data-tip="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku." aria-label="Krok sekwencji startowej: ten sam numer = razem, wyższy = dopiero po zakończeniu poprzedniego kroku. Opóźnienie liczy się od początku swojego kroku.">?</span></label><input type="number" step="1" min="0" max="999" name="evk_animator[animations][<?php echo $index; ?>][order]" value="<?php echo esc_attr($r['order']); ?>"></div>
+                    <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][repeat]" value="1" <?php checked(!empty($r['repeat'])); ?>> Powtarzaj przy każdym wejściu</label></div>
+                    <div><label class="checkbox-label" title="Animacja kręci się bez końca. To co innego niż „Powtarzaj przy każdym wejściu”, które odtwarza ją ponownie dopiero po powrocie elementu w kadr."><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][loop]" value="1" <?php checked(!empty($r['loop'])); ?>> Zapętl</label></div>
+                    <div><label class="checkbox-label" title="Zamiast skakać do stanu początkowego, animacja wraca płynnie tam i z powrotem."><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][loop_yoyo]" value="1" <?php checked(!empty($r['loop_yoyo'])); ?>> Pętla z odbiciem</label></div>
+                    <div>
+                        <label>Cel animacji</label>
+                        <select name="evk_animator[animations][<?php echo $index; ?>][targets]">
+                            <option value="self"<?php selected($r['targets'],'self'); ?>>Sam element</option>
+                            <option value="children"<?php selected($r['targets'],'children'); ?>>Dzieci elementu</option>
+                            <option value="selector"<?php selected($r['targets'],'selector'); ?>>Selektor w środku</option>
+                        </select>
+                    </div>
+                    <div><label>Selektor (gdy wybrany)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][selector]" value="<?php echo esc_attr($r['selector']); ?>" placeholder=".karta"></div>
+                    <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][pin]" value="1" <?php checked(!empty($r['pin'])); ?>> Pin (tylko scrub)</label></div>
+                    <details class="evo-note" style="grid-column:1/-1"><summary>Własne from/to</summary><div class="evo-note-body">Po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div></details>
+                    <div class="evo-anim-fromto">
+                        <div><label>from (stan początkowy)</label><textarea name="evk_animator[animations][<?php echo $index; ?>][from]" placeholder="opacity: 0&#10;y: 40"><?php echo esc_textarea($r['from']); ?></textarea></div>
+                        <div><label>to (stan końcowy)</label><textarea name="evk_animator[animations][<?php echo $index; ?>][to]" placeholder="opacity: 1&#10;y: 0"><?php echo esc_textarea($r['to']); ?></textarea></div>
+                    </div>
+                    <details class="evo-note" style="grid-column:1/-1"><summary>Lista słów</summary><div class="evo-note-body">Działa wyłącznie z presetem <em>Tekst: zmieniające się słowa</em> — po jednym słowie na linię, maksymalnie 20. Pole <strong>Czas</strong> steruje wtedy samym przejściem; każde słowo stoi 1,4 s.</div></details>
+                    <div class="evo-anim-fromto">
+                        <div><label>Słowa (tylko preset „zmieniające się słowa")</label><textarea name="evk_animator[animations][<?php echo $index; ?>][words]" placeholder="szybciej&#10;prościej&#10;taniej"><?php echo esc_textarea($r['words']); ?></textarea></div>
+                    </div>
                 </div>
             </div>
+            <?php endforeach; ?>
         </div>
-        <?php endforeach; ?>
+
+        <button type="button" class="button" onclick="evkAddAnimRow()">+ Dodaj animację</button>
+
+    
     </div>
 
-    <button type="button" class="button" onclick="evkAddAnimRow()">+ Dodaj animację</button>
-
-    <div class="evo-save-bar">
+<div class="evo-save-bar">
         <?php submit_button('Zapisz bibliotekę animacji', 'primary', 'submit', false); ?>
     </div>
 </form>

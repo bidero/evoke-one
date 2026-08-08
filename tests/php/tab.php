@@ -62,6 +62,24 @@ function number_format_i18n($n, $d = 0) { return number_format((float) $n, $d, '
 function size_format($b, $d = 0) { return $b . ' B'; }
 function get_locale() { return 'pl_PL'; }
 function plugins_url($p = '', $f = '') { return 'https://example.test/wp-content/plugins/evoke-one/' . ltrim($p, '/'); }
+function get_post_types($args = [], $output = 'names') {
+    // Dwa typy wystarczą: zakładki rysują po jednym polu na typ, a chodzi
+    // o to, żeby pętla w ogóle się wykonała.
+    $mk = function ($name, $label, $one) {
+        return (object) [
+            'name'   => $name,
+            'label'  => $label,
+            'public' => true,
+            // Zakładki sięgają po `->labels->singular_name`; bez tego PHP sypie
+            // ostrzeżeniami PROSTO W RENDEROWANY MARKUP, a test mierzyłby stronę
+            // z komunikatami błędów wmieszanymi w treść.
+            'labels' => (object) ['name' => $label, 'singular_name' => $one],
+        ];
+    };
+    return ['post' => $mk('post', 'Wpisy', 'Wpis'), 'page' => $mk('page', 'Strony', 'Strona')];
+}
+function wp_get_attachment_image_url($id, $size = 'thumbnail') { return 'https://example.test/obraz.jpg'; }
+function wp_upload_dir() { return ['basedir' => '/tmp', 'baseurl' => 'https://example.test/uploads']; }
 
 /** Atrapa $wpdb — tyle, ile potrzeba, by zakładka narysowała tabelę. */
 $GLOBALS['wpdb'] = new class {
@@ -102,6 +120,19 @@ $TABS = [
         'module' => 'includes/93-darkmode.php',
         'file'   => 'includes/admin/tab-darkmode.php',
         'seed'   => function () { $GLOBALS['options']['evk_darkmode'] = ['enabled' => 1]; },
+    ],
+    'og' => [
+        'module' => 'includes/opengraph/settings.php',
+        'file'   => 'includes/admin/seo/tab-og.php',
+        'seed'   => function () {
+            $GLOBALS['options']['evk_og'] = [
+                'enabled' => 1,
+                'layers'  => [
+                    ['type' => 'rect', 'enabled' => 1, 'color' => '#111827'],
+                    ['type' => 'text', 'enabled' => 1, 'color' => '#ffffff'],
+                ],
+            ];
+        },
     ],
     'whitelabel' => [
         'module' => 'includes/interface/white-label.php',

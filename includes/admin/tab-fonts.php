@@ -35,53 +35,59 @@ $detected = EVK_Fonts::detect_local_fonts();
                     (nagłówki, tekst główne) — preload wszystkich plików spowalnia start.
                 </div></div>
 
-                <p class="evo-section-title">Pliki czcionek do preload</p>
-                <div class="evo-field">
-                    <label>URL-e plików .woff2 / .woff (jeden na linię)</label>
-                    <textarea name="evk_fonts[preload]" rows="5" style="max-width:640px;font-family:monospace;font-size:12px;" placeholder="/wp-content/uploads/fonts/inter-regular.woff2&#10;/wp-content/uploads/fonts/inter-600.woff2"><?php echo esc_textarea($f['preload']); ?></textarea>
-                    <div class="evo-desc">Ścieżka względna (od „/") lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy <code>crossorigin</code> i właściwy typ MIME automatycznie.</div>
-                </div>
+                <div class="evo-box">
+                    <h3>Pliki czcionek do preload</h3>
+                    <div class="evo-field">
+                        <label>URL-e plików .woff2 / .woff (jeden na linię)</label>
+                        <textarea name="evk_fonts[preload]" rows="5" style="max-width:640px;font-family:monospace;font-size:12px;" placeholder="/wp-content/uploads/fonts/inter-regular.woff2&#10;/wp-content/uploads/fonts/inter-600.woff2"><?php echo esc_textarea($f['preload']); ?></textarea>
+                        <div class="evo-desc">Ścieżka względna (od „/") lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy <code>crossorigin</code> i właściwy typ MIME automatycznie.</div>
+                    </div>
 
-                <?php if (!empty($detected)): ?>
-                <div class="evo-info-box" style="align-items:flex-start;">
-                    <span class="dashicons dashicons-search"></span>
-                    <div style="flex:1;">
-                        <strong>Wykryte lokalne czcionki (.woff2)</strong> — kliknij, aby dopisać do pola powyżej:
-                        <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
-                        <?php foreach ($detected as $url):
-                            $rel = str_replace(home_url(), '', $url); ?>
-                            <a href="#" class="evk-font-suggest" data-url="<?php echo esc_attr($rel); ?>" style="font-family:monospace;font-size:12px;text-decoration:none;"><span class="dashicons dashicons-plus-alt2" style="font-size:13px;width:13px;height:13px;vertical-align:middle;"></span> <?php echo esc_html($rel); ?></a>
-                        <?php endforeach; ?>
+                    <?php if (!empty($detected)): ?>
+                    <div class="evo-info-box" style="align-items:flex-start;">
+                        <span class="dashicons dashicons-search"></span>
+                        <div style="flex:1;">
+                            <strong>Wykryte lokalne czcionki (.woff2)</strong> — kliknij, aby dopisać do pola powyżej:
+                            <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+                            <?php foreach ($detected as $url):
+                                $rel = str_replace(home_url(), '', $url); ?>
+                                <a href="#" class="evk-font-suggest" data-url="<?php echo esc_attr($rel); ?>" style="font-family:monospace;font-size:12px;text-decoration:none;"><span class="dashicons dashicons-plus-alt2" style="font-size:13px;width:13px;height:13px;vertical-align:middle;"></span> <?php echo esc_html($rel); ?></a>
+                            <?php endforeach; ?>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <script>
-                (function(){
-                    var ta = document.querySelector('textarea[name="evk_fonts[preload]"]');
-                    document.querySelectorAll('.evk-font-suggest').forEach(function(a){
-                        a.addEventListener('click', function(e){
-                            e.preventDefault();
-                            var url = a.getAttribute('data-url');
-                            var cur = ta.value.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean);
-                            if (cur.indexOf(url) === -1) { cur.push(url); ta.value = cur.join('\n'); }
-                            a.style.opacity = '0.45';
+                    <script>
+                    (function(){
+                        var ta = document.querySelector('textarea[name="evk_fonts[preload]"]');
+                        document.querySelectorAll('.evk-font-suggest').forEach(function(a){
+                            a.addEventListener('click', function(e){
+                                e.preventDefault();
+                                var url = a.getAttribute('data-url');
+                                var cur = ta.value.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean);
+                                if (cur.indexOf(url) === -1) { cur.push(url); ta.value = cur.join('\n'); }
+                                a.style.opacity = '0.45';
+                            });
                         });
-                    });
-                })();
-                </script>
-                <?php else: ?>
-                <div class="evo-desc" style="margin-bottom:16px;">Nie znaleziono plików czcionek w typowych folderach (uploads/fonts, omgf, …). URL czcionki znajdziesz w DevTools przeglądarki: zakładka <em>Sieć/Network</em> → filtr <em>Font</em> → skopiuj adres pliku .woff2.</div>
-                <?php endif; ?>
+                    })();
+                    </script>
+                    <?php else: ?>
+                    <div class="evo-desc" style="margin-bottom:16px;">Nie znaleziono plików czcionek w typowych folderach (uploads/fonts, omgf, …). URL czcionki znajdziesz w DevTools przeglądarki: zakładka <em>Sieć/Network</em> → filtr <em>Font</em> → skopiuj adres pliku .woff2.</div>
+                    <?php endif; ?>
 
-                <hr class="evo-divider">
-                <p class="evo-section-title">Preconnect (opcjonalnie)</p>
-                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Tylko jeśli czcionki są serwowane z <strong>zewnętrznego</strong> hosta/CDN (nie z Twojej domeny). Dla w pełni lokalnych czcionek zostaw puste.</div></div>
-                <div class="evo-field">
-                    <label>Hosty do preconnect (jeden na linię)</label>
-                    <textarea name="evk_fonts[preconnect]" rows="2" style="max-width:480px;font-family:monospace;font-size:12px;" placeholder="https://fonts.gstatic.com"><?php echo esc_textarea($f['preconnect']); ?></textarea>
                 </div>
 
-                <div class="evo-save-bar">
+                <div class="evo-box">
+                    <h3>Preconnect (opcjonalnie)</h3>
+                    <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Tylko jeśli czcionki są serwowane z <strong>zewnętrznego</strong> hosta/CDN (nie z Twojej domeny). Dla w pełni lokalnych czcionek zostaw puste.</div></div>
+                    <div class="evo-field">
+                        <label>Hosty do preconnect (jeden na linię)</label>
+                        <textarea name="evk_fonts[preconnect]" rows="2" style="max-width:480px;font-family:monospace;font-size:12px;" placeholder="https://fonts.gstatic.com"><?php echo esc_textarea($f['preconnect']); ?></textarea>
+                    </div>
+
+                
+                </div>
+
+<div class="evo-save-bar">
                     <?php submit_button('Zapisz ustawienia czcionek', 'primary', 'submit', false); ?>
                 </div>
             </form>

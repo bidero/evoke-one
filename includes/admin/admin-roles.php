@@ -34,69 +34,78 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
 
         <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;">
             <div>
-                <p class="evo-section-title">Uprawnienia (capabilities)</p>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px;max-height:400px;overflow-y:auto;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px;">
-                    <?php foreach ($all_caps as $cap): ?>
-                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:2px;">
-                        <input type="checkbox" name="capabilities[<?php echo esc_attr($cap); ?>]" value="1"
-                               <?php checked(in_array($cap, $has_caps, true)); ?>>
-                        <code style="font-size:11px;"><?php echo esc_html($cap); ?></code>
-                    </label>
-                    <?php endforeach; ?>
+                <div class="evo-box">
+                    <h3>Uprawnienia (capabilities)</h3>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px;max-height:400px;overflow-y:auto;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px;">
+                        <?php foreach ($all_caps as $cap): ?>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:2px;">
+                            <input type="checkbox" name="capabilities[<?php echo esc_attr($cap); ?>]" value="1"
+                                   <?php checked(in_array($cap, $has_caps, true)); ?>>
+                            <code style="font-size:11px;"><?php echo esc_html($cap); ?></code>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div>
+                </div>
+
+                <div class="evo-box">
+                    <h3>Ograniczenie edycji stron</h3>
+                    <p style="font-size:12px;color:#6b7280;">Zostaw puste = dostęp do wszystkich. Zaznacz = tylko te strony.</p>
+                    <div style="max-height:300px;overflow-y:auto;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px;">
+                        <?php foreach ($pages as $page): ?>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:3px;">
+                            <input type="checkbox" name="page_restrictions[]" value="<?php echo $page->ID; ?>"
+                                   <?php checked(in_array($page->ID, $restrict, true)); ?>>
+                            <?php echo esc_html($page->post_title); ?>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
-            <div>
-                <p class="evo-section-title">Ograniczenie edycji stron</p>
-                <p style="font-size:12px;color:#6b7280;">Zostaw puste = dostęp do wszystkich. Zaznacz = tylko te strony.</p>
-                <div style="max-height:300px;overflow-y:auto;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px;">
-                    <?php foreach ($pages as $page): ?>
-                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:3px;">
-                        <input type="checkbox" name="page_restrictions[]" value="<?php echo $page->ID; ?>"
-                               <?php checked(in_array($page->ID, $restrict, true)); ?>>
-                        <?php echo esc_html($page->post_title); ?>
-                    </label>
-                    <?php endforeach; ?>
                 </div>
+
+        <div class="evo-box">
+            <h3 style="margin-top:24px;">Dostęp do Evoke ONE</h3>
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;margin-bottom:20px;display:flex;flex-direction:column;gap:10px;">
+                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                    <input type="checkbox" name="evk_tl_access" value="1"
+                           <?php checked($role->has_cap('evk_access_translations')); ?>>
+                    <div>
+                        <span style="font-weight:500;">Tłumaczenia</span>
+                        <div class="evo-desc" style="margin-top:2px;">Rola może otwierać i edytować tłumaczenia.</div>
+                    </div>
+                </label>
+                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                    <input type="checkbox" name="evk_nl_access" value="1"
+                           <?php checked($role->has_cap('evk_access_newsletter')); ?>>
+                    <div>
+                        <span style="font-weight:500;">Newsletter</span>
+                        <div class="evo-desc" style="margin-top:2px;">Rola może zarządzać listami, szablonami i kampaniami newslettera.</div>
+                    </div>
+                </label>
+                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                    <input type="checkbox" name="evk_msg_access" value="1"
+                           <?php checked($role->has_cap('evk_access_messages')); ?>>
+                    <div>
+                        <span style="font-weight:500;">Wiadomości</span>
+                        <div class="evo-desc" style="margin-top:2px;">Rola może otwierać i czytać skrzynkę wiadomości z formularzy.</div>
+                    </div>
+                </label>
+                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                    <input type="checkbox" name="evk_maint_access" value="1"
+                           <?php checked($role->has_cap('evk_access_maintenance')); ?>>
+                    <div>
+                        <span style="font-weight:500;">Tryb konserwacji</span>
+                        <div class="evo-desc" style="margin-top:2px;">Rola może włączać i wyłączać tryb konserwacji z paska administratora.</div>
+                    </div>
+                </label>
             </div>
+
+        
         </div>
 
-        <p class="evo-section-title" style="margin-top:24px;">Dostęp do Evoke ONE</p>
-        <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;margin-bottom:20px;display:flex;flex-direction:column;gap:10px;">
-            <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" name="evk_tl_access" value="1"
-                       <?php checked($role->has_cap('evk_access_translations')); ?>>
-                <div>
-                    <span style="font-weight:500;">Tłumaczenia</span>
-                    <div class="evo-desc" style="margin-top:2px;">Rola może otwierać i edytować tłumaczenia.</div>
-                </div>
-            </label>
-            <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" name="evk_nl_access" value="1"
-                       <?php checked($role->has_cap('evk_access_newsletter')); ?>>
-                <div>
-                    <span style="font-weight:500;">Newsletter</span>
-                    <div class="evo-desc" style="margin-top:2px;">Rola może zarządzać listami, szablonami i kampaniami newslettera.</div>
-                </div>
-            </label>
-            <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" name="evk_msg_access" value="1"
-                       <?php checked($role->has_cap('evk_access_messages')); ?>>
-                <div>
-                    <span style="font-weight:500;">Wiadomości</span>
-                    <div class="evo-desc" style="margin-top:2px;">Rola może otwierać i czytać skrzynkę wiadomości z formularzy.</div>
-                </div>
-            </label>
-            <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
-                <input type="checkbox" name="evk_maint_access" value="1"
-                       <?php checked($role->has_cap('evk_access_maintenance')); ?>>
-                <div>
-                    <span style="font-weight:500;">Tryb konserwacji</span>
-                    <div class="evo-desc" style="margin-top:2px;">Rola może włączać i wyłączać tryb konserwacji z paska administratora.</div>
-                </div>
-            </label>
-        </div>
-
-        <div class="evo-save-bar"><?php submit_button('Zapisz rolę', 'primary', 'submit', false); ?></div>
+<div class="evo-save-bar"><?php submit_button('Zapisz rolę', 'primary', 'submit', false); ?></div>
     </form>
 
 <?php elseif ($action === 'add'): ?>

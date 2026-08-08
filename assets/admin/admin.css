@@ -103,7 +103,6 @@
 .evo-toggle-label { font-size: 13px; font-weight: 500; color: var(--evo-text-soft); }
 
 /* Section headings and fields */
-.evo-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--evo-text-dim); margin: 0 0 14px; }
 .evo-field { margin-bottom: 20px; }
 .evo-field label { display: block; font-size: 13px; font-weight: 600; color: var(--evo-text); margin-bottom: 5px; }
 .evo-field .evo-desc { font-size: 12px; color: var(--evo-text-muted); margin-top: 5px; line-height: 1.5; }
@@ -1347,7 +1346,6 @@
 .evk-acc[open] > summary { border-bottom: 1px solid var(--evo-border-soft); }
 .evk-acc[open] > summary::after { transform: rotate(180deg); }
 .evk-acc-body { padding: 18px; }
-.evk-acc-body .evo-section-title:first-child { margin-top: 0; }
 
 /* Pole „Własny CSS" — edytorskie, nie jednoliniowe. */
 .evo-panel .evk-wl-css-area {
@@ -1398,3 +1396,103 @@
 .evk-color-reset.is-set   { opacity: 1;  color: var(--evo-accent) !important; }
 .evk-color-reset.is-reset { opacity: .7; color: var(--evo-danger) !important; text-decoration: line-through; }
 input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-danger); }
+
+/* =========================================================================
+   BOKS SEKCJI — wzorzec przeniesiony z zakładki OpenGraph
+   =========================================================================
+   Zakładka OG rysowała treść w białych boksach z wersalikowym nagłówkiem
+   i to ona wyglądała najlepiej z całego panelu. Reguła siedziała w lokalnym
+   bloku <style>, więc obowiązywała jedną zakładkę i nikt inny nie mógł jej
+   użyć — a blok stał w dokumencie PO arkuszu i wygrywał przy równej
+   specyficzności (ta sama pułapka co w Animatorze w 1.43.0).
+
+   Uwaga przy przenoszeniu: oryginał miał `font-size` w `h3` DWA RAZY (13px,
+   potem 11px). Wygrywała druga, więc nagłówki są 11px — i takie zostają.
+   ========================================================================= */
+
+.evo-box {
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    background: var(--evo-bg);
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius-md);
+}
+.evo-box > h3,
+.evo-box > .evo-box-title {
+    margin: 0 0 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--evo-text);
+}
+/* Dopisek w nagłówku boksu — zdanie, nie etykieta. */
+.evo-box > h3 .evo-box-note,
+.evo-box > .evo-box-title .evo-box-note {
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--evo-text-muted);
+}
+/* Wariant przygaszony — boks wewnątrz boksu albo wiersz repeatera. */
+.evo-box.is-sunken { background: var(--evo-surface); }
+/* Boks bezpośrednio przed paskiem zapisu nie potrzebuje dolnego marginesu. */
+.evo-box:last-of-type { margin-bottom: 0; }
+
+/* ── Generator OG: warstwy (przeniesione z <style> w zakładce) ── */
+.evo-og-layer {
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    background: var(--evo-surface);
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius-md);
+}
+.evo-og-layer-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--evo-border-soft);
+    cursor: grab;
+}
+.evo-og-layer-header:active { cursor: grabbing; }
+.evo-og-layer-header .drag-handle { color: var(--evo-text-faint); font-size: 18px; line-height: 1; user-select: none; }
+.evo-og-layer-header .layer-toggle { flex-shrink: 0; }
+.evo-og-layer-title { flex: 1; font-size: 13px; font-weight: 600; color: var(--evo-text); }
+.evo-og-layer-type-badge {
+    padding: 2px 8px;
+    background: var(--evo-surface-alt);
+    border-radius: 10px;
+    font-size: 11px;
+    color: var(--evo-text-muted);
+}
+.evo-og-layer-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.evo-og-layer-fields label { display: block; margin-bottom: 3px; font-size: 12px; font-weight: 600; color: var(--evo-text-soft); }
+.evo-og-color-pair { display: flex; align-items: center; gap: 8px; }
+.evo-panel .evo-og-color-pair input[type=text] { max-width: 100px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.evo-og-btn-remove {
+    display: flex; align-items: center; gap: 4px;
+    padding: 0; border: none; background: none;
+    font-size: 12px; color: var(--evo-danger); cursor: pointer;
+}
+.evo-og-btn-remove:hover { color: var(--evo-danger-dark); text-decoration: underline; }
+.evo-og-regen-result { display: none; margin-top: 8px; font-size: 13px; color: #047857; }
+.evo-og-full { grid-column: 1 / -1; }
+.evo-og-media-row { display: flex; align-items: center; gap: 8px; }
+.evo-og-media-row img { max-height: 40px; max-width: 80px; object-fit: contain; border: 1px solid var(--evo-border-soft); border-radius: 4px; }
+
+/* ── Ramka informacyjna: wariant błędu (do pary z .is-ok / .is-warn) ── */
+.evo-info-box.is-err { background: var(--evo-danger-soft); border-color: #fca5a5; }
+.evo-info-box.is-err .dashicons { color: var(--evo-danger); }
+
+/* ── Drobiazgi z zakładki OpenGraph, przydatne szerzej ── */
+.evo-hint-soft { color: var(--evo-text-soft); }
+/* Ikona prowadząca zdanie — siada na linii tekstu, nie nad nią. */
+.evo-ico-lead  { vertical-align: text-bottom; margin-right: 4px; }
+/* Kreska nad grupą pól wewnątrz boksu. */
+.evo-hr-top    { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--evo-border-soft); }
+/* Miniatura wybranego obrazu. */
+.evo-thumb     { max-height: 40px; max-width: 80px; object-fit: contain; border: 1px solid var(--evo-border-soft); border-radius: 4px; }
+
+/* Ostatni element w boksie nie potrzebuje dolnego marginesu — boks ma padding
+   i margines dokłada się do niego jako pusty pas u dołu. */
+.evo-box > :last-child { margin-bottom: 0; }

@@ -20,34 +20,10 @@ if (!defined('ABSPATH')) exit;
             ];
             ?>
 
-            <style>
-                .evo-og-layer { background:#f8fafc; border:1px solid #d7dde7; border-radius:8px; padding:18px 20px; margin-bottom:14px; }
-                .evo-og-layer-header { display:flex; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid #e5e7eb; cursor:grab; }
-                .evo-og-layer-header .drag-handle { color:#94a3b8; font-size:18px; line-height:1; user-select:none; }
-                .evo-og-layer-header .layer-toggle { flex-shrink:0; }
-                .evo-og-layer-title { font-size:13px; font-weight:600; color:#111827; flex:1; }
-                .evo-og-layer-type-badge { font-size:11px; color:#6b7280; background:#e5e7eb; padding:2px 8px; border-radius:10px; }
-                .evo-og-layer-fields { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
-                .evo-og-layer-fields label { font-size:12px; font-weight:600; color:#4b5563; display:block; margin-bottom:3px; }
-                .evo-og-layer-fields input[type=text],
-                .evo-og-layer-fields input[type=number],
-                .evo-og-layer-fields select { width:100%; border:1px solid #d1d5db; border-radius:5px; font-size:13px; padding:5px 8px; }
-                .evo-og-layer-fields input[type=color] { width:48px; height:32px; border-radius:5px; border:1px solid #d1d5db; cursor:pointer; padding:2px; }
-                .evo-og-color-pair { display:flex; align-items:center; gap:8px; }
-                .evo-og-color-pair input[type=text] { font-family:monospace; font-size:12px; max-width:100px; }
-                .evo-og-section { background:#fff; border:1px solid #d7dde7; border-radius:8px; padding:18px 20px; margin-bottom:16px; }
-                .evo-og-section h3 { font-size:13px; font-weight:700; color:#111827; margin:0 0 14px; text-transform:uppercase; letter-spacing:.5px; font-size:11px; }
-                .evo-og-btn-remove { background:none; border:none; color:#ef4444; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:4px; padding:0; }
-                .evo-og-btn-remove:hover { color:#b91c1c; text-decoration:underline; }
-                .evo-og-regen-result { font-size:13px; color:#047857; margin-top:8px; display:none; }
-                .evo-og-full { grid-column: 1/-1; }
-                .evo-og-media-row { display:flex; align-items:center; gap:8px; }
-                .evo-og-media-row img { max-height:40px; max-width:80px; object-fit:contain; border-radius:4px; border:1px solid #e5e7eb; }
-            </style>
 
-            <div class="evo-status-card" style="margin-bottom:20px;">
+            <div class="evo-status-card">
                 <div class="evo-status-icon <?php echo !empty($og['enabled']) ? 'on' : 'off'; ?>">
-                    <span class="dashicons dashicons-share" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>
+                    <span class="dashicons dashicons-share evo-ico-lg"></span>
                 </div>
                 <div class="evo-status-text">
                     <h3>Generator OG: <?php echo !empty($og['enabled']) ? 'WŁĄCZONY' : 'WYŁĄCZONY'; ?></h3>
@@ -70,31 +46,31 @@ if (!defined('ABSPATH')) exit;
                 <?php settings_fields('evoke_one_og'); ?>
 
                 <!-- USTAWIENIA GLOBALNE -->
-                <div class="evo-og-section">
+                <div class="evo-box">
                     <h3>Ustawienia globalne</h3>
 
                     <?php if (!extension_loaded('imagick')): ?>
-                    <div class="evo-info-box" style="border-color:#fca5a5;background:#fef2f2;margin-bottom:16px;">
-                        <span class="dashicons dashicons-warning" style="color:#dc2626;"></span>
+                    <div class="evo-info-box" class="is-err">
+                        <span class="dashicons dashicons-warning"></span>
                         <div>Rozszerzenie <strong>Imagick</strong> nie jest zainstalowane na tym serwerze. Warstwy z plikami <strong>.svg</strong> będą pomijane podczas generowania. Pozostałe formaty (JPG, PNG, WebP, GIF) działają normalnie.</div>
                     </div>
                     <?php else: ?>
-                    <div class="evo-info-box" style="border-color:#86efac;background:#f0fdf4;margin-bottom:16px;">
-                        <span class="dashicons dashicons-yes-alt" style="color:#16a34a;"></span>
+                    <div class="evo-info-box" class="is-ok">
+                        <span class="dashicons dashicons-yes-alt"></span>
                         <div>Rozszerzenie <strong>Imagick</strong> jest dostępne — obsługa plików <strong>.svg</strong> aktywna.</div>
                     </div>
                     <?php endif; ?>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:16px;">
+                    <div class="evo-grid evo-mb" style="--evo-col:180px">
 
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field">
                             <label>Szerokość (px)</label>
                             <input type="number" name="evk_og[width]" value="<?php echo esc_attr($og['width']); ?>" min="400" max="2400">
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field">
                             <label>Wysokość (px)</label>
                             <input type="number" name="evk_og[height]" value="<?php echo esc_attr($og['height']); ?>" min="200" max="1400">
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field">
                             <label>Format</label>
                             <select name="evk_og[format]">
                                 <?php foreach (['jpg' => 'JPG', 'png' => 'PNG', 'webp' => 'WebP'] as $val => $lbl): ?>
@@ -102,7 +78,7 @@ if (!defined('ABSPATH')) exit;
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field">
                             <label>Jakość (JPG/WebP)</label>
                             <input type="number" name="evk_og[quality]" value="<?php echo esc_attr($og['quality']); ?>" min="10" max="100">
                         </div>
@@ -118,9 +94,9 @@ if (!defined('ABSPATH')) exit;
                         ?>
                         <div class="evo-og-media-row" id="evk-og-font-preview">
                             <?php if ($font_id): ?>
-                                <span style="font-size:12px;color:#374151;"><?php echo esc_html(basename($og['font_url'])); ?></span>
+                                <span class="evo-hint evo-hint-soft"><?php echo esc_html(basename($og['font_url'])); ?></span>
                             <?php else: ?>
-                                <span style="font-size:12px;color:#94a3b8;">Nie wybrano</span>
+                                <span class="evo-hint evo-faint">Nie wybrano</span>
                             <?php endif; ?>
                         </div>
                         <input type="hidden" name="evk_og[font_url]"  id="evk-og-font-url"  value="<?php echo esc_attr($og['font_url']); ?>">
@@ -129,30 +105,30 @@ if (!defined('ABSPATH')) exit;
                         <div class="evo-desc">Obsługiwane: .ttf, .otf — wgraj przez Bibliotekę mediów.</div>
                     </div>
 
-                    <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-field">
                         <label>URL fallback (gdy brak miniatury)</label>
-                        <input type="text" name="evk_og[fallback_url]" value="<?php echo esc_attr($og['fallback_url']); ?>" placeholder="https://twoja-domena.pl/wp-content/uploads/og-fallback.jpg" style="max-width:100%;">
+                        <input type="text" name="evk_og[fallback_url]" value="<?php echo esc_attr($og['fallback_url']); ?>" placeholder="https://twoja-domena.pl/wp-content/uploads/og-fallback.jpg" class="evo-w-full">
                     </div>
                 </div>
 
                 <!-- POST TYPES -->
-                <div class="evo-og-section">
+                <div class="evo-box">
                     <h3>Aktywne typy postów</h3>
-                    <div style="display:flex;flex-wrap:wrap;gap:14px;">
+                    <div class="evo-inline" style="--evo-gap:14px;flex-wrap:wrap">
                         <?php foreach ($all_post_types as $pt_slug => $pt_obj): ?>
-                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;">
+                        <label class="checkbox-label">
                             <input type="checkbox" name="evk_og[post_types][]" value="<?php echo esc_attr($pt_slug); ?>"
                                 <?php checked(in_array($pt_slug, (array)$og['post_types'], true)); ?>>
                             <?php echo esc_html($pt_obj->labels->singular_name); ?>
-                            <span style="color:#94a3b8;font-size:11px;">(<?php echo esc_html($pt_slug); ?>)</span>
+                            <span class="evo-hint-sm evo-faint">(<?php echo esc_html($pt_slug); ?>)</span>
                         </label>
                         <?php endforeach; ?>
                     </div>
                 </div>
 
                 <!-- WARSTWY -->
-                <div class="evo-og-section">
-                    <h3>Warstwy <span style="font-weight:400;font-size:11px;color:#6b7280;">(kolejność = kolejność renderowania — przeciągnij aby zmienić)</span></h3>
+                <div class="evo-box">
+                    <h3>Warstwy <span class="evo-box-note">(kolejność = kolejność renderowania — przeciągnij aby zmienić)</span></h3>
 
                     <div id="evk-og-layers-container">
                         <?php foreach ($og_layers as $li => $layer): ?>
@@ -160,14 +136,14 @@ if (!defined('ABSPATH')) exit;
                         <div class="evo-og-layer" data-index="<?php echo $li; ?>">
                             <div class="evo-og-layer-header">
                                 <span class="drag-handle dashicons dashicons-menu"></span>
-                                <label class="layer-toggle evo-toggle" style="margin:0;">
+                                <label class="layer-toggle evo-toggle">
                                     <input type="checkbox" name="evk_og[layers][<?php echo $li; ?>][enabled]" value="1" <?php checked(!empty($layer['enabled'])); ?>>
                                     <span class="evo-slider"></span>
                                 </label>
                                 <span class="evo-og-layer-title"><?php echo esc_html($layer['label'] ?? $type); ?></span>
                                 <span class="evo-og-layer-type-badge"><?php echo esc_html($layer_types[$type] ?? $type); ?></span>
                                 <button type="button" class="evo-og-btn-remove" onclick="this.closest('.evo-og-layer').remove()">
-                                    <span class="dashicons dashicons-trash" style="font-size:15px;width:15px;height:15px;"></span>
+                                    <span class="dashicons dashicons-trash" class="evo-ico-sm"></span>
                                 </button>
                             </div>
 
@@ -230,7 +206,7 @@ if (!defined('ABSPATH')) exit;
                                         <input type="text" name="evk_og[layers][<?php echo $li; ?>][color]"
                                             value="<?php echo esc_attr($layer['color'] ?? '#000000'); ?>"
                                             oninput="this.previousElementSibling.value=this.value"
-                                            style="max-width:90px;font-family:monospace;">
+                                            class="evo-mono evo-w-hex">
                                     </div>
                                 </div>
 
@@ -238,7 +214,7 @@ if (!defined('ABSPATH')) exit;
                                 <div>
                                     <label>Przesunięcie X zdjęcia (px)</label>
                                     <input type="number" name="evk_og[layers][<?php echo $li; ?>][offset_x]" value="<?php echo esc_attr($layer['offset_x'] ?? 0); ?>">
-                                    <div style="font-size:11px;color:#6b7280;margin-top:3px;">Przesuwa kadrowanie w lewo/prawo.</div>
+                                    <div class="evo-hint-sm evo-muted" style="margin-top:3px">Przesuwa kadrowanie w lewo/prawo.</div>
                                 </div>
 
                                 <?php elseif ($type === 'gradient'): ?>
@@ -250,7 +226,7 @@ if (!defined('ABSPATH')) exit;
                                         <input type="text" name="evk_og[layers][<?php echo $li; ?>][color]"
                                             value="<?php echo esc_attr($layer['color'] ?? '#000000'); ?>"
                                             oninput="this.previousElementSibling.value=this.value"
-                                            style="max-width:90px;font-family:monospace;">
+                                            class="evo-mono evo-w-hex">
                                     </div>
                                 </div>
                                 <div>
@@ -272,7 +248,7 @@ if (!defined('ABSPATH')) exit;
                                 <div>
                                     <label>Pozycja startu (%)</label>
                                     <input type="number" name="evk_og[layers][<?php echo $li; ?>][pos_pct]" value="<?php echo esc_attr($layer['pos_pct'] ?? 50); ?>" min="0" max="100">
-                                    <div style="font-size:11px;color:#6b7280;margin-top:3px;">Gdzie gradient zaczyna się zanikać.</div>
+                                    <div class="evo-hint-sm evo-muted" style="margin-top:3px">Gdzie gradient zaczyna się zanikać.</div>
                                 </div>
 
                                 <?php elseif ($type === 'image'): ?>
@@ -285,9 +261,9 @@ if (!defined('ABSPATH')) exit;
                                     <div class="evo-og-media-row" id="evk-og-img-preview-<?php echo $li; ?>">
                                         <?php if ($img_url): ?>
                                             <img src="<?php echo esc_url($img_url); ?>">
-                                            <span style="font-size:12px;color:#374151;"><?php echo esc_html(get_the_title($img_id)); ?></span>
+                                            <span class="evo-hint evo-hint-soft"><?php echo esc_html(get_the_title($img_id)); ?></span>
                                         <?php else: ?>
-                                            <span style="font-size:12px;color:#94a3b8;">Nie wybrano</span>
+                                            <span class="evo-hint evo-faint">Nie wybrano</span>
                                         <?php endif; ?>
                                     </div>
                                     <input type="hidden" name="evk_og[layers][<?php echo $li; ?>][image_id]" id="evk-og-img-id-<?php echo $li; ?>" value="<?php echo esc_attr($img_id); ?>">
@@ -319,15 +295,15 @@ if (!defined('ABSPATH')) exit;
                                         <input type="text" name="evk_og[layers][<?php echo $li; ?>][color]"
                                             value="<?php echo esc_attr($layer['color'] ?? '#ffffff'); ?>"
                                             oninput="this.previousElementSibling.value=this.value"
-                                            style="max-width:90px;font-family:monospace;">
+                                            class="evo-mono evo-w-hex">
                                     </div>
                                 </div>
-                                <div class="evo-og-full" style="border-top:1px solid #e5e7eb;padding-top:10px;margin-top:4px;">
-                                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;margin-bottom:10px;cursor:pointer;">
+                                <div class="evo-og-full" class="evo-hr-top">
+                                    <label class="checkbox-label evo-mb-sm">
                                         <input type="checkbox" name="evk_og[layers][<?php echo $li; ?>][shadow_enabled]" value="1" <?php checked(!empty($layer['shadow_enabled'])); ?>>
                                         Cień tekstu
                                     </label>
-                                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;">
+                                    <div class="evo-grid" style="--evo-col:140px;--evo-gap:10px">
                                         <div>
                                             <label>Kolor cienia</label>
                                             <div class="evo-og-color-pair">
@@ -336,7 +312,7 @@ if (!defined('ABSPATH')) exit;
                                                 <input type="text" name="evk_og[layers][<?php echo $li; ?>][shadow_color]"
                                                     value="<?php echo esc_attr($layer['shadow_color'] ?? '#000000'); ?>"
                                                     oninput="this.previousElementSibling.value=this.value"
-                                                    style="max-width:80px;font-family:monospace;">
+                                                    class="evo-mono evo-w-hex">
                                             </div>
                                         </div>
                                         <div><label>Offset X (px)</label><input type="number" name="evk_og[layers][<?php echo $li; ?>][shadow_offset_x]" value="<?php echo esc_attr($layer['shadow_offset_x'] ?? 3); ?>"></div>
@@ -350,7 +326,7 @@ if (!defined('ABSPATH')) exit;
                                 <div>
                                     <label>Margin prawy (px)</label>
                                     <input type="number" name="evk_og[layers][<?php echo $li; ?>][x]" value="<?php echo esc_attr($layer['x'] ?? 25); ?>">
-                                    <div style="font-size:11px;color:#6b7280;margin-top:3px;">X = odległość od prawej krawędzi.</div>
+                                    <div class="evo-hint-sm evo-muted" style="margin-top:3px">X = odległość od prawej krawędzi.</div>
                                 </div>
                                 <div>
                                     <label>Y (od góry, px)</label>
@@ -368,7 +344,7 @@ if (!defined('ABSPATH')) exit;
                                         <input type="text" name="evk_og[layers][<?php echo $li; ?>][fg_color]"
                                             value="<?php echo esc_attr($layer['fg_color'] ?? '#ffffff'); ?>"
                                             oninput="this.previousElementSibling.value=this.value"
-                                            style="max-width:80px;font-family:monospace;">
+                                            class="evo-mono evo-w-hex">
                                     </div>
                                 </div>
                                 <div>
@@ -379,7 +355,7 @@ if (!defined('ABSPATH')) exit;
                                         <input type="text" name="evk_og[layers][<?php echo $li; ?>][bg_color]"
                                             value="<?php echo esc_attr($layer['bg_color'] ?? '#000000'); ?>"
                                             oninput="this.previousElementSibling.value=this.value"
-                                            style="max-width:80px;font-family:monospace;">
+                                            class="evo-mono evo-w-hex">
                                     </div>
                                 </div>
                                 <?php endif; ?>
@@ -390,8 +366,8 @@ if (!defined('ABSPATH')) exit;
                     </div><!-- #evk-og-layers-container -->
 
                     <!-- Dodaj warstwę -->
-                    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <select id="evk-og-new-layer-type" style="min-width:220px;">
+                    <div class="evo-toolbar" style="margin:14px 0 0">
+                        <select id="evk-og-new-layer-type" class="evo-w-md">
                             <?php foreach ($layer_types as $tv => $tl): ?>
                             <option value="<?php echo esc_attr($tv); ?>"><?php echo esc_html($tl); ?></option>
                             <?php endforeach; ?>
@@ -401,11 +377,11 @@ if (!defined('ABSPATH')) exit;
                 </div>
 
                 <!-- REGENERACJA MASOWA -->
-                <div class="evo-og-section">
+                <div class="evo-box">
                     <h3>Narzędzia</h3>
-                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                    <div class="evo-toolbar" style="margin-bottom:0">
                         <button type="button" class="button" id="evk-og-regen-all" onclick="evkOgRegenAll()">
-                            <span class="dashicons dashicons-update" style="font-size:16px;width:16px;height:16px;line-height:1;vertical-align:text-bottom;margin-right:4px;"></span>
+                            <span class="dashicons dashicons-update" class="evo-ico evo-ico-lead"></span>
                             Regeneruj wszystkie obrazy OG
                         </button>
                         <span id="evk-og-regen-result" class="evo-og-regen-result"></span>
@@ -444,14 +420,14 @@ if (!defined('ABSPATH')) exit;
                         if (context === 'font') {
                             $('#evk-og-font-url').val(attachment.url);
                             $('#evk-og-font-path').val('');
-                            $('#evk-og-font-preview').html('<span style="font-size:12px;color:#374151;">' + attachment.filename + '</span>');
+                            $('#evk-og-font-preview').html('<span class="evo-hint evo-hint-soft">' + attachment.filename + '</span>');
                         } else {
                             $('#evk-og-img-id-' + layerIndex).val(attachment.id);
                             var thumb = attachment.sizes && attachment.sizes.thumbnail
                                         ? attachment.sizes.thumbnail.url : attachment.url;
                             $('#evk-og-img-preview-' + layerIndex).html(
-                                '<img src="' + thumb + '" style="max-height:40px;max-width:80px;object-fit:contain;border-radius:4px;border:1px solid #e5e7eb;">' +
-                                '<span style="font-size:12px;color:#374151;">' + attachment.filename + '</span>'
+                                '<img src="' + thumb + '" class="evo-thumb">' +
+                                '<span class="evo-hint evo-hint-soft">' + attachment.filename + '</span>'
                             );
                         }
                     });
@@ -464,12 +440,12 @@ if (!defined('ABSPATH')) exit;
                 var evkOgLayerCount = <?php echo count($og_layers); ?>;
 
                 var evkOgLayerTemplates = {
-                    rect: function (i) { return '<div><label>Kolor</label><div class="evo-og-color-pair"><input type="color" value="#000000" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][color]" value="#000000" oninput="this.previousElementSibling.value=this.value" style="max-width:90px;font-family:monospace;"></div></div>'; },
+                    rect: function (i) { return '<div><label>Kolor</label><div class="evo-og-color-pair"><input type="color" value="#000000" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][color]" value="#000000" oninput="this.previousElementSibling.value=this.value" class="evo-mono evo-w-hex"></div></div>'; },
                     photo: function (i) { return '<div><label>Przesunięcie X (px)</label><input type="number" name="evk_og[layers]['+i+'][offset_x]" value="0"></div>'; },
-                    gradient: function (i) { return '<div><label>Kolor</label><div class="evo-og-color-pair"><input type="color" value="#000000" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][color]" value="#000000" oninput="this.previousElementSibling.value=this.value" style="max-width:90px;font-family:monospace;"></div></div><div><label>Kierunek</label><select name="evk_og[layers]['+i+'][direction]"><option value="top">↑ Górny</option><option value="bottom" selected>↓ Dolny</option><option value="left">← Lewy</option><option value="right">→ Prawy</option></select></div><div><label>Alpha start (%)</label><input type="number" name="evk_og[layers]['+i+'][alpha_start]" value="0" min="0" max="100"></div><div><label>Alpha end (%)</label><input type="number" name="evk_og[layers]['+i+'][alpha_end]" value="100" min="0" max="100"></div><div><label>Pozycja startu (%)</label><input type="number" name="evk_og[layers]['+i+'][pos_pct]" value="50" min="0" max="100"></div>'; },
-                    image: function (i) { return '<div class="evo-og-full"><label>Obraz</label><div class="evo-og-media-row" id="evk-og-img-preview-'+i+'"><span style="font-size:12px;color:#94a3b8;">Nie wybrano</span></div><input type="hidden" name="evk_og[layers]['+i+'][image_id]" id="evk-og-img-id-'+i+'" value="0"><button type="button" class="button" style="margin-top:6px;" onclick="evkOgPickMedia(\'image\','+i+')">Wybierz obraz</button></div>'; },
-                    text: function (i) { return '<div><label>X od lewej (px)</label><input type="number" name="evk_og[layers]['+i+'][x]" value="275"></div><div><label>Y od dołu (px)</label><input type="number" name="evk_og[layers]['+i+'][y_from_bottom]" value="120"></div><div><label>Maks. szerokość</label><input type="number" name="evk_og[layers]['+i+'][max_width]" value="900"></div><div><label>Rozmiar fontu</label><input type="number" name="evk_og[layers]['+i+'][font_size]" value="80"></div><div><label>Kolor</label><div class="evo-og-color-pair"><input type="color" value="#ffffff" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][color]" value="#ffffff" oninput="this.previousElementSibling.value=this.value" style="max-width:90px;font-family:monospace;"></div></div>'; },
-                    qr: function (i) { return '<div><label>Margin prawy (px)</label><input type="number" name="evk_og[layers]['+i+'][x]" value="25"></div><div><label>Y od góry (px)</label><input type="number" name="evk_og[layers]['+i+'][y]" value="426"></div><div><label>Rozmiar (px)</label><input type="number" name="evk_og[layers]['+i+'][size]" value="170" min="50" max="500"></div><div><label>Kolor kodu (fg)</label><div class="evo-og-color-pair"><input type="color" value="#ffffff" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][fg_color]" value="#ffffff" style="max-width:80px;font-family:monospace;"></div></div><div><label>Kolor tła (bg)</label><div class="evo-og-color-pair"><input type="color" value="#000000" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][bg_color]" value="#000000" style="max-width:80px;font-family:monospace;"></div></div>'; },
+                    gradient: function (i) { return '<div><label>Kolor</label><div class="evo-og-color-pair"><input type="color" value="#000000" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][color]" value="#000000" oninput="this.previousElementSibling.value=this.value" class="evo-mono evo-w-hex"></div></div><div><label>Kierunek</label><select name="evk_og[layers]['+i+'][direction]"><option value="top">↑ Górny</option><option value="bottom" selected>↓ Dolny</option><option value="left">← Lewy</option><option value="right">→ Prawy</option></select></div><div><label>Alpha start (%)</label><input type="number" name="evk_og[layers]['+i+'][alpha_start]" value="0" min="0" max="100"></div><div><label>Alpha end (%)</label><input type="number" name="evk_og[layers]['+i+'][alpha_end]" value="100" min="0" max="100"></div><div><label>Pozycja startu (%)</label><input type="number" name="evk_og[layers]['+i+'][pos_pct]" value="50" min="0" max="100"></div>'; },
+                    image: function (i) { return '<div class="evo-og-full"><label>Obraz</label><div class="evo-og-media-row" id="evk-og-img-preview-'+i+'"><span class="evo-hint evo-faint">Nie wybrano</span></div><input type="hidden" name="evk_og[layers]['+i+'][image_id]" id="evk-og-img-id-'+i+'" value="0"><button type="button" class="button" style="margin-top:6px;" onclick="evkOgPickMedia(\'image\','+i+')">Wybierz obraz</button></div>'; },
+                    text: function (i) { return '<div><label>X od lewej (px)</label><input type="number" name="evk_og[layers]['+i+'][x]" value="275"></div><div><label>Y od dołu (px)</label><input type="number" name="evk_og[layers]['+i+'][y_from_bottom]" value="120"></div><div><label>Maks. szerokość</label><input type="number" name="evk_og[layers]['+i+'][max_width]" value="900"></div><div><label>Rozmiar fontu</label><input type="number" name="evk_og[layers]['+i+'][font_size]" value="80"></div><div><label>Kolor</label><div class="evo-og-color-pair"><input type="color" value="#ffffff" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][color]" value="#ffffff" oninput="this.previousElementSibling.value=this.value" class="evo-mono evo-w-hex"></div></div>'; },
+                    qr: function (i) { return '<div><label>Margin prawy (px)</label><input type="number" name="evk_og[layers]['+i+'][x]" value="25"></div><div><label>Y od góry (px)</label><input type="number" name="evk_og[layers]['+i+'][y]" value="426"></div><div><label>Rozmiar (px)</label><input type="number" name="evk_og[layers]['+i+'][size]" value="170" min="50" max="500"></div><div><label>Kolor kodu (fg)</label><div class="evo-og-color-pair"><input type="color" value="#ffffff" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][fg_color]" value="#ffffff" class="evo-mono evo-w-hex"></div></div><div><label>Kolor tła (bg)</label><div class="evo-og-color-pair"><input type="color" value="#000000" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][bg_color]" value="#000000" class="evo-mono evo-w-hex"></div></div>'; },
                 };
 
                 var typeLabels = <?php echo wp_json_encode(array_map('esc_html', $layer_types)); ?>;
@@ -486,14 +462,14 @@ if (!defined('ABSPATH')) exit;
                     var html = '<div class="evo-og-layer" data-index="'+i+'">' +
                         '<div class="evo-og-layer-header">' +
                             '<span class="drag-handle dashicons dashicons-menu"></span>' +
-                            '<label class="layer-toggle evo-toggle" style="margin:0;">' +
+                            '<label class="layer-toggle evo-toggle">' +
                                 '<input type="checkbox" name="evk_og[layers]['+i+'][enabled]" value="1" checked>' +
                                 '<span class="evo-slider"></span>' +
                             '</label>' +
                             '<span class="evo-og-layer-title">' + (typeLabels[type] || type) + '</span>' +
                             '<span class="evo-og-layer-type-badge">' + (typeLabels[type] || type) + '</span>' +
                             '<button type="button" class="evo-og-btn-remove" onclick="this.closest(\'.evo-og-layer\').remove()">' +
-                                '<span class="dashicons dashicons-trash" style="font-size:15px;width:15px;height:15px;"></span>' +
+                                '<span class="dashicons dashicons-trash" class="evo-ico-sm"></span>' +
                             '</button>' +
                         '</div>' +
                         '<input type="hidden" name="evk_og[layers]['+i+'][id]" value="'+id+'">' +
@@ -546,7 +522,7 @@ if (!defined('ABSPATH')) exit;
                         $res.text('Błąd połączenia.').show();
                     }).always(function () {
                         $btn.prop('disabled', false).html(
-                            '<span class="dashicons dashicons-update" style="font-size:16px;width:16px;height:16px;line-height:1;vertical-align:text-bottom;margin-right:4px;"></span> Regeneruj wszystkie obrazy OG'
+                            '<span class="dashicons dashicons-update" class="evo-ico evo-ico-lead"></span> Regeneruj wszystkie obrazy OG'
                         );
                     });
                 };

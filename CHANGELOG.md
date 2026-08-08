@@ -2,6 +2,52 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.45.0] — 2026-08-08
+
+### Zmienione
+
+- **Cały panel dostał podział na boksy z zakładki OpenGraph.** To ona wyglądała
+  najlepiej — biały boks z ramką i wersalikową etykietą zamiast luźnej treści
+  poprzedzielanej kreskami. Reguła siedziała w **lokalnym `<style>`**, więc
+  obowiązywała jedną zakładkę i nikt inny nie mógł jej użyć. Teraz jest
+  `.evo-box` w `admin.css`, na tokenach, i niosą ją **wszystkie 25 zakładek**:
+  55 boksów, zero pozostałych `evo-section-title`.
+
+  Kreski `<hr class="evo-divider">` rozdzielające sekcje zniknęły — ramka boksu
+  robi to samo i nie zostawia sekcji bez początku i końca.
+
+  Przy przenoszeniu wyszło, że oryginał miał w nagłówku `font-size` **dwa razy**
+  (13 px, potem 11 px). Wygrywała druga, więc etykiety są 11 px — i takie
+  zostają; test pilnuje teraz tej wartości jawnie, zamiast zostawiać ją
+  przypadkowi.
+
+- **Zakładka OpenGraph straciła swój blok `<style>` (23 reguły).** Stał
+  w dokumencie po arkuszu i wygrywał przy równej specyficzności — dokładnie ta
+  pułapka co w Animatorze w 1.43.0. Warstwy generatora są teraz w `admin.css`
+  na tokenach, a pola w warstwach przestały nadpisywać skórę własnym
+  `border-radius:5px` i wreszcie mają kształt Evoke Fields.
+
+- **`.evo-section-title` usunięte z arkusza** — nic już go nie używa,
+  a `.evo-box > h3` niesie ten sam kształt.
+
+### Naprawione
+
+- **Czyszczenie logów 404 chowało sekcję na trzy raty** — osobno tabelę, kreskę
+  i tytuł (`$('p.evo-section-title').last().hide()`). Każda zmiana znaczników
+  to psuła. Teraz chowa się jeden boks.
+
+### Dodane
+
+- **Boksy są mierzone, nie zakładane.** `tests/admin-tabs.test.js` sprawdza tło,
+  ramkę, promień oraz to, że **każdy boks ma nagłówek** i że nagłówek jest
+  wersalikową etykietą 11/700 — bez tego boks jest tylko ramką wokół treści.
+  Zakładka OpenGraph dołączyła do harnessu (`tests/php/tab.php`).
+
+- **Konwersja była sprawdzana dwoma niezmiennikami niezależnymi od PHP:**
+  treść tekstowa pliku po zdjęciu znaczników musi być identyczna, a bilans
+  `<div>` ma się przesunąć dokładnie o liczbę boksów. Dla pięciu zakładek
+  w harnessie doszło porównanie **tekstu wyrenderowanej strony** sprzed i po.
+
 ## [1.44.0] — 2026-08-07
 
 ### Zmienione

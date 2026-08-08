@@ -111,6 +111,29 @@ window.__hardColors = function () {
   }).filter(Boolean);
 };
 
+/**
+ * Boksy sekcji — wzorzec przejęty z zakładki OpenGraph.
+ *
+ * Mierzymy tło, ramkę, promień i nagłówek. Nagłówek jest tu równie ważny jak
+ * pudełko: to wersalikowa etykieta 11 px, a nie zwykły `h3` — bez niej boks
+ * wygląda jak przypadkowa ramka wokół treści.
+ */
+window.__boxes = function () {
+  return Array.prototype.filter.call(document.querySelectorAll('#panel .evo-box'), shown)
+    .map(function (el) {
+      var s  = getComputedStyle(el);
+      var h  = el.querySelector(':scope > h3, :scope > .evo-box-title');
+      var hs = h && getComputedStyle(h);
+      return {
+        bg:     s.backgroundColor,
+        border: s.borderTopColor + ' ' + s.borderTopWidth,
+        radius: s.borderTopLeftRadius,
+        title:  hs && { size: hs.fontSize, weight: hs.fontWeight, transform: hs.textTransform },
+        text:   (h ? h.textContent : '').trim().slice(0, 28),
+      };
+    });
+};
+
 /** Ile inline'owych atrybutów style zostało w wyrenderowanej zakładce. */
 window.__inlineCount = function () {
   return document.querySelectorAll('#panel [style]').length;

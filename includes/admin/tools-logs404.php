@@ -88,60 +88,63 @@ $logs = get_posts([
 ]);
 if (!empty($logs)):
 ?>
-<hr class="evo-divider" style="margin-top:40px;">
-<p class="evo-section-title">Zarejestrowane błędy 404 <span style="font-weight:400;color:#6b7280;">(<?php echo count($logs); ?>)</span></p>
-<div style="overflow-x:auto;">
-<table class="wp-list-table widefat striped" style="font-size:12px;">
-    <thead><tr>
-        <th style="width:140px;">Czas</th>
-        <th>URL</th>
-        <th>Referrer</th>
-        <th style="width:110px;">IP</th>
-        <th>User Agent</th>
-    </tr></thead>
-    <tbody>
-    <?php foreach ($logs as $log):
-        $m = get_post_meta($log->ID);
-    ?>
-    <tr>
-        <td style="white-space:nowrap;"><?php echo esc_html($m['logged_at'][0] ?? ''); ?></td>
-        <td><code style="font-size:11px;word-break:break-all;"><?php echo esc_html($m['url'][0] ?? ''); ?></code></td>
-        <td style="font-size:11px;color:#6b7280;"><?php echo esc_html($m['referrer'][0] ?? '—'); ?></td>
-        <td>
-            <a href="https://radar.cloudflare.com/ip/<?php echo esc_attr($m['ip'][0] ?? ''); ?>" target="_blank" style="font-size:11px;">
-                <?php echo esc_html($m['ip'][0] ?? '—'); ?>
-            </a>
-        </td>
-        <td style="font-size:11px;color:#6b7280;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-            title="<?php echo esc_attr($m['ua'][0] ?? ''); ?>">
-            <?php echo esc_html($m['ua'][0] ?? '—'); ?>
-        </td>
-    </tr>
-    <?php endforeach; ?>
-    </tbody>
-</table>
-</div>
-<?php elseif ($enabled): ?>
-<div class="evo-info-box" style="margin-top:20px;">
-    <span class="dashicons dashicons-yes-alt"></span>
-    <div>Brak zarejestrowanych błędów 404. Pojawią się tutaj gdy ktoś wejdzie na nieistniejący URL.</div>
-</div>
-<?php endif; ?>
+<div class="evo-box">
+    <h3>Zarejestrowane błędy 404 <span style="font-weight:400;color:#6b7280;">(<?php echo count($logs); ?>)</span></h3>
+    <div style="overflow-x:auto;">
+    <table class="wp-list-table widefat striped" style="font-size:12px;">
+        <thead><tr>
+            <th style="width:140px;">Czas</th>
+            <th>URL</th>
+            <th>Referrer</th>
+            <th style="width:110px;">IP</th>
+            <th>User Agent</th>
+        </tr></thead>
+        <tbody>
+        <?php foreach ($logs as $log):
+            $m = get_post_meta($log->ID);
+        ?>
+        <tr>
+            <td style="white-space:nowrap;"><?php echo esc_html($m['logged_at'][0] ?? ''); ?></td>
+            <td><code style="font-size:11px;word-break:break-all;"><?php echo esc_html($m['url'][0] ?? ''); ?></code></td>
+            <td style="font-size:11px;color:#6b7280;"><?php echo esc_html($m['referrer'][0] ?? '—'); ?></td>
+            <td>
+                <a href="https://radar.cloudflare.com/ip/<?php echo esc_attr($m['ip'][0] ?? ''); ?>" target="_blank" style="font-size:11px;">
+                    <?php echo esc_html($m['ip'][0] ?? '—'); ?>
+                </a>
+            </td>
+            <td style="font-size:11px;color:#6b7280;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                title="<?php echo esc_attr($m['ua'][0] ?? ''); ?>">
+                <?php echo esc_html($m['ua'][0] ?? '—'); ?>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+    </div>
+    <?php elseif ($enabled): ?>
+    <div class="evo-info-box" style="margin-top:20px;">
+        <span class="dashicons dashicons-yes-alt"></span>
+        <div>Brak zarejestrowanych błędów 404. Pojawią się tutaj gdy ktoś wejdzie na nieistniejący URL.</div>
+    </div>
+    <?php endif; ?>
 
-<script>
-(function($){
-    $('#evk-clear-404').on('click', function(){
-        if (!confirm('Wyczyścić wszystkie logi 404?')) return;
-        var btn = $(this).prop('disabled', true).text('...');
-        $.post(ajaxurl, {action:'evk_clear_404_logs', nonce:$(this).data('nonce')}, function(r){
-            if (r.success){
-                $('table.wp-list-table tbody').empty();
-                $('#evk-clear-404-msg').show();
-                $('table.wp-list-table').closest('div').hide();
-                $('.evo-divider').hide();
-                $('p.evo-section-title').last().hide();
-            }
-        }).always(function(){ btn.prop('disabled', false).text('🗑 Wyczyść wszystkie logi'); });
-    });
-})(jQuery);
-</script>
+    <script>
+    (function($){
+        $('#evk-clear-404').on('click', function(){
+            if (!confirm('Wyczyścić wszystkie logi 404?')) return;
+            var btn = $(this).prop('disabled', true).text('...');
+            $.post(ajaxurl, {action:'evk_clear_404_logs', nonce:$(this).data('nonce')}, function(r){
+                if (r.success){
+                    $('table.wp-list-table tbody').empty();
+                    $('#evk-clear-404-msg').show();
+                    // Cała sekcja jest teraz jednym boksem, więc chowamy boks —
+                    // wcześniej trzeba było zgadywać jego części z osobna
+                    // (tabela, kreska, tytuł) i przy zmianie znaczników się rozjeżdżało.
+                    $('table.wp-list-table').closest('.evo-box').hide();
+                }
+            }).always(function(){ btn.prop('disabled', false).text('🗑 Wyczyść wszystkie logi'); });
+        });
+    })(jQuery);
+    </script>
+</div>
+

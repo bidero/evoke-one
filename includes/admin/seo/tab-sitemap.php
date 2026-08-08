@@ -44,40 +44,42 @@ if (!defined('ABSPATH')) exit;
                 Sprawdź: <a href="<?php echo esc_url(home_url('/wp-sitemap.xml')); ?>" target="_blank">wp-sitemap.xml</a>
             </p>
 
-            <hr class="evo-divider">
-            <p class="evo-section-title">Diagnostyka noindex</p>
-            <div class="evo-info-box">
-                <span class="dashicons dashicons-info"></span>
-                <div>Sprawdza które strony mają wykryte meta noindex i przez jakie pole.</div>
-            </div>
-            <?php
-            $diag_posts    = get_posts(['post_type' => ['page', 'post'], 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids']);
-            $noindex_found = [];
-            foreach ($diag_posts as $pid) {
-                foreach (get_post_meta($pid) as $meta_key => $values) {
-                    foreach ((array) $values as $v) {
-                        if (tl_meta_value_means_noindex($v, $meta_key)) {
-                            $noindex_found[$pid][] = $meta_key . ' = ' . wp_trim_words((string) $v, 6);
-                            break;
+            <div class="evo-box">
+                <h3>Diagnostyka noindex</h3>
+                <div class="evo-info-box">
+                    <span class="dashicons dashicons-info"></span>
+                    <div>Sprawdza które strony mają wykryte meta noindex i przez jakie pole.</div>
+                </div>
+                <?php
+                $diag_posts    = get_posts(['post_type' => ['page', 'post'], 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids']);
+                $noindex_found = [];
+                foreach ($diag_posts as $pid) {
+                    foreach (get_post_meta($pid) as $meta_key => $values) {
+                        foreach ((array) $values as $v) {
+                            if (tl_meta_value_means_noindex($v, $meta_key)) {
+                                $noindex_found[$pid][] = $meta_key . ' = ' . wp_trim_words((string) $v, 6);
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            ?>
-            <?php if (empty($noindex_found)): ?>
-                <p style="font-size:13px;color:#6b7280;">Żadna strona nie została wykryta jako noindex.</p>
-            <?php else: ?>
-                <div style="background:#fff;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;">
-                    <?php foreach ($noindex_found as $pid => $keys): ?>
-                    <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-bottom:1px solid #f0f0f1;font-size:13px;">
-                        <strong style="min-width:180px;"><a href="<?php echo esc_url(get_edit_post_link($pid)); ?>" target="_blank"><?php echo esc_html(get_the_title($pid)); ?></a> <span style="color:#94a3b8;">#<?php echo $pid; ?></span></strong>
-                        <div style="color:#6b7280;font-family:monospace;font-size:11px;line-height:1.7;"><?php echo esc_html(implode(', ', $keys)); ?></div>
+                ?>
+                <?php if (empty($noindex_found)): ?>
+                    <p style="font-size:13px;color:#6b7280;">Żadna strona nie została wykryta jako noindex.</p>
+                <?php else: ?>
+                    <div style="background:#fff;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;">
+                        <?php foreach ($noindex_found as $pid => $keys): ?>
+                        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-bottom:1px solid #f0f0f1;font-size:13px;">
+                            <strong style="min-width:180px;"><a href="<?php echo esc_url(get_edit_post_link($pid)); ?>" target="_blank"><?php echo esc_html(get_the_title($pid)); ?></a> <span style="color:#94a3b8;">#<?php echo $pid; ?></span></strong>
+                            <div style="color:#6b7280;font-family:monospace;font-size:11px;line-height:1.7;"><?php echo esc_html(implode(', ', $keys)); ?></div>
+                        </div>
+                        <?php endforeach; ?>
                     </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
+                <?php endif; ?>
 
-            <div class="evo-save-bar">
-                <button type="button" class="button button-primary" onclick="evoSaveSitemap()">Zapisz mapę strony</button>
-                <span id="save-status-sitemap" style="font-size:13px;color:#047857;display:none;"></span>
+                <div class="evo-save-bar">
+                    <button type="button" class="button button-primary" onclick="evoSaveSitemap()">Zapisz mapę strony</button>
+                    <span id="save-status-sitemap" style="font-size:13px;color:#047857;display:none;"></span>
+                </div>
             </div>
+

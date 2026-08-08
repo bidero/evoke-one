@@ -55,284 +55,295 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
     <?php /* 'enabled' zapisywany przez AJAX toggle — sanitizer zachowuje stan przy zapisie formularza */ ?>
 
     <!-- ── MENU ─────────────────────────────────────────────────────── -->
-    <p class="evo-section-title">Konfiguracja menu</p>
-    <div class="evo-grid evo-mb-lg" style="--evo-col:190px">
-        <div class="evo-field">
-            <label>Nazwa menu</label>
-            <input type="text" name="evk_forminbox[menu_label]" value="<?php echo esc_attr($fi['menu_label']); ?>" placeholder="Wiadomości">
+    <div class="evo-box">
+        <h3>Konfiguracja menu</h3>
+        <div class="evo-grid evo-mb-lg" style="--evo-col:190px">
+            <div class="evo-field">
+                <label>Nazwa menu</label>
+                <input type="text" name="evk_forminbox[menu_label]" value="<?php echo esc_attr($fi['menu_label']); ?>" placeholder="Wiadomości">
+            </div>
+            <div class="evo-field">
+                <label>Ikona (Dashicons)</label>
+                <input type="text" name="evk_forminbox[menu_icon]" value="<?php echo esc_attr($fi['menu_icon']); ?>" placeholder="dashicons-email-alt">
+                <div class="evo-desc"><a href="https://developer.wordpress.org/resource/dashicons/" target="_blank">Lista ↗</a></div>
+            </div>
+            <div class="evo-field">
+                <label>Pozycja w menu</label>
+                <input type="number" name="evk_forminbox[menu_position]" value="<?php echo esc_attr($fi['menu_position']); ?>" min="1" max="100" class="evo-w-xs">
+            </div>
+            <div class="evo-field">
+                <label>Wiadomości na stronę</label>
+                <input type="number" name="evk_forminbox[per_page]" value="<?php echo esc_attr($fi['per_page']); ?>" min="5" max="100" class="evo-w-xs">
+            </div>
+            <div class="evo-field">
+                <label>Plakietka w menu</label>
+                <label class="checkbox-label">
+                    <input type="checkbox" name="evk_forminbox[menu_badge]" value="1" <?php checked(!empty($fi['menu_badge'])); ?>>
+                    <span>Pokaż licznik nieprzeczytanych przy pozycji menu</span>
+                </label>
+            </div>
+            <div class="evo-field">
+                <label>Klucz pola e-mail</label>
+                <input type="text" name="evk_forminbox[email_field]" value="<?php echo esc_attr($fi['email_field']); ?>" placeholder="np. 436dec" class="evo-w-sm">
+                <div class="evo-desc">Auto-detect jeśli puste.</div>
+            </div>
+            <div class="evo-field">
+                <label>Szablon nazwy w sidebarze</label>
+                <input type="text" name="evk_forminbox[name_template]" value="<?php echo esc_attr($fi['name_template'] ?? ''); ?>" placeholder="np. {{nazwisko}} {{imie}}" class="evo-w-lg">
+                <div class="evo-desc">Używa {{klucz}} — te same co mapowanie pól. Jeśli puste — auto-detect.</div>
+            </div>
+            <div class="evo-field">
+                <label>Klucz pola podglądu (sidebar)</label>
+                <input type="text" name="evk_forminbox[preview_field]" value="<?php echo esc_attr($fi['preview_field'] ?? ''); ?>" placeholder="np. fonlfr (Temat)" class="evo-w-md">
+                <div class="evo-desc">Treść tego pola pojawia się pod nazwą w liście. Jeśli puste — pierwsze pole.</div>
+            </div>
+            <div class="evo-field">
+                <label>Klucz pola tematu (nagłówek)</label>
+                <input type="text" name="evk_forminbox[subject_field]" value="<?php echo esc_attr($fi['subject_field'] ?? ''); ?>" placeholder="np. fonlfr" class="evo-w-md">
+                <div class="evo-desc">Temat pokazany pod nazwą w nagłówku wiadomości. Jeśli puste — auto-detekcja (pole „Temat").</div>
+            </div>
         </div>
-        <div class="evo-field">
-            <label>Ikona (Dashicons)</label>
-            <input type="text" name="evk_forminbox[menu_icon]" value="<?php echo esc_attr($fi['menu_icon']); ?>" placeholder="dashicons-email-alt">
-            <div class="evo-desc"><a href="https://developer.wordpress.org/resource/dashicons/" target="_blank">Lista ↗</a></div>
-        </div>
-        <div class="evo-field">
-            <label>Pozycja w menu</label>
-            <input type="number" name="evk_forminbox[menu_position]" value="<?php echo esc_attr($fi['menu_position']); ?>" min="1" max="100" class="evo-w-xs">
-        </div>
-        <div class="evo-field">
-            <label>Wiadomości na stronę</label>
-            <input type="number" name="evk_forminbox[per_page]" value="<?php echo esc_attr($fi['per_page']); ?>" min="5" max="100" class="evo-w-xs">
-        </div>
-        <div class="evo-field">
-            <label>Plakietka w menu</label>
-            <label class="checkbox-label">
-                <input type="checkbox" name="evk_forminbox[menu_badge]" value="1" <?php checked(!empty($fi['menu_badge'])); ?>>
-                <span>Pokaż licznik nieprzeczytanych przy pozycji menu</span>
-            </label>
-        </div>
-        <div class="evo-field">
-            <label>Klucz pola e-mail</label>
-            <input type="text" name="evk_forminbox[email_field]" value="<?php echo esc_attr($fi['email_field']); ?>" placeholder="np. 436dec" class="evo-w-sm">
-            <div class="evo-desc">Auto-detect jeśli puste.</div>
-        </div>
-        <div class="evo-field">
-            <label>Szablon nazwy w sidebarze</label>
-            <input type="text" name="evk_forminbox[name_template]" value="<?php echo esc_attr($fi['name_template'] ?? ''); ?>" placeholder="np. {{nazwisko}} {{imie}}" class="evo-w-lg">
-            <div class="evo-desc">Używa {{klucz}} — te same co mapowanie pól. Jeśli puste — auto-detect.</div>
-        </div>
-        <div class="evo-field">
-            <label>Klucz pola podglądu (sidebar)</label>
-            <input type="text" name="evk_forminbox[preview_field]" value="<?php echo esc_attr($fi['preview_field'] ?? ''); ?>" placeholder="np. fonlfr (Temat)" class="evo-w-md">
-            <div class="evo-desc">Treść tego pola pojawia się pod nazwą w liście. Jeśli puste — pierwsze pole.</div>
-        </div>
-        <div class="evo-field">
-            <label>Klucz pola tematu (nagłówek)</label>
-            <input type="text" name="evk_forminbox[subject_field]" value="<?php echo esc_attr($fi['subject_field'] ?? ''); ?>" placeholder="np. fonlfr" class="evo-w-md">
-            <div class="evo-desc">Temat pokazany pod nazwą w nagłówku wiadomości. Jeśli puste — auto-detekcja (pole „Temat").</div>
-        </div>
-    </div>
 
-    <hr class="evo-divider">
+    </div>
 
     <!-- ── MAPOWANIE PÓŁ ────────────────────────────────────────────── -->
-    <p class="evo-section-title">Mapowanie pól</p>
-    <div class="evo-info-box">
-        <span class="dashicons dashicons-info"></span>
-        <div>
-            Przypisz czytelne nazwy do kluczy pól Bricks. Klucz to krótki identyfikator z Bricks (np. <code>fonlfr</code>, <code>436dec</code>).
-            Użyj <strong>Załaduj z bazy</strong> aby auto-wykryć klucze z istniejących zgłoszeń, lub dodaj ręcznie.
+    <div class="evo-box">
+        <h3>Mapowanie pól</h3>
+        <div class="evo-info-box">
+            <span class="dashicons dashicons-info"></span>
+            <div>
+                Przypisz czytelne nazwy do kluczy pól Bricks. Klucz to krótki identyfikator z Bricks (np. <code>fonlfr</code>, <code>436dec</code>).
+                Użyj <strong>Załaduj z bazy</strong> aby auto-wykryć klucze z istniejących zgłoszeń, lub dodaj ręcznie.
+            </div>
         </div>
+
+        <div class="evo-toolbar">
+            <?php if ($has_tbl): ?>
+            <button type="button" id="evk-load-fields" class="button">
+                <span class="dashicons dashicons-update evo-ico"></span>
+                Załaduj klucze z bazy
+            </button>
+            <?php endif; ?>
+            <button type="button" id="evk-add-field-row" class="button button-secondary">
+                <span class="dashicons dashicons-plus evo-ico"></span>
+                Dodaj wiersz
+            </button>
+            <span id="evk-fields-msg" class="evo-hint"></span>
+        </div>
+
+        <div id="evk-fields-table-wrap">
+            <table id="evk-fields-table" class="evo-table">
+                <thead>
+                    <tr>
+                        <th style="width:220px">Klucz Bricks</th>
+                        <th>Twoja nazwa</th>
+                        <th class="is-center" style="width:60px">Ukryj</th>
+                        <th style="width:36px"></th>
+                    </tr>
+                </thead>
+                <tbody id="evk-fields-tbody">
+                    <?php
+                    // Renderuj zapisane mapowania
+                    $saved_labels = $fi['field_labels'] ?? [];
+                    $saved_hidden = $fi['hidden_fields'] ?? [];
+                    if (!empty($saved_labels)):
+                        foreach ($saved_labels as $fk => $fl):
+                            $is_hidden = in_array($fk, $saved_hidden, true);
+                    ?>
+                    <tr class="evk-field-row">
+                        <td>
+                            <input type="text" name="evk_forminbox[field_labels_keys][]"
+                                   value="<?php echo esc_attr($fk); ?>"
+                                   placeholder="klucz" class="evo-w-full evo-mono">
+                        </td>
+                        <td>
+                            <input type="text" name="evk_forminbox[field_labels_vals][]"
+                                   value="<?php echo esc_attr($fl); ?>"
+                                   placeholder="Twoja nazwa" class="evo-w-full">
+                        </td>
+                        <td class="is-center">
+                            <input type="checkbox" name="evk_forminbox[hidden_fields][]"
+                                   value="<?php echo esc_attr($fk); ?>" <?php checked($is_hidden); ?>
+                                   class="evk-hidden-cb">
+                        </td>
+                        <td class="is-center is-tight">
+                            <button type="button" class="evk-remove-row evo-btn-plain is-danger" title="Usuń wiersz">
+                                <span class="dashicons dashicons-no-alt evo-ico"></span>
+                            </button>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php else: ?>
+                    <tr class="evk-field-row-empty" id="evk-no-rows">
+                        <td colspan="4" class="evo-empty">
+                            Brak mapowań. Załaduj klucze z bazy lub dodaj ręcznie.
+                        </td>
+                    </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+
     </div>
 
-    <div class="evo-toolbar">
-        <?php if ($has_tbl): ?>
-        <button type="button" id="evk-load-fields" class="button">
-            <span class="dashicons dashicons-update evo-ico"></span>
-            Załaduj klucze z bazy
-        </button>
-        <?php endif; ?>
-        <button type="button" id="evk-add-field-row" class="button button-secondary">
-            <span class="dashicons dashicons-plus evo-ico"></span>
-            Dodaj wiersz
-        </button>
-        <span id="evk-fields-msg" class="evo-hint"></span>
+    <div class="evo-box">
+        <h3>Układ pól — nagłówek i lewy panel</h3>
+        <div class="evo-info-box">
+            <span class="dashicons dashicons-info"></span>
+            <div>
+                Ustaw które pola i w jakiej kolejności pojawiają się w <strong>nagłówku wiadomości</strong> oraz na <strong>liście (lewy panel)</strong>.
+                Strzałkami zmieniasz kolejność. Puste = autodetekcja.
+                <br>Możesz łączyć kilka pól w jednej linii — wpisz szablon, np. <code>{{nazwisko}} {{imie}}</code>, albo użyj selektora <strong>▾</strong> aby wstawić pole.
+            </div>
+        </div>
+        <?php
+        $evk_type_labels = [
+            'header'  => ['title' => 'Tytuł (duży)', 'subtitle' => 'Podtytuł / temat', 'meta' => 'Meta (mała linia)'],
+            'sidebar' => ['name'  => 'Nazwa (pogrubiona)', 'preview' => 'Podgląd', 'meta' => 'Meta (mała linia)'],
+        ];
+        $evk_render_layout_rows = function ($rows, $group) use ($evk_type_labels) {
+            $tl = $evk_type_labels[$group];
+            if (empty($rows)) {
+                echo '<tr class="evk-layout-empty" data-group="' . esc_attr($group) . '"><td colspan="3" class="evo-empty">Brak pól — autodetekcja.</td></tr>';
+                return;
+            }
+            foreach ($rows as $r) {
+                $opts = '';
+                foreach ($tl as $tk => $tlbl) {
+                    $opts .= '<option value="' . esc_attr($tk) . '"' . selected($r['type'], $tk, false) . '>' . esc_html($tlbl) . '</option>';
+                }
+                echo '<tr class="evk-layout-row" data-group="' . esc_attr($group) . '">'
+                    . '<td><div class="evo-inline">'
+                        . '<input type="text" class="evk-layout-tpl evo-mono" name="evk_forminbox[' . esc_attr($group) . '_layout_keys][]" value="' . esc_attr($r['key']) . '" placeholder="{{nazwisko}} {{imie}}">'
+                        . '<select class="evk-key-insert evo-select-thin" title="Wstaw pole"></select>'
+                        . '</div></td>'
+                    . '<td style="width:150px"><select name="evk_forminbox[' . esc_attr($group) . '_layout_types][]" class="evo-w-full">' . $opts . '</select></td>'
+                    . '<td class="is-right is-tight" style="width:78px">'
+                        . '<button type="button" class="evk-row-up evo-btn-plain" title="W górę"><span class="dashicons dashicons-arrow-up-alt2 evo-ico-sm"></span></button>'
+                        . '<button type="button" class="evk-row-down evo-btn-plain" title="W dół"><span class="dashicons dashicons-arrow-down-alt2 evo-ico-sm"></span></button>'
+                        . '<button type="button" class="evk-layout-remove evo-btn-plain is-danger" title="Usuń"><span class="dashicons dashicons-no-alt evo-ico"></span></button>'
+                    . '</td></tr>';
+            }
+        };
+        ?>
+        <div class="evo-grid-2 evo-mb-lg" style="--evo-gap:24px">
+            <div>
+                <div class="evo-toolbar" style="margin-bottom:8px">
+                    <strong class="evo-col-title">Nagłówek wiadomości</strong>
+                    <button type="button" id="evk-add-header-row" class="button button-secondary">
+                        <span class="dashicons dashicons-plus evo-ico"></span> Dodaj pole
+                    </button>
+                </div>
+                <table class="evo-table">
+                    <tbody id="evk-header-tbody"><?php $evk_render_layout_rows($fi['header_layout'] ?? [], 'header'); ?></tbody>
+                </table>
+            </div>
+            <div>
+                <div class="evo-toolbar" style="margin-bottom:8px">
+                    <strong class="evo-col-title">Lewy panel (lista)</strong>
+                    <button type="button" id="evk-add-sidebar-row" class="button button-secondary">
+                        <span class="dashicons dashicons-plus evo-ico"></span> Dodaj pole
+                    </button>
+                </div>
+                <table class="evo-table">
+                    <tbody id="evk-sidebar-tbody"><?php $evk_render_layout_rows($fi['sidebar_layout'] ?? [], 'sidebar'); ?></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── SZABLON WIADOMOŚCI ────────────────────────────────────────── -->
     </div>
 
-    <div id="evk-fields-table-wrap">
-        <table id="evk-fields-table" class="evo-table">
+    <div class="evo-box">
+        <h3>Nazwy formularzy</h3>
+        <div class="evo-info-box">
+            <span class="dashicons dashicons-info"></span>
+            <div>
+                Przypisz czytelne nazwy do identyfikatorów formularzy Bricks (np. <code>yrckyz</code> → <em>Formularz kontaktowy</em>).
+                Nazwa pojawia się w sidebarze, nagłówku wiadomości i filtrze formularzy.
+            </div>
+        </div>
+        <div class="evo-toolbar">
+            <button type="button" id="evk-add-form-row" class="button button-secondary">
+                <span class="dashicons dashicons-plus evo-ico"></span>
+                Dodaj formularz
+            </button>
+            <?php if ($has_tbl): ?>
+            <button type="button" id="evk-load-forms" class="button">
+                <span class="dashicons dashicons-update evo-ico"></span>
+                Załaduj ID z bazy
+            </button>
+            <?php endif; ?>
+            <span id="evk-forms-msg" class="evo-hint"></span>
+        </div>
+        <table class="evo-table evo-mb-lg">
             <thead>
                 <tr>
-                    <th style="width:220px">Klucz Bricks</th>
+                    <th style="width:200px">ID formularza Bricks</th>
                     <th>Twoja nazwa</th>
-                    <th class="is-center" style="width:60px">Ukryj</th>
                     <th style="width:36px"></th>
                 </tr>
             </thead>
-            <tbody id="evk-fields-tbody">
+            <tbody id="evk-forms-tbody">
                 <?php
-                // Renderuj zapisane mapowania
-                $saved_labels = $fi['field_labels'] ?? [];
-                $saved_hidden = $fi['hidden_fields'] ?? [];
-                if (!empty($saved_labels)):
-                    foreach ($saved_labels as $fk => $fl):
-                        $is_hidden = in_array($fk, $saved_hidden, true);
-                ?>
-                <tr class="evk-field-row">
+                $saved_form_names = $fi['form_names'] ?? [];
+                if (!empty($saved_form_names)):
+                    foreach ($saved_form_names as $fid => $fname): ?>
+                <tr class="evk-form-row">
                     <td>
-                        <input type="text" name="evk_forminbox[field_labels_keys][]"
-                               value="<?php echo esc_attr($fk); ?>"
-                               placeholder="klucz" class="evo-w-full evo-mono">
+                        <input type="text" name="evk_forminbox[form_names_keys][]" value="<?php echo esc_attr($fid); ?>" placeholder="ID formularza" class="evo-w-full evo-mono">
                     </td>
                     <td>
-                        <input type="text" name="evk_forminbox[field_labels_vals][]"
-                               value="<?php echo esc_attr($fl); ?>"
-                               placeholder="Twoja nazwa" class="evo-w-full">
-                    </td>
-                    <td class="is-center">
-                        <input type="checkbox" name="evk_forminbox[hidden_fields][]"
-                               value="<?php echo esc_attr($fk); ?>" <?php checked($is_hidden); ?>
-                               class="evk-hidden-cb">
+                        <input type="text" name="evk_forminbox[form_names_vals][]" value="<?php echo esc_attr($fname); ?>" placeholder="Czytelna nazwa" class="evo-w-full">
                     </td>
                     <td class="is-center is-tight">
-                        <button type="button" class="evk-remove-row evo-btn-plain is-danger" title="Usuń wiersz">
+                        <button type="button" class="evk-remove-form-row evo-btn-plain is-danger" title="Usuń">
                             <span class="dashicons dashicons-no-alt evo-ico"></span>
                         </button>
                     </td>
                 </tr>
                 <?php endforeach; ?>
                 <?php else: ?>
-                <tr class="evk-field-row-empty" id="evk-no-rows">
-                    <td colspan="4" class="evo-empty">
-                        Brak mapowań. Załaduj klucze z bazy lub dodaj ręcznie.
-                    </td>
-                </tr>
+                <tr id="evk-no-form-rows"><td colspan="3" class="evo-empty">Brak mapowań formularzy.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
+
     </div>
 
-    <hr class="evo-divider">
-    <p class="evo-section-title">Układ pól — nagłówek i lewy panel</p>
-    <div class="evo-info-box">
-        <span class="dashicons dashicons-info"></span>
-        <div>
-            Ustaw które pola i w jakiej kolejności pojawiają się w <strong>nagłówku wiadomości</strong> oraz na <strong>liście (lewy panel)</strong>.
-            Strzałkami zmieniasz kolejność. Puste = autodetekcja.
-            <br>Możesz łączyć kilka pól w jednej linii — wpisz szablon, np. <code>{{nazwisko}} {{imie}}</code>, albo użyj selektora <strong>▾</strong> aby wstawić pole.
-        </div>
-    </div>
-    <?php
-    $evk_type_labels = [
-        'header'  => ['title' => 'Tytuł (duży)', 'subtitle' => 'Podtytuł / temat', 'meta' => 'Meta (mała linia)'],
-        'sidebar' => ['name'  => 'Nazwa (pogrubiona)', 'preview' => 'Podgląd', 'meta' => 'Meta (mała linia)'],
-    ];
-    $evk_render_layout_rows = function ($rows, $group) use ($evk_type_labels) {
-        $tl = $evk_type_labels[$group];
-        if (empty($rows)) {
-            echo '<tr class="evk-layout-empty" data-group="' . esc_attr($group) . '"><td colspan="3" class="evo-empty">Brak pól — autodetekcja.</td></tr>';
-            return;
-        }
-        foreach ($rows as $r) {
-            $opts = '';
-            foreach ($tl as $tk => $tlbl) {
-                $opts .= '<option value="' . esc_attr($tk) . '"' . selected($r['type'], $tk, false) . '>' . esc_html($tlbl) . '</option>';
-            }
-            echo '<tr class="evk-layout-row" data-group="' . esc_attr($group) . '">'
-                . '<td><div class="evo-inline">'
-                    . '<input type="text" class="evk-layout-tpl evo-mono" name="evk_forminbox[' . esc_attr($group) . '_layout_keys][]" value="' . esc_attr($r['key']) . '" placeholder="{{nazwisko}} {{imie}}">'
-                    . '<select class="evk-key-insert evo-select-thin" title="Wstaw pole"></select>'
-                    . '</div></td>'
-                . '<td style="width:150px"><select name="evk_forminbox[' . esc_attr($group) . '_layout_types][]" class="evo-w-full">' . $opts . '</select></td>'
-                . '<td class="is-right is-tight" style="width:78px">'
-                    . '<button type="button" class="evk-row-up evo-btn-plain" title="W górę"><span class="dashicons dashicons-arrow-up-alt2 evo-ico-sm"></span></button>'
-                    . '<button type="button" class="evk-row-down evo-btn-plain" title="W dół"><span class="dashicons dashicons-arrow-down-alt2 evo-ico-sm"></span></button>'
-                    . '<button type="button" class="evk-layout-remove evo-btn-plain is-danger" title="Usuń"><span class="dashicons dashicons-no-alt evo-ico"></span></button>'
-                . '</td></tr>';
-        }
-    };
-    ?>
-    <div class="evo-grid-2 evo-mb-lg" style="--evo-gap:24px">
-        <div>
-            <div class="evo-toolbar" style="margin-bottom:8px">
-                <strong class="evo-col-title">Nagłówek wiadomości</strong>
-                <button type="button" id="evk-add-header-row" class="button button-secondary">
-                    <span class="dashicons dashicons-plus evo-ico"></span> Dodaj pole
-                </button>
+    <div class="evo-box">
+        <h3>Szablon wyświetlania wiadomości</h3>
+        <div class="evo-info-box">
+            <span class="dashicons dashicons-info"></span>
+            <div>
+                Zdefiniuj jak wyglądać będzie wiadomość w podglądzie. Użyj <code>{{klucz}}</code> aby wstawić wartość pola (krótki klucz Bricks, np. <code>{{fonlfr}}</code>).
+                Jeśli szablon jest pusty — pola wyświetlane są automatycznie jako karty.
+                <br>Dostępne zmienne: <span id="evk-available-vars" class="evo-mono evo-hint-sm evo-accent-tx"></span>
             </div>
-            <table class="evo-table">
-                <tbody id="evk-header-tbody"><?php $evk_render_layout_rows($fi['header_layout'] ?? [], 'header'); ?></tbody>
-            </table>
         </div>
-        <div>
-            <div class="evo-toolbar" style="margin-bottom:8px">
-                <strong class="evo-col-title">Lewy panel (lista)</strong>
-                <button type="button" id="evk-add-sidebar-row" class="button button-secondary">
-                    <span class="dashicons dashicons-plus evo-ico"></span> Dodaj pole
-                </button>
+
+        <div class="evo-grid-2 evo-mb-lg">
+            <div class="evo-field">
+                <label>Szablon</label>
+                <textarea id="evk-template-editor" name="evk_forminbox[message_template]"
+                          rows="14"
+                          class="evo-w-full evo-mono evo-code-area"
+                          placeholder="Temat: {{fonlfr}}&#10;Od: {{imie}} {{nazwisko}}&#10;E-mail: {{email}}&#10;&#10;Wiadomość:&#10;{{tresc}}&#10;---&#10;Wiadomość z formularza."><?php echo esc_textarea($fi['message_template'] ?? ''); ?></textarea>
+                <div class="evo-desc">Kliknij na zmienną po prawej aby wstawić do kursora.</div>
             </div>
-            <table class="evo-table">
-                <tbody id="evk-sidebar-tbody"><?php $evk_render_layout_rows($fi['sidebar_layout'] ?? [], 'sidebar'); ?></tbody>
-            </table>
+            <div class="evo-field">
+                <label>Podgląd (z fikcyjnymi danymi)</label>
+                <div id="evk-template-preview" class="evo-preview"></div>
+                <div class="evo-desc">Rzeczywiste dane zobaczysz po otwarciu wiadomości w skrzynce.</div>
+            </div>
         </div>
+
+        <div id="evk-vars-palette" class="evo-chips"></div>
+
+    
     </div>
 
-    <!-- ── SZABLON WIADOMOŚCI ────────────────────────────────────────── -->
-    <hr class="evo-divider">
-    <p class="evo-section-title">Nazwy formularzy</p>
-    <div class="evo-info-box">
-        <span class="dashicons dashicons-info"></span>
-        <div>
-            Przypisz czytelne nazwy do identyfikatorów formularzy Bricks (np. <code>yrckyz</code> → <em>Formularz kontaktowy</em>).
-            Nazwa pojawia się w sidebarze, nagłówku wiadomości i filtrze formularzy.
-        </div>
-    </div>
-    <div class="evo-toolbar">
-        <button type="button" id="evk-add-form-row" class="button button-secondary">
-            <span class="dashicons dashicons-plus evo-ico"></span>
-            Dodaj formularz
-        </button>
-        <?php if ($has_tbl): ?>
-        <button type="button" id="evk-load-forms" class="button">
-            <span class="dashicons dashicons-update evo-ico"></span>
-            Załaduj ID z bazy
-        </button>
-        <?php endif; ?>
-        <span id="evk-forms-msg" class="evo-hint"></span>
-    </div>
-    <table class="evo-table evo-mb-lg">
-        <thead>
-            <tr>
-                <th style="width:200px">ID formularza Bricks</th>
-                <th>Twoja nazwa</th>
-                <th style="width:36px"></th>
-            </tr>
-        </thead>
-        <tbody id="evk-forms-tbody">
-            <?php
-            $saved_form_names = $fi['form_names'] ?? [];
-            if (!empty($saved_form_names)):
-                foreach ($saved_form_names as $fid => $fname): ?>
-            <tr class="evk-form-row">
-                <td>
-                    <input type="text" name="evk_forminbox[form_names_keys][]" value="<?php echo esc_attr($fid); ?>" placeholder="ID formularza" class="evo-w-full evo-mono">
-                </td>
-                <td>
-                    <input type="text" name="evk_forminbox[form_names_vals][]" value="<?php echo esc_attr($fname); ?>" placeholder="Czytelna nazwa" class="evo-w-full">
-                </td>
-                <td class="is-center is-tight">
-                    <button type="button" class="evk-remove-form-row evo-btn-plain is-danger" title="Usuń">
-                        <span class="dashicons dashicons-no-alt evo-ico"></span>
-                    </button>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-            <?php else: ?>
-            <tr id="evk-no-form-rows"><td colspan="3" class="evo-empty">Brak mapowań formularzy.</td></tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
-
-    <hr class="evo-divider" style="margin-top:0">
-    <p class="evo-section-title">Szablon wyświetlania wiadomości</p>
-    <div class="evo-info-box">
-        <span class="dashicons dashicons-info"></span>
-        <div>
-            Zdefiniuj jak wyglądać będzie wiadomość w podglądzie. Użyj <code>{{klucz}}</code> aby wstawić wartość pola (krótki klucz Bricks, np. <code>{{fonlfr}}</code>).
-            Jeśli szablon jest pusty — pola wyświetlane są automatycznie jako karty.
-            <br>Dostępne zmienne: <span id="evk-available-vars" class="evo-mono evo-hint-sm evo-accent-tx"></span>
-        </div>
-    </div>
-
-    <div class="evo-grid-2 evo-mb-lg">
-        <div class="evo-field">
-            <label>Szablon</label>
-            <textarea id="evk-template-editor" name="evk_forminbox[message_template]"
-                      rows="14"
-                      class="evo-w-full evo-mono evo-code-area"
-                      placeholder="Temat: {{fonlfr}}&#10;Od: {{imie}} {{nazwisko}}&#10;E-mail: {{email}}&#10;&#10;Wiadomość:&#10;{{tresc}}&#10;---&#10;Wiadomość z formularza."><?php echo esc_textarea($fi['message_template'] ?? ''); ?></textarea>
-            <div class="evo-desc">Kliknij na zmienną po prawej aby wstawić do kursora.</div>
-        </div>
-        <div class="evo-field">
-            <label>Podgląd (z fikcyjnymi danymi)</label>
-            <div id="evk-template-preview" class="evo-preview"></div>
-            <div class="evo-desc">Rzeczywiste dane zobaczysz po otwarciu wiadomości w skrzynce.</div>
-        </div>
-    </div>
-
-    <div id="evk-vars-palette" class="evo-chips"></div>
-
-    <div class="evo-save-bar">
+<div class="evo-save-bar">
         <?php submit_button('Zapisz ustawienia', 'primary', 'submit', false); ?>
     </div>
 </form>
