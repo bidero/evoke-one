@@ -1,0 +1,97 @@
+<meta charset="utf-8">
+<style>
+  body { margin: 0; font: 13px system-ui; background: #fff; }
+  .stage {
+    width: 240px; min-height: 68px; padding: 10px 14px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px dashed #cbd5e1; font-size: 14px; font-weight: 600;
+  }
+</style>
+
+<script src="../../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../../node_modules/gsap/dist/SplitText.min.js"></script>
+<script src="../../node_modules/gsap/dist/TextPlugin.min.js"></script>
+<script src="../../node_modules/gsap/dist/ScrambleTextPlugin.min.js"></script>
+<script>
+/* Presety przychodzą z PRAWDZIWEGO evk_anim_presets() (window.__presets
+   z testu, przez tests/php/anim-preview.php). Przepisanie ich tutaj
+   sprawdzałoby naszą kopię tablicy, a nie tablicę wtyczki.
+
+   Biblioteka pusta — dokładnie tak, jak w panelu: silnik nie ma czego szukać,
+   `start()` kończy od razu, a podgląd rejestruje wtyczki GSAP sam. */
+window.evkAnimator = { library: {}, presets: window.__presets };
+</script>
+
+<div class="stage" id="stage">Evoke ONE — próbka tekstu</div>
+<div class="stage" id="stage2">Evoke ONE — próbka tekstu</div>
+
+<script src="../../assets/js/animator.js"></script>
+<script>
+var SAMPLE = 'Evoke ONE — próbka tekstu';
+
+/** Odgrywa konfigurację na scenie, tak jak robi to panel. */
+window.__play = function (cfg, id) {
+  var el = document.getElementById(id || 'stage');
+  // ŚWIADOMIE bez czyszczenia treści: przywrócenie sceny należy do silnika.
+  // Gdyby robił to fixture, sprawdzenie „podział jest sprzątany" świeciłoby
+  // na zielono także wtedy, gdy silnik nie sprząta wcale — potwierdzone
+  // celowym zepsuciem, które nie zapaliło niczego.
+  el.removeAttribute('data-evk-anim-ready');
+  el.dataset.evkAnim = JSON.stringify(cfg);
+  var tl = window.evkAnimatorPreview(el);
+  return !!tl;
+};
+
+/** Stan sceny — po nim widać, czy animacja ruszyła i czy wróciła do siebie. */
+window.__state = function (id) {
+  var el = document.getElementById(id || 'stage');
+  var s  = getComputedStyle(el);
+  return {
+    opacity:   s.opacity,
+    transform: s.transform,
+    text:      el.textContent,
+    kids:      el.children.length,
+    html:      el.innerHTML.slice(0, 60),
+  };
+};
+
+/** Varsy zbudowane przez SILNIK dla tej samej konfiguracji.
+ *  Porównanie z tym, co dostaje podgląd, jest jedynym sprawdzeniem, które
+ *  broni przed ROZJAZDEM, a nie tylko przed awarią. */
+window.__engineVars = function (cfg) {
+  var el = document.getElementById('stage2');
+  el.dataset.evkAnim = JSON.stringify(cfg);
+  // Podglądowa oś czasu niesie te same tweeny co silnikowa — czytamy je z niej.
+  var tl = window.evkAnimatorPreview(el);
+  if (!tl) return null;
+  var tw = tl.getChildren()[0];
+  tl.kill();
+  return tw ? { vars: readable(tw.vars), duration: tw.duration() } : null;
+};
+
+/** Varsy „ręcznie", tą samą drogą co strona: gsap.to z presetu.
+ *  Zbudowane NIEZALEŻNIE od podglądu — gdyby oba czytały to samo miejsce,
+ *  porównanie nie dowodziłoby niczego. */
+window.__presetVars = function (slug) {
+  var p = window.__presets[slug] || {};
+  return { from: p.from || null, to: p.to || null, duration: p.duration, ease: p.easing || null };
+};
+
+function readable(vars) {
+  var out = {};
+  Object.keys(vars).forEach(function (k) {
+    var v = vars[k];
+    if (typeof v === 'function' || k === 'data' || k === 'callbackScope') return;
+    out[k] = v;
+  });
+  return out;
+}
+
+/** Parser „opacity: 0" po stronie JS — porównywany z PHP-owym w teście. */
+window.__parse = function (text) { return window.evkAnimatorParseProps(text); };
+
+window.__hasPreview = function () {
+  return typeof window.evkAnimatorPreview === 'function'
+      && typeof window.evkAnimatorParseProps === 'function';
+};
+</script>

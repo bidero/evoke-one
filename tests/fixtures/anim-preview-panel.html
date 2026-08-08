@@ -1,0 +1,108 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  body { margin: 0; background: #f0f0f1; font: 13px system-ui; }
+  input, select, textarea { border: 1px solid #8c8f94; border-radius: 3px; background: #fff; padding: 0 8px; min-height: 30px; }
+  .button { display: inline-block; border: 1px solid #2271b1; border-radius: 3px; background: #f6f7f7; color: #2271b1; padding: 0 10px; min-height: 30px; cursor: pointer; }
+</style>
+
+<div class="wrap"><div class="evo-panel" id="panel"></div></div>
+
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<script src="../../node_modules/sortablejs/Sortable.min.js"></script>
+<script src="../../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../../node_modules/gsap/dist/SplitText.min.js"></script>
+<script src="../../node_modules/gsap/dist/TextPlugin.min.js"></script>
+<script>
+/* Zakładka z PRAWDZIWEGO tab-animator.php i presety z PRAWDZIWEGO
+   evk_anim_presets() — oba przez window.__* z testu.
+
+   Ten fixture pilnuje SZWU: czy interfejs, który admin.js dokłada do wiersza,
+   trafia w markup zakładki i czy kliknięcie ▶ realnie uruchamia silnik.
+   Testy jednostkowe podglądu wołają silnik wprost i tego szwu nie dotykają —
+   a to on rozjedzie się najszybciej, bo obie strony żyją w osobnych plikach. */
+document.getElementById('panel').innerHTML = window.__tab;
+window.evoOneAnimData = { rowStart: 100, url: '/fake-ajax', nonce: 'n', saveNonce: 's' };
+window.evkAnimator    = { library: {}, presets: window.__presets };
+jQuery.post = function () {
+  var api = { done: function () { return api; }, fail: function () { return api; } };
+  return api;
+};
+</script>
+
+<script src="../../assets/js/animator.js"></script>
+<script>
+/* Zapamiętujemy oś czasu zwróconą przez podgląd. Próbkowanie opacity po czasie
+   NIE odróżnia „czas trwania 3 s" od „0,8 s" — po 0,7 s obie są w połowie drogi
+   i sprawdzenie przechodzi w obu przypadkach (potwierdzone celowym zepsuciem,
+   które nie zapaliło niczego). Czas trwania trzeba odczytać, nie zgadywać. */
+window.__lastTl = null;
+var origPreview = window.evkAnimatorPreview;
+window.evkAnimatorPreview = function (el) {
+  var tl = origPreview(el);
+  window.__lastTl = tl;
+  return tl;
+};
+</script>
+<script src="../../assets/admin/admin.js"></script>
+
+<script>
+window.__rows = function () {
+  return document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row').length;
+};
+
+/** Czy panel dołożył interfejs podglądu do każdego wiersza. */
+window.__ui = function () {
+  return Array.prototype.map.call(
+    document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row'),
+    function (r) {
+      var play  = r.querySelector('.evo-anim-play');
+      var stage = r.querySelector('.evo-anim-preview-stage');
+      return {
+        play:  !!play,
+        stage: !!stage,
+        text:  stage ? stage.textContent.trim() : '',
+        // Przycisk podglądu ma stać przy „Usuń", a nie na środku paska:
+        // nagłówek to flex ze space-between i przy trzech dzieciach rozkłada
+        // je równomiernie.
+        playLeft:   play ? Math.round(play.getBoundingClientRect().left) : 0,
+        playWidth:  play ? Math.round(play.getBoundingClientRect().width) : 0,
+        removeLeft: (function () {
+          var b = r.querySelector('.evo-btn-remove');
+          return b ? Math.round(b.getBoundingClientRect().left) : 0;
+        })(),
+        headerRight: Math.round(r.querySelector('.evo-anim-row-header').getBoundingClientRect().right),
+      };
+    });
+};
+
+window.__stageState = function (i) {
+  var st = document.querySelectorAll('.evo-anim-preview-stage')[i || 0];
+  var s  = getComputedStyle(st);
+  return { opacity: s.opacity, transform: s.transform, text: st.textContent, kids: st.children.length };
+};
+
+window.__note = function (i) {
+  var n = document.querySelectorAll('.evo-anim-preview-note')[i || 0];
+  return n ? n.textContent.trim() : null;
+};
+
+/** Ustawia wartość pola wiersza — podgląd ma czytać ŻYWE wartości. */
+window.__setField = function (i, key, val) {
+  var row = document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row')[i];
+  var f   = row.querySelector('[name$="[' + key + ']"]');
+  if (!f) return false;
+  f.value = val;
+  return true;
+};
+
+/** Czas trwania osi czasu z ostatniego odegrania — mierzony, nie próbkowany. */
+window.__lastDuration = function () {
+  return window.__lastTl ? window.__lastTl.duration() : null;
+};
+
+window.__collapsed = function (i) {
+  return document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row')[i]
+    .classList.contains('is-collapsed');
+};
+</script>

@@ -608,15 +608,29 @@
     unveil();
   }
 
+  /**
+   * Rejestracja wtyczek GSAP. Osobno od waitForGSAP, bo potrzebuje jej też
+   * podgląd w panelu — tam `start()` kończy od razu (brak biblioteki i brak
+   * elementów z data-evk-anim), więc rejestracja tą drogą nigdy by nie zaszła
+   * i SplitText leżałby załadowany, ale nieaktywny.
+   */
+  var pluginsReady = false;
+
+  function registerPlugins() {
+    if (pluginsReady || !window.gsap) return;
+    if (window.ScrollTrigger)      gsap.registerPlugin(ScrollTrigger);
+    // Wtyczki opcjonalne — na stronie dociągane tylko gdy któryś wiersz
+    // biblioteki ich potrzebuje (patrz enqueue_assets() w animator.php).
+    if (window.SplitText)          gsap.registerPlugin(SplitText);
+    if (window.TextPlugin)         gsap.registerPlugin(TextPlugin);
+    if (window.ScrambleTextPlugin) gsap.registerPlugin(ScrambleTextPlugin);
+    pluginsReady = true;
+  }
+
   function waitForGSAP(cb, tries) {
     tries = tries || 0;
     if (window.gsap && window.ScrollTrigger) {
-      gsap.registerPlugin(ScrollTrigger);
-      // Wtyczki opcjonalne — dociągane tylko gdy któryś wiersz biblioteki
-      // ich potrzebuje (patrz enqueue_assets() w includes/anim/animator.php).
-      if (window.SplitText)          gsap.registerPlugin(SplitText);
-      if (window.TextPlugin)         gsap.registerPlugin(TextPlugin);
-      if (window.ScrambleTextPlugin) gsap.registerPlugin(ScrambleTextPlugin);
+      registerPlugins();
       cb();
     } else if (tries < 50) {
       setTimeout(function () { waitForGSAP(cb, tries + 1); }, 100);
@@ -654,4 +668,119 @@
 
   // Punkt wejścia dla treści doładowywanej dynamicznie (AJAX, loop, popupy).
   window.evkAnimatorRefresh = initAll;
+
+  // ── Podgląd w panelu ───────────────────────────────────────────────────
+
+  /**
+   * Odgrywa animację w pudełku podglądu w panelu administratora.
+   *
+   * DLACZEGO TUTAJ, A NIE W admin.js: konfiguracja powstaje przez `buildConfig()`,
+   * czyli tę samą funkcję, która obsługuje stronę. Panel podaje wartości pól
+   * w atrybucie `data-evk-anim` i dalej dzieje się dokładnie to, co na żywo:
+   * scalenie atrybut ⊕ biblioteka ⊕ preset, `tweenVars()`, `startVars()`.
+   * Druga kopia tej logiki w panelu rozjechałaby się z silnikiem i podgląd
+   * pokazywałby coś innego niż strona — to jest ten sam błąd, który usuwało
+   * scentralizowanie budowy varsów w 1.32.0.
+   *
+   * Czym podgląd RÓŻNI SIĘ od strony i dlaczego:
+   *
+   * * **Gra raz, na żądanie.** Wyzwalacze `viewport`, `scrub`, `hover`, `click`
+   *   i `pin` nie mają sensu w pudełku 120×80 — nie ma czego przewijać ani
+   *   przypinać. Presety scrollowe grają więc jako zwykły tween i panel mówi
+   *   to wprost, zamiast udawać, że pokazuje całość.
+   * * **Sprząta po sobie przed każdym odegraniem.** SplitText przebudowuje DOM,
+   *   a wtyczki tekstowe nadpisują `innerHTML` — bez przywrócenia treści druga
+   *   próba startowałaby z resztek pierwszej.
+   *
+   * Zwraca oś czasu albo null (konfiguracja nie do zbudowania, redukcja ruchu).
+   */
+  function previewPlay(el) {
+    if (typeof gsap === 'undefined') return null;
+    registerPlugins();   // w panelu start() kończy od razu i nie robi tego za nas
+
+    // Sprzątanie po poprzednim odegraniu.
+    if (el._evkPrevTl)    { el._evkPrevTl.kill();    el._evkPrevTl = null; }
+    if (el._evkPrevSplit) { el._evkPrevSplit.revert(); el._evkPrevSplit = null; }
+    if (el._evkPrevHTML === undefined) el._evkPrevHTML = el.innerHTML;
+    else el.innerHTML = el._evkPrevHTML;
+    // `_evkText` pamięta docelowy tekst dla wtyczek tekstowych i jest zapisany
+    // na węźle — po przywróceniu innerHTML węzeł jest nowy, ale sam element
+    // podglądu ten sam, więc trzeba go wyczyścić ręcznie.
+    delete el._evkText;
+    gsap.set(el, { clearProps: 'all' });
+
+    var cfg = buildConfig(el);
+    if (!cfg) return null;
+
+    // Redukcja ruchu — ta sama polityka co w initOne(): bez ruchu, ale stan
+    // końcowy widoczny. Podgląd nie jest od tego wyjątkiem; gdyby był, panel
+    // pokazywałby ruch, którego odwiedzający nigdy nie zobaczy.
+    if (prefersReduced()) {
+      if (cfg.to) gsap.set(resolveTargets(el, cfg), cfg.to);
+      return null;
+    }
+
+    cfg = Object.assign({}, cfg, {
+      trigger: 'load',   // gra od razu, bez ScrollTriggera
+      repeat:  false,
+      pin:     false,
+    });
+
+    var tl;
+
+    if (cfg.textFx === 'words') {
+      // Zmieniające się słowa to pętla, nie tween — attachWords() zna tę różnicę.
+      tl = attachWords(el, [el], cfg);
+    } else if (cfg.split && typeof SplitText !== 'undefined'
+               && { lines: 1, words: 1, chars: 1 }[cfg.split]) {
+      var opts = { type: cfg.split, aria: 'none',
+                   linesClass: 'evk-anim-line', wordsClass: 'evk-anim-word',
+                   charsClass: 'evk-anim-char' };
+      if (cfg.mask) opts.mask = cfg.mask;
+      // Bez autoSplit: pudełko podglądu nie zmienia szerokości w trakcie
+      // odegrania, a onSplit odbierałby nam uchwyt do osi czasu.
+      var split  = new SplitText(el, opts);
+      var pieces = split[cfg.split];
+      el._evkPrevSplit = split;
+      tl = buildTimeline((pieces && pieces.length) ? pieces : [el], cfg);
+    } else {
+      var targets = resolveTargets(el, cfg);
+      if (cfg.textFx) targets = textSafeTargets(el, targets);
+      if (!targets.length) return null;
+      tl = buildTimeline(targets, cfg);
+    }
+
+    if (tl) { tl.delay(cfg.delay); el._evkPrevTl = tl; }
+    return tl;
+  }
+
+  /**
+   * „opacity: 0\ny: 40" → { opacity: 0, y: 40 }.
+   *
+   * Ten sam format, co w `evk_anim_parse_props()` (includes/anim/presets.php).
+   * Odpowiednik w JS jest potrzebny, bo panel ma tekst z pola, a silnik obiekt —
+   * i musi być TU, przy silniku, a nie w admin.js: format należy do animacji,
+   * nie do panelu. Zgodność obu parserów pilnuje tests/anim-preview.test.js,
+   * porównując je na tych samych danych.
+   */
+  function parseProps(text) {
+    var out = {};
+    var n   = 0;
+    String(text || '').split(/\r\n|\r|\n/).forEach(function (line) {
+      if (n >= 20) return;                       // limit jak po stronie PHP
+      line = line.trim();
+      var i = line.indexOf(':');
+      if (!line || i === -1) return;
+      var prop = line.slice(0, i).trim();
+      var val  = line.slice(i + 1).trim();
+      if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(prop) || val === '') return;
+      // is_numeric() po stronie PHP: liczba zostaje liczbą, reszta łańcuchem.
+      out[prop] = (val !== '' && !isNaN(val) && !isNaN(parseFloat(val))) ? parseFloat(val) : val;
+      n++;
+    });
+    return out;
+  }
+
+  window.evkAnimatorPreview    = previewPlay;
+  window.evkAnimatorParseProps = parseProps;
 })();

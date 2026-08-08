@@ -187,9 +187,11 @@ module.exports = async function (t) {
     await c1.evaluate(() => localStorage.getItem('evkAnimCollapsed')));
 
   // Przycisk „Usuń" siedzi w nagłówku — nie może przy okazji zwijać.
+  // Celujemy w KLASĘ, nie w „pierwszy button w nagłówku": od 1.47.0 stoi tam
+  // także przycisk podglądu i ogólny selektor trafiał w niego.
   await c1.evaluate(() => {
     document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row')[1]
-      .querySelector('.evo-anim-row-header button').click();
+      .querySelector('.evo-anim-row-header .evo-btn-remove').click();
   });
   await c1.waitForTimeout(100);
   const afterRemove = await collapsed();

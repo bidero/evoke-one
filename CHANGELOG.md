@@ -2,6 +2,48 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.47.0] — 2026-08-08
+
+### Dodane
+
+- **Podgląd animacji w bibliotece.** Przycisk ▶ przy nagłówku wiersza odgrywa
+  animację w pudełku obok pól — bez wychodzenia na stronę i bez odświeżania.
+  Czyta **żywe wartości pól**, nie zapisane: zmiana czasu czy easingu jest
+  widoczna od razu, jeszcze przed zapisem.
+
+  **Podgląd nie ma własnej kopii logiki animacji.** Panel podaje wartości pól
+  w `data-evk-anim` i woła `evkAnimatorPreview()` — dalej dzieje się dokładnie
+  to, co na stronie: `buildConfig()`, `tweenVars()`, `startVars()`, ten sam GSAP.
+  Druga implementacja w panelu rozjechałaby się z silnikiem i podgląd
+  pokazywałby coś, czego odwiedzający nigdy nie zobaczy. Pilnuje tego test,
+  porównując parametry podglądu z tablicą presetów z PHP.
+
+  Czego podgląd **nie** udaje: wyzwalaczy. W pudełku 120×80 nie ma czego
+  przewijać ani przypinać, więc presety scrollowe grają jako zwykła animacja —
+  i panel mówi to wprost pod sceną, zamiast sugerować, że pokazuje całość.
+
+  Redukcja ruchu obowiązuje tak samo jak na stronie: bez ruchu, ze stanem
+  końcowym.
+
+### Zmienione
+
+- **Rejestracja wtyczek GSAP wyjęta z `waitForGSAP()`** do osobnej funkcji.
+  W panelu `start()` kończy od razu (pusta biblioteka, brak elementów
+  z `data-evk-anim`), więc rejestracja tamtą drogą nigdy by nie zaszła
+  i SplitText leżałby załadowany, ale nieaktywny.
+
+- **Parser `opacity: 0` doczekał się odpowiednika w JS** (`evkAnimatorParseProps`),
+  przy silniku — format należy do animacji, nie do panelu. Dwie implementacje
+  jednego formatu to dwa miejsca do rozejścia się, więc test porównuje je na
+  pięciu przypadkach brzegowych.
+
+### Usunięte
+
+- **`stopPropagation()` przy kliknięciu ▶.** Dołożyłem je „żeby nagłówek się nie
+  zwijał", ale obsługa zwijania i tak wyklucza kliknięcia w przyciski — jego
+  usunięcie nie zmieniało niczego. Zamiast dublować zabezpieczenie, testem
+  pilnowany jest teraz ten filtr.
+
 ## [1.46.0] — 2026-08-08
 
 ### Dodane

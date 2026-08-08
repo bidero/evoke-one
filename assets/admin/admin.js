@@ -621,4 +621,151 @@
         });
     }
 
+    /* =========================================================
+       PODGLĄD ANIMACJI W BIBLIOTECE
+       =========================================================
+
+       Odgrywa animację w pudełku wewnątrz wiersza, na próbce tekstu.
+
+       Cała logika animacji siedzi w assets/js/animator.js — panel podaje
+       tylko wartości pól w `data-evk-anim` i woła `evkAnimatorPreview()`.
+       Dzięki temu podgląd przechodzi tą samą drogą, co strona: scalenie
+       atrybut ⊕ biblioteka ⊕ preset, te same varsy, ten sam GSAP. Druga kopia
+       tej logiki tutaj rozjechałaby się z silnikiem i podgląd pokazywałby
+       coś innego niż odwiedzający.
+
+       Interfejs budujemy w JS, a nie w szablonie PHP, bo wiersz biblioteki ma
+       DWA szablony — jeden w tab-animator.php, drugi w evkAddAnimRow() — i każdy
+       element dołożony w markupie trzeba by pisać dwa razy.
+       ========================================================= */
+    if (typeof evoOneAnimData !== 'undefined') {
+        var PREVIEW_SAMPLE = 'Evoke ONE — próbka tekstu';
+
+        /* Wyzwalacze, których w pudełku 120×80 nie da się pokazać uczciwie.
+           Zamiast udawać, panel mówi wprost, co widać. */
+        var PREVIEW_NOTES = {
+            scrub: 'Preset sterowany przewijaniem — podgląd gra go jako zwykłą animację.',
+            hover: 'Wyzwalacz „najechanie" — podgląd odgrywa sam efekt.',
+            click: 'Wyzwalacz „kliknięcie" — podgląd odgrywa sam efekt.',
+        };
+
+        /** Wartość pola wiersza po końcówce nazwy, np. „[duration]". */
+        function rowField($row, key) {
+            var $f = $row.find('[name$="[' + key + ']"]').first();
+            if (!$f.length) return null;
+            if ($f.is(':checkbox')) return $f.is(':checked') ? 1 : 0;
+            return $f.val();
+        }
+
+        /* Konfiguracja z ŻYWYCH pól, nie z zapisanej biblioteki — podgląd ma
+           pokazywać to, co jest w polach teraz, przed zapisem. */
+        function rowConfig($row) {
+            var cfg  = {};
+            var pairs = {
+                preset: 'preset', trigger: 'trigger', easing: 'easing',
+                targets: 'targets', selector: 'selector',
+            };
+            Object.keys(pairs).forEach(function (k) {
+                var v = rowField($row, pairs[k]);
+                if (v !== null && v !== '') cfg[k] = v;
+            });
+            ['duration', 'delay', 'stagger'].forEach(function (k) {
+                var v = rowField($row, k);
+                if (v !== null && v !== '') cfg[k] = parseFloat(v);
+            });
+            ['loop', 'loopYoyo'].forEach(function (k) {
+                var v = rowField($row, k === 'loopYoyo' ? 'loop_yoyo' : k);
+                if (v !== null) cfg[k] = !!v;
+            });
+
+            var parse = window.evkAnimatorParseProps || function () { return null; };
+            ['from', 'to'].forEach(function (k) {
+                var raw = rowField($row, k);
+                if (!raw) return;
+                var obj = parse(raw);
+                if (obj && Object.keys(obj).length) cfg[k] = obj;
+            });
+
+            var words = rowField($row, 'words');
+            if (words) {
+                cfg.words = words.split(/\r\n|\r|\n/)
+                    .map(function (w) { return w.trim(); })
+                    .filter(Boolean).slice(0, 20);
+            }
+            return cfg;
+        }
+
+        /** Dokłada przycisk i pudełko do wiersza, jeśli jeszcze ich nie ma. */
+        function ensurePreview(row) {
+            var $row = $(row);
+            if ($row.find('.evo-anim-preview').length) return;
+
+            $('<button type="button" class="evo-anim-play" title="Odegraj podgląd">'
+              + '<span class="dashicons dashicons-controls-play"></span></button>')
+                .insertBefore($row.find('.evo-anim-row-header .evo-btn-remove'));
+
+            $row.find('.evo-anim-grid').append(
+                '<div class="evo-anim-preview">'
+              +   '<div class="evo-anim-preview-stage">' + PREVIEW_SAMPLE + '</div>'
+              +   '<span class="evo-anim-preview-note">Kliknij ▶, żeby odegrać.</span>'
+              + '</div>');
+        }
+
+        function playPreview($row) {
+            var $stage = $row.find('.evo-anim-preview-stage');
+            var $note  = $row.find('.evo-anim-preview-note');
+            var stage  = $stage[0];
+            if (!stage) return;
+
+            if (typeof window.evkAnimatorPreview !== 'function') {
+                $note.text('Silnik animacji się nie załadował.');
+                return;
+            }
+
+            var cfg = rowConfig($row);
+
+            // Treści NIE odtwarzamy tutaj — robi to silnik w evkAnimatorPreview().
+            // Dwóch sprzątających to zero sprzątających: dopóki panel czyścił
+            // scenę przed wywołaniem, nie dało się zauważyć, że silnik przestał.
+            if (!$stage.text().trim()) $stage.text(PREVIEW_SAMPLE);
+            // Znacznik `data-evk-anim-ready` zostaje po poprzednim uruchomieniu
+            // i blokowałby ponowne wejście przez initAll(); podgląd woła silnik
+            // wprost, ale zostawianie tu śmiecia byłoby miną na przyszłość.
+            stage.removeAttribute('data-evk-anim-ready');
+            stage.dataset.evkAnim = JSON.stringify(cfg);
+
+            var tl = window.evkAnimatorPreview(stage);
+
+            if (!tl) {
+                $note.text(window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                    ? 'Redukcja ruchu włączona — widać stan końcowy, bez animacji.'
+                    : 'Ten preset nie ma czego odegrać w podglądzie.');
+                return;
+            }
+            $note.text(PREVIEW_NOTES[cfg.trigger] || '');
+        }
+
+        $(function () {
+            $('#evo-anim-repeater-container > .evo-anim-row').each(function () { ensurePreview(this); });
+        });
+
+        // Wiersze dodane przyciskiem też mają podgląd — delegacja zamiast
+        // podpinania przy tworzeniu, bo szablon nowego wiersza żyje osobno.
+        // Nagłówek wiersza jest też przełącznikiem zwijania, ale zatrzymywanie
+        // propagacji jest tu ZBĘDNE: obsługa zwijania wyklucza kliknięcia
+        // w `button, input, select, textarea, a`, więc ▶ i tak jej nie dotyczy.
+        // Sprawdzone celowym zepsuciem — usunięcie stopPropagation nie zmieniało
+        // niczego. Zamiast dublować zabezpieczenie, pilnujemy tego filtru testem.
+        $(document).on('click', '.evo-anim-play', function (e) {
+            e.preventDefault();
+            playPreview($(this).closest('.evo-anim-row'));
+        });
+
+        $(document).on('click', '#evo-anim-repeater-container ~ .button', function () {
+            setTimeout(function () {
+                $('#evo-anim-repeater-container > .evo-anim-row').each(function () { ensurePreview(this); });
+            }, 0);
+        });
+    }
+
 })(jQuery);

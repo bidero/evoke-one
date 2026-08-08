@@ -12,7 +12,8 @@ define('ABSPATH', 1);
 
 $GLOBALS['hooks']    = [];
 $GLOBALS['options']  = [];
-$GLOBALS['enqueued']  = [];
+$GLOBALS['enqueued']   = [];
+$GLOBALS['registered'] = [];
 $GLOBALS['inline']    = [];
 $GLOBALS['localized'] = [];
 $GLOBALS['sanitizers'] = [];
@@ -76,6 +77,16 @@ function wp_json_encode($v) { return json_encode($v, JSON_UNESCAPED_UNICODE); }
 // nie wywala — skrypt po prostu nie trafia na stronę i efekt cicho nie działa.
 function wp_enqueue_script($handle, $src = '', $deps = [], $ver = false, $args = false) {
     $GLOBALS['enqueued'][$handle] = ['src' => $src, 'deps' => (array) $deps];
+}
+// Rejestracja to nie to samo co enqueue: skrypt zarejestrowany jest znany
+// WordPressowi, ale trafia na stronę dopiero przez wp_enqueue_script($handle).
+// Panel korzysta z tej różnicy — GSAP rejestruje moduł, a panel tylko dociąga.
+function wp_register_script($handle, $src = '', $deps = [], $ver = false, $args = false) {
+    $GLOBALS['registered'][$handle] = ['src' => $src, 'deps' => (array) $deps];
+}
+function wp_script_is($handle, $list = 'enqueued') {
+    if ($list === 'registered') return isset($GLOBALS['registered'][$handle]);
+    return isset($GLOBALS['enqueued'][$handle]);
 }
 function wp_add_inline_script($handle, $data, $position = 'after') {
     $GLOBALS['inline'][] = ['handle' => $handle, 'data' => $data, 'position' => $position];

@@ -71,6 +71,31 @@ add_action('admin_enqueue_scripts', function (string $hook) {
         'nonce' => wp_create_nonce('evk-toggle-nonce'),
     ]);
 
+    // ── Podgląd animacji w bibliotece ──
+    // Silnik jest ten sam, którym animuje się strona: podgląd podaje wartości
+    // pól w data-evk-anim i przechodzi przez buildConfig() → tweenVars().
+    // Własna kopia tej logiki w panelu rozjechałaby się z silnikiem i podgląd
+    // pokazywałby co innego niż odwiedzający.
+    //
+    // Rejestrację wołamy z ręki, bo evk_register_gsap_libs() wisi na
+    // 'wp_enqueue_scripts', czyli wyłącznie na froncie.
+    evk_register_gsap_libs();
+    // Wtyczki tekstowe BEZWARUNKOWO. Na stronie dociąga się je zależnie od tego,
+    // czego potrzebują zapisane wiersze — tu żaden taki warunek nie działa,
+    // bo w panelu można wybrać dowolny z 35 presetów i od razu go odegrać.
+    wp_enqueue_script('evk-splittext');
+    wp_enqueue_script('evk-textplugin');
+    wp_enqueue_script('evk-scrambletext');
+    wp_enqueue_script('evk-animator', EVOKE_ONE_URL . 'assets/js/animator.js',
+        ['evk-gsap', 'evk-splittext', 'evk-textplugin', 'evk-scrambletext'],
+        EVOKE_ONE_VERSION, true);
+    wp_add_inline_script('evk-animator', 'window.evkAnimator = ' . wp_json_encode([
+        // Pusta biblioteka: silnik nie ma czego szukać w panelu, a start()
+        // kończy wtedy od razu. Podgląd rejestruje wtyczki GSAP sam.
+        'library' => (object) [],
+        'presets' => evk_anim_presets(),
+    ]) . ';', 'before');
+
     // Zapis ustawień bez przeładowania. Nonce'a NIE ma tu celowo: formularz
     // niesie już własny, wydrukowany przez settings_fields( $grupa ), i to on
     // decyduje o uprawnieniu. Drugi nonce byłby tylko drugą rzeczą do pilnowania.

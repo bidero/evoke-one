@@ -1500,3 +1500,75 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 /* Komunikat zapisu w pasku — pojawia się obok przycisku, nie zamiast niego. */
 .evo-save-note { font-size: 12px; color: var(--evo-text-dim); }
 .evo-save-note.is-err { color: var(--evo-danger); }
+
+/* =========================================================================
+   PODGLĄD ANIMACJI W BIBLIOTECE
+   =========================================================================
+   Pudełko, w którym wiersz biblioteki odgrywa swoją animację. Interfejs
+   dokłada admin.js, bo wiersz ma dwa szablony (PHP i evkAddAnimRow) i każdy
+   element w markupie trzeba by pisać dwa razy.
+   ========================================================================= */
+
+/* `margin-left: auto` jest tu konieczne: nagłówek wiersza to flex ze
+   `space-between`, a przy trzech dzieciach (tytuł, ▶, Usuń) rozkłada je
+   równomiernie i przycisk podglądu ląduje na środku paska. Auto-margines
+   przykleja go do prawej, obok „Usuń". */
+.evo-anim-play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    width: 30px;
+    height: 30px;
+    margin-right: 6px;
+    padding: 0;
+    background: var(--evo-surface);
+    border: 1px solid #e2e8f0;
+    border-radius: var(--evo-radius-btn);
+    color: var(--evo-accent);
+    line-height: 1;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+}
+.evo-anim-play:hover { background: var(--evo-accent-soft); border-color: var(--evo-accent-line); }
+.evo-anim-play .dashicons { font-size: 18px; width: 18px; height: 18px; line-height: 1; }
+
+.evo-anim-preview {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+/* Scena podglądu.
+ *
+ * `overflow: hidden` jest KONIECZNE: presety wjeżdżające z boku startują poza
+ * pudełkiem i bez obcięcia rozpychałyby wiersz w poziomie.
+ *
+ * Bez elementów-dzieci w środku — to nie jest ozdoba, tylko warunek działania
+ * efektów tekstowych: TextPlugin i ScrambleTextPlugin wpisują tekst przez
+ * innerHTML, a na kontenerze z dziećmi silnik je odrzuca (textSafeTargets).
+ * Stagger widać więc przy presetach dzielących tekst, nie przy „dzieciach".
+ */
+.evo-anim-preview-stage {
+    flex: 0 0 auto;
+    width: 240px;
+    min-height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    overflow: hidden;
+    background: var(--evo-surface);
+    border: 1px dashed var(--evo-border-dash);
+    border-radius: var(--evo-radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--evo-text);
+    text-align: center;
+}
+.evo-anim-preview-note { font-size: 12px; color: var(--evo-text-muted); line-height: 1.5; }
+
+@media screen and (max-width: 600px) {
+    .evo-anim-preview { flex-direction: column; align-items: stretch; }
+    .evo-anim-preview-stage { width: 100%; }
+}
