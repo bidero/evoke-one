@@ -134,6 +134,40 @@ window.__boxes = function () {
     });
 };
 
+/**
+ * Co WYSTAJE poza szerokość okna.
+ *
+ * Element w kontenerze z własnym przewijaniem w poziomie (tabela w `overflow-x:
+ * auto`) NIE jest usterką — przewija się wtedy tabela, a nie cały ekran.
+ * Bez tego rozróżnienia sprawdzenie zapalałoby się na poprawnym układzie.
+ */
+window.__overflow = function () {
+  var out = [];
+  document.querySelectorAll('#panel *').forEach(function (el) {
+    var r = el.getBoundingClientRect();
+    if (r.right <= window.innerWidth + 1) return;
+    for (var n = el.parentElement; n; n = n.parentElement) {
+      var ox = getComputedStyle(n).overflowX;
+      if (ox === 'auto' || ox === 'scroll') return;
+    }
+    out.push({
+      tag: el.tagName.toLowerCase(),
+      cls: String(el.className || '').slice(0, 32),
+      over: Math.round(r.right - window.innerWidth),
+    });
+  });
+  return { items: out.slice(0, 5), count: out.length,
+           doc: document.documentElement.scrollWidth, win: window.innerWidth };
+};
+
+/** Szerokości kafelków statystyk — poniżej ~110 px etykieta łamie się
+ *  na trzy linie i kafelek przestaje być czytelny. */
+window.__stats = function () {
+  return Array.prototype.map.call(
+    document.querySelectorAll('#panel .evk-nl-stats > *'),
+    function (el) { return Math.round(el.getBoundingClientRect().width); });
+};
+
 /** Ile inline'owych atrybutów style zostało w wyrenderowanej zakładce. */
 window.__inlineCount = function () {
   return document.querySelectorAll('#panel [style]').length;

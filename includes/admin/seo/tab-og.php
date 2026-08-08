@@ -50,12 +50,12 @@ if (!defined('ABSPATH')) exit;
                     <h3>Ustawienia globalne</h3>
 
                     <?php if (!extension_loaded('imagick')): ?>
-                    <div class="evo-info-box" class="is-err">
+                    <div class="evo-info-box is-err">
                         <span class="dashicons dashicons-warning"></span>
                         <div>Rozszerzenie <strong>Imagick</strong> nie jest zainstalowane na tym serwerze. Warstwy z plikami <strong>.svg</strong> będą pomijane podczas generowania. Pozostałe formaty (JPG, PNG, WebP, GIF) działają normalnie.</div>
                     </div>
                     <?php else: ?>
-                    <div class="evo-info-box" class="is-ok">
+                    <div class="evo-info-box is-ok">
                         <span class="dashicons dashicons-yes-alt"></span>
                         <div>Rozszerzenie <strong>Imagick</strong> jest dostępne — obsługa plików <strong>.svg</strong> aktywna.</div>
                     </div>
@@ -143,7 +143,7 @@ if (!defined('ABSPATH')) exit;
                                 <span class="evo-og-layer-title"><?php echo esc_html($layer['label'] ?? $type); ?></span>
                                 <span class="evo-og-layer-type-badge"><?php echo esc_html($layer_types[$type] ?? $type); ?></span>
                                 <button type="button" class="evo-og-btn-remove" onclick="this.closest('.evo-og-layer').remove()">
-                                    <span class="dashicons dashicons-trash" class="evo-ico-sm"></span>
+                                    <span class="dashicons dashicons-trash evo-ico-sm"></span>
                                 </button>
                             </div>
 
@@ -298,7 +298,7 @@ if (!defined('ABSPATH')) exit;
                                             class="evo-mono evo-w-hex">
                                     </div>
                                 </div>
-                                <div class="evo-og-full" class="evo-hr-top">
+                                <div class="evo-og-full evo-hr-top">
                                     <label class="checkbox-label evo-mb-sm">
                                         <input type="checkbox" name="evk_og[layers][<?php echo $li; ?>][shadow_enabled]" value="1" <?php checked(!empty($layer['shadow_enabled'])); ?>>
                                         Cień tekstu
@@ -381,7 +381,7 @@ if (!defined('ABSPATH')) exit;
                     <h3>Narzędzia</h3>
                     <div class="evo-toolbar" style="margin-bottom:0">
                         <button type="button" class="button" id="evk-og-regen-all" onclick="evkOgRegenAll()">
-                            <span class="dashicons dashicons-update" class="evo-ico evo-ico-lead"></span>
+                            <span class="dashicons dashicons-update evo-ico evo-ico-lead"></span>
                             Regeneruj wszystkie obrazy OG
                         </button>
                         <span id="evk-og-regen-result" class="evo-og-regen-result"></span>
@@ -469,7 +469,7 @@ if (!defined('ABSPATH')) exit;
                             '<span class="evo-og-layer-title">' + (typeLabels[type] || type) + '</span>' +
                             '<span class="evo-og-layer-type-badge">' + (typeLabels[type] || type) + '</span>' +
                             '<button type="button" class="evo-og-btn-remove" onclick="this.closest(\'.evo-og-layer\').remove()">' +
-                                '<span class="dashicons dashicons-trash" class="evo-ico-sm"></span>' +
+                                '<span class="dashicons dashicons-trash evo-ico-sm"></span>' +
                             '</button>' +
                         '</div>' +
                         '<input type="hidden" name="evk_og[layers]['+i+'][id]" value="'+id+'">' +
@@ -522,7 +522,7 @@ if (!defined('ABSPATH')) exit;
                         $res.text('Błąd połączenia.').show();
                     }).always(function () {
                         $btn.prop('disabled', false).html(
-                            '<span class="dashicons dashicons-update" class="evo-ico evo-ico-lead"></span> Regeneruj wszystkie obrazy OG'
+                            '<span class="dashicons dashicons-update evo-ico evo-ico-lead"></span> Regeneruj wszystkie obrazy OG'
                         );
                     });
                 };

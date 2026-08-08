@@ -80,12 +80,41 @@ function get_post_types($args = [], $output = 'names') {
 }
 function wp_get_attachment_image_url($id, $size = 'thumbnail') { return 'https://example.test/obraz.jpg'; }
 function wp_upload_dir() { return ['basedir' => '/tmp', 'baseurl' => 'https://example.test/uploads']; }
+function add_query_arg(...$a) { return 'https://example.test/wp-admin/admin.php?page=evk-newsletter'; }
+function esc_attr__($s, $d = '') { return $s; }
+function wp_kses_post($s) { return $s; }
+function mysql2date($f, $d, $t = true) { return '2026-08-08 12:00'; }
+function current_time($type = 'mysql') { return '2026-08-08 12:00:00'; }
+function human_time_diff($a, $b = 0) { return '2 godziny'; }
+// `evk_nl_base_url()` siedzi w menu.php razem z rejestracją ekranu i całym
+// routerem — ładowanie tego pliku pociągnęłoby pół modułu tylko po adres.
+function evk_nl_base_url() { return 'https://example.test/wp-admin/admin.php?page=evk-newsletter'; }
+function wp_enqueue_editor() {}
+function wp_editor($content, $id, $settings = []) {
+    echo '<textarea id="' . $id . '" name="' . ($settings['textarea_name'] ?? $id) . '" rows="'
+       . ($settings['textarea_rows'] ?? 10) . '">' . htmlspecialchars((string) $content) . '</textarea>';
+}
 
-/** Atrapa $wpdb — tyle, ile potrzeba, by zakładka narysowała tabelę. */
+/** Atrapa $wpdb — tyle, ile potrzeba, by zakładka narysowała tabelę.
+ *
+ * Wiersze dobierane po NAZWIE TABELI w zapytaniu. Pusta baza rysuje zakładki
+ * bez repeaterów i tabel, a to właśnie w nich siedzi większość znaczników,
+ * o które w tym teście chodzi — zwłaszcza w newsletterze, gdzie trzy z pięciu
+ * zakładek są ekranami listowymi. */
 $GLOBALS['wpdb'] = new class {
     public $prefix = 'wp_';
+    /** @var array<string, array<int, array<string, mixed>>> */
+    public $seed = [];
+
+    private function pick($q) {
+        foreach ($this->seed as $table => $rows) {
+            if (strpos($q, $table) !== false) return $rows;
+        }
+        return [];
+    }
     public function get_var($q)     { return 'wp_bricks_form_submissions'; }
-    public function get_results($q, $out = null) { return []; }
+    public function get_results($q, $out = null) { return $this->pick($q); }
+    public function get_row($q, $out = null)     { $r = $this->pick($q); return $r[0] ?? null; }
     public function get_col($q)     { return []; }
     public function prepare($q, ...$a) { return $q; }
 };
@@ -134,6 +163,16 @@ $TABS = [
             ];
         },
     ],
+    // ── Newsletter ──
+    // Osobny ekran (`includes/newsletter/menu.php`), ale ta sama otoczka:
+    // `.wrap` + `.evo-tabs` + `.evo-panel` i ten sam `admin.css`. Zakładki
+    // renderują się więc w tych samych warunkach co reszta panelu.
+    'nl-lists'     => ['module' => 'NL', 'file' => 'includes/admin/newsletter/tab-lists.php'],
+    'nl-campaigns' => ['module' => 'NL', 'file' => 'includes/admin/newsletter/tab-campaigns.php'],
+    'nl-templates' => ['module' => 'NL', 'file' => 'includes/admin/newsletter/tab-templates.php'],
+    'nl-reports'   => ['module' => 'NL', 'file' => 'includes/admin/newsletter/tab-reports.php'],
+    'nl-settings'  => ['module' => 'NL', 'file' => 'includes/admin/newsletter/tab-settings.php'],
+
     'whitelabel' => [
         'module' => 'includes/interface/white-label.php',
         'file'   => 'includes/admin/admin-whitelabel.php',
@@ -147,6 +186,49 @@ if (!isset($TABS[$slug])) {
 }
 
 $tab = $TABS[$slug];
-foreach ((array) $tab['module'] as $module) { require EVK_TEST_ROOT . '/' . $module; }
-$tab['seed']();
+
+// Newsletter ma wspólny zestaw modułów i wspólne dane — pięć zakładek czyta
+// te same tabele, więc powtarzanie tego przy każdej byłoby pustym hałasem.
+if (($tab['module'] ?? null) === 'NL') {
+    foreach (['tables.php', 'settings.php', 'lists.php', 'campaigns.php'] as $m) {
+        require EVK_TEST_ROOT . '/includes/newsletter/' . $m;
+    }
+    $GLOBALS['wpdb']->seed = [
+        'evk_nl_lists' => [
+            ['id' => 1, 'name' => 'Newsletter główny', 'description' => 'Lista podstawowa',
+             'created_at' => '2026-01-01 10:00:00'],
+            ['id' => 2, 'name' => 'Klienci', 'description' => '', 'created_at' => '2026-02-01 10:00:00'],
+        ],
+        'evk_nl_campaigns' => [
+            ['id' => 1, 'subject' => 'Nowości sierpniowe', 'status' => 'sent',
+             'template_id' => 1, 'lists_json' => '[1]', 'body' => '<p>Treść</p>',
+             'sent_at' => '2026-08-01 09:00:00', 'created_at' => '2026-07-30 09:00:00',
+             'scheduled_at' => null, 'name' => 'Nowości sierpniowe',
+             'from_name' => 'Evoke', 'from_email' => 'redakcja@example.test'],
+            ['id' => 2, 'subject' => 'Szkic wrześniowy', 'status' => 'draft',
+             'template_id' => 1, 'lists_json' => '[1,2]', 'body' => '',
+             'sent_at' => null, 'created_at' => '2026-08-05 09:00:00',
+             'scheduled_at' => '2026-09-01 08:00:00', 'name' => 'Szkic wrześniowy',
+             'from_name' => 'Evoke', 'from_email' => 'redakcja@example.test'],
+        ],
+        'evk_nl_templates' => [
+            ['id' => 1, 'name' => 'Podstawowy', 'subject' => 'Temat domyślny',
+             'html' => '<html><body>{{content}}</body></html>',
+             'created_at' => '2026-01-01 10:00:00'],
+        ],
+        'evk_nl_subscribers' => [
+            ['id' => 1, 'email' => 'ktos@example.test', 'name' => 'Ktoś', 'status' => 'confirmed',
+             'list_id' => 1, 'created_at' => '2026-03-01 10:00:00',
+             'unsubscribed_at' => null, 'confirmed_at' => '2026-03-01 10:05:00'],
+        ],
+        'evk_nl_logs' => [
+            ['id' => 1, 'campaign_id' => 1, 'email' => 'ktos@example.test', 'event' => 'open',
+             'subscriber_id' => 1, 'name' => 'Ktoś', 'url' => 'https://example.test/',
+             'created_at' => '2026-08-01 10:00:00'],
+        ],
+    ];
+} else {
+    foreach ((array) $tab['module'] as $module) { require EVK_TEST_ROOT . '/' . $module; }
+}
+if (isset($tab['seed'])) $tab['seed']();
 require EVK_TEST_ROOT . '/' . $tab['file'];

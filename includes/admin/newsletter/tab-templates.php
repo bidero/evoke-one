@@ -21,23 +21,8 @@ $merge_tags = [
 ];
 $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [];
 ?>
-<style>
-.evk-nl-tpl-layout{display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start;}
-.evk-nl-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px;}
-.evk-nl-card-body{padding:16px;}
-.evk-nl-card-head{padding:12px 16px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;}
-.evk-nl-tpl-item{display:block;padding:10px 14px;border-bottom:1px solid #f1f5f9;text-decoration:none;}
-.evk-nl-tpl-item:last-child{border-bottom:none;}
-.evk-nl-label{display:block;margin-bottom:5px;font-size:12px;font-weight:600;color:#374151;}
-.evk-nl-label-mt{margin-top:12px;}
-.evk-nl-merge-btn{display:block;width:100%;text-align:left;margin-bottom:3px;font-family:monospace;font-size:11px;padding:3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.evk-nl-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:14px;}
-@media(max-width:900px){
-    .evk-nl-tpl-layout{grid-template-columns:1fr;}
-}
-</style>
 
-<div class="evk-nl-tpl-layout">
+<div class="evk-nl-split is-narrow">
 
     <!-- Lewa kolumna -->
     <div>
@@ -48,19 +33,19 @@ $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [
                    class="button button-small">+ Nowy</a>
             </div>
             <?php if (empty($templates)): ?>
-            <p style="padding:14px;color:#94a3b8;font-size:13px;margin:0;">Brak szablonów.</p>
+            <p class="evk-nl-muted">Brak szablonów.</p>
             <?php else: foreach ($templates as $t): $is_cur = (int)$t['id'] === $edit_id; ?>
-            <div style="border-bottom:1px solid #f1f5f9;">
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;">
+            <div class="evk-nl-hr">
+                <div class="evk-nl-row-between">
                     <a href="<?php echo esc_url(add_query_arg(['subtab'=>'templates','template_id'=>$t['id']], evk_nl_base_url())); ?>"
-                       style="text-decoration:none;color:<?php echo $is_cur?'#2563eb':'#374151';?>;font-size:13px;font-weight:<?php echo $is_cur?'600':'400';?>;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;"
+                       class="evk-nl-item-name<?php echo $is_cur ? ' is-active' : ''; ?>"
                        title="<?php echo esc_attr($t['name']); ?>">
                         <?php echo esc_html($t['name']); ?>
                     </a>
-                    <button class="button button-small evk-nl-del-template" data-id="<?php echo (int)$t['id']; ?>"
-                            style="color:#dc2626;padding:1px 6px;min-height:auto;">✕</button>
+                    <button class="button button-small evk-nl-del-template evk-nl-btn-del" data-id="<?php echo (int)$t['id']; ?>"
+                           >✕</button>
                 </div>
-                <p style="margin:0 14px 8px;font-size:11px;color:#94a3b8;"><?php echo esc_html(mb_strimwidth($t['subject'],0,55,'...')); ?></p>
+                <p class="evk-nl-note evk-nl-note-inset"><?php echo esc_html(mb_strimwidth($t['subject'],0,55,'...')); ?></p>
             </div>
             <?php endforeach; endif; ?>
         </div>
@@ -69,7 +54,7 @@ $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [
         <div class="evk-nl-card">
             <div class="evk-nl-card-head"><strong style="font-size:13px;">Merge tagi</strong></div>
             <div class="evk-nl-card-body">
-                <p style="margin:0 0 8px;font-size:11px;color:#94a3b8;">Kliknij aby wstawić do edytora:</p>
+                <p class="evk-nl-note">Kliknij aby wstawić do edytora:</p>
                 <?php foreach ($merge_tags as $tag => $desc): ?>
                 <button class="button button-small evk-nl-insert-tag evk-nl-merge-btn"
                         data-tag="<?php echo esc_attr($tag); ?>" title="<?php echo esc_attr($desc); ?>">
@@ -81,7 +66,7 @@ $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [
     </div>
 
     <!-- Prawa kolumna: formularz -->
-    <div class="evk-nl-card" style="overflow:visible;">
+    <div class="evk-nl-card evk-nl-card-overflow">
         <div class="evk-nl-card-head">
             <strong style="font-size:14px;">
                 <?php echo $edit_tpl ? 'Edytuj: <em style="font-weight:400;">'.esc_html($edit_tpl['name']).'</em>' : 'Nowy szablon'; ?>
@@ -90,7 +75,7 @@ $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [
         <div class="evk-nl-card-body">
             <input type="hidden" id="evk-nl-template-id" value="<?php echo (int)($edit_tpl['id'] ?? 0); ?>">
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div class="evk-nl-grid2 evo-mb-sm" style="--evo-gap:12px">
                 <div>
                     <label class="evk-nl-label">Nazwa szablonu</label>
                     <input type="text" id="evk-nl-tpl-name" class="widefat"
@@ -115,35 +100,35 @@ $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [
             ?>
 
             <label class="evk-nl-label evk-nl-label-mt">Załączniki</label>
-            <div id="evk-nl-attachments-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+            <div id="evk-nl-attachments-list" class="evk-nl-chips">
                 <?php foreach ($attachments as $att_id):
                     $att_name = basename(get_attached_file($att_id) ?: '');
                 ?>
-                <div class="evk-nl-att-item" data-id="<?php echo (int)$att_id; ?>"
-                     style="display:flex;align-items:center;gap:4px;background:#f1f5f9;padding:3px 8px;border-radius:6px;font-size:12px;">
-                    <span class="dashicons dashicons-paperclip" style="font-size:12px;width:12px;height:12px;"></span>
+                <div class="evk-nl-att-item evk-nl-chip" data-id="<?php echo (int)$att_id; ?>"
+                    >
+                    <span class="dashicons dashicons-paperclip evo-ico-xs"></span>
                     <?php echo esc_html($att_name); ?>
-                    <button class="evk-nl-remove-att" style="background:none;border:none;color:#dc2626;cursor:pointer;padding:0 0 0 2px;line-height:1;">✕</button>
+                    <button class="evk-nl-remove-att evk-nl-chip-x">✕</button>
                 </div>
                 <?php endforeach; ?>
             </div>
             <input type="hidden" id="evk-nl-attachments-data" value="<?php echo esc_attr(wp_json_encode($attachments)); ?>">
             <button class="button button-small" id="evk-nl-add-attachment">
-                <span class="dashicons dashicons-paperclip" style="font-size:13px;width:13px;height:13px;line-height:1.6;"></span> Dodaj załącznik
+                <span class="dashicons dashicons-paperclip evo-ico-xs" style="font-size:13px;width:13px;height:13px"></span> Dodaj załącznik
             </button>
 
             <div class="evk-nl-actions">
                 <button class="button button-primary" id="evk-nl-save-template-btn">Zapisz szablon</button>
                 <button class="button" id="evk-nl-preview-tpl-btn">Podgląd HTML</button>
-                <span id="evk-nl-tpl-msg" style="font-size:12px;color:#64748b;"></span>
+                <span id="evk-nl-tpl-msg" class="evo-hint"></span>
             </div>
 
-            <div id="evk-nl-preview-wrap" style="display:none;margin-top:14px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
-                <div style="padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+            <div id="evk-nl-preview-wrap" class="evk-nl-preview">
+                <div class="evk-nl-preview-bar">
                     <strong style="font-size:12px;">Podgląd HTML</strong>
                     <button class="button button-small" id="evk-nl-close-preview">Zamknij</button>
                 </div>
-                <iframe id="evk-nl-preview-iframe" style="width:100%;height:480px;border:none;"></iframe>
+                <iframe id="evk-nl-preview-iframe"></iframe>
             </div>
         </div>
     </div>
@@ -173,7 +158,7 @@ jQuery(function($) {
                 var id=att.id, name=att.get('filename')||att.get('url').split('/').pop();
                 if (attachments.indexOf(id)===-1) {
                     attachments.push(id);
-                    $('#evk-nl-attachments-list').append('<div class="evk-nl-att-item" data-id="'+id+'" style="display:flex;align-items:center;gap:4px;background:#f1f5f9;padding:3px 8px;border-radius:6px;font-size:12px;"><span class="dashicons dashicons-paperclip" style="font-size:12px;width:12px;height:12px;"></span>'+$('<div>').text(name).html()+'<button class="evk-nl-remove-att" style="background:none;border:none;color:#dc2626;cursor:pointer;padding:0 0 0 2px;line-height:1;">✕</button></div>');
+                    $('#evk-nl-attachments-list').append('<div class="evk-nl-att-item evk-nl-chip" data-id="'+id+'"><span class="dashicons dashicons-paperclip evo-ico-xs"></span>'+$('<div>').text(name).html()+'<button class="evk-nl-remove-att evk-nl-chip-x">✕</button></div>');
                     syncAtt();
                 }
             });

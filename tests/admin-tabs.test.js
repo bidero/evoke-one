@@ -44,12 +44,31 @@ const BOX = {
 const BOX_TITLE = { size: '11px', weight: '700', transform: 'uppercase' };
 
 /** Zakładki objęte przemieceniem. Kolejne dopisujemy tu, gdy przejdą sweep. */
-const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel'];
+const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
+              'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings'];
+
+/** Zakładki mierzone też na wąskim ekranie. */
+const MOBILE = ['nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings'];
 
 /** Zakładki, które mają już treść w boksach. */
 const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel'];
 
 module.exports = async function (t) {
+  // ── Zdublowany atrybut class ──────────────────────────────────────────
+  // Przeglądarka bierze PIERWSZY `class` i po cichu ignoruje resztę. Klasa
+  // dopisana jako drugi atrybut nie działa, a w źródle wygląda, jakby działała.
+  // Przemiatanie zakładek wprowadziło tak 37 takich miejsc — w tym `is-ok`
+  // i `is-err` na ramkach informacyjnych, przez co renderowały się neutralnie.
+  // Wydane w 1.44.0 i 1.45.0; żaden pomiar wyglądu tego nie zobaczył, bo
+  // klasa po prostu nie istniała, a nie miała złą wartość.
+  t.section('znaczniki bez zdublowanego class');
+
+  const dup = JSON.parse(phpOutput('dup-class.php'));
+  t.check('żaden znacznik nie ma dwóch atrybutów class', dup.count === 0,
+    dup.count ? dup.count + ' miejsc, np. ' +
+      dup.items.slice(0, 3).map((x) => x.file + ': ' + x.tag).join(' | ')
+    : 'czysto');
+
   for (const slug of TABS) {
     t.section('zakładka „' + slug + '"');
 
@@ -135,5 +154,34 @@ module.exports = async function (t) {
 
     t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
     await p.close();
+
+    // ── Wąski ekran ─────────────────────────────────────────────────────
+    // Zakładki newslettera to w większości ekrany listowe: sidebar o stałej
+    // szerokości i tabele. Zmierzone przed poprawką: raporty rozpychały stronę
+    // do 682 px przy oknie 390 px, szablony do 449 px.
+    if (MOBILE.includes(slug)) {
+      const m = await t.open('admin-tabs.html', {
+        viewport: { width: 390, height: 900 }, head, settle: 150,
+      });
+      const o = await m.evaluate(() => window.__overflow());
+
+      t.check('390 px — nic nie wystaje poza ekran', o.count === 0,
+        o.items.map((x) => x.tag + '.' + x.cls + ' +' + x.over + 'px').join(' | ')
+        || 'czysto');
+      t.check('390 px — strona nie przewija się w poziomie', o.doc <= o.win + 1,
+        o.doc + ' vs ' + o.win);
+
+      // Kafelki statystyk mają zostać czytelne, a nie tylko zmieścić się.
+      // Sztywne `repeat(5, 1fr)` MIEŚCIŁO się na 390 px — po prostu ściskało
+      // kafelek do ~70 px i etykieta łamała się na trzy linie.
+      const st = await m.evaluate(() => window.__stats());
+      if (st.length) {
+        const tight = st.filter((w) => w < 110);
+        t.check('390 px — kafelki statystyk czytelne', !tight.length,
+          tight.length ? tight.join(', ') + 'px' : st.length + ' szt. po ' + st[0] + 'px');
+      }
+
+      await m.close();
+    }
   }
 };

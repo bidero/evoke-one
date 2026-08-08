@@ -2,6 +2,62 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.48.0] — 2026-08-08
+
+### Naprawione
+
+- **Zdublowany atrybut `class` w 37 miejscach.** Przeglądarka bierze
+  **pierwszy** `class` i po cichu ignoruje resztę, więc klasa dopisana jako
+  drugi atrybut nie działa — a w źródle wygląda, jakby działała. Weszły tak
+  przy przemiataniu zakładek w 1.44.0 i 1.45.0, między innymi `is-ok` i `is-err`
+  na ramkach informacyjnych OpenGraph (renderowały się jako neutralne)
+  oraz `evo-w-120/130/140` w konstruktorze paska White Label.
+
+  Żaden pomiar wyglądu tego nie widział: klasa nie miała złej wartości,
+  tylko nie istniała. Skan `tests/php/dup-class.php` sprawdza to teraz
+  w źródle — z **maskowaniem bloków PHP**, bo `<?php … 'a' => 'b' … ?>`
+  w atrybucie urywa znacznik na pierwszym `>` i drugi `class` wypada poza
+  pole widzenia (pierwsza wersja skanu zgłosiła przez to zero przy siedmiu
+  realnych).
+
+- **Newsletter na telefonie.** Raporty rozpychały stronę do **682 px** przy
+  oknie 390 px, szablony do 449 px. Trzy przyczyny, każda zmierzona:
+  podział `220px 1fr` trzymał się poniżej 900 px; kolumny siatki miały
+  domyślne `min-width: auto`, więc nie schodziły poniżej najszerszej rzeczy
+  w środku; tabele nie miały własnego przewijania.
+
+### Zmienione
+
+- **Trzy bloki `<style>` z zakładek newslettera → `admin.css`.** Powielały się
+  przy tym **między sobą**, i to z rozbieżnościami: `.evk-nl-card` miało
+  `overflow:hidden` w listach i szablonach, a `padding:20px` w kampaniach;
+  `.evk-nl-label-mt` raz 12 px, raz 14 px. Teraz jest jedna definicja plus
+  jawny wariant `.is-padded` — rozbieżność, która była przypadkiem, stała się
+  decyzją.
+
+- **Stany newslettera jako NAZWY, nie kody koloru.** Zakładki trzymały mapę
+  `stan → '#94a3b8'` w PHP i wstrzykiwały hex prosto w atrybut. Kod
+  szesnastkowy to wygląd, nie dane: leżąc w PHP nie reagował na zmianę palety
+  i odcinał te miejsca od tokenów. PHP niesie teraz nazwę stanu
+  (`evk-nl-s-draft`, `evk-nl-e-open`, `evk-nl-k-sent`), a kolor jest w arkuszu.
+
+- **Kafelki statystyk `auto-fit` zamiast `repeat(5, 1fr)`.** To **nie** jest
+  poprawka przepełnienia — sprawdzone celowym cofnięciem: pięć kolumn `1fr`
+  mieści się na 390 px, bo `1fr` je po prostu ściska. Chodzi o czytelność:
+  kafelek schodził do **62 px** i etykieta łamała się na trzy linie.
+
+- **Zakładki newslettera: 179 → 83 atrybutów `style=`.**
+  Raporty 35 → 7, szablony 24 → 7.
+
+### Dodane
+
+- Pięć zakładek newslettera dołączyło do harnessu (`tests/php/tab.php`)
+  wraz z **danymi próbnymi**: pusta baza rysuje ekrany listowe bez wierszy,
+  a to w nich siedzi większość znaczników.
+- Blok mierzący **wąski ekran**: co wystaje poza okno przy 390 px, z jawnym
+  wyjątkiem dla elementów w kontenerze z własnym przewijaniem — tam przewija
+  się tabela, a nie strona, i to jest poprawne.
+
 ## [1.47.1] — 2026-08-08
 
 ### Naprawione

@@ -1583,3 +1583,331 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     .evo-anim-preview { flex-direction: column; align-items: stretch; }
     .evo-anim-preview-frame { width: 100%; }
 }
+
+/* =========================================================================
+   NEWSLETTER — przeniesione z trzech bloków <style> w zakładkach
+   =========================================================================
+   Newsletter to osobny ekran (`includes/newsletter/menu.php`), ale ta sama
+   otoczka co reszta panelu: `.wrap` + `.evo-tabs` + `.evo-panel` i ten sam
+   arkusz. Bloki stały w dokumencie PO nim i wygrywały przy równej
+   specyficzności — jak w Animatorze w 1.43.0.
+
+   Powielały się przy tym MIĘDZY SOBĄ, i to z rozbieżnościami: `.evk-nl-card`
+   miało `overflow:hidden` w listach i szablonach, a `padding:20px` w kampaniach;
+   `.evk-nl-label-mt` raz 12 px, raz 14 px. Tutaj jest jedna definicja plus
+   jawne warianty — rozbieżność, która była przypadkiem, staje się decyzją.
+   ========================================================================= */
+
+/* ── Układ master/detail ──
+   Lista po lewej, treść po prawej. Poniżej 900 px kolumny nie mieszczą się
+   obok siebie: sidebar o stałej szerokości zjadał pół ekranu, a na treść
+   zostawał pas nie do czytania. */
+.evk-nl-split {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 16px;
+    align-items: start;
+}
+.evk-nl-split.is-narrow { grid-template-columns: 220px 1fr; }
+/* `min-width: 0` na kolumnach jest KONIECZNE. Domyślne `min-width: auto`
+   sprawia, że kolumna nie zejdzie poniżej najszerszej rzeczy w środku —
+   szeroki edytor albo długi przycisk rozpycha wtedy siatkę mimo `1fr`.
+   Zmierzone: szablony na 390 px wychodziły 59 px poza ekran i strona
+   przewijała się w poziomie do 449 px. */
+.evk-nl-split > * { min-width: 0; }
+.evk-nl-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.evk-nl-grid2 > * { min-width: 0; }
+
+/* ── Karta ── */
+.evk-nl-card {
+    background: var(--evo-bg);
+    border: 1px solid var(--evo-border-soft);
+    border-radius: var(--evo-radius);
+    overflow: hidden;
+    margin-bottom: 14px;
+}
+/* Wariant z własnym paddingiem — karta bez wydzielonej głowy i ciała. */
+.evk-nl-card.is-padded { padding: 20px; margin-bottom: 20px; }
+.evk-nl-card-body { padding: 16px; }
+.evk-nl-card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--evo-border-soft);
+}
+.evk-nl-card-head strong { font-size: 13px; }
+
+/* ── Pozycje list ── */
+.evk-nl-list-item,
+.evk-nl-tpl-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--evo-border-soft);
+    text-decoration: none;
+}
+.evk-nl-tpl-item { display: block; }
+.evk-nl-list-item:last-child,
+.evk-nl-tpl-item:last-child { border-bottom: none; }
+.evk-nl-badge-count {
+    padding: 1px 7px;
+    background: var(--evo-surface-alt);
+    border-radius: 99px;
+    font-size: 11px;
+    color: var(--evo-text-dim);
+}
+.evk-nl-badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+
+/* ── Etykiety i przyciski ── */
+.evk-nl-label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 12px; font-weight: 600;
+    color: var(--evo-text-soft);
+}
+.evk-nl-label-mt { margin-top: 12px; }
+.evk-nl-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
+.evk-nl-btn-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; min-height: 28px; padding: 0;
+    border: 1px solid var(--evo-border-dash);
+    border-radius: var(--evo-radius-btn);
+    background: var(--evo-surface);
+    text-decoration: none; cursor: pointer;
+}
+.evk-nl-btn-icon:hover { background: var(--evo-surface-alt); border-color: var(--evo-text-faint); }
+.evk-nl-btn-icon .dashicons { font-size: 14px; width: 14px; height: 14px; line-height: 1; }
+.evk-nl-merge-btn {
+    display: block; width: 100%;
+    margin-bottom: 3px; padding: 3px 6px;
+    text-align: left;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Tabele ──
+   `.evk-nl-tbl-wrap` z przewijaniem w poziomie jest OBOWIĄZKOWE wszędzie,
+   gdzie stoi tabela: na 390 px raporty rozpychały stronę do 682 px. Przewija
+   się wtedy sama tabela, a nie cały ekran. */
+.evk-nl-tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.evk-nl-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.evk-nl-tbl th,
+.evk-nl-tbl td {
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--evo-border-soft);
+}
+.evk-nl-tbl th {
+    background: var(--evo-surface);
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--evo-text-dim);
+}
+.evk-nl-tbl tr:last-child td { border-bottom: none; }
+.evk-nl-tbl tr:hover td { background: var(--evo-surface); }
+
+.evk-nl-bulk-bar {
+    display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 10px; padding: 8px 12px;
+    background: var(--evo-accent-soft);
+    border: 1px solid #bfdbfe;
+    border-radius: var(--evo-radius-md);
+}
+
+/* ── Kafelki statystyk ──
+   `repeat(auto-fit, minmax(...))` zamiast sztywnego `repeat(5, 1fr)`.
+   To NIE jest poprawka przepełnienia — sprawdzone celowym cofnięciem: pięć
+   kolumn `1fr` mieści się na 390 px, bo `1fr` po prostu je ściska. Chodzi
+   o czytelność: kafelek schodził wtedy do ~70 px i etykieta („Kliknięte")
+   łamała się na trzy linie. Przy `auto-fit` w rzędzie stoją trzy.
+   (Te 292 px przepełnienia w raportach brały się z podziału na kolumny
+   `220px 1fr`, a nie stąd.) */
+.evk-nl-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.evk-nl-stat-num { font-size: 28px; font-weight: 700; line-height: 1.1; }
+.evk-nl-stat-label { font-size: 11px; color: var(--evo-text-dim); margin-top: 2px; }
+
+/* ── Stan pusty ── */
+.evk-nl-empty {
+    padding: 60px 20px;
+    text-align: center;
+    background: var(--evo-surface);
+    border: 1px dashed var(--evo-border-dash);
+    border-radius: var(--evo-radius);
+}
+.evk-nl-empty .dashicons { font-size: 40px; width: 40px; height: 40px; color: var(--evo-text-faint); }
+
+/* ── Modal wyboru odbiorców ── */
+#evk-nl-modal { display: none; position: fixed; inset: 0; z-index: 100000; align-items: center; justify-content: center; }
+#evk-nl-modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, .6); }
+.evk-nl-modal-box {
+    position: relative; display: flex; flex-direction: column;
+    width: min(920px, 94vw); max-height: 88vh;
+    background: var(--evo-bg);
+    border-radius: var(--evo-radius-card);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
+}
+.evk-nl-modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--evo-border-soft);
+}
+.evk-nl-modal-head h2 { margin: 0; font-size: 16px; }
+#evk-nl-modal-close { background: none; border: 0; font-size: 24px; line-height: 1; color: var(--evo-text-dim); cursor: pointer; }
+.evk-nl-modal-body { padding: 18px; overflow: auto; }
+.evk-nl-rcp-tools { margin-bottom: 12px; }
+.evk-nl-rcp-pager { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 12px; color: var(--evo-text-dim); }
+
+/* ── Wąski ekran ──
+   Próg 900 px dla układów master/detail (sidebar 220–240 px przestaje mieć
+   sens wcześniej niż reszta), 782 px dla zagęszczeń. */
+@media screen and (max-width: 900px) {
+    .evk-nl-split,
+    .evk-nl-split.is-narrow { grid-template-columns: 1fr; }
+}
+@media screen and (max-width: 782px) {
+    .evk-nl-grid2 { grid-template-columns: 1fr; }
+    .evk-nl-card.is-padded { padding: 14px; }
+    .evk-nl-card-body { padding: 12px; }
+    /* Kolumny drugorzędne znikają — na telefonie liczy się nazwa i akcja. */
+    .evk-nl-tbl th.evk-col-hide,
+    .evk-nl-tbl td.evk-col-hide { display: none; }
+    .evk-nl-actions { gap: 4px; }
+    .evk-nl-stat-num { font-size: 22px; }
+}
+
+/* ── Newsletter: drobiazgi wspólne dla zakładek ── */
+.evk-nl-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    background: var(--evo-surface-alt);
+    border-radius: var(--evo-radius-sm);
+    font-size: 12px;
+}
+.evk-nl-chip .dashicons { font-size: 12px; width: 12px; height: 12px; }
+/* Krzyżyk „usuń" wewnątrz plakietki — sam glif, bez ramki. */
+.evk-nl-chip-x {
+    padding: 0 0 0 2px;
+    border: none; background: none;
+    color: var(--evo-danger); line-height: 1; cursor: pointer;
+}
+.evk-nl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.evk-nl-note { margin: 0 0 8px; font-size: 11px; color: var(--evo-text-faint); }
+.evk-nl-note-inset { margin: 0 14px 8px; }
+.evk-nl-muted { padding: 14px; margin: 0; font-size: 13px; color: var(--evo-text-faint); }
+.evk-nl-item-name {
+    max-width: 140px;
+    font-size: 13px; text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.evk-nl-preview {
+    display: none;
+    margin-top: 14px;
+    border: 1px solid var(--evo-border-soft);
+    border-radius: var(--evo-radius-md);
+    overflow: hidden;
+}
+.evk-nl-preview-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--evo-surface);
+    border-bottom: 1px solid var(--evo-border-soft);
+}
+.evk-nl-preview iframe { width: 100%; height: 480px; border: none; }
+.evk-nl-row-between { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; }
+.evk-nl-btn-del { padding: 1px 6px; min-height: auto; color: var(--evo-danger); }
+.evo-ico-xs { font-size: 12px; width: 12px; height: 12px; line-height: 1; flex-shrink: 0; }
+.evk-nl-hr { border-bottom: 1px solid var(--evo-border-soft); }
+/* Karta z listą szablonów musi pozwolić wyjść menu poza swoje granice. */
+.evk-nl-card-overflow { overflow: visible; }
+.evo-center { text-align: center; }
+.evo-ico-xl { font-size: 40px; width: 40px; height: 40px; line-height: 1; color: var(--evo-text-faint); }
+.evk-nl-plain-list { margin: 0; padding: 0; list-style: none; }
+.evk-nl-h { margin: 0; font-size: 13px; font-weight: 600; }
+.evk-nl-13 { font-size: 13px; }
+.evk-nl-url { font-size: 10px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.evk-nl-badge-sm { padding: 1px 6px; font-size: 10px; }
+.evk-nl-h-sm { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+.evk-nl-toolbar { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 10px 16px; }
+.evk-nl-check { display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; }
+.evk-nl-hidden { display: none; }
+.evk-nl-ellipsis { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evk-nl-empty-sm { padding: 48px 20px; text-align: center; }
+.evk-nl-empty-sm .dashicons { font-size: 36px; width: 36px; height: 36px; color: var(--evo-text-faint); }
+.evk-nl-h-lg { margin: 0; font-size: 15px; }
+.evk-nl-name {
+    display: block; max-width: 160px;
+    font-weight: 600; text-decoration: none; color: var(--evo-text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.evk-nl-check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.evk-nl-bar { height: 100%; border-radius: 99px; background: var(--evo-accent); }
+.evk-nl-iframe { width: 100%; height: 70vh; background: var(--evo-bg); border: 1px solid var(--evo-border-soft); border-radius: var(--evo-radius-md); }
+/* Podnagłówek w boksie ustawień newslettera — mniejszy niż nagłówek boksu. */
+.evk-nl-sub { margin: 20px 0 8px; font-size: 13px; font-weight: 600; color: var(--evo-text-soft); }
+.evk-nl-sub:first-child { margin-top: 0; }
+/* Etykieta + pole obok siebie; poniżej 782 px jedno pod drugim. */
+.evk-nl-pair { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; }
+.evk-nl-pair > * { min-width: 0; }
+@media screen and (max-width: 782px) {
+    .evk-nl-pair { grid-template-columns: 1fr; gap: 6px; }
+}
+
+/* ── Newsletter: stany zależne od danych ──
+   Wcześniej kolory tych stanów wchodziły literałem w atrybut `style`, co
+   odcinało je od palety: zmiana `--evo-accent` przemalowywała panel wszędzie
+   POZA nimi. Teraz stan niesie KLASA, a wartość bierze się z tokenów. */
+.evk-nl-list-item.is-active,
+.evk-nl-tpl-item.is-active { background: var(--evo-accent-soft); color: var(--evo-accent); font-weight: 600; }
+.evk-nl-tpl-item.is-active .evk-nl-item-name,
+.evk-nl-list-item.is-active .evk-nl-item-name { color: var(--evo-accent); }
+.evk-nl-item-name { color: var(--evo-text-soft); }
+
+/* Przyciski sterowania wysyłką — kolor niesie znaczenie, więc zostaje, ale
+   jako nazwana rola, nie jako sześć znaków w atrybucie. */
+.wrap .button.evk-nl-run    { background: var(--evo-on); border-color: var(--evo-on); color: #fff; }
+.wrap .button.evk-nl-pause  { border-color: #f97316; color: #f97316; }
+.wrap .button.evk-nl-cancel { border-color: var(--evo-danger); color: var(--evo-danger); }
+
+.evk-nl-progress { height: 5px; overflow: hidden; background: var(--evo-surface-alt); border-radius: 99px; }
+.evk-nl-scrollbox {
+    max-height: 130px; padding: 10px; overflow: auto;
+    border: 1px solid var(--evo-border-soft);
+    border-radius: var(--evo-radius-md);
+}
+.evk-nl-warn { color: #f59e0b; }
+.evk-nl-ok   { color: var(--evo-on); }
+.evk-nl-err  { color: var(--evo-danger); }
+/* Nazwa pozycji też niesie stan aktywny samodzielnie — bywa używana bez
+   otaczającego `.evk-nl-tpl-item.is-active`. */
+.evk-nl-item-name.is-active { color: var(--evo-accent); font-weight: 600; }
+
+/* ── Newsletter: stany jako NAZWY, nie jako kody koloru ──
+   Zakładki trzymały mapę `stan → '#94a3b8'` w PHP i wstrzykiwały hex prosto
+   w atrybut. Kod szesnastkowy to wygląd, nie dane: skoro leżał w PHP, zmiana
+   palety go nie dotykała, a przy okazji odcinała te miejsca od tokenów.
+   Teraz PHP niesie nazwę stanu, a kolor jest tutaj. */
+.evk-nl-s-draft,     .evk-nl-e-bounce      { color: var(--evo-text-faint); }
+.evk-nl-s-scheduled, .evk-nl-e-click       { color: #f59e0b; }
+.evk-nl-s-sending,   .evk-nl-e-sent        { color: var(--evo-accent); }
+.evk-nl-s-paused,    .evk-nl-e-unsubscribe { color: #f97316; }
+.evk-nl-s-done,      .evk-nl-e-open        { color: var(--evo-on); }
+.evk-nl-s-cancelled, .evk-nl-e-error       { color: var(--evo-danger); }
+
+/* Plakietka zdarzenia: tło to ten sam kolor w 12% — `color-mix` bierze go
+   z `currentColor`, więc jedna reguła obsługuje wszystkie stany. */
+.evk-nl-badge[class*="evk-nl-e-"] { background: color-mix(in srgb, currentColor 12%, transparent); }
+
+/* Kafelki statystyk — te same role, inne nazwy. */
+.evk-nl-k-sent    { color: var(--evo-accent); }
+.evk-nl-k-opened  { color: var(--evo-on); }
+.evk-nl-k-clicked { color: #f59e0b; }
+.evk-nl-k-failed  { color: var(--evo-danger); }
+.evk-nl-k-unsubs  { color: #f97316; }

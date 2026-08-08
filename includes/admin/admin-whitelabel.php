@@ -768,13 +768,13 @@ function makeRow(item) {
         : '<span class="evk-bar-badge">→ ELEMENT</span>';
 
     var idField = isParent
-        ? '<input type="text" class="evk-f-id" placeholder="ID (auto)" title="Używany jako Parent ID dla elementów podmenu" class="evo-w-140" value="'+esc(item.id||'')+'">' : '';
+        ? '<input type="text" class="evk-f-id evo-w-140" placeholder="ID (auto)" title="Używany jako Parent ID dla elementów podmenu" value="'+esc(item.id||'')+'">' : '';
 
     var hrefField = isParent ? '' :
         '<input type="text" class="evk-f-href evo-grow" placeholder="/strona lub https://..." value="'+esc(item.href||'')+'">';
 
     var parentField = isParent ? '' :
-        '<input type="text" class="evk-f-parent" placeholder="Parent ID" title="Zostaw puste = samodzielny element" class="evo-w-120" value="'+esc(item.parent||'')+'">';
+        '<input type="text" class="evk-f-parent evo-w-120" placeholder="Parent ID" title="Zostaw puste = samodzielny element" value="'+esc(item.parent||'')+'">';
 
     var targetField = '<label class="evk-bar-target">'
         + '<input type="checkbox" class="evk-f-target"'+(item.target==='_blank'?' checked':'')+'>_blank</label>';
@@ -786,7 +786,7 @@ function makeRow(item) {
         + '<input type="text" class="evk-f-title evo-grow" placeholder="Tytuł *" value="'+esc(item.title||'')+'">' 
         + idField
         + hrefField
-        + '<input type="text" class="evk-f-icon" placeholder="dashicons-xxx" class="evo-w-130" title="np. dashicons-admin-home" value="'+esc(item.icon||'')+'">' 
+        + '<input type="text" class="evk-f-icon evo-w-130" placeholder="dashicons-xxx" title="np. dashicons-admin-home" value="'+esc(item.icon||'')+'">' 
         + parentField
         + targetField
         + '<button type="button" class="button evk-row-del evo-btn-danger" title="Usuń"><span class="dashicons dashicons-trash evo-ico"></span></button>'

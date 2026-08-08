@@ -9,6 +9,10 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * Zarejestrowane callbacki lądują w $GLOBALS['hooks'], żeby test mógł je wywołać.
  */
 define('ABSPATH', 1);
+// Stałe formatu wyniku $wpdb — moduły przekazują je do get_results()/get_row().
+if (!defined('ARRAY_A')) define('ARRAY_A', 'ARRAY_A');
+if (!defined('ARRAY_N')) define('ARRAY_N', 'ARRAY_N');
+if (!defined('OBJECT'))  define('OBJECT',  'OBJECT');
 
 $GLOBALS['hooks']    = [];
 $GLOBALS['options']  = [];

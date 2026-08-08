@@ -16,52 +16,22 @@ $camp_interval  = (int) ($edit_camp['batch_interval']     ?? 5);
 $camp_tracking  = $edit_camp ? !empty($edit_camp['tracking_enabled']) : true; // nowa kampania = śledzenie domyślnie ON
 $st             = $edit_camp['status']                    ?? '';
 
+// Sam LABEL — kolor stanu niesie klasa `evk-nl-s-{stan}` i arkusz. Kod
+// szesnastkowy w PHP był wyglądem udającym dane: zmiana palety go nie
+// dotykała, a wstrzyknięty w atrybut odcinał te miejsca od tokenów.
 $status_labels = [
-    'draft'     => ['label' => 'Szkic',       'color' => '#94a3b8'],
-    'scheduled' => ['label' => 'Zaplanowana', 'color' => '#f59e0b'],
-    'sending'   => ['label' => 'Wysyłanie',   'color' => '#2563eb'],
-    'paused'    => ['label' => 'Pauza',       'color' => '#f97316'],
-    'done'      => ['label' => 'Zakończona',  'color' => '#16a34a'],
-    'cancelled' => ['label' => 'Anulowana',   'color' => '#dc2626'],
+    'draft'     => ['label' => 'Szkic'],
+    'scheduled' => ['label' => 'Zaplanowana'],
+    'sending'   => ['label' => 'Wysyłanie'],
+    'paused'    => ['label' => 'Pauza'],
+    'done'      => ['label' => 'Zakończona'],
+    'cancelled' => ['label' => 'Anulowana'],
 ];
 ?>
-<style>
-.evk-nl-grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-#evk-nl-modal{display:none;position:fixed;inset:0;z-index:100000;align-items:center;justify-content:center;}
-#evk-nl-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.6);}
-.evk-nl-modal-box{position:relative;background:#fff;border-radius:12px;width:min(920px,94vw);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);}
-.evk-nl-modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e2e8f0;}
-.evk-nl-modal-head h2{margin:0;font-size:16px;}
-#evk-nl-modal-close{background:none;border:0;font-size:24px;line-height:1;cursor:pointer;color:#64748b;}
-.evk-nl-modal-body{padding:18px;overflow:auto;}
-.evk-nl-rcp-tools{margin-bottom:12px;}
-.evk-nl-rcp-pager{margin-top:12px;font-size:12px;color:#64748b;display:flex;align-items:center;gap:10px;}
-.evk-nl-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:20px;}
-.evk-nl-label{display:block;margin-bottom:5px;font-size:12px;font-weight:600;color:#374151;}
-.evk-nl-label-mt{margin-top:14px;}
-.evk-nl-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:16px;}
-.evk-nl-btn-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;min-height:28px;border-radius:7px;cursor:pointer;border:1px solid #cbd5e1;background:#f8fafc;text-decoration:none;}
-.evk-nl-btn-icon:hover{background:#f0f0f1;border-color:#8c8f94;}
-.evk-nl-btn-icon .dashicons{font-size:14px;width:14px;height:14px;line-height:1;}
-.evk-nl-tbl{width:100%;border-collapse:collapse;font-size:12px;}
-.evk-nl-tbl th,.evk-nl-tbl td{padding:8px 10px;text-align:left;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
-.evk-nl-tbl th{background:#f8fafc;font-weight:600;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
-.evk-nl-tbl tr:last-child td{border-bottom:none;}
-.evk-nl-tbl tr:hover td{background:#f8fafc;}
-.evk-nl-badge{display:inline-flex;align-items:center;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;white-space:nowrap;}
-.evk-nl-bulk-bar{display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;}
-.evk-nl-tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-@media(max-width:782px){
-    .evk-nl-grid2{grid-template-columns:1fr;}
-    .evk-nl-card{padding:14px;}
-    .evk-nl-tbl th.evk-col-hide,.evk-nl-tbl td.evk-col-hide{display:none;}
-    .evk-nl-actions{gap:4px;}
-}
-</style>
 
 <!-- Formularz kampanii -->
-<div class="evk-nl-card">
-    <h3 style="margin:0 0 14px;font-size:15px;">
+<div class="evk-nl-card is-padded">
+    <h3 class="evk-nl-h-lg evo-mb">
         <?php echo $edit_camp ? 'Edytuj: <strong>' . esc_html($edit_camp['name']) . '</strong>' : 'Nowa kampania'; ?>
     </h3>
     <input type="hidden" id="evk-nl-camp-id" value="<?php echo (int) ($edit_camp['id'] ?? 0); ?>">
@@ -89,22 +59,22 @@ $status_labels = [
         </div>
         <div>
             <label class="evk-nl-label">Listy subskrybentów</label>
-            <div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;max-height:130px;overflow-y:auto;">
+            <div class="evk-nl-scrollbox">
                 <?php if (empty($lists)): ?>
-                <p style="color:#94a3b8;font-size:12px;margin:0;">Brak list.</p>
+                <p class="evo-hint evo-faint" style="margin:0">Brak list.</p>
                 <?php else: ?>
                 <?php foreach ($lists as $list): ?>
-                <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;cursor:pointer;">
+                <label class="evk-nl-check-row" style="margin-bottom:6px">
                     <input type="checkbox" class="evk-nl-camp-list" value="<?php echo (int) $list['id']; ?>"
                            <?php checked(in_array((int) $list['id'], $camp_lists, true)); ?>>
                     <?php echo esc_html($list['name']); ?>
-                    <span style="font-size:11px;color:#94a3b8;">(<?php echo esc_html(evk_nl_list_count((int) $list['id'])); ?>)</span>
+                    <span class="evo-hint-sm evo-faint">(<?php echo esc_html(evk_nl_list_count((int) $list['id'])); ?>)</span>
                 </label>
                 <?php endforeach; ?>
                 <?php endif; ?>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+            <div class="evk-nl-grid2" style="--evo-gap:10px;margin-top:12px">
                 <div>
                     <label class="evk-nl-label">Batch: <span id="evk-nl-batch-val"><?php echo $camp_batch; ?></span></label>
                     <input type="range" id="evk-nl-batch-size" min="5" max="500" step="5"
@@ -117,7 +87,7 @@ $status_labels = [
                 </div>
             </div>
 
-            <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer;">
+            <label class="evk-nl-check-row" style="margin-top:12px">
                 <input type="checkbox" id="evk-nl-tracking" <?php checked($camp_tracking); ?>>
                 Śledzenie otwarć i kliknięć
             </label>
@@ -127,33 +97,33 @@ $status_labels = [
     <div class="evk-nl-actions">
         <button class="button button-primary" id="evk-nl-save-camp">Zapisz draft</button>
         <?php if ($edit_camp): ?>
-            <button class="button evk-nl-preview" data-url="<?php echo esc_url(add_query_arg(['evk_nl' => 'view', 'evk_nl_campaign' => (int) $edit_camp['id']], home_url('/'))); ?>" style="display:inline-flex;align-items:center;gap:5px;"><span class="dashicons dashicons-visibility" style="font-size:16px;width:16px;height:16px;line-height:1;"></span> Podgląd</button>
+            <button class="button evk-nl-preview evo-inline" data-url="<?php echo esc_url(add_query_arg(['evk_nl' => 'view', 'evk_nl_campaign' => (int) $edit_camp['id']], home_url('/'))); ?>" style="display:inline-flex;--evo-gap:5px"><span class="dashicons dashicons-visibility evo-ico"></span> Podgląd</button>
             <?php if (in_array($st, ['draft', 'scheduled'])): ?>
             <button class="button button-primary" id="evk-nl-launch-now"
-                    style="background:#16a34a;border-color:#16a34a;">▶ Uruchom teraz</button>
+                   >▶ Uruchom teraz</button>
             <?php endif; ?>
             <?php if ($st === 'sending'): ?>
-            <button class="button" id="evk-nl-pause" style="border-color:#f97316;color:#f97316;">⏸ Pauza</button>
+            <button class="button" id="evk-nl-pause">⏸ Pauza</button>
             <?php endif; ?>
             <?php if ($st === 'paused'): ?>
             <button class="button button-primary" id="evk-nl-resume">▶ Wznów</button>
             <?php endif; ?>
             <?php if (in_array($st, ['sending', 'scheduled', 'paused'])): ?>
-            <button class="button" id="evk-nl-cancel" style="border-color:#dc2626;color:#dc2626;">■ Stop</button>
+            <button class="button" id="evk-nl-cancel">■ Stop</button>
             <?php endif; ?>
             <?php if (in_array($st, ['done', 'failed', 'cancelled'])): ?>
             <button class="button" id="evk-nl-restart">↺ Uruchom ponownie</button>
             <?php endif; ?>
         <?php endif; ?>
-        <span id="evk-nl-camp-msg" style="font-size:12px;color:#64748b;"></span>
+        <span id="evk-nl-camp-msg" class="evo-hint"></span>
     </div>
 </div>
 
 <!-- Lista kampanii -->
-<div class="evk-nl-card">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        <h3 style="margin:0;font-size:15px;">Wszystkie kampanie</h3>
-        <select id="evk-nl-camp-status-filter" style="font-size:12px;">
+<div class="evk-nl-card is-padded">
+    <div class="evk-nl-row-between evo-mb-sm" style="padding:0;gap:8px;flex-wrap:wrap">
+        <h3 class="evk-nl-h-lg">Wszystkie kampanie</h3>
+        <select id="evk-nl-camp-status-filter" class="evo-hint">
             <option value="">Wszystkie statusy</option>
             <option value="draft">Szkice</option>
             <option value="scheduled">Zaplanowane</option>
@@ -164,8 +134,8 @@ $status_labels = [
     </div>
 
     <div class="evk-nl-bulk-bar" id="evk-nl-camp-bulk-bar">
-        <span id="evk-nl-camp-bulk-count" style="font-size:12px;font-weight:600;color:#2563eb;"></span>
-        <select id="evk-nl-camp-bulk-action" style="font-size:12px;">
+        <span id="evk-nl-camp-bulk-count" class="evo-hint evo-accent-tx" style="font-weight:600"></span>
+        <select id="evk-nl-camp-bulk-action" class="evo-hint">
             <option value="">— akcja —</option>
             <option value="delete">Usuń zaznaczone</option>
             <option value="clear_logs">Wyczyść logi</option>
@@ -175,7 +145,7 @@ $status_labels = [
     </div>
 
     <?php if (empty($campaigns)): ?>
-    <p style="color:#94a3b8;">Brak kampanii. Utwórz pierwszą powyżej.</p>
+    <p class="evo-faint">Brak kampanii. Utwórz pierwszą powyżej.</p>
     <?php else: ?>
     <div class="evk-nl-tbl-wrap">
         <table class="evk-nl-tbl" id="evk-nl-camp-table">
@@ -192,7 +162,7 @@ $status_labels = [
             <tbody>
                 <?php foreach ($campaigns as $c):
                     $stats = evk_nl_campaign_stats((int) $c['id']);
-                    $stl   = $status_labels[$c['status']] ?? ['label' => $c['status'], 'color' => '#94a3b8'];
+                    $stl   = $status_labels[$c['status']] ?? ['label' => $c['status']];
                     $pct   = $stats['total'] > 0 ? round($stats['sent'] / $stats['total'] * 100) : 0;
                     $rep_url  = add_query_arg(['subtab' => 'reports',   'campaign_id' => $c['id']], evk_nl_base_url());
                     $edit_url = add_query_arg(['subtab' => 'campaigns', 'campaign_id' => $c['id']], evk_nl_base_url());
@@ -202,30 +172,29 @@ $status_labels = [
                     <td><input type="checkbox" class="evk-nl-camp-cb" data-id="<?php echo (int) $c['id']; ?>"></td>
                     <td>
                         <a href="<?php echo esc_url($edit_url); ?>"
-                           style="font-weight:600;text-decoration:none;color:#1e293b;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;"
+                           class="evk-nl-name"
                            title="<?php echo esc_attr($c['name']); ?>">
                             <?php echo esc_html($c['name']); ?>
                         </a>
                     </td>
                     <td>
-                        <span class="evk-nl-badge"
-                              style="background:<?php echo esc_attr($stl['color']); ?>20;color:<?php echo esc_attr($stl['color']); ?>;">
+                        <span class="evk-nl-badge evk-nl-s-<?php echo esc_attr($c['status']); ?>">
                             <?php echo esc_html($stl['label']); ?>
                         </span>
                     </td>
                     <td class="evk-col-hide">
                         <?php if ($stats['total'] > 0): ?>
-                        <div style="background:#e2e8f0;border-radius:99px;height:5px;overflow:hidden;margin-bottom:2px;">
-                            <div style="width:<?php echo $pct; ?>%;background:#2563eb;height:100%;border-radius:99px;"></div>
+                        <div class="evk-nl-progress evo-mb-xs" style="margin-bottom:2px">
+                            <div class="evk-nl-bar" style="width:<?php echo $pct; ?>%"></div>
                         </div>
-                        <span style="font-size:10px;color:#94a3b8;"><?php echo $stats['sent']; ?>/<?php echo $stats['total']; ?></span>
+                        <span class="evo-faint" style="font-size:10px"><?php echo $stats['sent']; ?>/<?php echo $stats['total']; ?></span>
                         <?php else: ?>—<?php endif; ?>
                     </td>
-                    <td class="evk-col-hide" style="color:#64748b;font-size:11px;">
+                    <td class="evk-col-hide evo-hint-sm">
                         <?php echo $c['scheduled_at'] ? esc_html(date('d.m H:i', strtotime($c['scheduled_at']))) : '—'; ?>
                     </td>
                     <td>
-                        <div style="display:flex;gap:3px;align-items:center;">
+                        <div class="evo-inline" style="--evo-gap:3px">
                             <a href="<?php echo esc_url($rep_url); ?>" class="evk-nl-btn-icon" title="Raport">
                                 <span class="dashicons dashicons-chart-bar"></span>
                             </a>
@@ -236,10 +205,10 @@ $status_labels = [
                                 <span class="dashicons dashicons-groups"></span>
                             </button>
                             <button class="evk-nl-btn-icon evk-nl-clear-logs" data-id="<?php echo (int) $c['id']; ?>" title="Wyczyść logi">
-                                <span class="dashicons dashicons-trash" style="color:#f59e0b;"></span>
+                                <span class="dashicons dashicons-trash evk-nl-warn"></span>
                             </button>
                             <button class="evk-nl-btn-icon evk-nl-del-camp" data-id="<?php echo (int) $c['id']; ?>" title="Usuń">
-                                <span class="dashicons dashicons-no-alt" style="color:#dc2626;"></span>
+                                <span class="dashicons dashicons-no-alt evo-danger-tx"></span>
                             </button>
                         </div>
                     </td>
@@ -372,7 +341,7 @@ jQuery(function($) {
 
     $(document).on('click', '.evk-nl-preview', function(){
         var url = $(this).data('url');
-        evkModal('Podgląd kampanii', '<iframe src="'+url+'" style="width:100%;height:70vh;border:1px solid #e2e8f0;border-radius:8px;background:#fff;"></iframe>');
+        evkModal('Podgląd kampanii', '<iframe src="'+url+'" class="evk-nl-iframe"></iframe>');
     });
 
     function statusBadge(s){
@@ -382,13 +351,13 @@ jQuery(function($) {
     }
     function rcpLoad(){
         var b=$('#evk-nl-modal'), id=b.data('rcpId'), status=b.data('rcpStatus')||'', page=b.data('rcpPage')||1;
-        $('#evk-nl-rcp-list').html('<p style="color:#64748b;">Ładowanie…</p>');
+        $('#evk-nl-rcp-list').html('<p class="evo-muted">Ładowanie…</p>');
         $.post(ajaxurl, {action:'evk_nl_campaign_queue', nonce:nonce, id:id, status:status, page:page}, function(res){
             if(!res.success){ $('#evk-nl-rcp-list').text('Błąd ładowania.'); return; }
             var d=res.data, h='';
-            if(!d.rows.length){ h='<p style="color:#64748b;">Brak odbiorców dla tego filtra.</p>'; }
+            if(!d.rows.length){ h='<p class="evo-muted">Brak odbiorców dla tego filtra.</p>'; }
             else {
-                h='<table class="widefat striped" style="font-size:13px;"><thead><tr><th>E-mail</th><th>Status</th><th>Próby</th><th>Wysłano</th><th>Otwarto</th></tr></thead><tbody>';
+                h='<table class="widefat striped evk-nl-13"><thead><tr><th>E-mail</th><th>Status</th><th>Próby</th><th>Wysłano</th><th>Otwarto</th></tr></thead><tbody>';
                 d.rows.forEach(function(r){
                     h+='<tr><td>'+esc(r.email||'—')+'</td><td>'+statusBadge(r.status)+'</td><td>'+esc(r.attempts)+'</td><td>'+esc(r.sent_at||'—')+'</td><td>'+esc(r.opened_at||'—')+'</td></tr>';
                 });
@@ -404,7 +373,7 @@ jQuery(function($) {
         var b=$('#evk-nl-modal');
         b.data('rcpId', $(this).data('id')).data('rcpStatus','').data('rcpPage',1);
         evkModal('Odbiorcy — ' + $(this).data('name'),
-            '<div class="evk-nl-rcp-tools"><select id="evk-rcp-status" style="font-size:12px;">'+
+            '<div class="evk-nl-rcp-tools"><select id="evk-rcp-status" class="evo-hint">'+
             '<option value="">Wszyscy</option><option value="sent">Wysłane</option><option value="opened">Otwarte</option><option value="clicked">Kliknięte</option><option value="pending">Oczekujące</option><option value="failed">Błędy</option><option value="cancelled">Anulowane</option>'+
             '</select></div><div id="evk-nl-rcp-list"></div>');
         rcpLoad();
