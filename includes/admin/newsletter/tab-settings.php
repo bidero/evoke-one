@@ -147,9 +147,9 @@ $example_id = $first_list['id'] ?? 1;
         <div class="evo-field"><label>Tekst przycisku</label>
             <input type="text" name="confirm_email_button" value="<?php echo esc_attr($val('confirm_email_button')); ?>"></div>
 
-        <p style="margin-top:24px;">
-            <button type="submit" class="button button-primary">Zapisz ustawienia</button>
-        </p>
     </div>
 
+    <div class="evo-save-bar">
+        <button type="submit" class="button button-primary">Zapisz ustawienia</button>
+    </div>
 </form>

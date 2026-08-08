@@ -757,3 +757,54 @@ add_action('wp_ajax_evk_anim_save', function () {
         'slugs' => wp_list_pluck($clean['animations'], 'slug'),
     ]);
 });
+
+/**
+ * Zapis DOWOLNEJ grupy ustawień przez AJAX.
+ *
+ * Zakładek z formularzem jest osiemnaście i każda z nich to ten sam ruch:
+ * weź pola, przepuść przez sanityzację modułu, zapisz opcję. Osobny endpoint
+ * na zakładkę oznaczałby osiemnaście miejsc, w których można się pomylić —
+ * i osiemnaście, o których trzeba pamiętać przy dodaniu dziewiętnastej.
+ *
+ * Odwzorowuje pętlę z `wp-admin/options.php`, bo to ONA jest drogą zapasową:
+ * gdy AJAX padnie, formularz leci normalnie i musi zapisać dokładnie to samo.
+ * Trzy rzeczy z tamtej pętli, które łatwo pominąć, a które mają znaczenie:
+ *
+ * * **Białą listę bierzemy z rejestru WordPressa** (`$new_allowed_options`,
+ *   przed 5.5 `$new_whitelist_options`), a nie z własnego spisu grup. Własny
+ *   spis rozjechałby się z `register_setting()` przy pierwszym nowym module.
+ * * **`update_option()` wołamy także wtedy, gdy pola NIE MA w żądaniu.**
+ *   Odznaczony checkbox nie przychodzi wcale; gdyby brak oznaczał „pomiń",
+ *   nie dałoby się niczego odznaczyć. Sanityzatory modułów są na to gotowe
+ *   (stąd `evk_preserve_toggle`).
+ * * **Sanityzacja odpala się sama** — `update_option()` woła `sanitize_option()`,
+ *   a `register_setting()` podpina tam `sanitize_callback`. Wywołanie jej tutaj
+ *   z ręki zrobiłoby ją dwa razy.
+ *
+ * Nonce jest ten sam, który drukuje `settings_fields( $group )`.
+ */
+add_action('wp_ajax_evk_settings_save', function () {
+    $page = isset($_POST['option_page']) ? sanitize_key(wp_unslash($_POST['option_page'])) : '';
+    if ($page === '') wp_send_json_error('brak grupy ustawień', 400);
+
+    check_ajax_referer($page . '-options', '_wpnonce');
+    if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
+
+    $allowed = $GLOBALS['new_allowed_options'] ?? $GLOBALS['new_whitelist_options'] ?? [];
+    if (empty($allowed[$page])) wp_send_json_error('nieznana grupa ustawień', 400);
+
+    $saved = [];
+    foreach ((array) $allowed[$page] as $option) {
+        $option = trim($option);
+        $value  = null;
+        if (isset($_POST[$option])) {
+            $value = $_POST[$option];
+            if (!is_array($value)) $value = trim($value);
+            $value = wp_unslash($value);
+        }
+        update_option($option, $value);
+        $saved[] = $option;
+    }
+
+    wp_send_json_success(['page' => $page, 'options' => $saved]);
+});

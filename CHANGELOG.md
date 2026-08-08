@@ -2,6 +2,54 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.46.0] — 2026-08-08
+
+### Dodane
+
+- **Każda zakładka zapisuje się bez przeładowania.** Jeden endpoint
+  (`wp_ajax_evk_settings_save`) obsługuje **dowolną** grupę ustawień: białą
+  listę bierze z rejestru WordPressa, więc dziewiętnasta zakładka zadziała
+  bez dopisywania czegokolwiek. Osiemnaście endpointów na osiemnaście zakładek
+  to osiemnaście miejsc do pomylenia.
+
+  Formularz zostaje **zwykłym formularzem celującym w `options.php`** —
+  przechwytujemy tylko wysłanie, a gdy AJAX padnie, puszczamy je dalej normalną
+  drogą. Awaria skryptu nie może być jedyną drogą zapisu.
+
+- **Pasek zapisu jest teraz w każdym formularzu ustawień.** Brakowało go
+  w dwóch: „Przewijany kolor tła" i ustawieniach newslettera — tam przycisk
+  siedział na końcu strony i przy długiej zakładce trzeba było go szukać.
+
+### Naprawione
+
+- **Wejście na Skrzynkę wiadomości oznaczało pierwsze zgłoszenie jako
+  przeczytane.** `loadList()` otwierało pierwszy element z listy, a otwarcie
+  gasi kropkę — zgłoszenie znikało z „nieprzeczytanych", zanim ktokolwiek je
+  zobaczył. Prawy panel pokazuje teraz stan pusty do chwili kliknięcia.
+
+- **Skrzynka wiadomości na telefonie.** Lista miała stałe 300 px, więc poniżej
+  ~700 px zjadała połowę ekranu, a na treść zostawał pas nie do czytania.
+  Poniżej 782 px widać **albo listę, albo wiadomość**, z wyjściem z powrotem
+  do listy — bez niego otwarta wiadomość była ślepą uliczką. Przy okazji: pasek
+  narzędzi łamie się na wiersze zamiast wypychać eksport poza ekran,
+  wyszukiwarka dostała własny wiersz (dzielona z listą formularzy ucinała
+  własną podpowiedź w połowie słowa), a przyciski urosły z 32 do 38 px.
+
+  **Styli tej strony NIE przeniosłem do `admin.css`** — mimo że taki był plan.
+  `admin.css` ładuje się wyłącznie na ekranie ustawień (`settings_page_evoke-one`),
+  a Skrzynka to osobna strona najwyższego poziomu. Przeniesienie rozwaliłoby ją
+  albo wymusiło doładowanie całego arkusza tam, gdzie nic z niego nie jest
+  potrzebne.
+
+### Usunięte
+
+- **`grid-template-columns: 1fr` na polach wiadomości w wersji mobilnej.**
+  Dopisałem tę regułę „na wszelki wypadek" i nie miała pokrycia: poniżej 600 px
+  siatka `minmax(280px, 1fr)` i tak daje jedną kolumnę, a między 600 a 782 px
+  reguła **pogarszała** — wymuszała jedną kolumnę tam, gdzie mieszczą się dwie.
+  Wyszło to dopiero przy celowym psuciu: usunięcie reguły nie zapaliło żadnego
+  testu na czerwono.
+
 ## [1.45.0] — 2026-08-08
 
 ### Zmienione

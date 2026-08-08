@@ -1496,3 +1496,7 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 /* Ostatni element w boksie nie potrzebuje dolnego marginesu — boks ma padding
    i margines dokłada się do niego jako pusty pas u dołu. */
 .evo-box > :last-child { margin-bottom: 0; }
+
+/* Komunikat zapisu w pasku — pojawia się obok przycisku, nie zamiast niego. */
+.evo-save-note { font-size: 12px; color: var(--evo-text-dim); }
+.evo-save-note.is-err { color: var(--evo-danger); }

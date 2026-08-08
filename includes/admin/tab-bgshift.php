@@ -65,8 +65,9 @@ if (!defined('ABSPATH')) exit;
                         na granicy sekcji.
                     </p>
 
-                    <?php submit_button('Zapisz ustawienia'); ?>
-            
                 </div>
 
+                <div class="evo-save-bar">
+                    <?php submit_button('Zapisz ustawienia', 'primary', 'submit', false); ?>
+                </div>
 </form>

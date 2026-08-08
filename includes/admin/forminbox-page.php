@@ -304,6 +304,73 @@ $table_ok   = evk_inbox_table_exists();
 .evk-inbox-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 20px; color: #94a3b8; text-align: center; }
 .evk-inbox-empty .dashicons { font-size: 36px; width: 36px; height: 36px; line-height: 1; }
 .evk-inbox-empty p { font-size: 13px; margin: 0; }
+
+.evk-inbox-detail-email { font-size: 12px; color: #64748b; }
+
+/* Przycisk powrotu do listy — istnieje tylko na wąskim ekranie, gdzie lista
+   i szczegóły nie stoją obok siebie. Na szerokim jest zbędny i go nie ma. */
+.evk-inbox-back { display: none; }
+
+/* ============================================================
+   WĄSKI EKRAN — lista i szczegóły jedno po drugim
+   ============================================================
+   Dwie kolumny obok siebie mają sens od jakichś 700 px w górę; niżej sidebar
+   o stałej szerokości 300 px zjada połowę ekranu, a na szczegóły zostaje pas
+   nie do czytania. Poniżej 782 px (ten sam próg, na którym WordPress przechodzi
+   w tryb dotykowy) widać ALBO listę, ALBO szczegóły — klasę `is-detail`
+   przełącza wybór wiadomości i przycisk powrotu.
+   ============================================================ */
+@media screen and (max-width: 782px) {
+    .evk-inbox-app { height: calc(100vh - 46px); }   /* wyższy pasek admina */
+
+    .evk-inbox-body { display: block; position: relative; height: 100%; }
+
+    .evk-inbox-sidebar,
+    .evk-inbox-detail {
+        width: 100%;
+        min-width: 0;
+        height: 100%;
+        border-right: 0;
+        box-sizing: border-box;
+    }
+    .evk-inbox-detail { display: none; padding: 16px 14px; }
+
+    .evk-inbox-app.is-detail .evk-inbox-sidebar { display: none; }
+    .evk-inbox-app.is-detail .evk-inbox-detail  { display: block; }
+
+    /* Powrót jest pierwszą rzeczą w kadrze — bez niego wejście w wiadomość
+       na telefonie jest ślepą uliczką. */
+    .evk-inbox-back {
+        display: inline-flex; align-items: center; gap: 4px;
+        height: 34px; margin-bottom: 14px; padding: 0 12px 0 8px;
+        border: 1px solid #e2e8f0; border-radius: 6px;
+        background: #fff; color: #475569; font-size: 13px; cursor: pointer;
+    }
+    .evk-inbox-back:hover { background: #f1f5f9; }
+    .evk-inbox-back .dashicons { font-size: 16px; width: 16px; height: 16px; line-height: 1; }
+
+    /* Pasek narzędzi łamie się na dwa rzędy zamiast wypychać eksport poza ekran. */
+    .evk-inbox-topbar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+    .evk-inbox-topbar-left,
+    .evk-inbox-topbar-right { flex-wrap: wrap; width: 100%; }
+    /* Wyszukiwarka dostaje własny wiersz. Dzielona z listą formularzy schodzi
+       do ~180 px i ucina własną podpowiedź w połowie słowa. */
+    .evk-inbox-search-wrap { flex: 1 1 100%; min-width: 0; }
+    #evk-inbox-search { width: 100%; }
+    #evk-inbox-search:focus { width: 100%; }
+    .evk-inbox-select { flex: 1 1 100%; min-width: 0; }
+
+    /* Cele dotykowe — przyciski paska miały 32 px. */
+    .evk-inbox-btn { height: 38px; padding: 0 14px; font-size: 13px; }
+    #evk-export-from, #evk-export-to { height: 38px !important; flex: 1; min-width: 0; }
+
+    /* Wiersz listy: większy cel dotknięcia. */
+    .evk-inbox-item { padding: 14px; }
+
+    .evk-inbox-detail-header { flex-direction: column; gap: 12px; }
+    .evk-inbox-detail-actions { width: 100%; }
+    .evk-inbox-detail-actions .evk-inbox-btn { flex: 1; justify-content: center; }
+}
 </style>
 
 <script>
@@ -409,16 +476,25 @@ $table_ok   = evk_inbox_table_exists();
                 $('#evk-inbox-pagination').html(`<span>${d.total} wiadomości</span>`);
             }
 
-            // Auto-select first if none active
-            if (!state.active_id && d.items.length) {
-                loadDetail(d.items[0].id);
-            }
+            // ŚWIADOMIE bez auto-otwierania pierwszej wiadomości.
+            //
+            // loadDetail() oznacza wiadomość jako przeczytaną, więc samo wejście
+            // na stronę gasiło kropkę przy pierwszym zgłoszeniu — a nikt go nie
+            // czytał. Prawy panel pokazuje teraz stan pusty („Wybierz wiadomość
+            // z listy") do chwili kliknięcia.
+            //
+            // Na wąskim ekranie to jest przy okazji jedyne sensowne zachowanie:
+            // najpierw widać listę, a szczegóły wchodzą po wybraniu.
         });
     }
 
     // ── Load detail ──────────────────────────────────────────
     function loadDetail(id) {
         state.active_id = id;
+        // Poniżej 782 px lista i szczegóły nie mieszczą się obok siebie —
+        // ta klasa przełącza widok na szczegóły. Na szerokim ekranie nic
+        // nie zmienia, bo reguła obowiązuje tylko w media query.
+        APP.classList.add('is-detail');
         $('.evk-inbox-item').removeClass('active');
         $(`.evk-inbox-item[data-id="${id}"]`).addClass('active').addClass('is-read').find('.evk-inbox-dot').css('background', 'transparent');
 
@@ -465,13 +541,16 @@ $table_ok   = evk_inbox_table_exists();
             });
 
             detail.innerHTML = `
+                <button type="button" class="evk-inbox-back">
+                    <span class="dashicons dashicons-arrow-left-alt2"></span> Wszystkie wiadomości
+                </button>
                 <div class="evk-inbox-detail-header">
                     <div class="evk-inbox-detail-title">
                         <h2>${esc(d.name)}</h2>
                         ${subtitleHtml}
                         <div class="evk-inbox-detail-tags">
                             <span class="evk-inbox-meta-form">${esc(d.form_label || d.form_id)}</span>
-                            ${d.email ? `<span style="font-size:12px;color:#64748b;">${esc(d.email)}</span>` : ''}
+                            ${d.email ? `<span class="evk-inbox-detail-email">${esc(d.email)}</span>` : ''}
                         </div>
                         ${headerLinesHtml}
                     </div>
@@ -490,6 +569,13 @@ $table_ok   = evk_inbox_table_exists();
             `;
         });
     }
+
+    // ── Powrót do listy (wąski ekran) ────────────────────────
+    // Nie zerujemy state.active_id: wiadomość zostaje zaznaczona na liście,
+    // więc widać, gdzie się było. Wracamy tylko widokiem.
+    $(document).on('click', '.evk-inbox-back', function() {
+        APP.classList.remove('is-detail');
+    });
 
     // ── Delete ───────────────────────────────────────────────
     function deleteIds(ids, confirmed) {

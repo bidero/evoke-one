@@ -71,6 +71,16 @@ add_action('admin_enqueue_scripts', function (string $hook) {
         'nonce' => wp_create_nonce('evk-toggle-nonce'),
     ]);
 
+    // Zapis ustawień bez przeładowania. Nonce'a NIE ma tu celowo: formularz
+    // niesie już własny, wydrukowany przez settings_fields( $grupa ), i to on
+    // decyduje o uprawnieniu. Drugi nonce byłby tylko drugą rzeczą do pilnowania.
+    wp_localize_script('evoke-one-admin', 'evkSettingsSave', [
+        'url'     => admin_url('admin-ajax.php'),
+        'saving'  => __('Zapisuję…', 'evoke-one'),
+        'saved'   => __('Zapisano.', 'evoke-one'),
+        'failed'  => __('Nie udało się zapisać — wysyłam formularz normalnie.', 'evoke-one'),
+    ]);
+
     wp_enqueue_media();
 });
 

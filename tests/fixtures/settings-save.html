@@ -1,0 +1,95 @@
+<meta charset="utf-8">
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<script>
+/* Dane, które w panelu wstawia wp_localize_script. Bez nich obsługa zapisu
+   w admin.js w ogóle się nie podpina — i test byłby zielony, bo „nic się nie
+   wysyła" jest tu nieodróżnialne od „obsługa nie istnieje". */
+window.evkSettingsSave = {
+  url:    '/fake-admin-ajax.php',
+  saving: 'Zapisuję…',
+  saved:  'Zapisano.',
+  failed: 'Nie udało się zapisać — wysyłam formularz normalnie.',
+};
+
+/* Przechwytujemy $.post ZANIM admin.js się podepnie: chodzi o to, co skrypt
+   wysyła, a nie o to, co odpowie serwer. */
+window.__posts = [];
+window.__reply = { success: true, data: { page: 'evoke_one_a11y', options: ['evk_a11y'] } };
+jQuery.post = function (url, body) {
+  window.__posts.push({ url: url, body: body });
+  var d = jQuery.Deferred();
+  // Odpowiedź asynchronicznie, jak prawdziwe żądanie.
+  setTimeout(function () {
+    if (window.__reply === 'fail') d.reject(); else d.resolve(window.__reply);
+  }, 0);
+  return d.promise();
+};
+
+/* Natywne form.submit() przeładowałoby stronę w przeglądarce testowej.
+   Podmieniamy je na licznik — droga zapasowa jest przedmiotem sprawdzenia,
+   więc musi być widoczna, a nie tylko „nie wybuchła". */
+window.__nativeSubmits = 0;
+HTMLFormElement.prototype.submit = function () { window.__nativeSubmits++; };
+</script>
+
+<div class="wrap">
+  <div class="evo-panel">
+
+    <!-- Zwykła zakładka ustawień: dokładnie to, co drukuje settings_fields(). -->
+    <form id="zwykly" method="post" action="options.php">
+      <input type="hidden" name="option_page" value="evoke_one_a11y">
+      <input type="hidden" name="action" value="update">
+      <input type="hidden" name="_wpnonce" value="testnonce">
+
+      <input type="text" name="evk_a11y[position_side]" value="left">
+      <input type="text" name="evk_a11y[rows][1][k]" value="jeden">
+      <input type="text" name="evk_a11y[rows][2][k]" value="dwa">
+      <input type="text" name="evk_a11y[rows][0][k]" value="zero">
+
+      <div class="evo-save-bar">
+        <button type="submit" class="button button-primary">Zapisz</button>
+      </div>
+    </form>
+
+    <!-- Biblioteka animacji ma własną obsługę i generyczna ma ją pominąć. -->
+    <form id="wlasny" method="post" action="options.php" data-evk-save="own">
+      <input type="hidden" name="option_page" value="evoke_one_animator">
+      <input type="hidden" name="action" value="update">
+      <input type="text" name="evk_animator[animations][0][slug]" value="a">
+      <div class="evo-save-bar"><button type="submit">Zapisz</button></div>
+    </form>
+
+    <!-- Formularz bez option_page — nie nasz, ma przejść bez przechwycenia. -->
+    <form id="obcy" method="post" action="options.php">
+      <input type="text" name="cokolwiek" value="x">
+      <button type="submit">Wyślij</button>
+    </form>
+
+  </div>
+</div>
+
+<script src="../../assets/admin/admin.js"></script>
+<script>
+/** Wysyła formularz PRAWDZIWYM zdarzeniem — natywne form.submit() nie odpala
+ *  nasłuchów i obsługa w admin.js nigdy by się nie uruchomiła. */
+window.__submit = function (id) {
+  var f = document.getElementById(id);
+  return f.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+};
+
+/** Ostatnie żądanie rozłożone na pary — kolejność pól jest tu znacząca. */
+window.__lastBody = function () {
+  var last = window.__posts[window.__posts.length - 1];
+  if (!last) return null;
+  return {
+    url:    last.url,
+    raw:    last.body,
+    names:  last.body.split('&').map(function (p) { return decodeURIComponent(p.split('=')[0]); }),
+  };
+};
+
+window.__note = function (id) {
+  var n = document.querySelector('#' + id + ' .evo-save-note');
+  return n ? { text: n.textContent, err: n.classList.contains('is-err') } : null;
+};
+</script>

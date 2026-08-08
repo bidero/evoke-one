@@ -486,7 +486,11 @@
          * przechwytujemy tylko wysłanie. Gdy AJAX padnie, puszczamy je dalej
          * normalną drogą: awaria skryptu nie może być jedyną drogą zapisu.
          */
-        var $form = $box.closest('form');
+        // Znacznik dla generycznego zapisu niżej: ten formularz ma już własną
+        // obsługę i nie wolno go obsłużyć dwa razy. Biblioteka animacji zapisuje
+        // się inaczej niż zwykła grupa ustawień — liczy się KOLEJNOŚĆ wierszy,
+        // a po zapisie trzeba odświeżyć plakietki klas.
+        var $form = $box.closest('form').attr('data-evk-save', 'own');
 
         $form.on('submit', function (e) {
             if ($form.data('evkFallback')) return;   // druga próba — puść normalnie
@@ -548,6 +552,73 @@
                 $badge.text('.evk-anim-' + slug);
             });
         }
+    }
+
+    /* =========================================================
+       ZAPIS USTAWIEŃ BEZ PRZEŁADOWANIA — dowolna zakładka
+       =========================================================
+
+       Formularz zostaje ZWYKŁYM formularzem celującym w options.php:
+       przechwytujemy tylko wysłanie, a gdy AJAX padnie, puszczamy je dalej
+       normalną drogą. Awaria skryptu nie może być jedyną drogą zapisu —
+       to jest ta sama zasada, na której stoi zapis biblioteki animacji.
+
+       Po stronie serwera odpowiada `wp_ajax_evk_settings_save`, który
+       odwzorowuje pętlę z options.php. Dzięki temu obie drogi zapisują to samo
+       i nie trzeba pisać endpointu na zakładkę.
+       ========================================================= */
+    if (typeof evkSettingsSave !== 'undefined') {
+        $(document).on('submit', '.evo-panel form[action$="options.php"]', function (e) {
+            var $form = $(this);
+
+            // Formularze z własną obsługą (biblioteka animacji) pomijamy —
+            // mają semantykę, której generyczny zapis nie zna.
+            if ($form.attr('data-evk-save') === 'own') return;
+
+            var page = $form.find('input[name=option_page]').val();
+            if (!page) return;                          // nie nasz formularz
+
+            e.preventDefault();
+
+            var $bar  = $form.find('.evo-save-bar');
+            var $btn  = $form.find('[type=submit]').prop('disabled', true);
+            var $note = $bar.find('.evo-save-note');
+            if (!$note.length) $note = $('<span class="evo-save-note"></span>').appendTo($bar);
+            $note.removeClass('is-err').text(evkSettingsSave.saving).show();
+
+            // Ciąg par, nie obiekt — kolejność pól w ciele żądania jest
+            // znacząca dla repeaterów, a obiekt JS porządkuje klucze
+            // wyglądające na liczby NUMERYCZNIE i przestawione wiersze
+            // wracają na stare miejsca.
+            //
+            // Odsiewamy tylko `action`: settings_fields() drukuje
+            // action=update, a my potrzebujemy własnej akcji. Dwa pola o tej
+            // samej nazwie i o routingu decyduje to, które wygra przy
+            // parsowaniu. Reszta pól — z option_page i _wpnonce włącznie —
+            // jedzie bez zmian, bo to one niosą grupę i uprawnienie.
+            var body = $.param($form.serializeArray().filter(function (pair) {
+                return pair.name !== 'action';
+            })) + '&action=evk_settings_save';
+
+            // Droga zapasowa: natywne form.submit() NIE wywołuje zdarzenia
+            // „submit", więc ta obsługa nie złapie go po raz drugi i formularz
+            // idzie do options.php tak, jakby skryptu nie było.
+            function fallback() {
+                $btn.prop('disabled', false);
+                $note.addClass('is-err').text(evkSettingsSave.failed);
+                $form[0].submit();
+            }
+
+            $.post(evkSettingsSave.url, body).done(function (res) {
+                $btn.prop('disabled', false);
+                if (res && res.success) {
+                    $note.text(evkSettingsSave.saved);
+                    setTimeout(function () { $note.fadeOut(); }, 2500);
+                } else {
+                    fallback();
+                }
+            }).fail(fallback);
+        });
     }
 
 })(jQuery);

@@ -1,0 +1,90 @@
+<meta charset="utf-8">
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<style>
+  /* Tyle otoczki wp-admin, ile wpływa na mierzony układ. Pasek admina zmienia
+     wysokość poniżej 782 px i strona liczy od niego swoją wysokość. */
+  body { margin: 0; background: #f0f0f1; font: 13px -apple-system, system-ui, sans-serif; }
+  .spinner { display: inline-block; width: 20px; height: 20px; }
+</style>
+
+<div id="host"></div>
+
+<script>
+/* Markup z PRAWDZIWEGO forminbox-page.php (window.__page z testu).
+   Skrypt strony pomijamy — mierzymy układ, a nie ruch po AJAX-ie; zamiast
+   niego wołamy te same przełączenia klas, które robi loadDetail(). */
+document.getElementById('host').innerHTML = window.__page;
+
+/* Blok <style> wstawiony przez innerHTML nie jest stosowany — przeglądarka
+   nie wykonuje wstrzykniętych <style> tak samo jak <script>. Przenosimy go
+   do <head> ręcznie, inaczej mierzylibyśmy stronę bez własnych stylów. */
+Array.prototype.forEach.call(document.querySelectorAll('#host style'), function (s) {
+  var n = document.createElement('style');
+  n.textContent = s.textContent;
+  document.head.appendChild(n);
+  s.remove();
+});
+
+var APP = document.querySelector('.evk-inbox-app');
+
+/** Wstawia atrapę szczegółów — tyle, ile potrzeba, by zmierzyć przełączenie. */
+window.__openDetail = function () {
+  document.getElementById('evk-inbox-detail').innerHTML =
+    '<button type="button" class="evk-inbox-back">' +
+    '<span class="dashicons dashicons-arrow-left-alt2"></span> Wszystkie wiadomości</button>' +
+    '<div class="evk-inbox-detail-header"><div class="evk-inbox-detail-title"><h2>Jan Kowalski</h2></div>' +
+    '<div class="evk-inbox-detail-actions">' +
+    '<button class="evk-inbox-btn evk-inbox-btn-ghost">Nieprzeczytane</button>' +
+    '<button class="evk-inbox-btn evk-inbox-btn-ghost">Usuń</button></div></div>' +
+    '<div class="evk-inbox-fields">' +
+    '<div class="evk-inbox-field"><div class="evk-inbox-field-label">Imię</div>' +
+    '<div class="evk-inbox-field-value">Jan</div></div>' +
+    '<div class="evk-inbox-field"><div class="evk-inbox-field-label">Temat</div>' +
+    '<div class="evk-inbox-field-value">Pytanie</div></div></div>';
+  APP.classList.add('is-detail');
+};
+
+window.__back = function () { APP.classList.remove('is-detail'); };
+
+/** Widoczność i szerokość obu kolumn — to jest sedno pomiaru. */
+window.__panes = function () {
+  var side = document.querySelector('.evk-inbox-sidebar');
+  var det  = document.getElementById('evk-inbox-detail');
+  var box  = function (el) {
+    var s = getComputedStyle(el);
+    var r = el.getBoundingClientRect();
+    return { shown: s.display !== 'none' && r.width > 0, w: Math.round(r.width) };
+  };
+  return { side: box(side), detail: box(det), viewport: window.innerWidth };
+};
+
+/** Przycisk powrotu: na wąskim ekranie musi być widoczny i dotykalny. */
+window.__backBtn = function () {
+  var b = document.querySelector('.evk-inbox-back');
+  if (!b) return null;
+  var r = b.getBoundingClientRect();
+  return { shown: getComputedStyle(b).display !== 'none', h: Math.round(r.height) };
+};
+
+/** Czy cokolwiek wystaje poza szerokość okna — poziomy pasek przewijania
+ *  jest na telefonie najbardziej widocznym objawem złego układu. */
+window.__overflow = function () {
+  return {
+    doc:  document.documentElement.scrollWidth,
+    win:  window.innerWidth,
+    worst: Array.prototype.map.call(document.querySelectorAll('.evk-inbox-app *'), function (el) {
+      return Math.round(el.getBoundingClientRect().right);
+    }).reduce(function (a, b) { return Math.max(a, b); }, 0),
+  };
+};
+
+/** Wysokość celów dotykowych w pasku narzędzi.
+ *  Tylko WIDOCZNE — „Usuń zaznaczone" startuje z display:none i pojawia się
+ *  dopiero w trybie zaznaczania; jego zerowa wysokość nie jest usterką. */
+window.__taps = function () {
+  return Array.prototype.filter.call(
+    document.querySelectorAll('.evk-inbox-topbar .evk-inbox-btn'),
+    function (el) { return el.getClientRects().length > 0; }
+  ).map(function (el) { return Math.round(el.getBoundingClientRect().height); });
+};
+</script>
