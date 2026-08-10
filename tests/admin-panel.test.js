@@ -165,6 +165,48 @@ module.exports = async function (t) {
   // Nagłówek jest uchwytem przeciągania I przełącznikiem naraz. SortableJS
   // wypuszcza `click` także po upuszczeniu wiersza, więc bez progu dystansu
   // każde przeciągnięcie zwijałoby go przy okazji.
+  // ── Presety pogrupowane w OBU szablonach wiersza ──────────────────────
+  // `tab-animator.php` niesie wiersz DWA RAZY: raz w pętli PHP, raz jako
+  // szablon `{INDEX}` dla `evkAddAnimRow()`. Pole dopisane tylko w pierwszej
+  // kopii działa do momentu, w którym ktoś kliknie „Dodaj animację" — i wtedy
+  // nowy wiersz cicho nie ma tego, co mają pozostałe.
+  t.section('grupy presetów w obu szablonach wiersza');
+
+  const g = await t.open('anim-tab.html', { viewport: V, head, settle: 250 });
+
+  const groupsOf = (i) => g.evaluate((idx) => {
+    const sel = document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row')[idx]
+      .querySelector('select[name*="[preset]"]');
+    return Array.prototype.map.call(sel.querySelectorAll('optgroup'), (o) => o.label);
+  }, i);
+
+  t.check('wiersz z pętli PHP ma grupy', (await groupsOf(0)).join('|') === 'Wejścia|Wyjścia',
+    JSON.stringify(await groupsOf(0)));
+
+  const beforeAdd = await g.evaluate(() =>
+    document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row').length);
+  await g.evaluate(() => window.evkAddAnimRow());
+  await g.waitForTimeout(100);
+  const afterAdd = await g.evaluate(() =>
+    document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row').length);
+  t.check('przycisk dołożył wiersz', afterAdd === beforeAdd + 1, beforeAdd + ' → ' + afterAdd);
+
+  t.check('wiersz z szablonu też ma grupy',
+    (await groupsOf(afterAdd - 1)).join('|') === 'Wejścia|Wyjścia',
+    JSON.stringify(await groupsOf(afterAdd - 1)));
+
+  // Grupa „Wyjścia" nie może być pusta — inaczej sprawdzenie wyżej przechodzi
+  // dla samej obecności znacznika, bez ani jednego presetu w środku.
+  const exitCount = await g.evaluate(() => {
+    const sel = document.querySelector('#evo-anim-repeater-container select[name*="[preset]"]');
+    const grp = Array.prototype.find.call(sel.querySelectorAll('optgroup'),
+      (o) => o.label === 'Wyjścia');
+    return grp ? grp.querySelectorAll('option').length : 0;
+  });
+  t.check('grupa „Wyjścia" ma presety', exitCount >= 6, exitCount + ' szt.');
+
+  await g.close();
+
   t.section('zwijanie wierszy i pamięć stanu');
 
   const c1 = await t.open('anim-tab.html', { viewport: V, head, settle: 250 });

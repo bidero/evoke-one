@@ -2,6 +2,60 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.51.0] — 2026-08-10
+
+### Dodane
+
+- **Wiele animacji na jednym elemencie.** `data-evk-anim` przyjmuje teraz
+  tablicę konfiguracji, a element z kilkoma klasami `evk-anim-*` dostaje
+  wszystkie, nie pierwszą. Stare formaty — goły slug i pojedynczy obiekt —
+  działają bez zmian; są zapisane na istniejących stronach, więc test mierzy
+  je osobno i wymaga, żeby dawały DOKŁADNIE JEDNĄ animację.
+
+- **Animacje wychodzące.** Nowy wyzwalacz „Wyjście z kadru" i sześć presetów
+  wyjściowych (zanik, zanik w górę/w dół, zmniejszenie, rozmycie, zasłona).
+  Wyjście jest OSOBNĄ konfiguracją z własnym presetem, czasem i krzywą — a nie
+  cofnięciem wejścia.
+
+  Gra w obie strony: element ucieka górą przy przewijaniu w dół i dołem przy
+  powrocie do góry (`toggleActions` ma cztery sloty i wypełnione są wszystkie).
+  Powrót w kadr cofa wyjście. `once: false` jest warunkiem działania — przy
+  `once: true` pierwsze wyjście zabiłoby wyzwalacz i element z `opacity: 0`
+  zostałby niewidzialny na zawsze.
+
+- **Krzywe `power2.in` i `power3.in`** — wejście zwalnia ku końcowi, wyjście
+  ma przyspieszać. Bez nich sanityzacja odrzucałaby easing presetów wyjściowych.
+
+- **Presety w panelu podzielone na „Wejścia" i „Wyjścia".** Preset wyjściowy
+  wybrany przez pomyłkę z płaskiej listy czterdziestu pozycji wygląda jak
+  zepsuta wtyczka: element znika bez wyjaśnienia.
+
+### Naprawione
+
+- **`clearProps` po animacji cofał wyjście.** Znalezione testem, nie z użycia:
+  „zasłona w górę" pod wyzwalaczem wejścia kończyła z `clip-path: none`, bo
+  clipPath jest na liście czyszczonych właściwości — element wracał widoczny
+  mimo poprawnie odegranej animacji. Zanik ocalał tylko dlatego, że `opacity`
+  nie jest czyszczone. Sprzątanie omija teraz wszystko, co kończy niewidocznie,
+  po znaczniku z tablicy presetów — sam wyzwalacz jako kryterium nie wystarcza.
+
+- **Redukcja ruchu gasiła element na stałe.** Ścieżka „bez ruchu, ale stan
+  końcowy widoczny" nakładała `cfg.to`, a dla wyjścia to `opacity: 0`.
+  Konfiguracje wyjściowe są w tej gałęzi pomijane w całości, jak hover i klik.
+
+- **`_evkAnimAbort` był pojedynczym slotem** (i martwym zapisem — dwa
+  przypisania, zero odczytów w całym repozytorium). Przy dwóch animacjach
+  interaktywnych na jednym elemencie drugi zapis gubił uchwyt pierwszej.
+  Teraz lista.
+
+- **Drugi podział tekstu na tym samym elemencie** dzieliłby już podzielony DOM,
+  a `autoSplit` przy zmianie szerokości okna odbudowywałby kawałki, na których
+  wisi pierwsza oś czasu. Kolejne konfiguracje tracą podział z ostrzeżeniem.
+
+- **Kawałki SplitText nie są slugami.** Noszą klasy `evk-anim-line|word|char`,
+  więc przy czytaniu wszystkich klas każdy kawałek zgłaszałby „brak animacji
+  w bibliotece".
+
 ## [1.50.0] — 2026-08-10
 
 ### Dodane

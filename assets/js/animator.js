@@ -46,32 +46,81 @@
     return isNaN(n) ? fallback : n;
   }
 
-  /** Slug z klasy evk-anim-{slug}; pomija sam prefiks bez sluga. */
-  function slugFromClass(el) {
+  /* Kawałki po podziale tekstu dostają klasy `evk-anim-line|word|char`
+     (patrz initSplit). To nie są slugi biblioteki i nie wolno ich za takie
+     brać — inaczej każdy kawałek zgłaszałby „brak animacji w bibliotece". */
+  var SPLIT_PIECE = { line: 1, word: 1, char: 1 };
+
+  /** WSZYSTKIE slugi z klas, nie pierwszy: element może nieść kilka animacji. */
+  function slugsFromClass(el) {
+    var out = [];
     for (var i = 0; i < el.classList.length; i++) {
       var c = el.classList[i];
-      if (c.indexOf('evk-anim-') === 0 && c.length > 9) return c.slice(9);
+      if (c.indexOf('evk-anim-') !== 0 || c.length <= 9) continue;
+      var slug = c.slice(9);
+      if (SPLIT_PIECE[slug]) continue;
+      out.push(slug);
     }
-    return '';
+    return out;
   }
 
-  function attrConfig(el) {
+  /**
+   * Konfiguracje z atrybutu — ZAWSZE tablica, także dla jednej.
+   *
+   * Trzy formaty, rozróżniane pierwszym znakiem: tablica JSON (wiele animacji),
+   * obiekt JSON (jedna) i goły slug (skrót). Dwa ostatnie są zapisane na
+   * istniejących stronach i muszą działać bez zmian — stąd tablica dokłada się
+   * jako trzeci przypadek, a nie zastępuje tamtych.
+   */
+  function attrConfigs(el) {
     var raw = el.getAttribute('data-evk-anim');
-    if (!raw) return {};
+    if (!raw) return [];
     raw = raw.trim();
-    if (!raw) return {};
-    // Skrót: sam slug zamiast JSON-a.
-    if (raw.charAt(0) !== '{') return { animation: raw };
-    try { return JSON.parse(raw); }
+    if (!raw) return [];
+
+    var first = raw.charAt(0);
+    if (first !== '{' && first !== '[') return [{ animation: raw }];
+
+    var parsed;
+    try { parsed = JSON.parse(raw); }
     catch (e) {
       console.warn('[EVK Animator] Nieprawidłowy JSON w data-evk-anim:', raw);
-      return {};
+      return [];
     }
+    var list = Array.isArray(parsed) ? parsed : [parsed];
+    return list.filter(function (o) { return o && typeof o === 'object'; });
   }
 
-  function buildConfig(el) {
-    var attr = attrConfig(el);
-    var slug = attr.animation || slugFromClass(el);
+  /**
+   * Wszystkie konfiguracje elementu. Atrybut wygrywa z klasami — tak było
+   * i przy jednej animacji (`attr.animation || slugFromClass(el)`).
+   */
+  function buildConfigs(el) {
+    var slugs = slugsFromClass(el);
+    var attrs = attrConfigs(el);
+
+    if (!attrs.length) {
+      attrs = slugs.map(function (s) { return { animation: s }; });
+      // Element bez slugu i bez atrybutu — jedno puste wejście, żeby
+      // buildConfig zwrócił null i zachował dotychczasowy kontrakt.
+      if (!attrs.length) attrs = [{}];
+    }
+
+    var out = [];
+    for (var i = 0; i < attrs.length; i++) {
+      var cfg = buildConfig(el, attrs[i], slugs[0] || '');
+      if (cfg) out.push(cfg);
+    }
+    // Ile animacji dzieli ten element. Niesione w konfiguracji, a nie jako
+    // dodatkowy argument: `cleansUp()` siedzi pięć wywołań głębiej i przewlekanie
+    // liczby przez `initSplit`, `buildAnimation`, wszystkie `attach*` i `tweenVars`
+    // dołożyłoby parametr do ośmiu sygnatur, żeby przeczytać go w jednej.
+    out.forEach(function (cfg) { cfg.siblings = out.length; });
+    return out;
+  }
+
+  function buildConfig(el, attr, classSlug) {
+    var slug = attr.animation || classSlug || '';
     var lib  = LIBRARY[slug] || {};
 
     // Slug wskazany, ale nieobecny w bibliotece — najczęściej skutek zmiany
@@ -113,6 +162,10 @@
       targets:  pick(attr.targets, lib.targets, 'self'),
       selector: pick(attr.selector, lib.selector, ''),
       pin:      !!pick(attr.pin, lib.pin, false),
+      // Czy preset KOŃCZY niewidocznie. Bierze się z tablicy presetów, nie
+      // z wyzwalacza: preset wyjściowy wolno podpiąć pod wejście w kadr
+      // (element gasnący, gdy się pojawia, bywa świadomym efektem).
+      exit:     !!pick(attr.exit, lib.exit, pre.exit, false),
       trigger:  pick(attr.trigger, lib.trigger, 'viewport'),
       easing:   pick(attr.easing, lib.easing, pre.easing, 'power2.out'),
       duration: num(pick(attr.duration, lib.duration, pre.duration), 0.8),
@@ -258,6 +311,17 @@
     return tl;
   }
 
+  /**
+   * Uchwyt do odpięcia nasłuchów. Dziś NIKT go nie czyta — sprawdzone: dwa
+   * zapisy, zero odczytów w całym repozytorium. Zostaje mimo to, bo bez niego
+   * nie da się w przyszłości posprzątać po elemencie; ale musi być LISTĄ.
+   * Pojedynczy slot przy dwóch animacjach interaktywnych na jednym elemencie
+   * gubił uchwyt pierwszej i jej nasłuchy zostawałyby na stałe.
+   */
+  function rememberAbort(el, ac) {
+    (el._evkAnimAbort = el._evkAnimAbort || []).push(ac);
+  }
+
   // ── Budowa osi czasu ───────────────────────────────────────────────────
 
   /**
@@ -286,6 +350,24 @@
     // ale zostawianie tu tej ścieżki byłoby miną: wystarczyłoby, żeby ktoś
     // kiedyś dołożył pętli skończoną liczbę powtórzeń.
     if (cfg.loop) return false;
+
+    // Wszystko, co kończy NIEWIDOCZNIE, jest tu wyłączone: `clearProps`
+    // przywróciłby element do widoczności, czyli cofnął dokładnie to, co
+    // animacja miała zrobić.
+    //
+    // Wyzwalacz nie wystarcza jako kryterium i zmierzył to test presetów:
+    // „mask-out-up" pod wejściem w kadr kończył z `clip-path: none`, bo
+    // clipPath jest na liście czyszczonych właściwości. Element wracał więc
+    // widoczny mimo poprawnie odegranej animacji. Stąd znacznik z presetu
+    // obok wyzwalacza — opacity ocalało tylko dlatego, że nie jest czyszczone.
+    if (cfg.exit || cfg.trigger === 'exit') return false;
+
+    // Element z kilkoma animacjami NIE jest po jednej z nich „gotowy":
+    // clearProps skasowałby inline'owy transform, na którym stoi sąsiadka.
+    // Uzasadnienie z komentarza wyżej — „stan końcowy jest stanem naturalnym
+    // elementu" — obowiązuje tylko wtedy, gdy animacja jest jedyna.
+    if (cfg.siblings > 1) return false;
+
     return !cfg.repeat && (cfg.trigger === 'viewport' || cfg.trigger === 'load');
   }
 
@@ -353,6 +435,50 @@
     return tl;
   }
 
+  /**
+   * Wyjście z kadru — OSOBNA animacja, nie cofnięcie wejściowej.
+   *
+   * `toggleActions` ma cztery sloty: [onEnter, onLeave, onEnterBack, onLeaveBack].
+   * Stąd „reverse play reverse play": gramy przy każdym WYJŚCIU (górą przy
+   * przewijaniu w dół, dołem przy powrocie do góry) i cofamy przy każdym
+   * POWROCIE w kadr. Sprawdzenie tylko jednego kierunku przechodziłoby też dla
+   * 'none play none none', które połowy przypadków nie obsługuje — dlatego
+   * tests/anim-exit.test.js mierzy oba.
+   *
+   * `once: false` jest tu warunkiem działania, nie ustawieniem. Gdyby zadziałało
+   * jak przy wejściu (`once: !cfg.loop && !cfg.repeat`), pierwsze wyjście
+   * zabiłoby wyzwalacz i element z `opacity: 0` zostałby niewidzialny na zawsze.
+   *
+   * `immediateRender: false` też nie jest ozdobą. Wejście MUSI nakładać swój
+   * stan początkowy od razu — na tym stoi zasłona `evk-veil` i to trzyma treść
+   * ukrytą do czasu wejścia w kadr. Wyjście ma `from` równe stanowi spoczynku,
+   * więc nie ma czego renderować z wyprzedzeniem; gdyby renderowało, element
+   * z obiema animacjami dostawałby stan początkowy tej zbudowanej PÓŹNIEJ
+   * i bywałby widoczny albo niewidoczny wbrew konfiguracji. Ten sam wzorzec
+   * i z tego samego powodu jest w assets/js/bg-shift.js.
+   */
+  function attachExit(el, targets, cfg) {
+    var vars  = tweenVars(targets, cfg, { immediateRender: false });
+    var start = startVars(cfg);
+
+    var tl = gsap.timeline({
+      scrollTrigger: {
+        trigger:       el,
+        start:         cfg.start,
+        end:           cfg.end,
+        once:          false,
+        toggleActions: 'reverse play reverse play',
+      },
+    });
+
+    // Opóźnienie POZYCYJNIE, nie varsami osi. Przy `toggleActions` oś jest
+    // budowana raz i odtwarzana wielokrotnie — `delay` w varsach liczyłby się
+    // od zegara rodzica z chwili utworzenia, czyli tylko za pierwszym razem.
+    if (start) tl.fromTo(targets, start, vars, cfg.delay);
+    else       tl.to(targets, vars, cfg.delay);
+    return tl;
+  }
+
   function attachScrub(el, targets, cfg) {
     var tl = gsap.timeline({
       scrollTrigger: {
@@ -395,7 +521,7 @@
       }, opts);
     }
 
-    el._evkAnimAbort = ac;
+    rememberAbort(el, ac);
     return tl;
   }
 
@@ -450,7 +576,7 @@
     // Wskaźnik potrafi zniknąć bez pointerleave (przewinięcie, zmiana karty).
     el.addEventListener('pointercancel', rest, opts);
 
-    el._evkAnimAbort = ac;
+    rememberAbort(el, ac);
     return null;   // brak osi czasu — nie ma czym sterować z zewnątrz
   }
 
@@ -526,6 +652,7 @@
     if (cfg.textFx === 'words') return attachWords(el, targets, cfg);
 
     switch (cfg.trigger) {
+      case 'exit':  return attachExit(el, targets, cfg);
       case 'scrub': return attachScrub(el, targets, cfg);
       case 'hover':
       case 'click': return attachInteractive(el, targets, cfg);
@@ -584,27 +711,51 @@
   }
 
   function initOne(el) {
-    var cfg = buildConfig(el);
-    if (!cfg) return false;   // brak konfiguracji → spróbuj ponownie później
+    var cfgs = buildConfigs(el);
+    if (!cfgs.length) return false;   // brak konfiguracji → spróbuj ponownie później
 
     // Reduced motion: żadnego ruchu, ale stan końcowy musi być widoczny —
     // inaczej element z opacity:0 we from zostałby niewidzialny na stałe.
     // Przy podziale tekstu nie ma po co dzielić: i tak nic się nie animuje.
     if (prefersReduced()) {
-      // Wyjątek: wyzwalacze interaktywne. Tam stanem spoczynku jest 'from',
-      // a 'to' to stan NAJECHANIA — nałożony na stałe zostawiłby przycisk
-      // trwale uniesiony i podświetlony. Nie ma też wejścia do dokończenia,
-      // więc najbezpieczniej nie ruszać elementu wcale: zostaje taki, jak
-      // wyrenderował go CSS, czyli na pewno widoczny.
-      if (cfg.trigger !== 'hover' && cfg.trigger !== 'click' && cfg.to) {
-        gsap.set(resolveTargets(el, cfg), cfg.to);
-      }
+      cfgs.forEach(function (cfg) {
+        // Wyjątek: wyzwalacze interaktywne. Tam stanem spoczynku jest 'from',
+        // a 'to' to stan NAJECHANIA — nałożony na stałe zostawiłby przycisk
+        // trwale uniesiony i podświetlony. Nie ma też wejścia do dokończenia,
+        // więc najbezpieczniej nie ruszać elementu wcale: zostaje taki, jak
+        // wyrenderował go CSS, czyli na pewno widoczny.
+        // 'exit' jest tu równie groźny jak hover i klik, ale z odwrotnego
+        // powodu: jego `to` to stan PO ZNIKNIĘCIU. Nałożony na stałe zgasiłby
+        // element u każdego z włączoną redukcją ruchu — czyli dokładnie ta
+        // klasa błędu, dla której powstał tests/motion.test.js.
+        if (cfg.trigger !== 'hover' && cfg.trigger !== 'click'
+            && cfg.trigger !== 'exit' && cfg.to) {
+          gsap.set(resolveTargets(el, cfg), cfg.to);
+        }
+      });
       return true;
     }
 
-    if (cfg.split && typeof SplitText !== 'undefined') return initSplit(el, cfg);
+    // Podział tekstu wolno zrobić RAZ na element. Dwa `SplitText.create()` na
+    // tym samym węźle dzielą już podzielony DOM, a `autoSplit` przy zmianie
+    // szerokości okna odbudowuje kawałki, na których wisi pierwsza oś czasu.
+    var splitUsed = false;
 
-    buildAnimation(el, resolveTargets(el, cfg), cfg);
+    cfgs.forEach(function (cfg) {
+      if (cfg.split && typeof SplitText !== 'undefined') {
+        if (splitUsed) {
+          console.warn('[EVK Animator] Drugi podział tekstu na tym samym elemencie '
+            + 'jest pomijany — dzieli już podzielony DOM. Animacja „' + cfg.split
+            + '" zagra bez podziału.', el);
+          cfg = Object.assign({}, cfg, { split: '' });
+        } else {
+          splitUsed = true;
+          initSplit(el, cfg);
+          return;
+        }
+      }
+      buildAnimation(el, resolveTargets(el, cfg), cfg);
+    });
     return true;
   }
 
@@ -729,7 +880,11 @@
     delete el._evkText;
     gsap.set(el, { clearProps: 'all' });
 
-    var cfg = buildConfig(el);
+    // Podgląd zostaje JEDNOKONFIGURACYJNY, choć element na stronie może nieść
+    // kilka animacji. Pudełko 120×80 grające dwie rzeczy naraz przestałoby
+    // pokazywać to, co się właśnie edytuje — a podgląd jest od jednego wiersza
+    // biblioteki, nie od złożenia całej strony.
+    var cfg = buildConfig(el, attrConfigs(el)[0] || {}, slugsFromClass(el)[0] || '');
     if (!cfg) return null;
 
     // Redukcja ruchu — ta sama polityka co w initOne(): bez ruchu, ale stan

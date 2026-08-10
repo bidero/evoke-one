@@ -34,6 +34,10 @@ module.exports = async function (t) {
   // tekstowe składają varsy w silniku, a wskaźnikowe śledzą kursor i niosą
   // samo 'to' jako stan spoczynku.
   const marked = (k) => presets[k].textFx || presets[k].pointer;
+  /* Presety WYJŚCIOWE kończą niewidoczne — na tym polegają. Wszędzie tam,
+     gdzie sprawdzamy „po animacji widać", trzeba je wyłączyć i dołożyć
+     sprawdzenie lustrzane, inaczej wyłączenie samo w sobie nic nie znaczy. */
+  const isExit = (k) => !!presets[k].exit;
   const incomplete = keys.filter(
     (k) => k !== 'custom' && !marked(k) && (!presets[k].from || !presets[k].to));
   t.check('każdy ma from i to albo znacznik', !incomplete.length,
@@ -109,12 +113,21 @@ module.exports = async function (t) {
   t.check('zbudowane wszystkie presety', built.length === keys.length - 1,
     built.length + ' z ' + (keys.length - 1));
 
-  const invisible = built.filter((k) => st[k].opacity < 0.99);
-  t.check('po animacji pełna widoczność', !invisible.length,
+  const invisible = built.filter((k) => !isExit(k) && st[k].opacity < 0.99);
+  t.check('po animacji pełna widoczność (wejścia)', !invisible.length,
     invisible.map((k) => k + '=' + st[k].opacity).join(', ') || 'brak przezroczystych');
 
-  const clipped = built.filter((k) => clips(st[k].clipPath));
-  t.check('po animacji nic nie obcina maską', !clipped.length,
+  // Lustro poprzedniego sprawdzenia. Bez niego wyłączenie wyjść z tamtego
+  // znaczyłoby tylko tyle, że ich nie oglądamy — a preset wyjściowy, który
+  // kończy widoczny, jest po prostu zepsuty i nikt by tego nie zobaczył.
+  const exits = built.filter(isExit);
+  t.check('są presety wyjściowe do zmierzenia', exits.length > 0, exits.length + ' szt.');
+  const notGone = exits.filter((k) => st[k].opacity > 0.01 && !clips(st[k].clipPath));
+  t.check('po animacji wyjścia element ZNIKA', !notGone.length,
+    notGone.map((k) => k + '=' + st[k].opacity + '/' + st[k].clipPath).join(', ') || 'wszystkie znikły');
+
+  const clipped = built.filter((k) => !isExit(k) && clips(st[k].clipPath));
+  t.check('po animacji nic nie obcina maską (wejścia)', !clipped.length,
     clipped.map((k) => k + '=' + st[k].clipPath).join(', ') || 'brak obciętych');
 
   const hidden = built.filter((k) => st[k].visibility === 'hidden');
@@ -265,7 +278,7 @@ module.exports = async function (t) {
     after['border-draw'] && /2px/.test(after['border-draw'].boxShadow),
     after['border-draw'] ? after['border-draw'].boxShadow : 'brak presetu');
   t.check('po najechaniu nadal wszystko widoczne',
-    !Object.keys(after).filter((k) => after[k].opacity < 0.99).length, 'ok');
+    !Object.keys(after).filter((k) => !isExit(k) && after[k].opacity < 0.99).length, 'ok');
 
   await hov.close();
 

@@ -297,6 +297,72 @@ function evk_anim_presets(): array {
             'duration' => 0.5,
         ],
 
+        /*
+         * ── WYJŚCIA ───────────────────────────────────────────────────────
+         *
+         * Znacznik `'exit' => true` odróżnia je od wejść. To on, a nie prefiks
+         * w nazwie: testy i panel czytają już znaczniki tablicy (`textFx`,
+         * `pointer`), a rozpoznawanie po nazwie byłoby trzecią kopią tej wiedzy
+         * i pierwszą, która rozjedzie się przy zmianie nazwy.
+         *
+         * `from` to stan SPOCZYNKU, `to` — stan po zniknięciu. Odwrotnie niż
+         * przy wejściach, i to ma konsekwencje w silniku: przy redukcji ruchu
+         * nie wolno nakładać ich `to` (element zgasłby na stałe), a oś wyjściowa
+         * nie może renderować swojego `from` z wyprzedzeniem.
+         *
+         * Krzywa `.in` zamiast `.out`: wyjście ma przyspieszać ku końcowi, a nie
+         * zwalniać. Obie wersje `.in` dopisane są do evk_anim_easings() niżej —
+         * bez tego sanityzacja odrzuciłaby je przy zapisie wiersza biblioteki.
+         */
+        'fade-out' => [
+            'label'    => 'Wyjście: zanik',
+            'exit'     => true,
+            'from'     => ['opacity' => 1],
+            'to'       => ['opacity' => 0],
+            'duration' => 0.6,
+            'easing'   => 'power2.in',
+        ],
+        'fade-out-up' => [
+            'label'    => 'Wyjście: zanik w górę',
+            'exit'     => true,
+            'from'     => ['opacity' => 1, 'y' => 0],
+            'to'       => ['opacity' => 0, 'y' => -40],
+            'duration' => 0.6,
+            'easing'   => 'power2.in',
+        ],
+        'fade-out-down' => [
+            'label'    => 'Wyjście: zanik w dół',
+            'exit'     => true,
+            'from'     => ['opacity' => 1, 'y' => 0],
+            'to'       => ['opacity' => 0, 'y' => 40],
+            'duration' => 0.6,
+            'easing'   => 'power2.in',
+        ],
+        'scale-out' => [
+            'label'    => 'Wyjście: zmniejszenie',
+            'exit'     => true,
+            'from'     => ['opacity' => 1, 'scale' => 1],
+            'to'       => ['opacity' => 0, 'scale' => 0.9],
+            'duration' => 0.6,
+            'easing'   => 'power2.in',
+        ],
+        'blur-out' => [
+            'label'    => 'Wyjście: rozmycie',
+            'exit'     => true,
+            'from'     => ['opacity' => 1, 'filter' => 'blur(0px)'],
+            'to'       => ['opacity' => 0, 'filter' => 'blur(12px)'],
+            'duration' => 0.6,
+            'easing'   => 'power2.in',
+        ],
+        'mask-out-up' => [
+            'label'    => 'Wyjście: zasłona w górę',
+            'exit'     => true,
+            'from'     => ['clipPath' => 'inset(0% 0% 0% 0%)'],
+            'to'       => ['clipPath' => 'inset(0% 0% 100% 0%)'],
+            'duration' => 0.6,
+            'easing'   => 'power3.in',
+        ],
+
         // Bez from/to — wartości bierze się wyłącznie z pól „Własne from/to"
         // w wierszu biblioteki. Silnik schodzi wtedy warstwę niżej.
         'custom' => [
@@ -304,6 +370,12 @@ function evk_anim_presets(): array {
             'duration' => 0.8,
         ],
     ];
+}
+
+/** Czy preset jest wyjściem z kadru — jedno miejsce, żeby nie rozpoznawać po nazwie. */
+function evk_anim_preset_is_exit(string $slug): bool {
+    $presets = evk_anim_presets();
+    return !empty($presets[$slug]['exit']);
 }
 
 /**
@@ -377,6 +449,7 @@ function evk_anim_props_to_text(array $props): string {
 function evk_anim_triggers(): array {
     return [
         'viewport' => 'Wejście w viewport',
+        'exit'     => 'Wyjście z kadru',
         'scrub'    => 'Scrub przy scrollu',
         'hover'    => 'Hover',
         'click'    => 'Klik',
@@ -396,5 +469,9 @@ function evk_anim_easings(): array {
         'none', 'power1.out', 'power2.out', 'power3.out', 'power4.out',
         'power2.inOut', 'power3.inOut', 'back.out(1.7)', 'back.out(2.2)',
         'expo.out', 'circ.out', 'sine.inOut', 'bounce.out', 'elastic.out(1, 0.5)',
+        // Krzywe przyspieszające — dla wyjść z kadru. Wejście ma zwalniać ku
+        // końcowi, wyjście odwrotnie, więc bez nich presety wyjściowe nie mają
+        // czym zagrać (a sanityzacja odrzuciłaby wpisaną ręcznie wartość).
+        'power2.in', 'power3.in',
     ];
 }

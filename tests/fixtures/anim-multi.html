@@ -1,0 +1,63 @@
+<style>
+  body { margin: 0; font: 16px system-ui; }
+  .box { height: 60px; background: #345; color: #fff; margin: 8px; }
+</style>
+
+<!-- Dwie konfiguracje na jednym elemencie. Presety dobrane tak, żeby ruszały
+     ROZŁĄCZNE właściwości: „gasnie" tylko opacity, „jedzie" tylko x. Gdyby
+     zadziałała jedna, druga właściwość zostałaby w stanie nietkniętym i widać
+     to gołym okiem w pomiarze — przy dwóch presetach ruszających to samo
+     nie dałoby się odróżnić „obie działają" od „działa druga". -->
+<div class="box" id="oba"
+     data-evk-anim='[{"animation":"gasnie","trigger":"load"},{"animation":"jedzie","trigger":"load"}]'>OBA</div>
+
+<!-- Wsteczna zgodność: goły slug w atrybucie. -->
+<div class="box" id="slug" data-evk-anim="gasnie">SLUG</div>
+
+<!-- Wsteczna zgodność: pojedynczy obiekt. -->
+<div class="box" id="obiekt" data-evk-anim='{"animation":"gasnie","trigger":"load"}'>OBIEKT</div>
+
+<!-- Droga klasowa: dwie klasy evk-anim-* na jednym elemencie. -->
+<div id="klasy" class="box evk-anim-gasnie evk-anim-jedzie">KLASY</div>
+
+<script src="../../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../../node_modules/gsap/dist/ScrollTrigger.min.js"></script>
+<script>
+  // Odwzorowanie payloadu z includes/anim/animator.php
+  window.evkAnimator = {
+    library: {
+      gasnie: { slug: 'gasnie', preset: 'fade',  trigger: 'load',
+                duration: 0.4, delay: 0.5, stagger: 0, easing: 'power2.out', order: 0 },
+      jedzie: { slug: 'jedzie', preset: 'slide', trigger: 'load',
+                duration: 0.4, delay: 0.5, stagger: 0, easing: 'power2.out', order: 0 },
+    },
+    presets: {
+      fade:  { from: { opacity: 0 },  to: { opacity: 1 }, duration: 0.4 },
+      slide: { from: { x: -100 },     to: { x: 0 },       duration: 0.4 },
+    },
+    reducedMotion: false, needsFonts: false,
+  };
+</script>
+<!-- Opóźnienie 0,5 s jest CZĘŚCIĄ TESTU, nie kosmetyką: stan „from" jest
+     nakładany natychmiast przy budowie osi, więc pół sekundy bezruchu daje
+     okno na zmierzenie, że konfiguracja w ogóle powstała. Bez tego „zagrała"
+     sprawdzalibyśmy po stanie końcowym — a ten dla przezroczystości równa się
+     wartości domyślnej i przechodzi też wtedy, gdy nie powstało nic. -->
+<script src="../../assets/js/animator.js"></script>
+<script>
+/** Stan elementu: przezroczystość i przesunięcie w poziomie.
+ *
+ *  `x` czytamy z macierzy transformacji — `transform: none` znaczy „preset
+ *  «jedzie» nigdy nie ruszył", a to jest właśnie objaw jednej animacji
+ *  zamiast dwóch. */
+window.__stan = function (id) {
+  var s = getComputedStyle(document.getElementById(id));
+  var m = s.transform;
+  var x = null;
+  if (m && m !== 'none') {
+    var parts = m.replace(/^matrix\(|\)$/g, '').split(',');
+    x = Math.round(parseFloat(parts[4]));
+  }
+  return { opacity: +parseFloat(s.opacity).toFixed(2), x: x, transform: m };
+};
+</script>

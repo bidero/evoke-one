@@ -8,6 +8,18 @@ $anim       = EVK_Animator::get_instance();
 $a          = $anim->get_settings();
 $rows       = $a['animations'];
 $presets    = evk_anim_presets();
+
+/*
+ * Presety w dwóch grupach. Wyjścia kończą NIEWIDOCZNIE, więc wybrane przez
+ * pomyłkę z płaskiej listy czterdziestu pozycji wyglądają jak zepsuta wtyczka:
+ * element znika i nie ma jak zgadnąć dlaczego. Podział bierze się ze znacznika
+ * w tablicy presetów, nie z nazwy — patrz evk_anim_preset_is_exit().
+ */
+$preset_groups = ['Wejścia' => [], 'Wyjścia' => []];
+foreach ($presets as $preset_key => $preset_row) {
+    $preset_groups[empty($preset_row['exit']) ? 'Wejścia' : 'Wyjścia'][$preset_key] = $preset_row;
+}
+
 $triggers   = evk_anim_triggers();
 $easings    = evk_anim_easings();
 $row_def    = $anim->row_defaults();
@@ -86,8 +98,12 @@ $row_def    = $anim->row_defaults();
                     <div>
                         <label>Preset</label>
                         <select name="evk_animator[animations][<?php echo $index; ?>][preset]">
-                            <?php foreach ($presets as $key => $p): ?>
-                            <option value="<?php echo esc_attr($key); ?>" <?php selected($r['preset'], $key); ?>><?php echo esc_html($p['label']); ?></option>
+                            <?php foreach ($preset_groups as $group_label => $group): ?>
+                            <optgroup label="<?php echo esc_attr($group_label); ?>">
+                                <?php foreach ($group as $key => $p): ?>
+                                <option value="<?php echo esc_attr($key); ?>" <?php selected($r['preset'], $key); ?>><?php echo esc_html($p['label']); ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -170,8 +186,12 @@ $row_def    = $anim->row_defaults();
             <div>
                 <label>Preset</label>
                 <select name="evk_animator[animations][{INDEX}][preset]">
-                    <?php foreach ($presets as $key => $p): ?>
-                    <option value="<?php echo esc_attr($key); ?>" <?php selected($row_def['preset'], $key); ?>><?php echo esc_html($p['label']); ?></option>
+                    <?php foreach ($preset_groups as $group_label => $group): ?>
+                    <optgroup label="<?php echo esc_attr($group_label); ?>">
+                        <?php foreach ($group as $key => $p): ?>
+                        <option value="<?php echo esc_attr($key); ?>" <?php selected($row_def['preset'], $key); ?>><?php echo esc_html($p['label']); ?></option>
+                        <?php endforeach; ?>
+                    </optgroup>
                     <?php endforeach; ?>
                 </select>
             </div>
