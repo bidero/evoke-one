@@ -254,6 +254,44 @@ module.exports = async function (t) {
     dur !== null && Math.abs(dur - 3) < 0.01,
     'czas trwania osi: ' + dur + ' (preset sam z siebie ma 0,8)');
 
+  // ── Kadr zostaje na oczach przy przewijaniu pól ───────────────────────
+  // Przeniesienie ▶ do bloku podglądu (1.49.0) było połową roboty: blok
+  // dopisywał się NA KOŃCU siatki, czyli po dwudziestu polach. Wiersz jest
+  // wyższy niż okno, więc przy pracy nad polami kadr był poza kadrem okna —
+  // i zgłoszenie „nie widać jednego albo drugiego" nadal było prawdziwe.
+  t.section('kadr trzyma się nagłówka wiersza');
+
+  const st = await t.open('anim-preview-panel.html', {
+    viewport: { width: 1200, height: 520 }, head: panelHead, settle: 250,
+  });
+
+  const place = await st.evaluate(() => window.__previewPlace(0));
+  t.check('blok podglądu jest poza siatką pól', !place.inGrid,
+    place.inGrid ? 'wewnątrz .evo-anim-grid' : 'rodzeństwo siatki');
+  t.check('blok podglądu stoi PRZED polami', place.beforeGrid,
+    place.beforeGrid ? 'zaraz pod nagłówkiem' : 'po polach');
+  t.check('blok podglądu jest przyklejony', place.position === 'sticky', place.position);
+
+  // Kontrola sensowności: gdyby wiersz mieścił się w oknie, „kadr widoczny"
+  // byłoby prawdą bez udziału przyklejenia.
+  const tall = await st.evaluate(() => window.__frameInView(0));
+  t.check('wiersz jest wyższy niż okno', tall.rowH > tall.vh,
+    tall.rowH + ' px wiersza przy oknie ' + tall.vh + ' px');
+
+  // Przewijamy tak, żeby nagłówek wyjechał górą, a pola zostały w kadrze.
+  await st.evaluate(() => {
+    const row = document.querySelector('#evo-anim-repeater-container > .evo-anim-row');
+    window.scrollTo(0, window.scrollY + row.getBoundingClientRect().top + 260);
+  });
+  await st.waitForTimeout(80);
+
+  const deep = await st.evaluate(() => window.__frameInView(0));
+  t.check('nagłówek wiersza zjechał poza okno', deep.rowTop < 0, deep.rowTop + ' px');
+  t.check('kadr nadal w oknie', deep.top >= 0 && deep.bottom <= deep.vh,
+    deep.top + '–' + deep.bottom + ' px przy oknie ' + deep.vh + ' px');
+
+  await st.close();
+
   // ── Podgląd nie wyjeżdża poza wiersz ──────────────────────────────────
   // Domyślnym celem animacji jest „sam element", więc GSAP przesuwa SCENĘ —
   // a `overflow: hidden` na niej obcina wyłącznie jej dzieci, nie ją samą.

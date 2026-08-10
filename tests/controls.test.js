@@ -71,6 +71,18 @@ module.exports = async function (t) {
       JSON.stringify(inherit[prop]));
   });
 
+  // ── Cel zewnętrzny ────────────────────────────────────────────────────
+  // Wybór z buildera musi DOJECHAĆ na stronę. Sam silnik umie już animować
+  // element poza wyzwalaczem (tests/animator.test.js), ale to kontrakt PHP
+  // decyduje, czy „external" w ogóle wyjdzie z panelu.
+  t.section('cel poza elementem');
+
+  const ext = JSON.parse(emit({
+    evkAnimAnimation: 'wejscie', evkAnimTargets: 'external', evkAnimSelector: '#naglowek',
+  }).anim || '{}');
+  t.check('„external" dociera jako cel', ext.targets === 'external', JSON.stringify(ext.targets));
+  t.check('selektor jedzie razem z nim', ext.selector === '#naglowek', JSON.stringify(ext.selector));
+
   t.section('Tło przy scrollu');
   t.check('zaznaczone → data-evk-bg', emit({ evkBgShift: true }).bg === '', 'atrybut obecny');
   t.check('niezaznaczone → brak atrybutu', emit({ evkBgShift: false }).bg === null, 'brak');

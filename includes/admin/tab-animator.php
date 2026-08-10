@@ -124,6 +124,7 @@ $row_def    = $anim->row_defaults();
                             <option value="self"<?php selected($r['targets'],'self'); ?>>Sam element</option>
                             <option value="children"<?php selected($r['targets'],'children'); ?>>Dzieci elementu</option>
                             <option value="selector"<?php selected($r['targets'],'selector'); ?>>Selektor w środku</option>
+                            <option value="external"<?php selected($r['targets'],'external'); ?>>Element poza tym (cała strona)</option>
                         </select>
                     </div>
                     <div><label>Selektor (gdy wybrany)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][selector]" value="<?php echo esc_attr($r['selector']); ?>" placeholder=".karta"></div>
@@ -207,6 +208,7 @@ $row_def    = $anim->row_defaults();
                     <option value="self">Sam element</option>
                     <option value="children">Dzieci elementu</option>
                     <option value="selector">Selektor w środku</option>
+                    <option value="external">Element poza tym (cała strona)</option>
                 </select>
             </div>
             <div><label>Selektor (gdy wybrany)</label><input type="text" name="evk_animator[animations][{INDEX}][selector]" value="" placeholder=".karta"></div>

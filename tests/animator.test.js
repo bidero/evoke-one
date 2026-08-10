@@ -46,4 +46,40 @@ module.exports = async function (t) {
   t.check('opóźnione stoją na opacity 0', early.slice(1).every((v) => v === 0), JSON.stringify(early));
   t.check('bez błędów JS', !p2.errors.length, p2.errors.join(' | ') || 'brak');
   await p2.close();
+
+  // ── Cel zewnętrzny: A wyzwala, B się animuje ──────────────────────────
+  // Silnik zawsze rozdzielał wyzwalacz od celu — `scrollTrigger.trigger` to
+  // element, a `resolveTargets()` wybiera, co się rusza. Brakowało tylko
+  // ZASIĘGU: `el.querySelectorAll()` trafia wyłącznie w potomków, więc
+  // „przewinięcie do sekcji zmienia coś w nagłówku" było nie do zrobienia.
+  t.section('cel poza elementem wyzwalającym');
+
+  const ex = await t.open('anim-external.html', {
+    viewport: { width: 1000, height: 700 }, settle: 200,
+  });
+
+  // Kontrola sensowności. Bez niej całość przeszłaby także dla dzisiejszego
+  // „selektora w środku" — a to jest dokładnie ta różnica, o którą chodzi.
+  t.check('cel LEŻY POZA wyzwalaczem',
+    await ex.evaluate(() => window.__celPozaWyzwalaczem()), 'osobne poddrzewa');
+
+  // Cel jest na górze strony i widoczny od początku — gdyby animacja podpięła
+  // się pod niego jako wyzwalacz, zagrałaby od razu i test nic by nie znaczył.
+  const zanim = await ex.evaluate(() => window.__opacity('cel'));
+  t.check('przed przewinięciem cel czeka ukryty', zanim === 0, 'opacity ' + zanim);
+
+  await ex.evaluate(() => window.__doWyzwalacza());
+  await ex.waitForFunction(() => window.__opacity('cel') > 0.9, { timeout: 3000 })
+    .catch(() => {});
+
+  const po = await ex.evaluate(() => window.__opacity('cel'));
+  t.check('przewinięcie do WYZWALACZA odsłania CEL', po > 0.9, 'opacity ' + po);
+
+  // „Animuj tamtego" znaczy tamtego, nie obu.
+  t.check('wyzwalacz zostaje nietknięty',
+    !(await ex.evaluate(() => window.__wyzwalaczTknięty())), 'bez własnych varsów');
+
+  t.check('bez błędów JS przy celu zewnętrznym', !ex.errors.length,
+    ex.errors.join(' | ') || 'brak');
+  await ex.close();
 };

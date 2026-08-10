@@ -190,7 +190,9 @@ class EVK_Animator {
                 'loop'      => !empty($row['loop'])      ? 1 : 0,
                 'loop_yoyo' => !empty($row['loop_yoyo']) ? 1 : 0,
                 'order'    => max(0, min(999, intval($row['order'] ?? 0))),
-                'targets'  => in_array($row['targets'] ?? '', ['self', 'children', 'selector'], true)
+                // 'external' szuka selektora w CAŁYM dokumencie, nie wśród
+                // potomków — wyzwalacz zostaje na elemencie, rusza się ktoś inny.
+                'targets'  => in_array($row['targets'] ?? '', ['self', 'children', 'selector', 'external'], true)
                     ? $row['targets'] : 'self',
                 'selector' => sanitize_text_field($row['selector'] ?? ''),
                 'pin'      => !empty($row['pin']) ? 1 : 0,

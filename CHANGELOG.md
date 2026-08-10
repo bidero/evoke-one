@@ -2,6 +2,39 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.50.0] — 2026-08-10
+
+### Dodane
+
+- **Cel animacji poza elementem wyzwalającym.** Przewinięcie do sekcji może
+  teraz animować coś zupełnie innego — nagłówek, tło, element w innej części
+  strony. Nowa pozycja „Element poza tym (cała strona)" w polu „Cel animacji",
+  w builderze i w bibliotece.
+
+  Silnik rozdzielał wyzwalacz od celu od zawsze: `scrollTrigger.trigger` to
+  element, a to, co się rusza, wybiera `resolveTargets()`. Brakowało wyłącznie
+  **zasięgu** — `el.querySelectorAll()` widzi tylko potomków.
+
+  Przy celu zewnętrznym **nie ma powrotu do siebie**, gdy selektor nic nie
+  trafi. Przy celu wewnętrznym „nie znalazłem nic w środku" i „animuj całość"
+  są bliskimi kuzynami; przy zewnętrznym oznaczałoby to animowanie zupełnie
+  innego elementu niż ten, o który proszono, i bez żadnego znaku, że coś poszło
+  nie tak. Zamiast tego ostrzeżenie w konsoli i brak animacji.
+
+### Naprawione
+
+- **Podgląd w Animatorze wychodzi spod dwudziestu pól.** Poprawka z 1.49.0
+  postawiła ▶ przy kadrze, ale cały blok nadal dopisywał się na KOŃCU siatki
+  pól — a wiersz ma 891 px przy oknie 520 px, więc przy pracy nad polami kadr
+  był poza kadrem okna. Zgłoszenie „przy otwartym akordeonie nie widać jednego
+  albo drugiego" było więc dalej prawdziwe.
+
+  Blok stoi teraz zaraz pod nagłówkiem i **przykleja się** przy przewijaniu.
+  Musiał w tym celu wyjść z siatki: `position: sticky` na dziecku siatki nic
+  nie daje, bo blokiem zawierającym jest wtedy jego własny obszar siatki,
+  wysoki na jedno pudełko. Jako rodzeństwo siatki dostaje za blok zawierający
+  cały wiersz — a wiersz świadomie nie ma `overflow: hidden`.
+
 ## [1.49.0] — 2026-08-10
 
 ### Naprawione

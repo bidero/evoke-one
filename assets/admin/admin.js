@@ -700,17 +700,21 @@
             var $row = $(row);
             if ($row.find('.evo-anim-preview').length) return;
 
-            // ▶ stoi PRZY KADRZE, a nie w pasku nagłówka. W nagłówku był do
-            // 1.48.0 i przy rozwiniętym akordeonie widać było albo przycisk,
-            // albo pudełko z przykładem — pasek zostaje u góry, pudełko leży
-            // kilkaset pikseli niżej.
+            // ▶ stoi PRZY KADRZE, a cały blok ZARAZ POD NAGŁÓWKIEM — nie na
+            // końcu siatki pól. Obie te rzeczy wyszły z jednego zgłoszenia
+            // („przy otwartym akordeonie nie widać jednego albo drugiego")
+            // i jedna bez drugiej go nie zamyka: w 1.49.0 przycisk stanął przy
+            // kadrze, ale blok nadal dopisywał się po dwudziestu polach, więc
+            // przy pracy nad polami kadr był poza kadrem okna. Wiersz mierzy
+            // 882 px przy oknie 520 px — sam „na końcu" nie ma szans zadziałać.
+            // Przyklejenie robi reszta: patrz .evo-anim-preview w admin.css.
             //
             // Scena siedzi w KADRZE, który ją obcina. Przy domyślnym celu
             // („sam element") GSAP animuje samą scenę, a `overflow: hidden`
             // na niej obcina tylko jej dzieci — nie ją. Zmierzone: preset
             // „fade z lewej" wypychał scenę 10 px poza wiersz na 1200 px
             // i 14 px na 390 px, i to już 50 ms po starcie.
-            $row.find('.evo-anim-grid').append(
+            $(
                 '<div class="evo-anim-preview">'
               +   '<div class="evo-anim-preview-frame">'
               +     '<div class="evo-anim-preview-stage">' + PREVIEW_SAMPLE + '</div>'
@@ -718,7 +722,8 @@
               +   '<button type="button" class="evo-anim-play" title="Odegraj podgląd">'
               +     '<span class="dashicons dashicons-controls-play"></span></button>'
               +   '<span class="evo-anim-preview-note">Kliknij ▶, żeby odegrać.</span>'
-              + '</div>');
+              + '</div>'
+            ).insertAfter($row.find('.evo-anim-row-header'));
         }
 
         function playPreview($row) {

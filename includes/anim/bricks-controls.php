@@ -328,18 +328,32 @@ function evk_bricks_animator_controls(array $controls): array {
             'self'     => esc_html__('Sam element', 'evoke-one'),
             'children' => esc_html__('Dzieci elementu', 'evoke-one'),
             'selector' => esc_html__('Selektor w środku', 'evoke-one'),
+            'external' => esc_html__('Element poza tym (cała strona)', 'evoke-one'),
         ],
         'default'  => '',
         'required' => $required,
     ];
 
+    /*
+     * Selektor obsługuje oba cele — wewnętrzny i zewnętrzny — więc warunek
+     * widoczności musi wymienić oba. Tablica jako trzeci człon `required`
+     * znaczy w Bricksie „równa się KTÓREJKOLWIEK z tych wartości"; to jedyna
+     * forma alternatywy, jaką dokumentacja Bricksa opisuje (przykład wprost
+     * z niej: `['layout', '=', ['list', 'grid']]`). W tej wtyczce nie było
+     * dotąd takiego warunku, więc uwaga zostaje — żeby nie sprawdzać drugi raz.
+     */
     $controls['evkAnimSelector'] = [
         'tab'         => evk_bricks_controls_tab(),
         'group'       => evk_bricks_target_group(),
         'label'       => esc_html__('Selektor celu', 'evoke-one'),
         'type'        => 'text',
         'placeholder' => '.karta',
-        'required'    => ['evkAnimTargets', '=', 'selector'],
+        'description' => esc_html__(
+            'Przy celu „poza tym elementem" selektor przeszukuje całą stronę: '
+            . 'przewinięcie do TEGO elementu animuje wskazany. Wyzwalacz zostaje tutaj.',
+            'evoke-one'
+        ),
+        'required'    => ['evkAnimTargets', '=', ['selector', 'external']],
     ];
 
     /*

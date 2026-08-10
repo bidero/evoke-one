@@ -132,25 +132,45 @@
   }
 
   /**
-   * Cele animacji: sam element, jego dzieci albo selektor w środku.
-   * To dopiero nadaje sens polu „stagger" poza tekstem — pojedynczy element
-   * nie ma czego rozsuwać.
+   * Cele animacji: sam element, jego dzieci, selektor w środku albo element
+   * ZEWNĘTRZNY. To dopiero nadaje sens polu „stagger" poza tekstem —
+   * pojedynczy element nie ma czego rozsuwać.
+   *
+   * Wyzwalacz i cel były rozdzielone od początku: `scrollTrigger.trigger` to
+   * zawsze element, a stąd bierze się to, co się rusza. Brakowało wyłącznie
+   * ZASIĘGU — `el.querySelectorAll()` widzi tylko potomków, więc „przewinięcie
+   * do sekcji zmienia coś w nagłówku" nie było wykonalne.
    */
   function resolveTargets(el, cfg) {
     if (cfg.targets === 'children') {
       var kids = Array.prototype.slice.call(el.children);
       return kids.length ? kids : [el];
     }
-    if (cfg.targets === 'selector' && cfg.selector) {
+
+    if (cfg.targets === 'external' || cfg.targets === 'selector') {
+      if (!cfg.selector) return [el];
+      var external = cfg.targets === 'external';
+      var scope    = external ? document : el;
       var found;
       // Błędna składnia selektora rzuca wyjątkiem i wywaliłaby całą inicjalizację.
-      try { found = el.querySelectorAll(cfg.selector); }
+      try { found = scope.querySelectorAll(cfg.selector); }
       catch (e) {
         console.warn('[EVK Animator] Nieprawidłowy selektor celu:', cfg.selector, el);
-        return [el];
+        return external ? [] : [el];
       }
-      return found.length ? Array.prototype.slice.call(found) : [el];
+      if (found.length) return Array.prototype.slice.call(found);
+
+      // Powrót do siebie ma sens TYLKO przy celu wewnętrznym — tam „nie znalazłem
+      // nic w środku" i „animuj całość" są bliskimi kuzynami. Przy celu zewnętrznym
+      // oznaczałby animowanie zupełnie innego elementu niż ten, o który proszono,
+      // i to bez żadnego znaku, że coś poszło nie tak.
+      if (external) {
+        console.warn('[EVK Animator] Cel zewnętrzny „' + cfg.selector + '" nie istnieje.', el);
+        return [];
+      }
+      return [el];
     }
+
     return [el];
   }
 

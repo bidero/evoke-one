@@ -748,7 +748,10 @@
 
 /* Wiersz zwijany. Ukrywamy treść, nagłówek zostaje — to on jest uchwytem
    i przełącznikiem naraz. */
-.evo-anim-row.is-collapsed .evo-anim-grid { display: none; }
+.evo-anim-row.is-collapsed .evo-anim-grid,
+/* Podgląd jest częścią rozwiniętej treści, a nie paska — od 1.50.0 stoi obok
+   siatki, więc reguła zwijania musi wymienić go osobno. */
+.evo-anim-row.is-collapsed .evo-anim-preview { display: none; }
 .evo-anim-caret { transition: transform .15s; color: var(--evo-text-dim); }
 .evo-anim-row.is-collapsed .evo-anim-caret { transform: rotate(-90deg); }
 
@@ -1541,10 +1544,27 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 .evo-anim-play:hover { background: var(--evo-accent-soft); border-color: var(--evo-accent-line); }
 .evo-anim-play .dashicons { font-size: 18px; width: 18px; height: 18px; line-height: 1; }
 
+/* Blok podglądu siedzi ZARAZ POD NAGŁÓWKIEM i przykleja się przy przewijaniu.
+ *
+ * Nie jest elementem siatki pól — i to jest warunek działania, nie kosmetyka.
+ * `position: sticky` na dziecku siatki nic by nie dało: blokiem zawierającym
+ * jest wtedy jego własny obszar siatki, wysoki na jedno pudełko, więc nie ma
+ * się gdzie przesunąć. Jako rodzeństwo siatki dostaje za blok zawierający
+ * cały wiersz, a wiersz nie ma `overflow: hidden` (patrz uwaga przy
+ * `.evo-anim-row`), więc przyklejenie działa.
+ *
+ * Zmierzone: wiersz ma 882 px przy oknie 520 px. Bez przyklejenia kadr wisi
+ * na 533–603 px, czyli tuż pod dolną krawędzią okna — dokładnie to zgłoszenie
+ * o „nie widać jednego albo drugiego".
+ */
 .evo-anim-preview {
-    grid-column: 1 / -1;
-    /* Dziecko siatki ma domyślnie `min-width: auto` i nie zejdzie poniżej
-       swojej najszerszej treści — bez tego kadr rozpychałby wiersz. */
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 12px 16px;
+    /* Nieprzezroczyste tło: przyklejony blok przejeżdża NAD polami. */
+    background: var(--evo-bg);
+    border-bottom: 1px solid var(--evo-border-soft);
     min-width: 0;
     display: flex;
     /* Zawijanie zamiast przełączania kierunku w media query: ▶ zostaje przy

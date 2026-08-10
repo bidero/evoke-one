@@ -82,6 +82,42 @@ window.__ui = function () {
     });
 };
 
+/**
+ * Gdzie w wierszu siedzi blok podglądu.
+ *
+ * Do 1.49.0 był DOPISYWANY NA KOŃCU siatki pól — czyli po dwudziestu polach.
+ * Przycisk stał wtedy przy kadrze (to naprawiliśmy), ale oba razem lądowały
+ * kilkaset pikseli pod nagłówkiem i przy rozwiniętym akordeonie nadal widać
+ * było albo pola, albo podgląd.
+ */
+window.__previewPlace = function (i) {
+  var row  = document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row')[i || 0];
+  var pv   = row.querySelector('.evo-anim-preview');
+  var grid = row.querySelector('.evo-anim-grid');
+  if (!pv || !grid) return { inGrid: false, beforeGrid: false, position: '' };
+  return {
+    inGrid: grid.contains(pv),
+    // DOCUMENT_POSITION_FOLLOWING === 4: siatka jest PO bloku podglądu
+    beforeGrid: !!(pv.compareDocumentPosition(grid) & 4),
+    position: getComputedStyle(pv).position,
+  };
+};
+
+/** Czy kadr mieści się w oknie — mierzone po przewinięciu w głąb wiersza. */
+window.__frameInView = function (i) {
+  var row = document.querySelectorAll('#evo-anim-repeater-container > .evo-anim-row')[i || 0];
+  var f   = row.querySelector('.evo-anim-preview-frame');
+  var r   = f.getBoundingClientRect();
+  var rr  = row.getBoundingClientRect();
+  return {
+    top: Math.round(r.top), bottom: Math.round(r.bottom), vh: window.innerHeight,
+    // Wiersz MUSI być wyższy niż okno — inaczej „kadr widoczny" jest prawdą
+    // bez żadnej zasługi przyklejenia i sprawdzenie nie ma zębów.
+    rowH: Math.round(rr.height),
+    rowTop: Math.round(rr.top), rowBottom: Math.round(rr.bottom),
+  };
+};
+
 /** Ile scena WIDOCZNIE wychodzi poza wiersz.
  *
  *  `getBoundingClientRect()` ignoruje obcięcie, więc sama geometria nic tu nie
