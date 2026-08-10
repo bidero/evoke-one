@@ -700,10 +700,11 @@
             var $row = $(row);
             if ($row.find('.evo-anim-preview').length) return;
 
-            $('<button type="button" class="evo-anim-play" title="Odegraj podgląd">'
-              + '<span class="dashicons dashicons-controls-play"></span></button>')
-                .insertBefore($row.find('.evo-anim-row-header .evo-btn-remove'));
-
+            // ▶ stoi PRZY KADRZE, a nie w pasku nagłówka. W nagłówku był do
+            // 1.48.0 i przy rozwiniętym akordeonie widać było albo przycisk,
+            // albo pudełko z przykładem — pasek zostaje u góry, pudełko leży
+            // kilkaset pikseli niżej.
+            //
             // Scena siedzi w KADRZE, który ją obcina. Przy domyślnym celu
             // („sam element") GSAP animuje samą scenę, a `overflow: hidden`
             // na niej obcina tylko jej dzieci — nie ją. Zmierzone: preset
@@ -714,6 +715,8 @@
               +   '<div class="evo-anim-preview-frame">'
               +     '<div class="evo-anim-preview-stage">' + PREVIEW_SAMPLE + '</div>'
               +   '</div>'
+              +   '<button type="button" class="evo-anim-play" title="Odegraj podgląd">'
+              +     '<span class="dashicons dashicons-controls-play"></span></button>'
               +   '<span class="evo-anim-preview-note">Kliknij ▶, żeby odegrać.</span>'
               + '</div>');
         }

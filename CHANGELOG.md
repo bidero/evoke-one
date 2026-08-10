@@ -2,6 +2,64 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.49.0] — 2026-08-10
+
+### Naprawione
+
+- **▶ w Animatorze stał w pasku nagłówka, a pudełko z przykładem kilkaset
+  pikseli niżej.** Przy rozwiniętym akordeonie widać było albo jedno, albo
+  drugie. Przycisk siedzi teraz w bloku podglądu, tuż obok kadru — i zostaje
+  przy nim także na telefonie: blok zawija się (`flex-wrap`), więc do drugiego
+  wiersza schodzi podpis, a nie przycisk.
+
+  Zgłoszone z użycia, nie z pomiaru — bo pomiar pilnował właśnie tamtego
+  miejsca („▶ sąsiaduje z «Usuń»"). Sprawdzenie mówi teraz, o co naprawdę
+  chodzi: ▶ jest wewnątrz `.evo-anim-preview`, ma najwyżej 16 px odstępu od
+  kadru **i leży na jego wysokości**. Sam odstęp poziomy nie miałby zębów —
+  przycisk zwinięty POD kadrem też ma odstęp bliski zeru.
+
+- **Przyciski „Logów zdarzeń" w raportach nie mieściły się na ekranie.**
+  Zmierzone: przy oknie 360 px wiersz potrzebował **324 px, a miał 300**,
+  i „Wyczyść logi" znikało za krawędzią karty.
+
+  Karta ma `overflow-x: hidden`, więc pasek nie rozpychał strony — był
+  **odcinany**. Dlatego sprawdzenie wystawania poza okno świeciło na zielono:
+  nic nigdy nie przekraczało krawędzi okna. Wiersz zawija się teraz razem
+  z paskiem, a `.evk-nl-row-flush` zastępuje inline'owe `padding:0`
+  (kampanie miały tę samą łatkę wpisaną w atrybut).
+
+- **Lista „Typ działalności" w Schemie rozpychała stronę do 436 px** — tak
+  samo przy oknie 390 px, jak i 360 px, bo o szerokości decydowała najdłuższa
+  opcja („Miejsce zakwaterowania — LodgingBusiness"), a nie okno. Dziecko
+  siatki ma domyślnie `min-width: auto`. Siatki dostały `min-width: 0`,
+  a listy rozwijane w panelu `max-width: 100%`.
+
+### Zmienione
+
+- **Zakładki SEO przemiecione: `schema` 32 → 4 atrybuty `style=`,
+  `tab-meta` 7 → 0, `tab-sitemap` 7 → 0.** Zostały wyłącznie zmienne siatki
+  (`--evo-col`, `--evo-gap`) — one są konfiguracją układu, nie wyglądem.
+  Zero literałów koloru w atrybutach: `#f8fafc`/`#d7dde7` na kartach wyboru,
+  `#888`, `#475569` i `#6b7280` na podpisach ustąpiły tokenom.
+
+### Dodane
+
+- **Trzy zakładki SEO w harnessie** (`schema`, `sitemap`, `seo-meta`) —
+  z atrapami `WP_Query`, `get_posts` i meta wpisów, bo bez wpisów tabela
+  meta tagów rysuje się pusta, a to w jej wierszach siedzą pola.
+- **Sprawdzenie „nic nie jest ucięte przez kontener".** Wystawanie poza okno
+  to tylko połowa; druga jest gorsza, bo niewidoczna — kontener z ukrytym
+  nadmiarem chowa to, co się w nim nie mieści, i przycisk przestaje istnieć
+  dla klikającego. Pola formularza są wyłączone (`scrollWidth` mierzy tam
+  długość wpisanej wartości), tak samo skracanie wielokropkiem — tam ucinanie
+  jest zamierzone.
+- **Pomiar także przy 360 px.** Pasek logów mieścił się na 390 px co do
+  piksela, a w prawdziwym panelu wp-admin dokłada własne wcięcia. Usterka
+  ze zgłoszenia była widoczna dopiero przy węższym oknie.
+- Sprawdzenie „jest co mierzyć" — zakładka „Mapa strony" to same checkboxy
+  i przyciski, więc dotychczasowe „są kontrolki" wywracało się na poprawnym
+  ekranie, a na pustym renderze cała reszta bloku przechodziła na pustej liście.
+
 ## [1.48.0] — 2026-08-08
 
 ### Naprawione

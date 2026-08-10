@@ -146,7 +146,7 @@ if ($campaign_id) {
 
         <!-- Logi -->
         <div class="evk-nl-card is-padded">
-            <div class="evk-nl-row-between evo-mb-sm" style="padding:0">
+            <div class="evk-nl-row-between evk-nl-row-flush evo-mb-sm">
                 <h4 class="evk-nl-h">Logi zdarzeń</h4>
                 <div class="evo-inline" style="--evo-gap:8px">
                     <select id="evk-nl-event-filter" onchange="window.location='<?php echo esc_url_raw(add_query_arg(['subtab' => 'reports', 'campaign_id' => $campaign_id], evk_nl_base_url())); ?>&event_filter='+this.value" class="evo-hint">

@@ -206,12 +206,24 @@ module.exports = async function (t) {
     ui.length + ' z ' + rows);
   t.check('scena ma próbkę tekstu', ui[0] && ui[0].text.length > 3, '„' + (ui[0] || {}).text + '"');
 
-  // Przycisk ma SĄSIADOWAĆ z „Usuń". Sprawdzanie „czy jest za połową paska"
-  // nie ma zębów: bez auto-marginesu space-between stawia go na 659 przy
-  // połowie 574, więc warunek przechodził mimo rozjechanego układu.
-  const gap = ui[0] ? ui[0].removeLeft - (ui[0].playLeft + ui[0].playWidth) : 999;
-  t.check('▶ sąsiaduje z „Usuń"', gap >= 0 && gap <= 12,
-    gap + ' px odstępu (▶ ' + (ui[0] || {}).playLeft + ', Usuń ' + (ui[0] || {}).removeLeft + ')');
+  // Przycisk ma stać PRZY KADRZE, a nie w nagłówku wiersza.
+  //
+  // W nagłówku był do 1.48.0 i to był błąd, którego żaden pomiar nie mógł
+  // wtedy złapać, bo test pilnował właśnie tamtego miejsca: przy rozwiniętym
+  // akordeonie pasek nagłówka zostaje u góry, a pudełko z przykładem leży
+  // kilkaset pikseli niżej — widać albo jedno, albo drugie. Zgłoszone
+  // z użycia, nie z pomiaru.
+  //
+  // Sam odstęp poziomy nie ma zębów: przycisk zwinięty POD kadrem też ma
+  // odstęp bliski zeru. Dlatego drugim warunkiem jest wspólna wysokość —
+  // „obok" znaczy „na tej samej linii".
+  t.check('▶ siedzi w bloku podglądu, nie w nagłówku', ui[0] && ui[0].inPreview,
+    ui[0] && ui[0].inPreview ? 'w .evo-anim-preview' : 'poza blokiem podglądu');
+  t.check('▶ sąsiaduje z kadrem', ui[0] && ui[0].gapToFrame >= 0 && ui[0].gapToFrame <= 16,
+    (ui[0] || {}).gapToFrame + ' px odstępu od kadru');
+  t.check('▶ jest na wysokości kadru', ui[0] && ui[0].vOverlap >= ui[0].playH,
+    'wspólna wysokość ' + (ui[0] || {}).vOverlap + ' px przy przycisku ' +
+    (ui[0] || {}).playH + ' px');
 
   // Nagłówek jest też przełącznikiem zwijania — ▶ nie może przy okazji zwijać.
   const wasCollapsed = await pan.evaluate(() => window.__collapsed(0));
@@ -258,6 +270,13 @@ module.exports = async function (t) {
     await o.evaluate(() => window.__setField(0, 'preset', 'fade-left'));
     await o.locator('.evo-anim-play').first().click();
     await o.waitForTimeout(50);
+
+    // Sąsiedztwo ▶ i kadru ma przetrwać zawijanie na wąskim ekranie —
+    // do drugiego wiersza schodzi podpis, nie przycisk.
+    const mu = (await o.evaluate(() => window.__ui()))[0];
+    t.check(width + ' px — ▶ nadal przy kadrze',
+      mu && mu.gapToFrame >= 0 && mu.gapToFrame <= 16 && mu.vOverlap >= mu.playH,
+      'odstęp ' + (mu || {}).gapToFrame + ' px, wspólna wysokość ' + (mu || {}).vOverlap + ' px');
 
     const ov = await o.evaluate(() => window.__overflowOut(0));
 

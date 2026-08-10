@@ -45,10 +45,12 @@ const BOX_TITLE = { size: '11px', weight: '700', transform: 'uppercase' };
 
 /** Zakładki objęte przemieceniem. Kolejne dopisujemy tu, gdy przejdą sweep. */
 const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
+              'schema', 'sitemap', 'seo-meta',
               'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings'];
 
 /** Zakładki mierzone też na wąskim ekranie. */
-const MOBILE = ['nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings'];
+const MOBILE = ['schema', 'sitemap', 'seo-meta',
+                'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings'];
 
 /** Zakładki, które mają już treść w boksach. */
 const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel'];
@@ -79,7 +81,6 @@ module.exports = async function (t) {
 
     // ── Pola i listy ────────────────────────────────────────────────────
     const ctrl = await p.evaluate(() => window.__controls());
-    t.check('są kontrolki do zmierzenia', ctrl.length > 0, ctrl.length + ' szt.');
 
     const badH = ctrl.filter((c) => c.h !== FIELD.h);
     t.check('jednolita wysokość ' + FIELD.h + ' px', !badH.length,
@@ -107,6 +108,15 @@ module.exports = async function (t) {
 
     // ── Przyciski ───────────────────────────────────────────────────────
     const btn = await p.evaluate(() => window.__buttons());
+
+    // Zakładka musiała się w ogóle wyrenderować — inaczej cała reszta tego
+    // bloku przechodzi na pustej liście i test nie sprawdza niczego.
+    // Liczymy wszystko, co ma kształt: „Mapa strony" to same checkboxy
+    // i przyciski, bez ani jednego pola tekstowego.
+    t.check('jest co mierzyć', ctrl.length + ta.length + btn.length > 0,
+      ctrl.length + ' kontrolek, ' + ta.length + ' pól wieloliniowych, ' +
+      btn.length + ' przycisków');
+
     const badBtn = btn.filter((b) => b.radius !== BTN_RADIUS);
     t.check('przyciski o promieniu ' + BTN_RADIUS, !badBtn.length,
       badBtn.slice(0, 4).map((b) => b.where + ': ' + b.radius).join(' | ') ||
@@ -159,29 +169,43 @@ module.exports = async function (t) {
     // Zakładki newslettera to w większości ekrany listowe: sidebar o stałej
     // szerokości i tabele. Zmierzone przed poprawką: raporty rozpychały stronę
     // do 682 px przy oknie 390 px, szablony do 449 px.
+    // 360 px to nie kaprys: pasek „Logów zdarzeń" MIEŚCIŁ się na 390 px co do
+    // piksela, a w prawdziwym panelu wp-admin dokłada własne wcięcia, więc
+    // realna szerokość treści jest mniejsza niż okno. Usterkę widać dopiero
+    // przy węższym oknie — i to ona przyszła ze zgłoszenia.
     if (MOBILE.includes(slug)) {
-      const m = await t.open('admin-tabs.html', {
-        viewport: { width: 390, height: 900 }, head, settle: 150,
-      });
-      const o = await m.evaluate(() => window.__overflow());
+      for (const vw of [390, 360]) {
+        const m = await t.open('admin-tabs.html', {
+          viewport: { width: vw, height: 900 }, head, settle: 150,
+        });
+        const o = await m.evaluate(() => window.__overflow());
 
-      t.check('390 px — nic nie wystaje poza ekran', o.count === 0,
-        o.items.map((x) => x.tag + '.' + x.cls + ' +' + x.over + 'px').join(' | ')
-        || 'czysto');
-      t.check('390 px — strona nie przewija się w poziomie', o.doc <= o.win + 1,
-        o.doc + ' vs ' + o.win);
+        t.check(vw + ' px — nic nie wystaje poza ekran', o.count === 0,
+          o.items.map((x) => x.tag + '.' + x.cls + ' +' + x.over + 'px').join(' | ')
+          || 'czysto');
+        t.check(vw + ' px — strona nie przewija się w poziomie', o.doc <= o.win + 1,
+          o.doc + ' vs ' + o.win);
 
-      // Kafelki statystyk mają zostać czytelne, a nie tylko zmieścić się.
-      // Sztywne `repeat(5, 1fr)` MIEŚCIŁO się na 390 px — po prostu ściskało
-      // kafelek do ~70 px i etykieta łamała się na trzy linie.
-      const st = await m.evaluate(() => window.__stats());
-      if (st.length) {
-        const tight = st.filter((w) => w < 110);
-        t.check('390 px — kafelki statystyk czytelne', !tight.length,
-          tight.length ? tight.join(', ') + 'px' : st.length + ' szt. po ' + st[0] + 'px');
+        // Wystawanie poza okno to tylko połowa. Druga połowa jest gorsza, bo
+        // niewidoczna: karta z `overflow-x: hidden` chowa to, co się w niej
+        // nie mieści, i przycisk po prostu przestaje istnieć dla klikającego.
+        const c = await m.evaluate(() => window.__clipped());
+        t.check(vw + ' px — nic nie jest ucięte przez kontener', c.count === 0,
+          c.items.map((x) => '.' + x.cls + ' ucina ' + x.cut + 'px („' + x.what + '")')
+            .join(' | ') || 'czysto');
+
+        // Kafelki statystyk mają zostać czytelne, a nie tylko zmieścić się.
+        // Sztywne `repeat(5, 1fr)` MIEŚCIŁO się na 390 px — po prostu ściskało
+        // kafelek do ~70 px i etykieta łamała się na trzy linie.
+        const st = await m.evaluate(() => window.__stats());
+        if (st.length) {
+          const tight = st.filter((w) => w < 110);
+          t.check(vw + ' px — kafelki statystyk czytelne', !tight.length,
+            tight.length ? tight.join(', ') + 'px' : st.length + ' szt. po ' + st[0] + 'px');
+        }
+
+        await m.close();
       }
-
-      await m.close();
     }
   }
 };

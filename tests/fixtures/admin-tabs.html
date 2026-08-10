@@ -160,6 +160,53 @@ window.__overflow = function () {
            doc: document.documentElement.scrollWidth, win: window.innerWidth };
 };
 
+/**
+ * Co zostaje ODCIĘTE przez kontener chowający nadmiar.
+ *
+ * `__overflow()` mierzy wyjście poza OKNO i tego nie zobaczy: karta ma
+ * `overflow-x: hidden`, więc pasek, który się w niej nie mieści, nie rozpycha
+ * strony — po prostu znika za jej krawędzią. Zmierzone w „Logach zdarzeń":
+ * przy oknie 360 px wiersz potrzebował 324 px, a miał 300, i „Wyczyść logi"
+ * było nie do kliknięcia. Sprawdzenie wystawania poza okno świeciło na zielono.
+ *
+ * `text-overflow: ellipsis` jest wyłączone z pomiaru — tam ucinanie jest
+ * właśnie tym, o co chodzi. Bez tego wyjątku każda skrócona nazwa listy
+ * zgłaszałaby się jako usterka.
+ */
+window.__clipped = function () {
+  /* Pole formularza przewija swoją WARTOŚĆ i `scrollWidth` mierzy tam długość
+     wpisanego tekstu, nie usterkę układu. Zmierzone: pole nadawcy na 360 px
+     zgłaszało 346 px „ucięcia", bo trzyma długi adres URL. */
+  var NATIVE = { INPUT: 1, TEXTAREA: 1, SELECT: 1 };
+  var out = [];
+  document.querySelectorAll('#panel *').forEach(function (el) {
+    if (NATIVE[el.tagName]) return;
+    var s = getComputedStyle(el);
+    if (s.overflowX !== 'hidden' && s.overflowX !== 'clip') return;
+    if (s.textOverflow === 'ellipsis') return;
+    if (!el.clientWidth) return;                 // elementy inline nie mają boksu
+    var cut = el.scrollWidth - el.clientWidth;
+    if (cut <= 1) return;
+
+    /* Sam kontener nic nie mówi — szukamy dziecka, które realnie wystaje,
+       bo to jego treść prowadzi do miejsca w pliku. Krawędź liczymy po boksie
+       WEWNĘTRZNYM (padding box), bo to na nim przycina `overflow`. */
+    var r = el.getBoundingClientRect();
+    var edge = r.left + el.clientLeft + el.clientWidth;
+    var victim = Array.prototype.filter.call(el.querySelectorAll('*'), function (c) {
+      return c.getBoundingClientRect().right > edge + 1;
+    }).pop();
+
+    out.push({
+      cls:  String(el.className || '').slice(0, 32),
+      cut:  cut,
+      what: victim ? (victim.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 24)
+                   : '(brak dziecka)',
+    });
+  });
+  return { items: out.slice(0, 5), count: out.length };
+};
+
 /** Szerokości kafelków statystyk — poniżej ~110 px etykieta łamie się
  *  na trzy linie i kafelek przestaje być czytelny. */
 window.__stats = function () {

@@ -31,16 +31,16 @@ if (!defined('ABSPATH')) exit;
                     <?php foreach ($sitemap_posts as $sm_post): ?>
                     <label>
                         <input type="checkbox" class="tl-sm-excluded-id" value="<?php echo esc_attr($sm_post->ID); ?>" <?php checked(in_array((int) $sm_post->ID, $excluded_ids, true)); ?>>
-                        <span style="min-width:42px;color:#64748b;font-size:11px;text-transform:uppercase;"><?php echo esc_html($sm_post->post_type); ?></span>
-                        <strong style="flex:1;"><?php echo esc_html(get_the_title($sm_post) ?: '(bez tytułu)'); ?></strong>
-                        <code style="color:#475569;"><?php echo esc_html($sm_post->post_name); ?></code>
-                        <span style="color:#94a3b8;">#<?php echo esc_html($sm_post->ID); ?></span>
+                        <span class="evo-col-label"><?php echo esc_html($sm_post->post_type); ?></span>
+                        <strong class="evo-grow"><?php echo esc_html(get_the_title($sm_post) ?: '(bez tytułu)'); ?></strong>
+                        <code class="evo-muted"><?php echo esc_html($sm_post->post_name); ?></code>
+                        <span class="evo-faint">#<?php echo esc_html($sm_post->ID); ?></span>
                     </label>
                     <?php endforeach; ?>
                 </div>
             </div>
 
-            <p style="color:#475569;margin-bottom:16px;font-size:13px;">
+            <p class="evo-lead">
                 Sprawdź: <a href="<?php echo esc_url(home_url('/wp-sitemap.xml')); ?>" target="_blank">wp-sitemap.xml</a>
             </p>
 
@@ -65,13 +65,13 @@ if (!defined('ABSPATH')) exit;
                 }
                 ?>
                 <?php if (empty($noindex_found)): ?>
-                    <p style="font-size:13px;color:#6b7280;">Żadna strona nie została wykryta jako noindex.</p>
+                    <p class="evk-nl-13 evo-muted">Żadna strona nie została wykryta jako noindex.</p>
                 <?php else: ?>
-                    <div style="background:#fff;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;">
+                    <div class="evo-list-box">
                         <?php foreach ($noindex_found as $pid => $keys): ?>
-                        <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-bottom:1px solid #f0f0f1;font-size:13px;">
-                            <strong style="min-width:180px;"><a href="<?php echo esc_url(get_edit_post_link($pid)); ?>" target="_blank"><?php echo esc_html(get_the_title($pid)); ?></a> <span style="color:#94a3b8;">#<?php echo $pid; ?></span></strong>
-                            <div style="color:#6b7280;font-family:monospace;font-size:11px;line-height:1.7;"><?php echo esc_html(implode(', ', $keys)); ?></div>
+                        <div class="evo-list-row">
+                            <strong class="evo-list-key"><a href="<?php echo esc_url(get_edit_post_link($pid)); ?>" target="_blank"><?php echo esc_html(get_the_title($pid)); ?></a> <span class="evo-faint">#<?php echo $pid; ?></span></strong>
+                            <div class="evo-mono-xs"><?php echo esc_html(implode(', ', $keys)); ?></div>
                         </div>
                         <?php endforeach; ?>
                     </div>
@@ -79,7 +79,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-save-bar">
                     <button type="button" class="button button-primary" onclick="evoSaveSitemap()">Zapisz mapę strony</button>
-                    <span id="save-status-sitemap" style="font-size:13px;color:#047857;display:none;"></span>
+                    <span id="save-status-sitemap" class="evo-save-msg"></span>
                 </div>
             </div>
 

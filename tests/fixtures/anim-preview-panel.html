@@ -58,20 +58,26 @@ window.__ui = function () {
     function (r) {
       var play  = r.querySelector('.evo-anim-play');
       var stage = r.querySelector('.evo-anim-preview-stage');
+      var frame = r.querySelector('.evo-anim-preview-frame');
+      var pr = play  && play.getBoundingClientRect();
+      var fr = frame && frame.getBoundingClientRect();
       return {
         play:  !!play,
         stage: !!stage,
         text:  stage ? stage.textContent.trim() : '',
-        // Przycisk podglądu ma stać przy „Usuń", a nie na środku paska:
-        // nagłówek to flex ze space-between i przy trzech dzieciach rozkłada
-        // je równomiernie.
-        playLeft:   play ? Math.round(play.getBoundingClientRect().left) : 0,
-        playWidth:  play ? Math.round(play.getBoundingClientRect().width) : 0,
-        removeLeft: (function () {
-          var b = r.querySelector('.evo-btn-remove');
-          return b ? Math.round(b.getBoundingClientRect().left) : 0;
-        })(),
-        headerRight: Math.round(r.querySelector('.evo-anim-row-header').getBoundingClientRect().right),
+        // Przycisk ma stać PRZY KADRZE, nie w nagłówku wiersza. W nagłówku
+        // znika z pola widzenia, gdy akordeon jest rozwinięty: pasek zostaje
+        // u góry, a pudełko z przykładem jest kilkaset pikseli niżej.
+        inPreview: !!(play && play.closest('.evo-anim-preview')),
+        // Odstęp poziomy od kadru — dodatni, gdy ▶ stoi po prawej stronie
+        // kadru; ujemny znaczy, że go nachodzi.
+        gapToFrame: (pr && fr) ? Math.round(pr.left - fr.right) : 9999,
+        // Ile pikseli wspólnej wysokości mają ▶ i kadr. Sam odstęp poziomy
+        // nie wystarczy: przycisk zwinięty POD kadrem też ma mały odstęp,
+        // a wtedy „obok" jest nieprawdą.
+        vOverlap: (pr && fr)
+          ? Math.round(Math.min(pr.bottom, fr.bottom) - Math.max(pr.top, fr.top)) : 0,
+        playH: pr ? Math.round(pr.height) : 0,
       };
     });
 };

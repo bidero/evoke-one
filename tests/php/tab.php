@@ -89,6 +89,46 @@ function human_time_diff($a, $b = 0) { return '2 godziny'; }
 // `evk_nl_base_url()` siedzi w menu.php razem z rejestracją ekranu i całym
 // routerem — ładowanie tego pliku pociągnęłoby pół modułu tylko po adres.
 function evk_nl_base_url() { return 'https://example.test/wp-admin/admin.php?page=evk-newsletter'; }
+// ── Wpisy i strony — dla zakładek SEO ──
+// Dwa wpisy na typ wystarczą: chodzi o to, żeby pętla wyrenderowała wiersz
+// tabeli razem z polami, a nie żeby udawać bazę.
+$GLOBALS['posts'] = [
+    11 => ['title' => 'Strona główna', 'name' => 'strona-glowna'],
+    12 => ['title' => 'O nas',         'name' => 'o-nas'],
+];
+function get_posts($args = []) {
+    return array_map(function ($id) {
+        return (object) ['ID' => $id, 'post_title' => $GLOBALS['posts'][$id]['title'],
+                         'post_name' => $GLOBALS['posts'][$id]['name'],
+                         // Zakładka mapy strony rozdziela strony od wpisów po
+                         // `post_type`; bez niego PHP wpisuje ostrzeżenie PROSTO
+                         // W MIERZONY MARKUP.
+                         'post_type' => $id % 2 ? 'page' : 'post'];
+    }, array_keys($GLOBALS['posts']));
+}
+function get_the_title($p = 0) {
+    $id = is_object($p) ? $p->ID : (int) ($p ?: $GLOBALS['cur_post']);
+    return $GLOBALS['posts'][$id]['title'] ?? 'Bez tytułu';
+}
+function get_the_ID() { return $GLOBALS['cur_post'] ?? 0; }
+function the_title() { echo esc_html(get_the_title()); }
+function the_permalink() { echo 'https://example.test/wpis'; }
+function get_permalink($p = 0) { return 'https://example.test/wpis'; }
+function get_edit_post_link($p = 0) { return 'https://example.test/wp-admin/post.php?post=' . (int) $p; }
+function get_post_meta($id, $key = '', $single = false) { return $single ? '' : []; }
+function wp_reset_postdata() { $GLOBALS['cur_post'] = 0; }
+
+/** Atrapa WP_Query — pętla po $GLOBALS['posts'], bez zapytań. */
+class WP_Query {
+    public $found_posts;
+    private $ids;
+    private $i = 0;
+    public function __construct($args = []) { $this->ids = array_keys($GLOBALS['posts']);
+                                              $this->found_posts = count($this->ids); }
+    public function have_posts() { return $this->i < count($this->ids); }
+    public function the_post()   { $GLOBALS['cur_post'] = $this->ids[$this->i++]; }
+}
+
 function wp_enqueue_editor() {}
 function wp_editor($content, $id, $settings = []) {
     echo '<textarea id="' . $id . '" name="' . ($settings['textarea_name'] ?? $id) . '" rows="'
@@ -162,6 +202,36 @@ $TABS = [
                 ],
             ];
         },
+    ],
+    'schema' => [
+        'module' => 'includes/90-schema.php',
+        'file'   => 'includes/admin/seo/tab-schema.php',
+        'seed'   => function () {
+            // Repeater encji podrzędnych i lista walut per język rysują się
+            // tylko przy danych — a to w nich siedzi połowa pól tej zakładki.
+            $GLOBALS['options']['evk_schema'] = [
+                'enabled'         => 1,
+                'site_name'       => 'Stanica Wodna',
+                'sub_entities'    => '[{"type":"Service","name":"Spływy","description":"Krutynia"}]',
+                'social_links'    => '["https://example.test/fb"]',
+                'descriptions'    => '{"pl":"Opis","en":"Description"}',
+                'lang_currencies' => '{"en":"EUR"}',
+            ];
+        },
+    ],
+    'sitemap' => [
+        'module' => 'includes/30-admin-settings-ajax.php',
+        'file'   => 'includes/admin/seo/tab-sitemap.php',
+        'seed'   => function () {
+            $GLOBALS['options']['tl_sitemap_settings'] = [
+                'enabled' => 1, 'include_pages' => 1, 'excluded_ids' => [11],
+            ];
+        },
+    ],
+    'seo-meta' => [
+        // Zakładka nie ma własnego modułu — czyta wprost z WP_Query i meta.
+        'module' => [],
+        'file'   => 'includes/admin/seo/tab-meta.php',
     ],
     // ── Newsletter ──
     // Osobny ekran (`includes/newsletter/menu.php`), ale ta sama otoczka:

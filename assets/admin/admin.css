@@ -1094,6 +1094,15 @@
 .evo-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--evo-gap, 20px); }
 .evo-grid .evo-field,
 .evo-grid-2 .evo-field { margin: 0; }
+/* Dziecko siatki ma domyślnie `min-width: auto` i nie zejdzie poniżej swojej
+   najszerszej treści. W Schemie lista „Typ działalności" niosła opcję
+   „Miejsce zakwaterowania — LodgingBusiness" i rozpychała stronę do 436 px
+   przy oknie 360 px — na obu szerokościach tak samo, bo o rozmiarze
+   decydowała treść listy, a nie okno. */
+.evo-grid > *,
+.evo-grid-2 > * { min-width: 0; }
+/* A skoro pole może być węższe niż lista — lista musi umieć się w nim zmieścić. */
+.evo-panel select { max-width: 100%; }
 
 /* ── Pasek narzędzi nad tabelą ── */
 .evo-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -1509,18 +1518,17 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
    element w markupie trzeba by pisać dwa razy.
    ========================================================================= */
 
-/* `margin-left: auto` jest tu konieczne: nagłówek wiersza to flex ze
-   `space-between`, a przy trzech dzieciach (tytuł, ▶, Usuń) rozkłada je
-   równomiernie i przycisk podglądu ląduje na środku paska. Auto-margines
-   przykleja go do prawej, obok „Usuń". */
+/* Przycisk stoi PRZY KADRZE — jedno kliknięcie tuż obok tego, na co się patrzy.
+   Do 1.48.0 siedział w pasku nagłówka wiersza i przy rozwiniętym akordeonie
+   widać było albo jego, albo pudełko z przykładem: pasek zostaje u góry,
+   pudełko leży kilkaset pikseli niżej. */
 .evo-anim-play {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-left: auto;
+    flex: 0 0 auto;
     width: 30px;
     height: 30px;
-    margin-right: 6px;
     padding: 0;
     background: var(--evo-surface);
     border: 1px solid #e2e8f0;
@@ -1535,7 +1543,13 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 
 .evo-anim-preview {
     grid-column: 1 / -1;
+    /* Dziecko siatki ma domyślnie `min-width: auto` i nie zejdzie poniżej
+       swojej najszerszej treści — bez tego kadr rozpychałby wiersz. */
+    min-width: 0;
     display: flex;
+    /* Zawijanie zamiast przełączania kierunku w media query: ▶ zostaje przy
+       kadrze na KAŻDEJ szerokości, a schodzi tylko podpis. */
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
 }
@@ -1548,8 +1562,11 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
  * Kadr jest nieruchomy i to w nim scena się chowa.
  */
 .evo-anim-preview-frame {
-    flex: 0 0 auto;
-    width: 240px;
+    /* Kurczy się, ale nie rośnie ponad 240 px. Dzięki temu ▶ mieści się obok
+       niego także na telefonie i nie trzeba go spychać pod spód. */
+    flex: 1 1 240px;
+    max-width: 240px;
+    min-width: 0;
     height: 68px;
     overflow: hidden;
     background: var(--evo-surface);
@@ -1577,11 +1594,14 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     color: var(--evo-text);
     text-align: center;
 }
-.evo-anim-preview-note { font-size: 12px; color: var(--evo-text-muted); line-height: 1.5; }
-
-@media screen and (max-width: 600px) {
-    .evo-anim-preview { flex-direction: column; align-items: stretch; }
-    .evo-anim-preview-frame { width: 100%; }
+/* Podpis schodzi do drugiego wiersza, gdy zabraknie miejsca — kadr i ▶
+   zostają razem. */
+.evo-anim-preview-note {
+    flex: 1 1 170px;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--evo-text-muted);
+    line-height: 1.5;
 }
 
 /* =========================================================================
@@ -1821,7 +1841,27 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     border-bottom: 1px solid var(--evo-border-soft);
 }
 .evk-nl-preview iframe { width: 100%; height: 480px; border: none; }
-.evk-nl-row-between { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; }
+/* Nagłówek sekcji plus pasek narzędzi.
+ *
+ * `flex-wrap` jest tu warunkiem działania, nie ozdobą: karta ma
+ * `overflow-x: hidden`, więc pasek, który się nie mieści, nie rozpycha strony
+ * — zostaje ODCIĘTY. Zmierzone w „Logach zdarzeń": przy oknie 360 px wiersz
+ * potrzebował 324 px, a miał 300, i „Wyczyść logi" znikało za krawędzią karty.
+ * Żaden pomiar wystawania poza okno tego nie widział.
+ */
+.evk-nl-row-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 14px;
+}
+/* Pasek narzędzi w takim wierszu zawija się razem z nim i trzyma prawej
+   krawędzi, żeby po zawinięciu nie odjechał na środek. */
+.evk-nl-row-between > .evo-inline { flex-wrap: wrap; justify-content: flex-end; }
+/* Wiersz bez własnego wcięcia — gdy siedzi już w kartcie z paddingiem. */
+.evk-nl-row-flush { padding: 0; }
 .evk-nl-btn-del { padding: 1px 6px; min-height: auto; color: var(--evo-danger); }
 .evo-ico-xs { font-size: 12px; width: 12px; height: 12px; line-height: 1; flex-shrink: 0; }
 .evk-nl-hr { border-bottom: 1px solid var(--evo-border-soft); }
@@ -1911,3 +1951,116 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 .evk-nl-k-clicked { color: #f59e0b; }
 .evk-nl-k-failed  { color: var(--evo-danger); }
 .evk-nl-k-unsubs  { color: #f97316; }
+
+/* =========================================================================
+   SEO — przeniesione z bloków <style> w zakładkach
+   ========================================================================= */
+
+/* Wiersz podstrony w schemacie: typ, klucz, wartość, usuwanie. */
+.evk-sub-row {
+    display: grid;
+    grid-template-columns: 230px 1fr 1fr 34px;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+.evk-sub-row > * { min-width: 0; }
+.evk-sub-row select,
+.evk-sub-row input { margin: 0; }
+.evk-sub-remove {
+    display: inline-flex !important;
+    align-items: center; justify-content: center;
+    width: 34px; height: 32px; padding: 0 !important;
+}
+.evk-sub-remove .dashicons { font-size: 16px; width: 16px; height: 16px; line-height: 1; color: var(--evo-danger); }
+@media screen and (max-width: 782px) {
+    .evk-sub-row { grid-template-columns: 1fr; }
+}
+
+/* Pola meta w tabeli wpisów — kolumna pól obok listy. */
+.evoke-seo-fields { display: flex; flex-direction: column; gap: 8px; max-width: 800px; }
+.evoke-seo-fields input[type=text],
+.evoke-seo-fields textarea {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--evo-border-field);
+    border-radius: var(--evo-radius-sm);
+}
+.evoke-seo-fields input:focus,
+.evoke-seo-fields textarea:focus {
+    border-color: var(--evo-accent);
+    box-shadow: var(--evo-focus);
+    outline: none;
+}
+.evoke-save-seo { min-width: 90px !important; white-space: nowrap; }
+/* Nagłówek grupy w zakładce SEO — kreska pod tytułem, poza boksem. */
+.evo-group-title { margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--evo-border-soft); }
+.evo-ok-tx { color: var(--evo-on); }
+.evo-save-msg { display: none; font-size: 13px; color: #047857; }
+.evo-col-label { min-width: 42px; font-size: 11px; text-transform: uppercase; color: var(--evo-text-dim); }
+.evo-top { vertical-align: top; padding-top: 8px; }
+
+/* ── Tabela meta tagów ──────────────────────────────────────────────────── */
+/* Liczba wpisów przy nazwie typu treści — dopisek, nie część tytułu. */
+.evk-seo-count { font-size: 13px; font-weight: 400; color: var(--evo-text-dim); }
+.evk-seo-col-post   { width: 22%; }
+.evo-panel .evk-seo-robots-col { width: 15%; }
+.evk-seo-id   { font-size: 11px; color: var(--evo-text-dim); }
+.evk-seo-peek { font-size: 11px; }
+/* Jedna dyrektywa robots — sześć w kolumnie, więc bez zawijania i bez luzu. */
+.evk-seo-robot {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 2px;
+    font-size: 11px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+/* ── Lista „klucz → wartość" (wykluczone strony, slugi tłumaczeń) ───────── */
+.evo-lead { margin-bottom: 16px; font-size: 13px; color: var(--evo-text-muted); }
+.evo-list-box {
+    overflow: hidden;
+    background: var(--evo-bg);
+    border: 1px solid var(--evo-border-field);
+    border-radius: var(--evo-radius-sm);
+}
+.evo-list-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    /* Zawijanie, bo druga kolumna to lista slugów i na telefonie nie ma
+       szans stanąć obok tytułu — a boks ją obcina. */
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--evo-border-soft);
+    font-size: 13px;
+}
+.evo-list-row:last-child { border-bottom: 0; }
+.evo-list-key { min-width: 180px; }
+.evo-mono-xs {
+    min-width: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--evo-text-muted);
+    overflow-wrap: anywhere;
+}
+
+/* ── Schema ─────────────────────────────────────────────────────────────── */
+/* Waluta per język: etykieta o stałej szerokości, pole tuż obok. */
+.evk-schema-curr-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.evk-schema-curr-lang { min-width: 140px; margin: 0; }
+
+/* ── Odstępy i szerokości, których zakładki potrzebują częściej niż raz ── */
+.evo-mt-xs { margin-top: 6px; }
+.evo-mb-0  { margin-bottom: 0; }
+.evo-panel .evo-w-480 { width: 100%; max-width: 480px; }
+.evo-panel .evo-w-80  { max-width: 80px; }

@@ -121,7 +121,7 @@ $status_labels = [
 
 <!-- Lista kampanii -->
 <div class="evk-nl-card is-padded">
-    <div class="evk-nl-row-between evo-mb-sm" style="padding:0;gap:8px;flex-wrap:wrap">
+    <div class="evk-nl-row-between evk-nl-row-flush evo-mb-sm">
         <h3 class="evk-nl-h-lg">Wszystkie kampanie</h3>
         <select id="evk-nl-camp-status-filter" class="evo-hint">
             <option value="">Wszystkie statusy</option>
