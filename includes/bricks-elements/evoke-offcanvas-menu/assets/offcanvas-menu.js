@@ -81,6 +81,24 @@ function evk_offcanvas_menu_init_one(root) {
     var trackTime = reduced ? 0 : num('data-panel-duration', frameTime);
     var trackEase = cssEase('data-panel-easing') || frameEase;
 
+    /**
+     * Jak wygląda wejście w podmenu.
+     *
+     *   'expand' — KADR SIĘ POSZERZA. Rodzic przesuwa się w lewo, ale zostaje
+     *              widoczny obok podmenu, a menu rośnie o szerokość jednego
+     *              panelu na poziom. Tak działa wzór (nextbricks) i to jest
+     *              domyślne.
+     *   'slide'  — rodzic wyjeżdża CAŁKIEM poza kadr, podmenu zajmuje jego
+     *              miejsce. Kadr ma stałą szerokość.
+     *
+     * Poszerzanie ma sens tylko w poziomie: przy menu z góry lub z dołu
+     * „szerokością" jest wysokość, a panele i tak leżą obok siebie — dlatego
+     * te dwie strony zawsze jadą trybem 'slide'.
+     */
+    var expand = mode === 'levels'
+        && (root.getAttribute('data-level-style') || 'expand') !== 'slide'
+        && (side === 'left' || side === 'right');
+
     // ── Powłoka ────────────────────────────────────────────────────────────
     var shell = document.createElement('div');
     shell.className = 'evk-oc-shell is-side-' + side;
@@ -141,8 +159,66 @@ function evk_offcanvas_menu_init_one(root) {
      * z niewidocznego panelu są osiągalne, a wizualnie wszystko wygląda
      * poprawnie: widać to dopiero tabulatorem albo testem.
      */
+    /**
+     * Szerokość JEDNEGO panelu w pikselach.
+     *
+     * Przy poszerzaniu kadr zmienia szerokość, więc „100% kadru" przestaje być
+     * stałą i panele nie mogą się już od niej liczyć — inaczej rosłyby razem
+     * z kadrem i nigdy by się nie ułożyły obok siebie.
+     *
+     * Mierzymy sondą wstawioną do POWŁOKI, nie do kadru: powłoka ma rozmiar
+     * okna, więc `100%` w `min(420px, 100%)` znaczy to, co miało znaczyć.
+     * Sonda w kadrze liczyłaby procent od szerokości, której właśnie szukamy.
+     * Kadru przy tym nie dotykamy — zmiana jego szerokości uruchomiłaby
+     * przejście i przy każdym przeliczeniu widać byłoby drgnięcie.
+     */
+    var panelPx = 0;
+
+    function measurePanel() {
+        var probe = document.createElement('div');
+        probe.style.cssText = 'position:absolute;top:0;left:0;height:0;visibility:hidden;'
+            + 'pointer-events:none;width:var(--evk-oc-size, min(420px, 100%))';
+        shell.appendChild(probe);
+        panelPx = Math.round(probe.getBoundingClientRect().width);
+        shell.removeChild(probe);
+        if (panelPx > 0) shell.style.setProperty('--evk-oc-panel-basis', panelPx + 'px');
+        return panelPx;
+    }
+
     function applyState() {
         var cur = stack[stack.length - 1];
+
+        if (expand) {
+            if (!panelPx) measurePanel();
+
+            // Ile paneli mieści się w oknie. Na wąskim ekranie wychodzi jeden
+            // i całość wraca do zachowania „rodzic wyjeżdża całkiem" — inaczej
+            // menu byłoby szersze niż ekran.
+            var fit = Math.max(1, Math.floor(window.innerWidth / (panelPx || 1)));
+            var vis = Math.min(stack.length, fit);
+
+            frame.style.width = (vis * panelPx) + 'px';
+            // Gdy ścieżka nie mieści się w oknie, pokazujemy jej OGON —
+            // najgłębsze panele, bo to na nich się właśnie jest.
+            track.style.transform = 'translateX(' + (-(stack.length - vis) * panelPx) + 'px)';
+
+            /* Kolejność na taśmie to kolejność ŚCIEŻKI, nie kolejność w DOM.
+               Ścieżka potrafi przeskakiwać (0 → 2 → 1), a wtedy układ z DOM
+               pokazałby panele w złej kolejności albo z dziurą pośrodku.
+               Panele spoza ścieżki chowamy — nie mają czego zajmować miejsca. */
+            panels.forEach(function (p, i) {
+                var at = stack.indexOf(i);
+                p.style.order   = at < 0 ? '' : String(at);
+                p.style.display = at < 0 ? 'none' : '';
+                p.classList.toggle('is-current', i === cur);
+                // Panele ścieżki ZOSTAJĄ dostępne — o to w tym trybie chodzi,
+                // rodzic jest widoczny i klikalny. Odcinamy tylko te spoza niej.
+                if (at < 0) p.setAttribute('inert', '');
+                else        p.removeAttribute('inert');
+            });
+            return;
+        }
+
         track.style.transform = 'translateX(' + (-cur * 100) + '%)';
         panels.forEach(function (p, i) {
             var isCur = i === cur;
@@ -162,6 +238,14 @@ function evk_offcanvas_menu_init_one(root) {
     function focusFirst(i) {
         var f = focusables(panels[i]);
         if (f.length) f[0].focus();
+    }
+
+    /* Zasięg pułapki fokusu. Przy poszerzaniu rodzic ZOSTAJE widoczny
+       i klikalny, więc pułapka obejmuje cały kadr — zamknięcie jej
+       w bieżącym panelu odcinałoby tabulatorem to, co widać na ekranie.
+       W trybie „rodzic wyjeżdża" widać dokładnie jeden panel i tylko on. */
+    function trapScope() {
+        return expand ? frame : panels[stack[stack.length - 1]];
     }
 
     // ── Otwieranie i zamykanie ─────────────────────────────────────────────
@@ -287,14 +371,24 @@ function evk_offcanvas_menu_init_one(root) {
 
         if (e.key !== 'Tab') return;
 
-        // Pułapka fokusu w bieżącym panelu. Panele niebieżące mają `inert`,
-        // więc wystarczy zawinąć listę tego jednego.
-        var f = focusables(panels[stack[stack.length - 1]]);
+        // Panele spoza ścieżki mają `inert`, więc wystarczy zawinąć listę
+        // tego, co widać — patrz trapScope().
+        var f = focusables(trapScope());
         if (!f.length) return;
         var first = f[0], last = f[f.length - 1];
         if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
         else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
+
+    /* Zmiana rozmiaru okna zmienia i szerokość panelu (`min(420px, 100%)`),
+       i to, ile paneli się mieści. Bez przeliczenia obrót telefonu zostawiał
+       kadr w szerokości sprzed obrotu. */
+    if (expand) {
+        window.addEventListener('resize', function () {
+            measurePanel();
+            applyState();
+        });
+    }
 
     applyState();
     if (isBuilder && openBuilder) open(null);

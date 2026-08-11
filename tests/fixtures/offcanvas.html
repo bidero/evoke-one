@@ -61,6 +61,9 @@
   var root = document.getElementById('root');
   root.setAttribute('data-mode',       q.get('mode')   || 'levels');
   root.setAttribute('data-side',       q.get('side')   || 'right');
+  // Domyślnie tak jak element: kadr się poszerza. Sekcje mierzące
+  // wyjeżdżanie rodzica podają ?levels=slide jawnie.
+  root.setAttribute('data-level-style', q.get('levels') || 'expand');
   root.setAttribute('data-duration',   q.get('dur') || '0');
   // Krzywe przychodzą z listy Animatora, czyli w zapisie GSAP („power2.out").
   // CSS takiej wartości nie zna: nieznana funkcja czasu unieważnia CAŁĄ
@@ -78,7 +81,7 @@
   root.setAttribute('data-open-builder', '0');
 
   var r2 = document.getElementById('root2');
-  ['data-mode','data-side','data-duration','data-esc-back','data-close-link',
+  ['data-mode','data-side','data-duration','data-esc-back','data-close-link','data-level-style',
    'data-lock','data-portal','data-open-builder',
    'data-panel-duration','data-panel-easing'].forEach(function (a) {
     r2.setAttribute(a, root.getAttribute(a));
@@ -103,14 +106,57 @@
 <script>
 window.__open   = function () { document.getElementById('trigger').click(); };
 
+/** Podział listy CSS po przecinkach NAJWYŻSZEGO POZIOMU.
+ *
+ *  `cubic-bezier(0.5, 1, 0.89, 1)` sam w sobie zawiera przecinki, więc zwykły
+ *  `split(',')` rozerwałby jedną krzywą na cztery kawałki. Kadr ma od 1.62.0
+ *  DWA przejścia naraz (`transform` i `width`), więc bez tego nie da się już
+ *  odczytać, która wartość należy do której właściwości. */
+function splitList(s) {
+  var out = [], depth = 0, cur = '';
+  for (var i = 0; i < s.length; i++) {
+    var c = s[i];
+    if (c === '(') depth++;
+    if (c === ')') depth--;
+    if (c === ',' && depth === 0) { out.push(cur.trim()); cur = ''; continue; }
+    cur += c;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
+/** Czas i krzywa przejścia DLA KONKRETNEJ właściwości. */
+function transitionOf(el, prop) {
+  var cs    = getComputedStyle(el);
+  var props = splitList(cs.transitionProperty);
+  var durs  = splitList(cs.transitionDuration);
+  var eases = splitList(cs.transitionTimingFunction);
+  var i = props.indexOf(prop);
+  if (i < 0) return { transition: '0s', ease: 'ease' };
+  return { transition: durs[i % durs.length], ease: eases[i % eases.length] };
+}
+
+function shiftX(el) {
+  var m = getComputedStyle(el).transform;
+  return (m && m !== 'none')
+    ? Math.round(parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4])) : 0;
+}
+
 /** Przesunięcie kadru paneli w poziomie — 0 znaczy „na miejscu". */
 window.__slide = function () {
   var w = shellOf(0).querySelector('.evk-oc-frame');
   if (!w) return null;
-  var cs = getComputedStyle(w);
-  var m = cs.transform;
-  var x = (m && m !== 'none') ? Math.round(parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4])) : 0;
-  return { x: x, transition: cs.transitionDuration, ease: cs.transitionTimingFunction, visible: cs.visibility };
+  var t = transitionOf(w, 'transform');
+  return { x: shiftX(w), transition: t.transition, ease: t.ease,
+           visible: getComputedStyle(w).visibility };
+};
+
+/** Czas i krzywa POSZERZANIA kadru — osobne przejście, osobne tempo. */
+window.__frameWidth = function () {
+  var w = shellOf(0).querySelector('.evk-oc-frame');
+  var t = transitionOf(w, 'width');
+  return { w: Math.round(w.getBoundingClientRect().width),
+           transition: t.transition, ease: t.ease };
 };
 window.__isOpen = function () { return shellOf(0).classList.contains('is-open'); };
 
@@ -185,12 +231,10 @@ window.__panelVisible = function () {
 
 /** Taśma paneli: przesunięcie i własny czas przejścia. */
 window.__track = function () {
-  var t = shellOf(0).querySelector('.evk-oc-track');
-  var cs = getComputedStyle(t);
-  var m = cs.transform;
-  var x = (m && m !== 'none') ? Math.round(parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4])) : 0;
-  return { x: x, transition: cs.transitionDuration, ease: cs.transitionTimingFunction,
-           willChange: cs.willChange };
+  var el = shellOf(0).querySelector('.evk-oc-track');
+  var t  = transitionOf(el, 'transform');
+  return { x: shiftX(el), transition: t.transition, ease: t.ease,
+           willChange: getComputedStyle(el).willChange };
 };
 
 /** Lewa krawędź panelu o podanym ID, względem kadru.
@@ -203,6 +247,31 @@ window.__panelLeft = function (id) {
   var p = shellOf(0).querySelector('.evk-oc-panel[data-panel="' + id + '"]');
   if (!p || !frame) return null;
   return Math.round(p.getBoundingClientRect().left - frame.getBoundingClientRect().left);
+};
+
+/** Geometria trybu POSZERZANIA.
+ *
+ *  Tu wszystko mierzy się WZGLĘDEM OKNA, nie względem kadru: przy poszerzaniu
+ *  rusza się sam kadr, więc pomiar względem niego pokazywałby rodzica wiecznie
+ *  na zerze i przesunięcia w ogóle nie byłoby widać. */
+window.__expand = function () {
+  var f = shellOf(0).querySelector('.evk-oc-frame');
+  var fr = f.getBoundingClientRect();
+  var out = { frameW: Math.round(fr.width), frameRight: Math.round(fr.right), panels: [] };
+  shellOf(0).querySelectorAll('.evk-oc-panel').forEach(function (p) {
+    var cs = getComputedStyle(p);
+    var r  = p.getBoundingClientRect();
+    out.panels.push({
+      id:      p.getAttribute('data-panel'),
+      shown:   cs.display !== 'none',
+      order:   cs.order,
+      w:       Math.round(r.width),
+      left:    Math.round(r.left),
+      inert:   p.hasAttribute('inert'),
+      current: p.classList.contains('is-current'),
+    });
+  });
+  return out;
 };
 
 /** Stan drugiego korzenia — panele bez nazw, adresowane kolejnością. */

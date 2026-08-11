@@ -1,0 +1,59 @@
+<!--
+  Offcanvas PRZED uruchomieniem skryptu.
+
+  Ten fixture celowo NIE ładuje `offcanvas-menu.js`. Odtwarza chwilę między
+  wyrenderowaniem strony a startem skryptu — a więc dokładnie to, co widać
+  przy ładowaniu: korzeń ma `display: contents`, więc panele są zwyczajnymi
+  blokami w treści strony i wyświetlają się w miejscu wstawienia elementu.
+  Znikają dopiero, gdy skrypt przeniesie je do powłoki.
+
+  Zgłoszone z użycia: „przy ładowaniu strony miga kawałek offcanvas gdzieś
+  na górze". Arkusz musi je schować sam, bez pomocy JS — bo JS jest właśnie
+  tym, na co czekamy.
+-->
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px system-ui; }
+  /* Panele mają WŁASNE tło i wysokość — bez tego „niewidoczny" znaczyłoby
+     tylko tyle, że pusty div nic nie zajmuje. */
+  .evk-oc-panel { background: #123; color: #fff; padding: 30px; min-height: 120px; }
+  #po { height: 40px; background: #cfc; }
+</style>
+
+<link rel="stylesheet" href="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.css">
+
+<div id="przed">Treść nad menu</div>
+
+<div id="root" class="evk-oc" data-mode="levels" data-side="right">
+  <button class="evk-oc-trigger" id="trigger">Menu</button>
+  <div class="evk-oc-panel" data-panel="start">Panel startowy — nie ma prawa mignąć</div>
+  <div class="evk-oc-panel" data-panel="uslugi">Panel podrzędny — tym bardziej</div>
+</div>
+
+<div id="po">Treść pod menu</div>
+
+<script>
+/** Czy panele w ogóle zajmują miejsce na stronie.
+ *
+ *  Mierzymy DWIE rzeczy naraz, bo każda z osobna da się oszukać:
+ *  własny prostokąt panelu (czy cokolwiek się rysuje) i odległość między
+ *  treścią nad menu a treścią pod nim (czy panele rozpychają układ). */
+window.__fouc = function () {
+  var panels = Array.prototype.slice.call(document.querySelectorAll('.evk-oc-panel'));
+  var przed  = document.getElementById('przed').getBoundingClientRect();
+  var po     = document.getElementById('po').getBoundingClientRect();
+  return {
+    rects: panels.map(function (p) {
+      var r = p.getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height),
+               display: getComputedStyle(p).display };
+    }),
+    // Odstęp między sąsiadującą treścią. Panele w przepływie rozsuwają go
+    // o swoją wysokość — i to jest ten „kawałek offcanvas" ze zgłoszenia.
+    przerwa: Math.round(po.top - przed.bottom),
+    // Trigger MA zostać widoczny — to burger, po nim otwiera się menu.
+    trigger: Math.round(document.getElementById('trigger').getBoundingClientRect().height),
+  };
+};
+</script>

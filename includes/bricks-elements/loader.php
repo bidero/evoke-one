@@ -114,7 +114,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-offcanvas-menu',
             'file'  => $dir . 'evoke-offcanvas-menu/element.php',
             'consts'=> [
-                'EVK_OFFCANVAS_MENU_VERSION' => '1.1.0',
+                'EVK_OFFCANVAS_MENU_VERSION' => '1.2.0',
                 'EVK_OFFCANVAS_MENU_URL'     => $url . 'evoke-offcanvas-menu/',
                 'EVK_OFFCANVAS_MENU_PATH'    => $dir . 'evoke-offcanvas-menu/',
             ],

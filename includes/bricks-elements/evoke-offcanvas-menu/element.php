@@ -88,6 +88,27 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			),
 		];
 
+		$this->controls['levelStyle'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Wejście w podmenu', 'evoke-one' ),
+			'type'        => 'select',
+			'options'     => [
+				'expand' => esc_html__( 'Kadr się poszerza (rodzic zostaje widoczny)', 'evoke-one' ),
+				'slide'  => esc_html__( 'Rodzic wyjeżdża całkiem', 'evoke-one' ),
+			],
+			'default'     => 'expand',
+			'required'    => [ 'mode', '=', 'levels' ],
+			'description' => esc_html__(
+				'Przy poszerzaniu menu rośnie o szerokość jednego panelu na każdy poziom, '
+				. 'a rodzic przesuwa się w lewo i zostaje widoczny obok podmenu. '
+				. 'Gdy poziomy przestają mieścić się w oknie — na telefonie zwykle od razu — '
+				. 'menu samo wraca do pokazywania jednego panelu. '
+				. 'Menu z góry i z dołu zawsze jedzie trybem „rodzic wyjeżdża całkiem": '
+				. 'poszerzanie ma sens tylko w poziomie.',
+				'evoke-one'
+			),
+		];
+
 		$this->controls['startPanel'] = [
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Panel startowy (ID)', 'evoke-one' ),
@@ -238,6 +259,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'class', 'evk-oc' );
 		$this->set_attribute( '_root', 'data-mode',       ! empty( $s['mode'] ) ? $s['mode'] : 'single' );
 		$this->set_attribute( '_root', 'data-side',       ! empty( $s['side'] ) ? $s['side'] : 'right' );
+		$this->set_attribute( '_root', 'data-level-style', ! empty( $s['levelStyle'] ) ? $s['levelStyle'] : 'expand' );
 		$this->set_attribute( '_root', 'data-duration',   isset( $s['duration'] ) && $s['duration'] !== '' ? (string) $s['duration'] : '0.35' );
 		/*
 		 * Krzywe przeliczone na zapis CSS-a.

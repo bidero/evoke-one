@@ -1,9 +1,18 @@
 /**
- * Offcanvas Menu — nowy element Bricks.
+ * Offcanvas Menu — element Bricks.
  *
- * Rodzic wyjeżdża całkiem, podmenu zajmuje jego miejsce (decyzja użytkownika,
- * patrz docs/offcanvas-menu-szkic.md). Wygląda to prościej niż warstwy i jest
- * prostsze — ale JEDNA rzecz zrobiła się przez to groźniejsza, nie łatwiejsza:
+ * Wejście w podmenu ma DWA tryby i to one dzielą ten plik:
+ *
+ *   'expand' (domyślny od 1.62.0) — kadr się poszerza, rodzic przesuwa się
+ *       w lewo i ZOSTAJE WIDOCZNY obok podmenu. Tak działa wzór.
+ *   'slide' — rodzic wyjeżdża całkiem poza kadr, podmenu zajmuje jego miejsce.
+ *
+ * Sekcje mierzące wyjeżdżanie rodzica podają `?levels=slide` JAWNIE. Bez tego
+ * jechałyby domyślnym poszerzaniem i mierzyłyby coś innego, niż mówią —
+ * a część z nich (inert na rodzicu, przesunięcie taśmy) jest w poszerzaniu
+ * wprost NIEPRAWDZIWA, bo rodzic ma tam zostać dostępny.
+ *
+ * W obu trybach jedna rzecz jest groźniejsza, niż wygląda:
  *
  * **Panel wysunięty poza ekran nadal łapie fokus.** `transform: translateX(-100%)`
  * nie usuwa niczego z kolejności tabulacji. Przy warstwach widocznych pod spodem
@@ -20,7 +29,7 @@ module.exports = async function (t) {
   // ── Otwieranie ─────────────────────────────────────────────────────────
   t.section('otwieranie i zamykanie');
 
-  const p = await t.open('offcanvas.html', { viewport: V, settle: 120 });
+  const p = await t.open('offcanvas.html', { viewport: V, query: 'levels=slide', settle: 120 });
 
   t.check('na start zamknięte', !(await p.evaluate(() => window.__isOpen())), 'zamknięte');
   t.check('trigger mówi, że zamknięte',
@@ -139,7 +148,7 @@ module.exports = async function (t) {
   // startowego: przy wypychaniu maleje, przy zasłanianiu stoi w miejscu.
   t.section('drugi panel wypycha pierwszy');
 
-  const psh = await t.open('offcanvas.html', { viewport: V, settle: 120 });
+  const psh = await t.open('offcanvas.html', { viewport: V, query: 'levels=slide', settle: 120 });
   await psh.evaluate(() => window.__open());
   await psh.waitForTimeout(80);
   const leftBefore = await psh.evaluate(() => window.__panelLeft('start'));
@@ -162,7 +171,7 @@ module.exports = async function (t) {
   // identycznie, więc całość wygląda płasko.
   t.section('przejście między panelami ma własne tempo');
 
-  const d = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.3&pdur=0.9', settle: 120 });
+  const d = await t.open('offcanvas.html', { viewport: V, query: 'levels=slide&dur=0.3&pdur=0.9', settle: 120 });
   const frameT = (await d.evaluate(() => window.__slide())).transition;
   const trackT = (await d.evaluate(() => window.__track())).transition;
   t.check('kadr i taśma mają RÓŻNE czasy', parseFloat(frameT) !== parseFloat(trackT),
@@ -202,7 +211,7 @@ module.exports = async function (t) {
   const easeCss = JSON.parse(phpOutput('presets.php')).easingsCss;
   const e = await t.open('offcanvas.html', {
     viewport: V, settle: 120,
-    query: 'dur=0.6&pdur=0.9' +
+    query: 'levels=slide&dur=0.6&pdur=0.9' +
            '&ease='  + encodeURIComponent(easeCss['power2.out']) +
            '&pease=' + encodeURIComponent(easeCss['back.out(1.7)']),
   });
@@ -249,7 +258,7 @@ module.exports = async function (t) {
   // Wartość, której przeglądarka nie przyjmie, ma zostać ODRZUCONA — nie
   // wstawiona i nie zgaszona razem z całym przejściem.
   const raw = await t.open('offcanvas.html', {
-    viewport: V, settle: 120, query: 'dur=0.6&ease=power2.out',
+    viewport: V, settle: 120, query: 'levels=slide&dur=0.6&ease=power2.out',
   });
   const rawFrame = await raw.evaluate(() => window.__slide());
   t.check('nazwa GSAP-a nie gasi przejścia',
@@ -268,7 +277,7 @@ module.exports = async function (t) {
   // test pilnuje reguły, a nie objawu — i mówi o tym wprost.
   t.section('taśma nie trzyma stałej warstwy kompozytora');
 
-  const wc = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.4', settle: 120 });
+  const wc = await t.open('offcanvas.html', { viewport: V, query: 'levels=slide&dur=0.4', settle: 120 });
   const wcTrack = await wc.evaluate(() => window.__track());
   t.check('taśma nie deklaruje stałego will-change', wcTrack.willChange === 'auto',
     wcTrack.willChange);
@@ -284,6 +293,121 @@ module.exports = async function (t) {
     'x ' + wcMid.x + ' (cel ok. -420)');
   await wc.close();
 
+  // ── Nic nie miga przed startem skryptu ─────────────────────────────────
+  // Zgłoszone z użycia: „przy ładowaniu strony miga kawałek offcanvas gdzieś
+  // na górze". Korzeń ma `display: contents`, więc do chwili inicjalizacji
+  // panele są zwyczajnymi blokami W TREŚCIE strony — widać je w miejscu
+  // wstawienia elementu i rozpychają układ. Schować je musi ARKUSZ, bo JS
+  // jest właśnie tym, na co strona czeka.
+  t.section('nic nie miga przed startem skryptu');
+
+  const fo = await t.open('offcanvas-fouc.html', { viewport: V, settle: 120 });
+  const f0 = await fo.evaluate(() => window.__fouc());
+
+  t.check('żaden panel się nie rysuje',
+    f0.rects.every((r) => r.w === 0 && r.h === 0),
+    f0.rects.map((r) => r.w + '×' + r.h + ' ' + r.display).join(' | '));
+  // Drugi pomiar, bo pierwszy da się oszukać samym `visibility: hidden`:
+  // panel niewidoczny, ale nadal rozpychający stronę, to wciąż skok układu.
+  t.check('panele nie rozpychają układu', f0.przerwa <= 40, f0.przerwa + ' px odstępu');
+  // Trigger to burger — ma zostać. Schowanie go razem z panelami zabrałoby
+  // jedyny sposób otwarcia menu.
+  t.check('trigger zostaje widoczny', f0.trigger > 0, f0.trigger + ' px wysokości');
+  t.check('bez błędów JS', !fo.errors.length, fo.errors.join(' | ') || 'brak');
+  await fo.close();
+
+  // ── Kadr się POSZERZA, rodzic zostaje widoczny ─────────────────────────
+  // Domyślne wejście w podmenu od 1.62.0 i jedyne, które odpowiada wzorowi
+  // (nextbricks): menu rośnie o szerokość jednego panelu na poziom, a rodzic
+  // przesuwa się w lewo i ZOSTAJE NA EKRANIE. Poprzedni tryb wypychał go
+  // całkiem poza kadr — zgłoszone jako „nadal nie przepycha panelu dalej",
+  // bo rodzica po prostu nie było widać.
+  t.section('kadr się poszerza, rodzic zostaje widoczny');
+
+  const ex = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.3&pdur=0.5', settle: 120 });
+  await ex.evaluate(() => window.__open());
+  await ex.waitForTimeout(500);
+
+  const x0 = await ex.evaluate(() => window.__expand());
+  const one = x0.frameW;
+  t.check('na starcie kadr ma szerokość jednego panelu',
+    one > 0 && x0.panels.filter((q) => q.shown).length === 1, one + ' px, widocznych '
+      + x0.panels.filter((q) => q.shown).length);
+
+  await ex.evaluate(() => window.__click('go-uslugi'));
+  await ex.waitForTimeout(800);
+  const x1 = await ex.evaluate(() => window.__expand());
+  const shown = x1.panels.filter((q) => q.shown);
+
+  t.check('kadr urósł o dokładnie jeden panel', x1.frameW === one * 2,
+    one + ' → ' + x1.frameW + ' px');
+  t.check('widać DWA panele naraz', shown.length === 2,
+    shown.map((q) => q.id).join(' + '));
+
+  const start  = x1.panels.find((q) => q.id === 'start');
+  const uslugi = x1.panels.find((q) => q.id === 'uslugi');
+  t.check('rodzic PRZESUNĄŁ SIĘ w lewo', start.left === x0.panels[0].left - one,
+    x0.panels[0].left + ' → ' + start.left + ' px');
+  // Sedno zgłoszenia: rodzic ma zostać NA EKRANIE, nie wyjechać poza kadr.
+  t.check('rodzic nadal jest widoczny na ekranie',
+    start.left >= 0 && start.left + start.w <= V.width,
+    'zajmuje ' + start.left + '–' + (start.left + start.w) + ' px przy oknie ' + V.width);
+  t.check('podmenu stanęło tam, gdzie był rodzic', uslugi.left === x0.panels[0].left,
+    uslugi.left + ' px (rodzic był na ' + x0.panels[0].left + ')');
+  t.check('kadr trzyma się prawej krawędzi okna', x1.frameRight === V.width,
+    x1.frameRight + ' px');
+
+  // Rodzic zostaje KLIKALNY — o to w tym trybie chodzi. `inert` na nim
+  // odciąłby tabulatorem połowę tego, co widać na ekranie.
+  t.check('rodzic zostaje dostępny tabulatorem', !start.inert,
+    start.inert ? 'inert' : 'dostępny');
+  t.check('bieżący jest wciąż dokładnie jeden',
+    x1.panels.filter((q) => q.current).length === 1 && uslugi.current,
+    x1.panels.filter((q) => q.current).map((q) => q.id).join(', '));
+  // Panel spoza ścieżki nie ma czego zajmować miejsca — wszedłby między
+  // rodzica a podmenu i rozerwał układ.
+  t.check('panel spoza ścieżki jest schowany i odcięty',
+    !x1.panels.find((q) => q.id === 'detale').shown
+    && x1.panels.find((q) => q.id === 'detale').inert, 'detale');
+
+  // Poszerzanie to ruch MIĘDZY PANELAMI, więc bierze tempo taśmy, nie kadru.
+  const fw = await ex.evaluate(() => window.__frameWidth());
+  const fx = await ex.evaluate(() => window.__slide());
+  t.check('poszerzanie ma tempo taśmy, nie kadru',
+    Math.abs(parseFloat(fw.transition) - 0.5) < 0.01
+    && Math.abs(parseFloat(fx.transition) - 0.3) < 0.01,
+    'poszerzanie ' + fw.transition + ' (0,5), wysuwanie ' + fx.transition + ' (0,3)');
+
+  await ex.evaluate(() => window.__click('back-1'));
+  await ex.waitForTimeout(800);
+  const x2 = await ex.evaluate(() => window.__expand());
+  t.check('powrót zwęża kadr z powrotem', x2.frameW === one, x1.frameW + ' → ' + x2.frameW + ' px');
+  t.check('bez błędów JS', !ex.errors.length, ex.errors.join(' | ') || 'brak');
+  await ex.close();
+
+  // ── Wąskie okno: poszerzać nie ma dokąd ────────────────────────────────
+  // Dwa panele po 420 px nie zmieszczą się na telefonie. Menu MUSI wtedy
+  // samo wrócić do pokazywania jednego — inaczej byłoby szersze niż ekran
+  // i rodzic i tak by nie pomógł, bo wyjechałby za lewą krawędź.
+  t.section('na wąskim ekranie poszerzanie samo się cofa');
+
+  const nar = await t.open('offcanvas.html', { viewport: { width: 390, height: 760 }, settle: 120 });
+  await nar.evaluate(() => window.__open());
+  await nar.waitForTimeout(400);
+  await nar.evaluate(() => window.__click('go-uslugi'));
+  await nar.waitForTimeout(700);
+
+  const xn = await nar.evaluate(() => window.__expand());
+  t.check('kadr nie przekracza szerokości okna', xn.frameW <= 390, xn.frameW + ' px');
+  t.check('widać dokładnie jeden panel',
+    xn.panels.filter((q) => q.shown && q.left >= 0 && q.left < 390).length === 1,
+    xn.panels.filter((q) => q.shown).map((q) => q.id + '@' + q.left).join(' '));
+  t.check('na ekranie stoi podmenu, nie rodzic',
+    xn.panels.find((q) => q.id === 'uslugi').left === 0,
+    'uslugi @ ' + xn.panels.find((q) => q.id === 'uslugi').left + ' px');
+  t.check('bez błędów JS', !nar.errors.length, nar.errors.join(' | ') || 'brak');
+  await nar.close();
+
   // ── Wypychanie przeżywa style Bricksa ──────────────────────────────────
   // Reszta tego pliku mierzy gołe `<div class="evk-oc-panel">`. Na stronie
   // panele są dziećmi nestable, więc niosą jeszcze `.brxe-block` z własnym
@@ -296,7 +420,7 @@ module.exports = async function (t) {
   // właśnie jako „drugi zasłania pierwszy".
   t.section('wypychanie działa w znacznikach Bricksa');
 
-  const br = await t.open('offcanvas-bricks.html', { viewport: V, settle: 200 });
+  const br = await t.open('offcanvas-bricks.html', { viewport: V, query: 'levels=slide', settle: 200 });
   t.check('bez błędów JS', !br.errors.length, br.errors.join(' | ') || 'brak');
 
   await br.evaluate(() => window.__open());

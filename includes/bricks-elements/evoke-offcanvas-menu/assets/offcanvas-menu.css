@@ -22,6 +22,18 @@
 
 .evk-oc { display: contents; }
 
+/* Panele, zanim JS przeniesie je do powłoki.
+ *
+ * Korzeń ma `display: contents`, więc do chwili inicjalizacji panele są
+ * zwyczajnymi blokami W TREŚCIE STRONY — widać je w miejscu wstawienia
+ * elementu i znikają dopiero, gdy skrypt je przeniesie. Zgłoszone jako
+ * „przy ładowaniu strony miga kawałek offcanvas gdzieś na górze".
+ *
+ * Reguła KASUJE SIĘ SAMA: po przeniesieniu panel nie jest już dzieckiem
+ * korzenia, tylko taśmy, więc selektor przestaje w niego trafiać. Nie ma
+ * tu żadnej flagi do posprzątania ani klasy, którą trzeba zdjąć w JS. */
+.evk-oc > .evk-oc-panel { display: none; }
+
 /* Powłoka NIE dostaje klasy `.evk-oc` — dostawała ją do 1.58.0, żeby trafiały
    w nią selektory `[data-side]`, i razem z nią łapała `display: contents`,
    czyli traciła własne pudełko mimo `position: fixed`. Strona menu jedzie
@@ -58,7 +70,12 @@
     position: absolute;
     overflow: hidden;
     background: var(--evk-oc-bg, #fff);
-    transition: transform var(--evk-oc-time, .35s) var(--evk-oc-ease, ease);
+    /* Dwie właściwości, dwa tempa. `transform` to wysuwanie menu — czas kadru.
+       `width` to POSZERZANIE kadru przy wejściu w podmenu, czyli ruch między
+       panelami — więc bierze czas i krzywą taśmy. Wspólny czas spłaszczyłby
+       oba ruchy do jednego, a to właśnie ich rozdzielenie było zamówione. */
+    transition: transform var(--evk-oc-time, .35s) var(--evk-oc-ease, ease),
+                width var(--evk-oc-panel-time, .45s) var(--evk-oc-panel-ease, ease);
 }
 .evk-oc-shell.is-side-right  .evk-oc-frame { top: 0; bottom: 0; right: 0;  width:  var(--evk-oc-size, min(420px, 100%)); transform: translateX(100%); }
 .evk-oc-shell.is-side-left   .evk-oc-frame { top: 0; bottom: 0; left: 0;   width:  var(--evk-oc-size, min(420px, 100%)); transform: translateX(-100%); }
@@ -88,10 +105,13 @@
 }
 
 .evk-oc-panel {
-    /* `0 0 100%` liczy się od szerokości taśmy, a ta ma szerokość kadru —
+    /* Domyślne `100%` liczy się od szerokości taśmy, a ta ma szerokość kadru —
        więc każdy panel jest dokładnie tak szeroki jak kadr i leży OBOK
-       poprzedniego. Stąd bierze się wypychanie zamiast zasłaniania. */
-    flex: 0 0 100%;
+       poprzedniego. Stąd bierze się wypychanie zamiast zasłaniania.
+       W trybie POSZERZANIA kadr zmienia szerokość, więc „100% kadru" przestaje
+       być stałą — JS podstawia wtedy zmierzoną szerokość jednego panelu
+       w pikselach (`--evk-oc-panel-basis`). */
+    flex: 0 0 var(--evk-oc-panel-basis, 100%);
     min-width: 0;
     height: 100%;
     overflow-y: auto;

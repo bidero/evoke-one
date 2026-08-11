@@ -2,6 +2,40 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.62.0] — 2026-08-11
+
+### Dodane
+
+- **Offcanvas: kadr poszerza się przy wejściu w podmenu.** Nowe domyślne
+  zachowanie i jedyne, które odpowiada wzorowi (nextbricks): menu rośnie
+  o szerokość jednego panelu na poziom, a rodzic przesuwa się w lewo
+  i ZOSTAJE WIDOCZNY obok podmenu. Do tej pory rodzic wyjeżdżał całkiem poza
+  kadr — zgłoszone jako „nadal nie przepycha panelu dalej", bo rodzica po
+  prostu nie było widać. Zmierzone: kadr 420 → 840 px, rodzic z 780 na
+  360 px i nadal w całości na ekranie.
+
+  Poprzednie zachowanie zostaje pod kontrolką **„Wejście w podmenu"** jako
+  „Rodzic wyjeżdża całkiem". Menu z góry i z dołu zawsze jedzie tym trybem —
+  poszerzanie ma sens tylko w poziomie.
+
+  Trzy rzeczy wynikające z tego, że rodzic zostaje na ekranie:
+  poszerzanie bierze **tempo taśmy**, nie kadru (to ruch między panelami,
+  nie wysuwanie menu); rodzic zostaje **dostępny tabulatorem**, a pułapka
+  fokusu obejmuje cały kadr zamiast jednego panelu; na wąskim ekranie menu
+  **samo wraca** do jednego panelu, bo dwa po 420 px nie zmieszczą się na
+  telefonie.
+
+### Naprawione
+
+- **Offcanvas: kawałek menu migał przy ładowaniu strony.** Zgłoszone
+  z użycia. Korzeń ma `display: contents`, więc do chwili uruchomienia
+  skryptu panele są zwyczajnymi blokami W TREŚCIE strony — widać je
+  w miejscu wstawienia elementu i rozpychają układ, dopóki JS ich nie
+  przeniesie. Chowa je teraz arkusz (`.evk-oc > .evk-oc-panel`), bo JS jest
+  właśnie tym, na co strona czeka. Reguła kasuje się sama: po przeniesieniu
+  panel nie jest już dzieckiem korzenia, więc selektor przestaje w niego
+  trafiać — nie ma tu flagi do posprzątania ani klasy do zdjęcia.
+
 ## [1.61.0] — 2026-08-11
 
 ### Naprawione
