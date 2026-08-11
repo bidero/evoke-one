@@ -2,6 +2,27 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.66.0] — 2026-08-11
+
+### Zmienione
+
+- **Animator w elemencie Bricks: jedna lista zamiast listy PLUS kompletu pól
+  obok.** Do tej pory tę samą animację dało się ustawić na dwa sposoby —
+  polem „Animacja" z całym zestawem nadpisań pod spodem albo wierszem
+  repeatera. Przy przenoszeniu ustawień na inny element trzeba było przez to
+  przepisywać każde pole z osobna.
+
+  Wszystkie nadpisania przeniosły się do wiersza listy — doszły **stagger,
+  scrub, easing, cel i selektor, trójstanowe „powtarzaj / zapętl / odbicie /
+  pin" oraz lista słów**. Płaskie kontrolki `evkAnim*` zniknęły razem
+  z obsługującą je ścieżką w PHP; wtyczka jest w testach, więc dane, które
+  niosły, zniknęły z nimi. Cała konfiguracja animacji elementu siedzi teraz
+  w jednej kontrolce.
+
+  Test pilnuje obu stron tej zmiany: że stare klucze płaskie **nie działają**
+  (druga, niewidoczna w panelu droga wróciłaby po cichu) i że pola dokładane
+  wierszom przez builder — m.in. `id` — nie wychodzą na stronę.
+
 ## [1.65.1] — 2026-08-11
 
 ### Naprawione

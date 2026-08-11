@@ -13,85 +13,81 @@ const { phpOutput } = require('./lib/harness');
 const emit = (settings) => JSON.parse(phpOutput('controls.php', JSON.stringify(JSON.stringify(settings))));
 
 module.exports = async function (t) {
-  t.section('Animator');
+  t.section('Animator — jedna lista, żadnych pól obok');
 
-  let r = emit({ evkAnimAnimation: 'wejscie', evkAnimTrigger: 'load', evkAnimDelay: '0.35', evkAnimOrder: '2' });
-  let cfg = JSON.parse(r.anim || '{}');
+  // Wiersz repeatera jest OD 1.66.0 jedyną drogą. Wcześniej obok stał komplet
+  // płaskich kontrolek `evkAnim*`; ta sama animacja dała się ustawić na dwa
+  // sposoby, a przeniesienie konfiguracji na inny element znaczyło przepisanie
+  // każdego pola z osobna.
+  const one = (row) => JSON.parse(emit({ evkAnimList: [row] }).anim || '{}');
+
+  let cfg = one({ animation: 'wejscie', trigger: 'load', delay: '0.35', order: '2' });
   t.check('slug, wyzwalacz, opóźnienie, kolejność',
-    cfg.animation === 'wejscie' && cfg.trigger === 'load' && cfg.delay === 0.35 && cfg.order === 2, r.anim);
+    cfg.animation === 'wejscie' && cfg.trigger === 'load' && cfg.delay === 0.35
+      && cfg.order === 2, JSON.stringify(cfg));
 
-  r = emit({ evkAnimAnimation: 'wejscie', evkAnimOrder: '0' });
-  cfg = JSON.parse(r.anim || '{}');
-  t.check('kolejność 0 jest znacząca', cfg.order === 0, r.anim);
+  t.check('kolejność 0 jest znacząca', one({ animation: 'wejscie', order: '0' }).order === 0,
+    JSON.stringify(one({ animation: 'wejscie', order: '0' }).order));
 
-  r = emit({ evkAnimAnimation: 'wejscie', evkAnimOrder: '' });
-  cfg = JSON.parse(r.anim || '{}');
-  t.check('pusta kolejność nie nadpisuje biblioteki', !('order' in cfg), r.anim);
+  t.check('pusta kolejność nie nadpisuje biblioteki',
+    !('order' in one({ animation: 'wejscie', order: '' })), 'brak klucza');
 
-  r = emit({});
-  t.check('bez animacji brak atrybutu', r.anim === null, String(r.anim));
+  t.check('bez animacji brak atrybutu', emit({}).anim === null, String(emit({}).anim));
 
-  // ── Nadpisania dołożone w 1.40.0 ───────────────────────────────────────
-  t.section('nadpisania z panelu elementu');
+  // Płaskie klucze nie mają już prawa działać — inaczej zostałaby druga,
+  // niewidoczna w panelu droga i wróciłby problem, który ta zmiana usuwa.
+  t.check('stare pola płaskie NIE działają',
+    emit({ evkAnimAnimation: 'wejscie', evkAnimDelay: '0.35' }).anim === null,
+    String(emit({ evkAnimAnimation: 'wejscie' }).anim));
 
-  r = emit({ evkAnimAnimation: 'wejscie', evkAnimEasing: 'expo.out', evkAnimEnd: 'bottom 10%',
-             evkAnimScrub: '0.5', evkAnimTargets: 'children', evkAnimSelector: '.karta' });
-  cfg = JSON.parse(r.anim || '{}');
+  // ── Pola przeniesione do wiersza w 1.66.0 ──────────────────────────────
+  t.section('nadpisania w wierszu listy');
+
+  cfg = one({ animation: 'wejscie', easing: 'expo.out', end: 'bottom 10%',
+              scrub: '0.5', targets: 'children', selector: '.karta' });
   t.check('easing, koniec, scrub, cel i selektor docierają',
     cfg.easing === 'expo.out' && cfg.end === 'bottom 10%' && cfg.scrub === 0.5
-      && cfg.targets === 'children' && cfg.selector === '.karta', r.anim);
+      && cfg.targets === 'children' && cfg.selector === '.karta', JSON.stringify(cfg));
 
-  r = emit({ evkAnimAnimation: 'wejscie', evkAnimWords: 'szybciej\n\nprościej\ntaniej' });
-  cfg = JSON.parse(r.anim || '{}');
+  cfg = one({ animation: 'wejscie', stagger: '0.08' });
+  t.check('stagger dociera', cfg.stagger === 0.08, JSON.stringify(cfg.stagger));
+
+  cfg = one({ animation: 'wejscie', words: 'szybciej\n\nprościej\ntaniej' });
   t.check('lista słów per element',
     JSON.stringify(cfg.words) === JSON.stringify(['szybciej', 'prościej', 'taniej']),
     JSON.stringify(cfg.words));
 
-  // ── Trójstan: to jest sedno tej wersji ─────────────────────────────────
-  // Kontrolka wysyła '' / '1' / '0'. Dla !empty() ciąg '0' jest PUSTY, więc
-  // jawne „Nie" wypadałoby tak samo jak „z biblioteki" — i nie dałoby się
-  // wyłączyć w elemencie czegoś, co w bibliotece jest włączone.
+  // ── Trójstan: to jest sedno tej kontrolki ──────────────────────────────
+  // Wysyła '' / '1' / '0'. Dla !empty() ciąg '0' jest PUSTY, więc jawne „Nie"
+  // wypadałoby tak samo jak „z biblioteki" — i nie dałoby się wyłączyć
+  // w elemencie czegoś, co w bibliotece jest włączone.
   t.section('trójstan wartości logicznych');
 
-  const bools = { evkAnimRepeat: 'repeat', evkAnimLoop: 'loop',
-                  evkAnimLoopYoyo: 'loopYoyo', evkAnimPin: 'pin' };
-
-  Object.keys(bools).forEach((id) => {
-    const prop = bools[id];
-
-    const on = JSON.parse(emit({ evkAnimAnimation: 'wejscie', [id]: '1' }).anim || '{}');
+  ['repeat', 'loop', 'loopYoyo', 'pin'].forEach((prop) => {
+    const on = one({ animation: 'wejscie', [prop]: '1' });
     t.check('„' + prop + '" włączone dociera', on[prop] === 1, JSON.stringify(on[prop]));
 
-    const off = JSON.parse(emit({ evkAnimAnimation: 'wejscie', [id]: '0' }).anim || '{}');
+    const off = one({ animation: 'wejscie', [prop]: '0' });
     t.check('„' + prop + '" WYŁĄCZONE dociera jako 0', off[prop] === 0,
       prop in off ? JSON.stringify(off[prop]) : 'WYPADŁO — pułapka !empty()');
 
-    const inherit = JSON.parse(emit({ evkAnimAnimation: 'wejscie', [id]: '' }).anim || '{}');
+    const inherit = one({ animation: 'wejscie', [prop]: '' });
     t.check('„' + prop + '" puste nie nadpisuje biblioteki', !(prop in inherit),
       JSON.stringify(inherit[prop]));
   });
 
   // ── Cel zewnętrzny ────────────────────────────────────────────────────
-  // Wybór z buildera musi DOJECHAĆ na stronę. Sam silnik umie już animować
-  // element poza wyzwalaczem (tests/animator.test.js), ale to kontrakt PHP
-  // decyduje, czy „external" w ogóle wyjdzie z panelu.
+  // Sam silnik umie już animować element poza wyzwalaczem
+  // (tests/animator.test.js), ale to kontrakt PHP decyduje, czy „external"
+  // w ogóle wyjdzie z panelu.
   t.section('cel poza elementem');
 
-  const ext = JSON.parse(emit({
-    evkAnimAnimation: 'wejscie', evkAnimTargets: 'external', evkAnimSelector: '#naglowek',
-  }).anim || '{}');
+  const ext = one({ animation: 'wejscie', targets: 'external', selector: '#naglowek' });
   t.check('„external" dociera jako cel', ext.targets === 'external', JSON.stringify(ext.targets));
   t.check('selektor jedzie razem z nim', ext.selector === '#naglowek', JSON.stringify(ext.selector));
 
-  // ── Repeater: wiele animacji na elemencie ─────────────────────────────
-  // Kontrolki płaskie zostają obok repeatera i to nie jest zbędny balast:
-  // niosą je wszystkie istniejące strony. Utrata tej ścieżki znaczyłaby, że
-  // aktualizacja wtyczki gasi animacje wszędzie tam, gdzie ktoś ich użył.
+  // ── Wiele animacji na elemencie ───────────────────────────────────────
   t.section('wiele animacji z buildera');
-
-  const jedna = emit({ evkAnimAnimation: 'wejscie', evkAnimDuration: '1.5' }).anim;
-  t.check('stare pola dają OBIEKT, nie tablicę', jedna && jedna.charAt(0) === '{',
-    String(jedna).slice(0, 40));
 
   const wiele = emit({
     evkAnimList: [
@@ -128,21 +124,17 @@ module.exports = async function (t) {
     && trzy[0].animation === 'a' && trzy[1].animation === 'b',
     JSON.stringify(trzy));
 
-  // Jeden wiersz w repeaterze daje OBIEKT, nie jednoelementową tablicę:
-  // strona z nowym PHP i zacacheowanym starym animator.js nadal zadziała.
+  // Jeden wiersz daje OBIEKT, nie jednoelementową tablicę: strona z nowym PHP
+  // i zacacheowanym starym animator.js nadal zadziała.
   const jedenWiersz = emit({ evkAnimList: [{ animation: 'wejscie' }] }).anim;
   t.check('jeden wiersz repeatera daje obiekt', jedenWiersz && jedenWiersz.charAt(0) === '{',
     String(jedenWiersz).slice(0, 40));
 
-  // Repeater wygrywa z polami płaskimi — inaczej nie dałoby się przejść
-  // na listę bez czyszczenia starych ustawień.
-  const oba2 = JSON.parse(emit({
-    evkAnimAnimation: 'stare',
-    evkAnimList: [{ animation: 'nowe' }, { animation: 'nowe2' }],
-  }).anim || 'null');
-  t.check('repeater wygrywa z polami płaskimi',
-    Array.isArray(oba2) && oba2.length === 2 && oba2[0].animation === 'nowe',
-    JSON.stringify(oba2));
+  // Pola dokładane wierszom przez builder (m.in. `id`) nie mają prawa wyjść
+  // na stronę — konfigurację składa whitelista, nie przepisanie całego wiersza.
+  const zId = one({ id: 'abc123', animation: 'wejscie', duration: '1.5' });
+  t.check('builderowe `id` wiersza nie wychodzi na stronę', !('id' in zId),
+    JSON.stringify(Object.keys(zId)));
 
   t.section('Tło przy scrollu');
   t.check('zaznaczone → data-evk-bg', emit({ evkBgShift: true }).bg === '', 'atrybut obecny');

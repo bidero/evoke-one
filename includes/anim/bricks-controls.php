@@ -208,245 +208,15 @@ function evk_bricks_animator_controls(array $controls): array {
         $options[$slug] = $label . ' (' . $slug . ')';
     }
 
-    $controls['evkAnimAnimation'] = [
-        'tab'         => evk_bricks_controls_tab(),
-        'group'       => evk_bricks_target_group(),
-        'label'       => esc_html__('Animacja', 'evoke-one'),
-        'type'        => 'select',
-        'options'     => $options,
-        'default'     => '',
-        'description' => count($options) > 1
-            ? esc_html__('Z biblioteki: Ustawienia → Evoke ONE → Frontend → Animator.', 'evoke-one')
-            : esc_html__('Biblioteka jest pusta — dodaj animację w Ustawienia → Evoke ONE → Frontend → Animator.', 'evoke-one'),
-    ];
-
     $trigger_options = ['' => '— z biblioteki —'];
     foreach (evk_anim_triggers() as $k => $label) {
         $trigger_options[$k] = $label;
     }
 
-    /*
-     * ── Wiele animacji na jednym elemencie ────────────────────────────────
-     *
-     * `default => []` jest tu WARUNKIEM BEZPIECZEŃSTWA, nie preferencją.
-     * Ta kontrolka wchodzi filtrem do KAŻDEGO zarejestrowanego elementu Bricks,
-     * więc domyślny wiersz — jak w evoke-marquee, gdzie repeater jest własną
-     * kontrolką treści jednego elementu — dołożyłby animację wszystkiemu
-     * na stronie.
-     *
-     * Pola wiersza mają klucze BEZ prefiksu `evk`: renderer czyta je przez
-     * evk_bricks_anim_cfg(), która tego samego kształtu używa dla obu dróg.
-     * `required` wewnątrz wiersza wskazuje pole SIOSTRZANE, nie kontrolkę
-     * na zewnątrz — stąd bramka na `['animation', '!=', '']`.
-     */
-    $row_fields = [
-        'animation' => [
-            'label'   => esc_html__('Animacja', 'evoke-one'),
-            'type'    => 'select',
-            'options' => $options,
-            'default' => '',
-        ],
-        'trigger' => [
-            'label'    => esc_html__('Wyzwalacz', 'evoke-one'),
-            'type'     => 'select',
-            'options'  => $trigger_options,
-            'default'  => '',
-            'required' => ['animation', '!=', ''],
-        ],
-        'duration' => [
-            'label'    => esc_html__('Czas (s)', 'evoke-one'),
-            'type'     => 'number', 'min' => 0.05, 'max' => 10, 'step' => 0.05,
-            'required' => ['animation', '!=', ''],
-        ],
-        'delay' => [
-            'label'    => esc_html__('Opóźnienie (s)', 'evoke-one'),
-            'type'     => 'number', 'min' => 0, 'max' => 10, 'step' => 0.05,
-            'required' => ['animation', '!=', ''],
-        ],
-        'order' => [
-            'label'       => esc_html__('Kolejność (tylko „Load")', 'evoke-one'),
-            'type'        => 'number', 'min' => 0, 'max' => 999, 'step' => 1,
-            'required'    => ['animation', '!=', ''],
-        ],
-        'start' => [
-            'label'       => esc_html__('Start (ScrollTrigger)', 'evoke-one'),
-            'type'        => 'text',
-            'placeholder' => 'top 85%',
-            'required'    => ['animation', '!=', ''],
-        ],
-        'end' => [
-            'label'       => esc_html__('Koniec (scrub / wyjście)', 'evoke-one'),
-            'type'        => 'text',
-            'placeholder' => 'bottom 40%',
-            'required'    => ['animation', '!=', ''],
-        ],
-        'targets' => [
-            'label'   => esc_html__('Cel animacji', 'evoke-one'),
-            'type'    => 'select',
-            'options' => [
-                ''         => esc_html__('— z biblioteki —', 'evoke-one'),
-                'self'     => esc_html__('Sam element', 'evoke-one'),
-                'children' => esc_html__('Dzieci elementu', 'evoke-one'),
-                'selector' => esc_html__('Selektor w środku', 'evoke-one'),
-                'external' => esc_html__('Element poza tym (cała strona)', 'evoke-one'),
-            ],
-            'default'  => '',
-            'required' => ['animation', '!=', ''],
-        ],
-        'selector' => [
-            'label'       => esc_html__('Selektor celu', 'evoke-one'),
-            'type'        => 'text',
-            'placeholder' => '.karta',
-            'required'    => ['targets', '=', ['selector', 'external']],
-        ],
-    ];
-
-    $controls['evkAnimList'] = [
-        'tab'           => evk_bricks_controls_tab(),
-        'group'         => evk_bricks_target_group(),
-        'label'         => esc_html__('Wiele animacji', 'evoke-one'),
-        'type'          => 'repeater',
-        'titleProperty' => 'animation',
-        'default'       => [],
-        'fields'        => $row_fields,
-        'description'   => esc_html__(
-            'Lista zastępuje pole „Animacja" powyżej. Wyjście z kadru to zwykła '
-            . 'pozycja listy — wybierz preset z grupy „Wyjścia" i wyzwalacz '
-            . '„Wyjście z kadru".',
-            'evoke-one'
-        ),
-    ];
-
-    // Nadpisania — puste pole zostawia wartość z biblioteki.
-    $required = ['evkAnimAnimation', '!=', ''];
-
-    $controls['evkAnimTrigger'] = [
-        'tab'      => evk_bricks_controls_tab(),
-        'group'    => evk_bricks_target_group(),
-        'label'    => esc_html__('Wyzwalacz', 'evoke-one'),
-        'type'     => 'select',
-        'options'  => $trigger_options,
-        'default'  => '',
-        'required' => $required,
-    ];
-
-    $overrides = [
-        'evkAnimDuration' => [esc_html__('Czas (s)', 'evoke-one'),        0.05, 10, 0.05],
-        'evkAnimDelay'    => [esc_html__('Opóźnienie (s)', 'evoke-one'),  0,    10, 0.05],
-        'evkAnimStagger'  => [esc_html__('Stagger (s)', 'evoke-one'),     0,    2,  0.005],
-    ];
-    foreach ($overrides as $id => [$label, $min, $max, $step]) {
-        $controls[$id] = [
-            'tab'         => evk_bricks_controls_tab(),
-            'group'       => evk_bricks_target_group(),
-            'label'       => $label,
-            'type'        => 'number',
-            'min'         => $min,
-            'max'         => $max,
-            'step'        => $step,
-            'placeholder' => esc_html__('z biblioteki', 'evoke-one'),
-            'required'    => $required,
-        ];
-    }
-
-    // Kolejność nie da się warunkować na evkAnimTrigger: wyzwalacz bywa pusty
-    // („— z biblioteki —"), a wtedy 'load' przychodzi z wiersza biblioteki,
-    // o którym panel elementu nic nie wie. Stąd informacja w etykiecie.
-    $controls['evkAnimOrder'] = [
-        'tab'         => evk_bricks_controls_tab(),
-        'group'       => evk_bricks_target_group(),
-        'label'       => esc_html__('Kolejność (tylko wczytanie strony)', 'evoke-one'),
-        'type'        => 'number',
-        'min'         => 0,
-        'max'         => 999,
-        'step'        => 1,
-        'placeholder' => esc_html__('z biblioteki', 'evoke-one'),
-        'description' => esc_html__('Krok sekwencji startowej. Elementy z tym samym numerem ruszają razem, kolejny numer czeka, aż poprzedni krok się skończy. Opóźnienie liczy się od początku swojego kroku.', 'evoke-one'),
-        'required'    => $required,
-    ];
-
-    $controls['evkAnimStart'] = [
-        'tab'         => evk_bricks_controls_tab(),
-        'group'       => evk_bricks_target_group(),
-        'label'       => esc_html__('Start (ScrollTrigger)', 'evoke-one'),
-        'type'        => 'text',
-        'placeholder' => esc_html__('z biblioteki', 'evoke-one'),
-        'required'    => $required,
-    ];
-
-    $controls['evkAnimEnd'] = [
-        'tab'         => evk_bricks_controls_tab(),
-        'group'       => evk_bricks_target_group(),
-        'label'       => esc_html__('Koniec (tylko scrub)', 'evoke-one'),
-        'type'        => 'text',
-        'placeholder' => esc_html__('z biblioteki', 'evoke-one'),
-        'required'    => $required,
-    ];
-
-    $controls['evkAnimScrub'] = [
-        'tab'         => evk_bricks_controls_tab(),
-        'group'       => evk_bricks_target_group(),
-        'label'       => esc_html__('Scrub (tylko scrub)', 'evoke-one'),
-        'type'        => 'number',
-        'min'         => 0,
-        'max'         => 5,
-        'step'        => 0.1,
-        'placeholder' => esc_html__('z biblioteki', 'evoke-one'),
-        'required'    => $required,
-    ];
-
     $easing_options = ['' => esc_html__('— z biblioteki —', 'evoke-one')];
     foreach (evk_anim_easings() as $e) {
         $easing_options[$e] = $e;
     }
-
-    $controls['evkAnimEasing'] = [
-        'tab'      => evk_bricks_controls_tab(),
-        'group'    => evk_bricks_target_group(),
-        'label'    => esc_html__('Easing', 'evoke-one'),
-        'type'     => 'select',
-        'options'  => $easing_options,
-        'default'  => '',
-        'required' => $required,
-    ];
-
-    $controls['evkAnimTargets'] = [
-        'tab'      => evk_bricks_controls_tab(),
-        'group'    => evk_bricks_target_group(),
-        'label'    => esc_html__('Cel animacji', 'evoke-one'),
-        'type'     => 'select',
-        'options'  => [
-            ''         => esc_html__('— z biblioteki —', 'evoke-one'),
-            'self'     => esc_html__('Sam element', 'evoke-one'),
-            'children' => esc_html__('Dzieci elementu', 'evoke-one'),
-            'selector' => esc_html__('Selektor w środku', 'evoke-one'),
-            'external' => esc_html__('Element poza tym (cała strona)', 'evoke-one'),
-        ],
-        'default'  => '',
-        'required' => $required,
-    ];
-
-    /*
-     * Selektor obsługuje oba cele — wewnętrzny i zewnętrzny — więc warunek
-     * widoczności musi wymienić oba. Tablica jako trzeci człon `required`
-     * znaczy w Bricksie „równa się KTÓREJKOLWIEK z tych wartości"; to jedyna
-     * forma alternatywy, jaką dokumentacja Bricksa opisuje (przykład wprost
-     * z niej: `['layout', '=', ['list', 'grid']]`). W tej wtyczce nie było
-     * dotąd takiego warunku, więc uwaga zostaje — żeby nie sprawdzać drugi raz.
-     */
-    $controls['evkAnimSelector'] = [
-        'tab'         => evk_bricks_controls_tab(),
-        'group'       => evk_bricks_target_group(),
-        'label'       => esc_html__('Selektor celu', 'evoke-one'),
-        'type'        => 'text',
-        'placeholder' => '.karta',
-        'description' => esc_html__(
-            'Przy celu „poza tym elementem" selektor przeszukuje całą stronę: '
-            . 'przewinięcie do TEGO elementu animuje wskazany. Wyzwalacz zostaje tutaj.',
-            'evoke-one'
-        ),
-        'required'    => ['evkAnimTargets', '=', ['selector', 'external']],
-    ];
 
     /*
      * Wartości logiczne jako SELECT, nie checkbox.
@@ -462,33 +232,160 @@ function evk_bricks_animator_controls(array $controls): array {
         '0' => esc_html__('Nie', 'evoke-one'),
     ];
 
-    $bools = [
-        'evkAnimRepeat'   => esc_html__('Powtarzaj przy każdym wejściu', 'evoke-one'),
-        'evkAnimLoop'     => esc_html__('Zapętl', 'evoke-one'),
-        'evkAnimLoopYoyo' => esc_html__('Pętla z odbiciem', 'evoke-one'),
-        'evkAnimPin'      => esc_html__('Pin (tylko scrub)', 'evoke-one'),
-    ];
-    foreach ($bools as $id => $label) {
-        $controls[$id] = [
-            'tab'      => evk_bricks_controls_tab(),
-            'group'    => evk_bricks_target_group(),
-            'label'    => $label,
-            'type'     => 'select',
-            'options'  => $bool_options,
-            'default'  => '',
-            'required' => $required,
-        ];
-    }
+    /*
+     * ── JEDNA lista, żadnych pól obok ─────────────────────────────────────
+     *
+     * Do 1.66.0 obok repeatera stał komplet płaskich kontrolek `evkAnim*` —
+     * ta sama animacja dała się ustawić na dwa sposoby, a przy przenoszeniu
+     * konfiguracji na inny element trzeba było przepisać KAŻDE pole z osobna.
+     * Repeater umie wszystko, co umiały pola płaskie, więc pola zniknęły,
+     * a ich role przejęły kolumny wiersza.
+     *
+     * `default => []` jest tu WARUNKIEM BEZPIECZEŃSTWA, nie preferencją.
+     * Ta kontrolka wchodzi filtrem do KAŻDEGO zarejestrowanego elementu Bricks,
+     * więc domyślny wiersz — jak w evoke-marquee, gdzie repeater jest własną
+     * kontrolką treści jednego elementu — dołożyłby animację wszystkiemu
+     * na stronie.
+     *
+     * Pola wiersza są BEZ prefiksu \`evk\`: repeater niesie własną przestrzeń
+     * nazw, a evk_bricks_anim_cfg() czyta dokładnie te klucze.
+     */
+    $gate = ['animation', '!=', ''];
 
-    // Lista słów ma sens per element — każdy może cyklować po innych.
-    $controls['evkAnimWords'] = [
-        'tab'         => evk_bricks_controls_tab(),
-        'group'       => evk_bricks_target_group(),
-        'label'       => esc_html__('Słowa (preset „zmieniające się słowa")', 'evoke-one'),
-        'type'        => 'textarea',
-        'placeholder' => esc_html__('szybciej', 'evoke-one'),
-        'description' => esc_html__('Po jednym słowie na linię. Puste = lista z biblioteki.', 'evoke-one'),
-        'required'    => $required,
+    $row_fields = [
+        'animation' => [
+            'label'   => esc_html__('Animacja', 'evoke-one'),
+            'type'    => 'select',
+            'options' => $options,
+            'default' => '',
+        ],
+        'trigger' => [
+            'label'    => esc_html__('Wyzwalacz', 'evoke-one'),
+            'type'     => 'select',
+            'options'  => $trigger_options,
+            'default'  => '',
+            'required' => $gate,
+        ],
+        'duration' => [
+            'label'    => esc_html__('Czas (s)', 'evoke-one'),
+            'type'     => 'number', 'min' => 0.05, 'max' => 10, 'step' => 0.05,
+            'required' => $gate,
+        ],
+        'delay' => [
+            'label'    => esc_html__('Opóźnienie (s)', 'evoke-one'),
+            'type'     => 'number', 'min' => 0, 'max' => 10, 'step' => 0.05,
+            'required' => $gate,
+        ],
+        'stagger' => [
+            'label'    => esc_html__('Stagger (s)', 'evoke-one'),
+            'type'     => 'number', 'min' => 0, 'max' => 2, 'step' => 0.005,
+            'required' => $gate,
+        ],
+        'order' => [
+            'label'       => esc_html__('Kolejność (tylko „Load")', 'evoke-one'),
+            'type'        => 'number', 'min' => 0, 'max' => 999, 'step' => 1,
+            'required'    => $gate,
+        ],
+        'start' => [
+            'label'       => esc_html__('Start (ScrollTrigger)', 'evoke-one'),
+            'type'        => 'text',
+            'placeholder' => 'top 85%',
+            'required'    => $gate,
+        ],
+        'end' => [
+            'label'       => esc_html__('Koniec (scrub / wyjście)', 'evoke-one'),
+            'type'        => 'text',
+            'placeholder' => 'bottom top',
+            'required'    => $gate,
+        ],
+        'scrub' => [
+            'label'       => esc_html__('Scrub (tylko scrub)', 'evoke-one'),
+            'type'        => 'number', 'min' => 0, 'max' => 5, 'step' => 0.1,
+            'placeholder' => esc_html__('z biblioteki', 'evoke-one'),
+            'required'    => $gate,
+        ],
+        'easing' => [
+            'label'    => esc_html__('Easing', 'evoke-one'),
+            'type'     => 'select',
+            'options'  => $easing_options,
+            'default'  => '',
+            'required' => $gate,
+        ],
+        'targets' => [
+            'label'   => esc_html__('Cel animacji', 'evoke-one'),
+            'type'    => 'select',
+            'options' => [
+                ''         => esc_html__('— z biblioteki —', 'evoke-one'),
+                'self'     => esc_html__('Sam element', 'evoke-one'),
+                'children' => esc_html__('Dzieci elementu', 'evoke-one'),
+                'selector' => esc_html__('Selektor w środku', 'evoke-one'),
+                'external' => esc_html__('Element poza tym (cała strona)', 'evoke-one'),
+            ],
+            'default'  => '',
+            'required' => $gate,
+        ],
+        /*
+         * Selektor obsługuje oba cele — wewnętrzny i zewnętrzny — więc warunek
+         * widoczności musi wymienić oba. Tablica jako trzeci człon \`required\`
+         * znaczy w Bricksie „równa się KTÓREJKOLWIEK z tych wartości"; to jedyna
+         * forma alternatywy, jaką dokumentacja Bricksa opisuje (przykład wprost
+         * z niej: \`['layout', '=', ['list', 'grid']]\`).
+         */
+        'selector' => [
+            'label'       => esc_html__('Selektor celu', 'evoke-one'),
+            'type'        => 'text',
+            'placeholder' => '.karta',
+            'description' => esc_html__(
+                'Przy celu „poza tym elementem" selektor przeszukuje całą stronę: '
+                . 'przewinięcie do TEGO elementu animuje wskazany.',
+                'evoke-one'
+            ),
+            'required'    => ['targets', '=', ['selector', 'external']],
+        ],
+        'repeat' => [
+            'label'    => esc_html__('Powtarzaj przy każdym wejściu', 'evoke-one'),
+            'type'     => 'select', 'options' => $bool_options, 'default' => '',
+            'required' => $gate,
+        ],
+        'loop' => [
+            'label'    => esc_html__('Zapętl', 'evoke-one'),
+            'type'     => 'select', 'options' => $bool_options, 'default' => '',
+            'required' => $gate,
+        ],
+        'loopYoyo' => [
+            'label'    => esc_html__('Pętla z odbiciem', 'evoke-one'),
+            'type'     => 'select', 'options' => $bool_options, 'default' => '',
+            'required' => $gate,
+        ],
+        'pin' => [
+            'label'    => esc_html__('Pin (tylko scrub)', 'evoke-one'),
+            'type'     => 'select', 'options' => $bool_options, 'default' => '',
+            'required' => $gate,
+        ],
+        // Lista słów ma sens per element — każdy może cyklować po innych.
+        'words' => [
+            'label'       => esc_html__('Słowa (preset „zmieniające się słowa")', 'evoke-one'),
+            'type'        => 'textarea',
+            'placeholder' => esc_html__('szybciej', 'evoke-one'),
+            'description' => esc_html__('Po jednym słowie na linię. Puste = lista z biblioteki.', 'evoke-one'),
+            'required'    => $gate,
+        ],
+    ];
+
+    $controls['evkAnimList'] = [
+        'tab'           => evk_bricks_controls_tab(),
+        'group'         => evk_bricks_target_group(),
+        'label'         => esc_html__('Animacje', 'evoke-one'),
+        'type'          => 'repeater',
+        'titleProperty' => 'animation',
+        'default'       => [],
+        'fields'        => $row_fields,
+        'description'   => esc_html__(
+            'Każdy wiersz to jedna animacja; pusty wiersz nic nie robi. Wyjście '
+            . 'z kadru to zwykła pozycja listy — wybierz preset z grupy „Wyjścia" '
+            . 'i wyzwalacz „Wyjście z kadru".',
+            'evoke-one'
+        ),
     ];
 
     return $controls;
@@ -640,43 +537,21 @@ function evk_bricks_anim_cfg(array $row): array {
 }
 
 /**
- * Wszystkie konfiguracje animacji elementu — z repeatera albo z pól płaskich.
+ * Wszystkie konfiguracje animacji elementu.
  *
- * Płaskie klucze `evkAnim*` NIE są tu balastem: niosą je wszystkie strony
- * zbudowane przed repeaterem. Ich utrata znaczyłaby, że aktualizacja wtyczki
- * gasi animacje wszędzie tam, gdzie ktoś ich użył. Repeater wygrywa, gdy jest
- * niepusty — inaczej nie dałoby się przejść na listę bez czyszczenia starych
- * ustawień, które w panelu Bricks nie są nawet widoczne.
+ * Jedno źródło: repeater. Do 1.66.0 istniała druga droga — komplet płaskich
+ * kontrolek `evkAnim*` — i to ona wymuszała przepisywanie każdego pola
+ * z osobna przy przenoszeniu ustawień na inny element. Wtyczka była wtedy
+ * dopiero w testach, więc zniknęła razem z danymi, które niosła.
  */
 function evk_bricks_anim_cfgs(array $s): array {
-    $rows = [];
-
-    if (!empty($s['evkAnimList']) && is_array($s['evkAnimList'])) {
-        // Whitelista kluczy, nie `foreach ($row as $k => $v)`: builder dokłada
-        // wierszom repeatera własne pola (m.in. `id`), a te nie mają prawa
-        // wyjść na stronę jako część konfiguracji animacji.
-        $rows = (array) $s['evkAnimList'];
-    } elseif (!empty($s['evkAnimAnimation'])) {
-        $map = [
-            'evkAnimAnimation' => 'animation', 'evkAnimTrigger'  => 'trigger',
-            'evkAnimDuration'  => 'duration',  'evkAnimDelay'    => 'delay',
-            'evkAnimStagger'   => 'stagger',   'evkAnimOrder'    => 'order',
-            'evkAnimScrub'     => 'scrub',     'evkAnimStart'    => 'start',
-            'evkAnimEnd'       => 'end',       'evkAnimEasing'   => 'easing',
-            'evkAnimTargets'   => 'targets',   'evkAnimSelector' => 'selector',
-            'evkAnimRepeat'    => 'repeat',    'evkAnimLoop'     => 'loop',
-            'evkAnimLoopYoyo'  => 'loopYoyo',  'evkAnimPin'      => 'pin',
-            'evkAnimWords'     => 'words',
-        ];
-        $legacy = [];
-        foreach ($map as $id => $prop) {
-            if (isset($s[$id])) $legacy[$prop] = $s[$id];
-        }
-        $rows = [$legacy];
-    }
+    if (empty($s['evkAnimList']) || !is_array($s['evkAnimList'])) return [];
 
     $out = [];
-    foreach ($rows as $row) {
+    // Konfigurację składa evk_bricks_anim_cfg() z WHITELISTY kluczy, nie
+    // `foreach ($row as ...)`: builder dokłada wierszom repeatera własne pola
+    // (m.in. `id`), a te nie mają prawa wyjść na stronę.
+    foreach ((array) $s['evkAnimList'] as $row) {
         if (!is_array($row)) continue;
         $cfg = evk_bricks_anim_cfg($row);
         if ($cfg) $out[] = $cfg;
