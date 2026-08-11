@@ -10,32 +10,39 @@ wzorzec:
 
 ---
 
-## ZAŁOŻENIA DO POTWIERDZENIA
+## Rozstrzygnięcia
 
-Pytania zadałem dwukrotnie i nie dostałem odpowiedzi, więc przyjąłem warianty,
-które sam poleciłem. **Każde z tych czterech da się odwrócić jednym zdaniem**,
-ale im później, tym drożej — najtańszy moment jest przed pierwszą linią kodu.
+Wszystkie cztery potwierdzone przez użytkownika. **Dwa wyszły inaczej, niż
+zakładałem** — pierwsza wersja tego dokumentu miała menu WordPressa i warstwy
+widoczne pod spodem, i obie te rzeczy zostały odwrócone.
 
-| # | Założenie | Co znaczy odwrócenie |
-|---|---|---|
-| 1 | **Jeden element z przełącznikiem trybu**: „swobodny panel" albo „poziomy" | Dwa osobne elementy = wspólna mechanika w dwóch kopiach |
-| 2 | **Poziomy z menu WordPressa** (`wp_nav_menu`) | Panele składane w builderze = pełna swoboda, ręczna robota przy każdej podstronie |
-| 3 | **Rodzic zostaje widoczny za spodem, przesunięty** | Rodzic wyjeżdża całkiem albo akordeon w miejscu |
-| 4 | **Trigger wbudowany ORAZ selektor** | Tylko jedno z dwóch |
+| # | Decyzja |
+|---|---|
+| 1 | **Jeden element z przełącznikiem trybu**: „swobodny panel" albo „poziomy" |
+| 2 | **Panele składane w builderze**, nie generowane z menu WordPressa |
+| 3 | **Rodzic wyjeżdża całkiem**, podmenu zajmuje jego miejsce; powrót przyciskiem „wstecz" |
+| 4 | **Trigger wbudowany ORAZ selektor** |
 
-Uzasadnienie założenia 1, bo jest najważniejsze: **oba dema dzielą całą trudną
-część.** Wysuwanie, warstwa przyciemniająca, blokada przewijania strony,
+Decyzja 1 jest tu najważniejsza, bo trzyma resztę razem: **oba dema dzielą całą
+trudną część.** Wysuwanie, warstwa przyciemniająca, blokada przewijania strony,
 pułapka fokusu, zamykanie Esc, powrót fokusu na trigger, obsługa redukcji ruchu
 — to jest ~80% pracy i w obu trybach identyczne. Różni je wyłącznie to, co
-siedzi w panelu. Dwa elementy znaczyłyby dwie kopie tej mechaniki i poprawkę
-blokady przewijania trzeba by robić dwa razy.
+siedzi w panelu, i czy paneli jest jeden, czy kilka.
+
+Decyzja 2 upraszcza element bardziej, niż widać na pierwszy rzut oka: znika
+generowanie znaczników z `wp_nav_menu`, znika mapowanie hierarchii na panele
+i znika kontrolka wyboru menu. Zostaje **jeden mechanizm dla obu trybów** —
+panele są dziećmi nestable, a różnica między trybami sprowadza się do tego,
+ile ich jest i czy istnieją odnośniki przechodzące między nimi.
+
+Decyzja 3 zdejmuje z układu całą arytmetykę głębokości (`--evk-oc-depth`,
+przesunięcia per poziom, przygaszanie). Zostaje jedna klasa stanu na panelu.
 
 ---
 
 ## Miejsce w istniejącym układzie
 
-Wtyczka ma siedem elementów i ustalony wzorzec — nowy wchodzi tą samą drogą,
-nic tu nie trzeba wymyślać:
+Wtyczka ma siedem elementów i ustalony wzorzec — nowy wchodzi tą samą drogą:
 
 * katalog `includes/bricks-elements/evoke-offcanvas-menu/` z `element.php`
   i `assets/offcanvas-menu.{css,js}` (dokładnie jak `evoke-circular-menu`);
@@ -44,9 +51,8 @@ nic tu nie trzeba wymyślać:
   (`:198-203`), a osobny włącznik pojawia się w zakładce Elementy
   automatycznie (`includes/admin/tab-elementy.php`);
 * **etykieta w rejestrze i `get_label()` w klasie muszą być identyczne** —
-  loader mówi o tym wprost i to jedyna rzecz, którą trzeba wpisać dwa razy;
-* `public $nestable = true` i `get_nestable_children()` na miejsca składane
-  w builderze;
+  loader mówi o tym wprost i to jedyna rzecz wpisywana dwa razy;
+* `public $nestable = true` i `get_nestable_children()`;
 * `$this->scripts = ['evk_offcanvas_menu_init']` — nazwa funkcji, którą Bricks
   woła po wyrenderowaniu elementu w canvasie.
 
@@ -65,49 +71,51 @@ trzy chwyty przenoszą się tu bez zmian.
 ├── .evk-oc-trigger         miejsce na burger — dziecko nestable
 └── .evk-oc-root            przenoszone do <body>
     ├── .evk-oc-scrim       przyciemnienie, zamyka kliknięciem
-    └── .evk-oc-stack       stos paneli
-        ├── .evk-oc-panel[data-level="0"]
-        ├── .evk-oc-panel[data-level="1"]
+    └── .evk-oc-panels
+        ├── .evk-oc-panel[data-panel="0"]   ← startowy
+        ├── .evk-oc-panel[data-panel="uslugi"]
         └── …
 ```
 
-**Tryb „swobodny panel"** — jeden `.evk-oc-panel` na poziomie 0, w środku
-dziecko nestable. Wszystko, co widać w drugim demie (kolumny, ikony
-społecznościowe, adres e-mail), składasz w builderze.
+**Tryb „swobodny panel"** — jeden panel, w środku dziecko nestable. Wszystko,
+co widać w drugim demie (kolumny, ikony społecznościowe, adres e-mail),
+składasz w builderze. Zero logiki przechodzenia.
 
-**Tryb „poziomy"** — panele generowane z menu WP. Pozycja z dziećmi dostaje
-`<button aria-expanded aria-controls>` zamiast gołego odnośnika; pozycja bez
-dzieci zostaje odnośnikiem. Nad listą i pod nią zostają dwa **puste miejsca
-nestable** — to stamtąd wezmą się „Socials" i „Get in touch" z drugiego dema,
-więc oba wzorce dają się złożyć bez trzeciego trybu.
+**Tryb „poziomy"** — paneli jest kilka, każdy to osobne dziecko nestable
+z własnym identyfikatorem. Przejście robi dowolny element z atrybutem
+`data-evk-oc-go="uslugi"`; powrót — `data-evk-oc-back`. Dzięki temu „pozycja
+menu" może być czymkolwiek: odnośnikiem, kafelkiem z obrazkiem, całą siatką.
+Element **nie narzuca znaczników pozycji** — to jest cena i zarazem sens
+decyzji „składane w builderze".
 
-### Warstwy
+Panel startowy to pierwszy w kolejności albo wskazany kontrolką.
 
-Głębokość jako zmienna CSS na stosie: `--evk-oc-depth`. Panel na poziomie `n`
-przy głębokości `d` przesuwa się o `(d − n) × var(--evk-oc-offset, 48px)`
-i przygasa. Wszystko jedną regułą, bez klas na panel.
+### Przechodzenie
 
-Wynikają z tego dwie rzeczy, które trzeba zrobić świadomie:
+Rodzic wysuwa się w bok, dziecko wjeżdża na jego miejsce. Jedna klasa stanu
+(`.is-current` / `.is-out`), zero arytmetyki głębokości. Stos odwiedzonych
+paneli trzymany w JS — potrzebny na „wstecz" i na Esc.
 
-* **Powrót kliknięciem w widoczną krawędź rodzica.** To główny zysk z warstw
-  i jednocześnie pułapka: panel pod spodem jest widoczny, więc bez `inert`
-  jego odnośniki zostają w kolejności tabulacji i klikalne. Panele poniżej
-  bieżącej głębokości dostają `inert` **i** obsługę kliknięcia „wróć tutaj".
-* **Wąski ekran.** Przy trzech poziomach i przesunięciu 48 px na telefonie
-  zostaje niewiele miejsca. Poniżej ~600 px przesunięcie schodzi do ~16 px
-  albo do zera — do rozstrzygnięcia pomiarem, nie na oko.
+Dwie rzeczy, które trzeba zrobić świadomie, bo wyglądają dobrze i są zepsute:
+
+* **Panel wysunięty poza ekran nadal łapie fokus.** `transform:
+  translateX(-100%)` nie usuwa niczego z kolejności tabulacji — odnośniki
+  z panelu, którego nie widać, są wciąż osiągalne tabulatorem. Panele inne niż
+  bieżący muszą dostać `inert`. Tego nie widać na oko ani na zrzucie ekranu;
+  widać dopiero tabulatorem albo testem.
+* **Fokus przy powrocie.** Wraca **na pozycję, z której się weszło**, nie na
+  początek listy. Bez tego „wstecz" gubi miejsce w menu przy każdym użyciu.
 
 ### Zamykanie i klawiatura
 
-* **Esc** — cofa o JEDEN poziom, a na poziomie zerowym zamyka. Zamykanie
-  z trzeciego poziomu od razu gubi kontekst.
+* **Esc** — cofa o JEDEN panel, a na startowym zamyka. Zamykanie z trzeciego
+  poziomu od razu gubi kontekst.
 * **Fokus** zamknięty w bieżącym panelu; przy wejściu w podmenu przechodzi na
-  pierwszy element nowego panelu, przy powrocie **wraca na pozycję, z której
-  się weszło** — nie na początek listy.
+  pierwszy element nowego panelu.
 * Po zamknięciu fokus wraca na trigger.
 * `aria-expanded` na triggerze, `aria-modal` i `role="dialog"` na korzeniu.
 
-Repo ma na to test (`tests/aria.test.js`) i wie, że domyślne ustawienia
+Repo ma test dostępności (`tests/aria.test.js`) i wie, że domyślne ustawienia
 potrafią odebrać nazwy nagłówkom — nowy element musi tam dojść.
 
 ### Blokada przewijania
@@ -132,14 +140,14 @@ nie do odróżnienia od elementu, który się nie uruchomił.
 | Klucz | Typ | Co robi |
 |---|---|---|
 | `mode` | select | swobodny panel / poziomy |
-| `menu` | select | menu WP (tylko w trybie „poziomy") |
+| `startPanel` | text | identyfikator panelu startowego (puste = pierwszy) |
 | `side` | select | lewo / prawo / góra / dół |
 | `width` | number+unit | szerokość panelu |
-| `offset` | number | przesunięcie warstw |
 | `duration` | number | czas wysuwania |
 | `easing` | select | z `evk_anim_easings()` — ta sama lista, co w Animatorze |
 | `triggerSelector` | text | dodatkowy trigger poza elementem |
 | `closeOnLinkClick` | checkbox | zamknij po kliknięciu w odnośnik |
+| `escGoesBack` | checkbox | Esc cofa zamiast zamykać (domyślnie tak) |
 | `toBody` | checkbox | przenieś do `<body>` (jak w Circular Menu) |
 | `openInBuilder` | checkbox | trzymaj otwarte podczas edycji |
 
@@ -147,27 +155,29 @@ Easingi biorę z `evk_anim_easings()`, a nie z własnej listy: jedna lista dla
 całej wtyczki znaczy, że dorzucenie krzywej działa wszędzie naraz. Tak właśnie
 zadziałało dopisanie `power2.in` przy animacjach wyjścia w 1.51.0.
 
+Kontrolki `menu` (wybór menu WP) i `offset` (przesunięcie warstw) **nie
+powstają** — pierwsza odpadła z decyzją 2, druga z decyzją 3.
+
 ---
 
 ## Co sprawdzić testem
 
 Harness renderuje elementy Bricks przez atrapy (`tests/php/`), a zachowanie
-mierzy w przeglądarce. Dla tego elementu:
+mierzy w przeglądarce.
 
-1. **Głębokość steruje przesunięciem** — po wejściu o dwa poziomy panel zerowy
-   stoi dwa razy dalej niż pierwszy. Bez tego „warstwy" są słowem, nie stanem.
-2. **Panele pod spodem są `inert`** — odnośnik z panelu 0 przy otwartym
-   panelu 1 nie łapie fokusu tabulatorem. To sprawdzenie, którego nie da się
-   zrobić na oko, bo wizualnie wszystko wygląda dobrze.
-3. **Esc cofa o jeden, na zerowym zamyka.**
-4. **Fokus wraca na pozycję, z której się weszło**, nie na początek listy.
+1. **Panele niebieżące są `inert`** — odnośnik z panelu startowego przy
+   otwartym podmenu nie łapie fokusu tabulatorem. Sprawdzenie, którego nie da
+   się zrobić na oko: wizualnie wszystko wygląda poprawnie.
+2. **Esc cofa o jeden, na startowym zamyka.**
+3. **Fokus wraca na pozycję, z której się weszło**, nie na początek listy.
+4. **Po zamknięciu fokus wraca na trigger.**
 5. **Blokada przewijania nie przesuwa układu** — szerokość `<body>` przed
    otwarciem i po otwarciu ta sama.
 6. **Redukcja ruchu: panel widoczny, bez ruchu** + kontrola negatywna.
 7. **Wąski ekran** — 390 i 360 px: nic nie wystaje poza okno i nic nie jest
    ucięte przez kontener (`__overflow` i `__clipped` z `admin-tabs`).
-8. **Tryb „swobodny panel" nie generuje niczego z menu WP** — a tryb
-   „poziomy" nie gubi bloków nestable nad listą i pod nią.
+8. **Tryb „swobodny panel" nie buduje stosu** — brak przycisku „wstecz",
+   Esc zamyka od razu.
 
 Każdy z tych bloków ma być **zobaczony na czerwono** po celowym zepsuciu
 chronionej reguły.
@@ -177,6 +187,7 @@ chronionej reguły.
 ## Czego szkic świadomie nie obejmuje
 
 Przewijania wewnątrz panelu przy bardzo długich listach (na razie zwykłe
-`overflow-y: auto`), zagnieżdżenia głębszego niż trzy poziomy oraz animacji
-pojedynczych pozycji listy przy wjeździe panelu. To trzy osobne decyzje,
-z których żadna nie blokuje pierwszej wersji.
+`overflow-y: auto`), animacji pojedynczych pozycji przy wjeździe panelu oraz
+generowania paneli z menu WordPressa. To ostatnie zostało świadomie odrzucone
+przy decyzji 2, ale gdyby kiedyś wróciło, wchodzi jako TRZECI tryb obok dwóch
+istniejących, a nie jako przebudowa — panele i tak są tylko kontenerami.
