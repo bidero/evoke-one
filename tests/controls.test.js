@@ -136,6 +136,44 @@ module.exports = async function (t) {
   t.check('builderowe `id` wiersza nie wychodzi na stronę', !('id' in zId),
     JSON.stringify(Object.keys(zId)));
 
+
+  // ── Droga kopiowania ustawień z elementu na element ────────────────────
+  // Bricks kopiuje prawym przyciskiem WYŁĄCZNIE natywną kontrolkę Atrybuty
+  // (schowek niesie `source: bricksCopiedElementAttributes`), a nie kontrolki
+  // dokładane przez wtyczki. Skoro oba silniki Evoke i tak czytają zwykłe
+  // `data-*`, ta droga działa sama — trzeba jej tylko NIE PSUĆ. Kto właśnie
+  // wkleił atrybuty, oczekuje, że zadziałają, więc wpis ręczny WYGRYWA:
+  // bez tej bramki wynik zależałby od kolejności, w jakiej Bricks nakłada
+  // `_attributes` i filtr render_attributes — a tej kolejności nie kontrolujemy.
+  t.section('wklejone atrybuty wygrywają z kontrolkami');
+
+  const wklejone = [{ id: 'pduwrv', name: 'data-evk-anim', value: 'wjazd' }];
+
+  t.check('sama wklejona wartość zostaje nietknięta',
+    emit({ _attributes: wklejone }).anim === null, String(emit({ _attributes: wklejone }).anim));
+
+  t.check('kontrolka NIE nadpisuje wklejonego atrybutu',
+    emit({ _attributes: wklejone, evkAnimList: [{ animation: 'cos-innego' }] }).anim === null,
+    String(emit({ _attributes: wklejone, evkAnimList: [{ animation: 'cos-innego' }] }).anim));
+
+  // Bez wklejonego wpisu kontrolka działa jak dotąd — inaczej sprawdzenie
+  // wyżej przechodziłoby także wtedy, gdyby atrybut nie powstawał nigdy.
+  t.check('bez wklejonego wpisu kontrolka nadal działa',
+    JSON.parse(emit({ evkAnimList: [{ animation: 'cos-innego' }] }).anim || '{}')
+      .animation === 'cos-innego', 'kontrolka działa');
+
+  // Inny atrybut w schowku nie ma prawa blokować naszego.
+  t.check('obcy atrybut nie blokuje kontrolki',
+    JSON.parse(emit({
+      _attributes: [{ id: 'x', name: 'data-evk-oc-go', value: '1' }],
+      evkAnimList: [{ animation: 'wejscie' }],
+    }).anim || '{}').animation === 'wejscie', 'kontrolka działa');
+
+  // Ta sama zasada dla tła przy scrollu.
+  t.check('wklejone data-evk-bg wygrywa z kontrolką',
+    emit({ _attributes: [{ id: 'y', name: 'data-evk-bg', value: '40' }],
+           evkBgShift: true, evkBgShiftStart: '90' }).bg === null, 'kontrolka milczy');
+
   t.section('Tło przy scrollu');
   t.check('zaznaczone → data-evk-bg', emit({ evkBgShift: true }).bg === '', 'atrybut obecny');
   t.check('niezaznaczone → brak atrybutu', emit({ evkBgShift: false }).bg === null, 'brak');

@@ -2,6 +2,30 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.67.0] — 2026-08-11
+
+### Dodane
+
+- **Przenoszenie ustawień Evoke z elementu na element — przez „Kopiuj
+  atrybuty" Bricksa.** Ta droga w praktyce już istniała, bo oba silniki Evoke
+  czytają zwykłe atrybuty `data-*`, ale nic o niej nie mówiło i nie była
+  pewna. Bricks kopiuje prawym przyciskiem WYŁĄCZNIE natywną kontrolkę
+  Atrybuty (schowek niesie `source: bricksCopiedElementAttributes`), a nie
+  kontrolki dokładane przez wtyczki — więc wystarczy wpisać tam:
+
+  - `data-evk-anim` = nazwa animacji (`wjazd`), obiekt JSON z dopasowaniami
+    (`{"animation":"wjazd","delay":0.2}`) albo tablica takich obiektów przy
+    kilku animacjach naraz;
+  - `data-parallax` (siła) i `data-skala`;
+  - `data-evk-bg` (tło przy scrollu).
+
+  **Wpis ręczny wygrywa z kontrolkami.** Bez tej zasady wynik zależałby od
+  kolejności, w jakiej Bricks nakłada `_attributes` i filtr
+  `render_attributes` — a tej kolejności wtyczka nie kontroluje. Kto właśnie
+  wkleił atrybuty, ma prawo oczekiwać, że zadziałają.
+
+  Opisy kontrolek mówią teraz o tej drodze wprost, razem z formatami.
+
 ## [1.66.0] — 2026-08-11
 
 ### Zmienione

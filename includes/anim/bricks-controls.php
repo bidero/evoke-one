@@ -383,7 +383,14 @@ function evk_bricks_animator_controls(array $controls): array {
         'description'   => esc_html__(
             'Każdy wiersz to jedna animacja; pusty wiersz nic nie robi. Wyjście '
             . 'z kadru to zwykła pozycja listy — wybierz preset z grupy „Wyjścia" '
-            . 'i wyzwalacz „Wyjście z kadru".',
+            . 'i wyzwalacz „Wyjście z kadru". '
+            . 'PRZENIESIENIE NA INNY ELEMENT: prawy przycisk → „Kopiuj atrybuty" '
+            . 'bierze tylko listę Atrybuty poniżej, nie tę kontrolkę. Wpisz tam '
+            . 'atrybut data-evk-anim o wartości równej nazwie animacji (np. wjazd) '
+            . 'albo JSON z dopasowaniami: {"animation":"wjazd","delay":0.2}. '
+            . 'Kilka animacji naraz to tablica takich obiektów. Wpis ręczny '
+            . 'WYGRYWA z tą listą, więc wklejenie atrybutów zawsze działa. '
+            . 'Druga droga bez atrybutów: klasa evk-anim-nazwa na elemencie.',
             'evoke-one'
         ),
     ];
@@ -456,7 +463,11 @@ function evk_bricks_parallax_controls(array $controls): array {
         'max'         => 1,
         'step'        => 0.05,
         'placeholder' => (string) evk_get_parallax_value(),
-        'description' => esc_html__('Puste = wartość globalna z panelu Parallax.', 'evoke-one'),
+        'description' => esc_html__(
+            'Puste = wartość globalna z panelu Parallax. Na inny element przenosisz '
+            . 'to przez „Kopiuj atrybuty": data-parallax (siła) i data-skala.',
+            'evoke-one'
+        ),
         'required'    => ['evkParallax', '=', true],
     ];
 
@@ -559,13 +570,36 @@ function evk_bricks_anim_cfgs(array $s): array {
     return $out;
 }
 
+/**
+ * Czy element ma TEN atrybut wpisany ręcznie w kontrolce Atrybuty Bricksa.
+ *
+ * To jest droga, którą kopiuje się ustawienia z elementu na element: prawy
+ * przycisk → „Kopiuj atrybuty" bierze WYŁĄCZNIE natywną kontrolkę
+ * `_attributes` (schowek niesie `source: bricksCopiedElementAttributes`),
+ * a nie kontrolki dokładane przez wtyczki. Skoro oba silniki Evoke i tak
+ * czytają zwykłe atrybuty `data-*`, ta droga działa bez niczego po naszej
+ * stronie — trzeba jej tylko NIE PSUĆ.
+ *
+ * Dlatego wpis ręczny WYGRYWA z kontrolkami: kto właśnie wkleił atrybuty,
+ * oczekuje, że zadziałają. Bez tej bramki wynik zależałby od kolejności,
+ * w jakiej Bricks nakłada `_attributes` i filtr `render_attributes` — a tej
+ * kolejności nie kontrolujemy.
+ */
+function evk_bricks_attr_declared(array $s, string $name): bool {
+    if (empty($s['_attributes']) || !is_array($s['_attributes'])) return false;
+    foreach ($s['_attributes'] as $row) {
+        if (is_array($row) && ($row['name'] ?? '') === $name) return true;
+    }
+    return false;
+}
+
 add_filter('bricks/element/render_attributes', function ($attributes, $key, $element) {
     if ($key !== '_root' || !is_array($attributes)) return $attributes;
 
     $s = (array) ($element->settings ?? []);
 
     // ── Animator ──────────────────────────────────────────────────────────
-    if (evk_anim_controls_active()) {
+    if (evk_anim_controls_active() && !evk_bricks_attr_declared($s, 'data-evk-anim')) {
         $cfgs = evk_bricks_anim_cfgs($s);
         if ($cfgs) {
             /*
@@ -585,7 +619,8 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
     // ── Tło przy scrollu ──────────────────────────────────────────────────
     // Sam znacznik — kolor silnik odczytuje z getComputedStyle sekcji, więc nie
     // ma tu czego przekazywać i nie powstaje drugie źródło prawdy.
-    if (evk_bgshift_controls_active() && !empty($s['evkBgShift'])) {
+    if (evk_bgshift_controls_active() && !empty($s['evkBgShift'])
+        && !evk_bricks_attr_declared($s, 'data-evk-bg')) {
         // Pusty atrybut to nadal „użyj wartości globalnej" — silnik czyta go
         // tak samo jak brak liczby, więc strony sprzed 1.53.0 się nie zmieniają.
         $bg_start = '';
@@ -598,7 +633,8 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
     // ── Parallax ──────────────────────────────────────────────────────────
     // Pusty atrybut jest znaczący: assets/js/parallax.js czyta go jako
     // „użyj wartości globalnej", więc nie wypełniamy go domyślnymi tutaj.
-    if (evk_parallax_controls_active() && !empty($s['evkParallax'])) {
+    if (evk_parallax_controls_active() && !empty($s['evkParallax'])
+        && !evk_bricks_attr_declared($s, 'data-parallax')) {
         $value = (isset($s['evkParallaxValue']) && $s['evkParallaxValue'] !== '')
             ? (string) floatval($s['evkParallaxValue']) : '';
         $scale = (isset($s['evkParallaxScale']) && $s['evkParallaxScale'] !== '')
