@@ -41,10 +41,7 @@ if ($selected_page_id) {
 
                 <div class="evo-box">
                     <h3>Strona konserwacji</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Wybrana strona zostanie wyświetlona pod oryginalnym adresem URL (bez przekierowania). Wejście przez inny podadres przekieruje automatycznie na <code>/</code>.</div>
-                    </div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Wybrana strona zostanie wyświetlona pod oryginalnym adresem URL (bez przekierowania). Wejście przez inny podadres przekieruje automatycznie na <code>/</code>.</div></details>
                     <div class="evo-field">
                         <label>Wybierz stronę</label>
                         <select name="maintenance_page_id">
@@ -83,10 +80,7 @@ if ($selected_page_id) {
 
                 <div class="evo-box">
                     <h3>Wyjątki — ścieżki URL</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Jeśli używasz niestandardowej strony logowania, dodaj jej slug do listy.</div>
-                    </div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Jeśli używasz niestandardowej strony logowania, dodaj jej slug do listy.</div></details>
                     <div class="evo-field">
                         <label>Ścieżki pominięte przez konserwację</label>
                         <textarea name="maintenance_excluded_paths"><?php echo esc_textarea($excluded_paths); ?></textarea>

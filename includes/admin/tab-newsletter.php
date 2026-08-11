@@ -51,17 +51,14 @@ $smtp_ok   = function_exists('evk_nl_smtp_is_configured') ? evk_nl_smtp_is_confi
     </div>
     <?php endif; ?>
 
-    <div class="evo-info-box" style="margin-top:16px;">
-        <span class="dashicons dashicons-info"></span>
-        <div>
+    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
             Pełny panel Newslettera — <strong>Listy, Szablony, Kampanie, Raporty, Ustawienia</strong> —
             znajdziesz w osobnej pozycji menu w pasku bocznym.
             <a href="<?php echo esc_url($nl_url); ?>" class="button button-secondary" style="margin-left:12px;">
                 <span class="dashicons dashicons-external"></span>
                 Otwórz panel Newslettera
             </a>
-        </div>
-    </div>
+        </div></details>
 
     <?php endif; // module active ?>
 

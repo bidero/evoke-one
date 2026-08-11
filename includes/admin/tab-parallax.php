@@ -33,10 +33,7 @@ $par_enabled  = !empty($parallax_opt['enabled']);
 
                 <div class="evo-box">
                     <h3>Ustawienia efektu Parallax</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Użyj <code>{evk_parallax}</code> i <code>{evk_parallax_scale}</code> w atrybutach elementów Bricks Builder lub jako <code>data-parallax</code> / <code>data-skala</code> na dowolnym elemencie HTML.</div>
-                    </div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Użyj <code>{evk_parallax}</code> i <code>{evk_parallax_scale}</code> w atrybutach elementów Bricks Builder lub jako <code>data-parallax</code> / <code>data-skala</code> na dowolnym elemencie HTML.</div></details>
 
                     <div class="evo-field">
                         <label>Intensywność parallax</label>

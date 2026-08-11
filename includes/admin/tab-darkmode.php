@@ -37,10 +37,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Przejścia przy nawigacji między stronami</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Animacja podczas przechodzenia między podstronami. Wymaga Chrome/Edge 111+ z View Transition API.</div>
-                    </div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Animacja podczas przechodzenia między podstronami. Wymaga Chrome/Edge 111+ z View Transition API.</div></details>
 
                     <div class="evo-field">
                         <label class="checkbox-label">
@@ -150,10 +147,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Przejścia CSS przy zmianie motywu (globalne)</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Przejścia dla głównych kontenerów strony (<code>body</code>, <code>section</code>, etc.).</div>
-                    </div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Przejścia dla głównych kontenerów strony (<code>body</code>, <code>section</code>, etc.).</div></details>
                     <div class="evo-field">
                         <label>Selektory (jeden na linię)</label>
                         <textarea name="evk_darkmode[global_selectors]" rows="4"><?php echo esc_textarea($dm['global_selectors']); ?></textarea>
@@ -235,10 +229,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Efekt Ripple (przełączanie motywu)</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Fala rozchodząca się od przycisku przy zmianie motywu. Wymaga Chrome/Edge 111+.</div>
-                    </div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Fala rozchodząca się od przycisku przy zmianie motywu. Wymaga Chrome/Edge 111+.</div></details>
                     <div class="evo-field">
                         <label class="checkbox-label">
                             <input type="checkbox" name="evk_darkmode[ripple_enabled]" value="1" <?php checked(!empty($dm['ripple_enabled'])); ?>>
@@ -268,10 +259,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Przejścia elementów lista → wpis (View Transition)</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Tytuł i obrazek "przefruwają" z listy wpisów do strony wpisu. Wymaga Chrome/Edge 111+. Potrzebne włączone przejście przy nawigacji powyżej.</div>
-                    </div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Tytuł i obrazek "przefruwają" z listy wpisów do strony wpisu. Wymaga Chrome/Edge 111+. Potrzebne włączone przejście przy nawigacji powyżej.</div></details>
 
                     <div class="evo-field">
                         <label class="checkbox-label">

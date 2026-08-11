@@ -71,6 +71,11 @@ module.exports = async function (t) {
       dup.items.slice(0, 3).map((x) => x.file + ': ' + x.tag).join(' | ')
     : 'czysto');
 
+  /* Liczniki przez wszystkie zakładki. Sprawdzenia per zakładka są warunkowe
+     („żadna ramka nie jest rozwinięta" przechodzi też przy zerze ramek), więc
+     na koniec pytamy jeszcze, czy w ogóle było co mierzyć. */
+  let seenNotes = 0, seenStates = 0, seenTips = 0;
+
   for (const slug of TABS) {
     t.section('zakładka „' + slug + '"');
 
@@ -151,6 +156,33 @@ module.exports = async function (t) {
           '/' + b.title.transform).join(' | ') || 'zgodne');
     }
 
+    // ── Opisy w akordeonach, ostrzeżenia na wierzchu ────────────────────
+    const notes  = await p.evaluate(() => window.__notes());
+    const states = await p.evaluate(() => window.__stateBoxes());
+    seenNotes  += notes.length;
+    seenStates += states.length;
+
+    const openNotes = notes.filter((n) => n.visible);
+    t.check('opisy zwinięte przy wejściu', !openNotes.length,
+      openNotes.length ? openNotes.length + ' rozwiniętych, np. „' + openNotes[0].label + '"'
+                       : notes.length + ' szt. zwiniętych');
+
+    // Druga połowa sprawdzenia — bez niej „nic nie jest widoczne" przechodzi
+    // także dla zakładki, w której schowano WSZYSTKO, łącznie z ostrzeżeniami.
+    const hiddenStates = states.filter((s) => !s.visible);
+    t.check('ramki ze stanem zostają widoczne', !hiddenStates.length,
+      hiddenStates.map((s) => s.cls).join(' | ') || states.length + ' szt. widocznych');
+
+    const tips = await p.evaluate(() => window.__tips());
+    seenTips += tips.length;
+    const badTips = tips.filter((x) => !x.tip || x.aria !== x.tip || !x.tabbable || !x.hidden);
+    t.check('dymki mają nazwę, fokus i są schowane', !badTips.length,
+      badTips.map((x) => (x.tip ? x.tip.slice(0, 24) : '(bez treści)')
+        + (x.aria !== x.tip ? ' — aria≠tip' : '')
+        + (!x.tabbable ? ' — poza tabulatorem' : '')
+        + (!x.hidden ? ' — widoczny w spoczynku' : '')).join(' | ')
+      || tips.length + ' szt. zgodnych');
+
     // ── Kolory z palety, nie z atrybutu ─────────────────────────────────
     // Inline'owy `color:#6b7280` wygląda dziś tak samo jak token, ale przestaje
     // za nim nadążać. To jedyna rzecz, którą przejście na tokeny miało załatwić
@@ -208,4 +240,17 @@ module.exports = async function (t) {
       }
     }
   }
+
+  // Kontrola sensowności całego bloku wyżej.
+  t.section('było co mierzyć');
+  t.check('akordeony w ogóle istnieją', seenNotes > 0, seenNotes + ' szt. w ' + TABS.length + ' zakładkach');
+  /* LICZBA, nie „więcej niż zero". Sprawdzenie wyżej łapie ramkę ze stanem,
+     którą ktoś UKRYŁ — ale nie taką, którą zamienił w akordeon: wtedy ramka
+     znika z pomiaru i „wszystkie widoczne" jest prawdą przy zerze ramek.
+     Potwierdzone celowym zepsuciem: podmiana `is-ok` na `evo-note`
+     w zakładce dostępności nie zapaliła niczego. Próg rośnie tylko wtedy,
+     gdy dołoży się zakładkę — nigdy sam nie spada. */
+  t.check('ramki ze stanem nie zostały schowane do akordeonów', seenStates >= 3,
+    seenStates + ' szt. (oczekiwane co najmniej 3)');
+  t.check('dymki w ogóle istnieją', seenTips > 0, seenTips + ' szt.');
 };

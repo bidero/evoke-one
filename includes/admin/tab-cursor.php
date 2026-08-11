@@ -34,10 +34,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Domyślny wygląd kursora</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Ustawienia stosowane gdy kursor nie najedzie na żaden zdefiniowany selektor.</div>
-                    </div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Ustawienia stosowane gdy kursor nie najedzie na żaden zdefiniowany selektor.</div></details>
 
                     <div style="background:#f8fafc;border:1px solid #d7dde7;border-radius:8px;padding:20px;margin-bottom:24px;">
                         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">
@@ -125,10 +122,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Konfiguracja selektorów (Repeater)</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Zdefiniuj zachowanie kursora dla konkretnych elementów na stronie.</div>
-                    </div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Zdefiniuj zachowanie kursora dla konkretnych elementów na stronie.</div></details>
 
                     <div id="evo-cursor-repeater-container">
                         <?php foreach ($elements as $index => $el): ?>

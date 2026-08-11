@@ -9,10 +9,7 @@ if (!defined('ABSPATH')) exit;
 
                     <div class="evo-box">
                         <h3>Kokpit Bricks Builder</h3>
-                        <div class="evo-info-box">
-                            <span class="dashicons dashicons-info"></span>
-                            <div>Zastąp domyślny kokpit WordPress stroną Bricks Builder wyświetlaną w iframe.</div>
-                        </div>
+                        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Zastąp domyślny kokpit WordPress stroną Bricks Builder wyświetlaną w iframe.</div></details>
                         <div class="evo-status-card" style="margin-bottom:20px;">
                             <div class="evo-status-icon <?php echo get_option('evoke_dashboard_active') === '1' ? 'on' : 'off'; ?>">
                                 <span class="dashicons dashicons-dashboard" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>

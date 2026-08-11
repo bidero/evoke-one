@@ -10,10 +10,7 @@ if (!defined('ABSPATH')) exit;
 
                     <div class="evo-box">
                         <h3>Miniatury w listach wpisów</h3>
-                        <div class="evo-info-box">
-                            <span class="dashicons dashicons-info"></span>
-                            <div>Dodaje kolumnę z miniaturą (wyróżnionym obrazem) do tabel wpisów w panelu administracyjnym.</div>
-                        </div>
+                        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Dodaje kolumnę z miniaturą (wyróżnionym obrazem) do tabel wpisów w panelu administracyjnym.</div></details>
                         <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
                             <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;cursor:pointer;">
                                 <input type="checkbox" name="evk_interface[post_thumbnails_enabled]" value="1" <?php checked(1, $evk_iface['post_thumbnails_enabled']); ?>>

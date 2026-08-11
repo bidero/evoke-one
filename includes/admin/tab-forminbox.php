@@ -109,13 +109,10 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
     <!-- ── MAPOWANIE PÓŁ ────────────────────────────────────────────── -->
     <div class="evo-box">
         <h3>Mapowanie pól</h3>
-        <div class="evo-info-box">
-            <span class="dashicons dashicons-info"></span>
-            <div>
+        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
                 Przypisz czytelne nazwy do kluczy pól Bricks. Klucz to krótki identyfikator z Bricks (np. <code>fonlfr</code>, <code>436dec</code>).
                 Użyj <strong>Załaduj z bazy</strong> aby auto-wykryć klucze z istniejących zgłoszeń, lub dodaj ręcznie.
-            </div>
-        </div>
+            </div></details>
 
         <div class="evo-toolbar">
             <?php if ($has_tbl): ?>
@@ -188,14 +185,11 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
 
     <div class="evo-box">
         <h3>Układ pól — nagłówek i lewy panel</h3>
-        <div class="evo-info-box">
-            <span class="dashicons dashicons-info"></span>
-            <div>
+        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
                 Ustaw które pola i w jakiej kolejności pojawiają się w <strong>nagłówku wiadomości</strong> oraz na <strong>liście (lewy panel)</strong>.
                 Strzałkami zmieniasz kolejność. Puste = autodetekcja.
                 <br>Możesz łączyć kilka pól w jednej linii — wpisz szablon, np. <code>{{nazwisko}} {{imie}}</code>, albo użyj selektora <strong>▾</strong> aby wstawić pole.
-            </div>
-        </div>
+            </div></details>
         <?php
         $evk_type_labels = [
             'header'  => ['title' => 'Tytuł (duży)', 'subtitle' => 'Podtytuł / temat', 'meta' => 'Meta (mała linia)'],
@@ -256,13 +250,10 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
 
     <div class="evo-box">
         <h3>Nazwy formularzy</h3>
-        <div class="evo-info-box">
-            <span class="dashicons dashicons-info"></span>
-            <div>
+        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
                 Przypisz czytelne nazwy do identyfikatorów formularzy Bricks (np. <code>yrckyz</code> → <em>Formularz kontaktowy</em>).
                 Nazwa pojawia się w sidebarze, nagłówku wiadomości i filtrze formularzy.
-            </div>
-        </div>
+            </div></details>
         <div class="evo-toolbar">
             <button type="button" id="evk-add-form-row" class="button button-secondary">
                 <span class="dashicons dashicons-plus evo-ico"></span>
@@ -313,14 +304,11 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
 
     <div class="evo-box">
         <h3>Szablon wyświetlania wiadomości</h3>
-        <div class="evo-info-box">
-            <span class="dashicons dashicons-info"></span>
-            <div>
+        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
                 Zdefiniuj jak wyglądać będzie wiadomość w podglądzie. Użyj <code>{{klucz}}</code> aby wstawić wartość pola (krótki klucz Bricks, np. <code>{{fonlfr}}</code>).
                 Jeśli szablon jest pusty — pola wyświetlane są automatycznie jako karty.
                 <br>Dostępne zmienne: <span id="evk-available-vars" class="evo-mono evo-hint-sm evo-accent-tx"></span>
-            </div>
-        </div>
+            </div></details>
 
         <div class="evo-grid-2 evo-mb-lg">
             <div class="evo-field">

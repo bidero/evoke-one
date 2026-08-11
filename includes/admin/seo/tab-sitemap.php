@@ -8,10 +8,7 @@ if (!defined('ABSPATH')) exit;
                 ?>
 
 
-            <div class="evo-info-box">
-                <span class="dashicons dashicons-info"></span>
-                <div>Te ustawienia dodają tłumaczone adresy do <code>wp-sitemap.xml</code> jako osobną sekcję oraz generują <code>/sitemap.xml</code> z tagami <code>hreflang</code>.</div>
-            </div>
+            <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Te ustawienia dodają tłumaczone adresy do <code>wp-sitemap.xml</code> jako osobną sekcję oraz generują <code>/sitemap.xml</code> z tagami <code>hreflang</code>.</div></details>
 
             <div class="evo-sm-box">
                 <h3>Zawartość mapy strony</h3>
@@ -46,10 +43,7 @@ if (!defined('ABSPATH')) exit;
 
             <div class="evo-box">
                 <h3>Diagnostyka noindex</h3>
-                <div class="evo-info-box">
-                    <span class="dashicons dashicons-info"></span>
-                    <div>Sprawdza które strony mają wykryte meta noindex i przez jakie pole.</div>
-                </div>
+                <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Sprawdza które strony mają wykryte meta noindex i przez jakie pole.</div></details>
                 <?php
                 $diag_posts    = get_posts(['post_type' => ['page', 'post'], 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids']);
                 $noindex_found = [];

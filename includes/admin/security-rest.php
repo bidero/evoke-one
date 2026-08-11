@@ -22,10 +22,7 @@ if (!defined('ABSPATH')) exit;
         </div>
     </div>
 
-    <div class="evo-info-box">
-        <span class="dashicons dashicons-info"></span>
-        <div>Lub zaznacz konkretne endpointy. Zalogowani użytkownicy zawsze mają dostęp.</div>
-    </div>
+    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Lub zaznacz konkretne endpointy. Zalogowani użytkownicy zawsze mają dostęp.</div></details>
 
     <?php
     $disabled_endpoints = $evk_sec['disabled_rest_endpoints'] ?? [];

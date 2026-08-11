@@ -27,15 +27,12 @@ $example_id = $first_list['id'] ?? 1;
     <!-- ── WYGLĄD FORMULARZA (shortcode) ────────────────────────────── -->
     <div class="evo-box">
         <h3>Wygląd formularza zapisu</h3>
-        <div class="evo-info-box evo-mb-sm" style="margin-bottom:14px">
-            <span class="dashicons dashicons-info"></span>
-            <div>
+        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
                 Wstaw formularz shortcodem:
                 <code>[evk_newsletter_form list="<?php echo (int) $example_id; ?>" consent="Wyrażam zgodę..."]</code>.
                 Możesz podać własne klasy poniżej (dopisywane do elementów) i wyłączyć domyślne style, aby formularz przejął wygląd z Twojego motywu.
                 Atrybuty shortcode mają priorytet: <code>class</code>, <code>input_class</code>, <code>button_class</code>, <code>styles="0"</code>.
-            </div>
-        </div>
+            </div></details>
 
         <label class="checkbox-label evo-mb" style="font-size:14px">
             <input type="checkbox" name="form_default_styles" value="1" <?php checked($ap['default_styles']); ?>>
@@ -66,13 +63,10 @@ $example_id = $first_list['id'] ?? 1;
     <!-- ── LIST-UNSUBSCRIBE ─────────────────────────────────────────── -->
     <div class="evo-box">
         <h3>List-Unsubscribe (pasek „wypisz" w kliencie)</h3>
-        <div class="evo-info-box evo-mb-sm" style="margin-bottom:14px">
-            <span class="dashicons dashicons-info"></span>
-            <div>
+        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
                 Pasek wypisu działa już dzięki linkowi <code>https</code> (one-click Gmail/Apple). Opcjonalnie możesz dodać adres <code>mailto</code> dla starszych klientów —
                 <strong>wymaga skrzynki, którą monitorujesz</strong> i ręcznie/automatycznie obsługujesz prośby o wypis. Puste = tylko https (zalecane, jeśli nie masz takiej skrzynki).
-            </div>
-        </div>
+            </div></details>
         <div class="evo-field" style="margin-bottom:8px;">
             <label>Adres mailto do wypisu (opcjonalnie)</label>
             <input type="email" name="unsub_mailto" value="<?php echo esc_attr($o['unsub_mailto'] ?? ''); ?>" placeholder="np. newsletter@twojadomena.pl" class="evo-w-xl">
@@ -83,10 +77,7 @@ $example_id = $first_list['id'] ?? 1;
     <!-- ── TEKSTY ───────────────────────────────────────────────────── -->
     <div class="evo-box">
         <h3>Teksty komunikatów</h3>
-        <div class="evo-info-box evo-mb-sm" style="margin-bottom:14px">
-            <span class="dashicons dashicons-info"></span>
-            <div>W tekstach możesz użyć <code>{email}</code> — zostanie podmieniony na adres subskrybenta. W opisach (nie tytułach) dozwolone proste tagi: <code>&lt;strong&gt; &lt;em&gt; &lt;br&gt; &lt;a&gt;</code>.</div>
-        </div>
+        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">W tekstach możesz użyć <code>{email}</code> — zostanie podmieniony na adres subskrybenta. W opisach (nie tytułach) dozwolone proste tagi: <code>&lt;strong&gt; &lt;em&gt; &lt;br&gt; &lt;a&gt;</code>.</div></details>
 
         <p class="evk-nl-sub">Formularz zapisu (komunikaty pod formularzem)</p>
         <div class="evo-field"><label>Sukces (zapis natychmiastowy)</label>
@@ -134,10 +125,7 @@ $example_id = $first_list['id'] ?? 1;
 
     <div class="evo-box">
         <h3>E-mail potwierdzający zapis (double opt-in)</h3>
-        <div class="evo-info-box evo-mb-sm" style="margin-bottom:14px">
-            <span class="dashicons dashicons-info"></span>
-            <div>Placeholdery: <code>{site}</code> (nazwa witryny), <code>{list}</code> (np. „ do listy „Aktualności""). W treści dozwolone proste tagi.</div>
-        </div>
+        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Placeholdery: <code>{site}</code> (nazwa witryny), <code>{list}</code> (np. „ do listy „Aktualności""). W treści dozwolone proste tagi.</div></details>
         <div class="evo-field"><label>Temat wiadomości</label>
             <input type="text" name="confirm_subject" value="<?php echo esc_attr($val('confirm_subject')); ?>"></div>
         <div class="evo-field"><label>Nagłówek</label>

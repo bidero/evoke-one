@@ -26,21 +26,21 @@ $detected = EVK_Fonts::detect_local_fonts();
                     </div>
                 </div>
 
-                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>
+                <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
                     FOUT (miganie) bierze się z tego, że plik czcionki zaczyna się pobierać dopiero po
                     sparsowaniu CSS. <strong>Preload</strong> każe przeglądarce pobrać go od razu przy
                     wczytywaniu strony — czcionka jest zwykle gotowa przed pierwszym malowaniem i podmiana
                     nie jest widoczna. To rozwiązanie <strong>czysto addytywne</strong>: nie ukrywa tekstu,
                     nie zmienia layoutu ani animacji. Wskazuj tylko czcionki widoczne „nad zgięciem"
                     (nagłówki, tekst główne) — preload wszystkich plików spowalnia start.
-                </div></div>
+                </div></details>
 
                 <div class="evo-box">
                     <h3>Pliki czcionek do preload</h3>
                     <div class="evo-field">
-                        <label>URL-e plików .woff2 / .woff (jeden na linię)</label>
+                        <label>URL-e plików .woff2 / .woff (jeden na linię)<span class="evo-tip" tabindex="0" role="note" data-tip="Ścieżka względna (od „/&quot;) lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy crossorigin i właściwy typ MIME automatycznie." aria-label="Ścieżka względna (od „/&quot;) lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy crossorigin i właściwy typ MIME automatycznie.">?</span></label>
                         <textarea name="evk_fonts[preload]" rows="5" style="max-width:640px;font-family:monospace;font-size:12px;" placeholder="/wp-content/uploads/fonts/inter-regular.woff2&#10;/wp-content/uploads/fonts/inter-600.woff2"><?php echo esc_textarea($f['preload']); ?></textarea>
-                        <div class="evo-desc">Ścieżka względna (od „/") lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy <code>crossorigin</code> i właściwy typ MIME automatycznie.</div>
+                        
                     </div>
 
                     <?php if (!empty($detected)): ?>
@@ -78,7 +78,7 @@ $detected = EVK_Fonts::detect_local_fonts();
 
                 <div class="evo-box">
                     <h3>Preconnect (opcjonalnie)</h3>
-                    <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Tylko jeśli czcionki są serwowane z <strong>zewnętrznego</strong> hosta/CDN (nie z Twojej domeny). Dla w pełni lokalnych czcionek zostaw puste.</div></div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Tylko jeśli czcionki są serwowane z <strong>zewnętrznego</strong> hosta/CDN (nie z Twojej domeny). Dla w pełni lokalnych czcionek zostaw puste.</div></details>
                     <div class="evo-field">
                         <label>Hosty do preconnect (jeden na linię)</label>
                         <textarea name="evk_fonts[preconnect]" rows="2" style="max-width:480px;font-family:monospace;font-size:12px;" placeholder="https://fonts.gstatic.com"><?php echo esc_textarea($f['preconnect']); ?></textarea>

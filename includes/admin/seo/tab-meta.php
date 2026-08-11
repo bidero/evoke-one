@@ -47,13 +47,13 @@ $seo_query = $seo_types ? new WP_Query([
 
 $seo_max = $seo_query ? max(1, (int) $seo_query->max_num_pages) : 1;
 ?>
-                <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>
+                <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
                     Evoke ONE renderuje wszystkie meta tagi (tytuł, opis, słowa kluczowe, robots, og:*).
                     Priorytet źródeł per strona: <strong>Bricks → Ustawienia strony → SEO / Media społecznościowe</strong>,
                     a gdy pole tam jest puste — wartości z tej zakładki. Natywne meta tagi Bricksa są
                     automatycznie wyłączane, żeby nie dublować wpisów. Obrazek og:image: Media społecznościowe
                     Bricksa → generator OG → obrazek wyróżniający.
-                </div></div>
+                </div></details>
 
                 <?php if (count($seo_types) > 1): ?>
                 <div class="evk-seo-types">

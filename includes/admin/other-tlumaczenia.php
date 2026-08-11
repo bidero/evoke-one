@@ -48,13 +48,10 @@ $tl_url         = function_exists('tl_base_url') ? tl_base_url() : admin_url('op
     </div>
 </div>
 
-<div class="evo-info-box" style="margin-top:16px;">
-    <span class="dashicons dashicons-info"></span>
-    <div>
+<details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
         Pełne ustawienia tłumaczeń (języki, frazy, slugi URL, sitemap) dostępne są w osobnym panelu.
         <a href="<?php echo esc_url($tl_url); ?>" class="button button-secondary" style="margin-left:12px;">
             <span class="dashicons dashicons-external"></span>
             Otwórz panel tłumaczeń
         </a>
-    </div>
-</div>
+    </div></details>

@@ -52,13 +52,13 @@ if (!defined('ABSPATH')) exit;
                     <h3>Dane organizacji</h3>
                     <div class="evo-grid evo-mb" style="--evo-col:280px;--evo-gap:16px">
                         <div class="evo-field evo-mb-0">
-                            <label>Typ działalności (@type)</label>
+                            <label>Typ działalności (@type)<span class="evo-tip" tabindex="0" role="note" data-tip="Typ inny niż „Organizacja&quot; tworzy w grafie osobny węzeł miejsca (#place) z polami firmy lokalnej poniżej; #organization pozostaje czystym wydawcą strony." aria-label="Typ inny niż „Organizacja&quot; tworzy w grafie osobny węzeł miejsca (#place) z polami firmy lokalnej poniżej; #organization pozostaje czystym wydawcą strony.">?</span></label>
                             <select name="evk_schema[org_type]">
                                 <?php foreach (EVK_Schema::org_types() as $type_key => $type_label): ?>
                                 <option value="<?php echo esc_attr($type_key); ?>" <?php selected($sc['org_type'], $type_key); ?>><?php echo esc_html($type_label); ?> — <?php echo esc_html($type_key); ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <div class="evo-desc">Typ inny niż „Organizacja" tworzy w grafie osobny węzeł miejsca (#place) z polami firmy lokalnej poniżej; #organization pozostaje czystym wydawcą strony.</div>
+                            
                         </div>
                         <div class="evo-field evo-mb-0"><label>Nazwa obiektu / firmy (site_name)</label><input type="text" name="evk_schema[site_name]" value="<?php echo esc_attr($sc['site_name']); ?>" placeholder="np. Stanica Wodna PTTK Ukta"></div>
                         <div class="evo-field evo-mb-0"><label>Nazwa operatora (Organization)</label><input type="text" name="evk_schema[operator_name]" value="<?php echo esc_attr($sc['operator_name']); ?>" placeholder="np. PTTK Oddział Mazurski"><div class="evo-desc">Wydawca strony / właściciel obiektu. Puste = nazwa obiektu.</div></div>
@@ -76,7 +76,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Miejsce / firma lokalna (węzeł #place)</h3>
-                    <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Pola używane tylko, gdy typ działalności jest inny niż „Organizacja" (LocalBusiness i pochodne — np. obiekt noclegowy, restauracja). Trafiają do osobnego węzła #place powiązanego z #organization przez parentOrganization. Współrzędne znajdziesz np. w Mapach Google (PPM na pinezce).</div></div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Pola używane tylko, gdy typ działalności jest inny niż „Organizacja" (LocalBusiness i pochodne — np. obiekt noclegowy, restauracja). Trafiają do osobnego węzła #place powiązanego z #organization przez parentOrganization. Współrzędne znajdziesz np. w Mapach Google (PPM na pinezce).</div></details>
                     <div class="evo-grid evo-mb" style="--evo-col:280px;--evo-gap:16px">
                         <div class="evo-field evo-mb-0"><label>Szerokość geograficzna (latitude)</label><input type="text" name="evk_schema[geo_lat]" value="<?php echo esc_attr($sc['geo_lat']); ?>" placeholder="53.12345"></div>
                         <div class="evo-field evo-mb-0"><label>Długość geograficzna (longitude)</label><input type="text" name="evk_schema[geo_lng]" value="<?php echo esc_attr($sc['geo_lng']); ?>" placeholder="21.12345"></div>
@@ -84,21 +84,21 @@ if (!defined('ABSPATH')) exit;
                         <div class="evo-field evo-mb-0"><label>Link do mapy (hasMap)</label><input type="text" name="evk_schema[has_map]" value="<?php echo esc_attr($sc['has_map']); ?>" placeholder="https://maps.google.com/…"><div class="evo-desc">Np. link „Udostępnij" z Map Google.</div></div>
                     </div>
                     <div class="evo-field"><label>Udogodnienia (amenityFeature) — jedno na linię</label><textarea name="evk_schema[amenities]" rows="4" class="evo-w-480" placeholder="Spływy kajakowe&#10;Pole namiotowe&#10;Sauna"><?php echo esc_textarea($sc['amenities']); ?></textarea></div>
-                    <div class="evo-field"><label>Godziny otwarcia (openingHoursSpecification) — jedna reguła na linię</label><textarea name="evk_schema[opening_hours]" rows="3" class="evo-mono evo-w-480" placeholder="Pn-Pt 08:00-20:00&#10;Sob-Nd 09:00-18:00"><?php echo esc_textarea($sc['opening_hours']); ?></textarea><div class="evo-desc">Format: dni + godziny, np. „Pn-Pt 08:00-20:00", „Sob 09:00-14:00", „Codziennie 08:00-20:00". Dni: Pn, Wt, Śr, Cz, Pt, Sob, Nd (można łączyć przecinkiem i zakresem).</div></div>
+                    <div class="evo-field"><label>Godziny otwarcia (openingHoursSpecification) — jedna reguła na linię<span class="evo-tip" tabindex="0" role="note" data-tip="Format: dni + godziny, np. „Pn-Pt 08:00-20:00&quot;, „Sob 09:00-14:00&quot;, „Codziennie 08:00-20:00&quot;. Dni: Pn, Wt, Śr, Cz, Pt, Sob, Nd (można łączyć przecinkiem i zakresem)." aria-label="Format: dni + godziny, np. „Pn-Pt 08:00-20:00&quot;, „Sob 09:00-14:00&quot;, „Codziennie 08:00-20:00&quot;. Dni: Pn, Wt, Śr, Cz, Pt, Sob, Nd (można łączyć przecinkiem i zakresem).">?</span></label><textarea name="evk_schema[opening_hours]" rows="3" class="evo-mono evo-w-480" placeholder="Pn-Pt 08:00-20:00&#10;Sob-Nd 09:00-18:00"><?php echo esc_textarea($sc['opening_hours']); ?></textarea></div>
                     <div class="evo-field"><label>Obsługiwany obszar (areaServed) — jeden na linię</label><textarea name="evk_schema[area_served]" rows="3" class="evo-w-480" placeholder="Mazury&#10;Puszcza Piska&#10;Krutynia"><?php echo esc_textarea($sc['area_served']); ?></textarea></div>
 
                 </div>
 
                 <div class="evo-box">
                     <h3>Atrakcja turystyczna (TouristAttraction)</h3>
-                    <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Osobny obiekt w grafie — włącz go w „Aktywne bloki JSON-LD" poniżej. Używa adresu i współrzędnych z pól powyżej.</div></div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Osobny obiekt w grafie — włącz go w „Aktywne bloki JSON-LD" poniżej. Używa adresu i współrzędnych z pól powyżej.</div></details>
                     <div class="evo-field"><label>Nazwa atrakcji</label><input type="text" name="evk_schema[attraction_name]" value="<?php echo esc_attr($sc['attraction_name']); ?>" placeholder="np. Stanica Wodna PTTK Ukta nad rzeką Krutynią" class="evo-w-480"><div class="evo-desc">Puste pole = nazwa organizacji.</div></div>
 
                 </div>
 
                 <div class="evo-box">
                     <h3>Dodatkowe obiekty i usługi (encje podrzędne)</h3>
-                    <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Każda pozycja to osobny węzeł w grafie (np. pole namiotowe, wypożyczalnia kajaków, restauracja, plaża). Gdy ustawiony jest typ działalności inny niż „Organizacja", encje są powiązane z obiektem (#place) przez <code>containedInPlace</code>. To poziom danych spotykany w portalach turystycznych — dokładniej opisuje ofertę niż jeden typ.</div></div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Każda pozycja to osobny węzeł w grafie (np. pole namiotowe, wypożyczalnia kajaków, restauracja, plaża). Gdy ustawiony jest typ działalności inny niż „Organizacja", encje są powiązane z obiektem (#place) przez <code>containedInPlace</code>. To poziom danych spotykany w portalach turystycznych — dokładniej opisuje ofertę niż jeden typ.</div></details>
                     <div id="evk-sub-list">
                         <?php foreach ($subs as $row) { echo $render_sub_row((array) $row); } ?>
                     </div>
@@ -124,7 +124,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Opis organizacji per język</h3>
-                    <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Języki pobierane z modułu Tłumaczenia. Opis PL jest domyślnym fallbackiem.</div></div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Języki pobierane z modułu Tłumaczenia. Opis PL jest domyślnym fallbackiem.</div></details>
                     <div class="evo-field"><label>Polski (pl) — domyślny</label><textarea name="evk_schema_desc[pl]" rows="3" class="evo-w-full"><?php echo esc_textarea($descs['pl'] ?? ''); ?></textarea></div>
                     <?php foreach ($langs as $code => $lang_data): ?>
                     <div class="evo-field">
@@ -137,14 +137,14 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Linki społecznościowe (sameAs)</h3>
-                    <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Jeden URL na linię. Jeśli pole jest puste, moduł automatycznie przeszuka menu nawigacyjne.</div></div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Jeden URL na linię. Jeśli pole jest puste, moduł automatycznie przeszuka menu nawigacyjne.</div></details>
                     <div class="evo-field"><label>URLs (jeden na linię)</label><textarea name="evk_schema_socials" rows="4" class="evo-mono" style="max-width:480px"><?php echo esc_textarea(implode("\n", $socials)); ?></textarea></div>
 
                 </div>
 
                 <div class="evo-box">
                     <h3>Waluty per język (WooCommerce)</h3>
-                    <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>Dla produktów WooCommerce — przypisz walutę do wersji językowej.</div></div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Dla produktów WooCommerce — przypisz walutę do wersji językowej.</div></details>
                     <?php foreach ($langs as $code => $lang_data): ?>
                     <div class="evo-field evk-schema-curr-row">
                         <label class="evk-schema-curr-lang"><?php echo esc_html($lang_data['name']); ?> (<?php echo esc_html($code); ?>)</label>

@@ -4,10 +4,7 @@ if (!defined('ABSPATH')) exit;
  * Evoke ONE — Other subtab: avatar
  */
 ?>
-<div class="evo-info-box">
-                    <span class="dashicons dashicons-info"></span>
-                    <div>Własny avatar ustawiasz w <strong>profilu użytkownika</strong> — przejdź do <a href="<?php echo esc_url(admin_url('profile.php')); ?>">Użytkownicy → Twój profil</a> i przewiń do sekcji „Avatar (własny obraz)". Obraz zastąpi Gravatar w całej witrynie.</div>
-                </div>
+<details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Własny avatar ustawiasz w <strong>profilu użytkownika</strong> — przejdź do <a href="<?php echo esc_url(admin_url('profile.php')); ?>">Użytkownicy → Twój profil</a> i przewiń do sekcji „Avatar (własny obraz)". Obraz zastąpi Gravatar w całej witrynie.</div></details>
 
                 <?php
                 // Pokaż listę użytkowników z ich avatarami

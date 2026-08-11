@@ -173,10 +173,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Wykluczenia stron</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Strony, na których widget dostępności <strong>nie zostanie załadowany</strong>. Wpisz jedną ścieżkę URL na linię (np. <code>/kontakt</code>, <code>/koszyk</code>, <code>/en/</code>). Dopasowanie częściowe — <code>/konto</code> wyklucza <code>/konto</code>, <code>/konto/zamowienia</code> itd.</div>
-                    </div>
+                    <details class="evo-info-box is-ok"><summary>Jak to działa</summary><div class="evo-note-body">Strony, na których widget dostępności <strong>nie zostanie załadowany</strong>. Wpisz jedną ścieżkę URL na linię (np. <code>/kontakt</code>, <code>/koszyk</code>, <code>/en/</code>). Dopasowanie częściowe — <code>/konto</code> wyklucza <code>/konto</code>, <code>/konto/zamowienia</code> itd.</div></details>
                     <div class="evo-field evo-mb-lg">
                         <label>Wykluczone ścieżki URL</label>
                         <textarea name="evk_a11y[exclude_urls]" rows="5" class="evo-mono evo-code-area" style="max-width:480px" placeholder="/kontakt&#10;/koszyk&#10;/konto"><?php echo esc_textarea($a11y['exclude_urls'] ?? ''); ?></textarea>
@@ -188,10 +185,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Wykluczenia z filtrów CSS</h3>
-                    <div class="evo-info-box">
-                        <span class="dashicons dashicons-info"></span>
-                        <div>Selektory CSS wykluczone z działania filtrów kolorów i kontrastu. Jeden selektor na linię. Widget jest zawsze wykluczony automatycznie.</div>
-                    </div>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Selektory CSS wykluczone z działania filtrów kolorów i kontrastu. Jeden selektor na linię. Widget jest zawsze wykluczony automatycznie.</div></details>
 
                     <div class="evo-grid evo-mb" style="--evo-col:200px;--evo-gap:16px">
                         <div class="evo-field">
@@ -211,7 +205,7 @@ if (!defined('ABSPATH')) exit;
                         </div>
                     </div>
 
-                    <div class="evo-info-box is-ok">
+                    <div class="evo-note">
                         <span class="dashicons dashicons-info"></span>
                         <div>Podgląd generowanego CSS możesz sprawdzić w DevTools (zakładka Sources → evk-accessibility-css-inline). Zmiany w wykluczeniach wchodzą w życie po zapisaniu.</div>
                     </div>

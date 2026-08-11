@@ -2,6 +2,39 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.57.0] — 2026-08-11
+
+### Zmienione
+
+- **Trzydzieści osiem opisów schowanych w akordeony.** Neutralna ramka
+  informacyjna to treść dla kogoś, kto pyta — nie dla kogoś, kto przyszedł
+  zmienić jedno pole. Zwinięte `<details>` zamiast bloku na pół ekranu.
+
+  **Dziewięć ramek zostało widocznych** i to jest sedno tej zmiany, a nie
+  efekt uboczny: pięć ze stanem (`is-ok`, `is-warn`, `is-err`) i cztery
+  renderowane warunkowo — brak SMTP, wykryte fonty, stan logów 404,
+  brak przekierowań. Ostrzeżenie w akordeonie jest bezużyteczne, bo nikt go
+  nie rozwinie, zanim nie zobaczy problemu.
+
+- **Pięć najdłuższych podpowiedzi (140–272 znaki) zamienionych w dymki.**
+  Widoczne po najechaniu ORAZ na fokusie, z `aria-label` — dymek osiągalny
+  wyłącznie myszą nie jest podpowiedzią, tylko ozdobą.
+
+### Uwagi z pomiaru
+
+- **`getClientRects()` na zwiniętym `<details>` NADAL zwraca prostokąt.**
+  Chromium trzyma treść w `::details-content` z `content-visibility: hidden`,
+  więc pudełko istnieje, choć nic nie widać — sprawdzenie „opisy zwinięte"
+  świeciło na czerwono przy całkowicie poprawnym markupie. Mierzona jest teraz
+  wysokość: zwinięty `<details>` jest dokładnie tak wysoki jak jego `summary`.
+
+- **Sprawdzenie „ramki ze stanem zostają widoczne" początkowo nie miało zębów.**
+  Łapało ramkę UKRYTĄ, ale nie taką, którą ktoś zamienił w akordeon — wtedy
+  ramka znika z pomiaru i „wszystkie widoczne" jest prawdą przy zerze ramek.
+  Potwierdzone celowym zepsuciem: podmiana `is-ok` na `evo-note` nie zapaliła
+  niczego. Teraz sprawdzana jest LICZBA, która rośnie tylko przy dokładaniu
+  zakładek i nigdy nie spada sama.
+
 ## [1.56.1] — 2026-08-11
 
 ### Naprawione

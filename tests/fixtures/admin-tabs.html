@@ -161,6 +161,63 @@ window.__overflow = function () {
 };
 
 /**
+ * Opisy schowane w akordeony i ramki, które mają zostać widoczne.
+ *
+ * Neutralna ramka informacyjna to treść dla kogoś, kto pyta — nie dla kogoś,
+ * kto przyszedł zmienić jedno pole. Trzydzieści osiem takich ramek zajmowało
+ * kawał każdej zakładki. Ramki ze STANEM (`is-ok`, `is-warn`, `is-err`)
+ * i renderowane warunkowo zostają widoczne: ostrzeżenie w akordeonie jest
+ * bezużyteczne, bo nikt go nie rozwinie, zanim nie zobaczy problemu.
+ */
+window.__notes = function () {
+  return Array.prototype.map.call(document.querySelectorAll('#panel .evo-note'), function (d) {
+    var sum  = d.querySelector('summary');
+    /* Widoczność mierzona WYSOKOŚCIĄ, nie prostokątem treści.
+       `getClientRects()` na zwiniętym `<details>` NADAL zwraca prostokąt:
+       Chromium trzyma treść w `::details-content` z `content-visibility:
+       hidden`, więc pudełko istnieje, choć nic nie widać. Sprawdzenie po
+       prostokącie świeciło się na czerwono przy poprawnym markupie.
+       Zwinięty `<details>` jest dokładnie tak wysoki jak jego `summary`. */
+    return {
+      open: d.hasAttribute('open'),
+      visible: !!(sum && d.offsetHeight > sum.offsetHeight + 4),
+      label: ((sum || {}).textContent || '').trim(),
+    };
+  });
+};
+
+/**
+ * Dymki podpowiedzi — długie opisy zdjęte z widoku.
+ *
+ * Dymek jest bezużyteczny dla kogoś, kto nie może go najechać myszą, więc
+ * liczy się nie tylko to, że istnieje: musi mieć nazwę dostępną i dać się
+ * osiągnąć klawiaturą. `data-tip` jest treścią dla oka, `aria-label` dla
+ * czytnika — rozjazd między nimi znaczy, że jedna z tych dróg pokazuje
+ * co innego.
+ */
+window.__tips = function () {
+  return Array.prototype.map.call(document.querySelectorAll('#panel .evo-tip'), function (el) {
+    var cs = getComputedStyle(el, '::after');
+    return {
+      tip:      el.getAttribute('data-tip') || '',
+      aria:     el.getAttribute('aria-label') || '',
+      tabbable: el.getAttribute('tabindex') === '0',
+      // Dymek w spoczynku ma być schowany — inaczej „schowaliśmy opis"
+      // znaczyłoby tylko tyle, że zmienił kształt.
+      hidden:   cs.visibility === 'hidden' || cs.opacity === '0',
+    };
+  });
+};
+
+/** Ramki, które MAJĄ być widoczne od razu. */
+window.__stateBoxes = function () {
+  var sel = '#panel .evo-info-box.is-ok, #panel .evo-info-box.is-warn, #panel .evo-info-box.is-err';
+  return Array.prototype.map.call(document.querySelectorAll(sel), function (b) {
+    return { visible: b.getClientRects().length > 0, cls: String(b.className).slice(0, 40) };
+  });
+};
+
+/**
  * Co zostaje ODCIĘTE przez kontener chowający nadmiar.
  *
  * `__overflow()` mierzy wyjście poza OKNO i tego nie zobaczy: karta ma

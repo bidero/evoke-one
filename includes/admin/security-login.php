@@ -36,9 +36,9 @@ $active_blocks = evk_login_active_blocks();
             <div class="evo-desc">Domyślnie: 24</div>
         </div>
         <div class="evo-field" style="grid-column:1/-1;">
-            <label>Własny komunikat blokady IP</label>
+            <label>Własny komunikat blokady IP<span class="evo-tip" tabindex="0" role="note" data-tip="HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: {hours} — liczba godzin, {hours_str} — odmiana słowa. Gdy puste — używany domyślny komunikat." aria-label="HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: {hours} — liczba godzin, {hours_str} — odmiana słowa. Gdy puste — używany domyślny komunikat.">?</span></label>
             <textarea name="evk_security[limit_login_message]" rows="4" style="width:100%;max-width:100%;" placeholder="Pozostaw puste aby użyć domyślnego komunikatu z czasem odblokowania..."><?php echo esc_textarea($evk_sec['limit_login_message'] ?? ''); ?></textarea>
-            <div class="evo-desc">HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: <code>{hours}</code> — liczba godzin, <code>{hours_str}</code> — odmiana słowa. Gdy puste — używany domyślny komunikat.</div>
+            
         </div>
     </div>
 
