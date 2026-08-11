@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.61.0] — 2026-08-11
+
+### Naprawione
+
+- **Offcanvas: wybranie krzywej gasiło całe przejście.** Zgłoszone z użycia
+  („animacje są, ale przy wybraniu własnej krzywej przestają działać" oraz
+  „nadal nie przesuwa się pierwszy panel, drugi go zasłania" — jedna
+  przyczyna, dwa objawy). Lista krzywych jest wspólna z Animatorem, więc jej
+  wartości są w zapisie GSAP-a: `power2.out`, `back.out(1.7)`. CSS takiej
+  funkcji czasu nie zna, a nieznana wartość unieważnia CAŁĄ deklarację
+  `transition` — nie tylko krzywą, ale i czas trwania. Zmierzone:
+  `transition-duration` spadał z 0,6 s na **0 s**. Kadr przestawał wyjeżdżać,
+  a taśma paneli przeskakiwała od razu na miejsce, przez co podmenu
+  wyglądało, jakby zasłaniało rodzica zamiast go wypychać.
+
+  Krzywe są teraz przeliczane na zapis CSS-a (`evk_anim_easing_css()`,
+  jedno przeliczenie na całą wtyczkę). Odbicie i sprężyna nie dają się
+  zapisać jedną krzywą Béziera — idą jako `linear()` z próbkowania
+  prawdziwego wzoru GSAP-a, więc odbicie zostaje odbiciem. Strona sprawdza
+  wartość jeszcze przez `CSS.supports()`, zanim ją ustawi: to, czego
+  przeglądarka nie przyjmie, wraca do domyślnej krzywej z arkusza, zamiast
+  gasić ruch razem z czasem.
+
+- **Offcanvas: taśma paneli nie trzyma już stałej warstwy kompozytora.**
+  `will-change: transform` siedziało na niej przez całe życie strony, choć
+  rusza się ona co kilka kliknięć. Warstwa kompozytora bywa rasteryzowana
+  osobno i ten sam kolor potrafi wyjść odrobinę inaczej — najbardziej na
+  telefonach z szerokim gamutem. Zgłoszone jako „w mobilnym zmienia się
+  kolor pierwszego [panelu]". Ruch na tym nie traci: przeglądarka promuje
+  element na czas trwania przejścia sama.
+
+  **Samego przesunięcia barwy nie da się zmierzyć w tym harnessie** —
+  headless Chromium rasteryzuje wszystko jednakowo — więc test pilnuje
+  reguły (`will-change` ma zostać `auto`), a nie objawu. Jeśli kolor nadal
+  się zmienia, przyczyna jest inna i trzeba jej szukać dalej.
+
 ## [1.60.0] — 2026-08-11
 
 ### Naprawione

@@ -73,7 +73,18 @@
     display: flex;
     height: 100%;
     transition: transform var(--evk-oc-panel-time, .45s) var(--evk-oc-panel-ease, ease);
-    will-change: transform;
+    /* BEZ `will-change: transform`.
+     *
+     * Stałe `will-change` trzyma taśmę na własnej warstwie kompozytora przez
+     * cały czas życia strony, choć rusza się ona co kilka kliknięć. Warstwa
+     * kompozytora bywa rasteryzowana osobno i ten sam kolor potrafi wyjść
+     * odrobinę inaczej niż na stronie — najbardziej widocznie na telefonach
+     * z szerokim gamutem. Zgłoszone jako „w mobilnym zmienia się kolor
+     * pierwszego [panelu]".
+     *
+     * Nic za to nie płacimy: przeglądarka promuje element na czas trwania
+     * przejścia `transform` sama i zwalnia warstwę po jego końcu. Specyfikacja
+     * mówi o `will-change` wprost, że nie ma go być na stałe. */
 }
 
 .evk-oc-panel {

@@ -603,3 +603,88 @@ function evk_anim_easings(): array {
         'power2.in', 'power3.in',
     ];
 }
+
+/**
+ * Ta sama krzywa, ale w zapisie, który rozumie CSS.
+ *
+ * Lista wyżej jest listą GSAP-a: `power2.out`, `back.out(1.7)`. Elementy
+ * animowane przejściami CSS (menu offcanvas) dostają ją tą samą kontrolką,
+ * bo jedna lista dla całej wtyczki znaczy, że użytkownik uczy się jednego
+ * słownika. Tyle że CSS o nazwach GSAP-a nie ma pojęcia — a nieznana funkcja
+ * czasu unieważnia CAŁĄ deklarację `transition`, razem z czasem trwania.
+ * Wybranie krzywej gasiło więc przejście do zera: menu przestawało wyjeżdżać,
+ * a panele przeskakiwały, przez co podmenu wyglądało, jakby zasłaniało
+ * rodzica zamiast go wypychać. Zgłoszone z użycia (1.61.0).
+ *
+ * Zwraca pusty łańcuch dla wartości nieznanej albo pustej — wołający ma wtedy
+ * NIE ustawiać zmiennej i zostawić domyślną krzywą z arkusza. Podstawienie
+ * czegokolwiek na siłę byłoby gorsze: cicha zamiana krzywej jest trudniejsza
+ * do zauważenia niż jej brak.
+ *
+ * `bounce` i `elastic` nie mają odpowiednika w `cubic-bezier()` — jedna krzywa
+ * Béziera nie zawróci kilka razy. Idą jako `linear()` z próbkowania prawdziwego
+ * wzoru GSAP-a (patrz niżej), więc odbicie jest odbiciem, a nie „czymś
+ * miękkim". Starsza przeglądarka bez `linear()` odrzuci wartość — dlatego
+ * strona sprawdza ją jeszcze przez `CSS.supports()`, zanim ją ustawi.
+ */
+function evk_anim_easing_css(string $gsap): string {
+    $gsap = trim($gsap);
+    if ($gsap === '') return '';
+
+    // Odpowiedniki z easings.net. GSAP: power1 = quad, power2 = cubic,
+    // power3 = quart, power4 = quint.
+    static $map = [
+        'none'         => 'linear',
+        'power1.out'   => 'cubic-bezier(0.5, 1, 0.89, 1)',
+        'power2.out'   => 'cubic-bezier(0.33, 1, 0.68, 1)',
+        'power3.out'   => 'cubic-bezier(0.25, 1, 0.5, 1)',
+        'power4.out'   => 'cubic-bezier(0.22, 1, 0.36, 1)',
+        'power2.in'    => 'cubic-bezier(0.32, 0, 0.67, 0)',
+        'power3.in'    => 'cubic-bezier(0.5, 0, 0.75, 0)',
+        'power2.inOut' => 'cubic-bezier(0.65, 0, 0.35, 1)',
+        'power3.inOut' => 'cubic-bezier(0.76, 0, 0.24, 1)',
+        'back.out(1.7)' => 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'back.out(2.2)' => 'cubic-bezier(0.34, 1.8, 0.64, 1)',
+        'expo.out'     => 'cubic-bezier(0.16, 1, 0.3, 1)',
+        'circ.out'     => 'cubic-bezier(0, 0.55, 0.45, 1)',
+        'sine.inOut'   => 'cubic-bezier(0.37, 0, 0.63, 1)',
+    ];
+
+    if (isset($map[$gsap])) return $map[$gsap];
+
+    if ($gsap === 'bounce.out') {
+        return evk_anim_easing_linear(static function (float $p): float {
+            if ($p < 1 / 2.75)      { return 7.5625 * $p * $p; }
+            if ($p < 2 / 2.75)      { $p -= 1.5   / 2.75; return 7.5625 * $p * $p + 0.75; }
+            if ($p < 2.5 / 2.75)    { $p -= 2.25  / 2.75; return 7.5625 * $p * $p + 0.9375; }
+            $p -= 2.625 / 2.75;     return 7.5625 * $p * $p + 0.984375;
+        });
+    }
+
+    if (strpos($gsap, 'elastic.out') === 0) {
+        // Wzór GSAP-a: amplituda 1, okres 0,5 — jedyny wariant na liście.
+        $amp = 1.0; $period = 0.5;
+        $s = $period / (2 * M_PI) * asin(1 / $amp);
+        return evk_anim_easing_linear(static function (float $p) use ($amp, $period, $s): float {
+            if ($p === 0.0 || $p === 1.0) return $p;
+            return $amp * pow(2, -10 * $p) * sin(($p - $s) * (2 * M_PI) / $period) + 1;
+        });
+    }
+
+    return '';
+}
+
+/**
+ * Próbkuje krzywą do wartości `linear()`.
+ *
+ * `linear()` łączy próbki ODCINKAMI PROSTYMI, więc gęstość decyduje o tym, czy
+ * ostre zawinięcia odbicia zostaną odbiciem. Czterdzieści próbek wystarcza,
+ * a wartość mieści się w jednej linii pliku.
+ */
+function evk_anim_easing_linear(callable $fn, int $steps = 40): string {
+    $out = [];
+    for ($i = 0; $i <= $steps; $i++) {
+        $out[] = rtrim(rtrim(number_format($fn($i / $steps), 4, '.', ''), '0'), '.') ?: '0';
+    }
+    return 'linear(' . implode(', ', $out) . ')';
+}

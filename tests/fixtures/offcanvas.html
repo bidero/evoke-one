@@ -62,9 +62,13 @@
   root.setAttribute('data-mode',       q.get('mode')   || 'levels');
   root.setAttribute('data-side',       q.get('side')   || 'right');
   root.setAttribute('data-duration',   q.get('dur') || '0');
-  root.setAttribute('data-easing',     '');
+  // Krzywe przychodzą z listy Animatora, czyli w zapisie GSAP („power2.out").
+  // CSS takiej wartości nie zna: nieznana funkcja czasu unieważnia CAŁĄ
+  // deklarację `transition`, więc wybranie krzywej gasiło przejście do zera.
+  // Test podaje je dokładnie w tej postaci, w jakiej wychodzą z buildera.
+  root.setAttribute('data-easing',     q.get('ease') || '');
   root.setAttribute('data-panel-duration', q.get('pdur') || '');
-  root.setAttribute('data-panel-easing',   '');
+  root.setAttribute('data-panel-easing',   q.get('pease') || '');
   root.setAttribute('data-start',      '');
   root.setAttribute('data-trigger',    '');
   root.setAttribute('data-esc-back',   q.get('esc')    === '0' ? '0' : '1');
@@ -106,7 +110,7 @@ window.__slide = function () {
   var cs = getComputedStyle(w);
   var m = cs.transform;
   var x = (m && m !== 'none') ? Math.round(parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4])) : 0;
-  return { x: x, transition: cs.transitionDuration, visible: cs.visibility };
+  return { x: x, transition: cs.transitionDuration, ease: cs.transitionTimingFunction, visible: cs.visibility };
 };
 window.__isOpen = function () { return shellOf(0).classList.contains('is-open'); };
 
@@ -185,7 +189,8 @@ window.__track = function () {
   var cs = getComputedStyle(t);
   var m = cs.transform;
   var x = (m && m !== 'none') ? Math.round(parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4])) : 0;
-  return { x: x, transition: cs.transitionDuration };
+  return { x: x, transition: cs.transitionDuration, ease: cs.transitionTimingFunction,
+           willChange: cs.willChange };
 };
 
 /** Lewa krawędź panelu o podanym ID, względem kadru.

@@ -14,4 +14,10 @@ require EVK_TEST_ROOT . '/includes/anim/presets.php';
 echo json_encode([
     'presets' => evk_anim_presets(),
     'easings' => evk_anim_easings(),
+    // Ta sama lista w zapisie CSS-a. Elementy animowane przejściami CSS
+    // (menu offcanvas) dostają krzywą tą samą kontrolką, a CSS nazw GSAP-a
+    // nie zna — nieznana funkcja czasu unieważnia CAŁĄ deklarację
+    // `transition`, razem z czasem trwania.
+    'easingsCss' => array_combine(evk_anim_easings(),
+                                  array_map('evk_anim_easing_css', evk_anim_easings())),
 ], JSON_UNESCAPED_UNICODE), "\n";

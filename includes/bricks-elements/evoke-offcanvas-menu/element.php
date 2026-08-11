@@ -239,9 +239,26 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-mode',       ! empty( $s['mode'] ) ? $s['mode'] : 'single' );
 		$this->set_attribute( '_root', 'data-side',       ! empty( $s['side'] ) ? $s['side'] : 'right' );
 		$this->set_attribute( '_root', 'data-duration',   isset( $s['duration'] ) && $s['duration'] !== '' ? (string) $s['duration'] : '0.35' );
-		$this->set_attribute( '_root', 'data-easing',     ! empty( $s['easing'] ) ? $s['easing'] : '' );
+		/*
+		 * Krzywe przeliczone na zapis CSS-a.
+		 *
+		 * Lista kontrolki jest listą GSAP-a — jedna dla całej wtyczki, żeby
+		 * użytkownik uczył się jednego słownika. Ale to menu jedzie na
+		 * PRZEJŚCIACH CSS, a CSS nazwy `power2.out` nie zna: nieznana funkcja
+		 * czasu unieważnia CAŁĄ deklarację `transition`, razem z czasem
+		 * trwania. Wybranie krzywej gasiło więc przejście do zera — menu
+		 * przestawało wyjeżdżać, a panele przeskakiwały, przez co podmenu
+		 * wyglądało, jakby zasłaniało rodzica zamiast go wypychać.
+		 * Przeliczenie siedzi w evk_anim_easing_css() i jest jedno na wtyczkę.
+		 */
+		$css_ease  = function_exists( 'evk_anim_easing_css' ) && ! empty( $s['easing'] )
+			? evk_anim_easing_css( $s['easing'] ) : '';
+		$css_pease = function_exists( 'evk_anim_easing_css' ) && ! empty( $s['panelEasing'] )
+			? evk_anim_easing_css( $s['panelEasing'] ) : '';
+
+		$this->set_attribute( '_root', 'data-easing',     $css_ease );
 		$this->set_attribute( '_root', 'data-panel-duration', isset( $s['panelDuration'] ) && $s['panelDuration'] !== '' ? (string) $s['panelDuration'] : '' );
-		$this->set_attribute( '_root', 'data-panel-easing',   ! empty( $s['panelEasing'] ) ? $s['panelEasing'] : '' );
+		$this->set_attribute( '_root', 'data-panel-easing',   $css_pease );
 		$this->set_attribute( '_root', 'data-start',      ! empty( $s['startPanel'] ) ? $s['startPanel'] : '' );
 		$this->set_attribute( '_root', 'data-trigger',    ! empty( $s['triggerSelector'] ) ? $s['triggerSelector'] : '' );
 

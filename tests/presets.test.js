@@ -61,6 +61,39 @@ module.exports = async function (t) {
   const badEase = keys.filter((k) => presets[k].easing && !data.easings.includes(presets[k].easing));
   t.check('easingi presetów z listy', !badEase.length, badEase.join(', ') || 'brak odstępstw');
 
+  // ── Ta sama lista w zapisie CSS-a ──────────────────────────────────────
+  // Elementy jadące na PRZEJŚCIACH CSS (menu offcanvas) dostają krzywą tą
+  // samą kontrolką, co Animator. CSS nazw GSAP-a nie zna, a wartość, której
+  // nie rozumie, unieważnia CAŁĄ deklarację `transition` — razem z czasem
+  // trwania. Literówka w przeliczeniu nie zmienia więc krzywej, tylko GASI
+  // ruch do zera, i nie zostawia po sobie ani słowa w konsoli. Dlatego pyta
+  // o to przeglądarka, a nie wyrażenie regularne.
+  t.section('krzywe w zapisie, który rozumie CSS');
+
+  const cssMap = data.easingsCss || {};
+  t.check('każda krzywa ma odpowiednik', Object.keys(cssMap).length === data.easings.length,
+    Object.keys(cssMap).length + ' z ' + data.easings.length);
+
+  const probe = await t.open('presets.html', {
+    viewport: { width: 400, height: 300 }, head, query: 'mode=none', settle: 60,
+  });
+  const rejected = await probe.evaluate((m) => Object.keys(m).filter(
+    (k) => !m[k] || !CSS.supports('transition-timing-function', m[k])
+  ), cssMap);
+  t.check('przeglądarka przyjmuje każdą', !rejected.length,
+    rejected.map((k) => k + ' → ' + cssMap[k]).join(', ') || 'wszystkie ' +
+    Object.keys(cssMap).length);
+
+  // Odbicie i sprężyna nie dają się zapisać jedną krzywą Béziera — jedna
+  // krzywa nie zawróci kilka razy. Muszą wyjść jako `linear()` z próbkowania
+  // wzoru, inaczej „odbicie" jest tylko czymś miękkim.
+  t.check('odbicie i sprężyna zachowują kształt',
+    /^linear\(/.test(cssMap['bounce.out'] || '') &&
+    /^linear\(/.test(cssMap['elastic.out(1, 0.5)'] || ''),
+    (cssMap['bounce.out'] || '').slice(0, 24) + '… / ' +
+    (cssMap['elastic.out(1, 0.5)'] || '').slice(0, 24) + '…');
+  await probe.close();
+
   // ── Co PHP wystawia na stronę ──────────────────────────────────────────
   // Literówka w nazwie handle'a niczego nie wywala: skrypt po prostu nie
   // trafia na stronę, a efekt cicho nie działa. Z przeglądarki tego nie widać,

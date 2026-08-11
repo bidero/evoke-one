@@ -50,14 +50,36 @@ function evk_offcanvas_menu_init_one(root) {
         return isNaN(v) ? fallback : v;
     }
 
+    /**
+     * Krzywa, którą przeglądarka NA PEWNO przyjmie.
+     *
+     * Wartość przelicza już PHP (evk_anim_easing_css), ale ostatnie słowo ma
+     * przeglądarka: nieznana funkcja czasu unieważnia CAŁĄ deklarację
+     * `transition` — razem z czasem trwania — więc jedna zła wartość nie
+     * psuje krzywej, tylko GASI ruch do zera. Odrzucona wartość znaczy „nie
+     * ustawiaj zmiennej": arkusz ma własną domyślną i menu dalej się rusza.
+     *
+     * Dwa realne przypadki: `linear()` na starszej przeglądarce (odbicie
+     * i sprężyna nie dają się zapisać jako `cubic-bezier`) oraz strona
+     * z pamięci podręcznej, która niesie jeszcze surową nazwę GSAP-a.
+     */
+    function cssEase(attr) {
+        var v = (root.getAttribute(attr) || '').trim();
+        if (!v) return '';
+        if (window.CSS && CSS.supports && !CSS.supports('transition-timing-function', v)) {
+            return '';
+        }
+        return v;
+    }
+
     var frameTime = reduced ? 0 : num('data-duration', 0.35);
-    var frameEase = root.getAttribute('data-easing') || '';
+    var frameEase = cssEase('data-easing');
     // Osobny czas taśmy jest sednem efektu: wspólny daje ruch liniowy, bo menu
     // wjeżdża i panele przesuwają się dokładnie tak samo. Puste = ten sam co kadr.
     // Domyślka to czas KADRU, nie `frameTime || 0.35`: przy jawnie ustawionym
     // zerze `0 || 0.35` dawało 0,35 i taśma jechała mimo wyłączonego ruchu.
     var trackTime = reduced ? 0 : num('data-panel-duration', frameTime);
-    var trackEase = root.getAttribute('data-panel-easing') || frameEase;
+    var trackEase = cssEase('data-panel-easing') || frameEase;
 
     // ── Powłoka ────────────────────────────────────────────────────────────
     var shell = document.createElement('div');

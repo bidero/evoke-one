@@ -12,6 +12,8 @@
  * na oko ani na zrzucie ekranu.
  */
 
+const { phpOutput } = require('./lib/harness');
+
 const V = { width: 1200, height: 800 };
 
 module.exports = async function (t) {
@@ -179,6 +181,108 @@ module.exports = async function (t) {
   t.check('200 ms po przejściu taśma jest W RUCHU',
     t1.x < t0.x && t1.x > -420, 'z ' + t0.x + ' do ' + t1.x + ' (cel ok. -420)');
   await d.close();
+
+  // ── Wybrana krzywa NIE MOŻE zgasić przejścia ───────────────────────────
+  // Zgłoszone z użycia: „animacje są, ale przy wybraniu własnej krzywej
+  // przestają działać" i „nadal nie przesuwa się pierwszy panel, drugi go
+  // zasłania" — jedna przyczyna, dwa objawy.
+  //
+  // Lista krzywych jest wspólna z Animatorem, więc jej wartości są w zapisie
+  // GSAP: `power2.out`, `back.out(1.7)`. CSS takiej funkcji czasu nie zna,
+  // a nieznana wartość unieważnia CAŁĄ deklarację `transition` — nie tylko
+  // krzywą, ale i czas. Kadr przestawał wyjeżdżać, a taśma przeskakiwała,
+  // więc podmenu POJAWIAŁO SIĘ na wierzchu zamiast wypchnąć rodzica. Domyślne
+  // „— domyślny —" działało, bo nie ustawia zmiennej wcale; usterki nie dało
+  // się więc zobaczyć bez sięgnięcia po listę.
+  t.section('krzywa z listy nie gasi przejścia');
+
+  // Wartości bierzemy z PRAWDZIWEGO przeliczenia w PHP (evk_anim_easing_css),
+  // a nie z kopii w teście — kopia rozjechałaby się przy pierwszej poprawionej
+  // krzywej i test przestałby cokolwiek znaczyć.
+  const easeCss = JSON.parse(phpOutput('presets.php')).easingsCss;
+  const e = await t.open('offcanvas.html', {
+    viewport: V, settle: 120,
+    query: 'dur=0.6&pdur=0.9' +
+           '&ease='  + encodeURIComponent(easeCss['power2.out']) +
+           '&pease=' + encodeURIComponent(easeCss['back.out(1.7)']),
+  });
+
+  const eFrame = await e.evaluate(() => window.__slide());
+  const eTrack = await e.evaluate(() => window.__track());
+
+  t.check('kadr zachowuje czas mimo wybranej krzywej',
+    Math.abs(parseFloat(eFrame.transition) - 0.6) < 0.01, eFrame.transition);
+  t.check('taśma zachowuje czas mimo wybranej krzywej',
+    Math.abs(parseFloat(eTrack.transition) - 0.9) < 0.01, eTrack.transition);
+
+  // Sama obecność czasu nie wystarczy: wartość krzywej ma naprawdę wejść,
+  // a nie zostać po cichu zamieniona na domyślne `ease`.
+  t.check('krzywa kadru trafia do CSS jako funkcja czasu',
+    /cubic-bezier|steps|linear/.test(eFrame.ease) && eFrame.ease !== 'ease', eFrame.ease);
+  t.check('taśma dostaje SWOJĄ krzywą, inną niż kadr',
+    eTrack.ease !== eFrame.ease, 'kadr ' + eFrame.ease + ', taśma ' + eTrack.ease);
+
+  // I dowód na ruch — bo o to w zgłoszeniu chodziło.
+  await e.evaluate(() => window.__open());
+  await e.waitForTimeout(150);
+  const eMid = await e.evaluate(() => window.__slide());
+  t.check('150 ms po otwarciu kadr JEDZIE, a nie stoi',
+    eMid.x !== 0 && Math.abs(eMid.x) < 420, 'x ' + eMid.x + ' (start ok. 420, cel 0)');
+
+  await e.waitForTimeout(700);
+  await e.evaluate(() => window.__click('go-uslugi'));
+  await e.waitForTimeout(250);
+  const eT1 = await e.evaluate(() => window.__track());
+  t.check('250 ms po przejściu taśma JEDZIE, a nie przeskakuje',
+    eT1.x < 0 && eT1.x > -420, 'x ' + eT1.x + ' (cel ok. -420)');
+
+  await e.waitForTimeout(900);
+  const ePush = await e.evaluate(() => window.__panelLeft('start'));
+  t.check('panel startowy i tak zostaje WYPCHNIĘTY', ePush < -100, ePush + ' px');
+  t.check('bez błędów JS przy wybranej krzywej', !e.errors.length,
+    e.errors.join(' | ') || 'brak');
+  await e.close();
+
+  // Druga warstwa obrony. Przeliczenie robi PHP, ale ostatnie słowo ma
+  // przeglądarka: `linear()` (odbicie, sprężyna) nie działa na starszych,
+  // a strona z pamięci podręcznej może nieść jeszcze surową nazwę GSAP-a.
+  // Wartość, której przeglądarka nie przyjmie, ma zostać ODRZUCONA — nie
+  // wstawiona i nie zgaszona razem z całym przejściem.
+  const raw = await t.open('offcanvas.html', {
+    viewport: V, settle: 120, query: 'dur=0.6&ease=power2.out',
+  });
+  const rawFrame = await raw.evaluate(() => window.__slide());
+  t.check('nazwa GSAP-a nie gasi przejścia',
+    Math.abs(parseFloat(rawFrame.transition) - 0.6) < 0.01, rawFrame.transition);
+  t.check('odrzucona krzywa wraca do domyślnej z arkusza', rawFrame.ease === 'ease',
+    rawFrame.ease);
+  await raw.close();
+
+  // ── Taśma nie siedzi na stałe na własnej warstwie ──────────────────────
+  // Zgłoszone z użycia: „w mobilnym zmienia się kolor pierwszego [panelu]".
+  // Stałe `will-change: transform` trzyma taśmę na warstwie kompozytora przez
+  // całe życie strony, choć rusza się ona co kilka kliknięć — a warstwa bywa
+  // rasteryzowana osobno i ten sam kolor potrafi wyjść odrobinę inaczej,
+  // najbardziej na telefonach z szerokim gamutem. Samego przesunięcia barwy
+  // NIE DA SIĘ tu zmierzyć (headless rasteryzuje wszystko jednakowo), więc
+  // test pilnuje reguły, a nie objawu — i mówi o tym wprost.
+  t.section('taśma nie trzyma stałej warstwy kompozytora');
+
+  const wc = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.4', settle: 120 });
+  const wcTrack = await wc.evaluate(() => window.__track());
+  t.check('taśma nie deklaruje stałego will-change', wcTrack.willChange === 'auto',
+    wcTrack.willChange);
+
+  // Rezygnacja z podpowiedzi nie może kosztować ruchu — przeglądarka promuje
+  // element na czas trwania przejścia sama.
+  await wc.evaluate(() => window.__open());
+  await wc.waitForTimeout(500);
+  await wc.evaluate(() => window.__click('go-uslugi'));
+  await wc.waitForTimeout(150);
+  const wcMid = await wc.evaluate(() => window.__track());
+  t.check('taśma nadal płynnie jedzie', wcMid.x < 0 && wcMid.x > -420,
+    'x ' + wcMid.x + ' (cel ok. -420)');
+  await wc.close();
 
   // ── Animacje grają przy KAŻDYM otwarciu ────────────────────────────────
   // Wyzwalacz „wejście w kadr" jest z definicji jednorazowy: strona przewija
