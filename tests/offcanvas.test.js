@@ -103,6 +103,63 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
   await p.close();
 
+  // ── Wysuwanie ──────────────────────────────────────────────────────────
+  // Panel ma WJECHAĆ, a nie pojawić się. Przejście CSS nie rusza z elementu,
+  // który przed chwilą miał `display: none` — przeglądarka nie ma wtedy stanu
+  // wyjściowego do interpolacji i po prostu skacze do końcowego.
+  t.section('panel wjeżdża, a nie pojawia się');
+
+  const a = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.6', settle: 120 });
+
+  const closed = await a.evaluate(() => window.__slide());
+  t.check('zamknięty kadr stoi poza ekranem', closed.x !== 0,
+    'x ' + closed.x + ', widoczność ' + closed.visible);
+  t.check('kadr ma zadeklarowane przejście', parseFloat(closed.transition) > 0,
+    'transition-duration ' + closed.transition);
+
+  await a.evaluate(() => window.__open());
+  await a.waitForTimeout(120);
+  const mid = await a.evaluate(() => window.__slide());
+  // W połowie 0,6 s kadr ma być W DRODZE: już nie na starcie, jeszcze nie u celu.
+  t.check('120 ms po otwarciu kadr jest W RUCHU',
+    mid.x !== 0 && Math.abs(mid.x) < Math.abs(closed.x),
+    'x ' + mid.x + ' (start ' + closed.x + ', cel 0)');
+
+  await a.waitForTimeout(700);
+  const done = await a.evaluate(() => window.__slide());
+  t.check('po przejściu kadr dojeżdża na miejsce', done.x === 0, 'x ' + done.x);
+  await a.close();
+
+  // ── Panele bez nazw, adresowane kolejnością ────────────────────────────
+  // To jest ścieżka, którą dostaje KAŻDY, kto wstawi element i niczego nie
+  // skonfiguruje: panele nie mają `data-panel`, więc liczy się ich kolejność
+  // i `data-evk-oc-go="1"` otwiera drugi. Opisałem to w kontrolce, ale do
+  // 1.57.1 nie było sprawdzone — a to jedyna droga, którą ktoś pójdzie
+  // przed przeczytaniem czegokolwiek.
+  t.section('drugi panel bez konfiguracji');
+
+  const ix = await t.open('offcanvas.html', { viewport: V, settle: 120 });
+  await ix.evaluate(() => window.__open2());
+  await ix.waitForTimeout(80);
+  const before = await ix.evaluate(() => window.__state2());
+  t.check('otwiera się pierwszy panel', before.length === 2 && before[0].current,
+    before.map((x) => x.i + (x.current ? '*' : '')).join(' '));
+
+  await ix.evaluate(() => window.__click('go-idx'));
+  await ix.waitForTimeout(80);
+  const afterGo = await ix.evaluate(() => window.__state2());
+  t.check('„data-evk-oc-go=1" otwiera DRUGI panel',
+    afterGo.length === 2 && afterGo[1].current,
+    afterGo.map((x) => x.i + (x.current ? '*' : '')).join(' '));
+
+  await ix.evaluate(() => window.__click('back-idx'));
+  await ix.waitForTimeout(80);
+  t.check('„wstecz" wraca do pierwszego',
+    (await ix.evaluate(() => window.__state2()))[0].current, 'pierwszy');
+  t.check('bez błędów JS przy panelach bez nazw', !ix.errors.length,
+    ix.errors.join(' | ') || 'brak');
+  await ix.close();
+
   // ── Blokada przewijania ────────────────────────────────────────────────
   // Zamierzałem tu zmierzyć, że blokada nie przesuwa układu o szerokość paska
   // przewijania. NIE DA SIĘ: headless Chromium rysuje pasek nakładkowy, więc
@@ -165,9 +222,9 @@ module.exports = async function (t) {
   t.check('panel jest widoczny mimo redukcji ruchu',
     await r.evaluate(() => window.__panelVisible()), 'widoczny');
   t.check('przejście CSS wyłączone',
-    (await r.evaluate(() => getComputedStyle(document.querySelector('.evk-oc-panel')).transitionDuration))
+    (await r.evaluate(() => getComputedStyle(window.__firstPanel()).transitionDuration))
       .split(',')[0].trim() === '0s',
-    await r.evaluate(() => getComputedStyle(document.querySelector('.evk-oc-panel')).transitionDuration));
+    await r.evaluate(() => getComputedStyle(window.__firstPanel()).transitionDuration));
   await r.close();
 
   // KONTROLA NEGATYWNA. „Panel widoczny" jest prawdą także wtedy, gdy skrypt

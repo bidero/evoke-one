@@ -78,8 +78,12 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			],
 			'default'     => 'single',
 			'description' => esc_html__(
-				'W trybie „poziomy" przejście robi dowolny element z atrybutem data-evk-oc-go="ID panelu", '
-				. 'a powrót — data-evk-oc-back. ID panelu ustawiasz atrybutem data-panel; bez niego liczy się kolejność.',
+				'JAK OTWORZYĆ DRUGI PANEL: zaznacz przycisk lub odnośnik w panelu startowym '
+				. 'i dodaj mu atrybut (zakładka Style → Atrybuty) o nazwie data-evk-oc-go '
+				. 'i wartości 1 — panele bez nazwy liczą się po kolejności, więc 1 to drugi panel. '
+				. 'Powrót: atrybut data-evk-oc-back (bez wartości). Zamknięcie: data-evk-oc-close. '
+				. 'Chcesz nazw zamiast numerów? Nadaj panelowi atrybut data-panel o dowolnej nazwie '
+				. 'i tę samą nazwę wpisz jako wartość data-evk-oc-go.',
 				'evoke-one'
 			),
 		];

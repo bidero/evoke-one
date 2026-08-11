@@ -90,6 +90,13 @@ decyzji „składane w builderze".
 
 Panel startowy to pierwszy w kolejności albo wskazany kontrolką.
 
+**Jak otworzyć drugi panel — bez żadnej konfiguracji:** zaznacz przycisk
+w panelu startowym, w zakładce Style → Atrybuty dodaj atrybut o nazwie
+`data-evk-oc-go` i wartości `1`. Panele bez nazwy liczą się po kolejności,
+więc `1` to drugi panel. Powrót: `data-evk-oc-back` (bez wartości).
+Zamknięcie: `data-evk-oc-close`. Nazwy zamiast numerów: nadaj panelowi
+atrybut `data-panel` i tę samą wartość wpisz w `data-evk-oc-go`.
+
 ### Przechodzenie
 
 Rodzic wysuwa się w bok, dziecko wjeżdża na jego miejsce. Jedna klasa stanu

@@ -40,13 +40,27 @@
   </div>
 </div>
 
+<!-- Drugi korzeń, panele BEZ `data-panel` — droga „po kolejności", którą
+     dostaje każdy, kto wstawi element i niczego nie skonfiguruje. -->
+<div id="root2" class="evk-oc">
+  <button class="evk-oc-trigger" id="trigger2">Menu 2</button>
+  <div class="evk-oc-panel">
+    <a href="#x" id="n-a">Bez nazwy A</a>
+    <button data-evk-oc-go="1" id="go-idx">Drugi panel →</button>
+  </div>
+  <div class="evk-oc-panel">
+    <button data-evk-oc-back id="back-idx">← Wstecz</button>
+    <a href="#y" id="n-b">Bez nazwy B</a>
+  </div>
+</div>
+
 <div class="long">treść strony</div>
 
 <script>
   var root = document.getElementById('root');
   root.setAttribute('data-mode',       q.get('mode')   || 'levels');
   root.setAttribute('data-side',       q.get('side')   || 'right');
-  root.setAttribute('data-duration',   '0');
+  root.setAttribute('data-duration',   q.get('dur') || '0');
   root.setAttribute('data-easing',     '');
   root.setAttribute('data-start',      '');
   root.setAttribute('data-trigger',    '');
@@ -55,17 +69,41 @@
   root.setAttribute('data-lock',       q.get('lock')   === '0' ? '0' : '1');
   root.setAttribute('data-portal',     q.get('portal') === '0' ? '0' : '1');
   root.setAttribute('data-open-builder', '0');
+
+  var r2 = document.getElementById('root2');
+  ['data-mode','data-side','data-duration','data-esc-back','data-close-link',
+   'data-lock','data-portal','data-open-builder'].forEach(function (a) {
+    r2.setAttribute(a, root.getAttribute(a));
+  });
+  r2.setAttribute('data-start', '');
+  r2.setAttribute('data-trigger', '');
 </script>
 <script src="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.js"></script>
 
 <script>
 window.__open   = function () { document.getElementById('trigger').click(); };
-window.__isOpen = function () { return !!document.querySelector('.evk-oc-shell.is-open'); };
+
+/** Przesunięcie kadru paneli w poziomie — 0 znaczy „na miejscu". */
+window.__slide = function () {
+  var w = shellOf(0).querySelector('.evk-oc-panels');
+  if (!w) return null;
+  var cs = getComputedStyle(w);
+  var m = cs.transform;
+  var x = (m && m !== 'none') ? Math.round(parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4])) : 0;
+  return { x: x, transition: cs.transitionDuration, visible: cs.visibility };
+};
+window.__isOpen = function () { return shellOf(0).classList.contains('is-open'); };
 
 /** Który panel jest bieżący i które są odcięte od tabulatora. */
+/* Powłoki jadą do <body>, więc po przeniesieniu nie da się ich zawęzić
+   korzeniem. Kolejność jest jednak stała: pierwsza powłoka należy do
+   pierwszego korzenia. Bez tego zawężenia drugi korzeń wchodził do pomiaru
+   pierwszego i „bieżący jest dokładnie jeden" świeciło na czerwono. */
+function shellOf(i) { return document.querySelectorAll('.evk-oc-shell')[i]; }
+
 window.__state = function () {
   var out = [];
-  document.querySelectorAll('.evk-oc-panel').forEach(function (p) {
+  shellOf(0).querySelectorAll('.evk-oc-panel').forEach(function (p) {
     out.push({
       id:      p.getAttribute('data-panel'),
       current: p.classList.contains('is-current'),
@@ -102,16 +140,31 @@ window.__ariaExpanded = function () {
 
 /** Czy powłoka wylądowała w <body> (portal), czy została w korzeniu. */
 window.__shellParent = function () {
-  var s = document.querySelector('.evk-oc-shell');
+  var s = shellOf(0);
   return s ? s.parentElement.tagName.toLowerCase() : null;
 };
 
 /** Czy panel widocznie leży w kadrze — do sprawdzenia redukcji ruchu. */
+/** Pierwszy panel PIERWSZEJ powłoki — do pomiarów stylu. */
+window.__firstPanel = function () { return shellOf(0).querySelector('.evk-oc-panel'); };
+
 window.__panelVisible = function () {
-  var p = document.querySelector('.evk-oc-panel.is-current');
+  var p = shellOf(0).querySelector('.evk-oc-panel.is-current');
   if (!p) return false;
+  var cs = getComputedStyle(p);
+  if (cs.visibility === 'hidden') return false;
   var r = p.getBoundingClientRect();
   return r.width > 10 && r.right > 0 && r.left < window.innerWidth
-      && parseFloat(getComputedStyle(p).opacity) > 0.9;
+      && parseFloat(cs.opacity) > 0.9;
+};
+
+/** Stan drugiego korzenia — panele bez nazw, adresowane kolejnością. */
+window.__open2  = function () { document.getElementById('trigger2').click(); };
+window.__state2 = function () {
+  var panels = shellOf(1).querySelectorAll('.evk-oc-panel');
+  return Array.prototype.map.call(panels, function (p, i) {
+    return { i: i, current: p.classList.contains('is-current'),
+             text: (p.textContent || '').trim().slice(0, 14) };
+  });
 };
 </script>

@@ -56,8 +56,16 @@ function evk_offcanvas_menu_init_one(root) {
     shell.appendChild(scrim);
     shell.appendChild(wrap);
 
-    root.style.setProperty('--evk-oc-time', duration + 's');
-    if (easing) root.style.setProperty('--evk-oc-ease', easing);
+    /* Zmienne NA POWŁOCE, nie tylko na korzeniu.
+     *
+     * Powłoka jedzie do <body>, więc przestaje być potomkiem korzenia i nic
+     * z niego nie dziedziczy. Ustawione wyłącznie na korzeniu wartości nie
+     * docierały do paneli i przejście brało wartość zapasową z arkusza —
+     * ustawienie „czas wysuwania" nie robiło nic. */
+    [root, shell].forEach(function (el) {
+        el.style.setProperty('--evk-oc-time', duration + 's');
+        if (easing) el.style.setProperty('--evk-oc-ease', easing);
+    });
 
     /* Portal do <body> przenosi POWŁOKĘ, ale styl zależy od `data-side`
        na korzeniu — dlatego powłoka dostaje własną kopię tego atrybutu

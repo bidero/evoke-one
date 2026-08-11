@@ -2,6 +2,32 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.57.1] — 2026-08-11
+
+### Naprawione
+
+- **Panel offcanvas nie wysuwał się — pojawiał się natychmiast.** Zgłoszone
+  z użycia. Powłoka była chowana `display: none`, a przejścia CSS **nie da się
+  uruchomić z `display: none`**: przeglądarka nie ma stanu wyjściowego do
+  interpolacji i skacze prosto do końcowego. Ukrywanie idzie teraz
+  `visibility` z opóźnieniem równym czasowi przejścia, żeby powłoka znikała
+  dopiero PO wyjechaniu panelu, plus `pointer-events`, żeby niewidoczna
+  warstwa na całym ekranie nie łapała kliknięć.
+
+- **Ustawienie „czas wysuwania" nie robiło nic.** Zmienne CSS były ustawiane
+  na korzeniu elementu, a powłoka jedzie do `<body>` i przestaje być jego
+  potomkiem — nie dziedziczyła więc niczego i przejście brało wartość zapasową
+  z arkusza. Pomiar pokazał 0,35 s przy ustawionych 0,6 s. Zmienne trafiają
+  teraz również na powłokę.
+
+### Zmienione
+
+- **Opis w kontrolce mówi wprost, jak otworzyć drugi panel.** Dotychczasowy
+  wymieniał nazwy atrybutów, ale nie mówił, gdzie się je wpisuje ani że bez
+  żadnej konfiguracji działa `data-evk-oc-go="1"` — panele bez nazwy liczą się
+  po kolejności. To była droga, którą idzie każdy przed przeczytaniem
+  czegokolwiek, i jedyna, której nie sprawdzał żaden test. Teraz sprawdza.
+
 ## [1.57.0] — 2026-08-11
 
 ### Zmienione

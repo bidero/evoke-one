@@ -12,13 +12,29 @@
 
 .evk-oc { display: contents; }
 
+/* Ukrywanie WIDOCZNOŚCIĄ, nie `display`.
+ *
+ * `display: none` → `block` nie da się animować: przeglądarka nie ma stanu
+ * wyjściowego do interpolacji i przejście po prostu nie startuje. Panel
+ * pojawiał się natychmiast, mimo poprawnie zadeklarowanego `transition`.
+ *
+ * `visibility` z ZEROWYM czasem i opóźnieniem równym czasowi przejścia chowa
+ * powłokę dopiero PO wyjechaniu panelu — bez opóźnienia znikałaby od razu
+ * i wyjazdu też nie byłoby widać. `pointer-events` pilnuje, żeby niewidoczna
+ * powłoka na całym ekranie nie łapała kliknięć. */
 .evk-oc-shell {
     position: fixed;
     inset: 0;
     z-index: 99990;
-    display: none;
+    visibility: hidden;
+    pointer-events: none;
+    transition: visibility 0s linear var(--evk-oc-time, .35s);
 }
-.evk-oc-shell.is-open { display: block; }
+.evk-oc-shell.is-open {
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+}
 
 .evk-oc-scrim {
     position: absolute;
