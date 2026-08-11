@@ -2,6 +2,20 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.54.0] — 2026-08-10
+
+### Dodane
+
+- **Piętnaście kolejnych animacji wyjścia** — z sześciu do dwudziestu jeden.
+  Wyjścia były wyraźnie uboższe od wejść (21 pozycji), więc doszły lustrzane
+  odpowiedniki tamtych: zanik w lewo i w prawo, powiększenie, obrót, skew,
+  wychylenie, wytoczenie, flip 3D w obu osiach, rozmycie w dół, zasłona
+  w cztery strony oraz zjazd za maskę w lewo i w prawo.
+
+  „Powiększenie" stoi obok „zmniejszenia" celowo: element rosnący przy
+  zanikaniu czyta się jak oddalenie, a malejący jak znikanie w punkt — to dwa
+  różne efekty, nie wariant jednego.
+
 ## [1.53.1] — 2026-08-10
 
 ### Dodane
