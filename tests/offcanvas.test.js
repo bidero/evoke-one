@@ -284,6 +284,47 @@ module.exports = async function (t) {
     'x ' + wcMid.x + ' (cel ok. -420)');
   await wc.close();
 
+  // ── Wypychanie przeżywa style Bricksa ──────────────────────────────────
+  // Reszta tego pliku mierzy gołe `<div class="evk-oc-panel">`. Na stronie
+  // panele są dziećmi nestable, więc niosą jeszcze `.brxe-block` z własnym
+  // `display: flex` i `width: 100%` — a element, który działa tylko bez
+  // cudzego CSS-a, nie działa na stronie. Znacznik w fixture jest ZRZUTEM
+  // Z ŻYWEJ STRONY (zgłoszenie: „nadal nie przepycha panelu dalej").
+  //
+  // Sedno: panel musi mieć DOKŁADNIE szerokość kadru. Węższy znaczy, że
+  // przesunięcie taśmy o −100% nie przestawia o jeden panel, a to widać
+  // właśnie jako „drugi zasłania pierwszy".
+  t.section('wypychanie działa w znacznikach Bricksa');
+
+  const br = await t.open('offcanvas-bricks.html', { viewport: V, settle: 200 });
+  t.check('bez błędów JS', !br.errors.length, br.errors.join(' | ') || 'brak');
+
+  await br.evaluate(() => window.__open());
+  await br.waitForTimeout(600);
+  const g0 = await br.evaluate(() => window.__geo());
+
+  t.check('taśma jest paskiem poziomym', g0.trackDisplay === 'flex', g0.trackDisplay);
+  t.check('każdy panel ma szerokość kadru',
+    g0.panels.every((p) => p.w === g0.frameW),
+    'kadr ' + g0.frameW + ', panele ' + g0.panels.map((p) => p.w).join(' / '));
+  t.check('panele leżą OBOK SIEBIE, nie na sobie',
+    g0.panels.every((p) => p.pos === 'static') && g0.panels[1].left === g0.frameW,
+    'pozycje ' + g0.panels.map((p) => p.left).join(' / ') + ' px');
+  // `flex-shrink` z cudzego arkusza ścisnąłby oba panele do połowy kadru
+  // i całość wyglądałaby poprawnie aż do pierwszego przejścia.
+  t.check('style Bricksa nie ściskają paneli',
+    g0.panels.every((p) => p.shrink === '0' && p.basis === '100%'),
+    g0.panels.map((p) => p.basis + '/' + p.shrink).join(' '));
+
+  await br.evaluate(() => window.__go());
+  await br.waitForTimeout(700);
+  const g1 = await br.evaluate(() => window.__geo());
+  t.check('rodzic ODJECHAŁ o całą szerokość kadru', g1.panels[0].left === -g0.frameW,
+    g0.panels[0].left + ' → ' + g1.panels[0].left + ' px');
+  t.check('podmenu zajęło jego miejsce', g1.panels[1].left === 0,
+    g0.panels[1].left + ' → ' + g1.panels[1].left + ' px');
+  await br.close();
+
   // ── Animacje grają przy KAŻDYM otwarciu ────────────────────────────────
   // Wyzwalacz „wejście w kadr" jest z definicji jednorazowy: strona przewija
   // się w jedną stronę, więc ScrollTrigger po pierwszym wejściu kończy pracę.

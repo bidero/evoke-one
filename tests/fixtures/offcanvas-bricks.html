@@ -1,0 +1,102 @@
+<!--
+  Offcanvas w ZNACZNIKACH BRICKSA.
+
+  `offcanvas.html` używa gołych `<div class="evk-oc-panel">`. Na stronie panele
+  są dziećmi nestable, więc niosą jeszcze klasy Bricksa i jego style — a to one
+  decydują o tym, czy panel ma szerokość kadru. Znacznik niżej jest ZRZUTEM
+  Z ŻYWEJ STRONY (zgłoszenie: „nadal nie przepycha panelu dalej"), przepisanym
+  bez zmian poza usunięciem atrybutów stanu, które nadaje JS.
+
+  Reguły Bricksa poniżej to jego domyślne style dla `.brxe-block` i `.brxe-div`.
+  Są tu po to, żeby panel nie był mierzony nago — element, który działa tylko
+  bez cudzego CSS-a, nie działa na stronie.
+-->
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px system-ui; }
+  .long { height: 2000px; background: #eee; }
+
+  /* ── Domyślne style Bricksa dla kontenerów ── */
+  .brxe-block, .brxe-div, .brxe-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .brxe-block { width: 100%; }
+
+  /* Tło ustawione w builderze NA PANELU — bez niego widać tło kadru
+     i „drugi panel zasłania pierwszy" nie ma czego pokazać. */
+  #brxe-pjtvtc { background: #123; color: #fff; }
+  #brxe-daahik { background: #321; color: #fff; }
+</style>
+
+<link rel="stylesheet" href="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.css">
+
+<script>
+  var q = new URLSearchParams(location.search);
+  window.bricksIsFrontend = true;
+</script>
+
+<div id="brxe-wfwkov">Otwórz menu</div>
+
+<div id="brxe-rfepem" data-script-id="rfepem"
+     class="brxe-evk-offcanvas-menu bricks-lazy-hidden evk-oc"
+     data-mode="levels" data-side="right"
+     data-duration="0.4" data-easing="cubic-bezier(0.65, 0, 0.35, 1)"
+     data-panel-duration="0.4" data-panel-easing="cubic-bezier(0.5, 1, 0.89, 1)"
+     data-start="" data-trigger="#brxe-wfwkov"
+     data-esc-back="1" data-close-link="0" data-lock="1"
+     data-portal="0" data-open-builder="0">
+
+  <div id="brxe-dreafu" class="brxe-div evk-oc-trigger"></div>
+
+  <div id="brxe-pjtvtc" class="brxe-block evk-oc-panel">
+    <span id="brxe-vjghsf" class="brxe-text-link" data-evk-oc-go="1"
+          aria-label="Link tekstowy">Link tekstowy</span>
+  </div>
+
+  <div id="brxe-daahik" class="brxe-block evk-oc-panel">
+    <span id="brxe-back" class="brxe-text-link" data-evk-oc-back>Wstecz</span>
+  </div>
+</div>
+
+<div class="long">treść strony</div>
+
+<script src="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.js"></script>
+
+<script>
+function shell() { return document.querySelector('.evk-oc-shell'); }
+function frame() { return shell().querySelector('.evk-oc-frame'); }
+function track() { return shell().querySelector('.evk-oc-track'); }
+function panels() { return shell().querySelectorAll('.evk-oc-panel'); }
+
+window.__open = function () { document.getElementById('brxe-wfwkov').click(); };
+window.__go   = function () { document.getElementById('brxe-vjghsf').click(); };
+
+/** Geometria całego mechanizmu w jednym pomiarze.
+ *
+ *  Sedno układu: panel MUSI mieć dokładnie szerokość kadru. Węższy panel
+ *  znaczy, że przesunięcie taśmy o −100% nie przestawia o jeden panel —
+ *  i wtedy „drugi zasłania pierwszy" jest tylko tym, co widać. */
+window.__geo = function () {
+  var f = frame().getBoundingClientRect();
+  var t = track().getBoundingClientRect();
+  return {
+    frameW:   Math.round(f.width),
+    trackW:   Math.round(t.width),
+    trackDisplay: getComputedStyle(track()).display,
+    panels: Array.prototype.map.call(panels(), function (p) {
+      var cs = getComputedStyle(p);
+      return {
+        id:    p.id,
+        w:     Math.round(p.getBoundingClientRect().width),
+        left:  Math.round(p.getBoundingClientRect().left - f.left),
+        basis: cs.flexBasis,
+        shrink: cs.flexShrink,
+        pos:   cs.position,
+      };
+    }),
+  };
+};
+</script>
