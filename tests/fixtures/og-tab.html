@@ -1,0 +1,127 @@
+<style>
+  body { margin: 0; font: 13px system-ui; background: #fff; }
+  /* Pola warstw tylko zaśmiecają pomiar — tu chodzi o kolejność warstw. */
+  .evo-og-layer-fields { display: none; }
+</style>
+
+<div id="mount"></div>
+
+<!--
+  KOLEJNOŚĆ SKRYPTÓW JEST TU CAŁYM TESTEM.
+
+  Tak wygląda prawdziwa strona wp-admin:
+
+    <head>   jquery                       (WordPress drukuje je w nagłówku)
+    <body>   markup zakładki + jej skrypty inline
+    stopka   sortablejs, admin.js         (enqueue z $in_footer = true)
+
+  Skrypt stojący w treści zakładki rusza więc, ZANIM biblioteka przeciągania
+  trafi na stronę. Do 1.59.0 inicjalizacja przeciągania warstw OG siedziała
+  właśnie tam, za cichym `if (typeof Sortable !== 'undefined')` — warunek był
+  fałszywy przy każdym wejściu na zakładkę i przeciąganie po prostu nie
+  istniało, bez śladu w konsoli. Ta sama usterka co w 1.37.0, inne miejsce.
+
+  Fixture odtwarza tę kolejność wiernie, więc kod, który wróci do treści
+  strony, znów zaświeci na czerwono.
+-->
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+
+<script>
+/* Markup z PRAWDZIWEGO tab-og.php (window.__tab wstrzykiwane przez test). */
+document.getElementById('mount').innerHTML = window.__tab;
+
+/* `innerHTML` NIE uruchamia skryptów. Podmieniamy je na świeże węzły, żeby
+   poszły w ruch dokładnie tu — czyli tam, gdzie stoją na stronie: w treści,
+   przed stopką. Po przeniesieniu kodu do admin.js pętla nie ma co robić
+   i to też jest sprawdzane. */
+window.__inlineScripts = 0;
+Array.prototype.forEach.call(document.querySelectorAll('#mount script'), function (old) {
+  window.__inlineScripts++;
+  var s = document.createElement('script');
+  s.textContent = old.textContent;
+  old.parentNode.replaceChild(s, old);
+});
+</script>
+
+<!-- ── STOPKA ── -->
+<script src="../../node_modules/sortablejs/Sortable.min.js"></script>
+<script>
+/* Podglądamy, z czym wołany jest Sortable — i przepuszczamy dalej, żeby
+   biblioteka realnie się podpięła. Rejestrator MUSI stać między biblioteką
+   a admin.js: wcześniej nie ma czego owijać, później jest po wywołaniu. */
+window.__sortableCalls = [];
+var origCreate = Sortable.create;
+Sortable.create = function (el, opts) {
+  window.__sortableCalls.push({ id: el && el.id, opts: opts });
+  return origCreate.call(Sortable, el, opts);
+};
+
+/* ?nosortable=1 — kontrola negatywna: bez biblioteki nie podpina się nic.
+   Bez niej „przeciąganie podpięte" świeciłoby na zielono także wtedy, gdyby
+   rejestrator liczył cudze wywołania. */
+if (new URLSearchParams(location.search).get('nosortable') === '1') {
+  window.__realSortable = window.Sortable;
+  delete window.Sortable;
+}
+
+/* wp_localize_script('evoke-one-admin', 'evoOgData', …) — ŁADUNEK Z PHP,
+   wstrzyknięty przez test (window.__ogData). Własna kopia listy typów
+   rozjechałaby się z wtyczką przy pierwszym dołożonym typie i sprawdzenie
+   nazw przestałoby cokolwiek znaczyć. Nadpisany jest wyłącznie licznik
+   warstw — zależy on od zapisanych ustawień, a fixture renderuje zakładkę
+   z własnym zestawem warstw. */
+window.evoOgData = Object.assign({}, window.__ogData, {
+  layerCount: Number(window.__layerCount || 0),
+});
+window.ajaxurl = '/fake-ajax';
+
+window.__posts = [];
+jQuery.post = function (url, data) {
+  window.__posts.push({ url: url, data: data });
+  var api = {
+    done:   function (cb) { cb({ success: true, data: { count: 7 } }); return api; },
+    fail:   function ()   { return api; },
+    always: function (cb) { cb(); return api; },
+  };
+  return api;
+};
+</script>
+<script src="../../assets/admin/admin.js"></script>
+
+<script>
+/** Indeksy warstw w kolejności DOM — odczytane z NAZW pól, bo to one jadą
+ *  na serwer. `data-index` jest tylko podpowiedzią dla oka. */
+window.__layerNames = function () {
+  return Array.prototype.map.call(
+    document.querySelectorAll('#evk-og-layers-container > .evo-og-layer'),
+    function (row) {
+      var inp = row.querySelector('input[name*="[layers]["]');
+      var m   = inp && /\[layers\]\[(\d+)\]/.exec(inp.name);
+      return m ? Number(m[1]) : -1;
+    }
+  );
+};
+
+/** Typy warstw w kolejności DOM — po nich widać, czy przestawienie zaszło. */
+window.__layerTypes = function () {
+  return Array.prototype.map.call(
+    document.querySelectorAll('#evk-og-layers-container > .evo-og-layer'),
+    function (row) {
+      var inp = row.querySelector('input[name*="[type]"]');
+      return inp ? inp.value : '?';
+    }
+  );
+};
+
+/** Przestawia warstwę i uruchamia ścieżkę, którą biblioteka woła po upuszczeniu. */
+window.__moveAndDrop = function (from, to) {
+  var box  = document.getElementById('evk-og-layers-container');
+  var rows = box.querySelectorAll(':scope > .evo-og-layer');
+  box.insertBefore(rows[from], to >= rows.length ? null : rows[to]);
+  var call = null;
+  window.__sortableCalls.forEach(function (c) {
+    if (c.id === 'evk-og-layers-container') call = c;
+  });
+  if (call && typeof call.opts.onEnd === 'function') call.opts.onEnd({});
+};
+</script>

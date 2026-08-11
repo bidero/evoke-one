@@ -886,4 +886,214 @@
         });
     }
 
+    /* =========================================================
+       OPENGRAPH — WARSTWY
+       =========================================================
+
+       Ten kod stał do 1.59.0 w bloku <script> W TREŚCI zakładki OG. Blok
+       w treści rusza, zanim WordPress wydrukuje stopkę — a `sortablejs`
+       i `wp.media` idą z enqueue z `$in_footer = true`. Przeciąganie warstw
+       nie podpinało się więc nigdy: cichy warunek `if (typeof Sortable
+       !== 'undefined')` był fałszywy przy każdym wejściu na zakładkę
+       i połykał to bez śladu w konsoli. Zgłoszone jako „nie działa
+       drag/drop"; ta sama przyczyna co w usterce 1.37.0.
+
+       Lekarstwem NIE jest odroczenie do zdarzenia `load` — to leczy objaw
+       i wraca przy każdym kolejnym skrypcie dopisanym do zakładki. Kod
+       mieszka tu, bo `evoke-one-admin` ma `sortablejs` w ZALEŻNOŚCIACH,
+       a tylko zależność wymusza kolejność drukowania.
+
+       Dane z PHP przychodzą przez wp_localize_script (`evoOgData`).
+    */
+    var ogBox = document.getElementById('evk-og-layers-container');
+    if (ogBox) {
+        var ogData  = window.evoOgData || {};
+        var ogTypes = ogData.types || {};
+        var ogCount = Number(ogData.layerCount || 0);
+
+        /* ── Wybór pliku z biblioteki mediów ────────────────────────────
+           Globalna, bo woła ją atrybut `onclick` w markupie zakładki.
+           Ramki trzymamy per kontekst: `wp.media()` przy każdym wywołaniu
+           buduje nową, a otwarta dwa razy gubi zaznaczenie. */
+        var ogFrames = {};
+
+        window.evkOgPickMedia = function (context, layerIndex) {
+            var key = context + (layerIndex !== null && layerIndex !== undefined ? layerIndex : '');
+
+            if (ogFrames[key]) { ogFrames[key].open(); return; }
+
+            var frame = wp.media({
+                title:    context === 'font' ? 'Wybierz plik fontu (.ttf / .otf)' : 'Wybierz obraz',
+                button:   { text: 'Wybierz' },
+                multiple: false,
+                library:  context === 'font' ? {} : { type: 'image' },
+            });
+
+            frame.on('select', function () {
+                var a = frame.state().get('selection').first().toJSON();
+
+                if (context === 'font') {
+                    $('#evk-og-font-url').val(a.url);
+                    $('#evk-og-font-path').val('');
+                    $('#evk-og-font-preview').html(
+                        '<span class="evo-hint evo-hint-soft">' + a.filename + '</span>');
+                } else {
+                    $('#evk-og-img-id-' + layerIndex).val(a.id);
+                    var thumb = a.sizes && a.sizes.thumbnail ? a.sizes.thumbnail.url : a.url;
+                    $('#evk-og-img-preview-' + layerIndex).html(
+                        '<img src="' + thumb + '" class="evo-thumb">' +
+                        '<span class="evo-hint evo-hint-soft">' + a.filename + '</span>');
+                }
+            });
+
+            ogFrames[key] = frame;
+            frame.open();
+        };
+
+        /* ── Pola specyficzne dla typu warstwy ──────────────────────── */
+        var ogFields = {
+            rect: function (i) {
+                return '<div><label>Kolor</label>' + ogColorPair(i, 'color', '#000000') + '</div>';
+            },
+            photo: function (i) {
+                return '<div><label>Przesunięcie X (px)</label>' + ogNum(i, 'offset_x', 0) + '</div>';
+            },
+            gradient: function (i) {
+                return '<div><label>Kolor</label>' + ogColorPair(i, 'color', '#000000') + '</div>' +
+                    '<div><label>Kierunek</label><select name="' + ogName(i, 'direction') + '">' +
+                        '<option value="top">↑ Górny</option>' +
+                        '<option value="bottom" selected>↓ Dolny</option>' +
+                        '<option value="left">← Lewy</option>' +
+                        '<option value="right">→ Prawy</option>' +
+                    '</select></div>' +
+                    '<div><label>Alpha start (%)</label>' + ogNum(i, 'alpha_start', 0, 0, 100) + '</div>' +
+                    '<div><label>Alpha end (%)</label>'   + ogNum(i, 'alpha_end', 100, 0, 100) + '</div>' +
+                    '<div><label>Pozycja startu (%)</label>' + ogNum(i, 'pos_pct', 50, 0, 100) + '</div>';
+            },
+            image: function (i) {
+                return '<div class="evo-og-full"><label>Obraz</label>' +
+                    '<div class="evo-og-media-row" id="evk-og-img-preview-' + i + '">' +
+                        '<span class="evo-hint evo-faint">Nie wybrano</span></div>' +
+                    '<input type="hidden" name="' + ogName(i, 'image_id') + '" id="evk-og-img-id-' + i + '" value="0">' +
+                    '<button type="button" class="button evo-mt-xs" ' +
+                        'onclick="evkOgPickMedia(\'image\',' + i + ')">Wybierz obraz</button></div>';
+            },
+            text: function (i) {
+                return '<div><label>X od lewej (px)</label>' + ogNum(i, 'x', 275) + '</div>' +
+                    '<div><label>Y od dołu (px)</label>'   + ogNum(i, 'y_from_bottom', 120) + '</div>' +
+                    '<div><label>Maks. szerokość</label>'  + ogNum(i, 'max_width', 900) + '</div>' +
+                    '<div><label>Rozmiar fontu</label>'    + ogNum(i, 'font_size', 80) + '</div>' +
+                    '<div><label>Kolor</label>' + ogColorPair(i, 'color', '#ffffff') + '</div>';
+            },
+            qr: function (i) {
+                return '<div><label>Margin prawy (px)</label>' + ogNum(i, 'x', 25) + '</div>' +
+                    '<div><label>Y od góry (px)</label>' + ogNum(i, 'y', 426) + '</div>' +
+                    '<div><label>Rozmiar (px)</label>'   + ogNum(i, 'size', 170, 50, 500) + '</div>' +
+                    '<div><label>Kolor kodu (fg)</label>' + ogColorPair(i, 'fg_color', '#ffffff') + '</div>' +
+                    '<div><label>Kolor tła (bg)</label>'  + ogColorPair(i, 'bg_color', '#000000') + '</div>';
+            },
+        };
+
+        function ogName(i, field) { return 'evk_og[layers][' + i + '][' + field + ']'; }
+
+        function ogNum(i, field, val, min, max) {
+            return '<input type="number" name="' + ogName(i, field) + '" value="' + val + '"' +
+                   (min === undefined ? '' : ' min="' + min + '" max="' + max + '"') + '>';
+        }
+
+        /* Pole koloru i pole tekstowe trzymają tę samą wartość i pilnują
+           się nawzajem — natywny picker nie przyjmuje wpisanego heksa,
+           a samo pole tekstowe nie daje wyboru z palety. */
+        function ogColorPair(i, field, val) {
+            return '<div class="evo-og-color-pair">' +
+                '<input type="color" value="' + val + '" oninput="this.nextElementSibling.value=this.value">' +
+                '<input type="text" name="' + ogName(i, field) + '" value="' + val + '" ' +
+                    'oninput="this.previousElementSibling.value=this.value" class="evo-mono evo-w-hex">' +
+                '</div>';
+        }
+
+        window.evkOgAddLayer = function () {
+            var type = document.getElementById('evk-og-new-layer-type').value;
+            var i    = ogCount++;
+            var label = ogTypes[type] || type;
+
+            var hasXY = type !== 'text';
+            var hasWH = type !== 'text' && type !== 'qr';
+
+            var html = '<div class="evo-og-layer" data-index="' + i + '">' +
+                '<div class="evo-og-layer-header">' +
+                    '<span class="drag-handle dashicons dashicons-menu"></span>' +
+                    '<label class="layer-toggle evo-toggle">' +
+                        '<input type="checkbox" name="' + ogName(i, 'enabled') + '" value="1" checked>' +
+                        '<span class="evo-slider"></span>' +
+                    '</label>' +
+                    '<span class="evo-og-layer-title">' + label + '</span>' +
+                    '<span class="evo-og-layer-type-badge">' + label + '</span>' +
+                    '<button type="button" class="evo-og-btn-remove" ' +
+                        'onclick="this.closest(\'.evo-og-layer\').remove()">' +
+                        '<span class="dashicons dashicons-trash evo-ico-sm"></span>' +
+                    '</button>' +
+                '</div>' +
+                '<input type="hidden" name="' + ogName(i, 'id') + '" value="layer_' + i + '">' +
+                '<input type="hidden" name="' + ogName(i, 'type') + '" value="' + type + '">' +
+                '<div class="evo-og-layer-fields">' +
+                    '<div><label>Etykieta</label><input type="text" name="' + ogName(i, 'label') + '" value="' + label + '"></div>' +
+                    (hasXY ? '<div><label>X (px)</label>' + ogNum(i, 'x', 0) + '</div>' +
+                             '<div><label>Y (px)</label>' + ogNum(i, 'y', 0) + '</div>' : '') +
+                    (hasWH ? '<div><label>Szerokość (px, 0=auto)</label>' + ogNum(i, 'width', 0) + '</div>' +
+                             '<div><label>Wysokość (px, 0=auto)</label>' + ogNum(i, 'height', 0) + '</div>' : '') +
+                    '<div><label>Krycie (%)</label>' + ogNum(i, 'opacity', 100, 0, 100) + '</div>' +
+                    '<div><label>Blend Mode</label><select name="' + ogName(i, 'blend') + '">' +
+                        '<option>normal</option><option>multiply</option>' +
+                        '<option>screen</option><option>overlay</option></select></div>' +
+                    (ogFields[type] ? ogFields[type](i) : '') +
+                '</div>' +
+            '</div>';
+
+            ogBox.insertAdjacentHTML('beforeend', html);
+        };
+
+        /* ── Przeciąganie warstw ────────────────────────────────────────
+           Kolejność warstw JEST kolejnością renderowania obrazu, więc
+           przestawienie musi dojechać na serwer. Jedzie NAZWAMI PÓL —
+           `data-index` jest tylko podpowiedzią dla oka. */
+        if (typeof Sortable !== 'undefined') {
+            Sortable.create(ogBox, {
+                handle: '.drag-handle',
+                animation: 150,
+                onEnd: function () {
+                    ogBox.querySelectorAll('.evo-og-layer').forEach(function (row, idx) {
+                        row.querySelectorAll('[name]').forEach(function (inp) {
+                            inp.name = inp.name.replace(/\[layers\]\[\d+\]/, '[layers][' + idx + ']');
+                        });
+                        row.dataset.index = idx;
+                    });
+                },
+            });
+        }
+
+        /* ── Regeneracja masowa ─────────────────────────────────────── */
+        window.evkOgRegenAll = function () {
+            var $btn = $('#evk-og-regen-all');
+            var $res = $('#evk-og-regen-result');
+            $btn.prop('disabled', true).text('Regeneruję…');
+            $res.hide();
+
+            $.post(window.ajaxurl, {
+                action: 'evk_og_regenerate_all',
+                nonce:  ogData.nonce,
+            }).done(function (r) {
+                $res.text(r && r.success
+                    ? 'Gotowe! Przetworzono: ' + r.data.count + ' wpisów.'
+                    : 'Błąd: ' + ((r && r.data) || 'nieznany')).show();
+            }).fail(function () {
+                $res.text('Błąd połączenia.').show();
+            }).always(function () {
+                $btn.prop('disabled', false).html(
+                    '<span class="dashicons dashicons-update evo-ico evo-ico-lead"></span> Regeneruj wszystkie obrazy OG'
+                );
+            });
+        };
+    }
+
 })(jQuery);

@@ -38,6 +38,10 @@ class EVK_Cursor {
 // czyli tylko na froncie) i test ma pilnować, że ta droga naprawdę działa.
 require EVK_TEST_ROOT . '/includes/89-gsap.php';
 require EVK_TEST_ROOT . '/includes/anim/presets.php';
+// Warstwy OG: panel przekazuje ich liczbę i etykiety typów do admin.js.
+// Moduł ładujemy PRAWDZIWY, bo o to właśnie chodzi — że lista typów jest
+// jedna dla PHP i dla przeglądarki.
+require EVK_TEST_ROOT . '/includes/opengraph/settings.php';
 require EVK_TEST_ROOT . '/includes/admin/page.php';
 
 // evoke_one_get_io_modules() definiuje sam page.php — nie podstawiamy atrapy.
@@ -71,6 +75,21 @@ echo json_encode([
     // Panel bez adresu i bez nonce'a nie zapisze kolejności, choćby sortowanie
     // działało — to druga połowa tego samego połączenia.
     'anim'    => array_keys($GLOBALS['localized']['evoOneAnimData'] ?? []),
+
+    // Warstwy OG. Bez `types` dodana warstwa dostaje nazwę „qr" zamiast
+    // „Kod QR", bez `layerCount` wchodzi pod indeks już zajęty i nadpisuje
+    // istniejącą przy zapisie — obie usterki są ciche.
+    'og'      => array_keys($GLOBALS['localized']['evoOgData'] ?? []),
+    // CAŁY ładunek, nie tylko klucze — test w przeglądarce wstrzykuje go
+    // do fixture'a zamiast trzymać własną kopię listy typów. Kopia zaczęłaby
+    // żyć własnym życiem i „warstwa ma czytelną nazwę typu" przestałoby
+    // sprawdzać cokolwiek.
+    'ogData'  => $GLOBALS['localized']['evoOgData'] ?? null,
+    'ogTypes' => array_keys(($GLOBALS['localized']['evoOgData']['types'] ?? [])),
+    'ogCount' => $GLOBALS['localized']['evoOgData']['layerCount'] ?? null,
+    // Ile warstw naprawdę ma domyślna konfiguracja — indeks nowej warstwy
+    // musi ruszać właśnie stąd.
+    'ogReal'  => count(evk_og_get_settings()['layers'] ?? []),
 
     'engine'      => $anim_js ? $anim_js['deps'] : null,
     'engineSrc'   => $anim_js['src'] ?? null,

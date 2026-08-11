@@ -173,6 +173,26 @@ function evk_og_defaults(): array {
     ];
 }
 
+/**
+ * Typy warstw — etykiety dla panelu.
+ *
+ * Lista mieszka TUTAJ, a nie w zakładce, bo czytają ją dwa miejsca naraz:
+ * zakładka rysuje z niej listę wyboru i plakietki przy warstwach, a panel
+ * przekazuje ją do `admin.js`, który buduje z niej nową warstwę. Dwie kopie
+ * rozjechałyby się przy pierwszym dołożonym typie i dodana warstwa dostałaby
+ * nazwę „qr" zamiast „Kod QR".
+ */
+function evk_og_layer_types(): array {
+    return [
+        'rect'     => 'Prostokąt (kolor)',
+        'photo'    => 'Zdjęcie wyróżniające',
+        'gradient' => 'Gradient',
+        'image'    => 'Obraz (biblioteka mediów)',
+        'text'     => 'Tekst (tytuł)',
+        'qr'       => 'Kod QR',
+    ];
+}
+
 function evk_og_get_settings(): array {
     $saved = get_option('evk_og', []);
     $defaults = evk_og_defaults();

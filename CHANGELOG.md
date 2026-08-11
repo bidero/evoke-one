@@ -2,6 +2,32 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.60.0] — 2026-08-11
+
+### Naprawione
+
+- **OpenGraph: przeciąganie warstw nie działało.** Zgłoszone z użycia. Kod
+  inicjujący przeciąganie stał w bloku `<script>` w TREŚCI zakładki, a
+  biblioteka `sortablejs` (i `wp.media`) jadą ze STOPKI. Skrypt zakładki
+  uruchamiał się więc, zanim biblioteka w ogóle trafiła na stronę, a cichy
+  warunek `if (typeof Sortable !== 'undefined')` połykał to bez śladu
+  w konsoli — z zewnątrz wyglądało to na element, który po prostu nie
+  reaguje. Ta sama przyczyna co usterka 1.37.1, inne miejsce.
+
+  Poprawką nie jest odroczenie do zdarzenia `load` — to leczy objaw i wraca
+  przy każdym kolejnym skrypcie dopisanym do zakładki. Cały skrypt zakładki
+  (przeciąganie, dodawanie warstwy, wybór z biblioteki mediów, regeneracja
+  masowa) przeniesiony do `assets/admin/admin.js`, który ma `sortablejs`
+  w ZALEŻNOŚCIACH — a tylko zależność wymusza kolejność drukowania. Zakładka
+  nie niesie już własnego skryptu i test tego pilnuje.
+
+### Zmienione
+
+- Lista typów warstw OG mieszka w jednym miejscu (`evk_og_layer_types()`)
+  i tą samą drogą trafia do zakładki i do panelu. Dwie kopie rozjechałyby
+  się przy pierwszym dołożonym typie, a dodana warstwa dostałaby nazwę
+  „qr" zamiast „Kod QR".
+
 ## [1.59.0] — 2026-08-11
 
 ### Naprawione

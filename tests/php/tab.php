@@ -236,9 +236,13 @@ $TABS = [
         'seed'   => function () {
             $GLOBALS['options']['evk_og'] = [
                 'enabled' => 1,
+                // Trzy warstwy, a nie dwie: przy dwóch „przestawienie" i
+                // „odwrócenie" dają ten sam wynik, więc pomyłka w kolejności
+                // po upuszczeniu przeszłaby niezauważona.
                 'layers'  => [
-                    ['type' => 'rect', 'enabled' => 1, 'color' => '#111827'],
-                    ['type' => 'text', 'enabled' => 1, 'color' => '#ffffff'],
+                    ['type' => 'rect',  'enabled' => 1, 'color' => '#111827'],
+                    ['type' => 'photo', 'enabled' => 1, 'offset_x' => 110],
+                    ['type' => 'text',  'enabled' => 1, 'color' => '#ffffff'],
                 ],
             ];
         },

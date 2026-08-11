@@ -4,20 +4,12 @@ if (!defined('ABSPATH')) exit;
             <?php
             $og       = evk_og_get_settings();
             $og_layers = $og['layers'] ?? [];
-            $og_nonce  = wp_create_nonce('evk_og_regen');
             $all_post_types = get_post_types(['public' => true], 'objects');
 
             $blend_modes = ['normal','multiply','screen','overlay','darken','lighten',
                             'color-dodge','color-burn','hard-light','soft-light',
                             'difference','exclusion'];
-            $layer_types = [
-                'rect'     => 'Prostokąt (kolor)',
-                'photo'    => 'Zdjęcie wyróżniające',
-                'gradient' => 'Gradient',
-                'image'    => 'Obraz (biblioteka mediów)',
-                'text'     => 'Tekst (tytuł)',
-                'qr'       => 'Kod QR',
-            ];
+            $layer_types = evk_og_layer_types();
             ?>
 
 
@@ -394,140 +386,8 @@ if (!defined('ABSPATH')) exit;
                 </div>
             </form>
 
-            <script>
-            (function ($) {
-                /* ── Media picker ───────────────────────────────────────── */
-                var evkOgMediaFrames = {};
-
-                window.evkOgPickMedia = function (context, layerIndex, type) {
-                    var frameKey = context + (layerIndex !== null ? layerIndex : '');
-
-                    if (evkOgMediaFrames[frameKey]) {
-                        evkOgMediaFrames[frameKey].open();
-                        return;
-                    }
-
-                    var frame = wp.media({
-                        title:    context === 'font' ? 'Wybierz plik fontu (.ttf / .otf)' : 'Wybierz obraz',
-                        button:   { text: 'Wybierz' },
-                        multiple: false,
-                        library:  context === 'font' ? {} : { type: 'image' },
-                    });
-
-                    frame.on('select', function () {
-                        var attachment = frame.state().get('selection').first().toJSON();
-
-                        if (context === 'font') {
-                            $('#evk-og-font-url').val(attachment.url);
-                            $('#evk-og-font-path').val('');
-                            $('#evk-og-font-preview').html('<span class="evo-hint evo-hint-soft">' + attachment.filename + '</span>');
-                        } else {
-                            $('#evk-og-img-id-' + layerIndex).val(attachment.id);
-                            var thumb = attachment.sizes && attachment.sizes.thumbnail
-                                        ? attachment.sizes.thumbnail.url : attachment.url;
-                            $('#evk-og-img-preview-' + layerIndex).html(
-                                '<img src="' + thumb + '" class="evo-thumb">' +
-                                '<span class="evo-hint evo-hint-soft">' + attachment.filename + '</span>'
-                            );
-                        }
-                    });
-
-                    evkOgMediaFrames[frameKey] = frame;
-                    frame.open();
-                };
-
-                /* ── Dodaj warstwę ──────────────────────────────────────── */
-                var evkOgLayerCount = <?php echo count($og_layers); ?>;
-
-                var evkOgLayerTemplates = {
-                    rect: function (i) { return '<div><label>Kolor</label><div class="evo-og-color-pair"><input type="color" value="#000000" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][color]" value="#000000" oninput="this.previousElementSibling.value=this.value" class="evo-mono evo-w-hex"></div></div>'; },
-                    photo: function (i) { return '<div><label>Przesunięcie X (px)</label><input type="number" name="evk_og[layers]['+i+'][offset_x]" value="0"></div>'; },
-                    gradient: function (i) { return '<div><label>Kolor</label><div class="evo-og-color-pair"><input type="color" value="#000000" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][color]" value="#000000" oninput="this.previousElementSibling.value=this.value" class="evo-mono evo-w-hex"></div></div><div><label>Kierunek</label><select name="evk_og[layers]['+i+'][direction]"><option value="top">↑ Górny</option><option value="bottom" selected>↓ Dolny</option><option value="left">← Lewy</option><option value="right">→ Prawy</option></select></div><div><label>Alpha start (%)</label><input type="number" name="evk_og[layers]['+i+'][alpha_start]" value="0" min="0" max="100"></div><div><label>Alpha end (%)</label><input type="number" name="evk_og[layers]['+i+'][alpha_end]" value="100" min="0" max="100"></div><div><label>Pozycja startu (%)</label><input type="number" name="evk_og[layers]['+i+'][pos_pct]" value="50" min="0" max="100"></div>'; },
-                    image: function (i) { return '<div class="evo-og-full"><label>Obraz</label><div class="evo-og-media-row" id="evk-og-img-preview-'+i+'"><span class="evo-hint evo-faint">Nie wybrano</span></div><input type="hidden" name="evk_og[layers]['+i+'][image_id]" id="evk-og-img-id-'+i+'" value="0"><button type="button" class="button" style="margin-top:6px;" onclick="evkOgPickMedia(\'image\','+i+')">Wybierz obraz</button></div>'; },
-                    text: function (i) { return '<div><label>X od lewej (px)</label><input type="number" name="evk_og[layers]['+i+'][x]" value="275"></div><div><label>Y od dołu (px)</label><input type="number" name="evk_og[layers]['+i+'][y_from_bottom]" value="120"></div><div><label>Maks. szerokość</label><input type="number" name="evk_og[layers]['+i+'][max_width]" value="900"></div><div><label>Rozmiar fontu</label><input type="number" name="evk_og[layers]['+i+'][font_size]" value="80"></div><div><label>Kolor</label><div class="evo-og-color-pair"><input type="color" value="#ffffff" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][color]" value="#ffffff" oninput="this.previousElementSibling.value=this.value" class="evo-mono evo-w-hex"></div></div>'; },
-                    qr: function (i) { return '<div><label>Margin prawy (px)</label><input type="number" name="evk_og[layers]['+i+'][x]" value="25"></div><div><label>Y od góry (px)</label><input type="number" name="evk_og[layers]['+i+'][y]" value="426"></div><div><label>Rozmiar (px)</label><input type="number" name="evk_og[layers]['+i+'][size]" value="170" min="50" max="500"></div><div><label>Kolor kodu (fg)</label><div class="evo-og-color-pair"><input type="color" value="#ffffff" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][fg_color]" value="#ffffff" class="evo-mono evo-w-hex"></div></div><div><label>Kolor tła (bg)</label><div class="evo-og-color-pair"><input type="color" value="#000000" oninput="this.nextElementSibling.value=this.value"><input type="text" name="evk_og[layers]['+i+'][bg_color]" value="#000000" class="evo-mono evo-w-hex"></div></div>'; },
-                };
-
-                var typeLabels = <?php echo wp_json_encode(array_map('esc_html', $layer_types)); ?>;
-
-                window.evkOgAddLayer = function () {
-                    var type = document.getElementById('evk-og-new-layer-type').value;
-                    var i    = evkOgLayerCount++;
-                    var id   = 'layer_' + i;
-
-                    var hasXY     = !['text'].includes(type);
-                    var hasWH     = !['text', 'qr'].includes(type);
-                    var typeFields = evkOgLayerTemplates[type] ? evkOgLayerTemplates[type](i) : '';
-
-                    var html = '<div class="evo-og-layer" data-index="'+i+'">' +
-                        '<div class="evo-og-layer-header">' +
-                            '<span class="drag-handle dashicons dashicons-menu"></span>' +
-                            '<label class="layer-toggle evo-toggle">' +
-                                '<input type="checkbox" name="evk_og[layers]['+i+'][enabled]" value="1" checked>' +
-                                '<span class="evo-slider"></span>' +
-                            '</label>' +
-                            '<span class="evo-og-layer-title">' + (typeLabels[type] || type) + '</span>' +
-                            '<span class="evo-og-layer-type-badge">' + (typeLabels[type] || type) + '</span>' +
-                            '<button type="button" class="evo-og-btn-remove" onclick="this.closest(\'.evo-og-layer\').remove()">' +
-                                '<span class="dashicons dashicons-trash evo-ico-sm"></span>' +
-                            '</button>' +
-                        '</div>' +
-                        '<input type="hidden" name="evk_og[layers]['+i+'][id]" value="'+id+'">' +
-                        '<input type="hidden" name="evk_og[layers]['+i+'][type]" value="'+type+'">' +
-                        '<div class="evo-og-layer-fields">' +
-                            '<div><label>Etykieta</label><input type="text" name="evk_og[layers]['+i+'][label]" value="'+( typeLabels[type] || type )+'"></div>' +
-                            (hasXY ? '<div><label>X (px)</label><input type="number" name="evk_og[layers]['+i+'][x]" value="0"></div><div><label>Y (px)</label><input type="number" name="evk_og[layers]['+i+'][y]" value="0"></div>' : '') +
-                            (hasWH ? '<div><label>Szerokość (px, 0=auto)</label><input type="number" name="evk_og[layers]['+i+'][width]" value="0"></div><div><label>Wysokość (px, 0=auto)</label><input type="number" name="evk_og[layers]['+i+'][height]" value="0"></div>' : '') +
-                            '<div><label>Krycie (%)</label><input type="number" name="evk_og[layers]['+i+'][opacity]" value="100" min="0" max="100"></div>' +
-                            '<div><label>Blend Mode</label><select name="evk_og[layers]['+i+'][blend]"><option>normal</option><option>multiply</option><option>screen</option><option>overlay</option></select></div>' +
-                            typeFields +
-                        '</div>' +
-                    '</div>';
-
-                    document.getElementById('evk-og-layers-container').insertAdjacentHTML('beforeend', html);
-                };
-
-                /* ── Sortowanie warstw (drag & drop) ────────────────────── */
-                if (typeof Sortable !== 'undefined') {
-                    Sortable.create(document.getElementById('evk-og-layers-container'), {
-                        handle: '.drag-handle',
-                        animation: 150,
-                        onEnd: function () {
-                            document.querySelectorAll('#evk-og-layers-container .evo-og-layer').forEach(function (el, idx) {
-                                el.querySelectorAll('[name]').forEach(function (inp) {
-                                    inp.name = inp.name.replace(/\[layers\]\[\d+\]/, '[layers][' + idx + ']');
-                                });
-                                el.dataset.index = idx;
-                            });
-                        }
-                    });
-                }
-
-                /* ── Regeneracja masowa ─────────────────────────────────── */
-                window.evkOgRegenAll = function () {
-                    var $btn = $('#evk-og-regen-all');
-                    var $res = $('#evk-og-regen-result');
-                    $btn.prop('disabled', true).text('Regeneruję…');
-                    $res.hide();
-                    $.post(ajaxurl, {
-                        action: 'evk_og_regenerate_all',
-                        nonce:  <?php echo wp_json_encode($og_nonce); ?>,
-                    }).done(function (r) {
-                        if (r.success) {
-                            $res.text('Gotowe! Przetworzono: ' + r.data.count + ' wpisów.').show();
-                        } else {
-                            $res.text('Błąd: ' + (r.data || 'nieznany')).show();
-                        }
-                    }).fail(function () {
-                        $res.text('Błąd połączenia.').show();
-                    }).always(function () {
-                        $btn.prop('disabled', false).html(
-                            '<span class="dashicons dashicons-update evo-ico evo-ico-lead"></span> Regeneruj wszystkie obrazy OG'
-                        );
-                    });
-                };
-
-            })(jQuery);
-            </script>
-
-            <?php // SortableJS i media załadowane w admin_enqueue_scripts ?>
+            <?php // Skrypty zakładki siedzą w assets/admin/admin.js.
+                 // Blok <script> w TREŚCI strony rusza przed stopką, a
+                 // biblioteka przeciągania (sortablejs) i wp.media jadą
+                 // właśnie ze stopki — inicjalizacja stąd trafiała w pustkę.
+                 // Zależności deklaruje admin_enqueue_scripts. ?>

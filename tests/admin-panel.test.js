@@ -40,6 +40,22 @@ module.exports = async function (t) {
       (enq.anim || []).join(', '));
   });
 
+  // Warstwy OG jadą tą samą drogą — od 1.59.0 ich skrypt też siedzi
+  // w admin.js, a wszystko, co pochodziło z PHP, idzie przez localize.
+  ['layerCount', 'types', 'nonce'].forEach((k) => {
+    t.check('panel dostaje „' + k + '" do warstw OG', (enq.og || []).includes(k),
+      (enq.og || []).join(', '));
+  });
+  // Lista typów jest jedna dla PHP i dla przeglądarki — dwie kopie
+  // rozjechałyby się przy pierwszym dołożonym typie.
+  t.check('etykiety typów warstw dojeżdżają w komplecie',
+    (enq.ogTypes || []).length >= 6 && (enq.ogTypes || []).includes('qr'),
+    (enq.ogTypes || []).join(', '));
+  // Indeks nowej warstwy rusza za ostatnią istniejącą; policzony z powietrza
+  // wchodziłby pod zajęty klucz i nadpisywał cudzą warstwę przy zapisie.
+  t.check('licznik warstw zgadza się z konfiguracją', enq.ogCount === enq.ogReal,
+    enq.ogCount + ' vs ' + enq.ogReal);
+
   // ── Przeglądarka: realne podpięcie ─────────────────────────────────────
   t.section('panel — podpięcie i zapis kolejności');
 

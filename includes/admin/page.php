@@ -65,6 +65,24 @@ add_action('admin_enqueue_scripts', function (string $hook) {
         'nonce' => wp_create_nonce('evoke_seo_nonce'),
     ]);
 
+    // OpenGraph — warstwy
+    //
+    // Do 1.59.0 te dane wstawiał PHP wprost w blok skryptu w treści
+    // zakładki. Blok ruszał PRZED stopką, a `sortablejs` i `wp.media` jadą
+    // właśnie ze stopki — przeciąganie warstw nie podpinało się nigdy, bo
+    // `if (typeof Sortable !== 'undefined')` był fałszywy przy każdym wejściu.
+    // Kod siedzi teraz w admin.js, który ma bibliotekę w zależnościach, a to,
+    // co pochodziło z PHP, jedzie tędy.
+    $og_settings = evk_og_get_settings();
+    wp_localize_script('evoke-one-admin', 'evoOgData', [
+        // Indeks dla NOWEJ warstwy. Musi ruszać za ostatnią istniejącą,
+        // inaczej dodana warstwa wchodzi pod cudzy klucz i nadpisuje ją
+        // przy zapisie.
+        'layerCount' => count($og_settings['layers'] ?? []),
+        'types'      => evk_og_layer_types(),
+        'nonce'      => wp_create_nonce('evk_og_regen'),
+    ]);
+
     // Toggle AJAX
     wp_localize_script('evoke-one-admin', 'evkToggle', [
         'url'   => admin_url('admin-ajax.php'),
