@@ -71,6 +71,7 @@
   // Test podaje je dokładnie w tej postaci, w jakiej wychodzą z buildera.
   root.setAttribute('data-easing',     q.get('ease') || '');
   root.setAttribute('data-panel-duration', q.get('pdur') || '');
+  root.setAttribute('data-sub-delay', q.get('sdelay') === null ? '' : q.get('sdelay'));
   root.setAttribute('data-panel-easing',   q.get('pease') || '');
   root.setAttribute('data-start',      '');
   root.setAttribute('data-trigger',    '');
@@ -83,7 +84,7 @@
   var r2 = document.getElementById('root2');
   ['data-mode','data-side','data-duration','data-esc-back','data-close-link','data-level-style',
    'data-lock','data-portal','data-open-builder',
-   'data-panel-duration','data-panel-easing'].forEach(function (a) {
+   'data-panel-duration','data-panel-easing','data-sub-delay'].forEach(function (a) {
     r2.setAttribute(a, root.getAttribute(a));
   });
   r2.setAttribute('data-start', '');
@@ -257,7 +258,12 @@ window.__panelLeft = function (id) {
 window.__expand = function () {
   var f = shellOf(0).querySelector('.evk-oc-frame');
   var fr = f.getBoundingClientRect();
-  var out = { frameW: Math.round(fr.width), frameRight: Math.round(fr.right), panels: [] };
+  var out = {
+    frameW: Math.round(fr.width), frameRight: Math.round(fr.right),
+    frameLeft: Math.round(fr.left),
+    frameBg: getComputedStyle(f).backgroundColor,
+    panels: [],
+  };
   shellOf(0).querySelectorAll('.evk-oc-panel').forEach(function (p) {
     var cs = getComputedStyle(p);
     var r  = p.getBoundingClientRect();
@@ -265,13 +271,62 @@ window.__expand = function () {
       id:      p.getAttribute('data-panel'),
       shown:   cs.display !== 'none',
       order:   cs.order,
+      z:       cs.zIndex,
+      opacity: +parseFloat(cs.opacity).toFixed(2),
+      // Przesunięcie WŁASNE panelu — jedyna wiarygodna miara jego ruchu
+      // w trakcie przejścia szerokości kadru (patrz __bare niżej).
+      tx:      Math.round(txOf(p)),
       w:       Math.round(r.width),
       left:    Math.round(r.left),
       inert:   p.hasAttribute('inert'),
       current: p.classList.contains('is-current'),
+      sub:     p.classList.contains('is-sub'),
+      under:   p.classList.contains('is-under'),
     });
   });
   return out;
+};
+
+/** Ile pikseli kadru NIE jest przykrytych żadnym panelem.
+ *
+ *  To po tym widać „biały kolor przy zamykaniu": panel, który znika od razu,
+ *  zostawia odsłonięty kawałek kadru, a kadr ma własne tło.
+ *
+ *  WSZYSTKO LICZONE W UKŁADZIE TAŚMY, nie z prostokątów na ekranie — i to
+ *  jest tu istotne, nie kosmetyczne. Zmierzone w tym harnessie: gdy na kadrze
+ *  trwa przejście `width`, `getBoundingClientRect()` POTOMKÓW zwraca pozycję
+ *  z innej klatki niż prostokąt samego kadru (kadr 583, taśma −60, przy
+ *  `offsetLeft` taśmy równym 0). Pomiar z prostokątów mierzyłby więc szum.
+ *  Szerokość samego kadru i transformacje są wiarygodne, więc liczymy z nich. */
+function txOf(el) {
+  var m = getComputedStyle(el).transform;
+  return (m && m !== 'none') ? parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4]) : 0;
+}
+
+window.__bare = function () {
+  var sh = shellOf(0);
+  var fw = sh.querySelector('.evk-oc-frame').getBoundingClientRect().width;
+  var basis = parseFloat(getComputedStyle(sh).getPropertyValue('--evk-oc-panel-basis')) || fw;
+  // Okno kadru w układzie taśmy — taśma bywa przesunięta na wąskim ekranie.
+  var win0 = -txOf(sh.querySelector('.evk-oc-track'));
+  var win1 = win0 + fw;
+
+  var segs = [];
+  sh.querySelectorAll('.evk-oc-panel').forEach(function (p) {
+    var cs = getComputedStyle(p);
+    if (cs.display === 'none') return;
+    // Główny panel siedzi na taśmie od zera; podrzędne mają własne `left`.
+    var at = cs.position === 'absolute' ? (parseFloat(cs.left) || 0) : 0;
+    var tx = txOf(p);
+    segs.push([at + tx, at + tx + basis]);
+  });
+
+  var bare = 0;
+  for (var x = win0 + 2; x < win1; x += 4) {
+    var covered = segs.some(function (s) { return x >= s[0] && x < s[1]; });
+    if (!covered) bare += 4;
+  }
+  return Math.round(bare);
 };
 
 /** Stan drugiego korzenia — panele bez nazw, adresowane kolejnością. */

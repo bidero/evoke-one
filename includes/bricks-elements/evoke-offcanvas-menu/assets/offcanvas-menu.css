@@ -89,6 +89,9 @@
 .evk-oc-track {
     display: flex;
     height: 100%;
+    /* Punkt odniesienia dla paneli podrzędnych — leżą na sobie w DRUGIEJ
+       kolumnie, a nie obok siebie. Patrz `.is-sub` niżej. */
+    position: relative;
     transition: transform var(--evk-oc-panel-time, .45s) var(--evk-oc-panel-ease, ease);
     /* BEZ `will-change: transform`.
      *
@@ -118,13 +121,68 @@
     -webkit-overflow-scrolling: touch;
 }
 
+/* ── 3. PANELE PODRZĘDNE: druga kolumna, jeden NA DRUGIM ──
+ *
+ * Kolumny są dwie i tylko dwie: panel główny i bieżący podrzędny. Trzeci
+ * poziom NIE poszerza menu dalej — najeżdża na drugi, a ten chowa się pod
+ * spodem (`.is-under`: cofa się i gaśnie). Tak działa wzór; poszerzanie
+ * w nieskończoność i tak skończyłoby się poza ekranem przy trzecim poziomie.
+ *
+ * Stąd `position: absolute` zamiast miejsca na taśmie: panele podrzędne
+ * dzielą JEDEN slot, więc nie mogą go sobie odbierać układem flex. */
+.evk-oc-panel.is-sub {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left:  var(--evk-oc-panel-basis, 100%);
+    width: var(--evk-oc-panel-basis, 100%);
+    /* Opóźnienie jest tu sednem, nie ozdobą: najpierw poszerza się kadr,
+       DOPIERO POTEM dojeżdża panel. Wspólny start daje ruch sztywny — wszystko
+       rusza i staje równo, więc nie widać, co po czym następuje. */
+    transition: transform var(--evk-oc-panel-time, .45s) var(--evk-oc-panel-ease, ease)
+                          var(--evk-oc-sub-delay, 0s),
+                opacity   var(--evk-oc-panel-time, .45s) var(--evk-oc-panel-ease, ease)
+                          var(--evk-oc-sub-delay, 0s);
+}
+
+/* Stan startowy wjazdu — panel czeka poza slotem, za prawą krawędzią. */
+.evk-oc-panel.is-sub.is-away { transform: translateX(100%); }
+
+/* Wyjazd spod KOLEJNEGO poziomu (trzeci wraca do drugiego). Kadr się wtedy
+   nie zmienia, więc panel musi odjechać sam — inaczej zostałby na wierzchu
+   i przykrywał ten, do którego wracamy. Rusza OD RAZU, bez opóźnienia:
+   opóźnienie jest od robienia miejsca, a tu miejsce już jest. */
+.evk-oc-panel.is-sub.is-leaving {
+    transform: translateX(100%);
+    transition-delay: 0s;
+}
+
+/* Wyjazd Z POWROTEM DO GŁÓWNEGO. Panel NIE dostaje własnego ruchu: zwężający
+   się kadr wynosi go za prawą krawędź sam, a `overflow: hidden` obcina resztę.
+   Własny transform byłby tu wręcz szkodliwy — panel uciekłby szybciej niż kadr
+   i odsłonił po drodze jego gołe tło. To był zgłoszony „biały kolor przy
+   zamykaniu": panel znikał natychmiast (`display: none`), więc przez cały czas
+   zwężania widać było samo tło kadru. */
+.evk-oc-panel.is-sub.is-carried { transition-delay: 0s; }
+
+/* Panel przykryty przez kolejny poziom: cofa się i gaśnie. */
+.evk-oc-panel.is-sub.is-under {
+    transform: translateX(-8%);
+    opacity: .4;
+}
+
+/* Ustawienie stanu startowego BEZ animowania go. Bez tego panel najpierw
+   przejechałby do punktu wyjścia, a dopiero potem wrócił. */
+.evk-oc-panel.is-instant { transition: none !important; }
+
 /* Redukcja ruchu: menu MUSI się nadal otwierać — znika sam ruch, nie dostęp
    do nawigacji. Wspólna polityka wtyczki: includes/anim/motion.php. */
 @media (prefers-reduced-motion: reduce) {
     .evk-oc-shell,
     .evk-oc-scrim,
     .evk-oc-frame,
-    .evk-oc-track { transition: none !important; }
+    .evk-oc-track,
+    .evk-oc-panel { transition: none !important; }
 }
 
 /* Blokada przewijania strony. Kompensata szerokości paska siedzi w JS —

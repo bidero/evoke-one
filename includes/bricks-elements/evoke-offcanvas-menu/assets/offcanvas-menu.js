@@ -99,6 +99,19 @@ function evk_offcanvas_menu_init_one(root) {
         && (root.getAttribute('data-level-style') || 'expand') !== 'slide'
         && (side === 'left' || side === 'right');
 
+    /**
+     * Odstęp między poszerzeniem kadru a wjazdem panelu podrzędnego.
+     *
+     * Bez niego oba ruchy zaczynają i kończą się równo, więc nie widać, co po
+     * czym następuje — całość wygląda sztywno. Z opóźnieniem najpierw robi się
+     * miejsce, a potem dopiero panel dojeżdża. Zgłoszone z użycia.
+     *
+     * Puste pole znaczy „45% czasu przejścia", a nie stałą liczbę sekund:
+     * przy czasie 0,9 s stałe 0,15 s byłoby ledwie zauważalne, a przy 0,15 s
+     * zjadałoby całe przejście. Ułamek trzyma proporcję niezależnie od tempa.
+     */
+    var subDelay = reduced ? 0 : num('data-sub-delay', trackTime * 0.45);
+
     // ── Powłoka ────────────────────────────────────────────────────────────
     var shell = document.createElement('div');
     shell.className = 'evk-oc-shell is-side-' + side;
@@ -125,12 +138,15 @@ function evk_offcanvas_menu_init_one(root) {
        brały wartości zapasowe z arkusza. */
     shell.style.setProperty('--evk-oc-time', frameTime + 's');
     shell.style.setProperty('--evk-oc-panel-time', trackTime + 's');
+    shell.style.setProperty('--evk-oc-sub-delay', subDelay + 's');
     if (frameEase) shell.style.setProperty('--evk-oc-ease', frameEase);
     if (trackEase) shell.style.setProperty('--evk-oc-panel-ease', trackEase);
-    // Szerokość panelu ustawia builder na korzeniu (kontrolka z `css`), więc
-    // trzeba ją przepisać razem z resztą.
-    var size = getComputedStyle(root).getPropertyValue('--evk-oc-size');
-    if (size && size.trim()) shell.style.setProperty('--evk-oc-size', size.trim());
+    // Wartości z kontrolek `css` builder zapisuje NA KORZENIU, a powłoka jedzie
+    // do <body> i przestaje po nim dziedziczyć — trzeba je przepisać.
+    ['--evk-oc-size', '--evk-oc-bg', '--evk-oc-scrim'].forEach(function (v) {
+        var val = getComputedStyle(root).getPropertyValue(v);
+        if (val && val.trim()) shell.style.setProperty(v, val.trim());
+    });
 
     if (usePortal && !isBuilder) document.body.appendChild(shell);
     else                        root.appendChild(shell);
@@ -185,7 +201,80 @@ function evk_offcanvas_menu_init_one(root) {
         return panelPx;
     }
 
-    function applyState() {
+    /**
+     * Tło kadru dopasowane do panelu, na którym się właśnie jest.
+     *
+     * Kadr poszerza się od razu, a panel podrzędny dojeżdża z opóźnieniem —
+     * przez ten moment widać pasek gołego kadru. Domyślna biel rzucała się
+     * w oczy przy ciemnym menu (zgłoszone przy zamykaniu drugiego panelu),
+     * a odgadywać tego użytkownik nie ma po co: bierzemy kolor wprost z panelu.
+     *
+     * Kontrolka „Tło menu" wygrywa, gdy jest ustawiona — dlatego nie ma
+     * domyślnej wartości. Ustawiona z automatu wygrałaby zawsze i to
+     * dopasowanie nigdy by się nie odpaliło.
+     */
+    var bgFromBuilder = !!(getComputedStyle(root).getPropertyValue('--evk-oc-bg') || '').trim();
+
+    function syncFrameBg() {
+        if (bgFromBuilder) return;
+        var p  = panels[stack[stack.length - 1]];
+        var bg = p && getComputedStyle(p).backgroundColor;
+        // Panel bez własnego tła nie ma czym się podzielić — zostaje domyślne
+        // z arkusza. Podstawienie przezroczystości odsłaniałoby stronę.
+        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+            frame.style.background = bg;
+        }
+    }
+
+    /* Panele w trakcie WYJAZDU. Nie są już w ścieżce, ale nadal się rysują —
+       gdyby znikały od razu, kadr zwężałby się nad pustym miejscem i widać
+       byłoby jego gołe tło. To był zgłoszony „biały kolor przy zamykaniu". */
+    var leavingSet = [];
+
+    /**
+     * @param {boolean} slideOut Czy panel ma odjechać SAM.
+     *
+     * Odjeżdża sam tylko wtedy, gdy pod nim został inny podrzędny: kadr się
+     * wtedy nie zmienia, więc bez własnego ruchu zostałby na wierzchu.
+     * Przy powrocie do panelu głównego jest odwrotnie — wynosi go zwężający
+     * się kadr, a własny transform tylko odsłoniłby jego tło.
+     */
+    function startLeaving(p, slideOut) {
+        if (leavingSet.indexOf(p) < 0) leavingSet.push(p);
+        p.classList.remove('is-current', 'is-under', 'is-away');
+        p.classList.add(slideOut ? 'is-leaving' : 'is-carried');
+        p.setAttribute('inert', '');
+
+        /* Sprzątamy po CZASIE, nie po `transitionend`. Przy wyłączonym ruchu
+           przejścia nie ma wcale, więc zdarzenie nigdy by nie przyszło i panel
+           zostałby narysowany na zawsze. */
+        setTimeout(function () {
+            var k = leavingSet.indexOf(p);
+            if (k >= 0) leavingSet.splice(k, 1);
+            // Mógł w międzyczasie wrócić do ścieżki — wtedy nic mu nie robimy.
+            if (stack.indexOf(panels.indexOf(p)) >= 0) return;
+            p.style.display = 'none';
+            p.classList.remove('is-leaving', 'is-carried', 'is-sub');
+        }, trackTime * 1000 + subDelay * 1000 + 80);
+    }
+
+    /* Wjazd panelu podrzędnego: postawić go poza slotem BEZ animowania tego
+       kroku, a dopiero potem puścić do środka. Bez `is-instant` panel najpierw
+       przejechałby do punktu wyjścia, a stamtąd z powrotem. */
+    function startEntering(p) {
+        p.classList.add('is-sub', 'is-away', 'is-instant');
+        p.style.display = '';
+        void p.offsetWidth;
+        p.classList.remove('is-instant');
+        void p.offsetWidth;
+        p.classList.remove('is-away');
+    }
+
+    /**
+     * @param {number} [entering] Indeks panelu, który WŁAŚNIE wszedł do ścieżki.
+     *                            Tylko on dostaje animację wjazdu.
+     */
+    function applyState(entering) {
         var cur = stack[stack.length - 1];
 
         if (expand) {
@@ -195,25 +284,51 @@ function evk_offcanvas_menu_init_one(root) {
             // i całość wraca do zachowania „rodzic wyjeżdża całkiem" — inaczej
             // menu byłoby szersze niż ekran.
             var fit = Math.max(1, Math.floor(window.innerWidth / (panelPx || 1)));
-            var vis = Math.min(stack.length, fit);
+            // Kolumny są dwie i tylko dwie: panel główny i bieżący podrzędny.
+            // Trzeci poziom nie poszerza menu dalej, tylko najeżdża na drugi.
+            var used = Math.min(stack.length, 2);
+            var cols = Math.min(used, fit);
 
-            frame.style.width = (vis * panelPx) + 'px';
-            // Gdy ścieżka nie mieści się w oknie, pokazujemy jej OGON —
-            // najgłębsze panele, bo to na nich się właśnie jest.
-            track.style.transform = 'translateX(' + (-(stack.length - vis) * panelPx) + 'px)';
+            frame.style.width = (cols * panelPx) + 'px';
+            syncFrameBg();
+            // Gdy druga kolumna nie mieści się w oknie, pokazujemy tę, na
+            // której się właśnie jest.
+            track.style.transform = 'translateX(' + (-(used - cols) * panelPx) + 'px)';
 
-            /* Kolejność na taśmie to kolejność ŚCIEŻKI, nie kolejność w DOM.
-               Ścieżka potrafi przeskakiwać (0 → 2 → 1), a wtedy układ z DOM
-               pokazałby panele w złej kolejności albo z dziurą pośrodku.
-               Panele spoza ścieżki chowamy — nie mają czego zajmować miejsca. */
             panels.forEach(function (p, i) {
                 var at = stack.indexOf(i);
-                p.style.order   = at < 0 ? '' : String(at);
-                p.style.display = at < 0 ? 'none' : '';
+
+                if (at < 0) {
+                    // Panel w trakcie wyjazdu ma dojechać — nie dotykamy go.
+                    if (leavingSet.indexOf(p) >= 0) return;
+                    p.style.display = 'none';
+                    p.classList.remove('is-current', 'is-under', 'is-away',
+                                       'is-leaving', 'is-carried');
+                    p.setAttribute('inert', '');
+                    return;
+                }
+
+                p.classList.remove('is-leaving', 'is-carried');
                 p.classList.toggle('is-current', i === cur);
-                // Panele ścieżki ZOSTAJĄ dostępne — o to w tym trybie chodzi,
-                // rodzic jest widoczny i klikalny. Odcinamy tylko te spoza niej.
-                if (at < 0) p.setAttribute('inert', '');
+
+                if (at === 0) {
+                    // Panel główny zostaje zwykłym elementem taśmy.
+                    p.style.display = '';
+                    p.style.zIndex  = '';
+                    p.classList.remove('is-sub', 'is-under', 'is-away');
+                } else {
+                    // Podrzędne dzielą jeden slot — wyższy poziom leży wyżej.
+                    p.style.zIndex = String(at);
+                    if (i === entering) startEntering(p);
+                    else { p.classList.add('is-sub'); p.style.display = ''; }
+                    p.classList.toggle('is-under', at < stack.length - 1);
+                }
+
+                /* Dostępny zostaje to, co widać: panel główny (o to w tym
+                   trybie chodzi) i bieżący. Przykryte poziomy pośrednie oraz
+                   kolumna wypchnięta poza wąskie okno — nie. */
+                var hidden = (at < used - cols) || (at >= 1 && at < stack.length - 1);
+                if (hidden) p.setAttribute('inert', '');
                 else        p.removeAttribute('inert');
             });
             return;
@@ -310,7 +425,7 @@ function evk_offcanvas_menu_init_one(root) {
         // pytamy panel, z którego wychodzimy.
         if (from) panels[i]._evkOcFrom = from;
         stack.push(i);
-        applyState();
+        applyState(i);
         // Podmenu też POKAZUJE treść — z tego samego powodu, co otwarcie.
         if (typeof window.evkAnimatorReplay === 'function') window.evkAnimatorReplay(panels[i]);
         focusFirst(i);
@@ -319,6 +434,11 @@ function evk_offcanvas_menu_init_one(root) {
     function back() {
         if (stack.length < 2) { close(); return; }
         var leaving = panels[stack.pop()];
+        // Panel ma ODJECHAĆ, a nie zniknąć — inaczej kadr zwęża się nad pustym
+        // miejscem i po drodze widać jego własne tło.
+        // Pod spodem został jeszcze jeden podrzędny? Wtedy panel musi odjechać
+        // sam — kadr się nie zmienia, więc nikt go stąd nie wyniesie.
+        if (expand) startLeaving(leaving, stack.length >= 2);
         applyState();
         // Fokus wraca NA POZYCJĘ, z której się weszło — nie na początek listy.
         // Bez tego „wstecz" gubi miejsce w menu przy każdym użyciu.

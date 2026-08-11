@@ -2,6 +2,43 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.63.0] — 2026-08-11
+
+### Dodane
+
+- **Offcanvas: trzeci poziom NAJEŻDŻA na drugi.** Kolumny są dwie i tylko dwie
+  — panel główny i bieżący podrzędny. Kolejny poziom nie poszerza już menu,
+  tylko wjeżdża na ten otwarty, a tamten chowa się pod spodem: cofa się
+  i przygasa. Zgłoszone z użycia („otwarty panel animuje się, jakby się chował,
+  a nowy na niego najeżdża"). Trzecia kolumna po 420 px i tak nie zmieściłaby
+  się na typowym laptopie. Przykryty poziom dostaje `inert` — nie widać go,
+  więc nie ma go łapać tabulator; panel główny zostaje dostępny.
+
+- **Offcanvas: panel podrzędny dojeżdża z opóźnieniem.** Nowa kontrolka
+  „Opóźnienie panelu podrzędnego". Bez odstępu poszerzanie kadru i wjazd panelu
+  zaczynają i kończą się równo, więc nie widać, co po czym następuje — całość
+  wygląda sztywno. Zgłoszone z użycia. Puste pole znaczy **45% czasu
+  przejścia**, a nie stałą liczbę sekund: ułamek trzyma proporcję niezależnie
+  od tempa, a stała przy 0,9 s byłaby niezauważalna, przy 0,15 s zjadałaby
+  całe przejście.
+
+- **Offcanvas: kontrolki tła menu i przyciemnienia strony.** Element nie miał
+  ich dotąd wcale.
+
+### Naprawione
+
+- **Offcanvas: zamykany panel „zmieniał kolor na biały".** Zgłoszone z użycia.
+  Panel znikał natychmiast (`display: none`), a kadr zwężał się jeszcze przez
+  cały czas przejścia — przez ten czas widać było samo tło kadru, domyślnie
+  białe. Panel zostaje teraz narysowany do końca ruchu, a **wynosi go zwężający
+  się kadr**: własnego przesunięcia nie dostaje, bo uciekłby szybciej niż kadr
+  i znów odsłonił tło. Odjeżdża sam tylko przy powrocie spod kolejnego
+  poziomu, gdzie kadr się nie zmienia i nikt by go stąd nie wyniósł.
+
+  Do tego **tło kadru bierze się teraz wprost z panelu**, na którym się jest.
+  Pasek odsłonięty na czas opóźnienia jest przez to niewidoczny bez ustawiania
+  czegokolwiek; kontrolka „Tło menu" wygrywa, gdy ktoś ustawi ją ręcznie.
+
 ## [1.62.0] — 2026-08-11
 
 ### Dodane

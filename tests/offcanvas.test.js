@@ -385,6 +385,156 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !ex.errors.length, ex.errors.join(' | ') || 'brak');
   await ex.close();
 
+  // ── Trzeci poziom NAJEŻDŻA na drugi ────────────────────────────────────
+  // Zgłoszone z użycia: „kolejny panel musi najeżdżać na ten już otwarty,
+  // a otwarty animuje się, jakby się chował". Kolumny są więc dwie i tylko
+  // dwie — trzeci poziom nie poszerza menu dalej, bo przy 420 px na panel
+  // trzecia kolumna i tak nie zmieściłaby się na typowym laptopie.
+  t.section('trzeci poziom najeżdża na drugi');
+
+  const ov = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.2&pdur=0.3', settle: 120 });
+  await ov.evaluate(() => window.__open());
+  await ov.waitForTimeout(400);
+  await ov.evaluate(() => window.__click('go-uslugi'));
+  await ov.waitForTimeout(600);
+  const two = await ov.evaluate(() => window.__expand());
+
+  await ov.evaluate(() => window.__click('go-detale'));
+  await ov.waitForTimeout(700);
+  const three = await ov.evaluate(() => window.__expand());
+
+  const pu = three.panels.find((q) => q.id === 'uslugi');
+  const pd = three.panels.find((q) => q.id === 'detale');
+
+  t.check('kadr NIE rośnie na trzecim poziomie', three.frameW === two.frameW,
+    two.frameW + ' → ' + three.frameW + ' px');
+  t.check('trzeci leży NA drugim, nie obok',
+    Math.abs(pd.left - two.panels.find((q) => q.id === 'uslugi').left) < 2,
+    'detale @ ' + pd.left + ', uslugi był @ ' + two.panels.find((q) => q.id === 'uslugi').left);
+  t.check('trzeci jest wyżej w stosie', Number(pd.z) > Number(pu.z),
+    'detale z-index ' + pd.z + ', uslugi ' + pu.z);
+  // „Animuje się, jakby się chował" — cofnięcie i przygaszenie.
+  t.check('drugi chowa się pod spodem', pu.under && pu.opacity < 0.9,
+    'is-under ' + pu.under + ', krycie ' + pu.opacity);
+  t.check('drugi cofnął się w lewo', pu.left < two.panels.find((q) => q.id === 'uslugi').left,
+    two.panels.find((q) => q.id === 'uslugi').left + ' → ' + pu.left + ' px');
+  // Przykryty panel jest niewidoczny, więc nie ma go łapać tabulator.
+  t.check('przykryty poziom odcięty od tabulatora', pu.inert, pu.inert ? 'inert' : 'DOSTĘPNY');
+  t.check('panel główny nadal dostępny',
+    !three.panels.find((q) => q.id === 'start').inert, 'dostępny');
+
+  // Powrót z trzeciego: kadr się nie zmienia, więc panel MUSI odjechać sam —
+  // inaczej zostałby na wierzchu i przykrywał ten, do którego wracamy.
+  await ov.evaluate(() => window.__click('back-2'));
+  await ov.waitForTimeout(700);
+  const back2 = await ov.evaluate(() => window.__expand());
+  t.check('powrót odsłania drugi poziom',
+    back2.panels.find((q) => q.id === 'uslugi').current
+    && !back2.panels.find((q) => q.id === 'uslugi').under
+    && !back2.panels.find((q) => q.id === 'detale').shown,
+    'bieżący ' + back2.panels.filter((q) => q.current).map((q) => q.id).join(','));
+  t.check('bez błędów JS', !ov.errors.length, ov.errors.join(' | ') || 'brak');
+  await ov.close();
+
+  // ── Panel podrzędny dojeżdża Z OPÓŹNIENIEM ─────────────────────────────
+  // Zgłoszone z użycia: „nie jest tak sztywno — najpierw obecny panel się
+  // rozszerza, a potem drugorzędny dojeżdża". Bez odstępu oba ruchy zaczynają
+  // i kończą się równo, więc nie widać, co po czym następuje.
+  t.section('panel podrzędny dojeżdża z opóźnieniem');
+
+  const dl = await t.open('offcanvas.html',
+    { viewport: V, query: 'dur=0.2&pdur=0.6&sdelay=0.3', settle: 120 });
+  await dl.evaluate(() => window.__open());
+  await dl.waitForTimeout(400);
+  const dl0 = await dl.evaluate(() => window.__expand());
+
+  await dl.evaluate(() => window.__click('go-uslugi'));
+  await dl.waitForTimeout(180);
+  const midd = await dl.evaluate(() => window.__expand());
+  const midU = midd.panels.find((q) => q.id === 'uslugi');
+
+  t.check('kadr już się poszerza', midd.frameW > dl0.frameW + 20,
+    dl0.frameW + ' → ' + midd.frameW + ' px');
+  /* 180 ms przy odstępie 300 ms — panel ma jeszcze STAĆ poza slotem.
+     Mierzymy jego WŁASNE przesunięcie, nie prostokąt na ekranie: gdy na kadrze
+     trwa przejście `width`, prostokąty potomków w tym harnessie pochodzą
+     z innej klatki niż prostokąt kadru (zmierzone: kadr 583, taśma −60 przy
+     `offsetLeft` taśmy równym 0). Transformacja jest wiarygodna. */
+  t.check('panel jeszcze NIE ruszył', midU.tx >= midU.w - 2,
+    'przesunięcie ' + midU.tx + ' z ' + midU.w + ' px');
+
+  await dl.waitForTimeout(1000);
+  const dl1 = await dl.evaluate(() => window.__expand());
+  t.check('po wszystkim panel stoi na miejscu',
+    dl1.panels.find((q) => q.id === 'uslugi').tx === 0,
+    'przesunięcie ' + dl1.panels.find((q) => q.id === 'uslugi').tx + ' px');
+
+  // Kontrola negatywna: bez odstępu panel rusza od razu i całość jest sztywna.
+  const nd = await t.open('offcanvas.html',
+    { viewport: V, query: 'dur=0.2&pdur=0.6&sdelay=0', settle: 120 });
+  await nd.evaluate(() => window.__open());
+  await nd.waitForTimeout(400);
+  await nd.evaluate(() => window.__click('go-uslugi'));
+  await nd.waitForTimeout(180);
+  const nmid = await nd.evaluate(() => window.__expand());
+  t.check('bez odstępu panel rusza RAZEM z kadrem',
+    nmid.panels.find((q) => q.id === 'uslugi').tx < nmid.panels.find((q) => q.id === 'uslugi').w - 20,
+    'przesunięcie ' + nmid.panels.find((q) => q.id === 'uslugi').tx + ' px');
+  await nd.close();
+  await dl.close();
+
+  // ── Przy zamykaniu nie widać gołego kadru ──────────────────────────────
+  // Zgłoszone z użycia: „jak zamykam otwarty drugi panel, jak wyjeżdża,
+  // zmienia kolor na biały". Panel znikał natychmiast (`display: none`),
+  // a kadr zwężał się jeszcze przez cały czas przejścia — przez ten czas
+  // widać było samo tło kadru, domyślnie białe.
+  t.section('przy zamykaniu nie widać gołego kadru');
+
+  const bg = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.2&pdur=0.6', settle: 120 });
+  await bg.evaluate(() => window.__open());
+  await bg.waitForTimeout(400);
+  await bg.evaluate(() => window.__click('go-uslugi'));
+  await bg.waitForTimeout(1000);
+  t.check('przy otwartych dwóch panelach kadr jest cały przykryty',
+    (await bg.evaluate(() => window.__bare())) === 0,
+    (await bg.evaluate(() => window.__bare())) + ' px gołego kadru');
+
+  await bg.evaluate(() => window.__click('back-1'));
+  const probes = [];
+  for (let i = 0; i < 5; i++) {
+    await bg.waitForTimeout(110);
+    probes.push(await bg.evaluate(() => window.__bare()));
+  }
+  t.check('w trakcie zwężania też nic nie prześwituje',
+    probes.every((q) => q === 0), probes.join(' / ') + ' px');
+
+  await bg.waitForTimeout(600);
+  t.check('po zamknięciu panel znika na dobre',
+    !(await bg.evaluate(() => window.__expand())).panels.find((q) => q.id === 'uslugi').shown,
+    'schowany');
+  t.check('bez błędów JS', !bg.errors.length, bg.errors.join(' | ') || 'brak');
+  await bg.close();
+
+  // ── Tło kadru bierze się z panelu ──────────────────────────────────────
+  // Pasek odsłonięty na czas opóźnienia ma być NIEWIDOCZNY bez ustawiania
+  // czegokolwiek. Domyślna biel rzucała się w oczy przy ciemnym menu, a nie
+  // ma powodu, żeby użytkownik zgadywał — kolor jest wprost w panelu.
+  t.section('tło kadru bierze się z panelu');
+
+  const bgc = await t.open('offcanvas-bricks.html', { viewport: V, settle: 200 });
+  await bgc.evaluate(() => window.__open());
+  await bgc.waitForTimeout(600);
+  const bgv = await bgc.evaluate(() => {
+    var f = document.querySelector('.evk-oc-frame');
+    var p = document.querySelector('#brxe-pjtvtc');
+    return { frame: getComputedStyle(f).backgroundColor,
+             panel: getComputedStyle(p).backgroundColor };
+  });
+  t.check('kadr ma kolor bieżącego panelu', bgv.frame === bgv.panel,
+    'kadr ' + bgv.frame + ', panel ' + bgv.panel);
+  t.check('a nie domyślną biel', bgv.frame !== 'rgb(255, 255, 255)', bgv.frame);
+  await bgc.close();
+
   // ── Wąskie okno: poszerzać nie ma dokąd ────────────────────────────────
   // Dwa panele po 420 px nie zmieszczą się na telefonie. Menu MUSI wtedy
   // samo wrócić do pokazywania jednego — inaczej byłoby szersze niż ekran

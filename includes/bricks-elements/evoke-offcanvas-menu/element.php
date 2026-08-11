@@ -109,6 +109,47 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			),
 		];
 
+		$this->controls['subDelay'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Opóźnienie panelu podrzędnego (s)', 'evoke-one' ),
+			'type'        => 'number',
+			'step'        => 0.05,
+			'min'         => 0,
+			'placeholder' => esc_html__( '45% czasu przejścia', 'evoke-one' ),
+			'required'    => [ 'mode', '=', 'levels' ],
+			'description' => esc_html__(
+				'Odstęp między poszerzeniem kadru a wjazdem panelu podrzędnego. '
+				. 'Bez niego oba ruchy zaczynają i kończą się równo, więc nie widać, '
+				. 'co po czym następuje — całość wygląda sztywno. Z opóźnieniem najpierw '
+				. 'robi się miejsce, a potem panel dojeżdża. Przy zamykaniu jest odwrotnie: '
+				. 'panel odjeżdża pierwszy, a kadr zwęża się po nim. Zero wyłącza odstęp.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['bgColor'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Tło menu', 'evoke-one' ),
+			'type'        => 'color',
+			'css'         => [ [ 'property' => '--evk-oc-bg', 'selector' => '' ] ],
+			'description' => esc_html__(
+				'Tło samego kadru — widać je tam, gdzie nie sięga żaden panel: '
+				. 'przez chwilę po poszerzeniu menu, zanim dojedzie panel podrzędny. '
+				. 'PUSTE POLE ZNACZY „jak panel": kolor bierze się wtedy wprost z panelu, '
+				. 'na którym właśnie jesteś, więc pasek jest niewidoczny bez ustawiania '
+				. 'czegokolwiek. Ustaw ręcznie tylko wtedy, gdy chcesz go widzieć.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['scrimColor'] = [
+			'tab'     => 'content',
+			'label'   => esc_html__( 'Przyciemnienie strony', 'evoke-one' ),
+			'type'    => 'color',
+			'default' => [ 'rgb' => 'rgba(15, 23, 42, 0.55)' ],
+			'css'     => [ [ 'property' => '--evk-oc-scrim', 'selector' => '' ] ],
+		];
+
 		$this->controls['startPanel'] = [
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Panel startowy (ID)', 'evoke-one' ),
@@ -280,6 +321,10 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 
 		$this->set_attribute( '_root', 'data-easing',     $css_ease );
 		$this->set_attribute( '_root', 'data-panel-duration', isset( $s['panelDuration'] ) && $s['panelDuration'] !== '' ? (string) $s['panelDuration'] : '' );
+		// Puste = 45% czasu przejścia, wyliczane w JS. Jawne zero MUSI przejść
+		// jako '0' — `! empty()` potraktowałoby je jak brak wartości i odstęp
+		// wróciłby mimo wyłączenia.
+		$this->set_attribute( '_root', 'data-sub-delay', isset( $s['subDelay'] ) && $s['subDelay'] !== '' ? (string) $s['subDelay'] : '' );
 		$this->set_attribute( '_root', 'data-panel-easing',   $css_pease );
 		$this->set_attribute( '_root', 'data-start',      ! empty( $s['startPanel'] ) ? $s['startPanel'] : '' );
 		$this->set_attribute( '_root', 'data-trigger',    ! empty( $s['triggerSelector'] ) ? $s['triggerSelector'] : '' );
