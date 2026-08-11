@@ -2,6 +2,38 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.64.0] — 2026-08-11
+
+### Zmienione
+
+- **Offcanvas: panel podrzędny jest ZAWSZE JEDEN.** Zgłoszone z użycia:
+  „przy otwieraniu drugiego panelu podrzędnego pierwszy musi zacząć wyjeżdżać
+  w stronę, z której wyjechał, a drugi zastąpić jego miejsce"; „nie może być
+  sytuacji, żeby otwarte były dwa podrzędne". Wejście w kolejne podmenu
+  PODMIENIA otwarte: poprzednie wyjeżdża tam, skąd przyjechało, a nowe wjeżdża
+  na jego miejsce. Kadr przy tym nie rośnie.
+
+  Znika przez to cały stos poziomów wprowadzony w 1.63.0 — razem z nakładaniem
+  i przygaszaniem panelu pod spodem. **„Wstecz" i Esc wracają teraz wprost do
+  panelu głównego**, bo nie ma już poziomu pośredniego, do którego dałoby się
+  cofnąć.
+
+### Naprawione
+
+- **Offcanvas: menu z lewej jedzie w lustrzanym odbiciu.** Zgłoszone z użycia.
+  Przy menu z prawej kolumna podrzędna leży przy prawej krawędzi — tej,
+  z której menu wyjechało — i panel wjeżdża stamtąd. Z lewej było tak samo,
+  więc podmenu przyjeżdżało z przeciwnego końca ekranu niż samo menu. Teraz
+  kolumny są odwrócone (`row-reverse`), slot siedzi przy lewej krawędzi,
+  a panele wjeżdżają i wyjeżdżają w lewo. Zmierzone: podmenu staje na 0 px,
+  panel główny przesuwa się z 0 na 420 px.
+
+- **Offcanvas: wyjeżdżający panel nie wychodzi już poza swoją kolumnę.**
+  Druga kolumna dostała własne pudełko z `overflow: hidden`. Wcześniej ruch
+  „w tył" wylewał się na panel główny — z ekranu wyglądało to jak pasek
+  doklejony do menu, a nie jak wyjeżdżanie („trzeci panel jakoś dziwnie
+  najeżdża").
+
 ## [1.63.0] — 2026-08-11
 
 ### Dodane

@@ -281,7 +281,6 @@ window.__expand = function () {
       inert:   p.hasAttribute('inert'),
       current: p.classList.contains('is-current'),
       sub:     p.classList.contains('is-sub'),
-      under:   p.classList.contains('is-under'),
     });
   });
   return out;
@@ -303,6 +302,23 @@ function txOf(el) {
   return (m && m !== 'none') ? parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4]) : 0;
 }
 
+/** Druga kolumna i panel, który z niej wyjeżdża.
+ *
+ *  Kolumna ma własne pudełko z `overflow: hidden` — bez niego wyjeżdżający
+ *  panel kładłby się na treści obok zamiast zniknąć za krawędzią. */
+window.__column = function () {
+  var sh = shellOf(0);
+  var s  = sh.querySelector('.evk-oc-slot');
+  var u  = sh.querySelector('.evk-oc-panel.is-leaving, .evk-oc-panel.is-carried');
+  return {
+    slot:         s ? Math.round(s.getBoundingClientRect().width) : null,
+    slotLeft:     s ? Math.round(s.getBoundingClientRect().left) : null,
+    slotOverflow: s ? getComputedStyle(s).overflowX : null,
+    under:        u ? { left: Math.round(u.getBoundingClientRect().left) } : null,
+    underTx:      u ? Math.round(txOf(u)) : null,
+  };
+};
+
 window.__bare = function () {
   var sh = shellOf(0);
   var fw = sh.querySelector('.evk-oc-frame').getBoundingClientRect().width;
@@ -315,8 +331,9 @@ window.__bare = function () {
   sh.querySelectorAll('.evk-oc-panel').forEach(function (p) {
     var cs = getComputedStyle(p);
     if (cs.display === 'none') return;
-    // Główny panel siedzi na taśmie od zera; podrzędne mają własne `left`.
-    var at = cs.position === 'absolute' ? (parseFloat(cs.left) || 0) : 0;
+    // Główny panel siedzi na taśmie od zera; podrzędne w slocie, czyli
+    // o szerokość jednego panelu dalej.
+    var at = p.closest('.evk-oc-slot') ? basis : 0;
     var tx = txOf(p);
     segs.push([at + tx, at + tx + basis]);
   });

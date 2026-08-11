@@ -7,9 +7,14 @@
  *   TAŚMA (.evk-oc-track) — przesuwa się w poziomie w kadrze; to przechodzenie
  *                           między panelami.
  *
- * Panele leżą OBOK SIEBIE na taśmie, więc wejście w podmenu WYPYCHA rodzica
- * zamiast go zasłaniać. Wcześniejsza wersja kładła panele jeden na drugim
- * i drugi po prostu przykrywał pierwszy.
+ * Panele leżą OBOK SIEBIE, nie jeden na drugim: wejście w podmenu WYPYCHA panel
+ * główny, zamiast go zasłaniać.
+ *
+ * Przy poszerzaniu (domyślnym) kolumny są DWIE i tylko dwie: panel główny
+ * i jeden podrzędny. Wejście w kolejne podmenu PODMIENIA podrzędny — poprzedni
+ * wyjeżdża tam, skąd przyjechał — a „wstecz" i Esc wracają wprost do głównego.
+ * Stos poziomów dawał stany, z których cofało się po jednym kroku zamiast tam,
+ * skąd widać całe menu.
  *
  * `evk_offcanvas_menu_init()` wołane jest z dwóch stron: przez Bricks (patrz
  * $scripts w element.php) i przez własny DOMContentLoaded niżej. Flaga
@@ -112,6 +117,23 @@ function evk_offcanvas_menu_init_one(root) {
      */
     var subDelay = reduced ? 0 : num('data-sub-delay', trackTime * 0.45);
 
+    // ── Identyfikacja paneli ───────────────────────────────────────────────
+    // ID z atrybutu `data-panel`, a gdy go nie ma — kolejność. Numer jest
+    // gorszym identyfikatorem (przestawienie paneli zrywa odnośniki), ale
+    // pozwala zacząć bez żadnej konfiguracji.
+    function panelId(p, i) { return p.getAttribute('data-panel') || String(i); }
+
+    function indexOfId(id) {
+        for (var i = 0; i < panels.length; i++) {
+            if (panelId(panels[i], i) === String(id)) return i;
+        }
+        return -1;
+    }
+
+    var startIdx = startId ? indexOfId(startId) : 0;
+    if (startIdx < 0) startIdx = 0;
+    var stack = [startIdx];
+
     // ── Powłoka ────────────────────────────────────────────────────────────
     var shell = document.createElement('div');
     shell.className = 'evk-oc-shell is-side-' + side;
@@ -127,7 +149,24 @@ function evk_offcanvas_menu_init_one(root) {
     var track = document.createElement('div');
     track.className = 'evk-oc-track';
 
-    panels.forEach(function (p) { track.appendChild(p); });
+    /* Panel główny siedzi WPROST na taśmie, wszystkie podrzędne w slocie —
+       i to jest podział stały, nie zależny od stanu: ścieżka zawsze zaczyna
+       się od panelu startowego, więc żaden panel nie zmienia roli w trakcie.
+       Slot przycina, dzięki czemu cofający się poziom nie ma czym wyjść na
+       panel główny.
+       Tylko przy poszerzaniu — w trybie „rodzic wyjeżdża całkiem" panele leżą
+       obok siebie na taśmie i drugie pudełko nie ma co robić. */
+    var slot = null;
+    if (expand) {
+        slot = document.createElement('div');
+        slot.className = 'evk-oc-slot';
+    }
+
+    panels.forEach(function (p, i) {
+        if (slot && i !== startIdx) { slot.appendChild(p); return; }
+        track.appendChild(p);
+    });
+    if (slot) track.appendChild(slot);
     frame.appendChild(track);
     shell.appendChild(scrim);
     shell.appendChild(frame);
@@ -151,22 +190,6 @@ function evk_offcanvas_menu_init_one(root) {
     if (usePortal && !isBuilder) document.body.appendChild(shell);
     else                        root.appendChild(shell);
 
-    // ── Identyfikacja paneli ───────────────────────────────────────────────
-    // ID z atrybutu `data-panel`, a gdy go nie ma — kolejność. Numer jest
-    // gorszym identyfikatorem (przestawienie paneli zrywa odnośniki), ale
-    // pozwala zacząć bez żadnej konfiguracji.
-    function panelId(p, i) { return p.getAttribute('data-panel') || String(i); }
-
-    function indexOfId(id) {
-        for (var i = 0; i < panels.length; i++) {
-            if (panelId(panels[i], i) === String(id)) return i;
-        }
-        return -1;
-    }
-
-    var startIdx = startId ? indexOfId(startId) : 0;
-    if (startIdx < 0) startIdx = 0;
-    var stack = [startIdx];
 
     // ── Stan ───────────────────────────────────────────────────────────────
     /**
@@ -241,7 +264,7 @@ function evk_offcanvas_menu_init_one(root) {
      */
     function startLeaving(p, slideOut) {
         if (leavingSet.indexOf(p) < 0) leavingSet.push(p);
-        p.classList.remove('is-current', 'is-under', 'is-away');
+        p.classList.remove('is-current', 'is-away');
         p.classList.add(slideOut ? 'is-leaving' : 'is-carried');
         p.setAttribute('inert', '');
 
@@ -284,16 +307,20 @@ function evk_offcanvas_menu_init_one(root) {
             // i całość wraca do zachowania „rodzic wyjeżdża całkiem" — inaczej
             // menu byłoby szersze niż ekran.
             var fit = Math.max(1, Math.floor(window.innerWidth / (panelPx || 1)));
-            // Kolumny są dwie i tylko dwie: panel główny i bieżący podrzędny.
-            // Trzeci poziom nie poszerza menu dalej, tylko najeżdża na drugi.
-            var used = Math.min(stack.length, 2);
+            /* Kolumny są dwie i tylko dwie, bo ścieżka ma najwyżej dwa kroki:
+               panel główny i JEDEN podrzędny. Wejście w kolejne podmenu
+               PODMIENIA podrzędny, a nie dokłada poziom — patrz go(). */
+            var used = stack.length;
             var cols = Math.min(used, fit);
 
             frame.style.width = (cols * panelPx) + 'px';
             syncFrameBg();
-            // Gdy druga kolumna nie mieści się w oknie, pokazujemy tę, na
-            // której się właśnie jest.
-            track.style.transform = 'translateX(' + (-(used - cols) * panelPx) + 'px)';
+            /* Gdy druga kolumna nie mieści się w oknie, pokazujemy tę, na
+               której się właśnie jest. Kierunek zależy od strony menu:
+               przy menu z prawej kolumna podrzędna leży po prawej, przy menu
+               z lewej — po lewej, więc taśma jedzie w drugą stronę. */
+            var hide = (used - cols) * panelPx * (side === 'left' ? -1 : 1);
+            track.style.transform = 'translateX(' + (-hide) + 'px)';
 
             panels.forEach(function (p, i) {
                 var at = stack.indexOf(i);
@@ -302,8 +329,7 @@ function evk_offcanvas_menu_init_one(root) {
                     // Panel w trakcie wyjazdu ma dojechać — nie dotykamy go.
                     if (leavingSet.indexOf(p) >= 0) return;
                     p.style.display = 'none';
-                    p.classList.remove('is-current', 'is-under', 'is-away',
-                                       'is-leaving', 'is-carried');
+                    p.classList.remove('is-current', 'is-away', 'is-leaving', 'is-carried');
                     p.setAttribute('inert', '');
                     return;
                 }
@@ -314,22 +340,20 @@ function evk_offcanvas_menu_init_one(root) {
                 if (at === 0) {
                     // Panel główny zostaje zwykłym elementem taśmy.
                     p.style.display = '';
-                    p.style.zIndex  = '';
-                    p.classList.remove('is-sub', 'is-under', 'is-away');
+                    p.classList.remove('is-sub', 'is-away');
+                } else if (i === entering) {
+                    startEntering(p);
                 } else {
-                    // Podrzędne dzielą jeden slot — wyższy poziom leży wyżej.
-                    p.style.zIndex = String(at);
-                    if (i === entering) startEntering(p);
-                    else { p.classList.add('is-sub'); p.style.display = ''; }
-                    p.classList.toggle('is-under', at < stack.length - 1);
+                    p.classList.add('is-sub');
+                    p.style.display = '';
                 }
 
-                /* Dostępny zostaje to, co widać: panel główny (o to w tym
-                   trybie chodzi) i bieżący. Przykryte poziomy pośrednie oraz
-                   kolumna wypchnięta poza wąskie okno — nie. */
-                var hidden = (at < used - cols) || (at >= 1 && at < stack.length - 1);
-                if (hidden) p.setAttribute('inert', '');
-                else        p.removeAttribute('inert');
+                /* Dostępne zostaje to, co widać. Przy dwóch kolumnach są to
+                   OBA panele — o to w tym trybie chodzi, główny jest widoczny
+                   i klikalny. Przy jednej kolumnie główny wyjechał poza okno
+                   i tabulator nie ma czego w nim szukać. */
+                if (at < used - cols) p.setAttribute('inert', '');
+                else                  p.removeAttribute('inert');
             });
             return;
         }
@@ -418,27 +442,51 @@ function evk_offcanvas_menu_init_one(root) {
         if (lastTrigger && typeof lastTrigger.focus === 'function') lastTrigger.focus();
     }
 
+    /**
+     * Wejście w podmenu.
+     *
+     * Podrzędny jest ZAWSZE JEDEN. Wejście w kolejne podmenu przy otwartym
+     * podrzędnym PODMIENIA go: poprzedni wyjeżdża w tę stronę, z której
+     * przyjechał, a nowy wjeżdża na jego miejsce. Stos rósłby inaczej
+     * w nieskończoność, a „wstecz" cofałoby po jednym poziomie zamiast
+     * wracać tam, skąd widać całe menu.
+     */
     function go(id, from) {
         var i = indexOfId(id);
         if (i < 0 || i === stack[stack.length - 1]) return;
+        // Wejście na panel główny to po prostu powrót.
+        if (expand && i === startIdx) { back(); return; }
         // Skąd przyszliśmy — zapamiętane NA PANELU DOCELOWYM, bo przy powrocie
         // pytamy panel, z którego wychodzimy.
         if (from) panels[i]._evkOcFrom = from;
-        stack.push(i);
+
+        if (expand) {
+            // Poprzedni podrzędny wyjeżdża SAM: kadr się nie zmienia, więc
+            // nikt by go stąd nie wyniósł.
+            if (stack.length > 1) startLeaving(panels[stack[1]], true);
+            stack = [startIdx, i];
+        } else {
+            stack.push(i);
+        }
         applyState(i);
         // Podmenu też POKAZUJE treść — z tego samego powodu, co otwarcie.
         if (typeof window.evkAnimatorReplay === 'function') window.evkAnimatorReplay(panels[i]);
         focusFirst(i);
     }
 
+    /**
+     * Powrót. Przy poszerzaniu wraca ZAWSZE do panelu głównego, bo podrzędny
+     * jest zawsze jeden — nie ma poziomu pośredniego, do którego można by
+     * cofnąć. To samo robi Esc.
+     */
     function back() {
         if (stack.length < 2) { close(); return; }
         var leaving = panels[stack.pop()];
-        // Panel ma ODJECHAĆ, a nie zniknąć — inaczej kadr zwęża się nad pustym
-        // miejscem i po drodze widać jego własne tło.
-        // Pod spodem został jeszcze jeden podrzędny? Wtedy panel musi odjechać
-        // sam — kadr się nie zmienia, więc nikt go stąd nie wyniesie.
-        if (expand) startLeaving(leaving, stack.length >= 2);
+        /* Panel ma ODJECHAĆ, a nie zniknąć — inaczej kadr zwęża się nad pustym
+           miejscem i po drodze widać jego własne tło. Własnego przesunięcia
+           NIE dostaje: wynosi go zwężający się kadr, a szybszy własny ruch
+           znów odsłoniłby tło. */
+        if (expand) startLeaving(leaving, false);
         applyState();
         // Fokus wraca NA POZYCJĘ, z której się weszło — nie na początek listy.
         // Bez tego „wstecz" gubi miejsce w menu przy każdym użyciu.

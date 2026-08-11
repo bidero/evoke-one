@@ -385,12 +385,13 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !ex.errors.length, ex.errors.join(' | ') || 'brak');
   await ex.close();
 
-  // ── Trzeci poziom NAJEŻDŻA na drugi ────────────────────────────────────
-  // Zgłoszone z użycia: „kolejny panel musi najeżdżać na ten już otwarty,
-  // a otwarty animuje się, jakby się chował". Kolumny są więc dwie i tylko
-  // dwie — trzeci poziom nie poszerza menu dalej, bo przy 420 px na panel
-  // trzecia kolumna i tak nie zmieściłaby się na typowym laptopie.
-  t.section('trzeci poziom najeżdża na drugi');
+  // ── Drugi podrzędny ZASTĘPUJE pierwszy ─────────────────────────────────
+  // Zgłoszone z użycia: „przy otwieraniu drugiego panelu podrzędnego pierwszy
+  // musi zacząć wyjeżdżać w stronę, z której wyjechał, a drugi zastąpić jego
+  // miejsce". Podrzędny jest więc ZAWSZE JEDEN — wcześniejsza wersja układała
+  // je w stos, a to dawało stany, z których „wstecz" wracało po jednym
+  // poziomie zamiast tam, skąd widać całe menu.
+  t.section('drugi podrzędny zastępuje pierwszy');
 
   const ov = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.2&pdur=0.3', settle: 120 });
   await ov.evaluate(() => window.__open());
@@ -398,43 +399,119 @@ module.exports = async function (t) {
   await ov.evaluate(() => window.__click('go-uslugi'));
   await ov.waitForTimeout(600);
   const two = await ov.evaluate(() => window.__expand());
+  const slotAt = two.panels.find((q) => q.id === 'uslugi').left;
 
   await ov.evaluate(() => window.__click('go-detale'));
-  await ov.waitForTimeout(700);
+  await ov.waitForTimeout(900);
   const three = await ov.evaluate(() => window.__expand());
 
-  const pu = three.panels.find((q) => q.id === 'uslugi');
-  const pd = three.panels.find((q) => q.id === 'detale');
-
-  t.check('kadr NIE rośnie na trzecim poziomie', three.frameW === two.frameW,
+  t.check('kadr NIE rośnie przy podmianie', three.frameW === two.frameW,
     two.frameW + ' → ' + three.frameW + ' px');
-  t.check('trzeci leży NA drugim, nie obok',
-    Math.abs(pd.left - two.panels.find((q) => q.id === 'uslugi').left) < 2,
-    'detale @ ' + pd.left + ', uslugi był @ ' + two.panels.find((q) => q.id === 'uslugi').left);
-  t.check('trzeci jest wyżej w stosie', Number(pd.z) > Number(pu.z),
-    'detale z-index ' + pd.z + ', uslugi ' + pu.z);
-  // „Animuje się, jakby się chował" — cofnięcie i przygaszenie.
-  t.check('drugi chowa się pod spodem', pu.under && pu.opacity < 0.9,
-    'is-under ' + pu.under + ', krycie ' + pu.opacity);
-  t.check('drugi cofnął się w lewo', pu.left < two.panels.find((q) => q.id === 'uslugi').left,
-    two.panels.find((q) => q.id === 'uslugi').left + ' → ' + pu.left + ' px');
-  // Przykryty panel jest niewidoczny, więc nie ma go łapać tabulator.
-  t.check('przykryty poziom odcięty od tabulatora', pu.inert, pu.inert ? 'inert' : 'DOSTĘPNY');
+  t.check('nowy panel zajął miejsce poprzedniego',
+    Math.abs(three.panels.find((q) => q.id === 'detale').left - slotAt) < 2,
+    'detale @ ' + three.panels.find((q) => q.id === 'detale').left + ', poprzedni był @ ' + slotAt);
+  // Sedno: poprzedni ma ZNIKNĄĆ, a nie zostać pod spodem.
+  t.check('poprzedni podrzędny wyjechał',
+    !three.panels.find((q) => q.id === 'uslugi').shown, 'schowany');
+  t.check('otwarty jest DOKŁADNIE JEDEN podrzędny',
+    three.panels.filter((q) => q.shown && q.id !== 'start').length === 1,
+    three.panels.filter((q) => q.shown).map((q) => q.id).join(' + '));
   t.check('panel główny nadal dostępny',
     !three.panels.find((q) => q.id === 'start').inert, 'dostępny');
-
-  // Powrót z trzeciego: kadr się nie zmienia, więc panel MUSI odjechać sam —
-  // inaczej zostałby na wierzchu i przykrywał ten, do którego wracamy.
-  await ov.evaluate(() => window.__click('back-2'));
-  await ov.waitForTimeout(700);
-  const back2 = await ov.evaluate(() => window.__expand());
-  t.check('powrót odsłania drugi poziom',
-    back2.panels.find((q) => q.id === 'uslugi').current
-    && !back2.panels.find((q) => q.id === 'uslugi').under
-    && !back2.panels.find((q) => q.id === 'detale').shown,
-    'bieżący ' + back2.panels.filter((q) => q.current).map((q) => q.id).join(','));
   t.check('bez błędów JS', !ov.errors.length, ov.errors.join(' | ') || 'brak');
   await ov.close();
+
+  // ── Poprzedni wyjeżdża TAM, SKĄD PRZYJECHAŁ ────────────────────────────
+  // Przy menu z prawej podrzędny wjeżdża zza prawej krawędzi, więc i wyjeżdża
+  // w prawo. Przeciwny kierunek czytałoby się jako „poszło gdzie indziej".
+  t.section('poprzedni podrzędny wyjeżdża w swoją stronę');
+
+  const sw = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.2&pdur=0.6', settle: 120 });
+  await sw.evaluate(() => window.__open());
+  await sw.waitForTimeout(400);
+  await sw.evaluate(() => window.__click('go-uslugi'));
+  await sw.waitForTimeout(1200);
+  await sw.evaluate(() => window.__click('go-detale'));
+  await sw.waitForTimeout(200);
+
+  const mid3 = await sw.evaluate(() => window.__expand());
+  const outU = mid3.panels.find((q) => q.id === 'uslugi');
+  t.check('poprzedni jedzie w PRAWO', outU.tx > 20, 'przesunięcie ' + outU.tx + ' px');
+  t.check('poprzedni jest jeszcze rysowany', outU.shown, 'rysowany');
+  // Kolumna przycina — bez tego wyjeżdżający panel kładłby się na treści obok.
+  const col = await sw.evaluate(() => window.__column());
+  t.check('kolumna podrzędna przycina', col.slotOverflow === 'hidden', String(col.slotOverflow));
+  await sw.close();
+
+  // ── Wstecz i Esc wracają ZAWSZE do panelu głównego ─────────────────────
+  // „Nie może być sytuacji, żeby otwarte były dwa podrzędne" — a skoro tak,
+  // to nie ma poziomu pośredniego, do którego dałoby się cofnąć.
+  t.section('wstecz wraca zawsze do panelu głównego');
+
+  const bk = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.2&pdur=0.3', settle: 120 });
+  await bk.evaluate(() => window.__open());
+  await bk.waitForTimeout(400);
+  await bk.evaluate(() => window.__click('go-uslugi'));
+  await bk.waitForTimeout(600);
+  await bk.evaluate(() => window.__click('go-detale'));
+  await bk.waitForTimeout(700);
+  await bk.evaluate(() => window.__click('back-2'));
+  await bk.waitForTimeout(800);
+
+  const home = await bk.evaluate(() => window.__expand());
+  t.check('wracamy do głównego, nie do poprzedniego podmenu',
+    home.panels.find((q) => q.id === 'start').current,
+    home.panels.filter((q) => q.current).map((q) => q.id).join(', ') || 'żaden');
+  t.check('kadr wrócił do jednej kolumny', home.frameW === two.frameW / 2,
+    home.frameW + ' px');
+
+  // Esc z podmenu — ta sama droga.
+  await bk.evaluate(() => window.__click('go-uslugi'));
+  await bk.waitForTimeout(600);
+  await bk.evaluate(() => window.__click('go-detale'));
+  await bk.waitForTimeout(700);
+  await bk.evaluate(() => window.__key('Escape'));
+  await bk.waitForTimeout(800);
+  t.check('Esc też wraca do głównego, a nie zamyka',
+    (await bk.evaluate(() => window.__isOpen()))
+    && (await bk.evaluate(() => window.__expand())).panels.find((q) => q.id === 'start').current,
+    (await bk.evaluate(() => window.__isOpen())) ? 'otwarte na głównym' : 'ZAMKNIĘTE');
+  t.check('bez błędów JS', !bk.errors.length, bk.errors.join(' | ') || 'brak');
+  await bk.close();
+
+  // ── Menu z lewej to LUSTRZANE ODBICIE ──────────────────────────────────
+  // Zgłoszone z użycia. Przy menu z prawej kolumna podrzędna leży przy prawej
+  // krawędzi — tej, z której menu wyjechało — a panel wjeżdża stamtąd. Z lewej
+  // musi być dokładnie odwrotnie; inaczej podmenu przyjeżdża z przeciwnego
+  // końca ekranu niż samo menu.
+  t.section('menu z lewej to lustrzane odbicie');
+
+  const lf = await t.open('offcanvas.html',
+    { viewport: V, query: 'side=left&dur=0.2&pdur=0.6', settle: 120 });
+  await lf.evaluate(() => window.__open());
+  await lf.waitForTimeout(400);
+  const l0 = await lf.evaluate(() => window.__expand());
+  t.check('kadr trzyma się LEWEJ krawędzi', l0.frameLeft === 0, l0.frameLeft + ' px');
+
+  await lf.evaluate(() => window.__click('go-uslugi'));
+  await lf.waitForTimeout(200);
+  const lmid = await lf.evaluate(() => window.__expand());
+  t.check('podmenu wjeżdża Z LEWEJ',
+    lmid.panels.find((q) => q.id === 'uslugi').tx < -20,
+    'przesunięcie ' + lmid.panels.find((q) => q.id === 'uslugi').tx + ' px');
+
+  await lf.waitForTimeout(1000);
+  const l1 = await lf.evaluate(() => window.__expand());
+  const lStart = l1.panels.find((q) => q.id === 'start');
+  const lSub   = l1.panels.find((q) => q.id === 'uslugi');
+  t.check('podmenu stanęło przy LEWEJ krawędzi', lSub.left === 0, lSub.left + ' px');
+  t.check('panel główny przesunął się w PRAWO', lStart.left === l0.panels[0].left + l0.frameW,
+    l0.panels[0].left + ' → ' + lStart.left + ' px');
+  t.check('oba panele widoczne, jak z prawej',
+    lStart.shown && lSub.shown && l1.frameW === l0.frameW * 2,
+    'kadr ' + l0.frameW + ' → ' + l1.frameW + ' px');
+  t.check('bez błędów JS', !lf.errors.length, lf.errors.join(' | ') || 'brak');
+  await lf.close();
 
   // ── Panel podrzędny dojeżdża Z OPÓŹNIENIEM ─────────────────────────────
   // Zgłoszone z użycia: „nie jest tak sztywno — najpierw obecny panel się

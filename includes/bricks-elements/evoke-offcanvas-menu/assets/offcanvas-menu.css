@@ -123,19 +123,31 @@
 
 /* ── 3. PANELE PODRZĘDNE: druga kolumna, jeden NA DRUGIM ──
  *
- * Kolumny są dwie i tylko dwie: panel główny i bieżący podrzędny. Trzeci
- * poziom NIE poszerza menu dalej — najeżdża na drugi, a ten chowa się pod
- * spodem (`.is-under`: cofa się i gaśnie). Tak działa wzór; poszerzanie
- * w nieskończoność i tak skończyłoby się poza ekranem przy trzecim poziomie.
+ * Kolumny są dwie i tylko dwie, bo podrzędny jest ZAWSZE JEDEN. Wejście
+ * w kolejne podmenu podmienia go: poprzedni wyjeżdża tam, skąd przyjechał,
+ * a nowy wjeżdża na jego miejsce.
  *
- * Stąd `position: absolute` zamiast miejsca na taśmie: panele podrzędne
- * dzielą JEDEN slot, więc nie mogą go sobie odbierać układem flex. */
-.evk-oc-panel.is-sub {
+ * Druga kolumna ma WŁASNE PUDEŁKO, a nie tylko wspólne współrzędne. Bez niego
+ * cofający się panel wyjeżdżał w lewo poza swoją kolumnę i kładł się na panelu
+ * głównym — wyglądało to jak pasek doklejony do menu, a nie jak chowanie się
+ * pod spodem. Zgłoszone z użycia. `overflow: hidden` na slocie obcina wszystko,
+ * co z kolumny wychodzi, więc ruch „w tył" zostaje w kolumnie. */
+.evk-oc-slot {
     position: absolute;
     top: 0;
     bottom: 0;
     left:  var(--evk-oc-panel-basis, 100%);
     width: var(--evk-oc-panel-basis, 100%);
+    overflow: hidden;
+}
+
+.evk-oc-panel.is-sub {
+    /* `inset: 0` zamiast własnej szerokości: panel wypełnia slot i nie musi
+       już znać `--evk-oc-panel-basis`. Nadpisuje `flex-basis` z reguły wyżej,
+       bo w slocie (zwykły blok) układ flex nie obowiązuje. */
+    position: absolute;
+    inset: 0;
+    height: auto;
     /* Opóźnienie jest tu sednem, nie ozdobą: najpierw poszerza się kadr,
        DOPIERO POTEM dojeżdża panel. Wspólny start daje ruch sztywny — wszystko
        rusza i staje równo, więc nie widać, co po czym następuje. */
@@ -165,11 +177,20 @@
    zwężania widać było samo tło kadru. */
 .evk-oc-panel.is-sub.is-carried { transition-delay: 0s; }
 
-/* Panel przykryty przez kolejny poziom: cofa się i gaśnie. */
-.evk-oc-panel.is-sub.is-under {
-    transform: translateX(-8%);
-    opacity: .4;
-}
+/* ── Menu z lewej: LUSTRZANE ODBICIE ──
+ *
+ * Przy menu z prawej kolumna podrzędna leży po prawej — przy krawędzi, z której
+ * menu wyjechało — a panel wjeżdża i wyjeżdża w tę samą stronę. Z lewej musi
+ * być dokładnie odwrotnie, inaczej podmenu przyjeżdża z przeciwnego końca
+ * ekranu niż samo menu. Zgłoszone z użycia.
+ *
+ * `row-reverse` przesuwa panel główny na drugi koniec taśmy, a slot idzie do
+ * zera — razem daje to układ [podrzędny | główny] zamiast [główny | podrzędny].
+ * Przy jednej kolumnie nic się nie zmienia: jedyny element i tak wypełnia kadr. */
+.evk-oc-shell.is-side-left .evk-oc-track { flex-direction: row-reverse; }
+.evk-oc-shell.is-side-left .evk-oc-slot  { left: 0; }
+.evk-oc-shell.is-side-left .evk-oc-panel.is-sub.is-away,
+.evk-oc-shell.is-side-left .evk-oc-panel.is-sub.is-leaving { transform: translateX(-100%); }
 
 /* Ustawienie stanu startowego BEZ animowania go. Bez tego panel najpierw
    przejechałby do punktu wyjścia, a dopiero potem wrócił. */

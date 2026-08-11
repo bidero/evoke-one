@@ -99,8 +99,10 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'default'     => 'expand',
 			'required'    => [ 'mode', '=', 'levels' ],
 			'description' => esc_html__(
-				'Przy poszerzaniu menu rośnie o szerokość jednego panelu na każdy poziom, '
-				. 'a rodzic przesuwa się w lewo i zostaje widoczny obok podmenu. '
+				'Przy poszerzaniu menu rośnie o szerokość jednego panelu, a panel główny '
+				. 'przesuwa się w bok i zostaje widoczny obok podmenu. Podmenu jest ZAWSZE '
+				. 'JEDNO: wejście w kolejne podmienia poprzednie, a „wstecz" i Esc wracają '
+				. 'wprost do panelu głównego. '
 				. 'Gdy poziomy przestają mieścić się w oknie — na telefonie zwykle od razu — '
 				. 'menu samo wraca do pokazywania jednego panelu. '
 				. 'Menu z góry i z dołu zawsze jedzie trybem „rodzic wyjeżdża całkiem": '
@@ -118,11 +120,11 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'placeholder' => esc_html__( '45% czasu przejścia', 'evoke-one' ),
 			'required'    => [ 'mode', '=', 'levels' ],
 			'description' => esc_html__(
-				'Odstęp między poszerzeniem kadru a wjazdem panelu podrzędnego. '
+				'Odstęp między zrobieniem miejsca a wjazdem panelu podrzędnego. '
 				. 'Bez niego oba ruchy zaczynają i kończą się równo, więc nie widać, '
 				. 'co po czym następuje — całość wygląda sztywno. Z opóźnieniem najpierw '
-				. 'robi się miejsce, a potem panel dojeżdża. Przy zamykaniu jest odwrotnie: '
-				. 'panel odjeżdża pierwszy, a kadr zwęża się po nim. Zero wyłącza odstęp.',
+				. 'poszerza się kadr (albo wyjeżdża poprzedni panel podrzędny), a potem '
+				. 'dopiero nowy dojeżdża. Zero wyłącza odstęp.',
 				'evoke-one'
 			),
 		];
