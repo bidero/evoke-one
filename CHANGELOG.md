@@ -2,6 +2,35 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.65.0] — 2026-08-11
+
+### Naprawione
+
+- **Offcanvas z LEWEJ nie otwierał podmenu.** Zgłoszone z użycia. Gdy w oknie
+  mieściła się tylko jedna kolumna, taśma jechała w tę samą stronę co przy
+  menu z prawej — i wywoziła OBA panele poza kadr, więc po kliknięciu nie
+  było widać nic. Przy menu z lewej kolumna podrzędna jest na taśmie PIERWSZA
+  (odwrócona kolejność), a taśma zaczyna się przy lewej krawędzi kadru, więc
+  okno i tak stoi na niej: nie trzeba niczego przesuwać.
+
+- **Offcanvas z GÓRY i z DOŁU wysuwał podmenu bokiem.** Zgłoszone z użycia.
+  Kadr wysuwa się tam pionowo, a przechodzenie między panelami było
+  zahardkodowane w poziomie. Panele układają się teraz w kolumnę, a taśma
+  przesuwa się na osi Y.
+
+- **`focus()` przewijał kadr i rozwalał układ paneli.** Przyczyna obu objawów
+  wyżej była częściowo wspólna i wyszła dopiero przy pomiarze: `overflow:
+  hidden` OBCINA, ale zostawia pudełko przewijalne **programowo** — a
+  przeglądarka z tego korzysta. Ustawienie fokusu na elemencie w panelu
+  stojącym poza kadrem przewijało kadr, żeby ten element pokazać. Zmierzone:
+  `scrollTop` 241 px przy menu z góry, przez co panele stały we właściwych
+  miejscach, a i tak widać było nie te, co trzeba.
+
+  Kadr i kolumna podrzędna jadą teraz na `overflow: clip` (z `hidden` jako
+  zapasem dla starszych przeglądarek): obcina tak samo, ale nie tworzy
+  pudełka przewijalnego. Fokus ustawiany z kodu dostał dodatkowo
+  `preventScroll: true` — dwie zapory, bo `clip` nie działa wszędzie.
+
 ## [1.64.0] — 2026-08-11
 
 ### Zmienione

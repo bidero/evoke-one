@@ -319,6 +319,29 @@ window.__column = function () {
   };
 };
 
+/** Ile procent kadru zajmuje dany panel — i czy kadr się nie przewinął.
+ *
+ *  Jedna miara dla WSZYSTKICH CZTERECH krawędzi: przy menu z góry i z dołu
+ *  panele jadą w pionie, więc pomiar samego `left` nic by tam nie powiedział.
+ *  Część wspólna prostokątów odpowiada na to samo pytanie niezależnie od osi.
+ *
+ *  `scroll` to druga połowa sprawdzenia. Kadr NIE MA prawa się przewijać:
+ *  gdy się przewinie, panele stoją tam, gdzie mają, a mimo to widać nie te,
+ *  co trzeba — a pomiar samych przesunięć taśmy pokazywałby wtedy zieleń. */
+window.__cover = function (id) {
+  var sh = shellOf(0);
+  var fe = sh.querySelector('.evk-oc-frame');
+  var f  = fe.getBoundingClientRect();
+  var p  = sh.querySelector('.evk-oc-panel[data-panel="' + id + '"]');
+  var r  = p.getBoundingClientRect();
+  var w  = Math.max(0, Math.min(r.right, f.right) - Math.max(r.left, f.left));
+  var h  = Math.max(0, Math.min(r.bottom, f.bottom) - Math.max(r.top, f.top));
+  return {
+    pct:    Math.round((w * h) / (f.width * f.height) * 100),
+    scroll: Math.round(fe.scrollTop) + '/' + Math.round(fe.scrollLeft),
+  };
+};
+
 window.__bare = function () {
   var sh = shellOf(0);
   var fw = sh.querySelector('.evk-oc-frame').getBoundingClientRect().width;

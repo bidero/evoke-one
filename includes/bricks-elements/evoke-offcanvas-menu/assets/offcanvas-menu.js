@@ -316,10 +316,14 @@ function evk_offcanvas_menu_init_one(root) {
             frame.style.width = (cols * panelPx) + 'px';
             syncFrameBg();
             /* Gdy druga kolumna nie mieści się w oknie, pokazujemy tę, na
-               której się właśnie jest. Kierunek zależy od strony menu:
-               przy menu z prawej kolumna podrzędna leży po prawej, przy menu
-               z lewej — po lewej, więc taśma jedzie w drugą stronę. */
-            var hide = (used - cols) * panelPx * (side === 'left' ? -1 : 1);
+               której się właśnie jest — czyli podrzędną.
+               Przy menu z LEWEJ nie trzeba do tego nic przesuwać: kolumna
+               podrzędna jest tam PIERWSZA na taśmie (patrz `row-reverse`
+               w arkuszu), a taśma zaczyna się przy lewej krawędzi kadru, więc
+               okno kadru i tak stoi na niej. Przesunięcie w tę samą stronę co
+               przy menu z prawej wywoziło OBA panele poza kadr i podmenu nie
+               otwierało się wcale. Zgłoszone z użycia. */
+            var hide = side === 'left' ? 0 : (used - cols) * panelPx;
             track.style.transform = 'translateX(' + (-hide) + 'px)';
 
             panels.forEach(function (p, i) {
@@ -358,7 +362,12 @@ function evk_offcanvas_menu_init_one(root) {
             return;
         }
 
-        track.style.transform = 'translateX(' + (-cur * 100) + '%)';
+        /* Oś zależy od krawędzi, z której wychodzi menu. Menu z góry i z dołu
+           układa panele W PIONIE (patrz `flex-direction: column` w arkuszu),
+           więc przesuwanie ich w poziomie wysyłało podmenu bokiem — wyjeżdżało
+           z zupełnie innej strony niż samo menu. Zgłoszone z użycia. */
+        var axis = (side === 'top' || side === 'bottom') ? 'Y' : 'X';
+        track.style.transform = 'translate' + axis + '(' + (-cur * 100) + '%)';
         panels.forEach(function (p, i) {
             var isCur = i === cur;
             p.classList.toggle('is-current', isCur);
@@ -374,9 +383,15 @@ function evk_offcanvas_menu_init_one(root) {
         );
     }
 
+    /* `preventScroll` jest tu OBOWIĄZKOWE, nie kosmetyczne. Domyślne
+       `focus()` przewija przodków tak, żeby pokazać element — a panel, do
+       którego właśnie przechodzimy, stoi w tej chwili poza kadrem. Bez tego
+       przeglądarka przewijała kadr i cały układ paneli się rozjeżdżał.
+       Arkusz zamyka tę drogę drugi raz (`overflow: clip`); jedno i drugie,
+       bo `clip` nie działa w każdej przeglądarce. */
     function focusFirst(i) {
         var f = focusables(panels[i]);
-        if (f.length) f[0].focus();
+        if (f.length) f[0].focus({ preventScroll: true });
     }
 
     /* Zasięg pułapki fokusu. Przy poszerzaniu rodzic ZOSTAJE widoczny
@@ -491,7 +506,7 @@ function evk_offcanvas_menu_init_one(root) {
         // Fokus wraca NA POZYCJĘ, z której się weszło — nie na początek listy.
         // Bez tego „wstecz" gubi miejsce w menu przy każdym użyciu.
         var origin = leaving._evkOcFrom;
-        if (origin && document.contains(origin)) origin.focus();
+        if (origin && document.contains(origin)) origin.focus({ preventScroll: true });
         else focusFirst(stack[stack.length - 1]);
     }
 

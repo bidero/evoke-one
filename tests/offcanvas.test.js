@@ -440,7 +440,12 @@ module.exports = async function (t) {
   t.check('poprzedni jest jeszcze rysowany', outU.shown, 'rysowany');
   // Kolumna przycina — bez tego wyjeżdżający panel kładłby się na treści obok.
   const col = await sw.evaluate(() => window.__column());
-  t.check('kolumna podrzędna przycina', col.slotOverflow === 'hidden', String(col.slotOverflow));
+  // `clip`, nie `hidden`: pudełko z `hidden` DA SIĘ przewinąć programowo,
+  // a `focus()` na elemencie stojącym poza nim robi dokładnie to.
+  t.check('kolumna podrzędna przycina bez przewijania',
+    col.slotOverflow === 'clip' || col.slotOverflow === 'hidden', String(col.slotOverflow));
+  t.check('kolumna podrzędna nie jest przewijalna', col.slotOverflow === 'clip',
+    String(col.slotOverflow));
   await sw.close();
 
   // ── Wstecz i Esc wracają ZAWSZE do panelu głównego ─────────────────────
@@ -478,6 +483,37 @@ module.exports = async function (t) {
     (await bk.evaluate(() => window.__isOpen())) ? 'otwarte na głównym' : 'ZAMKNIĘTE');
   t.check('bez błędów JS', !bk.errors.length, bk.errors.join(' | ') || 'brak');
   await bk.close();
+
+  // ── Podmenu otwiera się z KAŻDEJ krawędzi ──────────────────────────────
+  // Zgłoszone z użycia: „z prawej jest idealnie; z lewej nie otwiera
+  // podrzędnych, a na górze i dole podrzędne wyjeżdżają z boku". Trzy różne
+  // objawy, więc mierzymy je jedną miarą: ile kadru zajmuje panel, na którym
+  // właśnie jesteśmy. Pomiar samego `left` nic by nie powiedział przy menu
+  // z góry, gdzie panele jadą w pionie.
+  //
+  // Okno jest CELOWO wąskie (700 px): mieści się w nim jedna kolumna i to
+  // właśnie ta droga była zepsuta przy menu z lewej — taśma jechała w tę
+  // samą stronę co przy menu z prawej i wywoziła oba panele poza kadr.
+  t.section('podmenu otwiera się z każdej krawędzi');
+
+  for (const bok of ['right', 'left', 'top', 'bottom']) {
+    const w = await t.open('offcanvas.html',
+      { viewport: { width: 700, height: 700 }, query: 'side=' + bok + '&dur=0.2&pdur=0.3', settle: 150 });
+    await w.evaluate(() => window.__open());
+    await w.waitForTimeout(500);
+    await w.evaluate(() => window.__click('go-uslugi'));
+    await w.waitForTimeout(800);
+
+    const cur = await w.evaluate(() => window.__cover('uslugi'));
+    t.check('„' + bok + '": podmenu wypełnia kadr', cur.pct >= 99, cur.pct + '% kadru');
+    // Kadr z `overflow: hidden` da się przewinąć PROGRAMOWO, a `focus()` na
+    // elemencie stojącym poza kadrem robi dokładnie to. Wtedy panele są tam,
+    // gdzie mają być, a i tak widać nie te, co trzeba.
+    t.check('„' + bok + '": kadr się nie przewinął', cur.scroll === '0/0',
+      'scrollTop/Left ' + cur.scroll);
+    t.check('„' + bok + '": bez błędów JS', !w.errors.length, w.errors.join(' | ') || 'brak');
+    await w.close();
+  }
 
   // ── Menu z lewej to LUSTRZANE ODBICIE ──────────────────────────────────
   // Zgłoszone z użycia. Przy menu z prawej kolumna podrzędna leży przy prawej

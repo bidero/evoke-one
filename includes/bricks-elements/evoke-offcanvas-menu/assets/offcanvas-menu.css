@@ -68,7 +68,16 @@
 /* ── 1. KADR: wysuwanie menu ── */
 .evk-oc-frame {
     position: absolute;
+    /* `clip`, nie `hidden`. `overflow: hidden` OBCINA, ale zostawia pudełko
+       przewijalne PROGRAMOWO — i przeglądarka z tego korzysta: `focus()` na
+       elemencie w panelu, który stoi poza kadrem, przewijał kadr, żeby go
+       pokazać. Kadr zjeżdżał wtedy o kilkaset pikseli i cały układ paneli
+       się rozjeżdżał (zmierzone: scrollTop 241 px przy menu z góry).
+       `overflow: clip` obcina tak samo, ale nie tworzy pudełka przewijalnego,
+       więc nie ma czego przewinąć. Deklaracja `hidden` zostaje jako zapas dla
+       przeglądarek bez `clip`. */
     overflow: hidden;
+    overflow: clip;
     background: var(--evk-oc-bg, #fff);
     /* Dwie właściwości, dwa tempa. `transform` to wysuwanie menu — czas kadru.
        `width` to POSZERZANIE kadru przy wejściu w podmenu, czyli ruch między
@@ -138,7 +147,9 @@
     bottom: 0;
     left:  var(--evk-oc-panel-basis, 100%);
     width: var(--evk-oc-panel-basis, 100%);
+    /* Ten sam powód co przy kadrze — patrz wyżej. */
     overflow: hidden;
+    overflow: clip;
 }
 
 .evk-oc-panel.is-sub {
@@ -187,6 +198,19 @@
  * `row-reverse` przesuwa panel główny na drugi koniec taśmy, a slot idzie do
  * zera — razem daje to układ [podrzędny | główny] zamiast [główny | podrzędny].
  * Przy jednej kolumnie nic się nie zmienia: jedyny element i tak wypełnia kadr. */
+/* ── Menu z góry i z dołu: panele W PIONIE ──
+ *
+ * Kadr wysuwa się tu pionowo, więc i przechodzenie między panelami musi być
+ * pionowe. W poziomie podmenu wyjeżdżało bokiem — z zupełnie innej strony niż
+ * samo menu. Zgłoszone z użycia.
+ *
+ * W układzie kolumnowym „flex-basis” liczy się od WYSOKOŚCI, więc panele same
+ * biorą wysokość kadru; blokadę kurczenia trzeba tylko przenieść na tę oś. */
+.evk-oc-shell.is-side-top .evk-oc-track,
+.evk-oc-shell.is-side-bottom .evk-oc-track { flex-direction: column; }
+.evk-oc-shell.is-side-top .evk-oc-panel,
+.evk-oc-shell.is-side-bottom .evk-oc-panel { min-width: auto; min-height: 0; }
+
 .evk-oc-shell.is-side-left .evk-oc-track { flex-direction: row-reverse; }
 .evk-oc-shell.is-side-left .evk-oc-slot  { left: 0; }
 .evk-oc-shell.is-side-left .evk-oc-panel.is-sub.is-away,
