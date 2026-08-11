@@ -83,6 +83,67 @@ module.exports = async function (t) {
   t.check('„external" dociera jako cel', ext.targets === 'external', JSON.stringify(ext.targets));
   t.check('selektor jedzie razem z nim', ext.selector === '#naglowek', JSON.stringify(ext.selector));
 
+  // ── Repeater: wiele animacji na elemencie ─────────────────────────────
+  // Kontrolki płaskie zostają obok repeatera i to nie jest zbędny balast:
+  // niosą je wszystkie istniejące strony. Utrata tej ścieżki znaczyłaby, że
+  // aktualizacja wtyczki gasi animacje wszędzie tam, gdzie ktoś ich użył.
+  t.section('wiele animacji z buildera');
+
+  const jedna = emit({ evkAnimAnimation: 'wejscie', evkAnimDuration: '1.5' }).anim;
+  t.check('stare pola dają OBIEKT, nie tablicę', jedna && jedna.charAt(0) === '{',
+    String(jedna).slice(0, 40));
+
+  const wiele = emit({
+    evkAnimList: [
+      { animation: 'wejscie', duration: '1.5' },
+      { animation: 'wyjscie', trigger: 'exit' },
+    ],
+  }).anim;
+  const lista = JSON.parse(wiele || 'null');
+  t.check('repeater daje TABLICĘ', Array.isArray(lista), String(wiele).slice(0, 40));
+  t.check('obie pozycje docierają',
+    lista && lista.length === 2 && lista[0].animation === 'wejscie'
+    && lista[1].animation === 'wyjscie', JSON.stringify(lista));
+  t.check('pola wiersza docierają razem z nim',
+    lista && lista[0].duration === 1.5 && lista[1].trigger === 'exit',
+    JSON.stringify(lista && [lista[0].duration, lista[1].trigger]));
+
+  // Wiersz bez wybranej animacji to wiersz, którego użytkownik nie wypełnił —
+  // ma wypaść, a nie trafić na stronę jako pusta konfiguracja. Po jego
+  // odpadnięciu zostaje JEDNA konfiguracja, więc wynikiem jest obiekt: dwie
+  // reguły spotykają się tu naraz i dlatego sprawdzamy je razem.
+  const zPustym = JSON.parse(emit({
+    evkAnimList: [{ animation: 'wejscie' }, { animation: '' }],
+  }).anim || 'null');
+  t.check('pusty wiersz repeatera wypada',
+    zPustym && !Array.isArray(zPustym) && zPustym.animation === 'wejscie',
+    JSON.stringify(zPustym));
+
+  // Trzy wiersze, jeden pusty → nadal tablica, ale o długości dwa.
+  const trzy = JSON.parse(emit({
+    evkAnimList: [{ animation: 'a' }, { animation: '' }, { animation: 'b' }],
+  }).anim || 'null');
+  t.check('pusty wiersz wypada też ze środka listy',
+    Array.isArray(trzy) && trzy.length === 2
+    && trzy[0].animation === 'a' && trzy[1].animation === 'b',
+    JSON.stringify(trzy));
+
+  // Jeden wiersz w repeaterze daje OBIEKT, nie jednoelementową tablicę:
+  // strona z nowym PHP i zacacheowanym starym animator.js nadal zadziała.
+  const jedenWiersz = emit({ evkAnimList: [{ animation: 'wejscie' }] }).anim;
+  t.check('jeden wiersz repeatera daje obiekt', jedenWiersz && jedenWiersz.charAt(0) === '{',
+    String(jedenWiersz).slice(0, 40));
+
+  // Repeater wygrywa z polami płaskimi — inaczej nie dałoby się przejść
+  // na listę bez czyszczenia starych ustawień.
+  const oba2 = JSON.parse(emit({
+    evkAnimAnimation: 'stare',
+    evkAnimList: [{ animation: 'nowe' }, { animation: 'nowe2' }],
+  }).anim || 'null');
+  t.check('repeater wygrywa z polami płaskimi',
+    Array.isArray(oba2) && oba2.length === 2 && oba2[0].animation === 'nowe',
+    JSON.stringify(oba2));
+
   t.section('Tło przy scrollu');
   t.check('zaznaczone → data-evk-bg', emit({ evkBgShift: true }).bg === '', 'atrybut obecny');
   t.check('niezaznaczone → brak atrybutu', emit({ evkBgShift: false }).bg === null, 'brak');

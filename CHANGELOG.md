@@ -2,6 +2,41 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.52.0] — 2026-08-10
+
+### Dodane
+
+- **Repeater „Wiele animacji" w panelu elementu Bricks.** Element dostaje listę
+  animacji zamiast jednego zestawu pól; każdy wiersz ma własną animację,
+  wyzwalacz, czas, opóźnienie, kolejność, start/koniec i cel. Wyjście z kadru
+  jest zwykłą pozycją listy — wystarczy preset z grupy „Wyjścia".
+
+  `default => []` jest tu warunkiem bezpieczeństwa, nie preferencją: kontrolka
+  wchodzi filtrem do **każdego** zarejestrowanego elementu Bricks, więc
+  domyślny wiersz dołożyłby animację wszystkiemu na stronie.
+
+### Zmienione
+
+- **Budowa atrybutu wydzielona do funkcji na jeden wiersz.** Obie drogi —
+  repeater i dotychczasowe pola płaskie — przechodzą przez ten sam
+  `evk_bricks_anim_cfg()`, więc nie ma dwóch miejsc, które mogą się rozejść.
+
+- **Stare pola `evkAnim*` zostają i działają dalej.** Niosą je wszystkie strony
+  zbudowane przed repeaterem; ich utrata znaczyłaby, że aktualizacja wtyczki
+  gasi animacje wszędzie tam, gdzie ktoś ich użył. Repeater wygrywa dopiero,
+  gdy jest niepusty — inaczej nie dałoby się przejść na listę bez czyszczenia
+  starych ustawień, których panel nawet nie pokazuje.
+
+- **Jedna animacja jedzie jako obiekt, nie jednoelementowa tablica.** Trzy
+  linie kupujące odporność na najczęstszy układ przy aktualizacji: nowe PHP już
+  działa, a `animator.js` siedzi jeszcze w cache przeglądarki. Stary silnik
+  uznaje JSON zaczynający się od `[` za goły slug i element przestaje się
+  animować bez śladu w konsoli.
+
+- Wiersze repeatera czytane są po **whiteliście kluczy**, nie pętlą po całym
+  wierszu — builder dokłada im własne pola, które nie mają prawa wyjść
+  na stronę jako część konfiguracji.
+
 ## [1.51.0] — 2026-08-10
 
 ### Dodane

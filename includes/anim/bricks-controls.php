@@ -220,13 +220,105 @@ function evk_bricks_animator_controls(array $controls): array {
             : esc_html__('Biblioteka jest pusta — dodaj animację w Ustawienia → Evoke ONE → Frontend → Animator.', 'evoke-one'),
     ];
 
-    // Nadpisania — puste pole zostawia wartość z biblioteki.
-    $required = ['evkAnimAnimation', '!=', ''];
-
     $trigger_options = ['' => '— z biblioteki —'];
     foreach (evk_anim_triggers() as $k => $label) {
         $trigger_options[$k] = $label;
     }
+
+    /*
+     * ── Wiele animacji na jednym elemencie ────────────────────────────────
+     *
+     * `default => []` jest tu WARUNKIEM BEZPIECZEŃSTWA, nie preferencją.
+     * Ta kontrolka wchodzi filtrem do KAŻDEGO zarejestrowanego elementu Bricks,
+     * więc domyślny wiersz — jak w evoke-marquee, gdzie repeater jest własną
+     * kontrolką treści jednego elementu — dołożyłby animację wszystkiemu
+     * na stronie.
+     *
+     * Pola wiersza mają klucze BEZ prefiksu `evk`: renderer czyta je przez
+     * evk_bricks_anim_cfg(), która tego samego kształtu używa dla obu dróg.
+     * `required` wewnątrz wiersza wskazuje pole SIOSTRZANE, nie kontrolkę
+     * na zewnątrz — stąd bramka na `['animation', '!=', '']`.
+     */
+    $row_fields = [
+        'animation' => [
+            'label'   => esc_html__('Animacja', 'evoke-one'),
+            'type'    => 'select',
+            'options' => $options,
+            'default' => '',
+        ],
+        'trigger' => [
+            'label'    => esc_html__('Wyzwalacz', 'evoke-one'),
+            'type'     => 'select',
+            'options'  => $trigger_options,
+            'default'  => '',
+            'required' => ['animation', '!=', ''],
+        ],
+        'duration' => [
+            'label'    => esc_html__('Czas (s)', 'evoke-one'),
+            'type'     => 'number', 'min' => 0.05, 'max' => 10, 'step' => 0.05,
+            'required' => ['animation', '!=', ''],
+        ],
+        'delay' => [
+            'label'    => esc_html__('Opóźnienie (s)', 'evoke-one'),
+            'type'     => 'number', 'min' => 0, 'max' => 10, 'step' => 0.05,
+            'required' => ['animation', '!=', ''],
+        ],
+        'order' => [
+            'label'       => esc_html__('Kolejność (tylko „Load")', 'evoke-one'),
+            'type'        => 'number', 'min' => 0, 'max' => 999, 'step' => 1,
+            'required'    => ['animation', '!=', ''],
+        ],
+        'start' => [
+            'label'       => esc_html__('Start (ScrollTrigger)', 'evoke-one'),
+            'type'        => 'text',
+            'placeholder' => 'top 85%',
+            'required'    => ['animation', '!=', ''],
+        ],
+        'end' => [
+            'label'       => esc_html__('Koniec (scrub / wyjście)', 'evoke-one'),
+            'type'        => 'text',
+            'placeholder' => 'bottom 40%',
+            'required'    => ['animation', '!=', ''],
+        ],
+        'targets' => [
+            'label'   => esc_html__('Cel animacji', 'evoke-one'),
+            'type'    => 'select',
+            'options' => [
+                ''         => esc_html__('— z biblioteki —', 'evoke-one'),
+                'self'     => esc_html__('Sam element', 'evoke-one'),
+                'children' => esc_html__('Dzieci elementu', 'evoke-one'),
+                'selector' => esc_html__('Selektor w środku', 'evoke-one'),
+                'external' => esc_html__('Element poza tym (cała strona)', 'evoke-one'),
+            ],
+            'default'  => '',
+            'required' => ['animation', '!=', ''],
+        ],
+        'selector' => [
+            'label'       => esc_html__('Selektor celu', 'evoke-one'),
+            'type'        => 'text',
+            'placeholder' => '.karta',
+            'required'    => ['targets', '=', ['selector', 'external']],
+        ],
+    ];
+
+    $controls['evkAnimList'] = [
+        'tab'           => evk_bricks_controls_tab(),
+        'group'         => evk_bricks_target_group(),
+        'label'         => esc_html__('Wiele animacji', 'evoke-one'),
+        'type'          => 'repeater',
+        'titleProperty' => 'animation',
+        'default'       => [],
+        'fields'        => $row_fields,
+        'description'   => esc_html__(
+            'Lista zastępuje pole „Animacja" powyżej. Wyjście z kadru to zwykła '
+            . 'pozycja listy — wybierz preset z grupy „Wyjścia" i wyzwalacz '
+            . '„Wyjście z kadru".',
+            'evoke-one'
+        ),
+    ];
+
+    // Nadpisania — puste pole zostawia wartość z biblioteki.
+    $required = ['evkAnimAnimation', '!=', ''];
 
     $controls['evkAnimTrigger'] = [
         'tab'      => evk_bricks_controls_tab(),
@@ -472,57 +564,128 @@ function evk_bricks_parallax_controls(array $controls): array {
 // EMISJA ATRYBUTÓW NA FRONT
 // =========================================================================
 
+/**
+ * Konfiguracja JEDNEJ animacji z wiersza ustawień.
+ *
+ * Klucze wiersza są BEZ prefiksu `evk` — takie niesie repeater. Ścieżka
+ * z płaskimi kontrolkami mapuje na nie swoje `evkAnim*` i woła to samo,
+ * więc obie drogi dają identyczny kształt i nie ma dwóch miejsc do rozejścia.
+ *
+ * Zwraca pustą tablicę, gdy wiersz nie ma wybranej animacji — wiersz bez niej
+ * to wiersz, którego użytkownik nie wypełnił, a nie konfiguracja „domyślna".
+ */
+function evk_bricks_anim_cfg(array $row): array {
+    if (empty($row['animation'])) return [];
+
+    $cfg = ['animation' => sanitize_key($row['animation'])];
+
+    // Tylko realnie wypełnione pola — pusty klucz w JSON przesłoniłby
+    // wartość z biblioteki (silnik pomija '' , ale nie 0).
+    if (!empty($row['trigger'])) {
+        $cfg['trigger'] = sanitize_key($row['trigger']);
+    }
+    foreach (['duration', 'delay', 'stagger'] as $prop) {
+        if (isset($row[$prop]) && $row[$prop] !== '') $cfg[$prop] = floatval($row[$prop]);
+    }
+    // Osobno, bo kolejność to numer kroku — pętla obok rzutuje na float.
+    if (isset($row['order']) && $row['order'] !== '') {
+        $cfg['order'] = intval($row['order']);
+    }
+    if (isset($row['scrub']) && $row['scrub'] !== '') {
+        $cfg['scrub'] = floatval($row['scrub']);
+    }
+
+    foreach (['start', 'end', 'easing', 'targets', 'selector'] as $prop) {
+        if (!empty($row[$prop])) $cfg[$prop] = sanitize_text_field($row[$prop]);
+    }
+
+    /*
+     * Wartości logiczne przez !== '', NIE przez !empty().
+     *
+     * Kontrolka jest trójstanowa i wysyła '' / '1' / '0'. Dla !empty()
+     * ciąg '0' jest PUSTY, więc jawne „Nie" wypadałoby tak samo jak
+     * „z biblioteki" — nie dałoby się wyłączyć w elemencie czegoś, co
+     * w bibliotece jest włączone. Ta sama pułapka co przy „Kolejności"
+     * równej zero, domknięta w 1.28.1.
+     */
+    foreach (['repeat', 'loop', 'loopYoyo', 'pin'] as $prop) {
+        if (isset($row[$prop]) && $row[$prop] !== '') $cfg[$prop] = $row[$prop] ? 1 : 0;
+    }
+
+    if (!empty($row['words'])) {
+        $words = evk_anim_parse_words((string) $row['words']);
+        if ($words) $cfg['words'] = $words;
+    }
+
+    return $cfg;
+}
+
+/**
+ * Wszystkie konfiguracje animacji elementu — z repeatera albo z pól płaskich.
+ *
+ * Płaskie klucze `evkAnim*` NIE są tu balastem: niosą je wszystkie strony
+ * zbudowane przed repeaterem. Ich utrata znaczyłaby, że aktualizacja wtyczki
+ * gasi animacje wszędzie tam, gdzie ktoś ich użył. Repeater wygrywa, gdy jest
+ * niepusty — inaczej nie dałoby się przejść na listę bez czyszczenia starych
+ * ustawień, które w panelu Bricks nie są nawet widoczne.
+ */
+function evk_bricks_anim_cfgs(array $s): array {
+    $rows = [];
+
+    if (!empty($s['evkAnimList']) && is_array($s['evkAnimList'])) {
+        // Whitelista kluczy, nie `foreach ($row as $k => $v)`: builder dokłada
+        // wierszom repeatera własne pola (m.in. `id`), a te nie mają prawa
+        // wyjść na stronę jako część konfiguracji animacji.
+        $rows = (array) $s['evkAnimList'];
+    } elseif (!empty($s['evkAnimAnimation'])) {
+        $map = [
+            'evkAnimAnimation' => 'animation', 'evkAnimTrigger'  => 'trigger',
+            'evkAnimDuration'  => 'duration',  'evkAnimDelay'    => 'delay',
+            'evkAnimStagger'   => 'stagger',   'evkAnimOrder'    => 'order',
+            'evkAnimScrub'     => 'scrub',     'evkAnimStart'    => 'start',
+            'evkAnimEnd'       => 'end',       'evkAnimEasing'   => 'easing',
+            'evkAnimTargets'   => 'targets',   'evkAnimSelector' => 'selector',
+            'evkAnimRepeat'    => 'repeat',    'evkAnimLoop'     => 'loop',
+            'evkAnimLoopYoyo'  => 'loopYoyo',  'evkAnimPin'      => 'pin',
+            'evkAnimWords'     => 'words',
+        ];
+        $legacy = [];
+        foreach ($map as $id => $prop) {
+            if (isset($s[$id])) $legacy[$prop] = $s[$id];
+        }
+        $rows = [$legacy];
+    }
+
+    $out = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) continue;
+        $cfg = evk_bricks_anim_cfg($row);
+        if ($cfg) $out[] = $cfg;
+    }
+    return $out;
+}
+
 add_filter('bricks/element/render_attributes', function ($attributes, $key, $element) {
     if ($key !== '_root' || !is_array($attributes)) return $attributes;
 
     $s = (array) ($element->settings ?? []);
 
     // ── Animator ──────────────────────────────────────────────────────────
-    if (evk_anim_controls_active() && !empty($s['evkAnimAnimation'])) {
-        $cfg = ['animation' => sanitize_key($s['evkAnimAnimation'])];
-
-        // Tylko realnie wypełnione pola — pusty klucz w JSON przesłoniłby
-        // wartość z biblioteki (silnik pomija '' , ale nie 0).
-        if (!empty($s['evkAnimTrigger'])) {
-            $cfg['trigger'] = sanitize_key($s['evkAnimTrigger']);
+    if (evk_anim_controls_active()) {
+        $cfgs = evk_bricks_anim_cfgs($s);
+        if ($cfgs) {
+            /*
+             * Jedna animacja jedzie jako OBIEKT, nie jednoelementowa tablica.
+             *
+             * Trzy linie, które kupują odporność na najczęstszy układ przy
+             * aktualizacji: nowe PHP już działa, a `animator.js` siedzi jeszcze
+             * w cache przeglądarki albo za CDN-em. Stary silnik uznaje JSON
+             * zaczynający się od `[` za goły slug i element przestaje się
+             * animować bez śladu w konsoli.
+             */
+            $payload = count($cfgs) === 1 ? $cfgs[0] : $cfgs;
+            $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-anim', wp_json_encode($payload));
         }
-        foreach (['evkAnimDuration' => 'duration', 'evkAnimDelay' => 'delay', 'evkAnimStagger' => 'stagger'] as $id => $prop) {
-            if (isset($s[$id]) && $s[$id] !== '') $cfg[$prop] = floatval($s[$id]);
-        }
-        // Osobno, bo kolejność to numer kroku — pętla obok rzutuje na float.
-        if (isset($s['evkAnimOrder']) && $s['evkAnimOrder'] !== '') {
-            $cfg['order'] = intval($s['evkAnimOrder']);
-        }
-        if (isset($s['evkAnimScrub']) && $s['evkAnimScrub'] !== '') {
-            $cfg['scrub'] = floatval($s['evkAnimScrub']);
-        }
-
-        foreach (['evkAnimStart' => 'start', 'evkAnimEnd' => 'end',
-                  'evkAnimEasing' => 'easing', 'evkAnimTargets' => 'targets',
-                  'evkAnimSelector' => 'selector'] as $id => $prop) {
-            if (!empty($s[$id])) $cfg[$prop] = sanitize_text_field($s[$id]);
-        }
-
-        /*
-         * Wartości logiczne przez !== '', NIE przez !empty().
-         *
-         * Kontrolka jest trójstanowa i wysyła '' / '1' / '0'. Dla !empty()
-         * ciąg '0' jest PUSTY, więc jawne „Nie" wypadałoby tak samo jak
-         * „z biblioteki" — nie dałoby się wyłączyć w elemencie czegoś, co
-         * w bibliotece jest włączone. Ta sama pułapka co przy „Kolejności"
-         * równej zero, domknięta w 1.28.1.
-         */
-        foreach (['evkAnimRepeat' => 'repeat', 'evkAnimLoop' => 'loop',
-                  'evkAnimLoopYoyo' => 'loopYoyo', 'evkAnimPin' => 'pin'] as $id => $prop) {
-            if (isset($s[$id]) && $s[$id] !== '') $cfg[$prop] = $s[$id] ? 1 : 0;
-        }
-
-        if (!empty($s['evkAnimWords'])) {
-            $words = evk_anim_parse_words((string) $s['evkAnimWords']);
-            if ($words) $cfg['words'] = $words;
-        }
-
-        $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-anim', wp_json_encode($cfg));
     }
 
     // ── Tło przy scrollu ──────────────────────────────────────────────────
