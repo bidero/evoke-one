@@ -2,6 +2,37 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.58.0] — 2026-08-11
+
+### Naprawione
+
+- **Drugi panel zasłaniał pierwszy zamiast go przesuwać.** Zgłoszone z użycia.
+  Panele leżały jeden na drugim (`position: absolute; inset: 0`), więc wejście
+  w podmenu było przykryciem, a nie ruchem. Leżą teraz OBOK SIEBIE na taśmie
+  (`.evk-oc-track`, flex), a przejście przesuwa całą taśmę — rodzic realnie
+  odjeżdża w lewo. Zmierzone: panel startowy przechodzi z 0 na −543 px.
+
+- **Panel i przejścia między panelami dzieliły jeden czas.** To dawało ruch
+  liniowy: menu wjeżdżało i panele przesuwały się dokładnie tak samo.
+  Rozdzielone na dwa niezależne ruchy — KADR (wysuwanie menu) i TAŚMA
+  (przechodzenie) — każdy z własnym czasem i krzywą. Nowe kontrolki „Czas
+  przejścia między panelami" i „Krzywa przejścia między panelami"; puste
+  znaczy „to samo, co wysuwanie".
+
+- **Jawnie ustawione zero czasu nie przenosiło się na przejścia paneli.**
+  `frameTime || 0.35` traktowało zero jak brak wartości, więc taśma jechała
+  0,35 s mimo wyłączonego ruchu.
+
+- **Powłoka menu dostawała `display: contents`.** Dodawaliśmy jej klasę
+  `.evk-oc`, żeby trafiały w nią selektory `[data-side]` — a razem z klasą
+  łapała `display: contents` z tej samej reguły i traciła własne pudełko mimo
+  `position: fixed`. Strona menu jedzie teraz własną klasą stanu
+  (`.is-side-right` i pozostałe).
+
+- **Szerokość panelu ustawiona w builderze nie docierała do przeniesionej
+  powłoki** — z tego samego powodu, co wcześniej czasy: powłoka jedzie do
+  `<body>` i przestaje dziedziczyć po korzeniu. Przepisywana razem z resztą.
+
 ## [1.57.1] — 2026-08-11
 
 ### Naprawione

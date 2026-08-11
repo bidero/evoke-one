@@ -1,33 +1,41 @@
 /* Evoke ONE — Offcanvas Menu
  *
- * Rodzic WYJEŻDŻA całkiem, podmenu zajmuje jego miejsce (decyzja z
- * docs/offcanvas-menu-szkic.md). Stąd tylko dwa stany panelu — bieżący
- * i wysunięty — i zero arytmetyki głębokości.
+ * Dwa NIEZALEŻNE ruchy, i to jest sedno układu:
  *
- * Panel wysunięty poza ekran NADAL łapie fokus tabulatorem: `transform`
- * niczego nie usuwa z kolejności tabulacji. Za dostępność odpowiada tu
- * atrybut `inert` nadawany z JS, a nie ten arkusz — o czym warto pamiętać
- * przy każdej zmianie poniżej.
+ *   1. KADR (`.evk-oc-frame`) wysuwa się z krawędzi ekranu — to otwieranie menu.
+ *   2. TAŚMA (`.evk-oc-track`) przesuwa się w poziomie wewnątrz kadru — to
+ *      przechodzenie między panelami.
+ *
+ * Każdy ma własny czas i własną krzywą. Wspólny czas daje ruch liniowy: menu
+ * wjeżdża i panele przesuwają się dokładnie tak samo, więc całość wygląda
+ * płasko. Rozdzielone czasy są tym, co odróżnia to od zwykłego drawera.
+ *
+ * Panele leżą OBOK SIEBIE na taśmie, nie jeden na drugim. Dzięki temu wejście
+ * w podmenu WYPYCHA rodzica, zamiast go zasłaniać — ruch jest ciągły i widać,
+ * dokąd się idzie. Wcześniejsza wersja kładła panele na sobie
+ * (`position: absolute; inset: 0`) i drugi po prostu przykrywał pierwszy.
+ *
+ * Panel poza kadrem NADAL łapie fokus tabulatorem — `transform` niczego nie
+ * usuwa z kolejności tabulacji. Za to odpowiada `inert` nadawany z JS, nie
+ * ten arkusz.
  */
 
 .evk-oc { display: contents; }
 
-/* Ukrywanie WIDOCZNOŚCIĄ, nie `display`.
- *
- * `display: none` → `block` nie da się animować: przeglądarka nie ma stanu
- * wyjściowego do interpolacji i przejście po prostu nie startuje. Panel
- * pojawiał się natychmiast, mimo poprawnie zadeklarowanego `transition`.
- *
- * `visibility` z ZEROWYM czasem i opóźnieniem równym czasowi przejścia chowa
- * powłokę dopiero PO wyjechaniu panelu — bez opóźnienia znikałaby od razu
- * i wyjazdu też nie byłoby widać. `pointer-events` pilnuje, żeby niewidoczna
- * powłoka na całym ekranie nie łapała kliknięć. */
+/* Powłoka NIE dostaje klasy `.evk-oc` — dostawała ją do 1.58.0, żeby trafiały
+   w nią selektory `[data-side]`, i razem z nią łapała `display: contents`,
+   czyli traciła własne pudełko mimo `position: fixed`. Strona menu jedzie
+   teraz własną klasą stanu. */
 .evk-oc-shell {
     position: fixed;
     inset: 0;
     z-index: 99990;
     visibility: hidden;
     pointer-events: none;
+    /* Zerowy czas i opóźnienie równe czasowi kadru: powłoka znika DOPIERO po
+       wyjechaniu panelu. Bez opóźnienia zniknęłaby od razu i wyjazdu nie
+       byłoby widać. `display: none` nie wchodzi w grę — przejścia nie da się
+       z niego uruchomić, bo nie ma stanu wyjściowego do interpolacji. */
     transition: visibility 0s linear var(--evk-oc-time, .35s);
 }
 .evk-oc-shell.is-open {
@@ -45,48 +53,49 @@
 }
 .evk-oc-shell.is-open .evk-oc-scrim { opacity: 1; }
 
-/* Kadr paneli — to on przykleja się do wybranej krawędzi. */
-.evk-oc-panels {
+/* ── 1. KADR: wysuwanie menu ── */
+.evk-oc-frame {
     position: absolute;
     overflow: hidden;
     background: var(--evk-oc-bg, #fff);
     transition: transform var(--evk-oc-time, .35s) var(--evk-oc-ease, ease);
 }
+.evk-oc-shell.is-side-right  .evk-oc-frame { top: 0; bottom: 0; right: 0;  width:  var(--evk-oc-size, min(420px, 100%)); transform: translateX(100%); }
+.evk-oc-shell.is-side-left   .evk-oc-frame { top: 0; bottom: 0; left: 0;   width:  var(--evk-oc-size, min(420px, 100%)); transform: translateX(-100%); }
+.evk-oc-shell.is-side-top    .evk-oc-frame { left: 0; right: 0; top: 0;    height: var(--evk-oc-size, min(420px, 100%)); transform: translateY(-100%); }
+.evk-oc-shell.is-side-bottom .evk-oc-frame { left: 0; right: 0; bottom: 0; height: var(--evk-oc-size, min(420px, 100%)); transform: translateY(100%); }
+.evk-oc-shell.is-open .evk-oc-frame { transform: none; }
 
-.evk-oc[data-side="right"]  .evk-oc-panels { top: 0; bottom: 0; right: 0; width:  var(--evk-oc-size, min(420px, 100%)); transform: translateX(100%); }
-.evk-oc[data-side="left"]   .evk-oc-panels { top: 0; bottom: 0; left: 0;  width:  var(--evk-oc-size, min(420px, 100%)); transform: translateX(-100%); }
-.evk-oc[data-side="top"]    .evk-oc-panels { left: 0; right: 0; top: 0;   height: var(--evk-oc-size, min(420px, 100%)); transform: translateY(-100%); }
-.evk-oc[data-side="bottom"] .evk-oc-panels { left: 0; right: 0; bottom: 0; height: var(--evk-oc-size, min(420px, 100%)); transform: translateY(100%); }
+/* ── 2. TAŚMA: przechodzenie między panelami ──
+   Własny czas i własna krzywa. Przesunięcie ustawia JS, bo zależy od tego,
+   który panel jest bieżący. */
+.evk-oc-track {
+    display: flex;
+    height: 100%;
+    transition: transform var(--evk-oc-panel-time, .45s) var(--evk-oc-panel-ease, ease);
+    will-change: transform;
+}
 
-.evk-oc-shell.is-open .evk-oc-panels { transform: none; }
-
-/* ── Panele ──
-   Wszystkie leżą na sobie; widać ten z `.is-current`. Reszta jest wysunięta
-   w bok — w tę stronę, z której przyszła: podmenu wraca w prawo, rodzic
-   chowa się w lewo. Dzięki temu „wstecz" wygląda jak cofnięcie, a nie jak
-   kolejne wejście. */
 .evk-oc-panel {
-    position: absolute;
-    inset: 0;
+    /* `0 0 100%` liczy się od szerokości taśmy, a ta ma szerokość kadru —
+       więc każdy panel jest dokładnie tak szeroki jak kadr i leży OBOK
+       poprzedniego. Stąd bierze się wypychanie zamiast zasłaniania. */
+    flex: 0 0 100%;
+    min-width: 0;
+    height: 100%;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    transition: transform var(--evk-oc-time, .35s) var(--evk-oc-ease, ease),
-                opacity   var(--evk-oc-time, .35s) var(--evk-oc-ease, ease);
-    transform: translateX(100%);
-    opacity: 0;
 }
-.evk-oc-panel.is-current { transform: none; opacity: 1; }
-/* Rodzic, z którego weszliśmy głębiej. */
-.evk-oc-panel.is-out     { transform: translateX(-100%); opacity: 0; }
 
 /* Redukcja ruchu: menu MUSI się nadal otwierać — znika sam ruch, nie dostęp
    do nawigacji. Wspólna polityka wtyczki: includes/anim/motion.php. */
 @media (prefers-reduced-motion: reduce) {
+    .evk-oc-shell,
     .evk-oc-scrim,
-    .evk-oc-panels,
-    .evk-oc-panel { transition: none !important; }
+    .evk-oc-frame,
+    .evk-oc-track { transition: none !important; }
 }
 
-/* Element z blokadą przewijania nie może przesuwać układu o szerokość paska.
-   Kompensata siedzi w JS (mierzy realną szerokość), tu jest tylko blokada. */
+/* Blokada przewijania strony. Kompensata szerokości paska siedzi w JS —
+   musi znać realną szerokość, a ta zależy od systemu i przeglądarki. */
 html.evk-oc-locked, body.evk-oc-locked { overflow: hidden !important; }

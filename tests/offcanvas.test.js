@@ -130,6 +130,56 @@ module.exports = async function (t) {
   t.check('po przejściu kadr dojeżdża na miejsce', done.x === 0, 'x ' + done.x);
   await a.close();
 
+  // ── Panel WYPYCHA, a nie zasłania ──────────────────────────────────────
+  // Zgłoszone z użycia: „drugi panel zasłania pierwszy, a powinien go
+  // przesuwać". Panele leżą teraz OBOK SIEBIE na taśmie, więc wejście
+  // w podmenu odsuwa rodzica w lewo. Różnicę widać po lewej krawędzi panelu
+  // startowego: przy wypychaniu maleje, przy zasłanianiu stoi w miejscu.
+  t.section('drugi panel wypycha pierwszy');
+
+  const psh = await t.open('offcanvas.html', { viewport: V, settle: 120 });
+  await psh.evaluate(() => window.__open());
+  await psh.waitForTimeout(80);
+  const leftBefore = await psh.evaluate(() => window.__panelLeft('start'));
+  t.check('panel startowy stoi w kadrze', leftBefore === 0, leftBefore + ' px');
+
+  await psh.evaluate(() => window.__click('go-uslugi'));
+  // Czekamy na KONIEC przejścia: przy domyślnych czasach taśma jedzie 0,35 s,
+  // a w połowie drogi „zajęło jego miejsce" jest jeszcze nieprawdą.
+  await psh.waitForTimeout(600);
+  const leftAfter = await psh.evaluate(() => window.__panelLeft('start'));
+  const upLeft    = await psh.evaluate(() => window.__panelLeft('uslugi'));
+  t.check('panel startowy ODJECHAŁ w lewo', leftAfter < -100,
+    leftBefore + ' → ' + leftAfter + ' px');
+  t.check('podmenu zajęło jego miejsce', upLeft === 0, upLeft + ' px');
+  await psh.close();
+
+  // ── Taśma ma WŁASNY czas ───────────────────────────────────────────────
+  // Zgłoszone z użycia: „inne tempo otwierania panelu, a inne przesuwania".
+  // Wspólny czas daje ruch liniowy — menu wjeżdża i panele przesuwają się
+  // identycznie, więc całość wygląda płasko.
+  t.section('przejście między panelami ma własne tempo');
+
+  const d = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.3&pdur=0.9', settle: 120 });
+  const frameT = (await d.evaluate(() => window.__slide())).transition;
+  const trackT = (await d.evaluate(() => window.__track())).transition;
+  t.check('kadr i taśma mają RÓŻNE czasy', parseFloat(frameT) !== parseFloat(trackT),
+    'kadr ' + frameT + ', taśma ' + trackT);
+  t.check('każdy ma czas, o który poproszono',
+    Math.abs(parseFloat(frameT) - 0.3) < 0.01 && Math.abs(parseFloat(trackT) - 0.9) < 0.01,
+    'kadr ' + frameT + ' (0,3), taśma ' + trackT + ' (0,9)');
+
+  // Taśma ma się RUSZAĆ, nie przeskakiwać.
+  await d.evaluate(() => window.__open());
+  await d.waitForTimeout(400);
+  const t0 = await d.evaluate(() => window.__track());
+  await d.evaluate(() => window.__click('go-uslugi'));
+  await d.waitForTimeout(200);
+  const t1 = await d.evaluate(() => window.__track());
+  t.check('200 ms po przejściu taśma jest W RUCHU',
+    t1.x < t0.x && t1.x > -420, 'z ' + t0.x + ' do ' + t1.x + ' (cel ok. -420)');
+  await d.close();
+
   // ── Panele bez nazw, adresowane kolejnością ────────────────────────────
   // To jest ścieżka, którą dostaje KAŻDY, kto wstawi element i niczego nie
   // skonfiguruje: panele nie mają `data-panel`, więc liczy się ich kolejność

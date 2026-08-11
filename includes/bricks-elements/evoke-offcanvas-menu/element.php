@@ -141,6 +141,34 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'default' => '',
 		];
 
+		/*
+		 * Czas i krzywa TAŚMY — osobno od kadru.
+		 *
+		 * To jest sedno efektu, nie kosmetyka: wspólny czas daje ruch liniowy,
+		 * bo menu wjeżdża i panele przesuwają się dokładnie tak samo. Rozdzielone
+		 * czasy sprawiają, że przejście między panelami ma własne tempo.
+		 * Puste = to samo co kadr.
+		 */
+		$this->controls['panelDuration'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Czas przejścia między panelami (s)', 'evoke-one' ),
+			'type'        => 'number',
+			'min'         => 0,
+			'max'         => 3,
+			'step'        => 0.05,
+			'placeholder' => esc_html__( 'jak wysuwanie', 'evoke-one' ),
+			'required'    => [ 'mode', '=', 'levels' ],
+		];
+
+		$this->controls['panelEasing'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Krzywa przejścia między panelami', 'evoke-one' ),
+			'type'     => 'select',
+			'options'  => $easings,
+			'default'  => '',
+			'required' => [ 'mode', '=', 'levels' ],
+		];
+
 		$this->controls['triggerSelector'] = [
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Dodatkowy trigger (selektor)', 'evoke-one' ),
@@ -212,6 +240,8 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-side',       ! empty( $s['side'] ) ? $s['side'] : 'right' );
 		$this->set_attribute( '_root', 'data-duration',   isset( $s['duration'] ) && $s['duration'] !== '' ? (string) $s['duration'] : '0.35' );
 		$this->set_attribute( '_root', 'data-easing',     ! empty( $s['easing'] ) ? $s['easing'] : '' );
+		$this->set_attribute( '_root', 'data-panel-duration', isset( $s['panelDuration'] ) && $s['panelDuration'] !== '' ? (string) $s['panelDuration'] : '' );
+		$this->set_attribute( '_root', 'data-panel-easing',   ! empty( $s['panelEasing'] ) ? $s['panelEasing'] : '' );
 		$this->set_attribute( '_root', 'data-start',      ! empty( $s['startPanel'] ) ? $s['startPanel'] : '' );
 		$this->set_attribute( '_root', 'data-trigger',    ! empty( $s['triggerSelector'] ) ? $s['triggerSelector'] : '' );
 

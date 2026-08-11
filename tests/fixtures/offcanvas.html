@@ -62,6 +62,8 @@
   root.setAttribute('data-side',       q.get('side')   || 'right');
   root.setAttribute('data-duration',   q.get('dur') || '0');
   root.setAttribute('data-easing',     '');
+  root.setAttribute('data-panel-duration', q.get('pdur') || '');
+  root.setAttribute('data-panel-easing',   '');
   root.setAttribute('data-start',      '');
   root.setAttribute('data-trigger',    '');
   root.setAttribute('data-esc-back',   q.get('esc')    === '0' ? '0' : '1');
@@ -72,7 +74,8 @@
 
   var r2 = document.getElementById('root2');
   ['data-mode','data-side','data-duration','data-esc-back','data-close-link',
-   'data-lock','data-portal','data-open-builder'].forEach(function (a) {
+   'data-lock','data-portal','data-open-builder',
+   'data-panel-duration','data-panel-easing'].forEach(function (a) {
     r2.setAttribute(a, root.getAttribute(a));
   });
   r2.setAttribute('data-start', '');
@@ -85,7 +88,7 @@ window.__open   = function () { document.getElementById('trigger').click(); };
 
 /** Przesunięcie kadru paneli w poziomie — 0 znaczy „na miejscu". */
 window.__slide = function () {
-  var w = shellOf(0).querySelector('.evk-oc-panels');
+  var w = shellOf(0).querySelector('.evk-oc-frame');
   if (!w) return null;
   var cs = getComputedStyle(w);
   var m = cs.transform;
@@ -156,6 +159,27 @@ window.__panelVisible = function () {
   var r = p.getBoundingClientRect();
   return r.width > 10 && r.right > 0 && r.left < window.innerWidth
       && parseFloat(cs.opacity) > 0.9;
+};
+
+/** Taśma paneli: przesunięcie i własny czas przejścia. */
+window.__track = function () {
+  var t = shellOf(0).querySelector('.evk-oc-track');
+  var cs = getComputedStyle(t);
+  var m = cs.transform;
+  var x = (m && m !== 'none') ? Math.round(parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4])) : 0;
+  return { x: x, transition: cs.transitionDuration };
+};
+
+/** Lewa krawędź panelu o podanym ID, względem kadru.
+ *
+ *  To po niej widać różnicę między WYPYCHANIEM a ZASŁANIANIEM: przy wypychaniu
+ *  panel startowy odjeżdża w lewo (wartość maleje), przy zasłanianiu stoi
+ *  w miejscu, a drugi kładzie się na nim. */
+window.__panelLeft = function (id) {
+  var frame = shellOf(0).querySelector('.evk-oc-frame');
+  var p = shellOf(0).querySelector('.evk-oc-panel[data-panel="' + id + '"]');
+  if (!p || !frame) return null;
+  return Math.round(p.getBoundingClientRect().left - frame.getBoundingClientRect().left);
 };
 
 /** Stan drugiego korzenia — panele bez nazw, adresowane kolejnością. */
