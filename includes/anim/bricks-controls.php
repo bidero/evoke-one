@@ -511,6 +511,25 @@ function evk_bricks_bgshift_controls(array $controls): array {
         'description' => esc_html__('Sekcja oddaje swój kolor tła wspólnej warstwie pod stroną i sama robi się przezroczysta. Kolor przewija się płynnie do następnej takiej sekcji — bez szwu na granicy. Ustaw tło sekcji normalnie, także kolorem globalnym; nie ma osobnego pola na kolor. Sekcja z tłem graficznym albo gradientowym zostanie pominięta.', 'evoke-one'),
     ];
 
+    /*
+     * Moment przełączenia dla TEJ sekcji. Puste = wartość globalna z panelu,
+     * i to jest ważniejsze niż wygląda: `data-evk-bg` był do 1.53.0 pustym
+     * znacznikiem i taki niosą wszystkie istniejące strony. Pusta wartość musi
+     * więc znaczyć dokładnie to, co znaczyła — „użyj globalnej".
+     */
+    $controls['evkBgShiftStart'] = [
+        'tab'         => evk_bricks_controls_tab(),
+        'group'       => evk_bricks_target_group(),
+        'label'       => esc_html__('Początek przejścia (%)', 'evoke-one'),
+        'type'        => 'number',
+        'min'         => 0,
+        'max'         => 200,
+        'step'        => 5,
+        'placeholder' => esc_html__('z ustawień globalnych', 'evoke-one'),
+        'description' => esc_html__('Na jakiej wysokości ekranu TA sekcja przejmuje tło. 100 = gdy jej górna krawędź wjeżdża od dołu; mniej = zmiana następuje później.', 'evoke-one'),
+        'required'    => ['evkBgShift', '=', true],
+    ];
+
     return $controls;
 }
 
@@ -692,7 +711,13 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
     // Sam znacznik — kolor silnik odczytuje z getComputedStyle sekcji, więc nie
     // ma tu czego przekazywać i nie powstaje drugie źródło prawdy.
     if (evk_bgshift_controls_active() && !empty($s['evkBgShift'])) {
-        $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-bg', '');
+        // Pusty atrybut to nadal „użyj wartości globalnej" — silnik czyta go
+        // tak samo jak brak liczby, więc strony sprzed 1.53.0 się nie zmieniają.
+        $bg_start = '';
+        if (isset($s['evkBgShiftStart']) && $s['evkBgShiftStart'] !== '') {
+            $bg_start = (string) max(0, min(200, intval($s['evkBgShiftStart'])));
+        }
+        $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-bg', $bg_start);
     }
 
     // ── Parallax ──────────────────────────────────────────────────────────

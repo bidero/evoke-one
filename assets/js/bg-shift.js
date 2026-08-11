@@ -16,6 +16,10 @@
   var CFG      = window.evkBgShift || {};
   var LENGTH   = typeof CFG.length === 'number' ? CFG.length : 0.5;
   var SMOOTH   = typeof CFG.smooth === 'number' ? CFG.smooth : 0.3;
+  /* Procent wysokości okna, na którym ZACZYNA się przejście. 100 = górna
+     krawędź nadchodzącej sekcji dotyka dołu okna — wartość zahardkodowana
+     do 1.53.0. Mniej znaczy „przełącz później, gdy sekcja będzie już wyżej". */
+  var START    = typeof CFG.start === 'number' ? CFG.start : 100;
 
   var sections = [];
   var layer    = null;
@@ -78,6 +82,30 @@
     return (h.getAttribute('data-theme') || '') + '|' + (h.classList.contains('dark') ? 'dark' : '');
   }
 
+  /**
+   * Od którego procentu wysokości okna zaczyna się przejście DO tej sekcji.
+   *
+   * Wyzwalaczem pary jest sekcja NADCHODZĄCA, więc wartość czyta się wprost:
+   * „przełącz tło, gdy TA sekcja dojdzie do X%". Pusty atrybut (tak wyglądał
+   * do 1.53.0 i tak wygląda na wszystkich istniejących stronach) znaczy
+   * „wartość globalna" — dlatego brak i pustka schodzą tą samą ścieżką.
+   */
+  function startPct(el) {
+    var raw = el.getAttribute('data-evk-bg');
+    if (raw === null || raw === '') return START;
+    var n = parseFloat(raw);
+    if (isNaN(n)) {
+      console.warn('[EVK Tło] Nieprawidłowy początek przejścia w data-evk-bg:', raw, el);
+      return START;
+    }
+    return clampPct(n);
+  }
+
+  /** Poza 0–200% ScrollTrigger dostaje punkt, którego nigdy nie minie. */
+  function clampPct(n) {
+    return Math.max(0, Math.min(200, n));
+  }
+
   function killTriggers() {
     triggers.forEach(function (t) { t.kill(); });
     triggers = [];
@@ -107,20 +135,26 @@
 
     gsap.set(layer, { backgroundColor: usable[0].color });
 
-    // Przejście trwa tyle widoku, ile mówi ustawienie: zaczyna się, gdy górna
-    // krawędź następnej sekcji wchodzi w kadr, a kończy po przebyciu tej części.
-    var endPct = Math.round((1 - LENGTH) * 100);
-
     for (var i = 0; i < usable.length - 1; i++) {
       var from = usable[i].color;
       var to   = usable[i + 1].color;
       var next = usable[i + 1].el;
 
+      // Przejście trwa tyle widoku, ile mówi ustawienie „długość", i zaczyna
+      // się tam, gdzie każe „początek" — globalny albo nadpisany na sekcji.
+      // Przy początku 100 wzór daje dokładnie dawne (1 − length)·100, więc
+      // strony bez nadpisania zachowują się co do piksela tak jak wcześniej.
+      var begPct = startPct(next);
+      var endPct = Math.round(clampPct(begPct - LENGTH * 100));
+
       if (reduced()) {
-        // Bez przewijania koloru — przeskok na granicy sekcji.
+        // Bez przewijania koloru — przeskok w punkcie, w którym przejście
+        // i tak by się kończyło. Przy domyślnych (początek 100, długość 0,5)
+        // wypada to na 50%, czyli dokładnie tam, gdzie stało twarde
+        // 'top center' — uogólnienie, nie przestawienie.
         triggers.push(ScrollTrigger.create({
           trigger: next,
-          start: 'top center',
+          start: 'top ' + endPct + '%',
           onEnter:     (function (c) { return function () { gsap.set(layer, { backgroundColor: c }); }; })(to),
           onLeaveBack: (function (c) { return function () { gsap.set(layer, { backgroundColor: c }); }; })(from),
         }));
@@ -137,7 +171,7 @@
           immediateRender: false,
           scrollTrigger: {
             trigger: next,
-            start:   'top bottom',
+            start:   'top ' + begPct + '%',
             end:     'top ' + endPct + '%',
             scrub:   SMOOTH > 0 ? SMOOTH : true,
           },

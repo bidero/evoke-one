@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.53.0] — 2026-08-10
+
+### Dodane
+
+- **Moment zmiany tła przy scrollu da się przesunąć.** Nowe ustawienie
+  „Początek przejścia (%)" mówi, na jakiej wysokości ekranu nadchodząca sekcja
+  przejmuje tło: **100** = w chwili, gdy jej górna krawędź wjeżdża od dołu
+  (dotychczasowe zachowanie), mniej = zmiana następuje **później**, gdy sekcja
+  jest już wyżej.
+
+  Do tej pory `start: 'top bottom'` było zahardkodowane w silniku, a ustawienie
+  „długość" ruszało **wyłącznie koniec** przejścia — początku nie dało się
+  przesunąć wcale. Nowy wzór to `koniec = początek − długość·100`; przy
+  początku 100 daje dokładnie dawne `(1 − długość)·100`, więc strony bez
+  nadpisania wyglądają co do piksela tak jak wcześniej.
+
+- **Nadpisanie per sekcja.** `data-evk-bg` był pustym znacznikiem i teraz może
+  nieść procent — „przełącz tło, gdy TA sekcja dojdzie do X%". Pusty nadal
+  znaczy „wartość globalna", bo taki niosą wszystkie istniejące strony.
+  W Bricks: pole „Początek przejścia (%)" pod przełącznikiem sekcji.
+
+### Zmienione
+
+- **Ścieżka redukcji ruchu przeskakuje w punkcie końca przejścia** zamiast
+  twardego `'top center'`. Przy domyślnych (początek 100, długość 0,5) wypada
+  to na 50%, czyli dokładnie tam, gdzie stała stara wartość — uogólnienie,
+  nie przestawienie.
+
+- Test tła mierzy teraz **punkt odjazdu koloru**, a nie kolor w losowym
+  miejscu. Różnica jest istotna: koniec przejścia liczy się od początku, więc
+  zepsucie samego startu przesuwa całe okno i pomiar „gdzieś w środku" pokazuje
+  zmianę nawet wtedy, gdy start nie działa. Pierwsza wersja tego bloku świeciła
+  na zielono z przywróconym `'top bottom'` — dopiero pomiar punktu odjazdu
+  zapalił się na czerwono. Wcześniej test nie sprawdzał ani `length`, ani
+  `smooth`, ani momentu startu.
+
 ## [1.52.0] — 2026-08-10
 
 ### Dodane

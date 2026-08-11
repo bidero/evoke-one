@@ -39,5 +39,9 @@ $out = $cb(['_root' => ['class' => ['brxe-section']]], '_root', $el);
 
 echo json_encode([
     'anim' => $out['_root']['data-evk-anim'][0] ?? null,
-    'bg'   => array_key_exists('data-evk-bg', $out['_root']) ? '' : null,
+    // WARTOŚĆ atrybutu, nie sama jego obecność: od 1.53.0 `data-evk-bg` może
+    // nieść procent, na którym sekcja przejmuje tło. Pusty ciąg nadal znaczy
+    // „wartość globalna", więc rozróżnienie pusty/brak musi zostać.
+    'bg'   => array_key_exists('data-evk-bg', $out['_root'])
+        ? (string) ($out['_root']['data-evk-bg'][0] ?? '') : null,
 ], JSON_UNESCAPED_UNICODE), "\n";

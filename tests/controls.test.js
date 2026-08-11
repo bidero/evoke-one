@@ -147,4 +147,18 @@ module.exports = async function (t) {
   t.section('Tło przy scrollu');
   t.check('zaznaczone → data-evk-bg', emit({ evkBgShift: true }).bg === '', 'atrybut obecny');
   t.check('niezaznaczone → brak atrybutu', emit({ evkBgShift: false }).bg === null, 'brak');
+
+  // Moment przełączenia per sekcja. Pusty atrybut MUSI zostać pusty — taki
+  // niosą wszystkie strony sprzed 1.53.0 i silnik czyta go jako „wartość
+  // globalna". Wpisanie tam domyślnej setki zmieniłoby zachowanie wszędzie
+  // tam, gdzie ktoś globalną przestawił.
+  t.check('bez wpisanego procentu atrybut zostaje PUSTY',
+    emit({ evkBgShift: true, evkBgShiftStart: '' }).bg === '', 'pusty');
+  t.check('wpisany procent jedzie w atrybucie',
+    emit({ evkBgShift: true, evkBgShiftStart: '40' }).bg === '40',
+    String(emit({ evkBgShift: true, evkBgShiftStart: '40' }).bg));
+  // Zero jest znaczące — ta sama pułapka co przy „Kolejności" w 1.28.1.
+  t.check('zero nie wypada jak puste',
+    emit({ evkBgShift: true, evkBgShiftStart: '0' }).bg === '0',
+    String(emit({ evkBgShift: true, evkBgShiftStart: '0' }).bg));
 };

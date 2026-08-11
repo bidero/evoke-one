@@ -26,7 +26,25 @@
 <script src="../../node_modules/gsap/dist/ScrollTrigger.min.js"></script>
 <script>
   var q = new URLSearchParams(location.search);
-  window.evkBgShift = { length: +(q.get('length') || 0.5), smooth: 0 };
+  window.evkBgShift = {
+    length: +(q.get('length') || 0.5),
+    smooth: 0,
+    // Procent wysokości okna, na którym zaczyna się przejście. 100 = górna
+    // krawędź nadchodzącej sekcji dotyka dołu okna, czyli zachowanie sprzed
+    // 1.53.0. Mniej = przełączenie następuje PÓŹNIEJ, gdy sekcja jest już wyżej.
+    start: +(q.get('start') || 100),
+  };
+</script>
+<script>
+  // Nadpisanie per sekcja wpisujemy PRZED silnikiem — atrybut jest odczytywany
+  // przy budowie łańcucha, więc dopisany później nie miałby żadnego znaczenia.
+  (function () {
+    var per = new URLSearchParams(location.search).get('sekcja');
+    if (!per) return;
+    var parts = per.split(':');           // np. „s3:40"
+    var el = document.getElementById(parts[0]);
+    if (el) el.setAttribute('data-evk-bg', parts[1]);
+  })();
 </script>
 <script src="../../assets/js/bg-shift.js"></script>
 <script>

@@ -62,6 +62,71 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !page.errors.length, page.errors.join(' | ') || 'brak');
   await page.close();
 
+  // ── Moment przełączenia ───────────────────────────────────────────────
+  // Do 1.53.0 `start: 'top bottom'` było zahardkodowane: przejście zaczynało
+  // się ZAWSZE, gdy górna krawędź nadchodzącej sekcji dotknęła dołu okna.
+  // Ustawienie „długość" ruszało wyłącznie koniec, więc początku nie dało się
+  // przesunąć wcale. Żaden test tego nie pilnował — fixture zawsze przyjmował
+  // domyślne 0,5 i nigdy nie podawał `length`.
+  //
+  // Mierzymy PUNKT ODJAZDU, nie kolor w losowym miejscu. To rozróżnienie ma
+  // znaczenie: koniec przejścia liczy się od początku (`endPct = start − dł.`),
+  // więc zepsucie samego startu przesuwa CAŁE okno i pomiar „gdzieś w środku"
+  // pokazuje różnicę nawet wtedy, gdy start w ogóle nie działa. Sprawdzone
+  // celowym zepsuciem: pierwsza wersja tego bloku świeciła na zielono
+  // z zahardkodowanym `'top bottom'` z powrotem na miejscu.
+  t.section('początek przejścia da się przesunąć');
+
+  const S1_BLUE = 26;   // #0b2a1a
+
+  /** Kolor warstwy, gdy górna krawędź s2 stoi na `pct`% wysokości okna. */
+  const atPct = async (p, pct) => {
+    await p.evaluate((y) => window.scrollTo(0, y), s2top - VH * (pct / 100));
+    await p.waitForTimeout(200);
+    return rgb((await p.evaluate(() => window.__m())).color)[2];
+  };
+
+  const dom = await open({});
+  const domEarly = await atPct(dom, 90);
+  t.check('przy starcie 100% kolor rusza od razu po wejściu sekcji',
+    domEarly > S1_BLUE + 8, 'niebieski ' + domEarly + ' na 90% okna');
+  await dom.close();
+
+  // Start 50%: na 90% okna sekcja jeszcze NIE zaczęła przejmować tła, więc
+  // kolor musi być kolorem s1 co do piksela.
+  const late = await open({ query: 'start=50' });
+  const lateEarly = await atPct(late, 90);
+  t.check('przy starcie 50% na 90% okna kolor jeszcze STOI',
+    Math.abs(lateEarly - S1_BLUE) <= 3, 'niebieski ' + lateEarly + ' (s1 = ' + S1_BLUE + ')');
+
+  // …ale gdy sekcja dojedzie wyżej, przejście rusza normalnie. Bez tej pary
+  // „kolor stoi" byłoby prawdą także dla łańcucha, który się w ogóle nie zbudował.
+  const lateMid = await atPct(late, 25);
+  t.check('przy starcie 50% wyżej kolor jednak rusza', lateMid > S1_BLUE + 8,
+    'niebieski ' + lateMid + ' na 25% okna');
+  await late.close();
+
+  // ── Nadpisanie per sekcja ─────────────────────────────────────────────
+  // `data-evk-bg` był pustym znacznikiem. Teraz może nieść procent — „przełącz
+  // tło, gdy TA sekcja dojdzie do X%" — a pusty nadal znaczy „wartość globalna",
+  // więc istniejące strony nie zmieniają zachowania.
+  t.section('sekcja może nadpisać moment');
+
+  const perSec = await open({ query: 'sekcja=s2:50' });
+  const perEarly = await atPct(perSec, 90);
+  t.check('atrybut sekcji opóźnia przejęcie tak samo jak ustawienie globalne',
+    Math.abs(perEarly - S1_BLUE) <= 3, 'niebieski ' + perEarly + ' (s1 = ' + S1_BLUE + ')');
+  await perSec.close();
+
+  // Nadpisanie dotyczy TYLKO swojej sekcji. Bez tego sprawdzenia „atrybut
+  // działa" przechodziłoby także dla kodu, który wpisaną wartość bierze
+  // za nową globalną.
+  const inna = await open({ query: 'sekcja=s3:50' });
+  const innaEarly = await atPct(inna, 90);
+  t.check('atrybut na INNEJ sekcji nie rusza tego przejścia',
+    innaEarly > S1_BLUE + 8, 'niebieski ' + innaEarly + ' na 90% okna');
+  await inna.close();
+
   // ── Redukcja ruchu ────────────────────────────────────────────────────
   t.section('redukcja ruchu');
   page = await open({ reduce: true });

@@ -54,6 +54,11 @@ if (!defined('ABSPATH')) exit;
                             <div class="evo-desc">Jaką część wysokości ekranu zajmuje zmiana koloru. 1.0 = pełny widok, 0.3 = szybka zmiana tuż przy granicy sekcji.</div>
                         </div>
                         <div class="evo-field" style="margin-bottom:0;">
+                            <label>Początek przejścia (%)</label>
+                            <input type="number" name="evk_bgshift[start]" value="<?php echo esc_attr($bg['start']); ?>" min="0" max="200" step="5">
+                            <div class="evo-desc">Na jakiej wysokości ekranu nadchodząca sekcja przejmuje tło. <strong>100</strong> = w chwili, gdy jej górna krawędź wjeżdża od dołu. Mniej = zmiana następuje <strong>później</strong>, gdy sekcja jest już wyżej. Pojedynczą sekcję można nadpisać, wpisując liczbę w polu „Przenikaj tło przy scrollu" w Bricks.</div>
+                        </div>
+                        <div class="evo-field" style="margin-bottom:0;">
                             <label>Wygładzanie (s)</label>
                             <input type="number" name="evk_bgshift[smooth]" value="<?php echo esc_attr($bg['smooth']); ?>" min="0" max="2" step="0.1">
                             <div class="evo-desc">Opóźnienie, z jakim kolor dogania scroll. 0 = przykleja się do przewijania klatka w klatkę.</div>

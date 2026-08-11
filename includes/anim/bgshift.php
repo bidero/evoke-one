@@ -28,6 +28,10 @@ class EVK_Bg_Shift {
         'enabled' => 0,
         'length'  => 0.5,   // jaką część widoku zajmuje przejście między sekcjami
         'smooth'  => 0.3,   // wygładzanie scruba w sekundach (0 = bez wygładzania)
+        // Procent wysokości okna, na którym ZACZYNA się przejście. 100 = górna
+        // krawędź nadchodzącej sekcji dotyka dołu okna — wartość zahardkodowana
+        // w silniku do 1.53.0, więc domyślna zachowuje dotychczasowy wygląd.
+        'start'   => 100,
     ];
 
     public static function get_instance(): self {
@@ -61,6 +65,10 @@ class EVK_Bg_Shift {
             'enabled' => evk_preserve_toggle($input, 'evk_bgshift'),
             'length'  => max(0.1, min(1.0, floatval($input['length'] ?? 0.5))),
             'smooth'  => max(0.0, min(2.0, floatval($input['smooth'] ?? 0.3))),
+            // Powyżej 100% sekcja jest jeszcze pod oknem — dozwolone, bo pozwala
+            // przełączyć tło ZAWCZASU. Poniżej 0 nie ma sensu: ScrollTrigger
+            // dostałby punkt nad górną krawędzią okna, którego nigdy nie minie.
+            'start'   => max(0,   min(200, intval($input['start'] ?? 100))),
         ];
     }
 
@@ -115,6 +123,7 @@ class EVK_Bg_Shift {
         wp_add_inline_script('evk-bgshift', 'window.evkBgShift = ' . wp_json_encode([
             'length' => (float) $s['length'],
             'smooth' => (float) $s['smooth'],
+            'start'  => (int)   $s['start'],
         ]) . ';', 'before');
     }
 }
