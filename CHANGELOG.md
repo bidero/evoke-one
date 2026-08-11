@@ -2,6 +2,43 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.56.0] — 2026-08-11
+
+### Dodane
+
+- **Nowy element Bricks: Offcanvas Menu.** Wysuwany panel w dwóch trybach:
+  „swobodny panel" (jeden panel, treść w całości z buildera) i „poziomy"
+  (kilka paneli, rodzic wyjeżdża, podmenu zajmuje jego miejsce). Projekt
+  i uzasadnienie decyzji: `docs/offcanvas-menu-szkic.md`.
+
+  Jeden element, nie dwa: oba tryby dzielą całą trudną część — wysuwanie,
+  przyciemnienie, blokadę przewijania, pułapkę fokusu, Esc, powrót fokusu
+  na trigger, redukcję ruchu. Różni je tylko liczba paneli w środku.
+
+  Panele są dziećmi nestable, nie są generowane z menu WordPressa. Pozycją
+  menu może być więc cokolwiek — kafelek z obrazkiem, siatka, blok kontaktowy
+  — bo element nie narzuca znaczników. Przejścia robią atrybuty na dowolnym
+  elemencie: `data-evk-oc-go="ID"`, `data-evk-oc-back`, `data-evk-oc-close`.
+
+  Osobny włącznik w zakładce Elementy, domyślnie wyłączony, jak reszta.
+
+### Uwagi z budowy
+
+- **Panel wysunięty poza ekran nadal łapie fokus.** `transform: translateX(-100%)`
+  nie usuwa niczego z kolejności tabulacji, więc odnośniki z panelu, którego
+  nie widać, są osiągalne tabulatorem. Panele niebieżące dostają `inert`.
+  Wizualnie wszystko wygląda poprawnie — widać to dopiero tabulatorem albo
+  testem, i to jedyny powód, dla którego to sprawdzenie istnieje.
+
+- **Sprawdzenie „blokada przewijania nie przesuwa układu" okazało się puste.**
+  Headless Chromium rysuje pasek nakładkowy, więc `innerWidth − clientWidth`
+  wychodzi 0 nawet na stronie wysokiej na 3000 px — pomiar przechodził TAKŻE
+  po usunięciu kompensaty z kodu (potwierdzone celowym zepsuciem; jawne
+  `::-webkit-scrollbar { width: 15px }` niczego nie zmieniło). Zamiast zielonego
+  pomiaru bez treści zostało to, co realnie mierzalne: blokada zakłada się,
+  zdejmuje i nie zostawia po sobie wcięcia. Kompensata w kodzie została —
+  po prostu nie udajemy, że ją sprawdzamy.
+
 ## [1.55.0] — 2026-08-11
 
 ### Zmienione

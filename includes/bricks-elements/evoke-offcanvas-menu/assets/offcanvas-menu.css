@@ -1,0 +1,76 @@
+/* Evoke ONE — Offcanvas Menu
+ *
+ * Rodzic WYJEŻDŻA całkiem, podmenu zajmuje jego miejsce (decyzja z
+ * docs/offcanvas-menu-szkic.md). Stąd tylko dwa stany panelu — bieżący
+ * i wysunięty — i zero arytmetyki głębokości.
+ *
+ * Panel wysunięty poza ekran NADAL łapie fokus tabulatorem: `transform`
+ * niczego nie usuwa z kolejności tabulacji. Za dostępność odpowiada tu
+ * atrybut `inert` nadawany z JS, a nie ten arkusz — o czym warto pamiętać
+ * przy każdej zmianie poniżej.
+ */
+
+.evk-oc { display: contents; }
+
+.evk-oc-shell {
+    position: fixed;
+    inset: 0;
+    z-index: 99990;
+    display: none;
+}
+.evk-oc-shell.is-open { display: block; }
+
+.evk-oc-scrim {
+    position: absolute;
+    inset: 0;
+    background: var(--evk-oc-scrim, rgba(15, 23, 42, .55));
+    opacity: 0;
+    transition: opacity var(--evk-oc-time, .35s) var(--evk-oc-ease, ease);
+}
+.evk-oc-shell.is-open .evk-oc-scrim { opacity: 1; }
+
+/* Kadr paneli — to on przykleja się do wybranej krawędzi. */
+.evk-oc-panels {
+    position: absolute;
+    overflow: hidden;
+    background: var(--evk-oc-bg, #fff);
+    transition: transform var(--evk-oc-time, .35s) var(--evk-oc-ease, ease);
+}
+
+.evk-oc[data-side="right"]  .evk-oc-panels { top: 0; bottom: 0; right: 0; width:  var(--evk-oc-size, min(420px, 100%)); transform: translateX(100%); }
+.evk-oc[data-side="left"]   .evk-oc-panels { top: 0; bottom: 0; left: 0;  width:  var(--evk-oc-size, min(420px, 100%)); transform: translateX(-100%); }
+.evk-oc[data-side="top"]    .evk-oc-panels { left: 0; right: 0; top: 0;   height: var(--evk-oc-size, min(420px, 100%)); transform: translateY(-100%); }
+.evk-oc[data-side="bottom"] .evk-oc-panels { left: 0; right: 0; bottom: 0; height: var(--evk-oc-size, min(420px, 100%)); transform: translateY(100%); }
+
+.evk-oc-shell.is-open .evk-oc-panels { transform: none; }
+
+/* ── Panele ──
+   Wszystkie leżą na sobie; widać ten z `.is-current`. Reszta jest wysunięta
+   w bok — w tę stronę, z której przyszła: podmenu wraca w prawo, rodzic
+   chowa się w lewo. Dzięki temu „wstecz" wygląda jak cofnięcie, a nie jak
+   kolejne wejście. */
+.evk-oc-panel {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    transition: transform var(--evk-oc-time, .35s) var(--evk-oc-ease, ease),
+                opacity   var(--evk-oc-time, .35s) var(--evk-oc-ease, ease);
+    transform: translateX(100%);
+    opacity: 0;
+}
+.evk-oc-panel.is-current { transform: none; opacity: 1; }
+/* Rodzic, z którego weszliśmy głębiej. */
+.evk-oc-panel.is-out     { transform: translateX(-100%); opacity: 0; }
+
+/* Redukcja ruchu: menu MUSI się nadal otwierać — znika sam ruch, nie dostęp
+   do nawigacji. Wspólna polityka wtyczki: includes/anim/motion.php. */
+@media (prefers-reduced-motion: reduce) {
+    .evk-oc-scrim,
+    .evk-oc-panels,
+    .evk-oc-panel { transition: none !important; }
+}
+
+/* Element z blokadą przewijania nie może przesuwać układu o szerokość paska.
+   Kompensata siedzi w JS (mierzy realną szerokość), tu jest tylko blokada. */
+html.evk-oc-locked, body.evk-oc-locked { overflow: hidden !important; }

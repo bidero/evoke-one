@@ -105,6 +105,21 @@ function evk_elements_registry(): array {
             ],
             // asety: self-enqueue w element.php (EVK_CIRCULAR_MENU_URL), gsap -> evk-gsap
         ],
+        'offcanvas_menu' => [
+            'label' => 'Offcanvas Menu',
+            'desc'  => 'Wysuwane menu: jeden swobodny panel albo kilka poziomów.',
+            'icon'  => 'dashicons-align-pull-left',
+            'class' => 'Evk_Offcanvas_Menu',
+            'guard' => ['Evk_Offcanvas_Menu', 'Bricks\\Evk_Offcanvas_Menu'],
+            'name'  => 'evk-offcanvas-menu',
+            'file'  => $dir . 'evoke-offcanvas-menu/element.php',
+            'consts'=> [
+                'EVK_OFFCANVAS_MENU_VERSION' => '1.0.0',
+                'EVK_OFFCANVAS_MENU_URL'     => $url . 'evoke-offcanvas-menu/',
+                'EVK_OFFCANVAS_MENU_PATH'    => $dir . 'evoke-offcanvas-menu/',
+            ],
+            // asety: self-enqueue w element.php (EVK_OFFCANVAS_MENU_URL)
+        ],
         'stacking_cards' => [
             'label' => 'Stacking Cards',
             'desc'  => 'Karty nakładające się przy scrollu (position: sticky, bez pinu).',
@@ -137,7 +152,7 @@ function evk_elements_registry(): array {
 }
 
 function evk_elements_enabled(): array {
-    $def = ['marquee' => 0, 'hscroll' => 0, 'scroll_reading' => 0, 'circular_title' => 0, 'circular_menu' => 0, 'stacking_cards' => 0, 'wave_bg' => 0];
+    $def = ['marquee' => 0, 'hscroll' => 0, 'scroll_reading' => 0, 'circular_title' => 0, 'circular_menu' => 0, 'offcanvas_menu' => 0, 'stacking_cards' => 0, 'wave_bg' => 0];
     return array_merge($def, (array) get_option('evk_elements', []));
 }
 

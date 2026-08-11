@@ -1,0 +1,117 @@
+<!-- Parametry przez query: mode, side, esc, lock, portal -->
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px system-ui; }
+  /* Strona wyższa niż okno — bez tego pasek przewijania nie istnieje
+     i sprawdzenie „blokada nie przesuwa układu" nie miałoby czego mierzyć. */
+  .long { height: 3000px; background: #eee; }
+  .evk-oc-panel { background: #fff; padding: 20px; }
+  .evk-oc-trigger { display: inline-block; padding: 10px 16px; background: #345; color: #fff; cursor: pointer; }
+</style>
+
+<link rel="stylesheet" href="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.css">
+
+<script>
+  var q = new URLSearchParams(location.search);
+  // Bricks wystawia tę zmienną na stronie; JS elementu rozpoznaje po niej builder.
+  window.bricksIsFrontend = true;
+</script>
+
+<div id="root" class="evk-oc">
+  <button class="evk-oc-trigger" id="trigger">Menu</button>
+
+  <div class="evk-oc-panel" data-panel="start">
+    <a href="#a" id="s-a">Start A</a>
+    <a href="#b" id="s-b">Start B</a>
+    <button data-evk-oc-go="uslugi" id="go-uslugi">Usługi →</button>
+    <button data-evk-oc-close id="close-1">Zamknij</button>
+  </div>
+
+  <div class="evk-oc-panel" data-panel="uslugi">
+    <button data-evk-oc-back id="back-1">← Wstecz</button>
+    <a href="#u1" id="u-1">Usługa 1</a>
+    <button data-evk-oc-go="detale" id="go-detale">Detale →</button>
+  </div>
+
+  <div class="evk-oc-panel" data-panel="detale">
+    <button data-evk-oc-back id="back-2">← Wstecz</button>
+    <a href="#d1" id="d-1">Detal 1</a>
+  </div>
+</div>
+
+<div class="long">treść strony</div>
+
+<script>
+  var root = document.getElementById('root');
+  root.setAttribute('data-mode',       q.get('mode')   || 'levels');
+  root.setAttribute('data-side',       q.get('side')   || 'right');
+  root.setAttribute('data-duration',   '0');
+  root.setAttribute('data-easing',     '');
+  root.setAttribute('data-start',      '');
+  root.setAttribute('data-trigger',    '');
+  root.setAttribute('data-esc-back',   q.get('esc')    === '0' ? '0' : '1');
+  root.setAttribute('data-close-link', '0');
+  root.setAttribute('data-lock',       q.get('lock')   === '0' ? '0' : '1');
+  root.setAttribute('data-portal',     q.get('portal') === '0' ? '0' : '1');
+  root.setAttribute('data-open-builder', '0');
+</script>
+<script src="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.js"></script>
+
+<script>
+window.__open   = function () { document.getElementById('trigger').click(); };
+window.__isOpen = function () { return !!document.querySelector('.evk-oc-shell.is-open'); };
+
+/** Który panel jest bieżący i które są odcięte od tabulatora. */
+window.__state = function () {
+  var out = [];
+  document.querySelectorAll('.evk-oc-panel').forEach(function (p) {
+    out.push({
+      id:      p.getAttribute('data-panel'),
+      current: p.classList.contains('is-current'),
+      inert:   p.hasAttribute('inert'),
+    });
+  });
+  return out;
+};
+
+window.__click = function (id) { document.getElementById(id).click(); };
+window.__key   = function (key) {
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: key, bubbles: true, cancelable: true }));
+};
+
+window.__focusId = function () { return document.activeElement ? document.activeElement.id : null; };
+
+/** Stan blokady przewijania.
+ *
+ *  `gap` to szerokość, jaką pasek przewijania zabiera układowi. W tym harnessie
+ *  wychodzi 0 — headless Chromium rysuje pasek nakładkowy — więc kompensaty
+ *  paddingiem NIE DA SIĘ tu zmierzyć i test tego nie udaje. Mierzalne i warte
+ *  pilnowania jest to, czy blokada w ogóle się zakłada i czy się ZDEJMUJE. */
+window.__lock = function () {
+  return {
+    locked:  document.documentElement.classList.contains('evk-oc-locked'),
+    padding: document.body.style.paddingRight || '',
+    gap:     window.innerWidth - document.documentElement.clientWidth,
+  };
+};
+
+window.__ariaExpanded = function () {
+  return document.getElementById('trigger').getAttribute('aria-expanded');
+};
+
+/** Czy powłoka wylądowała w <body> (portal), czy została w korzeniu. */
+window.__shellParent = function () {
+  var s = document.querySelector('.evk-oc-shell');
+  return s ? s.parentElement.tagName.toLowerCase() : null;
+};
+
+/** Czy panel widocznie leży w kadrze — do sprawdzenia redukcji ruchu. */
+window.__panelVisible = function () {
+  var p = document.querySelector('.evk-oc-panel.is-current');
+  if (!p) return false;
+  var r = p.getBoundingClientRect();
+  return r.width > 10 && r.right > 0 && r.left < window.innerWidth
+      && parseFloat(getComputedStyle(p).opacity) > 0.9;
+};
+</script>

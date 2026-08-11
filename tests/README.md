@@ -64,6 +64,8 @@ zaokrągla kanały przy interpolacji.
 | `loop.test.js` | zapętlona pozycja wpuszczona do wspólnej osi kolejki startowej daje rodzicowi czas trwania 1e10 — kolejny krok sekwencji ruszyłby po dziesięciu miliardach sekund, czyli nigdy (1.39.0) |
 | `marquee.test.js` | pętla jechała od załadowania strony, choć marquee stało 2400 px niżej — ScrollTrigger zgłasza zmianę stanu, a nie stan początkowy; Observer reagował na każde przewinięcie także poza kadrem (1.36.0) |
 | `splide.test.js` | animator zostawiał po sobie inline `transform: translate(0px,0px)` i `filter: blur(0px)` — to nie jest `none`, więc element na stałe zostawał blokiem zawierającym dla potomków pozycjonowanych absolutnie; efekt tekstowy na kontenerze spłaszczał całą jego zawartość do jednego węzła tekstowego (1.35.0) |
+| `offcanvas.test.js` | panel wysunięty poza ekran przez `transform` NADAL łapie fokus tabulatorem — `translateX(-100%)` nie usuwa niczego z kolejności tabulacji, więc bez `inert` odnośniki z niewidocznego panelu są osiągalne, a wizualnie wszystko wygląda poprawnie; blokada przewijania, która się nie zdejmuje, zostawia stronę bez możliwości przewijania (1.56.0) |
+| `seo-meta.test.js` | wyszukiwarka filtrująca ZAŁADOWANE wiersze przy stronicowaniu przeszukuje jedną stronę wyników — dlatego test szuka wpisu, którego na pierwszej stronie nie ma; zapis zbiorczy wysyłający każdy wiersz, także nietknięty, cofa cudzą pracę przy dwóch osobach w panelu (1.55.0) |
 | `wave-bg.test.js` | gotowa paleta jako domyślna przemalowałaby wszystkie tła już wstawione na strony; paleta z niepełnym zestawem zostawia w gradiencie czerń (1.34.0) |
 
 ## Układ
