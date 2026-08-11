@@ -2,6 +2,46 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.55.0] — 2026-08-11
+
+### Zmienione
+
+- **Meta SEO: stronicowanie i szukanie po stronie serwera.** Zakładka ładowała
+  WSZYSTKIE opublikowane wpisy i strony naraz (`posts_per_page => -1`), na
+  każdy typ treści osobno, rysując po trzy pola i sześć checkboksów na wpis.
+  Przy pięciuset wpisach to ~4500 kontrolek w DOM. Teraz jeden typ treści
+  naraz, dwadzieścia wpisów na stronę.
+
+  Szukanie musiało wejść RAZEM ze stronicowaniem, nie po nim: dawna
+  wyszukiwarka filtrowała już załadowane wiersze, więc samo stronicowanie
+  zamieniłoby ją w narzędzie przeszukujące bieżącą stronę — zabrałoby funkcję,
+  która wcześniej działała. Test szuka wpisu, którego na pierwszej stronie
+  **nie ma**; inaczej przechodziłby także dla filtra po stronie przeglądarki.
+
+- **„Zapisz wszystkie" → „Zapisz zmienione".** Przycisk wysyłał każdy wiersz
+  na stronie, także nietknięty. Przy dwóch osobach w panelu jedna nadpisywała
+  drugiej świeżo wpisane wartości tymi sprzed swojego załadowania — to nie
+  było „odświeżenie danych", tylko cofnięcie cudzej pracy. Wiersze z niezapisaną
+  zmianą są oznaczone kreską na krawędzi, a gdy nie ma czego zapisać, leci
+  komunikat zamiast pustego żądania.
+
+- **Skrypt zakładki przeniesiony do `admin.js`.** Malował przycisk zapisu
+  literałami koloru (`#16a34a`, `#dc2626`) — ten sam problem, który usuwaliśmy
+  z atrybutów `style=`, tylko o poziom wyżej. Stan idzie klasą, kolor siedzi
+  w arkuszu.
+
+- **`input[type=search]` dopisany do skóry Fields.** Skóra wylicza typy pól po
+  nazwie, więc nieuwzględniony wypada z niej po cichu: nowa wyszukiwarka miała
+  30 px zamiast 38 i wyglądała jak z innego panelu. Złapane pomiarem przy
+  pierwszym uruchomieniu.
+
+### Naprawione
+
+- **`:is()` w selektorze delegowanym jQuery.** Silnik selektorów jQuery go nie
+  zna i rzuca „unsupported pseudo" — przy delegacji na `document` leci to przy
+  każdym zdarzeniu, więc śledzenie zmian nie podpinało się wcale. Wyszło
+  z testu przy pierwszym przebiegu, nie z użycia.
+
 ## [1.54.0] — 2026-08-10
 
 ### Dodane

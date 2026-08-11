@@ -783,4 +783,107 @@
         });
     }
 
+    /* =====================================================================
+       META SEO — zapis wierszy
+       =====================================================================
+       Do 1.55.0 ten kod siedział w bloku <script> w tab-meta.php i malował
+       przycisk twardymi kolorami (#16a34a, #dc2626). To ten sam problem, który
+       usuwaliśmy z atrybutów `style=`, tylko przeniesiony do JS: literał
+       wygląda jak token, ale przestaje za nim nadążać przy zmianie palety.
+       Stan idzie teraz klasą, kolor siedzi w arkuszu.
+
+       Wyszukiwarka NIE jest już tutaj — filtrowanie załadowanych wierszy
+       zniknęło razem ze stronicowaniem po stronie serwera (zwykły formularz
+       GET w zakładce). Filtr po stronie przeglądarki przeszukiwałby jedną
+       stronę wyników i wyglądałby na zepsuty.
+    ===================================================================== */
+    if ($('.evoke-seo-row').length && window.evoSeoAjax) {
+
+        /** Wiersz uznajemy za zmieniony dopiero po ruszeniu pola. */
+        // Lista selektorów, NIE `:is(...)`. Silnik selektorów jQuery nie zna
+        // `:is()` i rzuca „unsupported pseudo" — a przy delegacji leci to przy
+        // każdym zdarzeniu w dokumencie, więc obsługa nie podpina się wcale.
+        $(document).on('input change',
+            '.evoke-seo-row input, .evoke-seo-row textarea', function () {
+            $(this).closest('.evoke-seo-row').addClass('is-dirty');
+        });
+
+        function seoRowData($row) {
+            var robots = [];
+            $row.find('.evoke-seo-robots-cb:checked').each(function () { robots.push(this.value); });
+            return {
+                post_id:      $row.data('id'),
+                seo_title:    $row.find('.evoke-seo-title').val(),
+                seo_desc:     $row.find('.evoke-seo-desc').val(),
+                seo_keywords: $row.find('.evoke-seo-keywords').val(),
+                seo_robots:   robots,
+            };
+        }
+
+        /** Wynik na przycisku: klasa stanu, nie wpisany kolor. */
+        function seoFlash($btn, ok, text) {
+            $btn.removeClass('is-ok is-err').addClass(ok ? 'is-ok' : 'is-err').text(text);
+            setTimeout(function () {
+                $btn.removeClass('is-ok is-err').text('Zapisz').prop('disabled', false);
+            }, 1800);
+        }
+
+        $(document).on('click', '.evoke-save-seo', function () {
+            var $btn = $(this), $row = $btn.closest('.evoke-seo-row');
+            var d = seoRowData($row);
+            // Szerokość zamrożona na czas zapisu — bez tego przycisk skacze
+            // przy każdej zmianie napisu i cała kolumna drga.
+            $btn.css('min-width', $btn.outerWidth() + 'px').text('Zapisuję...').prop('disabled', true);
+
+            $.post(window.evoSeoAjax.url, {
+                action: 'evoke_save_seo_ajax', nonce: window.evoSeoAjax.nonce,
+                post_id: d.post_id, seo_title: d.seo_title, seo_desc: d.seo_desc,
+                seo_keywords: d.seo_keywords, seo_robots: JSON.stringify(d.seo_robots),
+            }).done(function (r) {
+                if (r && r.success) $row.removeClass('is-dirty');
+                seoFlash($btn, !!(r && r.success), (r && r.success) ? 'Zapisano!' : 'Błąd!');
+            }).fail(function () {
+                seoFlash($btn, false, 'Błąd!');
+            });
+        });
+
+        $('#evoke-seo-save-all').on('click', function () {
+            var $btn = $(this), $status = $('#evoke-seo-bulk-status');
+            var $dirty = $('.evoke-seo-row.is-dirty');
+
+            /*
+             * TYLKO ZMIENIONE WIERSZE.
+             *
+             * Wcześniej szło stąd wszystko, co było na stronie — także wiersze,
+             * których nikt nie dotknął. Przy dwóch osobach w panelu jedna
+             * nadpisywała drugiej świeżo wpisane wartości tymi, które miała
+             * u siebie od chwili załadowania strony. Ten zapis nie „odświeżał
+             * danych", tylko cofał cudzą pracę.
+             */
+            if (!$dirty.length) {
+                $status.removeClass('is-err').text('Nie ma czego zapisać — żadne pole nie zostało zmienione.');
+                setTimeout(function () { $status.text(''); }, 3000);
+                return;
+            }
+
+            var rows = $dirty.map(function () { return seoRowData($(this)); }).get();
+            $btn.text('Zapisuję...').prop('disabled', true);
+
+            $.post(window.evoSeoAjax.url, {
+                action: 'evoke_save_seo_bulk', nonce: window.evoSeoAjax.nonce,
+                rows: JSON.stringify(rows),
+            }).done(function (r) {
+                var ok = !!(r && r.success);
+                if (ok) $dirty.removeClass('is-dirty');
+                $status.toggleClass('is-err', !ok)
+                       .text(ok ? 'Zapisano ' + (r.data && r.data.saved) + ' z ' + rows.length + '.' : 'Błąd zapisu.');
+                setTimeout(function () { $status.removeClass('is-err').text(''); }, 3000);
+            }).fail(function () {
+                $status.addClass('is-err').text('Błąd zapisu.');
+            }).always(function () {
+                $btn.text('Zapisz zmienione').prop('disabled', false);
+            });
+        });
+    }
+
 })(jQuery);

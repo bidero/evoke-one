@@ -1,0 +1,87 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  body { margin: 0; background: #f0f0f1; font: 13px system-ui; }
+  input, textarea { border: 1px solid #8c8f94; background: #fff; padding: 0 8px; min-height: 30px; }
+  .button { display: inline-block; border: 1px solid #2271b1; background: #f6f7f7; color: #2271b1;
+            padding: 0 10px; min-height: 30px; cursor: pointer; }
+  .button-primary { background: #2271b1; border-color: #2271b1; color: #fff; }
+</style>
+
+<div class="wrap"><div class="evo-panel" id="panel"></div></div>
+
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<script>
+/* Dane, które w panelu wstawia wp_localize_script. Bez nich obsługa zapisu
+   w admin.js w ogóle się nie podpina — i test byłby zielony, bo „nic się nie
+   wysyła" jest nieodróżnialne od „obsługa nie istnieje". */
+window.evoSeoAjax = { url: '/fake-admin-ajax.php', nonce: 'testnonce' };
+
+/* Markup z PRAWDZIWEJ zakładki (window.__tab z testu, przez tests/php/tab.php). */
+document.getElementById('panel').innerHTML = window.__tab;
+
+/* Przechwytujemy $.post ZANIM admin.js się podepnie: chodzi o to, CO skrypt
+   wysyła, a nie o to, co odpowie serwer. */
+window.__posts = [];
+window.__reply = { success: true, data: { saved: 99 } };
+jQuery.post = function (url, body) {
+  window.__posts.push({ url: url, body: body });
+  var d = jQuery.Deferred();
+  var p = d.promise();
+  p.done = function (cb) { d.done(cb); return p; };
+  p.fail = function (cb) { d.fail(cb); return p; };
+  p.always = function (cb) { d.always(cb); return p; };
+  setTimeout(function () { d.resolve(window.__reply); }, 0);
+  return p;
+};
+</script>
+<script src="../../assets/admin/admin.js"></script>
+
+<script>
+/** Wiersze na stronie, po kolei. */
+window.__rows = function () {
+  return Array.prototype.map.call(document.querySelectorAll('.evoke-seo-row'), function (r) {
+    return {
+      id:    String(r.dataset.id),
+      title: r.querySelector('.evoke-seo-post-title').textContent.trim(),
+      dirty: r.classList.contains('is-dirty'),
+    };
+  });
+};
+
+/** Wpisuje tekst w tytuł SEO danego wiersza — tak jak zrobiłby to człowiek. */
+window.__type = function (i, text) {
+  var el = document.querySelectorAll('.evoke-seo-row')[i].querySelector('.evoke-seo-title');
+  el.value = text;
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+};
+
+window.__saveAll = function () { document.getElementById('evoke-seo-save-all').click(); };
+
+/** Ostatnie wysłane żądanie zbiorcze, z rozpakowanym `rows`. */
+window.__lastBulk = function () {
+  for (var i = window.__posts.length - 1; i >= 0; i--) {
+    var b = window.__posts[i].body;
+    if (b && b.action === 'evoke_save_seo_bulk') {
+      return { nonce: b.nonce, rows: JSON.parse(b.rows) };
+    }
+  }
+  return null;
+};
+
+window.__bulkCount = function () {
+  return window.__posts.filter(function (p) {
+    return p.body && p.body.action === 'evoke_save_seo_bulk';
+  }).length;
+};
+
+window.__status = function () {
+  var el = document.getElementById('evoke-seo-bulk-status');
+  return { text: el.textContent.trim(), err: el.classList.contains('is-err') };
+};
+
+/** Czy w zakładce został jakikolwiek blok <script> — miał odejść do admin.js. */
+window.__inlineScripts = function () {
+  return document.querySelectorAll('#panel script').length;
+};
+</script>

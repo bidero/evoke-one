@@ -1,8 +1,52 @@
 <?php
 if (!defined('ABSPATH')) exit;
-?>
-                <?php $post_types = get_post_types(['public' => true], 'objects'); ?>
 
+/**
+ * Meta SEO — jeden typ treści naraz, ze stronicowaniem.
+ *
+ * Do 1.55.0 zakładka robiła `posts_per_page => -1` na KAŻDY publiczny typ
+ * treści i rysowała wszystko na jednej stronie: trzy pola i sześć checkboksów
+ * na wpis. Przy 500 wpisach to ~4500 kontrolek w DOM — strona otwierała się
+ * długo albo nie otwierała wcale.
+ *
+ * Wyszukiwarka filtrowała wtedy JUŻ ZAŁADOWANE wiersze i to jest powód, dla
+ * którego stronicowanie i szukanie musiały wejść razem: samo stronicowanie
+ * zamieniłoby wyszukiwarkę w narzędzie przeszukujące bieżącą stronę, czyli
+ * zabrałoby funkcję, która wcześniej działała.
+ */
+
+$seo_types = [];
+foreach (get_post_types(['public' => true], 'objects') as $seo_type) {
+    if ($seo_type->name === 'attachment') continue;
+    $seo_types[$seo_type->name] = $seo_type;
+}
+
+$seo_pt = sanitize_key($_GET['seo_pt'] ?? '');
+if (!isset($seo_types[$seo_pt])) $seo_pt = (string) array_key_first($seo_types);
+
+$seo_s     = sanitize_text_field(wp_unslash($_GET['seo_s'] ?? ''));
+$seo_paged = max(1, intval($_GET['seo_paged'] ?? 1));
+$seo_per   = 20;
+
+$seo_base = add_query_arg(['tab' => 'strona', 'sub' => 'meta'], $base);
+
+/** Adres zakładki z podmienionymi argumentami; reszta stanu zostaje. */
+$seo_url = static function (array $args) use ($seo_base, $seo_pt, $seo_s) {
+    return add_query_arg(array_merge(['seo_pt' => $seo_pt, 'seo_s' => $seo_s], $args), $seo_base);
+};
+
+$seo_query = $seo_types ? new WP_Query([
+    'post_type'      => $seo_pt,
+    'post_status'    => 'publish',
+    'posts_per_page' => $seo_per,
+    'paged'          => $seo_paged,
+    's'              => $seo_s,
+    'orderby'        => 'title',
+    'order'          => 'ASC',
+]) : null;
+
+$seo_max = $seo_query ? max(1, (int) $seo_query->max_num_pages) : 1;
+?>
                 <div class="evo-info-box"><span class="dashicons dashicons-info"></span><div>
                     Evoke ONE renderuje wszystkie meta tagi (tytuł, opis, słowa kluczowe, robots, og:*).
                     Priorytet źródeł per strona: <strong>Bricks → Ustawienia strony → SEO / Media społecznościowe</strong>,
@@ -11,24 +55,50 @@ if (!defined('ABSPATH')) exit;
                     Bricksa → generator OG → obrazek wyróżniający.
                 </div></div>
 
+                <?php if (count($seo_types) > 1): ?>
+                <div class="evk-seo-types">
+                    <?php foreach ($seo_types as $seo_key => $seo_obj): ?>
+                    <a href="<?php echo esc_url(add_query_arg(['seo_pt' => $seo_key, 'seo_s' => $seo_s], $seo_base)); ?>"
+                       class="evk-seo-type<?php echo $seo_key === $seo_pt ? ' is-active' : ''; ?>">
+                        <?php echo esc_html($seo_obj->labels->name); ?>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+
                 <div class="evk-seo-toolbar">
-                    <input type="text" id="evoke-seo-search" placeholder="Szukaj po tytule..." class="evk-seo-search-input">
+                    <?php /* Zwykły formularz GET: szukanie ma trafić do ZAPYTANIA, a nie
+                             przebierać w wierszach, które już są na stronie. */ ?>
+                    <form method="get" class="evk-seo-search-form">
+                        <?php foreach (['page' => $_GET['page'] ?? '', 'tab' => 'strona', 'sub' => 'meta', 'seo_pt' => $seo_pt] as $seo_hk => $seo_hv): ?>
+                        <input type="hidden" name="<?php echo esc_attr($seo_hk); ?>" value="<?php echo esc_attr($seo_hv); ?>">
+                        <?php endforeach; ?>
+                        <input type="search" name="seo_s" id="evoke-seo-search" value="<?php echo esc_attr($seo_s); ?>"
+                               placeholder="Szukaj po tytule..." class="evk-seo-search-input">
+                        <button type="submit" class="button">Szukaj</button>
+                        <?php if ($seo_s !== ''): ?>
+                        <a href="<?php echo esc_url(add_query_arg(['seo_pt' => $seo_pt], $seo_base)); ?>" class="button">Wyczyść</a>
+                        <?php endif; ?>
+                    </form>
                     <div class="evk-seo-toolbar-actions">
-                        <button type="button" id="evoke-seo-save-all" class="button button-primary">Zapisz wszystkie</button>
-                        <span id="evoke-seo-bulk-status" class="evo-hint evo-ok-tx"></span>
+                        <button type="button" id="evoke-seo-save-all" class="button button-primary">Zapisz zmienione</button>
+                        <span id="evoke-seo-bulk-status" class="evo-hint"></span>
                     </div>
                 </div>
 
+                <?php if (!$seo_query || !$seo_query->have_posts()): ?>
+                <p class="evo-faint evk-nl-13">
+                    <?php echo $seo_s !== ''
+                        ? 'Nic nie pasuje do „' . esc_html($seo_s) . '".'
+                        : 'Brak opublikowanych wpisów tego typu.'; ?>
+                </p>
+                <?php else: ?>
 
-                <?php foreach ($post_types as $pt):
-                    if ($pt->name === 'attachment') continue;
-                    $query = new WP_Query(['post_type'=>$pt->name,'post_status'=>'publish','posts_per_page'=>-1,'orderby'=>'title','order'=>'ASC']);
-                    if (!$query->have_posts()) { wp_reset_postdata(); continue; }
-                ?>
                 <h3 class="evo-group-title">
-                    <?php echo esc_html($pt->labels->name); ?>
-                    <span class="evk-seo-count">(<?php echo $query->found_posts; ?>)</span>
+                    <?php echo esc_html($seo_types[$seo_pt]->labels->name); ?>
+                    <span class="evk-seo-count">(<?php echo (int) $seo_query->found_posts; ?>)</span>
                 </h3>
+
                 <div class="evk-table-wrap"><table class="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
@@ -38,7 +108,7 @@ if (!defined('ABSPATH')) exit;
                         </tr>
                     </thead>
                     <tbody>
-                    <?php while ($query->have_posts()): $query->the_post(); $pid = get_the_ID();
+                    <?php while ($seo_query->have_posts()): $seo_query->the_post(); $pid = get_the_ID();
                         $saved_robots = (array)(get_post_meta($pid, '_evoke_seo_robots', true) ?: []);
                     ?>
                     <tr class="evoke-seo-row" data-id="<?php echo esc_attr($pid); ?>">
@@ -67,51 +137,17 @@ if (!defined('ABSPATH')) exit;
                     <?php endwhile; wp_reset_postdata(); ?>
                     </tbody>
                 </table></div>
-                <?php endforeach; ?>
 
-                <script>
-                (function($){
-                    $('#evoke-seo-search').on('input', function(){
-                        var q = this.value.toLowerCase();
-                        $('.evoke-seo-row').each(function(){
-                            $(this).toggle($(this).find('.evoke-seo-post-title').text().toLowerCase().includes(q));
-                        });
-                    });
+                <?php if ($seo_max > 1): ?>
+                <div class="evk-seo-pager">
+                    <?php if ($seo_paged > 1): ?>
+                    <a class="button" href="<?php echo esc_url($seo_url(['seo_paged' => $seo_paged - 1])); ?>">← Poprzednia</a>
+                    <?php endif; ?>
+                    <span class="evo-hint">Strona <?php echo (int) $seo_paged; ?> z <?php echo (int) $seo_max; ?></span>
+                    <?php if ($seo_paged < $seo_max): ?>
+                    <a class="button" href="<?php echo esc_url($seo_url(['seo_paged' => $seo_paged + 1])); ?>">Następna →</a>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
 
-                    $(document).on('click', '.evoke-save-seo', function(){
-                        var btn = this, $row = $(btn).closest('tr');
-                        var origW = $(btn).outerWidth();
-                        $(btn).css('min-width', origW + 'px');
-                        btn.textContent = 'Zapisuję...'; btn.disabled = true;
-                        var robots = [];
-                        $row.find('.evoke-seo-robots-cb:checked').each(function(){ robots.push($(this).val()); });
-                        $.post(evoSeoAjax.url, {
-                            action:'evoke_save_seo_ajax', nonce:evoSeoAjax.nonce,
-                            post_id: $row.data('id'),
-                            seo_title: $row.find('.evoke-seo-title').val(),
-                            seo_desc: $row.find('.evoke-seo-desc').val(),
-                            seo_keywords: $row.find('.evoke-seo-keywords').val(),
-                            seo_robots: JSON.stringify(robots)
-                        }).done(function(r){
-                            $(btn).css({background: r.success ? '#16a34a' : '#dc2626', color:'#fff', borderColor: r.success ? '#008a20' : '#b91c1c'});
-                            btn.textContent = r.success ? 'Zapisano!' : 'Błąd!';
-                        }).always(function(){
-                            setTimeout(function(){ btn.textContent='Zapisz'; btn.disabled=false; $(btn).removeAttr('style').css('min-width', origW+'px'); }, 1800);
-                        });
-                    });
-
-                    $('#evoke-seo-save-all').on('click', function(){
-                        var $btn=$(this), rows=[];
-                        $('.evoke-seo-row').each(function(){
-                            var robots=[];
-                            $(this).find('.evoke-seo-robots-cb:checked').each(function(){ robots.push($(this).val()); });
-                            rows.push({post_id:$(this).data('id'),seo_title:$(this).find('.evoke-seo-title').val(),seo_desc:$(this).find('.evoke-seo-desc').val(),seo_keywords:$(this).find('.evoke-seo-keywords').val(),seo_robots:robots});
-                        });
-                        $btn.text('Zapisuję...').prop('disabled',true);
-                        $.post(evoSeoAjax.url,{action:'evoke_save_seo_bulk',nonce:evoSeoAjax.nonce,rows:JSON.stringify(rows)}).done(function(r){
-                            $('#evoke-seo-bulk-status').text(r.success ? 'Zapisano '+r.data.saved+' wpisów!' : 'Błąd');
-                            setTimeout(function(){ $('#evoke-seo-bulk-status').text(''); },3000);
-                        }).always(function(){ $btn.text('Zapisz wszystkie').prop('disabled',false); });
-                    });
-                })(jQuery);
-                </script>
+                <?php endif; ?>

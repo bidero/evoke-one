@@ -487,20 +487,66 @@
     margin-bottom: 20px;
     flex-wrap: wrap;
 }
-.evk-seo-search-input {
-    border: 1px solid var(--evo-border-field);
-    border-radius: 6px;
-    padding: 7px 12px;
-    font-size: 13px;
-    width: 260px;
-    max-width: 100%;
-}
+/* Sam rozmiar — ramka, wysokość i promień pochodzą ze skóry Fields.
+   Powtarzanie ich tutaj było powodem, dla którego pole nie nadążało za skórą. */
+.evk-seo-search-input { width: 260px; max-width: 100%; }
 .evk-seo-toolbar-actions {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
 }
+/* Formularz szukania jest zwykłym GET-em — filtrowanie po stronie przeglądarki
+   zniknęło razem ze stronicowaniem po stronie serwera. */
+.evk-seo-search-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ── Wybór typu treści ── */
+.evk-seo-types { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.evk-seo-type {
+    padding: 7px 14px;
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius-btn);
+    background: var(--evo-surface);
+    color: var(--evo-text-soft);
+    font-size: 13px;
+    text-decoration: none;
+    transition: border-color .15s, background .15s, color .15s;
+}
+.evk-seo-type:hover { border-color: var(--evo-accent-line); color: var(--evo-accent); }
+.evk-seo-type.is-active {
+    border-color: var(--evo-accent);
+    background: var(--evo-accent-soft);
+    color: var(--evo-accent);
+    font-weight: 600;
+}
+
+/* ── Stronicowanie ── */
+.evk-seo-pager {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+/* ── Wynik zapisu ──
+   Stan idzie KLASĄ, kolor siedzi tutaj. Do 1.55.0 przycisk był malowany
+   z JS literałami (#16a34a, #dc2626) — ten sam problem, który usuwaliśmy
+   z atrybutów `style=`, tylko przeniesiony o poziom wyżej. */
+.evo-panel .evoke-save-seo.is-ok {
+    background: var(--evo-on);
+    border-color: var(--evo-on);
+    color: #fff;
+}
+.evo-panel .evoke-save-seo.is-err {
+    background: var(--evo-danger);
+    border-color: var(--evo-danger-dark);
+    color: #fff;
+}
+/* Wiersz z niezapisaną zmianą — inaczej „Zapisz zmienione" działa po omacku. */
+.evoke-seo-row.is-dirty td:first-child { box-shadow: inset 3px 0 0 var(--evo-accent); }
+#evoke-seo-bulk-status { color: var(--evo-on); }
+#evoke-seo-bulk-status.is-err { color: var(--evo-danger); }
 
 @media screen and (max-width: 782px) {
     .evk-seo-toolbar {
@@ -774,6 +820,10 @@
 .evo-panel input[type=url],
 .evo-panel input[type=email],
 .evo-panel input[type=number],
+/* `search` doszedł w 1.55.0 razem z wyszukiwarką w Meta SEO. Skóra wylicza
+   typy pól po nazwie, więc każdy nieuwzględniony wypada z niej po cichu —
+   pole miało 30 px zamiast 38 i wyglądało jak z innego panelu. */
+.evo-panel input[type=search],
 .evo-panel select {
     height: var(--evo-field-h);
     box-sizing: border-box;

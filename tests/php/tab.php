@@ -92,6 +92,10 @@ function evk_nl_base_url() { return 'https://example.test/wp-admin/admin.php?pag
 // ── Wpisy i strony — dla zakładek SEO ──
 // Dwa wpisy na typ wystarczą: chodzi o to, żeby pętla wyrenderowała wiersz
 // tabeli razem z polami, a nie żeby udawać bazę.
+// Adres ekranu ustawień — zakładki podrzędne budują z niego własne odnośniki.
+$GLOBALS['base'] = 'https://example.test/wp-admin/options-general.php?page=evoke-one';
+$base = $GLOBALS['base'];
+
 $GLOBALS['posts'] = [
     11 => ['title' => 'Strona główna', 'name' => 'strona-glowna'],
     12 => ['title' => 'O nas',         'name' => 'o-nas'],
@@ -118,13 +122,41 @@ function get_edit_post_link($p = 0) { return 'https://example.test/wp-admin/post
 function get_post_meta($id, $key = '', $single = false) { return $single ? '' : []; }
 function wp_reset_postdata() { $GLOBALS['cur_post'] = 0; }
 
-/** Atrapa WP_Query — pętla po $GLOBALS['posts'], bez zapytań. */
+/**
+ * Atrapa WP_Query — pętla po $GLOBALS['posts'], bez zapytań.
+ *
+ * Zna `s`, `paged` i `posts_per_page`, bo zakładka meta SEO od 1.55.0 szuka
+ * i stronicuje PO STRONIE SERWERA. Atrapa, która ignoruje te argumenty,
+ * przepuściłaby stronicowanie, które nic nie stronicuje.
+ */
 class WP_Query {
     public $found_posts;
+    public $max_num_pages;
     private $ids;
     private $i = 0;
-    public function __construct($args = []) { $this->ids = array_keys($GLOBALS['posts']);
-                                              $this->found_posts = count($this->ids); }
+
+    public function __construct($args = []) {
+        $ids = array_keys($GLOBALS['posts']);
+
+        $s = (string) ($args['s'] ?? '');
+        if ($s !== '') {
+            $ids = array_values(array_filter($ids, static function ($id) use ($s) {
+                return stripos($GLOBALS['posts'][$id]['title'], $s) !== false;
+            }));
+        }
+
+        $this->found_posts = count($ids);
+        $per = (int) ($args['posts_per_page'] ?? -1);
+        if ($per > 0) {
+            $this->max_num_pages = (int) ceil($this->found_posts / $per);
+            $paged = max(1, (int) ($args['paged'] ?? 1));
+            $ids = array_slice($ids, ($paged - 1) * $per, $per);
+        } else {
+            $this->max_num_pages = 1;
+        }
+        $this->ids = $ids;
+    }
+
     public function have_posts() { return $this->i < count($this->ids); }
     public function the_post()   { $GLOBALS['cur_post'] = $this->ids[$this->i++]; }
 }
@@ -160,6 +192,14 @@ $GLOBALS['wpdb'] = new class {
 };
 
 $slug = $argv[1] ?? '';
+
+// Argument 2 (opcjonalny): JSON z parametrami zapytania. Zakładki, które
+// stronicują albo szukają, czytają $_GET — bez tego dałoby się wyrenderować
+// wyłącznie pierwszą stronę bez frazy, czyli jedyny przypadek, w którym
+// stronicowanie nie ma nic do roboty.
+if (!empty($argv[2])) {
+    $_GET = array_merge($_GET, (array) json_decode($argv[2], true));
+}
 
 // ── Moduł + dane, które sprawiają, że zakładka renderuje PEŁNY markup ──
 // Pusta konfiguracja rysuje zakładkę bez wierszy repeaterów, a to właśnie
@@ -232,6 +272,20 @@ $TABS = [
         // Zakładka nie ma własnego modułu — czyta wprost z WP_Query i meta.
         'module' => [],
         'file'   => 'includes/admin/seo/tab-meta.php',
+        // Dwadzieścia pięć wpisów przy stronie po dwadzieścia: dwie strony,
+        // druga niepełna. Przy równym podziale ostatnia strona wyglądałaby
+        // jak pierwsza i pomyłka w arytmetyce mogłaby przejść niezauważona.
+        'seed'   => function () {
+            $GLOBALS['posts'] = [];
+            for ($i = 1; $i <= 25; $i++) {
+                $GLOBALS['posts'][100 + $i] = [
+                    'title' => sprintf('Wpis %02d', $i),
+                    'name'  => 'wpis-' . $i,
+                ];
+            }
+            // Jeden tytuł do wyszukania — celowo inny niż reszta.
+            $GLOBALS['posts'][200] = ['title' => 'Kontakt i dojazd', 'name' => 'kontakt'];
+        },
     ],
     // ── Newsletter ──
     // Osobny ekran (`includes/newsletter/menu.php`), ale ta sama otoczka:
