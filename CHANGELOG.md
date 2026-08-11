@@ -2,6 +2,17 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.53.1] — 2026-08-10
+
+### Dodane
+
+- **`docs/timeline-szkic.md`** — projekt wizualnej osi czasu w Animatorze,
+  bez kodu. Rozstrzyga, co taka oś w ogóle może pokazać: tylko wyzwalacz
+  „Load", bo tylko tam animacje składają się we wspólną oś. Arytmetyka jest
+  policzalna w panelu co do sekundy (i dwa elementy z tą samą animacją niczego
+  nie zmieniają), z jednym wyjątkiem — stagger, bo panel nie wie, ile celów ma
+  tween. Reszta wyzwalaczy jest wypisana z powodem, dla którego na osi nie stoi.
+
 ## [1.53.0] — 2026-08-10
 
 ### Dodane
