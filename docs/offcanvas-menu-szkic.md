@@ -20,7 +20,7 @@ widoczne pod spodem, i obie te rzeczy zostały odwrócone.
 |---|---|
 | 1 | **Jeden element z przełącznikiem trybu**: „swobodny panel" albo „poziomy" |
 | 2 | **Panele składane w builderze**, nie generowane z menu WordPressa |
-| 3 | **Rodzic wyjeżdża całkiem**, podmenu zajmuje jego miejsce; powrót przyciskiem „wstecz" |
+| 3 | ~~**Rodzic wyjeżdża całkiem**, podmenu zajmuje jego miejsce~~ — **odwrócone w 1.62.0**, patrz niżej |
 | 4 | **Trigger wbudowany ORAZ selektor** |
 
 Decyzja 1 jest tu najważniejsza, bo trzyma resztę razem: **oba dema dzielą całą
@@ -37,6 +37,32 @@ ile ich jest i czy istnieją odnośniki przechodzące między nimi.
 
 Decyzja 3 zdejmuje z układu całą arytmetykę głębokości (`--evk-oc-depth`,
 przesunięcia per poziom, przygaszanie). Zostaje jedna klasa stanu na panelu.
+
+### Decyzja 3 wróciła — 1.62.0
+
+**„Rodzic wyjeżdża całkiem" okazało się nie tym, o co chodziło.** Wybrane na
+początku, wytrzymało trzy rundy poprawek i dopiero czwarta pokazała dlaczego:
+zgłoszenia brzmiały „drugi panel zasłania pierwszy" i „nadal nie przepycha
+panelu dalej", choć pomiar ze strony pokazywał, że taśma jedzie o pełne
+420 px. Rodzic BYŁ wypychany — tyle że natychmiast poza kadr, więc z ekranu
+nie dało się tego odróżnić od przykrycia. Ruchu nie widać, jeśli to, co się
+rusza, znika w tej samej chwili.
+
+Domyślne jest teraz **poszerzanie kadru**: menu rośnie o szerokość jednego
+panelu na poziom, rodzic przesuwa się w lewo i zostaje na ekranie. Wzór
+z nextbricks robi dokładnie to. Stare zachowanie zostaje pod kontrolką
+„Wejście w podmenu" — kosztuje jedną gałąź w `applyState()`.
+
+Wraca przez to część arytmetyki, której decyzja 3 miała nie być: szerokość
+panelu w pikselach (bo „100% kadru" przestaje być stałą, gdy kadr rośnie),
+liczba paneli mieszczących się w oknie i kolejność ŚCIEŻKI na taśmie —
+ścieżka potrafi przeskakiwać (0 → 2 → 1), a układ z kolejności DOM
+pokazałby wtedy panele w złej kolejności albo z dziurą pośrodku.
+
+I jedna rzecz, która przestaje być prawdą razem z tą decyzją: **rodzic
+zostaje dostępny tabulatorem**. `inert` na wszystkim poza bieżącym panelem
+odcinałby połowę tego, co widać na ekranie, więc pułapka fokusu obejmuje
+teraz cały kadr, a `inert` dostają wyłącznie panele spoza ścieżki.
 
 ---
 
