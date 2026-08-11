@@ -164,6 +164,21 @@ function evk_offcanvas_menu_init_one(root) {
         scrollLocked = false;
     }
 
+    /**
+     * Animacje wejściowe w treści menu odgrywamy PRZY KAŻDYM otwarciu.
+     *
+     * Wyzwalacz „wejście w kadr" jest z definicji jednorazowy — strona
+     * przewija się w jedną stronę, więc ScrollTrigger po pierwszym wejściu
+     * kończy pracę. W panelu, który się otwiera i zamyka, to założenie nie
+     * obowiązuje: animacja grała raz na całe życie strony i przy drugim
+     * otwarciu treść po prostu była. Zgłoszone z użycia.
+     */
+    function replayAnimations() {
+        if (typeof window.evkAnimatorReplay === 'function') {
+            window.evkAnimatorReplay(frame);
+        }
+    }
+
     function open(trigger) {
         lastTrigger = trigger || null;
         stack = [startIdx];
@@ -171,6 +186,7 @@ function evk_offcanvas_menu_init_one(root) {
         shell.classList.add('is-open');
         lock();
         setTrigAria(true);
+        replayAnimations();
         focusFirst(stack[stack.length - 1]);
     }
 
@@ -189,6 +205,8 @@ function evk_offcanvas_menu_init_one(root) {
         if (from) panels[i]._evkOcFrom = from;
         stack.push(i);
         applyState();
+        // Podmenu też POKAZUJE treść — z tego samego powodu, co otwarcie.
+        if (typeof window.evkAnimatorReplay === 'function') window.evkAnimatorReplay(panels[i]);
         focusFirst(i);
     }
 

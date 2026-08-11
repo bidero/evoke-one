@@ -322,6 +322,19 @@
     (el._evkAnimAbort = el._evkAnimAbort || []).push(ac);
   }
 
+  /**
+   * Osie czasu wejściowe zapamiętane na elemencie — do ponownego odegrania.
+   *
+   * Wejście w kadr jest z definicji „raz i koniec" (`once: true`), bo strona
+   * przewija się w jedną stronę. W panelu, który się OTWIERA I ZAMYKA, to
+   * założenie przestaje obowiązywać: ScrollTrigger wystrzelił przy pierwszym
+   * pokazaniu i nigdy więcej, więc animacja grała raz na całe życie strony.
+   * Zgłoszone z użycia przy menu offcanvas.
+   */
+  function rememberTimeline(el, tl) {
+    (el._evkTls = el._evkTls || []).push(tl);
+  }
+
   // ── Budowa osi czasu ───────────────────────────────────────────────────
 
   /**
@@ -432,6 +445,7 @@
 
     if (start) tl.fromTo(targets, start, vars);
     else       tl.to(targets, vars);
+    rememberTimeline(el, tl);
     return tl;
   }
 
@@ -956,6 +970,30 @@
     return out;
   }
 
+  /**
+   * Odgrywa ponownie animacje wejściowe w poddrzewie.
+   *
+   * Woła to każdy, kto POKAZUJE treść, która wcześniej już raz weszła w kadr —
+   * dziś menu offcanvas przy otwarciu. Nie buduje niczego od nowa: restartuje
+   * osie zbudowane przy inicjalizacji, więc nie mnoży wyzwalaczy ani nasłuchów.
+   */
+  function replayIn(root) {
+    if (!root || typeof root.querySelectorAll !== 'function') return 0;
+    var n = 0;
+    var all = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
+    all.forEach(function (el) {
+      (el._evkTls || []).forEach(function (tl) {
+        // `restart(true)` uwzględnia opóźnienie z konfiguracji — bez tego
+        // sekwencja z opóźnieniami zagrałaby za drugim razem inaczej niż za
+        // pierwszym, a to gorsze niż brak powtórki.
+        tl.restart(true);
+        n++;
+      });
+    });
+    return n;
+  }
+
+  window.evkAnimatorReplay     = replayIn;
   window.evkAnimatorPreview    = previewPlay;
   window.evkAnimatorParseProps = parseProps;
 })();

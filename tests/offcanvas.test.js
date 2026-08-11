@@ -180,6 +180,45 @@ module.exports = async function (t) {
     t1.x < t0.x && t1.x > -420, 'z ' + t0.x + ' do ' + t1.x + ' (cel ok. -420)');
   await d.close();
 
+  // ── Animacje grają przy KAŻDYM otwarciu ────────────────────────────────
+  // Wyzwalacz „wejście w kadr" jest z definicji jednorazowy: strona przewija
+  // się w jedną stronę, więc ScrollTrigger po pierwszym wejściu kończy pracę.
+  // W panelu, który się otwiera i zamyka, to założenie nie obowiązuje —
+  // animacja grała raz na całe życie strony, a przy drugim otwarciu treść
+  // po prostu była. Zgłoszone z użycia.
+  t.section('animacje w menu grają za każdym otwarciem');
+
+  const an = await t.open('offcanvas.html', { viewport: V, settle: 250 });
+
+  await an.evaluate(() => window.__open());
+  await an.waitForTimeout(30);
+  const firstStart = await an.evaluate(() => window.__animOpacity());
+  t.check('pierwsze otwarcie zaczyna od stanu początkowego', firstStart < 0.6,
+    'opacity ' + firstStart);
+
+  await an.waitForTimeout(500);
+  t.check('pierwsze otwarcie dochodzi do końca',
+    (await an.evaluate(() => window.__animOpacity())) > 0.95,
+    'opacity ' + (await an.evaluate(() => window.__animOpacity())));
+
+  await an.evaluate(() => window.__key('Escape'));
+  await an.waitForTimeout(120);
+
+  await an.evaluate(() => window.__open());
+  await an.waitForTimeout(30);
+  const secondStart = await an.evaluate(() => window.__animOpacity());
+  t.check('DRUGIE otwarcie też zaczyna od stanu początkowego', secondStart < 0.6,
+    'opacity ' + secondStart + ' (przy pierwszym ' + firstStart + ')');
+
+  await an.waitForTimeout(500);
+  t.check('drugie otwarcie też dochodzi do końca',
+    (await an.evaluate(() => window.__animOpacity())) > 0.95,
+    'opacity ' + (await an.evaluate(() => window.__animOpacity())));
+
+  t.check('bez błędów JS przy powtórce', !an.errors.length,
+    an.errors.join(' | ') || 'brak');
+  await an.close();
+
   // ── Panele bez nazw, adresowane kolejnością ────────────────────────────
   // To jest ścieżka, którą dostaje KAŻDY, kto wstawi element i niczego nie
   // skonfiguruje: panele nie mają `data-panel`, więc liczy się ich kolejność

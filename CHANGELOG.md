@@ -2,6 +2,21 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.59.0] — 2026-08-11
+
+### Naprawione
+
+- **Animacja „wejście w kadr" w menu offcanvas grała tylko raz.** Zgłoszone
+  z użycia. Wyzwalacz wejścia w kadr jest z założenia jednorazowy — strona
+  przewija się w jedną stronę, więc po pierwszym wejściu ScrollTrigger kończy
+  pracę (`once: true`). W panelu, który się otwiera i zamyka, to założenie nie
+  obowiązuje: treść animowała się przy pierwszym otwarciu, a przy każdym
+  następnym po prostu była. Silnik animacji zapamiętuje teraz swoje osie czasu
+  na elemencie i wystawia `window.evkAnimatorReplay(korzeń)`, a offcanvas woła
+  to przy otwarciu menu i przy wejściu w podmenu. Powtórka idzie przez
+  `restart(true)`, więc ustawione opóźnienia są honorowane i druga odsłona
+  wygląda tak samo jak pierwsza.
+
 ## [1.58.0] — 2026-08-11
 
 ### Naprawione

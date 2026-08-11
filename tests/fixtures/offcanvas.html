@@ -22,6 +22,7 @@
   <button class="evk-oc-trigger" id="trigger">Menu</button>
 
   <div class="evk-oc-panel" data-panel="start">
+    <span id="anim" data-evk-anim='{"animation":"wjazd","trigger":"viewport"}'>Animowany</span>
     <a href="#a" id="s-a">Start A</a>
     <a href="#b" id="s-b">Start B</a>
     <button data-evk-oc-go="uslugi" id="go-uslugi">Usługi →</button>
@@ -81,6 +82,18 @@
   r2.setAttribute('data-start', '');
   r2.setAttribute('data-trigger', '');
 </script>
+<script src="../../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../../node_modules/gsap/dist/ScrollTrigger.min.js"></script>
+<script>
+  // Odwzorowanie payloadu z includes/anim/animator.php.
+  window.evkAnimator = {
+    library: { wjazd: { slug: 'wjazd', preset: 'fade', trigger: 'viewport',
+                        duration: 0.3, delay: 0, stagger: 0, easing: 'power2.out', order: 0 } },
+    presets: { fade: { from: { opacity: 0 }, to: { opacity: 1 }, duration: 0.3 } },
+    reducedMotion: false, needsFonts: false,
+  };
+</script>
+<script src="../../assets/js/animator.js"></script>
 <script src="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.js"></script>
 
 <script>
@@ -114,6 +127,11 @@ window.__state = function () {
     });
   });
   return out;
+};
+
+/** Przezroczystość animowanego elementu w panelu startowym. */
+window.__animOpacity = function () {
+  return +parseFloat(getComputedStyle(document.getElementById('anim')).opacity).toFixed(2);
 };
 
 window.__click = function (id) { document.getElementById(id).click(); };
