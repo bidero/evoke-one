@@ -515,12 +515,16 @@ module.exports = async function (t) {
     await w.close();
   }
 
-  // ── Menu z lewej to LUSTRZANE ODBICIE ──────────────────────────────────
-  // Zgłoszone z użycia. Przy menu z prawej kolumna podrzędna leży przy prawej
-  // krawędzi — tej, z której menu wyjechało — a panel wjeżdża stamtąd. Z lewej
-  // musi być dokładnie odwrotnie; inaczej podmenu przyjeżdża z przeciwnego
-  // końca ekranu niż samo menu.
-  t.section('menu z lewej to lustrzane odbicie');
+  // ── Menu z lewej: podmenu WYCHODZI SPOD GŁÓWNEGO ───────────────────────
+  // Kadr rośnie tu w prawo, więc kolumna podrzędna leży po prawej — tak samo
+  // jak przy menu z prawej. Różni je WYŁĄCZNIE kierunek wjazdu: podmenu
+  // startuje pod panelem głównym i wysuwa się spod niego w prawo.
+  //
+  // Wcześniej stało tu prawdziwe lustro (odwrócone kolumny, podmenu przy lewej
+  // krawędzi). W pomiarach wychodziło poprawnie, ale na żywej stronie pokazywał
+  // się tylko panel główny — a przy okazji panel główny przeskakiwał na drugą
+  // połowę menu. Ten wariant robi mniej i panel główny stoi w miejscu.
+  t.section('menu z lewej: podmenu wychodzi spod głównego');
 
   const lf = await t.open('offcanvas.html',
     { viewport: V, query: 'side=left&dur=0.2&pdur=0.6', settle: 120 });
@@ -532,20 +536,27 @@ module.exports = async function (t) {
   await lf.evaluate(() => window.__click('go-uslugi'));
   await lf.waitForTimeout(200);
   const lmid = await lf.evaluate(() => window.__expand());
-  t.check('podmenu wjeżdża Z LEWEJ',
+  // Ujemne przesunięcie = panel stoi jeszcze po LEWEJ swojego slotu, czyli
+  // dokładnie pod panelem głównym. Z prawej jest odwrotnie, dodatnie.
+  t.check('podmenu startuje SPOD panelu głównego',
     lmid.panels.find((q) => q.id === 'uslugi').tx < -20,
     'przesunięcie ' + lmid.panels.find((q) => q.id === 'uslugi').tx + ' px');
 
-  await lf.waitForTimeout(1000);
+  await lf.waitForTimeout(1200);
   const l1 = await lf.evaluate(() => window.__expand());
   const lStart = l1.panels.find((q) => q.id === 'start');
   const lSub   = l1.panels.find((q) => q.id === 'uslugi');
-  t.check('podmenu stanęło przy LEWEJ krawędzi', lSub.left === 0, lSub.left + ' px');
-  t.check('panel główny przesunął się w PRAWO', lStart.left === l0.panels[0].left + l0.frameW,
+
+  // Sedno tej poprawki: panel główny NIE RUSZA SIĘ. Przeskok na drugą połowę
+  // menu był tym, co widać było jako „pojawia się tylko pierwszy panel".
+  t.check('panel główny stoi w miejscu', lStart.left === l0.panels[0].left,
     l0.panels[0].left + ' → ' + lStart.left + ' px');
-  t.check('oba panele widoczne, jak z prawej',
-    lStart.shown && lSub.shown && l1.frameW === l0.frameW * 2,
-    'kadr ' + l0.frameW + ' → ' + l1.frameW + ' px');
+  t.check('podmenu stanęło OBOK, po prawej', lSub.left === lStart.left + l0.frameW,
+    lSub.left + ' px (główny na ' + lStart.left + ', szerokość ' + l0.frameW + ')');
+  t.check('kadr urósł w prawo', l1.frameW === l0.frameW * 2 && l1.frameLeft === 0,
+    'kadr ' + l0.frameW + ' → ' + l1.frameW + ' px, lewa krawędź ' + l1.frameLeft);
+  t.check('oba panele widoczne', lStart.shown && lSub.shown,
+    lStart.shown && lSub.shown ? 'oba' : 'BRAKUJE');
   t.check('bez błędów JS', !lf.errors.length, lf.errors.join(' | ') || 'brak');
   await lf.close();
 

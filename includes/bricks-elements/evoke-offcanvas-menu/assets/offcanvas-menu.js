@@ -316,15 +316,11 @@ function evk_offcanvas_menu_init_one(root) {
             frame.style.width = (cols * panelPx) + 'px';
             syncFrameBg();
             /* Gdy druga kolumna nie mieści się w oknie, pokazujemy tę, na
-               której się właśnie jest — czyli podrzędną.
-               Przy menu z LEWEJ nie trzeba do tego nic przesuwać: kolumna
-               podrzędna jest tam PIERWSZA na taśmie (patrz `row-reverse`
-               w arkuszu), a taśma zaczyna się przy lewej krawędzi kadru, więc
-               okno kadru i tak stoi na niej. Przesunięcie w tę samą stronę co
-               przy menu z prawej wywoziło OBA panele poza kadr i podmenu nie
-               otwierało się wcale. Zgłoszone z użycia. */
-            var hide = side === 'left' ? 0 : (used - cols) * panelPx;
-            track.style.transform = 'translateX(' + (-hide) + 'px)';
+               której się właśnie jest — czyli podrzędną. Kolumny leżą w tej
+               samej kolejności przy obu stronach, więc i przesunięcie jest to
+               samo; menu z lewej różni się WYŁĄCZNIE kierunkiem wjazdu panelu
+               (patrz arkusz). */
+            track.style.transform = 'translateX(' + (-(used - cols) * panelPx) + 'px)';
 
             panels.forEach(function (p, i) {
                 var at = stack.indexOf(i);

@@ -188,16 +188,6 @@
    zwężania widać było samo tło kadru. */
 .evk-oc-panel.is-sub.is-carried { transition-delay: 0s; }
 
-/* ── Menu z lewej: LUSTRZANE ODBICIE ──
- *
- * Przy menu z prawej kolumna podrzędna leży po prawej — przy krawędzi, z której
- * menu wyjechało — a panel wjeżdża i wyjeżdża w tę samą stronę. Z lewej musi
- * być dokładnie odwrotnie, inaczej podmenu przyjeżdża z przeciwnego końca
- * ekranu niż samo menu. Zgłoszone z użycia.
- *
- * `row-reverse` przesuwa panel główny na drugi koniec taśmy, a slot idzie do
- * zera — razem daje to układ [podrzędny | główny] zamiast [główny | podrzędny].
- * Przy jednej kolumnie nic się nie zmienia: jedyny element i tak wypełnia kadr. */
 /* ── Menu z góry i z dołu: panele W PIONIE ──
  *
  * Kadr wysuwa się tu pionowo, więc i przechodzenie między panelami musi być
@@ -211,8 +201,20 @@
 .evk-oc-shell.is-side-top .evk-oc-panel,
 .evk-oc-shell.is-side-bottom .evk-oc-panel { min-width: auto; min-height: 0; }
 
-.evk-oc-shell.is-side-left .evk-oc-track { flex-direction: row-reverse; }
-.evk-oc-shell.is-side-left .evk-oc-slot  { left: 0; }
+/* ── Menu z lewej: podmenu WYSUWA SIĘ SPOD GŁÓWNEGO ──
+ *
+ * Kadr rośnie tu w prawo, więc kolumna podrzędna leży po prawej — dokładnie
+ * tak samo jak przy menu z prawej. Różni je WYŁĄCZNIE kierunek wjazdu: podmenu
+ * startuje o szerokość panelu w lewo, czyli dokładnie pod panelem głównym.
+ * Slot je tam obcina, więc go nie widać — i dlatego wygląda to, jakby
+ * wysuwało się spod panelu głównego. Przy menu z prawej jest odwrotnie:
+ * wjeżdża zza prawej krawędzi ekranu, tej samej, z której wyjechało menu.
+ *
+ * Wcześniej stało tu prawdziwe lustro: `row-reverse` na taśmie i slot przy
+ * lewej krawędzi, czyli układ [podrzędny | główny]. W pomiarach wychodziło
+ * poprawnie, ale na żywej stronie pokazywał się tylko panel główny — a przy
+ * okazji panel główny przeskakiwał na drugą połowę menu, czego nikt nie
+ * zamawiał. Ten wariant robi mniej: panel główny stoi w miejscu. */
 .evk-oc-shell.is-side-left .evk-oc-panel.is-sub.is-away,
 .evk-oc-shell.is-side-left .evk-oc-panel.is-sub.is-leaving { transform: translateX(-100%); }
 

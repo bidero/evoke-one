@@ -2,6 +2,23 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.65.1] — 2026-08-11
+
+### Naprawione
+
+- **Offcanvas z lewej: podmenu wychodzi teraz SPOD panelu głównego.**
+  Zgłoszone z użycia — po 1.65.0 z lewej nadal pokazywał się tylko panel
+  główny. Poprzednie podejście robiło prawdziwe lustro: odwracało kolumny
+  (`row-reverse`) i przesuwało kolumnę podrzędną do lewej krawędzi. W pomiarach
+  wychodziło poprawnie, na żywej stronie nie — a przy okazji panel główny
+  przeskakiwał na drugą połowę menu, czego nikt nie zamawiał.
+
+  Kolumny leżą teraz w tej samej kolejności przy obu stronach, bo kadr z lewej
+  i tak rośnie w prawo. Różni je **wyłącznie kierunek wjazdu**: z lewej podmenu
+  startuje pod panelem głównym (slot je tam obcina, więc go nie widać)
+  i wysuwa się spod niego w prawo; z prawej wjeżdża zza krawędzi ekranu.
+  Panel główny **stoi w miejscu**. Rozwiązanie z podpowiedzi użytkownika.
+
 ## [1.65.0] — 2026-08-11
 
 ### Naprawione
