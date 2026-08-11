@@ -629,7 +629,20 @@ add_action('wp_ajax_evk_ajax_toggle', function () {
         'evk_tl_fab_enabled'             => ['_scalar'],
         'evk_forminbox'                  => ['enabled'],
         'evk_snippets_enabled'          => ['_scalar'],
-        'evk_elements'                  => ['marquee', 'hscroll', 'scroll_reading', 'circular_title', 'circular_menu', 'stacking_cards', 'wave_bg'],
+        /*
+         * Lista elementów PROSTO Z REJESTRU, nie przepisana ręcznie.
+         *
+         * Przepisana była do 1.57.0 i rozjechała się przy pierwszym nowym
+         * elemencie: Offcanvas Menu miał wpis w rejestrze i włącznik w panelu,
+         * a przełącznik odbijał się tutaj z `not_allowed`. Panel rysował się
+         * poprawnie, więc widać to było dopiero z użycia.
+         *
+         * `function_exists` na wypadek, gdyby ten plik załadował się przed
+         * loaderem elementów — wtedy lista jest pusta i przełącznik nie działa,
+         * ale nic się nie wywraca.
+         */
+        'evk_elements'                  => function_exists('evk_elements_registry')
+            ? array_keys(evk_elements_registry()) : [],
         'evk_cleanup'                   => ['disable_xmlrpc', 'remove_rss'],
     ];
 

@@ -2,6 +2,21 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.56.1] — 2026-08-11
+
+### Naprawione
+
+- **Przełącznik „Offcanvas Menu" nie włączał modułu.** Zgłoszone z użycia.
+  Handler AJAX `evk_ajax_toggle` ma własną białą listę „opcja → dozwolone
+  pola" i lista elementów była w niej **przepisana ręcznie**. Nowy element miał
+  wpis w rejestrze i włącznik w panelu, ale przełącznik odbijał się z
+  `not_allowed: evk_elements/offcanvas_menu`. Panel rysował się poprawnie,
+  więc jedyną drogą do zauważenia było kliknięcie.
+
+  Lista powstaje teraz **z rejestru elementów**, więc nie ma czego zapomnieć.
+  Test woła prawdziwy handler dla każdej pozycji rejestru — porównanie dwóch
+  list byłoby tautologią, odkąd jedna powstaje z drugiej.
+
 ## [1.56.0] — 2026-08-11
 
 ### Dodane

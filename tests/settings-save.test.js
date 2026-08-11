@@ -23,6 +23,23 @@
 const { phpOutput } = require('./lib/harness');
 
 module.exports = async function (t) {
+  // ── Przełącznik elementów ─────────────────────────────────────────────
+  // Handler `evk_ajax_toggle` ma własną białą listę „opcja => dozwolone pola".
+  // To DRUGIE miejsce, w którym trzeba pamiętać o nowym elemencie, i dokładnie
+  // na tym poległ Offcanvas Menu: był w rejestrze, miał włącznik w panelu,
+  // a przełącznik odbijał się z `not_allowed`. Panel rysował się poprawnie,
+  // więc zobaczył to dopiero użytkownik.
+  //
+  // Test woła PRAWDZIWY handler dla każdej pozycji rejestru — porównanie dwóch
+  // list byłoby tautologią, odkąd jedna powstaje z drugiej.
+  t.section('każdy element z rejestru da się włączyć');
+
+  const tg = JSON.parse(phpOutput('toggle.php'));
+  const rejected = Object.keys(tg.result).filter((k) => tg.result[k] !== 'ok');
+  t.check('rejestr nie jest pusty', tg.elements.length > 0, tg.elements.length + ' elementów');
+  t.check('żaden nie odbija się od whitelisty', !rejected.length,
+    rejected.map((k) => k + ' → ' + tg.result[k]).join(' | ') || 'wszystkie przechodzą');
+
   // ── Serwer ────────────────────────────────────────────────────────────
   t.section('endpoint zapisuje tak samo jak options.php');
 
