@@ -233,6 +233,22 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'required' => [ 'mode', '=', 'levels' ],
 		];
 
+		$this->controls['animateExit'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Animuj wyjście treści', 'evoke-one' ),
+			'type'        => 'checkbox',
+			'default'     => false,
+			'description' => esc_html__(
+				'Przy zamykaniu treść menu najpierw wychodzi, a dopiero potem kadr '
+				. 'wjeżdża za krawędź. Domyślnie wychodzi TĄ SAMĄ animacją, którą weszła, '
+				. 'tylko od końca — bez ustawiania czegokolwiek. Chcesz innego wyjścia? '
+				. 'Ustaw elementowi animację z wyzwalaczem „Zamknięcie menu" — ona wygra '
+				. 'z cofaniem. Na zamknięcie czekamy najwyżej sekundę, żeby długa '
+				. 'animacja nie trzymała otwartego menu po kliknięciu ✕.',
+				'evoke-one'
+			),
+		];
+
 		$this->controls['triggerSelector'] = [
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Dodatkowy trigger (selektor)', 'evoke-one' ),
@@ -340,6 +356,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-esc-back',   ! empty( $s['escGoesBack'] )      ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-close-link', ! empty( $s['closeOnLinkClick'] ) ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-lock',       ! empty( $s['lockScroll'] )       ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-anim-exit', ! empty( $s['animateExit'] )      ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-portal',     ! empty( $s['toBody'] )           ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-open-builder', ! empty( $s['openInBuilder'] )  ? '1' : '0' );
 

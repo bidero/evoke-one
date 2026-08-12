@@ -140,38 +140,73 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'inline'      => true,
 			'placeholder' => '0.4',
 		];
+		/*
+		 * Ta sama lista krzywych, co w Animatorze i w Offcanvas Menu — jedna
+		 * lista dla całej wtyczki znaczy, że dorzucenie krzywej działa wszędzie
+		 * naraz i że użytkownik uczy się jednego słownika.
+		 *
+		 * Wcześniej stała tu własna kopia z samymi RODZINAMI GSAP-a („power2",
+		 * „back") plus pole na wartość wpisywaną ręcznie. Rodzina bez kierunku
+		 * nie jest tym samym co krzywa: wspólna lista niesie „power2.out",
+		 * „power2.inOut" i „back.out(1.7)" — czyli warianty, których kopia nie
+		 * miała wcale, a po które trzeba było sięgać osobnym polem tekstowym.
+		 *
+		 * BEZ przeliczania na CSS. Offcanvas jedzie na przejściach CSS i musi
+		 * tłumaczyć nazwy przez evk_anim_easing_css(); to menu animuje GSAP-em
+		 * (tl.to(panel, { ease })), a GSAP rozumie te nazwy wprost. Wspólna jest
+		 * LISTA, nie tłumaczenie.
+		 */
+		$easings = [ '' => esc_html__( '— domyślna —', 'evk-circular-menu' ) ];
+		if ( function_exists( 'evk_anim_easings' ) ) {
+			foreach ( evk_anim_easings() as $e ) $easings[ $e ] = $e;
+		}
 		$this->controls['easing'] = [
 			'hasDynamicData' => false,
-			'tab'     => 'content',
-			'label'   => esc_html__( 'GSAP easing', 'evk-circular-menu' ),
-			'type'    => 'select',
-			'options' => [
-				'none'    => 'none',
-				'power1'  => 'power1',
-				'power2'  => 'power2',
-				'power3'  => 'power3',
-				'power4'  => 'power4',
-				'back'    => 'back',
-				'bounce'  => 'bounce',
-				'circ'    => 'circ',
-				'elastic' => 'elastic',
-				'expo'    => 'expo',
-				'sine'    => 'sine',
-				'steps'   => 'steps',
-				'custom'  => 'własny',
-			],
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Krzywa', 'evk-circular-menu' ),
+			'type'        => 'select',
+			'options'     => $easings,
 			'inline'      => true,
-			'placeholder' => 'none',
+			'default'     => '',
 		];
-		$this->controls['customEasing'] = [
+
+		$this->controls['contentDelay'] = [
 			'hasDynamicData' => false,
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Własny easing', 'evk-circular-menu' ),
-			'type'        => 'text',
+			'label'       => esc_html__( 'Opóźnienie treści (s)', 'evk-circular-menu' ),
+			'type'        => 'number',
+			'min'         => 0,
+			'max'         => 3,
+			'step'        => 0.05,
 			'inline'      => true,
-			'placeholder' => 'back.out(1.7)',
-			'default'     => 'back.out(1.7)',
-			'required'    => [ 'easing', '=', 'custom' ],
+			'placeholder' => '0',
+			'description' => esc_html__(
+				'Odstęp między rozwinięciem kadru a ruszeniem animacji w środku. '
+				. 'Bez niego kadr i treść startują w tej samej klatce i całość wygląda '
+				. 'sztywno — nie widać, co po czym następuje. Przez czas odstępu treść '
+				. 'stoi w stanie POCZĄTKOWYM swojej animacji, więc nic nie miga. '
+				. 'Zero wyłącza odstęp.',
+				'evk-circular-menu'
+			),
+		];
+
+		$this->controls['animateExit'] = [
+			'hasDynamicData' => false,
+			'tab'     => 'content',
+			'label'   => esc_html__( 'Animuj wyjście treści', 'evk-circular-menu' ),
+			'type'    => 'checkbox',
+			'inline'  => true,
+			'small'   => true,
+			'default' => false,
+			'description' => esc_html__(
+				'Przy zamykaniu treść najpierw wychodzi, a dopiero potem zwija się kadr. '
+				. 'Domyślnie wychodzi TĄ SAMĄ animacją, którą weszła, tylko od końca — '
+				. 'bez ustawiania czegokolwiek. Chcesz innego wyjścia? Ustaw elementowi '
+				. 'animację z wyzwalaczem „Zamknięcie menu" — ona wygra z cofaniem. '
+				. 'Na zamknięcie czekamy najwyżej sekundę, żeby długa animacja nie '
+				. 'trzymała otwartego menu po kliknięciu ✕.',
+				'evk-circular-menu'
+			),
 		];
 
 		// ----- Styl zawartości -----
@@ -267,9 +302,20 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$portalToBody      = ! empty( $settings['portalToBody'] )      ? '1' : '0';
 		$duration          = ! empty( $settings['duration'] )          ? $settings['duration']          : '0.4';
 		$easing            = ! empty( $settings['easing'] )            ? $settings['easing']            : 'none';
+		/*
+		 * Ścieżka dla stron zapisanych PRZED wspólną listą krzywych. Kontrolki
+		 * „Własny easing" już nie ma, ale jej wartość siedzi w bazie i bez tego
+		 * przejścia easing „custom" pojechałby do GSAP-a jako dosłowne słowo
+		 * „custom" — czyli nazwa, której GSAP nie zna, więc po cichu zamieniłby
+		 * ją na krzywą domyślną. Trzy linijki zamiast cichej zmiany ruchu na
+		 * stronach, które nikt nie otworzy w builderze.
+		 */
 		if ( $easing === 'custom' ) {
 			$easing = ! empty( $settings['customEasing'] ) ? $settings['customEasing'] : 'none';
 		}
+		$contentDelay      = isset( $settings['contentDelay'] ) && $settings['contentDelay'] !== ''
+			? (string) $settings['contentDelay'] : '0';
+		$animateExit       = ! empty( $settings['animateExit'] )       ? '1' : '0';
 		$customtoggle      = ! empty( $settings['customtoggle'] )      ? $settings['customtoggle']      : '';
 		$lockBodyScrolling = ! empty( $settings['lockBodyScrolling'] ) ? '1' : '0';
 		$closeOnEsc        = ! empty( $settings['closeOnEsc'] )        ? '1' : '0';
@@ -278,6 +324,8 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-portal',                           $portalToBody );
 		$this->set_attribute( '_root', 'data-duration',                         $duration );
 		$this->set_attribute( '_root', 'data-easing',                           $easing );
+		$this->set_attribute( '_root', 'data-content-delay',                    $contentDelay );
+		$this->set_attribute( '_root', 'data-anim-exit',                        $animateExit );
 		$this->set_attribute( '_root', 'data-customtoggle',                     $customtoggle );
 		$this->set_attribute( '_root', 'data-lock-scroll',                      $lockBodyScrolling );
 		$this->set_attribute( '_root', 'data-open-builder',                     $openbuilder );

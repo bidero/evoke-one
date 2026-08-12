@@ -78,12 +78,13 @@
   root.setAttribute('data-esc-back',   q.get('esc')    === '0' ? '0' : '1');
   root.setAttribute('data-close-link', '0');
   root.setAttribute('data-lock',       q.get('lock')   === '0' ? '0' : '1');
+  root.setAttribute('data-anim-exit',  q.get('exit')   === '1' ? '1' : '0');
   root.setAttribute('data-portal',     q.get('portal') === '0' ? '0' : '1');
   root.setAttribute('data-open-builder', '0');
 
   var r2 = document.getElementById('root2');
   ['data-mode','data-side','data-duration','data-esc-back','data-close-link','data-level-style',
-   'data-lock','data-portal','data-open-builder',
+   'data-lock','data-portal','data-open-builder','data-anim-exit',
    'data-panel-duration','data-panel-easing','data-sub-delay'].forEach(function (a) {
     r2.setAttribute(a, root.getAttribute(a));
   });

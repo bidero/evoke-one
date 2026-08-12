@@ -335,6 +335,23 @@
     (el._evkTls = el._evkTls || []).push(tl);
   }
 
+  /**
+   * Osie czasu WYJŚCIOWE — wyzwalacz „zamknięcie menu".
+   *
+   * Osobny koszyk od `_evkTls`, bo to nie jest wariant wejścia: te osie nie
+   * mają żadnego wyzwalacza i nigdy nie zagrają same z siebie. Trzymane razem
+   * z wejściowymi odegrałby je pierwszy `evkAnimatorReplay()` i treść znikałaby
+   * przy OTWIERANIU menu.
+   */
+  function rememberCloseTimeline(el, tl) {
+    (el._evkCloseTls = el._evkCloseTls || []).push(tl);
+  }
+
+  /** Odłożone wejście (opóźnienie treści) — patrz replayIn(). */
+  function cancelWait(tl) {
+    if (tl._evkWait) { tl._evkWait.kill(); tl._evkWait = null; }
+  }
+
   // ── Budowa osi czasu ───────────────────────────────────────────────────
 
   /**
@@ -490,6 +507,36 @@
     // od zegara rodzica z chwili utworzenia, czyli tylko za pierwszym razem.
     if (start) tl.fromTo(targets, start, vars, cfg.delay);
     else       tl.to(targets, vars, cfg.delay);
+    return tl;
+  }
+
+  /**
+   * Zamknięcie menu — oś czasu BEZ WYZWALACZA, wstrzymana do odwołania.
+   *
+   * Wyzwalacz „wyjście z kadru" się tu nie nadaje i dlatego to osobna pozycja
+   * na liście: tamten wisi na ScrollTriggerze i mierzy opuszczanie kadru,
+   * a przy zamykaniu menu żadnego kadru się nie opuszcza — panel po prostu
+   * znika spod treści. Oś powstaje więc `paused` i czeka na `evkAnimatorExit()`,
+   * które woła menu tuż przed zamknięciem.
+   *
+   * `immediateRender: false` z tego samego powodu co przy wyjściu z kadru:
+   * `from` animacji wyjściowej to stan SPOCZYNKU, więc nie ma czego renderować
+   * z wyprzedzeniem, a nałożone od razu przykryłoby stan początkowy animacji
+   * WEJŚCIOWEJ na tym samym elemencie — i treść bywałaby widoczna albo nie
+   * zależnie od tego, którą animację zbudowano później.
+   */
+  function attachMenuClose(el, targets, cfg) {
+    var tl    = gsap.timeline({ paused: true });
+    var vars  = tweenVars(targets, cfg, { immediateRender: false });
+    var start = startVars(cfg);
+
+    // Opóźnienie POZYCYJNIE, nie varsami osi — ta oś jest odtwarzana przy
+    // każdym zamknięciu, a `delay` w varsach liczyłby się od zegara rodzica
+    // z chwili utworzenia, czyli zadziałałby najwyżej raz.
+    if (start) tl.fromTo(targets, start, vars, cfg.delay);
+    else       tl.to(targets, vars, cfg.delay);
+
+    rememberCloseTimeline(el, tl);
     return tl;
   }
 
@@ -666,12 +713,13 @@
     if (cfg.textFx === 'words') return attachWords(el, targets, cfg);
 
     switch (cfg.trigger) {
-      case 'exit':  return attachExit(el, targets, cfg);
-      case 'scrub': return attachScrub(el, targets, cfg);
+      case 'exit':       return attachExit(el, targets, cfg);
+      case 'menu-close': return attachMenuClose(el, targets, cfg);
+      case 'scrub':      return attachScrub(el, targets, cfg);
       case 'hover':
-      case 'click': return attachInteractive(el, targets, cfg);
-      case 'load':  queueLoad(el, targets, cfg); return null;
-      default:      return attachViewport(el, targets, cfg);
+      case 'click':      return attachInteractive(el, targets, cfg);
+      case 'load':       queueLoad(el, targets, cfg); return null;
+      default:           return attachViewport(el, targets, cfg);
     }
   }
 
@@ -742,8 +790,10 @@
         // powodu: jego `to` to stan PO ZNIKNIĘCIU. Nałożony na stałe zgasiłby
         // element u każdego z włączoną redukcją ruchu — czyli dokładnie ta
         // klasa błędu, dla której powstał tests/motion.test.js.
+        // 'menu-close' niesie dokładnie to samo ryzyko: jego `to` to stan
+        // treści, która WŁAŚNIE ZNIKNĘŁA razem z zamykanym panelem.
         if (cfg.trigger !== 'hover' && cfg.trigger !== 'click'
-            && cfg.trigger !== 'exit' && cfg.to) {
+            && cfg.trigger !== 'exit' && cfg.trigger !== 'menu-close' && cfg.to) {
           gsap.set(resolveTargets(el, cfg), cfg.to);
         }
       });
@@ -974,15 +1024,38 @@
    * Odgrywa ponownie animacje wejściowe w poddrzewie.
    *
    * Woła to każdy, kto POKAZUJE treść, która wcześniej już raz weszła w kadr —
-   * dziś menu offcanvas przy otwarciu. Nie buduje niczego od nowa: restartuje
-   * osie zbudowane przy inicjalizacji, więc nie mnoży wyzwalaczy ani nasłuchów.
+   * menu offcanvas i Circular Menu przy otwarciu. Nie buduje niczego od nowa:
+   * restartuje osie zbudowane przy inicjalizacji, więc nie mnoży wyzwalaczy
+   * ani nasłuchów.
+   *
+   * @param {number} [delay] Odstęp w sekundach między pokazaniem panelu
+   *   a ruszeniem treści. Stan początkowy nakładany jest OD RAZU, a dopiero
+   *   ruch czeka — samo odłożenie `restart()` zostawiłoby treść w stanie
+   *   KOŃCOWYM z poprzedniego otwarcia, czyli widoczną i migającą do początku
+   *   w chwili startu.
    */
-  function replayIn(root) {
+  function replayIn(root, delay) {
     if (!root || typeof root.querySelectorAll !== 'function') return 0;
+    delay = num(delay, 0);
     var n = 0;
     var all = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
     all.forEach(function (el) {
+      /* Animacje „zamknięcie menu" wracają do stanu spoczynku. Bez tego treść,
+         która wyszła przy poprzednim zamknięciu, zostawałaby w stanie po
+         zniknięciu — przy drugim otwarciu menu byłoby puste. */
+      (el._evkCloseTls || []).forEach(function (tl) { tl.pause(0); });
+
       (el._evkTls || []).forEach(function (tl) {
+        cancelWait(tl);
+        if (delay > 0) {
+          tl.pause(0);
+          tl._evkWait = gsap.delayedCall(delay, function () {
+            tl._evkWait = null;
+            tl.restart(true);
+          });
+          n++;
+          return;
+        }
         // `restart(true)` uwzględnia opóźnienie z konfiguracji — bez tego
         // sekwencja z opóźnieniami zagrałaby za drugim razem inaczej niż za
         // pierwszym, a to gorsze niż brak powtórki.
@@ -993,7 +1066,59 @@
     return n;
   }
 
+  /**
+   * Wyprowadza treść z poddrzewa i ZWRACA czas w sekundach, jakiego na to
+   * potrzebuje — wołający ma o tyle odłożyć zamknięcie panelu.
+   *
+   * Dla każdego elementu, po kolei:
+   *
+   *  1. **Ma animację z wyzwalaczem „zamknięcie menu"** → gra ona.
+   *  2. **Nie ma** → COFAMY wejściową. Co wjechało, wyjeżdża tą samą drogą,
+   *     bez żadnej konfiguracji — o to prosi zgłoszenie („linki znikają
+   *     używając mojej animacji").
+   *
+   * Cofnięcie działa TAKŻE po `clearProps` (patrz tweenVars): GSAP trzyma
+   * wartości brzegowe w tweenach z chwili inicjalizacji i odtwarza je przy
+   * renderze wstecz, mimo że inline'owy zapis transformacji zdążył zniknąć.
+   * To był otwarty punkt planu — zmierzony, patrz tests/circular-menu.test.js.
+   *
+   * Przy redukcji ruchu `initOne()` wraca przed zbudowaniem czegokolwiek, więc
+   * żaden koszyk nie istnieje i wychodzi zero: panel zamyka się natychmiast.
+   */
+  function exitOut(root) {
+    if (!root || typeof root.querySelectorAll !== 'function') return 0;
+    var longest = 0;
+    var all = [root].concat(Array.prototype.slice.call(root.querySelectorAll('*')));
+    all.forEach(function (el) {
+      // Odłożone wejście nie może dojść do głosu w trakcie wychodzenia —
+      // zagrałoby animację wejściową na zamykanym już panelu.
+      (el._evkTls || []).forEach(cancelWait);
+
+      var closers = el._evkCloseTls || [];
+      if (closers.length) {
+        // Wejście, które jeszcze trwa, ustępuje miejsca — dwie osie na tych
+        // samych właściwościach szarpałyby się o element.
+        (el._evkTls || []).forEach(function (tl) { tl.pause(); });
+        closers.forEach(function (tl) {
+          tl.restart(true);
+          longest = Math.max(longest, tl.totalDuration());
+        });
+        return;
+      }
+
+      (el._evkTls || []).forEach(function (tl) {
+        // Oś stojąca na zerze nic nie nałożyła — nie ma czego cofać.
+        if (tl.time() <= 0) return;
+        // Cofnięcie trwa dokładnie tyle, ile oś zdążyła przejechać.
+        longest = Math.max(longest, tl.time());
+        tl.reverse();
+      });
+    });
+    return longest;
+  }
+
   window.evkAnimatorReplay     = replayIn;
+  window.evkAnimatorExit       = exitOut;
   window.evkAnimatorPreview    = previewPlay;
   window.evkAnimatorParseProps = parseProps;
 })();

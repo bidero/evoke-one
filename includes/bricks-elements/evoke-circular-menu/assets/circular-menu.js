@@ -1,6 +1,6 @@
 /**
  * Evoke Circular Menu
- * v1.1.0
+ * v1.2.0
  *
  * evk_circular_menu_init() jest wołane z dwóch stron: przez Bricks (patrz
  * $scripts w element.php) i przez własny DOMContentLoaded poniżej. Flaga
@@ -8,6 +8,15 @@
  * bez niej stackowałyby się listenery, a przy włączonym portalu drugi
  * przebieg nie znalazłby panelu (jest już przeniesiony do <body>).
  */
+
+/**
+ * Górna granica czekania na wyjście treści, w sekundach.
+ *
+ * Animacja ustawiona na osiem sekund zostawiłaby menu otwarte przez osiem
+ * sekund po kliknięciu ✕ — a to już nie jest efekt, tylko zawieszenie. Resztę
+ * treść dokańcza pod zwijającym się kadrem.
+ */
+var EVK_CM_EXIT_MAX = 1;
 
 function evk_circular_menu_init() {
     document.querySelectorAll( '.evk-cm' ).forEach( function( root ) {
@@ -33,6 +42,11 @@ function evk_circular_menu_init_one( root ) {
 
     var duration    = reduced ? 0 : ( parseFloat( root.getAttribute( 'data-duration' ) ) || 0.4 );
     var easing      = root.getAttribute( 'data-easing' ) || 'none';
+    // Odstęp między rozwinięciem kadru a ruszeniem treści. Bez niego oba ruchy
+    // startują w tej samej klatce i nie widać, co po czym następuje — ten sam
+    // problem, który w offcanvas rozwiązało opóźnienie panelu podrzędnego.
+    var contentDelay = reduced ? 0 : ( parseFloat( root.getAttribute( 'data-content-delay' ) ) || 0 );
+    var animateExit  = root.getAttribute( 'data-anim-exit' ) === '1';
     var customToggleSel = root.getAttribute( 'data-customtoggle' ) || '';
     var lockScroll  = root.getAttribute( 'data-lock-scroll' ) === '1';
     var closeOnEsc  = root.getAttribute( 'data-close-on-esc' ) === '1';
@@ -53,6 +67,14 @@ function evk_circular_menu_init_one( root ) {
 
         if ( fromTop )  panel.style.setProperty( '--evk-cm-from-top',  fromTop );
         if ( fromLeft ) panel.style.setProperty( '--evk-cm-from-left', fromLeft );
+
+        // Przeprowadzka unieważnia współrzędne wyzwalaczy zbudowanych PRZED nią:
+        // Animator startuje na DOMContentLoaded i zdążył już zmierzyć elementy
+        // w środku panelu tam, gdzie stały w treści strony. Bez przeliczenia
+        // trzymają pozycje sprzed przenosin.
+        if ( window.ScrollTrigger && typeof ScrollTrigger.refresh === 'function' ) {
+            ScrollTrigger.refresh();
+        }
     }
 
     // ── GSAP timeline ─────────────────────────────────────────────
@@ -120,26 +142,72 @@ function evk_circular_menu_init_one( root ) {
         }
     }
 
-    function toggle() {
-        if ( ! panel ) return;
-        setTabIndex( panel );
-        if ( isOpen ) {
-            panel.style.pointerEvents = 'none';
-            tl.reverse();
-        } else {
-            panel.style.pointerEvents = 'all';
-            tl.play();
-        }
-
-        // Aktualizuj triggery wewnętrzne
+    function syncTriggers() {
         root.querySelectorAll( '.evk-cm-trigger' ).forEach( updateTriggerState );
-
-        // Aktualizuj custom toggle
         if ( customToggleSel ) {
             document.querySelectorAll( customToggleSel ).forEach( updateTriggerState );
         }
+    }
 
-        isOpen = ! isOpen;
+    /**
+     * Animacje wejściowe w treści odgrywamy PRZY KAŻDYM otwarciu.
+     *
+     * Panel jest `position: fixed; inset: 0` i chowa się obcięciem
+     * (`clip-path`), więc LEŻY W KADRZE od załadowania strony. Wyzwalacz
+     * „wejście w kadr" jest jednorazowy (`once: true`), więc wystrzeliwał raz,
+     * na starcie, w niewidocznym jeszcze panelu — i ginął. Treść po otwarciu
+     * po prostu była. Ta sama przyczyna co w offcanvas przed 1.59.0.
+     */
+    function replayContent() {
+        if ( typeof window.evkAnimatorReplay === 'function' ) {
+            window.evkAnimatorReplay( panel, contentDelay );
+        }
+    }
+
+    /** Ile sekund czekać z zamknięciem, żeby treść zdążyła wyjść. */
+    function exitContent() {
+        if ( ! animateExit || typeof window.evkAnimatorExit !== 'function' ) return 0;
+        return Math.min( window.evkAnimatorExit( panel ), EVK_CM_EXIT_MAX );
+    }
+
+    /* Uchwyt odłożonego zamknięcia. Bez niego drugi klik w ✕ startuje drugie
+       wyjście, a otwarcie w trakcie wychodzenia zostaje po chwili zamknięte
+       przez zaległy zegar — menu zamyka się samo tuż po otwarciu.
+       Źródeł zamykania jest tu więcej niż jedno: ✕, klik poza panelem, Esc
+       i focusout, więc zbieg dwóch naraz nie jest teoretyczny. */
+    var closeTimer = null;
+
+    function openMenu() {
+        if ( closeTimer ) { clearTimeout( closeTimer ); closeTimer = null; }
+        if ( isOpen ) return;
+        isOpen = true;
+        setTabIndex( panel );
+        panel.style.pointerEvents = 'all';
+        tl.play();
+        syncTriggers();
+        replayContent();
+    }
+
+    function closeMenu() {
+        if ( ! isOpen || closeTimer ) return;
+        isOpen = false;
+        setTabIndex( panel );
+        panel.style.pointerEvents = 'none';
+        syncTriggers();
+
+        var wait = exitContent();
+        if ( wait <= 0 ) { tl.reverse(); return; }
+
+        closeTimer = setTimeout( function () {
+            closeTimer = null;
+            tl.reverse();
+        }, wait * 1000 );
+    }
+
+    function toggle() {
+        if ( ! panel ) return;
+        if ( isOpen ) closeMenu();
+        else          openMenu();
     }
 
     // ── Scroll lock ───────────────────────────────────────────────
@@ -223,6 +291,11 @@ function evk_circular_menu_init_one( root ) {
             toggle();
         }
     } );
+
+    // Stan początkowy triggerów. Bez tego `aria-expanded` pojawia się dopiero
+    // przy pierwszym kliknięciu, więc czytnik ekranu do tej chwili nie ma skąd
+    // wiedzieć, że przycisk cokolwiek rozwija.
+    syncTriggers();
 
     // ── Otwórz w builderze ────────────────────────────────────────
     if ( isBuilder && openBuilder ) {

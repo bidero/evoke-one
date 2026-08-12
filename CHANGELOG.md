@@ -2,6 +2,76 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.69.0] — 2026-08-12
+
+### Naprawione
+
+- **Animacje w Circular Menu grały raz na całe życie strony.** Panel jest
+  `position: fixed; inset: 0`, a chowa go OBCIĘCIE (`clip-path: circle(0px)`) —
+  leży więc w kadrze od załadowania strony razem ze wszystkim, co ma w środku.
+  Wyzwalacz „wejście w viewport" jest jednorazowy, więc wystrzeliwał przy
+  starcie strony, w panelu, którego nikt jeszcze nie widział, i po pierwszym
+  razie znikał. Po otwarciu menu treść po prostu BYŁA. Ta sama przyczyna co
+  w offcanvas przed 1.59.0, tylko objaw inny: tam panel stał poza ekranem,
+  tu jest przycięty do zera.
+
+  **Animacje wejściowe odgrywają się teraz przy KAŻDYM otwarciu.** Przy
+  włączonym portalu do `<body>` dochodzi jeszcze przeliczenie wyzwalaczy po
+  przeprowadzce — zbudowane wcześniej trzymały współrzędne sprzed niej.
+
+- **Trigger Circular Menu mówił odwrotnie, niż jest.** `aria-expanded`
+  i klasa `--opened` były ustawiane PRZED przestawieniem stanu, więc po
+  otwarciu menu przycisk raportował „zamknięte", a po zamknięciu „otwarte".
+  Do tego atrybut pojawiał się dopiero przy pierwszym kliknięciu — do tej
+  chwili czytnik ekranu nie miał skąd wiedzieć, że burger cokolwiek rozwija.
+
+### Dodane
+
+- **Wyjście treści przy zamykaniu — w OBU menu** (Circular Menu i Offcanvas
+  Menu). Nowa kontrolka „Animuj wyjście treści": po kliknięciu ✕ najpierw
+  wychodzi zawartość, a dopiero potem zwija się kadr.
+
+  - **Bez ustawiania czegokolwiek treść wychodzi TĄ SAMĄ animacją, którą
+    weszła — tylko od końca.** Co wjechało, tą samą drogą wyjeżdża.
+  - **Chcesz innego wyjścia?** Nowy wyzwalacz **„Zamknięcie menu"** na liście
+    Animatora. Animacja z nim ustawiona nie gra sama z siebie — czeka, aż menu
+    ją zawoła — i wygrywa z cofaniem. To osobna pozycja, a nie wariant
+    „wyjścia z kadru": tamto wisi na ScrollTriggerze i mierzy opuszczanie
+    okna, a przy zamykaniu menu żadnego kadru się nie opuszcza.
+  - **Na zamknięcie czekamy najwyżej sekundę.** Animacja ustawiona na osiem
+    sekund trzymałaby menu otwarte przez osiem sekund po kliknięciu ✕ — resztę
+    treść dokańcza pod zamykającym się kadrem.
+  - Przy redukcji ruchu czekanie wychodzi zero i menu zamyka się natychmiast.
+
+  Domyślnie **wyłączone**, więc zamykanie zachowuje się dokładnie jak dotąd.
+
+- **Circular Menu: „Opóźnienie treści (s)".** Kadr ma swoje tempo, treść
+  swoje. Bez odstępu oba ruchy startują w tej samej klatce i nie widać, co po
+  czym następuje — ten sam problem, który w offcanvas rozwiązało opóźnienie
+  panelu podrzędnego. Przez czas odstępu treść stoi w stanie POCZĄTKOWYM
+  swojej animacji, więc nic nie miga.
+
+### Zmienione
+
+- **Circular Menu bierze krzywe ze wspólnej listy wtyczki** (`evk_anim_easings()`
+  — tej samej, co Animator i Offcanvas Menu). Wcześniej miał własną kopię
+  z samymi RODZINAMI GSAP-a („power2", „back") plus pole na wartość wpisywaną
+  ręcznie. Rodzina bez kierunku to nie to samo co krzywa: wspólna lista niesie
+  `power2.out`, `power2.inOut`, `back.out(1.7)` i `elastic.out(1, 0.5)` —
+  warianty, po które trzeba było wcześniej sięgać osobnym polem tekstowym.
+  Pole „Własny easing" przez to zniknęło; strony zapisane z jego wartością
+  jadą dalej bez zmian.
+
+  **Bez przeliczania na CSS.** Offcanvas jedzie na przejściach CSS i musi
+  tłumaczyć nazwy przez `evk_anim_easing_css()`; Circular Menu animuje
+  GSAP-em, który rozumie te nazwy wprost. Wspólna jest LISTA, nie tłumaczenie.
+
+- **Circular Menu dostał pierwszy w historii zestaw testów** (54 sprawdzenia).
+  Element działał bez żadnego pomiaru i to jest część odpowiedzi na zgłoszenie
+  „animacje w środku nie działają" — nic tego nie pilnowało. Poza nowymi
+  funkcjami testy obejmują też otwieranie, zamykanie, portal do `<body>`,
+  `aria-expanded` i redukcję ruchu.
+
 ## [1.68.0] — 2026-08-11
 
 ### Dodane

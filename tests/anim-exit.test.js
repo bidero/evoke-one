@@ -68,6 +68,27 @@ module.exports = async function (t) {
   t.check('drugie wyjście też gasi', (await p.evaluate(() => window.__op())) < 0.05,
     'opacity ' + (await p.evaluate(() => window.__op())));
 
+  // ── „Zamknięcie menu" NIE reaguje na scroll ───────────────────────────
+  // To osobny wyzwalacz, a nie wariant wyjścia z kadru, i tu widać dlaczego:
+  // wyjście z kadru wisi na ScrollTriggerze, a ten ma stać BEZ ŻADNEGO
+  // wyzwalacza i czekać, aż menu go zawoła. Element leży w tej samej stronie
+  // i przejeżdża dokładnie tę samą drogę co sąsiad wychodzący z kadru — po
+  // której tamten zdążył zgasnąć dwa razy.
+  t.section('„zamknięcie menu" nie reaguje na przewijanie');
+
+  t.check('po całym przewijaniu element jest nietknięty',
+    (await p.evaluate(() => window.__opMenu())) === 1,
+    'opacity ' + (await p.evaluate(() => window.__opMenu())));
+
+  // A na wezwanie — gra. Bez tej pary „nietknięty" byłoby też prawdą dla
+  // animacji, której silnik w ogóle nie zbudował.
+  const czas = await p.evaluate(() => window.__wyjscie());
+  t.check('wezwanie zwraca czas trwania animacji', Math.abs(czas - 0.3) < 0.01,
+    czas + ' s (0,3)');
+  await p.waitForFunction(() => window.__opMenu() < 0.05, { timeout: 3000 }).catch(() => {});
+  t.check('na wezwanie menu element gaśnie', (await p.evaluate(() => window.__opMenu())) < 0.05,
+    'opacity ' + (await p.evaluate(() => window.__opMenu())));
+
   t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
   await p.close();
 

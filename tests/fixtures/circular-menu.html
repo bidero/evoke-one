@@ -1,0 +1,141 @@
+<!-- Parametry przez query: dur, ease, cdelay, exit, portal, esc -->
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px system-ui; }
+  /* Strona wyższa niż okno — animacje wejściowe w treści strony mają wtedy
+     dokąd wchodzić, a panel menu i tak jest `fixed` i leży w kadrze zawsze. */
+  .long { height: 2500px; background: #eee; }
+  .evk-cm-trigger button { padding: 10px 16px; background: #345; color: #fff; border: 0; }
+  .evk-cm-content { flex-direction: column; gap: 12px; padding: 40px; }
+</style>
+
+<link rel="stylesheet" href="../../includes/bricks-elements/evoke-circular-menu/assets/circular-menu.css">
+
+<script>
+  var q = new URLSearchParams(location.search);
+  // Bricks wystawia tę zmienną na stronie; JS elementu rozpoznaje po niej builder.
+  window.bricksIsFrontend = true;
+</script>
+
+<div id="root" class="evk-cm">
+  <!-- Trigger jest OPAKOWANIEM przycisku, nie przyciskiem: element szuka
+       `button` w środku `.evk-cm-trigger` i to jemu przestawia aria-expanded. -->
+  <div class="evk-cm-trigger">
+    <button class="burger" id="trigger">Menu</button>
+  </div>
+
+  <div class="evk-cm-content" id="panel">
+    <a href="#a" id="anim" data-evk-anim='{"animation":"wjazd","trigger":"viewport"}'>Wjeżdża</a>
+    <!-- Element z DWIEMA animacjami: wejściową i własną wyjściową. Na nim widać
+         różnicę między „cofnij wejście" a „zagraj preset zamknięcia" — cofnięcie
+         nie rusza osi X, więc przesunięcie w bok jest dowodem, że zagrał preset. -->
+    <a href="#b" id="oba"
+       data-evk-anim='[{"animation":"wjazd","trigger":"viewport"},{"animation":"wyjazd","trigger":"menu-close"}]'>Własne wyjście</a>
+    <a href="#c" id="zwykly">Bez animacji</a>
+  </div>
+</div>
+
+<div class="long">treść strony</div>
+
+<script>
+  var root = document.getElementById('root');
+  root.setAttribute('data-portal',        q.get('portal') === '0' ? '0' : '1');
+  root.setAttribute('data-duration',      q.get('dur')    || '0.4');
+  root.setAttribute('data-easing',        q.get('ease')   || 'none');
+  root.setAttribute('data-content-delay', q.get('cdelay') || '0');
+  root.setAttribute('data-anim-exit',     q.get('exit')   === '1' ? '1' : '0');
+  root.setAttribute('data-customtoggle',  '');
+  root.setAttribute('data-lock-scroll',   '0');
+  root.setAttribute('data-open-builder',  '0');
+  root.setAttribute('data-close-on-esc',  q.get('esc')    === '0' ? '0' : '1');
+</script>
+
+<script src="../../node_modules/gsap/dist/gsap.min.js"></script>
+<script src="../../node_modules/gsap/dist/ScrollTrigger.min.js"></script>
+<script>
+  // Odwzorowanie payloadu z includes/anim/animator.php.
+  window.evkAnimator = {
+    library: {
+      wjazd:  { slug: 'wjazd',  preset: 'up',   trigger: 'viewport',
+                duration: 0.3, delay: 0, stagger: 0, easing: 'power2.out', order: 0 },
+      wyjazd: { slug: 'wyjazd', preset: 'away', trigger: 'menu-close',
+                duration: 0.3, delay: 0, stagger: 0, easing: 'power2.out', order: 0 },
+    },
+    presets: {
+      up:   { from: { opacity: 0, y: 40 }, to: { opacity: 1, y: 0 }, duration: 0.3 },
+      away: { from: { x: 0 },              to: { x: 200 },           duration: 0.3 },
+    },
+    reducedMotion: false, needsFonts: false,
+  };
+</script>
+<script src="../../assets/js/animator.js"></script>
+<script src="../../includes/bricks-elements/evoke-circular-menu/assets/circular-menu.js"></script>
+
+<script>
+var panel = function () { return document.getElementById('panel'); };
+
+window.__open  = function () { document.getElementById('trigger').click(); };
+window.__key   = function (key) {
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: key, bubbles: true, cancelable: true }));
+};
+window.__aria  = function () { return document.getElementById('trigger').getAttribute('aria-expanded'); };
+window.__opened = function () { return document.getElementById('trigger').classList.contains('burger--opened'); };
+
+/** Gdzie wylądował panel — portal przenosi go wprost do <body>. */
+window.__panelParent = function () { return panel().parentElement.tagName.toLowerCase(); };
+
+/**
+ * Promień obcięcia panelu — jedyna miara, po której widać stan menu.
+ *
+ * Panel jest `position: fixed; inset: 0`, więc jego prostokąt jest ZAWSZE
+ * prostokątem okna, otwarty czy zamknięty. Chowa go `clip-path: circle(0px)`,
+ * a rozwija GSAP do `circle(150%)` — i to jest jedyne, co się tu naprawdę
+ * rusza. Jednostki mieszają się w trakcie (px na starcie, % u celu), więc
+ * zwracamy samą liczbę razem z jednostką i test porównuje po liczbie.
+ */
+window.__clip = function () {
+  var v = getComputedStyle(panel()).clipPath || '';
+  var m = v.match(/circle\(\s*([\d.]+)\s*(px|%)/);
+  return { raw: v, r: m ? parseFloat(m[1]) : null, unit: m ? m[2] : null };
+};
+
+/** Czy kadr jest rozwinięty — bez zgadywania jednostki. */
+window.__rozwiniety = function () {
+  var c = window.__clip();
+  return c.r !== null && c.r > 1;
+};
+
+window.__pe = function () { return panel().style.pointerEvents || ''; };
+
+window.__op = function (id) {
+  return +parseFloat(getComputedStyle(document.getElementById(id)).opacity).toFixed(2);
+};
+
+/** Przesunięcia z macierzy transformacji — kolumna 4 to X, 5 to Y. */
+function mat(id) {
+  var m = getComputedStyle(document.getElementById(id)).transform;
+  if (!m || m === 'none') return [0, 0];
+  var p = m.replace(/^matrix\(|\)$/g, '').split(',').map(parseFloat);
+  return [p[4] || 0, p[5] || 0];
+}
+window.__tx = function (id) { return Math.round(mat(id)[0]); };
+window.__ty = function (id) { return Math.round(mat(id)[1]); };
+
+/** Inline'owy zapis stylu — po `clearProps` transformacji tu nie ma. */
+window.__inline = function (id) {
+  return document.getElementById(id).getAttribute('style') || '';
+};
+
+/** Czy silnik animacji w ogóle zbudował coś na tym elemencie. */
+window.__osie = function (id) {
+  var el = document.getElementById(id);
+  return { wejscia: (el._evkTls || []).length, wyjscia: (el._evkCloseTls || []).length };
+};
+
+/** Krzywe z listy — czy GSAP rozumie każdą z nich wprost, bez tłumaczenia. */
+window.__ease = function (name) {
+  var f = gsap.parseEase(name);
+  return typeof f === 'function' ? +f(0.5).toFixed(4) : null;
+};
+</script>

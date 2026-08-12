@@ -762,6 +762,99 @@ module.exports = async function (t) {
     an.errors.join(' | ') || 'brak');
   await an.close();
 
+  // ── Treść wychodzi, zanim menu się zamknie ─────────────────────────────
+  // Zgłoszone z użycia: „klikam ✕, linki znikają używając mojej animacji,
+  // a dopiero po chwili panel się zamyka". Bez ustawiania czegokolwiek treść
+  // wychodzi TĄ SAMĄ animacją, którą weszła — tylko od końca. Mechanika jest
+  // wspólna z Circular Menu (window.evkAnimatorExit), więc tutaj mierzymy
+  // wyłącznie to, czego tamten plik nie dosięga: że KADR czeka.
+  t.section('treść wychodzi, zanim menu się zamknie');
+
+  const xo = await t.open('offcanvas.html', { viewport: V, query: 'exit=1&dur=0.2', settle: 250 });
+  await xo.evaluate(() => window.__open());
+  await xo.waitForTimeout(500);
+  t.check('po otwarciu treść jest widoczna',
+    (await xo.evaluate(() => window.__animOpacity())) > 0.95,
+    'opacity ' + (await xo.evaluate(() => window.__animOpacity())));
+
+  await xo.evaluate(() => window.__key('Escape'));
+  await xo.waitForTimeout(200);
+  t.check('200 ms po ✕ menu jest JESZCZE otwarte', await xo.evaluate(() => window.__isOpen()),
+    (await xo.evaluate(() => window.__isOpen())) ? 'otwarte' : 'ZAMKNIĘTE');
+  t.check('a treść już wychodzi', (await xo.evaluate(() => window.__animOpacity())) < 0.85,
+    'opacity ' + (await xo.evaluate(() => window.__animOpacity())));
+
+  await xo.waitForTimeout(500);
+  t.check('po wyjściu treści menu się zamyka', !(await xo.evaluate(() => window.__isOpen())),
+    'zamknięte');
+  // Blokada przewijania schodzi razem z menu, nie razem z animacją — inaczej
+  // strona odzyskiwałaby przewijanie pod jeszcze widocznym menu.
+  t.check('blokada przewijania zdjęta dopiero po zamknięciu',
+    !(await xo.evaluate(() => window.__lock())).locked, 'odblokowane');
+  t.check('bez błędów JS przy wyjściu', !xo.errors.length, xo.errors.join(' | ') || 'brak');
+  await xo.close();
+
+  // KONTROLA NEGATYWNA: wyłączona opcja ma naprawdę wyłączać.
+  const nx = await t.open('offcanvas.html', { viewport: V, query: 'exit=0&dur=0.2', settle: 250 });
+  await nx.evaluate(() => window.__open());
+  await nx.waitForTimeout(500);
+  await nx.evaluate(() => window.__key('Escape'));
+  await nx.waitForTimeout(60);
+  t.check('przy wyłączonej opcji menu zamyka się OD RAZU',
+    !(await nx.evaluate(() => window.__isOpen())), 'zamknięte');
+  await nx.close();
+
+  // ── Zbieg zamknięć ─────────────────────────────────────────────────────
+  // Zamknięcie jest teraz ODŁOŻONE, więc po raz pierwszy istnieje okno,
+  // w którym menu jest jeszcze otwarte, a zamknięcie już w drodze. Drugi Esc
+  // albo klik w tło trafiają dokładnie w to okno.
+  t.section('zamknięcie w drodze nie mnoży się i daje się cofnąć');
+
+  const rc = await t.open('offcanvas.html', { viewport: V, query: 'exit=1&dur=0.2', settle: 250 });
+  await rc.evaluate(() => window.__open());
+  await rc.waitForTimeout(500);
+  await rc.evaluate(() => window.__key('Escape'));
+  await rc.waitForTimeout(60);
+  await rc.evaluate(() => window.__key('Escape'));
+  await rc.waitForTimeout(700);
+  t.check('dwa Esc pod rząd zamykają raz i do końca',
+    !(await rc.evaluate(() => window.__isOpen()))
+    && !(await rc.evaluate(() => window.__lock())).locked,
+    'zamknięte i odblokowane');
+
+  // Otwarcie w trakcie wychodzenia ma ODWOŁAĆ zaległe zamknięcie. Bez tego
+  // menu zamyka się samo ułamek sekundy po ponownym otwarciu.
+  await rc.evaluate(() => window.__open());
+  await rc.waitForTimeout(500);
+  await rc.evaluate(() => window.__key('Escape'));
+  await rc.waitForTimeout(100);
+  await rc.evaluate(() => window.__open());
+  await rc.waitForTimeout(600);
+  t.check('otwarcie w trakcie wychodzenia odwołuje zamknięcie',
+    await rc.evaluate(() => window.__isOpen()),
+    (await rc.evaluate(() => window.__isOpen())) ? 'otwarte' : 'ZAMKNIĘTE');
+  t.check('i treść wraca do pełnej widoczności',
+    (await rc.evaluate(() => window.__animOpacity())) > 0.95,
+    'opacity ' + (await rc.evaluate(() => window.__animOpacity())));
+  t.check('bez błędów JS przy zbiegu zamknięć', !rc.errors.length,
+    rc.errors.join(' | ') || 'brak');
+  await rc.close();
+
+  // ── Redukcja ruchu przy wyjściu treści ─────────────────────────────────
+  // Czekanie na animację, której nie ma, trzymałoby menu otwarte bez powodu.
+  t.section('redukcja ruchu — wyjście treści nie opóźnia zamknięcia');
+
+  const rx = await t.open('offcanvas.html',
+    { viewport: V, query: 'exit=1&dur=0.2', reduce: true, settle: 250 });
+  await rx.evaluate(() => window.__open());
+  await rx.waitForTimeout(120);
+  await rx.evaluate(() => window.__key('Escape'));
+  await rx.waitForTimeout(40);
+  t.check('zamknięcie jest natychmiastowe', !(await rx.evaluate(() => window.__isOpen())),
+    'zamknięte');
+  t.check('bez błędów JS przy redukcji', !rx.errors.length, rx.errors.join(' | ') || 'brak');
+  await rx.close();
+
   // ── Panele bez nazw, adresowane kolejnością ────────────────────────────
   // To jest ścieżka, którą dostaje KAŻDY, kto wstawi element i niczego nie
   // skonfiguruje: panele nie mają `data-panel`, więc liczy się ich kolejność

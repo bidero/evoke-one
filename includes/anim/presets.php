@@ -573,15 +573,24 @@ function evk_anim_props_to_text(array $props): string {
     return implode("\n", $lines);
 }
 
-/** Wyzwalacze — klucz => etykieta w panelu. */
+/**
+ * Wyzwalacze — klucz => etykieta w panelu.
+ *
+ * „Zamknięcie menu" jest OSOBNĄ pozycją, a nie wariantem wyjścia z kadru,
+ * i to nie jest podział na wyrost: wyjście z kadru wisi na ScrollTriggerze
+ * i mierzy opuszczanie okna, a przy zamykaniu menu żadnego kadru się nie
+ * opuszcza — panel znika spod treści, która stoi w miejscu. Animacja z tym
+ * wyzwalaczem NIE GRA sama z siebie; czeka, aż menu zawoła evkAnimatorExit().
+ */
 function evk_anim_triggers(): array {
     return [
-        'viewport' => 'Wejście w viewport',
-        'exit'     => 'Wyjście z kadru',
-        'scrub'    => 'Scrub przy scrollu',
-        'hover'    => 'Hover',
-        'click'    => 'Klik',
-        'load'     => 'Load strony',
+        'viewport'   => 'Wejście w viewport',
+        'exit'       => 'Wyjście z kadru',
+        'menu-close' => 'Zamknięcie menu',
+        'scrub'      => 'Scrub przy scrollu',
+        'hover'      => 'Hover',
+        'click'      => 'Klik',
+        'load'       => 'Load strony',
     ];
 }
 

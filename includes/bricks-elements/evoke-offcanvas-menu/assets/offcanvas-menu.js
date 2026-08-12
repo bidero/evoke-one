@@ -41,6 +41,7 @@ function evk_offcanvas_menu_init_one(root) {
     var escBack     = root.getAttribute('data-esc-back') === '1' && mode === 'levels';
     var closeOnLink = root.getAttribute('data-close-link') === '1';
     var lockScroll  = root.getAttribute('data-lock') === '1';
+    var animExit    = root.getAttribute('data-anim-exit') === '1';
     var usePortal   = root.getAttribute('data-portal') === '1';
     var startId     = root.getAttribute('data-start') || '';
     var side        = root.getAttribute('data-side') || 'right';
@@ -435,7 +436,28 @@ function evk_offcanvas_menu_init_one(root) {
         }
     }
 
+    /**
+     * Wyjście treści przy zamykaniu — ile sekund na nie czekamy.
+     *
+     * Górna granica jest twarda i celowa: animacja ustawiona na osiem sekund
+     * zostawiłaby menu otwarte przez osiem sekund po kliknięciu ✕, a to już nie
+     * jest efekt, tylko zawieszenie. Resztę treść dokańcza pod wyjeżdżającym
+     * kadrem.
+     */
+    var EXIT_MAX = 1;
+
+    function exitAnimations() {
+        if (!animExit || typeof window.evkAnimatorExit !== 'function') return 0;
+        return Math.min(window.evkAnimatorExit(frame), EXIT_MAX);
+    }
+
+    /* Uchwyt odłożonego zamknięcia. Bez niego drugi Esc (albo klik w tło
+       w trakcie wychodzenia treści) startuje drugie zamknięcie, a otwarcie
+       w tym oknie zostaje po chwili cofnięte przez zaległy zegar. */
+    var closeTimer = null;
+
     function open(trigger) {
+        if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
         lastTrigger = trigger || null;
         stack = [startIdx];
         applyState();
@@ -447,6 +469,18 @@ function evk_offcanvas_menu_init_one(root) {
     }
 
     function close() {
+        if (closeTimer) return;
+        var wait = exitAnimations();
+        // Kadr zostaje na miejscu przez czas wychodzenia treści — inaczej menu
+        // wyjeżdżałoby razem z animacją i nie byłoby jej widać.
+        if (wait > 0) {
+            closeTimer = setTimeout(function () { closeTimer = null; finishClose(); }, wait * 1000);
+            return;
+        }
+        finishClose();
+    }
+
+    function finishClose() {
         shell.classList.remove('is-open');
         unlock();
         setTrigAria(false);

@@ -1,11 +1,16 @@
 <style>
   body { margin: 0; font: 16px system-ui; }
   .spacer { height: 1600px; }
-  #cel { height: 140px; background: #345; color: #fff; }
+  #cel  { height: 140px; background: #345; color: #fff; }
+  #menu { height: 140px; background: #534; color: #fff; }
 </style>
 
 <div class="spacer" id="nad"></div>
 <div id="cel" data-evk-anim='{"animation":"znika","trigger":"exit"}'>ZNIKA PRZY WYJŚCIU</div>
+<!-- Ten sam preset, ale wyzwalacz „zamknięcie menu": ma NIE reagować na
+     scroll. Leży obok wychodzącego z kadru, żeby oba przechodziły dokładnie
+     tę samą drogę przewijania. -->
+<div id="menu" data-evk-anim='{"animation":"zamyka","trigger":"menu-close"}'>ZNIKA PRZY ZAMKNIĘCIU MENU</div>
 <div class="spacer" id="pod"></div>
 
 <script src="../../node_modules/gsap/dist/gsap.min.js"></script>
@@ -13,8 +18,12 @@
 <script>
   // Odwzorowanie payloadu z includes/anim/animator.php
   window.evkAnimator = {
-    library: { znika: { slug: 'znika', preset: 'fade-out', trigger: 'exit',
-                        duration: 0.3, delay: 0, stagger: 0, easing: 'power2.out', order: 0 } },
+    library: {
+      znika:  { slug: 'znika',  preset: 'fade-out', trigger: 'exit',
+                duration: 0.3, delay: 0, stagger: 0, easing: 'power2.out', order: 0 },
+      zamyka: { slug: 'zamyka', preset: 'fade-out', trigger: 'menu-close',
+                duration: 0.3, delay: 0, stagger: 0, easing: 'power2.out', order: 0 },
+    },
     presets: { 'fade-out': { from: { opacity: 1 }, to: { opacity: 0 }, duration: 0.3 } },
     reducedMotion: false, needsFonts: false,
   };
@@ -24,6 +33,14 @@
 window.__op = function () {
   return +parseFloat(getComputedStyle(document.getElementById('cel')).opacity).toFixed(2);
 };
+
+/** Przezroczystość elementu z wyzwalaczem „zamknięcie menu". */
+window.__opMenu = function () {
+  return +parseFloat(getComputedStyle(document.getElementById('menu')).opacity).toFixed(2);
+};
+
+/** Ręczne wyprowadzenie treści — to, co robi menu tuż przed zamknięciem. */
+window.__wyjscie = function () { return window.evkAnimatorExit(document.body); };
 
 /** Element w środku okna — stan spoczynku, „jestem w kadrze". */
 window.__doCelu = function () {
