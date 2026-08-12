@@ -4,8 +4,13 @@
 (function () {
 	'use strict';
 
-	var GSAP_JS = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js';
-	var ST_JS   = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ScrollTrigger.min.js';
+	/* Biblioteki jadą Z WŁASNEGO SERWERA — adres katalogu podaje PHP
+	   (evk_gsap_url() w includes/89-gsap.php) tuż przed samym GSAP-em.
+	   Wcześniej stały tu wpisane na sztywno adresy cdnjs.
+
+	   Ta ścieżka jest awaryjna: skrypt deklaruje `evk-gsap` i `evk-scrolltrigger`
+	   jako zależności, więc obie biblioteki są już na stronie. Zostaje na
+	   wypadek wpięcia skryptu z ręki. */
 
 	function loadScript(src, cb) {
 		var existing = document.querySelector('script[src="' + src + '"]');
@@ -130,10 +135,24 @@
 	function boot() {
 		if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
 			run();
-		} else if (typeof gsap !== 'undefined') {
-			loadScript(ST_JS, run);
+			return;
+		}
+
+		var base = window.evkGsapBase;
+		/* Bez adresu nie ma czego dociągnąć. Zgadywanie ścieżki względnej dałoby
+		   żądanie pod adres, którego nie ma, i ciszę w konsoli zamiast wskazówki. */
+		if (!base) {
+			console.warn('[EVK Horizontal Scroll] Brak GSAP-a i brak window.evkGsapBase — '
+				+ 'skrypt wpięty poza kolejką WordPressa?');
+			return;
+		}
+
+		if (typeof gsap !== 'undefined') {
+			loadScript(base + 'ScrollTrigger.min.js', run);
 		} else {
-			loadScript(GSAP_JS, function () { loadScript(ST_JS, run); });
+			loadScript(base + 'gsap.min.js', function () {
+				loadScript(base + 'ScrollTrigger.min.js', run);
+			});
 		}
 	}
 

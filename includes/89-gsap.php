@@ -15,20 +15,59 @@ if (!defined('ABSPATH')) exit;
 
 const EVK_GSAP_VERSION = '3.15.0';
 
+/**
+ * Adres katalogu z bibliotekami GSAP. Wołany też z 96-lenis.php i z testów.
+ *
+ * PLIKI JADĄ Z WŁASNEGO SERWERA, nie z cdnjs — i to nie jest kwestia gustu.
+ * Cudzy host to osobne DNS + TCP + TLS przed pierwszym bajtem, a przy komplecie
+ * ważącym ~55 KiB po kompresji sam transfer jest wobec tego kosztu pomijalny:
+ * zmierzone na żywej stronie 900–1650 ms na plik przy 53 KiB razem. Z własnego
+ * serwera te same pliki jadą po JUŻ OTWARTYM połączeniu.
+ *
+ * Argument „użytkownik ma to już w pamięci podręcznej z innej strony" nie
+ * obowiązuje od 2020: przeglądarki dzielą cache per witryna, więc każda strona
+ * i tak pobiera swoje. Do tego znika zależność od cudzej dostępności i wyciek
+ * adresów IP odwiedzających do zewnętrznego CDN-u.
+ *
+ * Skąd się biorą pliki i jak je podbić — patrz assets/vendor/README.md.
+ */
+function evk_gsap_url(): string {
+    return EVOKE_ONE_URL . 'assets/vendor/gsap/';
+}
+
 function evk_register_gsap_libs(): void {
     if (wp_script_is('evk-gsap', 'registered')) return; // idempotentne
 
-    $cdn = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/' . EVK_GSAP_VERSION . '/';
+    $dir = evk_gsap_url();
 
-    wp_register_script('evk-gsap',          $cdn . 'gsap.min.js',          [],           EVK_GSAP_VERSION, true);
-    wp_register_script('evk-scrolltrigger', $cdn . 'ScrollTrigger.min.js', ['evk-gsap'], EVK_GSAP_VERSION, true);
-    wp_register_script('evk-observer',      $cdn . 'Observer.min.js',      ['evk-gsap'], EVK_GSAP_VERSION, true);
-    wp_register_script('evk-splittext',     $cdn . 'SplitText.min.js',     ['evk-gsap'], EVK_GSAP_VERSION, true);
+    wp_register_script('evk-gsap',          $dir . 'gsap.min.js',          [],           EVK_GSAP_VERSION, true);
+    wp_register_script('evk-scrolltrigger', $dir . 'ScrollTrigger.min.js', ['evk-gsap'], EVK_GSAP_VERSION, true);
+    wp_register_script('evk-observer',      $dir . 'Observer.min.js',      ['evk-gsap'], EVK_GSAP_VERSION, true);
+    wp_register_script('evk-splittext',     $dir . 'SplitText.min.js',     ['evk-gsap'], EVK_GSAP_VERSION, true);
 
-    // Efekty tekstowe Animatora. Od GSAP 3.13 wszystkie wtyczki są darmowe
-    // i leżą na cdnjs obok reszty — nie ma potrzeby hostowania ich u siebie.
-    wp_register_script('evk-textplugin',    $cdn . 'TextPlugin.min.js',    ['evk-gsap'], EVK_GSAP_VERSION, true);
-    wp_register_script('evk-scrambletext',  $cdn . 'ScrambleTextPlugin.min.js', ['evk-gsap'], EVK_GSAP_VERSION, true);
+    // Efekty tekstowe Animatora. Od GSAP 3.13 wszystkie wtyczki są darmowe,
+    // więc leżą w paczce npm obok reszty i idą tą samą drogą.
+    wp_register_script('evk-textplugin',    $dir . 'TextPlugin.min.js',    ['evk-gsap'], EVK_GSAP_VERSION, true);
+    wp_register_script('evk-scrambletext',  $dir . 'ScrambleTextPlugin.min.js', ['evk-gsap'], EVK_GSAP_VERSION, true);
+
+    /*
+     * Adres katalogu dla skryptów, które dociągają GSAP-a SAME.
+     *
+     * Marquee i Horizontal Scroll mają własny loader awaryjny na wypadek, gdyby
+     * biblioteki nie było — i do 1.72.0 miały w nim wpisany na sztywno adres
+     * cdnjs. Zależności WordPressa i tak ładują GSAP wcześniej, więc ta ścieżka
+     * jest w praktyce nieużywana; wpisany adres CDN-u nie przestawał jednak być
+     * adresem CDN-u i przy pierwszej pomyłce w zależnościach wracał do gry —
+     * tak właśnie ScrollTrigger jeździł z cdnjs na każdej stronie z marquee.
+     *
+     * Pozycja `before`: globalna musi istnieć, ZANIM wykona się którykolwiek
+     * z tych skryptów.
+     */
+    wp_add_inline_script(
+        'evk-gsap',
+        'window.evkGsapBase=' . wp_json_encode($dir) . ';',
+        'before'
+    );
 
     // Na telefonie chowanie i pokazywanie paska adresu wypala `resize` w trakcie
     // przewijania. Bez tego ScrollTrigger przemierza wtedy wszystkie triggery na

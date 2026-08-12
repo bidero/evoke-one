@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.72.0] — 2026-08-12
+
+### Zmienione
+
+- **GSAP i Lenis jadą z własnego serwera, nie z CDN-u.** Zmierzone na żywej
+  stronie: **53 KiB w sumie, a 900–1650 ms na plik**. To nie jest koszt bajtów,
+  tylko koszt POŁĄCZEŃ — cdnjs i unpkg to dwa obce hosty, każdy z własnym
+  DNS + TCP + TLS przed pierwszym bajtem. Z własnego serwera te same pliki jadą
+  po już otwartym połączeniu HTTP/2.
+
+  Argument „użytkownik ma to już w pamięci podręcznej z innej strony" **nie
+  obowiązuje od 2020**: przeglądarki dzielą cache per witryna, więc każda strona
+  i tak pobiera swoje. Znika też zależność od cudzej dostępności i wyciek
+  adresów IP odwiedzających do zewnętrznego CDN-u.
+
+  Pliki leżą w `assets/vendor/` (GSAP 3.15.0 + pięć wtyczek, Lenis 1.3.26 —
+  najnowsze wydania obu). Skąd się biorą i jak je podbić: `assets/vendor/README.md`.
+
+### Naprawione
+
+- **Marquee dociągał ScrollTriggera z cdnjs na każdej stronie, na której był.**
+  Element używa i Observera (prędkość przewijania), i ScrollTriggera
+  (zatrzymanie poza kadrem), ale deklarował tylko tego pierwszego. Brakującą
+  bibliotekę dobierał więc loader awaryjny w `marquee.js` — osobnym żądaniem
+  do cdnjs, i to dopiero po wykonaniu skryptu, czyli najpóźniej jak można.
+  Teraz obie idą normalną kolejką WordPressa.
+
+- **Adresy cdnjs wpisane na sztywno w `marquee.js` i `hscroll.js`.** Loadery
+  awaryjne biorą adres z `window.evkGsapBase`, który PHP wystawia tuż przed
+  samym GSAP-em. Bez adresu skrypt nie zgaduje ścieżki, tylko mówi w konsoli,
+  czego mu brakuje — żądanie pod nieistniejący adres byłoby ciszą zamiast
+  wskazówki.
+
+  Testy ładują teraz **te same pliki, które jadą na stronę** (`assets/vendor/`),
+  a nie kopię z `node_modules` — inaczej sprawdzałyby co innego.
+
 ## [1.71.0] — 2026-08-12
 
 ### Dodane

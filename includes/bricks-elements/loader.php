@@ -41,7 +41,12 @@ function evk_elements_registry(): array {
                 'EVK_MARQUEE_URL'     => $url . 'evoke-marquee/',
                 'EVK_MARQUEE_PATH'    => $dir . 'evoke-marquee/',
             ],
-            'script'=> ['evk-marquee', $url . 'evoke-marquee/assets/marquee.js', ['evk-gsap', 'evk-observer'], '1.5.2'],
+            /* `evk-scrolltrigger` NIE jest tu na wyrost: marquee używa i Observera
+               (prędkość przewijania), i ScrollTriggera (zatrzymanie poza kadrem).
+               Brakowało tego drugiego, więc na KAŻDEJ stronie z marquee wchodził
+               loader awaryjny w marquee.js i dociągał ScrollTriggera z cdnjs —
+               osobne DNS + TCP + TLS, i to dopiero po wykonaniu skryptu. */
+            'script'=> ['evk-marquee', $url . 'evoke-marquee/assets/marquee.js', ['evk-gsap', 'evk-observer', 'evk-scrolltrigger'], '1.5.3'],
             'style' => ['evk-marquee', $url . 'evoke-marquee/assets/marquee.css', '1.5.1'],
         ],
         'hscroll' => [
@@ -56,7 +61,7 @@ function evk_elements_registry(): array {
                 'EVK_HSCROLL_URL'     => $url . 'evoke-horizontal-scroll/',
                 'EVK_HSCROLL_PATH'    => $dir . 'evoke-horizontal-scroll/',
             ],
-            'script'=> ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.js', ['evk-gsap', 'evk-scrolltrigger'], '1.1.2'],
+            'script'=> ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.js', ['evk-gsap', 'evk-scrolltrigger'], '1.1.3'],
             'style' => ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.css', '1.1.1'],
         ],
         'scroll_reading' => [

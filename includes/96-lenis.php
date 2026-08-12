@@ -118,9 +118,19 @@ html.lenis,html.lenis body{height:auto;}
         if (function_exists('bricks_is_builder_main') && bricks_is_builder_main()) return;
         if (is_admin()) return;
 
+        /*
+         * Z WŁASNEGO SERWERA, nie z unpkg — powody te same co przy GSAP-ie
+         * (patrz evk_gsap_url() w includes/89-gsap.php), a przy unpkg dochodzi
+         * jeszcze jeden: to host wygodowy, bez SLA, który przy adresie
+         * z wersją odpowiada najpierw przekierowaniem. Płaciliśmy więc DNS +
+         * TCP + TLS do trzeciego hosta, a potem jeszcze jedną rundę na redirect
+         * — za plik ważący 6 KiB.
+         *
+         * Skąd się bierze plik i jak go podbić — patrz assets/vendor/README.md.
+         */
         wp_enqueue_script(
             'evk-lenis-lib',
-            'https://unpkg.com/lenis@' . EVK_LENIS_VERSION . '/dist/lenis.min.js',
+            EVOKE_ONE_URL . 'assets/vendor/lenis/lenis.min.js',
             [],
             EVK_LENIS_VERSION,
             true
