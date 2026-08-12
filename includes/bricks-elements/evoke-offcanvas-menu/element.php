@@ -243,8 +243,28 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 				. 'wjeżdża za krawędź. Domyślnie wychodzi TĄ SAMĄ animacją, którą weszła, '
 				. 'tylko od końca — bez ustawiania czegokolwiek. Chcesz innego wyjścia? '
 				. 'Ustaw elementowi animację z wyzwalaczem „Zamknięcie menu" — ona wygra '
-				. 'z cofaniem. Na zamknięcie czekamy najwyżej sekundę, żeby długa '
-				. 'animacja nie trzymała otwartego menu po kliknięciu ✕.',
+				. 'z cofaniem. Bez ustawienia czekania menu czeka na całą animację, '
+				. 'ale nie dłużej niż sekundę.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['exitWait'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Czekanie na wyjście (s)', 'evoke-one' ),
+			'type'        => 'number',
+			'min'         => 0,
+			'max'         => 3,
+			'step'        => 0.05,
+			'placeholder' => esc_html__( 'cały czas animacji', 'evoke-one' ),
+			'required'    => [ 'animateExit', '=', true ],
+			'description' => esc_html__(
+				'Ile menu czeka z wyjazdem kadru na wychodzącą treść. '
+				. 'ZERO znaczy „naraz": menu wyjeżdża RAZEM z animacją linków, '
+				. 'zamiast po niej — treść nie musi zdążyć zniknąć, zanim cokolwiek '
+				. 'ruszy. Puste pole to całkowity czas animacji wyjścia (najwyżej '
+				. 'sekunda), czyli ruchy jeden po drugim. Wartość większa niż sama '
+				. 'animacja daje chwilę ciszy, zanim menu się zamknie.',
 				'evoke-one'
 			),
 		];
@@ -357,6 +377,11 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-close-link', ! empty( $s['closeOnLinkClick'] ) ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-lock',       ! empty( $s['lockScroll'] )       ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-anim-exit', ! empty( $s['animateExit'] )      ? '1' : '0' );
+		// Puste = „cały czas animacji", wyliczane w JS. Jawne ZERO musi przejść
+		// jako '0' — `! empty()` potraktowałoby je jak brak wartości i ruchy
+		// wróciłyby do grania jeden po drugim mimo wybrania „naraz".
+		$this->set_attribute( '_root', 'data-exit-wait',
+			isset( $s['exitWait'] ) && $s['exitWait'] !== '' ? (string) $s['exitWait'] : '' );
 		$this->set_attribute( '_root', 'data-portal',     ! empty( $s['toBody'] )           ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-open-builder', ! empty( $s['openInBuilder'] )  ? '1' : '0' );
 

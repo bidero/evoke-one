@@ -1,4 +1,4 @@
-<!-- Parametry przez query: dur, ease, cdelay, exit, portal, esc -->
+<!-- Parametry przez query: dur, ease, cdelay, exit, exitwait, portal, esc, toggle -->
 <meta charset="utf-8">
 <style>
   * { box-sizing: border-box; }
@@ -36,6 +36,14 @@
   </div>
 </div>
 
+<!-- Zewnętrzny przełącznik: selektor celuje WPROST w przycisk, nie w opakowanie.
+     Tak zwykle wygląda burger zbudowany osobno w nagłówku — i tą drogą element
+     nie robił wcześniej NIC, bo szukał `button` w środku przycisku. -->
+<button class="brxe-toggle moj-burger" id="zew">Burger z nagłówka</button>
+
+<!-- I druga postać: selektor na OPAKOWANIU. Obie muszą działać. -->
+<div class="moje-opakowanie" id="zew-wrap"><button class="inny-burger" id="zew-btn">W pudełku</button></div>
+
 <div class="long">treść strony</div>
 
 <script>
@@ -45,7 +53,9 @@
   root.setAttribute('data-easing',        q.get('ease')   || 'none');
   root.setAttribute('data-content-delay', q.get('cdelay') || '0');
   root.setAttribute('data-anim-exit',     q.get('exit')   === '1' ? '1' : '0');
-  root.setAttribute('data-customtoggle',  '');
+  // Puste = „cały czas animacji". Jawne zero MUSI przejść jako '0'.
+  root.setAttribute('data-exit-wait',     q.get('exitwait') === null ? '' : q.get('exitwait'));
+  root.setAttribute('data-customtoggle',  q.get('toggle') || '');
   root.setAttribute('data-lock-scroll',   '0');
   root.setAttribute('data-open-builder',  '0');
   root.setAttribute('data-close-on-esc',  q.get('esc')    === '0' ? '0' : '1');
@@ -81,6 +91,24 @@ window.__key   = function (key) {
 };
 window.__aria  = function () { return document.getElementById('trigger').getAttribute('aria-expanded'); };
 window.__opened = function () { return document.getElementById('trigger').classList.contains('burger--opened'); };
+
+/** Klik w zewnętrzny przełącznik — ten wskazany selektorem `data-customtoggle`. */
+window.__zew     = function (id) { document.getElementById(id || 'zew').click(); };
+
+/**
+ * Stan przełącznika o podanym ID: klasy i aria.
+ *
+ * `brx-open` to klasa, na której wisi cała animacja burgera zbudowanego
+ * w Bricksie. Bez niej przycisk zostaje burgerem przy otwartym menu.
+ */
+window.__stanPrzycisku = function (id) {
+  var el = document.getElementById(id);
+  return {
+    klasy: el.className,
+    brx:   el.classList.contains('brx-open'),
+    aria:  el.getAttribute('aria-expanded'),
+  };
+};
 
 /** Gdzie wylądował panel — portal przenosi go wprost do <body>. */
 window.__panelParent = function () { return panel().parentElement.tagName.toLowerCase(); };

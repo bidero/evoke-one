@@ -203,8 +203,30 @@ class Evk_Circular_Menu extends \Bricks\Element {
 				. 'Domyślnie wychodzi TĄ SAMĄ animacją, którą weszła, tylko od końca — '
 				. 'bez ustawiania czegokolwiek. Chcesz innego wyjścia? Ustaw elementowi '
 				. 'animację z wyzwalaczem „Zamknięcie menu" — ona wygra z cofaniem. '
-				. 'Na zamknięcie czekamy najwyżej sekundę, żeby długa animacja nie '
-				. 'trzymała otwartego menu po kliknięciu ✕.',
+				. 'Bez ustawienia czekania menu czeka na całą animację, ale nie dłużej '
+				. 'niż sekundę.',
+				'evk-circular-menu'
+			),
+		];
+
+		$this->controls['exitWait'] = [
+			'hasDynamicData' => false,
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Czekanie na wyjście (s)', 'evk-circular-menu' ),
+			'type'        => 'number',
+			'min'         => 0,
+			'max'         => 3,
+			'step'        => 0.05,
+			'inline'      => true,
+			'placeholder' => esc_html__( 'cały czas animacji', 'evk-circular-menu' ),
+			'required'    => [ 'animateExit', '=', true ],
+			'description' => esc_html__(
+				'Ile menu czeka z zwijaniem kadru na wychodzącą treść. '
+				. 'ZERO znaczy „naraz": kadr zamyka się RAZEM z animacją linków, '
+				. 'zamiast po niej — treść nie musi zdążyć zniknąć, zanim cokolwiek '
+				. 'ruszy. Puste pole to całkowity czas animacji wyjścia (najwyżej '
+				. 'sekunda), czyli ruchy jeden po drugim. Wartość większa niż sama '
+				. 'animacja daje chwilę ciszy, zanim menu się zamknie.',
 				'evk-circular-menu'
 			),
 		];
@@ -316,6 +338,11 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$contentDelay      = isset( $settings['contentDelay'] ) && $settings['contentDelay'] !== ''
 			? (string) $settings['contentDelay'] : '0';
 		$animateExit       = ! empty( $settings['animateExit'] )       ? '1' : '0';
+		// Puste = „cały czas animacji", wyliczane w JS. Jawne ZERO musi przejść
+		// jako '0' — `! empty()` potraktowałoby je jak brak wartości i ruchy
+		// wróciłyby do grania jeden po drugim mimo wybrania „naraz".
+		$exitWait          = isset( $settings['exitWait'] ) && $settings['exitWait'] !== ''
+			? (string) $settings['exitWait'] : '';
 		$customtoggle      = ! empty( $settings['customtoggle'] )      ? $settings['customtoggle']      : '';
 		$lockBodyScrolling = ! empty( $settings['lockBodyScrolling'] ) ? '1' : '0';
 		$closeOnEsc        = ! empty( $settings['closeOnEsc'] )        ? '1' : '0';
@@ -326,6 +353,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-easing',                           $easing );
 		$this->set_attribute( '_root', 'data-content-delay',                    $contentDelay );
 		$this->set_attribute( '_root', 'data-anim-exit',                        $animateExit );
+		$this->set_attribute( '_root', 'data-exit-wait',                        $exitWait );
 		$this->set_attribute( '_root', 'data-customtoggle',                     $customtoggle );
 		$this->set_attribute( '_root', 'data-lock-scroll',                      $lockBodyScrolling );
 		$this->set_attribute( '_root', 'data-open-builder',                     $openbuilder );

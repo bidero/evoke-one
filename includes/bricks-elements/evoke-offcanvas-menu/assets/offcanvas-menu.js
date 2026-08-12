@@ -42,6 +42,15 @@ function evk_offcanvas_menu_init_one(root) {
     var closeOnLink = root.getAttribute('data-close-link') === '1';
     var lockScroll  = root.getAttribute('data-lock') === '1';
     var animExit    = root.getAttribute('data-anim-exit') === '1';
+    /* Ile czekać z wyjazdem kadru na wyjście treści. `null` znaczy „cały czas
+       animacji" (ruchy jeden PO drugim), liczba — tyle sekund, ile podano.
+       Zero to nie brak ustawienia, tylko wybór: kadr wyjeżdża RAZEM
+       z wychodzącą treścią. Stąd null zamiast domyślki — `|| 0` zjadałoby
+       jawne zero. */
+    var exitWaitRaw = root.getAttribute('data-exit-wait');
+    var exitWait    = (exitWaitRaw === null || exitWaitRaw === '')
+        ? null : parseFloat(exitWaitRaw);
+    if (isNaN(exitWait)) exitWait = null;
     var usePortal   = root.getAttribute('data-portal') === '1';
     var startId     = root.getAttribute('data-start') || '';
     var side        = root.getAttribute('data-side') || 'right';
@@ -437,18 +446,34 @@ function evk_offcanvas_menu_init_one(root) {
     }
 
     /**
-     * Wyjście treści przy zamykaniu — ile sekund na nie czekamy.
-     *
-     * Górna granica jest twarda i celowa: animacja ustawiona na osiem sekund
-     * zostawiłaby menu otwarte przez osiem sekund po kliknięciu ✕, a to już nie
-     * jest efekt, tylko zawieszenie. Resztę treść dokańcza pod wyjeżdżającym
-     * kadrem.
+     * Górna granica czekania na wyjście treści, w sekundach — dla ścieżki
+     * automatycznej. Animacja ustawiona na osiem sekund zostawiłaby menu
+     * otwarte przez osiem sekund po kliknięciu ✕, a to już nie jest efekt,
+     * tylko zawieszenie. Resztę treść dokańcza pod wyjeżdżającym kadrem.
      */
     var EXIT_MAX = 1;
 
+    /**
+     * Wyprowadza treść i zwraca, ile sekund czekać z wyjazdem KADRU.
+     *
+     * Animacja rusza tutaj, niezależnie od czekania — to są dwie różne rzeczy
+     * i dopiero ich rozdzielenie pozwala puścić oba ruchy RAZEM. Zwrócone zero
+     * nie znaczy „nic nie wychodzi", tylko „nie czekaj".
+     */
     function exitAnimations() {
         if (!animExit || typeof window.evkAnimatorExit !== 'function') return 0;
-        return Math.min(window.evkAnimatorExit(frame), EXIT_MAX);
+
+        var trwa = window.evkAnimatorExit(frame);
+
+        /* Nic nie wyszło — nie ma na co czekać, choćby ustawiono jawną wartość.
+           Tędy idzie redukcja ruchu: silnik nie buduje wtedy żadnej osi. */
+        if (trwa <= 0) return 0;
+
+        // Jawna wartość wygrywa z czasem animacji — także zero i wartości
+        // dłuższe od samej animacji.
+        if (exitWait !== null) return exitWait;
+
+        return Math.min(trwa, EXIT_MAX);
     }
 
     /* Uchwyt odłożonego zamknięcia. Bez niego drugi Esc (albo klik w tło
@@ -551,8 +576,41 @@ function evk_offcanvas_menu_init_one(root) {
         }
     }
 
+    /**
+     * Klasa, którą Bricks zakłada SWOIM przełącznikom po otwarciu menu.
+     *
+     * Cała animacja burgera zbudowanego w Bricksie — kreski składające się
+     * w krzyżyk — wisi w arkuszu na tej klasie. Bez niej przycisk zostaje
+     * burgerem przy otwartym menu i wygląda, jakby kliknięcie nie zadziałało.
+     * Zgłoszone z użycia przy zewnętrznym przełączniku.
+     */
+    var BRICKS_OPEN = 'brx-open';
+
+    /**
+     * Element, któremu nakładamy stan otwarcia.
+     *
+     * Trigger bywa opakowaniem przycisku (tak go tworzy get_nestable_children)
+     * ALBO samym przyciskiem (selektor zewnętrzny zwykle celuje wprost w burger).
+     * `aria-expanded` należy do sterującego, a nie do pudełka wokół niego —
+     * div z tym atrybutem nie jest dla czytnika ekranu żadnym przyciskiem.
+     */
+    function toggleTarget(el) {
+        if (el.matches('button, a, [role="button"]')) return el;
+        return el.querySelector('button, a, [role="button"]') || el;
+    }
+
     function setTrigAria(isOpen) {
-        triggers.forEach(function (t) { t.setAttribute('aria-expanded', isOpen ? 'true' : 'false'); });
+        triggers.forEach(function (t) {
+            var btn = toggleTarget(t);
+            // Pierwsza WŁASNA klasa — nasze znaczniki stanu wypadają, inaczej
+            // przełącznik bez klasy dorobiłby się „brx-open--opened".
+            var firstClass = Array.prototype.filter.call(btn.classList, function (c) {
+                return c !== BRICKS_OPEN && c.slice(-8) !== '--opened';
+            })[0];
+            if (firstClass) btn.classList.toggle(firstClass + '--opened', isOpen);
+            btn.classList.toggle(BRICKS_OPEN, isOpen);
+            btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
     }
     setTrigAria(false);
 

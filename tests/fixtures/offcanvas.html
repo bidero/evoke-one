@@ -55,6 +55,11 @@
   </div>
 </div>
 
+<!-- Zewnętrzny trigger jako OPAKOWANIE przycisku — burger zbudowany osobno
+     w nagłówku. `aria-expanded` i klasa otwarcia należą do przycisku w środku,
+     a nie do pudełka wokół niego. -->
+<div class="moje-opakowanie" id="zew-wrap"><button class="inny-burger" id="zew-btn">Z nagłówka</button></div>
+
 <div class="long">treść strony</div>
 
 <script>
@@ -74,11 +79,13 @@
   root.setAttribute('data-sub-delay', q.get('sdelay') === null ? '' : q.get('sdelay'));
   root.setAttribute('data-panel-easing',   q.get('pease') || '');
   root.setAttribute('data-start',      '');
-  root.setAttribute('data-trigger',    '');
+  root.setAttribute('data-trigger',    q.get('trig') || '');
   root.setAttribute('data-esc-back',   q.get('esc')    === '0' ? '0' : '1');
   root.setAttribute('data-close-link', '0');
   root.setAttribute('data-lock',       q.get('lock')   === '0' ? '0' : '1');
   root.setAttribute('data-anim-exit',  q.get('exit')   === '1' ? '1' : '0');
+  // Puste = „cały czas animacji". Jawne zero MUSI przejść jako '0'.
+  root.setAttribute('data-exit-wait',  q.get('exitwait') === null ? '' : q.get('exitwait'));
   root.setAttribute('data-portal',     q.get('portal') === '0' ? '0' : '1');
   root.setAttribute('data-open-builder', '0');
 
@@ -209,6 +216,24 @@ window.__lock = function () {
 
 window.__ariaExpanded = function () {
   return document.getElementById('trigger').getAttribute('aria-expanded');
+};
+
+/** Klik w zewnętrzny trigger — ten wskazany selektorem `data-trigger`. */
+window.__zew = function () { document.getElementById('zew-btn').click(); };
+
+/**
+ * Stan przełącznika o podanym ID: klasy i aria.
+ *
+ * `brx-open` to klasa, na której wisi cała animacja burgera zbudowanego
+ * w Bricksie. Bez niej przycisk zostaje burgerem przy otwartym menu.
+ */
+window.__stanPrzycisku = function (id) {
+  var el = document.getElementById(id);
+  return {
+    klasy: el.className,
+    brx:   el.classList.contains('brx-open'),
+    aria:  el.getAttribute('aria-expanded'),
+  };
 };
 
 /** Czy powłoka wylądowała w <body> (portal), czy została w korzeniu. */

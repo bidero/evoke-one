@@ -804,6 +804,125 @@ module.exports = async function (t) {
     !(await nx.evaluate(() => window.__isOpen())), 'zamknięte');
   await nx.close();
 
+  // ── Czekanie na wyjście da się ustawić ─────────────────────────────────
+  // Zgłoszone z użycia: „chciałbym, żeby animowało się zamykanie i linki
+  // w tym samym czasie, a nie jedna po drugiej". Rozdzielone są tu DWIE rzeczy,
+  // które wcześniej były jedną: moment, w którym treść rusza (zawsze od razu),
+  // i to, ile kadr na nią czeka.
+  t.section('czekanie na wyjście — treść i kadr mogą iść RAZEM');
+
+  const rw = await t.open('offcanvas.html',
+    { viewport: V, query: 'exit=1&dur=0.6&exitwait=0', settle: 250 });
+  await rw.evaluate(() => window.__open());
+  await rw.waitForTimeout(800);
+  await rw.evaluate(() => window.__key('Escape'));
+  await rw.waitForTimeout(200);
+
+  const kadr   = await rw.evaluate(() => window.__slide());
+  const tresc0 = await rw.evaluate(() => window.__animOpacity());
+  // Kadr jedzie 0,6 s, więc 200 ms po ✕ ma być W DRODZE: już nie na miejscu,
+  // jeszcze nie za krawędzią.
+  t.check('przy zerze kadr JUŻ wyjeżdża', kadr.x !== 0, 'x ' + kadr.x + ' (na miejscu 0)');
+  // Obie granice są potrzebne: powyżej zera znaczy „jeszcze nie skończyła",
+  // poniżej jedynki — „już ruszyła".
+  t.check('a treść jest W TRAKCIE wychodzenia', tresc0 > 0.05 && tresc0 < 0.95,
+    'opacity ' + tresc0);
+
+  await rw.waitForTimeout(800);
+  t.check('oba ruchy dochodzą do końca', !(await rw.evaluate(() => window.__isOpen())),
+    'zamknięte');
+  t.check('bez błędów JS przy ruchach naraz', !rw.errors.length,
+    rw.errors.join(' | ') || 'brak');
+  await rw.close();
+
+  // KONTROLA NEGATYWNA: bez ustawienia kadr NADAL czeka na całą animację.
+  const kw = await t.open('offcanvas.html',
+    { viewport: V, query: 'exit=1&dur=0.6', settle: 250 });
+  await kw.evaluate(() => window.__open());
+  await kw.waitForTimeout(800);
+  await kw.evaluate(() => window.__key('Escape'));
+  await kw.waitForTimeout(200);
+  t.check('bez ustawienia kadr w tej samej chwili STOI',
+    (await kw.evaluate(() => window.__slide())).x === 0,
+    'x ' + (await kw.evaluate(() => window.__slide())).x);
+  await kw.close();
+
+  // Jawna wartość DŁUŻSZA niż animacja — ustawienie ma wygrywać z czasem
+  // animacji, a nie tylko go skracać.
+  const dw = await t.open('offcanvas.html',
+    { viewport: V, query: 'exit=1&dur=0.2&exitwait=0.6', settle: 250 });
+  await dw.evaluate(() => window.__open());
+  await dw.waitForTimeout(500);
+  await dw.evaluate(() => window.__key('Escape'));
+  await dw.waitForTimeout(400);
+  t.check('treść zdążyła wyjść (animacja trwa 0,3 s)',
+    (await dw.evaluate(() => window.__animOpacity())) < 0.05,
+    'opacity ' + (await dw.evaluate(() => window.__animOpacity())));
+  t.check('a menu wciąż czeka, bo poproszono o 0,6 s',
+    await dw.evaluate(() => window.__isOpen()), 'otwarte');
+  await dw.waitForTimeout(500);
+  t.check('po odczekaniu menu się zamyka', !(await dw.evaluate(() => window.__isOpen())),
+    'zamknięte');
+  await dw.close();
+
+  // Redukcja ruchu MUSI wygrać z jawnym czekaniem — inaczej menu wisiałoby
+  // otwarte przez 0,6 s, czekając na animację, której nie ma.
+  const rwm = await t.open('offcanvas.html',
+    { viewport: V, query: 'exit=1&dur=0.2&exitwait=0.6', reduce: true, settle: 250 });
+  await rwm.evaluate(() => window.__open());
+  await rwm.waitForTimeout(120);
+  await rwm.evaluate(() => window.__key('Escape'));
+  await rwm.waitForTimeout(40);
+  t.check('przy redukcji ruchu jawne czekanie NIE obowiązuje',
+    !(await rwm.evaluate(() => window.__isOpen())), 'zamknięte');
+  await rwm.close();
+
+  // ── Trigger dostaje stan otwarcia ──────────────────────────────────────
+  // Zgłoszone przy Circular Menu, ale przyczyna jest wspólna: klasy `brx-open`
+  // — tej, na której wisi cała animacja burgera zbudowanego w Bricksie —
+  // nie było w kodzie WCALE. Offcanvas ustawiał samo `aria-expanded`, i to
+  // na elemencie triggera, nawet gdy przyciskiem był ktoś w środku.
+  t.section('trigger dostaje stan otwarcia');
+
+  const tg = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.2', settle: 250 });
+  let s = await tg.evaluate(() => window.__stanPrzycisku('trigger'));
+  t.check('na start bez klasy otwarcia', !s.brx && s.aria === 'false',
+    s.klasy + ' | aria ' + s.aria);
+
+  await tg.evaluate(() => window.__open());
+  await tg.waitForTimeout(120);
+  s = await tg.evaluate(() => window.__stanPrzycisku('trigger'));
+  t.check('po otwarciu trigger ma klasę Bricksa', s.brx, s.klasy);
+  t.check('i konwencję „--opened"', /evk-oc-trigger--opened/.test(s.klasy), s.klasy);
+
+  await tg.evaluate(() => window.__key('Escape'));
+  await tg.waitForTimeout(120);
+  s = await tg.evaluate(() => window.__stanPrzycisku('trigger'));
+  t.check('zamknięcie zdejmuje obie klasy',
+    !s.brx && !/--opened/.test(s.klasy) && s.aria === 'false',
+    s.klasy + ' | aria ' + s.aria);
+  await tg.close();
+
+  // Trigger zewnętrzny jako OPAKOWANIE przycisku. Stan należy do sterującego,
+  // a nie do pudełka wokół niego — div z `aria-expanded` nie jest dla czytnika
+  // ekranu żadnym przyciskiem.
+  const zt = await t.open('offcanvas.html',
+    { viewport: V, query: 'dur=0.2&trig=' + encodeURIComponent('.moje-opakowanie'), settle: 250 });
+  await zt.evaluate(() => window.__zew());
+  await zt.waitForTimeout(150);
+  t.check('zewnętrzny trigger otwiera menu', await zt.evaluate(() => window.__isOpen()),
+    'otwarte');
+
+  const btn  = await zt.evaluate(() => window.__stanPrzycisku('zew-btn'));
+  const wrap = await zt.evaluate(() => window.__stanPrzycisku('zew-wrap'));
+  t.check('stan dostaje PRZYCISK w środku', btn.brx && btn.aria === 'true',
+    btn.klasy + ' | aria ' + btn.aria);
+  t.check('a pudełko zostaje nietknięte', !wrap.brx && wrap.aria === null,
+    wrap.klasy + ' | aria ' + wrap.aria);
+  t.check('bez błędów JS przy zewnętrznym triggerze', !zt.errors.length,
+    zt.errors.join(' | ') || 'brak');
+  await zt.close();
+
   // ── Zbieg zamknięć ─────────────────────────────────────────────────────
   // Zamknięcie jest teraz ODŁOŻONE, więc po raz pierwszy istnieje okno,
   // w którym menu jest jeszcze otwarte, a zamknięcie już w drodze. Drugi Esc

@@ -2,6 +2,47 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.70.0] — 2026-08-12
+
+### Naprawione
+
+- **Zewnętrzny przełącznik nie dostawał klasy `brx-open`** — ani w Circular
+  Menu, ani w Offcanvas Menu. To na niej wisi cała animacja burgera
+  zbudowanego w Bricksie (kreski składające się w krzyżyk), więc przycisk
+  zostawał burgerem przy otwartym menu i wyglądało to, jakby kliknięcie nie
+  zadziałało. Klasy nie było w kodzie wtyczki **wcale**.
+
+  Pod spodem siedziała druga, cichsza przyczyna: Circular Menu szukało
+  przycisku **wewnątrz** wskazanego elementu i wychodziło, gdy nic nie
+  znalazło. Selektor zewnętrznego przełącznika celuje zwykle wprost
+  w przycisk, więc tą drogą nie działo się **nic** — ani klasy, ani
+  `aria-expanded`. Obie postacie działają teraz tak samo: selektor na
+  przycisku i selektor na jego opakowaniu.
+
+  Dotychczasowa konwencja Evoke (`<pierwsza-klasa>--opened`) zostaje bez
+  zmian — czyjeś arkusze mogą już na niej stać. Offcanvas Menu dostał ją
+  przy okazji, żeby oba menu zachowywały się identycznie.
+
+- **`aria-expanded` przeniesione z opakowania na sam przycisk** (Offcanvas
+  Menu). Div z tym atrybutem nie jest dla czytnika ekranu żadnym przyciskiem —
+  stan należy do sterującego, a nie do pudełka wokół niego.
+
+### Dodane
+
+- **„Czekanie na wyjście (s)" — w obu menu.** Do tej pory menu czekało z
+  zamknięciem na CAŁĄ animację treści, więc oba ruchy szły jeden po drugim.
+  Teraz da się je puścić razem.
+
+  - **Zero znaczy „naraz"**: kadr zamyka się RÓWNOCZEŚNIE z animacją linków.
+  - **Puste pole** to dotychczasowe zachowanie — cały czas animacji, nie
+    dłużej niż sekundę.
+  - **Wartość większa niż sama animacja** daje chwilę ciszy przed zamknięciem.
+
+  Rozdzielone są tu dwie rzeczy, które wcześniej były jedną: moment, w którym
+  treść rusza (zawsze od razu), i to, ile menu na nią czeka. Przy redukcji
+  ruchu czekanie wychodzi zero **mimo jawnie ustawionej wartości** — inaczej
+  menu wisiałoby otwarte, czekając na animację, której nie ma.
+
 ## [1.69.0] — 2026-08-12
 
 ### Naprawione

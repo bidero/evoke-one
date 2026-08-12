@@ -1,6 +1,6 @@
 /**
  * Evoke Circular Menu
- * v1.2.0
+ * v1.3.0
  *
  * evk_circular_menu_init() jest wołane z dwóch stron: przez Bricks (patrz
  * $scripts w element.php) i przez własny DOMContentLoaded poniżej. Flaga
@@ -17,6 +17,16 @@
  * treść dokańcza pod zwijającym się kadrem.
  */
 var EVK_CM_EXIT_MAX = 1;
+
+/**
+ * Klasa, którą Bricks zakłada SWOIM przełącznikom po otwarciu menu.
+ *
+ * Cała animacja burgera zbudowanego w Bricksie — kreski składające się
+ * w krzyżyk — wisi w arkuszu na tej klasie. Bez niej przycisk zostaje
+ * burgerem przy otwartym menu i wygląda, jakby kliknięcie nie zadziałało.
+ * Zgłoszone z użycia przy zewnętrznym przełączniku.
+ */
+var EVK_BRICKS_OPEN = 'brx-open';
 
 function evk_circular_menu_init() {
     document.querySelectorAll( '.evk-cm' ).forEach( function( root ) {
@@ -47,6 +57,15 @@ function evk_circular_menu_init_one( root ) {
     // problem, który w offcanvas rozwiązało opóźnienie panelu podrzędnego.
     var contentDelay = reduced ? 0 : ( parseFloat( root.getAttribute( 'data-content-delay' ) ) || 0 );
     var animateExit  = root.getAttribute( 'data-anim-exit' ) === '1';
+    /* Ile czekać z zamykaniem kadru na wyjście treści.
+       `null` znaczy „cały czas animacji" (ruchy jeden PO drugim), liczba —
+       tyle sekund, ile podano. Zero to nie brak ustawienia, tylko wybór:
+       kadr zwija się RAZEM z wychodzącą treścią. Stąd rozróżnienie na null
+       zamiast zwykłej domyślki — `|| 0` zjadałoby jawne zero. */
+    var exitWaitRaw = root.getAttribute( 'data-exit-wait' );
+    var exitWait    = ( exitWaitRaw === null || exitWaitRaw === '' )
+        ? null : parseFloat( exitWaitRaw );
+    if ( isNaN( exitWait ) ) exitWait = null;
     var customToggleSel = root.getAttribute( 'data-customtoggle' ) || '';
     var lockScroll  = root.getAttribute( 'data-lock-scroll' ) === '1';
     var closeOnEsc  = root.getAttribute( 'data-close-on-esc' ) === '1';
@@ -128,18 +147,37 @@ function evk_circular_menu_init_one( root ) {
     setTabIndex( panel );
 
     // ── Toggle ────────────────────────────────────────────────────
+
+    /**
+     * Element, któremu nakładamy stan otwarcia.
+     *
+     * Selektor zewnętrznego przełącznika bywa wskazany na SAM przycisk, a nie
+     * na jego opakowanie — i wtedy `querySelector('button')` nie znajdował nic,
+     * więc funkcja wychodziła, zanim cokolwiek zrobiła: ani klasy, ani
+     * `aria-expanded`. Wewnętrzny `.evk-cm-trigger` jest OPAKOWANIEM (tak go
+     * tworzy get_nestable_children), więc obie drogi muszą działać.
+     *
+     * Ostatnia deska ratunku to sam element: przełącznik bywa zwykłym divem
+     * i lepiej oznaczyć jego, niż nie oznaczyć niczego.
+     */
+    function toggleTarget( el ) {
+        if ( el.matches( 'button, a, [role="button"]' ) ) return el;
+        return el.querySelector( 'button, a, [role="button"]' ) || el;
+    }
+
     function updateTriggerState( triggerEl ) {
-        var btn = triggerEl.querySelector( 'button' );
-        if ( ! btn ) return;
-        var firstClass = btn.classList[0];
+        var btn = toggleTarget( triggerEl );
+        // Pierwsza WŁASNA klasa elementu — nasze znaczniki stanu wypadają,
+        // inaczej przełącznik bez żadnej klasy dorobiłby się „brx-open--opened".
+        var firstClass = Array.prototype.filter.call( btn.classList, function ( c ) {
+            return c !== EVK_BRICKS_OPEN && c.slice( -8 ) !== '--opened';
+        } )[0];
+        // Dotychczasowa konwencja Evoke — czyjeś arkusze mogą już na niej stać.
         var openedClass = firstClass ? firstClass + '--opened' : '';
-        if ( isOpen ) {
-            if ( openedClass ) btn.classList.add( openedClass );
-            btn.setAttribute( 'aria-expanded', 'true' );
-        } else {
-            if ( openedClass ) btn.classList.remove( openedClass );
-            btn.setAttribute( 'aria-expanded', 'false' );
-        }
+
+        if ( openedClass ) btn.classList.toggle( openedClass, isOpen );
+        btn.classList.toggle( EVK_BRICKS_OPEN, isOpen );
+        btn.setAttribute( 'aria-expanded', isOpen ? 'true' : 'false' );
     }
 
     function syncTriggers() {
@@ -164,10 +202,32 @@ function evk_circular_menu_init_one( root ) {
         }
     }
 
-    /** Ile sekund czekać z zamknięciem, żeby treść zdążyła wyjść. */
+    /**
+     * Wyprowadza treść i zwraca, ile sekund czekać z zamykaniem KADRU.
+     *
+     * Animacja rusza tutaj, niezależnie od czekania — to są dwie różne rzeczy
+     * i dopiero ich rozdzielenie pozwala puścić oba ruchy RAZEM. Zwrócone zero
+     * nie znaczy „nic nie wychodzi", tylko „nie czekaj": kadr zwija się wtedy
+     * na wychodzącej treści.
+     */
     function exitContent() {
         if ( ! animateExit || typeof window.evkAnimatorExit !== 'function' ) return 0;
-        return Math.min( window.evkAnimatorExit( panel ), EVK_CM_EXIT_MAX );
+
+        var trwa = window.evkAnimatorExit( panel );
+
+        /* Nic nie wyszło — nie ma na co czekać, choćby ustawiono jawną wartość.
+           Tędy idzie redukcja ruchu: silnik nie buduje wtedy żadnej osi, więc
+           czekanie MUSI wyjść zero, inaczej menu wisiałoby otwarte na animację,
+           której nie ma. */
+        if ( trwa <= 0 ) return 0;
+
+        // Jawna wartość wygrywa z czasem animacji — także wtedy, gdy jest
+        // dłuższa (ruch ma się zdążyć wybrzmieć) albo równa zeru.
+        if ( exitWait !== null ) return exitWait;
+
+        // Domyślnie czekamy CAŁĄ animację, ale nie dłużej niż granica: ustawione
+        // osiem sekund trzymałoby menu otwarte osiem sekund po kliknięciu ✕.
+        return Math.min( trwa, EVK_CM_EXIT_MAX );
     }
 
     /* Uchwyt odłożonego zamknięcia. Bez niego drugi klik w ✕ startuje drugie

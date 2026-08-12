@@ -53,6 +53,9 @@ module.exports = async function (t) {
   // Klasa `--opened` na przycisku to jedyny hak dla animowanego burgera.
   t.check('przycisk dostał klasę otwarcia', await p.evaluate(() => window.__opened()),
     'burger--opened');
+  t.check('i klasę otwarcia Bricksa',
+    (await p.evaluate(() => window.__stanPrzycisku('trigger'))).brx,
+    (await p.evaluate(() => window.__stanPrzycisku('trigger'))).klasy);
   t.check('panel przyjmuje kliknięcia', (await p.evaluate(() => window.__pe())) === 'all',
     String(await p.evaluate(() => window.__pe())));
 
@@ -168,8 +171,13 @@ module.exports = async function (t) {
   t.check('pole na ręcznie wpisaną krzywą zniknęło', !php.hasCustomEasing,
     php.hasCustomEasing ? 'nadal jest' : 'usunięte');
   t.check('doszły kontrolki opóźnienia i wyjścia',
-    php.hasContentDelay && php.hasAnimateExit,
-    'opóźnienie ' + php.hasContentDelay + ', wyjście ' + php.hasAnimateExit);
+    php.hasContentDelay && php.hasAnimateExit && php.hasExitWait,
+    'opóźnienie ' + php.hasContentDelay + ', wyjście ' + php.hasAnimateExit
+      + ', czekanie ' + php.hasExitWait);
+  // Pole widoczne przy wyłączonym wyjściu byłoby polem, które nic nie robi.
+  t.check('czekanie pokazuje się dopiero przy włączonym wyjściu',
+    JSON.stringify(php.exitWaitGate) === JSON.stringify(['animateExit', '=', true]),
+    JSON.stringify(php.exitWaitGate));
   t.check('„zamknięcie menu" jest na liście wyzwalaczy',
     php.triggers.indexOf('menu-close') >= 0, php.triggers.join(', '));
 
@@ -182,6 +190,18 @@ module.exports = async function (t) {
   t.check('domyślnie wyjście treści jest wyłączone',
     /data-anim-exit="0"/.test(php.renderPlain) && /data-content-delay="0"/.test(php.renderPlain),
     'bez zmiany dotychczasowego zachowania');
+
+  /* Czekanie ma TRZY stany, nie dwa, i to jest tu sedno: nieustawione („cały
+     czas animacji"), jawna liczba i jawne ZERO („oba ruchy naraz"). Zero
+     wygląda w PHP jak brak wartości — `! empty()` nie odróżnia jednego od
+     drugiego — więc wybranie „naraz" wracałoby po cichu do grania jeden ruch
+     po drugim. Sprawdzamy wszystkie trzy, bo tylko razem coś znaczą. */
+  t.check('nieustawione czekanie jedzie pustym atrybutem',
+    /data-exit-wait=""/.test(php.renderPlain), 'puste');
+  t.check('jawna liczba dojeżdża',
+    /data-exit-wait="0\.15"/.test(php.renderFilled), '0,15 s');
+  t.check('jawne ZERO NIE wypada jako brak wartości',
+    /data-exit-wait="0"/.test(php.renderZero), '0 s — oba ruchy naraz');
 
   // I druga połowa: GSAP musi rozumieć KAŻDĄ wartość z tej listy wprost.
   // To menu animuje GSAP-em, więc nie ma tu tłumaczenia na zapis CSS-a,
@@ -239,6 +259,145 @@ module.exports = async function (t) {
     !(await ne.evaluate(() => window.__rozwiniety())),
     (await ne.evaluate(() => window.__clip())).raw);
   await ne.close();
+
+  // ── Czekanie na wyjście da się ustawić ─────────────────────────────────
+  // Zgłoszone z użycia: „chciałbym, żeby animowało się zamykanie i linki
+  // w tym samym czasie, a nie jedna po drugiej". Domyślnie kadr czeka na CAŁĄ
+  // animację treści — dobre, gdy treść ma zniknąć przed zamknięciem, złe, gdy
+  // oba ruchy mają być jednym gestem.
+  //
+  // Rozdzielone są tu DWIE rzeczy, które wcześniej były jedną: moment, w którym
+  // treść rusza (zawsze od razu), i to, ile kadr na nią czeka.
+  t.section('czekanie na wyjście — treść i kadr mogą iść RAZEM');
+
+  const rw = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.4&exit=1&exitwait=0', settle: 300 });
+  await rw.evaluate(() => window.__open());
+  await rw.waitForTimeout(600);
+  await rw.evaluate(() => window.__key('Escape'));
+  await rw.waitForTimeout(200);
+
+  const klip0  = (await rw.evaluate(() => window.__clip())).r;
+  const tresc0 = await rw.evaluate(() => window.__op('anim'));
+  t.check('przy zerze kadr JUŻ się zwija', klip0 < 140, 'promień ' + klip0 + ' ze 150');
+  // Obie granice są potrzebne: powyżej zera znaczy „jeszcze nie skończyła",
+  // poniżej jedynki — „już ruszyła". Sam kadr w ruchu przeszedłby też dla
+  // wyjścia, którego w ogóle nie ma.
+  t.check('a treść jest W TRAKCIE wychodzenia', tresc0 > 0.05 && tresc0 < 0.95,
+    'opacity ' + tresc0);
+
+  await rw.waitForTimeout(800);
+  t.check('oba ruchy dochodzą do końca',
+    !(await rw.evaluate(() => window.__rozwiniety()))
+    && (await rw.evaluate(() => window.__op('anim'))) < 0.05,
+    (await rw.evaluate(() => window.__clip())).raw + ', opacity '
+      + (await rw.evaluate(() => window.__op('anim'))));
+  t.check('bez błędów JS przy ruchach naraz', !rw.errors.length,
+    rw.errors.join(' | ') || 'brak');
+  await rw.close();
+
+  // KONTROLA NEGATYWNA: bez ustawienia kadr NADAL czeka na całą animację.
+  // Bez tej pary „kadr się zwija" nie odróżnia ustawienia od jego braku.
+  const kw = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.4&exit=1', settle: 300 });
+  await kw.evaluate(() => window.__open());
+  await kw.waitForTimeout(600);
+  await kw.evaluate(() => window.__key('Escape'));
+  await kw.waitForTimeout(200);
+  t.check('bez ustawienia kadr w tej samej chwili STOI',
+    (await kw.evaluate(() => window.__clip())).r === 150,
+    'promień ' + (await kw.evaluate(() => window.__clip())).r);
+  await kw.close();
+
+  // Jawna wartość DŁUŻSZA niż animacja — chwila ciszy przed zamknięciem.
+  // Sprawdza drugi kierunek: że ustawienie wygrywa z czasem animacji, a nie
+  // tylko go skraca.
+  const dw = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.4&exit=1&exitwait=0.6', settle: 300 });
+  await dw.evaluate(() => window.__open());
+  await dw.waitForTimeout(600);
+  await dw.evaluate(() => window.__key('Escape'));
+  await dw.waitForTimeout(400);
+  t.check('treść zdążyła wyjść (animacja trwa 0,3 s)',
+    (await dw.evaluate(() => window.__op('anim'))) < 0.05,
+    'opacity ' + (await dw.evaluate(() => window.__op('anim'))));
+  t.check('a kadr wciąż czeka, bo poproszono o 0,6 s',
+    await dw.evaluate(() => window.__rozwiniety()),
+    (await dw.evaluate(() => window.__clip())).raw);
+
+  await dw.waitForTimeout(800);
+  t.check('po odczekaniu kadr się zwija', !(await dw.evaluate(() => window.__rozwiniety())),
+    (await dw.evaluate(() => window.__clip())).raw);
+  await dw.close();
+
+  // Redukcja ruchu MUSI wygrać z jawnym czekaniem. Inaczej menu wisiałoby
+  // otwarte przez 0,6 s, czekając na animację, której nie ma.
+  const rwm = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.4&exit=1&exitwait=0.6', settle: 300, reduce: true });
+  await rwm.evaluate(() => window.__open());
+  await rwm.waitForTimeout(60);
+  await rwm.evaluate(() => window.__key('Escape'));
+  await rwm.waitForTimeout(40);
+  t.check('przy redukcji ruchu jawne czekanie NIE obowiązuje',
+    !(await rwm.evaluate(() => window.__rozwiniety())),
+    (await rwm.evaluate(() => window.__clip())).raw);
+  await rwm.close();
+
+  // ── Zewnętrzny przełącznik ─────────────────────────────────────────────
+  // Zgłoszone z użycia: „zewnętrzny przełącznik nie dodaje klasy brx-open".
+  // Dwie przyczyny naraz, obie po cichu:
+  //
+  //  1. Klasy `brx-open` nie było w kodzie WCALE — a to na niej wisi cała
+  //     animacja burgera zbudowanego w Bricksie.
+  //  2. Selektor zewnętrznego przełącznika celuje zwykle WPROST w przycisk,
+  //     a element szukał `button` w jego ŚRODKU i wychodził, gdy nic nie
+  //     znalazł. Tą drogą nie działo się nic — ani klasy, ani aria-expanded.
+  t.section('zewnętrzny przełącznik dostaje stan otwarcia');
+
+  const zt = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.2&toggle=' + encodeURIComponent('.moj-burger'), settle: 300 });
+
+  let s = await zt.evaluate(() => window.__stanPrzycisku('zew'));
+  t.check('na start bez klasy otwarcia', !s.brx && s.aria === 'false',
+    s.klasy + ' | aria ' + s.aria);
+
+  await zt.evaluate(() => window.__zew());
+  await zt.waitForTimeout(400);
+  t.check('kliknięcie w zewnętrzny przycisk otwiera menu',
+    await zt.evaluate(() => window.__rozwiniety()),
+    (await zt.evaluate(() => window.__clip())).raw);
+
+  s = await zt.evaluate(() => window.__stanPrzycisku('zew'));
+  t.check('przełącznik dostał klasę Bricksa', s.brx, s.klasy);
+  t.check('i mówi, że rozwija', s.aria === 'true', String(s.aria));
+  // Dotychczasowa konwencja Evoke zostaje — czyjeś arkusze mogą na niej stać.
+  t.check('konwencja „--opened" też zostaje', /brxe-toggle--opened/.test(s.klasy), s.klasy);
+
+  await zt.evaluate(() => window.__zew());
+  await zt.waitForTimeout(400);
+  s = await zt.evaluate(() => window.__stanPrzycisku('zew'));
+  t.check('zamknięcie zdejmuje obie klasy',
+    !s.brx && !/--opened/.test(s.klasy) && s.aria === 'false',
+    s.klasy + ' | aria ' + s.aria);
+  t.check('bez błędów JS przy zewnętrznym przełączniku', !zt.errors.length,
+    zt.errors.join(' | ') || 'brak');
+  await zt.close();
+
+  // Druga postać: selektor na OPAKOWANIU przycisku. Stan należy do
+  // sterującego, a nie do pudełka wokół niego — div z `aria-expanded` nie
+  // jest dla czytnika ekranu żadnym przyciskiem.
+  const zw = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.2&toggle=' + encodeURIComponent('.moje-opakowanie'), settle: 300 });
+  await zw.evaluate(() => window.__zew('zew-btn'));
+  await zw.waitForTimeout(400);
+
+  const btn  = await zw.evaluate(() => window.__stanPrzycisku('zew-btn'));
+  const wrap = await zw.evaluate(() => window.__stanPrzycisku('zew-wrap'));
+  t.check('przy selektorze na opakowaniu stan dostaje PRZYCISK', btn.brx && btn.aria === 'true',
+    btn.klasy + ' | aria ' + btn.aria);
+  t.check('a pudełko zostaje nietknięte', !wrap.brx && wrap.aria === null,
+    wrap.klasy + ' | aria ' + wrap.aria);
+  await zw.close();
 
   // ── Cofnięcie działa po `clearProps` ───────────────────────────────────
   // To był otwarty punkt planu, nie oczywistość. Animacja wejściowa bez
