@@ -324,6 +324,61 @@ module.exports = async function (t) {
     await ic.evaluate(() => window.__panelKlasy()));
   await ic.close();
 
+  // ── Menu zgłasza otwarcie językiem Bricksa ─────────────────────────────
+  // Zgłoszone z użycia: „Esc nie zmienia stanu przełącznika, który był użyty
+  // do otwarcia". Przyczyna nie siedziała w obsłudze Esc — ta działa i jest
+  // zmierzona niżej — tylko w tym, CZEGO Bricks nie widział.
+  //
+  // Do 1.73.0 `brx-open` nakładaliśmy WYŁĄCZNIE na przycisk. Bricks trzyma
+  // jednak stan na elemencie, który OTWIERA, a wygląd przełącznika bywa z
+  // niego wyprowadzony — regułą typu `.brx-open .brxe-toggle` albo własną
+  // logiką przełącznika, która pyta o stan celu. Nasze menu nie zgłaszało się
+  // tam w ogóle: `is-open` to nazwa Evoke, dla Bricksa nic nie znacząca.
+  // Przycisk nie miał więc od czego wrócić do burgera — z jego punktu widzenia
+  // menu nigdy się nie otworzyło.
+  t.section('otwarte menu zgłasza się klasą, którą rozumie Bricks');
+
+  const bx = await t.open('circular-menu.html', { viewport: V, query: 'dur=0.2', settle: 300 });
+  t.check('zamknięte menu nie ma klasy Bricksa na korzeniu',
+    !(await bx.evaluate(() => window.__rootBrx())),
+    await bx.evaluate(() => window.__rootKlasy()));
+
+  await bx.evaluate(() => window.__open());
+  await bx.waitForTimeout(60);
+  t.check('otwarcie zgłasza stan NA KORZENIU, nie tylko na przycisku',
+    await bx.evaluate(() => window.__rootBrx()),
+    await bx.evaluate(() => window.__rootKlasy()));
+  // Korzeń, a nie panel: przy portalu panel jedzie do <body> i przestaje być
+  // czymkolwiek w okolicy przełącznika, więc reguła oparta na pokrewieństwie
+  // w drzewie nie miałaby czego dopasować.
+  t.check('a panel poszedł do <body> — dlatego korzeń, nie panel',
+    (await bx.evaluate(() => window.__panelParent())) === 'body',
+    String(await bx.evaluate(() => window.__panelParent())));
+
+  await bx.evaluate(() => window.__key('Escape'));
+  await bx.waitForTimeout(400);
+  t.check('Esc zdejmuje klasę Bricksa z korzenia',
+    !(await bx.evaluate(() => window.__rootBrx())),
+    await bx.evaluate(() => window.__rootKlasy()));
+  // I to jest sedno zgłoszenia: przycisk MA z czego wrócić do burgera.
+  t.check('a przycisk wraca do stanu zamkniętego',
+    !(await bx.evaluate(() => window.__stanPrzycisku('trigger'))).brx,
+    (await bx.evaluate(() => window.__stanPrzycisku('trigger'))).klasy);
+  t.check('bez błędów JS', !bx.errors.length, bx.errors.join(' | ') || 'brak');
+  await bx.close();
+
+  // Zamknięcie klikiem POZA panelem — druga droga, ta sama reguła. Esc i klik
+  // poza to osobne ścieżki w kodzie i osobno dało się je zepsuć.
+  const bo = await t.open('circular-menu.html', { viewport: V, query: 'dur=0.2', settle: 300 });
+  await bo.evaluate(() => window.__open());
+  await bo.waitForTimeout(400);
+  await bo.evaluate(() => document.querySelector('.long').click());
+  await bo.waitForTimeout(400);
+  t.check('klik poza panelem też zdejmuje klasę z korzenia',
+    !(await bo.evaluate(() => window.__rootBrx())),
+    await bo.evaluate(() => window.__rootKlasy()));
+  await bo.close();
+
   // ── Czekanie na wyjście da się ustawić ─────────────────────────────────
   // Zgłoszone z użycia: „chciałbym, żeby animowało się zamykanie i linki
   // w tym samym czasie, a nie jedna po drugiej". Domyślnie kadr czeka na CAŁĄ

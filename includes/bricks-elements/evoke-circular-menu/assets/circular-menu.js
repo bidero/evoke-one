@@ -1,6 +1,6 @@
 /**
  * Evoke Circular Menu
- * v1.4.0
+ * v1.5.0
  *
  * evk_circular_menu_init() jest wołane z dwóch stron: przez Bricks (patrz
  * $scripts w element.php) i przez własny DOMContentLoaded poniżej. Flaga
@@ -19,12 +19,20 @@
 var EVK_CM_EXIT_MAX = 1;
 
 /**
- * Klasa, którą Bricks zakłada SWOIM przełącznikom po otwarciu menu.
+ * Klasa, którą Bricks zakłada po otwarciu — I PRZYCISKOWI, I OTWIERANEMU
+ * ELEMENTOWI.
  *
  * Cała animacja burgera zbudowanego w Bricksie — kreski składające się
  * w krzyżyk — wisi w arkuszu na tej klasie. Bez niej przycisk zostaje
  * burgerem przy otwartym menu i wygląda, jakby kliknięcie nie zadziałało.
- * Zgłoszone z użycia przy zewnętrznym przełączniku.
+ *
+ * Do 1.73.0 nakładaliśmy ją WYŁĄCZNIE na przycisk, i to była połowa roboty.
+ * Bricks trzyma stan na elemencie, który otwiera, a wygląd przełącznika bywa
+ * z niego wyprowadzony — regułą typu `.brx-open .brxe-toggle` albo własną
+ * logiką przełącznika, która pyta o stan CELU. Nasze menu nie zgłaszało się
+ * tam w ogóle: `is-open` to nazwa Evoke, dla Bricksa nic nie znacząca.
+ * Przycisk nie miał więc od czego wrócić do burgera po zamknięciu z Esc —
+ * bo z jego punktu widzenia menu nigdy się nie otworzyło. Zgłoszone z użycia.
  */
 var EVK_BRICKS_OPEN = 'brx-open';
 
@@ -269,6 +277,11 @@ function evk_circular_menu_init_one( root ) {
         isOpen = true;
         setTabIndex( panel );
         panel.classList.add( EVK_CM_OPEN );
+        // Stan po naszemu na panelu, po Bricksowemu na korzeniu. Korzeń, nie
+        // panel: przy włączonym portalu panel jedzie do <body> i przestaje być
+        // czymkolwiek w okolicy przełącznika, a reguły Bricksa czytają stan
+        // przez pokrewieństwo w drzewie.
+        root.classList.add( EVK_BRICKS_OPEN );
         panel.style.pointerEvents = 'all';
         tl.play();
         syncTriggers();
@@ -287,6 +300,7 @@ function evk_circular_menu_init_one( root ) {
      */
     function startCollapse() {
         panel.classList.remove( EVK_CM_OPEN );
+        root.classList.remove( EVK_BRICKS_OPEN );
         tl.reverse();
     }
 
@@ -404,6 +418,7 @@ function evk_circular_menu_init_one( root ) {
     // dokładnie tam, gdzie się go ustawia.
     if ( isBuilder && openBuilder ) {
         panel.classList.add( EVK_CM_OPEN );
+        root.classList.add( EVK_BRICKS_OPEN );
         tl.play();
     }
 

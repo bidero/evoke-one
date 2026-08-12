@@ -903,6 +903,31 @@ module.exports = async function (t) {
     s.klasy + ' | aria ' + s.aria);
   await tg.close();
 
+  // Menu zgłasza otwarcie NA KORZENIU, a nie tylko na przycisku. Bricks trzyma
+  // stan na elemencie, który otwiera, a wygląd przełącznika bywa z niego
+  // wyprowadzony — nasze `is-open` na powłoce to nazwa Evoke, dla Bricksa nic
+  // nie znacząca. Korzeń, a nie powłoka: powłoka jedzie do <body> i przestaje
+  // być czymkolwiek w okolicy przełącznika.
+  const bx = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.2', settle: 250 });
+  t.check('zamknięte menu nie ma klasy Bricksa na korzeniu',
+    !(await bx.evaluate(() => window.__rootBrx())),
+    await bx.evaluate(() => window.__rootKlasy()));
+
+  await bx.evaluate(() => window.__open());
+  await bx.waitForTimeout(120);
+  t.check('otwarcie zgłasza stan na korzeniu', await bx.evaluate(() => window.__rootBrx()),
+    await bx.evaluate(() => window.__rootKlasy()));
+  t.check('a powłoka poszła do <body> — dlatego korzeń, nie powłoka',
+    (await bx.evaluate(() => window.__shellParent())) === 'body',
+    String(await bx.evaluate(() => window.__shellParent())));
+
+  await bx.evaluate(() => window.__key('Escape'));
+  await bx.waitForTimeout(150);
+  t.check('Esc zdejmuje klasę Bricksa z korzenia',
+    !(await bx.evaluate(() => window.__rootBrx())),
+    await bx.evaluate(() => window.__rootKlasy()));
+  await bx.close();
+
   // Trigger zewnętrzny jako OPAKOWANIE przycisku. Stan należy do sterującego,
   // a nie do pudełka wokół niego — div z `aria-expanded` nie jest dla czytnika
   // ekranu żadnym przyciskiem.

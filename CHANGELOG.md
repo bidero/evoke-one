@@ -2,6 +2,32 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.73.0] — 2026-08-12
+
+### Naprawione
+
+- **Przełącznik zostawał w stanie „otwarte" po zamknięciu menu z Esc.**
+  Zgłoszone dla Circular Menu; dotyczyło obu menu.
+
+  Przyczyna nie siedziała w obsłudze Esc — ta działała i była zmierzona.
+  Siedziała w tym, **czego Bricks nie widział**. Klasę `brx-open` nakładaliśmy
+  wyłącznie na PRZYCISK, a Bricks trzyma stan na elemencie, który OTWIERA —
+  wygląd przełącznika bywa z niego wyprowadzony, regułą typu
+  `.brx-open .brxe-toggle` albo własną logiką przełącznika, która pyta o stan
+  celu. Nasze menu nie zgłaszało się tam w ogóle: `is-open` to nazwa Evoke,
+  dla Bricksa nic nie znacząca. Przycisk nie miał więc od czego wrócić do
+  burgera — z jego punktu widzenia menu nigdy się nie otworzyło.
+
+  **Korzeń elementu** (`.evk-cm`, `.evk-oc`) niesie teraz `brx-open` przez
+  cały czas otwarcia. Korzeń, a nie panel czy powłoka: te jadą do `<body>`
+  i przestają być czymkolwiek w okolicy przełącznika, a reguły Bricksa czytają
+  stan przez pokrewieństwo w drzewie. Klasa schodzi tą samą drogą co reszta
+  stanu — przy Esc, kliku poza panelem i kliku w link.
+
+  Dzięki temu burger zbudowany w Bricksie animuje się bez żadnej konfiguracji,
+  a natywny przełącznik Bricksa wskazujący nasze menu dostaje stan, którego
+  szuka.
+
 ## [1.72.1] — 2026-08-12
 
 ### Naprawione

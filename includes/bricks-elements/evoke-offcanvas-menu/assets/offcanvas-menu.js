@@ -42,6 +42,24 @@ function evk_offcanvas_menu_init_one(root) {
     var closeOnLink = root.getAttribute('data-close-link') === '1';
     var lockScroll  = root.getAttribute('data-lock') === '1';
     var animExit    = root.getAttribute('data-anim-exit') === '1';
+
+    /**
+     * Klasa, którą Bricks zakłada po otwarciu — I PRZYCISKOWI, I OTWIERANEMU
+     * ELEMENTOWI.
+     *
+     * Cała animacja burgera zbudowanego w Bricksie — kreski składające się
+     * w krzyżyk — wisi w arkuszu na tej klasie. Do 1.73.0 nakładaliśmy ją
+     * WYŁĄCZNIE na przycisk, i to była połowa roboty: Bricks trzyma stan na
+     * elemencie, który otwiera, a wygląd przełącznika bywa z niego wyprowadzony
+     * — regułą typu `.brx-open .brxe-toggle` albo własną logiką przełącznika,
+     * która pyta o stan CELU. Nasze menu nie zgłaszało się tam w ogóle:
+     * `is-open` to nazwa Evoke, dla Bricksa nic nie znacząca.
+     *
+     * Deklaracja stoi TU, przy reszcie konfiguracji, a nie przy triggerach —
+     * czyta ją i `open()`, i `setTrigAria()`, więc wisiała na kolejności
+     * wykonania w pliku.
+     */
+    var BRICKS_OPEN = 'brx-open';
     /* Ile czekać z wyjazdem kadru na wyjście treści. `null` znaczy „cały czas
        animacji" (ruchy jeden PO drugim), liczba — tyle sekund, ile podano.
        Zero to nie brak ustawienia, tylko wybór: kadr wyjeżdża RAZEM
@@ -487,6 +505,11 @@ function evk_offcanvas_menu_init_one(root) {
         stack = [startIdx];
         applyState();
         shell.classList.add('is-open');
+        // Stan po naszemu na powłoce, po Bricksowemu na korzeniu. Korzeń, nie
+        // powłoka: powłoka jedzie do <body> i przestaje być czymkolwiek
+        // w okolicy przełącznika, a reguły Bricksa czytają stan przez
+        // pokrewieństwo w drzewie.
+        root.classList.add(BRICKS_OPEN);
         lock();
         setTrigAria(true);
         replayAnimations();
@@ -507,6 +530,7 @@ function evk_offcanvas_menu_init_one(root) {
 
     function finishClose() {
         shell.classList.remove('is-open');
+        root.classList.remove(BRICKS_OPEN);
         unlock();
         setTrigAria(false);
         if (lastTrigger && typeof lastTrigger.focus === 'function') lastTrigger.focus();
@@ -575,16 +599,6 @@ function evk_offcanvas_menu_init_one(root) {
             console.warn('[EVK Offcanvas] Nieprawidłowy selektor triggera:', extraSel, root);
         }
     }
-
-    /**
-     * Klasa, którą Bricks zakłada SWOIM przełącznikom po otwarciu menu.
-     *
-     * Cała animacja burgera zbudowanego w Bricksie — kreski składające się
-     * w krzyżyk — wisi w arkuszu na tej klasie. Bez niej przycisk zostaje
-     * burgerem przy otwartym menu i wygląda, jakby kliknięcie nie zadziałało.
-     * Zgłoszone z użycia przy zewnętrznym przełączniku.
-     */
-    var BRICKS_OPEN = 'brx-open';
 
     /**
      * Element, któremu nakładamy stan otwarcia.

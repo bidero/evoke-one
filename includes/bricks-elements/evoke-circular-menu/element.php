@@ -236,10 +236,13 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'label'       => esc_html__( 'Styl zawartości', 'evk-circular-menu' ),
 			'description' => esc_html__(
 				'Możesz też edytować style bezpośrednio na elemencie Zawartość menu. '
-				. 'ZACZEP DLA WŁASNEGO CSS-a: przy otwartym menu panel niesie klasę '
-				. '.is-open (selektor .evk-cm-content.is-open), a przełącznik — .brx-open. '
-				. 'Klasa schodzi z panelu dopiero, gdy kadr zaczyna się zwijać, więc '
-				. 'przez czas wychodzenia treści styl otwartego menu nadal obowiązuje.',
+				. 'ZACZEPY DLA WŁASNEGO CSS-a przy otwartym menu: panel niesie klasę '
+				. '.is-open (selektor .evk-cm-content.is-open), a KORZEŃ elementu i sam '
+				. 'przełącznik — .brx-open, czyli tę samą klasę, którą Bricks zakłada '
+				. 'swoim otwartym elementom. Dzięki temu burger zbudowany w Bricksie '
+				. 'animuje się bez żadnej konfiguracji. Klasy schodzą dopiero, gdy kadr '
+				. 'zaczyna się zwijać, więc przez czas wychodzenia treści styl otwartego '
+				. 'menu nadal obowiązuje.',
 				'evk-circular-menu'
 			),
 			'type'        => 'separator',

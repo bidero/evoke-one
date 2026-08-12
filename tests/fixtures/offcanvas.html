@@ -221,6 +221,12 @@ window.__ariaExpanded = function () {
 /** Klik w zewnętrzny trigger — ten wskazany selektorem `data-trigger`. */
 window.__zew = function () { document.getElementById('zew-btn').click(); };
 
+/** Stan na KORZENIU — tym językiem mówi Bricks o otwartym elemencie. */
+window.__rootKlasy = function () { return document.getElementById('root').className; };
+window.__rootBrx   = function () {
+  return document.getElementById('root').classList.contains('brx-open');
+};
+
 /**
  * Stan przełącznika o podanym ID: klasy i aria.
  *

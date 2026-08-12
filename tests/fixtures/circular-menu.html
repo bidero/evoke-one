@@ -147,6 +147,12 @@ window.__pe = function () { return panel().style.pointerEvents || ''; };
 window.__panelOpen  = function () { return panel().classList.contains('is-open'); };
 window.__panelKlasy = function () { return panel().className; };
 
+/** Stan na KORZENIU — tym językiem mówi Bricks o otwartym elemencie. */
+window.__rootKlasy = function () { return document.getElementById('root').className; };
+window.__rootBrx   = function () {
+  return document.getElementById('root').classList.contains('brx-open');
+};
+
 window.__op = function (id) {
   return +parseFloat(getComputedStyle(document.getElementById(id)).opacity).toFixed(2);
 };
