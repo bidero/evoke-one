@@ -65,6 +65,24 @@ module.exports = async function (t) {
     php.lenisOnDisk && php.lenisBytes > 2000,
     php.lenisOnDisk ? Math.round(php.lenisBytes / 1024) + ' KB' : 'BRAK');
 
+  // ── Mapy źródeł jadą razem z plikami ───────────────────────────────────
+  // Zminifikowany plik potrafi kończyć się komentarzem `sourceMappingURL`.
+  // Przeglądarka pyta o wskazany plik za każdym razem, gdy ktoś otworzy
+  // narzędzia deweloperskie — i dostaje 404, jeśli mapy nie ma obok.
+  // Odwiedzającemu to nie szkodzi, bo mapy nie pobiera nikt z zamkniętą
+  // konsolą, ale właścicielowi strony wisi w niej czerwony błąd bez związku
+  // z niczym. Zgłoszone z Safari po przeniesieniu Lenisa na własny serwer.
+  //
+  // Sprawdzamy REGUŁĘ, nie konkretny plik: dzisiaj o mapę prosi tylko Lenis,
+  // ale kolejne wydanie GSAP-a może dołożyć ten komentarz i nikt by tego nie
+  // zauważył aż do czyjejś konsoli.
+  t.section('mapy źródeł nie zostawiają 404 w konsoli');
+
+  const sierotki = php.maps.filter((m) => !m.obok);
+  t.check('każdy plik proszący o mapę ma ją obok siebie', sierotki.length === 0,
+    sierotki.length ? sierotki.map((m) => m.plik + ' → ' + m.mapa).join(', ')
+                    : php.maps.map((m) => m.plik).join(', ') || 'żaden nie prosi');
+
   // ── Adres katalogu dla loaderów awaryjnych ─────────────────────────────
   // Marquee i Horizontal Scroll dociągają GSAP-a same, gdy go nie zastaną.
   // Bez tej globalnej nie miałyby skąd wziąć adresu po odcięciu CDN-u.

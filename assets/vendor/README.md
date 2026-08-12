@@ -41,7 +41,8 @@ przeglądarki zostaną przy starym pliku.
 
 ```sh
 npm install lenis@latest
-cp node_modules/lenis/dist/lenis.min.js assets/vendor/lenis/
+cp node_modules/lenis/dist/lenis.min.js     assets/vendor/lenis/
+cp node_modules/lenis/dist/lenis.min.js.map assets/vendor/lenis/
 ```
 
 Potem **zmień `EVK_LENIS_VERSION`** w `includes/96-lenis.php` — i sprawdź, czy

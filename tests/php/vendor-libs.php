@@ -68,6 +68,31 @@ foreach (glob(EVK_TEST_ROOT . '/assets/js/*.js') as $file) {
     }
 }
 
+/*
+ * Mapy źródeł, o które proszą zapakowane pliki.
+ *
+ * Zminifikowany plik potrafi kończyć się komentarzem `sourceMappingURL=...`.
+ * Przeglądarka pyta o ten plik ZA KAŻDYM RAZEM, gdy ktoś otworzy narzędzia
+ * deweloperskie — i dostaje 404, jeśli mapy nie ma obok. Odwiedzającemu to nie
+ * szkodzi (mapy nie pobiera nikt z zamkniętą konsolą), ale w konsoli właściciela
+ * strony wisi czerwony błąd bez związku z niczym. Zgłoszone z Safari po
+ * przeniesieniu Lenisa na własny serwer.
+ *
+ * Mapy NIE wycinamy z pliku: to znaczyłoby modyfikowanie cudzej dystrybucji,
+ * a wtedy przy każdym podbiciu wersji trzeba by o tym pamiętać. Taniej dołożyć
+ * plik obok.
+ */
+$maps = [];
+foreach (array_merge(glob(EVK_TEST_ROOT . '/assets/vendor/gsap/*.js'),
+                     glob(EVK_TEST_ROOT . '/assets/vendor/lenis/*.js')) as $file) {
+    if (!preg_match('#sourceMappingURL=([^\s*]+)#', file_get_contents($file), $m)) continue;
+    $maps[] = [
+        'plik'   => basename($file),
+        'mapa'   => $m[1],
+        'obok'   => is_file(dirname($file) . '/' . $m[1]),
+    ];
+}
+
 // Zależności marquee. Element używa I Observera (prędkość przewijania),
 // I ScrollTriggera (zatrzymanie poza kadrem) — brak tego drugiego wpuszczał
 // loader awaryjny do gry na KAŻDEJ stronie z marquee.
@@ -84,5 +109,6 @@ echo json_encode([
     // Adres katalogu wystawiony na stronie dla loaderów awaryjnych.
     'inline'      => $GLOBALS['inline'],
     'cdnHits'     => $cdnHits,
+    'maps'        => $maps,
     'marqueeDeps' => isset($mq[1]) ? $mq[1] : '',
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";

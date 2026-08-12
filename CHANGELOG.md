@@ -2,6 +2,23 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.72.1] — 2026-08-12
+
+### Naprawione
+
+- **404 na `lenis.min.js.map` w konsoli.** Zminifikowany Lenis kończy się
+  komentarzem `sourceMappingURL`, więc przeglądarka pyta o mapę źródeł za
+  każdym razem, gdy ktoś otworzy narzędzia deweloperskie. Z unpkg mapa leżała
+  obok pliku; przy przenoszeniu na własny serwer wzięliśmy sam skrypt.
+  Odwiedzającym to nie szkodziło — mapy nie pobiera nikt z zamkniętą konsolą —
+  ale właścicielowi strony wisiał w niej czerwony błąd bez związku z niczym.
+
+  Mapa jedzie teraz razem z plikiem. NIE wycinamy komentarza z dystrybucji:
+  to znaczyłoby modyfikowanie cudzego wydania i pamiętanie o tym przy każdym
+  podbiciu wersji. Z plików GSAP-a o mapę nie prosi żaden, więc dotyczyło to
+  wyłącznie Lenisa — ale test pilnuje REGUŁY, nie tego jednego pliku, bo
+  kolejne wydanie może ten komentarz dołożyć.
+
 ## [1.72.0] — 2026-08-12
 
 ### Zmienione
