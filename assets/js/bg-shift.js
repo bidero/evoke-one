@@ -20,6 +20,10 @@
      krawędź nadchodzącej sekcji dotyka dołu okna — wartość zahardkodowana
      do 1.53.0. Mniej znaczy „przełącz później, gdy sekcja będzie już wyżej". */
   var START    = typeof CFG.start === 'number' ? CFG.start : 100;
+  /* Dwa kolory, spośród których automat wybiera kolor liter dla sekcji bez
+     własnego. Patrz pickText(). */
+  var T_LIGHT  = CFG.textLight || '#ffffff';
+  var T_DARK   = CFG.textDark  || '#111111';
 
   var sections = [];
   var layer    = null;
@@ -45,6 +49,66 @@
     if (!m) return false;
     var parts = m[1].split(',');
     return parts.length > 3 && parseFloat(parts[3]) === 0;
+  }
+
+  /**
+   * Rozwinięcie dowolnego zapisu koloru do `rgb()`.
+   *
+   * Kontrolka koloru Bricks potrafi przysłać heks, `rgba(...)` albo `var(--marka)`
+   * (kolor globalny). GSAP umie interpolować tylko konkretne wartości, a `var()`
+   * konkretną wartością nie jest — więc przepuszczamy je przez warstwę
+   * i odczytujemy z powrotem. Warstwa nadaje się do tego lepiej niż nowy element:
+   * już istnieje, siedzi w `<body>`, więc dziedziczy te same zmienne CSS co
+   * sekcje, i nic na niej nie widać (jest pusta i `aria-hidden`).
+   */
+  function resolveColor(raw) {
+    if (!raw) return '';
+    var keep = layer.style.color;
+    layer.style.color = '';
+    layer.style.color = raw;
+    var out = getComputedStyle(layer).color;
+    layer.style.color = keep;
+    return out;
+  }
+
+  /** Składowa luminancji względnej wg sRGB (WCAG). */
+  function channel(v) {
+    v /= 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  }
+
+  function luminance(color) {
+    var m = /rgba?\(([^)]+)\)/.exec(color || '');
+    if (!m) return 0;
+    var p = m[1].split(',');
+    return 0.2126 * channel(parseFloat(p[0]))
+         + 0.7152 * channel(parseFloat(p[1]))
+         + 0.0722 * channel(parseFloat(p[2]));
+  }
+
+  function contrast(a, b) {
+    var la = luminance(a), lb = luminance(b);
+    var hi = Math.max(la, lb), lo = Math.min(la, lb);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  /**
+   * Automat: który z dwóch kolorów globalnych czyta się lepiej na tym tle.
+   *
+   * Wybór po KONTRAŚCIE, nie po progu jasności. Próg (np. „luminancja > 0,5 →
+   * ciemne litery") zakłada, że oba kolory są skrajne; przy parze w rodzaju
+   * kremowy/grafitowy albo przy tle o pośredniej jasności potrafi wskazać ten
+   * gorszy. Porównanie kontrastu odpowiada wprost na pytanie, które zadajemy.
+   */
+  function pickText(bg) {
+    var light = resolveColor(T_LIGHT);
+    var dark  = resolveColor(T_DARK);
+    return contrast(bg, light) >= contrast(bg, dark) ? light : dark;
+  }
+
+  /** Zapis koloru liter — jedna wartość na cały dokument, zasięg robi CSS. */
+  function setText(color) {
+    document.documentElement.style.setProperty('--evk-bg-text', color);
   }
 
   /**
@@ -125,15 +189,28 @@
         console.warn('[EVK Tło] Sekcja nie ma własnego koloru tła — pomijam.', el);
         return;
       }
-      usable.push({ el: el, color: colors[i] });
+      /* Kolor liter: wskazany kontrolką przy sekcji, a gdy jej nie wypełniono —
+         dobrany z jasności tła. Pusty atrybut znaczy „automat" tak samo, jak
+         pusty `data-evk-bg` znaczy „wartość globalna" — jedna konwencja dla
+         obu pól. */
+      var raw = el.getAttribute('data-evk-bg-text');
+      usable.push({
+        el:    el,
+        color: colors[i],
+        text:  raw ? resolveColor(raw) : pickText(colors[i]),
+      });
     });
 
     if (usable.length < 2) {
-      if (usable.length === 1) gsap.set(layer, { backgroundColor: usable[0].color });
+      if (usable.length === 1) {
+        gsap.set(layer, { backgroundColor: usable[0].color, color: usable[0].text });
+        setText(usable[0].text);
+      }
       return;
     }
 
-    gsap.set(layer, { backgroundColor: usable[0].color });
+    gsap.set(layer, { backgroundColor: usable[0].color, color: usable[0].text });
+    setText(usable[0].text);
 
     for (var i = 0; i < usable.length - 1; i++) {
       var from = usable[i].color;
@@ -146,25 +223,46 @@
       // strony bez nadpisania zachowują się co do piksela tak jak wcześniej.
       var begPct = startPct(next);
       var endPct = Math.round(clampPct(begPct - LENGTH * 100));
+      var textFrom = usable[i].text;
+      var textTo   = usable[i + 1].text;
 
       if (reduced()) {
         // Bez przewijania koloru — przeskok w punkcie, w którym przejście
         // i tak by się kończyło. Przy domyślnych (początek 100, długość 0,5)
         // wypada to na 50%, czyli dokładnie tam, gdzie stało twarde
         // 'top center' — uogólnienie, nie przestawienie.
+        // Litery przeskakują razem z tłem — w tym samym punkcie i tym samym
+        // wywołaniem. Rozdzielenie ich dałoby moment, w którym stary kolor
+        // liter leży już na nowym tle, czyli dokładnie to, przed czym ta
+        // funkcja ma chronić.
+        var jump = function (bg, txt) {
+          return function () {
+            gsap.set(layer, { backgroundColor: bg, color: txt });
+            setText(txt);
+          };
+        };
         triggers.push(ScrollTrigger.create({
           trigger: next,
           start: 'top ' + endPct + '%',
-          onEnter:     (function (c) { return function () { gsap.set(layer, { backgroundColor: c }); }; })(to),
-          onLeaveBack: (function (c) { return function () { gsap.set(layer, { backgroundColor: c }); }; })(from),
+          onEnter:     jump(to, textTo),
+          onLeaveBack: jump(from, textFrom),
         }));
         continue;
       }
 
+      /* JEDEN tween, dwie właściwości — i to jest cała gwarancja, że kolor
+         liter nie rozjedzie się z tłem. Osobny tween znaczyłby drugie okno
+         i drugą krzywą, które da się przestawić niezależnie; tu nie ma czego
+         przestawiać. `color` warstwy nic nie maluje (jest pusta), służy
+         wyłącznie za interpolator: GSAP zapisuje go inline, a onUpdate
+         przepisuje do zmiennej. Czytamy `style.color`, nie getComputedStyle —
+         to odczyt bez przeliczania układu, a leci co klatkę. */
       var tl = gsap.fromTo(layer,
-        { backgroundColor: from },
+        { backgroundColor: from, color: textFrom },
         {
           backgroundColor: to,
+          color: textTo,
+          onUpdate: function () { setText(layer.style.color); },
           ease: 'none',
           // Bez tego GSAP nałożyłby stan „from" od razu przy budowie i ostatnia
           // zbudowana para wygrałaby kolor startowy dla całej strony.

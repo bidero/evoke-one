@@ -434,7 +434,50 @@ function evk_bricks_bgshift_controls(array $controls): array {
         'required'    => ['evkBgShift', '=', true],
     ];
 
+    /*
+     * Kolor liter dla TEJ sekcji.
+     *
+     * Puste pole znaczy „dobierz sam z jasności tła" — ta sama konwencja, co
+     * przy początku przejścia wyżej, gdzie puste znaczy „wartość globalna".
+     * Dzięki temu wstawienie sekcji nie wymaga ustawiania niczego, a tam, gdzie
+     * automat trafi nie tak, da się go nadpisać.
+     */
+    $controls['evkBgShiftText'] = [
+        'tab'         => evk_bricks_controls_tab(),
+        'group'       => evk_bricks_target_group(),
+        'label'       => esc_html__('Kolor liter', 'evoke-one'),
+        'type'        => 'color',
+        'description' => esc_html__(
+            'Kolor tekstu, gdy tło jest na tej sekcji — przenika razem z tłem. '
+            . 'PUSTE = dobierany automatycznie z jasności tła, spośród dwóch kolorów '
+            . 'z panelu (Frontend → Tło przy scrollu). '
+            . 'Kolor schodzi dziedziczeniem, więc element z własnym kolorem ustawionym '
+            . 'w builderze zostanie nietknięty — jeśli ma mimo to podążać za tłem, '
+            . 'dodaj mu klasę evk-bg-text.',
+            'evoke-one'
+        ),
+        'required'    => ['evkBgShift', '=', true],
+    ];
+
     return $controls;
+}
+
+/**
+ * Wartość z kontrolki koloru Bricks jako jeden łańcuch.
+ *
+ * Kontrolka niesie tablicę i nie zawsze te same klucze: `raw` przy kolorze
+ * globalnym (`var(--marka)`), `rgb` przy wybranym z przezroczystością, `hex`
+ * przy zwykłym. Kolejność ma znaczenie — `raw` jest najbliżej tego, co wybrał
+ * użytkownik, i jako jedyny zachowuje powiązanie z kolorem globalnym, które
+ * przy zmianie motywu ma się przeliczyć.
+ */
+function evk_bricks_color_value($color): string {
+    if (is_string($color)) return trim($color);
+    if (!is_array($color)) return '';
+    foreach (['raw', 'rgb', 'hex'] as $k) {
+        if (!empty($color[$k]) && is_string($color[$k])) return trim($color[$k]);
+    }
+    return '';
 }
 
 function evk_bricks_parallax_controls(array $controls): array {
@@ -628,6 +671,15 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
             $bg_start = (string) max(0, min(200, intval($s['evkBgShiftStart'])));
         }
         $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-bg', $bg_start);
+
+        /* Kolor liter — atrybut powstaje TYLKO gdy kontrolka jest wypełniona.
+           Pusty atrybut nie znaczy tu „wartość globalna" jak przy początku
+           przejścia, tylko byłby kolorem pustym; brak atrybutu to sygnał
+           „dobierz z jasności tła", a to jest zachowanie domyślne. */
+        $text = evk_bricks_color_value($s['evkBgShiftText'] ?? null);
+        if ($text !== '' && !evk_bricks_attr_declared($s, 'data-evk-bg-text')) {
+            $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-bg-text', $text);
+        }
     }
 
     // ── Parallax ──────────────────────────────────────────────────────────

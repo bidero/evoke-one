@@ -44,4 +44,8 @@ echo json_encode([
     // „wartość globalna", więc rozróżnienie pusty/brak musi zostać.
     'bg'   => array_key_exists('data-evk-bg', $out['_root'])
         ? (string) ($out['_root']['data-evk-bg'][0] ?? '') : null,
+    // Brak atrybutu to sygnał „dobierz kolor liter z jasności tła", więc
+    // rozróżnienie brak/pusty musi tu zostać tak samo jak wyżej.
+    'bgText' => array_key_exists('data-evk-bg-text', $out['_root'])
+        ? (string) ($out['_root']['data-evk-bg-text'][0] ?? '') : null,
 ], JSON_UNESCAPED_UNICODE), "\n";

@@ -12,13 +12,18 @@
   #s3 { background-color: rgb(180, 40, 60); }
   #s4 { background-image: linear-gradient(#333, #777); }   /* bez własnego koloru — do pominięcia */
   #s5 { background-color: #f0e6d2; color: #222; }
+  /* Kolor ustawiony „w builderze" — dziedziczenie go nie przebije. */
+  #own, #own-follow { color: rgb(255, 0, 255); }
   :root[data-theme="dark"] #s1 { background-color: #12161d; }
   :root[data-theme="dark"] #s5 { background-color: #1a1512; }
 </style>
 
-<section id="s1" data-evk-bg>1</section>
+<section id="s1" data-evk-bg>1
+  <span id="own">własny kolor</span>
+  <span id="own-follow" class="evk-bg-text">własny, ale podąża</span>
+</section>
 <section id="s2" data-evk-bg>2 — kolor globalny</section>
-<section id="s3" data-evk-bg>3</section>
+<section id="s3" data-evk-bg data-evk-bg-text="rgb(0, 200, 0)">3 — jawny kolor liter</section>
 <section id="s4" data-evk-bg>4 — gradient, do pominięcia</section>
 <section id="s5" data-evk-bg>5</section>
 
@@ -54,6 +59,21 @@
     h.setAttribute('data-theme', mode);
     if (mode === 'dark') h.classList.add('dark'); else h.classList.remove('dark');
     document.dispatchEvent(new CustomEvent('evk:theme-change', { detail: { mode: mode } }));
+  };
+
+  /** Kolor liter: zmienna na <html> i to, co realnie widać na sekcjach.
+   *
+   *  Mierzymy OBA, bo każde z osobna kłamie: sama zmienna nie mówi, czy
+   *  dotarła do sekcji (a zasięg jest tu połową funkcji), a sam kolor sekcji
+   *  nie odróżnia „silnik ustawił" od „tak było w arkuszu". */
+  window.__text = function () {
+    var cs = function (id) { return getComputedStyle(document.getElementById(id)).color; };
+    return {
+      zmienna: getComputedStyle(document.documentElement).getPropertyValue('--evk-bg-text').trim(),
+      s1: cs('s1'), s3: cs('s3'), s4: cs('s4'), s5: cs('s5'),
+      wlasny:  cs('own'),
+      furtka:  cs('own-follow'),
+    };
   };
   window.__m = function () {
     var l = document.querySelector('.evk-bg-layer');

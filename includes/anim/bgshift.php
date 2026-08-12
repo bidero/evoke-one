@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) exit;
  */
 
 /** Wersja asetów modułu — osobna od wersji wtyczki, żeby cache-buster był celny. */
-const EVK_BGSHIFT_VERSION = '1.0.1';
+const EVK_BGSHIFT_VERSION = '1.1.0';
 
 class EVK_Bg_Shift {
 
@@ -32,6 +32,11 @@ class EVK_Bg_Shift {
         // krawędź nadchodzącej sekcji dotyka dołu okna — wartość zahardkodowana
         // w silniku do 1.53.0, więc domyślna zachowuje dotychczasowy wygląd.
         'start'   => 100,
+        // Dwa kolory, spośród których AUTOMAT wybiera kolor liter, gdy sekcja
+        // nie ma własnego. Wybór idzie po kontraście wobec tła, nie po progu
+        // jasności — przy tłach pośrednich próg potrafi wskazać gorszy z dwóch.
+        'text_light' => '#ffffff',
+        'text_dark'  => '#111111',
     ];
 
     public static function get_instance(): self {
@@ -69,6 +74,10 @@ class EVK_Bg_Shift {
             // przełączyć tło ZAWCZASU. Poniżej 0 nie ma sensu: ScrollTrigger
             // dostałby punkt nad górną krawędzią okna, którego nigdy nie minie.
             'start'   => max(0,   min(200, intval($input['start'] ?? 100))),
+            // sanitize_hex_color() zwraca null przy śmieciach — wtedy wracamy
+            // do domyślnej, bo pusty kolor zostawiłby automat bez czego wybierać.
+            'text_light' => sanitize_hex_color($input['text_light'] ?? '') ?: '#ffffff',
+            'text_dark'  => sanitize_hex_color($input['text_dark']  ?? '') ?: '#111111',
         ];
     }
 
@@ -95,6 +104,24 @@ class EVK_Bg_Shift {
    przebić — kolor nie ginie, silnik odczytuje go przed zdjęciem tła. */
 .evk-bg-handoff {
     background-color: transparent !important;
+}
+/* Kolor liter jedzie razem z tłem.
+   Zmienną `--evk-bg-text` ustawia silnik na <html> — jedna wartość dla całej
+   strony, bo w danej chwili widać jedno tło. Zasięg ogranicza jednak SELEKTOR:
+   dostają ją tylko sekcje z włączonym tłem przy scrollu. Sekcja pominięta
+   (tło graficzne, gradient) traci `evk-bg-handoff` i tym samym wypada też
+   z przemalowywania liter — jedno i drugie z tego samego powodu.
+
+   `!important` z tego samego powodu co przy tle wyżej: Bricks maluje sekcję
+   regułą z klasy elementu i trzeba ją przebić.
+
+   Kolor schodzi DZIEDZICZENIEM, więc element z własnym kolorem ustawionym
+   w builderze zostanie nietknięty — i tak ma być, bo inaczej wtyczka
+   odbierałaby kontrolę nad typografią. Kto chce, żeby taki element mimo to
+   podążał za tłem, dokłada mu klasę `evk-bg-text`. */
+.evk-bg-handoff,
+.evk-bg-handoff .evk-bg-text {
+    color: var(--evk-bg-text, inherit) !important;
 }
 /* Zakładana wyłącznie na czas pomiaru koloru. Tryb ciemny dokłada na sekcje
    `transition: background-color`, a wtedy getComputedStyle zwraca wartość
@@ -124,6 +151,8 @@ class EVK_Bg_Shift {
             'length' => (float) $s['length'],
             'smooth' => (float) $s['smooth'],
             'start'  => (int)   $s['start'],
+            'textLight' => (string) $s['text_light'],
+            'textDark'  => (string) $s['text_dark'],
         ]) . ';', 'before');
     }
 }

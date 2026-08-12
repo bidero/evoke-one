@@ -72,6 +72,34 @@ if (!defined('ABSPATH')) exit;
 
                 </div>
 
+                <div class="evo-box">
+                    <h3>Kolor liter</h3>
+                    <p class="evo-desc" style="max-width:70ch;margin-top:0;">
+                        Litery przenikają razem z tłem, w tym samym oknie i tą samą krzywą.
+                        Kolor ustawiasz przy sekcji w builderze (<strong>Atrybuty → Evoke ONE →
+                        Kolor liter</strong>). Zostawiony pusty — a taki jest domyślnie —
+                        dobierany jest <strong>automatycznie</strong> z jasności tła sekcji,
+                        spośród tych dwóch kolorów. Wybór idzie po kontraście, nie po progu
+                        jasności, bo przy tłach pośrednich próg potrafi wskazać gorszy z dwóch.
+                    </p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">
+                        <div class="evo-field" style="margin-bottom:0;">
+                            <label>Litery na ciemnym tle</label>
+                            <input type="text" name="evk_bgshift[text_light]" value="<?php echo esc_attr($bg['text_light']); ?>" placeholder="#ffffff" class="evo-mono evo-w-hex">
+                        </div>
+                        <div class="evo-field" style="margin-bottom:0;">
+                            <label>Litery na jasnym tle</label>
+                            <input type="text" name="evk_bgshift[text_dark]" value="<?php echo esc_attr($bg['text_dark']); ?>" placeholder="#111111" class="evo-mono evo-w-hex">
+                        </div>
+                    </div>
+                    <p class="evo-desc" style="max-width:70ch;">
+                        Kolor schodzi na sekcję <strong>dziedziczeniem</strong>, więc element,
+                        który ma własny kolor ustawiony w builderze, zostanie nietknięty —
+                        inaczej wtyczka odbierałaby kontrolę nad typografią. Jeśli taki element
+                        ma mimo to podążać za tłem, dodaj mu klasę <code>evk-bg-text</code>.
+                    </p>
+                </div>
+
                 <div class="evo-save-bar">
                     <?php submit_button('Zapisz ustawienia', 'primary', 'submit', false); ?>
                 </div>

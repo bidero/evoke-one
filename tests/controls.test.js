@@ -191,4 +191,28 @@ module.exports = async function (t) {
   t.check('zero nie wypada jak puste',
     emit({ evkBgShift: true, evkBgShiftStart: '0' }).bg === '0',
     String(emit({ evkBgShift: true, evkBgShiftStart: '0' }).bg));
+
+  // ── Kolor liter przy sekcji ───────────────────────────────────────────
+  // Brak atrybutu jest tu SYGNAŁEM, nie brakiem: znaczy „dobierz z jasności
+  // tła". Pusty atrybut byłby czymś innym — pustym kolorem — więc atrybut
+  // powstaje wyłącznie przy wypełnionej kontrolce.
+  t.check('wypełniona kontrolka daje kolor liter',
+    emit({ evkBgShift: true, evkBgShiftText: { hex: '#00c800' } }).bgText === '#00c800',
+    String(emit({ evkBgShift: true, evkBgShiftText: { hex: '#00c800' } }).bgText));
+
+  t.check('pusta kontrolka NIE daje atrybutu (to znaczy „automat")',
+    emit({ evkBgShift: true }).bgText === null,
+    String(emit({ evkBgShift: true }).bgText));
+
+  // Kolor globalny Bricks przychodzi jako `raw` z `var(...)` i musi dojechać
+  // w tej postaci — rozwija go dopiero silnik, przez warstwę.
+  t.check('kolor globalny jedzie jako var()',
+    emit({ evkBgShift: true,
+           evkBgShiftText: { raw: 'var(--marka)', hex: '#000000' } }).bgText === 'var(--marka)',
+    String(emit({ evkBgShift: true, evkBgShiftText: { raw: 'var(--marka)' } }).bgText));
+
+  t.check('wklejony data-evk-bg-text wygrywa z kontrolką',
+    emit({ _attributes: [{ id: 'z', name: 'data-evk-bg-text', value: 'red' }],
+           evkBgShift: true, evkBgShiftText: { hex: '#00c800' } }).bgText === null,
+    'kontrolka milczy');
 };

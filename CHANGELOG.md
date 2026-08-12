@@ -2,6 +2,34 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.68.0] — 2026-08-11
+
+### Dodane
+
+- **Kolor liter przenika razem z tłem przy scrollu.** Moduł przewijał tło od
+  sekcji do sekcji i NIE DOTYKAŁ treści, więc na stronie z ciemnymi i jasnymi
+  sekcjami naprzemiennie litery zostawały w jednym kolorze i na części tła
+  przestawały być czytelne.
+
+  - **Kolor wskazujesz przy sekcji** — nowa kontrolka „Kolor liter" obok
+    włącznika tła. Zostawiony pusty (domyślnie) oznacza **automat**: silnik
+    dobiera jeden z dwóch kolorów z panelu (Frontend → Tło przy scrollu),
+    ten o **wyższym kontraście** wobec tła sekcji. Wybór po kontraście, nie po
+    progu jasności — próg zakłada, że oba kolory są skrajne, i przy tłach
+    pośrednich potrafi wskazać gorszy z dwóch.
+  - **Zasięg to sekcje z włączonym tłem**, nie cały dokument. Sekcja pominięta
+    (tło graficzne, gradient) traci `evk-bg-handoff`, więc wypada
+    i z przemalowywania liter — jedno i drugie z tego samego powodu.
+  - **Ruch jest jeden.** Kolor liter jedzie TYM SAMYM tweenem co tło, nie
+    osobnym: jedno okno, jedna krzywa, nic do rozjechania. Zmierzone —
+    postęp obu ruchów zgadza się co do setnej na całej długości przejścia.
+    Przy redukcji ruchu litery przeskakują razem z tłem, w tym samym punkcie.
+
+  Kolor schodzi na sekcję **dziedziczeniem**, więc element z własnym kolorem
+  ustawionym w builderze zostaje nietknięty — inaczej wtyczka odbierałaby
+  kontrolę nad typografią. Kto chce, żeby taki element mimo to podążał za
+  tłem, dodaje mu klasę `evk-bg-text`.
+
 ## [1.67.0] — 2026-08-11
 
 ### Dodane
