@@ -59,10 +59,24 @@ class Evk_Burger extends \Bricks\Element {
 	 */
 	public static function styles(): array {
 		return [
-			'cross' => [
-				'label' => esc_html__( 'Krzyżyk — trzy kreski', 'evoke-one' ),
-				'lines' => 3,
-			],
+			// ── Trzykreskowe ───────────────────────────────────────────────
+			'cross'     => [ 'label' => esc_html__( 'Krzyżyk — 3 kreski', 'evoke-one' ),     'lines' => 3 ],
+			'squeeze'   => [ 'label' => esc_html__( 'Ściśnięcie — 3 kreski', 'evoke-one' ),  'lines' => 3 ],
+			'collapse'  => [ 'label' => esc_html__( 'Złożenie — 3 kreski', 'evoke-one' ),    'lines' => 3 ],
+			'arrow'     => [ 'label' => esc_html__( 'Strzałka — 3 kreski', 'evoke-one' ),    'lines' => 3 ],
+			'plus'      => [ 'label' => esc_html__( 'Plus — 3 kreski', 'evoke-one' ),        'lines' => 3 ],
+			'stack'     => [ 'label' => esc_html__( 'Zsunięcie — 3 kreski', 'evoke-one' ),   'lines' => 3 ],
+
+			// ── Dwukreskowe ────────────────────────────────────────────────
+			// Ten sam „Odstęp między kreskami" daje w obu rodzinach TĘ SAMĄ
+			// przerwę — dwukreskowe rozsuwają się o połowę tego, co skrajne
+			// kreski trzykreskowych. Inaczej jedno ustawienie znaczyłoby dwie
+			// różne rzeczy zależnie od wybranego stylu.
+			'cross-2'   => [ 'label' => esc_html__( 'Krzyżyk — 2 kreski', 'evoke-one' ),     'lines' => 2 ],
+			'minus-2'   => [ 'label' => esc_html__( 'Minus — 2 kreski', 'evoke-one' ),       'lines' => 2 ],
+			'chevron-2' => [ 'label' => esc_html__( 'Daszek — 2 kreski', 'evoke-one' ),      'lines' => 2 ],
+			'plus-2'    => [ 'label' => esc_html__( 'Plus — 2 kreski', 'evoke-one' ),        'lines' => 2 ],
+			'slide-2'   => [ 'label' => esc_html__( 'Zjazd — 2 kreski', 'evoke-one' ),       'lines' => 2 ],
 		];
 	}
 
@@ -276,6 +290,24 @@ class Evk_Burger extends \Bricks\Element {
 			'options' => $easings,
 			'default' => '',
 			'inline'  => true,
+		];
+
+		$this->controls['openRotate'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Obrót po otwarciu', 'evoke-one' ),
+			'type'        => 'number',
+			'unit'        => 'deg',
+			'inline'      => true,
+			'css'         => [ [ 'property' => '--evk-burger-open-rotate', 'selector' => '' ] ],
+			'placeholder' => '0deg',
+			'description' => esc_html__(
+				'Obraca CAŁY rysunek przy otwarciu, niezależnie od tego, co robią same '
+				. 'kreski. To jest mnożnik listy stylów, a nie ozdoba: krzyżyk z obrotem 90° '
+				. 'to krzyżyk stojący, a daszek z obrotem 90° pokazuje w dół. Dzięki temu '
+				. 'lista nie puchnie o pozycje różniące się wyłącznie kierunkiem. '
+				. 'Wartości ujemne obracają w drugą stronę.',
+				'evoke-one'
+			),
 		];
 	}
 

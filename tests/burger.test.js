@@ -35,6 +35,28 @@ module.exports = async function (t) {
   t.check('i tyle samo wychodzi z rendera', php.plainLines === php.lines.cross,
     php.plainLines + ' kresek w znaczniku, ' + php.lines.cross + ' w tablicy');
 
+  /* To samo dla KAŻDEGO stylu, nie tylko domyślnego. Przy jednym sprawdzanym
+     pomyłka w nowym wpisie przechodziłaby bez śladu — a przy dokładaniu partii
+     stylów to najprawdopodobniejsza pomyłka, jaka może się zdarzyć. */
+  const zleKreski = php.styles.filter((k) => php.render[k].kresek !== php.lines[k]);
+  t.check('każdy styl renderuje tyle kresek, ile ma w rejestrze', zleKreski.length === 0,
+    zleKreski.length ? zleKreski.map((k) => k + ': ' + php.render[k].kresek
+      + ' zamiast ' + php.lines[k]).join(', ') : php.styles.length + ' stylów');
+  const zlaKlasa = php.styles.filter((k) => !php.render[k].klasa);
+  t.check('i niesie klasę swojego stylu', zlaKlasa.length === 0,
+    zlaKlasa.join(', ') || 'wszystkie');
+
+  // Obie rodziny są obsadzone — ścieżka dwukreskowa nie była dotąd przejechana
+  // ani razu, a to o nią prosiłeś obok trzykreskowych.
+  const trzy = php.styles.filter((k) => php.lines[k] === 3);
+  const dwie = php.styles.filter((k) => php.lines[k] === 2);
+  t.check('są style trzykreskowe i dwukreskowe',
+    trzy.length >= 5 && dwie.length >= 4,
+    trzy.length + ' trzykreskowych, ' + dwie.length + ' dwukreskowych');
+  t.check('i żaden nie ma innej liczby kresek',
+    php.styles.every((k) => php.lines[k] === 2 || php.lines[k] === 3),
+    JSON.stringify(php.lines));
+
   // Przycisk, nie div — i to nie jest kosmetyka: `<button>` jest fokusowalny
   // z klawiatury, reaguje na spację i Enter, i to jego znajduje toggleTarget()
   // w obu menu.
@@ -122,6 +144,195 @@ module.exports = async function (t) {
   t.check('otwarty: środkowa gaśnie', s1.opacity === 0, 'opacity ' + s1.opacity);
   t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
   await p.close();
+
+  // ── Każdy styl z rejestru NAPRAWDĘ się rusza ───────────────────────────
+  // To jest najważniejsze sprawdzenie tej partii, bo pilnuje obietnicy całej
+  // architektury: „nowy styl to wiersz w tablicy plus kilka reguł w arkuszu".
+  // Wiersz bez reguł renderuje się jako nieruchome kreski — wygląda jak działający
+  // burger, tylko nic nie robi. Bez tej pętli nikt by tego nie złapał.
+  //
+  // Lista stylów idzie Z PHP do fixture'a, więc galeria nie może rozjechać się
+  // z rejestrem: dopisanie stylu automatycznie dokłada mu pomiar.
+  t.section('każdy zarejestrowany styl zmienia się po otwarciu');
+
+  const gal = await t.open('burger.html', {
+    viewport: V, settle: 250,
+    query: 'dur=0ms&stroke=2px&gap=7px&styles=' + encodeURIComponent(php.galeria),
+  });
+
+  const nieruchome = [];
+  const zleLiczby  = [];
+  for (const styl of php.styles) {
+    const id = 's-' + styl;
+    const ile = await gal.evaluate((i) => window.__ile(i), id);
+    if (ile !== php.lines[styl]) zleLiczby.push(styl + ': ' + ile);
+
+    const zamk = await gal.evaluate((i) => window.__geo(i), id);
+    await gal.evaluate((i) => window.__ustawOtwarty(i, true), id);
+    await gal.waitForTimeout(30);
+    const otw = await gal.evaluate((i) => window.__geo(i), id);
+    await gal.evaluate((i) => window.__ustawOtwarty(i, false), id);
+
+    if (JSON.stringify(zamk) === JSON.stringify(otw)) nieruchome.push(styl);
+  }
+
+  t.check('żaden styl nie stoi w miejscu', nieruchome.length === 0,
+    nieruchome.length ? 'BEZ RUCHU: ' + nieruchome.join(', ')
+                      : php.styles.length + ' stylów, każdy się zmienia');
+  t.check('i każdy ma w kadrze tyle kresek, ile deklaruje', zleLiczby.length === 0,
+    zleLiczby.join(', ') || 'zgodne z rejestrem');
+  t.check('bez błędów JS w galerii', !gal.errors.length, gal.errors.join(' | ') || 'brak');
+
+  // ── Mechanika przedstawicieli ──────────────────────────────────────────
+  // Po jednym pomiarze na RODZAJ ruchu. Jedenaście kompletów geometrii to test,
+  // którego nikt nie przeczyta; te cztery pokrywają wszystko, co robi coś więcej
+  // niż obrót w miejscu.
+  t.section('mechanika: skracanie, plus, zsunięcie, daszek');
+
+  // Strzałka — to dla niej kreska musiała przestać być przypięta do OBU
+  // krawędzi. Bez poprawki bazy `width` nie robi nic i to sprawdzenie pada.
+  await gal.evaluate(() => window.__ustawOtwarty('s-arrow', true));
+  await gal.waitForTimeout(30);
+  const arr = await gal.evaluate(() => window.__geo('s-arrow'));
+  const bok = (await gal.evaluate(() => window.__pole('s-arrow'))).w;
+  t.check('strzałka: skrajne kreski są SKRÓCONE do połowy',
+    Math.abs(arr[0].szer - bok / 2) <= 1 && Math.abs(arr[2].szer - bok / 2) <= 1,
+    arr[0].szer + ' i ' + arr[2].szer + ' px z ' + bok);
+  t.check('strzałka: rozchylają się na przeciwne strony',
+    arr[0].kat === -45 && arr[2].kat === 45, arr[0].kat + '° / ' + arr[2].kat + '°');
+  t.check('strzałka: środkowa zostaje pełnym trzonem',
+    arr[1].szer === bok && arr[1].kat === 0, arr[1].szer + ' px, ' + arr[1].kat + '°');
+
+  // KONTROLA NEGATYWNA: styl, który NIE skraca, musi mieć kreski pełnej
+  // długości. Bez tej pary „kreska skrócona" przechodziłoby dla wszystkiego.
+  await gal.evaluate(() => window.__ustawOtwarty('s-cross', true));
+  await gal.waitForTimeout(30);
+  const cr = await gal.evaluate(() => window.__geo('s-cross'));
+  t.check('krzyżyk NIE skraca kresek — skracanie jest cechą stylu, nie bazy',
+    cr[0].szer === bok && cr[2].szer === bok, cr[0].szer + ' px z ' + bok);
+
+  // Plus: jedna kreska znika, dwie zostają prostopadle.
+  await gal.evaluate(() => window.__ustawOtwarty('s-plus', true));
+  await gal.waitForTimeout(30);
+  const pl = await gal.evaluate(() => window.__geo('s-plus'));
+  const widoczne = pl.filter((l) => l.opacity > 0);
+  t.check('plus: zostają dokładnie dwie widoczne kreski', widoczne.length === 2,
+    pl.map((l) => l.opacity).join(' / '));
+  t.check('plus: i są do siebie prostopadłe',
+    Math.abs(Math.abs(widoczne[0].kat - widoczne[1].kat) - 90) <= 1,
+    widoczne.map((l) => l.kat + '°').join(' / '));
+
+  // Zsunięcie i minus: kreski schodzą się w JEDNO miejsce w pionie.
+  for (const styl of [ 'stack', 'minus-2' ]) {
+    await gal.evaluate((i) => window.__ustawOtwarty(i, true), 's-' + styl);
+    await gal.waitForTimeout(30);
+    const g = await gal.evaluate((i) => window.__geo(i), 's-' + styl);
+    const srodki = g.map((l) => l.srodekY);
+    t.check('„' + styl + '": wszystkie kreski w jednej linii',
+      Math.max(...srodki) - Math.min(...srodki) <= 1, srodki.join(' / ') + ' px');
+  }
+
+  // Daszek: obie skrócone, kąty przeciwne, ostrza w jednym punkcie po prawej.
+  await gal.evaluate(() => window.__ustawOtwarty('s-chevron-2', true));
+  await gal.waitForTimeout(30);
+  const ch = await gal.evaluate(() => window.__geo('s-chevron-2'));
+  t.check('daszek: obie kreski skrócone', ch[0].szer < bok && ch[1].szer < bok,
+    ch[0].szer + ' / ' + ch[1].szer + ' px z ' + bok);
+  t.check('daszek: kąty przeciwne', ch[0].kat === -ch[1].kat && ch[0].kat !== 0,
+    ch[0].kat + '° / ' + ch[1].kat + '°');
+  t.check('daszek: ostrza schodzą się po prawej',
+    Math.abs(ch[0].prawy - ch[1].prawy) <= 2,
+    'prawe końce ' + ch[0].prawy + ' i ' + ch[1].prawy + ' px');
+  await gal.close();
+
+  /* Skrócona kreska trzyma się LEWEJ krawędzi w obu kierunkach pisma.
+     To jest prawdziwy powód, dla którego kreska jest przypięta przez
+     `left` + `width`, a nie `left` + `right` — i nie ten, który wpisałem
+     sobie w plan. Przy trzech podanych wartościach układ jest nadokreślony
+     i przeglądarka ignoruje JEDNĄ z nich, więc skracanie działa tak czy tak.
+     Ignorowana jest jednak ta od końca linijki pisma: przy `dir="rtl"`
+     wypada `left`, a strzałka przykleja się do prawej krawędzi. */
+  t.section('skrócone kreski nie zależą od kierunku pisma');
+
+  for (const kierunek of [ 'ltr', 'rtl' ]) {
+    const d = await t.open('burger.html', {
+      viewport: V, settle: 250, query: 'dur=0ms&dir=' + kierunek + '&styles=arrow:3',
+    });
+    await d.evaluate(() => window.__ustawOtwarty('s-arrow', true));
+    await d.waitForTimeout(60);
+    /* Tolerancja, bo prostokąt OBRÓCONEJ kreski wystaje o pół jej grubości
+       razy sinus kąta — przy 2 px to 0,7 px w lewo. Dwa piksele zostawiają to
+       w spokoju, a wciąż odróżniają przyklejenie do lewej (0) od prawej (100). */
+    t.check('„' + kierunek + '": ostrze strzałki przy LEWEJ krawędzi',
+      Math.abs(await d.evaluate(() => window.__lewaKreski('s-arrow', 0))) <= 2,
+      (await d.evaluate(() => window.__lewaKreski('s-arrow', 0))) + ' px od lewej');
+    await d.close();
+  }
+
+  // ── Złożenie jest DWUTAKTOWE ───────────────────────────────────────────
+  // Najpierw zjazd do środka, dopiero potem obrót. Jednej właściwości
+  // `transform` nie da się rozdzielić na dwa takty, więc zjazd idzie przez
+  // `top`, a obrót przez `transform` z opóźnieniem. Widać to WYŁĄCZNIE
+  // w trakcie przejścia — po jego końcu ten styl wygląda jak krzyżyk.
+  t.section('złożenie: najpierw zjazd, dopiero potem obrót');
+
+  const dw = await t.open('burger.html', {
+    viewport: V, settle: 250,
+    query: 'dur=400ms&stroke=2px&gap=7px&styles=collapse:3',
+  });
+
+  const przed = await dw.evaluate(() => window.__geo('s-collapse'));
+  await dw.evaluate(() => window.__ustawOtwarty('s-collapse', true));
+  await dw.waitForTimeout(150);
+  const wpol = await dw.evaluate(() => window.__geo('s-collapse'));
+
+  t.check('w połowie drogi kreski JUŻ zjeżdżają do środka',
+    wpol[0].top > przed[0].top && wpol[2].top < przed[2].top,
+    przed[0].top + '→' + wpol[0].top + ' px (górna), '
+      + przed[2].top + '→' + wpol[2].top + ' px (dolna)');
+  t.check('ale obrót jeszcze NIE ruszył', wpol[0].kat === 0 && wpol[2].kat === 0,
+    wpol[0].kat + '° / ' + wpol[2].kat + '°');
+
+  await dw.waitForTimeout(700);
+  const po = await dw.evaluate(() => window.__geo('s-collapse'));
+  t.check('a na końcu jest pełny krzyżyk', po[0].kat === 45 && po[2].kat === -45,
+    po[0].kat + '° / ' + po[2].kat + '°');
+  await dw.close();
+
+  // ── Obrót po otwarciu ──────────────────────────────────────────────────
+  // Mnożnik listy stylów: krzyżyk z obrotem 90° to krzyżyk stojący. Dzięki
+  // niemu lista nie puchnie o pozycje różniące się wyłącznie kierunkiem.
+  t.section('obrót po otwarciu mnoży style, zamiast dokładać pozycje');
+
+  const ob = await t.open('burger.html', {
+    viewport: V, settle: 250, query: 'dur=0ms&rotate=90deg&styles=cross:3',
+  });
+  t.check('zamknięty stoi prosto',
+    (await ob.evaluate(() => window.__obrotPudelka('s-cross'))) === 0,
+    (await ob.evaluate(() => window.__obrotPudelka('s-cross'))) + '°');
+
+  await ob.evaluate(() => window.__ustawOtwarty('s-cross', true));
+  await ob.waitForTimeout(60);
+  t.check('otwarty obraca CAŁY rysunek',
+    (await ob.evaluate(() => window.__obrotPudelka('s-cross'))) === 90,
+    (await ob.evaluate(() => window.__obrotPudelka('s-cross'))) + '°');
+  // Kreski robią swoje niezależnie — obrót pudełka się z nimi składa,
+  // a nie zastępuje ich ruchu.
+  t.check('a kreski i tak składają krzyżyk w środku',
+    (await ob.evaluate(() => window.__geo('s-cross')))[0].kat === 45,
+    (await ob.evaluate(() => window.__geo('s-cross')))[0].kat + '°');
+  await ob.close();
+
+  // KONTROLA NEGATYWNA: bez ustawienia rysunek stoi prosto także po otwarciu.
+  const nob = await t.open('burger.html', {
+    viewport: V, settle: 250, query: 'dur=0ms&styles=cross:3',
+  });
+  await nob.evaluate(() => window.__ustawOtwarty('s-cross', true));
+  await nob.waitForTimeout(60);
+  t.check('bez ustawienia rysunek się NIE obraca',
+    (await nob.evaluate(() => window.__obrotPudelka('s-cross'))) === 0,
+    (await nob.evaluate(() => window.__obrotPudelka('s-cross'))) + '°');
+  await nob.close();
 
   // ── Wszystko konfigurowalne ────────────────────────────────────────────
   // Zmienne CSS, a nie wartości wpisane w reguły — tylko dzięki temu Bricks

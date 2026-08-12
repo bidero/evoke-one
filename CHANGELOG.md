@@ -2,6 +2,43 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.77.0] — 2026-08-12
+
+### Dodane
+
+- **Burger: dziesięć nowych stylów, w dwóch rodzinach.** Razem jedenaście.
+
+  **Trzykreskowe:** krzyżyk *(był)*, ściśnięcie (środkowa zwęża się do zera
+  zamiast gasnąć), złożenie (najpierw zjazd do środka, dopiero potem obrót),
+  strzałka (skrajne skracają się o połowę, środkowa zostaje trzonem), plus,
+  zsunięcie (trzy kreski w jedną).
+
+  **Dwukreskowe:** krzyżyk, minus, daszek (obie skracają się i schodzą ostrzem
+  w prawo), plus, zjazd (górna wyjeżdża bokiem, dolna zostaje ukośnie).
+
+  Ten sam „Odstęp między kreskami" daje w OBU rodzinach tę samą przerwę —
+  dwukreskowe rozsuwają się o połowę tego, co skrajne kreski trzykreskowych.
+  Inaczej jedno ustawienie znaczyłoby dwie różne rzeczy zależnie od stylu.
+
+- **Kontrolka „Obrót po otwarciu"** — obraca cały rysunek niezależnie od tego,
+  co robią kreski. To mnożnik listy, nie ozdoba: krzyżyk z obrotem 90° to
+  krzyżyk stojący, daszek z obrotem 90° pokazuje w dół. Dzięki niej lista nie
+  puchnie o pozycje różniące się wyłącznie kierunkiem — zamiast czterech
+  „daszków" jest jeden i pole liczbowe.
+
+### Zmienione
+
+- **Kreska jest przypięta przez `left` + `width`, a nie `left` + `right`.**
+  Powód nie jest ten, który wydawał się oczywisty. Przypięcie do obu krawędzi
+  wcale NIE unieważnia `width`: przy trzech podanych wartościach układ jest
+  nadokreślony i przeglądarka po prostu ignoruje jedną — skracanie kresek
+  działało i tak (zmierzone).
+
+  Problem jest inny: ignorowana jest ta wartość, która odpowiada KOŃCOWI
+  linijki pisma. Przy `dir="rtl"` wypada `left`, więc skrócone ostrze strzałki
+  przyklejało się do PRAWEJ krawędzi zamiast do lewej — zmierzone, 21 px
+  zamiast 0. `left` + `width` daje ten sam wynik w obu kierunkach pisma.
+
 ## [1.76.0] — 2026-08-12
 
 ### Dodane

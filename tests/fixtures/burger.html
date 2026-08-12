@@ -1,4 +1,5 @@
-<!-- Parametry przez query: self (tryb samodzielny), dur, size, stroke, gap, kolory -->
+<!-- Parametry przez query: dur, size, stroke, gap, kolory, rotate
+     oraz `styles=klucz:kresek,...` — buduje po jednym burgerze na styl. -->
 <meta charset="utf-8">
 <style>
   * { box-sizing: border-box; }
@@ -12,6 +13,9 @@
 <script>
   var q = new URLSearchParams(location.search);
   window.bricksIsFrontend = true;
+  // Kierunek pisma — do sprawdzenia, czy skrócone kreski trzymają się tej samej
+  // krawędzi niezależnie od niego.
+  if (q.get('dir')) document.documentElement.setAttribute('dir', q.get('dir'));
 </script>
 
 <!-- Burger STEROWANY PRZEZ MENU — tak wygląda domyślne użycie. Znacznik jest
@@ -79,9 +83,37 @@
   </div>
 </div>
 
+<!-- Galeria stylów. Budowana Z LISTY PODANEJ PRZEZ TEST, a ta idzie wprost
+     z rejestru w PHP — dzięki temu nie da się jej rozjechać z kodem. Gdyby
+     fixture miał własną listę, dopisanie stylu w PHP zostawiłoby go bez
+     pomiaru i nikt by tego nie zauważył. -->
+<div id="galeria"></div>
+
 <div class="long">treść strony</div>
 
 <script>
+  // Galeria: `styles=cross:3,minus-2:2` → po jednym burgerze na styl.
+  (q.get('styles') || '').split(',').filter(Boolean).forEach(function (wpis) {
+    var czesci = wpis.split(':');
+    var styl   = czesci[0];
+    var kresek = parseInt(czesci[1], 10) || 3;
+    var b = document.createElement('button');
+    b.className = 'evk-burger evk-burger--' + styl;
+    b.id = 's-' + styl;
+    b.type = 'button';
+    b.setAttribute('aria-expanded', 'false');
+    b.setAttribute('aria-label', 'Menu');
+    var box = document.createElement('span');
+    box.className = 'evk-burger__box';
+    for (var i = 0; i < kresek; i++) {
+      var l = document.createElement('span');
+      l.className = 'evk-burger__line';
+      box.appendChild(l);
+    }
+    b.appendChild(box);
+    document.getElementById('galeria').appendChild(b);
+  });
+
   /* Ustawienia idą na WSZYSTKIE burgery, nie tylko na pierwszy. Przy czasie
      nałożonym na jeden pomiary na pozostałych trafiały w trwające przejście
      i wychodziły kąty pośrednie (18° zamiast 45°) — pomiar mówił wtedy
@@ -93,6 +125,7 @@
     b.style.setProperty('--evk-burger-time',   q.get('dur')    || '400ms');
     b.style.setProperty('--evk-burger-color',  q.get('color')  || 'rgb(0, 0, 0)');
     if (q.get('coloropen')) b.style.setProperty('--evk-burger-color-open', q.get('coloropen'));
+    if (q.get('rotate')) b.style.setProperty('--evk-burger-open-rotate', q.get('rotate'));
   });
 
   var root = document.getElementById('root');
@@ -149,6 +182,60 @@ window.__linia = function (id, i) {
 };
 
 window.__ile     = function (id) { return linie(id).length; };
+
+/**
+ * Pełna geometria WSZYSTKICH kresek jednego burgera.
+ *
+ * Do sprawdzenia generycznego „każdy styl naprawdę się rusza": porównujemy ten
+ * zrzut przed otwarciem i po nim i żądamy, żeby różnił się choć jedną wartością.
+ * Bez tego dopisanie stylu do rejestru bez reguł w arkuszu dałoby nieruchome
+ * kreski i nic by tego nie złapało.
+ */
+window.__geo = function (id) {
+  return linie(id).map(function (el) {
+    var m  = mat(el);
+    var cs = getComputedStyle(el);
+    var r  = el.getBoundingClientRect();
+    return {
+      kat:     Math.round(Math.atan2(m[1], m[0]) * 180 / Math.PI),
+      skalaX:  +Math.hypot(m[0], m[1]).toFixed(2),
+      tx:      Math.round(m[4]),
+      ty:      Math.round(m[5]),
+      opacity: +parseFloat(cs.opacity).toFixed(2),
+      szer:    Math.round(parseFloat(cs.width)),
+      top:     Math.round(parseFloat(cs.top)),
+      // Prawy koniec kreski na ekranie — po nim widać, czy ostrza się schodzą.
+      prawy:   Math.round(r.right),
+      srodekY: Math.round(r.top + r.height / 2),
+    };
+  });
+};
+
+/**
+ * Ustawia stan wprost klasą, z pominięciem kliknięcia.
+ *
+ * Burgery z galerii nie mają żadnego trybu przełączania — i tak ma być, bo
+ * mierzymy w nich ARKUSZ, a nie skrypt. Klasa `brx-open` jest jedynym wejściem,
+ * którego arkusz słucha, więc podanie jej wprost jest tu wierniejsze niż
+ * dorabianie im trybu tylko na potrzeby testu.
+ */
+window.__ustawOtwarty = function (id, otwarty) {
+  document.getElementById(id).classList.toggle('brx-open', otwarty);
+};
+
+/** Lewa krawędź kreski WZGLĘDEM pudełka — po niej widać, do czego przylega. */
+window.__lewaKreski = function (id, i) {
+  var el = linie(id)[i];
+  var box = el.parentElement.getBoundingClientRect();
+  return Math.round(el.getBoundingClientRect().left - box.left);
+};
+
+/** Obrót całego pudełka — kontrolka „Obrót po otwarciu". */
+window.__obrotPudelka = function (id) {
+  var box = document.getElementById(id).querySelector('.evk-burger__box');
+  var m = mat(box);
+  return Math.round(Math.atan2(m[1], m[0]) * 180 / Math.PI);
+};
 window.__aria    = function (id) { return document.getElementById(id).getAttribute('aria-expanded'); };
 window.__brx     = function (id) { return document.getElementById(id).classList.contains('brx-open'); };
 window.__klik    = function (id) { document.getElementById(id).click(); };

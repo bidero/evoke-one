@@ -22,6 +22,19 @@
     --evk-burger-color-open: var(--evk-burger-color);
     --evk-burger-time: 400ms;
     --evk-burger-ease: ease;
+    /* Obrót CAŁEGO rysunku przy otwarciu — mnożnik listy stylów. Krzyżyk
+       z obrotem 90° to krzyżyk stojący, daszek z obrotem 90° pokazuje w dół.
+       Bez tego lista puchłaby o pozycje różniące się wyłącznie kierunkiem. */
+    --evk-burger-open-rotate: 0deg;
+
+    /* Rozsunięcie skrajnych kresek od środka. Odstęp liczy się od KRAWĘDZI,
+       więc do przerwy trzeba dołożyć grubość — inaczej pogrubienie kresek
+       zjadałoby przerwę mimo niezmienionego ustawienia.
+       Dwukreskowe używają połowy tej wartości i dzięki temu to samo ustawienie
+       daje w obu rodzinach tę samą przerwę. */
+    --evk-burger-offset: calc(var(--evk-burger-gap) + var(--evk-burger-stroke));
+    /* Moment, w którym rusza drugi takt ruchów dwutaktowych (patrz „złożenie”). */
+    --evk-burger-beat: calc(var(--evk-burger-time) * 0.45);
 
     display: inline-flex;
     align-items: center;
@@ -41,26 +54,45 @@
     position: relative;
     width: var(--evk-burger-line-width);
     height: var(--evk-burger-size);
+    transition: transform var(--evk-burger-time) var(--evk-burger-ease);
+}
+
+.evk-burger.brx-open .evk-burger__box {
+    transform: rotate(var(--evk-burger-open-rotate));
 }
 
 .evk-burger__line {
     position: absolute;
+    /* `left` + `width`, a NIE `left` + `right`.
+       Uwaga na pozorne uzasadnienie: przypięcie do obu krawędzi wcale NIE
+       unieważnia `width`. Przy trzech podanych wartościach układ jest
+       nadokreślony i przeglądarka po prostu ignoruje jedną z nich — więc
+       skracanie kresek działałoby i tak. Zmierzone, żeby tego nie zgadywać.
+       Problem jest inny: ignorowana jest ta wartość, która odpowiada KOŃCOWI
+       linijki pisma. W układzie od prawej do lewej wypada `left`, a nie
+       `right` — i skrócona kreska strzałki przyklejałaby się do prawej
+       krawędzi zamiast do lewej. Zmierzone: 100 px zamiast 0.
+       `left` + `width` daje ten sam wynik w obu kierunkach pisma. */
     left: 0;
-    right: 0;
+    width: 100%;
     /* WSZYSTKIE kreski leżą na środku, a rozsuwa je dopiero `transform`.
        To nie jest sztuczka dla oszczędności linii: dzięki temu oś obrotu przy
        składaniu krzyżyka jest środkiem pudełka dla każdej kreski z osobna,
        więc nie trzeba jej przeliczać per kreska ani poprawiać przy zmianie
        odstępu. Kreski ustawione na `top`/`bottom` obracałyby się wokół
-       własnych pozycji i krzyżyk rozjeżdżałby się przy każdym innym odstępie. */
+       własnych pozycji i krzyżyk rozjeżdżałby się przy każdym innym odstępie.
+       Wyjątkiem jest „złożenie”, które celowo animuje `top` — patrz niżej. */
     top: calc(50% - var(--evk-burger-stroke) / 2);
     height: var(--evk-burger-stroke);
     border-radius: var(--evk-burger-radius);
     background: var(--evk-burger-color);
+    transform-origin: center center;
     transition:
         transform        var(--evk-burger-time) var(--evk-burger-ease),
         opacity          var(--evk-burger-time) var(--evk-burger-ease),
-        background-color var(--evk-burger-time) var(--evk-burger-ease);
+        background-color var(--evk-burger-time) var(--evk-burger-ease),
+        width            var(--evk-burger-time) var(--evk-burger-ease),
+        top              var(--evk-burger-time) var(--evk-burger-ease);
 }
 
 .evk-burger.brx-open .evk-burger__line {
@@ -73,22 +105,159 @@
    Znacznik nakłada burger.js, a nie `@media (prefers-reduced-motion)`, bo
    polityka ruchu tej wtyczki ma jeszcze własny przełącznik w panelu
    (patrz includes/anim/motion.php) i sam media query by go pominął. */
-.evk-burger[data-evk-still] .evk-burger__line {
+.evk-burger[data-evk-still] .evk-burger__line,
+.evk-burger[data-evk-still] .evk-burger__box {
     transition-duration: 0s;
 }
 
-/* ── Krzyżyk — trzy kreski ─────────────────────────────────────────────
+/* ══ TRZYKRESKOWE ══════════════════════════════════════════════════════
  *
- * Skrajne rozsunięte o odstęp plus grubość (żeby „odstęp" znaczył przerwę
- * między kreskami, a nie rozstaw ich środków), środkowa gaśnie.
+ * Stan zamknięty jest dla nich wspólny: skrajne rozsunięte o `--evk-burger-offset`
+ * w górę i w dół, środkowa na środku. Style różnią się WYŁĄCZNIE tym, co robią
+ * po otwarciu — dlatego pozycja spoczynkowa stoi w jednej regule dla wszystkich,
+ * a nie w każdym stylu z osobna.
  */
-.evk-burger--cross .evk-burger__line:nth-child(1) {
-    transform: translateY(calc(-1 * (var(--evk-burger-gap) + var(--evk-burger-stroke))));
+.evk-burger--cross    .evk-burger__line:nth-child(1),
+.evk-burger--squeeze  .evk-burger__line:nth-child(1),
+.evk-burger--arrow    .evk-burger__line:nth-child(1),
+.evk-burger--plus     .evk-burger__line:nth-child(1),
+.evk-burger--stack    .evk-burger__line:nth-child(1) {
+    transform: translateY(calc(-1 * var(--evk-burger-offset)));
 }
-.evk-burger--cross .evk-burger__line:nth-child(3) {
-    transform: translateY(calc(var(--evk-burger-gap) + var(--evk-burger-stroke)));
+.evk-burger--cross    .evk-burger__line:nth-child(3),
+.evk-burger--squeeze  .evk-burger__line:nth-child(3),
+.evk-burger--arrow    .evk-burger__line:nth-child(3),
+.evk-burger--plus     .evk-burger__line:nth-child(3),
+.evk-burger--stack    .evk-burger__line:nth-child(3) {
+    transform: translateY(var(--evk-burger-offset));
 }
 
+/* ── Krzyżyk: skrajne krzyżują się w środku, środkowa gaśnie ─────────── */
 .evk-burger--cross.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
 .evk-burger--cross.brx-open .evk-burger__line:nth-child(2) { opacity: 0; }
 .evk-burger--cross.brx-open .evk-burger__line:nth-child(3) { transform: rotate(-45deg); }
+
+/* ── Ściśnięcie: środkowa nie gaśnie, tylko ZWĘŻA SIĘ do zera ─────────
+ * Różnica wobec krzyżyka jest w tym, jak znika ta jedna kreska: gaśnięcie
+ * wygląda na wyblaknięcie, ściśnięcie na wciągnięcie do środka.
+ */
+.evk-burger--squeeze.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
+.evk-burger--squeeze.brx-open .evk-burger__line:nth-child(2) { transform: scaleX(0); }
+.evk-burger--squeeze.brx-open .evk-burger__line:nth-child(3) { transform: rotate(-45deg); }
+
+/* ── Złożenie: ruch DWUTAKTOWY ────────────────────────────────────────
+ *
+ * Najpierw kreski zbiegają się do środka, dopiero potem skrajne rozchylają się
+ * w krzyżyk. Jednej właściwości `transform` nie da się rozdzielić na dwa takty,
+ * więc zjazd idzie przez `top`, a obrót przez `transform` z opóźnieniem —
+ * i to jest jedyny styl, w którym kreski nie stoją na środku od początku.
+ */
+.evk-burger--collapse .evk-burger__line:nth-child(1) {
+    top: calc(50% - var(--evk-burger-stroke) / 2 - var(--evk-burger-offset));
+}
+.evk-burger--collapse .evk-burger__line:nth-child(3) {
+    top: calc(50% - var(--evk-burger-stroke) / 2 + var(--evk-burger-offset));
+}
+.evk-burger--collapse.brx-open .evk-burger__line {
+    top: calc(50% - var(--evk-burger-stroke) / 2);
+}
+/* Opóźnienie WYŁĄCZNIE dla obrotu. Jedna wartość w `transition-delay`
+   dotyczy WSZYSTKICH właściwości ze skrótu, więc czekałby też zjazd i ruch
+   przestawał być dwutaktowy — wyglądałby jak zwykły krzyżyk z zadyszką.
+   Lista musi trzymać kolejność z bazy: transform, opacity, background-color,
+   width, top. */
+.evk-burger--collapse.brx-open .evk-burger__line:nth-child(1) {
+    transform: rotate(45deg);
+    transition-delay: var(--evk-burger-beat), 0s, 0s, 0s, 0s;
+}
+.evk-burger--collapse.brx-open .evk-burger__line:nth-child(2) { opacity: 0; }
+.evk-burger--collapse.brx-open .evk-burger__line:nth-child(3) {
+    transform: rotate(-45deg);
+    transition-delay: var(--evk-burger-beat), 0s, 0s, 0s, 0s;
+}
+
+/* ── Strzałka: skrajne SKRACAJĄ SIĘ i obracają przy lewej krawędzi ────
+ *
+ * Środkowa zostaje trzonem, dwie krótkie tworzą ostrze — całość pokazuje
+ * w lewo. To jest ten styl, dla którego kreska musiała przestać być przypięta
+ * do obu krawędzi.
+ *
+ * `transform-origin` ustawiony w OBU stanach, nie tylko w otwartym: przełączany
+ * w połowie drogi przesuwałby kreskę skokowo w chwili startu obrotu.
+ */
+.evk-burger--arrow .evk-burger__line { transform-origin: left center; }
+.evk-burger--arrow.brx-open .evk-burger__line:nth-child(1) {
+    width: 50%;
+    transform: rotate(-45deg);
+}
+.evk-burger--arrow.brx-open .evk-burger__line:nth-child(3) {
+    width: 50%;
+    transform: rotate(45deg);
+}
+
+/* ── Plus: górna gaśnie, dolna staje pionowo ─────────────────────────── */
+.evk-burger--plus.brx-open .evk-burger__line:nth-child(1) { opacity: 0; }
+.evk-burger--plus.brx-open .evk-burger__line:nth-child(3) { transform: rotate(90deg); }
+
+/* ── Zsunięcie: trzy kreski zbiegają się w jedną ─────────────────────── */
+.evk-burger--stack.brx-open .evk-burger__line:nth-child(1),
+.evk-burger--stack.brx-open .evk-burger__line:nth-child(3) {
+    transform: translateY(0);
+}
+
+/* ══ DWUKRESKOWE ═══════════════════════════════════════════════════════
+ *
+ * Rozsunięte o POŁOWĘ tego, co skrajne kreski trzykreskowych — dzięki temu ten
+ * sam „Odstęp między kreskami" daje w obu rodzinach tę samą przerwę. Bez tego
+ * jedno ustawienie znaczyłoby dwie różne rzeczy zależnie od wybranego stylu.
+ */
+.evk-burger--cross-2   .evk-burger__line:nth-child(1),
+.evk-burger--minus-2   .evk-burger__line:nth-child(1),
+.evk-burger--chevron-2 .evk-burger__line:nth-child(1),
+.evk-burger--plus-2    .evk-burger__line:nth-child(1),
+.evk-burger--slide-2   .evk-burger__line:nth-child(1) {
+    transform: translateY(calc(-1 * var(--evk-burger-offset) / 2));
+}
+.evk-burger--cross-2   .evk-burger__line:nth-child(2),
+.evk-burger--minus-2   .evk-burger__line:nth-child(2),
+.evk-burger--chevron-2 .evk-burger__line:nth-child(2),
+.evk-burger--plus-2    .evk-burger__line:nth-child(2),
+.evk-burger--slide-2   .evk-burger__line:nth-child(2) {
+    transform: translateY(calc(var(--evk-burger-offset) / 2));
+}
+
+/* ── Krzyżyk z dwóch kresek ──────────────────────────────────────────── */
+.evk-burger--cross-2.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
+.evk-burger--cross-2.brx-open .evk-burger__line:nth-child(2) { transform: rotate(-45deg); }
+
+/* ── Minus: obie zbiegają się w jedną kreskę ─────────────────────────── */
+.evk-burger--minus-2.brx-open .evk-burger__line { transform: translateY(0); }
+
+/* ── Daszek: obie skracają się i schodzą ostrzem w prawo ──────────────
+ *
+ * Kreska ma 60% szerokości pudełka i jest dosunięta do prawej krawędzi
+ * przesunięciem o 2/3 WŁASNEJ szerokości (0,6 × 66,67% = 40% pudełka), więc
+ * zajmuje odcinek 40–100%. Obrót idzie wokół jej prawego końca, czyli obie
+ * spotykają się dokładnie przy prawej krawędzi.
+ */
+.evk-burger--chevron-2 .evk-burger__line { transform-origin: right center; }
+.evk-burger--chevron-2.brx-open .evk-burger__line {
+    width: 60%;
+}
+.evk-burger--chevron-2.brx-open .evk-burger__line:nth-child(1) {
+    transform: translateX(66.667%) rotate(45deg);
+}
+.evk-burger--chevron-2.brx-open .evk-burger__line:nth-child(2) {
+    transform: translateX(66.667%) rotate(-45deg);
+}
+
+/* ── Plus z dwóch kresek ─────────────────────────────────────────────── */
+.evk-burger--plus-2.brx-open .evk-burger__line:nth-child(1) { transform: translateY(0); }
+.evk-burger--plus-2.brx-open .evk-burger__line:nth-child(2) { transform: rotate(90deg); }
+
+/* ── Zjazd: górna wyjeżdża bokiem i gaśnie, dolna zostaje ukośnie ────── */
+.evk-burger--slide-2.brx-open .evk-burger__line:nth-child(1) {
+    transform: translateX(100%);
+    opacity: 0;
+}
+.evk-burger--slide-2.brx-open .evk-burger__line:nth-child(2) { transform: rotate(45deg); }

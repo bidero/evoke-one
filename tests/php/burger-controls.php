@@ -69,9 +69,24 @@ ob_start();
 $el5->render();
 $legacy = ob_get_clean();
 
+/* Render KAŻDEGO stylu, nie tylko domyślnego. Liczba kresek w znaczniku ma się
+   zgadzać z rejestrem dla wszystkich — przy jednym sprawdzanym stylu pomyłka
+   w nowym wpisie przechodziłaby bez śladu. */
 $styles = \Bricks\Evk_Burger::styles();
 $lines  = [];
-foreach ($styles as $key => $def) $lines[$key] = $def['lines'];
+$render = [];
+foreach ($styles as $key => $def) {
+    $lines[$key] = $def['lines'];
+    $e = new \Bricks\Evk_Burger();
+    $e->settings = [ 'style' => $key ];
+    ob_start();
+    $e->render();
+    $out = ob_get_clean();
+    $render[$key] = [
+        'kresek' => substr_count($out, 'evk-burger__line'),
+        'klasa'  => strpos($out, 'evk-burger--' . $key) !== false,
+    ];
+}
 
 echo json_encode([
     'styles'        => array_keys($styles),
@@ -86,4 +101,9 @@ echo json_encode([
     'renderLegacy'  => $legacy,
     // Ile <span class="evk-burger__line"> naprawdę wyszło z rendera.
     'plainLines'    => substr_count($plain, 'evk-burger__line'),
+    'render'        => $render,
+    // Lista dla fixture'a: „klucz:kresek,…". Idzie wprost z rejestru, więc
+    // galeria w teście nie może się z nim rozjechać.
+    'galeria'       => implode(',', array_map(
+        function ($k) use ($lines) { return $k . ':' . $lines[$k]; }, array_keys($styles))),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";
