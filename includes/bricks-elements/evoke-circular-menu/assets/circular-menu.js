@@ -1,6 +1,6 @@
 /**
  * Evoke Circular Menu
- * v1.3.0
+ * v1.3.1
  *
  * evk_circular_menu_init() jest wołane z dwóch stron: przez Bricks (patrz
  * $scripts w element.php) i przez własny DOMContentLoaded poniżej. Flaga
@@ -27,6 +27,17 @@ var EVK_CM_EXIT_MAX = 1;
  * Zgłoszone z użycia przy zewnętrznym przełączniku.
  */
 var EVK_BRICKS_OPEN = 'brx-open';
+
+/**
+ * Co uznajemy za SAM przełącznik, gdy selektor wskazuje na jego opakowanie.
+ *
+ * `.brxe-toggle` stoi tu obok znaczników HTML-owych i to nie jest ozdoba:
+ * burger Bricksa nie zawsze jest przyciskiem — bywa zwykłym divem bez roli,
+ * a to właśnie na nim wisi arkusz z animacją kresek. Bez tej pozycji szukanie
+ * kończyło się niczym i klasa lądowała na opakowaniu, czyli o jeden poziom
+ * za wysoko: w drzewie było `brx-open`, a arkusz Bricksa i tak go nie widział.
+ */
+var EVK_CM_TOGGLE_SEL = 'button, a, [role="button"], .brxe-toggle';
 
 function evk_circular_menu_init() {
     document.querySelectorAll( '.evk-cm' ).forEach( function( root ) {
@@ -161,8 +172,8 @@ function evk_circular_menu_init_one( root ) {
      * i lepiej oznaczyć jego, niż nie oznaczyć niczego.
      */
     function toggleTarget( el ) {
-        if ( el.matches( 'button, a, [role="button"]' ) ) return el;
-        return el.querySelector( 'button, a, [role="button"]' ) || el;
+        if ( el.matches( EVK_CM_TOGGLE_SEL ) ) return el;
+        return el.querySelector( EVK_CM_TOGGLE_SEL ) || el;
     }
 
     function updateTriggerState( triggerEl ) {

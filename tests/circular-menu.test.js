@@ -399,6 +399,26 @@ module.exports = async function (t) {
     wrap.klasy + ' | aria ' + wrap.aria);
   await zw.close();
 
+  // Trzecia postać, i to ta z żywej strony: burger BRICKSA nie jest
+  // przyciskiem, tylko divem bez roli. Szukanie samego `button` kończyło się
+  // niczym, więc klasa lądowała na opakowaniu — o jeden poziom za wysoko.
+  // W drzewie `brx-open` było, a arkusz Bricksa i tak go nie widział, bo wisi
+  // na `.brxe-toggle`. To dokładnie ten objaw: „w circular nadal nie ma
+  // brx-open".
+  const zb = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.2&toggle=' + encodeURIComponent('.pudlo-bricks'), settle: 300 });
+  await zb.evaluate(() => window.__zew('zew-bricks'));
+  await zb.waitForTimeout(400);
+  t.check('burger Bricksa (div) otwiera menu', await zb.evaluate(() => window.__rozwiniety()),
+    (await zb.evaluate(() => window.__clip())).raw);
+
+  const brxBtn  = await zb.evaluate(() => window.__stanPrzycisku('zew-bricks'));
+  const brxWrap = await zb.evaluate(() => window.__stanPrzycisku('zew-bricks-wrap'));
+  t.check('klasa siada na .brxe-toggle, a nie na opakowaniu',
+    brxBtn.brx && !brxWrap.brx,
+    '.brxe-toggle: ' + brxBtn.klasy + ' | opakowanie: ' + brxWrap.klasy);
+  await zb.close();
+
   // ── Cofnięcie działa po `clearProps` ───────────────────────────────────
   // To był otwarty punkt planu, nie oczywistość. Animacja wejściowa bez
   // powtarzania kończy z `clearProps: transform,filter,clipPath`, więc

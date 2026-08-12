@@ -44,6 +44,13 @@
 <!-- I druga postać: selektor na OPAKOWANIU. Obie muszą działać. -->
 <div class="moje-opakowanie" id="zew-wrap"><button class="inny-burger" id="zew-btn">W pudełku</button></div>
 
+<!-- Trzecia, i to ta z żywej strony: burger BRICKSA nie jest przyciskiem,
+     tylko divem bez roli. Arkusz Bricksa z animacją kresek wisi na
+     `.brxe-toggle`, więc klasa musi trafić TAM, a nie na opakowanie. -->
+<div class="pudlo-bricks" id="zew-bricks-wrap">
+  <div class="brxe-toggle" id="zew-bricks"><span class="kreska"></span></div>
+</div>
+
 <div class="long">treść strony</div>
 
 <script>

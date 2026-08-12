@@ -594,9 +594,15 @@ function evk_offcanvas_menu_init_one(root) {
      * `aria-expanded` należy do sterującego, a nie do pudełka wokół niego —
      * div z tym atrybutem nie jest dla czytnika ekranu żadnym przyciskiem.
      */
+    /* `.brxe-toggle` obok znaczników HTML-owych i to nie jest ozdoba: burger
+       Bricksa nie zawsze jest przyciskiem — bywa zwykłym divem bez roli,
+       a to na nim wisi arkusz z animacją kresek. Bez tej pozycji klasa
+       lądowała na opakowaniu, czyli o jeden poziom za wysoko. */
+    var TOGGLE_SEL = 'button, a, [role="button"], .brxe-toggle';
+
     function toggleTarget(el) {
-        if (el.matches('button, a, [role="button"]')) return el;
-        return el.querySelector('button, a, [role="button"]') || el;
+        if (el.matches(TOGGLE_SEL)) return el;
+        return el.querySelector(TOGGLE_SEL) || el;
     }
 
     function setTrigAria(isOpen) {

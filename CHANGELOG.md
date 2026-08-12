@@ -2,6 +2,21 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.70.1] — 2026-08-12
+
+### Naprawione
+
+- **`brx-open` lądowało o poziom za wysoko, gdy burger jest divem.** Poprawka
+  z 1.70.0 szukała przycisku (`button`, `a`, `[role="button"]`) w środku
+  wskazanego elementu — a burger Bricksa **nie zawsze jest przyciskiem**:
+  bywa zwykłym divem bez roli. Szukanie kończyło się wtedy niczym, więc klasa
+  siadała na opakowaniu. W drzewie `brx-open` było, tyle że arkusz Bricksa
+  z animacją kresek wisi na `.brxe-toggle` i nadal go nie widział — stąd
+  „w circular nadal nie ma brx-open".
+
+  `.brxe-toggle` jest teraz na liście tego, co uznajemy za sam przełącznik.
+  Dotyczy obu menu.
+
 ## [1.70.0] — 2026-08-12
 
 ### Naprawione
