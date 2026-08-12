@@ -2,6 +2,30 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.71.0] — 2026-08-12
+
+### Dodane
+
+- **Circular Menu: klasa `is-open` na panelu** — zaczep dla własnego CSS-a,
+  którego to menu nie miało. Offcanvas ma ją na powłoce od początku; Circular
+  Menu chowa panel OBCIĘCIEM (`clip-path`), a nie klasą, więc wszystko, co ma
+  reagować na otwarcie, a nie da się tego wyrazić animacją Animatora, wisiało
+  w próżni. Selektor: `.evk-cm-content.is-open`.
+
+  - **Klasa siedzi na PANELU, nie na korzeniu**, i to nie jest dowolne: przy
+    domyślnie włączonym portalu panel jedzie do `<body>` i przestaje być
+    potomkiem korzenia, więc `.evk-cm.is-open .evk-cm-content` nie miałoby
+    czego dopasować.
+  - **Schodzi dopiero, gdy kadr zaczyna się zwijać**, a nie w chwili
+    kliknięcia. Przez czas wychodzenia treści panel stoi na ekranie jak stał,
+    więc styl otwartego menu ma go dalej dotyczyć — inaczej wygląd
+    przeskakiwałby pod nieruchomym panelem. Tak samo działa `is-open` na
+    powłoce offcanvas.
+  - W builderze przy „Trzymaj otwarte" klasa też jest — inaczej styl na niej
+    zaczepiony nie byłby widoczny dokładnie tam, gdzie się go ustawia.
+
+  Oba zaczepy są opisane w panelu, w sekcji „Styl zawartości".
+
 ## [1.70.1] — 2026-08-12
 
 ### Naprawione

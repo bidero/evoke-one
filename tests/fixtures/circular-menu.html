@@ -143,6 +143,10 @@ window.__rozwiniety = function () {
 
 window.__pe = function () { return panel().style.pointerEvents || ''; };
 
+/** Klasa stanu na panelu — zaczep dla własnego CSS-a. */
+window.__panelOpen  = function () { return panel().classList.contains('is-open'); };
+window.__panelKlasy = function () { return panel().className; };
+
 window.__op = function (id) {
   return +parseFloat(getComputedStyle(document.getElementById(id)).opacity).toFixed(2);
 };

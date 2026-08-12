@@ -234,7 +234,14 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		// ----- Styl zawartości -----
 		$this->controls['contentseparator'] = [
 			'label'       => esc_html__( 'Styl zawartości', 'evk-circular-menu' ),
-			'description' => esc_html__( 'Możesz też edytować style bezpośrednio na elemencie Zawartość menu.', 'evk-circular-menu' ),
+			'description' => esc_html__(
+				'Możesz też edytować style bezpośrednio na elemencie Zawartość menu. '
+				. 'ZACZEP DLA WŁASNEGO CSS-a: przy otwartym menu panel niesie klasę '
+				. '.is-open (selektor .evk-cm-content.is-open), a przełącznik — .brx-open. '
+				. 'Klasa schodzi z panelu dopiero, gdy kadr zaczyna się zwijać, więc '
+				. 'przez czas wychodzenia treści styl otwartego menu nadal obowiązuje.',
+				'evk-circular-menu'
+			),
 			'type'        => 'separator',
 		];
 		$this->controls['width'] = [

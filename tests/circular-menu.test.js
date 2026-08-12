@@ -260,6 +260,70 @@ module.exports = async function (t) {
     (await ne.evaluate(() => window.__clip())).raw);
   await ne.close();
 
+  // ── Klasa stanu na panelu ──────────────────────────────────────────────
+  // Offcanvas ma `is-open` na powłoce od początku; Circular Menu nie miało
+  // czego zaczepić, bo chowa panel OBCIĘCIEM, a nie klasą. Wszystko, co ma
+  // reagować na otwarcie, a nie da się tego wyrazić animacją Animatora,
+  // wisiało w próżni.
+  //
+  // Klasa siedzi na PANELU, nie na korzeniu, i to nie jest dowolne: przy
+  // portalu panel jedzie do <body> i przestaje być potomkiem korzenia, więc
+  // `.evk-cm.is-open .evk-cm-content` nie miałoby czego dopasować.
+  t.section('panel niesie klasę stanu dla własnego CSS-a');
+
+  const io = await t.open('circular-menu.html', { viewport: V, query: 'dur=0.2', settle: 300 });
+  t.check('zamknięty panel nie ma klasy stanu', !(await io.evaluate(() => window.__panelOpen())),
+    await io.evaluate(() => window.__panelKlasy()));
+
+  await io.evaluate(() => window.__open());
+  await io.waitForTimeout(60);
+  t.check('otwarcie zakłada klasę OD RAZU', await io.evaluate(() => window.__panelOpen()),
+    await io.evaluate(() => window.__panelKlasy()));
+  // Zaczep ma być na tym samym elemencie, który jedzie do <body> — inaczej
+  // selektor przestaje działać dokładnie przy domyślnym ustawieniu portalu.
+  t.check('i to na elemencie, który poszedł do <body>',
+    (await io.evaluate(() => window.__panelParent())) === 'body',
+    String(await io.evaluate(() => window.__panelParent())));
+
+  await io.evaluate(() => window.__key('Escape'));
+  await io.waitForTimeout(400);
+  t.check('zamknięcie zdejmuje klasę', !(await io.evaluate(() => window.__panelOpen())),
+    await io.evaluate(() => window.__panelKlasy()));
+  t.check('bez błędów JS', !io.errors.length, io.errors.join(' | ') || 'brak');
+  await io.close();
+
+  // Sedno decyzji projektowej: klasa schodzi dopiero, gdy KADR RUSZA, a nie
+  // w chwili kliknięcia. Przez czas wychodzenia treści panel stoi na ekranie
+  // jak stał — styl otwartego menu ma go dalej dotyczyć, inaczej wygląd
+  // przeskakiwałby pod nieruchomym panelem.
+  const ic = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.2&exit=1', settle: 300 });
+  await ic.evaluate(() => window.__open());
+  await ic.waitForTimeout(600);
+  await ic.evaluate(() => window.__key('Escape'));
+  await ic.waitForTimeout(200);
+
+  t.check('w trakcie wychodzenia treści klasa ZOSTAJE',
+    await ic.evaluate(() => window.__panelOpen())
+    && await ic.evaluate(() => window.__rozwiniety()),
+    await ic.evaluate(() => window.__panelKlasy()));
+
+  await ic.waitForTimeout(700);
+  t.check('a po zwinięciu kadru schodzi', !(await ic.evaluate(() => window.__panelOpen())),
+    await ic.evaluate(() => window.__panelKlasy()));
+
+  // Otwarcie w trakcie wychodzenia nie może zostawić panelu bez klasy.
+  await ic.evaluate(() => window.__open());
+  await ic.waitForTimeout(600);
+  await ic.evaluate(() => window.__key('Escape'));
+  await ic.waitForTimeout(100);
+  await ic.evaluate(() => window.__open());
+  await ic.waitForTimeout(600);
+  t.check('odwołane zamknięcie zostawia klasę na miejscu',
+    await ic.evaluate(() => window.__panelOpen()),
+    await ic.evaluate(() => window.__panelKlasy()));
+  await ic.close();
+
   // ── Czekanie na wyjście da się ustawić ─────────────────────────────────
   // Zgłoszone z użycia: „chciałbym, żeby animowało się zamykanie i linki
   // w tym samym czasie, a nie jedna po drugiej". Domyślnie kadr czeka na CAŁĄ

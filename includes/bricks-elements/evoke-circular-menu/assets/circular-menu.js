@@ -1,6 +1,6 @@
 /**
  * Evoke Circular Menu
- * v1.3.1
+ * v1.4.0
  *
  * evk_circular_menu_init() jest wołane z dwóch stron: przez Bricks (patrz
  * $scripts w element.php) i przez własny DOMContentLoaded poniżej. Flaga
@@ -38,6 +38,21 @@ var EVK_BRICKS_OPEN = 'brx-open';
  * za wysoko: w drzewie było `brx-open`, a arkusz Bricksa i tak go nie widział.
  */
 var EVK_CM_TOGGLE_SEL = 'button, a, [role="button"], .brxe-toggle';
+
+/**
+ * Klasa stanu na panelu — zaczep dla CSS-a, którego menu wcześniej nie miało.
+ *
+ * Offcanvas ma ją na powłoce od początku; Circular Menu nie miało czego
+ * zaczepić, bo chowa panel OBCIĘCIEM (`clip-path`), a nie klasą. Wszystko,
+ * co ma reagować na otwarcie — a nie da się tego wyrazić animacją Animatora —
+ * wisiało dotąd w próżni.
+ *
+ * Siedzi na PANELU, nie na korzeniu, i to jest istotne: przy włączonym portalu
+ * panel jedzie do `<body>` i przestaje być potomkiem korzenia, więc selektor
+ * `.evk-cm.is-open .evk-cm-content` nie miałby czego dopasować. Ta sama zasada
+ * co przy `is-open` na powłoce offcanvas.
+ */
+var EVK_CM_OPEN = 'is-open';
 
 function evk_circular_menu_init() {
     document.querySelectorAll( '.evk-cm' ).forEach( function( root ) {
@@ -253,10 +268,26 @@ function evk_circular_menu_init_one( root ) {
         if ( isOpen ) return;
         isOpen = true;
         setTabIndex( panel );
+        panel.classList.add( EVK_CM_OPEN );
         panel.style.pointerEvents = 'all';
         tl.play();
         syncTriggers();
         replayContent();
+    }
+
+    /**
+     * Zwijanie kadru — osobno od decyzji o zamknięciu, bo dzieli je czekanie
+     * na wyjście treści.
+     *
+     * Tu, a nie w closeMenu(), schodzi klasa stanu: przez czas wychodzenia
+     * treści panel jest JESZCZE widoczny i CSS zaczepiony o `is-open` ma go
+     * dalej dotyczyć. Zdjęta w chwili kliknięcia przestawiałaby wygląd panelu,
+     * który stoi na ekranie jak stał. Tak samo działa `is-open` na powłoce
+     * offcanvas — schodzi dopiero w finishClose().
+     */
+    function startCollapse() {
+        panel.classList.remove( EVK_CM_OPEN );
+        tl.reverse();
     }
 
     function closeMenu() {
@@ -267,11 +298,11 @@ function evk_circular_menu_init_one( root ) {
         syncTriggers();
 
         var wait = exitContent();
-        if ( wait <= 0 ) { tl.reverse(); return; }
+        if ( wait <= 0 ) { startCollapse(); return; }
 
         closeTimer = setTimeout( function () {
             closeTimer = null;
-            tl.reverse();
+            startCollapse();
         }, wait * 1000 );
     }
 
@@ -369,7 +400,10 @@ function evk_circular_menu_init_one( root ) {
     syncTriggers();
 
     // ── Otwórz w builderze ────────────────────────────────────────
+    // Klasa stanu też — inaczej styl zaczepiony o `is-open` nie byłby widoczny
+    // dokładnie tam, gdzie się go ustawia.
     if ( isBuilder && openBuilder ) {
+        panel.classList.add( EVK_CM_OPEN );
         tl.play();
     }
 
