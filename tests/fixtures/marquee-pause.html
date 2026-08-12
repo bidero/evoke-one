@@ -3,8 +3,11 @@
   .spacer { height: 2400px; background: linear-gradient(#fff, #eee); }
 </style>
 
-<!-- Marquee daleko pod ekranem: przy pauzie ma stać, przy wyłączonej — jechać. -->
-<div class="spacer"></div>
+<!-- Marquee daleko pod ekranem: przy pauzie ma stać, przy wyłączonej — jechać.
+     Górna rozpórka ma identyfikator, bo przy `?grow=` PUCHNIE JUŻ PO STARCIE
+     skryptu — odwzorowanie strony, na której obrazki bez wymiarów spychają
+     treść w dół dopiero po załadowaniu. -->
+<div class="spacer" id="gora"></div>
 <div class="evk-marquee-container" id="m">
   <div class="evk-marquee-track">
     <span class="evk-marquee-item">Alfa</span>
@@ -20,8 +23,23 @@
  * Ustawiamy ją PRZED marquee.js, bo silnik czyta atrybut na DOMContentLoaded.
  */
 (function () {
-  var raw = new URLSearchParams(location.search).get('cfg') || '{}';
+  var q   = new URLSearchParams(location.search);
+  var raw = q.get('cfg') || '{}';
   document.getElementById('m').setAttribute('data-evk-marquee', raw);
+
+  /* Układ, który ROŚNIE po inicjalizacji. Marquee mieści się w kadrze, gdy
+     skrypt liczy jego położenie, a dopiero potem zostaje zepchnięte daleko
+     w dół. ScrollTrigger ma wtedy zmierzone stare położenie — i to jest
+     najpoważniejszy kandydat na zgłoszone „nie pauzuje się dalej w treści". */
+  var grow = parseInt(q.get('grow'), 10);
+  if (grow) {
+    document.getElementById('gora').style.height = '300px';
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        document.getElementById('gora').style.height = grow + 'px';
+      }, 300);
+    });
+  }
 
   // Ile razy Observer realnie zareagował na przewijanie. To ta praca kosztuje
   // procesor, gdy marquee stoi poza kadrem — samo wstrzymanie osi czasu nie.

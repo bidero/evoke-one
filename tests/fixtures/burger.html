@@ -126,6 +126,7 @@
     b.style.setProperty('--evk-burger-color',  q.get('color')  || 'rgb(0, 0, 0)');
     if (q.get('coloropen')) b.style.setProperty('--evk-burger-color-open', q.get('coloropen'));
     if (q.get('rotate')) b.style.setProperty('--evk-burger-open-rotate', q.get('rotate'));
+    if (q.get('short'))  b.style.setProperty('--evk-burger-short', q.get('short'));
   });
 
   var root = document.getElementById('root');

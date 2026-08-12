@@ -98,7 +98,14 @@
       // Brak klucza = element zapisany przed 1.36.0, gdy pauza była zaszyta
       // na sztywno z zapasem 200 px. Domyślne muszą to odtwarzać.
       pauseOffscreen   : cfg.pauseOffscreen === undefined ? true : !!cfg.pauseOffscreen,
-      pauseOffset      : cfg.pauseOffset === undefined ? 200 : Math.max(0, cfg.pauseOffset),
+      /* BEZ zaciskania do zera — zapas UJEMNY jest znaczący, nie błędny.
+         Dodatni poszerza strefę grania (marquee rusza, zanim wjedzie w kadr),
+         ujemny ją zwęża (rusza dopiero, gdy wjedzie głębiej). To drugie jest
+         jedynym sposobem sprawdzenia na żywej stronie, czy pauza działa:
+         przy domyślnych 200 px marquee gra już 200 px przed pokazaniem się,
+         więc zjeżdżając do niego widać je rozpędzone — i wygląda to dokładnie
+         jak brak pauzy. */
+      pauseOffset      : cfg.pauseOffset === undefined ? 200 : cfg.pauseOffset,
     };
 
     // Zbierz wszystkie .evk-marquee-item ze wszystkich tracków
@@ -174,12 +181,21 @@
       tl.pause();
     };
 
+    /* Znak wpisujemy SAMI, zamiast sklejać `+=` z liczbą, która bywa ujemna.
+       Przy zapasie -150 wychodziło z tego `bottom+=-150` — zapis, na którym
+       nie ma co polegać. Strefa grania rozszerza się przy zapasie dodatnim
+       i zwęża przy ujemnym, więc oba końce dostają znaki PRZECIWNE. */
+    var przed = ( pad >= 0 ? '+=' : '-=' ) + Math.abs( pad );
+    var za    = ( pad >= 0 ? '-=' : '+=' ) + Math.abs( pad );
+
     var st = ScrollTrigger.create({
       trigger  : container,
-      start    : 'top bottom+=' + pad,
-      end      : 'bottom top-=' + pad,
+      start    : 'top bottom' + przed,
+      end      : 'bottom top' + za,
       onToggle : function (self) { if (self.isActive) on(); else off(); },
     });
+
+    pilnujWysokosciStrony();
 
     // Stan początkowy trzeba nałożyć samemu. ScrollTrigger zgłasza dopiero
     // ZMIANĘ stanu, a marquee stojące daleko pod ekranem nigdy w kadr nie
@@ -187,6 +203,41 @@
     // strony aż do pierwszego zbliżenia. Przy kilku marquee na długiej stronie
     // wszystkie mieliły w tle, zanim ktokolwiek je zobaczył.
     if (st.isActive) on(); else off();
+  }
+
+  /**
+   * Przelicza wyzwalacze, gdy STRONA UROŚNIE po inicjalizacji.
+   *
+   * ScrollTrigger liczy położenia raz i sam odświeża się tylko przy `resize`
+   * okna oraz przy `load`. Zmiana wysokości dokumentu PO tym czasie przechodzi
+   * bez echa — a zdarza się stale: obrazki bez podanych wymiarów, webfonty
+   * zmieniające łamanie, treść doładowana AJAX-em, akordeon rozwinięty wyżej
+   * na stronie.
+   *
+   * Skutek był dokładnie taki, jak zgłoszono: marquee mieszczące się w kadrze
+   * w chwili startu zostaje zepchnięte daleko w dół, ScrollTrigger nadal widzi
+   * je na starym miejscu i pętla mieli w tle, choć nikt jej nie ogląda.
+   * Zmierzone: treść przejeżdżała 100 px w pół sekundy przy marquee stojącym
+   * trzy tysiące pikseli pod ekranem.
+   *
+   * JEDEN obserwator na stronę, nie na marquee: `ScrollTrigger.refresh()`
+   * przelicza wszystkie wyzwalacze naraz, więc drugi nie dołożyłby niczego
+   * poza kosztem.
+   */
+  var pilnujeWysokosci = false;
+
+  function pilnujWysokosciStrony() {
+    if (pilnujeWysokosci || typeof ResizeObserver === 'undefined') return;
+    pilnujeWysokosci = true;
+
+    var czeka = null;
+    new ResizeObserver(function () {
+      /* Odbicie jest tu konieczne, nie kosmetyczne: przy doładowywaniu treści
+         wysokość zmienia się kilkanaście razy pod rząd, a przeliczenie
+         wyzwalaczy dotyka każdego z nich na całej stronie. */
+      clearTimeout(czeka);
+      czeka = setTimeout(function () { ScrollTrigger.refresh(); }, 150);
+    }).observe(document.documentElement);
   }
 
   function boot() {

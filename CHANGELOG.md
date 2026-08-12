@@ -2,6 +2,58 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.78.0] — 2026-08-12
+
+### Naprawione
+
+- **Marquee mieliło w tle, gdy strona urosła po jego uruchomieniu.** To była
+  prawdziwa usterka i to ona odpowiada za zgłoszenie „marquee nie pauzuje się,
+  jeśli jest dalej w treści".
+
+  ScrollTrigger liczy położenia raz i sam odświeża się tylko przy zmianie
+  rozmiaru okna oraz przy `load`. Zmiana wysokości dokumentu PO tym czasie
+  przechodziła bez echa — a zdarza się stale: obrazki bez podanych wymiarów,
+  webfonty zmieniające łamanie, treść doładowana AJAX-em, akordeon rozwinięty
+  wyżej na stronie. Marquee mieszczące się w kadrze w chwili startu zostawało
+  zepchnięte daleko w dół, a pętla kręciła się dalej, bo wyzwalacz nadal widział
+  je na starym miejscu.
+
+  Zmierzone przed poprawką: treść przejeżdżała 100 px w pół sekundy przy
+  marquee stojącym trzy tysiące pikseli pod ekranem.
+
+  Jeden obserwator wysokości strony na cały dokument przelicza teraz wyzwalacze
+  po każdej zmianie, z odbiciem 150 ms — bo przy doładowywaniu treści wysokość
+  zmienia się kilkanaście razy pod rząd.
+
+### Zmienione
+
+- **Zapas pauzy marquee przyjmuje wartości UJEMNE.** Był zaciśnięty do zera
+  w dwóch miejscach naraz (PHP i JS), więc dało się nim tylko poszerzać strefę
+  grania. A domyślne 200 px URUCHAMIA marquee, zanim wjedzie w kadr — zjeżdżając
+  do niego stroną widzi się je już rozpędzone i wygląda to dokładnie jak brak
+  pauzy. To druga, znacznie częstsza przyczyna tego samego wrażenia.
+
+  Ujemny zapas robi rzecz odwrotną: przy `-150` marquee rusza dopiero, gdy widać
+  już sto pięćdziesiąt pikseli. Do sprawdzenia na żywej stronie, czy pauza
+  w ogóle działa — i do normalnego użycia, gdy pętla ma ruszać dopiero
+  w wyraźnym kadrze.
+
+### Dodane
+
+- **Burger: pięć nowych stylów, razem szesnaście.**
+
+  **Nierówne** (`Nierówne — 2 kreski`, `Nierówne — 3 kreski`) to nowa cecha,
+  nie tylko nowy wygląd: pierwsze style, w których kreski mają RÓŻNE długości
+  już w stanie zamkniętym. Proporcję ustawia nowa kontrolka „Długość krótszej
+  kreski" (domyślnie 60%).
+
+  **Trzy nowe drogi do krzyżyka**: „Po kolei" (skrajne krzyżują się jedna po
+  drugiej), „Ściągnięcie" (kreski najpierw wciągają się do połowy, potem się
+  krzyżują — wychodzi mniejszy krzyżyk), „Minięcie" (górna nadrabia pełny obrót
+  i mija dolną w drodze).
+
+  `burger.js` znów bez zmian — style to wyłącznie arkusz.
+
 ## [1.77.0] — 2026-08-12
 
 ### Dodane

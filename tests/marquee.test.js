@@ -98,4 +98,46 @@ module.exports = async function (t) {
 
   t.check('duży zapas uruchamia wcześniej', await movesAfterScroll(1200, 900), 'zapas 1200 px');
   t.check('zerowy zapas jeszcze nie uruchamia', !(await movesAfterScroll(0, 900)), 'zapas 0 px');
+
+  /* ── Zapas UJEMNY opóźnia start ──────────────────────────────────────────
+   *
+   * Zgłoszone jako „marquee nie pauzuje się, gdy jest dalej w treści".
+   * Mechanizm pauzy działa (sekcje wyżej), ale domyślny zapas 200 px URUCHAMIA
+   * marquee, zanim wjedzie w kadr — zjeżdżając do niego stroną widzi się je
+   * już rozpędzone i wygląda to dokładnie jak brak pauzy.
+   *
+   * Zapas ujemny robi rzecz odwrotną: zwęża strefę grania. Do 1.78.0 był
+   * zaciśnięty do zera w DWÓCH miejscach (PHP i JS), więc nie dało się tego
+   * ani ustawić, ani sprawdzić na żywej stronie.
+   *
+   * Marquee zaczyna się na 2400 px, okno ma 700 px wysokości. Po przewinięciu
+   * do 1780 px widać jego pierwsze 80 px: przy zapasie 0 już jedzie, przy -150
+   * ma jeszcze stać, bo próg wypada dopiero na 1850 px.
+   */
+  t.section('zapas ujemny — pauza trzyma, choć marquee już widać');
+
+  t.check('przy zapasie 0 marquee już jedzie', await movesAfterScroll(0, 1780),
+    '80 px marquee w kadrze');
+  t.check('a przy zapasie -150 wciąż stoi', !(await movesAfterScroll(-150, 1780)),
+    'próg dopiero przy 150 px widocznych');
+
+  /* ── Układ, który urósł PO inicjalizacji ────────────────────────────────
+   *
+   * Drugi kandydat na zgłoszony objaw i jedyny, który byłby prawdziwą usterką:
+   * marquee mieści się w kadrze, gdy skrypt liczy jego położenie, a dopiero
+   * potem obrazki bez wymiarów spychają je daleko w dół. ScrollTrigger ma
+   * wtedy zmierzone stare położenie i marquee mieli w tle, choć nikt go
+   * nie widzi.
+   */
+  t.section('marquee pauzuje, gdy strona urosła po starcie');
+
+  const gr = await t.open('marquee-pause.html', {
+    viewport: V, settle: 1400,
+    query: 'grow=3000&cfg=' + encodeURIComponent(JSON.stringify({ baseSpeed: 200, pauseOffset: 0 })),
+  });
+  const grA = await gr.evaluate(() => window.__pos());
+  await gr.waitForTimeout(500);
+  const grB = await gr.evaluate(() => window.__pos());
+  t.check('po urośnięciu strony marquee stoi', grA === grB, grA + ' → ' + grB);
+  await gr.close();
 };

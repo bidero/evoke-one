@@ -37,7 +37,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-marquee',
             'file'  => $dir . 'evoke-marquee/element.php',
             'consts'=> [
-                'EVK_MARQUEE_VERSION' => '1.5.2',
+                'EVK_MARQUEE_VERSION' => '1.6.0',
                 'EVK_MARQUEE_URL'     => $url . 'evoke-marquee/',
                 'EVK_MARQUEE_PATH'    => $dir . 'evoke-marquee/',
             ],
@@ -46,7 +46,7 @@ function evk_elements_registry(): array {
                Brakowało tego drugiego, więc na KAŻDEJ stronie z marquee wchodził
                loader awaryjny w marquee.js i dociągał ScrollTriggera z cdnjs —
                osobne DNS + TCP + TLS, i to dopiero po wykonaniu skryptu. */
-            'script'=> ['evk-marquee', $url . 'evoke-marquee/assets/marquee.js', ['evk-gsap', 'evk-observer', 'evk-scrolltrigger'], '1.5.3'],
+            'script'=> ['evk-marquee', $url . 'evoke-marquee/assets/marquee.js', ['evk-gsap', 'evk-observer', 'evk-scrolltrigger'], '1.6.0'],
             'style' => ['evk-marquee', $url . 'evoke-marquee/assets/marquee.css', '1.5.1'],
         ],
         'hscroll' => [
@@ -134,12 +134,12 @@ function evk_elements_registry(): array {
             'name'  => 'evk-burger',
             'file'  => $dir . 'evoke-burger/element.php',
             'consts'=> [
-                'EVK_BURGER_VERSION' => '1.2.0',
+                'EVK_BURGER_VERSION' => '1.3.0',
                 'EVK_BURGER_URL'     => $url . 'evoke-burger/',
                 'EVK_BURGER_PATH'    => $dir . 'evoke-burger/',
             ],
             'script'=> ['evk-burger', $url . 'evoke-burger/assets/burger.js', ['bricks-scripts'], '1.1.0'],
-            'style' => ['evk-burger', $url . 'evoke-burger/assets/burger.css', '1.2.0'],
+            'style' => ['evk-burger', $url . 'evoke-burger/assets/burger.css', '1.3.0'],
         ],
         'stacking_cards' => [
             'label' => 'Stacking Cards',

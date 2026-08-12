@@ -245,6 +245,88 @@ module.exports = async function (t) {
     'prawe końce ' + ch[0].prawy + ' i ' + ch[1].prawy + ' px');
   await gal.close();
 
+  // ── Asymetria: kreski różnią się DŁUGOŚCIĄ już w spoczynku ─────────────
+  // Pierwsza cecha, której nie dawało się uzyskać żadnym ustawieniem: do 1.78.0
+  // każdy styl miał kreski równe przed kliknięciem. Asymetria jest tu cechą
+  // stanu ZAMKNIĘTEGO, więc widać ją, zanim ktokolwiek dotknie przycisku.
+  t.section('style nierówne mają krótszą kreskę przed otwarciem');
+
+  const as = await t.open('burger.html', {
+    viewport: V, settle: 250,
+    query: 'dur=0ms&styles=uneven-2:2,uneven:3,cross-2:2',
+  });
+
+  const u2 = await as.evaluate(() => window.__geo('s-uneven-2'));
+  const u3 = await as.evaluate(() => window.__geo('s-uneven'));
+  t.check('dwukreskowy: dolna krótsza od górnej', u2[1].szer < u2[0].szer,
+    u2[0].szer + ' i ' + u2[1].szer + ' px');
+  t.check('trzykreskowy: środkowa krótsza od skrajnych',
+    u3[1].szer < u3[0].szer && u3[1].szer < u3[2].szer,
+    u3.map((l) => l.szer).join(' / ') + ' px');
+
+  // KONTROLA NEGATYWNA: styl, który nie jest nierówny, ma kreski RÓWNE.
+  // Bez tej pary „krótsza kreska" przechodziłoby dla każdego stylu.
+  const rowne = await as.evaluate(() => window.__geo('s-cross-2'));
+  t.check('zwykły krzyżyk ma kreski RÓWNE', rowne[0].szer === rowne[1].szer,
+    rowne[0].szer + ' i ' + rowne[1].szer + ' px');
+
+  // Po otwarciu asymetria znika — krzyżyk wychodzi z dwóch pełnych kresek.
+  await as.evaluate(() => window.__ustawOtwarty('s-uneven-2', true));
+  await as.waitForTimeout(60);
+  const u2o = await as.evaluate(() => window.__geo('s-uneven-2'));
+  t.check('po otwarciu obie wracają do pełnej długości',
+    u2o[0].szer === u2o[1].szer && u2o[0].kat === 45 && u2o[1].kat === -45,
+    u2o.map((l) => l.szer + 'px/' + l.kat + '°').join(' '));
+  await as.close();
+
+  // Kontrolka długości naprawdę steruje proporcją — i rusza WYŁĄCZNIE krótką.
+  const kr = await t.open('burger.html', {
+    viewport: V, settle: 250, query: 'dur=0ms&short=30%&styles=uneven-2:2',
+  });
+  const k30 = await kr.evaluate(() => window.__geo('s-uneven-2'));
+  t.check('kontrolka skraca krótszą kreskę', k30[1].szer < u2[1].szer,
+    'przy 30%: ' + k30[1].szer + ' px, przy domyślnych 60%: ' + u2[1].szer + ' px');
+  t.check('a pełnej nie rusza', k30[0].szer === u2[0].szer,
+    k30[0].szer + ' px w obu przypadkach');
+  await kr.close();
+
+  // ── Dwutakty: „po kolei" i „ściągnięcie" ───────────────────────────────
+  // Oba widać WYŁĄCZNIE w trakcie ruchu — po jego końcu wyglądają jak krzyżyk.
+  // Oba jadą tym samym chwytem co „złożenie": opóźnienie trafia w JEDNĄ pozycję
+  // listy, bo pojedyncza wartość w `transition-delay` dotyczy wszystkich
+  // właściwości ze skrótu.
+  t.section('po kolei i ściągnięcie mają dwa takty');
+
+  const dt = await t.open('burger.html', {
+    viewport: V, settle: 250, query: 'dur=400ms&styles=stagger:3,pinch-2:2',
+  });
+
+  await dt.evaluate(() => window.__ustawOtwarty('s-stagger', true));
+  await dt.waitForTimeout(150);
+  const stg = await dt.evaluate(() => window.__geo('s-stagger'));
+  t.check('„po kolei": górna już się obraca', stg[0].kat > 5, stg[0].kat + '°');
+  t.check('a dolna jeszcze stoi', stg[2].kat === 0, stg[2].kat + '°');
+
+  await dt.evaluate(() => window.__ustawOtwarty('s-pinch-2', true));
+  await dt.waitForTimeout(150);
+  const pin = await dt.evaluate(() => window.__geo('s-pinch-2'));
+  t.check('„ściągnięcie": kreski już się zwężają',
+    pin[0].szer < 44 && pin[1].szer < 44, pin[0].szer + ' / ' + pin[1].szer + ' px z 44');
+  t.check('a obrót jeszcze nie ruszył', pin[0].kat === 0 && pin[1].kat === 0,
+    pin[0].kat + '° / ' + pin[1].kat + '°');
+
+  await dt.waitForTimeout(700);
+  const kon = await dt.evaluate(() => window.__geo('s-pinch-2'));
+  t.check('na końcu wychodzi krzyżyk', kon[0].kat === 45 && kon[1].kat === -45,
+    kon[0].kat + '° / ' + kon[1].kat + '°');
+  /* I to jest właśnie ten MNIEJSZY krzyżyk, który odróżnia ten styl od zwykłego
+     dwukreskowego. Kreski zostają krótkie, bo przejście CSS prowadzi od jednej
+     wartości do drugiej i nie umie „do zera i z powrotem" — gdyby stan końcowy
+     miał pełną szerokość, pierwszy takt nie miałby czego animować. */
+  t.check('i jest MNIEJSZY — kreski zostają skrócone', kon[0].szer < 44,
+    kon[0].szer + ' px z 44');
+  await dt.close();
+
   /* Skrócona kreska trzyma się LEWEJ krawędzi w obu kierunkach pisma.
      To jest prawdziwy powód, dla którego kreska jest przypięta przez
      `left` + `width`, a nie `left` + `right` — i nie ten, który wpisałem

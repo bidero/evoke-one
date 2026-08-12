@@ -66,6 +66,11 @@ class Evk_Burger extends \Bricks\Element {
 			'arrow'     => [ 'label' => esc_html__( 'Strzałka — 3 kreski', 'evoke-one' ),    'lines' => 3 ],
 			'plus'      => [ 'label' => esc_html__( 'Plus — 3 kreski', 'evoke-one' ),        'lines' => 3 ],
 			'stack'     => [ 'label' => esc_html__( 'Zsunięcie — 3 kreski', 'evoke-one' ),   'lines' => 3 ],
+			'stagger'   => [ 'label' => esc_html__( 'Po kolei — 3 kreski', 'evoke-one' ),    'lines' => 3 ],
+			// Asymetryczne: RÓŻNE długości kresek już w stanie zamkniętym. To jest
+			// nowa cecha, nie tylko nowy wygląd — do 1.78.0 każdy styl miał kreski
+			// równe i nie dało się tego zmienić żadnym ustawieniem.
+			'uneven'    => [ 'label' => esc_html__( 'Nierówne — 3 kreski', 'evoke-one' ),    'lines' => 3 ],
 
 			// ── Dwukreskowe ────────────────────────────────────────────────
 			// Ten sam „Odstęp między kreskami" daje w obu rodzinach TĘ SAMĄ
@@ -77,6 +82,9 @@ class Evk_Burger extends \Bricks\Element {
 			'chevron-2' => [ 'label' => esc_html__( 'Daszek — 2 kreski', 'evoke-one' ),      'lines' => 2 ],
 			'plus-2'    => [ 'label' => esc_html__( 'Plus — 2 kreski', 'evoke-one' ),        'lines' => 2 ],
 			'slide-2'   => [ 'label' => esc_html__( 'Zjazd — 2 kreski', 'evoke-one' ),       'lines' => 2 ],
+			'pinch-2'   => [ 'label' => esc_html__( 'Ściągnięcie — 2 kreski', 'evoke-one' ), 'lines' => 2 ],
+			'swap-2'    => [ 'label' => esc_html__( 'Minięcie — 2 kreski', 'evoke-one' ),    'lines' => 2 ],
+			'uneven-2'  => [ 'label' => esc_html__( 'Nierówne — 2 kreski', 'evoke-one' ),    'lines' => 2 ],
 		];
 	}
 
@@ -193,6 +201,23 @@ class Evk_Burger extends \Bricks\Element {
 			'description' => esc_html__(
 				'Osobno od pola klikalnego: krótsze kreski w większym przycisku dają '
 				. 'zapas na palec bez zmiany rysunku.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['shortLine'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Długość krótszej kreski', 'evoke-one' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [ [ 'property' => '--evk-burger-short', 'selector' => '' ] ],
+			'placeholder' => '60%',
+			'required'    => [ 'style', '=', [ 'uneven', 'uneven-2' ] ],
+			'description' => esc_html__(
+				'Dotyczy wyłącznie stylów NIERÓWNYCH — tam jedna kreska jest krótsza od '
+				. 'pozostałych już w stanie zamkniętym. Podana w procentach liczy się od '
+				. 'szerokości kresek, więc trzyma proporcję przy każdym rozmiarze przycisku.',
 				'evoke-one'
 			),
 		];

@@ -15,6 +15,9 @@
     --evk-burger-stroke: 2px;
     --evk-burger-gap: 7px;
     --evk-burger-radius: 0px;
+    /* Długość KRÓTSZEJ kreski w stylach nierównych. W procentach, więc trzyma
+       proporcję przy każdym rozmiarze przycisku. */
+    --evk-burger-short: 60%;
     --evk-burger-color: currentColor;
     /* Puste „po otwarciu" znaczy „ten sam co przed" — kreski zmieniają wtedy
        wyłącznie kształt. Wartość domyślna wskazująca na drugą zmienną robi to
@@ -121,14 +124,18 @@
 .evk-burger--squeeze  .evk-burger__line:nth-child(1),
 .evk-burger--arrow    .evk-burger__line:nth-child(1),
 .evk-burger--plus     .evk-burger__line:nth-child(1),
-.evk-burger--stack    .evk-burger__line:nth-child(1) {
+.evk-burger--stack    .evk-burger__line:nth-child(1),
+.evk-burger--stagger  .evk-burger__line:nth-child(1),
+.evk-burger--uneven   .evk-burger__line:nth-child(1) {
     transform: translateY(calc(-1 * var(--evk-burger-offset)));
 }
 .evk-burger--cross    .evk-burger__line:nth-child(3),
 .evk-burger--squeeze  .evk-burger__line:nth-child(3),
 .evk-burger--arrow    .evk-burger__line:nth-child(3),
 .evk-burger--plus     .evk-burger__line:nth-child(3),
-.evk-burger--stack    .evk-burger__line:nth-child(3) {
+.evk-burger--stack    .evk-burger__line:nth-child(3),
+.evk-burger--stagger  .evk-burger__line:nth-child(3),
+.evk-burger--uneven   .evk-burger__line:nth-child(3) {
     transform: translateY(var(--evk-burger-offset));
 }
 
@@ -205,6 +212,31 @@
     transform: translateY(0);
 }
 
+/* ── Po kolei: skrajne krzyżują się JEDNA PO DRUGIEJ ──────────────────
+ *
+ * Ten sam krzyżyk, ale dolna kreska rusza z opóźnieniem — ruch przestaje być
+ * jednym gestem i daje się prześledzić okiem. Opóźnienie musi trafić w JEDNĄ
+ * pozycję listy: pojedyncza wartość w `transition-delay` dotyczy wszystkich
+ * właściwości ze skrótu i wtedy czeka też gaśnięcie środkowej.
+ */
+.evk-burger--stagger.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
+.evk-burger--stagger.brx-open .evk-burger__line:nth-child(2) { opacity: 0; }
+.evk-burger--stagger.brx-open .evk-burger__line:nth-child(3) {
+    transform: rotate(-45deg);
+    transition-delay: var(--evk-burger-beat), 0s, 0s, 0s, 0s;
+}
+
+/* ── Nierówne: środkowa krótsza JUŻ W SPOCZYNKU ───────────────────────
+ *
+ * Pierwszy styl, w którym kreski nie są równe przed kliknięciem. Po otwarciu
+ * krótka gaśnie, więc krzyżyk wychodzi z dwóch pełnych — asymetria jest cechą
+ * stanu zamkniętego, a nie ruchu.
+ */
+.evk-burger--uneven .evk-burger__line:nth-child(2) { width: var(--evk-burger-short); }
+.evk-burger--uneven.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
+.evk-burger--uneven.brx-open .evk-burger__line:nth-child(2) { opacity: 0; }
+.evk-burger--uneven.brx-open .evk-burger__line:nth-child(3) { transform: rotate(-45deg); }
+
 /* ══ DWUKRESKOWE ═══════════════════════════════════════════════════════
  *
  * Rozsunięte o POŁOWĘ tego, co skrajne kreski trzykreskowych — dzięki temu ten
@@ -215,14 +247,20 @@
 .evk-burger--minus-2   .evk-burger__line:nth-child(1),
 .evk-burger--chevron-2 .evk-burger__line:nth-child(1),
 .evk-burger--plus-2    .evk-burger__line:nth-child(1),
-.evk-burger--slide-2   .evk-burger__line:nth-child(1) {
+.evk-burger--slide-2   .evk-burger__line:nth-child(1),
+.evk-burger--pinch-2   .evk-burger__line:nth-child(1),
+.evk-burger--swap-2    .evk-burger__line:nth-child(1),
+.evk-burger--uneven-2  .evk-burger__line:nth-child(1) {
     transform: translateY(calc(-1 * var(--evk-burger-offset) / 2));
 }
 .evk-burger--cross-2   .evk-burger__line:nth-child(2),
 .evk-burger--minus-2   .evk-burger__line:nth-child(2),
 .evk-burger--chevron-2 .evk-burger__line:nth-child(2),
 .evk-burger--plus-2    .evk-burger__line:nth-child(2),
-.evk-burger--slide-2   .evk-burger__line:nth-child(2) {
+.evk-burger--slide-2   .evk-burger__line:nth-child(2),
+.evk-burger--pinch-2   .evk-burger__line:nth-child(2),
+.evk-burger--swap-2    .evk-burger__line:nth-child(2),
+.evk-burger--uneven-2  .evk-burger__line:nth-child(2) {
     transform: translateY(calc(var(--evk-burger-offset) / 2));
 }
 
@@ -261,3 +299,53 @@
     opacity: 0;
 }
 .evk-burger--slide-2.brx-open .evk-burger__line:nth-child(2) { transform: rotate(45deg); }
+
+/* ── Ściągnięcie: najpierw ZWĘŻENIE, potem krzyżyk ────────────────────
+ *
+ * Dwutakt na szerokości — ten sam chwyt co „złożenie", tylko tam ruch szedł
+ * przez `top`, a tu przez `width`. Opóźnienie trafia WYŁĄCZNIE w `transform`;
+ * `width` ma ruszyć od razu.
+ *
+ * Kreski ZOSTAJĄ krótkie w stanie otwartym i to nie jest ustępstwo, tylko
+ * warunek wykonalności: przejście CSS prowadzi od jednej wartości do drugiej
+ * i nie umie „do zera i z powrotem". Gdyby stan końcowy miał pełną szerokość,
+ * `width` nie miałoby czego animować i pierwszy takt by nie istniał.
+ * Wychodzi z tego mniejszy krzyżyk niż w pozostałych stylach — i to właśnie
+ * odróżnia ten styl od zwykłego dwukreskowego.
+ */
+.evk-burger--pinch-2 .evk-burger__line { transform-origin: center center; }
+.evk-burger--pinch-2.brx-open .evk-burger__line {
+    width: 50%;
+    /* Wyśrodkowanie skróconej kreski: bez tego zostałaby przy lewej krawędzi,
+       bo pozycję wyznacza `left: 0`. */
+    margin-left: 25%;
+}
+.evk-burger--pinch-2.brx-open .evk-burger__line:nth-child(1) {
+    transform: rotate(45deg);
+    transition-delay: var(--evk-burger-beat), 0s, 0s, 0s, 0s;
+}
+.evk-burger--pinch-2.brx-open .evk-burger__line:nth-child(2) {
+    transform: rotate(-45deg);
+    transition-delay: var(--evk-burger-beat), 0s, 0s, 0s, 0s;
+}
+
+/* ── Minięcie: górna nadrabia pełny obrót i MIJA dolną w drodze ───────
+ *
+ * Kąt końcowy jest ten sam co przy zwykłym krzyżyku (225° to 45° plus pełne
+ * pół obrotu), ale droga zupełnie inna: kreski przechodzą przez siebie
+ * zamiast zejść się najkrótszą trasą.
+ */
+.evk-burger--swap-2.brx-open .evk-burger__line:nth-child(1) { transform: rotate(225deg); }
+.evk-burger--swap-2.brx-open .evk-burger__line:nth-child(2) { transform: rotate(-45deg); }
+
+/* ── Nierówne: dolna krótsza JUŻ W SPOCZYNKU ──────────────────────────
+ *
+ * Po otwarciu obie wracają do pełnej długości i tworzą krzyżyk — asymetria
+ * znika razem z otwarciem, więc widać ją tylko na zamkniętym przycisku.
+ */
+.evk-burger--uneven-2 .evk-burger__line:nth-child(2) { width: var(--evk-burger-short); }
+.evk-burger--uneven-2.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
+.evk-burger--uneven-2.brx-open .evk-burger__line:nth-child(2) {
+    width: 100%;
+    transform: rotate(-45deg);
+}

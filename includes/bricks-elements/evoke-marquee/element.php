@@ -166,12 +166,18 @@ class Evk_Marquee_Element extends \Bricks\Element {
 			'tab'         => 'content',
 			'label'       => 'Zapas (px)',
 			'type'        => 'number',
-			'min'         => 0,
+			'min'         => -500,
 			'max'         => 2000,
 			'step'        => 50,
 			'default'     => 200,
 			'required'    => [ 'pause_offscreen', '=', true ],
-			'description' => 'O ile pikseli przed wejściem w kadr pętla ma już działać.',
+			'description' => 'O ile pikseli przed wejściem w kadr pętla ma już działać. '
+				. 'WARTOŚĆ UJEMNA robi coś odwrotnego i to nie jest pomyłka: opóźnia start, '
+				. 'aż marquee wjedzie GŁĘBIEJ w kadr. Przy -150 rusza dopiero, gdy widać już '
+				. 'sto pięćdziesiąt pikseli. Przydaje się, gdy chcesz sprawdzić, czy pauza '
+				. 'w ogóle działa: przy domyślnych 200 marquee rusza, ZANIM je zobaczysz, '
+				. 'więc zjeżdżając do niego stroną widzisz je już rozpędzone i wygląda to '
+				. 'jak brak pauzy.',
 		];
 	}
 
@@ -202,7 +208,11 @@ class Evk_Marquee_Element extends \Bricks\Element {
 			'direction'         => $direction,
 			'reverseOnScrollUp' => $reverse_on_scroll_up,
 			'pauseOffscreen'    => $pause_offscreen,
-			'pauseOffset'       => max( 0, (int) $pause_offset ),
+			// BEZ zaciskania do zera. Zapas ujemny zwęża strefę grania zamiast ją
+			// poszerzać — to jedyny sposób, żeby sprawdzić na żywej stronie, czy
+			// pauza działa, bo przy domyślnych 200 px marquee rusza, zanim wjedzie
+			// w kadr, i wygląda to jak brak pauzy.
+			'pauseOffset'       => (int) $pause_offset,
 		] ) );
 
 		$gap_css    = is_array( $gap ) ? ( $gap['value'] . $gap['unit'] ) : $gap;
