@@ -47,6 +47,29 @@
   </span>
 </button>
 
+<!-- Czwarty: steruje CUDZYM elementem, jak przełącznik Bricksa. Klasa idzie
+     na cel, a wygląd burgera wraca z celu przez obserwatora. -->
+<button class="evk-burger evk-burger--cross" id="celowy" aria-expanded="false"
+        aria-label="Menu" type="button"
+        data-evk-burger-target="#cel" data-evk-burger-target-class="moja-klasa">
+  <span class="evk-burger__box">
+    <span class="evk-burger__line"></span>
+    <span class="evk-burger__line"></span>
+    <span class="evk-burger__line"></span>
+  </span>
+</button>
+<div id="cel">Cudzy panel</div>
+
+<!-- Piąty: selektor wskazujący w próżnię. Ma nie wywalić strony. -->
+<button class="evk-burger evk-burger--cross" id="pusty" aria-expanded="false"
+        aria-label="Menu" type="button" data-evk-burger-target="#nie-ma-mnie">
+  <span class="evk-burger__box">
+    <span class="evk-burger__line"></span>
+    <span class="evk-burger__line"></span>
+    <span class="evk-burger__line"></span>
+  </span>
+</button>
+
 <!-- Circular Menu, którego przełącznikiem jest PIERWSZY burger. To jest sedno
      całego elementu: menu nakłada przyciskowi `brx-open`, a arkusz burgera
      tylko na to reaguje. -->
@@ -59,13 +82,18 @@
 <div class="long">treść strony</div>
 
 <script>
-  var b = document.getElementById('burger');
-  b.style.setProperty('--evk-burger-size',   q.get('size')   || '44px');
-  b.style.setProperty('--evk-burger-stroke', q.get('stroke') || '2px');
-  b.style.setProperty('--evk-burger-gap',    q.get('gap')    || '7px');
-  b.style.setProperty('--evk-burger-time',   q.get('dur')    || '400ms');
-  b.style.setProperty('--evk-burger-color',  q.get('color')  || 'rgb(0, 0, 0)');
-  if (q.get('coloropen')) b.style.setProperty('--evk-burger-color-open', q.get('coloropen'));
+  /* Ustawienia idą na WSZYSTKIE burgery, nie tylko na pierwszy. Przy czasie
+     nałożonym na jeden pomiary na pozostałych trafiały w trwające przejście
+     i wychodziły kąty pośrednie (18° zamiast 45°) — pomiar mówił wtedy
+     o momencie odczytu, a nie o stanie docelowym. */
+  document.querySelectorAll('.evk-burger').forEach(function (b) {
+    b.style.setProperty('--evk-burger-size',   q.get('size')   || '44px');
+    b.style.setProperty('--evk-burger-stroke', q.get('stroke') || '2px');
+    b.style.setProperty('--evk-burger-gap',    q.get('gap')    || '7px');
+    b.style.setProperty('--evk-burger-time',   q.get('dur')    || '400ms');
+    b.style.setProperty('--evk-burger-color',  q.get('color')  || 'rgb(0, 0, 0)');
+    if (q.get('coloropen')) b.style.setProperty('--evk-burger-color-open', q.get('coloropen'));
+  });
 
   var root = document.getElementById('root');
   root.setAttribute('data-portal',        '1');
@@ -128,6 +156,21 @@ window.__pole    = function (id) {
   var r = document.getElementById(id).getBoundingClientRect();
   return { w: Math.round(r.width), h: Math.round(r.height) };
 };
+/** Stan CELU — po nim widać, czy burger naprawdę nim steruje. */
+window.__cel = function () {
+  var c = document.getElementById('cel');
+  return { brx: c.classList.contains('brx-open'), klasy: c.className };
+};
+
+/** Zamknięcie celu CZYMŚ INNYM — burger ma za tym pójść. */
+window.__zamknijCel = function () {
+  document.getElementById('cel').classList.remove('brx-open');
+};
+
+window.__ariaControls = function (id) {
+  return document.getElementById(id).getAttribute('aria-controls');
+};
+
 window.__key = function (key) {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: key, bubbles: true, cancelable: true }));
 };

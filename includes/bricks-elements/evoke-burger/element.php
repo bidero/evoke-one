@@ -80,19 +80,57 @@ class Evk_Burger extends \Bricks\Element {
 			'inline'  => true,
 		];
 
-		$this->controls['selfToggle'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Sam się przełącza', 'evoke-one' ),
-			'type'        => 'checkbox',
-			'default'     => false,
+		$this->controls['mode'] = [
+			'tab'     => 'content',
+			'label'   => esc_html__( 'Co przełącza', 'evoke-one' ),
+			'type'    => 'select',
+			'options' => [
+				'menu'   => esc_html__( 'Nic — stan bierze z menu Evoke', 'evoke-one' ),
+				'target' => esc_html__( 'Wskazany element (selektor)', 'evoke-one' ),
+				'self'   => esc_html__( 'Tylko siebie', 'evoke-one' ),
+			],
+			'default'     => 'menu',
 			'description' => esc_html__(
-				'ZOSTAW WYŁĄCZONE, gdy burger otwiera Circular Menu albo Offcanvas Menu. '
-				. 'Stan wystawia wtedy MENU, a przycisk tylko go pokazuje — dzięki temu '
-				. 'kreski wracają na miejsce także wtedy, gdy menu zamknie Esc, kliknięcie '
-				. 'poza panelem albo kliknięcie w link. Włączone znaczy „przełączaj się sam" '
-				. 'i jest dla użycia bez naszego menu (akordeon, panel filtrów, cudzy skrypt). '
-				. 'Przy naszym menu włączenie tego daje DWÓCH właścicieli jednego stanu '
-				. 'i kreski zaczynają się gubić.',
+				'DOMYŚLNE „nic" jest właściwe, gdy burger otwiera Circular Menu albo '
+				. 'Offcanvas Menu: wskazujesz go wtedy w polu „Własny przełącznik → '
+				. 'Selektor CSS" tego menu, a stan wystawia MENU. Dzięki temu kreski '
+				. 'wracają na miejsce także wtedy, gdy menu zamknie Esc, kliknięcie poza '
+				. 'panelem albo kliknięcie w link. '
+				. 'WSKAZANY ELEMENT — dla cudzych rzeczy: kliknięcie nakłada celowi klasę '
+				. 'brx-open (tak jak robi to przełącznik Bricksa), a burger idzie za celem, '
+				. 'więc zamknięcie go czymkolwiek innym też wraca do kresek. '
+				. 'TYLKO SIEBIE — gdy klasa na samym przycisku wystarcza i resztą steruje '
+				. 'Twój własny kod. '
+				. 'Nie kieruj „wskazanego elementu" na menu Evoke: ono pilnuje brx-open samo '
+				. 'i stan miałby dwóch właścicieli.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['target'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Selektor celu', 'evoke-one' ),
+			'type'        => 'text',
+			'placeholder' => '#moj-panel',
+			'required'    => [ 'mode', '=', 'target' ],
+			'description' => esc_html__(
+				'Pasuje kilka elementów? Klasę dostaną wszystkie, ale stan czytamy '
+				. 'z PIERWSZEGO — inaczej rozjechane cele dawałyby przycisk migający '
+				. 'między stanami. Gdy cel ma identyfikator, burger dostaje jeszcze '
+				. 'aria-controls, żeby czytnik ekranu wiedział, czym ten przycisk steruje.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['targetClass'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Dodatkowe klasy dla celu', 'evoke-one' ),
+			'type'        => 'text',
+			'placeholder' => 'brx-open',
+			'required'    => [ 'mode', '=', 'target' ],
+			'description' => esc_html__(
+				'Cel dostaje z automatu brx-open. Jeśli Twój panel otwiera się na innej '
+				. 'klasie, dopisz ją tutaj — dojdzie do tamtej. Kilka oddziel spacją.',
 				'evoke-one'
 			),
 		];
@@ -263,8 +301,23 @@ class Evk_Burger extends \Bricks\Element {
 		// `type="button"` — bez tego przycisk w formularzu wysyła formularz.
 		$this->set_attribute( '_root', 'type', 'button' );
 
-		if ( ! empty( $s['selfToggle'] ) ) {
+		/*
+		 * Tryb. Do 1.76.0 stał tu checkbox „Sam się przełącza" — trzy zachowania
+		 * nie mieszczą się w dwóch stanach, więc zastąpiła go lista. Zapisane
+		 * strony jadą dalej: brak `mode` z włączonym starym checkboxem znaczy
+		 * „tylko siebie". Dwie linijki zamiast cichej zmiany działania u kogoś,
+		 * kto nie otworzy tego elementu w builderze.
+		 */
+		$mode = ! empty( $s['mode'] ) ? $s['mode']
+			: ( ! empty( $s['selfToggle'] ) ? 'self' : 'menu' );
+
+		if ( $mode === 'self' ) {
 			$this->set_attribute( '_root', 'data-evk-burger-self', '1' );
+		} elseif ( $mode === 'target' && ! empty( $s['target'] ) ) {
+			$this->set_attribute( '_root', 'data-evk-burger-target', $s['target'] );
+			if ( ! empty( $s['targetClass'] ) ) {
+				$this->set_attribute( '_root', 'data-evk-burger-target-class', $s['targetClass'] );
+			}
 		}
 
 		// Krzywa przeliczona na zapis CSS-a — patrz komentarz przy kontrolce.

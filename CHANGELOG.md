@@ -2,6 +2,40 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.76.0] — 2026-08-12
+
+### Dodane
+
+- **Burger umie sterować CUDZYM elementem** — tak jak przełącznik Bricksa.
+  Nowe pole „Selektor celu": kliknięcie nakłada wskazanemu elementowi klasę
+  `brx-open` (plus dowolne własne, dopisane obok).
+
+  **I druga połowa, bez której byłoby to przepisanie cudzego pomysłu razem
+  z jego usterką: burger IDZIE ZA CELEM.** Gdyby tylko nakładał klasę, a swój
+  wygląd trzymał osobno, zamknięcie panelu czymkolwiek innym — własnym
+  skryptem, klawiszem, przyciskiem „zamknij" w środku — zostawiłoby krzyżyk na
+  przycisku. Czyli dokładnie usterka, którą przez cztery wersje naprawialiśmy
+  w menu. Obserwator na klasie celu sprawia, że właściciel jest **jeden**.
+
+  - Gdy cel ma identyfikator, burger dostaje `aria-controls` — czytnik ekranu
+    wie, czym ten przycisk steruje.
+  - Selektor pasujący do kilku elementów: klasę dostają wszystkie, ale stan
+    czytamy z **pierwszego**. Rozjechane cele dawałyby przycisk migający
+    między stanami.
+  - Wskazanie menu Evoke wypisuje ostrzeżenie w konsoli: ono pilnuje
+    `brx-open` samo, więc stan miałby dwóch właścicieli. Właściwa droga to
+    pole „Własny przełącznik → Selektor CSS" w samym menu.
+  - Selektor błędny albo wskazujący w próżnię mówi, o co chodzi, i nie psuje
+    strony.
+
+### Zmienione
+
+- **Checkbox „Sam się przełącza" zastąpiła lista „Co przełącza"** — trzy
+  zachowania nie mieszczą się w dwóch stanach. Do wyboru: nic (stan z menu
+  Evoke, domyślne), wskazany element, tylko siebie. Strony zapisane ze starym
+  checkboxem jadą dalej bez zmian: przy braku nowego pola włączony checkbox
+  nadal znaczy „tylko siebie".
+
 ## [1.75.0] — 2026-08-12
 
 ### Dodane

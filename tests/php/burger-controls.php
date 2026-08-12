@@ -35,10 +35,10 @@ $plain = ob_get_clean();
 // czasu unieważnia CAŁĄ deklarację `transition` razem z czasem trwania.
 $el2 = new \Bricks\Evk_Burger();
 $el2->settings = [
-    'style'      => 'cross',
-    'easing'     => 'back.out(1.7)',
-    'ariaLabel'  => 'Otwórz menu',
-    'selfToggle' => true,
+    'style'     => 'cross',
+    'easing'    => 'back.out(1.7)',
+    'ariaLabel' => 'Otwórz menu',
+    'mode'      => 'self',
 ];
 ob_start();
 $el2->render();
@@ -51,6 +51,23 @@ $el3->settings = [ 'style' => 'nie-ma-takiego' ];
 ob_start();
 $el3->render();
 $bogus = ob_get_clean();
+
+// Tryb „wskazany element" — kliknięcie przestawia CUDZY element.
+$el4 = new \Bricks\Evk_Burger();
+$el4->settings = [ 'mode' => 'target', 'target' => '#moj-panel', 'targetClass' => 'is-otwarte' ];
+ob_start();
+$el4->render();
+$target = ob_get_clean();
+
+/* Strona zapisana PRZED zamianą checkboxa na listę trybów. Bez tej ścieżki
+   burger z włączonym starym „Sam się przełącza" po cichu przestałby cokolwiek
+   robić — a nikt by tego nie zauważył, dopóki nie otworzyłby elementu
+   w builderze. */
+$el5 = new \Bricks\Evk_Burger();
+$el5->settings = [ 'selfToggle' => true ];
+ob_start();
+$el5->render();
+$legacy = ob_get_clean();
 
 $styles = \Bricks\Evk_Burger::styles();
 $lines  = [];
@@ -65,6 +82,8 @@ echo json_encode([
     'renderPlain'   => $plain,
     'renderFilled'  => $filled,
     'renderBogus'   => $bogus,
+    'renderTarget'  => $target,
+    'renderLegacy'  => $legacy,
     // Ile <span class="evk-burger__line"> naprawdę wyszło z rendera.
     'plainLines'    => substr_count($plain, 'evk-burger__line'),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";

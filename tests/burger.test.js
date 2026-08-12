@@ -48,12 +48,23 @@ module.exports = async function (t) {
   t.check('i ma opis dla czytnika ekranu',
     /aria-label="Menu"/.test(php.renderPlain), 'aria-label="Menu"');
 
-  // Domyślnie NIE przełącza się sam — przy naszym menu to by wróciło
-  // do dwóch właścicieli jednego stanu.
-  t.check('domyślnie tryb samodzielny jest wyłączony',
-    !/data-evk-burger-self/.test(php.renderPlain), 'brak atrybutu');
-  t.check('a włączony dojeżdża w atrybut',
+  // Domyślnie NIE przełącza niczego — przy naszym menu każdy inny tryb
+  // wróciłby do dwóch właścicieli jednego stanu.
+  t.check('domyślnie nie przełącza niczego',
+    !/data-evk-burger-self|data-evk-burger-target/.test(php.renderPlain), 'brak atrybutów');
+  t.check('tryb „tylko siebie" dojeżdża w atrybut',
     /data-evk-burger-self="1"/.test(php.renderFilled), 'data-evk-burger-self="1"');
+  t.check('tryb „wskazany element" niesie selektor i klasy',
+    /data-evk-burger-target="#moj-panel"/.test(php.renderTarget)
+    && /data-evk-burger-target-class="is-otwarte"/.test(php.renderTarget),
+    (php.renderTarget.match(/data-evk-burger-target[^>]*?(?= <|>)/) || ['—'])[0]);
+
+  /* Strona zapisana PRZED zamianą checkboxa na listę trybów. Bez tej ścieżki
+     burger z włączonym starym „Sam się przełącza" po cichu przestałby cokolwiek
+     robić — i nikt by tego nie zauważył, dopóki nie otworzyłby elementu
+     w builderze. */
+  t.check('stary checkbox nadal znaczy „tylko siebie"',
+    /data-evk-burger-self="1"/.test(php.renderLegacy), 'zapisane strony jadą dalej');
 
   // Krzywa idzie OSOBNĄ drogą niż reszta ustawień: kontrolka `css` wpisałaby
   // surową nazwę GSAP-a, a nieznana funkcja czasu unieważnia CAŁĄ deklarację
@@ -235,6 +246,72 @@ module.exports = async function (t) {
     && (await s.evaluate(() => window.__aria('niczyj'))) === 'false',
     'bez zmiany — stan należy do menu');
   await s.close();
+
+  // ── Tryb „wskazany element" ────────────────────────────────────────────
+  // Dla cudzych rzeczy: kliknięcie nakłada CELOWI klasę `brx-open`, tak jak
+  // robi to przełącznik Bricksa. Ale jest tu druga połowa, bez której to by
+  // było tylko przepisywanie cudzego pomysłu razem z jego usterką: burger
+  // IDZIE ZA CELEM. Gdyby tylko nakładał klasę, a swój wygląd trzymał osobno,
+  // zamknięcie panelu czymkolwiek innym zostawiłoby krzyżyk na przycisku —
+  // czyli dokładnie to, co przez cztery wersje naprawialiśmy w menu.
+  t.section('burger steruje cudzym elementem — i wraca za nim');
+
+  const g = await t.open('burger.html', { viewport: V, query: 'dur=0ms', settle: 250 });
+
+  t.check('na start cel jest zamknięty',
+    !(await g.evaluate(() => window.__cel())).brx,
+    (await g.evaluate(() => window.__cel())).klasy || '(bez klas)');
+  // Czym ten przycisk steruje — dla czytnika ekranu.
+  t.check('burger mówi, czym steruje',
+    (await g.evaluate(() => window.__ariaControls('celowy'))) === 'cel',
+    String(await g.evaluate(() => window.__ariaControls('celowy'))));
+
+  await g.evaluate(() => window.__klik('celowy'));
+  await g.waitForTimeout(120);
+  const cel1 = await g.evaluate(() => window.__cel());
+  t.check('kliknięcie nakłada celowi klasę Bricksa', cel1.brx, cel1.klasy);
+  // Dodatkowa klasa z kontrolki — gdy cudzy panel otwiera się na innej.
+  t.check('i dodatkową klasę z kontrolki', /moja-klasa/.test(cel1.klasy), cel1.klasy);
+  t.check('a burger pokazuje krzyżyk',
+    (await g.evaluate(() => window.__linia('celowy', 0))).kat === 45
+    && (await g.evaluate(() => window.__aria('celowy'))) === 'true',
+    (await g.evaluate(() => window.__linia('celowy', 0))).kat + '°, aria '
+      + (await g.evaluate(() => window.__aria('celowy'))));
+
+  await g.evaluate(() => window.__klik('celowy'));
+  await g.waitForTimeout(120);
+  t.check('drugie kliknięcie zdejmuje klasy z celu',
+    !(await g.evaluate(() => window.__cel())).brx
+    && !/moja-klasa/.test((await g.evaluate(() => window.__cel())).klasy),
+    (await g.evaluate(() => window.__cel())).klasy || '(bez klas)');
+
+  /* SEDNO tego trybu: cel zamyka CO INNEGO — tu wprost z konsoli, na stronie
+     byłby to własny skrypt, klawisz albo przycisk „zamknij" w środku panelu.
+     Burger nie dostaje o tym żadnego sygnału, a mimo to ma wrócić do kresek. */
+  await g.evaluate(() => window.__klik('celowy'));
+  await g.waitForTimeout(120);
+  t.check('cel znów otwarty', (await g.evaluate(() => window.__cel())).brx, 'otwarty');
+
+  await g.evaluate(() => window.__zamknijCel());
+  await g.waitForTimeout(120);
+  t.check('zamknięcie celu CZYMŚ INNYM też wraca do kresek',
+    (await g.evaluate(() => window.__linia('celowy', 0))).kat === 0
+    && !(await g.evaluate(() => window.__brx('celowy'))),
+    'kąt ' + (await g.evaluate(() => window.__linia('celowy', 0))).kat + '°');
+  t.check('i aria za tym idzie',
+    (await g.evaluate(() => window.__aria('celowy'))) === 'false',
+    String(await g.evaluate(() => window.__aria('celowy'))));
+
+  // Selektor wskazujący w próżnię nie może wywalić strony — najczęstsza
+  // pomyłka przy wpisywaniu selektora z ręki.
+  t.check('cel, którego nie ma, nie wywala strony', !g.errors.length,
+    g.errors.join(' | ') || 'brak błędów');
+  await g.evaluate(() => window.__klik('pusty'));
+  await g.waitForTimeout(80);
+  t.check('a kliknięcie w taki burger nic nie psuje',
+    !g.errors.length && !(await g.evaluate(() => window.__brx('pusty'))),
+    g.errors.join(' | ') || 'bez zmiany');
+  await g.close();
 
   // ── Redukcja ruchu ─────────────────────────────────────────────────────
   // Kreski PRZESKAKUJĄ, ale nadal pokazują stan. Burger, który przy otwartym
