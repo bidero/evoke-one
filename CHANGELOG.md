@@ -2,6 +2,46 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.75.0] — 2026-08-12
+
+### Dodane
+
+- **Nowy element: Burger.** Animowany przycisk menu — na razie JEDEN styl
+  („Krzyżyk — trzy kreski"), bo to przelot przez całą architekturę przed
+  dołożeniem reszty.
+
+  **Ten przycisk nie ma własnego stanu i to jest cały jego sens.** Gotowe
+  burgery wiążą sobie własny `click` i same przełączają swoją klasę. Wygląda to
+  niewinnie, dopóki nie postawi się obok czegoś, co też chce wiedzieć, czy menu
+  jest otwarte — a wtedy jeden stan ma dwóch właścicieli i wygrywa ten,
+  którego nasłuch zarejestrował się później. Kosztowało to cztery wersje
+  poprawek (1.70.0 → 1.74.0) i za każdym razem objaw był inny.
+
+  Tutaj stan wystawia **menu**, a burger go tylko **czyta** — z klasy
+  `brx-open`, którą Circular Menu i Offcanvas Menu nakładają swoim
+  przełącznikom. Dzięki temu kreski wracają na miejsce także wtedy, gdy menu
+  zamknie Esc, kliknięcie poza panelem albo kliknięcie w link — bez jednej
+  linijki kodu po stronie przycisku.
+
+  - **Konfigurowalne wszystko**: pole klikalne, szerokość kresek, grubość,
+    odstęp, zaokrąglenie, kolor przed otwarciem, kolor po otwarciu, czas
+    i krzywa (ze wspólnej listy wtyczki, przeliczanej na zapis CSS-a).
+    Każde ustawienie jedzie zmienną CSS, więc Bricks umie je ustawić
+    **osobno na breakpoincie**.
+  - **Odstęp liczy się od KRAWĘDZI kresek, nie od ich środków** — inaczej przy
+    grubszych kreskach przerwa znikałaby mimo niezmienionego ustawienia.
+  - **Tryb „sam się przełącza"** dla użycia bez naszego menu (akordeon, panel
+    filtrów). Domyślnie wyłączony, bo przy naszym menu przywracałby dokładnie
+    ten problem, dla którego ten element powstał.
+  - `<button type="button">` z `aria-expanded` i `aria-label` od pierwszego
+    renderowania.
+  - Przy redukcji ruchu kreski **przeskakują, ale nadal pokazują stan** —
+    burger wyglądający tak samo przy otwartym i zamkniętym menu nie mówi nic.
+
+  Style dokłada się **wierszem w tablicy** `Evk_Burger::styles()`, nie gałęzią
+  kodu: znacznik jest wyliczany z liczby kresek. Dwukreskowe i trzykreskowe
+  różnią się w tym elemencie wyłącznie tą liczbą.
+
 ## [1.74.0] — 2026-08-12
 
 ### Naprawione

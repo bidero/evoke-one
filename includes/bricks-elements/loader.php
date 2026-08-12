@@ -125,6 +125,22 @@ function evk_elements_registry(): array {
             ],
             // asety: self-enqueue w element.php (EVK_OFFCANVAS_MENU_URL)
         ],
+        'burger' => [
+            'label' => 'Burger',
+            'desc'  => 'Animowany przycisk menu. Stan CZYTA z menu, nie trzyma własnego.',
+            'icon'  => 'dashicons-menu',
+            'class' => 'Evk_Burger',
+            'guard' => ['Evk_Burger', 'Bricks\\Evk_Burger'],
+            'name'  => 'evk-burger',
+            'file'  => $dir . 'evoke-burger/element.php',
+            'consts'=> [
+                'EVK_BURGER_VERSION' => '1.0.0',
+                'EVK_BURGER_URL'     => $url . 'evoke-burger/',
+                'EVK_BURGER_PATH'    => $dir . 'evoke-burger/',
+            ],
+            'script'=> ['evk-burger', $url . 'evoke-burger/assets/burger.js', ['bricks-scripts'], '1.0.0'],
+            'style' => ['evk-burger', $url . 'evoke-burger/assets/burger.css', '1.0.0'],
+        ],
         'stacking_cards' => [
             'label' => 'Stacking Cards',
             'desc'  => 'Karty nakładające się przy scrollu (position: sticky, bez pinu).',

@@ -1,0 +1,94 @@
+/* Evoke ONE — Burger
+ *
+ * Wszystko sterowane zmiennymi, bo kontrolki elementu wpisują je przez Bricksa
+ * — a to znaczy, że każdą da się ustawić OSOBNO NA BREAKPOINCIE. Wartości
+ * wpisane wprost w reguły odebrałyby tę możliwość.
+ *
+ * Stan otwarcia czytamy z klasy `brx-open`, którą nakłada MENU (Circular
+ * Menu / Offcanvas Menu) albo — w trybie samodzielnym — burger.js. Burger
+ * nigdy nie decyduje sam z siebie, jak jest; on ten stan pokazuje.
+ */
+
+.evk-burger {
+    --evk-burger-size: 44px;
+    --evk-burger-line-width: 100%;
+    --evk-burger-stroke: 2px;
+    --evk-burger-gap: 7px;
+    --evk-burger-radius: 0px;
+    --evk-burger-color: currentColor;
+    /* Puste „po otwarciu" znaczy „ten sam co przed" — kreski zmieniają wtedy
+       wyłącznie kształt. Wartość domyślna wskazująca na drugą zmienną robi to
+       bez ani jednego warunku w PHP. */
+    --evk-burger-color-open: var(--evk-burger-color);
+    --evk-burger-time: 400ms;
+    --evk-burger-ease: ease;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--evk-burger-size);
+    height: var(--evk-burger-size);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.evk-burger__box {
+    position: relative;
+    width: var(--evk-burger-line-width);
+    height: var(--evk-burger-size);
+}
+
+.evk-burger__line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    /* WSZYSTKIE kreski leżą na środku, a rozsuwa je dopiero `transform`.
+       To nie jest sztuczka dla oszczędności linii: dzięki temu oś obrotu przy
+       składaniu krzyżyka jest środkiem pudełka dla każdej kreski z osobna,
+       więc nie trzeba jej przeliczać per kreska ani poprawiać przy zmianie
+       odstępu. Kreski ustawione na `top`/`bottom` obracałyby się wokół
+       własnych pozycji i krzyżyk rozjeżdżałby się przy każdym innym odstępie. */
+    top: calc(50% - var(--evk-burger-stroke) / 2);
+    height: var(--evk-burger-stroke);
+    border-radius: var(--evk-burger-radius);
+    background: var(--evk-burger-color);
+    transition:
+        transform        var(--evk-burger-time) var(--evk-burger-ease),
+        opacity          var(--evk-burger-time) var(--evk-burger-ease),
+        background-color var(--evk-burger-time) var(--evk-burger-ease);
+}
+
+.evk-burger.brx-open .evk-burger__line {
+    background: var(--evk-burger-color-open);
+}
+
+/* Redukcja ruchu: kreski PRZESKAKUJĄ, ale nadal pokazują stan. Zerujemy sam
+   czas, nie zmianę kształtu — burger, który przy otwartym menu wygląda jak
+   przy zamkniętym, nie mówi nic i jest gorszy niż burger bez animacji.
+   Znacznik nakłada burger.js, a nie `@media (prefers-reduced-motion)`, bo
+   polityka ruchu tej wtyczki ma jeszcze własny przełącznik w panelu
+   (patrz includes/anim/motion.php) i sam media query by go pominął. */
+.evk-burger[data-evk-still] .evk-burger__line {
+    transition-duration: 0s;
+}
+
+/* ── Krzyżyk — trzy kreski ─────────────────────────────────────────────
+ *
+ * Skrajne rozsunięte o odstęp plus grubość (żeby „odstęp" znaczył przerwę
+ * między kreskami, a nie rozstaw ich środków), środkowa gaśnie.
+ */
+.evk-burger--cross .evk-burger__line:nth-child(1) {
+    transform: translateY(calc(-1 * (var(--evk-burger-gap) + var(--evk-burger-stroke))));
+}
+.evk-burger--cross .evk-burger__line:nth-child(3) {
+    transform: translateY(calc(var(--evk-burger-gap) + var(--evk-burger-stroke)));
+}
+
+.evk-burger--cross.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
+.evk-burger--cross.brx-open .evk-burger__line:nth-child(2) { opacity: 0; }
+.evk-burger--cross.brx-open .evk-burger__line:nth-child(3) { transform: rotate(-45deg); }

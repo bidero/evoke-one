@@ -1,0 +1,141 @@
+<!-- Parametry przez query: self (tryb samodzielny), dur, size, stroke, gap, kolory -->
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px system-ui; }
+  .long { height: 2000px; background: #eee; }
+</style>
+
+<link rel="stylesheet" href="../../includes/bricks-elements/evoke-burger/assets/burger.css">
+<link rel="stylesheet" href="../../includes/bricks-elements/evoke-circular-menu/assets/circular-menu.css">
+
+<script>
+  var q = new URLSearchParams(location.search);
+  window.bricksIsFrontend = true;
+</script>
+
+<!-- Burger STEROWANY PRZEZ MENU — tak wygląda domyślne użycie. Znacznik jest
+     zrzutem z render() elementu: przycisk, pudełko, trzy kreski. -->
+<button class="evk-burger evk-burger--cross" id="burger" aria-expanded="false"
+        aria-label="Menu" type="button">
+  <span class="evk-burger__box">
+    <span class="evk-burger__line"></span>
+    <span class="evk-burger__line"></span>
+    <span class="evk-burger__line"></span>
+  </span>
+</button>
+
+<!-- Drugi, w trybie SAMODZIELNYM — dla użycia bez naszego menu. -->
+<button class="evk-burger evk-burger--cross" id="sam" aria-expanded="false"
+        aria-label="Menu" type="button" data-evk-burger-self="1">
+  <span class="evk-burger__box">
+    <span class="evk-burger__line"></span>
+    <span class="evk-burger__line"></span>
+    <span class="evk-burger__line"></span>
+  </span>
+</button>
+
+<!-- Trzeci: NICZYJ. Bez trybu samodzielnego i bez menu, które by go pilnowało —
+     czyli dokładnie tryb domyślny w oderwaniu od wszystkiego. Kliknięcie ma
+     na nim NIE robić nic, bo stan wystawia menu, a tu żadnego nie ma. -->
+<button class="evk-burger evk-burger--cross" id="niczyj" aria-expanded="false"
+        aria-label="Menu" type="button">
+  <span class="evk-burger__box">
+    <span class="evk-burger__line"></span>
+    <span class="evk-burger__line"></span>
+    <span class="evk-burger__line"></span>
+  </span>
+</button>
+
+<!-- Circular Menu, którego przełącznikiem jest PIERWSZY burger. To jest sedno
+     całego elementu: menu nakłada przyciskowi `brx-open`, a arkusz burgera
+     tylko na to reaguje. -->
+<div id="root" class="evk-cm">
+  <div class="evk-cm-content" id="panel">
+    <a href="#a" id="link-a">Pozycja A</a>
+  </div>
+</div>
+
+<div class="long">treść strony</div>
+
+<script>
+  var b = document.getElementById('burger');
+  b.style.setProperty('--evk-burger-size',   q.get('size')   || '44px');
+  b.style.setProperty('--evk-burger-stroke', q.get('stroke') || '2px');
+  b.style.setProperty('--evk-burger-gap',    q.get('gap')    || '7px');
+  b.style.setProperty('--evk-burger-time',   q.get('dur')    || '400ms');
+  b.style.setProperty('--evk-burger-color',  q.get('color')  || 'rgb(0, 0, 0)');
+  if (q.get('coloropen')) b.style.setProperty('--evk-burger-color-open', q.get('coloropen'));
+
+  var root = document.getElementById('root');
+  root.setAttribute('data-portal',        '1');
+  root.setAttribute('data-duration',      '0.2');
+  root.setAttribute('data-easing',        'none');
+  root.setAttribute('data-content-delay', '0');
+  root.setAttribute('data-anim-exit',     '0');
+  root.setAttribute('data-exit-wait',     '');
+  // Przełącznikiem menu jest burger — dokładnie tak, jak na stronie.
+  root.setAttribute('data-customtoggle',  '#burger');
+  root.setAttribute('data-toggle-class',  '');
+  root.setAttribute('data-lock-scroll',   '0');
+  root.setAttribute('data-open-builder',  '0');
+  root.setAttribute('data-close-on-esc',  '1');
+</script>
+
+<script src="../../assets/vendor/gsap/gsap.min.js"></script>
+<script src="../../includes/bricks-elements/evoke-burger/assets/burger.js"></script>
+<script src="../../includes/bricks-elements/evoke-circular-menu/assets/circular-menu.js"></script>
+
+<script>
+function linie(id) {
+  return Array.prototype.slice.call(
+    document.getElementById(id).querySelectorAll('.evk-burger__line'));
+}
+
+/** Macierz transformacji kreski — [a, b, c, d, tx, ty]. */
+function mat(el) {
+  var m = getComputedStyle(el).transform;
+  if (!m || m === 'none') return [1, 0, 0, 1, 0, 0];
+  return m.replace(/^matrix\(|\)$/g, '').split(',').map(parseFloat);
+}
+
+/**
+ * Stan kreski w liczbach, które da się porównać.
+ *
+ * `kat` liczymy z macierzy (atan2 z pierwszej kolumny), bo `rotate(45deg)`
+ * w computed style i tak wychodzi macierzą. `ty` to przesunięcie w pionie —
+ * po nim widać rozsunięcie kresek w stanie zamkniętym.
+ */
+window.__linia = function (id, i) {
+  var el = linie(id)[i];
+  var m  = mat(el);
+  var cs = getComputedStyle(el);
+  return {
+    kat:     Math.round(Math.atan2(m[1], m[0]) * 180 / Math.PI),
+    ty:      Math.round(m[5]),
+    opacity: +parseFloat(cs.opacity).toFixed(2),
+    kolor:   cs.backgroundColor,
+    czas:    cs.transitionDuration.split(',')[0].trim(),
+    h:       Math.round(parseFloat(cs.height)),
+  };
+};
+
+window.__ile     = function (id) { return linie(id).length; };
+window.__aria    = function (id) { return document.getElementById(id).getAttribute('aria-expanded'); };
+window.__brx     = function (id) { return document.getElementById(id).classList.contains('brx-open'); };
+window.__klik    = function (id) { document.getElementById(id).click(); };
+window.__pole    = function (id) {
+  var r = document.getElementById(id).getBoundingClientRect();
+  return { w: Math.round(r.width), h: Math.round(r.height) };
+};
+window.__key = function (key) {
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: key, bubbles: true, cancelable: true }));
+};
+
+/** Czy panel Circular Menu jest rozwinięty — po promieniu obcięcia. */
+window.__menuOtwarte = function () {
+  var v = getComputedStyle(document.getElementById('panel')).clipPath || '';
+  var m = v.match(/circle\(\s*([\d.]+)\s*(px|%)/);
+  return !!m && parseFloat(m[1]) > 1;
+};
+</script>
