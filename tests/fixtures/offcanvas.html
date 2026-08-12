@@ -80,6 +80,7 @@
   root.setAttribute('data-panel-easing',   q.get('pease') || '');
   root.setAttribute('data-start',      '');
   root.setAttribute('data-trigger',    q.get('trig') || '');
+  root.setAttribute('data-toggle-class', q.get('tclass') || '');
   root.setAttribute('data-esc-back',   q.get('esc')    === '0' ? '0' : '1');
   root.setAttribute('data-close-link', '0');
   root.setAttribute('data-lock',       q.get('lock')   === '0' ? '0' : '1');
@@ -238,6 +239,8 @@ window.__stanPrzycisku = function (id) {
   return {
     klasy: el.className,
     brx:   el.classList.contains('brx-open'),
+    // Konwencja samych burgerów — na niej stoi większość animacji kresek.
+    act:   el.classList.contains('is-active'),
     aria:  el.getAttribute('aria-expanded'),
   };
 };

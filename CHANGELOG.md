@@ -2,6 +2,31 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.74.0] — 2026-08-12
+
+### Naprawione
+
+- **Burger zostawał krzyżykiem, bo animacja kresek stoi na `is-active`.**
+  Trzecia runda tej samej rodziny usterek i za każdym razem chodziło o INNĄ
+  klasę: najpierw `brx-open` nie było wcale, potem lądowało na opakowaniu
+  zamiast na `.brxe-toggle`, potem nie było go na korzeniu menu. Teraz okazało
+  się, że przycisk animuje się na `is-active` — zgłoszone wprost: „trzeba zdjąć
+  klasę is-active z przełącznika, wtedy się zamyka".
+
+  **Przestajemy zgadywać, która konwencja obowiązuje, i nakładamy obie.**
+  Przełącznik dostaje przy otwarciu `brx-open` (konwencja Bricksa), `is-active`
+  (konwencja burgerów) oraz swoją pierwszą klasę z końcówką `--opened`
+  (konwencja Evoke). Klasa stanu na przycisku, którego rolą jest otwieranie
+  menu, nie ma jak zaszkodzić — a każde kolejne zgłoszenie kosztowało wersję.
+
+### Dodane
+
+- **Kontrolka „Klasy otwarcia przełącznika"** w obu menu. Gdyby czwarta
+  konwencja też się znalazła, wpisuje się ją w pole zamiast czekać na
+  poprawkę — kilka klas oddziela się spacją, dochodzą do wbudowanych.
+  Wszystkie schodzą przy każdym zamknięciu: klawiszem Esc, kliknięciem poza
+  panelem i kliknięciem w link.
+
 ## [1.73.0] — 2026-08-12
 
 ### Naprawione

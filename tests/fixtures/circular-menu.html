@@ -1,4 +1,4 @@
-<!-- Parametry przez query: dur, ease, cdelay, exit, exitwait, portal, esc, toggle -->
+<!-- Parametry przez query: dur, ease, cdelay, exit, exitwait, portal, esc, toggle, tclass -->
 <meta charset="utf-8">
 <style>
   * { box-sizing: border-box; }
@@ -63,6 +63,7 @@
   // Puste = „cały czas animacji". Jawne zero MUSI przejść jako '0'.
   root.setAttribute('data-exit-wait',     q.get('exitwait') === null ? '' : q.get('exitwait'));
   root.setAttribute('data-customtoggle',  q.get('toggle') || '');
+  root.setAttribute('data-toggle-class',  q.get('tclass') || '');
   root.setAttribute('data-lock-scroll',   '0');
   root.setAttribute('data-open-builder',  '0');
   root.setAttribute('data-close-on-esc',  q.get('esc')    === '0' ? '0' : '1');
@@ -113,6 +114,8 @@ window.__stanPrzycisku = function (id) {
   return {
     klasy: el.className,
     brx:   el.classList.contains('brx-open'),
+    // Konwencja samych burgerów — na niej stoi większość animacji kresek.
+    act:   el.classList.contains('is-active'),
     aria:  el.getAttribute('aria-expanded'),
   };
 };

@@ -893,15 +893,34 @@ module.exports = async function (t) {
   await tg.waitForTimeout(120);
   s = await tg.evaluate(() => window.__stanPrzycisku('trigger'));
   t.check('po otwarciu trigger ma klasę Bricksa', s.brx, s.klasy);
+  // Konwencji jest kilka i żadna nie jest „tą właściwą" — animacja kresek
+  // burgera stoi zwykle na `is-active`. Nakładamy obie, zamiast zgadywać.
+  t.check('i konwencję samych burgerów', s.act, s.klasy);
   t.check('i konwencję „--opened"', /evk-oc-trigger--opened/.test(s.klasy), s.klasy);
 
   await tg.evaluate(() => window.__key('Escape'));
   await tg.waitForTimeout(120);
   s = await tg.evaluate(() => window.__stanPrzycisku('trigger'));
-  t.check('zamknięcie zdejmuje obie klasy',
-    !s.brx && !/--opened/.test(s.klasy) && s.aria === 'false',
+  t.check('zamknięcie zdejmuje WSZYSTKIE klasy stanu',
+    !s.brx && !s.act && !/--opened/.test(s.klasy) && s.aria === 'false',
     s.klasy + ' | aria ' + s.aria);
   await tg.close();
+
+  // Czwarta konwencja i dalsze — z kontrolki, bez ruszania kodu.
+  const tc = await t.open('offcanvas.html',
+    { viewport: V, query: 'dur=0.2&tclass=' + encodeURIComponent('moja-klasa'), settle: 250 });
+  await tc.evaluate(() => window.__open());
+  await tc.waitForTimeout(120);
+  let k = await tc.evaluate(() => window.__stanPrzycisku('trigger'));
+  t.check('własna klasa z kontrolki też siada',
+    /moja-klasa/.test(k.klasy) && k.brx && k.act, k.klasy);
+
+  await tc.evaluate(() => window.__key('Escape'));
+  await tc.waitForTimeout(150);
+  k = await tc.evaluate(() => window.__stanPrzycisku('trigger'));
+  t.check('i schodzi przy zamknięciu',
+    !/moja-klasa/.test(k.klasy) && !k.brx && !k.act, k.klasy);
+  await tc.close();
 
   // Menu zgłasza otwarcie NA KORZENIU, a nie tylko na przycisku. Bricks trzyma
   // stan na elemencie, który otwiera, a wygląd przełącznika bywa z niego

@@ -1,6 +1,6 @@
 /**
  * Evoke Circular Menu
- * v1.5.0
+ * v1.6.0
  *
  * evk_circular_menu_init() jest wołane z dwóch stron: przez Bricks (patrz
  * $scripts w element.php) i przez własny DOMContentLoaded poniżej. Flaga
@@ -35,6 +35,25 @@ var EVK_CM_EXIT_MAX = 1;
  * bo z jego punktu widzenia menu nigdy się nie otworzyło. Zgłoszone z użycia.
  */
 var EVK_BRICKS_OPEN = 'brx-open';
+
+/**
+ * Klasy stanu nakładane PRZEŁĄCZNIKOWI. Nie jedna — bo konwencji jest kilka
+ * i żadna nie jest „tą właściwą".
+ *
+ * `brx-open` zakłada Bricks swoim otwartym elementom. `is-active` to konwencja
+ * samych burgerów i na niej stoi większość gotowych animacji kresek — również
+ * ta, która przyszła ze zgłoszenia („trzeba zdjąć klasę is-active
+ * z przełącznika, wtedy się zamyka").
+ *
+ * Nakładamy OBIE, zamiast zgadywać, która obowiązuje. Klasa stanu na
+ * przycisku, którego rolą jest otwieranie menu, nie ma jak zaszkodzić —
+ * a każde kolejne zgłoszenie tej rodziny kosztowało wersję.
+ *
+ * Trzecia konwencja — `<pierwsza-klasa>--opened` — jest wyliczana z klas
+ * przycisku i doszyta w updateTriggerState(). Czwartą i dalsze dopisuje się
+ * w kontrolce „Klasy otwarcia przełącznika", bez ruszania kodu.
+ */
+var EVK_CM_TOGGLE_OPEN = ['brx-open', 'is-active'];
 
 /**
  * Co uznajemy za SAM przełącznik, gdy selektor wskazuje na jego opakowanie.
@@ -101,6 +120,14 @@ function evk_circular_menu_init_one( root ) {
         ? null : parseFloat( exitWaitRaw );
     if ( isNaN( exitWait ) ) exitWait = null;
     var customToggleSel = root.getAttribute( 'data-customtoggle' ) || '';
+    /* Wbudowane konwencje plus to, co dopisano w kontrolce. Rozdzielamy po
+       białych znakach i odsiewamy puste — pole tekstowe zbiera wszystko, co
+       ktoś wklei, razem z podwójnymi spacjami i przecinkami. */
+    var toggleOpenClasses = EVK_CM_TOGGLE_OPEN.concat(
+        ( root.getAttribute( 'data-toggle-class' ) || '' )
+            .split( /[\s,]+/ )
+            .filter( function ( c ) { return c && EVK_CM_TOGGLE_OPEN.indexOf( c ) < 0; } )
+    );
     var lockScroll  = root.getAttribute( 'data-lock-scroll' ) === '1';
     var closeOnEsc  = root.getAttribute( 'data-close-on-esc' ) === '1';
 
@@ -204,13 +231,14 @@ function evk_circular_menu_init_one( root ) {
         // Pierwsza WŁASNA klasa elementu — nasze znaczniki stanu wypadają,
         // inaczej przełącznik bez żadnej klasy dorobiłby się „brx-open--opened".
         var firstClass = Array.prototype.filter.call( btn.classList, function ( c ) {
-            return c !== EVK_BRICKS_OPEN && c.slice( -8 ) !== '--opened';
+            return toggleOpenClasses.indexOf( c ) < 0 && c.slice( -8 ) !== '--opened';
         } )[0];
         // Dotychczasowa konwencja Evoke — czyjeś arkusze mogą już na niej stać.
-        var openedClass = firstClass ? firstClass + '--opened' : '';
+        if ( firstClass ) btn.classList.toggle( firstClass + '--opened', isOpen );
 
-        if ( openedClass ) btn.classList.toggle( openedClass, isOpen );
-        btn.classList.toggle( EVK_BRICKS_OPEN, isOpen );
+        toggleOpenClasses.forEach( function ( c ) {
+            btn.classList.toggle( c, isOpen );
+        } );
         btn.setAttribute( 'aria-expanded', isOpen ? 'true' : 'false' );
     }
 

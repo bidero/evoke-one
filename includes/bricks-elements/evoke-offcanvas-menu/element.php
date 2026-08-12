@@ -277,6 +277,22 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'description' => esc_html__( 'Gdy burger siedzi poza tym elementem — np. w nagłówku zbudowanym osobno.', 'evoke-one' ),
 		];
 
+		$this->controls['toggleClass'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Klasy otwarcia przełącznika', 'evoke-one' ),
+			'type'        => 'text',
+			'placeholder' => 'brx-open  is-active',
+			'description' => esc_html__(
+				'Przy otwartym menu przełącznik dostaje z automatu brx-open (konwencja '
+				. 'Bricksa), is-active (konwencja burgerów) oraz swoją pierwszą klasę '
+				. 'z końcówką --opened. To pole jest na wypadek, gdy Twój burger animuje '
+				. 'się na jeszcze innej klasie: wpisz ją tutaj, a dojdzie do tamtych. '
+				. 'Kilka oddziel spacją. Klasy schodzą przy każdym zamknięciu — także '
+				. 'klawiszem Esc i kliknięciem w tło.',
+				'evoke-one'
+			),
+		];
+
 		$this->controls['escGoesBack'] = [
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Esc cofa o poziom', 'evoke-one' ),
@@ -366,6 +382,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-panel-easing',   $css_pease );
 		$this->set_attribute( '_root', 'data-start',      ! empty( $s['startPanel'] ) ? $s['startPanel'] : '' );
 		$this->set_attribute( '_root', 'data-trigger',    ! empty( $s['triggerSelector'] ) ? $s['triggerSelector'] : '' );
+		$this->set_attribute( '_root', 'data-toggle-class', ! empty( $s['toggleClass'] ) ? $s['toggleClass'] : '' );
 
 		/*
 		 * Wartości logiczne wprost jako '1'/'0', nie przez pominięcie atrybutu.

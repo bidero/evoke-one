@@ -488,6 +488,11 @@ module.exports = async function (t) {
 
   s = await zt.evaluate(() => window.__stanPrzycisku('zew'));
   t.check('przełącznik dostał klasę Bricksa', s.brx, s.klasy);
+  // Druga konwencja, ta od samych burgerów. Zgłoszone z użycia: „trzeba zdjąć
+  // klasę is-active z przełącznika, wtedy się zamyka" — animacja kresek stała
+  // właśnie na niej, a myśmy jej nie ruszali. Nakładamy OBIE, zamiast zgadywać,
+  // która obowiązuje na danej stronie.
+  t.check('i konwencję samych burgerów', s.act, s.klasy);
   t.check('i mówi, że rozwija', s.aria === 'true', String(s.aria));
   // Dotychczasowa konwencja Evoke zostaje — czyjeś arkusze mogą na niej stać.
   t.check('konwencja „--opened" też zostaje', /brxe-toggle--opened/.test(s.klasy), s.klasy);
@@ -495,12 +500,34 @@ module.exports = async function (t) {
   await zt.evaluate(() => window.__zew());
   await zt.waitForTimeout(400);
   s = await zt.evaluate(() => window.__stanPrzycisku('zew'));
-  t.check('zamknięcie zdejmuje obie klasy',
-    !s.brx && !/--opened/.test(s.klasy) && s.aria === 'false',
+  t.check('zamknięcie zdejmuje WSZYSTKIE klasy stanu',
+    !s.brx && !s.act && !/--opened/.test(s.klasy) && s.aria === 'false',
     s.klasy + ' | aria ' + s.aria);
   t.check('bez błędów JS przy zewnętrznym przełączniku', !zt.errors.length,
     zt.errors.join(' | ') || 'brak');
   await zt.close();
+
+  // Czwarta konwencja i dalsze — z kontrolki, bez ruszania kodu. Trzy rundy
+  // zgłoszeń na tej samej rodzinie usterek wystarczą, żeby przestać zgadywać
+  // i dać pole.
+  const tc = await t.open('circular-menu.html', {
+    viewport: V, settle: 300,
+    query: 'dur=0.2&toggle=' + encodeURIComponent('.moj-burger') + '&tclass=' +
+           encodeURIComponent('moja-klasa druga-klasa'),
+  });
+  await tc.evaluate(() => window.__zew());
+  await tc.waitForTimeout(400);
+  let k = await tc.evaluate(() => window.__stanPrzycisku('zew'));
+  t.check('własne klasy z kontrolki też siadają',
+    /moja-klasa/.test(k.klasy) && /druga-klasa/.test(k.klasy), k.klasy);
+  t.check('a wbudowane nadal działają obok', k.brx && k.act, k.klasy);
+
+  await tc.evaluate(() => window.__key('Escape'));
+  await tc.waitForTimeout(400);
+  k = await tc.evaluate(() => window.__stanPrzycisku('zew'));
+  t.check('i wszystkie schodzą przy Esc',
+    !/moja-klasa|druga-klasa/.test(k.klasy) && !k.brx && !k.act, k.klasy);
+  await tc.close();
 
   // Druga postać: selektor na OPAKOWANIU przycisku. Stan należy do
   // sterującego, a nie do pudełka wokół niego — div z `aria-expanded` nie

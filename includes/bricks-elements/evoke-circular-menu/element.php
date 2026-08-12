@@ -120,6 +120,21 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'type'        => 'text',
 			'placeholder' => '.moj-burger',
 		];
+		$this->controls['toggleClass'] = [
+			'hasDynamicData' => false,
+			'label'       => esc_html__( 'Klasy otwarcia przełącznika', 'evk-circular-menu' ),
+			'type'        => 'text',
+			'placeholder' => 'brx-open  is-active',
+			'description' => esc_html__(
+				'Przy otwartym menu przełącznik dostaje z automatu brx-open (konwencja '
+				. 'Bricksa), is-active (konwencja burgerów) oraz swoją pierwszą klasę '
+				. 'z końcówką --opened. To pole jest na wypadek, gdy Twój burger animuje '
+				. 'się na jeszcze innej klasie: wpisz ją tutaj, a dojdzie do tamtych. '
+				. 'Kilka oddziel spacją. Klasy schodzą przy każdym zamknięciu — także '
+				. 'klawiszem Esc i kliknięciem poza panelem.',
+				'evk-circular-menu'
+			),
+		];
 		$this->controls['lockBodyScrolling'] = [
 			'label'   => esc_html__( 'Blokuj scroll strony', 'evk-circular-menu' ),
 			'type'    => 'checkbox',
@@ -354,6 +369,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$exitWait          = isset( $settings['exitWait'] ) && $settings['exitWait'] !== ''
 			? (string) $settings['exitWait'] : '';
 		$customtoggle      = ! empty( $settings['customtoggle'] )      ? $settings['customtoggle']      : '';
+		$toggleClass       = ! empty( $settings['toggleClass'] )       ? $settings['toggleClass']       : '';
 		$lockBodyScrolling = ! empty( $settings['lockBodyScrolling'] ) ? '1' : '0';
 		$closeOnEsc        = ! empty( $settings['closeOnEsc'] )        ? '1' : '0';
 
@@ -365,6 +381,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-anim-exit',                        $animateExit );
 		$this->set_attribute( '_root', 'data-exit-wait',                        $exitWait );
 		$this->set_attribute( '_root', 'data-customtoggle',                     $customtoggle );
+		$this->set_attribute( '_root', 'data-toggle-class',                     $toggleClass );
 		$this->set_attribute( '_root', 'data-lock-scroll',                      $lockBodyScrolling );
 		$this->set_attribute( '_root', 'data-open-builder',                     $openbuilder );
 		$this->set_attribute( '_root', 'data-close-on-esc',                     $closeOnEsc );

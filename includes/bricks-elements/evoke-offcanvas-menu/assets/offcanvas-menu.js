@@ -60,6 +60,26 @@ function evk_offcanvas_menu_init_one(root) {
      * wykonania w pliku.
      */
     var BRICKS_OPEN = 'brx-open';
+
+    /**
+     * Klasy stanu nakładane PRZEŁĄCZNIKOWI. Nie jedna — bo konwencji jest kilka
+     * i żadna nie jest „tą właściwą".
+     *
+     * `brx-open` zakłada Bricks swoim otwartym elementom. `is-active` to
+     * konwencja samych burgerów i na niej stoi większość gotowych animacji
+     * kresek. Nakładamy OBIE, zamiast zgadywać, która obowiązuje: klasa stanu
+     * na przycisku, którego rolą jest otwieranie menu, nie ma jak zaszkodzić.
+     *
+     * Trzecia konwencja — `<pierwsza-klasa>--opened` — jest wyliczana z klas
+     * przycisku. Czwartą i dalsze dopisuje się w kontrolce, bez ruszania kodu.
+     */
+    var TOGGLE_OPEN = [BRICKS_OPEN, 'is-active'];
+
+    var toggleOpenClasses = TOGGLE_OPEN.concat(
+        (root.getAttribute('data-toggle-class') || '')
+            .split(/[\s,]+/)
+            .filter(function (c) { return c && TOGGLE_OPEN.indexOf(c) < 0; })
+    );
     /* Ile czekać z wyjazdem kadru na wyjście treści. `null` znaczy „cały czas
        animacji" (ruchy jeden PO drugim), liczba — tyle sekund, ile podano.
        Zero to nie brak ustawienia, tylko wybór: kadr wyjeżdża RAZEM
@@ -625,10 +645,10 @@ function evk_offcanvas_menu_init_one(root) {
             // Pierwsza WŁASNA klasa — nasze znaczniki stanu wypadają, inaczej
             // przełącznik bez klasy dorobiłby się „brx-open--opened".
             var firstClass = Array.prototype.filter.call(btn.classList, function (c) {
-                return c !== BRICKS_OPEN && c.slice(-8) !== '--opened';
+                return toggleOpenClasses.indexOf(c) < 0 && c.slice(-8) !== '--opened';
             })[0];
             if (firstClass) btn.classList.toggle(firstClass + '--opened', isOpen);
-            btn.classList.toggle(BRICKS_OPEN, isOpen);
+            toggleOpenClasses.forEach(function (c) { btn.classList.toggle(c, isOpen); });
             btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         });
     }
