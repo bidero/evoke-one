@@ -146,6 +146,15 @@ echo json_encode([
     // Nazwa zmiennej koloru napisu. Fixture ustawia JĄ SAMĄ, więc literówka
     // w kontrolce nie byłaby widoczna w przeglądarce — stąd zrzut z PHP.
     'textColorOpenCss' => $el->controls['textColorOpen']['css'][0] ?? null,
+    // Para rysunku obok pary napisu. Wskazanie tej samej zmiennej z obu pól
+    // to pomyłka z kopiowania, której pomiar w przeglądarce sam nie złapie:
+    // przy jednej ustawionej wartości wszystko wyglądałoby poprawnie.
+    'colorOpenCss'     => $el->controls['colorOpen']['css'][0] ?? null,
+    'etykietyKolorow'  => [
+        'color'         => $el->controls['color']['label'] ?? null,
+        'colorOpen'     => $el->controls['colorOpen']['label'] ?? null,
+        'textColorOpen' => $el->controls['textColorOpen']['label'] ?? null,
+    ],
     'styleRequired' => $el->controls['style']['required'] ?? null,
     'pozycje'       => array_keys(\Bricks\Evk_Burger::text_positions()),
     // Ile <span class="evk-burger__line"> naprawdę wyszło z rendera.

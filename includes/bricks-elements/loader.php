@@ -134,7 +134,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-burger',
             'file'  => $dir . 'evoke-burger/element.php',
             'consts'=> [
-                'EVK_BURGER_VERSION' => '1.6.0',
+                'EVK_BURGER_VERSION' => '1.7.0',
                 'EVK_BURGER_URL'     => $url . 'evoke-burger/',
                 'EVK_BURGER_PATH'    => $dir . 'evoke-burger/',
             ],

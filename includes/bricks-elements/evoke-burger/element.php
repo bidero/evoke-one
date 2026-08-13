@@ -441,30 +441,51 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		// ── Kolory ─────────────────────────────────────────────────────────
+		/*
+		 * DWIE NIEZALEŻNE PARY, i to jest jedyna rzecz, którą trzeba tu wiedzieć.
+		 * Rysunek ma swoją parę, napis swoją — żadne pole nie maluje cudzego
+		 * kawałka. Do 1.81.0 pole „po otwarciu" było jedno i malowało wszystko,
+		 * co przycisk pokazywał; dołożenie węższego pola dla napisu zrobiło
+		 * z tamtego połowę pary, ale zostawiło mu ogólną nazwę. Wychodziło z tego
+		 * zestawienie, w którym pole WĘŻSZE brzmi konkretniej niż ogólne — więc
+		 * czytało się je jako to właściwe i kreski zostawały w swoim kolorze.
+		 * Stąd nazwy mówiące wprost, co które maluje.
+		 */
 		$this->controls['colorSeparator'] = [
 			'label'       => esc_html__( 'Kolory', 'evoke-one' ),
 			'type'        => 'separator',
 			'description' => esc_html__(
-				'Kolor po otwarciu zostawiony pusty znaczy „ten sam co przed" — kreski '
-				. 'zmieniają wtedy tylko kształt. Ustawiony przenika do niego w tym samym '
-				. 'czasie, w którym składa się krzyżyk.',
+				'Rysunek i napis mają OSOBNE pary pól i nie malują się nawzajem. '
+				. 'W każdej parze pole „po otwarciu" zostawione puste znaczy „ten sam '
+				. 'kolor co przed".',
 				'evoke-one'
 			),
 		];
 
 		$this->controls['color'] = [
-			'tab'     => 'content',
-			'label'   => esc_html__( 'Kolor kresek', 'evoke-one' ),
-			'type'    => 'color',
-			'css'     => [ [ 'property' => '--evk-burger-color', 'selector' => '' ] ],
-			'default' => [ 'hex' => '#000000' ],
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Kolor kresek i ikony', 'evoke-one' ),
+			'type'        => 'color',
+			'css'         => [ [ 'property' => '--evk-burger-color', 'selector' => '' ] ],
+			'default'     => [ 'hex' => '#000000' ],
+			'description' => esc_html__(
+				'Dotyczy rysunku — i kresek, i własnej ikony. Napis ma własne pola niżej '
+				. 'i za tym kolorem NIE idzie.',
+				'evoke-one'
+			),
 		];
 
 		$this->controls['colorOpen'] = [
-			'tab'   => 'content',
-			'label' => esc_html__( 'Kolor po otwarciu', 'evoke-one' ),
-			'type'  => 'color',
-			'css'   => [ [ 'property' => '--evk-burger-color-open', 'selector' => '' ] ],
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Kolor kresek i ikony po otwarciu', 'evoke-one' ),
+			'type'        => 'color',
+			'css'         => [ [ 'property' => '--evk-burger-color-open', 'selector' => '' ] ],
+			'description' => esc_html__(
+				'Pusty znaczy „ten sam co przed" — rysunek zmienia wtedy tylko kształt. '
+				. 'Ustawiony przenika do niego w tym samym czasie, w którym składa się '
+				. 'krzyżyk. To pole NIE dotyczy napisu.',
+				'evoke-one'
+			),
 		];
 
 		/*
@@ -487,9 +508,10 @@ class Evk_Burger extends \Bricks\Element {
 			// kontrolki przy wypełnionym samym „otwartym" byłoby gorsze niż
 			// pokazanie jej o jeden raz za dużo.
 			'description' => esc_html__(
-				'Pusty znaczy „ten sam co przed otwarciem" — napis trzyma wtedy kolor '
-				. 'wzięty z typografii przycisku. Ustawiony przenika do niego w tym samym '
-				. 'czasie, w którym składa się krzyżyk.',
+				'Dotyczy WYŁĄCZNIE napisu — kreski i ikona mają własne pole wyżej '
+				. 'i za tym kolorem nie idą. Pusty znaczy „ten sam co przed otwarciem": '
+				. 'napis trzyma wtedy kolor wzięty z typografii przycisku. Ustawiony '
+				. 'przenika do niego w tym samym czasie, w którym składa się krzyżyk.',
 				'evoke-one'
 			),
 		];

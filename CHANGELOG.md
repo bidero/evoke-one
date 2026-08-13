@@ -2,6 +2,45 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.83.0] — 2026-08-13
+
+### Zmienione
+
+- **Pola kolorów burgera mówią teraz, co malują.** Zgłoszone z użycia: „tekst
+  zmienia kolor na zadany, a burger nie".
+
+  Mechanizm był sprawny — kreski nie zmieniały koloru dlatego, że ich pole
+  zostało puste, a puste znaczy „ten sam co przed". Ale wdepnąć w to było łatwo
+  i to jest wina zmiany z 1.81.0: do wtedy pole „po otwarciu" było JEDNO
+  i malowało wszystko, co przycisk pokazywał. Dołożenie węższego pola dla napisu
+  zrobiło z tamtego połowę pary, zostawiając mu ogólną nazwę — powstało
+  zestawienie, w którym pole węższe brzmi konkretniej niż ogólne, więc czytało
+  się je jako to właściwe.
+
+  | Dawniej | Teraz |
+  |---|---|
+  | Kolor kresek | **Kolor kresek i ikony** |
+  | Kolor po otwarciu | **Kolor kresek i ikony po otwarciu** |
+  | Kolor napisu po otwarciu | *(bez zmian)* |
+
+  „Kolor kresek" i tak malował także własną ikonę — nazwa była nieprawdziwa już
+  wcześniej. Zasada „pusty = ten sam co przed" zeszła z nagłówka sekcji do
+  opisów samych pól, czyli tam, gdzie się na nią patrzy.
+
+  **Zachowanie bez zmian.** Kusiło, żeby jedno pole malowało cały przycisk, ale
+  kontrolka koloru ma wartość domyślną `#000000`, którą Bricks wypisuje do CSS-a
+  nawet nietkniętą — napis przemalowałby się wtedy na czarno KAŻDEMU, kto ma
+  jasny tekst i nigdy nie dotknął kolorów.
+
+### Naprawione (testy)
+
+- **Niezależność obu par kolorów nie była pilnowana ANI JEDNYM sprawdzeniem.**
+  Każde mierzyło swój kawałek osobno, więc pole malujące cudzy kawałek
+  przeszłoby bez śladu. Nowa sekcja mierzy kreskę i napis w tym samym pomiarze,
+  w obie strony, plus sprawdza w PHP, że oba pola celują w różne zmienne — tej
+  pomyłki z kopiowania pomiar w przeglądarce sam by nie złapał, bo przy jednej
+  ustawionej wartości wszystko wyglądałoby poprawnie.
+
 ## [1.82.0] — 2026-08-13
 
 ### Dodane

@@ -860,6 +860,67 @@ module.exports = async function (t) {
     (await nk.evaluate(() => window.__napisWzgledemIkony('w-tekst'))).kolor);
   await nk.close();
 
+  /* ── Rysunek i napis to DWIE NIEZALEŻNE PARY ──────────────────────────
+   *
+   * Zgłoszone z użycia: „tekst zmienia kolor na zadany, a burger nie". Nie było
+   * to zepsute — pole kresek zostało puste, a puste znaczy „ten sam co przed".
+   * Wdepnąć w to było jednak łatwo, bo do 1.81.0 pole „po otwarciu" było JEDNO
+   * i malowało wszystko; dołożenie węższego pola dla napisu zrobiło z tamtego
+   * połowę pary, zostawiając mu ogólną nazwę.
+   *
+   * Do 1.83.0 tej umowy nie pilnowało ANI JEDNO sprawdzenie: każde mierzyło
+   * swój kawałek osobno, więc pole malujące cudzy kawałek przeszłoby bez śladu.
+   * Stąd ta sekcja — mierzy kreskę i napis W TYM SAMYM pomiarze.
+   */
+  t.section('kolor rysunku i kolor napisu nie malują się nawzajem');
+
+  const paraQ = 'dur=0ms&size=44px&html=' + zrzut + '&color='
+    + encodeURIComponent('rgb(0, 0, 0)');
+  const NIEBIESKI = encodeURIComponent('rgb(0, 128, 255)');
+
+  // Tylko rysunek. Napis ma zostać w kolorze odziedziczonym.
+  const tylkoRys = await t.open('burger.html', {
+    viewport: V, settle: 200, query: paraQ + '&coloropen=' + NIEBIESKI,
+  });
+  await tylkoRys.evaluate(() => window.__ustawOtwarty('w-tekst', true));
+  await tylkoRys.waitForTimeout(60);
+  t.check('kolor rysunku maluje KRESKĘ',
+    (await tylkoRys.evaluate(() => window.__linia('w-tekst', 0))).kolor === 'rgb(0, 128, 255)',
+    (await tylkoRys.evaluate(() => window.__linia('w-tekst', 0))).kolor);
+  t.check('ale NIE maluje napisu',
+    (await tylkoRys.evaluate(() => window.__napisWzgledemIkony('w-tekst'))).kolor === 'rgb(0, 0, 0)',
+    (await tylkoRys.evaluate(() => window.__napisWzgledemIkony('w-tekst'))).kolor);
+  await tylkoRys.close();
+
+  // Tylko napis — DOKŁADNIE zgłoszony przypadek.
+  const tylkoNap = await t.open('burger.html', {
+    viewport: V, settle: 200, query: paraQ + '&textopen=' + NIEBIESKI,
+  });
+  await tylkoNap.evaluate(() => window.__ustawOtwarty('w-tekst', true));
+  await tylkoNap.waitForTimeout(60);
+  t.check('kolor napisu maluje NAPIS',
+    (await tylkoNap.evaluate(() => window.__napisWzgledemIkony('w-tekst'))).kolor === 'rgb(0, 128, 255)',
+    (await tylkoNap.evaluate(() => window.__napisWzgledemIkony('w-tekst'))).kolor);
+  t.check('ale NIE maluje kreski — to jest zgłoszony przypadek',
+    (await tylkoNap.evaluate(() => window.__linia('w-tekst', 0))).kolor === 'rgb(0, 0, 0)',
+    (await tylkoNap.evaluate(() => window.__linia('w-tekst', 0))).kolor);
+  await tylkoNap.close();
+
+  /* Obie kontrolki muszą celować w RÓŻNE zmienne. Gdyby wskazywały tę samą,
+     pomiary wyżej dalej by przechodziły — każdy z nich ustawia tylko jedną
+     wartość, więc jedna zmienna obsłużyłaby oba. Tę pomyłkę widać wyłącznie
+     w PHP. */
+  t.check('każde pole celuje w INNĄ zmienną',
+    php.colorOpenCss.property === '--evk-burger-color-open'
+    && php.textColorOpenCss.property === '--evk-burger-text-color-open',
+    php.colorOpenCss.property + ' vs ' + php.textColorOpenCss.property);
+  // Nazwa pola ma mówić, co maluje — w to właśnie dało się wdepnąć.
+  t.check('i mówi w nazwie, czego dotyczy',
+    /kresek i ikony/.test(php.etykietyKolorow.colorOpen)
+    && /napisu/.test(php.etykietyKolorow.textColorOpen)
+    && php.etykietyKolorow.colorOpen !== php.etykietyKolorow.textColorOpen,
+    php.etykietyKolorow.colorOpen + ' / ' + php.etykietyKolorow.textColorOpen);
+
   // ── Wszystko konfigurowalne ────────────────────────────────────────────
   // Zmienne CSS, a nie wartości wpisane w reguły — tylko dzięki temu Bricks
   // może je ustawić osobno na breakpoincie.
