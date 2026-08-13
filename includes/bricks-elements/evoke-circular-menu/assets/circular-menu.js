@@ -312,25 +312,50 @@ function evk_circular_menu_init_one( root ) {
             // z panelu.
             if ( panel.contains( el ) ) return;
 
-            var r = el.getBoundingClientRect();
+            var r  = el.getBoundingClientRect();
+            var cs = getComputedStyle( el );
 
-            /* Przekładka to KOPIA przełącznika, a nie pusty prostokąt o tych
-               samych wymiarach. Pierwsze podejście wstawiało `<span>` o zmierzonej
-               szerokości i wysokości — i sąsiad w nagłówku i tak przeskakiwał
-               o 17 px. Powód: linia bazowa. Pusty element blokowo-liniowy
-               wyznacza ją dolną krawędzią, a taki z tekstem — linią bazową
-               swojego tekstu, więc wysokość całego wiersza wychodzi inna.
-               Kopia ma tę samą treść, więc zajmuje DOKŁADNIE to samo miejsce
-               z definicji, zamiast odtwarzać je po kawałku.
-               `visibility` zamiast `opacity`, żeby wypadła też z drzewa
-               dostępności — inaczej czytnik ekranu ogłaszałby przycisk dwa razy. */
+            /* Przekładka: KOPIA przełącznika z WYMUSZONYM pudełkiem.
+             *
+             * Kopia, a nie pusty prostokąt — bo pusty element blokowo-liniowy
+             * wyznacza linię bazową dolną krawędzią, a taki z tekstem linią
+             * bazową swojego tekstu; sąsiad przeskakiwał przez to o 17 px.
+             *
+             * Wymuszone pudełko, a nie sama kopia — bo identyfikator z kopii
+             * trzeba zdjąć (dwa te same w dokumencie psują `getElementById`
+             * i cudze skrypty), a Bricks stylizuje elementy WŁAŚNIE po
+             * identyfikatorze. Kopia bez niego gubi szerokość, wysokość
+             * i wypełnienie: zmierzone przesunięcie sąsiada o 43 px, tak samo
+             * w nagłówku elastycznym jak liniowym. Wpisanie zmierzonego pudełka
+             * wprost uniezależnia przekładkę od tego, które reguły ją ominą.
+             *
+             * `visibility`, a nie `opacity` — żeby wypadła też z drzewa
+             * dostępności; inaczej czytnik ekranu ogłaszałby przycisk dwa razy. */
             var ph = el.cloneNode( true );
             ph.removeAttribute( 'id' );
             ph.querySelectorAll( '[id]' ).forEach( function ( n ) { n.removeAttribute( 'id' ); } );
             ph.setAttribute( 'aria-hidden', 'true' );
             ph.setAttribute( 'data-evk-cm-przekladka', '' );
-            ph.style.visibility   = 'hidden';
-            ph.style.pointerEvents = 'none';
+            /* Wypełnienie i obramowanie KOPIOWANE, a nie zerowane. Przy
+               wyzerowanych tekst w przekładce siadał wyżej niż w oryginale,
+               więc linia bazowa całego wiersza wypadała o piksel inaczej —
+               zmierzone. Przy `border-box` i wpisanym rozmiarze zewnętrznym
+               te same wartości dają to samo pudełko treści, a więc i tę samą
+               linię bazową. Kolor obramowania nieistotny: przekładka jest
+               niewidoczna. */
+            ph.style.cssText = 'box-sizing:border-box'
+                + ';display:'        + cs.display
+                + ';width:'          + r.width  + 'px'
+                + ';height:'         + r.height + 'px'
+                + ';padding:'        + cs.padding
+                + ';border-width:'   + cs.borderWidth
+                + ';border-style:'   + cs.borderStyle
+                + ';border-color:transparent'
+                + ';margin:'         + cs.margin
+                + ';vertical-align:' + cs.verticalAlign
+                + ';font-size:'      + cs.fontSize
+                + ';line-height:'    + cs.lineHeight
+                + ';visibility:hidden;pointer-events:none';
             el.parentNode.insertBefore( ph, el );
 
             // Cały atrybut `style`, a nie pojedyncze właściwości: przełącznik
@@ -350,6 +375,24 @@ function evk_circular_menu_init_one( root ) {
             // ustawieniem, zamiast powtarzać wartość w drugim miejscu.
             el.style.zIndex   = String( z );
         } );
+
+        /* WYMUSZONY PRZELICZNIK, i to nie jest zabobon.
+         *
+         * Przeniesienie węzła w drzewie kasuje jego stan przejść: element,
+         * którego nie było w dokumencie przy poprzednim przeliczeniu stylu,
+         * NIE MA od czego animować. Klasa stanu dochodzi zaraz po tym
+         * (syncTriggers), więc bez tej linijki burger PRZESKAKIWAŁ do wyglądu
+         * otwartego — bez przejścia kolorów i bez ruchu kresek. Przy zamykaniu
+         * animował się normalnie, bo tam klasa schodzi, gdy węzeł od dawna
+         * siedzi w <body>. Dokładnie tak to zgłoszono: „nie animuje się do
+         * stanu otwartego, tylko przy zamknięciu".
+         *
+         * Odczyt wymiaru zmusza przeglądarkę do przeliczenia stylu TERAZ, więc
+         * przełącznik dostaje stan wyjściowy, od którego jest się czym odbić.
+         * Jeden odczyt na cały dokument wystarcza dla wszystkich przeniesionych.
+         * Zmierzone: bez niego kolor skacze wprost do docelowego, z nim
+         * w połowie czasu jest w połowie drogi. */
+        if ( podniesione.length ) void document.body.offsetHeight;
     }
 
     function opuscPrzelaczniki() {

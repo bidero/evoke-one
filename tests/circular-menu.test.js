@@ -786,6 +786,29 @@ module.exports = async function (t) {
     zr.errors.join(' | ') || 'brak');
   await zr.close();
 
+  /* PRZEJŚCIE MUSI ZAGRAĆ PRZY OTWIERANIU — zgłoszone z użycia po 1.85.0:
+     „burger nie animuje się do stanu otwartego, tylko przy zamknięciu".
+     Przeniesienie węzła w drzewie KASUJE stan przejść: element, którego nie
+     było w dokumencie przy poprzednim przeliczeniu stylu, nie ma od czego
+     animować, więc klasa nałożona zaraz potem dawała przeskok. Przy zamykaniu
+     wszystko grało, bo tam klasa schodzi, gdy węzeł od dawna siedzi w <body>.
+     Mierzymy W POŁOWIE drogi, bo tylko tam widać różnicę między przejściem
+     a przeskokiem — stan końcowy jest w obu przypadkach ten sam. */
+  const anim = await t.open('circular-menu.html', {
+    viewport: V, settle: 300,
+    query: 'dur=0.2&raise=1&toggle=' + encodeURIComponent('.w-naglowku'),
+  });
+  await anim.evaluate(() => window.__zew('zew-naglowek'));
+  await anim.waitForTimeout(150);
+  const wPol = await anim.evaluate(() => window.__tlo('zew-naglowek'));
+  t.check('przy OTWIERANIU kolor jest w pół drogi, a nie przeskoczony',
+    wPol !== 'rgb(0, 0, 255)' && wPol !== 'rgb(255, 0, 0)', wPol);
+  await anim.waitForTimeout(500);
+  t.check('a na końcu dochodzi do docelowego',
+    (await anim.evaluate(() => window.__tlo('zew-naglowek'))) === 'rgb(0, 0, 255)',
+    String(await anim.evaluate(() => window.__tlo('zew-naglowek'))));
+  await anim.close();
+
   /* Przełącznik BEZ własnego z-indeksu — i to on dowodzi, że liczbę nadajemy
      my. Ten z nagłówka ma wpisane 99999, żeby pokazać, że wewnątrz kontekstu
      układania liczba nic nie daje; ale po przeniesieniu do <body> ta sama

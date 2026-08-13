@@ -2,6 +2,39 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.86.0] — 2026-08-13
+
+### Naprawione (obie regresje z 1.85.0)
+
+- **Przełącznik nie animował się przy OTWIERANIU — tylko przy zamykaniu.**
+  Bez przejścia kolorów i bez ruchu kresek: przeskok wprost do wyglądu
+  otwartego.
+
+  Przeniesienie węzła w drzewie **kasuje stan przejść** — element, którego nie
+  było w dokumencie przy poprzednim przeliczeniu stylu, nie ma od czego
+  animować. Klasa stanu dochodziła zaraz po przeniesieniu, więc przejście nie
+  miało punktu wyjścia. Przy zamykaniu wszystko grało, bo tam klasa schodzi,
+  gdy węzeł od dawna siedzi w `<body>` — stąd asymetria ze zgłoszenia.
+
+  Po przeniesieniu wymuszamy teraz przeliczenie stylu, więc przełącznik dostaje
+  stan wyjściowy. Zmierzone: bez tego kolor skacze wprost do docelowego, z tym
+  w połowie czasu jest w połowie drogi.
+
+- **Zawartość nagłówka przesuwała się przy otwieraniu i zamykaniu.**
+  Przekładka wstawiana w miejsce przełącznika była jego kopią z **usuniętym
+  identyfikatorem** — a Bricks stylizuje elementy właśnie po identyfikatorze,
+  więc kopia gubiła szerokość, wysokość i wypełnienie i zapadała się.
+  Zmierzone przesunięcie sąsiada: **43 px**, tak samo w nagłówku elastycznym
+  jak liniowym.
+
+  Przekładka dostaje teraz pudełko wpisane wprost z pomiaru oryginału razem
+  z wypełnieniem i obramowaniem — dzięki temu nie zależy od tego, które reguły
+  ją ominą. Wypełnienie musiało być KOPIOWANE, a nie wyzerowane: przy zerowym
+  tekst siadał wyżej i linia bazowa całego wiersza wypadała o piksel inaczej.
+
+  Identyfikatora świadomie nie zostawiamy na kopii — dwa te same w dokumencie
+  psują `getElementById` i cudze skrypty.
+
 ## [1.85.0] — 2026-08-13
 
 ### Dodane

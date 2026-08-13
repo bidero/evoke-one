@@ -57,9 +57,20 @@
      rywalizuje cały nagłówek, a nie jego dzieci. Dlatego przełącznik dostaje
      tu absurdalnie wysoki z-index: żeby było widać, że to NIE liczba decyduje.
      Obok stoi sąsiad, po którym poznamy, czy nagłówek się nie przebudował. -->
+<!-- Rozmiar i przejście NA IDENTYFIKATORZE, a nie w atrybucie `style` — tak
+     stylizuje elementy Bricks. To rozróżnienie jest tu sednem: styl wpisany
+     wprost w atrybut jedzie z kopią przekładki sam z siebie, więc przekładka
+     bez identyfikatora wyglądałaby na sprawną. Reguła po identyfikatorze jej
+     NIE dotyczy i dopiero to obnaża zapadnięcie pudełka. -->
+<style>
+  #zew-naglowek { width: 44px; height: 44px; padding: 10px; font-size: 20px;
+                  background: rgb(255, 0, 0);
+                  transition: background-color .4s linear; }
+  #zew-naglowek.brx-open { background: rgb(0, 0, 255); }
+</style>
 <header id="naglowek" style="position:relative;z-index:1;background:#eee;padding:10px">
   <button class="brxe-toggle w-naglowku" id="zew-naglowek"
-          style="position:relative;z-index:99999;width:44px;height:44px">Menu</button>
+          style="position:relative;z-index:99999">Menu</button>
   <span id="sasiad" style="display:inline-block;width:60px;height:20px;background:#999"></span>
 </header>
 
@@ -225,6 +236,11 @@ window.__rect = function (id) {
   var r = document.getElementById(id).getBoundingClientRect();
   return { x: Math.round(r.left), y: Math.round(r.top),
            w: Math.round(r.width), h: Math.round(r.height) };
+};
+
+/** Kolor tła — do złapania PRZEJŚCIA w locie, a nie stanu docelowego. */
+window.__tlo = function (id) {
+  return getComputedStyle(document.getElementById(id)).backgroundColor;
 };
 
 /** Rodzic elementu — po nim widać, czy przełącznik wrócił na miejsce. */
