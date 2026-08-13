@@ -475,7 +475,13 @@
 
 /* Oba napisy leżą NA SOBIE w jednej komórce siatki: przycisk ma wtedy szerokość
    dłuższego z nich i nie skacze przy przełączaniu — a razem z nim nie skacze
-   nic, co stoi obok. */
+   nic, co stoi obok.
+   `padding` tego slotu wpisuje kontrolka „Wewnętrzny odstęp napisu" (Bricks
+   celuje wprost w ten selektor). Padding korzenia odsuwałby napis RAZEM
+   z rysunkiem, więc nie da się nim ustawić jednego względem drugiego.
+   Uwaga przy strojeniu w pionie: przycisk ŚRODKUJE to pudełko, więc nierówna
+   góra i dół przesuwają napis o POŁOWĘ różnicy — środek treści wypada na
+   `środek + (górny − dolny) / 2`. */
 .evk-burger__text {
     display: grid;
     align-items: center;
@@ -542,8 +548,27 @@
 .evk-burger__icon svg {
     width: var(--evk-burger-icon-size);
     height: var(--evk-burger-icon-size);
-    fill: currentColor;
 }
+
+/* Wypełnienie TYLKO wtedy, gdy plik ikony sam nie powiedział „bez wypełnienia".
+ *
+ * `fill="none"` w pliku to atrybut prezentacyjny, a te przegrywają z KAŻDĄ
+ * regułą arkusza. Bezwarunkowe `fill: currentColor` (1.79.0) kasowało więc
+ * `fill="none"` z korzenia `<svg>`, a wypełnienie dziedziczyło się w dół na
+ * wszystkie kształty — ikona rysowana obrysem (Lucide, Feather, Tabler,
+ * Heroicons outline) zalewała się na płasko. Wyglądało to jak nieusuwalne tło
+ * pod ikoną i widać było głównie na ikonie OTWARTEJ: hamburger z trzech
+ * `<line>` nie ma pola, więc wypełnienie nic z nim nie robiło, a X w kółku
+ * owszem.
+ *
+ * Warunek jest wąski celowo. Szersze `svg:not([fill])` puszczałoby wolno także
+ * ikony z kolorem wpisanym na sztywno, a te mają dalej słuchać kontrolek
+ * koloru — tak jak w 1.79.0.
+ *
+ * Ikony obrysowe piszą `stroke="currentColor"`, więc kolor działa na nich dalej
+ * mimo że przestajemy je wypełniać. Czego to NIE naprawi: pliku, który niesie
+ * własny prostokąt tła w środku — tam tło jest treścią pliku. */
+.evk-burger__icon svg:not([fill="none"]) { fill: currentColor; }
 
 /* Redukcja ruchu obejmuje i napisy, i ikony — z tego samego powodu co kreski:
    stan ma być widoczny, ruch nie musi. */

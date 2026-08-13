@@ -660,6 +660,105 @@ module.exports = async function (t) {
     tx.errors.join(' | ') || 'brak');
   await tx.close();
 
+  // ── Wypełnienie własnej ikony ──────────────────────────────────────────
+  // Usterka z 1.79.0: `fill: currentColor` bez warunku KASOWAŁO `fill="none"`
+  // z korzenia `<svg>`, bo atrybut prezentacyjny przegrywa z każdą regułą
+  // arkusza — a wypełnienie dziedziczyło się w dół na wszystkie kształty.
+  // Ikona rysowana obrysem zalewała się na płasko i wyglądało to jak
+  // nieusuwalne tło pod ikoną.
+  //
+  // Widać było głównie na ikonie OTWARTEJ i to nie przypadek: hamburger
+  // z trzech `<line>` nie ma pola, więc wypełnienie nic z nim nie robiło,
+  // a X w kółku owszem.
+  t.section('własna ikona: obrys zostaje obrysem, ale kolor działa dalej');
+
+  const ik = await t.open('burger.html', {
+    viewport: V, settle: 200,
+    query: 'dur=0ms&color=' + encodeURIComponent('rgb(255, 0, 0)') +
+           '&coloropen=' + encodeURIComponent('rgb(0, 128, 255)'),
+  });
+
+  const obrys = await ik.evaluate(() => window.__ksztalt('i-obrys'));
+  t.check('ikona obrysowa NIE dostaje wypełnienia', obrys.fill === 'none',
+    'fill: ' + obrys.fill);
+  /* Druga połowa tej samej poprawki i ta ważniejsza: dałoby się uciszyć objaw
+     kasując regułę `fill` w całości, tylko wtedy po cichu przestałyby działać
+     kontrolki koloru. Obrys idzie za `color`, bo ikony piszą
+     `stroke="currentColor"`. */
+  t.check('ale obrys idzie za kolorem z kontrolki',
+    obrys.stroke === 'rgb(255, 0, 0)', 'stroke: ' + obrys.stroke);
+
+  const pelna = await ik.evaluate(() => window.__ksztalt('i-pelna'));
+  t.check('ikona pełna dalej dostaje kolor kontrolki',
+    pelna.fill === 'rgb(255, 0, 0)', 'fill: ' + pelna.fill);
+  /* KONTROLA NEGATYWNA dla zbyt szerokiej poprawki: przy `:not([fill])` zamiast
+     `:not([fill="none"])` ikona z kolorem wpisanym na sztywno przestałaby
+     słuchać kontrolek — czyli regresja wobec 1.79.0 wprowadzona przy okazji
+     naprawiania czegoś innego. */
+  const sztywna = await ik.evaluate(() => window.__ksztalt('i-sztywna'));
+  t.check('a ikona z kolorem wpisanym w plik też go słucha',
+    sztywna.fill === 'rgb(255, 0, 0)', 'fill: ' + sztywna.fill);
+
+  // Kolor po otwarciu — na ikonie widocznej w tym stanie, czyli tej „otwartej".
+  await ik.evaluate(() => window.__ustawOtwarty('ikony', true));
+  await ik.waitForTimeout(60);
+  t.check('po otwarciu ikona bierze kolor po otwarciu',
+    (await ik.evaluate(() => window.__ksztalt('i-pelna'))).fill === 'rgb(0, 128, 255)',
+    (await ik.evaluate(() => window.__ksztalt('i-pelna'))).fill);
+  t.check('bez błędów JS przy ikonach SVG', !ik.errors.length,
+    ik.errors.join(' | ') || 'brak');
+  await ik.close();
+
+  // ── Wewnętrzny odstęp napisu ───────────────────────────────────────────
+  // Padding korzenia daje Bricks natywnie, ale odsuwa napis RAZEM z rysunkiem —
+  // więc nie da się nim ustawić jednego względem drugiego. Ta kontrolka celuje
+  // w sam slot napisu i tylko dlatego istnieje.
+  t.section('padding napisu odsuwa sam napis, nie cały przycisk');
+
+  t.check('kontrolka celuje w SLOT NAPISU, a nie w korzeń',
+    php.textPaddingType === 'dimensions'
+    && php.textPaddingCss.property === 'padding'
+    && php.textPaddingCss.selector === '.evk-burger__text',
+    JSON.stringify(php.textPaddingCss));
+
+  const bezPad = await t.open('burger.html', {
+    viewport: V, settle: 200, query: 'dur=0ms&size=44px&html=' + zrzut,
+  });
+  const pad0 = await bezPad.evaluate(() => window.__slotTekstu('w-tekst'));
+  const polePrzed = await bezPad.evaluate(() => window.__pole('w-tekst'));
+  await bezPad.close();
+
+  // Nierówna góra i dół — to jest ten przypadek, dla którego kontrolka powstała.
+  const gora = await t.open('burger.html', {
+    viewport: V, settle: 200,
+    query: 'dur=0ms&size=44px&textpad=' + encodeURIComponent('8px 0 0 0') + '&html=' + zrzut,
+  });
+  const pad1 = await gora.evaluate(() => window.__slotTekstu('w-tekst'));
+  t.check('padding rozpycha slot napisu', pad1.h === pad0.h + 8,
+    pad0.h + ' → ' + pad1.h + ' px');
+  /* Przesunięcie o POŁOWĘ różnicy, bo przycisk środkuje pudełko napisu:
+     środek treści wypada na `środek + (górny − dolny) / 2`. To nie jest
+     usterka, tylko rzecz, którą trzeba wiedzieć przy strojeniu — i dlatego
+     stoi w opisie kontrolki. */
+  t.check('i przesuwa napis o POŁOWĘ różnicy góra-dół',
+    Math.abs(pad1.srodek - (pad0.srodek + 4)) <= 1,
+    pad0.srodek + ' → ' + pad1.srodek + ' px od środka (cel ' + (pad0.srodek + 4) + ')');
+  await gora.close();
+
+  // KONTROLA NEGATYWNA: równy padding rozpycha, ale NIE przesuwa. Bez tej pary
+  // „padding przesuwa napis" przechodziłoby dla dowolnej zmiany rozmiaru.
+  const rowny = await t.open('burger.html', {
+    viewport: V, settle: 200,
+    query: 'dur=0ms&size=44px&textpad=8px&html=' + zrzut,
+  });
+  const pad2 = await rowny.evaluate(() => window.__slotTekstu('w-tekst'));
+  const polePo = await rowny.evaluate(() => window.__pole('w-tekst'));
+  t.check('równy padding rozpycha, ale NIE przesuwa', pad2.srodek === pad0.srodek,
+    pad0.srodek + ' → ' + pad2.srodek + ' px od środka');
+  t.check('a przycisk rośnie razem z napisem', polePo.w === polePrzed.w + 16,
+    polePrzed.w + ' → ' + polePo.w + ' px');
+  await rowny.close();
+
   // ── Wszystko konfigurowalne ────────────────────────────────────────────
   // Zmienne CSS, a nie wartości wpisane w reguły — tylko dzięki temu Bricks
   // może je ustawić osobno na breakpoincie.

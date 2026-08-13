@@ -174,7 +174,10 @@ class Evk_Burger extends \Bricks\Element {
 			'required'    => [ 'iconSource', '=', 'ikona' ],
 			'description' => esc_html__(
 				'Pusta znaczy „ta sama co zamknięta" — przycisk zmienia wtedy tylko kolor. '
-				. 'Obie leżą NA SOBIE, więc przełączenie nie przesuwa niczego obok.',
+				. 'Obie leżą NA SOBIE, więc przełączenie nie przesuwa niczego obok. '
+				. 'Ikony rysowane obrysem zostają obrysem, a kolor biorą z pól niżej. '
+				. 'Jeśli mimo to widzisz pod ikoną prostokąt albo koło, których nie da się '
+				. 'zdjąć — jest w samym pliku SVG i trzeba innego pliku.',
 				'evoke-one'
 			),
 		];
@@ -239,6 +242,27 @@ class Evk_Burger extends \Bricks\Element {
 			'inline'      => true,
 			'css'         => [ [ 'property' => '--evk-burger-text-gap', 'selector' => '' ] ],
 			'placeholder' => '8px',
+		];
+
+		/*
+		 * Padding SAMEGO NAPISU, a nie przycisku. Padding korzenia daje Bricks
+		 * natywnie w zakładce Styl, ale odsuwa napis RAZEM z rysunkiem — więc
+		 * nie da się nim ustawić jednego względem drugiego, a to jedyny powód,
+		 * dla którego ta kontrolka istnieje. Stąd celowanie wprost w slot,
+		 * tak jak Circular Title celuje typografią w `.evk-arc__inner`.
+		 */
+		$this->controls['textPadding'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Wewnętrzny odstęp napisu', 'evoke-one' ),
+			'type'        => 'dimensions',
+			'css'         => [ [ 'property' => 'padding', 'selector' => '.evk-burger__text' ] ],
+			'description' => esc_html__(
+				'Do wyrównania napisu z ikoną, gdy krój odstawia go od jej linii. '
+				. 'Przycisk ŚRODKUJE pudełko napisu, więc nierówna góra i dół przesuwają '
+				. 'go o POŁOWĘ różnicy — cztery piksele u góry dają dwa piksele w dół. '
+				. 'Przy napisie nad ikoną albo pod nią tak samo działają lewa i prawa.',
+				'evoke-one'
+			),
 		];
 
 		$this->controls['modeSeparator'] = [

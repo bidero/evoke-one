@@ -95,6 +95,42 @@
      przestałby sprawdzać cokolwiek — a wyglądałby dalej na zielony. -->
 <div id="zrzut"></div>
 
+<!-- Trzy KSZTAŁTY pliku ikony w slocie własnej ikony. Wpisane tutaj, a nie
+     przepuszczone przez render_icon(), bo badana jest reguła arkusza WOBEC
+     PLIKU — a plik przychodzi od użytkownika, nie z naszego kodu. Bricks
+     wkleja go dokładnie tak: `<svg>` wprost w środek naszego opakowania.
+
+     Trzy przypadki, bo poprawka musi trafić w jeden i NIE ruszyć dwóch
+     pozostałych:
+       · obrysowa — `fill="none"` w pliku, rysowana obrysem (Lucide, Feather,
+         Tabler, Heroicons outline). To ją bezwarunkowe `fill` zalewało.
+       · pełna bez `fill` — dziedziczy kolor z kontrolki i tak ma zostać.
+       · pełna z kolorem wpisanym na sztywno — też ma słuchać kontrolki,
+         tak jak w 1.79.0. Kontrola negatywna dla zbyt szerokiej poprawki. -->
+<button class="evk-burger" id="ikony" aria-expanded="false" type="button">
+  <span class="evk-burger__icons">
+    <span class="evk-burger__icon evk-burger__icon--zamk" id="i-obrys">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle class="ksztalt" cx="12" cy="12" r="10"></circle>
+      </svg>
+    </span>
+    <span class="evk-burger__icon evk-burger__icon--otw" id="i-pelna">
+      <svg viewBox="0 0 24 24">
+        <path class="ksztalt" d="M3 6h18v2H3z"></path>
+      </svg>
+    </span>
+  </span>
+</button>
+<button class="evk-burger" id="ikona-sztywna" aria-expanded="false" type="button">
+  <span class="evk-burger__icons">
+    <span class="evk-burger__icon evk-burger__icon--zamk" id="i-sztywna">
+      <svg viewBox="0 0 24 24" fill="#000000">
+        <path class="ksztalt" d="M3 6h18v2H3z"></path>
+      </svg>
+    </span>
+  </span>
+</button>
+
 <div class="long">treść strony</div>
 
 <script>
@@ -147,6 +183,16 @@
     if (q.get('rotate')) b.style.setProperty('--evk-burger-open-rotate', q.get('rotate'));
     if (q.get('short'))  b.style.setProperty('--evk-burger-short', q.get('short'));
   });
+
+  /* Padding napisu wpisujemy WPROST we `padding` slotu, bo tą samą drogą idzie
+     na stronie: to nie jest zmienna, tylko kontrolka `dimensions` celująca
+     w `.evk-burger__text`. Że celuje właśnie tam, dowodzi osobno test w PHP —
+     tu sprawdzamy, co arkusz z tym robi. */
+  if (q.get('textpad')) {
+    document.querySelectorAll('.evk-burger__text').forEach(function (s) {
+      s.style.padding = q.get('textpad');
+    });
+  }
 
   var root = document.getElementById('root');
   root.setAttribute('data-portal',        '1');
@@ -294,6 +340,43 @@ window.__ikony = function (id) {
         kolor:    getComputedStyle(el).color,
       };
     });
+};
+
+/**
+ * Wypełnienie i obrys KSZTAŁTU w środku ikony, a nie samego `<svg>`.
+ *
+ * Mierzymy dziecko, bo o to właśnie chodzi w tej usterce: reguła trafiała
+ * w korzeń `<svg>`, kasowała jego `fill="none"`, a wypełnienie DZIEDZICZYŁO
+ * SIĘ w dół na kształty. Pomiar na korzeniu pokazałby połowę prawdy.
+ */
+window.__ksztalt = function (id) {
+  var el = document.getElementById(id).querySelector('.ksztalt');
+  var cs = getComputedStyle(el);
+  return { fill: cs.fill, stroke: cs.stroke };
+};
+
+/**
+ * Slot napisu i środek WIDOCZNEGO napisu — do pomiaru paddingu.
+ *
+ * `srodek` liczymy względem środka przycisku, bo tylko przesunięcie względem
+ * niego jest tym, o co chodzi: przycisk środkuje pudełko napisu, więc nierówna
+ * góra i dół przesuwają treść o połowę różnicy.
+ */
+window.__slotTekstu = function (id) {
+  var b    = document.getElementById(id);
+  var slot = b.querySelector('.evk-burger__text');
+  var wid  = Array.prototype.filter.call(
+    b.querySelectorAll('.evk-burger__label'),
+    function (el) { return el.checkVisibility(WIDOCZNY); })[0];
+  var rb = b.getBoundingClientRect();
+  var rs = slot.getBoundingClientRect();
+  var rw = wid.getBoundingClientRect();
+  return {
+    w:      Math.round(rs.width),
+    h:      Math.round(rs.height),
+    // Dodatnia wartość = napis niżej niż środek przycisku.
+    srodek: Math.round((rw.top + rw.height / 2) - (rb.top + rb.height / 2)),
+  };
 };
 
 /** Bok pudełka z rysunkiem — osobno od pola klikalnego całego przycisku. */

@@ -134,6 +134,10 @@ echo json_encode([
         function ($d) { return !empty($d['short']); })),
     'shortRequired' => $el->controls['shortLine']['required'][2],
     'ariaRequired'  => $el->controls['ariaLabel']['required'] ?? null,
+    // Okablowanie paddingu napisu: MUSI celować w slot, a nie w korzeń —
+    // padding korzenia odsuwałby napis razem z rysunkiem.
+    'textPaddingCss' => $el->controls['textPadding']['css'][0] ?? null,
+    'textPaddingType'=> $el->controls['textPadding']['type'] ?? null,
     'styleRequired' => $el->controls['style']['required'] ?? null,
     'pozycje'       => array_keys(\Bricks\Evk_Burger::text_positions()),
     // Ile <span class="evk-burger__line"> naprawdę wyszło z rendera.

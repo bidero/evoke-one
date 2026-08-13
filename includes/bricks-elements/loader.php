@@ -134,12 +134,12 @@ function evk_elements_registry(): array {
             'name'  => 'evk-burger',
             'file'  => $dir . 'evoke-burger/element.php',
             'consts'=> [
-                'EVK_BURGER_VERSION' => '1.4.0',
+                'EVK_BURGER_VERSION' => '1.5.0',
                 'EVK_BURGER_URL'     => $url . 'evoke-burger/',
                 'EVK_BURGER_PATH'    => $dir . 'evoke-burger/',
             ],
             'script'=> ['evk-burger', $url . 'evoke-burger/assets/burger.js', ['bricks-scripts'], '1.1.0'],
-            'style' => ['evk-burger', $url . 'evoke-burger/assets/burger.css', '1.4.0'],
+            'style' => ['evk-burger', $url . 'evoke-burger/assets/burger.css', '1.5.0'],
         ],
         'stacking_cards' => [
             'label' => 'Stacking Cards',

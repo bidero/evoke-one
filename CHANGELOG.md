@@ -2,6 +2,52 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.80.0] — 2026-08-13
+
+### Naprawione
+
+- **Własna ikona miała „tło, którego nie dało się usunąć".** To nie było tło —
+  to była Twoja ikona zalana na płasko, przez jedną linijkę z 1.79.0:
+  `.evk-burger__icon svg { fill: currentColor; }`.
+
+  `fill="none"` w pliku ikony to **atrybut prezentacyjny**, a te przegrywają
+  z KAŻDĄ regułą arkusza. Nasza reguła kasowała więc `fill="none"` z korzenia
+  `<svg>`, a wypełnienie dziedziczyło się w dół na wszystkie kształty. Ikona
+  rysowana obrysem — Lucide, Feather, Tabler, Heroicons w wariancie outline —
+  zamieniała się w plamę.
+
+  Zmierzone na ikonie „X w kółku": `fill` kółka `rgb(0, 0, 0)` zamiast `none`,
+  czyli pełne koło pod krzyżykiem.
+
+  **Dlaczego było widać głównie ikonę otwartą.** Zamknięta to zwykle hamburger
+  z trzech `<line>` — odcinek nie ma pola, więc wypełnienie nic z nim nie
+  robiło. Otwarta to X w kółku albo w kwadracie, czyli kształt zamknięty —
+  i ten zalewał się w całości.
+
+  Wypełniamy teraz tylko wtedy, gdy plik sam nie powiedział „bez wypełnienia".
+  Warunek jest wąski celowo: ikony z kolorem wpisanym na sztywno mają dalej
+  słuchać kontrolek koloru, tak jak w 1.79.0. Ikony obrysowe piszą
+  `stroke="currentColor"`, więc „Kolor kresek" i „Kolor po otwarciu" działają
+  na nich dalej, mimo że przestaliśmy je wypełniać.
+
+  Czego to nie naprawi: pliku SVG, który niesie własny prostokąt tła w środku.
+  Tam tło jest treścią pliku — napisane wprost w opisie kontrolki, żeby nie
+  było zgadywania.
+
+### Dodane
+
+- **Wewnętrzny odstęp napisu** — do wyrównania tekstu z ikoną, gdy krój
+  odstawia go od jej linii. Cztery strony, więc jedno pole załatwia i napis
+  obok ikony, i napis nad nią albo pod nią.
+
+  Padding samego przycisku Bricks daje natywnie w zakładce Styl, ale odsuwa
+  napis RAZEM z rysunkiem — nie da się nim ustawić jednego względem drugiego
+  i to jest jedyny powód, dla którego ta kontrolka istnieje.
+
+  Jedna rzecz do wiedzenia przy strojeniu, opisana też przy kontrolce: przycisk
+  ŚRODKUJE pudełko napisu, więc nierówna góra i dół przesuwają go o POŁOWĘ
+  różnicy — cztery piksele u góry dają dwa piksele w dół.
+
 ## [1.79.0] — 2026-08-13
 
 ### Dodane
