@@ -89,6 +89,12 @@
      pomiaru i nikt by tego nie zauważył. -->
 <div id="galeria"></div>
 
+<!-- Zrzuty z PRAWDZIWEGO render(). Podawane parametrem `html` jako kawałek
+     znacznika: `<div id="w-tekst">…zrzut…</div>`. Ręcznie przepisana kopia
+     zaczęłaby żyć własnym życiem przy pierwszej zmianie nazwy klasy i test
+     przestałby sprawdzać cokolwiek — a wyglądałby dalej na zielony. -->
+<div id="zrzut"></div>
+
 <div class="long">treść strony</div>
 
 <script>
@@ -113,6 +119,19 @@
     b.appendChild(box);
     document.getElementById('galeria').appendChild(b);
   });
+
+  /* Zrzuty z render(): identyfikator z opakowania schodzi na sam przycisk,
+     dzięki czemu wszystkie pomocnicze funkcje niżej działają na nich bez
+     żadnego wyjątku. Musi się wykonać PRZED pętlą ustawień, inaczej wstawione
+     burgery zostałyby bez czasu przejścia i pomiary trafiałyby w ruch. */
+  (function () {
+    var box = document.getElementById('zrzut');
+    box.innerHTML = q.get('html') || '';
+    Array.prototype.forEach.call(box.children, function (w) {
+      var b = w.querySelector('.evk-burger');
+      if (b) { b.id = w.id; w.removeAttribute('id'); }
+    });
+  }());
 
   /* Ustawienia idą na WSZYSTKIE burgery, nie tylko na pierwszy. Przy czasie
      nałożonym na jeden pomiary na pozostałych trafiały w trwające przejście
@@ -229,6 +248,66 @@ window.__lewaKreski = function (id, i) {
   var el = linie(id)[i];
   var box = el.parentElement.getBoundingClientRect();
   return Math.round(el.getBoundingClientRect().left - box.left);
+};
+
+/** To samo od PRAWEJ — dla stylów dosuwanych do prawej krawędzi. */
+window.__prawaKreski = function (id, i) {
+  var el = linie(id)[i];
+  var box = el.parentElement.getBoundingClientRect();
+  return Math.round(box.right - el.getBoundingClientRect().right);
+};
+
+/**
+ * Napisy przycisku: treść i to, czy naprawdę są widoczne.
+ *
+ * `checkVisibility({ visibilityProperty: true })` mówi to, o co tu chodzi
+ * naprawdę: czy element jest dla przeglądarki widoczny, a więc czy zostaje
+ * w drzewie dostępności. Przezroczystości NIE liczy — i to jest cecha, nie
+ * brak: napis z `opacity: 0` nadal jest w drzewie i czytnik ekranu przeczyta
+ * wtedy oba naraz, „MENU ZAMKNIJ". (Samo `checkVisibility()` bez tej opcji
+ * pyta wyłącznie o `display` i nie odróżniłoby niczego.) Sam `visibility`
+ * podajemy obok, żeby przy błędzie było widać, którym mechanizmem to zrobiono.
+ */
+var WIDOCZNY = { visibilityProperty: true };
+
+window.__napisy = function (id) {
+  return Array.prototype.map.call(
+    document.getElementById(id).querySelectorAll('.evk-burger__label'),
+    function (el) {
+      return {
+        tekst:      el.textContent,
+        widoczny:   el.checkVisibility(WIDOCZNY),
+        visibility: getComputedStyle(el).visibility,
+        opacity:    +parseFloat(getComputedStyle(el).opacity).toFixed(2),
+      };
+    });
+};
+
+/** To samo dla własnych ikon — przełącza je ta sama klasa co napisy. */
+window.__ikony = function (id) {
+  return Array.prototype.map.call(
+    document.getElementById(id).querySelectorAll('.evk-burger__icon'),
+    function (el) {
+      return {
+        klasy:    (el.querySelector('i') || { className: '' }).className,
+        widoczny: el.checkVisibility(WIDOCZNY),
+        kolor:    getComputedStyle(el).color,
+      };
+    });
+};
+
+/** Bok pudełka z rysunkiem — osobno od pola klikalnego całego przycisku. */
+window.__pudelko = function (id) {
+  var b = document.getElementById(id)
+    .querySelector('.evk-burger__box, .evk-burger__icons');
+  if (!b) return null;
+  var r = b.getBoundingClientRect();
+  return { w: Math.round(r.width), h: Math.round(r.height) };
+};
+
+/** Nazwa dostępna przycisku z atrybutu — `null`, gdy go nie ma. */
+window.__ariaLabel = function (id) {
+  return document.getElementById(id).getAttribute('aria-label');
 };
 
 /** Obrót całego pudełka — kontrolka „Obrót po otwarciu". */

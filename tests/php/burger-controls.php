@@ -69,6 +69,34 @@ ob_start();
 $el5->render();
 $legacy = ob_get_clean();
 
+/* Trzy źródła rysunku razy tekst. Te zrzuty idą PROSTO DO FIXTURE'A, więc test
+   w przeglądarce mierzy znacznik, który naprawdę wychodzi z render(), a nie
+   jego ręcznie przepisaną kopię. Kopia zaczęłaby żyć własnym życiem przy
+   pierwszej zmianie nazwy klasy. */
+$warianty = [
+    // Kreski PLUS tekst — tekst jest osobną osią, dochodzi do każdego źródła.
+    'tekst'     => [ 'textClosed' => 'MENU', 'textOpen' => 'ZAMKNIJ' ],
+    // Jedno wypełnione pole: drugi stan ma nieść ten sam napis, a nie pustkę.
+    'tekstJeden'=> [ 'textClosed' => 'MENU' ],
+    'tekstNad'  => [ 'textClosed' => 'MENU', 'textOpen' => 'ZAMKNIJ', 'textPosition' => 'nad' ],
+    // Własne ikony — obie wychodzą i przełącza je sama klasa.
+    'ikona'     => [
+        'iconSource' => 'ikona',
+        'iconClosed' => [ 'library' => 'themify', 'icon' => 'ti-menu' ],
+        'iconOpen'   => [ 'library' => 'themify', 'icon' => 'ti-close' ],
+    ],
+    // „Nic" plus tekst = wariant czysto tekstowy, bez ani jednej nowej gałęzi.
+    'brak'      => [ 'iconSource' => 'brak', 'textClosed' => 'MENU', 'textOpen' => 'ZAMKNIJ' ],
+];
+$render_wariant = [];
+foreach ($warianty as $nazwa => $ustawienia) {
+    $e = new \Bricks\Evk_Burger();
+    $e->settings = $ustawienia;
+    ob_start();
+    $e->render();
+    $render_wariant[$nazwa] = ob_get_clean();
+}
+
 /* Render KAŻDEGO stylu, nie tylko domyślnego. Liczba kresek w znaczniku ma się
    zgadzać z rejestrem dla wszystkich — przy jednym sprawdzanym stylu pomyłka
    w nowym wpisie przechodziłaby bez śladu. */
@@ -99,6 +127,15 @@ echo json_encode([
     'renderBogus'   => $bogus,
     'renderTarget'  => $target,
     'renderLegacy'  => $legacy,
+    'wariant'       => $render_wariant,
+    // Style, które czytają „Długość krótszej kreski" — z rejestru, oraz lista
+    // wpisana w warunek widoczności tej kontrolki. Mają być tym samym.
+    'shortStyles'   => array_keys(array_filter($styles,
+        function ($d) { return !empty($d['short']); })),
+    'shortRequired' => $el->controls['shortLine']['required'][2],
+    'ariaRequired'  => $el->controls['ariaLabel']['required'] ?? null,
+    'styleRequired' => $el->controls['style']['required'] ?? null,
+    'pozycje'       => array_keys(\Bricks\Evk_Burger::text_positions()),
     // Ile <span class="evk-burger__line"> naprawdę wyszło z rendera.
     'plainLines'    => substr_count($plain, 'evk-burger__line'),
     'render'        => $render,

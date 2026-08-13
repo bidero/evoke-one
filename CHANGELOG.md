@@ -2,6 +2,65 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.79.0] — 2026-08-13
+
+### Dodane
+
+- **Burger pokazuje to, co mu każesz — nie tylko kreski.** Dochodzi jedna oś:
+  **co pokazuje przycisk**. Kreski (szesnaście dotychczasowych stylów), własna
+  ikona zamknięta i otwarta, albo nic.
+
+  To nie są trzy funkcje doklejone obok siebie. Wartością tego elementu nigdy
+  nie były kreski, tylko INSTALACJA STANU: spięcie z menu, tryb celu,
+  `aria-expanded`, redukcja ruchu, powrót do stanu zamkniętego przy Esc.
+  Wszystko to jest niezależne od tego, CO przycisk rysuje — więc kreski
+  przestały być wbudowanym założeniem i stały się jedną z możliwości.
+
+- **Tekst przy ikonie — osobna oś, dochodzi do każdego źródła.** Dwa pola:
+  napis przy zamkniętym (np. `MENU`) i przy otwartym (`ZAMKNIJ`). Puste drugie
+  znaczy „ten sam co pierwsze". Do tego pozycja (przed / za / nad / pod ikoną)
+  i odstęp.
+
+  „Nic" plus tekst daje wariant czysto tekstowy — **bez ani jednej nowej gałęzi
+  kodu**, bo to po prostu źródło bez rysunku.
+
+  Oba napisy leżą NA SOBIE, więc przycisk ma szerokość dłuższego z nich
+  i przełączenie nie przesuwa niczego, co stoi obok.
+
+- **Cztery style asymetryczne, razem dwadzieścia.** „Zygzak" (krótka przy
+  lewej, pełna po środku, krótka przy prawej), „Schodki" (pełna, średnia,
+  krótka — wszystkie od lewej), „Nierówne z prawej", „Rozstrzelone" (obie
+  krótkie, górna przy lewej, dolna przy prawej).
+
+  Dokłada się tu drugi wymiar asymetrii: nie tylko JAK DŁUGA jest kreska, ale
+  DO KTÓREJ KRAWĘDZI przylega. Bez tego byłyby nieodróżnialne od „nierównych"
+  z 1.78.0. Średnia w „schodkach" wylicza się z krótkiej, żeby jedno pole
+  sterowało całą proporcją.
+
+  `burger.js` **znów bez zmian** — i napisy, i ikony reagują na tę samą klasę
+  `brx-open`, którą element już czytał.
+
+### Naprawione (dostępność)
+
+- **Opis dla czytnika ekranu nie wychodzi już razem z widocznym tekstem.**
+  `aria-label` PRZYKRYWA treść przycisku, więc przy napisie „MENU" i opisie
+  „Menu" czytnik ogłaszał opis, a nie to, co widać. Nazwa inna od widocznej
+  etykiety psuje sterowanie głosem (WCAG 2.5.3): użytkownik mówi „kliknij
+  MENU", a przeglądarka szuka czegoś innego. Przy wpisanym tekście opis nie
+  wychodzi wcale — nazwą staje się sam napis.
+
+- **Ukryty napis wypada z drzewa dostępności.** Oba napisy są w znaczniku od
+  początku, więc przezroczysty niewidoczny byłby dalej ogłaszany i czytnik
+  czytałby „MENU ZAMKNIJ". Stąd `visibility`, a nie samo `opacity`.
+
+### Zmienione
+
+- **Bok pola klikalnego zszedł z przycisku na pudełko z rysunkiem.** Wychodziło
+  dotąd na to samo, bo przycisk wyśrodkowywał węższe pudełko. Przestaje, gdy
+  obok stanie tekst: przycisk mierzy się wtedy treścią, a procentowa szerokość
+  kresek nie ma się już do czego odnieść i pudełko zapadłoby się do zera.
+  Przycisk BEZ tekstu wygląda dokładnie jak dotąd.
+
 ## [1.78.0] — 2026-08-12
 
 ### Naprawione

@@ -290,6 +290,108 @@ module.exports = async function (t) {
     k30[0].szer + ' px w obu przypadkach');
   await kr.close();
 
+  // Lista stylów czytających tę kontrolkę idzie Z REJESTRU, a nie z ręki.
+  // Wpisana ręcznie rozjeżdżałaby się przy każdym nowym stylu asymetrycznym,
+  // a objawem byłoby pole schowane akurat tam, gdzie jest potrzebne.
+  t.check('warunek widoczności tej kontrolki idzie z rejestru',
+    JSON.stringify(php.shortRequired) === JSON.stringify(php.shortStyles),
+    php.shortStyles.join(', '));
+
+  // ── Asymetria z KRAWĘDZIĄ ──────────────────────────────────────────────
+  // Drugi wymiar asymetrii: nie tylko JAK DŁUGA jest kreska, ale DO KTÓREJ
+  // KRAWĘDZI przylega. Bez pomiaru krawędzi te cztery style przechodziłyby
+  // jako „nierówne" — krótka kreska wyśrodkowana i krótka kreska dosunięta
+  // do prawej mają dokładnie tę samą szerokość.
+  t.section('style krawędziowe: krótka kreska trzyma swoją stronę');
+
+  const kw = await t.open('burger.html', {
+    viewport: V, settle: 250,
+    query: 'dur=0ms&styles=zigzag:3,steps:3,uneven-right-2:2,split-2:2,cross:3',
+  });
+
+  const lewa  = (id, i) => kw.evaluate(([a, b]) => window.__lewaKreski(a, b), [id, i]);
+  const prawa = (id, i) => kw.evaluate(([a, b]) => window.__prawaKreski(a, b), [id, i]);
+
+  const zz = await kw.evaluate(() => window.__geo('s-zigzag'));
+  t.check('zygzak: skrajne krótsze od środkowej',
+    zz[0].szer < zz[1].szer && zz[2].szer < zz[1].szer,
+    zz.map((l) => l.szer).join(' / ') + ' px');
+  t.check('zygzak: górna przylega do LEWEJ i NIE dochodzi do prawej',
+    (await lewa('s-zigzag', 0)) === 0 && (await prawa('s-zigzag', 0)) > 0,
+    'lewa ' + (await lewa('s-zigzag', 0)) + ' px, prawa ' + (await prawa('s-zigzag', 0)) + ' px');
+  t.check('zygzak: dolna przylega do PRAWEJ i NIE dochodzi do lewej',
+    (await prawa('s-zigzag', 2)) === 0 && (await lewa('s-zigzag', 2)) > 0,
+    'lewa ' + (await lewa('s-zigzag', 2)) + ' px, prawa ' + (await prawa('s-zigzag', 2)) + ' px');
+
+  const sc = await kw.evaluate(() => window.__geo('s-steps'));
+  t.check('schodki: trzy MALEJĄCE długości',
+    sc[0].szer > sc[1].szer && sc[1].szer > sc[2].szer,
+    sc.map((l) => l.szer).join(' / ') + ' px');
+  // Średnia liczy się z krótkiej, żeby jedno pole sterowało całą proporcją —
+  // stąd musi wypaść dokładnie w połowie drogi między skrajnymi.
+  t.check('schodki: środkowa dokładnie w pół drogi',
+    Math.abs(sc[1].szer - (sc[0].szer + sc[2].szer) / 2) <= 1,
+    sc[1].szer + ' px przy celu ' + ((sc[0].szer + sc[2].szer) / 2) + ' px');
+  t.check('schodki: wszystkie trzy zaczynają się przy LEWEJ',
+    (await lewa('s-steps', 0)) === 0 && (await lewa('s-steps', 1)) === 0
+    && (await lewa('s-steps', 2)) === 0, 'wszystkie 0 px od lewej');
+
+  const ur = await kw.evaluate(() => window.__geo('s-uneven-right-2'));
+  t.check('nierówne z prawej: dolna krótsza i dosunięta do PRAWEJ',
+    ur[1].szer < ur[0].szer && (await prawa('s-uneven-right-2', 1)) === 0
+    && (await lewa('s-uneven-right-2', 1)) > 0,
+    ur[0].szer + ' / ' + ur[1].szer + ' px, ' + (await lewa('s-uneven-right-2', 1)) + ' px od lewej');
+
+  const sp = await kw.evaluate(() => window.__geo('s-split-2'));
+  t.check('rozstrzelone: OBIE krótkie', sp[0].szer < 44 && sp[1].szer < 44,
+    sp[0].szer + ' / ' + sp[1].szer + ' px z 44');
+  t.check('rozstrzelone: górna przy lewej, dolna przy prawej',
+    (await lewa('s-split-2', 0)) === 0 && (await prawa('s-split-2', 1)) === 0
+    && (await prawa('s-split-2', 0)) > 0 && (await lewa('s-split-2', 1)) > 0,
+    'górna ' + (await lewa('s-split-2', 0)) + ' px od lewej, dolna '
+      + (await prawa('s-split-2', 1)) + ' px od prawej');
+
+  // KONTROLA NEGATYWNA: styl bez wyrównania dotyka OBU krawędzi. Bez tej pary
+  // „przylega do prawej" przechodziłoby dla każdej pełnej kreski.
+  t.check('zwykły krzyżyk dotyka obu krawędzi naraz',
+    (await lewa('s-cross', 0)) === 0 && (await prawa('s-cross', 0)) === 0,
+    'lewa i prawa po 0 px');
+
+  // Po otwarciu wszystkie cztery składają krzyżyk z PEŁNYCH kresek — asymetria
+  // jest cechą stanu zamkniętego, a nie trwałym kalectwem rysunku.
+  for (const styl of [ 'zigzag', 'steps', 'uneven-right-2', 'split-2' ]) {
+    await kw.evaluate((i) => window.__ustawOtwarty(i, true), 's-' + styl);
+    await kw.waitForTimeout(40);
+    const o = await kw.evaluate((i) => window.__geo(i), 's-' + styl);
+    const ukos = o.filter((l) => Math.abs(l.kat) === 45);
+    t.check('„' + styl + '": po otwarciu krzyżyk z dwóch PEŁNYCH kresek',
+      ukos.length === 2 && ukos.every((l) => l.szer === 44)
+      && ukos[0].kat === -ukos[1].kat,
+      ukos.map((l) => l.szer + 'px/' + l.kat + '°').join(' ') || 'brak ukośnych');
+  }
+  t.check('bez błędów JS w stylach krawędziowych', !kw.errors.length,
+    kw.errors.join(' | ') || 'brak');
+  await kw.close();
+
+  /* Dosunięcie do prawej idzie przez `right` + `width` ze zdjętym `left`.
+     To NIE jest powrót do tego, co wycięliśmy w 1.77.0 — tamten problem brał
+     się z podania `left`, `right` I `width` naraz: układ był nadokreślony,
+     a przeglądarka ignorowała wartość od końca linijki pisma, więc przy
+     `dir="rtl"` wypadał `left`. Dwie wartości są jednoznaczne w obu
+     kierunkach — i właśnie to sprawdzamy, bo to jedyna różnica. */
+  t.section('wyrównanie do prawej nie zależy od kierunku pisma');
+
+  for (const kierunek of [ 'ltr', 'rtl' ]) {
+    const d = await t.open('burger.html', {
+      viewport: V, settle: 250, query: 'dur=0ms&dir=' + kierunek + '&styles=zigzag:3',
+    });
+    const pr = await d.evaluate(() => window.__prawaKreski('s-zigzag', 2));
+    const lw = await d.evaluate(() => window.__lewaKreski('s-zigzag', 2));
+    t.check('„' + kierunek + '": dolna kreska zygzaka trzyma PRAWĄ krawędź',
+      pr === 0 && lw > 0, 'prawa ' + pr + ' px, lewa ' + lw + ' px');
+    await d.close();
+  }
+
   // ── Dwutakty: „po kolei" i „ściągnięcie" ───────────────────────────────
   // Oba widać WYŁĄCZNIE w trakcie ruchu — po jego końcu wyglądają jak krzyżyk.
   // Oba jadą tym samym chwytem co „złożenie": opóźnienie trafia w JEDNĄ pozycję
@@ -415,6 +517,148 @@ module.exports = async function (t) {
     (await nob.evaluate(() => window.__obrotPudelka('s-cross'))) === 0,
     (await nob.evaluate(() => window.__obrotPudelka('s-cross'))) + '°');
   await nob.close();
+
+  // ── Tekst i własne ikony ───────────────────────────────────────────────
+  // Kreski przestały być wbudowanym założeniem: dochodzi OŚ ŹRÓDŁA (kreski /
+  // własna ikona / nic), a tekst jest osobną osią i dokłada się do każdego
+  // z nich. „Nic" plus tekst daje wariant czysto tekstowy — bez ani jednej
+  // nowej gałęzi kodu.
+  //
+  // Znacznik bierzemy Z PRAWDZIWEGO render() i wstawiamy do fixture'a. Ręcznie
+  // przepisana kopia zaczęłaby żyć własnym życiem przy pierwszej zmianie nazwy
+  // klasy, a test wyglądałby dalej na zielony.
+  t.section('tekst i własne ikony przełączają się tą samą klasą');
+
+  const zrzut = encodeURIComponent(
+    '<div id="w-tekst">'  + php.wariant.tekst      + '</div>' +
+    '<div id="w-jeden">'  + php.wariant.tekstJeden + '</div>' +
+    '<div id="w-nad">'    + php.wariant.tekstNad   + '</div>' +
+    '<div id="w-ikona">'  + php.wariant.ikona      + '</div>' +
+    '<div id="w-brak">'   + php.wariant.brak       + '</div>');
+
+  const tx = await t.open('burger.html', {
+    viewport: V, settle: 250, query: 'dur=0ms&size=44px&html=' + zrzut,
+  });
+
+  const nap0 = await tx.evaluate(() => window.__napisy('w-tekst'));
+  t.check('oba napisy są w znaczniku od początku', nap0.length === 2
+    && nap0[0].tekst === 'MENU' && nap0[1].tekst === 'ZAMKNIJ',
+    nap0.map((n) => n.tekst).join(' + '));
+  t.check('zamknięty pokazuje MENU, a ZAMKNIJ nie',
+    nap0[0].widoczny && !nap0[1].widoczny,
+    nap0.map((n) => n.tekst + ':' + (n.widoczny ? 'widoczny' : 'ukryty')).join(' '));
+
+  /* Ukryty napis musi wypaść z DRZEWA DOSTĘPNOŚCI, inaczej czytnik ekranu
+     przeczyta oba naraz: „MENU ZAMKNIJ". Samo `opacity: 0` tego nie robi —
+     element zostaje w drzewie i jest dalej ogłaszany. Dlatego mierzymy
+     `checkVisibility()` (które przezroczystości domyślnie nie liczy) i osobno
+     sam mechanizm, żeby przy błędzie było widać, czym to zrobiono. */
+  t.check('ukryty napis wypada z drzewa przez visibility, nie przez opacity',
+    nap0[1].visibility === 'hidden', 'visibility: ' + nap0[1].visibility
+      + ', opacity: ' + nap0[1].opacity);
+  t.check('a widoczny w drzewie zostaje', nap0[0].visibility === 'visible',
+    'visibility: ' + nap0[0].visibility);
+
+  await tx.evaluate(() => window.__ustawOtwarty('w-tekst', true));
+  await tx.waitForTimeout(60);
+  const nap1 = await tx.evaluate(() => window.__napisy('w-tekst'));
+  t.check('po otwarciu zamieniają się rolami',
+    !nap1[0].widoczny && nap1[1].widoczny,
+    nap1.map((n) => n.tekst + ':' + (n.widoczny ? 'widoczny' : 'ukryty')).join(' '));
+  t.check('i nigdy nie widać obu naraz',
+    nap0.filter((n) => n.widoczny).length === 1
+    && nap1.filter((n) => n.widoczny).length === 1,
+    'zamknięty 1, otwarty 1');
+
+  // Jedno wypełnione pole ma dać ten sam napis w obu stanach — inaczej burger
+  // z niezmiennym tekstem gubiłby go po otwarciu.
+  const jed = await tx.evaluate(() => window.__napisy('w-jeden'));
+  t.check('pusty drugi slot znaczy „ten sam napis"',
+    jed.length === 2 && jed[0].tekst === 'MENU' && jed[1].tekst === 'MENU',
+    jed.map((n) => n.tekst).join(' + '));
+
+  // Pozycja tekstu — klucz z rejestru idzie wprost w klasę-modyfikator, więc
+  // lista i arkusz nie mogą się rozjechać.
+  t.check('pozycja „nad" układa napis w kolumnie',
+    (await tx.evaluate(() => getComputedStyle(document.getElementById('w-nad')).flexDirection))
+      === 'column-reverse',
+    await tx.evaluate(() => getComputedStyle(document.getElementById('w-nad')).flexDirection));
+  t.check('a domyślna „za" zostawia rząd',
+    (await tx.evaluate(() => getComputedStyle(document.getElementById('w-tekst')).flexDirection))
+      === 'row',
+    await tx.evaluate(() => getComputedStyle(document.getElementById('w-tekst')).flexDirection));
+
+  /* Nazwa dla czytnika ekranu. Przy widocznym tekście `aria-label` PRZYKRYŁBY
+     to, co widać — a nazwa inna od widocznej etykiety psuje sterowanie głosem
+     (WCAG 2.5.3): użytkownik mówi „kliknij MENU", przeglądarka szuka „Menu".
+     Obie strony, bo jedna bez drugiej nic nie znaczy: „nie ma aria-label" jest
+     prawdą także wtedy, gdy nie ma go nigdzie. */
+  t.check('przy tekście aria-label NIE wychodzi',
+    (await tx.evaluate(() => window.__ariaLabel('w-tekst'))) === null
+    && !/aria-label/.test(php.wariant.tekst),
+    String(await tx.evaluate(() => window.__ariaLabel('w-tekst'))));
+  t.check('a bez tekstu wychodzi', /aria-label="Menu"/.test(php.renderPlain),
+    (php.renderPlain.match(/aria-label="[^"]*"/) || [ '—' ])[0]);
+  t.check('warunek widoczności tej kontrolki pilnuje tego samego',
+    JSON.stringify(php.ariaRequired) === JSON.stringify([ 'textClosed', '=', '' ]),
+    JSON.stringify(php.ariaRequired));
+
+  // Źródło „ikona": kresek nie ma wcale, są dwie ikony i przełącza je ta sama
+  // klasa co napisy — czyli znów sam arkusz, bez linijki w burger.js.
+  t.check('źródło „ikona" nie rysuje ani jednej kreski',
+    (await tx.evaluate(() => window.__ile('w-ikona'))) === 0,
+    (await tx.evaluate(() => window.__ile('w-ikona'))) + ' kresek');
+  const ik0 = await tx.evaluate(() => window.__ikony('w-ikona'));
+  t.check('obie ikony są w znaczniku i niosą swoje klasy',
+    ik0.length === 2 && /ti-menu/.test(ik0[0].klasy) && /ti-close/.test(ik0[1].klasy),
+    ik0.map((i) => i.klasy).join(' + ') || 'brak');
+  t.check('zamknięty pokazuje pierwszą', ik0[0].widoczny && !ik0[1].widoczny,
+    ik0.map((i) => i.widoczny).join(' / '));
+  await tx.evaluate(() => window.__ustawOtwarty('w-ikona', true));
+  await tx.waitForTimeout(60);
+  const ik1 = await tx.evaluate(() => window.__ikony('w-ikona'));
+  t.check('otwarty pokazuje drugą', !ik1[0].widoczny && ik1[1].widoczny,
+    ik1.map((i) => i.widoczny).join(' / '));
+
+  // Źródło „nic" plus tekst — wariant czysto tekstowy.
+  t.check('źródło „nic" zostawia sam tekst',
+    (await tx.evaluate(() => window.__ile('w-brak'))) === 0
+    && (await tx.evaluate(() => window.__ikony('w-brak'))).length === 0
+    && (await tx.evaluate(() => window.__napisy('w-brak'))).length === 2,
+    'kresek 0, ikon 0, napisów 2');
+
+  /* Rozmiar. Bok pola klikalnego zszedł z przycisku na PUDEŁKO Z KRESKAMI —
+     przy tekście obok przycisk musi mierzyć się treścią, a procentowa
+     szerokość kresek nie miałaby się wtedy do czego odnieść i pudełko
+     zapadłoby się do zera. Przycisk BEZ tekstu ma zostać dokładnie taki jak
+     dotąd; pilnuje tego osobne sprawdzenie „pole klikalne ma zadany bok". */
+  const polePlain = await tx.evaluate(() => window.__pole('burger'));
+  const poleTekst = await tx.evaluate(() => window.__pole('w-tekst'));
+  t.check('przycisk bez tekstu zostaje kwadratem o zadanym boku',
+    polePlain.w === 44 && polePlain.h === 44, polePlain.w + '×' + polePlain.h + ' px');
+  t.check('a z tekstem rośnie wszerz i nie kurczy się w pionie',
+    poleTekst.w > polePlain.w && poleTekst.h >= polePlain.h,
+    poleTekst.w + '×' + poleTekst.h + ' px');
+
+  /* I to jest właściwe sprawdzenie tego refaktoru, bo szerszy przycisk wyszedłby
+     także wtedy, gdyby pudełko z kreskami zapadło się do zera — sam napis jest
+     szerszy niż 44 px. Pudełko musi ZOSTAĆ kwadratem o boku pola klikalnego,
+     inaczej burger z tekstem gubi rysunek. */
+  const pudPlain = await tx.evaluate(() => window.__pudelko('burger'));
+  const pudTekst = await tx.evaluate(() => window.__pudelko('w-tekst'));
+  const pudIkona = await tx.evaluate(() => window.__pudelko('w-ikona'));
+  t.check('pudełko z rysunkiem zostaje kwadratem obok tekstu',
+    pudTekst.w === pudPlain.w && pudTekst.h === pudPlain.h && pudTekst.w === 44,
+    'bez tekstu ' + pudPlain.w + '×' + pudPlain.h + ', z tekstem '
+      + pudTekst.w + '×' + pudTekst.h + ' px');
+  // Ikona dostaje to samo pudełko co kreski, więc zamiana źródła nie przesuwa
+  // niczego, co stoi obok przycisku.
+  t.check('a pudełko własnej ikony ma ten sam bok',
+    pudIkona.w === pudPlain.w && pudIkona.h === pudPlain.h,
+    pudIkona.w + '×' + pudIkona.h + ' px');
+  t.check('bez błędów JS przy tekście i ikonach', !tx.errors.length,
+    tx.errors.join(' | ') || 'brak');
+  await tx.close();
 
   // ── Wszystko konfigurowalne ────────────────────────────────────────────
   // Zmienne CSS, a nie wartości wpisane w reguły — tylko dzięki temu Bricks

@@ -15,9 +15,12 @@
     --evk-burger-stroke: 2px;
     --evk-burger-gap: 7px;
     --evk-burger-radius: 0px;
-    /* Długość KRÓTSZEJ kreski w stylach nierównych. W procentach, więc trzyma
-       proporcję przy każdym rozmiarze przycisku. */
+    /* Długość KRÓTSZEJ kreski w stylach asymetrycznych. W procentach, więc
+       trzyma proporcję przy każdym rozmiarze przycisku. */
     --evk-burger-short: 60%;
+    /* Wielkość własnej ikony (źródło „ikona") i odstęp napisu od rysunku. */
+    --evk-burger-icon-size: 24px;
+    --evk-burger-text-gap: 8px;
     --evk-burger-color: currentColor;
     /* Puste „po otwarciu" znaczy „ten sam co przed" — kreski zmieniają wtedy
        wyłącznie kształt. Wartość domyślna wskazująca na drugą zmienną robi to
@@ -38,6 +41,11 @@
     --evk-burger-offset: calc(var(--evk-burger-gap) + var(--evk-burger-stroke));
     /* Moment, w którym rusza drugi takt ruchów dwutaktowych (patrz „złożenie”). */
     --evk-burger-beat: calc(var(--evk-burger-time) * 0.45);
+    /* Margines od krawędzi pudełka do rysunku. Kreska węższa niż pole rysunku
+       ma zostać WYŚRODKOWANA, a style dosuwane do krawędzi mają się trzymać
+       krawędzi RYSUNKU, nie pola klikalnego. Jedna zmienna zamiast powtarzania
+       tego rachunku przy każdym stylu. */
+    --evk-burger-inset: calc((100% - var(--evk-burger-line-width)) / 2);
 
     display: inline-flex;
     align-items: center;
@@ -53,9 +61,16 @@
     appearance: none;
 }
 
+/* Pudełko z kreskami jest KWADRATEM o boku pola klikalnego, a nie o szerokości
+   kresek. Do 1.78.0 było odwrotnie i wychodziło na to samo, bo przycisk
+   wyśrodkowywał węższe pudełko. Przestaje wychodzić na to samo, gdy obok stanie
+   tekst: przycisk mierzy się wtedy treścią, a procent nie ma się już do czego
+   odnieść — pudełko zapadłoby się do zera. Stąd bok wprost ze zmiennej,
+   a szerokość kresek zeszła na same kreski. */
 .evk-burger__box {
     position: relative;
-    width: var(--evk-burger-line-width);
+    flex: 0 0 auto;
+    width: var(--evk-burger-size);
     height: var(--evk-burger-size);
     transition: transform var(--evk-burger-time) var(--evk-burger-ease);
 }
@@ -75,9 +90,12 @@
        linijki pisma. W układzie od prawej do lewej wypada `left`, a nie
        `right` — i skrócona kreska strzałki przyklejałaby się do prawej
        krawędzi zamiast do lewej. Zmierzone: 100 px zamiast 0.
-       `left` + `width` daje ten sam wynik w obu kierunkach pisma. */
-    left: 0;
-    width: 100%;
+       `left` + `width` daje ten sam wynik w obu kierunkach pisma. Style dosuwane
+       do PRAWEJ (zygzak, nierówne z prawej, rozstrzelone) podają `right`
+       + `width` i zdejmują `left` — to nadal dwie wartości, więc układ zostaje
+       jednoznaczny w obu kierunkach. */
+    left: var(--evk-burger-inset);
+    width: var(--evk-burger-line-width);
     /* WSZYSTKIE kreski leżą na środku, a rozsuwa je dopiero `transform`.
        To nie jest sztuczka dla oszczędności linii: dzięki temu oś obrotu przy
        składaniu krzyżyka jest środkiem pudełka dla każdej kreski z osobna,
@@ -126,7 +144,9 @@
 .evk-burger--plus     .evk-burger__line:nth-child(1),
 .evk-burger--stack    .evk-burger__line:nth-child(1),
 .evk-burger--stagger  .evk-burger__line:nth-child(1),
-.evk-burger--uneven   .evk-burger__line:nth-child(1) {
+.evk-burger--uneven   .evk-burger__line:nth-child(1),
+.evk-burger--zigzag   .evk-burger__line:nth-child(1),
+.evk-burger--steps    .evk-burger__line:nth-child(1) {
     transform: translateY(calc(-1 * var(--evk-burger-offset)));
 }
 .evk-burger--cross    .evk-burger__line:nth-child(3),
@@ -135,7 +155,9 @@
 .evk-burger--plus     .evk-burger__line:nth-child(3),
 .evk-burger--stack    .evk-burger__line:nth-child(3),
 .evk-burger--stagger  .evk-burger__line:nth-child(3),
-.evk-burger--uneven   .evk-burger__line:nth-child(3) {
+.evk-burger--uneven   .evk-burger__line:nth-child(3),
+.evk-burger--zigzag   .evk-burger__line:nth-child(3),
+.evk-burger--steps    .evk-burger__line:nth-child(3) {
     transform: translateY(var(--evk-burger-offset));
 }
 
@@ -194,11 +216,11 @@
  */
 .evk-burger--arrow .evk-burger__line { transform-origin: left center; }
 .evk-burger--arrow.brx-open .evk-burger__line:nth-child(1) {
-    width: 50%;
+    width: calc(var(--evk-burger-line-width) / 2);
     transform: rotate(-45deg);
 }
 .evk-burger--arrow.brx-open .evk-burger__line:nth-child(3) {
-    width: 50%;
+    width: calc(var(--evk-burger-line-width) / 2);
     transform: rotate(45deg);
 }
 
@@ -237,6 +259,52 @@
 .evk-burger--uneven.brx-open .evk-burger__line:nth-child(2) { opacity: 0; }
 .evk-burger--uneven.brx-open .evk-burger__line:nth-child(3) { transform: rotate(-45deg); }
 
+/* ── Zygzak: krótka przy LEWEJ, pełna po środku, krótka przy PRAWEJ ───
+ *
+ * Pierwszy styl, w którym o asymetrii decyduje nie sama DŁUGOŚĆ kresek, ale to,
+ * DO KTÓREJ KRAWĘDZI przylegają. Bez tego drugiego wymiaru byłby nieodróżnialny
+ * od „nierównych" — dwie krótkie kreski wyśrodkowane wyglądają jak jedna cecha
+ * powtórzona dwa razy.
+ *
+ * Dosunięcie do prawej idzie przez `right` + `width` ze zdjętym `left`. To NIE
+ * jest powrót do tego, co wycięliśmy w 1.77.0: tamten problem brał się z podania
+ * `left`, `right` I `width` naraz — układ był nadokreślony, a przeglądarka
+ * ignorowała wartość od końca linijki pisma, więc w RTL wypadał `left`. Dwie
+ * wartości są jednoznaczne w obu kierunkach.
+ */
+.evk-burger--zigzag .evk-burger__line:nth-child(1) { width: var(--evk-burger-short); }
+.evk-burger--zigzag .evk-burger__line:nth-child(3) {
+    width: var(--evk-burger-short);
+    left: auto;
+    right: var(--evk-burger-inset);
+}
+.evk-burger--zigzag.brx-open .evk-burger__line:nth-child(1) {
+    width: var(--evk-burger-line-width);
+    transform: rotate(45deg);
+}
+.evk-burger--zigzag.brx-open .evk-burger__line:nth-child(2) { opacity: 0; }
+.evk-burger--zigzag.brx-open .evk-burger__line:nth-child(3) {
+    width: var(--evk-burger-line-width);
+    transform: rotate(-45deg);
+}
+
+/* ── Schodki: pełna, średnia, krótka — wszystkie od lewej ─────────────
+ *
+ * Średnia liczy się z krótkiej, a nie z osobnego pola: jedno ustawienie ma
+ * sterować CAŁĄ proporcją, inaczej „schodek" przestawałby być równy przy
+ * pierwszej zmianie długości.
+ */
+.evk-burger--steps .evk-burger__line:nth-child(2) {
+    width: calc((var(--evk-burger-line-width) + var(--evk-burger-short)) / 2);
+}
+.evk-burger--steps .evk-burger__line:nth-child(3) { width: var(--evk-burger-short); }
+.evk-burger--steps.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
+.evk-burger--steps.brx-open .evk-burger__line:nth-child(2) { opacity: 0; }
+.evk-burger--steps.brx-open .evk-burger__line:nth-child(3) {
+    width: var(--evk-burger-line-width);
+    transform: rotate(-45deg);
+}
+
 /* ══ DWUKRESKOWE ═══════════════════════════════════════════════════════
  *
  * Rozsunięte o POŁOWĘ tego, co skrajne kreski trzykreskowych — dzięki temu ten
@@ -250,7 +318,9 @@
 .evk-burger--slide-2   .evk-burger__line:nth-child(1),
 .evk-burger--pinch-2   .evk-burger__line:nth-child(1),
 .evk-burger--swap-2    .evk-burger__line:nth-child(1),
-.evk-burger--uneven-2  .evk-burger__line:nth-child(1) {
+.evk-burger--uneven-2  .evk-burger__line:nth-child(1),
+.evk-burger--uneven-right-2 .evk-burger__line:nth-child(1),
+.evk-burger--split-2   .evk-burger__line:nth-child(1) {
     transform: translateY(calc(-1 * var(--evk-burger-offset) / 2));
 }
 .evk-burger--cross-2   .evk-burger__line:nth-child(2),
@@ -260,7 +330,9 @@
 .evk-burger--slide-2   .evk-burger__line:nth-child(2),
 .evk-burger--pinch-2   .evk-burger__line:nth-child(2),
 .evk-burger--swap-2    .evk-burger__line:nth-child(2),
-.evk-burger--uneven-2  .evk-burger__line:nth-child(2) {
+.evk-burger--uneven-2  .evk-burger__line:nth-child(2),
+.evk-burger--uneven-right-2 .evk-burger__line:nth-child(2),
+.evk-burger--split-2   .evk-burger__line:nth-child(2) {
     transform: translateY(calc(var(--evk-burger-offset) / 2));
 }
 
@@ -280,7 +352,7 @@
  */
 .evk-burger--chevron-2 .evk-burger__line { transform-origin: right center; }
 .evk-burger--chevron-2.brx-open .evk-burger__line {
-    width: 60%;
+    width: calc(var(--evk-burger-line-width) * 0.6);
 }
 .evk-burger--chevron-2.brx-open .evk-burger__line:nth-child(1) {
     transform: translateX(66.667%) rotate(45deg);
@@ -315,10 +387,11 @@
  */
 .evk-burger--pinch-2 .evk-burger__line { transform-origin: center center; }
 .evk-burger--pinch-2.brx-open .evk-burger__line {
-    width: 50%;
-    /* Wyśrodkowanie skróconej kreski: bez tego zostałaby przy lewej krawędzi,
-       bo pozycję wyznacza `left: 0`. */
-    margin-left: 25%;
+    width: calc(var(--evk-burger-line-width) / 2);
+    /* Wyśrodkowanie skróconej kreski: bez tego zostałaby przy lewej krawędzi
+       rysunku, bo pozycję wyznacza `left`. Ćwierć szerokości kresek, więc
+       środek trzyma się także przy węższym rysunku. */
+    margin-left: calc(var(--evk-burger-line-width) / 4);
 }
 .evk-burger--pinch-2.brx-open .evk-burger__line:nth-child(1) {
     transform: rotate(45deg);
@@ -346,6 +419,136 @@
 .evk-burger--uneven-2 .evk-burger__line:nth-child(2) { width: var(--evk-burger-short); }
 .evk-burger--uneven-2.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
 .evk-burger--uneven-2.brx-open .evk-burger__line:nth-child(2) {
-    width: 100%;
+    width: var(--evk-burger-line-width);
     transform: rotate(-45deg);
+}
+
+/* ── Nierówne z prawej: to samo, ale krótsza przylega do PRAWEJ ───────
+ *
+ * Różnica wobec „nierównych" jest wyłącznie w krawędzi — i właśnie dlatego ten
+ * styl istnieje osobno: dosunięcie w prawo jest tym, czego dotąd nie dawało się
+ * uzyskać żadnym ustawieniem.
+ */
+.evk-burger--uneven-right-2 .evk-burger__line:nth-child(2) {
+    width: var(--evk-burger-short);
+    left: auto;
+    right: var(--evk-burger-inset);
+}
+.evk-burger--uneven-right-2.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
+.evk-burger--uneven-right-2.brx-open .evk-burger__line:nth-child(2) {
+    width: var(--evk-burger-line-width);
+    transform: rotate(-45deg);
+}
+
+/* ── Rozstrzelone: obie krótkie, górna przy lewej, dolna przy prawej ──
+ *
+ * Zamknięty rysunek nie ma ani jednej pełnej kreski — po otwarciu obie dorastają
+ * i schodzą się w krzyżyk, więc rozjazd znika razem z otwarciem.
+ */
+.evk-burger--split-2 .evk-burger__line { width: var(--evk-burger-short); }
+.evk-burger--split-2 .evk-burger__line:nth-child(2) {
+    left: auto;
+    right: var(--evk-burger-inset);
+}
+.evk-burger--split-2.brx-open .evk-burger__line { width: var(--evk-burger-line-width); }
+.evk-burger--split-2.brx-open .evk-burger__line:nth-child(1) { transform: rotate(45deg); }
+.evk-burger--split-2.brx-open .evk-burger__line:nth-child(2) { transform: rotate(-45deg); }
+
+/* ══ TEKST I WŁASNE IKONY ══════════════════════════════════════════════
+ *
+ * Obie rzeczy reagują na TĘ SAMĄ klasę `brx-open`, którą już mamy — dlatego
+ * przełączanie napisów i ikon jest wyłącznie arkuszem, a `burger.js` nie musiał
+ * o tej partii wiedzieć nic.
+ */
+
+/* Przycisk z tekstem mierzy się treścią. Bok pola klikalnego zostaje dolną
+   granicą wysokości, żeby cel dotykowy nie zrobił się niższy niż 44 px. */
+.evk-burger--z-tekstem {
+    width: auto;
+    height: auto;
+    min-height: var(--evk-burger-size);
+    gap: var(--evk-burger-text-gap);
+}
+.evk-burger--tekst-przed { flex-direction: row-reverse; }
+.evk-burger--tekst-nad   { flex-direction: column-reverse; }
+.evk-burger--tekst-pod   { flex-direction: column; }
+
+/* Oba napisy leżą NA SOBIE w jednej komórce siatki: przycisk ma wtedy szerokość
+   dłuższego z nich i nie skacze przy przełączaniu — a razem z nim nie skacze
+   nic, co stoi obok. */
+.evk-burger__text {
+    display: grid;
+    align-items: center;
+    justify-items: center;
+    line-height: 1;
+    white-space: nowrap;
+}
+.evk-burger__label,
+.evk-burger__icon {
+    grid-area: 1 / 1;
+    transition:
+        opacity    var(--evk-burger-time) var(--evk-burger-ease),
+        visibility var(--evk-burger-time) var(--evk-burger-ease),
+        color      var(--evk-burger-time) var(--evk-burger-ease);
+}
+
+/* `visibility: hidden`, a NIE samo `opacity: 0`.
+   Przezroczysty napis zostaje w DRZEWIE DOSTĘPNOŚCI i czytnik ekranu czyta
+   wtedy oba naraz — „MENU ZAMKNIJ". Dopiero `visibility` wyjmuje go z drzewa.
+   Przejście na obu właściwościach naraz daje przy tym poprawną kolejność:
+   pokazywany napis wraca do drzewa od razu, znikający wypada dopiero po
+   wygaszeniu. */
+.evk-burger__label--otw,
+.evk-burger__icon--otw {
+    opacity: 0;
+    visibility: hidden;
+}
+.evk-burger.brx-open .evk-burger__label--zamk,
+.evk-burger.brx-open .evk-burger__icon--zamk {
+    opacity: 0;
+    visibility: hidden;
+}
+.evk-burger.brx-open .evk-burger__label--otw,
+.evk-burger.brx-open .evk-burger__icon--otw {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Własne ikony. Pudełko jest kwadratem o boku pola klikalnego — tak samo jak
+   pudełko z kreskami — więc zamiana źródła nie przesuwa niczego obok. */
+.evk-burger__icons {
+    position: relative;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: var(--evk-burger-size);
+    height: var(--evk-burger-size);
+    transition: transform var(--evk-burger-time) var(--evk-burger-ease);
+}
+.evk-burger.brx-open .evk-burger__icons {
+    transform: rotate(var(--evk-burger-open-rotate));
+}
+.evk-burger__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Ikony Bricksa to albo font (`<i>`), albo wklejone SVG — pierwsze idzie za
+       `font-size`, drugie za wymiarami. Obie drogi biorą tę samą zmienną. */
+    font-size: var(--evk-burger-icon-size);
+    line-height: 1;
+    color: var(--evk-burger-color);
+}
+.evk-burger.brx-open .evk-burger__icon { color: var(--evk-burger-color-open); }
+.evk-burger__icon svg {
+    width: var(--evk-burger-icon-size);
+    height: var(--evk-burger-icon-size);
+    fill: currentColor;
+}
+
+/* Redukcja ruchu obejmuje i napisy, i ikony — z tego samego powodu co kreski:
+   stan ma być widoczny, ruch nie musi. */
+.evk-burger[data-evk-still] .evk-burger__label,
+.evk-burger[data-evk-still] .evk-burger__icon,
+.evk-burger[data-evk-still] .evk-burger__icons {
+    transition-duration: 0s;
 }

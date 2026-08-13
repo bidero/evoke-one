@@ -56,6 +56,12 @@ class Evk_Burger extends \Bricks\Element {
 	 * `lines` to liczba kresek, nie ozdoba: z niej powstaje znacznik i na niej
 	 * stoi arkusz (`:nth-child`). Dwukreskowe i trzykreskowe różnią się w tym
 	 * elemencie wyłącznie tą liczbą.
+	 *
+	 * `short` znaczy „ten styl czyta kontrolkę »Długość krótszej kreski«".
+	 * Stoi tutaj, a nie w warunku przy kontrolce, żeby dołożenie stylu
+	 * asymetrycznego nadal było JEDNYM wierszem — inaczej lista w `required`
+	 * po cichu rozjeżdżałaby się z rejestrem i pole chowałoby się przy stylu,
+	 * który na nim stoi.
 	 */
 	public static function styles(): array {
 		return [
@@ -70,7 +76,13 @@ class Evk_Burger extends \Bricks\Element {
 			// Asymetryczne: RÓŻNE długości kresek już w stanie zamkniętym. To jest
 			// nowa cecha, nie tylko nowy wygląd — do 1.78.0 każdy styl miał kreski
 			// równe i nie dało się tego zmienić żadnym ustawieniem.
-			'uneven'    => [ 'label' => esc_html__( 'Nierówne — 3 kreski', 'evoke-one' ),    'lines' => 3 ],
+			'uneven'    => [ 'label' => esc_html__( 'Nierówne — 3 kreski', 'evoke-one' ),    'lines' => 3, 'short' => true ],
+			// Asymetria z KRAWĘDZIĄ: krótkie kreski nie są już wyśrodkowane, tylko
+			// dosunięte do lewej albo do prawej. Różnica wobec „nierównych" jest
+			// widoczna bez ruszania przyciskiem — i to ona wymagała wyrównania,
+			// które trzyma się swojej krawędzi także przy piśmie od prawej.
+			'zigzag'    => [ 'label' => esc_html__( 'Zygzak — 3 kreski', 'evoke-one' ),      'lines' => 3, 'short' => true ],
+			'steps'     => [ 'label' => esc_html__( 'Schodki — 3 kreski', 'evoke-one' ),     'lines' => 3, 'short' => true ],
 
 			// ── Dwukreskowe ────────────────────────────────────────────────
 			// Ten sam „Odstęp między kreskami" daje w obu rodzinach TĘ SAMĄ
@@ -84,7 +96,22 @@ class Evk_Burger extends \Bricks\Element {
 			'slide-2'   => [ 'label' => esc_html__( 'Zjazd — 2 kreski', 'evoke-one' ),       'lines' => 2 ],
 			'pinch-2'   => [ 'label' => esc_html__( 'Ściągnięcie — 2 kreski', 'evoke-one' ), 'lines' => 2 ],
 			'swap-2'    => [ 'label' => esc_html__( 'Minięcie — 2 kreski', 'evoke-one' ),    'lines' => 2 ],
-			'uneven-2'  => [ 'label' => esc_html__( 'Nierówne — 2 kreski', 'evoke-one' ),    'lines' => 2 ],
+			'uneven-2'  => [ 'label' => esc_html__( 'Nierówne — 2 kreski', 'evoke-one' ),    'lines' => 2, 'short' => true ],
+			'uneven-right-2' => [ 'label' => esc_html__( 'Nierówne z prawej — 2 kreski', 'evoke-one' ), 'lines' => 2, 'short' => true ],
+			'split-2'   => [ 'label' => esc_html__( 'Rozstrzelone — 2 kreski', 'evoke-one' ), 'lines' => 2, 'short' => true ],
+		];
+	}
+
+	/**
+	 * Pozycje tekstu przy ikonie. Klucz idzie wprost w klasę-modyfikator
+	 * (`evk-burger--tekst-<klucz>`), więc arkusz i lista nie mogą się rozjechać.
+	 */
+	public static function text_positions(): array {
+		return [
+			'za'    => esc_html__( 'Za ikoną', 'evoke-one' ),
+			'przed' => esc_html__( 'Przed ikoną', 'evoke-one' ),
+			'nad'   => esc_html__( 'Nad ikoną', 'evoke-one' ),
+			'pod'   => esc_html__( 'Pod ikoną', 'evoke-one' ),
 		];
 	}
 
@@ -93,6 +120,33 @@ class Evk_Burger extends \Bricks\Element {
 		$options = [];
 		foreach ( self::styles() as $key => $def ) $options[ $key ] = $def['label'];
 
+		/*
+		 * ŹRÓDŁO IKONY — jedna oś zamiast trzech doklejonych funkcji.
+		 *
+		 * Do 1.78.0 burger rysował kreski, bo taki się urodził. Ale jego wartością
+		 * nigdy nie były kreski, tylko instalacja stanu: spięcie z menu, tryb celu,
+		 * aria-expanded, redukcja ruchu, powrót do stanu zamkniętego przy Esc.
+		 * To wszystko jest niezależne od tego, CO przycisk pokazuje — więc kreski
+		 * przestają być wbudowanym założeniem i stają się jedną z możliwości.
+		 */
+		$this->controls['iconSource'] = [
+			'tab'     => 'content',
+			'label'   => esc_html__( 'Co pokazuje przycisk', 'evoke-one' ),
+			'type'    => 'select',
+			'options' => [
+				'kreski' => esc_html__( 'Kreski — animowane style', 'evoke-one' ),
+				'ikona'  => esc_html__( 'Własne ikony (zamknięta i otwarta)', 'evoke-one' ),
+				'brak'   => esc_html__( 'Nic — sam tekst', 'evoke-one' ),
+			],
+			'default'     => 'kreski',
+			'inline'      => true,
+			'description' => esc_html__(
+				'Tekst dochodzi do KAŻDEGO z tych trzech — także do kresek. „Nic" razem '
+				. 'z wypełnionym tekstem daje wariant czysto tekstowy, np. MENU / ZAMKNIJ.',
+				'evoke-one'
+			),
+		];
+
 		$this->controls['style'] = [
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Styl', 'evoke-one' ),
@@ -100,6 +154,96 @@ class Evk_Burger extends \Bricks\Element {
 			'options' => $options,
 			'default' => 'cross',
 			'inline'  => true,
+			// Warunek na „różne od", a nie na „równe kreskom": nieustawione pole
+			// czyta się jak puste, więc porównanie z domyślną wartością chowałoby
+			// listę stylów w świeżo wstawionym elemencie.
+			'required' => [ 'iconSource', '!=', [ 'ikona', 'brak' ] ],
+		];
+
+		$this->controls['iconClosed'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Ikona — zamknięte', 'evoke-one' ),
+			'type'        => 'icon',
+			'required'    => [ 'iconSource', '=', 'ikona' ],
+		];
+
+		$this->controls['iconOpen'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Ikona — otwarte', 'evoke-one' ),
+			'type'        => 'icon',
+			'required'    => [ 'iconSource', '=', 'ikona' ],
+			'description' => esc_html__(
+				'Pusta znaczy „ta sama co zamknięta" — przycisk zmienia wtedy tylko kolor. '
+				. 'Obie leżą NA SOBIE, więc przełączenie nie przesuwa niczego obok.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['iconSize'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Wielkość ikony', 'evoke-one' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [ [ 'property' => '--evk-burger-icon-size', 'selector' => '' ] ],
+			'placeholder' => '24px',
+			'required'    => [ 'iconSource', '=', 'ikona' ],
+		];
+
+		// ── Tekst ──────────────────────────────────────────────────────────
+		// OSOBNA oś, nie wariant źródła: dwa sloty, bo napis przy otwartym menu
+		// zwykle brzmi inaczej niż przy zamkniętym.
+		$this->controls['textSeparator'] = [
+			'label' => esc_html__( 'Tekst', 'evoke-one' ),
+			'type'  => 'separator',
+		];
+
+		$this->controls['textClosed'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Tekst — zamknięte', 'evoke-one' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => 'MENU',
+		];
+
+		$this->controls['textOpen'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Tekst — otwarte', 'evoke-one' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => 'ZAMKNIJ',
+			'description' => esc_html__(
+				'Pusty znaczy „ten sam co zamknięty", więc przy niezmiennym napisie '
+				. 'wystarczy jedno pole. Oba napisy leżą NA SOBIE i przycisk ma szerokość '
+				. 'dłuższego z nich — dzięki temu przełączenie nie przesuwa sąsiadów. '
+				. 'Gdy tekst jest wpisany, opis dla czytnika ekranu NIE wychodzi: nazwą '
+				. 'przycisku staje się to, co widać.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['textPosition'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Pozycja tekstu', 'evoke-one' ),
+			'type'     => 'select',
+			'options'  => self::text_positions(),
+			'default'  => 'za',
+			'inline'   => true,
+		];
+
+		$this->controls['textGap'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Odstęp od ikony', 'evoke-one' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [ [ 'property' => '--evk-burger-text-gap', 'selector' => '' ] ],
+			'placeholder' => '8px',
+		];
+
+		$this->controls['modeSeparator'] = [
+			'label' => esc_html__( 'Działanie', 'evoke-one' ),
+			'type'  => 'separator',
 		];
 
 		$this->controls['mode'] = [
@@ -162,9 +306,15 @@ class Evk_Burger extends \Bricks\Element {
 			'label'       => esc_html__( 'Opis dla czytnika ekranu', 'evoke-one' ),
 			'type'        => 'text',
 			'default'     => esc_html__( 'Menu', 'evoke-one' ),
+			// Widoczny tekst wyklucza ten opis, więc pole schodzi z oczu razem
+			// z powodem, dla którego istnieje.
+			'required'    => [ 'textClosed', '=', '' ],
 			'description' => esc_html__(
-				'Przycisk nie ma tekstu, więc bez opisu czytnik ekranu przeczyta tylko '
-				. '„przycisk". Stan otwarcia idzie osobno, atrybutem aria-expanded.',
+				'Przycisk BEZ TEKSTU nie ma czego przeczytać, więc czytnik ekranu powie '
+				. 'tylko „przycisk". Gdy wpiszesz tekst, ten opis nie wychodzi wcale: '
+				. 'przykryłby widoczny napis, a nazwa inna od tego, co widać, psuje '
+				. 'sterowanie głosem — użytkownik mówi „kliknij MENU", a przeglądarka '
+				. 'szuka czegoś innego. Stan otwarcia idzie osobno, atrybutem aria-expanded.',
 				'evoke-one'
 			),
 		];
@@ -213,11 +363,17 @@ class Evk_Burger extends \Bricks\Element {
 			'inline'      => true,
 			'css'         => [ [ 'property' => '--evk-burger-short', 'selector' => '' ] ],
 			'placeholder' => '60%',
-			'required'    => [ 'style', '=', [ 'uneven', 'uneven-2' ] ],
+			// Lista stylów asymetrycznych IDZIE Z REJESTRU. Wpisana tu z ręki
+			// rozjeżdżałaby się przy każdym nowym stylu, a objawem byłoby pole
+			// schowane akurat tam, gdzie jest potrzebne.
+			'required'    => [ 'style', '=', array_keys( array_filter(
+				self::styles(), function ( $d ) { return ! empty( $d['short'] ); } ) ) ],
 			'description' => esc_html__(
-				'Dotyczy wyłącznie stylów NIERÓWNYCH — tam jedna kreska jest krótsza od '
-				. 'pozostałych już w stanie zamkniętym. Podana w procentach liczy się od '
-				. 'szerokości kresek, więc trzyma proporcję przy każdym rozmiarze przycisku.',
+				'Dotyczy wyłącznie stylów ASYMETRYCZNYCH — tam co najmniej jedna kreska '
+				. 'jest krótsza od pozostałych już w stanie zamkniętym. Podana w procentach '
+				. 'liczy się od boku pola klikalnego, więc trzyma proporcję przy każdym '
+				. 'rozmiarze przycisku. W „schodkach" wylicza się z niej także kreska '
+				. 'środkowa, żeby jedno pole sterowało całą proporcją.',
 				'evoke-one'
 			),
 		];
@@ -348,13 +504,44 @@ class Evk_Burger extends \Bricks\Element {
 		$key = ! empty( $s['style'] ) && isset( $styles[ $s['style'] ] ) ? $s['style'] : 'cross';
 		$def = $styles[ $key ];
 
-		$this->set_attribute( '_root', 'class', [ 'evk-burger', 'evk-burger--' . $key ] );
+		$source = ! empty( $s['iconSource'] ) && in_array( $s['iconSource'], [ 'kreski', 'ikona', 'brak' ], true )
+			? $s['iconSource'] : 'kreski';
+
+		/*
+		 * Pusty slot znaczy „ten sam co drugi" — w OBIE strony. Dzięki temu jedno
+		 * wypełnione pole daje niezmienny napis, a każdy stan przycisku ma
+		 * widoczną nazwę. Gdyby zapasowa wartość szła tylko w jedną stronę,
+		 * wypełnienie samego „otwartego" zostawiłoby stan zamknięty bez nazwy.
+		 */
+		$closed  = isset( $s['textClosed'] ) ? trim( (string) $s['textClosed'] ) : '';
+		$opened  = isset( $s['textOpen'] )   ? trim( (string) $s['textOpen'] )   : '';
+		$hasText = $closed !== '' || $opened !== '';
+		if ( $closed === '' ) $closed = $opened;
+		if ( $opened === '' ) $opened = $closed;
+
+		$classes = [ 'evk-burger', 'evk-burger--' . $key ];
+		if ( $hasText ) {
+			$pos = ! empty( $s['textPosition'] ) && isset( self::text_positions()[ $s['textPosition'] ] )
+				? $s['textPosition'] : 'za';
+			$classes[] = 'evk-burger--z-tekstem';
+			$classes[] = 'evk-burger--tekst-' . $pos;
+		}
+		$this->set_attribute( '_root', 'class', $classes );
+
 		// Stan startowy JAWNIE. Bez tego czytnik ekranu do pierwszego kliknięcia
 		// nie ma skąd wiedzieć, że przycisk cokolwiek rozwija — ta sama usterka,
 		// którą naprawiliśmy w Circular Menu (1.69.0).
 		$this->set_attribute( '_root', 'aria-expanded', 'false' );
-		$this->set_attribute( '_root', 'aria-label',
-			! empty( $s['ariaLabel'] ) ? $s['ariaLabel'] : esc_html__( 'Menu', 'evoke-one' ) );
+		/*
+		 * Opis dla czytnika ekranu WYŁĄCZNIE przy przycisku bez tekstu.
+		 * Przy widocznym napisie `aria-label` by go PRZYKRYŁ, a nazwa inna niż
+		 * to, co widać, psuje sterowanie głosem: użytkownik mówi „kliknij MENU",
+		 * przeglądarka szuka „Menu" (WCAG 2.5.3). Nazwą staje się wtedy sam tekst.
+		 */
+		if ( ! $hasText ) {
+			$this->set_attribute( '_root', 'aria-label',
+				! empty( $s['ariaLabel'] ) ? $s['ariaLabel'] : esc_html__( 'Menu', 'evoke-one' ) );
+		}
 		// `type="button"` — bez tego przycisk w formularzu wysyła formularz.
 		$this->set_attribute( '_root', 'type', 'button' );
 
@@ -385,14 +572,60 @@ class Evk_Burger extends \Bricks\Element {
 		}
 
 		/*
-		 * Znacznik WYLICZANY z liczby kresek, nie wklejany per styl. Stąd bierze
-		 * się różnica między dwukreskowym a trzykreskowym: to jedna liczba
-		 * w tablicy stylów, a nie druga gałąź kodu.
+		 * Rysunek. Trzy źródła, ale ANI JEDNEJ gałęzi w tym, co dzieje się dalej:
+		 * stan i tak przychodzi klasą `brx-open`, a przełączanie — zarówno ikon,
+		 * jak i napisów — robi wyłącznie arkusz. Dlatego `burger.js` nie wie o tej
+		 * partii nic i nie musiał się zmienić.
 		 */
-		$lines = str_repeat( '<span class="evk-burger__line"></span>', (int) $def['lines'] );
+		$rysunek = '';
 
-		echo "<button {$this->render_attributes( '_root' )}>"
-		   . '<span class="evk-burger__box">' . $lines . '</span>'
-		   . '</button>';
+		if ( $source === 'kreski' ) {
+			/*
+			 * Znacznik WYLICZANY z liczby kresek, nie wklejany per styl. Stąd bierze
+			 * się różnica między dwukreskowym a trzykreskowym: to jedna liczba
+			 * w tablicy stylów, a nie druga gałąź kodu.
+			 */
+			$rysunek = '<span class="evk-burger__box">'
+				. str_repeat( '<span class="evk-burger__line"></span>', (int) $def['lines'] )
+				. '</span>';
+		} elseif ( $source === 'ikona' ) {
+			$zamk = self::burger_icon( $s['iconClosed'] ?? null );
+			// Pusta „otwarta" znaczy „ta sama co zamknięta" — ten sam zapasowy
+			// zapis co przy tekście i przy kolorze po otwarciu.
+			$otw  = self::burger_icon( $s['iconOpen'] ?? null );
+			if ( $otw === '' ) $otw = $zamk;
+			$rysunek = '<span class="evk-burger__icons">'
+				. '<span class="evk-burger__icon evk-burger__icon--zamk">' . $zamk . '</span>'
+				. '<span class="evk-burger__icon evk-burger__icon--otw">' . $otw . '</span>'
+				. '</span>';
+		}
+
+		if ( $hasText ) {
+			/*
+			 * Oba napisy WYCHODZĄ ZAWSZE i leżą na sobie (siatka w arkuszu).
+			 * Renderowanie tylko bieżącego byłoby prostsze, ale wymagałoby skryptu
+			 * i dawałoby przycisk zmieniający szerokość w trakcie animacji —
+			 * a razem z nią przesuwałoby wszystko, co stoi obok.
+			 */
+			$rysunek .= '<span class="evk-burger__text">'
+				. '<span class="evk-burger__label evk-burger__label--zamk">' . esc_html( $closed ) . '</span>'
+				. '<span class="evk-burger__label evk-burger__label--otw">' . esc_html( $opened ) . '</span>'
+				. '</span>';
+		}
+
+		echo "<button {$this->render_attributes( '_root' )}>" . $rysunek . '</button>';
+	}
+
+	/**
+	 * Ikona przez natywną kontrolkę Bricksa.
+	 *
+	 * `render_icon()` jest jedynym miejscem w tym elemencie, które opiera się na
+	 * KSZTAŁCIE cudzego API — stąd osłona. Bez niej podmiana tej metody w Bricksie
+	 * wywalałaby całą stronę, a nie gasiła jedną ikonę.
+	 */
+	private static function burger_icon( $icon ): string {
+		if ( empty( $icon ) ) return '';
+		if ( ! method_exists( '\Bricks\Element', 'render_icon' ) ) return '';
+		return (string) self::render_icon( $icon );
 	}
 }

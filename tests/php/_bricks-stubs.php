@@ -36,6 +36,26 @@ if (!class_exists('Bricks\\Element')) {
             }
             return implode(' ', $out);
         }
+
+        /**
+         * Ikona z kontrolki `'type' => 'icon'`.
+         *
+         * JEDYNE miejsce, w którym atrapa odwzorowuje KSZTAŁT cudzego API, a nie
+         * tylko to, czego element dotyka — i dlatego warto wiedzieć, czego ta
+         * atrapa NIE sprawdzi. Prawdziwy Bricks obsługuje tu jeszcze ikony
+         * wgrane jako SVG (wtedy wkleja plik) i bierze pod uwagę bibliotekę
+         * ikon wybraną w builderze. Odwzorowany jest wariant fontowy, bo tylko
+         * on decyduje o tym, co robi element: że ikona wychodzi jednym węzłem
+         * wewnątrz naszego opakowania.
+         */
+        public static function render_icon($icon, $attributes = []) {
+            if (empty($icon)) return '';
+            $klasy = trim(($icon['library'] ?? '') . ' ' . ($icon['icon'] ?? ''));
+            $attributes['class'] = trim(($attributes['class'] ?? '') . ' ' . $klasy);
+            $out = '';
+            foreach ($attributes as $k => $v) $out .= ' ' . $k . '="' . esc_attr($v) . '"';
+            return '<i' . $out . '></i>';
+        }
     }
 }
 
