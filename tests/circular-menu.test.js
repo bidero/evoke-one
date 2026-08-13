@@ -714,4 +714,134 @@ module.exports = async function (t) {
     await nr.evaluate(() => window.__rozwiniety()),
     (await nr.evaluate(() => window.__clip())).raw);
   await nr.close();
+
+  /* ── Przełącznik NAD panelem ────────────────────────────────────────────
+   *
+   * Zgłoszone z użycia: burger siedzi w nagłówku, nagłówek jest w <body> i nie
+   * jest ani `fixed`, ani `absolute`, a panel go przykrywa. Podniesienie samego
+   * burgera z-indeksem nie pomaga — pomaga dopiero wyciągnięcie na wierzch
+   * CAŁEGO nagłówka, czyli razem z jego tłem.
+   *
+   * Nagłówek tworzy KONTEKST UKŁADANIA, a wtedy `z-index` dziecka rywalizuje
+   * wyłącznie z rodzeństwem: z panelem rywalizuje cały nagłówek jako jedna
+   * warstwa. Dlatego przełącznik w fixture ma z-index 99999 — żeby pomiar
+   * pokazywał, że to NIE liczba decyduje.
+   *
+   * Mierzymy `elementFromPoint`, bo to jest dokładnie pytanie użytkownika:
+   * co jest na wierzchu i w co trafi kliknięcie. Porównanie `z-index` niczego
+   * by nie dowiodło.
+   */
+  t.section('przełącznik nad panelem — wyjęcie z kontekstu układania');
+
+  const Q = 'dur=0.2&toggle=' + encodeURIComponent('.w-naglowku');
+
+  // KONTROLA NEGATYWNA i zarazem dzisiejsze zachowanie: bez opcji panel
+  // przykrywa przełącznik MIMO z-indeksu 99999.
+  const bez = await t.open('circular-menu.html', { viewport: V, query: Q, settle: 300 });
+  await bez.evaluate(() => window.__zew('zew-naglowek'));
+  await bez.waitForTimeout(400);
+  t.check('bez opcji panel przykrywa przełącznik mimo z-index 99999',
+    (await bez.evaluate(() => window.__naWierzchu('zew-naglowek'))) !== 'zew-naglowek',
+    String(await bez.evaluate(() => window.__naWierzchu('zew-naglowek'))));
+  await bez.close();
+
+  const zr = await t.open('circular-menu.html', {
+    viewport: V, query: Q + '&raise=1', settle: 300,
+  });
+  const przedR = await zr.evaluate(() => window.__rect('zew-naglowek'));
+  const sasiadR = await zr.evaluate(() => window.__rect('sasiad'));
+  const stylPrzed = await zr.evaluate(() => window.__inline('zew-naglowek'));
+
+  await zr.evaluate(() => window.__zew('zew-naglowek'));
+  await zr.waitForTimeout(400);
+
+  t.check('z opcją na wierzchu jest PRZEŁĄCZNIK',
+    (await zr.evaluate(() => window.__naWierzchu('zew-naglowek'))) === 'zew-naglowek',
+    String(await zr.evaluate(() => window.__naWierzchu('zew-naglowek'))));
+  t.check('i nie drgnął na ekranie',
+    JSON.stringify(await zr.evaluate(() => window.__rect('zew-naglowek'))) === JSON.stringify(przedR),
+    JSON.stringify(await zr.evaluate(() => window.__rect('zew-naglowek'))) + ' vs ' + JSON.stringify(przedR));
+  // Przekładka: bez niej nagłówek zapada się o szerokość przełącznika
+  // i wszystko obok przeskakuje w chwili otwarcia.
+  t.check('nagłówek się NIE przebudował',
+    JSON.stringify(await zr.evaluate(() => window.__rect('sasiad'))) === JSON.stringify(sasiadR),
+    JSON.stringify(await zr.evaluate(() => window.__rect('sasiad'))) + ' vs ' + JSON.stringify(sasiadR));
+  t.check('na czas otwarcia siedzi w <body>',
+    (await zr.evaluate(() => window.__rodzic('zew-naglowek'))) === 'body',
+    String(await zr.evaluate(() => window.__rodzic('zew-naglowek'))));
+
+  // Zamknięcie DROGĄ, o której podnoszenie nic nie wie — Esc.
+  await zr.evaluate(() => window.__key('Escape'));
+  await zr.waitForTimeout(500);
+  t.check('po zamknięciu wraca do nagłówka',
+    (await zr.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
+    String(await zr.evaluate(() => window.__rodzic('zew-naglowek'))));
+  t.check('i oddaje swój styl w stanie sprzed otwarcia',
+    (await zr.evaluate(() => window.__inline('zew-naglowek'))) === stylPrzed,
+    JSON.stringify(await zr.evaluate(() => window.__inline('zew-naglowek'))));
+  t.check('a pozycja jest ta sama co na starcie',
+    JSON.stringify(await zr.evaluate(() => window.__rect('zew-naglowek'))) === JSON.stringify(przedR),
+    JSON.stringify(await zr.evaluate(() => window.__rect('zew-naglowek'))));
+  t.check('bez błędów JS przy podnoszeniu', !zr.errors.length,
+    zr.errors.join(' | ') || 'brak');
+  await zr.close();
+
+  /* Przełącznik BEZ własnego z-indeksu — i to on dowodzi, że liczbę nadajemy
+     my. Ten z nagłówka ma wpisane 99999, żeby pokazać, że wewnątrz kontekstu
+     układania liczba nic nie daje; ale po przeniesieniu do <body> ta sama
+     liczba zaczyna działać i MASKUJE nasze przypisanie. Zwykły burger żadnego
+     z-indeksu nie ma, więc bez nadanego przez nas przegrałby z panelem
+     (9999) mimo przeniesienia. */
+  const bezZ = await t.open('circular-menu.html', {
+    viewport: V, settle: 300,
+    query: 'dur=0.2&raise=1&toggle=' + encodeURIComponent('.moj-burger'),
+  });
+  await bezZ.evaluate(() => window.__zew('zew'));
+  await bezZ.waitForTimeout(400);
+  t.check('przełącznik bez własnego z-indeksu też jest na wierzchu',
+    (await bezZ.evaluate(() => window.__naWierzchu('zew'))) === 'zew',
+    String(await bezZ.evaluate(() => window.__naWierzchu('zew'))));
+  await bezZ.close();
+
+  /* REDUKCJA RUCHU to osobne sprawdzenie, a nie powtórka — bo to jedyna
+     ścieżka, na której czas trwania naprawdę wynosi ZERO (silnik zeruje go
+     wtedy sam, niezależnie od ustawienia).
+     Naturalnym miejscem na przywracanie byłby `onReverseComplete` osi czasu,
+     ale przy zerowym czasie to zwrotne wywołanie się NIE ODPALA — zmierzone
+     na GSAP-ie z tej paczki: 0,2 s odpala, 0 s nie. Przełącznik zostałby więc
+     wyrwany z nagłówka NA STAŁE u każdego, kto ma ograniczony ruch w systemie.
+     Dlatego przywracanie jedzie zegarem o znanym czasie. */
+  const zero = await t.open('circular-menu.html', {
+    viewport: V, reduce: true, settle: 300,
+    query: 'dur=0.4&toggle=' + encodeURIComponent('.w-naglowku') + '&raise=1',
+  });
+  await zero.evaluate(() => window.__zew('zew-naglowek'));
+  await zero.waitForTimeout(120);
+  t.check('przy redukcji ruchu też się podnosi',
+    (await zero.evaluate(() => window.__rodzic('zew-naglowek'))) === 'body',
+    String(await zero.evaluate(() => window.__rodzic('zew-naglowek'))));
+  await zero.evaluate(() => window.__key('Escape'));
+  await zero.waitForTimeout(200);
+  t.check('i przy redukcji ruchu NAPRAWDĘ wraca',
+    (await zero.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
+    String(await zero.evaluate(() => window.__rodzic('zew-naglowek'))));
+  await zero.close();
+
+  // Przełącznik WBUDOWANY siedzi w korzeniu menu, a nie w panelu — ma się
+  // podnosić normalnie. Gdyby pomijanie „tego, co w panelu" było napisane zbyt
+  // szeroko, wypadłby razem z nim.
+  const wb = await t.open('circular-menu.html', {
+    viewport: V, query: 'dur=0.2&raise=1', settle: 300,
+  });
+  await wb.evaluate(() => window.__open());
+  await wb.waitForTimeout(400);
+  // Podnoszony jest CAŁY `.evk-cm-trigger` (opakowanie), a nie przycisk
+  // w środku — bo to opakowanie zajmuje miejsce w układzie strony.
+  t.check('wbudowany przełącznik też jedzie do <body>',
+    (await wb.evaluate(() => window.__rodzic('tw'))) === 'body',
+    String(await wb.evaluate(() => window.__rodzic('tw'))));
+  t.check('a panel został tam, gdzie był',
+    (await wb.evaluate(() => window.__panelParent())) === 'body',
+    String(await wb.evaluate(() => window.__panelParent())));
+  await wb.close();
 };

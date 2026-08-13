@@ -21,7 +21,7 @@
 <div id="root" class="evk-cm">
   <!-- Trigger jest OPAKOWANIEM przycisku, nie przyciskiem: element szuka
        `button` w środku `.evk-cm-trigger` i to jemu przestawia aria-expanded. -->
-  <div class="evk-cm-trigger">
+  <div class="evk-cm-trigger" id="tw">
     <button class="burger" id="trigger">Menu</button>
   </div>
 
@@ -51,6 +51,18 @@
   <div class="brxe-toggle" id="zew-bricks"><span class="kreska"></span></div>
 </div>
 
+<!-- Nagłówek dokładnie jak w zgłoszeniu: w <body>, NIE fixed i NIE absolute,
+     ale tworzy KONTEKST UKŁADANIA (position: relative z własnym z-index).
+     Wszystko w środku jest wtedy zamknięte w tej jednej warstwie — z panelem
+     rywalizuje cały nagłówek, a nie jego dzieci. Dlatego przełącznik dostaje
+     tu absurdalnie wysoki z-index: żeby było widać, że to NIE liczba decyduje.
+     Obok stoi sąsiad, po którym poznamy, czy nagłówek się nie przebudował. -->
+<header id="naglowek" style="position:relative;z-index:1;background:#eee;padding:10px">
+  <button class="brxe-toggle w-naglowku" id="zew-naglowek"
+          style="position:relative;z-index:99999;width:44px;height:44px">Menu</button>
+  <span id="sasiad" style="display:inline-block;width:60px;height:20px;background:#999"></span>
+</header>
+
 <div class="long">treść strony</div>
 
 <script>
@@ -65,6 +77,7 @@
   root.setAttribute('data-customtoggle',  q.get('toggle') || '');
   root.setAttribute('data-toggle-class',  q.get('tclass') || '');
   root.setAttribute('data-lock-scroll',   '0');
+  root.setAttribute('data-raise-toggle',  q.get('raise')  === '1' ? '1' : '0');
   root.setAttribute('data-open-builder',  '0');
   root.setAttribute('data-close-on-esc',  q.get('esc')    === '0' ? '0' : '1');
 </script>
@@ -185,5 +198,38 @@ window.__osie = function (id) {
 window.__ease = function (name) {
   var f = gsap.parseEase(name);
   return typeof f === 'function' ? +f(0.5).toFixed(4) : null;
+};
+
+/**
+ * CO JEST NA WIERZCHU w środku danego elementu.
+ *
+ * To jest jedyny uczciwy pomiar dla „przełącznik nad panelem": pytanie brzmi,
+ * w co trafi kliknięcie, a `elementFromPoint` odpowiada na nie tak samo jak
+ * przeglądarka użytkownikowi. Porównywanie `z-index` niczego by nie dowiodło —
+ * cała rzecz w tym, że przy kontekście układania liczba jest bez znaczenia.
+ *
+ * Zwracamy identyfikator elementu ALBO jego przodka, bo trafienie może wypaść
+ * w dziecko przycisku (kreskę burgera), a to nadal znaczy „przełącznik".
+ */
+window.__naWierzchu = function (id) {
+  var el = document.getElementById(id);
+  var r  = el.getBoundingClientRect();
+  var t  = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  if (!t) return null;
+  if (el.contains(t)) return id;
+  return t.id || t.className || t.tagName;
+};
+
+/** Prostokąt elementu w kadrze — do porównań „nie drgnął". */
+window.__rect = function (id) {
+  var r = document.getElementById(id).getBoundingClientRect();
+  return { x: Math.round(r.left), y: Math.round(r.top),
+           w: Math.round(r.width), h: Math.round(r.height) };
+};
+
+/** Rodzic elementu — po nim widać, czy przełącznik wrócił na miejsce. */
+window.__rodzic = function (id) {
+  var p = document.getElementById(id).parentElement;
+  return p ? (p.id || p.tagName.toLowerCase()) : null;
 };
 </script>

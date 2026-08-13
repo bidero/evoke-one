@@ -128,6 +128,7 @@ function evk_circular_menu_init_one( root ) {
             .split( /[\s,]+/ )
             .filter( function ( c ) { return c && EVK_CM_TOGGLE_OPEN.indexOf( c ) < 0; } )
     );
+    var raiseToggle = root.getAttribute( 'data-raise-toggle' ) === '1';
     var lockScroll  = root.getAttribute( 'data-lock-scroll' ) === '1';
     var closeOnEsc  = root.getAttribute( 'data-close-on-esc' ) === '1';
 
@@ -242,11 +243,125 @@ function evk_circular_menu_init_one( root ) {
         btn.setAttribute( 'aria-expanded', isOpen ? 'true' : 'false' );
     }
 
+    /**
+     * Wszystkie przełączniki tego menu — wbudowany plus wskazane selektorem.
+     *
+     * PODNIESIONE dopisujemy osobno i to nie jest ostrożność na wyrost:
+     * wbudowany przełącznik szuka się przez `root.querySelectorAll`, a podniesiony
+     * siedzi w `<body>`, więc wypada z tej listy DOKŁADNIE wtedy, gdy menu jest
+     * otwarte. Bez tego nasłuch „klik poza panelem" przestawał go rozpoznawać
+     * i zamykał menu w tej samej klatce, w której je otwarto.
+     */
+    function triggerList() {
+        var out = [];
+        /* Bez powtórek: ten sam element potrafi wpaść i z `.evk-cm-trigger`,
+           i z własnego selektora, i z listy podniesionych. Drugie wejście
+           znaczyłoby drugą przekładkę i powrót w złe miejsce. */
+        var dodaj = function ( el ) { if ( out.indexOf( el ) < 0 ) out.push( el ); };
+        root.querySelectorAll( '.evk-cm-trigger' ).forEach( dodaj );
+        if ( customToggleSel ) document.querySelectorAll( customToggleSel ).forEach( dodaj );
+        podniesione.forEach( function ( w ) { dodaj( w.el ); } );
+        return out;
+    }
+
+    /* LISTA ZBIERANA NAJPIERW, dopiero potem obchodzona. Pierwsze podejście
+       wołało `fn` wprost w trakcie zbierania — a `fn` przy podnoszeniu dopisuje
+       do `podniesione`, więc pętla po tej właśnie tablicy odwiedzała elementy
+       drugi raz. Każdy dostawał wtedy DRUGĄ przekładkę, a przy powrocie trafiał
+       przed tę wstawioną już w `<body>`: nagłówek podskakiwał o 35 px, bo
+       korzeń menu zostawał pusty. */
+    function forEachTrigger( fn ) {
+        triggerList().forEach( fn );
+    }
+
     function syncTriggers() {
-        root.querySelectorAll( '.evk-cm-trigger' ).forEach( updateTriggerState );
-        if ( customToggleSel ) {
-            document.querySelectorAll( customToggleSel ).forEach( updateTriggerState );
-        }
+        forEachTrigger( updateTriggerState );
+    }
+
+    /* ── Przełącznik NAD panelem ──────────────────────────────────
+     *
+     * Zgłoszone z użycia: burger siedzi w nagłówku, nagłówek jest w <body>
+     * i nie jest ani `fixed`, ani `absolute`, a panel go przykrywa. Podniesienie
+     * samego burgera nie pomaga — pomaga dopiero wyciągnięcie na wierzch CAŁEGO
+     * nagłówka, czyli razem z jego tłem.
+     *
+     * To nie jest kwestia za małej liczby. Nagłówek tworzy KONTEKST UKŁADANIA
+     * (wystarczy `position: relative` z własnym `z-index`, `transform`, `filter`,
+     * `will-change` albo `opacity` < 1 — Bricks i animacje sypią tym gęsto),
+     * a wtedy `z-index` dziecka rywalizuje wyłącznie z rodzeństwem: z panelem
+     * rywalizuje cały nagłówek jako JEDNA warstwa. Zmierzone `elementFromPoint`
+     * w środku burgera przy otwartym menu: przy `z-index: 99999` na burgerze
+     * na wierzchu jest PANEL, a po przeniesieniu węzła do <body> — burger.
+     * Żadna liczba tego nie naprawi; trzeba wyjąć przełącznik z kontekstu.
+     */
+    var podniesione   = [];
+    var restoreTimer  = null;
+
+    function panelZIndex() {
+        var z = parseInt( getComputedStyle( panel ).zIndex, 10 );
+        return isNaN( z ) ? 9999 : z;
+    }
+
+    function podniesPrzelaczniki() {
+        if ( ! raiseToggle || podniesione.length ) return;
+        var z = panelZIndex() + 1;
+
+        forEachTrigger( function ( el ) {
+            // Przełącznik W ŚRODKU panelu jedzie z nim portalem do <body>,
+            // więc jest już nad wszystkim — wyrywanie go stamtąd zabrałoby go
+            // z panelu.
+            if ( panel.contains( el ) ) return;
+
+            var r = el.getBoundingClientRect();
+
+            /* Przekładka to KOPIA przełącznika, a nie pusty prostokąt o tych
+               samych wymiarach. Pierwsze podejście wstawiało `<span>` o zmierzonej
+               szerokości i wysokości — i sąsiad w nagłówku i tak przeskakiwał
+               o 17 px. Powód: linia bazowa. Pusty element blokowo-liniowy
+               wyznacza ją dolną krawędzią, a taki z tekstem — linią bazową
+               swojego tekstu, więc wysokość całego wiersza wychodzi inna.
+               Kopia ma tę samą treść, więc zajmuje DOKŁADNIE to samo miejsce
+               z definicji, zamiast odtwarzać je po kawałku.
+               `visibility` zamiast `opacity`, żeby wypadła też z drzewa
+               dostępności — inaczej czytnik ekranu ogłaszałby przycisk dwa razy. */
+            var ph = el.cloneNode( true );
+            ph.removeAttribute( 'id' );
+            ph.querySelectorAll( '[id]' ).forEach( function ( n ) { n.removeAttribute( 'id' ); } );
+            ph.setAttribute( 'aria-hidden', 'true' );
+            ph.setAttribute( 'data-evk-cm-przekladka', '' );
+            ph.style.visibility   = 'hidden';
+            ph.style.pointerEvents = 'none';
+            el.parentNode.insertBefore( ph, el );
+
+            // Cały atrybut `style`, a nie pojedyncze właściwości: przełącznik
+            // może mieć własne wpisane wprost (burger ma tam krzywą czasu),
+            // a przywrócenie kompletu jest jedynym sposobem, żeby niczego nie
+            // zgubić ani nie dorobić.
+            podniesione.push( { el: el, ph: ph, styl: el.getAttribute( 'style' ) } );
+
+            document.body.appendChild( el );
+            el.style.position = 'fixed';
+            el.style.margin   = '0';
+            el.style.top      = r.top    + 'px';
+            el.style.left     = r.left   + 'px';
+            el.style.width    = r.width  + 'px';
+            el.style.height   = r.height + 'px';
+            // Z PANELU, nie z własnej liczby — dzięki temu idzie za jego
+            // ustawieniem, zamiast powtarzać wartość w drugim miejscu.
+            el.style.zIndex   = String( z );
+        } );
+    }
+
+    function opuscPrzelaczniki() {
+        podniesione.forEach( function ( w ) {
+            if ( w.styl === null ) w.el.removeAttribute( 'style' );
+            else                   w.el.setAttribute( 'style', w.styl );
+            if ( w.ph.parentNode ) {
+                w.ph.parentNode.insertBefore( w.el, w.ph );
+                w.ph.parentNode.removeChild( w.ph );
+            }
+        } );
+        podniesione = [];
     }
 
     /**
@@ -301,8 +416,14 @@ function evk_circular_menu_init_one( root ) {
 
     function openMenu() {
         if ( closeTimer ) { clearTimeout( closeTimer ); closeTimer = null; }
+        // Zaległy powrót przełącznika z przerwanego zamykania. Bez tego
+        // otwarcie w trakcie zwijania kadru zostawałoby po chwili opuszczone
+        // przez zegar sprzed chwili — burger wpadałby pod panel przy otwartym
+        // menu. Ta sama pułapka co przy `closeTimer` i to samo lekarstwo.
+        if ( restoreTimer ) { clearTimeout( restoreTimer ); restoreTimer = null; }
         if ( isOpen ) return;
         isOpen = true;
+        podniesPrzelaczniki();
         setTabIndex( panel );
         panel.classList.add( EVK_CM_OPEN );
         // Stan po naszemu na panelu, po Bricksowemu na korzeniu. Korzeń, nie
@@ -330,6 +451,21 @@ function evk_circular_menu_init_one( root ) {
         panel.classList.remove( EVK_CM_OPEN );
         root.classList.remove( EVK_BRICKS_OPEN );
         tl.reverse();
+
+        /* Przełącznik wraca DOPIERO po zwinięciu kadru — opuszczony od razu
+           wpadałby pod jeszcze widoczny panel w połowie animacji.
+           Zegar o znanym czasie, a NIE `onReverseComplete` osi czasu: przy
+           zerowym czasie trwania to zwrotne wywołanie się NIE ODPALA (zmierzone
+           na GSAP-ie z tej paczki), a zero to dokładnie ścieżka REDUKCJI RUCHU
+           — `duration` jest wtedy wyzerowane wyżej. Burger zostałby wyrwany
+           z nagłówka na stałe u każdego, kto ma ograniczony ruch w systemie. */
+        if ( podniesione.length ) {
+            if ( restoreTimer ) clearTimeout( restoreTimer );
+            restoreTimer = setTimeout( function () {
+                restoreTimer = null;
+                if ( ! isOpen ) opuscPrzelaczniki();
+            }, duration * 1000 );
+        }
     }
 
     function closeMenu() {
@@ -399,11 +535,15 @@ function evk_circular_menu_init_one( root ) {
     if ( root.isConnected ) {
         document.addEventListener( 'click', function( e ) {
             if ( ! panel ) return;
-            var customToggles = customToggleSel ? Array.from( document.querySelectorAll( customToggleSel ) ) : [];
-            var internalTriggers = Array.from( root.querySelectorAll( '.evk-cm-trigger' ) );
-            var clickedOutside = ! panel.contains( e.target )
-                && ! customToggles.some( function( t ) { return t.contains( e.target ); } )
-                && ! internalTriggers.some( function( t ) { return t.contains( e.target ); } );
+            /* Lista przełączników idzie przez forEachTrigger(), a nie przez
+               własne zapytania: przy podniesionym przełączniku `root` już go
+               nie zawiera i własna kopia tego zapytania uznawała kliknięcie
+               w niego za „poza panelem". */
+            var wPrzelaczniku = false;
+            forEachTrigger( function ( t ) {
+                if ( t.contains( e.target ) ) wPrzelaczniku = true;
+            } );
+            var clickedOutside = ! panel.contains( e.target ) && ! wPrzelaczniku;
             if ( clickedOutside && isOpen ) {
                 toggle();
                 var html = document.querySelector( 'html' );

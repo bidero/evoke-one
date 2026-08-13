@@ -2,6 +2,48 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.85.0] — 2026-08-13
+
+### Dodane
+
+- **Circular Menu: „Przełącznik nad panelem".** Zgłoszone z użycia: burger
+  siedzi w nagłówku, nagłówek jest w `<body>` i nie jest ani `fixed`, ani
+  `absolute`, a panel go przykrywa. Podniesienie samego burgera z-indeksem nie
+  pomaga — pomaga dopiero wyciągnięcie na wierzch CAŁEGO nagłówka, czyli razem
+  z jego tłem.
+
+  To nie jest kwestia za małej liczby. Nagłówek tworzy **kontekst układania**
+  (wystarczy `position: relative` z własnym `z-index`, `transform`, `filter`,
+  `will-change` albo `opacity` poniżej jedynki), a wtedy `z-index` dziecka
+  rywalizuje wyłącznie z rodzeństwem: z panelem rywalizuje cały nagłówek jako
+  jedna warstwa. Zmierzone `elementFromPoint` w środku burgera przy otwartym
+  menu — przy `z-index: 99999` na burgerze na wierzchu jest **panel**, a po
+  przeniesieniu węzła do `<body>` — **burger**.
+
+  Opcja na czas otwarcia przenosi sam przełącznik na koniec strony i ustawia go
+  dokładnie tam, gdzie stał, z z-indeksem odczytanym **z panelu** (plus jeden),
+  a przy zamknięciu odkłada na miejsce. W nagłówku zostaje przekładka, więc nic
+  się nie przebudowuje. Domyślnie wyłączona — przenosi węzeł w drzewie, więc
+  musi być decyzją.
+
+  Dwie rzeczy opisane przy kontrolce: reguły pisane przez potomka nagłówka
+  (`.header .burger`) przestają na ten czas pasować — style Bricksa (po
+  identyfikatorze) i wtyczki (po klasach) to przeżywają; a bez blokady
+  przewijania przełącznik zostaje w miejscu, gdy strona pod panelem się
+  przewija.
+
+  Offcanvas świadomie poza tą partią.
+
+### Naprawione
+
+- **Nasłuch „klik poza panelem" trzymał własną kopię listy przełączników.**
+  Wyszło przy podnoszeniu: wbudowany przełącznik szukał się przez
+  `root.querySelectorAll`, a podniesiony siedzi w `<body>` — więc wypadał
+  z listy dokładnie wtedy, gdy menu jest otwarte, i kliknięcie w niego było
+  brane za kliknięcie poza panelem. Menu zamykało się w tej samej klatce,
+  w której je otwarto. Lista idzie teraz z jednego miejsca dla wszystkich
+  trzech zastosowań.
+
 ## [1.84.0] — 2026-08-13
 
 ### Naprawione

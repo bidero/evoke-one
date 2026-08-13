@@ -135,6 +135,30 @@ class Evk_Circular_Menu extends \Bricks\Element {
 				'evk-circular-menu'
 			),
 		];
+		$this->controls['raiseToggle'] = [
+			'label'       => esc_html__( 'Przełącznik nad panelem', 'evk-circular-menu' ),
+			'type'        => 'checkbox',
+			'default'     => false,
+			'description' => esc_html__(
+				'Dla przełącznika siedzącego w nagłówku, który panel przykrywa. Podniesienie '
+				. 'samego przełącznika z-indeksem wtedy NIE pomaga: nagłówek tworzy kontekst '
+				. 'układania (wystarczy position: relative z własnym z-index, transform, '
+				. 'filter albo opacity poniżej jedynki), a wewnątrz niego z-index dziecka '
+				. 'rywalizuje wyłącznie z rodzeństwem — z panelem rywalizuje cały nagłówek '
+				. 'jako jedna warstwa. Dlatego działa dopiero wyciągnięcie na wierzch całego '
+				. 'nagłówka, razem z jego tłem. '
+				. 'Ta opcja na czas otwarcia PRZENOSI sam przełącznik na koniec strony '
+				. 'i ustawia go dokładnie tam, gdzie stał, nad panelem — a przy zamknięciu '
+				. 'odkłada go na miejsce. W nagłówku zostaje przekładka tej samej wielkości, '
+				. 'więc nic się nie przebudowuje. '
+				. 'Dwie rzeczy warto wiedzieć: reguły pisane przez potomka nagłówka '
+				. '(np. „.header .burger") przestają na ten czas pasować — style Bricksa '
+				. 'i wtyczki to przeżywają, bo jadą po identyfikatorze i klasach; a bez '
+				. 'blokady przewijania przełącznik zostaje w miejscu, gdy strona pod panelem '
+				. 'się przewija.',
+				'evk-circular-menu'
+			),
+		];
 		$this->controls['lockBodyScrolling'] = [
 			'label'   => esc_html__( 'Blokuj scroll strony', 'evk-circular-menu' ),
 			'type'    => 'checkbox',
@@ -371,6 +395,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$customtoggle      = ! empty( $settings['customtoggle'] )      ? $settings['customtoggle']      : '';
 		$toggleClass       = ! empty( $settings['toggleClass'] )       ? $settings['toggleClass']       : '';
 		$lockBodyScrolling = ! empty( $settings['lockBodyScrolling'] ) ? '1' : '0';
+		$raiseToggle       = ! empty( $settings['raiseToggle'] ) ? '1' : '0';
 		$closeOnEsc        = ! empty( $settings['closeOnEsc'] )        ? '1' : '0';
 
 		$this->set_attribute( '_root', 'class',                                 'evk-cm' );
@@ -383,6 +408,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-customtoggle',                     $customtoggle );
 		$this->set_attribute( '_root', 'data-toggle-class',                     $toggleClass );
 		$this->set_attribute( '_root', 'data-lock-scroll',                      $lockBodyScrolling );
+		$this->set_attribute( '_root', 'data-raise-toggle',                     $raiseToggle );
 		$this->set_attribute( '_root', 'data-open-builder',                     $openbuilder );
 		$this->set_attribute( '_root', 'data-close-on-esc',                     $closeOnEsc );
 

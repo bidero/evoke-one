@@ -104,7 +104,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-circular-menu',
             'file'  => $dir . 'evoke-circular-menu/element.php',
             'consts'=> [
-                'EVK_CIRCULAR_MENU_VERSION' => '1.6.0',
+                'EVK_CIRCULAR_MENU_VERSION' => '1.7.0',
                 'EVK_CIRCULAR_MENU_URL'     => $url . 'evoke-circular-menu/',
                 'EVK_CIRCULAR_MENU_PATH'    => $dir . 'evoke-circular-menu/',
             ],
