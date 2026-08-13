@@ -242,6 +242,14 @@ class Evk_Burger extends \Bricks\Element {
 			'inline'      => true,
 			'css'         => [ [ 'property' => '--evk-burger-text-gap', 'selector' => '' ] ],
 			'placeholder' => '8px',
+			'description' => esc_html__(
+				'Przyjmuje wartości UJEMNE i przy węższych kreskach to one są zwykle '
+				. 'potrzebne. Pudełko rysunku jest kwadratem o boku pola klikalnego, więc '
+				. 'kreski krótsze niż pełna szerokość zostawiają w nim pustkę i napis stoi '
+				. 'od nich dalej, niż mówi ta wartość — przy kresce 60% jest to około '
+				. 'dziewięciu pikseli. Minus tę pustkę odejmuje.',
+				'evoke-one'
+			),
 		];
 
 		/*
@@ -457,6 +465,33 @@ class Evk_Burger extends \Bricks\Element {
 			'label' => esc_html__( 'Kolor po otwarciu', 'evoke-one' ),
 			'type'  => 'color',
 			'css'   => [ [ 'property' => '--evk-burger-color-open', 'selector' => '' ] ],
+		];
+
+		/*
+		 * Napis był jedyną widoczną częścią przycisku BEZ koloru stanu otwartego:
+		 * kreski mają swój, ikony mają swój, a tekst dziedziczył kolor przycisku
+		 * i zostawał z nim do końca.
+		 *
+		 * Tylko stan otwarty. Kolor zamkniętego napisu daje natywna typografia
+		 * Bricksa — napis dziedziczy go z przycisku — więc własna kontrolka
+		 * dublowałaby to, co już działa. Pod „Kolor kresek" napisu nie podpinamy:
+		 * przemalowałoby to tekst każdemu, kto ustawił kolor kresek.
+		 */
+		$this->controls['textColorOpen'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Kolor napisu po otwarciu', 'evoke-one' ),
+			'type'        => 'color',
+			'css'         => [ [ 'property' => '--evk-burger-text-color-open', 'selector' => '' ] ],
+			// Bez warunku widoczności: tekst bierze się z KTÓREGOKOLWIEK z dwóch
+			// pól, a `required` umie patrzeć tylko na jedno. Schowanie tej
+			// kontrolki przy wypełnionym samym „otwartym" byłoby gorsze niż
+			// pokazanie jej o jeden raz za dużo.
+			'description' => esc_html__(
+				'Pusty znaczy „ten sam co przed otwarciem" — napis trzyma wtedy kolor '
+				. 'wzięty z typografii przycisku. Ustawiony przenika do niego w tym samym '
+				. 'czasie, w którym składa się krzyżyk.',
+				'evoke-one'
+			),
 		];
 
 		// ── Animacja ───────────────────────────────────────────────────────

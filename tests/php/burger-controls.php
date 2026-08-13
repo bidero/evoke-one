@@ -79,6 +79,11 @@ $warianty = [
     // Jedno wypełnione pole: drugi stan ma nieść ten sam napis, a nie pustkę.
     'tekstJeden'=> [ 'textClosed' => 'MENU' ],
     'tekstNad'  => [ 'textClosed' => 'MENU', 'textOpen' => 'ZAMKNIJ', 'textPosition' => 'nad' ],
+    // Wszystkie cztery pozycje, bo odstęp jedzie MARGINESEM kierunkowym:
+    // przy „przed" i „nad" układ jest odwrócony i przerwa wypada po przeciwnej
+    // stronie napisu. Pomyłka nie rzuca błędu, tylko odsuwa napis w drugą stronę.
+    'tekstPrzed'=> [ 'textClosed' => 'MENU', 'textOpen' => 'ZAMKNIJ', 'textPosition' => 'przed' ],
+    'tekstPod'  => [ 'textClosed' => 'MENU', 'textOpen' => 'ZAMKNIJ', 'textPosition' => 'pod' ],
     // Własne ikony — obie wychodzą i przełącza je sama klasa.
     'ikona'     => [
         'iconSource' => 'ikona',
@@ -138,6 +143,9 @@ echo json_encode([
     // padding korzenia odsuwałby napis razem z rysunkiem.
     'textPaddingCss' => $el->controls['textPadding']['css'][0] ?? null,
     'textPaddingType'=> $el->controls['textPadding']['type'] ?? null,
+    // Nazwa zmiennej koloru napisu. Fixture ustawia JĄ SAMĄ, więc literówka
+    // w kontrolce nie byłaby widoczna w przeglądarce — stąd zrzut z PHP.
+    'textColorOpenCss' => $el->controls['textColorOpen']['css'][0] ?? null,
     'styleRequired' => $el->controls['style']['required'] ?? null,
     'pozycje'       => array_keys(\Bricks\Evk_Burger::text_positions()),
     // Ile <span class="evk-burger__line"> naprawdę wyszło z rendera.

@@ -21,6 +21,12 @@
     /* Wielkość własnej ikony (źródło „ikona") i odstęp napisu od rysunku. */
     --evk-burger-icon-size: 24px;
     --evk-burger-text-gap: 8px;
+    /* Kolor napisu PO OTWARCIU. `currentColor` znaczy „dziedzicz", więc
+       nieustawiona nie zmienia niczego: napis trzyma kolor przycisku w obu
+       stanach, tak jak przed 1.81.0. Koloru stanu zamkniętego nie dublujemy
+       własną kontrolką — napis dziedziczy go z przycisku, czyli z natywnej
+       typografii Bricksa, i to już działa. */
+    --evk-burger-text-color-open: currentColor;
     --evk-burger-color: currentColor;
     /* Puste „po otwarciu" znaczy „ten sam co przed" — kreski zmieniają wtedy
        wyłącznie kształt. Wartość domyślna wskazująca na drugą zmienną robi to
@@ -467,11 +473,32 @@
     width: auto;
     height: auto;
     min-height: var(--evk-burger-size);
-    gap: var(--evk-burger-text-gap);
 }
 .evk-burger--tekst-przed { flex-direction: row-reverse; }
 .evk-burger--tekst-nad   { flex-direction: column-reverse; }
 .evk-burger--tekst-pod   { flex-direction: column; }
+
+/* Odstęp napisu MARGINESEM, a nie `gap`.
+ *
+ * `gap` nie przyjmuje wartości ujemnych — cała deklaracja jest wtedy
+ * nieprawidłowa i wypada, a razem z nią ustawienie. Zmierzone: przy `-12px`
+ * policzony `column-gap` wychodził `normal`, a przycisk miał tę samą szerokość
+ * co przy zerze. Wpisanie minusa nie robiło więc nic, nawet nie wracało do zera.
+ *
+ * Minus jest tu potrzebny, bo pudełko rysunku jest KWADRATEM o boku pola
+ * klikalnego (od 1.79.0 — przy tekście procent nie ma się do czego odnieść).
+ * Kreski węższe niż 100% zostawiają w nim pusty margines i napis stoi od nich
+ * dalej, niż mówi ustawienie: zmierzone 9 px przy kreskach 60% i odstępie zero.
+ * Margines ujemny pozwala to odjąć.
+ *
+ * Cztery reguły, a nie jedna logiczna, bo `przed` i `nad` odwracają kolejność
+ * (`row-reverse` / `column-reverse`) i przerwa wypada wtedy po PRZECIWNEJ
+ * stronie napisu. Właściwości logiczne idą za kierunkiem PISMA, a nie za
+ * kierunkiem układu, więc tutaj by nie pomogły. */
+.evk-burger--tekst-za    .evk-burger__text { margin-left:   var(--evk-burger-text-gap); }
+.evk-burger--tekst-przed .evk-burger__text { margin-right:  var(--evk-burger-text-gap); }
+.evk-burger--tekst-pod   .evk-burger__text { margin-top:    var(--evk-burger-text-gap); }
+.evk-burger--tekst-nad   .evk-burger__text { margin-bottom: var(--evk-burger-text-gap); }
 
 /* Oba napisy leżą NA SOBIE w jednej komórce siatki: przycisk ma wtedy szerokość
    dłuższego z nich i nie skacze przy przełączaniu — a razem z nim nie skacze
@@ -518,6 +545,14 @@
 .evk-burger.brx-open .evk-burger__icon--otw {
     opacity: 1;
     visibility: visible;
+}
+
+/* Kolor napisu po otwarciu — na OBU napisach, nie tylko na widocznym.
+   Znikający napis jest przez czas przejścia jeszcze widoczny i ma przenikać
+   razem z resztą przycisku; pominięty zostawałby na starym kolorze przez cały
+   czas gaśnięcia. `color` jest w `transition` napisu od 1.79.0. */
+.evk-burger.brx-open .evk-burger__label {
+    color: var(--evk-burger-text-color-open);
 }
 
 /* Własne ikony. Pudełko jest kwadratem o boku pola klikalnego — tak samo jak

@@ -2,6 +2,45 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.81.0] — 2026-08-13
+
+### Naprawione
+
+- **Odstępu napisu od ikony nie dało się ZMNIEJSZYĆ.** Wpisanie wartości
+  ujemnej nie robiło nic — nawet nie wracało do zera.
+
+  Odstęp jechał właściwością `gap`, a ta nie przyjmuje wartości ujemnych: cała
+  deklaracja jest wtedy nieprawidłowa i wypada razem z ustawieniem. Zmierzone
+  przy `-12px`: policzony `column-gap` wychodził `normal`, a przycisk miał tę
+  samą szerokość co przy zerze — 83 px w obu przypadkach.
+
+  Minus jest tu potrzebny częściej, niż się wydaje. Pudełko rysunku jest
+  KWADRATEM o boku pola klikalnego (od 1.79.0, bo przy tekście procentowa
+  szerokość kresek nie ma się do czego odnieść), więc kreski węższe niż pełna
+  szerokość zostawiają w nim pustkę, której nie widać. Napis stoi wtedy od
+  kresek dalej, niż mówi ustawienie: zmierzone **9 px przy kreskach 60%
+  i odstępie zero**.
+
+  Odstęp jedzie teraz marginesem, więc pustkę da się odjąć. Kierunek idzie za
+  pozycją napisu — cztery reguły, a nie jedna logiczna, bo „przed" i „nad"
+  odwracają układ i przerwa wypada po przeciwnej stronie napisu, a właściwości
+  logiczne idą za kierunkiem PISMA, nie układu.
+
+### Dodane
+
+- **Kolor napisu po otwarciu.** Napis był jedyną widoczną częścią przycisku bez
+  koloru stanu otwartego: kreski mają swój, ikony mają swój, a tekst dziedziczył
+  kolor przycisku i zostawał z nim do końca.
+
+  Pusty znaczy „ten sam co przed otwarciem", więc nieustawiony nie zmienia
+  niczego na istniejących stronach. Kolor stanu zamkniętego zostaje przy
+  natywnej typografii Bricksa — napis dziedziczy go z przycisku i to już
+  działa, więc druga kontrolka tylko dublowałaby jedno ustawienie w dwóch
+  miejscach.
+
+  Napisu nie podpinamy pod istniejące „Kolor kresek" — przemalowałoby to tekst
+  każdemu, kto ustawił kolor kresek.
+
 ## [1.80.0] — 2026-08-13
 
 ### Naprawione

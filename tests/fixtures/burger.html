@@ -194,6 +194,15 @@
     });
   }
 
+  /* Odstęp napisu i kolor napisu po otwarciu — zmienne na przycisku, tak jak
+     wpisuje je Bricks. Nazwy zmiennych są tu wpisane z ręki, więc literówki
+     w kontrolce ta droga NIE złapie — od tego jest zrzut `css` w teście PHP. */
+  document.querySelectorAll('.evk-burger').forEach(function (b) {
+    if (q.get('textgap'))   b.style.setProperty('--evk-burger-text-gap', q.get('textgap'));
+    if (q.get('textopen'))  b.style.setProperty('--evk-burger-text-color-open', q.get('textopen'));
+    if (q.get('linewidth')) b.style.setProperty('--evk-burger-line-width', q.get('linewidth'));
+  });
+
   var root = document.getElementById('root');
   root.setAttribute('data-portal',        '1');
   root.setAttribute('data-duration',      '0.2');
@@ -376,6 +385,47 @@ window.__slotTekstu = function (id) {
     h:      Math.round(rs.height),
     // Dodatnia wartość = napis niżej niż środek przycisku.
     srodek: Math.round((rw.top + rw.height / 2) - (rb.top + rb.height / 2)),
+  };
+};
+
+/**
+ * Odległość napisu od KRESKI i od pudełka, plus kolor widocznego napisu.
+ *
+ * Od kreski, bo to o nią chodzi w zgłoszeniu: pudełko jest kwadratem o boku
+ * pola klikalnego, więc kreski węższe niż pełna szerokość zostawiają w nim
+ * pustkę, której nie widać — a napis stoi wtedy dalej, niż mówi ustawienie.
+ * Pomiar od pudełka pokazałby zero i niczego by nie wykrył.
+ *
+ * `odleglosc` liczy się wzdłuż osi układu, więc jedna funkcja obsługuje
+ * wszystkie cztery pozycje napisu: przy „za"/„przed" mierzymy w poziomie,
+ * przy „nad"/„pod" w pionie, i zawsze od BLIŻSZEJ krawędzi.
+ */
+window.__napisWzgledemIkony = function (id) {
+  var b     = document.getElementById(id);
+  var box   = b.querySelector('.evk-burger__box, .evk-burger__icons');
+  var linia = b.querySelector('.evk-burger__line');
+  var slot  = b.querySelector('.evk-burger__text');
+  var wid   = Array.prototype.filter.call(
+    b.querySelectorAll('.evk-burger__label'),
+    function (el) { return el.checkVisibility(WIDOCZNY); })[0];
+
+  var rb = box.getBoundingClientRect();
+  var rl = (linia || box).getBoundingClientRect();
+  var rs = slot.getBoundingClientRect();
+  var pion = b.classList.contains('evk-burger--tekst-nad')
+          || b.classList.contains('evk-burger--tekst-pod');
+
+  // Odległość między pudełkami, niezależnie od tego, które jest pierwsze.
+  function przerwa(a, c) {
+    return pion ? Math.round(Math.max(c.top - a.bottom, a.top - c.bottom))
+                : Math.round(Math.max(c.left - a.right, a.left - c.right));
+  }
+  return {
+    odPudelka: przerwa(rb, rs),
+    odKreski:  przerwa(rl, rs),
+    szer:      Math.round(b.getBoundingClientRect().width),
+    wys:       Math.round(b.getBoundingClientRect().height),
+    kolor:     wid ? getComputedStyle(wid).color : null,
   };
 };
 

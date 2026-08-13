@@ -759,6 +759,107 @@ module.exports = async function (t) {
     polePrzed.w + ' → ' + polePo.w + ' px');
   await rowny.close();
 
+  // ── Odstęp napisu od ikony ─────────────────────────────────────────────
+  // Pudełko rysunku jest KWADRATEM o boku pola klikalnego (od 1.79.0, bo przy
+  // tekście procent nie ma się do czego odnieść). Kreski węższe niż pełna
+  // szerokość zostawiają w nim pustkę, której nie widać — i napis stoi od nich
+  // dalej, niż mówi ustawienie.
+  //
+  // Odjąć się tego nie dało: `gap` nie przyjmuje wartości ujemnych, więc cała
+  // deklaracja wypadała razem z ustawieniem. Zmierzone przed poprawką: przy
+  // `-12px` policzony `column-gap` wychodził `normal`, a przycisk miał tę samą
+  // szerokość co przy zerze. Dlatego odstęp jedzie teraz MARGINESEM.
+  t.section('odstęp napisu przyjmuje wartości ujemne');
+
+  const zrzutPoz = encodeURIComponent(
+    '<div id="p-za">'    + php.wariant.tekst      + '</div>' +
+    '<div id="p-przed">' + php.wariant.tekstPrzed + '</div>' +
+    '<div id="p-nad">'   + php.wariant.tekstNad   + '</div>' +
+    '<div id="p-pod">'   + php.wariant.tekstPod   + '</div>');
+
+  // Kreski na 60% — dokładnie ten przypadek, w którym pustka w pudełku boli.
+  const wask = 'dur=0ms&size=44px&linewidth=60%25&html=' + zrzutPoz;
+  const od0 = await t.open('burger.html', { viewport: V, settle: 200, query: wask + '&textgap=0px' });
+  const zero = await od0.evaluate(() => window.__napisWzgledemIkony('p-za'));
+  t.check('przy węższych kreskach napis stoi DALEJ, niż mówi ustawienie',
+    zero.odPudelka === 0 && zero.odKreski > 0,
+    'od pudełka ' + zero.odPudelka + ' px, od kreski ' + zero.odKreski + ' px');
+  await od0.close();
+
+  const odMinus = await t.open('burger.html', {
+    viewport: V, settle: 200, query: wask + '&textgap=' + encodeURIComponent('-12px'),
+  });
+  const minus = await odMinus.evaluate(() => window.__napisWzgledemIkony('p-za'));
+  t.check('ujemny odstęp NAPRAWDĘ przybliża napis',
+    minus.odKreski === zero.odKreski - 12,
+    zero.odKreski + ' → ' + minus.odKreski + ' px od kreski');
+  t.check('i przycisk zwęża się o tyle samo', minus.szer === zero.szer - 12,
+    zero.szer + ' → ' + minus.szer + ' px');
+  await odMinus.close();
+
+  /* Odstęp działa w KAŻDEJ z czterech pozycji. Margines kierunkowy łatwo
+     przypiąć do złej strony, a przy „przed" i „nad" układ jest odwrócony
+     (`row-reverse` / `column-reverse`) i przerwa wypada po PRZECIWNEJ stronie
+     napisu — właściwości logiczne by tu nie pomogły, bo idą za kierunkiem
+     PISMA, a nie za kierunkiem układu. */
+  const poz0 = await t.open('burger.html', {
+    viewport: V, settle: 200, query: 'dur=0ms&size=44px&textgap=0px&html=' + zrzutPoz,
+  });
+  const poz12 = await t.open('burger.html', {
+    viewport: V, settle: 200, query: 'dur=0ms&size=44px&textgap=12px&html=' + zrzutPoz,
+  });
+  for (const poz of [ 'za', 'przed', 'nad', 'pod' ]) {
+    const a = await poz0.evaluate((i) => window.__napisWzgledemIkony(i), 'p-' + poz);
+    const b = await poz12.evaluate((i) => window.__napisWzgledemIkony(i), 'p-' + poz);
+    t.check('pozycja „' + poz + '": odstęp odsuwa napis od ikony',
+      a.odPudelka === 0 && b.odPudelka === 12,
+      a.odPudelka + ' → ' + b.odPudelka + ' px');
+  }
+  t.check('bez błędów JS przy odstępie', !poz0.errors.length && !poz12.errors.length,
+    poz0.errors.concat(poz12.errors).join(' | ') || 'brak');
+  await poz0.close();
+  await poz12.close();
+
+  // ── Kolor napisu po otwarciu ───────────────────────────────────────────
+  // Napis był jedyną widoczną częścią przycisku bez koloru stanu otwartego:
+  // kreski mają swój, ikony mają swój, a tekst dziedziczył kolor przycisku
+  // i zostawał z nim do końca.
+  t.section('napis zmienia kolor po otwarciu');
+
+  t.check('kontrolka celuje we właściwą zmienną',
+    php.textColorOpenCss.property === '--evk-burger-text-color-open'
+    && php.textColorOpenCss.selector === '',
+    JSON.stringify(php.textColorOpenCss));
+
+  const kt = await t.open('burger.html', {
+    viewport: V, settle: 200,
+    query: 'dur=0ms&size=44px&textopen=' + encodeURIComponent('rgb(0, 128, 255)') +
+           '&html=' + zrzut,
+  });
+  const przedOtw = await kt.evaluate(() => window.__napisWzgledemIkony('w-tekst'));
+  await kt.evaluate(() => window.__ustawOtwarty('w-tekst', true));
+  await kt.waitForTimeout(60);
+  const poOtw = await kt.evaluate(() => window.__napisWzgledemIkony('w-tekst'));
+  t.check('zamknięty trzyma kolor odziedziczony',
+    przedOtw.kolor === 'rgb(0, 0, 0)', przedOtw.kolor);
+  t.check('otwarty bierze kolor z ustawienia',
+    poOtw.kolor === 'rgb(0, 128, 255)', poOtw.kolor);
+  await kt.close();
+
+  /* KONTROLA NEGATYWNA: nieustawiony kolor po otwarciu znaczy „ten sam co
+     przed", a nie kolor wzięty z sufitu. Ta sama para, którą mają kreski —
+     bez niej „kolor się zmienia" przechodziłoby też dla domyślnej wartości
+     wpisanej w arkusz. */
+  const nk = await t.open('burger.html', {
+    viewport: V, settle: 200, query: 'dur=0ms&size=44px&html=' + zrzut,
+  });
+  await nk.evaluate(() => window.__ustawOtwarty('w-tekst', true));
+  await nk.waitForTimeout(60);
+  t.check('bez ustawienia kolor napisu po otwarciu zostaje TEN SAM',
+    (await nk.evaluate(() => window.__napisWzgledemIkony('w-tekst'))).kolor === 'rgb(0, 0, 0)',
+    (await nk.evaluate(() => window.__napisWzgledemIkony('w-tekst'))).kolor);
+  await nk.close();
+
   // ── Wszystko konfigurowalne ────────────────────────────────────────────
   // Zmienne CSS, a nie wartości wpisane w reguły — tylko dzięki temu Bricks
   // może je ustawić osobno na breakpoincie.
