@@ -78,6 +78,13 @@
     flex: 0 0 auto;
     width: var(--evk-burger-size);
     height: var(--evk-burger-size);
+    /* Kolor spoczynkowy stoi TAKŻE tutaj i to nie jest powtórka: jest to
+       siatka bezpieczeństwa pod kreskami. Gdy kolor po otwarciu okaże się nie
+       do użycia, `color` kreski wraca do `unset`, czyli dziedziczy — a dziedziczy
+       WŁAŚNIE STĄD. Bez tej linijki wpadałby na kolor dokumentu, więc kreski
+       byłyby widoczne, ale w kolorze wziętym znikąd. Tak wracają dokładnie do
+       tego, co miały przed otwarciem. */
+    color: var(--evk-burger-color);
     transition: transform var(--evk-burger-time) var(--evk-burger-ease);
 }
 
@@ -112,18 +119,47 @@
     top: calc(50% - var(--evk-burger-stroke) / 2);
     height: var(--evk-burger-stroke);
     border-radius: var(--evk-burger-radius);
-    background: var(--evk-burger-color);
+    /* Kolor przez WŁAŚCIWOŚĆ DZIEDZICZONĄ, a nie wprost we `background`.
+     *
+     * Wygląda na okrężną drogę i przy poprawnej wartości daje dokładnie to samo
+     * — ale decyduje o tym, co się dzieje przy wartości NIE DO UŻYCIA (kolor
+     * z palety Bricksa, której zmienna nie dociera do tego elementu; wartość
+     * podstawiona kodem; ustawienie ze starszej wersji). Deklaracja
+     * `background: var(…)` jest wtedy nieprawidłowa na etapie wartości
+     * obliczonej, właściwość wraca do `unset`, a `background-color` NIE jest
+     * dziedziczone — więc `unset` znaczy `transparent` i kreski ZNIKAJĄ.
+     * Zmierzone: `rgba(0, 0, 0, 0)` zamiast koloru, a przez przezroczyste
+     * kreski widać panel menu. Zgłoszone jako „krzyżyk zmienia kolor na inny
+     * niż ustawiony i inny niż kolor zamkniętego" — bo widać to, co za nimi.
+     *
+     * `color` jest dziedziczone, więc ten sam błąd cofa kreski do koloru
+     * rodzica: widocznego. Napis i ikona miały tę odporność od zawsze, bo obie
+     * jadą na `color`; kreski były jedyną częścią przycisku malowaną
+     * właściwością niedziedziczoną i jedyną, która potrafiła zniknąć.
+     *
+     * `var(--x, zapas)` by tego NIE załatwiło: zapas wchodzi, gdy zmienna jest
+     * NIEZDEFINIOWANA, a nie gdy jest zdefiniowana wartością nie do użycia. */
+    color: var(--evk-burger-color);
+    background: currentColor;
     transform-origin: center center;
+    /* PIĘĆ wpisów, a `transform` PIERWSZY — i tylko to jest tu naprawdę
+       wiążące. Trzy style („złożenie", „po kolei", „ściągnięcie") podają
+       `transition-delay` listą pozycyjną `beat, 0s, 0s, 0s, 0s`, więc
+       opóźnienie trafia w pozycję pierwszą; wypchnięcie stamtąd `transform`
+       zabiera im dwutakt. Kolejność pozostałych czterech nie ma znaczenia,
+       bo wszystkie mają zerowe opóźnienie — sprawdzone mutacją, zamiana
+       `opacity` z `color` nie zmienia niczego. Liczba wpisów już tak: krótsza
+       lista rozjeżdża przypisanie opóźnień. */
     transition:
-        transform        var(--evk-burger-time) var(--evk-burger-ease),
-        opacity          var(--evk-burger-time) var(--evk-burger-ease),
-        background-color var(--evk-burger-time) var(--evk-burger-ease),
-        width            var(--evk-burger-time) var(--evk-burger-ease),
-        top              var(--evk-burger-time) var(--evk-burger-ease);
+        transform var(--evk-burger-time) var(--evk-burger-ease),
+        opacity   var(--evk-burger-time) var(--evk-burger-ease),
+        color     var(--evk-burger-time) var(--evk-burger-ease),
+        width     var(--evk-burger-time) var(--evk-burger-ease),
+        top       var(--evk-burger-time) var(--evk-burger-ease);
 }
 
 .evk-burger.brx-open .evk-burger__line {
-    background: var(--evk-burger-color-open);
+    color: var(--evk-burger-color-open);
 }
 
 /* Redukcja ruchu: kreski PRZESKAKUJĄ, ale nadal pokazują stan. Zerujemy sam
@@ -199,8 +235,7 @@
 /* Opóźnienie WYŁĄCZNIE dla obrotu. Jedna wartość w `transition-delay`
    dotyczy WSZYSTKICH właściwości ze skrótu, więc czekałby też zjazd i ruch
    przestawał być dwutaktowy — wyglądałby jak zwykły krzyżyk z zadyszką.
-   Lista musi trzymać kolejność z bazy: transform, opacity, background-color,
-   width, top. */
+   Lista musi trzymać kolejność z bazy: transform, opacity, color, width, top. */
 .evk-burger--collapse.brx-open .evk-burger__line:nth-child(1) {
     transform: rotate(45deg);
     transition-delay: var(--evk-burger-beat), 0s, 0s, 0s, 0s;
@@ -564,6 +599,10 @@
     place-items: center;
     width: var(--evk-burger-size);
     height: var(--evk-burger-size);
+    /* Ta sama siatka bezpieczeństwa co pod kreskami — ikona czyta tę samą parę
+       zmiennych, więc dziedziczy stąd kolor spoczynkowy, gdy ten po otwarciu
+       okaże się nie do użycia. */
+    color: var(--evk-burger-color);
     transition: transform var(--evk-burger-time) var(--evk-burger-ease);
 }
 .evk-burger.brx-open .evk-burger__icons {

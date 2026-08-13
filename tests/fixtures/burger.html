@@ -198,6 +198,11 @@
      wpisuje je Bricks. Nazwy zmiennych są tu wpisane z ręki, więc literówki
      w kontrolce ta droga NIE złapie — od tego jest zrzut `css` w teście PHP. */
   document.querySelectorAll('.evk-burger').forEach(function (b) {
+    /* Kolor NIE DO UŻYCIA — tak jak Bricks zapisuje kolor z palety, której
+       zmienna nie dociera do elementu. Podstawiona wartość jest wtedy
+       nieprawidłowa na etapie wartości obliczonej, a to zupełnie co innego niż
+       zmienna niezdefiniowana: zapas w `var()` NIE wchodzi. */
+    if (q.get('zlykolor')) b.style.setProperty('--evk-burger-color-open', 'var(--nie-ma-takiej-zmiennej)');
     if (q.get('textgap'))   b.style.setProperty('--evk-burger-text-gap', q.get('textgap'));
     if (q.get('textopen'))  b.style.setProperty('--evk-burger-text-color-open', q.get('textopen'));
     if (q.get('linewidth')) b.style.setProperty('--evk-burger-line-width', q.get('linewidth'));

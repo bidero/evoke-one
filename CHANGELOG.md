@@ -2,6 +2,54 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.84.0] — 2026-08-13
+
+### Naprawione
+
+- **Kreski burgera znikały, gdy kolor po otwarciu był nie do użycia.** Zgłoszone
+  jako „krzyżyk zmienia kolor na inny niż ustawiony i inny niż kolor
+  zamkniętego" — i ten trzeci kolor nie był żadnym kolorem. Był
+  PRZEZROCZYSTOŚCIĄ, przez którą widać panel menu.
+
+  Gdy podstawiona wartość zmiennej okaże się nie do użycia — najczęściej kolor
+  z palety Bricksa, którego zmienna nie dociera do tego elementu — deklaracja
+  `background: var(…)` staje się nieprawidłowa **na etapie wartości obliczonej**.
+  Właściwość wraca wtedy do `unset`, a `background-color` nie jest dziedziczone,
+  więc `unset` znaczy `transparent`. Zmierzone: `rgba(0, 0, 0, 0)` zamiast
+  koloru.
+
+  Napis przy DOKŁADNIE tej samej usterce zachowywał się poprawnie, bo `color`
+  JEST dziedziczone i `unset` cofa go do koloru rodzica — czyli do czegoś
+  widocznego. To jest cała asymetria z tego zgłoszenia: **kreski były jedyną
+  częścią przycisku malowaną właściwością niedziedziczoną, więc jedyną, która
+  potrafiła zniknąć zamiast się zdegradować.** Ikona i napis tej wady nigdy
+  nie miały.
+
+  Kolor kresek jedzie teraz przez `color` + `background: currentColor`, a kolor
+  spoczynkowy stoi dodatkowo na pudełku rysunku jako siatka bezpieczeństwa —
+  dzięki temu przy nieużytecznej wartości kreski wracają dokładnie do koloru
+  sprzed otwarcia, zamiast do koloru dokumentu albo do przezroczystości.
+  Przy poprawnych wartościach nic się nie zmienia.
+
+  `var(--x, zapas)` by tego nie załatwiło: zapas wchodzi, gdy zmienna jest
+  NIEZDEFINIOWANA, a nie gdy jest zdefiniowana wartością nie do użycia.
+
+  **Uwaga: to jest poprawka o ODPORNOŚCI, nie o Twoim kolorze.** Jeśli wartość
+  jest nie do użycia, kreski będą po niej widoczne, ale w kolorze sprzed
+  otwarcia. Przyczyną jest sama wartość — sprawdź w DevTools na przycisku
+  (Computed, filtr `--evk-burger`), czy przy `--evk-burger-color-open` nie stoi
+  `var(--bricks-color-…)` zamiast koloru. Wpisanie koloru wprost rozwiązuje to
+  od ręki.
+
+### Zmienione (komentarz w kodzie)
+
+- **Sprostowanie w arkuszu burgera.** Komentarz przy liście `transition`
+  twierdził, że kolor musi stać na trzeciej pozycji. Mutacja pokazała, że to
+  nieprawda — zamiana `opacity` z `color` nie zmienia niczego, bo oba mają
+  zerowe opóźnienie. Wiążące jest wyłącznie to, że `transform` stoi PIERWSZY
+  (tam trafia opóźnienie dwutaktów) i że lista ma pięć wpisów. Komentarz mówi
+  teraz to, co jest naprawdę pilnowane.
+
 ## [1.83.0] — 2026-08-13
 
 ### Zmienione

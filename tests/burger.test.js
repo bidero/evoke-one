@@ -921,6 +921,55 @@ module.exports = async function (t) {
     && php.etykietyKolorow.colorOpen !== php.etykietyKolorow.textColorOpen,
     php.etykietyKolorow.colorOpen + ' / ' + php.etykietyKolorow.textColorOpen);
 
+  /* ── Kolor NIE DO UŻYCIA nie może zgasić kresek ───────────────────────
+   *
+   * Zgłoszone z użycia: „krzyżyk zmienia kolor na inny niż ustawiony i inny
+   * niż kolor zamkniętego". Trzeci kolor to nie był żaden kolor — to była
+   * PRZEZROCZYSTOŚĆ, przez którą widać panel menu.
+   *
+   * Kiedy podstawiona wartość zmiennej jest nie do użycia (kolor z palety
+   * Bricksa, której zmienna nie dociera do elementu), deklaracja jest
+   * nieprawidłowa NA ETAPIE WARTOŚCI OBLICZONEJ i właściwość wraca do `unset`.
+   * Dla `background-color` — niedziedziczonego — `unset` znaczy `transparent`,
+   * czyli kreski znikają. Dla `color` znaczy „kolor rodzica", czyli coś
+   * widocznego. Napis i ikona miały tę odporność od zawsze, bo obie jadą na
+   * `color`; kreski były jedyną częścią malowaną właściwością niedziedziczoną.
+   *
+   * To sprawdzenie PADA na kodzie sprzed 1.84.0 — zmierzone `rgba(0, 0, 0, 0)`.
+   */
+  t.section('kolor nie do użycia nie gasi kresek');
+
+  const zly = await t.open('burger.html', {
+    viewport: V, settle: 200,
+    query: 'dur=0ms&zlykolor=1&color=' + encodeURIComponent('rgb(255, 0, 0)'),
+  });
+  await zly.evaluate(() => window.__klik('burger'));
+  await zly.waitForTimeout(120);
+  const zk = await zly.evaluate(() => window.__linia('burger', 0));
+  t.check('kreski NIE stają się przezroczyste', zk.kolor !== 'rgba(0, 0, 0, 0)',
+    zk.kolor);
+  /* I to nie „jakikolwiek niezerowy kolor", tylko DOKŁADNIE ten sprzed
+     otwarcia. Bez tego pierwszemu sprawdzeniu wystarczyłby dowolny przypadkowy
+     kolor wpisany w arkusz na sztywno. */
+  t.check('tylko zostają w kolorze sprzed otwarcia', zk.kolor === 'rgb(255, 0, 0)',
+    zk.kolor);
+  t.check('i nadal składają krzyżyk', zk.kat === 45, zk.kat + '°');
+  await zly.close();
+
+  /* KONTROLA NEGATYWNA: poprawna wartość dalej WYGRYWA. Bez tej pary
+     „odporność" dałoby się osiągnąć ignorowaniem ustawienia w ogóle. */
+  const dobry = await t.open('burger.html', {
+    viewport: V, settle: 200,
+    query: 'dur=0ms&color=' + encodeURIComponent('rgb(255, 0, 0)') +
+           '&coloropen=' + encodeURIComponent('rgb(0, 128, 255)'),
+  });
+  await dobry.evaluate(() => window.__klik('burger'));
+  await dobry.waitForTimeout(120);
+  t.check('a poprawny kolor po otwarciu dalej wygrywa',
+    (await dobry.evaluate(() => window.__linia('burger', 0))).kolor === 'rgb(0, 128, 255)',
+    (await dobry.evaluate(() => window.__linia('burger', 0))).kolor);
+  await dobry.close();
+
   // ── Wszystko konfigurowalne ────────────────────────────────────────────
   // Zmienne CSS, a nie wartości wpisane w reguły — tylko dzięki temu Bricks
   // może je ustawić osobno na breakpoincie.
