@@ -2,6 +2,44 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.82.0] — 2026-08-13
+
+### Dodane
+
+- **Kolor pasków przeglądarki** — nowa podzakładka we Frontend. Rozwiązuje
+  zgłoszenie „menu zmienia kolor górnego i dolnego paska w Safari po otwarciu".
+
+  Safari koloruje swoje paski pod stronę. Gdy strona **nie mówi mu**, jakiego
+  koloru mają być, przeglądarka bierze go z tego, co widzi — więc cokolwiek
+  zamaluje kadr, przemalowuje przy okazji paski. Circular Menu i Offcanvas Menu
+  kładą na cały kadr nieprzezroczysty panel, stąd zmiana po otwarciu. To nie
+  jest usterka menu, tylko domyślne zachowanie przeglądarki wobec strony, która
+  o kolorze nic nie powiedziała.
+
+  Podany kolor obowiązuje niezależnie od tego, co jest namalowane, więc jest to
+  naprawa PRZYCZYNY, a nie objawu: działa też poza menu — na pełnoekranowej
+  galerii, sekcji z ciemnym tłem, filmie na cały ekran — i na podstronach bez
+  żadnego menu. **Ani Circular, ani Offcanvas nie wymagały zmian.**
+
+  Osobny kolor dla trybu ciemnego; pusty znaczy „ten sam zawsze". Moduł jest
+  domyślnie WYŁĄCZONY — dokłada znacznik do każdej strony, więc włączenie musi
+  być decyzją, a nie skutkiem aktualizacji.
+
+  Czego to nie przeskoczy: przeglądarka bierze PIERWSZY taki znacznik
+  w dokumencie, więc kolor wpisany na sztywno w szablon motywu wygra z tym
+  ustawieniem. Napisane wprost w panelu razem ze wskazówką, gdzie szukać.
+
+### Naprawione (testy)
+
+- **Atrapa `sanitize_hex_color()` była ŁAGODNIEJSZA od funkcji, którą udaje.**
+  Oddawała `''` dla każdej nieprawidłowej wartości, podczas gdy oryginał zwraca
+  `null` dla niepustej, ale nieprawidłowej — a `''` tylko dla pustej.
+
+  Kod porównujący wynik z `''` przechodził przez to w teście, a na żywej stronie
+  dostawał `null` i wpuszczał go dalej. Złapane przy pisaniu tego modułu:
+  mutacja, która miała paść, przechodziła na zielono. Atrapa łagodniejsza od
+  oryginału nie jest uproszczeniem, tylko ukrytą różnicą.
+
 ## [1.81.0] — 2026-08-13
 
 ### Naprawione

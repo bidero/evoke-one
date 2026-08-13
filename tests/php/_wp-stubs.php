@@ -72,7 +72,18 @@ function sanitize_title($s) {
 }
 function sanitize_text_field($s) { return trim(strip_tags((string) $s)); }
 function sanitize_textarea_field($s) { return trim(strip_tags((string) $s)); }
-function sanitize_hex_color($s) { return preg_match('/^#([0-9a-f]{3}|[0-9a-f]{6})$/i', (string) $s) ? $s : ''; }
+/**
+ * Zwraca `''` dla pustej wartości, a `null` dla niepustej, ale nieprawidłowej
+ * — dokładnie jak oryginał. Ta atrapa oddawała wcześniej `''` w obu
+ * przypadkach i była przez to ŁAGODNIEJSZA od funkcji, którą udaje: kod
+ * porównujący wynik z `''` przechodził w teście, a na żywej stronie dostawał
+ * `null` i wpuszczał go dalej. Atrapa łagodniejsza od oryginału nie jest
+ * uproszczeniem, tylko ukrytą różnicą.
+ */
+function sanitize_hex_color($s) {
+    if ($s === '' || $s === null) return '';
+    return preg_match('/^#([0-9a-f]{3}|[0-9a-f]{6})$/i', (string) $s) ? $s : null;
+}
 function sanitize_email($s) { return filter_var((string) $s, FILTER_VALIDATE_EMAIL) ?: ''; }
 function esc_url_raw($s) { return (string) $s; }
 function wp_parse_args($a, $d) { return array_merge($d, is_array($a) ? $a : []); }

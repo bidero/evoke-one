@@ -606,6 +606,7 @@ add_action('wp_ajax_evk_ajax_toggle', function () {
         'evk_schema'                => ['enabled'],
         'evk_og'                    => ['enabled'],
         'evk_fonts'                 => ['enabled'],
+        'evk_theme_color'           => ['enabled'],
         'evk_animator'              => ['enabled'],
         'evk_bgshift'               => ['enabled'],
         'evk_white_label'           => ['enabled'],
