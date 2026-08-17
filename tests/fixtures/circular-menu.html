@@ -15,7 +15,12 @@
 <script>
   var q = new URLSearchParams(location.search);
   // Bricks wystawia tę zmienną na stronie; JS elementu rozpoznaje po niej builder.
-  window.bricksIsFrontend = true;
+  /* `builder=1` udaje kanwę buildera. Bricks ustawia tam tę flagę na fałsz
+     i sam woła evk_circular_menu_init() — na froncie robi to nasz własny
+     nasłuch na DOMContentLoaded, który przy tej fladze celowo odpuszcza.
+     Bez tego przełącznika nie da się zmierzyć ANI JEDNEJ z dwóch stron
+     zachowania „otwórz w builderze": widać by było tylko front. */
+  window.bricksIsFrontend = q.get('builder') !== '1';
 </script>
 
 <div id="root" class="evk-cm">
@@ -89,7 +94,7 @@
   root.setAttribute('data-toggle-class',  q.get('tclass') || '');
   root.setAttribute('data-lock-scroll',   '0');
   root.setAttribute('data-raise-toggle',  q.get('raise')  === '1' ? '1' : '0');
-  root.setAttribute('data-open-builder',  '0');
+  root.setAttribute('data-open-builder',  q.get('ob') === '1' ? '1' : '0');
   root.setAttribute('data-close-on-esc',  q.get('esc')    === '0' ? '0' : '1');
 </script>
 
@@ -113,6 +118,12 @@
 </script>
 <script src="../../assets/js/animator.js"></script>
 <script src="../../includes/bricks-elements/evoke-circular-menu/assets/circular-menu.js"></script>
+<script>
+  // W builderze inicjalizację woła Bricks, nie strona — odtwarzamy to wprost.
+  if (!window.bricksIsFrontend) {
+    document.addEventListener('DOMContentLoaded', function () { evk_circular_menu_init(); });
+  }
+</script>
 
 <script>
 var panel = function () { return document.getElementById('panel'); };
@@ -176,6 +187,11 @@ window.__panelKlasy = function () { return panel().className; };
 
 /** Stan na KORZENIU — tym językiem mówi Bricks o otwartym elemencie. */
 window.__rootKlasy = function () { return document.getElementById('root').className; };
+
+/** Czy panel niesie znacznik „odsłoń, bo builder" — nakładany WYŁĄCZNIE skryptem. */
+window.__builderKlasa = function () {
+  return panel().classList.contains('evk-cm-builder');
+};
 window.__rootBrx   = function () {
   return document.getElementById('root').classList.contains('brx-open');
 };

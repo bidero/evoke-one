@@ -2,6 +2,36 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.87.0] — 2026-08-13
+
+### Naprawione
+
+- **„Otwórz w builderze" zostawiało menu otwarte NA STAŁE na froncie.**
+
+  Reguła arkusza, która odsłaniała panel, nie miała o builderze **ani słowa** —
+  wystarczało samo ustawienie elementu. Na froncie ratował ją tylko przypadek:
+  portal wynosi panel do `<body>`, więc przestaje być potomkiem korzenia
+  i selektor przestaje pasować. Przy **wyłączonym portalu** panel zostaje na
+  miejscu, reguła trafia, a `!important` przebija to, co GSAP wpisuje w styl —
+  więc skrypt nie miał nawet czym tego zamknąć. Przy włączonym portalu
+  zostawało okno od sparsowania strony do startu skryptu, czyli mignięcie
+  otwartym menu przy każdym wejściu.
+
+  Znów jeden stan i dwóch właścicieli: skrypt wiedział o builderze
+  (`isBuilder && openBuilder`), arkusz decydował sam. Teraz stan ma jednego
+  właściciela — skrypt zaznacza panel klasą, a arkusz tylko maluje to, co
+  zaznaczone. Na froncie ta ścieżka nie istnieje w ogóle.
+
+- **Kliknięcie przełącznika w builderze potrafiło zawiesić stronę.**
+  Podnoszenie przełącznika (z 1.85.0) przenosi węzeł w drzewie, a kanwa
+  buildera jest cudzym drzewem: Bricks pilnuje jej własnym obserwatorem
+  i przerysowuje element, gdy DOM się zmieni. Wychodziła z tego para, w której
+  każda strona reaguje na ruch drugiej.
+
+  Podnoszenie jest teraz wyłączone w builderze — ta sama zasada, którą stosuje
+  już portal panelu. Problem, który ta opcja rozwiązuje (kontekst układania
+  nagłówka), na kanwie i tak nie występuje.
+
 ## [1.86.0] — 2026-08-13
 
 ### Naprawione (obie regresje z 1.85.0)

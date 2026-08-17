@@ -867,4 +867,72 @@ module.exports = async function (t) {
     (await wb.evaluate(() => window.__panelParent())) === 'body',
     String(await wb.evaluate(() => window.__panelParent())));
   await wb.close();
+
+  /* ── „Otwórz w builderze" NIE może dotknąć frontu ──────────────────────
+   *
+   * Zgłoszone z użycia: to ustawienie zostawiało menu otwarte na stałe na
+   * żywej stronie. Winna była reguła arkusza bez ANI SŁOWA o builderze —
+   * wystarczał sam atrybut. Na froncie ratował ją tylko przypadek: portal
+   * wynosi panel do <body>, więc przestaje być potomkiem korzenia i selektor
+   * przestaje pasować. Przy WYŁĄCZONYM portalu panel zostaje na miejscu,
+   * reguła trafia, a `!important` przebija to, co GSAP wpisuje w styl —
+   * więc skrypt nie ma nawet czym tego zamknąć.
+   *
+   * Dlatego pomiar idzie przy portalu WYŁĄCZONYM: przy włączonym stary kod
+   * też kończył zamknięty i sprawdzenie byłoby puste.
+   */
+  t.section('„otwórz w builderze" nie otwiera menu na froncie');
+
+  const obFront = await t.open('circular-menu.html', {
+    viewport: V, query: 'ob=1&portal=0&dur=0.2', settle: 350,
+  });
+  /* Mierzone przez JAWNE obcięcie do zera, a nie przez „nie jest rozwinięty".
+     Ta druga miara ma ślepą plamkę: reguła buildera kasuje `clip-path` do
+     `none`, a wtedy nie ma czego parsować i „promień większy od zera" wychodzi
+     fałszem — czyli panel odsłonięty maksymalnie zdawał ten test jako
+     zamknięty. Złapane mutacją przywracającą starą regułę. */
+  t.check('na froncie kadr zostaje ZWINIĘTY mimo ustawienia',
+    /^circle\(0px/.test((await obFront.evaluate(() => window.__clip())).raw),
+    (await obFront.evaluate(() => window.__clip())).raw);
+  t.check('i panel nie dostaje znacznika buildera',
+    !(await obFront.evaluate(() => window.__builderKlasa())), 'bez znacznika');
+  t.check('bez błędów JS', !obFront.errors.length, obFront.errors.join(' | ') || 'brak');
+  await obFront.close();
+
+  /* KONTROLA NEGATYWNA — bez niej „zwinięty" przechodziłoby też wtedy, gdyby
+     poprawka po prostu WYCIĘŁA całą funkcję. W builderze panel ma być
+     odsłonięty, i to jedyne miejsce, które nakłada znacznik. */
+  const obBuilder = await t.open('circular-menu.html', {
+    viewport: V, query: 'ob=1&portal=0&dur=0.2&builder=1', settle: 350,
+  });
+  /* Mierzone przez BRAK obcięcia, a nie przez promień okręgu: reguła buildera
+     kasuje `clip-path` w całości (`none`), więc miara „promień większy od zera"
+     zwracałaby fałsz przy panelu odsłoniętym maksymalnie. */
+  t.check('a w builderze panel JEST odsłonięty',
+    (await obBuilder.evaluate(() => window.__clip())).raw === 'none',
+    (await obBuilder.evaluate(() => window.__clip())).raw);
+  t.check('i przyjmuje kliknięcia',
+    (await obBuilder.evaluate(() => getComputedStyle(document.getElementById('panel')).pointerEvents)) === 'auto',
+    String(await obBuilder.evaluate(() => getComputedStyle(document.getElementById('panel')).pointerEvents)));
+  t.check('i to skrypt nakłada mu znacznik',
+    await obBuilder.evaluate(() => window.__builderKlasa()), 'evk-cm-builder');
+  await obBuilder.close();
+
+  /* Podnoszenie przełącznika NIE RUSZA drzewa w builderze. Kanwa jest cudza —
+     Bricks pilnuje jej własnym obserwatorem i przerysowuje element, gdy DOM
+     się zmieni, więc przenoszenie węzła po niej to para, w której każda strona
+     reaguje na ruch drugiej. Ta sama zasada, którą stosuje portal panelu. */
+  const rb = await t.open('circular-menu.html', {
+    viewport: V, settle: 350,
+    query: 'dur=0.2&raise=1&builder=1&toggle=' + encodeURIComponent('.w-naglowku'),
+  });
+  await rb.evaluate(() => window.__zew('zew-naglowek'));
+  await rb.waitForTimeout(400);
+  t.check('w builderze przełącznik zostaje w nagłówku',
+    (await rb.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
+    String(await rb.evaluate(() => window.__rodzic('zew-naglowek'))));
+  t.check('i nie powstaje żadna przekładka',
+    (await rb.evaluate(() => document.querySelectorAll('[data-evk-cm-przekladka]').length)) === 0,
+    String(await rb.evaluate(() => document.querySelectorAll('[data-evk-cm-przekladka]').length)));
+  await rb.close();
 };

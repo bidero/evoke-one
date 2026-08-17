@@ -43,8 +43,26 @@
     inset: 0;
 }
 
-/* Builder: pokaż panel gdy "Otwórz w builderze" włączone */
-.evk-cm[data-open-builder="1"] .evk-cm-content {
+/* Otwórz w builderze — MALUJE tylko to, co zaznaczy skrypt.
+ *
+ * Do 1.86.0 stało tu `.evk-cm[data-open-builder="1"] .evk-cm-content`, czyli
+ * reguła bez ANI SŁOWA o builderze: wystarczyło ustawienie, żeby panel był
+ * odsłonięty także na froncie. Nie wybuchało to tylko przez przypadek —
+ * portal wynosi panel do <body>, więc przestaje być potomkiem `.evk-cm`
+ * i selektor przestaje pasować. Przy WYŁĄCZONYM portalu panel zostaje na
+ * miejscu, reguła trafia i menu jest otwarte na stałe; a że `!important`
+ * przebija to, co GSAP wpisuje w styl, skrypt nie ma czym go zamknąć.
+ * Przy włączonym portalu zostawało okno od sparsowania strony do startu
+ * skryptu — czyli mignięcie otwartym menu przy każdym wejściu, i otwarte
+ * na stałe, gdyby skrypt nie wystartował wcale.
+ *
+ * Stan ma jednego właściciela: `isBuilder && openBuilder` w skrypcie. Arkusz
+ * tylko pokazuje to, co tamten zaznaczy — i dlatego na froncie nie ma
+ * takiej ścieżki w ogóle.
+ *
+ * Klasa siedzi WPROST na panelu, a nie na przodku: panel bywa przeniesiony
+ * do <body> i każdy selektor przez pokrewieństwo znowu by się rozjechał. */
+.evk-cm-content.evk-cm-builder {
     clip-path: none !important;
     pointer-events: auto !important;
 }

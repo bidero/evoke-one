@@ -81,6 +81,16 @@ var EVK_CM_TOGGLE_SEL = 'button, a, [role="button"], .brxe-toggle';
  */
 var EVK_CM_OPEN = 'is-open';
 
+/**
+ * Znacznik „odsłoń panel, bo jesteśmy w builderze".
+ *
+ * Nakłada go WYŁĄCZNIE gałąź `isBuilder && openBuilder` na dole tego pliku
+ * i to jest cała jego rola: arkusz ma malować stan, a nie go wymyślać.
+ * Do 1.86.0 arkusz decydował sam, po samym ustawieniu elementu — i na froncie
+ * przy wyłączonym portalu zostawiał menu otwarte na stałe.
+ */
+var EVK_CM_BUILDER = 'evk-cm-builder';
+
 function evk_circular_menu_init() {
     document.querySelectorAll( '.evk-cm' ).forEach( function( root ) {
         if ( root.dataset.evkCmReady === '1' ) return;
@@ -303,7 +313,15 @@ function evk_circular_menu_init_one( root ) {
     }
 
     function podniesPrzelaczniki() {
-        if ( ! raiseToggle || podniesione.length ) return;
+        /* W BUILDERZE nie ruszamy niczego. Kanwa jest cudzym drzewem: Bricks
+           pilnuje jej własnym obserwatorem i przerysowuje element, gdy DOM się
+           zmieni — a nasze przeniesienie węzła jest taką zmianą. Wychodzi
+           z tego para, w której każda strona reaguje na ruch drugiej.
+           Ta sama zasada, którą stosuje już portal panelu (`usePortal &&
+           ! isBuilder`): w builderze pokazujemy element, a nie przemeblowujemy
+           mu otoczenia. Poza tym problem, który ta opcja rozwiązuje — kontekst
+           układania nagłówka — na kanwie i tak nie występuje. */
+        if ( ! raiseToggle || isBuilder || podniesione.length ) return;
         var z = panelZIndex() + 1;
 
         forEachTrigger( function ( el ) {
@@ -628,6 +646,11 @@ function evk_circular_menu_init_one( root ) {
     // Klasa stanu też — inaczej styl zaczepiony o `is-open` nie byłby widoczny
     // dokładnie tam, gdzie się go ustawia.
     if ( isBuilder && openBuilder ) {
+        // Znacznik dla arkusza. To JEDYNE miejsce, które go nakłada — dzięki
+        // temu odsłonięcie panelu nie może wydarzyć się na froncie, gdzie ten
+        // warunek nigdy nie jest prawdziwy. Do 1.86.0 arkusz decydował o tym
+        // sam, po samym ustawieniu, i menu potrafiło zostać otwarte na stałe.
+        panel.classList.add( EVK_CM_BUILDER );
         panel.classList.add( EVK_CM_OPEN );
         root.classList.add( EVK_BRICKS_OPEN );
         tl.play();
