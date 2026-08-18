@@ -50,8 +50,14 @@ namespace {
     // Lista wariantów palety — do sprawdzenia, że kontrolka i render znają te same.
     $el->set_controls();
 
+    // Maska jedzie w atrybucie `style` korzenia, nie w CONFIG-u — czytamy ją
+    // z prawdziwego wyjścia render(), a nie odtwarzamy regexem ze źródła.
+    $maska = preg_match('/mask-image:\s*(linear-gradient\([^;"]*\))/', $html, $mm)
+        ? $mm[1] : null;
+
     echo json_encode([
         'colors'   => $cfg['colors'] ?? null,
         'palettes' => array_keys($el->controls['palette']['options'] ?? []),
+        'maska'    => $maska,
     ], JSON_UNESCAPED_UNICODE), "\n";
 }

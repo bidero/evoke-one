@@ -13,6 +13,7 @@ const { phpOutput, tagContent, rgb, near } = require('./lib/harness');
 
 const VH = 800;
 const CSS = tagContent(phpOutput('bgshift-head.php'), 'evk-bgshift-css');
+const CSS_WSZYSTKO = tagContent(phpOutput('bgshift-head.php', 'wszystko'), 'evk-bgshift-css');
 
 module.exports = async function (t) {
   const open = (opts) => t.open('bg-shift.html', Object.assign({
@@ -301,4 +302,33 @@ module.exports = async function (t) {
   }
   t.check('dziesięć przełączeń bez dryfu', !drift, drift ? 'warstwa rozjechała się z motywem' : 'kolor zgodny za każdym razem');
   await page.close();
+
+  /* ── Zasięg koloru liter ──────────────────────────────────────────────
+   *
+   * Zgłoszone z użycia: „zmiana koloru tekstu nie działa". Nie była zepsuta —
+   * działała dokładnie tak, jak opisano: kolor schodził na sekcję i dalej
+   * DZIEDZICZENIEM. Tyle że dziedziczenie omija każdy element z własnym
+   * kolorem, a Bricks nadaje własny kolor niemal każdemu tekstowi, regułą po
+   * identyfikatorze. Zasięg opisany jako ostrożny znaczył w praktyce
+   * „prawie nigdzie".
+   */
+  t.section('zasięg koloru liter');
+
+  t.check('domyślnie kolor idzie SAMYM dziedziczeniem',
+    /\.evk-bg-handoff,\s*\n\.evk-bg-handoff \.evk-bg-text/.test(CSS)
+    && !/\.evk-bg-handoff \*/.test(CSS),
+    'bez reguły obejmującej potomków');
+
+  t.check('a zasięg „wszystko" dosięga też potomków',
+    /\.evk-bg-handoff \*/.test(CSS_WSZYSTKO), 'reguła na potomkach jest');
+  /* `!important` to jedyna droga: reguła Bricksa siedzi na IDENTYFIKATORZE,
+     więc żaden selektor pisany klasami jej nie przebije szczegółowością. */
+  t.check('i robi to z !important, bo inaczej nie przebije reguły po id',
+    /\.evk-bg-handoff \*[^{]*\{[^}]*!important/.test(CSS_WSZYSTKO), '!important');
+  /* Pominięcia nie są ozdobą: `color` na obrazie czy polu formularza znaczy co
+     innego niż „kolor liter", a ikona rysowana `currentColor` potrafi zniknąć
+     na tle własnego przycisku. */
+  t.check('ale omija obrazy, pola i wyłączone klasą',
+    /:not\(img\)/.test(CSS_WSZYSTKO) && /:not\(input\)/.test(CSS_WSZYSTKO)
+    && /evk-bg-keep/.test(CSS_WSZYSTKO), 'wyjątki na miejscu');
 };

@@ -353,6 +353,37 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		return (string) $val ?: $fallback;
 	}
 
+	/**
+	 * Rampa maski po krzywej WYGŁADZAJĄCEJ, a nie po prostej.
+	 *
+	 * Dwa przystanki — `transparent 0%` i `#000 X%` — dają alfę rosnącą
+	 * liniowo, a oko czyta to jako wyraźną krawędź: przezroczystość przyrasta
+	 * najszybciej dokładnie tam, gdzie zanikanie się zaczyna i kończy, więc
+	 * w obu tych miejscach widać szew. Zgłoszone przy masce górnej.
+	 *
+	 * Krzywa `t²(3−2t)` startuje i kończy ZE ZBOCZEM ZEROWYM, czyli przechodzi
+	 * w sąsiedztwo bez załamania — stąd wrażenie miękkości. W środku rampy jest
+	 * identyczna z prostą (0,5 przy połowie drogi), więc zanikanie nie robi się
+	 * ani krótsze, ani dłuższe: zmienia się wyłącznie jego kształt.
+	 *
+	 * Siedem przystanków to próg, powyżej którego przeglądarka i tak
+	 * interpoluje liniowo między nimi na tyle gęsto, że różnicy nie widać —
+	 * a gradient zostaje krótki.
+	 */
+	private static function mask_ramp( float $od, float $do, bool $rosnaca ): array {
+		$stops  = [];
+		$krokow = 6;
+		for ( $i = 0; $i <= $krokow; $i++ ) {
+			$t = $i / $krokow;
+			$a = $t * $t * ( 3 - 2 * $t );
+			if ( ! $rosnaca ) $a = 1 - $a;
+			$poz = $od + ( $do - $od ) * $t;
+			$stops[] = 'rgba(0,0,0,' . rtrim( rtrim( number_format( $a, 3, '.', '' ), '0' ), '.' )
+				. ') ' . rtrim( rtrim( number_format( $poz, 2, '.', '' ), '0' ), '.' ) . '%';
+		}
+		return $stops;
+	}
+
 	public function render() {
 		$s = $this->settings;
 
@@ -376,14 +407,12 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			// Stops gradientu — od góry do dołu
 			$stops = [];
 			if ( $mask_top_enabled ) {
-				$stops[] = 'transparent 0%';
-				$stops[] = "#000 {$mask_top_end}%";
+				$stops = array_merge( $stops, self::mask_ramp( 0, $mask_top_end, true ) );
 			} else {
 				$stops[] = '#000 0%';
 			}
 			if ( $mask_enabled ) {
-				$stops[] = "#000 {$mask_start}%";
-				$stops[] = 'transparent 100%';
+				$stops = array_merge( $stops, self::mask_ramp( $mask_start, 100, false ) );
 			} else {
 				$stops[] = '#000 100%';
 			}

@@ -2,6 +2,45 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.88.0] — 2026-08-13
+
+### Naprawione
+
+- **„Zmiana koloru tekstu nie działa" w Tle przy scrollu.** Nie była zepsuta —
+  działała dokładnie tak, jak opisano, i to był problem.
+
+  Kolor schodził na sekcję i dalej **dziedziczeniem**, a dziedziczenie omija
+  każdy element, który ma własny kolor. Bricks nadaje własny kolor niemal
+  każdemu tekstowi, regułą po identyfikatorze — więc zasięg opisany jako
+  ostrożny znaczył w praktyce „prawie nigdzie". Klasa `evk-bg-text` na
+  pojedynczy element była jedynym wyjściem i nie skalowała się na sekcję.
+
+  Dochodzi kontrolka **Zasięg koloru liter**: „tylko dziedziczone"
+  (dotychczasowe) albo „wszystkie teksty w sekcji". Druga opcja przemalowuje
+  też elementy z własnym kolorem — `!important` jest tu jedyną drogą, bo reguła
+  po identyfikatorze ma wyższą wagę niż cokolwiek, co da się napisać klasami.
+  Domyślna zostaje przy dziedziczeniu, bo szerszy zasięg zabiera kontrolę nad
+  typografią i musi być decyzją.
+
+  Szeroki zasięg omija obrazy, pola formularzy i wszystko z klasą
+  `evk-bg-keep` — `color` znaczy tam co innego niż „kolor liter", a ikona
+  rysowana `currentColor` potrafiłaby zniknąć na tle własnego przycisku.
+
+### Zmienione
+
+- **Maska Wave Background zanika łagodniej.** Dwa przystanki gradientu dawały
+  alfę rosnącą **liniowo**, a wtedy przyrost jest najszybszy dokładnie tam,
+  gdzie zanikanie się zaczyna i kończy — w obu tych miejscach widać szew.
+  Zgłoszone przy masce górnej.
+
+  Rampa idzie teraz po krzywej `t²(3−2t)`, która startuje i kończy ze zboczem
+  zerowym, więc wchodzi w sąsiedztwo bez załamania. W połowie drogi jest
+  identyczna z prostą, więc **długość zanikania się nie zmienia** — inna jest
+  wyłącznie jego charakterystyka.
+
+  Ta sama rampa objęła maskę dolną. Wygładzenie samej górnej zostawiłoby górę
+  miękką, a dół twardy — a to wyglądałoby jak usterka.
+
 ## [1.87.0] — 2026-08-13
 
 ### Naprawione

@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) exit;
  */
 
 /** Wersja asetów modułu — osobna od wersji wtyczki, żeby cache-buster był celny. */
-const EVK_BGSHIFT_VERSION = '1.1.0';
+const EVK_BGSHIFT_VERSION = '1.2.0';
 
 class EVK_Bg_Shift {
 
@@ -37,6 +37,14 @@ class EVK_Bg_Shift {
         // jasności — przy tłach pośrednich próg potrafi wskazać gorszy z dwóch.
         'text_light' => '#ffffff',
         'text_dark'  => '#111111',
+        /* Zasięg koloru liter. `dziedziczenie` to zachowanie sprzed 1.88.0:
+           kolor schodzi na sekcję i dalej DZIEDZICZENIEM, więc omija każdy
+           element z własnym kolorem — a Bricks nadaje własny kolor niemal
+           każdemu tekstowi, po identyfikatorze. W praktyce znaczyło to, że
+           litery nie zmieniały się prawie nigdzie. `wszystko` przemalowuje
+           też te elementy. Domyślna zostaje przy dziedziczeniu, bo szerszy
+           zasięg zabiera kontrolę nad typografią i musi być decyzją. */
+        'text_scope' => 'dziedziczenie',
     ];
 
     public static function get_instance(): self {
@@ -78,6 +86,8 @@ class EVK_Bg_Shift {
             // do domyślnej, bo pusty kolor zostawiłby automat bez czego wybierać.
             'text_light' => sanitize_hex_color($input['text_light'] ?? '') ?: '#ffffff',
             'text_dark'  => sanitize_hex_color($input['text_dark']  ?? '') ?: '#111111',
+            'text_scope' => in_array($input['text_scope'] ?? '', ['dziedziczenie', 'wszystko'], true)
+                ? $input['text_scope'] : 'dziedziczenie',
         ];
     }
 
@@ -88,6 +98,7 @@ class EVK_Bg_Shift {
 
     public function render_css(): void {
         if ($this->in_builder()) return;
+        $s = $this->get_settings();
         ?>
 <style id="evk-bgshift-css">
 /* Warstwa pod całą stroną. Ujemny z-index sprawia, że maluje się NAD tłem
@@ -123,6 +134,25 @@ class EVK_Bg_Shift {
 .evk-bg-handoff .evk-bg-text {
     color: var(--evk-bg-text, inherit) !important;
 }
+<?php if (($s['text_scope'] ?? 'dziedziczenie') === 'wszystko') : ?>
+/* Zasięg „wszystkie teksty": kolor dosięga też elementów Z WŁASNYM kolorem.
+   Bez tego wariantu funkcja działała prawie nigdzie — Bricks nadaje kolor
+   niemal każdemu tekstowi regułą po identyfikatorze, a wtedy dziedziczenie do
+   niego nie dochodzi i litery zostają w swoim kolorze. Zgłoszone jako „zmiana
+   koloru tekstu nie działa".
+
+   `!important` bije regułę Bricksa NIEZALEŻNIE od jej szczegółowości — i to
+   jest tu jedyna droga: reguła po identyfikatorze ma wyższą wagę niż
+   cokolwiek, co da się napisać klasami.
+
+   Pominięte są elementy, dla których `color` znaczy co innego niż „kolor
+   liter": obrazy, pola formularzy i wszystko, co samo deklaruje `evk-bg-keep`.
+   Bez tego przemalowywałoby się też to, co rysuje się `currentColor` — ikony
+   w przyciskach potrafią przez to zniknąć na tle własnego przycisku. */
+.evk-bg-handoff *:not(img):not(svg):not(input):not(textarea):not(select):not(.evk-bg-keep):not(.evk-bg-keep *) {
+    color: var(--evk-bg-text, inherit) !important;
+}
+<?php endif; ?>
 /* Zakładana wyłącznie na czas pomiaru koloru. Tryb ciemny dokłada na sekcje
    `transition: background-color`, a wtedy getComputedStyle zwraca wartość
    w trakcie animacji zamiast docelowej — silnik odczytałby kolor poprzedniego
