@@ -209,9 +209,13 @@ window.__focusId = function () { return document.activeElement ? document.active
  *  pilnowania jest to, czy blokada w ogóle się zakłada i czy się ZDEJMUJE. */
 window.__lock = function () {
   return {
-    locked:  document.documentElement.classList.contains('evk-oc-locked'),
+    /* Klasa WSPÓLNEGO zamka (includes/96-scroll-lock.php). Do 1.94.0 offcanvas
+       trzymał własną `evk-oc-locked` — i właśnie dlatego dwa panele otwarte
+       naraz nie miały jak się dogadać, kto ją jeszcze trzyma. */
+    locked:  document.documentElement.classList.contains('evk-scroll-locked'),
     padding: document.body.style.paddingRight || '',
     gap:     window.innerWidth - document.documentElement.clientWidth,
+    trzyma:  window.evkScroll ? window.evkScroll.trzymajacy() : null,
   };
 };
 

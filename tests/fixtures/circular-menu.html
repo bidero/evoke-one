@@ -92,7 +92,10 @@
   root.setAttribute('data-exit-wait',     q.get('exitwait') === null ? '' : q.get('exitwait'));
   root.setAttribute('data-customtoggle',  q.get('toggle') || '');
   root.setAttribute('data-toggle-class',  q.get('tclass') || '');
-  root.setAttribute('data-lock-scroll',   '0');
+  /* Blokada przewijania parametrem, bo od 1.94.0 jest co mierzyć: do tej wersji
+     element ustawiał atrybut, którego nie czytała żadna reguła CSS, więc
+     „blokuje" nie dało się odróżnić od „nie blokuje". */
+  root.setAttribute('data-lock-scroll',   q.get('lock') === '1' ? '1' : '0');
   root.setAttribute('data-raise-toggle',  q.get('raise')  === '1' ? '1' : '0');
   root.setAttribute('data-open-builder',  q.get('ob') === '1' ? '1' : '0');
   root.setAttribute('data-close-on-esc',  q.get('esc')    === '0' ? '0' : '1');

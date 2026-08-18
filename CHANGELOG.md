@@ -2,6 +2,54 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.94.0] — 2026-08-18
+
+### Naprawione
+
+- **Blokada przewijania nie blokowała, a płynne przewijanie nie było
+  zatrzymywane.** Zgłoszone z użycia jako „strona się blokuje czasami przy
+  przewijaniu, nie wiem czego to przyczyna". Rozpoznanie w kodzie i na żywej
+  stronie dało trzy pewne usterki, wszystkie z tej samej rodziny:
+
+  - **Circular Menu ustawiało atrybut `evk-cm-scroll-locked`, którego nie
+    czytała żadna reguła CSS w całej wtyczce.** Blokada była atrapą — strona
+    jechała pod otwartym panelem.
+  - **Offcanvas blokował naprawdę, ale nie zatrzymywał Lenisa.** Dokument stał,
+    a płynne przewijanie jechało dalej swoją wirtualną pozycję; po zamknięciu
+    obie się nie zgadzały i przewijanie wyglądało na martwe, dopóki się nie
+    zeszły. To jest mechanizm opisanego objawu.
+  - **Lenis miał trzy nazwy globalne** — `evkLenis` z modułu, `lenisInstance`
+    w Circular Menu, `lenis`/`__lenis` w tytule na okręgu. Ustawiana była
+    jedna, więc dwa z trzech miejsc nigdy go nie znalazły.
+
+  Wchodzi **jeden wspólny zamek** (`includes/96-scroll-lock.php`), do którego
+  wołają wszyscy. Zatrzymuje Lenisa, gasi przewijanie dokumentu i kompensuje
+  szerokość paska — a trzymających pamięta jako **zbiór imion**, nie licznik.
+  Licznik nie odróżnia „drugi zamknął" od „ten sam zamknął dwa razy", a to
+  właśnie ta druga sytuacja zostawia stronę zablokowaną na stałe.
+
+  Zniknęło przy okazji wypatrywanie cudzych paneli po selektorach: zamek sam
+  wie, kto jeszcze trzyma.
+
+- **Płynne przewijanie dostawało dwa wykluczające się pokrętła tempa naraz.**
+  Lenis przyjmuje `duration` ALBO `lerp`; wysyłaliśmy oba, więc jedno
+  z ustawień w panelu po cichu nie działało i nie było jak zgadnąć które.
+  Panel wybiera teraz tryb, a emitowany jest wyłącznie parametr tego trybu.
+
+- **Kotwice przejmowały też gołe `#`.** Selektor `a[href^="#"]` łapał
+  przełączniki akordeonów i zakładek, robił im `preventDefault()` i próbował
+  przewinąć do selektora `#`. Skrypt przejmuje teraz kliknięcie tylko wtedy,
+  gdy cel naprawdę istnieje w dokumencie — i sprawdza to przy kliknięciu, więc
+  działa też dla treści doładowanej później.
+
+### Dodane
+
+- **Diagnostyka przewijania.** `?evk-scroll-debug=1` wypisuje w konsoli, kto
+  trzyma blokadę i co się z nią dzieje, a `evkScroll.stan()` odpowiada na to
+  samo pytanie w dowolnej chwili. Ostrzega też, gdy odblokowuje ktoś, kto nie
+  blokował — to jest ten błąd, który zostawia stronę martwą, a dotąd przechodził
+  bez śladu.
+
 ## [1.93.0] — 2026-08-18
 
 ### Dodane

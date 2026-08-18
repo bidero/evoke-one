@@ -935,4 +935,54 @@ module.exports = async function (t) {
     (await rb.evaluate(() => document.querySelectorAll('[data-evk-cm-przekladka]').length)) === 0,
     String(await rb.evaluate(() => document.querySelectorAll('[data-evk-cm-przekladka]').length)));
   await rb.close();
+  /* ── Blokada przewijania ────────────────────────────────────────────────
+   *
+   * Do 1.94.0 element ustawiał atrybut `evk-cm-scroll-locked`, którego NIE
+   * CZYTAŁA żadna reguła CSS w całej wtyczce, i wołał Lenisa pod nazwą
+   * `window.lenisInstance`, której nikt nigdy nie ustawiał. Otwarte menu nie
+   * blokowało więc niczego — strona jechała pod panelem.
+   *
+   * Teraz robi to wspólny zamek (includes/96-scroll-lock.php), a element tylko
+   * mówi mu, w jakim jest stanie.
+   */
+  t.section('blokada przewijania przy otwartym menu');
+
+  const lk = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.2&lock=1', settle: 300,
+      head: 'window.__zamek = [];'
+          + 'window.evkScroll = {'
+          + '  lock:   function (kto) { window.__zamek.push("lock:" + kto); },'
+          + '  unlock: function (kto) { window.__zamek.push("unlock:" + kto); }'
+          + '};' });
+
+  await lk.evaluate(() => window.__open());
+  await lk.waitForTimeout(300);
+  t.check('otwarcie menu BLOKUJE przewijanie',
+    JSON.stringify(await lk.evaluate(() => window.__zamek)) === '["lock:circular-menu"]',
+    JSON.stringify(await lk.evaluate(() => window.__zamek)));
+
+  await lk.evaluate(() => window.__open());
+  await lk.waitForTimeout(400);
+  t.check('a zamknięcie je zwalnia',
+    /unlock:circular-menu/.test(JSON.stringify(await lk.evaluate(() => window.__zamek))),
+    JSON.stringify(await lk.evaluate(() => window.__zamek)));
+
+  await lk.close();
+
+  /* Kontrola negatywna: przy wyłączonej opcji element nie ma prawa dotykać
+     przewijania. Bez tego „blokuje" byłoby spełnione także przez blokowanie
+     zawsze, niezależnie od ustawienia. */
+  const nlk = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.2', settle: 300,
+      head: 'window.__zamek = [];'
+          + 'window.evkScroll = {'
+          + '  lock:   function (kto) { window.__zamek.push("lock:" + kto); },'
+          + '  unlock: function (kto) { window.__zamek.push("unlock:" + kto); }'
+          + '};' });
+  await nlk.evaluate(() => window.__open());
+  await nlk.waitForTimeout(300);
+  t.check('przy wyłączonej opcji zamek zostaje nietknięty',
+    JSON.stringify(await nlk.evaluate(() => window.__zamek)) === '[]',
+    JSON.stringify(await nlk.evaluate(() => window.__zamek)));
+  await nlk.close();
 };

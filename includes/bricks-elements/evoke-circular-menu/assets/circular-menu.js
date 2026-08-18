@@ -484,6 +484,7 @@ function evk_circular_menu_init_one( root ) {
         if ( restoreTimer ) { clearTimeout( restoreTimer ); restoreTimer = null; }
         if ( isOpen ) return;
         isOpen = true;
+        syncScrollLock();
         podniesPrzelaczniki();
         setTabIndex( panel );
         panel.classList.add( EVK_CM_OPEN );
@@ -532,6 +533,7 @@ function evk_circular_menu_init_one( root ) {
     function closeMenu() {
         if ( ! isOpen || closeTimer ) return;
         isOpen = false;
+        syncScrollLock();
         setTabIndex( panel );
         panel.style.pointerEvents = 'none';
         syncTriggers();
@@ -551,18 +553,27 @@ function evk_circular_menu_init_one( root ) {
         else          openMenu();
     }
 
-    // ── Scroll lock ───────────────────────────────────────────────
-    function toggleBodyScroll() {
-        if ( ! lockScroll ) return;
-        var html = document.querySelector( 'html' );
-        var offcanvasOpen = document.querySelector( '.bc-offcanvas-menu[data-open="bc-offcanvas-menu--opened"]' );
-        if ( html.hasAttribute( 'evk-cm-scroll-locked' ) && ! offcanvasOpen ) {
-            if ( window.lenisInstance ) window.lenisInstance.start();
-            html.removeAttribute( 'evk-cm-scroll-locked' );
-        } else if ( ! html.hasAttribute( 'evk-cm-scroll-locked' ) ) {
-            if ( window.lenisInstance ) window.lenisInstance.stop();
-            html.setAttribute( 'evk-cm-scroll-locked', '' );
-        }
+    /* ── Blokada przewijania ───────────────────────────────────────
+     *
+     * Robi to WSPÓLNY zamek (includes/96-scroll-lock.php), a nie ten element.
+     * Do 1.94.0 stała tu własna wersja i miała dwie usterki naraz: ustawiała
+     * atrybut `evk-cm-scroll-locked`, którego nie czytała żadna reguła CSS
+     * w całej wtyczce (czyli nie blokowała NICZEGO), i pytała o Lenisa pod
+     * nazwą `window.lenisInstance`, której nikt nigdy nie ustawiał.
+     *
+     * Zniknęło przy okazji wypatrywanie otwartego offcanvasu po selektorze:
+     * wspólny zamek trzyma ZBIÓR IMION, więc „ktoś inny nadal trzyma" wie sam
+     * i nie trzeba go o to pytać drzewem DOM.
+     *
+     * Wywoływane ze stanu menu, nie z kliknięcia. Klik bywa obsłużony w dwóch
+     * miejscach (przełącznik wewnętrzny i zewnętrzny selektor), a stan jest
+     * jeden — parowanie lock/unlock po kliknięciach było tym, co potrafiło się
+     * rozjechać.
+     */
+    function syncScrollLock() {
+        if ( ! lockScroll || ! window.evkScroll ) return;
+        if ( isOpen ) window.evkScroll.lock( 'circular-menu' );
+        else          window.evkScroll.unlock( 'circular-menu' );
     }
 
     // ── Bindowanie triggerów ──────────────────────────────────────
@@ -579,12 +590,10 @@ function evk_circular_menu_init_one( root ) {
         document.querySelectorAll( customToggleSel ).forEach( function( el ) {
             if ( ! el.hasAttribute( 'tabindex' ) ) el.setAttribute( 'tabindex', '0' );
             el.addEventListener( 'click', function() {
-                toggleBodyScroll();
                 toggle();
             } );
             el.addEventListener( 'keydown', function( e ) {
                 if ( e.key === 'Enter' ) {
-                    toggleBodyScroll();
                     toggle();
                     e.stopImmediatePropagation();
                 }
@@ -605,29 +614,15 @@ function evk_circular_menu_init_one( root ) {
                 if ( t.contains( e.target ) ) wPrzelaczniku = true;
             } );
             var clickedOutside = ! panel.contains( e.target ) && ! wPrzelaczniku;
-            if ( clickedOutside && isOpen ) {
-                toggle();
-                var html = document.querySelector( 'html' );
-                var offcanvasOpen = document.querySelector( '.bc-offcanvas-menu[data-open="bc-offcanvas-menu--opened"]' );
-                if ( ! offcanvasOpen ) {
-                    html.removeAttribute( 'evk-cm-scroll-locked' );
-                    if ( window.lenisInstance ) window.lenisInstance.start();
-                }
-            }
+            // Blokadę zdejmuje closeMenu() przez syncScrollLock() — tu nie ma
+            // czego odkręcać ręcznie i nie ma po co pytać o cudze panele.
+            if ( clickedOutside && isOpen ) toggle();
         } );
     }
 
     // ESC
     document.addEventListener( 'keydown', function( e ) {
-        if ( isOpen && closeOnEsc && e.key === 'Escape' ) {
-            toggle();
-            var html = document.querySelector( 'html' );
-            var offcanvasOpen = document.querySelector( '.bc-offcanvas-menu[data-open="bc-offcanvas-menu--opened"]' );
-            if ( ! offcanvasOpen ) {
-                html.removeAttribute( 'evk-cm-scroll-locked' );
-                if ( window.lenisInstance ) window.lenisInstance.start();
-            }
-        }
+        if ( isOpen && closeOnEsc && e.key === 'Escape' ) toggle();
     } );
 
     // Focus out z panelu

@@ -118,8 +118,12 @@ class EvkArcTitle {
         let lastTime = performance.now();
         let rafId;
 
-        // Lenis dostarcza velocity bezpośrednio — szukamy instancji na window
-        const lenis = window.lenis || window.__lenis || null;
+        /* Lenis dostarcza velocity bezpośrednio. Nazwa jest JEDNA i ustawia ją
+           moduł płynnego przewijania (includes/96-lenis.php). Do 1.94.0 stało
+           tu `window.lenis || window.__lenis` — dwie nazwy, których nikt nigdy
+           nie ustawiał, więc element zawsze schodził do ścieżki zapasowej
+           i liczył prędkość sam, mimo działającego Lenisa. */
+        const lenis = window.evkLenis || null;
 
         if (lenis && typeof lenis.on === 'function') {
             const onLenisScroll = ({ velocity }) => {

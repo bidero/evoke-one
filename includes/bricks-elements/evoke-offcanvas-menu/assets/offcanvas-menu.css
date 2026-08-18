@@ -234,4 +234,6 @@
 
 /* Blokada przewijania strony. Kompensata szerokości paska siedzi w JS —
    musi znać realną szerokość, a ta zależy od systemu i przeglądarki. */
-html.evk-oc-locked, body.evk-oc-locked { overflow: hidden !important; }
+/* Blokada przewijania przeniesiona do wspólnego zamka — patrz
+   includes/96-scroll-lock.php. Klasa `evk-oc-locked` była tylko tutaj, więc
+   dwa panele otwarte naraz nie miały jak się dogadać, kto ją jeszcze trzyma. */

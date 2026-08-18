@@ -448,24 +448,26 @@ function evk_offcanvas_menu_init_one(root) {
 
     // ── Otwieranie i zamykanie ─────────────────────────────────────────────
     var lastTrigger = null;
-    var scrollLocked = false;
 
+    /* Blokadę przewijania trzyma WSPÓLNY zamek (includes/96-scroll-lock.php),
+       a nie ten element. Tutejsza wersja blokowała naprawdę (klasa plus
+       kompensata paska), ale nie zatrzymywała płynnego przewijania: dokument
+       stał, a Lenis przewijał dalej swoją wirtualną pozycję i po zamknięciu
+       obie się nie zgadzały. Zgłoszone z użycia jako „strona się blokuje
+       czasami przy przewijaniu".
+
+       Kompensata paska i klasa nie zniknęły — przeniosły się do zamka, razem
+       z komentarzem, który je tłumaczy. Zysk jest w tym, że jest jedno miejsce,
+       które wie, ILU trzymających jeszcze zostało: dwa panele otwarte naraz to
+       realny przypadek, a każdy z osobna nie ma jak tego wiedzieć. */
     function lock() {
-        if (!lockScroll || scrollLocked) return;
-        // Kompensata szerokości paska przewijania. Bez niej `overflow: hidden`
-        // przesuwa całą stronę o kilkanaście pikseli i widać to jako skok
-        // w chwili otwarcia — na desktopie z paskiem zajmującym miejsce.
-        var gap = window.innerWidth - document.documentElement.clientWidth;
-        if (gap > 0) document.body.style.paddingRight = gap + 'px';
-        document.documentElement.classList.add('evk-oc-locked');
-        scrollLocked = true;
+        if (!lockScroll || !window.evkScroll) return;
+        window.evkScroll.lock('offcanvas');
     }
 
     function unlock() {
-        if (!scrollLocked) return;
-        document.documentElement.classList.remove('evk-oc-locked');
-        document.body.style.paddingRight = '';
-        scrollLocked = false;
+        if (!window.evkScroll) return;
+        window.evkScroll.unlock('offcanvas');
     }
 
     /**

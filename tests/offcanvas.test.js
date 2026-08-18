@@ -21,7 +21,7 @@
  * na oko ani na zrzucie ekranu.
  */
 
-const { phpOutput } = require('./lib/harness');
+const { phpOutput, tagContent } = require('./lib/harness');
 
 const V = { width: 1200, height: 800 };
 
@@ -1058,7 +1058,17 @@ module.exports = async function (t) {
   // bez możliwości przewijania.
   t.section('blokada przewijania zakłada się i ZDEJMUJE');
 
-  const l = await t.open('offcanvas.html', { viewport: V, settle: 120 });
+  /* Zamek wstrzykiwany z PHP — ten sam, który idzie na stronę. Bez niego
+     element woła w próżnię i „blokada założona" nie mierzy niczego poza tym,
+     że fixture jej nie ma. */
+  const GLOWA = phpOutput('scroll-lock-head.php');
+  const ZAMEK = tagContent(GLOWA, 'evk-scroll-lock')
+    + '\ndocument.addEventListener("DOMContentLoaded",function(){'
+    + 'var s=document.createElement("style");s.textContent='
+    + JSON.stringify(tagContent(GLOWA, 'evk-scroll-lock-css'))
+    + ';document.head.appendChild(s);});';
+
+  const l = await t.open('offcanvas.html', { viewport: V, settle: 120, head: ZAMEK });
   t.check('przed otwarciem brak blokady', !(await l.evaluate(() => window.__lock())).locked,
     'bez blokady');
 
@@ -1079,7 +1089,7 @@ module.exports = async function (t) {
   // Wyłączona opcja ma naprawdę wyłączać — inaczej „blokuj przewijanie"
   // jest przełącznikiem, który nic nie przełącza.
   await l.close();
-  const nl = await t.open('offcanvas.html', { viewport: V, query: 'lock=0', settle: 120 });
+  const nl = await t.open('offcanvas.html', { viewport: V, query: 'lock=0', settle: 120, head: ZAMEK });
   await nl.evaluate(() => window.__open());
   await nl.waitForTimeout(80);
   t.check('przy wyłączonej opcji blokady nie ma',

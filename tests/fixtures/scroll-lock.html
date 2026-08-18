@@ -1,0 +1,41 @@
+<!--
+  Wspólny zamek na przewijanie.
+
+  Zgłoszone z użycia: „strona się blokuje czasami przy przewijaniu, nie wiem
+  czego to przyczyna". W kodzie znalazły się trzy usterki z tej rodziny:
+  blokada Circular Menu była atrapą (atrybut bez żadnej reguły CSS), blokada
+  offcanvas działała, ale nie zatrzymywała Lenisa, a sam Lenis miał trzy nazwy
+  globalne, z których działała jedna.
+
+  Fixture ma ATRAPĘ Lenisa notującą stop/start — inaczej „zamek zatrzymuje
+  płynne przewijanie" nie da się zmierzyć inaczej niż na oko. Atrapa stoi pod
+  kanoniczną nazwą `window.evkLenis`, czyli tą, którą ustawia moduł.
+
+  Skrypt zamka wstrzykiwany jest z PHP przez `head` (tests/php/scroll-lock-head.php),
+  a nie przepisany tutaj — kopia zaczęłaby żyć własnym życiem.
+-->
+<style>
+  /* Pasek przewijania ZAJMUJĄCY MIEJSCE. Bez tego kompensaty nie da się
+     zmierzyć: przeglądarka testowa rysuje domyślnie pasek nakładkowy o zerowej
+     szerokości, więc „strona nie skacze" byłoby prawdą także wtedy, gdyby
+     kompensaty nie było wcale. Zmierzone: bez `scrollbar-gutter` luka wynosi
+     0 px, z nim 15 px. `overflow-y: scroll` nie wystarcza — przy paskach
+     nakładkowych nadal nie zabiera szerokości. */
+  html { scrollbar-gutter: stable; }
+
+  body { margin: 0; font: 16px system-ui; }
+  .wysoki { height: 3000px; background: linear-gradient(#234, #789); }
+</style>
+
+<div class="wysoki">strona wyższa niż okno, żeby w ogóle było co blokować</div>
+
+<script>
+  /* Atrapa Lenisa pod JEDYNĄ nazwą, jakiej używa wtyczka. Notuje wywołania,
+     bo o to właśnie chodzi: przed 1.94.0 nikt jej nie wołał, mimo działającego
+     płynnego przewijania. */
+  window.__lenisLog = [];
+  window.evkLenis = {
+    stop:  function () { window.__lenisLog.push('stop'); },
+    start: function () { window.__lenisLog.push('start'); },
+  };
+</script>

@@ -20,6 +20,12 @@ class EVK_Lenis {
     private $defaults = [
         'enabled'             => 0,
         'auto_raf'            => 1,
+        /* Tempo ma DWA wykluczające się sposoby sterowania i Lenis przyjmuje
+           tylko jeden. Do 1.94.0 wysyłaliśmy oba naraz — biblioteka brała
+           jeden, więc drugie pokrętło w panelu nie robiło nic i nie było jak
+           zgadnąć które. Teraz wybiera się tryb, a emitowany jest wyłącznie
+           parametr tego trybu. */
+        'tempo'               => 'lerp',   // 'lerp' albo 'duration'
         'duration'            => 1.0,
         'lerp'                => 0.08,
         'wheel_multiplier'    => 1.0,
@@ -82,6 +88,9 @@ class EVK_Lenis {
                 ? max($min, min($max, floatval($input[$key])))
                 : $default;
         }
+
+        $clean['tempo'] = in_array($input['tempo'] ?? '', ['lerp', 'duration'], true)
+            ? $input['tempo'] : 'lerp';
 
         $allowed = ['vertical', 'horizontal'];
         $clean['orientation'] = in_array($input['orientation'] ?? '', $allowed, true)
@@ -151,8 +160,7 @@ html.lenis,html.lenis body{height:auto;}
     if (evkReduced) return;
 
     var lenis = new Lenis({
-        duration: %s,
-        lerp: %s,
+        %s
         wheelMultiplier: %s,
         smoothWheel: %s,
         orientation: '%s',
@@ -190,16 +198,34 @@ html.lenis,html.lenis body{height:auto;}
         gsap.ticker.lagSmoothing(0);
     });
 
-    document.querySelectorAll('a[href^=\"#\"]').forEach(function(anchor){
-        anchor.addEventListener('click', function(e){
-            e.preventDefault();
-            lenis.scrollTo(this.getAttribute('href'));
-        });
+    /* Kotwice — ale TYLKO te, które gdziekolwiek prowadzą.
+       Do 1.94.0 selektor łapał `a[href^=\"#\"]`, czyli także gołe `#`
+       używane przez akordeony, zakładki i inne przełączniki. Dostawały
+       `preventDefault()` i przestawały działać, a Lenis próbował przewinąć
+       do selektora `#`, który niczego nie oznacza.
+       Sprawdzamy przy KLIKNIĘCIU, nie przy podpięciu: cel może dojechać
+       później (treść z AJAX-a, zakładki budowane w locie). */
+    document.addEventListener('click', function(e){
+        var a = e.target.closest ? e.target.closest('a[href^=\"#\"]') : null;
+        if (!a) return;
+        var href = a.getAttribute('href');
+        if (!href || href === '#') return;
+
+        var cel = null;
+        try { cel = document.querySelector(href); } catch (err) { return; }
+        if (!cel) return;
+
+        e.preventDefault();
+        lenis.scrollTo(cel);
     });
 });",
             $s['auto_raf']     ? 'true' : 'false',
-            number_format($s['duration'],         2, '.', ''),
-            number_format($s['lerp'],             3, '.', ''),
+            /* Jedno pokrętło tempa, nie dwa — patrz komentarz przy 'tempo'
+               w $defaults. Wysłanie obu znaczyło, że jedno z nich po cichu
+               nie działa. */
+            (($s['tempo'] ?? 'lerp') === 'duration')
+                ? 'duration: ' . number_format($s['duration'], 2, '.', '') . ','
+                : 'lerp: '     . number_format($s['lerp'],     3, '.', '') . ',',
             number_format($s['wheel_multiplier'], 2, '.', ''),
             $s['smooth_wheel'] ? 'true' : 'false',
             esc_js($s['orientation']),
