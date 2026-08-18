@@ -192,4 +192,145 @@ module.exports = async function (t) {
   t.check('a wejście mimo redukcji dochodzi do widoczności', wejRed.opacity >= 0.99,
     'opacity ' + wejRed.opacity);
   await red.close();
+  /* ── Podmiana treści na najechaniu ─────────────────────────────────────
+   *
+   * Zgłoszone jako „chodziło mi też o efekty w stylu nextbricks.io/swap-hover":
+   * tekst wyjeżdża, a jego kopia wjeżdża na to samo miejsce.
+   *
+   * Kopia jest sednem — bez niej efekt sprowadza się do zniknięcia napisu.
+   * Dlatego sprawdzenia pilnują OBU ruchów naraz i mierzą je W LOCIE: po
+   * zakończeniu klon stoi dokładnie tam, gdzie na początku stał oryginał,
+   * więc sam stan końcowy nie odróżnia „podmieniło się" od „nic się nie stało".
+   */
+  t.section('podmiana treści na najechaniu');
+
+  const sw = await t.open('anim-swap.html',
+    { viewport: { width: 900, height: 600 }, head: presety, settle: 700 });
+
+  const spokoj = await sw.evaluate(() => window.__swap('wgore'));
+  t.check('tekst został podzielony na kawałki', spokoj.kawalkow >= 2,
+    spokoj.kawalkow + ' kawałków');
+  t.check('każdy kawałek dostał klon', spokoj.klonow === spokoj.kawalkow,
+    spokoj.klonow + ' klonów do ' + spokoj.kawalkow + ' kawałków');
+
+  /* W spoczynku widać JEDEN tekst: oryginał na swoim miejscu, klon poza
+     maską. Gdyby klon stał w kadrze, napis byłby podwójny. */
+  t.check('w spoczynku oryginał jest na miejscu', Math.abs(spokoj.oryginal) <= 5,
+    spokoj.oryginal + '% wysokości');
+  t.check('a klon czeka poza maską', Math.abs(spokoj.klon) >= 80,
+    spokoj.klon + '% wysokości');
+
+  /* Treść dla czytnika ekranu ma zostać POJEDYNCZA — klon jest czystym
+     powtórzeniem i bez `aria-hidden` napis byłby czytany dwa razy. */
+  t.check('a tekst dostępny pozostaje pojedynczy',
+    spokoj.tekstDostepny === 'Zobacz projekty', JSON.stringify(spokoj.tekstDostepny));
+
+  /* Dostępność mierzona na elemencie Z DZIEĆMI. Przy jednym węźle tekstowym
+     SplitText sam ustawia `aria-hidden` na wszystkich kawałkach, więc klon
+     dziedziczy je z klonowania i sprawdzenie nie mówi nic o wtyczce — puste
+     przechodziło nawet po skasowaniu tej linijki z silnika (zmierzone mutacją).
+     Przy kilkorgu dzieci SplitText kawałków NIE chowa, bo aria-label sklejałby
+     nazwy odnośników — i wtedy ukrycie klonu należy do silnika. */
+  const zDziecmi = await sw.evaluate(() => window.__swap('zdziecmi'));
+  t.check('przy elemencie z dziećmi podział NIE chowa kawałków',
+    !zDziecmi.podzialUkrylKawalki, 'kontrola: ' + zDziecmi.podzialUkrylKawalki);
+  t.check('a klony i tak są ukryte przed czytnikiem', zDziecmi.ukryteDlaCzytnika,
+    zDziecmi.klonow + ' klonów, aria-hidden na wszystkich: ' + zDziecmi.ukryteDlaCzytnika);
+
+  // ── Ruch: oryginał wyjeżdża, klon wchodzi ────────────────────────────
+  await sw.evaluate(() => window.__najedz('wgore'));
+  await sw.waitForTimeout(220);
+  const wLocie = await sw.evaluate(() => window.__swap('wgore'));
+  t.check('po najechaniu oryginał wyjeżdża', wLocie.oryginal < spokoj.oryginal - 10,
+    spokoj.oryginal + '% → ' + wLocie.oryginal + '%');
+  t.check('a klon w tej samej chwili wchodzi',
+    Math.abs(wLocie.klon) < Math.abs(spokoj.klon) - 10,
+    spokoj.klon + '% → ' + wLocie.klon + '%');
+
+  /* Opóźnienie między kawałkami: pierwszy i ostatni klon mają w tej samej
+     chwili RÓŻNY postęp. Bez tego stagger mógłby być wyzerowany i nikt by
+     nie zauważył. */
+  t.check('kawałki jadą z opóźnieniem względem siebie',
+    Math.abs(wLocie.klonPierwszy - wLocie.klonOstatni) >= 5,
+    wLocie.klonPierwszy + '% vs ' + wLocie.klonOstatni + '%');
+
+  await sw.evaluate(() => window.__zjedz('wgore'));
+  await sw.waitForFunction(() => window.__bezRuchu(), null, { timeout: 3000 }).catch(() => {});
+  const powrot = await sw.evaluate(() => window.__swap('wgore'));
+  t.check('po zjechaniu wraca do stanu wyjściowego',
+    Math.abs(powrot.oryginal) <= 5 && Math.abs(powrot.klon) >= 80,
+    'oryginał ' + powrot.oryginal + '%, klon ' + powrot.klon + '%');
+
+  /* KIERUNEK. Przy jednym wariancie „w którą stronę" nie da się odróżnić od
+     „w jakąkolwiek" — dlatego drugi element z presetem `-down` i porównanie
+     ZNAKÓW przesunięcia. */
+  const dolSpokoj = await sw.evaluate(() => window.__swap('wdol'));
+  t.check('drugi kierunek czeka po PRZECIWNEJ stronie',
+    Math.sign(dolSpokoj.klon) === -Math.sign(spokoj.klon),
+    'z dołu: ' + spokoj.klon + '% | z góry: ' + dolSpokoj.klon + '%');
+
+  await sw.evaluate(() => window.__najedz('wdol'));
+  await sw.waitForTimeout(220);
+  const dolWLocie = await sw.evaluate(() => window.__swap('wdol'));
+  t.check('i jedzie w przeciwną stronę',
+    Math.sign(dolWLocie.oryginal - dolSpokoj.oryginal)
+      === -Math.sign(wLocie.oryginal - spokoj.oryginal),
+    'z dołu: ' + (wLocie.oryginal - spokoj.oryginal)
+      + ' | z góry: ' + (dolWLocie.oryginal - dolSpokoj.oryginal));
+
+  t.check('bez błędów JS przy podmianie', !sw.errors.length, sw.errors.join(' | ') || 'brak');
+  await sw.close();
+
+  /* ── Ponowny podział nie zwielokrotnia nasłuchów ───────────────────────
+   *
+   * `autoSplit` odtwarza kawałki po każdej zmianie szerokości okna i woła
+   * `onSplit` ponownie. Bez przerwania poprzednich nasłuchów na elemencie
+   * wisiałoby kilka kompletów i jedno najechanie uruchamiałoby kilka osi
+   * czasu naraz — z których tylko ostatnia dotyczy istniejących kawałków.
+   */
+  t.section('podmiana po zmianie szerokości okna');
+
+  const rs = await t.open('anim-swap.html',
+    { viewport: { width: 900, height: 600 }, head: presety, settle: 700 });
+
+  /* Pomiar idzie na podziale na LINIE. Podział na słowa nie zależy od
+     szerokości okna, więc `autoSplit` go nie przebudowuje — to samo sprawdzenie
+     zrobione na słowach było PUSTE i przechodziło także po skasowaniu strażnika
+     (zmierzone mutacją). */
+  const przedZmiana = await rs.evaluate(() => window.__swap('linie'));
+  await rs.setViewportSize({ width: 420, height: 600 });
+  await rs.waitForTimeout(800);
+
+  const poZmianie = await rs.evaluate(() => window.__swap('linie'));
+  /* Bez tego cała sekcja byłaby zielona także wtedy, gdyby ponowny podział
+     w ogóle nie nastąpił — a wtedy nie ma czego pilnować. */
+  t.check('zmiana szerokości NAPRAWDĘ przebudowała podział',
+    poZmianie.kawalkow !== przedZmiana.kawalkow,
+    przedZmiana.kawalkow + ' → ' + poZmianie.kawalkow + ' linii');
+  t.check('po przebudowie klonów tyle co kawałków', poZmianie.klonow === poZmianie.kawalkow,
+    poZmianie.klonow + ' klonów do ' + poZmianie.kawalkow + ' kawałków');
+
+  await rs.evaluate(() => window.__najedz('linie'));
+  await rs.waitForTimeout(80);
+  const osie = await rs.evaluate(() => window.__aktywneOsie());
+  t.check('jedno najechanie rusza JEDNĄ oś czasu', osie === 1, osie + ' osi');
+  t.check('bez błędów JS po przebudowie', !rs.errors.length, rs.errors.join(' | ') || 'brak');
+  await rs.close();
+
+  /* ── Redukcja ruchu: klonów nie ma w ogóle ─────────────────────────────
+   *
+   * Gałąź redukcji wychodzi przed podziałem tekstu, więc nie powstają ani
+   * maski, ani klony — element zostaje taki, jak wyrenderował go CSS.
+   */
+  t.section('podmiana a redukcja ruchu');
+
+  const swRed = await t.open('anim-swap.html',
+    { viewport: { width: 900, height: 600 }, head: presety, reduce: true, settle: 600 });
+  const red2 = await swRed.evaluate(() => window.__swap('wgore'));
+  t.check('przy redukcji ruchu nie ma żadnych klonów', red2.klonow === 0,
+    red2.klonow + ' klonów');
+  t.check('a treść jest widoczna i pojedyncza',
+    swRed.evaluate(() => document.getElementById('wgore').textContent.trim())
+      .then((x) => x === 'Zobacz projekty'), 'sprawdzane niżej');
+  await swRed.close();
 };

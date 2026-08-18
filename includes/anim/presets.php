@@ -367,6 +367,89 @@ function evk_anim_presets(): array {
             'duration' => 0.3,
             'easing'   => 'power2.out',
         ],
+        /*
+         * ── PODMIANA TREŚCI (swap) ────────────────────────────────────────
+         *
+         * Na najechaniu tekst wyjeżdża, a jego kopia wjeżdża na to samo
+         * miejsce. Kopię i maski robi silnik (patrz attachSwap w animator.js);
+         * tutaj stoi tylko to, czego mu do tego trzeba.
+         *
+         * `mask` MUSI być równe `split` — to opcja SplitText, która owija każdy
+         * kawałek własnym `overflow: hidden`. Bez niej nie ma czego chować
+         * i obie kopie widać naraz.
+         *
+         * `stan` daje trzy rzeczy naraz: grupę „Stany" w panelu, wyłączenie
+         * ze sprzątania transformacji po animacji i to, że przy redukcji ruchu
+         * nic nie zostanie nałożone na stałe.
+         *
+         * `strength` steruje skosem kawałków w ruchu (0 = bez skosu).
+         */
+        'swap-lines-up' => [
+            'label'    => 'Stan: podmiana linii (z dołu)',
+            'stan'     => true,
+            'swap'     => 'up',
+            'split'    => 'lines',
+            'mask'     => 'lines',
+            'strength' => 0,
+            'duration' => 0.5,
+            'stagger'  => 0.06,
+            'easing'   => 'power3.out',
+        ],
+        'swap-lines-down' => [
+            'label'    => 'Stan: podmiana linii (z góry)',
+            'stan'     => true,
+            'swap'     => 'down',
+            'split'    => 'lines',
+            'mask'     => 'lines',
+            'strength' => 0,
+            'duration' => 0.5,
+            'stagger'  => 0.06,
+            'easing'   => 'power3.out',
+        ],
+        'swap-words-up' => [
+            'label'    => 'Stan: podmiana słów (z dołu)',
+            'stan'     => true,
+            'swap'     => 'up',
+            'split'    => 'words',
+            'mask'     => 'words',
+            'strength' => 0,
+            'duration' => 0.5,
+            'stagger'  => 0.04,
+            'easing'   => 'power3.out',
+        ],
+        'swap-words-down' => [
+            'label'    => 'Stan: podmiana słów (z góry)',
+            'stan'     => true,
+            'swap'     => 'down',
+            'split'    => 'words',
+            'mask'     => 'words',
+            'strength' => 0,
+            'duration' => 0.5,
+            'stagger'  => 0.04,
+            'easing'   => 'power3.out',
+        ],
+        'swap-chars-up' => [
+            'label'    => 'Stan: podmiana znaków (z dołu)',
+            'stan'     => true,
+            'swap'     => 'up',
+            'split'    => 'chars',
+            'mask'     => 'chars',
+            'strength' => 0,
+            'duration' => 0.45,
+            'stagger'  => 0.02,
+            'easing'   => 'power3.out',
+        ],
+        'swap-chars-down' => [
+            'label'    => 'Stan: podmiana znaków (z góry)',
+            'stan'     => true,
+            'swap'     => 'down',
+            'split'    => 'chars',
+            'mask'     => 'chars',
+            'strength' => 0,
+            'duration' => 0.45,
+            'stagger'  => 0.02,
+            'easing'   => 'power3.out',
+        ],
 
         /*
          * ── WYJŚCIA ───────────────────────────────────────────────────────

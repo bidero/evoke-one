@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.92.0] — 2026-08-18
+
+### Dodane
+
+- **Podmiana treści na najechaniu (swap).** Na hoverze tekst wyjeżdża, a jego
+  kopia wjeżdża na to samo miejsce — sześć presetów: podział na linie, słowa
+  albo znaki, w dwóch kierunkach (z dołu, z góry).
+
+  Kopia jest sednem efektu: bez niej zostaje samo zniknięcie napisu. Klasyczne
+  rozwiązanie to dwie warstwy nad sobą, ale tu wystarczyła jedna. SplitText
+  z opcją `mask` owija **każdy kawałek** własnym `overflow: hidden`, więc klon
+  kawałka trafia do tej samej maski i ma z definicji identyczne pudełko —
+  dopasowywanie geometrii dwóch warstw odpada.
+
+  Klony dostają `aria-hidden`, żeby czytnik ekranu nie przeczytał napisu dwa
+  razy. Ma to znaczenie tam, gdzie SplitText sam kawałków nie chowa — czyli
+  przy elementach z kilkorgiem dzieci (nagłówek z odnośnikiem w środku).
+
+  Stagger, czas i krzywa idą z wiersza biblioteki jak wszędzie; `strength`
+  steruje skosem kawałków w ruchu.
+
+  Presety należą do rodziny stanowej, więc dziedziczą po 1.91.0 trzy rzeczy:
+  grupę „Stany (hover, klik)" w panelu, wyłączenie ze sprzątania transformacji
+  i to, że przy redukcji ruchu nic nie zostaje nałożone na stałe. Przy
+  ograniczonym ruchu klony nie powstają w ogóle.
+
+### Naprawione
+
+- **Ponowny podział tekstu zwielokrotniał nasłuchy.** `autoSplit` przebudowuje
+  kawałki po każdej zmianie szerokości okna i woła `onSplit` ponownie —
+  a każde wywołanie dokładało kolejny komplet nasłuchów na tym samym elemencie.
+  Po dwóch zmianach szerokości jedno najechanie uruchamiało dwie osie czasu,
+  z których tylko ostatnia dotyczyła istniejących kawałków. Podmiana treści
+  trzyma teraz własny `AbortController` i przerywa poprzedni przed podpięciem
+  nowego.
+
 ## [1.91.0] — 2026-08-18
 
 ### Naprawione

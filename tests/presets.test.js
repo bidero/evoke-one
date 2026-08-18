@@ -143,6 +143,17 @@ module.exports = async function (t) {
     typed.deps.includes('evk-textplugin') && !typed.deps.includes('evk-scrambletext'),
     typed.deps.join(', '));
 
+  /* Podmiana treści stoi na podziale tekstu, więc MUSI dociągnąć SplitText.
+     Bez niego preset cicho nie działa: silnik nie dostaje kawałków, nie ma
+     czego klonować i najechanie nie robi nic. */
+  const swp = enq([{ slug: 'a', preset: 'swap-words-up' }]);
+  t.check('podmiana treści dociąga SplitText',
+    swp.deps.includes('evk-splittext'), swp.deps.join(', '));
+  /* Kontrola negatywna do powyższego: preset BEZ podziału go nie dociąga —
+     inaczej „dociąga" znaczyłoby tylko tyle, że doczepiamy go zawsze. */
+  t.check('a preset bez podziału go nie dociąga',
+    !plain.deps.includes('evk-splittext'), plain.deps.join(', '));
+
   const scr = enq([{ slug: 'a', preset: 'scramble' }]);
   t.check('losowe znaki dociągają ScrambleTextPlugin',
     scr.deps.includes('evk-scrambletext'), scr.deps.join(', '));

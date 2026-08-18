@@ -1,0 +1,133 @@
+<!--
+  Animator — podmiana treści na najechaniu (swap).
+
+  Na najechaniu tekst wyjeżdża, a jego kopia wjeżdża na to samo miejsce. Kopia
+  jest konieczna: bez niej efekt sprowadza się do zniknięcia napisu. Klon i maski
+  robi silnik (attachSwap), więc fixture ma tu tylko zwykłe napisy — gdyby klony
+  stały w znaczniku, test sprawdzałby fixture, a nie wtyczkę.
+
+  Dwa kierunki obok siebie, bo przy jednym „w którą stronę" nie da się odróżnić
+  od „w jakąkolwiek". Biblioteka presetów wstrzykiwana z PHP przez `head`.
+-->
+<style>
+  body { margin: 0; font: 16px/1.4 system-ui; }
+  h2 { margin: 0; padding: 12px; background: #234; color: #fff; font-size: 28px; }
+</style>
+
+<h2 id="wgore" data-evk-anim='{"animation":"wg"}'>Zobacz projekty</h2>
+<h2 id="wdol"  data-evk-anim='{"animation":"wd"}'>Zobacz projekty</h2>
+
+<!-- Podział na LINIE. Tylko przy nim SplitText przebudowuje kawałki po zmianie
+     szerokości okna (łamanie linii zależy od szerokości, podział na słowa nie),
+     więc to na tym elemencie da się w ogóle zmierzyć, czy ponowny podział nie
+     zwielokrotnia nasłuchów. Tekst musi łamać się RÓŻNIE przy 900 i 600 px. -->
+<p id="linie" data-evk-anim='{"animation":"ln"}'>Projektujemy strony, które
+  wyglądają jak marka, a działają jak narzędzie — od pierwszego szkicu po
+  wdrożenie i opiekę nad wynikami w wyszukiwarce.</p>
+
+<!-- Element z KILKORGIEM dzieci: SplitText ustawia wtedy `aria: 'none'`
+     i NIE ukrywa kawałków przed czytnikiem, bo aria-label sklejałby nazwy
+     odnośników w środku. Klon jest wtedy czystym powtórzeniem treści i to
+     silnik musi go ukryć — bez tego napis byłby czytany dwa razy. -->
+<h2 id="zdziecmi" data-evk-anim='{"animation":"wg"}'><span>Zobacz</span> <a href="#">projekty</a></h2>
+
+<script src="../../assets/vendor/gsap/gsap.min.js"></script>
+<script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
+<script src="../../assets/vendor/gsap/SplitText.min.js"></script>
+<script>
+(function () {
+  var row = function (preset) {
+    return { preset: preset, trigger: 'hover', duration: 0.5, delay: 0,
+             stagger: 0.05, easing: 'power3.out', order: 0 };
+  };
+  window.evkAnimator = {
+    library: { wg: row('swap-words-up'), wd: row('swap-words-down'),
+               ln: row('swap-lines-up') },
+    presets: (window.__presets && window.__presets.presets) || {},
+    reducedMotion: false,
+    needsFonts: false,
+  };
+})();
+</script>
+<script src="../../assets/js/animator.js"></script>
+<script>
+  /* Kawałki po podziale — ORYGINAŁY, czyli te bez znacznika klonu. Selektor
+     obejmuje wszystkie trzy rodzaje podziału, bo fixture używa i słów, i linii. */
+  var KAWALEK = '.evk-anim-word, .evk-anim-line, .evk-anim-char';
+  function oryginaly(id) {
+    return Array.prototype.filter.call(
+      document.getElementById(id).querySelectorAll(KAWALEK),
+      function (w) { return !w.classList.contains('evk-anim-swap-klon'); });
+  }
+  function klony(id) {
+    return Array.prototype.slice.call(
+      document.getElementById(id).querySelectorAll('.evk-anim-swap-klon'));
+  }
+
+  /* Pozycja pionowa kawałka WZGLĘDEM jego maski, w procentach własnej wysokości.
+     Procenty, a nie piksele: `yPercent` tym operuje, a maski mają różne
+     wysokości przy różnych rozmiarach czcionki. */
+  function przesuniecie(el) {
+    var maska = el.parentNode;
+    if (!maska) return 0;
+    var a = el.getBoundingClientRect(), b = maska.getBoundingClientRect();
+    return a.height ? Math.round(((a.top - b.top) / a.height) * 100) : 0;
+  }
+
+  window.__swap = function (id) {
+    var o = oryginaly(id), k = klony(id);
+    return {
+      kawalkow:   o.length,
+      klonow:     k.length,
+      oryginal:   o.length ? przesuniecie(o[0]) : null,
+      klon:       k.length ? przesuniecie(k[0]) : null,
+      // Pierwszy i ostatni klon osobno — po to jest stagger.
+      klonPierwszy: k.length ? przesuniecie(k[0]) : null,
+      klonOstatni:  k.length ? przesuniecie(k[k.length - 1]) : null,
+      // Czy KAŻDY klon jest schowany przed czytnikiem ekranu.
+      ukryteDlaCzytnika: k.length > 0 && k.every(function (x) {
+        return x.getAttribute('aria-hidden') === 'true';
+      }),
+      /* Czy SplitText sam pochował kawałki. Gdy tak, ukrycie klonów niczego nie
+         dowodzi — dlatego sprawdzenie dostępności idzie na elemencie, przy którym
+         SplitText tego NIE robi (`aria: 'none'` przy kilkorgu dzieci). */
+      podzialUkrylKawalki: (function () {
+        var o = oryginaly(id);
+        return o.length > 0 && o.every(function (x) {
+          return x.getAttribute('aria-hidden') === 'true';
+        });
+      })(),
+      /* Nazwa dostępna elementu. SplitText przy `aria: 'auto'` ukrywa WSZYSTKIE
+         kawałki i przenosi treść do `aria-label` na elemencie — więc to ona
+         jest tym, co usłyszy czytnik ekranu, i to ona nie może się podwoić
+         przez dołożone klony. */
+      tekstDostepny: (document.getElementById(id).getAttribute('aria-label') || '').trim(),
+      wysokosc: document.getElementById(id).getBoundingClientRect().height,
+    };
+  };
+
+  window.__najedz = function (id) {
+    document.getElementById(id).dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }));
+  };
+  window.__zjedz = function (id) {
+    document.getElementById(id).dispatchEvent(new MouseEvent('mouseleave', { bubbles: false }));
+  };
+
+  /** Czy silnik dokończył to, co zaczął — patrz komentarz w presets.html. */
+  window.__bezRuchu = function () {
+    if (!window.gsap) return true;
+    return !gsap.globalTimeline.getChildren(true, true, false)
+      .some(function (t) { return t.isActive(); });
+  };
+
+  /* Ile OSI CZASU jedzie w tej chwili — do wykrycia zwielokrotnionych nasłuchów.
+     Liczymy osie najwyższego poziomu, nie zagnieżdżone tweeny: jedno najechanie
+     ma uruchomić dokładnie jedną, a każdy zbędny komplet nasłuchów dokłada
+     kolejną, animującą te same kawałki. Mierzone PO klatce, bo GSAP oznacza oś
+     jako jadącą dopiero przy pierwszym odświeżeniu. */
+  window.__aktywneOsie = function () {
+    if (!window.gsap) return 0;
+    return gsap.globalTimeline.getChildren(false, false, true)
+      .filter(function (t) { return t.isActive(); }).length;
+  };
+</script>

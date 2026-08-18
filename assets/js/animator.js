@@ -148,7 +148,12 @@
     // Że każdy taki preset stan spoczynku ma, pilnuje tests/presets.test.js.
     var pointer = pick(attr.pointer, lib.pointer, pre.pointer, '');
 
-    if (!from && !to && !textFx) return null;
+    // Podmiana treści też nie jest tweenem od–do: `from` i `to` nie opisałyby
+    // ruchu DWÓCH rzeczy naraz (tekst wyjeżdża, klon wjeżdża). Kierunek niesie
+    // znacznik, a oś czasu składa attachSwap().
+    var swap = pick(attr.swap, lib.swap, pre.swap, '');
+
+    if (!from && !to && !textFx && !swap) return null;
 
     return {
       from:     from,
@@ -156,6 +161,7 @@
       textFx:   textFx,
       words:    attr.words || lib.words || null,
       pointer:  pointer,
+      swap:     swap,
       strength: num(pick(attr.strength, lib.strength, pre.strength), 0.35),
       split:    pick(attr.split, lib.split, pre.split, ''),
       mask:     pick(attr.mask, lib.mask, pre.mask, ''),
@@ -608,8 +614,24 @@
    * gdy preset jest wejściem albo wyjściem, i tylko wtedy go pomijamy.
    */
   function attachInteractive(el, targets, cfg) {
-    var tl = buildTimeline(targets, cfg, true, !cfg.stan);
+    return podepnijInteraktywnie(el, buildTimeline(targets, cfg, true, !cfg.stan), cfg);
+  }
+
+  /**
+   * Nasłuchy wyzwalaczy interaktywnych dla GOTOWEJ osi czasu.
+   *
+   * Wydzielone z attachInteractive(), bo podmiana treści (attachSwap) buduje oś
+   * inaczej — z klonów kawałków — a podpina się dokładnie tak samo. Druga kopia
+   * tych czterech nasłuchów rozjechałaby się przy pierwszej poprawce; najpewniej
+   * na obsłudze klawiatury, bo o niej najłatwiej zapomnieć.
+   *
+   * `przerwij` przekazuje ten, kto może zostać zbudowany PONOWNIE na tym samym
+   * elemencie — patrz attachSwap i `autoSplit`.
+   */
+  function podepnijInteraktywnie(el, tl, cfg, przerwij) {
+    if (przerwij && el[przerwij]) el[przerwij].abort();
     var ac = new AbortController();
+    if (przerwij) el[przerwij] = ac;
     var opts = { signal: ac.signal };
 
     if (cfg.trigger === 'hover') {
@@ -627,6 +649,77 @@
 
     rememberAbort(el, ac);
     return tl;
+  }
+
+  // ── Podmiana treści na najechaniu ──────────────────────────────────────
+
+  /** Maksymalny skos kawałków przy sile 1. Wyżej robi się z tego chorągiewka. */
+  var SWAP_MAX_SKEW = 8;
+
+  /**
+   * Podmiana treści: tekst wyjeżdża, jego kopia wjeżdża na to samo miejsce.
+   *
+   * Kopia jest KONIECZNA — bez niej nie ma czego wsunąć w miejsce
+   * wyjeżdżającego tekstu i efekt sprowadza się do zniknięcia. Klasyczna
+   * „rolka" robi to dwiema warstwami nad sobą, ale tutaj wystarczy jedna:
+   * SplitText z opcją `mask` owija KAŻDY kawałek własnym `overflow: hidden`,
+   * więc klon kawałka trafia do tej samej maski i ma z definicji identyczne
+   * pudełko. Dopasowywanie geometrii dwóch warstw odpada.
+   *
+   * Klon dostaje `aria-hidden`, bo dla czytnika ekranu jest czystym
+   * powtórzeniem — bez tego każdy taki napis byłby czytany dwa razy.
+   *
+   * Klonów nie sprzątamy: `autoSplit` przy zmianie szerokości okna odtwarza
+   * element z treści zapamiętanej przez SplitText, a ta pochodzi sprzed ich
+   * powstania. Sprzątać trzeba za to NASŁUCHY — patrz `_evkSwapAbort` niżej.
+   */
+  function attachSwap(el, kawalki, cfg) {
+    if (!kawalki.length) return null;
+
+    var wGore  = cfg.swap !== 'down';        // domyślnie treść wjeżdża z dołu
+    var wyjscie = wGore ? -100 : 100;
+    var skos    = Math.max(-SWAP_MAX_SKEW, Math.min(SWAP_MAX_SKEW,
+                    (cfg.strength || 0) * SWAP_MAX_SKEW));
+
+    var klony = kawalki.map(function (kawalek) {
+      var maska = kawalek.parentNode;
+      var klon  = kawalek.cloneNode(true);
+      klon.setAttribute('aria-hidden', 'true');
+      klon.classList.add('evk-anim-swap-klon');
+      // Klon leży NA oryginale, nie za nim: obie kopie są w tej samej masce,
+      // a bez wyjęcia z układu klon dopisałby się obok i rozepchnął wiersz.
+      gsap.set(klon, { position: 'absolute', top: 0, left: 0 });
+      if (maska) {
+        // Maska od SplitText ma `overflow: hidden`, ale nie musi być układem
+        // odniesienia — bez tego `position: absolute` klonu uciekłoby wyżej.
+        if (getComputedStyle(maska).position === 'static') {
+          gsap.set(maska, { position: 'relative' });
+        }
+        maska.appendChild(klon);
+      }
+      return klon;
+    });
+
+    // Klon czeka poza maską, po przeciwnej stronie niż ta, w którą wyjeżdża
+    // oryginał — inaczej obie kopie mijałyby się w tym samym kierunku.
+    gsap.set(klony, { yPercent: -wyjscie, skewY: skos });
+
+    var tl = gsap.timeline({ paused: true });
+    var wspolne = { duration: cfg.duration, ease: cfg.easing };
+    if (cfg.stagger > 0) wspolne.stagger = cfg.stagger;
+
+    // Oba ruchy w JEDNYM oknie i na tej samej pozycji osi (0). Osobne wywołania
+    // dałyby dwa okna, które da się rozjechać niezależnie — a wtedy przez chwilę
+    // widać dziurę albo dwie kopie naraz.
+    tl.to(kawalki, Object.assign({ yPercent: wyjscie, skewY: skos }, wspolne), 0);
+    tl.to(klony,   Object.assign({ yPercent: 0,       skewY: 0    }, wspolne), 0);
+
+    /* Nasłuchy przerywane przy każdej przebudowie. `autoSplit` woła `onSplit`
+       po każdej zmianie szerokości okna, więc bez tego po kilku zmianach na
+       elemencie wisiałoby kilka kompletów nasłuchów i jedno najechanie
+       uruchamiałoby kilka osi czasu naraz — z których tylko ostatnia dotyczy
+       istniejących kawałków. */
+    return podepnijInteraktywnie(el, tl, cfg, '_evkSwapAbort');
   }
 
   // ── Efekty wskaźnika ───────────────────────────────────────────────────
@@ -754,6 +847,11 @@
     }
 
     if (cfg.textFx === 'words') return attachWords(el, targets, cfg);
+
+    // Podmiana treści dostaje KAWAŁKI po podziale tekstu — dokładnie to, co
+    // `onSplit` tu przysyła. Dlatego siedzi w tym samym miejscu co pozostałe
+    // wyjątki, a nie osobnym wejściem do potoku.
+    if (cfg.swap) return attachSwap(el, targets, cfg);
 
     switch (cfg.trigger) {
       case 'exit':       return attachExit(el, targets, cfg);
