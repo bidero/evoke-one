@@ -33,7 +33,12 @@ module.exports = async function (t) {
   // Wyjątki z definicji: 'custom' bierze from/to z pól w panelu, presety
   // tekstowe składają varsy w silniku, a wskaźnikowe śledzą kursor i niosą
   // samo 'to' jako stan spoczynku.
-  const marked = (k) => presets[k].textFx || presets[k].pointer;
+  /* Presety STANOWE nie mają `from` z definicji: stanem spoczynku jest stan
+     naturalny elementu, ten wyrenderowany przez CSS. Dopisanie im `from`
+     przywróciłoby dokładnie tę usterkę, dla której powstały — parkowanie
+     elementu w stanie ukrytym przed pierwszym najechaniem. */
+  const marked = (k) => presets[k].textFx || presets[k].pointer || presets[k].stan;
+  const isState = (k) => !!presets[k].stan;
   /* Presety WYJŚCIOWE kończą niewidoczne — na tym polegają. Wszędzie tam,
      gdzie sprawdzamy „po animacji widać", trzeba je wyłączyć i dołożyć
      sprawdzenie lustrzane, inaczej wyłączenie samo w sobie nic nie znaczy. */
@@ -42,6 +47,32 @@ module.exports = async function (t) {
     (k) => k !== 'custom' && !marked(k) && (!presets[k].from || !presets[k].to));
   t.check('każdy ma from i to albo znacznik', !incomplete.length,
     incomplete.join(', ') || 'brak braków');
+
+  /* Rodzina stanowa: znacznik w tablicy i odpowiedź helpera muszą mówić to
+     samo. Helper zwracający prawdę dla wszystkiego przeszedłby niezauważony —
+     panel grupowałby dalej, tylko wszystko wpadłoby do jednego kubełka. */
+  const stany = keys.filter(isState);
+  t.check('rodzina stanowa istnieje', stany.length >= 8, stany.length + ' szt.');
+  const rozjazd = keys.filter((k) => !!data.rodziny[k].stan !== isState(k));
+  t.check('helper PHP zgadza się ze znacznikiem', !rozjazd.length,
+    rozjazd.join(', ') || 'zgodne dla ' + keys.length + ' presetów');
+  /* Kontrola negatywna do powyższego: helper ma ODRÓŻNIAĆ, a nie przytakiwać.
+     Wejścia i wyjścia muszą dostać fałsz. */
+  const falszywieStanowe = keys.filter((k) => data.rodziny[k].stan && !presets[k].stan);
+  t.check('helper nie uznaje wejść i wyjść za stany', !falszywieStanowe.length,
+    falszywieStanowe.join(', ') || 'żaden');
+  /* Preset stanowy MOŻE mieć `from` — u niego to stan SPOCZYNKU, a nie stan
+     ukrycia (`underline-sweep` trzyma tam podkład z zerową szerokością
+     podkreślenia). Czego mieć nie może, to `from`, które element GASI: to
+     dopiero byłoby wejście w przebraniu i wróciłaby usterka „niewidoczny
+     przed hover". */
+  const stanGasi = stany.filter((k) => {
+    var f = presets[k].from || {};
+    return f.opacity === 0 || f.visibility === 'hidden'
+      || (typeof f.scale === 'number' && f.scale === 0);
+  });
+  t.check('żaden preset stanowy nie gasi się we `from`', !stanGasi.length,
+    stanGasi.join(', ') || 'brak');
 
   const badPtr = keys.filter(
     (k) => presets[k].pointer && !['magnetic', 'tilt'].includes(presets[k].pointer));
@@ -146,9 +177,21 @@ module.exports = async function (t) {
   t.check('zbudowane wszystkie presety', built.length === keys.length - 1,
     built.length + ' z ' + (keys.length - 1));
 
-  const invisible = built.filter((k) => !isExit(k) && st[k].opacity < 0.99);
+  const invisible = built.filter((k) => !isExit(k) && !isState(k) && st[k].opacity < 0.99);
   t.check('po animacji pełna widoczność (wejścia)', !invisible.length,
     invisible.map((k) => k + '=' + st[k].opacity).join(', ') || 'brak przezroczystych');
+
+  /* Lustro wykluczenia stanów, tą samą zasadą co przy wyjściach: gdyby ich
+     tylko „nie oglądać", preset stanowy nierobiący nic przechodziłby na
+     zielono. Stan ma być WIDOCZNIE inny niż spoczynek — `hover-dim` kończy
+     przygaszony, `hover-scale` z niepustą macierzą przekształcenia. */
+  t.check('są presety stanowe do zmierzenia', stany.length > 0, stany.length + ' szt.');
+  t.check('stan przygaszenia naprawdę przygasza',
+    st['hover-dim'] && st['hover-dim'].opacity < 0.7,
+    st['hover-dim'] ? String(st['hover-dim'].opacity) : 'brak presetu');
+  t.check('stan powiększenia naprawdę przekształca',
+    st['hover-scale'] && st['hover-scale'].transform && st['hover-scale'].transform !== 'none',
+    st['hover-scale'] ? st['hover-scale'].transform : 'brak presetu');
 
   // Lustro poprzedniego sprawdzenia. Bez niego wyłączenie wyjść z tamtego
   // znaczyłoby tylko tyle, że ich nie oglądamy — a preset wyjściowy, który
@@ -159,7 +202,7 @@ module.exports = async function (t) {
   t.check('po animacji wyjścia element ZNIKA', !notGone.length,
     notGone.map((k) => k + '=' + st[k].opacity + '/' + st[k].clipPath).join(', ') || 'wszystkie znikły');
 
-  const clipped = built.filter((k) => !isExit(k) && clips(st[k].clipPath));
+  const clipped = built.filter((k) => !isExit(k) && !isState(k) && clips(st[k].clipPath));
   t.check('po animacji nic nie obcina maską (wejścia)', !clipped.length,
     clipped.map((k) => k + '=' + st[k].clipPath).join(', ') || 'brak obciętych');
 
@@ -287,10 +330,15 @@ module.exports = async function (t) {
   // migotało. Usterka, której to sprawdzenie broni — element zostający
   // niewidoczny po najechaniu — nie kończy się NIGDY, więc czekanie na warunek
   // niczego nie osłabia: przy realnym błędzie i tak upłynie termin.
-  await hov.waitForFunction(() => {
-    var s = window.__state();
-    return Object.keys(s).every(function (k) { return s[k].opacity >= 0.99; });
-  }, null, { timeout: 5000 }).catch(function () {});
+  /* Czekamy na WARUNEK, nie na zegar — ale na warunek z innego źródła niż
+     to, co zaraz sprawdzamy. Dawniej stało tu „wszystko na opacity 0,99":
+     miało sens, dopóki preset wejściowy na hoverze parkował niewidoczny
+     i najechanie go dopiero odsłaniało. Od 1.91.0 nie parkuje, więc tamten
+     warunek jest spełniony natychmiast, a pomiar łapał animacje w połowie
+     drogi (zmierzone: podkreślenie na 13% zamiast 100%). Pytamy więc GSAP-a,
+     czy jeszcze cokolwiek jedzie. */
+  await hov.waitForFunction(() => window.__bezRuchu(), null, { timeout: 5000 })
+    .catch(function () {});
 
   const after = await hov.evaluate(() => window.__state());
 
@@ -311,7 +359,14 @@ module.exports = async function (t) {
     after['border-draw'] && /2px/.test(after['border-draw'].boxShadow),
     after['border-draw'] ? after['border-draw'].boxShadow : 'brak presetu');
   t.check('po najechaniu nadal wszystko widoczne',
-    !Object.keys(after).filter((k) => !isExit(k) && after[k].opacity < 0.99).length, 'ok');
+    !Object.keys(after).filter((k) => !isExit(k) && !isState(k) && after[k].opacity < 0.99).length, 'ok');
+
+  /* Stany wolno przygasić, ale nie zgasić — 0,6 to efekt, 0 to zniknięcie.
+     Bez tej granicy wykluczenie ich z poprzedniego sprawdzenia znaczyłoby
+     tylko tyle, że przestaliśmy patrzeć. */
+  const zgaszone = Object.keys(after).filter((k) => isState(k) && after[k].opacity < 0.3);
+  t.check('stan przygasza, ale nie gasi', !zgaszone.length,
+    zgaszone.map((k) => k + '=' + after[k].opacity).join(', ') || 'wszystkie widoczne');
 
   await hov.close();
 

@@ -8,6 +8,8 @@
  * umykała; dlatego test ma zawsze KILKA elementów naraz.
  */
 
+const { phpOutput } = require('./lib/harness');
+
 module.exports = async function (t) {
   t.section('wyzwalacz „wczytanie strony”');
 
@@ -82,4 +84,112 @@ module.exports = async function (t) {
   t.check('bez błędów JS przy celu zewnętrznym', !ex.errors.length,
     ex.errors.join(' | ') || 'brak');
   await ex.close();
+  /* ── Wyzwalacz najechania nie gasi elementu ────────────────────────────
+   *
+   * Zgłoszone z użycia: „chciałbym użyć niektórych predefiniowanych animacji,
+   * ale większość powoduje, że element jest niewidoczny przed hover".
+   *
+   * Powód siedział w `buildTimeline`: ścieżka interaktywna szła przez
+   * `fromTo`, a to renderuje stan początkowy NATYCHMIAST. Przy presecie
+   * wejściowym `from` jest stanem ukrycia (`opacity: 0`), więc element parkował
+   * niewidoczny aż do pierwszego najechania. Wyzwalacz wybiera się per użycie,
+   * więc taką parę da się złożyć na elemencie niezależnie od tego, co stoi
+   * w bibliotece — i dlatego pomiar idzie właśnie na niej.
+   */
+  t.section('hover nie gasi elementu');
+
+  const presety = 'window.__presets = ' + JSON.stringify(JSON.parse(phpOutput('presets.php'))) + ';';
+  const hv = await t.open('anim-hover.html',
+    { viewport: { width: 1000, height: 700 }, head: presety, settle: 600 });
+
+  const spoczynek = await hv.evaluate(() => window.__stan('wejsciowy'));
+  t.check('preset wejściowy na hoverze JEST widoczny w spoczynku',
+    spoczynek.opacity >= 0.99, 'opacity ' + spoczynek.opacity);
+  t.check('i nie stoi przesunięty',
+    spoczynek.transform === 'none' || /matrix\(1, 0, 0, 1, 0, 0\)/.test(spoczynek.transform),
+    spoczynek.transform);
+
+  /* KONTROLA NEGATYWNA. Gdyby parkowanie zniknęło WSZĘDZIE, powyższe też
+     byłoby zielone — a na parkowaniu stoją wszystkie animacje wejściowe:
+     element ma czekać ukryty, aż wjedzie w kadr. */
+  const czeka = await hv.evaluate(() => window.__stan('kontrola'));
+  t.check('a pod wejściem w kadr DALEJ czeka ukryty',
+    czeka.opacity <= 0.01, 'opacity ' + czeka.opacity);
+
+  /* Preset stanowy ma coś robić. Bez tego „widoczny w spoczynku" spełniłby
+     także preset, który nie animuje niczego. Mierzone W LOCIE, bo stan
+     końcowy powrotu jest identyczny ze stanem spoczynku. */
+  const przed = await hv.evaluate(() => window.__stan('stanowy'));
+  await hv.evaluate(() => window.__najedz('stanowy'));
+  await hv.waitForTimeout(200);
+  const wTrakcie = await hv.evaluate(() => window.__stan('stanowy'));
+  /* Odchylenie od macierzy JEDNOSTKOWEJ, nie różnica napisów. Porównanie
+     tekstowe przepuszczało preset stanowy ze `scale: 1`, bo `matrix(1, 0, 0,
+     1, 0, 0)` to inny napis niż `none` przy dokładnie zerowym ruchu —
+     sprawdzenie było zielone dla presetu nierobiącego nic (zmierzone mutacją). */
+  const odchylenie = (v) => {
+    const m = /\(([^)]*)\)/.exec(v || '');
+    if (!m) return 0;
+    const l = m[1].split(',').map((x) => Number(x.trim()));
+    const jedn = l.length === 16
+      ? [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]
+      : [1, 0, 0, 1, 0, 0];
+    return Math.max(...l.map((x, i) => Math.abs(x - (jedn[i] === undefined ? 0 : jedn[i]))));
+  };
+  t.check('preset stanowy po najechaniu przekształca',
+    odchylenie(wTrakcie.transform) > 0.01,
+    przed.transform + ' → ' + wTrakcie.transform
+      + ' (odchylenie ' + odchylenie(wTrakcie.transform).toFixed(3) + ')');
+
+  await hv.evaluate(() => window.__zjedz('stanowy'));
+  await hv.waitForFunction(() => window.__bezRuchu(), null, { timeout: 3000 }).catch(() => {});
+  const poPowrocie = await hv.evaluate(() => window.__stan('stanowy'));
+  /* `none` i macierz jednostkowa to ten sam stan widoczny — GSAP po powrocie
+     zostawia wpisaną transformację, tylko że tożsamościową. Porównanie samych
+     napisów zapalałoby się na czerwono przy elemencie stojącym dokładnie tam,
+     gdzie ma stać. */
+  const spoczynkowa = (v) => v === 'none' || /^matrix\(1, 0, 0, 1, 0, 0\)$/.test(v);
+  t.check('a po zjechaniu wraca do spoczynku',
+    spoczynkowa(poPowrocie.transform) && spoczynkowa(przed.transform),
+    przed.transform + ' → ' + poPowrocie.transform);
+
+  /* Efekt tekstowy zachowuje stan początkowy MIMO pominięcia `from` presetu —
+     maszyna do pisania zaczyna od pustego pola i bez tego nie miałaby czego
+     wypisywać. Kontrola pokazująca, że skasowaliśmy `from` PRESETU, a nie stan
+     początkowy w ogóle. */
+  await hv.evaluate(() => window.__najedz('tekstowy'));
+  await hv.waitForTimeout(120);
+  const wPolowie = await hv.evaluate(() => window.__stan('tekstowy'));
+  t.check('efekt tekstowy na hoverze dalej startuje od pustego',
+    wPolowie.text.length < 'tekstowy'.length, JSON.stringify(wPolowie.text));
+  await hv.waitForFunction(() => window.__bezRuchu(), null, { timeout: 4000 }).catch(() => {});
+  const naKoniec = await hv.evaluate(() => window.__stan('tekstowy'));
+  t.check('i dopisuje treść do końca', naKoniec.text === 'tekstowy',
+    JSON.stringify(naKoniec.text));
+
+  t.check('bez błędów JS przy hoverze', !hv.errors.length, hv.errors.join(' | ') || 'brak');
+  await hv.close();
+
+  /* ── Redukcja ruchu a rodzina stanowa ──────────────────────────────────
+   *
+   * Bramka redukcji ruchu wykluczała stany po WYZWALACZU. Preset stanowy
+   * podpięty pod wejście w kadr przez nią przechodził i jego `to` było
+   * nakładane NA STAŁE — element zostawał trwale przygaszony u każdego, kto
+   * ruch ogranicza. Warunek po znaczniku rodziny łapie to niezależnie od tego,
+   * co wybrano w panelu.
+   */
+  t.section('redukcja ruchu — stan nie zostaje na stałe');
+
+  const red = await t.open('anim-hover.html',
+    { viewport: { width: 1000, height: 700 }, head: presety, reduce: true, settle: 600 });
+  const stanRed = await red.evaluate(() => window.__stan('stanwkadrze'));
+  t.check('przygaszenie NIE zostaje nałożone', stanRed.opacity >= 0.99,
+    'opacity ' + stanRed.opacity);
+
+  /* Lustro: redukcja ruchu ma nadal doprowadzać WEJŚCIA do stanu końcowego,
+     inaczej element z `opacity: 0` we `from` zostałby niewidzialny na zawsze. */
+  const wejRed = await red.evaluate(() => window.__stan('kontrola'));
+  t.check('a wejście mimo redukcji dochodzi do widoczności', wejRed.opacity >= 0.99,
+    'opacity ' + wejRed.opacity);
+  await red.close();
 };

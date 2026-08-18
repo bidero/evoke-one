@@ -166,6 +166,11 @@
       // z wyzwalacza: preset wyjściowy wolno podpiąć pod wejście w kadr
       // (element gasnący, gdy się pojawia, bywa świadomym efektem).
       exit:     !!pick(attr.exit, lib.exit, pre.exit, false),
+      // Czy preset opisuje STAN (najechanie, wciśnięcie), a nie wejście ani
+      // wyjście. Tak samo jak `exit`: ze znacznika w tablicy presetów, nie
+      // z nazwy i nie z wyzwalacza. Czyta to bramka redukcji ruchu — stan
+      // najechania nałożony na stałe zostawiłby przycisk trwale uniesiony.
+      stan:     !!pick(attr.stan, lib.stan, pre.stan, false),
       trigger:  pick(attr.trigger, lib.trigger, 'viewport'),
       easing:   pick(attr.easing, lib.easing, pre.easing, 'power2.out'),
       duration: num(pick(attr.duration, lib.duration, pre.duration), 0.8),
@@ -390,7 +395,14 @@
     // clipPath jest na liście czyszczonych właściwości. Element wracał więc
     // widoczny mimo poprawnie odegranej animacji. Stąd znacznik z presetu
     // obok wyzwalacza — opacity ocalało tylko dlatego, że nie jest czyszczone.
-    if (cfg.exit || cfg.trigger === 'exit') return false;
+    //
+    // Presety STANOWE z tego samego powodu, tylko z drugiej strony: ich stan
+    // końcowy (uniesienie, powiększenie, przygaszenie) NIE jest stanem
+    // naturalnym elementu. `clearProps` zdejmowałby go w chwili, gdy animacja
+    // dobiega końca — element powiększyłby się i natychmiast wrócił, czyli
+    // preset wyglądałby na zepsuty. Wyłapane pomiarem przy dokładaniu tej
+    // rodziny: `hover-scale` pod wejściem w kadr kończył z `transform: none`.
+    if (cfg.exit || cfg.trigger === 'exit' || cfg.stan) return false;
 
     // Element z kilkoma animacjami NIE jest po jednej z nich „gotowy":
     // clearProps skasowałby inline'owy transform, na którym stoi sąsiadka.
@@ -417,16 +429,24 @@
     return vars;
   }
 
-  /** Stan wyjściowy: własny z konfiguracji albo dorobiony przez efekt tekstowy. */
-  function startVars(cfg) {
-    if (cfg.from) return Object.assign({}, cfg.from);
+  /**
+   * Stan wyjściowy: własny z konfiguracji albo dorobiony przez efekt tekstowy.
+   *
+   * `bezFrom` każe pominąć `from` PRESETU — podaje je wyłącznie ścieżka
+   * interaktywna, patrz attachInteractive(). Stan początkowy efektu tekstowego
+   * zostaje mimo tej flagi i to nie jest niedopatrzenie: maszyna do pisania
+   * zaczyna od pustego pola, więc bez niego nie miałaby czego wypisywać.
+   * Gasi element `from` presetu, nie textFxFrom().
+   */
+  function startVars(cfg, bezFrom) {
+    if (cfg.from && !bezFrom) return Object.assign({}, cfg.from);
     return cfg.textFx ? textFxFrom(cfg) : null;
   }
 
-  function buildTimeline(targets, cfg, paused) {
+  function buildTimeline(targets, cfg, paused, bezFrom) {
     var tl    = gsap.timeline({ paused: !!paused });
     var vars  = tweenVars(targets, cfg);
-    var start = startVars(cfg);
+    var start = startVars(cfg, bezFrom);
 
     if (start) tl.fromTo(targets, start, vars);
     else       tl.to(targets, vars);
@@ -564,8 +584,31 @@
     return tl;
   }
 
+  /**
+   * Hover i klik — oś budowana BEZ `from` presetu.
+   *
+   * `fromTo` renderuje stan początkowy natychmiast (na tym celowo stoi
+   * attachViewport). Przy wyzwalaczu interaktywnym daje to skutek odwrotny do
+   * zamierzonego: preset wejściowy ma we `from` stan UKRYTY, więc element
+   * parkuje niewidoczny i pojawia się dopiero po najechaniu. Zgłoszone jako
+   * „większość animacji powoduje, że element jest niewidoczny przed hover".
+   *
+   * Samo `to` znaczy: stanem spoczynku jest to, co wyrenderował CSS. GSAP
+   * zapisuje wartość wyjściową przy pierwszym odtworzeniu, więc `reverse()`
+   * wraca dokładnie tam.
+   *
+   * ALE TYLKO DLA PRESETÓW, KTÓRE NIE SĄ STANOWE. Preset stanowy ma we `from`
+   * stan SPOCZYNKU, nie ukrycia — `underline-sweep` trzyma tam podkład
+   * z gradientem i zerową szerokością podkreślenia, a `border-draw` ramkę
+   * o zerowej grubości. Bez nich nie ma z czego animować: GSAP dostaje
+   * `background-size: auto` i nie ma jak dojść do `100% 2px`. Zmierzone —
+   * kasowanie `from` wszystkim zapaliło dwa istniejące sprawdzenia na czerwono.
+   *
+   * Kryterium jest więc RODZINA presetu, a nie wyzwalacz: `from` gasi wtedy,
+   * gdy preset jest wejściem albo wyjściem, i tylko wtedy go pomijamy.
+   */
   function attachInteractive(el, targets, cfg) {
-    var tl = buildTimeline(targets, cfg, true);
+    var tl = buildTimeline(targets, cfg, true, !cfg.stan);
     var ac = new AbortController();
     var opts = { signal: ac.signal };
 
@@ -792,8 +835,16 @@
         // klasa błędu, dla której powstał tests/motion.test.js.
         // 'menu-close' niesie dokładnie to samo ryzyko: jego `to` to stan
         // treści, która WŁAŚNIE ZNIKNĘŁA razem z zamykanym panelem.
+        //
+        // Osobno RODZINA presetu, nie tylko wyzwalacz. Preset stanowy
+        // (`hover-lift`, `hover-dim`…) opisuje stan NAJECHANIA niezależnie od
+        // tego, pod co go podpięto — użyty z wyzwalaczem 'viewport' przeszedłby
+        // przez warunek po wyzwalaczu i zostałby nałożony na stałe, zostawiając
+        // element trwale uniesiony albo przygaszony. Warunek po znaczniku
+        // łapie to niezależnie od wyboru w panelu.
         if (cfg.trigger !== 'hover' && cfg.trigger !== 'click'
-            && cfg.trigger !== 'exit' && cfg.trigger !== 'menu-close' && cfg.to) {
+            && cfg.trigger !== 'exit' && cfg.trigger !== 'menu-close'
+            && !cfg.stan && cfg.to) {
           gsap.set(resolveTargets(el, cfg), cfg.to);
         }
       });

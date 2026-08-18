@@ -99,6 +99,22 @@
   // fałszywie zielone — dlatego stan jest widoczny dla testu.
   window.__hoverCapable = !window.matchMedia || window.matchMedia('(hover: hover)').matches;
 
+  /**
+   * Czy silnik dokończył to, co zaczął.
+   *
+   * Test czekał wcześniej na „wszystko na opacity 0,99", bo preset wejściowy
+   * podpięty pod hover parkował NIEWIDOCZNY i dopiero najechanie go pokazywało.
+   * Od 1.91.0 nie parkuje — więc tamten warunek jest spełniony natychmiast
+   * i pomiar łapał animacje w połowie drogi. Pytamy więc wprost GSAP-a, czy
+   * coś jeszcze jedzie, zamiast czekać na wartość, którą zaraz sprawdzamy;
+   * inaczej sprawdzenie zabezpieczałoby samo siebie.
+   */
+  window.__bezRuchu = function () {
+    if (!window.gsap) return true;
+    return !gsap.globalTimeline.getChildren(true, true, false)
+      .some(function (t) { return t.isActive(); });
+  };
+
   /** Najechanie na wszystkie pudełka naraz — wyzwalacz hover słucha na elemencie. */
   window.__hoverAll = function () {
     Object.keys(lib).forEach(function (key) {

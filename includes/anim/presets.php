@@ -172,6 +172,7 @@ function evk_anim_presets(): array {
         // jak jego zwykły wygląd — stąd np. jawny cień wyjściowy w 'lift'.
         'lift' => [
             'label'    => 'Hover: uniesienie',
+            'stan'     => true,
             'from'     => ['y' => 0,  'scale' => 1,    'boxShadow' => '0 2px 6px rgba(0,0,0,0.08)'],
             'to'       => ['y' => -6, 'scale' => 1.02, 'boxShadow' => '0 18px 40px rgba(0,0,0,0.18)'],
             'duration' => 0.35,
@@ -179,6 +180,7 @@ function evk_anim_presets(): array {
         ],
         'glow' => [
             'label'    => 'Hover: poświata',
+            'stan'     => true,
             'from'     => ['filter' => 'brightness(1) saturate(1)'],
             'to'       => ['filter' => 'brightness(1.1) saturate(1.2)'],
             'duration' => 0.35,
@@ -189,6 +191,7 @@ function evk_anim_presets(): array {
         // Gradient, powtarzanie i pozycja to podkład — nie animują się.
         'underline-sweep' => [
             'label'    => 'Hover: podkreślenie',
+            'stan'     => true,
             'from'     => [
                 'backgroundImage'    => 'linear-gradient(currentColor, currentColor)',
                 'backgroundRepeat'   => 'no-repeat',
@@ -204,6 +207,7 @@ function evk_anim_presets(): array {
         // Kolor jawny, nie currentColor: GSAP musi umieć rozłożyć go na kanały.
         'border-draw' => [
             'label'    => 'Hover: rysowana ramka',
+            'stan'     => true,
             'from'     => ['boxShadow' => 'inset 0 0 0 0px rgba(17,24,39,0.9)'],
             'to'       => ['boxShadow' => 'inset 0 0 0 2px rgba(17,24,39,0.9)'],
             'duration' => 0.35,
@@ -295,6 +299,73 @@ function evk_anim_presets(): array {
             'strength' => 1.0,
             'to'       => ['rotationX' => 0, 'rotationY' => 0],
             'duration' => 0.5,
+        ],
+
+        /*
+         * ── STANY ─────────────────────────────────────────────────────────
+         *
+         * Znacznik `'stan' => true` odróżnia je od wejść i wyjść — tak samo,
+         * jak robi to `'exit'`, i z tego samego powodu: rozpoznawanie po
+         * nazwie byłoby drugą kopią tej wiedzy i pierwszą, która rozjedzie
+         * się przy zmianie nazwy.
+         *
+         * ŻADEN Z NICH NIE MA `from` — i to jest cała rzecz. Stanem spoczynku
+         * jest stan naturalny elementu, ten wyrenderowany przez CSS; `to`
+         * opisuje stan po najechaniu. Preset wejściowy podpięty pod hover
+         * parkował element w swoim `from`, czyli w stanie UKRYTYM, i element
+         * był niewidoczny do pierwszego najechania. Zgłoszone z użycia jako
+         * „większość animacji powoduje, że element jest niewidoczny przed
+         * hover" — te presety są odpowiedzią na tamto zgłoszenie.
+         *
+         * Czas 0,3 s zamiast domyślnych 0,8: stan ma odpowiedzieć na kursor,
+         * a nie wjechać w kadr.
+         *
+         * Silnik NIE nakłada ich `to` na stałe przy redukcji ruchu, i to
+         * niezależnie od wybranego wyzwalacza — inaczej przycisk zostawałby
+         * trwale uniesiony u każdego, kto ruch ogranicza.
+         */
+        'hover-scale' => [
+            'label'    => 'Stan: powiększenie',
+            'stan'     => true,
+            'to'       => ['scale' => 1.05],
+            'duration' => 0.3,
+            'easing'   => 'power2.out',
+        ],
+        'hover-sink' => [
+            'label'    => 'Stan: wciśnięcie',
+            'stan'     => true,
+            'to'       => ['scale' => 0.96],
+            'duration' => 0.3,
+            'easing'   => 'power2.out',
+        ],
+        // Do linków i strzałek — przesunięcie w prawo czyta się jako „dalej".
+        'hover-shift' => [
+            'label'    => 'Stan: przesunięcie w prawo',
+            'stan'     => true,
+            'to'       => ['x' => 8],
+            'duration' => 0.3,
+            'easing'   => 'power2.out',
+        ],
+        'hover-rotate' => [
+            'label'    => 'Stan: przechylenie',
+            'stan'     => true,
+            'to'       => ['rotation' => 2],
+            'duration' => 0.3,
+            'easing'   => 'power2.out',
+        ],
+        'hover-dim' => [
+            'label'    => 'Stan: przygaszenie',
+            'stan'     => true,
+            'to'       => ['opacity' => 0.6],
+            'duration' => 0.3,
+            'easing'   => 'power2.out',
+        ],
+        'hover-blur-soft' => [
+            'label'    => 'Stan: delikatne rozmycie',
+            'stan'     => true,
+            'to'       => ['filter' => 'blur(2px)'],
+            'duration' => 0.3,
+            'easing'   => 'power2.out',
         ],
 
         /*
@@ -504,6 +575,18 @@ function evk_anim_presets(): array {
 function evk_anim_preset_is_exit(string $slug): bool {
     $presets = evk_anim_presets();
     return !empty($presets[$slug]['exit']);
+}
+
+/**
+ * Czy preset opisuje STAN (najechanie, wciśnięcie), a nie wejście ani wyjście.
+ *
+ * Rodzina stanowa różni się od pozostałych tym, że NIE MA `from`: stanem
+ * spoczynku jest stan naturalny elementu. Rozpoznajemy ją po znaczniku, nie po
+ * prefiksie `hover-` w nazwie — dokładnie tak, jak przy wyjściach.
+ */
+function evk_anim_preset_is_state(string $slug): bool {
+    $presets = evk_anim_presets();
+    return !empty($presets[$slug]['stan']);
 }
 
 /**

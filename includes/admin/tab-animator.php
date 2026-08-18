@@ -13,11 +13,22 @@ $presets    = evk_anim_presets();
  * Presety w dwóch grupach. Wyjścia kończą NIEWIDOCZNIE, więc wybrane przez
  * pomyłkę z płaskiej listy czterdziestu pozycji wyglądają jak zepsuta wtyczka:
  * element znika i nie ma jak zgadnąć dlaczego. Podział bierze się ze znacznika
- * w tablicy presetów, nie z nazwy — patrz evk_anim_preset_is_exit().
+ * w tablicy presetów, nie z nazwy — patrz evk_anim_preset_is_exit()
+ * i evk_anim_preset_is_state().
+ *
+ * Trzeci kubełek, „Stany", ma ten sam rodowód co dwa pierwsze: preset wejściowy
+ * wybrany do hoveru parkuje element w stanie ukrytym, więc wygląda to znowu jak
+ * zepsuta wtyczka. Sam podział na grupy wystarcza, żeby przestać po niego
+ * sięgać — bez odbierania możliwości zrobienia czegoś nietypowego.
  */
-$preset_groups = ['Wejścia' => [], 'Wyjścia' => []];
+$preset_groups = ['Wejścia' => [], 'Wyjścia' => [], 'Stany (hover, klik)' => []];
 foreach ($presets as $preset_key => $preset_row) {
-    $preset_groups[empty($preset_row['exit']) ? 'Wejścia' : 'Wyjścia'][$preset_key] = $preset_row;
+    // Kolejność warunków jest znacząca: stan sprawdzamy PRZED wyjściem, żeby
+    // preset niosący oba znaczniki trafił do grupy, która opisuje go dokładniej.
+    if (!empty($preset_row['stan']))      $grupa = 'Stany (hover, klik)';
+    elseif (!empty($preset_row['exit']))  $grupa = 'Wyjścia';
+    else                                  $grupa = 'Wejścia';
+    $preset_groups[$grupa][$preset_key] = $preset_row;
 }
 
 $triggers   = evk_anim_triggers();

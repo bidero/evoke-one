@@ -2,6 +2,52 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.91.0] — 2026-08-18
+
+### Naprawione
+
+- **Animacja na hover gasiła element.** Zgłoszone z użycia: „chciałbym użyć
+  niektórych predefiniowanych animacji, ale większość powoduje, że element jest
+  niewidoczny przed hover".
+
+  Ścieżka interaktywna budowała oś przez `fromTo`, a to renderuje stan
+  początkowy **natychmiast**. Przy presecie wejściowym `from` jest stanem
+  ukrycia (`opacity: 0`), więc element parkował niewidoczny aż do pierwszego
+  najechania. Wyzwalacz wybiera się per użycie, więc parę „preset wejściowy
+  + hover" dało się złożyć na dowolnym elemencie — sama poprawka w panelu by
+  nie wystarczyła.
+
+  Hover i klik budują teraz oś **samym `to`**: stanem spoczynku jest to, co
+  wyrenderował CSS. Kryterium jest przy tym RODZINA presetu, nie wyzwalacz —
+  preset stanowy ma we `from` stan spoczynku (`underline-sweep` trzyma tam
+  podkład z zerową szerokością podkreślenia) i ten `from` zostaje. Efekty
+  tekstowe też zachowują swój stan początkowy: maszyna do pisania zaczyna od
+  pustego pola.
+
+- **Preset stanowy pod wejściem w kadr cofał sam siebie.** `clearProps` po
+  animacji obowiązywał wszystko, co nie było wyjściem — więc `hover-scale`
+  powiększał element i natychmiast zdejmował powiększenie. Rodzina stanowa jest
+  teraz z tego sprzątania wyłączona, tak samo jak wyjścia.
+
+- **Przy redukcji ruchu stan najechania mógł zostać na stałe.** Bramka
+  wykluczała stany po WYZWALACZU, więc preset stanowy podpięty pod wejście
+  w kadr przez nią przechodził i element zostawał trwale przygaszony albo
+  powiększony. Warunek idzie teraz po znaczniku rodziny.
+
+### Dodane
+
+- **Rodzina presetów STANOWYCH** — sześć nowych (`hover-scale`, `hover-sink`,
+  `hover-shift`, `hover-rotate`, `hover-dim`, `hover-blur-soft`) plus cztery,
+  które już były hoverowe w zamyśle i teraz są tak oznaczone (`lift`, `glow`,
+  `underline-sweep`, `border-draw`). Czas 0,3 s zamiast 0,8: stan reaguje na
+  kursor, a nie wjeżdża w kadr.
+
+  Rozpoznawane po znaczniku `stan` i helperze `evk_anim_preset_is_state()` —
+  tym samym wzorcem, którym biblioteka odróżnia wyjścia, a nie po nazwie.
+
+- **Trzecia grupa w liście presetów** — „Stany (hover, klik)" obok wejść
+  i wyjść, żeby przestać sięgać po „Fade z dołu" do hoveru.
+
 ## [1.90.0] — 2026-08-18
 
 ### Naprawione

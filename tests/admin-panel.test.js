@@ -196,7 +196,12 @@ module.exports = async function (t) {
     return Array.prototype.map.call(sel.querySelectorAll('optgroup'), (o) => o.label);
   }, i);
 
-  t.check('wiersz z pętli PHP ma grupy', (await groupsOf(0)).join('|') === 'Wejścia|Wyjścia',
+  /* Trzy rodziny, w tej kolejności. Lista jest wypisana wprost, a nie liczona
+     z danych, bo chroni też przed literówką w etykiecie JEDNEGO z dwóch
+     szablonów — a taką literówkę porównanie szablonów ze sobą przepuściłoby
+     tylko wtedy, gdyby ktoś popełnił ją w obu naraz. */
+  const GRUPY = 'Wejścia|Wyjścia|Stany (hover, klik)';
+  t.check('wiersz z pętli PHP ma grupy', (await groupsOf(0)).join('|') === GRUPY,
     JSON.stringify(await groupsOf(0)));
 
   const beforeAdd = await g.evaluate(() =>
@@ -208,7 +213,7 @@ module.exports = async function (t) {
   t.check('przycisk dołożył wiersz', afterAdd === beforeAdd + 1, beforeAdd + ' → ' + afterAdd);
 
   t.check('wiersz z szablonu też ma grupy',
-    (await groupsOf(afterAdd - 1)).join('|') === 'Wejścia|Wyjścia',
+    (await groupsOf(afterAdd - 1)).join('|') === GRUPY,
     JSON.stringify(await groupsOf(afterAdd - 1)));
 
   // Grupa „Wyjścia" nie może być pusta — inaczej sprawdzenie wyżej przechodzi

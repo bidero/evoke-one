@@ -11,8 +11,20 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 require __DIR__ . '/_wp-stubs.php';
 require EVK_TEST_ROOT . '/includes/anim/presets.php';
 
+/* Odpowiedzi helperów rodzinowych, liczone w PHP dla KAŻDEGO presetu.
+   Test porównuje je ze znacznikami w tablicy — bez tego helper mógłby zwracać
+   prawdę dla wszystkiego i nikt by nie zauważył, bo panel i tak by grupował. */
+$rodziny = [];
+foreach (array_keys(evk_anim_presets()) as $slug) {
+    $rodziny[$slug] = [
+        'exit'  => evk_anim_preset_is_exit($slug),
+        'stan'  => evk_anim_preset_is_state($slug),
+    ];
+}
+
 echo json_encode([
     'presets' => evk_anim_presets(),
+    'rodziny' => $rodziny,
     'easings' => evk_anim_easings(),
     // Ta sama lista w zapisie CSS-a. Elementy animowane przejściami CSS
     // (menu offcanvas) dostają krzywą tą samą kontrolką, a CSS nazw GSAP-a
