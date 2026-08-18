@@ -2,6 +2,34 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.90.0] — 2026-08-18
+
+### Naprawione
+
+- **Kolor liter przy scrollu stał w miejscu — kontrolka nie miała żadnego
+  wpływu.** Zgłoszone jako „nieważne, jaki kolor ustawię w builderze, tekst
+  zawsze wygląda tak samo", a po włączeniu szerokiego zasięgu — „litery są
+  czarne". Tło przenikało przy tym poprawnie.
+
+  Silnik rozwija kolor globalny Bricks (`var(--bricks-color-…)`) do
+  konkretnego `rgb()`, wpisując go na warstwę tła i **odczytując w tej samej
+  chwili**. Gdy na warstwie wisi `transition: color`, `getComputedStyle`
+  zwraca wartość **sprzed** zmiany — czyli kolor odziedziczony po dokumencie.
+  Każde wywołanie oddawało wtedy tę samą wartość: wszystkie sekcje dostawały
+  jeden kolor liter i przenikanie nie miało czego animować.
+
+  Zbieg nie jest wydumany. Wystarczy dopisać `div` do „selektorów globalnych"
+  w module trybu ciemnego — a warstwa jest divem. Zmierzone na żywej stronie:
+  trzy sekcje z kolorami `#81D4FA`, `#f5f5f5`, `#81D4FA`, a zmienna przez całe
+  przewijanie stała na `rgb(26, 26, 26)`.
+
+  Warstwa ma teraz `transition: none` na stałe. Steruje nią wyłącznie GSAP,
+  więc żadne przejście CSS nie ma na niej nic do roboty — ani przy mierzeniu
+  koloru, ani przy malowaniu tła, gdzie zjadałoby płynność przewijania.
+
+  To ta sama pułapka, przed którą od 1.29.1 broni klasa `evk-bg-measure` przy
+  odczycie kolorów sekcji. Warstwa nie miała odpowiednika.
+
 ## [1.89.0] — 2026-08-18
 
 ### Naprawione

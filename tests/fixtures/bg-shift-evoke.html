@@ -1,0 +1,80 @@
+<!-- Odwzorowanie żywej strony, na której kolor liter stanął w miejscu.
+     Wszystko tutaj jest przepisane z pomiarów, nie wymyślone:
+
+     · cztery sekcje z `data-evk-bg`, PIERWSZA bez własnego koloru tła
+       (gradient) — więc wypada z łańcucha, dokładnie jak tam;
+     · trzy pozostałe z kolorem liter podanym jako KOLOR GLOBALNY
+       (`var(--paleta-*)` zdefiniowany na `:root`, jak paleta Bricksa);
+     · kolory liter: a, b, a — trzy atrybuty, DWIE różne wartości;
+     · ustawienia silnika `length: 0.2`, `smooth: 0.2`, `start: 60`;
+     · kolor tekstu dokumentu #1a1a1a, czyli `rgb(26, 26, 26)` — ta sama
+       wartość, na której zmienna stanęła na żywej stronie. Jeśli silnik
+       zwróci kolor odziedziczony zamiast podanego, pomiar to pokaże
+       jako dokładnie tę liczbę. -->
+<style>
+  :root { --paleta-a: #81D4FA; --paleta-b: #4CAF50; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px system-ui; color: #1a1a1a; }
+  section { min-height: 100vh; display: grid; place-items: center; font-size: 2rem; }
+  /* Przejścia PRZEPISANE Z ŻYWEJ STRONY. Kluczowe jest `div` i `color`:
+     użytkownik dopisał `div` do `global_selectors` trybu ciemnego, więc
+     przejście dostaje też WARSTWA TŁA — a to na niej silnik rozwija kolory
+     z palety, odczytując je natychmiast po wpisaniu. */
+  [data-brx-theme], body, #brx-content, section, div, block, container {
+    transition: background-color .4s ease, color .4s ease, border-color .4s ease;
+  }
+  #e0 { background-image: linear-gradient(#333, #777); }   /* bez własnego koloru → wypada */
+  #e1 { background-color: #0b2a1a; }
+  #e2 { background-color: #b4283c; }
+  #e3 { background-color: #f0e6d2; }
+  /* Nagłówek z własnym kolorem — jak `.brxe-heading` po identyfikatorze. */
+  .naglowek { color: rgb(110, 0, 165); }
+</style>
+
+<div id="brx-content" data-brx-theme>
+  <section id="e0" data-evk-bg>0 — gradient, wypada z łańcucha</section>
+  <section id="e1" data-evk-bg data-evk-bg-text="var(--paleta-a)">1<h3 class="naglowek" id="h1">nagłówek</h3></section>
+  <section id="e2" data-evk-bg data-evk-bg-text="var(--paleta-b)">2<h3 class="naglowek" id="h2">nagłówek</h3></section>
+  <section id="e3" data-evk-bg data-evk-bg-text="var(--paleta-a)">3<h3 class="naglowek" id="h3">nagłówek</h3></section>
+</div>
+<!-- Zwykły div, żeby dało się sprawdzić, że pułapka Z FIXTURE naprawdę stoi:
+     reguła ze strony obejmuje `div`, więc TEN element ma dostać przejście na
+     `color`. Gdyby go nie miał, cały pomiar niżej przechodziłby także bez
+     poprawki, bo nie byłoby z czym walczyć. -->
+<div id="zwykly-div" style="position:absolute;left:-9999px">.</div>
+
+<script src="../../assets/vendor/gsap/gsap.min.js"></script>
+<script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
+<script>
+  // Ustawienia przepisane z żywej strony.
+  window.evkBgShift = { length: 0.2, smooth: 0.2, start: 60, textLight: '#FFFFFF', textDark: '#111111' };
+</script>
+<script src="../../assets/js/bg-shift.js"></script>
+<script>
+  /** Wartość zmiennej koloru liter — to ona stanęła w miejscu. */
+  window.__zm = function () {
+    return getComputedStyle(document.documentElement).getPropertyValue('--evk-bg-text').trim();
+  };
+
+  /** Co silnik zbudował: które sekcje zostały w łańcuchu. */
+  window.__lancuch = function () {
+    return ['e0', 'e1', 'e2', 'e3'].map(function (id) {
+      return { id: id, wLancuchu: document.getElementById(id).classList.contains('evk-bg-handoff') };
+    });
+  };
+
+  /** Przejścia CSS: na zwykłym divie (pułapka) i na warstwie (ma być zgaszone). */
+  window.__przejscia = function () {
+    var wl = document.querySelector('.evk-bg-layer');
+    return {
+      div:     getComputedStyle(document.getElementById('zwykly-div')).transitionProperty,
+      warstwa: wl ? getComputedStyle(wl).transitionProperty : null,
+    };
+  };
+
+  /** Kolor, jaki warstwa ma w danej chwili wpisany inline — źródło dla onUpdate. */
+  window.__warstwa = function () {
+    var l = document.querySelector('.evk-bg-layer');
+    return l ? { inline: l.style.color, tlo: l.style.backgroundColor } : null;
+  };
+</script>

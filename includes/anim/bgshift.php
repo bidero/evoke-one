@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) exit;
  */
 
 /** Wersja asetów modułu — osobna od wersji wtyczki, żeby cache-buster był celny. */
-const EVK_BGSHIFT_VERSION = '1.3.0';
+const EVK_BGSHIFT_VERSION = '1.4.0';
 
 class EVK_Bg_Shift {
 
@@ -118,6 +118,29 @@ class EVK_Bg_Shift {
     inset: 0;
     z-index: -1;
     pointer-events: none;
+    /* ŻADNYCH PRZEJŚĆ CSS NA WARSTWIE — i to jest warunek działania całego
+       koloru liter, nie kosmetyka.
+
+       Warstwa służy silnikowi za miarkę: żeby rozwinąć kolor globalny Bricks
+       (`var(--bricks-color-…)`) do konkretnego `rgb()`, wpisuje go tutaj
+       i ODCZYTUJE W TEJ SAMEJ CHWILI (resolveColor() w bg-shift.js). Gdy na
+       warstwie wisi `transition: color`, getComputedStyle zwraca wartość
+       SPRZED zmiany — czyli kolor odziedziczony po dokumencie. Każde
+       wywołanie oddaje wtedy tę samą wartość, wszystkie sekcje dostają jeden
+       kolor liter i tween nie ma czego przenikać.
+
+       Zbieg nie jest wydumany — zdarzył się na żywej stronie: do
+       `global_selectors` trybu ciemnego dopisano `div`, a warstwa jest divem.
+       Zmierzone: trzy sekcje z kolorami `#81D4FA`, `#f5f5f5`, `#81D4FA`,
+       a zmienna przez całe przewijanie stała na `rgb(26, 26, 26)` — kolorze
+       tekstu dokumentu.
+
+       Reguła jest tutaj, a nie w samym pomiarze, bo warstwą steruje wyłącznie
+       GSAP i żadne przejście CSS nie ma na niej nic do roboty — ani przy
+       mierzeniu, ani przy malowaniu tła, gdzie zjadałoby płynność scruba.
+       To ta sama myśl co `.evk-bg-measure` przy odczycie kolorów sekcji,
+       tyle że stała, bo warstwa jest nasza od początku do końca. */
+    transition: none !important;
 }
 /* !important, bo Bricks maluje tło sekcji regułą z klasy elementu, a tę trzeba
    przebić — kolor nie ginie, silnik odczytuje go przed zdjęciem tła. */

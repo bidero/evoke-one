@@ -457,4 +457,77 @@ module.exports = async function (t) {
     /html\.evk-bg-scrub \.evk-bg-handoff \*\s*\{/.test(CSS)
     && /html\.evk-bg-scrub \.evk-bg-handoff \*\s*\{/.test(CSS_DZIEDZ), 'w obu wariantach');
   await zn.close();
+
+  /* ── Warstwa jako miarka: żadnych przejść CSS ─────────────────────────
+   *
+   * Zgłoszone z żywej strony i tam zmierzone: trzy sekcje z kolorami
+   * `#81D4FA`, `#f5f5f5`, `#81D4FA`, a `--evk-bg-text` przez CAŁE przewijanie
+   * stoi na `rgb(26, 26, 26)` — kolorze tekstu dokumentu. Kontrolka nie ma
+   * wtedy żadnego wpływu: wypełniona czy pusta, litery wyglądają tak samo.
+   *
+   * Przyczyna: silnik rozwija kolor globalny Bricks do konkretnego `rgb()`,
+   * wpisując go na warstwę i ODCZYTUJĄC W TEJ SAMEJ CHWILI. Gdy na warstwie
+   * wisi `transition: color`, getComputedStyle zwraca wartość SPRZED zmiany,
+   * czyli kolor odziedziczony. Każde wywołanie oddaje to samo, wszystkie
+   * sekcje dostają jeden kolor i tween nie ma czego przenikać.
+   *
+   * Na tamtej stronie do `global_selectors` trybu ciemnego dopisano `div`,
+   * a warstwa jest divem — i fixture odtwarza dokładnie tę regułę.
+   *
+   * Ta sama pułapka co w regresji 1.29.1 przy odczycie kolorów sekcji, gdzie
+   * broni jej `.evk-bg-measure`. Warstwa nie miała odpowiednika.
+   */
+  t.section('warstwa jako miarka — bez przejść CSS');
+
+  const ev = await t.open('bg-shift-evoke.html', {
+    viewport: { width: 1400, height: 900 },
+    head: 'document.addEventListener("DOMContentLoaded",function(){' +
+          'var s=document.createElement("style");s.textContent=' + JSON.stringify(CSS_DZIEDZ) +
+          ';document.head.appendChild(s);});',
+  });
+
+  /* Kontrola negatywna: pułapka Z FIXTURE naprawdę stoi. Bez tego pomiar
+     niżej przechodziłby także przed poprawką, bo nie byłoby z czym walczyć. */
+  const prz = await ev.evaluate(() => window.__przejscia());
+  t.check('fixture naprawdę daje divom przejście na `color`',
+    /color/.test(prz.div), prz.div);
+  t.check('a warstwa mimo to przejść NIE ma',
+    prz.warstwa === 'none' || prz.warstwa === 'all 0s ease 0s', prz.warstwa);
+
+  // Łańcuch jak na tamtej stronie: pierwsza sekcja wypada (gradient).
+  const lan = await ev.evaluate(() => window.__lancuch());
+  t.check('sekcja bez własnego tła wypada, reszta zostaje',
+    lan[0].wLancuchu === false && lan.slice(1).every((x) => x.wLancuchu),
+    JSON.stringify(lan.map((x) => x.wLancuchu)));
+
+  /* Sedno: zmienna ma przyjmować WIELE wartości przez całą stronę.
+     Przed poprawką: dokładnie jedna, `rgb(26, 26, 26)`. */
+  const H = await ev.evaluate(() => document.body.scrollHeight);
+  const widziane = new Set();
+  for (let y = 0; y < H; y += 120) {
+    await ev.evaluate((v) => window.scrollTo(0, v), y);
+    await ev.waitForTimeout(45);
+    widziane.add(await ev.evaluate(() => window.__zm()));
+  }
+  t.check('kolor liter przyjmuje wiele wartości, nie stoi w miejscu',
+    widziane.size >= 3, widziane.size + ' różnych wartości');
+
+  /* I są to WŁAŚCIWE wartości — kolor globalny z palety dociera co do składowej.
+     Bez tego „wiele wartości" spełniłby też kolor jadący byle gdzie. */
+  const naSrodku = async (id) => {
+    await ev.evaluate((x) => {
+      const el = document.getElementById(x);
+      window.scrollTo(0, el.offsetTop + el.offsetHeight / 2 - window.innerHeight / 2);
+    }, id);
+    await ev.waitForTimeout(250);
+    return rgb(await ev.evaluate(() => window.__zm()));
+  };
+  t.check('sekcja z var(--paleta-a) daje #81D4FA',
+    near(await naSrodku('e1'), [129, 212, 250]), JSON.stringify(await naSrodku('e1')));
+  t.check('sekcja z var(--paleta-b) daje #4CAF50',
+    near(await naSrodku('e2'), [76, 175, 80]), JSON.stringify(await naSrodku('e2')));
+  t.check('i wraca do paleta-a na ostatniej',
+    near(await naSrodku('e3'), [129, 212, 250]), JSON.stringify(await naSrodku('e3')));
+  t.check('bez błędów JS', !ev.errors.length, ev.errors.join(' | ') || 'brak');
+  await ev.close();
 };
