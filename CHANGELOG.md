@@ -2,6 +2,45 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.89.0] — 2026-08-18
+
+### Naprawione
+
+- **Kolor liter przy scrollu nie zmieniał się płynnie.** Zgłoszone trzeci raz —
+  i tym razem winowajca był po drugiej stronie niż szukaliśmy.
+
+  Silnik był sprawny: zmienna `--evk-bg-text` interpoluje wzorowo, a warstwa
+  tła jedzie z nią w jednym tweenie. Płynność zjadało **cudze przejście CSS na
+  `color`**. Kolor piszemy do zmiennej co klatkę, a każdy zapis restartuje
+  takie przejście od bieżącej wartości — więc litery nie doganiają celu przez
+  całe przewijanie i dochodzą do niego dopiero sekundę po jego zatrzymaniu.
+
+  Zbieg nie był teoretyczny, tylko domyślny: to **moduł trybu ciemnego tej
+  wtyczki** daje `.brxe-text` i `.brxe-heading` sekundowe przejście na `color`,
+  a `section` — czterdziestosetne. Zmierzone: zmienna na `rgb(0, 200, 0)`,
+  sekcja na `rgb(0, 200, 0)`, a tekst wewnątrz niej na `rgb(117, 225, 117)`.
+
+  Na czas przewijania koloru silnik znakuje `<html>` klasą `evk-bg-scrub`,
+  a arkusz gasi wtedy przejścia w sekcjach biorących udział w efekcie —
+  **razem z ich potomkami**, bo przy wąskim zasięgu kolor zmienia się właśnie
+  potomkowi, a wartość odziedziczona uruchamia jego przejście tak samo jak
+  ustawiona wprost. Znacznik schodzi 120 ms po ostatnim zapisie, więc poza
+  samym przewijaniem przejścia (hover i reszta) działają bez zmian.
+
+### Zmienione
+
+- **Domyślny „Zasięg koloru liter" to teraz „wszystkie teksty w sekcji".**
+  Przez jedną wersję domyślne było dziedziczenie — z rozumowania, że szerszy
+  zasięg zabiera kontrolę nad typografią i musi być świadomą decyzją. Praktyka
+  pokazała odwrotnie: moduł włącza się osobno i osobno zaznacza się każdą
+  sekcję, więc decyzja „litery mają iść za tłem" zapada dwa razy, zanim ta
+  opcja w ogóle zaczyna działać — a domyślna kazała podjąć ją trzeci raz
+  w miejscu, którego nikt nie szukał.
+
+  Strony, które po 1.88.0 świadomie wybrały dziedziczenie, mają je zapisane
+  w ustawieniach i zostają przy swoim. Zmiana dotyczy tych, które tej opcji
+  nigdy nie dotknęły.
+
 ## [1.88.0] — 2026-08-13
 
 ### Naprawione

@@ -23,10 +23,40 @@
   <span id="own-follow" class="evk-bg-text">własny, ale podąża</span>
 </section>
 <section id="s2" data-evk-bg>2 — kolor globalny</section>
-<section id="s3" data-evk-bg data-evk-bg-text="rgb(0, 200, 0)">3 — jawny kolor liter</section>
+<section id="s3" data-evk-bg data-evk-bg-text="rgb(0, 200, 0)">3 — jawny kolor liter
+  <!-- Potomek BEZ własnego koloru: przy zasięgu przez dziedziczenie kolor
+       dostaje właśnie on, a nie sekcja — i to jego własne przejście na `color`
+       decyduje o tym, czy litery nadążają. Odpowiednik `.brxe-text`. -->
+  <span id="kid">potomek</span>
+</section>
 <section id="s4" data-evk-bg>4 — gradient, do pominięcia</section>
 <section id="s5" data-evk-bg>5</section>
 
+<script>
+  /* `tcol=1` dokłada sekundowe przejście na `color` — dokładnie to, co
+     domyślnie wystawia moduł trybu ciemnego tej wtyczki na `.brxe-text`,
+     `.brxe-heading` i `section`. Bez tego wariantu fixture odtwarzał tylko
+     przejście TŁA i cała klasa usterek „litery nie nadążają" była poza
+     zasięgiem pomiaru. Parametrem, a nie na stałe, bo pozostałe sprawdzenia
+     czytają kolory wprost i trwające przejście by je rozchwiało. */
+  if (new URLSearchParams(location.search).get('tcol') === '1') {
+    /* Sekcja dostaje przejście jak z `global_selectors`, a POTOMEK jak
+       z `bricks_selectors` (`.brxe-text`, `bricks_duration` = 1). Dwa
+       osobne miejsca, bo tryb ciemny naprawdę wystawia dwie reguły —
+       a usterka mieszkała w tej drugiej.
+
+       BEZ `!important`, bo tryb ciemny też go tam nie stawia. Z nim pomiar
+       nie mówiłby nic o wtyczce: dwie reguły z `!important` rozstrzyga
+       szczegółowość, a `#kid` (identyfikator) bije każdy selektor pisany
+       klasami — więc sprawdzenie byłoby czerwone niezależnie od kodu.
+       Identyfikator zostaje, bo i tak jest MOCNIEJSZY niż to, co wystawia
+       tryb ciemny — reguła wtyczki ma go przebić `!importantem`, nie
+       szczegółowością. */
+    document.write('<style>section{transition:background-color 1s cubic-bezier(.33,1,.68,1),'
+      + 'color 1s cubic-bezier(.33,1,.68,1)}'
+      + '#kid{transition:color 1s cubic-bezier(.33,1,.68,1)}<\/style>');
+  }
+</script>
 <script src="../../assets/vendor/gsap/gsap.min.js"></script>
 <script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
 <script>
@@ -66,6 +96,34 @@
    *  Mierzymy OBA, bo każde z osobna kłamie: sama zmienna nie mówi, czy
    *  dotarła do sekcji (a zasięg jest tu połową funkcji), a sam kolor sekcji
    *  nie odróżnia „silnik ustawił" od „tak było w arkuszu". */
+  /* Przejście CSS na sekcji — do sprawdzenia, że wariant `tcol=1` naprawdę
+     je dołożył. Bez tego pomiar „litery nadążają" przechodziłby także wtedy,
+     gdy żadnego przejścia nie ma i nie ma z czym walczyć. */
+  window.__przejscie = function (id) {
+    var cs = getComputedStyle(document.getElementById(id || 's3'));
+    return { wlasciwosci: cs.transitionProperty, czasy: cs.transitionDuration };
+  };
+
+  /** Czy silnik zgłasza, że właśnie przewija kolor liter. */
+  window.__scrub = function () {
+    return document.documentElement.classList.contains('evk-bg-scrub');
+  };
+
+  /* Ile razy znacznik ZSZEDŁ. W trakcie jednego gestu ma zejść najwyżej raz,
+     na samym końcu. Każde zejście w środku to pełne unieważnienie stylu
+     poddrzewa sekcji ORAZ okno, w którym cudze przejście zdąży wystartować —
+     czyli dokładnie to, przed czym cała ta klasa broni. Liczymy przejścia
+     „był → nie ma", więc powtórne nałożenie już nałożonej klasy nie zawyża. */
+  (function () {
+    var zejscia = 0, byl = false;
+    new MutationObserver(function () {
+      var jest = document.documentElement.classList.contains('evk-bg-scrub');
+      if (byl && !jest) zejscia++;
+      byl = jest;
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    window.__scrubZejscia = function (zeruj) { var n = zejscia; if (zeruj) zejscia = 0; return n; };
+  })();
+
   window.__text = function () {
     var cs = function (id) { return getComputedStyle(document.getElementById(id)).color; };
     return {
@@ -73,6 +131,7 @@
       s1: cs('s1'), s3: cs('s3'), s4: cs('s4'), s5: cs('s5'),
       wlasny:  cs('own'),
       furtka:  cs('own-follow'),
+      potomek: cs('kid'),
     };
   };
   window.__m = function () {

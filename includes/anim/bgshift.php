@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) exit;
  */
 
 /** Wersja asetów modułu — osobna od wersji wtyczki, żeby cache-buster był celny. */
-const EVK_BGSHIFT_VERSION = '1.2.0';
+const EVK_BGSHIFT_VERSION = '1.3.0';
 
 class EVK_Bg_Shift {
 
@@ -41,10 +41,18 @@ class EVK_Bg_Shift {
            kolor schodzi na sekcję i dalej DZIEDZICZENIEM, więc omija każdy
            element z własnym kolorem — a Bricks nadaje własny kolor niemal
            każdemu tekstowi, po identyfikatorze. W praktyce znaczyło to, że
-           litery nie zmieniały się prawie nigdzie. `wszystko` przemalowuje
-           też te elementy. Domyślna zostaje przy dziedziczeniu, bo szerszy
-           zasięg zabiera kontrolę nad typografią i musi być decyzją. */
-        'text_scope' => 'dziedziczenie',
+           litery nie zmieniały się prawie nigdzie.
+
+           Od 1.89.0 domyślna jest `wszystko`. Przez jedną wersję domyślną było
+           dziedziczenie — z rozumowania, że szerszy zasięg zabiera kontrolę nad
+           typografią i musi być decyzją. Praktyka pokazała odwrotnie: moduł
+           włącza się osobno i osobno zaznacza się każdą sekcję, więc decyzja
+           „litery mają iść za tłem" zapadła już dwa razy, zanim ta opcja
+           w ogóle działa — a domyślna kazała podjąć ją trzeci raz w miejscu,
+           którego nikt nie szukał. Kto woli wąski zasięg, ma go wprost w opcji;
+           strony, które wybrały go świadomie po 1.88.0, mają klucz zapisany
+           i zostają przy swoim. */
+        'text_scope' => 'wszystko',
     ];
 
     public static function get_instance(): self {
@@ -87,7 +95,7 @@ class EVK_Bg_Shift {
             'text_light' => sanitize_hex_color($input['text_light'] ?? '') ?: '#ffffff',
             'text_dark'  => sanitize_hex_color($input['text_dark']  ?? '') ?: '#111111',
             'text_scope' => in_array($input['text_scope'] ?? '', ['dziedziczenie', 'wszystko'], true)
-                ? $input['text_scope'] : 'dziedziczenie',
+                ? $input['text_scope'] : 'wszystko',
         ];
     }
 
@@ -134,7 +142,7 @@ class EVK_Bg_Shift {
 .evk-bg-handoff .evk-bg-text {
     color: var(--evk-bg-text, inherit) !important;
 }
-<?php if (($s['text_scope'] ?? 'dziedziczenie') === 'wszystko') : ?>
+<?php if (($s['text_scope'] ?? 'wszystko') === 'wszystko') : ?>
 /* Zasięg „wszystkie teksty": kolor dosięga też elementów Z WŁASNYM kolorem.
    Bez tego wariantu funkcja działała prawie nigdzie — Bricks nadaje kolor
    niemal każdemu tekstowi regułą po identyfikatorze, a wtedy dziedziczenie do
@@ -153,6 +161,37 @@ class EVK_Bg_Shift {
     color: var(--evk-bg-text, inherit) !important;
 }
 <?php endif; ?>
+/* Przejścia CSS WYŁĄCZONE na czas przewijania koloru liter.
+   Kolor piszemy do zmiennej CO KLATKĘ, a cudze `transition: color` restartuje
+   się przy każdym zapisie — tekst nie dogania celu przez cały czas przewijania
+   i wygląda, jakby zmiana koloru nie działała wcale. Sam moduł trybu ciemnego
+   tej wtyczki dokłada domyślnie sekundowe przejście na `color` do `.brxe-text`,
+   `.brxe-heading` i `.brxe-text-link`, a 0,4-sekundowe do `section` — więc
+   zbieg nie jest teoretyczny, tylko domyślny.
+
+   REGUŁA SIĘGA POTOMKÓW I ROBI TO ZAWSZE, niezależnie od zasięgu koloru. Przy
+   zasięgu przez dziedziczenie kolor dostaje właśnie POTOMEK, a zmiana wartości
+   odziedziczonej uruchamia jego własne przejście dokładnie tak samo jak
+   ustawiona wprost. Zmierzone na potomku z sekundowym przejściem: zmienna
+   `rgb(0, 200, 0)`, sekcja `rgb(0, 200, 0)`, potomek `rgb(117, 225, 117)` —
+   i dopiero sekundę PO zatrzymaniu przewijania dochodził do celu.
+
+   Bez wyjątków w rodzaju `:not(img):not(svg)`, którymi obwarowana jest reguła
+   koloru wyżej. Tamte są po to, żeby czegoś NIE PRZEMALOWAĆ; tutaj nic nie
+   malujemy, tylko gasimy animację na czas gestu. Wycięcie `svg` zostawiłoby
+   lag na ikonach rysowanych `currentColor`, bo tryb ciemny daje `svg`
+   sekundowe przejście na `color` i `fill`.
+
+   Znacznik na <html> nakłada i zdejmuje silnik, więc poza samym przewijaniem
+   przejścia działają normalnie — hover i reszta zostają nietknięte. Gdy
+   znacznik schodzi, kolor jest już docelowy i nie ma czego animować.
+
+   `!important` z tego samego powodu co przy kolorze: reguła po identyfikatorze
+   ma wyższą wagę niż cokolwiek, co da się napisać klasami. */
+html.evk-bg-scrub .evk-bg-handoff,
+html.evk-bg-scrub .evk-bg-handoff * {
+    transition: none !important;
+}
 /* Zakładana wyłącznie na czas pomiaru koloru. Tryb ciemny dokłada na sekcje
    `transition: background-color`, a wtedy getComputedStyle zwraca wartość
    w trakcie animacji zamiast docelowej — silnik odczytałby kolor poprzedniego

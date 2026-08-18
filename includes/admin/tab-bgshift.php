@@ -95,28 +95,28 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-field" style="margin-top:12px;">
                         <label>Zasięg koloru liter</label>
                         <select name="evk_bgshift[text_scope]">
-                            <option value="dziedziczenie" <?php selected(($bg['text_scope'] ?? 'dziedziczenie'), 'dziedziczenie'); ?>>
-                                Tylko dziedziczone — nie rusza elementów z własnym kolorem
+                            <option value="wszystko" <?php selected(($bg['text_scope'] ?? 'wszystko'), 'wszystko'); ?>>
+                                Wszystkie teksty w sekcji — także te z własnym kolorem (domyślnie)
                             </option>
-                            <option value="wszystko" <?php selected(($bg['text_scope'] ?? 'dziedziczenie'), 'wszystko'); ?>>
-                                Wszystkie teksty w sekcji — także te z własnym kolorem
+                            <option value="dziedziczenie" <?php selected(($bg['text_scope'] ?? 'wszystko'), 'dziedziczenie'); ?>>
+                                Tylko dziedziczone — nie rusza elementów z własnym kolorem
                             </option>
                         </select>
                     </div>
                     <p class="evo-desc" style="max-width:70ch;">
+                        <strong>Wszystkie teksty</strong> (domyślnie) przemalowują się
+                        niezależnie od tego, co ustawiono w builderze. Nie dotyka obrazów,
+                        pól formularzy ani niczego z klasą <code>evk-bg-keep</code>; tę klasę
+                        warto dodać elementom rysowanym kolorem tekstu (np. ikonom
+                        w przyciskach), gdyby zaczęły znikać na własnym tle.
+                        <br><br>
                         Przy <strong>dziedziczeniu</strong> kolor schodzi na sekcję i dalej w dół
                         drzewa, więc omija każdy element, który ma własny kolor ustawiony
                         w builderze. Brzmi ostrożnie, ale w praktyce znaczy „prawie nigdzie":
                         Bricks nadaje własny kolor niemal każdemu tekstowi, regułą po
                         identyfikatorze. Pojedynczy element da się wtedy dopisać ręcznie klasą
-                        <code>evk-bg-text</code>.
-                        <br><br>
-                        <strong>Wszystkie teksty</strong> przemalowują się niezależnie od tego,
-                        co ustawiono w builderze — i to jest ta opcja, jeśli kolor liter
-                        „nie działa". Nie dotyka obrazów, pól formularzy ani niczego z klasą
-                        <code>evk-bg-keep</code>; tę klasę warto dodać elementom rysowanym
-                        kolorem tekstu (np. ikonom w przyciskach), gdyby zaczęły znikać na
-                        własnym tle.
+                        <code>evk-bg-text</code>. Ten wariant ma sens, gdy typografia sekcji
+                        jest wyklikana ręcznie i ma taka zostać.
                     </p>
                 </div>
 

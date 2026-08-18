@@ -12,16 +12,27 @@
 const { phpOutput, tagContent, rgb, near } = require('./lib/harness');
 
 const VH = 800;
+/* Domyślny zasięg koloru liter to od 1.89.0 „wszystkie teksty", więc CSS bez
+   argumentu JEST tym szerokim. Wariant wąski podajemy jawnie — inaczej
+   sprawdzenia dziedziczenia mierzyłyby coś, czego domyślnie nie ma. */
 const CSS = tagContent(phpOutput('bgshift-head.php'), 'evk-bgshift-css');
 const CSS_WSZYSTKO = tagContent(phpOutput('bgshift-head.php', 'wszystko'), 'evk-bgshift-css');
+const CSS_DZIEDZ   = tagContent(phpOutput('bgshift-head.php', 'dziedziczenie'), 'evk-bgshift-css');
+
+/** Największy rozjazd na składową między dwoma kolorami; null = brak odczytu. */
+const rozjazd = (a, b) => (!a || !b ? 999 : Math.max(...a.map((v, i) => Math.abs(v - b[i]))));
 
 module.exports = async function (t) {
-  const open = (opts) => t.open('bg-shift.html', Object.assign({
-    viewport: { width: 1000, height: VH },
-    head: 'document.addEventListener("DOMContentLoaded",function(){' +
-          'var s=document.createElement("style");s.textContent=' + JSON.stringify(CSS) +
-          ';document.head.appendChild(s);});',
-  }, opts));
+  const open = (opts) => {
+    opts = opts || {};
+    return t.open('bg-shift.html', Object.assign({
+      viewport: { width: 1000, height: VH },
+    }, opts, {
+      head: 'document.addEventListener("DOMContentLoaded",function(){' +
+            'var s=document.createElement("style");s.textContent=' + JSON.stringify(opts.css || CSS) +
+            ';document.head.appendChild(s);});',
+    }));
+  };
 
   // ── Warstwa i oddanie koloru ──────────────────────────────────────────
   t.section('warstwa pod stroną');
@@ -139,7 +150,11 @@ module.exports = async function (t) {
   // nad środkiem sekcji.
   t.section('kolor liter — automat i wskazanie');
 
-  const txt = await open({});
+  /* Wariant WĄSKI, podany jawnie. Dwa sprawdzenia niżej opisują zachowanie
+     dziedziczenia (element z własnym kolorem zostaje nietknięty), a to od
+     1.89.0 nie jest już domyślne — na domyślnym arkuszu mierzyłyby coś
+     przeciwnego niż nazywają. */
+  const txt = await open({ css: CSS_DZIEDZ });
   const atMid = async (p, id) => {
     await p.evaluate((x) => {
       const el = document.getElementById(x);
@@ -171,7 +186,9 @@ module.exports = async function (t) {
     rgb(tv.s4)[0] === 255 && rgb(tv.s4)[1] === 255 && rgb(tv.s4)[2] === 255, tv.s4);
 
   // Dziedziczenie: element z własnym kolorem zostaje nietknięty, a ten
-  // z klasą-furtką podąża. To jest świadomy kompromis, nie niedoróbka.
+  // z klasą-furtką podąża. Tak wygląda WĄSKI zasięg — od 1.89.0 wybierany
+  // ręcznie, bo domyślnie okazał się znaczyć „litery nie zmieniają się
+  // prawie nigdzie".
   tv = await atMid(txt, 's1');
   t.check('element z własnym kolorem zostaje nietknięty',
     near(rgb(tv.wlasny), [255, 0, 255]), tv.wlasny);
@@ -310,25 +327,134 @@ module.exports = async function (t) {
    * DZIEDZICZENIEM. Tyle że dziedziczenie omija każdy element z własnym
    * kolorem, a Bricks nadaje własny kolor niemal każdemu tekstowi, regułą po
    * identyfikatorze. Zasięg opisany jako ostrożny znaczył w praktyce
-   * „prawie nigdzie".
+   * „prawie nigdzie" — i dlatego od 1.89.0 domyślny jest ten szeroki.
    */
   t.section('zasięg koloru liter');
 
-  t.check('domyślnie kolor idzie SAMYM dziedziczeniem',
-    /\.evk-bg-handoff,\s*\n\.evk-bg-handoff \.evk-bg-text/.test(CSS)
-    && !/\.evk-bg-handoff \*/.test(CSS),
-    'bez reguły obejmującej potomków');
+  /* Reguła MALUJĄCA potomków, w odróżnieniu od tej, która tylko gasi im
+     przejścia. Sam selektor `.evk-bg-handoff *` stoi teraz w obu, więc
+     szukanie go bez zaglądania do środka bloku odpowiadałoby na inne
+     pytanie niż zadane. */
+  const maluje_potomkow = (css) => /\.evk-bg-handoff \*[^{]*\{[^}]*color: var/.test(css);
 
-  t.check('a zasięg „wszystko" dosięga też potomków',
-    /\.evk-bg-handoff \*/.test(CSS_WSZYSTKO), 'reguła na potomkach jest');
+  t.check('domyślnie kolor dosięga też potomków',
+    maluje_potomkow(CSS), 'reguła koloru na potomkach jest');
+  t.check('a wariant wąski zostawia je dziedziczeniu',
+    /\.evk-bg-handoff,\s*\n\.evk-bg-handoff \.evk-bg-text/.test(CSS_DZIEDZ)
+    && !maluje_potomkow(CSS_DZIEDZ), 'bez reguły koloru na potomkach');
   /* `!important` to jedyna droga: reguła Bricksa siedzi na IDENTYFIKATORZE,
      więc żaden selektor pisany klasami jej nie przebije szczegółowością. */
   t.check('i robi to z !important, bo inaczej nie przebije reguły po id',
-    /\.evk-bg-handoff \*[^{]*\{[^}]*!important/.test(CSS_WSZYSTKO), '!important');
+    /\.evk-bg-handoff \*[^{]*\{[^}]*color: var[^}]*!important/.test(CSS_WSZYSTKO), '!important');
   /* Pominięcia nie są ozdobą: `color` na obrazie czy polu formularza znaczy co
      innego niż „kolor liter", a ikona rysowana `currentColor` potrafi zniknąć
      na tle własnego przycisku. */
   t.check('ale omija obrazy, pola i wyłączone klasą',
     /:not\(img\)/.test(CSS_WSZYSTKO) && /:not\(input\)/.test(CSS_WSZYSTKO)
     && /evk-bg-keep/.test(CSS_WSZYSTKO), 'wyjątki na miejscu');
+
+  /* Nowa domyślna zmierzona na stronie, nie w arkuszu: `#own` ma w CSS własny
+     kolor (magenta) wpisany jak w builderze. Przy dziedziczeniu zostawał
+     magentą — sprawdzenie wyżej w sekcji o automacie pilnuje, że tam DALEJ
+     zostaje. Tu ma podążać za tłem. */
+  const domysl = await open({});
+  await domysl.evaluate(() => {
+    const el = document.getElementById('s1');
+    window.scrollTo(0, el.offsetTop + el.offsetHeight / 2 - window.innerHeight / 2);
+  });
+  await domysl.waitForTimeout(250);
+  const domTxt = await domysl.evaluate(() => window.__text());
+  t.check('domyślnie element z własnym kolorem PODĄŻA',
+    near(rgb(domTxt.wlasny), [255, 255, 255]), domTxt.wlasny);
+  await domysl.close();
+
+  /* ── Litery nadążają MIMO cudzego przejścia na `color` ────────────────
+   *
+   * Zgłoszone z użycia: „zmiana koloru tekstu nie działa, powinno płynnie się
+   * zmieniać". Silnik był sprawny — zmienna interpoluje wzorowo. Zjadało to
+   * cudze `transition: color`: kolor piszemy CO KLATKĘ, a każdy zapis
+   * RESTARTUJE tamto przejście od bieżącej wartości, więc tekst nie dogania
+   * celu przez cały czas przewijania i dochodzi do niego dopiero po nim.
+   *
+   * Zbieg nie jest teoretyczny — sekundowe przejście na `color` dokłada
+   * domyślnie moduł trybu ciemnego TEJ WTYCZKI, do `section` (global_selectors)
+   * ORAZ do `.brxe-text` i `.brxe-heading` (bricks_selectors). Fixture
+   * odtwarzał dotąd tylko przejście TŁA, i to tylko na sekcji, więc cała ta
+   * klasa usterek była poza zasięgiem pomiaru.
+   *
+   * MIERZYMY SEKCJĘ I POTOMKA OSOBNO, bo kolor dochodzi do nich dwiema różnymi
+   * drogami: sekcja dostaje go regułą, potomek — przy wąskim zasięgu —
+   * dziedziczeniem. Zmiana wartości odziedziczonej uruchamia własne przejście
+   * potomka tak samo jak ustawiona wprost, więc pomiar na samej sekcji
+   * przepuszczał rozjazd sięgający 117 składowych.
+   */
+  t.section('litery nadążają mimo cudzego przejścia na kolor');
+
+  for (const w of [{ nazwa: 'szeroki', css: CSS }, { nazwa: 'wąski', css: CSS_DZIEDZ }]) {
+    const tc = await open({ query: 'tcol=1', css: w.css });
+
+    /* Najpierw dowód, że wariant NAPRAWDĘ dołożył przejście — i to w obu
+       miejscach. Bez tego reszta przechodziłaby także wtedy, gdy nie ma
+       z czym walczyć. */
+    const przS = await tc.evaluate(() => window.__przejscie('s3'));
+    const przK = await tc.evaluate(() => window.__przejscie('kid'));
+    t.check(w.nazwa + ': fixture naprawdę dokłada przejście',
+      /color/.test(przS.wlasciwosci) && /1s/.test(przS.czasy)
+      && /color/.test(przK.wlasciwosci) && /1s/.test(przK.czasy),
+      'sekcja ' + przS.czasy + ', potomek ' + przK.czasy);
+
+    const top = await tc.evaluate(() => document.getElementById('s3').offsetTop);
+    const sekcja = [], potomek = [];
+    for (let f = 0; f <= 1.001; f += 0.25) {
+      await tc.evaluate((y) => window.scrollTo(0, y), top - VH + f * VH * 0.5);
+      await tc.waitForTimeout(200);
+      const st = await tc.evaluate(() => window.__text());
+      const z = rgb(st.zmienna);
+      sekcja.push(rozjazd(z, rgb(st.s3)));
+      potomek.push(rozjazd(z, rgb(st.potomek)));
+    }
+    // Litery mają być TYM SAMYM kolorem co zmienna w każdej chwili.
+    t.check(w.nazwa + ': sekcja trzyma się zmiennej',
+      sekcja.every((d) => d <= 6), sekcja.join(' / ') + ' (max składowa)');
+    t.check(w.nazwa + ': POTOMEK trzyma się zmiennej',
+      potomek.every((d) => d <= 6), potomek.join(' / ') + ' (max składowa)');
+    t.check(w.nazwa + ': bez błędów JS', !tc.errors.length, tc.errors.join(' | ') || 'brak');
+    await tc.close();
+  }
+
+  // Znacznik przewijania: jest w trakcie, schodzi po chwili od ostatniego
+  // zapisu — inaczej przejścia byłyby wyłączone na stałe i zabrałyby hover.
+  const zn = await open({ query: 'tcol=1' });
+  const znTop = await zn.evaluate(() => document.getElementById('s3').offsetTop);
+  await zn.evaluate((y) => window.scrollTo(0, y), znTop - VH + 0.5 * VH * 0.5);
+  await zn.waitForTimeout(30);
+  t.check('w trakcie przewijania znacznik JEST',
+    await zn.evaluate(() => window.__scrub()), 'evk-bg-scrub');
+  await zn.waitForTimeout(400);
+  t.check('a po chwili schodzi, więc przejścia wracają',
+    !(await zn.evaluate(() => window.__scrub())), 'zdjęty');
+
+  /* ...ale NIE MIGA po drodze. Znacznik ma schodzić po ostatnim zapisie,
+     nie po każdym — inaczej w środku gestu wpada okno z włączonymi
+     przejściami, a przy okazji leci pełne unieważnienie stylu poddrzewa
+     kilka razy na sekundę. Gest odtwarzamy gęsto (co ~16 ms), bo pomiary
+     wyżej robią przerwy dłuższe niż samo opóźnienie i znacznik schodzi
+     tam zgodnie z projektem. */
+  await zn.evaluate(() => window.__scrubZejscia(true));
+  await zn.evaluate(async (args) => {
+    for (let i = 0; i <= 40; i++) {
+      window.scrollTo(0, args.od + (args.do_ - args.od) * (i / 40));
+      await new Promise((r) => setTimeout(r, 16));
+    }
+  }, { od: znTop - VH, do_: znTop - VH + VH * 0.5 });
+  t.check('i nie miga w trakcie gestu',
+    (await zn.evaluate(() => window.__scrubZejscia())) <= 1,
+    (await zn.evaluate(() => window.__scrubZejscia())) + ' zejść na ~700 ms przewijania');
+  /* Gaszenie przejść ma sięgać potomków ZAWSZE, nie tylko przy szerokim
+     zasięgu — przy wąskim to właśnie potomek dostaje kolor i to on ma
+     nadążać. */
+  t.check('gaszenie przejść sięga potomków w obu zasięgach',
+    /html\.evk-bg-scrub \.evk-bg-handoff \*\s*\{/.test(CSS)
+    && /html\.evk-bg-scrub \.evk-bg-handoff \*\s*\{/.test(CSS_DZIEDZ), 'w obu wariantach');
+  await zn.close();
 };

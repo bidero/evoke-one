@@ -106,9 +106,40 @@
     return contrast(bg, light) >= contrast(bg, dark) ? light : dark;
   }
 
-  /** Zapis koloru liter — jedna wartość na cały dokument, zasięg robi CSS. */
+  /* Znacznik „kolor liter jest właśnie przewijany". Patrz setText(). */
+  var SCRUB_CLASS = 'evk-bg-scrub';
+  var scrubTimer  = null;
+
+  /**
+   * Zapis koloru liter — jedna wartość na cały dokument, zasięg robi CSS.
+   *
+   * Razem z wartością nakładamy na <html> znacznik, na czas którego arkusz
+   * WYŁĄCZA przejścia CSS w sekcjach biorących udział w efekcie. Bez tego cudze
+   * `transition: color` zjada całą płynność: piszemy nową wartość CO KLATKĘ,
+   * a każdy zapis RESTARTUJE tamto przejście od bieżącego koloru. Tekst nie
+   * dogania celu przez cały czas przewijania i dochodzi do niego dopiero po
+   * nim — czyli wygląda, jakby zmiana koloru nie działała.
+   *
+   * Zbieg nie jest teoretyczny, tylko domyślny: moduł trybu ciemnego tej
+   * wtyczki daje `section` przejście na `color`, a `.brxe-text`
+   * i `.brxe-heading` — sekundowe. Zmierzone na potomku z takim przejściem:
+   * zmienna `rgb(0, 200, 0)`, sekcja `rgb(0, 200, 0)`, POTOMEK
+   * `rgb(117, 225, 117)`. Potomek jest tu ważniejszy od sekcji, bo przy
+   * zasięgu przez dziedziczenie to jemu kolor się zmienia.
+   *
+   * Znacznik schodzi po chwili od OSTATNIEGO zapisu, a nie po każdym — stąd
+   * `clearTimeout`. Bez niego znacznik gaśnie i wraca kilkadziesiąt razy na
+   * sekundę przewijania (zmierzone: 34 zejścia na 700 ms), a każde takie
+   * zejście to i okno, w którym cudze przejście zdąży wystartować, i pełne
+   * unieważnienie stylu poddrzewa sekcji. Gdy schodzi na dobre, kolor jest już
+   * docelowy — więc nie ma czego animować i nic nie przeskakuje.
+   */
   function setText(color) {
-    document.documentElement.style.setProperty('--evk-bg-text', color);
+    var html = document.documentElement;
+    html.style.setProperty('--evk-bg-text', color);
+    html.classList.add(SCRUB_CLASS);
+    clearTimeout(scrubTimer);
+    scrubTimer = setTimeout(function () { html.classList.remove(SCRUB_CLASS); }, 120);
   }
 
   /**
