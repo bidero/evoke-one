@@ -33,6 +33,24 @@
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
+  /**
+   * Czy animacja mieści się w zadanym zakresie szerokości okna.
+   *
+   * Granice są WŁĄCZNE i podane w pikselach: `minW` znaczy „nie graj węziej",
+   * `maxW` — „nie graj szerzej". Zero i brak są tym samym, czyli brakiem
+   * granicy z tej strony.
+   *
+   * Pytamy `matchMedia`, nie `innerWidth`, bo o tym samym decyduje potem
+   * nasłuch zmiany progu — jedno źródło prawdy zamiast dwóch, które umieją
+   * się rozjechać o szerokość paska przewijania.
+   */
+  function wZakresie(cfg) {
+    if (!window.matchMedia) return true;
+    if (cfg.minW && !window.matchMedia('(min-width: ' + cfg.minW + 'px)').matches) return false;
+    if (cfg.maxW && !window.matchMedia('(max-width: ' + cfg.maxW + 'px)').matches) return false;
+    return true;
+  }
+
   function pick() {
     for (var i = 0; i < arguments.length; i++) {
       var v = arguments[i];
@@ -192,6 +210,14 @@
       loop:     !!pick(attr.loop, lib.loop, false),
       loopYoyo: !!pick(attr.loopYoyo, lib.loop_yoyo, lib.loopYoyo, false),
       order:    num(pick(attr.order, lib.order), 0),
+      /* Zakres szerokości okna, w którym animacja ma w ogóle istnieć. PHP
+         wysyła tu PIKSELE — klucze breakpointów Bricks rozwija po swojej
+         stronie (patrz enqueue_assets w includes/anim/animator.php), więc
+         silnik nie musi wiedzieć nic o nazwach progów. Brak wartości znaczy
+         „bez granicy" i dlatego czytamy je przez `num(..., 0)`: zero i brak
+         są tu tym samym. */
+      minW:     num(pick(attr.minW, lib.minW), 0),
+      maxW:     num(pick(attr.maxW, lib.maxW), 0),
     };
   }
 
@@ -778,9 +804,24 @@
   }
 
   function queueLoad(el, targets, cfg) {
-    // Kolejka startowa odpala się raz. Ponowny podział tekstu przy zmianie
-    // szerokości okna nie ma odtwarzać animacji wejściowej — ona już była.
-    if (loadQueueRan) return;
+    if (loadQueueRan) {
+      /* Kolejka startowa przebiegła. Rozstrzyga teraz ZNACZNIK GOTOWOŚCI, bo
+         trafiają tu dwa różne przypadki i mylenie ich psuje albo jeden, albo
+         drugi:
+
+         — element JUŻ zbudowany (ponowny podział tekstu po zmianie szerokości
+           okna) nie ma odtwarzać wejścia drugi raz; ono już było;
+         — element JESZCZE nie zbudowany wchodzi tu dlatego, że dopiero teraz
+           mieści się w zakresie szerokości. Jego wejście nie zagrało nigdy,
+           a sekwencja startowa dawno się skończyła i nie ma z czym go
+           synchronizować — więc gra od razu, sam. */
+      if (el.dataset.evkAnimReady === '1') return;
+
+      var tl = buildTimeline(targets, cfg);
+      tl.delay(cfg.delay);
+      rememberTimeline(el, tl);
+      return;
+    }
     loadQueue.push({ el: el, targets: targets, cfg: cfg });
   }
 
@@ -917,6 +958,25 @@
     var cfgs = buildConfigs(el);
     if (!cfgs.length) return false;   // brak konfiguracji → spróbuj ponownie później
 
+    /* Zakres szerokości okna. PRZED gałęzią redukcji ruchu i to jest znaczące:
+       poza zakresem animacja ma nie ISTNIEĆ, więc nie wolno nakładać jej stanu
+       końcowego na stałe tak, jak robi to redukcja. Element zostaje dokładnie
+       taki, jak wyrenderował go CSS.
+
+       Nie ma tu też ryzyka, że treść zniknie: zasłonę `evk-veil` zdejmuje
+       `unveil()` bezwarunkowo na końcu initAll(), niezależnie od tego, ile
+       elementów się zainicjalizowało. */
+    var wszystkich = cfgs.length;
+    cfgs = cfgs.filter(wZakresie);
+    var pominieto = cfgs.length !== wszystkich;
+
+    /* Brak znacznika gotowości = „spróbuj ponownie później". Tak samo, jak przy
+       braku konfiguracji — initAll() woła się ponownie po zmianie progu
+       i dobuduje to, co odpadło. Znacznika nie stawiamy TAKŻE wtedy, gdy
+       zbudowaliśmy część: inaczej element z dwiema animacjami zablokowałby
+       tę pominiętą na zawsze. */
+    if (!cfgs.length) return false;
+
     // Reduced motion: żadnego ruchu, ale stan końcowy musi być widoczny —
     // inaczej element z opacity:0 we from zostałby niewidzialny na stałe.
     // Przy podziale tekstu nie ma po co dzielić: i tak nic się nie animuje.
@@ -946,7 +1006,7 @@
           gsap.set(resolveTargets(el, cfg), cfg.to);
         }
       });
-      return true;
+      return !pominieto;
     }
 
     // Podział tekstu wolno zrobić RAZ na element. Dwa `SplitText.create()` na
@@ -969,7 +1029,7 @@
       }
       buildAnimation(el, resolveTargets(el, cfg), cfg);
     });
-    return true;
+    return !pominieto;
   }
 
   /**
@@ -990,6 +1050,57 @@
     // Bezwarunkowo — także gdy część elementów się nie zainicjalizowała.
     // Stany „from" są już nałożone, więc nie ma czym błysnąć.
     unveil();
+  }
+
+  /**
+   * Progi szerokości, o których w ogóle warto wiedzieć.
+   *
+   * Zbierane z biblioteki I z atrybutów, bo zakres da się podać w obu miejscach.
+   * Atrybuty czytamy wyrażeniem, a nie przez buildConfig() — na starcie chodzi
+   * o same liczby, a pełne scalanie konfiguracji dla każdego elementu byłoby
+   * tu robotą wykonaną drugi raz.
+   */
+  function progiWUzyciu() {
+    var out = {};
+    var dodaj = function (min, max) {
+      if (min) out['(min-width: ' + min + 'px)'] = 1;
+      if (max) out['(max-width: ' + max + 'px)'] = 1;
+    };
+
+    Object.keys(LIBRARY).forEach(function (k) { dodaj(LIBRARY[k].minW, LIBRARY[k].maxW); });
+
+    document.querySelectorAll('[data-evk-anim]').forEach(function (el) {
+      var raw = el.getAttribute('data-evk-anim') || '';
+      if (raw.indexOf('minW') === -1 && raw.indexOf('maxW') === -1) return;
+      var re = /"(minW|maxW)"\s*:\s*(\d+)/g, m;
+      while ((m = re.exec(raw))) dodaj(m[1] === 'minW' ? m[2] : 0, m[1] === 'maxW' ? m[2] : 0);
+    });
+
+    return Object.keys(out);
+  }
+
+  /**
+   * Ponowne wejście w zakres dobudowuje to, co wcześniej odpadło.
+   *
+   * Cała robota siedzi w tym, że initAll() pomija elementy ze znacznikiem
+   * gotowości — więc powtórka jest tania, a pominięte dobudowują się same.
+   *
+   * W DRUGĄ STRONĘ NIC NIE ROZBIERAMY. Zwężenie okna to działanie osoby przy
+   * komputerze, nie odwiedzającego, a rozebranie żywej osi czasu potrafi
+   * zostawić element w stanie pośrednim — czyli dokładnie tam, gdzie nie
+   * chcemy go zostawić.
+   *
+   * Nasłuch zakładamy tylko wtedy, gdy ktokolwiek używa zakresów: bez tego
+   * każda strona z Animatorem przeliczałaby się przy każdej zmianie rozmiaru
+   * okna, żeby nie znaleźć niczego do zrobienia.
+   */
+  function sledzProgi() {
+    progiWUzyciu().forEach(function (zapytanie) {
+      var mq = window.matchMedia(zapytanie);
+      var reakcja = function () { initAll(); };
+      if (mq.addEventListener)  mq.addEventListener('change', reakcja);
+      else if (mq.addListener)  mq.addListener(reakcja);
+    });
   }
 
   /**
@@ -1024,6 +1135,12 @@
     }
   }
 
+  /** Pierwsze uruchomienie: budowa plus nasłuch progów szerokości. */
+  function pierwszyPrzebieg() {
+    initAll();
+    if (window.matchMedia) sledzProgi();
+  }
+
   function start() {
     if (!Object.keys(LIBRARY).length && !document.querySelector('[data-evk-anim]')) {
       unveil();
@@ -1038,9 +1155,9 @@
         && typeof document.fonts.ready.then === 'function';
 
     if (waitFonts) {
-      document.fonts.ready.then(function () { waitForGSAP(initAll); });
+      document.fonts.ready.then(function () { waitForGSAP(pierwszyPrzebieg); });
     } else {
-      waitForGSAP(initAll);
+      waitForGSAP(pierwszyPrzebieg);
     }
   }
 

@@ -761,6 +761,74 @@ function evk_anim_triggers(): array {
 }
 
 /**
+ * Punkty graniczne szerokości okna — do pola „Graj w zakresie".
+ *
+ * Czytane Z BRICKS, nie wypisane tutaj. Dzięki temu zakres w wierszu biblioteki
+ * i breakpoint w builderze to jedno i to samo pojęcie: przestawienie progu
+ * w Bricks przestawia od razu wszystkie wiersze, zamiast zostawiać liczbę,
+ * która kiedyś się zgadzała.
+ *
+ * Wartości awaryjne to domyślne progi Bricks. Wchodzą, gdy Bricks jest
+ * nieaktywny (wtyczka działa też bez niego) albo gdy zmieni API — a wtedy
+ * lepiej mieć sensowną listę niż puste pole, którego nie da się wypełnić.
+ *
+ * Zwraca `klucz => ['label', 'width']`, posortowane rosnąco po szerokości.
+ * Breakpoint bazowy (desktop) NIE ma górnej granicy i z tej listy wypada:
+ * w polu „do" nie znaczyłby nic, a w polu „od" jest tym samym co brak progu.
+ *
+ * @return array<string, array{label: string, width: int}>
+ */
+function evk_anim_breakpoints(): array {
+    $out = [];
+
+    if (class_exists('\Bricks\Breakpoints')) {
+        $lista = [];
+        if (method_exists('\Bricks\Breakpoints', 'get_breakpoints')) {
+            $lista = (array) \Bricks\Breakpoints::get_breakpoints();
+        } elseif (property_exists('\Bricks\Breakpoints', 'breakpoints')) {
+            $lista = (array) \Bricks\Breakpoints::$breakpoints;
+        }
+
+        foreach ($lista as $bp) {
+            if (!is_array($bp)) continue;
+            // Bazowy nie ma szerokości i nie ma go po co pokazywać — patrz wyżej.
+            if (!empty($bp['base'])) continue;
+            $key   = (string) ($bp['key'] ?? '');
+            $width = (int)    ($bp['width'] ?? 0);
+            if ($key === '' || $width <= 0) continue;
+            $out[$key] = [
+                'label' => (string) ($bp['label'] ?? $key),
+                'width' => $width,
+            ];
+        }
+    }
+
+    if (!$out) {
+        $out = [
+            'mobile_portrait'  => ['label' => 'Telefon',          'width' => 478],
+            'mobile_landscape' => ['label' => 'Telefon poziomo',  'width' => 767],
+            'tablet_portrait'  => ['label' => 'Tablet',           'width' => 991],
+        ];
+    }
+
+    uasort($out, static fn($a, $b) => $a['width'] <=> $b['width']);
+    return $out;
+}
+
+/**
+ * Szerokość progu w pikselach albo `null`, gdy klucza nie ma na liście.
+ *
+ * `null`, a NIE zero: zero znaczyłoby „granica na zerze", czyli warunek zawsze
+ * spełniony przy dolnym progu i nigdy przy górnym. Klucz, który zniknął
+ * z Bricks, ma znaczyć „bez ograniczeń" — a to w silniku wyraża się brakiem
+ * liczby, nie liczbą.
+ */
+function evk_anim_breakpoint_width(string $key): ?int {
+    $bp = evk_anim_breakpoints();
+    return isset($bp[$key]) ? (int) $bp[$key]['width'] : null;
+}
+
+/**
  * Krzywe easingu GSAP dostępne w panelu.
  *
  * To jednocześnie lista dopuszczalnych wartości przy zapisie. Pusta wartość

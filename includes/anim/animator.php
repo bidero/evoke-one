@@ -61,6 +61,13 @@ class EVK_Animator {
         // Lista słów dla presetu „zmieniające się słowa" — po jednym na linię.
         // Trzymana jak from/to: tekstem w opcji, tablicą na froncie.
         'words'    => '',
+        /* Zakres szerokości okna, w którym animacja w ogóle ma istnieć.
+           Trzymane KLUCZEM breakpointu Bricks, nie liczbą: zmiana progu
+           w builderze przestawia wtedy wszystkie wiersze naraz, zamiast
+           zostawiać piksele, które kiedyś się zgadzały. Puste = bez granicy;
+           na piksele rozwija je enqueue_assets() tuż przed wysłaniem. */
+        'bp_min'   => '',
+        'bp_max'   => '',
     ];
 
     public static function get_instance(): self {
@@ -146,6 +153,7 @@ class EVK_Animator {
         $presets  = evk_anim_presets();
         $triggers = evk_anim_triggers();
         $easings  = evk_anim_easings();
+        $bpoints  = evk_anim_breakpoints();
 
         $clean['animations'] = [];
         $seen_slugs = [];
@@ -202,6 +210,11 @@ class EVK_Animator {
                 'from'     => evk_anim_props_to_text(evk_anim_parse_props((string) ($row['from'] ?? ''))),
                 'to'       => evk_anim_props_to_text(evk_anim_parse_props((string) ($row['to']   ?? ''))),
                 'words'    => evk_anim_words_to_text(evk_anim_parse_words((string) ($row['words'] ?? ''))),
+                /* Tylko znane klucze. Nieznany zapisujemy jako pusty, czyli
+                   „bez granicy" — a nie odrzucamy całego wiersza, bo próg mógł
+                   po prostu zniknąć z Bricks po zapisie. */
+                'bp_min'   => isset($bpoints[$row['bp_min'] ?? '']) ? (string) $row['bp_min'] : '',
+                'bp_max'   => isset($bpoints[$row['bp_max'] ?? '']) ? (string) $row['bp_max'] : '',
             ];
         }
 
@@ -250,6 +263,18 @@ class EVK_Animator {
             $words = evk_anim_parse_words((string) $row['words']);
             if ($words) $row['words'] = $words;
             else        unset($row['words']);
+
+            /* Klucze breakpointów → piksele. Przeglądarka dostaje liczby, więc
+               silnik nie musi wiedzieć nic o Bricks ani o nazwach progów.
+               Klucz nieznany (próg usunięty w builderze po zapisie wiersza)
+               znaczy „bez granicy" — i wtedy klucz MUSI zniknąć z payloadu,
+               a nie pojechać jako 0: zero to granica na zerze, czyli warunek
+               zawsze prawdziwy dla dolnej i zawsze fałszywy dla górnej. */
+            foreach (['bp_min' => 'minW', 'bp_max' => 'maxW'] as $pole => $klucz) {
+                $px = evk_anim_breakpoint_width((string) ($row[$pole] ?? ''));
+                if ($px !== null) $row[$klucz] = $px;
+                unset($row[$pole]);
+            }
 
             $library[$row['slug']] = $row;
 

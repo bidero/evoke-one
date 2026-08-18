@@ -333,4 +333,77 @@ module.exports = async function (t) {
     swRed.evaluate(() => document.getElementById('wgore').textContent.trim())
       .then((x) => x === 'Zobacz projekty'), 'sprawdzane niżej');
   await swRed.close();
+  /* ── Zakres szerokości okna ────────────────────────────────────────────
+   *
+   * Zgłoszone jako „media query dla animacji". Wiersz biblioteki dostaje
+   * zakres, w którym animacja ma w ogóle istnieć — poza nim silnik nie buduje
+   * osi czasu, nie dzieli tekstu i nie zakłada ScrollTriggerów.
+   *
+   * Najgroźniejsza możliwa regresja to nie „gra tam, gdzie nie powinna", tylko
+   * „treść ukryta na stałe": zasłona `evk-veil` chowa wszystko z atrybutem,
+   * dopóki silnik jej nie zdejmie. Dlatego widoczność ma tu osobne sprawdzenie
+   * i to ono jest w tej sekcji najważniejsze.
+   */
+  t.section('zakres szerokości okna');
+
+  const wask = await t.open('anim-breakpoint.html',
+    { viewport: { width: 500, height: 600 }, head: presety, settle: 700 });
+
+  const w500 = await wask.evaluate(() => window.__bp('waski'));
+  const s500 = await wask.evaluate(() => window.__bp('szeroki'));
+  const z500 = await wask.evaluate(() => window.__bp('zawsze'));
+
+  t.check('w wąskim oknie wiersz „do 700" GRA', w500.tweenow > 0,
+    w500.tweenow + ' tweenów');
+  t.check('a wiersz „od 900" NIE powstaje', s500.tweenow === 0,
+    s500.tweenow + ' tweenów');
+  /* Kontrola negatywna: bez niej „nie powstaje" byłoby spełnione także wtedy,
+     gdyby silnik przestał działać na tej szerokości w ogóle. */
+  t.check('kontrola: wiersz bez granic gra tak czy owak', z500.tweenow > 0,
+    z500.tweenow + ' tweenów');
+
+  /* SEDNO. Element pominięty musi być WIDOCZNY — inaczej zasłona zostawia
+     tekst niewidzialny na stałe, czyli pusty ekran na telefonie. */
+  t.check('zasłona zeszła mimo pominięcia', !(await wask.evaluate(() => window.__zaslona())),
+    'evk-veil zdjęta');
+  t.check('a pominięty element JEST widoczny',
+    s500.visibility === 'visible' && s500.opacity >= 0.99,
+    s500.visibility + ', opacity ' + s500.opacity);
+
+  /* Znacznik gotowości: pominięty element ma go NIE mieć, bo to on decyduje,
+     czy silnik do niego wróci. */
+  t.check('pominięty nie dostaje znacznika gotowości', !s500.gotowy, String(s500.gotowy));
+  t.check('a zbudowany dostaje', z500.gotowy, String(z500.gotowy));
+
+  // ── Wejście w zakres dobudowuje ──────────────────────────────────────
+  await wask.setViewportSize({ width: 1100, height: 600 });
+  await wask.waitForTimeout(500);
+  const s1100 = await wask.evaluate(() => window.__bp('szeroki'));
+  t.check('po poszerzeniu okna pominięta animacja POWSTAJE', s1100.tweenow > 0,
+    s1100.tweenow + ' tweenów');
+
+  /* Element z dwiema animacjami: jedna grała od razu, druga była poza zakresem.
+     Gdyby znacznik gotowości stanął po tej pierwszej, druga nie dobudowałaby
+     się nigdy. */
+  const dwie = await wask.evaluate(() => window.__bp('dwie'));
+  t.check('element z dwiema animacjami dobudował tę drugą', dwie.tweenow >= 2,
+    dwie.tweenow + ' tweenów');
+
+  t.check('bez błędów JS przy zakresach', !wask.errors.length,
+    wask.errors.join(' | ') || 'brak');
+  await wask.close();
+
+  // ── Ta sama strona w szerokim oknie: granica działa w drugą stronę ────
+  const szer = await t.open('anim-breakpoint.html',
+    { viewport: { width: 1200, height: 600 }, head: presety, settle: 700 });
+  const w1200 = await szer.evaluate(() => window.__bp('waski'));
+  const s1200 = await szer.evaluate(() => window.__bp('szeroki'));
+  t.check('w szerokim oknie wiersz „od 900" gra', s1200.tweenow > 0,
+    s1200.tweenow + ' tweenów');
+  t.check('a wiersz „do 700" NIE powstaje', w1200.tweenow === 0,
+    w1200.tweenow + ' tweenów');
+  t.check('i on też jest widoczny',
+    w1200.visibility === 'visible' && w1200.opacity >= 0.99,
+    w1200.visibility + ', opacity ' + w1200.opacity);
+  await szer.close();
 };

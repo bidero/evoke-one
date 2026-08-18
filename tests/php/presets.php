@@ -26,6 +26,7 @@ echo json_encode([
     'presets' => evk_anim_presets(),
     'rodziny' => $rodziny,
     'easings' => evk_anim_easings(),
+    'breakpoints' => evk_anim_breakpoints(),
     // Ta sama lista w zapisie CSS-a. Elementy animowane przejściami CSS
     // (menu offcanvas) dostają krzywą tą samą kontrolką, a CSS nazw GSAP-a
     // nie zna — nieznana funkcja czasu unieważnia CAŁĄ deklarację

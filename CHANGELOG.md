@@ -2,6 +2,41 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.93.0] — 2026-08-18
+
+### Dodane
+
+- **Zakres szerokości okna dla animacji.** Każdy wiersz biblioteki dostaje pola
+  „Graj od szerokości" i „Graj do szerokości" — ciężkie wejścia i podział tekstu
+  da się wreszcie wyłączyć na telefonie, a hover tam, gdzie jest dotyk.
+
+  Poza zakresem silnik **nie buduje** osi czasu: nie dzieli tekstu, nie zakłada
+  ScrollTriggerów, nie klonuje niczego. To nie jest ukrycie animacji, tylko jej
+  nieobecność — więc znika też jej koszt.
+
+  Progi czytane są **z Bricks** (`\Bricks\Breakpoints`), a w wierszu zapisujemy
+  KLUCZ, nie piksele. Przestawienie breakpointu w builderze przestawia więc od
+  razu wszystkie wiersze, zamiast zostawiać liczbę, która kiedyś się zgadzała.
+  Na front idą już piksele, więc silnik nie musi wiedzieć nic o Bricks. Bez
+  Bricks wchodzą jego domyślne progi (478 / 767 / 991).
+
+  Zakres działa też przez `data-evk-anim` na pojedynczym elemencie, tak samo jak
+  reszta ustawień.
+
+  Wejście w zakres **dobudowuje** animację bez przeładowania strony: obrót
+  telefonu albo poszerzenie okna buduje to, co wcześniej odpadło. W drugą
+  stronę nic nie jest rozbierane — rozebranie żywej osi czasu potrafiłoby
+  zostawić element w stanie pośrednim.
+
+### Naprawione
+
+- **Kolejka startowa blokowała animacje dobudowywane później.** Wyzwalacz „load"
+  miał zasadę „kolejka odpala się raz", żeby ponowny podział tekstu po zmianie
+  szerokości okna nie odtwarzał wejścia drugi raz. Ta sama zasada blokowałaby
+  jednak animację, która nigdy nie zagrała, bo dopiero teraz weszła w zakres.
+  Rozstrzyga teraz znacznik gotowości elementu: już zbudowany nie gra ponownie,
+  nigdy niezbudowany gra od razu.
+
 ## [1.92.0] — 2026-08-18
 
 ### Dodane

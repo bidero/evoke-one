@@ -165,6 +165,41 @@ module.exports = async function (t) {
     JSON.stringify(words.library.a.words) === JSON.stringify(['szybciej', 'prościej', 'taniej']),
     JSON.stringify(words.library.a.words));
 
+  /* ── Zakres szerokości okna ────────────────────────────────────────
+   *
+   * W wierszu zapisujemy KLUCZ breakpointu, a na front idą PIKSELE — dzięki
+   * temu przestawienie progu w Bricks przestawia wszystkie wiersze naraz,
+   * a silnik nie musi wiedzieć nic o nazwach progów.
+   */
+  const bp = data.breakpoints;
+  const bpKeys = Object.keys(bp);
+  t.check('lista progów niepusta', bpKeys.length >= 2, bpKeys.length + ' progów');
+  t.check('każdy próg ma etykietę i szerokość',
+    bpKeys.every((k) => bp[k].label && bp[k].width > 0),
+    bpKeys.map((k) => k + '=' + bp[k].width).join(', '));
+  /* Kolejność jest częścią umowy: pole w panelu ma listę od najwęższego. */
+  const szer = bpKeys.map((k) => bp[k].width);
+  t.check('progi posortowane rosnąco',
+    szer.every((w, i) => i === 0 || w > szer[i - 1]), szer.join(' < '));
+
+  const najwezszy = bpKeys[0];
+  const zakres = enq([{ slug: 'a', preset: 'fade-up', bp_min: najwezszy },
+                      { slug: 'b', preset: 'fade-up', bp_max: najwezszy },
+                      { slug: 'c', preset: 'fade-up', bp_min: 'nie-ma-takiego' }]);
+  t.check('klucz progu rozwija się do pikseli',
+    zakres.library.a.minW === bp[najwezszy].width && zakres.library.b.maxW === bp[najwezszy].width,
+    'minW ' + zakres.library.a.minW + ', maxW ' + zakres.library.b.maxW);
+  /* Klucz, którego już nie ma (próg usunięty w builderze po zapisie wiersza),
+     ma znaczyć „bez granicy". Zero znaczyłoby granicę na zerze — czyli warunek
+     zawsze prawdziwy dla dolnej i zawsze fałszywy dla górnej. */
+  t.check('nieznany klucz znaczy BRAK granicy, nie zero',
+    !('minW' in zakres.library.c) && !('maxW' in zakres.library.c),
+    JSON.stringify(Object.keys(zakres.library.c).filter((k) => /^(min|max)W$/.test(k))));
+  /* Sam klucz nie może wyciec na front — silnik czyta wyłącznie liczby. */
+  t.check('klucze progów nie jadą na front',
+    !('bp_min' in zakres.library.a) && !('bp_max' in zakres.library.b),
+    Object.keys(zakres.library.a).filter((k) => k.indexOf('bp_') === 0).join(', ') || 'brak');
+
   const many = enq([{ slug: 'a', preset: 'rotating-words',
     words: Array.from({ length: 25 }, (_, i) => 'w' + i).join('\n') }]);
   t.check('lista słów przycięta do 20', many.library.a.words.length === 20,

@@ -32,6 +32,7 @@ foreach ($presets as $preset_key => $preset_row) {
 }
 
 $triggers   = evk_anim_triggers();
+$breakpoints = evk_anim_breakpoints();
 $easings    = evk_anim_easings();
 $row_def    = $anim->row_defaults();
 ?>
@@ -126,6 +127,27 @@ $row_def    = $anim->row_defaults();
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <?php /* Zakres szerokości okna. Progi z Bricks, więc to samo
+                             pojęcie co breakpointy w builderze — patrz
+                             evk_anim_breakpoints(). Granice są WŁĄCZNE. */ ?>
+                    <div>
+                        <label>Graj od szerokości</label>
+                        <select name="evk_animator[animations][<?php echo $index; ?>][bp_min]">
+                            <option value="" <?php selected($r['bp_min'], ''); ?>>— bez granicy —</option>
+                            <?php foreach ($breakpoints as $key => $bp): ?>
+                            <option value="<?php echo esc_attr($key); ?>" <?php selected($r['bp_min'], $key); ?>><?php echo esc_html($bp['label'] . ' (' . $bp['width'] . ' px)'); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Graj do szerokości</label>
+                        <select name="evk_animator[animations][<?php echo $index; ?>][bp_max]">
+                            <option value="" <?php selected($r['bp_max'], ''); ?>>— bez granicy —</option>
+                            <?php foreach ($breakpoints as $key => $bp): ?>
+                            <option value="<?php echo esc_attr($key); ?>" <?php selected($r['bp_max'], $key); ?>><?php echo esc_html($bp['label'] . ' (' . $bp['width'] . ' px)'); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                     <div>
                         <label>Easing</label>
                         <select name="evk_animator[animations][<?php echo $index; ?>][easing]">
@@ -211,6 +233,28 @@ $row_def    = $anim->row_defaults();
                 <select name="evk_animator[animations][{INDEX}][trigger]">
                     <?php foreach ($triggers as $key => $label): ?>
                     <option value="<?php echo esc_attr($key); ?>" <?php selected($row_def['trigger'], $key); ?>><?php echo esc_html($label); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php /* Ten sam zakres co w szablonie z pętli wyżej. Dwie kopie są
+                     tu z konieczności (jedna renderuje istniejące wiersze, druga
+                     obsługuje „Dodaj animację"), więc rozjazd między nimi pilnuje
+                     osobne sprawdzenie w tests/admin-panel.test.js. */ ?>
+            <div>
+                <label>Graj od szerokości</label>
+                <select name="evk_animator[animations][{INDEX}][bp_min]">
+                    <option value="" <?php selected($row_def['bp_min'], ''); ?>>— bez granicy —</option>
+                    <?php foreach ($breakpoints as $key => $bp): ?>
+                    <option value="<?php echo esc_attr($key); ?>" <?php selected($row_def['bp_min'], $key); ?>><?php echo esc_html($bp['label'] . ' (' . $bp['width'] . ' px)'); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
+                <label>Graj do szerokości</label>
+                <select name="evk_animator[animations][{INDEX}][bp_max]">
+                    <option value="" <?php selected($row_def['bp_max'], ''); ?>>— bez granicy —</option>
+                    <?php foreach ($breakpoints as $key => $bp): ?>
+                    <option value="<?php echo esc_attr($key); ?>" <?php selected($row_def['bp_max'], $key); ?>><?php echo esc_html($bp['label'] . ' (' . $bp['width'] . ' px)'); ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
