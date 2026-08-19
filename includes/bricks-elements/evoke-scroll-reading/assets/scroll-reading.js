@@ -120,7 +120,10 @@
     pending = false;
     if (!instances.length) return;
     instances.forEach(build);
-    ScrollTrigger.refresh();
+    /* Przez wspólny helper: `refresh()` zapisuje pozycję przewijania, a na iOS
+       zapis w trakcie bezwładności ją kasuje — includes/89-gsap.php. */
+    if (window.evkOdswiez) window.evkOdswiez();
+    else ScrollTrigger.refresh();
   }
 
   // Odroczenie: zmiana motywu może lecieć w callbacku View Transition,

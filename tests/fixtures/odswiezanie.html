@@ -1,0 +1,74 @@
+<!--
+  Odświeżanie wyzwalaczy ScrollTriggera.
+
+  Zgłoszone z użycia: na telefonie, zaraz po wczytaniu strony, mocne machnięcie
+  palcem → strona jedzie bezwładnie, zwalnia i NAGLE STAJE.
+
+  Mechanizm ustalony pomiarem: `ScrollTrigger.refresh()` zapisuje pozycję
+  przewijania — skacze na samą górę i wraca. Na desktopie tego nie widać, bo
+  dzieje się w jednej klatce; na iOS zapis pozycji w trakcie bezwładności
+  KASUJE ją natychmiast.
+
+  Fixture podstawia SZPIEGA pod `window.scrollTo` — dokładnie tego, którym
+  mechanizm został znaleziony. Bez niego „refresh nie ucina przewijania" nie
+  da się zmierzyć w przeglądarce bez ekranu dotykowego.
+
+  Helper wstrzykiwany jest z PHP przez `head` (tests/php/gsap-inline.php),
+  a nie przepisany tutaj — kopia zaczęłaby żyć własnym życiem.
+-->
+<style>
+  body { margin: 0; font: 16px system-ui; }
+  .s { height: 900px; background: #345; color: #fff; }
+</style>
+
+<div class="s">1</div><div class="s">2</div><div class="s">3</div>
+<div class="s">4</div><div class="s">5</div><div class="s">6</div>
+
+<script src="../../assets/vendor/gsap/gsap.min.js"></script>
+<script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
+<script>
+  gsap.registerPlugin(ScrollTrigger);
+
+  /* Szpieg na KAŻDYM zapisie pozycji przewijania. To jest cała mechanika
+     usterki: refresh woła `scrollTo(0, 0)` i z powrotem, a na iOS taki zapis
+     w trakcie bezwładności ją kasuje. */
+  window.__zapisy = [];
+  (function () {
+    var oryg = window.scrollTo;
+    window.scrollTo = function () {
+      window.__zapisy.push('scrollTo:' + [].slice.call(arguments).join(','));
+      return oryg.apply(this, arguments);
+    };
+  })();
+
+  /* Jeden wyzwalacz, żeby odświeżanie miało co przeliczać — bez niego
+     `refresh()` bywa tanim wyjściem i pomiar nic nie znaczy. */
+  gsap.to(document.querySelector('.s'), {
+    opacity: 0.99,
+    scrollTrigger: { trigger: '.s', start: 'top 85%' },
+  });
+
+  /** Zapisy pozycji przewijania od ostatniego zerowania. */
+  window.__zapisyOdZera = function (zeruj) {
+    var n = window.__zapisy.slice();
+    if (zeruj) window.__zapisy.length = 0;
+    return n;
+  };
+
+  /* Udawane przewijanie: SERIA zdarzeń, bez ruszania pozycji. Helper poznaje
+     po nich, że użytkownik jest w trakcie ruchu, a my nie zaburzamy pomiaru
+     własnymi zapisami pozycji.
+     
+     Seria, nie jedno zdarzenie: bezwładność to strumień zdarzeń co kilkanaście
+     milisekund przez ułamek sekundy. Przy jednym zdarzeniu cisza zapada, zanim
+     helper zdąży cokolwiek odłożyć — i pomiar mierzy wtedy własną zwłokę,
+     a nie kod. */
+  var machniecie = null;
+  window.__zacznijRuch = function () {
+    clearInterval(machniecie);
+    machniecie = setInterval(function () {
+      window.dispatchEvent(new Event('scroll'));
+    }, 40);
+  };
+  window.__zakonczRuch = function () { clearInterval(machniecie); machniecie = null; };
+</script>

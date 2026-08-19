@@ -226,17 +226,46 @@
    */
   var pilnujeWysokosci = false;
 
+  /* Odświeżenie przez WSPÓLNY helper, nie wprost.
+   *
+   * `ScrollTrigger.refresh()` ZAPISUJE pozycję przewijania — zmierzone szpiegiem
+   * pod `window.scrollTo`: skok na 0 i powrót na miejsce. Na desktopie tego nie
+   * widać, ale na iOS zapis pozycji w trakcie bezwładnego przewijania KASUJE je
+   * natychmiast: strona zwalnia i nagle staje. Ten obserwator był tego
+   * najczęstszym źródłem, bo patrzy na CAŁY dokument — a Animator zmienia jego
+   * wymiary po wczytaniu fontów, czyli sekundę po wejściu na stronę, wprost
+   * w pierwsze machnięcie palcem.
+   *
+   * Helper (includes/89-gsap.php) odkłada odświeżenie, aż przewijanie ustanie.
+   * Ścieżka zapasowa dla stron, na których nie dojechał. */
+  function odswiez() {
+    if (window.evkOdswiez) window.evkOdswiez();
+    else if (window.ScrollTrigger) ScrollTrigger.refresh();
+  }
+
   function pilnujWysokosciStrony() {
     if (pilnujeWysokosci || typeof ResizeObserver === 'undefined') return;
     pilnujeWysokosci = true;
 
     var czeka = null;
+    var ostatniaSzerokosc = document.documentElement.clientWidth;
+    var dotyk = window.matchMedia && !window.matchMedia('(hover: hover)').matches;
+
     new ResizeObserver(function () {
+      /* Na dotyku pomijamy zmiany SAMEJ WYSOKOŚCI. Chowanie paska adresu
+         zmienia wysokość widoku dziesiątki razy w trakcie jednego przewijania,
+         a układ ani drgnie — to ta sama sytuacja, dla której GSAP wprowadził
+         `ignoreMobileResize`, tylko że po naszej stronie. */
+      var szerokosc = document.documentElement.clientWidth;
+      var samaWysokosc = szerokosc === ostatniaSzerokosc;
+      ostatniaSzerokosc = szerokosc;
+      if (dotyk && samaWysokosc) return;
+
       /* Odbicie jest tu konieczne, nie kosmetyczne: przy doładowywaniu treści
          wysokość zmienia się kilkanaście razy pod rząd, a przeliczenie
          wyzwalaczy dotyka każdego z nich na całej stronie. */
       clearTimeout(czeka);
-      czeka = setTimeout(function () { ScrollTrigger.refresh(); }, 150);
+      czeka = setTimeout(odswiez, 150);
     }).observe(document.documentElement);
   }
 

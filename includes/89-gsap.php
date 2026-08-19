@@ -76,10 +76,54 @@ function evk_register_gsap_libs(): void {
     // Scroll, Scroll Reading i Stacking Cards.
     //
     // Skrypt inline drukuje się wyłącznie tam, gdzie handle jest enqueue'owany.
-    wp_add_inline_script(
-        'evk-scrolltrigger',
-        'if (window.ScrollTrigger) ScrollTrigger.config({ ignoreMobileResize: true });'
-    );
+    //
+    // Do tego WSPÓLNE odświeżanie wyzwalaczy. `ignoreMobileResize` chroni tylko
+    // wbudowaną ścieżkę GSAP-a; nasze własne, jawne `ScrollTrigger.refresh()`
+    // (marquee, tło przy scrollu, scroll reading, circular menu, stacking cards,
+    // horizontal scroll) tę ochronę omijały — a refresh ZAPISUJE pozycję
+    // przewijania. Zmierzone szpiegiem pod `window.scrollTo`:
+    //
+    //     scrollTo:0,0   ← skok na samą górę
+    //     scrollTo:0,0
+    //     scrollTo:0,1200 ← i powrót
+    //
+    // Na desktopie niewidoczne, bo dzieje się w jednej klatce. Na iOS zapis
+    // pozycji w trakcie bezwładnego przewijania KASUJE je natychmiast: strona
+    // zwalnia i nagle staje. Zgłoszone z użycia dokładnie w tych słowach.
+    wp_add_inline_script('evk-scrolltrigger', <<<'JS'
+        if (window.ScrollTrigger) ScrollTrigger.config({ ignoreMobileResize: true });
+
+        (function () {
+            var czeka = null, ostatniRuch = 0;
+            var ODSTEP = 200;   // scalanie serii wywołań
+            var CISZA  = 150;   // ile bez ruchu, żeby uznać przewijanie za skończone
+
+            window.addEventListener('scroll', function () {
+                ostatniRuch = Date.now();
+            }, { passive: true });
+
+            function sprobuj() {
+                /* Jeszcze się przewija — odkładamy. Refresh w trakcie ruchu ucina
+                   bezwładność, bo zapisuje pozycję przewijania. */
+                if (Date.now() - ostatniRuch < CISZA) {
+                    czeka = setTimeout(sprobuj, CISZA);
+                    return;
+                }
+                czeka = null;
+                if (window.ScrollTrigger) ScrollTrigger.refresh();
+            }
+
+            /**
+             * Odśwież wyzwalacze — ale nie teraz, tylko gdy przewijanie ustanie.
+             * Seria wywołań (doładowywanie treści potrafi zmienić wysokość
+             * kilkanaście razy pod rząd) daje jedno przeliczenie.
+             */
+            window.evkOdswiez = function () {
+                clearTimeout(czeka);
+                czeka = setTimeout(sprobuj, ODSTEP);
+            };
+        })();
+        JS);
 }
 
 // Priorytet 1 — przed loaderem elementów (5) i przed enqueue Animatora (20).

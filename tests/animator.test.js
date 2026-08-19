@@ -384,9 +384,14 @@ module.exports = async function (t) {
 
   /* Element z dwiema animacjami: jedna grała od razu, druga była poza zakresem.
      Gdyby znacznik gotowości stanął po tej pierwszej, druga nie dobudowałaby
-     się nigdy. */
+     się nigdy.
+
+     DOKŁADNIE dwa, nie „co najmniej". Element bez znacznika gotowości wraca do
+     initOne() przy każdej przebudowie, a bez pamięci zbudowanych konfiguracji
+     ta pierwsza, gotowa animacja dostawała za każdym razem kolejną oś czasu.
+     Przy „co najmniej dwóch" podwojenie przechodziło niezauważone. */
   const dwie = await wask.evaluate(() => window.__bp('dwie'));
-  t.check('element z dwiema animacjami dobudował tę drugą', dwie.tweenow >= 2,
+  t.check('element z dwiema animacjami dobudował tę drugą', dwie.tweenow === 2,
     dwie.tweenow + ' tweenów');
 
   t.check('bez błędów JS przy zakresach', !wask.errors.length,

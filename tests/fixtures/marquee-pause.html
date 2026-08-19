@@ -53,6 +53,39 @@
     };
   });
 
+  /* Wysokość dokumentu zmieniana NA ŻĄDANIE. `?grow=` wyżej rośnie raz, samo
+     z siebie; tutaj chodzi o zmianę dokładnie w chwili, gdy test patrzy — bo
+     obserwator wysokości ma reagować inaczej na dotyku niż na desktopie. */
+  window.__urosnij = function (px) {
+    document.getElementById('gora').style.height = px + 'px';
+  };
+
+  /* Dwa różne pomiary, bo to dwie różne rzeczy.
+     
+     `__prosby` — ile razy silnik POPROSIŁ wspólny helper o odświeżenie. Tym
+     mierzymy pominięcie zmian samej wysokości: marquee ma nie zawołać wcale.
+     
+     `__odswiezenia` — ile razy wyzwalacze NAPRAWDĘ się przeliczyły. Tym
+     mierzymy ścieżkę zapasową: gdy helpera na stronie nie ma, prośba nie ma
+     gdzie trafić, a odświeżenie i tak musi nastąpić. */
+  window.__prosby = 0;
+  if (window.evkOdswiez) {
+    var helper = window.evkOdswiez;
+    window.evkOdswiez = function () {
+      window.__prosby++;
+      return helper.apply(this, arguments);
+    };
+  }
+
+  window.__odswiezenia = 0;
+  window.addEventListener('load', function () {
+    var origRefresh = ScrollTrigger.refresh;
+    ScrollTrigger.refresh = function () {
+      window.__odswiezenia++;
+      return origRefresh.apply(this, arguments);
+    };
+  });
+
   window.__pos = function () {
     var el = document.querySelector('#m .evk-marquee-item');
     return Math.round(el.getBoundingClientRect().left);

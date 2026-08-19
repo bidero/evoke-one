@@ -129,7 +129,12 @@
 	function run() {
 		gsap.registerPlugin(ScrollTrigger);
 		document.querySelectorAll('.evk-hscroll[data-evk-hscroll]').forEach(initHScroll);
-		window.addEventListener('load', function () { ScrollTrigger.refresh(); });
+		/* Przez wspólny helper: `refresh()` zapisuje pozycję przewijania, a na iOS
+		   zapis w trakcie bezwładności ją kasuje — includes/89-gsap.php. */
+		window.addEventListener('load', function () {
+			if (window.evkOdswiez) window.evkOdswiez();
+			else ScrollTrigger.refresh();
+		});
 	}
 
 	function boot() {

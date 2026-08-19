@@ -163,7 +163,12 @@ function evk_circular_menu_init_one( root ) {
         // Animator startuje na DOMContentLoaded i zdążył już zmierzyć elementy
         // w środku panelu tam, gdzie stały w treści strony. Bez przeliczenia
         // trzymają pozycje sprzed przenosin.
-        if ( window.ScrollTrigger && typeof ScrollTrigger.refresh === 'function' ) {
+        /* Przez wspólny helper: `ScrollTrigger.refresh()` zapisuje pozycję
+           przewijania, a na iOS zapis w trakcie bezwładności ją kasuje.
+           Helper odkłada odświeżenie, aż ruch ustanie — includes/89-gsap.php. */
+        if ( window.evkOdswiez ) {
+            window.evkOdswiez();
+        } else if ( window.ScrollTrigger && typeof ScrollTrigger.refresh === 'function' ) {
             ScrollTrigger.refresh();
         }
     }

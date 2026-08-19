@@ -157,7 +157,10 @@ function evk_stacking_cards_init() {
                 if (tl.scrollTrigger) triggers.push(tl.scrollTrigger);
             });
 
-            ScrollTrigger.refresh();
+            /* Przez wspólny helper: `refresh()` zapisuje pozycję przewijania, a na iOS
+               zapis w trakcie bezwładności ją kasuje — includes/89-gsap.php. */
+            if (window.evkOdswiez) window.evkOdswiez();
+            else ScrollTrigger.refresh();
         }
 
         /** Wspólna polityka ruchu — patrz includes/anim/motion.php. */

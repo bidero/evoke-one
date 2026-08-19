@@ -1,0 +1,127 @@
+<!--
+  Animator — co czeka na webfonty, a co nie.
+
+  Do 1.96.0 `needsFonts` wstrzymywało CAŁE uruchomienie silnika: podział tekstu,
+  zwykłe animacje, zdjęcie zasłony — wszystko lądowało dopiero po
+  `document.fonts.ready`. Na żywej stronie to sekunda po wczytaniu, czyli
+  dokładnie w chwili pierwszego machnięcia palcem; zmiana wymiarów strony
+  wypalała wtedy obserwator marquee, ten wołał `ScrollTrigger.refresh()`,
+  a refresh ZAPISUJE pozycję przewijania i na iOS kasuje bezwładność.
+
+  Na fonty czeka tylko PODZIAŁ tekstu, bo tylko tam metryki fontu decydują
+  o łamaniu linii.
+
+  Fixture podstawia własne `document.fonts.ready` — obietnicę, którą test
+  rozwiązuje wtedy, kiedy chce. Bez tego „przed wczytaniem fontów" jest
+  w przeglądarce nie do uchwycenia: fonty systemowe są gotowe natychmiast
+  i oba przypadki wyglądają tak samo.
+-->
+<style>
+  /* Odwzorowanie <style id="evk-anim-preveil"> z includes/anim/animator.php. */
+  .evk-veil [data-evk-anim],
+  .evk-veil [class*="evk-anim-"] { visibility: hidden !important; }
+
+  body { margin: 0; font: 16px system-ui; }
+  p, div[id] { padding: 10px; background: #234; color: #fff; }
+</style>
+<script>document.documentElement.classList.add('evk-veil');</script>
+
+<script>
+/* Fonty pod kontrolą testu. Musi stanąć PRZED animator.js, bo silnik czyta
+   `document.fonts.ready` w start(), na DOMContentLoaded.
+
+   `?fontyOdRazu=1` rozwiązuje obietnicę natychmiast — do przypadku, w którym
+   fonty są gotowe ZANIM dojedzie GSAP. */
+window.__fontyGotowe = null;
+(function () {
+  var obietnica = new Promise(function (res) { window.__fontyGotowe = res; });
+  try {
+    Object.defineProperty(document.fonts, 'ready', {
+      configurable: true,
+      get: function () { return obietnica; },
+    });
+  } catch (e) {
+    /* Gdyby przeglądarka na to nie pozwoliła, pomiar byłby fikcją — lepiej
+       niech test pada głośno niż przechodzi na atrapie. */
+    window.__fontyGotowe = null;
+  }
+  if (new URLSearchParams(location.search).get('fontyOdRazu') === '1') {
+    window.__fontyGotowe();
+  }
+})();
+</script>
+
+<!-- Bez podziału tekstu: fonty nic tu nie zmieniają, ma powstać od razu. -->
+<div id="zwykly" data-evk-anim='{"animation":"z"}'>zwykła animacja</div>
+<!-- Z podziałem: łamanie linii zależy od metryk fontu, więc czeka. -->
+<p id="dzielony" data-evk-anim='{"animation":"d"}'>Projektujemy strony, które
+  wyglądają jak marka, a działają jak narzędzie — od pierwszego szkicu po
+  wdrożenie i opiekę nad wynikami w wyszukiwarce.</p>
+
+<script>
+/* GSAP wczytywany Z OPÓŹNIENIEM, sterowanym z `?gsapPozno=<ms>`.
+   
+   Domyślne zero to zwykła strona. Wartość dodatnia odtwarza wolne łącze: fonty
+   bywają wtedy gotowe ZANIM dojedzie biblioteka, a silnik ma wtedy NIE ruszać
+   przebudowy — `initAll()` bez GSAP-a to błąd wykonania i martwy Animator.
+   Kolejność jest zamierzona: ScrollTrigger na końcu, bo to na niego czeka
+   silnik, a SplitText musi już wtedy być.
+
+   Statyczne <script src> nie dałyby się opóźnić, stąd wczytywanie z kodu także
+   w przypadku domyślnym — inaczej ta gałąź byłaby nie do zmierzenia. */
+(function () {
+  var pliki = ['gsap.min.js', 'SplitText.min.js', 'ScrollTrigger.min.js'];
+  var po = parseInt(new URLSearchParams(location.search).get('gsapPozno'), 10) || 0;
+  var dalej = function (i) {
+    if (i >= pliki.length) return;
+    var s = document.createElement('script');
+    s.src = '../../assets/vendor/gsap/' + pliki[i];
+    s.onload = function () { dalej(i + 1); };
+    document.head.appendChild(s);
+  };
+  setTimeout(function () { dalej(0); }, po);
+})();
+</script>
+<script>
+(function () {
+  var row = function (extra) {
+    /* Czas DŁUGI, bo pytanie brzmi „czy animacja w ogóle powstała", a tween,
+       który zdążył się skończyć, znika z GSAP-a i wygląda jak nigdy niebyły. */
+    return Object.assign({ preset: 'fade-up', trigger: 'load', duration: 4,
+                           delay: 0, stagger: 0, easing: 'none', order: 0 }, extra);
+  };
+  window.evkAnimator = {
+    library: {
+      z: row({}),
+      d: row({ preset: 'split-lines' }),
+    },
+    /* Presety PRAWDZIWE, z PHP (tests/php/presets.php przez `head`). To one
+       niosą `from`/`to` i znacznik `split` — na atrapie `buildConfig()` zwraca
+       null i nic się nie buduje, więc pomiar mierzyłby własną atrapę. */
+    presets: (window.__presets && window.__presets.presets) || {},
+    reducedMotion: false,
+    /* To jest cały przedmiot pomiaru: strona MA deklarować czekanie na fonty. */
+    needsFonts: true,
+  };
+})();
+</script>
+<script src="../../assets/js/animator.js"></script>
+<script>
+  window.__stan = function (id) {
+    var el = document.getElementById(id);
+    return {
+      /* Znacznik gotowości. Jego BRAK znaczy „silnik jeszcze tego nie zbudował
+         i wróci do tego później" — tą samą drogą, którą wraca po zmianie progu
+         szerokości. */
+      gotowy:  el.dataset.evkAnimReady === '1',
+      tweenow: window.gsap ? gsap.getTweensOf(el).length : 0,
+      /* Kawałki podziału istnieją tylko wtedy, gdy SplitText naprawdę pobiegł. */
+      linie:   el.querySelectorAll('.evk-anim-line').length,
+    };
+  };
+
+  /** Czy zasłona zeszła. Treść nie ma czekać na fonty, żeby stać się widoczna. */
+  window.__zaslona = function () {
+    return document.documentElement.classList.contains('evk-veil');
+  };
+</script>

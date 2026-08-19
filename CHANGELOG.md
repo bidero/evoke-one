@@ -2,6 +2,75 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.96.0] — 2026-08-19
+
+### Naprawione
+
+- **Bezwładne przewijanie nagle stawało na telefonie.** Zgłoszone dokładnie:
+  zaraz po wczytaniu strony mocne machnięcie palcem w górę → strona jedzie
+  bezwładnie, zwalnia i **nagle staje**, choć powinna przewijać się dalej.
+  Tylko iOS (Safari i Chrome mają tam ten sam silnik). Po wyłączeniu Animatora
+  objaw znikał.
+
+  Mechanizm, ustalony pomiarem, ma trzy ogniwa i żadne z nich nie jest oczywiste.
+
+  **Pierwsze:** `ScrollTrigger.refresh()` **zapisuje pozycję przewijania** —
+  skacze na samą górę dokumentu i wraca. Zmierzone szpiegiem podstawionym pod
+  `window.scrollTo`: `scrollTo:0,0`, `scrollTo:0,0`, `scrollTo:0,1200`. Na
+  desktopie tego nie widać, bo dzieje się w jednej klatce; na iOS zapis pozycji
+  w trakcie bezwładności **kasuje ją natychmiast**.
+
+  **Drugie:** marquee pilnuje wysokości dokumentu obserwatorem na `<html>`
+  i po każdej zmianie wołało ten refresh. Obserwator jest potrzebny (bez niego
+  marquee zepchnięte w dół mieli pętlę w tle), ale nie odróżniał „doładowała się
+  treść" od „użytkownik właśnie przewija".
+
+  **Trzecie:** Animator czekał z **całą** inicjalizacją na `document.fonts.ready`
+  — dzielił tekst, tworzył maski i klony, zdejmował zasłonę. Na żywej stronie to
+  sekunda po wczytaniu, czyli wprost w pierwsze machnięcie palcem. Wymiary
+  strony drgały, obserwator wypalał, refresh ucinał bezwładność. Stąd zależność
+  od Animatora: bez niego nic nie ruszało wymiarów strony po wczytaniu fontów.
+
+  Odświeżanie wyzwalaczy przechodzi teraz przez **jeden wspólny helper**
+  (`window.evkOdswiez`), drukowany obok `ScrollTrigger.config()` w
+  `includes/89-gsap.php`. Helper scala serię wywołań w jedno przeliczenie
+  i **odkłada je, dopóki przewijanie nie ustanie** — refresh nigdy nie ląduje
+  w trakcie bezwładności. Na dotyku marquee pomija do tego zmiany **samej
+  wysokości**: chowanie paska adresu zmienia ją dziesiątki razy w trakcie
+  jednego przewijania, a układ ani drgnie.
+
+  `ScrollTrigger.config({ ignoreMobileResize: true })` stało w tym pliku od
+  dawna i chroniło przed tym samym — ale tylko **wbudowaną** ścieżkę GSAP-a.
+  Sześć naszych własnych, jawnych wywołań `refresh()` tę ochronę omijało.
+  Wszystkie idą teraz przez helper: marquee, tło przy scrollu, scroll reading,
+  circular menu, stacking cards i horizontal scroll. Gdy helpera na stronie nie
+  ma (inna kolejność wtyczek, wpięcie z ręki), wołający schodzi do zwykłego
+  `ScrollTrigger.refresh()` — nic nie przestaje działać, traci tylko ochronę.
+
+### Zmienione
+
+- **Na webfonty czeka już tylko podział tekstu.** `needsFonts` włącza czekanie,
+  gdy którykolwiek preset dzieli tekst na linie, słowa albo znaki — i dla samego
+  **podziału** to jest słuszne, bo łamanie linii zależy od metryk fontu. Ale
+  czekała na nie cała inicjalizacja: także animacje, które o fonty nie zahaczają,
+  i zdjęcie zasłony chowającej treść.
+
+  Start jest teraz natychmiastowy, a konfiguracje z podziałem odkłada `initOne()`
+  — tą samą drogą, którą odkłada animacje poza zakresem szerokości: konfiguracja
+  odpada, element nie dostaje znacznika gotowości i wraca, gdy fonty dojadą.
+  Jedna mechanika na dwa powody odłożenia.
+
+  Poza mniejszym ryzykiem ucięcia bezwładności daje to szybsze pojawienie się
+  animacji wejściowych i krótszy czas, przez który treść stoi pod zasłoną.
+
+  Przy okazji: element z **dwiema** animacjami, z których jedna czeka (na fonty
+  albo na próg szerokości), nie dostaje znacznika gotowości — a bez znacznika
+  silnik wracał do niego przy każdej przebudowie i budował od nowa także tę
+  gotową. Druga oś czasu na tym samym elemencie to podwojony ruch przy pętlach
+  i podwojony koszt przy wszystkim innym. Silnik pamięta teraz, które
+  konfiguracje już zbudował. Usterka jest starsza — weszła razem z zakresem
+  szerokości w 1.93.0 — ale dopiero czekanie na fonty czyniło ją częstą.
+
 ## [1.95.0] — 2026-08-18
 
 ### Naprawione

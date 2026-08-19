@@ -18,6 +18,19 @@
   var loadQueue = [];
   var loadQueueRan = false;
 
+  /* Czy metryki fontów są już znane.
+   *
+   * Czekanie na fonty ma sens WYŁĄCZNIE dla podziału tekstu — tylko tam
+   * metryki decydują o łamaniu linii. Do 1.96.0 czekała na nie CAŁA
+   * inicjalizacja, więc wszystko, co silnik robi z drzewem, lądowało sekundę
+   * po wczytaniu strony — czyli wprost w pierwszym machnięciu palcem na
+   * telefonie. Zmiana wymiarów strony w tym momencie budzi obserwatory, które
+   * odświeżają wyzwalacze, a odświeżenie zapisuje pozycję przewijania i ucina
+   * bezwładność. Zgłoszone z użycia jako „zwalnia i nagle się zatrzymuje".
+   *
+   * Reszta animacji rusza więc od razu, a podział czeka. */
+  var fontyGotowe = false;
+
   // ── Helpers ────────────────────────────────────────────────────────────
 
   /**
@@ -161,7 +174,10 @@
     // dodatkowy argument: `cleansUp()` siedzi pięć wywołań głębiej i przewlekanie
     // liczby przez `initSplit`, `buildAnimation`, wszystkie `attach*` i `tweenVars`
     // dołożyłoby parametr do ośmiu sygnatur, żeby przeczytać go w jednej.
-    out.forEach(function (cfg) { cfg.siblings = out.length; });
+    // `idx` — tożsamość konfiguracji w obrębie elementu. Kolejność jest stała,
+    // bo bierze się z atrybutu i klas, a te się nie zmieniają; dzięki temu
+    // initOne() pamięta między wywołaniami, co już zbudował.
+    out.forEach(function (cfg, i) { cfg.siblings = out.length; cfg.idx = i; });
     return out;
   }
 
@@ -998,12 +1014,33 @@
     cfgs = cfgs.filter(wZakresie);
     var pominieto = cfgs.length !== wszystkich;
 
+    /* Podział tekstu czeka na metryki fontów — tą samą drogą co zakres
+       szerokości: konfiguracja odpada, element nie dostaje znacznika gotowości
+       i wraca, gdy fonty dojadą. Jedna mechanika na dwa powody odłożenia. */
+    if (!fontyGotowe) {
+      var przedFontami = cfgs.length;
+      cfgs = cfgs.filter(function (cfg) { return !cfg.split; });
+      if (cfgs.length !== przedFontami) pominieto = true;
+    }
+
+    /* Co już zbudowane, nie buduje się drugi raz.
+       
+       Element z dwiema animacjami, z których jedna czeka (na fonty albo na próg
+       szerokości), NIE dostaje znacznika gotowości — a bez znacznika initAll()
+       wraca do niego przy każdej przebudowie i budował wtedy od nowa także tę
+       gotową. Druga oś czasu na tym samym elemencie to podwojony ruch przy
+       pętlach i podwojony koszt przy wszystkim innym. */
+    var zbudowane = el._evkZbudowane || (el._evkZbudowane = {});
+    cfgs = cfgs.filter(function (cfg) { return !zbudowane[cfg.idx]; });
+
     /* Brak znacznika gotowości = „spróbuj ponownie później". Tak samo, jak przy
        braku konfiguracji — initAll() woła się ponownie po zmianie progu
        i dobuduje to, co odpadło. Znacznika nie stawiamy TAKŻE wtedy, gdy
        zbudowaliśmy część: inaczej element z dwiema animacjami zablokowałby
        tę pominiętą na zawsze. */
-    if (!cfgs.length) return false;
+    if (!cfgs.length) return !pominieto;
+
+    cfgs.forEach(function (cfg) { zbudowane[cfg.idx] = true; });
 
     // Reduced motion: żadnego ruchu, ale stan końcowy musi być widoczny —
     // inaczej element z opacity:0 we from zostałby niewidzialny na stałe.
@@ -1255,17 +1292,33 @@
       return;
     }
 
-    // Na webfonty czekamy TYLKO przy podziale tekstu: jedynie tam metryki fontu
-    // decydują o łamaniu linii. Przy pozostałych animacjach to czyste opóźnienie
-    // startu, przez które element zdąży mrugnąć w stanie docelowym.
-    var waitFonts = G.needsFonts
+    /* Na webfonty czeka TYLKO podział tekstu — jedynie tam metryki fontu
+       decydują o łamaniu linii. Do 1.96.0 czekało na nie całe uruchomienie
+       i wszystko, co silnik robi z drzewem, lądowało sekundę po wczytaniu
+       strony; na telefonie trafiało to wprost w pierwsze machnięcie palcem.
+       Teraz start jest natychmiastowy, a konfiguracje z podziałem odkłada
+       initOne() — dokładnie tak samo, jak odkłada te poza zakresem szerokości. */
+    var czekaNaFonty = G.needsFonts
         && document.fonts && document.fonts.ready
         && typeof document.fonts.ready.then === 'function';
 
-    if (waitFonts) {
-      document.fonts.ready.then(function () { waitForGSAP(pierwszyPrzebieg); });
-    } else {
-      waitForGSAP(pierwszyPrzebieg);
+    if (!czekaNaFonty) fontyGotowe = true;
+
+    var poPierwszym = false;
+    waitForGSAP(function () { poPierwszym = true; pierwszyPrzebieg(); });
+
+    if (czekaNaFonty) {
+      document.fonts.ready.then(function () {
+        fontyGotowe = true;
+        /* Tylko gdy pierwszy przebieg już był. Fonty potrafią być gotowe zanim
+           dojedzie GSAP (pliki z cache, wolna sieć) — przebudowa poleciałaby
+           wtedy bez biblioteki. Nie ma jej zresztą po co: pierwszy przebieg
+           zobaczy `fontyGotowe` i zbuduje podział od razu.
+           
+           A gdy był — przez tę samą kolejkę co zmiana progu, żeby dobudowanie
+           nie lądowało w klatce, w której użytkownik akurat przewija. */
+        if (poPierwszym) zaplanujPrzebudowe();
+      });
     }
   }
 

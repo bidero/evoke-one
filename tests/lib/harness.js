@@ -114,6 +114,11 @@ class Runner {
     const ctx = await this.browser.newContext({
       viewport: opts.viewport || { width: 1200, height: 800 },
       reducedMotion: opts.reduce ? 'reduce' : 'no-preference',
+      /* Emulacja dotyku. Zmienia `(hover: hover)` na `false` — zmierzone, bo
+         po tym pyta kod pomijający zmiany samej wysokości na telefonie. Bez
+         tego ta gałąź jest w testach nieosiągalna i mutacja w niej przechodzi
+         na zielono. */
+      hasTouch: !!opts.touch,
     });
     const page = await ctx.newPage();
     page.errors = [];
