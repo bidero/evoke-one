@@ -92,6 +92,36 @@
 .evk-oc-shell.is-side-bottom .evk-oc-frame { left: 0; right: 0; bottom: 0; height: var(--evk-oc-size, min(420px, 100%)); transform: translateY(100%); }
 .evk-oc-shell.is-open .evk-oc-frame { transform: none; }
 
+/* ── 1b. ODSŁANIANIE: treść stoi, panel ją odsłania ──
+ *
+ * Kadr wysuwa się o WŁASNĄ SZEROKOŚĆ (`translateX(100%)` wyżej). Opakowanie
+ * treści dostaje transformację dokładnie przeciwną — też o własną szerokość,
+ * a jest ono blokiem w kadrze, więc obie wartości są tą samą liczbą i znoszą
+ * się co do piksela. Treść stoi w oknie od pierwszej klatki, a `overflow: clip`
+ * na kadrze obcina tę jej część, nad którą kadr jeszcze nie dojechał.
+ *
+ * Wygląda to tak, jakby krawędź panelu przejeżdżała po gotowej treści
+ * i odsłaniała ją, zamiast ją przywozić. Wtyczka mówi już zresztą tym językiem:
+ * przy menu z lewej podmenu „wysuwa się spod panelu głównego”, bo slot je tam
+ * obcina (patrz `.is-side-left ... .is-away` niżej).
+ *
+ * TO SAMO TEMPO CO KADR, nie własne. Osobny czas albo osobna krzywa znaczy, że
+ * treść w trakcie ruchu odpływa i wraca — wygląda to jak drganie i na oko nie
+ * da się zgadnąć, skąd się bierze.
+ *
+ * Węzeł istnieje w OBU efektach; bez `.is-reveal` nie ma transformacji i jest
+ * dla układu przezroczysty. `height: 100%`, bo taśma liczy swoją wysokość od
+ * rodzica, a rodzicem jest odtąd on. */
+.evk-oc-hold {
+    height: 100%;
+    transition: transform var(--evk-oc-time, .35s) var(--evk-oc-ease, ease);
+}
+.evk-oc-shell.is-reveal.is-side-right  .evk-oc-hold { transform: translateX(-100%); }
+.evk-oc-shell.is-reveal.is-side-left   .evk-oc-hold { transform: translateX(100%); }
+.evk-oc-shell.is-reveal.is-side-top    .evk-oc-hold { transform: translateY(100%); }
+.evk-oc-shell.is-reveal.is-side-bottom .evk-oc-hold { transform: translateY(-100%); }
+.evk-oc-shell.is-reveal.is-open .evk-oc-hold { transform: none; }
+
 /* ── 2. TAŚMA: przechodzenie między panelami ──
    Własny czas i własna krzywa. Przesunięcie ustawia JS, bo zależy od tego,
    który panel jest bieżący. */
@@ -228,6 +258,9 @@
     .evk-oc-shell,
     .evk-oc-scrim,
     .evk-oc-frame,
+    /* Opakowanie treści MUSI tu być. Bez niego kadr skacze natychmiast, a treść
+       nadal jedzie — czyli redukcja ruchu dawałaby WIĘCEJ ruchu niż jej brak. */
+    .evk-oc-hold,
     .evk-oc-track,
     .evk-oc-panel { transition: none !important; }
 }

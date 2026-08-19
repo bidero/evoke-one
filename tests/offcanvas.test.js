@@ -1131,4 +1131,202 @@ module.exports = async function (t) {
   t.check('bez redukcji ruchu panel NIE jest widoczny przed otwarciem',
     !(await n.evaluate(() => window.__panelVisible())), 'schowany');
   await n.close();
+
+  /* ── ODSŁANIANIE ────────────────────────────────────────────────────────
+   *
+   * Drugi efekt otwierania (1.97.0). Przy wysuwaniu kadr wjeżdża zza krawędzi
+   * i WWOZI TREŚĆ ZE SOBĄ. Przy odsłanianiu treść stoi w oknie od pierwszej
+   * klatki, a przesuwa się sama płaszczyzna panelu — jego krawędź przejeżdża
+   * po gotowej treści i ją odsłania.
+   *
+   * Robi to przeciw-transformacja na `.evk-oc-hold`: kadr jedzie o własną
+   * szerokość, opakowanie treści o tyle samo w drugą stronę, a `overflow: clip`
+   * na kadrze obcina to, nad czym kadr jeszcze nie dojechał.
+   *
+   * CAŁA SEKCJA MIERZY PROSTOKĄTY W JEDNYM ODCZYCIE (`__odslona`). W trakcie
+   * przejścia na kadrze prostokąty potomków potrafią pochodzić z innej klatki
+   * niż prostokąt samego kadru — dwa osobne odczyty mierzyłyby wtedy szum.
+   */
+  t.section('odsłanianie: treść stoi, kadr po niej jedzie');
+
+  /** Cztery chwile jednego otwierania: przed, dwa razy w drodze, po. */
+  async function przebieg(page) {
+    const klatki = [await page.evaluate(() => window.__odslona())];
+    await page.evaluate(() => window.__open());
+    await page.waitForTimeout(200);
+    klatki.push(await page.evaluate(() => window.__odslona()));
+    await page.waitForTimeout(220);
+    klatki.push(await page.evaluate(() => window.__odslona()));
+    await page.waitForTimeout(500);
+    klatki.push(await page.evaluate(() => window.__odslona()));
+    return klatki;
+  }
+  const rozrzut = (kl, pole) => {
+    const v = kl.map((k) => k[pole]);
+    return Math.round(Math.max.apply(null, v) - Math.min.apply(null, v));
+  };
+
+  const ods = await t.open('offcanvas.html',
+    { viewport: V, query: 'effect=reveal&dur=0.6', settle: 120 });
+
+  t.check('powłoka wie, że odsłania',
+    await ods.evaluate(() => window.__odslona().reveal), 'is-reveal');
+
+  const klatkiR = await przebieg(ods);
+
+  /* SEDNO. Treść ma stać w oknie przez cały ruch. */
+  t.check('treść NIE rusza się w oknie', rozrzut(klatkiR, 'tresc') <= 4,
+    'rozrzut ' + rozrzut(klatkiR, 'tresc') + ' px: ' + JSON.stringify(klatkiR.map((k) => k.tresc)));
+
+  /* Bez tego „treść stoi" byłoby spełnione także wtedy, gdyby nie ruszało się
+     NIC — a wtedy menu po prostu nie działa. */
+  t.check('a kadr NAPRAWDĘ jedzie', rozrzut(klatkiR, 'kadr') > 300,
+    'rozrzut ' + rozrzut(klatkiR, 'kadr') + ' px: ' + JSON.stringify(klatkiR.map((k) => k.kadr)));
+
+  /* I dojechał tam, gdzie treść stała od początku — inaczej po otwarciu
+     zostałaby przesunięta względem kadru. */
+  t.check('na końcu kadr i treść stoją razem',
+    Math.abs(klatkiR[3].kadr - klatkiR[3].tresc) <= 2,
+    'kadr ' + klatkiR[3].kadr + ', treść ' + klatkiR[3].tresc);
+  await ods.close();
+
+  /* KONTROLA NEGATYWNA — ten sam pomiar przy wysuwaniu. Tam treść MA jechać
+     razem z kadrem; bez tej pary „treść stoi" nie odróżnia efektu od pomiaru,
+     który po prostu nic nie łapie. */
+  const wys = await t.open('offcanvas.html', { viewport: V, query: 'dur=0.6', settle: 120 });
+  const klatkiW = await przebieg(wys);
+  t.check('przy wysuwaniu treść jedzie RAZEM z kadrem', rozrzut(klatkiW, 'tresc') > 300,
+    'rozrzut ' + rozrzut(klatkiW, 'tresc') + ' px');
+  t.check('a opakowanie treści nie ma tam własnego przesunięcia',
+    klatkiW.every((k) => k.holdTx === 0), JSON.stringify(klatkiW.map((k) => k.holdTx)));
+  await wys.close();
+
+  // ── Jedno tempo dla obu ────────────────────────────────────────────────
+  /* Osobny czas albo osobna krzywa znaczy, że treść w trakcie ruchu odpływa
+     i wraca. Na oko wygląda to jak drganie i nie da się zgadnąć, skąd się
+     bierze — a różnica jest wtedy tylko w liczbach. */
+  t.section('odsłanianie: treść i kadr mają JEDNO tempo');
+
+  const tempo = await t.open('offcanvas.html',
+    { viewport: V, query: 'effect=reveal&dur=0.8&ease=power2.out', settle: 120 });
+  const tmp0 = await tempo.evaluate(() => window.__odslona());
+  t.check('ten sam czas', tmp0.holdTime === tmp0.frameTime,
+    'treść ' + tmp0.holdTime + ', kadr ' + tmp0.frameTime);
+  t.check('ta sama krzywa', tmp0.holdEase === tmp0.frameEase,
+    'treść ' + tmp0.holdEase + ', kadr ' + tmp0.frameEase);
+  /* Że to NIE jest wartość zapasowa z arkusza — bez tego równość spełniłyby
+     też dwa niezależne domyślne 0,35 s. */
+  t.check('i jest to czas z kontrolki, nie domyślny', parseFloat(tmp0.holdTime) === 0.8,
+    tmp0.holdTime);
+  await tempo.close();
+
+  // ── Cztery krawędzie ───────────────────────────────────────────────────
+  /* Przeciw-transformacja musi być lustrem tego, co ma kadr — na właściwej osi
+     i z właściwym znakiem. Zły znak przesuwa treść o DWIE szerokości panelu
+     zamiast o zero, a zła oś nie robi nic. */
+  t.section('odsłanianie działa z każdej krawędzi');
+
+  for (const strona of ['right', 'left', 'top', 'bottom']) {
+    const k = await t.open('offcanvas.html',
+      { viewport: V, query: 'effect=reveal&dur=0.6&side=' + strona, settle: 120 });
+    const kl = await przebieg(k);
+    t.check(strona + ': treść stoi', rozrzut(kl, 'tresc') <= 4,
+      'rozrzut ' + rozrzut(kl, 'tresc') + ' px');
+    t.check(strona + ': kadr jedzie', rozrzut(kl, 'kadr') > 200,
+      'rozrzut ' + rozrzut(kl, 'kadr') + ' px');
+    t.check(strona + ': pomiar szedł właściwą osią',
+      kl[0].pion === (strona === 'top' || strona === 'bottom'),
+      kl[0].pion ? 'pion' : 'poziom');
+    t.check(strona + ': bez błędów JS', !k.errors.length, k.errors.join(' | ') || 'brak');
+    await k.close();
+  }
+
+  // ── Zamykanie ──────────────────────────────────────────────────────────
+  /* Symetria nie jest tu oczywista: gdyby przeciw-transformacja wracała innym
+     tempem niż kadr, treść uciekałaby w trakcie wyjazdu. */
+  t.section('odsłanianie: przy zamykaniu treść też stoi');
+
+  const zam = await t.open('offcanvas.html',
+    { viewport: V, query: 'effect=reveal&dur=0.6', settle: 120 });
+  await zam.evaluate(() => window.__open());
+  await zam.waitForTimeout(800);
+  const zamKl = [await zam.evaluate(() => window.__odslona())];
+  await zam.evaluate(() => window.__key('Escape'));
+  await zam.waitForTimeout(200);
+  zamKl.push(await zam.evaluate(() => window.__odslona()));
+  await zam.waitForTimeout(220);
+  zamKl.push(await zam.evaluate(() => window.__odslona()));
+  t.check('treść stoi przez cały wyjazd', rozrzut(zamKl, 'tresc') <= 4,
+    'rozrzut ' + rozrzut(zamKl, 'tresc') + ' px: ' + JSON.stringify(zamKl.map((k) => k.tresc)));
+  t.check('a kadr wyjeżdża', rozrzut(zamKl, 'kadr') > 200,
+    'rozrzut ' + rozrzut(zamKl, 'kadr') + ' px');
+  await zam.close();
+
+  // ── Redukcja ruchu ─────────────────────────────────────────────────────
+  /* Gdyby opakowanie treści wypadło z bloku redukcji ruchu, kadr skakałby
+     natychmiast, a treść nadal jechała — czyli redukcja dawałaby WIĘCEJ ruchu
+     niż jej brak. Dokładnie odwrotnie, niż o to chodzi. */
+  t.section('odsłanianie a redukcja ruchu');
+
+  const odsR = await t.open('offcanvas.html',
+    { viewport: V, reduce: true, query: 'effect=reveal&dur=0.6', settle: 120 });
+  await odsR.evaluate(() => window.__open());
+  await odsR.waitForTimeout(120);
+  const rrPo = await odsR.evaluate(() => window.__odslona());
+  t.check('a po otwarciu treść jest na swoim miejscu',
+    Math.abs(rrPo.kadr - rrPo.tresc) <= 2, 'kadr ' + rrPo.kadr + ', treść ' + rrPo.tresc);
+  t.check('i panel jest widoczny', await odsR.evaluate(() => window.__panelVisible()),
+    'widoczny');
+  await odsR.close();
+
+  /* Redukcja WŁĄCZONA JUŻ PO STARCIE — i tylko tędy da się zmierzyć wpis
+     w bloku `@media`.
+     
+     Przy zwykłym starcie z redukcją skrypt sam zeruje `--evk-oc-time`
+     (`frameTime = reduced ? 0 : ...`), więc czas jest zerowy przez zmienną,
+     a nie przez blok — sprawdzenie „czas wynosi zero" przechodziło wtedy także
+     z wpisem WYCIĘTYM. Zmierzone: mutacja usuwająca `.evk-oc-hold` z bloku
+     redukcji świeciła na zielono.
+     
+     Ta droga jest przy tym realna, nie wymyślona na potrzeby testu:
+     użytkownik przestawia ustawienie systemu przy otwartej stronie. Zmienna
+     zostaje wtedy nieaktualna, a zapytanie medialne jest żywe — i to blok jest
+     jedyną rzeczą, która zatrzymuje ruch. */
+  const odsN = await t.open('offcanvas.html',
+    { viewport: V, query: 'effect=reveal&dur=0.6', settle: 120 });
+  t.check('bez redukcji czas opakowania jest NIEzerowy',
+    parseFloat((await odsN.evaluate(() => window.__odslona())).holdTime) > 0,
+    (await odsN.evaluate(() => window.__odslona())).holdTime);
+
+  await odsN.emulateMedia({ reducedMotion: 'reduce' });
+  const poPrzelaczeniu = await odsN.evaluate(() => window.__odslona());
+  t.check('redukcja włączona w trakcie gasi ruch opakowania',
+    parseFloat(poPrzelaczeniu.holdTime) === 0, poPrzelaczeniu.holdTime);
+  /* Para: kadr ma zgasnąć tak samo. Gdyby zgasło samo opakowanie, treść
+     stałaby, a kadr jechał — czyli dokładnie odwrotna usterka. */
+  t.check('i tak samo kadru', parseFloat(poPrzelaczeniu.frameTime) === 0,
+    poPrzelaczeniu.frameTime);
+  await odsN.close();
+
+  // ── Podmenu przy odsłanianiu ───────────────────────────────────────────
+  /* Nowy węzeł siedzi między kadrem a taśmą, czyli w środku drogi, którą jadą
+     przejścia między panelami. Gdyby cokolwiek w niej przestawił, podmenu
+     przestałoby wypychać rodzica — a to jest osobny mechanizm i osobne cztery
+     rundy poprawek. */
+  t.section('odsłanianie nie psuje przechodzenia między panelami');
+
+  const pod = await t.open('offcanvas.html',
+    { viewport: V, query: 'effect=reveal&levels=slide', settle: 120 });
+  await pod.evaluate(() => window.__open());
+  await pod.waitForTimeout(500);
+  const przed = await pod.evaluate(() => window.__panelLeft('start'));
+  await pod.evaluate(() => window.__click('go-uslugi'));
+  await pod.waitForTimeout(600);
+  const po = await pod.evaluate(() => window.__panelLeft('start'));
+  t.check('panel startowy nadal odjeżdża w lewo', po < -100, przed + ' → ' + po + ' px');
+  t.check('a podmenu zajmuje jego miejsce',
+    await pod.evaluate(() => window.__panelLeft('uslugi')) === 0,
+    await pod.evaluate(() => window.__panelLeft('uslugi')) + ' px');
+  t.check('bez błędów JS', !pod.errors.length, pod.errors.join(' | ') || 'brak');
+  await pod.close();
 };

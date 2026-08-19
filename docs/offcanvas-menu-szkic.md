@@ -64,6 +64,21 @@ zostaje dostępny tabulatorem**. `inert` na wszystkim poza bieżącym panelem
 odcinałby połowę tego, co widać na ekranie, więc pułapka fokusu obejmuje
 teraz cały kadr, a `inert` dostają wyłącznie panele spoza ścieżki.
 
+### Drugi efekt otwierania — 1.97.0
+
+Szkic zakładał jeden sposób wjazdu: panel wysuwa się zza krawędzi i **wwozi
+treść ze sobą**. Doszedł drugi — **odsłanianie**: treść stoi w oknie od
+pierwszej klatki, a przesuwa się sama płaszczyzna panelu.
+
+Nie jest to nowy mechanizm, tylko druga strona tego samego. Kadr jedzie
+o własną szerokość, a opakowanie treści (`.evk-oc-hold`) dostaje transformację
+dokładnie przeciwną; `overflow: clip` na kadrze robi resztę. Wybór siedzi
+w kontrolce `openEffect`, domyślnie `slide`.
+
+Osobny węzeł, a nie taśma, bo taśma ma już właściciela transformu —
+`applyState()`. Ta sama zasada, którą decyzja 3 i jej powrót wbijały tu przez
+cztery rundy: **jeden stan, jeden właściciel**.
+
 ---
 
 ## Miejsce w istniejącym układzie

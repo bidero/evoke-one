@@ -93,6 +93,19 @@ function evk_offcanvas_menu_init_one(root) {
     var startId     = root.getAttribute('data-start') || '';
     var side        = root.getAttribute('data-side') || 'right';
 
+    /**
+     * Jak menu wchodzi na ekran.
+     *
+     *   'slide'  — kadr wysuwa się zza krawędzi i WWOZI TREŚĆ ZE SOBĄ.
+     *              Zachowanie od 1.56.0 i domyślne, żeby nikomu nic nie
+     *              podmieniać pod ręką.
+     *   'reveal' — treść stoi w miejscu, a przesuwa się sama płaszczyzna
+     *              panelu: jego krawędź przejeżdża po treści i ją ODSŁANIA.
+     *              Robi to przeciw-transformacja na `.evk-oc-hold` — cała
+     *              w arkuszu, patrz offcanvas-menu.css.
+     */
+    var reveal      = root.getAttribute('data-effect') === 'reveal';
+
     // Wspólna polityka ruchu wtyczki — patrz includes/anim/motion.php.
     var reduced = (window.evkMotion && typeof window.evkMotion.reduced === 'function')
         ? window.evkMotion.reduced()
@@ -184,7 +197,7 @@ function evk_offcanvas_menu_init_one(root) {
 
     // ── Powłoka ────────────────────────────────────────────────────────────
     var shell = document.createElement('div');
-    shell.className = 'evk-oc-shell is-side-' + side;
+    shell.className = 'evk-oc-shell is-side-' + side + (reveal ? ' is-reveal' : '');
     shell.setAttribute('role', 'dialog');
     shell.setAttribute('aria-modal', 'true');
 
@@ -193,6 +206,19 @@ function evk_offcanvas_menu_init_one(root) {
 
     var frame = document.createElement('div');
     frame.className = 'evk-oc-frame';
+
+    /* Opakowanie treści — nosiciel PRZECIW-TRANSFORMACJI przy odsłanianiu.
+     *
+     * Osobny węzeł, bo transform na taśmie ma już właściciela: applyState()
+     * wpisuje jej `style.transform` przy przechodzeniu między panelami, a styl
+     * w atrybucie wygrywa z arkuszem. Dwie rzeczy na jednym transformie to
+     * dokładnie ta klasa usterek, którą ten element zbierał przez cztery rundy
+     * w 1.62.0–1.65.1.
+     *
+     * Powstaje ZAWSZE, w obu efektach — jedna ścieżka zamiast gałęzi. Przy
+     * wysuwaniu nie ma transformacji i jest dla układu przezroczysty. */
+    var hold = document.createElement('div');
+    hold.className = 'evk-oc-hold';
 
     var track = document.createElement('div');
     track.className = 'evk-oc-track';
@@ -215,7 +241,8 @@ function evk_offcanvas_menu_init_one(root) {
         track.appendChild(p);
     });
     if (slot) track.appendChild(slot);
-    frame.appendChild(track);
+    hold.appendChild(track);
+    frame.appendChild(hold);
     shell.appendChild(scrim);
     shell.appendChild(frame);
 

@@ -2,6 +2,58 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.97.0] — 2026-08-19
+
+### Dodane
+
+- **Offcanvas: drugi efekt otwierania — „odsłanianie".** Menu miało dotąd jeden
+  sposób wjazdu: kadr wysuwał się zza krawędzi i **wwoził treść ze sobą**. Nowa
+  kontrolka „Efekt otwierania" daje drugi: treść stoi w oknie od pierwszej
+  klatki, a przesuwa się sama płaszczyzna panelu — jego krawędź przejeżdża po
+  gotowej treści i ją odsłania.
+
+  ```
+  start:   [okno ..................|▓treść▓]   kadr poza ekranem, treść pod obcięciem
+  połowa:  [okno .........|▓▓treść▓▓|      ]   krawędź kadru sunie w lewo
+  koniec:  [okno .........|▓▓treść▓▓]          treść ANI DRGNĘŁA
+  ```
+
+  Mechanika jest w całości w arkuszu i sprowadza się do jednej rzeczy: kadr
+  jedzie o **własną szerokość**, a opakowanie treści dostaje transformację
+  dokładnie przeciwną — też o własną szerokość. Jest ono blokiem w kadrze, więc
+  obie wartości są tą samą liczbą i znoszą się co do piksela; `overflow: clip`
+  na kadrze obcina tę część treści, nad którą kadr jeszcze nie dojechał.
+
+  Wtyczka mówiła już zresztą tym językiem: przy menu z lewej podmenu „wysuwa
+  się spod panelu głównego”, bo slot je tam obcina (1.65.1). Odsłanianie to ta
+  sama myśl zastosowana do otwierania całego menu.
+
+  **Przeciw-transformacja siedzi na WŁASNYM węźle** (`.evk-oc-hold`), a nie na
+  taśmie paneli. Taśma ma już właściciela: `applyState()` wpisuje jej
+  `style.transform` przy przechodzeniu między panelami, a styl w atrybucie
+  wygrywa z arkuszem. Dwie rzeczy na jednym transformie to dokładnie ta klasa
+  usterek, którą ten element zbierał przez cztery rundy w 1.62.0–1.65.1.
+
+  Domyślne zostaje **wysuwanie**, więc po aktualizacji nikomu nic nie zmienia
+  się pod ręką. Czas i krzywa rządzą obydwoma efektami tak samo — nowy węzeł
+  bierze `--evk-oc-time` i `--evk-oc-ease` wprost od kadru. Osobne tempo
+  znaczyłoby, że treść w trakcie ruchu odpływa i wraca: na oko wygląda to jak
+  drganie i nie da się zgadnąć, skąd się bierze.
+
+  Działa z każdej z czterech krawędzi i tak samo przy zamykaniu.
+
+### Uwaga dla testów
+
+- **Sprawdzenie redukcji ruchu było puste i mutacja to pokazała.** „Czas
+  przejścia wynosi zero" przechodziło także z regułą WYCIĘTĄ z bloku
+  `@media (prefers-reduced-motion: reduce)` — bo przy starcie z redukcją skrypt
+  sam zeruje `--evk-oc-time` i czas jest zerowy przez zmienną, a nie przez blok.
+
+  Pomiar idzie teraz drogą, na której blok jest jedyną rzeczą zatrzymującą ruch:
+  redukcja **włączana już po starcie**. To nie jest sztuczka na potrzeby testu —
+  tak wygląda przestawienie ustawienia systemu przy otwartej stronie. Zmienna
+  zostaje wtedy nieaktualna, a zapytanie medialne jest żywe.
+
 ## [1.96.0] — 2026-08-19
 
 ### Naprawione

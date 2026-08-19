@@ -66,6 +66,8 @@
   var root = document.getElementById('root');
   root.setAttribute('data-mode',       q.get('mode')   || 'levels');
   root.setAttribute('data-side',       q.get('side')   || 'right');
+  // Efekt otwierania: 'slide' (wysuwanie, domyślny) albo 'reveal' (odsłanianie).
+  root.setAttribute('data-effect',     q.get('effect') || 'slide');
   // Domyślnie tak jak element: kadr się poszerza. Sekcje mierzące
   // wyjeżdżanie rodzica podają ?levels=slide jawnie.
   root.setAttribute('data-level-style', q.get('levels') || 'expand');
@@ -91,7 +93,7 @@
   root.setAttribute('data-open-builder', '0');
 
   var r2 = document.getElementById('root2');
-  ['data-mode','data-side','data-duration','data-esc-back','data-close-link','data-level-style',
+  ['data-mode','data-side','data-effect','data-duration','data-esc-back','data-close-link','data-level-style',
    'data-lock','data-portal','data-open-builder','data-anim-exit',
    'data-panel-duration','data-panel-easing','data-sub-delay'].forEach(function (a) {
     r2.setAttribute(a, root.getAttribute(a));
@@ -336,6 +338,13 @@ window.__expand = function () {
  *  z innej klatki niż prostokąt samego kadru (kadr 583, taśma −60, przy
  *  `offsetLeft` taśmy równym 0). Pomiar z prostokątów mierzyłby więc szum.
  *  Szerokość samego kadru i transformacje są wiarygodne, więc liczymy z nich. */
+/** Macierz transformacji jako liczby — [a, b, c, d, tx, ty]. */
+function matrixOf(el) {
+  var m = getComputedStyle(el).transform;
+  if (!m || m === 'none') return [1, 0, 0, 1, 0, 0];
+  return m.replace(/^matrix\(|\)$/g, '').split(',').map(parseFloat);
+}
+
 function txOf(el) {
   var m = getComputedStyle(el).transform;
   return (m && m !== 'none') ? parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4]) : 0;
@@ -406,6 +415,50 @@ window.__bare = function () {
     if (!covered) bare += 4;
   }
   return Math.round(bare);
+};
+
+/**
+ * ODSŁANIANIE: gdzie stoi treść, a gdzie kadr — w JEDNYM odczycie.
+ *
+ * Oba prostokąty czytane w tym samym wywołaniu, więc pochodzą z tej samej
+ * klatki układu. To nie jest kosmetyka: fixture ostrzega przy `__bare`, że
+ * w trakcie przejścia na kadrze `getBoundingClientRect()` potomków potrafi
+ * pochodzić z innej klatki niż prostokąt samego kadru. Porównywanie dwóch
+ * osobnych odczytów mierzyłoby wtedy szum, a nie efekt.
+ *
+ * `oś` skraca zapis testu: przy menu z lewej i z prawej liczy się pozioma,
+ * przy górze i dole pionowa — a pytanie jest w obu przypadkach to samo.
+ */
+window.__odslona = function () {
+  var sh = shellOf(0);
+  var f  = sh.querySelector('.evk-oc-frame');
+  var h  = sh.querySelector('.evk-oc-hold');
+  var p  = sh.querySelector('.evk-oc-panel[data-panel="start"]');
+  if (!f || !h || !p) return null;
+
+  var fr = f.getBoundingClientRect();
+  var pr = p.getBoundingClientRect();
+  var pion = sh.classList.contains('is-side-top') || sh.classList.contains('is-side-bottom');
+
+  var th = transitionOf(h, 'transform');
+  var tf = transitionOf(f, 'transform');
+
+  return {
+    /* Krawędź WIODĄCA na osi ruchu — ta, po której widać, czy coś jechało. */
+    kadr:  Math.round(pion ? fr.top : fr.left),
+    tresc: Math.round(pion ? pr.top : pr.left),
+    pion:  pion,
+    /* Przesunięcie własne opakowania NA OSI RUCHU — miara reguły, nie objawu.
+       Zero przy wysuwaniu, niezerowe przy odsłanianiu w stanie zamkniętym.
+       Oś, nie sam X: przy menu z góry i z dołu cała rzecz dzieje się w pionie
+       i pomiar samego X pokazywałby wtedy zero niezależnie od kodu. */
+    holdTx: Math.round(matrixOf(h)[pion ? 5 : 4]),
+    holdTransform: getComputedStyle(h).transform,
+    /* Tempo obu. Ma być IDENTYCZNE — rozjechane znaczy drganie treści. */
+    holdTime:  th.transition, holdEase:  th.ease,
+    frameTime: tf.transition, frameEase: tf.ease,
+    reveal: sh.classList.contains('is-reveal'),
+  };
 };
 
 /** Stan drugiego korzenia — panele bez nazw, adresowane kolejnością. */

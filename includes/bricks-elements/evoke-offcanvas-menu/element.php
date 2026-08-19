@@ -181,6 +181,29 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'css'     => [ [ 'property' => '--evk-oc-size', 'selector' => '' ] ],
 		];
 
+		/*
+		 * Jak menu wchodzi na ekran.
+		 *
+		 * 'slide'  — kadr wysuwa się zza krawędzi i WWOZI TREŚĆ ZE SOBĄ.
+		 *            Zachowanie od 1.56.0 i domyślne: nikomu nic nie podmienia
+		 *            się pod ręką po aktualizacji.
+		 * 'reveal' — treść stoi w miejscu, a przesuwa się sama płaszczyzna
+		 *            panelu — jego krawędź przejeżdża po treści i ją odsłania.
+		 *
+		 * Cała różnica siedzi w arkuszu (przeciw-transformacja na
+		 * `.evk-oc-hold`), więc czas i krzywa niżej rządzą obydwoma tak samo.
+		 */
+		$this->controls['openEffect'] = [
+			'tab'     => 'content',
+			'label'   => esc_html__( 'Efekt otwierania', 'evoke-one' ),
+			'type'    => 'select',
+			'options' => [
+				'slide'  => esc_html__( 'Wysuwanie — panel wjeżdża razem z treścią', 'evoke-one' ),
+				'reveal' => esc_html__( 'Odsłanianie — treść stoi, panel ją odsłania', 'evoke-one' ),
+			],
+			'default' => 'slide',
+		];
+
 		$this->controls['duration'] = [
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Czas wysuwania (s)', 'evoke-one' ),
@@ -354,6 +377,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'class', 'evk-oc' );
 		$this->set_attribute( '_root', 'data-mode',       ! empty( $s['mode'] ) ? $s['mode'] : 'single' );
 		$this->set_attribute( '_root', 'data-side',       ! empty( $s['side'] ) ? $s['side'] : 'right' );
+		$this->set_attribute( '_root', 'data-effect',     ! empty( $s['openEffect'] ) ? $s['openEffect'] : 'slide' );
 		$this->set_attribute( '_root', 'data-level-style', ! empty( $s['levelStyle'] ) ? $s['levelStyle'] : 'expand' );
 		$this->set_attribute( '_root', 'data-duration',   isset( $s['duration'] ) && $s['duration'] !== '' ? (string) $s['duration'] : '0.35' );
 		/*
