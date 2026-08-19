@@ -118,10 +118,15 @@ class Runner {
     const page = await ctx.newPage();
     page.errors = [];
     page.warnings = [];
+    /* Zwykłe logi też, bo niektóre funkcje MAJĄ mówić — i wtedy „konsola
+       milczy" trzeba umieć odróżnić od „nie patrzymy". Raport kosztu Animatora
+       i diagnostyka przewijania piszą przez console.log, nie warn. */
+    page.logs = [];
     page.on('pageerror', (e) => page.errors.push(e.message));
     page.on('console', (m) => {
       if (m.type() === 'error') page.errors.push(m.text());
       if (m.type() === 'warning') page.warnings.push(m.text());
+      if (m.type() === 'log') page.logs.push(m.text());
     });
     if (opts.head) await page.addInitScript({ content: opts.head });
     await page.goto('file://' + path.join(FIXTURES, fixture) + (opts.query ? '?' + opts.query : ''));

@@ -406,4 +406,114 @@ module.exports = async function (t) {
     w1200.visibility === 'visible' && w1200.opacity >= 0.99,
     w1200.visibility + ', opacity ' + w1200.opacity);
   await szer.close();
+  /* ── Silnik nie skanuje własnych wytworów ───────────────────────────────
+   *
+   * Zgłoszone z użycia: przy każdej zmianie szerokości okna konsola zalewała
+   * się ostrzeżeniami „Brak animacji »line-mask« / »char-mask« / »swap-klon«
+   * w bibliotece", ze śladem prowadzącym przez `initAll` do nasłuchu progów
+   * z 1.93.0.
+   *
+   * Powód: `initAll()` przechodzi po `[class*="evk-anim-"]`, a filtr pomijający
+   * kawałki znał tylko trzy nazwy (`line`, `word`, `char`). Nie znał MASEK,
+   * które dokłada opcja `mask` SplitTextu, ani KLONÓW podmiany treści z 1.92.0.
+   * Póki `initAll()` biegł raz na życie strony, nie było tego widać — zakres
+   * szerokości zaczął go wołać ponownie i wysypał lawinę.
+   *
+   * Drugi, cichszy skutek: taki węzeł nigdy nie dostawał znacznika gotowości,
+   * więc wracał przy KAŻDEJ kolejnej zmianie progu. Przy podziale na znaki to
+   * kilkadziesiąt węzłów na jeden nagłówek.
+   */
+  t.section('własne wytwory silnika nie są animacjami');
+
+  const wy = await t.open('anim-breakpoint.html',
+    { viewport: { width: 1000, height: 600 }, head: presety, settle: 800 });
+
+  /* Najpierw dowód, że jest CO pomijać — bez podziału z maską reszta sekcji
+     przechodziłaby, bo nie byłoby żadnych wytworów. */
+  const wytwory = await wy.evaluate(() => window.__wytwory());
+  t.check('fixture naprawdę tworzy kawałki i maski',
+    wytwory.kawalki > 0 && wytwory.maski > 0,
+    wytwory.kawalki + ' kawałków, ' + wytwory.maski + ' masek');
+
+  const ostrzezenPrzed = wy.warnings.filter((w) => /Brak animacji/.test(w)).length;
+  t.check('po wczytaniu żadnych ostrzeżeń o brakującej animacji',
+    ostrzezenPrzed === 0, ostrzezenPrzed + ' ostrzeżeń');
+
+  /* SEDNO ZGŁOSZENIA: zmiana progu nie może wysypać ostrzeżeń. Dwie zmiany,
+     bo przy jednej „nie wraca po raz drugi" byłoby nie do odróżnienia. */
+  await wy.setViewportSize({ width: 600, height: 600 });
+  await wy.waitForTimeout(400);
+  await wy.setViewportSize({ width: 1100, height: 600 });
+  await wy.waitForTimeout(400);
+
+  const poZmianach = wy.warnings.filter((w) => /Brak animacji/.test(w)).length;
+  t.check('i po dwóch zmianach progu nadal żadnych',
+    poZmianach === 0, poZmianach + ' ostrzeżeń: ' + (wy.warnings[0] || ''));
+
+  /* Wytwór nie może dostać znacznika gotowości — ma być pomijany, zanim
+     w ogóle dojdzie do budowania konfiguracji. */
+  t.check('żaden wytwór nie jest oznaczony jako gotowy',
+    (await wy.evaluate(() => window.__wytworyGotowe())) === 0,
+    (await wy.evaluate(() => window.__wytworyGotowe())) + ' oznaczonych');
+
+  /* KONTROLA NEGATYWNA. Gdyby bramka wycinała wszystko bez slugu, cisza
+     w konsoli byłaby osiągnięta kosztem samej funkcji z 1.93.0: animacje
+     czekające na wejście w zakres przestałyby się dobudowywać. */
+  const dobudowane = await wy.evaluate(() => window.__bp('szeroki'));
+  t.check('a prawdziwa animacja DALEJ dobudowuje się po zmianie progu',
+    dobudowane.tweenow > 0, dobudowane.tweenow + ' tweenów');
+
+  t.check('bez błędów JS przy wytworach', !wy.errors.length,
+    wy.errors.join(' | ') || 'brak');
+  await wy.close();
+
+  /* Przebudowa nie może dziać się WPROST ze zdarzenia progu: na telefonie
+     zmiana rozmiaru bywa skutkiem chowania paska adresu w trakcie przewijania,
+     a budowanie animacji w tej samej klatce wkłada pracę dokładnie tam, gdzie
+     przeglądarka liczy scroll.
+
+     Strona startuje WĄSKA, więc animacja „od 900" jest pominięta i naprawdę
+     jest co budować przy przekroczeniu progu. Fixture patrzy na stan w chwili
+     zdarzenia — silnik ma swój nasłuch zarejestrowany wcześniej, więc gdyby
+     budował synchronicznie, byłoby już po. */
+  const odr = await t.open('anim-breakpoint.html',
+    { viewport: { width: 500, height: 600 }, head: presety, settle: 600 });
+  await odr.setViewportSize({ width: 1100, height: 600 });
+  await odr.waitForTimeout(500);
+
+  t.check('przebudowa nie dzieje się w klatce zdarzenia progu',
+    (await odr.evaluate(() => window.__synchronicznie)) === false,
+    'w chwili zdarzenia zbudowane: ' + (await odr.evaluate(() => window.__synchronicznie)));
+  /* Kontrola: przebudowa MIMO WSZYSTKO nastąpiła — inaczej „nie w tej klatce"
+     spełniłoby też całkowite jej wyłączenie. */
+  t.check('ale nastąpiła zaraz potem',
+    (await odr.evaluate(() => window.__bp('szeroki'))).tweenow > 0,
+    (await odr.evaluate(() => window.__bp('szeroki'))).tweenow + ' tweenów');
+  await odr.close();
+
+  /* ── Raport kosztu ──────────────────────────────────────────────────────
+   *
+   * Zgłoszenie „scroll zatrzymuje się na iOS, po wyłączeniu Animatora znika"
+   * dało się rozstrzygnąć tylko wyłączaniem modułów po kolei. Raport pokazuje
+   * liczby, na których da się oprzeć następny krok.
+   */
+  t.section('raport kosztu na żądanie');
+
+  const cichy = await t.open('anim-breakpoint.html',
+    { viewport: { width: 1000, height: 600 }, head: presety, settle: 600 });
+  t.check('bez parametru raportu nie ma',
+    !cichy.logs.some((l) => /koszt strony/.test(l)),
+    cichy.logs.length + ' logów, żaden to raport');
+  await cichy.close();
+
+  /* Kontrola pozytywna: bez niej „nie ma raportu" byłoby spełnione także
+     wtedy, gdyby raportu nie było wcale — a wtedy cała ta funkcja to martwy
+     kod, o który nikt się nie potknie. */
+  const gadatliwy = await t.open('anim-breakpoint.html',
+    { viewport: { width: 1000, height: 600 }, head: presety,
+      query: 'evk-anim-debug=1', settle: 600 });
+  t.check('z parametrem raport JEST',
+    gadatliwy.logs.some((l) => /koszt strony/.test(l)),
+    gadatliwy.logs.find((l) => /koszt/.test(l)) || 'BRAK');
+  await gadatliwy.close();
 };

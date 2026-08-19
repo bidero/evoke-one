@@ -64,10 +64,38 @@
     return isNaN(n) ? fallback : n;
   }
 
-  /* Kawałki po podziale tekstu dostają klasy `evk-anim-line|word|char`
-     (patrz initSplit). To nie są slugi biblioteki i nie wolno ich za takie
-     brać — inaczej każdy kawałek zgłaszałby „brak animacji w bibliotece". */
-  var SPLIT_PIECE = { line: 1, word: 1, char: 1 };
+  /* Węzły, które silnik tworzy SAM. To nie są slugi biblioteki i nie wolno ich
+     za takie brać — inaczej każdy zgłasza „brak animacji w bibliotece".
+     
+     Wzorzec, a nie lista trzech nazw, bo lista już raz się rozjechała: kawałki
+     po podziale (`line`, `word`, `char`) były na niej, ale nie były MASKI, które
+     dokłada opcja `mask` SplitTextu (`line-mask` i spółka), ani KLONY podmiany
+     treści (`swap-klon`, od 1.92.0). Póki initAll() biegł raz na życie strony,
+     nie było tego widać — dopiero zakres szerokości z 1.93.0 zaczął go wołać
+     ponownie i wysypał lawinę ostrzeżeń przy każdej zmianie progu.
+     
+     Nowy efekt, który coś generuje, ma dopisać się TUTAJ. */
+  var WEZEL_SILNIKA = /^(?:line|word|char)(?:-mask)?$|^swap-klon$/;
+
+  /**
+   * Czy element jest wyłącznie WYTWOREM silnika — maską, kawałkiem albo klonem.
+   *
+   * Taki węzeł nie dostanie konfiguracji nigdy: stworzyliśmy go sami i wiemy,
+   * co w nim jest. To odróżnia go od elementu bez konfiguracji, na który silnik
+   * czeka (treść z AJAX-a może dostać atrybut później) — i dlatego wolno go
+   * pominąć od razu, zamiast wracać do niego przy każdej zmianie progu.
+   */
+  function tylkoWezelSilnika(el) {
+    if (el.hasAttribute('data-evk-anim')) return false;
+    var maNasze = false;
+    for (var i = 0; i < el.classList.length; i++) {
+      var c = el.classList[i];
+      if (c.indexOf('evk-anim-') !== 0 || c.length <= 9) continue;
+      maNasze = true;
+      if (!WEZEL_SILNIKA.test(c.slice(9))) return false;
+    }
+    return maNasze;
+  }
 
   /** WSZYSTKIE slugi z klas, nie pierwszy: element może nieść kilka animacji. */
   function slugsFromClass(el) {
@@ -76,7 +104,7 @@
       var c = el.classList[i];
       if (c.indexOf('evk-anim-') !== 0 || c.length <= 9) continue;
       var slug = c.slice(9);
-      if (SPLIT_PIECE[slug]) continue;
+      if (WEZEL_SILNIKA.test(slug)) continue;
       out.push(slug);
     }
     return out;
@@ -1044,6 +1072,12 @@
   function initAll() {
     document.querySelectorAll('[class*="evk-anim-"], [data-evk-anim]').forEach(function (el) {
       if (el.dataset.evkAnimReady === '1') return;
+      /* Wytwory silnika odpadają BEZ budowania konfiguracji. Bez tego każdy
+         z nich przechodził przez buildConfigs(), zgłaszał „brak animacji
+         w bibliotece" i — nie dostając znacznika gotowości — wracał przy
+         każdej kolejnej zmianie progu szerokości. Przy podziale na znaki to
+         kilkadziesiąt węzłów na jeden nagłówek. */
+      if (tylkoWezelSilnika(el)) return;
       if (initOne(el)) el.dataset.evkAnimReady = '1';
     });
     runLoadQueue();
@@ -1094,12 +1128,32 @@
    * każda strona z Animatorem przeliczałaby się przy każdej zmianie rozmiaru
    * okna, żeby nie znaleźć niczego do zrobienia.
    */
+  var przebudowaCzeka = false;
+
+  /**
+   * Przebudowa po zmianie progu — ZAWSZE poza bieżącą klatką.
+   *
+   * Zdarzenie `matchMedia` przychodzi w środku zmiany rozmiaru okna, a na
+   * telefonie zmiana rozmiaru bywa skutkiem chowania paska adresu W TRAKCIE
+   * przewijania. Budowanie animacji synchronicznie w tym miejscu wkłada pracę
+   * dokładnie tam, gdzie przeglądarka liczy klatkę scrolla.
+   *
+   * Jedna kolejka na wszystkie progi: przekroczenie kilku naraz (zwykłe przy
+   * przeciąganiu krawędzi okna) daje jedno przeliczenie, nie kilka.
+   */
+  function zaplanujPrzebudowe() {
+    if (przebudowaCzeka) return;
+    przebudowaCzeka = true;
+    var start = function () { przebudowaCzeka = false; initAll(); };
+    if (window.requestIdleCallback) window.requestIdleCallback(start, { timeout: 200 });
+    else                            requestAnimationFrame(start);
+  }
+
   function sledzProgi() {
     progiWUzyciu().forEach(function (zapytanie) {
       var mq = window.matchMedia(zapytanie);
-      var reakcja = function () { initAll(); };
-      if (mq.addEventListener)  mq.addEventListener('change', reakcja);
-      else if (mq.addListener)  mq.addListener(reakcja);
+      if (mq.addEventListener)  mq.addEventListener('change', zaplanujPrzebudowe);
+      else if (mq.addListener)  mq.addListener(zaplanujPrzebudowe);
     });
   }
 
@@ -1135,10 +1189,64 @@
     }
   }
 
+  /**
+   * Raport kosztu — na żądanie, parametrem w adresie.
+   *
+   * Zgłoszenie „bezwładny scroll zatrzymuje się na iOS, po wyłączeniu Animatora
+   * problem znika" dało się rozstrzygnąć tylko wyłączaniem modułów po kolei.
+   * Te liczby mówią wprost, ile strona kosztuje: ile elementów silnik obsłużył,
+   * ile z nich dzieli tekst na kawałki (setki węzłów przy podziale na znaki),
+   * ile ScrollTriggerów wisi i ile z nich pracuje na KAŻDEJ klatce przewijania.
+   *
+   * Bez parametru konsola milczy — raport na produkcji każdego użytkownika
+   * byłby hałasem.
+   */
+  function raportKosztu() {
+    var scrollTriggery = window.ScrollTrigger ? ScrollTrigger.getAll() : [];
+    var scrubow = scrollTriggery.filter(function (t) {
+      return t.vars && t.vars.scrub !== undefined && t.vars.scrub !== false;
+    }).length;
+
+    var wiersze = Object.keys(LIBRARY).map(function (slug) {
+      var r = LIBRARY[slug];
+      var pre = PRESETS[r.preset] || {};
+      return {
+        slug:     slug,
+        preset:   r.preset,
+        wyzwalacz: r.trigger,
+        dzieli:   pre.split || '',
+        zakres:   (r.minW || '') + (r.maxW ? '–' + r.maxW : (r.minW ? '–' : '')),
+      };
+    });
+
+    console.log('[EVK Animator] koszt strony:', {
+      elementow:     document.querySelectorAll('[data-evk-anim-ready="1"]').length
+                     || document.querySelectorAll('[class*="evk-anim-"], [data-evk-anim]').length,
+      kawalkow:      document.querySelectorAll('.evk-anim-line, .evk-anim-word, .evk-anim-char').length,
+      masek:         document.querySelectorAll('[class*="evk-anim-"][class*="-mask"]').length,
+      klonow:        document.querySelectorAll('.evk-anim-swap-klon').length,
+      scrollTriggerow: scrollTriggery.length,
+      wTymScrub:     scrubow,
+    });
+    if (console.table) console.table(wiersze);
+    if (scrubow) {
+      console.log('[EVK Animator] Wiersze ze `scrub` pracują na KAŻDEJ klatce '
+        + 'przewijania. Jeśli animują właściwości przeliczające układ '
+        + '(padding, width, margin) albo filtry (backdrop-filter), to one '
+        + 'kosztują najwięcej — najtaniej jest transform i opacity.');
+    }
+  }
+
   /** Pierwsze uruchomienie: budowa plus nasłuch progów szerokości. */
   function pierwszyPrzebieg() {
     initAll();
     if (window.matchMedia) sledzProgi();
+
+    var gadaj = false;
+    try {
+      gadaj = new URLSearchParams(location.search).get('evk-anim-debug') === '1';
+    } catch (e) { /* starsze przeglądarki — diagnostyka po prostu nie wchodzi */ }
+    if (gadaj) raportKosztu();
   }
 
   function start() {

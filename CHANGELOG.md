@@ -2,6 +2,54 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.95.0] — 2026-08-18
+
+### Naprawione
+
+- **Silnik animacji skanował własne wytwory i zalewał konsolę ostrzeżeniami.**
+  Zgłoszone z użycia: przy każdej zmianie szerokości okna sypało się
+  „Brak animacji »line-mask« / »char-mask« / »swap-klon« w bibliotece", ze
+  śladem prowadzącym przez `initAll` do nasłuchu progów szerokości.
+
+  `initAll()` przechodzi po `[class*="evk-anim-"]`, a filtr pomijający kawałki
+  po podziale tekstu znał tylko trzy nazwy: `line`, `word`, `char`. Nie znał
+  **masek**, które dokłada opcja `mask` SplitTextu (`line-mask` i pozostałe),
+  ani **klonów** podmiany treści z 1.92.0. Póki `initAll()` biegł raz na życie
+  strony, nie było tego widać — zakres szerokości z 1.93.0 zaczął go wołać
+  ponownie i wysypał lawinę.
+
+  Drugi, cichszy skutek: taki węzeł nigdy nie dostawał znacznika gotowości,
+  więc wracał przy KAŻDEJ kolejnej zmianie progu. Przy podziale na znaki to
+  kilkadziesiąt węzłów na jeden nagłówek.
+
+  Rozpoznanie idzie teraz po wzorcu, nie po liście nazw, a element będący
+  wyłącznie wytworem silnika jest pomijany od razu — bez budowania
+  konfiguracji i bez powrotów.
+
+  Sama funkcja zakresu szerokości działała poprawnie; to ona tylko odsłoniła
+  usterkę.
+
+### Zmienione
+
+- **Przebudowa po zmianie progu nie dzieje się już w klatce zdarzenia.**
+  Zdarzenie `matchMedia` przychodzi w środku zmiany rozmiaru okna, a na
+  telefonie zmiana rozmiaru bywa skutkiem chowania paska adresu **w trakcie
+  przewijania** — budowanie animacji synchronicznie w tym miejscu wkłada pracę
+  dokładnie tam, gdzie przeglądarka liczy klatkę scrolla. Przebudowa idzie
+  przez jedną kolejkę, więc kilka progów przekroczonych naraz daje jedno
+  przeliczenie zamiast kilku.
+
+### Dodane
+
+- **Raport kosztu Animatora.** `?evk-anim-debug=1` wypisuje w konsoli, ile
+  elementów silnik obsłużył, ile kawałków, masek i klonów powstało, ile
+  ScrollTriggerów wisi i ile z nich pracuje na każdej klatce przewijania —
+  plus tabelę wierszy biblioteki. Bez parametru konsola milczy.
+
+  Zgłoszenie „bezwładny scroll zatrzymuje się na iOS, po wyłączeniu Animatora
+  problem znika" dało się dotąd rozstrzygnąć tylko wyłączaniem modułów po
+  kolei. Te liczby pozwalają oprzeć następny krok na pomiarze.
+
 ## [1.94.0] — 2026-08-18
 
 ### Naprawione

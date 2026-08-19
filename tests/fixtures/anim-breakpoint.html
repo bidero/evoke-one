@@ -35,8 +35,20 @@
      Znacznik gotowości nie może zablokować dobudowania tej drugiej. -->
 <div id="dwie" data-evk-anim='[{"animation":"z"},{"animation":"s"}]'>dwie animacje</div>
 
+<!-- Podział tekstu Z MASKĄ. To on tworzy węzły, które silnik brał za nosicieli
+     animacji: kawałki `evk-anim-line`, maski `evk-anim-line-mask` i — przy
+     podmianie treści — klony `evk-anim-swap-klon`. Póki initAll() biegł raz,
+     nie było ich widać; zakres szerokości woła go ponownie i wtedy każdy z nich
+     zgłaszał „brak animacji w bibliotece" i wracał przy każdej kolejnej
+     zmianie progu. Bez tego elementu fixture ma same proste divy i cała ta
+     klasa usterek jest poza zasięgiem pomiaru. -->
+<p id="dzielony" data-evk-anim='{"animation":"d"}'>Projektujemy strony, które
+  wyglądają jak marka, a działają jak narzędzie — od pierwszego szkicu po
+  wdrożenie i opiekę nad wynikami w wyszukiwarce.</p>
+
 <script src="../../assets/vendor/gsap/gsap.min.js"></script>
 <script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
+<script src="../../assets/vendor/gsap/SplitText.min.js"></script>
 <script>
 (function () {
   var row = function (extra) {
@@ -52,6 +64,7 @@
       w: row({ maxW: 700 }),
       s: row({ minW: 900 }),
       z: row({}),
+      d: row({ preset: 'split-lines-mask' }),
     },
     presets: (window.__presets && window.__presets.presets) || {},
     reducedMotion: false,
@@ -77,6 +90,47 @@
       tweenow: window.gsap ? gsap.getTweensOf(el).length : 0,
     };
   };
+
+  /* Ile węzłów WYTWORZONYCH przez silnik jest na stronie. Rosną przy podziale
+     tekstu i przy podmianie treści; żaden z nich nie jest nosicielem animacji. */
+  window.__wytwory = function () {
+    return {
+      kawalki: document.querySelectorAll('.evk-anim-line, .evk-anim-word, .evk-anim-char').length,
+      maski:   document.querySelectorAll('[class*="evk-anim-"][class*="-mask"]').length,
+      klony:   document.querySelectorAll('.evk-anim-swap-klon').length,
+    };
+  };
+
+  /* Ile z nich silnik uznał za gotowe. Wytwór NIE MOŻE dostawać znacznika —
+     ma być pomijany od razu, bez budowania konfiguracji. */
+  window.__wytworyGotowe = function () {
+    return Array.prototype.filter.call(
+      document.querySelectorAll('[class*="evk-anim-"][class*="-mask"], .evk-anim-swap-klon'),
+      function (el) { return el.dataset.evkAnimReady === '1'; }).length;
+  };
+
+  /* Czy silnik przebudował się SYNCHRONICZNIE, wprost ze zdarzenia progu.
+     
+     Ten nasłuch rejestrujemy PO silniku, więc silnik dostaje zdarzenie jako
+     pierwszy. Gdyby budował od razu, animacja istniałaby już w chwili, gdy
+     tutaj patrzymy. Odroczona przebudowa znaczy, że jeszcze jej nie ma —
+     a to jest cała różnica: praca nie ląduje w klatce, w której przeglądarka
+     zmienia rozmiar (na telefonie bywa to klatka przewijania). */
+  window.__synchronicznie = null;
+  if (window.matchMedia) {
+    /* Rejestracja na `load`, czyli PO silniku. Nasłuchy tego samego zapytania
+       wykonują się w kolejności rejestracji, a silnik zakłada swój dopiero na
+       DOMContentLoaded — ten skrypt wykonuje się wcześniej, więc bez odłożenia
+       patrzylibyśmy ZANIM silnik cokolwiek zrobi i pomiar zawsze pokazywałby
+       „nie zbudowane", niezależnie od kodu. Zmierzone: bez tego mutacja
+       przywracająca synchroniczną przebudowę przechodziła na zielono. */
+    window.addEventListener('load', function () {
+      window.matchMedia('(min-width: 900px)').addEventListener('change', function () {
+        var el = document.getElementById('szeroki');
+        window.__synchronicznie = !!(window.gsap && gsap.getTweensOf(el).length);
+      });
+    });
+  }
 
   /** Czy zasłona zeszła z dokumentu. Bez tego treść zostaje niewidoczna. */
   window.__zaslona = function () {
