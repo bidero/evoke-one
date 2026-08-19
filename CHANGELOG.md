@@ -2,6 +2,48 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.97.1] — 2026-08-19
+
+### Naprawione
+
+- **Offcanvas w nagłówku otwierał się w builderze „tylko w świetle tego bloku".**
+  Zgłoszone z użycia, razem z drugą połową objawu: *„przeniesienie do body nic
+  nie zmienia"*. I to ta druga połowa była wskazówką — kontrolka **nic nie
+  zmieniała, bo nic jej nie czytało**. Warunek portalu brzmiał
+  `usePortal && !isBuilder`, więc na kanwie powłoka zawsze zostawała w korzeniu.
+
+  Sama przyczyna leży w bloku zawierającym: `position: fixed` liczy się od okna
+  **tylko wtedy**, gdy żaden przodek nie tworzy dla niego bloku zawierającego.
+  Tworzy go `transform`, `perspective`, `filter`, `backdrop-filter`, `contain`
+  i `will-change` zapowiadające którąkolwiek z tych rzeczy — a w nagłówku to nie
+  jest egzotyka: przyklejony nagłówek, animacja wejścia z Animatora, cudzy efekt
+  na sekcji. Na froncie problem nie występował, bo tam powłoka i tak jechała do
+  `<body>` i zostawiała takiego przodka za sobą.
+
+  Portal działa teraz **także w builderze**. Cena jest jedna i warto ją znać:
+  panel przeniesiony do `<body>` przestaje być potomkiem węzła elementu, więc
+  Bricks szuka go po `id`, a nie po pokrewieństwie. Za to menu wygląda na kanwie
+  tak, jak będzie wyglądać na stronie — a to jest sens edycji na żywo.
+
+- **Powłoka nie zostaje po przerysowaniu elementu.** Bricks podmienia węzeł
+  elementu przy **każdej** zmianie ustawienia. Póki powłoka siedziała w korzeniu,
+  znikała razem z nim; powłoka w `<body>` korzenia nad sobą nie ma i zostawałaby
+  po każdej edycji. Po kilkunastu kliknięciach w kanwie leżałby stos martwych
+  menu z nieaktualną treścią, każde na `z-index: 99990`.
+
+  Korzeń dostaje własny identyfikator, powłoka jego odcisk — i przy każdym
+  uruchomieniu znikają te powłoki, których korzenia nie ma już w dokumencie.
+  Wiązanie własnym identyfikatorem, a nie `id` Bricksa: nasz ginie razem
+  z przerysowanym korzeniem i właśnie po tym poznajemy sierotę.
+
+### Dodane
+
+- **Element mówi, kto go zamyka.** Gdy powłoka nie ma jak rozciągnąć się na całe
+  okno, w konsoli ląduje ostrzeżenie z **nazwiskiem przodka**, który tworzy blok
+  zawierający, i z podpowiedzią, co z tym zrobić. Bez tego objaw jest nie do
+  rozszyfrowania z zewnątrz: menu otwiera się w prostokącie nagłówka, a
+  w ustawieniach elementu nie ma niczego, co by to tłumaczyło.
+
 ## [1.97.0] — 2026-08-19
 
 ### Dodane

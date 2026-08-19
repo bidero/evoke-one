@@ -1329,4 +1329,96 @@ module.exports = async function (t) {
     await pod.evaluate(() => window.__panelLeft('uslugi')) + ' px');
   t.check('bez błędów JS', !pod.errors.length, pod.errors.join(' | ') || 'brak');
   await pod.close();
+
+  /* ── MENU W NAGŁÓWKU, W BUILDERZE ───────────────────────────────────────
+   *
+   * Zgłoszone z użycia: „jak jest w nagłówku, to w builderze otwiera się tylko
+   * w świetle tego bloku, a nie na całym ekranie. Przeniesienie do body nic
+   * nie zmienia".
+   *
+   * Dwie rzeczy naraz, i dopiero razem dają ten objaw:
+   *
+   *  1. `position: fixed` liczy się od okna TYLKO wtedy, gdy żaden przodek nie
+   *     tworzy dla niego bloku zawierającego. Tworzy go `transform` i kilka
+   *     jego krewnych — a w nagłówku to nie egzotyka: przyklejony nagłówek,
+   *     animacja wejścia z Animatora, cudzy efekt na sekcji.
+   *  2. Kontrolka „Przenieś do <body>", która jest z tego wyjściem, była
+   *     w builderze MARTWA: warunek brzmiał `usePortal && !isBuilder`.
+   *
+   * Stąd „przeniesienie nic nie zmienia" — nic tego ustawienia nie czytało.
+   */
+  t.section('menu w nagłówku otwiera się na całe okno, także w builderze');
+
+  /* Najpierw dowód, że pułapka DZIAŁA — inaczej cała sekcja przechodziłaby
+     także wtedy, gdyby nagłówek niczego nie zamykał, i nie mierzyłaby nic. */
+  const uwiez = await t.open('offcanvas.html',
+    { viewport: V, query: 'builder=1&trap=1&portal=0', settle: 200 });
+  const uw = await uwiez.evaluate(() => window.__oknoPowloki());
+  t.check('nagłówek z transformem NAPRAWDĘ zamyka powłokę w sobie',
+    !uw.naCaleOkno && uw.h < V.height,
+    uw.w + '×' + uw.h + ' przy oknie ' + uw.oknoW + '×' + uw.oknoH);
+  /* I że mówimy o tym wprost. Objaw jest nie do rozszyfrowania z zewnątrz:
+     w ustawieniach elementu nie ma niczego, co by go tłumaczyło. */
+  t.check('i element mówi, kto go zamyka',
+    uwiez.warnings.some((w) => /nie rozciągnie się na całe okno/.test(w)
+                            && /naglowek/.test(w)),
+    uwiez.warnings.find((w) => /całe okno/.test(w)) || 'brak ostrzeżenia');
+  await uwiez.close();
+
+  // SEDNO: ta sama strona z włączonym portalem.
+  const wolne = await t.open('offcanvas.html',
+    { viewport: V, query: 'builder=1&trap=1&portal=1', settle: 200 });
+  const wo = await wolne.evaluate(() => window.__oknoPowloki());
+  t.check('portal w builderze wyprowadza powłokę do <body>', wo.rodzic === 'body',
+    String(wo.rodzic));
+  t.check('i menu rozciąga się na CAŁE okno', wo.naCaleOkno,
+    wo.w + '×' + wo.h + ' przy oknie ' + wo.oknoW + '×' + wo.oknoH);
+  t.check('nie ma już o czym ostrzegać',
+    !wolne.warnings.some((w) => /całe okno/.test(w)),
+    wolne.warnings.filter((w) => /całe okno/.test(w)).join(' | ') || 'cisza');
+  t.check('bez błędów JS', !wolne.errors.length, wolne.errors.join(' | ') || 'brak');
+  await wolne.close();
+
+  /* Kontrola negatywna do samego portalu: wyłączony ma nadal ZOSTAWIAĆ powłokę
+     w korzeniu. Bez tej pary „portal działa" byłoby spełnione także wtedy,
+     gdyby powłoka jechała do <body> zawsze — a wtedy kontrolka znów nic nie
+     znaczy, tylko w drugą stronę. */
+  const wKorzeniu = await t.open('offcanvas.html',
+    { viewport: V, query: 'builder=1&portal=0', settle: 200 });
+  t.check('wyłączony portal zostawia powłokę w korzeniu',
+    (await wKorzeniu.evaluate(() => window.__shellParent())) === 'div',
+    String(await wKorzeniu.evaluate(() => window.__shellParent())));
+  await wKorzeniu.close();
+
+  // ── Przerysowanie w builderze ──────────────────────────────────────────
+  /* Powłoka w <body> nie ma nad sobą korzenia, więc nie znika razem z nim.
+     A Bricks podmienia węzeł elementu przy KAŻDEJ zmianie ustawienia — po
+     kilkunastu kliknięciach w kanwie leżałby stos martwych menu z nieaktualną
+     treścią, każde na `z-index: 99990`. Na froncie problem nie istniał, bo tam
+     nic elementu nie przerysowuje. */
+  t.section('przerysowanie elementu nie zostawia martwych powłok');
+
+  const prz = await t.open('offcanvas.html',
+    { viewport: V, query: 'builder=1&portal=1', settle: 200 });
+  const przedPrz = await prz.evaluate(() => window.__ilePowlok());
+
+  await prz.evaluate(() => { window.__przerysuj(); window.__przerysuj(); window.__przerysuj(); });
+  await prz.waitForTimeout(120);
+
+  t.check('trzy przerysowania, tyle samo powłok co przedtem',
+    await prz.evaluate(() => window.__ilePowlok()) === przedPrz,
+    przedPrz + ' → ' + await prz.evaluate(() => window.__ilePowlok()));
+  t.check('i żadna nie jest osierocona',
+    await prz.evaluate(() => window.__ileOsieroconych()) === 0,
+    await prz.evaluate(() => window.__ileOsieroconych()) + ' osieroconych');
+
+  /* Kontrola pozytywna: po przerysowaniu menu ma nadal DZIAŁAĆ, a nie tylko
+     nie śmiecić. Sprzątanie, które zabiera żywą powłokę, jest gorsze niż brak
+     sprzątania. */
+  await prz.evaluate(() => window.__open());
+  await prz.waitForTimeout(200);
+  t.check('a menu po przerysowaniu nadal się otwiera',
+    await prz.evaluate(() => window.__otwarteDlaKorzenia()), 'otwarte');
+  t.check('bez błędów JS', !prz.errors.length, prz.errors.join(' | ') || 'brak');
+  await prz.close();
 };

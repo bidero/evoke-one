@@ -28,6 +28,73 @@ function evk_offcanvas_menu_init() {
     });
 }
 
+/**
+ * Przodek, który zamyka `position: fixed` w swoim pudełku — albo `null`.
+ *
+ * `fixed` liczy się od OKNA tylko wtedy, gdy nikt po drodze nie tworzy dla
+ * niego bloku zawierającego. Tworzy go `transform`, `perspective`, `filter`,
+ * `backdrop-filter`, `contain` i `will-change` zapowiadające którąkolwiek
+ * z tych rzeczy. W nagłówku to nie jest egzotyka: przyklejony nagłówek,
+ * animacja wejścia z Animatora, cudzy efekt na sekcji.
+ */
+function evk_oc_przodek_blokujacy(el) {
+    for (var a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) {
+        var cs = getComputedStyle(a);
+        if (cs.transform !== 'none') return a;
+        if (cs.perspective && cs.perspective !== 'none') return a;
+        if (cs.filter && cs.filter !== 'none') return a;
+        if (cs.backdropFilter && cs.backdropFilter !== 'none') return a;
+        if (cs.contain && /paint|layout|strict|content/.test(cs.contain)) return a;
+        if (cs.willChange && /transform|perspective|filter|contain/.test(cs.willChange)) return a;
+    }
+    return null;
+}
+
+/**
+ * Mówi wprost, gdy menu nie ma jak rozciągnąć się na całe okno.
+ *
+ * Bez tego objaw jest nie do rozszyfrowania z zewnątrz: menu otwiera się
+ * w prostokącie nagłówka i nic w ustawieniach elementu tego nie tłumaczy.
+ * Przyczyna leży u KOGOŚ INNEGO w drzewie, więc wskazujemy winowajcę
+ * z nazwiska i podpowiadamy wyjście.
+ */
+function evk_oc_ostrzez_o_blokadzie(shell, usePortal) {
+    var winowajca = evk_oc_przodek_blokujacy(shell);
+    if (!winowajca) return;
+
+    var kto = winowajca.tagName.toLowerCase()
+        + (winowajca.id ? '#' + winowajca.id : '')
+        + (winowajca.className && typeof winowajca.className === 'string'
+            ? '.' + winowajca.className.trim().split(/\s+/).join('.') : '');
+
+    console.warn('[EVK Offcanvas] Menu nie rozciągnie się na całe okno — przodek '
+        + kto + ' tworzy blok zawierający dla `position: fixed` '
+        + '(transform, filter, perspective, contain albo will-change). '
+        + (usePortal
+            ? 'Powłoka jest już w <body>, więc blokada siedzi wyżej — na <body> albo na jego opakowaniu.'
+            : 'Włącz „Przenieś do <body>" w ustawieniach elementu.'),
+        winowajca);
+}
+
+/**
+ * Usuwa powłoki po korzeniach, których już nie ma w dokumencie.
+ *
+ * Bricks PRZERYSOWUJE element przy każdej zmianie ustawienia — podmienia węzeł
+ * korzenia na świeży. Póki powłoka siedziała w korzeniu, znikała razem z nim;
+ * powłoka w <body> korzenia nad sobą nie ma i zostawałaby po każdej edycji.
+ * Po kilkunastu kliknięciach w kanwie leżałby stos martwych menu z nieaktualną
+ * treścią, a każde z nich na `z-index: 99990`.
+ *
+ * Wiązanie idzie WŁASNYM identyfikatorem, nie `id` Bricksa: nasz ginie razem
+ * z przerysowanym korzeniem i właśnie po tym poznajemy, że powłoka osierociała.
+ */
+function evk_oc_sprzatnij_osierocone() {
+    document.querySelectorAll('.evk-oc-shell[data-evk-oc-owner]').forEach(function (s) {
+        var uid = s.getAttribute('data-evk-oc-owner');
+        if (!document.querySelector('[data-evk-oc-uid="' + uid + '"]')) s.remove();
+    });
+}
+
 function evk_offcanvas_menu_init_one(root) {
 
     var panels = Array.prototype.slice.call(root.querySelectorAll('.evk-oc-panel'));
@@ -262,8 +329,46 @@ function evk_offcanvas_menu_init_one(root) {
         if (val && val.trim()) shell.style.setProperty(v, val.trim());
     });
 
-    if (usePortal && !isBuilder) document.body.appendChild(shell);
-    else                        root.appendChild(shell);
+    /* Portal działa TAKŻE W BUILDERZE — do 1.97.1 warunek brzmiał
+       `usePortal && !isBuilder` i kontrolka „Przenieś do <body>" była na kanwie
+       martwa. Zgłoszone z użycia: menu wstawione w nagłówku otwierało się
+       „w świetle tego bloku", a nie na całym ekranie, i przełączanie kontrolki
+       nic nie dawało — bo nic nie czytało.
+
+       Powód jest w bloku zawierającym: `position: fixed` liczy się od okna
+       tylko wtedy, gdy żaden przodek nie tworzy dla niego bloku zawierającego.
+       Robi to `transform`, `filter`, `perspective`, `contain` i `will-change`
+       — czyli rzeczy, które w nagłówku zdarzają się stale: przyklejony
+       nagłówek, animacja wejścia z Animatora, cudzy efekt. Na froncie problem
+       nie występował, bo tam powłoka i tak jechała do <body> i zostawiała
+       takiego przodka za sobą.
+
+       Cena jest jedna i trzeba ją znać: panel przeniesiony do <body> przestaje
+       być potomkiem węzła elementu, więc Bricks szuka go po `id`, a nie po
+       pokrewieństwie. Za to menu wygląda na kanwie tak, jak będzie wyglądać
+       na stronie — a to jest sens edycji na żywo. */
+    /* Własny identyfikator korzenia i jego odcisk na powłoce. Po nich poznajemy
+       powłokę osierociałą przez przerysowanie — patrz komentarz przy
+       evk_oc_sprzatnij_osierocone(). Losowy, bo `id` Bricksa ginie razem
+       z węzłem i nie odróżniłby korzenia sprzed edycji od tego po niej. */
+    var uid = root.dataset.evkOcUid;
+    if (uid) {
+        // Ten sam korzeń drugi raz — zabieramy jego poprzednią powłokę,
+        // zanim zbudujemy nową. `data-evk-oc-ready` zwykle do tego nie
+        // dopuszcza, ale zależeć od tego nie musimy.
+        var stara = document.querySelector('.evk-oc-shell[data-evk-oc-owner="' + uid + '"]');
+        if (stara) stara.remove();
+    } else {
+        uid = 'oc' + Math.random().toString(36).slice(2, 10);
+        root.dataset.evkOcUid = uid;
+    }
+    shell.setAttribute('data-evk-oc-owner', uid);
+    evk_oc_sprzatnij_osierocone();
+
+    if (usePortal) document.body.appendChild(shell);
+    else           root.appendChild(shell);
+
+    evk_oc_ostrzez_o_blokadzie(shell, usePortal);
 
 
     // ── Stan ───────────────────────────────────────────────────────────────

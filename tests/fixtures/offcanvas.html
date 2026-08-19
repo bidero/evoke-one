@@ -8,16 +8,33 @@
   .long { height: 3000px; background: #eee; }
   .evk-oc-panel { background: #fff; padding: 20px; }
   .evk-oc-trigger { display: inline-block; padding: 10px 16px; background: #345; color: #fff; cursor: pointer; }
+
+  /* Nagłówek, który ZAMYKA `position: fixed` w sobie. Zakładane z `?trap=1`.
+     `transform` wystarczy — reszta z listy (filter, perspective, contain,
+     will-change) robi dokładnie to samo, więc mierzymy jeden przypadek
+     i pilnujemy całej listy w kodzie. */
+  #naglowek.pulapka { transform: translateZ(0); overflow: hidden; height: 120px; }
 </style>
 
 <link rel="stylesheet" href="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.css">
 
 <script>
   var q = new URLSearchParams(location.search);
-  // Bricks wystawia tę zmienną na stronie; JS elementu rozpoznaje po niej builder.
-  window.bricksIsFrontend = true;
+  /* Bricks wystawia tę zmienną na stronie; JS elementu rozpoznaje po niej
+     builder. `?builder=1` przestawia ją na kanwę — bez tego cała gałąź
+     builderowa jest w testach nieosiągalna, a to w niej siedziało zgłoszenie
+     „w nagłówku otwiera się tylko w świetle tego bloku". */
+  window.bricksIsFrontend = q.get('builder') !== '1';
 </script>
 
+<!-- NAGŁÓWEK: opakowanie wokół menu, dokładnie takie, jakie bywa na stronie.
+     Przy `?trap=1` dostaje `transform` — a przodek z transformem TWORZY BLOK
+     ZAWIERAJĄCY dla `position: fixed` i zamyka w sobie całą powłokę menu.
+     To jest zgłoszona usterka, odtworzona: nie „menu się nie otwiera", tylko
+     „otwiera się w prostokącie nagłówka".
+     Bez tego opakowania ta klasa usterek jest poza zasięgiem pomiaru — powłoka
+     wisiałaby wprost w <body> i zawsze wychodziła na całe okno. -->
+<div id="naglowek">
 <div id="root" class="evk-oc">
   <button class="evk-oc-trigger" id="trigger">Menu</button>
 
@@ -39,6 +56,7 @@
     <button data-evk-oc-back id="back-2">← Wstecz</button>
     <a href="#d1" id="d-1">Detal 1</a>
   </div>
+</div>
 </div>
 
 <!-- Drugi korzeń, panele BEZ `data-panel` — droga „po kolejności", którą
@@ -100,6 +118,24 @@
   });
   r2.setAttribute('data-start', '');
   r2.setAttribute('data-trigger', '');
+
+  // Nagłówek zamykający `position: fixed` w sobie — patrz `#naglowek.pulapka`.
+  if (q.get('trap') === '1') document.getElementById('naglowek').classList.add('pulapka');
+
+  /* ZRZUT KORZENIA sprzed startu skryptu — do udawania przerysowania.
+
+     Bricks przy każdej zmianie ustawienia podmienia węzeł elementu na świeży,
+     z pełną treścią i bez naszych znaczników stanu. Kopia musi więc powstać
+     TERAZ: chwilę później panele są już przeniesione do powłoki, a na korzeniu
+     siedzi `data-evk-oc-ready`. */
+  var ZRZUT = document.getElementById('root').outerHTML;
+  window.__przerysuj = function () {
+    var stary = document.getElementById('root');
+    var kosz  = document.createElement('div');
+    kosz.innerHTML = ZRZUT;
+    stary.parentNode.replaceChild(kosz.firstElementChild, stary);
+    evk_offcanvas_menu_init();
+  };
 </script>
 <script src="../../assets/vendor/gsap/gsap.min.js"></script>
 <script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
@@ -459,6 +495,59 @@ window.__odslona = function () {
     frameTime: tf.transition, frameEase: tf.ease,
     reveal: sh.classList.contains('is-reveal'),
   };
+};
+
+/**
+ * Czy powłoka NAPRAWDĘ leży na całym oknie.
+ *
+ * To jest pomiar zgłoszonego objawu, a nie reguły: „otwiera się w świetle
+ * bloku" znaczy dokładnie tyle, że prostokąt powłoki jest mniejszy od okna.
+ * Sama klasa czy rodzic tego nie powiedzą — powłoka może siedzieć gdziekolwiek
+ * i mimo to być uwięziona przez przodka z transformem.
+ */
+window.__oknoPowloki = function () {
+  var s = shellOf(0);
+  if (!s) return null;
+  var r = s.getBoundingClientRect();
+  return {
+    w: Math.round(r.width), h: Math.round(r.height),
+    x: Math.round(r.left),  y: Math.round(r.top),
+    oknoW: window.innerWidth, oknoH: window.innerHeight,
+    /* Czy pokrywa okno co do kilku pikseli. Tolerancja, bo pasek przewijania
+       i zaokrąglenia potrafią zabrać kilkanaście. */
+    naCaleOkno: Math.abs(r.width - window.innerWidth) <= 20
+             && Math.abs(r.height - window.innerHeight) <= 20
+             && Math.abs(r.left) <= 2 && Math.abs(r.top) <= 2,
+    rodzic: s.parentElement ? s.parentElement.tagName.toLowerCase() : null,
+  };
+};
+
+/**
+ * Powłoka NALEŻĄCA do danego korzenia, adresowana odciskiem, a nie kolejnością.
+ *
+ * `shellOf(i)` bierze po kolejności w dokumencie i wszędzie indziej wystarcza —
+ * ale po przerysowaniu kolejność się zmienia: świeża powłoka ląduje w <body>
+ * jako ostatnia, więc „pierwsza" przestaje należeć do pierwszego korzenia.
+ * Zmierzone: bez tego „menu po przerysowaniu nadal się otwiera" świeciło na
+ * czerwono, choć menu otwierało się poprawnie.
+ */
+window.__otwarteDlaKorzenia = function (id) {
+  var r = document.getElementById(id || 'root');
+  var uid = r && r.dataset.evkOcUid;
+  var s = uid ? document.querySelector('.evk-oc-shell[data-evk-oc-owner="' + uid + '"]') : null;
+  return !!s && s.classList.contains('is-open');
+};
+
+/** Ile powłok leży w dokumencie — po przerysowaniu ma NIE przybywać. */
+window.__ilePowlok = function () { return document.querySelectorAll('.evk-oc-shell').length; };
+
+/** Ile z nich jest osierocona: nosi odcisk korzenia, którego już nie ma. */
+window.__ileOsieroconych = function () {
+  return Array.prototype.filter.call(
+    document.querySelectorAll('.evk-oc-shell[data-evk-oc-owner]'),
+    function (s) {
+      return !document.querySelector('[data-evk-oc-uid="' + s.getAttribute('data-evk-oc-owner') + '"]');
+    }).length;
 };
 
 /** Stan drugiego korzenia — panele bez nazw, adresowane kolejnością. */
