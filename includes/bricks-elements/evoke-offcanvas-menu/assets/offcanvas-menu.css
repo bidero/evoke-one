@@ -122,78 +122,31 @@
 .evk-oc-shell.is-reveal.is-side-bottom .evk-oc-hold { transform: translateY(-100%); }
 .evk-oc-shell.is-reveal.is-open .evk-oc-hold { transform: none; }
 
-/* ── 1c. WYGIĘTA ŚCIANA: krawędź wjazdu wybrzusza się i prostuje ──
+/* ── 1c. WYGIĘTA ŚCIANA: krawędź odsłaniania jest krzywą ──
  *
- * Ściana panelu wygina się w trakcie ruchu: wyprzedza na środku, zostaje w tyle
- * przy rogach, a na końcu wraca do prostej. Wzór — nextbricks.io — robi to
- * ścieżką SVG w `clipPath` animowaną GSAP-em. To menu jedzie na przejściach
- * CSS i nie ma zależności od GSAP-a, więc kształt bierze się stąd:
+ * Trzeci efekt otwierania. Kadr NIE JEDZIE — całą robotę robi obcięcie, które
+ * rośnie od krawędzi wjazdu, a jego brzeg jest kwadratową Bézierą: wyprzedza
+ * na środku, zostaje w tyle przy rogach i na końcu prostuje się do pełnej
+ * krawędzi. Tak działa wzór (nextbricks.io) i o to samo chodziło w zgłoszeniu.
  *
- *   `border-radius` OBCINA POTOMKÓW, gdy element ma `overflow: clip` — a kadr
- *   ma je od 1.62.0. Promień na obu rogach jednej krawędzi robi z niej soczewkę:
- *   przy rogach cofniętą o `--evk-oc-curve`, na środku sięgającą pełnej
- *   krawędzi. Zmierzone punkt po punkcie: przy 40% w rogu treść jest już
- *   obcięta, na środku wysokości sięga samego skraju.
+ * KSZTAŁT USTAWIA JS, nie ten arkusz. Do 1.98.1 stało tu `border-radius`
+ * z klatkami — czysty CSS, bez zależności, ale łuk eliptyczny zamiast Béziery.
+ * Zgłoszone z użycia: „nie jestem zadowolony, u nich jest płynniej i ładniej".
+ * Ścieżki nie da się zapisać promieniem narożnika, a `d` jako właściwość CSS
+ * nie działa w Firefoksie — zostaje wpisywanie atrybutu co klatkę, czyli GSAP.
+ * Doładowuje się TYLKO przy tym efekcie (patrz enqueue_scripts w element.php).
  *
- * Promień W PROCENTACH, więc kształt skaluje się z panelem — ta sama krzywizna
- * na wąskim telefonie i na szerokim ekranie.
- *
- * DWUSTOPNIOWY PROFIL WYMAGA KLATEK, nie przejścia: przejście interpoluje
- * z punktu do punktu i nie ma jak mieć szczytu w środku drogi. Szczyt na 66%,
- * tak jak we wzorze (0,66 czasu na wybrzuszenie, 0,34 na wyprostowanie).
- *
- * Nazwa mówi, KTÓRA KRAWĘDŹ WIEDZIE — a nie z której strony menu wjeżdża.
- * To dwie różne rzeczy: menu z prawej wiedzie krawędzią lewą. */
-@keyframes evk-oc-wyg-lewa {
-    0%   { border-top-left-radius: 0 0; border-bottom-left-radius: 0 0; }
-    66%  { border-top-left-radius: var(--evk-oc-curve, 30%) 50%;
-           border-bottom-left-radius: var(--evk-oc-curve, 30%) 50%; }
-    100% { border-top-left-radius: 0 0; border-bottom-left-radius: 0 0; }
-}
-@keyframes evk-oc-wyg-prawa {
-    0%   { border-top-right-radius: 0 0; border-bottom-right-radius: 0 0; }
-    66%  { border-top-right-radius: var(--evk-oc-curve, 30%) 50%;
-           border-bottom-right-radius: var(--evk-oc-curve, 30%) 50%; }
-    100% { border-top-right-radius: 0 0; border-bottom-right-radius: 0 0; }
-}
-/* W pionie osie zamieniają się rolami: głębokość wygięcia mierzy się wysokością
-   panelu, a rozciągnięcie szerokością. */
-@keyframes evk-oc-wyg-dol {
-    0%   { border-bottom-left-radius: 0 0; border-bottom-right-radius: 0 0; }
-    66%  { border-bottom-left-radius: 50% var(--evk-oc-curve, 30%);
-           border-bottom-right-radius: 50% var(--evk-oc-curve, 30%); }
-    100% { border-bottom-left-radius: 0 0; border-bottom-right-radius: 0 0; }
-}
-@keyframes evk-oc-wyg-gora {
-    0%   { border-top-left-radius: 0 0; border-top-right-radius: 0 0; }
-    66%  { border-top-left-radius: 50% var(--evk-oc-curve, 30%);
-           border-top-right-radius: 50% var(--evk-oc-curve, 30%); }
-    100% { border-top-left-radius: 0 0; border-top-right-radius: 0 0; }
-}
+ * Tu zostaje jedno: kadr ma stać w miejscu. Bez tego wysuwanie i obcięcie
+ * grałyby naraz i panel wjeżdżałby dwa razy. */
+.evk-oc-shell.is-curve .evk-oc-frame { transform: none !important; }
 
-/* Krawędź wiodąca to ta PRZECIWNA do strony, z której menu wjeżdża. */
-.evk-oc-shell.is-curve.is-open.is-side-right  .evk-oc-frame { animation-name: evk-oc-wyg-lewa; }
-.evk-oc-shell.is-curve.is-open.is-side-left   .evk-oc-frame { animation-name: evk-oc-wyg-prawa; }
-.evk-oc-shell.is-curve.is-open.is-side-top    .evk-oc-frame { animation-name: evk-oc-wyg-dol; }
-.evk-oc-shell.is-curve.is-open.is-side-bottom .evk-oc-frame { animation-name: evk-oc-wyg-gora; }
-
-/* Zamykanie gra TĘ SAMĄ krzywą wspak — wzór odwraca całą swoją oś czasu, więc
-   i tu wybrzuszenie wraca, zamiast znikać. Klasę zakłada JS na czas wyjazdu
-   kadru: `is-open` już go wtedy nie ma, a bez własnego zaczepu ściana
-   prostowałaby się w jednej klatce. */
-.evk-oc-shell.is-curve.is-closing.is-side-right  .evk-oc-frame { animation-name: evk-oc-wyg-lewa; }
-.evk-oc-shell.is-curve.is-closing.is-side-left   .evk-oc-frame { animation-name: evk-oc-wyg-prawa; }
-.evk-oc-shell.is-curve.is-closing.is-side-top    .evk-oc-frame { animation-name: evk-oc-wyg-dol; }
-.evk-oc-shell.is-curve.is-closing.is-side-bottom .evk-oc-frame { animation-name: evk-oc-wyg-gora; }
-.evk-oc-shell.is-curve.is-closing .evk-oc-frame  { animation-direction: reverse; }
-
-/* Czas i krzywa WSPÓLNE z wysuwaniem kadru: ściana i panel to jeden ruch.
-   Osobne tempo rozjechałoby wygięcie z drogą, którą panel akurat przebył. */
-.evk-oc-shell.is-curve.is-open .evk-oc-frame,
-.evk-oc-shell.is-curve.is-closing .evk-oc-frame {
-    animation-duration: var(--evk-oc-time, .35s);
-    animation-timing-function: var(--evk-oc-ease, ease);
-    animation-fill-mode: both;
+/* Pudełko na `<clipPath>`. Poza układem i bez rozmiaru — samo `width="0"` nie
+   wystarcza, bo SVG bez `position` nadal zajmuje wiersz. */
+.evk-oc-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
 }
 
 /* ── 2. TAŚMA: przechodzenie między panelami ──
@@ -338,9 +291,10 @@
     .evk-oc-track,
     .evk-oc-panel { transition: none !important; }
 
-    /* Wygięta ściana to ANIMACJA, nie przejście — gaszenie przejść jej nie
-       dotyczy i grałaby dalej, sama jedna, przy nieruchomym panelu. */
-    .evk-oc-frame { animation: none !important; }
+    /* Wygięcie jedzie osią czasu GSAP-a, nie przejściem CSS — gaszenie przejść
+       go nie dotyczy. Zatrzymuje je JS, tą samą wspólną polityką ruchu; tutaj
+       nie ma czego wyłączać, a reguła zostawiona „na wszelki wypadek" gasiłaby
+       cudze animacje w treści panelu. */
 }
 
 /* Blokada przewijania strony. Kompensata szerokości paska siedzi w JS —

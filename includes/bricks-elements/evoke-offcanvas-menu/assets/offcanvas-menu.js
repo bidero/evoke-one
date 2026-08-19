@@ -95,6 +95,56 @@ function evk_oc_sprzatnij_osierocone() {
     });
 }
 
+/**
+ * Trzy kształty obcięcia dla wygiętej ściany: zamknięty, w połowie, otwarty.
+ *
+ * Współrzędne w jednostkach `objectBoundingBox`, czyli 0–1 względem pudełka
+ * kadru — kształt skaluje się z panelem sam, bez przeliczania przy zmianie
+ * rozmiaru okna.
+ *
+ * WSZYSTKIE TRZY MAJĄ TĘ SAMĄ BUDOWĘ POLECEŃ (M, H/V, Q, H/V, z) i to jest
+ * warunek, nie estetyka: ścieżki interpolują się liczba po liczbie, więc
+ * dwie o różnej liczbie poleceń przeskoczyłyby zamiast płynąć.
+ *
+ * Sedno kształtu siedzi w punkcie kontrolnym Béziery. Brzeg biegnie od rogu
+ * do rogu na wysokości postępu, a kontrola wypycha go do przodu o `sila/2`;
+ * przy pełnej sile środek brzegu wyprzedza wtedy krawędź o ćwierć panelu.
+ * Tak liczy to wzór (nextbricks.io).
+ *
+ * `strona` mówi, SKĄD menu wchodzi — obcięcie rośnie od tej krawędzi.
+ */
+function evk_oc_sciezki_wygiecia(strona, sila) {
+    var d = Math.max(0, Math.min(1, sila)) * 0.5;
+
+    if (strona === 'left') {
+        return {
+            zamkniete: 'M 0 0 H 0 Q 0 0.5 0 1 H 0 z',
+            polowa:    'M 0 0 H 0.5 Q ' + (0.5 + d) + ' 0.5 0.5 1 H 0 z',
+            otwarte:   'M 0 0 H 1 Q 1 0.5 1 1 H 0 z',
+        };
+    }
+    if (strona === 'top') {
+        return {
+            zamkniete: 'M 0 0 V 0 Q 0.5 0 1 0 V 0 z',
+            polowa:    'M 0 0 V 0.5 Q 0.5 ' + (0.5 + d) + ' 1 0.5 V 0 z',
+            otwarte:   'M 0 0 V 1 Q 0.5 1 1 1 V 0 z',
+        };
+    }
+    if (strona === 'bottom') {
+        return {
+            zamkniete: 'M 0 1 V 1 Q 0.5 1 1 1 V 1 z',
+            polowa:    'M 0 1 V 0.5 Q 0.5 ' + (0.5 - d) + ' 1 0.5 V 1 z',
+            otwarte:   'M 0 1 V 0 Q 0.5 0 1 0 V 1 z',
+        };
+    }
+    // 'right' — domyślna strona elementu.
+    return {
+        zamkniete: 'M 1 0 H 1 Q 1 0.5 1 1 H 1 z',
+        polowa:    'M 1 0 H 0.5 Q ' + (0.5 - d) + ' 0.5 0.5 1 H 1 z',
+        otwarte:   'M 1 0 H 0 Q 0 0.5 0 1 H 1 z',
+    };
+}
+
 function evk_offcanvas_menu_init_one(root) {
 
     var panels = Array.prototype.slice.call(root.querySelectorAll('.evk-oc-panel'));
@@ -183,14 +233,11 @@ function evk_offcanvas_menu_init_one(root) {
      * całość siedzi w arkuszu. Tutaj zostaje tylko przeliczenie intensywności
      * na głębokość wygięcia.
      */
-    var curve = root.getAttribute('data-curve') === '1';
+    var curve = root.getAttribute('data-effect') === 'curve';
 
-    /* 0–1 z kontrolki na procent szerokości (albo wysokości) panelu. Górna
-       granica 30% dobrana pod wzór: przy pełnej intensywności krawędź
-       wyprzedza mniej więcej o tyle, o ile u nextbricks. Wyżej kadr robi się
-       soczewką i przestaje wyglądać jak ściana. */
-    var GLEBOKOSC_MAX = 30;
-    var curveDepth = Math.max(0, Math.min(1, num('data-curve-intensity', 1)));
+    /* Siła wygięcia 0–1. Steruje punktem kontrolnym Béziery: przy pełnej sile
+       brzeg wyprzedza o ćwierć panelu, przy zerowej jest prostą kreską. */
+    var curveSila = Math.max(0, Math.min(1, num('data-curve-intensity', 1)));
 
     // Wspólna polityka ruchu wtyczki — patrz includes/anim/motion.php.
     var reduced = (window.evkMotion && typeof window.evkMotion.reduced === 'function')
@@ -343,7 +390,6 @@ function evk_offcanvas_menu_init_one(root) {
     shell.style.setProperty('--evk-oc-sub-delay', subDelay + 's');
     if (frameEase) shell.style.setProperty('--evk-oc-ease', frameEase);
     if (trackEase) shell.style.setProperty('--evk-oc-panel-ease', trackEase);
-    if (curve) shell.style.setProperty('--evk-oc-curve', (curveDepth * GLEBOKOSC_MAX) + '%');
     // Wartości z kontrolek `css` builder zapisuje NA KORZENIU, a powłoka jedzie
     // do <body> i przestaje po nim dziedziczyć — trzeba je przepisać.
     ['--evk-oc-size', '--evk-oc-bg', '--evk-oc-scrim'].forEach(function (v) {
@@ -391,6 +437,85 @@ function evk_offcanvas_menu_init_one(root) {
     else           root.appendChild(shell);
 
     evk_oc_ostrzez_o_blokadzie(shell, usePortal);
+
+    /* ── Wygięta ściana ────────────────────────────────────────────────────
+     *
+     * Obcięcie kadru ścieżką SVG, której brzeg jest kwadratową Bézierą.
+     * Rośnie od krawędzi wjazdu i po drodze wybrzusza się do przodu: wyprzedza
+     * na środku, zostaje w tyle przy rogach, na końcu prostuje się do pełnej
+     * krawędzi.
+     *
+     * Jednostki `objectBoundingBox`, czyli 0–1 względem pudełka kadru — kształt
+     * skaluje się z panelem i nie wymaga przeliczania przy zmianie rozmiaru.
+     *
+     * DLACZEGO GSAP, skoro reszta menu jedzie na przejściach CSS: ścieżki nie
+     * da się zapisać ani promieniem narożnika, ani `clip-path: path()`
+     * w procentach (ta funkcja zna tylko jednostki użytkownika), a `d` jako
+     * właściwość CSS nie działa w Firefoksie. Zostaje wpisywanie atrybutu co
+     * klatkę. Biblioteka doładowuje się TYLKO przy tym efekcie — patrz
+     * enqueue_scripts() w element.php.
+     */
+    var sciezkaWyg = null, tlWyg = null;
+
+    if (curve) {
+        var NS  = 'http://www.w3.org/2000/svg';
+        var SC  = evk_oc_sciezki_wygiecia(side, curveSila);
+        var idW = 'evk-oc-wyg-' + uid;
+
+        var svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('width', '0');
+        svg.setAttribute('height', '0');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('class', 'evk-oc-defs');
+
+        var defs = document.createElementNS(NS, 'defs');
+        var cp   = document.createElementNS(NS, 'clipPath');
+        cp.setAttribute('id', idW);
+        cp.setAttribute('clipPathUnits', 'objectBoundingBox');
+
+        sciezkaWyg = document.createElementNS(NS, 'path');
+        sciezkaWyg.setAttribute('d', SC.zamkniete);
+
+        cp.appendChild(sciezkaWyg);
+        defs.appendChild(cp);
+        svg.appendChild(defs);
+        shell.appendChild(svg);
+        frame.style.clipPath = 'url(#' + idW + ')';
+
+        if (typeof gsap !== 'undefined') {
+            /* Dwa kroki, nie jeden — i to jest cały efekt. Pierwszy, dłuższy,
+               wypycha brzeg w wybrzuszenie; drugi, krótki, prostuje go do
+               krawędzi. Jeden krok dałby zwykłe rozsuwanie z zaokrąglonym
+               brzegiem, bez wrażenia, że ściana się ugina.
+
+               Krzywe `in` i `out` wprost, nie ta z kontrolki: kontrolka podaje
+               JEDNĄ krzywą dla całego wysuwania, a te dwa kroki potrzebują
+               przeciwnych. Wzór ma tu osobne ustawienia i te same domyślne. */
+            tlWyg = gsap.timeline({ paused: true })
+                .to(sciezkaWyg, { duration: frameTime * 0.66,
+                                  attr: { d: SC.polowa }, ease: 'power2.in' })
+                .to(sciezkaWyg, { duration: frameTime * 0.34,
+                                  attr: { d: SC.otwarte }, ease: 'power2.out' });
+        } else {
+            console.warn('[EVK Offcanvas] Efekt „wygięta ściana" wymaga GSAP-a, '
+                + 'a biblioteki nie ma na stronie. Menu działa, ale otwiera się '
+                + 'bez wygięcia.');
+        }
+    }
+
+    /** Odsłania kadr krzywą — albo od razu, gdy nie ma czym animować. */
+    function wygnijOtwarcie() {
+        if (!curve) return;
+        if (tlWyg) tlWyg.play();
+        else if (sciezkaWyg) sciezkaWyg.setAttribute('d', evk_oc_sciezki_wygiecia(side, curveSila).otwarte);
+    }
+
+    /** Zasłania z powrotem TĄ SAMĄ krzywą, graną wspak. */
+    function wygnijZamkniecie() {
+        if (!curve) return;
+        if (tlWyg) tlWyg.reverse();
+        else if (sciezkaWyg) sciezkaWyg.setAttribute('d', evk_oc_sciezki_wygiecia(side, curveSila).zamkniete);
+    }
 
 
     // ── Stan ───────────────────────────────────────────────────────────────
@@ -675,38 +800,16 @@ function evk_offcanvas_menu_init_one(root) {
        w tym oknie zostaje po chwili cofnięte przez zaległy zegar. */
     var closeTimer = null;
 
-    /* Okno, w którym kadr WYJEŻDŻA — jedyny czas, gdy wygięta ściana ma grać
-       wspak. `is-open` już go wtedy nie ma, a bez własnego zaczepu animacja
-       znikałaby razem z klasą i ściana prostowałaby się w jednej klatce.
-       Trzymamy je zegarem, bo `animationend` na kadrze niesie także animacje
-       cudze — a od tej klasy zależy wygląd, nie stan menu. */
-    var wygiecieTimer = null;
-
-    function zacznijWygiecieWstecz() {
-        if (!curve) return;
-        clearTimeout(wygiecieTimer);
-        shell.classList.add('is-closing');
-        wygiecieTimer = setTimeout(function () {
-            wygiecieTimer = null;
-            shell.classList.remove('is-closing');
-        }, frameTime * 1000);
-    }
-
-    function przerwijWygiecieWstecz() {
-        clearTimeout(wygiecieTimer);
-        wygiecieTimer = null;
-        shell.classList.remove('is-closing');
-    }
-
     function open(trigger) {
         if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
-        /* Otwarcie w trakcie zamykania — zaległa klasa trzymałaby animację
-           wstecz obok tej do przodu i kadr dostałby dwie naraz. */
-        przerwijWygiecieWstecz();
         lastTrigger = trigger || null;
         stack = [startIdx];
         applyState();
         shell.classList.add('is-open');
+        /* Oś czasu wygięcia idzie RAZEM z klasą. `play()` na osi, która jest
+           w połowie drogi wstecz, zawraca ją z tego miejsca — bez skoku
+           i bez drugiej animacji obok pierwszej. */
+        wygnijOtwarcie();
         // Stan po naszemu na powłoce, po Bricksowemu na korzeniu. Korzeń, nie
         // powłoka: powłoka jedzie do <body> i przestaje być czymkolwiek
         // w okolicy przełącznika, a reguły Bricksa czytają stan przez
@@ -732,9 +835,7 @@ function evk_offcanvas_menu_init_one(root) {
 
     function finishClose() {
         shell.classList.remove('is-open');
-        // W tej samej instrukcji co zdjęcie `is-open`: między nimi nie ma
-        // klatki, więc ściana przechodzi z animacji w animację bez przeskoku.
-        zacznijWygiecieWstecz();
+        wygnijZamkniecie();
         root.classList.remove(BRICKS_OPEN);
         unlock();
         setTrigAria(false);

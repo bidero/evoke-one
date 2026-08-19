@@ -86,8 +86,7 @@
   root.setAttribute('data-side',       q.get('side')   || 'right');
   // Efekt otwierania: 'slide' (wysuwanie, domyślny) albo 'reveal' (odsłanianie).
   root.setAttribute('data-effect',     q.get('effect') || 'slide');
-  // Wygięta ściana — niezależna od efektu wyżej.
-  root.setAttribute('data-curve',      q.get('curve') === '1' ? '1' : '0');
+  // Siła wygięcia — czytana tylko przy `effect=curve`.
   root.setAttribute('data-curve-intensity',
     q.get('curveint') === null ? '1' : q.get('curveint'));
   // Domyślnie tak jak element: kadr się poszerza. Sekcje mierzące
@@ -115,7 +114,7 @@
   root.setAttribute('data-open-builder', '0');
 
   var r2 = document.getElementById('root2');
-  ['data-mode','data-side','data-effect','data-curve','data-curve-intensity',
+  ['data-mode','data-side','data-effect','data-curve-intensity',
    'data-duration','data-esc-back','data-close-link','data-level-style',
    'data-lock','data-portal','data-open-builder','data-anim-exit',
    'data-panel-duration','data-panel-easing','data-sub-delay'].forEach(function (a) {
@@ -625,6 +624,32 @@ window.__wygiecie = function () {
  * na zadany ułamek jej czasu. Kształt jest wtedy dokładnie ten, który chcemy
  * zmierzyć, i nie zmienia się między odczytami.
  */
+/**
+ * Ścieżka obcięcia wygiętej ściany — i sposób na ustawienie jej wprost.
+ *
+ * Kształty bierzemy Z WTYCZKI (`evk_oc_sciezki_wygiecia`), nie z kopii tutaj:
+ * przepisane do fixture'a przestałyby cokolwiek dowodzić o tym, co rysuje się
+ * na stronie.
+ */
+window.__sciezkaWyg = function () {
+  var el = shellOf(0).querySelector('clipPath path');
+  return el ? el.getAttribute('d') : null;
+};
+
+window.__ustawWyg = function (ktora) {
+  var sh = shellOf(0);
+  var el = sh.querySelector('clipPath path');
+  if (!el) return false;
+  var strona = sh.classList.contains('is-side-right')  ? 'right'
+             : sh.classList.contains('is-side-left')   ? 'left'
+             : sh.classList.contains('is-side-top')    ? 'top' : 'bottom';
+  var sila = parseFloat(document.getElementById('root').getAttribute('data-curve-intensity'));
+  // Oś czasu GSAP-a nadpisałaby nasz atrybut w następnej klatce.
+  if (window.gsap) gsap.globalTimeline.pause();
+  el.setAttribute('d', evk_oc_sciezki_wygiecia(strona, isNaN(sila) ? 1 : sila)[ktora]);
+  return true;
+};
+
 window.__zamroz = function (ulamek) {
   /* CAŁA powłoka, nie sam kadr. Przyciemnienie ma własne przejście i w połowie
      drogi jest ledwie widoczne — próbka „poza kształtem" wychodziła wtedy
@@ -652,32 +677,48 @@ window.__zamroz = function (ulamek) {
 window.__punktyWygiecia = function () {
   var sh = shellOf(0);
   var r  = sh.querySelector('.evk-oc-frame').getBoundingClientRect();
-  var G  = 4;   // ile pikseli w głąb kadru od krawędzi wiodącej
   var K  = 8;   // ile pikseli od rogu wzdłuż krawędzi
   var strona = sh.classList.contains('is-side-right')  ? 'right'
              : sh.classList.contains('is-side-left')   ? 'left'
              : sh.classList.contains('is-side-top')    ? 'top' : 'bottom';
-  /* Linia próbkowania: od krawędzi wiodącej W GŁĄB kadru, na wysokości `K` od
-     rogu. Po niej mierzy się GŁĘBOKOŚĆ wygięcia w pikselach — czyli to, co
-     odróżnia siłę 0,2 od pełnej. Pojedynczy punkt tego nie powie: przy rogu
-     obcina każda krzywizna, słaba tak samo jak mocna. */
-  var KROK = 4, ZASIEG = 240;
+
+  /* DWIE linie skanu, nie punkty — i to jest zmiana wobec 1.98.0.
+     
+     Wtedy kształt robił `border-radius`, więc brzeg zawsze dotykał krawędzi
+     kadru na środku i wystarczyło zapytać o jeden punkt tuż przy niej. Teraz
+     robi go obcięcie ścieżką, która ROŚNIE: w połowie drogi brzeg stoi w środku
+     panelu, więc przy samej krawędzi nie ma treści na żadnej wysokości i taki
+     pomiar pokazywałby ciemno zawsze.
+     
+     Mierzy się więc GŁĘBOKOŚĆ brzegu na dwóch wysokościach: przy rogu i na
+     środku. Wygięcie to różnica między nimi — na środku brzeg wyprzedza, więc
+     jego głębokość jest MNIEJSZA. Przy prostym brzegu obie są równe. */
+  /* Jeden piksel W GŁĄB od krawędzi wiodącej. `getBoundingClientRect().right`
+     i `.bottom` są WYŁĄCZNE — próbka dokładnie na nich pada już poza kadrem.
+     Zmierzone: przy menu z lewej i z góry pełne otwarcie wychodziło wtedy
+     „4 px obcięcia" zamiast zera, choć obcięcia nie było. */
   var wGlab = {
-    right:  function (d) { return [r.left + d,  r.top + K]; },
-    left:   function (d) { return [r.right - d, r.top + K]; },
-    top:    function (d) { return [r.left + K,  r.bottom - d]; },
-    bottom: function (d) { return [r.left + K,  r.top + d]; },
+    right:  function (d, t) { return [r.left + 1 + d,  r.top + t]; },
+    left:   function (d, t) { return [r.right - 1 - d, r.top + t]; },
+    top:    function (d, t) { return [r.left + t,  r.bottom - 1 - d]; },
+    bottom: function (d, t) { return [r.left + t,  r.top + 1 + d]; },
   }[strona];
 
-  var skan = [];
-  for (var d = 0; d <= ZASIEG; d += KROK) skan.push(wGlab(d));
+  var wzdluz = (strona === 'top' || strona === 'bottom') ? r.width : r.height;
+  var wGlebokosc = (strona === 'top' || strona === 'bottom') ? r.height : r.width;
+  var KROK = 4;
 
-  return Object.assign({
-    right:  { rog: [r.left + G,  r.top + K],     srodek: [r.left + G,  r.top + r.height / 2] },
-    left:   { rog: [r.right - G, r.top + K],     srodek: [r.right - G, r.top + r.height / 2] },
-    top:    { rog: [r.left + K,  r.bottom - G],  srodek: [r.left + r.width / 2, r.bottom - G] },
-    bottom: { rog: [r.left + K,  r.top + G],     srodek: [r.left + r.width / 2, r.top + G] },
-  }[strona], { skan: skan, krok: KROK });
+  var linia = function (t) {
+    var out = [];
+    for (var d = 0; d <= wGlebokosc; d += KROK) out.push(wGlab(d, t));
+    return out;
+  };
+
+  return {
+    skanRog:    linia(K),
+    skanSrodek: linia(wzdluz / 2),
+    krok: KROK,
+  };
 };
 
 /** Ile powłok leży w dokumencie — po przerysowaniu ma NIE przybywać. */

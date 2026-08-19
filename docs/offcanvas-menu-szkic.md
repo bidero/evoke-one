@@ -79,20 +79,25 @@ Osobny węzeł, a nie taśma, bo taśma ma już właściciela transformu —
 `applyState()`. Ta sama zasada, którą decyzja 3 i jej powrót wbijały tu przez
 cztery rundy: **jeden stan, jeden właściciel**.
 
-### Wygięta ściana — 1.98.0
+### Wygięta ściana — 1.98.0, przerobiona w 1.99.0
 
-Krawędź wjazdu wygina się w trakcie ruchu i prostuje na końcu. Kontrolki:
-włącznik i siła (0–1), domyślnie wyłączone.
+TRZECI efekt otwierania, obok wysuwania i odsłaniania. Kadr stoi w miejscu,
+a całą robotę robi obcięcie rosnące od krawędzi wjazdu; jego brzeg jest
+kwadratową Bézierą, która wyprzedza na środku i prostuje się na końcu.
 
-Niezależne od efektu otwierania: dotyczy kształtu KADRU, a nie tego, co robi
-treść, więc składa się z obydwoma. Kształt daje `border-radius` na kadrze —
-obcina potomków, bo kadr ma `overflow: clip` od 1.62.0. Dwustopniowy profil
-(wybrzuszenie na 66% czasu, potem powrót) wymaga klatek, nie przejścia.
+**1.98.0 próbowało obejść GSAP-a i to była zła decyzja.** Kształt robił wtedy
+`border-radius` z klatkami CSS — czysto, bez zależności, ale łuk wychodził
+eliptyczny zamiast Béziery i użytkownik odrzucił to po zobaczeniu: „u nich jest
+płynniej i po prostu ładniej". Trzeba było uznać, że pewnych kształtów nie da
+się zapisać promieniem narożnika.
 
-Wzór z nextbricks robi to ścieżką SVG animowaną GSAP-em. Nie powtarzam tego
-świadomie: to menu jedzie na przejściach CSS i nie ma zależności od GSAP-a,
-a przeniesienie go na oś czasu w JS przepisałoby wszystko, na czym stoją testy.
-Cena: łuk eliptyczny zamiast Béziery — bardzo blisko, nie identycznie.
+Teraz jak we wzorze: `<clipPath clipPathUnits="objectBoundingBox">` z atrybutem
+`d` prowadzonym GSAP-em, dwustopniowo (0,66 na wybrzuszenie, 0,34 na
+wyprostowanie). Biblioteka doładowuje się WYŁĄCZNIE przy tym efekcie —
+zależność dopisuje `enqueue_scripts()` po odczytaniu ustawienia.
+
+Nie dało się inaczej: `clip-path: path()` zna tylko jednostki użytkownika, a `d`
+jako właściwość CSS nie działa w Firefoksie.
 
 ---
 

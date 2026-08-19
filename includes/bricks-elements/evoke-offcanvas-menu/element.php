@@ -200,28 +200,18 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'options' => [
 				'slide'  => esc_html__( 'Wysuwanie — panel wjeżdża razem z treścią', 'evoke-one' ),
 				'reveal' => esc_html__( 'Odsłanianie — treść stoi, panel ją odsłania', 'evoke-one' ),
+				'curve'  => esc_html__( 'Wygięta ściana — krawędź odsłaniania jest krzywą', 'evoke-one' ),
 			],
 			'default' => 'slide',
 		];
 
 		/*
-		 * Wygięta ściana — krawędź wjazdu wybrzusza się w trakcie ruchu
-		 * i prostuje na końcu.
+		 * Siła wygięcia — tylko dla trzeciego efektu.
 		 *
-		 * NIEZALEŻNA od efektu wyżej: dotyczy kształtu kadru, a nie tego, co
-		 * robi treść, więc składa się i z wysuwaniem, i z odsłanianiem.
-		 *
-		 * Kształt robi `border-radius` na kadrze, który ma `overflow: clip` —
-		 * całość w arkuszu, bez GSAP-a i bez SVG. Czas i krzywa wspólne
-		 * z wysuwaniem: ściana i panel to jeden ruch.
+		 * Steruje punktem kontrolnym Béziery: przy pełnej sile środek brzegu
+		 * wyprzedza krawędź o ćwierć panelu, przy zerowej brzeg jest prostą
+		 * kreską i efekt sprowadza się do zwykłego odsłaniania.
 		 */
-		$this->controls['curve'] = [
-			'tab'     => 'content',
-			'label'   => esc_html__( 'Wygięta ściana', 'evoke-one' ),
-			'type'    => 'checkbox',
-			'default' => false,
-		];
-
 		$this->controls['curveIntensity'] = [
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Siła wygięcia', 'evoke-one' ),
@@ -230,7 +220,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'max'      => 1,
 			'step'     => 0.05,
 			'default'  => 1,
-			'required' => [ 'curve', '=', true ],
+			'required' => [ 'openEffect', '=', 'curve' ],
 		];
 
 		$this->controls['duration'] = [
@@ -391,10 +381,32 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			[],
 			EVK_OFFCANVAS_MENU_VERSION
 		);
+		/*
+		 * GSAP TYLKO PRZY WYGIĘTEJ ŚCIANIE.
+		 *
+		 * Reszta menu jedzie na przejściach CSS i biblioteki nie potrzebuje —
+		 * a doładowanie jej wszystkim byłoby kilkadziesiąt kilobajtów na każdej
+		 * stronie z offcanvasem, za efekt, którego prawie nikt nie włącza.
+		 *
+		 * Sam efekt bez niej nie da się zrobić: ścieżki nie zapisze ani promień
+		 * narożnika, ani `clip-path: path()` w procentach, a `d` jako właściwość
+		 * CSS nie działa w Firefoksie. Zostaje wpisywanie atrybutu co klatkę.
+		 *
+		 * Zależność, nie samo enqueue: kolejność ma znaczenie, bo nasz skrypt
+		 * buduje oś czasu zaraz po starcie.
+		 */
+		$deps = [ 'bricks-scripts' ];
+		if ( ( $this->settings['openEffect'] ?? '' ) === 'curve' ) {
+			if ( function_exists( 'evk_register_gsap_libs' ) ) {
+				evk_register_gsap_libs();
+				$deps[] = 'evk-gsap';
+			}
+		}
+
 		wp_enqueue_script(
 			'evk-offcanvas-menu-js',
 			EVK_OFFCANVAS_MENU_URL . 'assets/offcanvas-menu.js',
-			[ 'bricks-scripts' ],
+			$deps,
 			EVK_OFFCANVAS_MENU_VERSION,
 			true
 		);
@@ -407,7 +419,6 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-mode',       ! empty( $s['mode'] ) ? $s['mode'] : 'single' );
 		$this->set_attribute( '_root', 'data-side',       ! empty( $s['side'] ) ? $s['side'] : 'right' );
 		$this->set_attribute( '_root', 'data-effect',     ! empty( $s['openEffect'] ) ? $s['openEffect'] : 'slide' );
-		$this->set_attribute( '_root', 'data-curve',      ! empty( $s['curve'] ) ? '1' : '0' );
 		// Jawne zero MUSI przejść — `! empty()` wzięłoby je za brak wartości
 		// i siła wróciłaby do pełnej mimo wykręcenia jej do zera.
 		$this->set_attribute( '_root', 'data-curve-intensity',

@@ -2,6 +2,62 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.99.0] — 2026-08-19
+
+### Zmienione
+
+- **Wygięta ściana jedzie teraz ścieżką SVG, tak jak wzór.** Zgłoszone z użycia
+  po 1.98.0: *„nie jestem zadowolony z tej wygiętej linii CSS. Tam jest płynniej
+  i po prostu ładniej"*. Uczciwa ocena — 1.98.0 dawało **łuk eliptyczny**
+  (`border-radius`), a wzór rysuje **kwadratową Bézierę**, i widać to gołym okiem.
+
+  Kształt daje teraz `<clipPath clipPathUnits="objectBoundingBox">` z animowanym
+  atrybutem `d`. Trzy stany o **tej samej budowie poleceń** (żeby interpolowały
+  się liczba po liczbie), a oś czasu prowadzi je **dwustopniowo**: 0,66 czasu
+  na wybrzuszenie krzywą `power2.in`, 0,34 na wyprostowanie krzywą `power2.out`.
+  Dokładnie tak liczy to wzór.
+
+  Zmierzone na panelu 420 px: przy pełnej sile środek brzegu wyprzedza rogi
+  o **100 px**, czyli o ćwierć panelu — tyle samo, ile u nich.
+
+  **Dlaczego nie dało się bez GSAP-a:** ścieżki nie zapisze ani promień
+  narożnika, ani `clip-path: path()` w procentach (ta funkcja zna wyłącznie
+  jednostki użytkownika), a `d` jako właściwość CSS nie działa w Firefoksie.
+  Zostaje wpisywanie atrybutu co klatkę.
+
+  **GSAP doładowuje się TYLKO przy tym efekcie** — zależność dopisuje się
+  w `enqueue_scripts()` po odczytaniu ustawienia, więc strony bez wygiętej
+  ściany nie pobierają ani bajta więcej. Gdyby biblioteki mimo wszystko
+  zabrakło, menu otwiera się bez wygięcia i mówi o tym w konsoli.
+
+- **Wygięta ściana jest trzecim EFEKTEM OTWIERANIA, nie dodatkiem do niego.**
+  W 1.98.0 był to osobny włącznik obok „Efektu otwierania" — i to było mylące,
+  bo we wzorze wygięcie **zastępuje** wysuwanie: kadr stoi w miejscu, a całą
+  robotę robi rosnące obcięcie. Osobny włącznik obiecywał składanie, którego
+  nie ma. Kontrolka „Efekt otwierania" ma teraz trzy pozycje: wysuwanie,
+  odsłanianie, wygięta ściana. „Siła wygięcia" pokazuje się przy trzeciej.
+
+### Uwaga dla testów
+
+- **Pomiar musiał zmienić punkt zaczepienia.** W 1.98.0 brzeg zawsze dotykał
+  krawędzi kadru na środku, więc wystarczył jeden punkt tuż przy niej. Obcięcie
+  ROŚNIE, więc w połowie drogi brzeg stoi w środku panelu i przy krawędzi nie ma
+  treści na żadnej wysokości — taki pomiar pokazywałby ciemno zawsze. Mierzona
+  jest teraz GŁĘBOKOŚĆ brzegu na dwóch wysokościach, a wygięcie to różnica
+  między nimi.
+
+- **Kontrola negatywna złapała błąd w samym pomiarze.** Sprawdzenie „otwarte
+  pokazuje wszystko" świeciło na czerwono przy menu z lewej i z góry: 4 px
+  obcięcia, którego nie było. `getBoundingClientRect().right` i `.bottom` są
+  WYŁĄCZNE, więc próbka dokładnie na nich pada już poza kadrem. Skan jest
+  odsunięty o piksel w głąb.
+
+- **Dwie mutacje okazały się bez znaczenia i to też jest wynik.** Przestawienie
+  osi w kształcie ZAMKNIĘTYM i OTWARTYM dla menu z góry nie zmienia niczego:
+  zamknięty jest zdegenerowany, a otwarty to pełne pudełko — oba opisują to samo
+  niezależnie od osi. Oś niesie wyłącznie kształt POŁOWY i tam mutacja zapala
+  sprawdzenie na czerwono.
+
 ## [1.98.1] — 2026-08-19
 
 ### Naprawione
