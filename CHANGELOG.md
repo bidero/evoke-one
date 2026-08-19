@@ -2,6 +2,66 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.98.0] — 2026-08-19
+
+### Dodane
+
+- **Offcanvas: wygięta ściana.** Zamówione ze wzoru `nextbricks.io`. Krawędź
+  panelu wygina się w trakcie ruchu: **wyprzedza na środku, zostaje w tyle przy
+  rogach**, a na końcu wraca do prostej. Dwie nowe kontrolki — włącznik
+  „Wygięta ściana" i „Siła wygięcia" (0–1).
+
+  Efekt jest **niezależny od tego z 1.97.0**: dotyczy kształtu kadru, a nie
+  tego, co robi treść, więc składa się i z wysuwaniem, i z odsłanianiem.
+
+  **Wzór robi to inaczej i świadomie tego nie powtarzam.** Ich element podmienia
+  wielokąt `clip-path` na SVG-owy `<clipPath clipPathUnits="objectBoundingBox">`
+  i animuje GSAP-em atrybut `d` ścieżki, dwustopniowo (0,66 czasu na
+  wybrzuszenie, 0,34 na wyprostowanie). Nasze menu jedzie na **przejściach CSS
+  i nie ma zależności od GSAP-a** — przeniesienie go na oś czasu w JS
+  przepisałoby to, na czym stoi trzydzieści kilka sekcji testów: krzywe przez
+  `CSS.supports()`, zmienne `--evk-oc-*`, redukcja ruchu przez zapytanie
+  medialne.
+
+  Kształt daje więc `border-radius`, a nie ścieżka. Rzecz, która to umożliwia:
+  **`border-radius` obcina potomków**, gdy element ma `overflow: clip` — a kadr
+  ma je od 1.62.0. Promień na obu rogach jednej krawędzi robi z niej soczewkę:
+  przy rogach cofniętą, na środku sięgającą pełnej krawędzi. Zmierzone punkt po
+  punkcie na obrazie: przy pełnej sile treść zaczyna się dopiero sto pikseli od
+  krawędzi w rogu, a na środku wysokości od samego skraju.
+
+  Promienie **w procentach**, więc kształt skaluje się z panelem — ta sama
+  krzywizna na wąskim telefonie i na szerokim ekranie. Dwustopniowy profil
+  wymagał **klatek, nie przejścia**: przejście interpoluje z punktu do punktu
+  i nie ma jak mieć szczytu w środku drogi. Szczyt na 66%, tak jak we wzorze.
+
+  Różnica wobec oryginału jest jedna i warto ją znać: łuk jest **eliptyczny**,
+  a nie kwadratową Bézierą. Kształt bardzo bliski, nie identyczny co do piksela.
+
+  Zamykanie gra tę samą krzywą **wspak** — wzór odwraca całą swoją oś czasu.
+  Wymagało to własnego zaczepu na czas wyjazdu kadru: `is-open` już go wtedy
+  nie ma, a bez niego ściana prostowałaby się w jednej klatce.
+
+  **Koszt do odnotowania:** `border-radius` to właściwość malowania, nie
+  kompozycji, więc każda klatka wygięcia przerysowuje obciętą zawartość kadru.
+  Wzór ma ten sam koszt (animowany `clipPath` też przerysowuje). Dlatego efekt
+  jest domyślnie **wyłączony**.
+
+### Uwaga dla testów
+
+- **Kształt mierzony PIKSELAMI ZRZUTU EKRANU**, nie hit-testem i nie wartością
+  obliczoną. Oba obejścia sprawdzone i oba kłamią: `elementFromPoint` zwraca
+  panel także tam, gdzie obrazu nie ma, a `border-radius` w procentach nie jest
+  rozwiązywany do pikseli w wartości obliczonej — przeglądarka zwraca „30%",
+  więc z niej samej nie widać ani głębokości, ani tego, czy cokolwiek zostało
+  obcięte.
+
+- **Kadr trzeba ZAMROZIĆ, żeby cokolwiek zmierzyć.** W ruchu zrzut ekranu
+  i `getBoundingClientRect()` pochodzą z różnych chwil — zmierzone, rozjazd
+  sięgał 25 px i próbka trafiała obok kształtu, pokazując tło zamiast panelu.
+  Pomiar przewija przejścia na koniec, a samą animację wygięcia na zadany
+  ułamek jej czasu.
+
 ## [1.97.2] — 2026-08-19
 
 ### Naprawione

@@ -79,6 +79,21 @@ Osobny węzeł, a nie taśma, bo taśma ma już właściciela transformu —
 `applyState()`. Ta sama zasada, którą decyzja 3 i jej powrót wbijały tu przez
 cztery rundy: **jeden stan, jeden właściciel**.
 
+### Wygięta ściana — 1.98.0
+
+Krawędź wjazdu wygina się w trakcie ruchu i prostuje na końcu. Kontrolki:
+włącznik i siła (0–1), domyślnie wyłączone.
+
+Niezależne od efektu otwierania: dotyczy kształtu KADRU, a nie tego, co robi
+treść, więc składa się z obydwoma. Kształt daje `border-radius` na kadrze —
+obcina potomków, bo kadr ma `overflow: clip` od 1.62.0. Dwustopniowy profil
+(wybrzuszenie na 66% czasu, potem powrót) wymaga klatek, nie przejścia.
+
+Wzór z nextbricks robi to ścieżką SVG animowaną GSAP-em. Nie powtarzam tego
+świadomie: to menu jedzie na przejściach CSS i nie ma zależności od GSAP-a,
+a przeniesienie go na oś czasu w JS przepisałoby wszystko, na czym stoją testy.
+Cena: łuk eliptyczny zamiast Béziery — bardzo blisko, nie identycznie.
+
 ---
 
 ## Miejsce w istniejącym układzie

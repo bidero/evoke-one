@@ -1421,4 +1421,185 @@ module.exports = async function (t) {
     await prz.evaluate(() => window.__otwarteDlaKorzenia()), 'otwarte');
   t.check('bez błędów JS', !prz.errors.length, prz.errors.join(' | ') || 'brak');
   await prz.close();
+
+  /* ── WYGIĘTA ŚCIANA ─────────────────────────────────────────────────────
+   *
+   * Ściana panelu wygina się w trakcie ruchu: wyprzedza na środku, zostaje
+   * w tyle przy rogach, a na końcu wraca do prostej. Wzór (nextbricks.io) robi
+   * to ścieżką SVG w `clipPath`, animowaną GSAP-em. To menu jedzie na
+   * przejściach CSS i nie ma zależności od GSAP-a, więc kształt daje
+   * `border-radius` na kadrze — a ten OBCINA POTOMKÓW, bo kadr ma `overflow:
+   * clip` od 1.62.0.
+   *
+   * MIERZYMY PIKSELE ZRZUTU EKRANU, nie hit-test i nie wartość obliczoną.
+   * Dwa powody, oba zmierzone:
+   *
+   *  — `elementFromPoint` zwraca panel także tam, gdzie obrazu NIE MA;
+   *  — `border-radius` w procentach nie jest rozwiązywany do pikseli
+   *    w wartości obliczonej — przeglądarka zwraca „30%", więc z niej samej
+   *    nie widać ani głębokości, ani tego, czy cokolwiek zostało obcięte.
+   *
+   * Do tego kadr trzeba ZAMROZIĆ. W ruchu zrzut ekranu i `getBoundingClientRect`
+   * pochodzą z różnych chwil — zmierzone, rozjazd sięgał 25 px i próbka
+   * trafiała obok kształtu.
+   */
+  t.section('wygięta ściana: róg obcięty, środek sięga krawędzi');
+
+  /** Jasność w punktach obrazu. Panel jest biały (765), tło pod nim ciemne. */
+  async function jasnosci(page) {
+    const b64 = (await page.screenshot()).toString('base64');
+    return page.evaluate(async (b64) => {
+      const img = new Image();
+      await new Promise((r) => { img.onload = r; img.src = 'data:image/png;base64,' + b64; });
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const pkt = window.__punktyWygiecia();
+      const s = (p) => {
+        const d = ctx.getImageData(Math.round(p[0]), Math.round(p[1]), 1, 1).data;
+        return d[0] + d[1] + d[2];
+      };
+      /* Głębokość wygięcia: pierwszy punkt skanu, w którym zaczyna się panel.
+         Zero znaczy prostą ścianę — panel od samej krawędzi. */
+      let i = 0;
+      while (i < pkt.skan.length && s(pkt.skan[i]) < 600) i++;
+      return { rog: s(pkt.rog), srodek: s(pkt.srodek), glebokosc: i * pkt.krok };
+    }, b64);
+  }
+
+  /** Otwiera, zatrzymuje kadr w danym punkcie wygięcia i mierzy obraz. */
+  async function zmierzWygiecie(query, ulamek) {
+    const page = await t.open('offcanvas.html',
+      { viewport: V, query: query + '&dur=1.2', settle: 150 });
+    await page.evaluate(() => window.__open());
+    await page.waitForTimeout(100);
+    await page.evaluate((u) => window.__zamroz(u), ulamek === undefined ? 0.66 : ulamek);
+    await page.waitForTimeout(60);
+    const wynik = await jasnosci(page);
+    wynik.bledy = page.errors.slice();
+    await page.close();
+    return wynik;
+  }
+
+  const wyg = await zmierzWygiecie('curve=1');
+  t.check('przy rogu treści NIE MA', wyg.rog < 600, 'jasność ' + wyg.rog);
+  t.check('a na środku krawędzi jest', wyg.srodek > 600, 'jasność ' + wyg.srodek);
+  t.check('bez błędów JS', !wyg.bledy.length, wyg.bledy.join(' | ') || 'brak');
+
+  /* Kontrola negatywna. Bez niej „przy rogu nie ma treści" byłoby spełnione
+     także wtedy, gdyby panel w ogóle nie dojechał albo próbka mierzyła nie to
+     miejsce — a prosta ściana ma sięgać krawędzi na CAŁEJ swojej długości. */
+  const prosta = await zmierzWygiecie('');
+  t.check('bez kontrolki ściana jest prosta',
+    prosta.rog > 600 && prosta.glebokosc === 0,
+    'jasność w rogu ' + prosta.rog + ', głębokość ' + prosta.glebokosc + ' px');
+
+  // ── Profil ─────────────────────────────────────────────────────────────
+  /* Sedno efektu: wybrzuszenie ma SZCZYT W ŚRODKU DROGI i wraca do prostej.
+     Samo „jest wygięte na końcu" opisywałoby panel z zaokrąglonym rogiem,
+     czyli coś zupełnie innego. */
+  t.section('wygięcie rośnie i wraca do prostej');
+
+  const p20  = await zmierzWygiecie('curve=1', 0.2);
+  const p66  = await zmierzWygiecie('curve=1', 0.66);
+  const p100 = await zmierzWygiecie('curve=1', 1);
+
+  t.check('w połowie drogi wygięcie jest większe niż na starcie',
+    p66.glebokosc > p20.glebokosc,
+    p20.glebokosc + ' → ' + p66.glebokosc + ' px');
+  t.check('a na końcu ściana jest znowu prosta', p100.glebokosc === 0,
+    p100.glebokosc + ' px');
+
+  // ── Siła ───────────────────────────────────────────────────────────────
+  /* Kontrolka ma coś robić. Pomiar idzie głębokością, nie samym „jest/nie ma":
+     przy rogu obcina każda krzywizna, słaba tak samo jak mocna. */
+  t.section('siła wygięcia zmienia jego głębokość');
+
+  const slabe = await zmierzWygiecie('curve=1&curveint=0.2');
+  t.check('słabsze wygięcie jest PŁYTSZE', slabe.glebokosc < p66.glebokosc / 2,
+    slabe.glebokosc + ' px wobec ' + p66.glebokosc + ' px przy pełnej sile');
+  t.check('ale nadal jest', slabe.glebokosc > 0, slabe.glebokosc + ' px');
+
+  const zerowe = await zmierzWygiecie('curve=1&curveint=0');
+  t.check('zerowa siła to prosta ściana', zerowe.glebokosc === 0,
+    zerowe.glebokosc + ' px');
+
+  // ── Cztery krawędzie ───────────────────────────────────────────────────
+  /* Wygina się krawędź WIODĄCA, czyli przeciwna do strony wjazdu. Pomylona
+     oś albo pomylony róg dają wygięcie tam, gdzie go nikt nie zobaczy. */
+  t.section('wygina się ta krawędź, którą panel wjeżdża');
+
+  for (const strona of ['right', 'left', 'top', 'bottom']) {
+    const k = await zmierzWygiecie('curve=1&side=' + strona);
+    t.check(strona + ': róg obcięty, środek pełny',
+      k.rog < 600 && k.srodek > 600 && k.glebokosc > 0,
+      'róg ' + k.rog + ', środek ' + k.srodek + ', głębokość ' + k.glebokosc + ' px');
+  }
+
+  // ── Składanie z odsłanianiem ───────────────────────────────────────────
+  /* Wygięcie dotyczy KSZTAŁTU kadru, a odsłanianie tego, co robi treść — to
+     dwie niezależne rzeczy i mają działać razem. */
+  t.section('wygięcie składa się z odsłanianiem');
+
+  const razem = await zmierzWygiecie('curve=1&effect=reveal');
+  t.check('przy odsłanianiu ściana też się wygina',
+    razem.rog < 600 && razem.glebokosc > 0,
+    'róg ' + razem.rog + ', głębokość ' + razem.glebokosc + ' px');
+
+  // ── Zamykanie ──────────────────────────────────────────────────────────
+  /* Wzór odwraca całą swoją oś czasu, więc i tu wybrzuszenie ma wracać przy
+     wyjeździe, a nie znikać. `is-open` już wtedy nie ma — bez własnego zaczepu
+     ściana prostowałaby się w jednej klatce. */
+  t.section('zamykanie gra tę samą krzywą wspak');
+
+  const zamW = await t.open('offcanvas.html',
+    { viewport: V, query: 'curve=1&dur=1.2', settle: 150 });
+  await zamW.evaluate(() => window.__open());
+  await zamW.waitForTimeout(1400);
+  t.check('po otwarciu ściana jest prosta',
+    (await zamW.evaluate(() => window.__wygiecie())).glebokosc === 0, '0');
+
+  await zamW.evaluate(() => window.__key('Escape'));
+  await zamW.waitForTimeout(60);
+  const wTrakcie = await zamW.evaluate(() => window.__wygiecie());
+  t.check('przy zamykaniu kadr dostaje własny zaczep', wTrakcie.zamyka, 'is-closing');
+  t.check('i gra tę samą animację wspak',
+    wTrakcie.kierunek === 'reverse' && /evk-oc-wyg-/.test(wTrakcie.animacja),
+    wTrakcie.animacja + ' / ' + wTrakcie.kierunek);
+
+  /* Zaczep ma ZNIKAĆ. Zostawiony na stałe trzymałby kadr w wygięciu przy
+     następnym otwarciu — dwie animacje naraz na jednym elemencie. */
+  await zamW.waitForTimeout(1500);
+  t.check('a po wyjeździe zaczep znika',
+    !(await zamW.evaluate(() => window.__wygiecie())).zamyka, 'zdjęty');
+  t.check('bez błędów JS', !zamW.errors.length, zamW.errors.join(' | ') || 'brak');
+  await zamW.close();
+
+  // ── Redukcja ruchu ─────────────────────────────────────────────────────
+  /* Wygięcie to ANIMACJA, nie przejście — gaszenie przejść jej nie dotyczy
+     i grałaby dalej, sama jedna, przy nieruchomym panelu. */
+  t.section('redukcja ruchu gasi też wygięcie');
+
+  const redW = await t.open('offcanvas.html',
+    { viewport: V, reduce: true, query: 'curve=1&dur=1.2', settle: 150 });
+  await redW.evaluate(() => window.__open());
+  await redW.waitForTimeout(80);
+  const redWSt = await redW.evaluate(() => window.__wygiecie());
+  t.check('animacja wygięcia nie gra', redWSt.animacja === 'none', redWSt.animacja);
+  t.check('a panel i tak jest widoczny',
+    await redW.evaluate(() => window.__panelVisible()), 'widoczny');
+  await redW.close();
+
+  /* Kontrola negatywna: bez redukcji ta sama strona MA animację. Inaczej
+     „nie gra" świeciłoby na zielono także wtedy, gdyby kontrolka nie działała
+     w ogóle. */
+  const redWN = await t.open('offcanvas.html',
+    { viewport: V, query: 'curve=1&dur=1.2', settle: 150 });
+  await redWN.evaluate(() => window.__open());
+  await redWN.waitForTimeout(80);
+  t.check('bez redukcji animacja jest',
+    /evk-oc-wyg-/.test((await redWN.evaluate(() => window.__wygiecie())).animacja),
+    (await redWN.evaluate(() => window.__wygiecie())).animacja);
+  await redWN.close();
 };

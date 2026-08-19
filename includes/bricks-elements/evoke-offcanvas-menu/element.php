@@ -204,6 +204,35 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'default' => 'slide',
 		];
 
+		/*
+		 * Wygięta ściana — krawędź wjazdu wybrzusza się w trakcie ruchu
+		 * i prostuje na końcu.
+		 *
+		 * NIEZALEŻNA od efektu wyżej: dotyczy kształtu kadru, a nie tego, co
+		 * robi treść, więc składa się i z wysuwaniem, i z odsłanianiem.
+		 *
+		 * Kształt robi `border-radius` na kadrze, który ma `overflow: clip` —
+		 * całość w arkuszu, bez GSAP-a i bez SVG. Czas i krzywa wspólne
+		 * z wysuwaniem: ściana i panel to jeden ruch.
+		 */
+		$this->controls['curve'] = [
+			'tab'     => 'content',
+			'label'   => esc_html__( 'Wygięta ściana', 'evoke-one' ),
+			'type'    => 'checkbox',
+			'default' => false,
+		];
+
+		$this->controls['curveIntensity'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Siła wygięcia', 'evoke-one' ),
+			'type'     => 'number',
+			'min'      => 0,
+			'max'      => 1,
+			'step'     => 0.05,
+			'default'  => 1,
+			'required' => [ 'curve', '=', true ],
+		];
+
 		$this->controls['duration'] = [
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Czas wysuwania (s)', 'evoke-one' ),
@@ -378,6 +407,11 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-mode',       ! empty( $s['mode'] ) ? $s['mode'] : 'single' );
 		$this->set_attribute( '_root', 'data-side',       ! empty( $s['side'] ) ? $s['side'] : 'right' );
 		$this->set_attribute( '_root', 'data-effect',     ! empty( $s['openEffect'] ) ? $s['openEffect'] : 'slide' );
+		$this->set_attribute( '_root', 'data-curve',      ! empty( $s['curve'] ) ? '1' : '0' );
+		// Jawne zero MUSI przejść — `! empty()` wzięłoby je za brak wartości
+		// i siła wróciłaby do pełnej mimo wykręcenia jej do zera.
+		$this->set_attribute( '_root', 'data-curve-intensity',
+			isset( $s['curveIntensity'] ) && $s['curveIntensity'] !== '' ? (string) $s['curveIntensity'] : '1' );
 		$this->set_attribute( '_root', 'data-level-style', ! empty( $s['levelStyle'] ) ? $s['levelStyle'] : 'expand' );
 		$this->set_attribute( '_root', 'data-duration',   isset( $s['duration'] ) && $s['duration'] !== '' ? (string) $s['duration'] : '0.35' );
 		/*

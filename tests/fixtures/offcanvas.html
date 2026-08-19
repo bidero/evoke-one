@@ -86,6 +86,10 @@
   root.setAttribute('data-side',       q.get('side')   || 'right');
   // Efekt otwierania: 'slide' (wysuwanie, domyślny) albo 'reveal' (odsłanianie).
   root.setAttribute('data-effect',     q.get('effect') || 'slide');
+  // Wygięta ściana — niezależna od efektu wyżej.
+  root.setAttribute('data-curve',      q.get('curve') === '1' ? '1' : '0');
+  root.setAttribute('data-curve-intensity',
+    q.get('curveint') === null ? '1' : q.get('curveint'));
   // Domyślnie tak jak element: kadr się poszerza. Sekcje mierzące
   // wyjeżdżanie rodzica podają ?levels=slide jawnie.
   root.setAttribute('data-level-style', q.get('levels') || 'expand');
@@ -111,7 +115,8 @@
   root.setAttribute('data-open-builder', '0');
 
   var r2 = document.getElementById('root2');
-  ['data-mode','data-side','data-effect','data-duration','data-esc-back','data-close-link','data-level-style',
+  ['data-mode','data-side','data-effect','data-curve','data-curve-intensity',
+   'data-duration','data-esc-back','data-close-link','data-level-style',
    'data-lock','data-portal','data-open-builder','data-anim-exit',
    'data-panel-duration','data-panel-easing','data-sub-delay'].forEach(function (a) {
     r2.setAttribute(a, root.getAttribute(a));
@@ -536,6 +541,143 @@ window.__otwarteDlaKorzenia = function (id) {
   var uid = r && r.dataset.evkOcUid;
   var s = uid ? document.querySelector('.evk-oc-shell[data-evk-oc-owner="' + uid + '"]') : null;
   return !!s && s.classList.contains('is-open');
+};
+
+/**
+ * WYGIĘTA ŚCIANA — kształt krawędzi wiodącej, mierzony dwojako.
+ *
+ * `glebokosc` to REGUŁA: promień narożnika na krawędzi wjazdu, w pikselach.
+ * Zero znaczy prostą ścianę.
+ *
+ * `wRogu` / `naSrodku` to OBJAW, i to on jest tu ważniejszy: czy treść jest
+ * w danym punkcie NAPRAWDĘ widoczna. Wygięta ściana ma być obcięta przy rogu
+ * i sięgać pełnej krawędzi na środku — a że `border-radius` obcina potomków
+ * tylko przy `overflow: clip`, sam niezerowy promień niczego by nie dowodził.
+ * Pomiar idzie `elementFromPoint`, czyli tym, co widzi kliknięcie.
+ *
+ * Punkty liczone od PROSTOKĄTA KADRU w tej chwili, bo kadr w trakcie wjazdu
+ * jedzie — współrzędne wpisane na sztywno mierzyłyby raz treść, raz tło strony.
+ */
+window.__wygiecie = function () {
+  var sh = shellOf(0);
+  var f  = sh.querySelector('.evk-oc-frame');
+  var cs = getComputedStyle(f);
+  var r  = f.getBoundingClientRect();
+
+  var pion = sh.classList.contains('is-side-top') || sh.classList.contains('is-side-bottom');
+  var strona = sh.classList.contains('is-side-right')  ? 'right'
+             : sh.classList.contains('is-side-left')   ? 'left'
+             : sh.classList.contains('is-side-top')    ? 'top' : 'bottom';
+
+  /* Krawędź WIODĄCA to przeciwna do tej, z której menu wjeżdża, a rogi na niej
+     to te dwa, które ją tworzą. */
+  var rogi = {
+    right:  ['borderTopLeftRadius',    'borderBottomLeftRadius'],
+    left:   ['borderTopRightRadius',   'borderBottomRightRadius'],
+    top:    ['borderBottomLeftRadius', 'borderBottomRightRadius'],
+    bottom: ['borderTopLeftRadius',    'borderTopRightRadius'],
+  }[strona];
+
+  // Pierwsza liczba to promień wzdłuż osi ruchu przy lewej/prawej, druga przy
+  // górze/dole — czyli zawsze GŁĘBOKOŚĆ wygięcia.
+  var pierwszy = parseFloat(cs[rogi[0]].split(' ')[pion ? 1 : 0]) || 0;
+
+  // Punkt tuż przy krawędzi wiodącej: 2 px w głąb kadru.
+  var przyKrawedzi = {
+    right:  function (t) { return [r.left + 2,  r.top + r.height * t]; },
+    left:   function (t) { return [r.right - 2, r.top + r.height * t]; },
+    top:    function (t) { return [r.left + r.width * t, r.bottom - 2]; },
+    bottom: function (t) { return [r.left + r.width * t, r.top + 2]; },
+  }[strona];
+
+  var wKadrze = function (t) {
+    var p = przyKrawedzi(t);
+    if (p[0] < 0 || p[1] < 0 || p[0] > window.innerWidth || p[1] > window.innerHeight) return null;
+    var el = document.elementFromPoint(p[0], p[1]);
+    return !!(el && f.contains(el));
+  };
+
+  return {
+    glebokosc: Math.round(pierwszy),
+    /* UWAGA: `border-radius` w procentach NIE JEST rozwiązywany do pikseli
+       w wartości obliczonej — przeglądarka zwraca „30%". Ta liczba jest więc
+       procentem, nie pikselami, i nadaje się do porównań („rośnie", „zero"),
+       a nie do geometrii. Kształt mierzymy obrazem, patrz __punktyWygiecia. */
+    wRogu:     wKadrze(0.03),
+    naSrodku:  wKadrze(0.5),
+    krzywa:    sh.classList.contains('is-curve'),
+    zamyka:    sh.classList.contains('is-closing'),
+    animacja:  cs.animationName,
+    czas:      cs.animationDuration,
+    kierunek:  cs.animationDirection,
+  };
+};
+
+/**
+ * Zamraża kadr, żeby kształt dało się w ogóle zmierzyć.
+ *
+ * Bez tego pomiar jest nierzetelny i to zmierzone, nie teoretyczne: kadr jedzie,
+ * więc zrzut ekranu i `getBoundingClientRect()` pochodzą z RÓŻNYCH chwil —
+ * różnica sięgała 25 px i próbka trafiała obok kształtu, pokazując tło zamiast
+ * panelu.
+ *
+ * Przejścia przewijamy na KONIEC (kadr staje na miejscu), a animację wygięcia
+ * na zadany ułamek jej czasu. Kształt jest wtedy dokładnie ten, który chcemy
+ * zmierzyć, i nie zmienia się między odczytami.
+ */
+window.__zamroz = function (ulamek) {
+  /* CAŁA powłoka, nie sam kadr. Przyciemnienie ma własne przejście i w połowie
+     drogi jest ledwie widoczne — próbka „poza kształtem" wychodziła wtedy
+     prawie tak jasna jak panel (692 wobec 765) i próg robił się loteryjny.
+     Przewinięte na koniec daje pełne przyciemnienie i różnicę nie do pomylenia. */
+  shellOf(0).getAnimations({ subtree: true }).forEach(function (a) {
+    a.pause();
+    var d = a.effect ? a.effect.getComputedTiming().duration : 0;
+    // CSSAnimation ma `animationName`, CSSTransition nie — po tym je różnimy.
+    a.currentTime = a.animationName ? d * ulamek : d;
+  });
+};
+
+/**
+ * Dwa punkty na krawędzi WIODĄCEJ: przy rogu i na środku.
+ *
+ * Przy wygiętej ścianie róg ma być obcięty, a środek sięgać pełnej krawędzi.
+ * Punkty liczone od prostokąta kadru W TEJ CHWILI — po zamrożeniu nie zmienia
+ * się już do końca pomiaru.
+ *
+ * Hit-testem tego zmierzyć NIE MOŻNA: `elementFromPoint` zwraca panel także
+ * tam, gdzie obrazu nie ma (zmierzone). Liczy się to, co widać, więc próbkujemy
+ * piksele zrzutu ekranu.
+ */
+window.__punktyWygiecia = function () {
+  var sh = shellOf(0);
+  var r  = sh.querySelector('.evk-oc-frame').getBoundingClientRect();
+  var G  = 4;   // ile pikseli w głąb kadru od krawędzi wiodącej
+  var K  = 8;   // ile pikseli od rogu wzdłuż krawędzi
+  var strona = sh.classList.contains('is-side-right')  ? 'right'
+             : sh.classList.contains('is-side-left')   ? 'left'
+             : sh.classList.contains('is-side-top')    ? 'top' : 'bottom';
+  /* Linia próbkowania: od krawędzi wiodącej W GŁĄB kadru, na wysokości `K` od
+     rogu. Po niej mierzy się GŁĘBOKOŚĆ wygięcia w pikselach — czyli to, co
+     odróżnia siłę 0,2 od pełnej. Pojedynczy punkt tego nie powie: przy rogu
+     obcina każda krzywizna, słaba tak samo jak mocna. */
+  var KROK = 4, ZASIEG = 240;
+  var wGlab = {
+    right:  function (d) { return [r.left + d,  r.top + K]; },
+    left:   function (d) { return [r.right - d, r.top + K]; },
+    top:    function (d) { return [r.left + K,  r.bottom - d]; },
+    bottom: function (d) { return [r.left + K,  r.top + d]; },
+  }[strona];
+
+  var skan = [];
+  for (var d = 0; d <= ZASIEG; d += KROK) skan.push(wGlab(d));
+
+  return Object.assign({
+    right:  { rog: [r.left + G,  r.top + K],     srodek: [r.left + G,  r.top + r.height / 2] },
+    left:   { rog: [r.right - G, r.top + K],     srodek: [r.right - G, r.top + r.height / 2] },
+    top:    { rog: [r.left + K,  r.bottom - G],  srodek: [r.left + r.width / 2, r.bottom - G] },
+    bottom: { rog: [r.left + K,  r.top + G],     srodek: [r.left + r.width / 2, r.top + G] },
+  }[strona], { skan: skan, krok: KROK });
 };
 
 /** Ile powłok leży w dokumencie — po przerysowaniu ma NIE przybywać. */

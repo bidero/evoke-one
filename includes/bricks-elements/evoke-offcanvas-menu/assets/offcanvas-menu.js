@@ -173,6 +173,25 @@ function evk_offcanvas_menu_init_one(root) {
      */
     var reveal      = root.getAttribute('data-effect') === 'reveal';
 
+    /**
+     * Wygięta ściana — krawędź wjazdu wybrzusza się w trakcie ruchu i prostuje.
+     *
+     * NIEZALEŻNA od efektu otwierania: składa się i z wysuwaniem, i z
+     * odsłanianiem, bo dotyczy kształtu kadru, a nie tego, co robi treść.
+     *
+     * Kształt robi `border-radius` na kadrze, który ma `overflow: clip` —
+     * całość siedzi w arkuszu. Tutaj zostaje tylko przeliczenie intensywności
+     * na głębokość wygięcia.
+     */
+    var curve = root.getAttribute('data-curve') === '1';
+
+    /* 0–1 z kontrolki na procent szerokości (albo wysokości) panelu. Górna
+       granica 30% dobrana pod wzór: przy pełnej intensywności krawędź
+       wyprzedza mniej więcej o tyle, o ile u nextbricks. Wyżej kadr robi się
+       soczewką i przestaje wyglądać jak ściana. */
+    var GLEBOKOSC_MAX = 30;
+    var curveDepth = Math.max(0, Math.min(1, num('data-curve-intensity', 1)));
+
     // Wspólna polityka ruchu wtyczki — patrz includes/anim/motion.php.
     var reduced = (window.evkMotion && typeof window.evkMotion.reduced === 'function')
         ? window.evkMotion.reduced()
@@ -264,7 +283,9 @@ function evk_offcanvas_menu_init_one(root) {
 
     // ── Powłoka ────────────────────────────────────────────────────────────
     var shell = document.createElement('div');
-    shell.className = 'evk-oc-shell is-side-' + side + (reveal ? ' is-reveal' : '');
+    shell.className = 'evk-oc-shell is-side-' + side
+        + (reveal ? ' is-reveal' : '')
+        + (curve  ? ' is-curve'  : '');
     shell.setAttribute('role', 'dialog');
     shell.setAttribute('aria-modal', 'true');
 
@@ -322,6 +343,7 @@ function evk_offcanvas_menu_init_one(root) {
     shell.style.setProperty('--evk-oc-sub-delay', subDelay + 's');
     if (frameEase) shell.style.setProperty('--evk-oc-ease', frameEase);
     if (trackEase) shell.style.setProperty('--evk-oc-panel-ease', trackEase);
+    if (curve) shell.style.setProperty('--evk-oc-curve', (curveDepth * GLEBOKOSC_MAX) + '%');
     // Wartości z kontrolek `css` builder zapisuje NA KORZENIU, a powłoka jedzie
     // do <body> i przestaje po nim dziedziczyć — trzeba je przepisać.
     ['--evk-oc-size', '--evk-oc-bg', '--evk-oc-scrim'].forEach(function (v) {
@@ -653,8 +675,34 @@ function evk_offcanvas_menu_init_one(root) {
        w tym oknie zostaje po chwili cofnięte przez zaległy zegar. */
     var closeTimer = null;
 
+    /* Okno, w którym kadr WYJEŻDŻA — jedyny czas, gdy wygięta ściana ma grać
+       wspak. `is-open` już go wtedy nie ma, a bez własnego zaczepu animacja
+       znikałaby razem z klasą i ściana prostowałaby się w jednej klatce.
+       Trzymamy je zegarem, bo `animationend` na kadrze niesie także animacje
+       cudze — a od tej klasy zależy wygląd, nie stan menu. */
+    var wygiecieTimer = null;
+
+    function zacznijWygiecieWstecz() {
+        if (!curve) return;
+        clearTimeout(wygiecieTimer);
+        shell.classList.add('is-closing');
+        wygiecieTimer = setTimeout(function () {
+            wygiecieTimer = null;
+            shell.classList.remove('is-closing');
+        }, frameTime * 1000);
+    }
+
+    function przerwijWygiecieWstecz() {
+        clearTimeout(wygiecieTimer);
+        wygiecieTimer = null;
+        shell.classList.remove('is-closing');
+    }
+
     function open(trigger) {
         if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+        /* Otwarcie w trakcie zamykania — zaległa klasa trzymałaby animację
+           wstecz obok tej do przodu i kadr dostałby dwie naraz. */
+        przerwijWygiecieWstecz();
         lastTrigger = trigger || null;
         stack = [startIdx];
         applyState();
@@ -684,6 +732,9 @@ function evk_offcanvas_menu_init_one(root) {
 
     function finishClose() {
         shell.classList.remove('is-open');
+        // W tej samej instrukcji co zdjęcie `is-open`: między nimi nie ma
+        // klatki, więc ściana przechodzi z animacji w animację bez przeskoku.
+        zacznijWygiecieWstecz();
         root.classList.remove(BRICKS_OPEN);
         unlock();
         setTrigAria(false);
