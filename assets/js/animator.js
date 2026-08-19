@@ -31,6 +31,20 @@
    * Reszta animacji rusza więc od razu, a podział czeka. */
   var fontyGotowe = false;
 
+  /**
+   * Znacznik „ten element jeszcze czeka — nie pokazuj go”.
+   *
+   * Zasłona `evk-veil` jest jedna na cały dokument i schodzi, gdy silnik
+   * skończy pierwszy przebieg. Element z podziałem tekstu kończy wtedy dopiero
+   * połowę drogi: jego animacja powstanie po wczytaniu fontów. Pokazany
+   * w międzyczasie mrugnie treścią i skoczy do stanu początkowego — czyli
+   * dokładnie ten błysk, przeciw któremu zasłona powstała.
+   *
+   * Atrybut, nie klasa: nazwa klasy z ciągiem „evk-anim-” wpadłaby w selektor,
+   * którym silnik zbiera elementy (patrz komentarz przy render_preveil()).
+   */
+  var ATRYBUT_CZEKA = 'data-evk-anim-czeka';
+
   // ── Helpers ────────────────────────────────────────────────────────────
 
   /**
@@ -1016,12 +1030,33 @@
 
     /* Podział tekstu czeka na metryki fontów — tą samą drogą co zakres
        szerokości: konfiguracja odpada, element nie dostaje znacznika gotowości
-       i wraca, gdy fonty dojadą. Jedna mechanika na dwa powody odłożenia. */
-    if (!fontyGotowe) {
+       i wraca, gdy fonty dojadą. Jedna mechanika na dwa powody odłożenia.
+
+       NIE przy redukcji ruchu. Tam nic się nie animuje i nic nie dzieli, więc
+       metryki fontu są bez znaczenia — a czekanie na nie trzymałoby treść pod
+       zasłoną przez sekundę bez żadnego powodu.
+
+       ODŁOŻONY ELEMENT MUSI ZOSTAĆ NIEWIDOCZNY. To jest cała różnica między
+       tym odłożeniem a odłożeniem z powodu szerokości: tam animacja ma nie
+       istnieć i element ma być widoczny taki, jak wyrenderował go CSS. Tu
+       animacja ZA CHWILĘ nadejdzie i nałoży swój stan początkowy — a element
+       pokazany w międzyczasie mrugnie treścią, po czym skoczy do „from”
+       i dopiero zagra. Dokładnie ten błysk, dla którego w 1.27.2 powstała
+       zasłona; 1.96.0 zdjęło ją globalnie i przywróciło błysk podzielonym
+       tekstom. Zgłoszone z użycia.
+
+       Znacznik jest WŁASNY, nie klasa `evk-veil`: zasłona schodzi z całego
+       dokumentu na końcu initAll(), a ten element ma zostać schowany dłużej
+       niż reszta strony. Bezpiecznik czasowy zdejmuje go razem z zasłoną —
+       patrz render_preveil() w includes/anim/animator.php. */
+    var czekaNaFonty = false;
+    if (!fontyGotowe && !prefersReduced()) {
       var przedFontami = cfgs.length;
       cfgs = cfgs.filter(function (cfg) { return !cfg.split; });
-      if (cfgs.length !== przedFontami) pominieto = true;
+      if (cfgs.length !== przedFontami) { pominieto = true; czekaNaFonty = true; }
     }
+    if (czekaNaFonty) el.setAttribute(ATRYBUT_CZEKA, '1');
+    else              el.removeAttribute(ATRYBUT_CZEKA);
 
     /* Co już zbudowane, nie buduje się drugi raz.
        
@@ -1314,10 +1349,15 @@
            dojedzie GSAP (pliki z cache, wolna sieć) — przebudowa poleciałaby
            wtedy bez biblioteki. Nie ma jej zresztą po co: pierwszy przebieg
            zobaczy `fontyGotowe` i zbuduje podział od razu.
-           
-           A gdy był — przez tę samą kolejkę co zmiana progu, żeby dobudowanie
-           nie lądowało w klatce, w której użytkownik akurat przewija. */
-        if (poPierwszym) zaplanujPrzebudowe();
+
+           OD RAZU, nie przez kolejkę bezczynności. Odłożone elementy czekają
+           pod własną zasłoną, więc każda milisekunda zwłoki to milisekunda
+           pustego miejsca w treści — a kolejka dokłada do niej nawet 200 ms.
+           Powód, dla którego 1.96.0 ją tu wstawiło, obsługuje dziś kto inny:
+           przeliczenie wyzwalaczy idzie przez `evkOdswiez`, który sam czeka,
+           aż przewijanie ustanie. Zwłoka w budowaniu niczego już nie chroni,
+           a widać ją gołym okiem. */
+        if (poPierwszym) initAll();
       });
     }
   }

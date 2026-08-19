@@ -117,12 +117,33 @@ class EVK_Animator {
 <style id="evk-anim-preveil">
 .evk-veil [data-evk-anim],
 .evk-veil [class*="evk-anim-"] { visibility: hidden !important; }
+
+/* Zasłona POJEDYNCZEGO elementu, niezależna od tej wyżej.
+ *
+ * Zasłona dokumentu schodzi, gdy silnik skończy pierwszy przebieg. Element
+ * z podziałem tekstu kończy wtedy dopiero połowę drogi — jego animacja powstaje
+ * po wczytaniu webfontów, bo to metryki fontu decydują o łamaniu linii.
+ * Pokazany w międzyczasie mrugnie treścią i skoczy do stanu początkowego,
+ * czyli dokładnie ten błysk, przeciw któremu zasłona powstała w 1.27.2.
+ *
+ * Znacznik zakłada i zdejmuje silnik (assets/js/animator.js), a bezpiecznik
+ * niżej zdejmuje go razem z zasłoną dokumentu — awaria wczytywania fontów nie
+ * może ukryć treści na stałe. */
+[data-evk-anim-czeka] { visibility: hidden !important; }
 </style>
 <script id="evk-anim-preveil-js">
 (function () {
     var h = document.documentElement;
     h.classList.add('evk-veil');
-    setTimeout(function () { h.classList.remove('evk-veil'); }, 3000);
+    setTimeout(function () {
+        h.classList.remove('evk-veil');
+        /* Ten sam bezpiecznik obejmuje elementy czekające na fonty. Bez tego
+           strona z niedostępnym webfontem trzymałaby podzielone teksty ukryte
+           bez końca — a to gorsze niż brak animacji. */
+        document.querySelectorAll('[data-evk-anim-czeka]').forEach(function (el) {
+            el.removeAttribute('data-evk-anim-czeka');
+        });
+    }, 3000);
 })();
 </script>
         <?php

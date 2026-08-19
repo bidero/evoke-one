@@ -19,9 +19,28 @@
  * WBUDOWANĄ ścieżkę odświeżania; sześć naszych własnych wywołań ją omijało.
  */
 
-const { phpOutput } = require('./lib/harness');
+const { phpOutput, tagContent } = require('./lib/harness');
 
 const HELPER  = phpOutput('gsap-inline.php');
+
+/* Zasłona Z PHP — te same reguły i ten sam mikroskrypt, które Animator drukuje
+   w <head>. Przepisane do fixture'a przechodziłyby na zielono nawet wtedy,
+   gdyby wtyczka przestała je drukować.
+
+   Wstrzykiwane skryptem startowym, czyli przed czymkolwiek na stronie — tak
+   samo jak na żywej stronie, gdzie blok stoi w <head> z priorytetem 1. */
+const ZASLONA_PHP = phpOutput('anim-preveil.php');
+const ZASLONA_HEAD =
+  /* Ponawianie, bo skrypt startowy bywa szybszy niż sam <html>: zmierzone —
+     `document.documentElement` jest wtedy jeszcze `null` i wstrzyknięcie
+     przepadało po cichu, a testy mierzyły stronę bez zasłony. */
+  '(function zal(){'
+  + 'if(!document.documentElement){setTimeout(zal,0);return;}'
+  + 'var s=document.createElement("style");s.textContent='
+  + JSON.stringify(tagContent(ZASLONA_PHP, 'evk-anim-preveil'))
+  + ';document.documentElement.appendChild(s);'
+  + tagContent(ZASLONA_PHP, 'evk-anim-preveil-js')
+  + '})();';
 /* Presety z PHP, nie z atrapy: to one niosą `from`/`to` i znacznik podziału
    tekstu, czyli dokładnie to, o co w pomiarze fontów chodzi. */
 const PRESETY = 'window.__presets = ' + JSON.stringify(JSON.parse(phpOutput('presets.php'))) + ';';
@@ -177,7 +196,8 @@ module.exports = async function (t) {
   // ── Animator: na fonty czeka tylko podział tekstu ──────────────────────
   t.section('animator nie czeka z wszystkim na fonty');
 
-  const f = await t.open('anim-fonty.html', { settle: 600, head: PRESETY });
+  const f = await t.open('anim-fonty.html',
+    { settle: 600, head: PRESETY + ZASLONA_HEAD });
 
   t.check('fonty pod kontrolą testu',
     await f.evaluate(() => typeof window.__fontyGotowe === 'function'), 'obietnica podstawiona');
@@ -216,13 +236,137 @@ module.exports = async function (t) {
   t.check('bez błędów JS (fonty)', !f.errors.length, f.errors.join(' | ') || 'brak');
   await f.close();
 
+  /* ── Element czekający na fonty NIE MOŻE być widoczny ───────────────────
+   *
+   * Zgłoszone z użycia po 1.96.0: „elementy, które powinny pojawić się po raz
+   * pierwszy, są widoczne przed rozpoczęciem animacji i po opóźnieniu się
+   * animują".
+   *
+   * To jest dokładnie ten błysk, dla którego w 1.27.2 powstała zasłona: element
+   * stoi wyrenderowany normalnie, potem skacze do stanu początkowego i dopiero
+   * animuje. 1.96.0 przywróciło go połowicznie — zasłona schodzi z dokumentu po
+   * pierwszym przebiegu, a podzielone teksty czekają wtedy jeszcze na fonty.
+   *
+   * Zasłona dokumentu MA schodzić: reszta strony nie ma powodu czekać. Chowany
+   * ma być pojedynczy element, i tylko dopóki czeka.
+   */
+  t.section('element czekający na fonty jest niewidoczny');
+
+  const bl = await t.open('anim-fonty.html',
+    { settle: 600, head: PRESETY + ZASLONA_HEAD });
+
+  /* Najpierw dowód, że reguła w ogóle dojechała — bez niej cała sekcja mierzy
+     stronę bez zasłony i „niewidoczny" nie miałoby prawa być prawdą. */
+  t.check('reguła zasłony przyjechała z PHP',
+    /\[data-evk-anim-czeka\]/.test(ZASLONA_PHP), 'jest w <head>');
+
+  const przedB = await bl.evaluate(() => ({
+    dzielony: window.__stan('dzielony'),
+    zwykly:   window.__stan('zwykly'),
+    zaslona:  window.__zaslona(),
+  }));
+
+  // SEDNO.
+  t.check('podzielony tekst NIE jest widoczny, dopóki czeka',
+    !przedB.dzielony.widoczny && przedB.dzielony.czeka,
+    'widoczny=' + przedB.dzielony.widoczny + ', czeka=' + przedB.dzielony.czeka);
+
+  /* Kontrola negatywna: element BEZ podziału ma być widoczny w tej samej
+     chwili. Bez niej „niewidoczny" byłoby spełnione także wtedy, gdyby zasłona
+     dokumentu po prostu nie zeszła — czyli gdyby wróciło zachowanie sprzed
+     1.96.0 i cała strona czekała na fonty. */
+  t.check('a animacja bez podziału jest widoczna i gra',
+    przedB.zwykly.widoczny && przedB.zwykly.tweenow > 0 && !przedB.zwykly.czeka,
+    'widoczny=' + przedB.zwykly.widoczny + ', tweenów=' + przedB.zwykly.tweenow);
+  t.check('zasłona dokumentu i tak zeszła', !przedB.zaslona, 'zdjęta');
+
+  await bl.evaluate(() => window.__fontyGotowe());
+  await bl.waitForTimeout(400);
+  const poB = await bl.evaluate(() => window.__stan('dzielony'));
+  t.check('po fontach znacznik znika i tekst wchodzi',
+    !poB.czeka && poB.widoczny && poB.linie > 0,
+    'czeka=' + poB.czeka + ', widoczny=' + poB.widoczny + ', linii=' + poB.linie);
+  t.check('bez błędów JS (zasłona)', !bl.errors.length, bl.errors.join(' | ') || 'brak');
+  await bl.close();
+
+  // ── Zwłoka ─────────────────────────────────────────────────────────────
+  /* Druga połowa zgłoszenia: „jest ogólnie duże opóźnienie". Odłożony element
+     czeka teraz pod zasłoną, więc każda milisekunda zwłoki to milisekunda
+     pustego miejsca w treści — a 1.96.0 przepuszczało dobudowanie przez kolejkę
+     bezczynności z limitem 200 ms. */
+  t.section('po wczytaniu fontów tekst wchodzi OD RAZU');
+
+  const zw = await t.open('anim-fonty.html',
+    { settle: 600, head: PRESETY + ZASLONA_HEAD });
+
+  /* Pomiar idzie MIKROZADANIEM, nie zegarem — i to jest tu istotne, nie
+     kosztowne. Zmierzone: `requestIdleCallback` na bezczynnym wątku wypala
+     natychmiast, więc czekanie „krócej niż limit 200 ms" NIE ODRÓŻNIA kolejki
+     od jej braku i mutacja przywracająca kolejkę przechodziła na zielono.
+     Limit jest górną granicą, nie zwłoką — na żywej, zajętej stronie sięga
+     całych 200 ms, ale w harnessie nigdy.
+
+     Mikrozadanie odróżnia je bez zegara: `document.fonts.ready.then` biegnie
+     jako mikrozadanie, więc budowanie WPROST kończy się, zanim przeglądarka
+     weźmie jakiekolwiek zadanie. Kolejka bezczynności to zadanie — po dwóch
+     obrotach mikrokolejki nie zdąży wypalić ani razu. */
+  const odRazu = await zw.evaluate(async () => {
+    window.__fontyGotowe();
+    await Promise.resolve();
+    await Promise.resolve();
+    return window.__stan('dzielony');
+  });
+  t.check('podział jest gotowy jeszcze w mikrozadaniu po fontach',
+    odRazu.gotowy && odRazu.linie > 0,
+    'gotowy=' + odRazu.gotowy + ', linii=' + odRazu.linie);
+  t.check('i element przestał czekać', !odRazu.czeka, 'czeka=' + odRazu.czeka);
+  await zw.close();
+
+  // ── Redukcja ruchu ─────────────────────────────────────────────────────
+  /* Przy redukcji ruchu nic się nie animuje i nic nie dzieli, więc metryki
+     fontu są bez znaczenia. Czekanie na nie trzymałoby treść pod zasłoną przez
+     sekundę bez żadnego powodu — i to u tych, którzy ruch wyłączyli właśnie
+     po to, żeby strona zachowywała się spokojnie. */
+  t.section('redukcja ruchu nie czeka na fonty');
+
+  const rm = await t.open('anim-fonty.html',
+    { settle: 600, reduce: true, head: PRESETY + ZASLONA_HEAD });
+  const rmSt = await rm.evaluate(() => window.__stan('dzielony'));
+  t.check('podzielony tekst jest widoczny od razu',
+    rmSt.widoczny && !rmSt.czeka,
+    'widoczny=' + rmSt.widoczny + ', czeka=' + rmSt.czeka);
+  t.check('bez błędów JS (redukcja)', !rm.errors.length, rm.errors.join(' | ') || 'brak');
+  await rm.close();
+
+  // ── Bezpiecznik ────────────────────────────────────────────────────────
+  /* Fonty, które nie dojadą nigdy — padł serwer, adres się zmienił, sieć
+     przerwana w pół drogi. Bez bezpiecznika podzielone teksty zostałyby ukryte
+     NA ZAWSZE, czyli awaria fontu zabrałaby stronie nagłówki. Ta sama zasada
+     i ten sam zegar, co przy zasłonie dokumentu od 1.27.2: po trzech sekundach
+     treść pokazuje się bez animacji, bo widoczna treść bez ruchu jest lepsza
+     niż ruch, którego nikt nie zobaczy. */
+  t.section('fonty, które nie dojechały, nie chowają treści na zawsze');
+
+  const bez = await t.open('anim-fonty.html',
+    { settle: 400, head: PRESETY + ZASLONA_HEAD });
+  t.check('na starcie tekst czeka',
+    (await bez.evaluate(() => window.__stan('dzielony'))).czeka, 'czeka');
+
+  // Fontów NIE rozwiązujemy — czekamy dłużej niż bezpiecznik.
+  await bez.waitForTimeout(3200);
+  const poBezp = await bez.evaluate(() => window.__stan('dzielony'));
+  t.check('po bezpieczniku znacznik zdjęty', !poBezp.czeka, 'czeka=' + poBezp.czeka);
+  t.check('i treść jest widoczna', poBezp.widoczny, String(poBezp.widoczny));
+  t.check('bez błędów JS (bezpiecznik)', !bez.errors.length, bez.errors.join(' | ') || 'brak');
+  await bez.close();
+
   /* Wyścig: fonty gotowe ZANIM dojedzie GSAP. Na wolnym łączu to zwykła kolej
      rzeczy — pliki fontów bywają w pamięci podręcznej, a biblioteka nie.
      Przebudowa ruszona w tym momencie woła initAll() bez GSAP-a i wywraca
      Animatora na całej stronie. Ma po prostu nie ruszać: pierwszy przebieg,
      gdy już nadejdzie, zobaczy gotowe fonty i zbuduje podział od razu. */
   const wyscig = await t.open('anim-fonty.html', {
-    settle: 1200, head: PRESETY, query: 'fontyOdRazu=1&gsapPozno=400',
+    settle: 1200, head: PRESETY + ZASLONA_HEAD, query: 'fontyOdRazu=1&gsapPozno=400',
   });
   t.check('GSAP naprawdę dojechał później',
     await wyscig.evaluate(() => typeof window.gsap === 'object'), 'jest po opóźnieniu');

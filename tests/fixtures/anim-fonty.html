@@ -17,14 +17,16 @@
   i oba przypadki wyglądają tak samo.
 -->
 <style>
-  /* Odwzorowanie <style id="evk-anim-preveil"> z includes/anim/animator.php. */
-  .evk-veil [data-evk-anim],
-  .evk-veil [class*="evk-anim-"] { visibility: hidden !important; }
-
   body { margin: 0; font: 16px system-ui; }
   p, div[id] { padding: 10px; background: #234; color: #fff; }
 </style>
-<script>document.documentElement.classList.add('evk-veil');</script>
+<!--
+  ZASŁONA IDZIE Z PHP, nie z kopii tutaj — wstrzykiwana przez `head`
+  (tests/php/anim-preveil.php). To ona jest przedmiotem tej wersji: reguła
+  przepisana do fixture'a przechodziłaby na zielono nawet wtedy, gdyby wtyczka
+  przestała ją drukować. Razem z regułami przychodzi mikroskrypt, który zakłada
+  `evk-veil` na <html> i pilnuje bezpiecznika czasowego.
+-->
 
 <script>
 /* Fonty pod kontrolą testu. Musi stanąć PRZED animator.js, bo silnik czyta
@@ -109,7 +111,14 @@ window.__fontyGotowe = null;
 <script>
   window.__stan = function (id) {
     var el = document.getElementById(id);
+    var cs = getComputedStyle(el);
     return {
+      /* Czy element JEST WIDOCZNY. To jest sedno tej wersji: element czekający
+         na fonty pokazany w międzyczasie mrugnie treścią, po czym skoczy do
+         stanu początkowego i dopiero zagra — ten sam błysk, dla którego
+         w 1.27.2 powstała zasłona. */
+      widoczny: cs.visibility === 'visible' && parseFloat(cs.opacity) > 0.01,
+      czeka:    el.hasAttribute('data-evk-anim-czeka'),
       /* Znacznik gotowości. Jego BRAK znaczy „silnik jeszcze tego nie zbudował
          i wróci do tego później" — tą samą drogą, którą wraca po zmianie progu
          szerokości. */

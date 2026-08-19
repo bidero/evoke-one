@@ -2,6 +2,61 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.97.2] — 2026-08-19
+
+### Naprawione
+
+- **Podzielone teksty znów mrugały przed animacją.** Zgłoszone z użycia:
+  *„elementy, które powinny pojawić się po raz pierwszy, są widoczne przed
+  rozpoczęciem animacji i po opóźnieniu się animują. Jest ogólnie duże
+  opóźnienie"*.
+
+  To ten sam błysk, dla którego w **1.27.2** powstała zasłona: element stoi
+  wyrenderowany normalnie, potem skacze do stanu początkowego i dopiero animuje.
+  Przywróciło go **1.96.0** — i to połowicznie, co jest tu całą trudnością.
+  Zasłona jest **jedna na cały dokument** i schodzi, gdy silnik skończy pierwszy
+  przebieg. Odkąd na fonty czeka już tylko podział tekstu, element z podziałem
+  kończy w tej chwili dopiero połowę drogi: jego animacja powstanie sekundę
+  później, po `document.fonts.ready`. Zasłona schodziła więc **z niego też** —
+  i przez tę sekundę stał widoczny, po czym skakał do „from" i grał.
+
+  Zasłona jest teraz dwuwarstwowa. Ta na dokumencie schodzi jak dotąd, bo reszta
+  strony nie ma powodu czekać. Element, który jeszcze czeka, dostaje **własny
+  znacznik** i zostaje niewidoczny dokładnie tak długo, jak czeka — nie dłużej.
+
+- **Zwłoka po wczytaniu fontów.** 1.96.0 przepuszczało dobudowanie podziału
+  przez kolejkę bezczynności z limitem 200 ms — słusznie przy zmianie progu
+  szerokości, ale nie tutaj: odłożony element czeka pod zasłoną, więc każda
+  milisekunda zwłoki to milisekunda pustego miejsca w treści. Powód, dla którego
+  ta kolejka tam trafiła, obsługuje dziś kto inny: przeliczenie wyzwalaczy idzie
+  przez `evkOdswiez`, który sam czeka, aż przewijanie ustanie. Podział buduje się
+  więc od razu.
+
+- **Redukcja ruchu nie czeka już na fonty.** Nic się wtedy nie animuje i nic nie
+  dzieli, więc metryki fontu są bez znaczenia — a czekanie na nie trzymało treść
+  pod zasłoną przez sekundę u tych, którzy ruch wyłączyli właśnie po to, żeby
+  strona zachowywała się spokojnie.
+
+- **Bezpiecznik obejmuje nową zasłonę.** Webfont, który nie dojedzie nigdy,
+  trzymałby podzielone teksty ukryte bez końca — czyli awaria fontu zabierałaby
+  stronie nagłówki. Ten sam trzysekundowy zegar, który zdejmuje zasłonę
+  dokumentu, zdejmuje teraz także znaczniki pojedynczych elementów.
+
+### Uwaga dla testów
+
+- **Reguła zasłony przestała być kopiowana do fixture'a.** Fixtures miały ją
+  przepisaną u siebie, więc „element czekający jest niewidoczny" przechodziłoby
+  nawet wtedy, gdyby wtyczka przestała ją drukować. Idzie teraz z PHP
+  (`tests/php/anim-preveil.php`), razem z mikroskryptem i bezpiecznikiem.
+
+- **Pomiar zwłoki idzie mikrozadaniem, nie zegarem.** Zmierzone:
+  `requestIdleCallback` na bezczynnym wątku wypala natychmiast, więc czekanie
+  „krócej niż limit 200 ms" NIE odróżniało kolejki od jej braku — mutacja
+  przywracająca kolejkę przechodziła na zielono. Limit jest górną granicą, nie
+  zwłoką. `document.fonts.ready.then` biegnie jako mikrozadanie, więc budowanie
+  wprost kończy się, zanim przeglądarka weźmie jakiekolwiek zadanie; kolejka
+  bezczynności to zadanie i po dwóch obrotach mikrokolejki nie zdąży wypalić.
+
 ## [1.97.1] — 2026-08-19
 
 ### Naprawione
