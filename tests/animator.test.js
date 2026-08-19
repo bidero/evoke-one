@@ -521,4 +521,50 @@ module.exports = async function (t) {
     gadatliwy.logs.some((l) => /koszt strony/.test(l)),
     gadatliwy.logs.find((l) => /koszt/.test(l)) || 'BRAK');
   await gadatliwy.close();
+
+  /* ── Koszt budowy klonów przy podmianie treści ──────────────────────────
+   *
+   * Zgłoszone z PageSpeed: „wymuszone przeformatowanie", a w nim `animator.js`
+   * jako najdroższa pozycja spośród naszych.
+   *
+   * Powód: pętla budująca klony czytała styl maski, dokładała do niej klon
+   * i czytała następną. Każdy dołożony klon unieważnia styl, więc następny
+   * odczyt wymusza jego przeliczenie — tyle razy, ile jest kawałków. Przy
+   * podziale na ZNAKI to setki razy na jedną stronę.
+   *
+   * Zmierzone przez Performance.getMetrics na stronie z 494 klonami:
+   * 779 przeliczeń stylu i 70 ms układu przed rozdzieleniem faz, 539 i 22 ms
+   * po. Liczba przeliczeń UKŁADU się nie zmienia — zmienia się ich koszt, bo
+   * styl nie jest już wtedy brudny.
+   *
+   * Test mierzy KOLEJNOŚĆ, nie zegar: liczby z metryk zależą od maszyny i od
+   * tego, co akurat robi przeglądarka, a przeplot odczytów z zapisami jest
+   * faktem binarnym.
+   */
+  t.section('klony przy podmianie nie przeplatają odczytów z zapisami');
+
+  const kzt = await t.open('anim-swap-koszt.html', { head: presety, settle: 600 });
+  const klonow = await kzt.evaluate(() => window.__klony());
+
+  /* Najpierw dowód, że jest CO mierzyć: bez klonów przeplot nie ma prawa
+     wystąpić i sprawdzenie niżej przechodziłoby zawsze. */
+  t.check('fixture naprawdę buduje dużo klonów', klonow > 30, klonow + ' klonów');
+
+  const przeplot = await kzt.evaluate(() => window.__przeplot());
+  /* Garść to praca silnika POZA samą pętlą (podział tekstu, stany początkowe).
+     Przeplot rośnie z liczbą kawałków, więc próg oddziela je z zapasem. */
+  t.check('odczyt po zapisie zdarza się garść razy, nie raz na kawałek',
+    przeplot < klonow / 4,
+    przeplot + ' przeplotów przy ' + klonow + ' klonach');
+
+  /* Kontrola pozytywna: klony mają nadal POWSTAĆ i leżeć w maskach. Pomiar
+     kolejności byłby spełniony także wtedy, gdyby pętla przestała cokolwiek
+     robić. */
+  t.check('a każdy klon siedzi w masce',
+    await kzt.evaluate(() => Array.prototype.every.call(
+      document.querySelectorAll('.evk-anim-swap-klon'),
+      function (k) { return /-mask/.test(k.parentNode.className); })),
+    'w maskach');
+  t.check('bez błędów JS', !kzt.errors.length, kzt.errors.join(' | ') || 'brak');
+  await kzt.close();
 };

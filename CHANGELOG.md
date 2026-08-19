@@ -2,6 +2,44 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.98.1] — 2026-08-19
+
+### Naprawione
+
+- **Budowa klonów podmiany przeplatała odczyty stylu z zapisami do drzewa.**
+  Zgłoszone z PageSpeed: w „wymuszonym przeformatowaniu" `animator.js` był
+  najdroższą pozycją spośród naszych.
+
+  Pętla budująca klony czytała styl maski, dokładała do niej klon i czytała
+  następną. Każdy dołożony klon unieważnia styl, więc **następny odczyt wymusza
+  jego przeliczenie** — tyle razy, ile jest kawałków. Przy podziale na ZNAKI to
+  setki razy na jedną stronę.
+
+  Odczyty idą teraz jednym przebiegiem przed wszystkimi zapisami.
+
+  Zmierzone przez `Performance.getMetrics` na stronie z 494 klonami:
+
+  | | przeliczeń stylu | czas układu |
+  |---|---|---|
+  | przed | 779 | 70–75 ms |
+  | po | **539** | **22–28 ms** |
+
+  Liczba przeliczeń UKŁADU się nie zmienia (31) — zmienia się ich koszt, bo
+  styl nie jest już wtedy brudny.
+
+### Uwaga dla testów
+
+- **Test mierzy KOLEJNOŚĆ, nie zegar.** Liczby z metryk zależą od maszyny i od
+  tego, co akurat robi przeglądarka; przeplot odczytów z zapisami jest faktem
+  binarnym. Szpieg liczy odczyty stylu następujące po dołożeniu klonu:
+  1 przy rozdzielonych fazach, 40 przy przeplocie (na 40 klonach).
+
+- **Szpieg musiał zawęzić się do węzłów W DOKUMENCIE.** Pierwsza wersja liczyła
+  wszystkie odczyty i pokazywała przeplot przy każdym klonie także PO poprawce —
+  bo GSAP czyta styl przy każdym `set()` na świeżo sklonowanym kawałku, a ten
+  jest jeszcze odłączony od drzewa i nie ma czego przeliczać. Pomiar mierzył
+  wtedy GSAP-a, nie nas.
+
 ## [1.98.0] — 2026-08-19
 
 ### Dodane

@@ -1,0 +1,85 @@
+<!--
+  Animator — KOSZT budowy klonów przy podmianie treści.
+
+  Zgłoszone z PageSpeed: „wymuszone przeformatowanie", a w nim `animator.js`
+  jako najdroższa pozycja spośród naszych. Powód: pętla budująca klony czytała
+  styl maski, dokładała do niej klon i czytała następną. Każdy dołożony klon
+  unieważnia styl, więc następny odczyt wymusza jego przeliczenie — tyle razy,
+  ile jest kawałków. Przy podziale na ZNAKI to setki razy na stronę.
+
+  Fixture mierzy KOLEJNOŚĆ, nie zegar. Liczby z Performance.getMetrics zależą
+  od maszyny i od tego, co akurat robi przeglądarka; przeplot odczytów
+  z zapisami jest faktem binarnym i albo go nie ma, albo jest.
+
+  Podział na ZNAKI, bo tylko przy nim kawałków jest dość, żeby przeplot dało
+  się odróżnić od granic między elementami.
+-->
+<style>
+  body { margin: 0; font: 16px/1.4 system-ui; }
+  h2 { margin: 0; padding: 8px; font-size: 26px; }
+</style>
+
+<h2 id="podmiana" data-evk-anim='{"animation":"sw"}'>Projektujemy strony ktore wygladaja jak marka</h2>
+
+<script>
+/* Szpieg na ODCZYTACH stylu i ZAPISACH do drzewa.
+ *
+ * Zakładany PRZED silnikiem, żeby złapać całą jego pracę. Zapisem jest tu
+ * dołożenie klonu — to ono unieważnia styl i to po nim żaden odczyt nie ma
+ * już prawa nastąpić w obrębie jednego elementu. */
+window.__slad = [];
+(function () {
+  var origStyl = window.getComputedStyle;
+  window.getComputedStyle = function (el) {
+    /* Tylko węzły W DOKUMENCIE. Odczyt stylu odłączonego węzła nie ma czego
+       przeliczać, więc nic nie kosztuje — a GSAP robi go przy każdym
+       `set()` na świeżo sklonowanym kawałku. Liczone razem z tamtymi pomiar
+       pokazywał przeplot przy KAŻDYM klonie, także po rozdzieleniu faz:
+       zmierzone 40 na 40 klonów, czyli mierzył GSAP-a, nie nas. */
+    if (el && el.nodeType === 1 && el.isConnected) window.__slad.push('R');
+    return origStyl.apply(window, arguments);
+  };
+
+  var origDodaj = Node.prototype.appendChild;
+  Node.prototype.appendChild = function (wezel) {
+    if (wezel && wezel.classList && wezel.classList.contains('evk-anim-swap-klon')) {
+      window.__slad.push('W');
+    }
+    return origDodaj.apply(this, arguments);
+  };
+})();
+
+/**
+ * Ile razy odczyt nastąpił PO zapisie — czyli ile razy przeglądarka musiała
+ * przeliczyć styl od nowa.
+ *
+ * Przy rozdzielonych fazach jest to najwyżej garść (granice między elementami
+ * i praca silnika poza samą pętlą). Przy przeplocie rośnie z liczbą kawałków.
+ */
+window.__przeplot = function () {
+  var n = 0;
+  for (var i = 1; i < window.__slad.length; i++) {
+    if (window.__slad[i] === 'R' && window.__slad[i - 1] === 'W') n++;
+  }
+  return n;
+};
+
+window.__klony = function () {
+  return document.querySelectorAll('.evk-anim-swap-klon').length;
+};
+</script>
+
+<script src="../../assets/vendor/gsap/gsap.min.js"></script>
+<script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
+<script src="../../assets/vendor/gsap/SplitText.min.js"></script>
+<script>
+  window.evkAnimator = {
+    library: { sw: { preset: 'swap-chars-up', trigger: 'hover', duration: 0.5,
+                     delay: 0, stagger: 0.02, easing: 'power3.out', order: 0 } },
+    // Presety PRAWDZIWE, z PHP — to one niosą znacznik podmiany i podziału.
+    presets: (window.__presets && window.__presets.presets) || {},
+    reducedMotion: false,
+    needsFonts: false,
+  };
+</script>
+<script src="../../assets/js/animator.js"></script>
