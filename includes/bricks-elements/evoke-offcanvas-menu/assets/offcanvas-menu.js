@@ -946,12 +946,65 @@ function evk_offcanvas_menu_init_one(root) {
 
     scrim.addEventListener('click', close);
 
+    /**
+     * Nadaje ROLĘ elementom, które robimy sterowaniem.
+     *
+     * Przejście między panelami wiesza się na atrybucie, więc pozycją menu może
+     * być cokolwiek — i to jest sens tego elementu (patrz decyzja 2 w szkicu).
+     * Ale zwykły `<span>`, w który da się kliknąć, nie jest przyciskiem dla
+     * nikogo poza myszą: nie ma roli, nie łapie fokusu i nie reaguje na
+     * klawiaturę.
+     *
+     * Zgłoszone z PageSpeed jako „Elements must only use permitted ARIA
+     * attributes": Bricks daje swoim odnośnikom tekstowym `aria-label`, a na
+     * elemencie BEZ ROLI ten atrybut jest zabroniony — element o roli domyślnej
+     * (`generic`) nie ma prawa mieć nazwy. Rola przy okazji ten zarzut zdejmuje,
+     * bo `aria-label` na `role="button"` jest jak najbardziej dozwolony.
+     *
+     * Cichszy, ale poważniejszy skutek był drugi: taki span NIE WCHODZIŁ do
+     * pułapki fokusu (`focusables()` szuka odnośników, przycisków i elementów
+     * z `tabindex`), więc klawiaturą nie dało się wejść w podmenu.
+     *
+     * NIE RUSZAMY tego, co interaktywne z natury — `<a href>` i `<button>` mają
+     * już rolę, fokus i obsługę klawiatury, a nadpisanie roli odebrałoby
+     * odnośnikowi jego własną. Nie ruszamy też cudzego `tabindex`: Circular Menu
+     * steruje nim u siebie, żeby chować zamknięty panel przed tabulatorem,
+     * a nadpisanie zerem odsłoniłoby go na stałe.
+     */
+    var STEROWANIE = '[data-evk-oc-go], [data-evk-oc-back], [data-evk-oc-close]';
+
+    function oznaczSterowanie(el) {
+        if (el.matches('a[href], button, input, select, textarea')) return;
+        if (!el.hasAttribute('role'))     el.setAttribute('role', 'button');
+        if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+    }
+
+    shell.querySelectorAll(STEROWANIE).forEach(oznaczSterowanie);
+
     shell.addEventListener('click', function (e) {
         var goEl = e.target.closest('[data-evk-oc-go]');
         if (goEl) { e.preventDefault(); go(goEl.getAttribute('data-evk-oc-go'), goEl); return; }
         if (e.target.closest('[data-evk-oc-back]'))  { e.preventDefault(); back();  return; }
         if (e.target.closest('[data-evk-oc-close]')) { e.preventDefault(); close(); return; }
         if (closeOnLink && e.target.closest('a[href]')) close();
+    });
+
+    /* Klawiatura dla sterowania, które nie jest przyciskiem z natury.
+     *
+     * `<button>` reaguje na Enter i spację sam, `<span role="button">` nie —
+     * przeglądarka nie zamienia tych klawiszy w kliknięcie tylko dlatego, że
+     * element deklaruje rolę. Bez tego rola byłaby obietnicą bez pokrycia:
+     * czytnik ekranu zapowiadałby przycisk, którego nie da się nacisnąć.
+     *
+     * Spacja domyślnie przewija stronę — stąd `preventDefault()`. Nasłuch na
+     * powłoce, nie na dokumencie: to jej zawartość jest sterowaniem, a klawisze
+     * poza menu nie są naszą sprawą. */
+    shell.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+        var el = e.target.closest(STEROWANIE);
+        if (!el || el.getAttribute('role') !== 'button') return;
+        e.preventDefault();
+        el.click();
     });
 
     document.addEventListener('keydown', function (e) {

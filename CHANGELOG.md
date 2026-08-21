@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.99.1] — 2026-08-19
+
+### Naprawione
+
+- **Pozycja menu zbudowana ze zwykłego `<span>` nie była przyciskiem dla nikogo
+  poza myszą.** Zgłoszone z PageSpeed jako *„Elements must only use permitted
+  ARIA attributes"*, a nieprawidłowym elementem był
+  `<span aria-label="Home" data-evk-oc-go="1">`.
+
+  Zarzut jest słuszny i nie chodzi o sam atrybut. Element **bez roli** ma rolę
+  `generic`, a ta nie ma prawa mieć nazwy — `aria-label` jest tam zabroniony.
+  Bricks daje ten atrybut swoim odnośnikom tekstowym, więc sam z siebie nie
+  zawinił; zawiniło to, że **my** robiliśmy z takiego spana sterowanie, nie
+  mówiąc o tym drzewu dostępności.
+
+  **Cichszy, ale poważniejszy skutek** audyt przemilcza: taki span nie wchodził
+  do pułapki fokusu (`focusables()` szuka odnośników, przycisków i elementów
+  z `tabindex`), więc **klawiaturą nie dało się wejść w podmenu**. To gorsze niż
+  zły atrybut.
+
+  Element, który staje się sterowaniem (`data-evk-oc-go`, `-back`, `-close`),
+  dostaje teraz `role="button"`, `tabindex="0"` i obsługę Enter oraz spacji —
+  `<span role="button">` nie zamienia tych klawiszy w kliknięcie sam z siebie,
+  więc rola bez nich byłaby obietnicą bez pokrycia. Przy okazji znika zarzut
+  z audytu: na `role="button"` `aria-label` jest jak najbardziej dozwolony.
+
+  **Nie ruszamy tego, co interaktywne z natury** — `<a href>` i `<button>` mają
+  rolę, fokus i klawiaturę od siebie, a nadpisanie roli odebrałoby odnośnikowi
+  jego własną. Nie ruszamy też **cudzego `tabindex`**: Circular Menu steruje nim
+  u siebie, żeby chować zamknięty panel przed tabulatorem, i nadpisanie zerem
+  odsłoniłoby go na stałe.
+
+  Uwaga na marginesie zgłoszenia: `tabindex="-1"` widoczne w raporcie **nie
+  pochodzi z Offcanvasu** — w całej wtyczce zapisuje je wyłącznie Circular Menu,
+  i tylko wewnątrz własnego panelu, gdzie jest zamierzone.
+
 ## [1.99.0] — 2026-08-19
 
 ### Zmienione

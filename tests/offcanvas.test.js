@@ -1656,4 +1656,67 @@ module.exports = async function (t) {
   t.check('a przy wygiętej ścianie Z GSAP-em', dCurve.deps.includes('evk-gsap'),
     JSON.stringify(dCurve.deps));
   t.check('i biblioteka jest wtedy zarejestrowana', dCurve.gsap === true, String(dCurve.gsap));
+
+  /* ── Sterowanie, które nie jest przyciskiem z natury ────────────────────
+   *
+   * Zgłoszone z PageSpeed: „Elements must only use permitted ARIA attributes",
+   * a nieprawidłowym elementem był goły `<span aria-label="Home">` z naszym
+   * `data-evk-oc-go`.
+   *
+   * Zarzut jest słuszny i nie chodzi o sam atrybut. Element BEZ ROLI ma rolę
+   * `generic`, a ta nie ma prawa mieć nazwy — `aria-label` jest tam zabroniony.
+   * Bricks daje ten atrybut swoim odnośnikom tekstowym, więc sam z siebie nie
+   * jest winny; winne jest to, że MY zrobiliśmy z takiego spana sterowanie,
+   * nie mówiąc o tym drzewu dostępności.
+   *
+   * Cichszy, ale poważniejszy skutek: taki span nie wchodził do pułapki fokusu,
+   * więc klawiaturą nie dało się wejść w podmenu. Tego audyt nie pokazuje,
+   * a jest gorsze niż zły atrybut.
+   */
+  t.section('goły span jako pozycja menu staje się przyciskiem');
+
+  const aria = await t.open('offcanvas.html', { viewport: V, settle: 150 });
+  const span = await aria.evaluate(() => window.__sterowanie('go-span'));
+
+  t.check('dostał rolę przycisku', span.rola === 'button', String(span.rola));
+  /* To jest sedno zarzutu z audytu: `aria-label` zostaje, ale odtąd siedzi na
+     roli, która ma prawo mieć nazwę. */
+  t.check('a nazwa z Bricksa została nietknięta', span.aria === 'Home', String(span.aria));
+  t.check('i wchodzi do pułapki fokusu', span.wPulapce && span.tabindex === '0',
+    'tabindex ' + span.tabindex);
+
+  /* Kontrola negatywna: element interaktywny Z NATURY ma zostać nietknięty.
+     Nadpisanie roli odnośnikowi odebrałoby mu jego własną, a przyciskowi
+     dołożyłoby atrybut, który niczego nie wnosi. */
+  const przycisk = await aria.evaluate(() => window.__sterowanie('go-uslugi'));
+  t.check('a prawdziwy przycisk zostaje bez zmian',
+    przycisk.rola === null && przycisk.tabindex === null,
+    'rola ' + przycisk.rola + ', tabindex ' + przycisk.tabindex);
+
+  const link = await aria.evaluate(() => window.__sterowanie('s-a'));
+  t.check('i odnośnik też', link.rola === null, String(link.rola));
+
+  // ── Klawiatura ─────────────────────────────────────────────────────────
+  /* Rola bez obsługi klawiszy jest obietnicą bez pokrycia: czytnik ekranu
+     zapowiada przycisk, którego nie da się nacisnąć. `<span role="button">`
+     nie zamienia Enter ani spacji w kliknięcie sam z siebie. */
+  t.section('span-przycisk działa z klawiatury');
+
+  await aria.evaluate(() => window.__open());
+  await aria.waitForTimeout(120);
+  await aria.evaluate(() => window.__klawiszNa('go-span', 'Enter'));
+  await aria.waitForTimeout(400);
+  t.check('Enter wchodzi w podmenu',
+    (await aria.evaluate(() => window.__state())).some((p) => p.id === 'uslugi' && p.current),
+    JSON.stringify(await aria.evaluate(() => window.__state())));
+
+  await aria.evaluate(() => window.__click('back-1'));
+  await aria.waitForTimeout(400);
+  await aria.evaluate(() => window.__klawiszNa('go-span', ' '));
+  await aria.waitForTimeout(400);
+  t.check('spacja też', 
+    (await aria.evaluate(() => window.__state())).some((p) => p.id === 'uslugi' && p.current),
+    JSON.stringify(await aria.evaluate(() => window.__state())));
+  t.check('bez błędów JS', !aria.errors.length, aria.errors.join(' | ') || 'brak');
+  await aria.close();
 };

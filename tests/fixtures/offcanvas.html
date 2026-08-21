@@ -43,6 +43,14 @@
     <a href="#a" id="s-a">Start A</a>
     <a href="#b" id="s-b">Start B</a>
     <button data-evk-oc-go="uslugi" id="go-uslugi">Usługi →</button>
+    <!-- Pozycja menu jako GOŁY SPAN z `aria-label` — dokładnie to, co Bricks
+         wystawia dla swojego „odnośnika tekstowego" i co PageSpeed zgłosił jako
+         „Elements must only use permitted ARIA attributes". Element bez roli ma
+         rolę `generic`, a ta nie ma prawa mieć nazwy. Bez tego przypadku
+         w fixture cała ta klasa usterek jest poza zasięgiem pomiaru: reszta
+         sterowania to przyciski, które rolę mają z natury. -->
+    <span class="brxe-text-link" data-evk-oc-go="uslugi" id="go-span"
+          aria-label="Home">HOME</span>
     <button data-evk-oc-close id="close-1">Zamknij</button>
   </div>
 
@@ -731,6 +739,35 @@ window.__ileOsieroconych = function () {
     function (s) {
       return !document.querySelector('[data-evk-oc-uid="' + s.getAttribute('data-evk-oc-owner') + '"]');
     }).length;
+};
+
+/**
+ * Co silnik zrobił z elementem, który uczynił sterowaniem.
+ *
+ * `aria-label` na elemencie BEZ ROLI jest zabroniony — rola domyślna
+ * (`generic`) nie ma prawa mieć nazwy. Rola `button` ten zarzut zdejmuje
+ * i jednocześnie jest prawdą o tym, czym ten span się stał.
+ */
+window.__sterowanie = function (id) {
+  var el = document.getElementById(id) || shellOf(0).querySelector('#' + id);
+  if (!el) return null;
+  return {
+    rola:     el.getAttribute('role'),
+    tabindex: el.getAttribute('tabindex'),
+    aria:     el.getAttribute('aria-label'),
+    // Czy pułapka fokusu w ogóle go widzi — po tym poznać, czy klawiaturą
+    // da się w podmenu wejść.
+    wPulapce: !!el.matches('a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'),
+  };
+};
+
+/** Naciśnięcie klawisza NA KONKRETNYM elemencie — nie na dokumencie. */
+window.__klawiszNa = function (id, key) {
+  var el = document.getElementById(id) || shellOf(0).querySelector('#' + id);
+  if (!el) return false;
+  el.focus();
+  el.dispatchEvent(new KeyboardEvent('keydown', { key: key, bubbles: true, cancelable: true }));
+  return true;
 };
 
 /** Stan drugiego korzenia — panele bez nazw, adresowane kolejnością. */
