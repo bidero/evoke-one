@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.1.0
+ * EVK Horizontal Scroll v1.3.0
  */
 (function () {
 	'use strict';
@@ -45,6 +45,7 @@
 			pinTarget    : cfg.pinTarget || 'self',
 			pinSelector  : cfg.pinSelector || '',
 			progressStyle: cfg.progressStyle || 'bar',
+			progressTarget: cfg.progressTarget || '',
 			scrub        : (cfg.scrub == null) ? 1 : (parseFloat(cfg.scrub) === 0 ? true : parseFloat(cfg.scrub)),
 			startOffset  : cfg.startOffset || 'top top',
 			snap         : cfg.snap !== false,
@@ -83,32 +84,127 @@
 
 		var pinEl = celPinu();
 
-		// Pasek postępu (opcjonalny).
-		var progress = C.progressBar ? root.querySelector('.evk-hscroll__progress') : null;
-		var bar      = (progress && C.progressStyle !== 'segments')
-			? progress.querySelector('.evk-hscroll__progress-bar') : null;
-
-		/**
-		 * Segmenty wskaźnika — po jednym na panel, budowane W JS.
+		/* ── Wskaźnik postępu ───────────────────────────────────────────────
 		 *
-		 * PHP musiałoby liczyć panele z drzewa dzieci Bricksa i zgadywać, które
-		 * z nich naprawdę wylądują na taśmie. Tutaj liczba jest już znana i jest
-		 * prawdziwa.
+		 * Do 1.100.0 wskaźnik mógł stać tylko WEWNĄTRZ elementu, przyklejony do
+		 * jego górnej albo dolnej krawędzi. Od 1.101.0 kontener wskazuje się
+		 * selektorem i może leżeć gdziekolwiek — choćby w nagłówku sekcji, obok
+		 * akapitu z opisem.
+		 *
+		 * `document.querySelector`, NIE `closest` — i to jest odwrotnie niż przy
+		 * przypinaniu wyżej. Tam szukaliśmy PRZODKA, tutaj cel leży POZA
+		 * elementem, zwykle w zupełnie innej gałęzi drzewa, więc `closest` nie
+		 * miałby czego znaleźć.
 		 */
-		var segmenty = null;
-		if (progress && C.progressStyle === 'segments') {
-			progress.classList.add('evk-hscroll__progress--segments');
-			var pasek = progress.querySelector('.evk-hscroll__progress-bar');
-			if (pasek) { pasek.remove(); }
-			segmenty = panels.map(function () {
-				var seg = document.createElement('span');
-				seg.className = 'evk-hscroll__progress-seg';
-				progress.appendChild(seg);
-				return seg;
+		function kontenerWskaznika() {
+			var wewnetrzny = root.querySelector('.evk-hscroll__progress');
+			if (!C.progressTarget) { return wewnetrzny; }
+
+			var zewnetrzny = document.querySelector(C.progressTarget);
+			if (zewnetrzny) { return zewnetrzny; }
+
+			/* Cisza byłaby tu najgorsza: wskaźnik zostaje w środku elementu,
+			   a z ekranu nie ma jak zgadnąć, że selektor w ogóle nie trafił. */
+			console.warn('[EVK Horizontal Scroll] Żaden element nie pasuje do selektora wskaźnika '
+				+ '„' + C.progressTarget + '" — wskaźnik zostaje wewnątrz elementu.', root);
+			return wewnetrzny;
+		}
+
+		/* Zmienne, którymi arkusz maluje wskaźnik. Kontrolki `css` z pustym
+		   selektorem Bricks zapisuje NA KORZENIU elementu; kontener spoza
+		   elementu nie jest jego potomkiem i nie dziedziczy po nim niczego, więc
+		   trzeba je przepisać. Ten sam problem rozwiązuje offcanvas przy portalu
+		   do <body> (offcanvas-menu.js). */
+		var ZMIENNE = [
+			'--evk-prog-h', '--evk-prog-bg', '--evk-prog-fill',
+			'--evk-seg-gap', '--evk-seg-off', '--evk-seg-on', '--evk-seg-h',
+			'--evk-seg-len', '--evk-seg-len-active'
+		];
+
+		var progress = C.progressBar ? kontenerWskaznika() : null;
+		var stylKorzenia = progress ? getComputedStyle(root) : null;
+
+		if (progress && !root.contains(progress)) {
+			// Bez klasy bazowej nie sięgną go żadne reguły arkusza.
+			progress.classList.add('evk-hscroll__progress');
+			ZMIENNE.forEach(function (v) {
+				var val = stylKorzenia.getPropertyValue(v);
+				if (val && val.trim()) { progress.style.setProperty(v, val.trim()); }
 			});
 		}
 
-		/** Który segment jest aktywny przy danym postępie. */
+		var bar      = null;
+		var segmenty = null;
+
+		if (progress) {
+			var pasek = progress.querySelector('.evk-hscroll__progress-bar');
+
+			if (C.progressStyle === 'bar') {
+				/* Wewnątrz elementu kreskę drukuje PHP. W kontenerze zewnętrznym
+				   nie ma jej skąd wziąć — więc powstaje tutaj. */
+				if (!pasek) {
+					pasek = document.createElement('div');
+					pasek.className = 'evk-hscroll__progress-bar';
+					progress.appendChild(pasek);
+				}
+				bar = pasek;
+			} else {
+				// Przy kreskach i przy numerach pasek z PHP-a jest tylko przeszkodą.
+				if (pasek) { pasek.remove(); }
+				progress.classList.add(C.progressStyle === 'current'
+					? 'evk-hscroll__progress--current'
+					: 'evk-hscroll__progress--segments');
+
+				/*
+				 * DWIE DROGI, zależnie od tego, co jest w kontenerze.
+				 *
+				 * Pusty — skrypt rysuje sam: kreski przy „segmentach", NUMERY
+				 * kart przy „tylko bieżącym" (goła kreska nie niosłaby tam żadnej
+				 * informacji). Liczbę paneli zna tylko JS; PHP musiałby ją zgadywać
+				 * z drzewa dzieci Bricksa.
+				 *
+				 * Z własną treścią — skrypt nie rusza niczego i tylko wpina
+				 * `is-active` w bieżące dziecko. Tędy robi się „01 · ROZMOWA"
+				 * zamiast kresek.
+				 */
+				var wlasne = Array.prototype.slice.call(progress.children);
+
+				if (wlasne.length) {
+					segmenty = wlasne;
+					if (wlasne.length !== panels.length) {
+						/* Przy czterech kartach i dwóch dzieciach dwa ostatnie stany
+						   nie mają czego podświetlić — z ekranu wygląda to jak
+						   zacinający się wskaźnik. */
+						console.warn('[EVK Horizontal Scroll] Wskaźnik ma ' + wlasne.length
+							+ ' dzieci przy ' + panels.length + ' panelach — część stanów '
+							+ 'nie ma czego podświetlić.', progress);
+					}
+				} else {
+					segmenty = panels.map(function (p, i) {
+						var seg = document.createElement('span');
+						if (C.progressStyle === 'current') {
+							seg.className = 'evk-hscroll__progress-num';
+							seg.textContent = String(i + 1);
+						} else {
+							seg.className = 'evk-hscroll__progress-seg';
+						}
+						progress.appendChild(seg);
+						return seg;
+					});
+				}
+
+				/* Stała długość kresek zamiast dzielenia szerokości po równo.
+				   Przełącza KLASA, nie sama zmienna: CSS nie umie zapytać „czy
+				   zmienna jest ustawiona", a `flex: 0 0 var(--evk-seg-len)`
+				   z domyślnym `flex-grow: 1` dalej by rozciągało. */
+				var dlugosc = stylKorzenia.getPropertyValue('--evk-seg-len');
+				if (dlugosc && dlugosc.trim()) {
+					progress.classList.add('evk-hscroll__progress--stala');
+				}
+			}
+		}
+
+		/** Które dziecko wskaźnika jest bieżące przy danym postępie. */
 		function odswiezSegmenty(postep) {
 			if (!segmenty || !segmenty.length) { return; }
 			// `min` na końcu: przy postępie równym 1 indeks wyszedłby poza tablicę

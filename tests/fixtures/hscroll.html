@@ -1,25 +1,30 @@
 <!--
-  Horizontal Scroll — PIERWSZY fixture dla tego elementu.
+  Horizontal Scroll — fixture.
 
-  Do 1.100.0 element nie miał żadnych testów, a od tej wersji ma dwa zupełnie
-  różne układy i to właśnie one się mylą:
+  Element ma dwa układy, które łatwo ze sobą pomylić:
 
     „slajder"  — element przypina SAM SIEBIE, panele dostają narzuconą szerokość
                  i wysokość (100% elementu albo 100vw, `--evk-panel-h`);
     „sekcja"   — przypina się PRZODEK z nagłówkiem, a pod nagłówkiem jedzie
                  taśma kart WĘŻSZYCH od ekranu, o rozmiarach z buildera.
 
-  Strona odwzorowuje drugi układ, bo to on jest nowy: sekcja z nagłówkiem
-  i wskaźnikiem u góry, pod nimi cztery karty po 300 px. Przed sekcją i za nią
-  jest treść — bez niej nie da się sprawdzić ani tego, że sekcja staje przy
-  górze ekranu, ani tego, że po dojechaniu taśmy strona jedzie dalej.
+  Strona odwzorowuje drugi układ: sekcja z nagłówkiem, pod nim cztery karty.
+  Przed sekcją i za nią jest treść — bez niej nie da się sprawdzić ani tego, że
+  sekcja staje przy górze ekranu, ani tego, że po dojechaniu taśmy strona jedzie
+  dalej.
 
-  DWIE TAKIE SEKCJE, nie jedna. Selektor przodka szuka się przez `closest()`,
+  DWIE TAKIE SEKCJE, nie jedna. Selektor PRZODKA szuka się przez `closest()`,
   a nie `document.querySelector()` — różnicę widać dopiero wtedy, gdy pasujących
-  sekcji jest więcej niż jedna. Przy `querySelector` obie taśmy przypięłyby tę
-  samą, pierwszą sekcję.
+  sekcji jest więcej niż jedna.
 
-  Parametry przez query: pin, sel, width, prog, style, scrub, snap, below.
+  TRZY KONTENERY WSKAŹNIKA POZA ELEMENTEM (1.101.0). Leżą PRZED sekcją, a nie
+  w jej nagłówku, choć w praktyce trafiają właśnie tam: przypięta sekcja ma
+  prostokąt przyklejony do zera i nie da się na niej zmierzyć, czy kontener
+  został wyrwany z przepływu. Tutaj stoją między dwoma znacznikami w `.ramka`
+  i wystarczy popatrzeć, czy znacznik pod spodem nie podjechał do góry.
+
+  Parametry przez query: pin, sel, width, prog, style, target, len, lena, segon,
+  scrub, snap, below.
 -->
 <meta charset="utf-8">
 <style>
@@ -46,11 +51,45 @@
     border-radius: 16px;
     padding: 20px;
   }
+
+  /* ── Miejsce na wskaźnik POZA elementem ──────────────────────────────────
+     `position: relative` na ramce jest tu celowo: gdyby kontener wskaźnika
+     dostał `position: absolute`, przykleiłby się do jej krawędzi i wypadł
+     z przepływu — a wtedy `#po-wskazniku` podjeżdża do góry. Na tym stoi
+     sprawdzenie „kontener zostaje w przepływie". */
+  .ramka { position: relative; width: 600px; padding: 20px; background: #ddd; }
+  .znacznik { height: 30px; background: #bbb; }
+  /* Wysokość własna, żeby wypadnięcie z przepływu było widać gołym pomiarem. */
+  #zewn-pusty, #zewn-wlasny, #zewn-krotki { min-height: 40px; }
+  .poz { padding: 4px 8px; background: #999; }
 </style>
 
 <link rel="stylesheet" href="../../includes/bricks-elements/evoke-horizontal-scroll/assets/hscroll.css">
 
 <div class="przed">treść przed sekcją</div>
+
+<div class="ramka">
+  <div class="znacznik" id="przed-wskaznikiem"></div>
+
+  <!-- PUSTY — skrypt ma go wypełnić sam. -->
+  <div id="zewn-pusty"></div>
+
+  <!-- Z WŁASNĄ treścią, tyle dzieci, ile kart — skrypt ma tylko podświetlać. -->
+  <div id="zewn-wlasny">
+    <span class="poz">01 · ROZMOWA</span>
+    <span class="poz">02 · KIERUNEK</span>
+    <span class="poz">03 · PROJEKT</span>
+    <span class="poz">04 · WDROŻENIE</span>
+  </div>
+
+  <!-- Za mało dzieci — dwa ostatnie stany nie mają czego podświetlić. -->
+  <div id="zewn-krotki">
+    <span class="poz">A</span>
+    <span class="poz">B</span>
+  </div>
+
+  <div class="znacznik" id="po-wskazniku"></div>
+</div>
 
 <section class="sekcja" id="sekcja-1">
   <div class="naglowek">
@@ -106,9 +145,25 @@
     disableBelow : q.get('below') === null ? 0 : parseInt(q.get('below'), 10),
     progressBar  : q.get('prog') === '1',
     progressStyle: q.get('style') || 'bar',
+    progressTarget: q.get('target') || '',
   };
   document.getElementById('hs-1').setAttribute('data-evk-hscroll', JSON.stringify(cfg));
-  document.getElementById('hs-2').setAttribute('data-evk-hscroll', JSON.stringify(cfg));
+
+  /* DRUGA taśma bez wskaźnika. Z tą samą konfiguracją obie sięgnęłyby po ten
+     sam kontener zewnętrzny: pierwsza by go wypełniła, druga zastałaby go
+     „z własną treścią" i pomiary przestałyby cokolwiek znaczyć. */
+  var cfg2 = JSON.parse(JSON.stringify(cfg));
+  cfg2.progressBar = false;
+  cfg2.progressTarget = '';
+  document.getElementById('hs-2').setAttribute('data-evk-hscroll', JSON.stringify(cfg2));
+
+  /* Zmienne CSS tam, gdzie zapisuje je Bricks: NA KORZENIU elementu. Do
+     kontenera spoza elementu nie dojdą inaczej niż przepisane przez skrypt —
+     i o to właśnie chodzi w sprawdzeniu „zmienne docierają". */
+  var root = document.getElementById('hs-1');
+  if (q.get('len'))   root.style.setProperty('--evk-seg-len', q.get('len'));
+  if (q.get('lena'))  root.style.setProperty('--evk-seg-len-active', q.get('lena'));
+  if (q.get('segon')) root.style.setProperty('--evk-seg-on', q.get('segon'));
 })();
 </script>
 
@@ -172,16 +227,50 @@ window.__hs = function (nr) {
   };
 };
 
-/** Wskaźnik postępu: ile segmentów i który aktywny. */
-window.__wskaznik = function (nr) {
-  var root = document.getElementById('hs-' + nr);
-  var segs = root.querySelectorAll('.evk-hscroll__progress-seg');
-  var bar  = root.querySelector('.evk-hscroll__progress-bar');
+/**
+ * Wskaźnik postępu — jeden odczyt o dowolnym kontenerze.
+ *
+ * Bez argumentu patrzy na wskaźnik WEWNĄTRZ pierwszego elementu; z selektorem
+ * na wskazany kontener zewnętrzny. Dzięki temu jedno i to samo sprawdzenie
+ * potrafi porównać oba miejsca.
+ */
+window.__w = function (sel) {
+  var box = document.querySelector(sel || '#hs-1 .evk-hscroll__progress');
+  if (!box) return null;
+
+  var dzieci = Array.prototype.slice.call(box.children);
+  var bar    = box.querySelector('.evk-hscroll__progress-bar');
+  var st     = getComputedStyle(box);
+
+  // Widoczność MIERZONA, nie zakładana: w trybie „tylko bieżący" chowa arkusz,
+  // a nie skrypt, więc atrybuty na elemencie niczego by nie dowiodły.
+  var widoczne = dzieci.filter(function (d) { return getComputedStyle(d).display !== 'none'; });
+  var akt      = dzieci.find(function (d) { return d.classList.contains('is-active'); });
+
   return {
-    segmentow: segs.length,
-    aktywny:   Array.prototype.findIndex.call(segs, function (s) { return s.classList.contains('is-active'); }),
+    dzieci:    dzieci.length,
+    klasy:     box.className,
+    pozycja:   st.position,
+    // Kreski (`--evk-hscroll__progress-seg`) tylko wtedy, gdy narysował je skrypt.
+    kresek:    box.querySelectorAll('.evk-hscroll__progress-seg').length,
+    numerow:   box.querySelectorAll('.evk-hscroll__progress-num').length,
+    aktywny:   dzieci.findIndex(function (d) { return d.classList.contains('is-active'); }),
+    teksty:    dzieci.map(function (d) { return d.textContent.trim(); }),
+    widocznych: widoczne.length,
+    tekstWidoczny: widoczne.length === 1 ? widoczne[0].textContent.trim() : null,
+    szerBox:   Math.round(box.getBoundingClientRect().width),
+    szeroko:   dzieci.map(function (d) { return Math.round(d.getBoundingClientRect().width); }),
+    kolorAkt:  akt ? getComputedStyle(akt).backgroundColor : null,
+    wSrodku:   document.getElementById('hs-1').contains(box),
     pasek:     bar ? getComputedStyle(bar).transform : null,
   };
+};
+
+/** Czy kontener wskaźnika nadal zajmuje miejsce w przepływie. */
+window.__uklad = function () {
+  var a = document.getElementById('przed-wskaznikiem').getBoundingClientRect();
+  var b = document.getElementById('po-wskazniku').getBoundingClientRect();
+  return { odstep: Math.round(b.top - a.bottom) };
 };
 
 /** Przewinięcie na zadaną pozycję i odczekanie klatki. */

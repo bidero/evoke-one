@@ -2,6 +2,58 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.101.0] — 2026-08-21
+
+### Dodane
+
+- **Horizontal Scroll: wskaźnik postępu gdziekolwiek na stronie.** Do tej wersji
+  wskaźnik mógł stać wyłącznie WEWNĄTRZ elementu, przyklejony do jego górnej albo
+  dolnej krawędzi. W praktyce jego miejsce jest zupełnie gdzie indziej — w rogu
+  nagłówka sekcji, obok akapitu z opisem, czyli w cudzym bloku Bricksa.
+
+  **Kontrolka „Kontener wskaźnika (selektor)"** — pusta znaczy „jak dotąd,
+  w środku". Podany selektor przenosi wskaźnik do dowolnego elementu na stronie.
+  Szukany jest **`document.querySelector`, nie `closest`**, i to jest odwrotnie
+  niż przy kontrolce „Selektor przodka" z 1.100.0: tam chodziło o PRZODKA taśmy,
+  tutaj cel leży POZA elementem, zwykle w innej gałęzi drzewa. Gdy nic nie
+  pasuje — ostrzeżenie z nazwą selektora i powrót do wskaźnika wewnętrznego.
+
+  **Dwie drogi, zależnie od tego, co jest w kontenerze.** Pusty skrypt wypełnia
+  sam. Kontener z własną treścią zostawia nietknięty i tylko wpina `is-active`
+  w bieżące dziecko — tędy robi się „01 · ROZMOWA" zamiast kresek. Gdy dzieci
+  jest mniej niż paneli, część stanów nie ma czego podświetlić; skrypt mówi
+  o tym w konsoli, zamiast milczeć.
+
+- **Trzeci styl wskaźnika: „Tylko bieżący — resztę chowaj".** Z całego rzędu
+  widać jedną pozycję. W pustym kontenerze skrypt pisze **numery kart** (1, 2,
+  3…) — goła kreska nie niosłaby tam żadnej informacji.
+
+- **Długość kresek z kontrolki.** „Długość segmentu" pusta znaczy „rozciągnij"
+  (kreski dzielą szerokość kontenera po równo, jak dotąd), podana — zamraża.
+  „Długość segmentu aktywnego" pokazuje się dopiero przy ustalonej długości:
+  przy rozciąganiu „dłuższa aktywna" znaczyłaby współczynnik rozrostu, czyli
+  zupełnie inny model.
+
+### Zmienione
+
+- **Wskaźnik nie jest już pozycjonowany sam z siebie.** `position: absolute`
+  siedziało na klasie `.evk-hscroll__progress`, a tę klasę dostaje teraz także
+  kontener spoza elementu — czyli wyrwałoby cudzy blok z układu strony
+  i przykleiło do krawędzi najbliższego przodka z pozycjonowaniem.
+  Pozycjonowanie zeszło do `--top` i `--bottom`, które właśnie o to proszą,
+  a PHP zawsze emituje jeden z nich dla wskaźnika wewnętrznego. Dla wskaźnika
+  w środku elementu nic się nie zmienia.
+
+- **Grubość, kolor tła i kolor paska jadą teraz zmiennymi CSS**
+  (`--evk-prog-h`, `--evk-prog-bg`, `--evk-prog-fill`) zamiast regułami na
+  potomka. Reguła `#brxe-xxx .evk-hscroll__progress { … }` nie sięga kontenera,
+  który nie jest potomkiem korzenia; zmienną skrypt potrafi przepisać — tym
+  samym sposobem, którym offcanvas ratuje swoje zmienne przy portalu do
+  `<body>`. Zapisane wartości kontrolek zostają bez zmian.
+
+- Kolory i odstęp segmentów pokazują się też przy stylu „Tylko bieżący", a nie
+  wyłącznie przy segmentach.
+
 ## [1.100.0] — 2026-08-19
 
 ### Dodane

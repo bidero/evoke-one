@@ -244,12 +244,44 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'options'     => [
 				'bar'      => esc_html__( 'Jedna kreska rosnąca', 'evk-horizontal-scroll' ),
 				'segments' => esc_html__( 'Segmenty — po jednym na kartę', 'evk-horizontal-scroll' ),
+				'current'  => esc_html__( 'Tylko bieżący — resztę chowaj', 'evk-horizontal-scroll' ),
 			],
 			'default'     => 'bar',
 			'inline'      => true,
 			'required'    => [ 'progressbar', '=', true ],
 			'description' => esc_html__(
-				'Segmentów jest tyle, ile paneli; bieżący jest podświetlony.',
+				'Segmentów jest tyle, ile paneli; bieżący jest podświetlony. '
+				. '„Tylko bieżący" pokazuje jedną pozycję naraz — w pustym kontenerze '
+				. 'będą to numery kart (1, 2, 3…).',
+				'evk-horizontal-scroll'
+			),
+		];
+
+		/*
+		 * Gdzie ma stanąć wskaźnik.
+		 *
+		 * Puste = jak dotąd, wewnątrz elementu, przy jego krawędzi. Selektor
+		 * przenosi wskaźnik gdziekolwiek — choćby do nagłówka sekcji, obok
+		 * akapitu z opisem.
+		 *
+		 * Szukany jest PIERWSZY PASUJĄCY NA STRONIE, nie przodek: kontener leży
+		 * poza elementem, zwykle w innej gałęzi drzewa. To odwrotnie niż przy
+		 * kontrolce „Selektor przodka" wyżej — stąd inna treść opisu.
+		 */
+		$this->controls['progressbar_target'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Kontener wskaźnika (selektor)', 'evk-horizontal-scroll' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => '.moj-wskaznik',
+			'required'    => [ 'progressbar', '=', true ],
+			'description' => esc_html__(
+				'Pusty = wskaźnik zostaje w środku elementu. Podany selektor wskazuje '
+				. 'DOWOLNY element na stronie — pierwszy pasujący. Kontener PUSTY skrypt '
+				. 'wypełnia sam; kontener z własną treścią zostawia w spokoju i tylko '
+				. 'podświetla w nim bieżące dziecko. Gdy nic nie pasuje, wskaźnik wraca '
+				. 'do środka elementu i mówi o tym w konsoli.',
 				'evk-horizontal-scroll'
 			),
 		];
@@ -265,7 +297,9 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			],
 			'default'  => 'top',
 			'inline'   => true,
-			'required' => [ 'progressbar', '=', true ],
+			// Przy kontenerze zewnętrznym pozycja nic nie znaczy — o miejscu
+			// decyduje wtedy układ strony wokół tego kontenera.
+			'required' => [ 'progressbar', '=', true, 'progressbar_target', '=', '' ],
 		];
 
 		$this->controls['progressbar_thickness'] = [
@@ -276,13 +310,21 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'units'       => true,
 			'inline'      => true,
 			'placeholder' => '4px',
+			/*
+			 * ZMIENNA na korzeniu, nie `height` na potomku.
+			 *
+			 * Reguła `#brxe-xxx .evk-hscroll__progress { … }` nie sięga kontenera,
+			 * który nie jest potomkiem korzenia — a od 1.101.0 wskaźnik wolno
+			 * postawić gdziekolwiek. Zmienną skrypt przepisuje na taki kontener
+			 * (patrz ZMIENNE w hscroll.js) i kontrolka działa w obu miejscach.
+			 */
 			'css'         => [
 				[
-					'property' => 'height',
-					'selector' => '.evk-hscroll__progress',
+					'property' => '--evk-prog-h',
+					'selector' => '',
 				],
 			],
-			'required'    => [ 'progressbar', '=', true ],
+			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'bar' ],
 		];
 
 		$this->controls['progressbar_bg'] = [
@@ -292,11 +334,11 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'type'     => 'color',
 			'css'      => [
 				[
-					'property' => 'background-color',
-					'selector' => '.evk-hscroll__progress',
+					'property' => '--evk-prog-bg',
+					'selector' => '',
 				],
 			],
-			'required' => [ 'progressbar', '=', true ],
+			'required' => [ 'progressbar', '=', true, 'progressbar_style', '=', 'bar' ],
 		];
 
 		$this->controls['progressbar_color'] = [
@@ -306,8 +348,8 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'type'     => 'color',
 			'css'      => [
 				[
-					'property' => 'background-color',
-					'selector' => '.evk-hscroll__progress-bar',
+					'property' => '--evk-prog-fill',
+					'selector' => '',
 				],
 			],
 			'required' => [ 'progressbar', '=', true, 'progressbar_style', '=', 'bar' ],
@@ -335,7 +377,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'segments' ],
+			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '!=', 'bar' ],
 		];
 
 		$this->controls['seg_off'] = [
@@ -349,7 +391,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required' => [ 'progressbar', '=', true, 'progressbar_style', '=', 'segments' ],
+			'required' => [ 'progressbar', '=', true, 'progressbar_style', '!=', 'bar' ],
 		];
 
 		$this->controls['seg_on'] = [
@@ -363,7 +405,59 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required' => [ 'progressbar', '=', true, 'progressbar_style', '=', 'segments' ],
+			'required' => [ 'progressbar', '=', true, 'progressbar_style', '!=', 'bar' ],
+		];
+
+		/*
+		 * Długość kresek.
+		 *
+		 * Puste znaczy „rozciągnij" — kreski dzielą szerokość kontenera po równo,
+		 * czyli tak, jak działały do 1.100.0. Podana wartość zamraża długość
+		 * i dopiero wtedy ma sens dłuższa kreska aktywna: przy rozciąganiu
+		 * „dłuższa" znaczyłoby współczynnik rozrostu, a to inny model.
+		 */
+		$this->controls['seg_len'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Długość segmentu', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'placeholder' => esc_html__( 'rozciągnij', 'evk-horizontal-scroll' ),
+			'css'         => [
+				[
+					'property' => '--evk-seg-len',
+					'selector' => '',
+				],
+			],
+			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '!=', 'bar' ],
+			'description' => esc_html__(
+				'Pusta = kreski dzielą szerokość kontenera po równo.',
+				'evk-horizontal-scroll'
+			),
+		];
+
+		$this->controls['seg_len_active'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Długość segmentu aktywnego', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'placeholder' => esc_html__( 'tyle samo', 'evk-horizontal-scroll' ),
+			'css'         => [
+				[
+					'property' => '--evk-seg-len-active',
+					'selector' => '',
+				],
+			],
+			// Tylko przy ustalonej długości — patrz komentarz wyżej.
+			'required'    => [ 'progressbar', '=', true, 'seg_len', '!=', '' ],
+			'description' => esc_html__(
+				'Działa dopiero, gdy długość segmentu jest podana. Pusta = tyle samo, '
+				. 'co pozostałe.',
+				'evk-horizontal-scroll'
+			),
 		];
 	}
 
@@ -380,6 +474,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		$progressbar   = ! empty( $settings['progressbar'] );
 		$pb_position   = ! empty( $settings['progressbar_position'] ) ? $settings['progressbar_position'] : 'top';
 		$pb_style      = ! empty( $settings['progressbar_style'] ) ? $settings['progressbar_style'] : 'bar';
+		$pb_target     = ! empty( $settings['progressbar_target'] ) ? $settings['progressbar_target'] : '';
 		$pin_target    = ! empty( $settings['pin_target'] ) ? $settings['pin_target'] : 'self';
 		$pin_selector  = ! empty( $settings['pin_selector'] ) ? $settings['pin_selector'] : '';
 
@@ -388,6 +483,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'pinTarget'    => $pin_target,
 			'pinSelector'  => $pin_selector,
 			'progressStyle'=> $pb_style,
+			'progressTarget'=> $pb_target,
 			'scrub'        => $scrub,
 			'startOffset'  => $start_offset,
 			'snap'         => $snap,
