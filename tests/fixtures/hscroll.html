@@ -1,0 +1,197 @@
+<!--
+  Horizontal Scroll — PIERWSZY fixture dla tego elementu.
+
+  Do 1.100.0 element nie miał żadnych testów, a od tej wersji ma dwa zupełnie
+  różne układy i to właśnie one się mylą:
+
+    „slajder"  — element przypina SAM SIEBIE, panele dostają narzuconą szerokość
+                 i wysokość (100% elementu albo 100vw, `--evk-panel-h`);
+    „sekcja"   — przypina się PRZODEK z nagłówkiem, a pod nagłówkiem jedzie
+                 taśma kart WĘŻSZYCH od ekranu, o rozmiarach z buildera.
+
+  Strona odwzorowuje drugi układ, bo to on jest nowy: sekcja z nagłówkiem
+  i wskaźnikiem u góry, pod nimi cztery karty po 300 px. Przed sekcją i za nią
+  jest treść — bez niej nie da się sprawdzić ani tego, że sekcja staje przy
+  górze ekranu, ani tego, że po dojechaniu taśmy strona jedzie dalej.
+
+  DWIE TAKIE SEKCJE, nie jedna. Selektor przodka szuka się przez `closest()`,
+  a nie `document.querySelector()` — różnicę widać dopiero wtedy, gdy pasujących
+  sekcji jest więcej niż jedna. Przy `querySelector` obie taśmy przypięłyby tę
+  samą, pierwszą sekcję.
+
+  Parametry przez query: pin, sel, width, prog, style, scrub, snap, below.
+-->
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px system-ui; }
+
+  .przed, .po { height: 1200px; background: #eee; padding: 20px; }
+
+  /* Sekcja-rodzic: to ona ma być przypięta w nowym układzie. */
+  .sekcja { background: #4c1d95; color: #fff; padding: 40px 0 60px; }
+  .naglowek { padding: 0 40px 30px; }
+  .naglowek h2 { margin: 0; font-size: 40px; }
+
+  /* Karty WĘŻSZE od ekranu i o własnej wysokości — dokładnie to, czego tryb
+     „z buildera" ma nie ruszać. */
+  /* 500 px, nie 300: przy węższych kartach cała taśma przesuwa się o niecałe
+     sto pikseli i nie ma kiedy zmierzyć jej W RUCHU — sekcja odpina się
+     natychmiast po przypięciu. Zmierzone: zakres wychodził 72 px. */
+  .karta {
+    width: 500px;
+    height: 260px;
+    margin-right: 24px;
+    background: rgba(255, 255, 255, .12);
+    border-radius: 16px;
+    padding: 20px;
+  }
+</style>
+
+<link rel="stylesheet" href="../../includes/bricks-elements/evoke-horizontal-scroll/assets/hscroll.css">
+
+<div class="przed">treść przed sekcją</div>
+
+<section class="sekcja" id="sekcja-1">
+  <div class="naglowek">
+    <h2 id="tytul-1">JAK PRACUJEMY</h2>
+  </div>
+  <div class="evk-hscroll" id="hs-1">
+    <div class="evk-hscroll__progress evk-hscroll__progress--top">
+      <div class="evk-hscroll__progress-bar"></div>
+    </div>
+    <div class="evk-hscroll__track">
+      <div class="karta" id="k1">01 · ROZMOWA</div>
+      <div class="karta" id="k2">02 · KIERUNEK</div>
+      <div class="karta" id="k3">03 · PROJEKT</div>
+      <div class="karta" id="k4">04 · WDROŻENIE</div>
+    </div>
+  </div>
+</section>
+
+<div class="po">treść pomiędzy</div>
+
+<!-- DRUGA taka sama sekcja — patrz komentarz na górze. -->
+<section class="sekcja" id="sekcja-2">
+  <div class="naglowek"><h2 id="tytul-2">DRUGA SEKCJA</h2></div>
+  <div class="evk-hscroll" id="hs-2">
+    <div class="evk-hscroll__track">
+      <div class="karta">A</div>
+      <div class="karta">B</div>
+      <div class="karta">C</div>
+    </div>
+  </div>
+</section>
+
+<div class="po">treść po sekcji</div>
+
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+
+  /* Konfiguracja tak, jak wystawia ją element.php: jeden atrybut z JSON-em.
+     Skrypt nie czyta niczego innego, więc test podaje ją dokładnie w tej
+     postaci, w jakiej wychodzi z buildera. */
+  var cfg = {
+    widthMode    : q.get('width') || 'auto',
+    pinTarget    : q.get('pin')   || 'selector',
+    pinSelector  : q.get('sel') === null ? '.sekcja' : q.get('sel'),
+    scrub        : q.get('scrub') === null ? 0 : parseFloat(q.get('scrub')),
+    startOffset  : 'top top',
+    // Domyślnie BEZ snapowania: przyciąganie do najbliższej karty przestawia
+    // pozycję po pomiarze i „taśma stoi na tyle, ile przewinięto" przestaje być
+    // prawdą. Sekcje mierzące snap włączają go jawnie.
+    snap         : q.get('snap') === '1',
+    snapDuration : 0.2,
+    disableBelow : q.get('below') === null ? 0 : parseInt(q.get('below'), 10),
+    progressBar  : q.get('prog') === '1',
+    progressStyle: q.get('style') || 'bar',
+  };
+  document.getElementById('hs-1').setAttribute('data-evk-hscroll', JSON.stringify(cfg));
+  document.getElementById('hs-2').setAttribute('data-evk-hscroll', JSON.stringify(cfg));
+})();
+</script>
+
+<script src="../../assets/vendor/gsap/gsap.min.js"></script>
+<script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
+<script src="../../includes/bricks-elements/evoke-horizontal-scroll/assets/hscroll.js"></script>
+
+<script>
+/** Przesunięcie taśmy w poziomie — 0 znaczy „na starcie". */
+function txOf(el) {
+  var m = getComputedStyle(el).transform;
+  return (m && m !== 'none') ? Math.round(parseFloat(m.replace(/^matrix\(|\)$/g, '').split(',')[4])) : 0;
+}
+
+/**
+ * Wszystko o jednym elemencie W JEDNYM ODCZYCIE.
+ *
+ * Prostokąty sekcji, nagłówka i taśmy muszą pochodzić z tej samej klatki
+ * układu — inaczej przy przypiętej sekcji porównywałoby się położenia z dwóch
+ * różnych chwil i wychodziłby z tego szum.
+ */
+window.__hs = function (nr) {
+  var root  = document.getElementById('hs-' + nr);
+  var sek   = document.getElementById('sekcja-' + nr);
+  var tytul = document.getElementById('tytul-' + nr);
+  var track = root.querySelector('.evk-hscroll__track');
+  var karta = track.children[0];
+
+  return {
+    // Przesunięcie taśmy i ile go maksymalnie może być.
+    x:      txOf(track),
+    zakres: Math.round(track.scrollWidth - root.clientWidth),
+
+    // Górna krawędź sekcji i nagłówka względem okna. Przypięta sekcja stoi
+    // przy zerze, a nagłówek razem z nią.
+    sekcjaTop: Math.round(sek.getBoundingClientRect().top),
+    tytulTop:  Math.round(tytul.getBoundingClientRect().top),
+
+    // Prawa krawędź OSTATNIEJ karty względem prawej krawędzi kadru. Zero na
+    // końcu przewijania znaczy „ostatnia karta stanęła przy krawędzi".
+    ogonek: Math.round(track.children[track.children.length - 1].getBoundingClientRect().right
+                       - root.getBoundingClientRect().right),
+
+    // Czy skrypt narzucił rozmiary. W trybie „z buildera" oba mają zostać puste.
+    stylW: karta.style.width,
+    stylH: karta.style.height,
+    // Zmierzone, nie deklarowane — reguła z arkusza też potrafi narzucić rozmiar.
+    szer:  Math.round(karta.getBoundingClientRect().width),
+    wys:   Math.round(karta.getBoundingClientRect().height),
+
+    aktywny: root.classList.contains('evk-hscroll--active'),
+    auto:    root.classList.contains('evk-hscroll--auto'),
+
+    // Co naprawdę przypięto: ScrollTrigger owija przypięty element w rodzica
+    // z klasą `pin-spacer`.
+    przypiety: (function () {
+      if (sek.parentElement && sek.parentElement.classList.contains('pin-spacer')) return 'sekcja';
+      if (root.parentElement && root.parentElement.classList.contains('pin-spacer')) return 'element';
+      return 'nic';
+    })(),
+  };
+};
+
+/** Wskaźnik postępu: ile segmentów i który aktywny. */
+window.__wskaznik = function (nr) {
+  var root = document.getElementById('hs-' + nr);
+  var segs = root.querySelectorAll('.evk-hscroll__progress-seg');
+  var bar  = root.querySelector('.evk-hscroll__progress-bar');
+  return {
+    segmentow: segs.length,
+    aktywny:   Array.prototype.findIndex.call(segs, function (s) { return s.classList.contains('is-active'); }),
+    pasek:     bar ? getComputedStyle(bar).transform : null,
+  };
+};
+
+/** Przewinięcie na zadaną pozycję i odczekanie klatki. */
+window.__doPozycji = function (y) {
+  window.scrollTo(0, y);
+};
+
+/** Gdzie zaczyna się sekcja w dokumencie — punkt odniesienia dla przewijania. */
+window.__gdzieSekcja = function (nr) {
+  var sek = document.getElementById('sekcja-' + nr);
+  return Math.round(sek.getBoundingClientRect().top + window.scrollY);
+};
+</script>

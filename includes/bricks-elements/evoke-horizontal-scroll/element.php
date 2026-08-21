@@ -87,9 +87,56 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'options'     => [
 				'fill'     => esc_html__( 'Wypełnij element (100% szerokości)', 'evk-horizontal-scroll' ),
 				'viewport' => esc_html__( 'Pełny ekran (100vw)', 'evk-horizontal-scroll' ),
+				'auto'     => esc_html__( 'Z buildera — nie ruszaj rozmiarów', 'evk-horizontal-scroll' ),
 			],
 			'default'     => 'fill',
-			'description' => esc_html__( 'Każdy panel zajmuje szerokość elementu lub całego ekranu.', 'evk-horizontal-scroll' ),
+			'description' => esc_html__(
+				'Dwa pierwsze tryby narzucają panelom szerokość i wysokość. '
+				. '„Z buildera" nie rusza żadnego rozmiaru: karty stylujesz zwyczajnie '
+				. 'w Bricksie, a skrypt liczy tylko, o ile przesunąć taśmę. Ten tryb '
+				. 'wybierz, gdy karty mają być WĘŻSZE od ekranu i jechać pod nieruchomym '
+				. 'nagłówkiem — razem z opcją „Co przypiąć".',
+				'evk-horizontal-scroll'
+			),
+		];
+
+		/*
+		 * Co zostaje przypięte do ekranu.
+		 *
+		 * Domyślnie sam element — tak działało do 1.100.0 i tak zostaje każdemu,
+		 * kto niczego nie zmienia. Przypięcie PRZODKA daje układ, w którym sekcja
+		 * z nagłówkiem stoi w miejscu, a pod nagłówkiem jedzie taśma kart.
+		 */
+		$this->controls['pin_target'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Co przypiąć', 'evk-horizontal-scroll' ),
+			'type'        => 'select',
+			'options'     => [
+				'self'     => esc_html__( 'Ten element', 'evk-horizontal-scroll' ),
+				'parent'   => esc_html__( 'Bezpośredniego rodzica', 'evk-horizontal-scroll' ),
+				'selector' => esc_html__( 'Przodka wskazanego selektorem', 'evk-horizontal-scroll' ),
+			],
+			'default'     => 'self',
+			'description' => esc_html__(
+				'Przypięcie przodka zostawia nagłówek sekcji nieruchomo na ekranie, '
+				. 'a przesuwa tylko taśmę kart.',
+				'evk-horizontal-scroll'
+			),
+		];
+
+		$this->controls['pin_selector'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Selektor przodka', 'evk-horizontal-scroll' ),
+			'type'        => 'text',
+			'inline'      => true,
+			'placeholder' => '.moja-sekcja',
+			'required'    => [ 'pin_target', '=', 'selector' ],
+			'description' => esc_html__(
+				'Szukany jest PRZODEK tego elementu, nie pierwszy pasujący na stronie — '
+				. 'dzięki temu dwie takie sekcje na jednej stronie nie wchodzą sobie w drogę. '
+				. 'Gdy nic nie pasuje, element przypina sam siebie i mówi o tym w konsoli.',
+				'evk-horizontal-scroll'
+			),
 		];
 
 		$this->controls['panel_height'] = [
@@ -100,6 +147,8 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'default'     => '100vh',
 			'placeholder' => '100vh',
 			'description' => esc_html__( 'np. 100vh, 800px. Pusta = automatyczna.', 'evk-horizontal-scroll' ),
+			// W trybie „z buildera" skrypt nie rusza wysokości, więc pole nic nie robi.
+			'required'    => [ 'width_mode', '!=', 'auto' ],
 		];
 
 		// ── ANIMACJA ──────────────────────────────────────────────────────────
@@ -127,7 +176,11 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'inline'      => true,
 			'default'     => 'top top',
 			'placeholder' => 'top top',
-			'description' => esc_html__( 'Punkt rozpoczęcia przypięcia, np. "top top".', 'evk-horizontal-scroll' ),
+			'description' => esc_html__(
+				'Punkt rozpoczęcia przypięcia, np. „top top". Przyjmuje też przesunięcie: '
+				. '„top top+=100" przypnie sto pikseli niżej — tyle, ile zajmuje przyklejony nagłówek.',
+				'evk-horizontal-scroll'
+			),
 		];
 
 		// ── SNAP ──────────────────────────────────────────────────────────────
@@ -181,6 +234,24 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'label'   => esc_html__( 'Włącz pasek postępu', 'evk-horizontal-scroll' ),
 			'type'    => 'checkbox',
 			'default' => false,
+		];
+
+		$this->controls['progressbar_style'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Styl', 'evk-horizontal-scroll' ),
+			'type'        => 'select',
+			'options'     => [
+				'bar'      => esc_html__( 'Jedna kreska rosnąca', 'evk-horizontal-scroll' ),
+				'segments' => esc_html__( 'Segmenty — po jednym na kartę', 'evk-horizontal-scroll' ),
+			],
+			'default'     => 'bar',
+			'inline'      => true,
+			'required'    => [ 'progressbar', '=', true ],
+			'description' => esc_html__(
+				'Segmentów jest tyle, ile paneli; bieżący jest podświetlony.',
+				'evk-horizontal-scroll'
+			),
 		];
 
 		$this->controls['progressbar_position'] = [
@@ -239,7 +310,60 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '.evk-hscroll__progress-bar',
 				],
 			],
-			'required' => [ 'progressbar', '=', true ],
+			'required' => [ 'progressbar', '=', true, 'progressbar_style', '=', 'bar' ],
+		];
+
+		/*
+		 * Segmenty mają własne kolory, a nie te od paska.
+		 *
+		 * Pasek ma dwie warstwy: tło pudełka i kreskę na nim. Segmenty mają
+		 * kreski nieaktywne i jedną aktywną — to inne role, a nie te same pod
+		 * inną nazwą, więc dostają własne pola zamiast dziedziczyć mylące.
+		 * Wartości jadą zmiennymi CSS, którymi arkusz maluje segmenty.
+		 */
+		$this->controls['seg_gap'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Odstęp segmentów', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'placeholder' => '8px',
+			'css'         => [
+				[
+					'property' => '--evk-seg-gap',
+					'selector' => '',
+				],
+			],
+			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'segments' ],
+		];
+
+		$this->controls['seg_off'] = [
+			'group'    => 'evk_progress',
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Kolor segmentu nieaktywnego', 'evk-horizontal-scroll' ),
+			'type'     => 'color',
+			'css'      => [
+				[
+					'property' => '--evk-seg-off',
+					'selector' => '',
+				],
+			],
+			'required' => [ 'progressbar', '=', true, 'progressbar_style', '=', 'segments' ],
+		];
+
+		$this->controls['seg_on'] = [
+			'group'    => 'evk_progress',
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Kolor segmentu aktywnego', 'evk-horizontal-scroll' ),
+			'type'     => 'color',
+			'css'      => [
+				[
+					'property' => '--evk-seg-on',
+					'selector' => '',
+				],
+			],
+			'required' => [ 'progressbar', '=', true, 'progressbar_style', '=', 'segments' ],
 		];
 	}
 
@@ -255,9 +379,15 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		$disable_below = isset( $settings['disable_below'] ) && $settings['disable_below'] !== '' ? (int) $settings['disable_below'] : 991;
 		$progressbar   = ! empty( $settings['progressbar'] );
 		$pb_position   = ! empty( $settings['progressbar_position'] ) ? $settings['progressbar_position'] : 'top';
+		$pb_style      = ! empty( $settings['progressbar_style'] ) ? $settings['progressbar_style'] : 'bar';
+		$pin_target    = ! empty( $settings['pin_target'] ) ? $settings['pin_target'] : 'self';
+		$pin_selector  = ! empty( $settings['pin_selector'] ) ? $settings['pin_selector'] : '';
 
 		$cfg = esc_attr( wp_json_encode( [
 			'widthMode'    => $width_mode,
+			'pinTarget'    => $pin_target,
+			'pinSelector'  => $pin_selector,
+			'progressStyle'=> $pb_style,
 			'scrub'        => $scrub,
 			'startOffset'  => $start_offset,
 			'snap'         => $snap,

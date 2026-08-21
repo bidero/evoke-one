@@ -42,6 +42,9 @@
 
 		var C = {
 			widthMode    : cfg.widthMode || 'fill',
+			pinTarget    : cfg.pinTarget || 'self',
+			pinSelector  : cfg.pinSelector || '',
+			progressStyle: cfg.progressStyle || 'bar',
 			scrub        : (cfg.scrub == null) ? 1 : (parseFloat(cfg.scrub) === 0 ? true : parseFloat(cfg.scrub)),
 			startOffset  : cfg.startOffset || 'top top',
 			snap         : cfg.snap !== false,
@@ -50,12 +53,80 @@
 			progressBar  : cfg.progressBar === true,
 		};
 
+		/**
+		 * Co przypinamy do ekranu.
+		 *
+		 * Domyślnie sam element — tak działał do 1.100.0 i tak zostaje każdemu,
+		 * kto niczego nie zmieniał. Nowe jest przypinanie PRZODKA: sekcji
+		 * z nagłówkiem, pod którym jedzie taśma kart. Nagłówek stoi wtedy
+		 * w miejscu, a rusza się tylko taśma.
+		 *
+		 * `closest()`, NIE `document.querySelector()`. Chodzi o „mój przodek",
+		 * a nie o „pierwszy taki element na stronie": przy dwóch takich sekcjach
+		 * querySelector przypiąłby obu taśmom tę samą, pierwszą sekcję, i druga
+		 * sekcja skakałaby przy przewijaniu pierwszej.
+		 */
+		function celPinu() {
+			if (C.pinTarget === 'parent') {
+				return root.parentElement || root;
+			}
+			if (C.pinTarget === 'selector' && C.pinSelector) {
+				var znaleziony = root.closest(C.pinSelector);
+				if (znaleziony) { return znaleziony; }
+				/* Cisza byłaby tu najgorsza: element działa dalej, tylko przypina
+				   nie to, co trzeba, i nie ma tego jak zgadnąć z ekranu. */
+				console.warn('[EVK Horizontal Scroll] Żaden przodek nie pasuje do selektora '
+					+ '„' + C.pinSelector + '" — przypinam sam element.', root);
+			}
+			return root;
+		}
+
+		var pinEl = celPinu();
+
 		// Pasek postępu (opcjonalny).
-		var bar = C.progressBar ? root.querySelector('.evk-hscroll__progress-bar') : null;
+		var progress = C.progressBar ? root.querySelector('.evk-hscroll__progress') : null;
+		var bar      = (progress && C.progressStyle !== 'segments')
+			? progress.querySelector('.evk-hscroll__progress-bar') : null;
+
+		/**
+		 * Segmenty wskaźnika — po jednym na panel, budowane W JS.
+		 *
+		 * PHP musiałoby liczyć panele z drzewa dzieci Bricksa i zgadywać, które
+		 * z nich naprawdę wylądują na taśmie. Tutaj liczba jest już znana i jest
+		 * prawdziwa.
+		 */
+		var segmenty = null;
+		if (progress && C.progressStyle === 'segments') {
+			progress.classList.add('evk-hscroll__progress--segments');
+			var pasek = progress.querySelector('.evk-hscroll__progress-bar');
+			if (pasek) { pasek.remove(); }
+			segmenty = panels.map(function () {
+				var seg = document.createElement('span');
+				seg.className = 'evk-hscroll__progress-seg';
+				progress.appendChild(seg);
+				return seg;
+			});
+		}
+
+		/** Który segment jest aktywny przy danym postępie. */
+		function odswiezSegmenty(postep) {
+			if (!segmenty || !segmenty.length) { return; }
+			// `min` na końcu: przy postępie równym 1 indeks wyszedłby poza tablicę
+			// i ostatnia karta zostawałaby bez podświetlenia.
+			var i = Math.min(Math.floor(postep * segmenty.length), segmenty.length - 1);
+			segmenty.forEach(function (seg, j) {
+				seg.classList.toggle('is-active', j === i);
+			});
+		}
 
 		gsap.registerPlugin(ScrollTrigger);
 
 		function setWidths() {
+			// Tryb „z buildera": ani szerokości, ani wysokości. Karty stylujesz
+			// w Bricksie, a skrypt liczy tylko, o ile przesunąć taśmę.
+			if (C.widthMode === 'auto') {
+				return;
+			}
 			if (C.widthMode === 'viewport') {
 				panels.forEach(function (p) { p.style.width = '100vw'; });
 			} else {
@@ -81,6 +152,9 @@
 
 		mm.add(query, function () {
 			root.classList.add('evk-hscroll--active');
+			// Klasa wyłącza w arkuszu narzucanie wysokości korzeniowi, taśmie
+			// i panelom — w tym trybie rozmiary należą do buildera.
+			if (C.widthMode === 'auto') { root.classList.add('evk-hscroll--auto'); }
 			setWidths();
 
 			var onRefreshInit = function () { setWidths(); };
@@ -103,25 +177,35 @@
 				x    : function () { return -getAmount(); },
 				ease : 'none',
 				scrollTrigger: {
-					trigger            : root,
+					/* Wyzwalacz TAM, GDZIE PIN — i to nie jest kosmetyka. Zostawiony
+					   na taśmie ruszałby dopiero, gdy jej górna krawędź dojedzie do
+					   góry ekranu, czyli po przewinięciu nagłówka poza kadr. */
+					trigger            : pinEl,
 					start              : C.startOffset,
 					end                : function () { return '+=' + getAmount(); },
-					pin                : true,
+					/* Jawnie `pinEl`, choć przy dzisiejszym wyzwalaczu `true` znaczy
+					   dokładnie to samo — sprawdzone mutacją, żadne sprawdzenie ich
+					   nie odróżnia. Forma jawna zostaje, bo trzyma pin przy właściwym
+					   elemencie NIEZALEŻNIE od wyzwalacza: gdyby ten kiedyś wrócił na
+					   taśmę, `true` po cichu przypięłoby taśmę. */
+					pin                : pinEl,
 					anticipatePin      : 1,
 					scrub              : C.scrub,
 					snap               : snapCfg,
 					invalidateOnRefresh: true,
-					onUpdate           : bar ? function (self) {
-						bar.style.transform = 'scaleX(' + self.progress + ')';
+					onUpdate           : (bar || segmenty) ? function (self) {
+						if (bar) { bar.style.transform = 'scaleX(' + self.progress + ')'; }
+						odswiezSegmenty(self.progress);
 					} : undefined,
 				}
 			});
 
 			return function () {
 				ScrollTrigger.removeEventListener('refreshInit', onRefreshInit);
-				root.classList.remove('evk-hscroll--active');
+				root.classList.remove('evk-hscroll--active', 'evk-hscroll--auto');
 				panels.forEach(function (p) { p.style.width = ''; });
 				if (bar) { bar.style.transform = ''; }
+				if (segmenty) { segmenty.forEach(function (s) { s.classList.remove('is-active'); }); }
 			};
 		});
 	}

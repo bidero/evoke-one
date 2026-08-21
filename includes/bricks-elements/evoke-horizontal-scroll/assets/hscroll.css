@@ -14,23 +14,50 @@
 }
 
 /* ── Tryb aktywny: poziomy ─────────────────────────────────────────────── */
+/*
+ * `overflow: hidden` obowiązuje w OBU trybach. Bez niego karty wystające poza
+ * element rozpychają stronę w poziomie i przeglądarka dokłada pasek na dole.
+ */
 .evk-hscroll--active {
 	overflow: hidden;
-	height: 100vh;
 }
 
 .evk-hscroll--active .evk-hscroll__track {
 	flex-direction: row;
 	flex-wrap: nowrap;
-	height: 100vh;
 	will-change: transform;
 }
 
+/*
+ * Narzucanie rozmiaru — TYLKO poza trybem „z buildera".
+ *
+ * Do 1.100.0 element znał jeden układ: panel na pełny ekran, więc korzeń,
+ * taśma i każdy panel dostawały wysokość na sztywno. Przy kartach węższych od
+ * ekranu, ułożonych pod nagłówkiem w przypiętej sekcji, ta sama reguła rozpycha
+ * karty na całą wysokość okna i zjada układ zrobiony w builderze.
+ *
+ * `.evk-hscroll--auto` zakłada JS przy trybie „z buildera" i to ona zdejmuje
+ * całe narzucanie. Zostaje sam kierunek osi i obcięcie wyżej.
+ */
+.evk-hscroll--active:not(.evk-hscroll--auto) {
+	height: 100vh;
+}
+
+.evk-hscroll--active:not(.evk-hscroll--auto) .evk-hscroll__track {
+	height: 100vh;
+}
+
 /* Każdy bezpośredni potomek = panel. Szerokość ustawia JS inline. */
-.evk-hscroll--active .evk-hscroll__track > * {
+.evk-hscroll--active:not(.evk-hscroll--auto) .evk-hscroll__track > * {
 	flex: 0 0 auto;
 	min-height: var(--evk-panel-h, 100vh);
 	height: var(--evk-panel-h, 100vh);
+}
+
+/* W trybie „z buildera" zostaje jedno: panel ma się NIE KURCZYĆ. Bez tego flex
+   ściska karty do szerokości kadru i nie ma czego przewijać. */
+.evk-hscroll--auto .evk-hscroll__track > * {
+	flex: 0 0 auto;
 }
 
 /* ── Pasek postępu ─────────────────────────────────────────────────────── */
@@ -58,4 +85,32 @@
 	transform: scaleX(0);
 	transform-origin: left center;
 	will-change: transform;
+}
+
+/* ── Wskaźnik segmentowy ───────────────────────────────────────────────────
+ *
+ * Wariant do układu z przypiętą sekcją: zamiast jednej rosnącej kreski tyle
+ * kresek, ile kart, z podświetloną bieżącą. Segmenty tworzy JS — zna liczbę
+ * paneli, a PHP musiałby ją zgadywać z drzewa dzieci Bricksa.
+ *
+ * Pudełko przestaje być paskiem i staje się rzędem: stąd `display: flex`
+ * i zdjęcie tła, które przy segmentach byłoby kreską pod kreskami.
+ */
+.evk-hscroll__progress--segments {
+	display: flex;
+	gap: var(--evk-seg-gap, 8px);
+	height: auto;
+	background-color: transparent;
+	overflow: visible;
+}
+
+.evk-hscroll__progress-seg {
+	flex: 1 1 0;
+	height: var(--evk-seg-h, 3px);
+	background-color: var(--evk-seg-off, rgba(255, 255, 255, 0.3));
+	transition: background-color .3s ease;
+}
+
+.evk-hscroll__progress-seg.is-active {
+	background-color: var(--evk-seg-on, currentColor);
 }

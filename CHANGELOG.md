@@ -2,6 +2,70 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.100.0] — 2026-08-19
+
+### Dodane
+
+- **Horizontal Scroll: przypinanie PRZODKA i karty własnej szerokości.** Element
+  znał dotąd jeden układ — „slajder na pełny ekran": przypinał sam siebie,
+  a panelom narzucał szerokość (100% elementu albo 100vw) i wysokość. Zamówiony
+  jest drugi: **sekcja z nagłówkiem staje w miejscu**, a pod nagłówkiem jedzie
+  taśma kart **węższych niż ekran**. Po dojechaniu ostatniej strona przewija się
+  dalej.
+
+  Trzy nowe rzeczy, każda osobno przełączalna:
+
+  **Kontrolka „Co przypiąć"** — ten element (jak dotąd, domyślnie), bezpośredni
+  rodzic albo przodek wskazany selektorem. Selektor rozwiązywany przez
+  **`closest()`, nie `document.querySelector()`**, i to nie jest drobiazg:
+  przy dwóch takich sekcjach na stronie `querySelector` przypiąłby obu taśmom tę
+  samą, pierwszą sekcję, a druga skakałaby przy przewijaniu pierwszej. Gdy nic
+  nie pasuje — ostrzeżenie z nazwą selektora i powrót do przypinania siebie.
+
+  Razem z pinem przenosi się **wyzwalacz**. Zostawiony na taśmie ruszałby
+  dopiero, gdy jej górna krawędź dojedzie do góry ekranu — czyli po przewinięciu
+  nagłówka poza kadr, a więc dokładnie za późno.
+
+  **Tryb szerokości „z buildera"** — skrypt nie dotyka ani `width`, ani
+  wysokości paneli, a arkusz przestaje narzucać `height: 100vh` korzeniowi,
+  taśmie i kartom. Karty stylujesz zwyczajnie w Bricksie; skrypt liczy tylko,
+  o ile przesunąć taśmę. Zostaje `overflow: hidden` — bez niego karty wystające
+  poza element rozpychają stronę w poziomie.
+
+  **Wskaźnik segmentowy** — zamiast jednej rosnącej kreski tyle kresek, ile kart,
+  z podświetloną bieżącą. Segmenty buduje **JS**, bo zna prawdziwą liczbę paneli;
+  PHP musiałoby ją zgadywać z drzewa dzieci Bricksa. Trzy własne kontrolki:
+  odstęp oraz kolor aktywnego i nieaktywnego — to inne role niż „tło" i „pasek"
+  przy jednej kresce, więc dostają własne pola zamiast dziedziczyć mylące.
+
+  **Nikomu nic się nie zmienia.** Domyślne zostają: „ten element", „wypełnij
+  element", „jedna kreska".
+
+- **Kontrolka startu przyjmowała przesunięcie od zawsze** — `top top+=100`
+  przypnie sto pikseli niżej, tyle, ile zajmuje przyklejony nagłówek. Wartość
+  szła wprost do ScrollTriggera i nikt tego nie napisał; jest teraz w opisie
+  kontrolki, zamiast drugiej drogi do tej samej rzeczy.
+
+### Uwaga dla testów
+
+- **Element dostał PIERWSZE testy.** Do 1.100.0 nie miał ani jednego — a od tej
+  wersji ma dwa układy, które łatwo pomylić. Strona testowa ma **dwie takie same
+  sekcje**, bo różnicy między `closest()` a `querySelector()` nie da się
+  zobaczyć, dopóki pasująca sekcja jest jedna.
+
+- **Punkt odniesienia dla przewijania odczytujemy RAZ.** Pozycja sekcji liczona
+  z jej prostokąta jest prawdziwa tylko do chwili przypięcia: PRZYPIĘTA sekcja
+  ma ten prostokąt zawsze przy zerze, więc drugi odczyt zwraca bieżącą pozycję
+  przewijania, nie miejsce sekcji w dokumencie. Zmierzone: kolejne „przewiń
+  o 600" lądowało 900 px dalej i „nagłówek stoi" świeciło na czerwono mimo
+  poprawnego kodu.
+
+- **Jedna mutacja okazała się równoważna i to też jest wynik.** `pin: true`
+  zamiast `pin: pinEl` nie zmienia dziś niczego, bo wyzwalacz jest tym samym
+  elementem. Forma jawna zostaje mimo to: trzyma pin przy właściwym elemencie
+  niezależnie od wyzwalacza, więc gdyby ten kiedyś wrócił na taśmę, `true`
+  przypięłoby po cichu taśmę.
+
 ## [1.99.1] — 2026-08-19
 
 ### Naprawione
