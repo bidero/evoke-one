@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.4.0
+ * EVK Horizontal Scroll v1.5.0
  */
 (function () {
 	'use strict';
@@ -47,6 +47,7 @@
 			progressStyle: cfg.progressStyle || 'bar',
 			progressTarget: cfg.progressTarget || '',
 			currentRest  : cfg.currentRest || 'hide',
+			peekNext     : cfg.peekNext === true,
 			scrub        : (cfg.scrub == null) ? 1 : (parseFloat(cfg.scrub) === 0 ? true : parseFloat(cfg.scrub)),
 			startOffset  : cfg.startOffset || 'top top',
 			snap         : cfg.snap !== false,
@@ -326,6 +327,88 @@
 				}
 			});
 
+			/* ── Treść pod spodem stoi tuż pod przypiętą sekcją ──────────────
+			 *
+			 * Bez tego następna sekcja wjeżdża dopiero na koniec przewijania
+			 * kart, a pod przypiętą sekcją zieje pustka. Powód jest w geometrii,
+			 * nie w ustawieniach: ScrollTrigger wstawia `pin-spacer` o wysokości
+			 * `H + D` (wysokość sekcji + droga taśmy), więc następna sekcja stoi
+			 * w dokumencie o `D` niżej i po przewinięciu o `d` jej górna krawędź
+			 * jest na `H + D − d`. To maleje zawsze — żaden margines ani
+			 * `position: sticky` tego nie odwróci, bo treść jest NAPRAWDĘ
+			 * oddalona o `D`.
+			 *
+			 * Dlatego rodzeństwo za spacerem jedzie `y` od `−D` do `0` tym samym
+			 * scrubem. Wtedy jego położenie to `(docTop − S − d) + (d − D)`,
+			 * czyli `docTop − S − D` — wartość STAŁA. Przed przypięciem treść
+			 * jest przyklejona pod sekcją (luka `D` nie zdąży się pokazać),
+			 * w trakcie stoi, a na końcu `y` wraca do zera i nic nie skacze.
+			 *
+			 * Widać dokładnie tyle, ile zostaje ekranu pod sekcją.
+			 */
+			function zbudujPodglad(spacer) {
+				var pod = [];
+				for (var n = spacer.nextElementSibling; n; n = n.nextElementSibling) {
+					pod.push(n);
+				}
+				if (!pod.length) { return; }
+
+				/* Transformacja tworzy blok zawierający dla `position: fixed` —
+				   ta sama pułapka, którą offcanvas omija portalem do <body>.
+				   ScrollTrigger przypina właśnie przez `position: fixed`, więc
+				   drugi przypinany element pod spodem PRZESTAŁBY działać.
+				   Lepiej nie włączyć podglądu i powiedzieć o tym, niż po cichu
+				   zepsuć tamtą sekcję. */
+				var kolizja = pod.some(function (el) {
+					return el.matches('[data-evk-hscroll]') || el.querySelector('[data-evk-hscroll]');
+				});
+				if (kolizja) {
+					console.warn('[EVK Horizontal Scroll] Podgląd treści pod sekcją wyłączony: niżej '
+						+ 'na stronie jest drugi przypinany element, a przesuwanie treści rozłożyłoby '
+						+ 'jego przypięcie.', root);
+					return;
+				}
+
+				if (pinEl.offsetHeight >= window.innerHeight) {
+					console.warn('[EVK Horizontal Scroll] Podgląd treści pod sekcją włączony, ale sekcja '
+						+ 'zajmuje cały ekran — nie ma czego pokazać.', pinEl);
+				}
+
+				gsap.fromTo(pod,
+					{ y: function () { return -getAmount(); } },
+					{
+						y   : 0,
+						ease: 'none',
+						scrollTrigger: {
+							trigger            : pinEl,
+							start              : C.startOffset,
+							end                : function () { return '+=' + getAmount(); },
+							scrub              : C.scrub,
+							invalidateOnRefresh: true,
+							/* Za zakresem transformacja ZNIKA. Zostawiona — nawet
+							   zerowa — dalej tworzyłaby blok zawierający na resztę
+							   strony. Przed zakresem musi zostać: bez niej treść
+							   skacze o `D` przy dojeżdżaniu do sekcji. */
+							onLeave: function () { gsap.set(pod, { clearProps: 'transform' }); }
+						}
+					});
+			}
+
+			/* Spacer istnieje już TERAZ: ScrollTrigger zakłada pin w swoim
+			   konstruktorze, także wtedy, gdy blok powstaje w trakcie
+			   odświeżania. Sprawdzone mutacją — druga próba po `refresh`
+			   nigdy nie wchodziła. */
+			var spacer = pinEl.parentElement;
+			if (C.peekNext && spacer && spacer.classList.contains('pin-spacer')) {
+				zbudujPodglad(spacer);
+			}
+
+			/* Podglądu NIE MA w sprzątaniu niżej i to nie jest przeoczenie:
+			   `gsap.matchMedia()` cofa wszystko, co powstało w jego bloku —
+			   razem z animacją, jej wyzwalaczem i nałożoną transformacją.
+			   Sprawdzone mutacją: ręczny `kill()` z `clearProps` dawał się
+			   wyciąć bez jednego czerwonego sprawdzenia. Klasy i style poniżej
+			   sprząta się z ręki, bo ich GSAP nie zakładał. */
 			return function () {
 				ScrollTrigger.removeEventListener('refreshInit', onRefreshInit);
 				root.classList.remove('evk-hscroll--active', 'evk-hscroll--auto');

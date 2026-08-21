@@ -2,6 +2,53 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.105.0] — 2026-08-21
+
+### Dodane
+
+- **Horizontal Scroll: „Pokaż treść pod sekcją".** Do tej wersji pod przypiętą
+  sekcją ziała pustka, a następna sekcja wjeżdżała dopiero na sam koniec
+  przewijania kart. Z włącznikiem **stoi nieruchomo tuż pod nią przez cały
+  czas**, a widać jej tyle, ile zostaje ekranu pod sekcją. Domyślnie wyłączone
+  — nikomu nic się nie zmienia.
+
+  Powód, dla którego trzeba było to policzyć, a nie ustawić: ScrollTrigger
+  wstawia zapas o wysokości `H + D` (sekcja + droga taśmy), więc następna
+  sekcja stoi w dokumencie o `D` niżej, a po przewinięciu o `d` jej górna
+  krawędź jest na `H + D − d`. To maleje **zawsze** — żaden margines ani
+  `position: sticky` tego nie odwróci, bo treść jest naprawdę oddalona o `D`.
+
+  Dlatego rodzeństwo za zapasem jedzie `y` od `−D` do `0` tym samym scrubem.
+  Wychodzi z tego `(docTop − S − d) + (d − D)` = `docTop − S − D`, czyli
+  wartość stała: przed przypięciem treść jest przyklejona pod sekcją (luka `D`
+  nie zdąży się pokazać), w trakcie stoi, a na końcu `y` wraca do zera i nic
+  nie skacze.
+
+### Rzeczy, o które łatwo się potknąć — i jak są rozwiązane
+
+- **Transformacja tworzy blok zawierający dla `position: fixed`** — ta sama
+  pułapka, którą offcanvas omija portalem do `<body>`. ScrollTrigger przypina
+  właśnie przez `position: fixed`, więc **drugi przypinany element niżej na
+  stronie przestałby działać**. Skrypt to wykrywa i wtedy **nie włącza
+  podglądu**, mówiąc o tym w konsoli — zamiast po cichu zepsuć tamtą sekcję.
+
+- **Za zakresem transformacja jest kasowana**, żeby nie zostawiać bloku
+  zawierającego na resztę strony. Przed zakresem musi zostać: bez niej treść
+  skacze o `D` przy dojeżdżaniu do sekcji.
+
+- **Sekcja na cały ekran nie ma czego pokazać** — podgląd działa, ale nie
+  zostaje ani piksel. Skrypt mówi o tym w konsoli, zamiast milczeć.
+
+### Uprzątnięte
+
+- **Trzy „ostrożności" wyleciały jako martwy kod.** Mutacje pokazały, że dawały
+  się wyciąć bez jednego czerwonego sprawdzenia: druga próba zbudowania
+  podglądu po odświeżeniu ScrollTriggera (zapas istnieje już przy tworzeniu
+  wyzwalacza, także w trakcie odświeżania) oraz ręczne `kill()` z `clearProps`
+  przy cofaniu bloku — `gsap.matchMedia()` cofa wszystko, co w jego bloku
+  powstało, razem z transformacją. Komentarz w kodzie mówi, dlaczego tego tam
+  nie ma, żeby nie wróciło.
+
 ## [1.104.0] — 2026-08-21
 
 ### Zmienione

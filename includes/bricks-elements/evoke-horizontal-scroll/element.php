@@ -139,6 +139,29 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			),
 		];
 
+		/*
+		 * Treść pod przypiętą sekcją.
+		 *
+		 * ScrollTrigger wstawia zapas o wysokości sekcji plus droga taśmy, więc
+		 * następna sekcja stoi w dokumencie o tę drogę niżej i wjeżdża dopiero
+		 * na koniec. Włącznik sprawia, że treść pod spodem jedzie razem
+		 * z przewijaniem i przez cały czas stoi tuż pod sekcją.
+		 */
+		$this->controls['peek_next'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Pokaż treść pod sekcją', 'evk-horizontal-scroll' ),
+			'type'        => 'checkbox',
+			'default'     => false,
+			'description' => esc_html__(
+				'Następna sekcja stoi nieruchomo tuż pod przypiętą przez cały czas przewijania '
+				. 'kart, zamiast wjeżdżać na końcu. Widać jej tyle, ile zostaje ekranu pod sekcją '
+				. '— przy sekcji na cały ekran nie będzie widać nic. Nie łączy się z drugim '
+				. 'przypinanym elementem niżej na stronie: wtedy podgląd się nie włącza '
+				. 'i mówi o tym w konsoli.',
+				'evk-horizontal-scroll'
+			),
+		];
+
 		$this->controls['panel_height'] = [
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Wysokość panelu', 'evk-horizontal-scroll' ),
@@ -646,6 +669,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		$pb_rest       = ! empty( $settings['current_rest'] ) ? $settings['current_rest'] : 'hide';
 		$pin_target    = ! empty( $settings['pin_target'] ) ? $settings['pin_target'] : 'self';
 		$pin_selector  = ! empty( $settings['pin_selector'] ) ? $settings['pin_selector'] : '';
+		$peek_next     = ! empty( $settings['peek_next'] );
 
 		$cfg = esc_attr( wp_json_encode( [
 			'widthMode'    => $width_mode,
@@ -654,6 +678,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'progressStyle'=> $pb_style,
 			'progressTarget'=> $pb_target,
 			'currentRest'  => $pb_rest,
+			'peekNext'     => $peek_next,
 			'scrub'        => $scrub,
 			'startOffset'  => $start_offset,
 			'snap'         => $snap,

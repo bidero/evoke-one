@@ -43,6 +43,10 @@
   /* 500 px, nie 300: przy węższych kartach cała taśma przesuwa się o niecałe
      sto pikseli i nie ma kiedy zmierzyć jej W RUCHU — sekcja odpina się
      natychmiast po przypięciu. Zmierzone: zakres wychodził 72 px. */
+  /* Sekcja na cały ekran — wtedy pod nią nie zostaje ani piksel i podgląd
+     nie ma czego pokazać. */
+  body.wysoka .sekcja { min-height: 100vh; }
+
   .karta {
     width: 500px;
     height: 260px;
@@ -108,7 +112,7 @@
   </div>
 </section>
 
-<div class="po">treść pomiędzy</div>
+<div class="po" id="pod-1">treść pomiędzy</div>
 
 <!-- DRUGA taka sama sekcja — patrz komentarz na górze. -->
 <section class="sekcja" id="sekcja-2">
@@ -147,7 +151,17 @@
     progressStyle: q.get('style') || 'bar',
     progressTarget: q.get('target') || '',
     currentRest  : q.get('rest') || 'hide',
+    peekNext     : q.get('peek') === '1',
   };
+
+  /* DRUGA sekcja bywa zawadą: jest przypinana, więc podgląd treści pod spodem
+     słusznie odmawia działania (przesuwanie treści rozłożyłoby tamten pin).
+     `solo=1` ją usuwa — bez tego samego podglądu nie da się zmierzyć. */
+  if (q.get('solo') === '1') {
+    var s2 = document.getElementById('sekcja-2');
+    if (s2) s2.remove();
+  }
+  if (q.get('tall') === '1') document.body.classList.add('wysoka');
   document.getElementById('hs-1').setAttribute('data-evk-hscroll', JSON.stringify(cfg));
 
   /* DRUGA taśma bez wskaźnika. Z tą samą konfiguracją obie sięgnęłyby po ten
@@ -156,7 +170,9 @@
   var cfg2 = JSON.parse(JSON.stringify(cfg));
   cfg2.progressBar = false;
   cfg2.progressTarget = '';
-  document.getElementById('hs-2').setAttribute('data-evk-hscroll', JSON.stringify(cfg2));
+  // Przy `solo=1` drugiej sekcji już nie ma — patrz wyżej.
+  var hs2 = document.getElementById('hs-2');
+  if (hs2) hs2.setAttribute('data-evk-hscroll', JSON.stringify(cfg2));
 
   /* Zmienne CSS tam, gdzie zapisuje je Bricks: NA KORZENIU elementu. Do
      kontenera spoza elementu nie dojdą inaczej niż przepisane przez skrypt —
@@ -305,6 +321,29 @@ window.__w = function (sel) {
     })(),
     wSrodku:   document.getElementById('hs-1').contains(box),
     pasek:     bar ? getComputedStyle(bar).transform : null,
+  };
+};
+
+/**
+ * Treść tuż pod pierwszą sekcją — w JEDNYM odczycie razem z sekcją.
+ *
+ * Prostokąty muszą pochodzić z tej samej klatki: przy przypiętej sekcji
+ * porównywanie „gdzie stoi treść" z „gdzie kończy się sekcja" z dwóch różnych
+ * chwil daje sam szum.
+ */
+window.__pod = function () {
+  var el  = document.getElementById('pod-1');
+  var sek = document.getElementById('sekcja-1');
+  var r   = el.getBoundingClientRect();
+
+  return {
+    top:        Math.round(r.top),
+    // Dolna krawędź PRZYPIĘTEJ sekcji — do niej ma się przykleić treść.
+    sekcjaDol:  Math.round(sek.getBoundingClientRect().bottom),
+    wKadrze:    r.top < window.innerHeight,
+    // Transformacja mierzona, nie zakładana: po wyjściu z zakresu ma zniknąć
+    // CAŁKIEM, bo nawet zerowa tworzy blok zawierający dla `position: fixed`.
+    transform:  getComputedStyle(el).transform,
   };
 };
 

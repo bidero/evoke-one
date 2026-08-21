@@ -503,6 +503,151 @@ module.exports = async function (t) {
     JSON.stringify(zz.wysoko) + ' / ' + zz.zaokrSeg);
   await zewZm.close();
 
+  // ── Treść pod przypiętą sekcją ───────────────────────────────────────────
+  /* Bez podglądu następna sekcja stoi w dokumencie o całą drogę taśmy niżej
+     (`pin-spacer` ma wysokość sekcji + tej drogi) i wjeżdża dopiero na koniec.
+     Z podglądem ma stać nieruchomo tuż pod sekcją przez cały czas. */
+  t.section('treść pod sekcją stoi tuż pod nią przez całe przewijanie');
+
+  const pk = await doSekcji('solo=1&peek=1', 0);
+  const pk0 = await pk.evaluate(() => window.__pod());
+  t.check('na starcie przypięcia treść jest w kadrze', pk0.wKadrze, pk0.top + ' px');
+  t.check('i styka się z dolną krawędzią sekcji', Math.abs(pk0.top - pk0.sekcjaDol) <= 2,
+    pk0.top + ' wobec ' + pk0.sekcjaDol);
+
+  const gory = [pk0.top];
+  const iksyPk = [(await pk.evaluate(() => window.__hs(1))).x];
+  for (const dy of [300, 600]) {
+    await przewin(pk, dy, 250);
+    gory.push((await pk.evaluate(() => window.__pod())).top);
+    iksyPk.push((await pk.evaluate(() => window.__hs(1))).x);
+  }
+  t.check('i ani drgnie przez całe przypięcie',
+    Math.max.apply(null, gory) - Math.min.apply(null, gory) <= 2, JSON.stringify(gory));
+  /* Kontrola pozytywna: „treść stoi" jest prawdą także wtedy, gdy nie dzieje się
+     NIC. Taśma musi w tym samym czasie przejechać. */
+  t.check('a taśma w tym czasie przejechała', iksyPk[0] === 0 && iksyPk[2] < -400,
+    JSON.stringify(iksyPk));
+  /* Transformacja MUSI być założona — to ona trzyma treść w miejscu. */
+  const pkT = await pk.evaluate(() => window.__pod());
+  t.check('trzyma ją transformacja', pkT.transform !== 'none', pkT.transform);
+  await pk.close();
+
+  /* KONTROLA NEGATYWNA: bez włącznika treść jedzie w górę i na starcie jest
+     poza kadrem — czyli dokładnie to, na co poszło zgłoszenie. */
+  const bezPk = await doSekcji('solo=1', 0);
+  const b0 = await bezPk.evaluate(() => window.__pod());
+  t.check('bez włącznika treść jest poza kadrem', !b0.wKadrze, b0.top + ' px');
+  await przewin(bezPk, 600, 250);
+  const b1 = await bezPk.evaluate(() => window.__pod());
+  t.check('i przy przewijaniu jedzie w górę', b1.top < b0.top - 400,
+    b0.top + ' → ' + b1.top);
+  t.check('bez transformacji', b1.transform === 'none', b1.transform);
+  await bezPk.close();
+
+  // ── Wyjście z zakresu ────────────────────────────────────────────────────
+  t.section('koniec przypięcia bez skoku, transformacja znika');
+
+  const wyj = await doSekcji('solo=1&peek=1', 0);
+  const zakresPk = (await wyj.evaluate(() => window.__hs(1))).zakres;
+
+  await przewin(wyj, zakresPk - 40, 300);
+  const przed = await wyj.evaluate(() => window.__pod());
+  await przewin(wyj, zakresPk + 40, 300);
+  const za = await wyj.evaluate(() => window.__pod());
+
+  /* Gdyby zakres animacji był odwrócony, na złączeniu treść skoczyłaby o całą
+     drogę taśmy. Osiemdziesiąt pikseli przewinięcia ma dać najwyżej tyle
+     samo ruchu. */
+  t.check('na złączeniu nic nie skacze', Math.abs(przed.top - za.top) <= 45,
+    przed.top + ' → ' + za.top + ' (zakres ' + zakresPk + ' px)');
+  /* Za zakresem transformacja ma zniknąć CAŁKIEM: nawet zerowa tworzy blok
+     zawierający dla `position: fixed` i rozkłada wszystko, co pod spodem
+     pozycjonuje się względem okna. */
+  t.check('a transformacja znika całkiem', za.transform === 'none', za.transform);
+  t.check('bez błędów JS', !wyj.errors.length, wyj.errors.join(' | ') || 'brak');
+  await wyj.close();
+
+  /* Podgląd nie ma prawa ruszyć matematyki taśmy. */
+  const konPk = await doSekcji('solo=1&peek=1', 0);
+  await przewin(konPk, 1000, 400);
+  const kp = await konPk.evaluate(() => window.__hs(1));
+  t.check('ostatnia karta dalej staje przy krawędzi', Math.abs(kp.ogonek) <= 2, kp.ogonek + ' px');
+  await konPk.close();
+
+  // ── Drugi przypinany element pod spodem ──────────────────────────────────
+  /* Przesuwanie treści to transformacja, a ta tworzy blok zawierający dla
+     `position: fixed` — czyli dla tego, czym ScrollTrigger przypina. Drugi
+     przypinany element niżej przestałby działać, więc podgląd ma się NIE
+     włączyć i powiedzieć o tym. */
+  t.section('drugi przypinany element niżej wyłącza podgląd');
+
+  const kol = await doSekcji('peek=1', 0);
+  t.check('ostrzeżenie mówi, dlaczego podgląd nie działa',
+    kol.warnings.some((w) => /Podgląd treści pod sekcją wyłączony/.test(w)),
+    kol.warnings.find((w) => /Podgląd/.test(w)) || 'brak ostrzeżenia');
+  const k0 = await kol.evaluate(() => window.__pod());
+  t.check('a treść zachowuje się jak dawniej', k0.transform === 'none' && !k0.wKadrze,
+    k0.transform + ', w kadrze: ' + k0.wKadrze);
+  /* Kontrola pozytywna: druga sekcja MA dalej działać — o nią w tym całym
+     odmawianiu chodzi. */
+  const dwa = await doSekcji('peek=1', 0, 2);
+  const d2p = await dwa.evaluate(() => window.__hs(2));
+  t.check('a druga sekcja dalej się przypina', d2p.przypiety === 'sekcja', d2p.przypiety);
+  t.check('bez błędów JS', !kol.errors.length && !dwa.errors.length,
+    (kol.errors.concat(dwa.errors)).join(' | ') || 'brak');
+  await kol.close();
+  await dwa.close();
+
+  // ── Przejście przez próg wyłączenia ──────────────────────────────────────
+  /* Poniżej progu `gsap.matchMedia()` cofa CAŁY blok — razem z pinem
+     i podglądem. Po powrocie powyżej progu wszystko powstaje od nowa, tyle że
+     tym razem W TRAKCIE odświeżania ScrollTriggera: pin zakłada się dopiero na
+     jego końcu, więc przy budowaniu podglądu `pin-spacera` jeszcze nie ma.
+     Stąd druga próba po odświeżeniu — i stąd to sprawdzenie, bo bez zmiany
+     rozmiaru okna ta gałąź jest nieosiągalna. */
+  t.section('po przejściu przez próg wyłączenia podgląd wraca');
+
+  const prog = await t.open('hscroll.html', {
+    viewport: V, settle: 600, query: 'solo=1&peek=1&below=900',
+  });
+  prog.start = await prog.evaluate(() => window.__gdzieSekcja(1));
+  await prog.evaluate((y) => window.__doPozycji(y), prog.start);
+  await prog.waitForTimeout(300);
+
+  const pr0 = await prog.evaluate(() => window.__pod());
+  t.check('przy szerokim oknie podgląd trzyma treść',
+    Math.abs(pr0.top - pr0.sekcjaDol) <= 2, pr0.top + ' wobec ' + pr0.sekcjaDol);
+
+  /* Poniżej progu ma zniknąć wszystko — także transformacja, bo inaczej
+     zostałby blok zawierający na telefonie, gdzie nic już nie jest przypięte. */
+  await prog.setViewportSize({ width: 800, height: 800 });
+  await prog.waitForTimeout(500);
+  const pr1 = await prog.evaluate(() => window.__pod());
+  t.check('poniżej progu transformacja znika', pr1.transform === 'none', pr1.transform);
+
+  await prog.setViewportSize({ width: 1200, height: 800 });
+  await prog.waitForTimeout(700);
+  await prog.evaluate((y) => window.__doPozycji(y), prog.start);
+  await prog.waitForTimeout(400);
+  const pr2 = await prog.evaluate(() => window.__pod());
+  t.check('a po powrocie powyżej progu znów trzyma',
+    Math.abs(pr2.top - pr2.sekcjaDol) <= 2, pr2.top + ' wobec ' + pr2.sekcjaDol);
+  t.check('bez błędów JS', !prog.errors.length, prog.errors.join(' | ') || 'brak');
+  await prog.close();
+
+  // ── Sekcja na cały ekran ─────────────────────────────────────────────────
+  /* Podgląd działa, ale pod sekcją nie zostaje ani piksel. Cisza byłaby tu
+     myląca: włącznik włączony, a na ekranie bez zmian. */
+  t.section('sekcja na cały ekran mówi, że nie ma czego pokazać');
+
+  const wys = await doSekcji('solo=1&peek=1&tall=1', 0);
+  t.check('ostrzeżenie o braku miejsca',
+    wys.warnings.some((w) => /zajmuje cały ekran/.test(w)),
+    wys.warnings.find((w) => /cały ekran/.test(w)) || 'brak ostrzeżenia');
+  t.check('bez błędów JS', !wys.errors.length, wys.errors.join(' | ') || 'brak');
+  await wys.close();
+
   // ── Próg wyłączenia ──────────────────────────────────────────────────────
   /* Poniżej progu element ma się w ogóle nie uruchamiać: panele wracają do
      pionu i cała treść zostaje dostępna zwykłym przewijaniem strony. */
