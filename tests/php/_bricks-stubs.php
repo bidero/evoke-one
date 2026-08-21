@@ -38,6 +38,19 @@ if (!class_exists('Bricks\\Element')) {
         }
 
         /**
+         * Pudełko zastępcze na kanwie buildera.
+         *
+         * Prawdziwy Bricks je DRUKUJE, a nie zwraca — element woła je przez
+         * `return $this->render_element_placeholder(...)` i liczy na to, że coś
+         * z tego wyjdzie. Atrapa robi tak samo, bo inaczej „element mówi, że nie
+         * ma czego pokazać" nie dałoby się zmierzyć.
+         */
+        public function render_element_placeholder($args = []) {
+            echo '<div class="bricks-element-placeholder">'
+               . esc_html($args['title'] ?? '') . '</div>';
+        }
+
+        /**
          * Ikona z kontrolki `'type' => 'icon'`.
          *
          * JEDYNE miejsce, w którym atrapa odwzorowuje KSZTAŁT cudzego API, a nie

@@ -2,6 +2,56 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.103.0] — 2026-08-21
+
+### Dodane
+
+- **Marquee: pozycja jako galeria z Evoke Fields.** Repeater przyjmował dotąd
+  jeden tekst albo jeden obraz na wiersz — przy pasku logotypów znaczyło to
+  tyle wierszy, ile logotypów, i drugie tyle roboty przy każdej zmianie.
+  Teraz **jeden wiersz wskazuje pole galerii, a marquee rozwija je we wszystkie
+  obrazy**: dokładasz zdjęcie w Evoke Fields, taśma nadąża sama.
+
+  **Trzy źródła**, bo galeria bywa w trzech miejscach: przy bieżącym wpisie,
+  na stronie ustawień (jedna dla całej witryny) albo przy zupełnie innym wpisie
+  wskazanym numerem. „Bieżący wpis" to zero podane wtyczce — `evk_get_field()`
+  sam podstawia za nie `get_the_ID()`.
+
+  **Kolejność i limit**: jak w galerii, odwrotna albo losowa, plus „ile obrazów".
+  Kolejność liczy się PRZED limitem, więc „odwrotna + 3" daje trzy OSTATNIE
+  obrazy galerii, a nie trzy pierwsze ustawione tyłem. Losowanie zapada **raz**,
+  przed zbudowaniem taśmy: marquee zapętla się tym, że druga kopia jest co do
+  znaku identyczna z pierwszą, a dwa osobne losowania dałyby przeskok na
+  złączeniu.
+
+  Szerokość bierze istniejące pole „Szerokość obrazu", wspólne z typem „Obraz".
+
+### Rzeczy, o które łatwo się potknąć — i jak są rozwiązane
+
+- **Dwa źródła oddają dwa różne kształty.** Pole wpisu z wariantem `ids` wraca
+  z Evoke Fields **tekstem po przecinkach**, a pole ze strony ustawień —
+  **surową tablicą wierszy** `['img' => ID, 'cat' => kategoria]`, bo tamtej
+  drogi wtyczka nie formatuje wcale. Marquee ma jedno wejście przyjmujące oba
+  kształty; bez niego wariant „ze strony ustawień" po cichu nie pokazywałby nic.
+
+- **Evoke Fields może nie być zainstalowane.** Cała droga stoi za
+  `function_exists()`: bez wtyczki wiersz galerii znika, a reszta taśmy jedzie
+  dalej. Nieznana funkcja zabiłaby render CAŁEJ strony, nie samo marquee.
+
+- **Pusty wynik na froncie milczy**, a mówi tylko na kanwie buildera. Pudełko
+  zastępcze w środku strony byłoby widocznym śmieciem.
+
+- **Obraz, którego nie ma w bibliotece, wypada w całości** — razem z pudełkiem.
+  Puste pudełko rozpychałoby odstępy taśmy w miejscu, w którym nic nie widać.
+
+### Testy
+
+Marquee miało 12 sprawdzeń i **żadnego** na `render()` — doszły 34, mierzone na
+znaczniku z prawdziwego `element.php`. Nowy harness `tests/php/marquee-gallery.php`
+i atrapy Evoke Fields, które zapisują, z czym je wywołano: „bieżący wpis"
+wygląda na ekranie tak samo jak wpisany numer, więc inaczej nie dałoby się tego
+odróżnić.
+
 ## [1.102.0] — 2026-08-21
 
 ### Naprawione

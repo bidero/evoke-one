@@ -110,6 +110,42 @@ function wp_localize_script($handle, $name, $data) {
     $GLOBALS['localized'][$name] = $data;
 }
 function is_admin() { return false; }
+
+/*
+ * Biblioteka mediów i meta wpisów — na tyle, ile potrzebuje `render()`
+ * elementu rysującego obrazy.
+ *
+ * Załączniki celowo NIE są wymyślane w locie: `wp_get_attachment_image_url()`
+ * oddaje pusty adres dla numeru, którego test nie wstawił. Inaczej „obraz,
+ * którego nie ma w bibliotece, znika" byłoby nie do zmierzenia — każdy numer
+ * dawałby obrazek.
+ */
+$GLOBALS['attachments'] = [];
+$GLOBALS['post_meta']   = [];
+$GLOBALS['current_post'] = 0;
+
+/*
+ * Bloki `function_exists` NIE są tu ostrożnością na wyrost. Część harnessów
+ * (np. tab.php) trzyma własne, prostsze wersje tych trzech funkcji — a PHP
+ * definiuje bezwarunkowe deklaracje z góry pliku, ZANIM wykona `require` tych
+ * atrap. Bez tych bloków taki harness wywracał się na „Cannot redeclare".
+ */
+if (!function_exists('get_the_ID')) {
+    function get_the_ID() { return (int) $GLOBALS['current_post']; }
+}
+
+if (!function_exists('wp_get_attachment_image_url')) {
+    function wp_get_attachment_image_url($id, $size = 'thumbnail') {
+        return $GLOBALS['attachments'][(int) $id] ?? '';
+    }
+}
+
+if (!function_exists('get_post_meta')) {
+    function get_post_meta($id, $key = '', $single = false) {
+        $v = $GLOBALS['post_meta'][(int) $id][$key] ?? '';
+        return $single ? $v : ($v === '' ? [] : [$v]);
+    }
+}
 function checked($a, $b = true, $echo = true) { if ($a == $b) echo ' checked'; }
 
 // ── AJAX ────────────────────────────────────────────────────────────────

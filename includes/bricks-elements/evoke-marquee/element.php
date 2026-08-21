@@ -40,10 +40,13 @@ class Evk_Marquee_Element extends \Bricks\Element {
 					'label'   => 'Typ',
 					'type'    => 'select',
 					'options' => [
-						'text'  => 'Tekst',
-						'image' => 'Obraz',
+						'text'    => 'Tekst',
+						'image'   => 'Obraz',
+						'gallery' => 'Galeria (Evoke Fields)',
 					],
 					'default' => 'text',
+					'description' => 'Galeria to JEDEN wiersz, z którego wychodzi tyle obrazów, '
+						. 'ile ich w niej jest — dokładasz zdjęcie w Evoke Fields, marquee nadąża samo.',
 				],
 				'text'  => [
 					'label'    => 'Tekst',
@@ -61,7 +64,70 @@ class Evk_Marquee_Element extends \Bricks\Element {
 					'type'     => 'number',
 					'units'    => true,
 					'default'  => '120px',
-					'required' => [ 'type', '=', 'image' ],
+					// Także dla galerii: jedna galeria to jeden rozmiar, a osobne
+					// pole na to samo tylko myliłoby.
+					'required' => [ 'type', '!=', 'text' ],
+				],
+
+				/*
+				 * ── Galeria z Evoke Fields ──────────────────────────────────
+				 *
+				 * Trzy źródła, bo galeria bywa w trzech miejscach: przy tej
+				 * stronie, na stronie ustawień (jedna dla całej witryny) albo
+				 * przy zupełnie innym wpisie.
+				 */
+				'gallery_source' => [
+					'label'    => 'Skąd galeria',
+					'type'     => 'select',
+					'options'  => [
+						'post'    => 'Z bieżącego wpisu',
+						'option'  => 'Ze strony ustawień',
+						'post_id' => 'Ze wskazanego wpisu',
+					],
+					'default'  => 'post',
+					'required' => [ 'type', '=', 'gallery' ],
+				],
+				'gallery_group' => [
+					'label'       => 'Klucz grupy ustawień',
+					'type'        => 'text',
+					'placeholder' => 'moja_grupa',
+					'required'    => [ 'type', '=', 'gallery', 'gallery_source', '=', 'option' ],
+				],
+				'gallery_key' => [
+					'label'       => 'Klucz pola galerii',
+					'type'        => 'text',
+					'placeholder' => 'logotypy',
+					'required'    => [ 'type', '=', 'gallery' ],
+					'description' => 'Klucz z Evoke Fields. Gdy pola nie ma albo jest puste, '
+						. 'wiersz po prostu znika — reszta taśmy jedzie dalej.',
+				],
+				'gallery_post_id' => [
+					'label'    => 'Numer wpisu (ID)',
+					'type'     => 'number',
+					'required' => [ 'type', '=', 'gallery', 'gallery_source', '=', 'post_id' ],
+				],
+				'gallery_order' => [
+					'label'    => 'Kolejność',
+					'type'     => 'select',
+					'options'  => [
+						'as-is'   => 'Jak w galerii',
+						'reverse' => 'Odwrotna',
+						'random'  => 'Losowa',
+					],
+					'default'     => 'as-is',
+					'required'    => [ 'type', '=', 'gallery' ],
+					'description' => 'Losowanie zapada w PHP, więc na stronie trzymanej '
+						. 'w pełnym cache\'u zamraża się jeden układ.',
+				],
+				'gallery_limit' => [
+					'label'       => 'Ile obrazów',
+					'type'        => 'number',
+					'min'         => 0,
+					'placeholder' => 'wszystkie',
+					'required'    => [ 'type', '=', 'gallery' ],
+					'description' => 'Kolejność liczy się PRZED limitem: „odwrotna + 3" '
+						. 'daje trzy OSTATNIE obrazy galerii. Każdy obraz trafia na stronę '
+						. 'dwa razy, bo taśma jedzie w dwóch kopiach.',
 				],
 			],
 		];
@@ -196,8 +262,35 @@ class Evk_Marquee_Element extends \Bricks\Element {
 			|| ! empty( $this->settings['pause_offscreen'] );
 		$pause_offset    = $this->settings['pause_offset'] ?? 200;
 
+		// Wykryj builder: AJAX render elementu lub iframe buildera.
+		// Liczone TU, a nie niżej: od tego zależy, czy pusty wynik ma powiedzieć
+		// o sobie na kanwie, czy zniknąć po cichu na froncie.
+		$is_builder = (
+			( defined( 'BRICKS_IS_BUILDER' ) && BRICKS_IS_BUILDER ) ||
+			( isset( $_GET['bricks'] ) && $_GET['bricks'] === 'run' ) ||
+			( function_exists( 'bricks_is_builder' ) && bricks_is_builder() )
+		);
+
 		if ( empty( $items ) ) {
 			return $this->render_element_placeholder( [ 'title' => 'Dodaj elementy w zakładce Treść.' ] );
+		}
+
+		/*
+		 * Rozwinięcie galerii pada PRZED pętlą kopii — i to nie jest
+		 * optymalizacja, tylko poprawność.
+		 *
+		 * Taśma jedzie w dwóch kopiach i zapętla się właśnie tym, że druga jest
+		 * co do znaku identyczna z pierwszą. Losowanie w środku pętli dałoby
+		 * dwa RÓŻNE układy i widoczny przeskok na złączeniu.
+		 */
+		$pozycje = $this->rozwin_pozycje( $items );
+
+		if ( empty( $pozycje ) ) {
+			// Na froncie cisza: pusta galeria nie ma prawa drukować pudełka
+			// zastępczego w środku strony.
+			return $is_builder
+				? $this->render_element_placeholder( [ 'title' => 'Nie ma czego pokazać — sprawdź klucz galerii.' ] )
+				: null;
 		}
 
 		$cfg = esc_attr( json_encode( [
@@ -216,12 +309,6 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		] ) );
 
 		$gap_css    = is_array( $gap ) ? ( $gap['value'] . $gap['unit'] ) : $gap;
-		// Wykryj builder: AJAX render elementu lub iframe buildera
-		$is_builder = (
-			( defined( 'BRICKS_IS_BUILDER' ) && BRICKS_IS_BUILDER ) ||
-			( isset( $_GET['bricks'] ) && $_GET['bricks'] === 'run' ) ||
-			( function_exists( 'bricks_is_builder' ) && bricks_is_builder() )
-		);
 
 		$this->set_attribute( '_root', 'class', 'evk-marquee-container' );
 		$this->set_attribute( '_root', 'style', '--evk-gap:' . esc_attr( $gap_css ) );
@@ -235,25 +322,153 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		// Renderuj dwie kopie zestawu dla płynnej pętli
 		for ( $copy = 0; $copy < 2; $copy++ ) {
 			echo '<div class="evk-marquee-track" aria-hidden="' . ( $copy > 0 ? 'true' : 'false' ) . '">';
-			foreach ( $items as $i => $item ) {
-				$type = $item['type'] ?? 'text';
-				echo '<span class="evk-marquee-item">';
-				if ( $type === 'image' && ! empty( $item['image']['id'] ) ) {
-					$w   = is_array( $item['image_width'] ?? '' )
-						? ( $item['image_width']['value'] . $item['image_width']['unit'] )
-						: ( $item['image_width'] ?? '120px' );
-					$url = wp_get_attachment_image_url( $item['image']['id'], 'full' );
-					$alt = get_post_meta( $item['image']['id'], '_wp_attachment_image_alt', true );
-					echo '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $alt ) . '" style="width:' . esc_attr( $w ) . ';height:auto;display:block;" loading="lazy">';
-				} else {
-					echo '<span>' . esc_html( $item['text'] ?? '' ) . '</span>';
+			foreach ( $pozycje as $poz ) {
+				$html = $poz['typ'] === 'image'
+					? $this->render_image( $poz['id'], $poz['szer'] )
+					: '<span>' . esc_html( $poz['tekst'] ) . '</span>';
+				// Obraz, którego nie ma w bibliotece, dawałby puste pudełko
+				// rozpychające odstępy taśmy — lepiej, żeby zniknął cały.
+				if ( $html === '' ) {
+					continue;
 				}
-				echo '</span>';
+				echo '<span class="evk-marquee-item">' . $html . '</span>';
 			}
 			echo '</div>';
 		}
 
 		echo '</div>';
 		echo '</div>';
+	}
+
+	/**
+	 * Wiersze repeatera → płaska lista pozycji do narysowania.
+	 *
+	 * Jeden wiersz „galeria" rozwija się w tyle pozycji, ile obrazów ma pole
+	 * w Evoke Fields. Reszta przechodzi jeden do jednego.
+	 */
+	private function rozwin_pozycje( $items ) {
+		$out = [];
+
+		foreach ( $items as $item ) {
+			$type = $item['type'] ?? 'text';
+			$szer = $this->szerokosc_obrazu( $item );
+
+			if ( $type === 'gallery' ) {
+				foreach ( $this->ids_galerii( $item ) as $id ) {
+					$out[] = [ 'typ' => 'image', 'id' => $id, 'szer' => $szer ];
+				}
+				continue;
+			}
+
+			if ( $type === 'image' && ! empty( $item['image']['id'] ) ) {
+				$out[] = [ 'typ' => 'image', 'id' => (int) $item['image']['id'], 'szer' => $szer ];
+				continue;
+			}
+
+			$out[] = [ 'typ' => 'tekst', 'tekst' => $item['text'] ?? '' ];
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Obrazy jednego wiersza „galeria".
+	 *
+	 * Evoke Fields może w ogóle nie być zainstalowane — wtedy wiersz znika,
+	 * a strona nie ma prawa się wywrócić na nieznanej funkcji.
+	 */
+	private function ids_galerii( $item ) {
+		if ( ! function_exists( 'evk_get_field' ) ) {
+			return [];
+		}
+
+		$klucz = trim( (string) ( $item['gallery_key'] ?? '' ) );
+		if ( $klucz === '' ) {
+			return [];
+		}
+
+		$zrodlo = $item['gallery_source'] ?? 'post';
+
+		if ( $zrodlo === 'option' ) {
+			if ( ! function_exists( 'evk_get_option_field' ) ) {
+				return [];
+			}
+			$grupa = trim( (string) ( $item['gallery_group'] ?? '' ) );
+			if ( $grupa === '' ) {
+				return [];
+			}
+			$surowe = evk_get_option_field( $grupa, $klucz );
+		} else {
+			// Zero znaczy w Evoke Fields „bieżący wpis" (includes/api.php:
+			// `$post_id = $post_id ?: (int) get_the_ID();`).
+			$post_id = ( $zrodlo === 'post_id' ) ? (int) ( $item['gallery_post_id'] ?? 0 ) : 0;
+			$surowe  = evk_get_field( $klucz, $post_id, 'ids' );
+		}
+
+		$ids = self::ids_z_wartosci( $surowe );
+
+		/* Kolejność PRZED limitem. „Odwrotna + 3" ma dać trzy OSTATNIE obrazy
+		   galerii, a nie trzy pierwsze ustawione tyłem. */
+		$kolejnosc = $item['gallery_order'] ?? 'as-is';
+		if ( 'reverse' === $kolejnosc ) {
+			$ids = array_reverse( $ids );
+		} elseif ( 'random' === $kolejnosc ) {
+			shuffle( $ids );
+		}
+
+		$limit = isset( $item['gallery_limit'] ) && $item['gallery_limit'] !== ''
+			? (int) $item['gallery_limit'] : 0;
+		if ( $limit > 0 ) {
+			$ids = array_slice( $ids, 0, $limit );
+		}
+
+		return $ids;
+	}
+
+	/**
+	 * Wartość pola galerii → lista numerów załączników.
+	 *
+	 * Trzy kształty, bo Evoke Fields oddaje różne rzeczy różnymi drogami:
+	 * pole wpisu z wariantem „ids" wraca TEKSTEM po przecinkach
+	 * (`implode(',', $ids)`), a pole ze strony ustawień wraca SUROWĄ tablicą
+	 * wierszy `['img' => ID, 'cat' => kategoria]`. Bez wspólnego wejścia
+	 * wariant „ze strony ustawień" po cichu nie pokazywałby nic.
+	 */
+	public static function ids_z_wartosci( $wartosc ) {
+		if ( is_string( $wartosc ) ) {
+			$wartosc = ( '' === trim( $wartosc ) ) ? [] : explode( ',', $wartosc );
+		}
+		if ( ! is_array( $wartosc ) ) {
+			return [];
+		}
+
+		$ids = [];
+		foreach ( $wartosc as $poz ) {
+			$id = is_array( $poz ) ? (int) ( $poz['img'] ?? 0 ) : (int) $poz;
+			if ( $id > 0 ) {
+				$ids[] = $id;
+			}
+		}
+		return $ids;
+	}
+
+	/** Szerokość z wiersza repeatera — wspólna dla obrazu i całej galerii. */
+	private function szerokosc_obrazu( $item ) {
+		$w = $item['image_width'] ?? '';
+		if ( is_array( $w ) ) {
+			return ( $w['value'] ?? '' ) . ( $w['unit'] ?? '' );
+		}
+		return ( '' === $w ) ? '120px' : $w;
+	}
+
+	/** Znacznik jednego obrazu — jeden dla obu dróg, żeby się nie rozjechały. */
+	private function render_image( $id, $szerokosc ) {
+		$url = wp_get_attachment_image_url( $id, 'full' );
+		if ( ! $url ) {
+			return '';
+		}
+		$alt = get_post_meta( $id, '_wp_attachment_image_alt', true );
+		return '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $alt )
+			. '" style="width:' . esc_attr( $szerokosc ) . ';height:auto;display:block;" loading="lazy">';
 	}
 }
