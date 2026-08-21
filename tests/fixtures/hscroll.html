@@ -146,6 +146,7 @@
     progressBar  : q.get('prog') === '1',
     progressStyle: q.get('style') || 'bar',
     progressTarget: q.get('target') || '',
+    currentRest  : q.get('rest') || 'hide',
   };
   document.getElementById('hs-1').setAttribute('data-evk-hscroll', JSON.stringify(cfg));
 
@@ -161,9 +162,22 @@
      kontenera spoza elementu nie dojdą inaczej niż przepisane przez skrypt —
      i o to właśnie chodzi w sprawdzeniu „zmienne docierają". */
   var root = document.getElementById('hs-1');
-  if (q.get('len'))   root.style.setProperty('--evk-seg-len', q.get('len'));
-  if (q.get('lena'))  root.style.setProperty('--evk-seg-len-active', q.get('lena'));
-  if (q.get('segon')) root.style.setProperty('--evk-seg-on', q.get('segon'));
+  var ZM = {
+    len: '--evk-seg-len', lena: '--evk-seg-len-active',
+    segon: '--evk-seg-on', segoff: '--evk-seg-off',
+    segh: '--evk-seg-h', segr: '--evk-seg-radius',
+    numsize: '--evk-num-size', numweight: '--evk-num-weight',
+    progbg: '--evk-prog-bg', progpad: '--evk-prog-pad', progr: '--evk-prog-radius',
+    gap: '--evk-prog-gap'
+  };
+  Object.keys(ZM).forEach(function (k) {
+    if (q.get(k)) root.style.setProperty(ZM[k], q.get(k));
+  });
+
+  /* Modyfikator pozycji NA KORZENIU — dokładnie tak, jak drukuje go element.php
+     przy włączonym wskaźniku. To z niego arkusz odsuwa taśmę o zadany odstęp,
+     a JS ma go zdjąć, gdy wskaźnik przenosi się poza element. */
+  if (q.get('prog') === '1') root.classList.add('evk-hscroll--prog-top');
 })();
 </script>
 
@@ -217,6 +231,15 @@ window.__hs = function (nr) {
     aktywny: root.classList.contains('evk-hscroll--active'),
     auto:    root.classList.contains('evk-hscroll--auto'),
 
+    // Ile karta stoi od górnej krawędzi elementu. Wskaźnik wewnętrzny leży NA
+    // taśmie, więc bez odstępu przykrywa górę pierwszej karty.
+    odKrawedzi: Math.round(karta.getBoundingClientRect().top - root.getBoundingClientRect().top),
+    // Czy modyfikator pozycji wskaźnika został na korzeniu.
+    modPozycji: root.classList.contains('evk-hscroll--prog-top')
+             || root.classList.contains('evk-hscroll--prog-bottom'),
+    // Czy zapasowy wskaźnik z PHP-a jeszcze tu jest.
+    maWewnetrzny: !!root.querySelector('.evk-hscroll__progress'),
+
     // Co naprawdę przypięto: ScrollTrigger owija przypięty element w rodzica
     // z klasą `pin-spacer`.
     przypiety: (function () {
@@ -260,7 +283,26 @@ window.__w = function (sel) {
     tekstWidoczny: widoczne.length === 1 ? widoczne[0].textContent.trim() : null,
     szerBox:   Math.round(box.getBoundingClientRect().width),
     szeroko:   dzieci.map(function (d) { return Math.round(d.getBoundingClientRect().width); }),
+    wysoko:    dzieci.map(function (d) { return Math.round(d.getBoundingClientRect().height); }),
+
+    // Wygląd pudełka — mierzony, nie odczytany z atrybutu: te wartości jadą
+    // zmiennymi CSS i przy kontenerze zewnętrznym muszą zostać przepisane.
+    tlo:       st.backgroundColor,
+    padding:   st.paddingTop,
+    zaokrBox:  st.borderTopLeftRadius,
+
+    zaokrSeg:  dzieci.length ? getComputedStyle(dzieci[0]).borderTopLeftRadius : null,
+    pismo:     dzieci.length
+      ? getComputedStyle(dzieci[0]).fontSize + ' / ' + getComputedStyle(dzieci[0]).fontWeight
+      : null,
+
     kolorAkt:  akt ? getComputedStyle(akt).backgroundColor : null,
+    // Przy numerach barwę niesie `color`, nie tło — stąd oba odczyty.
+    tekstAkt:  akt ? getComputedStyle(akt).color : null,
+    tekstNieakt: (function () {
+      var inny = dzieci.find(function (d) { return !d.classList.contains('is-active'); });
+      return inny ? getComputedStyle(inny).color : null;
+    })(),
     wSrodku:   document.getElementById('hs-1').contains(box),
     pasek:     bar ? getComputedStyle(bar).transform : null,
   };

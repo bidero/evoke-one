@@ -330,7 +330,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		$this->controls['progressbar_bg'] = [
 			'group'    => 'evk_progress',
 			'tab'      => 'content',
-			'label'    => esc_html__( 'Kolor tła', 'evk-horizontal-scroll' ),
+			'label'    => esc_html__( 'Tło wskaźnika', 'evk-horizontal-scroll' ),
 			'type'     => 'color',
 			'css'      => [
 				[
@@ -338,7 +338,76 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required' => [ 'progressbar', '=', true, 'progressbar_style', '=', 'bar' ],
+			// Przy kreskach i numerach arkusz domyślnie tła nie maluje (byłoby
+			// kreską pod kreskami), ale ustawione ma działać w każdym stylu.
+			'required' => [ 'progressbar', '=', true ],
+		];
+
+		$this->controls['progressbar_pad'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Wewnętrzny odstęp wskaźnika', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'placeholder' => '0',
+			'css'         => [
+				[
+					'property' => '--evk-prog-pad',
+					'selector' => '',
+				],
+			],
+			'required'    => [ 'progressbar', '=', true ],
+		];
+
+		$this->controls['progressbar_radius'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Zaokrąglenie wskaźnika', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'placeholder' => '0',
+			'css'         => [
+				[
+					'property' => '--evk-prog-radius',
+					'selector' => '',
+				],
+			],
+			'required'    => [ 'progressbar', '=', true ],
+		];
+
+		/*
+		 * Odstęp taśmy od wskaźnika.
+		 *
+		 * Wskaźnik wewnętrzny jest pozycjonowany absolutnie, więc leży NA górnej
+		 * krawędzi kart. Ta kontrolka odsuwa TAŚMĘ — wskaźnik zostaje tam, gdzie
+		 * był, bo przestawienie go do przepływu zmieniłoby układ każdemu, kto
+		 * już go używa.
+		 *
+		 * Przy wskaźniku w zewnętrznym kontenerze pole nic nie robi i dlatego
+		 * się nie pokazuje: karty nie mają się od czego odsuwać.
+		 */
+		$this->controls['progressbar_gap'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Odstęp paneli od wskaźnika', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'placeholder' => '0',
+			'css'         => [
+				[
+					'property' => '--evk-prog-gap',
+					'selector' => '',
+				],
+			],
+			'required'    => [ 'progressbar', '=', true, 'progressbar_target', '=', '' ],
+			'description' => esc_html__(
+				'Wskaźnik leży na taśmie, więc bez odstępu przykrywa górę pierwszej karty. '
+				. 'Puste = 0, jak dotąd.',
+				'evk-horizontal-scroll'
+			),
 		];
 
 		$this->controls['progressbar_color'] = [
@@ -383,7 +452,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		$this->controls['seg_off'] = [
 			'group'    => 'evk_progress',
 			'tab'      => 'content',
-			'label'    => esc_html__( 'Kolor segmentu nieaktywnego', 'evk-horizontal-scroll' ),
+			'label'    => esc_html__( 'Kolor nieaktywnych', 'evk-horizontal-scroll' ),
 			'type'     => 'color',
 			'css'      => [
 				[
@@ -397,7 +466,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		$this->controls['seg_on'] = [
 			'group'    => 'evk_progress',
 			'tab'      => 'content',
-			'label'    => esc_html__( 'Kolor segmentu aktywnego', 'evk-horizontal-scroll' ),
+			'label'    => esc_html__( 'Kolor bieżącego', 'evk-horizontal-scroll' ),
 			'type'     => 'color',
 			'css'      => [
 				[
@@ -406,6 +475,105 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 				],
 			],
 			'required' => [ 'progressbar', '=', true, 'progressbar_style', '!=', 'bar' ],
+		];
+
+		/*
+		 * Grubość kreski miała dotąd zmienną `--evk-seg-h` BEZ kontrolki —
+		 * dawało się ją ustawić tylko własnym CSS-em. Zgłoszone z użycia jako
+		 * „brakuje ustawień elementów".
+		 */
+		$this->controls['seg_h'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Grubość kreski', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'placeholder' => '3px',
+			'css'         => [
+				[
+					'property' => '--evk-seg-h',
+					'selector' => '',
+				],
+			],
+			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'segments' ],
+		];
+
+		$this->controls['seg_radius'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Zaokrąglenie kreski', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'placeholder' => '0',
+			'css'         => [
+				[
+					'property' => '--evk-seg-radius',
+					'selector' => '',
+				],
+			],
+			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'segments' ],
+		];
+
+		/*
+		 * Numery w trybie „Tylko bieżący" dziedziczą pismo po bloku, w którym
+		 * stoją — a wskaźnik wolno postawić gdziekolwiek, więc „gdziekolwiek"
+		 * bywa akapitem 16 px. Stąd własny rozmiar i grubość pisma.
+		 */
+		$this->controls['num_size'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Wielkość numeru', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'placeholder' => esc_html__( 'jak w bloku', 'evk-horizontal-scroll' ),
+			'css'         => [
+				[
+					'property' => '--evk-num-size',
+					'selector' => '',
+				],
+			],
+			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'current' ],
+		];
+
+		$this->controls['num_weight'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Grubość pisma numeru', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'min'         => 100,
+			'max'         => 900,
+			'step'        => 100,
+			'inline'      => true,
+			'placeholder' => esc_html__( 'jak w bloku', 'evk-horizontal-scroll' ),
+			'css'         => [
+				[
+					'property' => '--evk-num-weight',
+					'selector' => '',
+				],
+			],
+			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'current' ],
+		];
+
+		$this->controls['current_rest'] = [
+			'group'       => 'evk_progress',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Pozostałe pozycje', 'evk-horizontal-scroll' ),
+			'type'        => 'select',
+			'options'     => [
+				'hide' => esc_html__( 'Schowaj — widać tylko bieżącą', 'evk-horizontal-scroll' ),
+				'dim'  => esc_html__( 'Przygaś — widać wszystkie', 'evk-horizontal-scroll' ),
+			],
+			'default'     => 'hide',
+			'inline'      => true,
+			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'current' ],
+			'description' => esc_html__(
+				'„Przygaś" daje klasyczne „1 2 3 4" z podświetloną bieżącą pozycją — '
+				. 'pozostałe biorą kolor nieaktywnych.',
+				'evk-horizontal-scroll'
+			),
 		];
 
 		/*
@@ -475,6 +643,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		$pb_position   = ! empty( $settings['progressbar_position'] ) ? $settings['progressbar_position'] : 'top';
 		$pb_style      = ! empty( $settings['progressbar_style'] ) ? $settings['progressbar_style'] : 'bar';
 		$pb_target     = ! empty( $settings['progressbar_target'] ) ? $settings['progressbar_target'] : '';
+		$pb_rest       = ! empty( $settings['current_rest'] ) ? $settings['current_rest'] : 'hide';
 		$pin_target    = ! empty( $settings['pin_target'] ) ? $settings['pin_target'] : 'self';
 		$pin_selector  = ! empty( $settings['pin_selector'] ) ? $settings['pin_selector'] : '';
 
@@ -484,6 +653,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'pinSelector'  => $pin_selector,
 			'progressStyle'=> $pb_style,
 			'progressTarget'=> $pb_target,
+			'currentRest'  => $pb_rest,
 			'scrub'        => $scrub,
 			'startOffset'  => $start_offset,
 			'snap'         => $snap,
@@ -501,6 +671,14 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 
 		$this->set_attribute( '_root', 'class', 'evk-hscroll' );
 		$this->set_attribute( '_root', 'style', '--evk-panel-h:' . esc_attr( $panel_height ) );
+
+		/* Modyfikator pozycji NA KORZENIU, nie tylko na samym wskaźniku — to
+		   z niego arkusz odsuwa taśmę o „Odstęp paneli od wskaźnika". Gdy
+		   wskaźnik przenosi się do zewnętrznego kontenera, JS tę klasę zdejmuje;
+		   inaczej karty trzymałyby odstęp od czegoś, czego już tam nie ma. */
+		if ( $progressbar && ! $is_builder ) {
+			$this->set_attribute( '_root', 'class', 'evk-hscroll--prog-' . esc_attr( $pb_position ) );
+		}
 
 		// Konfiguracja tylko na froncie — w edytorze brak inicjalizacji JS.
 		if ( ! $is_builder ) {

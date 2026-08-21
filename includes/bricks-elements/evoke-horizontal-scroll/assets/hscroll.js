@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.3.0
+ * EVK Horizontal Scroll v1.4.0
  */
 (function () {
 	'use strict';
@@ -46,6 +46,7 @@
 			pinSelector  : cfg.pinSelector || '',
 			progressStyle: cfg.progressStyle || 'bar',
 			progressTarget: cfg.progressTarget || '',
+			currentRest  : cfg.currentRest || 'hide',
 			scrub        : (cfg.scrub == null) ? 1 : (parseFloat(cfg.scrub) === 0 ? true : parseFloat(cfg.scrub)),
 			startOffset  : cfg.startOffset || 'top top',
 			snap         : cfg.snap !== false,
@@ -101,7 +102,25 @@
 			if (!C.progressTarget) { return wewnetrzny; }
 
 			var zewnetrzny = document.querySelector(C.progressTarget);
-			if (zewnetrzny) { return zewnetrzny; }
+			if (zewnetrzny) {
+				/* Wewnętrzny wskaźnik drukuje PHP ZAWSZE — nie wie przecież, czy
+				   selektor trafi, więc zostawia go jako zapas. Gdy trafił, zapas
+				   staje się śmieciem, i to widocznym: `--top` to `position:
+				   absolute` z własnym tłem i `z-index: 10`, czyli ciemna wstęga
+				   leżąca NA górnej krawędzi kart. Zgłoszone z użycia: „nad boksami
+				   mam cały czas linię poprzedniego paska postępu".
+
+				   Warunek na tożsamość nie jest ozdobą: selektorem wolno wskazać
+				   TEN SAM wewnętrzny węzeł, a wtedy usunięcie zostawiłoby wskaźnik
+				   jadący w elemencie oderwanym od dokumentu. */
+				if (wewnetrzny && zewnetrzny !== wewnetrzny) {
+					wewnetrzny.remove();
+					/* Razem z węzłem schodzi modyfikator odsuwający taśmę. Bez tego
+					   karty trzymałyby odstęp od wskaźnika, którego już tam nie ma. */
+					root.classList.remove('evk-hscroll--prog-top', 'evk-hscroll--prog-bottom');
+				}
+				return zewnetrzny;
+			}
 
 			/* Cisza byłaby tu najgorsza: wskaźnik zostaje w środku elementu,
 			   a z ekranu nie ma jak zgadnąć, że selektor w ogóle nie trafił. */
@@ -117,8 +136,11 @@
 		   do <body> (offcanvas-menu.js). */
 		var ZMIENNE = [
 			'--evk-prog-h', '--evk-prog-bg', '--evk-prog-fill',
-			'--evk-seg-gap', '--evk-seg-off', '--evk-seg-on', '--evk-seg-h',
-			'--evk-seg-len', '--evk-seg-len-active'
+			'--evk-prog-pad', '--evk-prog-radius',
+			'--evk-seg-gap', '--evk-seg-off', '--evk-seg-on',
+			'--evk-seg-h', '--evk-seg-radius',
+			'--evk-seg-len', '--evk-seg-len-active',
+			'--evk-num-size', '--evk-num-weight'
 		];
 
 		var progress = C.progressBar ? kontenerWskaznika() : null;
@@ -154,6 +176,14 @@
 				progress.classList.add(C.progressStyle === 'current'
 					? 'evk-hscroll__progress--current'
 					: 'evk-hscroll__progress--segments');
+
+				/* Chowanie ma WŁASNĄ klasę, oddzieloną od `--current`. `--current`
+				   niesie układ i treść (rząd, numery), `--chowaj` samo chowanie —
+				   dzięki temu „przygaś" pokazuje wszystkie numery z podświetlonym
+				   bieżącym, nie ruszając reszty stylu. */
+				if (C.progressStyle === 'current' && C.currentRest !== 'dim') {
+					progress.classList.add('evk-hscroll__progress--chowaj');
+				}
 
 				/*
 				 * DWIE DROGI, zależnie od tego, co jest w kontenerze.

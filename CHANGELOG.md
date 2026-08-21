@@ -2,6 +2,59 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.102.0] — 2026-08-21
+
+### Naprawione
+
+- **Horizontal Scroll: zgubiona kreska nad kartami.** Po przeniesieniu wskaźnika
+  do zewnętrznego bloku (1.101.0) nad kartami zostawała ciemna linia. To był
+  **zapasowy wskaźnik z PHP-a**: `element.php` drukuje go zawsze, bo nie wie,
+  czy selektor kontenera w ogóle trafi — a `--top` to `position: absolute`
+  z własnym tłem i `z-index: 10`, czyli wstęga leżąca NA górnej krawędzi kart.
+  Po udanym trafieniu selektora skrypt ten węzeł usuwa. Nietrafiony selektor
+  dalej ma do czego wrócić, bo usunięcie następuje **po** rozstrzygnięciu.
+
+  Wolno też wskazać selektorem ten sam, wewnętrzny węzeł — wtedy zostaje na
+  miejscu, bo inaczej wskaźnik jechałby w elemencie oderwanym od dokumentu.
+
+### Dodane
+
+- **Odstęp paneli od wskaźnika.** Wskaźnik wewnętrzny jest pozycjonowany
+  absolutnie, więc bez odstępu przykrywa górę pierwszej karty. Nowa kontrolka
+  odsuwa **taśmę**, a nie przestawia wskaźnik — przestawienie go do przepływu
+  zmieniłoby układ każdemu, kto już go używa. Pionowy odstęp nie rusza
+  matematyki przewijania: zakres liczy się z szerokości taśmy. Puste = 0,
+  jak dotąd. Przy wskaźniku w zewnętrznym bloku pole się nie pokazuje, a klasa
+  sterująca schodzi z korzenia razem z usuniętym węzłem.
+
+- **Grubość i zaokrąglenie kreski.** `--evk-seg-h` istniała od 1.100.0 **bez
+  żadnej kontrolki** — dawało się ją ustawić tylko własnym CSS-em. Teraz ma
+  swoje pole, razem z zaokrągleniem.
+
+- **Wielkość i grubość pisma numeru** w trybie „Tylko bieżący". Numer
+  dziedziczył je po bloku, w którym stoi — a wskaźnik wolno postawić
+  gdziekolwiek, więc „gdziekolwiek" bywa akapitem 16 px.
+
+- **Tło, wewnętrzny odstęp i zaokrąglenie całego wskaźnika.**
+
+- **„Pozostałe pozycje: Schowaj / Przygaś"** w trybie „Tylko bieżący".
+  „Przygaś" daje klasyczne „1 2 3 4" z podświetloną bieżącą pozycją; pozostałe
+  biorą kolor nieaktywnych. Domyślne zostaje „Schowaj", czyli zachowanie
+  z 1.101.0.
+
+### Zmienione
+
+- **Kolor numeru rozdzielony na dwa stany.** Do 1.101.0 numer brał kolor
+  bieżącego **bezwarunkowo** — uchodziło to na sucho, bo reszty i tak nie było
+  widać. Przy przygaszaniu wszystkie byłyby podświetlone.
+
+- **„Kolor tła" działa teraz przy każdym stylu wskaźnika**, nie tylko przy
+  jednej kresce. Przy kreskach i numerach domyślnie tła dalej nie ma — byłoby
+  kreską pod kreskami.
+
+- Etykiety kolorów przestały mówić „segment": przy numerach malują tekst, nie
+  kreskę. Klucze kontrolek zostały, więc zapisane wartości też.
+
 ## [1.101.0] — 2026-08-21
 
 ### Dodane

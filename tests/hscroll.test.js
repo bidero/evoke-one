@@ -202,8 +202,15 @@ module.exports = async function (t) {
   /* Kontrola pozytywna do powyższego: kresek nie ma jednocześnie w dwóch
      miejscach. Bez tego „są na zewnątrz" spełniałby też skrypt rysujący
      wszędzie. */
-  const zwWew = await zew.evaluate(() => window.__w());
-  t.check('i nie ma ich już w środku elementu', zwWew.kresek === 0, zwWew.kresek + ' kresek');
+  /* Zapasowy wskaźnik z PHP-a MA ZNIKNĄĆ, a nie tylko zostać pusty. PHP drukuje
+     go zawsze, bo nie wie, czy selektor trafi; gdy trafił, zostaje absolutnie
+     pozycjonowana wstęga z własnym tłem, leżąca NA górnej krawędzi kart.
+     Zgłoszone z użycia: „nad boksami mam cały czas linię poprzedniego paska". */
+  const zwWew = await zew.evaluate(() => window.__hs(1));
+  t.check('a zapasowy wskaźnik w środku znika', zwWew.maWewnetrzny === false, String(zwWew.maWewnetrzny));
+  /* Razem z węzłem schodzi modyfikator odsuwający taśmę — inaczej karty
+     trzymałyby odstęp od wskaźnika, którego już tam nie ma. */
+  t.check('razem z modyfikatorem odstępu', zwWew.modPozycji === false, String(zwWew.modPozycji));
   t.check('i bieżąca jest podświetlona', zw.aktywny === 0, 'indeks ' + zw.aktywny);
 
   /* Kontener zostaje W PRZEPŁYWIE. `position: absolute` na klasie bazowej
@@ -220,6 +227,8 @@ module.exports = async function (t) {
   const bcZ = await bezCelu.evaluate(() => window.__w('#zewn-pusty'));
   t.check('bez selektora kreski są w środku', bc.kresek === 4 && bcZ.kresek === 0,
     bc.kresek + ' w środku, ' + bcZ.kresek + ' na zewnątrz');
+  const bcH = await bezCelu.evaluate(() => window.__hs(1));
+  t.check('i wskaźnik wewnętrzny stoi na miejscu', bcH.maWewnetrzny === true, String(bcH.maWewnetrzny));
   const ukladB = await bezCelu.evaluate(() => window.__uklad());
   t.check('i wysokość ramki jest ta sama co ze wskaźnikiem',
     ukladZ.odstep === ukladB.odstep, ukladZ.odstep + ' wobec ' + ukladB.odstep);
@@ -360,6 +369,139 @@ module.exports = async function (t) {
   t.check('a kreski wracają do środka elementu', zc.kresek === 4, zc.kresek + ' kresek');
   t.check('bez błędów JS', !zlyCel.errors.length, zlyCel.errors.join(' | ') || 'brak');
   await zlyCel.close();
+
+  // ── Selektor wskazujący wskaźnik wewnętrzny ──────────────────────────────
+  /* Wolno wskazać selektorem TEN SAM węzeł, który drukuje PHP. Usunięcie go
+     zostawiłoby wskaźnik jadący w elemencie oderwanym od dokumentu — widoczne
+     jako wskaźnik, który po prostu zniknął. */
+  t.section('selektor celujący we własny wskaźnik go nie odczepia');
+
+  const sam = await doSekcji('prog=1&style=segments&target=.evk-hscroll__progress', 100);
+  const samH = await sam.evaluate(() => window.__hs(1));
+  const samW = await sam.evaluate(() => window.__w());
+  t.check('wskaźnik zostaje w dokumencie', samH.maWewnetrzny === true, String(samH.maWewnetrzny));
+  t.check('i normalnie się rysuje', samW && samW.kresek === 4, samW ? samW.kresek + ' kresek' : 'brak');
+  t.check('bez błędów JS', !sam.errors.length, sam.errors.join(' | ') || 'brak');
+  await sam.close();
+
+  // ── Wygląd kresek ────────────────────────────────────────────────────────
+  /* Grubość miała dotąd zmienną BEZ kontrolki — dawało się ją ustawić tylko
+     własnym CSS-em. Mierzona na kresce, nie odczytana z atrybutu. */
+  t.section('grubość i zaokrąglenie kreski z kontrolek');
+
+  const ksz = await doSekcji('prog=1&style=segments&segh=12px&segr=6px', 100);
+  const kszW = await ksz.evaluate(() => window.__w());
+  t.check('kreska ma zadaną grubość',
+    kszW.wysoko.length === 4 && kszW.wysoko.every((h) => h === 12), JSON.stringify(kszW.wysoko));
+  t.check('i zadane zaokrąglenie', kszW.zaokrSeg === '6px', kszW.zaokrSeg);
+  await ksz.close();
+
+  /* KONTROLA NEGATYWNA: bez kontrolek wartości zapasowe z arkusza. */
+  const kszB = await doSekcji('prog=1&style=segments', 100);
+  const kb = await kszB.evaluate(() => window.__w());
+  t.check('bez kontrolek grubość i zaokrąglenie zapasowe',
+    kb.wysoko[0] === 3 && kb.zaokrSeg === '0px', kb.wysoko[0] + ' px / ' + kb.zaokrSeg);
+  await kszB.close();
+
+  // ── Wygląd pudełka ───────────────────────────────────────────────────────
+  t.section('tło, odstęp i zaokrąglenie pudełka wskaźnika');
+
+  const pud = await doSekcji('prog=1&style=segments&target=%23zewn-pusty'
+    + '&progbg=%23ff0000&progpad=10px&progr=8px', 100);
+  const pw = await pud.evaluate(() => window.__w('#zewn-pusty'));
+  t.check('tło jest to z kontrolki', near(rgb(pw.tlo), [255, 0, 0], 0), pw.tlo);
+  t.check('odstęp wewnętrzny też', pw.padding === '10px', pw.padding);
+  t.check('i zaokrąglenie', pw.zaokrBox === '8px', pw.zaokrBox);
+  await pud.close();
+
+  /* KONTROLA NEGATYWNA: przy kreskach bez kontrolki tło zostaje przezroczyste —
+     inaczej byłoby kreską pod kreskami. */
+  const pudB = await doSekcji('prog=1&style=segments&target=%23zewn-pusty', 100);
+  const pb = await pudB.evaluate(() => window.__w('#zewn-pusty'));
+  /* Porównanie napisem, nie przez `rgb()`: ten helper ucina kanał alfa do
+     trzech liczb, a tutaj cała różnica siedzi właśnie w alfie. */
+  t.check('bez kontrolek tło przezroczyste, reszta zerowa',
+    pb.tlo === 'rgba(0, 0, 0, 0)' && pb.padding === '0px' && pb.zaokrBox === '0px',
+    pb.tlo + ' / ' + pb.padding + ' / ' + pb.zaokrBox);
+  await pudB.close();
+
+  // ── Pismo numeru ─────────────────────────────────────────────────────────
+  /* Numer dziedziczy pismo po bloku, w którym stoi — a wskaźnik wolno postawić
+     gdziekolwiek, więc „gdziekolwiek" bywa akapitem 16 px. */
+  t.section('numer ma własne pismo, nie odziedziczone');
+
+  const pis = await doSekcji('prog=1&style=current&target=%23zewn-pusty'
+    + '&numsize=32px&numweight=800', 100);
+  const pisW = await pis.evaluate(() => window.__w('#zewn-pusty'));
+  t.check('rozmiar i grubość pisma z kontrolek', pisW.pismo === '32px / 800', pisW.pismo);
+  await pis.close();
+
+  const pisB = await doSekcji('prog=1&style=current&target=%23zewn-pusty', 100);
+  const pbW = await pisB.evaluate(() => window.__w('#zewn-pusty'));
+  t.check('a bez nich — pismo z bloku', pbW.pismo === '16px / 400', pbW.pismo);
+  await pisB.close();
+
+  // ── „Przygaś" zamiast „schowaj" ──────────────────────────────────────────
+  /* Do 1.101.0 numer brał kolor bieżącego BEZWARUNKOWO — uchodziło to na sucho,
+     bo reszty i tak nie było widać. Przy przygaszaniu wszystkie byłyby
+     podświetlone, więc kolor musi się rozdzielić na dwa stany. */
+  t.section('tryb „przygaś" pokazuje wszystkie i różnicuje kolorem');
+
+  const dim = await doSekcji('prog=1&style=current&target=%23zewn-pusty'
+    + '&rest=dim&segon=%23ff0000&segoff=%2300ff00', 100);
+  const dw = await dim.evaluate(() => window.__w('#zewn-pusty'));
+  t.check('widać wszystkie pozycje', dw.widocznych === 4, dw.widocznych + ' widocznych');
+  t.check('bieżąca w kolorze bieżącego', near(rgb(dw.tekstAkt), [255, 0, 0], 0), dw.tekstAkt);
+  t.check('a pozostałe w kolorze nieaktywnych',
+    near(rgb(dw.tekstNieakt), [0, 255, 0], 0), dw.tekstNieakt);
+  await dim.close();
+
+  /* KONTROLA NEGATYWNA: domyślne „schowaj" — widać jedno, jak dotąd. */
+  const hide = await doSekcji('prog=1&style=current&target=%23zewn-pusty&segon=%23ff0000', 100);
+  const hw = await hide.evaluate(() => window.__w('#zewn-pusty'));
+  t.check('domyślnie widać jedno', hw.widocznych === 1, hw.widocznych + ' widocznych');
+  t.check('i jest w kolorze bieżącego', near(rgb(hw.tekstAkt), [255, 0, 0], 0), hw.tekstAkt);
+  await hide.close();
+
+  // ── Odstęp paneli od wskaźnika ───────────────────────────────────────────
+  /* Wskaźnik wewnętrzny leży NA taśmie, więc bez odstępu przykrywa górę
+     pierwszej karty — o to chodziło w zgłoszeniu „nachodzą". Odsuwa się
+     TAŚMA, nie wskaźnik. */
+  t.section('odstęp odsuwa karty od wskaźnika');
+
+  const bezOd = await doSekcji('prog=1&style=segments', 100);
+  const bo = await bezOd.evaluate(() => window.__hs(1));
+  t.check('bez kontrolki karta dotyka krawędzi', bo.odKrawedzi === 0, bo.odKrawedzi + ' px');
+  await bezOd.close();
+
+  const zOd = await doSekcji('prog=1&style=segments&gap=24px', 100);
+  const zo = await zOd.evaluate(() => window.__hs(1));
+  t.check('z kontrolką karta odsuwa się o tyle, ile podano', zo.odKrawedzi === 24, zo.odKrawedzi + ' px');
+  /* Kontrola pozytywna: odstęp ma NIE ruszyć matematyki przewijania. Zakres
+     liczy się z szerokości taśmy, a padding jest pionowy. */
+  t.check('a zakres przewijania zostaje bez zmian', zo.zakres === bo.zakres,
+    zo.zakres + ' wobec ' + bo.zakres);
+  await zOd.close();
+
+  /* Przy wskaźniku przeniesionym na zewnątrz odstępu ma nie być — karty nie
+     mają się od czego odsuwać. */
+  const odZew = await doSekcji('prog=1&style=segments&target=%23zewn-pusty&gap=24px', 100);
+  const oz = await odZew.evaluate(() => window.__hs(1));
+  t.check('przy wskaźniku zewnętrznym odstępu nie ma', oz.odKrawedzi === 0, oz.odKrawedzi + ' px');
+  await odZew.close();
+
+  // ── Nowe zmienne na zewnątrz ─────────────────────────────────────────────
+  /* Każda nowa zmienna musi trafić do listy przepisywanych — inaczej po cichu
+     nie dociera do kontenera spoza elementu. */
+  t.section('nowe zmienne docierają do zewnętrznego kontenera');
+
+  const zewZm = await doSekcji('prog=1&style=segments&target=%23zewn-pusty'
+    + '&segh=12px&segr=6px', 100);
+  const zz = await zewZm.evaluate(() => window.__w('#zewn-pusty'));
+  t.check('grubość i zaokrąglenie kreski działają POZA elementem',
+    zz.wysoko.every((h) => h === 12) && zz.zaokrSeg === '6px',
+    JSON.stringify(zz.wysoko) + ' / ' + zz.zaokrSeg);
+  await zewZm.close();
 
   // ── Próg wyłączenia ──────────────────────────────────────────────────────
   /* Poniżej progu element ma się w ogóle nie uruchamiać: panele wracają do

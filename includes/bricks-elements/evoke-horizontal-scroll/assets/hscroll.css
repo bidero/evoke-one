@@ -115,15 +115,24 @@
 .evk-hscroll__progress--segments,
 .evk-hscroll__progress--current {
 	display: flex;
+	/* Wyrównanie w pionie ma znaczenie dopiero przy niezerowym paddingu — bez
+	   niego pudełko ma wysokość z zawartości i nie ma czego wyrównywać. */
+	align-items: center;
 	gap: var(--evk-seg-gap, 8px);
 	height: auto;
-	background-color: transparent;
+	/* Ta sama zmienna co przy pasku, ale z inną wartością zapasową: pod kreskami
+	   tło byłoby kreską pod kreskami, więc domyślnie go nie ma. Kontrolka „Tło
+	   wskaźnika" działa mimo to w obu wariantach. */
+	background-color: var(--evk-prog-bg, transparent);
+	padding: var(--evk-prog-pad, 0);
+	border-radius: var(--evk-prog-radius, 0);
 	overflow: visible;
 }
 
 .evk-hscroll__progress-seg {
 	flex: 1 1 0;
 	height: var(--evk-seg-h, 3px);
+	border-radius: var(--evk-seg-radius, 0);
 	background-color: var(--evk-seg-off, rgba(255, 255, 255, 0.3));
 	transition: background-color .3s ease, flex-basis .3s ease;
 }
@@ -152,17 +161,52 @@
 }
 
 /*
- * Tryb „tylko bieżący": z całego rzędu widać jedno dziecko. Chowanie jest
- * w arkuszu, bo dotyczy tak samo kresek rysowanych przez skrypt, jak i cudzej
- * treści wstawionej ręcznie.
+ * Chowanie pozostałych pozycji — WŁASNA klasa, nie sam `--current`.
+ *
+ * `--current` niesie układ i treść, `--chowaj` samo chowanie. Rozdzielone,
+ * bo od 1.102.0 pozostałe numery można zamiast chować PRZYGASIĆ: wtedy widać
+ * całe „1 2 3 4" z podświetlonym bieżącym. Reguła siedzi w arkuszu, bo dotyczy
+ * tak samo numerów rysowanych przez skrypt, jak i cudzej treści wstawionej
+ * ręcznie.
  */
-.evk-hscroll__progress--current > *:not(.is-active) {
+.evk-hscroll__progress--chowaj > *:not(.is-active) {
 	display: none;
 }
 
 /* Numery kart — to, czym skrypt wypełnia PUSTY kontener w trybie „tylko
-   bieżący". Goła kreska nie niosłaby tam żadnej informacji. */
+   bieżący". Goła kreska nie niosłaby tam żadnej informacji.
+
+   Kolor rozdzielony na dwa stany. Do 1.101.0 numer brał kolor aktywnego
+   BEZWARUNKOWO i uchodziło to na sucho, bo reszty i tak nie było widać —
+   przy przygaszaniu wszystkie byłyby podświetlone. */
 .evk-hscroll__progress-num {
-	color: var(--evk-seg-on, currentColor);
+	color: var(--evk-seg-off, currentColor);
+	font-size: var(--evk-num-size, inherit);
+	font-weight: var(--evk-num-weight, inherit);
 	line-height: 1;
+	transition: color .3s ease;
+}
+
+.evk-hscroll__progress-num.is-active {
+	color: var(--evk-seg-on, currentColor);
+}
+
+/*
+ * Odstęp taśmy od wskaźnika.
+ *
+ * Wskaźnik wewnętrzny jest pozycjonowany absolutnie, więc leży NA górnej
+ * krawędzi kart — zgłoszone z użycia jako „nachodzą". Odsunąć trzeba więc
+ * TAŚMĘ, nie wskaźnik; przestawienie wskaźnika do przepływu zmieniłoby układ
+ * każdemu, kto już go używa.
+ *
+ * Modyfikator zakłada PHP razem z pozycją wskaźnika, a JS zdejmuje go, gdy
+ * wskaźnik przenosi się do zewnętrznego kontenera. Pionowy padding nie rusza
+ * matematyki przewijania — zakres liczy się z szerokości taśmy.
+ */
+.evk-hscroll--prog-top .evk-hscroll__track {
+	padding-top: var(--evk-prog-gap, 0);
+}
+
+.evk-hscroll--prog-bottom .evk-hscroll__track {
+	padding-bottom: var(--evk-prog-gap, 0);
 }
