@@ -599,6 +599,67 @@ module.exports = async function (t) {
   await kol.close();
   await dwa.close();
 
+  // ── Falowanie przy wygładzanej taśmie ────────────────────────────────────
+  /*
+   * TU MIESZKAŁ BŁĄD z 1.105.0, którego cała reszta sprawdzeń podglądu nie
+   * widziała: fixture domyślnie podaje `scrub: 0`, czyli BEZ wygładzania —
+   * a w Bricksie domyślną wartością jest 1.
+   *
+   * Pin nie jest wygładzany, trzyma się przewijania co do piksela. Kompensacja
+   * ma go dokładnie zniwelować, więc każde opóźnienie widać jako różnicę:
+   * treść podjeżdżała nad sekcję i opadała po zatrzymaniu.
+   *
+   * Dlatego pomiar leci W TRAKCIE przewijania, po 60 ms od każdego kroku —
+   * sekunda wygładzania nie ma wtedy szans dogonić. Po odczekaniu do końca
+   * wszystko wygląda dobrze także z błędem.
+   */
+  t.section('przy wygładzanej taśmie treść pod spodem nadal stoi');
+
+  const fal = await doSekcji('solo=1&peek=1&scrub=1', 0);
+  const proby = [];
+  for (let i = 1; i <= 6; i++) {
+    await fal.evaluate((y) => window.__doPozycji(y), fal.start + i * 100);
+    await fal.waitForTimeout(60);
+    proby.push(await fal.evaluate(() => window.__pod()));
+  }
+  const topyFal = proby.map((p) => p.top);
+  t.check('treść nie faluje w trakcie przewijania',
+    Math.max.apply(null, topyFal) - Math.min.apply(null, topyFal) <= 2, JSON.stringify(topyFal));
+  t.check('i ani razu nie wchodzi na sekcję',
+    proby.every((p) => p.top >= p.sekcjaDol - 2),
+    JSON.stringify(proby.map((p) => p.top - p.sekcjaDol)));
+  t.check('bez błędów JS', !fal.errors.length, fal.errors.join(' | ') || 'brak');
+  await fal.close();
+
+  // ── Zapas przypięcia nie przechwytuje treści ─────────────────────────────
+  /*
+   * Regresja, którą zrobiłem i cofnąłem w tej samej wersji — warto ją tu
+   * przybić.
+   *
+   * Kusi, żeby dać przypiętej sekcji `z-index: 1`, bo element z transformacją
+   * maluje się jak `z-index: 0` i przy nachodzeniu wygrywa z sekcją. Tyle że
+   * ScrollTrigger KOPIUJE styl przypiętego elementu na `pin-spacer`, a ten ma
+   * wysokość sekcji plus całą drogę taśmy. Zmierzone: spacer dostawał
+   * `position: relative; z-index: 1` i kładł się nad wystającą treścią na całej
+   * swojej wysokości — czyli przechwytywał na niej kliknięcia.
+   *
+   * Mierzone `elementFromPoint`, bo `z-index` w arkuszu niczego by nie dowiódł:
+   * ten wynik zależy od TRZECH elementów naraz i od tego, który z nich tworzy
+   * kontekst nakładania.
+   */
+  t.section('zapas przypięcia nie przechwytuje treści pod spodem');
+
+  const kto = await doSekcji('solo=1&peek=1', 300);
+  const wSekcji = await kto.evaluate(() => window.__ktoNaWierzchu(-20));
+  t.check('w sekcji na wierzchu jest sekcja', wSekcji.kto === 'sekcja', JSON.stringify(wSekcji));
+  /* Tuż pod krawędzią leżą DWA elementy: wystająca treść i zapas przypięcia,
+     który sięga daleko w dół. Wygrać ma treść — „pin-spacer" w tym miejscu
+     znaczy, że zapas przykrył ją i zjada kliknięcia. */
+  const podSekcja = await kto.evaluate(() => window.__ktoNaWierzchu(20));
+  t.check('a tuż pod nią — treść, nie zapas przypięcia', podSekcja.kto === 'tresc',
+    JSON.stringify(podSekcja));
+  await kto.close();
+
   // ── Przejście przez próg wyłączenia ──────────────────────────────────────
   /* Poniżej progu `gsap.matchMedia()` cofa CAŁY blok — razem z pinem
      i podglądem. Po powrocie powyżej progu wszystko powstaje od nowa, tyle że

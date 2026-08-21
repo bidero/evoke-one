@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.105.1] — 2026-08-21
+
+### Naprawione
+
+- **Horizontal Scroll: treść pod sekcją falowała i nachodziła na nią.** Jedna
+  przyczyna, oba objawy. Animacja kompensująca jechała na `scrub` wziętym
+  z ustawień taśmy — a w Bricksie domyślną wartością jest **1**, czyli sekunda
+  wygładzania.
+
+  Pin nie jest wygładzany: trzyma się przewijania co do piksela. Kompensacja ma
+  go **dokładnie** zniwelować, więc każde opóźnienie zostaje na ekranie jako
+  różnica. W trakcie przewijania transformacja nie nadążała — była bardziej
+  ujemna, niż trzeba — więc treść podjeżdżała nad sekcję; po zatrzymaniu scrub
+  doganiał i treść opadała. Stąd falowanie i nachodzenie.
+
+  Kompensacja jedzie teraz bez wygładzania (`scrub: true`), niezależnie od
+  ustawienia taśmy. Karty dalej mogą podążać miękko — one nie muszą niczego
+  niwelować.
+
+  **Dlaczego testy tego nie złapały:** fixture domyślnie podawał `scrub: 0`,
+  czyli bez wygładzania — wszystkie sprawdzenia podglądu przebiegły w jedynej
+  konfiguracji, w której błąd nie występuje. Doszło sprawdzenie z `scrub: 1`,
+  mierzące **w trakcie** przewijania: po 60 ms od każdego kroku, bo po
+  odczekaniu do końca wszystko wygląda dobrze także z błędem.
+
+### Rzecz, którą sprawdziłem i cofnąłem
+
+- Kusiło, żeby dać przypiętej sekcji `z-index: 1` — element z transformacją
+  maluje się jak `z-index: 0` i przy nachodzeniu wygrywa z sekcją. Zmierzone:
+  **ScrollTrigger kopiuje styl przypiętego elementu na `pin-spacer`**, a ten ma
+  wysokość sekcji plus całą drogę taśmy. Zapas dostawał
+  `position: relative; z-index: 1` i kładł się nad wystającą treścią na całej
+  swojej wysokości, przechwytując na niej kliknięcia. Gorsze niż to, przed czym
+  miało chronić — tym bardziej że nachodzenie brało się z opóźnienia, nie
+  z warstw. Zostało sprawdzenie pilnujące, żeby zapas nie przykrywał treści.
+
 ## [1.105.0] — 2026-08-21
 
 ### Dodane

@@ -47,6 +47,7 @@
      nie ma czego pokazać. */
   body.wysoka .sekcja { min-height: 100vh; }
 
+
   .karta {
     width: 500px;
     height: 260px;
@@ -344,6 +345,27 @@ window.__pod = function () {
     // Transformacja mierzona, nie zakładana: po wyjściu z zakresu ma zniknąć
     // CAŁKIEM, bo nawet zerowa tworzy blok zawierający dla `position: fixed`.
     transform:  getComputedStyle(el).transform,
+  };
+};
+
+/**
+ * Kto maluje się w danym punkcie — mierzone `elementFromPoint`, nie zgadywane
+ * z `z-index`.
+ *
+ * `dy` liczone od DOLNEJ krawędzi przypiętej sekcji: ujemne to punkt w jej
+ * wnętrzu, dodatnie — pod nią.
+ */
+window.__ktoNaWierzchu = function (dy) {
+  var sek = document.getElementById('sekcja-1');
+  var y   = Math.round(sek.getBoundingClientRect().bottom + dy);
+  var el  = document.elementFromPoint(Math.round(window.innerWidth / 2), y);
+  if (!el) return { y: y, kto: 'nic' };
+
+  return {
+    y:   y,
+    kto: el.closest('#sekcja-1') ? 'sekcja'
+       : (el.closest('#pod-1')   ? 'tresc'
+       : (el.id || el.className || el.tagName)),
   };
 };
 

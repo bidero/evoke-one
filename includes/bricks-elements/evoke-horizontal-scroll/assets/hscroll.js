@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.5.0
+ * EVK Horizontal Scroll v1.5.1
  */
 (function () {
 	'use strict';
@@ -374,6 +374,21 @@
 						+ 'zajmuje cały ekran — nie ma czego pokazać.', pinEl);
 				}
 
+				/*
+				 * ŻADNEGO `z-index` na przypiętej sekcji — próbowane i zmierzone.
+				 *
+				 * Kusi, żeby ustawić jej `z-index: 1`, bo element z transformacją
+				 * maluje się jak `z-index: 0` i przy nachodzeniu wygrywa z sekcją
+				 * (równa waga, decyduje kolejność w drzewie). Tyle że
+				 * ScrollTrigger KOPIUJE styl przypiętego elementu na `pin-spacer`
+				 * — a ten ma wysokość sekcji plus całą drogę taśmy. Zmierzone:
+				 * spacer dostawał `position: relative; z-index: 1` i przechwytywał
+				 * kliknięcia na wystającej treści, bo leżał nad nią na całej swojej
+				 * wysokości.
+				 *
+				 * Nachodzenie brało się z opóźnienia kompensacji, nie z warstw —
+				 * przy `scrub: true` sekcja i treść po prostu się stykają.
+				 */
 				gsap.fromTo(pod,
 					{ y: function () { return -getAmount(); } },
 					{
@@ -383,7 +398,21 @@
 							trigger            : pinEl,
 							start              : C.startOffset,
 							end                : function () { return '+=' + getAmount(); },
-							scrub              : C.scrub,
+							/*
+							 * `true`, czyli BEZ WYGŁADZANIA — i to jest jedyna
+							 * poprawna wartość, mimo że taśma obok jedzie na
+							 * `C.scrub`.
+							 *
+							 * Pin nie jest wygładzany: trzyma się przewijania co
+							 * do piksela. Ta animacja ma go dokładnie zniwelować,
+							 * więc każde opóźnienie zostaje na ekranie jako
+							 * różnica. Przy domyślnym `scrub: 1` transformacja
+							 * nie nadążała, była bardziej ujemna niż trzeba,
+							 * treść podjeżdżała nad sekcję i opadała po
+							 * zatrzymaniu. Zgłoszone z użycia: „podnosi się
+							 * i opuszcza — faluje, nachodzi na pole z hs".
+							 */
+							scrub              : true,
 							invalidateOnRefresh: true,
 							/* Za zakresem transformacja ZNIKA. Zostawiona — nawet
 							   zerowa — dalej tworzyłaby blok zawierający na resztę
