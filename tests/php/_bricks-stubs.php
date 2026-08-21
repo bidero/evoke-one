@@ -23,6 +23,9 @@ if (!class_exists('Bricks\\Element')) {
         public $settings   = [];
         public $controls   = [];
         public $attributes = [];
+        /* Wpis, w którego kontekście Bricks rysuje element — element podaje go
+           dalej do danych dynamicznych. */
+        public $post_id    = 0;
 
         public function set_attribute($key, $attr, $value = null) {
             if (is_array($value)) $value = implode(' ', $value);

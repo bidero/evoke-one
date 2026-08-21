@@ -3,28 +3,29 @@
 // na żywe strony — bez tej bramki byłyby osiągalne przez HTTP.
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 /**
- * Marquee: wiersz „galeria" z Evoke Fields — z PRAWDZIWEGO element.php.
+ * Marquee: wiersz „galeria" z danych dynamicznych — z PRAWDZIWEGO element.php.
  *
- * PIERWSZE sprawdzenia rendera tego elementu. Do 1.103.0 marquee miało tylko
- * testy przeglądarkowe o pauzie poza kadrem, a `render()` nie miał żadnych.
+ * Do 1.103.1 element sam sięgał do Evoke Fields przez `evk_get_field()`.
+ * Od 1.104.0 czyta JEDEN tag danych dynamicznych, więc nie zna już żadnej
+ * wtyczki pól — zna tylko listę numerów załączników, która z tagu wychodzi.
  *
  * Czego NIE DA SIĘ zmierzyć w przeglądarce, a widać stąd:
  *
- *   · z czym wywołano `evk_get_field()` — „bieżący wpis" to zero przekazane
- *     do Evoke Fields, a nie żadna nasza pętla; z ekranu wygląda to tak samo
- *     jak wpisany na sztywno numer;
+ *   · z czym wywołano `bricks_render_dynamic_data()` — czy poszedł tam tag
+ *     z wiersza i wpis z kontekstu elementu, czy coś wpisanego na sztywno;
  *   · że obie kopie taśmy dostały TĘ SAMĄ wylosowaną kolejność — na stronie
  *     widać to dopiero jako przeskok na złączeniu pętli, i to nie zawsze;
- *   · że bez wtyczki Evoke Fields nic się nie wywraca — nieznana funkcja
- *     zabiłaby cały render, a nie samo marquee.
+ *   · że goły tag galerii (bez `__ids`) daje PUSTKĘ, a nie jedno zdjęcie
+ *     udające działającą galerię.
  *
- * Kolejność w tym pliku jest istotna: PIERWSZY render leci ZANIM powstaną
- * atrapy `evk_*`, bo `function_exists()` rozstrzyga się w chwili wywołania.
+ * Kolejność w tym pliku jest istotna: PIERWSZY render leci ZANIM powstanie
+ * atrapa `bricks_render_dynamic_data()`, bo `function_exists()` rozstrzyga się
+ * w chwili wywołania.
  *
- * I dlatego atrapy stoją w bloku `if (!function_exists(...))`. To nie jest
- * ostrożność na wypadek kolizji — bez tego bloku ich NIE DA SIĘ ukryć przed
+ * I dlatego atrapa stoi w bloku `if (!function_exists(...))`. To nie jest
+ * ostrożność na wypadek kolizji — bez tego bloku NIE DA SIĘ jej ukryć przed
  * pierwszym renderem: PHP definiuje bezwarunkowe deklaracje z góry pliku,
- * zanim wykona pierwszą linię. Zmierzone: przypadek „bez wtyczki" rysował
+ * zanim wykona pierwszą linię. Zmierzone: przypadek „bez Bricksa" rysował
  * komplet obrazów i świecił na zielono z powodu, który z niego nie wynikał.
  */
 require __DIR__ . '/_wp-stubs.php';
@@ -54,10 +55,9 @@ function rysuj(array $settings) {
 /** Wiersz „galeria" z domyślnymi polami — testy nadpisują, co im trzeba. */
 function wiersz(array $nadpisz = []) {
     return array_merge([
-        'type'           => 'gallery',
-        'gallery_source' => 'post',
-        'gallery_key'    => 'logotypy',
-        'image_width'    => '90px',
+        'type'        => 'gallery',
+        'gallery_tag' => '{evk_field_logotypy__ids}',
+        'image_width' => '90px',
     ], $nadpisz);
 }
 
@@ -98,61 +98,58 @@ $wyniki = [];
 $wyniki['brakWtyczki'] = rozbior(rysuj([
     'items' => [ wiersz(), [ 'type' => 'text', 'text' => 'EVOKE' ] ],
 ]));
-$wyniki['funkcjeIstnialy'] = function_exists('evk_get_field');
+$wyniki['funkcjeIstnialy'] = function_exists('bricks_render_dynamic_data');
 
-// ── Atrapy Evoke Fields ──────────────────────────────────────────────────────
+// ── Atrapa danych dynamicznych Bricksa ───────────────────────────────────────
 $GLOBALS['wywolania'] = [];
 
-if (!function_exists('evk_get_field')) {
+if (!function_exists('bricks_render_dynamic_data')) {
 /**
- * Pole wpisu. Oddaje TEKST po przecinkach — dokładnie tak, jak robi to
- * Evoke Fields: `if ($prop === 'ids') return implode(',', $ids);`
+ * Renderowanie tagu. Odwzorowane jest to, co robi Evoke Fields: wariant
+ * `__ids` oddaje TEKST po przecinkach (`implode(',', $ids)`), a goły tag
+ * galerii — adres PIERWSZEGO obrazu. Ta druga droga jest tu po to, żeby dało
+ * się zmierzyć, co się dzieje przy wyborze złego wariantu z listy.
  */
-function evk_get_field($klucz, $post_id = 0, $prop = '') {
-    $GLOBALS['wywolania'][] = ['fn' => 'field', 'klucz' => $klucz, 'post' => $post_id, 'prop' => $prop];
-    if ((int) $post_id === 7) { return '21,22'; }
+function bricks_render_dynamic_data($tresc, $post_id = 0) {
+    $GLOBALS['wywolania'][] = ['tag' => $tresc, 'post' => $post_id];
     $dane = [
-        'logotypy' => '11,12,13,14',
-        'duza'     => '11,12,13,14,15,16',
-        'dziury'   => '11,0,99,12',   // 99 nie ma w bibliotece, 0 jest śmieciem
+        '{evk_field_logotypy__ids}' => '11,12,13,14',
+        '{evk_field_duza__ids}'     => '11,12,13,14,15,16',
+        '{evk_field_dziury__ids}'   => '11,0,99,12',   // 99 nie ma w bibliotece
+        '{evk_field_logotypy}'      => '/media/11.jpg', // goły tag = jeden adres
+        // Inna wtyczka pól potrafi oddać surową tablicę wierszy.
+        '{acf_logotypy}'            => [['img' => 11], ['img' => 12], ['img' => 13]],
+        // A ta sama galeria z innego wpisu — patrz `post_id` niżej.
+        '{evk_field_tamten__ids}'   => '21,22',
     ];
-    return $dane[$klucz] ?? '';
+    return $dane[$tresc] ?? '';
 }
+} // koniec bloku ukrywającego atrapę przed pierwszym renderem
 
-/**
- * Pole ze strony ustawień. Oddaje SUROWĄ tablicę wierszy — Evoke Fields nie
- * formatuje tej drogi wcale (`evk_rep_get_option()` zwraca to, co w opcji).
- * Na tym polega cały sens wspólnego normalizatora.
- */
-function evk_get_option_field($grupa, $klucz = '', $default = '') {
-    $GLOBALS['wywolania'][] = ['fn' => 'option', 'grupa' => $grupa, 'klucz' => $klucz];
-    if ('globalne' === $grupa && 'logotypy' === $klucz) {
-        return [
-            ['img' => 11, 'cat' => 'a'],
-            ['img' => 12, 'cat' => 'b'],
-            ['img' => 13, 'cat' => 'a'],
-        ];
-    }
-    return '';
-}
-} // koniec bloku ukrywającego atrapy przed pierwszym renderem
-
+// ── 2. Tag, kontekst wpisu i cudze kształty ─────────────────────────────────
 // ── 2. Trzy źródła ───────────────────────────────────────────────────────────
 $GLOBALS['wywolania'] = [];
-$wyniki['zWpisu'] = rozbior(rysuj([ 'items' => [ wiersz() ] ]));
-$wyniki['wywolanieWpis'] = $GLOBALS['wywolania'][0] ?? null;
+$wyniki['zTagu'] = rozbior(rysuj([ 'items' => [ wiersz() ] ]));
+$wyniki['wywolanieTag'] = $GLOBALS['wywolania'][0] ?? null;
 
+// Wpis z kontekstu elementu ma trafić do danych dynamicznych — inaczej tag
+// rozwinąłby się względem złej strony.
 $GLOBALS['wywolania'] = [];
-$wyniki['zeWskazanego'] = rozbior(rysuj([ 'items' => [
-    wiersz(['gallery_source' => 'post_id', 'gallery_post_id' => 7]),
-] ]));
-$wyniki['wywolanieWskazany'] = $GLOBALS['wywolania'][0] ?? null;
+$el7 = new \Evk_Marquee_Element();
+$el7->post_id  = 7;
+$el7->settings = [ 'items' => [ wiersz(['gallery_tag' => '{evk_field_tamten__ids}']) ] ];
+ob_start(); $el7->render(); $wyniki['zKontekstu'] = rozbior(ob_get_clean());
+$wyniki['wywolanieKontekst'] = $GLOBALS['wywolania'][0] ?? null;
 
-$GLOBALS['wywolania'] = [];
-$wyniki['zOpcji'] = rozbior(rysuj([ 'items' => [
-    wiersz(['gallery_source' => 'option', 'gallery_group' => 'globalne']),
+// Cudza wtyczka pól oddająca surową tablicę wierszy.
+$wyniki['cudzyKsztalt'] = rozbior(rysuj([ 'items' => [
+    wiersz(['gallery_tag' => '{acf_logotypy}']),
 ] ]));
-$wyniki['wywolanieOpcje'] = $GLOBALS['wywolania'][0] ?? null;
+
+// Goły tag galerii — oddaje ADRES pierwszego obrazu, nie listę.
+$wyniki['golyTag'] = rozbior(rysuj([ 'items' => [
+    wiersz(['gallery_tag' => '{evk_field_logotypy}']),
+] ]));
 
 // ── 3. Kolejność i limit ─────────────────────────────────────────────────────
 $wyniki['odwrotnaZLimitem'] = rozbior(rysuj([ 'items' => [
@@ -160,7 +157,7 @@ $wyniki['odwrotnaZLimitem'] = rozbior(rysuj([ 'items' => [
 ] ]));
 
 $wyniki['losowa'] = rozbior(rysuj([ 'items' => [
-    wiersz(['gallery_key' => 'duza', 'gallery_order' => 'random']),
+    wiersz(['gallery_tag' => '{evk_field_duza__ids}', 'gallery_order' => 'random']),
 ] ]));
 
 // ── 4. Zwykły obraz i tekst obok galerii ─────────────────────────────────────
@@ -172,19 +169,19 @@ $wyniki['mieszane'] = rozbior(rysuj([ 'items' => [
 
 // ── 5. Klucz, którego nie ma ─────────────────────────────────────────────────
 $wyniki['zlyKlucz'] = rozbior(rysuj([ 'items' => [
-    wiersz(['gallery_key' => 'nie-ma-takiego']),
+    wiersz(['gallery_tag' => '{nie_ma_takiego}']),
     [ 'type' => 'text', 'text' => 'EVOKE' ],
 ] ]));
 
 // ── 6. Śmieci w galerii ──────────────────────────────────────────────────────
 // Zero i numer spoza biblioteki. Ani jedno, ani drugie nie ma prawa zostawić
 // pustego pudełka rozpychającego odstępy taśmy.
-$wyniki['dziury'] = rozbior(rysuj([ 'items' => [ wiersz(['gallery_key' => 'dziury']) ] ]));
+$wyniki['dziury'] = rozbior(rysuj([ 'items' => [ wiersz(['gallery_tag' => '{evk_field_dziury__ids}']) ] ]));
 
 // ── 7. Pusto: front milczy, builder mówi ─────────────────────────────────────
-$wyniki['pustoFront'] = rozbior(rysuj([ 'items' => [ wiersz(['gallery_key' => 'nie-ma-takiego']) ] ]));
+$wyniki['pustoFront'] = rozbior(rysuj([ 'items' => [ wiersz(['gallery_tag' => '{nie_ma_takiego}']) ] ]));
 $_GET['bricks'] = 'run';
-$wyniki['pustoBuilder'] = rozbior(rysuj([ 'items' => [ wiersz(['gallery_key' => 'nie-ma-takiego']) ] ]));
+$wyniki['pustoBuilder'] = rozbior(rysuj([ 'items' => [ wiersz(['gallery_tag' => '{nie_ma_takiego}']) ] ]));
 unset($_GET['bricks']);
 
 // ── 8. Normalizator wprost ───────────────────────────────────────────────────
@@ -203,8 +200,13 @@ $pola = $el->controls['items']['fields'];
 $wyniki['kontrolki'] = [
     'typy'          => array_keys($pola['type']['options']),
     'szerokoscReq'  => $pola['image_width']['required'] ?? null,
-    'grupaReq'      => $pola['gallery_group']['required'] ?? null,
-    'idReq'         => $pola['gallery_post_id']['required'] ?? null,
+    'tagReq'        => $pola['gallery_tag']['required'] ?? null,
+    'tagDynamic'    => $pola['gallery_tag']['hasDynamicData'] ?? null,
+    // Cztery pola z 1.103.0 mają ZNIKNĄĆ, nie tylko przestać być wymagane.
+    'stareUsuniete' => array_values(array_filter(
+        ['gallery_source', 'gallery_group', 'gallery_key', 'gallery_post_id'],
+        function ($k) use ($pola) { return isset($pola[$k]); } )),
+    'polaWiersza'   => array_keys($pola),
     'kolejnosc'     => array_keys($pola['gallery_order']['options']),
     /*
      * Warunki KAŻDEGO pola wiersza, nie tylko nowych.

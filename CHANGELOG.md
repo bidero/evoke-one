@@ -2,6 +2,40 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.104.0] — 2026-08-21
+
+### Zmienione
+
+- **Marquee: galeria przez dane dynamiczne Bricksa — jedno pole zamiast
+  czterech.** 1.103.0 kazało wskazywać źródło („z bieżącego wpisu" / „ze strony
+  ustawień" / „ze wskazanego wpisu"), klucz grupy, klucz pola i numer wpisu.
+  Czyli ręczne odtwarzanie tego, co Bricks ma pod piorunkiem. Zgłoszone
+  z użycia: *„mam te dane w danych dynamicznych, wystarczyłoby podać klucz"*.
+
+  Zostało **jedno pole z piorunkiem**. Klikasz, wybierasz z listy wariant
+  oddający listę ID — w Evoke Fields to „(lista ID)", czyli tag z końcówką
+  `__ids` — i tyle.
+
+  Skutek uboczny jest tu ważniejszy niż sama wygoda: **element przestał wiedzieć
+  o Evoke Fields**. Nie ma już `evk_get_field()`, `evk_get_option_field()` ani
+  warunku `function_exists()` na tamtą wtyczkę. Marquee zna wyłącznie listę
+  numerów załączników, więc zadziała z ACF, Metaboksem i każdym innym tagiem,
+  który taką listę odda. Kod elementu skurczył się przy tym o 38 linii.
+
+  Kolejność (jak w galerii / odwrotna / losowa) i limit zostają bez zmian.
+
+### Rzecz, o którą łatwo się potknąć
+
+- **Goły tag galerii oddaje adres PIERWSZEGO obrazu, nie listę ID.** Marquee
+  nie pokaże wtedy nic i powie o tym na kanwie buildera — zamiast pokazać jedno
+  zdjęcie, które wyglądałoby na działającą galerię i przepuściło pomyłkę
+  w wyborze wariantu. Sprawdzenie tego pilnuje.
+
+### Uwaga przy aktualizacji
+
+Wiersze galerii wstawione w 1.103.0 trzeba ustawić od nowa — cztery stare pola
+zniknęły. Wierszy „tekst" i „obraz" to nie dotyczy.
+
 ## [1.103.1] — 2026-08-21
 
 ### Naprawione

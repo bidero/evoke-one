@@ -70,60 +70,30 @@ class Evk_Marquee_Element extends \Bricks\Element {
 				],
 
 				/*
-				 * ── Galeria z Evoke Fields ──────────────────────────────────
+				 * ── Galeria z danych dynamicznych ───────────────────────────
 				 *
-				 * Trzy źródła, bo galeria bywa w trzech miejscach: przy tej
-				 * stronie, na stronie ustawień (jedna dla całej witryny) albo
-				 * przy zupełnie innym wpisie.
+				 * JEDNO pole zamiast czterech. Do 1.103.1 stały tu „skąd galeria",
+				 * „klucz grupy", „klucz pola" i „numer wpisu" — czyli ręczne
+				 * odtwarzanie tego, co Bricks ma pod piorunkiem. Zgłoszone
+				 * z użycia: „mam te dane w danych dynamicznych, wystarczyłoby
+				 * podać klucz".
+				 *
+				 * Skutek uboczny jest tu ważniejszy niż wygoda: element PRZESTAJE
+				 * wiedzieć o Evoke Fields. Zadziała z każdym tagiem, który odda
+				 * listę numerów załączników — ACF, Metabox, własne pole, cokolwiek.
 				 */
-				'gallery_source' => [
-					'label'    => 'Skąd galeria',
-					'type'     => 'select',
-					'options'  => [
-						'post'    => 'Z bieżącego wpisu',
-						'option'  => 'Ze strony ustawień',
-						'post_id' => 'Ze wskazanego wpisu',
-					],
-					'default'  => 'post',
-					'required' => [ 'type', '=', 'gallery' ],
+				'gallery_tag' => [
+					'label'          => 'Galeria (dane dynamiczne)',
+					'type'           => 'text',
+					'hasDynamicData' => true,
+					'placeholder'    => '{evk_field_logotypy__ids}',
+					'required'       => [ 'type', '=', 'gallery' ],
+					'description'    => 'Kliknij piorunek i wybierz wariant oddający LISTĘ ID — '
+						. 'w Evoke Fields to „(lista ID)", czyli tag z końcówką __ids. '
+						. 'Goły tag galerii oddaje adres pierwszego obrazu, a nie listę: '
+						. 'wtedy nie będzie czego pokazać i element powie o tym na kanwie.',
 				],
-				/*
-				 * JEDEN warunek, nie łańcuch dwóch.
-				 *
-				 * Łańcuchy `required` działają w kontrolkach GÓRNEGO POZIOMU
-				 * (używa ich evoke-horizontal-scroll), ale w polach wiersza
-				 * repeatera nie mają w tej wtyczce ani jednego precedensu —
-				 * a repeater Animatora (includes/anim/bricks-controls.php)
-				 * pokazuje, co tu na pewno działa: pojedynczy warunek, także
-				 * z `!=`, i tablica jako trzeci człon.
-				 *
-				 * Zgłoszone z użycia po 1.103.0: „przestało działać dodawanie
-				 * elementów" — repeater przestał dokładać wiersze.
-				 *
-				 * Warunek na samo źródło wystarcza w praktyce: `gallery_source`
-				 * pokazuje się wyłącznie w wierszu „galeria" i domyślnie stoi
-				 * na „z bieżącego wpisu", więc „ze strony ustawień" można wybrać
-				 * tylko tam.
-				 */
-				'gallery_group' => [
-					'label'       => 'Klucz grupy ustawień',
-					'type'        => 'text',
-					'placeholder' => 'moja_grupa',
-					'required'    => [ 'gallery_source', '=', 'option' ],
-				],
-				'gallery_key' => [
-					'label'       => 'Klucz pola galerii',
-					'type'        => 'text',
-					'placeholder' => 'logotypy',
-					'required'    => [ 'type', '=', 'gallery' ],
-					'description' => 'Klucz z Evoke Fields. Gdy pola nie ma albo jest puste, '
-						. 'wiersz po prostu znika — reszta taśmy jedzie dalej.',
-				],
-				'gallery_post_id' => [
-					'label'    => 'Numer wpisu (ID)',
-					'type'     => 'number',
-					'required' => [ 'gallery_source', '=', 'post_id' ],
-				],
+
 				'gallery_order' => [
 					'label'    => 'Kolejność',
 					'type'     => 'select',
@@ -392,38 +362,27 @@ class Evk_Marquee_Element extends \Bricks\Element {
 	/**
 	 * Obrazy jednego wiersza „galeria".
 	 *
-	 * Evoke Fields może w ogóle nie być zainstalowane — wtedy wiersz znika,
-	 * a strona nie ma prawa się wywrócić na nieznanej funkcji.
+	 * Wartość idzie przez dane dynamiczne Bricksa, więc element nie zna ani
+	 * Evoke Fields, ani żadnej innej wtyczki pól — zna tylko listę numerów
+	 * załączników, która z tagu wychodzi.
 	 */
 	private function ids_galerii( $item ) {
-		if ( ! function_exists( 'evk_get_field' ) ) {
+		$tag = trim( (string) ( $item['gallery_tag'] ?? '' ) );
+		if ( '' === $tag ) {
 			return [];
 		}
 
-		$klucz = trim( (string) ( $item['gallery_key'] ?? '' ) );
-		if ( $klucz === '' ) {
-			return [];
+		/* Bez Bricksa tag zostaje surowym napisem — normalizator zrobi z niego
+		   pustkę, a nie śmieciowy numer. Warunek jest tu na wypadek wywołania
+		   spoza builderowego kontekstu, nie dla realnej strony. */
+		$wartosc = $tag;
+		if ( function_exists( 'bricks_render_dynamic_data' ) ) {
+			// Wpis z kontekstu elementu, a przy jego braku — bieżący z pętli.
+			$pid = ! empty( $this->post_id ) ? (int) $this->post_id : (int) get_the_ID();
+			$wartosc = bricks_render_dynamic_data( $tag, $pid );
 		}
 
-		$zrodlo = $item['gallery_source'] ?? 'post';
-
-		if ( $zrodlo === 'option' ) {
-			if ( ! function_exists( 'evk_get_option_field' ) ) {
-				return [];
-			}
-			$grupa = trim( (string) ( $item['gallery_group'] ?? '' ) );
-			if ( $grupa === '' ) {
-				return [];
-			}
-			$surowe = evk_get_option_field( $grupa, $klucz );
-		} else {
-			// Zero znaczy w Evoke Fields „bieżący wpis" (includes/api.php:
-			// `$post_id = $post_id ?: (int) get_the_ID();`).
-			$post_id = ( $zrodlo === 'post_id' ) ? (int) ( $item['gallery_post_id'] ?? 0 ) : 0;
-			$surowe  = evk_get_field( $klucz, $post_id, 'ids' );
-		}
-
-		$ids = self::ids_z_wartosci( $surowe );
+		$ids = self::ids_z_wartosci( $wartosc );
 
 		/* Kolejność PRZED limitem. „Odwrotna + 3" ma dać trzy OSTATNIE obrazy
 		   galerii, a nie trzy pierwsze ustawione tyłem. */
@@ -446,11 +405,14 @@ class Evk_Marquee_Element extends \Bricks\Element {
 	/**
 	 * Wartość pola galerii → lista numerów załączników.
 	 *
-	 * Trzy kształty, bo Evoke Fields oddaje różne rzeczy różnymi drogami:
-	 * pole wpisu z wariantem „ids" wraca TEKSTEM po przecinkach
-	 * (`implode(',', $ids)`), a pole ze strony ustawień wraca SUROWĄ tablicą
-	 * wierszy `['img' => ID, 'cat' => kategoria]`. Bez wspólnego wejścia
-	 * wariant „ze strony ustawień" po cichu nie pokazywałby nic.
+	 * Trzy kształty, bo wtyczki pól oddają galerie różnie: tekstem po
+	 * przecinkach (tak robi wariant „ids" Evoke Fields — `implode(',', $ids)`),
+	 * gołą tablicą numerów albo tablicą wierszy `['img' => ID, …]`.
+	 *
+	 * Adres obrazu zamiast numeru daje tu PUSTKĘ, i tak ma być: goły tag
+	 * galerii oddaje adres pierwszego zdjęcia, a jedno zdjęcie wyglądałoby na
+	 * działającą galerię. Lepiej, żeby element powiedział „nie ma czego
+	 * pokazać".
 	 */
 	public static function ids_z_wartosci( $wartosc ) {
 		if ( is_string( $wartosc ) ) {
