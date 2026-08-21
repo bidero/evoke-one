@@ -206,6 +206,16 @@ $wyniki['kontrolki'] = [
     'grupaReq'      => $pola['gallery_group']['required'] ?? null,
     'idReq'         => $pola['gallery_post_id']['required'] ?? null,
     'kolejnosc'     => array_keys($pola['gallery_order']['options']),
+    /*
+     * Warunki KAŻDEGO pola wiersza, nie tylko nowych.
+     *
+     * Repeater Bricksa przyjmuje w polach wiersza pojedynczy warunek — tak
+     * działa repeater Animatora, jedyny sprawdzony w boju w tej wtyczce.
+     * Łańcuch dwóch warunków rozłożył w 1.103.0 dokładanie wierszy, a z PHP-a
+     * widać to tylko po długości tablicy.
+     */
+    'wszystkieReq'  => array_map(
+        function ($f) { return $f['required'] ?? null; }, $pola ),
 ];
 
 echo json_encode($wyniki, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";

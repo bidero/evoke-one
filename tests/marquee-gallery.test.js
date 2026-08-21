@@ -163,11 +163,33 @@ module.exports = async function (t) {
   t.check('szerokość obrazu pokazuje się też przy galerii',
     JSON.stringify(k.szerokoscReq) === '["type","!=","text"]', JSON.stringify(k.szerokoscReq));
   t.check('klucz grupy tylko przy stronie ustawień',
-    JSON.stringify(k.grupaReq) === '["type","=","gallery","gallery_source","=","option"]',
-    JSON.stringify(k.grupaReq));
+    JSON.stringify(k.grupaReq) === '["gallery_source","=","option"]', JSON.stringify(k.grupaReq));
   t.check('numer wpisu tylko przy wskazanym wpisie',
-    JSON.stringify(k.idReq) === '["type","=","gallery","gallery_source","=","post_id"]',
-    JSON.stringify(k.idReq));
+    JSON.stringify(k.idReq) === '["gallery_source","=","post_id"]', JSON.stringify(k.idReq));
+
+  /*
+   * ŻADNE pole wiersza nie może mieć łańcucha warunków.
+   *
+   * Repeater Bricksa przyjmuje w polach wiersza pojedynczy warunek — tak działa
+   * repeater Animatora (includes/anim/bricks-controls.php), jedyny sprawdzony
+   * w boju w tej wtyczce, i tak działały pola marquee przed 1.103.0. Łańcuch
+   * dwóch warunków rozłożył dokładanie wierszy: repeater przestał je dokładać,
+   * a z ekranu wyglądało to jak martwy przycisk „+".
+   *
+   * Tego NIE DA SIĘ zobaczyć w znaczniku — pole po prostu nie pokazuje się
+   * w builderze. Stąd sprawdzenie na kształcie tablicy.
+   */
+  const dlugie = Object.keys(k.wszystkieReq).filter((nazwa) => {
+    const r = k.wszystkieReq[nazwa];
+    return Array.isArray(r) && r.length !== 3;
+  });
+  t.check('żadne pole wiersza nie ma łańcucha warunków', dlugie.length === 0,
+    dlugie.length ? dlugie.join(', ') : 'wszystkie po jednym warunku');
+  /* Kontrola pozytywna: warunki w ogóle SĄ. Samo „żaden nie jest za długi"
+     byłoby prawdą także wtedy, gdyby zniknęły wszystkie. */
+  const zWarunkiem = Object.keys(k.wszystkieReq).filter((n) => k.wszystkieReq[n]);
+  t.check('a dziewięć pól je ma', zWarunkiem.length === 9,
+    zWarunkiem.length + ': ' + zWarunkiem.join(', '));
   t.check('kolejność ma trzy warianty', k.kolejnosc.join(',') === 'as-is,reverse,random',
     k.kolejnosc.join(','));
 };

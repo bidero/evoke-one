@@ -87,11 +87,29 @@ class Evk_Marquee_Element extends \Bricks\Element {
 					'default'  => 'post',
 					'required' => [ 'type', '=', 'gallery' ],
 				],
+				/*
+				 * JEDEN warunek, nie łańcuch dwóch.
+				 *
+				 * Łańcuchy `required` działają w kontrolkach GÓRNEGO POZIOMU
+				 * (używa ich evoke-horizontal-scroll), ale w polach wiersza
+				 * repeatera nie mają w tej wtyczce ani jednego precedensu —
+				 * a repeater Animatora (includes/anim/bricks-controls.php)
+				 * pokazuje, co tu na pewno działa: pojedynczy warunek, także
+				 * z `!=`, i tablica jako trzeci człon.
+				 *
+				 * Zgłoszone z użycia po 1.103.0: „przestało działać dodawanie
+				 * elementów" — repeater przestał dokładać wiersze.
+				 *
+				 * Warunek na samo źródło wystarcza w praktyce: `gallery_source`
+				 * pokazuje się wyłącznie w wierszu „galeria" i domyślnie stoi
+				 * na „z bieżącego wpisu", więc „ze strony ustawień" można wybrać
+				 * tylko tam.
+				 */
 				'gallery_group' => [
 					'label'       => 'Klucz grupy ustawień',
 					'type'        => 'text',
 					'placeholder' => 'moja_grupa',
-					'required'    => [ 'type', '=', 'gallery', 'gallery_source', '=', 'option' ],
+					'required'    => [ 'gallery_source', '=', 'option' ],
 				],
 				'gallery_key' => [
 					'label'       => 'Klucz pola galerii',
@@ -104,7 +122,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 				'gallery_post_id' => [
 					'label'    => 'Numer wpisu (ID)',
 					'type'     => 'number',
-					'required' => [ 'type', '=', 'gallery', 'gallery_source', '=', 'post_id' ],
+					'required' => [ 'gallery_source', '=', 'post_id' ],
 				],
 				'gallery_order' => [
 					'label'    => 'Kolejność',

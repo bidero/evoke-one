@@ -2,6 +2,28 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.103.1] — 2026-08-21
+
+### Naprawione
+
+- **Marquee: wróciło dokładanie elementów w builderze.** 1.103.0 dało dwóm polom
+  galerii `required` złożone z **dwóch warunków**
+  (`['type','=','gallery','gallery_source','=','option']`). Łańcuchy warunków
+  działają w kontrolkach GÓRNEGO POZIOMU — używa ich Horizontal Scroll — ale
+  w polach wiersza repeatera nie miały w tej wtyczce ani jednego precedensu.
+  Repeater przestał dokładać wiersze, a z ekranu wyglądało to jak martwy
+  przycisk „+".
+
+  Wzorcem jest repeater Animatora (`includes/anim/bricks-controls.php`), jedyny
+  sprawdzony w boju: pojedynczy warunek, także z `!=`, i tablica jako trzeci
+  człon. Oba pola mają teraz po jednym warunku — na samo źródło galerii. Nic to
+  nie zmienia w praktyce, bo „ze strony ustawień" i „ze wskazanego wpisu" da się
+  wybrać wyłącznie w wierszu typu „galeria".
+
+  Sprawdzenie pilnuje teraz KAŻDEGO pola wiersza: żadne nie może mieć łańcucha
+  warunków. Tego nie widać w znaczniku — pole po prostu nie pokazuje się
+  w builderze — więc mierzone jest na kształcie tablicy.
+
 ## [1.103.0] — 2026-08-21
 
 ### Dodane
