@@ -250,7 +250,26 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'description' => esc_html__( 'Poniżej tej szerokości ekranu panele układają się pionowo (bez przypięcia). 0 = nigdy nie wyłączaj.', 'evk-horizontal-scroll' ),
 		];
 
-		// ── PASEK POSTĘPU ─────────────────────────────────────────────────────
+		/*
+		 * ── PASEK POSTĘPU ────────────────────────────────────────────────────
+		 *
+		 * Warunki widoczności w tej grupie są JEDNOCZŁONOWE i to nie jest
+		 * niedbalstwo. Bricks nie obsługuje łańcuchów w `required`: warunek
+		 * z dwóch członów sprawia, że kontrolka NIE POKAZUJE SIĘ WCALE.
+		 * Zgłoszone z użycia — czternaście pól tej grupy było nie do dosięgnięcia,
+		 * m.in. „Kolor bieżącego". Ta sama pułapka zjadła wcześniej repeater
+		 * marquee (1.103.1); wtedy wniosek był za wąski.
+		 *
+		 * Alternatywę zapisuje się TABLICĄ w trzecim członie
+		 * (`'=', [ 'segments', 'current' ]`) — to jedyna forma, jaką dokumentacja
+		 * Bricksa opisuje; używa jej też repeater Animatora.
+		 *
+		 * Cena: przy wyłączonym „Włącz pasek postępu" te pola są widoczne, bo nie
+		 * ma jak dopisać drugiego warunku. Lepiej pole widoczne o kliknięcie za
+		 * wcześnie niż pole nie do dosięgnięcia.
+		 *
+		 * Pilnuje tego `tests/php/bricks-required.php` — dla WSZYSTKICH elementów.
+		 */
 		$this->controls['progressbar'] = [
 			'group'   => 'evk_progress',
 			'tab'     => 'content',
@@ -324,7 +343,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'inline'   => true,
 			// Przy kontenerze zewnętrznym pozycja nic nie znaczy — o miejscu
 			// decyduje wtedy układ strony wokół tego kontenera.
-			'required' => [ 'progressbar', '=', true, 'progressbar_target', '=', '' ],
+			'required' => [ 'progressbar_target', '=', '' ],
 		];
 
 		$this->controls['progressbar_thickness'] = [
@@ -349,7 +368,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'bar' ],
+			'required'    => [ 'progressbar_style', '=', 'bar' ],
 		];
 
 		$this->controls['progressbar_bg'] = [
@@ -427,7 +446,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required'    => [ 'progressbar', '=', true, 'progressbar_target', '=', '' ],
+			'required'    => [ 'progressbar_target', '=', '' ],
 			'description' => esc_html__(
 				'Wskaźnik leży na taśmie, więc bez odstępu przykrywa górę pierwszej karty. '
 				. 'Puste = 0, jak dotąd.',
@@ -446,7 +465,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required' => [ 'progressbar', '=', true, 'progressbar_style', '=', 'bar' ],
+			'required' => [ 'progressbar_style', '=', 'bar' ],
 		];
 
 		/*
@@ -471,7 +490,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '!=', 'bar' ],
+			'required'    => [ 'progressbar_style', '=', [ 'segments', 'current' ] ],
 		];
 
 		$this->controls['seg_off'] = [
@@ -486,7 +505,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required' => [ 'progressbar', '=', true, 'progressbar_style', '!=', 'bar' ],
+			'required' => [ 'progressbar_style', '=', [ 'segments', 'current' ] ],
 		];
 
 		$this->controls['seg_on'] = [
@@ -501,7 +520,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required' => [ 'progressbar', '=', true, 'progressbar_style', '!=', 'bar' ],
+			'required' => [ 'progressbar_style', '=', [ 'segments', 'current' ] ],
 		];
 
 		/*
@@ -523,7 +542,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'segments' ],
+			'required'    => [ 'progressbar_style', '=', 'segments' ],
 		];
 
 		$this->controls['seg_radius'] = [
@@ -540,7 +559,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'segments' ],
+			'required'    => [ 'progressbar_style', '=', 'segments' ],
 		];
 
 		/*
@@ -562,7 +581,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'current' ],
+			'required'    => [ 'progressbar_style', '=', 'current' ],
 		];
 
 		$this->controls['num_weight'] = [
@@ -581,7 +600,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'current' ],
+			'required'    => [ 'progressbar_style', '=', 'current' ],
 		];
 
 		$this->controls['current_rest'] = [
@@ -595,7 +614,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			],
 			'default'     => 'hide',
 			'inline'      => true,
-			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '=', 'current' ],
+			'required'    => [ 'progressbar_style', '=', 'current' ],
 			'description' => esc_html__(
 				'„Przygaś" daje klasyczne „1 2 3 4" z podświetloną bieżącą pozycją — '
 				. 'pozostałe biorą kolor nieaktywnych.',
@@ -625,7 +644,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 					'selector' => '',
 				],
 			],
-			'required'    => [ 'progressbar', '=', true, 'progressbar_style', '!=', 'bar' ],
+			'required'    => [ 'progressbar_style', '=', [ 'segments', 'current' ] ],
 			'description' => esc_html__(
 				'Pusta = kreski dzielą szerokość kontenera po równo.',
 				'evk-horizontal-scroll'
@@ -647,7 +666,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 				],
 			],
 			// Tylko przy ustalonej długości — patrz komentarz wyżej.
-			'required'    => [ 'progressbar', '=', true, 'seg_len', '!=', '' ],
+			'required'    => [ 'seg_len', '!=', '' ],
 			'description' => esc_html__(
 				'Działa dopiero, gdy długość segmentu jest podana. Pusta = tyle samo, '
 				. 'co pozostałe.',

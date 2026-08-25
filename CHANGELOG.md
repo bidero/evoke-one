@@ -2,6 +2,59 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.107.0] — 2026-08-21
+
+### Naprawione
+
+- **Czternaście kontrolek Horizontal Scroll było nie do dosięgnięcia.**
+  Zgłoszone: „wskaźnik w cudzym kontenerze — brak możliwości wybrania koloru
+  aktywnego". Pola nie było w panelu **w ogóle**.
+
+  Przyczyna: **Bricks nie obsługuje łańcuchów w `required`.** Warunek złożony
+  z dwóch członów — `[ 'progressbar', '=', true, 'progressbar_style', '!=', 'bar' ]`
+  — sprawia, że kontrolka nie pokazuje się wcale.
+
+  Audyt całej wtyczki ustawił to jednoznacznie: **wszystkie 14 łańcuchów
+  siedziało w tym jednym elemencie**, a pozostałe ~65 warunków w ośmiu
+  elementach jest jednoczłonowych i działa. Widoczne były dokładnie te pola
+  wskaźnika, które mają jeden człon — „Tło wskaźnika", „Wewnętrzny odstęp",
+  „Zaokrąglenie". Zniknęły: „Pozycja", „Odstęp paneli od wskaźnika", „Grubość",
+  „Kolor paska", „Odstęp segmentów", „Kolor nieaktywnych", **„Kolor bieżącego"**,
+  „Grubość kreski", „Zaokrąglenie kreski", „Wielkość numeru", „Grubość pisma
+  numeru", „Pozostałe pozycje", „Długość segmentu" i „Długość segmentu
+  aktywnego".
+
+  Każdy warunek zszedł do jednego członu, po najbardziej znaczącym polu.
+  Alternatywę („segmenty ALBO numery") zapisuje teraz **tablica w trzecim
+  członie** — jedyna forma, jaką dokumentacja Bricksa opisuje; używa jej już
+  repeater Animatora.
+
+  **Cena, świadomie przyjęta:** przy wyłączonym „Włącz pasek postępu" te pola
+  są widoczne, bo nie ma jak dopisać drugiego warunku. Lepiej pole widoczne
+  o kliknięcie za wcześnie niż pole nie do dosięgnięcia.
+
+  `!=` z pojedynczą wartością zostaje — używa go „Wysokość panelu" i dwa razy
+  Circular Title. Łamią się łańcuchy, nie `!=`.
+
+### Dlaczego to wróciło
+
+To jest **druga** odsłona tej samej pułapki. Pierwsza zjadła repeater marquee
+w 1.103.1 — i wtedy wyciągnąłem za wąski wniosek („repeater Bricksa nie
+przyjmuje łańcuchów"), więc sprawdzenie pilnowało jednego repeatera zamiast
+całej wtyczki. Nowy strażnik `tests/php/bricks-required.php` ładuje **wszystkie
+dziewięć elementów**, przechodzi kontrolki i pola wierszy repeaterów i zgłasza:
+
+* każdy `required` o więcej niż trzech członach,
+* każdy warunek wskazujący pole, którego w tej samej przestrzeni nie ma —
+  druga klasa cichej usterki, dająca ten sam objaw.
+
+Liczba załadowanych plików jest częścią sprawdzenia: bez niej „zero łańcuchów"
+byłoby prawdą także wtedy, gdyby żaden element się nie załadował.
+
+Człony liczone są po rozwinięciu w PHP, nie po przecinkach w źródle — burger ma
+`[ 'style', '=', array_keys( array_filter( … ) ) ]`, czyli jeden warunek
+z tablicą, i to jest forma poprawna.
+
 ## [1.106.0] — 2026-08-21
 
 ### Naprawione
