@@ -303,8 +303,10 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 				'Pusty = wskaźnik zostaje w środku elementu. Podany selektor wskazuje '
 				. 'DOWOLNY element na stronie — pierwszy pasujący. Kontener PUSTY skrypt '
 				. 'wypełnia sam; kontener z własną treścią zostawia w spokoju i tylko '
-				. 'podświetla w nim bieżące dziecko. Gdy nic nie pasuje, wskaźnik wraca '
-				. 'do środka elementu i mówi o tym w konsoli.',
+				. 'podświetla w nim bieżące dziecko — do tego nadają się style „segmenty" '
+				. 'i „tylko bieżący". Styl „jedna kreska" potrzebuje kontenera PUSTEGO; '
+				. 'w kontenerze z własną treścią wskaźnik wraca do środka elementu i mówi '
+				. 'o tym w konsoli. Tak samo, gdy selektor w nic nie trafi.',
 				'evk-horizontal-scroll'
 			),
 		];
@@ -476,6 +478,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'group'    => 'evk_progress',
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Kolor nieaktywnych', 'evk-horizontal-scroll' ),
+			'description' => esc_html__( 'Maluje też WŁASNĄ treść kontenera wskaźnika, nie tylko kreski rysowane przez skrypt. Puste pole nie rusza niczego — kolor z buildera zostaje.', 'evk-horizontal-scroll' ),
 			'type'     => 'color',
 			'css'      => [
 				[
@@ -490,6 +493,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'group'    => 'evk_progress',
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Kolor bieżącego', 'evk-horizontal-scroll' ),
+			'description' => esc_html__( 'Maluje też WŁASNĄ treść kontenera wskaźnika, nie tylko kreski rysowane przez skrypt. Puste pole nie rusza niczego — kolor z buildera zostaje.', 'evk-horizontal-scroll' ),
 			'type'     => 'color',
 			'css'      => [
 				[

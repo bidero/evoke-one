@@ -2,6 +2,68 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.106.0] — 2026-08-21
+
+### Naprawione
+
+- **Horizontal Scroll: ucinana dolna krawędź kart.** `.evk-hscroll--active`
+  niosło `overflow: hidden`, czyli obcięcie na OBU osiach. Gdy element dostanie
+  w builderze wysokość (na żywej stronie `height: 100%` przy przypiętej sekcji),
+  a karty ułożone w rząd są wyższe — dolna krawędź znikała. Dopóki karty stoją
+  w pionie, rozpychają blok i nic nie widać; dlatego objaw pojawiał się dokładnie
+  „gdy zaczyna się przewijanie poziome".
+
+  Teraz `overflow-x: clip; overflow-y: visible`. **`clip`, nie `hidden`**, i to
+  jest sedno: przy `hidden` na jednej osi druga rozwiązuje się do `auto`, więc
+  „utnij w poziomie, pokaż w pionie" jest przy `hidden` niewyrażalne. Obcięcie
+  w poziomie zostaje — bez niego karty rozpychają stronę i przeglądarka dokłada
+  pasek. Deklaracja `overflow: hidden` stoi przed nowymi jako zapas dla starszych
+  przeglądarek.
+
+- **Wskaźnik w cudzym kontenerze: kreska i segmenty.** Kontener wolno wypełnić
+  własnymi elementami — wtedy skrypt niczego nie rysuje i tylko wpina
+  `is-active`. Przy „tylko bieżący" to wystarczało, bo chowaniem zajmuje się
+  arkusz. Przy pozostałych stylach nie:
+
+  **Segmenty** — `is-active` lądowało na Twoim elemencie, a reguły koloru
+  celowały wyłącznie w kreski rysowane przez skrypt. Stąd „nie mogę ustawić
+  koloru aktywnego wskaźnika, jest tylko tło". Kontrolki „Kolor bieżącego"
+  i „Kolor nieaktywnych" malują teraz także własną treść kontenera.
+
+  Przełącza **klasa zakładana przez JS, nie wartość zapasowa w `var()`** — ten
+  sam wzorzec co przy stałej długości kresek. `var(--evk-seg-off, inherit)` nie
+  byłoby neutralne: przy pustej kontrolce `inherit` i tak nadpisałby kolor
+  ustawiony w builderze. Puste pole naprawdę niczego nie rusza.
+
+  **Kreska** — skrypt dokładał pasek jako kolejne dziecko obok cudzej treści,
+  a klasa bazowa ściskała cały blok do czterech pikseli. Teraz mówi w konsoli,
+  że kreska potrzebuje PUSTEGO kontenera, i wraca do wskaźnika wewnętrznego —
+  tą samą drogą co przy nietrafionym selektorze.
+
+  **Klasa bazowa** `evk-hscroll__progress` niesie wysokość paska i jego tło.
+  Dostaje ją teraz tylko kontener, w którym naprawdę rysujemy pasek; rzędy
+  kresek i numerów stylują się własnymi klasami.
+
+### Zbadane, ale nienaprawione: drżenie na telefonie
+
+Zgłoszone „sekcja przyklejona pod hs drży na telefonie" **nie dało się odtworzyć
+w testach** — sześć przebiegów: dotyk włączony i wyłączony, snap w obu stanach,
+wygładzanie 0 i 1, oraz zmiana wysokości okna w trakcie przypięcia (pasek
+adresu). Rozrzut w każdym z nich: **0 px**.
+
+Znalazło się natomiast strukturalne wyjaśnienie. Na żywej stronie działa
+**Lenis z `syncTouch: false`**: na dotyku przewija natywnie przeglądarka, na
+wątku kompozytora. Przypięta sekcja to `position: fixed`, którą kompozytor
+trzyma idealnie — a kompensacja treści pod spodem to transformacja ustawiana
+przez GSAP na wątku głównym. Na telefonie wątek główny bywa o kilka klatek za
+kompozytorem i wtedy treść drga względem sekcji. Syntetyczne przewijanie
+w teście jest w całości na wątku głównym, więc tej rozbieżności nie odtwarza.
+
+Leku nie dokładam na wyczucie — możliwe drogi (włączenie `syncTouch` w Lenisie,
+`normalizeScroll` ScrollTriggera, wyłączenie podglądu na dotyku, przeniesienie
+kompensacji na animację sterowaną przewijaniem) różnią się kosztem dla całej
+strony i wymagają decyzji.
+
 ## [1.105.1] — 2026-08-21
 
 ### Naprawione

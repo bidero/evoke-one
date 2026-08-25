@@ -15,11 +15,27 @@
 
 /* ── Tryb aktywny: poziomy ─────────────────────────────────────────────── */
 /*
- * `overflow: hidden` obowiązuje w OBU trybach. Bez niego karty wystające poza
- * element rozpychają stronę w poziomie i przeglądarka dokłada pasek na dole.
+ * Obcięcie TYLKO w poziomie.
+ *
+ * W poziomie musi być: bez niego karty wystające poza element rozpychają stronę
+ * i przeglądarka dokłada pasek na dole.
+ *
+ * W pionie nie wolno. Gdy element dostanie w builderze wysokość (np. `100%`
+ * przy przypiętej sekcji), a karty ułożone w rząd są wyższe, `hidden` je UCINA.
+ * Zgłoszone z użycia: „ucina się dolna krawędź, gdy zaczyna się przewijanie
+ * poziome" — bo dopiero wtedy karty przestają stać w pionie i rozpychać blok.
+ *
+ * `clip`, nie `hidden`, i to jest sedno: przy `hidden` na jednej osi DRUGA
+ * rozwiązuje się do `auto`, więc „utnij w poziomie, pokaż w pionie" jest przy
+ * `hidden` niewyrażalne. `clip` nie ma tego ograniczenia.
+ *
+ * `overflow: hidden` zostaje przed nimi jako zapas: starsze przeglądarki
+ * zignorują nieznaną wartość `clip` i wrócą do dawnego zachowania.
  */
 .evk-hscroll--active {
 	overflow: hidden;
+	overflow-x: clip;
+	overflow-y: visible;
 }
 
 .evk-hscroll--active .evk-hscroll__track {
@@ -139,6 +155,31 @@
 
 .evk-hscroll__progress-seg.is-active {
 	background-color: var(--evk-seg-on, currentColor);
+}
+
+/*
+ * Kolory działają też na CUDZEJ treści.
+ *
+ * Kontener wskaźnika wolno wypełnić własnymi elementami — wtedy skrypt niczego
+ * nie rysuje i tylko wpina `is-active`. Reguły wyżej celują w węzły rysowane
+ * przez skrypt, więc na cudzym `<h3>` nie robiły nic. Zgłoszone z użycia:
+ * „nie mogę ustawić koloru aktywnego wskaźnika, jest tylko tło".
+ *
+ * Przełącza KLASA, nie wartość zapasowa w `var()` — ten sam wzorzec co przy
+ * stałej długości kresek niżej. `var(--evk-seg-off, inherit)` NIE byłoby
+ * neutralne: przy pustej kontrolce `inherit` i tak nadpisałby kolor ustawiony
+ * w builderze regułą o tej samej wadze. Klasa zakładana tylko wtedy, gdy
+ * zmienna ma wartość, sprawia, że puste pole naprawdę niczego nie rusza.
+ *
+ * Kresek rysowanych przez skrypt to nie dotyczy — te maluje `background-color`,
+ * nie `color`.
+ */
+.evk-hscroll__progress--barwi-off > * {
+	color: var(--evk-seg-off);
+}
+
+.evk-hscroll__progress--barwi-on > .is-active {
+	color: var(--evk-seg-on);
 }
 
 /*

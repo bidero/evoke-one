@@ -709,6 +709,101 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !wys.errors.length, wys.errors.join(' | ') || 'brak');
   await wys.close();
 
+  // ── Przycinanie kart ─────────────────────────────────────────────────────
+  /*
+   * Zgłoszone z użycia: „ucina się dolna krawędź, gdy zaczyna się przewijanie
+   * poziome". Zmierzone na żywej stronie: element ma w builderze `height: 100%`,
+   * a karty ułożone w rząd są wyższe. Dopóki stoją w pionie, rozpychają blok
+   * i nic nie widać — dopiero rząd wychodzi poza wysokość i `overflow: hidden`
+   * go ucina.
+   *
+   * Obcięcie w POZIOMIE musi zostać: bez niego karty rozpychają stronę
+   * i przeglądarka dokłada pasek. Stąd para sprawdzeń, nie jedno.
+   */
+  t.section('karty wyższe od elementu nie są ucinane');
+
+  const prz = await doSekcji('solo=1&nisko=1', 200);
+  const pc = await prz.evaluate(() => window.__przyciecie());
+  t.check('sytuacja jest realna — karta wystaje poza element',
+    pc.wystaje > 40, pc.wysKarty + ' px karty w elemencie ' + pc.wysElementu + ' px');
+  t.check('i widać ją poniżej krawędzi elementu', pc.widacPonizej, String(pc.widacPonizej));
+  /* Kontrola pozytywna: obcięcie w poziomie dalej działa. Bez niej „widać
+     kartę" spełniłoby też zdjęcie `overflow` z obu osi naraz. */
+  t.check('a strona nadal nie ma poziomego paska', !pc.poziomyPasek, String(pc.poziomyPasek));
+  t.check('bez błędów JS', !prz.errors.length, prz.errors.join(' | ') || 'brak');
+  await prz.close();
+
+  // ── Kolory na CUDZEJ treści ──────────────────────────────────────────────
+  /*
+   * Kontener wskaźnika wolno wypełnić własnymi elementami — wtedy skrypt tylko
+   * wpina `is-active`. Do 1.106.0 reguły koloru celowały wyłącznie w kreski
+   * rysowane przez skrypt, więc na cudzym `<h3>` nie robiły nic. Zgłoszone
+   * z użycia: „nie mogę ustawić koloru aktywnego wskaźnika, jest tylko tło".
+   */
+  t.section('kontrolki kolorów malują także własną treść kontenera');
+
+  const barw = await doSekcji('solo=1&prog=1&style=segments&target=%23zewn-wlasny'
+    + '&segon=%23ff0000&segoff=%2300ff00', 100);
+  const bw = await barw.evaluate(() => window.__w('#zewn-wlasny'));
+  t.check('bieżące cudze dziecko dostaje kolor bieżącego',
+    near(rgb(bw.tekstAkt), [255, 0, 0], 0), bw.tekstAkt);
+  t.check('a pozostałe kolor nieaktywnych',
+    near(rgb(bw.tekstNieakt), [0, 255, 0], 0), bw.tekstNieakt);
+
+  /* I ma WĘDROWAĆ — sam fakt pomalowania spełniłby też wskaźnik zamrożony. */
+  await przewin(barw, 800, 400);
+  const bw2 = await barw.evaluate(() => window.__w('#zewn-wlasny'));
+  t.check('kolor wędruje razem z bieżącą pozycją', bw2.aktywny === 3, 'indeks ' + bw2.aktywny);
+  await barw.close();
+
+  /* KONTROLA NEGATYWNA — i sedno całej poprawki: PUSTA kontrolka ma nie ruszać
+     niczego. Dlatego przełącza klasa zakładana przez JS, a nie wartość zapasowa
+     w `var()`: `inherit` nadpisałby kolor ustawiony w builderze. */
+  const bezBarw = await doSekcji('solo=1&prog=1&style=segments&target=%23zewn-wlasny', 100);
+  const bb = await bezBarw.evaluate(() => window.__w('#zewn-wlasny'));
+  t.check('bez kontrolek kolor z arkusza strony zostaje nietknięty',
+    near(rgb(bb.tekstAkt), [18, 52, 86], 0), bb.tekstAkt);
+  await bezBarw.close();
+
+  // ── Kreska w kontenerze z własną treścią ─────────────────────────────────
+  /* Sprzeczność: kreska potrzebuje pustego pudełka. Do 1.106.0 skrypt dokładał
+     pasek jako kolejne dziecko obok cudzych elementów, a klasa bazowa ściskała
+     cały blok do czterech pikseli. */
+  t.section('kreska w kontenerze z własną treścią mówi o tym i wraca do środka');
+
+  const krs = await doSekcji('solo=1&prog=1&style=bar&target=%23zewn-wlasny', 300);
+  t.check('ostrzeżenie mówi, że kreska potrzebuje pustego kontenera',
+    krs.warnings.some((w) => /PUSTEGO kontenera/.test(w)),
+    krs.warnings.find((w) => /kreska/.test(w)) || 'brak ostrzeżenia');
+  const kw = await krs.evaluate(() => window.__w('#zewn-wlasny'));
+  t.check('w cudzym kontenerze nie przybyło dziecka', kw.dzieci === 4, kw.dzieci + ' dzieci');
+  /* Kontrola pozytywna: wskaźnik ma gdzieś być — wraca do środka elementu
+     i tam się skaluje. */
+  const kwWew = await krs.evaluate(() => window.__w());
+  t.check('a pasek jedzie wewnątrz elementu',
+    kwWew && /matrix\(0\.[1-9]/.test(kwWew.pasek), kwWew ? String(kwWew.pasek) : 'brak');
+  t.check('bez błędów JS', !krs.errors.length, krs.errors.join(' | ') || 'brak');
+  await krs.close();
+
+  // ── Klasa bazowa nie ściska cudzego bloku ────────────────────────────────
+  /* `evk-hscroll__progress` niesie wysokość paska i jego tło. Sensowne dla
+     paska, zabójcze dla cudzego bloku z własnym układem. */
+  t.section('cudzy kontener nie dostaje klasy paska');
+
+  const klasy = await doSekcji('solo=1&prog=1&style=segments&target=%23zewn-pusty', 100);
+  const kl = await klasy.evaluate(() => window.__w('#zewn-pusty'));
+  t.check('przy kreskach klasy paska nie ma',
+    !/(^|\s)evk-hscroll__progress(\s|$)/.test(kl.klasy), kl.klasy);
+  await klasy.close();
+
+  /* KONTROLA POZYTYWNA: przy stylu „kreska" i PUSTYM kontenerze klasa paska
+     jest potrzebna i ma być. */
+  const klasyBar = await doSekcji('solo=1&prog=1&style=bar&target=%23zewn-pusty', 300);
+  const klb = await klasyBar.evaluate(() => window.__w('#zewn-pusty'));
+  t.check('a przy kresce w pustym kontenerze — jest',
+    /(^|\s)evk-hscroll__progress(\s|$)/.test(klb.klasy), klb.klasy);
+  await klasyBar.close();
+
   // ── Próg wyłączenia ──────────────────────────────────────────────────────
   /* Poniżej progu element ma się w ogóle nie uruchamiać: panele wracają do
      pionu i cała treść zostaje dostępna zwykłym przewijaniem strony. */

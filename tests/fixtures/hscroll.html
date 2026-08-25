@@ -66,7 +66,13 @@
   .znacznik { height: 30px; background: #bbb; }
   /* Wysokość własna, żeby wypadnięcie z przepływu było widać gołym pomiarem. */
   #zewn-pusty, #zewn-wlasny, #zewn-krotki { min-height: 40px; }
-  .poz { padding: 4px 8px; background: #999; }
+  /* Kolor WŁASNY, z arkusza strony — pusta kontrolka ma go nie ruszać. */
+  .poz { padding: 4px 8px; background: #999; color: #123456; }
+
+  /* Element NIŻSZY niż karty — tak zachowuje się `height: 100%` ustawione
+     w builderze na przypiętej sekcji. Do 1.106.0 `overflow: hidden` ucinał
+     wtedy dolną krawędź kart. */
+  body.nisko #hs-1 { height: 200px; }
 </style>
 
 <link rel="stylesheet" href="../../includes/bricks-elements/evoke-horizontal-scroll/assets/hscroll.css">
@@ -163,6 +169,7 @@
     if (s2) s2.remove();
   }
   if (q.get('tall') === '1') document.body.classList.add('wysoka');
+  if (q.get('nisko') === '1') document.body.classList.add('nisko');
   document.getElementById('hs-1').setAttribute('data-evk-hscroll', JSON.stringify(cfg));
 
   /* DRUGA taśma bez wskaźnika. Z tą samą konfiguracją obie sięgnęłyby po ten
@@ -366,6 +373,39 @@ window.__ktoNaWierzchu = function (dy) {
     kto: el.closest('#sekcja-1') ? 'sekcja'
        : (el.closest('#pod-1')   ? 'tresc'
        : (el.id || el.className || el.tagName)),
+  };
+};
+
+/**
+ * Przycinanie kart przez element.
+ *
+ * `widacPonizej` mierzone TRAFIENIEM W PUNKT, nie wyliczone z prostokąta:
+ * `overflow` nie zmienia prostokąta elementu, tylko go zasłania. Sam
+ * `getBoundingClientRect()` pokazywałby kartę jako wystającą także wtedy, gdy
+ * jest ucięta.
+ */
+window.__przyciecie = function () {
+  var root = document.getElementById('hs-1');
+  var k    = document.getElementById('k1');
+  var rr   = root.getBoundingClientRect();
+  var rk   = k.getBoundingClientRect();
+  var y    = Math.round(rr.bottom + 10);
+  /* Poziom sondy PRZYCIĘTY DO KADRU. Taśma odjeżdża w lewo, więc lewa krawędź
+     pierwszej karty bywa ujemna — `elementFromPoint` zwracał wtedy pustkę
+     i „karta niewidoczna" wychodziło z pomiaru, nie z kodu. */
+  var x    = Math.round(Math.min(Math.max(rk.left + 20, 5), window.innerWidth - 5));
+  var traf = document.elementFromPoint(x, y);
+
+  return {
+    wysElementu: Math.round(rr.height),
+    wysKarty:    Math.round(rk.height),
+    wystaje:     Math.round(rk.bottom - rr.bottom),
+    // Dowolna karta, nie akurat pierwsza: po przycięciu sondy do kadru pod
+    // wskazanym punktem może stać sąsiednia.
+    widacPonizej: !!(traf && traf.closest('.karta')),
+    sondaX: x,
+    // Po to obcięcie w poziomie w ogóle jest — karty nie mają rozpychać strony.
+    poziomyPasek: document.documentElement.scrollWidth > document.documentElement.clientWidth,
   };
 };
 

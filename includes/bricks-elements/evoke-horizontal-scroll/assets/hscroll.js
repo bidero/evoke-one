@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.5.1
+ * EVK Horizontal Scroll v1.6.0
  */
 (function () {
 	'use strict';
@@ -104,6 +104,26 @@
 
 			var zewnetrzny = document.querySelector(C.progressTarget);
 			if (zewnetrzny) {
+				/*
+				 * Kreska w kontenerze z WŁASNĄ treścią to sprzeczność.
+				 *
+				 * Do 1.106.0 skrypt dokładał wtedy pasek jako kolejne dziecko
+				 * obok cudzych elementów, a klasa bazowa ściskała cały blok do
+				 * czterech pikseli. Zgłoszone z użycia: przy stylu „kreska"
+				 * wskaźnik w zewnętrznym divie po prostu nie działał.
+				 *
+				 * Sprawdzenie musi paść TU, przed usunięciem zapasowego węzła —
+				 * inaczej nie byłoby już do czego wrócić.
+				 */
+				if (C.progressStyle === 'bar' && zewnetrzny !== wewnetrzny
+					&& zewnetrzny.children.length) {
+					console.warn('[EVK Horizontal Scroll] Styl „jedna kreska" potrzebuje PUSTEGO '
+						+ 'kontenera, a „' + C.progressTarget + '" ma własną treść — wskaźnik '
+						+ 'zostaje wewnątrz elementu. Do własnej treści nadają się style '
+						+ '„segmenty" i „tylko bieżący".', zewnetrzny);
+					return wewnetrzny;
+				}
+
 				/* Wewnętrzny wskaźnik drukuje PHP ZAWSZE — nie wie przecież, czy
 				   selektor trafi, więc zostawia go jako zapas. Gdy trafił, zapas
 				   staje się śmieciem, i to widocznym: `--top` to `position:
@@ -148,8 +168,13 @@
 		var stylKorzenia = progress ? getComputedStyle(root) : null;
 
 		if (progress && !root.contains(progress)) {
-			// Bez klasy bazowej nie sięgną go żadne reguły arkusza.
-			progress.classList.add('evk-hscroll__progress');
+			/* Klasa bazowa niesie wysokość paska i jego tło — sensowne dla paska,
+			   zabójcze dla cudzego bloku, który ma własny układ. Dostaje ją więc
+			   tylko kontener, w którym naprawdę rysujemy pasek; rzędy kresek
+			   i numerów stylują się własnymi klasami, niezależnymi od bazowej. */
+			if (C.progressStyle === 'bar') {
+				progress.classList.add('evk-hscroll__progress');
+			}
 			ZMIENNE.forEach(function (v) {
 				var val = stylKorzenia.getPropertyValue(v);
 				if (val && val.trim()) { progress.style.setProperty(v, val.trim()); }
@@ -232,6 +257,18 @@
 				if (dlugosc && dlugosc.trim()) {
 					progress.classList.add('evk-hscroll__progress--stala');
 				}
+
+				/* Kolory bieżącej i nieaktywnych pozycji — tym samym wzorcem.
+				   Klasa tylko wtedy, gdy kontrolka ma wartość, bo inaczej reguła
+				   nadpisałaby kolor ustawiony w builderze. Dotyczy zwłaszcza
+				   kontenera z WŁASNĄ treścią: tam nie ma naszych kresek, więc
+				   barwić trzeba cudze dzieci. */
+				['off', 'on'].forEach(function (stan) {
+					var v = stylKorzenia.getPropertyValue('--evk-seg-' + stan);
+					if (v && v.trim()) {
+						progress.classList.add('evk-hscroll__progress--barwi-' + stan);
+					}
+				});
 			}
 		}
 
