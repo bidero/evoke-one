@@ -2,6 +2,67 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.108.2] — 2026-08-25
+
+### Naprawione
+
+- **Animacje pod przypiętą sekcją grały w środku przypięcia.** Poprawka
+  z 1.108.1 była w połowie chybiona: usunęła zniekształcenie pomiaru, ale
+  wybrała złe kryterium. Kazała liczyć punkt startu z pozycji w **układzie**,
+  a przy włączonym podglądzie ta pozycja nie ma nic wspólnego z tym, gdzie
+  element jest na ekranie. Zamieniłem „za wcześnie" na „za późno".
+
+  Zmierzone na fixture odwzorowującym stronę:
+
+  | | przewinięcie |
+  |---|---|
+  | cel **pokazuje się** w kadrze | **720** |
+  | animacja **ruszała** | **1600** |
+  | rozjazd | **880 px** ≈ droga taśmy |
+
+  Sedno jest głębsze niż jedna liczba: **przy włączonym podglądzie „wjechał
+  w kadr" przestaje cokolwiek znaczyć**, bo treść wystaje paskiem na dole przez
+  cały czas przypięcia. Trzeba było wybrać moment, a nie poprawić rachunek.
+
+  Wybrany moment: animacje **czekają do końca przypięcia** i grają, gdy treść
+  naprawdę rusza. Liczby z tego samego pomiaru — przypięcie zajmuje przewijanie
+  **[900, 1772]**, wyzwalacz celu startował na **1572**, czyli w środku; ma
+  startować na **1772**. To nie jest stałe przesunięcie: różnica wynosi tu
+  200 px, a nie 872. Reguła brzmi **`max(naturalny, koniec przypięcia)`** —
+  wyzwalacze, które i tak wypadają za przypięciem, zostają nietknięte.
+
+  Spięcie dwóch modułów jest jawne i jednokierunkowe: **Horizontal Scroll
+  publikuje** koniec przypięcia na przesuwanym rodzeństwie jako
+  `data-evk-pin-end` (przeliczane przy każdym odświeżeniu, z `onRefresh` pinu —
+  a ten ma priorytet 1, więc leci przed wyzwalaczami pod spodem), **Animator
+  tylko czyta**. Bez tego Animator musiałby zgadywać, czy pod nim coś przypina.
+
+  Dwie rzeczy, które wyszły dopiero z pomiaru:
+
+  1. **Nośnik trzeba szukać leniwie.** `el.closest('[data-evk-pin-end]')`
+     wykonane raz, przy tworzeniu wyzwalacza, zawsze zwracało `null` — Animator
+     wczytuje się przed Horizontal Scrollem, więc atrybutu jeszcze nie ma.
+     Wyszukiwanie siedzi teraz w funkcji, którą GSAP woła przy każdym
+     odświeżeniu.
+  2. **Przy braku ograniczenia oddajemy pierwotny napis**, a nie liczbę.
+     Dzięki temu ScrollTrigger dalej sam parsuje swój zapis i nie ma drugiego
+     miejsca, które musi znać jego składnię.
+
+  `naturalny` liczony jest z formy `"<krawędź> <procent>"` — tej, której używa
+  biblioteka presetów. Przy zapisie, którego nie rozpoznaję, **nie ruszam
+  niczego**: zostaje dzisiejsze zachowanie. Lepiej nie tknąć, niż przesunąć
+  w złą stronę.
+
+### Weryfikacja
+
+Doszło 5 sprawdzeń (`anim-uklad`: 18 → 23), łącznie **1655** zielonych.
+Punkt startu równy końcowi przypięcia; kontrola negatywna — **bez** podglądu
+zostaje naturalny (1572); element dalej w dole strony nietknięty (3272);
+w trakcie przypięcia cel jest widoczny, ale wciąż w stanie początkowym;
+po puszczeniu sekcji — gra; nierozpoznany zapis `start` przechodzi bez zmiany
+(1672). Mutacje: wyłączone publikowanie końca, wyłączony odczyt w Animatorze
+oraz `max` zamienione na sam koniec pinu — każda zapala właściwe sprawdzenie.
+
 ## [1.108.1] — 2026-08-21
 
 ### Naprawione

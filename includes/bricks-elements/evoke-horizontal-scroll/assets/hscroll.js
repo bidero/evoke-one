@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.7.1
+ * EVK Horizontal Scroll v1.7.2
  */
 (function () {
 	'use strict';
@@ -328,6 +328,29 @@
 			   Uchwyt trzymany tutaj, bo zdejmuje go sprzątanie na dole. */
 			var zerujPodglad = null;
 
+			/* Cele podglądu, widoczne dla `onRefresh` pinu — patrz `opublikujKoniec()`. */
+			var podgladCele = null;
+
+			/**
+			 * Koniec przypięcia wypisany na przesuwanej treści.
+			 *
+			 * Animator czyta stąd, kiedy najwcześniej wolno mu zagrać animacją
+			 * elementu pod spodem. Bez tej liczby musiałby zgadywać, czy nad nim
+			 * cokolwiek przypina — a „wjechał w kadr" przy włączonym podglądzie
+			 * nic nie znaczy: treść wystaje paskiem przez całe przewijanie kart.
+			 *
+			 * Wypisywane z `onRefresh` PINU, nie z globalnego zdarzenia `refresh`.
+			 * Globalne leci dopiero po odświeżeniu wszystkich wyzwalaczy, czyli
+			 * o jeden przebieg za późno; pin ma priorytet 1, więc odświeża się
+			 * przed wyzwalaczami pod spodem i liczba jest już aktualna, gdy
+			 * tamte liczą swoje punkty startu.
+			 */
+			function opublikujKoniec(self) {
+				if (!podgladCele) { return; }
+				var koniec = String(Math.round(self.end));
+				podgladCele.forEach(function (n) { n.setAttribute('data-evk-pin-end', koniec); });
+			}
+
 			var snapCfg = false;
 			if (C.snap) {
 				var amt = getAmount();
@@ -341,7 +364,7 @@
 				};
 			}
 
-			gsap.to(track, {
+			var glownaAnimacja = gsap.to(track, {
 				x    : function () { return -getAmount(); },
 				ease : 'none',
 				scrollTrigger: {
@@ -371,6 +394,7 @@
 					 * między sobą GSAP sortuje po pozycji w dokumencie.
 					 */
 					refreshPriority    : 1,
+					onRefresh          : opublikujKoniec,
 					anticipatePin      : 1,
 					scrub              : C.scrub,
 					snap               : snapCfg,
@@ -466,6 +490,12 @@
 				zerujPodglad = function () { gsap.set(pod, { y: 0 }); };
 				ScrollTrigger.addEventListener('refreshInit', zerujPodglad);
 
+				/* Pin powstał wcześniej, więc pierwszego odświeżenia już nie
+				   złapie — stąd jedno wypisanie z ręki. Kolejne idą przez
+				   `onRefresh` pinu. */
+				podgladCele = pod;
+				if (glownyWyzwalacz) { opublikujKoniec(glownyWyzwalacz); }
+
 				gsap.fromTo(pod,
 					{ y: function () { return -getAmount(); } },
 					{
@@ -515,6 +545,8 @@
 					});
 			}
 
+			var glownyWyzwalacz = glownaAnimacja.scrollTrigger || null;
+
 			/* Spacer istnieje już TERAZ: ScrollTrigger zakłada pin w swoim
 			   konstruktorze, także wtedy, gdy blok powstaje w trakcie
 			   odświeżania. Sprawdzone mutacją — druga próba po `refresh`
@@ -535,6 +567,10 @@
 				if (zerujPodglad) {
 					ScrollTrigger.removeEventListener('refreshInit', zerujPodglad);
 					zerujPodglad = null;
+				}
+				if (podgladCele) {
+					podgladCele.forEach(function (n) { n.removeAttribute('data-evk-pin-end'); });
+					podgladCele = null;
 				}
 				root.classList.remove('evk-hscroll--active', 'evk-hscroll--auto');
 				panels.forEach(function (p) { p.style.width = ''; });

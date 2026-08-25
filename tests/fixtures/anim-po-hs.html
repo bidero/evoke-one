@@ -19,7 +19,7 @@
   .karta { width: 500px; height: 260px; margin-right: 24px;
            background: rgba(255, 255, 255, .12); padding: 16px; }
   .po  { height: 300px; background: #ddd; }
-  #cel { height: 200px; background: #345; color: #fff; }
+  #cel, #daleko { height: 200px; background: #345; color: #fff; }
   .ogon { height: 1500px; background: #eee; }
 </style>
 
@@ -40,6 +40,11 @@
 
 <div class="po">tuż pod sekcją</div>
 <div id="cel">CEL — ANIMACJA W KADRZE</div>
+<div class="ogon"></div>
+<!-- Element, którego punkt startu i tak wypada ZA przypięciem — dociąganie ma
+     go nie ruszać. Bez niego „dociągamy do końca pinu" byłoby prawdą także
+     wtedy, gdyby dociągało wszystko jak leci. -->
+<div id="daleko">DALEKO — MA ZOSTAĆ NIETKNIĘTY</div>
 <div class="ogon"></div>
 
 <script src="../../assets/vendor/gsap/gsap.min.js"></script>
@@ -64,6 +69,14 @@ window.evkAnimator = {
   reducedMotion: false, needsFonts: false,
 };
 document.getElementById('cel').setAttribute('data-evk-anim', 'wkadrze');
+document.getElementById('daleko').setAttribute('data-evk-anim', 'wkadrze');
+
+/* `start=` podmienia zapis punktu startu — do sprawdzenia, że zapisu, którego
+   nie rozpoznajemy, dociąganie NIE RUSZA. */
+(function () {
+  var wlasny = new URLSearchParams(location.search).get('start');
+  if (wlasny) window.evkAnimator.library.wkadrze.start = wlasny;
+})();
 </script>
 
 <!-- ANIMATOR PRZED HSCROLLEM — patrz komentarz na górze. -->
@@ -123,6 +136,19 @@ window.__cel = function () {
     // Czy podgląd naprawdę przesuwa treść. Bez tego „punkt startu się zgadza"
     // byłoby prawdą także wtedy, gdyby podgląd w ogóle nie zadziałał.
     przesuniecie: getComputedStyle(document.querySelector('.po')).transform,
+
+    // Przypięcie i element daleko w dole — do sprawdzenia, co dociągnięte,
+    // a co nietknięte.
+    pinKoniec: (function () {
+      var t = ScrollTrigger.getAll().filter(function (x) { return x.pin; })[0];
+      return t ? Math.round(t.end) : null;
+    })(),
+    startDaleko: (function () {
+      var d = document.getElementById('daleko');
+      var t = ScrollTrigger.getAll().filter(function (x) { return x.trigger === d; })[0];
+      return t ? Math.round(t.start) : null;
+    })(),
+    pozycjaDaleko: pozycjaUkladu(document.getElementById('daleko')),
   };
 };
 
