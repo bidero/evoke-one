@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.7.0
+ * EVK Horizontal Scroll v1.7.1
  */
 (function () {
 	'use strict';
@@ -324,6 +324,10 @@
 			var onRefreshInit = function () { setWidths(); };
 			ScrollTrigger.addEventListener('refreshInit', onRefreshInit);
 
+			/* Zerowanie podglądu na czas POMIARU — patrz `zbudujPodglad()`.
+			   Uchwyt trzymany tutaj, bo zdejmuje go sprzątanie na dole. */
+			var zerujPodglad = null;
+
 			var snapCfg = false;
 			if (C.snap) {
 				var amt = getAmount();
@@ -440,6 +444,28 @@
 				 * Nachodzenie brało się z opóźnienia kompensacji, nie z warstw —
 				 * przy `scrub: true` sekcja i treść po prostu się stykają.
 				 */
+				/*
+				 * PRZED POMIAREM transformacja schodzi, po pomiarze wraca.
+				 *
+				 * ScrollTrigger mierzy położenia przez `getBoundingClientRect()`,
+				 * a ten WLICZA transformację. Podgląd przesuwa rodzeństwo o `−D`
+				 * i przy górze strony stoi właśnie na tej wartości — czyli dokładnie
+				 * wtedy, gdy ScrollTrigger mierzy. Każdy wyzwalacz niżej dostawał
+				 * przez to punkt startu mniejszy o całą drogę taśmy i odpalał
+				 * o ekran za wcześnie. Zmierzone: 700 zamiast 1612.
+				 *
+				 * `refreshInit` leci PRZED mierzeniem, więc wyzerowane tutaj `y`
+				 * daje prawdziwe pozycje z układu. Przywracać nie trzeba:
+				 * przewijana animacja renderuje się na nowo przy pierwszym
+				 * odczycie po odświeżeniu.
+				 *
+				 * To samo dotyczyłoby kompensacji przeniesionej kiedyś na
+				 * animację sterowaną przewijaniem — transformacja z CSS-a wchodzi
+				 * do prostokąta tak samo.
+				 */
+				zerujPodglad = function () { gsap.set(pod, { y: 0 }); };
+				ScrollTrigger.addEventListener('refreshInit', zerujPodglad);
+
 				gsap.fromTo(pod,
 					{ y: function () { return -getAmount(); } },
 					{
@@ -464,6 +490,21 @@
 							 * i opuszcza — faluje, nachodzi na pole z hs".
 							 */
 							scrub              : true,
+							/*
+							 * NA KONIEC kolejki odświeżania — samo zerowanie na
+							 * `refreshInit` nie wystarcza.
+							 *
+							 * ScrollTrigger odświeża wyzwalacze po kolei i każdy przy
+							 * okazji renderuje swoją animację. Ten, mając domyślny
+							 * priorytet, zdążał nałożyć transformację z powrotem,
+							 * ZANIM zmierzyły się wyzwalacze pod spodem — więc dalej
+							 * widziały pozycje przesunięte o drogę taśmy.
+							 *
+							 * Ujemny priorytet stawia go za wszystkimi: pin mierzy się
+							 * pierwszy (priorytet 1), potem treść, a podgląd nakłada
+							 * przesunięcie na końcu, gdy nie ma już czego zniekształcić.
+							 */
+							refreshPriority    : -1,
 							invalidateOnRefresh: true,
 							/* Za zakresem transformacja ZNIKA. Zostawiona — nawet
 							   zerowa — dalej tworzyłaby blok zawierający na resztę
@@ -491,6 +532,10 @@
 			   sprząta się z ręki, bo ich GSAP nie zakładał. */
 			return function () {
 				ScrollTrigger.removeEventListener('refreshInit', onRefreshInit);
+				if (zerujPodglad) {
+					ScrollTrigger.removeEventListener('refreshInit', zerujPodglad);
+					zerujPodglad = null;
+				}
 				root.classList.remove('evk-hscroll--active', 'evk-hscroll--auto');
 				panels.forEach(function (p) { p.style.width = ''; });
 				if (bar) { bar.style.transform = ''; }

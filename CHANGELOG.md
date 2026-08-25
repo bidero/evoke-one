@@ -2,6 +2,52 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.108.1] — 2026-08-21
+
+### Naprawione
+
+- **Podgląd treści pod sekcją zniekształcał pomiary ScrollTriggera.** Po
+  1.108.0 hover po filtrowaniu zaczął działać, ale animacje po poziomym
+  przewijaniu dalej grały za wcześnie. To był **drugi, niezależny błąd**.
+
+  **ScrollTrigger mierzy położenia przez `getBoundingClientRect()`, a ten
+  wlicza transformację.** Podgląd z 1.105.0 przesuwa rodzeństwo za zapasem
+  przypięcia o całą drogę taśmy i przy górze strony stoi właśnie na tej
+  wartości — czyli dokładnie wtedy, gdy ScrollTrigger mierzy. Każdy wyzwalacz
+  niżej dostawał przez to punkt startu mniejszy o tę drogę.
+
+  Zmierzone: cel stoi w układzie na 2372 px, punkt startu powinien wypaść na
+  1572, a wypadał na **700**.
+
+  Poprawka ma dwie części i **obie są konieczne** — każda z osobna nie
+  wystarcza:
+
+  1. **Zerowanie przed pomiarem.** `refreshInit` leci przed mierzeniem, więc
+     wyzerowane tam przesunięcie daje prawdziwe pozycje z układu. Przywracać
+     nie trzeba: przewijana animacja renderuje się na nowo przy pierwszym
+     odczycie po odświeżeniu.
+  2. **Podgląd odświeża się OSTATNI** (`refreshPriority: -1`). Samo zerowanie
+     nie starczało: ScrollTrigger odświeża wyzwalacze po kolei i każdy przy
+     okazji renderuje swoją animację, więc podgląd zdążał nałożyć przesunięcie
+     z powrotem, zanim zmierzyły się wyzwalacze pod spodem. Teraz kolejność
+     jest pełna: pin pierwszy (priorytet 1), treść w środku, podgląd na końcu.
+
+  To jest też warunek konieczny dla odłożonej wersji dotykowej: przeniesienie
+  kompensacji na animację sterowaną przewijaniem **nie** rozwiązałoby tego
+  problemu, bo transformacja z CSS-a wchodzi do prostokąta tak samo.
+
+### Dlaczego 1.108.0 tego nie złapało
+
+Fixture miał wtedy podgląd **wyłączony** — czyli sprawdzenie biegło w jedynej
+konfiguracji, w której tego błędu nie ma. Ta sama klasa przeoczenia co przy
+wygładzaniu w 1.105.1. Doszedł parametr włączający podgląd i komplet sprawdzeń
+w obu wariantach.
+
+Przy okazji wyszło, że i sam pomiar był skażony: pozycja „prawdziwa" była
+czytana z prostokąta, czyli tak samo przesunięta jak punkt startu — porównanie
+dwóch zniekształconych liczb wychodziło na zielono. Liczona jest teraz
+z łańcucha `offsetTop`, który transformacji nie widzi.
+
 ## [1.108.0] — 2026-08-21
 
 ### Naprawione
