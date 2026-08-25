@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.7.2
+ * EVK Horizontal Scroll v1.8.0
  */
 (function () {
 	'use strict';
@@ -25,6 +25,56 @@
 		document.head.appendChild(s);
 	}
 
+	/* Odświeżenie przez WSPÓLNY helper, nie wprost: `ScrollTrigger.refresh()`
+	   ZAPISUJE pozycję przewijania, a na iOS zapis w trakcie bezwładności ją
+	   kasuje — includes/89-gsap.php. `true` = pilne, czyli z terminem
+	   ostatecznym. Ścieżka zapasowa dla stron, na których helper nie dojechał. */
+	function odswiez(pilne) {
+		if (window.evkOdswiez) { window.evkOdswiez(pilne); }
+		else if (window.ScrollTrigger) { ScrollTrigger.refresh(); }
+	}
+
+	/* ── Taśma zmienia długość jeszcze długo po pierwszym pomiarze ───────────
+	 *
+	 * `getAmount()` to `track.scrollWidth − root.clientWidth`, a w trybie
+	 * „z buildera" (`widthMode: auto`) `scrollWidth` bierze się WPROST z treści
+	 * paneli. Lazy-loader podstawia tam na start zastępcze `data:image/svg+xml`
+	 * — zmierzone na evoke.pl: 50 z 54 obrazów taśmy bez `width`/`height`,
+	 * pierwszy z `viewBox='0 0 0 0'`.
+	 *
+	 * Pierwszy pomiar leci więc na atrapach: taśma wychodzi za krótka, pin za
+	 * krótki, `pin-spacer` za niski — i CAŁA treść pod sekcją stoi w zmierzonym
+	 * dokumencie wyżej, niż stanie naprawdę. Punkty startu wypadają wcześniej
+	 * i animacje odpalają się przed czasem.
+	 *
+	 * `invalidateOnRefresh: true` jest już na animacji taśmy, więc samo
+	 * przeliczenie wystarcza — trzeba je tylko zamówić w odpowiedniej chwili.
+	 *
+	 * Patrzymy na PANELE, nie na obrazy.
+	 *
+	 * Nasłuch `load` na obrazach też tu był — i wyleciał, bo żadna mutacja nie
+	 * umiała go zaświecić na czerwono. Obraz, który dojeżdża, rozpycha panel,
+	 * więc `ResizeObserver` widzi to samo zdarzenie; a obraz, który panelem nie
+	 * rusza, nie zmienia też `scrollWidth`, czyli nie ma po co przeliczać.
+	 * Obserwator łapie przy okazji to, po czym żadne `load` nie leci — przede
+	 * wszystkim webfonty w panelu.
+	 */
+	function pilnujDlugosciTasmy(panels) {
+		if (typeof ResizeObserver === 'undefined') { return; }
+
+		var czeka = null;
+		/* Pierwsze wywołanie leci od razu przy `observe()` i mówi tylko tyle, że
+		   panele istnieją — przeliczać nie ma po co. */
+		var pierwsze = true;
+
+		var ro = new ResizeObserver(function () {
+			if (pierwsze) { pierwsze = false; return; }
+			clearTimeout(czeka);
+			czeka = setTimeout(function () { czeka = null; odswiez(true); }, 100);
+		});
+		panels.forEach(function (p) { ro.observe(p); });
+	}
+
 	function initHScroll(root) {
 		if (root.dataset.evkInit) { return; }
 		root.dataset.evkInit = '1';
@@ -39,6 +89,12 @@
 
 		var panels = Array.prototype.slice.call(track.children);
 		if (panels.length < 2) { return; }
+
+		/* POZA `mm.add()` i bez sprzątania: pilnowanie długości jest pomiarem,
+		   nie animacją. Ma działać także wtedy, gdy przy tej szerokości ekranu
+		   pinu nie ma — obrazy dojadą tak samo, a przeliczenie jest wspólne dla
+		   całej strony. */
+		pilnujDlugosciTasmy(panels);
 
 		var C = {
 			widthMode    : cfg.widthMode || 'fill',
@@ -583,12 +639,17 @@
 	function run() {
 		gsap.registerPlugin(ScrollTrigger);
 		document.querySelectorAll('.evk-hscroll[data-evk-hscroll]').forEach(initHScroll);
-		/* Przez wspólny helper: `refresh()` zapisuje pozycję przewijania, a na iOS
-		   zapis w trakcie bezwładności ją kasuje — includes/89-gsap.php. */
-		window.addEventListener('load', function () {
-			if (window.evkOdswiez) window.evkOdswiez();
-			else ScrollTrigger.refresh();
-		});
+
+		/* Gdy `load` zdążył polecieć przed wykonaniem skryptu — a z plikami
+		   z cache zdąży — nasłuch nie łapie się już do niczego i przeliczenia
+		   po starcie nie ma NIGDY. Stąd sprawdzenie stanu zamiast samego
+		   nasłuchu. Pilne, bo do tego przeliczenia geometria jest zwyczajnie
+		   zła: patrz `pilnujDlugosciTasmy()`. */
+		if (document.readyState === 'complete') {
+			odswiez(true);
+		} else {
+			window.addEventListener('load', function () { odswiez(true); });
+		}
 	}
 
 	function boot() {

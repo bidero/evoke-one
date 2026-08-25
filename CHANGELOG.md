@@ -2,6 +2,86 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.109.0] — 2026-08-25
+
+### Naprawione
+
+- **Taśma Horizontal Scrolla mierzyła się na obrazach, których jeszcze nie
+  było.** To jest przyczyna zgłoszenia „animacje po poziomym przewijaniu
+  odpalają się za wcześnie" — tego samego, które trzy razy z rzędu naprawiałem
+  nie tam, gdzie trzeba. Tym razem zamiast zgadywać na atrapie ściągnąłem żywą
+  stronę i przeczytałem jej prawdziwą konfigurację.
+
+  | zmierzone na `evoke.pl` | |
+  |---|---|
+  | `widthMode` | **`auto`** — panele mają szerokość własnej treści |
+  | obrazów w taśmie | **54** |
+  | bez `width`/`height` | **50** |
+  | ich `src` przy wczytaniu | zastępczy `data:image/svg+xml`, pierwszy z `viewBox='0 0 0 0'` |
+
+  Długość przewijania to `track.scrollWidth − root.clientWidth`, a przy
+  `widthMode: auto` `scrollWidth` bierze się WPROST z treści paneli. Pierwszy
+  pomiar szedł więc po atrapach lazy-loadera: taśma wychodziła krótsza, pin
+  krótszy, `pin-spacer` niższy — i **cała treść pod sekcją stała w zmierzonym
+  dokumencie wyżej, niż stanie naprawdę**. Punkty startu wypadały wcześniej,
+  więc animacje grały przed czasem.
+
+  Zmierzone na nowej atrapie: droga taśmy **168 → 2168**, punkt startu celu
+  **808 → 2808**.
+
+  Panele pilnuje teraz `ResizeObserver` i po każdej zmianie ich rozmiaru zamawia
+  przeliczenie. `invalidateOnRefresh: true` było już na animacji taśmy, więc samo
+  przeliczenie wystarcza.
+
+  Nasłuch `load` na obrazach też tu był i **wyleciał**, bo żadna mutacja nie
+  umiała go zaświecić na czerwono: obraz, który dojeżdża, rozpycha panel, więc
+  obserwator widzi to samo zdarzenie — a obraz, który panelem nie rusza, nie
+  zmienia też `scrollWidth`. Obserwator łapie przy okazji to, po czym żadne
+  `load` nie leci: przede wszystkim webfonty w panelu.
+
+- **Odłożone przeliczenie potrafiło nie wejść ani razu.** Druga połowa tego
+  samego zgłoszenia, opisana z użycia tak: *„nagle elementy się odświeżyły
+  i zaczęły działać w czasie przewijania. Potem po refresh strony znowu to
+  samo"*.
+
+  `evkOdswiez` (`includes/89-gsap.php`) odkłada odświeżenie, aż przewijanie
+  ustanie — bo `ScrollTrigger.refresh()` ZAPISUJE pozycję przewijania, a na iOS
+  zapis w trakcie bezwładności ją kasuje. Tyle że licznik ciszy zeruje **każde**
+  zdarzenie scrolla: kto wchodzi na stronę i od razu przewija, ten nie dostawał
+  przeliczenia w ogóle. Wchodziło dopiero, gdy na moment przystanął — i wtedy
+  wszystko wskakiwało na miejsce.
+
+  Doszedł drugi tryb: `evkOdswiez(true)` = **pilne**, czeka na ciszę tak samo,
+  ale nie dłużej niż sekundę. Asymetria jest celowa: zła geometria trwa, dopóki
+  jej nie przeliczysz, a szarpnięcie bezwładności trwa chwilę. Pilnie woła dziś
+  tylko Horizontal Scroll; marquee, tło przy scrollu, scroll reading, circular
+  menu i stacking cards zostają przy czekaniu bez terminu, więc ochrona z 1.9x
+  działa tam, gdzie była potrzebna.
+
+- **Gdy `load` zdążył polecieć przed skryptem, przeliczenia nie było nigdy.**
+  Z plikami z pamięci podręcznej zdąży. `window.addEventListener('load', …)`
+  wieszał się wtedy na zdarzeniu, którego nikt już nie wywoła. Teraz decyduje
+  stan dokumentu, nie sam nasłuch.
+
+### Zmienione
+
+- Przy kontrolce **„Pokaż treść pod sekcją"** stoi ostrzeżenie, że kosztuje
+  płynność: żeby treść stała w miejscu, każda sekcja pod spodem — ze stopką
+  włącznie — dostaje własną warstwę i jest przesuwana w każdej klatce
+  przewijania. Zgłoszone z użycia: na starszym Macu w Safari szarpie całą
+  stroną, a po wyłączeniu przewijanie jest wyraźnie płynniejsze. Przebudowy
+  samego podglądu w tej wersji nie ma.
+
+### Weryfikacja
+
+Doszło 16 sprawdzeń (`hscroll-obrazy`), łącznie **1671** zielonych. Nowa atrapa
+odwzorowuje lazy-loader: osiem kart bez narzuconej szerokości, obrazy wąskie na
+starcie i dojeżdżające na sygnał. Mutacje: wyłączony obserwator → czerwone „droga
+przewijania policzona na nowo", „punkt startu przesunął się razem z taśmą"
+i „zmiana szerokości bez obrazu też przelicza drogę"; wycięty termin ostateczny
+→ czerwone „pilne wchodzi mimo trwającego przewijania"; przywrócony sam nasłuch
+`load` → czerwone „przeliczenie po starcie się odbyło".
+
 ## [1.108.2] — 2026-08-25
 
 ### Naprawione

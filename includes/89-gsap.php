@@ -94,9 +94,10 @@ function evk_register_gsap_libs(): void {
         if (window.ScrollTrigger) ScrollTrigger.config({ ignoreMobileResize: true });
 
         (function () {
-            var czeka = null, ostatniRuch = 0;
+            var czeka = null, ostatniRuch = 0, termin = 0;
             var ODSTEP = 200;   // scalanie serii wywołań
             var CISZA  = 150;   // ile bez ruchu, żeby uznać przewijanie za skończone
+            var MAKS   = 1000;  // po tylu ms pilne przelicza mimo trwającego ruchu
 
             window.addEventListener('scroll', function () {
                 ostatniRuch = Date.now();
@@ -104,12 +105,27 @@ function evk_register_gsap_libs(): void {
 
             function sprobuj() {
                 /* Jeszcze się przewija — odkładamy. Refresh w trakcie ruchu ucina
-                   bezwładność, bo zapisuje pozycję przewijania. */
-                if (Date.now() - ostatniRuch < CISZA) {
+                   bezwładność, bo zapisuje pozycję przewijania.
+
+                   Ale nie w nieskończoność. Kto wchodzi na stronę i od razu
+                   przewija, ten KAŻDYM zdarzeniem scrolla zeruje ten licznik —
+                   odłożone przeliczenie nie wchodziło wtedy ani razu. Zmierzone
+                   na evoke.pl: taśma Horizontal Scrolla mierzy się na zastępczych
+                   obrazach lazy-loadera, więc do pierwszego przeliczenia pin jest
+                   za krótki, a wszystkie animacje pod nim startują za wcześnie.
+                   Zgłoszone z użycia dokładnie tak: „nagle elementy się odświeżyły
+                   i zaczęły działać w czasie przewijania. Potem po refresh strony
+                   znowu to samo".
+
+                   Dlatego wywołanie PILNE ma termin ostateczny. Asymetria jest
+                   celowa: zła geometria trwa, dopóki jej nie przeliczysz,
+                   a szarpnięcie bezwładności trwa chwilę. */
+                if (Date.now() - ostatniRuch < CISZA && !(termin && Date.now() >= termin)) {
                     czeka = setTimeout(sprobuj, CISZA);
                     return;
                 }
                 czeka = null;
+                termin = 0;
                 if (window.ScrollTrigger) ScrollTrigger.refresh();
             }
 
@@ -117,8 +133,15 @@ function evk_register_gsap_libs(): void {
              * Odśwież wyzwalacze — ale nie teraz, tylko gdy przewijanie ustanie.
              * Seria wywołań (doładowywanie treści potrafi zmienić wysokość
              * kilkanaście razy pod rząd) daje jedno przeliczenie.
+             *
+             * `evkOdswiez(true)` = PILNE: czeka na ciszę tak samo, ale nie dłużej
+             * niż MAKS. Dla przeliczeń, bez których układ zostaje zwyczajnie zły —
+             * dziś woła tak tylko Horizontal Scroll po dojechaniu obrazów taśmy.
+             * Pozostali wołający (marquee, tło przy scrollu, scroll reading,
+             * circular menu, stacking cards) zostają przy czekaniu bez terminu.
              */
-            window.evkOdswiez = function () {
+            window.evkOdswiez = function (pilne) {
+                if (pilne && !termin) { termin = Date.now() + MAKS; }
                 clearTimeout(czeka);
                 czeka = setTimeout(sprobuj, ODSTEP);
             };

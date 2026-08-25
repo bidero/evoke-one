@@ -157,7 +157,10 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 				. 'kart, zamiast wjeżdżać na końcu. Widać jej tyle, ile zostaje ekranu pod sekcją '
 				. '— przy sekcji na cały ekran nie będzie widać nic. Nie łączy się z drugim '
 				. 'przypinanym elementem niżej na stronie: wtedy podgląd się nie włącza '
-				. 'i mówi o tym w konsoli.',
+				. 'i mówi o tym w konsoli. KOSZTUJE PŁYNNOŚĆ: żeby treść stała w miejscu, '
+				. 'każda sekcja pod spodem — ze stopką włącznie — dostaje własną warstwę '
+				. 'i jest przesuwana w każdej klatce przewijania. Na starszych maszynach, '
+				. 'zwłaszcza w Safari, potrafi to szarpać całą stroną.',
 				'evk-horizontal-scroll'
 			),
 		];
