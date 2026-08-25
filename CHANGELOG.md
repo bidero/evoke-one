@@ -2,6 +2,82 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.110.0] — 2026-08-25
+
+### Naprawione
+
+- **Podgląd treści przekłamywał punkty startu animacji pod sekcją — i to
+  zależnie od tego, gdzie stała strona.** Zgłoszone z użycia jako „to, co jest
+  za HS, ma już odtworzone animacje wejścia".
+
+  Zmierzone na **lustrze żywej strony** (nowe narzędzie, `tools/lustro/`) — ten
+  sam element, ta sama strona, dwa odświeżenia ScrollTriggera:
+
+  | kiedy leciało odświeżenie | punkt startu `#brxe-luimsf` |
+  |---|---|
+  | strona przewinięta na dół | **3181** |
+  | strona na górze | **4926** |
+  | **kontrola: podgląd wyłączony** | **4924 / 4926** — bez różnicy |
+
+  Różnica **1743 px** to co do piksela droga taśmy. Na ekranie znaczyła tyle, że
+  element wjeżdżał w kadr przy 4957, a jego animacja odgrywała się przy 3181 —
+  **1776 px wcześniej**, czyli była już po wszystkim, zanim cokolwiek było widać.
+
+  Przyczyna: podgląd nakładał przesunięcie **przewijaną animacją**
+  (`gsap.fromTo` + `scrub`). Zerowanie na `refreshInit` z 1.108.1 nie
+  wystarczało, bo ScrollTrigger **w trakcie odświeżania sam przewija stronę**,
+  żeby zmierzyć przypięte elementy — a każda zmiana pozycji renderowała tę
+  animację od nowa i przesunięcie wracało, zanim zmierzyły się wyzwalacze pod
+  spodem. Ujemny priorytet odświeżania tego nie powstrzymywał, bo to nie było
+  odświeżenie, tylko zwykłe `update()`.
+
+  Przesunięcie nakłada teraz **własny `onUpdate`**, a po zakończonym odświeżeniu
+  przywraca je `konczPomiar()` — z wartości odczytanej PO pomiarze, nie w jego
+  trakcie. Zerowanie na `refreshInit` zostaje: mutacja pokazuje, że bez niego
+  wraca 3183.
+
+  Po poprawce te same elementy: **−40, +14, 0, −14 px** wobec wjazdu w kadr.
+
+### Dodane
+
+- **`tools/lustro/`** — ściąga żywą stronę razem z zasobami, serwuje ją
+  z `localhost` i mierzy w tym samym headless Chromium, na którym chodzą testy.
+  Powstało z konieczności: **żadna atrapa w `tests/fixtures/` tego błędu nie
+  odtworzyła.** Próby dokładania Lenisa, `scrub: 1`, snapa i przewijania
+  prawdziwym kółkiem — wszystkie wychodziły na zielono także na wersji z błędem.
+  Lustro pokazało go za pierwszym razem.
+
+  Wniosek zapisany w `README` narzędzia: **przy usterce zgłoszonej z żywej
+  strony pierwszy krok to lustro, nie atrapa.**
+
+### Uczciwie o poprzednich wersjach
+
+**1.109.0 naprawiała nie ten problem.** Twierdziła, że taśma mierzy się na
+nieziaładowanych obrazach lazy-loadera — „54 obrazy, 50 bez `width`/`height`".
+Ta liczba była **moim błędem pomiaru**: przeszukałem okno 40 000 znaków od
+początku elementu, które wybiegło daleko poza niego. W taśmie na evoke.pl jest
+**sześć kart i zero obrazów**.
+
+Sam mechanizm z 1.109.0 (obserwator rozmiaru paneli, termin ostateczny
+w `evkOdswiez`, gałąź `readyState === 'complete'`) zostaje — każdy kawałek ma
+mutację, która go zaświeca, i każdy broni czegoś prawdziwego. Ale przyczyną
+zgłoszenia nie był żaden z nich.
+
+### Weryfikacja
+
+**1671** sprawdzeń zielonych, bez zmiany liczby. Nowej sekcji w `anim-uklad`
+NIE MA celowo: napisałem ją, sprawdziłem na poprzedniej wersji hscrolla
+i przechodziła na zielono mimo błędu — a test, którego nie da się zaświecić, jest
+gorszy niż jego brak, bo obiecuje ochronę, której nie daje. Oba nośne kawałki
+poprawki są już pokryte: mutacja „bez zerowania na `refreshInit`" zapala
+„element daleko w dole nietknięty" i „nierozpoznany zapis startu zostaje
+nietknięty", a mutacja „`konczPomiar` nie przywraca" — „treść pod sekcją jest
+naprawdę przesunięta".
+
+Przy okazji wyleciała chorągiewka „trwa pomiar", którą dołożyłem razem
+z poprawką: żaden scenariusz na lustrze — łącznie z odświeżeniem w środku
+przypięcia, w ruchu — nie umiał jej zaświecić.
+
 ## [1.109.0] — 2026-08-25
 
 ### Naprawione

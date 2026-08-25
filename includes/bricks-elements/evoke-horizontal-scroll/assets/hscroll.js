@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.8.0
+ * EVK Horizontal Scroll v1.9.0
  */
 (function () {
 	'use strict';
@@ -383,6 +383,8 @@
 			/* Zerowanie podglądu na czas POMIARU — patrz `zbudujPodglad()`.
 			   Uchwyt trzymany tutaj, bo zdejmuje go sprzątanie na dole. */
 			var zerujPodglad = null;
+			var konczPomiar  = null;
+			var podgladST    = null;
 
 			/* Cele podglądu, widoczne dla `onRefresh` pinu — patrz `opublikujKoniec()`. */
 			var podgladCele = null;
@@ -534,17 +536,51 @@
 				 * przez to punkt startu mniejszy o całą drogę taśmy i odpalał
 				 * o ekran za wcześnie. Zmierzone: 700 zamiast 1612.
 				 *
-				 * `refreshInit` leci PRZED mierzeniem, więc wyzerowane tutaj `y`
-				 * daje prawdziwe pozycje z układu. Przywracać nie trzeba:
-				 * przewijana animacja renderuje się na nowo przy pierwszym
-				 * odczycie po odświeżeniu.
+				 * `refreshInit` leci PRZED mierzeniem, więc wyzerowane tam `y`
+				 * daje prawdziwe pozycje z układu. Samo zerowanie jednak NIE
+				 * WYSTARCZA — patrz niżej.
 				 *
 				 * To samo dotyczyłoby kompensacji przeniesionej kiedyś na
 				 * animację sterowaną przewijaniem — transformacja z CSS-a wchodzi
 				 * do prostokąta tak samo.
 				 */
+
+				/*
+				 * PRZESUNIĘCIE NAKŁADAMY SAMI, w `onUpdate` — nie zlecamy go
+				 * przewijanej animacji. Powód jest zmierzony, nie teoretyczny.
+				 *
+				 * `refreshInit` zeruje transformację przed pomiarem, ale
+				 * ScrollTrigger W TRAKCIE ODŚWIEŻANIA sam przewija stronę, żeby
+				 * zmierzyć przypięte elementy — a każda zmiana pozycji renderuje
+				 * przewijaną animację od nowa i przesunięcie wraca, ZANIM zmierzą
+				 * się wyzwalacze pod spodem. Ujemny priorytet tego nie
+				 * powstrzymuje, bo to nie jest odświeżenie tylko zwykłe
+				 * `update()`.
+				 *
+				 * Zmierzone na lustrze evoke.pl: ten sam element dostawał punkt
+				 * startu 3181 albo 4926 — zależnie WYŁĄCZNIE od tego, gdzie stała
+				 * strona, gdy leciało odświeżenie. Przy wyłączonym podglądzie obie
+				 * liczby były równe (4924 i 4926). Stąd zgłoszenie „to, co jest za
+				 * HS, ma już odtworzone animacje wejścia".
+				 *
+				 * Własny `onUpdate` odzywa się tylko przy zmianie przewijania, a po
+				 * odświeżeniu przesunięcie przywraca `konczPomiar()` — z wartości
+				 * odczytanej PO pomiarze, nie w jego trakcie.
+				 */
+				function nalozPodglad(p) {
+					/* Za zakresem transformacja ZNIKA. Zostawiona — nawet zerowa —
+					   dalej tworzyłaby blok zawierający dla `position: fixed`
+					   na całą resztę strony. */
+					if (p >= 1) { gsap.set(pod, { clearProps: 'transform' }); return; }
+					gsap.set(pod, { y: -(1 - p) * getAmount() });
+				}
+
 				zerujPodglad = function () { gsap.set(pod, { y: 0 }); };
+				konczPomiar  = function () {
+					if (podgladST) { nalozPodglad(podgladST.progress); }
+				};
 				ScrollTrigger.addEventListener('refreshInit', zerujPodglad);
+				ScrollTrigger.addEventListener('refresh', konczPomiar);
 
 				/* Pin powstał wcześniej, więc pierwszego odświeżenia już nie
 				   złapie — stąd jedno wypisanie z ręki. Kolejne idą przez
@@ -552,53 +588,21 @@
 				podgladCele = pod;
 				if (glownyWyzwalacz) { opublikujKoniec(glownyWyzwalacz); }
 
-				gsap.fromTo(pod,
-					{ y: function () { return -getAmount(); } },
-					{
-						y   : 0,
-						ease: 'none',
-						scrollTrigger: {
-							trigger            : pinEl,
-							start              : C.startOffset,
-							end                : function () { return '+=' + getAmount(); },
-							/*
-							 * `true`, czyli BEZ WYGŁADZANIA — i to jest jedyna
-							 * poprawna wartość, mimo że taśma obok jedzie na
-							 * `C.scrub`.
-							 *
-							 * Pin nie jest wygładzany: trzyma się przewijania co
-							 * do piksela. Ta animacja ma go dokładnie zniwelować,
-							 * więc każde opóźnienie zostaje na ekranie jako
-							 * różnica. Przy domyślnym `scrub: 1` transformacja
-							 * nie nadążała, była bardziej ujemna niż trzeba,
-							 * treść podjeżdżała nad sekcję i opadała po
-							 * zatrzymaniu. Zgłoszone z użycia: „podnosi się
-							 * i opuszcza — faluje, nachodzi na pole z hs".
-							 */
-							scrub              : true,
-							/*
-							 * NA KONIEC kolejki odświeżania — samo zerowanie na
-							 * `refreshInit` nie wystarcza.
-							 *
-							 * ScrollTrigger odświeża wyzwalacze po kolei i każdy przy
-							 * okazji renderuje swoją animację. Ten, mając domyślny
-							 * priorytet, zdążał nałożyć transformację z powrotem,
-							 * ZANIM zmierzyły się wyzwalacze pod spodem — więc dalej
-							 * widziały pozycje przesunięte o drogę taśmy.
-							 *
-							 * Ujemny priorytet stawia go za wszystkimi: pin mierzy się
-							 * pierwszy (priorytet 1), potem treść, a podgląd nakłada
-							 * przesunięcie na końcu, gdy nie ma już czego zniekształcić.
-							 */
-							refreshPriority    : -1,
-							invalidateOnRefresh: true,
-							/* Za zakresem transformacja ZNIKA. Zostawiona — nawet
-							   zerowa — dalej tworzyłaby blok zawierający na resztę
-							   strony. Przed zakresem musi zostać: bez niej treść
-							   skacze o `D` przy dojeżdżaniu do sekcji. */
-							onLeave: function () { gsap.set(pod, { clearProps: 'transform' }); }
-						}
-					});
+				podgladST = ScrollTrigger.create({
+					trigger        : pinEl,
+					start          : C.startOffset,
+					end            : function () { return '+=' + getAmount(); },
+					/* Na koniec kolejki odświeżania — pin mierzy się pierwszy
+					   (priorytet 1), potem treść, a podgląd na końcu, gdy nie ma
+					   już czego zniekształcić. */
+					refreshPriority: -1,
+					onUpdate       : function (self) { nalozPodglad(self.progress); },
+				});
+
+				/* Stan początkowy trzeba nałożyć samemu: `onUpdate` odzywa się
+				   dopiero przy pierwszej zmianie, a przed sekcją treść ma już być
+				   przyklejona — inaczej skacze o całą drogę taśmy przy dojeżdżaniu. */
+				nalozPodglad(podgladST.progress);
 			}
 
 			var glownyWyzwalacz = glownaAnimacja.scrollTrigger || null;
@@ -624,6 +628,11 @@
 					ScrollTrigger.removeEventListener('refreshInit', zerujPodglad);
 					zerujPodglad = null;
 				}
+				if (konczPomiar) {
+					ScrollTrigger.removeEventListener('refresh', konczPomiar);
+					konczPomiar = null;
+				}
+				if (podgladST) { podgladST.kill(); podgladST = null; }
 				if (podgladCele) {
 					podgladCele.forEach(function (n) { n.removeAttribute('data-evk-pin-end'); });
 					podgladCele = null;
