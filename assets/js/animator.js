@@ -104,6 +104,11 @@
      Nowy efekt, który coś generuje, ma dopisać się TUTAJ. */
   var WEZEL_SILNIKA = /^(?:line|word|char)(?:-mask)?$|^swap-klon$/;
 
+  /** Co Animator uważa za swoją robotę — jeden zapis dla `initAll()`
+      i dla obserwatora podmian, żeby nie rozjechały się przy poprawce. */
+  var SELEKTOR_ANIM = '[class*="evk-anim-"], [data-evk-anim]';
+
+
   /**
    * Czy element jest wyłącznie WYTWOREM silnika — maską, kawałkiem albo klonem.
    *
@@ -660,6 +665,10 @@
         // Pin wyłącznie przy scrubie. Przy pozostałych wyzwalaczach nie ma sensu
         // (nie ma czego przytrzymywać), a tworzy pin-spacer, który rozpycha layout.
         pin:           cfg.pin ? el : false,
+        /* Przypięty wyzwalacz musi odświeżyć się PRZED tymi pod nim — inaczej
+           liczą punkty startu z układu sprzed wstawienia zapasu i odpalają za
+           wcześnie. To samo ustawienie ma pin Horizontal Scrolla. */
+        refreshPriority: cfg.pin ? 1 : 0,
         anticipatePin: cfg.pin ? 1 : 0,
       },
     });
@@ -1157,7 +1166,7 @@
   }
 
   function initAll() {
-    document.querySelectorAll('[class*="evk-anim-"], [data-evk-anim]').forEach(function (el) {
+    document.querySelectorAll(SELEKTOR_ANIM).forEach(function (el) {
       if (el.dataset.evkAnimReady === '1') return;
       /* Wytwory silnika odpadają BEZ budowania konfiguracji. Bez tego każdy
          z nich przechodził przez buildConfigs(), zgłaszał „brak animacji
@@ -1234,6 +1243,71 @@
     var start = function () { przebudowaCzeka = false; initAll(); };
     if (window.requestIdleCallback) window.requestIdleCallback(start, { timeout: 200 });
     else                            requestAnimationFrame(start);
+  }
+
+  /**
+   * Podmiany treści po starcie strony.
+   *
+   * Elementy wstawione przez filtr pętli zapytania, stronicowanie albo
+   * doładowywanie nigdy nie przechodziły inicjalizacji: Animator przebudowywał
+   * się wyłącznie przy zmianie progu szerokości i po wczytaniu fontów. Hover
+   * podpina się per element (`podepnijInteraktywnie`), więc nowy węzeł nie miał
+   * żadnych nasłuchów. Zgłoszone z użycia: „animacja hover nie działa na
+   * elemencie po przefiltrowaniu".
+   *
+   * OBSERWATOR, a nie zdarzenia Bricksa, i to jest wybór świadomy: nazw zdarzeń
+   * nie da się tu sprawdzić, więc byłby to kod pisany na wiarę. Obserwator jest
+   * niezależny od dostawcy — łapie filtry Bricksa, cudze wtyczki i każdą inną
+   * podmianę tak samo.
+   *
+   * Przeliczenie idzie przez `zaplanujPrzebudowe()`, więc kilkadziesiąt węzłów
+   * wstawionych naraz daje JEDNO przeliczenie, a nie jedno na węzeł.
+   */
+  function sledzPodmiany() {
+    if (!window.MutationObserver || !document.body) return;
+
+    var obs = new MutationObserver(function (zmiany) {
+      for (var i = 0; i < zmiany.length; i++) {
+        var dodane = zmiany[i].addedNodes;
+        for (var j = 0; j < dodane.length; j++) {
+          if (dodane[j].nodeType === 1 && maDoZrobienia(dodane[j])) {
+            zaplanujPrzebudowe();
+            return;
+          }
+        }
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+  }
+
+  /**
+   * Czy w tym poddrzewie jest cokolwiek, czego `initAll()` jeszcze nie tknął.
+   *
+   * Dwa odsiewy: węzeł ze znacznikiem gotowości jest już zrobiony, a wytwór
+   * silnika (maska, kawałek, klon) nigdy nie był robotą do zrobienia — to
+   * nasza własna produkcja.
+   *
+   * NIE jest to zabezpieczenie przed zapętleniem, choć tak wygląda. Sprawdzone
+   * mutacją: nawet gdy ta funkcja zgłasza robotę ZAWSZE, nic się nie zapętla —
+   * `initAll()` jest idempotentne, znakuje węzły i przy kolejnym przebiegu nie
+   * dokłada już niczego, więc obserwator nie ma na co zareagować. Odsiewy są
+   * tu po to, żeby nie wołać przebudowy bez powodu.
+   */
+  function maDoZrobienia(el) {
+    var kandydaci = [];
+    if (el.matches && el.matches(SELEKTOR_ANIM)) kandydaci.push(el);
+    if (el.querySelectorAll) {
+      var w = el.querySelectorAll(SELEKTOR_ANIM);
+      for (var i = 0; i < w.length; i++) kandydaci.push(w[i]);
+    }
+
+    for (var k = 0; k < kandydaci.length; k++) {
+      var c = kandydaci[k];
+      if (c.dataset.evkAnimReady === '1') continue;
+      if (tylkoWezelSilnika(c)) continue;
+      return true;
+    }
+    return false;
   }
 
   function sledzProgi() {
@@ -1328,6 +1402,7 @@
   function pierwszyPrzebieg() {
     initAll();
     if (window.matchMedia) sledzProgi();
+    sledzPodmiany();
 
     var gadaj = false;
     try {

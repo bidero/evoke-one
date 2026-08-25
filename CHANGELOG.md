@@ -2,6 +2,53 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.108.0] — 2026-08-21
+
+### Naprawione
+
+- **Elementy po poziomym przewijaniu animowały się za wcześnie.** Przypięcie
+  wstawia do dokumentu zapas o wysokości sekcji plus całą drogę taśmy, więc
+  przesuwa w dół wszystko, co niżej. Wyzwalacz policzony ZANIM pin się założył
+  miał punkt startu ze starego układu i odpalał, zanim element wjechał w kadr.
+
+  Zmierzone na fixture: cel stał w dokumencie na 2412 px, punkt startu jego
+  wyzwalacza wypadał na **740** zamiast **1612** — różnica **872 px**, czyli co
+  do piksela droga taśmy. Po poprawce: 1612.
+
+  Lekiem jest `refreshPriority: 1` na obu pinach — Horizontal Scrolla
+  i Animatora — czyli udokumentowane „odśwież się przed tymi pod tobą".
+
+  Ciekawostka z pomiaru: na wyzwalaczach, które Animator tworzy **sam**, błąd
+  nie ma jak wyjść — powstają w kolejności drzewa, czyli od razu w tej, której
+  GSAP oczekuje. Wychodzi dopiero, gdy wyzwalacz niżej pochodzi z innego
+  skryptu, wczytanego wcześniej. Oba kierunki mają teraz osobne sprawdzenie
+  z odwróconą kolejnością ładowania.
+
+- **Hover nie działał na elementach wstawionych przez filtr pętli zapytania.**
+  Animator przebudowywał się wyłącznie przy zmianie progu szerokości i po
+  wczytaniu fontów, a hover podpina się per element — więc węzeł przyniesiony
+  AJAX-em nie miał żadnych nasłuchów.
+
+  Dochodzi `MutationObserver` na `<body>`, który po wykryciu dołożonej treści
+  z animacją woła **istniejące** `zaplanujPrzebudowe()`. Nic więcej nie było
+  potrzebne: `initAll()` jest idempotentne (pomija węzły ze znacznikiem
+  gotowości), a kolejka i tak scala wiele wywołań w jedno przeliczenie.
+
+  **Obserwator, a nie zdarzenia Bricksa**, i to jest wybór świadomy: nazw
+  zdarzeń nie da się tu sprawdzić, więc byłby to kod pisany na wiarę i nie do
+  przetestowania. Obserwator jest niezależny od dostawcy — łapie filtry,
+  stronicowanie, doładowywanie i cudze wtyczki tak samo.
+
+### Sprostowane przy okazji
+
+Napisałem w kodzie, że odsiewanie własnych węzłów chroni przed zapętleniem
+przebudowy. **Mutacja pokazała, że to nieprawda**: nawet gdy obserwator zgłasza
+robotę ZAWSZE, nic się nie zapętla — `initAll()` znakuje węzły i przy kolejnym
+przebiegu nie dokłada już niczego, więc nie ma na co zareagować. Wraz
+z komentarzem wyleciało `takeRecords()` dopisane „na wszelki wypadek";
+odsiewy zostają, ale jako to, czym są naprawdę — sposób, żeby nie wołać
+przebudowy bez powodu.
+
 ## [1.107.0] — 2026-08-21
 
 ### Naprawione

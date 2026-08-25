@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.6.0
+ * EVK Horizontal Scroll v1.7.0
  */
 (function () {
 	'use strict';
@@ -353,6 +353,20 @@
 					   elemencie NIEZALEŻNIE od wyzwalacza: gdyby ten kiedyś wrócił na
 					   taśmę, `true` po cichu przypięłoby taśmę. */
 					pin                : pinEl,
+					/*
+					 * Pin odświeża się PRZED wyzwalaczami pod nim.
+					 *
+					 * Przypięcie wstawia do dokumentu zapas o wysokości sekcji plus
+					 * całą drogę taśmy, więc przesuwa w dół wszystko, co niżej.
+					 * Wyzwalacz policzony wcześniej ma punkt startu ze starego
+					 * układu — zmierzone: mniejszy dokładnie o tę drogę — i odpala,
+					 * zanim element wjedzie w kadr. Zgłoszone z użycia: „elementy
+					 * po horizontal scroll animują się tak, jakby już zagrały".
+					 *
+					 * Domyślną wartością jest 0, więc jedna stała wystarcza; piny
+					 * między sobą GSAP sortuje po pozycji w dokumencie.
+					 */
+					refreshPriority    : 1,
 					anticipatePin      : 1,
 					scrub              : C.scrub,
 					snap               : snapCfg,

@@ -29,6 +29,11 @@
 <div class="spacer"></div>
 <div id="kontrola"  data-evk-anim='{"animation":"kontrola"}'>KONTROLA — WEJŚCIE W KADR</div>
 
+<!-- Miejsce na treść wstawianą PO STARCIE — odwzorowanie tego, co robi filtr
+     pętli zapytania w Bricksie: wymienia zawartość kontenera na świeży znacznik
+     z serwera. Elementy stąd nigdy nie przeszły `initAll()` przy wczytaniu. -->
+<div id="pojemnik"></div>
+
 <script src="../../assets/vendor/gsap/gsap.min.js"></script>
 <script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
 <script src="../../assets/vendor/gsap/TextPlugin.min.js"></script>
@@ -55,6 +60,28 @@
 </script>
 <script src="../../assets/js/animator.js"></script>
 <script>
+  /**
+   * Podmiana treści kontenera — tak samo, jak robi to filtr pętli zapytania.
+   *
+   * `innerHTML`, nie `appendChild`: filtr wymienia CAŁĄ zawartość, więc stare
+   * węzły znikają razem ze swoimi nasłuchami, a nowe przychodzą bez niczego.
+   */
+  window.__podmien = function (ile) {
+    var html = '';
+    for (var i = 0; i < (ile || 1); i++) {
+      html += '<div id="nowy' + i + '" data-evk-anim=\'{"animation":"stan"}\'>NOWY ' + i + '</div>';
+    }
+    document.getElementById('pojemnik').innerHTML = html;
+  };
+
+  /** Ile węzłów silnika jest na stronie — do wykrycia zapętlenia obserwatora. */
+  window.__wezly = function () {
+    return {
+      wszystkie: document.querySelectorAll('[class*="evk-anim-"], [data-evk-anim]').length,
+      gotowe:    document.querySelectorAll('[data-evk-anim-ready="1"]').length,
+    };
+  };
+
   window.__stan = function (id) {
     var el = document.getElementById(id);
     var cs = getComputedStyle(el);
