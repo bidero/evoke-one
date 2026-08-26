@@ -470,6 +470,34 @@ CSS;
         }
 
         if (!empty($s['ripple_enabled'])) {
+            /*
+             * NA CZAS FALI GLOBALNE PRZEJŚCIE MUSI ZAMILKNĄĆ.
+             *
+             * `::view-transition-new` w Chrome pokazuje ŻYWY dokument, nie
+             * zamrożony obrazek. Fala odsłaniała więc powierzchnię, która sama
+             * jeszcze się przefarbowywała: przez pierwsze 400 ms — tyle trwa
+             * globalne przejście — jej wnętrze było szare zamiast docelowego
+             * koloru, a potem skokowo się domykało.
+             *
+             * Zmierzone na atrapie, jasność tuż za czołem fali:
+             *   z globalnym przejściem:  188 → 81 → 64 → 50 …
+             *   bez niego:               145 → 0  → 0  → 0
+             *
+             * Zgłoszone z użycia: „ripple dziwnie przeskakuje zaraz po
+             * rozpoczęciu rozchodzenia się fali… w Safari jest OK".
+             *
+             * Oba efekty robią to samo — zmieniają kolory motywu — więc
+             * puszczone razem nie sumują się, tylko sobie przeszkadzają. Gdy
+             * fala jest włączona, to ONA jest przejściem.
+             */
+            $bez_przejscia = array_merge($global_selectors, $bricks_selectors);
+            if ($bez_przejscia) {
+                echo "html.is-theme-toggling " . implode(",\nhtml.is-theme-toggling ", $bez_przejscia) . " {\n";
+                echo "    transition: none !important;\n";
+                echo "    -webkit-transition: none !important;\n";
+                echo "}\n\n";
+            }
+
             echo <<<CSS
 html.is-theme-toggling {
     view-transition-name: theme-ripple;

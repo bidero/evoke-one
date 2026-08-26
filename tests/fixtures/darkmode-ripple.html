@@ -1,0 +1,29 @@
+<!--
+  Fala przy zmianie motywu (View Transitions).
+
+  Zgłoszone z użycia: „ripple dziwnie przeskakuje zaraz po rozpoczęciu
+  rozchodzenia się fali… na desktopie w Chrome. W Safari jest OK".
+
+  CSS i skrypt wstrzykuje test PRAWDZIWE, prosto z `93-darkmode.php` przez
+  `tests/php/darkmode-head.php` — kopia w atrapie mierzyłaby kopię.
+
+  Tło jest jednolite i skrajne (biel ↔ czerń), bo promień fali odczytujemy
+  ZE ZRZUTU EKRANU: liczymy, gdzie na poziomej linii od przycisku kończy się
+  nowy kolor. Wszystko inne na stronie tylko by w tym przeszkadzało.
+-->
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: #ffffff; }
+  html[data-theme="dark"] body { background: #000000; }
+
+  /* Przycisk w LEWYM GÓRNYM rogu, nie na środku: fala rozchodzi się wtedy
+     w jedną stronę i promień da się odczytać z jednej linii pikseli. */
+  .brxe-toggle-mode {
+    position: fixed; left: 40px; top: 40px; width: 40px; height: 40px;
+    border: 0; background: #888; cursor: pointer;
+  }
+</style>
+
+<button class="brxe-toggle-mode" aria-label="Zmień motyw"></button>

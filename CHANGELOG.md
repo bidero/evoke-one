@@ -2,6 +2,60 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.116.0] — 2026-08-26
+
+### Naprawione
+
+- **Fala przy zmianie motywu przeskakiwała zaraz po starcie.** Zgłoszone
+  z użycia: „ripple dziwnie przeskakuje zaraz po rozpoczęciu rozchodzenia się
+  fali… na desktopie w Chrome. W Safari jest OK. Może za dużo elementów?".
+
+  **`::view-transition-new` w Chrome pokazuje ŻYWY dokument, nie zamrożony
+  obrazek.** Fala odsłaniała więc powierzchnię, która sama jeszcze się
+  przefarbowywała globalnym przejściem — przez pierwsze 400 ms jej wnętrze było
+  szare zamiast docelowego koloru, a potem skokowo się domykało.
+
+  Zmierzone na atrapie, jasność tuż za czołem fali:
+
+  | | przebieg |
+  |---|---|
+  | z globalnym przejściem | 188 → 81 → 64 → 50 → 29 → 15 → 6 → 0 |
+  | bez niego | 145 → **0** → 0 → 0 |
+
+  Oba efekty robią to samo — zmieniają kolory motywu — więc puszczone razem nie
+  sumują się, tylko sobie przeszkadzają. Gdy fala jest włączona, to **ona** jest
+  przejściem: na czas jej trwania (`html.is-theme-toggling`) globalne przejście
+  milknie na wszystkich skonfigurowanych selektorach. Przy wyłączonej fali nic
+  się nie zmienia — wtedy to globalne przejście jest efektem.
+
+### Czego nie zrobiłem, choć zacząłem
+
+Przepisałem falę z `html.animate()` w `transition.ready.then(...)` na animację
+CSS — z myślą o tym, że zadanie po `ready` musi czekać na wolny wątek główny,
+a to pasowało do Twojego „może za dużo elementów". **Pomiar tego nie
+potwierdził:** przy wątku zajętym 300 ms fala startowała tak samo w obu
+wersjach (325 ms wobec 331 ms), bo blokada opóźnia całe przejście, nie samą
+animację. Zmianę wycofałem — nie zostawiam przepisanego działającego kodu,
+którego korzyści nie umiem pokazać liczbą.
+
+### Weryfikacja
+
+**1722** sprawdzenia zielone (+9). Nowa atrapa `tests/fixtures/darkmode-ripple.html`
+z jednolitym, skrajnym tłem, bo promień i kolor fali odczytujemy **ze zrzutu
+ekranu** — o to, co widać, tu właśnie chodzi. Animacja jest przy tym
+**zatrzymana, a czas ustawiany z ręki**: inaczej próbki lądowałyby tam, gdzie
+zdążył zrzut, a nie w równych odstępach. CSS i skrypt idą prawdziwe, przez nową
+`tests/php/darkmode-head.php`.
+
+Sprawdzone jest jedno i drugie: że za czołem fali jest **docelowy** kolor, że
+fala naprawdę się rozchodzi (bez tego „wnętrze ciemne" byłoby prawdą także dla
+strony, która przeskoczyła od razu) — i że **z wyłączoną falą globalne
+przejście dalej płynnie farbuje stronę**, bo wyciszamy je tylko tam, gdzie fala
+je zastępuje.
+
+Mutacje: wyciszenie wycięte → czerwone „a wnętrze jest już docelowe, nie szare";
+pusta lista selektorów → to samo plus czerwony znacznik.
+
 ## [1.115.0] — 2026-08-26
 
 ### Naprawione
