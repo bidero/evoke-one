@@ -2,6 +2,54 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.114.0] — 2026-08-26
+
+### Zmienione
+
+- **Easing przy zmianie motywu wpisuje się, a nie wybiera z listy.** Zgłoszone
+  z użycia: „przy zmianie motywu (globalne) daj możliwość wybrania dowolnego
+  easingu, jak niżej w Elementy Bricks Builder".
+
+  **Silnik przyjmował dowolne `cubic-bezier(...)` od dawna** — `93-darkmode.php`
+  sprawdza je wyrażeniem regularnym, zanim w ogóle spojrzy na listę nazw.
+  Blokował wyłącznie interfejs, i to niekonsekwentnie: dwa pola były tekstowe
+  (Bricks, ripple), a trzy listami wyboru z sześcioma wartościami.
+
+  Wszystkie sześć jest teraz polami tekstowymi z podpowiedzią. Listą zostaje to,
+  gdzie zestaw wartości jest **zamknięty** — kierunek wycierania ma cztery
+  możliwe wartości i piątej nie będzie.
+
+### Naprawione
+
+- **`logo_easing` nie miał w panelu żadnego pola.** Był sanityzowany
+  (`93-darkmode.php:145`) i wchodził do CSS (`:257`), ale nie dało się go
+  ustawić — siedział na wartości domyślnej. Dostał pole przy pozostałych
+  ustawieniach logo.
+
+- **Odrzucony easing wracał po cichu do domyślnego.** Dopóki te pola były
+  listami, pomylić się nie było jak. Przy polu tekstowym literówka
+  w `cubic-bezier` kasowała ustawienie bez słowa, a strona po zapisie wyglądała
+  tak samo jak przed. Teraz zapis mówi, których pól nie rozpoznał i co z nimi
+  zrobił. Puste pole **nie** jest zgłaszane: wyczyszczone pole to świadome
+  „wróć do domyślnego", a nie pomyłka.
+
+### Weryfikacja
+
+**1706** sprawdzeń zielonych (+11). Markup zakładki renderuje istniejąca atrapa
+`tests/php/tab.php` PRAWDZIWYM plikiem zakładki, a sanityzację sprawdza nowa
+`tests/php/darkmode-easing.php` na PRAWDZIWEJ instancji modułu — tej samej,
+której używa panel.
+
+Sprawdzone jest też to, czego z markupu nie widać: że własna krzywa naprawdę
+przechodzi (a nie tylko wygląda na przyjętą w polu), że **ujemne punkty
+sterujące** — te od „przestrzelenia" — też są puszczane, i że `javascript:`
+odlatuje.
+
+Mutacje: `global_easing` z powrotem listą → czerwone „żaden easing nie jest
+listą wyboru"; pole `logo_easing` usunięte → czerwone „w tym »logo_easing«";
+regex rozluźniony do „cokolwiek" → czerwone „śmieci nie przechodzą"; komunikat
+wycięty → czerwone „jest komunikat i wymienia oba pola".
+
 ## [1.113.0] — 2026-08-26
 
 ### Dodane

@@ -80,11 +80,7 @@ if (!defined('ABSPATH')) exit;
                         </div>
                         <div class="evo-field">
                             <label>Easing</label>
-                            <select name="evk_darkmode[wipe_easing]">
-                                <?php foreach (['ease', 'ease-in', 'ease-out', 'ease-in-out', 'linear', 'cubic-bezier(0.4, 0, 0.2, 1)'] as $e): ?>
-                                <option value="<?php echo $e; ?>" <?php selected($dm['wipe_easing'], $e); ?>><?php echo $e; ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input type="text" name="evk_darkmode[wipe_easing]" value="<?php echo esc_attr($dm['wipe_easing']); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
                         </div>
                     </div>
 
@@ -163,11 +159,7 @@ if (!defined('ABSPATH')) exit;
                         </div>
                         <div class="evo-field">
                             <label>Easing</label>
-                            <select name="evk_darkmode[global_easing]">
-                                <?php foreach (['ease', 'ease-in', 'ease-out', 'ease-in-out', 'linear'] as $e): ?>
-                                <option value="<?php echo $e; ?>" <?php selected($dm['global_easing'], $e); ?>><?php echo $e; ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input type="text" name="evk_darkmode[global_easing]" value="<?php echo esc_attr($dm['global_easing']); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
                         </div>
                     </div>
 
@@ -222,6 +214,10 @@ if (!defined('ABSPATH')) exit;
                         <div class="evo-field">
                             <label>Czas animacji (s)</label>
                             <input type="number" name="evk_darkmode[logo_duration]" value="<?php echo esc_attr($dm['logo_duration']); ?>" min="0.1" max="5" step="0.1" class="evo-w-xs">
+                        </div>
+                        <div class="evo-field">
+                            <label>Easing</label>
+                            <input type="text" name="evk_darkmode[logo_easing]" value="<?php echo esc_attr($dm['logo_easing']); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
                         </div>
                     </div>
 
@@ -296,11 +292,7 @@ if (!defined('ABSPATH')) exit;
                         </div>
                         <div class="evo-field">
                             <label>Easing</label>
-                            <select name="evk_darkmode[post_trans_easing]">
-                                <?php foreach (['ease', 'ease-in', 'ease-out', 'ease-in-out', 'linear', 'cubic-bezier(0.4, 0, 0.2, 1)'] as $e): ?>
-                                <option value="<?php echo $e; ?>" <?php selected($dm['post_trans_easing'] ?? 'ease-in-out', $e); ?>><?php echo $e; ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <input type="text" name="evk_darkmode[post_trans_easing]" value="<?php echo esc_attr($dm['post_trans_easing'] ?? 'ease-in-out'); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
                         </div>
                     </div>
 

@@ -145,6 +145,7 @@ class EVK_DarkMode {
         $easings = ['global_easing', 'bricks_easing', 'logo_easing', 'ripple_easing', 'wipe_easing', 'post_trans_easing'];
         $allowed_easings = ['ease', 'ease-in', 'ease-out', 'ease-in-out', 'linear',
                             'cubic-bezier(0.33, 1, 0.68, 1)', 'cubic-bezier(0.4, 0, 0.2, 1)'];
+        $odrzucone = [];
         foreach ($easings as $key) {
             $val = $input[$key] ?? $this->defaults[$key];
             if (preg_match('/^cubic-bezier\(\s*[\d.]+\s*,\s*[\d.-]+\s*,\s*[\d.]+\s*,\s*[\d.-]+\s*\)$/', $val)) {
@@ -153,7 +154,33 @@ class EVK_DarkMode {
                 $clean[$key] = $val;
             } else {
                 $clean[$key] = $this->defaults[$key] ?? 'ease';
+                /*
+                 * CICHA PODMIANA MUSI SIĘ ODEZWAĆ.
+                 *
+                 * Do 1.114.0 wszystkie te pola poza dwoma były listami wyboru —
+                 * nie było jak wpisać czegoś nie tak, więc ciche cofnięcie do
+                 * wartości domyślnej nikomu nie szkodziło. Przy polu tekstowym
+                 * to znaczy, że literówka w `cubic-bezier` kasuje wpis bez słowa,
+                 * a strona wygląda tak samo jak przed zapisem.
+                 *
+                 * Pustej wartości NIE zgłaszamy: wyczyszczone pole to świadome
+                 * „wróć do domyślnego", a nie pomyłka.
+                 */
+                if ('' !== trim((string) $val)) {
+                    $odrzucone[] = $key . ' = „' . $val . '”';
+                }
             }
+        }
+
+        if ($odrzucone && function_exists('add_settings_error')) {
+            add_settings_error(
+                'evk_darkmode',
+                'evk_darkmode_easing',
+                'Nie rozpoznano easingu: ' . implode('; ', $odrzucone)
+                    . '. Wpisz nazwę (ease, ease-in-out, linear…) albo pełne '
+                    . 'cubic-bezier(0.33, 1, 0.68, 1). Te pola wróciły do wartości domyślnej.',
+                'error'
+            );
         }
 
         return $clean;
