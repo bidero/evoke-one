@@ -110,7 +110,7 @@ class EVK_Animator {
         $s = $this->get_settings();
         if (empty($s['enabled']) || empty($s['animations'])) return;
         if (empty($s['builder_preview'])
-            && function_exists('bricks_is_builder_main') && bricks_is_builder_main()) {
+            && evk_w_builderze()) {
             return;
         }
         ?>
@@ -256,7 +256,7 @@ class EVK_Animator {
         if (empty($s['enabled']) || empty($s['animations'])) return;
         if (is_admin()) return;
         if (empty($s['builder_preview'])
-            && function_exists('bricks_is_builder_main') && bricks_is_builder_main()) {
+            && evk_w_builderze()) {
             return;
         }
 

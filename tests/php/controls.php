@@ -24,6 +24,11 @@ function bricks_is_builder_main() { return false; }
 
 $GLOBALS['options']['evk_bgshift'] = ['enabled' => 1];
 
+/* Wspólne wykrywanie buildera — moduły frontowe pytają o nie przez
+   `evk_w_builderze()`. Plik jest liściem: potrzebuje tylko `is_admin()`
+   z atrap i niczego więcej. */
+require_once EVK_TEST_ROOT . '/includes/00-context-safety.php';
+
 require EVK_TEST_ROOT . '/includes/anim/motion.php';
 require EVK_TEST_ROOT . '/includes/anim/bgshift.php';
 require EVK_TEST_ROOT . '/includes/anim/presets.php';

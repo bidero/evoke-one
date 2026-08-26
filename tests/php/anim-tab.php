@@ -27,6 +27,11 @@ function submit_button($text = '', $type = '', $name = '', $wrap = true) {
 function esc_textarea($s) { return htmlspecialchars((string) $s, ENT_QUOTES); }
 function selected($a, $b = true, $echo = true) { if ($a == $b) echo ' selected'; }
 
+/* Wspólne wykrywanie buildera — moduły frontowe pytają o nie przez
+   `evk_w_builderze()`. Plik jest liściem: potrzebuje tylko `is_admin()`
+   z atrap i niczego więcej. */
+require_once EVK_TEST_ROOT . '/includes/00-context-safety.php';
+
 require EVK_TEST_ROOT . '/includes/anim/animator.php';
 
 $slugs = json_decode($argv[1] ?? '[]', true) ?: [];

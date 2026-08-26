@@ -22,6 +22,11 @@ require __DIR__ . '/_wp-stubs.php';
 
 define('EVOKE_ONE_URL', 'https://example.test/wp-content/plugins/evoke-one/');
 
+/* Wspólne wykrywanie buildera — moduły frontowe pytają o nie przez
+   `evk_w_builderze()`. Plik jest liściem: potrzebuje tylko `is_admin()`
+   z atrap i niczego więcej. */
+require_once EVK_TEST_ROOT . '/includes/00-context-safety.php';
+
 require EVK_TEST_ROOT . '/includes/89-gsap.php';
 
 evk_register_gsap_libs();

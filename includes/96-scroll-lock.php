@@ -33,7 +33,7 @@ if (!defined('ABSPATH')) exit;
 const EVK_SCROLL_LOCK_CLASS = 'evk-scroll-locked';
 
 add_action('wp_head', function (): void {
-    if (function_exists('bricks_is_builder_main') && bricks_is_builder_main()) return;
+    if (evk_w_builderze()) return;
 
     $klasa = EVK_SCROLL_LOCK_CLASS;
     ?>

@@ -30,6 +30,11 @@ require __DIR__ . '/_wp-stubs.php';
 
 function tl_get_active_lang_codes() { return ['pl']; }
 function bricks_is_builder_main() { return false; }
+/* Wspólne wykrywanie buildera — moduły frontowe pytają o nie przez
+   `evk_w_builderze()`. Plik jest liściem: potrzebuje tylko `is_admin()`
+   z atrap i niczego więcej. */
+require_once EVK_TEST_ROOT . '/includes/00-context-safety.php';
+
 require EVK_TEST_ROOT . '/includes/30-admin-settings-ajax.php';
 require EVK_TEST_ROOT . '/includes/98-accessibility.php';
 // Polityka ruchu rejestruje się w TEJ SAMEJ grupie co widżet dostępności,

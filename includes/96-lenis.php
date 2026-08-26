@@ -104,7 +104,7 @@ class EVK_Lenis {
     public function render_css(): void {
         $s = $this->get_settings();
         if (empty($s['enabled'])) return;
-        if (function_exists('bricks_is_builder_main') && bricks_is_builder_main()) return;
+        if (evk_w_builderze()) return;
         // Odpowiednik dist/lenis.css z przypiętej wersji — trzymamy go inline,
         // żeby nie dokładać osobnego żądania. Przy podbiciu Lenisa sprawdź,
         // czy arkusz się nie zmienił: https://unpkg.com/lenis/dist/lenis.css
@@ -124,7 +124,7 @@ html.lenis,html.lenis body{height:auto;}
     public function enqueue_assets(): void {
         $s = $this->get_settings();
         if (empty($s['enabled'])) return;
-        if (function_exists('bricks_is_builder_main') && bricks_is_builder_main()) return;
+        if (evk_w_builderze()) return;
         if (is_admin()) return;
 
         /*

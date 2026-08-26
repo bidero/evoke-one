@@ -2,6 +2,69 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.115.0] — 2026-08-26
+
+### Naprawione
+
+- **Animacje grały w builderze mimo odznaczonego „Animuj w builderze".**
+  Zgłoszone z użycia.
+
+  Warunek stał na `bricks_is_builder_main()`, a ta funkcja jest prawdziwa
+  **tylko w zewnętrznej powłoce buildera** — powłoka zaś nie rysuje treści.
+  Treść idzie w ramce (canvas) i tam funkcja zwraca fałsz, więc warunek nie
+  działał dokładnie tam, gdzie zależało najbardziej: skrypty się wczytywały,
+  animacje jechały.
+
+  Dochodzi wspólne `evk_w_builderze()` w `includes/00-context-safety.php` —
+  pliku, w którym te pomocniki już mieszkały i który ładuje się jako pierwszy.
+  Sprawdza cztery drogi: stałe `BRICKS_IS_BUILDER` i `BRICKS_IS_BUILDER_IFRAME`,
+  adres `?bricks=run` oraz obie funkcje motywu.
+
+  Wzorzec nie jest wymyślony na tę okazję: **własne elementy wtyczki od dawna
+  robią to tak samo.** Marquee (`element.php:282-286`) i Horizontal Scroll
+  (`:720`) sprawdzają builder trzema sposobami naraz i w kanwie zachowują się
+  poprawnie. Podsystem tłumaczeń ma to samo złożenie w pięciu miejscach.
+
+  Na wspólny warunek przechodzi **osiem miejsc**: Animator (2×), Lenis (2×),
+  blokada przewijania, tło przy scrollu, redukcja ruchu i dostępność. Wszędzie
+  chodzi o to samo — nie ruszać się i nie przeszkadzać w edycji. Płynne
+  przewijanie w kanwie utrudniało pracę z dokładnie tego samego powodu co
+  animacje.
+
+  **Świadomie bez `?bricks_preview`:** podgląd szablonu otwarty na froncie ma
+  pokazywać stronę taką, jaka będzie — z animacjami.
+
+### Sprawdzone, nie zmienione
+
+- **`includes/91-fonts.php` zostaje przy wąskim warunku i to jest decyzja, nie
+  przeoczenie.** Tamte osiem modułów ma w builderze nic nie robić; kroje pisma
+  są odwrotnie — **kanwa ich potrzebuje**. Bez `preconnect` i deklaracji krojów
+  tekst rysuje się zapasowym pismem i edytuje się coś, co nie wygląda jak
+  strona. Rozszerzenie warunku byłoby tam regresją. Powód dopisany na miejscu.
+
+### Weryfikacja
+
+**1713** sprawdzeń zielonych (+7). Atrapa `animator-enqueue.php` dostała
+kontekst: `front`, `powloka`, `kanwa`. **`kanwa` ustawia wyłącznie `?bricks=run`
+i zostawia obie funkcje motywu na fałszu** — najostrzejszy możliwy przypadek
+i dokładnie ten, którego dotychczasowy warunek nie łapał.
+
+Sprawdzone są obie strony przełącznika: przy odznaczonej opcji animator nie
+wchodzi ani do kanwy, ani do powłoki, ale **na froncie wystawia normalnie**;
+przy zaznaczonej wchodzi do obu. Bez tej kontroli „nie wystawia" spełniłby też
+moduł wyłączony na amen.
+
+Doszedł **strażnik na całą wtyczkę**: żaden moduł frontowy nie pilnuje buildera
+samą powłoką, poza dwoma wypisanymi z nazwy wyjątkami. Wzorowany na
+`tests/php/bricks-required.php`. Bez niego ta sama pomyłka wróciłaby przy
+następnym module — wąska funkcja wygląda na właściwą, dopóki nie wie się, co
+znaczy „main".
+
+Mutacje: warunek zawężony z powrotem do powłoki → czerwone „w kanwie nie
+wystawia niczego"; `builder_preview` odwrócony → czerwone cztery sprawdzenia
+kontekstów; jedno z ośmiu miejsc przywrócone do wąskiej funkcji → czerwony
+strażnik.
+
 ## [1.114.0] — 2026-08-26
 
 ### Zmienione

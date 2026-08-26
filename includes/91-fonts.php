@@ -83,6 +83,19 @@ class EVK_Fonts {
 
     public function render_head(): void {
         if (is_admin()) return;
+        /*
+         * TU CELOWO ZOSTAJE WĄSKI WARUNEK — nie przeszedł na `evk_w_builderze()`
+         * razem z ośmioma innymi miejscami w 1.115.0.
+         *
+         * Tamte moduły mają w builderze NIC NIE ROBIĆ: animacje, płynne
+         * przewijanie i blokady tylko przeszkadzają w edycji. Kroje pisma są
+         * odwrotnie — kanwa ICH POTRZEBUJE. Bez `preconnect` i deklaracji
+         * krojów tekst rysuje się zapasowym pismem i edytujesz coś, co nie
+         * wygląda jak strona.
+         *
+         * Sam guard i tak jest tu prawie bez znaczenia: zewnętrzna powłoka
+         * buildera nie rysuje treści, więc nie ma czym pisać.
+         */
         if (function_exists('bricks_is_builder_main') && bricks_is_builder_main()) return;
 
         $s   = $this->get_settings();

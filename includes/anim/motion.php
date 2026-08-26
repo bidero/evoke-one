@@ -51,7 +51,7 @@ function evk_motion_sanitize($input): array {
  * ruszy którykolwiek silnik ze stopki.
  */
 add_action('wp_head', function (): void {
-    if (function_exists('bricks_is_builder_main') && bricks_is_builder_main()) return;
+    if (evk_w_builderze()) return;
     $respect = evk_motion_respect_reduced() ? 'true' : 'false';
     echo '<script id="evk-motion">window.evkMotion={respect:' . $respect . ','
        . 'reduced:function(){return this.respect&&!!(window.matchMedia&&'

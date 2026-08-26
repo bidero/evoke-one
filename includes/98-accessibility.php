@@ -246,7 +246,7 @@ function evk_a11y_generate_css(array $s): string {
 add_action('wp_enqueue_scripts', function () {
     $s = evk_a11y_get_settings();
     if (empty($s['enabled'])) return;
-    if (function_exists('bricks_is_builder_main') && bricks_is_builder_main()) return;
+    if (evk_w_builderze()) return;
 
     // Wykluczenia stron po ścieżce URL
     if (!empty($s['exclude_urls'])) {

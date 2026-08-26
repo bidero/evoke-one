@@ -319,7 +319,12 @@ $tab = $TABS[$slug];
 // te same tabele, więc powtarzanie tego przy każdej byłoby pustym hałasem.
 if (($tab['module'] ?? null) === 'NL') {
     foreach (['tables.php', 'settings.php', 'lists.php', 'campaigns.php'] as $m) {
-        require EVK_TEST_ROOT . '/includes/newsletter/' . $m;
+        /* Wspólne wykrywanie buildera — moduły frontowe pytają o nie przez
+   `evk_w_builderze()`. Plik jest liściem: potrzebuje tylko `is_admin()`
+   z atrap i niczego więcej. */
+require_once EVK_TEST_ROOT . '/includes/00-context-safety.php';
+
+require EVK_TEST_ROOT . '/includes/newsletter/' . $m;
     }
     $GLOBALS['wpdb']->seed = [
         'evk_nl_lists' => [

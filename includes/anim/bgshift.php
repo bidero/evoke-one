@@ -101,7 +101,7 @@ class EVK_Bg_Shift {
 
     /** Czy jesteśmy w builderze Bricks (tam efekt tylko przeszkadza w edycji). */
     private function in_builder(): bool {
-        return function_exists('bricks_is_builder_main') && bricks_is_builder_main();
+        return evk_w_builderze();
     }
 
     public function render_css(): void {
