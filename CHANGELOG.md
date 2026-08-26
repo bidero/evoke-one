@@ -2,6 +2,70 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.113.0] — 2026-08-26
+
+### Dodane
+
+- **Marquee: wysokość obrazu.** Puste pole znaczy „z proporcji obrazu", czyli
+  dzisiejsze zachowanie. Podana wartość **zamraża wiersz taśmy**: jego geometria
+  przestaje zależeć od tego, czy pliki zdążyły dojechać — w obu wymiarach, nie
+  tylko w szerokości.
+
+  Przy obu podanych rozmiarach obraz dostaje `object-fit: cover`. Narzucenie obu
+  proporcji bez kadrowania rozciągałoby go, a w taśmie idą miniatury, nie
+  pojedyncze zdjęcia do oglądania. Przy wysokości „z proporcji" `object-fit` nie
+  jest dokładany — nie ma czego dopasowywać.
+
+- **Marquee: wybór wczytywania obrazu** — leniwie (domyślnie, jak dotąd) albo od
+  razu. Leniwe wczytywanie mierzy odległość od kadru w **obu osiach**, a pozycje
+  taśmy leżą w poziomie poza nim: dalsze obrazy dojeżdżają dopiero wtedy, gdy
+  taśma sama je dowiezie, i widać, jak wskakują. Przy dłuższej taśmie zwykle
+  chcesz „od razu". Domyślna wartość zostaje leniwa, żeby nie zmieniać po cichu
+  sposobu wczytywania na stronach, które już działają.
+
+### Naprawione
+
+- **Obrazy marquee nie rezerwowały miejsca.** `render_image()` wypuszczał
+  `style="width:…;height:auto"` bez atrybutów `width`/`height`, więc przeglądarka
+  nie znała proporcji, dopóki plik nie dojechał — rezerwowała **zero wysokości**
+  i dokładała ją dopiero potem. Wiersz taśmy podskakiwał, a razem z nim rosła
+  cała strona; a strona rosnąca w trakcie przewijania rozjeżdża wszystkie
+  wyzwalacze poniżej. Zmierzone na evoke.pl: **+992 px wysokości dokumentu
+  w trakcie jednego przejazdu**, przy 48 obrazach galerii.
+
+  Wymiary idą teraz z załącznika jako atrybuty (`wp_get_attachment_image_src()`
+  zamiast `…_url()`). Rozmiarem dalej rządzi styl — atrybuty podają wyłącznie
+  proporcje, żeby było co zarezerwować.
+
+### Czego NIE dokładałem
+
+**Kontrolki szerokości**, o którą pytałeś — bo **już jest**. `image_width`
+(domyślnie `120px`) działa też dla galerii, a `szerokosc_obrazu()` domyka to
+wartością zastępczą, więc szerokość jest ustawiona zawsze. Długość pętli liczy
+się z `offsetWidth`, czyli z narzuconego stylu, nie z obrazu — była
+deterministyczna od początku. Drugie pole na to samo tylko by myliło.
+
+`marquee.js` bez zmian: geometria pętli była poprawna, psuła się wysokość.
+
+### Weryfikacja
+
+**1695** sprawdzeń zielonych (+10). Atrapa biblioteki mediów rozróżnia teraz
+załącznik **z** zapisanymi wymiarami i **bez** nich — bez tego „obraz niesie
+wymiary" i „bez metadanych nie dostaje pustych atrybutów" byłyby jednym
+przypadkiem. Galeria sprawdzana tą samą miarą co pojedynczy obraz, bo idzie tą
+samą ścieżką renderowania.
+
+Mutacje: atrybuty wymiarów wycięte → czerwone „atrybuty width i height
+z metadanych"; wysokość ignorowana → „podana wysokość trafia do stylu";
+`object-fit` dokładany zawsze → „a sama szerokość już nie"; kontrolka
+wczytywania ignorowana → „a »od razu« daje eager". Każda z nich zapala przy
+okazji „galeria dostaje to samo co pojedynczy obraz".
+
+Tego, że przeglądarka **naprawdę** rezerwuje miejsce z atrybutów `width`/`height`,
+nie sprawdzam osobno — to jej udokumentowane zachowanie, na którym się opieramy,
+a nie nasz kod. Sprawdzone jest to, co piszemy: że atrybuty tam są i mają
+właściwe wartości.
+
 ## [1.112.0] — 2026-08-26
 
 ### Naprawione

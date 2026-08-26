@@ -38,9 +38,13 @@ require EVK_TEST_ROOT . '/includes/bricks-elements/evoke-marquee/element.php';
 // Sześć obrazów, nie cztery: sprawdzenie „losowanie zapada raz" porównuje dwie
 // kopie taśmy, a przy czterech pozycjach mutacja losująca w pętli kopii trafiała
 // w tę samą kolejność raz na 24 przebiegi. Przy sześciu — raz na 720.
-foreach ([11, 12, 13, 14, 15, 16, 21, 22] as $id) {
-    $GLOBALS['attachments'][$id] = '/media/' . $id . '.jpg';
+foreach ([11, 12, 13, 14, 15, 16, 21] as $id) {
+    $GLOBALS['attachments'][$id] = ['/media/' . $id . '.jpg', 800, 600];
 }
+/* DWUDZIESTKA DWÓJKA CELOWO BEZ WYMIARÓW — załącznik, któremu WordPress nie
+   zapisał metadanych. Bez takiego przypadku „obraz niesie wymiary" i „bez
+   metadanych nie dostaje pustych atrybutów" byłyby jednym sprawdzeniem. */
+$GLOBALS['attachments'][22] = '/media/22.jpg';
 $GLOBALS['post_meta'][12]['_wp_attachment_image_alt'] = 'logo dwunastki';
 
 /** Render jednego zestawu ustawień. */
@@ -75,6 +79,19 @@ function rozbior($html) {
     }, $m[1]);
 
     preg_match_all('#<img[^>]*style="width:([^;]*);#', $html, $w);
+    preg_match_all('#<img([^>]*)>#', $html, $znaczniki);
+    $atrybuty = array_map(function ($z) {
+        preg_match('#\swidth="(\d+)"#', $z, $aw);
+        preg_match('#\sheight="(\d+)"#', $z, $ah);
+        preg_match('#\sloading="([^"]*)"#', $z, $al);
+        preg_match('#\sstyle="([^"]*)"#', $z, $as);
+        return [
+            'w'    => $aw[1] ?? null,
+            'h'    => $ah[1] ?? null,
+            'lad'  => $al[1] ?? null,
+            'styl' => $as[1] ?? '',
+        ];
+    }, $znaczniki[1]);
     preg_match_all('#<img[^>]*alt="([^"]*)"#', $html, $a);
     preg_match_all('#<span>([^<]*)</span>#', $html, $t);
 
@@ -88,6 +105,9 @@ function rozbior($html) {
         'teksty'      => $t[1],
         'placeholder' => strpos($html, 'bricks-element-placeholder') !== false,
         'pustePudelka'=> substr_count($html, '<span class="evk-marquee-item"></span>'),
+        // Wymiary z załącznika, sposób wczytywania i pełny styl — po jednym
+        // wpisie na obraz, w kolejności wystąpienia.
+        'atrybuty'    => $atrybuty,
     ];
 }
 
@@ -196,6 +216,34 @@ $wyniki['normalizator'] = [
 // ── 9. Kontrolki ─────────────────────────────────────────────────────────────
 $el = new \Evk_Marquee_Element();
 $el->set_controls();
+// ── 8. Wymiary obrazu i sposób wczytywania (1.113.0) ─────────────────────────
+// Wysokość pusta = „z proporcji", podana = zamrożony wiersz taśmy. Wczytywanie
+// przełączane z panelu, bo przy taśmie poziomej leniwe jest wyborem z gruntu złym.
+$wyniki['wymiaryDomyslne'] = rozbior(rysuj([ 'items' => [
+    [ 'type' => 'image', 'image' => ['id' => 21], 'image_width' => '200px' ],
+] ]));
+
+$wyniki['wymiaryPodane'] = rozbior(rysuj([ 'items' => [
+    [ 'type' => 'image', 'image' => ['id' => 21],
+      'image_width' => '200px', 'image_height' => '150px', 'image_loading' => 'eager' ],
+] ]));
+
+// Sama jednostka bez liczby — z pola liczbowego Bricksa wychodzi tablica.
+$wyniki['wysokoscPustaTablica'] = rozbior(rysuj([ 'items' => [
+    [ 'type' => 'image', 'image' => ['id' => 21], 'image_width' => '200px',
+      'image_height' => ['value' => '', 'unit' => 'px'] ],
+] ]));
+
+// Załącznik bez zapisanych wymiarów — atrybutów ma NIE BYĆ, nie mają być puste.
+$wyniki['bezMetadanych'] = rozbior(rysuj([ 'items' => [
+    [ 'type' => 'image', 'image' => ['id' => 22], 'image_width' => '200px' ],
+] ]));
+
+// Galeria idzie tą samą ścieżką co pojedynczy obraz.
+$wyniki['galeriaWymiary'] = rozbior(rysuj([ 'items' => [
+    wiersz(['image_height' => '150px', 'image_loading' => 'eager']),
+] ]));
+
 $pola = $el->controls['items']['fields'];
 $wyniki['kontrolki'] = [
     'typy'          => array_keys($pola['type']['options']),

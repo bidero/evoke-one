@@ -134,9 +134,27 @@ if (!function_exists('get_the_ID')) {
     function get_the_ID() { return (int) $GLOBALS['current_post']; }
 }
 
+/*
+ * Wpis w `$GLOBALS['attachments']` bywa dwojaki i to jest celowe:
+ *   'adres'                → załącznik BEZ zapisanych wymiarów,
+ *   ['adres', 800, 600]    → z wymiarami.
+ * Bez tego rozróżnienia „obraz niesie wymiary z załącznika" i „bez metadanych
+ * nie dostaje pustych atrybutów" byłyby jednym i tym samym przypadkiem.
+ */
 if (!function_exists('wp_get_attachment_image_url')) {
     function wp_get_attachment_image_url($id, $size = 'thumbnail') {
-        return $GLOBALS['attachments'][(int) $id] ?? '';
+        $a = $GLOBALS['attachments'][(int) $id] ?? '';
+        return is_array($a) ? ($a[0] ?? '') : $a;
+    }
+}
+
+if (!function_exists('wp_get_attachment_image_src')) {
+    function wp_get_attachment_image_src($id, $size = 'thumbnail') {
+        $a = $GLOBALS['attachments'][(int) $id] ?? '';
+        if (is_array($a)) {
+            return [$a[0] ?? '', (int) ($a[1] ?? 0), (int) ($a[2] ?? 0), false];
+        }
+        return ('' === $a) ? false : [$a, 0, 0, false];
     }
 }
 

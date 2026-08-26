@@ -69,6 +69,32 @@ class Evk_Marquee_Element extends \Bricks\Element {
 					'required' => [ 'type', '!=', 'text' ],
 				],
 
+				'image_height' => [
+					'label'       => 'Wysokość obrazu',
+					'type'        => 'number',
+					'units'       => true,
+					'placeholder' => 'z proporcji',
+					'description' => 'Puste — wysokość wychodzi z proporcji obrazu. '
+						. 'Podana ZAMRAŻA wiersz taśmy, więc jego geometria przestaje zależeć od tego, '
+						. 'czy pliki zdążyły dojechać. Przy obu podanych rozmiarach obraz jest kadrowany, '
+						. 'żeby narzucenie proporcji go nie rozciągnęło.',
+					'required'    => [ 'type', '!=', 'text' ],
+				],
+				'image_loading' => [
+					'label'       => 'Wczytywanie obrazu',
+					'type'        => 'select',
+					'options'     => [
+						'lazy'  => 'Leniwie — gdy blisko kadru',
+						'eager' => 'Od razu',
+					],
+					'default'     => 'lazy',
+					'description' => 'Leniwe wczytywanie mierzy odległość od kadru w OBU osiach, '
+						. 'a pozycje taśmy leżą w poziomie poza nim — dalsze obrazy dojeżdżają więc '
+						. 'dopiero wtedy, gdy taśma sama je dowiezie, i widać, jak wskakują. '
+						. 'Przy dłuższej taśmie zwykle chcesz „od razu".',
+					'required'    => [ 'type', '!=', 'text' ],
+				],
+
 				/*
 				 * ── Galeria z danych dynamicznych ───────────────────────────
 				 *
@@ -312,7 +338,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 			echo '<div class="evk-marquee-track" aria-hidden="' . ( $copy > 0 ? 'true' : 'false' ) . '">';
 			foreach ( $pozycje as $poz ) {
 				$html = $poz['typ'] === 'image'
-					? $this->render_image( $poz['id'], $poz['szer'] )
+					? $this->render_image( $poz['id'], $poz['szer'], $poz['wys'] ?? '', $poz['lad'] ?? 'lazy' )
 					: '<span>' . esc_html( $poz['tekst'] ) . '</span>';
 				// Obraz, którego nie ma w bibliotece, dawałby puste pudełko
 				// rozpychające odstępy taśmy — lepiej, żeby zniknął cały.
@@ -340,16 +366,19 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		foreach ( $items as $item ) {
 			$type = $item['type'] ?? 'text';
 			$szer = $this->szerokosc_obrazu( $item );
+			$wys  = $this->wysokosc_obrazu( $item );
+			$lad  = $this->wczytywanie_obrazu( $item );
 
 			if ( $type === 'gallery' ) {
 				foreach ( $this->ids_galerii( $item ) as $id ) {
-					$out[] = [ 'typ' => 'image', 'id' => $id, 'szer' => $szer ];
+					$out[] = [ 'typ' => 'image', 'id' => $id, 'szer' => $szer, 'wys' => $wys, 'lad' => $lad ];
 				}
 				continue;
 			}
 
 			if ( $type === 'image' && ! empty( $item['image']['id'] ) ) {
-				$out[] = [ 'typ' => 'image', 'id' => (int) $item['image']['id'], 'szer' => $szer ];
+				$out[] = [ 'typ' => 'image', 'id' => (int) $item['image']['id'],
+					'szer' => $szer, 'wys' => $wys, 'lad' => $lad ];
 				continue;
 			}
 
@@ -441,14 +470,67 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		return ( '' === $w ) ? '120px' : $w;
 	}
 
+	/**
+	 * Wysokość z wiersza repeatera. Pusta znaczy „z proporcji obrazu".
+	 *
+	 * W odróżnieniu od szerokości NIE MA tu wartości zastępczej: pusta jest
+	 * osobnym, sensownym stanem — i to ona jest domyślna.
+	 */
+	private function wysokosc_obrazu( $item ) {
+		$h = $item['image_height'] ?? '';
+		if ( is_array( $h ) ) {
+			$v = $h['value'] ?? '';
+			/* Sama jednostka bez liczby dałaby `height:px`, czyli regułę
+			   odrzucaną po cichu przez przeglądarkę. */
+			return ( '' === $v ) ? '' : $v . ( $h['unit'] ?? '' );
+		}
+		return (string) $h;
+	}
+
+	/** Sposób wczytywania z wiersza repeatera — patrz opis kontrolki. */
+	private function wczytywanie_obrazu( $item ) {
+		return ( ( $item['image_loading'] ?? 'lazy' ) === 'eager' ) ? 'eager' : 'lazy';
+	}
+
 	/** Znacznik jednego obrazu — jeden dla obu dróg, żeby się nie rozjechały. */
-	private function render_image( $id, $szerokosc ) {
-		$url = wp_get_attachment_image_url( $id, 'full' );
+	private function render_image( $id, $szerokosc, $wysokosc = '', $ladowanie = 'lazy' ) {
+		$src = wp_get_attachment_image_src( $id, 'full' );
+		$url = $src[0] ?? '';
 		if ( ! $url ) {
 			return '';
 		}
 		$alt = get_post_meta( $id, '_wp_attachment_image_alt', true );
-		return '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $alt )
-			. '" style="width:' . esc_attr( $szerokosc ) . ';height:auto;display:block;" loading="lazy">';
+
+		/*
+		 * WYMIARY Z ZAŁĄCZNIKA JAKO ATRYBUTY — o rezerwację miejsca, nie o wygląd.
+		 *
+		 * Przy `height: auto` przeglądarka nie zna proporcji, dopóki plik nie
+		 * dojedzie, więc rezerwuje ZERO wysokości i dokłada ją dopiero potem.
+		 * Wiersz taśmy podskakuje, a razem z nim rośnie cała strona — a strona
+		 * rosnąca w trakcie przewijania rozjeżdża wszystkie wyzwalacze poniżej.
+		 * Zmierzone na evoke.pl: +992 px wysokości dokumentu w trakcie jednego
+		 * przejazdu, przy 48 obrazach galerii.
+		 *
+		 * Rozmiarem dalej rządzi styl; atrybuty podają wyłącznie proporcje.
+		 */
+		$wymiary = '';
+		$w = (int) ( $src[1] ?? 0 );
+		$h = (int) ( $src[2] ?? 0 );
+		if ( $w > 0 && $h > 0 ) {
+			$wymiary = ' width="' . $w . '" height="' . $h . '"';
+		}
+
+		$styl = 'width:' . $szerokosc
+			. ';height:' . ( '' === $wysokosc ? 'auto' : $wysokosc )
+			. ';display:block;';
+		/* Oba rozmiary narzucone znaczą narzucone proporcje — bez kadrowania
+		   obraz by się rozciągnął. Przy wysokości „z proporcji" nie ma czego
+		   dopasowywać. */
+		if ( '' !== $wysokosc ) {
+			$styl .= 'object-fit:cover;';
+		}
+
+		return '<img src="' . esc_url( $url ) . '" alt="' . esc_attr( $alt ) . '"' . $wymiary
+			. ' style="' . esc_attr( $styl ) . '" loading="' . esc_attr( $ladowanie ) . '">';
 	}
 }

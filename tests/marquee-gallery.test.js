@@ -163,7 +163,9 @@ module.exports = async function (t) {
      inaczej panel dalej pytałby o klucze, o które nie ma już potrzeby pytać. */
   t.check('a cztery stare pola zniknęły', k.stareUsuniete.length === 0,
     k.stareUsuniete.length ? 'zostały: ' + k.stareUsuniete.join(', ') : 'wszystkie usunięte');
-  t.check('wiersz ma siedem pól', k.polaWiersza.length === 7, k.polaWiersza.join(', '));
+  /* Liczba pilnuje, żeby żadne pole nie zniknęło po cichu przy kolejnej zmianie.
+     Od 1.113.0 doszły „wysokość obrazu" i „wczytywanie obrazu". */
+  t.check('wiersz ma dziewięć pól', k.polaWiersza.length === 9, k.polaWiersza.join(', '));
   t.check('szerokość obrazu pokazuje się też przy galerii',
     JSON.stringify(k.szerokoscReq) === '["type","!=","text"]', JSON.stringify(k.szerokoscReq));
   t.check('kolejność ma trzy warianty', k.kolejnosc.join(',') === 'as-is,reverse,random',
@@ -189,6 +191,62 @@ module.exports = async function (t) {
   /* Kontrola pozytywna: warunki w ogóle SĄ. Samo „żaden nie jest za długi"
      byłoby prawdą także wtedy, gdyby zniknęły wszystkie. */
   const zWarunkiem = Object.keys(k.wszystkieReq).filter((n) => k.wszystkieReq[n]);
-  t.check('a sześć pól je ma', zWarunkiem.length === 6,
+  t.check('a osiem pól je ma', zWarunkiem.length === 8,
     zWarunkiem.length + ': ' + zWarunkiem.join(', '));
+
+  // ── Wymiary obrazu i sposób wczytywania ─────────────────────────────────
+  /*
+   * Przy `height: auto` przeglądarka nie zna proporcji, dopóki plik nie
+   * dojedzie — rezerwuje ZERO wysokości i dokłada ją dopiero potem. Wiersz
+   * taśmy podskakuje, a razem z nim rośnie cała strona; rosnąca w trakcie
+   * przewijania strona rozjeżdża wszystkie wyzwalacze poniżej. Zmierzone na
+   * evoke.pl: +992 px wysokości dokumentu w trakcie jednego przejazdu, przy
+   * 48 obrazach galerii.
+   *
+   * Stąd wymiary z załącznika jako ATRYBUTY — o rezerwację miejsca, nie
+   * o wygląd. Rozmiarem dalej rządzi styl.
+   */
+  t.section('obraz niesie wymiary z załącznika');
+
+  const dom = d.wymiaryDomyslne.atrybuty[0];
+  t.check('atrybuty width i height z metadanych', dom.w === '800' && dom.h === '600',
+    dom.w + '×' + dom.h);
+  /* KONTROLA NEGATYWNA: załącznik bez zapisanych wymiarów nie dostaje pustych
+     atrybutów, tylko żadnych — `width=""` przeglądarka i tak by odrzuciła,
+     a w znaczniku wyglądałoby to na zamierzone. */
+  const bez = d.bezMetadanych.atrybuty[0];
+  t.check('bez metadanych nie ma pustych atrybutów', bez.w === null && bez.h === null,
+    JSON.stringify([bez.w, bez.h]));
+
+  t.section('wysokość: pusta z proporcji, podana zamraża wiersz');
+
+  t.check('domyślnie wysokość z proporcji', dom.styl.includes('height:auto;'), dom.styl);
+  const pod = d.wymiaryPodane.atrybuty[0];
+  t.check('podana wysokość trafia do stylu', pod.styl.includes('height:150px;'), pod.styl);
+  /* Oba rozmiary narzucone znaczą narzucone proporcje — bez kadrowania obraz
+     by się rozciągnął. Przy wysokości „z proporcji" nie ma czego dopasowywać,
+     więc `object-fit` NIE MA prawa się tam pojawić. */
+  t.check('oba rozmiary dokładają kadrowanie', pod.styl.includes('object-fit:cover'), pod.styl);
+  t.check('a sama szerokość już nie', !dom.styl.includes('object-fit'), dom.styl);
+  /* Sama jednostka bez liczby dałaby `height:px` — regułę odrzucaną po cichu. */
+  t.check('pusta liczba z jednostką to dalej „z proporcji"',
+    d.wysokoscPustaTablica.atrybuty[0].styl.includes('height:auto;'),
+    d.wysokoscPustaTablica.atrybuty[0].styl);
+
+  t.section('wczytywanie obrazu przełączane z panelu');
+
+  /* Leniwe wczytywanie mierzy odległość od kadru w OBU osiach, a pozycje taśmy
+     leżą w poziomie poza nim — dalsze obrazy dojeżdżają dopiero wtedy, gdy
+     taśma sama je dowiezie. Obie drogi sprawdzone, bo jedna przeszłaby też dla
+     wartości wpisanej na sztywno. */
+  t.check('domyślnie leniwie', dom.lad === 'lazy', String(dom.lad));
+  t.check('a „od razu" daje eager', pod.lad === 'eager', String(pod.lad));
+
+  /* Galeria idzie TĄ SAMĄ ścieżką renderowania co pojedynczy obraz — jedno
+     sprawdzenie na obu, żeby nie rozjechały się przy kolejnej zmianie. */
+  const gal = d.galeriaWymiary.atrybuty;
+  t.check('galeria dostaje to samo co pojedynczy obraz',
+    gal.length > 1 && gal.every((a) => a.lad === 'eager' && a.styl.includes('height:150px;')
+      && a.w === '800'),
+    gal.length + ' obrazów, pierwszy: ' + JSON.stringify(gal[0]));
 };
