@@ -2,6 +2,68 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.112.0] — 2026-08-26
+
+### Naprawione
+
+- **Następna sekcja wchodziła na przypiętą, gdy doładowały się obrazy.**
+  Skutek uboczny 1.111.0, zgłoszony dokładnie tak: „gdy załadują się obrazy,
+  kolejna wchodzi na tę przypiętą".
+
+  Do 1.110.0 przypinana była sama sekcja, więc wysokość przypiętego bloku nie
+  zależała od niczego, co dojeżdża później. Od 1.111.0 w bloku jest też sekcja
+  pod spodem — a w niej obrazy. Zmierzone na evoke.pl: **1289 → 2227 px**
+  po doładowaniu, czyli **+938**.
+
+  **Sedno okazało się ostrzejsze, niż zakładałem.** ScrollTrigger, przypinając,
+  ZAMRAŻA rozmiar przypiętego elementu stylem — zmierzone:
+  `max-height: 736px; height: 736px`, wpisane już przy tworzeniu pinu. Treść
+  w środku rosła potem z 300 na 459 px i **wylewała się poza to pudełko**, a
+  prostokąt sceny nie drgnął ani o piksel. Obserwator założony na samą scenę nie
+  odezwałby się więc nigdy — dlatego patrzy na **jej dzieci**. Przeliczenie
+  wpisuje nową wysokość i poprawia zapas: scena 736 → 895, zapas 1608 → 1767.
+
+  Przeliczenie jest **pilne** (`evkOdswiez(true)`, tryb z 1.109.0 z terminem
+  sekundy), w odróżnieniu od taśmy. Uzasadnienie jest tu mocniejsze: zły zapas to
+  nie „animacja zagra o sekundę za późno", tylko treść nachodząca na treść —
+  widoczna od razu i trwająca do końca przewijania. Bez tego przy ciągłym
+  przewijaniu odświeżenie nie wchodziło ani razu.
+
+### Zmienione
+
+- **Obrazy w scenie nie są już wczytywane leniwie.** Miejsce na scenę rezerwuje
+  `pin-spacer` mierzony z góry, więc treść dojeżdżająca później jest
+  sprzecznością wpisaną w konstrukcję. `loading="lazy"` schodzi **wyłącznie**
+  z obrazów wewnątrz sceny — na evoke.pl to trzy obrazy sekcji „wybrane
+  projekty". Reszta strony (51 obrazów, w tym galeria marquee) zostaje przy
+  leniwym wczytywaniu.
+
+### Sprawdzone, nie zmienione
+
+- **Pozostałości po podglądzie przez transformację** — zero trafień w kodzie na
+  `data-evk-pin-end`, `startPodPrzypieciem`, `zbudujPodglad`, `nalozPodglad`,
+  `zerujPodglad`, `konczPomiar`, `podgladST`, `podgladCele`, `opublikujKoniec`.
+  Zostały wzmianki w CHANGELOG-u i w komentarzach atrap, które opisują historię.
+
+- **„Obrazy ładują się długo"** — tego zmianie z 1.111.0 przypisać nie umiem.
+  Ostatni obraz kończył się po **4504 ms z podglądem** i **4190 ms bez niego**,
+  34 z 54 gotowych po sześciu sekundach w obu przypadkach. Za opóźnienie
+  odpowiada natywne `loading="lazy"`, które siedzi na **51 z 54 obrazów**
+  i jest niezależne od wyłączonego lazy load w Bricksie. Zdjęcie go w scenie
+  załatwia te obrazy, na które patrzysz przy przypiętej sekcji; galerią marquee
+  zajmie się osobna wersja.
+
+### Weryfikacja
+
+**1685** sprawdzeń zielonych (+11). Atrapa dostała treść, która rośnie po
+pomiarze, i pomocnika `evkOdswiez` wyjętego wprost z `includes/89-gsap.php`,
+żeby dało się zmierzyć samą PILNOŚĆ przeliczenia, a nie tylko jego skutek.
+
+Mutacje: obserwator nie obserwuje → czerwone „scena naprawdę urosła" i „zapas
+urósł mimo trwającego przewijania"; zwykłe przeliczenie zamiast pilnego →
+czerwone „zapas urósł mimo trwającego przewijania"; zdejmowanie `loading`
+wycięte → czerwone „obraz w scenie przestaje być leniwy".
+
 ## [1.111.0] — 2026-08-26
 
 ### Zmienione

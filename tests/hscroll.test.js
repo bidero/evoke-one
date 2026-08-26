@@ -583,6 +583,111 @@ module.exports = async function (t) {
   t.check('ostatnia karta dalej staje przy krawędzi', Math.abs(kp.ogonek) <= 2, kp.ogonek + ' px');
   await konPk.close();
 
+  // ── Scena rośnie po pomiarze ─────────────────────────────────────────────
+  /*
+   * Od 1.111.0 przypinany jest BLOK ZŁOŻONY z sekcji i treści pod nią, więc
+   * wysokość przypięcia zależy od tego, co w tej treści siedzi. Miejsce na blok
+   * rezerwuje `pin-spacer` — mierzony RAZ, przy odświeżeniu. Gdy treść urośnie
+   * po pomiarze (obraz bez podanych wymiarów), zapas zostaje za krótki i następna
+   * sekcja wchodzi na przypiętą.
+   *
+   * Zmierzone na evoke.pl: scena rosła z 1289 na 2227 px, czyli o 938. Zgłoszone
+   * z użycia: „kolejna wchodzi na tę przypiętą, gdy wszystko się załaduje".
+   */
+  t.section('gdy treść w scenie urośnie, zapas przypięcia idzie za nią');
+
+  /* Rośnięcie mierzone PRZED wejściem w przypięcie. ScrollTrigger zamraża
+     wysokość przypiętego elementu stylem w chwili przypinania, więc w środku
+     zakresu prostokąt sceny nic by nie powiedział — to zapas ma pokazać, czy
+     przeliczenie nadążyło. */
+  const ros = await t.open('hscroll.html', {
+    viewport: V, settle: 600, query: 'solo=1&peek=1&rosnie=1',
+  });
+  ros.start = await ros.evaluate(() => window.__gdzieSekcja(1));
+  const ros0 = await ros.evaluate(() => window.__zapas());
+  t.check('obraz w scenie dojechał', await ros.evaluate(() => window.__urosnij()) === 1, 'podmieniony');
+  await ros.waitForTimeout(900);
+  const ros1 = await ros.evaluate(() => window.__zapas());
+
+  t.check('scena naprawdę urosła', ros1.wysBloku > ros0.wysBloku + 90,
+    ros0.wysBloku + ' → ' + ros1.wysBloku + ' px');
+  t.check('zapas przypięcia urósł o tyle samo',
+    Math.abs((ros1.wysSpacer - ros0.wysSpacer) - (ros1.wysBloku - ros0.wysBloku)) <= 4,
+    'zapas +' + (ros1.wysSpacer - ros0.wysSpacer) + ', blok +' + (ros1.wysBloku - ros0.wysBloku));
+
+  /* Sprawdzenie WPROST na zgłoszenie: przy końcu przypięcia treść za zapasem
+     nie ma prawa wejść na przypięty blok. */
+  const zakresRos = (await ros.evaluate(() => window.__hs(1))).zakres;
+  await przewin(ros, zakresRos - 30, 400);
+  const ros2 = await ros.evaluate(() => window.__zapas());
+  t.check('następna sekcja nie wchodzi na przypiętą', ros2.nachodzi <= 2,
+    'nachodzenie ' + ros2.nachodzi + ' px');
+  t.check('bez błędów JS', !ros.errors.length, ros.errors.join(' | ') || 'brak');
+  await ros.close();
+
+  /* KONTROLA NEGATYWNA: bez podglądu przypięta jest SAMA SEKCJA, więc obraz
+     w treści pod nią nie ma jak zmienić wysokości przypiętego bloku. */
+  const rosB = await t.open('hscroll.html', {
+    viewport: V, settle: 600, query: 'solo=1&rosnie=1',
+  });
+  const bezR0 = await rosB.evaluate(() => window.__zapas());
+  await rosB.evaluate(() => window.__urosnij());
+  await rosB.waitForTimeout(900);
+  const bezR1 = await rosB.evaluate(() => window.__zapas());
+  t.check('bez podglądu wysokość przypiętego bloku się nie zmienia',
+    bezR0.wysBloku === bezR1.wysBloku, bezR0.wysBloku + ' → ' + bezR1.wysBloku);
+  await rosB.close();
+
+  /*
+   * PILNOŚĆ przeliczenia, nie samo przeliczenie.
+   *
+   * `evkOdswiez` odkłada odświeżenie, aż przewijanie ustanie — bo
+   * `ScrollTrigger.refresh()` zapisuje pozycję przewijania, a na iOS zapis
+   * w trakcie bezwładności ją kasuje. Przy ciągłym przewijaniu ciszy nie ma
+   * nigdy, więc zwykłe wywołanie nie wchodzi ani razu. Scena woła PILNE
+   * (termin sekundy z 1.109.0), bo zły zapas to treść nachodząca na treść.
+   *
+   * Pomocnik jedzie na stronę jako skrypt inline z PHP — czytamy go WPROST
+   * z pliku i wstrzykujemy, żeby atrapa miała to samo, co strona.
+   */
+  t.section('zapas nadąża nawet przy nieustającym przewijaniu');
+
+  const phpGsap = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'includes', '89-gsap.php'), 'utf8');
+  const helper = phpGsap.match(/wp_add_inline_script\('evk-scrolltrigger', <<<'JS'\n([\s\S]*?)\n\s*JS\);/);
+
+  const pil = await t.open('hscroll.html', {
+    viewport: V, settle: 600, query: 'solo=1&peek=1&rosnie=1', head: helper[1],
+  });
+  t.check('pomocnik z 89-gsap.php jest na stronie',
+    await pil.evaluate(() => typeof window.evkOdswiez === 'function'), 'jest');
+
+  const pil0 = await pil.evaluate(() => window.__zapas());
+  await pil.evaluate(() => {
+    window.__urosnij();
+    /* Nieustające przewijanie: każde zdarzenie zeruje licznik ciszy. */
+    window.__bicie = setInterval(() => window.dispatchEvent(new Event('scroll')), 50);
+  });
+  await pil.waitForTimeout(1800);
+  const pil1 = await pil.evaluate(() => { clearInterval(window.__bicie); return window.__zapas(); });
+  t.check('zapas urósł mimo trwającego przewijania',
+    pil1.wysSpacer > pil0.wysSpacer + 100,
+    pil0.wysSpacer + ' → ' + pil1.wysSpacer + ' px');
+  t.check('bez błędów JS', !pil.errors.length, pil.errors.join(' | ') || 'brak');
+  await pil.close();
+
+  // ── Leniwe wczytywanie w scenie ──────────────────────────────────────────
+  /* Skoro miejsce na scenę rezerwuje zapas mierzony z góry, jej treść nie może
+     dojeżdżać później. Poza sceną leniwe wczytywanie zostaje — to nie nasza
+     sprawa i nie nasz koszt. */
+  t.section('obrazy w scenie wczytują się od razu, poza sceną leniwie');
+
+  const len = await doSekcji('solo=1&peek=1&rosnie=1', 0);
+  const lz = await len.evaluate(() => window.__leniwe());
+  t.check('obraz w scenie przestaje być leniwy', lz.wScenie === 'eager', String(lz.wScenie));
+  t.check('a obraz poza sceną zostaje leniwy', lz.pozaScena === 'lazy', String(lz.pozaScena));
+  await len.close();
+
   // ── Drugi przypinany element w sąsiedztwie ───────────────────────────────
   /* Reguła ZWĘZIŁA SIĘ w 1.111.0 i to jest poprawa, nie regresja.
      Dawniej podgląd przesuwał CAŁE rodzeństwo za zapasem, więc każdy przypinany

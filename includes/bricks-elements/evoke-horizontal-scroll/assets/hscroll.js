@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.10.0
+ * EVK Horizontal Scroll v1.11.0
  */
 (function () {
 	'use strict';
@@ -435,7 +435,62 @@
 				pinEl.parentNode.insertBefore(w, pinEl);
 				w.appendChild(pinEl);
 				w.appendChild(nastepna);
+
+				/*
+				 * OBRAZY W SCENIE NIE MOGĄ BYĆ LENIWE.
+				 *
+				 * Miejsce na scenę rezerwuje `pin-spacer`, mierzony z góry — więc
+				 * treść, która dojeżdża później, jest sprzecznością wpisaną
+				 * w konstrukcję. Zmierzone na evoke.pl: po doładowaniu obrazów
+				 * scena rosła z 1289 na 2227 px, czyli o 938. Do czasu przeliczenia
+				 * zapas był o tyle za krótki i następna sekcja wchodziła na
+				 * przypiętą. Zgłoszone dokładnie tak: „kolejna wchodzi na tę
+				 * przypiętą, gdy wszystko się załaduje".
+				 *
+				 * Zdejmujemy `loading` tylko TU, w scenie — reszta strony zostaje
+				 * przy leniwym wczytywaniu. Na evoke.pl to trzy obrazy.
+				 */
+				w.querySelectorAll('img[loading="lazy"]').forEach(function (img) {
+					img.loading = 'eager';
+				});
+
 				return w;
+			}
+
+			/*
+			 * Wysokość sceny musi być pilnowana — patrz `zbudujScene()`.
+			 *
+			 * Samo zdjęcie `loading` nie wystarcza: wysokość potrafi zmienić też
+			 * webfont, treść z AJAX-a albo obraz, którego rozmiaru nikt nie podał.
+			 * Obserwator jest siatką bezpieczeństwa dla wszystkich tych przypadków.
+			 *
+			 * PATRZYMY NA DZIECI SCENY, NIE NA SCENĘ. ScrollTrigger przypinając
+			 * ZAMRAŻA rozmiar przypiętego elementu stylem — zmierzone:
+			 * `max-height: 736px; height: 736px`, wpisane już przy tworzeniu pinu.
+			 * Treść w środku rosła potem z 300 na 459 px, wylewając się poza to
+			 * pudełko, a prostokąt sceny nie drgnął ani o piksel. Obserwator
+			 * założony na samą scenę nie odezwałby się więc NIGDY.
+			 *
+			 * Po przeliczeniu ScrollTrigger wpisuje nową wysokość i poprawia zapas
+			 * — zmierzone: scena 736 → 895, zapas 1608 → 1767.
+			 *
+			 * Przeliczenie PILNE, w odróżnieniu od taśmy: zły zapas to nie
+			 * „animacja zagra o sekundę za późno", tylko treść nachodząca na treść
+			 * — widoczna od razu i trwająca do końca przewijania.
+			 */
+			var obserwatorSceny = null;
+
+			function pilnujWysokosciSceny() {
+				if (!scena || typeof ResizeObserver === 'undefined') { return; }
+				var czeka = null, doPominiecia = scena.children.length;
+				obserwatorSceny = new ResizeObserver(function (wpisy) {
+					/* Pierwsze wywołanie na każde obserwowane dziecko leci od razu
+					   przy `observe()` i mówi tylko tyle, że one istnieją. */
+					if (doPominiecia > 0) { doPominiecia -= wpisy.length; return; }
+					clearTimeout(czeka);
+					czeka = setTimeout(function () { czeka = null; odswiez(true); }, 100);
+				});
+				Array.prototype.forEach.call(scena.children, function (n) { obserwatorSceny.observe(n); });
 			}
 
 			function rozpakujScene() {
@@ -446,7 +501,7 @@
 				scena = null;
 			}
 
-			if (C.peekNext) { scena = zbudujScene(); }
+			if (C.peekNext) { scena = zbudujScene(); pilnujWysokosciSceny(); }
 
 			/* Przypinamy scenę, jeśli powstała — w przeciwnym razie samą sekcję.
 			   Wyzwalacz idzie tam samo: sekcja jest pierwszym dzieckiem sceny,
@@ -516,6 +571,7 @@
 				/* Rozpakowanie PO cofnięciu przypięcia: GSAP wyjmuje wtedy element
 				   z `pin-spacer`, a scena musi przeżyć tamtą operację, żeby było
 				   z czego wyjmować. */
+				if (obserwatorSceny) { obserwatorSceny.disconnect(); obserwatorSceny = null; }
 				rozpakujScene();
 				root.classList.remove('evk-hscroll--active', 'evk-hscroll--auto');
 				panels.forEach(function (p) { p.style.width = ''; });

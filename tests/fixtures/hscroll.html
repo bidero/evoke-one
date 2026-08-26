@@ -171,6 +171,36 @@
   /* `blisko=1` — usuwa treść pomiędzy, przez co DRUGA SEKCJA staje się
      bezpośrednim sąsiadem pierwszej. Wtedy i tylko wtedy podgląd musi odmówić:
      wciągnięcie przypinanego elementu do cudzej sceny rozłożyłoby jego pin. */
+  /* `rosnie=1` — do treści pod sekcją wchodzi obraz, który dojeżdża PÓŹNIEJ
+     i wtedy rozpycha ją w pionie. Tak zachowuje się każdy obraz bez podanych
+     wymiarów: miejsce na przypiętą scenę rezerwuje `pin-spacer` mierzony z góry,
+     więc urośnięcie po pomiarze zostawia zapas za krótki, a następna sekcja
+     wchodzi na przypiętą.
+
+     Drugi obraz — POZA sceną — jest kontrolą negatywną dla zdejmowania
+     leniwego wczytywania: jego `loading` ma zostać nietknięty. */
+  if (q.get('rosnie') === '1') {
+    var maly = function (h) {
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="' + h + '"></svg>');
+    };
+    window.__maly = maly;
+    /* `.po` ma w tej atrapie sztywne 1200 px, więc obraz nie miałby jak jej
+       rozepchnąć — a o rozpychanie tu właśnie chodzi. */
+    var podKontener = document.getElementById('pod-1');
+    podKontener.style.height = 'auto';
+    podKontener.style.minHeight = '300px';
+
+    var i1 = document.createElement('img');
+    i1.id = 'obraz-pod'; i1.loading = 'lazy'; i1.src = maly(40);
+    i1.style.display = 'block';
+    document.getElementById('pod-1').appendChild(i1);
+
+    var i2 = document.createElement('img');
+    i2.id = 'obraz-daleko'; i2.loading = 'lazy'; i2.src = maly(40);
+    i2.style.display = 'block';
+    document.querySelectorAll('.po')[document.querySelectorAll('.po').length - 1].appendChild(i2);
+  }
   if (q.get('blisko') === '1') {
     var p1 = document.getElementById('pod-1');
     if (p1) p1.remove();
@@ -352,6 +382,40 @@ window.__w = function (sel) {
  * porównywanie „gdzie stoi treść" z „gdzie kończy się sekcja" z dwóch różnych
  * chwil daje sam szum.
  */
+/** Podmiana obrazu na wyższy — treść pod sekcją rośnie PO pomiarze. */
+window.__urosnij = function () {
+  var i = document.getElementById('obraz-pod');
+  if (!i) return 0;
+  i.src = window.__maly(400);
+  return 1;
+};
+
+/**
+ * Zapas przypięcia wobec przypiętego bloku.
+ *
+ * `nachodzi > 0` znaczy, że treść za zapasem weszła na przypięty blok — czyli
+ * dokładnie to, co widać na ekranie jako „kolejna sekcja wchodzi na przypiętą".
+ */
+window.__zapas = function () {
+  var sp = document.querySelector('.pin-spacer');
+  if (!sp) return null;
+  var blok = sp.firstElementChild;
+  var po = sp.nextElementSibling;
+  var rB = blok.getBoundingClientRect();
+  return {
+    wysSpacer: Math.round(sp.getBoundingClientRect().height),
+    wysBloku:  Math.round(rB.height),
+    nachodzi:  po ? Math.round(rB.bottom - po.getBoundingClientRect().top) : null,
+  };
+};
+
+/** Jak wczytują się obrazy w scenie, a jak poza nią. */
+window.__leniwe = function () {
+  var w = document.getElementById('obraz-pod');
+  var z = document.getElementById('obraz-daleko');
+  return { wScenie: w && w.getAttribute('loading'), pozaScena: z && z.getAttribute('loading') };
+};
+
 /** Czy sekcja i treść pod nią siedzą w jednej scenie (1.111.0). */
 window.__scena = function (nr) {
   /* Pytamy o scenę WSKAZANEJ sekcji, nie o pierwszą z brzegu na stronie.
