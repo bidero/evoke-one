@@ -61,7 +61,7 @@ function evk_elements_registry(): array {
                 'EVK_HSCROLL_URL'     => $url . 'evoke-horizontal-scroll/',
                 'EVK_HSCROLL_PATH'    => $dir . 'evoke-horizontal-scroll/',
             ],
-            'script'=> ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.js', ['evk-gsap', 'evk-scrolltrigger'], '1.9.0'],
+            'script'=> ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.js', ['evk-gsap', 'evk-scrolltrigger'], '1.10.0'],
             'style' => ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.css', '1.5.0'],
         ],
         'scroll_reading' => [

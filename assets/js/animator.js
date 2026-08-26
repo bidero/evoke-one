@@ -567,7 +567,7 @@
       yoyo:   !!(cfg.loop && cfg.loopYoyo),
       scrollTrigger: {
         trigger:       el,
-        start:         startPodPrzypieciem(el, cfg.start),
+        start:         cfg.start,
         // Pętla nie może być „raz i koniec" — bez tego ScrollTrigger zabiłby
         // wyzwalacz po pierwszym wejściu i przy powrocie do kadru nic by nie było.
         once:          !cfg.loop && !cfg.repeat,
@@ -653,60 +653,6 @@
 
     rememberCloseTimeline(el, tl);
     return tl;
-  }
-
-  /** Krawędzie w ułamku wysokości — wspólne dla elementu i dla okna. */
-  var KRAWEDZIE = { top: 0, center: 0.5, bottom: 1 };
-
-  /**
-   * Punkt startu, gdy nad elementem przypina Horizontal Scroll z podglądem.
-   *
-   * Podgląd treści trzyma to, co pod przypiętą sekcją, przyklejone pod nią przez
-   * CAŁE przewijanie kart. Element jest więc widoczny — paskiem na dole ekranu —
-   * na długo, zanim cokolwiek zacznie się dziać. „Wjechał w kadr" przestaje tam
-   * znaczyć „pora zagrać". Zmierzone: cel pokazywał się przy przewinięciu 720,
-   * a przypięcie kończyło się dopiero na 1772.
-   *
-   * Dlatego animacja czeka do końca przypięcia: `max(naturalny, koniec)`. To NIE
-   * jest stałe przesunięcie — wyzwalacze, które i tak wypadają za przypięciem,
-   * zostają nietknięte.
-   *
-   * Liczbę wypisuje sam Horizontal Scroll na przesuwanej treści
-   * (`data-evk-pin-end`), bo tylko on wie, ile przypięcie trwa. Sprzężenie jest
-   * jawne i w jedną stronę: on wystawia, my czytamy.
-   *
-   * Zapisu, którego nie rozpoznajemy, NIE RUSZAMY — lepiej zostawić dzisiejsze
-   * zachowanie niż przesunąć w złą stronę.
-   */
-  function startPodPrzypieciem(el, zapis) {
-    var czesci = String(zapis).trim().split(/\s+/);
-    if (czesci.length !== 2) return zapis;
-
-    var krawedz = KRAWEDZIE[czesci[0]];
-    var okno = czesci[1].slice(-1) === '%' ? parseFloat(czesci[1]) / 100 : KRAWEDZIE[czesci[1]];
-    if (krawedz === undefined || okno === undefined || isNaN(okno)) return zapis;
-
-    /*
-     * Nośnika szukamy W ŚRODKU, przy każdym odświeżeniu, a nie raz przy
-     * tworzeniu. Kolejność wczytania skryptów nie jest ustalona: gdy Animator
-     * startuje pierwszy, atrybutu jeszcze nie ma i sprawdzenie z zewnątrz
-     * zawsze wypadałoby na „nie ma przypięcia". Zmierzone — dokładnie tak było.
-     *
-     * Gdy dociągać nie trzeba, oddajemy ORYGINALNY ZAPIS. Nasze wyliczenie służy
-     * wyłącznie do rozstrzygnięcia „czy start wypada w trakcie przypięcia";
-     * właściwy punkt liczy dalej ScrollTrigger, tak jak wszędzie indziej.
-     */
-    return function () {
-      var nosnik = el.closest && el.closest('[data-evk-pin-end]');
-      if (!nosnik) return zapis;
-
-      var koniec = parseFloat(nosnik.getAttribute('data-evk-pin-end'));
-      if (!isFinite(koniec)) return zapis;
-
-      var r = el.getBoundingClientRect();
-      var naturalny = r.top + window.scrollY + r.height * krawedz - window.innerHeight * okno;
-      return naturalny >= koniec ? zapis : koniec;
-    };
   }
 
   function attachScrub(el, targets, cfg) {

@@ -1,5 +1,5 @@
 /**
- * EVK Horizontal Scroll v1.9.0
+ * EVK Horizontal Scroll v1.10.0
  */
 (function () {
 	'use strict';
@@ -380,34 +380,78 @@
 			var onRefreshInit = function () { setWidths(); };
 			ScrollTrigger.addEventListener('refreshInit', onRefreshInit);
 
-			/* Zerowanie podglądu na czas POMIARU — patrz `zbudujPodglad()`.
-			   Uchwyt trzymany tutaj, bo zdejmuje go sprzątanie na dole. */
-			var zerujPodglad = null;
-			var konczPomiar  = null;
-			var podgladST    = null;
-
-			/* Cele podglądu, widoczne dla `onRefresh` pinu — patrz `opublikujKoniec()`. */
-			var podgladCele = null;
-
-			/**
-			 * Koniec przypięcia wypisany na przesuwanej treści.
+/* ── Scena: sekcja RAZEM z treścią pod nią ───────────────────────
 			 *
-			 * Animator czyta stąd, kiedy najwcześniej wolno mu zagrać animacją
-			 * elementu pod spodem. Bez tej liczby musiałby zgadywać, czy nad nim
-			 * cokolwiek przypina — a „wjechał w kadr" przy włączonym podglądzie
-			 * nic nie znaczy: treść wystaje paskiem przez całe przewijanie kart.
+			 * Podgląd treści działał do 1.110.0 przez TRANSFORMACJĘ rodzeństwa:
+			 * przypięcie wstawia zapas o wysokości sekcji plus drogę taśmy, więc
+			 * treść pod spodem stała o tę drogę za nisko i skrypt podciągał ją
+			 * z powrotem w każdej klatce przewijania.
 			 *
-			 * Wypisywane z `onRefresh` PINU, nie z globalnego zdarzenia `refresh`.
-			 * Globalne leci dopiero po odświeżeniu wszystkich wyzwalaczy, czyli
-			 * o jeden przebieg za późno; pin ma priorytet 1, więc odświeża się
-			 * przed wyzwalaczami pod spodem i liczba jest już aktualna, gdy
-			 * tamte liczą swoje punkty startu.
+			 * To był błąd projektowy, nie usterka do załatania. Przewijanie jedzie
+			 * na wątku kompozytora i maluje, ZANIM wątek główny zdąży policzyć
+			 * transformację — więc treść dostawała ją klatkę za późno i drgała.
+			 * Zgłoszone z użycia: „przyklejona sekcja podsuwa się do góry i dołu
+			 * przy każdym swipie", a wyłączenie podglądu drganie usuwało.
+			 * Przypięta sekcja obok stała jak wmurowana, bo `position: fixed`
+			 * prowadzi przeglądarka.
+			 *
+			 * Teraz sekcja i jej następne rodzeństwo trafiają do wspólnego
+			 * opakowania i przypinane jest OPAKOWANIE. Treść pod spodem stoi tuż
+			 * pod sekcją, bo jest częścią tego samego przypiętego bloku — nie ma
+			 * czego liczyć, nie ma czego opóźnić. Widać jej dokładnie tyle, ile
+			 * zostaje ekranu pod sekcją, czyli tyle samo co wcześniej.
+			 *
+			 * Zapas przypięcia idzie teraz ZA opakowaniem, więc treść dalej na
+			 * stronie ma naturalne pozycje i nic jej nie zniekształca.
 			 */
-			function opublikujKoniec(self) {
-				if (!podgladCele) { return; }
-				var koniec = String(Math.round(self.end));
-				podgladCele.forEach(function (n) { n.setAttribute('data-evk-pin-end', koniec); });
+			var scena = null;
+
+			function zbudujScene() {
+				var nastepna = pinEl.nextElementSibling;
+				if (!nastepna) {
+					console.warn('[EVK Horizontal Scroll] Podgląd treści pod sekcją włączony, '
+						+ 'ale za sekcją nie ma już nic, co można by pokazać.', pinEl);
+					return null;
+				}
+
+				/* Drugi przypinany element w środku rozłożyłby własne przypięcie:
+				   znalazłby się wewnątrz cudzego `position: fixed`. Lepiej nie
+				   włączyć podglądu i powiedzieć o tym, niż po cichu zepsuć tamtą
+				   sekcję. */
+				if (nastepna.matches('[data-evk-hscroll]') || nastepna.querySelector('[data-evk-hscroll]')) {
+					console.warn('[EVK Horizontal Scroll] Podgląd treści pod sekcją wyłączony: zaraz '
+						+ 'za sekcją jest drugi przypinany element, a wspólne przypięcie rozłożyłoby '
+						+ 'jego własne.', root);
+					return null;
+				}
+
+				if (pinEl.offsetHeight >= window.innerHeight) {
+					console.warn('[EVK Horizontal Scroll] Podgląd treści pod sekcją włączony, ale sekcja '
+						+ 'zajmuje cały ekran — nie ma czego pokazać.', pinEl);
+				}
+
+				var w = document.createElement('div');
+				w.className = 'evk-hscroll__scena';
+				pinEl.parentNode.insertBefore(w, pinEl);
+				w.appendChild(pinEl);
+				w.appendChild(nastepna);
+				return w;
 			}
+
+			function rozpakujScene() {
+				if (!scena || !scena.parentNode) { scena = null; return; }
+				var rodzic = scena.parentNode;
+				while (scena.firstChild) { rodzic.insertBefore(scena.firstChild, scena); }
+				rodzic.removeChild(scena);
+				scena = null;
+			}
+
+			if (C.peekNext) { scena = zbudujScene(); }
+
+			/* Przypinamy scenę, jeśli powstała — w przeciwnym razie samą sekcję.
+			   Wyzwalacz idzie tam samo: sekcja jest pierwszym dzieckiem sceny,
+			   więc ich górne krawędzie leżą w tym samym miejscu. */
+			var celPrzypiecia = scena || pinEl;
 
 			var snapCfg = false;
 			if (C.snap) {
@@ -429,7 +473,7 @@
 					/* Wyzwalacz TAM, GDZIE PIN — i to nie jest kosmetyka. Zostawiony
 					   na taśmie ruszałby dopiero, gdy jej górna krawędź dojedzie do
 					   góry ekranu, czyli po przewinięciu nagłówka poza kadr. */
-					trigger            : pinEl,
+					trigger            : celPrzypiecia,
 					start              : C.startOffset,
 					end                : function () { return '+=' + getAmount(); },
 					/* Jawnie `pinEl`, choć przy dzisiejszym wyzwalaczu `true` znaczy
@@ -437,7 +481,7 @@
 					   nie odróżnia. Forma jawna zostaje, bo trzyma pin przy właściwym
 					   elemencie NIEZALEŻNIE od wyzwalacza: gdyby ten kiedyś wrócił na
 					   taśmę, `true` po cichu przypięłoby taśmę. */
-					pin                : pinEl,
+					pin                : celPrzypiecia,
 					/*
 					 * Pin odświeża się PRZED wyzwalaczami pod nim.
 					 *
@@ -452,7 +496,6 @@
 					 * między sobą GSAP sortuje po pozycji w dokumencie.
 					 */
 					refreshPriority    : 1,
-					onRefresh          : opublikujKoniec,
 					anticipatePin      : 1,
 					scrub              : C.scrub,
 					snap               : snapCfg,
@@ -464,179 +507,16 @@
 				}
 			});
 
-			/* ── Treść pod spodem stoi tuż pod przypiętą sekcją ──────────────
-			 *
-			 * Bez tego następna sekcja wjeżdża dopiero na koniec przewijania
-			 * kart, a pod przypiętą sekcją zieje pustka. Powód jest w geometrii,
-			 * nie w ustawieniach: ScrollTrigger wstawia `pin-spacer` o wysokości
-			 * `H + D` (wysokość sekcji + droga taśmy), więc następna sekcja stoi
-			 * w dokumencie o `D` niżej i po przewinięciu o `d` jej górna krawędź
-			 * jest na `H + D − d`. To maleje zawsze — żaden margines ani
-			 * `position: sticky` tego nie odwróci, bo treść jest NAPRAWDĘ
-			 * oddalona o `D`.
-			 *
-			 * Dlatego rodzeństwo za spacerem jedzie `y` od `−D` do `0` tym samym
-			 * scrubem. Wtedy jego położenie to `(docTop − S − d) + (d − D)`,
-			 * czyli `docTop − S − D` — wartość STAŁA. Przed przypięciem treść
-			 * jest przyklejona pod sekcją (luka `D` nie zdąży się pokazać),
-			 * w trakcie stoi, a na końcu `y` wraca do zera i nic nie skacze.
-			 *
-			 * Widać dokładnie tyle, ile zostaje ekranu pod sekcją.
-			 */
-			function zbudujPodglad(spacer) {
-				var pod = [];
-				for (var n = spacer.nextElementSibling; n; n = n.nextElementSibling) {
-					pod.push(n);
-				}
-				if (!pod.length) { return; }
-
-				/* Transformacja tworzy blok zawierający dla `position: fixed` —
-				   ta sama pułapka, którą offcanvas omija portalem do <body>.
-				   ScrollTrigger przypina właśnie przez `position: fixed`, więc
-				   drugi przypinany element pod spodem PRZESTAŁBY działać.
-				   Lepiej nie włączyć podglądu i powiedzieć o tym, niż po cichu
-				   zepsuć tamtą sekcję. */
-				var kolizja = pod.some(function (el) {
-					return el.matches('[data-evk-hscroll]') || el.querySelector('[data-evk-hscroll]');
-				});
-				if (kolizja) {
-					console.warn('[EVK Horizontal Scroll] Podgląd treści pod sekcją wyłączony: niżej '
-						+ 'na stronie jest drugi przypinany element, a przesuwanie treści rozłożyłoby '
-						+ 'jego przypięcie.', root);
-					return;
-				}
-
-				if (pinEl.offsetHeight >= window.innerHeight) {
-					console.warn('[EVK Horizontal Scroll] Podgląd treści pod sekcją włączony, ale sekcja '
-						+ 'zajmuje cały ekran — nie ma czego pokazać.', pinEl);
-				}
-
-				/*
-				 * ŻADNEGO `z-index` na przypiętej sekcji — próbowane i zmierzone.
-				 *
-				 * Kusi, żeby ustawić jej `z-index: 1`, bo element z transformacją
-				 * maluje się jak `z-index: 0` i przy nachodzeniu wygrywa z sekcją
-				 * (równa waga, decyduje kolejność w drzewie). Tyle że
-				 * ScrollTrigger KOPIUJE styl przypiętego elementu na `pin-spacer`
-				 * — a ten ma wysokość sekcji plus całą drogę taśmy. Zmierzone:
-				 * spacer dostawał `position: relative; z-index: 1` i przechwytywał
-				 * kliknięcia na wystającej treści, bo leżał nad nią na całej swojej
-				 * wysokości.
-				 *
-				 * Nachodzenie brało się z opóźnienia kompensacji, nie z warstw —
-				 * przy `scrub: true` sekcja i treść po prostu się stykają.
-				 */
-				/*
-				 * PRZED POMIAREM transformacja schodzi, po pomiarze wraca.
-				 *
-				 * ScrollTrigger mierzy położenia przez `getBoundingClientRect()`,
-				 * a ten WLICZA transformację. Podgląd przesuwa rodzeństwo o `−D`
-				 * i przy górze strony stoi właśnie na tej wartości — czyli dokładnie
-				 * wtedy, gdy ScrollTrigger mierzy. Każdy wyzwalacz niżej dostawał
-				 * przez to punkt startu mniejszy o całą drogę taśmy i odpalał
-				 * o ekran za wcześnie. Zmierzone: 700 zamiast 1612.
-				 *
-				 * `refreshInit` leci PRZED mierzeniem, więc wyzerowane tam `y`
-				 * daje prawdziwe pozycje z układu. Samo zerowanie jednak NIE
-				 * WYSTARCZA — patrz niżej.
-				 *
-				 * To samo dotyczyłoby kompensacji przeniesionej kiedyś na
-				 * animację sterowaną przewijaniem — transformacja z CSS-a wchodzi
-				 * do prostokąta tak samo.
-				 */
-
-				/*
-				 * PRZESUNIĘCIE NAKŁADAMY SAMI, w `onUpdate` — nie zlecamy go
-				 * przewijanej animacji. Powód jest zmierzony, nie teoretyczny.
-				 *
-				 * `refreshInit` zeruje transformację przed pomiarem, ale
-				 * ScrollTrigger W TRAKCIE ODŚWIEŻANIA sam przewija stronę, żeby
-				 * zmierzyć przypięte elementy — a każda zmiana pozycji renderuje
-				 * przewijaną animację od nowa i przesunięcie wraca, ZANIM zmierzą
-				 * się wyzwalacze pod spodem. Ujemny priorytet tego nie
-				 * powstrzymuje, bo to nie jest odświeżenie tylko zwykłe
-				 * `update()`.
-				 *
-				 * Zmierzone na lustrze evoke.pl: ten sam element dostawał punkt
-				 * startu 3181 albo 4926 — zależnie WYŁĄCZNIE od tego, gdzie stała
-				 * strona, gdy leciało odświeżenie. Przy wyłączonym podglądzie obie
-				 * liczby były równe (4924 i 4926). Stąd zgłoszenie „to, co jest za
-				 * HS, ma już odtworzone animacje wejścia".
-				 *
-				 * Własny `onUpdate` odzywa się tylko przy zmianie przewijania, a po
-				 * odświeżeniu przesunięcie przywraca `konczPomiar()` — z wartości
-				 * odczytanej PO pomiarze, nie w jego trakcie.
-				 */
-				function nalozPodglad(p) {
-					/* Za zakresem transformacja ZNIKA. Zostawiona — nawet zerowa —
-					   dalej tworzyłaby blok zawierający dla `position: fixed`
-					   na całą resztę strony. */
-					if (p >= 1) { gsap.set(pod, { clearProps: 'transform' }); return; }
-					gsap.set(pod, { y: -(1 - p) * getAmount() });
-				}
-
-				zerujPodglad = function () { gsap.set(pod, { y: 0 }); };
-				konczPomiar  = function () {
-					if (podgladST) { nalozPodglad(podgladST.progress); }
-				};
-				ScrollTrigger.addEventListener('refreshInit', zerujPodglad);
-				ScrollTrigger.addEventListener('refresh', konczPomiar);
-
-				/* Pin powstał wcześniej, więc pierwszego odświeżenia już nie
-				   złapie — stąd jedno wypisanie z ręki. Kolejne idą przez
-				   `onRefresh` pinu. */
-				podgladCele = pod;
-				if (glownyWyzwalacz) { opublikujKoniec(glownyWyzwalacz); }
-
-				podgladST = ScrollTrigger.create({
-					trigger        : pinEl,
-					start          : C.startOffset,
-					end            : function () { return '+=' + getAmount(); },
-					/* Na koniec kolejki odświeżania — pin mierzy się pierwszy
-					   (priorytet 1), potem treść, a podgląd na końcu, gdy nie ma
-					   już czego zniekształcić. */
-					refreshPriority: -1,
-					onUpdate       : function (self) { nalozPodglad(self.progress); },
-				});
-
-				/* Stan początkowy trzeba nałożyć samemu: `onUpdate` odzywa się
-				   dopiero przy pierwszej zmianie, a przed sekcją treść ma już być
-				   przyklejona — inaczej skacze o całą drogę taśmy przy dojeżdżaniu. */
-				nalozPodglad(podgladST.progress);
-			}
-
-			var glownyWyzwalacz = glownaAnimacja.scrollTrigger || null;
-
-			/* Spacer istnieje już TERAZ: ScrollTrigger zakłada pin w swoim
-			   konstruktorze, także wtedy, gdy blok powstaje w trakcie
-			   odświeżania. Sprawdzone mutacją — druga próba po `refresh`
-			   nigdy nie wchodziła. */
-			var spacer = pinEl.parentElement;
-			if (C.peekNext && spacer && spacer.classList.contains('pin-spacer')) {
-				zbudujPodglad(spacer);
-			}
-
-			/* Podglądu NIE MA w sprzątaniu niżej i to nie jest przeoczenie:
-			   `gsap.matchMedia()` cofa wszystko, co powstało w jego bloku —
-			   razem z animacją, jej wyzwalaczem i nałożoną transformacją.
-			   Sprawdzone mutacją: ręczny `kill()` z `clearProps` dawał się
-			   wyciąć bez jednego czerwonego sprawdzenia. Klasy i style poniżej
-			   sprząta się z ręki, bo ich GSAP nie zakładał. */
+			/* Przypięcia i animacji NIE MA w sprzątaniu i to nie jest przeoczenie:
+			   `gsap.matchMedia()` cofa wszystko, co powstało w jego bloku — razem
+			   z animacją, jej wyzwalaczem i zapasem przypięcia. Klasy, style
+			   i SCENĘ sprząta się z ręki, bo ich GSAP nie zakładał. */
 			return function () {
 				ScrollTrigger.removeEventListener('refreshInit', onRefreshInit);
-				if (zerujPodglad) {
-					ScrollTrigger.removeEventListener('refreshInit', zerujPodglad);
-					zerujPodglad = null;
-				}
-				if (konczPomiar) {
-					ScrollTrigger.removeEventListener('refresh', konczPomiar);
-					konczPomiar = null;
-				}
-				if (podgladST) { podgladST.kill(); podgladST = null; }
-				if (podgladCele) {
-					podgladCele.forEach(function (n) { n.removeAttribute('data-evk-pin-end'); });
-					podgladCele = null;
-				}
+				/* Rozpakowanie PO cofnięciu przypięcia: GSAP wyjmuje wtedy element
+				   z `pin-spacer`, a scena musi przeżyć tamtą operację, żeby było
+				   z czego wyjmować. */
+				rozpakujScene();
 				root.classList.remove('evk-hscroll--active', 'evk-hscroll--auto');
 				panels.forEach(function (p) { p.style.width = ''; });
 				if (bar) { bar.style.transform = ''; }

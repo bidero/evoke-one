@@ -168,6 +168,13 @@
     var s2 = document.getElementById('sekcja-2');
     if (s2) s2.remove();
   }
+  /* `blisko=1` — usuwa treść pomiędzy, przez co DRUGA SEKCJA staje się
+     bezpośrednim sąsiadem pierwszej. Wtedy i tylko wtedy podgląd musi odmówić:
+     wciągnięcie przypinanego elementu do cudzej sceny rozłożyłoby jego pin. */
+  if (q.get('blisko') === '1') {
+    var p1 = document.getElementById('pod-1');
+    if (p1) p1.remove();
+  }
   if (q.get('tall') === '1') document.body.classList.add('wysoka');
   if (q.get('nisko') === '1') document.body.classList.add('nisko');
   document.getElementById('hs-1').setAttribute('data-evk-hscroll', JSON.stringify(cfg));
@@ -267,6 +274,12 @@ window.__hs = function (nr) {
     // Co naprawdę przypięto: ScrollTrigger owija przypięty element w rodzica
     // z klasą `pin-spacer`.
     przypiety: (function () {
+      /* Od 1.111.0 podgląd wkłada sekcję do WSPÓLNEJ SCENY z treścią pod nią
+         i przypina scenę. Sekcja jest wtedy przypięta tak samo — tylko o jeden
+         poziom głębiej. */
+      var sc = sek.parentElement;
+      if (sc && sc.classList.contains('evk-hscroll__scena')
+          && sc.parentElement && sc.parentElement.classList.contains('pin-spacer')) return 'sekcja';
       if (sek.parentElement && sek.parentElement.classList.contains('pin-spacer')) return 'sekcja';
       if (root.parentElement && root.parentElement.classList.contains('pin-spacer')) return 'element';
       return 'nic';
@@ -339,6 +352,23 @@ window.__w = function (sel) {
  * porównywanie „gdzie stoi treść" z „gdzie kończy się sekcja" z dwóch różnych
  * chwil daje sam szum.
  */
+/** Czy sekcja i treść pod nią siedzą w jednej scenie (1.111.0). */
+window.__scena = function (nr) {
+  /* Pytamy o scenę WSKAZANEJ sekcji, nie o pierwszą z brzegu na stronie.
+     Przy dwóch sekcjach z podglądem każda ma własną — a sprawdzenie „sceny nie
+     ma" musi dotyczyć tej, o którą pytamy. */
+  var sek = document.getElementById('sekcja-' + (nr || 1));
+  var sc  = sek && sek.parentElement;
+  if (!sc || !sc.classList.contains('evk-hscroll__scena')) {
+    return { jest: false, dzieci: null, wSpacerze: false };
+  }
+  return {
+    jest: true,
+    dzieci: Array.prototype.map.call(sc.children, function (n) { return n.id || n.className; }),
+    wSpacerze: !!(sc.parentElement && sc.parentElement.classList.contains('pin-spacer')),
+  };
+};
+
 window.__pod = function () {
   var el  = document.getElementById('pod-1');
   var sek = document.getElementById('sekcja-1');

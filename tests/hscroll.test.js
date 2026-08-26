@@ -528,9 +528,17 @@ module.exports = async function (t) {
      NIC. Taśma musi w tym samym czasie przejechać. */
   t.check('a taśma w tym czasie przejechała', iksyPk[0] === 0 && iksyPk[2] < -400,
     JSON.stringify(iksyPk));
-  /* Transformacja MUSI być założona — to ona trzyma treść w miejscu. */
+  /* Trzyma ją WSPÓLNE PRZYPIĘCIE, nie transformacja (1.111.0).
+     Do 1.110.0 treść była podciągana transformacją liczoną w JS co klatkę —
+     i właśnie dlatego drgała przy natywnym przewijaniu: przeglądarka maluje
+     przewinięcie z wątku kompozytora, a skrypt dokładał przesunięcie klatkę
+     później. Teraz sekcja i treść są jednym przypiętym blokiem. */
+  const pkS = await pk.evaluate(() => window.__scena());
+  t.check('trzyma ją wspólne przypięcie, nie transformacja',
+    pkS.jest && pkS.wSpacerze && pkS.dzieci.length === 2,
+    pkS.jest ? pkS.dzieci.join(' + ') + (pkS.wSpacerze ? ' w zapasie' : ' POZA zapasem') : 'sceny nie ma');
   const pkT = await pk.evaluate(() => window.__pod());
-  t.check('trzyma ją transformacja', pkT.transform !== 'none', pkT.transform);
+  t.check('i nie ma żadnej transformacji', pkT.transform === 'none', pkT.transform);
   await pk.close();
 
   /* KONTROLA NEGATYWNA: bez włącznika treść jedzie w górę i na starcie jest
@@ -575,27 +583,38 @@ module.exports = async function (t) {
   t.check('ostatnia karta dalej staje przy krawędzi', Math.abs(kp.ogonek) <= 2, kp.ogonek + ' px');
   await konPk.close();
 
-  // ── Drugi przypinany element pod spodem ──────────────────────────────────
-  /* Przesuwanie treści to transformacja, a ta tworzy blok zawierający dla
-     `position: fixed` — czyli dla tego, czym ScrollTrigger przypina. Drugi
-     przypinany element niżej przestałby działać, więc podgląd ma się NIE
-     włączyć i powiedzieć o tym. */
-  t.section('drugi przypinany element niżej wyłącza podgląd');
+  // ── Drugi przypinany element w sąsiedztwie ───────────────────────────────
+  /* Reguła ZWĘZIŁA SIĘ w 1.111.0 i to jest poprawa, nie regresja.
+     Dawniej podgląd przesuwał CAŁE rodzeństwo za zapasem, więc każdy przypinany
+     element niżej na stronie go blokował. Teraz do sceny wchodzi wyłącznie
+     NASTĘPNY sąsiad, więc przeszkadza tylko on — i tylko wtedy podgląd odmawia. */
+  t.section('przypinany sąsiad wyłącza podgląd, dalszy już nie');
 
-  const kol = await doSekcji('peek=1', 0);
-  t.check('ostrzeżenie mówi, dlaczego podgląd nie działa',
-    kol.warnings.some((w) => /Podgląd treści pod sekcją wyłączony/.test(w)),
-    kol.warnings.find((w) => /Podgląd/.test(w)) || 'brak ostrzeżenia');
-  const k0 = await kol.evaluate(() => window.__pod());
-  t.check('a treść zachowuje się jak dawniej', k0.transform === 'none' && !k0.wKadrze,
-    k0.transform + ', w kadrze: ' + k0.wKadrze);
+  /* Sąsiadem jest treść, a druga sekcja stoi za nią — podgląd MA działać. */
+  const dal = await doSekcji('peek=1', 0);
+  const dalS = await dal.evaluate(() => window.__scena());
+  t.check('dalszy przypinany element nie blokuje podglądu',
+    dalS.jest && dalS.dzieci.length === 2, dalS.jest ? dalS.dzieci.join(' + ') : 'sceny nie ma');
+  t.check('i nie ma o czym ostrzegać',
+    !dal.warnings.some((w) => /Podgląd treści pod sekcją wyłączony/.test(w)),
+    dal.warnings.find((w) => /Podgląd/.test(w)) || 'brak ostrzeżenia');
   /* Kontrola pozytywna: druga sekcja MA dalej działać — o nią w tym całym
      odmawianiu chodzi. */
   const dwa = await doSekcji('peek=1', 0, 2);
   const d2p = await dwa.evaluate(() => window.__hs(2));
   t.check('a druga sekcja dalej się przypina', d2p.przypiety === 'sekcja', d2p.przypiety);
-  t.check('bez błędów JS', !kol.errors.length && !dwa.errors.length,
-    (kol.errors.concat(dwa.errors)).join(' | ') || 'brak');
+
+  /* A gdy przypinany element JEST sąsiadem — podgląd odmawia i mówi dlaczego.
+     `blisko=1` usuwa treść pomiędzy sekcjami. */
+  const kol = await doSekcji('peek=1&blisko=1', 0);
+  t.check('przypinany sąsiad wyłącza podgląd i mówi dlaczego',
+    kol.warnings.some((w) => /Podgląd treści pod sekcją wyłączony/.test(w)),
+    kol.warnings.find((w) => /Podgląd/.test(w)) || 'brak ostrzeżenia');
+  const kolS = await kol.evaluate(() => window.__scena());
+  t.check('i sceny nie ma wcale', !kolS.jest, String(kolS.jest));
+  t.check('bez błędów JS', !kol.errors.length && !dwa.errors.length && !dal.errors.length,
+    (kol.errors.concat(dwa.errors, dal.errors)).join(' | ') || 'brak');
+  await dal.close();
   await kol.close();
   await dwa.close();
 
@@ -686,6 +705,11 @@ module.exports = async function (t) {
   await prog.waitForTimeout(500);
   const pr1 = await prog.evaluate(() => window.__pod());
   t.check('poniżej progu transformacja znika', pr1.transform === 'none', pr1.transform);
+  /* I SCENA ma się rozpakować. Zostawiona opakowywałaby sekcję na telefonie,
+     gdzie nic już nie jest przypięte — a każde opakowanie w DOM-ie potrafi
+     zmienić układ rodzica i trafić w reguły typu „bezpośrednie dziecko". */
+  const prS1 = await prog.evaluate(() => window.__scena(1));
+  t.check('poniżej progu scena się rozpakowuje', !prS1.jest, String(prS1.jest));
 
   await prog.setViewportSize({ width: 1200, height: 800 });
   await prog.waitForTimeout(700);
@@ -694,6 +718,13 @@ module.exports = async function (t) {
   const pr2 = await prog.evaluate(() => window.__pod());
   t.check('a po powrocie powyżej progu znów trzyma',
     Math.abs(pr2.top - pr2.sekcjaDol) <= 2, pr2.top + ' wobec ' + pr2.sekcjaDol);
+  /* Kontrola pozytywna do rozpakowania: scena wraca, i to DOKŁADNIE JEDNA.
+     Powtórne opakowanie zagnieżdżałoby sceny przy każdym przejściu progu. */
+  const prS2 = await prog.evaluate(() => window.__scena(1));
+  t.check('scena wraca, i jest dokładnie jedna',
+    prS2.jest && prS2.dzieci.length === 2
+      && await prog.evaluate(() => document.querySelectorAll('.evk-hscroll__scena').length) === 1,
+    prS2.jest ? prS2.dzieci.join(' + ') : 'sceny nie ma');
   t.check('bez błędów JS', !prog.errors.length, prog.errors.join(' | ') || 'brak');
   await prog.close();
 

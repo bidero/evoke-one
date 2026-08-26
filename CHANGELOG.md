@@ -2,6 +2,82 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.111.0] — 2026-08-26
+
+### Zmienione
+
+- **Podgląd treści pod sekcją działa teraz przez PRZYPIĘCIE, nie przez
+  transformację.** To zmiana projektu, nie łatka — i to Twoje pytanie („nie można
+  jakoś inaczej podczepić tej sekcji? jakimś pinem?") było trafne, a moje
+  wcześniejsze rozumowanie błędne. Sprawdzałem, czy da się przypiąć sekcję pod
+  spodem *osobno*, i faktycznie się nie da: w chwili startu przypięcia stoi ona
+  o całą drogę taśmy za nisko. Ale właściwe pytanie brzmiało **przypiąć obie
+  naraz**.
+
+  Sekcja i jej następne rodzeństwo trafiają do wspólnego opakowania
+  (`.evk-hscroll__scena`) i przypinane jest opakowanie. Treść stoi tuż pod
+  sekcją, bo **jest częścią tego samego przypiętego bloku**. Widać jej dokładnie
+  tyle, ile zostaje ekranu pod sekcją — czyli tyle samo co wcześniej.
+
+  Do 1.110.0 podgląd przesuwał **każde** rodzeństwo za zapasem przypięcia
+  transformacją liczoną w JS w każdej klatce przewijania. Przy natywnym
+  przewijaniu to musi drgać: przeglądarka maluje przewinięcie z wątku
+  kompozytora, a skrypt dokłada przesunięcie klatkę później. Zgłoszone
+  z użycia — „przyklejona sekcja podsuwa się do góry i dołu przy każdym swipie",
+  a wyłączenie podglądu drganie usuwało. Przypięta sekcja obok stała jak
+  wmurowana, bo `position: fixed` prowadzi przeglądarka. To była cała różnica.
+
+  Zmierzone na lustrze evoke.pl po zmianie:
+
+  | | |
+  |---|---|
+  | odstęp treści od sekcji przez całe przypięcie | **rozrzut 0 px** |
+  | górna krawędź sekcji w kadrze | **stale 0** |
+  | elementy z transformacją za zapasem | **0** |
+  | skok przy wyjściu z przypięcia | **0 px** |
+
+- **Ograniczenie „drugi przypinany element" zwęziło się.** Dawniej podgląd
+  odmawiał działania, gdy gdziekolwiek niżej na stronie stał drugi przypinany
+  element — bo transformacja obejmowała całe rodzeństwo. Teraz do sceny wchodzi
+  wyłącznie **następny sąsiad**, więc przeszkadza tylko on. Dalsze sekcje
+  z Horizontal Scrollem podglądu już nie blokują.
+
+### Usunięte
+
+- **Dociąganie punktu startu w Animatorze** (`startPodPrzypieciem`, 1.108.2)
+  wraz z `data-evk-pin-end`. Istniało po to, żeby animacje treści, którą podgląd
+  pokazywał wcześnie, czekały do końca przypięcia. Treść pod sceną ma teraz
+  naturalne pozycje i nic ich nie zniekształca, więc mutacja przestała cokolwiek
+  zapalać — a kod, którego żadne sprawdzenie nie broni, wylatuje.
+- Zerowanie transformacji na czas pomiaru (1.108.1) i przywracanie po nim
+  (1.110.0) — nie ma czego zerować.
+
+### Weryfikacja
+
+**1674** sprawdzenia zielone. Przepisane sprawdzenia podglądu mierzą teraz to,
+co naprawdę trzyma treść: scenę w zapasie przypięcia, zerową liczbę
+transformacji i stały odstęp przez całe przewijanie. Doszło rozpakowanie sceny
+po zejściu poniżej progu wyłączenia i kontrola, że po powrocie jest **dokładnie
+jedna** scena, a nie zagnieżdżone.
+
+Mutacje: scena nie powstaje → osiem czerwonych, w tym „treść nie faluje w trakcie
+przewijania" i „a tuż pod nią — treść, nie zapas przypięcia"; brak rozpakowania →
+czerwone „poniżej progu scena się rozpakowuje" i „scena wraca, i jest dokładnie
+jedna".
+
+**Czego nie zmierzyłem: samej płynności.** Headless dostaje syntetyczne kółko
+przez wątek główny, więc rozrzut wychodzi 0 px zarówno z płynnym przewijaniem,
+jak i bez — to zjawisko po prostu nie daje się tu wywołać, tak samo jak Safari.
+Ale tym razem nie trzeba go mierzyć, żeby wiedzieć, że nie zostało: **po zmianie
+nie ma ani jednej transformacji liczonej na klatkę.** Nie ma czego opóźnić.
+
+### Ryzyko nazwane wprost
+
+Opakowanie zmienia DOM. Reguły w stylu „bezpośrednie dziecko", `:first-child`
+czy układ siatki rodzica mogą na to zareagować. Dlatego powstaje **wyłącznie**
+przy włączonym „Pokaż treść pod sekcją", bierze do środka tylko sekcję i jej
+sąsiada, nie ma własnych stylów i rozpakowuje się przy zejściu poniżej progu.
+
 ## [1.110.0] — 2026-08-25
 
 ### Naprawione

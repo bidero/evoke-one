@@ -30,6 +30,9 @@ module.exports = async function (t) {
     viewport: { width: 1200, height: 800 }, settle: 900,
   });
   const c = await p.evaluate(() => window.__cel());
+  /* Odczyt przed zamknięciem tej strony — służy jako kontrola negatywna
+     w sekcji o podglądzie niżej. */
+  const scBez = await p.evaluate(() => window.__scena());
 
   t.check('sytuacja jest realna — przypięcie ma sporą drogę',
     c.droga > 400, c.droga + ' px zapasu');
@@ -67,60 +70,54 @@ module.exports = async function (t) {
   const pc = await pk.evaluate(() => window.__cel());
 
   /*
-   * Punkt startu ma być DOCIĄGNIĘTY DO KOŃCA PRZYPIĘCIA, a nie równy pozycji
-   * w układzie — i to jest sprostowanie 1.108.1.
+   * PODGLĄD PRZEZ PRZYPIĘCIE, nie przez transformację (1.111.0).
    *
-   * Podgląd trzyma treść przyklejoną pod sekcją przez całe przewijanie kart,
-   * więc element jest widoczny paskiem na dole na długo przed tym, nim
-   * cokolwiek się dzieje. Zmierzone: pokazywał się przy 720, a przypięcie
-   * kończyło się na 1772. Liczenie z pozycji w układzie dawało 1572 — czyli
-   * animację w środku przewijania kart, ani „gdy widać", ani „gdy rusza".
+   * Do 1.110.0 treść pod sekcją była podciągana transformacją liczoną w JS
+   * w każdej klatce przewijania. Przy natywnym przewijaniu to musi drgać:
+   * przeglądarka maluje przewinięcie z wątku kompozytora, a skrypt dokłada
+   * przesunięcie klatkę później. Zgłoszone z użycia: „przyklejona sekcja
+   * podsuwa się do góry i dołu przy każdym swipie", a wyłączenie podglądu
+   * drganie usuwało — przypięta sekcja obok stała jak wmurowana, bo
+   * `position: fixed` prowadzi przeglądarka.
+   *
+   * Teraz sekcja i jej następne rodzeństwo idą do wspólnego opakowania
+   * i przypinane jest opakowanie. Nie ma czego liczyć, więc nie ma czego
+   * opóźnić.
    */
-  t.check('punkt startu dociągnięty do końca przypięcia', pc.start === pc.pinKoniec,
-    pc.start + ' wobec końca przypięcia ' + pc.pinKoniec);
-  /* KONTROLA NEGATYWNA: bez podglądu nie ma czego dociągać — start zostaje
-     naturalny i JEST inny niż koniec przypięcia. */
-  t.check('a bez podglądu zostaje naturalny',
-    c.start === c.oczekiwanyStart && c.start !== c.pinKoniec,
-    c.start + ' wobec układu ' + c.oczekiwanyStart + ', pin kończy ' + c.pinKoniec);
-  /* I dociągane jest TYLKO to, co wypada w trakcie przypięcia. Element dalej
-     w dole strony ma zostać nietknięty — inaczej „dociągamy" znaczyłoby
-     „przesuwamy wszystko jak leci". */
-  t.check('element daleko w dole nietknięty',
-    pc.startDaleko === pc.pozycjaDaleko - 800, pc.startDaleko + ' wobec ' + (pc.pozycjaDaleko - 800));
-  /* Kontrola pozytywna: podgląd MA działać. Bez niej oba sprawdzenia wyżej
-     spełniłby też podgląd, który w ogóle się nie włączył. */
-  t.check('a treść pod sekcją jest naprawdę przesunięta',
-    /matrix\(1, 0, 0, 1, 0, -[1-9]/.test(pc.przesuniecie), pc.przesuniecie);
+  const sc = await pk.evaluate(() => window.__scena());
+  t.check('sekcja i treść pod nią trafiają do jednej sceny',
+    sc.jest && sc.dzieci.length === 2 && sc.dzieci[0] === 'sekcja-1',
+    sc.jest ? sc.dzieci.join(' + ') : 'sceny nie ma');
+
+  /* Sprawdzenie WPROST na przyczynę drgania. */
+  t.check('nic za zapasem przypięcia nie jest transformowane',
+    sc.zTransformacja === 0, sc.zTransformacja + ' elementów z transformacją');
+
+  /* KONTROLA NEGATYWNA: bez podglądu sceny nie ma i DOM zostaje nietknięty. */
+  t.check('a bez podglądu sceny nie ma wcale', !scBez.jest, String(scBez.jest));
+
+  /* Treść pod sekcją stoi nieruchomo przez CAŁE przypięcie — to jest cała
+     funkcja podglądu, wyrażona jako jedna liczba. */
+  const luki = [];
+  for (const y of [900, 1300, 1700]) {
+    await pk.evaluate((v) => window.__doPozycji(v), y);
+    await pk.waitForTimeout(250);
+    luki.push(await pk.evaluate(() => window.__luka()));
+  }
+  t.check('treść pod sekcją stoi nieruchomo przez całe przypięcie',
+    Math.max(...luki) - Math.min(...luki) <= 1, 'odstępy: ' + luki.join(', '));
+
+  /* Punkt startu treści PONIŻEJ sceny jest teraz naturalny — nie ma czego
+     dociągać, bo nic jej nie zniekształca. Ta sama liczba co bez podglądu. */
+  const pc2 = await pk.evaluate(() => window.__cel());
+  t.check('wyzwalacz pod sceną ma naturalny punkt startu',
+    pc2.start === pc2.oczekiwanyStart, pc2.start + ' wobec układu ' + pc2.oczekiwanyStart);
+  t.check('i taki sam jak bez podglądu w ogóle', pc2.start === c.start,
+    'z podglądem ' + pc2.start + ', bez ' + c.start);
+
   t.check('bez błędów JS', !pk.errors.length, pk.errors.join(' | ') || 'brak');
-
-  /* Zachowanie, nie sama liczba: element wystaje paskiem pod sekcją, ale ma
-     jeszcze NIE grać. */
-  await pk.evaluate(() => window.__doPozycji(1300));
-  await pk.waitForTimeout(400);
-  const wSrodku = await pk.evaluate(() => window.__cel());
-  t.check('w trakcie przypięcia element widać, ale nie gra',
-    wSrodku.opacity < 0.05, 'opacity ' + wSrodku.opacity);
-
-  await pk.evaluate(() => window.__doPozycji(1900));
-  await pk.waitForTimeout(600);
-  const poPusczeniu = await pk.evaluate(() => window.__cel());
-  t.check('a gdy sekcja puści — gra', poPusczeniu.opacity > 0.9,
-    'opacity ' + poPusczeniu.opacity);
   await pk.close();
 
-  /* Zapisu punktu startu, którego nie rozpoznajemy, dociąganie NIE RUSZA —
-     lepiej zostawić dzisiejsze zachowanie niż przesunąć w złą stronę. */
-  const obcy = await t.open('anim-po-hs.html', {
-    viewport: { width: 1200, height: 800 }, settle: 900,
-    query: 'peek=1&start=' + encodeURIComponent('top bottom-=100'),
-  });
-  const ob = await obcy.evaluate(() => window.__cel());
-  t.check('nierozpoznany zapis startu zostaje nietknięty',
-    ob.start === ob.pozycjaWDokumencie - 800 + 100 && ob.start !== ob.pinKoniec,
-    ob.start + ' wobec końca przypięcia ' + ob.pinKoniec);
-  t.check('bez błędów JS', !obcy.errors.length, obcy.errors.join(' | ') || 'brak');
-  await obcy.close();
 
   // ── To samo w drugą stronę: przypina Animator ────────────────────────────
   /*

@@ -70,23 +70,16 @@ window.evkAnimator = {
 };
 document.getElementById('cel').setAttribute('data-evk-anim', 'wkadrze');
 document.getElementById('daleko').setAttribute('data-evk-anim', 'wkadrze');
-
-/* `start=` podmienia zapis punktu startu — do sprawdzenia, że zapisu, którego
-   nie rozpoznajemy, dociąganie NIE RUSZA. */
-(function () {
-  var wlasny = new URLSearchParams(location.search).get('start');
-  if (wlasny) window.evkAnimator.library.wkadrze.start = wlasny;
-})();
 </script>
 
 <!-- ANIMATOR PRZED HSCROLLEM — patrz komentarz na górze. -->
 <script src="../../assets/js/animator.js"></script>
 
 <script>
-/* `peek=1` włącza podgląd treści pod sekcją (1.105.0). To ON przesuwa
-   rodzeństwo za zapasem transformacją — a `getBoundingClientRect()`, którym
-   ScrollTrigger mierzy pozycje, transformację WLICZA. Bez tego parametru
-   sprawdzenie biegłoby w jedynej konfiguracji, w której błędu nie ma. */
+/* `peek=1` włącza podgląd treści pod sekcją. Od 1.111.0 wkłada on sekcję
+   i jej następne rodzeństwo do WSPÓLNEJ SCENY i przypina scenę — zamiast
+   przesuwać rodzeństwo transformacją liczoną w JS co klatkę. Bez tego
+   parametru sprawdzenia biegłyby w konfiguracji, w której sceny nie ma. */
 document.getElementById('hs-1').setAttribute('data-evk-hscroll', JSON.stringify({
   widthMode: 'auto', pinTarget: 'selector', pinSelector: '.sekcja',
   scrub: 0, startOffset: 'top top', snap: false, disableBelow: 0,
@@ -150,6 +143,36 @@ window.__cel = function () {
     })(),
     pozycjaDaleko: pozycjaUkladu(document.getElementById('daleko')),
   };
+};
+
+/**
+ * Scena — sekcja RAZEM z treścią pod nią, przypinane jako jedno (1.111.0).
+ *
+ * Do 1.110.0 podgląd przesuwał rodzeństwo transformacją liczoną w JS na klatkę.
+ * Stąd drganie przy natywnym przewijaniu: przeglądarka maluje przewinięcie
+ * z wątku kompozytora, a skrypt dokłada przesunięcie klatkę później.
+ */
+window.__scena = function () {
+  var sc = document.querySelector('.evk-hscroll__scena');
+  var sp = document.querySelector('.pin-spacer');
+  var zTransformacja = 0;
+  for (var e = sp && sp.nextElementSibling; e; e = e.nextElementSibling) {
+    var t = getComputedStyle(e).transform;
+    if (t && t !== 'none') { zTransformacja++; }
+  }
+  return {
+    jest: !!sc,
+    dzieci: sc ? Array.prototype.map.call(sc.children, function (n) { return n.id || n.className; }) : null,
+    // Ile rzeczy za zapasem przypięcia dostaje transformację. Ma być ZERO.
+    zTransformacja: zTransformacja,
+  };
+};
+
+/** Odstęp treści pod sekcją od jej dolnej krawędzi — ma być stały. */
+window.__luka = function () {
+  var sek = document.getElementById('sekcja-1');
+  var pod = document.querySelector('.po');
+  return Math.round(pod.getBoundingClientRect().top - sek.getBoundingClientRect().bottom);
 };
 
 window.__doPozycji = function (y) { window.scrollTo(0, y); };
