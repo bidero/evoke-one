@@ -1,0 +1,40 @@
+<!--
+  Fala przy zmianie motywu — na powierzchni, która ma WŁASNE PRZEJŚCIE.
+
+  Odmiana `darkmode-ripple.html`. Tam kolor leży na `body` i przeskakuje bez
+  przejścia — dlatego tamta atrapa nie odtworzyła usterki z 1.116.0 i przepuściła
+  ją na stronę.
+
+  Tu jest tak, jak na stronie: kolor niesie `section`, a `section` jest na liście
+  selektorów globalnego przejścia (0,4 s). To ma znaczenie, bo Chromium robi
+  migawkę „starego" stanu tak, że jej kolory biorą się z TRWAJĄCEGO przejścia —
+  wycisz przejście za wcześnie, a stara migawka od razu ma kolory docelowe
+  i fala nie ma czego odsłaniać.
+
+  Kolor siedzi też na `html`, jak na stronie, gdzie propaguje się na płótno okna.
+
+  CSS i skrypt wstrzykuje test PRAWDZIWE, prosto z `93-darkmode.php`.
+-->
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+
+  html { background: #ffffff; }
+  html[data-theme="dark"] { background: #000000; }
+  body { background: transparent; }
+
+  /* Powierzchnia, którą naprawdę widać — i którą obejmuje globalne przejście. */
+  section { position: fixed; inset: 0; background: #ffffff; }
+  html[data-theme="dark"] section { background: #000000; }
+
+  /* Przycisk w LEWYM GÓRNYM rogu: fala idzie wtedy w jedną stronę, a przeciwny
+     róg kadru jest najdalszym punktem, jaki może osiągnąć. */
+  .brxe-toggle-mode {
+    position: fixed; left: 40px; top: 40px; width: 40px; height: 40px;
+    border: 0; background: #888; cursor: pointer; z-index: 1;
+  }
+</style>
+
+<section></section>
+<button class="brxe-toggle-mode" aria-label="Zmień motyw"></button>

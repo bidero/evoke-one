@@ -471,28 +471,39 @@ CSS;
 
         if (!empty($s['ripple_enabled'])) {
             /*
-             * NA CZAS FALI GLOBALNE PRZEJŚCIE MUSI ZAMILKNĄĆ.
+             * GLOBALNE PRZEJŚCIE MILKNIE DOPIERO PO ZROBIENIU MIGAWEK.
              *
              * `::view-transition-new` w Chrome pokazuje ŻYWY dokument, nie
              * zamrożony obrazek. Fala odsłaniała więc powierzchnię, która sama
              * jeszcze się przefarbowywała: przez pierwsze 400 ms — tyle trwa
              * globalne przejście — jej wnętrze było szare zamiast docelowego
-             * koloru, a potem skokowo się domykało.
-             *
-             * Zmierzone na atrapie, jasność tuż za czołem fali:
-             *   z globalnym przejściem:  188 → 81 → 64 → 50 …
-             *   bez niego:               145 → 0  → 0  → 0
-             *
-             * Zgłoszone z użycia: „ripple dziwnie przeskakuje zaraz po
+             * koloru. Stąd zgłoszenie: „ripple dziwnie przeskakuje zaraz po
              * rozpoczęciu rozchodzenia się fali… w Safari jest OK".
              *
-             * Oba efekty robią to samo — zmieniają kolory motywu — więc
-             * puszczone razem nie sumują się, tylko sobie przeszkadzają. Gdy
-             * fala jest włączona, to ONA jest przejściem.
+             * W 1.116.0 wyciszyłem to przejście na CAŁY czas fali — i tym
+             * zabiłem samo odsłanianie. Chromium robi migawkę „starego" stanu
+             * tak, że jej kolory biorą się z TRWAJĄCEGO przejścia: w chwili
+             * migawki przejście stoi jeszcze na wartości wyjściowej, więc
+             * migawka wygląda staro. Bez przejścia migawka od razu ma kolory
+             * docelowe — stara warstwa jest identyczna z nową i nie ma czego
+             * odsłaniać.
+             *
+             * Zmierzone na lustrze żywej strony, sama warstwa stara:
+             *   przejście żywe:      255 (jasna, stary motyw)
+             *   przejście wyciszone:  26 (ciemna, JUŻ nowy motyw)
+             *
+             * Dlatego klasę zakłada dopiero `transition.ready` — obie migawki
+             * są wtedy zrobione, a żywy dokument pod falą przeskakuje na kolory
+             * docelowe, więc znika i szara smuga, i utrata odsłaniania.
+             *
+             * Lista selektorów celowo zostaje w formie „potomek": na stronie
+             * z `[data-brx-theme]` na `html` reguła nie trafia w korzeń, a to
+             * właśnie nietknięte przejście korzenia trzyma stary kolor pod
+             * nieodsłoniętą częścią ekranu.
              */
             $bez_przejscia = array_merge($global_selectors, $bricks_selectors);
             if ($bez_przejscia) {
-                echo "html.is-theme-toggling " . implode(",\nhtml.is-theme-toggling ", $bez_przejscia) . " {\n";
+                echo "html.is-theme-settled " . implode(",\nhtml.is-theme-settled ", $bez_przejscia) . " {\n";
                 echo "    transition: none !important;\n";
                 echo "    -webkit-transition: none !important;\n";
                 echo "}\n\n";
@@ -690,6 +701,12 @@ CSS;
                 });
 
                 transition.ready.then(function () {
+                    // Obie migawki są już zrobione — dopiero teraz można
+                    // wyciszyć globalne przejście, żeby odsłaniana powierzchnia
+                    // była od razu w kolorze docelowym. Wcześniej wyciszenie
+                    // zabierało starej migawce jej stary kolor.
+                    html.classList.add('is-theme-settled');
+
                     html.animate(
                         { '--ripple-radius': ['0px', (endRadius + 150) + 'px'] },
                         {
@@ -712,6 +729,7 @@ CSS;
 
                 transition.finished.then(function () {
                     html.classList.remove('is-theme-toggling');
+                    html.classList.remove('is-theme-settled');
                 });
             });
         });

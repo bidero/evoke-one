@@ -2,6 +2,64 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.117.0] — 2026-08-27
+
+### Naprawione
+
+- **Fala przy zmianie motywu przestała cokolwiek odsłaniać.** Zgłoszone
+  z użycia: „wraz z falą miało się odsłaniać wszystko w drugim trybie. Teraz
+  idzie fala, ale wszystko zmienia się tak, jakby nie miała na nic wpływu".
+
+  Zepsuła to poprzednia wersja. W 1.116.0 wyciszyłem globalne przejście na
+  **cały** czas fali — i tym zabiłem samo odsłanianie. Chromium robi migawkę
+  „starego" stanu tak, że jej kolory biorą się z **trwającego przejścia CSS**:
+  w chwili migawki przejście stoi jeszcze na wartości wyjściowej, więc migawka
+  wygląda staro. Bez przejścia migawka od razu ma kolory docelowe — stara
+  warstwa jest identyczna z nową i **nie ma czego odsłaniać**.
+
+  Zmierzone na lustrze żywej strony, sama warstwa stara (nowa ukryta):
+
+  | | jasność |
+  |---|---|
+  | przejście żywe | 255 (jasna, stary motyw) |
+  | przejście wyciszone | **26** (ciemna, już nowy motyw) |
+
+  Wyciszenie przenosi się więc z klasy `is-theme-toggling` (zakładanej **przed**
+  przejściem) na `is-theme-settled`, zakładaną dopiero w `transition.ready` —
+  gdy obie migawki są już zrobione. Cel z 1.116.0 zostaje osiągnięty: żywy
+  dokument pod falą przeskakuje na kolory docelowe, więc za czołem fali nie ma
+  szarej smugi.
+
+  Zmierzone na lustrze, przy fali z prawego górnego rogu:
+
+  | t [ms] | 40 px od źródła | przeciwny róg |
+  |---|---|---|
+  | 0 | 255 | 255 |
+  | 240 | **26** (przed 1.116.0: 117 — szarość) | 250 |
+  | 600 | 26 | 222 |
+  | 900 | 26 | 26 |
+
+  Róg trzyma stary kolor, dopóki fala nie dojdzie, a odsłonięta okolica jest od
+  razu docelowa. Lista wyciszanych selektorów zostaje w formie „potomek" —
+  celowo: na stronie z `[data-brx-theme]` na `html` reguła nie trafia w korzeń,
+  a to właśnie nietknięte przejście korzenia trzyma stary kolor pod
+  nieodsłoniętą częścią ekranu.
+
+### Uwagi
+
+- **Diagnoza z poprzedniej wersji była błędna i trzeba to zapisać.** Twierdziłem,
+  że „fala nigdy nie odsłaniała tej strony". Wyszło to z pomiaru, w którym oba
+  punkty próbne — „tuż obok fali" i „daleki róg ekranu" — leżały **29 px od
+  siebie**, przy samym przełączniku: pierwszy wypadał poza kadr 1200 px i był
+  przycinany, drugi był bliżej środka fali niż on. Porównywałem to samo miejsce
+  ze sobą. Po przeniesieniu drugiego punktu do przeciwnego rogu okazało się, że
+  fala odsłaniała normalnie — dokładnie tak, jak było w zgłoszeniu.
+
+- Atrapa `darkmode-ripple-korzen.html` pilnuje samego odsłaniania (róg trzyma
+  stary kolor, dopóki fala nie dojdzie). **Usterki z 1.116.0 nie odtwarza** —
+  nawet z wyciszeniem założonym przed migawkami dalej odsłania. Przed tamtym
+  błędem broni sprawdzenie znacznikowe, i tak jest to opisane w teście.
+
 ## [1.116.0] — 2026-08-26
 
 ### Naprawione

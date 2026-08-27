@@ -65,6 +65,69 @@ async function probka(p, t) {
   }, buf.toString('base64'));
 }
 
+/** Wstrzyknięcie modułu bez klikania — zwraca dopiero po ustaniu ruchu. */
+async function wstrzyknij(p, ustawienia) {
+  await p.evaluate((html) => {
+    const d = document.createElement('div');
+    d.innerHTML = html;
+    Array.from(d.children).forEach((n) => {
+      if (n.tagName === 'SCRIPT') {
+        const s = document.createElement('script');
+        s.textContent = n.textContent;
+        document.body.appendChild(s);
+      } else { document.head.appendChild(n); }
+    });
+    window.dispatchEvent(new Event('DOMContentLoaded'));
+  }, phpOutput('darkmode-head.php', JSON.stringify(JSON.stringify(ustawienia || {}))));
+  await p.waitForTimeout(250);
+}
+
+/**
+ * Zamraża WSZYSTKIE animacje w chwili, gdy powstają animacje fali.
+ *
+ * Bez tego próbka lądowałaby tam, gdzie zdążył zrzut: fala rusza dopiero
+ * w `transition.ready`, a globalne przejście już wtedy biegnie. Zamrożenie
+ * w jednym, powtarzalnym punkcie jest jedynym sposobem, żeby porównywać
+ * jasności między wersjami.
+ */
+async function zamroz(p) {
+  await p.evaluate(`(function () {
+    var oa = Element.prototype.animate;
+    Element.prototype.animate = function (kf, opt) {
+      var pe = String((opt && opt.pseudoElement) || '');
+      var a = oa.call(this, kf, opt);
+      if (pe.indexOf('theme-ripple') > -1) {
+        window.__fala = window.__fala || [];
+        window.__fala.push(a);
+        document.getAnimations().forEach(function (x) { x.pause(); x.currentTime = 0; });
+        window.__zamrozone = true;
+      }
+      return a;
+    };
+  })()`);
+}
+
+/** Jasność w dwóch punktach kadru przy zadanym czasie animacji. */
+async function jasnosci(p, t, punkty) {
+  await p.evaluate((v) => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = v; }), t);
+  await p.waitForTimeout(60);
+  const buf = await p.screenshot();
+  return p.evaluate(async ({ b64, punkty }) => {
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + b64;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, img.width, img.height).data;
+    return punkty.map(([x, y]) => {
+      const i = (y * img.width + x) * 4;
+      return Math.round((d[i] + d[i + 1] + d[i + 2]) / 3);
+    });
+  }, { b64: buf.toString('base64'), punkty });
+}
+
 module.exports = async function (t) {
 
   const V = { viewport: { width: 800, height: 600 }, settle: 200 };
@@ -132,6 +195,57 @@ module.exports = async function (t) {
   t.check('a na końcu dochodzi do docelowego', poWszystkim < 20, 'jasność ' + poWszystkim);
   await b.close();
 
+  // ── Fala naprawdę odsłania, gdy kolor motywu leży na korzeniu ────────────
+  /*
+   * ZGŁOSZONE Z UŻYCIA po 1.116.0: „idzie fala, ale wszystko zmienia się tak,
+   * jakby nie miała na nic wpływu".
+   *
+   * Ta sekcja pilnuje samego ODSŁANIANIA: róg ma trzymać stary kolor, dopóki
+   * fala nie dojdzie. Atrapa obok mierzy tylko wąski pasek przy źródle i nie
+   * widzi, co się dzieje po drugiej stronie kadru.
+   *
+   * UWAGA na przyszłość: sama usterka z 1.116.0 TU SIĘ NIE ODTWARZA. Nawet
+   * z wyciszeniem założonym przed migawkami ta atrapa dalej odsłania — na
+   * żywej stronie nie. Przed tamtym błędem broni sprawdzenie znacznikowe
+   * niżej („nie stoi pod klasą zakładaną przed migawkami"), a nie ta sekcja.
+   * Zmierzone: mutacja przywracająca stan 1.116.0 zostawia ją zieloną.
+   */
+  t.section('daleki róg trzyma stary kolor, dopóki fala nie dojdzie');
+
+  const k = await t.open('darkmode-ripple-korzen.html', V);
+  await wstrzyknij(k);
+  await zamroz(k);
+  await k.click('.brxe-toggle-mode');
+  await k.waitForFunction('window.__zamrozone === true', null, { timeout: 5000 });
+  const czasK = await k.evaluate('window.__fala[0].effect.getComputedTiming().duration');
+
+  /* Przycisk stoi w (40,40)–(80,80), środek fali w (60,60). BLISKO to 56 px od
+     środka, DALEKO — przeciwny róg, jakieś 910 px. */
+  const BLISKO = [100, 100], DALEKO = [770, 570];
+
+  const start = await jasnosci(k, 0, [BLISKO, DALEKO]);
+  t.check('na starcie cały kadr jest w starym kolorze',
+    start[0] > 200 && start[1] > 200, start.join(' / '));
+
+  const wTrakcieK = await jasnosci(k, Math.round(czasK * 0.3), [BLISKO, DALEKO]);
+  t.check('w połowie drogi okolica źródła jest już nowa', wTrakcieK[0] < 40,
+    'jasność ' + wTrakcieK[0]);
+  t.check('a daleki róg wciąż trzyma stary kolor', wTrakcieK[1] > 200,
+    'jasność ' + wTrakcieK[1]);
+
+  /* Kontrola pozytywna: bez niej „róg trzyma stary kolor" spełniłaby też fala,
+     która nie odsłania niczego i nigdy. */
+  const koniecK = await jasnosci(k, czasK, [BLISKO, DALEKO]);
+  t.check('a gdy fala dojdzie — róg też się zmienia', koniecK[1] < 40,
+    'jasność ' + koniecK[1]);
+
+  /* Sam mechanizm, niezależnie od tego, co widać: klasa wyciszająca powstaje
+     dopiero po migawkach i znika po przejściu. */
+  t.check('klasa wyciszająca stoi na korzeniu w trakcie fali',
+    await k.evaluate(`document.documentElement.classList.contains('is-theme-settled')`), 'jest');
+  t.check('bez błędów JS', !k.errors.length, k.errors.join(' | ') || 'brak');
+  await k.close();
+
   // ── Sam znacznik: co i kiedy jest wyciszane ──────────────────────────────
   t.section('wyciszenie obejmuje ustawione selektory i tylko przy fali');
 
@@ -140,11 +254,16 @@ module.exports = async function (t) {
 
   /* Wycinamy CAŁY blok reguły, zamiast zgadywać, ile znaków ma lista
      selektorów — jest konfigurowalna i potrafi urosnąć. */
-  const blok = zFala.match(/html\.is-theme-toggling body[\s\S]*?\}/);
-  const selektory = blok ? (blok[0].match(/html\.is-theme-toggling /g) || []).length : 0;
+  const blok = zFala.match(/html\.is-theme-settled body[\s\S]*?\}/);
+  const selektory = blok ? (blok[0].match(/html\.is-theme-settled /g) || []).length : 0;
   t.check('przy fali reguła wycisza wszystkie skonfigurowane selektory',
     !!blok && /transition: none !important/.test(blok[0]) && selektory >= 6,
     blok ? selektory + ' selektorów' : 'brak reguły');
   t.check('a bez fali nie ma jej wcale',
-    !/html\.is-theme-toggling [^{]*transition: none/.test(bezFali), 'brak');
+    !/html\.is-theme-settled [^{]*transition: none/.test(bezFali), 'brak');
+
+  /* Stan z 1.116.0: wyciszenie pod `is-theme-toggling`, czyli już PRZED
+     migawkami. To właśnie zabierało starej migawce jej stary kolor. */
+  t.check('i nie stoi pod klasą zakładaną przed migawkami',
+    !/html\.is-theme-toggling [^{}]*\{[^}]*transition: none/.test(zFala), 'brak');
 };
