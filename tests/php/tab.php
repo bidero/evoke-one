@@ -84,7 +84,13 @@ function add_query_arg(...$a) { return 'https://example.test/wp-admin/admin.php?
 function esc_attr__($s, $d = '') { return $s; }
 function wp_kses_post($s) { return $s; }
 function mysql2date($f, $d, $t = true) { return '2026-08-08 12:00'; }
-function current_time($type = 'mysql') { return '2026-08-08 12:00:00'; }
+/* Prawdziwe `current_time()` oddaje LICZBĘ dla 'timestamp' i datę tekstem dla
+   reszty. Atrapa oddawała zawsze tekst, więc kod liczący wygasanie blokad
+   odejmował łańcuch od liczby. Ostrzeżenie leciało do stderr, a zakładka i tak
+   się rysowała — usterka nie do zauważenia bez zajrzenia w wyjście błędów. */
+function current_time($type = 'mysql') {
+    return $type === 'timestamp' ? time() : '2026-08-08 12:00:00';
+}
 function human_time_diff($a, $b = 0) { return '2 godziny'; }
 // `evk_nl_base_url()` siedzi w menu.php razem z rejestracją ekranu i całym
 // routerem — ładowanie tego pliku pociągnęłoby pół modułu tylko po adres.
@@ -190,6 +196,34 @@ $GLOBALS['wpdb'] = new class {
     public function get_col($q)     { return []; }
     public function prepare($q, ...$a) { return $q; }
 };
+
+/* Stałe czasu z rdzenia WP — zakładki liczą na nich wygasanie blokad. */
+if (!defined('HOUR_IN_SECONDS')) define('HOUR_IN_SECONDS', 3600);
+if (!defined('DAY_IN_SECONDS'))  define('DAY_IN_SECONDS', 86400);
+if (!defined('MINUTE_IN_SECONDS')) define('MINUTE_IN_SECONDS', 60);
+
+/* Zakładka Logów 404 obsługuje własny POST i czyta metodę żądania wprost. */
+$_SERVER['REQUEST_METHOD'] = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+/* Rejestr tras REST — moduł czyta je z serwera WP, żeby wypisać endpointy.
+   Atrapa oddaje kilka prawdziwych w kształcie, bo o kształt listy tu chodzi. */
+if (!function_exists('rest_get_server')) {
+    function rest_get_server() {
+        return new class {
+            public function get_routes() {
+                return [
+                    '/wp/v2/posts'  => [['methods' => ['GET' => true]]],
+                    '/wp/v2/pages'  => [['methods' => ['GET' => true, 'POST' => true]]],
+                    '/wp/v2/users'  => [['methods' => ['GET' => true]]],
+                    '/oembed/1.0/embed' => [['methods' => ['GET' => true]]],
+                ];
+            }
+        };
+    }
+}
+if (!function_exists('get_pages'))           { function get_pages($args = []) { return []; } }
+if (!function_exists('check_admin_referer')) { function check_admin_referer($a = -1, $n = '_wpnonce') { return true; } }
+if (!function_exists('date_i18n'))           { function date_i18n($f, $t = null) { return date($f, $t ?? time()); } }
 
 $slug = $argv[1] ?? '';
 
@@ -306,6 +340,74 @@ $TABS = [
         'file'   => 'includes/admin/admin-whitelabel.php',
         'seed'   => function () { $GLOBALS['options']['evk_white_label'] = ['enabled' => 1]; },
     ],
+
+    /* ── Bezpieczeństwo ──────────────────────────────────────────────────
+       Podstrony ładuje `tab-bezpieczenstwo.php` przez `security-$sub.php`,
+       więc renderujemy je tak jak zakładka: plik po pliku, ze zmiennymi,
+       które ta zakładka im podaje ($evk_sec, $sec_nonce). */
+    'sec-login' => [
+        'module' => ['includes/security/settings.php', 'includes/security/login-limit.php'],
+        'file'   => 'includes/admin/security-login.php',
+        'seed'   => function () {
+            $GLOBALS['options']['evk_security'] = ['limit_login_enabled' => 1];
+            /* Z pustą listą blokad tabela w ogóle się nie rysuje, a to ona
+               niesie większość przemiecionych znaczników. */
+            $GLOBALS['options']['evk_blocked_ips'] = [
+                '10.0.0.1' => ['attempts' => 5, 'blocked_at' => time() - 600, 'username' => 'admin'],
+                '10.0.0.2' => ['attempts' => 7, 'blocked_at' => time() - 900, 'username' => ''],
+            ];
+        },
+    ],
+    'sec-rest' => [
+        'module' => ['includes/security/settings.php', 'includes/security/rest-api.php'],
+        'file'   => 'includes/admin/security-rest.php',
+        'seed'   => function () { $GLOBALS['options']['evk_security'] = ['rest_block_all' => 1]; },
+    ],
+    'sec-hardening' => [
+        'module' => 'includes/security/settings.php',
+        'file'   => 'includes/admin/security-hardening.php',
+        'seed'   => function () { $GLOBALS['options']['evk_security'] = ['hide_wp_version' => 1]; },
+    ],
+    'sec-cleanup' => [
+        'module' => 'includes/97-security.php',
+        'file'   => 'includes/admin/security-cleanup.php',
+        'seed'   => function () { $GLOBALS['options']['evk_cleanup'] = ['disable_xmlrpc' => 1]; },
+    ],
+
+    /* ── Narzędzia ───────────────────────────────────────────────────────── */
+    'tools-smtp' => [
+        'module' => 'includes/tools/smtp.php',
+        'file'   => 'includes/admin/tools-smtp.php',
+        'seed'   => function () {
+            $GLOBALS['options']['evk_smtp'] = ['enabled' => 1, 'log_enabled' => 1];
+            /* Log pusty = brak tabeli = brak połowy tego, co mierzymy. */
+            $GLOBALS['options']['evk_smtp_log'] = [
+                ['time' => '2026-08-27 10:00', 'to' => 'a@example.test', 'subject' => 'Test', 'success' => 1],
+                ['time' => '2026-08-27 10:05', 'to' => 'b@example.test', 'subject' => 'Test 2', 'success' => 0, 'error' => 'SMTP connect() failed'],
+            ];
+        },
+    ],
+    'tools-redirect' => [
+        'module' => 'includes/tools/redirect-301.php',
+        'file'   => 'includes/admin/tools-redirect301.php',
+        'seed'   => function () { $GLOBALS['options']['evk_301_enabled'] = 1; },
+    ],
+    'tools-logs404' => [
+        'module' => 'includes/tools/logs-404.php',
+        'file'   => 'includes/admin/tools-logs404.php',
+        'seed'   => function () {
+            $GLOBALS['options']['evk_404_enabled']   = 1;
+            $GLOBALS['options']['evk_404_skip_bots'] = 1;
+        },
+    ],
+    'tools-io' => [
+        'module' => 'includes/admin/page.php',
+        'file'   => 'includes/admin/tab-io.php',
+    ],
+    'tools-maintenance' => [
+        'module' => 'includes/tools/draft-revision.php',
+        'file'   => 'includes/admin/tab-maintenance.php',
+    ],
 ];
 
 if (!isset($TABS[$slug])) {
@@ -364,4 +466,14 @@ require EVK_TEST_ROOT . '/includes/newsletter/' . $m;
     foreach ((array) $tab['module'] as $module) { require EVK_TEST_ROOT . '/' . $module; }
 }
 if (isset($tab['seed'])) $tab['seed']();
+
+/* Podstrony Bezpieczeństwa dostają te zmienne od `tab-bezpieczenstwo.php`
+   i liczą na nie bez sprawdzania. Bez nich renderowały się z pustymi polami
+   i ostrzeżeniami — czyli mierzyłoby się coś innego niż to, co widzi
+   użytkownik. */
+if (function_exists('evk_security_get')) {
+    $evk_sec   = evk_security_get();
+    $sec_nonce = wp_create_nonce('evk_security_nonce');
+}
+
 require EVK_TEST_ROOT . '/' . $tab['file'];

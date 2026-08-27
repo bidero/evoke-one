@@ -2,6 +2,72 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.119.0] — 2026-08-27
+
+### Zmienione
+
+- **Bezpieczeństwo i Narzędzia noszą skórę panelu, a nie własne style.** Trzecia
+  partia przemiatania (po newsletterze w 1.48.0 i seo/tl w 1.49.0). Atrybut
+  `style=` wygrywa z każdym arkuszem, więc kontrolka, która się nim broni, nie
+  dostaje skóry Evoke Fields — reguła dla niej istnieje i jest poprawna, tylko
+  przegrywa.
+
+  | | przed | po |
+  |---|---|---|
+  | atrybuty `style=` w tych plikach | 101 | **26** |
+  | z nich niosących kształt | 101 | **0** |
+  | z zaszytym kolorem | 20 | **0** |
+
+  Wszystkie 26, które zostały, to **zmienne CSS** (`--evo-w`, `--evo-gap`,
+  `--evo-col`, `--evo-min`) — czyli dane, nie kształt. To ten sam wzorzec, którym
+  posługują się już przemiecione zakładki.
+
+- **Dwa martwe pliki usunięte zamiast przepisane.** `other-security.php` był
+  plikiem z NAJWIĘKSZĄ liczbą stylów w całym zestawieniu (30 atrybutów,
+  12 zaszytych kolorów, 15 KB) i **nikt go nie ładował** — został po czasach,
+  gdy bezpieczeństwo mieszkało w „Other". Sprawdzone przed usunięciem: każde
+  z sześciu pól `evk_security[…]` istnieje w plikach `security-*.php`, a tam jest
+  jeszcze jedno na dokładkę. `other-snippets.php` to 124 bajty wołające funkcję,
+  którą zakładka Narzędzi woła sama.
+
+### Naprawione
+
+- **Pole formularza rozpychało stronę na telefonie.** `input` ma domyślną
+  szerokość z atrybutu `size` (~195 px) i nie kurczy się poniżej niej. W siatce
+  dwukolumnowej pole hasła SMTP wystawało o 8 px poza ekran przy oknie 390 px
+  i o 23 px przy 360 px. `select` dostał `max-width: 100%` już w 1.49.0 — teraz
+  dostały je też pola tekstowe.
+
+- **Dymek podpowiedzi rozpychał stronę.** Wyśrodkowany na 16-pikselowym znaczku
+  bąbel o szerokości 240 px wystawał poza kadr, a element pozycjonowany
+  bezwzględnie dokłada się do `scrollWidth` przodka: dokument miał 375 px przy
+  oknie 360 px, choć sama tabela przewijała się już poprawnie. Poniżej 782 px
+  dymek zaczepia się prawą krawędzią o znaczek i rozwija w lewo.
+
+- **Trzy osierocone `</div>`.** W `security-login.php`, `tools-smtp.php`
+  i `tools-logs404.php` znacznik zamykający stał POZA `endif`, więc przy pustej
+  liście (brak blokad, brak logów) na stronę leciał niesparowany `</div>`.
+
+- **Kolory ze skryptu i z `onmouseover` przeszły na klasy.** Podświetlenie
+  wiersza endpointów REST siedziało w atrybucie `onmouseover` przy każdym
+  wierszu z osobna, a wynik testu SMTP malował się przez `.css('color', '#059669')`.
+  Jedno i drugie omijało paletę tak samo jak `style=`, tylko trudniej było je
+  znaleźć.
+
+- **Atrapa `current_time()` w testach oddawała datę tekstem także dla
+  `'timestamp'`**, więc kod liczący wygasanie blokad odejmował łańcuch od liczby.
+  Ostrzeżenie szło do stderr, a zakładka i tak się rysowała — usterka nie do
+  zauważenia bez zajrzenia w wyjście błędów.
+
+### Weryfikacja
+
+Dziewięć podstron (`sec-login`, `sec-rest`, `sec-hardening`, `sec-cleanup`,
+`tools-smtp`, `tools-redirect`, `tools-logs404`, `tools-io`, `tools-maintenance`)
+weszło do mierzonego zestawu w `tests/admin-tabs.test.js`; cztery z tabelami
+także do pomiaru przy 390 i 360 px. Test **nie liczy tekstu `style="` w źródle** —
+mierzy wyrenderowaną zakładkę: wysokość kontrolki, promień, ramkę, kształt boksu,
+przepełnienie. 1748 → **1901** sprawdzeń zielonych.
+
 ## [1.118.0] — 2026-08-27
 
 ### Dodane

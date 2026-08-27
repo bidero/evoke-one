@@ -12,15 +12,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_301_toggle'])
     $enabled = evk_301_is_enabled();
 }
 ?>
-<div class="evo-status-card" style="margin-bottom:20px;">
+<div class="evo-status-card">
     <div class="evo-status-icon <?php echo $enabled ? 'on' : 'off'; ?>">
-        <span class="dashicons dashicons-redo" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>
+        <span class="dashicons dashicons-redo evo-ico-lg"></span>
     </div>
     <div class="evo-status-text">
         <h3>Przekierowania 301: <?php echo $enabled ? 'AKTYWNE' : 'WYŁĄCZONE'; ?></h3>
         <p>Automatyczne przekierowania z licznikiem kliknięć. Obsługuje wildcards (<code>/stara/*</code>).</p>
     </div>
-    <form method="post" style="display:contents;">
+    <form method="post" class="evo-contents">
         <?php wp_nonce_field('evk_301_toggle_action'); ?>
         <input type="hidden" name="evk_301_toggle" value="1">
         <div class="evo-status-actions">
@@ -37,18 +37,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_301_toggle'])
 <!-- Dodaj regułę -->
 <div class="evo-box">
     <h3>Dodaj regułę</h3>
-    <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;">
-        <div class="evo-field" style="flex:1;min-width:200px;margin:0;">
+    <div class="evo-toolbar evo-toolbar-top evo-mb-lg">
+        <div class="evo-field evo-grow evo-m0" style="--evo-min:200px">
             <label>Z (From)</label>
-            <input type="text" id="evk-301-from" placeholder="/stara-strona" style="width:100%;">
+            <input type="text" id="evk-301-from" placeholder="/stara-strona" class="evo-w-full">
             <div class="evo-desc">Relatywna ścieżka. Wildcard: <code>/stara/*</code></div>
         </div>
-        <div class="evo-field" style="flex:1;min-width:200px;margin:0;">
+        <div class="evo-field evo-grow evo-m0" style="--evo-min:200px">
             <label>Na (To)</label>
-            <input type="text" id="evk-301-to" placeholder="/nowa-strona lub https://..." style="width:100%;">
+            <input type="text" id="evk-301-to" placeholder="/nowa-strona lub https://..." class="evo-w-full">
         </div>
         <button type="button" class="button button-primary" id="evk-301-add" data-nonce="<?php echo esc_attr($nonce); ?>">Dodaj</button>
-        <span id="evk-301-msg" style="font-size:13px;"></span>
+        <span id="evk-301-msg" class="evo-note-tx"></span>
     </div>
 
     <!-- Lista reguł -->
@@ -57,21 +57,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_301_toggle'])
 
 <div class="evo-box">
     <h3>Aktywne reguły (<?php echo count($redirects); ?>)</h3>
-    <div style="overflow-x:auto;">
-    <table class="wp-list-table widefat striped" style="font-size:12px;">
+    <div class="evo-tbl-wrap">
+    <table class="wp-list-table widefat striped evo-tbl-sm">
         <thead><tr>
             <th>Z</th>
             <th>Na</th>
-            <th style="width:80px;text-align:center;">Kliknięcia</th>
-            <th style="width:130px;">Dodano</th>
-            <th style="width:80px;">Akcja</th>
+            <th class="evo-w evo-center" style="--evo-w:80px">Kliknięcia</th>
+            <th class="evo-w" style="--evo-w:130px">Dodano</th>
+            <th class="evo-w" style="--evo-w:80px">Akcja</th>
         </tr></thead>
         <tbody>
         <?php foreach ($redirects as $r): ?>
         <tr id="evk-301-row-<?php echo (int)$r['ID']; ?>">
             <td><code><?php echo esc_html($r['from']); ?></code></td>
-            <td style="word-break:break-all;"><?php echo esc_html($r['to']); ?></td>
-            <td style="text-align:center;font-weight:600;"><?php echo (int)$r['clicks']; ?></td>
+            <td class="evo-break"><?php echo esc_html($r['to']); ?></td>
+            <td class="evo-center evo-strong"><?php echo (int)$r['clicks']; ?></td>
             <td><?php echo esc_html($r['date']); ?></td>
             <td>
                 <button type="button" class="button button-small evk-301-delete"
@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_301_toggle'])
         </tbody>
     </table>
     </div>
-    <div style="margin-top:10px;">
+    <div class="evo-mt-xs">
         <button type="button" class="button" id="evk-301-clear-logs" data-nonce="<?php echo esc_attr($nonce); ?>">Wyczyść logi przekierowań</button>
     </div>
     <?php else: ?>

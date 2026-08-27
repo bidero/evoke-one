@@ -23,14 +23,14 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
 <!-- Status card -->
 <div class="evo-status-card">
     <div class="evo-status-icon <?php echo $enabled ? 'on' : 'off'; ?>">
-        <span class="dashicons dashicons-warning" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>
+        <span class="dashicons dashicons-warning evo-ico-lg"></span>
     </div>
     <div class="evo-status-text">
         <h3>Logi 404: <?php echo $enabled ? 'WŁĄCZONE' : 'WYŁĄCZONE'; ?></h3>
         <p>Rejestruje nieistniejące adresy URL z datą, IP i referrerem.</p>
     </div>
     <div class="evo-status-actions">
-        <form method="post" style="display:contents;">
+        <form method="post" class="evo-contents">
             <?php wp_nonce_field('evk_404_save_action'); ?>
             <input type="hidden" name="evk_404_save" value="1">
             <input type="hidden" name="evk_404_enabled" value="<?php echo $enabled ? '0' : '1'; ?>">
@@ -46,19 +46,19 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
 </div>
 
 <!-- Ustawienia -->
-<form method="post" style="margin-top:20px;">
+<form method="post" class="evo-mt-lg">
     <?php wp_nonce_field('evk_404_save_action'); ?>
     <input type="hidden" name="evk_404_save" value="1">
     <?php /* Stan włącznika przekazywany jawnie — bez tego pola zapis ustawień
              wyłączał logi 404 (handler zerował brakujący klucz w POST). */ ?>
     <input type="hidden" name="evk_404_enabled" value="<?php echo $enabled ? '1' : '0'; ?>">
 
-    <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
-        <div class="evo-field" style="margin:0;display:flex;align-items:center;gap:8px;">
-            <label style="white-space:nowrap;margin:0;font-weight:500;">Maks. logów:</label>
-            <input type="number" name="evk_404_max_logs" value="<?php echo esc_attr($max_logs); ?>" min="10" max="5000" style="width:90px;">
+    <div class="evo-toolbar evo-mb" style="--evo-gap:24px">
+        <div class="evo-field evo-inline evo-m0" style="--evo-gap:8px">
+            <label class="evo-nowrap evo-m0">Maks. logów:</label>
+            <input type="number" name="evk_404_max_logs" value="<?php echo esc_attr($max_logs); ?>" min="10" max="5000" class="evo-w" style="--evo-w:90px">
         </div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+        <label class="evo-check">
             <input type="checkbox" name="evk_404_skip_bots" value="1" <?php checked($skip_bots); ?>>
             Ignoruj boty / roboty
         </label>
@@ -67,14 +67,14 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
     <?php if ($skip_bots): ?>
     <div class="evo-field">
         <label>Lista botów (jeden per linia)</label>
-        <textarea name="evk_404_bot_list" rows="4" style="width:100%;font-family:monospace;font-size:12px;"><?php echo esc_textarea($bot_list); ?></textarea>
+        <textarea name="evk_404_bot_list" rows="4" class="evo-w-full evo-mono evo-tbl-sm"><?php echo esc_textarea($bot_list); ?></textarea>
     </div>
     <?php endif; ?>
 
-    <div class="evo-save-bar" style="display:flex;gap:12px;align-items:center;margin-top:16px;">
+    <div class="evo-save-bar evo-toolbar evo-mt" style="--evo-gap:12px">
         <?php submit_button('Zapisz ustawienia', 'secondary', 'evk_404_save', false); ?>
         <button type="button" class="button" id="evk-clear-404" data-nonce="<?php echo esc_attr($nonce_ajax); ?>">🗑 Wyczyść wszystkie logi</button>
-        <span id="evk-clear-404-msg" style="font-size:13px;color:#059669;display:none;">Wyczyszczono.</span>
+        <span id="evk-clear-404-msg" class="evo-save-msg">Wyczyszczono.</span>
     </div>
 </form>
 
@@ -89,14 +89,14 @@ $logs = get_posts([
 if (!empty($logs)):
 ?>
 <div class="evo-box">
-    <h3>Zarejestrowane błędy 404 <span style="font-weight:400;color:#6b7280;">(<?php echo count($logs); ?>)</span></h3>
-    <div style="overflow-x:auto;">
-    <table class="wp-list-table widefat striped" style="font-size:12px;">
+    <h3>Zarejestrowane błędy 404 <span class="evo-hint">(<?php echo count($logs); ?>)</span></h3>
+    <div class="evo-tbl-wrap">
+    <table class="wp-list-table widefat striped evo-tbl-sm">
         <thead><tr>
-            <th style="width:140px;">Czas</th>
+            <th class="evo-w" style="--evo-w:140px">Czas</th>
             <th>URL</th>
             <th>Referrer</th>
-            <th style="width:110px;">IP</th>
+            <th class="evo-w" style="--evo-w:110px">IP</th>
             <th>User Agent</th>
         </tr></thead>
         <tbody>
@@ -104,15 +104,15 @@ if (!empty($logs)):
             $m = get_post_meta($log->ID);
         ?>
         <tr>
-            <td style="white-space:nowrap;"><?php echo esc_html($m['logged_at'][0] ?? ''); ?></td>
-            <td><code style="font-size:11px;word-break:break-all;"><?php echo esc_html($m['url'][0] ?? ''); ?></code></td>
-            <td style="font-size:11px;color:#6b7280;"><?php echo esc_html($m['referrer'][0] ?? '—'); ?></td>
+            <td class="evo-nowrap"><?php echo esc_html($m['logged_at'][0] ?? ''); ?></td>
+            <td><code class="evo-mono-xs evo-break"><?php echo esc_html($m['url'][0] ?? ''); ?></code></td>
+            <td class="evo-hint-sm"><?php echo esc_html($m['referrer'][0] ?? '—'); ?></td>
             <td>
-                <a href="https://radar.cloudflare.com/ip/<?php echo esc_attr($m['ip'][0] ?? ''); ?>" target="_blank" style="font-size:11px;">
+                <a href="https://radar.cloudflare.com/ip/<?php echo esc_attr($m['ip'][0] ?? ''); ?>" target="_blank" class="evo-hint-sm">
                     <?php echo esc_html($m['ip'][0] ?? '—'); ?>
                 </a>
             </td>
-            <td style="font-size:11px;color:#6b7280;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+            <td class="evo-hint-sm evo-ellipsis evo-w" style="--evo-w:280px"
                 title="<?php echo esc_attr($m['ua'][0] ?? ''); ?>">
                 <?php echo esc_html($m['ua'][0] ?? '—'); ?>
             </td>
@@ -121,30 +121,29 @@ if (!empty($logs)):
         </tbody>
     </table>
     </div>
-    <?php elseif ($enabled): ?>
-    <div class="evo-info-box" style="margin-top:20px;">
-        <span class="dashicons dashicons-yes-alt"></span>
-        <div>Brak zarejestrowanych błędów 404. Pojawią się tutaj gdy ktoś wejdzie na nieistniejący URL.</div>
-    </div>
-    <?php endif; ?>
-
-    <script>
-    (function($){
-        $('#evk-clear-404').on('click', function(){
-            if (!confirm('Wyczyścić wszystkie logi 404?')) return;
-            var btn = $(this).prop('disabled', true).text('...');
-            $.post(ajaxurl, {action:'evk_clear_404_logs', nonce:$(this).data('nonce')}, function(r){
-                if (r.success){
-                    $('table.wp-list-table tbody').empty();
-                    $('#evk-clear-404-msg').show();
-                    // Cała sekcja jest teraz jednym boksem, więc chowamy boks —
-                    // wcześniej trzeba było zgadywać jego części z osobna
-                    // (tabela, kreska, tytuł) i przy zmianie znaczników się rozjeżdżało.
-                    $('table.wp-list-table').closest('.evo-box').hide();
-                }
-            }).always(function(){ btn.prop('disabled', false).text('🗑 Wyczyść wszystkie logi'); });
-        });
-    })(jQuery);
-    </script>
 </div>
+<?php elseif ($enabled): ?>
+<div class="evo-info-box evo-mt-lg">
+    <span class="dashicons dashicons-yes-alt"></span>
+    <div>Brak zarejestrowanych błędów 404. Pojawią się tutaj gdy ktoś wejdzie na nieistniejący URL.</div>
+</div>
+<?php endif; ?>
 
+<script>
+(function($){
+    $('#evk-clear-404').on('click', function(){
+        if (!confirm('Wyczyścić wszystkie logi 404?')) return;
+        var btn = $(this).prop('disabled', true).text('...');
+        $.post(ajaxurl, {action:'evk_clear_404_logs', nonce:$(this).data('nonce')}, function(r){
+            if (r.success){
+                $('table.wp-list-table tbody').empty();
+                $('#evk-clear-404-msg').show();
+                // Cała sekcja jest jednym boksem, więc chowamy boks — wcześniej
+                // trzeba było zgadywać jego części z osobna (tabela, kreska,
+                // tytuł) i przy zmianie znaczników się rozjeżdżało.
+                $('table.wp-list-table').closest('.evo-box').hide();
+            }
+        }).always(function(){ btn.prop('disabled', false).text('🗑 Wyczyść wszystkie logi'); });
+    });
+})(jQuery);
+</script>

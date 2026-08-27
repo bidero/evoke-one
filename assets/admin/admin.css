@@ -791,6 +791,20 @@
     opacity: 0; visibility: hidden; transition: opacity .12s; z-index: 20; pointer-events: none;
 }
 .evo-tip:hover::after, .evo-tip:focus-visible::after { opacity: 1; visibility: visible; }
+/* Na wąskim ekranie dymek wyśrodkowany na 16-pikselowym znaczku wystaje poza
+   kadr i ROZPYCHA STRONĘ — element pozycjonowany bezwzględnie dokłada się do
+   `scrollWidth` przodka. Zmierzone na „Limit logowań": 375 px dokumentu przy
+   oknie 360 px, choć sama tabela przewijała się już poprawnie.
+   Poniżej 782 px dymek zaczepia się więc prawą krawędzią o znaczek i rozwija
+   w lewo, a szerokość ma przyciętą do okna. */
+@media (max-width: 782px) {
+    .evo-tip::after {
+        left: auto;
+        right: 0;
+        transform: none;
+        max-width: calc(100vw - 40px);
+    }
+}
 
 /* Wiersz zwijany. Ukrywamy treść, nagłówek zostaje — to on jest uchwytem
    i przełącznikiem naraz. */
@@ -1156,6 +1170,128 @@
 .evo-grid-2 > * { min-width: 0; }
 /* A skoro pole może być węższe niż lista — lista musi umieć się w nim zmieścić. */
 .evo-panel select { max-width: 100%; }
+/* To samo dotyczy pól tekstowych, a jest mniej oczywiste: `input` ma domyślną
+   szerokość z atrybutu `size` (~195 px) i NIE kurczy się poniżej niej. W siatce
+   dwukolumnowej przy oknie 390 px pole hasła SMTP wystawało o 8 px poza ekran,
+   a przy 360 px o 23 px. Checkboxów i radiów to nie dotyczy — mają własny
+   rozmiar i `max-width` psułby im kwadratowość. */
+.evo-panel input:not([type=checkbox]):not([type=radio]) { max-width: 100%; }
+
+/* Pionowa lista wyborów — rzędy checkboxów jeden pod drugim.
+   Odstęp jest własnością listy, nie każdego rzędu z osobna: przy `margin` na
+   rzędach ostatni zostawiał zbędny luz pod ramką boksu. */
+.evo-stack { display: flex; flex-direction: column; gap: var(--evo-gap, 12px); }
+/* Karta statusu nosi własny `margin-bottom: 24px` na potrzeby samodzielnego
+   użycia. W liście odstęp daje `gap`, więc marginesy trzeba zdjąć — inaczej
+   sumują się do 36 px. */
+.evo-stack > * { margin-bottom: 0; }
+
+/* Tabela szersza niż kolumna przewija się SAMA, nie rozpycha strony.
+   Bez tego Raporty newslettera rozciągały dokument do 682 px przy oknie
+   390 px (1.48.0) — tu jest ten sam kształt, więc i ta sama obrona. */
+.evo-tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Długa lista do przewinięcia w miejscu — endpointy REST, ścieżki, klucze.
+   Ma swoją wysokość, żeby nie wypychała przycisku zapisu poza ekran. */
+.evo-scroll-box {
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 10px;
+    background: var(--evo-surface);
+    border: 1px solid var(--evo-border-soft);
+    border-radius: var(--evo-radius-md, 8px);
+}
+/* Nagłówek grupy wewnątrz takiej listy — etykieta, nie tytuł. */
+.evo-group-head {
+    margin-bottom: 6px;
+    padding: 4px 8px;
+    background: var(--evo-bg);
+    border-left: 3px solid var(--evo-accent);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--evo-text);
+}
+/* Wiersz listy. Podświetlenie było wcześniej w `onmouseover` przy każdym
+   wierszu z osobna — atrybut z kolorem wpisanym w JS omijał paletę tak samo
+   jak `style=`, tylko trudniej go było znaleźć. */
+.evo-ep-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.evo-ep-row:hover { background: var(--evo-surface-alt); }
+.evo-code-chip {
+    padding: 1px 5px;
+    background: var(--evo-surface);
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+/* Tabela w ramce — obramowanie i promień niesie kontener, bo `border-radius`
+   na samej tabeli nie przycina komórek. Przewijanie w poziomie jest tutaj,
+   a nie na stronie. */
+.evo-tbl-frame {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--evo-bg);
+    border: 1px solid var(--evo-border-field);
+    border-radius: var(--evo-radius-sm, 6px);
+}
+.evo-tbl-frame > table { border: none; margin: 0; }
+
+/* Szerokość kolumny to DANA, nie kształt — stąd zmienna zamiast klasy na każdy
+   piksel. Ten sam wzorzec, co `--evo-col` w `.evo-grid`. */
+/* `max-width: 100%` jest tu obowiązkowe: bez niego pole o stałej szerokości
+   w wąskiej kolumnie nie ma jak się zmieścić i rozpycha stronę. Zmierzone na
+   SMTP: pole testowego adresu wystawało o 8 px przy 390 px i o 23 px przy 360. */
+.evo-w { width: var(--evo-w); max-width: 100%; }
+
+/* Pole rozciągnięte na całą szerokość siatki. */
+.evo-full { grid-column: 1 / -1; }
+.evo-full textarea, .evo-w-full { width: 100%; max-width: 100%; }
+
+/* Nagłówek sekcji z akcją po prawej — tytuł i przycisk w jednym wierszu. */
+.evo-row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+/* Drobiazgi, które wcześniej jeździły w `style=` przy pojedynczych elementach. */
+.evo-nowrap { white-space: nowrap; }
+.evo-strong { font-weight: 600; }
+.evo-break  { word-break: break-all; }
+.evo-note-tx { font-size: 13px; }
+.evo-tbl-sm  { font-size: 12px; }
+
+/* Formularz, który ma zniknąć z układu i oddać dzieci rodzicowi. */
+.evo-contents { display: contents; }
+/* Wariant paska narzędzi wyrównanego do GÓRY — pola z etykietami mają różną
+   wysokość i przy `center` etykiety rozjeżdżały się względem siebie. */
+.evo-toolbar-top { align-items: flex-start; }
+
+/* Nadtytuł — mała etykieta wersalikami nad grupą pól. */
+.evo-eyebrow { font-size: 12px; font-weight: 600; color: var(--evo-text-soft); text-transform: uppercase; letter-spacing: .5px; }
+
+.evo-block { display: block; }
+/* Ikona nad tekstem w polu zrzutu pliku — wyśrodkowana, z odstępem pod spodem. */
+.evo-drop-ico { display: block; margin: 0 auto 10px; }
+
+/* Przycisk wyglądający jak odnośnik — akcja drugoplanowa w wierszu tekstu.
+   Kolor bierze z palety; wcześniej `#dc2626` i `#6b7280` siedziały w `style=`. */
+.evo-link-btn {
+    padding: 0;
+    background: none;
+    border: none;
+    font-size: 12px;
+    color: var(--evo-text-muted);
+    text-decoration: underline;
+    cursor: pointer;
+}
+.evo-link-btn:hover { color: var(--evo-text); }
+.evo-link-btn.is-danger { color: var(--evo-danger); }
 
 /* ── Pasek narzędzi nad tabelą ── */
 .evo-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -1247,7 +1383,8 @@
 
 /* ── Wiersz pól obok siebie (pole rozciągliwe + wąski dodatek) ── */
 .evo-inline { display: flex; align-items: center; gap: 4px; }
-.evo-inline > input[type=text] { flex: 1; min-width: 0; }
+.evo-inline { flex-wrap: wrap; }
+.evo-inline > input { flex: 1 1 auto; min-width: 0; }
 /* Wąska lista „wstaw pole" — sam glif ▾, bez miejsca na tekst. */
 .evo-panel .evo-select-thin { width: 38px; flex: 0 0 auto; padding-left: 4px; padding-right: 20px; background-position: right 5px center; }
 /* Nagłówek kolumny nad tabelą — nie sekcja, więc bez wersalików. */
@@ -1279,7 +1416,9 @@
 .evo-panel .evo-w-xl { width: 100%; max-width: 340px; }
 
 /* ── Drobiazgi układu, których zakładki potrzebują częściej niż raz ── */
-.evo-grow     { flex: 1; min-width: 0; }
+/* `--evo-min` pozwala wymusić próg, poniżej którego pole ma się ZAWINĄĆ
+   zamiast ściskać. Domyślne 0 zostawia dotychczasowe zachowanie nietknięte. */
+.evo-grow     { flex: 1; min-width: var(--evo-min, 0); }
 .evo-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .evo-mb-xs    { margin-bottom: 6px; }
 .evo-inline   { gap: var(--evo-gap, 4px); }

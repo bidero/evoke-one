@@ -69,9 +69,9 @@ if ($selected_page_id) {
                     </div>
                     <div class="evo-field">
                         <label>Czas trwania sesji bypass</label>
-                        <div style="display:flex;align-items:center;gap:10px;">
+                        <div class="evo-inline" style="--evo-gap:10px">
                             <input type="number" name="maintenance_bypass_hours" value="<?php echo esc_attr($bypass_hours); ?>" min="1" max="8760">
-                            <span style="font-size:13px;color:#374151;">godzin(y)</span>
+                            <span class="evo-note-tx">godzin(y)</span>
                         </div>
                         <div class="evo-desc">Maksimum: 8760 (1 rok).</div>
                     </div>

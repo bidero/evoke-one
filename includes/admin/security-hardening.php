@@ -9,31 +9,29 @@ if (!defined('ABSPATH')) exit;
 
     <div class="evo-box">
         <h3>WordPress</h3>
-        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
-            <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:500;cursor:pointer;">
+        <div class="evo-stack evo-mb-lg">
+            <label class="evo-choice evo-choice-stack">
                 <input type="checkbox" name="evk_security[hide_wp_version]" value="1"
-                       <?php checked(1, $evk_sec['hide_wp_version']); ?> style="margin-top:2px;">
+                       <?php checked(1, $evk_sec['hide_wp_version']); ?>>
                 <span>
-                    Ukryj wersję WordPress
-                    <span style="display:block;font-weight:400;color:#6b7280;font-size:12px;margin-top:2px;">
+                    <strong>Ukryj wersję WordPress</strong>
+                    <span class="evo-hint">
                         Usuwa numer wersji z kodu HTML, RSS, nagłówków HTTP oraz query stringów assetów.
                     </span>
                 </span>
             </label>
-            <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;font-weight:500;cursor:pointer;">
+            <label class="evo-choice evo-choice-stack">
                 <input type="checkbox" name="evk_security[disable_bundled_themes]" value="1"
-                       <?php checked(1, $evk_sec['disable_bundled_themes']); ?> style="margin-top:2px;">
+                       <?php checked(1, $evk_sec['disable_bundled_themes']); ?>>
                 <span>
-                    Wyłącz aktualizację motywów dołączonych do WP (Twenty*)
-                    <span style="display:block;font-weight:400;color:#6b7280;font-size:12px;margin-top:2px;">
+                    <strong>Wyłącz aktualizację motywów dołączonych do WP (Twenty*)</strong>
+                    <span class="evo-hint">
                         Zapobiega automatycznej instalacji/aktualizacji domyślnych motywów podczas aktualizacji rdzenia.
                     </span>
                 </span>
             </label>
         </div>
-
-    
     </div>
 
-<div class="evo-save-bar"><button type="submit" class="button button-primary">Zapisz</button><span class="evk-sec-saved" style="margin-left:10px;font-size:13px;color:#047857;display:none;">✓ Zapisano</span></div>
+<div class="evo-save-bar"><button type="submit" class="button button-primary">Zapisz</button><span class="evk-sec-saved evo-save-msg evo-ml">✓ Zapisano</span></div>
 </form>

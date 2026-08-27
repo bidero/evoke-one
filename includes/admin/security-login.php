@@ -10,7 +10,7 @@ $active_blocks = evk_login_active_blocks();
 
     <div class="evo-status-card">
         <div class="evo-status-icon <?php echo !empty($evk_sec['limit_login_enabled']) ? 'on' : 'off'; ?>">
-            <span class="dashicons dashicons-lock" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>
+            <span class="dashicons dashicons-lock evo-ico-lg"></span>
         </div>
         <div class="evo-status-text">
             <h3>Limit prób logowania: <?php echo !empty($evk_sec['limit_login_enabled']) ? 'WŁĄCZONY' : 'WYŁĄCZONY'; ?></h3>
@@ -24,7 +24,7 @@ $active_blocks = evk_login_active_blocks();
         </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:0;">
+    <div class="evo-grid" style="--evo-col:200px;--evo-gap:16px">
         <div class="evo-field">
             <label>Maks. prób logowania</label>
             <input type="number" name="evk_security[max_attempts]" value="<?php echo esc_attr($evk_sec['max_attempts']); ?>" min="1" max="100">
@@ -35,27 +35,27 @@ $active_blocks = evk_login_active_blocks();
             <input type="number" name="evk_security[reset_hours]" value="<?php echo esc_attr($evk_sec['reset_hours']); ?>" min="1" max="720">
             <div class="evo-desc">Domyślnie: 24</div>
         </div>
-        <div class="evo-field" style="grid-column:1/-1;">
+        <div class="evo-field evo-full">
             <label>Własny komunikat blokady IP<span class="evo-tip" tabindex="0" role="note" data-tip="HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: {hours} — liczba godzin, {hours_str} — odmiana słowa. Gdy puste — używany domyślny komunikat." aria-label="HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: {hours} — liczba godzin, {hours_str} — odmiana słowa. Gdy puste — używany domyślny komunikat.">?</span></label>
-            <textarea name="evk_security[limit_login_message]" rows="4" style="width:100%;max-width:100%;" placeholder="Pozostaw puste aby użyć domyślnego komunikatu z czasem odblokowania..."><?php echo esc_textarea($evk_sec['limit_login_message'] ?? ''); ?></textarea>
+            <textarea name="evk_security[limit_login_message]" rows="4" placeholder="Pozostaw puste aby użyć domyślnego komunikatu z czasem odblokowania..."><?php echo esc_textarea($evk_sec['limit_login_message'] ?? ''); ?></textarea>
             
         </div>
     </div>
 
-    <div class="evo-save-bar"><button type="submit" class="button button-primary">Zapisz</button><span class="evk-sec-saved" style="margin-left:10px;font-size:13px;color:#047857;display:none;">✓ Zapisano</span></div>
+    <div class="evo-save-bar"><button type="submit" class="button button-primary">Zapisz</button><span class="evk-sec-saved evo-save-msg evo-ml">✓ Zapisano</span></div>
 </form>
 
 <?php if (!empty($active_blocks)): ?>
 <div class="evo-box">
     <h3>
     Aktywne blokady
-    <span style="font-weight:400;color:#6b7280;font-size:12px;margin-left:8px;"><?php echo count($active_blocks); ?> aktywnych</span>
+    <span class="evo-hint evo-ml"><?php echo count($active_blocks); ?> aktywnych</span>
 </h3>
-    <div style="background:#fff;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;margin-bottom:16px;">
-        <table class="wp-list-table widefat fixed striped" style="border:none;">
+    <div class="evo-tbl-frame evo-mb">
+        <table class="wp-list-table widefat fixed striped">
             <thead><tr>
                 <th>Adres IP</th><th>Użytkownik</th><th>Prób</th>
-                <th>Zablokowano</th><th>Wygasa</th><th style="width:100px;">Akcja</th>
+                <th>Zablokowano</th><th>Wygasa</th><th class="evo-w" style="--evo-w:100px">Akcja</th>
             </tr></thead>
             <tbody>
             <?php foreach ($active_blocks as $ip => $data):
@@ -85,7 +85,7 @@ $active_blocks = evk_login_active_blocks();
         data-nonce="<?php echo esc_attr($sec_nonce); ?>">
         Odblokuj wszystkie
     </button>
-    <span id="evk-blocks-status" style="margin-left:10px;font-size:13px;color:#047857;display:none;"></span>
+    <span id="evk-blocks-status" class="evo-save-msg evo-ml"></span>
     <script>
     (function ($) {
         $(document).on('click', '.evk-unblock-btn', function () {
@@ -110,6 +110,6 @@ $active_blocks = evk_login_active_blocks();
         });
     })(jQuery);
     </script>
-    <?php endif; ?>
 </div>
+<?php endif; ?>
 

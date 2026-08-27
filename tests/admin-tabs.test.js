@@ -46,14 +46,20 @@ const BOX_TITLE = { size: '11px', weight: '700', transform: 'uppercase' };
 /** Zakładki objęte przemieceniem. Kolejne dopisujemy tu, gdy przejdą sweep. */
 const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               'schema', 'sitemap', 'seo-meta',
-              'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings'];
+              'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings',
+              'sec-login', 'sec-rest', 'sec-hardening', 'sec-cleanup',
+              'tools-smtp', 'tools-redirect', 'tools-logs404', 'tools-io', 'tools-maintenance'];
 
 /** Zakładki mierzone też na wąskim ekranie. */
 const MOBILE = ['schema', 'sitemap', 'seo-meta',
-                'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings'];
+                'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings',
+                /* Cztery podstrony z tabelami — ten sam kształt, który w 1.48.0
+                   rozpychał Raporty do 682 px przy oknie 390 px. */
+                'sec-login', 'tools-smtp', 'tools-redirect', 'tools-logs404'];
 
 /** Zakładki, które mają już treść w boksach. */
-const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel'];
+const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
+               'sec-hardening', 'tools-smtp', 'tools-logs404'];
 
 module.exports = async function (t) {
   // ── Zdublowany atrybut class ──────────────────────────────────────────
@@ -118,9 +124,10 @@ module.exports = async function (t) {
     // bloku przechodzi na pustej liście i test nie sprawdza niczego.
     // Liczymy wszystko, co ma kształt: „Mapa strony" to same checkboxy
     // i przyciski, bez ani jednego pola tekstowego.
-    t.check('jest co mierzyć', ctrl.length + ta.length + btn.length > 0,
+    const tog = await p.evaluate(() => window.__toggles());
+    t.check('jest co mierzyć', ctrl.length + ta.length + btn.length + tog.length > 0,
       ctrl.length + ' kontrolek, ' + ta.length + ' pól wieloliniowych, ' +
-      btn.length + ' przycisków');
+      btn.length + ' przycisków, ' + tog.length + ' przełączników');
 
     const badBtn = btn.filter((b) => b.radius !== BTN_RADIUS);
     t.check('przyciski o promieniu ' + BTN_RADIUS, !badBtn.length,

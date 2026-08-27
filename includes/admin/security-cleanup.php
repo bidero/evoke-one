@@ -7,9 +7,9 @@ $items = [
     'remove_rss'     => ['label' => 'Usuń linki RSS z <head>', 'desc' => 'Usuwa odnośniki feedów (rsd, feed_links, wlwmanifest) z kodu strony.', 'icon' => 'dashicons-rss'],
 ];
 ?>
-<div class="evo-tab-content">
+<div class="evo-tab-content evo-stack">
     <?php foreach ($items as $key => $it): $on = !empty($o[$key]); ?>
-    <div class="evo-status-card" style="margin-bottom:12px;">
+    <div class="evo-status-card">
         <div class="evo-status-icon <?php echo $on ? 'on' : 'off'; ?>">
             <span class="dashicons <?php echo esc_attr($it['icon']); ?>"></span>
         </div>

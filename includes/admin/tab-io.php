@@ -9,8 +9,8 @@ if (!defined('ABSPATH')) exit;
             <div class="evo-io-box">
                 <h3>Eksport danych</h3>
                 <p>Wybierz moduły do eksportu i pobierz plik JSON.</p>
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-                    <span style="font-size:12px;font-weight:600;color:#374151;text-transform:uppercase;letter-spacing:.5px;">Moduły</span>
+                <div class="evo-inline evo-mb-xs" style="--evo-gap:6px">
+                    <span class="evo-eyebrow">Moduły</span>
                     <span class="evo-io-select-all" onclick="evoIoSelectAll('export')">zaznacz wszystkie</span>
                     <span class="evo-io-select-all" onclick="evoIoDeselectAll('export')">odznacz wszystkie</span>
                 </div>
@@ -32,8 +32,8 @@ if (!defined('ABSPATH')) exit;
                 <h3>Import danych</h3>
                 <p>Wgraj plik JSON z eksportu. Dla każdego modułu możesz zdecydować czy nadpisać istniejące dane.</p>
                 <div class="evo-drop-zone" id="evo-drop-zone" onclick="document.getElementById('evo-file-input').click();">
-                    <span class="dashicons dashicons-upload" style="font-size:40px;width:40px;height:40px;display:block;margin:0 auto 10px;"></span>
-                    <span style="display:block;text-align:center;">Przeciągnij plik JSON tutaj lub kliknij, aby wybrać</span>
+                    <span class="dashicons dashicons-upload evo-ico-xl evo-drop-ico"></span>
+                    <span class="evo-block evo-center">Przeciągnij plik JSON tutaj lub kliknij, aby wybrać</span>
                     <input type="file" id="evo-file-input" accept=".json">
                 </div>
                 <div class="evo-import-status" id="evo-import-status"></div>
@@ -45,10 +45,10 @@ if (!defined('ABSPATH')) exit;
                     <h3>Rozwiąż konflikty importu</h3>
                     <p>Poniższe moduły już zawierają dane. Zdecyduj dla każdego z nich czy chcesz <strong>nadpisać</strong> istniejące dane danymi z pliku, czy <strong>pominąć</strong>.</p>
                     <div class="evo-modal-modules" id="evo-conflict-list"></div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;">
-                        <div style="display:flex;gap:10px;">
-                            <button type="button" onclick="evoConflictAll('overwrite')" style="font-size:12px;color:#dc2626;background:none;border:none;cursor:pointer;text-decoration:underline;">Nadpisz wszystkie</button>
-                            <button type="button" onclick="evoConflictAll('skip')"      style="font-size:12px;color:#6b7280;background:none;border:none;cursor:pointer;text-decoration:underline;">Pomiń wszystkie</button>
+                    <div class="evo-row-between">
+                        <div class="evo-inline" style="--evo-gap:10px">
+                            <button type="button" class="evo-link-btn is-danger" onclick="evoConflictAll('overwrite')">Nadpisz wszystkie</button>
+                            <button type="button" class="evo-link-btn" onclick="evoConflictAll('skip')">Pomiń wszystkie</button>
                         </div>
                         <div class="evo-modal-footer">
                             <button type="button" class="evo-modal-btn-done" onclick="evoConflictConfirm()">Importuj</button>

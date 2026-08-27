@@ -78,6 +78,14 @@ window.__textareas = function () {
 };
 
 /** Przyciski — promień 7 px i akcent na primary. */
+/* Przełączniki. Są zakładki zbudowane WYŁĄCZNIE z nich — „Czyszczenie" nie ma
+   ani jednego pola ani przycisku — a strażnik „jest co mierzyć" ma pilnować,
+   że zakładka się wyrenderowała, nie że ma akurat pola tekstowe. */
+window.__toggles = function () {
+  return Array.prototype.filter.call(document.querySelectorAll('#panel .evo-toggle'), shown)
+    .map(function (el) { return { where: where(el) }; });
+};
+
 window.__buttons = function () {
   return Array.prototype.filter.call(document.querySelectorAll('#panel .button'), shown)
     .map(function (el) {
