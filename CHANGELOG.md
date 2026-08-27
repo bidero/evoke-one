@@ -2,6 +2,46 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.118.0] — 2026-08-27
+
+### Dodane
+
+- **Zmienne kolorów do animowania** — nowe pole w *Dark mode → Przejścia CSS przy
+  zmianie motywu*. Rozwiązuje zgłoszenie: „mam problem z dark mode i gradientami
+  (w których kolory mają odpowiedniki w ciemnym). W momencie kliknięcia
+  przełącznika, kolor gradientu zmienia się od razu, a nie czeka na falę".
+
+  Gradient to `background-image`, a przeglądarka nie interpoluje go, gdy kolor
+  jest podstawiany przez `var()`. Zmierzone na lustrze strony `/projekty/`: nawet
+  z wymuszonym `transition: background-image 1s` gradient przeskakuje po 60 ms,
+  podczas gdy kolory obok płyną 222 → 183 → 53 → 43. Powodem jest to, że
+  **niezarejestrowana zmienna CSS nie jest animowalna**. A skoro przeskakuje, to
+  stara migawka przejścia od razu ma nowy kolor — i fala nie ma czego odsłaniać.
+
+  Nazwy wpisane w to pole moduł rejestruje przez `@property` jako `<color>`
+  i dokłada do listy przejść. Zmierzone na lustrze, gradient 708 px od źródła
+  fali:
+
+  | | przebieg |
+  |---|---|
+  | bez rejestracji | 184,102,224 od t=0 — nowy kolor natychmiast |
+  | z rejestracją | 66,0,99 do 420 ms, potem 184,102,224 przy 600 ms — czyli gdy dochodzi fala |
+
+  Przejście zmiennych stoi **tylko na korzeniu**, bo potomkowie i tak je
+  dziedziczą. Gdy stało też na nich, `section` goniła zmieniającą się wartość
+  odziedziczoną i gradient wlókł się dwa razy dłużej niż sama zmienna
+  (255 → 252 → 247 → 237 → 221 → 197 → 171 → 147 zamiast 255 → 151 → 41 → 0).
+
+  Po zrobieniu migawek zmienne milkną — ale osobną regułą, która przycina samą
+  listę właściwości korzenia. Wyciszenie w formie „potomek" ich nie dosięga,
+  a wyciszenie całego korzenia zabrałoby przejście tła, na którym stoi
+  odsłanianie (1.117.0).
+
+  Nazwy są sprawdzane przy zapisie: brakujące myślniki dopisują się same,
+  powtórki znikają, a wpisy z niedozwolonymi znakami odpadają **z komunikatem**,
+  nie po cichu. Pole przyjmuje wyłącznie zmienne trzymające kolor — i tak jest
+  opisane w panelu, bo zmienna z rozmiarem zrobiłaby w tym miejscu przezroczystość.
+
 ## [1.117.0] — 2026-08-27
 
 ### Naprawione

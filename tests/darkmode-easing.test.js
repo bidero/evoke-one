@@ -96,4 +96,31 @@ module.exports = async function (t) {
   t.check('puste pole też milczy', d.puste.komunikaty.length === 0
     && d.puste.easingi.global_easing === 'ease',
     d.puste.easingi.global_easing + ', komunikatów: ' + d.puste.komunikaty.length);
+
+  // ── Zmienne kolorów: nazwy przed wpuszczeniem do @property ───────────────
+  /*
+   * Nazwy z tego pola trafiają do `@property` i do listy przejść, więc byle co
+   * wpuszczone tu kończy się nieważną regułą albo — gorzej — kolorem
+   * podmienionym na `transparent` w całym motywie.
+   */
+  t.section('zmienne kolorów: nazwy normalizowane, śmieci odrzucane');
+
+  t.check('brak myślników jest dopisywany, nie karany',
+    d.zmienne_ok.zmienne.split('\n')[1] === '--kolor-b', d.zmienne_ok.zmienne.replace(/\n/g, ' '));
+  t.check('spacje wokół nazwy nie przeszkadzają',
+    d.zmienne_ok.zmienne.split('\n')[2] === '--kolor-c', d.zmienne_ok.zmienne.split('\n')[2]);
+  t.check('powtórki znikają', d.zmienne_powtorka.zmienne === '--a', d.zmienne_powtorka.zmienne);
+
+  t.check('śmieci odpadają, dobre wpisy zostają',
+    d.zmienne_smieci.zmienne === '--dobra', d.zmienne_smieci.zmienne);
+  t.check('i odrzucenie mówi o sobie', d.zmienne_smieci.komunikaty.length === 1
+    && /zła nazwa/.test(d.zmienne_smieci.komunikaty[0]),
+    d.zmienne_smieci.komunikaty[0] || 'brak komunikatu');
+
+  /* KONTROLA NEGATYWNA: puste i poprawne pole milczy. Bez tego „jest komunikat"
+     spełniłby też moduł, który krzyczy zawsze. */
+  t.check('a poprawny i pusty zapis milczy',
+    d.zmienne_ok.komunikaty.length === 0 && d.zmienne_puste.komunikaty.length === 0
+      && d.zmienne_puste.zmienne === '',
+    'cisza');
 };

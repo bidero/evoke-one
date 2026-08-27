@@ -29,6 +29,7 @@ class EVK_DarkMode {
         'global_easing'     => 'ease',
         'global_selectors'  => "[data-brx-theme]\nbody\n#brx-content\nsection",
         'global_properties' => "background-color\ncolor\nborder-color\nfill\nstroke\nfilter",
+        'color_vars'        => '',
         // Elementy Bricks
         'bricks_enabled'    => 1,
         'bricks_duration'   => 1.0,
@@ -112,6 +113,36 @@ class EVK_DarkMode {
         ];
         foreach ($ints as $key => [$min, $max, $default]) {
             $clean[$key] = isset($input[$key]) ? max($min, min($max, intval($input[$key]))) : $default;
+        }
+
+        /*
+         * ZMIENNE KOLORÓW — SAME NAZWY, NIC WIĘCEJ.
+         *
+         * Trafiają do `@property` i do listy przejść, więc byle co wpuszczone tu
+         * kończy się nieważną regułą albo — gorzej — kolorem podmienionym na
+         * `transparent` w całym motywie. Przepuszczamy wyłącznie nazwę zmiennej.
+         */
+        $zmienne = [];
+        $zle_zmienne = [];
+        foreach ($this->parse_lines((string) ($input['color_vars'] ?? '')) as $nazwa) {
+            $nazwa = ltrim($nazwa, '-');
+            if (preg_match('/^[A-Za-z0-9_-]+$/', $nazwa)) {
+                $zmienne[] = '--' . $nazwa;
+            } else {
+                $zle_zmienne[] = '„' . $nazwa . '”';
+            }
+        }
+        $clean['color_vars'] = implode("\n", array_unique($zmienne));
+
+        if ($zle_zmienne && function_exists('add_settings_error')) {
+            add_settings_error(
+                'evk_darkmode',
+                'evk_darkmode_color_vars',
+                'Pominięto nazwy zmiennych: ' . implode('; ', $zle_zmienne)
+                    . '. Wpisz samą nazwę, po jednej w wierszu (np. --kolor-glowny-d-2). '
+                    . 'Reszta wpisów została zapisana.',
+                'error'
+            );
         }
 
         $texts = [
@@ -230,10 +261,47 @@ class EVK_DarkMode {
         $bricks_selectors  = $this->parse_lines($s['bricks_selectors']);
         $bricks_properties = $this->parse_lines($s['bricks_properties']);
 
-        $global_transition = implode(', ', array_map(
-            fn($prop) => "{$prop} {$s['global_duration']}s {$s['global_easing']}",
-            $global_properties
-        ));
+        /*
+         * GRADIENTY NIE PRZECHODZĄ SAME — TRZEBA IM ZAREJESTROWAĆ ZMIENNĄ.
+         *
+         * Zgłoszone z użycia: „mam problem z dark mode i gradientami… kolor
+         * gradientu zmienia się od razu, a nie czeka na falę".
+         *
+         * Gradient to `background-image`, a Chrome nie interpoluje go, gdy kolor
+         * siedzi w `var()`. Zmierzone na lustrze: nawet z wymuszonym
+         * `transition: background-image 1s` gradient przeskakuje po 60 ms,
+         * podczas gdy kolory obok płyną 222 → 183 → 53 → 43.
+         *
+         * Powód: NIEZAREJESTROWANA zmienna CSS nie jest animowalna. Po
+         * zarejestrowaniu jej przez `@property` jako `<color>` przejście działa,
+         * a wtedy — i to jest tu najważniejsze — w chwili migawki zmienna stoi
+         * jeszcze na starej wartości, więc fala ma co odsłaniać.
+         *
+         * Zmierzone na lustrze, gradient 708 px od źródła fali:
+         *   bez rejestracji:  184,102,224 od t=0        (nowy kolor od razu)
+         *   z rejestracją:     66,0,99 do 420 ms, potem 184,102,224 przy 600 ms
+         *                                              (czyli gdy dochodzi fala)
+         */
+        $color_vars = $this->parse_lines($s['color_vars'] ?? '');
+
+        $krok = fn($prop) => "{$prop} {$s['global_duration']}s {$s['global_easing']}";
+
+        $global_transition = implode(', ', array_map($krok, $global_properties));
+
+        /*
+         * ZMIENNE PRZECHODZĄ TYLKO NA KORZENIU — POTOMKOWIE JE DZIEDZICZĄ.
+         *
+         * Zmierzone, gdy przejście stało też na potomkach: `section` gonił
+         * odziedziczoną wartość, która sama się jeszcze zmieniała, i gradient
+         * wlókł się dwa razy dłużej niż zmienna:
+         *   zmienna:  255 → 151 → 41 → 0   (0,4 s, tak jak trzeba)
+         *   gradient: 255 → 252 → 247 → 237 → 221 → 197 → 171 → 147 …
+         *
+         * Kolory z listy globalnej zostają w tej regule razem ze zmiennymi, bo
+         * skrót `transition` na tym samym elemencie zastąpiłby je w całości.
+         */
+        $root_transition = implode(', ', array_map($krok,
+            array_merge($global_properties, $color_vars)));
 
         $bricks_transition = implode(', ', array_map(
             fn($prop) => "{$prop} {$s['bricks_duration']}s {$s['bricks_easing']}",
@@ -257,11 +325,27 @@ class EVK_DarkMode {
 
         echo "<style id=\"evk-darkmode-css\">\n";
 
+        foreach ($color_vars as $zmienna) {
+            echo "@property {$zmienna} {\n";
+            echo "    syntax: \"<color>\";\n";
+            echo "    inherits: true;\n";
+            echo "    initial-value: transparent;\n";
+            echo "}\n";
+        }
+        if ($color_vars) echo "\n";
+
         if (!empty($global_selectors) && !empty($global_properties)) {
             echo implode(",\n", $global_selectors) . " {\n";
             echo "    transition: {$global_transition};\n";
             echo "    -webkit-transition: {$global_transition};\n";
             echo "}\n\n";
+
+            if ($color_vars) {
+                echo ":root {\n";
+                echo "    transition: {$root_transition};\n";
+                echo "    -webkit-transition: {$root_transition};\n";
+                echo "}\n\n";
+            }
         }
 
         if (!empty($s['bricks_enabled']) && !empty($bricks_selectors) && !empty($bricks_properties)) {
@@ -506,6 +590,24 @@ CSS;
                 echo "html.is-theme-settled " . implode(",\nhtml.is-theme-settled ", $bez_przejscia) . " {\n";
                 echo "    transition: none !important;\n";
                 echo "    -webkit-transition: none !important;\n";
+                echo "}\n\n";
+            }
+
+            /*
+             * ZMIENNE KOLORÓW MILKNĄ PO MIGAWKACH, ALE KORZEŃ NIE.
+             *
+             * Zmienne motywu siedzą na korzeniu, więc reguła w formie „potomek"
+             * wyżej ich nie dosięga — a gdyby dosięgła, wyciszyłaby razem z nimi
+             * przejście tła korzenia, którym stoi całe odsłanianie (patrz 1.117.0).
+             *
+             * Stąd osobna reguła, która trafia W korzeń i przycina samą LISTĘ
+             * właściwości: kolory zostają, zmienne wypadają. Odsłonięty gradient
+             * jest wtedy od razu docelowy, a płótno dalej płynie starym kolorem
+             * pod tym, do czego fala jeszcze nie doszła.
+             */
+            if ($color_vars && $global_properties) {
+                echo "html.is-theme-settled {\n";
+                echo "    transition-property: " . implode(', ', $global_properties) . ";\n";
                 echo "}\n\n";
             }
 

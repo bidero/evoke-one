@@ -152,6 +152,21 @@ if (!defined('ABSPATH')) exit;
                         <label>Właściwości CSS (jeden na linię)</label>
                         <textarea name="evk_darkmode[global_properties]" rows="4"><?php echo esc_textarea($dm['global_properties']); ?></textarea>
                     </div>
+                    <div class="evo-field">
+                        <label>Zmienne kolorów do animowania (jedna na linię)</label>
+                        <textarea name="evk_darkmode[color_vars]" rows="3" placeholder="--kolor-glowny-d-2"><?php echo esc_textarea($dm['color_vars']); ?></textarea>
+                        <details class="evo-note"><summary>Po co to jest</summary><div class="evo-note-body">
+                            <p>Dla <strong>gradientów</strong>, których kolory mają odpowiedniki w ciemnym motywie.
+                            Gradient to <code>background-image</code>, a przeglądarka nie potrafi go płynnie
+                            przefarbować, gdy kolor siedzi w <code>var()</code> — dlatego przeskakuje od razu
+                            po kliknięciu, zamiast poczekać na falę.</p>
+                            <p>Wpisz tu nazwy zmiennych, które trzymają te kolory (po jednej w wierszu,
+                            np. <code>--kolor-glowny-d-2</code>). Wtedy zmieniają się płynnie razem z resztą
+                            motywu, a fala je odsłania tak samo jak zwykłe tła.</p>
+                            <p><strong>Tylko zmienne, które trzymają kolor.</strong> Wpisanie zmiennej
+                            z rozmiarem albo cieniem sprawi, że w tym miejscu zrobi się przezroczyście.</p>
+                        </div></details>
+                    </div>
                     <div class="evo-inline-fields">
                         <div class="evo-field">
                             <label>Czas trwania (s)</label>

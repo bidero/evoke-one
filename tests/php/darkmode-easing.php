@@ -51,6 +51,7 @@ function przepusc($el, array $wejscie) {
         'easingi'    => array_intersect_key($out, array_flip(
             ['global_easing', 'bricks_easing', 'logo_easing',
              'ripple_easing', 'wipe_easing', 'post_trans_easing'])),
+        'zmienne'    => $out['color_vars'],
         'komunikaty' => array_map(function ($k) { return $k['message']; }, $GLOBALS['settings_errors']),
     ];
 }
@@ -79,5 +80,26 @@ $wyniki['ujemne'] = przepusc($el, ['global_easing' => 'cubic-bezier(0.68, -0.55,
 
 // ── Puste pole to świadome „wróć do domyślnego", nie pomyłka ─────────────────
 $wyniki['puste'] = przepusc($el, ['global_easing' => '']);
+
+// ── Zmienne kolorów: normalizacja nazw i odrzucanie śmieci ───────────────────
+/*
+ * Nazwy trafiają do `@property` i do listy przejść, więc byle co wpuszczone tu
+ * kończy się nieważną regułą albo — gorzej — kolorem podmienionym na
+ * `transparent` w całym motywie.
+ *
+ * Brak wiodących myślników to najczęstsza pomyłka przy przepisywaniu nazwy
+ * z arkusza stylów, więc dopisujemy je zamiast odrzucać wpis.
+ */
+$wyniki['zmienne_ok'] = przepusc($el, [
+    'color_vars' => "--kolor-glowny-d-2\nkolor-b\n  --kolor-c  ",
+]);
+
+$wyniki['zmienne_powtorka'] = przepusc($el, ['color_vars' => "--a\n--a\na"]);
+
+$wyniki['zmienne_smieci'] = przepusc($el, [
+    'color_vars' => "--dobra\nzła nazwa!\n--url(evil)\n--a;color:red",
+]);
+
+$wyniki['zmienne_puste'] = przepusc($el, ['color_vars' => '']);
 
 echo json_encode($wyniki, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";

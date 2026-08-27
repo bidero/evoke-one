@@ -109,8 +109,13 @@ async function zamroz(p) {
 
 /** Jasność w dwóch punktach kadru przy zadanym czasie animacji. */
 async function jasnosci(p, t, punkty) {
-  await p.evaluate((v) => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = v; }), t);
-  await p.waitForTimeout(60);
+  /* `t === null` znaczy „zmierz stan bieżący" — bez zatrzymywania animacji.
+     Przy przejściu CSS, którego nie zamrażamy, przestawianie czasu przewinęłoby
+     je do końca i pomiar straciłby sens. */
+  if (t !== null) {
+    await p.evaluate((v) => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = v; }), t);
+    await p.waitForTimeout(60);
+  }
   const buf = await p.screenshot();
   return p.evaluate(async ({ b64, punkty }) => {
     const img = new Image();
@@ -246,6 +251,77 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !k.errors.length, k.errors.join(' | ') || 'brak');
   await k.close();
 
+  // ── Gradient ze zmiennej czeka na falę ───────────────────────────────────
+  /*
+   * ZGŁOSZONE Z UŻYCIA: „mam problem z dark mode i gradientami (w których
+   * kolory mają odpowiedniki w ciemnym)… kolor gradientu zmienia się od razu,
+   * a nie czeka na falę".
+   *
+   * Gradient to `background-image`, którego Chrome nie interpoluje, gdy kolor
+   * przychodzi z `var()`. Zmierzone na lustrze: nawet z wymuszonym
+   * `transition: background-image 1s` gradient przeskakuje po 60 ms, podczas
+   * gdy kolory obok płyną 222 → 183 → 53 → 43. Dopiero rejestracja zmiennej
+   * przez `@property` czyni ją animowalną — a wtedy w chwili migawki stoi
+   * jeszcze na starej wartości i fala ma co odsłaniać.
+   *
+   * Mierzymy najpierw BEZ fali, bo tam widać sam mechanizm: czy zmienna płynie,
+   * czy przeskakuje. Kontrola negatywna (bez wpisanej zmiennej) działa właśnie
+   * w tym trybie.
+   */
+  t.section('zarejestrowana zmienna płynie, niezarejestrowana przeskakuje');
+
+  /** Jasność gradientu w trakcie zmiany motywu, bez fali. */
+  async function gradientBezFali(ustawienia) {
+    const q = await t.open('darkmode-gradient.html', V);
+    await wstrzyknij(q, Object.assign({ ripple_enabled: 0 }, ustawienia));
+    await q.click('.brxe-toggle-mode');
+    /* Ze ZRZUTU, nie z `getComputedStyle`: przy gradiencie ze zmiennej ten
+       drugi potrafi oddać wartość sprzed klatki, a chodzi o to, co widać. */
+    await q.waitForTimeout(150);   // 0,4 s przejścia — jesteśmy w jego środku
+    const wTrakcie = (await jasnosci(q, null, [[400, 300]]))[0];
+    await q.waitForTimeout(600);
+    const naKoncu = (await jasnosci(q, null, [[400, 300]]))[0];
+    const bledy = q.errors.slice();
+    await q.close();
+    return { wTrakcie, naKoncu, bledy };
+  }
+
+  const zarejestrowana = await gradientBezFali({ color_vars: '--evk-proba' });
+  t.check('zarejestrowana zmienna jest w trakcie POMIĘDZY',
+    zarejestrowana.wTrakcie > 20 && zarejestrowana.wTrakcie < 235,
+    'jasność ' + zarejestrowana.wTrakcie);
+  t.check('i dochodzi do docelowej', zarejestrowana.naKoncu < 20,
+    'jasność ' + zarejestrowana.naKoncu);
+  t.check('bez błędów JS', !zarejestrowana.bledy.length, zarejestrowana.bledy.join(' | ') || 'brak');
+
+  /* KONTROLA NEGATYWNA — i zarazem stan, który zgłosiłeś: bez rejestracji
+     zmienna nie jest animowalna, więc gradient jest docelowy natychmiast. */
+  const bezRejestracji = await gradientBezFali({});
+  t.check('niezarejestrowana przeskakuje od razu, bez pośrednich',
+    bezRejestracji.wTrakcie < 20, 'jasność ' + bezRejestracji.wTrakcie);
+
+  // ── A pod falą gradient czeka na jej czoło ───────────────────────────────
+  t.section('pod falą gradient trzyma stary kolor, dopóki nie dojdzie');
+
+  const f = await t.open('darkmode-gradient.html', V);
+  await wstrzyknij(f, { color_vars: '--evk-proba' });
+  await zamroz(f);
+  await f.click('.brxe-toggle-mode');
+  await f.waitForFunction('window.__zamrozone === true', null, { timeout: 5000 });
+  const czasF = await f.evaluate('window.__fala[0].effect.getComputedTiming().duration');
+
+  const ROG = [770, 570];   // przeciwny róg — fala dochodzi tam na końcu
+  t.check('na starcie gradient jest w starym kolorze',
+    (await jasnosci(f, 0, [ROG]))[0] > 200, 'jasność ' + (await jasnosci(f, 0, [ROG]))[0]);
+  const polowa = (await jasnosci(f, Math.round(czasF * 0.3), [ROG]))[0];
+  t.check('trzyma go, choć motyw już się przełączył', polowa > 200, 'jasność ' + polowa);
+  /* Kontrola pozytywna: bez niej „róg trzyma stary kolor" spełniłaby też
+     zmienna, która nigdy się nie zmienia. */
+  const naKoniec = (await jasnosci(f, czasF, [ROG]))[0];
+  t.check('a gdy fala dojdzie — zmienia się', naKoniec < 40, 'jasność ' + naKoniec);
+  t.check('bez błędów JS', !f.errors.length, f.errors.join(' | ') || 'brak');
+  await f.close();
+
   // ── Sam znacznik: co i kiedy jest wyciszane ──────────────────────────────
   t.section('wyciszenie obejmuje ustawione selektory i tylko przy fali');
 
@@ -266,4 +342,29 @@ module.exports = async function (t) {
      migawkami. To właśnie zabierało starej migawce jej stary kolor. */
   t.check('i nie stoi pod klasą zakładaną przed migawkami',
     !/html\.is-theme-toggling [^{}]*\{[^}]*transition: none/.test(zFala), 'brak');
+
+  // ── Zmienne kolorów: rejestracja, przejście, przycięcie po migawkach ─────
+  t.section('zmienne kolorów rejestrują się i wchodzą do przejścia');
+
+  /* Sanityzację nazw sprawdza `tests/php/darkmode-easing.php` — ten harness
+     wstawia ustawienia wprost, z pominięciem `sanitize_settings`. */
+  const zeZm = phpOutput('darkmode-head.php',
+    JSON.stringify(JSON.stringify({ color_vars: '--a\n--b' })));
+
+  t.check('zmienna jest zarejestrowana jako kolor',
+    /@property --a \{\s*syntax: "<color>";\s*inherits: true;\s*initial-value: transparent;/.test(zeZm),
+    'jest');
+  t.check('zmienna wchodzi do listy przejść',
+    /transition:[^;]*--a 0\.4s/.test(zeZm), 'jest');
+
+  /* Po migawkach zmienne mają zamilknąć, ale kolory korzenia NIE — na nich
+     stoi całe odsłanianie (1.117.0). Stąd przycięcie samej listy właściwości. */
+  const przyciecie = zeZm.match(/html\.is-theme-settled \{[^}]*\}/);
+  t.check('po migawkach lista właściwości korzenia traci zmienne',
+    !!przyciecie && !/--a/.test(przyciecie[0]), przyciecie ? 'przycięta' : 'brak reguły');
+  t.check('ale kolor tła korzenia w niej zostaje',
+    !!przyciecie && /background-color/.test(przyciecie[0]), 'jest');
+
+  t.check('bez wpisanych zmiennych nie ma ani rejestracji, ani przycięcia',
+    !/@property --a\b/.test(zFala) && !/html\.is-theme-settled \{/.test(zFala), 'brak');
 };

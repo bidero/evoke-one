@@ -1,0 +1,47 @@
+<!--
+  Gradient, którego kolor siedzi w zmiennej CSS.
+
+  Zgłoszone z użycia: „mam problem z dark mode i gradientami (w których kolory
+  mają odpowiedniki w ciemnym). W momencie kliknięcia przełącznika, kolor
+  gradientu zmienia się od razu, a nie czeka na falę".
+
+  Gradient to `background-image`, a przeglądarka nie interpoluje go, gdy kolor
+  jest podstawiany przez `var()` z NIEZAREJESTROWANEJ zmiennej — zmienna nie
+  jest wtedy animowalna i przeskakuje. A skoro przeskakuje, to stara migawka
+  przejścia od razu ma nowy kolor i fala nie ma czego odsłaniać.
+
+  Układ jak na stronie: `data-brx-theme` na korzeniu (bo tam trafia przejście
+  z domyślnej listy selektorów), zmienna zdefiniowana na korzeniu i nadpisana
+  dla ciemnego motywu, gradient na sekcji przykrywającej kadr.
+
+  Gradient jest jednolity (ten sam kolor na obu przystankach), żeby dało się go
+  czytać z jednego piksela — mierzymy KIEDY się zmienia, nie jak wygląda.
+-->
+<meta charset="utf-8">
+<script>document.documentElement.setAttribute('data-brx-theme', 'light');</script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+
+  :root { --evk-proba: #ffffff; }
+  html[data-theme="dark"] { --evk-proba: #000000; }
+
+  html { background: #ffffff; }
+  html[data-theme="dark"] { background: #000000; }
+  body { background: transparent; }
+
+  section {
+    position: fixed; inset: 0;
+    background-image: linear-gradient(var(--evk-proba), var(--evk-proba));
+  }
+
+  /* Przełącznik w lewym górnym rogu: fala idzie w jedną stronę, a przeciwny
+     róg kadru jest najdalszym punktem, jaki może osiągnąć. */
+  .brxe-toggle-mode {
+    position: fixed; left: 40px; top: 40px; width: 40px; height: 40px;
+    border: 0; background: #888; cursor: pointer; z-index: 1;
+  }
+</style>
+
+<section></section>
+<button class="brxe-toggle-mode" aria-label="Zmień motyw"></button>
