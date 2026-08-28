@@ -39,19 +39,19 @@ $detected = EVK_Fonts::detect_local_fonts();
                     <h3>Pliki czcionek do preload</h3>
                     <div class="evo-field">
                         <label>URL-e plików .woff2 / .woff (jeden na linię)<span class="evo-tip" tabindex="0" role="note" data-tip="Ścieżka względna (od „/&quot;) lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy crossorigin i właściwy typ MIME automatycznie." aria-label="Ścieżka względna (od „/&quot;) lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy crossorigin i właściwy typ MIME automatycznie.">?</span></label>
-                        <textarea name="evk_fonts[preload]" rows="5" style="max-width:640px;font-family:monospace;font-size:12px;" placeholder="/wp-content/uploads/fonts/inter-regular.woff2&#10;/wp-content/uploads/fonts/inter-600.woff2"><?php echo esc_textarea($f['preload']); ?></textarea>
+                        <textarea name="evk_fonts[preload]" rows="5" class="evo-mono evo-tbl-sm evo-w" style="--evo-w:640px" placeholder="/wp-content/uploads/fonts/inter-regular.woff2&#10;/wp-content/uploads/fonts/inter-600.woff2"><?php echo esc_textarea($f['preload']); ?></textarea>
                         
                     </div>
 
                     <?php if (!empty($detected)): ?>
-                    <div class="evo-info-box" style="align-items:flex-start;">
+                    <div class="evo-info-box">
                         <span class="dashicons dashicons-search"></span>
-                        <div style="flex:1;">
+                        <div class="evo-grow">
                             <strong>Wykryte lokalne czcionki (.woff2)</strong> — kliknij, aby dopisać do pola powyżej:
-                            <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+                            <div class="evo-stack evo-mt-xs" style="--evo-gap:4px">
                             <?php foreach ($detected as $url):
                                 $rel = str_replace(home_url(), '', $url); ?>
-                                <a href="#" class="evk-font-suggest" data-url="<?php echo esc_attr($rel); ?>" style="font-family:monospace;font-size:12px;text-decoration:none;"><span class="dashicons dashicons-plus-alt2" style="font-size:13px;width:13px;height:13px;vertical-align:middle;"></span> <?php echo esc_html($rel); ?></a>
+                                <a href="#" class="evk-font-suggest evo-mono evo-tbl-sm evo-link-plain" data-url="<?php echo esc_attr($rel); ?>"><span class="dashicons dashicons-plus-alt2 evo-ico-xs"></span> <?php echo esc_html($rel); ?></a>
                             <?php endforeach; ?>
                             </div>
                         </div>
@@ -71,7 +71,7 @@ $detected = EVK_Fonts::detect_local_fonts();
                     })();
                     </script>
                     <?php else: ?>
-                    <div class="evo-desc" style="margin-bottom:16px;">Nie znaleziono plików czcionek w typowych folderach (uploads/fonts, omgf, …). URL czcionki znajdziesz w DevTools przeglądarki: zakładka <em>Sieć/Network</em> → filtr <em>Font</em> → skopiuj adres pliku .woff2.</div>
+                    <div class="evo-desc evo-mb">Nie znaleziono plików czcionek w typowych folderach (uploads/fonts, omgf, …). URL czcionki znajdziesz w DevTools przeglądarki: zakładka <em>Sieć/Network</em> → filtr <em>Font</em> → skopiuj adres pliku .woff2.</div>
                     <?php endif; ?>
 
                 </div>
@@ -81,7 +81,7 @@ $detected = EVK_Fonts::detect_local_fonts();
                     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Tylko jeśli czcionki są serwowane z <strong>zewnętrznego</strong> hosta/CDN (nie z Twojej domeny). Dla w pełni lokalnych czcionek zostaw puste.</div></details>
                     <div class="evo-field">
                         <label>Hosty do preconnect (jeden na linię)</label>
-                        <textarea name="evk_fonts[preconnect]" rows="2" style="max-width:480px;font-family:monospace;font-size:12px;" placeholder="https://fonts.gstatic.com"><?php echo esc_textarea($f['preconnect']); ?></textarea>
+                        <textarea name="evk_fonts[preconnect]" rows="2" class="evo-mono evo-tbl-sm evo-w" style="--evo-w:480px" placeholder="https://fonts.gstatic.com"><?php echo esc_textarea($f['preconnect']); ?></textarea>
                     </div>
 
                 

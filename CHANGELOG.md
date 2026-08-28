@@ -2,6 +2,63 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.121.0] — 2026-08-27
+
+### Zmienione
+
+- **Frontend i formularze bez własnych stylów.** Piąta i ostatnia partia
+  przemiatania górnego poziomu panelu: kursor, płynne przewijanie, Animator,
+  formularze, tło przy scrollu, czcionki, newsletter, elementy Bricks, parallax
+  i paski przeglądarki.
+
+  | | przed | po |
+  |---|---|---|
+  | atrybuty `style=` w tych plikach | 105 | **40** |
+  | z nich niosących kształt | 89 | **0** |
+
+  **Cały górny poziom `includes/admin/` domknięty:** 345 → **95** atrybutów,
+  z czego kształt niesie już tylko **7** — wszystkie w Skrzynce, która jest
+  świadomie poza zakresem (osobny ekran, nie ładuje `admin.css`).
+
+- **Paleta dostała tokeny ostrzeżenia.** `--evo-warn`, `--evo-warn-soft`,
+  `--evo-warn-line`, `--evo-warn-bg`. Wcześniej te cztery kolory jeździły
+  wpisane wprost w atrybutach — plakietka „samodzielna wtyczka aktywna"
+  i ramka o nieskonfigurowanym SMTP.
+
+- **Dwa zaszyte kolory w samym arkuszu.** `.evo-info-box code` i komponent
+  odczytu przy suwaku miały `#eef2ff`, `#3730a3`, `#e2e8f0`, `#334155` wpisane
+  w regułach. Teraz biorą z tokenów.
+
+### Weryfikacja
+
+- **Czternaście nowych podstron** weszło do mierzonego zestawu (`fe-cursor`,
+  `fe-lenis`, `fe-bgshift`, `fe-fonts`, `fe-themecolor`, `fe-parallax`,
+  `fe-elementy`, `fe-newsletter`, `fe-newsletter-on` i podstrony Panelu admina
+  z 1.120.0). 1997 → **2130** sprawdzeń zielonych.
+
+- **Newsletter mierzony w OBU stanach.** Przy wyłączonym module rysuje się duży
+  stan pusty, przy włączonym — ramka ostrzegawcza o SMTP. Jedno ziarno
+  pokazywało tylko połowę znaczników, więc mutacja na tej ramce przechodziła
+  niezauważona. Po dołożeniu drugiego stanu zapala się na czerwono.
+
+- **Świadomy wyjątek: `.evo-slider-value`.** Odczyt liczby przy suwaku jest
+  celowo węższy, monospace'owy i wyśrodkowany — 4 px promienia i 14 px tekstu
+  zamiast skóry pola. Wypadł z pomiaru kontrolek **z wypisanym uzasadnieniem**,
+  bo doktryna tego testu mówi: różnicę trzeba dopisać świadomie, a nie odkryć
+  na zrzucie ekranu od użytkownika. Zdjęcie tego wyjątku zapala trzy pomiary.
+
+### Uwagi
+
+- **Plakietka „samodzielna wtyczka aktywna" została bez pokrycia.** Pokazuje się
+  tylko wtedy, gdy klasa elementu jest załadowana przez OBCĄ wtyczkę — stanu
+  środowiska nie da się uczciwie podstawić atrapą, a udawanie go zrobiłoby test
+  gorszym, nie lepszym. Znaczniki są przemiecione, pomiaru na nich nie ma.
+
+- **Skan zdublowanego `class` zarobił na siebie.** Złapał błąd, który sam
+  wprowadziłem przy przepisywaniu odnośnika w zakładce Czcionek: druga klasa
+  dopisana obok pierwszej wygląda w źródle, jakby działała, a przeglądarka
+  ignoruje ją po cichu.
+
 ## [1.120.0] — 2026-08-27
 
 ### Zmienione

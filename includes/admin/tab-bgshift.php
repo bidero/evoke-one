@@ -28,7 +28,7 @@ if (!defined('ABSPATH')) exit;
                 <div class="evo-box">
                     <h3>Jak to działa</h3>
                     <div class="evo-field">
-                        <div class="evo-desc" style="max-width:70ch;">
+                        <div class="evo-desc evo-prose-w">
                             Kolor <strong>nie jest animowany na samych sekcjach</strong>. Gdyby każda sekcja
                             przewijała własne tło, przez całe przejście na granicy sąsiadowałyby dwa różne
                             kolory i widać byłoby szew. Zamiast tego pod całą stroną leży jedna warstwa:
@@ -47,25 +47,25 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Przejście</h3>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:24px;">
-                        <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-grid evo-mb-lg" style="--evo-col:220px;--evo-gap:16px">
+                        <div class="evo-field evo-mb-0">
                             <label>Długość przejścia</label>
                             <input type="number" name="evk_bgshift[length]" value="<?php echo esc_attr($bg['length']); ?>" min="0.1" max="1" step="0.05">
                             <div class="evo-desc">Jaką część wysokości ekranu zajmuje zmiana koloru. 1.0 = pełny widok, 0.3 = szybka zmiana tuż przy granicy sekcji.</div>
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field evo-mb-0">
                             <label>Początek przejścia (%)<span class="evo-tip" tabindex="0" role="note" data-tip="Na jakiej wysokości ekranu nadchodząca sekcja przejmuje tło. 100 = w chwili, gdy jej górna krawędź wjeżdża od dołu. Mniej = zmiana następuje później, gdy sekcja jest już wyżej. Pojedynczą sekcję można nadpisać, wpisując liczbę w polu „Przenikaj tło przy scrollu&quot; w Bricks." aria-label="Na jakiej wysokości ekranu nadchodząca sekcja przejmuje tło. 100 = w chwili, gdy jej górna krawędź wjeżdża od dołu. Mniej = zmiana następuje później, gdy sekcja jest już wyżej. Pojedynczą sekcję można nadpisać, wpisując liczbę w polu „Przenikaj tło przy scrollu&quot; w Bricks.">?</span></label>
                             <input type="number" name="evk_bgshift[start]" value="<?php echo esc_attr($bg['start']); ?>" min="0" max="200" step="5">
                             
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field evo-mb-0">
                             <label>Wygładzanie (s)</label>
                             <input type="number" name="evk_bgshift[smooth]" value="<?php echo esc_attr($bg['smooth']); ?>" min="0" max="2" step="0.1">
                             <div class="evo-desc">Opóźnienie, z jakim kolor dogania scroll. 0 = przykleja się do przewijania klatka w klatkę.</div>
                         </div>
                     </div>
 
-                    <p class="evo-desc" style="max-width:70ch;">
+                    <p class="evo-desc evo-prose-w">
                         Przy włączonej systemowej redukcji ruchu kolor nie przewija się — przeskakuje
                         na granicy sekcji.
                     </p>
@@ -74,7 +74,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Kolor liter</h3>
-                    <p class="evo-desc" style="max-width:70ch;margin-top:0;">
+                    <p class="evo-desc evo-prose-w evo-mt-0">
                         Litery przenikają razem z tłem, w tym samym oknie i tą samą krzywą.
                         Kolor ustawiasz przy sekcji w builderze (<strong>Atrybuty → Evoke ONE →
                         Kolor liter</strong>). Zostawiony pusty — a taki jest domyślnie —
@@ -82,17 +82,17 @@ if (!defined('ABSPATH')) exit;
                         spośród tych dwóch kolorów. Wybór idzie po kontraście, nie po progu
                         jasności, bo przy tłach pośrednich próg potrafi wskazać gorszy z dwóch.
                     </p>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">
-                        <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-grid" style="--evo-col:220px;--evo-gap:16px">
+                        <div class="evo-field evo-mb-0">
                             <label>Litery na ciemnym tle</label>
                             <input type="text" name="evk_bgshift[text_light]" value="<?php echo esc_attr($bg['text_light']); ?>" placeholder="#ffffff" class="evo-mono evo-w-hex">
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field evo-mb-0">
                             <label>Litery na jasnym tle</label>
                             <input type="text" name="evk_bgshift[text_dark]" value="<?php echo esc_attr($bg['text_dark']); ?>" placeholder="#111111" class="evo-mono evo-w-hex">
                         </div>
                     </div>
-                    <div class="evo-field" style="margin-top:12px;">
+                    <div class="evo-field evo-mt">
                         <label>Zasięg koloru liter</label>
                         <select name="evk_bgshift[text_scope]">
                             <option value="wszystko" <?php selected(($bg['text_scope'] ?? 'wszystko'), 'wszystko'); ?>>
@@ -103,7 +103,7 @@ if (!defined('ABSPATH')) exit;
                             </option>
                         </select>
                     </div>
-                    <p class="evo-desc" style="max-width:70ch;">
+                    <p class="evo-desc evo-prose-w">
                         <strong>Wszystkie teksty</strong> (domyślnie) przemalowują się
                         niezależnie od tego, co ustawiono w builderze. Nie dotyka obrazów,
                         pól formularzy ani niczego z klasą <code>evk-bg-keep</code>; tę klasę

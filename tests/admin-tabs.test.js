@@ -50,7 +50,9 @@ const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               'sec-login', 'sec-rest', 'sec-hardening', 'sec-cleanup',
               'tools-smtp', 'tools-redirect', 'tools-logs404', 'tools-io', 'tools-maintenance',
               'adm-interface', 'adm-dashboard', 'adm-avatar', 'adm-content',
-              'adm-roles', 'adm-tlumaczenia'];
+              'adm-roles', 'adm-tlumaczenia',
+              'fe-cursor', 'fe-lenis', 'fe-bgshift', 'fe-fonts',
+              'fe-themecolor', 'fe-parallax', 'fe-elementy', 'fe-newsletter', 'fe-newsletter-on'];
 
 /** Zakładki mierzone też na wąskim ekranie. */
 const MOBILE = ['schema', 'sitemap', 'seo-meta',
@@ -64,7 +66,8 @@ const MOBILE = ['schema', 'sitemap', 'seo-meta',
 /** Zakładki, które mają już treść w boksach. */
 const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
                'sec-hardening', 'tools-smtp', 'tools-logs404',
-               'adm-interface', 'adm-dashboard', 'adm-content'];
+               'adm-interface', 'adm-dashboard', 'adm-content',
+               'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-themecolor'];
 
 module.exports = async function (t) {
   // ── Zdublowany atrybut class ──────────────────────────────────────────

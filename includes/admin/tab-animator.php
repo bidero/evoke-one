@@ -58,14 +58,14 @@ $row_def    = $anim->row_defaults();
 
     <div class="evo-box">
         <h3>Zachowanie globalne</h3>
-        <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
-            <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;flex-basis:280px;">
-                <input type="checkbox" name="evk_animator[reduced_motion]" value="1" <?php checked(!empty($a['reduced_motion'])); ?> style="margin-top:2px;">
-                <span>Szanuj „ogranicz ruch"<br><span style="font-weight:400;color:#6b7280;font-size:12px;">Przy <code>prefers-reduced-motion: reduce</code> element od razu dostaje stan końcowy, bez animacji.</span></span>
+        <div class="evo-toolbar evo-toolbar-top evo-mb-lg" style="--evo-gap:20px">
+            <label class="evo-choice evo-choice-stack evo-grow" style="--evo-min:280px">
+                <input type="checkbox" name="evk_animator[reduced_motion]" value="1" <?php checked(!empty($a['reduced_motion'])); ?>>
+                <span><strong>Szanuj „ogranicz ruch"</strong><span class="evo-hint">Przy <code>prefers-reduced-motion: reduce</code> element od razu dostaje stan końcowy, bez animacji.</span></span>
             </label>
-            <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;flex-basis:280px;">
-                <input type="checkbox" name="evk_animator[builder_preview]" value="1" <?php checked(!empty($a['builder_preview'])); ?> style="margin-top:2px;">
-                <span>Animuj w builderze<br><span style="font-weight:400;color:#6b7280;font-size:12px;">Domyślnie wyłączone — animacje w canvasie utrudniają edycję.</span></span>
+            <label class="evo-choice evo-choice-stack evo-grow" style="--evo-min:280px">
+                <input type="checkbox" name="evk_animator[builder_preview]" value="1" <?php checked(!empty($a['builder_preview'])); ?>>
+                <span><strong>Animuj w builderze</strong><span class="evo-hint">Domyślnie wyłączone — animacje w canvasie utrudniają edycję.</span></span>
             </label>
         </div>
 
@@ -101,7 +101,7 @@ $row_def    = $anim->row_defaults();
                         <?php endif; ?>
                     </div>
                     <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-anim-row').remove()">
-                        <span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;"></span> Usuń
+                        <span class="dashicons dashicons-trash evo-ico"></span> Usuń
                     </button>
                 </div>
                 <div class="evo-anim-grid">
@@ -178,12 +178,12 @@ $row_def    = $anim->row_defaults();
                     </div>
                     <div><label>Selektor (gdy wybrany)</label><input type="text" name="evk_animator[animations][<?php echo $index; ?>][selector]" value="<?php echo esc_attr($r['selector']); ?>" placeholder=".karta"></div>
                     <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][<?php echo $index; ?>][pin]" value="1" <?php checked(!empty($r['pin'])); ?>> Pin (tylko scrub)</label></div>
-                    <details class="evo-note" style="grid-column:1/-1"><summary>Własne from/to</summary><div class="evo-note-body">Po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div></details>
+                    <details class="evo-note evo-full"><summary>Własne from/to</summary><div class="evo-note-body">Po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div></details>
                     <div class="evo-anim-fromto">
                         <div><label>from (stan początkowy)</label><textarea name="evk_animator[animations][<?php echo $index; ?>][from]" placeholder="opacity: 0&#10;y: 40"><?php echo esc_textarea($r['from']); ?></textarea></div>
                         <div><label>to (stan końcowy)</label><textarea name="evk_animator[animations][<?php echo $index; ?>][to]" placeholder="opacity: 1&#10;y: 0"><?php echo esc_textarea($r['to']); ?></textarea></div>
                     </div>
-                    <details class="evo-note" style="grid-column:1/-1"><summary>Lista słów</summary><div class="evo-note-body">Działa wyłącznie z presetem <em>Tekst: zmieniające się słowa</em> — po jednym słowie na linię, maksymalnie 20. Pole <strong>Czas</strong> steruje wtedy samym przejściem; każde słowo stoi 1,4 s.</div></details>
+                    <details class="evo-note evo-full"><summary>Lista słów</summary><div class="evo-note-body">Działa wyłącznie z presetem <em>Tekst: zmieniające się słowa</em> — po jednym słowie na linię, maksymalnie 20. Pole <strong>Czas</strong> steruje wtedy samym przejściem; każde słowo stoi 1,4 s.</div></details>
                     <div class="evo-anim-fromto">
                         <div><label>Słowa (tylko preset „zmieniające się słowa")</label><textarea name="evk_animator[animations][<?php echo $index; ?>][words]" placeholder="szybciej&#10;prościej&#10;taniej"><?php echo esc_textarea($r['words']); ?></textarea></div>
                     </div>
@@ -210,7 +210,7 @@ $row_def    = $anim->row_defaults();
                 Nowa animacja
             </div>
             <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-anim-row').remove()">
-                <span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;"></span> Usuń
+                <span class="dashicons dashicons-trash evo-ico"></span> Usuń
             </button>
         </div>
         <div class="evo-anim-grid">
@@ -288,12 +288,12 @@ $row_def    = $anim->row_defaults();
             </div>
             <div><label>Selektor (gdy wybrany)</label><input type="text" name="evk_animator[animations][{INDEX}][selector]" value="" placeholder=".karta"></div>
             <div><label class="checkbox-label"><input type="checkbox" name="evk_animator[animations][{INDEX}][pin]" value="1"> Pin (tylko scrub)</label></div>
-            <details class="evo-note" style="grid-column:1/-1"><summary>Własne from/to</summary><div class="evo-note-body">Po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div></details>
+            <details class="evo-note evo-full"><summary>Własne from/to</summary><div class="evo-note-body">Po jednej właściwości na linię, np. <code>opacity: 0</code>, <code>y: 40</code>, <code>filter: blur(12px)</code>. Wypełnione pole <strong>zastępuje w całości</strong> odpowiednik z presetu (nie scala się z nim). Puste = wartości z presetu.</div></details>
             <div class="evo-anim-fromto">
                 <div><label>from (stan początkowy)</label><textarea name="evk_animator[animations][{INDEX}][from]" placeholder="opacity: 0&#10;y: 40"></textarea></div>
                 <div><label>to (stan końcowy)</label><textarea name="evk_animator[animations][{INDEX}][to]" placeholder="opacity: 1&#10;y: 0"></textarea></div>
             </div>
-            <details class="evo-note" style="grid-column:1/-1"><summary>Lista słów</summary><div class="evo-note-body">Działa wyłącznie z presetem <em>Tekst: zmieniające się słowa</em> — po jednym słowie na linię, maksymalnie 20. Pole <strong>Czas</strong> steruje wtedy samym przejściem; każde słowo stoi 1,4 s.</div></details>
+            <details class="evo-note evo-full"><summary>Lista słów</summary><div class="evo-note-body">Działa wyłącznie z presetem <em>Tekst: zmieniające się słowa</em> — po jednym słowie na linię, maksymalnie 20. Pole <strong>Czas</strong> steruje wtedy samym przejściem; każde słowo stoi 1,4 s.</div></details>
             <div class="evo-anim-fromto">
                 <div><label>Słowa (tylko preset „zmieniające się słowa")</label><textarea name="evk_animator[animations][{INDEX}][words]" placeholder="szybciej&#10;prościej&#10;taniej"></textarea></div>
             </div>

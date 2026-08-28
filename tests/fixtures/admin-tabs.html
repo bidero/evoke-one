@@ -52,7 +52,15 @@ window.__controls = function () {
   var sel = '#panel input[type=text], #panel input[type=url], #panel input[type=email], ' +
             '#panel input[type=number], #panel input[type=search], #panel input[type=tel], ' +
             '#panel input:not([type]), #panel select';
-  return Array.prototype.filter.call(document.querySelectorAll(sel), shown).map(function (el) {
+  /* ŚWIADOMY WYJĄTEK: `.evo-slider-value` to odczyt liczby przy suwaku, a nie
+     zwykłe pole — celowo jest węższy, monospace'owy i wyśrodkowany. Gdyby
+     wpadł do tego pomiaru, każda zakładka z suwakiem świeciłaby na czerwono
+     za coś, co jest projektem, a nie usterką. Wyjątek jest tu WYPISANY, bo
+     doktryna tego pliku mówi: różnicę trzeba dopisać świadomie, a nie odkryć
+     na zrzucie ekranu od użytkownika. */
+  return Array.prototype.filter.call(document.querySelectorAll(sel), shown)
+    .filter(function (el) { return !el.classList.contains('evo-slider-value'); })
+    .map(function (el) {
     var s = getComputedStyle(el);
     return {
       where:  where(el),

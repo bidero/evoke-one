@@ -43,6 +43,12 @@
     --evo-danger-soft: #fef2f2;
     --evo-danger-line: #fecaca;
     --evo-on:          #16a34a;
+    /* Ostrzeżenie — dołożone w 1.121.0. Wcześniej te dwa kolory jeździły
+       wpisane wprost w `style=` przy plakietce „samodzielna wtyczka aktywna". */
+    --evo-warn:        #b45309;
+    --evo-warn-soft:   #fef3c7;
+    --evo-warn-line:   #fde68a;
+    --evo-warn-bg:     #fffbeb;
 
     /* ── Kod w tekście ── */
     --evo-code-bg:   #eef2ff;
@@ -122,7 +128,7 @@
 /* Info box */
 .evo-info-box { background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--evo-text-soft); margin-bottom: 20px; display: flex; gap: 10px; align-items: flex-start; }
 .evo-info-box .dashicons { color: var(--evo-accent); flex-shrink: 0; margin-top: 1px; }
-.evo-info-box code { background: #eef2ff; color: #3730a3; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+.evo-info-box code { background: var(--evo-code-bg); color: var(--evo-code-text); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
 /* Divider and save bar */
 .evo-divider { border: none; border-top: 1px solid var(--evo-border-soft); margin: 24px 0; }
@@ -142,9 +148,9 @@
 .evo-range { position: absolute; top: 50%; transform: translateY(-50%); width: 100%; height: 24px; margin: 0; opacity: 0; cursor: pointer; z-index: 2; }
 .evo-slider-thumb { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 18px; height: 18px; background: #fff; border: 2px solid var(--evo-text-dim); border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.15); pointer-events: none; transition: border-color .15s, box-shadow .15s; }
 .evo-slider-wrap:hover .evo-slider-thumb { border-color: #475569; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
-.evo-slider-value { min-width: 56px; padding: 6px 10px; background: var(--evo-surface); border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; font-weight: 500; color: #334155; text-align: center; font-family: monospace; }
+.evo-slider-value { min-width: 56px; padding: 6px 10px; background: var(--evo-surface); border: 1px solid var(--evo-border-dash); border-radius: 4px; font-size: 14px; font-weight: 500; color: var(--evo-text-soft); text-align: center; font-family: monospace; }
 /* Wariant edytowalny — wartość wpisywana ręcznie zamiast tylko wyświetlanej. */
-.evo-field input[type=number].evo-slider-value { width: 84px; min-width: 84px; background: var(--evo-surface); border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; font-weight: 500; color: #334155; text-align: center; font-family: monospace; box-shadow: none; }
+.evo-field input[type=number].evo-slider-value { width: 84px; min-width: 84px; background: var(--evo-surface); border: 1px solid var(--evo-border-dash); border-radius: 4px; font-size: 14px; font-weight: 500; color: var(--evo-text-soft); text-align: center; font-family: monospace; box-shadow: none; }
 .evo-field input[type=number].evo-slider-value:focus { border-color: var(--evo-text-dim); box-shadow: 0 0 0 2px rgba(100,116,139,.15); }
 
 /* Sitemap tab */
@@ -1341,6 +1347,40 @@
 .evo-page-title-ico { color: var(--evo-accent); font-size: 26px; width: 26px; height: 26px; line-height: 1; }
 .evo-page-version { font-size: 11px; font-weight: 400; color: var(--evo-text-faint); }
 
+/* Akapit opisu ograniczony do długości czytelnego wiersza. 70 znaków to
+   miara typograficzna, nie piksele — dlatego `ch`, a nie `px`. */
+.evo-prose-w { max-width: 70ch; }
+
+/* Plakietka stanu — krótka etykieta przy tytule. Kolory z palety, bo wariant
+   ostrzegawczy miał wpisane `#b45309` na `#fef3c7`. */
+.evo-pill {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+}
+.evo-pill.is-warn { color: var(--evo-warn); background: var(--evo-warn-soft); }
+
+/* Odnośnik bez podkreślenia — lista podpowiadanych ścieżek. */
+.evo-link-plain { text-decoration: none; }
+
+/* Duży stan pusty — kadr z przerywaną ramką i ikoną, gdy moduł jest wyłączony.
+   `.evo-empty` to co innego: jednowierszowy komunikat w pustej tabeli. */
+.evo-empty-panel {
+    padding: 40px;
+    text-align: center;
+    background: var(--evo-surface);
+    border: 1px dashed var(--evo-border-dash);
+    border-radius: 10px;
+}
+
+/* Ramka informacyjna w wariancie ostrzegawczym. */
+.evo-info-box.is-warn { border-color: var(--evo-warn-line); background: var(--evo-warn-bg); }
+.evo-info-box.is-warn .dashicons { color: var(--evo-warn); }
+.evo-warn-tx { color: var(--evo-warn); }
+
 /* ── Pasek narzędzi nad tabelą ── */
 .evo-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .evo-toolbar-spacer { margin-left: auto; }
@@ -1412,6 +1452,7 @@
    w atrybucie `style`. Nie jest to biblioteka narzędziowa — dopisywanie tu
    kolejnych stopni oznacza, że komponent gdzieś nie istnieje. */
 .evo-m0    { margin: 0; }
+.evo-mt-0  { margin-top: 0; }
 .evo-mt    { margin-top: 16px; }
 .evo-mt-lg { margin-top: 24px; }
 .evo-mb-sm { margin-bottom: 10px; }

@@ -260,6 +260,7 @@ if (!function_exists('rest_get_server')) {
     }
 }
 if (!function_exists('get_pages'))           { function get_pages($args = []) { return []; } }
+if (!function_exists('trailingslashit'))     { function trailingslashit($s) { return rtrim($s, '/\\') . '/'; } }
 if (!function_exists('wp_dropdown_pages')) {
     function wp_dropdown_pages($args = []) {
         $name = is_array($args) ? ($args['name'] ?? 'page_id') : $args;
@@ -271,6 +272,11 @@ if (!function_exists('get_user_meta'))       { function get_user_meta($id, $k = 
 if (!function_exists('get_avatar_url'))      { function get_avatar_url($id, $a = []) { return 'data:image/gif;base64,R0lGODlhAQABAAAAACw='; } }
 if (!function_exists('check_admin_referer')) { function check_admin_referer($a = -1, $n = '_wpnonce') { return true; } }
 if (!function_exists('date_i18n'))           { function date_i18n($f, $t = null) { return date($f, $t ?? time()); } }
+
+/* Loader elementów Bricks skanuje katalog wtyczki — bez tych stałych nie ma
+   od czego zacząć. */
+if (!defined('EVOKE_ONE_DIR')) define('EVOKE_ONE_DIR', EVK_TEST_ROOT . '/');
+if (!defined('EVOKE_ONE_URL')) define('EVOKE_ONE_URL', 'https://example.test/wp-content/plugins/evoke-one/');
 
 $slug = $argv[1] ?? '';
 
@@ -386,6 +392,72 @@ $TABS = [
         'module' => 'includes/interface/white-label.php',
         'file'   => 'includes/admin/admin-whitelabel.php',
         'seed'   => function () { $GLOBALS['options']['evk_white_label'] = ['enabled' => 1]; },
+    ],
+
+    /* ── Frontend (zakładka „wydajnosc") ─────────────────────────────────
+       Każda z tych zakładek bierze ustawienia z singletonu swojego modułu,
+       więc moduł ładujemy PRAWDZIWY — atrapą jest tylko to, czego szuka poza
+       sobą. Ziarno ustawia opcję, żeby zakładka narysowała pełny markup,
+       a nie stan „wyłączone". */
+    'fe-cursor' => [
+        'module' => 'includes/94-cursor.php',
+        'file'   => 'includes/admin/tab-cursor.php',
+        'seed'   => function () {
+            $GLOBALS['options']['evk_cursor'] = [
+                'enabled'  => 1,
+                'elements' => [['selector' => '.karta', 'label' => 'Karta']],
+            ];
+        },
+    ],
+    'fe-lenis' => [
+        'module' => 'includes/96-lenis.php',
+        'file'   => 'includes/admin/tab-lenis.php',
+        'seed'   => function () { $GLOBALS['options']['evk_lenis'] = ['enabled' => 1]; },
+    ],
+    'fe-bgshift' => [
+        'module' => 'includes/anim/bgshift.php',
+        'file'   => 'includes/admin/tab-bgshift.php',
+        'seed'   => function () { $GLOBALS['options']['evk_bgshift'] = ['enabled' => 1]; },
+    ],
+    'fe-fonts' => [
+        'module' => 'includes/91-fonts.php',
+        'file'   => 'includes/admin/tab-fonts.php',
+        'seed'   => function () { $GLOBALS['options']['evk_fonts'] = ['enabled' => 1]; },
+    ],
+    'fe-themecolor' => [
+        'module' => 'includes/91-theme-color.php',
+        'file'   => 'includes/admin/tab-themecolor.php',
+        'seed'   => function () { $GLOBALS['options']['evk_theme_color'] = ['enabled' => 1]; },
+    ],
+    'fe-parallax' => [
+        'module' => 'includes/92-parallax.php',
+        'file'   => 'includes/admin/tab-parallax.php',
+        'seed'   => function () { $GLOBALS['options']['evoke_parallax_enabled'] = 1; },
+    ],
+
+    'fe-elementy' => [
+        'module' => 'includes/bricks-elements/loader.php',
+        'file'   => 'includes/admin/tab-elementy.php',
+        'seed'   => function () { $GLOBALS['options']['evk_elements'] = ['evk-marquee' => 1]; },
+    ],
+    'fe-newsletter' => [
+        /* Bez `menu.php`: definiuje `evk_nl_base_url()`, którą atrapa wyżej
+           już podstawiła — zakładka potrzebuje tylko adresu, nie całego menu. */
+        'module' => ['includes/newsletter/tables.php', 'includes/newsletter/settings.php',
+                     'includes/tools/smtp.php', 'includes/newsletter/mailer.php'],
+        'file'   => 'includes/admin/tab-newsletter.php',
+        /* Moduł WYŁĄCZONY — zakładka pokazuje wtedy duży stan pusty. */
+        'seed'   => function () { $GLOBALS['options']['evk_newsletter'] = ['enabled' => 0]; },
+    ],
+    'fe-newsletter-on' => [
+        /* Ta sama zakładka z modułem WŁĄCZONYM. Obie gałęzie warto mierzyć:
+           przy wyłączonym rysuje się stan pusty, przy włączonym — ramka
+           ostrzegawcza o nieskonfigurowanym SMTP. Jedno ziarno pokazałoby
+           tylko połowę znaczników. */
+        'module' => ['includes/newsletter/tables.php', 'includes/newsletter/settings.php',
+                     'includes/tools/smtp.php', 'includes/newsletter/mailer.php'],
+        'file'   => 'includes/admin/tab-newsletter.php',
+        'seed'   => function () { $GLOBALS['options']['evk_newsletter'] = ['enabled' => 1]; },
     ],
 
     /* ── Panel admina ────────────────────────────────────────────────────

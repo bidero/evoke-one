@@ -36,40 +36,40 @@ if (!defined('ABSPATH')) exit;
                     <h3>Domyślny wygląd kursora</h3>
                     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Ustawienia stosowane gdy kursor nie najedzie na żaden zdefiniowany selektor.</div></details>
 
-                    <div style="background:#f8fafc;border:1px solid #d7dde7;border-radius:8px;padding:20px;margin-bottom:24px;">
-                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">
+                    <div class="evo-inset evo-mb-lg">
+                        <div class="evo-grid" style="--evo-col:220px;--evo-gap:16px">
 
-                            <div class="evo-field" style="margin-bottom:0;">
+                            <div class="evo-field evo-mb-0">
                                 <label>Rozmiar (px)</label>
                                 <input type="number" name="evk_cursor[cursor_default][size]" value="<?php echo esc_attr($cd['size'] ?? 16); ?>" min="4" max="200">
                             </div>
-                            <div class="evo-field" style="margin-bottom:0;">
+                            <div class="evo-field evo-mb-0">
                                 <label>Kolor tła (CSS)</label>
                                 <input type="text" name="evk_cursor[cursor_default][background_color]" value="<?php echo esc_attr($cd['background_color'] ?? 'white'); ?>" placeholder="white, rgba(255,255,255,1), #fff">
                             </div>
-                            <div class="evo-field" style="margin-bottom:0;">
+                            <div class="evo-field evo-mb-0">
                                 <label>Blend Mode</label>
-                                <select name="evk_cursor[cursor_default][blend_mode]" style="width:100%;">
+                                <select name="evk_cursor[cursor_default][blend_mode]" class="evo-w-full">
                                     <?php foreach ($blend_modes as $mode): ?>
                                     <option value="<?php echo $mode; ?>" <?php selected($cd['blend_mode'] ?? 'exclusion', $mode); ?>><?php echo $mode; ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                            <div class="evo-field" style="margin-bottom:0;">
+                            <div class="evo-field evo-mb-0">
                                 <label>Backdrop Filter</label>
                                 <input type="text" name="evk_cursor[cursor_default][backdrop_filter]" value="<?php echo esc_attr($cd['backdrop_filter'] ?? 'blur(0px)'); ?>" placeholder="blur(0px)">
                             </div>
-                            <div class="evo-field" style="margin-bottom:0;">
+                            <div class="evo-field evo-mb-0">
                                 <label>Szybkość animacji wejścia (s)</label>
                                 <input type="number" name="evk_cursor[cursor_default][enter_duration]" value="<?php echo esc_attr($cd['enter_duration'] ?? 0.6); ?>" min="0.1" max="5" step="0.1">
                                 <div class="evo-desc">Czas powiększania się kursora po najechaniu na element.</div>
                             </div>
-                            <div class="evo-field" style="margin-bottom:0;">
+                            <div class="evo-field evo-mb-0">
                                 <label>Szybkość powrotu do domyślnego (s)</label>
                                 <input type="number" name="evk_cursor[cursor_default][leave_duration]" value="<?php echo esc_attr($cd['leave_duration'] ?? 0.3); ?>" min="0.1" max="5" step="0.1">
                                 <div class="evo-desc">Czas animacji po opuszczeniu selektora.</div>
                             </div>
-                            <div class="evo-field" style="margin-bottom:0;">
+                            <div class="evo-field evo-mb-0">
                                 <label>Inercja (lerp)</label>
                                 <div class="evo-slider-wrap">
                                     <div class="evo-slider-track">
@@ -84,7 +84,7 @@ if (!defined('ABSPATH')) exit;
                                 </div>
                                 <div class="evo-desc">0.1 = bardzo leniwy, 1.0 = natychmiastowy</div>
                             </div>
-                            <div class="evo-field" style="margin-bottom:0;">
+                            <div class="evo-field evo-mb-0">
                                 <label>Wyłącz na ekranach ≤ (px)</label>
                                 <input type="number" name="evk_cursor[cursor_default][mobile_breakpoint]" value="<?php echo esc_attr($cd['mobile_breakpoint'] ?? 1024); ?>" min="0" max="2560">
                                 <div class="evo-desc">Kursor nie ładuje się na wąskich ekranach.</div>
@@ -92,13 +92,13 @@ if (!defined('ABSPATH')) exit;
 
                         </div>
 
-                        <hr class="evo-divider" style="margin:20px 0 16px;">
-                        <div style="display:flex;flex-wrap:wrap;gap:20px;">
-                            <label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;">
+                        <hr class="evo-divider evo-mt-lg evo-mb">
+                        <div class="evo-toolbar" style="--evo-gap:20px">
+                            <label class="evo-check">
                                 <input type="checkbox" name="evk_cursor[cursor_default][hide_native]" value="1" <?php checked(!empty($cd['hide_native']), true); ?>>
                                 Ukryj systemowy kursor (<code>cursor: none</code>) na całej stronie
                             </label>
-                            <label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;">
+                            <label class="evo-check">
                                 <input type="checkbox" name="evk_cursor[cursor_default][restore_on_inputs]" value="1" <?php checked(!empty($cd['restore_on_inputs']), true); ?>>
                                 Przywróć systemowy kursor na <code>input</code>, <code>textarea</code>, <code>select</code>
                             </label>
@@ -130,7 +130,7 @@ if (!defined('ABSPATH')) exit;
                             <div class="evo-cursor-row-header">
                                 <div class="evo-cursor-row-title">Selektor #<?php echo $index + 1; ?></div>
                                 <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-cursor-row').remove()">
-                                    <span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;"></span> Usuń
+                                    <span class="dashicons dashicons-trash evo-ico"></span> Usuń
                                 </button>
                             </div>
                             <div class="evo-cursor-grid">
@@ -178,7 +178,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-cursor-row-header">
                         <div class="evo-cursor-row-title">Nowy Selektor</div>
                         <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-cursor-row').remove()">
-                            <span class="dashicons dashicons-trash" style="font-size:16px;width:16px;height:16px;"></span> Usuń
+                            <span class="dashicons dashicons-trash evo-ico"></span> Usuń
                         </button>
                     </div>
                     <div class="evo-cursor-grid">

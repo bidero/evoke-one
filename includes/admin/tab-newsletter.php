@@ -20,7 +20,7 @@ $smtp_ok   = function_exists('evk_nl_smtp_is_configured') ? evk_nl_smtp_is_confi
     <!-- Status card — spójny z innymi modułami Evoke ONE -->
     <div class="evo-status-card">
         <div class="evo-status-icon <?php echo $nl_active ? 'on' : 'off'; ?>">
-            <span class="dashicons dashicons-email-alt" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>
+            <span class="dashicons dashicons-email-alt evo-ico-lg"></span>
         </div>
         <div class="evo-status-text">
             <h3>Newsletter: <?php echo $nl_active ? 'WŁĄCZONY' : 'WYŁĄCZONY'; ?></h3>
@@ -35,15 +35,15 @@ $smtp_ok   = function_exists('evk_nl_smtp_is_configured') ? evk_nl_smtp_is_confi
     </div>
 
     <?php if (!$nl_active): ?>
-    <div style="padding:40px;text-align:center;background:#f8fafc;border-radius:10px;border:1px dashed #cbd5e1;margin-top:16px;">
-        <span class="dashicons dashicons-email-alt" style="font-size:48px;width:48px;height:48px;color:#94a3b8;"></span>
-        <p style="color:#64748b;margin:12px 0 0;">Włącz moduł Newsletter powyżej — w pasku bocznym pojawi się osobna pozycja <strong>Newsletter</strong> z pełnym panelem.</p>
+    <div class="evo-empty-panel evo-mt">
+        <span class="dashicons dashicons-email-alt evo-ico-xl"></span>
+        <p class="evo-muted evo-m0 evo-mt-xs">Włącz moduł Newsletter powyżej — w pasku bocznym pojawi się osobna pozycja <strong>Newsletter</strong> z pełnym panelem.</p>
     </div>
     <?php else: ?>
 
     <?php if (!$smtp_ok): ?>
-    <div class="evo-info-box" style="margin-top:16px;border-color:#fde68a;background:#fffbeb;">
-        <span class="dashicons dashicons-warning" style="color:#d97706;"></span>
+    <div class="evo-info-box is-warn evo-mt">
+        <span class="dashicons dashicons-warning evo-warn-tx"></span>
         <div>
             <strong>SMTP nie jest skonfigurowany</strong> — wysyłka maili nie będzie działać.
             <a href="<?php echo esc_url(admin_url('options-general.php?page=evoke-one&tab=narzedzia&sub=smtp')); ?>">Przejdź do konfiguracji SMTP →</a>
@@ -54,7 +54,7 @@ $smtp_ok   = function_exists('evk_nl_smtp_is_configured') ? evk_nl_smtp_is_confi
     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
             Pełny panel Newslettera — <strong>Listy, Szablony, Kampanie, Raporty, Ustawienia</strong> —
             znajdziesz w osobnej pozycji menu w pasku bocznym.
-            <a href="<?php echo esc_url($nl_url); ?>" class="button button-secondary" style="margin-left:12px;">
+            <a href="<?php echo esc_url($nl_url); ?>" class="button button-secondary evo-ml">
                 <span class="dashicons dashicons-external"></span>
                 Otwórz panel Newslettera
             </a>

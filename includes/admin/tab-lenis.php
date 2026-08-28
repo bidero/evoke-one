@@ -27,13 +27,13 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Ruch i płynność</h3>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:24px;">
-                        <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-grid evo-mb-lg" style="--evo-col:220px;--evo-gap:16px">
+                        <div class="evo-field evo-mb-0">
                             <label>Duration (s)</label>
                             <input type="number" name="evk_lenis[duration]" value="<?php echo esc_attr($lenis['duration']); ?>" min="0.1" max="10" step="0.1">
                             <div class="evo-desc">Czas trwania animacji przewijania.</div>
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field evo-mb-0">
                             <label>Lerp (bezwładność)</label>
                             <div class="evo-slider-wrap">
                                 <div class="evo-slider-track">
@@ -47,22 +47,22 @@ if (!defined('ABSPATH')) exit;
                             </div>
                             <div class="evo-desc">Im mniej, tym płynniej (0.01 – 1.0). Domyślnie 0.08 — wartość można wpisać ręcznie.</div>
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field evo-mb-0">
                             <label>Wheel Multiplier</label>
                             <input type="number" name="evk_lenis[wheel_multiplier]" value="<?php echo esc_attr($lenis['wheel_multiplier']); ?>" min="0.1" max="10" step="0.1">
                             <div class="evo-desc">Mnożnik prędkości kółka myszy.</div>
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field evo-mb-0">
                             <label>Touch Multiplier</label>
                             <input type="number" name="evk_lenis[touch_multiplier]" value="<?php echo esc_attr($lenis['touch_multiplier']); ?>" min="0.1" max="10" step="0.1">
                             <div class="evo-desc">Mnożnik prędkości przewijania dotykiem.</div>
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field evo-mb-0">
                             <label>Touch Inertia Exponent</label>
                             <input type="number" name="evk_lenis[touch_inertia]" value="<?php echo esc_attr($lenis['touch_inertia']); ?>" min="1" max="5" step="0.1">
                             <div class="evo-desc">Bezwładność po zwolnieniu dotyku.</div>
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field evo-mb-0">
                             <label>Sync Touch Lerp</label>
                             <input type="number" name="evk_lenis[sync_touch_lerp]" value="<?php echo esc_attr($lenis['sync_touch_lerp']); ?>" min="0.01" max="1" step="0.01">
                             <div class="evo-desc">Lerp przy synchronizacji dotyku.</div>
@@ -72,17 +72,17 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Orientacja</h3>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:24px;">
-                        <div class="evo-field" style="margin-bottom:0;">
+                    <div class="evo-grid evo-mb-lg" style="--evo-col:220px;--evo-gap:16px">
+                        <div class="evo-field evo-mb-0">
                             <label>Orientacja przewijania</label>
-                            <select name="evk_lenis[orientation]" style="width:100%;">
+                            <select name="evk_lenis[orientation]" class="evo-w-full">
                                 <option value="vertical"   <?php selected($lenis['orientation'], 'vertical'); ?>>Pionowa (vertical)</option>
                                 <option value="horizontal" <?php selected($lenis['orientation'], 'horizontal'); ?>>Pozioma (horizontal)</option>
                             </select>
                         </div>
-                        <div class="evo-field" style="margin-bottom:0;">
+                        <div class="evo-field evo-mb-0">
                             <label>Orientacja gestów</label>
-                            <select name="evk_lenis[gesture_orientation]" style="width:100%;">
+                            <select name="evk_lenis[gesture_orientation]" class="evo-w-full">
                                 <option value="vertical"   <?php selected($lenis['gesture_orientation'], 'vertical'); ?>>Pionowa (vertical)</option>
                                 <option value="horizontal" <?php selected($lenis['gesture_orientation'], 'horizontal'); ?>>Pozioma (horizontal)</option>
                             </select>
@@ -92,7 +92,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Opcje</h3>
-                    <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:24px;">
+                    <div class="evo-toolbar evo-toolbar-top evo-mb-lg" style="--evo-gap:20px">
                         <?php
                         $checkboxes = [
                             'auto_raf'     => ['Automatyczny RAF', 'Automatyczna pętla requestAnimationFrame.'],
@@ -102,9 +102,9 @@ if (!defined('ABSPATH')) exit;
                             'overscroll'   => ['Overscroll', 'Efekt odbicia przy końcu strony.'],
                         ];
                         foreach ($checkboxes as $key => [$label, $desc]): ?>
-                        <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;font-weight:500;color:#111827;cursor:pointer;flex-basis:200px;">
-                            <input type="checkbox" name="evk_lenis[<?php echo $key; ?>]" value="1" <?php checked(!empty($lenis[$key])); ?> style="margin-top:2px;">
-                            <span><?php echo $label; ?><br><span style="font-weight:400;color:#6b7280;font-size:12px;"><?php echo $desc; ?></span></span>
+                        <label class="evo-choice evo-choice-stack evo-grow" style="--evo-min:200px">
+                            <input type="checkbox" name="evk_lenis[<?php echo $key; ?>]" value="1" <?php checked(!empty($lenis[$key])); ?>>
+                            <span><strong><?php echo $label; ?></strong><span class="evo-hint"><?php echo $desc; ?></span></span>
                         </label>
                         <?php endforeach; ?>
                     </div>

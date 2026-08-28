@@ -20,12 +20,12 @@ $loaded = $GLOBALS['evk_loaded_elements'] ?? [];
             </div></details>
 
         <?php if (empty($reg)): ?>
-            <p style="color:#dc2626;">Loader elementów nie został załadowany.</p>
+            <p class="evo-danger-tx">Loader elementów nie został załadowany.</p>
         <?php else: foreach ($reg as $key => $el):
             $on         = !empty($en[$key]);
             $standalone = evk_element_class_loaded($el) && empty($loaded[$key]);
         ?>
-        <div class="evo-status-card" style="margin-bottom:12px;">
+        <div class="evo-status-card">
             <div class="evo-status-icon <?php echo $on ? 'on' : 'off'; ?>">
                 <span class="dashicons <?php echo esc_attr($el['icon']); ?>"></span>
             </div>
@@ -33,7 +33,7 @@ $loaded = $GLOBALS['evk_loaded_elements'] ?? [];
                 <h3>
                     <?php echo esc_html($el['label']); ?>: <?php echo $on ? 'WŁĄCZONY' : 'WYŁĄCZONY'; ?>
                     <?php if ($standalone): ?>
-                        <span style="font-size:11px;color:#b45309;background:#fef3c7;padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:500;">samodzielna wtyczka aktywna</span>
+                        <span class="evo-pill is-warn">samodzielna wtyczka aktywna</span>
                     <?php endif; ?>
                 </h3>
                 <p><?php echo esc_html($el['desc']); ?></p>

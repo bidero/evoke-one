@@ -9,7 +9,7 @@ $par_enabled  = !empty($parallax_opt['enabled']);
 ?>
 <div class="evo-status-card">
     <div class="evo-status-icon <?php echo $par_enabled ? 'on' : 'off'; ?>">
-        <span class="dashicons dashicons-image-flip-vertical" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>
+        <span class="dashicons dashicons-image-flip-vertical evo-ico-lg"></span>
     </div>
     <div class="evo-status-text">
         <h3>Parallax: <?php echo $par_enabled ? 'WŁĄCZONY' : 'WYŁĄCZONY'; ?></h3>
