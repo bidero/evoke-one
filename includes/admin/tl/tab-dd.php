@@ -2,9 +2,9 @@
 if (!defined('ABSPATH')) exit;
 // Evoke ONE — TL tab content. Zmienne z tl_render_page(): $data $langs $codes $tab $base $nonce $ajax_url $stats
 ?>
-<p style="color:#475569;margin-bottom:6px;">Zdefiniuj klucze Dynamic Data. Uzywaj ich jako <code>{tl_klucz}</code> albo shortcode <code>[tl key="klucz"]</code>.</p><p style="color:#475569;margin-bottom:6px;">Możesz użyć  <code>{tl:pl=Treść|en=Content|de=Content}</code> by tłumaczyć całe frazy.</p>
+<p class="evo-muted-soft evo-mb-xs">Zdefiniuj klucze Dynamic Data. Uzywaj ich jako <code>{tl_klucz}</code> albo shortcode <code>[tl key="klucz"]</code>.</p><p class="evo-muted-soft evo-mb-xs">Możesz użyć  <code>{tl:pl=Treść|en=Content|de=Content}</code> by tłumaczyć całe frazy.</p>
             <table class="lang-table" id="dd-keys-table">
-                <thead><tr><th style="width:180px;">Klucz</th><th>Fraza PL</th><th style="width:60px;"></th></tr></thead>
+                <thead><tr><th class="evo-w" style="--evo-w:180px">Klucz</th><th>Fraza PL</th><th class="evo-w" style="--evo-w:60px"></th></tr></thead>
                 <tbody id="dd-keys-body">
                 <?php
                 $all_pl_phrases = [];
@@ -17,9 +17,9 @@ if (!defined('ABSPATH')) exit;
                 sort($all_pl_phrases);
                 foreach ($dd_keys as $key => $phrase): ?>
                 <tr class="dd-key-row">
-                    <td><input type="text" class="dd-key-input" value="<?php echo esc_attr($key); ?>" placeholder="np. cennik" style="width:100%;font-family:monospace;"></td>
+                    <td><input type="text" class="dd-key-input evo-w-full evo-mono" value="<?php echo esc_attr($key); ?>" placeholder="np. cennik"></td>
                     <td>
-                        <select class="dd-phrase-select" style="width:100%; max-width:100%">
+                        <select class="dd-phrase-select evo-w-full">
                             <option value="">- wybierz fraze -</option>
                             <?php foreach ($all_pl_phrases as $phrase_option): ?>
                             <option value="<?php echo esc_attr($phrase_option); ?>" <?php selected($phrase,$phrase_option); ?>><?php echo esc_html(mb_strlen($phrase_option)>80?mb_substr($phrase_option,0,77).'...':$phrase_option); ?></option>
@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) exit;
                 <?php endforeach; ?>
                 </tbody>
             </table>
-            <div style="margin:12px 0;"><button type="button" class="button" onclick="tlDDAddRow()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj klucz</button></div>
+            <div class="evo-mt evo-mb"><button type="button" class="button" onclick="tlDDAddRow()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj klucz</button></div>
             <div class="tl-save-bar">
                 <button type="button" class="button button-primary" onclick="tlSaveDDKeys()"><span class="dashicons dashicons-saved"></span> Zapisz klucze DD</button>
                 <span class="tl-save-status" id="save-status-dd"></span>
@@ -41,7 +41,7 @@ if (!defined('ABSPATH')) exit;
                 const ALL_PL_PHRASES = <?php echo wp_json_encode($all_pl_phrases, JSON_UNESCAPED_UNICODE); ?>;
                 window.tlDDAddRow = function() {
                     const opts = ALL_PL_PHRASES.map(function(p){ const safe=String(p).replace(/"/g,'&quot;'); const label=p.length>80?p.slice(0,77)+'...':p; return `<option value="${safe}">${label}</option>`; }).join('');
-                    $('#dd-keys-body').append(`<tr class="dd-key-row"><td><input type="text" class="dd-key-input" placeholder="np. btn_kontakt" style="width:100%;font-family:monospace;"></td><td><select class="dd-phrase-select" style="width:100%;"><option value="">- wybierz fraze -</option>${opts}</select></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td></tr>`);
+                    $('#dd-keys-body').append(`<tr class="dd-key-row"><td><input type="text" class="dd-key-input evo-w-full evo-mono" placeholder="np. btn_kontakt"></td><td><select class="dd-phrase-select evo-w-full"><option value="">- wybierz fraze -</option>${opts}</select></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td></tr>`);
                     tlMarkDirty();
                 };
                 window.tlSaveDDKeys = function() {

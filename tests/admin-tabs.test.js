@@ -52,7 +52,11 @@ const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               'adm-interface', 'adm-dashboard', 'adm-avatar', 'adm-content',
               'adm-roles', 'adm-tlumaczenia',
               'fe-cursor', 'fe-lenis', 'fe-bgshift', 'fe-fonts',
-              'fe-themecolor', 'fe-parallax', 'fe-elementy', 'fe-newsletter', 'fe-newsletter-on'];
+              'fe-themecolor', 'fe-parallax', 'fe-elementy', 'fe-newsletter', 'fe-newsletter-on',
+              /* Tłumaczenia to osobny ekran, ale ładuje ten sam `admin.css`
+                 (patrz `tl/bootstrap.php`), więc obowiązuje go ta sama skóra. */
+              'tl-translations', 'tl-images', 'tl-slugs', 'tl-dd',
+              'tl-languages', 'tl-sitemap', 'tl-io'];
 
 /** Zakładki mierzone też na wąskim ekranie. */
 const MOBILE = ['schema', 'sitemap', 'seo-meta',
@@ -60,6 +64,8 @@ const MOBILE = ['schema', 'sitemap', 'seo-meta',
                 /* Cztery podstrony z tabelami — ten sam kształt, który w 1.48.0
                    rozpychał Raporty do 682 px przy oknie 390 px. */
                 'sec-login', 'tools-smtp', 'tools-redirect', 'tools-logs404',
+                /* Tłumaczenia: trzy zakładki z tabelami. */
+                'tl-translations', 'tl-slugs', 'tl-languages',
                 /* Role mają tabelę uprawnień — ten sam kształt. */
                 'adm-roles'];
 
@@ -67,6 +73,8 @@ const MOBILE = ['schema', 'sitemap', 'seo-meta',
 const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
                'sec-hardening', 'tools-smtp', 'tools-logs404',
                'adm-interface', 'adm-dashboard', 'adm-content',
+               /* Tłumaczenia NIE używają `.evo-box` — mają własny
+                  `.tl-menu-settings`, więc do BOXED nie należą. */
                'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-themecolor'];
 
 module.exports = async function (t) {
@@ -84,6 +92,39 @@ module.exports = async function (t) {
     dup.count ? dup.count + ' miejsc, np. ' +
       dup.items.slice(0, 3).map((x) => x.file + ': ' + x.tag).join(' | ')
     : 'czysto');
+
+  // ── Bilans znaczników w WYRENDEROWANEJ zakładce ───────────────────────
+  /*
+   * ZGŁOSZONE Z UŻYCIA: „Info ze stopki jest w połowie strony".
+   *
+   * Nadmiarowy `</div>` domyka `#wpbody-content` przed czasem. Reszta panelu
+   * ląduje wtedy poza nim, a `#wpfooter` — który w rdzeniu WordPressa stoi
+   * `position: absolute; bottom: 0` względem `#wpwrap` — jedzie do góry i siada
+   * na treści. Objaw jest o pół ekranu dalej niż przyczyna, więc z samego
+   * wyglądu nie da się go umiejscowić.
+   *
+   * Liczymy na WYRENDEROWANYM markupie, nie w źródle: gałęzie `if/else`
+   * sprawiają, że statyczna suma `<div>` i `</div>` w pliku prawie nigdy się
+   * nie zgadza, choć wyjście jest poprawne. Bloki `<script>` maskujemy —
+   * znaczniki w łańcuchach JS to dane, nie struktura.
+   *
+   * Ten skan złapał `nl-lists`: 28 otwarć, 29 zamknięć.
+   */
+  t.section('wyrenderowany markup ma sparowane znaczniki');
+
+  const niesparowane = [];
+  for (const slug of TABS) {
+    const html = phpOutput('tab.php', slug)
+      .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+      .replace(/<style\b[\s\S]*?<\/style>/gi, '');
+    for (const tag of ['div', 'form', 'table']) {
+      const otw = (html.match(new RegExp('<' + tag + '\\b', 'gi')) || []).length;
+      const zam = (html.match(new RegExp('</' + tag + '>', 'gi')) || []).length;
+      if (otw !== zam) niesparowane.push(slug + ': <' + tag + '> ' + otw + '/' + zam);
+    }
+  }
+  t.check('każda zakładka zamyka tyle, ile otwiera', !niesparowane.length,
+    niesparowane.join(' | ') || TABS.length + ' zakładek sparowanych');
 
   /* Liczniki przez wszystkie zakładki. Sprawdzenia per zakładka są warunkowe
      („żadna ramka nie jest rozwinięta" przechodzi też przy zerze ramek), więc

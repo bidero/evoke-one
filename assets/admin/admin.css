@@ -43,6 +43,11 @@
     --evo-danger-soft: #fef2f2;
     --evo-danger-line: #fecaca;
     --evo-on:          #16a34a;
+    /* Trójka „sukces" dopełniona w 1.122.0 — do tej pory istniał tylko sam
+       `--evo-on`, więc miękkie tło i obwódka potwierdzenia jeździły hexem. */
+    --evo-on-dark:     #15803d;
+    --evo-on-soft:     #dcfce7;
+    --evo-on-line:     #86efac;
     /* Ostrzeżenie — dołożone w 1.121.0. Wcześniej te dwa kolory jeździły
        wpisane wprost w `style=` przy plakietce „samodzielna wtyczka aktywna". */
     --evo-warn:        #b45309;
@@ -1084,6 +1089,14 @@
 .evo-label-note { font-size: 11px; font-weight: 400; color: var(--evo-text-faint); }
 .evo-mono      { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .evo-muted     { color: var(--evo-text-muted); }
+.evo-muted-soft { color: var(--evo-text-soft); }
+/* Lista wypunktowana w opisie — bez własnych marginesów, w kolorze opisu. */
+.evo-list-plain { margin: 0; padding-left: 20px; font-size: 13px; color: var(--evo-text-soft); }
+/* Stopka wiersza — pasek z akcją pod treścią, oddzielony kreską. */
+.evo-row-footer { padding: 10px 14px; border-top: 1px solid var(--evo-border-soft); }
+/* Krzyżyk zamknięcia — większy znak, bez własnej interlinii. */
+.evo-close-x { font-size: 18px; line-height: 1; }
+.evo-ml-auto { margin-left: auto; }
 .evo-faint     { color: var(--evo-text-faint); }
 .evo-accent-tx { color: var(--evo-accent); }
 .evo-danger-tx { color: var(--evo-danger); }
@@ -1380,6 +1393,44 @@
 .evo-info-box.is-warn { border-color: var(--evo-warn-line); background: var(--evo-warn-bg); }
 .evo-info-box.is-warn .dashicons { color: var(--evo-warn); }
 .evo-warn-tx { color: var(--evo-warn); }
+
+/* Etykieta wyboru w osobnym wierszu — lista checkboxów jedna pod drugą,
+   gdzie każdy zajmuje pełną szerokość. */
+.evo-check-row { display: block; margin: 10px 0; }
+
+/* Wiersz listy z separatorem — pozycje wykluczone z mapy, klucze, ścieżki. */
+.evo-list-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--evo-border-soft);
+}
+.evo-list-item:last-child { border-bottom: none; }
+/* Znacznik typu na początku wiersza — stała szerokość, żeby kolumny się zgadzały. */
+.evo-list-tag { min-width: 48px; font-size: 11px; text-transform: uppercase; color: var(--evo-text-dim); }
+
+/* Akapit wprowadzający nad grupą pól. */
+.evo-lead-tx { margin-bottom: 14px; color: var(--evo-text-soft); }
+
+/* Miniatura flagi języka i jej pusty odpowiednik — ten sam prostokąt,
+   różnią się tylko wypełnieniem. Kolory z palety: obie miały wpisane
+   `#d1d5db`, `#cbd5e1` i `#94a3b8` przy każdym wystąpieniu z osobna. */
+.evo-flag {
+    width: 32px;
+    height: 20px;
+    border-radius: 2px;
+    cursor: pointer;
+}
+img.evo-flag { object-fit: cover; border: 1px solid var(--evo-border-field); }
+.evo-flag.is-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed var(--evo-border-dash);
+    color: var(--evo-text-faint);
+    font-size: 12px;
+}
 
 /* ── Pasek narzędzi nad tabelą ── */
 .evo-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }

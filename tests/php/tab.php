@@ -260,6 +260,11 @@ if (!function_exists('rest_get_server')) {
     }
 }
 if (!function_exists('get_pages'))           { function get_pages($args = []) { return []; } }
+if (!function_exists('register_activation_hook'))   { function register_activation_hook($f, $cb) {} }
+if (!function_exists('register_deactivation_hook')) { function register_deactivation_hook($f, $cb) {} }
+if (!function_exists('flush_rewrite_rules'))        { function flush_rewrite_rules($hard = true) {} }
+if (!function_exists('add_rewrite_rule'))           { function add_rewrite_rule($r, $q, $a = 'top') {} }
+if (!function_exists('add_rewrite_tag'))            { function add_rewrite_tag($t, $r, $q = '') {} }
 if (!function_exists('trailingslashit'))     { function trailingslashit($s) { return rtrim($s, '/\\') . '/'; } }
 if (!function_exists('wp_dropdown_pages')) {
     function wp_dropdown_pages($args = []) {
@@ -277,6 +282,13 @@ if (!function_exists('date_i18n'))           { function date_i18n($f, $t = null)
    od czego zacząć. */
 if (!defined('EVOKE_ONE_DIR')) define('EVOKE_ONE_DIR', EVK_TEST_ROOT . '/');
 if (!defined('EVOKE_ONE_URL')) define('EVOKE_ONE_URL', 'https://example.test/wp-content/plugins/evoke-one/');
+/* Stałe modułu Tłumaczeń — definiowane normalnie w `evoke-one.php`, którego
+   harness nie ładuje (ciągnąłby całą wtyczkę). */
+if (!defined('EVOKE_TL_FILE'))  define('EVOKE_TL_FILE', EVK_TEST_ROOT . '/evoke-one.php');
+if (!defined('TL_MENU_SLUG'))   define('TL_MENU_SLUG', 'evoke-tlumaczenia');
+if (!defined('TL_MENU_TITLE'))  define('TL_MENU_TITLE', 'Tłumaczenia');
+if (!defined('TL_VERSION'))     define('TL_VERSION', '1.122.0');
+if (!defined('EVOKE_ONE_VERSION')) define('EVOKE_ONE_VERSION', '1.122.0');
 
 $slug = $argv[1] ?? '';
 
@@ -394,6 +406,17 @@ $TABS = [
         'seed'   => function () { $GLOBALS['options']['evk_white_label'] = ['enabled' => 1]; },
     ],
 
+    /* ── Tłumaczenia (osobny ekran, ale ten sam `admin.css`) ─────────────
+       Podstrony dostają komplet zmiennych od `tl_render_page()` — harness
+       podaje je niżej, tak jak zakładka. */
+    'tl-translations' => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-translations.php'],
+    'tl-images'       => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-images.php'],
+    'tl-slugs'        => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-slugs.php'],
+    'tl-dd'           => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-dd.php'],
+    'tl-languages'    => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-languages.php'],
+    'tl-sitemap'      => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-sitemap.php'],
+    'tl-io'           => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-io.php'],
+
     /* ── Frontend (zakładka „wydajnosc") ─────────────────────────────────
        Każda z tych zakładek bierze ustawienia z singletonu swojego modułu,
        więc moduł ładujemy PRAWDZIWY — atrapą jest tylko to, czego szuka poza
@@ -405,7 +428,16 @@ $TABS = [
         'seed'   => function () {
             $GLOBALS['options']['evk_cursor'] = [
                 'enabled'  => 1,
-                'elements' => [['selector' => '.karta', 'label' => 'Karta']],
+                /* Komplet pól wiersza — zakładka czyta je bez `??`, więc
+                   niepełne ziarno sypie ostrzeżeniami do stderr. */
+                'elements' => [[
+                    'selector' => '.karta', 'label' => 'Karta', 'size' => 40,
+                    'text' => 'Zobacz', 'backgroundColor' => 'rgba(255,255,255,1)',
+                    'textColor' => '#111827', 'cursorBackdropFilter' => 'blur(10px)',
+                    'cursorBlendMode' => 'normal', 'textBlendMode' => 'normal',
+                    'mixBlendMode' => 'normal', 'borderRadius' => '50%',
+                    'border' => 'none', 'transitionDuration' => '0.2s',
+                ]],
             ];
         },
     ],
@@ -617,6 +649,25 @@ require EVK_TEST_ROOT . '/includes/newsletter/' . $m;
              'created_at' => '2026-08-01 10:00:00'],
         ],
     ];
+} elseif (($tab['module'] ?? null) === 'TL') {
+    /* Siedem zakładek Tłumaczeń czyta te same opcje i te same helpery, więc
+       moduły i dane stoją w jednym miejscu zamiast w siedmiu wpisach. */
+    foreach (['includes/10-language-system.php', 'includes/30-admin-settings-ajax.php',
+              'includes/admin/tl/bootstrap.php'] as $m) {
+        require EVK_TEST_ROOT . '/' . $m;
+    }
+    $GLOBALS['options']['tl_languages'] = [
+        'en' => ['code' => 'en', 'name' => 'Angielski', 'html' => 'en-GB'],
+        'de' => ['code' => 'de', 'name' => 'Niemiecki', 'html' => 'de-DE'],
+    ];
+    $GLOBALS['options']['tl_translations'] = ['groups' => [
+        ['id' => 'g1', 'name' => 'Nagłówki', 'rows' => [
+            ['id' => 'r1', 'pl' => 'Kontakt', 'en' => 'Contact', 'de' => 'Kontakt'],
+        ]],
+    ]];
+    $GLOBALS['options']['tl_images']   = [['pl' => 5, 'en' => 6]];
+    $GLOBALS['options']['tl_url_slugs'] = [['pl' => 'kontakt', 'en' => 'contact']];
+    $GLOBALS['options']['tl_dd_keys']  = ['cennik' => 'Kontakt'];
 } else {
     foreach ((array) $tab['module'] as $module) { require EVK_TEST_ROOT . '/' . $module; }
 }
@@ -632,6 +683,35 @@ if (function_exists('evk_security_get')) {
 }
 if (function_exists('evk_interface_get')) {
     $evk_iface = evk_interface_get();
+}
+/* `tab-wydajnosc.php` liczy te dwie wartości i podaje je podstronom. */
+if (function_exists('evk_get_parallax_value')) {
+    $parallax_value = evk_get_parallax_value();
+    $scale_value    = function_exists('evk_get_parallax_scale') ? evk_get_parallax_scale() : 1.0;
+}
+
+/* Komplet zmiennych, który `tl_render_page()` przekazuje swoim zakładkom.
+   Bez nich renderują się z pustymi listami — czyli mierzyłoby się co innego
+   niż to, co widzi użytkownik. */
+if (($tab['module'] ?? null) === 'TL') {
+    $data             = get_option('tl_translations', ['groups' => []]);
+    $images           = get_option('tl_images', []);
+    $url_slugs        = get_option('tl_url_slugs', []);
+    $sitemap_settings = tl_get_sitemap_settings();
+    $dd_keys          = get_option('tl_dd_keys', []);
+    $dd_by_phrase     = [];
+    foreach ($dd_keys as $k => $phrase) {
+        $phrase = trim((string) $phrase);
+        if ($phrase !== '') $dd_by_phrase[$phrase] = $k;
+    }
+    $langs            = tl_get_languages();
+    $codes            = array_keys($langs);
+    $tab_slug         = 'translations';
+    $base             = 'https://example.test/wp-admin/options-general.php?page=evoke-tlumaczenia';
+    $menu_location    = 'options-general.php';
+    $stats            = tl_coverage_stats();
+    $nonce            = 'testnonce';
+    $ajax_url         = 'https://example.test/wp-admin/admin-ajax.php';
 }
 
 require EVK_TEST_ROOT . '/' . $tab['file'];

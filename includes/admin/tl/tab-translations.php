@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
 
             <div class="tl-toolbar">
                 <div class="tl-search-wrap">
-                    <span class="dashicons dashicons-search" style="color:#94a3b8;"></span>
+                    <span class="dashicons dashicons-search evo-faint"></span>
                     <input type="text" id="tl-search" placeholder="Szukaj frazy..." autocomplete="off">
                     <span id="tl-search-count"></span>
                 </div>
@@ -79,13 +79,13 @@ if (!defined('ABSPATH')) exit;
                                     <?php endforeach; ?>
                                     <div class="tl-row-footer">
                                         <button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj frazę" onclick="tlDuplicateRow(this)"></button>
-                                        <button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń frazę" style="margin-left:auto;" onclick="jQuery(this).closest('.tl-row').remove();tlMarkDirty();"></button>
+                                        <button type="button" class="button button-icon dashicons dashicons-trash button-link-delete evo-ml-auto" title="Usuń frazę" onclick="jQuery(this).closest('.tl-row').remove();tlMarkDirty();"></button>
                                     </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                         </div>
-                        <div style="padding:10px 14px;border-top:1px solid #f0f0f1;">
+                        <div class="evo-row-footer">
                             <button type="button" class="button" onclick="tlAddRow(this,'<?php echo esc_js($group_id); ?>')"><span class="dashicons dashicons-plus-alt2"></span> Dodaj frazę</button>
                         </div>
                     </div>
@@ -93,7 +93,7 @@ if (!defined('ABSPATH')) exit;
             <?php endforeach; ?>
             </div>
 
-            <div style="margin-bottom:12px;">
+            <div class="evo-mb-sm">
                 <button type="button" class="button button-secondary" onclick="tlAddGroup()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj nową grupę</button>
             </div>
             <div class="tl-save-bar">

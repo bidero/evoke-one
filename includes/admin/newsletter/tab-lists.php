@@ -156,7 +156,10 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
         </div>
 
     </div>
-</div>
+<?php /* Uwaga: `.evk-nl-split` zamyka się TUTAJ. Wcześniej stał tu jeszcze
+         jeden `</div>`, który nie miał pary — a nadmiarowy znacznik zamykający
+         domyka `#wpbody-content` przed czasem i stopka WordPressa („Dziękujemy
+         za tworzenie…") ląduje w połowie strony, na treści. */ ?>
 
 <script>
 jQuery(function($) {

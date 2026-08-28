@@ -21,8 +21,9 @@ if (!defined('ABSPATH')) exit;
                     <option value="none" <?php selected($menu_location,'none'); ?>>Osobna pozycja</option>
                 </select>
             </div>
+            <div class="evo-tbl-wrap">
             <table class="lang-table">
-                <thead><tr><th style="width:30px;"></th><th>Kod</th><th>Nazwa</th><th>Tag HTML</th><th>Flaga</th><th></th></tr></thead>
+                <thead><tr><th class="evo-w" style="--evo-w:30px"></th><th>Kod</th><th>Nazwa</th><th>Tag HTML</th><th>Flaga</th><th></th></tr></thead>
                 <tbody id="lang-body">
                     <tr class="lang-row-pl">
                         <td></td>
@@ -31,9 +32,9 @@ if (!defined('ABSPATH')) exit;
                         <td>pl-PL</td>
                         <td>
                             <?php if ($pl_flag_url): ?>
-                            <img src="<?php echo esc_url($pl_flag_url); ?>" class="tl-lang-flag-preview" data-att="<?php echo esc_attr($pl_flag_id); ?>" style="width:32px;height:20px;object-fit:cover;border-radius:2px;border:1px solid #d1d5db;cursor:pointer;" onclick="tlOpenLangFlag(this,'pl')">
+                            <img src="<?php echo esc_url($pl_flag_url); ?>" class="tl-lang-flag-preview evo-flag" data-att="<?php echo esc_attr($pl_flag_id); ?>" onclick="tlOpenLangFlag(this,'pl')">
                             <?php else: ?>
-                            <div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #cbd5e1;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:12px;" onclick="tlOpenLangFlag(this,'pl')">+</div>
+                            <div class="tl-lang-flag-empty evo-flag is-empty" data-att="0" onclick="tlOpenLangFlag(this,'pl')">+</div>
                             <?php endif; ?>
                         </td>
                         <td></td>
@@ -49,9 +50,9 @@ if (!defined('ABSPATH')) exit;
                         <td><input type="text" class="lang-html" value="<?php echo esc_attr($lang['html']); ?>" placeholder="en-GB"></td>
                         <td>
                             <?php if ($flag_url): ?>
-                            <img src="<?php echo esc_url($flag_url); ?>" class="tl-lang-flag-preview" data-att="<?php echo esc_attr($flag_id); ?>" style="width:32px;height:20px;object-fit:cover;border-radius:2px;border:1px solid #d1d5db;cursor:pointer;" onclick="tlOpenLangFlag(this)">
+                            <img src="<?php echo esc_url($flag_url); ?>" class="tl-lang-flag-preview evo-flag" data-att="<?php echo esc_attr($flag_id); ?>" onclick="tlOpenLangFlag(this)">
                             <?php else: ?>
-                            <div class="tl-lang-flag-empty" data-att="0" style="width:32px;height:20px;border:1px dashed #cbd5e1;border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:12px;" onclick="tlOpenLangFlag(this)">+</div>
+                            <div class="tl-lang-flag-empty evo-flag is-empty" data-att="0" onclick="tlOpenLangFlag(this)">+</div>
                             <?php endif; ?>
                         </td>
                         <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń język" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>
@@ -59,6 +60,7 @@ if (!defined('ABSPATH')) exit;
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            </div>
             <div class="tl-footer">
                 <button type="button" class="button" onclick="tlAddLang()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj język</button>
                 <button type="button" class="button button-primary" onclick="tlSaveSettings()"><span class="dashicons dashicons-saved"></span> Zapisz ustawienia</button>

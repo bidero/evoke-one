@@ -9,14 +9,15 @@ if (!defined('ABSPATH')) exit;
                 URL będzie wyglądał: <code>/en/about-us/</code> zamiast <code>/en/o-nas/</code>
             </div>
 
+            <div class="evo-tbl-wrap">
             <table class="slug-table" id="slug-table">
                 <thead>
                     <tr>
-                        <th style="width:25%;">Slug PL (oryginalny)</th>
+                        <th class="evo-w" style="--evo-w:25%">Slug PL (oryginalny)</th>
                         <?php foreach ($langs as $code => $lang): ?>
                         <th><?php echo esc_html($lang['name']); ?> (<?php echo esc_html(strtoupper($code)); ?>)</th>
                         <?php endforeach; ?>
-                        <th style="width:60px;"></th>
+                        <th class="evo-w" style="--evo-w:60px"></th>
                     </tr>
                 </thead>
                 <tbody id="slug-body">
@@ -31,10 +32,11 @@ if (!defined('ABSPATH')) exit;
                 <?php endforeach; ?>
                 </tbody>
             </table>
+            </div>
 
-            <div style="margin:12px 0;">
+            <div class="evo-mt evo-mb">
                 <button type="button" class="button" onclick="tlAddSlugRow()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj slug</button>
-                <button type="button" class="button" onclick="tlAutoDetectSlugs()" style="margin-left:10px;"><span class="dashicons dashicons-search"></span> Wykryj slugi stron</button>
+                <button type="button" class="button evo-ml" onclick="tlAutoDetectSlugs()"><span class="dashicons dashicons-search"></span> Wykryj slugi stron</button>
             </div>
 
             <div class="tl-save-bar">

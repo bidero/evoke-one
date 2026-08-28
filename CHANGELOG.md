@@ -2,6 +2,69 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.122.0] — 2026-08-27
+
+### Naprawione
+
+- **Stopka WordPressa lądowała w połowie strony.** Zgłoszone z użycia: „Info ze
+  stopki jest w połowie strony". W `newsletter/tab-lists.php` stał **nadmiarowy
+  `</div>`** — domykał `#wpbody-content` przed czasem, więc reszta panelu
+  lądowała poza nim, a `#wpfooter` (w rdzeniu WordPressa `position: absolute;
+  bottom: 0` względem `#wpwrap`) jechał do góry i siadał na treści.
+
+  Objaw jest o pół ekranu dalej niż przyczyna, więc z samego wyglądu nie da się
+  go umiejscowić. **Nowe sprawdzenie liczy znaczniki w WYRENDEROWANYM markupie**
+  każdej z 46 zakładek — nie w źródle, bo gałęzie `if/else` sprawiają, że
+  statyczna suma prawie nigdy się nie zgadza. Ten skan złapał `nl-lists`:
+  28 otwarć, 29 zamknięć. Trzy takie same sieroty naprawiłem już w 1.119.0 —
+  wtedy ręcznie, teraz pilnuje ich pomiar.
+
+- **Dwie tabele Tłumaczeń rozpychały stronę na telefonie.** Tabela języków
+  wystawała o 339 px przy oknie 390 px (dokument 729 px), tabela slugów o 267 px.
+  Obie dostały owijkę z własnym przewijaniem.
+
+### Zmienione
+
+- **Tłumaczenia bez własnych stylów.** Zakładki `tl/` nie były dotąd w ogóle
+  mierzone, choć ładują ten sam `admin.css`.
+
+  | | przed | po |
+  |---|---|---|
+  | atrybuty `style=` w `tl/` | 59 | **9** |
+  | z nich niosących kształt | 59 | **1** |
+
+  Ten jeden to `width: <?php echo $pct; ?>%` na pasku pokrycia tłumaczeń —
+  wartość liczona w PHP, czyli dokładnie ten przypadek, w którym atrybut jest
+  na miejscu.
+
+- **Blok `<style>` w `render.php` przeszedł na tokeny: 106 → 27 literałów
+  koloru.** Ekran Tłumaczeń niósł własną kopię palety — `#2563eb` dziesięć razy,
+  `#d7dde7` dziewięć, `#f8fafc` siedem. Podmieniłem **tylko dokładne
+  odpowiedniki** istniejących tokenów; 27 odcieni, które tokenu nie mają,
+  zostało hexem, bo „prawie ten sam kolor" to nie to samo co ten sam.
+
+- **Paleta dopełniona o trójkę „sukces"** — `--evo-on-dark`, `--evo-on-soft`,
+  `--evo-on-line`. Do tej pory istniał tylko sam `--evo-on`, więc miękkie tło
+  i obwódka potwierdzenia jeździły hexem.
+
+### Weryfikacja
+
+Siedem zakładek Tłumaczeń weszło do mierzonego zestawu (trzy z tabelami także
+przy 390 i 360 px). 2130 → **2240** sprawdzeń zielonych.
+
+Atrapy przestały sypać ostrzeżeniami: `fe-cursor` (32), `fe-parallax` (4)
+i `tl-languages` (2) renderowały się z niepełnym ziarnem. To nie kosmetyka —
+`tl-languages` z niepełnym ziarnem nie rysował kolumn języków, więc **schowana
+była usterka przepełnienia tabeli slugów**, która wyszła dopiero po poprawce.
+
+### Uwagi
+
+- **Zgłoszenie dotyczyło White Label — i tam usterki nie znalazłem.** Markup tej
+  zakładki jest sparowany, a jej wysokość przed moim przemiataniem i po nim to
+  711 i 715 px, więc partia 3b jej nie zepsuła. Naprawiony nadmiarowy `</div>`
+  siedzi w Listach newslettera. Jeśli stopka nadal wchodzi na treść w White
+  Label, potrzebuję wskazówki, czy dzieje się to też na innych zakładkach.
+
 ## [1.121.0] — 2026-08-27
 
 ### Zmienione
