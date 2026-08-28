@@ -2,6 +2,67 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.123.0] — 2026-08-28
+
+### Naprawione
+
+- **Stopka WordPressa w połowie strony — tym razem w White Label.** Zgłoszone
+  z użycia po wydaniu 1.122.0: „Nadal jest problem z tekstem stopki w zakładce
+  White Label. Nigdzie indziej nie zauważyłem". W 1.122.0 naprawiłem ten sam
+  objaw w Newsletterze i **zamknąłem sprawę pisząc, że zgłoszenie z White Label
+  pozostaje niewyjaśnione. Było wyjaśnialne — to strażnik, którego wtedy
+  postawiłem, nie mógł tego zobaczyć.**
+
+  W `admin-whitelabel.php` stały dwa błędy naraz: **brakowało jednego `</div>`**
+  (akordeon „Logo, branding i czcionka" otwierał `.evk-acc-body` i nigdy go nie
+  domykał) **i stał jeden nadmiarowy** (owijka akordeonów zamykała się w połowie
+  listy, choć po niej szły jeszcze trzy akordeony).
+
+  Nadmiarowy `</div>` domyka `<form>` i najbliższy `<div>` NAD nim, więc każde
+  kolejne zamknięcie domyka o poziom za wysoko — aż `#wpwrap` kończy się przed
+  `#wpfooter`. Stopka zostaje bez pozycjonującego przodka i `bottom: 0` liczy
+  się jej względem okna. Zmierzone w atrapie: stopka na 839 px przy treści
+  sięgającej 994 px, czyli **155 px nad dolną krawędzią treści**; po naprawie
+  1677 px, czyli pod nią.
+
+### Zmienione
+
+- **Sprawdzenie znaczników z liczenia na zagnieżdżenie.** W 1.122.0 test LICZYŁ
+  `<div>` i `</div>` w wyrenderowanej zakładce. W White Label brak jednego
+  i nadmiar drugiego **znosiły się do zera**: 90 otwarć, 90 zamknięć, `<form>`
+  1/1 — licznik świecił na zielono, a zagnieżdżenie było złe. **Równa liczba
+  otwarć i zamknięć nie dowodzi poprawnego zagnieżdżenia.**
+
+  Licznik ustąpił miejsca **walidatorowi stosowemu**: raportuje `</x>`
+  zamykające cudzy znacznik, `</x>` bez otwarcia i znacznik nigdy niezamknięty —
+  a więc obejmuje też stary przypadek `nl-lists` (28 otwarć, 29 zamknięć).
+  Przez wszystkie 44 zakładki, na surowym wyjściu PHP.
+
+  Surowym, bo **`innerHTML` po cichu NAPRAWIA złe zagnieżdżenie** — atrapa
+  pomiarowa wstawia zakładkę właśnie przez `innerHTML`, więc żaden pomiar
+  w przeglądarce tej usterki zobaczyć nie mógł. To była druga połowa luki.
+
+- **Nowa atrapa `admin-footer.html` — dowód na objaw, nie tylko na przyczynę.**
+  Szkielet wp-admin, w który markup zakładki wchodzi przez `document.write`,
+  czyli w strumień parsowania: prawdziwy parser, prawdziwe skutki złego
+  zagnieżdżenia. Pilnuje dwóch rzeczy — że `#wpfooter` zostaje wewnątrz
+  `#wpwrap` i że jego górna krawędź nie jest nad dolną krawędzią treści.
+  Na `whitelabel`, `nl-lists` (dwa zgłoszone przypadki) i `darkmode` (kontrola).
+
+  Mutacje: plik cofnięty do stanu sprzed naprawy → walidator czerwony i atrapa
+  czerwona, **a stary licznik zostałby zielony**; sam nadmiarowy `</div>` →
+  czerwone; samo usunięcie brakującego `</div>` → czerwone.
+
+- **Treść pięciu akordeonów White Label dostała padding.** Pięć z ośmiu
+  otwierało `.evk-acc-body` i zamykało go w następnym wierszu, przez co ich
+  boksy przylegały do ramki akordeonu, a trzy pozostałe miały 18 px oddechu.
+  To ten sam błąd co usterka wyżej, więc naprawa go równa — **wygląd tych pięciu
+  akordeonów się zmienia** i piszę to wprost, zamiast przemycać w naprawie.
+  Wszystkie osiem akordeonów leży też odtąd w owijce `.evk-wl-acc-wrap`,
+  zgodnie z jej nazwą.
+
+Testy: **2246** sprawdzeń (2240 przed wydaniem).
+
 ## [1.122.0] — 2026-08-27
 
 ### Naprawione
@@ -14,7 +75,7 @@ Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer
 
   Objaw jest o pół ekranu dalej niż przyczyna, więc z samego wyglądu nie da się
   go umiejscowić. **Nowe sprawdzenie liczy znaczniki w WYRENDEROWANYM markupie**
-  każdej z 46 zakładek — nie w źródle, bo gałęzie `if/else` sprawiają, że
+  każdej z 44 zakładek — nie w źródle, bo gałęzie `if/else` sprawiają, że
   statyczna suma prawie nigdy się nie zgadza. Ten skan złapał `nl-lists`:
   28 otwarć, 29 zamknięć. Trzy takie same sieroty naprawiłem już w 1.119.0 —
   wtedy ręcznie, teraz pilnuje ich pomiar.

@@ -1,0 +1,96 @@
+<!--
+  Stopka wp-admin nad treścią — objaw złego zagnieżdżenia znaczników.
+
+  ZGŁOSZONE Z UŻYCIA: „Info ze stopki jest w połowie strony… To w white label".
+
+  Ta atrapa istnieje po to, żeby markup zakładki przeszedł przez PRAWDZIWY
+  parser HTML. Atrapa pomiarowa `admin-tabs.html` wstawia zakładkę przez
+  `innerHTML`, a `innerHTML` po cichu NAPRAWIA złe zagnieżdżenie — w niej ta
+  usterka jest z definicji niewidoczna. `document.write` wewnątrz parsowanego
+  dokumentu wkłada tekst w strumień parsowania, czyli dokładnie tak, jak na
+  stronie: nadmiarowy `</div>` domyka wtedy cudzy znacznik.
+
+  Z rdzenia WordPressa biorę tylko to, co tu decyduje:
+
+    #wpwrap         position: relative        — układ odniesienia dla stopki
+    #wpfooter       position: absolute; bottom: 0
+    #wpbody-content padding-bottom: 65px      — miejsce zostawione na stopkę
+
+  Mechanizm: nadmiarowy `</div>` domyka `<form>` i najbliższy `<div>` nad nim,
+  więc każde kolejne zamknięcie domyka o poziom za wysoko — aż `#wpwrap` kończy
+  się PRZED `#wpfooter`. Stopka zostaje wtedy bez pozycjonującego przodka
+  i `bottom: 0` liczy jej się względem okna: ląduje w połowie strony, dokładnie
+  jak na zrzucie od użytkownika. Przy poprawnym zagnieżdżeniu `#wpwrap` sięga
+  końca treści, a 65 px zapasu mieści stopkę pod nią.
+
+  ŚWIADOME ODSTĘPSTWO: w rdzeniu `#wpbody-content` jest dodatkowo `float: left`
+  i rdzeń ten float czymś domyka — inaczej stopka wchodziłaby na treść na każdej
+  stronie panelu, a nie wchodzi. Tej pary tu nie odtwarzam: sam float, bez
+  domknięcia, sadzał stopkę na dole OKNA także przy poprawnym markupie
+  (zmierzone: 839 px przy treści sięgającej 2119 px), czyli atrapa świeciłaby
+  na czerwono zawsze. Zostawiam więc `#wpbody-content` w toku — dla tego objawu
+  liczy się co innego: czy `#wpfooter` ma nadal `#wpwrap` za przodka.
+-->
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: #f0f0f1; font: 13px -apple-system, system-ui, sans-serif; }
+
+  /* ── z wp-admin/css/common.css, tylko to, co tu decyduje ── */
+  #wpwrap         { position: relative; height: auto; min-height: 100%; width: 100%; }
+  #wpcontent      { margin-left: 160px; }
+  #wpbody-content { width: 100%; padding-bottom: 65px; }
+  #wpfooter       { position: absolute; bottom: 0; left: 0; right: 0;
+                    padding: 10px 20px; color: #646970; }
+</style>
+
+<div id="wpwrap">
+  <div id="wpcontent">
+    <div id="wpbody">
+      <div id="wpbody-content">
+        <div class="wrap">
+          <h1>Evoke ONE</h1>
+          <div class="evo-panel" id="panel">
+<script>document.write(window.__tab);</script>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="wpfooter"><p id="footer-left">Dziękujemy za tworzenie z WordPressem.</p></div>
+</div>
+
+<script>
+/**
+ * Czy element jest w ogóle widoczny dla użytkownika.
+ *
+ * Same prostokąty nie wystarczą: treść ZWINIĘTEGO `<details>` Chromium ukrywa
+ * przez `content-visibility: hidden`, ale `getBoundingClientRect()` i tak zwraca
+ * dla niej geometrię. Bez tego filtra zwinięte akordeony White Label „sięgały"
+ * 400 px poniżej panelu i pomiar świecił na czerwono przy poprawnym markupie.
+ */
+function widoczny(el) {
+  return el.getClientRects().length > 0 && !el.closest('details:not([open])');
+}
+
+/**
+ * Górna krawędź stopki kontra dolna krawędź NAJNIŻSZEJ treści zakładki.
+ *
+ * Mierzymy treść, a nie `#panel`: przy złym zagnieżdżeniu panel domyka się
+ * w połowie i sam wygląda na krótki, a treść leci dalej — pod stopką.
+ */
+window.__stopka = function () {
+  var tresc = Array.prototype.filter.call(
+    document.querySelectorAll('#wpwrap .evo-box, #wpwrap .evk-acc, #wpwrap .evo-field, ' +
+                              '#wpwrap input, #wpwrap textarea, #wpwrap select'), widoczny);
+  var dol = tresc.reduce(function (max, el) {
+    return Math.max(max, el.getBoundingClientRect().bottom);
+  }, 0);
+  return {
+    stopka: Math.round(document.getElementById('wpfooter').getBoundingClientRect().top),
+    tresc:  Math.round(dol),
+    ile:    tresc.length,
+  };
+};
+</script>

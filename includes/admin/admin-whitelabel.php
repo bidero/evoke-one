@@ -153,12 +153,11 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             <p class="evo-desc evo-mt-xs evo-mb-0">Wpisz dokładną nazwę czcionki zarejestrowanej w Bricks (lub systemowej). Czcionka musi być już załadowana przez motyw.</p>
         </div>
 
-        </div></details>
+        </div></div></details>
 
     <details class="evk-acc">
         <summary><span class="dashicons dashicons-admin-generic"></span> Pasek górny — wygląd</summary>
         <div class="evk-acc-body">
-    </div>
 
     <div class="evo-box">
         <h3>Pasek górny — wygląd</h3>
@@ -175,12 +174,11 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             <input type="color" data-field="color_admin_bar_link" data-saved="<?php echo esc_attr($wl['color_admin_bar_link'] ?? ''); ?>" name="evk_white_label[color_admin_bar_link]" value="<?php echo esc_attr($wl['color_admin_bar_link'] ?: '#00b9eb'); ?>">
         </div>
 
-        </div></details>
+        </div></div></details>
 
     <details class="evk-acc">
         <summary><span class="dashicons dashicons-hidden"></span> Ogólne — ukryj elementy</summary>
         <div class="evk-acc-body">
-    </div>
 
     <div class="evo-box">
         <h3>Ogólne — ukryj elementy</h3>
@@ -195,12 +193,11 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             <?php echo esc_html($lbl); ?>
         </label>
         <?php endforeach; ?>
-        </div></details>
+        </div></div></details>
 
     <details class="evk-acc">
         <summary><span class="dashicons dashicons-menu-alt"></span> Kolory — menu boczne i podmenu</summary>
         <div class="evk-acc-body">
-    </div>
 
     <div class="evo-box">
         <h3>Kolory — menu boczne</h3>
@@ -275,12 +272,11 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             </div>
         </div>
 
-        </div></details>
+        </div></div></details>
 
     <details class="evk-acc">
         <summary><span class="dashicons dashicons-admin-appearance"></span> Kolory — sekcja główna</summary>
         <div class="evk-acc-body">
-    </div>
 
     <div class="evo-box">
         <h3>Kolory — sekcja główna</h3>
@@ -299,7 +295,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
                 <input type="color" data-field="color_notice_bg" data-saved="<?php echo esc_attr($wl['color_notice_bg'] ?? ''); ?>" name="evk_white_label[color_notice_bg]"    value="<?php echo esc_attr($wl['color_notice_bg']    ?: '#ffffff'); ?>"></div>
         </div>
 
-        </div></details>
+        </div></div></details>
 
     <details class="evk-acc">
         <summary><span class="dashicons dashicons-editor-code"></span> Własny CSS admina</summary>
@@ -308,13 +304,11 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             <textarea name="evk_white_label[custom_css_admin]" class="evk-wl-css-area" placeholder="/* własne style CSS dla /wp-admin/ */"><?php echo esc_textarea($wl['custom_css_admin']); ?></textarea>
         </div>
     </details>
-    </div><!-- /akordeony -->
 
     <!-- PASEK GÓRNY — węzły (widoczność / własne / kolejność) -->
     <details class="evk-acc">
         <summary><span class="dashicons dashicons-editor-ul"></span> Pasek górny — węzły</summary>
         <div class="evk-acc-body">
-    </div>
 
     <div class="evo-box">
         <h3>Widoczność węzłów</h3>
@@ -416,7 +410,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         </p>
     </div>
 
-        </div></details>
+        </div></div></details>
 
     <!-- MENU BOCZNE — połączona sekcja: kolejność + ukrywanie + nazwy -->
     <details class="evk-acc">
@@ -637,7 +631,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 
         </div></details>
 
-    </div>
+    </div><!-- /akordeony -->
 
 <div class="evo-save-bar"><?php submit_button('Zapisz White Label', 'primary', 'submit', false); ?></div>
 </form>

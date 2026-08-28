@@ -93,38 +93,119 @@ module.exports = async function (t) {
       dup.items.slice(0, 3).map((x) => x.file + ': ' + x.tag).join(' | ')
     : 'czysto');
 
-  // ── Bilans znaczników w WYRENDEROWANEJ zakładce ───────────────────────
+  // ── Zagnieżdżenie znaczników w WYRENDEROWANEJ zakładce ────────────────
   /*
-   * ZGŁOSZONE Z UŻYCIA: „Info ze stopki jest w połowie strony".
+   * ZGŁOSZONE Z UŻYCIA, dwa razy: „Info ze stopki jest w połowie strony…
+   * To w white label", a po wydaniu 1.122.0 — „Nadal jest problem z tekstem
+   * stopki w zakładce White Label. Nigdzie indziej nie zauważyłem".
    *
-   * Nadmiarowy `</div>` domyka `#wpbody-content` przed czasem. Reszta panelu
-   * ląduje wtedy poza nim, a `#wpfooter` — który w rdzeniu WordPressa stoi
-   * `position: absolute; bottom: 0` względem `#wpwrap` — jedzie do góry i siada
-   * na treści. Objaw jest o pół ekranu dalej niż przyczyna, więc z samego
-   * wyglądu nie da się go umiejscowić.
+   * Nadmiarowy `</div>` domyka cudzy znacznik: parser zjada nim `<form>`
+   * i najbliższy `<div>` NAD nim, więc panel kończy się przed czasem, a razem
+   * z nim `#wpbody-content` i `#wpwrap`. `#wpfooter` (w rdzeniu WordPressa
+   * `position: absolute; bottom: 0` względem `#wpwrap`) traci wtedy przodka
+   * pozycjonującego i siada na dolnej krawędzi OKNA — czyli w połowie treści.
    *
-   * Liczymy na WYRENDEROWANYM markupie, nie w źródle: gałęzie `if/else`
-   * sprawiają, że statyczna suma `<div>` i `</div>` w pliku prawie nigdy się
-   * nie zgadza, choć wyjście jest poprawne. Bloki `<script>` maskujemy —
-   * znaczniki w łańcuchach JS to dane, nie struktura.
+   * W 1.122.0 stało tu LICZENIE znaczników i złapało `nl-lists` (28 otwarć,
+   * 29 zamknięć). White Label przepuściło: brakowało tam jednego `</div>`
+   * ORAZ stał jeden nadmiarowy — bilans wychodził na zero. RÓWNA LICZBA
+   * OTWARĆ I ZAMKNIĘĆ NIE DOWODZI POPRAWNEGO ZAGNIEŻDŻENIA, więc liczenie
+   * ustąpiło miejsca stosowi. Stos łapie też stary przypadek: znacznik bez
+   * zamknięcia zostaje na stosie do końca.
    *
-   * Ten skan złapał `nl-lists`: 28 otwarć, 29 zamknięć.
+   * Czytamy SUROWY tekst, nie DOM: `innerHTML` — a więc i atrapa
+   * `admin-tabs.html` — po cichu NAPRAWIA złe zagnieżdżenie, przez co żaden
+   * pomiar w przeglądarce tej usterki nie zobaczy. Na wyjściu PHP, a nie
+   * w źródle, bo gałęzie `if/else` sprawiają, że statyczna suma w pliku prawie
+   * nigdy się nie zgadza, choć wyjście jest poprawne. Bloki `<script>`,
+   * `<style>` i komentarze maskujemy — znaczniki w łańcuchach JS to dane,
+   * nie struktura.
    */
-  t.section('wyrenderowany markup ma sparowane znaczniki');
+  t.section('wyrenderowany markup ma poprawne zagnieżdżenie');
 
-  const niesparowane = [];
+  /* Tylko znaczniki, które naprawdę trzymają strukturę. `p` i `li` parser
+     domyka sam, więc ich „brak zamknięcia" nie byłby usterką, a szumem. */
+  const STRUKTURA = ['div', 'form', 'table', 'thead', 'tbody', 'tr', 'td', 'th',
+                     'details', 'summary', 'label', 'fieldset', 'section',
+                     'ul', 'ol', 'select'];
+
+  const zleZagniezdzone = [];
   for (const slug of TABS) {
     const html = phpOutput('tab.php', slug)
       .replace(/<script\b[\s\S]*?<\/script>/gi, '')
-      .replace(/<style\b[\s\S]*?<\/style>/gi, '');
-    for (const tag of ['div', 'form', 'table']) {
-      const otw = (html.match(new RegExp('<' + tag + '\\b', 'gi')) || []).length;
-      const zam = (html.match(new RegExp('</' + tag + '>', 'gi')) || []).length;
-      if (otw !== zam) niesparowane.push(slug + ': <' + tag + '> ' + otw + '/' + zam);
+      .replace(/<style\b[\s\S]*?<\/style>/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '');
+    const stos = [], bledy = [];
+    const znacznik = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^>]*?(\/?)>/g;
+    let m;
+    while ((m = znacznik.exec(html))) {
+      const tag = m[2].toLowerCase();
+      if (!STRUKTURA.includes(tag)) continue;
+      if (!m[1]) {                       // otwarcie (pomijamy <x />)
+        if (!m[3]) stos.push({ tag, poz: m.index });
+        continue;
+      }
+      const gdzie = stos.map((x) => x.tag).lastIndexOf(tag);
+      if (gdzie === -1) {
+        bledy.push('</' + tag + '> bez otwarcia (poz. ' + m.index + ')');
+        continue;
+      }
+      if (gdzie === stos.length - 1) { stos.pop(); continue; }
+      bledy.push('</' + tag + '> zamyka <' + stos[stos.length - 1].tag +
+                 '> otwarty wcześniej (poz. ' + stos[stos.length - 1].poz + ')');
+      stos.length = gdzie;               // parser domknąłby wszystko powyżej
     }
+    for (const otwarty of stos) {
+      bledy.push('<' + otwarty.tag + '> nigdy nie zamknięty (poz. ' + otwarty.poz + ')');
+    }
+    if (bledy.length) zleZagniezdzone.push(slug + ': ' + bledy.join(' | '));
   }
-  t.check('każda zakładka zamyka tyle, ile otwiera', !niesparowane.length,
-    niesparowane.join(' | ') || TABS.length + ' zakładek sparowanych');
+  t.check('każda zakładka zamyka to, co otworzyła, i w tej kolejności',
+    !zleZagniezdzone.length,
+    zleZagniezdzone.join(' | ') || TABS.length + ' zakładek poprawnych');
+
+  // ── Objaw: stopka wp-admin nad treścią ────────────────────────────────
+  /*
+   * Walidator wyżej wskazuje PRZYCZYNĘ. Ten blok pokazuje OBJAW, o którym
+   * pisał użytkownik — „info ze stopki jest w połowie strony" — i pilnuje, że
+   * naprawa faktycznie go zdejmuje, a nie tylko uspokaja licznik.
+   *
+   * Atrapa `admin-footer.html` wkłada zakładkę przez `document.write`, czyli
+   * w strumień parsowania. To jedyny sposób, żeby PRAWDZIWY parser zobaczył
+   * markup taki, jaki wychodzi z PHP: `innerHTML` z `admin-tabs.html` naprawia
+   * złe zagnieżdżenie po cichu i usterka znika przed pomiarem.
+   *
+   * Trzy zakładki, nie wszystkie: strażnikiem dla całego zestawu jest walidator
+   * (tani, bez przeglądarki), a tu chodzi o dowód na dwóch zgłoszonych
+   * przypadkach i o kontrolę, która musi wyjść zielono.
+   */
+  t.section('stopka wp-admin nie wchodzi na treść');
+
+  for (const slug of ['whitelabel', 'nl-lists', 'darkmode']) {
+    /* Skrypty zakładki zdejmujemy jak w atrapie pomiarowej — mierzymy
+       strukturę, a jQuery tu nie ma. */
+    const surowy = phpOutput('tab.php', slug).replace(/<script\b[\s\S]*?<\/script>/gi, '');
+    const f = await t.open('admin-footer.html', {
+      viewport: { width: 1400, height: 900 },
+      head: 'window.__tab = ' + JSON.stringify(surowy) + ';',
+      settle: 60,
+    });
+    const s = await f.evaluate(() => ({
+      rodzic: document.getElementById('wpfooter').parentElement.id,
+      ...window.__stopka(),
+    }));
+    await f.close();
+
+    /* Ostrzejsze z dwóch pytań: przy nadmiarowym `</div>` stopka wypada poza
+       `#wpwrap` i traci przodka pozycjonującego. To widać niezależnie od tego,
+       jak wysoka jest treść zakładki. */
+    t.check('„' + slug + '" — stopka zostaje w #wpwrap', s.rodzic === 'wpwrap',
+      s.rodzic ? 'rodzic: #' + s.rodzic : 'stopka wypadła poza #wpwrap');
+
+    /* I to, co użytkownik naprawdę widzi. */
+    t.check('„' + slug + '" — stopka pod treścią, nie na niej', s.stopka >= s.tresc,
+      s.stopka >= s.tresc ? 'stopka ' + s.stopka + ' px, treść do ' + s.tresc + ' px'
+                          : 'stopka ' + (s.tresc - s.stopka) + ' px NAD dolną krawędzią treści');
+  }
 
   /* Liczniki przez wszystkie zakładki. Sprawdzenia per zakładka są warunkowe
      („żadna ramka nie jest rozwinięta" przechodzi też przy zerze ramek), więc
