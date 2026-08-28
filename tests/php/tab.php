@@ -55,9 +55,21 @@ function get_bloginfo($what = '') { return 'Witryna testowa'; }
 function wp_get_theme() { return new class { public function get($k) { return 'Bricks'; } }; }
 function get_transient($k) { return false; }
 function set_transient($k, $v, $t = 0) { return true; }
-function get_users($args = []) { return []; }
+/* Dwóch użytkowników: jeden z własnym avatarem, jeden z Gravatarem — obie
+   gałęzie kafelka mają się wyrenderować, bo różnią się klasą stanu. */
+function get_users($args = []) {
+    return [
+        (object) ['ID' => 1, 'display_name' => 'Anna Kowalska'],
+        (object) ['ID' => 2, 'display_name' => 'Jan Nowak'],
+    ];
+}
 function wp_roles() { return new class { public $roles = []; }; }
-function get_editable_roles() { return []; }
+function get_editable_roles() {
+    return [
+        'editor'   => ['name' => 'Redaktor', 'capabilities' => ['edit_posts' => true, 'read' => true]],
+        'menedzer' => ['name' => 'Menedżer', 'capabilities' => ['read' => true]],
+    ];
+}
 function number_format_i18n($n, $d = 0) { return number_format((float) $n, $d, ',', ' '); }
 function size_format($b, $d = 0) { return $b . ' B'; }
 function get_locale() { return 'pl_PL'; }
@@ -78,7 +90,13 @@ function get_post_types($args = [], $output = 'names') {
     };
     return ['post' => $mk('post', 'Wpisy', 'Wpis'), 'page' => $mk('page', 'Strony', 'Strona')];
 }
-function wp_get_attachment_image_url($id, $size = 'thumbnail') { return 'https://example.test/obraz.jpg'; }
+/* Adres MUSI być lokalny. Przy `https://example.test/…` headless próbuje wyjść
+   w sieć przez proxy i test zgłasza ERR_TUNNEL_CONNECTION_FAILED jako „błąd JS"
+   — usterka nie w kodzie panelu, tylko w atrapie. Jednopikselowy GIF w data:
+   rysuje się bez żadnego żądania. */
+function wp_get_attachment_image_url($id, $size = 'thumbnail') {
+    return 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+}
 function wp_upload_dir() { return ['basedir' => '/tmp', 'baseurl' => 'https://example.test/uploads']; }
 function add_query_arg(...$a) { return 'https://example.test/wp-admin/admin.php?page=evk-newsletter'; }
 function esc_attr__($s, $d = '') { return $s; }
@@ -207,6 +225,26 @@ $_SERVER['REQUEST_METHOD'] = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 /* Rejestr tras REST — moduł czyta je z serwera WP, żeby wypisać endpointy.
    Atrapa oddaje kilka prawdziwych w kształcie, bo o kształt listy tu chodzi. */
+/* Role Manager sięga po rdzeń ról WP. Atrapy oddają dwie role — jedną core,
+   jedną własną — bo tabela ról i wiersz „chroniony" to właśnie to, co mierzymy. */
+if (!function_exists('settings_errors'))    { function settings_errors($slug = '') {} }
+if (!function_exists('current_user_can'))   { function current_user_can($cap) { return true; } }
+if (!function_exists('translate_user_role')) { function translate_user_role($n) { return $n; } }
+if (!function_exists('get_role')) {
+    function get_role($slug) {
+        return new class {
+            public $capabilities = ['edit_posts' => true, 'read' => true];
+            public function has_cap($c) { return $c === 'evk_access_translations'; }
+        };
+    }
+}
+if (!class_exists('WP_Roles')) {
+    class WP_Roles {
+        public $roles = [];
+        public function get_names() { return ['editor' => 'Redaktor', 'menedzer' => 'Menedżer']; }
+    }
+}
+
 if (!function_exists('rest_get_server')) {
     function rest_get_server() {
         return new class {
@@ -222,6 +260,15 @@ if (!function_exists('rest_get_server')) {
     }
 }
 if (!function_exists('get_pages'))           { function get_pages($args = []) { return []; } }
+if (!function_exists('wp_dropdown_pages')) {
+    function wp_dropdown_pages($args = []) {
+        $name = is_array($args) ? ($args['name'] ?? 'page_id') : $args;
+        echo '<select name="' . $name . '"><option value="0">— wybierz —</option>'
+           . '<option value="11">Strona główna</option></select>';
+    }
+}
+if (!function_exists('get_user_meta'))       { function get_user_meta($id, $k = '', $single = false) { return $id === 1 ? 7 : ''; } }
+if (!function_exists('get_avatar_url'))      { function get_avatar_url($id, $a = []) { return 'data:image/gif;base64,R0lGODlhAQABAAAAACw='; } }
 if (!function_exists('check_admin_referer')) { function check_admin_referer($a = -1, $n = '_wpnonce') { return true; } }
 if (!function_exists('date_i18n'))           { function date_i18n($f, $t = null) { return date($f, $t ?? time()); } }
 
@@ -339,6 +386,42 @@ $TABS = [
         'module' => 'includes/interface/white-label.php',
         'file'   => 'includes/admin/admin-whitelabel.php',
         'seed'   => function () { $GLOBALS['options']['evk_white_label'] = ['enabled' => 1]; },
+    ],
+
+    /* ── Panel admina ────────────────────────────────────────────────────
+       Podstrony ładuje `tab-admin.php` jawnym `require` w `switch`, ale
+       zmienne ($evk_sec, $evk_iface) podaje im tak samo jak zakładka
+       Bezpieczeństwa — bez nich renderują się z pustymi polami. */
+    'adm-interface' => [
+        'module' => 'includes/interface/thumbnails.php',
+        'file'   => 'includes/admin/other-interface.php',
+        'seed'   => function () { $GLOBALS['options']['evk_interface'] = ['post_thumbnails_enabled' => 1]; },
+    ],
+    'adm-dashboard' => [
+        'module' => 'includes/interface/thumbnails.php',
+        'file'   => 'includes/admin/other-dashboard.php',
+        'seed'   => function () { $GLOBALS['options']['evoke_dashboard_page_id'] = 11; },
+    ],
+    'adm-avatar' => [
+        'module' => 'includes/86-avatar.php',
+        'file'   => 'includes/admin/other-avatar.php',
+        /* Bez użytkowników lista kafelków w ogóle się nie rysuje, a to w niej
+           siedzi większość przemiecionych znaczników. */
+        'seed'   => function () { $GLOBALS['evk_test_users'] = 2; },
+    ],
+    'adm-content' => [
+        'module' => 'includes/interface/thumbnails.php',
+        'file'   => 'includes/admin/other-content.php',
+        'seed'   => function () { $GLOBALS['options']['evoke_disable_global_comments'] = 1; },
+    ],
+    'adm-roles' => [
+        'module' => 'includes/admin/role-manager-logic.php',
+        'file'   => 'includes/admin/admin-roles.php',
+    ],
+    'adm-tlumaczenia' => [
+        'module' => 'includes/interface/thumbnails.php',
+        'file'   => 'includes/admin/other-tlumaczenia.php',
+        'seed'   => function () { $GLOBALS['options']['evk_tl_module_enabled'] = 1; },
     ],
 
     /* ── Bezpieczeństwo ──────────────────────────────────────────────────
@@ -474,6 +557,9 @@ if (isset($tab['seed'])) $tab['seed']();
 if (function_exists('evk_security_get')) {
     $evk_sec   = evk_security_get();
     $sec_nonce = wp_create_nonce('evk_security_nonce');
+}
+if (function_exists('evk_interface_get')) {
+    $evk_iface = evk_interface_get();
 }
 
 require EVK_TEST_ROOT . '/' . $tab['file'];

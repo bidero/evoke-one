@@ -48,18 +48,23 @@ const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               'schema', 'sitemap', 'seo-meta',
               'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings',
               'sec-login', 'sec-rest', 'sec-hardening', 'sec-cleanup',
-              'tools-smtp', 'tools-redirect', 'tools-logs404', 'tools-io', 'tools-maintenance'];
+              'tools-smtp', 'tools-redirect', 'tools-logs404', 'tools-io', 'tools-maintenance',
+              'adm-interface', 'adm-dashboard', 'adm-avatar', 'adm-content',
+              'adm-roles', 'adm-tlumaczenia'];
 
 /** Zakładki mierzone też na wąskim ekranie. */
 const MOBILE = ['schema', 'sitemap', 'seo-meta',
                 'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings',
                 /* Cztery podstrony z tabelami — ten sam kształt, który w 1.48.0
                    rozpychał Raporty do 682 px przy oknie 390 px. */
-                'sec-login', 'tools-smtp', 'tools-redirect', 'tools-logs404'];
+                'sec-login', 'tools-smtp', 'tools-redirect', 'tools-logs404',
+                /* Role mają tabelę uprawnień — ten sam kształt. */
+                'adm-roles'];
 
 /** Zakładki, które mają już treść w boksach. */
 const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
-               'sec-hardening', 'tools-smtp', 'tools-logs404'];
+               'sec-hardening', 'tools-smtp', 'tools-logs404',
+               'adm-interface', 'adm-dashboard', 'adm-content'];
 
 module.exports = async function (t) {
   // ── Zdublowany atrybut class ──────────────────────────────────────────
@@ -125,9 +130,11 @@ module.exports = async function (t) {
     // Liczymy wszystko, co ma kształt: „Mapa strony" to same checkboxy
     // i przyciski, bez ani jednego pola tekstowego.
     const tog = await p.evaluate(() => window.__toggles());
-    t.check('jest co mierzyć', ctrl.length + ta.length + btn.length + tog.length > 0,
+    const crd = await p.evaluate(() => window.__cards());
+    t.check('jest co mierzyć', ctrl.length + ta.length + btn.length + tog.length + crd.length > 0,
       ctrl.length + ' kontrolek, ' + ta.length + ' pól wieloliniowych, ' +
-      btn.length + ' przycisków, ' + tog.length + ' przełączników');
+      btn.length + ' przycisków, ' + tog.length + ' przełączników, ' +
+      crd.length + ' kart');
 
     const badBtn = btn.filter((b) => b.radius !== BTN_RADIUS);
     t.check('przyciski o promieniu ' + BTN_RADIUS, !badBtn.length,

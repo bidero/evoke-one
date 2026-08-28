@@ -89,7 +89,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 </div>
 
 <!-- USTAWIENIA — akordeony -->
-<div class="evk-wl-acc-wrap" style="margin-top:24px;">
+<div class="evk-wl-acc-wrap evo-mt-lg">
 
 <details class="evk-acc" open>
     <summary><span class="dashicons dashicons-format-image"></span> Logo, branding i czcionka</summary>
@@ -103,16 +103,16 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
                 <button type="button" class="button" id="evk-wl-logo-pick">Wybierz</button>
             </div>
             <?php if (!empty($wl['logo_url'])): ?>
-            <img src="<?php echo esc_url($wl['logo_url']); ?>" style="max-height:60px;max-width:200px;margin-top:8px;border-radius:4px;">
+            <img src="<?php echo esc_url($wl['logo_url']); ?>" class="evo-logo-preview evo-mt-xs" alt="">
             <?php endif; ?>
         </div>
         <div class="evo-field">
             <label>Wymiary logo (px)</label>
             <div class="evo-inline" style="--evo-gap:12px">
                 <label class="evo-unit-label">szer.</label>
-                <input type="number" name="evk_white_label[logo_width]" value="<?php echo esc_attr($wl['logo_width']); ?>" min="40" max="400" style="width:80px;" placeholder="160">
+                <input type="number" name="evk_white_label[logo_width]" value="<?php echo esc_attr($wl['logo_width']); ?>" min="40" max="400" class="evo-w" style="--evo-w:80px" placeholder="160">
                 <label class="evo-unit-label">wys.</label>
-                <input type="number" name="evk_white_label[logo_height]" value="<?php echo esc_attr($wl['logo_height'] ?? 60); ?>" min="20" max="200" style="width:80px;" placeholder="60">
+                <input type="number" name="evk_white_label[logo_height]" value="<?php echo esc_attr($wl['logo_height'] ?? 60); ?>" min="20" max="200" class="evo-w" style="--evo-w:80px" placeholder="60">
             </div>
         </div>
     </div>
@@ -134,13 +134,13 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
                 <button type="button" class="button" id="evk-wl-footer-logo-pick">Wybierz</button>
             </div>
             <?php if (!empty($wl['footer_logo_url'])): ?>
-            <img src="<?php echo esc_url($wl['footer_logo_url']); ?>" style="max-height:40px;max-width:120px;margin-top:6px;border-radius:3px;">
+            <img src="<?php echo esc_url($wl['footer_logo_url']); ?>" class="evo-logo-preview is-sm evo-mt-xs" alt="">
             <?php endif; ?>
             <div class="evo-inline" style="--evo-gap:12px;margin-top:8px">
                 <label class="evo-unit-label">szer.</label>
-                <input type="number" name="evk_white_label[footer_logo_width]" value="<?php echo esc_attr($wl['footer_logo_width'] ?? 32); ?>" min="16" max="300" style="width:72px;" placeholder="32">
+                <input type="number" name="evk_white_label[footer_logo_width]" value="<?php echo esc_attr($wl['footer_logo_width'] ?? 32); ?>" min="16" max="300" class="evo-w" style="--evo-w:72px" placeholder="32">
                 <label class="evo-unit-label">wys.</label>
-                <input type="number" name="evk_white_label[footer_logo_height]" value="<?php echo esc_attr($wl['footer_logo_height'] ?? 32); ?>" min="16" max="200" style="width:72px;" placeholder="32">
+                <input type="number" name="evk_white_label[footer_logo_height]" value="<?php echo esc_attr($wl['footer_logo_height'] ?? 32); ?>" min="16" max="200" class="evo-w" style="--evo-w:72px" placeholder="32">
             </div>
         </div>
     </div>
@@ -150,7 +150,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         <div class="evo-field">
             <label>Nazwa czcionki (font-family)</label>
             <input type="text" name="evk_white_label[admin_font_family]" value="<?php echo esc_attr($wl['admin_font_family']); ?>" placeholder="Inter">
-            <p class="evo-desc" style="margin:4px 0 0;">Wpisz dokładną nazwę czcionki zarejestrowanej w Bricks (lub systemowej). Czcionka musi być już załadowana przez motyw.</p>
+            <p class="evo-desc evo-mt-xs evo-mb-0">Wpisz dokładną nazwę czcionki zarejestrowanej w Bricks (lub systemowej). Czcionka musi być już załadowana przez motyw.</p>
         </div>
 
         </div></details>
@@ -265,7 +265,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     </div>
 
     <div class="evo-box">
-        <h3 style="margin-top:16px;">Kolory — aktywna pozycja podmenu</h3>
+        <h3 class="evo-mt">Kolory — aktywna pozycja podmenu</h3>
         <div class="evk-grid-colors">
             <div class="evo-field"><label>Tło aktywnej poz. podmenu</label>
                 <input type="color" data-field="color_submenu_current_bg" data-saved="<?php echo esc_attr($wl['color_submenu_current_bg'] ?? ''); ?>" name="evk_white_label[color_submenu_current_bg]" value="<?php echo esc_attr($wl['color_submenu_current_bg'] ?: '#2271b1'); ?>">
@@ -295,7 +295,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
                 <input type="color" data-field="color_link" data-saved="<?php echo esc_attr($wl['color_link'] ?? ''); ?>" name="evk_white_label[color_link]"         value="<?php echo esc_attr($wl['color_link']         ?: '#2271b1'); ?>"></div>
             <div class="evo-field"><label>Przyciski</label>
                 <input type="color" data-field="color_primary" data-saved="<?php echo esc_attr($wl['color_primary'] ?? ''); ?>" name="evk_white_label[color_primary]"      value="<?php echo esc_attr($wl['color_primary']      ?: '#2563eb'); ?>"></div>
-            <div class="evo-field" style="margin:0;grid-column:1/-1;"><label>Tło powiadomień</label>
+            <div class="evo-field evo-m0 evo-full"><label>Tło powiadomień</label>
                 <input type="color" data-field="color_notice_bg" data-saved="<?php echo esc_attr($wl['color_notice_bg'] ?? ''); ?>" name="evk_white_label[color_notice_bg]"    value="<?php echo esc_attr($wl['color_notice_bg']    ?: '#ffffff'); ?>"></div>
         </div>
 
@@ -304,7 +304,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     <details class="evk-acc">
         <summary><span class="dashicons dashicons-editor-code"></span> Własny CSS admina</summary>
         <div class="evk-acc-body">
-            <p class="evo-desc" style="margin:0 0 10px;">Style wstrzykiwane do <code>/wp-admin/</code>. Przeciągnij dolny róg pola, aby je powiększyć.</p>
+            <p class="evo-desc evo-m0 evo-mb-sm">Style wstrzykiwane do <code>/wp-admin/</code>. Przeciągnij dolny róg pola, aby je powiększyć.</p>
             <textarea name="evk_white_label[custom_css_admin]" class="evk-wl-css-area" placeholder="/* własne style CSS dla /wp-admin/ */"><?php echo esc_textarea($wl['custom_css_admin']); ?></textarea>
         </div>
     </details>
@@ -318,8 +318,8 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 
     <div class="evo-box">
         <h3>Widoczność węzłów</h3>
-    <div style="margin-top:28px;">
-        <p class="evo-desc" style="margin-bottom:12px;">Zaznaczone węzły będą <strong>ukryte</strong> dla wszystkich użytkowników.</p>
+    <div class="evo-mt-lg">
+        <p class="evo-desc evo-mb-sm">Zaznaczone węzły będą <strong>ukryte</strong> dla wszystkich użytkowników.</p>
         <div class="evo-grid" style="--evo-col:210px;--evo-gap:8px">
         <?php foreach ($bar_nodes as $node_id => $node_label):
             $checked = in_array($node_id, (array)($wl['bar_nodes_hidden'] ?? []), true);
@@ -333,15 +333,15 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         </div>
     </div>
 
-    <div style="margin-top:18px;">
+    <div class="evo-mt-lg">
     </div>
 
     <div class="evo-box">
         <h3>Własne węzły</h3>
-        <p class="evo-desc" style="margin-bottom:10px;">
+        <p class="evo-desc evo-mb-sm">
             Dodaj ID węzłów spoza listy (np. z wtyczek). Wpisz ID i etykietę — pojawią się w sekcjach widoczności i kolejności powyżej/poniżej.
         </p>
-        <div id="evk-bar-nodes-extra" style="max-width:560px;">
+        <div id="evk-bar-nodes-extra" class="evo-w" style="--evo-w:560px">
         <?php foreach ($bar_nodes_extra as $nid => $nlbl): ?>
             <div class="evk-extra-node-row evo-inline evo-mb-xs">
                 <input type="text" name="evk_white_label[bar_nodes_extra][<?php echo esc_attr($nid); ?>]"
@@ -353,7 +353,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             </div>
         <?php endforeach; ?>
         </div>
-        <div class="evo-inline" style="margin-top:8px;max-width:560px">
+        <div class="evo-inline evo-mt-xs evo-w" style="--evo-w:560px">
             <input type="text" id="evk-new-node-id"  placeholder="node-id (np. my-plugin-node)" class="evo-mono evo-grow">
             <input type="text" id="evk-new-node-lbl" placeholder="Etykieta" class="evo-w-md">
             <button type="button" class="button" id="evk-add-node-btn">+ Dodaj</button>
@@ -380,12 +380,12 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
     })(jQuery);
     </script>
 
-    <div style="margin-top:18px;">
+    <div class="evo-mt-lg">
     </div>
 
     <div class="evo-box">
         <h3>Kolejność węzłów</h3>
-        <p class="evo-desc" style="margin-bottom:12px;">
+        <p class="evo-desc evo-mb-sm">
             <strong>Strefa:</strong> lewa (<code>root-default</code>) lub prawa (<code>top-secondary</code>).
             <strong>Kolejność:</strong> niższa liczba = wcześniej w danej strefie. Zostaw <strong>0</strong> = domyślna kolejność WP.
         </p>
@@ -410,7 +410,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         </div>
         <?php endforeach; ?>
         </div>
-        <p class="evo-hint evo-faint" style="margin-top:8px">
+        <p class="evo-hint evo-faint evo-mt-xs">
             <span class="dashicons dashicons-info-outline evo-ico-sm"></span>
             Zmiana strefy przenosi węzeł między lewą a prawą stroną paska. Kolejność 0 = nie zmieniam.
         </p>
@@ -423,7 +423,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         <summary><span class="dashicons dashicons-menu"></span> Menu boczne — kolejność, ukrywanie, nazwy</summary>
         <div class="evk-acc-body">
     <div class="evo-section-break">
-        <p class="evo-desc" style="margin-bottom:14px;">
+        <p class="evo-desc evo-mb">
             Przeciągaj aby zmienić kolejność. <strong>Oko</strong> ukrywa pozycję dla nie-administratorów.
             Pole nazwy zastępuje oryginalny tytuł. Administratorzy zawsze widzą wszystko.
         </p>
@@ -436,11 +436,11 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
             </div>
         </div>
 
-        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+        <div class="evo-toolbar evo-mt-xs" style="--evo-gap:10px">
             <button type="button" class="button" id="evk-sm-add-sep">+ Dodaj separator</button>
             <button type="button" class="button evo-btn-danger" id="evk-sm-reset">Resetuj kolejność</button>
         </div>
-        <p class="evo-hint evo-faint" style="margin-top:8px">
+        <p class="evo-hint evo-faint evo-mt-xs">
             <span class="dashicons dashicons-info-outline evo-ico-sm"></span>
             Ikona oka = widoczność dla nie-adminów &nbsp;·&nbsp; Pole tekstowe = własna nazwa pozycji
         </p>
@@ -611,7 +611,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
         <summary><span class="dashicons dashicons-admin-links"></span> Pasek górny — własne pozycje i podmenu</summary>
         <div class="evk-acc-body">
     <div class="evo-section-break">
-        <p class="evo-desc" style="margin-bottom:16px;">
+        <p class="evo-desc evo-mb">
             Dodaj własne linki. <strong>Dropdown (rodzic)</strong> tworzy rozwijane menu —
             element podmenu musi mieć w polu <em>Parent ID</em> wpisane ID rodzica.
             Kolejność zmieniasz przeciągając uchwyt <span class="dashicons dashicons-menu evo-ico-sm"></span>.

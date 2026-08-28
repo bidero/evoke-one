@@ -10,7 +10,7 @@ $tl_url         = function_exists('tl_base_url') ? tl_base_url() : admin_url('op
 
 <div class="evo-status-card">
     <div class="evo-status-icon <?php echo $tl_enabled ? 'on' : 'off'; ?>">
-        <span class="dashicons dashicons-translation" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>
+        <span class="dashicons dashicons-translation evo-ico-lg"></span>
     </div>
     <div class="evo-status-text">
         <h3>Moduł tłumaczeń: <?php echo $tl_enabled ? 'WŁĄCZONY' : 'WYŁĄCZONY'; ?></h3>
@@ -28,9 +28,9 @@ $tl_url         = function_exists('tl_base_url') ? tl_base_url() : admin_url('op
     </div>
 </div>
 
-<div class="evo-status-card" style="margin-top:16px;">
+<div class="evo-status-card evo-mt">
     <div class="evo-status-icon <?php echo $tl_fab_enabled ? 'on' : 'off'; ?>">
-        <span class="dashicons dashicons-edit" style="font-size:24px;width:24px;height:24px;line-height:1;"></span>
+        <span class="dashicons dashicons-edit evo-ico-lg"></span>
     </div>
     <div class="evo-status-text">
         <h3>Edytor inline (FAB): <?php echo $tl_fab_enabled ? 'WŁĄCZONY' : 'WYŁĄCZONY'; ?></h3>
@@ -50,7 +50,7 @@ $tl_url         = function_exists('tl_base_url') ? tl_base_url() : admin_url('op
 
 <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
         Pełne ustawienia tłumaczeń (języki, frazy, slugi URL, sitemap) dostępne są w osobnym panelu.
-        <a href="<?php echo esc_url($tl_url); ?>" class="button button-secondary" style="margin-left:12px;">
+        <a href="<?php echo esc_url($tl_url); ?>" class="button button-secondary evo-ml">
             <span class="dashicons dashicons-external"></span>
             Otwórz panel tłumaczeń
         </a>

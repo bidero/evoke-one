@@ -86,6 +86,15 @@ window.__toggles = function () {
     .map(function (el) { return { where: where(el) }; });
 };
 
+/* Karty — status i użytkownik. Są zakładki złożone WYŁĄCZNIE z nich („Avatar"
+   to lista kafelków bez ani jednego pola), a strażnik „jest co mierzyć" ma
+   pilnować, że zakładka się wyrenderowała, nie że ma akurat pola. */
+window.__cards = function () {
+  return Array.prototype.filter.call(
+    document.querySelectorAll('#panel .evo-status-card, #panel .evo-user-card'), shown)
+    .map(function (el) { return { where: where(el) }; });
+};
+
 window.__buttons = function () {
   return Array.prototype.filter.call(document.querySelectorAll('#panel .button'), shown)
     .map(function (el) {

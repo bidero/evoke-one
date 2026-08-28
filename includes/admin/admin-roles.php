@@ -24,7 +24,7 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
     $pages    = get_posts(['post_type' => 'page', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC']);
     $restrict = evk_role_get_restrictions()[$edit_role] ?? [];
     ?>
-    <a href="<?php echo esc_url($base_url); ?>" class="button" style="margin-bottom:16px;">← Powrót do listy ról</a>
+    <a href="<?php echo esc_url($base_url); ?>" class="button evo-mb">← Powrót do listy ról</a>
     <h3>Edycja roli: <strong><?php echo esc_html(translate_user_role($role_obj['name'])); ?></strong></h3>
 
     <form method="post">
@@ -32,16 +32,16 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
         <input type="hidden" name="evk_role_action" value="edit_role">
         <input type="hidden" name="role_id" value="<?php echo esc_attr($edit_role); ?>">
 
-        <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;">
+        <div class="evo-grid-21" style="--evo-gap:24px">
             <div>
                 <div class="evo-box">
                     <h3>Uprawnienia (capabilities)</h3>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px;max-height:400px;overflow-y:auto;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px;">
+                    <div class="evo-scroll-box evo-grid" style="--evo-col:220px;--evo-gap:4px;--evo-scroll-h:400px">
                         <?php foreach ($all_caps as $cap): ?>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:2px;">
+                        <label class="evo-ep-row">
                             <input type="checkbox" name="capabilities[<?php echo esc_attr($cap); ?>]" value="1"
                                    <?php checked(in_array($cap, $has_caps, true)); ?>>
-                            <code style="font-size:11px;"><?php echo esc_html($cap); ?></code>
+                            <code class="evo-mono-xs"><?php echo esc_html($cap); ?></code>
                         </label>
                         <?php endforeach; ?>
                     </div>
@@ -51,10 +51,10 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
 
                 <div class="evo-box">
                     <h3>Ograniczenie edycji stron</h3>
-                    <p style="font-size:12px;color:#6b7280;">Zostaw puste = dostęp do wszystkich. Zaznacz = tylko te strony.</p>
-                    <div style="max-height:300px;overflow-y:auto;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:8px;">
+                    <p class="evo-hint">Zostaw puste = dostęp do wszystkich. Zaznacz = tylko te strony.</p>
+                    <div class="evo-scroll-box" style="--evo-scroll-h:300px">
                         <?php foreach ($pages as $page): ?>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:3px;">
+                        <label class="evo-ep-row">
                             <input type="checkbox" name="page_restrictions[]" value="<?php echo $page->ID; ?>"
                                    <?php checked(in_array($page->ID, $restrict, true)); ?>>
                             <?php echo esc_html($page->post_title); ?>
@@ -66,38 +66,38 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
                 </div>
 
         <div class="evo-box">
-            <h3 style="margin-top:24px;">Dostęp do Evoke ONE</h3>
-            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:14px;margin-bottom:20px;display:flex;flex-direction:column;gap:10px;">
-                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+            <h3 class="evo-mt-lg">Dostęp do Evoke ONE</h3>
+            <div class="evo-inset evo-stack evo-mb-lg" style="--evo-gap:10px">
+                <label class="evo-check">
                     <input type="checkbox" name="evk_tl_access" value="1"
                            <?php checked($role->has_cap('evk_access_translations')); ?>>
                     <div>
-                        <span style="font-weight:500;">Tłumaczenia</span>
-                        <div class="evo-desc" style="margin-top:2px;">Rola może otwierać i edytować tłumaczenia.</div>
+                        <span class="evo-strong-500">Tłumaczenia</span>
+                        <div class="evo-desc evo-m0">Rola może otwierać i edytować tłumaczenia.</div>
                     </div>
                 </label>
-                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                <label class="evo-check">
                     <input type="checkbox" name="evk_nl_access" value="1"
                            <?php checked($role->has_cap('evk_access_newsletter')); ?>>
                     <div>
-                        <span style="font-weight:500;">Newsletter</span>
-                        <div class="evo-desc" style="margin-top:2px;">Rola może zarządzać listami, szablonami i kampaniami newslettera.</div>
+                        <span class="evo-strong-500">Newsletter</span>
+                        <div class="evo-desc evo-m0">Rola może zarządzać listami, szablonami i kampaniami newslettera.</div>
                     </div>
                 </label>
-                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                <label class="evo-check">
                     <input type="checkbox" name="evk_msg_access" value="1"
                            <?php checked($role->has_cap('evk_access_messages')); ?>>
                     <div>
-                        <span style="font-weight:500;">Wiadomości</span>
-                        <div class="evo-desc" style="margin-top:2px;">Rola może otwierać i czytać skrzynkę wiadomości z formularzy.</div>
+                        <span class="evo-strong-500">Wiadomości</span>
+                        <div class="evo-desc evo-m0">Rola może otwierać i czytać skrzynkę wiadomości z formularzy.</div>
                     </div>
                 </label>
-                <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;">
+                <label class="evo-check">
                     <input type="checkbox" name="evk_maint_access" value="1"
                            <?php checked($role->has_cap('evk_access_maintenance')); ?>>
                     <div>
-                        <span style="font-weight:500;">Tryb konserwacji</span>
-                        <div class="evo-desc" style="margin-top:2px;">Rola może włączać i wyłączać tryb konserwacji z paska administratora.</div>
+                        <span class="evo-strong-500">Tryb konserwacji</span>
+                        <div class="evo-desc evo-m0">Rola może włączać i wyłączać tryb konserwacji z paska administratora.</div>
                     </div>
                 </label>
             </div>
@@ -109,9 +109,9 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
     </form>
 
 <?php elseif ($action === 'add'): ?>
-    <a href="<?php echo esc_url($base_url); ?>" class="button" style="margin-bottom:16px;">← Powrót do listy ról</a>
+    <a href="<?php echo esc_url($base_url); ?>" class="button evo-mb">← Powrót do listy ról</a>
     <h3>Dodaj nową rolę</h3>
-    <form method="post" style="max-width:500px;">
+    <form method="post" class="evo-w" style="--evo-w:500px">
         <?php wp_nonce_field('evk_add_role', 'evk_role_nonce'); ?>
         <input type="hidden" name="evk_role_action" value="add_role">
         <div class="evo-field">
@@ -136,16 +136,19 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
     </form>
 
 <?php else: // Lista ról ?>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <p style="margin:0;color:#6b7280;font-size:13px;">Administrator jest chroniony i nie może być modyfikowany z tego panelu.</p>
+    <div class="evo-row-between evo-mb">
+        <p class="evo-m0 evo-muted evo-note-tx">Administrator jest chroniony i nie może być modyfikowany z tego panelu.</p>
         <a href="<?php echo esc_url(add_query_arg('role_action', 'add', $base_url)); ?>" class="button button-primary">+ Dodaj nową rolę</a>
     </div>
+    <?php /* Bez `.evo-tbl-wrap`: ta tabela ma `table-layout: fixed`, więc mieści
+             się w kolumnie sama. Sprawdzone mutacją — zdjęcie owijki nie zapaliło
+             żadnego pomiaru, a `adm-roles` jest mierzona przy 390 i 360 px. */ ?>
     <table class="wp-list-table widefat fixed striped">
         <thead><tr>
             <th>Rola</th>
             <th>Slug</th>
             <th>Uprawnienia</th>
-            <th style="width:150px;">Akcje</th>
+            <th class="evo-w" style="--evo-w:150px">Akcje</th>
         </tr></thead>
         <tbody>
         <?php foreach (get_editable_roles() as $slug => $data):
@@ -153,23 +156,23 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
         ?>
         <tr>
             <td><strong><?php echo esc_html(translate_user_role($data['name'])); ?></strong>
-                <?php if ($is_core): ?><span style="color:#6b7280;font-size:11px;"> (core)</span><?php endif; ?>
+                <?php if ($is_core): ?><span class="evo-hint-sm"> (core)</span><?php endif; ?>
             </td>
             <td><code><?php echo esc_html($slug); ?></code></td>
-            <td style="font-size:12px;color:#6b7280;"><?php echo count($data['capabilities']); ?> uprawnień</td>
+            <td class="evo-hint"><?php echo count($data['capabilities']); ?> uprawnień</td>
             <td>
                 <?php if ($slug !== 'administrator'): ?>
                 <a href="<?php echo esc_url(add_query_arg(['role_action' => 'edit', 'edit_role' => $slug], $base_url)); ?>" class="button button-small">Edytuj</a>
                 <?php if (!$is_core): ?>
-                <form method="post" style="display:inline;" onsubmit="return confirm('Usunąć rolę <?php echo esc_js(translate_user_role($data['name'])); ?>?');">
+                <form method="post" class="evo-inline-block" onsubmit="return confirm('Usunąć rolę <?php echo esc_js(translate_user_role($data['name'])); ?>?');">
                     <?php wp_nonce_field('evk_delete_role', 'evk_role_nonce'); ?>
                     <input type="hidden" name="evk_role_action" value="delete_role">
                     <input type="hidden" name="role_id" value="<?php echo esc_attr($slug); ?>">
-                    <button type="submit" class="button button-small" style="color:#dc2626;">Usuń</button>
+                    <button type="submit" class="button button-small evo-danger-tx">Usuń</button>
                 </form>
                 <?php endif; ?>
                 <?php else: ?>
-                <span style="color:#9ca3af;font-size:12px;">— chroniony —</span>
+                <span class="evo-hint evo-faint">— chroniony —</span>
                 <?php endif; ?>
             </td>
         </tr>

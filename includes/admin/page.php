@@ -213,10 +213,10 @@ function evoke_one_render_settings(): void {
 
     ?>
     <div class="wrap">
-        <h1 style="display:flex;align-items:center;gap:10px;">
-            <span class="dashicons dashicons-star-filled" style="color:#2563eb;font-size:26px;width:26px;height:26px;line-height:1;"></span>
+        <h1 class="evo-page-title">
+            <span class="dashicons dashicons-star-filled evo-page-title-ico"></span>
             Evoke ONE
-            <span style="font-size:11px;color:#94a3b8;font-weight:400;">v<?php echo esc_html(EVOKE_ONE_VERSION); ?></span>
+            <span class="evo-page-version">v<?php echo esc_html(EVOKE_ONE_VERSION); ?></span>
         </h1>
 
         <div class="evo-tabs">
@@ -235,7 +235,7 @@ function evoke_one_render_settings(): void {
             if ($tab_file && file_exists($tab_file)) {
                 require $tab_file;
             } else {
-                echo '<p style="color:#dc2626;">Błąd: plik zakładki nie istnieje.</p>';
+                echo '<p class="evo-danger-tx">Błąd: plik zakładki nie istnieje.</p>';
             }
             ?>
         </div>

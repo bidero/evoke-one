@@ -11,21 +11,23 @@ if (!defined('ABSPATH')) exit;
                 $users = get_users(['orderby' => 'display_name', 'number' => 50]);
                 ?>
                 <div class="evo-box">
-                    <h3 style="margin-top:20px;">Avatary użytkowników</h3>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-top:12px;">
+                    <h3>Avatary użytkowników</h3>
+                    <div class="evo-grid evo-mt-xs" style="--evo-col:200px;--evo-gap:16px">
                         <?php foreach ($users as $u):
                             $att_id = (int) get_user_meta($u->ID, 'evk_avatar_id', true);
                             $thumb  = $att_id ? wp_get_attachment_image_url($att_id, [64, 64]) : null;
                             $grav   = get_avatar_url($u->ID, ['size' => 64, 'default' => 'mp']);
                         ?>
-                        <div style="display:flex;align-items:center;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+                        <div class="evo-user-card">
+                            <?php /* Stan „ma własny avatar" niesie KLASA, nie hex w PHP — inaczej
+                                     ramka nie reaguje na zmianę palety (wzorzec z 1.48.0). */ ?>
                             <img src="<?php echo esc_url($thumb ?: $grav); ?>"
-                                 style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid <?php echo $att_id ? '#2563eb' : '#d1d5db'; ?>;"
+                                 class="evo-user-avatar<?php echo $att_id ? ' is-custom' : ''; ?>"
                                  alt="">
                             <div>
-                                <div style="font-size:13px;font-weight:600;color:#111827;"><?php echo esc_html($u->display_name); ?></div>
-                                <div style="font-size:11px;color:#6b7280;"><?php echo $att_id ? '<span style="color:#2563eb;">✓ własny avatar</span>' : 'Gravatar'; ?></div>
-                                <a href="<?php echo esc_url(admin_url('user-edit.php?user_id=' . $u->ID . '#evk-avatar-preview')); ?>" style="font-size:11px;">edytuj →</a>
+                                <div class="evo-user-name"><?php echo esc_html($u->display_name); ?></div>
+                                <div class="evo-hint-sm"><?php echo $att_id ? '<span class="evo-accent-tx">✓ własny avatar</span>' : 'Gravatar'; ?></div>
+                                <a href="<?php echo esc_url(admin_url('user-edit.php?user_id=' . $u->ID . '#evk-avatar-preview')); ?>" class="evo-hint-sm">edytuj →</a>
                             </div>
                         </div>
                         <?php endforeach; ?>

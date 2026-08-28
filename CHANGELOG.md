@@ -2,6 +2,70 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.120.0] — 2026-08-27
+
+### Zmienione
+
+- **Panel admina nosi skórę panelu, a nie własne style.** Czwarta partia
+  przemiatania. `style=` wygrywa z każdym arkuszem, więc kontrolka, która się nim
+  broni, nie dostaje skóry Evoke Fields — reguła dla niej istnieje i jest
+  poprawna, tylko przegrywa.
+
+  | | przed | po |
+  |---|---|---|
+  | atrybuty `style=` w tych plikach | 103 | **23** |
+  | z nich niosących kształt | 103 | **0** |
+  | z zaszytym kolorem | 19 | **0** |
+
+  Wszystkie 23, które zostały, to **zmienne CSS** (`--evo-w`, `--evo-gap`,
+  `--evo-col`, `--evo-scroll-h`) — dane, nie kształt.
+
+- **Powłoka panelu też.** Nagłówek z `page.php` jest widoczny na **każdej**
+  zakładce, a miał akcent wpisany jako `#2563eb` i plakietkę wersji jako
+  `#94a3b8`. Oba mają swoje tokeny i teraz z nich korzystają.
+
+- **Stan avatara niesie nazwa, nie hex.** Ramka kafelka użytkownika brała kolor
+  z `<?php echo $att_id ? '#2563eb' : '#d1d5db'; ?>` wprost w atrybucie — czyli
+  nie reagowała na zmianę palety. Teraz jest to klasa `.is-custom` (wzorzec
+  z 1.48.0: stan niesie NAZWA).
+
+- **Odstępy snapują się do skali panelu.** W arkuszu są kroki 6 / 16 / 24 px;
+  w tych plikach siedziały też 8, 10, 18, 20 i 28 px. Przeszły na najbliższy krok.
+  To zmiana **celowa** — pomiar 2-pikselowej różnicy jej nie złapie, więc
+  odnotowuję ją tutaj, zamiast udawać, że nic się nie zmieniło.
+
+### Naprawione
+
+- **Atrapa `wp_get_attachment_image_url()` w testach zwracała adres zewnętrzny.**
+  Headless próbował po niego wyjść w sieć przez proxy i zgłaszał
+  `ERR_TUNNEL_CONNECTION_FAILED` jako „błąd JS" — usterka nie w kodzie panelu,
+  tylko w atrapie. Teraz oddaje jednopikselowy GIF w `data:`, bez żadnego żądania.
+
+### Uwagi
+
+- **Skrzynka (`forminbox-page.php`) świadomie poza zakresem.** To osobny ekran
+  najwyższego poziomu, który **celowo nie ładuje `admin.css`** — jego hook enqueue
+  jest pustą funkcją z komentarzem „ma własny CSS/JS" (decyzja z 1.46.0). Style
+  musiałyby trafić do jego własnego bloku `<style>`, a nie do arkusza panelu.
+
+- **Dopisanie zakładki do mierzonego zestawu to nie to samo, co przemiecenie jej.**
+  `admin-whitelabel.php` był mierzony od partii 1 i mimo to niósł 24 atrybuty
+  z kształtem — pomiar pilnuje tylko tego, czy skóra doszła do **mierzonych**
+  kontrolek. Usuwanie atrybutów robi przemiatanie; jedno bez drugiego nie starcza.
+
+- **Tabela ról nie dostała owijki przewijania.** Ma `table-layout: fixed`, więc
+  mieści się sama — sprawdzone mutacją: zdjęcie owijki nie zapaliło żadnego
+  pomiaru, choć `adm-roles` jest mierzona przy 390 i 360 px. Nie zostawiam
+  rusztowania, którego nic nie potwierdza.
+
+### Weryfikacja
+
+Sześć podstron (`adm-interface`, `adm-dashboard`, `adm-avatar`, `adm-content`,
+`adm-roles`, `adm-tlumaczenia`) weszło do mierzonego zestawu; `adm-roles` także
+do pomiaru przy 390 i 360 px. Strażnik „jest co mierzyć" liczy teraz również
+**karty** — zakładka Avatar to lista kafelków bez ani jednego pola.
+1901 → **1997** sprawdzeń zielonych.
+
 ## [1.119.0] — 2026-08-27
 
 ### Zmienione

@@ -1194,7 +1194,7 @@
 /* Długa lista do przewinięcia w miejscu — endpointy REST, ścieżki, klucze.
    Ma swoją wysokość, żeby nie wypychała przycisku zapisu poza ekran. */
 .evo-scroll-box {
-    max-height: 280px;
+    max-height: var(--evo-scroll-h, 280px);
     overflow-y: auto;
     padding: 10px;
     background: var(--evo-surface);
@@ -1292,6 +1292,54 @@
 }
 .evo-link-btn:hover { color: var(--evo-text); }
 .evo-link-btn.is-danger { color: var(--evo-danger); }
+
+/* Kafelek użytkownika z avatarem — lista w zakładce Avatar. */
+.evo-user-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--evo-surface);
+    border: 1px solid var(--evo-border-soft);
+    border-radius: var(--evo-radius-md, 8px);
+}
+.evo-user-name { font-size: 13px; font-weight: 600; color: var(--evo-text); }
+.evo-user-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--evo-border-field);
+    flex-shrink: 0;
+}
+/* Ramka w akcencie znaczy „to jest własny avatar, nie Gravatar". */
+.evo-user-avatar.is-custom { border-color: var(--evo-accent); }
+
+/* Podgląd wgranego logo — nagłówek panelu i stopka. */
+.evo-logo-preview { max-height: 60px; max-width: 200px; border-radius: 4px; }
+.evo-logo-preview.is-sm { max-height: 40px; max-width: 120px; border-radius: 3px; }
+
+/* Wpuszczony kontener — ta sama powierzchnia co lista przewijana, ale bez
+   ograniczenia wysokości. Osobna klasa, a nie `.evo-sm-box`: tamta narzuca
+   `label { display: block }` i rozbiłaby wiersze `.evo-check` w środku. */
+.evo-inset {
+    padding: 14px;
+    background: var(--evo-surface);
+    border: 1px solid var(--evo-border-soft);
+    border-radius: var(--evo-radius-sm, 6px);
+}
+
+/* Siatka „treść + panel boczny". */
+.evo-grid-21 { display: grid; grid-template-columns: 2fr 1fr; gap: var(--evo-gap, 20px); }
+.evo-grid-21 > * { min-width: 0; }
+
+.evo-strong-500 { font-weight: 500; }
+.evo-inline-block { display: inline; }
+
+/* Nagłówek panelu — widoczny na KAŻDEJ zakładce, więc akcent i szarość
+   plakietki wersji tym bardziej nie mają prawa siedzieć w atrybucie. */
+.evo-page-title { display: flex; align-items: center; gap: 10px; }
+.evo-page-title-ico { color: var(--evo-accent); font-size: 26px; width: 26px; height: 26px; line-height: 1; }
+.evo-page-version { font-size: 11px; font-weight: 400; color: var(--evo-text-faint); }
 
 /* ── Pasek narzędzi nad tabelą ── */
 .evo-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
