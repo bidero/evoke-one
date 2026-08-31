@@ -102,7 +102,7 @@
      ponownie i wysypał lawinę ostrzeżeń przy każdej zmianie progu.
      
      Nowy efekt, który coś generuje, ma dopisać się TUTAJ. */
-  var WEZEL_SILNIKA = /^(?:line|word|char)(?:-mask)?$|^swap-klon$/;
+  var WEZEL_SILNIKA = /^(?:line|word|char)(?:-mask)?$|^swap-klon$|^host$/;
 
   /** Co Animator uważa za swoją robotę — jeden zapis dla `initAll()`
       i dla obserwatora podmian, żeby nie rozjechały się przy poprawce. */
@@ -995,10 +995,65 @@
    * onSplit MUSI zwrócić oś czasu — GSAP sprząta ją wtedy sam przed kolejnym
    * podziałem, zamiast zostawiać osierocone tweeny na nieistniejących węzłach.
    */
+  /**
+   * CO dzielimy: sam element czy jego dzieci.
+   *
+   * SplitText przebudowuje ZAWARTOŚĆ elementu na własne kawałki. Kiedy element
+   * jest kontenerem flex albo grid, te kawałki stają się jego elementami
+   * układu — i wtedy dzieje się to, co zgłoszono z użycia:
+   *
+   * — „słowa tworzą jedno słowo o stałych odstępach". Białe znaki nie tworzą
+   *   elementów flex (anonimowy element z samej spacji po prostu nie powstaje),
+   *   więc SPACJE ZNIKAJĄ, a `gap` kontenera wchodzi między KAŻDĄ literę.
+   *   Zmierzone na `display:flex; gap:8px`: napis rozdął się z 253 px do 347 px,
+   *   a odstęp 8 px stanął w każdej z trzynastu szczelin między literami.
+   *
+   * — „słowa i ikona nie są w linii". Cała treść trafia do jednego
+   *   `.evk-anim-line` (`display:block`), więc ikona przestaje być elementem
+   *   flex. Zmierzone na przycisku `inline-flex`: ikona spadła 23 px pod tekst,
+   *   przycisk urósł z 44 px do 62 px.
+   *
+   * — i po cichu: podział na LINIE przestaje dzielić. Słowa leżą w jednym
+   *   wierszu flex (`flex-wrap: nowrap`), więc SplitText widzi jedną linię —
+   *   zmierzone: 1 kawałek zamiast 3.
+   *
+   * Dlatego w takim elemencie schodzimy poziom niżej: dzielimy jego dzieci,
+   * a układ zostaje przy nim. Gołego tekstu nie da się podzielić osobno, więc
+   * dostaje owijkę — dla flexa jest to zmiana neutralna, bo taki tekst i tak
+   * był anonimowym elementem układu. Dziecko bez tekstu (ikona) zostaje
+   * nietknięte i dalej jest elementem flex.
+   *
+   * Podwójnej owijki nie ma jak zrobić: przy kolejnym wejściu tekst siedzi już
+   * w `.evk-anim-host`, więc łapie go gałąź dla dzieci-elementów.
+   */
+  function celePodzialu(el) {
+    var display = getComputedStyle(el).display;
+    if (display.indexOf('flex') === -1 && display.indexOf('grid') === -1) return [el];
+
+    var cele = [];
+    Array.prototype.slice.call(el.childNodes).forEach(function (wezel) {
+      if (wezel.nodeType === 3) {
+        // Sam biały znak — kontener flex i tak go nie rysuje, nie ma czego dzielić.
+        if (!wezel.textContent.trim()) return;
+        var host = document.createElement('span');
+        host.className = 'evk-anim-host';
+        el.insertBefore(host, wezel);
+        host.appendChild(wezel);
+        cele.push(host);
+      } else if (wezel.nodeType === 1 && wezel.textContent.trim()) {
+        cele.push(wezel);
+      }
+    });
+
+    return cele.length ? cele : [el];
+  }
+
   function initSplit(el, cfg) {
     var map  = { lines: 'lines', words: 'words', chars: 'chars' };
     var type = map[cfg.split];
     if (!type) { buildAnimation(el, [el], cfg); return true; }
+
+    var cele = celePodzialu(el);
 
     // aria warunkowo. Domyślne 'auto' jest POPRAWNE dla pojedynczego nagłówka czy
     // akapitu: element ma własną rolę, więc aria-label działa, a ukrycie kawałków
@@ -1012,7 +1067,10 @@
     // Scroll Reading może sobie pozwolić na spany, bo ma własny CSS na te klasy.
     var opts = {
       type:       type,
-      aria:       el.children.length > 1 ? 'none' : 'auto',
+      // Warunek liczony NA CELU podziału, nie na elemencie: przy podziale
+      // dzieci celem jest sam napis, więc `aria-label` trafia dokładnie tam,
+      // gdzie ma — a ikona obok niego zachowuje swoją nazwę.
+      aria:       cele.some(function (c) { return c.children.length > 1; }) ? 'none' : 'auto',
       linesClass: 'evk-anim-line',
       wordsClass: 'evk-anim-word',
       charsClass: 'evk-anim-char',
@@ -1026,10 +1084,13 @@
     if (cfg.mask) opts.mask = cfg.mask;
 
     if (typeof SplitText.create === 'function') {
-      SplitText.create(el, opts);
+      // Jedno wywołanie na WSZYSTKIE cele: SplitText scala z nich kawałki
+      // w jedną instancję i woła `onSplit` raz, więc oś czasu dalej jest jedna
+      // i `autoSplit` ma co sprzątać.
+      SplitText.create(cele, opts);
     } else {
       // GSAP < 3.13 nie zna autoSplit/onSplit — jednorazowy podział, jak dotąd.
-      var split  = new SplitText(el, opts);
+      var split  = new SplitText(cele, opts);
       var pieces = split[type];
       buildAnimation(el, (pieces && pieces.length) ? pieces : [el], cfg);
     }
@@ -1535,7 +1596,12 @@
       if (cfg.mask) opts.mask = cfg.mask;
       // Bez autoSplit: pudełko podglądu nie zmienia szerokości w trakcie
       // odegrania, a onSplit odbierałby nam uchwyt do osi czasu.
-      var split  = new SplitText(el, opts);
+      //
+      // `celePodzialu` tak samo jak na stronie — scena podglądu JEST flexem
+      // (`.evo-anim-preview-stage` w admin.css), więc bez tego panel pokazywał
+      // próbkę „Evoke ONE — próbka tekstu" jako „EvokeONE—próbkatekstu”:
+      // zmierzone 20 odstępów po 0 px i 200,3 px zamiast 209,8 px.
+      var split  = new SplitText(celePodzialu(el), opts);
       var pieces = split[cfg.split];
       el._evkPrevSplit = split;
       tl = buildTimeline((pieces && pieces.length) ? pieces : [el], cfg);

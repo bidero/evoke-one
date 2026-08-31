@@ -130,10 +130,29 @@ module.exports = async function (t) {
 
   const splitSlug = Object.keys(php.presets).find((k) => php.presets[k].split === 'chars');
   if (splitSlug) {
+    /* Szerokość treści PRZED podziałem — punkt odniesienia dla sprawdzenia
+       niżej. Mierzona zanim silnik czegokolwiek dotknie. */
+    const zasiegPrzed = await p.evaluate(() => window.__zasieg());
+
     await p.evaluate((s) => window.__play({ preset: s }), splitSlug);
     await p.waitForTimeout(80);
     const st = await p.evaluate(() => window.__state());
-    t.check('„' + splitSlug + '" dzieli tekst na węzły', st.kids > 1, st.kids + ' węzłów');
+    /* Liczone po KAWAŁKACH, nie po dzieciach sceny. Od 1.124.0 silnik dzieli
+       dzieci kontenera flex, a nie jego samego — scena podglądu jest flexem,
+       więc po podziale stoi w niej jedna owijka z kawałkami w środku. */
+    t.check('„' + splitSlug + '" dzieli tekst na węzły', st.kawalki > 1,
+      st.kawalki + ' kawałków w ' + st.kids + ' węźle');
+
+    /* ZGŁOSZONE Z UŻYCIA — ta sama usterka co na stronie była widoczna TU,
+       w panelu: scena podglądu jest flexem (`.evo-anim-preview-stage`), więc
+       kawałki stawały się jej elementami układu i próbka „Evoke ONE — próbka
+       tekstu" renderowała się jako „EvokeONE—próbkatekstu". Panel pokazywał
+       usterkę jako efekt. Mierzymy szerokość TREŚCI, bo pudełko sceny ma stałe
+       240 px: zgubione spacje kurczą napis. */
+    const zasiegPo = await p.evaluate(() => window.__zasieg());
+    t.check('a spacje w próbce przeżywają podział',
+      Math.abs(zasiegPo - zasiegPrzed) <= 1,
+      zasiegPrzed + ' px → ' + zasiegPo + ' px');
 
     // A po ponownym odegraniu innego presetu scena wraca do czystego tekstu —
     // inaczej podział zostawałby na stałe i kolejne presety grałyby na resztkach.

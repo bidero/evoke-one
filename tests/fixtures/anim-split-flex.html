@@ -1,0 +1,165 @@
+<!--
+  Animator — podział tekstu w elemencie, który jest kontenerem FLEX.
+
+  ZGŁOSZONE Z UŻYCIA: „podmiana liter z hover powoduje, że słowa tworzą jedno
+  słowo o stałych odstępach" i „podmiana linii z hover powoduje, że słowa
+  i ikona nie są w linii".
+
+  SplitText przebudowuje ZAWARTOŚĆ elementu na własne kawałki. Gdy element jest
+  flexem albo gridem, kawałki stają się jego elementami układu i dzieje się
+  wszystko naraz: białe znaki nie tworzą elementów flex, więc SPACJE ZNIKAJĄ;
+  `gap` wchodzi między KAŻDĄ literę; ikona obok napisu przestaje być elementem
+  flex i spada pod tekst; a podział na linie przestaje dzielić, bo słowa leżą
+  w jednym wierszu flex i SplitText widzi jedną linię.
+
+  Każdy przypadek ma KONTROLĘ o tej samej treści — bez niej nie widać, czy to
+  podział rozjeżdża układ, czy tak wygląda sam kontener. Kontrole nie mają
+  animacji celowo: punktem odniesienia jest to, co narysowała przeglądarka,
+  zanim silnik czegokolwiek dotknął.
+
+  Biblioteka presetów wstrzykiwana z PHP przez `head`, jak w anim-swap.html.
+-->
+<meta charset="utf-8">
+<style>
+  body { margin: 0; font: 16px/1.4 system-ui; }
+
+  .napis { margin: 0; font-size: 28px; font-weight: 700; }
+  /* `gap` jest tu ISTOTNY: to on wchodził między litery. Bez niego usterka
+     objawia się tylko sklejeniem słów, a zgłoszenie mówiło też o „stałych
+     odstępach". */
+  .flex  { display: flex; align-items: center; gap: 8px; }
+
+  /* Przycisk jak w Bricksie: napis i ikona jako dwa elementy flex. Ikona jest
+     `display:block`, więc poza układem flex spada pod tekst — i to jest
+     dokładnie zgłoszony objaw. */
+  .btn   { display: inline-flex; align-items: center; gap: 10px;
+           font-size: 20px; background: #eee; padding: 8px 14px; }
+  .ico   { width: 18px; height: 18px; background: #c00; display: block; flex: 0 0 auto; }
+
+  /* Stała szerokość: łamanie linii ma być takie samo przy każdym uruchomieniu. */
+  .waska { width: 420px; }
+</style>
+
+<!-- 1. ZNAKI: szerokość napisu i odstępy między literami. -->
+<div class="napis" id="znakiNatura">Zobacz projekty</div>
+<div class="napis flex" id="znakiFlex" data-evk-anim='{"animation":"ch"}'>Zobacz projekty</div>
+
+<!-- 2. LINIE + IKONA: czy ikona zostaje w linii z napisem. -->
+<div><a class="btn" id="ikonaNatura" href="#"><span>Zobacz projekty</span><span class="ico"></span></a></div>
+<div><a class="btn" id="ikonaFlex" href="#" data-evk-anim='{"animation":"ln"}'><span>Zobacz projekty</span><span class="ico"></span></a></div>
+
+<!-- 3. LINIE: czy podział na linie w ogóle dzieli. Ten sam tekst i ta sama
+     szerokość w bloku i we flexie — liczba linii musi wyjść ta sama. -->
+<div class="napis waska" id="linieBlok" data-evk-anim='{"animation":"li"}'>Projektujemy strony, które wyglądają jak marka, a działają jak narzędzie.</div>
+<div class="napis waska flex" id="linieFlex" data-evk-anim='{"animation":"li"}'>Projektujemy strony, które wyglądają jak marka, a działają jak narzędzie.</div>
+
+<script src="../../assets/vendor/gsap/gsap.min.js"></script>
+<script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
+<script src="../../assets/vendor/gsap/SplitText.min.js"></script>
+<script>
+(function () {
+  var row = function (preset, trigger) {
+    return { preset: preset, trigger: trigger || 'hover', duration: 0.3, delay: 0,
+             stagger: 0.02, easing: 'power3.out', order: 0 };
+  };
+  window.evkAnimator = {
+    library: { ch: row('swap-chars-up'), ln: row('swap-lines-up'), li: row('split-lines', 'load') },
+    presets: (window.__presets && window.__presets.presets) || {},
+    reducedMotion: false,
+    needsFonts: false,
+  };
+})();
+</script>
+<script src="../../assets/js/animator.js"></script>
+<script>
+  /* Kawałki podziału z pominięciem klonów podmiany — klon leży NA oryginale
+     i liczony podwójnie zafałszowałby i liczbę linii, i odstępy. */
+  function kawalki(id, klasa) {
+    return Array.prototype.filter.call(
+      document.getElementById(id).querySelectorAll('.' + klasa),
+      function (k) { return !k.classList.contains('evk-anim-swap-klon'); });
+  }
+
+  /** Szerokość TREŚCI, nie pudełka: kontener flex jest blokiem na całą szerokość. */
+  function zasieg(id) {
+    var r = document.createRange();
+    r.selectNodeContents(document.getElementById(id));
+    return +r.getBoundingClientRect().width.toFixed(1);
+  }
+
+  /**
+   * Dokłada element z animacją — tak jak zrobiłaby to treść z AJAX-a.
+   *
+   * Obserwator podmian planuje wtedy PRZEBUDOWĘ, a ta skanuje cały dokument.
+   * Dopiero wtedy silnik ogląda owijkę, którą sam dołożył pod goły tekst —
+   * i musi ją rozpoznać jako swoją. Inaczej bierze `evk-anim-host` za slug
+   * animacji i przy każdej przebudowie sypie „Brak animacji »host«
+   * w bibliotece", a sama owijka wraca do kolejki bez końca.
+   */
+  window.__dolozTresc = function () {
+    var d = document.createElement('div');
+    d.className = 'napis';
+    d.setAttribute('data-evk-anim', '{"animation":"ch"}');
+    d.textContent = 'Nowa treść';
+    document.body.appendChild(d);
+  };
+
+  window.__podzial = function () {
+    var znaki = kawalki('znakiFlex', 'evk-anim-char');
+    var przerwy = [];
+    for (var i = 1; i < znaki.length; i++) {
+      przerwy.push(+(znaki[i].getBoundingClientRect().left
+                   - znaki[i - 1].getBoundingClientRect().right).toFixed(1));
+    }
+
+    var posortowane = przerwy.slice().sort(function (a, b) { return b - a; });
+
+    var przycisk = function (id) {
+      var el = document.getElementById(id);
+      var b  = el.getBoundingClientRect();
+      var i  = el.querySelector('.ico').getBoundingClientRect();
+      /* Napis szukany po tym, czym NIE jest: po podziale na linie jego własny
+         `<span>` nadal tu stoi, ale jego treść leży już w kawałkach. */
+      var t  = el.querySelector('span:not(.ico)').getBoundingClientRect();
+      return {
+        szer:        +b.width.toFixed(1),
+        wys:         +b.height.toFixed(1),
+        ikonaSrodek: +(i.top + i.height / 2 - b.top).toFixed(1),
+        tekstSrodek: +(t.top + t.height / 2 - b.top).toFixed(1),
+        odstep:      +(i.left - t.right).toFixed(1),
+      };
+    };
+
+    return {
+      znaki: {
+        natura:  zasieg('znakiNatura'),
+        flex:    zasieg('znakiFlex'),
+        kawalkow: znaki.length,
+        przerwy: przerwy,
+        /* „Zobacz projekty" ma dokładnie JEDNĄ spację, więc największa przerwa
+           to ona, a druga w kolejności to największy odstęp WEWNĄTRZ słowa.
+           Po tej parze widać jednym spojrzeniem, czy spacja przeżyła podział
+           i czy `gap` kontenera nie wszedł między litery. */
+        spacja:  posortowane[0] !== undefined ? posortowane[0] : null,
+        wSlowie: posortowane[1] !== undefined ? posortowane[1] : null,
+      },
+      ikona: { natura: przycisk('ikonaNatura'), flex: przycisk('ikonaFlex') },
+      linie: {
+        blok: kawalki('linieBlok', 'evk-anim-line').length,
+        flex: kawalki('linieFlex', 'evk-anim-line').length,
+      },
+      /* Owijka, którą silnik dokłada pod goły tekst. W przycisku napis jest już
+         elementem, więc owijki tam być NIE MOŻE — inaczej silnik dokładałby
+         węzły bez powodu. */
+      owijki: {
+        znakiFlex: document.getElementById('znakiFlex').querySelectorAll('.evk-anim-host').length,
+        ikonaFlex: document.getElementById('ikonaFlex').querySelectorAll('.evk-anim-host').length,
+      },
+      /* Nazwa dostępna napisu w przycisku. SplitText przy `aria: 'auto'` chowa
+         kawałki i przenosi treść do `aria-label` — przy podziale dzieci ma ona
+         wylądować na samym napisie, nie na przycisku. */
+      nazwaNapisu: (document.getElementById('ikonaFlex')
+                      .querySelector('span:not(.ico)').getAttribute('aria-label') || '').trim(),
+    };
+  };
+</script>

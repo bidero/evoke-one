@@ -2,6 +2,65 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.124.0] — 2026-08-31
+
+### Naprawione
+
+- **Podmiana liter sklejała słowa, podmiana linii wyrzucała ikonę pod tekst.**
+  Zgłoszone z użycia: „podmiana liter z hover powoduje, że słowa tworzą jedno
+  słowo o stałych odstępach" i „podmiana linii z hover powoduje, że słowa
+  i ikona nie są w linii".
+
+  Jedna przyczyna na oba objawy: SplitText przebudowuje **zawartość** elementu
+  na własne kawałki, więc gdy element jest kontenerem **flex albo grid**, to one
+  stają się jego elementami układu. Wtedy naraz:
+
+  | | kontrola | przed naprawą | po |
+  |---|---|---|---|
+  | szerokość napisu „Zobacz projekty" (flex, `gap: 8px`) | 253,1 px | **347,4 px** | 253,2 px |
+  | odstęp między literami w słowie | 0 px | **8 px** | 0 px |
+  | wysokość przycisku z ikoną | 44 px | **62 px** | 44 px |
+  | środek ikony vs środek napisu | 22 / 22 px | **45 / 22 px** | 22 / 22 px |
+  | kawałki przy podziale na linie | 4 | **1** | 4 |
+
+  Białe znaki nie tworzą elementów flex, więc **spacje znikały**, a `gap`
+  kontenera wchodził między każdą literę. Ikona przestawała być elementem flex
+  i spadała **23 px pod tekst**. Podział na linie po cichu przestawał dzielić,
+  bo słowa leżą w jednym wierszu flex i SplitText widział jedną linię.
+
+  Silnik dzieli teraz **dzieci** takiego elementu, nie jego samego — układ
+  zostaje przy elemencie, podział schodzi poziom niżej. Goły tekst dostaje
+  owijkę `.evk-anim-host` (dla flexa zmiana neutralna: taki tekst i tak był
+  anonimowym elementem układu), a dziecko bez tekstu — ikona — zostaje
+  nietknięte i dalej jest elementem flex.
+
+  Dotyczy **każdego** presetu dzielącego tekst, nie tylko podmiany: „Tekst po
+  liniach" w kontenerze flex animował dotąd jeden kawałek zamiast czterech.
+
+- **Ten sam błąd był widoczny w podglądzie w panelu.** Scena podglądu jest
+  flexem (`.evo-anim-preview-stage`), więc próbka „Evoke ONE — próbka tekstu"
+  renderowała się jako „EvokeONE—próbkatekstu" — zmierzone 219,2 px przed
+  podziałem i 200,3 px po nim. Panel pokazywał usterkę jako efekt. Podgląd idzie
+  teraz tą samą drogą co strona: 219,8 px.
+
+- **Nazwa dostępna trafia tam, gdzie powinna.** Przy podziale dzieci
+  `aria-label` ląduje na samym napisie, a nie na całym elemencie — ikona
+  i odnośniki obok zachowują swoje nazwy.
+
+### Zmienione
+
+- Nowa atrapa `tests/fixtures/anim-split-flex.html`: każdy przypadek ma
+  kontrolę o tej samej treści **bez animacji**, bo inaczej nie widać, czy układ
+  rozjeżdża podział, czy sam kontener. Dodatkowo sprawdzenie, że owijka jest
+  rozpoznawana jako wytwór silnika — przy przebudowie po dołożeniu treści
+  konsola dostawała inaczej „Brak animacji »host« w bibliotece".
+
+- Sprawdzenie „preset dzieli tekst na węzły" w podglądzie liczy teraz **kawałki
+  w głąb**, a nie dzieci sceny: po podziale stoi w niej jedna owijka, a kawałki
+  siedzą w środku.
+
+Testy: **2261** sprawdzeń (2246 przed wydaniem).
+
 ## [1.123.0] — 2026-08-28
 
 ### Naprawione

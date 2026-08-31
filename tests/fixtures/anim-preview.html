@@ -42,6 +42,19 @@ window.__play = function (cfg, id) {
   return !!tl;
 };
 
+/**
+ * Szerokość TREŚCI sceny, nie jej pudełka.
+ *
+ * Scena jest flexem — tak samo jak `.evo-anim-preview-stage` w panelu — więc
+ * jej pudełko ma stałe 240 px i nie pokazałoby niczego. Treść pokazuje: gdy
+ * podział rozbija napis na elementy flex, spacje przepadają i napis się kurczy.
+ */
+window.__zasieg = function (id) {
+  var r = document.createRange();
+  r.selectNodeContents(document.getElementById(id || 'stage'));
+  return +r.getBoundingClientRect().width.toFixed(1);
+};
+
 /** Stan sceny — po nim widać, czy animacja ruszyła i czy wróciła do siebie. */
 window.__state = function (id) {
   var el = document.getElementById(id || 'stage');
@@ -51,6 +64,12 @@ window.__state = function (id) {
     transform: s.transform,
     text:      el.textContent,
     kids:      el.children.length,
+    /* Kawałki podziału liczone W GŁĄB, nie po dzieciach sceny. Scena jest
+       flexem, więc silnik dzieli jej DZIECI, a nie ją samą (patrz
+       `celePodzialu` w animator.js) — po podziale stoi w niej jedna owijka,
+       a kawałki siedzą w środku. Licząc dzieci, „dzieli tekst" wychodziłoby
+       na 1 przy poprawnym podziale. */
+    kawalki:   el.querySelectorAll('.evk-anim-char, .evk-anim-word, .evk-anim-line').length,
     html:      el.innerHTML.slice(0, 60),
   };
 };

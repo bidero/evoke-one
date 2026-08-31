@@ -333,6 +333,87 @@ module.exports = async function (t) {
     swRed.evaluate(() => document.getElementById('wgore').textContent.trim())
       .then((x) => x === 'Zobacz projekty'), 'sprawdzane niżej');
   await swRed.close();
+
+  /* ── Podział tekstu w kontenerze flex ──────────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: „podmiana liter z hover powoduje, że słowa tworzą
+   * jedno słowo o stałych odstępach" i „podmiana linii z hover powoduje, że
+   * słowa i ikona nie są w linii".
+   *
+   * SplitText przebudowuje ZAWARTOŚĆ elementu na kawałki, więc w kontenerze
+   * flex to one stają się jego elementami układu. Naraz: białe znaki nie
+   * tworzą elementów flex (spacje znikają), `gap` wchodzi między każdą literę,
+   * ikona przestaje być elementem flex i spada pod tekst, a podział na linie
+   * przestaje dzielić, bo słowa leżą w jednym wierszu flex.
+   *
+   * Zmierzone przed naprawą: napis rozdął się z 253 px do 347 px z odstępem
+   * 8 px w każdej szczelinie, ikona spadła 23 px pod tekst (przycisk 44 → 62 px),
+   * a podział na linie dał 1 kawałek zamiast 3.
+   *
+   * Silnik dzieli od 1.124.0 DZIECI takiego elementu, nie jego samego — układ
+   * zostaje przy elemencie. Kontrole w tej atrapie nie mają animacji: punktem
+   * odniesienia jest to, co narysowała przeglądarka przed dotknięciem silnika.
+   */
+  t.section('podział tekstu w kontenerze flex');
+
+  const fx = await t.open('anim-split-flex.html',
+    { viewport: { width: 900, height: 700 }, head: presety, settle: 800 });
+  const pd = await fx.evaluate(() => window.__podzial());
+
+  t.check('jest co mierzyć — tekst rozbity na znaki', pd.znaki.kawalkow >= 10,
+    pd.znaki.kawalkow + ' znaków');
+  t.check('napis ma tę samą szerokość co przed podziałem',
+    Math.abs(pd.znaki.flex - pd.znaki.natura) <= 1,
+    pd.znaki.natura + ' px → ' + pd.znaki.flex + ' px');
+  t.check('spacja między słowami przeżyła podział', pd.znaki.spacja >= 4,
+    'największa przerwa ' + pd.znaki.spacja + ' px');
+  t.check('a `gap` kontenera nie wszedł między litery', pd.znaki.wSlowie < 1,
+    'największa przerwa w słowie ' + pd.znaki.wSlowie + ' px');
+
+  t.check('ikona zostaje w jednej linii z napisem',
+    Math.abs(pd.ikona.flex.ikonaSrodek - pd.ikona.flex.tekstSrodek) <= 1,
+    'ikona ' + pd.ikona.flex.ikonaSrodek + ' px, napis ' + pd.ikona.flex.tekstSrodek + ' px');
+  t.check('przycisk nie urósł', pd.ikona.flex.wys === pd.ikona.natura.wys,
+    pd.ikona.natura.wys + ' px → ' + pd.ikona.flex.wys + ' px');
+  t.check('odstęp napis–ikona zachowany',
+    Math.abs(pd.ikona.flex.odstep - pd.ikona.natura.odstep) <= 1,
+    pd.ikona.natura.odstep + ' px → ' + pd.ikona.flex.odstep + ' px');
+
+  t.check('podział na linie dzieli też we flexie', pd.linie.flex === pd.linie.blok,
+    'blok ' + pd.linie.blok + ' linii, flex ' + pd.linie.flex);
+  t.check('a linii jest więcej niż jedna — inaczej nie ma czego dzielić',
+    pd.linie.blok >= 2, pd.linie.blok + ' linii w kontroli');
+
+  /* Owijka to koszt, nie cel: goły tekst nie da się podzielić osobno, ale napis,
+     który JUŻ jest elementem, ma zostać nietknięty. */
+  t.check('owijka tylko pod gołym tekstem',
+    pd.owijki.znakiFlex === 1 && pd.owijki.ikonaFlex === 0,
+    'nagłówek ' + pd.owijki.znakiFlex + ', przycisk ' + pd.owijki.ikonaFlex);
+  t.check('nazwa dostępna ląduje na napisie, nie na przycisku',
+    pd.nazwaNapisu === 'Zobacz projekty', pd.nazwaNapisu || 'brak');
+  /* Owijka jest WYTWOREM silnika i musi być na jego liście (`WEZEL_SILNIKA`).
+     Widać to dopiero przy przebudowie: obserwator podmian skanuje wtedy cały
+     dokument i bierze `evk-anim-host` za slug animacji — konsola dostaje „Brak
+     animacji »host« w bibliotece", a owijka wraca do kolejki przy każdej
+     kolejnej przebudowie. */
+  await fx.evaluate(() => window.__dolozTresc());
+  await fx.waitForTimeout(400);
+  const brakiWBibliotece = fx.warnings.filter((w) => /Brak animacji/.test(w));
+  t.check('owijka nie jest brana za animację przy przebudowie',
+    !brakiWBibliotece.length, brakiWBibliotece[0] || 'brak ostrzeżeń');
+  /* Kontrola: bez dowodu, że przebudowa NAPRAWDĘ zaszła, cisza w konsoli
+     niczego nie znaczy — dołożony element ma być obsłużony. */
+  const nowy = await fx.evaluate(() => {
+    const d = document.body.lastElementChild;
+    return { gotowy: d.dataset.evkAnimReady === '1',
+             kawalkow: d.querySelectorAll('.evk-anim-char').length };
+  });
+  t.check('a przebudowa naprawdę zaszła — dołożona treść jest obsłużona',
+    nowy.gotowy && nowy.kawalkow > 0, nowy.kawalkow + ' znaków w dołożonym elemencie');
+
+  t.check('bez błędów JS', !fx.errors.length, fx.errors.join(' | ') || 'brak');
+  await fx.close();
+
   /* ── Zakres szerokości okna ────────────────────────────────────────────
    *
    * Zgłoszone jako „media query dla animacji". Wiersz biblioteki dostaje

@@ -287,8 +287,8 @@ if (!defined('EVOKE_ONE_URL')) define('EVOKE_ONE_URL', 'https://example.test/wp-
 if (!defined('EVOKE_TL_FILE'))  define('EVOKE_TL_FILE', EVK_TEST_ROOT . '/evoke-one.php');
 if (!defined('TL_MENU_SLUG'))   define('TL_MENU_SLUG', 'evoke-tlumaczenia');
 if (!defined('TL_MENU_TITLE'))  define('TL_MENU_TITLE', 'Tłumaczenia');
-if (!defined('TL_VERSION'))     define('TL_VERSION', '1.123.0');
-if (!defined('EVOKE_ONE_VERSION')) define('EVOKE_ONE_VERSION', '1.123.0');
+if (!defined('TL_VERSION'))     define('TL_VERSION', '1.124.0');
+if (!defined('EVOKE_ONE_VERSION')) define('EVOKE_ONE_VERSION', '1.124.0');
 
 $slug = $argv[1] ?? '';
 
