@@ -489,17 +489,34 @@ class EVK_Animator {
         if ($w['text'])     $deps[] = 'evk-textplugin';
         if ($w['scramble']) $deps[] = 'evk-scrambletext';
 
-        wp_enqueue_script('evk-animator', EVOKE_ONE_URL . 'assets/js/animator.js',
+        /* Na stronę jedzie wersja SKRÓCONA: 83,4 → 17,1 KiB, czyli o 79% mniej
+           do pobrania i sparsowania. Komentarze w źródle są dokumentacją tego
+           silnika i mają tam zostać — na stronie nie są nikomu potrzebne.
+           Zgłoszone z użycia „elementy pojawiają się z opóźnieniem": zmierzone
+           na lustrze przy dławieniu 6× silnik zaczynał działać dopiero o
+           1757 ms, bo wcześniej trzeba pobrać i wykonać ~200 KiB JS-a.
+
+           Gdyby skróconego pliku nie było — ktoś skopiował wtyczkę bez kroku
+           budowania — bierzemy źródło: lepiej wolniej niż wcale. `SCRIPT_DEBUG`
+           wymusza źródło świadomie, zgodnie ze zwyczajem WordPressa. */
+        $skrocony = dirname(__DIR__, 2) . '/assets/js/animator.min.js';
+        $plik = (!defined('SCRIPT_DEBUG') || !SCRIPT_DEBUG) && file_exists($skrocony)
+            ? 'assets/js/animator.min.js'
+            : 'assets/js/animator.js';
+
+        wp_enqueue_script('evk-animator', EVOKE_ONE_URL . $plik,
             $deps, EVOKE_ONE_VERSION, true);
 
         wp_add_inline_script('evk-animator', 'window.evkAnimator = ' . wp_json_encode([
             'library'        => $library,
             'presets'        => $presets,
             'reducedMotion'  => !empty($s['reduced_motion']),
-            // Czekanie na webfonty ma sens WYŁĄCZNIE przy podziale tekstu —
-            // tylko tam metryki fontu decydują o łamaniu linii. Przy pozostałych
-            // animacjach to czyste opóźnienie startu i źródło błysku treści.
-            'needsFonts'     => $w['split'],
+            /* `needsFonts` już nie wysyłamy — od 1.126.0 silnik na fonty nie
+               czeka wcale. Poprawki po ich wczytaniu robi sam SplitText, przez
+               zdarzenie `loadingdone` i tylko przy podziale na linie. Nasze
+               czekanie rozbijało pierwszy przebieg na dwa: zmierzone na lustrze
+               przy dławieniu 6× pierwsze kawałki podziału wychodziły o 6137 ms,
+               choć fonty były gotowe o 1932 ms. */
         ]) . ';', 'before');
     }
 }

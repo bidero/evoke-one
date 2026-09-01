@@ -9,8 +9,41 @@
  */
 
 const { phpOutput } = require('./lib/harness');
+const { execFileSync } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
 module.exports = async function (t) {
+  /* ── Wersja skrócona silnika ────────────────────────────────────────────
+   *
+   * Na stronę jedzie `animator.min.js` (83,4 → 17,1 KiB), a testy chodzą na
+   * źródle. Najgroźniejszy możliwy błąd tej pary to CICHY ROZJAZD: ktoś poprawia
+   * silnik, zapomina przebudować, testy świecą na zielono na nowym kodzie,
+   * a odwiedzający dostaje stary. Dlatego pierwsze sprawdzenie w tym pliku
+   * pyta o aktualność wytworu, a nie o zachowanie.
+   */
+  t.section('skrócony silnik jest aktualny');
+
+  const KORZEN = path.join(__dirname, '..');
+  let swiezy = true, powod = 'aktualny';
+  try {
+    execFileSync('node', [path.join(KORZEN, 'tools', 'minifikuj.js'), '--sprawdz'],
+      { stdio: 'pipe' });
+  } catch (e) {
+    swiezy = false;
+    powod = String((e.stderr || e.stdout || e.message)).trim().split('\n')[0];
+  }
+  t.check('animator.min.js zbudowany z bieżącego animator.js', swiezy, powod);
+
+  const MIN = path.join(KORZEN, 'assets', 'js', 'animator.min.js');
+  t.check('i jest realnie mniejszy od źródła',
+    fs.existsSync(MIN)
+      && fs.statSync(MIN).size < fs.statSync(path.join(KORZEN, 'assets', 'js', 'animator.js')).size / 2,
+    fs.existsSync(MIN)
+      ? Math.round(fs.statSync(MIN).size / 1024) + ' KiB z '
+        + Math.round(fs.statSync(path.join(KORZEN, 'assets', 'js', 'animator.js')).size / 1024) + ' KiB'
+      : 'brak pliku');
+
   t.section('wyzwalacz „wczytanie strony”');
 
   const page = await t.open('animator.html', { viewport: { width: 1000, height: 700 }, settle: 0 });

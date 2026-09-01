@@ -33,27 +33,47 @@
   /** Kiedy silnik zdjął zasłonę, w ms od startu nawigacji. Null = nie zdjął jej. */
   var zaslonaZdjeta = null;
 
-  /* Czy metryki fontów są już znane.
+  /* Rozbicie czasu startu do `?evk-anim-debug=1`. Bez niego przy zgłoszeniu
+     „elementy pojawiają się z opóźnieniem" nie da się rozstrzygnąć, czy czas
+     schodzi na dojazd skryptów, czy na pracę silnika — a to zupełnie inne
+     naprawy. `silnikStart` bierzemy w chwili wykonania pliku. */
+  var silnikStart = Math.round(performance.now());
+  var fazaJeden = null;
+  var fazaDwa = null;
+  /* Rozbicie samej fazy 1 na dwie składowe. Bez nich „faza 1 kosztuje 800 ms"
+     nie mówi, co skracać: czytanie konfiguracji czy nakładanie stanów. */
+  var czasKonfiguracji = 0;
+  var czasStanow = 0;
+
+  /* CZEKANIA NA FONTY JUŻ NIE MA — i to jest zmiana z 1.126.0, nie przeoczenie.
    *
-   * Czekanie na fonty ma sens WYŁĄCZNIE dla podziału tekstu — tylko tam
-   * metryki decydują o łamaniu linii. Do 1.96.0 czekała na nie CAŁA
-   * inicjalizacja, więc wszystko, co silnik robi z drzewem, lądowało sekundę
-   * po wczytaniu strony — czyli wprost w pierwszym machnięciu palcem na
-   * telefonie. Zmiana wymiarów strony w tym momencie budzi obserwatory, które
-   * odświeżają wyzwalacze, a odświeżenie zapisuje pozycję przewijania i ucina
-   * bezwładność. Zgłoszone z użycia jako „zwalnia i nagle się zatrzymuje".
+   * Do 1.125.0 konfiguracje z podziałem tekstu odkładały się do
+   * `document.fonts.ready`, bo metryki fontu decydują o łamaniu LINII.
+   * Zmierzone na lustrze przy dławieniu 6×: fonty były gotowe o 1932 ms, czyli
+   * w środku pierwszego przebiegu — więc odłożenie nie tyle czekało, ile
+   * rozbijało pracę na DWA pełne przebiegi po wszystkich elementach. Pierwsze
+   * kawałki podziału pojawiały się o 6137 ms.
    *
-   * Reszta animacji rusza więc od razu, a podział czeka. */
-  var fontyGotowe = false;
+   * Robi to za nas SplitText: przy `autoSplit` dopina się do zdarzenia
+   * `loadingdone` i przedziela tekst sam — i tylko przy podziale na linie,
+   * czyli dokładnie tam, gdzie metryki mają znaczenie (widać to w źródle
+   * wtyczki: `D && y && o && D.addEventListener("loadingdone", this._split)`).
+   * Nasze czekanie było więc drugą kopią jego mechanizmu.
+   *
+   * Cena: wejście po liniach, które zdąży zagrać PRZED wczytaniem fontów,
+   * zagra ponownie po przedzieleniu. Na wolnym łączu to się zdarzy — ale
+   * sekunda niewidocznej treści kosztuje więcej niż powtórzone wejście. */
 
   /**
    * Znacznik „ten element jeszcze czeka — nie pokazuj go”.
    *
-   * Zasłona `evk-veil` jest jedna na cały dokument i schodzi, gdy silnik
-   * skończy pierwszy przebieg. Element z podziałem tekstu kończy wtedy dopiero
-   * połowę drogi: jego animacja powstanie po wczytaniu fontów. Pokazany
-   * w międzyczasie mrugnie treścią i skoczy do stanu początkowego — czyli
-   * dokładnie ten błysk, przeciw któremu zasłona powstała.
+   * Zasłona `evk-veil` jest jedna na cały dokument i schodzi po TANIEJ fazie
+   * pierwszego przebiegu (patrz `przygotuj`). Element z podziałem tekstu albo
+   * z efektem tekstowym nie ma wtedy czego nałożyć — jego stan początkowy leży
+   * na kawałkach, których jeszcze nie ma. Pokazany w międzyczasie mrugnąłby
+   * treścią i skoczył do stanu początkowego, czyli dokładnie ten błysk,
+   * przeciw któremu zasłona powstała. Znacznik schodzi po zbudowaniu, w fazie
+   * drugiej.
    *
    * Atrybut, nie klasa: nazwa klasy z ciągiem „evk-anim-” wpadłaby w selektor,
    * którym silnik zbiera elementy (patrz komentarz przy render_preveil()).
@@ -210,7 +230,7 @@
     // dołożyłoby parametr do ośmiu sygnatur, żeby przeczytać go w jednej.
     // `idx` — tożsamość konfiguracji w obrębie elementu. Kolejność jest stała,
     // bo bierze się z atrybutu i klas, a te się nie zmieniają; dzięki temu
-    // initOne() pamięta między wywołaniami, co już zbudował.
+    // przygotuj() pamięta między wywołaniami, co już zbudował.
     out.forEach(function (cfg, i) { cfg.siblings = out.length; cfg.idx = i; });
     return out;
   }
@@ -1112,9 +1132,22 @@
     return true;
   }
 
-  function initOne(el) {
+  /**
+   * FAZA 1 — wszystko, co tanie: konfiguracje, zakres szerokości, redukcja
+   * ruchu i STAN POCZĄTKOWY. Zwraca zadanie dla fazy 2 albo `null`, gdy nie ma
+   * czego robić.
+   *
+   * Podział na fazy jest odpowiedzią na zgłoszenie „elementy pojawiają się
+   * z opóźnieniem". Zmierzone na lustrze przy dławieniu procesora 6×: silnik
+   * ruszał o 1757 ms, a zasłona schodziła dopiero o 2993 ms — 1236 ms treść
+   * była niewidoczna, choć wszystko, co zasłona chroni, to stan początkowy.
+   * Nałożenie go kosztuje ułamek tego czasu; osie czasu, ScrollTriggery
+   * i podział tekstu mogą poczekać, aż treść będzie na ekranie.
+   */
+  function przygotuj(el) {
+    var t0 = performance.now();
     var cfgs = buildConfigs(el);
-    if (!cfgs.length) return false;   // brak konfiguracji → spróbuj ponownie później
+    if (!cfgs.length) return null;   // brak konfiguracji → spróbuj ponownie później
 
     /* Zakres szerokości okna. PRZED gałęzią redukcji ruchu i to jest znaczące:
        poza zakresem animacja ma nie ISTNIEĆ, więc nie wolno nakładać jej stanu
@@ -1122,41 +1155,11 @@
        taki, jak wyrenderował go CSS.
 
        Nie ma tu też ryzyka, że treść zniknie: zasłonę `evk-veil` zdejmuje
-       `unveil()` bezwarunkowo na końcu initAll(), niezależnie od tego, ile
-       elementów się zainicjalizowało. */
+       `unveil()` bezwarunkowo po fazie 1, niezależnie od tego, ile elementów
+       się zainicjalizowało. */
     var wszystkich = cfgs.length;
     cfgs = cfgs.filter(wZakresie);
     var pominieto = cfgs.length !== wszystkich;
-
-    /* Podział tekstu czeka na metryki fontów — tą samą drogą co zakres
-       szerokości: konfiguracja odpada, element nie dostaje znacznika gotowości
-       i wraca, gdy fonty dojadą. Jedna mechanika na dwa powody odłożenia.
-
-       NIE przy redukcji ruchu. Tam nic się nie animuje i nic nie dzieli, więc
-       metryki fontu są bez znaczenia — a czekanie na nie trzymałoby treść pod
-       zasłoną przez sekundę bez żadnego powodu.
-
-       ODŁOŻONY ELEMENT MUSI ZOSTAĆ NIEWIDOCZNY. To jest cała różnica między
-       tym odłożeniem a odłożeniem z powodu szerokości: tam animacja ma nie
-       istnieć i element ma być widoczny taki, jak wyrenderował go CSS. Tu
-       animacja ZA CHWILĘ nadejdzie i nałoży swój stan początkowy — a element
-       pokazany w międzyczasie mrugnie treścią, po czym skoczy do „from”
-       i dopiero zagra. Dokładnie ten błysk, dla którego w 1.27.2 powstała
-       zasłona; 1.96.0 zdjęło ją globalnie i przywróciło błysk podzielonym
-       tekstom. Zgłoszone z użycia.
-
-       Znacznik jest WŁASNY, nie klasa `evk-veil`: zasłona schodzi z całego
-       dokumentu na końcu initAll(), a ten element ma zostać schowany dłużej
-       niż reszta strony. Bezpiecznik czasowy zdejmuje go razem z zasłoną —
-       patrz render_preveil() w includes/anim/animator.php. */
-    var czekaNaFonty = false;
-    if (!fontyGotowe && !prefersReduced()) {
-      var przedFontami = cfgs.length;
-      cfgs = cfgs.filter(function (cfg) { return !cfg.split; });
-      if (cfgs.length !== przedFontami) { pominieto = true; czekaNaFonty = true; }
-    }
-    if (czekaNaFonty) el.setAttribute(ATRYBUT_CZEKA, '1');
-    else              el.removeAttribute(ATRYBUT_CZEKA);
 
     /* Co już zbudowane, nie buduje się drugi raz.
        
@@ -1173,7 +1176,7 @@
        i dobuduje to, co odpadło. Znacznika nie stawiamy TAKŻE wtedy, gdy
        zbudowaliśmy część: inaczej element z dwiema animacjami zablokowałby
        tę pominiętą na zawsze. */
-    if (!cfgs.length) return !pominieto;
+    if (!cfgs.length) return { el: el, cfgs: [], pominieto: pominieto };
 
     cfgs.forEach(function (cfg) { zbudowane[cfg.idx] = true; });
 
@@ -1206,15 +1209,43 @@
           gsap.set(resolveTargets(el, cfg), cfg.to);
         }
       });
-      return !pominieto;
+      return { el: el, cfgs: [], pominieto: pominieto };
     }
+
+    /* Stan początkowy — jedyne, co zasłona naprawdę chroni.
+     *
+     * Podział tekstu i efekty tekstowe nakładają go na KAWAŁKI, których jeszcze
+     * nie ma; taki element zostaje pod własnym znacznikiem do końca fazy 2. */
+    var czeka = false;
+    czasKonfiguracji += performance.now() - t0;
+    var t1 = performance.now();
+    cfgs.forEach(function (cfg) {
+      if (cfg.split || cfg.textFx) { czeka = true; return; }
+      var start = stanPoczatkowy(cfg);
+      if (start) gsap.set(resolveTargets(el, cfg), start);
+    });
+    czasStanow += performance.now() - t1;
+    if (czeka) el.setAttribute(ATRYBUT_CZEKA, '1');
+
+    return { el: el, cfgs: cfgs, pominieto: pominieto };
+  }
+
+  /**
+   * FAZA 2 — droga część: podział tekstu, osie czasu, ScrollTriggery.
+   *
+   * Wszystko, co dotyka układu strony i tworzy wyzwalacze, czyli to, na co
+   * przy 36 elementach i 22 ScrollTriggerach schodzi ponad sekunda na wolnym
+   * procesorze. Treść jest w tym czasie już widoczna.
+   */
+  function zbuduj(zadanie) {
+    var el = zadanie.el;
 
     // Podział tekstu wolno zrobić RAZ na element. Dwa `SplitText.create()` na
     // tym samym węźle dzielą już podzielony DOM, a `autoSplit` przy zmianie
     // szerokości okna odbudowuje kawałki, na których wisi pierwsza oś czasu.
     var splitUsed = false;
 
-    cfgs.forEach(function (cfg) {
+    zadanie.cfgs.forEach(function (cfg) {
       if (cfg.split && typeof SplitText !== 'undefined') {
         if (splitUsed) {
           console.warn('[EVK Animator] Drugi podział tekstu na tym samym elemencie '
@@ -1229,7 +1260,13 @@
       }
       buildAnimation(el, resolveTargets(el, cfg), cfg);
     });
-    return !pominieto;
+
+    el.removeAttribute(ATRYBUT_CZEKA);
+
+    /* Znacznik gotowości dopiero TUTAJ, nie w fazie 1. `queueLoad()` czyta go,
+       żeby nie odtwarzać wejścia drugi raz — postawiony za wcześnie wyciszyłby
+       wszystkie animacje z wyzwalaczem „wczytanie strony". */
+    if (!zadanie.pominieto) el.dataset.evkAnimReady = '1';
   }
 
   /**
@@ -1237,6 +1274,30 @@
    * Nazwa klasy celowo poza przestrzenią „evk-anim-" — inaczej selektor w initAll()
    * łapie sam korzeń dokumentu i silnik szuka animacji o slugu z tej klasy.
    */
+  /**
+   * Stan początkowy do nałożenia w fazie 1 — albo `null`, gdy silnik żadnego
+   * nie nakłada.
+   *
+   * REGUŁA JEST BLIŹNIACZA Z `wiersz_zaslania()` w includes/anim/animator.php:
+   * zasłona chowa dokładnie to, czemu tu nakładamy stan. Gdyby się rozjechały,
+   * element albo mrugnąłby treścią (zasłona chowa mniej), albo czekał bez
+   * powodu (chowa więcej).
+   *
+   * — `hover`/`click` → nic. `attachInteractive()` woła `buildTimeline` z
+   *   `bezFrom = !cfg.stan`, a presety stanowe trzymają w `from` stan SPOCZYNKU.
+   * — `exit`/`menu-close` → nic. Obie ścieżki budują tween z
+   *   `immediateRender: false`, właśnie po to, żeby nie przykryć tego, co widać.
+   * — `viewport`/`load`/`scrub` → `from`, bo tam leci `fromTo`, które renderuje
+   *   stan początkowy natychmiast.
+   */
+  var WYZWALACZE_ZE_STANEM = { viewport: 1, load: 1, scrub: 1 };
+
+  function stanPoczatkowy(cfg) {
+    if (cfg.pointer) return null;              // śledzenie kursora nie ma „od"
+    if (!WYZWALACZE_ZE_STANEM[cfg.trigger]) return null;
+    return cfg.from ? Object.assign({}, cfg.from) : null;
+  }
+
   function unveil() {
     /* Moment zdjęcia zasłony — do raportu `?evk-anim-debug=1`. To jest liczba,
        której szuka się przy zgłoszeniu „elementy pojawiają się z opóźnieniem":
@@ -1247,7 +1308,32 @@
     document.documentElement.classList.remove('evk-veil');
   }
 
-  function initAll() {
+  /** Czy PIERWSZY przebieg jeszcze przed nami — tylko on odkłada fazę 2. */
+  var pierwszyRaz = true;
+
+  /** Następna klatka, czyli najwcześniejszy moment PO namalowaniu strony. */
+  function poKlatce(co) {
+    if (window.requestAnimationFrame) requestAnimationFrame(co);
+    else                              setTimeout(co, 16);
+  }
+
+  /**
+   * Pierwszy przebieg idzie w dwóch fazach, rozdzielonych jedną klatką.
+   *
+   * KLATKA JEST MECHANIZMEM, NIE OZDOBĄ. `unveil()` zdejmuje klasę, ale
+   * przeglądarka maluje dopiero po zakończeniu ZADANIA — gdyby faza 2 szła
+   * w tym samym, wcześniejsze odsłonięcie nie dałoby nic. Zmierzone przed
+   * zmianą: przy dławieniu 6× treść czekała 1236 ms na budowanie, które
+   * w niczym jej nie dotyczy.
+   *
+   * Odkładamy TYLKO pierwszy przebieg. Kolejne (zmiana progu szerokości,
+   * podmiana treści, `evkAnimatorRefresh`) idą synchronicznie, bo zasłony już
+   * nie ma i nie ma czego przyspieszać — a wołający mają prawo oczekiwać, że
+   * po powrocie z funkcji animacje istnieją.
+   */
+  function initAll(poBudowaniu) {
+    var zadania = [];
+
     document.querySelectorAll(SELEKTOR_ANIM).forEach(function (el) {
       if (el.dataset.evkAnimReady === '1') return;
       /* Wytwory silnika odpadają BEZ budowania konfiguracji. Bez tego każdy
@@ -1256,12 +1342,25 @@
          każdej kolejnej zmianie progu szerokości. Przy podziale na znaki to
          kilkadziesiąt węzłów na jeden nagłówek. */
       if (tylkoWezelSilnika(el)) return;
-      if (initOne(el)) el.dataset.evkAnimReady = '1';
+      var zadanie = przygotuj(el);
+      if (zadanie) zadania.push(zadanie);
     });
-    runLoadQueue();
+
+    fazaJeden = Math.round(performance.now());
+
     // Bezwarunkowo — także gdy część elementów się nie zainicjalizowała.
     // Stany „from" są już nałożone, więc nie ma czym błysnąć.
     unveil();
+
+    var faza2 = function () {
+      zadania.forEach(zbuduj);
+      runLoadQueue();
+      fazaDwa = Math.round(performance.now());
+      if (poBudowaniu) poBudowaniu();
+    };
+
+    if (pierwszyRaz) { pierwszyRaz = false; poKlatce(faza2); }
+    else             faza2();
   }
 
   /**
@@ -1479,6 +1578,14 @@
       zaslonaMs:     zaslonaZdjeta,
       podZaslona:    document.querySelectorAll('[data-evk-anim-czeka]').length,
       redukcjaRuchu: prefersReduced(),
+      /* Rozbicie startu: kiedy plik ruszył, kiedy skończyła się tania faza
+         (po niej treść jest widoczna) i kiedy droga. Różnica `silnikStartMs`
+         minus zero to dojazd i parsowanie skryptów — tego silnik nie skróci. */
+      silnikStartMs: silnikStart,
+      fazaJedenMs:   fazaJeden,
+      fazaDwaMs:     fazaDwa,
+      konfiguracjeMs: Math.round(czasKonfiguracji),
+      stanyMs:        Math.round(czasStanow),
     });
     if (console.table) console.table(wiersze);
     if (scrubow) {
@@ -1491,15 +1598,19 @@
 
   /** Pierwsze uruchomienie: budowa plus nasłuch progów szerokości. */
   function pierwszyPrzebieg() {
-    initAll();
-    if (window.matchMedia) sledzProgi();
-    sledzPodmiany();
+    /* Nasłuchy i raport DOPIERO po fazie 2 — inaczej diagnostyka opisywałaby
+       stronę sprzed budowania i pokazywała zero kawałków podziału przy każdym
+       uruchomieniu. Dokładnie taki mylący odczyt przyszedł ze zgłoszenia. */
+    initAll(function () {
+      if (window.matchMedia) sledzProgi();
+      sledzPodmiany();
 
-    var gadaj = false;
-    try {
-      gadaj = new URLSearchParams(location.search).get('evk-anim-debug') === '1';
-    } catch (e) { /* starsze przeglądarki — diagnostyka po prostu nie wchodzi */ }
-    if (gadaj) raportKosztu();
+      var gadaj = false;
+      try {
+        gadaj = new URLSearchParams(location.search).get('evk-anim-debug') === '1';
+      } catch (e) { /* starsze przeglądarki — diagnostyka po prostu nie wchodzi */ }
+      if (gadaj) raportKosztu();
+    });
   }
 
   function start() {
@@ -1508,39 +1619,10 @@
       return;
     }
 
-    /* Na webfonty czeka TYLKO podział tekstu — jedynie tam metryki fontu
-       decydują o łamaniu linii. Do 1.96.0 czekało na nie całe uruchomienie
-       i wszystko, co silnik robi z drzewem, lądowało sekundę po wczytaniu
-       strony; na telefonie trafiało to wprost w pierwsze machnięcie palcem.
-       Teraz start jest natychmiastowy, a konfiguracje z podziałem odkłada
-       initOne() — dokładnie tak samo, jak odkłada te poza zakresem szerokości. */
-    var czekaNaFonty = G.needsFonts
-        && document.fonts && document.fonts.ready
-        && typeof document.fonts.ready.then === 'function';
-
-    if (!czekaNaFonty) fontyGotowe = true;
-
-    var poPierwszym = false;
-    waitForGSAP(function () { poPierwszym = true; pierwszyPrzebieg(); });
-
-    if (czekaNaFonty) {
-      document.fonts.ready.then(function () {
-        fontyGotowe = true;
-        /* Tylko gdy pierwszy przebieg już był. Fonty potrafią być gotowe zanim
-           dojedzie GSAP (pliki z cache, wolna sieć) — przebudowa poleciałaby
-           wtedy bez biblioteki. Nie ma jej zresztą po co: pierwszy przebieg
-           zobaczy `fontyGotowe` i zbuduje podział od razu.
-
-           OD RAZU, nie przez kolejkę bezczynności. Odłożone elementy czekają
-           pod własną zasłoną, więc każda milisekunda zwłoki to milisekunda
-           pustego miejsca w treści — a kolejka dokłada do niej nawet 200 ms.
-           Powód, dla którego 1.96.0 ją tu wstawiło, obsługuje dziś kto inny:
-           przeliczenie wyzwalaczy idzie przez `evkOdswiez`, który sam czeka,
-           aż przewijanie ustanie. Zwłoka w budowaniu niczego już nie chroni,
-           a widać ją gołym okiem. */
-        if (poPierwszym) initAll();
-      });
-    }
+    /* Start jest natychmiastowy — na nic nie czekamy.
+       Wczytanie fontów obsługuje SplitText sam, przez `loadingdone`
+       (patrz komentarz na górze pliku). */
+    waitForGSAP(pierwszyPrzebieg);
   }
 
   if (document.readyState === 'loading') {
@@ -1565,6 +1647,11 @@
       zaslonaMs:     zaslonaZdjeta,
       redukcjaRuchu: prefersReduced(),
       elementow:     document.querySelectorAll('[data-evk-anim-ready="1"]').length,
+      silnikStartMs: silnikStart,
+      fazaJedenMs:   fazaJeden,
+      fazaDwaMs:     fazaDwa,
+      konfiguracjeMs: Math.round(czasKonfiguracji),
+      stanyMs:        Math.round(czasStanow),
     };
   };
 

@@ -2,6 +2,89 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.126.0] — 2026-09-01
+
+### Naprawione
+
+- **Pierwszy przebieg silnika nie blokuje już wątku jednym kawałkiem.** Log
+  z komputera zgłaszającego (`?evk-anim-debug=1`) obalił poprzednią hipotezę
+  o systemowej redukcji ruchu — `redukcjaRuchu: false`, a `zaslonaMs: 2823`.
+  To był zwykły czas pracy.
+
+  Pierwszy przebieg dzieli się teraz na dwie fazy: **tania** (konfiguracje,
+  zakres szerokości, stan początkowy) → **zdjęcie zasłony** → klatka →
+  **droga** (podział tekstu, osie czasu, ScrollTriggery). Klatka jest tu
+  mechanizmem, nie ozdobą: przeglądarka maluje po zakończeniu ZADANIA, więc bez
+  niej wcześniejsze odsłonięcie nie dałoby nic.
+
+  Zmierzone na lustrze przy dławieniu procesora 6×, mediana z trzech przebiegów,
+  ten sam stan pamięci podręcznej:
+
+  | | przed | po |
+  |---|---|---|
+  | treść widoczna | 1705 ms | **1560 ms** |
+  | **najdłuższe pojedyncze zadanie** | **2351 ms** | **1551 ms** |
+  | suma długich zadań | 3871 ms | 4061 ms |
+
+  **Najuczciwsza część tego wpisu:** na „treść widoczna" zysk to 145 ms, czyli
+  znacznie mniej, niż zapowiadałem, planując tę zmianę. Założenie „stan
+  początkowy kosztuje ułamek tego, co budowanie" okazało się fałszywe — sama
+  faza 1 to przy 39 elementach ~500 ms (z czego konfiguracje 12 ms, nakładanie
+  stanów 189 ms, reszta to skan dokumentu selektorem `[class*="evk-anim-"]`).
+  Realny zysk jest gdzie indziej: **najdłuższe zadanie blokujące wątek spadło
+  o 800 ms**, więc strona przestaje stać w miejscu na 2,3 s z rzędu.
+
+- **Koniec czekania na fonty.** Konfiguracje z podziałem tekstu odkładały się do
+  `document.fonts.ready`, a element wisiał ukryty. Zmierzone wcześniej: fonty
+  bywają gotowe w środku pierwszego przebiegu, więc odłożenie nie tyle czekało,
+  ile rozbijało pracę na dwa pełne przebiegi po wszystkich elementach.
+
+  Robi to za nas SplitText: przy `autoSplit` dopina się do zdarzenia
+  `loadingdone` i przedziela tekst sam — i tylko przy podziale na linie, czyli
+  tam, gdzie metryki fontu zmieniają łamanie (widać to w źródle wtyczki:
+  `D && y && o && D.addEventListener("loadingdone", this._split)`). Nasze
+  czekanie było drugą kopią jego mechanizmu.
+
+  **Cena, wypisana wprost:** wejście po liniach, które zdąży zagrać przed
+  wczytaniem fontów, zagra ponownie po przedzieleniu. Na wolnym łączu to się
+  zdarzy. Sekunda niewidocznej treści kosztuje jednak więcej niż powtórzone
+  wejście.
+
+### Zmienione
+
+- **Silnik jedzie na stronę w wersji skróconej: 84,0 → 17,3 KiB (−79%).**
+  Komentarze w źródle są dokumentacją tego silnika i tam zostają; na stronie nie
+  są nikomu potrzebne. Nowy `tools/minifikuj.js` (terser jako narzędzie
+  budowania — wtyczka nadal nie ma żadnych zależności runtime), `SCRIPT_DEBUG`
+  wymusza źródło, a osobne sprawdzenie w testach pilnuje, żeby wytwór nie był
+  NIEAKTUALNY względem źródła. Bez tego najgroźniejszy błąd tej pary to cichy
+  rozjazd: testy chodzą na nowym kodzie, a odwiedzający dostaje stary.
+
+  Na localhoście tego nie widać i widać nie może — tam bajty dojeżdżają
+  natychmiast. Zysk jest z tej samej półki co preload z 1.125.0: mniej do
+  pobrania i sparsowania, zanim silnik w ogóle ruszy.
+
+- **`?evk-anim-debug=1` pokazuje, gdzie schodzi czas**: `silnikStartMs` (dojazd
+  i parsowanie skryptów), `fazaJedenMs`, `fazaDwaMs` oraz rozbicie samej fazy 1
+  na `konfiguracjeMs` i `stanyMs`. Raport wypisuje się teraz PO fazie 2 —
+  wcześniej opisywał stronę sprzed budowania i pokazywał zero kawałków podziału,
+  co samo w sobie wprowadziło mnie w błąd przy poprzedniej diagnozie.
+
+- `tools/lustro/zmierz-start.js` pokazuje fazy w tabeli i moment pojawienia się
+  pierwszych kawałków podziału.
+
+### Co z tego wynika na przyszłość
+
+Największym pojedynczym składnikiem startu nie jest już nic, co Animator robi
+sam: przy 6× **silnik zaczyna działać dopiero po ~1,1–1,8 s**, bo tyle trwa
+dojazd i wykonanie wszystkiego, co strona ładuje przed nim. Drugi składnik to
+faza 2 — ~1 s pracy GSAP-a przy 22 ScrollTriggerach, z czego 21 ze `scrub`.
+Dalsze skracanie wymaga albo rozbicia fazy 2 na porcje (strona przestanie
+zamierać, choć suma pracy zostanie ta sama), albo ograniczenia liczby wyzwalaczy
+`scrub` — i to jest osobna decyzja.
+
+Testy: **2270** sprawdzeń.
+
 ## [1.125.0] — 2026-09-01
 
 ### Naprawione

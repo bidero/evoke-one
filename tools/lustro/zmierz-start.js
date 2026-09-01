@@ -84,6 +84,17 @@ window.__zaslona = { start: null, koniec: null, ukrytych: null, zdjal: null };
    * sekcji też wychodzi ukryte i licznik pokazywał 102 ze 103 elementów
    * niezależnie od tego, co w regule stoi. Bierzemy selektor prosto z arkusza
    * i pytamy, co się z nim zgadza. */
+  /* Kiedy pojawią się pierwsze kawałki podziału tekstu. Do 1.125.0 podział
+     czekał na fonty i lądował w DRUGIM przebiegu — na dławionym procesorze
+     ponad trzy sekundy po zdjęciu zasłony. */
+  var pilnuj = setInterval(function () {
+    if (document.querySelector('.evk-anim-char, .evk-anim-line, .evk-anim-word')) {
+      window.__zaslona.kawalkiMs = Math.round(performance.now());
+      clearInterval(pilnuj);
+    }
+  }, 30);
+  setTimeout(function () { clearInterval(pilnuj); }, 12000);
+
   document.addEventListener('DOMContentLoaded', function () {
     var styl = document.getElementById('evk-anim-preveil');
     if (!styl || !styl.sheet) { window.__zaslona.ukrytych = null; return; }
@@ -105,8 +116,8 @@ window.__zaslona = { start: null, koniec: null, ukrytych: null, zdjal: null };
   const browser = await chromium.launch({ executablePath: chromiumPath() });
   console.log('adres:', ADRES);
   console.log('');
-  console.log('scenariusz          zasłona zdjęta   pod zasłoną   FCP       kto zdjął');
-  console.log('─────────────────────────────────────────────────────────────────────');
+  console.log('scenariusz          zasłona   silnik    faza 1    faza 2    kawałki   kto zdjął');
+  console.log('──────────────────────────────────────────────────────────────────────────────');
 
   for (const sc of SCENARIUSZE) {
     const ctx = await browser.newContext({
@@ -142,11 +153,14 @@ window.__zaslona = { start: null, koniec: null, ukrytych: null, zdjal: null };
       : (w.stan.zaslonaMs === null ? 'bezpiecznik' : 'silnik');
 
     const ms = (x) => (x === null || x === undefined ? '—' : Math.round(x) + ' ms');
+    const st = w.stan || {};
     console.log(
       sc.opis.padEnd(19),
-      ms(w.z.koniec).padEnd(16),
-      String(w.z.ukrytych === null ? '—' : w.z.ukrytych).padEnd(13),
-      ms(w.fcp).padEnd(9),
+      ms(w.z.koniec).padEnd(9),
+      ms(st.silnikStartMs).padEnd(9),
+      ms(st.fazaJedenMs).padEnd(9),
+      ms(st.fazaDwaMs).padEnd(9),
+      ms(w.z.kawalkiMs).padEnd(9),
       w.z.koniec === null ? '(zasłony nie było)' : kto
     );
     await ctx.close();

@@ -1,20 +1,24 @@
 <!--
-  Animator — co czeka na webfonty, a co nie.
+  Animator — start w dwóch fazach i koniec czekania na webfonty.
 
-  Do 1.96.0 `needsFonts` wstrzymywało CAŁE uruchomienie silnika: podział tekstu,
-  zwykłe animacje, zdjęcie zasłony — wszystko lądowało dopiero po
-  `document.fonts.ready`. Na żywej stronie to sekunda po wczytaniu, czyli
-  dokładnie w chwili pierwszego machnięcia palcem; zmiana wymiarów strony
-  wypalała wtedy obserwator marquee, ten wołał `ScrollTrigger.refresh()`,
-  a refresh ZAPISUJE pozycję przewijania i na iOS kasuje bezwładność.
+  HISTORIA, bo bez niej ta atrapa wygląda na przerost formy:
+  do 1.96.0 `needsFonts` wstrzymywało CAŁE uruchomienie silnika — podział
+  tekstu, zwykłe animacje i zdjęcie zasłony lądowały po `document.fonts.ready`.
+  1.96.0 zawęziło czekanie do samego podziału. **1.126.0 zdejmuje je zupełnie**:
+  zmierzone na lustrze przy dławieniu 6×, fonty były gotowe o 1932 ms, czyli
+  w środku pierwszego przebiegu — więc odłożenie nie tyle czekało, ile rozbijało
+  pracę na dwa pełne przebiegi i pierwsze kawałki podziału wychodziły o 6137 ms.
+  Poprawki po wczytaniu fontów robi dziś sam SplitText, przez `loadingdone`
+  i tylko przy podziale na linie.
 
-  Na fonty czeka tylko PODZIAŁ tekstu, bo tylko tam metryki fontu decydują
-  o łamaniu linii.
+  Zamiast tego pierwszy przebieg dzieli się na FAZY: tania (stan początkowy)
+  → zdjęcie zasłony → klatka → droga (podział, osie czasu, ScrollTriggery).
+  Ta atrapa mierzy jedno i drugie, bo to ta sama zmiana.
 
-  Fixture podstawia własne `document.fonts.ready` — obietnicę, którą test
-  rozwiązuje wtedy, kiedy chce. Bez tego „przed wczytaniem fontów" jest
-  w przeglądarce nie do uchwycenia: fonty systemowe są gotowe natychmiast
-  i oba przypadki wyglądają tak samo.
+  Fixture podstawia własne `document.fonts.ready` — obietnicę, której test
+  CELOWO nie rozwiązuje. Bez tego „silnik nie czeka na fonty" jest w przeglądarce
+  nie do uchwycenia: fonty systemowe są gotowe natychmiast i oba zachowania
+  wyglądają tak samo.
 -->
 <style>
   body { margin: 0; font: 16px system-ui; }
@@ -29,11 +33,12 @@
 -->
 
 <script>
-/* Fonty pod kontrolą testu. Musi stanąć PRZED animator.js, bo silnik czyta
-   `document.fonts.ready` w start(), na DOMContentLoaded.
+/* Fonty pod kontrolą testu: obietnica, której nikt nie rozwiązuje.
+   Od 1.126.0 silnik `document.fonts.ready` w ogóle nie czyta — i właśnie to
+   tu sprawdzamy: podział ma powstać MIMO nierozwiązanej obietnicy.
 
-   `?fontyOdRazu=1` rozwiązuje obietnicę natychmiast — do przypadku, w którym
-   fonty są gotowe ZANIM dojedzie GSAP. */
+   `?fontyOdRazu=1` rozwiązuje ją natychmiast — zostaje do przypadku wyścigu
+   z późnym GSAP-em. */
 window.__fontyGotowe = null;
 (function () {
   var obietnica = new Promise(function (res) { window.__fontyGotowe = res; });
@@ -53,9 +58,10 @@ window.__fontyGotowe = null;
 })();
 </script>
 
-<!-- Bez podziału tekstu: fonty nic tu nie zmieniają, ma powstać od razu. -->
+<!-- Bez podziału: stan początkowy da się nałożyć od razu, w fazie 1. -->
 <div id="zwykly" data-evk-anim='{"animation":"z"}'>zwykła animacja</div>
-<!-- Z podziałem: łamanie linii zależy od metryk fontu, więc czeka. -->
+<!-- Z podziałem: stan początkowy leży na kawałkach, których w fazie 1 jeszcze
+     nie ma — ten element czeka pod znacznikiem do końca fazy 2. -->
 <p id="dzielony" data-evk-anim='{"animation":"d"}'>Projektujemy strony, które
   wyglądają jak marka, a działają jak narzędzie — od pierwszego szkicu po
   wdrożenie i opiekę nad wynikami w wyszukiwarce.</p>
@@ -102,8 +108,6 @@ window.__fontyGotowe = null;
        null i nic się nie buduje, więc pomiar mierzyłby własną atrapę. */
     presets: (window.__presets && window.__presets.presets) || {},
     reducedMotion: false,
-    /* To jest cały przedmiot pomiaru: strona MA deklarować czekanie na fonty. */
-    needsFonts: true,
   };
 })();
 </script>
@@ -113,10 +117,9 @@ window.__fontyGotowe = null;
     var el = document.getElementById(id);
     var cs = getComputedStyle(el);
     return {
-      /* Czy element JEST WIDOCZNY. To jest sedno tej wersji: element czekający
-         na fonty pokazany w międzyczasie mrugnie treścią, po czym skoczy do
-         stanu początkowego i dopiero zagra — ten sam błysk, dla którego
-         w 1.27.2 powstała zasłona. */
+      /* Czy element JEST WIDOCZNY. Element bez nałożonego stanu początkowego,
+         pokazany w międzyczasie, mrugnie treścią i dopiero skoczy do „from" —
+         ten sam błysk, dla którego w 1.27.2 powstała zasłona. */
       widoczny: cs.visibility === 'visible' && parseFloat(cs.opacity) > 0.01,
       czeka:    el.hasAttribute('data-evk-anim-czeka'),
       /* Znacznik gotowości. Jego BRAK znaczy „silnik jeszcze tego nie zbudował
@@ -133,4 +136,34 @@ window.__fontyGotowe = null;
   window.__zaslona = function () {
     return document.documentElement.classList.contains('evk-veil');
   };
+
+  /* MIGAWKA Z CHWILI ODSŁONIĘCIA — sedno podziału na fazy.
+   *
+   * Zasłona ma schodzić PO nałożeniu stanów początkowych, ale PRZED budowaniem
+   * osi czasu i wyzwalaczy. Z zewnątrz to nie do zmierzenia: po ustaniu ruchu
+   * oba porządki wyglądają identycznie. Dlatego zapisujemy stan dokładnie
+   * w chwili, w której klasa `evk-veil` schodzi z <html>. */
+  window.__wMomencieOdslony = null;
+  (function () {
+    var obs = new MutationObserver(function () {
+      if (document.documentElement.classList.contains('evk-veil')) return;
+      if (window.__wMomencieOdslony) return;
+      var zwykly = document.getElementById('zwykly');
+      var dzielony = document.getElementById('dzielony');
+      window.__wMomencieOdslony = {
+        /* Stan początkowy `fade-up` to opacity 0 — jeśli jest nałożony, faza 1
+           zdążyła. */
+        zwyklyOpacity: parseFloat(getComputedStyle(zwykly).opacity),
+        /* A osi czasu jeszcze BYĆ NIE MOŻE: to ona kosztuje sekundę na wolnym
+           procesorze i to po nią przesunęliśmy zasłonę. */
+        zwyklyTweenow: window.gsap ? gsap.getTweensOf(zwykly).length : -1,
+        /* Podzielony tekst nie ma czego nałożyć — kawałków jeszcze nie ma —
+           więc zostaje pod własnym znacznikiem. */
+        dzielonyCzeka: dzielony.hasAttribute('data-evk-anim-czeka'),
+        dzielonyLinii: dzielony.querySelectorAll('.evk-anim-line').length,
+      };
+      obs.disconnect();
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  })();
 </script>
