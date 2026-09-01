@@ -11,12 +11,27 @@
 (function () {
   'use strict';
 
+  /* ZNAK, ŻE SILNIK DOJECHAŁ — czyta go bezpiecznik zasłony w <head>
+     (render_preveil() w includes/anim/animator.php).
+ 
+     Bezpiecznik odsłania treść, gdy silnik nie przyszedł wcale. Gdyby zrobił to
+     także wtedy, gdy silnik JUŻ się wczytuje, pokazałby na chwilę treść, którą
+     ten za moment schowa do stanu początkowego — czyli dokładnie ten błysk,
+     przeciw któremu zasłona istnieje. Zmierzone na dławionej sieci: bezpiecznik
+     wypadał 200 ms przed końcem pierwszego przebiegu.
+
+     Stawiane PRZED czymkolwiek innym, żeby liczyło się też wtedy, gdy dalsza
+     część pliku wyłoży się na wyjątku. */
+  window.evkAnimatorObecny = true;
+
   var G = window.evkAnimator || {};
   var LIBRARY = G.library || {};
   var PRESETS = G.presets || {};
 
   var loadQueue = [];
   var loadQueueRan = false;
+  /** Kiedy silnik zdjął zasłonę, w ms od startu nawigacji. Null = nie zdjął jej. */
+  var zaslonaZdjeta = null;
 
   /* Czy metryki fontów są już znane.
    *
@@ -1223,6 +1238,12 @@
    * łapie sam korzeń dokumentu i silnik szuka animacji o slugu z tej klasy.
    */
   function unveil() {
+    /* Moment zdjęcia zasłony — do raportu `?evk-anim-debug=1`. To jest liczba,
+       której szuka się przy zgłoszeniu „elementy pojawiają się z opóźnieniem":
+       do tej chwili treść z animacją jest niewidoczna. */
+    if (zaslonaZdjeta === null && document.documentElement.classList.contains('evk-veil')) {
+      zaslonaZdjeta = Math.round(performance.now());
+    }
     document.documentElement.classList.remove('evk-veil');
   }
 
@@ -1449,6 +1470,15 @@
       klonow:        document.querySelectorAll('.evk-anim-swap-klon').length,
       scrollTriggerow: scrollTriggery.length,
       wTymScrub:     scrubow,
+      /* Trzy liczby do zgłoszeń „elementy pojawiają się z opóźnieniem".
+         `zaslonaMs` to czas od startu nawigacji do chwili, w której treść
+         z animacją w ogóle mogła się pokazać; `podZaslona` — ile elementów
+         czekało; `redukcjaRuchu` — czy cokolwiek się w ogóle animuje. Bez tej
+         ostatniej „animacja się nie odtwarza" jest nie do odróżnienia od
+         usterki, a bywa systemowym ustawieniem (Windows: „Pokaż animacje"). */
+      zaslonaMs:     zaslonaZdjeta,
+      podZaslona:    document.querySelectorAll('[data-evk-anim-czeka]').length,
+      redukcjaRuchu: prefersReduced(),
     });
     if (console.table) console.table(wiersze);
     if (scrubow) {
@@ -1521,6 +1551,22 @@
 
   // Punkt wejścia dla treści doładowywanej dynamicznie (AJAX, loop, popupy).
   window.evkAnimatorRefresh = initAll;
+
+  /**
+   * Stan startu dla diagnostyki (`?evk-anim-debug=1` i tools/lustro).
+   *
+   * `zaslonaMs === null` znaczy, że zasłony NIE zdjął silnik — zrobił to
+   * bezpiecznik czasowy z <head>. To rozróżnienie jest sednem przy zgłoszeniu
+   * „elementy pojawiają się z opóźnieniem": inaczej nie wiadomo, czy silnik był
+   * wolny, czy w ogóle nie dojechał.
+   */
+  window.evkAnimatorStan = function () {
+    return {
+      zaslonaMs:     zaslonaZdjeta,
+      redukcjaRuchu: prefersReduced(),
+      elementow:     document.querySelectorAll('[data-evk-anim-ready="1"]').length,
+    };
+  };
 
   // ── Podgląd w panelu ───────────────────────────────────────────────────
 

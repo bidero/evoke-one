@@ -414,6 +414,105 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !fx.errors.length, fx.errors.join(' | ') || 'brak');
   await fx.close();
 
+  /* ── Zasłona: kto naprawdę musi czekać na silnik ───────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: „na wolniejszym komputerze elementy z animacjami
+   * pojawiają się później (nawet jeśli animacja to hover)".
+   *
+   * Zasłona chowała wszystko z `data-evk-anim` i `evk-anim-*` do końca
+   * pierwszego przebiegu silnika, a ten czeka na ~200 KiB GSAP-a. Zmierzone na
+   * lustrze evoke.pl: przy dławieniu procesora 6× treść była niewidoczna przez
+   * 1,5 s, a na wolnej sieci 3,2–3,4 s — i zdejmował ją wtedy BEZPIECZNIK,
+   * czyli silnik nie zdążył wcale. Elementów pod zasłoną: 39, z czego 14 miało
+   * wyłącznie hover, czyli nie miało czego ukrywać.
+   *
+   * Blok zasłony bierzemy z PHP (`render_preveil()`), a nie przepisujemy do
+   * atrapy: kopia przechodziłaby na zielono także wtedy, gdyby wtyczka
+   * przestała cokolwiek drukować.
+   */
+  t.section('zasłona chowa tylko to, co ma stan początkowy');
+
+  /* Dwa wiersze na dwa brzegi: wejście w kadrze (`from` z presetu, zasłona
+     potrzebna) i hover (silnik nie nakłada `from`, zasłona zbędna). */
+  const BIBLIOTEKA_ZASLONY = JSON.stringify([
+    { slug: 'wjazd',  preset: 'fade-up',    trigger: 'viewport' },
+    { slug: 'najazd', preset: 'hover-lift', trigger: 'hover' },
+  ]);
+  const blokZaslony = phpOutput('anim-preveil.php', JSON.stringify(BIBLIOTEKA_ZASLONY));
+
+  const zas = await t.open('anim-zaslona.html', {
+    viewport: { width: 900, height: 700 },
+    head: 'window.__preveil = ' + JSON.stringify(blokZaslony) + ';',
+    /* Krótko: bezpiecznik czasowy zdejmuje zasłonę po 1,5 s, a mierzymy stan
+       PRZED nim — czyli ten, który widzi odwiedzający. */
+    settle: 200,
+  });
+  const zw = await zas.evaluate(() => window.__zaslona());
+
+  t.check('zasłona w ogóle jest', zw.naKorzeniu, zw.naKorzeniu ? 'klasa na <html>' : 'brak klasy');
+  t.check('wejście przez klasę czeka', zw.widac.klasaWjazd === false,
+    'widoczny: ' + zw.widac.klasaWjazd);
+  t.check('wejście przez atrybut czeka', zw.widac.atrybutWjazd === false,
+    'widoczny: ' + zw.widac.atrybutWjazd);
+  t.check('HOVER przez klasę NIE czeka', zw.widac.klasaHover === true,
+    'widoczny: ' + zw.widac.klasaHover);
+  t.check('HOVER przez atrybut NIE czeka', zw.widac.atrybutHover === true,
+    'widoczny: ' + zw.widac.atrybutHover);
+  /* Bezpiecznik: atrybut z własnym wyzwalaczem nadpisuje wiersz, a PHP nie wie
+     na co. Pomyłka w tę stronę zostawia dzisiejsze zachowanie; w drugą byłby
+     błysk treści. */
+  t.check('atrybut nadpisujący wyzwalacz zostaje pod zasłoną',
+    zw.widac.atrybutNadpisanie === false, 'widoczny: ' + zw.widac.atrybutNadpisanie);
+  t.check('element bez animacji jest widoczny', zw.widac.bezAnimacji === true,
+    'widoczny: ' + zw.widac.bezAnimacji);
+  await zas.close();
+
+  /* Redukcja ruchu: nic się nie animuje, więc nie ma czego chować. Do 1.125.0
+     taki użytkownik czekał na GSAP-a jak każdy inny — zmierzone na lustrze
+     ~1 s przy dławieniu 4×, mimo że żadna animacja nie miała zagrać. */
+  const zasRed = await t.open('anim-zaslona.html', {
+    viewport: { width: 900, height: 700 },
+    head: 'window.__preveil = ' + JSON.stringify(blokZaslony) + ';',
+    reduce: true,
+    settle: 200,
+  });
+  const zr = await zasRed.evaluate(() => window.__zaslona());
+  t.check('przy redukcji ruchu zasłony nie ma wcale', zr.naKorzeniu === false,
+    zr.naKorzeniu ? 'klasa mimo redukcji' : 'brak klasy');
+  t.check('a treść z wejściem jest od razu widoczna', zr.widac.klasaWjazd === true,
+    'widoczny: ' + zr.widac.klasaWjazd);
+  await zasRed.close();
+
+  /* ── Preload bibliotek ─────────────────────────────────────────────────
+   *
+   * Preload obiecuje przeglądarce adres, a `<script src>` po niego idzie.
+   * Gdyby różniły się choćby o `?ver=`, plik pobierałby się DWA RAZY —
+   * czyli „przyspieszenie" kosztowałoby dodatkowe 200 KiB. Dlatego adres
+   * bierzemy z kolejki WordPressa, a test porównuje obie strony.
+   */
+  t.section('preload wskazuje dokładnie te pliki, które strona pobierze');
+
+  const linki = [...blokZaslony.matchAll(/<link rel="preload"[^>]*href="([^"]+)"/g)].map((m) => m[1]);
+  const kolejka = JSON.parse((blokZaslony.match(/<!-- evk-test-skrypty (.*?) -->/s) || [])[1] || '{}');
+  const adres = (h) => {
+    const r = (kolejka.registered || {})[h];
+    return r ? r.src + (r.ver ? '?ver=' + encodeURIComponent(r.ver) : '') : null;
+  };
+
+  t.check('preload jest', linki.length >= 3, linki.length + ' odnośników');
+  const rozjazd = ['evk-gsap', 'evk-scrolltrigger', 'evk-animator']
+    .map((h) => ({ h, url: adres(h) }))
+    .filter((x) => !x.url || linki.indexOf(x.url) === -1);
+  t.check('każdy adres zgadza się z kolejką skryptów', !rozjazd.length,
+    rozjazd.map((x) => x.h + ': ' + x.url).join(' | ') || '3 uchwyty zgodne');
+
+  /* Kontrola negatywna: wtyczki, których biblioteka nie potrzebuje, nie mogą
+     się tu znaleźć — preload pliku, po który nikt nie pójdzie, to czysta
+     strata pasma i ostrzeżenie w konsoli. */
+  t.check('bez preloadu wtyczek, których nikt nie użyje',
+    !linki.some((u) => /TextPlugin|ScrambleText/.test(u)),
+    linki.map((u) => u.split('/').pop().split('?')[0]).join(', '));
+
   /* ── Zakres szerokości okna ────────────────────────────────────────────
    *
    * Zgłoszone jako „media query dla animacji". Wiersz biblioteki dostaje

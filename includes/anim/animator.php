@@ -83,6 +83,79 @@ class EVK_Animator {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets'], 20);
         // Priorytet 1 — musi trafić do <head> przed pierwszym malowaniem.
         add_action('wp_head', [$this, 'render_preveil'], 1);
+        /* Priorytet 3 — PO `wp_enqueue_scripts` (WordPress woła je z `wp_head`
+           na priorytecie 1), więc uchwyty są już zarejestrowane i adresy da się
+           przeczytać z kolejki zamiast składać je drugi raz. */
+        add_action('wp_head', [$this, 'render_preload'], 3);
+    }
+
+    /**
+     * Czy silnik nałoży temu wierszowi stan początkowy, który trzeba ukryć.
+     *
+     * Reguła jest PRZEPISANA Z SILNIKA, nie wymyślona — gdyby się rozjechała,
+     * zasłona albo chowa bez powodu (to naprawiamy), albo puszcza błysk treści
+     * (to gorsze). Punkt po punkcie, z `assets/js/animator.js`:
+     *
+     * — `textFx` → zawsze. `startVars()` zwraca stan początkowy dla efektów
+     *   tekstowych NIEZALEŻNIE od `bezFrom`, więc maszyna do pisania zaczyna
+     *   od pustego pola nawet pod hoverem.
+     * — `hover`/`click` → nigdy. `attachInteractive()` woła
+     *   `buildTimeline(..., bezFrom = !cfg.stan)`, więc `from` nie jest
+     *   nakładane; a presety stanowe (`stan => true`) trzymają w `from` stan
+     *   SPOCZYNKU, czyli to, co i tak widać.
+     * — `exit`/`menu-close` → nigdy. Obie ścieżki budują tween
+     *   z `immediateRender: false`, właśnie po to, żeby stan wyjściowy nie
+     *   przykrył tego, co jest na ekranie.
+     * — `viewport`/`load`/`scrub` z niepustym `from` → zasłona. Tam leci
+     *   `fromTo`, które renderuje stan początkowy natychmiast.
+     */
+    private function wiersz_zaslania(array $row, array $presets): bool {
+        $preset = $presets[$row['preset']] ?? [];
+        if (!empty($preset['textFx'])) return true;
+
+        if (!in_array($row['trigger'], ['viewport', 'load', 'scrub'], true)) return false;
+
+        // `from` z wiersza jest tekstem z panelu — dopiero parser mówi, czy coś
+        // z niego zostaje. Sama niepusta zawartość pola nie wystarcza: „ZŁA
+        // LINIA" parsuje się na pustą tablicę i nic nie nakłada.
+        if (evk_anim_parse_props((string) ($row['from'] ?? ''))) return true;
+
+        return !empty($preset['from']);
+    }
+
+    /**
+     * Selektory zasłony — tylko dla wierszy, które naprawdę coś ukrywają.
+     *
+     * ZGŁOSZONE Z UŻYCIA: „na wolniejszym komputerze elementy z animacjami
+     * pojawiają się później (nawet jeśli animacja to hover)". Zasłona chowała
+     * WSZYSTKO z `data-evk-anim` i `evk-anim-*` do czasu, aż silnik skończy
+     * pierwszy przebieg — czyli po pobraniu i wykonaniu ~200 KiB GSAP-a.
+     * Element z samym hoverem nie ma żadnego stanu początkowego do ukrycia,
+     * więc czekał bez powodu; na mierzonej stronie 14 z 39 elementów.
+     *
+     * Atrybut łapiemy po FRAGMENCIE JSON-a (`"animation":"slug"`), bo tak go
+     * zapisuje panel. Zapis z odstępami się nie dopasuje — i dobrze: pomyłka
+     * w tę stronę zostawia dzisiejsze zachowanie (za dużo ukryte), a nigdy nie
+     * puszcza błysku.
+     *
+     * BEZPIECZNIK: atrybut z własnym `preset` albo `trigger` nadpisuje wiersz,
+     * a PHP nie wie na co — taki element zostaje pod zasłoną bez pytania.
+     */
+    private function selektory_zaslony(array $s): array {
+        $presets = evk_anim_presets();
+        $sel     = [];
+
+        foreach ($s['animations'] as $row) {
+            $row = $this->row_with_defaults($row);
+            if ($row['slug'] === '' || !$this->wiersz_zaslania($row, $presets)) continue;
+            $sel[] = '.evk-veil .evk-anim-' . $row['slug'];
+            $sel[] = '.evk-veil [data-evk-anim*=\'"animation":"' . $row['slug'] . '"\']';
+        }
+
+        $sel[] = '.evk-veil [data-evk-anim*=\'"preset"\']';
+        $sel[] = '.evk-veil [data-evk-anim*=\'"trigger"\']';
+
+        return $sel;
     }
 
     /**
@@ -113,10 +186,10 @@ class EVK_Animator {
             && evk_w_builderze()) {
             return;
         }
+        $selektory = $this->selektory_zaslony($s);
         ?>
 <style id="evk-anim-preveil">
-.evk-veil [data-evk-anim],
-.evk-veil [class*="evk-anim-"] { visibility: hidden !important; }
+<?php echo implode(",\n", $selektory); ?> { visibility: hidden !important; }
 
 /* Zasłona POJEDYNCZEGO elementu, niezależna od tej wyżej.
  *
@@ -133,17 +206,44 @@ class EVK_Animator {
 </style>
 <script id="evk-anim-preveil-js">
 (function () {
+    /* REDUKCJA RUCHU — ZASŁONY NIE MA W OGÓLE.
+     *
+     * Przy `prefers-reduced-motion` silnik nakłada stan końcowy bez ruchu, więc
+     * nie ma czego chować. Do 1.125.0 taki użytkownik i tak czekał na GSAP-a
+     * tylko po to, żeby zobaczyć stronę — na dławionym procesorze 1,1–1,4 s.
+     * Pytamy tu wprost, a nie przez `window.evkMotion`: oba skrypty drukują się
+     * w <head> na priorytecie 1 i kolejność między nimi nie jest zagwarantowana. */
+    var szanuj = <?php echo evk_motion_respect_reduced() ? 'true' : 'false'; ?>;
+    if (szanuj && window.matchMedia
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
     var h = document.documentElement;
     h.classList.add('evk-veil');
-    setTimeout(function () {
-        h.classList.remove('evk-veil');
-        /* Ten sam bezpiecznik obejmuje elementy czekające na fonty. Bez tego
-           strona z niedostępnym webfontem trzymałaby podzielone teksty ukryte
-           bez końca — a to gorsze niż brak animacji. */
-        document.querySelectorAll('[data-evk-anim-czeka]').forEach(function (el) {
-            el.removeAttribute('data-evk-anim-czeka');
-        });
-    }, 3000);
+
+    /* BEZPIECZNIK: 1,5 s zamiast 3 s, ale z jednym ustępstwem dla wolnej sieci.
+     *
+     * Ma ratować przed awarią wczytywania, a nie chronić animację kosztem
+     * treści — trzy sekundy patrzenia w puste miejsce są gorsze niż błysk,
+     * przed którym zasłona broni.
+     *
+     * Ale gdy silnik JUŻ się wczytał (`window.evkAnimatorObecny`), odsłonięcie
+     * na siłę pokazałoby treść, którą on za moment schowa do stanu
+     * początkowego. Zmierzone na dławionej sieci: bezpiecznik wypadał 200 ms
+     * przed końcem pierwszego przebiegu. Dajemy mu wtedy JEDNO dodatkowe okno,
+     * więc w najgorszym razie i tak odsłaniamy po 3 s — tyle, ile było zawsze. */
+    var proba = 0;
+    (function czekaj() {
+        setTimeout(function () {
+            if (window.evkAnimatorObecny && proba < 1) { proba++; czekaj(); return; }
+            h.classList.remove('evk-veil');
+            /* Ten sam bezpiecznik obejmuje elementy czekające na fonty. Bez tego
+               strona z niedostępnym webfontem trzymałaby podzielone teksty ukryte
+               bez końca — a to gorsze niż brak animacji. */
+            document.querySelectorAll('[data-evk-anim-czeka]').forEach(function (el) {
+                el.removeAttribute('data-evk-anim-czeka');
+            });
+        }, 1500);
+    })();
 })();
 </script>
         <?php
@@ -251,6 +351,86 @@ class EVK_Animator {
         return $this->row_defaults;
     }
 
+    /**
+     * Które wtyczki GSAP-a są tej bibliotece w ogóle potrzebne.
+     *
+     * Jedno źródło dla enqueue i dla preloadu — inaczej preload obiecywałby
+     * przeglądarce plik, którego strona nie pobierze (albo odwrotnie), a to
+     * kosztuje albo ostrzeżenie w konsoli, albo pobranie na darmo.
+     */
+    private function wtyczki_gsap(array $s): array {
+        $presets = evk_anim_presets();
+        $out     = ['split' => false, 'text' => false, 'scramble' => false];
+
+        foreach ($s['animations'] as $row) {
+            $row    = $this->row_with_defaults($row);
+            $preset = $presets[$row['preset']] ?? [];
+            if (!empty($preset['split'])) $out['split'] = true;
+            $fx = $preset['textFx'] ?? '';
+            if ($fx === 'type' || $fx === 'words') $out['text'] = true;
+            if ($fx === 'scramble')                $out['scramble'] = true;
+        }
+        return $out;
+    }
+
+    /**
+     * Adres, pod którym WordPress FAKTYCZNIE poda ten skrypt.
+     *
+     * Składany tak jak w `WP_Scripts::do_item()` — z wersją w query stringu
+     * i przepuszczony przez `script_loader_src`. Gdyby preload różnił się od
+     * adresu w `<script src>` choćby o `?ver=`, przeglądarka pobrałaby plik
+     * DWA RAZY: preload trafiłby w próżnię, a strona i tak poszłaby po swoje.
+     */
+    private function url_skryptu(string $handle): string {
+        $reg = wp_scripts()->registered[$handle] ?? null;
+        if (!$reg || empty($reg->src)) return '';
+
+        $src = $reg->src;
+        if (!empty($reg->ver)) $src = add_query_arg('ver', $reg->ver, $src);
+
+        return (string) apply_filters('script_loader_src', $src, $handle);
+    }
+
+    /**
+     * Preload bibliotek animacji.
+     *
+     * ZGŁOSZONE Z UŻYCIA: „elementy pojawiają się z opóźnieniem", najmocniej
+     * na Chrome na Androidzie i na starszym komputerze. Skrypty stoją w stopce
+     * i bez `defer`, więc ich pobieranie rusza dopiero, gdy parser dojdzie na
+     * koniec dokumentu — a treść z animacją czeka pod zasłoną do końca
+     * pierwszego przebiegu silnika. Preload przesuwa START POBIERANIA na
+     * początek dokumentu; wykonanie zostaje tam, gdzie było.
+     *
+     * Dlaczego nie `strategy => defer`: `evk-gsap` jest zależnością kilkunastu
+     * innych uchwytów (marquee, hscroll, scroll reading, circular menu, tło
+     * przy scrollu), a WordPress obniża strategię zależności do poziomu
+     * najbardziej blokującego zależnego. `defer` na samym Animatorze nie
+     * zmieniłby więc nic — a przestawienie wszystkich naraz to osobna zmiana.
+     */
+    public function render_preload(): void {
+        $s = $this->get_settings();
+        if (empty($s['enabled']) || empty($s['animations'])) return;
+        if (is_admin()) return;
+        if (empty($s['builder_preview'])
+            && evk_w_builderze()) {
+            return;
+        }
+
+        $w        = $this->wtyczki_gsap($s);
+        $uchwyty  = ['evk-gsap', 'evk-scrolltrigger'];
+        if ($w['split'])    $uchwyty[] = 'evk-splittext';
+        if ($w['text'])     $uchwyty[] = 'evk-textplugin';
+        if ($w['scramble']) $uchwyty[] = 'evk-scrambletext';
+        $uchwyty[] = 'evk-animator';
+
+        foreach ($uchwyty as $handle) {
+            $url = $this->url_skryptu($handle);
+            if ($url === '') continue;
+            echo '<link rel="preload" as="script" fetchpriority="high" href="'
+                . esc_url($url) . '">' . "\n";
+        }
+    }
+
     public function enqueue_assets(): void {
         $s = $this->get_settings();
         if (empty($s['enabled']) || empty($s['animations'])) return;
@@ -263,10 +443,12 @@ class EVK_Animator {
         $presets = evk_anim_presets();
 
         // Biblioteka kluczowana slugiem — silnik czyta ją po klasie evk-anim-{slug}.
-        $library     = [];
-        $needs_split = false;
-        $needs_text  = false;
-        $needs_scr   = false;
+        $library = [];
+
+        // Wtyczki GSAP-a liczy `wtyczki_gsap()` — ta sama funkcja, z której
+        // korzysta preload. Dwa liczenia tego samego rozjechałyby się przy
+        // pierwszym nowym presecie.
+        $w = $this->wtyczki_gsap($s);
 
         foreach ($s['animations'] as $row) {
             $row = $this->row_with_defaults($row);
@@ -298,21 +480,14 @@ class EVK_Animator {
             }
 
             $library[$row['slug']] = $row;
-
-            $preset = $presets[$row['preset']] ?? [];
-            if (!empty($preset['split'])) $needs_split = true;
-
-            // Wtyczki tekstowe dociągamy tylko tam, gdzie są faktycznie użyte —
-            // to dwa dodatkowe pobrania z CDN-u na stronę, która ich nie potrzebuje.
-            $fx = $preset['textFx'] ?? '';
-            if ($fx === 'type' || $fx === 'words') $needs_text = true;
-            if ($fx === 'scramble')                $needs_scr  = true;
         }
 
+        // Wtyczki tekstowe dociągamy tylko tam, gdzie są faktycznie użyte —
+        // to dwa dodatkowe pobrania na stronę, która ich nie potrzebuje.
         $deps = ['evk-gsap', 'evk-scrolltrigger'];
-        if ($needs_split) $deps[] = 'evk-splittext';
-        if ($needs_text)  $deps[] = 'evk-textplugin';
-        if ($needs_scr)   $deps[] = 'evk-scrambletext';
+        if ($w['split'])    $deps[] = 'evk-splittext';
+        if ($w['text'])     $deps[] = 'evk-textplugin';
+        if ($w['scramble']) $deps[] = 'evk-scrambletext';
 
         wp_enqueue_script('evk-animator', EVOKE_ONE_URL . 'assets/js/animator.js',
             $deps, EVOKE_ONE_VERSION, true);
@@ -324,7 +499,7 @@ class EVK_Animator {
             // Czekanie na webfonty ma sens WYŁĄCZNIE przy podziale tekstu —
             // tylko tam metryki fontu decydują o łamaniu linii. Przy pozostałych
             // animacjach to czyste opóźnienie startu i źródło błysku treści.
-            'needsFonts'     => $needs_split,
+            'needsFonts'     => $w['split'],
         ]) . ';', 'before');
     }
 }

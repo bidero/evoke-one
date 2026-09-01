@@ -2,6 +2,108 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.125.0] — 2026-09-01
+
+### Naprawione
+
+- **Włączony Animator opóźniał pojawienie się treści.** Zgłoszone z użycia:
+  „elementy pojawiają się z opóźnieniem", „w mobilnym Safari bez opóźnień,
+  w Chrome na Androidzie bardzo duże", „na wolniejszym komputerze elementy
+  z animacjami pojawiają się później — **nawet jeśli animacja to hover**".
+
+  Zasłona przeciw błyskowi treści chowała **wszystko** z `data-evk-anim`
+  i `evk-anim-*`, a zdejmował ją dopiero silnik na końcu pierwszego przebiegu —
+  czyli po pobraniu i wykonaniu ~200 KiB JS-a (GSAP 71 + ScrollTrigger 43,5
+  + SplitText 7,6 + animator.js 78,2 KiB). Element z samym hoverem nie ma
+  żadnego stanu początkowego do ukrycia, więc czekał bez powodu.
+
+  Zasłona pyta teraz każdy wiersz biblioteki, czy silnik naprawdę nałoży mu stan
+  początkowy — regułą **przepisaną z silnika**: `textFx` zawsze, `hover`/`click`
+  nigdy (`attachInteractive()` nie nakłada `from`), `exit`/`menu-close` nigdy
+  (`immediateRender: false`), a `viewport`/`load`/`scrub` tylko z niepustym
+  `from`. Atrybut nadpisujący `preset` albo `trigger` zostaje pod zasłoną
+  z ostrożności — pomyłka w tę stronę daje dzisiejsze zachowanie, w drugą byłby
+  błysk treści.
+
+  Zmierzone na lustrze evoke.pl (`tools/lustro/zmierz-start.js`), ta sama strona,
+  ten sam zestaw 39 elementów z animacją:
+
+  | scenariusz | przed | po |
+  |---|---|---|
+  | elementów pod zasłoną | 39 | **25** |
+  | 4× procesor / sieć lokalna | 1031 ms | 999 ms |
+  | 6× procesor / sieć lokalna | 1548 ms | 1353 ms |
+  | 1× / sieć wolna | **3186 ms** (bezpiecznik) | **1694 ms** |
+  | 4× / sieć wolna | **3356 ms** (bezpiecznik) | **1705 ms** |
+  | 6× / sieć wolna | **3443 ms** (bezpiecznik) | **1706 ms** |
+  | redukcja ruchu | zasłona jak u wszystkich | **zasłony nie ma wcale** |
+
+- **Przy redukcji ruchu zasłony nie ma w ogóle.** Nic się wtedy nie animuje,
+  więc nie ma czego chować — a do dziś taki użytkownik czekał na GSAP-a tylko po
+  to, żeby zobaczyć stronę. Po zmianie treść jest widoczna od pierwszego renderu
+  (368 ms przy dławieniu 4×, zamiast ~1 s).
+
+  **To jest też najpewniejsze wyjaśnienie zgłoszenia „na starszym komputerze cała
+  animacja wejścia się nie odtwarza".** Windows ma systemowe „Pokaż animacje",
+  na starszych maszynach często wyłączone, a wtyczka domyślnie tę preferencję
+  szanuje (`evk_motion`, zakładka Dostępność). Silnik nakłada wtedy stan końcowy
+  bez ruchu. Do potwierdzenia diagnostyką niżej.
+
+- **Preload bibliotek w `<head>`.** Skrypty stoją w stopce i bez `defer`, więc
+  ich pobieranie ruszało dopiero, gdy parser dochodził na koniec dokumentu.
+  Zmierzone przy dławieniu 4× i wolnej sieci:
+
+  | plik | start pobierania przed → po | koniec przed → po |
+  |---|---|---|
+  | `gsap.min.js` | 3525 → **1951 ms** | 6836 → **4168 ms** |
+  | `ScrollTrigger.min.js` | 3525 → 1952 ms | 6272 → 3617 ms |
+  | `animator.js` | 4027 → **1952 ms** | 7536 → **4997 ms** |
+
+  Adres do preloadu czytamy z **kolejki WordPressa**, a nie składamy drugi raz
+  ze stałych: gdyby różnił się choćby o `?ver=`, przeglądarka pobrałaby każdy
+  plik dwa razy. Pilnuje tego osobne sprawdzenie.
+
+  Świadomie **nie** przestawiamy skryptów na `strategy => defer`: `evk-gsap` jest
+  zależnością kilkunastu innych uchwytów, a WordPress obniża strategię
+  zależności do poziomu najbardziej blokującego zależnego — `defer` na samym
+  Animatorze nie zmieniłby nic.
+
+- **Bezpiecznik zasłony z 3 s na 1,5 s, ale z jednym ustępstwem.** Gdy silnik już
+  się wczytał, bezpiecznik daje mu jedno dodatkowe okno zamiast odsłaniać na
+  siłę — inaczej pokazałby treść, którą ten za moment schowa do stanu
+  początkowego. Zmierzone na dławionej sieci: bezpiecznik wypadał 200 ms przed
+  końcem pierwszego przebiegu. W najgorszym razie odsłania po 3 s, czyli tyle,
+  ile było zawsze.
+
+### Zmienione
+
+- **`?evk-anim-debug=1` mówi teraz to, co potrzebne przy zgłoszeniu
+  o opóźnieniu**: `zaslonaMs` (po ilu ms zeszła zasłona; `null` = zdjął ją
+  bezpiecznik, czyli silnik nie zdążył), `podZaslona` i `redukcjaRuchu`. Bez tej
+  ostatniej „animacja się nie odtwarza" jest nie do odróżnienia od usterki.
+  Silnik wystawia też `window.evkAnimatorStan()` — czyta go pomiar z lustra.
+
+- **Nowe narzędzie `tools/lustro/zmierz-start.js`** — czas do zdjęcia zasłony
+  przy dławieniu procesora (1×/4×/6×) **i** sieci. Dwa dławienia, bo to dwie
+  różne przyczyny: procesor kosztuje przy parsowaniu JS-a, sieć przy pobieraniu.
+  Mierzenie samego localhosta pokazałoby, że preload nic nie daje.
+
+- Nowa atrapa `tests/fixtures/anim-zaslona.html` z blokiem zasłony wziętym
+  **z prawdziwego PHP**, nie przepisanym: kopia przechodziłaby na zielono także
+  wtedy, gdyby wtyczka przestała cokolwiek drukować.
+
+### Uwaga o tym, co się NIE zmieniło
+
+Animator nadal ładuje GSAP i `animator.js` na **każdą** stronę frontu, gdy moduł
+jest włączony i biblioteka ma choć jeden wiersz — także tam, gdzie nie ma ani
+jednej animacji (sprawdzone: strona konserwacji, 24 `<div>`, komplet bibliotek).
+Ładowanie „tylko tam, gdzie użyte" wymaga zajrzenia w treść Bricksa i jest
+osobną partią. Z tego samego powodu nie przycinamy listy presetów (68 wysyłanych,
+24 używane): element może nadpisać preset atrybutem, czego PHP na etapie
+`wp_enqueue_scripts` nie widzi, a ~3 KiB po gzipie nie jest warte tego ryzyka.
+
+Testy: **2273** sprawdzenia (2261 przed wydaniem).
+
 ## [1.124.0] — 2026-08-31
 
 ### Naprawione

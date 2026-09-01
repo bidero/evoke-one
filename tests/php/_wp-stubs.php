@@ -91,13 +91,41 @@ function wp_json_encode($v) { return json_encode($v, JSON_UNESCAPED_UNICODE); }
 // Enqueue'y zapisujemy zamiast połykać: literówka w nazwie handle'a niczego
 // nie wywala — skrypt po prostu nie trafia na stronę i efekt cicho nie działa.
 function wp_enqueue_script($handle, $src = '', $deps = [], $ver = false, $args = false) {
-    $GLOBALS['enqueued'][$handle] = ['src' => $src, 'deps' => (array) $deps];
+    $GLOBALS['enqueued'][$handle] = ['src' => $src, 'deps' => (array) $deps, 'ver' => $ver];
+    if ($src !== '') wp_register_script($handle, $src, $deps, $ver, $args);
 }
 // Rejestracja to nie to samo co enqueue: skrypt zarejestrowany jest znany
 // WordPressowi, ale trafia na stronę dopiero przez wp_enqueue_script($handle).
 // Panel korzysta z tej różnicy — GSAP rejestruje moduł, a panel tylko dociąga.
 function wp_register_script($handle, $src = '', $deps = [], $ver = false, $args = false) {
-    $GLOBALS['registered'][$handle] = ['src' => $src, 'deps' => (array) $deps];
+    $GLOBALS['registered'][$handle] = ['src' => $src, 'deps' => (array) $deps, 'ver' => $ver];
+}
+
+/*
+ * Kolejka skryptów tak, jak widzi ją kod wtyczki.
+ *
+ * Potrzebna preloadowi w Animatorze: adres do `<link rel="preload">` MUSI być
+ * co do znaku tym samym, który WordPress wydrukuje w `<script src>` — inaczej
+ * przeglądarka pobiera plik dwa razy. Dlatego wtyczka czyta go z kolejki,
+ * a nie składa drugi raz z własnych stałych; atrapa musi tę kolejkę mieć.
+ */
+function wp_scripts() {
+    $q = new stdClass();
+    $q->registered = [];
+    foreach (($GLOBALS['registered'] ?? []) as $handle => $dane) {
+        $q->registered[$handle] = (object) $dane;
+    }
+    return $q;
+}
+
+/* Pod strażą `function_exists`, bo `tests/php/tab.php` ma własną atrapę tej
+   funkcji — zwracającą stały adres podstrony newslettera — i deklaruje ją,
+   zanim dojdzie do `require` tego pliku. Bez straży: „Cannot redeclare". */
+if (!function_exists('add_query_arg')) {
+    function add_query_arg($klucz, $wartosc, $url) {
+        $sep = strpos($url, '?') === false ? '?' : '&';
+        return $url . $sep . rawurlencode($klucz) . '=' . rawurlencode((string) $wartosc);
+    }
 }
 function wp_script_is($handle, $list = 'enqueued') {
     if ($list === 'registered') return isset($GLOBALS['registered'][$handle]);

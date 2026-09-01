@@ -21,11 +21,20 @@ konstrukcja: pobrać `curl`-em, podać z dysku.
 ```sh
 tools/lustro/pobierz.sh "https://przyklad.pl/?haslo=…"   # → tools/lustro/strona/
 tools/lustro/serwuj.sh                                    # http://127.0.0.1:8765
-node tools/lustro/zmierz.js                               # pomiar
+node tools/lustro/zmierz.js                               # punkty startu animacji
+node tools/lustro/zmierz-start.js                         # czekanie na treść
 ```
 
 `zmierz.js` wypisuje dla każdego elementu z animacją pod przypiętą sekcją dwie
 liczby: przy jakim przewinięciu naprawdę wjechał w kadr i gdzie ScrollTrigger
 uważa, że ma zagrać. Różnica to jest dokładnie to, co widać na ekranie.
+
+`zmierz-start.js` odpowiada na zgłoszenie „elementy pojawiają się z opóźnieniem":
+podaje, po ilu milisekundach schodzi zasłona Animatora, ile elementów chowała
+i kto ją zdjął — silnik czy bezpiecznik czasowy. Dławi przy tym PROCESOR (4×, 6×)
+**i** SIEĆ, bo to dwie różne przyczyny: procesor kosztuje przy parsowaniu ~200 KiB
+JS-a, a sieć przy jego pobieraniu. Lustro stoi na localhoście, więc bez dławienia
+sieci wyszłoby, że pobieranie nic nie kosztuje — a to warunki, w których nikt tej
+strony nie ogląda.
 
 Pobrana strona **nie wchodzi do repozytorium** — patrz `.gitignore` obok.

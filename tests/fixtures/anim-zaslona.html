@@ -1,0 +1,55 @@
+<!--
+  Zasłona przeciw błyskowi treści — KOGO chowa, a kogo nie.
+
+  ZGŁOSZONE Z UŻYCIA: „na wolniejszym komputerze elementy z animacjami
+  pojawiają się później (nawet jeśli animacja to hover)".
+
+  Zasłona chowała wszystko z `data-evk-anim` i `evk-anim-*` do czasu, aż silnik
+  skończy pierwszy przebieg — a ten czeka na ~200 KiB GSAP-a. Element z samym
+  hoverem nie ma żadnego stanu początkowego do ukrycia, więc czekał bez powodu.
+
+  Blok zasłony wstrzykuje tu PRAWDZIWE PHP (`tests/php/anim-preveil.php`
+  → `render_preveil()`), przez `document.write` w <head>. Przepisany u siebie
+  byłby kopią, która zaczyna żyć własnym życiem: sprawdzenie „hover nie czeka"
+  przechodziłoby także wtedy, gdyby wtyczka przestała drukować cokolwiek.
+
+  Biblioteka w atrapie ma dwa wiersze — `wjazd` (wejście w kadrze, z `from`)
+  i `najazd` (hover) — i to na nich stoją oba brzegi.
+-->
+<meta charset="utf-8">
+<script>document.write(window.__preveil || '');</script>
+<style>
+  body { margin: 0; font: 16px/1.4 system-ui; }
+  .kafel { height: 40px; margin: 4px; background: #234; color: #fff; padding: 6px; }
+</style>
+
+<!-- Wejście: silnik nałoży `from`, więc zasłona ma sens. -->
+<div class="kafel evk-anim-wjazd" id="klasaWjazd">wejście przez klasę</div>
+<div class="kafel" id="atrybutWjazd" data-evk-anim='{"animation":"wjazd"}'>wejście przez atrybut</div>
+
+<!-- Hover: nie ma czego chować. -->
+<div class="kafel evk-anim-najazd" id="klasaHover">hover przez klasę</div>
+<div class="kafel" id="atrybutHover" data-evk-anim='{"animation":"najazd"}'>hover przez atrybut</div>
+
+<!-- Atrybut nadpisuje wyzwalacz wiersza. PHP nie wie, na co — taki element
+     zostaje pod zasłoną z ostrożności i to jest świadomy bezpiecznik. -->
+<div class="kafel" id="atrybutNadpisanie"
+     data-evk-anim='{"animation":"najazd","trigger":"viewport"}'>nadpisanie wyzwalacza</div>
+
+<!-- Kontrola: element bez animacji nigdy nie może zniknąć. -->
+<div class="kafel" id="bezAnimacji">bez animacji</div>
+
+<script>
+  /* Zasłona działa przez klasę na <html>, którą zakłada skrypt z PHP. Mierzymy
+     stan zastany — bez dokładania klasy z testu, bo wtedy sprawdzalibyśmy
+     własną rękę zamiast wtyczki. */
+  window.__zaslona = function () {
+    var out = { naKorzeniu: document.documentElement.classList.contains('evk-veil'), widac: {} };
+    ['klasaWjazd', 'atrybutWjazd', 'klasaHover', 'atrybutHover',
+     'atrybutNadpisanie', 'bezAnimacji'].forEach(function (id) {
+      var el = document.getElementById(id);
+      out.widac[id] = el ? getComputedStyle(el).visibility !== 'hidden' : null;
+    });
+    return out;
+  };
+</script>
