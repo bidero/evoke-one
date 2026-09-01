@@ -2,6 +2,74 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.127.0] — 2026-09-01
+
+### Bezpieczeństwo
+
+- **Rola „Tłumaczenia" dawała wykonanie dowolnego kodu PHP na serwerze.**
+  Znalezione podczas audytu, naprawione tym wydaniem. Kto ma na stronie rolę
+  z uprawnieniem `evk_access_translations`, powinien zaktualizować.
+
+  Uprawnienia dla punktów AJAX `tl_*` dokładał hook w Role Managerze: na
+  `admin_init` doklejał `manage_options` każdemu z `evk_access_translations`,
+  jeśli tylko nazwa akcji w żądaniu zaczynała się od `tl_`. O przyznaniu
+  uprawnienia decydowała więc **wartość podana przez żądającego**, a że
+  `admin-ajax.php` również odpala `admin_init`, wystarczyło zawołać `tl_import`
+  — punkt zapisujący `evk_snippets_advanced_content`, czyli surowy PHP, który
+  przy następnym `init` idzie przez `eval()`. Nonce nie był przeszkodą: strona
+  Tłumaczeń, do której ta rola ma dostęp, sama go drukuje.
+
+  Ten sam mechanizm otwierał `tl_export` (zrzut listy adresów newslettera,
+  hasła SMTP, hasła obejścia konserwacji i źródeł snippetów) oraz odczyt
+  i zapis dowolnej opcji WordPressa.
+
+  **Druga wada tego samego miejsca, niezależna od atakującego:** `add_cap()`
+  zapisuje uprawnienie do bazy (usermeta), a zdejmował je hook `shutdown`.
+  Proces ubity twardo — OOM, timeout FPM — zostawiał `manage_options` na stałe.
+
+  Naprawa: hook usunięty, a punkty AJAX pytają same o to, czego potrzebują
+  (`evk_tl_ajax_check()` — `manage_options` LUB `evk_access_translations`,
+  wzorem `evk_nl_ajax_check()` z newslettera). Eksport i import dodatkowo
+  zawężają listę modułów: rola od tłumaczeń dostaje wyłącznie moduły `tl_*`,
+  administrator jak dotąd wszystko.
+
+  **Co się zmienia w pracy:** rola od tłumaczeń robi dalej to samo co wcześniej
+  — zapisuje frazy, języki, obrazy, slugi, klucze DD i mapę strony. Traci
+  wyłącznie to, czego nigdy nie miała mieć: eksport i import modułów spoza
+  tłumaczeń.
+
+### Naprawione
+
+- **„Eksportuj wszystko" na stronie Tłumaczeń zwracało plik z samym
+  nagłówkiem.** Znalezione przy okazji powyższego. Zakładka Import/Eksport
+  wysyła listę zaznaczonych modułów, a strona Tłumaczeń nie wysyła pola
+  `modules` w ogóle — i obie sytuacje wpadały w tę samą gałąź, bo warunek
+  sprawdzał `!is_array()`, a `json_decode('[]')` zwraca tablicę. Brak pola
+  znaczy teraz „wszystko, co wolno temu użytkownikowi", puste pole dalej znaczy
+  „nic nie zaznaczono".
+
+  Osobna sprawa, **niezałatwiona**: przycisk „Eksportuj grupę" posyła `group_id`,
+  którego handler nie czyta — eksportuje więc całość, nie wybraną grupę.
+
+### Testy
+
+- `tests/uprawnienia.test.js` + `tests/php/tl-uprawnienia.php`,
+  `tests/php/tl-eksport.php` — 27 sprawdzeń. Nieobecność hooka mierzona
+  licznikiem `add_cap()` na atrapie użytkownika, a nie szukaniem słowa w pliku;
+  paczka eksportu sprawdzana jako **prawdziwe wyjście handlera** (osobny proces
+  PHP, bo `tl_export` kończy się `exit`) i przeszukiwana pod kątem haseł, które
+  nie mają prawa w niej być.
+
+  Mutacje: przywrócony hook → czerwone „żaden hook admin_init nie nadaje
+  uprawnień"; zdjęte ograniczenie modułów w imporcie → 7 czerwonych; bramka
+  pytająca znów tylko o `manage_options` → czerwone „tłumacz zapisuje
+  tłumaczenia".
+
+- Atrapa `current_user_can()` odpowiada teraz według `$GLOBALS['caps']`.
+  Domyślnie dalej wpuszcza wszystko, żeby testy nie o uprawnieniach nie musiały
+  nic ustawiać — ale bez tego przełącznika atrapa była **łagodniejsza od
+  WordPressa** i każda bramka przechodziła niezależnie od tego, o co pyta.
+
 ## [1.126.0] — 2026-09-01
 
 ### Naprawione

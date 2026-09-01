@@ -44,22 +44,27 @@ add_action('init', function () {
     }
 });
 
-// AJAX tłumaczeń — nadaj manage_options dla ról z evk_access_translations
-// (AJAX handlery w 31-admin-page.php sprawdzają manage_options)
-add_action('admin_init', function () {
-    $action = $_POST['action'] ?? $_GET['action'] ?? '';
-    if (!$action) return;
-    if (strpos($action, 'tl_') !== 0 && strpos($action, 'evoke_tl') !== 0) return;
-
-    $user = wp_get_current_user();
-    if (!$user->ID || $user->has_cap('manage_options')) return;
-    if (!$user->has_cap('evk_access_translations')) return;
-
-    $user->add_cap('manage_options', true);
-    add_action('shutdown', function () use ($user) {
-        $user->remove_cap('manage_options');
-    });
-}, 1);
+// TU BYŁO doklejanie `manage_options` rolom z `evk_access_translations` na czas
+// żądania, w którym `action` zaczyna się od `tl_`. Zostało USUNIĘTE w 1.127.0
+// i nie ma wracać — ani w tej postaci, ani w „poprawionej".
+//
+// Dwie rzeczy były z tym nie tak, każda sama w sobie wystarczająca:
+//
+// 1. O PRZYZNANIU UPRAWNIENIA DECYDOWAŁA WARTOŚĆ Z ŻĄDANIA. `admin-ajax.php`
+//    również odpala `admin_init`, więc wystarczyło zawołać `tl_import` — punkt,
+//    który zapisuje `evk_snippets_advanced_content`, czyli surowy PHP
+//    wykonywany potem przez `eval()`. Rola do tłumaczenia fraz dawała w efekcie
+//    wykonanie dowolnego kodu na serwerze. Nonce nie był przeszkodą: strona
+//    Tłumaczeń, do której ta rola ma dostęp, sama go drukuje.
+//
+// 2. `add_cap()` ZAPISUJE UPRAWNIENIE DO BAZY (usermeta), a zdejmował je hook
+//    `shutdown`. Proces ubity twardo — OOM, timeout FPM — zostawiał
+//    `manage_options` na stałe, bez żadnego atakującego.
+//
+// Uprawnień pilnują teraz same punkty AJAX: `evk_tl_ajax_check()`
+// w `includes/30-admin-settings-ajax.php` pyta o `manage_options` LUB
+// `evk_access_translations`, a eksport i import dodatkowo zawężają listę
+// modułów do `tl_*`. Sprawdza to `tests/php/tl-uprawnienia.php`.
 
 // =========================================================================
 // HELPERY

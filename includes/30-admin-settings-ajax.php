@@ -133,9 +133,57 @@ function tl_rebuild_dd_keys_from_rows(array $payload, array $previous_keys = [])
     return $dd_keys;
 }
 
+/**
+ * Wspólna bramka dla wszystkich punktów AJAX Tłumaczeń.
+ *
+ * DLACZEGO ISTNIEJE. Do 1.126.0 handlery `tl_*` sprawdzały samo
+ * `manage_options`, a brakujące uprawnienie dokładał im hook w Role Managerze:
+ * na `admin_init` doklejał `manage_options` KAŻDEMU, kto ma
+ * `evk_access_translations`, jeśli tylko nazwa akcji zaczynała się od `tl_`.
+ * O przyznaniu uprawnienia decydowała więc wartość z żądania — a że
+ * `admin-ajax.php` też odpala `admin_init`, wystarczyło zawołać `tl_import`,
+ * żeby zapisać snippet z dowolnym PHP i doprowadzić do jego wykonania.
+ *
+ * Handler pyta teraz sam o to, czego naprawdę potrzebuje — dokładnie tak, jak
+ * robi to od początku `evk_nl_ajax_check()` w newsletterze.
+ *
+ * Nonce jest parametrem, bo edytor inline na froncie drukuje własny
+ * (`tl_inline_nonce`) i nie da się go podmienić bez zerwania zgodności
+ * z zapisanymi stronami.
+ */
+function evk_tl_ajax_check(string $nonce = 'tl_ajax_nonce'): void {
+    check_ajax_referer($nonce, 'nonce');
+    if (!current_user_can('manage_options') && !current_user_can('evk_access_translations')) {
+        wp_send_json_error('Brak uprawnien.', 403);
+    }
+}
+
+/**
+ * Ograniczenie modułów eksportu/importu dla bieżącego użytkownika.
+ * `null` = bez ograniczeń; pusta tablica = użytkownik nie ma tu czego szukać.
+ *
+ * Rola od tłumaczeń dostaje wyłącznie moduły `tl_*`. Reszta paczki to m.in.
+ * hasło SMTP, hasło obejścia konserwacji, źródła snippetów PHP i cała lista
+ * adresów newslettera — czyli rzeczy, których nie wolno ani wynieść, ani
+ * wgrać komuś, kto ma zarządzać tłumaczeniami.
+ *
+ * Administrator dostaje `null`, a NIE przefiltrowanego spisu modułów. To nie
+ * jest skrót: `evoke_one_get_io_modules()` jest listą DLA INTERFEJSU i nie
+ * zawiera wszystkiego, co import obsługuje (`evk_bgshift`, `evk_forminbox`
+ * mają gałęzie w imporcie, a w spisie ich nie ma). Filtrowanie przez ten spis
+ * po cichu wyłączyłoby import tych dwóch modułów.
+ */
+function evk_io_ograniczenie_modulow(): ?array {
+    if (current_user_can('manage_options')) return null;
+    if (!current_user_can('evk_access_translations')) return [];
+    return array_values(array_filter(
+        array_keys(evoke_one_get_io_modules()),
+        fn($mod) => strpos($mod, 'tl_') === 0
+    ));
+}
+
 add_action('wp_ajax_tl_save_translations', function () {
-    check_ajax_referer('tl_ajax_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnien.');
+    evk_tl_ajax_check();
     $raw  = isset($_POST['tl_translations']) ? wp_unslash($_POST['tl_translations']) : '';
     $data = json_decode($raw, true);
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) wp_send_json_error('Nieprawidlowy JSON.');
@@ -148,8 +196,7 @@ add_action('wp_ajax_tl_save_translations', function () {
 });
 
 add_action('wp_ajax_tl_save_images', function () {
-    check_ajax_referer('tl_ajax_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnien.');
+    evk_tl_ajax_check();
     $raw  = isset($_POST['tl_images']) ? wp_unslash($_POST['tl_images']) : '';
     $data = json_decode($raw, true);
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) wp_send_json_error('Nieprawidlowy JSON.');
@@ -158,8 +205,7 @@ add_action('wp_ajax_tl_save_images', function () {
 });
 
 add_action('wp_ajax_tl_save_settings', function () {
-    check_ajax_referer('tl_ajax_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnien.');
+    evk_tl_ajax_check();
     $raw  = isset($_POST['payload']) ? wp_unslash($_POST['payload']) : '';
     $data = json_decode($raw, true);
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) wp_send_json_error('Nieprawidlowy JSON.');
@@ -172,8 +218,7 @@ add_action('wp_ajax_tl_save_settings', function () {
 });
 
 add_action('wp_ajax_tl_save_dd_keys', function () {
-    check_ajax_referer('tl_ajax_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnien.');
+    evk_tl_ajax_check();
     $raw  = isset($_POST['tl_dd_keys']) ? wp_unslash($_POST['tl_dd_keys']) : '';
     $data = json_decode($raw, true);
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) wp_send_json_error('Nieprawidlowy JSON.');
@@ -188,8 +233,7 @@ add_action('wp_ajax_tl_save_dd_keys', function () {
 });
 
 add_action('wp_ajax_tl_save_slugs', function () {
-    check_ajax_referer('tl_ajax_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnien.');
+    evk_tl_ajax_check();
     $raw  = isset($_POST['tl_url_slugs']) ? wp_unslash($_POST['tl_url_slugs']) : '';
     $data = json_decode($raw, true);
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) wp_send_json_error('Nieprawidlowy JSON.');
@@ -200,8 +244,7 @@ add_action('wp_ajax_tl_save_slugs', function () {
 });
 
 add_action('wp_ajax_tl_save_sitemap_settings', function () {
-    check_ajax_referer('tl_ajax_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnien.');
+    evk_tl_ajax_check();
     $raw  = isset($_POST['payload']) ? wp_unslash($_POST['payload']) : '';
     $data = json_decode($raw, true);
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) wp_send_json_error('Nieprawidlowy JSON.');
@@ -211,12 +254,25 @@ add_action('wp_ajax_tl_save_sitemap_settings', function () {
 
 add_action('wp_ajax_tl_export', function () {
     check_ajax_referer('tl_ajax_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_die();
+    $limit = evk_io_ograniczenie_modulow();
+    if ($limit !== null && !$limit) wp_die();
 
-    // Które moduły eksportować
-    $raw_mods  = isset($_POST['modules']) ? wp_unslash($_POST['modules']) : '[]';
-    $modules   = json_decode($raw_mods, true);
-    if (!is_array($modules)) $modules = array_keys(evoke_one_get_io_modules());
+    /* Które moduły eksportować.
+     *
+     * BRAK POLA `modules` ≠ PUSTE POLE. Zakładka Import/Eksport wysyła listę
+     * zaznaczonych modułów, więc pusta lista znaczy tam „nic nie zaznaczono"
+     * i pusta paczka jest poprawną odpowiedzią. Strona Tłumaczeń pola nie
+     * wysyła w ogóle (`tlExportGroup()` w admin/tl/js-admin.php posyła tylko
+     * `action`, `nonce` i `group_id`) — i przez to jej „Eksportuj wszystko"
+     * zwracało DO 1.126.0 plik z samym nagłówkiem, bez ani jednej frazy:
+     * `json_decode('[]')` daje tablicę, więc dawny warunek `!is_array()`
+     * nigdy nie łapał tego przypadku. Rozróżnienie idzie po `isset()`. */
+    $modules = $limit ?? array_keys(evoke_one_get_io_modules());
+    if (isset($_POST['modules'])) {
+        $wybrane = json_decode(wp_unslash($_POST['modules']), true);
+        if (is_array($wybrane)) $modules = $wybrane;
+    }
+    if ($limit !== null) $modules = array_values(array_intersect($modules, $limit));
 
     $data = ['_evoke_one_export' => true, 'exported_at' => current_time('c'), 'version' => EVOKE_ONE_VERSION];
 
@@ -339,7 +395,8 @@ add_action('wp_ajax_tl_export', function () {
 
 add_action('wp_ajax_tl_import', function () {
     check_ajax_referer('tl_ajax_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnień.');
+    $limit = evk_io_ograniczenie_modulow();
+    if ($limit !== null && !$limit) wp_send_json_error('Brak uprawnień.');
 
     $raw  = isset($_POST['json'])      ? wp_unslash($_POST['json'])      : '';
     $decs = isset($_POST['decisions']) ? wp_unslash($_POST['decisions']) : '{}';
@@ -350,8 +407,15 @@ add_action('wp_ajax_tl_import', function () {
         wp_send_json_error('Nieprawidłowy JSON.');
     }
 
-    // Helper: zapisz jeśli decyzja = overwrite (lub brak decyzji = zawsze nadpisz)
-    $should = function(string $mod) use ($dec): bool {
+    // Helper: zapisz jeśli moduł jest dla tego użytkownika dozwolony
+    // ORAZ decyzja = overwrite (lub brak decyzji = zawsze nadpisz).
+    //
+    // Ograniczenie siedzi TUTAJ, a nie przy poszczególnych gałęziach, bo każdy
+    // zapis w tym handlerze przechodzi przez `$should()`. Dopisanie kolejnego
+    // modułu nie wymaga więc pamiętania o uprawnieniach — i nie da się o nich
+    // zapomnieć.
+    $should = function(string $mod) use ($dec, $limit): bool {
+        if ($limit !== null && !in_array($mod, $limit, true)) return false;
         return !isset($dec[$mod]) || $dec[$mod] === 'overwrite';
     };
 
@@ -486,8 +550,7 @@ add_action('wp_ajax_tl_import', function () {
 });
 
 add_action('wp_ajax_tl_inline_get', function () {
-    check_ajax_referer('tl_inline_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnien.');
+    evk_tl_ajax_check('tl_inline_nonce');
     $pl = sanitize_textarea_field(wp_unslash($_POST['pl'] ?? ''));
     if (!$pl) wp_send_json_error('Brak frazy.');
     $dd_keys = get_option('tl_dd_keys', []);
@@ -512,8 +575,7 @@ add_action('wp_ajax_tl_inline_get', function () {
 });
 
 add_action('wp_ajax_tl_inline_save_full', function () {
-    check_ajax_referer('tl_inline_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnien.');
+    evk_tl_ajax_check('tl_inline_nonce');
     $old_pl           = sanitize_textarea_field(wp_unslash($_POST['old_pl'] ?? ''));
     $pl               = sanitize_textarea_field(wp_unslash($_POST['pl'] ?? ''));
     $translations_raw = isset($_POST['translations']) ? wp_unslash($_POST['translations']) : '';

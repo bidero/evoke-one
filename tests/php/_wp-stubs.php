@@ -212,7 +212,27 @@ if (!function_exists('check_ajax_referer')) {
         return 1;
     }
 }
-function current_user_can($cap) { return true; }
+/**
+ * Uprawnienia. DOMYŚLNIE WSZYSTKO WOLNO — testy, które nie są o uprawnieniach,
+ * nie mają się nimi zajmować i nie muszą nic ustawiać.
+ *
+ * Test od uprawnień wpisuje do $GLOBALS['caps'] tablicę „cap => true" i od tej
+ * chwili atrapa odpowiada tylko na wypisane uprawnienia. Bez tego przełącznika
+ * atrapa byłaby ŁAGODNIEJSZA od WordPressa: każda bramka przechodziłaby
+ * w teście niezależnie od tego, o co pyta.
+ */
+$GLOBALS['caps'] = null;
+function current_user_can($cap) {
+    if ($GLOBALS['caps'] === null) return true;
+    return !empty($GLOBALS['caps'][$cap]);
+}
+// `wp_die()` kończy żądanie. W atrapach rzuca wyjątkiem, żeby dało się odróżnić
+// „handler odmówił" od „handler poszedł dalej" — inaczej odmowa wyglądałaby
+// w teście dokładnie jak zgoda.
+class EVK_Test_Die extends Exception {}
+if (!function_exists('wp_die')) {
+    function wp_die($message = '', $title = '', $args = []) { throw new EVK_Test_Die((string) $message); }
+}
 function wp_unslash($v) { return $v; }
 function absint($v) { return abs((int) $v); }
 function wp_list_pluck($list, $field) {

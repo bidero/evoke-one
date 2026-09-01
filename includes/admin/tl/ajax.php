@@ -6,8 +6,7 @@ if (!defined('ABSPATH')) exit;
 
 // AJAX endpoint do pobierania wszystkich slugów stron/postów
 add_action('wp_ajax_tl_get_all_slugs', function() {
-    check_ajax_referer('tl_ajax_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnień.');
+    evk_tl_ajax_check();
 
     $slugs = [];
 
