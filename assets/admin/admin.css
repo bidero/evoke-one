@@ -2567,3 +2567,14 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 .evo-mb-0  { margin-bottom: 0; }
 .evo-panel .evo-w-480 { width: 100%; max-width: 480px; }
 .evo-panel .evo-w-80  { max-width: 80px; }
+
+/* ── Snippety: stan wpisu na liście ──────────────────────────────────────
+   Przycisk, nie sam kolor: stan trzeba dać się ZMIENIĆ jednym kliknięciem
+   z listy, a napis „wł."/„wył." niesie tę samą informację co barwa — dla tych,
+   którzy jej nie rozróżniają. */
+.evo-stan-btn { min-width: 44px; padding: 3px 8px; border: 1px solid var(--evo-border); border-radius: 999px; background: var(--evo-surface); color: var(--evo-text-muted); font-size: 11px; font-weight: 600; cursor: pointer; }
+.evo-stan-btn.is-on { border-color: var(--evo-on-line); background: var(--evo-on-soft); color: var(--evo-on-dark); }
+.evo-stan-btn:hover { border-color: var(--evo-accent-line); color: var(--evo-accent); }
+
+/* Licznik przy zakładce — ile błędów czeka w logach. */
+.evo-count-badge { display: inline-block; min-width: 16px; padding: 0 5px; border-radius: 999px; background: var(--evo-danger); color: #fff; font-size: 10px; line-height: 16px; text-align: center; margin-left: 5px; }

@@ -141,35 +141,61 @@ function evk_snippets_advanced_save(string $code): void {
 // INICJALIZACJA WYKONYWANIA
 // =========================================================================
 
+/**
+ * Wykonanie POJEDYNCZEGO wpisu — jedyna droga, którą treść trafia na stronę.
+ *
+ * Rodzaj rozstrzyga, czy treść jest WYKONYWANA, czy tylko OWIJANA i wypisana.
+ * `evk_snippet_opakuj()` zwraca `null` dokładnie dla tych rodzajów, które mają
+ * przejść przez `eval()`; wszystko inne — CSS, JavaScript, HTML — jest podawane
+ * stronie bez wykonywania, więc nie ma jak wywalić PHP-a.
+ */
+function evk_snippet_wykonaj_wpis(array $wpis): string {
+    if (trim($wpis['kod']) === '') return '';
+
+    $gotowe = evk_snippet_opakuj($wpis['rodzaj'], $wpis['kod'], $wpis['id']);
+    if ($gotowe !== null) return $gotowe;
+
+    /* `php` to sam kod bez otwierającego znacznika — dopisujemy go, bo
+       `evk_snippet_execute()` wykonuje treść w trybie szablonu (`?>` na
+       początku). Dzięki temu obie drogi mają jedną obsługę błędów. */
+    $kod = ($wpis['rodzaj'] === 'php') ? "<?php\n" . $wpis['kod'] : $wpis['kod'];
+
+    return evk_snippet_execute($kod, $wpis['slug'] !== '' ? $wpis['slug'] : ('wpis-' . $wpis['id']));
+}
+
 add_action('init', function () {
     if (defined('EVK_CODE_DISABLE') && EVK_CODE_DISABLE) return;
+
+    /* Migracja PRZED sprawdzeniem włącznika: cztery stare okna mają dostać
+       metadane niezależnie od tego, czy wykonywanie jest w tej chwili
+       włączone — inaczej lista w panelu byłaby pusta u każdego, kto wyłączył
+       snippety po fatalnym błędzie. */
+    evk_snippety_migruj();
+
     if (!get_option(EVK_SNIPPETS_ENABLED_OPTION, 0)) return;
 
-    // functions.php style — natychmiast
-    $code = evk_snippet_get('evk-snippet-functions-php');
-    if (!empty(trim($code))) evk_snippet_execute($code, 'evk-snippet-functions-php');
+    $miejsca = evk_snippet_miejsca();
+    $wpisy   = evk_snippety_wszystkie(true);
 
-    // Advanced — natychmiast
+    // Advanced — osobna opcja sprzed podziału na wpisy, zostaje bez zmian.
     if (get_option(EVK_SNIPPETS_ADVANCED_ENABLED, 0)) {
         $adv = evk_snippets_advanced_get();
         if (!empty(trim($adv))) evk_snippet_execute($adv, 'evk-snippet-advanced');
     }
 
-    // Frontend hooks
-    if (!empty(trim(evk_snippet_get('evk-snippet-frontend-head')))) {
-        add_action('wp_head', function () {
-            echo evk_snippet_execute(evk_snippet_get('evk-snippet-frontend-head'), 'evk-snippet-frontend-head');
-        }, 1);
-    }
-    if (!empty(trim(evk_snippet_get('evk-snippet-footer')))) {
-        add_action('wp_footer', function () {
-            echo evk_snippet_execute(evk_snippet_get('evk-snippet-footer'), 'evk-snippet-footer');
-        }, 9999);
-    }
-    if (is_admin() && !empty(trim(evk_snippet_get('evk-snippet-admin-head')))) {
-        add_action('admin_head', function () {
-            echo evk_snippet_execute(evk_snippet_get('evk-snippet-admin-head'), 'evk-snippet-admin-head');
-        }, 1);
+    foreach ($wpisy as $wpis) {
+        $miejsce = $miejsca[$wpis['miejsce']] ?? $miejsca['head'];
+
+        // Bez haka — wykonanie natychmiastowe, jak functions.php.
+        if ($miejsce['hak'] === '') { evk_snippet_wykonaj_wpis($wpis); continue; }
+
+        // Wpisy panelu nie mają czego szukać na froncie i odwrotnie.
+        if ($miejsce['admin'] === true  && !is_admin()) continue;
+        if ($miejsce['admin'] === false &&  is_admin()) continue;
+
+        add_action($miejsce['hak'], function () use ($wpis) {
+            echo evk_snippet_wykonaj_wpis($wpis);
+        }, $miejsce['priorytet']);
     }
 }, 10);
 

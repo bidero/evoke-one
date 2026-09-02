@@ -166,7 +166,10 @@ function wp_add_inline_script($handle, $data, $position = 'after') {
 function wp_localize_script($handle, $name, $data) {
     $GLOBALS['localized'][$name] = $data;
 }
-function is_admin() { return false; }
+/* Domyślnie żądanie frontu. Harness, który potrzebuje panelu, podnosi
+   `$GLOBALS['is_admin']` — inaczej warunki po `is_admin()` w modułach są
+   nieosiągalne i mutacja w nich przechodzi na zielono. */
+function is_admin() { return !empty($GLOBALS['is_admin']); }
 
 /*
  * Biblioteka mediów i meta wpisów — na tyle, ile potrzebuje `render()`
@@ -221,6 +224,77 @@ if (!function_exists('get_post_meta')) {
         return $single ? $v : ($v === '' ? [] : [$v]);
     }
 }
+
+/*
+ * MAGAZYN WPISÓW — na tyle, ile potrzeba modułom trzymającym dane we wpisach
+ * (dziś snippety). Nie udajemy WP_Query: obsługujemy te argumenty, których
+ * moduły naprawdę używają — `post_type`, `post_status`, `name`, `fields`,
+ * `orderby` po `menu_order`. Argument, którego atrapa nie zna, jest po prostu
+ * pomijany, więc zapytanie zbudowane na wyrost zwróci ZA DUŻO, a nie za mało;
+ * to lepszy kierunek pomyłki niż cicho pusty wynik.
+ */
+$GLOBALS['posts_store'] = [];
+$GLOBALS['posts_next_id'] = 1000;
+
+/* KAŻDA FUNKCJA POD WŁASNYM `function_exists`, nie sześć pod jednym.
+   Harnessy trzymają własne, prostsze wersje pojedynczych funkcji (tl-eksport
+   ma swój `get_posts`), a wspólna bramka sprawdza tylko pierwszą z brzegu —
+   przy cudzym `get_posts` i naszym `wp_insert_post` PHP wywala się na
+   „Cannot redeclare". Wyszło od razu po dołożeniu tego bloku. */
+if (!function_exists('wp_insert_post')) {
+    function wp_insert_post($dane) {
+        $id = ++$GLOBALS['posts_next_id'];
+        $GLOBALS['posts_store'][$id] = (object) array_merge([
+            'ID' => $id, 'post_title' => '', 'post_content' => '', 'post_status' => 'publish',
+            'post_type' => 'post', 'post_name' => '', 'menu_order' => 0,
+        ], (array) $dane);
+        $GLOBALS['posts_store'][$id]->ID = $id;
+        return $id;
+    }
+}
+if (!function_exists('wp_update_post')) {
+    function wp_update_post($dane) {
+        $id = (int) ($dane['ID'] ?? 0);
+        if (!$id || !isset($GLOBALS['posts_store'][$id])) return 0;
+        foreach ((array) $dane as $k => $v) $GLOBALS['posts_store'][$id]->$k = $v;
+        return $id;
+    }
+}
+if (!function_exists('get_post')) {
+    function get_post($id = 0) { return $GLOBALS['posts_store'][(int) $id] ?? null; }
+}
+if (!function_exists('get_posts')) {
+    function get_posts($args = []) {
+        $out = [];
+        foreach ($GLOBALS['posts_store'] as $post) {
+            if (isset($args['post_type'])   && $post->post_type   !== $args['post_type'])   continue;
+            if (isset($args['post_status']) && $post->post_status !== $args['post_status']) continue;
+            if (isset($args['name'])        && $post->post_name   !== $args['name'])        continue;
+            $out[] = $post;
+        }
+        if (isset($args['orderby']) && is_array($args['orderby']) && isset($args['orderby']['menu_order'])) {
+            usort($out, function ($a, $b) {
+                return [$a->menu_order, $a->ID] <=> [$b->menu_order, $b->ID];
+            });
+        }
+        if (($args['posts_per_page'] ?? -1) > 0) $out = array_slice($out, 0, (int) $args['posts_per_page']);
+        if (($args['fields'] ?? '') === 'ids') $out = array_map(function ($p) { return $p->ID; }, $out);
+        return $out;
+    }
+}
+if (!function_exists('update_post_meta')) {
+    function update_post_meta($id, $key, $value) {
+        $GLOBALS['post_meta'][(int) $id][$key] = $value;
+        return true;
+    }
+}
+if (!function_exists('delete_post_meta')) {
+    function delete_post_meta($id, $key) {
+        unset($GLOBALS['post_meta'][(int) $id][$key]);
+        return true;
+    }
+}
+
 function checked($a, $b = true, $echo = true) { if ($a == $b) echo ' checked'; }
 
 // ── AJAX ────────────────────────────────────────────────────────────────

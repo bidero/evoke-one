@@ -46,6 +46,8 @@ require_once EVK_TEST_ROOT . '/includes/newsletter/ajax.php';
 /* Snippety: rejestracja typu siedzi pod `init`, a plik silnika potrzebuje
    swoich stałych z definitions.php. */
 require_once EVK_TEST_ROOT . '/includes/snippets/definitions.php';
+/* Kolejność jak w includes/87-snippets.php — silnik woła model wpisów. */
+require_once EVK_TEST_ROOT . '/includes/snippets/wpisy.php';
 require_once EVK_TEST_ROOT . '/includes/snippets/engine.php';
 foreach ($GLOBALS['hooks']['init'] ?? [] as $cb) { $cb(); }
 

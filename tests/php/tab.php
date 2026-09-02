@@ -125,6 +125,25 @@ $GLOBALS['posts'] = [
     12 => ['title' => 'O nas',         'name' => 'o-nas'],
 ];
 function get_posts($args = []) {
+    /* Zapytanie o WŁASNY typ wpisu idzie do magazynu z `_wp-stubs.php`.
+       Bez tego rozgałęzienia zakładka snippetów dostawała dwie strony niżej
+       i renderowała je jako swoje wpisy — z pustymi metadanymi, więc wszystkie
+       „włączone" i wszystkie tego samego rodzaju. Wyglądało wiarygodnie
+       i było nieprawdą; złapane oglądaniem wyrenderowanej listy. */
+    $typ = $args['post_type'] ?? '';
+    if ($typ !== '' && !in_array($typ, ['page', 'post'], true)) {
+        $out = [];
+        foreach ($GLOBALS['posts_store'] as $post) {
+            if ($post->post_type !== $typ) continue;
+            if (isset($args['post_status']) && $post->post_status !== $args['post_status']) continue;
+            if (isset($args['name']) && $post->post_name !== $args['name']) continue;
+            $out[] = $post;
+        }
+        usort($out, function ($a, $b) { return [$a->menu_order, $a->ID] <=> [$b->menu_order, $b->ID]; });
+        if (($args['fields'] ?? '') === 'ids') $out = array_map(function ($p) { return $p->ID; }, $out);
+        return $out;
+    }
+
     return array_map(function ($id) {
         return (object) ['ID' => $id, 'post_title' => $GLOBALS['posts'][$id]['title'],
                          'post_name' => $GLOBALS['posts'][$id]['name'],
@@ -143,7 +162,10 @@ function the_title() { echo esc_html(get_the_title()); }
 function the_permalink() { echo 'https://example.test/wpis'; }
 function get_permalink($p = 0) { return 'https://example.test/wpis'; }
 function get_edit_post_link($p = 0) { return 'https://example.test/wp-admin/post.php?post=' . (int) $p; }
-function get_post_meta($id, $key = '', $single = false) { return $single ? '' : []; }
+function get_post_meta($id, $key = '', $single = false) {
+    $v = $GLOBALS['post_meta'][(int) $id][$key] ?? '';
+    return $single ? $v : ($v === '' ? [] : [$v]);
+}
 function wp_reset_postdata() { $GLOBALS['cur_post'] = 0; }
 
 /**
@@ -591,6 +613,37 @@ $TABS = [
         'seed'   => function () {
             $GLOBALS['options']['evk_404_enabled']   = 1;
             $GLOBALS['options']['evk_404_skip_bots'] = 1;
+            /* WŁASNE wpisy logu, nie podstawione strony.
+               Do 1.139.0 atrapa `get_posts()` zwracała dwie strony niezależnie
+               od `post_type`, więc ten ekran mierzył się na wierszach, które
+               nie miały nic wspólnego z jego danymi — a tabela i tak się
+               rysowała, bo liczyła tylko sztuki. */
+            foreach ([['/stara-oferta', 12], ['/kontakt-old', 3]] as $i => $wiersz) {
+                $id = wp_insert_post([
+                    'post_title'  => $wiersz[0],
+                    'post_type'   => 'evk_404_log',
+                    'post_status' => 'publish',
+                ]);
+                update_post_meta($id, 'evk_404_hits', $wiersz[1]);
+                update_post_meta($id, 'evk_404_referer', 'https://example.test/');
+            }
+        },
+    ],
+    /* Snippety renderują się przez własną funkcję, nie przez plik zakładki:
+       `tab-narzedzia.php` woła `evk_snippets_render_tab()`. Harness podaje więc
+       moduł i zamiast pliku wskazuje funkcję. */
+    'tools-snippety' => [
+        'module'   => 'includes/87-snippets.php',
+        'file'     => '',
+        'funkcja'  => 'evk_snippets_render_tab',
+        'seed'     => function () {
+            $GLOBALS['options']['evk_snippets_enabled'] = 1;
+            $GLOBALS['caps']['manage_options'] = true;
+            // Dwa wpisy, żeby lista miała co pokazać.
+            evk_snippet_zapisz_wpis(['tytul' => 'Sticky header', 'kod' => 'body{}', 'rodzaj' => 'css',
+                                     'miejsce' => 'head', 'grupa' => 'Wygląd', 'wlaczony' => 1, 'kolejnosc' => 10]);
+            evk_snippet_zapisz_wpis(['tytul' => 'Wyłączony test', 'kod' => 'echo 1;', 'rodzaj' => 'php',
+                                     'miejsce' => 'init', 'grupa' => '', 'wlaczony' => 0, 'kolejnosc' => 20]);
         },
     ],
     'tools-io' => [
@@ -720,4 +773,10 @@ if (($tab['module'] ?? null) === 'TL') {
     $ajax_url         = 'https://example.test/wp-admin/admin-ajax.php';
 }
 
-require EVK_TEST_ROOT . '/' . $tab['file'];
+/* Zakładka renderowana funkcją, nie plikiem — tak działają snippety, których
+   treść `tab-narzedzia.php` woła przez `evk_snippets_render_tab()`. */
+if (!empty($tab['funkcja'])) {
+    ($tab['funkcja'])();
+} else {
+    require EVK_TEST_ROOT . '/' . $tab['file'];
+}

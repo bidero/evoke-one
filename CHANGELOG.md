@@ -2,6 +2,73 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.139.0] — 2026-09-02
+
+### Zmienione
+
+- **Snippety są teraz wpisami, nie czterema stałymi oknami.** Każdy ma nazwę,
+  **rodzaj**, **miejsce**, **grupę**, własny włącznik i kolejność. Lista
+  pokazuje to wszystko bez wchodzenia do środka.
+
+- **Rodzaj zdejmuje z Was pisanie opakowania** — o to prosiliście wprost:
+
+  | rodzaj | co wpisujesz | co robi system |
+  |---|---|---|
+  | CSS | same reguły | owija w `<style>` |
+  | JavaScript | sam skrypt | owija w `<script>` |
+  | PHP | sam kod | wykonuje, bez `<?php` na początku |
+  | HTML | znacznik | podaje bez zmian |
+  | HTML + PHP | jak dotąd | tryb czterech starych okien |
+
+  **CSS, JavaScript i HTML nie przechodzą przez `eval()`.** Arkusz stylów nie
+  ma powodu być wykonywany jako PHP, a każde miejsce, którego przez `eval()`
+  nie przepuszczamy, to jedno miejsce mniej do popsucia. Znacznik dostaje
+  `id="evk-snippet-{numer}"`, żeby dało się dojść, skąd na stronie wziął się
+  dany styl.
+
+- **Miejsce to hak**: frontend `<head>`, stopka, panel `<head>` albo „zawsze"
+  (jak `functions.php`). Wpis panelu nie wychodzi na front i odwrotnie.
+
+- **Kolejność jest Wasza, nie bazy.** Przy równych numerach rozstrzyga
+  identyfikator, więc dwa wpisy z zerem wykonują się zawsze tak samo.
+
+### Migracja
+
+Cztery stare bloki stają się wpisami **przy pierwszym starcie po
+aktualizacji**, bez utraty treści i rewizji — były już wpisami tego samego
+typu, więc migracja tylko dokłada im metadane. Każdy dostaje rodzaj
+**„HTML + PHP (tryb dawny)"**, bo tak wykonywał je silnik do tej pory; nadanie
+im nowego, wygodnego rodzaju zmieniłoby sposób wykonania i popsuło działające
+strony. Pusty blok wchodzi wyłączony. Treść sprzed migracji ląduje w kopii
+zapasowej — jedyny nieodwracalny krok w tej przebudowie zasługuje na siatkę.
+
+### Testy
+
+- Nowy `tests/snippety.test.js` + `tests/php/snippety.php` — 43 sprawdzenia na
+  prawdziwym silniku: opakowanie każdego rodzaju, domknięcie znacznika w treści
+  (`</style><script>` nie ma prawa wyjść z bloku), włącznik, kolejność,
+  rozdział front/panel, tryb dawny, migracja i jej powtórzenie. Lista i edytor
+  renderowane przez harness zakładek.
+
+- **Siedem mutacji**, każda uruchomiona i cofnięta. Dwie przeszły najpierw na
+  zielono i to je naprawiło: „powtórzona migracja nic nie zmienia" liczyło
+  wpisy, a migracja żadnego nie zakłada — dopiero przestawienie rodzaju po
+  migracji pokazuje, czy bezpiecznik działa; a warunki po `is_admin()` były
+  nieosiągalne, bo atrapa zawsze zwracała „front".
+
+### Naprawione w harnessach
+
+- **Atrapa `get_posts()` w `tests/php/tab.php` zwracała dwie strony niezależnie
+  od `post_type`.** Ekran logów 404 mierzył się więc na wierszach, które nie
+  miały nic wspólnego z jego danymi, a lista snippetów pokazywałaby strony jako
+  snippety. Zapytanie o własny typ wpisu idzie teraz do magazynu wpisów,
+  a logi 404 dostają w zasiewie własne rekordy.
+
+- `tests/php/_wp-stubs.php` dostaje magazyn wpisów (`wp_insert_post`,
+  `get_posts`, `update_post_meta` i reszta), każdy pod **własnym**
+  `function_exists` — wspólna bramka na sześć funkcji wywracała harnessy
+  trzymające jedną własną wersję.
+
 ## [1.138.0] — 2026-09-02
 
 ### Zmienione
