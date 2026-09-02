@@ -134,4 +134,30 @@ module.exports = async function (t) {
     tlWRejestrze.join(', '));
   t.check('obcy nie ma żadnego modułu',
     Array.isArray(php.limit_obcy) && php.limit_obcy.length === 0, JSON.stringify(php.limit_obcy));
+
+  // ── Dostępy do modułów w Role Managerze ───────────────────────────────
+  t.section('dostępy do modułów');
+
+  const rm = php.role_manager;
+
+  // Evoke FIELDS dołącza do czwórki obsługiwanej do 1.134.0. FIELDS jest
+  // OSOBNĄ WTYCZKĄ: Evoke ONE potrafi nadać uprawnienie i pokazać je w panelu,
+  // ale sprawdzić je musi sam FIELDS przy rejestracji menu i przy zapisach.
+  // Test pilnuje tej połowy, którą mamy.
+  t.check('zaznaczenie nadaje dostęp do FIELDS', rm.fields_nadane === true,
+    String(rm.fields_nadane));
+  t.check('odznaczenie go odbiera', rm.fields_odebrane === true, String(rm.fields_odebrane));
+  // Druga połowa: dopisanie nowego dostępu nie może zjeść pozostałych.
+  t.check('inne dostępy zapisują się obok', rm.tlumaczenia_obok === true,
+    String(rm.tlumaczenia_obok));
+
+  t.check('administrator dostaje komplet dostępów', rm.admin_dostaje.length === 5,
+    rm.admin_dostaje.join(', '));
+  t.check('FIELDS jest wśród nich', rm.admin_dostaje.includes('evk_access_fields'),
+    rm.admin_dostaje.join(', '));
+
+  // Bez tego filtra administrator nie widziałby własnych modułów, dopóki nie
+  // przeładuje sesji — uprawnienie z `init` siada dopiero przy następnym logowaniu.
+  t.check('filtr przepisuje dostęp administratorowi', rm.filtr_dla_admina === true,
+    String(rm.filtr_dla_admina));
 };

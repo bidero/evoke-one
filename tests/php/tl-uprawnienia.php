@@ -58,6 +58,23 @@ class EVK_Test_User {
 $GLOBALS['user'] = new EVK_Test_User(['evk_access_translations' => true]);
 function wp_get_current_user() { return $GLOBALS['user']; }
 
+/** Rola zapamiętująca, co jej nadano i co zabrano. */
+class EVK_Test_Role {
+    public $capabilities = ['read' => true];
+    public function has_cap($cap) { return !empty($this->capabilities[$cap]); }
+    public function add_cap($cap, $grant = true) { $this->capabilities[$cap] = (bool) $grant; }
+    public function remove_cap($cap) { unset($this->capabilities[$cap]); }
+}
+class WP_Roles { public $role_objects = []; }
+$GLOBALS['role'] = new EVK_Test_Role();
+$GLOBALS['role_admin'] = new EVK_Test_Role();
+function get_role($slug) {
+    return $slug === 'administrator' ? $GLOBALS['role_admin'] : $GLOBALS['role'];
+}
+function get_editable_roles() { return ['redaktor' => ['name' => 'Redaktor']]; }
+function wp_verify_nonce($nonce, $action = -1) { return $nonce === 'testnonce' ? 1 : false; }
+function add_settings_error($a, $b, $c, $d = 'error') {}
+
 /* Baza — potrzebna tylko po to, żeby zablokowana gałąź newslettera padła
    WARTOŚCIĄ, a nie błędem krytycznym. Test ma pokazywać, co się nie zapisało,
    nie wywalać się na braku $wpdb. */
@@ -187,5 +204,48 @@ $out['limit_tlumacz'] = evk_io_ograniczenie_modulow();
 $GLOBALS['caps'] = ['edit_posts' => true];
 $out['limit_obcy'] = evk_io_ograniczenie_modulow();
 $out['moduly_io'] = array_keys(evoke_one_get_io_modules());
+
+// ── 5. Dostępy do modułów w Role Managerze ────────────────────────────────
+// Evoke FIELDS dołącza do czwórki, którą Role Manager obsługiwał do 1.134.0.
+// FIELDS jest OSOBNĄ WTYCZKĄ — Evoke ONE potrafi tylko nadać uprawnienie
+// i pokazać je w panelu; sprawdzić je musi sam FIELDS. Test pilnuje więc tej
+// połowy, którą mamy: że uprawnienie da się nadać, odebrać i że dostaje je
+// administrator.
+$GLOBALS['caps'] = ['manage_evk_roles' => true];
+
+/** Zapisuje rolę przez PRAWDZIWY handler formularza Role Managera. */
+function zapisz_role(array $post): array {
+    $GLOBALS['role'] = new EVK_Test_Role();
+    $_POST = array_merge([
+        'evk_role_action' => 'edit_role',
+        'evk_role_nonce'  => 'testnonce',
+        'role_id'         => 'redaktor',
+    ], $post);
+    foreach ($GLOBALS['hooks']['admin_init'] ?? [] as $cb) { $cb(); }
+    return $GLOBALS['role']->capabilities;
+}
+
+$z_dostepem = zapisz_role(['evk_fields_access' => '1', 'evk_tl_access' => '1']);
+$bez_dostepu = zapisz_role([]);
+
+$out['role_manager'] = [
+    'fields_nadane'   => !empty($z_dostepem['evk_access_fields']),
+    'tlumaczenia_obok'=> !empty($z_dostepem['evk_access_translations']),
+    'fields_odebrane' => !isset($bez_dostepu['evk_access_fields']),
+];
+
+// Administrator dostaje komplet dostępów sam z siebie, przy `init`.
+$GLOBALS['role_admin'] = new EVK_Test_Role();
+foreach ($GLOBALS['hooks']['init'] ?? [] as $cb) { $cb(); }
+$out['role_manager']['admin_dostaje'] = array_values(array_filter(array_keys(
+    $GLOBALS['role_admin']->capabilities
+), fn($c) => strpos($c, 'evk_access_') === 0));
+
+// Filtr `user_has_cap` przepisuje administratorowi każdy z dostępów — bez tego
+// admin nie widziałby własnych modułów, dopóki nie przeładuje sesji.
+$filtr = $GLOBALS['hooks']['user_has_cap'][0] ?? null;
+$out['role_manager']['filtr_dla_admina'] = is_callable($filtr)
+    ? !empty($filtr(['manage_options' => true], ['evk_access_fields'], [])['evk_access_fields'])
+    : null;
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

@@ -16,7 +16,10 @@ define('EVK_ROLE_RESTRICTIONS_OPTION', 'evk_role_restrictions');
 add_filter('user_has_cap', function (array $caps, array $cap_check, array $args) {
     if (empty($cap_check)) return $caps;
     $cap = $cap_check[0];
-    if (!in_array($cap, ['evk_access_translations', 'evk_access_newsletter', 'evk_access_messages', 'evk_access_maintenance'], true)) return $caps;
+    if (!in_array($cap, [
+        'evk_access_translations', 'evk_access_newsletter',
+        'evk_access_messages', 'evk_access_maintenance', 'evk_access_fields',
+    ], true)) return $caps;
     if (!empty($caps['manage_options'])) {
         $caps[$cap] = true;
     }
@@ -37,6 +40,13 @@ add_action('init', function () {
     }
     if ($admin_role && !$admin_role->has_cap('evk_access_maintenance')) {
         $admin_role->add_cap('evk_access_maintenance', true);
+    }
+    /* Evoke FIELDS to OSOBNA WTYCZKA. Evoke ONE potrafi tylko nadać
+       uprawnienie i pokazać je w Role Managerze — sprawdzić je musi sam FIELDS,
+       przy rejestracji swojego menu i we własnych punktach zapisu. Bez tej
+       drugiej połowy zaznaczenie tu niczego nie zmieni. */
+    if ($admin_role && !$admin_role->has_cap('evk_access_fields')) {
+        $admin_role->add_cap('evk_access_fields', true);
     }
     // Nadaj manage_evk_roles administratorowi
     if ($admin_role && !$admin_role->has_cap('manage_evk_roles')) {
@@ -156,6 +166,13 @@ add_action('admin_init', function () {
             $role->add_cap('evk_access_maintenance', true);
         } else {
             $role->remove_cap('evk_access_maintenance');
+        }
+
+        // Dostęp do Evoke FIELDS (osobna wtyczka — patrz komentarz przy `init`)
+        if (!empty($_POST['evk_fields_access'])) {
+            $role->add_cap('evk_access_fields', true);
+        } else {
+            $role->remove_cap('evk_access_fields');
         }
 
         // Ograniczenia stron

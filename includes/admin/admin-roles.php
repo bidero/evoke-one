@@ -100,6 +100,18 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
                         <div class="evo-desc evo-m0">Rola może włączać i wyłączać tryb konserwacji z paska administratora.</div>
                     </div>
                 </label>
+                <label class="evo-check">
+                    <input type="checkbox" name="evk_fields_access" value="1"
+                           <?php checked($role->has_cap('evk_access_fields')); ?>>
+                    <div>
+                        <span class="evo-strong-500">Evoke FIELDS</span>
+                        <div class="evo-desc evo-m0">
+                            Rola może otwierać zakładkę Evoke FIELDS.
+                            <strong>Uprawnienie nadaje Evoke ONE, ale sprawdzić je musi sama wtyczka FIELDS</strong>
+                            — dopóki tego nie robi, zaznaczenie nic nie zmieni.
+                        </div>
+                    </div>
+                </label>
             </div>
 
         

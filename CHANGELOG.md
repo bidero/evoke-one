@@ -2,6 +2,44 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.135.0] — 2026-09-02
+
+### Dodane
+
+- **Dostęp do Evoke FIELDS w Role Managerze.** Dołącza do czwórki, która była
+  tam do tej pory (Tłumaczenia, Newsletter, Wiadomości, Tryb konserwacji):
+  zaznaczenie nadaje roli uprawnienie `evk_access_fields`, odznaczenie odbiera,
+  administrator dostaje je sam z siebie.
+
+  **Połowa tej sprawy leży poza Evoke ONE — i to jest napisane także przy samym
+  polu w panelu.** Evoke FIELDS to osobna wtyczka: Evoke ONE potrafi nadać
+  uprawnienie i pokazać je w interfejsie, ale **sprawdzić je musi sam FIELDS**.
+  Dopóki tego nie robi, zaznaczenie pola niczego nie zmieni.
+
+  Po stronie Evoke FIELDS wystarczy w rejestracji menu zamienić wymagane
+  uprawnienie na sprawdzenie obu:
+
+  ```php
+  // zamiast 'manage_options'
+  current_user_can('manage_options') || current_user_can('evk_access_fields')
+  ```
+
+  — i to samo w punktach zapisu (AJAX), wzorem `evk_nl_ajax_check()`
+  w `includes/newsletter/ajax.php`. Sama zmiana uprawnienia przy `add_menu_page()`
+  odsłoniłaby ekran, ale zapisy dalej odbijałyby się od `manage_options`, więc
+  wyglądałoby to na działające i pękało przy pierwszym kliknięciu „Zapisz".
+
+### Testy
+
+- Sekcja „dostępy do modułów" w `tests/uprawnienia.test.js` — 6 sprawdzeń przez
+  **prawdziwy handler formularza** Role Managera: nadanie, odebranie,
+  nienaruszenie pozostałych dostępów, komplet u administratora i filtr
+  `user_has_cap`, bez którego administrator nie zobaczyłby własnych modułów do
+  czasu przeładowania sesji.
+
+  **Mutacje:** brak obsługi pola w formularzu → 1 czerwone; brak nadania
+  administratorowi → 2; brak na liście filtra → 1.
+
 ## [1.134.0] — 2026-09-02
 
 ### Dodane
