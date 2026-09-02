@@ -2,6 +2,103 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.133.0] — 2026-09-01
+
+Ostatnie wydanie z audytu bezpieczeństwa. Trzy drobiazgi o wychodzeniu poza
+swoje miejsce — tekst, który miał być treścią, stawał się znacznikiem —
+i jedna zwykła usterka znaleziona przy okazji.
+
+### Bezpieczeństwo
+
+- **Własny CSS panelu wychodził z bloku `<style>`.** Treść z pola „Własny CSS"
+  szła do strony taka, jaka przyszła z formularza: `trim()` przy zapisie
+  i `echo '<style …>'.$css.'</style>'`. Ciąg `</style><script>…` wychodził
+  z bloku i wykonywał się w panelu każdego administratora. Pole wymaga
+  `manage_options`, więc to nie było podniesienie uprawnień — ale ta sama opcja
+  jedzie przez import ustawień.
+
+  Wycinamy **wyłącznie `</style`**, nie wszystkie znaki `<`: parser HTML kończy
+  blok dokładnie na tej sekwencji, a współczesny CSS używa `<` w zapytaniach
+  zakresowych (`@media (400px <= width <= 700px)`). Czyszczone i przy zapisie,
+  i przy wypisywaniu — w bazie mogą leżeć wartości sprzed tej wersji.
+
+- **Adres strony źródłowej w skrzynce trafiał do `href` bez sprawdzenia
+  schematu.** Bierze się z nagłówka `Referer`, czyli podaje go ten, kto wysłał
+  formularz. Funkcja `esc()` w skrypcie strony zabezpiecza cudzysłów, ale nie
+  schemat — `javascript:…` dawało w panelu link, który po kliknięciu wykonywał
+  skrypt. Linkiem jest teraz wyłącznie `http(s)`; reszta wyświetla się jako sam
+  tekst, więc nic nie znika z widoku.
+
+- **Komunikat blokady logowania dopuszczał `span` z atrybutem `style`** —
+  a wyświetla się na **publicznej** stronie logowania, więc administrator (albo
+  ktoś, kto przejął jego konto) mógł wstrzyknąć w nią dowolny CSS. Przy okazji:
+  dwie drogi zapisu miały **dwie różne listy** dozwolonych znaczników — zapis
+  przez `register_setting()` przepuszczał tekst przez `wp_kses_post()` (lista
+  dla treści wpisów), a zapis przez AJAX przez własną, wąską. Ten sam tekst
+  dostawał różne sita zależnie od tego, którym przyciskiem go zapisano. Teraz
+  obie drogi wołają `evk_security_sanitize_message()`.
+
+### Naprawione
+
+- **„Eksportuj grupę" eksportowało wszystko.** Przycisk przy każdej grupie fraz
+  posyła `group_id`, a `tl_export` nigdy go nie czytał — plik nazywa się tak
+  samo i otwiera poprawnie, więc nikt tego nie zauważył. Bez `group_id` eksport
+  dalej oddaje komplet.
+
+### Testy
+
+- `tests/drobiazgi.test.js` + `tests/php/drobiazgi.php`
+  + `tests/fixtures/inbox-referer.html` — 19 sprawdzeń.
+
+  Adres źródłowy sprawdzany **prawdziwym skryptem strony skrzynki**: atrapa
+  wyjmuje `<script>` z wygenerowanego markupu, uruchamia go w przeglądarce
+  z podstawionym `$.ajax` i klika wiersz listy tą samą delegowaną drogą, co
+  prawdziwe kliknięcie. Sanityzacja komunikatu — na prawdziwym `wp_kses`
+  (kopia WordPressa w `tests/php/wp/`).
+
+  **Mutacje:** CSS bez sita → 4 czerwone; `span style` z powrotem dozwolony →
+  2; Referer bez sprawdzenia schematu → 2; `group_id` znów ignorowany → 1.
+
+  Jedno sprawdzenie **nie rozstrzygało niczego i wyszło to dopiero na
+  mutacji**: przypadek `</ style` badał dosłowny ciąg `</style`, więc wychodził
+  czysty także bez naprawy. Zamienione na wyrażenie; opisane w pliku testu.
+
+---
+
+## Audyt bezpieczeństwa — podsumowanie (1.127.0 – 1.133.0)
+
+Siedem wydań, komplet ustaleń zamknięty. Kolejność szła za tym, co **zmniejsza
+zasięg pozostałych**, a nie za samą wagą.
+
+| Wydanie | Co zamknięte |
+|---|---|
+| 1.127.0 | Rola „Tłumaczenia" dawała wykonanie dowolnego PHP (łańcuch czterech miejsc) |
+| 1.128.0 | Ciasteczko konserwacji było hasłem; termin sesji zaczął obowiązywać |
+| 1.129.0 | Otwarte przekierowanie w linkach newslettera — jedyne dla niezalogowanego |
+| 1.130.0 | Brak nonce'a w zapisie SEO; double opt-in decydowany przez przeglądarkę |
+| 1.131.0 | SVG z biblioteki mediów wchodził na stronę nietknięty |
+| 1.132.0 | Import CSV bez walidacji; limiter logowania jako dźwignia DoS; snippety jako zwykły wpis |
+| 1.133.0 | CSS panelu, `Referer` w skrzynce, komunikat logowania, eksport grupy |
+
+**Co zostaje otwarte świadomą decyzją:** wgrywanie SVG. Plik leży pod
+`/wp-content/uploads/…svg` i serwer oddaje go wprost, a wtyczka dopisuje `svg`
+do dozwolonych typów dla każdego z `upload_files`. Szczegóły w nocie
+przy 1.131.0.
+
+**Znalezione poza audytem, przy okazji napraw:** `/nl/view/{numer}/` pokazywał
+treść kampanii przed wysyłką (1.129.0), „Eksportuj wszystko" na stronie
+Tłumaczeń zwracało plik z samym nagłówkiem (1.127.0), „Eksportuj grupę"
+ignorowało `group_id` (1.133.0).
+
+**Cztery razy sprawdzenie okazało się nierozstrzygające** — przechodziło
+zarówno przed naprawą, jak i po niej — i za każdym razem wyszło to na mutacji,
+nie na przeglądzie: ścieżki `/wp-admin` (1.128.0), podpis formularza przy
+nieznanej liście (1.130.0), kolejność sprawdzeń w imporcie CSV (1.132.0)
+i przypadek `</ style` (1.133.0). Dwa razy poprawka trafiła przy tym do kodu
+produkcyjnego, nie tylko do testu: import CSV podaje dziś konkretny powód
+odmowy zamiast wspólnego „Nieprawidłowy plik", a wykluczenia w konserwacji
+dopasowują się do całego segmentu adresu.
+
 ## [1.132.0] — 2026-09-01
 
 ### Bezpieczeństwo

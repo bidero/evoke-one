@@ -1,0 +1,78 @@
+<meta charset="utf-8">
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<style>body { margin: 0; font: 13px system-ui, sans-serif; } .spinner { display:inline-block; }</style>
+
+<div id="host"></div>
+
+<script>
+/*
+ * Szczegóły wiadomości narysowane PRAWDZIWYM skryptem strony.
+ *
+ * `inbox.html` obok mierzy układ i skrypt strony celowo pomija. Tutaj chodzi
+ * o coś innego: o to, co `loadDetail()` robi z adresem strony źródłowej, który
+ * przychodzi z nagłówka `Referer` — czyli od tego, kto wysłał formularz.
+ * Dlatego skrypt jest wyjmowany z markupu i uruchamiany, a `$.ajax` podstawiony
+ * atrapą oddającą przygotowany ładunek.
+ */
+document.getElementById('host').innerHTML = window.__page;
+
+/* Skrypty wstawione przez innerHTML się nie wykonują — wyjmujemy treść
+   i uruchamiamy ją ręcznie, już po podstawieniu atrapy AJAX-a. */
+var kodStrony = Array.prototype.map.call(
+  document.querySelectorAll('#host script'), function (s) { return s.textContent; }
+).join('\n');
+Array.prototype.forEach.call(document.querySelectorAll('#host script'), function (s) { s.remove(); });
+
+window.ajaxurl = '/admin-ajax.php';
+window.__zadania = [];
+
+/** Atrapa: oddaje to, co test przygotował dla danej akcji. */
+jQuery.ajax = function (opts) {
+  var akcja = (opts.data && opts.data.action) || '';
+  window.__zadania.push(akcja);
+  var odp = (window.__odpowiedzi && window.__odpowiedzi[akcja])
+    || { success: true, data: { items: [], total: 0, pages: 0, page: 1, forms: [] } };
+  var d = jQuery.Deferred().resolve(odp);
+  var p = d.promise();
+  p.done = d.done; p.fail = function () { return p; }; p.always = function (f) { f(); return p; };
+  return p;
+};
+jQuery.post = jQuery.ajax;
+
+/**
+ * Otwiera szczegóły wiadomości o podanym adresie źródłowym.
+ *
+ * KOLEJNOŚĆ MA ZNACZENIE: skrypt strony przy starcie sam wczytuje listę
+ * i nadpisuje `#evk-inbox-list` stanem pustym, więc wiersz do kliknięcia
+ * wstawiamy PO jego uruchomieniu. Klik idzie przez delegowany handler
+ * `$(document).on('click', '.evk-inbox-item', …)` — tę samą drogę, którą
+ * przechodzi prawdziwe kliknięcie.
+ */
+window.__pokazReferer = function (referer) {
+  window.__odpowiedzi = {
+    evk_inbox_detail: { success: true, data: {
+      id: 1, form_id: 'kontakt', form_label: 'Kontakt',
+      fields: [{ key: 'imie', label: 'Imię', value: 'Jan' }],
+      has_template: false, rendered: '', email: 'jan@example.test',
+      name: 'Jan Kowalski', subtitle: '', header_lines: [],
+      meta: { date: '1 stycznia 2027', ip: '198.51.100.7', browser: 'Chrome',
+              os: 'Windows', referrer: referer, user: '' },
+    } },
+  };
+  if (!window.__uruchomiony) { new Function('jQuery', kodStrony)(jQuery); window.__uruchomiony = true; }
+  document.getElementById('evk-inbox-list').innerHTML =
+    '<div class="evk-inbox-item" data-id="1"><div class="evk-inbox-item-inner"></div></div>';
+  jQuery('.evk-inbox-item').first().trigger('click');
+};
+
+/** Co wyszło w pasku metadanych: czy jest link i dokąd prowadzi. */
+window.__meta = function () {
+  var meta = document.querySelector('.evk-inbox-detail-meta') || document.getElementById('evk-inbox-detail');
+  var a = meta.querySelector('a[target="_blank"]');
+  return {
+    html: meta.innerHTML,
+    link: a ? a.getAttribute('href') : null,
+    tekst: meta.textContent.replace(/\s+/g, ' ').trim(),
+  };
+};
+</script>

@@ -18,6 +18,8 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   tlumacz  — rola od tłumaczeń, żądanie BEZ pola `modules` (strona Tłumaczeń)
  *   admin    — administrator, żądanie bez pola `modules` (ma dostać wszystko)
  *   puste    — administrator, `modules` = [] (nic nie zaznaczono w panelu I/O)
+ *   grupa    — administrator, `group_id` wskazuje jedną grupę fraz
+ *              („Eksportuj grupę" na stronie Tłumaczeń)
  */
 require __DIR__ . '/_wp-stubs.php';
 
@@ -42,7 +44,10 @@ require_once EVK_TEST_ROOT . '/includes/30-admin-settings-ajax.php';
 require_once EVK_TEST_ROOT . '/includes/admin/page.php';
 
 $GLOBALS['options'] = [
-    'tl_translations'               => ['groups' => ['g1' => ['name' => 'Grupa', 'rows' => []]]],
+    'tl_translations'               => ['groups' => [
+        'g1' => ['name' => 'Nawigacja', 'rows' => ['r1' => ['pl' => 'Start']]],
+        'g2' => ['name' => 'Stopka',    'rows' => ['r2' => ['pl' => 'Kontakt']]],
+    ]],
     'tl_dd_keys'                    => ['witaj' => 'Witaj'],
     'evk_smtp'                      => ['password' => 'tajne-haslo-smtp'],
     'maintenance_bypass_password'   => 'tajne-haslo-konserwacji',
@@ -62,5 +67,6 @@ foreach ($GLOBALS['hooks']['wp_ajax_tl_export'] ?? [] as $cb) { $handler = $cb; 
 // Ze pustym polem — jak panel I/O z odznaczonymi wszystkimi modułami.
 $_POST = ['nonce' => 'testnonce'];
 if ($scenariusz === 'puste') $_POST['modules'] = '[]';
+if ($scenariusz === 'grupa') $_POST['group_id'] = 'g2';
 
 $handler();   // kończy się exit — wyjście procesu to paczka

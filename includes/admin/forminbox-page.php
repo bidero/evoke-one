@@ -509,7 +509,20 @@ $table_ok   = evk_inbox_table_exists();
             if (d.meta.date)     metaHtml += `<span><span class="dashicons dashicons-calendar-alt"></span> <strong>${esc(d.meta.date)}</strong></span>`;
             if (d.meta.ip)       metaHtml += `<span><span class="dashicons dashicons-location"></span> ${esc(d.meta.ip)}</span>`;
             if (d.meta.browser)  metaHtml += `<span><span class="dashicons dashicons-desktop"></span> ${esc(d.meta.browser)}${d.meta.os ? ' / ' + esc(d.meta.os) : ''}</span>`;
-            if (d.meta.referrer) metaHtml += `<span><span class="dashicons dashicons-external"></span> <a href="${esc(d.meta.referrer)}" target="_blank" style="color:#2563eb;">${esc(d.meta.referrer.replace(/^https?:\/\//, '').substring(0, 60))}</a></span>`;
+            if (d.meta.referrer) {
+                /* Adres strony, z której przyszło zgłoszenie, bierze się
+                   z nagłówka `Referer` — czyli podaje go wysyłający formularz.
+                   `esc()` wyżej zabezpiecza cudzysłów, ale NIE schemat: wpisanie
+                   `javascript:…` dawało w panelu link, który po kliknięciu
+                   wykonywał skrypt. Linkiem jest więc wyłącznie http(s); reszta
+                   wyświetla się jako sam tekst. */
+                const ref  = String(d.meta.referrer);
+                const skrot = esc(ref.replace(/^https?:\/\//, '').substring(0, 60));
+                const tresc = /^https?:\/\//i.test(ref)
+                    ? `<a href="${esc(ref)}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;">${skrot}</a>`
+                    : esc(ref.substring(0, 60));
+                metaHtml += `<span><span class="dashicons dashicons-external"></span> ${tresc}</span>`;
+            }
             if (d.meta.user)     metaHtml += `<span><span class="dashicons dashicons-admin-users"></span> ${esc(d.meta.user)}</span>`;
 
             // Użyj szablonu jeśli dostępny, inaczej auto-karty

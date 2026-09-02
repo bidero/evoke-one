@@ -278,7 +278,18 @@ add_action('wp_ajax_tl_export', function () {
 
     // Mapa: klucz modułu → funkcja zbierająca dane
     $collectors = [
-        'tl_translations'     => fn() => ['tl_translations' => get_option('tl_translations', ['groups' => []])],
+        /* `group_id` przychodzi ze strony Tłumaczeń („Eksportuj grupę" przy każdej
+           grupie fraz) i do 1.132.0 NIE BYŁ NIGDZIE CZYTANY — przycisk oddawał
+           komplet tłumaczeń zamiast wybranej grupy, a nikt tego nie zauważył, bo
+           plik nazywa się tak samo i otwiera się poprawnie. */
+        'tl_translations'     => function () {
+            $wszystko = get_option('tl_translations', ['groups' => []]);
+            $grupa    = sanitize_key(wp_unslash($_POST['group_id'] ?? ''));
+            if ($grupa !== '' && isset($wszystko['groups'][$grupa])) {
+                $wszystko['groups'] = [$grupa => $wszystko['groups'][$grupa]];
+            }
+            return ['tl_translations' => $wszystko];
+        },
         'tl_languages'        => fn() => [
             'tl_languages'    => get_option('tl_languages', []),
             'tl_menu_location'=> get_option('tl_menu_location', 'options-general.php'),

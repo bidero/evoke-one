@@ -116,10 +116,14 @@ function evk_login_get_block_message(string $ip): string {
             [$hours_left, $hours_str],
             $custom
         );
+        /* `span` BEZ atrybutu `style`. Komunikat blokady wyświetla się na
+           PUBLICZNEJ stronie logowania, a dopuszczony `style` pozwalał wstrzyknąć
+           w nią dowolny CSS — wystarczyło zapisać go w ustawieniach. Formatowanie
+           tekstu zostaje, malowanie strony nie. */
         return wp_kses($custom, [
             'strong' => [], 'em' => [], 'br' => [],
             'a'      => ['href' => [], 'title' => []],
-            'p'      => [], 'span' => ['style' => []],
+            'p'      => [], 'span' => [],
         ]);
     }
 

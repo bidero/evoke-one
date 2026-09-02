@@ -72,6 +72,26 @@ function evk_wl_normalize(array $data): array {
     return $result;
 }
 
+/**
+ * Własny CSS panelu — bez możliwości wyjścia z bloku `<style>`.
+ *
+ * Do 1.132.0 treść z pola „Własny CSS" szła do strony dokładnie taka, jaka
+ * przyszła z formularza: `trim()` przy zapisie, sklejenie z resztą reguł
+ * i `echo '<style id="evk-white-label">'.$css.'</style>'`. Ciąg
+ * `</style><script>…` wychodził z bloku i wykonywał się w panelu każdego
+ * administratora. Samo pole wymaga `manage_options`, więc to nie było
+ * podniesienie uprawnień — ale ta sama opcja jedzie przez import ustawień,
+ * a wtedy droga robi się krótsza, niż wygląda.
+ *
+ * WYCINAMY WYŁĄCZNIE `</style`, nie wszystkie znaki `<`. Parser HTML kończy
+ * blok RAWTEXT dokładnie na tej sekwencji i na niczym innym; usuwanie każdego
+ * `<` popsułoby poprawny, współczesny CSS — zapytania zakresowe piszą się
+ * `@media (400px <= width <= 700px)`.
+ */
+function evk_wl_bezpieczny_css(string $css): string {
+    return trim((string) preg_replace('#</\s*style\s*>?#i', '', $css));
+}
+
 function evk_wl_get(): array {
     static $cached = null;
     if ($cached !== null) return $cached;
@@ -262,7 +282,7 @@ add_action('admin_init', function () {
                 'color_admin_bar_link'   => $color('color_admin_bar_link'),
                 'color_submenu_current_bg' => $color('color_submenu_current_bg'),
                 'color_submenu_current_tx' => $color('color_submenu_current_tx'),
-                'custom_css_admin'       => array_key_exists('custom_css_admin', $input)   ? trim(wp_unslash((string) $input['custom_css_admin']))      : $current['custom_css_admin'],
+                'custom_css_admin'       => array_key_exists('custom_css_admin', $input)   ? evk_wl_bezpieczny_css(wp_unslash((string) $input['custom_css_admin'])) : $current['custom_css_admin'],
                 'bar_nodes_extra'        => (function() use ($input, $current) {
                     if (!array_key_exists('bar_nodes_extra', $input)) return $current['bar_nodes_extra'];
                     $extra = [];
@@ -937,7 +957,9 @@ add_action('admin_head', function () {
     }
 
     if (!empty($wl['custom_css_admin'])) {
-        $css .= "\n" . $wl['custom_css_admin'];
+        // Także przy wypisywaniu, nie tylko przy zapisie: w bazie mogą leżeć
+        // wartości sprzed 1.132.0, zapisane wtedy, gdy nikt ich nie sprawdzał.
+        $css .= "\n" . evk_wl_bezpieczny_css($wl['custom_css_admin']);
     }
 
     $bar_order = $wl['bar_nodes_order'] ?? [];

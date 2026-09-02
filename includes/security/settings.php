@@ -13,13 +13,30 @@ add_action('admin_init', function () {
     ]);
 });
 
+/**
+ * Komunikat blokady logowania — jedna lista dla obu dróg zapisu.
+ *
+ * Do 1.132.0 zapis przez `register_setting()` przepuszczał go przez
+ * `wp_kses_post()` (lista dla treści wpisów, z atrybutami `style` na wielu
+ * znacznikach), a zapis przez AJAX przez własną, wąską listę. Ten sam tekst
+ * dostawał więc różne sita zależnie od tego, którym przyciskiem go zapisano —
+ * a wyświetla się na PUBLICZNEJ stronie logowania.
+ */
+function evk_security_sanitize_message($tekst): string {
+    return wp_kses((string) $tekst, [
+        'strong' => [], 'em' => [], 'br' => [],
+        'a'      => ['href' => [], 'title' => []],
+        'p'      => [], 'span' => [],
+    ]);
+}
+
 function evk_security_sanitize($input): array {
     $input = is_array($input) ? $input : [];
     return [
         'limit_login_enabled'     => !empty($input['limit_login_enabled'])     ? 1 : 0,
         'max_attempts'            => max(1, min(100, absint($input['max_attempts']   ?? 5))),
         'reset_hours'             => max(1, min(720, absint($input['reset_hours']    ?? 24))),
-        'limit_login_message'     => wp_kses_post($input['limit_login_message'] ?? ''),
+        'limit_login_message'     => evk_security_sanitize_message($input['limit_login_message'] ?? ''),
         'hide_wp_version'         => !empty($input['hide_wp_version'])         ? 1 : 0,
         'disable_bundled_themes'  => !empty($input['disable_bundled_themes'])  ? 1 : 0,
         'rest_block_all'          => !empty($input['rest_block_all'])          ? 1 : 0,
@@ -71,9 +88,7 @@ function evk_security_sanitize_section(string $section, array $raw): array {
                 'limit_login_enabled' => !empty($raw['limit_login_enabled']) ? 1 : 0,
                 'max_attempts'        => max(1, min(100, absint($raw['max_attempts'] ?? 5))),
                 'reset_hours'         => max(1, min(720, absint($raw['reset_hours'] ?? 24))),
-                'limit_login_message' => wp_kses($raw['limit_login_message'] ?? '', [
-                    'strong'=>[],'em'=>[],'br'=>[],'a'=>['href'=>[],'title'=>[]],'p'=>[],'span'=>['style'=>[]],
-                ]),
+                'limit_login_message' => evk_security_sanitize_message($raw['limit_login_message'] ?? ''),
             ];
         case 'rest':
             return [
