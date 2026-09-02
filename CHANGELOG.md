@@ -2,6 +2,73 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.129.0] — 2026-09-01
+
+### Bezpieczeństwo
+
+- **Link kliknięcia z newslettera przekierowywał, dokąd ktoś kazał.** Trzecie
+  ustalenie z audytu i **jedyne osiągalne dla kogoś niezalogowanego** — nie
+  trzeba było mieć konta ani niczego znać, wystarczył adres strony:
+
+  ```
+  /?evk_nl=click&evk_nl_token=cokolwiek&url=https://zly-adres/
+  ```
+
+  Brak podpisu znaczył „stary link ze starszych wysyłek, przepuść po walidacji
+  adresu", a token subskrybenta nie chronił niczego, bo przekierowanie działo
+  się **poza** sprawdzeniem, czy taki subskrybent w ogóle istnieje. Adres był
+  w domenie klienta, więc i dla czytającego, i dla filtrów pocztowych wyglądał
+  jak własny link firmy.
+
+  Zasada po naprawie: **podpis jest zgodą na wyjście poza serwis.** Link
+  z poprawnym HMAC prowadzi, dokąd prowadził. Link bez podpisu przechodzi przez
+  `wp_validate_redirect()` — tę samą funkcję, na której stoi
+  `wp_safe_redirect()` w rdzeniu WordPressa.
+
+- **Kampania przed wysyłką była do przeczytania z ulicy.** Znalezione przy
+  pisaniu powyższej naprawy, **nie w audycie**. `/nl/view/{numer}/` pokazuje
+  treść kampanii, a numery są kolejne — więc zgadują się same. Dane
+  subskrybenta nie wyciekały (bez tokenu merge-tagi dostają wartości ogólne),
+  ale wersja robocza to często materiał przed premierą. Statusy `draft`
+  i `scheduled` odmawiają teraz z 404; kampanie po wysyłce działają jak dotąd,
+  także bez tokenu, żeby przekazany dalej link nie przestał otwierać.
+
+### Uwaga przy aktualizacji
+
+- **Stare linki ZEWNĘTRZNE z maili wysłanych przed wprowadzeniem podpisów
+  przestaną prowadzić do celu** — kliknięcie kończy się na stronie głównej.
+  Stare linki wewnętrzne działają dalej, a takich w newsletterze jest
+  większość. Wszystko, co wyszło z podpisem, działa bez zmian.
+- Uszkodzony token subskrybenta (obcięty przez klienta pocztowego, przepisany
+  ręcznie) **nie blokuje już przekierowania** — skoro o bezpieczeństwie decyduje
+  podpis, nie ma powodu zostawiać czytającego na stronie głównej. Takie
+  kliknięcie po prostu nie trafia do statystyk.
+
+### Testy
+
+- `tests/newsletter-klik.test.js` + `tests/php/newsletter-klik.php` —
+  18 sprawdzeń. Osobno przypadek zewnętrzny i wewnętrzny, bo samo „nie
+  przekierowuje na obcy adres" przeszłoby także wtedy, gdyby naprawa zabiła
+  wszystkie niepodpisane linki.
+
+  **Mutacje:** przepuszczenie niepodpisanego celu → 5 czerwonych; usunięcie
+  gałęzi wewnętrznej → 2; podpis liczony bez `campaign_id` → 3; zdjęcie warunku
+  statusu w podglądzie → 2.
+
+  Pierwsza wersja testu pytała o wszystkie statusy podglądu w jednym przebiegu.
+  Zdjęcie bramki wywalało wtedy **cały plik wyjątkiem** zamiast pokazać, które
+  sprawdzenie padło — bo handler przy zgodzie kończy się `exit`. Każdy status
+  biegnie teraz w osobnym procesie.
+
+  **Czego test nie sprawdza:** nagłówka `Referrer-Policy` (`header()` jest
+  funkcją wbudowaną i w CLI nie zostawia śladu — tak samo jak `setcookie()`
+  w 1.128.0) ani prawdziwego wyszukiwania subskrybenta.
+
+- Atrapa `add_query_arg()` obsługuje oba kształty wywołania oryginału —
+  `(tablica, adres)` i `(klucz, wartość, adres)`. Znała tylko drugi, więc kod
+  newslettera wywalał się na „Too few arguments" w miejscu niezwiązanym z tym,
+  co test bada.
+
 ## [1.128.0] — 2026-09-01
 
 ### Bezpieczeństwo

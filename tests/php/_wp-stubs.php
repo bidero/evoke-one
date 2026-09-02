@@ -122,9 +122,19 @@ function wp_scripts() {
    funkcji — zwracającą stały adres podstrony newslettera — i deklaruje ją,
    zanim dojdzie do `require` tego pliku. Bez straży: „Cannot redeclare". */
 if (!function_exists('add_query_arg')) {
-    function add_query_arg($klucz, $wartosc, $url) {
-        $sep = strpos($url, '?') === false ? '?' : '&';
-        return $url . $sep . rawurlencode($klucz) . '=' . rawurlencode((string) $wartosc);
+    /* Oryginał ma DWA kształty wywołania: `(tablica, adres)` i `(klucz, wartość,
+       adres)`. Atrapa obsługiwała tylko drugi, więc kod newslettera — który
+       składa adresy tablicą — wywalał się na „Too few arguments". Atrapa węższa
+       od funkcji, którą udaje, przewraca test w miejscu niezwiązanym z tym, co
+       test bada. */
+    function add_query_arg($a, $b = null, $c = null) {
+        $args = is_array($a) ? $a : [$a => $b];
+        $url  = is_array($a) ? (string) $b : (string) $c;
+        foreach ($args as $klucz => $wartosc) {
+            $sep = strpos($url, '?') === false ? '?' : '&';
+            $url .= $sep . rawurlencode((string) $klucz) . '=' . rawurlencode((string) $wartosc);
+        }
+        return $url;
     }
 }
 function wp_script_is($handle, $list = 'enqueued') {

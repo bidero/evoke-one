@@ -140,18 +140,47 @@ function evk_nl_handle_open(string $token, int $campaign_id = 0): void {
 // CLICK TRACKING — redirect
 // =========================================================================
 
+/**
+ * Dokąd wolno przekierować z linku kliknięcia.
+ *
+ * PODPIS JEST ZGODĄ NA WYJŚCIE POZA SERWIS — i niczym więcej nie da się takiej
+ * zgody wyrazić. Do 1.128.0 brak podpisu znaczył „stary link, przepuść po
+ * walidacji adresu", więc żądanie
+ * `?evk_nl=click&evk_nl_token=cokolwiek&url=https://zly-adres/` przekierowywało,
+ * gdzie tylko chciał wysyłający. Adres był w domenie klienta, więc i dla
+ * czytającego, i dla filtrów pocztowych wyglądał jak własny link firmy.
+ * Token subskrybenta niczego nie chronił: przekierowanie działo się poza
+ * sprawdzeniem, czy w ogóle istnieje.
+ *
+ * Linki bez podpisu (maile wysłane, zanim podpisywanie powstało) nie znikają —
+ * przechodzą przez `wp_validate_redirect()`, czyli tę samą funkcję, na której
+ * stoi `wp_safe_redirect()` w rdzeniu, respektującą filtr
+ * `allowed_redirect_hosts`. Stare linki WEWNĘTRZNE, a takich w newsletterze
+ * jest większość, działają dalej; stare linki na zewnątrz — czyli dokładnie
+ * wektor phishingu — kończą na stronie głównej.
+ *
+ * Zwraca `''`, gdy nie ma dokąd iść.
+ */
+function evk_nl_click_target(string $target, string $sig, int $campaign_id): string {
+    if ($target === '' || !wp_http_validate_url($target)) return '';
+
+    $oczekiwany = hash_hmac('sha256', $campaign_id . '|' . $target, wp_salt('auth'));
+    if ($sig !== '' && hash_equals($oczekiwany, $sig)) return $target;
+
+    return (string) wp_validate_redirect($target, '');
+}
+
 function evk_nl_handle_click(string $token, int $campaign_id = 0): void {
     $target_url = esc_url_raw(wp_unslash($_GET['url'] ?? ''));
     $sig        = sanitize_text_field(wp_unslash($_GET['sig'] ?? ''));
 
-    $valid = ($target_url !== '' && wp_http_validate_url($target_url));
-    // Podpisany link (nowe maile) — wymagaj poprawnego HMAC, blokuj open-redirect.
-    // Brak podpisu = legacy link ze starych wysyłek — przepuść po walidacji URL.
-    if ($valid && $sig !== '') {
-        $expected = hash_hmac('sha256', $campaign_id . '|' . $target_url, wp_salt('auth'));
-        if (!hash_equals($expected, $sig)) $valid = false;
-    }
+    $cel   = evk_nl_click_target($target_url, $sig, $campaign_id);
+    $valid = ($cel !== '');
 
+    /* Token subskrybenta NIE decyduje o przekierowaniu — decyduje podpis.
+       Uszkodzony token (obcięty przez klienta pocztowego, przepisany ręcznie)
+       nie ma powodu zostawiać czytającego na stronie głównej; kliknięcie po
+       prostu nie trafia wtedy do statystyk. */
     $sub = evk_nl_get_subscriber_by_token($token);
     if ($sub && $valid) {
         global $wpdb;
@@ -163,7 +192,7 @@ function evk_nl_handle_click(string $token, int $campaign_id = 0): void {
             ));
         }
         if ($campaign_id) {
-            evk_nl_log($campaign_id, 'click', $sid, ['url' => $target_url]);
+            evk_nl_log($campaign_id, 'click', $sid, ['url' => $cel]);
             $wpdb->query($wpdb->prepare(
                 "UPDATE $q SET status='clicked' WHERE campaign_id=%d AND subscriber_id=%d AND status IN ('sent','opened')",
                 $campaign_id, $sid
@@ -172,7 +201,7 @@ function evk_nl_handle_click(string $token, int $campaign_id = 0): void {
     }
 
     header('Referrer-Policy: no-referrer'); // nie wyciekaj tokenu do strony docelowej
-    wp_redirect($valid ? $target_url : home_url(), 302);
+    wp_redirect($valid ? $cel : home_url(), 302);
     exit;
 }
 
@@ -285,6 +314,16 @@ function evk_nl_handle_view(int $campaign_id, string $token = ''): void {
 
     $campaign = evk_nl_get_campaign($campaign_id);
     if (!$campaign) {
+        wp_die('Kampania nie istnieje.', 404);
+    }
+
+    /* Kampania, której treść nikomu jeszcze nie poszła, nie ma być do
+       przeczytania z ulicy. Numery są kolejne, więc `/nl/view/7/` zgaduje się
+       samo — a wersja robocza to często materiał przed premierą. Wysyłka
+       buduje ten link zawsze z tokenem (`mailer.php`), więc nikomu to niczego
+       nie zabiera; statusy po wysyłce działają dalej także bez tokenu, żeby
+       przekazany dalej link nie przestał otwierać. */
+    if (in_array($campaign['status'] ?? '', ['draft', 'scheduled'], true)) {
         wp_die('Kampania nie istnieje.', 404);
     }
 
