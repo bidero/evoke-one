@@ -2,6 +2,26 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.137.1] — 2026-09-02
+
+### Naprawione
+
+- **Numer wersji rozjechany ze stałą — i to nie był tylko napis.**
+  `EVOKE_ONE_VERSION` została na `1.135.0`, podczas gdy nagłówek wtyczki
+  przeszedł przez 1.136.0 i 1.137.0. Widać to było w prawym górnym rogu panelu,
+  ale poważniejszy skutek był niewidoczny: WordPress dokleja tę stałą jako
+  `?ver=` do adresów `admin.css` i `admin.js`, więc **przeglądarki mogły
+  podawać stare pliki z pamięci** mimo zaktualizowanej wtyczki. Nowy panel mógł
+  u kogoś wyglądać jak poprzedni.
+
+### Testy
+
+- Sekcja „numer wersji w trzech miejscach" w `tests/drobiazgi.test.js`:
+  nagłówek wtyczki, stała `EVOKE_ONE_VERSION` i najwyższy wpis w changelogu
+  muszą być identyczne. Pięć sprawdzeń — trzy, że każde miejsce w ogóle podaje
+  wersję, i dwa porównania. **Mutacja:** rozjechanie którejkolwiek pary →
+  czerwone; sprawdzenie zapaliło się zresztą samo, zanim dopisałem ten wpis.
+
 ## [1.137.0] — 2026-09-02
 
 ### Dodane

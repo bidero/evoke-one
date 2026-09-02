@@ -27,6 +27,37 @@ const { phpOutput } = require('./lib/harness');
 module.exports = async function (t) {
   const php = JSON.parse(phpOutput('drobiazgi.php'));
 
+  // ── Numer wersji ──────────────────────────────────────────────────────
+  t.section('numer wersji w trzech miejscach');
+
+  /* ZGŁOSZONE Z UŻYCIA: „v1.135.0 — taka wersja jest z prawej na górze, a nie
+     aktualna". Nagłówek wtyczki i changelog mówiły 1.137.0, a stała
+     `EVOKE_ONE_VERSION` została na 1.135.0 przez dwa wydania.
+
+     To nie jest wyłącznie napis. WordPress dokleja tę stałą jako `?ver=` do
+     adresów `admin.css` i `admin.js` (patrz includes/admin/page.php:16-30),
+     więc zostawiona w tyle każe przeglądarce podawać STARE pliki z pamięci —
+     zmiana w panelu dojeżdża do wtyczki, ale nie do oglądającego.
+
+     Trzy miejsca, jedna prawda; niżej pilnuje tego arytmetyka, a nie czujność. */
+  const fs = require('fs');
+  const path = require('path');
+  const korzen = path.join(__dirname, '..');
+
+  const glowny = fs.readFileSync(path.join(korzen, 'evoke-one.php'), 'utf8');
+  const zNaglowka = (glowny.match(/^\s*\*\s*Version:\s*([0-9]+\.[0-9]+\.[0-9]+)/m) || [])[1];
+  const zeStalej  = (glowny.match(/define\('EVOKE_ONE_VERSION',\s*'([0-9]+\.[0-9]+\.[0-9]+)'\)/) || [])[1];
+  const zChangeloga = (fs.readFileSync(path.join(korzen, 'CHANGELOG.md'), 'utf8')
+    .match(/^## \[([0-9]+\.[0-9]+\.[0-9]+)\]/m) || [])[1];
+
+  t.check('nagłówek wtyczki podaje wersję', !!zNaglowka, zNaglowka || 'nie znaleziono');
+  t.check('stała EVOKE_ONE_VERSION podaje wersję', !!zeStalej, zeStalej || 'nie znaleziono');
+  t.check('changelog otwiera się najnowszym wydaniem', !!zChangeloga, zChangeloga || 'nie znaleziono');
+  t.check('stała zgadza się z nagłówkiem', zeStalej === zNaglowka,
+    'nagłówek ' + zNaglowka + ', stała ' + zeStalej);
+  t.check('i changelog mówi to samo', zChangeloga === zNaglowka,
+    'nagłówek ' + zNaglowka + ', changelog ' + zChangeloga);
+
   // ── Własny CSS panelu ─────────────────────────────────────────────────
   t.section('własny CSS nie wychodzi z bloku <style>');
 

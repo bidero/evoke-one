@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.137.0
+ * Version: 1.137.1
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
@@ -16,7 +16,13 @@ if (!defined('ABSPATH')) exit;
 define('EVOKE_ONE_FILE',    __FILE__);
 define('EVOKE_ONE_DIR',     plugin_dir_path(__FILE__));
 define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
-define('EVOKE_ONE_VERSION', '1.135.0');
+/* UWAGA: ta liczba MUSI być tożsama z `Version:` w nagłówku wyżej.
+   Nie jest to kosmetyka — WordPress dokleja ją jako `?ver=` do adresów
+   `admin.css` i `admin.js`, więc stała pozostawiona w tyle każe
+   przeglądarkom podawać stare pliki z pamięci mimo aktualizacji wtyczki.
+   Zgodności trzech miejsc (nagłówek, stała, changelog) pilnuje sekcja
+   „numer wersji w trzech miejscach" w tests/drobiazgi.test.js. */
+define('EVOKE_ONE_VERSION', '1.137.1');
 
 // Stałe modułu tłumaczeń (zachowane dla kompatybilności z istniejącymi ustawieniami)
 define('TL_MENU_SLUG',        'evoke-tlumaczenia');
