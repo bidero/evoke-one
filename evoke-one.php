@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.135.0
+ * Version: 1.136.0
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */

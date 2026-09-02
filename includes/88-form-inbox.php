@@ -747,7 +747,12 @@ add_action('admin_init', function () {
     $hdr = ['ID', 'Formularz', 'Data'];
     foreach ($all_keys as $k) $hdr[] = evk_inbox_field_label($k, $s);
     $hdr = array_merge($hdr, ['IP', 'Przeglądarka', 'OS', 'Referer', 'Użytkownik']);
-    fputcsv($out, $hdr, ';');
+    /* Pusty parametr escape jest wymagany od PHP 8.4: domyślny backslash
+       jest wycofywany, a bez jawnej wartości interpreter dokłada do wyjścia
+       komunikat deprecacyjny — czyli wprost do pobieranego pliku, jeśli
+       serwer ma włączone `display_errors`. RFC 4180 zna tylko podwojony
+       cudzysłów i to jest zachowanie, które chcemy. */
+    fputcsv($out, $hdr, ';', '"', '');
 
     foreach ($rows as $row) {
         $fields = json_decode($row->form_data, true) ?: [];
@@ -759,7 +764,7 @@ add_action('admin_init', function () {
         $user_name = '';
         if (!empty($row->user_id) && ($u = get_userdata((int)$row->user_id))) $user_name = $u->display_name;
         $line = array_merge($line, [$row->ip ?? '', $row->browser ?? '', $row->os ?? '', $row->referrer ?? '', $user_name]);
-        fputcsv($out, $line, ';');
+        fputcsv($out, $line, ';', '"', '');
     }
     fclose($out);
     exit;

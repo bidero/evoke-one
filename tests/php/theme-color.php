@@ -40,7 +40,6 @@ function evk_tc_head(array $opcje): string {
     $GLOBALS['hooks'] = [];
     $r = new ReflectionClass('EVK_Theme_Color');
     $p = $r->getProperty('instance');
-    $p->setAccessible(true);
     $p->setValue(null, null);
     EVK_Theme_Color::get_instance();
     return trim(evk_test_fire('wp_head'));
@@ -49,7 +48,6 @@ function evk_tc_head(array $opcje): string {
 require EVK_TEST_ROOT . '/includes/91-theme-color.php';
 
 $domyslne = (new ReflectionClass('EVK_Theme_Color'))->getProperty('defaults');
-$domyslne->setAccessible(true);
 
 echo wp_json_encode([
     // Wyłączony moduł nie może wypisać ani jednego znaku — inaczej włączenie

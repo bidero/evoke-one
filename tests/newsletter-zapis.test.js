@@ -135,4 +135,75 @@ module.exports = async function (t) {
     partie.length + ' wierszy');
   t.check('bez powtórzeń między partiami', unikalne.size === 1200,
     unikalne.size + ' różnych adresów');
+
+  // ── Czystość pliku na nowszym PHP ──────────────────────────────────────
+  t.section('eksport nie wkleja komunikatów PHP do pliku');
+
+  /* PHP 8.4 wycofuje domyślny znak ucieczki `fputcsv()` i przy każdym wywołaniu
+     BEZ jawnego parametru dokłada komunikat deprecacyjny. Na serwerze
+     z włączonym `display_errors` ten komunikat leci tam, gdzie leci reszta
+     wyjścia — czyli w środek pobieranego pliku CSV.
+
+     Dlatego strumień błędów jest tu sklejony z wyjściem: sam `phpOutput()`
+     bierze tylko stdout, więc sprawdzenie po nim przechodziłoby na zielono
+     także wtedy, gdyby komunikat wracał. */
+  const { execSync } = require('child_process');
+  const zEkranemBledow = execSync(
+    'php -d display_errors=1 -d error_reporting=E_ALL '
+    + JSON.stringify(require('path').join(__dirname, 'php', 'newsletter-eksport.php'))
+    + ' 2>&1').toString();
+
+  t.check('w wyjściu nie ma komunikatów PHP',
+    !/Deprecated|Warning|Notice/i.test(zEkranemBledow),
+    (zEkranemBledow.match(/(Deprecated|Warning|Notice)[^\n]*/i) || ['czysto'])[0].slice(0, 90));
+
+  /* Statycznie po wszystkich miejscach, nie tylko po tym jednym eksporcie.
+     Skrzynka formularzy ma własne `fputcsv()` i własny harness, którego tu nie
+     ma — bez tego sprawdzenia jej regresja przeszłaby niezauważona. */
+  const fs = require('fs');
+  const pathMod = require('path');
+  const zrodla = [];
+  (function zbierz(kat) {
+    for (const wpis of fs.readdirSync(kat, { withFileTypes: true })) {
+      const pelna = pathMod.join(kat, wpis.name);
+      if (wpis.isDirectory()) zbierz(pelna);
+      else if (wpis.name.endsWith('.php')) zrodla.push(pelna);
+    }
+  })(pathMod.join(__dirname, '..', 'includes'));
+
+  /* Argumenty czytane ZNAK PO ZNAKU, z pilnowaniem cudzysłowów.
+     Wyrażenie regularne kończące listę na średniku wygląda tu naturalnie
+     i jest błędne: `fputcsv($out, $line, ';')` ma średnik W ŚRODKU argumentu,
+     więc takie wywołanie nie dopasowuje się wcale i wypada ze sprawdzenia.
+     Złapane mutacją — skrzynka formularzy przechodziła wtedy na zielono
+     z cofniętą poprawką. */
+  const licznikArgumentow = (tresc, od) => {
+    let gl = 0, arg = 1, cudzyslow = null;
+    for (let i = od; i < tresc.length; i++) {
+      const zn = tresc[i];
+      if (cudzyslow) {
+        if (zn === '\\') i++;
+        else if (zn === cudzyslow) cudzyslow = null;
+        continue;
+      }
+      if (zn === '"' || zn === "'") { cudzyslow = zn; continue; }
+      if ('([{'.includes(zn)) { gl++; continue; }
+      if (')]}'.includes(zn)) { if (gl === 0) return arg; gl--; continue; }
+      if (zn === ',' && gl === 0) arg++;
+    }
+    return arg;
+  };
+
+  const bezEscape = [];
+  for (const plikPhp of zrodla) {
+    const tresc = fs.readFileSync(plikPhp, 'utf8');
+    let i = -1;
+    while ((i = tresc.indexOf('fputcsv(', i + 1)) !== -1) {
+      if (licznikArgumentow(tresc, i + 'fputcsv('.length) < 5) {
+        bezEscape.push(pathMod.relative(pathMod.join(__dirname, '..'), plikPhp));
+      }
+    }
+  }
+  t.check('każde fputcsv() podaje znak ucieczki jawnie', !bezEscape.length,
+    bezEscape.length ? bezEscape.join(', ') : zrodla.length + ' plików przejrzanych');
 };

@@ -22,6 +22,10 @@ if (!class_exists('Bricks\\Element')) {
     class Element {
         public $settings   = [];
         public $controls   = [];
+        // Elementy ustawiają grupy kontrolek w set_control_groups(). Prawdziwy
+        // Bricks deklaruje tę właściwość; atrapa musi robić to samo, inaczej
+        // PHP 8.2+ emituje komunikat o dynamicznej właściwości do JSON-a testu.
+        public $control_groups = [];
         public $attributes = [];
         /* Wpis, w którego kontekście Bricks rysuje element — element podaje go
            dalej do danych dynamicznych. */

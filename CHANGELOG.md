@@ -2,6 +2,67 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.136.0] — 2026-09-02
+
+### Naprawione
+
+- **Eksport CSV przestaje doklejać do pliku komunikaty PHP.** Od PHP 8.4
+  `fputcsv()` wywołane bez jawnego znaku ucieczki dokłada komunikat
+  deprecacyjny — a na serwerze z włączonym `display_errors` ten komunikat leci
+  tam, gdzie leci reszta wyjścia, czyli **w środek pobieranego pliku**.
+  Wszystkie sześć wywołań podaje teraz `','`/`';'`, `'"'` i pusty znak ucieczki,
+  zgodnie z RFC 4180, który zna wyłącznie podwojony cudzysłów.
+
+  Poprawka objęła też **skrzynkę formularzy** (`includes/88-form-inbox.php`),
+  której nie było w otrzymanej paczce — a ma własne dwa wywołania i ten sam
+  problem.
+
+- **Atrapy testowe bez mechanizmów wycofywanych w PHP 8.2+.** Atrapa elementu
+  Bricksa deklaruje `$control_groups` zamiast tworzyć tę właściwość
+  dynamicznie, a test Theme Color nie woła `ReflectionProperty::setAccessible()`,
+  które od PHP 8.1 nic nie robi. Bez tego komunikaty interpretera trafiały do
+  JSON-a odczytywanego przez testy.
+
+### Testy
+
+- Sekcja „eksport nie wkleja komunikatów PHP do pliku" w
+  `tests/newsletter-zapis.test.js` — dwa sprawdzenia:
+
+  1. **Zachowaniowe:** eksport uruchomiony z `display_errors=1` i sklejonym
+     strumieniem błędów nie może zawierać ani jednego `Deprecated`, `Warning`
+     czy `Notice`. Sklejenie strumieni jest tu istotne — `phpOutput()` bierze
+     sam stdout, więc sprawdzenie po nim świeciłoby na zielono także wtedy,
+     gdyby komunikat wracał.
+  2. **Statyczne:** przegląd wszystkich 134 plików PHP wtyczki — każde
+     `fputcsv()` musi podawać piąty argument. Skrzynka formularzy nie ma
+     własnego harnessu eksportu, więc bez tego jej regresja przechodziłaby
+     niezauważona.
+
+  **Mutacje:** cofnięcie poprawki w newsletterze → 2 czerwone; cofnięcie jej
+  w skrzynce formularzy → 1 czerwone. Druga mutacja **przeszła za pierwszym
+  razem na zielono** i to ją naprawiła: sprawdzenie statyczne kończyło listę
+  argumentów na średniku, więc `fputcsv($out, $line, ';')` — ze średnikiem
+  wewnątrz argumentu — nie dopasowywało się wcale. Argumenty czyta teraz parser
+  znak po znaku, pilnujący cudzysłowów.
+
+### Odrzucone z paczki
+
+- **`white-space: pre-wrap` przy podziale tekstu.** Miało zachowywać białe
+  znaki w kontenerach flex/grid po przebudowie DOM. **Nie udało się
+  odtworzyć problemu**, którego dotyczy: spacja przeżywa podział przy
+  `display: flex`, `flex` z `gap`, kolumnie flex i `display: grid`, dla podziału
+  na znaki, słowa i linie, zarówno po starcie, jak i po przebudowie przez
+  zmianę szerokości okna (`autoSplit`) oraz przez obserwatora podmian.
+
+  Sama reguła ma za to **mierzalny efekt uboczny**: nakłada się na owijkę
+  `evk-anim-host`, a `pre-wrap` renderuje znaki nowej linii ze ŹRÓDŁA. Nagłówek
+  zapisany w szablonie z wcięciem urósł w pomiarze z **42 do 126 px** — z jednej
+  linii na trzy. Szablony Bricksa są wcinane, więc dotyczyłoby to zwykłych
+  stron.
+
+  Wraca, gdy pojawi się strona albo krok, na którym problem widać — wtedy
+  najpierw test, który go pokazuje.
+
 ## [1.135.0] — 2026-09-02
 
 ### Dodane

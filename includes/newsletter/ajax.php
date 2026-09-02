@@ -325,10 +325,10 @@ add_action('wp_ajax_evk_nl_export_logs', function () {
 
     $out = fopen('php://output', 'w');
     fprintf($out, "\xEF\xBB\xBF"); // BOM dla Excela
-    fputcsv($out, ['ID', 'Event', 'Subscriber ID', 'Data', 'Czas']);
+    fputcsv($out, ['ID', 'Event', 'Subscriber ID', 'Data', 'Czas'], ',', '"', '');
     foreach ($logs as $row) {
         fputcsv($out, array_map('evk_nl_csv_bezpieczna',
-            [$row['id'], $row['event'], $row['subscriber_id'], $row['data_json'], $row['created_at']]));
+            [$row['id'], $row['event'], $row['subscriber_id'], $row['data_json'], $row['created_at']]), ',', '"', '');
     }
     fclose($out);
     exit;
@@ -430,7 +430,9 @@ add_action('wp_ajax_evk_nl_export_subscribers', function () {
        W pliku, który z założenia wychodzi poza serwis, nie ma dla niego miejsca. */
     $naglowek = ['E-mail', 'Data zapisu', 'Data potwierdzenia', 'Treść zgody', 'Data zgody'];
     foreach ($klucze as $k) $naglowek[] = $etykiety[$k] ?? $k;
-    fputcsv($out, $naglowek);
+    // Pusty parametr escape jest wymagany od PHP 8.4, aby nie korzystać z
+    // wycofywanego domyślnego backslasha. RFC 4180 używa podwójnego cudzysłowu.
+    fputcsv($out, $naglowek, ',', '"', '');
 
     $offset = 0;
     do {
@@ -447,7 +449,7 @@ add_action('wp_ajax_evk_nl_export_subscribers', function () {
                 $pola['_consent_at'] ?? '',
             ];
             foreach ($klucze as $k) $wiersz[] = $pola[$k] ?? '';
-            fputcsv($out, array_map('evk_nl_csv_bezpieczna', $wiersz));
+            fputcsv($out, array_map('evk_nl_csv_bezpieczna', $wiersz), ',', '"', '');
         }
         $offset += EVK_NL_EKSPORT_PARTIA;
     } while (count($partia) === EVK_NL_EKSPORT_PARTIA);
