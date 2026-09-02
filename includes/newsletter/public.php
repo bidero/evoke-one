@@ -11,6 +11,36 @@ if (!defined('ABSPATH')) exit;
  */
 
 // =========================================================================
+// PODPIS PARAMETRÓW FORMULARZA
+// =========================================================================
+
+/**
+ * Podpis tego, o czym NIE MA decydować przeglądarka.
+ *
+ * `confirm` i `consent` to atrybuty shortcode'u — decyzja autora strony, czy
+ * zapis idzie przez potwierdzenie mailem i pod jaką treścią zgody. Do 1.129.0
+ * handler czytał oba wprost z żądania, więc `confirm=0` w POST-cie wpisywało
+ * adres na listę OD RAZU JAKO POTWIERDZONY, razem z wpisem zgody zbudowanym
+ * z tego, co przysłał wysyłający. Dowód zgody, którego treścią sterował
+ * składający żądanie, nie jest dowodem — to problem nie tylko techniczny.
+ *
+ * Podpis jak w śledzeniu newslettera i w ciasteczku konserwacji: HMAC na
+ * `wp_salt('auth')`, sprawdzany przez `hash_equals()`.
+ *
+ * Treść zgody normalizujemy TUTAJ, tą samą funkcją, którą handler wywoła na
+ * przysłanej wartości. Inaczej podpis liczony przy renderowaniu i podpis
+ * liczony przy odbiorze rozjeżdżałyby się na pierwszym znaku, który
+ * `sanitize_text_field()` zmienia.
+ */
+function evk_nl_form_sig(int $list_id, string $confirm, string $consent): string {
+    return hash_hmac(
+        'sha256',
+        $list_id . '|' . $confirm . '|' . sanitize_text_field($consent),
+        wp_salt('auth')
+    );
+}
+
+// =========================================================================
 // SHORTCODE
 // =========================================================================
 
@@ -103,6 +133,7 @@ function evk_nl_subscribe_shortcode($atts): string {
         fd.append('list',<?php echo (int) $list_id; ?>);
         fd.append('confirm',<?php echo wp_json_encode($confirm); ?>);
         fd.append('consent',<?php echo wp_json_encode($consent); ?>);
+        fd.append('sig',<?php echo wp_json_encode(evk_nl_form_sig($list_id, $confirm, $consent)); ?>);
         fd.append('email',email.value);
         fd.append('evk_nl_hp',hp.value);
         if(ok)fd.append('consent_ok',ok.checked?'1':'');
@@ -143,9 +174,28 @@ function evk_nl_handle_public_subscribe(): void {
 
     $list_id         = (int) ($_POST['list'] ?? 0);
     $email           = sanitize_email(wp_unslash($_POST['email'] ?? ''));
-    $confirm         = (($_POST['confirm'] ?? '1') === '1');
+    $confirm_raw     = (string) ($_POST['confirm'] ?? '1');
     $consent_text    = sanitize_text_field(wp_unslash($_POST['consent'] ?? ''));
     $consent_checked = !empty($_POST['consent_ok']);
+    $sig             = sanitize_text_field(wp_unslash($_POST['sig'] ?? ''));
+
+    /* O double opt-in i o treści zgody decyduje shortcode, nie żądanie.
+     *
+     * BRAK PODPISU = STARA, ZBUFOROWANA STRONA. Formularz siedzi w treści
+     * podstrony, więc po aktualizacji wtyczki krąży jeszcze w pamięciach
+     * podręcznych. Odrzucanie takich zgłoszeń zepsułoby zapisy na czas
+     * ważności cache'u, więc zamiast tego wymuszamy wariant bezpieczny:
+     * potwierdzenie mailem. Nikt nie przeskoczy double opt-in, a stary
+     * formularz dalej działa.
+     *
+     * Podpis, KTÓRY JUŻ JEST, musi się zgadzać — tu pobłażania nie ma. */
+    if ($sig === '') {
+        $confirm = true;
+    } elseif (hash_equals(evk_nl_form_sig($list_id, $confirm_raw, $consent_text), $sig)) {
+        $confirm = ($confirm_raw === '1');
+    } else {
+        wp_send_json_error(['msg' => 'Formularz wygasł. Odśwież stronę i spróbuj ponownie.']);
+    }
 
     if (!$list_id || !evk_nl_get_list($list_id)) wp_send_json_error(['msg' => 'Nieprawidłowa lista.']);
     if (!is_email($email))                        wp_send_json_error(['msg' => 'Podaj poprawny adres e-mail.']);

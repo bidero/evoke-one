@@ -2,6 +2,71 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.130.0] — 2026-09-01
+
+### Bezpieczeństwo
+
+- **Zapis meta SEO nie sprawdzał nonce'a.** Czwarte ustalenie z audytu. Panel
+  wysyłał go od dawna (`window.evoSeoAjax.nonce` w `assets/admin/admin.js`),
+  tylko serwer go nie czytał — ktoś zaczął to robić i nie dokończył.
+
+  Skutkiem był CSRF: zalogowany administrator odwiedzający spreparowaną stronę
+  mógł w tle dostać nadpisane tytuły, opisy i `robots` — **masowo**, bo zapis
+  zbiorczy przyjmuje tablicę wierszy z dowolnymi `post_id`. `noindex` na
+  wszystkim to skasowanie widoczności serwisu w wyszukiwarce, odwracalne
+  dopiero po ponownym zaindeksowaniu. Po stronie przeglądarki nie zmienia się
+  nic — nonce już tam jechał.
+
+- **O double opt-in decydowała przeglądarka.** `confirm` i `consent` to
+  atrybuty shortcode'u, czyli decyzja autora strony — a handler czytał oba
+  wprost z żądania. `confirm=0` w POST-cie wpisywało adres na listę **od razu
+  jako potwierdzony**, razem z wpisem zgody (`_consent_at`, `_consent_ip`,
+  `_consent_text`) zbudowanym z tego, co przysłał wysyłający.
+
+  To nie jest wyłącznie kwestia techniczna: dowód zgody, którego treścią
+  sterował składający żądanie, nie jest dowodem.
+
+  Formularz podpisuje teraz swoje parametry (HMAC na `wp_salt('auth')`, ten sam
+  wzorzec co linki newslettera i ciasteczko konserwacji z 1.128.0), a handler
+  przelicza podpis z tego, co przyszło, i porównuje przez `hash_equals()`.
+  Podpis obejmuje też treść zgody, więc nie da się dopisać komuś zgody innej
+  niż ta, którą naprawdę widział na stronie.
+
+### Uwaga przy aktualizacji
+
+- **Zbuforowane formularze zapisu dalej działają.** Formularz siedzi w treści
+  podstrony, więc po aktualizacji krąży jeszcze w pamięciach podręcznych i nie
+  niesie podpisu. Takie zgłoszenia nie są odrzucane — **wymuszany jest wariant
+  bezpieczny**, czyli potwierdzenie mailem. Jeśli na stronie stoi shortcode
+  z `confirm="0"`, zapisy z zapamiętanej wersji strony pójdą przez double
+  opt-in aż do odświeżenia cache'u. Podpis, który już jest, musi się zgadzać —
+  tu pobłażania nie ma.
+
+### Testy
+
+- `tests/php/seo-zapis.php` + sekcja „serwer sprawdza nonce"
+  w `tests/seo-meta.test.js`; `tests/newsletter-zapis.test.js`
+  + `tests/php/newsletter-zapis.php`. Łącznie 23 nowe sprawdzenia.
+
+  Atrapa nonce'a niczego nie weryfikuje, więc test nie sprawdza „czy nonce jest
+  poprawny", tylko dwie rzeczy, których atrapa nie zafałszuje: że handler
+  o nonce **pyta** i że pyta o **tę nazwę**, którą drukuje
+  `wp_localize_script()`.
+
+  Podpis formularza pochodzi w teście **z prawdziwego shortcode'u** — plik PHP
+  renderuje go i wyłuskuje `sig` z wyjścia. Policzenie podpisu tą samą funkcją,
+  co kod produkcyjny, sprawdzałoby wyłącznie, że `hash_hmac` jest
+  deterministyczne.
+
+  **Mutacje:** zdjęcie `check_ajax_referer` → 4 czerwone; zaufanie
+  `$_POST['confirm']` bez podpisu → 5 czerwonych; podpis liczony bez treści
+  zgody → 1 czerwone.
+
+  Jeden przypadek testowy był **źle dobrany i niczego nie rozstrzygał**:
+  „nieznana lista" wysyłała podpis zrobiony dla innej wartości `confirm`, więc
+  odpowiadał mu komunikat o wygasłym formularzu, a gałąź listy w ogóle nie
+  ruszała. Poprawione, z notatką w pliku.
+
 ## [1.129.0] — 2026-09-01
 
 ### Bezpieczeństwo

@@ -139,7 +139,13 @@ add_filter('bricks/frontend/disable_opengraph', '__return_true');
 // ZAPIS PÓL ZAKŁADKI SEO (AJAX)
 // =========================================================================
 
+/* Nazwa nonce'a MUSI zgadzać się z `wp_localize_script('…', 'evoSeoAjax', …)`
+   w `includes/admin/page.php` — panel wysyła go od dawna, brakowało wyłącznie
+   sprawdzenia po tej stronie. Do 1.129.0 zalogowany administrator odwiedzający
+   cudzą stronę mógł w tle dostać nadpisane tytuły, opisy i `robots`, masowo,
+   bo zapis zbiorczy przyjmuje tablicę wierszy z dowolnymi `post_id`. */
 add_action('wp_ajax_evoke_save_seo_ajax', function () {
+    check_ajax_referer('evoke_seo_nonce', 'nonce');
     if (!current_user_can('manage_options') || empty($_POST['post_id'])) wp_send_json_error();
     $pid = absint($_POST['post_id']);
     update_post_meta($pid, '_evoke_seo_title',    sanitize_text_field(wp_unslash($_POST['seo_title']    ?? '')));
@@ -152,6 +158,7 @@ add_action('wp_ajax_evoke_save_seo_ajax', function () {
 });
 
 add_action('wp_ajax_evoke_save_seo_bulk', function () {
+    check_ajax_referer('evoke_seo_nonce', 'nonce');
     if (!current_user_can('manage_options')) wp_send_json_error();
     $rows = json_decode(wp_unslash($_POST['rows'] ?? '[]'), true);
     $count = 0;

@@ -115,4 +115,48 @@ module.exports = async function (t) {
 
   t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
   await p.close();
+
+  // ── Serwer: czy w ogóle pyta o nonce ──────────────────────────────────
+  //
+  // Panel wysyła nonce od dawna (sprawdzenie „nonce jedzie razem z nimi"
+  // wyżej), ale do 1.129.0 SERWER GO NIE CZYTAŁ — oba punkty sprawdzały samo
+  // uprawnienie. Skutkiem był CSRF: zalogowany administrator odwiedzający cudzą
+  // stronę mógł w tle dostać nadpisane tytuły, opisy i `robots`, masowo, bo
+  // zapis zbiorczy przyjmuje tablicę wierszy z dowolnymi `post_id`. `noindex`
+  // na wszystkim to skasowanie widoczności serwisu w wyszukiwarce.
+  t.section('serwer sprawdza nonce');
+
+  const php = JSON.parse(phpOutput('seo-zapis.php'));
+
+  t.check('zapis pojedynczy bez nonce odbija się',
+    php.pojedynczy_bez_nonce.co === 'odbity_nonce', php.pojedynczy_bez_nonce.co);
+  t.check('zapis zbiorczy bez nonce odbija się',
+    php.zbiorczy_bez_nonce.co === 'odbity_nonce', php.zbiorczy_bez_nonce.co);
+  t.check('i nic się nie zapisuje',
+    Object.keys(php.meta_po_probach_bez_nonce).length === 0,
+    JSON.stringify(php.meta_po_probach_bez_nonce));
+
+  // Nazwa musi zgadzać się z `wp_localize_script('…','evoSeoAjax',…)`
+  // w includes/admin/page.php. Własna nazwa oznaczałaby, że KAŻDY zapis pada
+  // w produkcji, a test i tak świeciłby na zielono — atrapa nonce'a nie wie,
+  // co panel naprawdę drukuje.
+  t.check('pyta o evoke_seo_nonce', php.pojedynczy_bez_nonce.pytano_o === 'evoke_seo_nonce',
+    String(php.pojedynczy_bez_nonce.pytano_o));
+
+  t.check('z nonce zapis pojedynczy przechodzi', php.pojedynczy_z_nonce.co === 'zapisano',
+    php.pojedynczy_z_nonce.co);
+  t.check('pola trafiają do meta',
+    php.meta_pojedynczy && php.meta_pojedynczy._evoke_seo_title === 'Tytuł strony',
+    JSON.stringify(php.meta_pojedynczy));
+  t.check('z nonce zapis zbiorczy przechodzi',
+    php.zbiorczy_z_nonce.co === 'zapisano' && Object.keys(php.meta_zbiorczy).length === 2,
+    Object.keys(php.meta_zbiorczy).join(', '));
+
+  // Ta sama ścieżka, więc przy okazji: wartość `robots` spoza listy odpada.
+  t.check('wymyślona wartość robots nie przechodzi',
+    JSON.stringify(php.meta_zbiorczy['11']._evoke_seo_robots) === JSON.stringify(['nosnippet']),
+    JSON.stringify(php.meta_zbiorczy['11']._evoke_seo_robots));
+
+  t.check('nonce nie zastępuje uprawnienia', php.bez_uprawnien.co === 'odmowa',
+    php.bez_uprawnien.co);
 };
