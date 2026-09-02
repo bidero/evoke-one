@@ -325,11 +325,133 @@ add_action('wp_ajax_evk_nl_export_logs', function () {
 
     $out = fopen('php://output', 'w');
     fprintf($out, "\xEF\xBB\xBF"); // BOM dla Excela
-    $san = function ($v) { $v = (string) $v; return preg_match('/^[=+\-@]/', $v) ? "'" . $v : $v; };
     fputcsv($out, ['ID', 'Event', 'Subscriber ID', 'Data', 'Czas']);
     foreach ($logs as $row) {
-        fputcsv($out, array_map($san, [$row['id'], $row['event'], $row['subscriber_id'], $row['data_json'], $row['created_at']]));
+        fputcsv($out, array_map('evk_nl_csv_bezpieczna',
+            [$row['id'], $row['event'], $row['subscriber_id'], $row['data_json'], $row['created_at']]));
     }
+    fclose($out);
+    exit;
+});
+
+/**
+ * Komórka CSV, która nie wykona się jako formuła.
+ *
+ * Excel i Arkusze Google traktują wartość zaczynającą się od `=`, `+`, `-`
+ * albo `@` jako formułę — łącznie z takimi, które sięgają do sieci albo do
+ * innych plików. Treść w eksporcie adresów pochodzi od osób spoza serwisu,
+ * więc to jest dokładnie to miejsce, gdzie ma znaczenie. Apostrof z przodu
+ * każe arkuszowi potraktować całość jako tekst.
+ *
+ * Było domknięciem wewnątrz eksportu logów; przy drugim eksporcie zrobiła się
+ * z tego funkcja, żeby nie istniały dwie kopie tej samej reguły.
+ */
+function evk_nl_csv_bezpieczna($wartosc): string {
+    $wartosc = (string) $wartosc;
+    return preg_match('/^[=+\-@]/', $wartosc) ? "'" . $wartosc : $wartosc;
+}
+
+// =========================================================================
+// SUBSKRYBENCI — eksport CSV
+// =========================================================================
+
+/** Ile wierszy naraz czytamy z bazy przy eksporcie. */
+const EVK_NL_EKSPORT_PARTIA = 500;
+
+/**
+ * Nazwy kolumn dla pól własnych — z konfiguracji listy, jeśli ją ma.
+ * Klucz pola → etykieta pokazywana w nagłówku CSV.
+ */
+function evk_nl_etykiety_pol(array $lista): array {
+    $cfg = $lista['fields_config'] ?? [];
+    if (is_string($cfg)) $cfg = json_decode($cfg, true) ?: [];
+    $etykiety = [];
+    foreach ((array) $cfg as $pole) {
+        if (!is_array($pole)) continue;
+        $klucz = (string) ($pole['key'] ?? $pole['name'] ?? '');
+        if ($klucz === '') continue;
+        $etykiety[$klucz] = (string) ($pole['label'] ?? $pole['title'] ?? $klucz);
+    }
+    return $etykiety;
+}
+
+/**
+ * Klucze pól własnych występujące u eksportowanych subskrybentów.
+ *
+ * DLACZEGO OSOBNY PRZEBIEG PO DANYCH. Nagłówek CSV trzeba wypisać PRZED
+ * wierszami, a pola własne siedzą w `fields_json` każdego subskrybenta — więc
+ * bez wcześniejszego przejrzenia całości nie wiadomo, ile jest kolumn. Trzymanie
+ * wszystkiego w pamięci załatwiłoby sprawę jednym przebiegiem, ale to ta sama
+ * pomyłka, którą naprawialiśmy w imporcie CSV w 1.132.0: lista adresów bywa
+ * długa. Dwa przebiegi o stałym zużyciu pamięci są tu tańsze niż jeden, który
+ * rośnie razem z listą.
+ *
+ * Klucze zaczynające się od podkreślenia to zapis wewnętrzny (zgoda, jej data
+ * i adres IP) — mają własne, nazwane kolumny i nie wchodzą tutaj.
+ */
+function evk_nl_klucze_pol(int $list_id): array {
+    $klucze = [];
+    $offset = 0;
+    do {
+        $partia = evk_nl_get_subscribers($list_id, [
+            'status' => 1, 'limit' => EVK_NL_EKSPORT_PARTIA, 'offset' => $offset,
+        ]);
+        foreach ($partia as $sub) {
+            foreach ((array) (json_decode($sub['fields_json'] ?? '{}', true) ?: []) as $k => $_) {
+                if (strpos((string) $k, '_') === 0) continue;
+                $klucze[(string) $k] = true;
+            }
+        }
+        $offset += EVK_NL_EKSPORT_PARTIA;
+    } while (count($partia) === EVK_NL_EKSPORT_PARTIA);
+
+    return array_keys($klucze);
+}
+
+add_action('wp_ajax_evk_nl_export_subscribers', function () {
+    evk_nl_ajax_check();
+    $list_id = (int) ($_POST['list_id'] ?? 0);
+    $lista   = $list_id ? evk_nl_get_list($list_id) : null;
+    if (!$lista) wp_die('Nie znaleziono listy.', 404);
+
+    $etykiety = evk_nl_etykiety_pol($lista);
+    $klucze   = evk_nl_klucze_pol($list_id);
+
+    $nazwa = sanitize_title($lista['name'] ?? '') ?: ('lista-' . $list_id);
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $nazwa . '-' . current_time('Y-m-d') . '.csv"');
+
+    while (ob_get_level()) ob_end_clean();
+    $out = fopen('php://output', 'w');
+    fprintf($out, "\xEF\xBB\xBF"); // BOM dla Excela
+
+    /* TOKENU NIE EKSPORTUJEMY. To sekret linku wypisu i potwierdzenia zapisu —
+       kto go ma, może wypisać kogoś z listy albo potwierdzić za niego zgodę.
+       W pliku, który z założenia wychodzi poza serwis, nie ma dla niego miejsca. */
+    $naglowek = ['E-mail', 'Data zapisu', 'Data potwierdzenia', 'Treść zgody', 'Data zgody'];
+    foreach ($klucze as $k) $naglowek[] = $etykiety[$k] ?? $k;
+    fputcsv($out, $naglowek);
+
+    $offset = 0;
+    do {
+        $partia = evk_nl_get_subscribers($list_id, [
+            'status' => 1, 'limit' => EVK_NL_EKSPORT_PARTIA, 'offset' => $offset,
+        ]);
+        foreach ($partia as $sub) {
+            $pola  = (array) (json_decode($sub['fields_json'] ?? '{}', true) ?: []);
+            $wiersz = [
+                $sub['email'] ?? '',
+                $sub['subscribed_at'] ?? '',
+                $pola['_confirmed_at'] ?? '',
+                $pola['_consent_text'] ?? '',
+                $pola['_consent_at'] ?? '',
+            ];
+            foreach ($klucze as $k) $wiersz[] = $pola[$k] ?? '';
+            fputcsv($out, array_map('evk_nl_csv_bezpieczna', $wiersz));
+        }
+        $offset += EVK_NL_EKSPORT_PARTIA;
+    } while (count($partia) === EVK_NL_EKSPORT_PARTIA);
+
     fclose($out);
     exit;
 });

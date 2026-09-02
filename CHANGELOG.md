@@ -2,6 +2,65 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.134.0] — 2026-09-02
+
+### Dodane
+
+- **Eksport listy adresów do CSV.** Newsletter miał import (wklejenie i plik)
+  oraz eksport logów kampanii, ale samej listy adresów nie dało się wyjąć —
+  przeniesienie jej gdzie indziej, kopia przed czyszczeniem czy przekazanie
+  klientowi jego danych kończyły się w phpMyAdmin. Przycisk stoi nad tabelą
+  subskrybentów, obok filtra statusu.
+
+  **Co wychodzi:** tylko **potwierdzeni aktywni**. Wypisani odpadają, a
+  oczekujący na potwierdzenie double opt-in **też nie wchodzą** — nie
+  potwierdzili zgody, więc wgranie ich do cudzego systemu wysyłkowego byłoby
+  wysyłką bez zgody. Przy przycisku stoi zdanie o tym wprost, żeby pierwszym
+  pytaniem po eksporcie nie było „czemu jest mniej adresów niż w liczniku".
+
+  **Czego NIE ma w pliku: tokenu.** To sekret linku wypisu i potwierdzenia —
+  kto go ma, może wypisać kogoś z listy albo potwierdzić za niego zgodę.
+  W pliku, który z założenia wychodzi poza serwis, nie ma dla niego miejsca.
+
+  Kolumny: adres, data zapisu, data potwierdzenia, treść zgody i jej data
+  (dowód zgody idzie razem z adresem, bo bez niego adres jest bezużyteczny),
+  plus po jednej kolumnie na każde pole własne. Etykiety pól biorą się
+  z konfiguracji listy, a kolumna powstaje także dla pola, którego w tej
+  konfiguracji nie ma — liczy się to, co naprawdę siedzi u subskrybentów.
+
+### Zmienione
+
+- **Ochrona przed formułami w CSV jest teraz wspólna** (`evk_nl_csv_bezpieczna()`).
+  Wartość zaczynająca się od `=`, `+`, `-` albo `@` wykonuje się w Excelu jako
+  formuła — łącznie z takimi, które sięgają do sieci. Pilnował tego dotąd tylko
+  eksport logów; eksport adresów jest dokładnie tym miejscem, gdzie treść
+  pochodzi od osób spoza serwisu.
+
+### Uwagi techniczne
+
+- Eksport czyta bazę **partiami po 500 wierszy**, nie jednym `LIMIT 9999` jak
+  eksport logów. Lista adresów rośnie inaczej niż logi jednej kampanii, a
+  wciągnięcie stu tysięcy wierszy do pamięci tylko po to, żeby zaraz wypisać je
+  na wyjście, to ta sama pomyłka, którą naprawialiśmy w imporcie CSV w 1.132.0.
+  Pętla używa istniejącego `evk_nl_get_subscribers()` — zapytanie jest już
+  przygotowane i przetestowane.
+- Kolumny pól własnych wymagają **osobnego przebiegu po danych**: nagłówek CSV
+  trzeba wypisać przed wierszami, a pola siedzą w `fields_json` każdego
+  subskrybenta. Dwa przebiegi o stałym zużyciu pamięci są tu tańsze niż jeden,
+  który rośnie razem z listą.
+
+### Testy
+
+- `tests/php/newsletter-eksport.php` + sekcja w `tests/newsletter-zapis.test.js`
+  — 12 sprawdzeń na **prawdziwym wyjściu handlera** (osobny proces, bo kończy
+  się `exit`).
+
+  **Mutacje:** zdjęcie warunku `status => 1` → 3 czerwone; zdjęcie ochrony przed
+  formułami → 2; dopisanie tokenu do wiersza → 1. Czwarta mutacja sprawdza coś
+  odwrotnego: przy partii większej niż cała lista (jeden obrót pętli)
+  sprawdzenie kompletu **ma zostać zielone**, bo bada wynik, a nie liczbę
+  zapytań.
+
 ## [1.133.1] — 2026-09-02
 
 ### Naprawione — awaria wprowadzona w 1.132.0

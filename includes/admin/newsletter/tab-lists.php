@@ -122,7 +122,21 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
                         <option value="0">Wypisani</option>
                     </select>
                     <span id="evk-nl-sub-count" class="evo-hint evo-faint" style="white-space:nowrap"></span>
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-ajax.php')); ?>" target="_blank" style="display:inline;">
+                        <input type="hidden" name="action" value="evk_nl_export_subscribers">
+                        <input type="hidden" name="nonce" value="<?php echo esc_attr($nonce); ?>">
+                        <input type="hidden" name="list_id" value="<?php echo (int) $current_list['id']; ?>">
+                        <button class="button button-small" type="submit"
+                                title="Plik CSV z adresami tej listy">Eksport CSV</button>
+                    </form>
                 </div>
+                <?php /* Jedno zdanie o zawartości pliku stoi tu celowo. Bez niego
+                         pierwsze pytanie po eksporcie brzmi „czemu jest mniej
+                         adresów niż w liczniku obok". */ ?>
+                <p class="evo-hint evo-faint" style="margin:6px 0 0">
+                    Eksport bierze <strong>tylko potwierdzonych aktywnych</strong> —
+                    wypisani i oczekujący na potwierdzenie nie wchodzą do pliku.
+                </p>
             </div>
 
             <!-- Bulk bar -->

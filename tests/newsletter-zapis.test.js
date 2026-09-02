@@ -79,4 +79,60 @@ module.exports = async function (t) {
   t.check('niezaznaczona zgoda odrzucona', !ok('zgoda_niezaznaczona'), msg('zgoda_niezaznaczona'));
   t.check('nieznana lista odrzucona', !ok('nieznana_lista'), msg('nieznana_lista'));
   t.check('limit 10 zapisów na godzinę działa', !ok('po_limicie'), msg('po_limicie'));
+
+  // ── Eksport listy adresów ─────────────────────────────────────────────
+  //
+  // Handler kończy się `exit`, więc każdy scenariusz biegnie osobnym procesem
+  // i CAŁE jego wyjście jest plikiem CSV. Sprawdzamy dane, które naprawdę
+  // wychodzą z serwera, a nie to, co deklaruje funkcja pomocnicza.
+  t.section('eksport listy adresów');
+
+  const csv = (scen) => phpOutput('newsletter-eksport.php', scen || '')
+    .replace(/^\uFEFF/, '')
+    .trim().split('\n');
+
+  const plik = csv('');
+  const naglowek = plik[0];
+  const wiersze = plik.slice(1);
+
+  // Wypisani i oczekujący na potwierdzenie nie mają prawa wyjść: pierwsi nie
+  // chcą, drudzy nie potwierdzili zgody. Wgranie ich gdzie indziej byłoby
+  // wysyłką bez zgody.
+  t.check('wychodzą tylko aktywni', wiersze.length === 2, wiersze.length + ' wierszy');
+  t.check('wypisany nie wychodzi', !plik.join('\n').includes('wypisany@'),
+    plik.join('\n').includes('wypisany@') ? 'JEST W PLIKU' : 'nieobecny');
+  t.check('oczekujący nie wychodzi', !plik.join('\n').includes('oczekujacy@'),
+    plik.join('\n').includes('oczekujacy@') ? 'JEST W PLIKU' : 'nieobecny');
+
+  // Token to sekret linku wypisu i potwierdzenia — kto go ma, może wypisać
+  // kogoś z listy albo potwierdzić za niego zgodę.
+  t.check('token NIE wychodzi w pliku', !plik.join('\n').includes('tajny-token'),
+    plik.join('\n').includes('tajny-token') ? 'WYCIEKŁ' : 'nieobecny');
+
+  // Etykiety z konfiguracji listy, a kolumny także dla pola, którego w tej
+  // konfiguracji nie ma — bo liczy się to, co naprawdę siedzi u subskrybentów.
+  t.check('kolumny stałe i własne', naglowek.includes('E-mail') && naglowek.includes('Data zgody'),
+    naglowek);
+  t.check('etykiety pól z konfiguracji listy',
+    naglowek.includes('Imię') && naglowek.includes('Firma'), naglowek);
+  t.check('pole spoza konfiguracji też dostaje kolumnę', naglowek.includes('miasto'), naglowek);
+  t.check('brakujące pole daje pustą komórkę', wiersze[0].endsWith(','),
+    wiersze[0].slice(-30));
+
+  // Excel wykonuje wartość zaczynającą się od „=" jako formułę, a treść
+  // w tym eksporcie pochodzi od osób spoza serwisu.
+  const formula = csv('formula').join('\n');
+  t.check('formuła w adresie unieszkodliwiona', formula.includes("'=HYPERLINK"),
+    formula.split('\n')[1].slice(0, 40));
+  t.check('formuła w polu własnym unieszkodliwiona', formula.includes("'=1+1"),
+    formula.split('\n')[2].slice(-20));
+
+  // Pętla po `offset` to klasyczne miejsce na błąd o jeden — przy trzech
+  // wierszach w atrapie niewidoczny, przy 1200 i partii 500 już tak.
+  const partie = csv('partie').slice(1);
+  const unikalne = new Set(partie.map((w) => w.split(',')[0]));
+  t.check('1200 adresów wychodzi w komplecie', partie.length === 1200,
+    partie.length + ' wierszy');
+  t.check('bez powtórzeń między partiami', unikalne.size === 1200,
+    unikalne.size + ' różnych adresów');
 };
