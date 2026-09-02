@@ -473,6 +473,112 @@ add_filter('bricks/dynamic_tags_list', function($tags) {
 }, 12);
 
 /**
+ * Elementy i atrybuty, które wolno wpuścić z pliku SVG do treści strony.
+ *
+ * NAZWY MAŁYMI LITERAMI TO NIE LITERÓWKA i nie ma jej „poprawiać".
+ * `wp_kses()` porównuje nazwy znaczników i atrybutów po sprowadzeniu do małych
+ * liter, więc klucz `viewBox` nie dopasowałby się NIGDY i atrybut wylatywałby
+ * z każdego pliku. Sprawdzone na prawdziwym `wp_kses`: dopasowanie idzie po
+ * małych literach, ale w WYNIKU pisownia zostaje nienaruszona — `viewBox`,
+ * `clipPath` i `linearGradient` wychodzą takie, jakie weszły.
+ */
+function tl_svg_allowed_tags(): array {
+    $wspolne = [
+        'id' => [], 'class' => [], 'style' => [], 'fill' => [], 'fill-opacity' => [],
+        'fill-rule' => [], 'stroke' => [], 'stroke-width' => [], 'stroke-linecap' => [],
+        'stroke-linejoin' => [], 'stroke-dasharray' => [], 'stroke-dashoffset' => [],
+        'stroke-opacity' => [], 'stroke-miterlimit' => [], 'opacity' => [],
+        'transform' => [], 'clip-path' => [], 'clip-rule' => [], 'mask' => [],
+        'display' => [], 'visibility' => [],
+    ];
+    $prostokat = ['x' => [], 'y' => [], 'width' => [], 'height' => [], 'rx' => [], 'ry' => []];
+
+    return [
+        'svg' => $wspolne + $prostokat + [
+            'xmlns' => [], 'xmlns:xlink' => [], 'viewbox' => [],
+            'preserveaspectratio' => [], 'version' => [], 'role' => [],
+            'aria-hidden' => [], 'aria-label' => [], 'focusable' => [],
+        ],
+        'g'              => $wspolne,
+        'defs'           => $wspolne,
+        'symbol'         => $wspolne + ['viewbox' => [], 'preserveaspectratio' => []],
+        'title'          => ['id' => []],
+        'desc'           => ['id' => []],
+        /* `<style>` wewnątrz SVG — ŚWIADOME USTĘPSTWO, nie przeoczenie.
+           Illustrator eksportuje flagi z blokiem `.st0{fill:#D80027}` i klasami
+           na kształtach; bez tego elementu takie pliki wyszłyby z sita czarne.
+           Cena: plik może wnieść na stronę dowolny CSS, więc ktoś, kto wgrywa
+           SVG, może popsuć wygląd serwisu. Skryptu tędy nie uruchomi. */
+        'style'          => ['type' => [], 'media' => []],
+        'path'           => $wspolne + ['d' => []],
+        'rect'           => $wspolne + $prostokat,
+        'circle'         => $wspolne + ['cx' => [], 'cy' => [], 'r' => []],
+        'ellipse'        => $wspolne + ['cx' => [], 'cy' => [], 'rx' => [], 'ry' => []],
+        'line'           => $wspolne + ['x1' => [], 'y1' => [], 'x2' => [], 'y2' => []],
+        'polyline'       => $wspolne + ['points' => []],
+        'polygon'        => $wspolne + ['points' => []],
+        'clippath'       => $wspolne + ['clippathunits' => []],
+        'mask'           => $wspolne + $prostokat + ['maskunits' => [], 'maskcontentunits' => []],
+        'use'            => $wspolne + $prostokat + ['xlink:href' => [], 'href' => []],
+        'lineargradient' => $wspolne + [
+            'x1' => [], 'y1' => [], 'x2' => [], 'y2' => [],
+            'gradientunits' => [], 'gradienttransform' => [], 'spreadmethod' => [],
+        ],
+        'radialgradient' => $wspolne + [
+            'cx' => [], 'cy' => [], 'r' => [], 'fx' => [], 'fy' => [],
+            'gradientunits' => [], 'gradienttransform' => [], 'spreadmethod' => [],
+        ],
+        'stop'  => $wspolne + ['offset' => [], 'stop-color' => [], 'stop-opacity' => []],
+        'text'  => $wspolne + ['x' => [], 'y' => [], 'dx' => [], 'dy' => [],
+                               'font-family' => [], 'font-size' => [], 'font-weight' => [],
+                               'text-anchor' => [], 'letter-spacing' => []],
+        'tspan' => $wspolne + ['x' => [], 'y' => [], 'dx' => [], 'dy' => []],
+    ];
+}
+
+/**
+ * Przepuszcza SVG przez sito, zanim trafi do treści strony.
+ *
+ * DLACZEGO `wp_kses`, A NIE WŁASNE WYRAŻENIA. Do 1.130.0 z pliku zdejmowano
+ * wyłącznie deklarację XML i doctype — dwa `preg_replace` i nic więcej. Przez
+ * takie sito przechodziło `<script>`, `onload=` na `<svg>`, `<foreignObject>`
+ * z `<iframe>` i `javascript:` w `href`, a plik z biblioteki mediów stawał się
+ * skryptem wykonywanym u każdego odwiedzającego, na każdej podstronie
+ * z przełącznikiem języka. Łatanie znaczników wyrażeniami regularnymi jest
+ * dokładnie tym, co tu zawiodło; `wp_kses()` to jedyny w rdzeniu WordPressa
+ * parser napisany z myślą o wrogim wejściu.
+ *
+ * CZEGO TO NIE ZAŁATWIA, świadomie: wgrany plik leży pod
+ * `/wp-content/uploads/…svg` i serwer oddaje go wprost — otwarcie tego adresu
+ * wykona skrypt niezależnie od tego sita. Tamta droga wymaga czyszczenia przy
+ * wgrywaniu albo ograniczenia, kto może wgrywać SVG; świadoma decyzja z 1.131.0
+ * brzmiała: zostawiamy, bo wgrywają administratorzy.
+ */
+function tl_sanitize_svg(string $svg): string {
+    /* `wp_kses` filtruje też ZAWARTOŚĆ atrybutu `style`, a jego lista
+       dozwolonych właściwości CSS jest listą dla HTML-a — nie ma na niej `fill`
+       ani `stroke`. Bez tego filtra `style="fill:#FFF"` wylatywał w całości
+       i kształty wychodziły czarne. Filtr zdejmujemy zaraz po użyciu, żeby nie
+       rozluźnić kses-a wszystkim innym na tej stronie. */
+    $rozszerz = function (array $css): array {
+        return array_merge($css, [
+            'fill', 'fill-opacity', 'fill-rule', 'stroke', 'stroke-width',
+            'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray',
+            'stroke-dashoffset', 'stroke-opacity', 'stroke-miterlimit',
+            'stop-color', 'stop-opacity', 'clip-path', 'clip-rule', 'mask',
+            'opacity', 'transform', 'display', 'visibility', 'color',
+            'font-family', 'font-size', 'font-weight', 'text-anchor',
+            'letter-spacing', 'paint-order', 'vector-effect',
+        ]);
+    };
+    add_filter('safe_style_css', $rozszerz);
+    $czysty = wp_kses($svg, tl_svg_allowed_tags());
+    remove_filter('safe_style_css', $rozszerz);
+
+    return trim($czysty);
+}
+
+/**
  * Pomocnicza funkcja - pobiera zawartość SVG z Media Library
  */
 function tl_get_svg_content(int $attachment_id): string {
@@ -490,9 +596,8 @@ function tl_get_svg_content(int $attachment_id): string {
     // Usuń deklarację XML i doctype
     $svg = preg_replace('/<\?xml[^>]*\?>/i', '', $svg);
     $svg = preg_replace('/<!DOCTYPE[^>]*>/i', '', $svg);
-    $svg = trim($svg);
 
-    return $svg;
+    return tl_sanitize_svg($svg);
 }
 
 /**

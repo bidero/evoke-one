@@ -25,7 +25,22 @@ $GLOBALS['new_allowed_options'] = [];
 
 function add_filter($hook, $cb, $prio = 10, $args = 1) { $GLOBALS['hooks'][$hook][] = $cb; }
 function add_action($hook, $cb, $prio = 10, $args = 1) { $GLOBALS['hooks'][$hook][] = $cb; }
-function apply_filters($hook, $value) { return $value; }
+/* Pod strażą, bo `tests/php/svg-sanityzacja.php` potrzebuje wersji, która
+   NAPRAWDĘ odpala zarejestrowane filtry — sanityzacja SVG rozszerza listę
+   dozwolonych właściwości CSS przez `safe_style_css`. Tutaj zostaje wersja
+   przepuszczająca wartość bez zmian: podmiana jej globalnie kazałaby odpalić
+   wszystkie filtry we wszystkich testach naraz, a to osobna robota. */
+if (!function_exists('apply_filters')) {
+    function apply_filters($hook, $value) { return $value; }
+}
+if (!function_exists('remove_filter')) {
+    function remove_filter($hook, $cb, $prio = 10) {
+        foreach (($GLOBALS['hooks'][$hook] ?? []) as $i => $zarejestrowany) {
+            if ($zarejestrowany === $cb) unset($GLOBALS['hooks'][$hook][$i]);
+        }
+        return true;
+    }
+}
 
 function get_option($key, $default = false) {
     return array_key_exists($key, $GLOBALS['options']) ? $GLOBALS['options'][$key] : $default;

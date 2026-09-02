@@ -2,6 +2,83 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.131.0] — 2026-09-01
+
+### Bezpieczeństwo
+
+- **Plik SVG z biblioteki mediów wchodził na stronę nietknięty.** Piąte
+  ustalenie z audytu. `tl_get_svg_content()` zdejmowało wyłącznie deklarację XML
+  i doctype — dwa `preg_replace` i nic więcej. Przez takie sito przechodziło
+  `<script>`, `onload=` na `<svg>`, `onclick=` na kształtach,
+  `<foreignObject>` z `<iframe>`, `javascript:` w `href` oraz `<set>`
+  i `<animate>` podmieniające adres już po wczytaniu strony. Plik stawał się
+  skryptem wykonywanym u każdego odwiedzającego, na każdej podstronie
+  z przełącznikiem języka — przez pięć miejsc wywołania, wszystkie przez ten
+  jeden getter.
+
+  Treść przechodzi teraz przez `wp_kses()` z listą elementów i atrybutów SVG
+  (`tl_svg_allowed_tags()`). Wybór padł na `wp_kses`, a nie na własne wyrażenia
+  regularne, bo to jedyny w rdzeniu WordPressa parser pisany z myślą o wrogim
+  wejściu — a łatanie znaczników `preg_replace`'em jest dokładnie tym, co tutaj
+  zawiodło.
+
+### Co po tym wydaniu ZOSTAJE otwarte
+
+Świadoma decyzja, zapisana tu, żeby nikt jej za pół roku nie odkrywał na nowo:
+**wgrywanie SVG zostaje bez zmian**, bo w praktyce wgrywają je administratorzy.
+Znaczy to, że:
+
+- wgrany plik leży pod `/wp-content/uploads/…svg` i **serwer oddaje go wprost** —
+  otwarcie tego adresu wykona skrypt w domenie serwisu, niezależnie od sita,
+  które to wydanie wprowadza;
+- `includes/opengraph/settings.php` dopisuje `svg` do dozwolonych typów dla
+  **każdego z uprawnieniem `upload_files`** (Autor wzwyż), a drugim filtrem
+  wyłącza sprawdzanie rzeczywistej zawartości pliku — o przyjęciu decyduje samo
+  rozszerzenie w nazwie.
+
+To wydanie zamyka drogę, którą wtyczka sama wstawia SVG do treści strony.
+Tylko ją.
+
+### Zmienione
+
+- **Blok `<style>` wewnątrz SVG jest przepuszczany** — ustępstwo, nie
+  przeoczenie. Illustrator eksportuje flagi z `.st0{fill:#D80027}` i klasami na
+  kształtach; bez tego elementu takie pliki wyszłyby z sita czarne. Cena: plik
+  może wnieść na stronę dowolny CSS. Skryptu tędy nie uruchomi.
+- **Styl w atrybucie zachowuje właściwości SVG.** `wp_kses` filtruje zawartość
+  `style` listą właściwości CSS dla HTML-a, na której nie ma `fill` ani
+  `stroke` — bez rozszerzenia tej listy (filtr `safe_style_css`, zdejmowany
+  zaraz po użyciu) `style="fill:#FFF"` wylatywał w całości.
+- **Plik używający elementu spoza listy straci ten fragment.** Lista pokrywa
+  kształty, grupy, gradienty, maski, `clipPath`, tekst i `use`. Nietypowy plik
+  — na przykład z filtrami SVG albo animacją — wyjdzie okrojony.
+
+### Testy
+
+- `tests/svg.test.js` + `tests/php/svg-sanityzacja.php` — 21 sprawdzeń
+  na **prawdziwym `wp_kses`**: `tests/php/wp/kses.php` to nietknięta kopia
+  z WordPressa (6.7, GPLv2, `README.md` obok mówi skąd i jak odświeżyć).
+  Atrapa sita bezpieczeństwa nie mówiłaby nic o rzeczywistości — sprawdzałaby,
+  czy własna imitacja usuwa to, co sama uznała za groźne.
+
+  **Druga połowa testu jest ważniejsza od pierwszej:** prawdziwa flaga jedzie
+  przez sito w komplecie (`viewBox`, blok `<style>`, gradient, `clipPath`, styl
+  w atrybucie, `xlink:href`, `aria-label`) i wszystko ma wyjść po drugiej
+  stronie. „Naprawa" zwracająca pusty łańcuch przeszłaby sprawdzenia „nie ma
+  skryptu" celująco, a flagi zniknęłyby ze wszystkich stron.
+
+  **Mutacje:** zdjęcie sita → 8 czerwonych; sito zwracające pustkę →
+  9 czerwonych; skreślenie `viewbox` z listy → 2; usunięcie filtra
+  `safe_style_css` → 2.
+
+  **Czego test nie sprawdza:** że przeglądarka naprawdę nie wykona
+  wyczyszczonego pliku (patrzymy na łańcuch, nie na zachowanie silnika) ani
+  drogi `/wp-content/uploads/…svg`, która zostaje otwarta.
+
+- Atrapa `apply_filters()` jest teraz pod strażą `function_exists`, żeby test
+  sanityzacji mógł podstawić wersję **naprawdę odpalającą** zarejestrowane
+  filtry. Domyślna dalej przepuszcza wartość bez zmian.
+
 ## [1.130.0] — 2026-09-01
 
 ### Bezpieczeństwo
