@@ -2,6 +2,70 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.132.0] — 2026-09-01
+
+### Bezpieczeństwo
+
+- **Import listy adresów przyjmował plik bez żadnego sprawdzenia.** Poza „czy
+  `tmp_name` niepuste" nie było niczego: ani kodu błędu z PHP, ani rozmiaru,
+  ani typu. Zawartość szła prosto do `file_get_contents()`, stamtąd
+  `preg_split()` robił z niej tablicę linii, a import kolejną tablicę adresów —
+  każdy krok to osobna kopia w pamięci, więc plik mieszczący się
+  w `upload_max_filesize` potrafił wywrócić proces PHP.
+
+  Doszło: sprawdzenie kodu błędu, **limit 2 MB** (około 60 tysięcy adresów),
+  rozszerzenie `.csv`/`.txt`, `is_uploaded_file()` i tania kontrola, czy plik
+  jest w ogóle tekstem. Odczyt też jest przycięty do limitu — nawet gdyby
+  rozmiar podany przez PHP kłamał.
+
+  Każdy powód odmowy ma **własny komunikat**. Wspólne „Nieprawidłowy plik" nie
+  mówi użytkownikowi, co poprawić, a przy okazji sprawia, że test nie odróżnia
+  jednej przyczyny od drugiej.
+
+- **Limiter logowania dawał się zamienić w dźwignię.** `evk_failed_logins`
+  i `evk_blocked_ips` są indeksowane adresem IP i nie były przycinane niczym
+  poza wygasaniem pojedynczych wpisów przy okazji odczytu. Do tego szły do bazy
+  **z autoloadem**, czyli WordPress wczytywał je przy każdym żądaniu do serwisu.
+  Kto ma pulę IPv6 — a ma ją każdy VPS — generował nieudane logowania z tysięcy
+  adresów i rozdmuchiwał opcję do megabajtów wczytywanych przy każdym wejściu na
+  stronę. Ochrona przed zgadywaniem haseł stawała się sposobem na przewrócenie
+  witryny.
+
+  Obie tablice mają teraz **sufit 500 wpisów**, są czyszczone z wpisów starszych
+  niż okno resetu i zapisywane **bez autoloadu** — są potrzebne wyłącznie na
+  ścieżce logowania. Cena, wypisana wprost: przy ataku z tysiąca adresów starsze
+  blokady wypadną wcześniej, niż wygasłyby z zegara.
+
+- **Kod snippetów przestał być zwykłym wpisem.** Treść tych wpisów jest
+  wykonywana przez `eval()`, a typ miał `capability_type => 'post'` — więc prawo
+  do jej edycji mapowało się na `edit_others_posts`, czyli na Redaktora. Panel
+  jest ukryty, a własne punkty AJAX pilnują `manage_options`, więc znanej drogi
+  nie było; ale każda **ogólna** droga edycji wpisów (WP-CLI, importer, wtyczka
+  do masowej edycji, cudzy endpoint rejestrowany generycznie) pyta o uprawnienia
+  typu wpisu, a nie nasze handlery. Wszystkie uprawnienia tego typu prowadzą
+  teraz do `manage_options`.
+
+### Testy
+
+- `tests/odpornosc.test.js` + `tests/php/odpornosc.php` — 22 sprawdzenia.
+  Limiter sprawdzany prawdziwą ścieżką (hook `wp_login_failed`), typ wpisu przez
+  przechwycenie tego, **co naprawdę trafia do `register_post_type()`**.
+
+  **Mutacje:** zdjęcie limitu rozmiaru → 1 czerwone; limiter bez przycinania →
+  1; limiter z powrotem na autoload → 2; snippety z powrotem jako zwykły wpis →
+  3.
+
+  **Kolejność sprawdzeń w walidatorze zmieniła się przez test.** Najpierw
+  metadane (błąd, rozmiar, rozszerzenie), dopiero potem dotknięcie dysku.
+  W pierwotnej kolejności `is_uploaded_file()` — w teście z wiersza poleceń
+  zawsze fałszywe — przecinało sprawę przed sprawdzeniem rozmiaru i rozszerzenia,
+  więc **cztery przypadki testowe wyglądały na zielone, nie sprawdzając
+  niczego**. Kontrola zawartości siedzi za tą linijką i dlatego jest osobną
+  funkcją, wołaną w teście wprost.
+
+- Atrapa `update_option()` zapisuje trzeci argument. Bez tego nie odróżniałaby
+  opcji autoloadowanej od zwykłej — a ta różnica jest tu całą treścią naprawy.
+
 ## [1.131.0] — 2026-09-01
 
 ### Bezpieczeństwo

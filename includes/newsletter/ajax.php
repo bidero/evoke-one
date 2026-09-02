@@ -76,15 +76,88 @@ add_action('wp_ajax_evk_nl_import_subscribers', function () {
     wp_send_json_success($result);
 });
 
+/**
+ * Górna granica wgrywanego pliku z adresami.
+ *
+ * 2 MB to około 60 tysięcy adresów — więcej niż ma jakakolwiek lista, którą ten
+ * moduł obsłuży w rozsądnym czasie. Granica jest po to, żeby import nie był
+ * dźwignią: do 1.131.0 zawartość szła prosto do `file_get_contents()`, stamtąd
+ * `preg_split()` robił z niej tablicę linii, a `evk_nl_import_emails()` kolejną
+ * tablicę adresów. Każdy z tych kroków to osobna kopia w pamięci, więc plik
+ * mieszczący się w `upload_max_filesize` potrafił wywrócić proces PHP.
+ */
+const EVK_NL_CSV_MAX = 2097152;   // 2 MiB
+
+/**
+ * Sprawdza wgrany plik. Zwraca pusty łańcuch, gdy jest w porządku, albo
+ * komunikat dla użytkownika.
+ *
+ * Do 1.131.0 nie było tu ŻADNEGO sprawdzenia poza „czy `tmp_name` niepuste":
+ * ani kodu błędu z PHP, ani rozmiaru, ani typu. `is_uploaded_file()` jest
+ * zabezpieczeniem na zapas — `$_FILES` wypełnia PHP, więc ścieżki nie da się
+ * podstawić zwykłym żądaniem — ale to jedna linijka, która pilnuje, żeby ta
+ * funkcja nigdy nie przeczytała pliku spoza katalogu uploadów, gdyby kiedyś
+ * ktoś zawołał ją z ręcznie złożoną tablicą.
+ */
+function evk_nl_sprawdz_csv($plik): string {
+    if (!is_array($plik)) return 'Brak pliku.';
+
+    $blad = (int) ($plik['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($blad === UPLOAD_ERR_INI_SIZE || $blad === UPLOAD_ERR_FORM_SIZE) {
+        return 'Plik jest za duży dla tego serwera.';
+    }
+    if ($blad === UPLOAD_ERR_NO_FILE) return 'Brak pliku.';
+    if ($blad !== UPLOAD_ERR_OK)      return 'Nie udało się wgrać pliku.';
+
+    /* KOLEJNOŚĆ MA ZNACZENIE i nie jest przypadkowa: najpierw to, co widać
+       w samych metadanych żądania, a dopiero na końcu cokolwiek, co dotyka
+       dysku. Przy odwrotnej kolejności każda odmowa wyglądała jednakowo
+       („Nieprawidłowy plik"), bo `is_uploaded_file()` przecinało sprawę przed
+       sprawdzeniem rozmiaru i rozszerzenia — użytkownik nie wiedział, co
+       poprawić, a test nie miał jak odróżnić jednej przyczyny od drugiej. */
+    $rozmiar = (int) ($plik['size'] ?? 0);
+    if ($rozmiar <= 0)             return 'Plik jest pusty.';
+    if ($rozmiar > EVK_NL_CSV_MAX) return 'Plik jest za duży (maksimum 2 MB).';
+
+    /* Rozszerzenie, nie nagłówek `Content-Type` z żądania — ten podaje
+       przeglądarka i bywa czym popadnie (Excel wysyła CSV jako
+       `application/vnd.ms-excel`). */
+    $rozszerzenie = strtolower(pathinfo((string) ($plik['name'] ?? ''), PATHINFO_EXTENSION));
+    if (!in_array($rozszerzenie, ['csv', 'txt'], true)) {
+        return 'Dozwolone są pliki .csv i .txt.';
+    }
+
+    $tmp = (string) ($plik['tmp_name'] ?? '');
+    if ($tmp === '' || !is_uploaded_file($tmp)) return 'Nieprawidłowy plik.';
+    if (!evk_nl_wyglada_na_tekst($tmp))         return 'To nie jest plik tekstowy.';
+
+    return '';
+}
+
+/**
+ * Czy plik wygląda na tekstowy: pierwszy kilobajt bez bajtu zerowego.
+ *
+ * Nie udaje rozpoznawania typu — ma odsiać kogoś, kto podmienił rozszerzenie
+ * archiwum albo obrazu. Osobna funkcja, bo `is_uploaded_file()` jest funkcją
+ * wbudowaną i w teście z wiersza poleceń zawsze oddaje `false`: bez tego
+ * rozdzielenia ta kontrola byłaby nieosiągalna dla testu.
+ */
+function evk_nl_wyglada_na_tekst(string $sciezka): bool {
+    $probka = (string) file_get_contents($sciezka, false, null, 0, 1024);
+    return strpos($probka, "\0") === false;
+}
+
 add_action('wp_ajax_evk_nl_import_csv_file', function () {
     evk_nl_ajax_check();
     $list_id = (int) ($_POST['list_id'] ?? 0);
     if (!$list_id) wp_send_json_error(['msg' => 'Brak ID listy.']);
 
-    if (empty($_FILES['csv_file']['tmp_name'])) wp_send_json_error(['msg' => 'Brak pliku.']);
+    $plik = $_FILES['csv_file'] ?? null;
+    $blad = evk_nl_sprawdz_csv($plik);
+    if ($blad !== '') wp_send_json_error(['msg' => $blad]);
 
-    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-    $content = file_get_contents($_FILES['csv_file']['tmp_name']);
+    // Czytamy najwyżej tyle, ile wolno — nawet gdyby rozmiar z $_FILES kłamał.
+    $content = (string) file_get_contents($plik['tmp_name'], false, null, 0, EVK_NL_CSV_MAX);
     $emails  = evk_nl_parse_csv($content);
     if (empty($emails)) wp_send_json_error(['msg' => 'Nie znaleziono emaili w pliku.']);
 

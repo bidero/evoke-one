@@ -27,6 +27,50 @@ function evk_login_reset_hours(): int {
     return max(1, (int)(get_option('evk_security', [])['reset_hours'] ?? 24));
 }
 
+/**
+ * Ile adresów najwyżej trzymamy w każdej z dwóch tablic.
+ *
+ * DLACZEGO W OGÓLE. `evk_failed_logins` i `evk_blocked_ips` są indeksowane
+ * adresem IP i do 1.131.0 nie były przycinane niczym poza wygasaniem
+ * pojedynczych wpisów przy okazji odczytu. Kto ma pulę IPv6 — a ma ją każdy
+ * VPS — generował nieudane logowania z tysięcy adresów i rozdmuchiwał opcję do
+ * megabajtów. Opcje były przy tym AUTOLOADOWANE, czyli wczytywane przy KAŻDYM
+ * żądaniu do serwisu: ochrona przed zgadywaniem haseł zamieniała się w dźwignię
+ * do przewrócenia strony.
+ *
+ * Limit obcina od najstarszych. Przy ataku z tysiąca adresów starsze blokady
+ * wypadną wcześniej, niż wygasłyby z zegara — to świadoma cena za to, żeby
+ * rozmiar opcji miał sufit.
+ */
+const EVK_LOGIN_MAX_WPISOW = 500;
+
+/**
+ * Wyrzuca wpisy starsze niż okno resetu i przycina resztę do sufitu.
+ * `$pole` to nazwa pola z czasem: `last` dla prób, `blocked_at` dla blokad.
+ */
+function evk_login_przytnij(array $wpisy, string $pole): array {
+    $prog = current_time('timestamp') - (evk_login_reset_hours() * HOUR_IN_SECONDS);
+    foreach ($wpisy as $ip => $dane) {
+        if ((int) ($dane[$pole] ?? 0) < $prog) unset($wpisy[$ip]);
+    }
+    if (count($wpisy) > EVK_LOGIN_MAX_WPISOW) {
+        uasort($wpisy, static function ($a, $b) use ($pole) {
+            return (int) ($b[$pole] ?? 0) <=> (int) ($a[$pole] ?? 0);
+        });
+        $wpisy = array_slice($wpisy, 0, EVK_LOGIN_MAX_WPISOW, true);
+    }
+    return $wpisy;
+}
+
+/**
+ * Zapis obu tablic. Trzeci argument `false` zdejmuje AUTOLOAD — bez niego
+ * WordPress wczytuje te opcje przy każdym żądaniu do serwisu, także wtedy, gdy
+ * nikt się nie loguje. Potrzebne są wyłącznie na ścieżce logowania.
+ */
+function evk_login_zapisz(string $opcja, array $wpisy, string $pole): void {
+    update_option($opcja, evk_login_przytnij($wpisy, $pole), false);
+}
+
 function evk_login_get_blocked(): array {
     $v = get_option('evk_blocked_ips', []);
     return is_array($v) ? $v : [];
@@ -44,11 +88,11 @@ function evk_login_is_blocked(string $ip): bool {
 
     if (evk_login_block_expired($blocked[$ip])) {
         unset($blocked[$ip]);
-        update_option('evk_blocked_ips', $blocked);
+        evk_login_zapisz('evk_blocked_ips', $blocked, 'blocked_at');
         $attempts = get_option('evk_failed_logins', []);
         if (isset($attempts[$ip])) {
             unset($attempts[$ip]);
-            update_option('evk_failed_logins', $attempts);
+            evk_login_zapisz('evk_failed_logins', $attempts, 'last');
         }
         return false;
     }
@@ -101,7 +145,7 @@ function evk_login_block_ip(string $ip, string $username = ''): void {
         'username'   => sanitize_text_field($username),
         'attempts'   => (int)($attempts[$ip]['count'] ?? 0),
     ];
-    update_option('evk_blocked_ips', $blocked);
+    evk_login_zapisz('evk_blocked_ips', $blocked, 'blocked_at');
     do_action('evk_ip_blocked', $ip, $username);
 }
 
@@ -121,7 +165,7 @@ function evk_login_record_failure(string $username): void {
 
     $attempts[$ip]['count']++;
     $attempts[$ip]['last'] = current_time('timestamp');
-    update_option('evk_failed_logins', $attempts);
+    evk_login_zapisz('evk_failed_logins', $attempts, 'last');
 
     if ($attempts[$ip]['count'] >= evk_login_max_attempts()) {
         evk_login_block_ip($ip, $username);
@@ -208,7 +252,7 @@ add_action('wp_login', function ($username) {
     $attempts = get_option('evk_failed_logins', []);
     if (isset($attempts[$ip])) {
         unset($attempts[$ip]);
-        update_option('evk_failed_logins', $attempts);
+        evk_login_zapisz('evk_failed_logins', $attempts, 'last');
     }
 }, 10, 2);
 
@@ -222,10 +266,10 @@ add_action('wp_ajax_evk_unblock_ip', function () {
     $ip = sanitize_text_field(wp_unslash($_POST['ip'] ?? ''));
     $blocked = evk_login_get_blocked();
     unset($blocked[$ip]);
-    update_option('evk_blocked_ips', $blocked);
+    evk_login_zapisz('evk_blocked_ips', $blocked, 'blocked_at');
     $attempts = get_option('evk_failed_logins', []);
     unset($attempts[$ip]);
-    update_option('evk_failed_logins', $attempts);
+    evk_login_zapisz('evk_failed_logins', $attempts, 'last');
     wp_send_json_success('Odblokowano.');
 });
 

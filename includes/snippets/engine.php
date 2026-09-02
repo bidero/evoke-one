@@ -7,6 +7,19 @@ if (!defined('ABSPATH')) exit;
 // =========================================================================
 
 add_action('init', function () {
+    /* UPRAWNIENIA WŁASNE, NIE `'post'`.
+     *
+     * Treść tych wpisów jest WYKONYWANA przez `eval()`. Do 1.131.0 typ miał
+     * `capability_type => 'post'`, więc prawo do jej edycji mapowało się na
+     * `edit_others_posts` — czyli na Redaktora. Panel jest ukryty
+     * (`show_ui => false`), a własne punkty AJAX pilnują `manage_options`, więc
+     * znanej drogi nie było. Ale każda OGÓLNA droga edycji wpisów — WP-CLI,
+     * importer, wtyczka do masowej edycji, cudzy endpoint rejestrowany
+     * generycznie — pyta o uprawnienia typu wpisu, a nie nasze handlery,
+     * i tamtędy Redaktor by wszedł.
+     *
+     * Wszystkie uprawnienia prowadzą do `manage_options`: kto może wykonać kod
+     * przez snippety, ten i tak może wykonać go inaczej. */
     register_post_type('evk_code_snippet', [
         'public'             => false,
         'publicly_queryable' => false,
@@ -14,8 +27,24 @@ add_action('init', function () {
         'show_in_menu'       => false,
         'query_var'          => false,
         'rewrite'            => false,
-        'capability_type'    => 'post',
+        'capability_type'    => 'evk_code_snippet',
         'map_meta_cap'       => true,
+        'capabilities'       => [
+            'edit_post'              => 'manage_options',
+            'read_post'              => 'manage_options',
+            'delete_post'            => 'manage_options',
+            'edit_posts'             => 'manage_options',
+            'edit_others_posts'      => 'manage_options',
+            'delete_posts'           => 'manage_options',
+            'delete_others_posts'    => 'manage_options',
+            'delete_private_posts'   => 'manage_options',
+            'delete_published_posts' => 'manage_options',
+            'edit_private_posts'     => 'manage_options',
+            'edit_published_posts'   => 'manage_options',
+            'publish_posts'          => 'manage_options',
+            'read_private_posts'     => 'manage_options',
+            'create_posts'           => 'manage_options',
+        ],
         'hierarchical'       => false,
         'supports'           => ['title', 'editor', 'revisions'],
         'has_archive'        => false,

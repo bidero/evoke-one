@@ -49,11 +49,15 @@ function get_option($key, $default = false) {
 // gdzie update_option() woła sanitize_option(). Endpointy, które sanityzują
 // z ręki i dopiero potem zapisują, przepuszczają dane przez sanityzator DWA
 // RAZY; atrapa musi to pokazywać, a nie ukrywać.
-function update_option($key, $value) {
+function update_option($key, $value, $autoload = null) {
     if (isset($GLOBALS['sanitizers'][$key])) {
         $value = call_user_func($GLOBALS['sanitizers'][$key], $value);
     }
     $GLOBALS['options'][$key] = $value;
+    /* Trzeci argument zapisujemy osobno: to on decyduje, czy WordPress wczytuje
+       opcję przy KAŻDYM żądaniu do serwisu. Bez tego atrapa nie odróżniałaby
+       opcji autoloadowanej od zwykłej, a różnica bywa całą treścią naprawy. */
+    $GLOBALS['autoload'][$key] = $autoload;
     return true;
 }
 /**
