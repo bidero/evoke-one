@@ -139,15 +139,52 @@ $out['limiter']['autoload_blokad'] = $GLOBALS['autoload']['evk_blocked_ips'] ?? 
 // 3. TYP WPISU SNIPPETÓW
 // =========================================================================
 
-$typ = $GLOBALS['typy']['evk_code_snippet'] ?? [];
+$typ  = $GLOBALS['typy']['evk_code_snippet'] ?? [];
+$upr  = $typ['capabilities'] ?? [];
+
+/**
+ * Odtworzenie reguły z rdzenia WordPressa — `_post_type_meta_capabilities()`
+ * w `wp-includes/post.php` (sprawdzone na 6.7):
+ *
+ *     foreach ( $capabilities as $core => $custom ) {
+ *         if ( in_array( $core, array( 'read_post', 'delete_post', 'edit_post' ), true ) ) {
+ *             $post_type_meta_caps[ $custom ] = $core;
+ *         }
+ *     }
+ *
+ * Wynik trafia do GLOBALNEJ tablicy, z której `map_meta_cap()` przekierowuje
+ * każde sprawdzenie o takiej nazwie. Jeśli po lewej stronie stanie tu
+ * uprawnienie używane gdziekolwiek indziej — `manage_options` na czele — cała
+ * witryna zaczyna je odmawiać. Tak wyglądało 1.132.0 i 1.133.0.
+ *
+ * Reguła jest tu PRZEPISANA, nie wciągnięta z rdzenia: `post.php` ciągnie za
+ * sobą pół WordPressa, inaczej niż samodzielne `kses.php` obok. Odesłanie do
+ * pliku i wersji stoi wyżej, żeby dało się to zweryfikować.
+ */
+function zatrute_capy(array $capabilities): array {
+    $globalne = [];
+    foreach ($capabilities as $core => $custom) {
+        if (in_array($core, ['read_post', 'delete_post', 'edit_post'], true)) {
+            $globalne[$custom] = $core;
+        }
+    }
+    return $globalne;
+}
+
 $out['snippety'] = [
     'zarejestrowany'  => !empty($typ),
     'capability_type' => $typ['capability_type'] ?? null,
     'map_meta_cap'    => $typ['map_meta_cap'] ?? null,
-    'uprawnienia'     => $typ['capabilities'] ?? [],
-    'wszystkie_admin' => !empty($typ['capabilities'])
-        && count(array_unique($typ['capabilities'])) === 1
-        && reset($typ['capabilities']) === 'manage_options',
+    'uprawnienia'     => $upr,
+    // 1. Wprost po nazwie: trzech meta-capów tu nie ma.
+    'meta_capy'       => array_values(array_intersect(
+        array_keys($upr), ['edit_post', 'read_post', 'delete_post']
+    )),
+    // 2. Mechanizm: co ta tablica zarejestruje w globalnej tablicy rdzenia.
+    'zatruwa'         => array_keys(zatrute_capy($upr)),
+    // 3. Ochrona z 1.132.0 ma zostać: primitywy dalej prowadzą do manage_options.
+    'primitywy_admin' => !empty($upr) && array_values(array_unique($upr)) === ['manage_options'],
+    'ile_primitywow'  => count($upr),
 ];
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

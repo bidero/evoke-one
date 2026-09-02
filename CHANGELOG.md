@@ -2,6 +2,59 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.133.1] — 2026-09-02
+
+### Naprawione — awaria wprowadzona w 1.132.0
+
+- **`manage_options` było odmawiane WSZYSTKIM, łącznie z administratorem.**
+  Wersje dotknięte: **1.132.0 i 1.133.0**. Objawy: znika menu Ustawienia, znika
+  dostęp do Bricks Buildera i do każdej wtyczki pytającej o to uprawnienie,
+  ustawienia Evoke ONE przestają być osiągalne. Wyłączenie wtyczki natychmiast
+  wszystko przywraca.
+
+  Przyczyna siedziała w zmianie uprawnień typu wpisu snippetów. Lista mapowała
+  na `manage_options` **wszystko**, w tym trzy **meta**-capy — `edit_post`,
+  `read_post`, `delete_post` — a te WordPress traktuje inaczej niż resztę.
+  `_post_type_meta_capabilities()` (`wp-includes/post.php`) robi z nich wpis
+  w **globalnej** tablicy:
+
+  ```php
+  $post_type_meta_caps[ $custom ] = $core;   // ['manage_options'] = 'edit_post'
+  ```
+
+  Od tej chwili `map_meta_cap()` przekierowywał **każde** sprawdzenie
+  `manage_options` w całej witrynie na `edit_post` — bez identyfikatora wpisu,
+  czyli z wynikiem `do_not_allow`.
+
+  Naprawa: trzy meta-capy wypadają z listy. WordPress wyprowadza je sam
+  z `capability_type`, a trafiają na primitywy, które dalej wskazują
+  `manage_options` — **ochrona wprowadzona w 1.132.0 zostaje nienaruszona**.
+  Redaktor nadal nie dosięgnie kodu idącego przez `eval()`.
+
+  **Nic nie zmieniło się w bazie danych.** Awaria żyła wyłącznie w pamięci
+  procesu, więc aktualizacja do 1.133.1 przywraca stan sprzed 1.132.0 bez
+  żadnych czynności dodatkowych.
+
+  **Jeśli nie da się wejść do panelu:** przez FTP zmień nazwę katalogu
+  `wp-content/plugins/evoke-one` na dowolną inną — WordPress wyłączy wtyczkę
+  i menu wrócą. Po wgraniu 1.133.1 przywróć nazwę i włącz wtyczkę.
+
+### Testy
+
+- Sprawdzenie uprawnień typu wpisu **odwrócone na właściwą stronę**. Poprzednia
+  wersja pytała, czy *wszystkie* uprawnienia prowadzą do `manage_options` —
+  czyli **potwierdzała zepsutą konfigurację jako poprawną**; mutacje
+  przechodziły, bo mutowały to samo błędne założenie.
+
+  Teraz test sprawdza **mechanizm rdzenia**: przepuszcza tablicę przez tę samą
+  pętlę, co `_post_type_meta_capabilities()`, i pyta, co trafiłoby do globalnej
+  tablicy. Przy konfiguracji z 1.132.0 wypisuje wprost:
+  `ZATRUTE W CAŁEJ WITRYNIE: manage_options`.
+
+  Sprawdzenie „primitywy prowadzą do `manage_options`" **przechodzi także na
+  zepsutej konfiguracji** — dlatego samo nigdy by tego nie złapało i zostało
+  uzupełnione, a nie zastąpione.
+
 ## [1.133.0] — 2026-09-01
 
 Ostatnie wydanie z audytu bezpieczeństwa. Trzy drobiazgi o wychodzeniu poza

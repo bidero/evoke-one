@@ -85,11 +85,34 @@ module.exports = async function (t) {
     s.capability_type === 'evk_code_snippet', String(s.capability_type));
   t.check('mapowanie uprawnień włączone', s.map_meta_cap === true, String(s.map_meta_cap));
 
-  // Bez tego Redaktor (edit_others_posts) sięgałby treści idącej przez eval()
-  // każdą ogólną drogą edycji wpisów — WP-CLI, importerem, cudzym endpointem.
-  t.check('każde uprawnienie prowadzi do manage_options', s.wszystkie_admin === true,
-    Object.keys(s.uprawnienia).length + ' uprawnień');
-  t.check('edit_others_posts nie jest już drogą dojścia',
+  /* TO SPRAWDZENIE POWSTAŁO PO AWARII, KTÓRĄ POPRZEDNIE PRZEPUŚCIŁO.
+   *
+   * W 1.132.0 tablica `capabilities` mapowała na `manage_options` WSZYSTKO,
+   * łącznie z meta-capami `edit_post`, `read_post`, `delete_post`. WordPress
+   * robi wtedy wpis w GLOBALNEJ tablicy `$post_type_meta_caps` pod kluczem
+   * `manage_options`, a `map_meta_cap()` przekierowuje odtąd każde sprawdzenie
+   * `manage_options` w całej witrynie na `edit_post` — bez identyfikatora wpisu,
+   * czyli z wynikiem `do_not_allow`. Administrator tracił menu Ustawienia,
+   * dostęp do buildera i do wszystkich wtyczek pytających o to uprawnienie.
+   *
+   * Poprzednia wersja testu sprawdzała, że WSZYSTKIE uprawnienia prowadzą do
+   * `manage_options` — czyli POTWIERDZAŁA zepsutą konfigurację jako poprawną.
+   * Mutacje przechodziły, bo mutowały to samo błędne założenie. Sprawdzamy więc
+   * teraz MECHANIZM rdzenia, a nie kształt tablicy. */
+  t.check('brak meta-capów w tablicy uprawnień', s.meta_capy.length === 0,
+    s.meta_capy.length ? 'ZATRUWA: ' + s.meta_capy.join(', ') : 'edit_post/read_post/delete_post nieobecne');
+  t.check('nic nie trafia do globalnej tablicy meta-capów rdzenia',
+    s.zatruwa.length === 0,
+    s.zatruwa.length
+      ? 'ZATRUTE W CAŁEJ WITRYNIE: ' + s.zatruwa.join(', ')
+      : '$post_type_meta_caps nietknięte');
+
+  // Druga połowa: ochrona, o którą chodziło w 1.132.0, ma zostać. Bez niej
+  // Redaktor (edit_others_posts) sięgałby treści idącej przez eval() każdą
+  // ogólną drogą edycji wpisów — WP-CLI, importerem, cudzym endpointem.
+  t.check('primitywy prowadzą do manage_options', s.primitywy_admin === true,
+    s.ile_primitywow + ' uprawnień');
+  t.check('edit_others_posts nie jest drogą dojścia',
     s.uprawnienia.edit_others_posts === 'manage_options',
     String(s.uprawnienia.edit_others_posts));
 };

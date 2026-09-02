@@ -29,18 +29,36 @@ add_action('init', function () {
         'rewrite'            => false,
         'capability_type'    => 'evk_code_snippet',
         'map_meta_cap'       => true,
+        /* NIE WOLNO TU WPISAĆ `edit_post`, `read_post` ani `delete_post`.
+         *
+         * To są META-capy i WordPress traktuje je inaczej niż resztę. Przy
+         * `map_meta_cap => true` `_post_type_meta_capabilities()`
+         * (`wp-includes/post.php`) robi z nich WPIS GLOBALNY:
+         *
+         *     $post_type_meta_caps[ $custom ] = $core;
+         *
+         * czyli mapowanie `'edit_post' => 'manage_options'` rejestruje
+         * `$post_type_meta_caps['manage_options'] = 'edit_post'`. Od tej chwili
+         * `map_meta_cap()` przekierowuje KAŻDE sprawdzenie `manage_options`
+         * w całej witrynie na `edit_post` — bez identyfikatora wpisu, więc
+         * z wynikiem `do_not_allow`.
+         *
+         * Tak wyglądało 1.132.0 i 1.133.0: administrator tracił menu Ustawienia,
+         * dostęp do buildera i do wszystkich wtyczek pytających o
+         * `manage_options`. Naprawione w 1.133.1.
+         *
+         * Meta-capy wyprowadza WordPress sam z `capability_type`, a stąd trafiają
+         * na primitywy niżej — ochrona jest ta sama, tylko bez zatruwania
+         * globalnej tablicy. */
         'capabilities'       => [
-            'edit_post'              => 'manage_options',
-            'read_post'              => 'manage_options',
-            'delete_post'            => 'manage_options',
             'edit_posts'             => 'manage_options',
             'edit_others_posts'      => 'manage_options',
+            'edit_private_posts'     => 'manage_options',
+            'edit_published_posts'   => 'manage_options',
             'delete_posts'           => 'manage_options',
             'delete_others_posts'    => 'manage_options',
             'delete_private_posts'   => 'manage_options',
             'delete_published_posts' => 'manage_options',
-            'edit_private_posts'     => 'manage_options',
-            'edit_published_posts'   => 'manage_options',
             'publish_posts'          => 'manage_options',
             'read_private_posts'     => 'manage_options',
             'create_posts'           => 'manage_options',
