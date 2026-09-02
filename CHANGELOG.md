@@ -2,6 +2,81 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.137.0] — 2026-09-02
+
+### Dodane
+
+- **Evoke ONE Control Center.** Panel dostaje ekran startowy i lewy sidebar
+  zamiast dwupoziomowego paska zakładek u góry. Powód jest w liczbach: siedem
+  zakładek i 33 ekrany, z czego 11 podzakładek pod samym Frontendem — pasek był
+  na granicy czytelności i każdy nowy moduł go pogarszał.
+
+  Na ekranie startowym: stan gotowości konfiguracji, kafle sześciu obszarów
+  z liczbą aktywnych rzeczy w każdym, szybkie akcje i lista tego, co wymaga
+  działania — każda pozycja z odsyłaczem prosto do swojego ustawienia.
+
+  **Formularze ustawień zostają bez zmian.** To zmiana nawigacji, nie
+  przepisanie 33 ekranów; adresy `?tab=` działają jak dotąd.
+
+- **Wyszukiwarka ustawień (⌘K / Ctrl K).** Dostępna z każdego ekranu panelu,
+  prowadzi wprost do konkretnej podzakładki.
+
+Podstawa przyszła jako paczka od innego agenta, zbudowana na 1.135.0. Wchodzi
+z czterema poprawkami opisanymi niżej i z testami, których nie miała.
+
+### Zmienione
+
+- **Wynik gotowości liczy tylko to, co da się nie zdać.** W mianowniku stały
+  wcześniej `defined('ABSPATH')` i `PHP >= 7.4` — obie prawdziwe zawsze, gdy
+  ten kod się w ogóle wykonuje. Świeża instalacja bez jednego ustawienia
+  pokazywała przez to **38/100**, a wynik miał podłogę, której nie dało się
+  przebić w dół. Zostało sześć kontrolek zależnych od decyzji przy panelu
+  (HTTPS, XML-RPC, limit logowań, SMTP, Schema, mapa strony); pusta
+  konfiguracja daje teraz 0, komplet 100.
+
+  Wersja PHP i obecność Bricksa **nadal są widoczne** na pasku, ale jako
+  informacja o środowisku — przydatna przy zgłoszeniu, nie będąca niczyją
+  decyzją.
+
+- **Nowy panel korzysta z tokenów, nie z wpisanych kolorów.** Jedenaście
+  wartości (`#fff`, `#f8fafc`, `#eff6ff`, cienie) zamienionych na istniejące
+  zmienne. Trzy, dla których nie było odpowiednika, dostały własne tokeny
+  w bloku `.wrap`: `--evo-accent-on`, `--evo-scrim`, `--evo-shadow-modal`.
+  Dzięki temu White Label i każda przyszła zmiana skóry obejmują też ekran
+  startowy — tak samo jak resztę panelu po wydaniach 1.119.0–1.122.0.
+
+- **⌘K nie przechwytuje pisania.** Skrót wisi na dokumencie, więc bez warunku
+  po elemencie zjadał kombinację również w polu tekstowym i w edytorze
+  w zakładce „Skrypty PHP".
+
+### Testy
+
+- Nowy `tests/panel-start.test.js` + `tests/php/panel-start.php` — 27
+  sprawdzeń przez **prawdziwe `evoke_one_render_settings()`**, z konfiguracją
+  zasiewaną z wiersza poleceń. Kopia znaczników w fixturze przechodziłaby
+  także wtedy, gdyby panel czytał nieistniejącą opcję.
+
+  Najważniejsza grupa dotyczy **liczb**: pulpit sięga po kilkanaście opcji po
+  nazwie, a licznik czytający zły klucz nie wywala się — pokazuje „0 aktywnych"
+  i kłamie po cichu. Każda z dziewięciu nazw modułów frontendu jest sprawdzana
+  osobno i dodatkowo konfrontowana z kodem wtyczki.
+
+  Dalej: wynik gotowości przy pustej, połowicznej i pełnej konfiguracji;
+  każdy odsyłacz ekranu celuje w istniejącą zakładkę **i podzakładkę**
+  (listy czytane z `page.php` i z plików zakładek); sidebar niesie komplet
+  pozycji i zaznacza bieżącą; paleta otwiera się skrótem, ale nie w polu
+  tekstowym; przy 390 px sidebar schodzi z drogi i wraca burgerem.
+
+  **Mutacje** — siedem, każda uruchomiona i cofnięta: literówka w nazwie opcji,
+  powrót kontrolek bez treści do mianownika, zdjęcie warunku z ⌘K, wpis palety
+  do nieistniejącej zakładki, to samo do nieistniejącej podzakładki, sidebar
+  niechowający się przy wąskim oknie, brak zaznaczenia bieżącej zakładki.
+
+  Dwie z nich (paleta) **przeszły za pierwszym razem na zielono** i to je
+  naprawiło: wzorzec wycinał nazwę zakładki klasą znaków `[a-z_]+`, więc
+  z adresu `tab=newsletterXX` brał samo `newsletter`, a resztę połykał. Nazwy
+  czytane są teraz do ogranicznika.
+
 ## [1.136.0] — 2026-09-02
 
 ### Naprawione

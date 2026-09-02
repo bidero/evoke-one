@@ -185,10 +185,11 @@ add_action('admin_menu', function () {
 function evoke_one_render_settings(): void {
     if (!current_user_can('manage_options')) return;
 
-    $tab  = sanitize_key($_GET['tab'] ?? 'wydajnosc');
+    $tab  = sanitize_key($_GET['tab'] ?? 'dashboard');
     $base = admin_url('options-general.php?page=evoke-one');
 
     $tabs = [
+        'dashboard'       => ['label' => 'Dashboard',       'icon' => 'dashicons-dashboard'],
         'wydajnosc'      => ['label' => 'Frontend',        'icon' => 'dashicons-desktop'],
         'strona'         => ['label' => 'SEO',             'icon' => 'dashicons-search'],
         'bezpieczenstwo' => ['label' => 'Bezpieczeństwo',  'icon' => 'dashicons-shield'],
@@ -202,6 +203,7 @@ function evoke_one_render_settings(): void {
 
     // Mapowanie zakładki → plik
     $tab_files = [
+        'dashboard'       => '',
         'wydajnosc'      => 'tab-wydajnosc.php',
         'strona'         => 'tab-strona.php',
         'bezpieczenstwo' => 'tab-bezpieczenstwo.php',
@@ -212,33 +214,223 @@ function evoke_one_render_settings(): void {
     ];
 
     ?>
-    <div class="wrap">
-        <h1 class="evo-page-title">
-            <span class="dashicons dashicons-star-filled evo-page-title-ico"></span>
-            Evoke ONE
-            <span class="evo-page-version">v<?php echo esc_html(EVOKE_ONE_VERSION); ?></span>
-        </h1>
-
-        <div class="evo-tabs">
-            <?php foreach ($tabs as $key => $t): ?>
-            <a href="<?php echo esc_url(add_query_arg('tab', $key, $base)); ?>"
-               class="evo-tab <?php echo $tab === $key ? 'active' : ''; ?>">
-                <span class="dashicons <?php echo esc_attr($t['icon']); ?>"></span>
-                <?php echo esc_html($t['label']); ?>
-            </a>
-            <?php endforeach; ?>
+    <div class="wrap evo-control-center">
+        <div class="evo-mobile-bar">
+            <button type="button" class="evo-mobile-menu" aria-expanded="false" aria-controls="evo-sidebar">
+                <span class="dashicons dashicons-menu"></span><span class="screen-reader-text">Otwórz menu</span>
+            </button>
+            <span class="evo-mobile-brand">Evoke ONE</span>
+            <button type="button" class="evo-search-trigger" data-evo-search-open aria-label="Szukaj ustawień">
+                <span class="dashicons dashicons-search"></span>
+            </button>
         </div>
 
-        <div class="evo-panel">
+        <div class="evo-app-shell">
+            <aside class="evo-sidebar" id="evo-sidebar">
+                <div class="evo-brand">
+                    <span class="dashicons dashicons-star-filled"></span>
+                    <span>Evoke ONE</span>
+                </div>
+                <button type="button" class="evo-search-trigger evo-search-trigger-wide" data-evo-search-open>
+                    <span class="dashicons dashicons-search"></span><span>Szukaj ustawień</span><kbd>⌘ K</kbd>
+                </button>
+                <nav class="evo-navigation" aria-label="Evoke ONE">
+                    <p class="evo-nav-label">Overview</p>
+                    <?php evoke_one_render_sidebar_link('dashboard', $tabs['dashboard'], $tab, $base); ?>
+                    <p class="evo-nav-label">Modules</p>
+                    <?php foreach (['wydajnosc', 'strona', 'bezpieczenstwo', 'narzedzia', 'newsletter', 'forminbox'] as $key): ?>
+                        <?php evoke_one_render_sidebar_link($key, $tabs[$key], $tab, $base); ?>
+                    <?php endforeach; ?>
+                    <p class="evo-nav-label">System</p>
+                    <?php evoke_one_render_sidebar_link('admin_panel', $tabs['admin_panel'], $tab, $base); ?>
+                    <a class="evo-sidebar-link" href="https://evoke.one" target="_blank" rel="noopener noreferrer">
+                        <span class="dashicons dashicons-editor-help"></span><span>Pomoc</span><span class="dashicons dashicons-external evo-nav-external"></span>
+                    </a>
+                </nav>
+                <div class="evo-sidebar-footer">v<?php echo esc_html(EVOKE_ONE_VERSION); ?></div>
+            </aside>
+
+            <main class="evo-main-content">
+                <?php if ($tab !== 'dashboard'): ?>
+                <header class="evo-content-header">
+                    <div>
+                        <p class="evo-eyebrow">Moduł</p>
+                        <h1><?php echo esc_html($tabs[$tab]['label']); ?></h1>
+                    </div>
+                    <span class="evo-content-status"><span></span> GOTOWE</span>
+                </header>
+                <?php endif; ?>
+                <div class="evo-panel <?php echo $tab === 'dashboard' ? 'evo-panel-dashboard' : ''; ?>">
             <?php
-            $tab_file = EVOKE_ONE_DIR . 'includes/admin/' . ($tab_files[$tab] ?? '');
-            if ($tab_file && file_exists($tab_file)) {
-                require $tab_file;
+            if ($tab === 'dashboard') {
+                evoke_one_render_control_center($base);
             } else {
+                $tab_file = EVOKE_ONE_DIR . 'includes/admin/' . ($tab_files[$tab] ?? '');
+                if ($tab_file && file_exists($tab_file)) {
+                require $tab_file;
+                } else {
                 echo '<p class="evo-danger-tx">Błąd: plik zakładki nie istnieje.</p>';
-            }
-            ?>
+                }
+                }
+                ?>
+                </div>
+                <?php if ($tab !== 'dashboard') evoke_one_render_command_palette($base); ?>
+            </main>
         </div>
     </div>
+    <?php
+}
+
+/** Link w głównym pasku nawigacji. Stare parametry ?tab= zostają bez zmian. */
+function evoke_one_render_sidebar_link(string $key, array $tab, string $active, string $base): void {
+    printf(
+        '<a href="%s" class="evo-sidebar-link%s"><span class="dashicons %s"></span><span>%s</span></a>',
+        esc_url(add_query_arg('tab', $key, $base)),
+        $key === $active ? ' is-active' : '',
+        esc_attr($tab['icon']),
+        esc_html($tab['label'])
+    );
+}
+
+/** Wyszukiwarka jest dostępna także poza ekranem startowym. */
+function evoke_one_render_command_palette(string $base): void {
+    $items = [
+        ['Frontend / Dark Mode', 'wydajnosc', 'darkmode'], ['Frontend / Animator', 'wydajnosc', 'animator'], ['Frontend / Lenis', 'wydajnosc', 'lenis'],
+        ['SEO / Meta i sitemap', 'strona', 'meta'], ['SEO / Schema', 'strona', 'schema'], ['SEO / OpenGraph', 'strona', 'og'],
+        ['Bezpieczeństwo / Limit logowań', 'bezpieczenstwo', 'login'], ['Bezpieczeństwo / REST API', 'bezpieczenstwo', 'rest'],
+        ['Narzędzia / SMTP', 'narzedzia', 'smtp'], ['Narzędzia / Przekierowania 301', 'narzedzia', 'redirect'], ['Narzędzia / Logi 404', 'narzedzia', 'logs404'],
+        ['Newsletter', 'newsletter', ''], ['Formularze', 'forminbox', ''], ['Panel admina / Interfejs', 'admin_panel', 'interface'],
+    ];
+    ?>
+    <div class="evo-command-palette" id="evo-command-palette" aria-hidden="true">
+        <div class="evo-command-dialog" role="dialog" aria-modal="true" aria-label="Szukaj ustawień">
+            <label><span class="dashicons dashicons-search"></span><input type="search" id="evo-command-input" placeholder="Szukaj ustawień…" autocomplete="off"></label>
+            <div class="evo-command-results">
+                <?php foreach ($items as $item): ?>
+                <a href="<?php echo esc_url(add_query_arg(array_filter(['tab' => $item[1], 'sub' => $item[2]]), $base)); ?>" data-evo-search-item><?php echo esc_html($item[0]); ?><span>→</span></a>
+                <?php endforeach; ?>
+            </div>
+            <p class="evo-command-empty">Brak pasujących ustawień.</p>
+        </div>
+    </div>
+    <?php
+}
+
+/**
+ * Lekki dashboard oparty wyłącznie o dane, które wtyczka już zapisuje.
+ * Nie udajemy audytu zewnętrznego: wynik Health oznacza gotowość konfiguracji
+ * Evoke ONE, a nie ocenę bezpieczeństwa całej infrastruktury serwera.
+ */
+function evoke_one_render_control_center(string $base): void {
+    $frontend = [
+        'evk_animator', 'evk_parallax', 'evk_darkmode', 'evk_cursor',
+        'evk_lenis', 'evk_bgshift', 'evk_fonts', 'evk_theme_color', 'evk_a11y',
+    ];
+    $frontend_active = 0;
+    foreach ($frontend as $option) {
+        $settings = get_option($option, []);
+        if (is_array($settings) && !empty($settings['enabled'])) $frontend_active++;
+    }
+
+    $security = evk_security_get();
+    $cleanup  = get_option('evk_cleanup', []);
+    $security_active = count(array_filter([
+        !empty($security['limit_login_enabled']), !empty($security['hide_wp_version']),
+        !empty($security['rest_block_all']), !empty($cleanup['disable_xmlrpc']), !empty($cleanup['remove_rss']),
+    ]));
+    $seo_active = count(array_filter([
+        !empty(get_option('evk_schema', [])['enabled']), !empty(get_option('evk_og', [])['enabled']),
+        !empty(tl_get_sitemap_settings()['enabled']),
+    ]));
+    $tool_active = count(array_filter([
+        (bool) get_option('evk_301_enabled', 0), (bool) get_option('evk_404_enabled', 0),
+        !empty(get_option('evk_smtp', [])['enabled']), (bool) get_option('maintenance_mode', 0),
+    ]));
+    $newsletter_active = !empty(get_option('evk_newsletter', [])['enabled']);
+    $inbox_settings    = get_option('evk_forminbox', []);
+    $inbox_active      = !empty($inbox_settings['enabled']);
+
+    /* OCENIAMY WYŁĄCZNIE TO, CO DA SIĘ NIE ZDAĆ.
+     *
+     * Wcześniej w tej liście stały `defined('ABSPATH')` i `PHP >= 7.4`. Obie są
+     * prawdziwe zawsze, gdy ten kod się w ogóle wykonuje: bez `ABSPATH` plik
+     * kończy pracę w pierwszej linii, a wersji PHP niższej niż wymagana wtyczka
+     * nie obsłuży. Wynik miał przez to podłogę 25/100 i przy pustej instalacji
+     * pokazywał 38, choć nie było skonfigurowane nic.
+     *
+     * Liczba ma odpowiadać na pytanie „ile z tego, co mogę włączyć, mam
+     * włączone" — więc mianownikiem jest to, co realnie zależy od decyzji
+     * osoby przy panelu. */
+    $checks = [
+        ['label' => 'HTTPS',   'ok' => is_ssl()],
+        ['label' => 'XML-RPC', 'ok' => !empty($cleanup['disable_xmlrpc']), 'url' => add_query_arg(['tab' => 'bezpieczenstwo', 'sub' => 'cleanup'], $base)],
+        ['label' => 'Limit logowań', 'ok' => !empty($security['limit_login_enabled']), 'url' => add_query_arg(['tab' => 'bezpieczenstwo', 'sub' => 'login'], $base)],
+        ['label' => 'SMTP',    'ok' => !empty(get_option('evk_smtp', [])['enabled']), 'url' => add_query_arg(['tab' => 'narzedzia', 'sub' => 'smtp'], $base)],
+        ['label' => 'Schema',  'ok' => !empty(get_option('evk_schema', [])['enabled']), 'url' => add_query_arg(['tab' => 'strona', 'sub' => 'schema'], $base)],
+        ['label' => 'Sitemap', 'ok' => !empty(tl_get_sitemap_settings()['enabled']), 'url' => add_query_arg(['tab' => 'strona', 'sub' => 'sitemap'], $base)],
+    ];
+
+    /* Środowisko — do zobaczenia, nie do oceniania. Wersja PHP i obecność
+     * Bricksa są przydatne przy zgłoszeniu („na czym to stoi"), ale nie są
+     * niczyją decyzją, więc nie wchodzą do mianownika. */
+    $srodowisko = [
+        ['label' => 'PHP ' . PHP_VERSION, 'ok' => true],
+        ['label' => 'Bricks', 'ok' => defined('BRICKS_VERSION') || class_exists('Bricks\\Helpers')],
+    ];
+
+    $passed = count(array_filter($checks, static function ($check) { return $check['ok']; }));
+    $score  = (int) round(($passed / count($checks)) * 100);
+    $cards = [
+        ['tab' => 'wydajnosc', 'icon' => 'dashicons-desktop',       'name' => 'Frontend',      'meta' => $frontend_active . ' aktywnych z ' . count($frontend)],
+        ['tab' => 'strona', 'icon' => 'dashicons-search',            'name' => 'SEO',           'meta' => $seo_active . ' aktywne obszary'],
+        ['tab' => 'bezpieczenstwo', 'icon' => 'dashicons-shield',    'name' => 'Bezpieczeństwo','meta' => $security_active . ' aktywnych zabezpieczeń'],
+        ['tab' => 'narzedzia', 'icon' => 'dashicons-admin-tools',    'name' => 'Narzędzia',     'meta' => $tool_active . ' aktywne narzędzia'],
+        ['tab' => 'newsletter', 'icon' => 'dashicons-email-alt',     'name' => 'Newsletter',    'meta' => $newsletter_active ? 'moduł aktywny' : 'moduł wyłączony'],
+        ['tab' => 'forminbox', 'icon' => 'dashicons-feedback',       'name' => 'Formularze',    'meta' => $inbox_active ? 'skrzynka aktywna' : 'skrzynka wyłączona'],
+    ];
+    ?>
+    <header class="evo-dashboard-header">
+        <div><p class="evo-eyebrow">Evoke ONE</p><h1>Control Center</h1><p>Jedno miejsce do zarządzania stroną WordPress i Bricks.</p></div>
+        <span class="evo-page-version">v<?php echo esc_html(EVOKE_ONE_VERSION); ?></span>
+    </header>
+
+    <section class="evo-health-card">
+        <div class="evo-health-summary">
+            <span class="evo-health-dot"></span><div><strong><?php echo $passed === count($checks) ? 'Wszystko działa dobrze' : 'Wymaga uwagi'; ?></strong><p>Stan konfiguracji Evoke ONE</p></div>
+        </div>
+        <div class="evo-health-score"><strong><?php echo esc_html((string) $score); ?></strong><span>/ 100</span></div>
+        <div class="evo-health-checks">
+            <?php foreach ($checks as $check): ?><span class="<?php echo $check['ok'] ? 'is-ok' : 'is-warn'; ?>"><i></i><?php echo esc_html($check['label']); ?></span><?php endforeach; ?>
+            <?php foreach ($srodowisko as $check): ?><span class="is-info" title="Informacja o środowisku — nie wchodzi do wyniku"><i></i><?php echo esc_html($check['label']); ?></span><?php endforeach; ?>
+        </div>
+    </section>
+
+    <section class="evo-dashboard-section"><div class="evo-section-heading"><h2>Moduły</h2><p>Przejdź bezpośrednio do konfiguracji.</p></div>
+        <div class="evo-module-grid">
+        <?php foreach ($cards as $card): ?>
+            <a class="evo-module-card" href="<?php echo esc_url(add_query_arg('tab', $card['tab'], $base)); ?>">
+                <span class="dashicons <?php echo esc_attr($card['icon']); ?>"></span><h3><?php echo esc_html($card['name']); ?></h3><p><?php echo esc_html($card['meta']); ?></p><span class="evo-module-open">Otwórz <b>→</b></span>
+            </a>
+        <?php endforeach; ?>
+        </div>
+    </section>
+
+    <section class="evo-dashboard-section evo-quick-actions"><div class="evo-section-heading"><h2>Szybkie akcje</h2><p>Najczęściej używane narzędzia.</p></div>
+        <div>
+            <a href="<?php echo esc_url(add_query_arg(['tab' => 'narzedzia', 'sub' => 'redirect'], $base)); ?>" class="button">+ Nowy redirect</a>
+            <a href="<?php echo esc_url(add_query_arg(['tab' => 'narzedzia', 'sub' => 'logs404'], $base)); ?>" class="button">Sprawdź 404</a>
+            <a href="<?php echo esc_url(add_query_arg(['tab' => 'strona', 'sub' => 'og'], $base)); ?>" class="button">Generator OG</a>
+            <a href="<?php echo esc_url(add_query_arg(['tab' => 'narzedzia', 'sub' => 'smtp'], $base)); ?>" class="button">SMTP test</a>
+        </div>
+    </section>
+
+    <section class="evo-dashboard-section evo-health-details"><div class="evo-section-heading"><h2>Evoke Health</h2><p>Konfiguracja wymagająca działania.</p></div>
+        <?php foreach ($checks as $check): if ($check['ok']) continue; ?>
+            <div class="evo-health-issue"><span class="dashicons dashicons-warning"></span><span><strong><?php echo esc_html($check['label']); ?></strong> nie jest obecnie gotowe lub skonfigurowane.<?php if (!empty($check['url'])): ?> <a href="<?php echo esc_url($check['url']); ?>">Skonfiguruj →</a><?php endif; ?></span></div>
+        <?php endforeach; ?>
+        <?php if ($passed === count($checks)): ?><div class="evo-health-issue is-good"><span class="dashicons dashicons-yes-alt"></span><span>Wszystkie podstawowe kontrolki Evoke ONE są gotowe.</span></div><?php endif; ?>
+    </section>
+
+    <?php evoke_one_render_command_palette($base); ?>
     <?php
 }

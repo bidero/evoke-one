@@ -55,6 +55,16 @@
     --evo-warn-line:   #fde68a;
     --evo-warn-bg:     #fffbeb;
 
+    /* ── Control Center ──
+       Trzy wartości, dla których nie było odpowiednika: tło pozycji BIEŻĄCEJ
+       w nawigacji (mocniejsze niż `--evo-accent-soft`, inaczej nie odróżni się
+       od zwykłego najechania), przyciemnienie pod paletą wyszukiwania i jej
+       cień. Stoją tu, a nie przy regułach, bo to jedyne miejsce z kolorami
+       w tym pliku — patrz komentarz na górze bloku. */
+    --evo-accent-on:    #eaf2ff;
+    --evo-scrim:        rgba(15, 23, 42, .32);
+    --evo-shadow-modal: 0 20px 60px rgba(15, 23, 42, .22);
+
     /* ── Kod w tekście ── */
     --evo-code-bg:   #eef2ff;
     --evo-code-text: #3730a3;
@@ -76,6 +86,127 @@
     /* ── Wymiary ── */
     --evo-field-h: 38px;
     --evo-tap:     44px;
+}
+
+/* =========================================================================
+   CONTROL CENTER — warstwa nawigacji
+   Zachowuje klasy istniejących formularzy, zmienia tylko szkielet panelu.
+   ========================================================================= */
+.evo-control-center { max-width: 1440px !important; margin: 20px 20px 0 2px; }
+.evo-app-shell { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: calc(100vh - 82px); border: 1px solid var(--evo-border); border-radius: 14px; overflow: hidden; background: var(--evo-bg); box-shadow: var(--evo-shadow); }
+.evo-sidebar { display: flex; flex-direction: column; padding: 20px 12px 14px; background: var(--evo-surface); border-right: 1px solid var(--evo-border); min-width: 0; }
+.evo-brand { display: flex; align-items: center; gap: 9px; padding: 0 10px 22px; color: var(--evo-text); font-size: 14px; font-weight: 750; letter-spacing: .01em; }
+.evo-brand .dashicons { color: var(--evo-accent); }
+.evo-search-trigger { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--evo-text-muted); cursor: pointer; font: inherit; }
+.evo-search-trigger-wide { width: 100%; padding: 8px 10px; margin-bottom: 18px; border: 1px solid var(--evo-border); border-radius: 7px; background: var(--evo-bg); font-size: 12px; text-align: left; transition: border-color .15s, color .15s; }
+.evo-search-trigger-wide:hover { color: var(--evo-accent); border-color: var(--evo-accent-line); }
+.evo-search-trigger kbd { margin-left: auto; color: var(--evo-text-faint); font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.evo-navigation { display: flex; flex-direction: column; gap: 2px; }
+.evo-nav-label { margin: 14px 10px 5px; color: var(--evo-text-faint); font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.evo-nav-label:first-child { margin-top: 0; }
+.evo-sidebar-link { display: flex; align-items: center; gap: 9px; min-height: 34px; padding: 0 10px; border-radius: 6px; color: var(--evo-text-soft); font-size: 13px; font-weight: 500; text-decoration: none; transition: background .15s, color .15s; }
+.evo-sidebar-link:hover { color: var(--evo-accent); background: var(--evo-accent-soft); }
+.evo-sidebar-link.is-active { color: var(--evo-accent-dark); background: var(--evo-accent-on); font-weight: 700; }
+.evo-sidebar-link .dashicons { width: 17px; height: 17px; font-size: 17px; }
+.evo-sidebar-link .evo-nav-external { margin-left: auto; width: 14px; height: 14px; font-size: 14px; color: var(--evo-text-faint); }
+.evo-sidebar-footer { margin-top: auto; padding: 18px 10px 0; color: var(--evo-text-faint); font-size: 11px; }
+.evo-main-content { min-width: 0; background: var(--evo-bg); }
+.evo-content-header { display: flex; align-items: flex-end; justify-content: space-between; padding: 28px 32px 22px; border-bottom: 1px solid var(--evo-border-soft); }
+.evo-content-header h1, .evo-dashboard-header h1 { margin: 0; color: var(--evo-text); font-size: 24px; line-height: 1.2; letter-spacing: -.025em; }
+.evo-eyebrow { margin: 0 0 5px; color: var(--evo-text-muted); font-size: 10px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+.evo-content-status { display: inline-flex; align-items: center; gap: 6px; color: var(--evo-on-dark); font-size: 10px; font-weight: 750; letter-spacing: .08em; }
+.evo-content-status > span { width: 7px; height: 7px; border-radius: 50%; background: var(--evo-on); }
+.evo-panel { border: 0; border-radius: 0; box-shadow: none; padding: 28px 32px 32px; }
+.evo-panel-dashboard { padding: 0 32px 34px; }
+.evo-mobile-bar { display: none; }
+
+/* Dashboard */
+.evo-dashboard-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 30px 0 26px; }
+.evo-dashboard-header > div > p:last-child { margin: 7px 0 0; color: var(--evo-text-muted); font-size: 13px; }
+.evo-page-version { display: inline-flex; align-items: center; height: 26px; padding: 0 9px; border: 1px solid var(--evo-border); border-radius: 999px; color: var(--evo-text-muted); background: var(--evo-surface); font-size: 11px; font-weight: 600; }
+.evo-health-card { display: grid; grid-template-columns: minmax(180px, 1fr) auto; gap: 20px 28px; padding: 22px 24px; border: 1px solid var(--evo-border); border-radius: var(--evo-radius-card); background: var(--evo-surface); }
+.evo-health-summary { display: flex; align-items: center; gap: 11px; }
+.evo-health-summary strong { color: var(--evo-text); font-size: 15px; }
+.evo-health-summary p { margin: 3px 0 0; color: var(--evo-text-muted); font-size: 12px; }
+.evo-health-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--evo-on); box-shadow: 0 0 0 4px var(--evo-on-soft); }
+.evo-health-score { display: flex; align-items: baseline; gap: 4px; color: var(--evo-text-muted); white-space: nowrap; }
+.evo-health-score strong { color: var(--evo-text); font-size: 28px; letter-spacing: -.04em; }
+.evo-health-score span { font-size: 12px; }
+.evo-health-checks { display: flex; grid-column: 1 / -1; flex-wrap: wrap; gap: 8px 18px; padding-top: 16px; border-top: 1px solid var(--evo-border); }
+.evo-health-checks span { display: inline-flex; align-items: center; gap: 6px; color: var(--evo-text-muted); font-size: 12px; }
+.evo-health-checks i { width: 7px; height: 7px; border: 1px solid var(--evo-border-field); border-radius: 50%; background: var(--evo-surface-alt); }
+.evo-health-checks .is-ok i { border-color: var(--evo-on); background: var(--evo-on); }
+.evo-health-checks .is-info { color: var(--evo-text-muted); }
+.evo-health-checks .is-info i { background: var(--evo-text-faint); }
+.evo-health-checks .is-warn i { border-color: var(--evo-warn); background: var(--evo-warn); }
+.evo-dashboard-section { margin-top: 34px; }
+.evo-section-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.evo-section-heading h2 { margin: 0; color: var(--evo-text); font-size: 14px; letter-spacing: -.01em; }
+.evo-section-heading p { margin: 0; color: var(--evo-text-muted); font-size: 12px; }
+.evo-module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.evo-module-card { position: relative; min-height: 154px; padding: 18px; border: 1px solid var(--evo-border); border-radius: var(--evo-radius); color: var(--evo-text); background: var(--evo-bg); text-decoration: none; transition: border-color .15s, transform .15s, box-shadow .15s; }
+.evo-module-card:hover { border-color: var(--evo-accent-line); transform: translateY(-1px); box-shadow: var(--evo-shadow-card); }
+.evo-module-card > .dashicons { color: var(--evo-accent); font-size: 18px; }
+.evo-module-card h3 { margin: 14px 0 4px; font-size: 14px; }
+.evo-module-card p { margin: 0; color: var(--evo-text-muted); font-size: 12px; }
+.evo-module-open { position: absolute; bottom: 17px; left: 18px; color: var(--evo-accent); font-size: 12px; font-weight: 650; }
+.evo-module-open b { padding-left: 3px; font-size: 15px; }
+.evo-quick-actions > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.evo-quick-actions .button { min-height: 32px; border-color: var(--evo-border); border-radius: 6px; background: var(--evo-bg); color: var(--evo-text-soft); font-size: 12px; line-height: 30px; }
+.evo-quick-actions .button:hover { border-color: var(--evo-accent-line); color: var(--evo-accent); }
+.evo-health-details { padding: 18px 20px; border: 1px solid var(--evo-border); border-radius: var(--evo-radius); background: var(--evo-bg); }
+.evo-health-details .evo-section-heading { margin-bottom: 12px; }
+.evo-health-issue { display: flex; align-items: center; gap: 9px; padding: 9px 0; border-top: 1px solid var(--evo-border-soft); color: var(--evo-text-soft); font-size: 12px; }
+.evo-health-issue .dashicons { color: var(--evo-warn); font-size: 16px; }
+.evo-health-issue.is-good .dashicons { color: var(--evo-on); }
+
+/* Search / command palette */
+.evo-command-palette { position: fixed; z-index: 100100; inset: 0; display: none; align-items: flex-start; justify-content: center; padding-top: max(10vh, 90px); background: var(--evo-scrim); }
+.evo-command-palette.is-open { display: flex; }
+.evo-command-dialog { width: min(560px, calc(100vw - 32px)); overflow: hidden; border: 1px solid var(--evo-border); border-radius: 10px; background: var(--evo-bg); box-shadow: var(--evo-shadow-modal); }
+.evo-command-dialog label { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--evo-border-soft); color: var(--evo-text-muted); }
+.evo-command-dialog input { width: 100%; border: 0; outline: 0; color: var(--evo-text); font-size: 14px; box-shadow: none; }
+.evo-command-results { max-height: min(50vh, 400px); overflow-y: auto; padding: 6px; }
+.evo-command-results a { display: flex; justify-content: space-between; gap: 12px; padding: 10px; border-radius: 6px; color: var(--evo-text-soft); font-size: 13px; text-decoration: none; }
+.evo-command-results a:hover { color: var(--evo-accent); background: var(--evo-accent-soft); }
+.evo-command-results a span { color: var(--evo-text-faint); }
+.evo-command-results a.is-hidden { display: none; }
+.evo-command-empty { display: none; margin: 0; padding: 16px; color: var(--evo-text-muted); font-size: 12px; text-align: center; }
+.evo-command-empty.is-visible { display: block; }
+
+@media screen and (max-width: 960px) {
+    .evo-module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media screen and (max-width: 782px) {
+    #wpcontent { padding-left: 0; }
+    .evo-control-center { margin: 0; }
+    .evo-mobile-bar { display: flex; align-items: center; justify-content: space-between; min-height: 50px; padding: 0 12px; border-bottom: 1px solid var(--evo-border); background: var(--evo-bg); }
+    .evo-mobile-brand { color: var(--evo-text); font-size: 13px; font-weight: 750; }
+    .evo-mobile-menu, .evo-mobile-bar .evo-search-trigger { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--evo-text-soft); }
+    .evo-app-shell { display: block; min-height: calc(100vh - 50px); border: 0; border-radius: 0; overflow: visible; box-shadow: none; }
+    .evo-sidebar { position: absolute; z-index: 1000; top: 50px; left: 0; display: none; width: min(300px, calc(100vw - 28px)); min-height: calc(100vh - 50px); border: 1px solid var(--evo-border); border-top: 0; box-shadow: var(--evo-shadow); }
+    .evo-sidebar.is-open { display: flex; }
+    .evo-content-header { padding: 20px 16px 16px; }
+    .evo-content-header h1, .evo-dashboard-header h1 { font-size: 21px; }
+    .evo-panel { padding: 18px 16px 24px; }
+    .evo-panel-dashboard { padding: 0 16px 26px; }
+    .evo-dashboard-header { padding: 22px 0; }
+    .evo-health-card { grid-template-columns: 1fr auto; padding: 17px; }
+    .evo-health-checks { gap: 8px 12px; }
+    .evo-module-grid { grid-template-columns: 1fr; }
+    .evo-module-card { min-height: 128px; }
+    .evo-dashboard-section { margin-top: 26px; }
+}
+
+@media screen and (max-width: 480px) {
+    .evo-content-status { display: none; }
+    .evo-dashboard-header .evo-page-version { display: none; }
+    .evo-health-card { display: block; }
+    .evo-health-score { margin-top: 15px; }
+    .evo-health-checks { margin-top: 15px; }
+    .evo-section-heading { display: block; }
+    .evo-section-heading p { margin-top: 4px; }
 }
 
 /* Evoke One — Admin Panel Styles */

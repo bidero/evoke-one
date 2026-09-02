@@ -1,0 +1,65 @@
+<!--
+  Ekran startowy panelu w przeglądarce.
+
+  Znacznik NIE jest tu przepisany — wstrzykuje go `window.__panel`, czyli
+  wyjście prawdziwego `evoke_one_render_settings()` (tests/php/panel-start.php).
+  Kopia zaczęłaby żyć własnym życiem: „sidebar chowa się przy 390 px"
+  przechodziłoby na zielono także wtedy, gdyby panel przestał go drukować.
+
+  Style i skrypt idą prosto z wtyczki, tymi samymi plikami, które WordPress
+  wstawia na stronie ustawień.
+-->
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  /* Namiastka otoczki wp-admin — panel siedzi w niej na żywo. */
+  body { margin: 0; background: #f0f0f1; font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #wpbody-content { padding: 0; }
+</style>
+
+<div id="wpbody-content"></div>
+
+<script>
+  document.getElementById('wpbody-content').innerHTML = window.__panel || '';
+</script>
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<script src="../../assets/admin/admin.js"></script>
+<script>
+  window.__paleta = function () {
+    var p = document.getElementById('evo-command-palette');
+    return {
+      otwarta: p.classList.contains('is-open'),
+      widoczna: getComputedStyle(p).display !== 'none',
+    };
+  };
+
+  /* Skrót wysyłany na KONKRETNY element — nasłuch wisi na dokumencie i pyta
+     o `event.target`, więc tylko tak da się rozróżnić „w polu" od „poza". */
+  window.__skrot = function (selektor) {
+    var cel = selektor ? document.querySelector(selektor) : document.body;
+    if (cel.focus) cel.focus();
+    cel.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'k', ctrlKey: true, bubbles: true, cancelable: true,
+    }));
+  };
+
+  window.__zamknij = function () {
+    document.body.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Escape', bubbles: true, cancelable: true,
+    }));
+  };
+
+  window.__uklad = function () {
+    var pasek = document.getElementById('evo-sidebar');
+    var mob   = document.querySelector('.evo-mobile-bar');
+    return {
+      pasekWidoczny: getComputedStyle(pasek).display !== 'none',
+      mobilnyWidoczny: getComputedStyle(mob).display !== 'none',
+      szerokoscTresci: Math.round(document.querySelector('.evo-main-content').getBoundingClientRect().width),
+    };
+  };
+
+  window.__burger = function () {
+    document.querySelector('.evo-mobile-menu').click();
+  };
+</script>

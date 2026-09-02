@@ -1096,4 +1096,73 @@
         };
     }
 
+    /* =========================================================
+       CONTROL CENTER — mobilna nawigacja i wyszukiwarka ustawień
+       ========================================================= */
+    (function () {
+        var sidebar = document.getElementById('evo-sidebar');
+        var menuBtn = document.querySelector('.evo-mobile-menu');
+        var palette = document.getElementById('evo-command-palette');
+        var input = document.getElementById('evo-command-input');
+        if (!palette) return;
+
+        function filter(query) {
+            var needle = query.toLowerCase().trim();
+            var matches = 0;
+            palette.querySelectorAll('[data-evo-search-item]').forEach(function (item) {
+                var visible = !needle || item.textContent.toLowerCase().indexOf(needle) !== -1;
+                item.classList.toggle('is-hidden', !visible);
+                if (visible) matches++;
+            });
+            var empty = palette.querySelector('.evo-command-empty');
+            if (empty) empty.classList.toggle('is-visible', matches === 0);
+        }
+        function closePalette() {
+            palette.classList.remove('is-open');
+            palette.setAttribute('aria-hidden', 'true');
+            if (input) input.value = '';
+            filter('');
+        }
+        function openPalette() {
+            palette.classList.add('is-open');
+            palette.setAttribute('aria-hidden', 'false');
+            window.setTimeout(function () { if (input) input.focus(); }, 0);
+        }
+
+        document.querySelectorAll('[data-evo-search-open]').forEach(function (button) {
+            button.addEventListener('click', openPalette);
+        });
+        if (input) input.addEventListener('input', function () { filter(input.value); });
+        palette.addEventListener('click', function (event) {
+            if (event.target === palette) closePalette();
+        });
+        /* Skrót NIE działa w polu tekstowym ani w edytorze kodu.
+           Zakładka „Skrypty PHP" ma w środku edytor, a `Ctrl+K` jest tam
+           normalnym skrótem — przechwycony globalnie zjadałby go w trakcie
+           pisania. Warunek po elemencie, na którym zdarzenie powstało. */
+        var wPolu = function (el) {
+            if (!el || !el.tagName) return false;
+            if (el.isContentEditable) return true;
+            return /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
+        };
+
+        document.addEventListener('keydown', function (event) {
+            /* `event.key` bywa nieokreślone przy zdarzeniach z metody
+               wprowadzania (IME) — `String()` zamiast wywołania na `undefined`. */
+            var klawisz = String(event.key || '').toLowerCase();
+            if ((event.metaKey || event.ctrlKey) && klawisz === 'k' && !wPolu(event.target)) {
+                event.preventDefault();
+                openPalette();
+            }
+            if (klawisz === 'escape') closePalette();
+        });
+
+        if (menuBtn && sidebar) {
+            menuBtn.addEventListener('click', function () {
+                var open = sidebar.classList.toggle('is-open');
+                menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        }
+    })();
+
 })(jQuery);
