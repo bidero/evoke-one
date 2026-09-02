@@ -186,18 +186,10 @@ function evoke_one_render_settings(): void {
     if (!current_user_can('manage_options')) return;
 
     $tab  = sanitize_key($_GET['tab'] ?? 'dashboard');
+    $sub  = sanitize_key($_GET['sub'] ?? '');
     $base = admin_url('options-general.php?page=evoke-one');
 
-    $tabs = [
-        'dashboard'       => ['label' => 'Dashboard',       'icon' => 'dashicons-dashboard'],
-        'wydajnosc'      => ['label' => 'Frontend',        'icon' => 'dashicons-desktop'],
-        'strona'         => ['label' => 'SEO',             'icon' => 'dashicons-search'],
-        'bezpieczenstwo' => ['label' => 'Bezpieczeństwo',  'icon' => 'dashicons-shield'],
-        'narzedzia'      => ['label' => 'Narzędzia',       'icon' => 'dashicons-admin-tools'],
-        'admin_panel'    => ['label' => 'Panel admina',    'icon' => 'dashicons-admin-settings'],
-        'newsletter'     => ['label' => 'Newsletter',      'icon' => 'dashicons-email-alt'],
-        'forminbox'      => ['label' => 'Formularze',      'icon' => 'dashicons-feedback'],
-    ];
+    $tabs = evoke_one_zakladki();
 
     if (!array_key_exists($tab, $tabs)) $tab = 'wydajnosc';
 
@@ -235,14 +227,14 @@ function evoke_one_render_settings(): void {
                     <span class="dashicons dashicons-search"></span><span>Szukaj ustawień</span><kbd>⌘ K</kbd>
                 </button>
                 <nav class="evo-navigation" aria-label="Evoke ONE">
-                    <p class="evo-nav-label">Overview</p>
-                    <?php evoke_one_render_sidebar_link('dashboard', $tabs['dashboard'], $tab, $base); ?>
-                    <p class="evo-nav-label">Modules</p>
+                    <p class="evo-nav-label">Przegląd</p>
+                    <?php evoke_one_render_sidebar_link('dashboard', $tabs['dashboard'], $tab, $base, $sub); ?>
+                    <p class="evo-nav-label">Moduły</p>
                     <?php foreach (['wydajnosc', 'strona', 'bezpieczenstwo', 'narzedzia', 'newsletter', 'forminbox'] as $key): ?>
-                        <?php evoke_one_render_sidebar_link($key, $tabs[$key], $tab, $base); ?>
+                        <?php evoke_one_render_sidebar_link($key, $tabs[$key], $tab, $base, $sub); ?>
                     <?php endforeach; ?>
                     <p class="evo-nav-label">System</p>
-                    <?php evoke_one_render_sidebar_link('admin_panel', $tabs['admin_panel'], $tab, $base); ?>
+                    <?php evoke_one_render_sidebar_link('admin_panel', $tabs['admin_panel'], $tab, $base, $sub); ?>
                     <a class="evo-sidebar-link" href="https://evoke.one" target="_blank" rel="noopener noreferrer">
                         <span class="dashicons dashicons-editor-help"></span><span>Pomoc</span><span class="dashicons dashicons-external evo-nav-external"></span>
                     </a>
@@ -257,7 +249,14 @@ function evoke_one_render_settings(): void {
                         <p class="evo-eyebrow">Moduł</p>
                         <h1><?php echo esc_html($tabs[$tab]['label']); ?></h1>
                     </div>
-                    <span class="evo-content-status"><span></span> GOTOWE</span>
+                    <?php /* Stała plakietka „GOTOWE" stała tu do 1.138.0 i mówiła to samo
+                             na każdej zakładce, niezależnie od stanu czegokolwiek. Zamiast niej
+                             liczba ekranów sekcji — to akurat jest prawdą i mówi, ile jest do
+                             obejrzenia po prawej. */ ?>
+                    <?php $ile_ekranow = count(evoke_one_ekrany()[$tab] ?? []); ?>
+                    <?php if ($ile_ekranow): ?>
+                    <span class="evo-content-status"><span></span> <?php echo (int) $ile_ekranow; ?> ekranów</span>
+                    <?php endif; ?>
                 </header>
                 <?php endif; ?>
                 <div class="evo-panel <?php echo $tab === 'dashboard' ? 'evo-panel-dashboard' : ''; ?>">
@@ -281,8 +280,21 @@ function evoke_one_render_settings(): void {
     <?php
 }
 
-/** Link w głównym pasku nawigacji. Stare parametry ?tab= zostają bez zmian. */
-function evoke_one_render_sidebar_link(string $key, array $tab, string $active, string $base): void {
+/**
+ * Pozycja paska bocznego, razem z jej ekranami.
+ *
+ * ZGŁOSZONE Z UŻYCIA: „dodaj animatora do panelu z lewej". Do 1.138.0 pasek
+ * pokazywał wyłącznie osiem zakładek, więc do Animatora trzeba było wejść
+ * w Frontend i dopiero tam wybrać go z paska podzakładek — dwa kliknięcia do
+ * ekranu używanego najczęściej.
+ *
+ * Rozwinięta jest TYLKO sekcja bieżąca. Pełna lista 31 ekranów naraz jest
+ * równie nieczytelna co dwupoziomowy pasek u góry, od którego uciekaliśmy.
+ *
+ * Stare adresy `?tab=` działają bez zmian; `?sub=` dokładamy tylko w linkach
+ * drugiego poziomu.
+ */
+function evoke_one_render_sidebar_link(string $key, array $tab, string $active, string $base, string $sub_active = ''): void {
     printf(
         '<a href="%s" class="evo-sidebar-link%s"><span class="dashicons %s"></span><span>%s</span></a>',
         esc_url(add_query_arg('tab', $key, $base)),
@@ -290,24 +302,70 @@ function evoke_one_render_sidebar_link(string $key, array $tab, string $active, 
         esc_attr($tab['icon']),
         esc_html($tab['label'])
     );
+
+    $ekrany = evoke_one_ekrany()[$key] ?? [];
+    if (!$ekrany || $key !== $active) return;
+
+    /* Bez `?sub=` w adresie każda zakładka otwiera swój pierwszy ekran —
+       tak samo, jak rozstrzygają to same pliki zakładek (`if (!array_key_exists(
+       $sub, $subs)) $sub = 'parallax';` i odpowiedniki). Zaznaczamy więc
+       pierwszy, żeby pasek mówił to, co widać po prawej. */
+    $biezacy = isset($ekrany[$sub_active]) ? $sub_active : (string) array_key_first($ekrany);
+
+    echo '<div class="evo-sidebar-sub">';
+    foreach ($ekrany as $klucz => $ekran) {
+        printf(
+            '<a href="%s" class="evo-sidebar-sublink%s">%s</a>',
+            esc_url(add_query_arg(['tab' => $key, 'sub' => $klucz], $base)),
+            $klucz === $biezacy ? ' is-active' : '',
+            esc_html($ekran['label'])
+        );
+    }
+    echo '</div>';
 }
 
-/** Wyszukiwarka jest dostępna także poza ekranem startowym. */
+/**
+ * Wyszukiwarka ustawień — lista budowana z mapy ekranów, nie wpisana z ręki.
+ *
+ * Do 1.138.0 stało tu czternaście pozycji wypisanych obok `$tabs`, przy panelu
+ * mającym 34 ekrany. Taka lista nie ma jak nadążyć: dołożenie modułu nie
+ * przypomina o dopisaniu go tutaj i nic tego nie zauważa.
+ *
+ * Teraz źródłem jest `evoke_one_ekrany()`, czyli to samo, z czego renderują się
+ * paski podzakładek. Do etykiety dokładamy słowa pomocnicze z mapy — filtr
+ * w admin.js czyta `textContent` całego wpisu, więc „dark" znajduje „Tryb
+ * ciemny", a „gsap" — Animator. Słowa siedzą w osobnym elemencie ukrytym
+ * wizualnie, żeby lista pozostała czytelna.
+ */
 function evoke_one_render_command_palette(string $base): void {
-    $items = [
-        ['Frontend / Dark Mode', 'wydajnosc', 'darkmode'], ['Frontend / Animator', 'wydajnosc', 'animator'], ['Frontend / Lenis', 'wydajnosc', 'lenis'],
-        ['SEO / Meta i sitemap', 'strona', 'meta'], ['SEO / Schema', 'strona', 'schema'], ['SEO / OpenGraph', 'strona', 'og'],
-        ['Bezpieczeństwo / Limit logowań', 'bezpieczenstwo', 'login'], ['Bezpieczeństwo / REST API', 'bezpieczenstwo', 'rest'],
-        ['Narzędzia / SMTP', 'narzedzia', 'smtp'], ['Narzędzia / Przekierowania 301', 'narzedzia', 'redirect'], ['Narzędzia / Logi 404', 'narzedzia', 'logs404'],
-        ['Newsletter', 'newsletter', ''], ['Formularze', 'forminbox', ''], ['Panel admina / Interfejs', 'admin_panel', 'interface'],
-    ];
+    $zakladki = evoke_one_zakladki();
+    $ekrany   = evoke_one_ekrany();
+
+    $items = [];
+    foreach ($zakladki as $klucz => $zakladka) {
+        if ($klucz === 'dashboard') continue;   // pulpit jest tam, gdzie stoisz
+
+        if (empty($ekrany[$klucz])) {
+            // Zakładka bez ekranów w środku — Newsletter i Formularze.
+            $items[] = [$zakladka['label'], $klucz, '', ''];
+            continue;
+        }
+        foreach ($ekrany[$klucz] as $sub => $ekran) {
+            $items[] = [
+                $zakladka['label'] . ' / ' . $ekran['label'],
+                $klucz,
+                $sub,
+                (string) ($ekran['szukaj'] ?? ''),
+            ];
+        }
+    }
     ?>
     <div class="evo-command-palette" id="evo-command-palette" aria-hidden="true">
         <div class="evo-command-dialog" role="dialog" aria-modal="true" aria-label="Szukaj ustawień">
             <label><span class="dashicons dashicons-search"></span><input type="search" id="evo-command-input" placeholder="Szukaj ustawień…" autocomplete="off"></label>
             <div class="evo-command-results">
                 <?php foreach ($items as $item): ?>
-                <a href="<?php echo esc_url(add_query_arg(array_filter(['tab' => $item[1], 'sub' => $item[2]]), $base)); ?>" data-evo-search-item><?php echo esc_html($item[0]); ?><span>→</span></a>
+                <a href="<?php echo esc_url(add_query_arg(array_filter(['tab' => $item[1], 'sub' => $item[2]]), $base)); ?>" data-evo-search-item><?php echo esc_html($item[0]); ?><?php if ($item[3] !== ''): ?><i class="evo-command-terms"><?php echo esc_html($item[3]); ?></i><?php endif; ?><span>→</span></a>
                 <?php endforeach; ?>
             </div>
             <p class="evo-command-empty">Brak pasujących ustawień.</p>

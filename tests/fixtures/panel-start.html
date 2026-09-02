@@ -59,6 +59,20 @@
     };
   };
 
+  /* Szerokość boksów wobec kontenera — do sprawdzenia, czy ekran wykorzystuje
+     miejsce, które dostał. Zwracamy prawą krawędź KAŻDEGO boksu najwyższego
+     poziomu i prawą krawędź ich wspólnego rodzica. */
+  window.__szerokosci = function (selektor) {
+    var siatka = document.querySelector(selektor);
+    if (!siatka) return null;
+    var r = siatka.getBoundingClientRect();
+    var dzieci = Array.prototype.slice.call(siatka.children).map(function (el) {
+      var b = el.getBoundingClientRect();
+      return { szer: Math.round(b.width), prawa: Math.round(b.right) };
+    });
+    return { szer: Math.round(r.width), prawa: Math.round(r.right), dzieci: dzieci };
+  };
+
   window.__burger = function () {
     document.querySelector('.evo-mobile-menu').click();
   };

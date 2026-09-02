@@ -2,6 +2,75 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.138.0] — 2026-09-02
+
+### Zmienione
+
+- **Kolor przewodni Evoke `#6e00a5`.** Podmiana sześciu tokenów akcentu —
+  i 24 wartości wpisanych wprost w regułach, których zmiana barwy nagle
+  wyciągnęła na wierzch. Fioletowy akcent z niebieskimi najechaniami wyglądałby
+  na zepsuty, więc cały arkusz sięga teraz po zmienne. Kontrast na bieli 9,5:1,
+  biały tekst na akcencie tyle samo.
+
+  **Kolory stanów zostają** zielono-czerwono-pomarańczowe: „włączone", „usuń"
+  i „uwaga" niosą znaczenie, nie markę.
+
+- **Polskie napisy w panelu.** `Overview` → Przegląd, `Modules` → Moduły,
+  zakładka `Dashboard` → Pulpit. Stała plakietka „GOTOWE" w nagłówku modułu
+  znika — mówiła to samo na każdej zakładce niezależnie od stanu czegokolwiek;
+  w jej miejscu liczba ekranów sekcji, która akurat jest prawdą.
+
+- **Pasek boczny prowadzi wprost do modułu.** Rozwinięta sekcja pokazuje swoje
+  ekrany, więc do Animatora idzie się jednym kliknięciem zamiast dwoma.
+  Rozwinięta jest tylko bieżąca — komplet 31 pozycji naraz byłby równie
+  nieczytelny co dwupoziomowy pasek u góry, od którego uciekaliśmy.
+
+- **Wyszukiwarka zna wszystkie 33 ekrany**, nie czternaście. Lista powstaje
+  z tego samego źródła co paski podzakładek, więc dołożenie modułu nie może
+  jej ominąć. Do etykiet dołożone słowa pomocnicze: „dark" znajduje Tryb
+  ciemny, „gsap" Animator, „301" Przekierowania, „wcag" Dostępność.
+
+- **Jedno źródło struktury panelu.** `evoke_one_zakladki()` i
+  `evoke_one_ekrany()` w `includes/admin/helpers.php` zastępują listy
+  rozsiane po sześciu plikach. Czytają stąd trzy rzeczy: paski podzakładek,
+  drugi poziom paska bocznego i wyszukiwarka.
+
+### Naprawione
+
+- **Role Manager zajmuje całą szerokość.** `.evo-grid-21` (siatka 2fr/1fr)
+  dostawała jedno dziecko, a znacznik zamykający stał przed boksem „Dostęp do
+  Evoke ONE" — prawa trzecia część ekranu zostawała pusta, a dostępy lądowały
+  pod siatką. Teraz siatka ma dwie kolumny: po lewej uprawnienia i ograniczenie
+  stron, po prawej dostępy do modułów.
+
+### Testy
+
+- `tests/panel-start.test.js` rośnie z 27 do 47 sprawdzeń: kompletność
+  wyszukiwarki (liczba wpisów **i** każdy ekran po nazwie), skuteczność słów
+  pomocniczych, drugi poziom paska z Animatorem, szerokość Role Managera
+  mierzona w przeglądarce oraz to, że barwa marki nie jest wpisana wprost
+  w żadnej regule.
+
+- **Osiem mutacji**, każda uruchomiona i cofnięta. Trzy przeszły najpierw na
+  zielono i dopiero to je naprawiło:
+
+  1. Zmiana klucza ekranu nie ruszała sprawdzeń, bo lista i pasek czytają tę
+     samą mapę — sprawdzenie potwierdzało samo siebie. Dołożone pytanie o to,
+     czy klucz **ma co wyświetlić**: plik `tab-{klucz}.php`, `security-{klucz}.php`
+     albo gałąź `if ($sub === '{klucz}')` w rendererze zakładki.
+  2. Kolor wpisany wprost w regule świecił na zielono, bo przegląd arkusza
+     dzielił plik po nagłówku „Admin Panel Styles" — a blok Control Center
+     wszedł do pliku PRZED tym nagłówkiem, więc cała nowa warstwa nawigacji
+     wypadała z przeglądu. Granica idzie teraz po klamrze bloku tokenów.
+  3. Atrapa `WP_Roles` w `tests/php/tab.php` nie miała `role_objects`, przez co
+     ekran ról renderował się z dwoma ostrzeżeniami PHP w wyjściu.
+
+- `tests/lib/harness.js` dostaje `tokenPanelu()` i `tokenRgb()`. Kolor akcentu
+  stał wpisany osobno w `admin-tabs.test.js` i `admin-style.test.js`; zmiana
+  marki zapaliła przez to 37 sprawdzeń, które niczego złego nie znalazły —
+  pilnowały drugiej kopii tej samej liczby. Teraz pytają o nią arkusz, więc
+  dalej łapią dryf, ale nie wymagają edycji przy zmianie marki.
+
 ## [1.137.1] — 2026-09-02
 
 ### Naprawione

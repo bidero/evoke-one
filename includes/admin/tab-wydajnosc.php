@@ -9,19 +9,9 @@ if (!defined('ABSPATH')) exit;
 $sub      = sanitize_key($_GET['sub'] ?? 'parallax');
 $base_url = add_query_arg('tab', 'wydajnosc', admin_url('options-general.php?page=evoke-one'));
 
-$subs = [
-    'parallax'    => ['label' => 'Parallax',           'icon' => 'dashicons-image-flip-vertical'],
-    'darkmode'    => ['label' => 'Tryb ciemny',        'icon' => 'dashicons-lightbulb'],
-    'cursor'      => ['label' => 'Kursor',             'icon' => 'dashicons-arrow-up-alt'],
-    'lenis'       => ['label' => 'Płynne przewijanie', 'icon' => 'dashicons-sort'],
-    'animator'    => ['label' => 'Animator',           'icon' => 'dashicons-controls-play'],
-    'bgshift'     => ['label' => 'Tło przy scrollu',   'icon' => 'dashicons-art'],
-    'fonts'       => ['label' => 'Czcionki (FOUT)',    'icon' => 'dashicons-editor-textcolor'],
-    'themecolor'  => ['label' => 'Paski przeglądarki', 'icon' => 'dashicons-smartphone'],
-    'a11y'        => ['label' => 'Dostępność',         'icon' => 'dashicons-universal-access'],
-    'elementy'    => ['label' => 'Elementy Bricks',    'icon' => 'dashicons-screenoptions'],
-    'tlumaczenia' => ['label' => 'Tłumaczenia',        'icon' => 'dashicons-translation'],
-];
+/* Lista mieszka w evoke_one_ekrany() (includes/admin/helpers.php), bo
+   czytają ją także pasek boczny i wyszukiwarka — patrz komentarz tam. */
+$subs = evoke_one_ekrany()['wydajnosc'];
 
 if (!array_key_exists($sub, $subs)) $sub = 'parallax';
 

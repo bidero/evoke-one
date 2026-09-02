@@ -17,7 +17,7 @@
  * Zakładki renderuje `tests/php/tab.php` PRAWDZIWYM plikiem zakładki.
  */
 
-const { phpOutput, rgb, near } = require('./lib/harness');
+const { phpOutput, rgb, near, tokenRgb } = require('./lib/harness');
 
 /** Wzorzec kontrolki z Evoke Fields — te same wartości, co w admin-style.test.js. */
 const FIELD = {
@@ -27,7 +27,10 @@ const FIELD = {
   size:   '13px',
 };
 const BTN_RADIUS = '7px';      // --evo-radius-btn
-const ACCENT     = [37, 99, 235];
+/* Czytany z tokenu, nie wpisany drugi raz — patrz `tokenRgb()` w harness.
+   Sprawdzenie dalej łapie DRYF (przycisk w innym kolorze niż token),
+   ale zmiana marki nie każe edytować testów. */
+const ACCENT     = tokenRgb('evo-accent');
 
 /**
  * Boks sekcji — wzorzec z zakładki OpenGraph, przeniesiony do arkusza

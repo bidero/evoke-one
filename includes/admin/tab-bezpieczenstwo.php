@@ -7,12 +7,9 @@ if (!defined('ABSPATH')) exit;
 $sub      = sanitize_key($_GET['sub'] ?? 'login');
 $base_url = add_query_arg('tab', 'bezpieczenstwo', admin_url('options-general.php?page=evoke-one'));
 
-$subs = [
-    'login'     => ['label' => 'Limit logowań', 'icon' => 'dashicons-lock'],
-    'rest'      => ['label' => 'REST API',       'icon' => 'dashicons-rest-api'],
-    'hardening' => ['label' => 'Ochrona WP',     'icon' => 'dashicons-shield-alt'],
-    'cleanup'   => ['label' => 'Czyszczenie',    'icon' => 'dashicons-trash'],
-];
+/* Lista mieszka w evoke_one_ekrany() (includes/admin/helpers.php), bo
+   czytają ją także pasek boczny i wyszukiwarka — patrz komentarz tam. */
+$subs = evoke_one_ekrany()['bezpieczenstwo'];
 
 if (!array_key_exists($sub, $subs)) $sub = 'login';
 

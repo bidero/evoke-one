@@ -7,12 +7,9 @@ if (!defined('ABSPATH')) exit;
 <?php
             $sub      = sanitize_key($_GET['sub'] ?? 'meta');
             $sub_base = add_query_arg(['tab' => 'strona'], $base);
-            $subs     = [
-                'meta'    => ['label' => 'Meta SEO',    'icon' => 'dashicons-edit'],
-                'sitemap' => ['label' => 'Mapa strony', 'icon' => 'dashicons-networking'],
-                'schema'  => ['label' => 'Schema',      'icon' => 'dashicons-database'],
-                'og'      => ['label' => 'OpenGraph',   'icon' => 'dashicons-format-image'],
-            ];
+            /* Lista mieszka w evoke_one_ekrany() (includes/admin/helpers.php), bo
+               czytają ją także pasek boczny i wyszukiwarka — patrz komentarz tam. */
+            $subs = evoke_one_ekrany()['strona'];
             ?>
 
             <?php evoke_one_render_subtabs($subs, $sub, $sub_base); ?>

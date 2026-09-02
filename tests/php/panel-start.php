@@ -49,7 +49,21 @@ require EVK_TEST_ROOT . '/includes/opengraph/settings.php';
 require EVK_TEST_ROOT . '/includes/security/settings.php';
 require EVK_TEST_ROOT . '/includes/30-admin-settings-ajax.php';
 
+/* Kolejność jak w evoke-one.php:133-134 — `page.php` woła
+   `evoke_one_zakladki()` i `evoke_one_ekrany()` z helpers. */
+require EVK_TEST_ROOT . '/includes/admin/helpers.php';
 require EVK_TEST_ROOT . '/includes/admin/page.php';
+
+/* Struktura panelu na żądanie — `--mapa` zamiast renderu.
+   Test porównuje to, co widać na ekranie, z tym, co deklaruje wtyczka; obie
+   rzeczy muszą pochodzić z niej samej, nie z listy przepisanej w teście. */
+if (($argv[1] ?? '') === '--mapa') {
+    echo json_encode([
+        'zakladki' => evoke_one_zakladki(),
+        'ekrany'   => evoke_one_ekrany(),
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 // ── Zasiew ────────────────────────────────────────────────────────────────
 // Klucz → wartość. Moduły z flagą `enabled` podajemy jako 1/0, opcje płaskie

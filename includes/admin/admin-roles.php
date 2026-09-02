@@ -46,8 +46,6 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
                         <?php endforeach; ?>
                     </div>
                 </div>
-                <div>
-                </div>
 
                 <div class="evo-box">
                     <h3>Ograniczenie edycji stron</h3>
@@ -63,10 +61,15 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
                     </div>
                 </div>
             </div>
-                </div>
 
-        <div class="evo-box">
-            <h3 class="evo-mt-lg">Dostęp do Evoke ONE</h3>
+            <?php /* DRUGA KOLUMNA SIATKI.
+                     Do 1.138.0 `.evo-grid-21` (2fr 1fr) dostawała jedno dziecko,
+                     a znacznik zamykający stał przed tym boksem — prawa trzecia część
+                     ekranu zostawała pusta, a dostępy lądowały pod spodem.
+                     Zgłoszone z użycia: „Role manager nie zajmuje całej
+                     dostępnej szerokości". */ ?>
+            <div class="evo-box">
+            <h3>Dostęp do Evoke ONE</h3>
             <div class="evo-inset evo-stack evo-mb-lg" style="--evo-gap:10px">
                 <label class="evo-check">
                     <input type="checkbox" name="evk_tl_access" value="1"
@@ -114,7 +117,7 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
                 </label>
             </div>
 
-        
+            </div>
         </div>
 
 <div class="evo-save-bar"><?php submit_button('Zapisz rolę', 'primary', 'submit', false); ?></div>

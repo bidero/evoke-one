@@ -42,6 +42,9 @@ require EVK_TEST_ROOT . '/includes/anim/presets.php';
 // Moduł ładujemy PRAWDZIWY, bo o to właśnie chodzi — że lista typów jest
 // jedna dla PHP i dla przeglądarki.
 require EVK_TEST_ROOT . '/includes/opengraph/settings.php';
+/* Kolejność jak w evoke-one.php:133-134 — `page.php` woła
+   `evoke_one_zakladki()` i `evoke_one_ekrany()` z helpers. */
+require EVK_TEST_ROOT . '/includes/admin/helpers.php';
 require EVK_TEST_ROOT . '/includes/admin/page.php';
 
 // evoke_one_get_io_modules() definiuje sam page.php — nie podstawiamy atrapy.

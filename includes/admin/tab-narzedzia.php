@@ -7,14 +7,9 @@ if (!defined('ABSPATH')) exit;
 $sub      = sanitize_key($_GET['sub'] ?? 'snippets');
 $base_url = add_query_arg('tab', 'narzedzia', admin_url('options-general.php?page=evoke-one'));
 
-$subs = [
-    'snippets' => ['label' => 'Skrypty PHP',        'icon' => 'dashicons-editor-code'],
-    'smtp'     => ['label' => 'SMTP',                'icon' => 'dashicons-email-alt'],
-    'redirect' => ['label' => 'Przekierowania 301',  'icon' => 'dashicons-redo'],
-    'logs404'  => ['label' => 'Logi 404',            'icon' => 'dashicons-warning'],
-    'maintenance' => ['label' => 'Konserwacja',      'icon' => 'dashicons-admin-tools'],
-    'io'       => ['label' => 'Eksport / Import',    'icon' => 'dashicons-database-import'],
-];
+/* Lista mieszka w evoke_one_ekrany() (includes/admin/helpers.php), bo
+   czytają ją także pasek boczny i wyszukiwarka — patrz komentarz tam. */
+$subs = evoke_one_ekrany()['narzedzia'];
 
 if (!array_key_exists($sub, $subs)) $sub = 'snippets';
 

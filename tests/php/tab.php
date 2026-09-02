@@ -241,6 +241,10 @@ if (!function_exists('get_role')) {
 if (!class_exists('WP_Roles')) {
     class WP_Roles {
         public $roles = [];
+        /* Prawdziwe `WP_Roles` ma tę właściwość i czyta ją
+           `evk_role_get_all_caps()` (includes/admin/role-manager-logic.php:87).
+           Bez niej ekran ról renderował się z dwoma ostrzeżeniami PHP w wyjściu. */
+        public $role_objects = [];
         public function get_names() { return ['editor' => 'Redaktor', 'menedzer' => 'Menedżer']; }
     }
 }

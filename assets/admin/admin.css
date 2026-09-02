@@ -30,12 +30,21 @@
     --evo-text-dim:    #64748b;
     --evo-text-faint:  #94a3b8;
 
-    /* ── Akcent ── */
-    --evo-accent:      #2563eb;
-    --evo-accent-dark: #1d4ed8;
-    --evo-accent-soft: #eff6ff;
-    --evo-accent-line: #93c5fd;
-    --evo-focus:       0 0 0 3px rgba(37, 99, 235, .12);
+    /* ── Akcent ──
+       Kolor przewodni Evoke. Kontrast na bieli 9,5:1, biały tekst na nim tyle
+       samo — z zapasem ponad 4,5:1 wymagane dla tekstu i 3:1 dla obramowań.
+       Wartości pochodne trzymają te same relacje jasności co poprzedni
+       niebieski, więc tła i obwódki zostają w swoich rolach.
+
+       KOLORY STANÓW NIŻEJ ZOSTAJĄ NIEBIESKO-ZIELONO-CZERWONE i tak ma być:
+       zielony „włączone", czerwony „usuń", pomarańczowy „uwaga" niosą
+       znaczenie, nie markę. Przemalowane na odcienie fioletu przestałyby
+       cokolwiek mówić. */
+    --evo-accent:      #6e00a5;
+    --evo-accent-dark: #55007f;
+    --evo-accent-soft: #f7edfd;
+    --evo-accent-line: #d9a9f0;
+    --evo-focus:       0 0 0 3px rgba(110, 0, 165, .14);
 
     /* ── Stany ── */
     --evo-danger:      #dc2626;
@@ -61,7 +70,7 @@
        od zwykłego najechania), przyciemnienie pod paletą wyszukiwania i jej
        cień. Stoją tu, a nie przy regułach, bo to jedyne miejsce z kolorami
        w tym pliku — patrz komentarz na górze bloku. */
-    --evo-accent-on:    #eaf2ff;
+    --evo-accent-on:    #efdcfb;
     --evo-scrim:        rgba(15, 23, 42, .32);
     --evo-shadow-modal: 0 20px 60px rgba(15, 23, 42, .22);
 
@@ -106,6 +115,20 @@
 .evo-nav-label:first-child { margin-top: 0; }
 .evo-sidebar-link { display: flex; align-items: center; gap: 9px; min-height: 34px; padding: 0 10px; border-radius: 6px; color: var(--evo-text-soft); font-size: 13px; font-weight: 500; text-decoration: none; transition: background .15s, color .15s; }
 .evo-sidebar-link:hover { color: var(--evo-accent); background: var(--evo-accent-soft); }
+/* Drugi poziom — ekrany sekcji rozwiniętej. Kreska po lewej zamiast wcięcia
+   samą spacją: przy jedenastu pozycjach we Frontendzie trzeba widzieć, gdzie
+   lista się zaczyna i kończy. */
+.evo-sidebar-sub { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 6px 22px; padding-left: 9px; border-left: 1px solid var(--evo-border); }
+.evo-sidebar-sublink { display: block; padding: 5px 8px; border-radius: 5px; color: var(--evo-text-muted); font-size: 12.5px; text-decoration: none; transition: background .13s, color .13s; }
+.evo-sidebar-sublink:hover { color: var(--evo-accent); background: var(--evo-accent-soft); }
+.evo-sidebar-sublink.is-active { color: var(--evo-accent-dark); font-weight: 600; }
+
+/* Słowa pomocnicze wyszukiwarki: mają być przeszukiwalne, ale nie czytane.
+   `position: absolute` zamiast `display: none`, bo znikniętego tekstu filtr
+   nie znajdzie w `textContent`. */
+.evo-command-terms { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.evo-command-results a { position: relative; }
+
 .evo-sidebar-link.is-active { color: var(--evo-accent-dark); background: var(--evo-accent-on); font-weight: 700; }
 .evo-sidebar-link .dashicons { width: 17px; height: 17px; font-size: 17px; }
 .evo-sidebar-link .evo-nav-external { margin-left: auto; width: 14px; height: 14px; font-size: 14px; color: var(--evo-text-faint); }
@@ -218,7 +241,7 @@
 /* Tabs */
 .evo-tabs { display: flex; gap: 6px; padding: 6px; margin: 14px 0 0; border: 1px solid var(--evo-border); border-radius: 10px 10px 0 0; background: var(--evo-surface-alt); flex-wrap: wrap; }
 .evo-tab { border: 0; margin: 0; border-radius: 7px; padding: 9px 16px; color: #4b5563; background: transparent; font-size: 13px; font-weight: 500; text-decoration: none; transition: background .15s, color .15s, box-shadow .15s; display: flex; align-items: center; gap: 7px; }
-.evo-tab:hover { background: #fff; color: #1d4ed8; }
+.evo-tab:hover { background: #fff; color: var(--evo-accent-dark); }
 .evo-tab.active { background: #fff; color: var(--evo-text); font-weight: 600; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
 .evo-tab .dashicons { font-size: 16px; width: 16px; height: 16px; line-height: 1; }
 
@@ -255,7 +278,7 @@
 .evo-field input[type=text]:focus,
 .evo-field input[type=number]:focus,
 .evo-field select:focus,
-.evo-field textarea:focus { border-color: var(--evo-accent); outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+.evo-field textarea:focus { border-color: var(--evo-accent); outline: none; box-shadow: var(--evo-focus); }
 .evo-field input[type=text]   { width: 100%; max-width: 420px; }
 .evo-field input[type=number] { width: 90px; }
 .evo-field select             { min-width: 200px; }
@@ -270,7 +293,7 @@
 .evo-divider { border: none; border-top: 1px solid var(--evo-border-soft); margin: 24px 0; }
 .evo-save-bar { display: flex; align-items: center; gap: 12px; margin: 24px -28px -24px; padding: 14px 28px; background: rgba(255,255,255,.94); backdrop-filter: blur(8px); border-top: 1px solid var(--evo-border-soft); border-radius: 0 0 10px 10px; }
 .evo-save-bar .button-primary { background: var(--evo-accent); border-color: var(--evo-accent); }
-.evo-save-bar .button-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+.evo-save-bar .button-primary:hover { background: var(--evo-accent-dark); border-color: var(--evo-accent-dark); }
 
 /* Maintenance-specific */
 .evo-bypass-preview { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px 14px; margin-top: 10px; font-size: 12px; color: #0369a1; word-break: break-all; }
@@ -299,16 +322,16 @@
 /* IO tab */
 .evo-io-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 10px; margin: 14px 0 20px; }
 .evo-io-module { display: flex; align-items: center; gap: 9px; background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 500; color: var(--evo-text); cursor: pointer; transition: border-color .15s, background .15s; }
-.evo-io-module:hover { background: #eff6ff; border-color: #93c5fd; }
+.evo-io-module:hover { background: var(--evo-accent-soft); border-color: var(--evo-accent-line); }
 .evo-io-module input[type=checkbox] { margin: 0; flex-shrink: 0; }
-.evo-io-module.selected { background: #eff6ff; border-color: var(--evo-accent); }
+.evo-io-module.selected { background: var(--evo-accent-soft); border-color: var(--evo-accent); }
 .evo-io-box { background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 8px; padding: 20px 22px; margin-bottom: 16px; }
 .evo-io-box h3 { margin: 0 0 10px; font-size: 15px; color: var(--evo-text); }
 .evo-io-select-all { font-size: 12px; color: var(--evo-accent); cursor: pointer; text-decoration: underline; margin-left: 6px; }
 
 /* Drop zone */
 .evo-drop-zone { border: 2px dashed var(--evo-border); border-radius: 8px; padding: 32px; text-align: center; color: var(--evo-text-dim); font-size: 14px; cursor: pointer; background: #fafafa; transition: all .2s; }
-.evo-drop-zone.drag-over { border-color: var(--evo-accent); background: #eff6ff; color: var(--evo-accent); }
+.evo-drop-zone.drag-over { border-color: var(--evo-accent); background: var(--evo-accent-soft); color: var(--evo-accent); }
 .evo-drop-zone input[type=file] { display: none; }
 .evo-import-status { margin-top: 10px; padding: 8px 14px; border-radius: 6px; font-size: 13px; display: none; }
 .evo-import-status.ok  { background: #d4edda; color: #155724; border: 1px solid #b7dfbe; display: block; }
@@ -332,7 +355,7 @@
 .evo-modal-btn-skip { color: var(--evo-text-muted); }
 .evo-modal-btn-skip:hover { background: #f3f4f6; }
 .evo-modal-btn-done { background: var(--evo-accent); color: #fff; border-color: var(--evo-accent); border-radius: 6px; padding: 8px 20px; font-size: 13px; font-weight: 500; cursor: pointer; }
-.evo-modal-btn-done:hover { background: #1d4ed8; }
+.evo-modal-btn-done:hover { background: var(--evo-accent-dark); }
 .evo-modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
 .evo-modal-row.skipped { opacity: .4; }
 .evo-modal-row.overwritten { background: #f0fdf4; }
@@ -561,7 +584,7 @@
 }
 .evk-subtab:hover {
     color: var(--evo-accent);
-    border-bottom-color: #93c5fd;
+    border-bottom-color: var(--evo-accent-line);
 }
 .evk-subtab.is-active {
     font-weight: 700;
@@ -753,7 +776,7 @@
     font-weight: 600;
 }
 .wrap .button-primary:hover,
-.wrap .button-primary:focus { background: #1d4ed8; border-color: #1d4ed8; }
+.wrap .button-primary:focus { background: var(--evo-accent-dark); border-color: var(--evo-accent-dark); }
 .wrap .button:focus { border-color: var(--evo-accent); box-shadow: 0 0 0 1px var(--evo-accent); }
 
 /* Ikona (dashicon) w przycisku zawsze w jednej linii z tekstem */
@@ -790,7 +813,7 @@
 .wrap select:focus,
 .wrap textarea:focus {
     border-color: var(--evo-accent);
-    box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    box-shadow: var(--evo-focus);
     outline: none;
 }
 
@@ -813,7 +836,7 @@
     color: var(--evo-accent); background: var(--evo-surface); flex-shrink: 0; box-sizing: border-box;
     transition: background .15s, border-color .15s, color .15s;
 }
-.wrap .button-icon:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+.wrap .button-icon:hover { background: var(--evo-accent-soft); border-color: var(--evo-accent-line); color: var(--evo-accent-dark); }
 .wrap .button-icon.dashicons::before,
 .wrap .button-icon > .dashicons { font-size: 17px; width: 17px; height: 17px; line-height: 1; }
 .wrap .button-icon.button-link-delete { color: var(--evo-danger); border-color: #fca5a5; background: #fff; }
@@ -827,7 +850,7 @@
     box-shadow: 0 1px 2px rgba(0,0,0,.04); vertical-align: middle;
 }
 .wrap input[type=color]:hover { border-color: var(--evo-accent); }
-.wrap input[type=color]:focus { border-color: var(--evo-accent); box-shadow: 0 0 0 3px rgba(37,99,235,.12); outline: none; }
+.wrap input[type=color]:focus { border-color: var(--evo-accent); box-shadow: var(--evo-focus); outline: none; }
 .wrap input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
 .wrap input[type=color]::-webkit-color-swatch { border: none; border-radius: 4px; }
 .wrap input[type=color]::-moz-color-swatch { border: none; border-radius: 4px; }
@@ -961,7 +984,7 @@
    SKÓRA EVOKE FIELDS
    =========================================================================
    Kolory były już wspólne — Fields i Evoke ONE stoją na tej samej palecie
-   (#2563eb, #d7dde7, #f8fafc, #eef2f7). Różnice, które realnie widać, są
+   (var(--evo-accent), #d7dde7, #f8fafc, #eef2f7). Różnice, które realnie widać, są
    w KSZTAŁTACH: jednolita wysokość pola 38 px, promień 7 px na przyciskach,
    pierścień fokusu, ikonowe przyciski 30×30, przyciski „dodaj" jako ghost
    z kreską, ciemny dymek podpowiedzi.
@@ -1082,7 +1105,7 @@
 #evo-anim-repeater-container ~ .button:hover {
     border-color: var(--evo-accent) !important;
     color: var(--evo-accent) !important;
-    background: #f8fbff !important;
+    background: var(--evo-accent-soft) !important;
 }
 
 /* ── Biblioteka animacji: struktura (przeniesiona z <style> w zakładce) ──
@@ -1572,7 +1595,7 @@ img.evo-flag { object-fit: cover; border: 1px solid var(--evo-border-field); }
     display: inline-block;
     padding: 3px 8px;
     background: var(--evo-accent-soft);
-    border: 1px solid #bfdbfe;
+    border: 1px solid var(--evo-accent-line);
     border-radius: 4px;
     font-size: 11px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1580,7 +1603,7 @@ img.evo-flag { object-fit: cover; border: 1px solid var(--evo-border-field); }
     cursor: pointer;
     transition: background .12s;
 }
-.evo-chip:hover { background: #dbeafe; }
+.evo-chip:hover { background: var(--evo-accent-on); }
 .evo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
 
 /* ── Podgląd (monospace, tło jak karta) ── */
@@ -1744,7 +1767,7 @@ img.evo-flag { object-fit: cover; border: 1px solid var(--evo-border-field); }
     border-left: 3px solid var(--evo-border-soft);
     background: var(--evo-surface);
 }
-.evk-bar-row.is-parent { background: #eef3fb; border-left-color: var(--evo-accent); }
+.evk-bar-row.is-parent { background: var(--evo-accent-soft); border-left-color: var(--evo-accent); }
 .evk-bar-badge {
     min-width: 76px;
     font-size: 11px;
@@ -1837,7 +1860,7 @@ img.evo-flag { object-fit: cover; border: 1px solid var(--evo-border-field); }
     transition: border-color .15s, background .15s;
 }
 .evk-sm-row.is-hidden { opacity: .5; background: #fafafa; }
-.evk-sm-row.is-sep    { background: #f0f4ff; border-style: dashed; color: var(--evo-text-muted); font-style: italic; opacity: 1; }
+.evk-sm-row.is-sep    { background: var(--evo-accent-soft); border-style: dashed; color: var(--evo-text-muted); font-style: italic; opacity: 1; }
 .evk-sm-handle { flex-shrink: 0; font-size: 16px; color: var(--evo-border-dash); cursor: grab; }
 .evk-sm-handle:hover { color: var(--evo-accent); }
 .evk-sm-label  { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2213,7 +2236,7 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     display: none; align-items: center; gap: 8px; flex-wrap: wrap;
     margin-bottom: 10px; padding: 8px 12px;
     background: var(--evo-accent-soft);
-    border: 1px solid #bfdbfe;
+    border: 1px solid var(--evo-accent-line);
     border-radius: var(--evo-radius-md);
 }
 

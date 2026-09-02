@@ -16,7 +16,7 @@
  *    z tego samego źródła co kod nie dowiódłby niczego.
  */
 
-const { phpOutput } = require('./lib/harness');
+const { phpOutput, tokenRgb } = require('./lib/harness');
 
 /** Wzorzec skóry Evoke Fields (1.43.0). */
 const SKIN = {
@@ -34,7 +34,7 @@ const SKIN = {
   note:   { bg: 'rgb(248, 250, 252)', border: 'rgb(215, 221, 231) 1px', radius: '8px' },
   // Akcent i promień przycisku — bez tego dryf koloru akcentu przechodziłby
   // niezauważony, a to on najbardziej niesie tożsamość skóry.
-  btn:    { bg: 'rgb(37, 99, 235)', radius: '7px' },
+  btn:    { bg: 'rgb(' + tokenRgb('evo-accent').join(', ') + ')', radius: '7px' },
   // Jednolita wysokość kontrolki to znak rozpoznawczy Fields.
   field:  { h: '38px', radius: '6px' },
 };

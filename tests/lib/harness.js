@@ -74,6 +74,31 @@ function tagContent(html, id) {
   return m[1];
 }
 
+/**
+ * Wartość tokenu z arkusza panelu — jedno źródło barw także dla testów.
+ *
+ * Do 1.138.0 kolor akcentu stał wpisany osobno w dwóch plikach testowych.
+ * Przy zmianie marki na #6e00a5 zapaliło się przez to 37 sprawdzeń, które
+ * niczego złego nie znalazły — pilnowały drugiej kopii tej samej liczby.
+ * Teraz pytamy o nią arkusz, więc test dalej łapie DRYF (przycisk w innym
+ * kolorze niż token), ale nie wymaga edycji przy zmianie samej marki.
+ */
+function tokenPanelu(nazwa) {
+  const css = require('fs').readFileSync(
+    path.join(__dirname, '..', '..', 'assets', 'admin', 'admin.css'), 'utf8');
+  const m = css.match(new RegExp('--' + nazwa + ':\\s*([^;]+);'));
+  if (!m) throw new Error('Brak tokenu --' + nazwa + ' w admin.css');
+  return m[1].trim();
+}
+
+/** Token barwy → [r, g, b]. Przyjmuje zapis #rrggbb. */
+function tokenRgb(nazwa) {
+  const hex = tokenPanelu(nazwa);
+  const m = hex.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) throw new Error('Token --' + nazwa + ' nie jest kolorem #rrggbb: ' + hex);
+  return m.slice(1).map((h) => parseInt(h, 16));
+}
+
 /** Kolor „rgb(a, b, c)” → [a, b, c]. Przeglądarka zaokrągla, stąd porównania z tolerancją. */
 const rgb = (s) => {
   const m = (s || '').match(/[\d.]+/g);
@@ -140,4 +165,5 @@ class Runner {
   }
 }
 
-module.exports = { Runner, ROOT, FIXTURES, chromiumPath, phpOutput, tagContent, rgb, near };
+module.exports = { Runner, ROOT, FIXTURES, chromiumPath, phpOutput, tagContent, rgb, near,
+                   tokenPanelu, tokenRgb };

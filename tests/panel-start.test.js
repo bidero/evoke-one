@@ -97,20 +97,17 @@ module.exports = async function (t) {
   // ── Kierowanie do miejsc ───────────────────────────────────────────────
   t.section('linki prowadzą tam, gdzie naprawdę coś jest');
 
-  /* Zakładki czytamy z page.php, podzakładki z plików zakładek — czyli
-     z jedynych miejsc, które o nich decydują. */
-  const pagePhp = fs.readFileSync(path.join(__dirname, '..', 'includes', 'admin', 'page.php'), 'utf8');
-  const zakladki = [...pagePhp.matchAll(/^\s*'([a-z_]+)'\s*=>\s*\['label'/gm)].map((m) => m[1]);
+  /* Strukturę bierzemy od samej wtyczki (`--mapa`), a nie z listy przepisanej
+     tutaj: kopia rozjechałaby się przy pierwszym dołożonym module i test
+     przestałby cokolwiek pilnować. */
+  const mapa = JSON.parse(phpOutput('panel-start.php', '--mapa'));
+  const zakladki = Object.keys(mapa.zakladki);
   t.check('zakładek jest osiem', zakladki.length === 8, zakladki.join(', '));
 
   const podzakladki = {};
-  for (const [tabKey, plik] of Object.entries({
-    wydajnosc: 'tab-wydajnosc.php', bezpieczenstwo: 'tab-bezpieczenstwo.php',
-    narzedzia: 'tab-narzedzia.php', admin_panel: 'tab-admin.php', strona: 'tab-seo.php',
-  })) {
-    const tresc = fs.readFileSync(path.join(__dirname, '..', 'includes', 'admin', plik), 'utf8');
-    podzakladki[tabKey] = [...tresc.matchAll(/'([a-z0-9_]+)'\s*=>\s*\['label'/g)].map((m) => m[1]);
-  }
+  for (const [tabKey, ekrany] of Object.entries(mapa.ekrany)) podzakladki[tabKey] = Object.keys(ekrany);
+  const ekranowRazem = Object.values(podzakladki).reduce((s, e) => s + e.length, 0);
+  t.check('ekranów w środku jest trzydzieści jeden', ekranowRazem === 31, ekranowRazem + '');
 
   /* Nazwy wycinamy DO OGRANICZNIKA (`&` albo koniec adresu), a nie klasą
      dozwolonych znaków. Wzorzec `([a-z_]+)` wygląda rozsądnie i jest tu
@@ -148,8 +145,155 @@ module.exports = async function (t) {
   t.check('bieżąca zakładka jest zaznaczona',
     /class="evo-sidebar-link is-active"[^>]*>[\s\S]*?<span>SEO<\/span>/.test(naSeo),
     'SEO');
-  t.check('a pozostałe nie', (naSeo.match(/is-active/g) || []).length === 1,
-    (naSeo.match(/is-active/g) || []).length + ' zaznaczonych');
+  const zaznaczonePierwszego = (naSeo.match(/class="evo-sidebar-link is-active"/g) || []).length;
+  t.check('a pozostałe zakładki nie', zaznaczonePierwszego === 1,
+    zaznaczonePierwszego + ' zaznaczonych');
+
+  // ── Kompletność wyszukiwarki ───────────────────────────────────────────
+  t.section('wyszukiwarka zna każdy ekran panelu');
+
+  /* Do 1.138.0 paleta miała czternaście pozycji wpisanych z ręki obok listy
+     zakładek, przy panelu mającym trzydzieści kilka ekranów. Taka lista nie ma
+     jak nadążyć: dołożenie modułu nie przypomina o dopisaniu go tutaj i nic
+     tego nie zauważa. Teraz jedno i drugie płynie z `evoke_one_ekrany()`,
+     więc sprawdzenie sprowadza się do porównania liczb. */
+  const wpisyPalety = [...pusty.matchAll(/data-evo-search-item>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
+  const bezEkranow = zakladki.filter((z) => z !== 'dashboard' && !podzakladki[z]).length;
+  t.check('wpisów palety tyle, ile ekranów panelu',
+    wpisyPalety.length === ekranowRazem + bezEkranow,
+    wpisyPalety.length + ' wpisów wobec ' + (ekranowRazem + bezEkranow) + ' ekranów');
+
+  /* Kontrola, że to naprawdę TE ekrany, a nie tylko tyle samo sztuk. */
+  const brakujace = [];
+  for (const [tabKey, ekrany] of Object.entries(mapa.ekrany)) {
+    for (const [sub, ekran] of Object.entries(ekrany)) {
+      if (!wpisyPalety.some((w) => w.includes(ekran.label))) brakujace.push(tabKey + '/' + sub);
+    }
+  }
+  t.check('i każdy z nich po nazwie', !brakujace.length,
+    brakujace.join(', ') || 'komplet');
+
+  /* Etykiety są polskie, a nazwy, pod którymi ludzie znają te rzeczy — nie.
+     Bez słów pomocniczych „dark" nie znajduje „Trybu ciemnego", a „gsap"
+     Animatora, więc wyszukiwarka działa tylko dla tego, kto już wie, jak coś
+     nazwaliśmy po polsku. */
+  for (const [fraza, etykieta] of [['dark', 'Tryb ciemny'], ['gsap', 'Animator'],
+                                   ['301', 'Przekierowania 301'], ['wcag', 'Dostępność']]) {
+    const trafienie = wpisyPalety.find((w) => w.toLowerCase().includes(fraza));
+    t.check('„' + fraza + '" trafia w „' + etykieta + '"',
+      !!trafienie && trafienie.includes(etykieta),
+      trafienie ? trafienie.replace(/<[^>]*>/g, ' ').trim().slice(0, 46) : 'brak trafienia');
+  }
+
+  /* KAŻDY KLUCZ MUSI MIEĆ CO WYŚWIETLIĆ.
+     Sama zgodność nazw nic nie znaczy, jeśli lista i pasek podzakładek czytają
+     tę samą mapę — takie sprawdzenie potwierdza samo siebie. Rozstrzyga dopiero
+     to, czy klucz prowadzi do PLIKU, który się wyrenderuje: zakładki dobierają
+     ekran albo po nazwie pliku (`tab-{klucz}.php`, `security-{klucz}.php`),
+     albo gałęzią `if ($sub === '{klucz}')` u siebie. Klucz, którego nie łapie
+     żadna z tych dróg, daje pusty ekran — i tak właśnie zachował się Animator
+     przy mutacji, którą to sprawdzenie dołożyło. */
+  const rendererZakladki = {
+    wydajnosc: 'tab-wydajnosc.php', strona: 'tab-seo.php',
+    bezpieczenstwo: 'tab-bezpieczenstwo.php', narzedzia: 'tab-narzedzia.php',
+    admin_panel: 'tab-admin.php',
+  };
+  const nieosiagalne = [];
+  for (const [tabKey, ekrany] of Object.entries(mapa.ekrany)) {
+    const src = fs.readFileSync(
+      path.join(__dirname, '..', 'includes', 'admin', rendererZakladki[tabKey]), 'utf8');
+    for (const sub of Object.keys(ekrany)) {
+      const wGalezi = src.includes("'" + sub + "'");
+      const poPliku = ['tab-', 'security-', 'tools-'].some((prefiks) =>
+        fs.existsSync(path.join(__dirname, '..', 'includes', 'admin', prefiks + sub + '.php')));
+      if (!wGalezi && !poPliku) nieosiagalne.push(tabKey + '/' + sub);
+    }
+  }
+  t.check('każdy ekran z mapy ma co wyświetlić', !nieosiagalne.length,
+    nieosiagalne.join(', ') || ekranowRazem + ' ekranów osiągalnych');
+
+  // ── Drugi poziom paska ─────────────────────────────────────────────────
+  t.section('pasek boczny prowadzi wprost do modułu');
+
+  /* ZGŁOSZONE Z UŻYCIA: „dodaj animatora do panelu z lewej". */
+  const podlinki = (html) => [...html.matchAll(/evo-sidebar-sublink[^>]*>([^<]+)</g)].map((m) => m[1]);
+
+  const naFrontendzie = panel({}, 'wydajnosc');
+  t.check('rozwinięta sekcja pokazuje swoje ekrany',
+    podlinki(naFrontendzie).length === podzakladki.wydajnosc.length,
+    podlinki(naFrontendzie).length + ' z ' + podzakladki.wydajnosc.length);
+  t.check('Animator jest wśród nich', podlinki(naFrontendzie).includes('Animator'),
+    podlinki(naFrontendzie).slice(0, 5).join(', ') + '…');
+
+  /* Rozwinięta ma być TYLKO bieżąca sekcja — komplet 31 pozycji naraz jest
+     równie nieczytelny co dwupoziomowy pasek u góry, od którego uciekaliśmy. */
+  t.check('a pozostałe sekcje zostają zwinięte',
+    podlinki(naFrontendzie).length === podzakladki.wydajnosc.length,
+    'na pulpicie: ' + podlinki(pusty).length + ' podlinków');
+  t.check('na pulpicie nie ma żadnych', podlinki(pusty).length === 0,
+    podlinki(pusty).length + '');
+
+  // ── Kolor przewodni ────────────────────────────────────────────────────
+  t.section('kolor przewodni jedzie z tokenu');
+
+  const css = fs.readFileSync(path.join(__dirname, '..', 'assets', 'admin', 'admin.css'), 'utf8');
+
+  /* Granica idzie po KLAMRZE bloku tokenów, nie po komentarzu niżej. Dzieliłem
+     to najpierw po nagłówku „Admin Panel Styles" i sprawdzenie chodziło ślepe:
+     blok Control Center wszedł do pliku PRZED tym nagłówkiem, więc cała nowa
+     warstwa nawigacji wypadała z przeglądu. Wyszło mutacją — wpisany wprost
+     `#2563eb` w regule paska świecił na zielono. */
+  const otwarcie = css.indexOf('.wrap {');
+  const zamkniecie = css.indexOf('\n}', otwarcie);
+  t.check('blok tokenów daje się wyodrębnić', otwarcie >= 0 && zamkniecie > otwarcie,
+    'od ' + otwarcie + ' do ' + zamkniecie);
+
+  const blokTokenow = css.slice(otwarcie, zamkniecie);
+  const reszta = css.slice(zamkniecie)
+    .split('\n').filter((l) => !/^\s*(\*|\/\*)/.test(l)).join('\n');
+  t.check('a poza nim jest co przeglądać', reszta.length > css.length / 2,
+    Math.round(reszta.length / 1024) + ' KiB reguł');
+
+  t.check('token akcentu niesie markę', /--evo-accent:\s*#6e00a5/.test(blokTokenow),
+    (blokTokenow.match(/--evo-accent:\s*#[0-9a-f]{6}/i) || ['brak'])[0]);
+
+  /* Sedno: barwa ma być JEDNA i w jednym miejscu. Wartość wpisana wprost
+     w regule nie zareaguje na White Label ani na kolejną zmianę marki —
+     a przez cztery wydania (1.119.0–1.122.0) zdejmowaliśmy dokładnie ten dług. */
+  const wprost = reszta.split('\n')
+    .map((l, i) => ({ l, i }))
+    .filter(({ l }) => /#6e00a5|#55007f|#2563eb|#1d4ed8|#eff6ff|#93c5fd/i.test(l));
+  t.check('i nigdzie nie jest wpisana wprost w regule', !wprost.length,
+    wprost.map(({ l }) => l.trim().slice(0, 44)).join(' | ') || 'czysto');
+
+  // ── Role Manager ───────────────────────────────────────────────────────
+  t.section('Role Manager wypełnia szerokość');
+
+  /* ZGŁOSZONE Z UŻYCIA: „Role manager nie zajmuje całej dostępnej szerokości".
+     `.evo-grid-21` to siatka 2fr/1fr, a dostawała JEDNO dziecko — prawa trzecia
+     część ekranu zostawała pusta, a boks „Dostęp do Evoke ONE" lądował pod
+     siatką zamiast w niej. Mierzymy w przeglądarce, bo to jest pytanie
+     o piksele, nie o znaczniki. */
+  const role = await t.open('panel-start.html', {
+    viewport: { width: 1400, height: 1000 },
+    head: 'window.__panel = ' + JSON.stringify(
+      phpOutput('tab.php', 'adm-roles ' + JSON.stringify(JSON.stringify(
+        { role_action: 'edit', edit_role: 'editor' })))) + ';',
+  });
+
+  const siatka = await role.evaluate(() => window.__szerokosci('.evo-grid-21'));
+  t.check('siatka ma dwie kolumny, nie jedną', siatka && siatka.dzieci.length === 2,
+    siatka ? siatka.dzieci.length + ' dzieci' : 'brak siatki');
+  t.check('druga kolumna sięga prawej krawędzi',
+    siatka && Math.abs(siatka.dzieci[siatka.dzieci.length - 1].prawa - siatka.prawa) <= 2,
+    siatka ? 'kolumna do ' + siatka.dzieci[siatka.dzieci.length - 1].prawa
+             + ' px, siatka do ' + siatka.prawa + ' px' : '—');
+  t.check('i ma realną szerokość, a nie zero',
+    siatka && siatka.dzieci[siatka.dzieci.length - 1].szer > 200,
+    siatka ? siatka.dzieci[siatka.dzieci.length - 1].szer + ' px' : '—');
+  t.check('bez błędów JS na ekranie ról', !role.errors.length,
+    role.errors.join(' | ') || 'brak');
+  await role.close();
 
   // ── Przeglądarka ───────────────────────────────────────────────────────
   t.section('paleta i wersja wąska');
