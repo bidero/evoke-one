@@ -13,10 +13,25 @@ add_action('admin_init', function () {
     // UWAGA: 'maintenance_mode' celowo NIE jest rejestrowany w tej grupie.
     // Jest zapisywany wyłącznie przez AJAX toggle (evk_ajax_toggle) — rejestracja
     // powodowała zerowanie stanu przy zapisie formularza options.php.
-    register_setting('evoke_one_maintenance', 'maintenance_bypass_password');
-    register_setting('evoke_one_maintenance', 'maintenance_bypass_hours');
-    register_setting('evoke_one_maintenance', 'maintenance_page_id');
-    register_setting('evoke_one_maintenance', 'maintenance_excluded_paths');
+    // Sanityzacja przy zapisie. Cztery te ustawienia szły do 1.127.0 do bazy
+    // takie, jakie przyszły z formularza — a klucz bypass trafia potem do
+    // podpisu i do linku drukowanego w panelu.
+    register_setting('evoke_one_maintenance', 'maintenance_bypass_password', [
+        'sanitize_callback' => 'evoke_one_wpm_sanitize_key',
+        'default'           => '',
+    ]);
+    register_setting('evoke_one_maintenance', 'maintenance_bypass_hours', [
+        'sanitize_callback' => 'evoke_one_wpm_sanitize_hours',
+        'default'           => 1,
+    ]);
+    register_setting('evoke_one_maintenance', 'maintenance_page_id', [
+        'sanitize_callback' => 'absint',
+        'default'           => 0,
+    ]);
+    register_setting('evoke_one_maintenance', 'maintenance_excluded_paths', [
+        'sanitize_callback' => 'sanitize_textarea_field',
+        'default'           => '',
+    ]);
 });
 
 // =========================================================================
@@ -95,11 +110,96 @@ add_action('wp_ajax_toggle_maintenance_status', function () {
 // LOGIKA KONSERWACJI
 // =========================================================================
 
+function evoke_one_wpm_sanitize_key($input): string {
+    return substr(sanitize_text_field((string) $input), 0, 100);
+}
+
+function evoke_one_wpm_sanitize_hours($input): int {
+    return max(1, min(8760, absint($input)));
+}
+
+/**
+ * Ścieżki przepuszczane mimo konserwacji — znormalizowane do wiodącego `/`,
+ * bo porównanie idzie OD POCZĄTKU adresu.
+ */
 function evoke_one_wpm_get_excluded_paths(): array {
     $hardcoded  = ['/wp-login.php', '/wp-admin', '/wp-cron.php'];
-    $custom_raw = get_option('maintenance_excluded_paths', '');
-    $custom     = array_filter(array_map('trim', explode("\n", $custom_raw)));
-    return array_merge($hardcoded, array_values($custom));
+    $custom     = [];
+    foreach (explode("\n", (string) get_option('maintenance_excluded_paths', '')) as $path) {
+        $path = trim($path);
+        if ($path === '') continue;
+        $custom[] = $path[0] === '/' ? $path : '/' . $path;
+    }
+    return array_merge($hardcoded, $custom);
+}
+
+/**
+ * Czy adres jest wykluczony z konserwacji.
+ *
+ * Dopasowanie do CAŁEGO SEGMENTU od początku adresu — a nie gdziekolwiek
+ * i nie byle jakim przedrostkiem. Dwie rzeczy, które to załatwia:
+ *
+ * * Do 1.127.0 porównanie szło przez `strpos(...) !== false`, więc wpis
+ *   `/wp-admin` przepuszczał KAŻDY adres, który ten ciąg gdzieś zawierał —
+ *   choćby `/blog/wp-admin-po-polsku`. Wykluczenie znaczy „ten adres omija
+ *   zasłonę", więc wystarczyło mieć taki wpis, żeby strona w konserwacji
+ *   stała otworem.
+ * * Samo „od początku" też nie wystarcza: strona pod adresem
+ *   `/wp-administracja` zaczyna się od `/wp-admin` i wychodziłaby spod
+ *   zasłony bez niczyjej wiedzy. Dlatego po dopasowanym przedrostku musi
+ *   kończyć się adres albo stać `/`.
+ */
+function evoke_one_wpm_is_excluded(string $uri): bool {
+    foreach (evoke_one_wpm_get_excluded_paths() as $path) {
+        if ($uri === $path) return true;
+        if (strpos($uri, $path) === 0 && ($uri[strlen($path)] ?? '') === '/') return true;
+    }
+    return false;
+}
+
+/**
+ * Treść ciasteczka wpuszczającego za zasłonę: `<termin>|<podpis>`.
+ *
+ * DLACZEGO NIE SAMO HASŁO, jak było do 1.127.0. Po pierwsze: ciasteczko czyta
+ * się łatwiej niż zgaduje, a jego wartość BYŁA hasłem — kto je zobaczył
+ * (wspólny komputer, kopia profilu, XSS na stronie), znał klucz, a nie tylko
+ * miał wejście. Po drugie: termin ważności był wyłącznie datą wygaśnięcia
+ * ciasteczka, czyli ustawieniem po stronie przeglądarki. Kto ją zignorował,
+ * wchodził bezterminowo. Teraz termin jest w podpisanej treści i sprawdza go
+ * serwer, więc ustawienie „Czas trwania sesji bypass" zaczyna coś znaczyć.
+ *
+ * Podpis jak w śledzeniu newslettera (`newsletter/tracking.php`): HMAC na
+ * `wp_salt('auth')`, sprawdzany przez `hash_equals()`.
+ */
+function evoke_one_wpm_sign(int $termin, string $klucz): string {
+    return $termin . '|' . hash_hmac('sha256', $termin . '|' . $klucz, wp_salt('auth'));
+}
+
+/**
+ * Atrybuty ciasteczka bypass. Osobno od wywołania, bo `setcookie()` jest
+ * funkcją wbudowaną: w teście nie da się jej podmienić atrapą, a w CLI nie
+ * zostawia śladu w `headers_list()`. Wyciągnięte tutaj wartości są tym samym,
+ * co dostaje przeglądarka — i tym, co sprawdza `tests/php/konserwacja.php`.
+ *
+ * `secure` idzie za `is_ssl()`, a nie jest przybite na sztywno: strona bez
+ * certyfikatu przestałaby wtedy wpuszczać kogokolwiek, a strona z certyfikatem
+ * do 1.127.0 wysyłała to ciasteczko także po HTTP.
+ */
+function evoke_one_wpm_cookie_args(int $termin): array {
+    return [
+        'expires'  => $termin,
+        'path'     => '/',
+        'secure'   => is_ssl(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ];
+}
+
+function evoke_one_wpm_cookie_ok(string $wartosc, string $klucz): bool {
+    if ($klucz === '' || strpos($wartosc, '|') === false) return false;
+    [$termin] = explode('|', $wartosc, 2);
+    if (!ctype_digit($termin) || (int) $termin < time()) return false;
+    return hash_equals(evoke_one_wpm_sign((int) $termin, $klucz), $wartosc);
 }
 
 add_action('parse_request', function () {
@@ -109,27 +209,37 @@ add_action('parse_request', function () {
     if ((int) get_option('maintenance_mode', 0) !== 1) return;
     if (is_user_logged_in()) return;
 
-    $request_uri = strtok($_SERVER['REQUEST_URI'], '?');
-    foreach (evoke_one_wpm_get_excluded_paths() as $path) {
-        if (strpos($request_uri, $path) !== false) return;
-    }
+    // `strtok` na pustym łańcuchu oddaje `false` — rzutowanie trzyma typ.
+    $request_uri = (string) strtok($_SERVER['REQUEST_URI'] ?? '/', '?');
+    if (evoke_one_wpm_is_excluded($request_uri)) return;
 
-    $temp_pass  = get_option('maintenance_bypass_password', '');
-    $hours      = max(1, (int) get_option('maintenance_bypass_hours', 1));
-    $expiration = time() + ($hours * 3600);
-    $has_param  = !empty($temp_pass) && isset($_GET['haslo']) && $_GET['haslo'] === $temp_pass;
-    $has_cookie = !empty($temp_pass) && isset($_COOKIE['maintenance_bypass']) && $_COOKIE['maintenance_bypass'] === $temp_pass;
+    $klucz = (string) get_option('maintenance_bypass_password', '');
+    $hours = evoke_one_wpm_sanitize_hours(get_option('maintenance_bypass_hours', 1));
 
-    if ($has_param) {
-        setcookie('maintenance_bypass', $temp_pass, $expiration, '/', '', false, true);
-        wp_redirect(strtok($_SERVER['REQUEST_URI'], '?'));
+    // Klucz z adresu. `hash_equals`, bo `===` na sekrecie kończy porównanie
+    // na pierwszym różnym bajcie i mierzalnie zdradza, ile znaków się zgadza.
+    if ($klucz !== '' && isset($_GET['haslo'])
+        && hash_equals($klucz, (string) wp_unslash($_GET['haslo']))) {
+        $termin = time() + ($hours * HOUR_IN_SECONDS);
+        setcookie('maintenance_bypass', evoke_one_wpm_sign($termin, $klucz),
+                  evoke_one_wpm_cookie_args($termin));
+        /* Adres NIESIE KLUCZ, a przeglądarka wysyła adres bieżącej strony
+           w nagłówku `Referer` do wszystkiego, co strona ciągnie z obcych
+           domen — fontów, map, analityki. Ta jedna linijka zamyka jedyną
+           drogę wycieku, którą da się zamknąć kodem; logi serwera i historia
+           przeglądarki zostają, i o tym mówi ostrzeżenie w panelu. */
+        header('Referrer-Policy: no-referrer');
+        wp_safe_redirect(wp_validate_redirect($request_uri, home_url('/')));
         exit;
     }
 
-    if ($has_cookie) return;
+    if ($klucz !== '' && isset($_COOKIE['maintenance_bypass'])
+        && evoke_one_wpm_cookie_ok((string) $_COOKIE['maintenance_bypass'], $klucz)) {
+        return;
+    }
 
     if ($request_uri !== '/' && $request_uri !== '') {
-        wp_redirect(home_url('/'), 302);
+        wp_safe_redirect(home_url('/'), 302);
         exit;
     }
 

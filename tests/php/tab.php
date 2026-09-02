@@ -260,6 +260,8 @@ if (!function_exists('rest_get_server')) {
     }
 }
 if (!function_exists('get_pages'))           { function get_pages($args = []) { return []; } }
+// Zakładka Konserwacji losuje kandydata na klucz bypass przy renderowaniu.
+if (!function_exists('wp_generate_password')) { function wp_generate_password($len = 12, $special = true) { return str_repeat('x', (int) $len); } }
 if (!function_exists('register_activation_hook'))   { function register_activation_hook($f, $cb) {} }
 if (!function_exists('register_deactivation_hook')) { function register_deactivation_hook($f, $cb) {} }
 if (!function_exists('flush_rewrite_rules'))        { function flush_rewrite_rules($hard = true) {} }

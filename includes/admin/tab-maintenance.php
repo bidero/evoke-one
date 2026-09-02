@@ -61,11 +61,30 @@ if ($selected_page_id) {
                     <h3>Bypass przez URL</h3>
                     <div class="evo-field">
                         <label>Klucz dostępu (hasło bypass)</label>
-                        <input type="text" name="maintenance_bypass_password" value="<?php echo esc_attr($bypass_pass); ?>" placeholder="np. podglad2025" autocomplete="off">
+                        <div class="evo-inline" style="--evo-gap:8px">
+                            <input type="text" id="evk-wpm-klucz" name="maintenance_bypass_password" value="<?php echo esc_attr($bypass_pass); ?>" placeholder="np. podglad2025" autocomplete="off">
+                            <?php /* Kandydat losowany przy renderowaniu strony — przycisk tylko go
+                                     wstawia. Bez własnego punktu AJAX i bez nonce'a do pilnowania. */ ?>
+                            <button type="button" class="button" data-klucz="<?php echo esc_attr(wp_generate_password(32, false)); ?>"
+                                    onclick="document.getElementById('evk-wpm-klucz').value=this.dataset.klucz;">
+                                Wygeneruj mocny klucz
+                            </button>
+                        </div>
                         <div class="evo-desc">Link dla klienta pojawi się poniżej po zapisaniu.</div>
                         <?php if ($bypass_pass): ?>
                         <div class="evo-bypass-preview"><strong>Link dla klienta:</strong><br><?php echo esc_url(home_url('/?haslo=' . $bypass_pass)); ?></div>
                         <?php endif; ?>
+                        <details class="evo-note"><summary>Gdzie ląduje taki link</summary><div class="evo-note-body">
+                            Klucz jest częścią adresu, więc zapisuje się w logach serwera i w historii
+                            przeglądarki osoby, której go wyślesz. Wtyczka odcina jedyną drogę, którą
+                            da się odciąć kodem — nagłówek <code>Referer</code> do obcych domen — ale
+                            reszty nie cofnie. <strong>Nie wpisuj tu hasła używanego gdziekolwiek
+                            indziej.</strong> Przycisk obok generuje klucz losowy.
+                            <br><br>
+                            Wejście przez link zakłada ciasteczko ważne przez czas ustawiony niżej.
+                            Ciasteczko nie zawiera klucza, tylko podpis z terminem — po jego upływie
+                            trzeba otworzyć link ponownie.
+                        </div></details>
                     </div>
                     <div class="evo-field">
                         <label>Czas trwania sesji bypass</label>
@@ -84,7 +103,7 @@ if ($selected_page_id) {
                     <div class="evo-field">
                         <label>Ścieżki pominięte przez konserwację</label>
                         <textarea name="maintenance_excluded_paths"><?php echo esc_textarea($excluded_paths); ?></textarea>
-                        <div class="evo-desc">Jedna ścieżka na linię, zaczynająca się od <code>/</code>. Dopasowanie częściowe.</div>
+                        <div class="evo-desc">Jedna ścieżka na linię, zaczynająca się od <code>/</code>. Dopasowanie <strong>do całego segmentu, od początku adresu</strong>: <code>/podglad</code> przepuszcza <code>/podglad</code> i <code>/podglad/cokolwiek</code>, ale nie <code>/podglad-produktu</code> ani <code>/sklep/podglad</code>.</div>
                         <div class="evo-paths-preview">
                             <span class="evo-path-hardcoded">/wp-login.php ← zawsze</span><br>
                             <span class="evo-path-hardcoded">/wp-admin ← zawsze</span><br>

@@ -2,6 +2,88 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.128.0] — 2026-09-01
+
+### Bezpieczeństwo
+
+- **Ciasteczko wpuszczające za tryb konserwacji było hasłem.** Drugie ustalenie
+  z audytu. Kto to ciasteczko odczytał — wspólny komputer, kopia profilu, XSS
+  na stronie — znał klucz dostępu, a nie tylko miał jedno wejście. Do tego
+  leciało **bez `secure`** (po HTTP otwartym tekstem, także na stronie
+  z certyfikatem) i **bez `SameSite`**, a oba porównania — klucza z adresu
+  i ciasteczka — szły przez `===` zamiast `hash_equals()`.
+
+  Ciasteczko niesie teraz `<termin>|<podpis HMAC>` na `wp_salt('auth')`, tym
+  samym wzorem co podpisane linki newslettera. Z jego treści nie da się
+  odtworzyć klucza.
+
+- **„Czas trwania sesji bypass" zaczyna cokolwiek znaczyć.** Do tej pory był
+  wyłącznie datą wygaśnięcia ciasteczka, czyli ustawieniem po stronie
+  przeglądarki — kto ją zignorował, wchodził bezterminowo. Termin jest teraz
+  częścią podpisywanej treści i sprawdza go serwer; przesunięcie go unieważnia
+  podpis.
+
+- **Klucz nie wycieka już przez `Referer`.** Adres z `?haslo=` jest adresem
+  bieżącej strony, więc przeglądarka wysyłała go w nagłówku `Referer` do
+  wszystkiego, co strona ciągnie z obcych domen — fontów, map, analityki.
+  Odpowiedź z przekierowaniem niesie `Referrer-Policy: no-referrer`. Logów
+  serwera i historii przeglądarki to nie cofnie i panel mówi o tym wprost.
+
+- **Wykluczone ścieżki dopasowywane do całego segmentu.** Porównanie szło przez
+  `strpos(...) !== false`, więc wpis `/wp-admin` przepuszczał **każdy** adres
+  zawierający ten ciąg gdziekolwiek — choćby `/blog/wp-admin-po-polsku`.
+  Wystarczyło mieć taki wpis, żeby strona w konserwacji stała otworem. Samo
+  „od początku adresu" też nie wystarczało: strona pod `/wp-administracja`
+  wychodziłaby spod zasłony bez niczyjej wiedzy. Po dopasowanym przedrostku
+  musi teraz kończyć się adres albo stać `/`.
+
+- **`wp_redirect` → `wp_safe_redirect`** przy powrocie z kluczem: żądanie
+  `//obcy-adres/?haslo=…` wyprowadzało poza serwis.
+
+- **Cztery ustawienia konserwacji dostały sanityzację** — do 1.127.0
+  `register_setting()` szło dla nich bez `sanitize_callback`, więc do bazy
+  trafiało to, co przyszło z formularza.
+
+### Zmienione
+
+- **Panel konserwacji**: przycisk „Wygeneruj mocny klucz" (32 znaki, wzorem
+  tokenów newslettera) i rozwijane ostrzeżenie, gdzie taki link ląduje — bo
+  klucz w adresie zostaje w logach serwera i w historii przeglądarki, a to
+  jedyna część problemu, której kod nie załatwi.
+
+### Uwaga przy aktualizacji
+
+- **Otwarte sesje bypass wygasają raz, przy aktualizacji.** Stare ciasteczko
+  (wartość = klucz) nie przechodzi weryfikacji; wystarczy ponownie otworzyć
+  swój link. Świadomie nie ma obsługi starego formatu — to znaczyłoby zostawić
+  działającą ścieżkę, w której klucz dalej krąży w ciasteczku.
+- **Wpis wyjątku, który dotąd łapał w środku adresu, przestanie łapać.**
+  Panel od zawsze prosi o ścieżkę zaczynającą się od `/`, ale jeśli ktoś
+  liczył na dopasowanie „gdziekolwiek", trzeba wpis poprawić.
+
+### Testy
+
+- `tests/konserwacja.test.js` + `tests/php/konserwacja.php` — 24 sprawdzenia
+  na prawdziwym hooku `parse_request`. `wp_redirect` i `wp_safe_redirect` są
+  osobnymi atrapami, więc podmiana bezpiecznego wariantu na zwykły jest widoczna.
+
+  **Mutacje:** ciasteczko z powrotem na sam klucz → 2 czerwone; `wp_redirect`
+  zamiast bezpiecznego → 2 czerwone; wykluczenia podciągiem → 4 czerwone;
+  wykluczenia bez granicy segmentu → 2 czerwone.
+
+  **Pierwsza wersja tego testu miała przypadki, które niczego nie
+  rozstrzygały** — `/blog/moj-wp-admin` nie zawiera `/wp-admin`, tylko
+  `-wp-admin`, więc przechodził i przed naprawą, i po niej. Wyszło to dopiero
+  na mutacji, gdy przywrócenie starego `strpos()` nie zaczerwieniło niczego.
+  Dane testowe są poprawione, a mutacja została opisana w pliku, żeby następny
+  autor nie powtórzył tego doboru.
+
+  **Czego test nie sprawdza:** stałego czasu porównania (`hash_equals` kontra
+  `===` jest z zewnątrz nie do odróżnienia) i samego wywołania `setcookie()` —
+  to funkcja wbudowana, w CLI bez śladu. Atrybuty ciasteczka są za to wyciągnięte
+  do `evoke_one_wpm_cookie_args()` i sprawdzane co do wartości, przy `is_ssl()`
+  w obu stanach.
+
 ## [1.127.0] — 2026-09-01
 
 ### Bezpieczeństwo
