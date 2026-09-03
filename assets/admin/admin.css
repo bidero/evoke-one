@@ -1484,14 +1484,10 @@
 /* Tabela w ramce — obramowanie i promień niesie kontener, bo `border-radius`
    na samej tabeli nie przycina komórek. Przewijanie w poziomie jest tutaj,
    a nie na stronie. */
-.evo-tbl-frame {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    background: var(--evo-bg);
-    border: 1px solid var(--evo-border-field);
-    border-radius: var(--evo-radius-sm, 6px);
-}
-.evo-tbl-frame > table { border: none; margin: 0; }
+/* `.evo-tbl-frame` odeszła w 1.139.9. Rysowała ramkę wokół tabeli i zdejmowała
+   ramkę z tabeli — trzeci sposób na to samo obok `.evo-tbl` i klas rdzenia,
+   z innym promieniem i innym kolorem, używany przez jeden ekran. Ramkę rysuje
+   dziś `.evo-tbl`, a przewijanie w poziomie daje `.evo-tbl-wrap`. */
 
 /* Szerokość kolumny to DANA, nie kształt — stąd zmienna zamiast klasy na każdy
    piksel. Ten sam wzorzec, co `--evo-col` w `.evo-grid`. */

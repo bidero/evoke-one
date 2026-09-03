@@ -102,7 +102,7 @@ if (!empty($logs)):
 <div class="evo-box">
     <h3>Zarejestrowane błędy 404 <span class="evo-hint">(<?php echo count($logs); ?>)</span></h3>
     <div class="evo-tbl-wrap">
-    <table class="wp-list-table widefat striped evo-tbl-sm">
+    <table class="evo-tbl evo-tbl-sm">
         <thead><tr>
             <th class="evo-w" style="--evo-w:140px">Czas</th>
             <th>URL</th>
@@ -147,12 +147,16 @@ if (!empty($logs)):
         var btn = $(this).prop('disabled', true).text('...');
         $.post(ajaxurl, {action:'evk_clear_404_logs', nonce:$(this).data('nonce')}, function(r){
             if (r.success){
-                $('table.wp-list-table tbody').empty();
+                /* Selektor idzie za klasą tabeli. Gdy w 1.139.9 odeszła klasa
+                   rdzenia, ten wiersz przestałby cokolwiek czyścić — po
+                   „Wyczyść logi" tabela zostawałaby na ekranie z nieistniejącymi
+                   już wpisami. Usterka bez śladu w wyglądzie. */
+                $('table.evo-tbl tbody').empty();
                 $('#evk-clear-404-msg').show();
                 // Cała sekcja jest jednym boksem, więc chowamy boks — wcześniej
                 // trzeba było zgadywać jego części z osobna (tabela, kreska,
                 // tytuł) i przy zmianie znaczników się rozjeżdżało.
-                $('table.wp-list-table').closest('.evo-box').hide();
+                $('table.evo-tbl').closest('.evo-box').hide();
             }
         }).always(function(){ btn.prop('disabled', false).html('<span class="dashicons dashicons-trash evo-ico"></span> Wyczyść wszystkie logi'); });
     });

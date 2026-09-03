@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_301_toggle'])
 <div class="evo-box">
     <h3>Aktywne reguły (<?php echo count($redirects); ?>)</h3>
     <div class="evo-tbl-wrap">
-    <table class="wp-list-table widefat striped evo-tbl-sm">
+    <table class="evo-tbl evo-tbl-sm">
         <thead><tr>
             <th>Z</th>
             <th>Na</th>

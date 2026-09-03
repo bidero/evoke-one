@@ -172,7 +172,7 @@ if ($campaign_id) {
             <p class="evo-faint evk-nl-13">Brak logów dla tej kampanii.</p>
             <?php else: ?>
             <div class="evk-nl-tbl-wrap">
-                <table class="wp-list-table widefat fixed striped evo-hint-sm">
+                <table class="evo-tbl evo-tbl-fixed evo-hint-sm">
                     <thead><tr><th>Zdarzenie</th><th>Subscriber ID</th><th>Dane</th><th>Czas</th></tr></thead>
                     <tbody>
                         <?php foreach ($logs as $log):
@@ -200,7 +200,7 @@ if ($campaign_id) {
         <?php if (!empty($unsubs)): ?>
         <div class="evk-nl-card is-padded" style="margin-bottom:0">
             <h4 class="evk-nl-h evo-mb-sm">Wypisani subskrybenci (<?php echo count($unsubs); ?>)</h4>
-            <table class="wp-list-table widefat fixed striped evo-hint">
+            <table class="evo-tbl evo-tbl-fixed evo-hint">
                 <thead><tr><th>Email</th><th>Data wypisu</th></tr></thead>
                 <tbody>
                     <?php foreach ($unsubs as $u): ?>

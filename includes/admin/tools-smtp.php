@@ -99,7 +99,7 @@ $nonce = wp_create_nonce('evk_tools_nonce');
         <button type="button" class="button button-small" id="evk-smtp-clear-log" data-nonce="<?php echo esc_attr($nonce); ?>">Wyczyść logi</button>
     </div>
     <div class="evo-tbl-wrap">
-        <table class="wp-list-table widefat striped evo-tbl-sm">
+        <table class="evo-tbl evo-tbl-sm">
             <thead><tr>
                 <th class="evo-w" style="--evo-w:140px">Czas</th>
                 <th>Do</th>

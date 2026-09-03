@@ -2,6 +2,35 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.139.9] — 2026-09-03
+
+### Zmienione
+
+- **Koniec z tabelami rdzenia w panelu.** Ostatnie siedem tabel z klasami
+  `wp-list-table`/`widefat` — Limit logowań, SMTP, Logi 404, Przekierowania
+  301 oraz Kampanie i dwie tabele Raportów newslettera — przeszło na wspólny
+  komponent `.evo-tbl`. Ramka rdzenia jest kwadratowa, nasza zaokrąglona;
+  to była ostatnia grupa ekranów, która przez to odstawała.
+
+- **Ta sama zależność siedziała na polach.** `class="widefat"` daje polu pełną
+  szerokość z arkusza rdzenia — osiem takich pól w trzech ekranach newslettera
+  bierze teraz `.evo-w-full`. Nie widać tego po ramce, ale to ten sam dług.
+
+- **`.evo-tbl-frame` odeszła.** Rysowała ramkę wokół tabeli i zdejmowała ramkę
+  z tabeli — trzeci sposób na to samo obok `.evo-tbl` i klas rdzenia, w dodatku
+  z innym promieniem (6 px zamiast 8) i innym kolorem. Używał go jeden ekran
+  w całym panelu. Ramkę rysuje `.evo-tbl`, a przewijanie w poziomie zostaje
+  przy `.evo-tbl-wrap`.
+
+### Naprawione
+
+- **Skrypt czyszczenia logów 404 szukał tabeli po klasie rdzenia.**
+  `$('table.wp-list-table')` przestałoby cokolwiek znajdować po zamianie klasy,
+  więc „Wyczyść wszystkie logi" zostawiałoby na ekranie tabelę z nieistniejącymi
+  już wpisami — usterka bez śladu w wyglądzie. Selektory chodzą teraz za
+  `.evo-tbl`, a przegląd w testach pilnuje, żeby żaden skrypt nie celował
+  w klasy rdzenia.
+
 ## [1.139.8] — 2026-09-03
 
 ### Naprawione

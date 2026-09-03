@@ -39,7 +39,7 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
                 <input type="hidden" id="evk-nl-list-id" value="0">
                 <p class="evk-nl-h-sm" id="evk-nl-list-form-title">Nowa lista</p>
                 <label class="evk-nl-label">Nazwa listy</label>
-                <input type="text" id="evk-nl-list-name" class="widefat" placeholder="np. Klienci 2025">
+                <input type="text" id="evk-nl-list-name" class="evo-w-full" placeholder="np. Klienci 2025">
 
                 <div class="evo-inline" style="--evo-gap:6px">
                     <button class="button button-primary button-small" id="evk-nl-save-list-btn">Zapisz</button>
@@ -75,7 +75,7 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
                     <p class="evk-nl-h-sm">Edytuj listę</p>
                     <input type="hidden" id="evk-nl-edit-id" value="">
                     <label class="evk-nl-label">Nazwa listy</label>
-                    <input type="text" id="evk-nl-edit-name" class="widefat" style="margin-bottom:10px;">
+                    <input type="text" id="evk-nl-edit-name" class="evo-w-full" style="margin-bottom:10px;">
 
                     <div class="evo-inline" style="--evo-gap:6px">
                         <button class="button button-primary button-small" id="evk-nl-edit-save-btn">Zapisz</button>
@@ -97,7 +97,7 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
                     </label>
                 </div>
                 <div id="evk-nl-import-textarea-wrap">
-                    <textarea id="evk-nl-import-textarea" rows="3" class="widefat"
+                    <textarea id="evk-nl-import-textarea" rows="3" class="evo-w-full"
                               placeholder="jan@example.com&#10;anna@example.com"></textarea>
                 </div>
                 <div id="evk-nl-import-file-wrap" class="evk-nl-hidden">

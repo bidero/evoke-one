@@ -78,12 +78,12 @@ $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [
             <div class="evk-nl-grid2 evo-mb-sm" style="--evo-gap:12px">
                 <div>
                     <label class="evk-nl-label">Nazwa szablonu</label>
-                    <input type="text" id="evk-nl-tpl-name" class="widefat"
+                    <input type="text" id="evk-nl-tpl-name" class="evo-w-full"
                            value="<?php echo esc_attr($edit_tpl['name'] ?? ''); ?>" placeholder="Wewnętrzna nazwa">
                 </div>
                 <div>
                     <label class="evk-nl-label">Temat maila</label>
-                    <input type="text" id="evk-nl-tpl-subject" class="widefat"
+                    <input type="text" id="evk-nl-tpl-subject" class="evo-w-full"
                            value="<?php echo esc_attr($edit_tpl['subject'] ?? ''); ?>" placeholder="Temat wiadomości">
                 </div>
             </div>

@@ -367,16 +367,46 @@ module.exports = async function (t) {
      Ramki rdzenia w pomiarze nie widać — arkuszy wp-admin nie ma
      w repozytorium — więc sprawdzamy DWIE rzeczy: znacznik (czy klasy odeszły)
      i piksele (czy nasz komponent naprawdę tam dociera). */
-  for (const [plik, nazwa] of [['includes/admin/seo/tab-meta.php', 'SEO'],
-                               ['includes/admin/admin-roles.php', 'Role Manager']]) {
-    const zrodlo = fs.readFileSync(path.join(__dirname, '..', plik), 'utf8');
-    const klasy = ['wp-list-table', 'widefat', 'striped']
-      .filter((k) => new RegExp('<table[^>]*\\b' + k + '\\b').test(zrodlo));
-    t.check(nazwa + ' nie nosi klas tabeli rdzenia', !klasy.length,
-      klasy.join(', ') || 'czysto');
-  }
+  /* Przegląd idzie po CAŁYM katalogu, a nie po liście nazw plików: lista
+     rozjechałaby się przy pierwszej nowej tabeli, a to właśnie „gdzieś jeszcze
+     została stara klasa" jest tu usterką. Do 1.139.9 takich tabel było
+     siedem — Limit logowań, SMTP, Logi 404, Przekierowania 301 i trzy ekrany
+     newslettera. */
+  const zTabelami = (function zbierz(kat, akc) {
+    for (const wpis of fs.readdirSync(kat, { withFileTypes: true })) {
+      const pl = path.join(kat, wpis.name);
+      if (wpis.isDirectory()) zbierz(pl, akc);
+      else if (wpis.name.endsWith('.php')) akc.push([pl, fs.readFileSync(pl, 'utf8')]);
+    }
+    return akc;
+  })(path.join(__dirname, '..', 'includes'), []);
 
-  for (const [ekran, nazwa] of [['seo-meta', 'SEO'], ['adm-roles', 'Role Manager']]) {
+  const zRdzeniem = zTabelami
+    .filter(([, tresc]) => /<table[^>]*\b(wp-list-table|widefat)\b/.test(tresc))
+    .map(([pl]) => path.relative(path.join(__dirname, '..'), pl));
+  t.check('żadna tabela w panelu nie nosi klas rdzenia', !zRdzeniem.length,
+    zRdzeniem.join(', ') || zTabelami.length + ' plików przejrzanych, czysto');
+
+  /* Ta sama zależność siedziała na POLACH: `class="widefat"` daje im pełną
+     szerokość z arkusza rdzenia. Nie widać jej po ramce, ale to ten sam dług. */
+  const zPolami = zTabelami
+    .filter(([, tresc]) => /<(input|select|textarea)[^>]*class="[^"]*\bwidefat\b/.test(tresc))
+    .map(([pl]) => path.relative(path.join(__dirname, '..'), pl));
+  t.check('ani pola formularzy', !zPolami.length, zPolami.join(', ') || 'czysto');
+
+  /* Selektory w skryptach chodzą za klasami. Przy zamianie klasy tabeli
+     `$('table.wp-list-table')` przestaje cokolwiek znajdować — i nie widać
+     tego w wyglądzie, tylko w tym, że „Wyczyść logi" zostawia tabelę na
+     ekranie. Złapane przy 1.139.9 w `tools-logs404.php`. */
+  const martweSelektory = zTabelami
+    .filter(([, tresc]) => /\$\(['"][^'"]*(wp-list-table|\.widefat)/.test(tresc))
+    .map(([pl]) => path.relative(path.join(__dirname, '..'), pl));
+  t.check('i żaden skrypt nie szuka tabeli po klasie rdzenia', !martweSelektory.length,
+    martweSelektory.join(', ') || 'czysto');
+
+  for (const [ekran, nazwa] of [['seo-meta', 'SEO'], ['adm-roles', 'Role Manager'],
+                                ['sec-login', 'Limit logowań'], ['tools-redirect', 'Przekierowania'],
+                                ['nl-reports', 'Raporty newslettera']]) {
     const str = await t.open('snippety-lista.html', {
       viewport: { width: 1400, height: 1000 },
       head: 'window.__panel = ' + JSON.stringify(panel({}, 'narzedzia')) + ';'

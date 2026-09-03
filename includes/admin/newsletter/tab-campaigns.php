@@ -39,12 +39,12 @@ $status_labels = [
     <div class="evk-nl-grid2">
         <div>
             <label class="evk-nl-label">Nazwa kampanii</label>
-            <input type="text" id="evk-nl-camp-name" class="widefat"
+            <input type="text" id="evk-nl-camp-name" class="evo-w-full"
                    value="<?php echo esc_attr($edit_camp['name'] ?? ''); ?>"
                    placeholder="np. Newsletter Czerwiec 2025">
 
             <label class="evk-nl-label evk-nl-label-mt">Szablon</label>
-            <select id="evk-nl-camp-template" class="widefat">
+            <select id="evk-nl-camp-template" class="evo-w-full">
                 <option value="">— wybierz szablon —</option>
                 <?php foreach ($templates as $t): ?>
                 <option value="<?php echo (int) $t['id']; ?>" <?php selected($camp_tpl_id, $t['id']); ?>>
@@ -54,7 +54,7 @@ $status_labels = [
             </select>
 
             <label class="evk-nl-label evk-nl-label-mt">Data wysyłki (opcjonalnie)</label>
-            <input type="datetime-local" id="evk-nl-camp-scheduled" class="widefat"
+            <input type="datetime-local" id="evk-nl-camp-scheduled" class="evo-w-full"
                    value="<?php echo esc_attr($camp_scheduled ? date('Y-m-d\TH:i', strtotime($camp_scheduled)) : ''); ?>">
         </div>
         <div>
@@ -357,7 +357,7 @@ jQuery(function($) {
             var d=res.data, h='';
             if(!d.rows.length){ h='<p class="evo-muted">Brak odbiorców dla tego filtra.</p>'; }
             else {
-                h='<table class="widefat striped evk-nl-13"><thead><tr><th>E-mail</th><th>Status</th><th>Próby</th><th>Wysłano</th><th>Otwarto</th></tr></thead><tbody>';
+                h='<table class="evo-tbl evk-nl-13"><thead><tr><th>E-mail</th><th>Status</th><th>Próby</th><th>Wysłano</th><th>Otwarto</th></tr></thead><tbody>';
                 d.rows.forEach(function(r){
                     h+='<tr><td>'+esc(r.email||'—')+'</td><td>'+statusBadge(r.status)+'</td><td>'+esc(r.attempts)+'</td><td>'+esc(r.sent_at||'—')+'</td><td>'+esc(r.opened_at||'—')+'</td></tr>';
                 });

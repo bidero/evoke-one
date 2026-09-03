@@ -51,8 +51,14 @@ $active_blocks = evk_login_active_blocks();
     Aktywne blokady
     <span class="evo-hint evo-ml"><?php echo count($active_blocks); ?> aktywnych</span>
 </h3>
-    <div class="evo-tbl-frame evo-mb">
-        <table class="wp-list-table widefat fixed striped">
+    <?php /* `.evo-tbl-wrap`, nie `.evo-tbl-frame`. Ta druga rysowała WŁASNĄ ramkę
+             wokół tabeli i zdejmowała ramkę z niej samej — trzeci sposób na to
+             samo, w dodatku z innym promieniem (6 px zamiast 8) i innym
+             kolorem. Używał go jeden ekran w całym panelu. Ramkę rysuje
+             `.evo-tbl`, a owijce zostaje to, po co naprawdę jest: przewijanie
+             w poziomie. */ ?>
+    <div class="evo-tbl-wrap evo-mb">
+        <table class="evo-tbl evo-tbl-fixed">
             <thead><tr>
                 <th>Adres IP</th><th>Użytkownik</th><th>Prób</th>
                 <th>Zablokowano</th><th>Wygasa</th><th class="evo-w" style="--evo-w:100px">Akcja</th>

@@ -612,7 +612,18 @@ $TABS = [
     'tools-redirect' => [
         'module' => 'includes/tools/redirect-301.php',
         'file'   => 'includes/admin/tools-redirect301.php',
-        'seed'   => function () { $GLOBALS['options']['evk_301_enabled'] = 1; },
+        'seed'   => function () {
+            $GLOBALS['options']['evk_301_enabled'] = 1;
+            /* Bez ANI JEDNEJ reguły ekran nie rysuje tabeli (`if (!empty(
+               $redirects))`), więc pomiar wyglądu tabeli nie miał czego złapać
+               i sprawdzenie przechodziłoby na pusto. */
+            $id = wp_insert_post(['post_title' => 'stara-strona', 'post_type' => 'evk_301_redirect',
+                                  'post_status' => 'publish']);
+            update_post_meta($id, 'redirect_from',   '/stara-strona');
+            update_post_meta($id, 'redirect_to',     '/nowa-strona');
+            update_post_meta($id, 'redirect_clicks', 12);
+            update_post_meta($id, 'created_date',    '2026-08-01');
+        },
     ],
     'tools-logs404' => [
         'module' => 'includes/tools/logs-404.php',
