@@ -142,6 +142,22 @@ module.exports = async function (t) {
   // (schowek niesie `source: bricksCopiedElementAttributes`), a nie kontrolki
   // dokładane przez wtyczki. Skoro oba silniki Evoke i tak czytają zwykłe
   // `data-*`, ta droga działa sama — trzeba jej tylko NIE PSUĆ. Kto właśnie
+  // ── Parallax ───────────────────────────────────────────────────────────
+  t.section('parallax dostaje znacznik warstwy z serwera');
+
+  /* Od 1.140.0 warstwę rysuje reguła `[data-parallax-css]::before` wydrukowana
+     w nagłówku — dzięki temu tło jest na miejscu już przy pierwszym malowaniu
+     i nie ma migotania. Reguła celuje w ZNACZNIK, więc bez niego nie trafia
+     w nic: warstwa nie powstaje, a `data-parallax` i `data-skala` nadal
+     wyglądają poprawnie. Usterka byłaby niewidoczna w atrybutach. */
+  const par = emit({ evkParallax: true, evkParallaxValue: '0.4' });
+  t.check('wartość trafia do atrybutu', par.par === '0.4', String(par.par));
+  t.check('i element jest oznaczony dla warstwy z CSS', par.parCss === '1', String(par.parCss));
+
+  t.check('bez włączonego parallaksu nie ma ani atrybutu, ani znacznika',
+    emit({}).par === null && emit({}).parCss === null,
+    emit({}).par + ' / ' + emit({}).parCss);
+
   // wkleił atrybuty, oczekuje, że zadziałają, więc wpis ręczny WYGRYWA:
   // bez tej bramki wynik zależałby od kolejności, w jakiej Bricks nakłada
   // `_attributes` i filtr render_attributes — a tej kolejności nie kontrolujemy.

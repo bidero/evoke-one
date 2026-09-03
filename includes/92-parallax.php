@@ -20,6 +20,9 @@ class EVK_Parallax {
         $settings = $this->get_settings();
         if (!empty($settings['enabled'])) {
             add_action('wp_enqueue_scripts',              [$this, 'enqueue_scripts']);
+            /* Priorytet 1: warstwa ma być w arkuszu ZANIM przeglądarka
+               pomaluje stronę pierwszy raz. To jest cała poprawka. */
+            add_action('wp_head',                         [$this, 'print_layer_css'], 1);
             add_filter('bricks/dynamic_tags_list',        [$this, 'register_bricks_tag']);
             add_filter('bricks/dynamic_data/render_tag',  [$this, 'render_bricks_tag'], 10, 3);
             add_filter('bricks/dynamic_data/render_content', [$this, 'render_bricks_content'], 10, 3);
@@ -52,6 +55,57 @@ class EVK_Parallax {
 
     public static function sanitize_settings($input): array {
         return ['enabled' => evk_preserve_toggle($input, 'evk_parallax')];
+    }
+
+    /**
+     * WARSTWA PARALLAKSY POWSTAJE W CSS, NIE W SKRYPCIE.
+     *
+     * ZGŁOSZONE Z UŻYCIA: „przy włączonym parallaksie ekran miga podczas
+     * ładowania — dokładnie zdjęcie w tle; wyłączenie parallaksu rozwiązuje
+     * problem". Przyczyna była w kolejności zdarzeń, nie w samej animacji:
+     *
+     *  1. przeglądarka malowała sekcję z jej własnym tłem — widać obraz;
+     *  2. skrypt (na `DOMContentLoaded`) wstawiał warstwę z `opacity: 0`
+     *     i ZDEJMOWAŁ tło z sekcji — ekran robił się pusty;
+     *  3. dwie klatki później warstwa wjeżdżała `opacity` 0 → 1 przez 0,1 s.
+     *
+     * Czyli „widać → pusto → wraca". Im później rusza skrypt, tym dłuższa
+     * dziura; przy przechodzeniu między podstronami powtarzała się za każdym
+     * razem.
+     *
+     * Teraz warstwą jest `::before`, opisany regułą wydrukowaną w `<head>`.
+     * Pierwsze malowanie pokazuje już stan docelowy, bo nie ma czego czekać:
+     * pseudoelement dziedziczy tło z sekcji (`background-image: inherit`),
+     * więc nie trzeba go nawet nikomu podawać. Skrypt nie tworzy już nic —
+     * ustawia wyłącznie `--evk-par-y` przy przewijaniu.
+     *
+     * GRANICA: skala pojedynczego elementu (`data-skala`) NIE JEST tutaj
+     * znana. `evk_bricks_set_attr()` nadpisuje atrybut, więc wpisanie jej
+     * w `style` skasowałoby style Bricksa. Reguła niesie skalę domyślną
+     * z ustawień, a element z własną dostaje ją ze skryptu klatkę później —
+     * zmiana samej skali, nie zniknięcie obrazu.
+     */
+    public function print_layer_css(): void {
+        $scale = $this->get_scale_value();
+        printf(
+            '<style id="evk-parallax-layer">%s</style>' . "\n",
+            '[data-parallax-css]{position:relative;overflow:hidden;isolation:isolate}'
+          . '[data-parallax-css]::before{content:"";position:absolute;top:-10%;bottom:-10%;'
+          . 'left:0;right:0;z-index:-1;pointer-events:none;'
+          . 'background-image:inherit;background-position:inherit;background-repeat:no-repeat;'
+          /* `cover` jak w dotychczasowej ścieżce skryptowej, która `auto`
+             zamieniała właśnie na `cover`. Zmienna zostaje jako furtka dla
+             sekcji, które potrzebują czegoś innego. */
+          . 'background-size:var(--evk-par-size,cover);'
+          . 'will-change:transform;backface-visibility:hidden;'
+          . 'transform:translate3d(0,var(--evk-par-y,0px),0) scale(var(--evk-par-scale,'
+          . esc_html((string) $scale) . '))}'
+          /* Przy „ogranicz ruch" warstwa stoi. Skala zostaje: element bywa
+             przeskalowany po to, żeby ruch nie odsłaniał krawędzi. */
+          . '@media (prefers-reduced-motion: reduce){[data-parallax-css]::before'
+          . '{transform:translate3d(0,0,0) scale(var(--evk-par-scale,'
+          . esc_html((string) $scale) . '))}}'
+        );
     }
 
     public function enqueue_scripts(): void {

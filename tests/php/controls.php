@@ -32,6 +32,14 @@ require_once EVK_TEST_ROOT . '/includes/00-context-safety.php';
 require EVK_TEST_ROOT . '/includes/anim/motion.php';
 require EVK_TEST_ROOT . '/includes/anim/bgshift.php';
 require EVK_TEST_ROOT . '/includes/anim/presets.php';
+/* Kontrolki parallaksu wchodzą tylko przy WŁĄCZONYM module
+   (`evk_parallax_controls_active()` pyta `EVK_Parallax`). Bez tego pliku
+   gałąź parallaksu w filtrze nigdy się nie wykonuje, a sprawdzenia jej
+   dotyczące przechodziłyby na „null" — czyli na nieobecności, nie na braku
+   usterki. */
+$GLOBALS['options']['evk_parallax'] = ['enabled' => 1];
+require EVK_TEST_ROOT . '/includes/92-parallax.php';
+
 require EVK_TEST_ROOT . '/includes/anim/bricks-controls.php';
 
 $settings = json_decode($argv[1] ?? '{}', true) ?: [];
@@ -53,4 +61,12 @@ echo json_encode([
     // rozróżnienie brak/pusty musi tu zostać tak samo jak wyżej.
     'bgText' => array_key_exists('data-evk-bg-text', $out['_root'])
         ? (string) ($out['_root']['data-evk-bg-text'][0] ?? '') : null,
+    // Parallax: wartość, skala i ZNACZNIK warstwy z serwera. Bez znacznika
+    // reguła `[data-parallax-css]::before` nie trafia w żaden element, więc
+    // warstwa nie powstaje i wraca migotanie — po cichu, bo atrybuty
+    // `data-parallax`/`data-skala` nadal wyglądają poprawnie.
+    'par'    => array_key_exists('data-parallax', $out['_root'])
+        ? (string) ($out['_root']['data-parallax'][0] ?? '') : null,
+    'parCss' => array_key_exists('data-parallax-css', $out['_root'])
+        ? (string) ($out['_root']['data-parallax-css'][0] ?? '') : null,
 ], JSON_UNESCAPED_UNICODE), "\n";

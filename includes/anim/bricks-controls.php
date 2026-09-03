@@ -694,6 +694,14 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
 
         $attributes = evk_bricks_set_attr($attributes, $key, 'data-parallax', $value);
         $attributes = evk_bricks_set_attr($attributes, $key, 'data-skala',    $scale);
+        /* ZNACZNIK DLA WARSTWY Z SERWERA. Reguła `[data-parallax-css]::before`
+           (patrz `EVK_Parallax::print_layer_css()`) rysuje tło już przy pierwszym
+           malowaniu, więc skrypt nie musi nic wstawiać ani niczego ukrywać —
+           i nie ma migotania. Znacznik dostają WYŁĄCZNIE elementy przechodzące
+           przez ten filtr, czyli te z kontrolek Evoke. Ręcznie wpisany
+           `data-parallax` jedzie starą drogą, przez skrypt: filtr go nie widzi,
+           więc nie ma jak go oznaczyć. */
+        $attributes = evk_bricks_set_attr($attributes, $key, 'data-parallax-css', '1');
     }
 
     return $attributes;

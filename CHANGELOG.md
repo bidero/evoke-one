@@ -2,6 +2,39 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.140.0] — 2026-09-03
+
+### Naprawione
+
+- **Parallax migotał tłem przy każdym wejściu na stronę.** Zgłoszone z użycia:
+  „ekran miga podczas ładowania, dokładnie zdjęcie w tle; wyłączenie
+  parallaksu rozwiązuje problem". Przyczyna nie leżała w animacji, tylko
+  w kolejności zdarzeń:
+
+  1. przeglądarka malowała sekcję z jej własnym tłem — obraz widać;
+  2. skrypt (na `DOMContentLoaded`) wstawiał warstwę z `opacity: 0`
+     i **zdejmował tło z sekcji** — ekran robił się pusty;
+  3. dwie klatki później warstwa wjeżdżała `opacity` 0 → 1 przez 0,1 s.
+
+  Czyli „widać → pusto → wraca", tym dłużej, im później ruszył skrypt.
+
+  **Warstwą jest teraz `::before`**, opisany regułą drukowaną w `<head>` przy
+  priorytecie 1. Pierwsze malowanie pokazuje już stan docelowy, bo nie ma na
+  co czekać: pseudoelement dziedziczy tło z sekcji
+  (`background-image: inherit`), więc nikt nie musi mu go podawać. Skrypt nie
+  tworzy niczego i niczego nie ukrywa — ustawia wyłącznie `--evk-par-y` przy
+  przewijaniu.
+
+  **Zakres:** warstwę z serwera dostają elementy z kontrolek Evoke, bo tylko
+  one przechodzą przez filtr `bricks/element/render_attributes`, który dokłada
+  znacznik. Ręcznie wpisany `data-parallax` jedzie starą drogą, przez skrypt.
+
+  **Granica:** skala pojedynczego elementu (`data-skala`) nie jest w regule
+  znana — `evk_bricks_set_attr()` nadpisuje atrybut, więc wpisanie jej
+  w `style` skasowałoby style Bricksa. Reguła niesie skalę domyślną
+  z ustawień, a element z własną dostaje ją ze skryptu klatkę później. To
+  zmiana samej skali, nie zniknięcie obrazu.
+
 ## [1.139.9] — 2026-09-03
 
 ### Zmienione

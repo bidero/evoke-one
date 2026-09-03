@@ -29,6 +29,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let targetElement;
 
+        /* WARSTWA Z SERWERA — skrypt nie tworzy tu NICZEGO.
+         *
+         * Element z `data-parallax-css` ma już warstwę: `::before` opisany
+         * regułą wydrukowaną w `<head>` (patrz `EVK_Parallax::print_layer_css()`).
+         * Ta gałąź istnieje po to, żeby NIE powtórzyć tego, co robiła stara:
+         * wstawienia drugiej warstwy i zdjęcia tła z sekcji. To właśnie tamto
+         * dawało „widać → pusto → wraca" przy każdym wejściu na stronę.
+         *
+         * Zostaje jedno zadanie: przesuwać warstwę przy przewijaniu, czyli
+         * ustawiać `--evk-par-y`. Skalę reguła bierze domyślną z ustawień;
+         * własną, jeśli element ją ma, dokładamy tutaj — o klatkę później,
+         * ale to zmiana skali, nie zniknięcie obrazu. */
+        const zSerwera = !isImg && element.hasAttribute('data-parallax-css');
+
+        if (zSerwera) {
+            if (Math.abs(customScale - (defaults.defaultScale || 1.2)) > 0.001) {
+                element.style.setProperty('--evk-par-scale', String(customScale));
+            }
+            element.dataset.parallaxActive = 'true';
+
+            const reducedCss = (window.evkMotion && typeof window.evkMotion.reduced === 'function')
+                ? window.evkMotion.reduced()
+                : !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+            // Reguła sama zatrzymuje warstwę przy „ogranicz ruch" — nie ma tu
+            // czego nakładać ani czego pilnować.
+            if (reducedCss) return;
+
+            let widoczny = false;
+            let czeka = false;
+            const przesun = () => {
+                if (!widoczny) { czeka = false; return; }
+                const rect = element.getBoundingClientRect();
+                const srodek = rect.top + rect.height / 2;
+                const procent = (srodek - window.innerHeight / 2) / (window.innerHeight / 2);
+                element.style.setProperty('--evk-par-y', (procent * (parallaxValue * 100)) + 'px');
+                czeka = false;
+            };
+            new IntersectionObserver((entries) => {
+                entries.forEach((e) => { widoczny = e.isIntersecting; if (widoczny) przesun(); });
+            }, { rootMargin: '20% 0px', threshold: 0 }).observe(element);
+            window.addEventListener('scroll', () => {
+                if (widoczny && !czeka) { czeka = true; requestAnimationFrame(przesun); }
+            }, { passive: true });
+            return;
+        }
+
         if (isImg) {
             const wrapper = document.createElement('div');
             wrapper.style.cssText = `
@@ -169,6 +215,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 el.addEventListener('load', () => setupParallax(el), { once: true });
             }
+        } else if (el.hasAttribute('data-parallax-css')) {
+            /* Warstwa jest w CSS i dziedziczy tło z sekcji — nie ma na co
+               czekać, nawet gdy tło dokłada dopiero arkusz Bricksa. */
+            setupParallax(el);
         } else if (style.backgroundImage && style.backgroundImage !== 'none') {
             setupParallax(el);
         } else {
