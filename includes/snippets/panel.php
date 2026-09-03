@@ -94,6 +94,16 @@ function evk_snippets_render_tab(): void {
             <span class="evo-count-badge"><?php echo count($logi); ?></span><?php endif; ?>
         </a>
         <?php endforeach; ?>
+        <?php if ($widok === 'edytor'): ?>
+        <?php /* Powrót jest CZĘŚCIĄ paska, nie sąsiadem obok niego. Do 1.139.4
+                 stał za nim jako zwykły `.button` i sterczał o kilka pikseli;
+                 pilnowanie tego arytmetyką paddingów rozjechałoby się przy
+                 pierwszej zmianie kroju. Ta sama klasa bazowa = ta sama
+                 wysokość, bez liczenia. */ ?>
+        <a href="<?php echo esc_url(evk_snippety_url()); ?>" class="evo-viewtab evo-viewtab-back">
+            ← Wróć do listy
+        </a>
+        <?php endif; ?>
     </div>
 
     <?php
@@ -125,6 +135,29 @@ function evk_snippety_lista(): void {
         <a href="<?php echo esc_url(evk_snippety_url(['evk_widok' => 'edytor', 'evk_wpis' => 'nowy'])); ?>"
            class="button button-primary">+ Nowy snippet</a>
     </div>
+
+    <?php if ($wpisy): ?>
+    <?php /* SORTOWANIE NA TELEFONIE.
+             Na szerokim ekranie sortuje się klikając nagłówki kolumn — a te
+             poniżej 782 px są schowane, bo wiersz jest kartą. Bez tego pola
+             sortowanie znikałoby razem z nagłówkiem. Zwykły formularz GET:
+             działa bez jednej linii skryptu, tak jak reszta tego ekranu. */ ?>
+    <form method="get" action="<?php echo esc_url(admin_url('options-general.php')); ?>" class="evo-sort-mobile evo-mb">
+        <input type="hidden" name="page" value="evoke-one">
+        <input type="hidden" name="tab"  value="narzedzia">
+        <input type="hidden" name="sub"  value="snippets">
+        <label for="evk-sort">Sortuj</label>
+        <select id="evk-sort" name="evk_sort">
+            <?php foreach (['' => 'Kolejność wykonania', 'tytul' => 'Nazwa',
+                            'rodzaj' => 'Rodzaj', 'grupa' => 'Grupa'] as $klucz => $etykieta): ?>
+            <option value="<?php echo esc_attr($klucz); ?>" <?php selected($klucz, $sortuj); ?>>
+                <?php echo esc_html($etykieta); ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+        <button type="submit" class="button">Zastosuj</button>
+    </form>
+    <?php endif; ?>
 
     <?php if (!$wpisy): ?>
     <div class="evo-empty">
@@ -185,7 +218,15 @@ function evk_snippety_lista(): void {
                     </button>
                 </form>
             </td>
-            <td class="evo-col-nazwa"><strong><?php echo esc_html($w['tytul']); ?></strong></td>
+            <?php /* TYTUŁ JEST ODNOŚNIKIEM DO EDYCJI — stąd nie ma już przycisku
+                     „Edytuj". Na telefonie odnośnik rozciąga się nakładką na całą
+                     kartę (patrz `.evo-col-nazwa a::after` w admin.css), więc palec
+                     nie musi trafiać w kilkunastopikselowy napis. Przełącznik
+                     i kosz stoją nad tą nakładką i pozostają osobnymi celami. */ ?>
+            <td class="evo-col-nazwa">
+                <a href="<?php echo esc_url(evk_snippety_url(['evk_widok' => 'edytor', 'evk_wpis' => $w['id']])); ?>"
+                   class="evo-snippet-nazwa"><?php echo esc_html($w['tytul']); ?></a>
+            </td>
             <td data-etykieta="Rodzaj"><span class="evo-badge"><?php echo esc_html($rodzaje[$w['rodzaj']]['label'] ?? $w['rodzaj']); ?></span></td>
             <?php /* Krótka etykieta, nie pełna: „Frontend — <head>" jest na
                      miejscu w wyborze w edytorze, ale w kolumnie tabeli zabiera
@@ -194,13 +235,17 @@ function evk_snippety_lista(): void {
             <td class="evo-hint evo-col-grupa" data-etykieta="Grupa"><?php echo $w['grupa'] !== '' ? esc_html($w['grupa']) : '—'; ?></td>
             <td class="evo-hint" data-etykieta="Kolejność"><?php echo (int) $w['kolejnosc']; ?></td>
             <td class="evo-akcje">
-                <a href="<?php echo esc_url(evk_snippety_url(['evk_widok' => 'edytor', 'evk_wpis' => $w['id']])); ?>"
-                   class="button button-small">Edytuj</a>
+                <?php /* Ten sam przycisk co przy wierszu animacji w Animatorze:
+                         kosz plus napis, ghost, czerwony dopiero na najechaniu.
+                         Jeden komponent w obu miejscach — nie ma pytania,
+                         dlaczego usuwanie wygląda tu inaczej. */ ?>
                 <form method="post" action="<?php echo esc_url(evk_snippety_url()); ?>" class="evo-inline-block"
                       onsubmit="return confirm('Usunąć snippet „<?php echo esc_js($w['tytul']); ?>”?');">
                     <?php wp_nonce_field('evk_snippets_save', 'evk_snippets_nonce_field'); ?>
                     <input type="hidden" name="evk_usun_wpis" value="<?php echo (int) $w['id']; ?>">
-                    <button type="submit" class="button button-small evo-danger-tx">Usuń</button>
+                    <button type="submit" class="evo-btn-remove">
+                        <span class="dashicons dashicons-trash evo-ico"></span> Usuń
+                    </button>
                 </form>
             </td>
         </tr>
@@ -229,7 +274,6 @@ function evk_snippety_edytor(): void {
     $rodzaje = evk_snippet_rodzaje();
     $miejsca = evk_snippet_miejsca();
     ?>
-    <a href="<?php echo esc_url(evk_snippety_url()); ?>" class="button evo-mb">← Wróć do listy</a>
 
     <form method="post" action="<?php echo esc_url(evk_snippety_url()); ?>">
         <?php wp_nonce_field('evk_snippets_save', 'evk_snippets_nonce_field'); ?>

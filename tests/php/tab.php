@@ -98,7 +98,14 @@ function wp_get_attachment_image_url($id, $size = 'thumbnail') {
     return 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
 }
 function wp_upload_dir() { return ['basedir' => '/tmp', 'baseurl' => 'https://example.test/uploads']; }
-function add_query_arg(...$a) { return 'https://example.test/wp-admin/admin.php?page=evk-newsletter'; }
+/* ATRAPA `add_query_arg` ZWRACAŁA STAŁY ADRES — ten sam dla każdego wywołania,
+   niezależnie od argumentów. Skutek: w KAŻDEJ zakładce renderowanej tym
+   harnessem wszystkie odnośniki prowadziły do newslettera, więc żadne
+   sprawdzenie nie było w stanie zauważyć zepsutego adresu — a to właśnie
+   adresy rozstrzygają, dokąd prowadzi sortowanie, edycja czy powrót.
+   Wyszło przy 1.139.5, gdy tytuł snippetu stał się odnośnikiem do edytora.
+   Prawdziwa implementacja stoi w `_wp-stubs.php` i doklej argumenty do adresu;
+   tutaj wystarczy jej nie przesłaniać. */
 function esc_attr__($s, $d = '') { return $s; }
 function wp_kses_post($s) { return $s; }
 function mysql2date($f, $d, $t = true) { return '2026-08-08 12:00'; }

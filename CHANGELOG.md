@@ -2,6 +2,50 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.139.5] — 2026-09-03
+
+### Zmienione
+
+- **Tytuł snippetu prowadzi do edycji**, więc przycisk „Edytuj" zniknął.
+  Na telefonie klikalna jest cała karta poza przełącznikiem i koszem — palec
+  nie musi trafiać w kilkunastopikselowy napis.
+
+- **Usuwanie to ten sam przycisk co w Animatorze**: kosz z napisem, ghost,
+  czerwony dopiero po najechaniu. Jeden komponent w obu miejscach zamiast
+  dwóch podobnych.
+
+- **Sortowanie wróciło na telefon.** Sortuje się klikając nagłówki kolumn,
+  a te poniżej 782 px są schowane, bo wiersz jest kartą — sortowanie znikało
+  razem z nimi. Nad listą stoi teraz pole wyboru z tymi samymi trzema
+  kluczami. Zwykły formularz GET, bez ani jednej linii skryptu.
+
+- **„← Wróć do listy" jest pigułką w pasku widoków**, a nie przyciskiem obok
+  niego. Wysokość zgadza się z budowy — wspólna klasa bazowa — a nie
+  z arytmetyki paddingów, która rozjechałaby się przy pierwszej zmianie
+  rozmiaru pisma.
+
+### Naprawione
+
+- **Napis na przyciskach nie był wyśrodkowany w pionie na telefonie.**
+  `min-height: 44px` rozciągało pudełko, ale `.button` jest `inline-block`
+  z odziedziczoną wysokością wiersza, więc tekst zostawał przy górnej
+  krawędzi. Przy okazji znikła różnica wysokości między `<a class="button">`
+  a `<button>` — stąd „mobilne edytuj i usuń są różnej wielkości".
+
+- **Karty wyboru w rzędzie miały różne wysokości.** Każda kończyła się tam,
+  gdzie kończył się jej opis. Winne było `.evo-toolbar-top { align-items:
+  flex-start }` — reguła, która **przez lata nie robiła nic**, bo
+  `.evo-toolbar { align-items: center }` stoi w pliku niżej i przy równej
+  specyficzności wygrywa. Karty były więc centrowane w pionie. Rozciągnięcie
+  wisi teraz na samych kartach (`align-self` bije `align-items` niezależnie
+  od kolejności), a martwa deklaracja odeszła.
+
+- **Atrapa `add_query_arg` w harnessie zakładek zwracała stały adres** — ten
+  sam dla każdego wywołania, niezależnie od argumentów. W każdej zakładce
+  renderowanej tym harnessem wszystkie odnośniki prowadziły do newslettera,
+  więc żadne sprawdzenie nie mogło zauważyć zepsutego adresu. Wyszło przy
+  tytule prowadzącym do edytora.
+
 ## [1.139.4] — 2026-09-03
 
 ### Naprawione

@@ -611,9 +611,26 @@
     box-shadow: var(--evo-focus);
 }
 
+/* Powrót do listy jest PIGUŁKĄ W PASKU, nie sąsiadem obok niego.
+   Do 1.139.4 stał za paskiem jako zwykły `.button` i sterczał ponad pigułki
+   o kilka pikseli. Teraz dzieli z nimi klasę bazową `.evo-viewtab`, więc ma tę
+   samą wyściółkę, krój i wysokość — z budowy, a nie z arytmetyki, która i tak
+   rozjechałaby się przy pierwszej zmianie rozmiaru pisma. Różni się rolą:
+   to nie widok, tylko wyjście, stąd kreska po lewej i lżejszy kolor. */
+.evo-viewtab-back {
+    margin-left: 6px;
+    padding-left: 12px;
+    border-left: 1px solid var(--evo-border);
+    border-radius: 0 6px 6px 0;
+    color: var(--evo-text-muted);
+}
+
 @media screen and (max-width: 600px) {
     .evo-viewtabs { display: flex; width: 100%; }
     .evo-viewtab  { flex: 1 1 auto; justify-content: center; padding: 6px 8px; }
+    /* Na wąskim ekranie pigułki dzielą szerokość po równo, więc powrót gubi
+       kreskę i po prostu staje się czwartą pozycją paska. */
+    .evo-viewtab-back { margin-left: 0; padding-left: 8px; border-left: 0; border-radius: 6px; }
 }
 
 /* ── SEO tab — toolbar i tabela ──────────────────────────────────────── */
@@ -892,6 +909,15 @@
     .evo-panel .button,
     .evo-panel button:not(.evo-btn-icon):not(.evo-switch) {
         min-height: var(--evo-tap);
+        /* ZGŁOSZONE Z UŻYCIA: „tekst nie jest wyśrodkowany w pionie".
+           `min-height` rozciągało pudełko, ale `.button` jest `inline-block`
+           z odziedziczoną wysokością wiersza — napis zostawał przy górnej
+           krawędzi. Przy okazji znika różnica między `<a class="button">`
+           a `<button>`: jedne i drugie mają teraz tę samą wysokość i to samo
+           centrowanie, niezależnie od domyślnych `line-height` znacznika. */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
     /* Pasek zapisu przestaje przykrywać ostatnie pole formularza. */
@@ -1146,8 +1172,14 @@
 .evo-anim-grip:hover { color: var(--evo-text-faint); }
 .evo-anim-caret { color: var(--evo-text-faint); }
 
-/* Przycisk usuwania — kwadrat 30×30 z czerwonym stanem najechania. */
-.evo-anim-row-header .evo-btn-remove {
+/* Przycisk usuwania — kwadrat 30×30 z czerwonym stanem najechania.
+   Od 1.139.5 ten sam komponent obsługuje listę snippetów: zgłoszone z użycia
+   („można w ogóle zastąpić usuń przyciskiem usuń z animatora z koszem — dla
+   powtarzalności"). Zakres wymieniony wprost, a nie rozpuszczony do samego
+   `.evo-btn-remove`, bo zakładka Kursor ma własną, starszą wersję tej klasy
+   w znaczniku strony i nie ma powodu jej teraz ruszać. */
+.evo-anim-row-header .evo-btn-remove,
+.evo-snippety-tbl .evo-btn-remove {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1161,7 +1193,8 @@
     line-height: 1;
     transition: background .15s, color .15s, border-color .15s;
 }
-.evo-anim-row-header .evo-btn-remove:hover {
+.evo-anim-row-header .evo-btn-remove:hover,
+.evo-snippety-tbl .evo-btn-remove:hover {
     background: var(--evo-danger-soft);
     color: var(--evo-danger);
     border-color: var(--evo-danger-line);
@@ -1273,6 +1306,14 @@
     border-color: var(--evo-accent);
     background: var(--evo-accent-soft);
 }
+/* ZGŁOSZONE Z UŻYCIA: „wyrównaj pola obok siebie do tych samych wysokości".
+   Karty w rzędzie kończyły się tam, gdzie kończył się ich opis — jedna na
+   dwie linie, druga na jedną, i rząd wyglądał na złożony z przypadku.
+   Rozciągnięcie wisi na SAMEJ KARCIE, nie na rzędzie: `.evo-toolbar-top`
+   nosi też przyciski i pola (np. „Dodaj regułę" w przekierowaniach), a te
+   mają zostać przy swojej wysokości. */
+.evo-toolbar-top > .evo-choice { align-self: stretch; }
+
 /* Wariant z opisem pod tytułem — checkbox równa się z pierwszą linią. */
 .evo-choice-stack { align-items: flex-start; }
 .evo-choice-stack > span { display: flex; flex-direction: column; gap: 2px; }
@@ -1424,7 +1465,13 @@
 .evo-contents { display: contents; }
 /* Wariant paska narzędzi wyrównanego do GÓRY — pola z etykietami mają różną
    wysokość i przy `center` etykiety rozjeżdżały się względem siebie. */
-.evo-toolbar-top { align-items: flex-start; }
+/* Ta klasa NIE USTAWIA JUŻ `align-items`. Ustawiała `flex-start` i przez lata
+   nie robiła nic: `.evo-toolbar { align-items: center }` stoi w tym pliku niżej,
+   a przy równej specyficzności wygrywa ten, kto jest później. Karty w rzędzie
+   były więc centrowane w pionie — stąd zgłoszenie „wyrównaj pola obok siebie
+   do tych samych wysokości". Rozciągnięcie wisi teraz na samych kartach
+   (`.evo-toolbar-top > .evo-choice`), bo `align-self` bije `align-items`
+   niezależnie od kolejności w pliku. Klasa zostaje jako znacznik rzędu. */
 
 /* Nadtytuł — mała etykieta wersalikami nad grupą pól. */
 .evo-eyebrow { font-size: 12px; font-weight: 600; color: var(--evo-text-soft); text-transform: uppercase; letter-spacing: .5px; }
@@ -2622,6 +2669,22 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 .evo-snippety-tbl .evo-col-grupa { white-space: normal; }
 .evo-snippety-tbl .evo-akcje .button { vertical-align: middle; }
 
+/* Tytuł prowadzi do edycji. Wygląda jak dotąd — ciemny i pogrubiony — a że
+   jest odnośnikiem, mówi dopiero kolor i podkreślenie po najechaniu. */
+.evo-snippet-nazwa {
+    font-weight: 600;
+    color: var(--evo-text);
+    text-decoration: none;
+}
+.evo-snippet-nazwa:hover,
+.evo-snippet-nazwa:focus { color: var(--evo-accent); text-decoration: underline; }
+.evo-snippet-nazwa:focus-visible { outline: none; box-shadow: var(--evo-focus); border-radius: 4px; }
+
+/* Sortowanie na telefonie — na szerokim ekranie robią to nagłówki kolumn. */
+.evo-sort-mobile { display: none; align-items: center; gap: 8px; }
+.evo-sort-mobile label { font-size: 12px; font-weight: 600; color: var(--evo-text-soft); }
+.evo-sort-mobile select { flex: 1 1 auto; min-width: 0; }
+
 /* NA TELEFONIE WIERSZ STAJE SIĘ KARTĄ.
  *
  * ZGŁOSZONE Z UŻYCIA: „coś się rozjeżdża w wersji mobilnej". Tabela miała
@@ -2683,6 +2746,25 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     /* Nazwa jest tytułem karty, nie kolejną parą z etykietą. */
     .evo-snippety-tbl td.evo-col-nazwa { font-size: 14px; padding-bottom: 6px; }
     .evo-snippety-tbl td.evo-akcje { padding-top: 10px; }
+
+    /* CAŁA KARTA PROWADZI DO EDYCJI. Nakładka odnośnika tytułu rozciąga się
+       na wiersz, więc palec nie musi trafiać w sam napis. Przełącznik i kosz
+       podnoszą się nad nią i zostają osobnymi celami — inaczej „wyłącz"
+       i „usuń" otwierałyby edytor. */
+    .evo-snippety-tbl td.evo-col-nazwa a::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 10px;
+    }
+    /* Nad nakładkę wychodzą SAME przyciski, nie całe komórki: inaczej puste
+       miejsce obok kosza przestawałoby prowadzić do edycji, a jest go w tym
+       wierszu więcej niż samego przycisku. */
+    .evo-snippety-tbl td.evo-col-stan { z-index: 1; }
+    .evo-snippety-tbl .evo-btn-remove { position: relative; z-index: 1; }
+
+    /* Sortowanie wraca razem ze schowanym nagłówkiem tabeli. */
+    .evo-sort-mobile { display: flex; }
 }
 
 /* Licznik przy zakładce — ile błędów czeka w logach. */

@@ -110,6 +110,92 @@
     };
   };
 
+  /** Przycisk po napisie: wysokość i odchylenie napisu od środka w pionie. */
+  window.__przycisk = function (poczatek) {
+    var el = Array.prototype.slice.call(document.querySelectorAll('.evo-panel a, .evo-panel button'))
+      .filter(function (b) { return b.textContent.trim().indexOf(poczatek) === 0; })[0];
+    if (!el) return null;
+    var r = el.getBoundingClientRect();
+    /* Pudełko SAMEGO NAPISU, nie elementu — to ono jeździło do góry, gdy
+       `min-height` rozciągało przycisk, a nic nie centrowało treści. */
+    var z = document.createRange();
+    z.selectNodeContents(el);
+    var t = z.getBoundingClientRect();
+    return {
+      wys:        Math.round(r.height),
+      szer:       Math.round(r.width),
+      odchylenie: Math.round(Math.abs((t.top + t.height / 2) - (r.top + r.height / 2))),
+    };
+  };
+
+  /** Co naprawdę dostanie kliknięcie w danym punkcie karty. */
+  window.__celKlikniecia = function () {
+    var wiersz = document.querySelector('.evo-snippety-tbl tbody tr');
+    var r = wiersz.getBoundingClientRect();
+    var nazwij = function (el) {
+      if (!el) return 'nic';
+      if (el.closest('.evo-switch'))     return 'przełącznik';
+      if (el.closest('.evo-btn-remove')) return 'kosz';
+      if (el.closest('.evo-col-nazwa'))  return 'edycja';
+      return el.tagName.toLowerCase() + '.' + (el.className || '');
+    };
+    var prz = wiersz.querySelector('.evo-switch').getBoundingClientRect();
+    var kosz = wiersz.querySelector('.evo-btn-remove').getBoundingClientRect();
+    return {
+      /* Punkt w komórce „Grupa" — treść karty z dala od przełącznika i kosza.
+         Prawa część tej komórki jest pusta, więc trafia w nakładkę odnośnika,
+         a nie w sam napis. */
+      pusteMiejsce: (function () {
+        var g = wiersz.querySelector('[data-etykieta="Grupa"]').getBoundingClientRect();
+        return nazwij(document.elementFromPoint(g.right - 20, g.top + g.height / 2));
+      })(),
+      naPrzelaczniku: nazwij(document.elementFromPoint(prz.left + prz.width / 2, prz.top + prz.height / 2)),
+      naKoszu:        nazwij(document.elementFromPoint(kosz.left + kosz.width / 2, kosz.top + kosz.height / 2)),
+    };
+  };
+
+  /** Wysokość odnośnika powrotu wobec pigułek widoków. */
+  window.__powrot = function () {
+    var back = document.querySelector('.evo-viewtab-back');
+    /* Pierwsza pigułka, która NIE jest powrotem — porównujemy z widokiem. */
+    var pig  = document.querySelector('.evo-viewtab:not(.evo-viewtab-back)');
+    if (!back || !pig) return null;
+    var b = back.getBoundingClientRect(), p = pig.getBoundingClientRect();
+    return { powrot: Math.round(b.height), pigulka: Math.round(p.height),
+             wJednejLinii: Math.abs(b.top - p.top) < 4 };
+  };
+
+  /** Wysokości kart wyboru stojących obok siebie. */
+  window.__karty = function () {
+    var rzad = document.querySelector('.evo-toolbar-top');
+    if (!rzad) return null;
+    /* Grupujemy po NAKŁADANIU SIĘ W PIONIE, nie po równym „top".
+       Równy „top" wygląda na oczywisty klucz i jest pułapką: dopóki karty nie
+       są rozciągnięte, rząd centruje je w pionie, więc wyższa karta zaczyna się
+       WYŻEJ od sąsiadek. Grupowanie po „top" rozbijało wtedy jedną linię na
+       dwie grupy — każda wewnętrznie równa — i sprawdzenie świeciło na zielono
+       dokładnie w przypadku, dla którego powstało. */
+    var karty = Array.prototype.slice.call(rzad.querySelectorAll(':scope > .evo-choice'))
+      .map(function (el) {
+        var r = el.getBoundingClientRect();
+        return { gora: r.top, dol: r.bottom, wys: Math.round(r.height) };
+      })
+      .sort(function (a, b) { return a.gora - b.gora; });
+
+    var linie = [];
+    karty.forEach(function (k) {
+      var linia = linie[linie.length - 1];
+      // Nachodzą na siebie w pionie = stoją obok siebie.
+      if (linia && k.gora < linia.dol - 1) {
+        linia.karty.push(k.wys);
+        linia.dol = Math.max(linia.dol, k.dol);
+      } else {
+        linie.push({ dol: k.dol, karty: [k.wys] });
+      }
+    });
+    return linie.map(function (l) { return l.karty; });
+  };
+
   /** Wymiary i barwa przełącznika w pierwszym i drugim wierszu. */
   window.__przelaczniki = function () {
     return Array.prototype.slice.call(document.querySelectorAll('.evo-switch'))

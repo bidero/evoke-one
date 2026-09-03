@@ -434,7 +434,116 @@ module.exports = async function (t) {
   t.check('i strona nie przewija się w bok', mob && !mob.stronaPrzewija,
     mob ? String(mob.stronaPrzewija) : '—');
 
+  /* ZGŁOSZONE Z UŻYCIA: „tytuł snippeta powinien być klikalny (prowadzi do
+     edycji) — wtedy nie trzeba przycisku edytuj". */
+  t.check('tytuł prowadzi do edytora',
+    /<a[^>]+evk_widok=edytor[^>]+class="evo-snippet-nazwa"|class="evo-snippet-nazwa"[^>]*>/.test(lista)
+      && lista.includes('evo-snippet-nazwa'),
+    (lista.match(/<a[^>]*evo-snippet-nazwa[^>]*>/) || ['brak odnośnika'])[0].slice(0, 80));
+  t.check('i nie ma już osobnego przycisku „Edytuj"', !lista.includes('>Edytuj<'),
+    lista.includes('>Edytuj<') ? 'przycisk został' : 'usunięty');
+
+  /* „Można w ogóle zastąpić usuń przyciskiem usuń z animatora z koszem — dla
+     powtarzalności". Ten sam komponent, nie własna kopia wyglądu. */
+  /* Animatora nie renderuje harness zakładek (potrzebuje własnej klasy
+     silnika), więc porównujemy ZNACZNIK w źródle — a „ten sam komponent" to
+     właśnie fakt o znaczniku, nie o pikselach. */
+  const animator = fs.readFileSync(path.join(KORZEN, 'includes/admin/tab-animator.php'), 'utf8');
+  /* Okno na tyle szerokie, żeby zmieścić `onclick` z Animatora między klasą
+     a ikoną — chodzi o „ten sam przycisk", nie o identyczny odstęp znaków. */
+  const kosztuKlasa = /class="evo-btn-remove"[\s\S]{0,200}dashicons-trash/;
+  t.check('kosz to ten sam komponent co w Animatorze',
+    kosztuKlasa.test(lista) && kosztuKlasa.test(animator),
+    'evo-btn-remove + dashicons-trash: lista ' + kosztuKlasa.test(lista)
+      + ', Animator ' + kosztuKlasa.test(animator));
+
+  /* ZGŁOSZONE Z UŻYCIA: „przycisk Nowy snippet w wersji mobilnej — tekst nie
+     jest wyśrodkowany w pionie". `min-height` rozciągało pudełko, ale napis
+     zostawał przy górnej krawędzi. */
+  const nowyBtn = await waska.evaluate(() => window.__przycisk('+ Nowy snippet'));
+  t.check('napis w „+ Nowy snippet" stoi w pionowym środku',
+    nowyBtn && nowyBtn.odchylenie <= 1,
+    nowyBtn ? nowyBtn.odchylenie + ' px od środka, przycisk ' + nowyBtn.wys + ' px' : 'brak przycisku');
+
+  /* ZGŁOSZONE Z UŻYCIA: „mobilne edytuj i usuń są różnej wielkości". „Edytuj"
+     był `<a>`, „Usuń" `<button>` — przy tym samym `min-height` różniły się
+     domyślną wysokością wiersza. Przycisku edycji już nie ma (tytuł prowadzi
+     do edytora), ale reguła musi trzymać oba znaczniki w jednej wysokości. */
+  const kosz = await waska.evaluate(() => window.__przycisk('Usuń'));
+  t.check('kosz i „+ Nowy snippet" mają tę samą wysokość',
+    kosz && nowyBtn && kosz.wys === nowyBtn.wys,
+    (kosz ? kosz.wys : '?') + ' px vs ' + (nowyBtn ? nowyBtn.wys : '?') + ' px');
+
+  /* Cała karta prowadzi do edycji — poza przełącznikiem i koszem. */
+  const cel = await waska.evaluate(() => window.__celKlikniecia());
+  t.check('kliknięcie w puste miejsce karty otwiera edycję',
+    cel && cel.pusteMiejsce === 'edycja', cel ? cel.pusteMiejsce : '—');
+  t.check('ale przełącznik zostaje przełącznikiem',
+    cel && cel.naPrzelaczniku === 'przełącznik', cel ? cel.naPrzelaczniku : '—');
+  t.check('a kosz koszem', cel && cel.naKoszu === 'kosz', cel ? cel.naKoszu : '—');
+
+  /* Nagłówek tabeli jest schowany, więc sortowanie po nazwie, rodzaju i grupie
+     musi mieć własne wejście — inaczej znikło razem z nim. */
+  const sort = await waska.evaluate(() => {
+    const f = document.querySelector('.evo-sort-mobile');
+    if (!f) return null;
+    return {
+      widoczny: getComputedStyle(f).display !== 'none',
+      klucze: Array.from(f.querySelectorAll('option')).map((o) => o.value),
+    };
+  });
+  t.check('sortowanie ma własne pole na telefonie', sort && sort.widoczny,
+    sort ? String(sort.widoczny) : 'brak pola');
+  t.check('i zna te same klucze co nagłówki kolumn',
+    sort && ['tytul', 'rodzaj', 'grupa'].every((k) => sort.klucze.includes(k)),
+    sort ? sort.klucze.join(', ') : '—');
+
   t.check('bez błędów JS na wąskim ekranie', !waska.errors.length,
     waska.errors.join(' | ') || 'brak');
   await waska.close();
+
+  // ── Edytor: powrót do listy ────────────────────────────────────────────
+  t.section('powrót do listy jest częścią paska widoków');
+
+  /* ZGŁOSZONE Z UŻYCIA: „przycisk wróć do listy jest innej wielkości".
+     `.evo-viewtabs` jest `inline-flex`, więc odnośnik stoi z pigułkami
+     w jednej linii — i sterczał ponad nie o sześć pikseli. */
+  const ed = await t.open('snippety-lista.html', {
+    viewport: { width: 1280, height: 900 },
+    head: 'window.__panel = ' + JSON.stringify(
+            phpOutput('panel-start.php', '"{}" narzedzia')) + ';'
+        + 'window.__tresc = ' + JSON.stringify(nowy) + ';',
+  });
+
+  const pow = await ed.evaluate(() => window.__powrot());
+  t.check('powrót ma wysokość pigułki', pow && pow.powrot === pow.pigulka,
+    pow ? pow.powrot + ' px vs ' + pow.pigulka + ' px' : 'brak odnośnika');
+  t.check('i stoi z nią w jednej linii', pow && pow.wJednejLinii,
+    pow ? String(pow.wJednejLinii) : '—');
+  t.check('bez błędów JS w edytorze', !ed.errors.length, ed.errors.join(' | ') || 'brak');
+  await ed.close();
+
+  // ── Karty wyboru w rzędzie ─────────────────────────────────────────────
+  t.section('pola obok siebie mają tę samą wysokość');
+
+  /* ZGŁOSZONE Z UŻYCIA: „wyrównaj pola obok siebie do tych samych wysokości".
+     Karty kończyły się tam, gdzie kończył się ich opis — jedna na dwie linie,
+     druga na jedną. Mierzymy na Lenisie, bo tam w jednym rzędzie stoi pięć
+     kart o opisach różnej długości; poprawka siedzi w komponencie, więc
+     działa wszędzie, gdzie taki rząd występuje. */
+  const lenis = await t.open('snippety-lista.html', {
+    viewport: { width: 1280, height: 900 },
+    head: 'window.__panel = ' + JSON.stringify(
+            phpOutput('panel-start.php', '"{}" narzedzia')) + ';'
+        + 'window.__tresc = ' + JSON.stringify(phpOutput('tab.php', 'fe-lenis')) + ';',
+  });
+
+  const karty = await lenis.evaluate(() => window.__karty());
+  const wLinii = karty ? karty.reduce((n, l) => Math.max(n, l.length), 0) : 0;
+  t.check('rząd ma karty stojące obok siebie', wLinii > 1,
+    karty ? karty.map((l) => l.length + ' w linii').join(', ') : 'brak rzędu');
+  t.check('i w każdej linii są równej wysokości',
+    karty && karty.every((linia) => new Set(linia).size === 1),
+    karty ? karty.map((l) => l.join('/')).join('  |  ') : '—');
+  await lenis.close();
 };
