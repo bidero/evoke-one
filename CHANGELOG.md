@@ -2,6 +2,24 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.139.2] — 2026-09-03
+
+### Naprawione
+
+- **Lista snippetów rozjeżdżała się na telefonie.** Zgłoszone z użycia, ze
+  zrzutem z 390 px. Tabela nosiła klasę `wp-list-table`, a rdzeń WordPressa
+  poniżej 782 px rozkłada takie komórki na bloki i podpisuje je atrybutem
+  `data-colname`. Naszych komórek to nie dotyczyło — atrybutu nie miały —
+  więc zostawał pionowy ciąg samych wartości: „Frontend", „HTML + PHP (tryb
+  dawny)", „head", „Przeniesione", „0", jedno pod drugim, bez podpisów,
+  a nagłówki tabeli sterczały nad tym osobnym słupkiem.
+
+  Klasa `wp-list-table` odeszła — tabela stoi teraz na własnych regułach,
+  zamiast wygrywać z cudzymi na punkty specyficzności. Poniżej 782 px wiersz
+  jest **kartą**: przełącznik w lewym górnym rogu, nazwa jako tytuł, reszta
+  jako pary „etykieta: wartość". Nagłówek tabeli schowany, bo w takim
+  układzie nie ma czego opisywać.
+
 ## [1.139.1] — 2026-09-03
 
 ### Naprawione

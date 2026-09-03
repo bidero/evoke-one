@@ -18,6 +18,11 @@
   /* Namiastka otoczki wp-admin — panel siedzi w niej na żywo. */
   body { margin: 0; background: #f0f0f1; font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
   #wpbody-content { padding: 0; }
+
+  /* Arkuszy wp-admin w repozytorium nie ma, więc reguł rdzenia dla
+     `.wp-list-table` tutaj nie widać. Nieobecności tej klasy w znaczniku
+     pilnuje osobne sprawdzenie w tests/snippety.test.js — odtwarzanie tu
+     cudzego CSS-u dawałoby tylko złudzenie pokrycia. */
 </style>
 
 <div id="wpbody-content"></div>
@@ -55,6 +60,38 @@
       naglowki:     naglowki,
       // Poziome przewijanie strony to objaw rozpychania, nie mieszczenia się.
       stronaPrzewija: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  };
+
+  /** Układ listy na wąskim ekranie: karta na wpis, podpisy przy wartościach. */
+  window.__mobil = function () {
+    var tbl = document.querySelector('.evo-snippety-tbl');
+    if (!tbl) return null;
+    var wiersz = tbl.querySelector('tbody tr');
+    var st = getComputedStyle(wiersz);
+    var r = wiersz.getBoundingClientRect();
+
+    var podpisy = Array.prototype.slice.call(wiersz.querySelectorAll('td'))
+      .map(function (td) {
+        var c = getComputedStyle(td, '::before').content;
+        return (c === 'none' || c === 'normal') ? '' : c.replace(/^"|"$/g, '').trim();
+      })
+      .filter(Boolean);
+
+    var przelacznik = wiersz.querySelector('.evo-switch');
+    var pr = przelacznik ? przelacznik.getBoundingClientRect() : null;
+
+    return {
+      naglowekWidoczny: getComputedStyle(tbl.querySelector('thead')).display !== 'none',
+      wierszBlokiem:    st.display === 'block',
+      ramkaWiersza:     Math.round(parseFloat(st.borderTopWidth)),
+      podpisy:          podpisy,
+      // Przełącznik ma siedzieć w lewym górnym rogu karty, a nie w słupku treści.
+      przelacznikWRogu: !!pr && (pr.left - r.left) < 30 && (pr.top - r.top) < 30,
+      stronaPrzewija:   document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      // Kolumny na całą szerokość karty — nic nie wystaje poza jej treść.
+      poza: Array.prototype.slice.call(wiersz.querySelectorAll('td'))
+        .filter(function (td) { return td.getBoundingClientRect().right > r.right + 1; }).length,
     };
   };
 

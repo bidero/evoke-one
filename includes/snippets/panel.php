@@ -140,7 +140,14 @@ function evk_snippety_lista(): void {
              kolumny, a `.evo-tbl-wrap` daje przewijanie w obrębie pudełka
              zamiast rozpychania strony. */ ?>
     <div class="evo-tbl-wrap">
-    <table class="wp-list-table widefat striped evo-snippety-tbl">
+    <?php /* BEZ KLASY `wp-list-table`. To ona wciąga responsywne reguły
+             `wp-admin/css/list-tables.css`, które poniżej 782 px rozkładają
+             komórki na bloki i wypisują nazwy kolumn z atrybutu `data-colname`
+             — a tego atrybutu nasza tabela nie miała, więc na telefonie
+             zostawał gołe pionowy ciąg wartości bez etykiet. `widefat`
+             i `striped` (z `common.css`) zostają: dają ramkę i pasy, a nie
+             mają z tamtym układem nic wspólnego. Własny układ kart niżej. */ ?>
+    <table class="widefat striped evo-snippety-tbl">
         <thead><tr>
             <th>Stan</th>
             <th class="evo-col-nazwa"><a href="<?php echo esc_url(evk_snippety_url(['evk_sort' => 'tytul'])); ?>">Nazwa</a></th>
@@ -153,7 +160,7 @@ function evk_snippety_lista(): void {
         <tbody>
         <?php foreach ($wpisy as $w): ?>
         <tr>
-            <td>
+            <td class="evo-col-stan">
                 <?php /* Adres wpisany wprost, choć formularz i tak wróciłby na
                          bieżącą stronę. To druga warstwa po poprawce bramy
                          w `ajax.php`: żądanie niesie komplet `page/tab/sub`
@@ -176,13 +183,13 @@ function evk_snippety_lista(): void {
                 </form>
             </td>
             <td class="evo-col-nazwa"><strong><?php echo esc_html($w['tytul']); ?></strong></td>
-            <td><span class="evo-badge"><?php echo esc_html($rodzaje[$w['rodzaj']]['label'] ?? $w['rodzaj']); ?></span></td>
+            <td data-etykieta="Rodzaj"><span class="evo-badge"><?php echo esc_html($rodzaje[$w['rodzaj']]['label'] ?? $w['rodzaj']); ?></span></td>
             <?php /* Krótka etykieta, nie pełna: „Frontend — <head>" jest na
                      miejscu w wyborze w edytorze, ale w kolumnie tabeli zabiera
                      szerokość „Nazwie". */ ?>
-            <td class="evo-hint"><?php echo esc_html($miejsca[$w['miejsce']]['krotki'] ?? $w['miejsce']); ?></td>
-            <td class="evo-hint evo-col-grupa"><?php echo $w['grupa'] !== '' ? esc_html($w['grupa']) : '—'; ?></td>
-            <td class="evo-hint"><?php echo (int) $w['kolejnosc']; ?></td>
+            <td class="evo-hint" data-etykieta="Miejsce"><?php echo esc_html($miejsca[$w['miejsce']]['krotki'] ?? $w['miejsce']); ?></td>
+            <td class="evo-hint evo-col-grupa" data-etykieta="Grupa"><?php echo $w['grupa'] !== '' ? esc_html($w['grupa']) : '—'; ?></td>
+            <td class="evo-hint" data-etykieta="Kolejność"><?php echo (int) $w['kolejnosc']; ?></td>
             <td class="evo-akcje">
                 <a href="<?php echo esc_url(evk_snippety_url(['evk_widok' => 'edytor', 'evk_wpis' => $w['id']])); ?>"
                    class="button button-small">Edytuj</a>

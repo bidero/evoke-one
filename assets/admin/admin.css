@@ -2574,5 +2574,63 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 .evo-snippety-tbl .evo-col-grupa { white-space: normal; }
 .evo-snippety-tbl .evo-akcje .button { vertical-align: middle; }
 
+/* NA TELEFONIE WIERSZ STAJE SIĘ KARTĄ.
+ *
+ * ZGŁOSZONE Z UŻYCIA: „coś się rozjeżdża w wersji mobilnej". Tabela miała
+ * klasę `wp-list-table`, a rdzeń WordPressa poniżej 782 px rozkłada takie
+ * komórki na bloki i wypisuje nazwy kolumn z atrybutu `data-colname`.
+ * Naszych komórek to nie dotyczyło — atrybutu nie miały — więc zostawał
+ * pionowy ciąg samych wartości: „Frontend", „HTML + PHP (tryb dawny)",
+ * „head", „Przeniesione", „0", jedno pod drugim, bez podpisów, a nagłówki
+ * tabeli sterczały nad tym osobnym słupkiem.
+ *
+ * Klasa `wp-list-table` odeszła (patrz komentarz przy tabeli), a układ na
+ * wąskim ekranie jest tutaj i jest nasz: karta na wpis, przełącznik w rogu,
+ * nazwa jako tytuł, reszta jako pary „etykieta: wartość". */
+@media screen and (max-width: 782px) {
+    .evo-snippety-tbl,
+    .evo-snippety-tbl tbody,
+    .evo-snippety-tbl tr,
+    .evo-snippety-tbl td { display: block; width: auto; }
+
+    .evo-snippety-tbl thead { display: none; }
+
+    .evo-snippety-tbl tr {
+        position: relative;
+        margin-bottom: 10px;
+        padding: 12px 12px 12px 62px;
+        border: 1px solid var(--evo-border);
+        border-radius: 10px;
+        background: var(--evo-bg);
+    }
+    /* Pasy zebry gubią sens, gdy wiersz jest kartą z własną ramką. */
+    .evo-snippety-tbl.striped tbody tr:nth-child(odd) { background: var(--evo-bg); }
+
+    .evo-snippety-tbl td {
+        padding: 3px 0;
+        border: 0;
+        white-space: normal;
+    }
+    .evo-snippety-tbl td[data-etykieta]::before {
+        content: attr(data-etykieta) ": ";
+        color: var(--evo-text-muted);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    /* Przełącznik w lewym górnym rogu karty — kciuk trafia w niego pierwszy. */
+    .evo-snippety-tbl td.evo-col-stan {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        padding: 0;
+    }
+    /* Nazwa jest tytułem karty, nie kolejną parą z etykietą. */
+    .evo-snippety-tbl td.evo-col-nazwa { font-size: 14px; padding-bottom: 6px; }
+    .evo-snippety-tbl td.evo-akcje { padding-top: 10px; }
+}
+
 /* Licznik przy zakładce — ile błędów czeka w logach. */
 .evo-count-badge { display: inline-block; min-width: 16px; padding: 0 5px; border-radius: 999px; background: var(--evo-danger); color: #fff; font-size: 10px; line-height: 16px; text-align: center; margin-left: 5px; }

@@ -359,4 +359,51 @@ module.exports = async function (t) {
   t.check('bez błędów JS na liście', !strona.errors.length,
     strona.errors.join(' | ') || 'brak');
   await strona.close();
+
+  // ── Wersja mobilna ─────────────────────────────────────────────────────
+  t.section('na telefonie wiersz jest kartą, nie słupkiem wartości');
+
+  /* ZGŁOSZONE Z UŻYCIA (zrzut z 390 px): „coś się rozjeżdża w wersji
+     mobilnej". Tabela miała klasę `wp-list-table`, a rdzeń WordPressa
+     poniżej 782 px rozkłada takie komórki na bloki i podpisuje je atrybutem
+     `data-colname` — którego nasze komórki nie miały. Zostawał pionowy ciąg
+     samych wartości bez podpisów, a nagłówki tabeli sterczały nad nim
+     osobnym słupkiem. */
+  const waska = await t.open('snippety-lista.html', {
+    viewport: { width: 390, height: 850 },
+    head: 'window.__panel = ' + JSON.stringify(
+            phpOutput('panel-start.php', '"{}" narzedzia')) + ';'
+        + 'window.__tresc = ' + JSON.stringify(lista) + ';',
+  });
+
+  /* Klasa `wp-list-table` ściąga na tabelę responsywne reguły rdzenia — to
+     one zrobiły ten bałagan. Nasz układ i tak by je dziś przykrył, więc
+     pomiar w przeglądarce nie zauważyłby jej powrotu; arkuszy wp-admin nie
+     ma zresztą w repozytorium. Sprawdzamy więc sam znacznik: tabela ma stać
+     na naszych regułach, a nie wygrywać z cudzymi na punkty. */
+  t.check('tabela nie nosi klasy wp-list-table', !/<table[^>]*wp-list-table/.test(lista),
+    (lista.match(/<table[^>]*>/) || ['brak tabeli'])[0]);
+
+  const mob = await waska.evaluate(() => window.__mobil());
+  t.check('nagłówek tabeli schowany', mob && !mob.naglowekWidoczny,
+    mob ? String(mob.naglowekWidoczny) : 'brak tabeli');
+  t.check('wiersz ma ramkę karty', mob && mob.wierszBlokiem && mob.ramkaWiersza >= 1,
+    mob ? mob.ramkaWiersza + ' px ramki' : '—');
+
+  /* Bez podpisów „head" i „0" nie znaczą nic — to była istota zgłoszenia. */
+  t.check('wartości mają podpisy',
+    mob && ['Rodzaj', 'Miejsce', 'Grupa', 'Kolejność']
+      .every((e) => mob.podpisy.some((p) => p.startsWith(e))),
+    mob ? mob.podpisy.join(' | ') || 'BRAK PODPISÓW' : '—');
+
+  t.check('przełącznik siedzi w rogu karty', mob && mob.przelacznikWRogu,
+    mob ? String(mob.przelacznikWRogu) : '—');
+  t.check('nic nie wystaje poza kartę', mob && mob.poza === 0,
+    mob ? mob.poza + ' komórek poza' : '—');
+  t.check('i strona nie przewija się w bok', mob && !mob.stronaPrzewija,
+    mob ? String(mob.stronaPrzewija) : '—');
+
+  t.check('bez błędów JS na wąskim ekranie', !waska.errors.length,
+    waska.errors.join(' | ') || 'brak');
+  await waska.close();
 };
