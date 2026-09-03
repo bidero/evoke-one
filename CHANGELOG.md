@@ -2,6 +2,28 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.139.3] — 2026-09-03
+
+### Naprawione
+
+- **Przełącznik rozciągał się na telefonie** — zielony prostokąt z gałką
+  przyklejoną do góry zamiast pigułki 38 × 22. Winna była **nasza własna**
+  reguła celów dotykowych: `min-height: var(--evo-tap)` (44 px) na każdym
+  przycisku panelu poniżej 782 px. Przełącznik nie jest przyciskiem z napisem
+  i wysokość ma zadaną, więc wypada z tej reguły. Palec dostaje swoje 44 px
+  z niewidzialnej nakładki — rośnie pole trafienia, nie kształt.
+
+- **Ramka wokół ramek.** Obramowanie tabeli obrysowywało wszystkie karty
+  naraz. Na wąskim ekranie kartą jest wiersz, więc pudełko tabeli znika.
+
+### Zmienione
+
+- Tabela wpisów rysuje **własne obramowanie**, zamiast brać je z `widefat`.
+  Nie chodzi o wygląd — jest identyczny — tylko o to, żeby dało się je
+  zmierzyć: ramki rdzenia testy nie widzą (arkuszy wp-admin nie ma
+  w repozytorium), więc zdjęcie jej na telefonie przechodziłoby na zielono
+  niezależnie od tego, czy naprawdę znika.
+
 ## [1.139.2] — 2026-09-03
 
 ### Naprawione

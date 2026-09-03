@@ -398,6 +398,23 @@ module.exports = async function (t) {
 
   t.check('przełącznik siedzi w rogu karty', mob && mob.przelacznikWRogu,
     mob ? String(mob.przelacznikWRogu) : '—');
+
+  /* ZGŁOSZONE Z UŻYCIA: „nadal przełączniki są złe na mobilnej".
+     Winna była NASZA reguła celów dotykowych (`admin.css`, blok 782 px):
+     `min-height: var(--evo-tap)` na każdym przycisku panelu rozciągało
+     przełącznik do 44 px wysokości — zielony prostokąt z gałką przyklejoną
+     do góry, dokładnie jak na zrzucie. Kształt ma zostać, palec ma dostać
+     swoje 44 px z niewidzialnej nakładki. */
+  t.check('przełącznik nie rozciąga się na wąskim ekranie',
+    mob && mob.przelacznik && mob.przelacznik.szer === 38 && mob.przelacznik.wys === 22,
+    mob && mob.przelacznik ? mob.przelacznik.szer + '×' + mob.przelacznik.wys : '—');
+  t.check('ale pole dotyku ma pełne 44 px', mob && mob.poleDotyku >= 44,
+    mob ? mob.poleDotyku + ' px' : '—');
+
+  /* ZGŁOSZONE Z UŻYCIA: „jest jakaś ramka ekstra". Obramowanie tabeli
+     obrysowywało wszystkie karty naraz — ramka wokół ramek. */
+  t.check('tabela nie dokłada ramki wokół kart', mob && mob.ramkaTabeli === 0,
+    mob ? mob.ramkaTabeli + ' px' : '—');
   t.check('nic nie wystaje poza kartę', mob && mob.poza === 0,
     mob ? mob.poza + ' komórek poza' : '—');
   t.check('i strona nie przewija się w bok', mob && !mob.stronaPrzewija,

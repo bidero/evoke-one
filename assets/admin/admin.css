@@ -884,9 +884,13 @@
     .evo-tabs::-webkit-scrollbar { display: none; }
     .evo-tab { white-space: nowrap; flex: 0 0 auto; }
 
-    /* Cele dotykowe. Przyciski panelu bywały wysokie na 28 px. */
+    /* Cele dotykowe. Przyciski panelu bywały wysokie na 28 px.
+       `.evo-switch` WYŁĄCZONY z tej reguły: to nie jest przycisk z napisem,
+       tylko przełącznik o zadanych 38 × 22, a `min-height` rozciągało go do
+       40 px w pionie — zielony prostokąt z gałką przyklejoną do góry.
+       Pole dotyku dostaje osobno, niewidzialną nakładką niżej. */
     .evo-panel .button,
-    .evo-panel button:not(.evo-btn-icon) {
+    .evo-panel button:not(.evo-btn-icon):not(.evo-switch) {
         min-height: var(--evo-tap);
     }
 
@@ -2560,6 +2564,11 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 .evo-switch-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
 .evo-switch.is-on .evo-switch-knob { transform: translateX(16px); }
 .evo-switch:focus-visible { outline: none; box-shadow: var(--evo-focus); }
+/* POLE DOTYKU BEZ POWIĘKSZANIA PRZEŁĄCZNIKA.
+   Sam przełącznik ma 38 × 22 — tyle było w zgłoszeniu i tyle ma zostać.
+   Palec potrzebuje jednak około 44 px, więc obszar klikalny rozszerza
+   niewidzialna nakładka. Rośnie pole trafienia, nie kształt. */
+.evo-switch::after { content: ""; position: absolute; inset: -11px -6px; }
 
 /* TABELA WPISÓW: „Nazwa" zabiera to, co zostanie, reszta kurczy się do treści.
    Do 1.139.0 tabela miała `table-layout: fixed` i sześć kolumn przypiętych na
@@ -2567,7 +2576,12 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
    oknie 1280. Na nazwę schodziło trzydzieści pikseli. Teraz odwrotnie:
    kolumny biorą tyle, ile potrzebują na swoją treść, a `width: 100%` na jednej
    z nich każe układowi automatycznemu oddać jej całą resztę. */
-.evo-snippety-tbl { table-layout: auto; }
+/* Obramowanie WŁASNE, choć `widefat` daje takie samo.
+   Nie chodzi o wygląd — chodzi o to, żeby dało się je zmierzyć. Ramka rdzenia
+   jest niewidoczna dla testów (arkuszy wp-admin nie ma w repozytorium), więc
+   zdjęcie jej na wąskim ekranie przechodziłoby na zielono niezależnie od tego,
+   czy naprawdę znika. Nasza ramka jest sprawdzalna w obie strony. */
+.evo-snippety-tbl { table-layout: auto; border: 1px solid var(--evo-border); }
 .evo-snippety-tbl th,
 .evo-snippety-tbl td { white-space: nowrap; }
 .evo-snippety-tbl .evo-col-nazwa { width: 100%; white-space: normal; }
@@ -2594,6 +2608,11 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     .evo-snippety-tbl td { display: block; width: auto; }
 
     .evo-snippety-tbl thead { display: none; }
+
+    /* ZGŁOSZONE Z UŻYCIA: „jest jakaś ramka ekstra". Obramowanie tabeli
+       obrysowywało wszystkie karty naraz — druga ramka wokół ramek. Kartą
+       jest wiersz, więc pudełko tabeli na wąskim ekranie znika. */
+    .evo-snippety-tbl { border: 0; background: none; box-shadow: none; }
 
     .evo-snippety-tbl tr {
         position: relative;

@@ -81,8 +81,23 @@
     var przelacznik = wiersz.querySelector('.evo-switch');
     var pr = przelacznik ? przelacznik.getBoundingClientRect() : null;
 
+    /* Przełącznik: kształt osobno, pole trafienia osobno. Nakładka `::after`
+       ma rozszerzać obszar klikalny bez ruszania wymiarów samego elementu. */
+    var po = przelacznik ? getComputedStyle(przelacznik, '::after') : null;
+    /* Bez nakładki `content` jest `none`, a `top` bywa `auto` — wtedy pole
+       trafienia równa się samemu przełącznikowi, i tak ma to zostać zgłoszone
+       liczbą, a nie NaN-em. */
+    var dotyk = (po && po.content !== 'none') ? {
+      gora: Math.abs(parseFloat(po.top))  || 0,
+      bok:  Math.abs(parseFloat(po.left)) || 0,
+    } : { gora: 0, bok: 0 };
+
     return {
       naglowekWidoczny: getComputedStyle(tbl.querySelector('thead')).display !== 'none',
+      // Ramka tabeli obrysowywałaby wszystkie karty naraz — na wąskim ekranie ma jej nie być.
+      ramkaTabeli:  Math.round(parseFloat(getComputedStyle(tbl).borderTopWidth)),
+      przelacznik:  pr ? { szer: Math.round(pr.width), wys: Math.round(pr.height) } : null,
+      poleDotyku:   pr ? Math.round(pr.height + 2 * dotyk.gora) : 0,
       wierszBlokiem:    st.display === 'block',
       ramkaWiersza:     Math.round(parseFloat(st.borderTopWidth)),
       podpisy:          podpisy,
