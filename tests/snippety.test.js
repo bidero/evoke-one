@@ -546,4 +546,106 @@ module.exports = async function (t) {
     karty && karty.every((linia) => new Set(linia).size === 1),
     karty ? karty.map((l) => l.join('/')).join('  |  ') : '—');
   await lenis.close();
+
+  // ── Pola w siatce edytora ──────────────────────────────────────────────
+  t.section('pola edytora wypełniają swoje sloty');
+
+  /* ZGŁOSZONE Z UŻYCIA, ze zrzutem edytora: „pola muszą być równe". Trzy
+     globalne reguły z `admin.css` (`max-width: 420px` na tekście, `90px` na
+     liczbie, `min-width: 200px` na liście) dobrane są pod formularze, w których
+     pola stoją jedno pod drugim. W siatce dawały rząd złożony z przypadku. */
+  const edPola = await t.open('snippety-lista.html', {
+    viewport: { width: 1280, height: 900 },
+    head: 'window.__panel = ' + JSON.stringify(
+            phpOutput('panel-start.php', '"{}" narzedzia')) + ';'
+        + 'window.__tresc = ' + JSON.stringify(nowy) + ';',
+  });
+
+  const pola = await edPola.evaluate(() => window.__pola());
+  t.check('siatka ma wszystkie pięć pól', pola && pola.length === 5,
+    pola ? pola.map((p) => p.nazwa).join(', ') : 'brak siatki');
+  t.check('każde wypełnia swój slot',
+    pola && pola.every((p) => Math.abs(p.szer - p.slot) <= 1),
+    pola ? pola.map((p) => p.nazwa + ' ' + p.szer + '/' + p.slot).join(', ') : '—');
+  t.check('więc wszystkie mają tę samą szerokość',
+    pola && new Set(pola.map((p) => p.szer)).size === 1,
+    pola ? pola.map((p) => p.szer).join(', ') : '—');
+  await edPola.close();
+
+  // ── Logi błędów ────────────────────────────────────────────────────────
+  t.section('logi mieszczą się w karcie');
+
+  /* ZGŁOSZONE Z UŻYCIA: „wyświetlanie logów do poprawy w skryptach. Wyjeżdżają
+     poza. Może górna linia info, a poniżej log?". Dokładnie tak: metryczka
+     w linii u góry, komunikat pod spodem, fragment kodu we własnym pudełku.
+     Zasiew niesie DŁUGI komunikat i długą linię kodu — bez tego sprawdzenie
+     przechodziłoby też dla układu, który wyjeżdża. */
+  const widokLogow = phpOutput('tab.php', 'tools-snippety ' + JSON.stringify(JSON.stringify(
+    { evk_widok: 'logi' })));
+
+  for (const [szer, nazwa] of [[1280, 'szerokim'], [390, 'wąskim']]) {
+    const strLog = await t.open('snippety-lista.html', {
+      viewport: { width: szer, height: 900 },
+      head: 'window.__panel = ' + JSON.stringify(
+              phpOutput('panel-start.php', '"{}" narzedzia')) + ';'
+          + 'window.__tresc = ' + JSON.stringify(widokLogow) + ';',
+    });
+    const log = await strLog.evaluate(() => window.__logi());
+    t.check('na ' + nazwa + ' ekranie karta mieści się w panelu',
+      log && log.kartaWKarcie,
+      log ? 'karta do ' + log.prawaKarty + ' px, panel do ' + log.prawaTresci + ' px' : 'brak logu');
+    t.check('i nic z niej nie wystaje', log && log.pozaKarta.length === 0,
+      log ? log.pozaKarta.join(', ') || 'nic' : '—');
+    t.check('a strona nie przewija się w bok', log && !log.stronaPrzewija,
+      log ? String(log.stronaPrzewija) : '—');
+    if (szer === 1280) {
+      /* Sedno: długa linia kodu ma przewijać się WEWNĄTRZ pudełka. Gdyby
+         zawijała się albo rozpychała kartę, ten pomiar byłby fałszywy. */
+      t.check('a długi kod przewija się w swoim pudełku', log && log.kodPrzewija,
+        log ? String(log.kodPrzewija) : '—');
+    }
+    await strLog.close();
+  }
+
+  // ── Przycisk usuwania na trzech ekranach ───────────────────────────────
+  t.section('kosz wygląda tak samo wszędzie');
+
+  /* Znacznik był identyczny w Animatorze, Kursorze i snippetach — ta sama
+     klasa, ta sama ikona — a Kursor definiował `.evo-btn-remove` po swojemu
+     w bloku `<style>` na stronie: goły czerwony napis zamiast ghosta z ramką.
+     Jedna nazwa, trzy wyglądy. */
+  const zrodloKursora = fs.readFileSync(
+    path.join(KORZEN, 'includes/admin/tab-cursor.php'), 'utf8');
+  t.check('Kursor nie definiuje już własnego kosza',
+    !/\.evo-btn-remove\s*\{/.test(zrodloKursora),
+    (zrodloKursora.match(/\.evo-btn-remove\s*\{[^}]*\}/) || ['brak własnej reguły'])[0].slice(0, 60));
+
+  const koszSnippety = await t.open('snippety-lista.html', {
+    viewport: { width: 1280, height: 900 },
+    head: 'window.__panel = ' + JSON.stringify(
+            phpOutput('panel-start.php', '"{}" narzedzia')) + ';'
+        + 'window.__tresc = ' + JSON.stringify(lista) + ';',
+  });
+  const wSnippetach = await koszSnippety.evaluate(() => window.__kosz());
+  await koszSnippety.close();
+
+  const koszKursor = await t.open('snippety-lista.html', {
+    viewport: { width: 1280, height: 900 },
+    head: 'window.__panel = ' + JSON.stringify(
+            phpOutput('panel-start.php', '"{}" narzedzia')) + ';'
+        + 'window.__tresc = ' + JSON.stringify(phpOutput('tab.php', 'fe-cursor')) + ';',
+  });
+  const wKursorze = await koszKursor.evaluate(() => window.__kosz());
+  await koszKursor.close();
+
+  t.check('oba ekrany mają ten przycisk', !!wSnippetach && !!wKursorze,
+    'snippety ' + !!wSnippetach + ', kursor ' + !!wKursorze);
+  t.check('i wygląda identycznie',
+    wSnippetach && wKursorze
+      && wSnippetach.wys === wKursorze.wys
+      && wSnippetach.ramka === wKursorze.ramka
+      && wSnippetach.tlo === wKursorze.tlo
+      && wSnippetach.promien === wKursorze.promien,
+    wSnippetach && wKursorze
+      ? JSON.stringify(wSnippetach) + ' vs ' + JSON.stringify(wKursorze) : '—');
 };

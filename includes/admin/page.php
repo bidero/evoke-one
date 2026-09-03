@@ -158,7 +158,7 @@ function evoke_one_get_io_modules(): array {
         'evk_redirects'       => 'Przekierowania 301',
         'evk_logs404'         => 'Ustawienia logów 404',
         'evk_dashboard'       => 'Kokpit Bricks',
-        'evk_snippets'        => 'Snippety PHP',
+        'evk_snippets'        => 'Fragmenty kodu',
         'evk_other'           => 'Inne ustawienia',
         'evk_newsletter'      => 'Newsletter',
     ];
@@ -235,9 +235,10 @@ function evoke_one_render_settings(): void {
                     <?php endforeach; ?>
                     <p class="evo-nav-label">System</p>
                     <?php evoke_one_render_sidebar_link('admin_panel', $tabs['admin_panel'], $tab, $base, $sub); ?>
-                    <a class="evo-sidebar-link" href="https://evoke.one" target="_blank" rel="noopener noreferrer">
-                        <span class="dashicons dashicons-editor-help"></span><span>Pomoc</span><span class="dashicons dashicons-external evo-nav-external"></span>
-                    </a>
+                    <?php /* „Pomoc" prowadziła na https://evoke.one — adres, pod którym
+                             nie ma czego czytać. Pozycja w pasku, która nigdzie nie
+                             prowadzi, jest gorsza niż jej brak: kosztuje kliknięcie
+                             i zaufanie. Wróci, gdy będzie dokąd. */ ?>
                 </nav>
                 <div class="evo-sidebar-footer">v<?php echo esc_html(EVOKE_ONE_VERSION); ?></div>
             </aside>

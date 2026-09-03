@@ -33,7 +33,7 @@ add_action('admin_enqueue_scripts', function () {
     wp_enqueue_script('wp-theme-plugin-editor');
     wp_enqueue_style('wp-codemirror');
 
-    /* Pola edytora: jedno w edytorze wpisu i jedno w trybie Advanced.
+    /* Pola edytora: jedno w edytorze wpisu i jedno w trybie zaawansowanym.
        Do 1.139.0 była tu lista czterech identyfikatorów z `evk_snippets_defs()`
        — tamte okna już nie istnieją. */
     $selectors = '#evk-kod, #evk_advanced_code';
@@ -140,7 +140,7 @@ add_action('admin_init', function () {
         exit;
     }
 
-    // ── Tryb Advanced ─────────────────────────────────────────────────────
+    // ── Zaawansowane ──────────────────────────────────────────────────────
     if (isset($_POST['evk_zapisz_advanced'])) {
         evk_snippets_advanced_save((string) wp_unslash($_POST['evk_advanced_code'] ?? ''));
         wp_safe_redirect(evk_snippety_url(['evk_widok' => 'advanced', 'evk_zapisano' => 'wpis']));

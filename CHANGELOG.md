@@ -2,6 +2,43 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.139.6] — 2026-09-03
+
+### Naprawione
+
+- **Logi błędów wyjeżdżały poza ekran.** Tabela miała cztery kolumny na
+  sztywno, a w ostatniej siedział komunikat razem z fragmentem kodu — treść
+  o nieprzewidywalnej długości w kolumnie o z góry ustalonej szerokości.
+  Wpis logu jest teraz kartą: metryczka w linii u góry (kiedy, rodzaj, wpis,
+  linia), pod nią komunikat, a fragment kodu we własnym pudełku z poziomym
+  przewijaniem. Nic nie wychodzi poza kartę ani nie rozpycha strony.
+
+- **Pola w edytorze fragmentu miały trzy różne szerokości.** Odpowiadały za to
+  trzy globalne reguły — `max-width: 420px` na tekście, `90px` na liczbie,
+  `min-width: 200px` na liście — dobrane pod formularze, w których pola stoją
+  jedno pod drugim. W siatce dawały rząd złożony z przypadku. Nowa klasa
+  `.evo-pola-rowne` każe im wypełnić swój slot; zasięg celowo wąski, bo
+  o równości decyduje układ, a nie typ pola.
+
+- **Przycisk usuwania w zakładce Kursor wyglądał inaczej niż wszędzie.**
+  Znacznik był identyczny jak w Animatorze i we fragmentach kodu — ta sama
+  klasa, ta sama ikona — a zakładka definiowała `.evo-btn-remove` po swojemu
+  w bloku `<style>` na stronie: goły czerwony napis zamiast ghosta z ramką.
+  Jedna nazwa, trzy wyglądy. Teraz jeden komponent na trzy ekrany.
+
+### Zmienione
+
+- **„Skrypty PHP" to teraz „Fragmenty kodu"** — nazwa mówi, co tam jest,
+  odkąd wpis może być CSS-em, skryptem albo HTML-em, nie tylko PHP-em. Stara
+  nazwa została w słowach pomocniczych wyszukiwarki, więc „skrypty" i „php"
+  nadal znajdują ten ekran.
+
+- **„Tryb Advanced" to „Zaawansowane.”**
+
+- **Znikła pozycja „Pomoc" z paska bocznego.** Prowadziła na adres, pod
+  którym nie ma czego czytać. Pozycja, która nigdzie nie prowadzi, kosztuje
+  kliknięcie i zaufanie; wróci, gdy będzie dokąd.
+
 ## [1.139.5] — 2026-09-03
 
 ### Zmienione

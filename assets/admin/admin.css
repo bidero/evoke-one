@@ -284,6 +284,21 @@
 .evo-field select             { min-width: 200px; }
 .evo-field textarea           { width: 100%; max-width: 100%; min-height: 90px; resize: vertical; font-size: 13px; line-height: 1.6; }
 
+/* SIATKA POLA W POLE — każde wypełnia swój slot co do piksela.
+   Trzy reguły wyżej (`max-width: 420px` na tekście, `90px` na liczbie,
+   `min-width: 200px` na liście) są dobrane pod formularze, w których pola stoją
+   jedno pod drugim i szerokość niesie znaczenie: krótkie pole mówi „wpisz tu
+   liczbę". W SIATCE znaczą co innego — rząd wygląda na złożony z przypadku.
+   Zgłoszone z użycia razem ze zrzutem edytora snippetów. Klasa jest opt-in,
+   bo o tym, czy pola mają być równe, decyduje układ, a nie sam typ pola. */
+.evo-pola-rowne .evo-field input[type=text],
+.evo-pola-rowne .evo-field input[type=number],
+.evo-pola-rowne .evo-field select {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+}
+
 /* Info box */
 .evo-info-box { background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 10px; padding: 14px 16px; font-size: 13px; color: var(--evo-text-soft); margin-bottom: 20px; display: flex; gap: 10px; align-items: flex-start; }
 .evo-info-box .dashicons { color: var(--evo-accent); flex-shrink: 0; margin-top: 1px; }
@@ -1179,6 +1194,7 @@
    `.evo-btn-remove`, bo zakładka Kursor ma własną, starszą wersję tej klasy
    w znaczniku strony i nie ma powodu jej teraz ruszać. */
 .evo-anim-row-header .evo-btn-remove,
+.evo-cursor-row-header .evo-btn-remove,
 .evo-snippety-tbl .evo-btn-remove {
     display: inline-flex;
     align-items: center;
@@ -1194,6 +1210,7 @@
     transition: background .15s, color .15s, border-color .15s;
 }
 .evo-anim-row-header .evo-btn-remove:hover,
+.evo-cursor-row-header .evo-btn-remove:hover,
 .evo-snippety-tbl .evo-btn-remove:hover {
     background: var(--evo-danger-soft);
     color: var(--evo-danger);
@@ -2765,6 +2782,59 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 
     /* Sortowanie wraca razem ze schowanym nagłówkiem tabeli. */
     .evo-sort-mobile { display: flex; }
+}
+
+/* LOGI BŁĘDÓW — karta na wpis.
+   Do 1.139.5 była to tabela z czterema kolumnami na sztywno, a w ostatniej
+   siedział komunikat razem z fragmentem kodu: treść o nieprzewidywalnej
+   długości w kolumnie o z góry ustalonej szerokości. Zgłoszone z użycia:
+   „wyjeżdżają poza". Karta odwraca układ — metryczka w linii u góry, treść
+   pod spodem, a jedyne miejsce, które wolno przewijać w poziomie, to pudełko
+   z kodem. */
+.evo-logi { display: flex; flex-direction: column; gap: 10px; }
+.evo-log {
+    padding: 12px 14px;
+    border: 1px solid var(--evo-border);
+    border-radius: 10px;
+    background: var(--evo-bg);
+}
+.evo-log-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: var(--evo-text-muted);
+}
+.evo-log-wpis {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--evo-text-soft);
+}
+.evo-log-linia { margin-left: auto; }
+/* Komunikat potrafi być jednym łańcuchem bez spacji — ścieżką do pliku albo
+   nazwą klasy. `anywhere` łamie go w środku wyrazu zamiast rozpychać kartę. */
+.evo-log-komunikat {
+    margin: 0;
+    font-size: 13px;
+    color: var(--evo-text);
+    overflow-wrap: anywhere;
+}
+/* Kod zostaje kodem: bez zawijania, bo złamana linia PHP-a myli bardziej,
+   niż pomaga. Przewija się W SOBIE, nie rozpycha karty ani strony. */
+.evo-log-kod {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    max-width: 100%;
+    overflow-x: auto;
+    border-radius: 6px;
+    background: var(--evo-surface);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--evo-text-soft);
+    white-space: pre;
 }
 
 /* Licznik przy zakładce — ile błędów czeka w logach. */

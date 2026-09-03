@@ -114,8 +114,12 @@ if (!defined('ABSPATH')) exit;
                         .evo-cursor-grid input[type=text], .evo-cursor-grid input[type=number], .evo-cursor-grid select { width:100%; border:1px solid #d1d5db; border-radius:6px; font-size:13px; }
                         .evo-cursor-grid .checkbox-label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:#111827; margin-top:20px; cursor:pointer; }
                         .evo-cursor-grid .checkbox-label input { margin:0; }
-                        .evo-btn-remove { color:#ef4444; background:none; border:none; cursor:pointer; font-size:13px; font-weight:500; display:flex; align-items:center; gap:4px; }
-                        .evo-btn-remove:hover { color:#b91c1c; text-decoration:underline; }
+                        /* `.evo-btn-remove` NIE MA TU WŁASNYCH STYLÓW od 1.139.6.
+                           Znacznik był identyczny jak w Animatorze i snippetach —
+                           ten sam przycisk, ta sama klasa — a wygląd rozjeżdżał
+                           się na trzy strony, bo te dwie reguły definiowały go
+                           tutaj po swojemu: goły czerwony napis zamiast ghosta
+                           z ramką. Komponent mieszka w `admin.css`. */
                     </style>
 
                 </div>

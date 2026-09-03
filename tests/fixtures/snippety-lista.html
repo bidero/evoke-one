@@ -165,6 +165,64 @@
              wJednejLinii: Math.abs(b.top - p.top) < 4 };
   };
 
+  /** Czy cokolwiek w logach wyjeżdża poza kartę wpisu albo poza panel. */
+  window.__logi = function () {
+    var box = document.querySelector('.evo-panel');
+    var karta = document.querySelector('.evo-log');
+    if (!box || !karta) return null;
+    var s = getComputedStyle(box);
+    var b = box.getBoundingClientRect();
+    var prawaTresci = b.right - parseFloat(s.paddingRight);
+    var k = karta.getBoundingClientRect();
+
+    var poza = Array.prototype.slice.call(karta.querySelectorAll('*'))
+      .filter(function (el) { return el.getBoundingClientRect().right > k.right + 1; })
+      .map(function (el) { return el.className || el.tagName; });
+
+    var kod = karta.querySelector('.evo-log-kod');
+    return {
+      kartaWKarcie:   Math.round(k.right) <= Math.round(prawaTresci) + 1,
+      prawaKarty:     Math.round(k.right),
+      prawaTresci:    Math.round(prawaTresci),
+      pozaKarta:      poza,
+      // Kod ma przewijać się W SOBIE, a nie rozpychać kartę.
+      kodPrzewija:    !!kod && kod.scrollWidth > kod.clientWidth,
+      stronaPrzewija: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  };
+
+  /** Wygląd przycisku usuwania — do porównania między ekranami. */
+  window.__kosz = function () {
+    var el = document.querySelector('.evo-btn-remove');
+    if (!el) return null;
+    var s = getComputedStyle(el);
+    var r = el.getBoundingClientRect();
+    return {
+      wys:    Math.round(r.height),
+      ramka:  Math.round(parseFloat(s.borderTopWidth)),
+      tlo:    s.backgroundColor,
+      kolor:  s.color,
+      promien: s.borderTopLeftRadius,
+    };
+  };
+
+  /** Szerokości pól w siatce edytora. */
+  window.__pola = function () {
+    var siatka = document.querySelector('.evo-pola-rowne');
+    if (!siatka) return null;
+    return Array.prototype.slice.call(siatka.querySelectorAll('input[type=text], input[type=number], select'))
+      .map(function (el) {
+        var r = el.getBoundingClientRect();
+        var pole = el.closest('.evo-field');
+        return {
+          nazwa: pole ? pole.querySelector('label').textContent.trim() : '?',
+          szer:  Math.round(r.width),
+          // Szerokość slotu siatki, w którym pole siedzi.
+          slot:  pole ? Math.round(pole.getBoundingClientRect().width) : 0,
+        };
+      });
+  };
+
   /** Wysokości kart wyboru stojących obok siebie. */
   window.__karty = function () {
     var rzad = document.querySelector('.evo-toolbar-top');

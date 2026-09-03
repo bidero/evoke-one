@@ -140,8 +140,16 @@ module.exports = async function (t) {
   const naSeo = panel({}, 'strona');
   const wPasku = [...naSeo.matchAll(/class="evo-sidebar-link[^"]*"[^>]*?>[\s\S]*?<span>([^<]+)<\/span>/g)]
     .map((m) => m[1]);
-  t.check('w pasku jest osiem pozycji plus pomoc', wPasku.length === 9,
-    wPasku.length + ': ' + wPasku.join(', '));
+  /* Liczba brana z MAPY, nie wpisana z ręki. Do 1.139.6 stało tu `=== 9`
+     („osiem zakładek plus pomoc") i przy usuwaniu martwego odsyłacza „Pomoc"
+     sprawdzenie zapłonęło z powodu, który nie był usterką. Zakładka dołożona
+     do `evoke_one_zakladki()` ma się pojawić w pasku — i to jest to, co tu
+     naprawdę mierzymy. */
+  t.check('pasek pokazuje każdą zakładkę z mapy', wPasku.length === zakladki.length,
+    wPasku.length + ' z ' + zakladki.length + ': ' + wPasku.join(', '));
+  const brakWPasku = Object.values(mapa.zakladki).map((z) => z.label).filter((l) => !wPasku.includes(l));
+  t.check('i żadna nie wypadła po drodze', !brakWPasku.length,
+    brakWPasku.join(', ') || 'komplet');
   t.check('bieżąca zakładka jest zaznaczona',
     /class="evo-sidebar-link is-active"[^>]*>[\s\S]*?<span>SEO<\/span>/.test(naSeo),
     'SEO');

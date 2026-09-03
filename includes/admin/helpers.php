@@ -77,7 +77,7 @@ function evoke_one_ekrany(): array {
             'cleanup'   => ['label' => 'Czyszczenie',   'icon' => 'dashicons-trash',      'szukaj' => 'xml-rpc rss rewizje śmietnik'],
         ],
         'narzedzia' => [
-            'snippets'    => ['label' => 'Skrypty PHP',       'icon' => 'dashicons-editor-code',     'szukaj' => 'snippety kod functions.php css js'],
+            'snippets'    => ['label' => 'Fragmenty kodu',    'icon' => 'dashicons-editor-code',     'szukaj' => 'snippety skrypty php kod functions.php css js'],
             'smtp'        => ['label' => 'SMTP',              'icon' => 'dashicons-email-alt',       'szukaj' => 'poczta mail wysyłka serwer'],
             'redirect'    => ['label' => 'Przekierowania 301','icon' => 'dashicons-redo',            'szukaj' => '301 redirect przekierowanie'],
             'logs404'     => ['label' => 'Logi 404',          'icon' => 'dashicons-warning',         'szukaj' => '404 nieistniejące adresy'],

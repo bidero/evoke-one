@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) exit;
  *
  * Zastępuje cztery stałe okna z lat sprzed 1.139.0. Ekran ma dwa stany:
  * LISTA (co masz i co pracuje) oraz EDYTOR jednego wpisu. Logi błędów
- * i tryb Advanced zostają tam, gdzie były.
+ * i tryb zaawansowany zostają tam, gdzie były.
  */
 
 /** Adres zakładki — jedno miejsce, bo składa go i lista, i każdy formularz. */
@@ -80,11 +80,11 @@ function evk_snippets_render_tab(): void {
              pod drugim mówiły, że są tym samym poziomem nawigacji, a nie są. */ ?>
     <div class="evo-viewtabs">
         <?php
-        /* „Tryb Advanced" widoczny ZAWSZE, także wyłączony — włącznik mieszka
+        /* „Zaawansowane" widoczne ZAWSZE, także wyłączone — włącznik mieszka
            w środku. Do 1.139.0 zakładka pojawiała się dopiero przy włączonej
            opcji, a jedyne pole, które tę opcję ustawiało, zniknęło razem
            z czterema oknami: nie było już czym jej włączyć. */
-        $zakladki = ['lista' => 'Wpisy', 'logi' => 'Logi błędów', 'advanced' => 'Tryb Advanced'];
+        $zakladki = ['lista' => 'Wpisy', 'logi' => 'Logi błędów', 'advanced' => 'Zaawansowane'];
         foreach ($zakladki as $klucz => $etykieta):
             $aktywna = ($widok === $klucz) || ($widok === 'edytor' && $klucz === 'lista');
         ?>
@@ -279,7 +279,7 @@ function evk_snippety_edytor(): void {
         <?php wp_nonce_field('evk_snippets_save', 'evk_snippets_nonce_field'); ?>
         <input type="hidden" name="evk_wpis_id" value="<?php echo (int) $wpis['id']; ?>">
 
-        <div class="evo-grid" style="--evo-col:220px;--evo-gap:16px">
+        <div class="evo-grid evo-pola-rowne" style="--evo-col:220px;--evo-gap:16px">
             <div class="evo-field">
                 <label for="evk-tytul">Nazwa</label>
                 <input type="text" id="evk-tytul" name="evk_tytul" required
@@ -347,32 +347,34 @@ function evk_snippety_logi(array $logi): void {
         <div class="evo-empty"><p>Brak zapisanych błędów.</p></div>
     <?php return; endif; ?>
 
-    <table class="wp-list-table widefat fixed striped evo-hint-sm">
-        <thead><tr>
-            <th class="evo-w" style="--evo-w:140px">Kiedy</th>
-            <th class="evo-w" style="--evo-w:130px">Rodzaj</th>
-            <th class="evo-w" style="--evo-w:180px">Snippet</th>
-            <th>Komunikat</th>
-        </tr></thead>
-        <tbody>
-        <?php foreach (array_reverse($logi) as $log): ?>
-        <tr>
-            <td><?php echo esc_html($log['time'] ?? ''); ?></td>
-            <td><span class="evo-badge"><?php echo esc_html($log['type'] ?? ''); ?></span></td>
-            <td class="evo-mono-xs"><?php echo esc_html($log['slug'] ?? '—'); ?></td>
-            <td>
-                <?php echo esc_html($log['message'] ?? ''); ?>
+    <?php /* WPIS LOGU JAKO KARTA, NIE WIERSZ TABELI.
+             ZGŁOSZONE Z UŻYCIA: „wyświetlanie logów do poprawy, wyjeżdżają
+             poza". Tabela miała cztery kolumny na sztywno, a w ostatniej
+             siedział komunikat błędu razem z fragmentem kodu — czyli treść
+             o nieprzewidywalnej długości w kolumnie o z góry ustalonej
+             szerokości. Teraz: górna linia z metryczką (kiedy, rodzaj, wpis,
+             linia), pod nią komunikat, a fragment kodu we własnym pudełku
+             z poziomym przewijaniem. Nic nie wychodzi poza kartę. */ ?>
+    <div class="evo-logi">
+    <?php foreach (array_reverse($logi) as $log): ?>
+        <article class="evo-log">
+            <header class="evo-log-meta">
+                <span class="evo-badge"><?php echo esc_html($log['type'] ?? ''); ?></span>
+                <time><?php echo esc_html($log['time'] ?? ''); ?></time>
+                <?php if (!empty($log['slug'])): ?>
+                <span class="evo-log-wpis"><?php echo esc_html($log['slug']); ?></span>
+                <?php endif; ?>
                 <?php if (!empty($log['line'])): ?>
-                <span class="evo-hint">— linia <?php echo (int) $log['line']; ?></span>
+                <span class="evo-log-linia">linia <?php echo (int) $log['line']; ?></span>
                 <?php endif; ?>
-                <?php if (!empty($log['context'])): ?>
-                <pre class="evo-mono-xs evo-inset"><?php echo esc_html($log['context']); ?></pre>
-                <?php endif; ?>
-            </td>
-        </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
+            </header>
+            <p class="evo-log-komunikat"><?php echo esc_html($log['message'] ?? ''); ?></p>
+            <?php if (!empty($log['context'])): ?>
+            <pre class="evo-log-kod"><?php echo esc_html($log['context']); ?></pre>
+            <?php endif; ?>
+        </article>
+    <?php endforeach; ?>
+    </div>
 
     <form method="post" action="<?php echo esc_url(evk_snippety_url()); ?>" class="evo-mt-lg"
           onsubmit="return confirm('Wyczyścić wszystkie logi?');">
@@ -389,7 +391,7 @@ function evk_snippety_logi(array $logi): void {
 function evk_snippety_advanced(int $wlaczony): void { ?>
     <?php /* Włącznik trybu mieszka TUTAJ, a nie w karcie stanu.
              Do 1.139.0 opcję ustawiało pole w formularzu czterech okien —
-             razem z nimi zniknęło i tryb Advanced nie miał już jak wrócić do
+             razem z nimi zniknęło i tryb zaawansowany nie miał już jak wrócić do
              gry: zakładka pokazywała się dopiero przy włączonej opcji, więc
              widok, w którym stał włącznik, był nieosiągalny. */ ?>
     <div class="evo-status-card evo-mb">
@@ -397,7 +399,7 @@ function evk_snippety_advanced(int $wlaczony): void { ?>
             <span class="dashicons dashicons-editor-code"></span>
         </div>
         <div class="evo-status-text">
-            <h3>Tryb Advanced: <?php echo $wlaczony ? 'włączony' : 'wyłączony'; ?></h3>
+            <h3>Zaawansowane: <?php echo $wlaczony ? 'włączone' : 'wyłączone'; ?></h3>
             <p>Pole niżej wykonuje się tylko przy włączonym trybie.</p>
         </div>
         <div class="evo-status-actions">

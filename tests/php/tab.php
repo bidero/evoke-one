@@ -651,6 +651,22 @@ $TABS = [
                                      'miejsce' => 'head', 'grupa' => 'Wygląd', 'wlaczony' => 1, 'kolejnosc' => 10]);
             evk_snippet_zapisz_wpis(['tytul' => 'Wyłączony test', 'kod' => 'echo 1;', 'rodzaj' => 'php',
                                      'miejsce' => 'init', 'grupa' => '', 'wlaczony' => 0, 'kolejnosc' => 20]);
+            /* Log z DŁUGĄ treścią. Krótki komunikat zmieściłby się w każdym
+               układzie i sprawdzenie „nic nie wyjeżdża poza kartę" świeciłoby
+               na zielono także dla układu, który wyjeżdża. */
+            $GLOBALS['options'][EVK_SNIPPETS_LOG_OPTION] = [[
+                'time'    => '2026-09-03 08:20:11',
+                'type'    => 'PHP Fatal Error',
+                'slug'    => 'evk-snippet-frontend-head',
+                'line'    => 42,
+                'message' => 'Uncaught Error: Call to undefined method Evoke\\Modules\\Snippets\\Runner::wykonajNatychmiast() in /var/www/html/wp-content/plugins/evoke-one/includes/snippets/engine.php',
+                /* Linia MUSI być dłuższa niż karta przy 1280 px — inaczej mieści
+                   się bez przewijania i sprawdzenie „kod przewija się w swoim
+                   pudełku" nie miałoby czego mierzyć. */
+                'context' => '  40 | function evk_bardzo_dluga_nazwa_funkcji_ktora_nie_miesci_sie_w_kolumnie($argument_pierwszy, $argument_drugi, $argument_trzeci, $argument_czwarty, $argument_piaty, $argument_szosty) {'
+                           . "\n  41 |     return apply_filters('evk_jakis_bardzo_dlugi_filtr_o_nazwie_ktora_tez_nie_pomaga', $argument_pierwszy, $argument_drugi, $argument_trzeci, $argument_czwarty, $argument_piaty);"
+                           . "\n  42 | }",
+            ]];
         },
     ],
     'tools-io' => [
