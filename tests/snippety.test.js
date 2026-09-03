@@ -376,13 +376,17 @@ module.exports = async function (t) {
         + 'window.__tresc = ' + JSON.stringify(lista) + ';',
   });
 
-  /* Klasa `wp-list-table` ściąga na tabelę responsywne reguły rdzenia — to
-     one zrobiły ten bałagan. Nasz układ i tak by je dziś przykrył, więc
-     pomiar w przeglądarce nie zauważyłby jej powrotu; arkuszy wp-admin nie
-     ma zresztą w repozytorium. Sprawdzamy więc sam znacznik: tabela ma stać
-     na naszych regułach, a nie wygrywać z cudzymi na punkty. */
-  t.check('tabela nie nosi klasy wp-list-table', !/<table[^>]*wp-list-table/.test(lista),
-    (lista.match(/<table[^>]*>/) || ['brak tabeli'])[0]);
+  /* Klasy rdzenia ściągają na tabelę cudze reguły — i to one zrobiły oba
+     zgłoszone bałagany: `wp-list-table` rozłożyła komórki bez podpisów,
+     `widefat` narysowała ramkę wokół kart, której własna reguła nie zdjęła,
+     bo przegrywała specyficznością. Arkuszy wp-admin w repozytorium nie ma,
+     więc pomiar w przeglądarce nie zauważyłby ich powrotu; sprawdzamy sam
+     znacznik. Tabela ma stać na naszych regułach, a nie wygrywać z cudzymi
+     na punkty. */
+  const klasyRdzenia = ['wp-list-table', 'widefat', 'striped']
+    .filter((k) => new RegExp('<table[^>]*\\b' + k + '\\b').test(lista));
+  t.check('tabela nie nosi klas rdzenia', !klasyRdzenia.length,
+    klasyRdzenia.join(', ') || (lista.match(/<table[^>]*>/) || ['brak tabeli'])[0]);
 
   const mob = await waska.evaluate(() => window.__mobil());
   t.check('nagłówek tabeli schowany', mob && !mob.naglowekWidoczny,
@@ -411,8 +415,18 @@ module.exports = async function (t) {
   t.check('ale pole dotyku ma pełne 44 px', mob && mob.poleDotyku >= 44,
     mob ? mob.poleDotyku + ' px' : '—');
 
-  /* ZGŁOSZONE Z UŻYCIA: „jest jakaś ramka ekstra". Obramowanie tabeli
-     obrysowywało wszystkie karty naraz — ramka wokół ramek. */
+  /* ZGŁOSZONE Z UŻYCIA dwa razy: „jest jakaś ramka ekstra", a potem „usuń tę
+     ramkę prostokątną". Obramowanie tabeli obrysowywało wszystkie karty naraz.
+     Za pierwszym razem zdjąłem je regułą o jednej klasie i nie zadziałało —
+     rdzeń rysował ramkę selektorem o wyższej specyficzności, a tego testy nie
+     widzą, bo arkuszy wp-admin nie ma w repozytorium. Dlatego tabela nie nosi
+     już klas rdzenia (sprawdzenie wyżej): ramka jest nasza, więc jej brak na
+     wąskim ekranie da się zmierzyć.
+
+     Mierzymy TU, a nie na szerokim ekranie: przy `border-collapse` przeglądarka
+     podaje dla tabeli ramkę scaloną z komórek, więc na desktopie wychodzi 1 px
+     niezależnie od tego, czy tabela ma własne obramowanie. Na wąskim ekranie
+     tabela jest blokiem i scalanie nie działa — liczba mówi prawdę. */
   t.check('tabela nie dokłada ramki wokół kart', mob && mob.ramkaTabeli === 0,
     mob ? mob.ramkaTabeli + ' px' : '—');
   t.check('nic nie wystaje poza kartę', mob && mob.poza === 0,

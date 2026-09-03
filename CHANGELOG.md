@@ -2,6 +2,25 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.139.4] — 2026-09-03
+
+### Naprawione
+
+- **Prostokątna ramka wokół kart na telefonie — tym razem naprawdę.**
+  W 1.139.3 zdjąłem ją regułą `.evo-snippety-tbl { border: 0 }` i nie
+  zadziałało: rdzeń rysuje obramowanie `widefat` selektorem o wyższej
+  specyficzności, więc nasza reguła o jednej klasie przegrywała. Testy tego
+  nie widziały, bo arkuszy wp-admin nie ma w repozytorium.
+
+  Zamiast dokładać wagi w wyścigu na punkty — koniec wyścigu. **Tabela nie
+  nosi już ani jednej klasy rdzenia** (`wp-list-table`, `widefat`, `striped`),
+  a cały jej wygląd — ramka, nagłówek na miękkim tle, kreski między wierszami,
+  pasy zebry — siedzi w `admin.css` i daje się zmierzyć. Wygląd bez zmian,
+  poza ramką, która na wąskim ekranie ma po prostu nie występować.
+
+  To trzecia usterka z rzędu na tym ekranie o tym samym rodowodzie: styl
+  wzięty z cudzego arkusza, nad którym nie mamy kontroli.
+
 ## [1.139.3] — 2026-09-03
 
 ### Naprawione

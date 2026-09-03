@@ -2576,12 +2576,46 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
    oknie 1280. Na nazwę schodziło trzydzieści pikseli. Teraz odwrotnie:
    kolumny biorą tyle, ile potrzebują na swoją treść, a `width: 100%` na jednej
    z nich każe układowi automatycznemu oddać jej całą resztę. */
-/* Obramowanie WŁASNE, choć `widefat` daje takie samo.
-   Nie chodzi o wygląd — chodzi o to, żeby dało się je zmierzyć. Ramka rdzenia
-   jest niewidoczna dla testów (arkuszy wp-admin nie ma w repozytorium), więc
-   zdjęcie jej na wąskim ekranie przechodziłoby na zielono niezależnie od tego,
-   czy naprawdę znika. Nasza ramka jest sprawdzalna w obie strony. */
-.evo-snippety-tbl { table-layout: auto; border: 1px solid var(--evo-border); }
+/* WYGLĄD W CAŁOŚCI WŁASNY — bez `widefat` i bez `striped`.
+ *
+ * ZGŁOSZONE Z UŻYCIA, dwa razy pod rząd: „jest jakaś ramka ekstra", a potem
+ * „usuń tę ramkę prostokątną w wersji mobilnej". Za pierwszym razem zdjąłem ją
+ * regułą `.evo-snippety-tbl { border: 0 }` w bloku telefonu — i nie zadziałało,
+ * bo rdzeń rysuje ramkę selektorem o wyższej specyficzności. Naszej reguły
+ * o jednej klasie nie było w stanie wygrać, a testy tego nie widziały, bo
+ * arkuszy wp-admin nie ma w repozytorium.
+ *
+ * Zamiast dokładać wagi w wyścigu na punkty — koniec wyścigu. Tabela nie nosi
+ * już ani jednej klasy rdzenia, więc żadna cudza reguła jej nie dotyczy,
+ * a wszystko, co widać, jest tutaj i daje się zmierzyć. Wygląd zostaje taki
+ * sam: ramka, nagłówek na miękkim tle, kreski między wierszami, pasy zebry. */
+.evo-snippety-tbl {
+    width: 100%;
+    table-layout: auto;
+    border-collapse: collapse;
+    border: 1px solid var(--evo-border);
+    border-radius: 8px;
+    /* Promień na tabeli obcina rogi tylko wtedy, gdy jest co obcinać —
+       `border-collapse` gubi tło komórek narożnych bez tego. */
+    overflow: hidden;
+    background: var(--evo-bg);
+}
+.evo-snippety-tbl th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 650;
+    color: var(--evo-text-soft);
+    background: var(--evo-surface);
+    border-bottom: 1px solid var(--evo-border);
+}
+.evo-snippety-tbl td {
+    padding: 10px 12px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--evo-border-soft);
+}
+.evo-snippety-tbl tbody tr:last-child td { border-bottom: 0; }
+.evo-snippety-tbl tbody tr:nth-child(even) td { background: var(--evo-surface); }
 .evo-snippety-tbl th,
 .evo-snippety-tbl td { white-space: nowrap; }
 .evo-snippety-tbl .evo-col-nazwa { width: 100%; white-space: normal; }
@@ -2623,7 +2657,7 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
         background: var(--evo-bg);
     }
     /* Pasy zebry gubią sens, gdy wiersz jest kartą z własną ramką. */
-    .evo-snippety-tbl.striped tbody tr:nth-child(odd) { background: var(--evo-bg); }
+    .evo-snippety-tbl tbody tr:nth-child(even) td { background: none; }
 
     .evo-snippety-tbl td {
         padding: 3px 0;

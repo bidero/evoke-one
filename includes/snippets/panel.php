@@ -140,14 +140,17 @@ function evk_snippety_lista(): void {
              kolumny, a `.evo-tbl-wrap` daje przewijanie w obrębie pudełka
              zamiast rozpychania strony. */ ?>
     <div class="evo-tbl-wrap">
-    <?php /* BEZ KLASY `wp-list-table`. To ona wciąga responsywne reguły
-             `wp-admin/css/list-tables.css`, które poniżej 782 px rozkładają
-             komórki na bloki i wypisują nazwy kolumn z atrybutu `data-colname`
-             — a tego atrybutu nasza tabela nie miała, więc na telefonie
-             zostawał gołe pionowy ciąg wartości bez etykiet. `widefat`
-             i `striped` (z `common.css`) zostają: dają ramkę i pasy, a nie
-             mają z tamtym układem nic wspólnego. Własny układ kart niżej. */ ?>
-    <table class="widefat striped evo-snippety-tbl">
+    <?php /* BEZ ANI JEDNEJ KLASY RDZENIA — ani `wp-list-table`, ani `widefat`,
+             ani `striped`.
+             `wp-list-table` wciągała responsywne reguły `list-tables.css`, które
+             poniżej 782 px rozkładają komórki na bloki i podpisują je atrybutem
+             `data-colname` (naszych komórek to nie dotyczyło, więc zostawał
+             pionowy ciąg wartości bez podpisów). `widefat` rysowała ramkę
+             wokół wszystkich kart naraz, a zdjęcie jej własną regułą nie
+             wystarczyło: rdzeń wygrywał specyficznością. Zamiast dokładać wagi
+             w wyścigu na punkty — koniec wyścigu. Cały wygląd tabeli siedzi
+             w `admin.css` przy `.evo-snippety-tbl` i daje się zmierzyć. */ ?>
+    <table class="evo-snippety-tbl">
         <thead><tr>
             <th>Stan</th>
             <th class="evo-col-nazwa"><a href="<?php echo esc_url(evk_snippety_url(['evk_sort' => 'tytul'])); ?>">Nazwa</a></th>
