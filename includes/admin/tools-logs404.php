@@ -53,6 +53,12 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
              wyłączał logi 404 (handler zerował brakujący klucz w POST). */ ?>
     <input type="hidden" name="evk_404_enabled" value="<?php echo $enabled ? '1' : '0'; ?>">
 
+    <?php /* Ustawienia w pudełku, jak na każdym innym ekranie. Do 1.139.7
+             wisiały luzem w karcie — stąd zgłoszenie „brakuje delikatnej,
+             zaokrąglonej ramki": nie brakowało jej w stylach, tylko nie było
+             czego nią otoczyć. */ ?>
+    <div class="evo-box">
+        <h3>Ustawienia rejestrowania</h3>
     <div class="evo-toolbar evo-mb" style="--evo-gap:24px">
         <div class="evo-field evo-inline evo-m0" style="--evo-gap:8px">
             <label class="evo-nowrap evo-m0">Maks. logów:</label>
@@ -71,10 +77,15 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
     </div>
     <?php endif; ?>
 
-    <div class="evo-save-bar evo-toolbar evo-mt" style="--evo-gap:12px">
-        <?php submit_button('Zapisz ustawienia', 'secondary', 'evk_404_save', false); ?>
-        <button type="button" class="button" id="evk-clear-404" data-nonce="<?php echo esc_attr($nonce_ajax); ?>">🗑 Wyczyść wszystkie logi</button>
+    <?php /* `primary`, nie `secondary`: to jest główna akcja tego ekranu,
+             a wyglądała na drugorzędną — jedyny taki zapis w panelu.
+             Kosz z ikony `dashicons-trash`, tej samej co w Animatorze,
+             Kursorze i Fragmentach kodu, zamiast emoji. */ ?>
+    <div class="evo-save-bar evo-toolbar" style="--evo-gap:12px">
+        <?php submit_button('Zapisz ustawienia', 'primary', 'evk_404_save', false); ?>
+        <button type="button" class="button" id="evk-clear-404" data-nonce="<?php echo esc_attr($nonce_ajax); ?>"><span class="dashicons dashicons-trash evo-ico"></span> Wyczyść wszystkie logi</button>
         <span id="evk-clear-404-msg" class="evo-save-msg">Wyczyszczono.</span>
+    </div>
     </div>
 </form>
 
@@ -143,7 +154,7 @@ if (!empty($logs)):
                 // tytuł) i przy zmianie znaczników się rozjeżdżało.
                 $('table.wp-list-table').closest('.evo-box').hide();
             }
-        }).always(function(){ btn.prop('disabled', false).text('🗑 Wyczyść wszystkie logi'); });
+        }).always(function(){ btn.prop('disabled', false).html('<span class="dashicons dashicons-trash evo-ico"></span> Wyczyść wszystkie logi'); });
     });
 })(jQuery);
 </script>

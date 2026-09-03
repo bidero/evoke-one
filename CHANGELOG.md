@@ -2,6 +2,29 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.139.8] — 2026-09-03
+
+### Naprawione
+
+- **Pasek zapisu wychodził poza pudełko, w którym stał.** Miał ujemne
+  marginesy `-28px`, dobrane pod wyściółkę karty — a **piętnaście z dwudziestu
+  jeden** pasków w panelu siedzi wewnątrz `.evo-box`, który ma wyściółkę
+  20 px. Pasek wystawał tam 8 px poza ramkę z każdej strony; zgłoszone jako
+  „zapisywanie wygląda źle w SMTP". Ujemnych marginesów już nie ma: pasek jest
+  stopką tego, w czym stoi, więc jedna reguła działa w karcie i w pudełku, bo
+  nie zakłada niczego o ich wyściółce.
+
+- **Logi 404 wyglądały inaczej niż reszta panelu.** Zapis był jedynym
+  w panelu oznaczonym jako `secondary`, więc główna akcja ekranu wyglądała na
+  poboczną. Pola ustawień wisiały luzem w karcie — stąd „brakuje delikatnej,
+  zaokrąglonej ramki": nie brakowało jej w stylach, tylko nie było czego nią
+  otoczyć. Ustawienia trafiły do `.evo-box` z nagłówkiem, zapis jest fioletowy,
+  a kosz bierze ikonę `dashicons-trash` zamiast emoji.
+
+- **SMTP: w pasku zapisu siedziała akcja, która nic nie zapisuje.** Pole
+  adresu i „Wyślij testowy mail" rozpychały stopkę. Test ma teraz własny
+  wiersz nad paskiem; w pasku został sam zapis.
+
 ## [1.139.7] — 2026-09-03
 
 ### Naprawione

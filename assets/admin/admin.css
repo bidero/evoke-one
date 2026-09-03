@@ -331,8 +331,16 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 24px -28px -24px;
-    padding: 14px 28px;
+    /* BEZ UJEMNYCH MARGINESÓW. Stało tu `margin: 24px -28px -24px`, dobrane
+       pod padding karty (28 px) — a PIĘTNAŚCIE z dwudziestu jeden pasków
+       w panelu siedzi wewnątrz `.evo-box`, który ma padding 20 px. Pasek
+       wychodził tam 8 px poza ramkę pudełka z każdej strony; widać to było
+       na SMTP i zgłoszone zostało jako „zapisywanie wygląda źle". Teraz pasek
+       jest stopką TEGO, W CZYM STOI: kreska kończy się razem z treścią, a nie
+       tam, gdzie wypadnie z odejmowania. Jedna reguła działa w karcie i
+       w pudełku, bo nie zakłada niczego o ich wyściółce. */
+    margin: 20px 0 0;
+    padding: 14px 0;
     background: var(--evo-bg);
     border: 0;
     border-top: 1px solid var(--evo-border);

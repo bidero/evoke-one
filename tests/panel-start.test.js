@@ -283,49 +283,80 @@ module.exports = async function (t) {
      ramkę dookoła i zaokrąglenie wszystkich rogów. Pasek jest przy tym
      przyklejony, więc przy krótkim formularzu stawał w połowie białej karty
      i te rogi wisiały w powietrzu. */
-  const zPaskiem = await t.open('snippety-lista.html', {
-    viewport: { width: 1280, height: 900 },
-    head: 'window.__panel = ' + JSON.stringify(panel({}, 'narzedzia')) + ';'
-        + 'window.__tresc = ' + JSON.stringify(phpOutput('tab.php', 'sec-login')) + ';',
-  });
+  /* Mierzymy na DWÓCH ekranach, bo pasek stoi w panelu w jednych miejscach
+     i wewnątrz `.evo-box` w innych — piętnaście z dwudziestu jeden w pudełku.
+     Sprawdzenie zrobione tylko na jednym z nich przechodziłoby także dla
+     reguły dobranej pod wyściółkę tego jednego pojemnika; dokładnie tak
+     powstała usterka: `-28px` pasowało do karty i wychodziło 8 px poza
+     pudełko. */
+  for (const [ekran, gdzie] of [['sec-login', 'w karcie'], ['tools-smtp', 'w pudełku']]) {
+    const zPaskiem = await t.open('snippety-lista.html', {
+      viewport: { width: 1280, height: 900 },
+      head: 'window.__panel = ' + JSON.stringify(panel({}, 'narzedzia')) + ';'
+          + 'window.__tresc = ' + JSON.stringify(phpOutput('tab.php', ekran)) + ';',
+    });
 
-  const pasek = await zPaskiem.evaluate(() => {
-    const bar = document.querySelector('.evo-save-bar');
-    const box = document.querySelector('.evo-panel');
-    if (!bar || !box) return null;
-    const s = getComputedStyle(bar), sk = getComputedStyle(box);
-    const b = bar.getBoundingClientRect(), k = box.getBoundingClientRect();
-    const msg = bar.querySelector('.evo-save-msg');
-    return {
-      promien: s.borderTopLeftRadius + ' ' + s.borderBottomLeftRadius,
-      ramki: [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth]
-        .map((w) => Math.round(parseFloat(w))),
-      tlo:  s.backgroundColor,
-      blur: s.backdropFilter,
-      // Pasek ma sięgać wewnętrznych krawędzi karty, a nie stać wyspą w środku.
-      doKrawedzi: Math.abs(b.left - (k.left + parseFloat(sk.borderLeftWidth))) <= 1
-               && Math.abs(b.right - (k.right - parseFloat(sk.borderRightWidth))) <= 1,
-      // Potwierdzenie zapisu na drugim końcu paska — po prawej była pustka.
-      /* Komunikat jest ukryty do chwili zapisu (`display: none`), więc nie ma
-         czego mierzyć w pikselach — `auto` jest tu całą treścią reguły. */
-      komunikatZPrawej: msg ? getComputedStyle(msg).marginLeft : null,
-    };
-  });
+    const pasek = await zPaskiem.evaluate(() => {
+      const bar = document.querySelector('.evo-save-bar');
+      if (!bar) return null;
+      const rodzic = bar.parentElement;
+      const s = getComputedStyle(bar), sr = getComputedStyle(rodzic);
+      const b = bar.getBoundingClientRect(), r = rodzic.getBoundingClientRect();
+      const msg = bar.querySelector('.evo-save-msg');
+      // Krawędzie TREŚCI pojemnika — pasek ma się w nich zmieścić co do piksela.
+      const lewaTresci  = r.left  + parseFloat(sr.borderLeftWidth)  + parseFloat(sr.paddingLeft);
+      const prawaTresci = r.right - parseFloat(sr.borderRightWidth) - parseFloat(sr.paddingRight);
+      return {
+        rodzic: rodzic.className || rodzic.tagName,
+        promien: s.borderTopLeftRadius + ' ' + s.borderBottomLeftRadius,
+        ramki: [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth]
+          .map((w) => Math.round(parseFloat(w))),
+        tlo:  s.backgroundColor,
+        blur: s.backdropFilter,
+        odchylenie: Math.round(Math.max(Math.abs(b.left - lewaTresci), Math.abs(b.right - prawaTresci))),
+        /* Komunikat jest ukryty do chwili zapisu (`display: none`), więc nie ma
+           czego mierzyć w pikselach — `auto` jest tu całą treścią reguły. */
+        komunikatZPrawej: msg ? getComputedStyle(msg).marginLeft : null,
+      };
+    });
 
-  t.check('bez zaokrągleń — kanty proste', pasek && pasek.promien === '0px 0px',
-    pasek ? pasek.promien : 'brak paska');
-  t.check('i jedna kreska u góry zamiast ramki dookoła',
-    pasek && pasek.ramki[0] === 1 && pasek.ramki.slice(1).every((w) => w === 0),
-    pasek ? pasek.ramki.join('/') : '—');
-  t.check('tło kryjące, bez rozmycia',
-    pasek && !/rgba\([^)]*,\s*0?\.\d+\)/.test(pasek.tlo) && pasek.blur === 'none',
-    pasek ? pasek.tlo + ', ' + pasek.blur : '—');
-  t.check('sięga wewnętrznych krawędzi karty', pasek && pasek.doKrawedzi,
-    pasek ? String(pasek.doKrawedzi) : '—');
-  t.check('a potwierdzenie zapisu odpychane jest na prawy koniec',
-    pasek && pasek.komunikatZPrawej === 'auto',
-    pasek ? 'margin-left: ' + pasek.komunikatZPrawej : '—');
-  await zPaskiem.close();
+    t.check('pasek ' + gdzie + ': kanty proste', pasek && pasek.promien === '0px 0px',
+      pasek ? pasek.promien : 'brak paska');
+    t.check('pasek ' + gdzie + ': jedna kreska u góry, nie ramka dookoła',
+      pasek && pasek.ramki[0] === 1 && pasek.ramki.slice(1).every((w) => w === 0),
+      pasek ? pasek.ramki.join('/') : '—');
+    t.check('pasek ' + gdzie + ': tło kryjące, bez rozmycia',
+      pasek && !/rgba\([^)]*,\s*0?\.\d+\)/.test(pasek.tlo) && pasek.blur === 'none',
+      pasek ? pasek.tlo + ', ' + pasek.blur : '—');
+    t.check('pasek ' + gdzie + ': mieści się w treści pojemnika co do piksela',
+      pasek && pasek.odchylenie <= 1,
+      pasek ? pasek.odchylenie + ' px od krawędzi „' + pasek.rodzic + '"' : '—');
+    if (ekran === 'sec-login') {
+      t.check('a potwierdzenie zapisu odpychane jest na prawy koniec',
+        pasek && pasek.komunikatZPrawej === 'auto',
+        pasek ? 'margin-left: ' + pasek.komunikatZPrawej : '—');
+    }
+    await zPaskiem.close();
+  }
+
+  /* ZGŁOSZONE Z UŻYCIA: „w 404 jest zupełnie inaczej". Zapis był jedynym
+     w panelu oznaczonym jako `secondary`, więc wyglądał na akcję poboczną,
+     a pola ustawień wisiały bez pudełka — stąd „brakuje delikatnej ramki". */
+  const w404 = phpOutput('tab.php', 'tools-logs404');
+  t.check('Logi 404: zapis jest akcją główną', /button-primary[^>]*>\s*Zapisz ustawienia/.test(w404)
+    || /Zapisz ustawienia[\s\S]{0,80}button-primary/.test(w404)
+    || /class="[^"]*button-primary[^"]*"[^>]*value="Zapisz ustawienia"/.test(w404),
+    (w404.match(/[^>]*Zapisz ustawienia[^<]*/) || ['brak przycisku'])[0].trim().slice(0, 60));
+  t.check('Logi 404: ustawienia stoją w pudełku', w404.includes('evo-box'), 'evo-box');
+  t.check('Logi 404: kosz z ikony, nie z emoji',
+    w404.includes('dashicons-trash') && !w404.includes('🗑'), 'dashicons-trash');
+
+  /* „Zapisywanie wygląda źle w SMTP" — w pasku zapisu siedziało pole adresu
+     i przycisk wysyłki testu, czyli akcja, która niczego nie zapisuje. */
+  const smtp = phpOutput('tab.php', 'tools-smtp');
+  const pasekSmtp = (smtp.match(/<div class="evo-save-bar[\s\S]*?<\/div>/) || [''])[0];
+  t.check('SMTP: w pasku zapisu został sam zapis',
+    !/input|Wyślij/.test(pasekSmtp), pasekSmtp.replace(/\s+/g, ' ').slice(0, 70));
 
   // ── Tabele panelu ──────────────────────────────────────────────────────
   t.section('tabele mają nasz wygląd, nie rdzenia');

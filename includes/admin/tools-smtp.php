@@ -74,13 +74,18 @@ $nonce = wp_create_nonce('evk_tools_nonce');
         </div>
     </div>
 
-    <div class="evo-save-bar evo-toolbar" style="--evo-gap:16px">
+    <?php /* TEST POZA PASKIEM ZAPISU. Stał w nim do 1.139.7 i to on rozpychał
+             stopkę na zrzucie ze zgłoszenia — a wysłanie testowego maila niczego
+             nie zapisuje. Pasek zapisu niesie zapis, reszta ma własny wiersz. */ ?>
+    <div class="evo-toolbar evo-mb" style="--evo-gap:8px">
+        <label class="evo-nowrap evo-m0" for="evk-smtp-test-email">Testowa wiadomość na adres:</label>
+        <input type="email" id="evk-smtp-test-email" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>" class="evo-w" style="--evo-w:240px">
+        <button type="button" class="button" id="evk-smtp-test" data-nonce="<?php echo esc_attr($nonce); ?>">Wyślij testowy mail</button>
+        <span id="evk-smtp-test-result" class="evo-note-tx"></span>
+    </div>
+
+    <div class="evo-save-bar">
         <?php submit_button('Zapisz SMTP', 'primary', 'submit', false); ?>
-        <div class="evo-inline" style="--evo-gap:8px">
-            <input type="email" id="evk-smtp-test-email" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>" class="regular-text evo-w" style="--evo-w:240px">
-            <button type="button" class="button" id="evk-smtp-test" data-nonce="<?php echo esc_attr($nonce); ?>">Wyślij testowy mail</button>
-            <span id="evk-smtp-test-result" class="evo-note-tx"></span>
-        </div>
     </div>
 </div>
 
