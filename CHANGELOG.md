@@ -2,6 +2,38 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.140.2] — 2026-09-03
+
+### Naprawione
+
+- **Druga reguła kursora nie działała, jeśli pierwsza już trafiła w ten sam
+  element.** Zgłoszone z użycia: „mam powiększenie na `a`, ale drugie pole ma
+  `a` oraz `.home-projekt` — ustawienia tego drugiego nie działają".
+
+  Silnik zajmował element PIERWSZĄ pasującą regułą i zostawiał go tak na
+  zawsze (`if (!el.hasAttribute('data-cursor'))`). Reguła `a` oznaczała każdy
+  odnośnik, więc gdy silnik dochodził do `a, .home-projekt`, wszystkie `a`
+  miały już atrybut i wypadały. Gdy `.home-projekt` też był odnośnikiem, druga
+  reguła nie robiła dosłownie nic.
+
+  **Teraz wygrywa OSTATNIA pasująca reguła** — czyta się jak arkusz stylów:
+  ogólne u góry, wyjątki pod spodem. Specyficzność CSS by tu nie pomogła, bo
+  obie reguły trafiają w `a` z tą samą siłą; rozstrzygać musi kolejność.
+  Reguła podmienia cały zestaw ustawień, nie dokłada do poprzedniej.
+
+### Zmienione
+
+- **Reguły kursora można przeciągać.** Skoro kolejność rozstrzyga, musi być
+  sterowalna — do tej pory jedynym sposobem na przestawienie reguł było
+  skasowanie ich i dodanie od nowa. Ten sam uchwyt i ta sama biblioteka co
+  przy wierszach Animatora; nowy układ zapisuje się zwykłym „Zapisz", bez
+  osobnego punktu AJAX.
+
+- **Atrybut `data-cursor` wpisany ręcznie w builderze nadal wygrywa** ze
+  wszystkimi regułami. Wcześniej działo się to przy okazji — przez to samo
+  sprawdzenie, które psuło kolejność. Teraz jest to osobna decyzja i ma
+  osobne pokrycie w testach.
+
 ## [1.140.1] — 2026-09-03
 
 ### Naprawione

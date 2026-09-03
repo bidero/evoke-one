@@ -1,0 +1,38 @@
+<!--
+  Kursor: która reguła zajmuje element.
+
+  Skrypt nie jest tu przepisany — wstrzykuje go `window.__silnik`, czyli
+  dosłowne wyjście `EVK_Cursor::enqueue_assets()` (tests/php/kursor.php).
+  Kopia rozjechałaby się przy pierwszej zmianie i sprawdzenie „wygrywa ostatnia
+  reguła" pilnowałoby wtedy testu, nie wtyczki.
+
+  W drzewie stoją trzy przypadki: odnośnik trafiony przez OBIE reguły, element
+  trafiony tylko przez drugą i odnośnik z `data-cursor` wpisanym z ręki.
+-->
+<meta charset="utf-8">
+<style>body { margin: 0; font: 14px sans-serif; } a, span { display: block; padding: 20px; }</style>
+
+<a href="#" id="link">zwykły odnośnik</a>
+<a href="#" id="projekt" class="home-projekt">odnośnik w projekcie</a>
+<span id="tylko-klasa" class="home-projekt">sam element z klasą</span>
+<a href="#" id="wlasny" data-cursor='{"size":999,"text":"moje"}'>z własnym atrybutem</a>
+
+<script src="../../assets/vendor/gsap/gsap.min.js"></script>
+<script>
+  // Silnik kursora startuje na DOMContentLoaded, więc musi być na stronie
+  // przed tym zdarzeniem — stąd `document.write`, a nie wstawianie później.
+  document.write('<scr' + 'ipt>' + (window.__silnik || '') + '</scr' + 'ipt>');
+</script>
+<script>
+  /** Ustawienia, które ostatecznie zajęły dany element. */
+  window.__cel = function (id) {
+    var el = document.getElementById(id);
+    var a = el.getAttribute('data-cursor');
+    return {
+      ma: a !== null,
+      rozmiar: a ? (JSON.parse(a).size) : null,
+      tekst:   a ? (JSON.parse(a).text || '') : null,
+      znacznik: el.dataset.evkCursorBound || null,
+    };
+  };
+</script>

@@ -400,6 +400,39 @@
             }
         }
 
+        /* PRZECIĄGANIE WIERSZY KURSORA.
+         *
+         * Kolejność reguł kursora jest ZNACZĄCA od 1.140.2 — przy dwóch
+         * regułach trafiających w ten sam element wygrywa ta niżej. Bez
+         * uchwytu jedynym sposobem na zmianę kolejności byłoby skasowanie
+         * reguł i dodanie ich od nowa.
+         *
+         * Bez zapisu przez AJAX, inaczej niż przy animacjach: pola kursora
+         * niosą indeks w nazwie (`evk_cursor[elements][2][selector]`), a PHP
+         * buduje tablicę w kolejności, w jakiej klucze przychodzą w żądaniu,
+         * i zapisuje ją przez `$clean['elements'][] =`. Nowy układ zapisuje
+         * się więc zwykłym „Zapisz", bez dodatkowego punktu końcowego. */
+        var $kursory = $('#evo-cursor-repeater-container');
+        if ($kursory.length) {
+            if (typeof Sortable === 'undefined') {
+                // GŁOŚNO — cichy warunek na brak biblioteki sprawił w 1.37.0,
+                // że przeciąganie animacji nie działało i nikt tego nie zauważył.
+                console.error('[Evoke ONE] Brak biblioteki Sortable — przeciąganie reguł '
+                    + 'kursora nie zadziała.');
+            } else {
+                Sortable.create($kursory[0], {
+                    handle     : '.evo-cursor-row-header',
+                    draggable  : '.evo-cursor-row',
+                    animation  : 150,
+                    ghostClass : 'evk-drag-ghost',
+                    chosenClass: 'evk-drag-chosen',
+                    // Bez tego uchwyt łapie też przycisk „Usuń" w nagłówku.
+                    filter         : 'button, input, select, textarea, a',
+                    preventOnFilter: false,
+                });
+            }
+        }
+
         /* Zwijanie wierszy.
          *
          * Nagłówek pełni dwie role naraz: jest uchwytem przeciągania i

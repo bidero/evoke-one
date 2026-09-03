@@ -132,7 +132,15 @@ if (!defined('ABSPATH')) exit;
                         <?php foreach ($elements as $index => $el): ?>
                         <div class="evo-cursor-row">
                             <div class="evo-cursor-row-header">
-                                <div class="evo-cursor-row-title">Selektor #<?php echo $index + 1; ?></div>
+                                <div class="evo-cursor-row-title">
+                                    <?php /* KOLEJNOŚĆ WIERSZY JEST ZNACZĄCA od 1.140.2:
+                                             przy dwóch regułach trafiających w ten sam
+                                             element wygrywa TA NIŻEJ. Bez uchwytu nie dałoby
+                                             się jej ustawić inaczej niż kasując i dodając
+                                             reguły od nowa. */ ?>
+                                    <span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
+                                    Selektor #<?php echo $index + 1; ?>
+                                </div>
                                 <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-cursor-row').remove()">
                                     <span class="dashicons dashicons-trash evo-ico"></span> Usuń
                                 </button>
@@ -180,7 +188,10 @@ if (!defined('ABSPATH')) exit;
             <script type="text/template" id="evo-cursor-row-template">
                 <div class="evo-cursor-row">
                     <div class="evo-cursor-row-header">
-                        <div class="evo-cursor-row-title">Nowy Selektor</div>
+                        <div class="evo-cursor-row-title">
+                            <span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
+                            Nowy Selektor
+                        </div>
                         <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-cursor-row').remove()">
                             <span class="dashicons dashicons-trash evo-ico"></span> Usuń
                         </button>

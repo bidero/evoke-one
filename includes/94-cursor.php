@@ -279,14 +279,46 @@ class EVK_Cursor {
 
         var customCursorElements = <?php echo $json_elements; ?>;
 
+        /* WYGRYWA OSTATNIA PASUJĄCA REGUŁA.
+         *
+         * ZGŁOSZONE Z UŻYCIA: „mam powiększenie na `a`, ale drugie pole ma
+         * `a` oraz `.home-projekt` — ustawienia tego drugiego nie działają".
+         *
+         * Do 1.140.2 stało tu `if (!el.hasAttribute('data-cursor'))`, czyli
+         * pierwsza reguła, która trafiła w element, zajmowała go NA ZAWSZE.
+         * Reguła `a` oznaczała każdy odnośnik, więc gdy silnik dochodził do
+         * `a, .home-projekt`, wszystkie `a` miały już atrybut i wypadały.
+         * Jeśli `.home-projekt` też był odnośnikiem, druga reguła nie robiła
+         * dosłownie nic.
+         *
+         * Specyficzność CSS by tu nie pomogła: obie reguły trafiają w `a` z tą
+         * samą siłą. Rozstrzyga więc KOLEJNOŚĆ — czyta się jak arkusz stylów,
+         * ogólne u góry, wyjątki pod spodem — a kolejność da się teraz ustawić
+         * przeciąganiem wierszy w panelu.
+         *
+         * Reguła podmienia CAŁY zestaw ustawień, nie dokłada do poprzedniego.
+         */
         function bindElements() {
             customCursorElements.forEach(function (item) {
                 document.querySelectorAll(item.selector).forEach(function (el) {
-                    if (!el.hasAttribute('data-cursor')) {
-                        el.setAttribute('data-cursor', JSON.stringify(item.cursor));
+                    /* Atrybut wpisany z ręki w builderze zostaje nietknięty.
+                       Stara wersja respektowała go przy okazji — przez to samo
+                       sprawdzenie, które psuło kolejność reguł. Tutaj jest to
+                       decyzja, a nie skutek uboczny: znacznik odróżnia „nasze"
+                       od „cudzego". */
+                    if (!el.dataset.evkCursorBound) {
+                        if (el.hasAttribute('data-cursor')) {
+                            el.dataset.evkCursorBound = 'wlasny';
+                            el.addEventListener('mouseenter', onEnter);
+                            el.addEventListener('mouseleave', onLeave);
+                            return;
+                        }
+                        el.dataset.evkCursorBound = '1';
                         el.addEventListener('mouseenter', onEnter);
                         el.addEventListener('mouseleave', onLeave);
                     }
+                    if (el.dataset.evkCursorBound === 'wlasny') return;
+                    el.setAttribute('data-cursor', JSON.stringify(item.cursor));
                 });
             });
         }
