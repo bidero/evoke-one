@@ -32,10 +32,26 @@ function register_post_type($typ, $args = []) { $GLOBALS['typy'][$typ] = $args; 
 function current_time($t = 'mysql') { return '2027-03-01 10:00:00'; }
 $GLOBALS['transients'] = [];
 
+/* Stuby dla handlera POST — snippety zmieniają stan formularzem, nie AJAX-em.
+   `wp_safe_redirect` RZUCA zamiast przekierowywać: handler kończy się `exit`,
+   więc bez tego przebieg umierałby przed odczytaniem wyniku. */
+class EVK_Redirect extends Exception { public $url; }
+function wp_safe_redirect($url, $status = 302) { $e = new EVK_Redirect(); $e->url = $url; throw $e; }
+function wp_verify_nonce($nonce, $akcja) { return empty($GLOBALS['zly_nonce']) ? 1 : false; }
+function wp_nonce_field(...$a) {}
+function admin_url($sciezka = '') { return 'https://przyklad.test/wp-admin/' . $sciezka; }
+function get_post_type($id) { $p = get_post($id); return $p ? ($p->post_type ?? false) : false; }
+function wp_delete_post($id, $force = false) { unset($GLOBALS['posts_store'][$id]); return true; }
+function esc_textarea($s) { return $s; }
+function selected($a, $b, $echo = true) {}
+function submit_button(...$a) {}
+
 require_once EVK_TEST_ROOT . '/includes/snippets/definitions.php';
 require_once EVK_TEST_ROOT . '/includes/snippets/wpisy.php';
 require_once EVK_TEST_ROOT . '/includes/snippets/validation.php';
 require_once EVK_TEST_ROOT . '/includes/snippets/engine.php';
+require_once EVK_TEST_ROOT . '/includes/snippets/panel.php';   // evk_snippety_url()
+require_once EVK_TEST_ROOT . '/includes/snippets/ajax.php';    // handler POST
 
 $GLOBALS['options'][EVK_SNIPPETS_ENABLED_OPTION] = 1;
 
@@ -123,7 +139,7 @@ if ($scenariusz === 'opakowanie') {
     }, evk_snippety_wszystkie());
     $out['kopia']  = get_option(EVK_SNIPPETY_KOPIA);
     /* Powtórzona migracja nie ma prawa niczego ruszyć — a „niczego" znaczy
-       przede wszystkim: nie ma prawa cofnąć zmian, które wprowadziliście PO
+       przede wszystkim: nie ma prawa cofnąć zmian, które wprowadziłeś PO
        niej. Liczenie wpisów tego nie łapie (migracja i tak żadnego nie
        zakłada); łapie to dopiero przestawiony rodzaj. */
     $wpisy = evk_snippety_wszystkie();
@@ -162,6 +178,75 @@ if ($scenariusz === 'opakowanie') {
     zaloz(['rodzaj' => 'szablon', 'kod' => 'przed <?php echo 2 + 2; ?> po']);
     przebieg();
     $out['head'] = trim(odpal_hak('wp_head'));
+
+} elseif ($scenariusz === 'akcje') {
+    /* AKCJE Z LISTY POD ADRESEM BEZ `sub` — sedno poprawki 1.139.1.
+     *
+     * Pasek boczny prowadzi do Narzędzi adresem `?page=evoke-one&tab=narzedzia`,
+     * a `tab-narzedzia.php` sam domyśla sobie `sub=snippets`. Ekran się rysuje,
+     * formularze wracają na ten sam adres — i do 1.139.0 brama je odrzucała,
+     * bo wymagała `sub=snippets` w `$_GET`. Włącznik, usuwanie i zapis nie
+     * robiły NIC, zależnie od tego, którędy się na ekran weszło.
+     */
+    $GLOBALS['is_admin'] = true;
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_GET = ['page' => 'evoke-one', 'tab' => 'narzedzia'];   // BEZ `sub` — o to chodzi
+
+    /** Odpala `admin_init` z zadanym POST-em; zwraca adres przekierowania albo ''. */
+    $wyslij = function (array $post): string {
+        $_POST = $post;
+        try {
+            foreach ($GLOBALS['hooks']['admin_init'] ?? [] as $cb) $cb();
+        } catch (EVK_Redirect $e) {
+            return (string) $e->url;
+        }
+        return '';
+    };
+    $stan = function (int $id) {
+        foreach (evk_snippety_wszystkie() as $w) if ($w['id'] === $id) return $w;
+        return null;
+    };
+    $nonce = ['evk_snippets_nonce_field' => 'x'];
+
+    $id = zaloz(['tytul' => 'Sticky header', 'rodzaj' => 'css', 'kod' => 'a{}', 'wlaczony' => 1]);
+
+    $out['przed']       = $stan($id)['wlaczony'];
+    $out['przekierowanie'] = $wyslij($nonce + ['evk_przelacz_wpis' => (string) $id]) !== '';
+    $out['po_wylaczeniu']  = $stan($id)['wlaczony'];
+    $wyslij($nonce + ['evk_przelacz_wpis' => (string) $id]);
+    $out['po_wlaczeniu']   = $stan($id)['wlaczony'];
+
+    // Zapis nowego wpisu — ta sama brama, ta sama droga.
+    $wyslij($nonce + ['evk_zapisz_wpis' => 'Zapisz', 'evk_wpis_id' => '0',
+                      'evk_tytul' => 'Z formularza', 'evk_kod' => 'b{}',
+                      'evk_rodzaj' => 'css', 'evk_miejsce' => 'footer',
+                      'evk_grupa' => 'SEO', 'evk_wlaczony' => '1', 'evk_kolejnosc' => '20']);
+    $tytuly = array_column(evk_snippety_wszystkie(), 'tytul');
+    $out['zapisany'] = in_array('Z formularza', $tytuly, true);
+
+    // Bez nonce'a brama musi milczeć — po zdjęciu warunków na adres to jedyne wejście.
+    $przed_bez = $stan($id)['wlaczony'];
+    $wyslij(['evk_przelacz_wpis' => (string) $id]);
+    $out['bez_nonce_bez_zmian'] = $stan($id)['wlaczony'] === $przed_bez;
+
+    // Podrobiony nonce → `wp_die`, nie cicha zmiana.
+    $GLOBALS['zly_nonce'] = true;
+    $zablokowany = false;
+    try { $wyslij($nonce + ['evk_przelacz_wpis' => (string) $id]); }
+    catch (Throwable $e) { $zablokowany = true; }
+    $GLOBALS['zly_nonce'] = false;
+    $out['zly_nonce_zablokowany'] = $zablokowany;
+    $out['zly_nonce_bez_zmian']   = $stan($id)['wlaczony'] === $przed_bez;
+
+    /* Usunięcie patrzy na TYP wpisu, nie na samą liczbę: identyfikator
+       przychodzi z formularza, więc bez tego dałoby się stąd skasować dowolny
+       wpis w witrynie. */
+    $obcy = wp_insert_post(['post_title' => 'Strona firmy', 'post_type' => 'page', 'post_status' => 'publish']);
+    $wyslij($nonce + ['evk_usun_wpis' => (string) $obcy]);
+    $out['obcy_wpis_zyje'] = get_post($obcy) !== null;
+
+    $wyslij($nonce + ['evk_usun_wpis' => (string) $id]);
+    $out['snippet_usuniety'] = $stan($id) === null;
 }
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

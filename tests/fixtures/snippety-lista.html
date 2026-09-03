@@ -1,0 +1,81 @@
+<!--
+  Lista snippetów W PRAWDZIWEJ POWŁOCE PANELU.
+
+  Dwa wstrzyknięcia, oba z PHP wtyczki, żadnego znacznika przepisanego tutaj:
+
+    window.__panel  — `evoke_one_render_settings()` dla zakładki Narzędzia,
+                      czyli pasek boczny, nagłówek i karta treści;
+    window.__tresc  — `evk_snippets_render_tab()` z tests/php/tab.php.
+
+  Treść ląduje w `.evo-panel`, bo o to właśnie chodzi w tym sprawdzeniu:
+  tabela dostaje dokładnie tyle miejsca, ile zostaje po pasku bocznym
+  (236 px) i marginesach karty. Zmierzona w gołym `<body>` mieściłaby się
+  zawsze — i sprawdzenie nie zauważyłoby usterki, dla której powstało.
+-->
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  /* Namiastka otoczki wp-admin — panel siedzi w niej na żywo. */
+  body { margin: 0; background: #f0f0f1; font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #wpbody-content { padding: 0; }
+</style>
+
+<div id="wpbody-content"></div>
+
+<script>
+  document.getElementById('wpbody-content').innerHTML = window.__panel || '';
+  var panel = document.querySelector('.evo-panel');
+  if (panel) panel.innerHTML = window.__tresc || '';
+</script>
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<script src="../../assets/admin/admin.js"></script>
+<script>
+  /** Czy tabela mieści się w karcie i ile miejsca zostaje kolumnie „Nazwa". */
+  window.__tabela = function () {
+    var tbl = document.querySelector('.evo-snippety-tbl');
+    var box = document.querySelector('.evo-panel');
+    if (!tbl || !box) return null;
+
+    var t = tbl.getBoundingClientRect();
+    var s = getComputedStyle(box);
+    var b = box.getBoundingClientRect();
+    /* Prawa krawędź TREŚCI karty, nie jej ramki — padding to nie miejsce
+       dla tabeli. */
+    var prawaTresci = b.right - parseFloat(s.paddingRight);
+
+    var naglowki = Array.prototype.slice.call(tbl.querySelectorAll('thead th'))
+      .map(function (th) {
+        return { tekst: th.textContent.trim(), szer: Math.round(th.getBoundingClientRect().width) };
+      });
+
+    return {
+      prawaTabeli:  Math.round(t.right),
+      prawaTresci:  Math.round(prawaTresci),
+      szerTabeli:   Math.round(t.width),
+      naglowki:     naglowki,
+      // Poziome przewijanie strony to objaw rozpychania, nie mieszczenia się.
+      stronaPrzewija: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  };
+
+  /** Wymiary i barwa przełącznika w pierwszym i drugim wierszu. */
+  window.__przelaczniki = function () {
+    return Array.prototype.slice.call(document.querySelectorAll('.evo-switch'))
+      .map(function (el) {
+        var r = el.getBoundingClientRect();
+        var g = el.querySelector('.evo-switch-knob');
+        var st = getComputedStyle(g);
+        return {
+          znacznik: el.tagName,
+          wlaczony: el.classList.contains('is-on'),
+          aria:     el.getAttribute('aria-checked'),
+          szer:     Math.round(r.width),
+          wys:      Math.round(r.height),
+          tlo:      getComputedStyle(el).backgroundColor,
+          // Przesunięcie gałki: macierz `matrix(1,0,0,1,X,0)` albo `none`.
+          przesuniecie: st.transform === 'none' ? 0
+            : Math.round(parseFloat((st.transform.match(/[-\d.]+/g) || [0,0,0,0,0])[4])),
+        };
+      });
+  };
+</script>

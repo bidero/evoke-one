@@ -5,14 +5,10 @@ if (!defined('ABSPATH')) exit;
  */
 ?>
 <?php
-            $sub      = sanitize_key($_GET['sub'] ?? 'meta');
-            $sub_base = add_query_arg(['tab' => 'strona'], $base);
-            /* Lista mieszka w evoke_one_ekrany() (includes/admin/helpers.php), bo
-               czytają ją także pasek boczny i wyszukiwarka — patrz komentarz tam. */
-            $subs = evoke_one_ekrany()['strona'];
+            $sub = sanitize_key($_GET['sub'] ?? 'meta');
+            /* Paska podzakładek tu nie ma od 1.139.1 — te same ekrany pokazuje
+               pasek boczny, obie listy z `evoke_one_ekrany()`. */
             ?>
-
-            <?php evoke_one_render_subtabs($subs, $sub, $sub_base); ?>
 
             <?php if ($sub === 'meta'): ?>
                 <?php require __DIR__ . '/seo/tab-meta.php'; ?>

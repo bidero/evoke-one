@@ -263,7 +263,7 @@
 .evo-toggle input { opacity: 0; width: 0; height: 0; }
 .evo-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #cbd5e1; transition: .25s; border-radius: 26px; }
 .evo-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
-.evo-toggle input:checked + .evo-slider { background: #16a34a; }
+.evo-toggle input:checked + .evo-slider { background: var(--evo-on); }
 .evo-toggle input:checked + .evo-slider:before { transform: translateX(22px); }
 .evo-toggle-label { font-size: 13px; font-weight: 500; color: var(--evo-text-soft); }
 
@@ -560,83 +560,60 @@
     }
 }
 
-/* ── Subtaby (podzakładki wewnątrz sekcji) ───────────────────────────── */
-.evk-subtabs {
-    display: flex;
+/* ── Pasek WIDOKÓW jednego ekranu ────────────────────────────────────────
+ *
+ * Zastępuje `.evk-subtabs` z czasów przed 1.138.0. Tamten pasek wypisywał
+ * u góry treści ekrany bieżącej sekcji — czyli od 1.138.0 dokładnie to samo,
+ * co pasek boczny, tylko innymi literami. Zniknął razem z pięcioma wywołaniami
+ * `evoke_one_render_subtabs()`.
+ *
+ * To, co zostaje, jest INNYM poziomem: widoki jednego ekranu (Wpisy / Logi /
+ * Tryb Advanced w snippetach), których pasek boczny nie zna. Dlatego wygląda
+ * lżej — pigułki na miękkim tle zamiast podkreślanych zakładek. Dwa paski
+ * wyglądające identycznie mówiły, że są tym samym poziomem nawigacji.
+ */
+.evo-viewtabs {
+    display: inline-flex;
     flex-wrap: wrap;
-    gap: 0;
-    margin-bottom: 24px;
-    border-bottom: 2px solid var(--evo-border-soft);
+    gap: 2px;
+    margin-bottom: 20px;
+    padding: 3px;
+    background: var(--evo-surface);
+    border: 1px solid var(--evo-border);
+    border-radius: 8px;
 }
-.evk-subtab {
-    display: flex;
+.evo-viewtab {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
-    font-size: 13px;
+    padding: 5px 12px;
+    font-size: 12px;
     font-weight: 500;
+    line-height: 1.6;
     color: var(--evo-text-soft);
     text-decoration: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
     white-space: nowrap;
-    transition: color .15s, border-color .15s;
+    border-radius: 6px;
+    transition: background .15s, color .15s;
 }
-.evk-subtab:hover {
+.evo-viewtab:hover {
     color: var(--evo-accent);
-    border-bottom-color: var(--evo-accent-line);
+    background: rgba(255,255,255,.7);
 }
-.evk-subtab.is-active {
-    font-weight: 700;
+.evo-viewtab.is-active {
+    font-weight: 650;
     color: var(--evo-accent);
-    border-bottom-color: var(--evo-accent);
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15,23,42,.08);
 }
-.evk-subtab .dashicons {
-    font-size: 15px;
-    width: 15px;
-    height: 15px;
-    line-height: 1;
-    flex-shrink: 0;
-}
-
-@media screen and (max-width: 782px) {
-    .evk-subtabs {
-        gap: 2px;
-        border-bottom: none;
-        background: #f1f5f9;
-        border-radius: 8px;
-        padding: 4px;
-        margin-bottom: 16px;
-    }
-    .evk-subtab {
-        flex: 1 1 auto;
-        justify-content: center;
-        padding: 7px 10px;
-        font-size: 12px;
-        border-bottom: none;
-        border-radius: 6px;
-        margin-bottom: 0;
-        text-align: center;
-    }
-    .evk-subtab:hover {
-        background: #fff;
-        border-bottom-color: transparent;
-    }
-    .evk-subtab.is-active {
-        background: #fff;
-        border-bottom-color: transparent;
-        box-shadow: 0 1px 3px rgba(0,0,0,.1);
-    }
+.evo-viewtab:focus-visible {
+    outline: none;
+    box-shadow: var(--evo-focus);
 }
 
 @media screen and (max-width: 600px) {
-    .evk-subtab .dashicons {
-        display: none;
-    }
-    .evk-subtab {
-        padding: 6px 8px;
-        font-size: 11px;
-    }
+    .evo-viewtabs { display: flex; width: 100%; }
+    .evo-viewtab  { flex: 1 1 auto; justify-content: center; padding: 6px 8px; }
 }
 
 /* ── SEO tab — toolbar i tabela ──────────────────────────────────────── */
@@ -2572,9 +2549,30 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
    Przycisk, nie sam kolor: stan trzeba dać się ZMIENIĆ jednym kliknięciem
    z listy, a napis „wł."/„wył." niesie tę samą informację co barwa — dla tych,
    którzy jej nie rozróżniają. */
-.evo-stan-btn { min-width: 44px; padding: 3px 8px; border: 1px solid var(--evo-border); border-radius: 999px; background: var(--evo-surface); color: var(--evo-text-muted); font-size: 11px; font-weight: 600; cursor: pointer; }
-.evo-stan-btn.is-on { border-color: var(--evo-on-line); background: var(--evo-on-soft); color: var(--evo-on-dark); }
-.evo-stan-btn:hover { border-color: var(--evo-accent-line); color: var(--evo-accent); }
+/* Przełącznik w wierszu tabeli — ten sam pomysł co `.evo-toggle` przy modułach,
+   tylko mniejszy (38 × 22 zamiast 48 × 26) i zbudowany na PRZYCISKU, nie na polu
+   wyboru: w tabeli stan zmienia się wysłaniem formularza, a `admin.js` obsługuje
+   `.evo-toggle input` wyłącznie przez AJAX i bez `data-option` nie robi nic.
+   Do 1.139.0 stała tu plakietka z napisem „wł./wył." — wyglądała jak etykieta,
+   a była jedynym miejscem do kliknięcia. */
+.evo-switch { position: relative; display: inline-block; width: 38px; height: 22px; padding: 0; border: 0; border-radius: 11px; background: #cbd5e1; cursor: pointer; vertical-align: middle; transition: background .2s; }
+.evo-switch.is-on { background: var(--evo-on); }
+.evo-switch-knob { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
+.evo-switch.is-on .evo-switch-knob { transform: translateX(16px); }
+.evo-switch:focus-visible { outline: none; box-shadow: var(--evo-focus); }
+
+/* TABELA WPISÓW: „Nazwa" zabiera to, co zostanie, reszta kurczy się do treści.
+   Do 1.139.0 tabela miała `table-layout: fixed` i sześć kolumn przypiętych na
+   sztywno — razem 750 px przy około 780 px, które karta ma do oddania przy
+   oknie 1280. Na nazwę schodziło trzydzieści pikseli. Teraz odwrotnie:
+   kolumny biorą tyle, ile potrzebują na swoją treść, a `width: 100%` na jednej
+   z nich każe układowi automatycznemu oddać jej całą resztę. */
+.evo-snippety-tbl { table-layout: auto; }
+.evo-snippety-tbl th,
+.evo-snippety-tbl td { white-space: nowrap; }
+.evo-snippety-tbl .evo-col-nazwa { width: 100%; white-space: normal; }
+.evo-snippety-tbl .evo-col-grupa { white-space: normal; }
+.evo-snippety-tbl .evo-akcje .button { vertical-align: middle; }
 
 /* Licznik przy zakładce — ile błędów czeka w logach. */
 .evo-count-badge { display: inline-block; min-width: 16px; padding: 0 5px; border-radius: 999px; background: var(--evo-danger); color: #fff; font-size: 10px; line-height: 16px; text-align: center; margin-left: 5px; }

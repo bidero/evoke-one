@@ -25,7 +25,6 @@ function evk_snippets_render_tab(): void {
 
     $widok = sanitize_key($_GET['evk_widok'] ?? 'lista');
     if (!in_array($widok, ['lista', 'edytor', 'logi', 'advanced'], true)) $widok = 'lista';
-    if ($widok === 'advanced' && !$adv) $widok = 'lista';
 
     if (!empty($_GET['evk_zapisano'])) {
         printf('<div class="updated notice is-dismissible"><p>%s</p></div>',
@@ -75,15 +74,22 @@ function evk_snippets_render_tab(): void {
     </div>
     <?php endif; ?>
 
-    <div class="evk-subtabs">
+    <?php /* Pasek WIDOKÓW jednego ekranu, nie ekranów sekcji — te drugie
+             pokazuje pasek boczny i od 1.139.1 nie dublujemy ich u góry treści.
+             Stąd osobna, lżejsza klasa: dwa identycznie wyglądające paski jeden
+             pod drugim mówiły, że są tym samym poziomem nawigacji, a nie są. */ ?>
+    <div class="evo-viewtabs">
         <?php
-        $zakladki = ['lista' => 'Wpisy', 'logi' => 'Logi błędów'];
-        if ($adv) $zakladki['advanced'] = 'Tryb Advanced';
+        /* „Tryb Advanced" widoczny ZAWSZE, także wyłączony — włącznik mieszka
+           w środku. Do 1.139.0 zakładka pojawiała się dopiero przy włączonej
+           opcji, a jedyne pole, które tę opcję ustawiało, zniknęło razem
+           z czterema oknami: nie było już czym jej włączyć. */
+        $zakladki = ['lista' => 'Wpisy', 'logi' => 'Logi błędów', 'advanced' => 'Tryb Advanced'];
         foreach ($zakladki as $klucz => $etykieta):
             $aktywna = ($widok === $klucz) || ($widok === 'edytor' && $klucz === 'lista');
         ?>
         <a href="<?php echo esc_url(evk_snippety_url(['evk_widok' => $klucz])); ?>"
-           class="evk-subtab<?php echo $aktywna ? ' is-active' : ''; ?>">
+           class="evo-viewtab<?php echo $aktywna ? ' is-active' : ''; ?>">
             <?php echo esc_html($etykieta); ?><?php if ($klucz === 'logi' && $logi): ?>
             <span class="evo-count-badge"><?php echo count($logi); ?></span><?php endif; ?>
         </a>
@@ -93,7 +99,7 @@ function evk_snippets_render_tab(): void {
     <?php
     if ($widok === 'edytor')        evk_snippety_edytor();
     elseif ($widok === 'logi')      evk_snippety_logi($logi);
-    elseif ($widok === 'advanced')  evk_snippety_advanced();
+    elseif ($widok === 'advanced')  evk_snippety_advanced($adv);
     else                            evk_snippety_lista();
 }
 
@@ -114,11 +120,8 @@ function evk_snippety_lista(): void {
     }
     ?>
     <div class="evo-row-between evo-mb">
-        <p class="evo-hint evo-m0">
-            Rodzaj decyduje, czym wpis jest i w co system go owija — przy CSS-ie
-            i skrypcie nie wpisujesz już <code>&lt;style&gt;</code> ani
-            <code>&lt;script&gt;</code>, a przy PHP <code>&lt;?php</code>.
-        </p>
+        <span class="evo-hint evo-m0"><?php echo count($wpisy); ?> <?php
+            echo count($wpisy) === 1 ? 'wpis' : (count($wpisy) < 5 ? 'wpisy' : 'wpisów'); ?></span>
         <a href="<?php echo esc_url(evk_snippety_url(['evk_widok' => 'edytor', 'evk_wpis' => 'nowy'])); ?>"
            class="button button-primary">+ Nowy snippet</a>
     </div>
@@ -128,38 +131,62 @@ function evk_snippety_lista(): void {
         <p>Nie ma jeszcze żadnego wpisu.</p>
     </div>
     <?php else: ?>
-    <table class="wp-list-table widefat fixed striped">
+    <?php /* UKŁAD AUTOMATYCZNY, NIE `fixed`.
+             Do 1.139.0 tabela miała klasę `fixed` i sześć kolumn przypiętych
+             na sztywno — razem 750 px. Panel oddaje treści około 780 px przy
+             oknie 1280, więc na „Nazwę" schodziło trzydzieści pikseli, a przy
+             węższym oknie tabela wychodziła poza kartę. Teraz szerokości
+             pilnuje przeglądarka, przypięte zostają dwie naprawdę wąskie
+             kolumny, a `.evo-tbl-wrap` daje przewijanie w obrębie pudełka
+             zamiast rozpychania strony. */ ?>
+    <div class="evo-tbl-wrap">
+    <table class="wp-list-table widefat striped evo-snippety-tbl">
         <thead><tr>
-            <th class="evo-w" style="--evo-w:60px">Stan</th>
-            <th><a href="<?php echo esc_url(evk_snippety_url(['evk_sort' => 'tytul'])); ?>">Nazwa</a></th>
-            <th class="evo-w" style="--evo-w:130px"><a href="<?php echo esc_url(evk_snippety_url(['evk_sort' => 'rodzaj'])); ?>">Rodzaj</a></th>
-            <th class="evo-w" style="--evo-w:190px">Miejsce</th>
-            <th class="evo-w" style="--evo-w:150px"><a href="<?php echo esc_url(evk_snippety_url(['evk_sort' => 'grupa'])); ?>">Grupa</a></th>
-            <th class="evo-w" style="--evo-w:70px">Kolejność</th>
-            <th class="evo-w" style="--evo-w:150px">Akcje</th>
+            <th>Stan</th>
+            <th class="evo-col-nazwa"><a href="<?php echo esc_url(evk_snippety_url(['evk_sort' => 'tytul'])); ?>">Nazwa</a></th>
+            <th><a href="<?php echo esc_url(evk_snippety_url(['evk_sort' => 'rodzaj'])); ?>">Rodzaj</a></th>
+            <th>Miejsce</th>
+            <th class="evo-col-grupa"><a href="<?php echo esc_url(evk_snippety_url(['evk_sort' => 'grupa'])); ?>">Grupa</a></th>
+            <th>Kolejność</th>
+            <th>Akcje</th>
         </tr></thead>
         <tbody>
         <?php foreach ($wpisy as $w): ?>
         <tr>
             <td>
-                <form method="post" class="evo-inline-block">
+                <?php /* Adres wpisany wprost, choć formularz i tak wróciłby na
+                         bieżącą stronę. To druga warstwa po poprawce bramy
+                         w `ajax.php`: żądanie niesie komplet `page/tab/sub`
+                         niezależnie od tego, którędy wszedłeś na ekran. */ ?>
+                <form method="post" action="<?php echo esc_url(evk_snippety_url()); ?>" class="evo-inline-block">
                     <?php wp_nonce_field('evk_snippets_save', 'evk_snippets_nonce_field'); ?>
                     <input type="hidden" name="evk_przelacz_wpis" value="<?php echo (int) $w['id']; ?>">
-                    <button type="submit" class="evo-stan-btn <?php echo $w['wlaczony'] ? 'is-on' : 'is-off'; ?>"
-                            title="<?php echo $w['wlaczony'] ? 'Wyłącz' : 'Włącz'; ?>">
-                        <?php echo $w['wlaczony'] ? 'wł.' : 'wył.'; ?>
+                    <?php /* Przycisk, nie pole wyboru: `admin.js` obsługuje
+                             `.evo-toggle input` wyłącznie przez AJAX i przy braku
+                             `data-option` wychodzi bez akcji, więc samo zaznaczenie
+                             niczego by nie wysłało. Przycisk w formularzu działa
+                             bez jednej linii skryptu i z klawiatury. */ ?>
+                    <button type="submit" role="switch"
+                            aria-checked="<?php echo $w['wlaczony'] ? 'true' : 'false'; ?>"
+                            class="evo-switch<?php echo $w['wlaczony'] ? ' is-on' : ''; ?>"
+                            title="<?php echo $w['wlaczony'] ? 'Wyłącz' : 'Włącz'; ?>"
+                            aria-label="<?php echo esc_attr(($w['wlaczony'] ? 'Wyłącz' : 'Włącz') . ' snippet ' . $w['tytul']); ?>">
+                        <span class="evo-switch-knob"></span>
                     </button>
                 </form>
             </td>
-            <td><strong><?php echo esc_html($w['tytul']); ?></strong></td>
+            <td class="evo-col-nazwa"><strong><?php echo esc_html($w['tytul']); ?></strong></td>
             <td><span class="evo-badge"><?php echo esc_html($rodzaje[$w['rodzaj']]['label'] ?? $w['rodzaj']); ?></span></td>
-            <td class="evo-hint"><?php echo esc_html($miejsca[$w['miejsce']]['label'] ?? $w['miejsce']); ?></td>
-            <td class="evo-hint"><?php echo $w['grupa'] !== '' ? esc_html($w['grupa']) : '—'; ?></td>
+            <?php /* Krótka etykieta, nie pełna: „Frontend — <head>" jest na
+                     miejscu w wyborze w edytorze, ale w kolumnie tabeli zabiera
+                     szerokość „Nazwie". */ ?>
+            <td class="evo-hint"><?php echo esc_html($miejsca[$w['miejsce']]['krotki'] ?? $w['miejsce']); ?></td>
+            <td class="evo-hint evo-col-grupa"><?php echo $w['grupa'] !== '' ? esc_html($w['grupa']) : '—'; ?></td>
             <td class="evo-hint"><?php echo (int) $w['kolejnosc']; ?></td>
-            <td>
+            <td class="evo-akcje">
                 <a href="<?php echo esc_url(evk_snippety_url(['evk_widok' => 'edytor', 'evk_wpis' => $w['id']])); ?>"
                    class="button button-small">Edytuj</a>
-                <form method="post" class="evo-inline-block"
+                <form method="post" action="<?php echo esc_url(evk_snippety_url()); ?>" class="evo-inline-block"
                       onsubmit="return confirm('Usunąć snippet „<?php echo esc_js($w['tytul']); ?>”?');">
                     <?php wp_nonce_field('evk_snippets_save', 'evk_snippets_nonce_field'); ?>
                     <input type="hidden" name="evk_usun_wpis" value="<?php echo (int) $w['id']; ?>">
@@ -170,6 +197,7 @@ function evk_snippety_lista(): void {
         <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
     <?php endif; ?>
     <?php
 }
@@ -193,7 +221,7 @@ function evk_snippety_edytor(): void {
     ?>
     <a href="<?php echo esc_url(evk_snippety_url()); ?>" class="button evo-mb">← Wróć do listy</a>
 
-    <form method="post">
+    <form method="post" action="<?php echo esc_url(evk_snippety_url()); ?>">
         <?php wp_nonce_field('evk_snippets_save', 'evk_snippets_nonce_field'); ?>
         <input type="hidden" name="evk_wpis_id" value="<?php echo (int) $wpis['id']; ?>">
 
@@ -212,7 +240,6 @@ function evk_snippety_edytor(): void {
                     </option>
                     <?php endforeach; ?>
                 </select>
-                <div class="evo-desc" id="evk-opis-rodzaju"></div>
             </div>
             <div class="evo-field">
                 <label for="evk-miejsce">Miejsce</label>
@@ -228,7 +255,6 @@ function evk_snippety_edytor(): void {
                 <label for="evk-grupa">Grupa</label>
                 <input type="text" id="evk-grupa" name="evk_grupa"
                        value="<?php echo esc_attr($wpis['grupa']); ?>" placeholder="np. SEO, klient X">
-                <div class="evo-desc">Tylko do Waszego porządku — sortowanie i szukanie.</div>
             </div>
             <div class="evo-field">
                 <label for="evk-kolejnosc">Kolejność</label>
@@ -255,20 +281,6 @@ function evk_snippety_edytor(): void {
             <a href="<?php echo esc_url(evk_snippety_url()); ?>" class="button">Anuluj</a>
         </div>
     </form>
-
-    <script>
-    /* Opis rodzaju pod wyborem — żeby nie trzeba było zgadywać, co system
-       zrobi z treścią. Dane z PHP, bo to on jest źródłem listy rodzajów. */
-    (function () {
-        var opisy = <?php echo wp_json_encode(array_map(function ($r) { return $r['opis']; }, $rodzaje)); ?>;
-        var wybor = document.getElementById('evk-rodzaj');
-        var opis  = document.getElementById('evk-opis-rodzaju');
-        if (!wybor || !opis) return;
-        var pokaz = function () { opis.innerHTML = opisy[wybor.value] || ''; };
-        wybor.addEventListener('change', pokaz);
-        pokaz();
-    })();
-    </script>
     <?php
 }
 
@@ -308,7 +320,8 @@ function evk_snippety_logi(array $logi): void {
         </tbody>
     </table>
 
-    <form method="post" class="evo-mt-lg" onsubmit="return confirm('Wyczyścić wszystkie logi?');">
+    <form method="post" action="<?php echo esc_url(evk_snippety_url()); ?>" class="evo-mt-lg"
+          onsubmit="return confirm('Wyczyścić wszystkie logi?');">
         <?php wp_nonce_field('evk_snippets_save', 'evk_snippets_nonce_field'); ?>
         <button type="submit" name="evk_clear_logs" class="button">Wyczyść logi</button>
     </form>
@@ -319,14 +332,37 @@ function evk_snippety_logi(array $logi): void {
 // TRYB ADVANCED — jedno pole wykonywane bez podziału na wpisy
 // =========================================================================
 
-function evk_snippety_advanced(): void { ?>
+function evk_snippety_advanced(int $wlaczony): void { ?>
+    <?php /* Włącznik trybu mieszka TUTAJ, a nie w karcie stanu.
+             Do 1.139.0 opcję ustawiało pole w formularzu czterech okien —
+             razem z nimi zniknęło i tryb Advanced nie miał już jak wrócić do
+             gry: zakładka pokazywała się dopiero przy włączonej opcji, więc
+             widok, w którym stał włącznik, był nieosiągalny. */ ?>
+    <div class="evo-status-card evo-mb">
+        <div class="evo-status-icon <?php echo $wlaczony ? 'on' : 'off'; ?>">
+            <span class="dashicons dashicons-editor-code"></span>
+        </div>
+        <div class="evo-status-text">
+            <h3>Tryb Advanced: <?php echo $wlaczony ? 'włączony' : 'wyłączony'; ?></h3>
+            <p>Pole niżej wykonuje się tylko przy włączonym trybie.</p>
+        </div>
+        <div class="evo-status-actions">
+            <span class="evo-toggle-label"><?php echo $wlaczony ? 'Włączony' : 'Wyłączony'; ?></span>
+            <label class="evo-toggle">
+                <input type="checkbox" data-option="evk_snippets_advanced_enabled" data-field="_scalar"
+                       value="1" <?php checked(1, $wlaczony); ?>>
+                <span class="evo-slider"></span>
+            </label>
+        </div>
+    </div>
+
     <div class="notice notice-error inline evo-mb">
         <p><strong>Kod z tego pola wykonuje się bez podziału na wpisy</strong>,
            więc błąd tutaj gasi całe wykonywanie, a nie jeden snippet.
            Zwykłe wpisy są bezpieczniejsze — to pole zostaje dla przypadków,
            które muszą zdążyć przed wszystkim innym.</p>
     </div>
-    <form method="post">
+    <form method="post" action="<?php echo esc_url(evk_snippety_url()); ?>">
         <?php wp_nonce_field('evk_snippets_save', 'evk_snippets_nonce_field'); ?>
         <div class="evo-field">
             <label for="evk_advanced_code">Kod PHP</label>

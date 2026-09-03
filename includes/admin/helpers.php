@@ -37,9 +37,13 @@ function evoke_one_zakladki(): array {
  * `$tabs`. Panel ma 34 ekrany; ta lista rozjeżdżała się z rzeczywistością przy
  * pierwszym dołożonym module i nie było jak tego zauważyć.
  *
- * Teraz czytają stąd trzy rzeczy: paski podzakładek (`evoke_one_render_subtabs`),
- * drugi poziom paska bocznego i paleta wyszukiwania. Dołożenie modułu w jednym
- * miejscu pokazuje go we wszystkich trzech.
+ * Teraz czytają stąd trzy rzeczy: drugi poziom paska bocznego, paleta
+ * wyszukiwania i same pliki zakładek (sprawdzają, czy `?sub=` z adresu
+ * istnieje). Dołożenie modułu w jednym miejscu pokazuje go wszędzie.
+ *
+ * Czwartym odbiorcą były do 1.139.1 paski podzakładek nad treścią
+ * (`evoke_one_render_subtabs()`). Od 1.138.0 wypisywały to samo, co pasek
+ * boczny, więc odeszły razem z funkcją.
  *
  * `szukaj` to słowa pomocnicze do wyszukiwarki. Etykiety są polskie, a nazwy,
  * pod którymi ludzie znają te rzeczy — nie: „dark mode", „gsap", „301".
@@ -91,23 +95,8 @@ function evoke_one_ekrany(): array {
     ];
 }
 
-/**
- * Renderuje nawigację podzakładek — spójny styl w całym panelu.
- */
-function evoke_one_render_subtabs(array $subs, string $active, string $base_url): void {
-    echo '<div class="evk-subtabs">';
-    foreach ($subs as $key => $s) {
-        $is_active = ($active === $key);
-        printf(
-            '<a href="%s" class="evk-subtab%s">',
-            esc_url(add_query_arg('sub', $key, $base_url)),
-            $is_active ? ' is-active' : ''
-        );
-        printf(
-            '<span class="dashicons %s"></span>%s</a>',
-            esc_attr($s['icon']),
-            esc_html($s['label'])
-        );
-    }
-    echo '</div>';
-}
+/* `evoke_one_render_subtabs()` stała tutaj do 1.139.1. Rysowała nad treścią
+   pasek ekranów bieżącej sekcji — czyli od 1.138.0 to samo, co drugi poziom
+   paska bocznego, tylko innym krojem. Ekran snippetów ma własny pasek WIDOKÓW
+   (`.evo-viewtabs` w `includes/snippets/panel.php`), ale to inny poziom: widoki
+   jednego ekranu, których pasek boczny nie zna. */

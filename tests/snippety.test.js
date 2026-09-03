@@ -12,9 +12,41 @@
  * WordPress, i patrzy, co wyszło na haki.
  */
 
-const { phpOutput } = require('./lib/harness');
+const fs   = require('fs');
+const path = require('path');
+const { phpOutput, ROOT, rgb, tokenRgb } = require('./lib/harness');
 
 const scen = (nazwa) => JSON.parse(phpOutput('snippety.php', nazwa));
+
+const KORZEN    = ROOT;
+const rozbij    = rgb;
+const rgbTokenu = tokenRgb;
+const bliski    = (a, b, tol = 6) =>
+  !!a && !!b && a.length === 3 && a.every((v, i) => Math.abs(v - b[i]) <= tol);
+
+/**
+ * Pliki, w których szukamy liczby mnogiej: kod wtyczki, testy i changelog.
+ *
+ * Przegląd idzie po katalogach, a nie po liście nazw, bo lista rozjechałaby się
+ * przy pierwszym nowym pliku — dokładnie tak, jak rozjechała się lista czternastu
+ * pozycji w wyszukiwarce przed 1.138.0.
+ */
+function plikiDoPrzegladu() {
+  const out = [];
+  const wejdz = (katalog) => {
+    for (const wpis of fs.readdirSync(katalog, { withFileTypes: true })) {
+      const p = path.join(katalog, wpis.name);
+      if (wpis.isDirectory()) { if (wpis.name !== 'node_modules') wejdz(p); continue; }
+      if (/\.(php|js)$/.test(wpis.name)) out.push(p);
+    }
+  };
+  wejdz(path.join(KORZEN, 'includes'));
+  for (const plik of fs.readdirSync(path.join(KORZEN, 'tests'))) {
+    if (plik.endsWith('.test.js')) out.push(path.join(KORZEN, 'tests', plik));
+  }
+  out.push(path.join(KORZEN, 'CHANGELOG.md'));
+  return out;
+}
 
 module.exports = async function (t) {
 
@@ -23,7 +55,7 @@ module.exports = async function (t) {
 
   const op = scen('opakowanie');
 
-  /* O to prosiliście wprost: „jeśli wybieram rodzaj skryptu, chcę nie wpisywać
+  /* O to prosiłeś wprost: „jeśli wybieram rodzaj skryptu, chcę nie wpisywać
      <style> <script> <?php — system niech sam to opakuje". */
   t.check('CSS dostaje znacznik <style>',
     /<style id="evk-snippet-\d+">\s*body \{ color: red \}\s*<\/style>/.test(op.head),
@@ -69,7 +101,7 @@ module.exports = async function (t) {
     wyl.head.includes('ukryty') ? 'WSZEDŁ' : 'nieobecny');
 
   // ── Kolejność ──────────────────────────────────────────────────────────
-  t.section('kolejność wykonania jest Wasza, nie bazy');
+  t.section('kolejność wykonania jest Twoja, nie bazy');
 
   /* Przy równych numerach rozstrzyga identyfikator, żeby dwa wpisy z zerem
      wykonywały się zawsze tak samo — inaczej strona wyglądałaby raz tak,
@@ -145,7 +177,7 @@ module.exports = async function (t) {
      jednorazowości sam licznik świecił na zielono. */
   t.check('powtórzona migracja nie zakłada nowych wpisów', mig.drugi_raz.bez_nowych === true,
     mig.drugi_raz.bez_nowych ? 'bez nowych' : 'POWSTAŁY NOWE');
-  t.check('i nie cofa Waszych późniejszych zmian',
+  t.check('i nie cofa Twoich późniejszych zmian',
     mig.drugi_raz.rodzaj === 'php' && mig.drugi_raz.miejsce === 'footer'
       && mig.drugi_raz.grupa === 'Moja grupa',
     'rodzaj ' + mig.drugi_raz.rodzaj + ', miejsce ' + mig.drugi_raz.miejsce
@@ -158,11 +190,13 @@ module.exports = async function (t) {
      ten sam, którym mierzone są pozostałe ekrany panelu. */
   const lista = phpOutput('tab.php', 'tools-snippety');
 
-  t.check('każdy wpis ma wiersz', (lista.match(/evo-stan-btn/g) || []).length === 2,
-    (lista.match(/evo-stan-btn/g) || []).length + ' wierszy');
+  /* `[^"]*` łapałoby też `class="evo-switch-knob"` — gałkę, nie przełącznik.
+     Stąd dopuszczona wyłącznie spacja i kolejne klasy. */
+  const przelaczniki = lista.match(/class="evo-switch(?: [^"]*)?"/g) || [];
+  t.check('każdy wpis ma wiersz', przelaczniki.length === 2, przelaczniki.length + ' wierszy');
   t.check('nazwa wpisu jest widoczna', lista.includes('Sticky header'), 'Sticky header');
 
-  /* O to prosiliście: „w środku wpisuję rodzaj snippeta, który wyświetla się
+  /* O to prosiłeś: „w środku wpisuję rodzaj snippeta, który wyświetla się
      na liście, z możliwością segregacji". */
   t.check('rodzaj widać bez wchodzenia do środka',
     lista.includes('>CSS<') && lista.includes('>PHP<'), 'CSS i PHP');
@@ -171,8 +205,12 @@ module.exports = async function (t) {
   /* Włącznik ma pokazywać PRAWDĘ, a nie zawsze to samo — pierwszy wpis jest
      włączony, drugi nie. */
   t.check('włącznik odróżnia stany',
-    lista.includes('evo-stan-btn is-on') && lista.includes('evo-stan-btn is-off'),
-    'wł. i wył. rozróżnione');
+    przelaczniki.filter((k) => k.includes('is-on')).length === 1
+      && przelaczniki.filter((k) => !k.includes('is-on')).length === 1,
+    przelaczniki.join(' | '));
+  t.check('i mówi to czytnikom ekranu',
+    lista.includes('aria-checked="true"') && lista.includes('aria-checked="false"'),
+    'aria-checked w obu stanach');
 
   t.section('edytor pyta o wszystko, czego wpis potrzebuje');
 
@@ -198,4 +236,127 @@ module.exports = async function (t) {
   t.check('a wpis frontu nie rejestruje się w panelu',
     pnl.hakow_front === 0 && !pnl.head.includes('FRONT'),
     pnl.hakow_front + ' haków frontu, wyjście: „' + pnl.head + '"');
+
+  // ── Akcje z listy (1.139.1) ────────────────────────────────────────────
+  t.section('akcje działają też pod adresem bez ?sub=');
+
+  /* ZGŁOSZONE Z UŻYCIA: „nie działa wyłączanie snippetów".
+     Pasek boczny prowadzi do Narzędzi adresem `?page=evoke-one&tab=narzedzia`,
+     a `tab-narzedzia.php` domyśla sobie `sub=snippets`. Ekran się rysował,
+     formularze wracały na ten sam adres — i brama w `ajax.php` odrzucała je,
+     bo wymagała `sub=snippets` w `$_GET`. Nic się nie działo: ani włącznik,
+     ani usuwanie, ani zapis. Scenariusz PHP posyła POST dokładnie stamtąd. */
+  const akc = scen('akcje');
+
+  t.check('włącznik wyłącza wpis', akc.przed === 1 && akc.po_wylaczeniu === 0,
+    akc.przed + ' → ' + akc.po_wylaczeniu);
+  t.check('i włącza go z powrotem', akc.po_wlaczeniu === 1, String(akc.po_wlaczeniu));
+  t.check('po akcji jest przekierowanie, nie przeładowanie formularza',
+    akc.przekierowanie === true, String(akc.przekierowanie));
+  t.check('zapis nowego wpisu też przechodzi', akc.zapisany === true, String(akc.zapisany));
+  t.check('i usunięcie snippetu', akc.snippet_usuniety === true, String(akc.snippet_usuniety));
+
+  /* Po zdjęciu warunków na adres nonce ZOSTAJE JEDYNYM wejściem, więc musi
+     mieć własne pokrycie — inaczej poprawka układu otworzyłaby drzwi. */
+  t.check('bez nonce\'a nic się nie dzieje', akc.bez_nonce_bez_zmian === true,
+    String(akc.bez_nonce_bez_zmian));
+  t.check('podrobiony nonce zatrzymuje żądanie',
+    akc.zly_nonce_zablokowany === true && akc.zly_nonce_bez_zmian === true,
+    'zablokowany: ' + akc.zly_nonce_zablokowany + ', bez zmian: ' + akc.zly_nonce_bez_zmian);
+  t.check('usuwanie patrzy na typ wpisu, nie na samą liczbę',
+    akc.obcy_wpis_zyje === true, String(akc.obcy_wpis_zyje));
+
+  // ── Teksty, o których nie ma potrzeby pisać ────────────────────────────
+  t.section('ekran nie tłumaczy się z własnej historii');
+
+  /* ZGŁOSZONE Z UŻYCIA, dosłownie: „Nie ma potrzeby pisać »Rodzaj decyduje,
+     czym wpis jest i w co system go owija«… »Tryb czterech okien sprzed
+     1.139.0«… »Tylko do Waszego porządku«". Sprawdzamy WYJŚCIE, nie źródło. */
+  const nowy = phpOutput('tab.php', 'tools-snippety ' + JSON.stringify(JSON.stringify(
+    { evk_widok: 'edytor', evk_wpis: 'nowy' })));
+  const zbedne = [
+    ['Rodzaj decyduje', lista],
+    ['Tryb czterech okien', nowy],
+    ['porządku — sortowanie', nowy],
+  ].filter(([fraza, gdzie]) => gdzie.includes(fraza));
+  t.check('trzech zdań nie ma na ekranie', !zbedne.length,
+    zbedne.map(([f]) => f).join(' | ') || 'czysto');
+
+  /* Liczba mnoga zniknęła z całej wtyczki, nie tylko z tych trzech zdań.
+
+     Dwa wyjątki, oba wymuszone przez sam wzorzec:
+      · TEN plik trzyma wzorzec, więc zawsze sam w siebie trafia;
+      · „whitelista" odmieniona przez miejscownik daje „po whiteliście" —
+        końcówka jak w „prosiliście", a to rzeczownik. */
+  const mnoga = [];
+  const dozwolone = /^whiteliście$/i;
+  for (const plik of plikiDoPrzegladu()) {
+    if (plik === __filename) continue;
+    const tresc = fs.readFileSync(plik, 'utf8');
+    const traf = (tresc.match(/\b(Was|Wam|Wami|[Ww]asz\w*|\w+liście)\b/g) || [])
+      .filter((s) => !dozwolone.test(s));
+    if (traf.length) mnoga.push(path.relative(KORZEN, plik) + ': ' + traf.join(', '));
+  }
+  t.check('i nigdzie nie zwracamy się w liczbie mnogiej', !mnoga.length,
+    mnoga.slice(0, 3).join(' | ') || 'czysto');
+
+  // ── Układ listy w przeglądarce ─────────────────────────────────────────
+  t.section('lista mieści się w karcie panelu');
+
+  /* ZGŁOSZONE Z UŻYCIA: „trzeba zmienić ułożenie, bo wszystko się rozjechało".
+     To jest pytanie o piksele, więc mierzymy w przeglądarce, w PRAWDZIWEJ
+     powłoce panelu — z paskiem bocznym po lewej, jak na ekranie.
+
+     GRANICA TEGO SPRAWDZENIA: fixture wciąga wyłącznie `admin.css` wtyczki,
+     bo arkuszy wp-admin nie ma w repozytorium. Klasa `fixed` z `wp-list-table`
+     tutaj więc nie działa i sama w sobie nie zostałaby złapana — dlatego
+     `table-layout: auto` stoi wprost w naszej regule, a nie polega na tym,
+     że nikt tej klasy nie dopisze. Mierzone jest rozłożenie szerokości. */
+  const strona = await t.open('snippety-lista.html', {
+    viewport: { width: 1280, height: 900 },
+    head: 'window.__panel = ' + JSON.stringify(
+            phpOutput('panel-start.php', '"{}" narzedzia')) + ';'
+        + 'window.__tresc = ' + JSON.stringify(lista) + ';',
+  });
+
+  const tab = await strona.evaluate(() => window.__tabela());
+  t.check('tabela nie wychodzi poza treść karty',
+    tab && tab.prawaTabeli <= tab.prawaTresci + 1,
+    tab ? 'tabela do ' + tab.prawaTabeli + ' px, karta do ' + tab.prawaTresci + ' px' : 'brak tabeli');
+  t.check('i nie rozpycha strony w poziomie', tab && !tab.stronaPrzewija,
+    tab ? String(tab.stronaPrzewija) : '—');
+
+  const nazwa = tab && tab.naglowki.find((n) => n.tekst === 'Nazwa');
+  t.check('kolumna „Nazwa" ma czym oddychać', nazwa && nazwa.szer >= 200,
+    nazwa ? nazwa.szer + ' px' : 'brak kolumny');
+  t.check('i jest najszersza ze wszystkich',
+    nazwa && tab.naglowki.every((n) => n === nazwa || n.szer <= nazwa.szer),
+    tab ? tab.naglowki.map((n) => n.tekst + ' ' + n.szer).join(', ') : '—');
+
+  // ── Przełącznik ────────────────────────────────────────────────────────
+  t.section('stan wpisu to przełącznik, nie plakietka');
+
+  /* ZGŁOSZONE Z UŻYCIA: „przełącznik snippetów myślałem o czymś takim…
+     albo takim zielonym jak mamy przy opcjach (tylko może mniejszy)".
+     38 × 22 to wymiary z tego zgłoszenia. */
+  const prz = await strona.evaluate(() => window.__przelaczniki());
+  t.check('są dwa i oba są przyciskami', prz.length === 2
+    && prz.every((p) => p.znacznik === 'BUTTON'), JSON.stringify(prz.map((p) => p.znacznik)));
+  t.check('mają rozmiar 38 × 22', prz.every((p) => p.szer === 38 && p.wys === 22),
+    prz.map((p) => p.szer + '×' + p.wys).join(', '));
+
+  const zielen = rgbTokenu('evo-on');
+  const zapalony = prz.find((p) => p.wlaczony), zgaszony = prz.find((p) => !p.wlaczony);
+  t.check('włączony jest zielony jak przy modułach',
+    zapalony && bliski(rozbij(zapalony.tlo), zielen),
+    (zapalony ? zapalony.tlo : '—') + ' wobec ' + zielen.join(','));
+  t.check('a wyłączony nie', zgaszony && !bliski(rozbij(zgaszony.tlo), zielen),
+    zgaszony ? zgaszony.tlo : '—');
+  t.check('gałka przesuwa się tylko przy włączonym',
+    zapalony && zgaszony && zapalony.przesuniecie === 16 && zgaszony.przesuniecie === 0,
+    (zapalony ? zapalony.przesuniecie : '?') + ' vs ' + (zgaszony ? zgaszony.przesuniecie : '?'));
+
+  t.check('bez błędów JS na liście', !strona.errors.length,
+    strona.errors.join(' | ') || 'brak');
+  await strona.close();
 };

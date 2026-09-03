@@ -703,6 +703,7 @@ add_action('wp_ajax_evk_ajax_toggle', function () {
         'evk_tl_fab_enabled'             => ['_scalar'],
         'evk_forminbox'                  => ['enabled'],
         'evk_snippets_enabled'          => ['_scalar'],
+        'evk_snippets_advanced_enabled' => ['_scalar'],
         /*
          * Lista elementów PROSTO Z REJESTRU, nie przepisana ręcznie.
          *

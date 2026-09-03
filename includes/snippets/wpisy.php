@@ -17,9 +17,10 @@ if (!defined('ABSPATH')) exit;
  * Wpis niesie trzy rzeczy poza samym kodem:
  *
  *  · RODZAJ — co to jest i jak ma zostać podane stronie. To on zdejmuje
- *    z Was pisanie `<style>`, `<script>` i `<?php` (patrz `evk_snippet_opakuj()`).
+ *    z Ciebie pisanie `<style>`, `<script>` i `<?php` (patrz
+ *    `evk_snippet_opakuj()`).
  *  · MIEJSCE — kiedy się wykonuje, czyli hak WordPressa.
- *  · GRUPA — wolny tekst do Waszego porządku („SEO", „klient X"). Sortowanie
+ *  · GRUPA — wolny tekst do Twojego porządku („SEO", „klient X"). Sortowanie
  *    i szukanie, nic więcej; system się nią nie kieruje.
  */
 
@@ -41,32 +42,16 @@ if (!defined('ABSPATH')) exit;
  *    musi zachować ich zachowanie co do znaku. Nowych wpisów tak nie zakładamy.
  */
 function evk_snippet_rodzaje(): array {
+    /* Bez pola `opis`. Stało tu do 1.139.0 i wyświetlało się pod wyborem
+       rodzaju zdaniem w rodzaju „HTML ze wstawkami <?php … ?>. Tryb czterech
+       okien sprzed 1.139.0" — objaśnienie wewnętrznej historii wtyczki
+       w miejscu, w którym wybiera się rodzaj. Etykieta mówi tyle, ile trzeba. */
     return [
-        'php' => [
-            'label'      => 'PHP',
-            'opakowanie' => 'php',
-            'opis'       => 'Sam kod PHP — bez <?php na początku. Wykonywany jak fragment functions.php.',
-        ],
-        'css' => [
-            'label'      => 'CSS',
-            'opakowanie' => 'style',
-            'opis'       => 'Same reguły. System owija je w znacznik &lt;style&gt;.',
-        ],
-        'js' => [
-            'label'      => 'JavaScript',
-            'opakowanie' => 'script',
-            'opis'       => 'Sam skrypt. System owija go w znacznik &lt;script&gt;.',
-        ],
-        'html' => [
-            'label'      => 'HTML',
-            'opakowanie' => 'surowo',
-            'opis'       => 'Znacznik podawany bez zmian. Nic się nie wykonuje.',
-        ],
-        'szablon' => [
-            'label'      => 'HTML + PHP (tryb dawny)',
-            'opakowanie' => 'szablon',
-            'opis'       => 'HTML ze wstawkami &lt;?php … ?&gt;. Tryb czterech okien sprzed 1.139.0.',
-        ],
+        'php'     => ['label' => 'PHP',                     'opakowanie' => 'php'],
+        'css'     => ['label' => 'CSS',                     'opakowanie' => 'style'],
+        'js'      => ['label' => 'JavaScript',              'opakowanie' => 'script'],
+        'html'    => ['label' => 'HTML',                    'opakowanie' => 'surowo'],
+        'szablon' => ['label' => 'HTML + PHP (tryb dawny)', 'opakowanie' => 'szablon'],
     ];
 }
 
@@ -74,22 +59,34 @@ function evk_snippet_rodzaje(): array {
 // MIEJSCA — kiedy wpis się wykonuje
 // =========================================================================
 
+/**
+ * `label` idzie do wyboru w edytorze, `krotki` do kolumny w tabeli.
+ *
+ * Dwie etykiety, bo mają różne zadania. Pełna nazywa miejsce komuś, kto
+ * właśnie wybiera („Frontend — <head>"); krótka odpowiada na pytanie „gdzie to
+ * leci" w wierszu obok pięciu innych kolumn. Wstawienie pełnej do tabeli
+ * zjadało szerokość kolumnie „Nazwa" — patrz komentarz przy tabeli
+ * w `panel.php`.
+ */
 function evk_snippet_miejsca(): array {
     return [
         'head' => [
             'label'    => 'Frontend — <head>',
+            'krotki'   => 'head',
             'hak'      => 'wp_head',
             'priorytet'=> 1,
             'admin'    => false,
         ],
         'footer' => [
             'label'    => 'Frontend — stopka',
+            'krotki'   => 'stopka',
             'hak'      => 'wp_footer',
             'priorytet'=> 9999,
             'admin'    => false,
         ],
         'admin_head' => [
             'label'    => 'Panel — <head>',
+            'krotki'   => 'panel',
             'hak'      => 'admin_head',
             'priorytet'=> 1,
             'admin'    => true,
@@ -99,6 +96,7 @@ function evk_snippet_miejsca(): array {
                `functions.php`. Tu mieszka wszystko, co musi zdążyć przed
                resztą WordPressa — rejestracje, filtry, akcje. */
             'label'    => 'Zawsze (jak functions.php)',
+            'krotki'   => 'zawsze',
             'hak'      => '',
             'priorytet'=> 0,
             'admin'    => null,

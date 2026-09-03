@@ -5,7 +5,6 @@ if (!defined('ABSPATH')) exit;
  */
 
 $sub      = sanitize_key($_GET['sub'] ?? 'snippets');
-$base_url = add_query_arg('tab', 'narzedzia', admin_url('options-general.php?page=evoke-one'));
 
 /* Lista mieszka w evoke_one_ekrany() (includes/admin/helpers.php), bo
    czytają ją także pasek boczny i wyszukiwarka — patrz komentarz tam. */
@@ -13,7 +12,11 @@ $subs = evoke_one_ekrany()['narzedzia'];
 
 if (!array_key_exists($sub, $subs)) $sub = 'snippets';
 
-evoke_one_render_subtabs($subs, $sub, $base_url);
+/* Paska podzakładek tu nie ma od 1.139.1. Wypisywał ekrany tej sekcji nad
+   treścią, a od 1.138.0 pasek boczny pokazuje dokładnie tę samą listę — te
+   same pozycje i te same adresy, obie z `evoke_one_ekrany()`. Dwa identyczne
+   spisy jeden pod drugim czytało się jak dwa poziomy nawigacji, którymi nie
+   były. `$subs` zostaje: rozstrzyga, czy `?sub=` z adresu istnieje. */
 
 switch ($sub) {
     case 'snippets':

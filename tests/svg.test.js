@@ -21,7 +21,7 @@
  * Czego test nie sprawdza: że przeglądarka naprawdę nie wykona wyczyszczonego
  * pliku (patrzymy na łańcuch, nie na zachowanie silnika) ani drogi
  * `/wp-content/uploads/…svg`, którą serwer oddaje z pominięciem wtyczki —
- * ta świadomie zostaje otwarta, bo SVG wgrywają u Was administratorzy.
+ * ta świadomie zostaje otwarta, bo SVG wgrywają u Ciebie administratorzy.
  */
 
 const { phpOutput } = require('./lib/harness');

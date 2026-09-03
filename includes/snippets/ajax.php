@@ -22,7 +22,10 @@ add_action('wp_ajax_evk_get_snippet_revision', function () {
 add_action('admin_enqueue_scripts', function () {
     $page = $_GET['page'] ?? '';
     $tab  = $_GET['tab']  ?? '';
-    $sub  = $_GET['sub']  ?? '';
+    /* Domyślna wartość TA SAMA co w `tab-narzedzia.php:7`: wejście z paska
+       bocznego nie niesie `sub`, a mimo to pokazuje snippety. Bez tego edytor
+       dostawał zwykłe pole tekstowe zamiast kolorowania składni. */
+    $sub  = $_GET['sub'] ?? 'snippets';
     if ($page !== 'evoke-one' || $tab !== 'narzedzia' || $sub !== 'snippets') return;
 
     $cm = wp_enqueue_code_editor(['type' => 'application/x-httpd-php']);
@@ -52,12 +55,25 @@ add_action('admin_enqueue_scripts', function () {
 // =========================================================================
 
 add_action('admin_init', function () {
-    // Tylko strona Evoke ONE, zakładka narzędzia/snippety, metoda POST.
+    /* BRAMA NIE PATRZY NA `tab` ANI `sub` — I TO JEST ISTOTA POPRAWKI 1.139.1.
+     *
+     * Do 1.139.0 stały tu jeszcze dwa warunki: `$_GET['tab'] === 'narzedzia'`
+     * i `$_GET['sub'] === 'snippets'`. Wyglądały niewinnie, a wyłączały cały
+     * ekran, bo pasek boczny prowadzi do Narzędzi adresem BEZ `sub`
+     * (`evoke_one_render_sidebar_link()` skleja tylko `tab`), a
+     * `tab-narzedzia.php` domyśla sobie `$sub = 'snippets'` samodzielnie.
+     * Snippety renderowały się więc pod `?page=evoke-one&tab=narzedzia`,
+     * formularze wracały na ten sam adres — i brama je odrzucała. Strona
+     * przeładowywała się bez zmian: włącznik, usuwanie, zapis i czyszczenie
+     * logów nie robiły NIC, zależnie od tego, którędy się tu weszło.
+     *
+     * O dostępie decyduje nonce razem z `manage_options` niżej. Adres nie jest
+     * zabezpieczeniem i nie ma czego pilnować; `page` zostaje tylko po to, żeby
+     * handler nie budził się na cudzych ekranach.
+     */
     if (
         !is_admin()
         || ($_GET['page'] ?? '') !== 'evoke-one'
-        || ($_GET['tab']  ?? '') !== 'narzedzia'
-        || ($_GET['sub']  ?? '') !== 'snippets'
         || $_SERVER['REQUEST_METHOD'] !== 'POST'
         || empty($_POST['evk_snippets_nonce_field'])
     ) return;

@@ -2,6 +2,52 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.139.1] — 2026-09-03
+
+### Naprawione
+
+- **Wyłączanie snippetów nie działało — i nie działało też usuwanie, zapis
+  ani czyszczenie logów.** Zgłoszone z użycia. Brama żądań POST
+  (`includes/snippets/ajax.php`) wymagała kompletu `page`+`tab`+`sub`
+  w adresie, a pasek boczny prowadzi do Narzędzi adresem **bez `sub`**
+  (`tab-narzedzia.php` domyśla sobie `sub=snippets` sam). Ekran rysował się
+  normalnie, formularze wracały na ten sam adres — i brama je odrzucała.
+  Strona przeładowywała się bez zmian, więc wyglądało to na przycisk, który
+  nic nie robi. Teraz o dostępie decyduje **nonce razem z `manage_options`**,
+  a nie kształt adresu; formularze dodatkowo niosą pełny adres w `action`.
+  Ta sama pomyłka gasiła kolorowanie składni w edytorze kodu.
+
+- **Tryb Advanced nie miał jak wrócić do gry.** Zakładka pokazywała się
+  dopiero przy włączonej opcji, a jedyne pole, które tę opcję ustawiało,
+  zniknęło razem z czterema oknami w 1.139.0. Zakładka jest teraz widoczna
+  zawsze, a włącznik stoi w środku.
+
+### Zmienione
+
+- **Lista wpisów mieści się w karcie.** Tabela miała `table-layout: fixed`
+  i sześć kolumn przypiętych na sztywno — razem 750 px przy około 780 px,
+  które karta oddaje treści przy oknie 1280. Na „Nazwę" schodziło trzydzieści
+  pikseli. Teraz kolumny kurczą się do swojej treści, „Nazwa" zabiera całą
+  resztę (566 px w pomiarze), a miejsce wykonania pokazuje krótką etykietę
+  („head", „stopka", „panel", „zawsze") zamiast pełnej.
+
+- **Stan wpisu to przełącznik, nie plakietka** — 38 × 22, zielony jak przy
+  modułach. Zbudowany na przycisku w formularzu, więc działa bez JavaScriptu
+  i z klawiatury; czytnik ekranu dostaje `role="switch"` i `aria-checked`.
+
+- **Trzy zdania mniej.** Zniknął akapit o tym, co rodzaj robi z treścią, opis
+  pod wyborem rodzaju i podpowiedź przy polu grupy. Etykiety mówią tyle, ile
+  trzeba.
+
+- **Koniec z paskiem podzakładek nad treścią.** Od 1.138.0 wypisywał dokładnie
+  te same ekrany, co pasek boczny — obie listy z `evoke_one_ekrany()`. Zniknął
+  z pięciu zakładek razem z `evoke_one_render_subtabs()`. Snippety zachowują
+  własny pasek **widoków** (Wpisy / Logi / Tryb Advanced), bo to inny poziom;
+  dostał lżejszy wygląd, żeby się z tamtym nie mylił.
+
+- **Liczba pojedyncza w całej wtyczce.** Zwroty w liczbie mnogiej zniknęły
+  z panelu, komentarzy, testów i changeloga; pilnuje tego przegląd w testach.
+
 ## [1.139.0] — 2026-09-02
 
 ### Zmienione
@@ -10,7 +56,7 @@ Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer
   **rodzaj**, **miejsce**, **grupę**, własny włącznik i kolejność. Lista
   pokazuje to wszystko bez wchodzenia do środka.
 
-- **Rodzaj zdejmuje z Was pisanie opakowania** — o to prosiliście wprost:
+- **Rodzaj zdejmuje z Ciebie pisanie opakowania** — o to prosiłeś wprost:
 
   | rodzaj | co wpisujesz | co robi system |
   |---|---|---|
@@ -29,7 +75,7 @@ Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer
 - **Miejsce to hak**: frontend `<head>`, stopka, panel `<head>` albo „zawsze"
   (jak `functions.php`). Wpis panelu nie wychodzi na front i odwrotnie.
 
-- **Kolejność jest Wasza, nie bazy.** Przy równych numerach rozstrzyga
+- **Kolejność jest Twoja, nie bazy.** Przy równych numerach rozstrzyga
   identyfikator, więc dwa wpisy z zerem wykonują się zawsze tak samo.
 
 ### Migracja
