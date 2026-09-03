@@ -2,6 +2,28 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.140.1] — 2026-09-03
+
+### Naprawione
+
+- **Migotanie parallaksu na elementach z ręcznie wpisanym atrybutem.**
+  Zgłoszone z użycia po 1.140.0: „nadal jest flash". Warstwa drukowana przez
+  serwer trafia wyłącznie do elementów przechodzących przez filtr Bricksa,
+  czyli tych z kontrolek Evoke. `data-parallax` wpisany ręcznie w polu
+  atrybutów filtru nie dotyczy — takie sekcje jechały dalej starą drogą,
+  a ta wciąż zdejmowała tło z sekcji i wjeżdżała warstwą od zerowego krycia.
+  Ta sama dziura, tylko w drugiej ścieżce.
+
+  Teraz obie zachowują się tak samo: **tło sekcji zostaje** (warstwa i tak
+  zakrywa ją w całości — jest wsunięta o 10% w górę i w dół, na pełną
+  szerokość), więc nie ma czego maskować i nie ma przejścia krycia do
+  przeczekania.
+
+  Wyłanianie zostaje **wyłącznie przy `<img>`**, gdzie skrypt naprawdę
+  przestawia element — wkłada go w nową owijkę i przesuwa transformacją.
+  Tego skoku nie da się uniknąć i to jego maskuje przejście; przy tle nie było
+  czego maskować poza dziurą, którą skrypt sam robił.
+
 ## [1.140.0] — 2026-09-03
 
 ### Naprawione

@@ -80,7 +80,17 @@ module.exports = async function (t) {
   const stara = await p.evaluate(() => window.__zeSkryptu());
   t.check('bez znacznika skrypt nadal buduje warstwę', stara.dzieciDiv === 1,
     stara.dzieciDiv + ' wstawionych elementów');
-  t.check('i zdejmuje tło z sekcji, jak dotąd', !stara.tloSekcji, String(stara.tloSekcji));
+
+  /* ZGŁOSZONE Z UŻYCIA PO 1.140.0: „nadal jest flash z parallax". Warstwa
+     z serwera trafia tylko do elementów z kontrolek Evoke; ręcznie wpisany
+     `data-parallax` jechał dalej starą drogą — a ta zdejmowała tło z sekcji
+     i wjeżdżała kryciem od zera. Ta sama dziura, tylko w drugiej ścieżce.
+     Teraz obie zachowują się tak samo. */
+  t.check('ale nie zdejmuje już tła z sekcji', stara.tloSekcji, String(stara.tloSekcji));
+  t.check('a warstwa jest widoczna od razu', stara.krycieWarstwy === '1',
+    'opacity ' + stara.krycieWarstwy);
+  t.check('bez przejścia krycia, które trzeba przeczekać',
+    stara.czasPrzejscia === '0s', 'transition-duration: ' + stara.czasPrzejscia);
 
   t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
   await p.close();

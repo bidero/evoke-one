@@ -122,8 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 pointer-events: none;
                 backface-visibility: hidden;
                 -webkit-backface-visibility: hidden;
-                opacity: 0;
-                transition: opacity 0.1s ease-in-out;
                 transform: translate3d(0, 0, 0) scale(${customScale});
             `;
 
@@ -134,17 +132,40 @@ document.addEventListener('DOMContentLoaded', () => {
             element.insertAdjacentElement('afterbegin', bgElement);
             targetElement = bgElement;
 
-            element.style.backgroundImage = 'none';
+            /* TŁO SEKCJI ZOSTAJE — i warstwa nie wyłania się z pustki.
+             *
+             * Do 1.140.1 było tu `opacity: 0` z przejściem oraz
+             * `element.style.backgroundImage = 'none'`. Razem dawały dziurę:
+             * sekcja była już namalowana ze swoim tłem, skrypt to tło zdejmował,
+             * a warstwa wjeżdżała dopiero dwie klatki później. „Widać → pusto
+             * → wraca" — zgłoszone jako migotanie przy każdym wejściu na stronę.
+             *
+             * Warstwa i tak zakrywa sekcję w całości (jest wsunięta o 10% w górę
+             * i w dół, na pełną szerokość), więc tło pod spodem nie ma jak się
+             * pokazać. Nie trzeba go zdejmować, a skoro nie trzeba — nie ma
+             * czego maskować przejściem. Ta sama zasada, na której stoi warstwa
+             * drukowana z serwera (`EVK_Parallax::print_layer_css()`). */
         }
 
         element.dataset.parallaxActive = "true";
 
-        // Płynne wejście
-        requestAnimationFrame(() => {
+        /* Wyłanianie zostaje WYŁĄCZNIE dla obrazu.
+         *
+         * Przy `<img>` skrypt naprawdę przestawia element: wkłada go w nową
+         * owijkę i przesuwa na środek transformacją. Tego skoku nie da się
+         * uniknąć i to jego maskuje przejście krycia — dlatego tam zostaje.
+         *
+         * Przy tle nie ma czego maskować: warstwa dostaje tę samą grafikę
+         * w tym samym miejscu, a sekcja zachowuje swoje tło. Wyłanianie było
+         * tam nie efektem, tylko przykrywką na dziurę, którą skrypt sam
+         * robił. */
+        if (isImg) {
             requestAnimationFrame(() => {
-                targetElement.style.opacity = '1';
+                requestAnimationFrame(() => {
+                    targetElement.style.opacity = '1';
+                });
             });
-        });
+        }
 
         // Silnik ruchu
         let isVisible = false;

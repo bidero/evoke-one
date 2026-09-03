@@ -50,9 +50,15 @@
   /** Sekcja bez znacznika ma jechać starą drogą — z wstawioną warstwą. */
   window.__zeSkryptu = function () {
     var el = document.querySelector('.ze-skryptu');
+    var w  = el.querySelector('div');
     return {
       dzieciDiv: el.querySelectorAll('div').length,
       tloSekcji: getComputedStyle(el).backgroundImage !== 'none',
+      // Warstwa ma być widoczna OD RAZU — bez wyłaniania się z pustki.
+      krycieWarstwy: w ? getComputedStyle(w).opacity : null,
+      /* Liczy się CZAS, nie nazwa własności: `transition-property: all` to
+         wartość domyślna i przy zerowym czasie nie znaczy nic. */
+      czasPrzejscia: w ? getComputedStyle(w).transitionDuration : null,
     };
   };
 
