@@ -183,7 +183,7 @@ function evk_snippety_lista(): void {
              wystarczyło: rdzeń wygrywał specyficznością. Zamiast dokładać wagi
              w wyścigu na punkty — koniec wyścigu. Cały wygląd tabeli siedzi
              w `admin.css` przy `.evo-snippety-tbl` i daje się zmierzyć. */ ?>
-    <table class="evo-snippety-tbl">
+    <table class="evo-tbl evo-snippety-tbl">
         <thead><tr>
             <th>Stan</th>
             <th class="evo-col-nazwa"><a href="<?php echo esc_url(evk_snippety_url(['evk_sort' => 'tytul'])); ?>">Nazwa</a></th>

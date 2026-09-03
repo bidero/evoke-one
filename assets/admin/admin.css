@@ -306,7 +306,40 @@
 
 /* Divider and save bar */
 .evo-divider { border: none; border-top: 1px solid var(--evo-border-soft); margin: 24px 0; }
-.evo-save-bar { display: flex; align-items: center; gap: 12px; margin: 24px -28px -24px; padding: 14px 28px; background: rgba(255,255,255,.94); backdrop-filter: blur(8px); border-top: 1px solid var(--evo-border-soft); border-radius: 0 0 10px 10px; }
+/* PASEK ZAPISU — STOPKA FORMULARZA, nie pudełko w pudełku.
+ *
+ * ZGŁOSZONE Z UŻYCIA: „ten pasek średnio wygląda z tą zaokrągloną ramką,
+ * stykającą się". Składały się na to dwie reguły: ta i druga, dopisana później
+ * („jak w Fields"), która dokładała ramkę DOOKOŁA i zaokrąglenie wszystkich
+ * rogów. Efekt: pudełko rozlane dokładnie do wewnętrznej krawędzi karty, więc
+ * jego boczne ramki stały piksel obok ramek karty, a dolne rogi zaokrąglały się
+ * tuż przy jej zaokrągleniu. Do tego pasek jest PRZYKLEJONY: przy krótkim
+ * formularzu stawał w połowie białej karty — zmierzone 555 px przy dnie karty
+ * na 751 — i zaokrąglone rogi wisiały w powietrzu.
+ *
+ * Teraz jedna reguła i jedna rola: stopka. Pełna szerokość, jedna włosowa
+ * kreska u góry, kryjące tło, kanty proste. Wygląda tak samo, czy akurat
+ * dotyka dna karty, czy stoi wyżej.
+ *
+ * Bez `backdrop-filter`. Rozmycie ma sens, gdy pod paskiem faktycznie
+ * przesuwa się treść, a kosztuje przy każdej klatce przewijania; kryjące tło
+ * jest czytelniejsze i tańsze. */
+.evo-save-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px -28px -24px;
+    padding: 14px 28px;
+    background: var(--evo-bg);
+    border: 0;
+    border-top: 1px solid var(--evo-border);
+    border-radius: 0;
+}
+/* Potwierdzenie zapisu na drugi koniec paska — po prawej była sama pustka. */
+.evo-save-bar .evo-save-msg { margin-left: auto; }
 .evo-save-bar .button-primary { background: var(--evo-accent); border-color: var(--evo-accent); }
 .evo-save-bar .button-primary:hover { background: var(--evo-accent-dark); border-color: var(--evo-accent-dark); }
 
@@ -1244,15 +1277,10 @@
 /* ── Plakietka klasy ── */
 .evo-anim-class { background: var(--evo-code-bg); color: var(--evo-code-text); border-radius: 4px; }
 
-/* ── Pasek zapisu — przyklejony, jak w Fields ── */
-.evo-save-bar {
-    position: sticky;
-    bottom: 0;
-    border: 1px solid var(--evo-border);
-    border-radius: var(--evo-radius);
-    box-shadow: 0 -2px 14px rgba(15, 23, 42, .06);
-    z-index: 5;
-}
+/* Pasek zapisu ma JEDNĄ regułę i stoi wyżej w tym pliku. Tutaj była druga,
+   dopisana przy skórze Evoke FIELDS: dokładała ramkę dookoła i zaokrąglenie
+   wszystkich rogów do paska, który już był rozlany na całą szerokość karty.
+   Dwie reguły na jeden element to dwa różne pomysły na to, czym on jest. */
 
 /* =========================================================================
    KOMPONENTY ZAKŁADEK
@@ -2640,31 +2668,30 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
    oknie 1280. Na nazwę schodziło trzydzieści pikseli. Teraz odwrotnie:
    kolumny biorą tyle, ile potrzebują na swoją treść, a `width: 100%` na jednej
    z nich każe układowi automatycznemu oddać jej całą resztę. */
-/* WYGLĄD W CAŁOŚCI WŁASNY — bez `widefat` i bez `striped`.
+/* TABELA PANELU — jeden wygląd na wszystkie ekrany.
  *
- * ZGŁOSZONE Z UŻYCIA, dwa razy pod rząd: „jest jakaś ramka ekstra", a potem
- * „usuń tę ramkę prostokątną w wersji mobilnej". Za pierwszym razem zdjąłem ją
- * regułą `.evo-snippety-tbl { border: 0 }` w bloku telefonu — i nie zadziałało,
- * bo rdzeń rysuje ramkę selektorem o wyższej specyficzności. Naszej reguły
- * o jednej klasie nie było w stanie wygrać, a testy tego nie widziały, bo
- * arkuszy wp-admin nie ma w repozytorium.
+ * ZGŁOSZONE Z UŻYCIA: „wszędzie mamy zaokrąglenia, a w SEO kanty w ramce są
+ * ostre", potem to samo o Role Managerze. Przyczyna jedna i ta sama, co przy
+ * fragmentach kodu dwa wydania wcześniej: te tabele nosiły klasy rdzenia
+ * (`wp-list-table widefat fixed striped`), a rdzeń rysuje ramkę kwadratową.
+ * Nasze komponenty są zaokrąglone, więc każdy ekran z cudzą tabelą odstawał.
  *
- * Zamiast dokładać wagi w wyścigu na punkty — koniec wyścigu. Tabela nie nosi
- * już ani jednej klasy rdzenia, więc żadna cudza reguła jej nie dotyczy,
- * a wszystko, co widać, jest tutaj i daje się zmierzyć. Wygląd zostaje taki
- * sam: ramka, nagłówek na miękkim tle, kreski między wierszami, pasy zebry. */
-.evo-snippety-tbl {
+ * Wygląd jest tutaj i tylko tutaj: ramka 1 px, promień 8 px, nagłówek na
+ * miękkim tle, kreski między wierszami, delikatne pasy co drugi wiersz.
+ * `table-layout` NIE jest częścią komponentu — o nim decyduje ekran, bo jedne
+ * tabele mają kolumny o stałych proporcjach (SEO, Role), a inne oddają całą
+ * resztę jednej kolumnie (fragmenty kodu). */
+.evo-tbl {
     width: 100%;
-    table-layout: auto;
     border-collapse: collapse;
     border: 1px solid var(--evo-border);
     border-radius: 8px;
-    /* Promień na tabeli obcina rogi tylko wtedy, gdy jest co obcinać —
-       `border-collapse` gubi tło komórek narożnych bez tego. */
+    /* Promień obcina rogi tylko wtedy, gdy jest co obcinać — `border-collapse`
+       gubi tło komórek narożnych bez tego. */
     overflow: hidden;
     background: var(--evo-bg);
 }
-.evo-snippety-tbl th {
+.evo-tbl th {
     padding: 10px 12px;
     text-align: left;
     font-size: 12px;
@@ -2673,13 +2700,23 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     background: var(--evo-surface);
     border-bottom: 1px solid var(--evo-border);
 }
-.evo-snippety-tbl td {
+.evo-tbl td {
     padding: 10px 12px;
     font-size: 13px;
     border-bottom: 1px solid var(--evo-border-soft);
 }
-.evo-snippety-tbl tbody tr:last-child td { border-bottom: 0; }
-.evo-snippety-tbl tbody tr:nth-child(even) td { background: var(--evo-surface); }
+.evo-tbl tbody tr:last-child td { border-bottom: 0; }
+.evo-tbl tbody tr:nth-child(even) td { background: var(--evo-surface); }
+/* Kolumny o stałych proporcjach — odpowiednik `fixed` z rdzenia, bez rdzenia. */
+.evo-tbl-fixed { table-layout: fixed; }
+
+/* ── Fragmenty kodu: to, co dotyczy tylko tej jednej tabeli ── */
+
+/* „Nazwa" zabiera to, co zostanie, reszta kurczy się do treści.
+   Do 1.139.0 tabela miała `table-layout: fixed` i sześć kolumn przypiętych na
+   sztywno — razem 750 px przy około 780 px, które karta ma do oddania przy
+   oknie 1280. Na nazwę schodziło trzydzieści pikseli. */
+.evo-snippety-tbl { table-layout: auto; }
 .evo-snippety-tbl th,
 .evo-snippety-tbl td { white-space: nowrap; }
 .evo-snippety-tbl .evo-col-nazwa { width: 100%; white-space: normal; }

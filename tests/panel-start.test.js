@@ -274,6 +274,99 @@ module.exports = async function (t) {
   t.check('i nigdzie nie jest wpisana wprost w regule', !wprost.length,
     wprost.map(({ l }) => l.trim().slice(0, 44)).join(' | ') || 'czysto');
 
+  // ── Pasek zapisu ───────────────────────────────────────────────────────
+  t.section('pasek zapisu jest stopką, nie pudełkiem w pudełku');
+
+  /* ZGŁOSZONE Z UŻYCIA: „ten pasek średnio wygląda z tą zaokrągloną ramką,
+     stykającą się". Składały się na to DWIE reguły `.evo-save-bar` — jedna
+     rozlewała pasek na całą szerokość karty, druga („jak w Fields") dokładała
+     ramkę dookoła i zaokrąglenie wszystkich rogów. Pasek jest przy tym
+     przyklejony, więc przy krótkim formularzu stawał w połowie białej karty
+     i te rogi wisiały w powietrzu. */
+  const zPaskiem = await t.open('snippety-lista.html', {
+    viewport: { width: 1280, height: 900 },
+    head: 'window.__panel = ' + JSON.stringify(panel({}, 'narzedzia')) + ';'
+        + 'window.__tresc = ' + JSON.stringify(phpOutput('tab.php', 'sec-login')) + ';',
+  });
+
+  const pasek = await zPaskiem.evaluate(() => {
+    const bar = document.querySelector('.evo-save-bar');
+    const box = document.querySelector('.evo-panel');
+    if (!bar || !box) return null;
+    const s = getComputedStyle(bar), sk = getComputedStyle(box);
+    const b = bar.getBoundingClientRect(), k = box.getBoundingClientRect();
+    const msg = bar.querySelector('.evo-save-msg');
+    return {
+      promien: s.borderTopLeftRadius + ' ' + s.borderBottomLeftRadius,
+      ramki: [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth]
+        .map((w) => Math.round(parseFloat(w))),
+      tlo:  s.backgroundColor,
+      blur: s.backdropFilter,
+      // Pasek ma sięgać wewnętrznych krawędzi karty, a nie stać wyspą w środku.
+      doKrawedzi: Math.abs(b.left - (k.left + parseFloat(sk.borderLeftWidth))) <= 1
+               && Math.abs(b.right - (k.right - parseFloat(sk.borderRightWidth))) <= 1,
+      // Potwierdzenie zapisu na drugim końcu paska — po prawej była pustka.
+      /* Komunikat jest ukryty do chwili zapisu (`display: none`), więc nie ma
+         czego mierzyć w pikselach — `auto` jest tu całą treścią reguły. */
+      komunikatZPrawej: msg ? getComputedStyle(msg).marginLeft : null,
+    };
+  });
+
+  t.check('bez zaokrągleń — kanty proste', pasek && pasek.promien === '0px 0px',
+    pasek ? pasek.promien : 'brak paska');
+  t.check('i jedna kreska u góry zamiast ramki dookoła',
+    pasek && pasek.ramki[0] === 1 && pasek.ramki.slice(1).every((w) => w === 0),
+    pasek ? pasek.ramki.join('/') : '—');
+  t.check('tło kryjące, bez rozmycia',
+    pasek && !/rgba\([^)]*,\s*0?\.\d+\)/.test(pasek.tlo) && pasek.blur === 'none',
+    pasek ? pasek.tlo + ', ' + pasek.blur : '—');
+  t.check('sięga wewnętrznych krawędzi karty', pasek && pasek.doKrawedzi,
+    pasek ? String(pasek.doKrawedzi) : '—');
+  t.check('a potwierdzenie zapisu odpychane jest na prawy koniec',
+    pasek && pasek.komunikatZPrawej === 'auto',
+    pasek ? 'margin-left: ' + pasek.komunikatZPrawej : '—');
+  await zPaskiem.close();
+
+  // ── Tabele panelu ──────────────────────────────────────────────────────
+  t.section('tabele mają nasz wygląd, nie rdzenia');
+
+  /* ZGŁOSZONE Z UŻYCIA: „wszędzie mamy zaokrąglenia, a w SEO kanty w ramce są
+     ostre", potem to samo o Role Managerze. Obie tabele nosiły klasy rdzenia
+     (`wp-list-table widefat fixed striped`), a rdzeń rysuje ramkę kwadratową.
+     Ramki rdzenia w pomiarze nie widać — arkuszy wp-admin nie ma
+     w repozytorium — więc sprawdzamy DWIE rzeczy: znacznik (czy klasy odeszły)
+     i piksele (czy nasz komponent naprawdę tam dociera). */
+  for (const [plik, nazwa] of [['includes/admin/seo/tab-meta.php', 'SEO'],
+                               ['includes/admin/admin-roles.php', 'Role Manager']]) {
+    const zrodlo = fs.readFileSync(path.join(__dirname, '..', plik), 'utf8');
+    const klasy = ['wp-list-table', 'widefat', 'striped']
+      .filter((k) => new RegExp('<table[^>]*\\b' + k + '\\b').test(zrodlo));
+    t.check(nazwa + ' nie nosi klas tabeli rdzenia', !klasy.length,
+      klasy.join(', ') || 'czysto');
+  }
+
+  for (const [ekran, nazwa] of [['seo-meta', 'SEO'], ['adm-roles', 'Role Manager']]) {
+    const str = await t.open('snippety-lista.html', {
+      viewport: { width: 1400, height: 1000 },
+      head: 'window.__panel = ' + JSON.stringify(panel({}, 'narzedzia')) + ';'
+          + 'window.__tresc = ' + JSON.stringify(phpOutput('tab.php', ekran)) + ';',
+    });
+    const tbl = await str.evaluate(() => {
+      const el = document.querySelector('.evo-tbl');
+      if (!el) return null;
+      const s = getComputedStyle(el);
+      const th = el.querySelector('th');
+      return {
+        promien: s.borderTopLeftRadius,
+        ramka:   Math.round(parseFloat(s.borderTopWidth)),
+        naglowekTlo: th ? getComputedStyle(th).backgroundColor : null,
+      };
+    });
+    t.check(nazwa + ' ma zaokrągloną ramkę', tbl && tbl.promien === '8px' && tbl.ramka === 1,
+      tbl ? tbl.promien + ', ramka ' + tbl.ramka + ' px' : 'brak tabeli .evo-tbl');
+    await str.close();
+  }
+
   // ── Role Manager ───────────────────────────────────────────────────────
   t.section('Role Manager wypełnia szerokość');
 

@@ -2,6 +2,40 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.139.7] — 2026-09-03
+
+### Naprawione
+
+- **Pasek zapisu był pudełkiem w pudełku.** Zgłoszone z użycia: „średnio
+  wygląda z tą zaokrągloną ramką, stykającą się". Składały się na to **dwie
+  reguły** `.evo-save-bar` — jedna rozlewała pasek na całą szerokość karty,
+  druga, dopisana później przy skórze Evoke FIELDS, dokładała ramkę dookoła
+  i zaokrąglenie wszystkich rogów. Boczne ramki paska stały piksel obok ramek
+  karty, a dolne rogi zaokrąglały się tuż przy jej zaokrągleniu.
+
+  Do tego pasek jest przyklejony: przy krótkim formularzu stawał w połowie
+  białej karty — zmierzone 555 px przy dnie karty na 751 — i te rogi wisiały
+  w powietrzu. Teraz jedna reguła i jedna rola: **stopka formularza**. Pełna
+  szerokość, jedna włosowa kreska u góry, kryjące tło, kanty proste; wygląda
+  tak samo niezależnie od długości treści. Potwierdzenie zapisu przeszło na
+  prawy koniec paska, gdzie była pustka. Bez `backdrop-filter` — rozmycie ma
+  sens tylko pod przesuwającą się treścią, a kosztuje przy każdej klatce.
+
+- **Ostre kanty tabel w SEO i Role Managerze.** Zgłoszone z użycia: „wszędzie
+  mamy zaokrąglenia, a w SEO kanty w ramce są ostre". Obie tabele nosiły klasy
+  rdzenia (`wp-list-table widefat fixed striped`), a rdzeń rysuje ramkę
+  kwadratową — ta sama przyczyna, co przy fragmentach kodu w 1.139.4.
+
+  Wygląd tabeli jest teraz **wspólnym komponentem** `.evo-tbl`: ramka 1 px,
+  promień 8 px, nagłówek na miękkim tle, kreski między wierszami, delikatne
+  pasy co drugi wiersz. `table-layout` celowo poza komponentem — o nim decyduje
+  ekran, bo jedne tabele mają kolumny o stałych proporcjach, a inne oddają
+  całą resztę jednej kolumnie.
+
+  **Zostaje dziewięć plików** z tabelami rdzenia: Limit logowań, SMTP, Logi
+  404, Przekierowania 301 i pięć ekranów newslettera. Idą osobnym wydaniem
+  tym samym komponentem.
+
 ## [1.139.6] — 2026-09-03
 
 ### Naprawione

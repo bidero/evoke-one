@@ -99,7 +99,11 @@ $seo_max = $seo_query ? max(1, (int) $seo_query->max_num_pages) : 1;
                     <span class="evk-seo-count">(<?php echo (int) $seo_query->found_posts; ?>)</span>
                 </h3>
 
-                <div class="evk-table-wrap"><table class="wp-list-table widefat fixed striped">
+                <?php /* BEZ KLAS RDZENIA. `widefat` rysuje ramkę kwadratową, a cały panel
+             jest zaokrąglony — stąd zgłoszenie „w SEO kanty w ramce są ostre".
+             Wygląd bierze `.evo-tbl` z `admin.css`, proporcje kolumn zostają
+             (`.evo-tbl-fixed` robi to samo, co `fixed` z rdzenia). */ ?>
+                <div class="evk-table-wrap"><table class="evo-tbl evo-tbl-fixed">
                     <thead>
                         <tr>
                             <th class="evk-seo-col-post">Strona / Wpis</th>

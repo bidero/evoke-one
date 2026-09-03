@@ -664,8 +664,11 @@ $TABS = [
                    się bez przewijania i sprawdzenie „kod przewija się w swoim
                    pudełku" nie miałoby czego mierzyć. */
                 'context' => '  40 | function evk_bardzo_dluga_nazwa_funkcji_ktora_nie_miesci_sie_w_kolumnie($argument_pierwszy, $argument_drugi, $argument_trzeci, $argument_czwarty, $argument_piaty, $argument_szosty) {'
-                           . "\n  41 |     return apply_filters('evk_jakis_bardzo_dlugi_filtr_o_nazwie_ktora_tez_nie_pomaga', $argument_pierwszy, $argument_drugi, $argument_trzeci, $argument_czwarty, $argument_piaty);"
-                           . "\n  42 | }",
+                           /* Apostrofy, nie cudzysłowy: w cudzysłowie PHP podstawia
+                              `$argument_*` jako zmienne i z kontekstu znika to, co miało
+                              w nim być — łącznie z długością, która jest tu sednem. */
+                           . "\n" . '  41 |     return apply_filters(\'evk_dlugi_filtr\', $argument_pierwszy, $argument_drugi, $argument_trzeci, $argument_czwarty, $argument_piaty);'
+                           . "\n" . '  42 | }',
             ]];
         },
     ],

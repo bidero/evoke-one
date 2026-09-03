@@ -158,7 +158,10 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
     <?php /* Bez `.evo-tbl-wrap`: ta tabela ma `table-layout: fixed`, więc mieści
              się w kolumnie sama. Sprawdzone mutacją — zdjęcie owijki nie zapaliło
              żadnego pomiaru, a `adm-roles` jest mierzona przy 390 i 360 px. */ ?>
-    <table class="wp-list-table widefat fixed striped">
+    <?php /* Bez klas rdzenia — patrz komentarz przy tabeli SEO. Układ
+             `fixed` zostaje: to on trzyma tę tabelę w kolumnie przy 390 i 360 px,
+             co pilnują pomiary w tests/panel-start.test.js. */ ?>
+    <table class="evo-tbl evo-tbl-fixed">
         <thead><tr>
             <th>Rola</th>
             <th>Slug</th>
