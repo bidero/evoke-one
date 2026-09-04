@@ -9,13 +9,19 @@ if (!defined('ABSPATH')) exit;
  * więc słowo przechodzi do następnego wiersza razem z nim. To samo robi
  * z liczbą i jej jednostką: „5 km" ma się nie rozjeżdżać między wierszami.
  *
- * GDZIE, I DLACZEGO AKURAT TAM. Gotowe wtyczki tego rodzaju wpinają się
- * w `the_content`, `the_title` i `the_excerpt` — a na stronie budowanej
- * Bricksem większość tekstu przez te filtry NIE PRZECHODZI: nagłówki, teksty
- * i przyciski builder renderuje sam. Dlatego głównym wejściem jest tu
+ * GDZIE, I DLACZEGO AKURAT TAM. Na stronie budowanej Bricksem większość tekstu
+ * przez `the_content`, `the_title` i `the_excerpt` NIE PRZECHODZI: nagłówki,
+ * teksty i przyciski builder renderuje sam. Dlatego głównym wejściem jest tu
  * `bricks/frontend/render_data`, ten sam, którym jedzie silnik tłumaczeń
  * (includes/50-translation-engine.php) i podmiany parallaksu. Klasyczne filtry
  * zostają dla wpisów bloga i tytułów.
+ *
+ * DLACZEGO WŁASNY MODUŁ, a nie gotowa wtyczka: bo planem jest mniej wtyczek na
+ * stronie. Nie dlatego, że gotowce nie widzą Bricksa — iworks/sierotki ma
+ * własną integrację z builderem (`bricks/frontend/render_data` na
+ * `PHP_INT_MAX`). Ten priorytet jest zresztą jedyną istotną różnicą techniczną:
+ * postawiłby zamianę PO wszystkich naszych filtrach, gdy my celujemy tuż po
+ * tłumaczeniach.
  *
  * KOLEJNOŚĆ WZGLĘDEM TŁUMACZEŃ jest tu regułą, nie szczegółem. Tłumaczenia
  * pracują na priorytecie 1; sierotki muszą pójść PO nich, inaczej poprawiałyby

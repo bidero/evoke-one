@@ -57,8 +57,8 @@ if (!defined('ABSPATH')) exit;
                     <h3>Gdzie to działa</h3>
                     <p class="evo-desc evo-mb-0">
                         Głównym wejściem jest treść renderowana przez <strong>Bricksa</strong> — nagłówki, teksty,
-                        przyciski i listy nie przechodzą przez zwykłe filtry WordPressa, więc wtyczki tego rodzaju
-                        zwykle ich nie widzą. Poza tym poprawiane są treść wpisu, wyciąg i tytuł na stronie.
+                        przyciski i listy nie przechodzą przez zwykłe filtry WordPressa, więc sama treść wpisu
+                        to za mało. Poza tym poprawiane są treść wpisu, wyciąg i tytuł na stronie.
                         <br><br>
                         <strong>Nie ruszamy</strong> wnętrza znaczników (adresów, opisów obrazków, nazw klas),
                         treści <code>&lt;pre&gt;</code>, <code>&lt;code&gt;</code>, <code>&lt;script&gt;</code>,

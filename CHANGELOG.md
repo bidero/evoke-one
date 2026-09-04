@@ -39,12 +39,26 @@ Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer
   nie upodobanie. Moduł zamienia spację po nich na nierozdzielającą, a przy
   włączonej opcji wiąże też liczbę z jednostką („5 km", „2024 r.", „10 %").
 
+  > **SPROSTOWANIE (dopisane po wydaniu).** Ta pozycja uzasadniała powstanie
+  > modułu zdaniem, że wtyczki tego rodzaju wpinają się wyłącznie
+  > w `the_content`, `the_title` i `the_excerpt`, więc treści Bricksa nie
+  > widzą. **To była nieprawda i to ona niosła całą decyzję.** Sprawdzone
+  > w źródle wtyczki iworks/sierotki: ma plik
+  > `class-iworks-orphans-integration-bricks.php`, który wpina się
+  > w `bricks/frontend/render_data` na priorytecie `PHP_INT_MAX`. Pokrycie
+  > Bricksa **nie jest** tym, co nas od niej odróżnia.
+  >
+  > Prawdziwy powód jest jeden i jest z planu projektu: **mniej wtyczek na
+  > stronie.** To, co Evoke ONE robi samo, nie wymaga instalowania,
+  > aktualizowania ani pilnowania kolejności filtrów z cudzym kodem.
+  > Techniczna różnica wobec gotowca sprowadza się do priorytetu: my idziemy
+  > na 20, tuż po silniku tłumaczeń, a `PHP_INT_MAX` postawiłby zamianę po
+  > wszystkich naszych filtrach.
+
   **Głównym wejściem jest treść renderowana przez Bricksa**
-  (`bricks/frontend/render_data`) i to jest cały powód, dla którego moduł
-  powstał zamiast sięgnięcia po gotowca. Wtyczki tego rodzaju wpinają się
-  w `the_content`, `the_title` i `the_excerpt` — a na stronie budowanej
-  builderem nagłówki, teksty i przyciski przez te filtry **nie przechodzą**.
-  Klasyczne filtry zostają obok, dla wpisów bloga.
+  (`bricks/frontend/render_data`) — na stronie budowanej builderem nagłówki,
+  teksty i przyciski przez klasyczne filtry **nie przechodzą**. Te ostatnie
+  zostają obok, dla wpisów bloga.
 
   Idzie **po** silniku tłumaczeń (priorytet 20 wobec 1): odwrotna kolejność
   poprawiałaby tekst, który za chwilę zostanie podmieniony na inny język.
