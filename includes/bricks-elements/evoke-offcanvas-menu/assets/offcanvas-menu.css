@@ -41,7 +41,10 @@
 .evk-oc-shell {
     position: fixed;
     inset: 0;
-    z-index: 99990;
+    /* Celowo wysoko, żeby panel nie chował się pod niczyim nagłówkiem.
+       Kontrolka „Warstwa menu" podstawia tu własną liczbę — bywa potrzebna
+       odwrotność, czyli coś na stronie ma wygrywać z menu. */
+    z-index: var(--evk-oc-z, 99990);
     visibility: hidden;
     pointer-events: none;
     /* Zerowy czas i opóźnienie równe czasowi kadru: powłoka znika DOPIERO po
@@ -55,34 +58,6 @@
     pointer-events: auto;
     transition-delay: 0s;
 }
-
-/* ── GRZANIE: powłoka gotowa, zanim padnie kliknięcie ──
- *
- * Wariant sondy (`?evk-oc-proba=grzanie`), zakładany na DOTKNIĘCIE
- * przełącznika — patrz `przygotuj()` w skrypcie.
- *
- * `visibility: hidden` znaczy „nie maluj”, więc do pierwszego otwarcia powłoka
- * dla malowania nie istnieje: układ, malowanie, rasteryzacja i promocja warstw
- * dla `position: fixed` spadają na tę jedną klatkę, w której ma ruszyć
- * przejście. Zgłoszone zacięcie ma dokładnie ten kształt — pierwsze otwarcie,
- * i tylko dopóki strona nie została przewinięta.
- *
- * Widać przy tym nadal nic: kadr stoi wysunięty poza ekran, przyciemnienie ma
- * zerowe krycie, a kliknięcia łapie dopiero `.is-open`.
- *
- * `transition-delay: 0s` jest tu OBOWIĄZKOWE, nie kosmetyczne. Powłoka ma
- * `transition: visibility 0s linear var(--evk-oc-time)`; opóźnienie służy
- * chowaniu po wyjeździe, ale przy grzaniu odsunęłoby całą robotę o czas
- * animacji — czyli wprost tam, skąd ją zabieramy. */
-.evk-oc-shell.is-armed {
-    visibility: visible;
-    transition-delay: 0s;
-}
-/* Tylko na czas grzania i otwarcia — `finishClose()` zdejmuje klasę. Stałe
-   `will-change` trzyma element na własnej warstwie kompozytora przez całe
-   życie strony, a to ma tu zmierzone skutki uboczne (patrz `.evk-oc-track`). */
-.evk-oc-shell.is-armed .evk-oc-frame { will-change: transform; }
-.evk-oc-shell.is-armed .evk-oc-scrim { will-change: opacity; }
 
 .evk-oc-scrim {
     position: absolute;

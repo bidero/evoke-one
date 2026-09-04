@@ -2,6 +2,68 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.143.0] — 2026-09-04
+
+### Naprawione
+
+- **Burger, który otwierał menu, nie zamykał go.** Zgłoszone z użycia:
+  „kliknięcie burgera, który otwiera oc, nie zamyka oc". Kliknięcie zawsze
+  wołało otwarcie — także przy menu już otwartym, gdzie nie robiło nic
+  widocznego.
+
+  To nie brakująca wygoda, tylko niedotrzymana obietnica: element sam ustawia
+  przełącznikowi `aria-expanded` i dokłada mu klasy stanu, na których wisi
+  animacja kresek burgera. Przycisk zapowiadał więc oku i czytnikowi ekranu,
+  że jest przełącznikiem — a nie przełączał.
+
+  Kliknięcie **w trakcie wychodzenia treści** nadal menu przywraca, a nie
+  zamyka drugi raz: „rozmyśliłem się w pół drogi" jest osobnym zachowaniem
+  i zostaje.
+
+### Dodane
+
+- **„Nagłówek nad menu" — przełącznik.** Zgłoszone z użycia: „kiedy powłoka
+  jest w `<body>`, nie mogę spowodować, żeby nagłówek był ponad nim (tam,
+  gdzie jest burger)".
+
+  Podniesienie nagłówkowi `z-index` bywa bezskuteczne i **nie dlatego, że
+  liczba za mała**: warstwy porównuje się tylko wewnątrz jednego kontekstu
+  nakładania. Przyklejony nagłówek zakłada własny — robi to `transform`,
+  `filter`, krycie poniżej jedynki albo po prostu `z-index` na czymś
+  pozycjonowanym — i wtedy on rozstrzyga za całą swoją zawartość, a liczba
+  wpisana burgerowi nie ma jak wyjść na zewnątrz.
+
+  Przełącznik szuka więc **najdalszego przodka przełącznika, który zakłada
+  własny kontekst** — bo to on staje z powłoką w tym samym porównaniu — i na
+  czas otwarcia podnosi jego, o jeden ponad warstwę powłoki. Przy zamknięciu
+  warstwa wraca dokładnie do poprzedniej, i to dopiero po wyjeździe kadru:
+  zdjęta od razu wsuwałaby nagłówek pod panel, który jeszcze widać.
+
+  Podnoszony jest **jeden** element. Podnoszenie po drodze wszystkiego, co
+  pozycjonowane, przestawiałoby przy okazji kolejność wewnątrz nagłówka,
+  a o to nikt nie prosił.
+
+  Gdy o kolejności decyduje element niepozycjonowany, `z-index` na nim nic nie
+  znaczy — a spozycjonowanie go z ręki założyłoby blok zawierający jego
+  potomkom z `position: absolute` i przestawiło im układ. Element mówi wtedy
+  w konsoli, czego brakuje, zamiast po cichu nie zadziałać.
+
+- **„Warstwa menu (z-index)" — kontrolka.** Druga droga do tego samego celu:
+  zamiast podnosić nagłówek, obniżyć menu. Domyślne 99990 jest celowo wysokie,
+  żeby panel nie chował się pod niczyim nagłówkiem; obniżenie przydaje się,
+  gdy coś na stronie ma wygrywać z menu. Działa tylko wtedy, gdy powłoka
+  i ten element leżą w jednym kontekście nakładania — w przeciwnym razie
+  właściwy jest przełącznik wyżej.
+
+### Usunięte
+
+- **Sonda otwierania (1.141.0–1.142.0) w całości.** Zrobiła swoje: pomiary na
+  telefonie wykluczyły kolejno warstwy z `mix-blend-mode`, opóźnianie JS
+  i leniwą promocję warstw, a przyczyną okazała się reguła w arkuszu strony —
+  `svg { filter: drop-shadow(0px 5px 52px …) }` bez selektora, czyli na każdej
+  ikonie w dokumencie. Zawężenie tej reguły rozwiązało zgłoszenie, więc cała
+  aparatura pomiarowa schodzi ze skryptu, arkusza i testów.
+
 ## [1.142.0] — 2026-09-04
 
 ### Dodane

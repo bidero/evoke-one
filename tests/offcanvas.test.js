@@ -1720,424 +1720,166 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !aria.errors.length, aria.errors.join(' | ') || 'brak');
   await aria.close();
 
-  /* ── SONDA OTWIERANIA ────────────────────────────────────────────────────
+  /* ── PRZEŁĄCZNIK ZAMYKA ─────────────────────────────────────────────────
    *
-   * ZGŁOSZONE Z UŻYCIA: „offcanvas zacina się, kiedy burger jest kliknięty
-   * jako pierwszy; jeśli trochę przewinę stronę do dołu, otwiera się pięknie —
-   * i to na każdej stronie. Mobilne Safari i Chrome (iPhone)".
+   * ZGŁOSZONE Z UŻYCIA: „kliknięcie burgera, który otwiera oc, nie zamyka oc".
    *
-   * Samego zacięcia TU NIE ZMIERZYMY i nie ma sensu udawać, że zmierzymy:
-   * dzieje się na iOS, przy zerowej pozycji przewijania i tylko za pierwszym
-   * razem. Pomiar w headless Chromium na pulpicie już raz wyszedł na zero.
-   * Mierzalne jest natomiast NARZĘDZIE do pomiaru na telefonie — a narzędzie
-   * diagnostyczne, które po cichu zmienia to, co bada, jest gorsze niż jego
-   * brak: wskazałoby przyczynę tam, gdzie jej nie ma.
-   *
-   * Stąd dwie rzeczy pod sprawdzeniem: że bez parametru nie dzieje się NIC,
-   * i że każdy wariant zdejmuje DOKŁADNIE JEDNEGO podejrzanego.
+   * To nie brakująca wygoda, tylko niedotrzymana obietnica: element sam
+   * ustawia przełącznikowi `aria-expanded` i dokłada klasy stanu, na których
+   * wisi animacja kresek. Przycisk zapowiadał więc, że jest przełącznikiem —
+   * a nie przełączał.
    */
-  t.section('sonda: bez parametru w adresie nie dzieje się nic');
+  t.section('burger jest przełącznikiem: drugie kliknięcie zamyka');
 
-  const czysto = await t.open('offcanvas.html', { viewport: V, settle: 120, head: ZAMEK });
-  await czysto.evaluate(() => window.__open());
-  /* DŁUŻEJ NIŻ OKNO POMIARU (900 ms), i to jest tu warunek, nie ostrożność.
-     Tablica powstaje dopiero przy zapisie wyniku, więc odczyt po 150 ms nie
-     zastałby jej TAKŻE wtedy, gdyby sonda chodziła na każdej stronie —
-     zmierzone: przy sondzie włączonej na sztywno to sprawdzenie świeciło na
-     zielono. */
-  await czysto.waitForTimeout(1100);
-  const cz = await czysto.evaluate(() => ({
-    tablica: window.__proba(),
-    zamek:   window.__lock().locked,
-    replay:  window.__ileReplay,
-    zaslona: window.__zaslonaWidoczna(),
-    fokus:   window.__focusId(),
-  }));
+  const przel = await t.open('offcanvas.html', { viewport: V, settle: 120 });
+  await przel.evaluate(() => window.__open());
+  await przel.waitForTimeout(120);
+  t.check('pierwsze kliknięcie otwiera', await przel.evaluate(() => window.__isOpen()), 'otwarte');
 
-  t.check('żadnej tablicy w dokumencie', cz.tablica === null,
-    cz.tablica === null ? 'brak' : 'JEST tablica sondy');
-  /* Kontrola pozytywna do wszystkich wariantów niżej. Bez niej „wariant zdjął
-     zamek" pasowałoby także do kodu, w którym zamka nie zakłada nikt. */
-  t.check('blokada przewijania działa jak zwykle', cz.zamek === true, String(cz.zamek));
-  t.check('animacje treści są odgrywane', cz.replay >= 1, cz.replay + ' wywołań');
-  t.check('przyciemnienie się rysuje', cz.zaslona === true, String(cz.zaslona));
-  t.check('fokus wchodzi do panelu', cz.fokus === 's-a', String(cz.fokus));
-  await czysto.close();
+  await przel.evaluate(() => window.__open());
+  await przel.waitForTimeout(200);
+  t.check('drugie zamyka', !(await przel.evaluate(() => window.__isOpen())), 'zamknięte');
+  /* Stan przełącznika ma iść ZA menu. Bez tego burger zostaje w kształcie
+     „X" nad zamkniętym menu, a czytnik ekranu dalej mówi „rozwinięte". */
+  t.check('a przełącznik wraca do stanu zamkniętego',
+    (await przel.evaluate(() => window.__ariaExpanded())) === 'false',
+    String(await przel.evaluate(() => window.__ariaExpanded())));
 
-  // ── Odniesienie: sam pomiar, nic nie zdjęte ────────────────────────────
-  t.section('sonda odniesienia mierzy i NICZEGO nie zmienia');
+  await przel.evaluate(() => window.__open());
+  await przel.waitForTimeout(200);
+  t.check('trzecie otwiera z powrotem', await przel.evaluate(() => window.__isOpen()), 'otwarte');
+  t.check('bez błędów JS', !przel.errors.length, przel.errors.join(' | ') || 'brak');
+  await przel.close();
 
-  const p1 = await t.open('offcanvas.html',
-    { viewport: V, settle: 120, head: ZAMEK, query: 'evk-oc-proba=1' });
-  await p1.evaluate(() => window.__open());
-  // Okno pomiaru to 900 ms — tablica zapisuje się dopiero po jego zamknięciu.
-  await p1.waitForTimeout(1100);
+  /* ── NAGŁÓWEK NAD MENU ──────────────────────────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: „kiedy powłoka jest w <body>, nie mogę spowodować,
+   * żeby nagłówek był ponad nim (tam, gdzie jest burger)".
+   *
+   * Podniesienie nagłówkowi `z-index` bywa bezskuteczne i nie dlatego, że
+   * liczba za mała: warstwy porównuje się tylko WEWNĄTRZ jednego kontekstu
+   * nakładania, a przyklejony nagłówek zakłada własny — więc rozstrzyga za
+   * całą swoją zawartość i jego liczba nie ma jak wyjść na zewnątrz.
+   */
+  t.section('nagłówek nad otwartym menu');
 
-  const w1 = await p1.evaluate(() => ({
-    tablica: window.__proba(),
-    zamek:   window.__lock().locked,
-    replay:  window.__ileReplay,
-    zaslona: window.__zaslonaWidoczna(),
-    fokus:   window.__focusId(),
-  }));
+  /* Kontrola negatywna NAJPIERW — bez niej „nagłówek jest nad menu" nie
+     odróżniałoby poprawki od drzewa, w którym powłoka i tak nikogo nie
+     zasłania. */
+  const bezN = await t.open('offcanvas.html', { viewport: V, settle: 150, query: 'stack=1' });
+  await bezN.evaluate(() => window.__open());
+  await bezN.waitForTimeout(250);
+  const wBez = await bezN.evaluate(() => window.__warstwy());
+  t.check('bez przełącznika powłoka zasłania burgera',
+    wBez.naWierzchu === 'powloka' && wBez.naglowek === '',
+    'na wierzchu: ' + wBez.naWierzchu + ', warstwa nagłówka „' + wBez.naglowek + '"');
+  await bezN.close();
 
-  t.check('tablica pokazuje pierwsze otwarcie', /otwarcie #1/.test(w1.tablica || ''),
-    (w1.tablica || 'brak').split('\n')[0]);
-  t.check('z pozycją przewijania', /scrollY \d/.test(w1.tablica || ''), 'scrollY w nagłówku');
-  /* Dwie liczby, bo to dwie różne przyczyny: przerwa do pierwszej klatki
-     (jednorazowy koszt ułożenia i namalowania powłoki) i najdłuższa klatka
-     dalsza (koszt samego ruchu). Jedna liczba nie odróżniłaby ich od siebie. */
-  t.check('i obiema miarami klatek',
-    /do 1\. klatki:\s+\d+ ms/.test(w1.tablica || '')
-    && /najdłuższa dalsza:\s+\d+ ms/.test(w1.tablica || ''),
-    (w1.tablica || '').replace(/\n/g, ' | '));
+  const zN = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, query: 'stack=1&above=1' });
+  await zN.evaluate(() => window.__open());
+  await zN.waitForTimeout(250);
+  const wZ = await zN.evaluate(() => window.__warstwy());
 
-  /* OKNO I DOKUMENT — wiersze dopisane po pomiarach na telefonie. Wyszło
-     z nich, że jedna klatka trwa 808 ms, choć `open()` kosztuje 5 ms, a do
-     pierwszego odrysowania jest 0 ms; najczęstszym powodem takiej klatki na
-     iOS jest przeliczenie widocznego obszaru, a tego z samych klatek nie
-     widać. */
-  t.check('tablica podaje rozmiar okna przed i po',
-    /okno: \d+×\d+ → \d+×\d+ {2}\(zmian: \d+\)/.test(w1.tablica || ''),
-    (w1.tablica || '').split('\n').filter((l) => l.startsWith('okno'))[0] || 'brak');
+  /* SEDNO ZGŁOSZENIA, mierzone objawem: co jest w punkcie burgera. */
+  t.check('z przełącznikiem burger jest na wierzchu', wZ.naWierzchu === 'przelacznik',
+    'na wierzchu: ' + wZ.naWierzchu);
+  /* Podniesiony jest NAGŁÓWEK, nie sam burger — bo to on rozstrzyga. */
+  t.check('podniesiony jest nagłówek, o jeden ponad powłokę',
+    Number(wZ.naglowek) === Number(wZ.powloka) + 1,
+    'nagłówek ' + wZ.naglowek + ', powłoka ' + wZ.powloka);
 
-  /* Wysokość dokumentu — porównana z PRAWDZIWĄ, odczytaną ze strony.
-     Sam wiersz z dwiema liczbami niczego by nie dowodził: przeszedłby także
-     wtedy, gdyby sonda wypisywała stałą albo mierzyła nie tę własność.
-     Zmierzone przy okazji: `overflow: hidden` z blokady przewijania NIE
-     zmienia tu `scrollHeight`, więc obie liczby są równe i sprawdzenie
-     „ma się zmienić" byłoby fałszywe — mierzymy zgodność, nie zmianę. */
-  const dok = ((w1.tablica || '').match(/dokument: (\d+) → (\d+)/) || []).slice(1).map(Number);
-  const dokReal = await p1.evaluate(() => document.documentElement.scrollHeight);
-  t.check('i prawdziwą wysokość dokumentu',
-    dok.length === 2 && dok[1] === dokReal && dok[0] > 800,
-    dok.length === 2 ? dok[0] + ' → ' + dok[1] + ', naprawdę ' + dokReal : 'brak wiersza');
+  /* I dopiero teraz przełącznik ma czym zamknąć: klik trafia w burgera,
+     a nie w przyciemnienie. Razem te dwie poprawki dają zgłoszone
+     zachowanie — osobno żadna nie wystarcza. */
+  const trafiony = await zN.evaluate(() => window.__klikWPunkt('trigger'));
+  await zN.waitForTimeout(250);
+  t.check('i klik w to miejsce zamyka menu', !(await zN.evaluate(() => window.__isOpen())),
+    'trafiono w „' + trafiony + '"');
 
-  /* SEDNO tej sekcji. Odniesienie ma być odniesieniem — jeśli sam pomiar
-     cokolwiek zdejmuje, wszystkie porównania z nim są bez wartości. */
-  t.check('a zachowanie zostaje nietknięte',
-    w1.zamek === true && w1.replay >= 1 && w1.zaslona === true && w1.fokus === 's-a',
-    'zamek ' + w1.zamek + ', replay ' + w1.replay + ', zasłona ' + w1.zaslona
-    + ', fokus ' + w1.fokus);
+  /* Warstwa ma wrócić — inaczej nagłówek zostaje nad wszystkim do końca
+     życia strony, a to zmienia stronę poza menu. */
+  await zN.waitForTimeout(500);
+  t.check('a po zamknięciu warstwa nagłówka wraca',
+    (await zN.evaluate(() => window.__warstwy())).naglowek === '',
+    '„' + (await zN.evaluate(() => window.__warstwy())).naglowek + '"');
+  t.check('bez błędów JS', !zN.errors.length, zN.errors.join(' | ') || 'brak');
+  await zN.close();
 
-  await p1.evaluate(() => window.__key('Escape'));
-  await p1.waitForTimeout(200);
-  await p1.evaluate(() => window.__open());
-  await p1.waitForTimeout(1100);
-  t.check('drugie otwarcie liczy się osobno',
-    /otwarcie #2/.test(await p1.evaluate(() => window.__proba()) || ''),
-    (await p1.evaluate(() => window.__proba()) || '').split('\n')[0]);
-  t.check('bez błędów JS', !p1.errors.length, p1.errors.join(' | ') || 'brak');
-  await p1.close();
+  // ── Warstwa menu z kontrolki ───────────────────────────────────────────
+  /* Druga droga do tego samego celu: zamiast podnosić nagłówek, obniżyć menu.
+     Działa tylko wtedy, gdy powłoka i nagłówek stoją w jednym porównaniu —
+     ale wtedy jest najprostsza z możliwych. */
+  t.section('kontrolka „Warstwa menu" ustawia warstwę powłoki');
 
-  /* ZMIANA OKNA W TRAKCIE POMIARU — i to jest sedno tych dwóch wierszy.
-     Cała hipoteza brzmi „jedna klatka 0,8 s to przeliczenie widocznego
-     obszaru", więc sonda musi umieć taką zmianę ZOBACZYĆ. Bez tego bloku
-     licznik `resize` niczego nie pilnuje: na pulpicie okno stoi, więc zero
-     wychodzi tak samo z nasłuchem, jak i bez niego (zmierzone — usunięcie
-     nasłuchu przechodziło na zielono). */
-  const rs = await t.open('offcanvas.html',
-    { viewport: V, settle: 120, head: ZAMEK, query: 'evk-oc-proba=1' });
-  await rs.evaluate(() => window.__open());
-  await rs.waitForTimeout(120);
-  await rs.setViewportSize({ width: V.width, height: 640 });
-  await rs.waitForTimeout(1100);
-  const tRs = await rs.evaluate(() => window.__proba()) || '';
-  const okno = tRs.match(/okno: (\d+)×(\d+) → (\d+)×(\d+) {2}\(zmian: (\d+)\)/);
+  const zz = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, query: 'stack=1&z=5' });
+  await zz.evaluate(() => window.__open());
+  await zz.waitForTimeout(250);
+  const wzz = await zz.evaluate(() => window.__warstwy());
+  t.check('powłoka bierze warstwę z kontrolki', wzz.powloka === '5', wzz.powloka);
+  /* Objaw: przy warstwie niższej niż nagłówka burger jest na wierzchu bez
+     żadnego podnoszenia. */
+  t.check('i nagłówek wygrywa bez podnoszenia',
+    wzz.naWierzchu === 'przelacznik' && wzz.naglowek === '',
+    'na wierzchu: ' + wzz.naWierzchu + ', warstwa nagłówka „' + wzz.naglowek + '"');
+  await zz.close();
 
-  /* DWA, nie jeden. Zmiana okna wysyła w Chromium po jednym zdarzeniu z obu
-     źródeł — `window` i `visualViewport` — więc licznik poniżej dwóch znaczy,
-     że jednego z nasłuchów nie ma. Zmierzone: przy progu „co najmniej jeden"
-     usunięcie któregokolwiek z nich przechodziło na zielono. Oba są potrzebne,
-     bo mówią o czym innym: `window` o obszarze UKŁADU, `visualViewport`
-     o tym, co widać — a na iOS drugie potrafi się zmienić bez pierwszego
-     i to właśnie robi zwijany pasek adresu. */
-  t.check('sonda widzi zmianę okna OBOMA nasłuchami', !!okno && Number(okno[5]) >= 2,
-    okno ? okno[0] : 'brak wiersza');
-  t.check('i podaje obie wysokości, przed i po',
-    !!okno && Number(okno[2]) === 800 && Number(okno[4]) === 640,
-    okno ? okno[2] + ' → ' + okno[4] : 'brak wiersza');
-  await rs.close();
+  /* Podnoszenie liczy się od WARSTWY POWŁOKI, nie od liczby wpisanej na stałe.
+     Inaczej kontrolka i przełącznik rozjeżdżałyby się przy każdej zmianie. */
+  const zo = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, query: 'stack=1&above=1&z=40000' });
+  await zo.evaluate(() => window.__open());
+  await zo.waitForTimeout(250);
+  const wzo = await zo.evaluate(() => window.__warstwy());
+  t.check('a podnoszenie liczy się od warstwy powłoki',
+    wzo.powloka === '40000' && wzo.naglowek === '40001',
+    'powłoka ' + wzo.powloka + ', nagłówek ' + wzo.naglowek);
+  await zo.close();
 
-  // ── Po jednym podejrzanym ──────────────────────────────────────────────
-  /* Każdy wariant sprawdzany PARĄ: że zdjął swojego podejrzanego I że nie
-     ruszył pozostałych. Bez tej drugiej połowy „zamek" mógłby po cichu gasić
-     też animacje, a wynik na telefonie wskazywałby wtedy nie tę przyczynę. */
-  t.section('każdy wariant zdejmuje dokładnie jednego podejrzanego');
+  /* KTÓRY przodek zostaje podniesiony. W prostym drzewie „najdalszy kontekst"
+     i „najbliższy pozycjonowany" wskazują to samo, więc wybór między nimi jest
+     nierozróżnialny. Tu korzeń elementu jest pozycjonowany (zwyczajny element
+     Bricksa), a kontekst nadal zakłada nagłówek nad nim — i podniesienie
+     korzenia nic by nie dało, bo nie wyszłoby poza warstwę nagłówka. */
+  const rp = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, query: 'stack=1&above=1&rootpos=1' });
+  await rp.evaluate(() => window.__open());
+  await rp.waitForTimeout(250);
+  const wrp = await rp.evaluate(() => window.__warstwy());
+  t.check('podnoszony jest najdalszy kontekst, nie najbliższy pozycjonowany',
+    Number(wrp.naglowek) === Number(wrp.powloka) + 1 && wrp.korzen === '',
+    'nagłówek ' + wrp.naglowek + ', korzeń „' + wrp.korzen + '"');
+  t.check('i burger jest przez to na wierzchu', wrp.naWierzchu === 'przelacznik',
+    'na wierzchu: ' + wrp.naWierzchu);
+  await rp.close();
 
-  async function wariant(co) {
-    const p = await t.open('offcanvas.html',
-      { viewport: V, settle: 120, head: ZAMEK, query: 'evk-oc-proba=' + co });
-    await p.evaluate(() => window.__open());
-    await p.waitForTimeout(150);
-    const stan = await p.evaluate(() => ({
-      zamek:   window.__lock().locked,
-      replay:  window.__ileReplay,
-      zaslona: window.__zaslonaWidoczna(),
-      fokus:   window.__focusId(),
-      bledy:   [],
-    }));
-    stan.bledy = p.errors.slice();
-    await p.close();
-    return stan;
-  }
+  /* BEZ PRZENIESIENIA DO <body> powłoka siedzi w korzeniu, obok przełącznika —
+     porównanie warstw odbywa się więc wewnątrz korzenia, a nie w <body>.
+     Podniesienie nagłówka wyniosłoby wtedy powłokę razem z nim i nic by nie
+     zmieniło; zamiast tego element mówi, czego brakuje. */
+  const np = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, query: 'stack=1&above=1&portal=0' });
+  await np.evaluate(() => window.__open());
+  await np.waitForTimeout(200);
+  t.check('bez przeniesienia do <body> nagłówek nie jest ruszany',
+    (await np.evaluate(() => window.__warstwy())).naglowek === '',
+    '„' + (await np.evaluate(() => window.__warstwy())).naglowek + '"');
+  t.check('i element mówi, czego brakuje',
+    np.warnings.some((w) => /Nagłówek nad menu/.test(w)),
+    np.warnings.filter((w) => /Nagłówek nad menu/.test(w)).join('').slice(0, 60) || 'brak');
+  await np.close();
 
-  const wZamek = await wariant('zamek');
-  t.check('„zamek" nie zakłada blokady przewijania', wZamek.zamek === false, String(wZamek.zamek));
-  t.check('a reszta pracuje dalej',
-    wZamek.replay >= 1 && wZamek.zaslona === true && wZamek.fokus === 's-a',
-    'replay ' + wZamek.replay + ', zasłona ' + wZamek.zaslona + ', fokus ' + wZamek.fokus);
-
-  const wZaslona = await wariant('zaslona');
-  t.check('„zaslona" nie rysuje przyciemnienia', wZaslona.zaslona === false,
-    String(wZaslona.zaslona));
-  t.check('a reszta pracuje dalej',
-    wZaslona.zamek === true && wZaslona.replay >= 1 && wZaslona.fokus === 's-a',
-    'zamek ' + wZaslona.zamek + ', replay ' + wZaslona.replay + ', fokus ' + wZaslona.fokus);
-
-  const wAnim = await wariant('anim');
-  t.check('„anim" nie odgrywa animacji treści', wAnim.replay === 0, wAnim.replay + ' wywołań');
-  t.check('a reszta pracuje dalej',
-    wAnim.zamek === true && wAnim.zaslona === true && wAnim.fokus === 's-a',
-    'zamek ' + wAnim.zamek + ', zasłona ' + wAnim.zaslona + ', fokus ' + wAnim.fokus);
-
-  const wFokus = await wariant('fokus');
-  t.check('„fokus" nie przenosi fokusu do panelu', wFokus.fokus !== 's-a', String(wFokus.fokus));
-  t.check('a reszta pracuje dalej',
-    wFokus.zamek === true && wFokus.replay >= 1 && wFokus.zaslona === true,
-    'zamek ' + wFokus.zamek + ', replay ' + wFokus.replay + ', zasłona ' + wFokus.zaslona);
-
-  /* `goly` to skrót na wszystkie naraz — i osobna gałąź w kodzie, więc osobne
-     sprawdzenie. Odpowiada na pytanie WSTĘPNE: czy przyczyny w ogóle szukać
-     po naszej stronie, czy kosztuje samo namalowanie warstwy nad stroną. */
-  const wGoly = await wariant('goly');
-  t.check('„goly" zdejmuje wszystko naraz',
-    wGoly.zamek === false && wGoly.replay === 0 && wGoly.zaslona === false
-    && wGoly.fokus !== 's-a',
-    'zamek ' + wGoly.zamek + ', replay ' + wGoly.replay + ', zasłona ' + wGoly.zaslona
-    + ', fokus ' + wGoly.fokus);
-
-  // ── Wygięta ściana ─────────────────────────────────────────────────────
-  /* Osobno, bo mierzalna jest tylko przy `effect=curve` — a tam kształt
-     krawędzi ustawia oś czasu GSAP-a, nie klasa. */
-  t.section('„wygiecie" zatrzymuje oś czasu wygiętej ściany');
-
-  const kOd = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, head: ZAMEK, query: 'effect=curve&evk-oc-proba=1' });
-  const kZamkniete = await kOd.evaluate(() => window.__sciezkaWyg());
-  await kOd.evaluate(() => window.__open());
-  await kOd.waitForTimeout(400);
-  const kOtwarte = await kOd.evaluate(() => window.__sciezkaWyg());
-  t.check('odniesienie: krawędź dojeżdża do pełnej', kOtwarte !== kZamkniete,
-    kOtwarte === kZamkniete ? 'ścieżka się nie zmieniła' : 'ścieżka zmieniona');
-  await kOd.close();
-
-  const kBez = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, head: ZAMEK, query: 'effect=curve&evk-oc-proba=wygiecie' });
-  await kBez.evaluate(() => window.__open());
-  await kBez.waitForTimeout(400);
-  t.check('wariant: ścieżka zostaje w stanie wyjściowym',
-    (await kBez.evaluate(() => window.__sciezkaWyg())) === kZamkniete, 'bez zmiany');
-  await kBez.close();
-
-  // ── Grzanie ────────────────────────────────────────────────────────────
-  /* KANDYDAT NA POPRAWKĘ, nie pomiar. Powłoka stoi `visibility: hidden`, czyli
-     do pierwszego otwarcia nie jest malowana wcale — układ, malowanie
-     i rasteryzacja spadają na tę jedną klatkę, w której ma ruszyć przejście.
-     Grzanie przekłada tę robotę na dotknięcie przełącznika.
-     Warunek: nie ma prawa NICZEGO pokazać przed kliknięciem. */
-  t.section('grzanie przygotowuje powłokę, nie pokazując jej');
-
-  /* NIEZEROWY czas otwierania jest tu warunkiem pomiaru, nie ozdobą. Powłoka
-     ma `transition: visibility 0s linear var(--evk-oc-time)`, więc dopiero przy
-     niezerowym czasie widać, czy grzanie kasuje to opóźnienie. Przy `dur=0`
-     opóźnienia nie ma z czego skasować i sprawdzenie „dotknięcie robi powłokę
-     malowalną" przechodziłoby także bez `transition-delay: 0s` w arkuszu. */
-  const g = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=grzanie&dur=0.4' });
-
-  const przedD = await g.evaluate(() => window.__grzanie());
-  t.check('przed dotknięciem powłoka jest nierysowana',
-    !przedD.armed && przedD.widocznosc === 'hidden',
-    'armed ' + przedD.armed + ', widoczność ' + przedD.widocznosc);
-
-  await g.evaluate(() => window.__dotknij());
-  await g.waitForTimeout(60);
-  const poD = await g.evaluate(() => window.__grzanie());
-
-  t.check('dotknięcie robi powłokę malowalną',
-    poD.armed && poD.widocznosc === 'visible',
-    'armed ' + poD.armed + ', widoczność ' + poD.widocznosc);
-  t.check('kadr i przyciemnienie dostają zapowiedź zmiany',
-    /transform/.test(poD.willFrame) && /opacity/.test(poD.willScrim),
-    'kadr ' + poD.willFrame + ', zasłona ' + poD.willScrim);
-
-  /* SEDNO: „malowalna" nie może znaczyć „widoczna". Menu jest wciąż zamknięte,
-     więc kadr ma stać poza oknem, przyciemnienie mieć zerowe krycie, a kliknięć
-     powłoka nie ma prawa łapać — inaczej grzanie zasłoniłoby stronę. */
-  t.check('ale menu jest nadal zamknięte', !poD.open, String(poD.open));
-  t.check('kadr stoi poza oknem', !poD.kadrWOknie, String(poD.kadrWOknie));
-  t.check('przyciemnienie ma zerowe krycie', poD.krycieZaslony === 0,
-    String(poD.krycieZaslony));
-  t.check('a powłoka nie łapie kliknięć', poD.kliki === 'none', String(poD.kliki));
-
-  /* Zapowiedź zmiany zdejmowana z zamknięciem. Trzymana na stałe zostawia
-     element na własnej warstwie kompozytora przez całe życie strony — to jest
-     dokładnie ten skutek uboczny, którego arkusz unika przy taśmie. */
-  await g.evaluate(() => window.__open());
-  await g.waitForTimeout(120);
-  await g.evaluate(() => window.__key('Escape'));
-  // Dłużej niż czas otwierania — powłoka chowa się z opóźnieniem równym jemu.
-  await g.waitForTimeout(700);
-  const poZ = await g.evaluate(() => window.__grzanie());
-  t.check('po zamknięciu zapowiedź znika',
-    !poZ.armed && poZ.willFrame === 'auto' && poZ.widocznosc === 'hidden',
-    'armed ' + poZ.armed + ', kadr ' + poZ.willFrame + ', widoczność ' + poZ.widocznosc);
-  t.check('bez błędów JS', !g.errors.length, g.errors.join(' | ') || 'brak');
-  await g.close();
-
-  /* Zegar jest tu regułą, nie szczegółem: dotknięcie bez otwarcia zdarza się
-     na okrągło (palec zjechał w bok), a powłoka ogrzana do końca życia strony
-     to dokładnie ten stan, którego arkusz unika przy taśmie. */
-  const gw = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=grzanie' });
-  await gw.evaluate(() => window.__dotknij());
-  await gw.waitForTimeout(3400);
-  const gwPo = await gw.evaluate(() => window.__grzanie());
-  t.check('grzanie z dotknięcia wygasa, gdy menu nie zostało otwarte', !gwPo.armed,
-    gwPo.armed ? 'NADAL ogrzana' : 'ogrzanie zdjęte');
-  await gw.close();
-
-  // ── Grzanie już po załadowaniu ─────────────────────────────────────────
-  /* Wariant mocniejszy: jeśli koszt jest JEDNORAZOWY (ułożenie, malowanie,
-     promocja warstw), to powłoka przygotowana zaraz po załadowaniu nie zapłaci
-     go nawet przy pierwszym kliknięciu. To właśnie odróżnia tę hipotezę od
-     pozostałych — i dlatego tu zegar wygasać NIE MOŻE. */
-  t.section('grzanie-start grzeje bez dotknięcia i nie wygasa');
-
-  const gs = await t.open('offcanvas.html',
-    { viewport: V, settle: 600, head: ZAMEK, query: 'evk-oc-proba=grzanie-start' });
-  const gsPo = await gs.evaluate(() => window.__grzanie());
-  t.check('powłoka jest ogrzana bez żadnej interakcji',
-    gsPo.armed && gsPo.widocznosc === 'visible' && /transform/.test(gsPo.willFrame),
-    'armed ' + gsPo.armed + ', widoczność ' + gsPo.widocznosc + ', kadr ' + gsPo.willFrame);
-  t.check('i nadal nic nie widać',
-    !gsPo.open && !gsPo.kadrWOknie && gsPo.krycieZaslony === 0 && gsPo.kliki === 'none',
-    'otwarte ' + gsPo.open + ', kadr w oknie ' + gsPo.kadrWOknie
-    + ', krycie ' + gsPo.krycieZaslony);
-
-  await gs.waitForTimeout(3400);
-  const gsPozniej = await gs.evaluate(() => window.__grzanie());
-  t.check('po trzech sekundach ogrzanie zostaje', gsPozniej.armed,
-    gsPozniej.armed ? 'nadal ogrzana' : 'OGRZANIE WYGASŁO');
-  t.check('bez błędów JS', !gs.errors.length, gs.errors.join(' | ') || 'brak');
-  await gs.close();
-
-  // ── Atrapa paska administratora ────────────────────────────────────────
-  /* ZGŁOSZONE Z UŻYCIA: „po zalogowaniu do WP, kiedy widać pasek na górze,
-     menu otwiera się bardzo płynnie; po wylogowaniu wraca rwanie".
-     Warianty odtwarzają to, co pasek robi STRONIE, żeby dało się to sprawdzić
-     bez logowania — a docelowo odtworzyć w teście zamiast zgadywać. */
-  t.section('atrapa paska odtwarza to, co pasek WP robi stronie');
-
-  const bezP = await t.open('offcanvas.html', { viewport: V, settle: 150, head: ZAMEK });
-  const bp = await bezP.evaluate(() => window.__atrapa());
-  t.check('bez wariantu strona jest nietknięta',
-    bp.margines === '0px' && bp.belka === null,
-    'margines ' + bp.margines + ', belka ' + (bp.belka ? 'JEST' : 'brak'));
-  await bezP.close();
-
-  const mrg = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=margines' });
-  const m = await mrg.evaluate(() => window.__atrapa());
-  t.check('„margines" dokłada sam margines na <html>',
-    m.margines === '46px' && m.belka === null,
-    'margines ' + m.margines + ', belka ' + (m.belka ? 'JEST' : 'brak'));
-  await mrg.close();
-
-  /* Wąskie okno, bo druga połowa efektu paska to `min-width: 600px` — na
-     szerokim ekranie belka mieści się bez śladu i przepełnienia nie ma z czego
-     zmierzyć. Telefon, na którym rzecz zgłoszono, jest właśnie wąski. */
-  const pas = await t.open('offcanvas.html',
-    { viewport: { width: 390, height: 800 }, settle: 150, head: ZAMEK,
-      query: 'evk-oc-proba=pasek' });
-  const atr = await pas.evaluate(() => window.__atrapa());
-  t.check('„pasek" dokłada margines I belkę',
-    atr.margines === '46px' && !!atr.belka, 'margines ' + atr.margines
-    + ', belka ' + (atr.belka ? atr.belka.wysokosc + ' px' : 'brak'));
-  t.check('belka ma wysokość i warstwę paska WP',
-    atr.belka && atr.belka.wysokosc === 46 && atr.belka.z === '99999',
-    atr.belka ? atr.belka.wysokosc + ' px, z-index ' + atr.belka.z : 'brak belki');
-  /* SEDNO drugiej połowy: na wąskim ekranie belka jest szersza niż okno, więc
-     treść strony zaczyna wystawać w poziomie. Bez tego pomiaru wariant „pasek"
-     różniłby się od „margines" tylko kolorem prostokąta. */
-  t.check('i rozpycha treść poza szerokość okna',
-    atr.przepelnienie === true && atr.trescSzerokosc >= 600,
-    'treść ' + atr.trescSzerokosc + ' px w oknie 390 px');
-  t.check('bez błędów JS', !pas.errors.length, pas.errors.join(' | ') || 'brak');
-  await pas.close();
-
-  /* ROZBIÓRKA MARGINESU. Zmierzone na telefonie: odniesienie 808 ms najdłuższej
-     klatki, `margines` 114 ms, `pasek` 115 ms — leczy więc sam margines.
-     Te trzy warianty rozdzielają to, co robi on naraz: rozmiar, odsunięcie
-     PUDEŁKA `<html>` i samą wysokość dokumentu. */
-  t.section('warianty rozdzielają, co margines robi naraz');
-
-  const m1 = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=margines-1' });
-  const w1u = await m1.evaluate(() => window.__atrapa());
-  t.check('„margines-1" odsuwa o jeden piksel, nie o czterdzieści sześć',
-    w1u.margines === '1px', 'margines ' + w1u.margines);
-  await m1.close();
-
-  /* `padding-top` odsuwa TREŚĆ, ale pudełko `<html>` zostaje przy krawędzi
-     kanwy — i to jest cała różnica, którą ten wariant ma zmierzyć. */
-  const wcie = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=wciecie' });
-  const wcu = await wcie.evaluate(() => window.__atrapa());
-  t.check('„wciecie" daje wcięcie zamiast marginesu',
-    wcu.wciecie === '46px' && wcu.margines === '0px',
-    'padding ' + wcu.wciecie + ', margines ' + wcu.margines);
-  await wcie.close();
-
-  const wd = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=wydluzenie' });
-  const wdu = await wd.evaluate(() => window.__atrapa());
-  t.check('„wydluzenie" dokłada te same piksele od dołu',
-    wdu.ogon === '46px' && wdu.margines === '0px' && wdu.wciecie === '0px',
-    'ogon ' + wdu.ogon + ', margines ' + wdu.margines + ', wcięcie ' + wdu.wciecie);
-  await wd.close();
-
-  // ── Cień na ikonach ────────────────────────────────────────────────────
-  /* ZNALEZIONE PRZEZ ZGŁASZAJĄCEGO: na stronie stoi
-     `svg { filter: drop-shadow(0px 5px 52px rgb(0 0 0 / 0.5)) }` — bez
-     selektora, czyli na KAŻDYM svg. Wariant ma to zgasić, żeby dało się
-     zmierzyć koszt tej jednej reguły w tych samych warunkach co reszta. */
-  t.section('wariant „bez-cienia" gasi filtr na ikonach');
-
-  const bc = await t.open('offcanvas.html', { viewport: V, settle: 150, head: ZAMEK });
-  const cienPrzed = await bc.evaluate(() => window.__cienIkony());
-  /* Kontrola pozytywna. Bez niej „wariant zgasił cień" przechodziłoby także
-     w drzewie, w którym cienia nie ma wcale. */
-  t.check('bez wariantu ikona ma cień', /drop-shadow/.test(cienPrzed), cienPrzed);
-  await bc.close();
-
-  const bc2 = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=bez-cienia' });
-  const cienPo = await bc2.evaluate(() => window.__cienIkony());
-  t.check('z wariantem filtr jest zgaszony', cienPo === 'none', cienPo);
-  await bc2.close();
-
-  /* Kontrola negatywna: bez wariantu `grzanie` dotknięcie nie robi NIC.
-     Bez niej „dotknięcie grzeje" przechodziłoby także wtedy, gdyby powłoka
-     była ogrzana od początku — czyli w kodzie, który trzyma `will-change`
-     na stałe. */
-  const ng = await t.open('offcanvas.html', { viewport: V, settle: 150, head: ZAMEK });
-  await ng.evaluate(() => window.__dotknij());
-  await ng.waitForTimeout(60);
-  const nGrz = await ng.evaluate(() => window.__grzanie());
-  t.check('bez wariantu dotknięcie niczego nie grzeje',
-    !nGrz.armed && nGrz.widocznosc === 'hidden' && nGrz.willFrame === 'auto',
-    'armed ' + nGrz.armed + ', widoczność ' + nGrz.widocznosc + ', kadr ' + nGrz.willFrame);
-  await ng.close();
+  /* Nagłówek niepozycjonowany: `z-index` na nim NIC nie znaczy, więc zamiast
+     po cichu nie zadziałać, element mówi o tym głośno. */
+  const stat = await t.open('offcanvas.html', { viewport: V, settle: 150, query: 'above=1' });
+  await stat.evaluate(() => window.__open());
+  await stat.waitForTimeout(200);
+  t.check('przy niepozycjonowanym nagłówku element ostrzega',
+    stat.warnings.some((w) => /Nagłówek nad menu/.test(w)),
+    stat.warnings.join(' | ').slice(0, 90) || 'brak ostrzeżenia');
+  t.check('i niczego nie podnosi',
+    (await stat.evaluate(() => window.__warstwy())).naglowek === '',
+    '„' + (await stat.evaluate(() => window.__warstwy())).naglowek + '"');
+  await stat.close();
 };

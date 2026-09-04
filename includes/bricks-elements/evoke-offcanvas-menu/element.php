@@ -366,6 +366,51 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'description' => esc_html__( 'Panel nie jest wtedy ograniczany przez overflow:hidden ani position rodziców.', 'evoke-one' ),
 		];
 
+		/*
+		 * Nagłówek NAD otwartym menu.
+		 *
+		 * Zgłoszone z użycia: „kiedy powłoka jest w <body>, nie mogę
+		 * spowodować, żeby nagłówek był ponad nim (tam, gdzie jest burger)".
+		 *
+		 * Samo podniesienie nagłówkowi `z-index` często nie wystarcza, i to
+		 * nie z powodu za małej liczby: liczy się WARSTWA NAJDALSZEGO PRZODKA,
+		 * który tworzy kontekst nakładania. Gdy nagłówek siedzi w opakowaniu
+		 * z `transform`, `filter` albo własnym `z-index`, to opakowanie
+		 * rozstrzyga za niego, a jego własna liczba nie ma jak wyjść na
+		 * zewnątrz. Skrypt szuka tego przodka i podnosi jego, na czas
+		 * otwarcia — patrz `podniesNaglowek()`.
+		 */
+		$this->controls['headerAbove'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Nagłówek nad menu', 'evoke-one' ),
+			'type'        => 'checkbox',
+			'default'     => false,
+			'description' => esc_html__(
+				'Na czas otwarcia podnosi nagłówek z przełącznikiem ponad panel, żeby burger '
+				. 'został widoczny i klikalny — a że jest przełącznikiem, drugie kliknięcie '
+				. 'menu zamyka. Podnoszony jest NAJDALSZY przodek tworzący kontekst nakładania, '
+				. 'bo to on rozstrzyga kolejność; sam nagłówek często nie ma jak wyjść ponad '
+				. 'swoje opakowanie. Przy zamknięciu warstwa wraca do poprzedniej.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['shellZ'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Warstwa menu (z-index)', 'evoke-one' ),
+			'type'        => 'number',
+			'placeholder' => '99990',
+			'css'         => [ [ 'property' => '--evk-oc-z', 'selector' => '' ] ],
+			'description' => esc_html__(
+				'Warstwa całej powłoki menu. Domyślne 99990 jest celowo wysokie, żeby panel '
+				. 'nie chował się pod niczyim nagłówkiem. Obniż ją, gdy chcesz odwrotnie — '
+				. 'wtedy coś na stronie ma wygrywać z menu. Działa tylko wtedy, gdy powłoka '
+				. 'i ten element leżą w tym samym kontekście nakładania; jeśli nie, użyj '
+				. 'przełącznika wyżej.',
+				'evoke-one'
+			),
+		];
+
 		$this->controls['openInBuilder'] = [
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Trzymaj otwarte w builderze', 'evoke-one' ),
@@ -469,6 +514,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-exit-wait',
 			isset( $s['exitWait'] ) && $s['exitWait'] !== '' ? (string) $s['exitWait'] : '' );
 		$this->set_attribute( '_root', 'data-portal',     ! empty( $s['toBody'] )           ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-header-above', ! empty( $s['headerAbove'] )   ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-open-builder', ! empty( $s['openInBuilder'] )  ? '1' : '0' );
 
 		echo "<div {$this->render_attributes( '_root' )}>"

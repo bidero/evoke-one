@@ -15,13 +15,13 @@
      i pilnujemy całej listy w kodzie. */
   #naglowek.pulapka { transform: translateZ(0); overflow: hidden; height: 120px; }
 
-  /* Ikona z cieniem — odwzorowanie reguły ZNALEZIONEJ NA ŻYWEJ STRONIE:
-     `svg { filter: drop-shadow(0px 5px 52px rgb(0 0 0 / 0.5)) }`, bez selektora,
-     czyli na każdym svg w dokumencie. Wariant `bez-cienia` ma ją gasić, więc
-     bez takiego elementu w drzewie nie byłoby czego zgasić i sprawdzenie
-     przechodziłoby na zielono niezależnie od kodu. Tu przez klasę, żeby nie
-     trafiać w `<svg>` z definicją obcięcia wygiętej ściany. */
-  svg.ikona { filter: drop-shadow(0px 5px 52px rgb(0 0 0 / 0.5)); }
+  /* Nagłówek Z WŁASNYM KONTEKSTEM NAKŁADANIA — zakładany z `?stack=1`.
+     Tak wygląda przyklejony nagłówek na prawdziwej stronie i o niego chodzi
+     w zgłoszeniu „nie mogę spowodować, żeby nagłówek był ponad menu": własna
+     warstwa nagłówka rozstrzyga za CAŁĄ jego zawartość, więc podniesienie
+     `z-index` samemu burgerowi nie ma jak wyjść na zewnątrz. Bez takiego
+     opakowania w drzewie mechanizm podnoszenia nie miałby czego podnieść. */
+  #naglowek.warstwa { position: sticky; top: 0; z-index: 10; background: #fff; }
 </style>
 
 <link rel="stylesheet" href="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.css">
@@ -44,9 +44,7 @@
      wisiałaby wprost w <body> i zawsze wychodziła na całe okno. -->
 <div id="naglowek">
 <div id="root" class="evk-oc">
-  <button class="evk-oc-trigger" id="trigger">Menu
-    <svg class="ikona" id="ikona" width="24" height="24" aria-hidden="true"><rect width="24" height="24"/></svg>
-  </button>
+  <button class="evk-oc-trigger" id="trigger">Menu</button>
 
   <div class="evk-oc-panel" data-panel="start">
     <span id="anim" data-evk-anim='{"animation":"wjazd","trigger":"viewport"}'>Animowany</span>
@@ -141,8 +139,20 @@
   r2.setAttribute('data-start', '');
   r2.setAttribute('data-trigger', '');
 
+  root.setAttribute('data-header-above', q.get('above') === '1' ? '1' : '0');
+  // Warstwa powłoki z kontrolki „Warstwa menu" — Bricks pisze ją na korzeniu.
+  if (q.get('z')) root.style.setProperty('--evk-oc-z', q.get('z'));
+
   // Nagłówek zamykający `position: fixed` w sobie — patrz `#naglowek.pulapka`.
   if (q.get('trap') === '1') document.getElementById('naglowek').classList.add('pulapka');
+  // Nagłówek z własną warstwą — patrz `#naglowek.warstwa`.
+  if (q.get('stack') === '1') document.getElementById('naglowek').classList.add('warstwa');
+  /* Korzeń POZYCJONOWANY, ale bez własnej warstwy — zwyczajny element Bricksa.
+     Staje się wtedy najbliższym pozycjonowanym przodkiem przełącznika, choć
+     o kolejności nadal rozstrzyga nagłówek nad nim. Bez tego przypadku wybór
+     „najdalszy kontekst, a dopiero potem najbliższy pozycjonowany" jest
+     w testach nierozróżnialny: w prostym drzewie oba wskazują to samo. */
+  if (q.get('rootpos') === '1') root.style.position = 'relative';
 
   /* ZRZUT KORZENIA sprzed startu skryptu — do udawania przerysowania.
 
@@ -780,106 +790,45 @@ window.__klawiszNa = function (id, key) {
   return true;
 };
 
-/* ── SONDA OTWIERANIA ──────────────────────────────────────────────────────
- *
- * Wariant `?evk-oc-proba=anim` ma NIE prosić Animatora o odegranie treści.
- * Mierzymy to licznikiem wywołań, a nie objawem: po odegraniu krycie wraca
- * do jedynki i wygląda dokładnie tak samo jak wtedy, gdy nic nie zagrało —
- * pomiar z krycia byłby więc zielony w obie strony.
- *
- * Owijka staje między Animatorem a menu: menu czyta `window.evkAnimatorReplay`
- * w chwili wołania, więc podmiana tutaj jest dla niego niewidoczna. */
-window.__ileReplay = 0;
-(function () {
-  var org = window.evkAnimatorReplay;
-  window.evkAnimatorReplay = function () {
-    window.__ileReplay++;
-    return typeof org === 'function' ? org.apply(this, arguments) : 0;
-  };
-})();
-
-/** Treść tablicy sondy — albo null, gdy sondy na stronie nie ma. */
-window.__proba = function () {
-  var el = document.querySelector('[data-evk-oc-proba]');
-  return el ? el.textContent : null;
-};
-
-/** Dotknięcie przełącznika. Grzanie wisi na NIM, nie na kliknięciu — cały
- *  jego sens jest w przerwie między jednym a drugim. */
-window.__dotknij = function () {
-  document.getElementById('trigger')
-    .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-};
-
 /**
- * Stan grzania — i to, czego przy nim widać NIE MA.
+ * Warstwy: co ma powłoka, co dostał nagłówek — i CO NAPRAWDĘ JEST NA WIERZCHU.
  *
- * Sama klasa nic by nie dowodziła: grzanie zdejmuje `visibility: hidden`,
- * czyli robi powłokę malowalną, i całe pytanie brzmi, czy przy okazji czegoś
- * nie pokazuje. Stąd obok flag prostokąt kadru i krycie przyciemnienia.
+ * Ostatnia liczba jest tu najważniejsza. Same `z-index` nie odpowiadają na
+ * pytanie ze zgłoszenia („nie mogę spowodować, żeby nagłówek był ponad menu"),
+ * bo warstwy porównuje się tylko wewnątrz jednego kontekstu nakładania —
+ * a zgłoszenie mówi właśnie o tym, że porównanie odbywa się gdzie indziej.
+ * `elementFromPoint` w środku burgera odpowiada wprost: czy klik w to miejsce
+ * trafi w przełącznik, czy w przyciemnienie.
  */
-window.__grzanie = function () {
-  var s = shellOf(0);
-  var f = s.querySelector('.evk-oc-frame');
-  var c = s.querySelector('.evk-oc-scrim');
-  var r = f.getBoundingClientRect();
+window.__warstwy = function () {
+  var sh = shellOf(0);
+  var t  = document.getElementById('trigger');
+  var r  = t.getBoundingClientRect();
+  var na = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
   return {
-    armed:      s.classList.contains('is-armed'),
-    open:       s.classList.contains('is-open'),
-    widocznosc: getComputedStyle(s).visibility,
-    kliki:      getComputedStyle(s).pointerEvents,
-    willFrame:  getComputedStyle(f).willChange,
-    willScrim:  getComputedStyle(c).willChange,
-    krycieZaslony: +parseFloat(getComputedStyle(c).opacity).toFixed(2),
-    // Kadr ma stać POZA oknem — grzanie nie ma prawa niczego pokazać.
-    kadrWOknie: r.right > 1 && r.left < window.innerWidth - 1,
+    powloka:   getComputedStyle(sh).zIndex,
+    naglowek:  document.getElementById('naglowek').style.zIndex,
+    // Korzeń elementu — ma zostać nietknięty także wtedy, gdy jest
+    // pozycjonowany: podniesienie go nie wyszłoby poza warstwę nagłówka.
+    korzen:    document.getElementById('root').style.zIndex,
+    // Czy w punkcie burgera jest sam burger (albo coś w nim), czy powłoka.
+    naWierzchu: !na ? null : (t.contains(na) ? 'przelacznik'
+               : sh.contains(na) ? 'powloka' : (na.id || na.tagName.toLowerCase())),
   };
 };
 
-/**
- * Atrapa paska administratora — co naprawdę trafiło na stronę.
+/** Prawdziwe kliknięcie W PUNKT, nie `element.click()`.
  *
- * ZGŁOSZONE Z UŻYCIA: „po zalogowaniu do WP, kiedy widać pasek na górze, menu
- * otwiera się bardzo płynnie; po wylogowaniu wraca rwanie". Warianty
- * `margines` i `pasek` odtwarzają to, co pasek robi stronie — i to właśnie
- * mierzymy: margines na `<html>` oraz obecność i geometrię samej belki.
- */
-window.__atrapa = function () {
-  var b = document.getElementById('evk-oc-atrapa-belka');
-  var cs = getComputedStyle(document.documentElement);
-  return {
-    margines: cs.marginTop,
-    wciecie:  cs.paddingTop,
-    // Wariant „wydluzenie" dokłada te same piksele, ale od DOŁU — bez tego
-    // pomiaru nie dałoby się go odróżnić od braku wariantu w ogóle.
-    ogon: getComputedStyle(document.body).paddingBottom,
-    belka: b ? {
-      wysokosc: Math.round(b.getBoundingClientRect().height),
-      // `min-width: 600px` na wąskim ekranie robi przepełnienie w poziomie —
-      // to druga połowa tego, co pasek zmienia stronie.
-      szerokosc: Math.round(b.getBoundingClientRect().width),
-      z: getComputedStyle(b).zIndex,
-    } : null,
-    /* Czy treść NAPRAWDĘ wystaje w poziomie poza okno.
-       Mierzone na `<body>`, nie na `<html>`: zmierzone w tym harnessie —
-       przy belce szerokiej na 600 px w oknie 390 px `documentElement
-       .scrollWidth` zostaje 390 (dokument nie staje się przewijalny
-       w poziomie), a `body.scrollWidth` rośnie do 600. To druga liczba mówi
-       o tym, co pasek robi treści; pierwsza zależy już od reguł przepełnienia
-       konkretnej strony. */
-    przepelnienie: document.body.scrollWidth > window.innerWidth,
-    trescSzerokosc: document.body.scrollWidth,
-  };
-};
-
-/** Cień na ikonie — wariant `bez-cienia` ma go gasić. */
-window.__cienIkony = function () {
-  return getComputedStyle(document.getElementById('ikona')).filter;
-};
-
-/** Czy przyciemnienie w ogóle się rysuje. */
-window.__zaslonaWidoczna = function () {
-  return getComputedStyle(shellOf(0).querySelector('.evk-oc-scrim')).display !== 'none';
+ *  `click()` woła obsługę wprost i przechodzi nawet wtedy, gdy element jest
+ *  czymś zasłonięty — czyli dokładnie w sytuacji ze zgłoszenia. Trafienie
+ *  w punkt przechodzi przez to, co widzi przeglądarka. */
+window.__klikWPunkt = function (id) {
+  var el = document.getElementById(id);
+  var r  = el.getBoundingClientRect();
+  var na = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  if (!na) return 'poza oknem';
+  na.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  return na.id || na.className || na.tagName.toLowerCase();
 };
 
 /** Stan drugiego korzenia — panele bez nazw, adresowane kolejnością. */

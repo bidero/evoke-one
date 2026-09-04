@@ -22,254 +22,9 @@
  */
 
 function evk_offcanvas_menu_init() {
-    if (['margines', 'pasek', 'margines-1', 'wciecie', 'wydluzenie']
-        .some(function (w) { return EVK_OC_PROBA.ma(w); })) evk_oc_atrapaPaska();
-    if (EVK_OC_PROBA.ma('bez-cienia')) evk_oc_gasCien();
     document.querySelectorAll('.evk-oc').forEach(function (root) {
         if (root.dataset.evkOcReady === '1') return;
         if (evk_offcanvas_menu_init_one(root)) root.dataset.evkOcReady = '1';
-    });
-}
-
-/* ── SONDA OTWIERANIA ───────────────────────────────────────────────────────
- *
- * ZGŁOSZONE Z UŻYCIA: „offcanvas zacina się, kiedy burger jest kliknięty jako
- * pierwszy; jeśli trochę przewinę stronę do dołu, otwiera się pięknie — i to
- * na każdej stronie. Mobilne Safari i Chrome (iPhone)".
- *
- * Trzy warunki z tego opisu wyznaczają całą metodę: rzecz dzieje się TYLKO na
- * iOS, TYLKO przy zerowej pozycji przewijania i TYLKO za pierwszym razem.
- * Żadnego z nich nie da się odtworzyć w headless Chromium na pulpicie —
- * i pomiar stamtąd już raz wyszedł na zero (najdłuższa klatka 17–19 ms, samo
- * `open()` 2–3 ms), co znaczy dokładnie tyle, że mierzył nie ten silnik i nie
- * te warunki. Zielony pomiar w złych warunkach nie jest dowodem, tylko szumem.
- *
- * Mierzyć trzeba więc NA TELEFONIE. Telefon nie ma konsoli, więc wynik musi
- * wyjść na ekran, a wariant — do adresu:
- *
- *   ?evk-oc-proba=1          sam pomiar, nic nie zdjęte — ODNIESIENIE
- *   ?evk-oc-proba=zamek      bez blokady przewijania
- *   ?evk-oc-proba=zaslona    bez przyciemnienia strony
- *   ?evk-oc-proba=anim       bez odgrywania animacji treści menu
- *   ?evk-oc-proba=fokus      bez przenoszenia fokusu do panelu
- *   ?evk-oc-proba=wygiecie   bez osi czasu wygiętej ściany
- *   ?evk-oc-proba=goly       wszystkie pięć naraz
- *   ?evk-oc-proba=grzanie    kandydat na poprawkę — patrz `przygotuj()`
- *   ?evk-oc-proba=grzanie-start   to samo, ale już po załadowaniu strony
- *   ?evk-oc-proba=margines   sam margines `<html>`, jak przy pasku WP
- *   ?evk-oc-proba=pasek      margines i atrapa paska — patrz `evk_oc_atrapaPaska()`
- *   ?evk-oc-proba=margines-1 margines jednopikselowy zamiast 46 px
- *   ?evk-oc-proba=wciecie    `padding-top` zamiast marginesu
- *   ?evk-oc-proba=wydluzenie te same 46 px, ale doklejone od DOŁU
- *   ?evk-oc-proba=bez-cienia gasi `filter` na wszystkich `<svg>` — patrz `evk_oc_gasCien()`
- *
- * Kilka naraz po przecinku. Który wariant otworzy się płynnie, ten wskazuje
- * przyczynę; `goly` odpowiada przy tym na pytanie WSTĘPNE — czy przyczyny
- * w ogóle szukać po naszej stronie. Jeśli i gołe otwarcie się zacina, kosztuje
- * samo namalowanie warstwy nad treścią strony i szukać trzeba w treści.
- *
- * Bez parametru nie dzieje się NIC: żadnego nasłuchu, żadnego pomiaru, żadnego
- * węzła w dokumencie. */
-var EVK_OC_PROBA = (function () {
-    var zbior = {};
-    var lista = [];
-
-    try {
-        var s = new URLSearchParams(location.search).get('evk-oc-proba');
-        if (s !== null) {
-            lista = s.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
-            lista.forEach(function (x) { zbior[x] = true; });
-            if (zbior.goly) {
-                ['zamek', 'zaslona', 'anim', 'fokus', 'wygiecie'].forEach(function (x) {
-                    zbior[x] = true;
-                });
-            }
-            zbior['-wlaczona'] = true;
-        }
-    } catch (e) { /* starsza przeglądarka — sonda po prostu nie wchodzi */ }
-
-    return {
-        wlaczona: !!zbior['-wlaczona'],
-        ma: function (co) { return !!zbior[co]; },
-        opis: lista.join(', ') || 'nic nie zdjęte',
-    };
-})();
-
-/**
- * Atrapa paska administratora.
- *
- * ZGŁOSZONE Z UŻYCIA po 1.141.0: „po zalogowaniu do WP, kiedy widać pasek na
- * górze, menu otwiera się bardzo płynnie na każdej ze stron; gdy się wyloguję,
- * wraca rwanie".
- *
- * To najmocniejsza wskazówka, jaką dotąd mamy, i od razu jedną hipotezę
- * WYKLUCZA: warstwy z `mix-blend-mode` w pierwszym ekranie strony stoją tam
- * niezależnie od tego, kto ogląda, więc gdyby to one kosztowały, zalogowanie
- * nie zmieniłoby niczego.
- *
- * Pasek zmienia stronie dwie rzeczy i obie są mierzalne:
- *   1. dokłada `<html>` margines u góry (46 px na telefonie),
- *   2. stawia pozycjonowany pasek o `z-index: 99999` i `min-width: 600px` —
- *      czyli na wąskim ekranie robi też przepełnienie w poziomie.
- *
- * `margines` odtwarza pierwszą, `pasek` obie. Jeśli któraś uspokoi menu
- * u wylogowanego, przyczyna jest w UKŁADZIE STRONY, a nie w tym, kim jest
- * odwiedzający — i wtedy da się ją odtworzyć w teście zamiast zgadywać.
- *
- * Wierność jest tu przybliżona i tak ma być: WordPress przy szerokości do
- * 600 px pozycjonuje pasek `absolute`, a jego pudełko liczy się od początku
- * kanwy, nie od `<body>`. Atrapa wisi w `<body>`, więc może stać o te 46 px
- * niżej. Dla pytania „czy margines i przepełnienie w poziomie mają wpływ"
- * to bez znaczenia — a gdyby miało, znaczyłoby, że trafiliśmy w coś innego
- * i i tak trzeba mierzyć dalej.
- */
-function evk_oc_atrapaPaska() {
-    if (document.getElementById('evk-oc-atrapa-paska')) return;
-
-    /* ROZBIÓRKA MARGINESU — dopisana po pomiarach z 1.141.1.
-     *
-     * Zmierzone na telefonie: odniesienie 808 ms najdłuższej klatki,
-     * `margines` 114 ms, `pasek` 115 ms. Leczy więc SAM margines, i to przy
-     * niezmienionym `scrollY` — nie chodzi o pozycję przewijania, tylko o to,
-     * że pudełko `<html>` przestaje stykać się z górą kanwy.
-     *
-     * Trzy warianty rozdzielają to, co margines robi naraz:
-     *   margines-1  — jeden piksel zamiast czterdziestu sześciu. Jeśli wystarczy,
-     *                 nie chodzi o rozmiar, tylko o samo odsunięcie.
-     *   wciecie     — `padding-top` zamiast marginesu. Odsuwa TREŚĆ, ale pudełko
-     *                 `<html>` zostaje przy krawędzi. Rozdziela „treść niżej"
-     *                 od „pudełko odsunięte".
-     *   wydluzenie  — dokument wyższy o te same 46 px, ale od DOŁU. Rozdziela
-     *                 „dokument jest wyższy" od „góra jest inna".
-     *
-     * Cztery pytania, cztery odpowiedzi „tak/nie" — i z nich wychodzi już
-     * konkretna reguła do wpisania, zamiast marginesu wciskanego wszystkim. */
-    var regula =
-          EVK_OC_PROBA.ma('margines-1') ? 'html { margin-top: 1px !important; }'
-        : EVK_OC_PROBA.ma('wciecie')    ? 'html { padding-top: 46px !important; }'
-        : EVK_OC_PROBA.ma('wydluzenie') ? 'body { padding-bottom: 46px !important; }'
-        : 'html { margin-top: 46px !important; }';
-
-    var st = document.createElement('style');
-    st.id = 'evk-oc-atrapa-paska';
-    st.textContent = regula;
-    document.head.appendChild(st);
-
-    if (!EVK_OC_PROBA.ma('pasek')) return;
-
-    var belka = document.createElement('div');
-    belka.id = 'evk-oc-atrapa-belka';
-    belka.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:46px;'
-        + 'min-width:600px;z-index:99999;background:#1d2327';
-    document.body.appendChild(belka);
-}
-
-/**
- * Gasi cień na ikonach — wariant `bez-cienia`.
- *
- * ZNALEZIONE PRZEZ ZGŁASZAJĄCEGO: na stronie stoi reguła
- * `svg { filter: drop-shadow(0px 5px 52px rgb(0 0 0 / 0.5)) }` — BEZ selektora,
- * czyli na każdym `<svg>` w dokumencie. Rozmycie 52 px to duży obszar do
- * przeliczenia przy każdym odrysowaniu, a `filter` przy okazji zakłada
- * elementowi kontekst nakładania i własną warstwę.
- *
- * Wariant niczego nie naprawia — odpowiada tylko na pytanie „ile kosztuje ta
- * jedna reguła", i to w tych samych warunkach co reszta pomiarów. Naprawa
- * należy do arkusza strony: regułę trzeba zawęzić do tych ikon, które ten cień
- * mają mieć.
- */
-function evk_oc_gasCien() {
-    if (document.getElementById('evk-oc-bez-cienia')) return;
-    var st = document.createElement('style');
-    st.id = 'evk-oc-bez-cienia';
-    /* `!important`, bo gasimy CUDZĄ regułę o nieznanej specyficzności —
-       bez tego wariant bywałby przegrywany i pokazywał, że cień nic nie
-       kosztuje, choć nadal by się rysował. */
-    st.textContent = 'svg { filter: none !important; }';
-    document.head.appendChild(st);
-}
-
-var evk_oc_tablica = null;
-var evk_oc_ktore = 0;
-
-/**
- * Tablica wyników — jeden węzeł na stronę, tworzony przy pierwszym użyciu.
- *
- * Stoi na wierzchu powłoki (`z-index` maksymalny) i nie łapie kliknięć, więc
- * nie zasłania menu w sensie użytkowym. Treść podmieniamy DOPIERO po zamknięciu
- * okna pomiaru — podmiana w trakcie znaczyłaby przemalowywanie tablicy w tych
- * samych klatkach, które właśnie mierzymy.
- */
-function evk_oc_wypisz(txt) {
-    if (!evk_oc_tablica) {
-        evk_oc_tablica = document.createElement('div');
-        evk_oc_tablica.setAttribute('data-evk-oc-proba', '1');
-        evk_oc_tablica.style.cssText =
-            'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;pointer-events:none;'
-          + 'background:rgba(0,0,0,.85);color:#fff;padding:10px 12px;border-radius:10px;'
-          + 'font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap';
-        document.body.appendChild(evk_oc_tablica);
-    }
-    evk_oc_tablica.textContent = txt;
-}
-
-/**
- * Mierzy klatki po otwarciu i wypisuje wynik.
- *
- * Rozdzielone są DWIE liczby, bo to dwie różne przyczyny i dwie różne
- * poprawki. „Do 1. klatki" to przerwa między kliknięciem a pierwszym
- * odrysowaniem — w niej siedzi układ, malowanie i rasteryzacja całej powłoki,
- * czyli koszt JEDNORAZOWY. „Najdłuższa dalsza" mówi, czy drogi jest sam ruch,
- * który potem trwa.
- *
- * OKNO I DOKUMENT dopisane po pomiarach z 1.141.1. Wyszło z nich, że jedna
- * klatka potrafi trwać 808 ms, choć `open()` kosztuje 5 ms, a do pierwszego
- * odrysowania jest 0 ms — czyli droga rzecz nie jest ani nasza, ani
- * jednorazowa. Na iOS najczęstszym powodem takiej klatki jest przeliczenie
- * widocznego obszaru: pasek adresu zwija się albo rozwija, a wtedy wszystko,
- * co słucha `resize` — ScrollTrigger, Lenis, efekty ruchu Bricksa —
- * przelicza się naraz. Bez tych liczb nie da się tego odróżnić od zwykłego
- * malowania, a to dwie zupełnie różne poprawki.
- */
-function evk_oc_zmierz(naglowek, ile) {
-    var klik = performance.now();
-    var pierwsza = 0, max = 0, klatek = 0, poprz = klik;
-
-    var oknoPrzed = window.innerWidth + '×' + window.innerHeight;
-    var dokPrzed  = document.documentElement.scrollHeight;
-    var zmian = 0;
-    var licz = function () { zmian++; };
-
-    /* Oba nasłuchy, bo mówią o czym innym. `window.resize` łapie zmianę
-       obszaru UKŁADU, a `visualViewport` — zmianę tego, co widać, czyli
-       właśnie zwijanie paska adresu, które układu nie rusza. Na iOS bywa
-       drugie bez pierwszego. */
-    window.addEventListener('resize', licz);
-    if (window.visualViewport) window.visualViewport.addEventListener('resize', licz);
-
-    requestAnimationFrame(function krok(t) {
-        /* Bez zera od dołu wychodzą liczby UJEMNE, i to nie teoretycznie —
-           zmierzone przy obciążonej maszynie. Stempel `requestAnimationFrame`
-           to chwila ROZPOCZĘCIA klatki, więc gdy klatka była już w robocie
-           w momencie kliknięcia, jest wcześniejszy niż nasz punkt startu.
-           Uczciwą odpowiedzią jest wtedy zero: nie było na co czekać. */
-        var d = Math.max(0, t - poprz);
-        poprz = t;
-        klatek++;
-        if (klatek === 1) pierwsza = d; else if (d > max) max = d;
-
-        if (t - klik < ile) { requestAnimationFrame(krok); return; }
-
-        window.removeEventListener('resize', licz);
-        if (window.visualViewport) window.visualViewport.removeEventListener('resize', licz);
-
-        evk_oc_wypisz(naglowek
-            + '\ndo 1. klatki:      ' + Math.round(pierwsza) + ' ms'
-            + '\nnajdłuższa dalsza: ' + Math.round(max) + ' ms'
-            + '\nklatek przez ' + ile + ' ms: ' + klatek
-            + '\nokno: ' + oknoPrzed + ' → ' + window.innerWidth + '×' + window.innerHeight
-            + '  (zmian: ' + zmian + ')'
-            + '\ndokument: ' + dokPrzed + ' → ' + document.documentElement.scrollHeight);
     });
 }
 
@@ -293,6 +48,61 @@ function evk_oc_przodek_blokujacy(el) {
         if (cs.willChange && /transform|perspective|filter|contain/.test(cs.willChange)) return a;
     }
     return null;
+}
+
+/** Czy ten styl zakłada elementowi WŁASNY kontekst nakładania. */
+function evk_oc_tworzy_kontekst(cs) {
+    if (cs.position === 'fixed' || cs.position === 'sticky') return true;
+    if (cs.position !== 'static' && cs.zIndex !== 'auto') return true;
+    if (parseFloat(cs.opacity) < 1) return true;
+    if (cs.transform !== 'none') return true;
+    if (cs.filter && cs.filter !== 'none') return true;
+    if (cs.perspective && cs.perspective !== 'none') return true;
+    if (cs.backdropFilter && cs.backdropFilter !== 'none') return true;
+    if (cs.clipPath && cs.clipPath !== 'none') return true;
+    if (cs.mixBlendMode && cs.mixBlendMode !== 'normal') return true;
+    if (cs.isolation === 'isolate') return true;
+    if (cs.contain && /paint|layout|strict|content/.test(cs.contain)) return true;
+    if (cs.willChange && /transform|opacity|filter|perspective|contain|isolation/.test(cs.willChange)) return true;
+    return false;
+}
+
+/**
+ * Element, który STANIE DO PORÓWNANIA z powłoką menu — albo `null`.
+ *
+ * ZGŁOSZONE Z UŻYCIA: „kiedy powłoka jest w <body>, nie mogę spowodować, żeby
+ * nagłówek był ponad nim". Podniesienie nagłówkowi `z-index` bywa bezskuteczne
+ * i nie dlatego, że liczba za mała: warstwy porównuje się tylko WEWNĄTRZ
+ * jednego kontekstu nakładania. Gdy nagłówek siedzi w opakowaniu z własnym
+ * kontekstem — a robi go `transform`, `filter`, krycie poniżej jedynki albo
+ * po prostu `z-index` na czymś pozycjonowanym — to opakowanie rozstrzyga za
+ * całą swoją zawartość, a nagłówek nie ma jak wyjść ponad nie.
+ *
+ * Szukamy więc NAJDALSZEGO przodka przełącznika, który zakłada własny
+ * kontekst: to on stoi z powłoką w tym samym porównaniu. Gdy takiego nie ma,
+ * do porównania staje najbliższy przodek pozycjonowany (albo sam przełącznik,
+ * jeśli to on nim jest) — bo elementy niepozycjonowane w tym porównaniu nie
+ * biorą udziału.
+ *
+ * `granica` to RODZIC POWŁOKI i ona rozstrzyga, jak daleko iść. Przy
+ * przeniesieniu do `<body>` powłoka jest dzieckiem `<body>`, więc idziemy
+ * przez cały nagłówek. Bez przeniesienia powłoka siedzi w korzeniu elementu,
+ * czyli obok przełącznika — i wtedy porównanie odbywa się WEWNĄTRZ korzenia.
+ * Pójście wyżej wskazałoby tam nagłówek, a podniesienie nagłówka podniosłoby
+ * razem z nim powłokę, która jest w środku: nic by się nie zmieniło.
+ */
+function evk_oc_konkurent_powloki(od, granica) {
+    var najdalszyKontekst = null;
+    var najblizszyPozycjonowany = null;
+
+    for (var a = od;
+         a && a !== granica && a !== document.body && a !== document.documentElement;
+         a = a.parentElement) {
+        var cs = getComputedStyle(a);
+        if (!najblizszyPozycjonowany && cs.position !== 'static') najblizszyPozycjonowany = a;
+        if (evk_oc_tworzy_kontekst(cs)) najdalszyKontekst = a;
+    }
+    return najdalszyKontekst || najblizszyPozycjonowany;
 }
 
 /**
@@ -452,6 +262,7 @@ function evk_offcanvas_menu_init_one(root) {
         ? null : parseFloat(exitWaitRaw);
     if (isNaN(exitWait)) exitWait = null;
     var usePortal   = root.getAttribute('data-portal') === '1';
+    var headerAbove = root.getAttribute('data-header-above') === '1';
     var startId     = root.getAttribute('data-start') || '';
     var side        = root.getAttribute('data-side') || 'right';
 
@@ -626,14 +437,6 @@ function evk_offcanvas_menu_init_one(root) {
     shell.appendChild(scrim);
     shell.appendChild(frame);
 
-    /* Wariant sondy `zaslona`: przyciemnienie w ogóle się nie rysuje.
-       Pełnoekranowa warstwa animująca `opacity` NAD treścią strony jest
-       kandydatem numer jeden — gdy pod nią stoją elementy z `mix-blend-mode`
-       albo `backdrop-filter`, przeglądarka musi w każdej klatce przeliczyć
-       całe tło pod spodem, a takie warstwy siedzą zwykle w pierwszym ekranie
-       strony. To by tłumaczyło, czemu po przewinięciu jest płynnie. */
-    if (EVK_OC_PROBA.ma('zaslona')) scrim.style.display = 'none';
-
     /* Zmienne NA POWŁOCE, nie na korzeniu. Powłoka jedzie do <body>, więc
        przestaje być potomkiem korzenia i nic z niego nie dziedziczy —
        ustawione tylko na korzeniu nie docierały do kadru ani taśmy i oba
@@ -645,7 +448,7 @@ function evk_offcanvas_menu_init_one(root) {
     if (trackEase) shell.style.setProperty('--evk-oc-panel-ease', trackEase);
     // Wartości z kontrolek `css` builder zapisuje NA KORZENIU, a powłoka jedzie
     // do <body> i przestaje po nim dziedziczyć — trzeba je przepisać.
-    ['--evk-oc-size', '--evk-oc-bg', '--evk-oc-scrim'].forEach(function (v) {
+    ['--evk-oc-size', '--evk-oc-bg', '--evk-oc-scrim', '--evk-oc-z'].forEach(function (v) {
         var val = getComputedStyle(root).getPropertyValue(v);
         if (val && val.trim()) shell.style.setProperty(v, val.trim());
     });
@@ -1054,65 +857,76 @@ function evk_offcanvas_menu_init_one(root) {
     var closeTimer = null;
 
     /**
-     * GRZANIE — kandydat na poprawkę, włączany `?evk-oc-proba=grzanie`.
+     * Nagłówek z przełącznikiem NAD otwartym menu.
      *
-     * Powłoka stoi `visibility: hidden`, czyli nie jest malowana wcale. Przy
-     * pierwszym otwarciu przeglądarka musi więc w JEDNEJ klatce ułożyć ją,
-     * namalować, zrasteryzować i dopiero ruszyć przejściem. Na iOS dochodzi do
-     * tego promocja warstw dla `position: fixed`, którą WebKit robi leniwie —
-     * i którą wymusza już samo przewinięcie strony. Stąd hipoteza: po
-     * przewinięciu jest płynnie, bo robota jest już zrobiona.
+     * Podnoszony jest jeden element — ten, który stoi z powłoką w tym samym
+     * porównaniu warstw (patrz `evk_oc_konkurent_powloki`). Podnoszenie po
+     * drodze wszystkiego, co pozycjonowane, przestawiałoby przy okazji
+     * kolejność WEWNĄTRZ nagłówka, a o to nikt nie prosił.
      *
-     * Grzanie przekłada ją na DOTKNIĘCIE, a otwarcie zostaje na kliknięciu.
-     * Między jednym a drugim iOS daje kilkadziesiąt milisekund (palec musi się
-     * jeszcze oderwać) — cała ta przerwa jest tu do wzięcia za darmo.
-     *
-     * Nic przy tym nie widać: kadr stoi wysunięty poza ekran, przyciemnienie
-     * ma zerowe krycie, a `pointer-events` włącza dopiero `.is-open`.
+     * Warstwę czytamy z POWŁOKI, nie z arkusza: kontrolka „Warstwa menu" może
+     * ją podmienić, a wtedy liczba wpisana tu na stałe albo za mało by
+     * podnosiła, albo bez potrzeby wjeżdżałaby nad wszystko inne.
      */
-    var grzanieTimer = null;
+    var podniesiony = null;
+    var opuscTimer  = null;
 
-    /**
-     * @param {boolean} naStale Czy ogrzanie ma przetrwać bez otwarcia menu.
-     *
-     * Przy dotknięciu — NIE. Dotknięcie bez otwarcia (palec zjechał w bok,
-     * przewijanie) zdarza się na okrągło, a powłoka ogrzana do końca życia
-     * strony to dokładnie ten stan, którego arkusz unika przy taśmie.
-     *
-     * Przy `grzanie-start` — tak, bo tam cały sens polega na tym, żeby robota
-     * była zrobiona ZANIM ktokolwiek czegokolwiek dotknie. Zegar odbierałby
-     * temu wariantowi jego jedyną różnicę wobec zwykłego grzania.
-     */
-    function przygotuj(naStale) {
-        if (shell.classList.contains('is-open')) return;
-        shell.classList.add('is-armed');
-        if (grzanieTimer) { clearTimeout(grzanieTimer); grzanieTimer = null; }
-        if (naStale) return;
-        grzanieTimer = setTimeout(function () {
-            grzanieTimer = null;
-            if (!shell.classList.contains('is-open')) shell.classList.remove('is-armed');
-        }, 3000);
+    function podniesNaglowek() {
+        // Ponowne otwarcie w trakcie wyjazdu — warstwa ma zostać podniesiona.
+        if (opuscTimer) { clearTimeout(opuscTimer); opuscTimer = null; }
+        if (!headerAbove || podniesiony) return;
+
+        var od = lastTrigger || triggers[0];
+        if (!od) return;
+
+        var el = evk_oc_konkurent_powloki(od, shell.parentElement);
+
+        /* Element niepozycjonowany w porównaniu warstw nie bierze udziału —
+           `z-index` na nim po prostu nic nie znaczy. Spozycjonowanie go z ręki
+           założyłoby blok zawierający jego potomkom z `position: absolute`
+           i przestawiło im układ, a to cena, której nikt tu nie zamawiał.
+           Mówimy więc głośno, zamiast po cichu nie zadziałać. */
+        if (!el || getComputedStyle(el).position === 'static') {
+            console.warn('[EVK Offcanvas] „Nagłówek nad menu": o kolejności decyduje element '
+                + 'niepozycjonowany, a na takim `z-index` nie działa. Nadaj `position: relative` '
+                + 'nagłówkowi z przełącznikiem — albo obniż „Warstwę menu" poniżej jego warstwy.',
+                el || od);
+            return;
+        }
+
+        var warstwa = parseInt(getComputedStyle(shell).zIndex, 10);
+        if (isNaN(warstwa)) warstwa = 99990;
+
+        podniesiony = { el: el, z: el.style.zIndex };
+        el.style.zIndex = String(warstwa + 1);
     }
 
-    /* Mocniejszy wariant: powłoka grzeje się PO ZAŁADOWANIU strony, bez
-       czekania na dotknięcie. Jeśli koszt jest jednorazowy — ułożenie,
-       malowanie i promocja warstw dla `position: fixed` — to tak przygotowana
-       powłoka nie zapłaci go nawet przy pierwszym kliknięciu, i to właśnie
-       odróżnia tę hipotezę od wszystkich pozostałych.
+    function opuscNaglowek() {
+        if (!podniesiony) return;
+        /* Wraca DOKŁADNIE to, co było — łącznie z pustym ciągiem, który zdejmuje
+           styl wpisany z ręki. Podstawienie zera zostawiłoby po nas warstwę,
+           której na tym elemencie wcześniej nie było. */
+        podniesiony.el.style.zIndex = podniesiony.z;
+        podniesiony = null;
+    }
 
-       PO załadowaniu, nie od razu: ta sama robota wykonana w trakcie ładowania
-       konkurowałaby z pierwszym malowaniem strony, czyli przeniosłaby zacięcie
-       w inne miejsce, zamiast je zdjąć. */
-    if (EVK_OC_PROBA.ma('grzanie-start')) {
-        var grzejPozniej = function () { setTimeout(function () { przygotuj(true); }, 200); };
-        if (document.readyState === 'complete') grzejPozniej();
-        else window.addEventListener('load', grzejPozniej);
+    /**
+     * Opuszcza nagłówek DOPIERO PO wyjeździe kadru.
+     *
+     * Powłoka znika z opóźnieniem równym czasowi przejścia (patrz arkusz),
+     * więc zdjęcie warstwy od razu wsunęłoby nagłówek pod panel, który jeszcze
+     * widać — i to na oczach patrzącego, w najbardziej widocznej chwili.
+     */
+    function opuscNaglowekPozniej() {
+        if (!podniesiony) return;
+        if (opuscTimer) clearTimeout(opuscTimer);
+        opuscTimer = setTimeout(function () {
+            opuscTimer = null;
+            opuscNaglowek();
+        }, frameTime * 1000 + 40);
     }
 
     function open(trigger) {
-        var pomiar = EVK_OC_PROBA.wlaczona ? performance.now() : 0;
-        var yPrzed = window.pageYOffset;
-
         if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
         lastTrigger = trigger || null;
         stack = [startIdx];
@@ -1121,24 +935,17 @@ function evk_offcanvas_menu_init_one(root) {
         /* Oś czasu wygięcia idzie RAZEM z klasą. `play()` na osi, która jest
            w połowie drogi wstecz, zawraca ją z tego miejsca — bez skoku
            i bez drugiej animacji obok pierwszej. */
-        if (!EVK_OC_PROBA.ma('wygiecie')) wygnijOtwarcie();
+        wygnijOtwarcie();
         // Stan po naszemu na powłoce, po Bricksowemu na korzeniu. Korzeń, nie
         // powłoka: powłoka jedzie do <body> i przestaje być czymkolwiek
         // w okolicy przełącznika, a reguły Bricksa czytają stan przez
         // pokrewieństwo w drzewie.
         root.classList.add(BRICKS_OPEN);
-        if (!EVK_OC_PROBA.ma('zamek')) lock();
+        podniesNaglowek();
+        lock();
         setTrigAria(true);
-        if (!EVK_OC_PROBA.ma('anim'))  replayAnimations();
-        if (!EVK_OC_PROBA.ma('fokus')) focusFirst(stack[stack.length - 1]);
-
-        if (EVK_OC_PROBA.wlaczona) {
-            evk_oc_ktore++;
-            evk_oc_zmierz('otwarcie #' + evk_oc_ktore
-                + '   scrollY ' + Math.round(yPrzed)
-                + '\nzdjęte: ' + EVK_OC_PROBA.opis
-                + '\nopen(): ' + (performance.now() - pomiar).toFixed(1) + ' ms', 900);
-        }
+        replayAnimations();
+        focusFirst(stack[stack.length - 1]);
     }
 
     function close() {
@@ -1155,13 +962,9 @@ function evk_offcanvas_menu_init_one(root) {
 
     function finishClose() {
         shell.classList.remove('is-open');
-        /* Ogrzana powłoka wraca do stanu spoczynku razem z zamknięciem —
-           `will-change` trzymane na stałe zostawia element na własnej warstwie
-           kompozytora przez całe życie strony, a to jest dokładnie to, czego
-           arkusz unika przy taśmie (patrz komentarz przy `.evk-oc-track`). */
-        shell.classList.remove('is-armed');
         wygnijZamkniecie();
         root.classList.remove(BRICKS_OPEN);
+        opuscNaglowekPozniej();
         unlock();
         setTrigAria(false);
         if (lastTrigger && typeof lastTrigger.focus === 'function') lastTrigger.focus();
@@ -1265,16 +1068,27 @@ function evk_offcanvas_menu_init_one(root) {
     }
     setTrigAria(false);
 
+    /* PRZEŁĄCZNIK, nie sam wyzwalacz otwarcia.
+     *
+     * ZGŁOSZONE Z UŻYCIA: „kliknięcie burgera, który otwiera oc, nie zamyka
+     * oc". Do 1.143.0 kliknięcie zawsze wołało `open()` — także przy menu już
+     * otwartym, gdzie nie robiło nic widocznego.
+     *
+     * To nie jest brakująca wygoda, tylko niedotrzymana obietnica: sam element
+     * ustawia przełącznikowi `aria-expanded` i dokłada mu klasy stanu, na
+     * których wisi animacja kresek burgera. Przycisk zapowiada więc czytnikowi
+     * ekranu i oku, że jest przełącznikiem — a nie przełączał. */
     triggers.forEach(function (t) {
-        t.addEventListener('click', function (e) { e.preventDefault(); open(t); });
-        /* Grzanie wisi na DOTKNIĘCIU, nie na kliknięciu — cały jego sens leży
-           w przerwie między jednym a drugim. `pointerdown` łapie i palec,
-           i mysz, i rysik jednym nasłuchem. */
-        /* Bez owijki pierwszym argumentem `przygotuj()` byłoby ZDARZENIE, czyli
-           wartość prawdziwa — i grzanie z dotknięcia zostawałoby na stałe. */
-        if (EVK_OC_PROBA.ma('grzanie')) {
-            t.addEventListener('pointerdown', function () { przygotuj(false); });
-        }
+        t.addEventListener('click', function (e) {
+            e.preventDefault();
+            /* `!closeTimer` jest tu warunkiem, nie ostrożnością. Przy animacji
+               wyjścia menu przez chwilę WYCHODZI, ale klasę otwarcia jeszcze
+               nosi — bez tego drugie kliknięcie w tym oknie próbowałoby
+               zamknąć już zamykane menu i nie robiłoby nic. A wtedy „rozmyśliłem
+               się w trakcie" nie działa: kliknięcie ma menu przywrócić. */
+            if (shell.classList.contains('is-open') && !closeTimer) close();
+            else                                                    open(t);
+        });
     });
 
     scrim.addEventListener('click', close);
