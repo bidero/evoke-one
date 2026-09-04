@@ -59,6 +59,7 @@ function evoke_one_ekrany(): array {
             'animator'    => ['label' => 'Animator',           'icon' => 'dashicons-controls-play',       'szukaj' => 'gsap animacje scrolltrigger presety'],
             'bgshift'     => ['label' => 'Tło przy scrollu',   'icon' => 'dashicons-art',                 'szukaj' => 'background kolor sekcji'],
             'fonts'       => ['label' => 'Czcionki (FOUT)',    'icon' => 'dashicons-editor-textcolor',    'szukaj' => 'fonts webfont typografia'],
+            'sierotki'    => ['label' => 'Sierotki',           'icon' => 'dashicons-editor-paragraph',    'szukaj' => 'typografia spójniki twarda spacja nbsp wdowy'],
             'themecolor'  => ['label' => 'Paski przeglądarki', 'icon' => 'dashicons-smartphone',          'szukaj' => 'theme-color pasek telefon'],
             'a11y'        => ['label' => 'Dostępność',         'icon' => 'dashicons-universal-access',    'szukaj' => 'accessibility a11y kontrast wcag'],
             'elementy'    => ['label' => 'Elementy Bricks',    'icon' => 'dashicons-screenoptions',       'szukaj' => 'marquee hscroll offcanvas splide'],

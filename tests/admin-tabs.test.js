@@ -54,7 +54,7 @@ const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               'tools-smtp', 'tools-redirect', 'tools-logs404', 'tools-io', 'tools-maintenance',
               'adm-interface', 'adm-dashboard', 'adm-avatar', 'adm-content',
               'adm-roles', 'adm-tlumaczenia',
-              'fe-cursor', 'fe-lenis', 'fe-bgshift', 'fe-fonts',
+              'fe-cursor', 'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-sierotki',
               'fe-themecolor', 'fe-parallax', 'fe-elementy', 'fe-newsletter', 'fe-newsletter-on',
               /* Tłumaczenia to osobny ekran, ale ładuje ten sam `admin.css`
                  (patrz `tl/bootstrap.php`), więc obowiązuje go ta sama skóra. */
@@ -78,7 +78,7 @@ const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
                'adm-interface', 'adm-dashboard', 'adm-content',
                /* Tłumaczenia NIE używają `.evo-box` — mają własny
                   `.tl-menu-settings`, więc do BOXED nie należą. */
-               'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-themecolor'];
+               'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-themecolor', 'fe-sierotki'];
 
 module.exports = async function (t) {
   // ── Zdublowany atrybut class ──────────────────────────────────────────

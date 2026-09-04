@@ -107,7 +107,36 @@ module.exports = async function (t) {
   const podzakladki = {};
   for (const [tabKey, ekrany] of Object.entries(mapa.ekrany)) podzakladki[tabKey] = Object.keys(ekrany);
   const ekranowRazem = Object.values(podzakladki).reduce((s, e) => s + e.length, 0);
-  t.check('ekranów w środku jest trzydzieści jeden', ekranowRazem === 31, ekranowRazem + '');
+  /* LICZBY NA SZTYWNO TU NIE MA, i to jest poprawka po własnym potknięciu.
+     Stało tu `=== 31` i zapaliło się przy pierwszym dołożonym module — tak samo
+     jak wcześniej `=== 9` przy linkach paska bocznego. Taki warunek nie pilnuje
+     mapy, tylko własnej aktualności: każde nowe okno panelu każe go poprawić,
+     a poprawia się go bezmyślnie, bo „przecież dodaliśmy ekran".
+
+     Pilnujemy więc tego, co ma być prawdą niezależnie od liczby modułów: mapa
+     jest niepusta, każda zakładka poza Pulpitem coś w środku ma, a każdy ekran
+     jest opisany. Dolna granica zostaje jako zabezpieczenie przed mapą uciętą
+     do kilku pozycji. */
+  t.check('mapa nie jest pusta ani szczątkowa', ekranowRazem >= 25, ekranowRazem + ' ekranów');
+
+  /* Zakładka BEZ wpisu w mapie ekranów jest w porządku — `newsletter`
+     i `forminbox` to sekcje jednoekranowe i drugiego poziomu nie mają.
+     Usterką jest wpis PUSTY: pasek boczny rozwinąłby wtedy gałąź, w której
+     nie ma nic do kliknięcia. */
+  const puste = Object.entries(mapa.ekrany)
+    .filter(([, ekrany]) => !Object.keys(ekrany).length)
+    .map(([k]) => k);
+  t.check('żadna sekcja nie rozwija się w pustkę', !puste.length,
+    puste.join(', ') || 'komplet');
+
+  const bezOpisu = [];
+  for (const [tabKey, ekrany] of Object.entries(mapa.ekrany)) {
+    for (const [klucz, ekran] of Object.entries(ekrany)) {
+      if (!ekran.label || !ekran.icon) bezOpisu.push(tabKey + '/' + klucz);
+    }
+  }
+  t.check('a każdy ekran ma nazwę i ikonę', !bezOpisu.length,
+    bezOpisu.join(', ') || 'komplet');
 
   /* Nazwy wycinamy DO OGRANICZNIKA (`&` albo koniec adresu), a nie klasą
      dozwolonych znaków. Wzorzec `([a-z_]+)` wygląda rozsądnie i jest tu

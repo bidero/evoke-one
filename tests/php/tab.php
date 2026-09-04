@@ -491,6 +491,11 @@ $TABS = [
         'file'   => 'includes/admin/tab-fonts.php',
         'seed'   => function () { $GLOBALS['options']['evk_fonts'] = ['enabled' => 1]; },
     ],
+    'fe-sierotki' => [
+        'module' => 'includes/91-sierotki.php',
+        'file'   => 'includes/admin/tab-sierotki.php',
+        'seed'   => function () { $GLOBALS['options']['evk_sierotki'] = ['enabled' => 1]; },
+    ],
     'fe-themecolor' => [
         'module' => 'includes/91-theme-color.php',
         'file'   => 'includes/admin/tab-themecolor.php',

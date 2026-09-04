@@ -2,6 +2,54 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.147.0] — 2026-09-04
+
+### Dodane
+
+- **Sierotki — twarda spacja po spójniku jednoliterowym.** Po polsku „a", „i",
+  „o", „u", „w" i „z" nie mają prawa zostać na końcu wiersza; to reguła składu,
+  nie upodobanie. Moduł zamienia spację po nich na nierozdzielającą, a przy
+  włączonej opcji wiąże też liczbę z jednostką („5 km", „2024 r.", „10 %").
+
+  **Głównym wejściem jest treść renderowana przez Bricksa**
+  (`bricks/frontend/render_data`) i to jest cały powód, dla którego moduł
+  powstał zamiast sięgnięcia po gotowca. Wtyczki tego rodzaju wpinają się
+  w `the_content`, `the_title` i `the_excerpt` — a na stronie budowanej
+  builderem nagłówki, teksty i przyciski przez te filtry **nie przechodzą**.
+  Klasyczne filtry zostają obok, dla wpisów bloga.
+
+  Idzie **po** silniku tłumaczeń (priorytet 20 wobec 1): odwrotna kolejność
+  poprawiałaby tekst, który za chwilę zostanie podmieniony na inny język.
+
+  Zamiana pracuje **pomiędzy znacznikami**, nie na całym HTML-u. Wyrażenie
+  puszczone na surowy dokument weszłoby w atrybuty — twarda spacja w adresie
+  albo w nazwie klasy psuje stronę cicho. Pomijane są `<pre>`, `<code>`,
+  `<script>`, `<style>`, `<textarea>`, `<kbd>` i `<samp>`, a w panelu można
+  dopisać własne klasy i identyfikatory.
+
+  **Zapis w bazie zostaje nietknięty** — zamiana dzieje się przy wyświetlaniu,
+  więc wyszukiwarka i edytor widzą tekst taki, jaki wpisałeś. Nie ruszamy też
+  panelu, kanałów RSS ani znacznika `<title>`: tam U+00A0 trafiłby do wyników
+  wyszukiwania.
+
+  Dwukrotne przetworzenie jest bezpieczne bez żadnej flagi — `\s` w trybie
+  UTF-8 nie obejmuje ani U+00A0, ani encji `&nbsp;`, więc tekst już poprawiony
+  nie ma tu czego dopasować.
+
+  **Znane ograniczenie:** spójnik zamknięty we własnym znaczniku
+  (`<b>w</b> las`) nie zostanie związany — spacja leży wtedy w sąsiednim węźle
+  tekstowym, a sklejanie przez znacznik wymagałoby rozróżniania elementów
+  liniowych od blokowych.
+
+### Zmienione
+
+- **Licznik ekranów panelu przestał być liczbą wpisaną na sztywno.** Stało tam
+  `=== 31` i zapaliło się przy pierwszym dołożonym module — tak samo jak
+  wcześniej `=== 9` przy linkach paska bocznego. Taki warunek nie pilnuje mapy,
+  tylko własnej aktualności. Teraz sprawdzane jest to, co ma być prawdą
+  niezależnie od liczby modułów: mapa jest niepusta, żadna sekcja nie rozwija
+  się w pustkę, a każdy ekran ma nazwę i ikonę.
+
 ## [1.146.0] — 2026-09-04
 
 ### Naprawione
