@@ -139,6 +139,11 @@ function evk_circular_menu_init_one( root ) {
             .filter( function ( c ) { return c && EVK_CM_TOGGLE_OPEN.indexOf( c ) < 0; } )
     );
     var raiseToggle = root.getAttribute( 'data-raise-toggle' ) === '1';
+    /* Co dokładnie ma stanąć nad panelem. Domyślnie SAM PRZEŁĄCZNIK — takie
+       było zachowanie do 1.144.0 i takie zostaje po aktualizacji; tryb „cały
+       nagłówek" trzeba wybrać świadomie. */
+    var raiseMode     = root.getAttribute( 'data-raise-mode' ) || 'przelacznik';
+    var raiseSelector = root.getAttribute( 'data-raise-selector' ) || '';
     var lockScroll  = root.getAttribute( 'data-lock-scroll' ) === '1';
     var closeOnEsc  = root.getAttribute( 'data-close-on-esc' ) === '1';
 
@@ -275,7 +280,7 @@ function evk_circular_menu_init_one( root ) {
         var dodaj = function ( el ) { if ( out.indexOf( el ) < 0 ) out.push( el ); };
         root.querySelectorAll( '.evk-cm-trigger' ).forEach( dodaj );
         if ( customToggleSel ) document.querySelectorAll( customToggleSel ).forEach( dodaj );
-        podniesione.forEach( function ( w ) { dodaj( w.el ); } );
+        ( podniesione || [] ).forEach( function ( w ) { dodaj( w.el ); } );
         return out;
     }
 
@@ -293,184 +298,51 @@ function evk_circular_menu_init_one( root ) {
         forEachTrigger( updateTriggerState );
     }
 
-    /* ── Przełącznik NAD panelem ──────────────────────────────────
+    /* ── Co stoi NAD otwartym panelem ─────────────────────────────
      *
-     * Zgłoszone z użycia: burger siedzi w nagłówku, nagłówek jest w <body>
-     * i nie jest ani `fixed`, ani `absolute`, a panel go przykrywa. Podniesienie
-     * samego burgera nie pomaga — pomaga dopiero wyciągnięcie na wierzch CAŁEGO
-     * nagłówka, czyli razem z jego tłem.
+     * Zgłoszone z użycia: burger siedzi w nagłówku, a panel go przykrywa —
+     * i podniesienie samemu burgerowi `z-index` nic nie daje, bo nagłówek
+     * zakłada własny kontekst nakładania i rywalizuje z panelem jako JEDNA
+     * warstwa. Zmierzone `elementFromPoint` w środku burgera przy otwartym
+     * menu: przy `z-index: 99999` na burgerze na wierzchu jest PANEL.
      *
-     * To nie jest kwestia za małej liczby. Nagłówek tworzy KONTEKST UKŁADANIA
-     * (wystarczy `position: relative` z własnym `z-index`, `transform`, `filter`,
-     * `will-change` albo `opacity` < 1 — Bricks i animacje sypią tym gęsto),
-     * a wtedy `z-index` dziecka rywalizuje wyłącznie z rodzeństwem: z panelem
-     * rywalizuje cały nagłówek jako JEDNA warstwa. Zmierzone `elementFromPoint`
-     * w środku burgera przy otwartym menu: przy `z-index: 99999` na burgerze
-     * na wierzchu jest PANEL, a po przeniesieniu węzła do <body> — burger.
-     * Żadna liczba tego nie naprawi; trzeba wyjąć przełącznik z kontekstu.
+     * Wyjścia są dwa i naprawdę się różnią — cały nagłówek razem z tłem albo
+     * sam przełącznik wyjęty z drzewa. Który lepszy, zależy od projektu, więc
+     * wybiera go kontrolka „Co nad panelem"; zgłoszone po 1.144.0: „chcę mieć
+     * możliwość pokazać np. samo logo i burgera, a nie ramkę nagłówka".
+     *
+     * Cała mechanika siedzi we WSPÓLNYM module (assets/js/warstwy.js) —
+     * Offcanvas Menu ma tę samą kontrolkę i te same dwie drogi.
      */
-    var podniesione   = [];
+    var podniesione   = null;
     var restoreTimer  = null;
-
-    function panelZIndex() {
-        var z = parseInt( getComputedStyle( panel ).zIndex, 10 );
-        return isNaN( z ) ? 9999 : z;
-    }
 
     function podniesPrzelaczniki() {
         /* W BUILDERZE nie ruszamy niczego. Kanwa jest cudzym drzewem: Bricks
            pilnuje jej własnym obserwatorem i przerysowuje element, gdy DOM się
            zmieni — a nasze przeniesienie węzła jest taką zmianą. Wychodzi
            z tego para, w której każda strona reaguje na ruch drugiej.
-           Ta sama zasada, którą stosuje już portal panelu (`usePortal &&
-           ! isBuilder`): w builderze pokazujemy element, a nie przemeblowujemy
-           mu otoczenia. Poza tym problem, który ta opcja rozwiązuje — kontekst
-           układania nagłówka — na kanwie i tak nie występuje. */
-        if ( ! raiseToggle || isBuilder || podniesione.length ) return;
-        var z = panelZIndex() + 1;
+           Ta sama zasada, którą stosuje już portal panelu. Poza tym problem,
+           który ta opcja rozwiązuje — kontekst układania nagłówka — na kanwie
+           i tak nie występuje. */
+        if ( ! raiseToggle || isBuilder || podniesione || ! window.evkWarstwy ) return;
 
-        /* NAJPIERW PRÓBA BEZ RUSZANIA DRZEWA.
-         *
-         * Zgłoszone z użycia po tym, jak to samo trafiło do offcanvasu:
-         * „wprowadź to samo do circular menu". Podniesienie warstwy jednemu
-         * przodkowi robi to, co ta funkcja robi przenoszeniem węzła, tylko
-         * bez żadnego z jego kosztów — a przy okazji WYNOSI NAGŁÓWEK RAZEM
-         * Z TŁEM, o co chodziło w komentarzu wyżej. Przeniesiony burger
-         * zostawiał tło nagłówka pod panelem i wisiał nad nim sam.
-         *
-         * Warunek jest jeden: element, który staje z panelem do porównania
-         * warstw, musi być pozycjonowany — na niepozycjonowanym `z-index`
-         * nic nie znaczy. Wtedy schodzimy do starej drogi, bo ona radzi sobie
-         * i z tym: wyjmuje przełącznik z kontekstu zamiast go przebijać.
-         *
-         * Reguła jest wspólna z offcanvasem (assets/js/warstwy.js) — dwie
-         * kopie rozjechałyby się przy pierwszej poprawce. */
-        if ( window.evkWarstwy ) {
-            /* NAJPIERW ZEBRAĆ, POTEM PODNIEŚĆ. Przełączników bywa kilka —
-               wbudowany i wskazane własnym selektorem — a wycofanie w połowie
-               zostawiłoby część podniesioną, część przeniesioną. Albo cała
-               droga, albo żadna. */
-            var kandydaci = [];
-            var dasie = true;
-
-            forEachTrigger( function ( el ) {
-                if ( ! dasie || panel.contains( el ) ) return;
-                var kand = window.evkWarstwy.konkurent( el, panel.parentElement );
-                if ( ! kand || getComputedStyle( kand ).position === 'static' ) { dasie = false; return; }
-                if ( kandydaci.indexOf( kand ) < 0 ) kandydaci.push( kand );
-            } );
-
-            if ( dasie && kandydaci.length ) {
-                kandydaci.forEach( function ( kand ) {
-                    podniesione.push( { el: kand, ph: null, styl: kand.getAttribute( 'style' ) } );
-                    kand.style.zIndex = String( z );
-                } );
-                return;
-            }
-        }
-
-        forEachTrigger( function ( el ) {
-            // Przełącznik W ŚRODKU panelu jedzie z nim portalem do <body>,
-            // więc jest już nad wszystkim — wyrywanie go stamtąd zabrałoby go
-            // z panelu.
-            if ( panel.contains( el ) ) return;
-
-            var r  = el.getBoundingClientRect();
-            var cs = getComputedStyle( el );
-
-            /* Przekładka: KOPIA przełącznika z WYMUSZONYM pudełkiem.
-             *
-             * Kopia, a nie pusty prostokąt — bo pusty element blokowo-liniowy
-             * wyznacza linię bazową dolną krawędzią, a taki z tekstem linią
-             * bazową swojego tekstu; sąsiad przeskakiwał przez to o 17 px.
-             *
-             * Wymuszone pudełko, a nie sama kopia — bo identyfikator z kopii
-             * trzeba zdjąć (dwa te same w dokumencie psują `getElementById`
-             * i cudze skrypty), a Bricks stylizuje elementy WŁAŚNIE po
-             * identyfikatorze. Kopia bez niego gubi szerokość, wysokość
-             * i wypełnienie: zmierzone przesunięcie sąsiada o 43 px, tak samo
-             * w nagłówku elastycznym jak liniowym. Wpisanie zmierzonego pudełka
-             * wprost uniezależnia przekładkę od tego, które reguły ją ominą.
-             *
-             * `visibility`, a nie `opacity` — żeby wypadła też z drzewa
-             * dostępności; inaczej czytnik ekranu ogłaszałby przycisk dwa razy. */
-            var ph = el.cloneNode( true );
-            ph.removeAttribute( 'id' );
-            ph.querySelectorAll( '[id]' ).forEach( function ( n ) { n.removeAttribute( 'id' ); } );
-            ph.setAttribute( 'aria-hidden', 'true' );
-            ph.setAttribute( 'data-evk-cm-przekladka', '' );
-            /* Wypełnienie i obramowanie KOPIOWANE, a nie zerowane. Przy
-               wyzerowanych tekst w przekładce siadał wyżej niż w oryginale,
-               więc linia bazowa całego wiersza wypadała o piksel inaczej —
-               zmierzone. Przy `border-box` i wpisanym rozmiarze zewnętrznym
-               te same wartości dają to samo pudełko treści, a więc i tę samą
-               linię bazową. Kolor obramowania nieistotny: przekładka jest
-               niewidoczna. */
-            ph.style.cssText = 'box-sizing:border-box'
-                + ';display:'        + cs.display
-                + ';width:'          + r.width  + 'px'
-                + ';height:'         + r.height + 'px'
-                + ';padding:'        + cs.padding
-                + ';border-width:'   + cs.borderWidth
-                + ';border-style:'   + cs.borderStyle
-                + ';border-color:transparent'
-                + ';margin:'         + cs.margin
-                + ';vertical-align:' + cs.verticalAlign
-                + ';font-size:'      + cs.fontSize
-                + ';line-height:'    + cs.lineHeight
-                + ';visibility:hidden;pointer-events:none';
-            el.parentNode.insertBefore( ph, el );
-
-            // Cały atrybut `style`, a nie pojedyncze właściwości: przełącznik
-            // może mieć własne wpisane wprost (burger ma tam krzywą czasu),
-            // a przywrócenie kompletu jest jedynym sposobem, żeby niczego nie
-            // zgubić ani nie dorobić.
-            podniesione.push( { el: el, ph: ph, styl: el.getAttribute( 'style' ) } );
-
-            document.body.appendChild( el );
-            el.style.position = 'fixed';
-            el.style.margin   = '0';
-            el.style.top      = r.top    + 'px';
-            el.style.left     = r.left   + 'px';
-            el.style.width    = r.width  + 'px';
-            el.style.height   = r.height + 'px';
-            // Z PANELU, nie z własnej liczby — dzięki temu idzie za jego
-            // ustawieniem, zamiast powtarzać wartość w drugim miejscu.
-            el.style.zIndex   = String( z );
+        podniesione = window.evkWarstwy.podnies( {
+            przelaczniki: triggerList(),
+            panel:        panel,
+            tryb:         raiseMode,
+            selektor:     raiseSelector,
+            zapas:        9999,
+            ostrzez:      function ( co ) {
+                console.warn( '[EVK Circular] „Przełącznik nad panelem": ' + co );
+            },
         } );
-
-        /* WYMUSZONY PRZELICZNIK, i to nie jest zabobon.
-         *
-         * Przeniesienie węzła w drzewie kasuje jego stan przejść: element,
-         * którego nie było w dokumencie przy poprzednim przeliczeniu stylu,
-         * NIE MA od czego animować. Klasa stanu dochodzi zaraz po tym
-         * (syncTriggers), więc bez tej linijki burger PRZESKAKIWAŁ do wyglądu
-         * otwartego — bez przejścia kolorów i bez ruchu kresek. Przy zamykaniu
-         * animował się normalnie, bo tam klasa schodzi, gdy węzeł od dawna
-         * siedzi w <body>. Dokładnie tak to zgłoszono: „nie animuje się do
-         * stanu otwartego, tylko przy zamknięciu".
-         *
-         * Odczyt wymiaru zmusza przeglądarkę do przeliczenia stylu TERAZ, więc
-         * przełącznik dostaje stan wyjściowy, od którego jest się czym odbić.
-         * Jeden odczyt na cały dokument wystarcza dla wszystkich przeniesionych.
-         * Zmierzone: bez niego kolor skacze wprost do docelowego, z nim
-         * w połowie czasu jest w połowie drogi. */
-        if ( podniesione.length ) void document.body.offsetHeight;
     }
 
     function opuscPrzelaczniki() {
-        podniesione.forEach( function ( w ) {
-            if ( w.styl === null ) w.el.removeAttribute( 'style' );
-            else                   w.el.setAttribute( 'style', w.styl );
-            // Droga przez podniesienie warstwy nie ruszała drzewa, więc nie ma
-            // przekładki do wyjęcia — sam styl wrócił linijkę wyżej.
-            if ( ! w.ph ) return;
-            if ( w.ph.parentNode ) {
-                w.ph.parentNode.insertBefore( w.el, w.ph );
-                w.ph.parentNode.removeChild( w.ph );
-            }
-        } );
-        podniesione = [];
+        if ( ! window.evkWarstwy ) return;
+        window.evkWarstwy.opusc( podniesione );
+        podniesione = null;
     }
 
     /**
@@ -569,7 +441,7 @@ function evk_circular_menu_init_one( root ) {
            na GSAP-ie z tej paczki), a zero to dokładnie ścieżka REDUKCJI RUCHU
            — `duration` jest wtedy wyzerowane wyżej. Burger zostałby wyrwany
            z nagłówka na stałe u każdego, kto ma ograniczony ruch w systemie. */
-        if ( podniesione.length ) {
+        if ( podniesione ) {
             if ( restoreTimer ) clearTimeout( restoreTimer );
             restoreTimer = setTimeout( function () {
                 restoreTimer = null;

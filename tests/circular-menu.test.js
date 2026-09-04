@@ -766,27 +766,31 @@ module.exports = async function (t) {
   t.check('nagłówek się NIE przebudował',
     JSON.stringify(await zr.evaluate(() => window.__rect('sasiad'))) === JSON.stringify(sasiadR),
     JSON.stringify(await zr.evaluate(() => window.__rect('sasiad'))) + ' vs ' + JSON.stringify(sasiadR));
-  /* NIE RUSZAMY DRZEWA. Do 1.144.0 przełącznik był na czas otwarcia
-     przenoszony do <body>, a w nagłówku zostawała po nim niewidoczna
-     przekładka — bo bez niej nagłówek zapadał się o jego szerokość. Podniesienie
-     warstwy jednemu przodkowi daje ten sam skutek i wynosi nagłówek RAZEM
-     Z TŁEM, o co chodziło w zgłoszeniu; przeniesiony burger wisiał nad panelem
-     sam, bez paska nagłówka pod sobą. Przy okazji znika cała klasa usterek
-     po przenoszeniu węzła: skasowany stan przejść, zdublowane identyfikatory
-     w kopii i zapadające się pudełko. */
-  t.check('przełącznik zostaje w nagłówku',
-    (await zr.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
+  /* DOMYŚLNIE JEDZIE SAM PRZEŁĄCZNIK — węzeł wychodzi do <body>, a w nagłówku
+     zostaje niewidoczna przekładka tej samej wielkości. Nad panelem staje wtedy
+     goły burger, bez ramki nagłówka; zgłoszone po 1.144.0 właśnie tak: „chcę
+     mieć możliwość pokazać np. samo logo i burgera, a nie ramkę nagłówka".
+     Tryb „cały nagłówek" jest niżej, w osobnej sekcji. */
+  t.check('domyślnie wyjeżdża sam przełącznik, do <body>',
+    (await zr.evaluate(() => window.__rodzic('zew-naglowek'))) === 'body',
     String(await zr.evaluate(() => window.__rodzic('zew-naglowek'))));
-  t.check('i nie zostaje po nim żadna przekładka',
-    (await zr.evaluate(() => document.querySelectorAll('[data-evk-cm-przekladka]').length)) === 0,
-    String(await zr.evaluate(() => document.querySelectorAll('[data-evk-cm-przekladka]').length)));
+  /* DWIE przekładki, po jednej na każdy wyjęty przełącznik: wbudowany
+     `.evk-cm-trigger` i ten wskazany selektorem `.w-naglowku`. Bez przekładki
+     jego miejsce w układzie znika i sąsiedzi przeskakują — dlatego liczy się
+     tu para „wyjęty ↔ przekładka", a nie sama obecność jednej. */
+  t.check('a po każdym wyjętym zostaje przekładka',
+    (await zr.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) === 2,
+    String(await zr.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) + ' przekładek');
 
   // Zamknięcie DROGĄ, o której podnoszenie nic nie wie — Esc.
   await zr.evaluate(() => window.__key('Escape'));
   await zr.waitForTimeout(500);
-  t.check('po zamknięciu panel znów przykrywa przełącznik',
-    (await zr.evaluate(() => window.__naWierzchu('zew-naglowek'))) === 'zew-naglowek',
-    String(await zr.evaluate(() => window.__naWierzchu('zew-naglowek'))));
+  t.check('po zamknięciu wraca do nagłówka',
+    (await zr.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
+    String(await zr.evaluate(() => window.__rodzic('zew-naglowek'))));
+  t.check('i przekładka znika razem z nim',
+    (await zr.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) === 0,
+    String(await zr.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)));
   t.check('i oddaje swój styl w stanie sprzed otwarcia',
     (await zr.evaluate(() => window.__inline('zew-naglowek'))) === stylPrzed,
     JSON.stringify(await zr.evaluate(() => window.__inline('zew-naglowek'))));
@@ -851,14 +855,14 @@ module.exports = async function (t) {
   });
   await zero.evaluate(() => window.__zew('zew-naglowek'));
   await zero.waitForTimeout(120);
-  t.check('przy redukcji ruchu też jest na wierzchu',
-    (await zero.evaluate(() => window.__naWierzchu('zew-naglowek'))) === 'zew-naglowek',
-    String(await zero.evaluate(() => window.__naWierzchu('zew-naglowek'))));
+  t.check('przy redukcji ruchu też się podnosi',
+    (await zero.evaluate(() => window.__rodzic('zew-naglowek'))) === 'body',
+    String(await zero.evaluate(() => window.__rodzic('zew-naglowek'))));
   await zero.evaluate(() => window.__key('Escape'));
   await zero.waitForTimeout(200);
-  t.check('i przy redukcji ruchu warstwa NAPRAWDĘ wraca',
-    (await zero.evaluate(() => window.__inline('naglowek'))) === 'position:relative;z-index:1;background:#eee;padding:10px',
-    String(await zero.evaluate(() => window.__inline('naglowek'))));
+  t.check('i przy redukcji ruchu NAPRAWDĘ wraca',
+    (await zero.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
+    String(await zero.evaluate(() => window.__rodzic('zew-naglowek'))));
   await zero.close();
 
   // Przełącznik WBUDOWANY siedzi w korzeniu menu, a nie w panelu — ma się
@@ -871,13 +875,85 @@ module.exports = async function (t) {
   await wb.waitForTimeout(400);
   // Podnoszony jest CAŁY `.evk-cm-trigger` (opakowanie), a nie przycisk
   // w środku — bo to opakowanie zajmuje miejsce w układzie strony.
-  t.check('wbudowany przełącznik też jest na wierzchu',
-    (await wb.evaluate(() => window.__naWierzchu('trigger'))) === 'trigger',
-    String(await wb.evaluate(() => window.__naWierzchu('trigger'))));
+  t.check('wbudowany przełącznik też jedzie do <body>',
+    (await wb.evaluate(() => window.__rodzic('tw'))) === 'body',
+    String(await wb.evaluate(() => window.__rodzic('tw'))));
   t.check('a panel został tam, gdzie był',
     (await wb.evaluate(() => window.__panelParent())) === 'body',
     String(await wb.evaluate(() => window.__panelParent())));
   await wb.close();
+
+  /* ── Trzy drogi nad panel ───────────────────────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA po 1.144.0: „chcę mieć możliwość pokazać np. samo logo
+   * i burgera, a nie ramkę nagłówka. Teraz jak wybieram nad menu, to idzie cały
+   * nagłówek. Wcześniej miałem samego burgera — i tak było w sumie lepiej".
+   *
+   * Stąd wybór zamiast jednej drogi. Każdy tryb sprawdzany PARĄ: co wyjechało
+   * I co zostało na miejscu — bo mylące jest tu nie „czy działa", tylko „co
+   * dokładnie się rusza".
+   */
+  t.section('trzy drogi: sam przełącznik, wskazane elementy, cały nagłówek');
+
+  const QT = 'dur=0.2&raise=1&toggle=' + encodeURIComponent('.w-naglowku');
+
+  /* „Wskazane": obok przełącznika wyjeżdża to, co wskazuje selektor. U autora
+     zgłoszenia jest to logo; tutaj sąsiad w nagłówku, bo pełni tę samą rolę —
+     jest elementem nagłówka, którego nikt nie kliknie. */
+  const wsk = await t.open('circular-menu.html', {
+    viewport: V, settle: 300, query: QT + '&raisemode=wskazane&raisesel=' + encodeURIComponent('#sasiad'),
+  });
+  await wsk.evaluate(() => window.__zew('zew-naglowek'));
+  await wsk.waitForTimeout(400);
+  t.check('„wskazane" wyjmuje też element z selektora',
+    (await wsk.evaluate(() => window.__rodzic('sasiad'))) === 'body',
+    String(await wsk.evaluate(() => window.__rodzic('sasiad'))));
+  t.check('i przełącznik razem z nim',
+    (await wsk.evaluate(() => window.__rodzic('zew-naglowek'))) === 'body',
+    String(await wsk.evaluate(() => window.__rodzic('zew-naglowek'))));
+  /* Nagłówek ZOSTAJE na miejscu — to jest cała różnica wobec trybu „cały
+     nagłówek". Gdyby wyjechał, nie byłoby po co rozróżniać trybów. */
+  /* Nagłówek zostaje ze SWOJĄ warstwą — w fixturze `z-index: 1`, wpisanym
+     w atrybut jak na prawdziwej stronie. Porównanie z pustym ciągiem byłoby
+     tu fałszywe: sprawdzamy, że nikt jej nie ruszył, a nie że jej nie ma. */
+  t.check('a sam nagłówek zostaje ze swoją warstwą',
+    (await wsk.evaluate(() => document.getElementById('naglowek').style.zIndex)) === '1',
+    '„' + (await wsk.evaluate(() => document.getElementById('naglowek').style.zIndex)) + '"');
+  await wsk.evaluate(() => window.__key('Escape'));
+  await wsk.waitForTimeout(500);
+  t.check('po zamknięciu wracają oba',
+    (await wsk.evaluate(() => window.__rodzic('sasiad'))) === 'naglowek'
+    && (await wsk.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
+    'sąsiad w ' + (await wsk.evaluate(() => window.__rodzic('sasiad'))));
+  t.check('bez błędów JS', !wsk.errors.length, wsk.errors.join(' | ') || 'brak');
+  await wsk.close();
+
+  /* „Cały nagłówek": nic nie rusza się w drzewie, podnoszona jest warstwa
+     jednego przodka — więc nad panel wjeżdża pasek RAZEM Z TŁEM. */
+  const cal = await t.open('circular-menu.html', {
+    viewport: V, settle: 300, query: QT + '&raisemode=naglowek',
+  });
+  await cal.evaluate(() => window.__zew('zew-naglowek'));
+  await cal.waitForTimeout(400);
+  t.check('„naglowek" podnosi warstwę nagłówka',
+    Number(await cal.evaluate(() => document.getElementById('naglowek').style.zIndex)) > 9999,
+    '„' + (await cal.evaluate(() => document.getElementById('naglowek').style.zIndex)) + '"');
+  t.check('a przełącznik zostaje na swoim miejscu',
+    (await cal.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
+    String(await cal.evaluate(() => window.__rodzic('zew-naglowek'))));
+  t.check('i nie powstaje żadna przekładka',
+    (await cal.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) === 0,
+    String(await cal.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)));
+  t.check('a burger i tak jest na wierzchu',
+    (await cal.evaluate(() => window.__naWierzchu('zew-naglowek'))) === 'zew-naglowek',
+    String(await cal.evaluate(() => window.__naWierzchu('zew-naglowek'))));
+  await cal.evaluate(() => window.__key('Escape'));
+  await cal.waitForTimeout(500);
+  t.check('po zamknięciu warstwa nagłówka wraca do swojej',
+    (await cal.evaluate(() => document.getElementById('naglowek').style.zIndex)) === '1',
+    '„' + (await cal.evaluate(() => document.getElementById('naglowek').style.zIndex)) + '"');
+  t.check('bez błędów JS', !cal.errors.length, cal.errors.join(' | ') || 'brak');
+  await cal.close();
 
   /* ── „Otwórz w builderze" NIE może dotknąć frontu ──────────────────────
    *
@@ -943,8 +1019,8 @@ module.exports = async function (t) {
     (await rb.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
     String(await rb.evaluate(() => window.__rodzic('zew-naglowek'))));
   t.check('i nie powstaje żadna przekładka',
-    (await rb.evaluate(() => document.querySelectorAll('[data-evk-cm-przekladka]').length)) === 0,
-    String(await rb.evaluate(() => document.querySelectorAll('[data-evk-cm-przekladka]').length)));
+    (await rb.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) === 0,
+    String(await rb.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)));
   await rb.close();
   /* ── Blokada przewijania ────────────────────────────────────────────────
    *

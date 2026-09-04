@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.145.0] — 2026-09-04
+
+### Zmienione
+
+- **„Co nad panelem" — trzy drogi zamiast jednej, w obu menu.** Zgłoszone
+  z użycia: „chcę mieć możliwość pokazać np. samo logo i burgera, a nie ramkę
+  nagłówka. Teraz jak wybieram nad menu, to idzie cały nagłówek. Wcześniej
+  miałem samego burgera — i tak było w sumie lepiej".
+
+  | tryb | co wyjeżdża nad panel |
+  | --- | --- |
+  | **Sam przełącznik** (domyślnie) | goły burger, bez ramki nagłówka |
+  | **Przełącznik i wskazane elementy** | burger plus to, co wskaże selektor (np. `.logo`) |
+  | **Cały nagłówek** | pasek razem z tłem — nic nie rusza się w drzewie |
+
+  Dwie pierwsze drogi **wyjmują węzeł** do `<body>` i zostawiają w jego miejscu
+  niewidoczną przekładkę tej samej wielkości, więc nagłówek się nie
+  przebudowuje. Trzecia **podnosi warstwę** jednego przodka — tego, który staje
+  z panelem do porównania — i wymaga, żeby był pozycjonowany; na
+  niepozycjonowanym `z-index` nic nie znaczy i element mówi o tym w konsoli.
+
+  **Domyślne jest „sam przełącznik", czyli zachowanie sprzed 1.144.0.** Tamta
+  wersja przestawiła tę opcję wszystkim, którzy ją mieli włączoną, i to był
+  błąd: „cały nagłówek" bywa tym, czego ktoś chce, ale nie ma prawa wejść
+  komukolwiek pod ręką.
+
+  Kontrolka jest **ta sama w Offcanvas Menu i w Circular Menu**, bo problem
+  jest ten sam. Wcześniej każde menu rozwiązywało go po swojemu: circular
+  przenosił węzeł, offcanvas podnosił nagłówek — i żadne z nich nie dawało
+  drugiej możliwości.
+
+- **Cała mechanika przeniesiona do `assets/js/warstwy.js`.** Oba elementy
+  wołają teraz jedno `podnies()` i jedno `opusc()`; wspólny plik jest ich
+  zależnością, więc jedzie raz na stronę. Znaczniki przekładek ujednolicone
+  do `data-evk-przekladka` (dotąd `data-evk-cm-przekladka`, tylko w circular).
+
 ## [1.144.0] — 2026-09-04
 
 ### Naprawione

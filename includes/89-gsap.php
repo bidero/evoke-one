@@ -42,7 +42,7 @@ function evk_gsap_url(): string {
  * (Offcanvas Menu i Circular Menu) potrzebują tej samej reguły, a jeden handle
  * znaczy jedno pobranie i jedno źródło do poprawiania.
  */
-const EVK_WARSTWY_VERSION = '1.0.0';
+const EVK_WARSTWY_VERSION = '1.1.0';
 
 function evk_register_warstwy(): void {
     if (wp_script_is('evk-warstwy', 'registered')) return; // idempotentne

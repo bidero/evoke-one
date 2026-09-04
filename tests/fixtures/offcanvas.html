@@ -154,6 +154,11 @@
   r2.setAttribute('data-trigger', '');
 
   root.setAttribute('data-header-above', q.get('above') === '1' ? '1' : '0');
+  // Co dokładnie ma stanąć nad menu: 'przelacznik' (domyślnie), 'wskazane',
+  // 'naglowek'. Puste zostawiamy puste, żeby domyślna wartość jechała
+  // z kodu elementu, a nie z fixture'a.
+  root.setAttribute('data-raise-mode',     q.get('raise') || '');
+  root.setAttribute('data-raise-selector', q.get('raisesel') || '');
   /* Rozmiar i tło menu — kontrolki `css` Bricksa, pisane NA KORZENIU. Menu na
      cały ekran (`size=100%`) to nie egzotyka, tylko domyślny wybór na telefonie
      i zupełnie inny przypadek niż panel przy krawędzi: kadr kryje wtedy całe

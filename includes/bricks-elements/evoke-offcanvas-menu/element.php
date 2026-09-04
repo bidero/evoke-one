@@ -382,15 +382,57 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		 */
 		$this->controls['headerAbove'] = [
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Nagłówek nad menu', 'evoke-one' ),
+			'label'       => esc_html__( 'Przełącznik nad menu', 'evoke-one' ),
 			'type'        => 'checkbox',
 			'default'     => false,
 			'description' => esc_html__(
-				'Na czas otwarcia podnosi nagłówek z przełącznikiem ponad panel, żeby burger '
-				. 'został widoczny i klikalny — a że jest przełącznikiem, drugie kliknięcie '
-				. 'menu zamyka. Podnoszony jest NAJDALSZY przodek tworzący kontekst nakładania, '
-				. 'bo to on rozstrzyga kolejność; sam nagłówek często nie ma jak wyjść ponad '
-				. 'swoje opakowanie. Przy zamknięciu warstwa wraca do poprzedniej.',
+				'Na czas otwarcia stawia przełącznik ponad panelem, żeby burger został widoczny '
+				. 'i klikalny — a że jest przełącznikiem, drugie kliknięcie menu zamyka. '
+				. 'Samo podniesienie mu z-indeksu zwykle NIE pomaga: nagłówek tworzy kontekst '
+				. 'układania (wystarczy position: sticky, transform, filter albo opacity poniżej '
+				. 'jedynki), a wtedy z panelem rywalizuje cały nagłówek jako jedna warstwa. '
+				. 'Co dokładnie ma wyjechać, wybiera kontrolka niżej.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['raiseMode'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Co nad menu', 'evoke-one' ),
+			'type'     => 'select',
+			'options'  => [
+				'przelacznik' => esc_html__( 'Sam przełącznik', 'evoke-one' ),
+				'wskazane'    => esc_html__( 'Przełącznik i wskazane elementy', 'evoke-one' ),
+				'naglowek'    => esc_html__( 'Cały nagłówek', 'evoke-one' ),
+			],
+			'default'  => 'przelacznik',
+			'required' => [ 'headerAbove', '=', true ],
+			'description' => esc_html__(
+				'SAM PRZEŁĄCZNIK — nad panelem staje goły burger, bez ramki nagłówka. Węzeł jedzie '
+				. 'na czas otwarcia na koniec strony i wraca po zamknięciu, a w nagłówku zostaje '
+				. 'niewidoczna przekładka tej samej wielkości, więc nic się nie przebudowuje. '
+				. 'PRZEŁĄCZNIK I WSKAZANE — to samo, ale wyjeżdża też to, co wskażesz selektorem '
+				. '(np. logo). CAŁY NAGŁÓWEK — nic nie rusza się w drzewie, podnoszona jest tylko '
+				. 'warstwa jednego przodka, więc nad panel wjeżdża cały pasek RAZEM Z TŁEM; '
+				. 'ta droga wymaga, żeby ten przodek był pozycjonowany.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['raiseSelector'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Co jeszcze wyjąć (selektor)', 'evoke-one' ),
+			'type'        => 'text',
+			'placeholder' => '.logo',
+			/* JEDEN warunek, nie łańcuch — łańcuchy w Bricksie nie działają
+			   i pilnuje tego tests/bricks-required.test.js. Sam tryb wystarczy:
+			   jest widoczny dopiero przy włączonym przełączniku wyżej. */
+			'required'    => [ 'raiseMode', '=', 'wskazane' ],
+			'description' => esc_html__(
+				'Selektor CSS elementów, które mają wyjechać nad menu razem z przełącznikiem — '
+				. 'na przykład samo logo. Każdy dostaje własną przekładkę, więc nagłówek zostaje '
+				. 'nietknięty. Elementy leżące w panelu są pomijane: jadą z nim do <body> i są już '
+				. 'na wierzchu.',
 				'evoke-one'
 			),
 		];
@@ -525,6 +567,10 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			isset( $s['exitWait'] ) && $s['exitWait'] !== '' ? (string) $s['exitWait'] : '' );
 		$this->set_attribute( '_root', 'data-portal',     ! empty( $s['toBody'] )           ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-header-above', ! empty( $s['headerAbove'] )   ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-raise-mode',
+			! empty( $s['raiseMode'] ) ? $s['raiseMode'] : 'przelacznik' );
+		$this->set_attribute( '_root', 'data-raise-selector',
+			! empty( $s['raiseSelector'] ) ? $s['raiseSelector'] : '' );
 		$this->set_attribute( '_root', 'data-open-builder', ! empty( $s['openInBuilder'] )  ? '1' : '0' );
 
 		echo "<div {$this->render_attributes( '_root' )}>"

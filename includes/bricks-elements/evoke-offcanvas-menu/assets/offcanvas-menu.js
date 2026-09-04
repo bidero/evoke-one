@@ -51,23 +51,6 @@ function evk_oc_przodek_blokujacy(el) {
 }
 
 /**
- * Element, który STANIE DO PORÓWNANIA z powłoką menu — albo `null`.
- *
- * ZGŁOSZONE Z UŻYCIA: „kiedy powłoka jest w <body>, nie mogę spowodować, żeby
- * nagłówek był ponad nim". Reguła siedzi we WSPÓLNYM pomocniku
- * (assets/js/warstwy.js), bo Circular Menu ma dokładnie ten sam problem
- * i dokładnie to samo zgłoszenie — dwie kopie rozjechałyby się przy pierwszej
- * poprawce.
- *
- * Tutaj zostaje tylko podstawienie granicy i zachowanie na wypadek, gdyby
- * pomocnika nie było: wtedy nie podnosimy niczego, zamiast zgadywać.
- */
-function evk_oc_konkurent_powloki(od, granica) {
-    if (!window.evkWarstwy) return null;
-    return window.evkWarstwy.konkurent(od, granica);
-}
-
-/**
  * Mówi wprost, gdy menu nie ma jak rozciągnąć się na całe okno.
  *
  * Bez tego objaw jest nie do rozszyfrowania z zewnątrz: menu otwiera się
@@ -225,6 +208,11 @@ function evk_offcanvas_menu_init_one(root) {
     if (isNaN(exitWait)) exitWait = null;
     var usePortal   = root.getAttribute('data-portal') === '1';
     var headerAbove = root.getAttribute('data-header-above') === '1';
+    /* Co dokładnie ma stanąć nad menu. Domyślnie SAM PRZEŁĄCZNIK: nad panelem
+       staje goły burger, bez ramki nagłówka. Zgłoszone po 1.144.0 — „chcę mieć
+       możliwość pokazać np. samo logo i burgera, a nie ramkę nagłówka". */
+    var raiseMode     = root.getAttribute('data-raise-mode') || 'przelacznik';
+    var raiseSelector = root.getAttribute('data-raise-selector') || '';
     var startId     = root.getAttribute('data-start') || '';
     var side        = root.getAttribute('data-side') || 'right';
 
@@ -819,68 +807,58 @@ function evk_offcanvas_menu_init_one(root) {
     var closeTimer = null;
 
     /**
-     * Nagłówek z przełącznikiem NAD otwartym menu.
+     * Co ma stać NAD otwartym menu.
      *
-     * Podnoszony jest jeden element — ten, który stoi z powłoką w tym samym
-     * porównaniu warstw (patrz `evk_oc_konkurent_powloki`). Podnoszenie po
-     * drodze wszystkiego, co pozycjonowane, przestawiałoby przy okazji
-     * kolejność WEWNĄTRZ nagłówka, a o to nikt nie prosił.
+     * ZGŁOSZONE Z UŻYCIA: „kiedy powłoka jest w <body>, nie mogę spowodować,
+     * żeby nagłówek był ponad nim (tam, gdzie jest burger)" — a po pierwszej
+     * poprawce: „chcę mieć możliwość pokazać np. samo logo i burgera, a nie
+     * ramkę nagłówka".
      *
-     * Warstwę czytamy z POWŁOKI, nie z arkusza: kontrolka „Warstwa menu" może
-     * ją podmienić, a wtedy liczba wpisana tu na stałe albo za mało by
-     * podnosiła, albo bez potrzeby wjeżdżałaby nad wszystko inne.
+     * Stąd trzy drogi, a nie jedna, i wybór po stronie projektu: sam
+     * przełącznik, przełącznik ze wskazanymi elementami albo cały nagłówek.
+     * Mechanika siedzi we WSPÓLNYM module (assets/js/warstwy.js) — Circular
+     * Menu ma tę samą kontrolkę i te same trzy drogi.
+     *
+     * W BUILDERZE nie ruszamy niczego. Kanwa jest cudzym drzewem: Bricks
+     * pilnuje jej własnym obserwatorem i przerysowuje element, gdy DOM się
+     * zmieni — a przeniesienie węzła jest taką zmianą. Poza tym problem, który
+     * ta opcja rozwiązuje, na kanwie i tak nie występuje.
      */
-    var podniesiony = null;
+    var podniesione = null;
     var opuscTimer  = null;
 
     function podniesNaglowek() {
-        // Ponowne otwarcie w trakcie wyjazdu — warstwa ma zostać podniesiona.
+        // Ponowne otwarcie w trakcie wyjazdu — podniesienie ma zostać.
         if (opuscTimer) { clearTimeout(opuscTimer); opuscTimer = null; }
-        if (!headerAbove || podniesiony) return;
+        if (!headerAbove || podniesione || isBuilder || !window.evkWarstwy) return;
 
-        var od = lastTrigger || triggers[0];
-        if (!od) return;
-
-        var el = evk_oc_konkurent_powloki(od, shell.parentElement);
-
-        /* Element niepozycjonowany w porównaniu warstw nie bierze udziału —
-           `z-index` na nim po prostu nic nie znaczy. Spozycjonowanie go z ręki
-           założyłoby blok zawierający jego potomkom z `position: absolute`
-           i przestawiło im układ, a to cena, której nikt tu nie zamawiał.
-           Mówimy więc głośno, zamiast po cichu nie zadziałać. */
-        if (!el || getComputedStyle(el).position === 'static') {
-            console.warn('[EVK Offcanvas] „Nagłówek nad menu": o kolejności decyduje element '
-                + 'niepozycjonowany, a na takim `z-index` nie działa. Nadaj `position: relative` '
-                + 'nagłówkowi z przełącznikiem — albo obniż „Warstwę menu" poniżej jego warstwy.',
-                el || od);
-            return;
-        }
-
-        var warstwa = parseInt(getComputedStyle(shell).zIndex, 10);
-        if (isNaN(warstwa)) warstwa = 99990;
-
-        podniesiony = { el: el, z: el.style.zIndex };
-        el.style.zIndex = String(warstwa + 1);
+        podniesione = window.evkWarstwy.podnies({
+            przelaczniki: triggers,
+            panel:        shell,
+            tryb:         raiseMode,
+            selektor:     raiseSelector,
+            zapas:        99990,
+            ostrzez: function (co) {
+                console.warn('[EVK Offcanvas] „Przełącznik nad menu": ' + co);
+            },
+        });
     }
 
     function opuscNaglowek() {
-        if (!podniesiony) return;
-        /* Wraca DOKŁADNIE to, co było — łącznie z pustym ciągiem, który zdejmuje
-           styl wpisany z ręki. Podstawienie zera zostawiłoby po nas warstwę,
-           której na tym elemencie wcześniej nie było. */
-        podniesiony.el.style.zIndex = podniesiony.z;
-        podniesiony = null;
+        if (!podniesione || !window.evkWarstwy) return;
+        window.evkWarstwy.opusc(podniesione);
+        podniesione = null;
     }
 
     /**
-     * Opuszcza nagłówek DOPIERO PO wyjeździe kadru.
+     * Opuszcza DOPIERO PO wyjeździe kadru.
      *
      * Powłoka znika z opóźnieniem równym czasowi przejścia (patrz arkusz),
-     * więc zdjęcie warstwy od razu wsunęłoby nagłówek pod panel, który jeszcze
-     * widać — i to na oczach patrzącego, w najbardziej widocznej chwili.
+     * więc oddanie wszystkiego od razu wsunęłoby przełącznik pod panel, który
+     * jeszcze widać — i to na oczach patrzącego, w najbardziej widocznej chwili.
      */
     function opuscNaglowekPozniej() {
-        if (!podniesiony) return;
+        if (!podniesione) return;
         if (opuscTimer) clearTimeout(opuscTimer);
         opuscTimer = setTimeout(function () {
             opuscTimer = null;

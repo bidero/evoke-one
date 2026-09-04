@@ -1786,7 +1786,7 @@ module.exports = async function (t) {
   await bezN.close();
 
   const zN = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, query: 'stack=1&above=1' });
+    { viewport: V, settle: 150, query: 'stack=1&above=1&raise=naglowek' });
   await zN.evaluate(() => window.__open());
   await zN.waitForTimeout(250);
   const wZ = await zN.evaluate(() => window.__warstwy());
@@ -1816,6 +1816,123 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !zN.errors.length, zN.errors.join(' | ') || 'brak');
   await zN.close();
 
+  /* ── Trzy drogi nad menu ────────────────────────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA po 1.144.0: „chcę mieć możliwość pokazać np. samo logo
+   * i burgera, a nie ramkę nagłówka. Teraz jak wybieram nad menu, to idzie cały
+   * nagłówek. Wcześniej miałem samego burgera — i tak było w sumie lepiej".
+   *
+   * Domyślnie jedzie więc SAM PRZEŁĄCZNIK: węzeł wychodzi do <body>, a w jego
+   * miejscu zostaje niewidoczna przekładka trzymająca układ. Każdy tryb
+   * sprawdzany PARĄ — co wyjechało i co zostało — bo mylące jest tu nie „czy
+   * działa", tylko „co dokładnie się rusza".
+   */
+  t.section('trzy drogi: sam przełącznik, wskazane elementy, cały nagłówek');
+
+  const dom = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'stack=1&above=1' });
+  await dom.evaluate(() => window.__open());
+  await dom.waitForTimeout(250);
+  const wDom = await dom.evaluate(() => window.__warstwy());
+
+  t.check('domyślnie wyjeżdża sam przełącznik, do <body>',
+    (await dom.evaluate(() => document.getElementById('trigger').parentElement.tagName)) === 'BODY',
+    String(await dom.evaluate(() => document.getElementById('trigger').parentElement.tagName)));
+  t.check('a w nagłówku zostaje po nim przekładka',
+    (await dom.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) === 1,
+    String(await dom.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)));
+  /* SEDNO zgłoszenia: nagłówek ZOSTAJE na dole. Nad menu widać goły burger,
+     a nie pasek z tłem. */
+  t.check('a nagłówek nie dostaje żadnej warstwy', wDom.naglowek === '',
+    '„' + wDom.naglowek + '"');
+  t.check('burger jest przy tym na wierzchu', wDom.naWierzchu === 'przelacznik',
+    'na wierzchu: ' + wDom.naWierzchu);
+
+  await dom.evaluate(() => window.__key('Escape'));
+  await dom.waitForTimeout(600);
+  t.check('po zamknięciu wraca do nagłówka i zabiera przekładkę',
+    (await dom.evaluate(() => document.getElementById('trigger').parentElement.id)) === 'root'
+    && (await dom.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) === 0,
+    'rodzic ' + (await dom.evaluate(() => document.getElementById('trigger').parentElement.id)));
+  t.check('bez błędów JS', !dom.errors.length, dom.errors.join(' | ') || 'brak');
+  await dom.close();
+
+  /* „Wskazane": obok przełącznika wyjeżdża to, co wskazuje selektor — u autora
+     zgłoszenia logo, tutaj sąsiedni przycisk z nagłówka. */
+  const wsk = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK,
+      query: 'stack=1&above=1&raise=wskazane&raisesel=' + encodeURIComponent('#zew-btn') });
+  await wsk.evaluate(() => window.__open());
+  await wsk.waitForTimeout(250);
+  t.check('„wskazane" wyjmuje też element z selektora',
+    (await wsk.evaluate(() => document.getElementById('zew-btn').parentElement.tagName)) === 'BODY',
+    String(await wsk.evaluate(() => document.getElementById('zew-btn').parentElement.tagName)));
+  t.check('i zostawia po nim przekładkę',
+    (await wsk.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) === 2,
+    String(await wsk.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) + ' przekładek');
+  await wsk.evaluate(() => window.__key('Escape'));
+  await wsk.waitForTimeout(600);
+  t.check('po zamknięciu wraca na swoje miejsce',
+    (await wsk.evaluate(() => document.getElementById('zew-btn').parentElement.id)) === 'zew-wrap',
+    String(await wsk.evaluate(() => document.getElementById('zew-btn').parentElement.id)));
+  t.check('bez błędów JS', !wsk.errors.length, wsk.errors.join(' | ') || 'brak');
+  await wsk.close();
+
+  /* Selektor niepoprawny nie ma prawa wywrócić otwierania — menu ma się
+     otworzyć, a element ma o tym powiedzieć. */
+  const zly = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK,
+      query: 'stack=1&above=1&raise=wskazane&raisesel=' + encodeURIComponent('#(((') });
+  await zly.evaluate(() => window.__open());
+  await zly.waitForTimeout(250);
+  t.check('zły selektor nie psuje otwierania', await zly.evaluate(() => window.__isOpen()), 'otwarte');
+  t.check('i element o nim mówi',
+    zly.warnings.some((w) => /selektor/.test(w)),
+    zly.warnings.join(' | ').slice(0, 60) || 'brak ostrzeżenia');
+  await zly.close();
+
+  /* PRZEŁĄCZNIK W ŚRODKU PANELU jedzie z nim do <body> i jest już nad
+     wszystkim — wyrywanie go stamtąd zabrałoby go z menu. To nie jest
+     przypadek teoretyczny: na żywej stronie burger stoi i w nagłówku,
+     i w panelu (ten drugi z `data-evk-oc-close`), a selektor przełącznika
+     trafia w oba. */
+  const wPanelu = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK,
+      query: 'stack=1&above=1&trig=' + encodeURIComponent('#close-1') });
+  await wPanelu.evaluate(() => window.__open());
+  await wPanelu.waitForTimeout(250);
+  t.check('przełącznik w panelu zostaje w panelu',
+    (await wPanelu.evaluate(() => !!document.querySelectorAll('.evk-oc-shell')[0]
+      .querySelector('#close-1'))),
+    (await wPanelu.evaluate(() => document.getElementById('close-1').parentElement.className)));
+  /* Przekładka DOKŁADNIE JEDNA — za przełącznik z nagłówka. Druga znaczyłaby,
+     że wyjęliśmy też ten z panelu. */
+  t.check('i nie zostaje po nim przekładka',
+    (await wPanelu.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) === 1,
+    String(await wPanelu.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length))
+    + ' przekładek');
+  await wPanelu.close();
+
+  /* Selektor „co jeszcze wyjąć" łatwo napisać tak, że trafia TAKŻE
+     w przełącznik — wtedy wyjęcie dwa razy zgubiłoby przekładkę i element
+     wróciłby w złe miejsce. */
+  const powt = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK,
+      query: 'stack=1&above=1&raise=wskazane&raisesel=' + encodeURIComponent('#trigger') });
+  await powt.evaluate(() => window.__open());
+  await powt.waitForTimeout(250);
+  t.check('selektor trafiający w przełącznik nie wyjmuje go dwa razy',
+    (await powt.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) === 1,
+    String(await powt.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length))
+    + ' przekładek');
+  await powt.evaluate(() => window.__key('Escape'));
+  await powt.waitForTimeout(600);
+  t.check('i wraca dokładnie na swoje miejsce',
+    (await powt.evaluate(() => document.getElementById('trigger').parentElement.id)) === 'root'
+    && (await powt.evaluate(() => document.querySelectorAll('[data-evk-przekladka]').length)) === 0,
+    'rodzic ' + (await powt.evaluate(() => document.getElementById('trigger').parentElement.id)));
+  await powt.close();
+
   // ── Warstwa menu z kontrolki ───────────────────────────────────────────
   /* Druga droga do tego samego celu: zamiast podnosić nagłówek, obniżyć menu.
      Działa tylko wtedy, gdy powłoka i nagłówek stoją w jednym porównaniu —
@@ -1838,7 +1955,7 @@ module.exports = async function (t) {
   /* Podnoszenie liczy się od WARSTWY POWŁOKI, nie od liczby wpisanej na stałe.
      Inaczej kontrolka i przełącznik rozjeżdżałyby się przy każdej zmianie. */
   const zo = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, query: 'stack=1&above=1&z=40000' });
+    { viewport: V, settle: 150, query: 'stack=1&above=1&raise=naglowek&z=40000' });
   await zo.evaluate(() => window.__open());
   await zo.waitForTimeout(250);
   const wzo = await zo.evaluate(() => window.__warstwy());
@@ -1853,7 +1970,7 @@ module.exports = async function (t) {
      Bricksa), a kontekst nadal zakłada nagłówek nad nim — i podniesienie
      korzenia nic by nie dało, bo nie wyszłoby poza warstwę nagłówka. */
   const rp = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, query: 'stack=1&above=1&rootpos=1' });
+    { viewport: V, settle: 150, query: 'stack=1&above=1&raise=naglowek&rootpos=1' });
   await rp.evaluate(() => window.__open());
   await rp.waitForTimeout(250);
   const wrp = await rp.evaluate(() => window.__warstwy());
@@ -1869,7 +1986,7 @@ module.exports = async function (t) {
      jest pozycjonowany, więc gdyby liczyła się tylko własna warstwa, wybór
      padłby na korzeń, a podniesienie go nie wyszłoby poza nagłówek. */
   const stk = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, head: ZAMEK, query: 'stack=sticky&rootpos=1&above=1' });
+    { viewport: V, settle: 150, head: ZAMEK, query: 'stack=sticky&rootpos=1&above=1&raise=naglowek' });
   await stk.evaluate(() => window.__open());
   await stk.waitForTimeout(250);
   const wstk = await stk.evaluate(() => window.__warstwy());
@@ -1885,24 +2002,24 @@ module.exports = async function (t) {
      Podniesienie nagłówka wyniosłoby wtedy powłokę razem z nim i nic by nie
      zmieniło; zamiast tego element mówi, czego brakuje. */
   const np = await t.open('offcanvas.html',
-    { viewport: V, settle: 150, query: 'stack=1&above=1&portal=0' });
+    { viewport: V, settle: 150, query: 'stack=1&above=1&raise=naglowek&portal=0' });
   await np.evaluate(() => window.__open());
   await np.waitForTimeout(200);
   t.check('bez przeniesienia do <body> nagłówek nie jest ruszany',
     (await np.evaluate(() => window.__warstwy())).naglowek === '',
     '„' + (await np.evaluate(() => window.__warstwy())).naglowek + '"');
   t.check('i element mówi, czego brakuje',
-    np.warnings.some((w) => /Nagłówek nad menu/.test(w)),
-    np.warnings.filter((w) => /Nagłówek nad menu/.test(w)).join('').slice(0, 60) || 'brak');
+    np.warnings.some((w) => /Przełącznik nad menu/.test(w)),
+    np.warnings.filter((w) => /Przełącznik nad menu/.test(w)).join('').slice(0, 60) || 'brak');
   await np.close();
 
   /* Nagłówek niepozycjonowany: `z-index` na nim NIC nie znaczy, więc zamiast
      po cichu nie zadziałać, element mówi o tym głośno. */
-  const stat = await t.open('offcanvas.html', { viewport: V, settle: 150, query: 'above=1' });
+  const stat = await t.open('offcanvas.html', { viewport: V, settle: 150, query: 'above=1&raise=naglowek' });
   await stat.evaluate(() => window.__open());
   await stat.waitForTimeout(200);
   t.check('przy niepozycjonowanym nagłówku element ostrzega',
-    stat.warnings.some((w) => /Nagłówek nad menu/.test(w)),
+    stat.warnings.some((w) => /Przełącznik nad menu/.test(w)),
     stat.warnings.join(' | ').slice(0, 90) || 'brak ostrzeżenia');
   t.check('i niczego nie podnosi',
     (await stat.evaluate(() => window.__warstwy())).naglowek === '',

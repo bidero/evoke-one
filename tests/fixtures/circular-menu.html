@@ -97,6 +97,11 @@
      „blokuje" nie dało się odróżnić od „nie blokuje". */
   root.setAttribute('data-lock-scroll',   q.get('lock') === '1' ? '1' : '0');
   root.setAttribute('data-raise-toggle',  q.get('raise')  === '1' ? '1' : '0');
+  // Co dokładnie ma stanąć nad panelem: 'przelacznik' (domyślnie), 'wskazane',
+  // 'naglowek'. Puste zostawiamy puste, żeby domyślna wartość jechała z kodu
+  // elementu, a nie z fixture'a.
+  root.setAttribute('data-raise-mode',     q.get('raisemode') || '');
+  root.setAttribute('data-raise-selector', q.get('raisesel')  || '');
   root.setAttribute('data-open-builder',  q.get('ob') === '1' ? '1' : '0');
   root.setAttribute('data-close-on-esc',  q.get('esc')    === '0' ? '0' : '1');
 </script>

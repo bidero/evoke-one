@@ -159,6 +159,45 @@ class Evk_Circular_Menu extends \Bricks\Element {
 				'evk-circular-menu'
 			),
 		];
+		$this->controls['raiseMode'] = [
+			'label'    => esc_html__( 'Co nad panelem', 'evk-circular-menu' ),
+			'type'     => 'select',
+			'options'  => [
+				'przelacznik' => esc_html__( 'Sam przełącznik', 'evk-circular-menu' ),
+				'wskazane'    => esc_html__( 'Przełącznik i wskazane elementy', 'evk-circular-menu' ),
+				'naglowek'    => esc_html__( 'Cały nagłówek', 'evk-circular-menu' ),
+			],
+			'default'  => 'przelacznik',
+			'required' => [ 'raiseToggle', '=', true ],
+			'description' => esc_html__(
+				'Co dokładnie ma wyjechać nad panel. '
+				. 'SAM PRZEŁĄCZNIK — nad panelem staje goły burger, bez ramki nagłówka. '
+				. 'Węzeł jedzie na czas otwarcia na koniec strony i wraca po zamknięciu, a w nagłówku zostaje niewidoczna przekładka tej samej wielkości, więc nic się nie przebudowuje. '
+				. 'PRZEŁĄCZNIK I WSKAZANE — to samo, ale wyjeżdża też to, co wskażesz selektorem '
+				. '(np. logo). Każdy element osobno, każdy ze swoją przekładką. '
+				. 'CAŁY NAGŁÓWEK — nic nie rusza się w drzewie, podnoszona jest tylko warstwa jednego przodka, więc nad panel wjeżdża cały pasek RAZEM Z TŁEM. '
+				. 'Ta droga wymaga, żeby ten przodek był pozycjonowany — na niepozycjonowanym z-index nic nie znaczy i element powie o tym w konsoli.',
+				'evk-circular-menu'
+			),
+		];
+
+		$this->controls['raiseSelector'] = [
+			'label'       => esc_html__( 'Co jeszcze wyjąć (selektor)', 'evk-circular-menu' ),
+			'type'        => 'text',
+			'placeholder' => '.logo',
+			/* JEDEN warunek, nie łańcuch — łańcuchy w Bricksie nie działają
+			   i pilnuje tego tests/bricks-required.test.js. Sam tryb wystarczy:
+			   jest widoczny dopiero przy włączonym przełączniku wyżej. */
+			'required'    => [ 'raiseMode', '=', 'wskazane' ],
+			'description' => esc_html__(
+				'Selektor CSS elementów, które mają wyjechać nad panel razem z przełącznikiem — '
+				. 'na przykład samo logo. Każdy dostaje własną przekładkę, więc nagłówek zostaje '
+				. 'nietknięty. Elementy leżące w panelu są pomijane: jadą z nim portalem i są już '
+				. 'na wierzchu.',
+				'evk-circular-menu'
+			),
+		];
+
 		$this->controls['lockBodyScrolling'] = [
 			'label'   => esc_html__( 'Blokuj scroll strony', 'evk-circular-menu' ),
 			'type'    => 'checkbox',
@@ -405,6 +444,8 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$toggleClass       = ! empty( $settings['toggleClass'] )       ? $settings['toggleClass']       : '';
 		$lockBodyScrolling = ! empty( $settings['lockBodyScrolling'] ) ? '1' : '0';
 		$raiseToggle       = ! empty( $settings['raiseToggle'] ) ? '1' : '0';
+		$raiseMode         = ! empty( $settings['raiseMode'] ) ? $settings['raiseMode'] : 'przelacznik';
+		$raiseSelector     = ! empty( $settings['raiseSelector'] ) ? $settings['raiseSelector'] : '';
 		$closeOnEsc        = ! empty( $settings['closeOnEsc'] )        ? '1' : '0';
 
 		$this->set_attribute( '_root', 'class',                                 'evk-cm' );
@@ -418,6 +459,8 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-toggle-class',                     $toggleClass );
 		$this->set_attribute( '_root', 'data-lock-scroll',                      $lockBodyScrolling );
 		$this->set_attribute( '_root', 'data-raise-toggle',                     $raiseToggle );
+		$this->set_attribute( '_root', 'data-raise-mode',                       $raiseMode );
+		$this->set_attribute( '_root', 'data-raise-selector',                   $raiseSelector );
 		$this->set_attribute( '_root', 'data-open-builder',                     $openbuilder );
 		$this->set_attribute( '_root', 'data-close-on-esc',                     $closeOnEsc );
 
