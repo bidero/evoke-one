@@ -660,16 +660,19 @@ function evk_preserve_toggle($input, string $option, string $field = 'enabled', 
 // AJAX TOGGLE — uniwersalny handler włączników/wyłączników
 // =========================================================================
 
-add_action('wp_ajax_evk_ajax_toggle', function () {
-    check_ajax_referer('evk-toggle-nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('forbidden');
-
-    $option = sanitize_key($_POST['option'] ?? '');
-    $field  = sanitize_key($_POST['field']  ?? '');
-    $value  = absint($_POST['value'] ?? 0) ? 1 : 0;
-
-    // Whitelist: opcja => dozwolone pola (lub '_scalar' dla flat options)
-    $allowed = [
+/**
+ * BIAŁA LISTA PRZEŁĄCZNIKÓW — opcja => dozwolone pola.
+ *
+ * Wyprowadzona z uchwytu do osobnej funkcji, żeby dało się ją PORÓWNAĆ
+ * z panelem. Przełącznik, którego tu nie ma, rysuje się poprawnie i odbija
+ * dopiero przy kliknięciu, komunikatem `not_allowed` — a to widać wyłącznie
+ * z użycia. Zdarzyło się już dwa razy: przy Offcanvas Menu (1.57.0)
+ * i przy Sierotkach (1.147.0). Teraz pilnuje tego test, który wyciąga
+ * `data-option`/`data-field` ze WSZYSTKICH ekranów panelu i sprawdza,
+ * czy każdy z nich ma tu wpis.
+ */
+function evk_toggle_allowlist(): array {
+    return [
         'evk_darkmode'              => ['enabled'],
         'evk_cursor'                => ['enabled'],
         'evk_lenis'                 => ['enabled'],
@@ -680,6 +683,7 @@ add_action('wp_ajax_evk_ajax_toggle', function () {
         'evk_og'                    => ['enabled'],
         'evk_fonts'                 => ['enabled'],
         'evk_theme_color'           => ['enabled'],
+        'evk_sierotki'              => ['enabled'],
         'evk_animator'              => ['enabled'],
         'evk_bgshift'               => ['enabled'],
         'evk_white_label'           => ['enabled'],
@@ -720,6 +724,17 @@ add_action('wp_ajax_evk_ajax_toggle', function () {
             ? array_keys(evk_elements_registry()) : [],
         'evk_cleanup'                   => ['disable_xmlrpc', 'remove_rss'],
     ];
+}
+
+add_action('wp_ajax_evk_ajax_toggle', function () {
+    check_ajax_referer('evk-toggle-nonce', 'nonce');
+    if (!current_user_can('manage_options')) wp_send_json_error('forbidden');
+
+    $option = sanitize_key($_POST['option'] ?? '');
+    $field  = sanitize_key($_POST['field']  ?? '');
+    $value  = absint($_POST['value'] ?? 0) ? 1 : 0;
+
+    $allowed = evk_toggle_allowlist();
 
     if (!isset($allowed[$option]) || !in_array($field, $allowed[$option])) {
         wp_send_json_error('not_allowed: ' . $option . '/' . $field);

@@ -2,6 +2,34 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.147.1] — 2026-09-04
+
+### Naprawione
+
+- **Przełącznika Sierotek nie dało się włączyć.** Zgłoszone z użycia: „póki co
+  nie da się włączyć sierotek". Wspólny uchwyt AJAX ma białą listę opcji,
+  a `evk_sierotki` na niej nie było — przełącznik rysował się poprawnie
+  i odbijał dopiero przy kliknięciu, komunikatem `not_allowed`, którego nie
+  widać bez konsoli.
+
+  **To ten sam błąd, przed którym ostrzega komentarz w tym samym pliku.**
+  Offcanvas Menu poległ na nim w 1.57.0 i wtedy powstał test wołający prawdziwy
+  uchwyt — ale tylko dla elementów Bricksa z rejestru. Moduły z własnym
+  włącznikiem nie były pokryte niczym.
+
+### Zmienione
+
+- **Test wołający uchwyt obejmuje teraz wszystkie przełączniki panelu.**
+  Wyciąga `data-option` i `data-field` ze wszystkich ekranów i pyta prawdziwy
+  uchwyt, czy je przyjmie. Nie jest to porównanie dwóch list: zmierzone
+  mutacją, porównanie przepuszczało uchwyt, który białej listy w ogóle nie
+  czyta. Doszła też kontrola negatywna — opcja i pole spoza listy mają być
+  **odrzucone**, bo bez tego warunku uchwyt pozwalałby przestawić dowolne
+  ustawienie WordPressa jednym zapytaniem.
+
+- **Biała lista wyprowadzona z uchwytu do `evk_toggle_allowlist()`** — żeby dało
+  się ją czytać z zewnątrz, zamiast trzymać w zmiennej lokalnej.
+
 ## [1.147.0] — 2026-09-04
 
 ### Dodane

@@ -395,4 +395,69 @@ module.exports = async function (t) {
   t.check('ramki ze stanem nie zostały schowane do akordeonów', seenStates >= 3,
     seenStates + ' szt. (oczekiwane co najmniej 3)');
   t.check('dymki w ogóle istnieją', seenTips > 0, seenTips + ' szt.');
+
+  /* ── Przełączniki muszą być na białej liście ────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: „póki co nie da się włączyć sierotek".
+   *
+   * Włącznik w panelu to `<input data-option data-field>`, a zapisuje go
+   * wspólny uchwyt AJAX z białą listą opcji. Opcja spoza listy odbija się
+   * komunikatem `not_allowed` — ale panel rysuje się przy tym POPRAWNIE,
+   * przełącznik wygląda normalnie i po prostu nie działa. Nie widać tego
+   * inaczej niż z użycia, i zdarzyło się już dwa razy: przy Offcanvas Menu
+   * (1.57.0) i przy Sierotkach (1.147.0).
+   *
+   * Sprawdzenie zestawia dwie prawdziwe listy: to, co panel WYPISUJE na
+   * wszystkich ekranach, z tym, co uchwyt PRZYJMUJE. Żadna nie jest
+   * przepisana w teście — bo rozjeżdżanie się dwóch spisów jest właśnie tą
+   * usterką, którą tu łapiemy.
+   */
+  t.section('każdy przełącznik w panelu da się naprawdę włączyć');
+
+  const znalezione = new Map();
+  for (const key of TABS) {
+    const html = phpOutput('tab.php', key);
+    for (const m of html.matchAll(/data-option="([^"]+)"[^>]*?data-field="([^"]+)"/g)) {
+      znalezione.set(m[1] + '/' + m[2], key);
+    }
+    /* Kolejność atrybutów bywa odwrotna — w panelu piszą je ludzie, nie
+       generator, więc oba szyki są w drzewie i oba trzeba złapać. */
+    for (const m of html.matchAll(/data-field="([^"]+)"[^>]*?data-option="([^"]+)"/g)) {
+      znalezione.set(m[2] + '/' + m[1], key);
+    }
+  }
+
+  /* Kontrola pozytywna: gdyby nic nie znaleziono, sprawdzenie niżej
+     przechodziłoby na zielono nie mając czego sprawdzać. */
+  t.check('jest co sprawdzać — panel wypisuje przełączniki',
+    znalezione.size >= 10, znalezione.size + ' przełączników');
+
+  /* WOŁAMY PRAWDZIWY UCHWYT, nie porównujemy dwóch list. Porównanie łapie
+     brakujący wpis, ale nie łapie uchwytu, który białej listy w ogóle nie
+     czyta — zmierzone mutacją: podmieniona lista wewnątrz uchwytu
+     przechodziła wtedy na zielono. */
+  const pary = [...znalezione.keys()].map((p) => p.split('/'));
+  const odp = JSON.parse(phpOutput('toggle.php', JSON.stringify(JSON.stringify(pary)))).result;
+  const odrzucone = Object.keys(odp).filter((k) => odp[k] !== 'ok')
+    .map((k) => k + ' (' + znalezione.get(k) + ') → ' + odp[k]);
+
+  t.check('żaden nie odbija się od uchwytu AJAX', !odrzucone.length,
+    odrzucone.join(' | ') || znalezione.size + ' przełączników, komplet przechodzi');
+
+  /* KONTROLA NEGATYWNA, i nie jest kosmetyczna. Biała lista ma ODRZUCAĆ to,
+     czego na niej nie ma — uchwyt bez tego warunku przepuszczałby dowolną
+     nazwę opcji, czyli pozwalał przestawić dowolne ustawienie WordPressa
+     z jednego zapytania. Bez tej pary „komplet przechodzi" byłoby prawdą
+     także dla uchwytu, który nie sprawdza niczego. */
+  const obcy = JSON.parse(phpOutput('toggle.php',
+    JSON.stringify(JSON.stringify([['evk_nie_ma_takiej_opcji', 'enabled'],
+                                   ['evk_lenis', 'nie_ma_takiego_pola']])))).result;
+  t.check('a opcja spoza listy jest odrzucana',
+    /not_allowed/.test(obcy['evk_nie_ma_takiej_opcji/enabled'] || ''),
+    String(obcy['evk_nie_ma_takiej_opcji/enabled']));
+  /* Pole też, nie tylko opcja: `evk_lenis` jest na liście, ale wyłącznie
+     z polem `enabled`. */
+  t.check('i nieznane pole znanej opcji tak samo',
+    /not_allowed/.test(obcy['evk_lenis/nie_ma_takiego_pola'] || ''),
+    String(obcy['evk_lenis/nie_ma_takiego_pola']));
 };
