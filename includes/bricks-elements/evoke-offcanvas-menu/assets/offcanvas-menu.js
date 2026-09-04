@@ -22,7 +22,9 @@
  */
 
 function evk_offcanvas_menu_init() {
-    if (EVK_OC_PROBA.ma('margines') || EVK_OC_PROBA.ma('pasek')) evk_oc_atrapaPaska();
+    if (['margines', 'pasek', 'margines-1', 'wciecie', 'wydluzenie']
+        .some(function (w) { return EVK_OC_PROBA.ma(w); })) evk_oc_atrapaPaska();
+    if (EVK_OC_PROBA.ma('bez-cienia')) evk_oc_gasCien();
     document.querySelectorAll('.evk-oc').forEach(function (root) {
         if (root.dataset.evkOcReady === '1') return;
         if (evk_offcanvas_menu_init_one(root)) root.dataset.evkOcReady = '1';
@@ -56,6 +58,10 @@ function evk_offcanvas_menu_init() {
  *   ?evk-oc-proba=grzanie-start   to samo, ale już po załadowaniu strony
  *   ?evk-oc-proba=margines   sam margines `<html>`, jak przy pasku WP
  *   ?evk-oc-proba=pasek      margines i atrapa paska — patrz `evk_oc_atrapaPaska()`
+ *   ?evk-oc-proba=margines-1 margines jednopikselowy zamiast 46 px
+ *   ?evk-oc-proba=wciecie    `padding-top` zamiast marginesu
+ *   ?evk-oc-proba=wydluzenie te same 46 px, ale doklejone od DOŁU
+ *   ?evk-oc-proba=bez-cienia gasi `filter` na wszystkich `<svg>` — patrz `evk_oc_gasCien()`
  *
  * Kilka naraz po przecinku. Który wariant otworzy się płynnie, ten wskazuje
  * przyczynę; `goly` odpowiada przy tym na pytanie WSTĘPNE — czy przyczyny
@@ -120,9 +126,33 @@ var EVK_OC_PROBA = (function () {
 function evk_oc_atrapaPaska() {
     if (document.getElementById('evk-oc-atrapa-paska')) return;
 
+    /* ROZBIÓRKA MARGINESU — dopisana po pomiarach z 1.141.1.
+     *
+     * Zmierzone na telefonie: odniesienie 808 ms najdłuższej klatki,
+     * `margines` 114 ms, `pasek` 115 ms. Leczy więc SAM margines, i to przy
+     * niezmienionym `scrollY` — nie chodzi o pozycję przewijania, tylko o to,
+     * że pudełko `<html>` przestaje stykać się z górą kanwy.
+     *
+     * Trzy warianty rozdzielają to, co margines robi naraz:
+     *   margines-1  — jeden piksel zamiast czterdziestu sześciu. Jeśli wystarczy,
+     *                 nie chodzi o rozmiar, tylko o samo odsunięcie.
+     *   wciecie     — `padding-top` zamiast marginesu. Odsuwa TREŚĆ, ale pudełko
+     *                 `<html>` zostaje przy krawędzi. Rozdziela „treść niżej"
+     *                 od „pudełko odsunięte".
+     *   wydluzenie  — dokument wyższy o te same 46 px, ale od DOŁU. Rozdziela
+     *                 „dokument jest wyższy" od „góra jest inna".
+     *
+     * Cztery pytania, cztery odpowiedzi „tak/nie" — i z nich wychodzi już
+     * konkretna reguła do wpisania, zamiast marginesu wciskanego wszystkim. */
+    var regula =
+          EVK_OC_PROBA.ma('margines-1') ? 'html { margin-top: 1px !important; }'
+        : EVK_OC_PROBA.ma('wciecie')    ? 'html { padding-top: 46px !important; }'
+        : EVK_OC_PROBA.ma('wydluzenie') ? 'body { padding-bottom: 46px !important; }'
+        : 'html { margin-top: 46px !important; }';
+
     var st = document.createElement('style');
     st.id = 'evk-oc-atrapa-paska';
-    st.textContent = 'html { margin-top: 46px !important; }';
+    st.textContent = regula;
     document.head.appendChild(st);
 
     if (!EVK_OC_PROBA.ma('pasek')) return;
@@ -132,6 +162,31 @@ function evk_oc_atrapaPaska() {
     belka.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:46px;'
         + 'min-width:600px;z-index:99999;background:#1d2327';
     document.body.appendChild(belka);
+}
+
+/**
+ * Gasi cień na ikonach — wariant `bez-cienia`.
+ *
+ * ZNALEZIONE PRZEZ ZGŁASZAJĄCEGO: na stronie stoi reguła
+ * `svg { filter: drop-shadow(0px 5px 52px rgb(0 0 0 / 0.5)) }` — BEZ selektora,
+ * czyli na każdym `<svg>` w dokumencie. Rozmycie 52 px to duży obszar do
+ * przeliczenia przy każdym odrysowaniu, a `filter` przy okazji zakłada
+ * elementowi kontekst nakładania i własną warstwę.
+ *
+ * Wariant niczego nie naprawia — odpowiada tylko na pytanie „ile kosztuje ta
+ * jedna reguła", i to w tych samych warunkach co reszta pomiarów. Naprawa
+ * należy do arkusza strony: regułę trzeba zawęzić do tych ikon, które ten cień
+ * mają mieć.
+ */
+function evk_oc_gasCien() {
+    if (document.getElementById('evk-oc-bez-cienia')) return;
+    var st = document.createElement('style');
+    st.id = 'evk-oc-bez-cienia';
+    /* `!important`, bo gasimy CUDZĄ regułę o nieznanej specyficzności —
+       bez tego wariant bywałby przegrywany i pokazywał, że cień nic nie
+       kosztuje, choć nadal by się rysował. */
+    st.textContent = 'svg { filter: none !important; }';
+    document.head.appendChild(st);
 }
 
 var evk_oc_tablica = null;
@@ -166,10 +221,31 @@ function evk_oc_wypisz(txt) {
  * odrysowaniem — w niej siedzi układ, malowanie i rasteryzacja całej powłoki,
  * czyli koszt JEDNORAZOWY. „Najdłuższa dalsza" mówi, czy drogi jest sam ruch,
  * który potem trwa.
+ *
+ * OKNO I DOKUMENT dopisane po pomiarach z 1.141.1. Wyszło z nich, że jedna
+ * klatka potrafi trwać 808 ms, choć `open()` kosztuje 5 ms, a do pierwszego
+ * odrysowania jest 0 ms — czyli droga rzecz nie jest ani nasza, ani
+ * jednorazowa. Na iOS najczęstszym powodem takiej klatki jest przeliczenie
+ * widocznego obszaru: pasek adresu zwija się albo rozwija, a wtedy wszystko,
+ * co słucha `resize` — ScrollTrigger, Lenis, efekty ruchu Bricksa —
+ * przelicza się naraz. Bez tych liczb nie da się tego odróżnić od zwykłego
+ * malowania, a to dwie zupełnie różne poprawki.
  */
 function evk_oc_zmierz(naglowek, ile) {
     var klik = performance.now();
     var pierwsza = 0, max = 0, klatek = 0, poprz = klik;
+
+    var oknoPrzed = window.innerWidth + '×' + window.innerHeight;
+    var dokPrzed  = document.documentElement.scrollHeight;
+    var zmian = 0;
+    var licz = function () { zmian++; };
+
+    /* Oba nasłuchy, bo mówią o czym innym. `window.resize` łapie zmianę
+       obszaru UKŁADU, a `visualViewport` — zmianę tego, co widać, czyli
+       właśnie zwijanie paska adresu, które układu nie rusza. Na iOS bywa
+       drugie bez pierwszego. */
+    window.addEventListener('resize', licz);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', licz);
 
     requestAnimationFrame(function krok(t) {
         /* Bez zera od dołu wychodzą liczby UJEMNE, i to nie teoretycznie —
@@ -184,10 +260,16 @@ function evk_oc_zmierz(naglowek, ile) {
 
         if (t - klik < ile) { requestAnimationFrame(krok); return; }
 
+        window.removeEventListener('resize', licz);
+        if (window.visualViewport) window.visualViewport.removeEventListener('resize', licz);
+
         evk_oc_wypisz(naglowek
             + '\ndo 1. klatki:      ' + Math.round(pierwsza) + ' ms'
             + '\nnajdłuższa dalsza: ' + Math.round(max) + ' ms'
-            + '\nklatek przez ' + ile + ' ms: ' + klatek);
+            + '\nklatek przez ' + ile + ' ms: ' + klatek
+            + '\nokno: ' + oknoPrzed + ' → ' + window.innerWidth + '×' + window.innerHeight
+            + '  (zmian: ' + zmian + ')'
+            + '\ndokument: ' + dokPrzed + ' → ' + document.documentElement.scrollHeight);
     });
 }
 

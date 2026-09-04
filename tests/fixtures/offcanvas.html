@@ -14,6 +14,14 @@
      will-change) robi dokładnie to samo, więc mierzymy jeden przypadek
      i pilnujemy całej listy w kodzie. */
   #naglowek.pulapka { transform: translateZ(0); overflow: hidden; height: 120px; }
+
+  /* Ikona z cieniem — odwzorowanie reguły ZNALEZIONEJ NA ŻYWEJ STRONIE:
+     `svg { filter: drop-shadow(0px 5px 52px rgb(0 0 0 / 0.5)) }`, bez selektora,
+     czyli na każdym svg w dokumencie. Wariant `bez-cienia` ma ją gasić, więc
+     bez takiego elementu w drzewie nie byłoby czego zgasić i sprawdzenie
+     przechodziłoby na zielono niezależnie od kodu. Tu przez klasę, żeby nie
+     trafiać w `<svg>` z definicją obcięcia wygiętej ściany. */
+  svg.ikona { filter: drop-shadow(0px 5px 52px rgb(0 0 0 / 0.5)); }
 </style>
 
 <link rel="stylesheet" href="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.css">
@@ -36,7 +44,9 @@
      wisiałaby wprost w <body> i zawsze wychodziła na całe okno. -->
 <div id="naglowek">
 <div id="root" class="evk-oc">
-  <button class="evk-oc-trigger" id="trigger">Menu</button>
+  <button class="evk-oc-trigger" id="trigger">Menu
+    <svg class="ikona" id="ikona" width="24" height="24" aria-hidden="true"><rect width="24" height="24"/></svg>
+  </button>
 
   <div class="evk-oc-panel" data-panel="start">
     <span id="anim" data-evk-anim='{"animation":"wjazd","trigger":"viewport"}'>Animowany</span>
@@ -836,8 +846,13 @@ window.__grzanie = function () {
  */
 window.__atrapa = function () {
   var b = document.getElementById('evk-oc-atrapa-belka');
+  var cs = getComputedStyle(document.documentElement);
   return {
-    margines: getComputedStyle(document.documentElement).marginTop,
+    margines: cs.marginTop,
+    wciecie:  cs.paddingTop,
+    // Wariant „wydluzenie" dokłada te same piksele, ale od DOŁU — bez tego
+    // pomiaru nie dałoby się go odróżnić od braku wariantu w ogóle.
+    ogon: getComputedStyle(document.body).paddingBottom,
     belka: b ? {
       wysokosc: Math.round(b.getBoundingClientRect().height),
       // `min-width: 600px` na wąskim ekranie robi przepełnienie w poziomie —
@@ -855,6 +870,11 @@ window.__atrapa = function () {
     przepelnienie: document.body.scrollWidth > window.innerWidth,
     trescSzerokosc: document.body.scrollWidth,
   };
+};
+
+/** Cień na ikonie — wariant `bez-cienia` ma go gasić. */
+window.__cienIkony = function () {
+  return getComputedStyle(document.getElementById('ikona')).filter;
 };
 
 /** Czy przyciemnienie w ogóle się rysuje. */

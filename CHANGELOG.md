@@ -2,6 +2,59 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.142.0] — 2026-09-04
+
+### Dodane
+
+- **Tabliczka sondy podaje rozmiar okna i wysokość dokumentu.** Pomiary
+  z telefonu (1.141.1) pokazały coś, czego same klatki nie tłumaczą:
+
+  | wariant | najdłuższa klatka | klatek / 900 ms |
+  | --- | --- | --- |
+  | odniesienie | 808 ms | 9 |
+  | `grzanie-start` | 821 ms | 8 |
+  | `margines` | 114 ms | 50 |
+  | `pasek` | 115 ms | 50 |
+
+  `open()` kosztuje 5 ms, do pierwszego odrysowania jest 0 ms — więc droga
+  rzecz nie jest ani nasza, ani jednorazowa. Zacięcie to **jedna** klatka
+  trwająca 0,8 s w środku animacji. Na iOS najczęstszym powodem takiej klatki
+  jest przeliczenie widocznego obszaru: zwija się albo rozwija pasek adresu,
+  a wtedy wszystko, co słucha `resize` — ScrollTrigger, Lenis, efekty ruchu
+  Bricksa — przelicza się naraz. Tabliczka pokazuje teraz rozmiar okna przed
+  i po, liczbę zdarzeń `resize` (osobno `window` i `visualViewport`, bo na iOS
+  bywa drugie bez pierwszego) oraz wysokość dokumentu.
+
+- **Warianty rozbierające margines na czynniki.** Leczy sam margines na
+  `<html>`, i to przy niezmienionym `scrollY` — nie chodzi więc o pozycję
+  przewijania, tylko o to, że pudełko `<html>` przestaje stykać się z górą
+  kanwy. Trzy nowe warianty rozdzielają to, co margines robi naraz:
+
+  | wariant | pytanie |
+  | --- | --- |
+  | `margines-1` | czy wystarczy JEDEN piksel — czyli czy chodzi o rozmiar, czy o samo odsunięcie |
+  | `wciecie` | `padding-top` zamiast marginesu: treść niżej, ale pudełko `<html>` przy krawędzi |
+  | `wydluzenie` | te same 46 px doklejone od DOŁU: dokument wyższy, góra bez zmian |
+
+- **`bez-cienia` — gasi `filter` na wszystkich `<svg>`.** Znalezione przez
+  zgłaszającego: w arkuszu strony stoi
+  `svg { filter: drop-shadow(0px 5px 52px rgb(0 0 0 / 0.5)) }` — **bez
+  selektora**, czyli na każdym `<svg>` w dokumencie. Rozmycie 52 px to duży
+  obszar do przeliczenia przy każdym odrysowaniu, a `filter` przy okazji
+  zakłada elementowi kontekst nakładania i własną warstwę.
+
+  Wariant niczego nie naprawia — daje liczbę obok pozostałych, w tych samych
+  warunkach. Naprawa należy do arkusza strony: regułę trzeba zawęzić do tych
+  ikon, które ten cień mają mieć.
+
+### Usunięte
+
+- **Hipoteza o leniwej promocji warstw — obalona pomiarem.** `grzanie-start`
+  dało 821 ms wobec 808 ms w odniesieniu, czyli nic. Przygotowanie powłoki
+  przed kliknięciem nie zmienia niczego, więc koszt nie leży w ułożeniu,
+  namalowaniu ani rasteryzacji powłoki. Grzanie zostaje w sondzie jako
+  wariant, ale przestaje być kandydatem na poprawkę.
+
 ## [1.141.1] — 2026-09-04
 
 ### Dodane

@@ -1792,6 +1792,27 @@ module.exports = async function (t) {
     && /najdłuższa dalsza:\s+\d+ ms/.test(w1.tablica || ''),
     (w1.tablica || '').replace(/\n/g, ' | '));
 
+  /* OKNO I DOKUMENT — wiersze dopisane po pomiarach na telefonie. Wyszło
+     z nich, że jedna klatka trwa 808 ms, choć `open()` kosztuje 5 ms, a do
+     pierwszego odrysowania jest 0 ms; najczęstszym powodem takiej klatki na
+     iOS jest przeliczenie widocznego obszaru, a tego z samych klatek nie
+     widać. */
+  t.check('tablica podaje rozmiar okna przed i po',
+    /okno: \d+×\d+ → \d+×\d+ {2}\(zmian: \d+\)/.test(w1.tablica || ''),
+    (w1.tablica || '').split('\n').filter((l) => l.startsWith('okno'))[0] || 'brak');
+
+  /* Wysokość dokumentu — porównana z PRAWDZIWĄ, odczytaną ze strony.
+     Sam wiersz z dwiema liczbami niczego by nie dowodził: przeszedłby także
+     wtedy, gdyby sonda wypisywała stałą albo mierzyła nie tę własność.
+     Zmierzone przy okazji: `overflow: hidden` z blokady przewijania NIE
+     zmienia tu `scrollHeight`, więc obie liczby są równe i sprawdzenie
+     „ma się zmienić" byłoby fałszywe — mierzymy zgodność, nie zmianę. */
+  const dok = ((w1.tablica || '').match(/dokument: (\d+) → (\d+)/) || []).slice(1).map(Number);
+  const dokReal = await p1.evaluate(() => document.documentElement.scrollHeight);
+  t.check('i prawdziwą wysokość dokumentu',
+    dok.length === 2 && dok[1] === dokReal && dok[0] > 800,
+    dok.length === 2 ? dok[0] + ' → ' + dok[1] + ', naprawdę ' + dokReal : 'brak wiersza');
+
   /* SEDNO tej sekcji. Odniesienie ma być odniesieniem — jeśli sam pomiar
      cokolwiek zdejmuje, wszystkie porównania z nim są bez wartości. */
   t.check('a zachowanie zostaje nietknięte',
@@ -1808,6 +1829,35 @@ module.exports = async function (t) {
     (await p1.evaluate(() => window.__proba()) || '').split('\n')[0]);
   t.check('bez błędów JS', !p1.errors.length, p1.errors.join(' | ') || 'brak');
   await p1.close();
+
+  /* ZMIANA OKNA W TRAKCIE POMIARU — i to jest sedno tych dwóch wierszy.
+     Cała hipoteza brzmi „jedna klatka 0,8 s to przeliczenie widocznego
+     obszaru", więc sonda musi umieć taką zmianę ZOBACZYĆ. Bez tego bloku
+     licznik `resize` niczego nie pilnuje: na pulpicie okno stoi, więc zero
+     wychodzi tak samo z nasłuchem, jak i bez niego (zmierzone — usunięcie
+     nasłuchu przechodziło na zielono). */
+  const rs = await t.open('offcanvas.html',
+    { viewport: V, settle: 120, head: ZAMEK, query: 'evk-oc-proba=1' });
+  await rs.evaluate(() => window.__open());
+  await rs.waitForTimeout(120);
+  await rs.setViewportSize({ width: V.width, height: 640 });
+  await rs.waitForTimeout(1100);
+  const tRs = await rs.evaluate(() => window.__proba()) || '';
+  const okno = tRs.match(/okno: (\d+)×(\d+) → (\d+)×(\d+) {2}\(zmian: (\d+)\)/);
+
+  /* DWA, nie jeden. Zmiana okna wysyła w Chromium po jednym zdarzeniu z obu
+     źródeł — `window` i `visualViewport` — więc licznik poniżej dwóch znaczy,
+     że jednego z nasłuchów nie ma. Zmierzone: przy progu „co najmniej jeden"
+     usunięcie któregokolwiek z nich przechodziło na zielono. Oba są potrzebne,
+     bo mówią o czym innym: `window` o obszarze UKŁADU, `visualViewport`
+     o tym, co widać — a na iOS drugie potrafi się zmienić bez pierwszego
+     i to właśnie robi zwijany pasek adresu. */
+  t.check('sonda widzi zmianę okna OBOMA nasłuchami', !!okno && Number(okno[5]) >= 2,
+    okno ? okno[0] : 'brak wiersza');
+  t.check('i podaje obie wysokości, przed i po',
+    !!okno && Number(okno[2]) === 800 && Number(okno[4]) === 640,
+    okno ? okno[2] + ' → ' + okno[4] : 'brak wiersza');
+  await rs.close();
 
   // ── Po jednym podejrzanym ──────────────────────────────────────────────
   /* Każdy wariant sprawdzany PARĄ: że zdjął swojego podejrzanego I że nie
@@ -2026,6 +2076,57 @@ module.exports = async function (t) {
     'treść ' + atr.trescSzerokosc + ' px w oknie 390 px');
   t.check('bez błędów JS', !pas.errors.length, pas.errors.join(' | ') || 'brak');
   await pas.close();
+
+  /* ROZBIÓRKA MARGINESU. Zmierzone na telefonie: odniesienie 808 ms najdłuższej
+     klatki, `margines` 114 ms, `pasek` 115 ms — leczy więc sam margines.
+     Te trzy warianty rozdzielają to, co robi on naraz: rozmiar, odsunięcie
+     PUDEŁKA `<html>` i samą wysokość dokumentu. */
+  t.section('warianty rozdzielają, co margines robi naraz');
+
+  const m1 = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=margines-1' });
+  const w1u = await m1.evaluate(() => window.__atrapa());
+  t.check('„margines-1" odsuwa o jeden piksel, nie o czterdzieści sześć',
+    w1u.margines === '1px', 'margines ' + w1u.margines);
+  await m1.close();
+
+  /* `padding-top` odsuwa TREŚĆ, ale pudełko `<html>` zostaje przy krawędzi
+     kanwy — i to jest cała różnica, którą ten wariant ma zmierzyć. */
+  const wcie = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=wciecie' });
+  const wcu = await wcie.evaluate(() => window.__atrapa());
+  t.check('„wciecie" daje wcięcie zamiast marginesu',
+    wcu.wciecie === '46px' && wcu.margines === '0px',
+    'padding ' + wcu.wciecie + ', margines ' + wcu.margines);
+  await wcie.close();
+
+  const wd = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=wydluzenie' });
+  const wdu = await wd.evaluate(() => window.__atrapa());
+  t.check('„wydluzenie" dokłada te same piksele od dołu',
+    wdu.ogon === '46px' && wdu.margines === '0px' && wdu.wciecie === '0px',
+    'ogon ' + wdu.ogon + ', margines ' + wdu.margines + ', wcięcie ' + wdu.wciecie);
+  await wd.close();
+
+  // ── Cień na ikonach ────────────────────────────────────────────────────
+  /* ZNALEZIONE PRZEZ ZGŁASZAJĄCEGO: na stronie stoi
+     `svg { filter: drop-shadow(0px 5px 52px rgb(0 0 0 / 0.5)) }` — bez
+     selektora, czyli na KAŻDYM svg. Wariant ma to zgasić, żeby dało się
+     zmierzyć koszt tej jednej reguły w tych samych warunkach co reszta. */
+  t.section('wariant „bez-cienia" gasi filtr na ikonach');
+
+  const bc = await t.open('offcanvas.html', { viewport: V, settle: 150, head: ZAMEK });
+  const cienPrzed = await bc.evaluate(() => window.__cienIkony());
+  /* Kontrola pozytywna. Bez niej „wariant zgasił cień" przechodziłoby także
+     w drzewie, w którym cienia nie ma wcale. */
+  t.check('bez wariantu ikona ma cień', /drop-shadow/.test(cienPrzed), cienPrzed);
+  await bc.close();
+
+  const bc2 = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=bez-cienia' });
+  const cienPo = await bc2.evaluate(() => window.__cienIkony());
+  t.check('z wariantem filtr jest zgaszony', cienPo === 'none', cienPo);
+  await bc2.close();
 
   /* Kontrola negatywna: bez wariantu `grzanie` dotknięcie nie robi NIC.
      Bez niej „dotknięcie grzeje" przechodziłoby także wtedy, gdyby powłoka
