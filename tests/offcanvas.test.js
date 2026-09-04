@@ -1946,6 +1946,87 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !g.errors.length, g.errors.join(' | ') || 'brak');
   await g.close();
 
+  /* Zegar jest tu regułą, nie szczegółem: dotknięcie bez otwarcia zdarza się
+     na okrągło (palec zjechał w bok), a powłoka ogrzana do końca życia strony
+     to dokładnie ten stan, którego arkusz unika przy taśmie. */
+  const gw = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=grzanie' });
+  await gw.evaluate(() => window.__dotknij());
+  await gw.waitForTimeout(3400);
+  const gwPo = await gw.evaluate(() => window.__grzanie());
+  t.check('grzanie z dotknięcia wygasa, gdy menu nie zostało otwarte', !gwPo.armed,
+    gwPo.armed ? 'NADAL ogrzana' : 'ogrzanie zdjęte');
+  await gw.close();
+
+  // ── Grzanie już po załadowaniu ─────────────────────────────────────────
+  /* Wariant mocniejszy: jeśli koszt jest JEDNORAZOWY (ułożenie, malowanie,
+     promocja warstw), to powłoka przygotowana zaraz po załadowaniu nie zapłaci
+     go nawet przy pierwszym kliknięciu. To właśnie odróżnia tę hipotezę od
+     pozostałych — i dlatego tu zegar wygasać NIE MOŻE. */
+  t.section('grzanie-start grzeje bez dotknięcia i nie wygasa');
+
+  const gs = await t.open('offcanvas.html',
+    { viewport: V, settle: 600, head: ZAMEK, query: 'evk-oc-proba=grzanie-start' });
+  const gsPo = await gs.evaluate(() => window.__grzanie());
+  t.check('powłoka jest ogrzana bez żadnej interakcji',
+    gsPo.armed && gsPo.widocznosc === 'visible' && /transform/.test(gsPo.willFrame),
+    'armed ' + gsPo.armed + ', widoczność ' + gsPo.widocznosc + ', kadr ' + gsPo.willFrame);
+  t.check('i nadal nic nie widać',
+    !gsPo.open && !gsPo.kadrWOknie && gsPo.krycieZaslony === 0 && gsPo.kliki === 'none',
+    'otwarte ' + gsPo.open + ', kadr w oknie ' + gsPo.kadrWOknie
+    + ', krycie ' + gsPo.krycieZaslony);
+
+  await gs.waitForTimeout(3400);
+  const gsPozniej = await gs.evaluate(() => window.__grzanie());
+  t.check('po trzech sekundach ogrzanie zostaje', gsPozniej.armed,
+    gsPozniej.armed ? 'nadal ogrzana' : 'OGRZANIE WYGASŁO');
+  t.check('bez błędów JS', !gs.errors.length, gs.errors.join(' | ') || 'brak');
+  await gs.close();
+
+  // ── Atrapa paska administratora ────────────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „po zalogowaniu do WP, kiedy widać pasek na górze,
+     menu otwiera się bardzo płynnie; po wylogowaniu wraca rwanie".
+     Warianty odtwarzają to, co pasek robi STRONIE, żeby dało się to sprawdzić
+     bez logowania — a docelowo odtworzyć w teście zamiast zgadywać. */
+  t.section('atrapa paska odtwarza to, co pasek WP robi stronie');
+
+  const bezP = await t.open('offcanvas.html', { viewport: V, settle: 150, head: ZAMEK });
+  const bp = await bezP.evaluate(() => window.__atrapa());
+  t.check('bez wariantu strona jest nietknięta',
+    bp.margines === '0px' && bp.belka === null,
+    'margines ' + bp.margines + ', belka ' + (bp.belka ? 'JEST' : 'brak'));
+  await bezP.close();
+
+  const mrg = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=margines' });
+  const m = await mrg.evaluate(() => window.__atrapa());
+  t.check('„margines" dokłada sam margines na <html>',
+    m.margines === '46px' && m.belka === null,
+    'margines ' + m.margines + ', belka ' + (m.belka ? 'JEST' : 'brak'));
+  await mrg.close();
+
+  /* Wąskie okno, bo druga połowa efektu paska to `min-width: 600px` — na
+     szerokim ekranie belka mieści się bez śladu i przepełnienia nie ma z czego
+     zmierzyć. Telefon, na którym rzecz zgłoszono, jest właśnie wąski. */
+  const pas = await t.open('offcanvas.html',
+    { viewport: { width: 390, height: 800 }, settle: 150, head: ZAMEK,
+      query: 'evk-oc-proba=pasek' });
+  const atr = await pas.evaluate(() => window.__atrapa());
+  t.check('„pasek" dokłada margines I belkę',
+    atr.margines === '46px' && !!atr.belka, 'margines ' + atr.margines
+    + ', belka ' + (atr.belka ? atr.belka.wysokosc + ' px' : 'brak'));
+  t.check('belka ma wysokość i warstwę paska WP',
+    atr.belka && atr.belka.wysokosc === 46 && atr.belka.z === '99999',
+    atr.belka ? atr.belka.wysokosc + ' px, z-index ' + atr.belka.z : 'brak belki');
+  /* SEDNO drugiej połowy: na wąskim ekranie belka jest szersza niż okno, więc
+     treść strony zaczyna wystawać w poziomie. Bez tego pomiaru wariant „pasek"
+     różniłby się od „margines" tylko kolorem prostokąta. */
+  t.check('i rozpycha treść poza szerokość okna',
+    atr.przepelnienie === true && atr.trescSzerokosc >= 600,
+    'treść ' + atr.trescSzerokosc + ' px w oknie 390 px');
+  t.check('bez błędów JS', !pas.errors.length, pas.errors.join(' | ') || 'brak');
+  await pas.close();
+
   /* Kontrola negatywna: bez wariantu `grzanie` dotknięcie nie robi NIC.
      Bez niej „dotknięcie grzeje" przechodziłoby także wtedy, gdyby powłoka
      była ogrzana od początku — czyli w kodzie, który trzyma `will-change`

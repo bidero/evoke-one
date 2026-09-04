@@ -826,6 +826,37 @@ window.__grzanie = function () {
   };
 };
 
+/**
+ * Atrapa paska administratora — co naprawdę trafiło na stronę.
+ *
+ * ZGŁOSZONE Z UŻYCIA: „po zalogowaniu do WP, kiedy widać pasek na górze, menu
+ * otwiera się bardzo płynnie; po wylogowaniu wraca rwanie". Warianty
+ * `margines` i `pasek` odtwarzają to, co pasek robi stronie — i to właśnie
+ * mierzymy: margines na `<html>` oraz obecność i geometrię samej belki.
+ */
+window.__atrapa = function () {
+  var b = document.getElementById('evk-oc-atrapa-belka');
+  return {
+    margines: getComputedStyle(document.documentElement).marginTop,
+    belka: b ? {
+      wysokosc: Math.round(b.getBoundingClientRect().height),
+      // `min-width: 600px` na wąskim ekranie robi przepełnienie w poziomie —
+      // to druga połowa tego, co pasek zmienia stronie.
+      szerokosc: Math.round(b.getBoundingClientRect().width),
+      z: getComputedStyle(b).zIndex,
+    } : null,
+    /* Czy treść NAPRAWDĘ wystaje w poziomie poza okno.
+       Mierzone na `<body>`, nie na `<html>`: zmierzone w tym harnessie —
+       przy belce szerokiej na 600 px w oknie 390 px `documentElement
+       .scrollWidth` zostaje 390 (dokument nie staje się przewijalny
+       w poziomie), a `body.scrollWidth` rośnie do 600. To druga liczba mówi
+       o tym, co pasek robi treści; pierwsza zależy już od reguł przepełnienia
+       konkretnej strony. */
+    przepelnienie: document.body.scrollWidth > window.innerWidth,
+    trescSzerokosc: document.body.scrollWidth,
+  };
+};
+
 /** Czy przyciemnienie w ogóle się rysuje. */
 window.__zaslonaWidoczna = function () {
   return getComputedStyle(shellOf(0).querySelector('.evk-oc-scrim')).display !== 'none';

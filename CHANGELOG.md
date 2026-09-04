@@ -2,6 +2,57 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.141.1] — 2026-09-04
+
+### Dodane
+
+- **Trzy warianty sondy dopisane po nowym zgłoszeniu.** Z użycia: „po
+  zalogowaniu do WP, kiedy widać pasek na górze, menu otwiera się bardzo
+  płynnie na każdej ze stron; gdy się wyloguję, wraca rwanie".
+
+  To najmocniejsza wskazówka, jaką dotąd mamy, i od razu jedną hipotezę
+  **wyklucza**: warstwy z `mix-blend-mode` w pierwszym ekranie strony stoją
+  tam niezależnie od tego, kto ogląda, więc gdyby to one kosztowały,
+  zalogowanie nie zmieniłoby niczego. Sprawdzone przy okazji i również
+  wykluczone: na stronie nie ma wtyczki opóźniającej wykonanie JS do
+  pierwszej interakcji (żadnego `rocketlazyloadscript`, `data-perfmatters-type`
+  ani LiteSpeed Cache) — a to tłumaczyłoby objaw wręcz podręcznikowo.
+
+  Pasek administratora zmienia stronie dwie rzeczy i obie są mierzalne:
+  dokłada `<html>` margines u góry (46 px na telefonie) i stawia pozycjonowany
+  pasek o `z-index: 99999` i `min-width: 600px`, czyli na wąskim ekranie
+  rozpycha treść poza szerokość okna.
+
+  | wariant | co robi |
+  | --- | --- |
+  | `margines` | sam margines na `<html>` |
+  | `pasek` | margines **i** atrapa belki, z geometrią paska WP |
+  | `grzanie-start` | grzeje powłokę już po załadowaniu, bez czekania na dotknięcie |
+
+  Jeśli `margines` albo `pasek` uspokoi menu u wylogowanego, przyczyna jest
+  w **układzie strony**, a nie w tym, kim jest odwiedzający — i wtedy da się
+  ją odtworzyć w teście zamiast zgadywać. Jeśli uspokoi ją `grzanie-start`,
+  koszt jest jednorazowy (ułożenie, malowanie, promocja warstw dla
+  `position: fixed`) i poprawka jest gotowa.
+
+### Zmienione
+
+- **Grzanie z dotknięcia wygasa po trzech sekundach, grzanie po załadowaniu
+  nie.** Dotknięcie bez otwarcia zdarza się na okrągło — palec zjeżdża w bok,
+  strona się przewija — a powłoka ogrzana do końca życia strony to dokładnie
+  ten stan, którego arkusz unika przy taśmie. Przy `grzanie-start` jest
+  odwrotnie: cały sens polega na tym, żeby robota była zrobiona, zanim
+  ktokolwiek czegokolwiek dotknie, więc zegar odebrałby temu wariantowi
+  jedyną różnicę wobec zwykłego grzania.
+
+### Naprawione
+
+- **Sonda potrafiła pokazać ujemny czas do pierwszej klatki.** Zmierzone na
+  obciążonej maszynie: stempel `requestAnimationFrame` to chwila rozpoczęcia
+  klatki, więc gdy klatka była już w robocie w momencie kliknięcia, wychodził
+  wcześniejszy niż punkt startu pomiaru. Teraz od dołu stoi zero — uczciwa
+  odpowiedź brzmi wtedy „nie było na co czekać".
+
 ## [1.141.0] — 2026-09-04
 
 ### Dodane

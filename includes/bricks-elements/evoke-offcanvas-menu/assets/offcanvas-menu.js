@@ -22,6 +22,7 @@
  */
 
 function evk_offcanvas_menu_init() {
+    if (EVK_OC_PROBA.ma('margines') || EVK_OC_PROBA.ma('pasek')) evk_oc_atrapaPaska();
     document.querySelectorAll('.evk-oc').forEach(function (root) {
         if (root.dataset.evkOcReady === '1') return;
         if (evk_offcanvas_menu_init_one(root)) root.dataset.evkOcReady = '1';
@@ -52,6 +53,9 @@ function evk_offcanvas_menu_init() {
  *   ?evk-oc-proba=wygiecie   bez osi czasu wygiętej ściany
  *   ?evk-oc-proba=goly       wszystkie pięć naraz
  *   ?evk-oc-proba=grzanie    kandydat na poprawkę — patrz `przygotuj()`
+ *   ?evk-oc-proba=grzanie-start   to samo, ale już po załadowaniu strony
+ *   ?evk-oc-proba=margines   sam margines `<html>`, jak przy pasku WP
+ *   ?evk-oc-proba=pasek      margines i atrapa paska — patrz `evk_oc_atrapaPaska()`
  *
  * Kilka naraz po przecinku. Który wariant otworzy się płynnie, ten wskazuje
  * przyczynę; `goly` odpowiada przy tym na pytanie WSTĘPNE — czy przyczyny
@@ -84,6 +88,51 @@ var EVK_OC_PROBA = (function () {
         opis: lista.join(', ') || 'nic nie zdjęte',
     };
 })();
+
+/**
+ * Atrapa paska administratora.
+ *
+ * ZGŁOSZONE Z UŻYCIA po 1.141.0: „po zalogowaniu do WP, kiedy widać pasek na
+ * górze, menu otwiera się bardzo płynnie na każdej ze stron; gdy się wyloguję,
+ * wraca rwanie".
+ *
+ * To najmocniejsza wskazówka, jaką dotąd mamy, i od razu jedną hipotezę
+ * WYKLUCZA: warstwy z `mix-blend-mode` w pierwszym ekranie strony stoją tam
+ * niezależnie od tego, kto ogląda, więc gdyby to one kosztowały, zalogowanie
+ * nie zmieniłoby niczego.
+ *
+ * Pasek zmienia stronie dwie rzeczy i obie są mierzalne:
+ *   1. dokłada `<html>` margines u góry (46 px na telefonie),
+ *   2. stawia pozycjonowany pasek o `z-index: 99999` i `min-width: 600px` —
+ *      czyli na wąskim ekranie robi też przepełnienie w poziomie.
+ *
+ * `margines` odtwarza pierwszą, `pasek` obie. Jeśli któraś uspokoi menu
+ * u wylogowanego, przyczyna jest w UKŁADZIE STRONY, a nie w tym, kim jest
+ * odwiedzający — i wtedy da się ją odtworzyć w teście zamiast zgadywać.
+ *
+ * Wierność jest tu przybliżona i tak ma być: WordPress przy szerokości do
+ * 600 px pozycjonuje pasek `absolute`, a jego pudełko liczy się od początku
+ * kanwy, nie od `<body>`. Atrapa wisi w `<body>`, więc może stać o te 46 px
+ * niżej. Dla pytania „czy margines i przepełnienie w poziomie mają wpływ"
+ * to bez znaczenia — a gdyby miało, znaczyłoby, że trafiliśmy w coś innego
+ * i i tak trzeba mierzyć dalej.
+ */
+function evk_oc_atrapaPaska() {
+    if (document.getElementById('evk-oc-atrapa-paska')) return;
+
+    var st = document.createElement('style');
+    st.id = 'evk-oc-atrapa-paska';
+    st.textContent = 'html { margin-top: 46px !important; }';
+    document.head.appendChild(st);
+
+    if (!EVK_OC_PROBA.ma('pasek')) return;
+
+    var belka = document.createElement('div');
+    belka.id = 'evk-oc-atrapa-belka';
+    belka.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:46px;'
+        + 'min-width:600px;z-index:99999;background:#1d2327';
+    document.body.appendChild(belka);
+}
 
 var evk_oc_tablica = null;
 var evk_oc_ktore = 0;
@@ -941,17 +990,41 @@ function evk_offcanvas_menu_init_one(root) {
      */
     var grzanieTimer = null;
 
-    function przygotuj() {
+    /**
+     * @param {boolean} naStale Czy ogrzanie ma przetrwać bez otwarcia menu.
+     *
+     * Przy dotknięciu — NIE. Dotknięcie bez otwarcia (palec zjechał w bok,
+     * przewijanie) zdarza się na okrągło, a powłoka ogrzana do końca życia
+     * strony to dokładnie ten stan, którego arkusz unika przy taśmie.
+     *
+     * Przy `grzanie-start` — tak, bo tam cały sens polega na tym, żeby robota
+     * była zrobiona ZANIM ktokolwiek czegokolwiek dotknie. Zegar odbierałby
+     * temu wariantowi jego jedyną różnicę wobec zwykłego grzania.
+     */
+    function przygotuj(naStale) {
         if (shell.classList.contains('is-open')) return;
         shell.classList.add('is-armed');
-        /* Dotknięcie bez otwarcia (palec zjechał w bok, przewijanie) też się
-           zdarza — bez tego powłoka zostawałaby ogrzana do końca życia strony,
-           czyli dokładnie w stanie, którego arkusz unika przy taśmie. */
-        if (grzanieTimer) clearTimeout(grzanieTimer);
+        if (grzanieTimer) { clearTimeout(grzanieTimer); grzanieTimer = null; }
+        if (naStale) return;
         grzanieTimer = setTimeout(function () {
             grzanieTimer = null;
             if (!shell.classList.contains('is-open')) shell.classList.remove('is-armed');
         }, 3000);
+    }
+
+    /* Mocniejszy wariant: powłoka grzeje się PO ZAŁADOWANIU strony, bez
+       czekania na dotknięcie. Jeśli koszt jest jednorazowy — ułożenie,
+       malowanie i promocja warstw dla `position: fixed` — to tak przygotowana
+       powłoka nie zapłaci go nawet przy pierwszym kliknięciu, i to właśnie
+       odróżnia tę hipotezę od wszystkich pozostałych.
+
+       PO załadowaniu, nie od razu: ta sama robota wykonana w trakcie ładowania
+       konkurowałaby z pierwszym malowaniem strony, czyli przeniosłaby zacięcie
+       w inne miejsce, zamiast je zdjąć. */
+    if (EVK_OC_PROBA.ma('grzanie-start')) {
+        var grzejPozniej = function () { setTimeout(function () { przygotuj(true); }, 200); };
+        if (document.readyState === 'complete') grzejPozniej();
+        else window.addEventListener('load', grzejPozniej);
     }
 
     function open(trigger) {
@@ -1115,7 +1188,11 @@ function evk_offcanvas_menu_init_one(root) {
         /* Grzanie wisi na DOTKNIĘCIU, nie na kliknięciu — cały jego sens leży
            w przerwie między jednym a drugim. `pointerdown` łapie i palec,
            i mysz, i rysik jednym nasłuchem. */
-        if (EVK_OC_PROBA.ma('grzanie')) t.addEventListener('pointerdown', przygotuj);
+        /* Bez owijki pierwszym argumentem `przygotuj()` byłoby ZDARZENIE, czyli
+           wartość prawdziwa — i grzanie z dotknięcia zostawałoby na stałe. */
+        if (EVK_OC_PROBA.ma('grzanie')) {
+            t.addEventListener('pointerdown', function () { przygotuj(false); });
+        }
     });
 
     scrim.addEventListener('click', close);
