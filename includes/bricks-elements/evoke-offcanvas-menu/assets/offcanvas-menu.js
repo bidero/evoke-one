@@ -50,6 +50,96 @@ function evk_oc_przodek_blokujacy(el) {
     return null;
 }
 
+/** Zmienne, które kontrolki `css` zapisują na korzeniu elementu. */
+var EVK_OC_ZMIENNE = ['--evk-oc-size', '--evk-oc-bg', '--evk-oc-scrim', '--evk-oc-z'];
+
+/**
+ * Przenosi zmienne korzenia na powłokę — DEKLARACJĄ, nie wartością.
+ *
+ * ZGŁOSZONE Z UŻYCIA: „wybór tła dla OC nie pozwala na używanie zmiennych.
+ * Znaczy używa ich, ale nie zmienia koloru np. w trybie ciemnym".
+ *
+ * Powłoka jedzie do `<body>`, więc przestaje być potomkiem korzenia i nic
+ * z niego nie dziedziczy — wartości z kontrolek trzeba do niej przenieść.
+ * Do 1.146.0 robił to odczyt obliczony:
+ *
+ *     getComputedStyle(root).getPropertyValue('--evk-oc-bg')   →  "rgb(10,20,30)"
+ *
+ * i tu ginęła cała rzecz: odczyt obliczony ROZWIĄZUJE `var()`, więc na powłokę
+ * trafiała martwa liczba. Bricks trzyma oba warianty koloru pod tą samą nazwą
+ * zmiennej, a my zabieraliśmy jej nazwę — więc tryb ciemny przestawiał kolor
+ * wszędzie poza menu. Zmierzone: korzeń szedł za motywem, kopia stała.
+ *
+ * Zamiast wartości bierzemy więc DEKLARACJĘ, i to prosto z arkusza, gdzie leży
+ * nietknięta razem z warunkiem media. Zmienna zostaje zmienną, więc motyw
+ * przestawia ją sam — bez nasłuchu z naszej strony i niezależnie od tego, czy
+ * przełącza go Bricks, czy nasz moduł. Przy okazji odmrażają się punkty
+ * łamania: szerokość panelu ustawiona osobno dla telefonu była dotąd zapisana
+ * raz, na starcie, i nie szła już za zmianą rozmiaru okna.
+ *
+ * KOLEJNOŚĆ ŹRÓDEŁ jest tu regułą, nie porządkowaniem. Reguły z arkusza idą
+ * w kolejności występowania (Bricks pisze je wszystkie po identyfikatorze,
+ * więc rozstrzyga między nimi właśnie kolejność), a na końcu styl wpisany
+ * w atrybut — bo ten wygrywa z każdą regułą, a u nas wszystko staje się regułą.
+ */
+function evk_oc_przenies_zmienne(root, uid) {
+    var sel = '.evk-oc-shell[data-evk-oc-owner="' + uid + '"]';
+    var bloki = [];   // { media, tresc }
+
+    function dopisz(styl, media) {
+        var tresc = '';
+        EVK_OC_ZMIENNE.forEach(function (v) {
+            var val = styl.getPropertyValue(v);
+            if (!val || !val.trim()) return;
+            var waga = styl.getPropertyPriority(v);
+            tresc += v + ':' + val.trim() + (waga ? ' !' + waga : '') + ';';
+        });
+        if (tresc) bloki.push({ media: media || '', tresc: tresc });
+    }
+
+    /* Arkusze cudzego pochodzenia rzucają przy próbie odczytu reguł — to nie
+       jest usterka, tylko zasada przeglądarki. Pomijamy je: nasze zmienne
+       pisze Bricks w arkuszu tej samej strony. */
+    function przejdz(reguly, media) {
+        for (var i = 0; i < reguly.length; i++) {
+            var r = reguly[i];
+            if (r.cssRules && typeof r.conditionText === 'string') {
+                przejdz(r.cssRules, media ? media + ' and ' + r.conditionText : r.conditionText);
+                continue;
+            }
+            if (!r.selectorText || !r.style) continue;
+            var pasuje = false;
+            try { pasuje = root.matches(r.selectorText); } catch (e) { /* selektor nie do sprawdzenia */ }
+            if (pasuje) dopisz(r.style, media);
+        }
+    }
+
+    for (var s = 0; s < document.styleSheets.length; s++) {
+        try { przejdz(document.styleSheets[s].cssRules, null); } catch (e) { /* cudzy arkusz */ }
+    }
+
+    // Styl wpisany wprost w atrybut — ostatni, bo wygrywa z regułami.
+    dopisz(root.style, '');
+
+    /* Po starym arkuszu sprząta evk_oc_sprzatnij_osierocone(), i to wystarcza
+       w obu drogach: przy ponownej inicjalizacji tego samego korzenia stara
+       powłoka jest zabierana wcześniej, więc jej arkusz jest już wtedy
+       osierocony, a przy przerysowaniu w builderze korzeń dostaje nowy odcisk
+       i stary arkusz zostaje bez właściciela. Osobne kasowanie po odcisku
+       stało tu do czasu, aż mutacja pokazała, że nie pilnuje niczego. */
+    if (!bloki.length) return;
+
+    var css = bloki.map(function (b) {
+        var r = sel + '{' + b.tresc + '}';
+        return b.media ? '@media ' + b.media + '{' + r + '}' : r;
+    }).join('\n');
+
+    var st = document.createElement('style');
+    st.setAttribute('data-evk-oc-zmienne', uid);
+    st.textContent = css;
+    document.head.appendChild(st);
+}
+
 /**
  * Mówi wprost, gdy menu nie ma jak rozciągnąć się na całe okno.
  *
@@ -92,6 +182,13 @@ function evk_oc_sprzatnij_osierocone() {
     document.querySelectorAll('.evk-oc-shell[data-evk-oc-owner]').forEach(function (s) {
         var uid = s.getAttribute('data-evk-oc-owner');
         if (!document.querySelector('[data-evk-oc-uid="' + uid + '"]')) s.remove();
+    });
+    /* Arkusz ze zmiennymi ginie razem ze swoją powłoką. Sam w sobie jest
+       nieszkodliwy — celuje w odcisk, którego już nie ma — ale zostawiony
+       rósłby po każdej edycji w kanwie tak samo jak martwe powłoki. */
+    document.querySelectorAll('style[data-evk-oc-zmienne]').forEach(function (st) {
+        var uid = st.getAttribute('data-evk-oc-zmienne');
+        if (!document.querySelector('.evk-oc-shell[data-evk-oc-owner="' + uid + '"]')) st.remove();
     });
 }
 
@@ -396,12 +493,8 @@ function evk_offcanvas_menu_init_one(root) {
     shell.style.setProperty('--evk-oc-sub-delay', subDelay + 's');
     if (frameEase) shell.style.setProperty('--evk-oc-ease', frameEase);
     if (trackEase) shell.style.setProperty('--evk-oc-panel-ease', trackEase);
-    // Wartości z kontrolek `css` builder zapisuje NA KORZENIU, a powłoka jedzie
-    // do <body> i przestaje po nim dziedziczyć — trzeba je przepisać.
-    ['--evk-oc-size', '--evk-oc-bg', '--evk-oc-scrim', '--evk-oc-z'].forEach(function (v) {
-        var val = getComputedStyle(root).getPropertyValue(v);
-        if (val && val.trim()) shell.style.setProperty(v, val.trim());
-    });
+    // Zmienne z kontrolek `css` przenosi evk_oc_przenies_zmienne() — niżej,
+    // bo potrzebuje odcisku powłoki, a ten powstaje dopiero za chwilę.
 
     /* Portal działa TAKŻE W BUILDERZE — do 1.97.1 warunek brzmiał
        `usePortal && !isBuilder` i kontrolka „Przenieś do <body>" była na kanwie
@@ -441,6 +534,13 @@ function evk_offcanvas_menu_init_one(root) {
 
     if (usePortal) document.body.appendChild(shell);
     else           root.appendChild(shell);
+
+    /* DOPIERO PO wstawieniu powłoki. Sprzątanie osieroconych arkuszy poznaje
+       swoje po tym, czy w dokumencie jest powłoka z tym odciskiem — a powłoka
+       jeszcze przed chwilą w dokumencie nie stała, więc świeży arkusz padał
+       ofiarą własnego sprzątania. Zmierzone: reguła powstawała i znikała
+       w tej samej klatce. */
+    evk_oc_przenies_zmienne(root, uid);
 
     evk_oc_ostrzez_o_blokadzie(shell, usePortal);
 
@@ -580,6 +680,32 @@ function evk_offcanvas_menu_init_one(root) {
         if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
             frame.style.background = bg;
         }
+    }
+
+    /* Zmiana motywu PRZY OTWARTYM MENU.
+     *
+     * Tło kadru brane z panelu to jedyne miejsce, gdzie nadal zapisujemy
+     * gotowy kolor — inaczej się nie da, bo w CSS jeden element nie potrafi
+     * wskazać koloru drugiego. Odczyt idzie na nowo przy każdym otwarciu
+     * i każdym przejściu między panelami, więc zwykle nadąża sam; zostaje
+     * w tyle dokładnie w jednym przypadku, i ten przypadek jest tu domykany.
+     * Zmierzone: motyw przestawiony przy otwartym menu zostawiał kadr
+     * w kolorze rgb(0,150,0), gdy panel był już rgb(0,60,0).
+     *
+     * Obserwator patrzy na WYBRANE atrybuty korzenia dokumentu:
+     * `data-brx-theme` to przełącznik Bricksa, `data-theme` nasz, `class` —
+     * konwencja motywów, które zmieniają klasę.
+     *
+     * Bez sprawdzania, czy menu jest otwarte. Taki warunek tu stał, ale niczego
+     * nie pilnował: przy zamkniętym menu przeliczenie i tak jest niewidoczne,
+     * a przy otwarciu `applyState()` liczy wszystko od nowa. Mutacja usuwająca
+     * go przechodziła na zielono, więc zamiast dopisywać sprawdzenie do warunku
+     * bez skutku, wypada sam warunek. */
+    if (window.MutationObserver) {
+        new MutationObserver(syncFrameBg).observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-brx-theme', 'data-theme', 'class'],
+        });
     }
 
     /* Panele w trakcie WYJAZDU. Nie są już w ścieżce, ale nadal się rysują —

@@ -1816,6 +1816,123 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !zN.errors.length, zN.errors.join(' | ') || 'brak');
   await zN.close();
 
+  /* ── Zmienne przenoszone na powłokę ─────────────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: „wybór tła dla OC nie pozwala na używanie zmiennych.
+   * Znaczy używa ich, ale nie zmienia koloru np. w trybie ciemnym".
+   *
+   * Powłoka jedzie do <body> i przestaje dziedziczyć po korzeniu, więc wartości
+   * z kontrolek trzeba do niej przenieść. Do 1.146.0 szedł tam odczyt obliczony,
+   * a ten ROZWIĄZUJE `var()` — na powłokę trafiała martwa liczba i zmienna
+   * traciła nazwę. Bricks trzyma oba warianty koloru pod tą samą nazwą, więc
+   * tryb ciemny przestawiał kolor wszędzie poza menu.
+   */
+  t.section('zmienne dojeżdżają na powłokę jako zmienne, nie jako kolor');
+
+  const zm = await t.open('offcanvas.html',
+    { viewport: { width: 900, height: 700 }, settle: 200, query: 'dur=0.2&zmienne=1' });
+  await zm.evaluate(() => window.__open());
+  await zm.waitForTimeout(200);
+
+  /* Przeniesiona ma być DEKLARACJA. Sprawdzenie po tekście reguły, bo to
+     jedyne miejsce, w którym widać różnicę: wartość obliczona jest w obu
+     wersjach kodu taka sama, dopóki nie ruszy się motyw. */
+  const regula = await zm.evaluate(() => {
+    const st = document.querySelector('style[data-evk-oc-zmienne]');
+    return st ? st.textContent : null;
+  });
+  t.check('reguła powłoki niesie nazwę zmiennej, nie kolor',
+    /--evk-oc-bg:\s*var\(--marka\)/.test(regula || ''),
+    (regula || 'brak arkusza').slice(0, 80));
+
+  const tlo = () => zm.evaluate(() => getComputedStyle(
+    document.querySelectorAll('.evk-oc-shell')[0].querySelector('.evk-oc-frame')).backgroundColor);
+  t.check('a kadr maluje się kolorem z tej zmiennej',
+    (await tlo()) === 'rgb(10, 20, 30)', await tlo());
+
+  /* SEDNO ZGŁOSZENIA. Przełącznik motywu Bricksa przestawia samą zmienną —
+     jeśli powłoka trzyma jej NAZWĘ, kolor idzie za nim bez żadnego nasłuchu. */
+  await zm.evaluate(() => document.documentElement.setAttribute('data-brx-theme', 'dark'));
+  await zm.waitForTimeout(150);
+  t.check('tryb ciemny przestawia kolor menu', (await tlo()) === 'rgb(240, 240, 240)', await tlo());
+
+  await zm.evaluate(() => document.documentElement.removeAttribute('data-brx-theme'));
+  await zm.waitForTimeout(150);
+  t.check('i wraca po wyłączeniu', (await tlo()) === 'rgb(10, 20, 30)', await tlo());
+
+  /* Przy okazji odmrożone punkty łamania: rozmiar panelu ustawiony osobno dla
+     wąskiego okna był dotąd zapisywany raz, na starcie. */
+  const szer = () => zm.evaluate(() => Math.round(parseFloat(getComputedStyle(
+    document.querySelectorAll('.evk-oc-shell')[0].querySelector('.evk-oc-frame')).width)));
+  t.check('szeroki ekran bierze rozmiar spoza media query', (await szer()) === 420,
+    (await szer()) + ' px');
+  await zm.setViewportSize({ width: 500, height: 700 });
+  await zm.waitForTimeout(200);
+  t.check('a wąski ten z media query', (await szer()) > 460, (await szer()) + ' px');
+  /* Ten sam korzeń zainicjalizowany drugi raz zachowuje odcisk, więc arkusz
+     ze zmiennymi musi zostać JEDEN. Skrypt tę drogę przewiduje — zabiera przy
+     niej poprzednią powłokę — a bez sprzątania arkusza każdy kolejny przebieg
+     dokładałby regułę wygrywającą samą kolejnością. */
+  await zm.evaluate(() => window.__ponownie());
+  await zm.waitForTimeout(150);
+  t.check('ponowna inicjalizacja nie mnoży arkuszy',
+    (await zm.evaluate(() => document.querySelectorAll('style[data-evk-oc-zmienne]').length)) === 1,
+    String(await zm.evaluate(() => document.querySelectorAll('style[data-evk-oc-zmienne]').length))
+    + ' arkuszy');
+
+  /* PRZERYSOWANIE W BUILDERZE to druga droga do tego samego: Bricks podmienia
+     węzeł korzenia, więc odcisk jest NOWY, a stary arkusz zostaje bez
+     właściciela. Bez sprzątania rósłby po jednym na każdą zmianę ustawienia —
+     tak samo jak martwe powłoki. */
+  await zm.evaluate(() => window.__przerysuj());
+  await zm.waitForTimeout(200);
+  const ark = await zm.evaluate(() => Array.prototype.map.call(
+    document.querySelectorAll('style[data-evk-oc-zmienne]'),
+    function (st) { return st.getAttribute('data-evk-oc-zmienne'); }));
+  const uidTeraz = await zm.evaluate(() => document.getElementById('root').dataset.evkOcUid);
+  t.check('po przerysowaniu zostaje arkusz TEGO korzenia',
+    ark.length === 1 && ark[0] === uidTeraz,
+    ark.length + ' arkuszy: ' + JSON.stringify(ark) + ', korzeń ' + uidTeraz);
+
+  t.check('bez błędów JS', !zm.errors.length, zm.errors.join(' | ') || 'brak');
+  await zm.close();
+
+  /* Druga droga: „Tło menu" PUSTE, więc kadr bierze kolor z panelu. Tu nie da
+     się przenieść deklaracji — w CSS jeden element nie potrafi wskazać koloru
+     drugiego — więc zapisujemy gotowy kolor i odczytujemy go na nowo przy
+     każdym otwarciu i przejściu. Zostaje w tyle dokładnie w jednym przypadku:
+     gdy motyw przestawi się PRZY OTWARTYM menu. Zmierzone przed poprawką:
+     kadr rgb(0,150,0), gdy panel był już rgb(0,60,0). */
+  t.section('kolor kadru brany z panelu nadąża za motywem');
+
+  const pn = await t.open('offcanvas.html',
+    { viewport: V, settle: 200, query: 'dur=0.2&panele=1' });
+  await pn.evaluate(() => window.__open());
+  await pn.waitForTimeout(250);
+  const kadrPn  = () => pn.evaluate(() => getComputedStyle(
+    document.querySelectorAll('.evk-oc-shell')[0].querySelector('.evk-oc-frame')).backgroundColor);
+  const panelPn = () => pn.evaluate(() => getComputedStyle(
+    document.querySelectorAll('.evk-oc-shell')[0].querySelector('[data-panel="start"]')).backgroundColor);
+
+  t.check('w jasnym kadr ma kolor panelu', (await kadrPn()) === (await panelPn()),
+    'kadr ' + (await kadrPn()) + ', panel ' + (await panelPn()));
+
+  await pn.evaluate(() => document.documentElement.setAttribute('data-brx-theme', 'dark'));
+  await pn.waitForTimeout(200);
+  /* SEDNO: panel zmienia się sam, bo to zwykły CSS. Kadr musi za nim nadążyć,
+     choć trzyma kolor wpisany. */
+  t.check('po zmianie motywu przy OTWARTYM menu też', (await kadrPn()) === (await panelPn()),
+    'kadr ' + (await kadrPn()) + ', panel ' + (await panelPn()));
+  t.check('i jest to naprawdę wariant ciemny', (await kadrPn()) === 'rgb(0, 60, 0)', await kadrPn());
+
+  /* Przejście na drugi panel ma dalej brać kolor tego, na którym stoimy —
+     poprawka nie ma prawa zamrozić kadru na pierwszym. */
+  await pn.evaluate(() => window.__click('go-uslugi'));
+  await pn.waitForTimeout(400);
+  t.check('a wejście w podmenu bierze jego kolor', (await kadrPn()) === 'rgb(60, 0, 0)', await kadrPn());
+  t.check('bez błędów JS', !pn.errors.length, pn.errors.join(' | ') || 'brak');
+  await pn.close();
+
   /* ── Trzy drogi nad menu ────────────────────────────────────────────────
    *
    * ZGŁOSZONE Z UŻYCIA po 1.144.0: „chcę mieć możliwość pokazać np. samo logo

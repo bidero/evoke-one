@@ -2,6 +2,47 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.146.0] — 2026-09-04
+
+### Naprawione
+
+- **Zmienne w „Tle menu" przestawały działać w trybie ciemnym.** Zgłoszone
+  z użycia: „wybór tła dla OC nie pozwala na używanie zmiennych. Znaczy używa
+  ich, ale nie zmienia koloru np. w trybie ciemnym".
+
+  Powłoka menu jedzie do `<body>`, więc przestaje być potomkiem elementu i nie
+  dziedziczy już jego zmiennych — trzeba je do niej przenieść. Robił to odczyt
+  obliczony, a ten **rozwiązuje `var()`**:
+
+  ```js
+  getComputedStyle(root).getPropertyValue('--evk-oc-bg')   //  "rgb(10,20,30)"
+  ```
+
+  Na powłokę trafiała więc martwa liczba. Bricks trzyma oba warianty koloru
+  pod tą samą nazwą zmiennej, a my zabieraliśmy jej nazwę — stąd kolor menu
+  zostawał jasny, gdy cała reszta strony ciemniała. Zmierzone: korzeń szedł
+  za motywem (`rgb(240,240,240)`), kopia stała (`rgb(10,20,30)`).
+
+  **Teraz przenosimy DEKLARACJĘ, nie wartość** — prosto z arkusza, gdzie leży
+  nietknięta razem z warunkiem media. Zmienna zostaje zmienną, więc motyw
+  przestawia ją sam, bez żadnego nasłuchu z naszej strony i niezależnie od
+  tego, czy przełącza go Bricks, czy nasz moduł.
+
+- **Przy okazji odmrożone punkty łamania.** Ta sama kopia zamrażała
+  `--evk-oc-size`, `--evk-oc-scrim` i `--evk-oc-z`. Szerokość panelu ustawiona
+  osobno dla telefonu była zapisywana raz, na starcie, i nie szła już za
+  zmianą rozmiaru okna. Zmierzone po poprawce: 420 px w oknie 900 px,
+  pełna szerokość w oknie 500 px.
+
+- **Kolor kadru brany z panelu nadąża za motywem także przy otwartym menu.**
+  Gdy „Tło menu" jest puste, kadr bierze kolor z panelu, na którym stoisz —
+  i tego jednego nie da się przenieść deklaracją, bo w CSS jeden element nie
+  potrafi wskazać koloru drugiego. Odczyt idzie na nowo przy każdym otwarciu
+  i przejściu, więc zwykle nadąża; zostawał w tyle dokładnie wtedy, gdy motyw
+  przestawiono **przy otwartym menu**. Zmierzone: kadr `rgb(0,150,0)`, gdy
+  panel był już `rgb(0,60,0)`. Teraz domyka to obserwator atrybutów motywu
+  na korzeniu dokumentu — `data-brx-theme`, `data-theme` i `class`.
+
 ## [1.145.0] — 2026-09-04
 
 ### Zmienione

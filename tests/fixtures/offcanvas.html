@@ -165,6 +165,34 @@
      okno, więc widać wyłącznie jego tło. */
   if (q.get('size')) root.style.setProperty('--evk-oc-size', q.get('size'));
   if (q.get('bg'))   root.style.setProperty('--evk-oc-bg',   q.get('bg'));
+
+  /* ZMIENNE ZAPISANE REGUŁĄ, nie w atrybucie — tak pisze je Bricks, i tylko
+     tak da się zmierzyć, czy przenosimy DEKLARACJĘ, czy gotową wartość.
+     `?zmienne=1` stawia markę z wariantem ciemnym pod `[data-brx-theme]`
+     i rozmiar panelu osobny dla wąskiego okna. */
+  if (q.get('zmienne') === '1') {
+    var st = document.createElement('style');
+    st.textContent =
+      ':root { --marka: rgb(10,20,30); }' +
+      '[data-brx-theme="dark"] { --marka: rgb(240,240,240); }' +
+      '#root { --evk-oc-bg: var(--marka); --evk-oc-size: 420px; }' +
+      '@media (max-width: 767px) { #root { --evk-oc-size: 100%; } }';
+    document.head.appendChild(st);
+  }
+
+  /* KOLORY PANELI z wariantem ciemnym, BEZ „Tła menu" — wtedy kadr bierze kolor
+     z panelu, na którym stoi. To druga, węższa droga: odczytuje się na nowo
+     przy każdym otwarciu i przejściu, więc zostaje w tyle wyłącznie wtedy, gdy
+     motyw przestawi się PRZY OTWARTYM menu. */
+  if (q.get('panele') === '1') {
+    var sp = document.createElement('style');
+    sp.textContent =
+      ':root { --zielony: rgb(0,150,0); --czerwony: rgb(150,0,0); }' +
+      '[data-brx-theme="dark"] { --zielony: rgb(0,60,0); --czerwony: rgb(60,0,0); }' +
+      '.evk-oc-panel[data-panel="start"]  { background: var(--zielony) !important; }' +
+      '.evk-oc-panel[data-panel="uslugi"] { background: var(--czerwony) !important; }';
+    document.head.appendChild(sp);
+  }
   // Warstwa powłoki z kontrolki „Warstwa menu" — Bricks pisze ją na korzeniu.
   if (q.get('z')) root.style.setProperty('--evk-oc-z', q.get('z'));
 
@@ -195,6 +223,16 @@
      z pełną treścią i bez naszych znaczników stanu. Kopia musi więc powstać
      TERAZ: chwilę później panele są już przeniesione do powłoki, a na korzeniu
      siedzi `data-evk-oc-ready`. */
+  /* PONOWNA INICJALIZACJA TEGO SAMEGO korzenia — bez podmiany węzła, więc
+     odcisk (`data-evk-oc-uid`) zostaje ten sam. Skrypt tę drogę przewiduje
+     (zabiera wtedy poprzednią powłokę), a razem z nią musi zabrać poprzedni
+     arkusz zmiennych — inaczej arkusze mnożyłyby się po jednym na przebieg. */
+  window.__ponownie = function () {
+    var r = document.getElementById('root');
+    delete r.dataset.evkOcReady;
+    evk_offcanvas_menu_init();
+  };
+
   var ZRZUT = document.getElementById('root').outerHTML;
   window.__przerysuj = function () {
     var stary = document.getElementById('root');
