@@ -25,7 +25,6 @@ function wp_specialchars_decode($s, $q = null) { return html_entity_decode((stri
 function set_transient($k, $v, $t = 0) { $GLOBALS['transients'][$k] = $v; return true; }
 function get_transient($k) { return $GLOBALS['transients'][$k] ?? false; }
 function delete_transient($k) { unset($GLOBALS['transients'][$k]); return true; }
-function wp_get_post_revisions($id, $args = []) { return []; }
 function wp_normalize_path($s) { return str_replace('\\', '/', (string) $s); }
 function wp_strip_all_tags($s, $br = false) { return strip_tags((string) $s); }
 function wp_create_nonce($akcja = -1) { return 'nonce'; }
@@ -70,6 +69,7 @@ function submit_button(...$a) {}
 require_once EVK_TEST_ROOT . '/includes/snippets/definitions.php';
 require_once EVK_TEST_ROOT . '/includes/snippets/wpisy.php';
 require_once EVK_TEST_ROOT . '/includes/snippets/validation.php';
+require_once EVK_TEST_ROOT . '/includes/snippets/wersje.php';
 require_once EVK_TEST_ROOT . '/includes/snippets/engine.php';
 require_once EVK_TEST_ROOT . '/includes/snippets/panel.php';   // evk_snippety_url()
 require_once EVK_TEST_ROOT . '/includes/snippets/ajax.php';    // handler POST
@@ -408,6 +408,176 @@ if ($scenariusz === 'awaria-wpis') {
     odpal_hak('wp_head');   // stąd się nie wraca
     echo json_encode(['blad' => 'fatal nie wystapil']);
     exit;
+}
+
+// =========================================================================
+// HISTORIA ZMIAN
+// =========================================================================
+
+if ($scenariusz === 'roznica') {
+    /* Poprawka JEDNEJ linii w środku długiej treści. Sedno: wynik ma
+       pokazywać zmianę razem z otoczeniem, a nie stu linii bez zmian. */
+    $dlugie_stare = [];
+    for ($i = 1; $i <= 60; $i++) $dlugie_stare[] = "linia $i";
+    $dlugie_nowe = $dlugie_stare;
+    $dlugie_nowe[29] = 'linia 30 POPRAWIONA';
+
+    $out['jedna_linia'] = evk_snippet_roznica(
+        implode("\n", $dlugie_stare), implode("\n", $dlugie_nowe));
+    $out['jedna_linia_html'] = evk_snippet_roznica_html($out['jedna_linia']);
+
+    $out['dodane']   = evk_snippet_roznica("a\nb", "a\nNOWA\nb");
+    $out['usuniete'] = evk_snippet_roznica("a\nSTARA\nb", "a\nb");
+    $out['bez_zmian'] = evk_snippet_roznica("a\nb\nc", "a\nb\nc");
+    $out['bez_zmian_html'] = evk_snippet_roznica_html($out['bez_zmian']);
+
+    /* Treść przerastająca próg dokładnego porównania — ma wyjść blok
+       wymieniony w całości, a nie zawieszony panel. */
+    /* Co dziesiąta linia WSPÓLNA — i to jest tu sedno. Bez wspólnych linii
+       obie drogi (blok i dokładne porównanie) dałyby ten sam wynik, więc
+       sprawdzenie nie odróżniłoby jednej od drugiej. */
+    $wielkie_a = []; $wielkie_b = [];
+    for ($i = 1; $i <= EVK_SNIPPET_DIFF_LIMIT + 50; $i++) {
+        $wielkie_a[] = "A $i";
+        $wielkie_b[] = ($i % 10 === 0) ? "A $i" : "B $i";
+    }
+    $t0 = microtime(true);
+    $wielka = evk_snippet_roznica(implode("\n", $wielkie_a), implode("\n", $wielkie_b));
+    $out['wielka'] = [
+        'ms'        => (int) round((microtime(true) - $t0) * 1000),
+        'usuniete'  => count(array_filter($wielka, fn($w) => $w['typ'] === 'usuniete')),
+        'dodane'    => count(array_filter($wielka, fn($w) => $w['typ'] === 'dodane')),
+        'rownych'   => count(array_filter($wielka, fn($w) => $w['typ'] === 'rowny')),
+    ];
+
+    /* Przeplot: wspólne linie w środku mają zostać rozpoznane jako wspólne,
+       a nie zamienione na „wszystko usunięte, wszystko dodane". */
+    $out['przeplot'] = evk_snippet_roznica("a\nb\nc\nd", "a\nX\nc\nY");
+
+    /* POPRAWKA JEDNEJ LINII W DŁUGIM PLIKU — i to jest przypadek, w którym
+       odcięcie wspólnych końców rozstrzyga o WYNIKU, nie o czasie. Plik jest
+       dłuższy niż próg dokładnego porównania; bez odcięcia cała treść poszłaby
+       jako blok wymieniony w całości i podgląd pokazywałby osiemset zmienionych
+       linii zamiast jednej. Zmierzone mutacją: bez tego przypadku zdjęcie
+       odcięcia przechodziło na zielono. */
+    $duzy_stary = [];
+    for ($i = 1; $i <= 800; $i++) $duzy_stary[] = "linia $i";
+    $duzy_nowy = $duzy_stary;
+    $duzy_nowy[399] = 'linia 400 POPRAWIONA';
+
+    $t1 = microtime(true);
+    $duzy = evk_snippet_roznica(implode("\n", $duzy_stary), implode("\n", $duzy_nowy));
+    $out['duzy_plik'] = [
+        'ms'       => (int) round((microtime(true) - $t1) * 1000),
+        'zmian'    => count(array_filter($duzy, fn($w) => $w['typ'] !== 'rowny')),
+        'rownych'  => count(array_filter($duzy, fn($w) => $w['typ'] === 'rowny')),
+        'tresci'   => array_values(array_map(fn($w) => $w['tekst'],
+                          array_filter($duzy, fn($w) => $w['typ'] !== 'rowny'))),
+    ];
+
+} elseif ($scenariusz === 'wersje-lista') {
+    $id = zaloz(['tytul' => 'Z historią', 'rodzaj' => 'php', 'kod' => 'echo 1;']);
+    for ($i = 1; $i <= 25; $i++) {
+        evk_test_rewizja($id, "wersja $i", sprintf('2026-08-%02d 10:00:00', $i));
+    }
+
+    $lista = evk_snippet_wersje($id);
+    $out['ile']        = count($lista);
+    $out['najnowsza']  = $lista[0]['data'];
+    $out['najstarsza'] = $lista[count($lista) - 1]['data'];
+    $out['w_bazie']    = count(wp_get_post_revisions($id));
+
+    /* Historia CUDZEGO wpisu nie ma prawa wejść na tę listę. */
+    $obcy = wp_insert_post(['post_title' => 'Strona', 'post_type' => 'page', 'post_status' => 'publish']);
+    evk_test_rewizja($obcy, 'cudza treść', '2026-08-30 10:00:00');
+    $out['po_dolozeniu_cudzej'] = count(evk_snippet_wersje($id));
+
+} elseif ($scenariusz === 'wersje-czyszczenie') {
+    $id = zaloz(['tytul' => 'Z historią', 'rodzaj' => 'php', 'kod' => 'echo 1;']);
+    for ($i = 1; $i <= 25; $i++) {
+        evk_test_rewizja($id, "wersja $i", sprintf('2026-08-%02d 10:00:00', $i));
+    }
+
+    $out['skasowane'] = evk_snippet_wyczysc_wersje($id, 10);
+    $zostalo = wp_get_post_revisions($id);
+    $out['zostalo']   = count($zostalo);
+    /* ZOSTAJĄ NAJNOWSZE, nie pierwsze z brzegu — przy kasowaniu po złej
+       stronie listy liczba wyszłaby ta sama, a historia zniknęłaby ta
+       potrzebna. */
+    $tresci = array_map(fn($r) => $r->post_content, array_values($zostalo));
+    $out['najnowsza_zostala'] = in_array('wersja 25', $tresci, true);
+    $out['najstarsza_znikla'] = !in_array('wersja 1', $tresci, true);
+
+    // Powtórzone czyszczenie nie ma już czego skasować.
+    $out['drugi_raz'] = evk_snippet_wyczysc_wersje($id, 10);
+
+    // Zero znaczy zero, a liczba ujemna też — nie „skasuj od końca".
+    $out['ujemne'] = evk_snippet_wyczysc_wersje($id, -5);
+    $out['po_ujemnym'] = count(wp_get_post_revisions($id));
+
+} elseif ($scenariusz === 'wersje-ajax') {
+    $GLOBALS['is_admin'] = true;
+    $id  = zaloz(['tytul' => 'Z historią', 'rodzaj' => 'php', 'kod' => "a\nb\nc"]);
+    $rew = evk_test_rewizja($id, "a\nSTARE\nc", '2026-08-01 10:00:00');
+
+    /** Woła prawdziwy uchwyt AJAX i oddaje jego odpowiedź. */
+    $pytaj = function (int $rewizja) {
+        $_POST = ['revision_id' => (string) $rewizja, 'nonce' => 'x'];
+        try {
+            foreach ($GLOBALS['hooks']['wp_ajax_evk_get_snippet_revision'] ?? [] as $cb) $cb();
+        } catch (EVK_Test_Json $e) {
+            return $e->payload;
+        }
+        return ['success' => null];
+    };
+
+    $out['wersja'] = $pytaj($rew);
+
+    /* KONTROLA NEGATYWNA. Identyfikator przychodzi z żądania, więc uchwyt musi
+       sprawdzić TYP rodzica — inaczej oddawałby treść dowolnej rewizji
+       w witrynie. */
+    $obcy     = wp_insert_post(['post_title' => 'Strona', 'post_type' => 'page', 'post_status' => 'publish']);
+    $obca_rew = evk_test_rewizja($obcy, 'sekret z cudzej strony', '2026-08-02 10:00:00');
+    $out['cudza'] = $pytaj($obca_rew);
+    $out['nieistniejaca'] = $pytaj(999999);
+
+} elseif ($scenariusz === 'wersje-formularz') {
+    /* Czyszczenie idzie tą samą bramą co reszta akcji listy. */
+    $GLOBALS['is_admin'] = true;
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $_GET = ['page' => 'evoke-one', 'tab' => 'narzedzia'];
+
+    $id = zaloz(['tytul' => 'Z historią', 'rodzaj' => 'php', 'kod' => 'echo 1;']);
+    for ($i = 1; $i <= 15; $i++) {
+        evk_test_rewizja($id, "wersja $i", sprintf('2026-08-%02d 10:00:00', $i));
+    }
+
+    $wyslij = function (array $post): string {
+        $_POST = $post;
+        try {
+            foreach ($GLOBALS['hooks']['admin_init'] ?? [] as $cb) $cb();
+        } catch (EVK_Redirect $e) {
+            return (string) $e->url;
+        }
+        return '';
+    };
+
+    $out['adres']   = $wyslij(['evk_snippets_nonce_field' => 'x',
+                               'evk_wyczysc_wersje' => (string) $id, 'evk_zostaw_wersji' => '5']);
+    $out['zostalo'] = count(wp_get_post_revisions($id));
+
+    // Bez nonce'a brama musi milczeć.
+    $przed = $out['zostalo'];
+    $wyslij(['evk_wyczysc_wersje' => (string) $id, 'evk_zostaw_wersji' => '1']);
+    $out['bez_nonce_bez_zmian'] = count(wp_get_post_revisions($id)) === $przed;
+
+    /* Obcy wpis: identyfikator z formularza nie ma prawa skasować historii
+       strony ani wpisu bloga. */
+    $obcy = wp_insert_post(['post_title' => 'Strona', 'post_type' => 'page', 'post_status' => 'publish']);
+    for ($i = 1; $i <= 4; $i++) evk_test_rewizja($obcy, "obca $i", sprintf('2026-07-%02d 10:00:00', $i));
+    $wyslij(['evk_snippets_nonce_field' => 'x',
+             'evk_wyczysc_wersje' => (string) $obcy, 'evk_zostaw_wersji' => '0']);
+    $out['obca_historia_zyje'] = count(wp_get_post_revisions($obcy));
 }
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

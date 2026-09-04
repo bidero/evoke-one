@@ -6,6 +6,13 @@ if (!defined('ABSPATH')) exit;
 // AJAX — pobierz treść rewizji do podglądu
 // =========================================================================
 
+/**
+ * Jedno żądanie obsługuje OBA przyciski przy wersji.
+ *
+ * „Podgląd" potrzebuje różnicy, „Przywróć" — samej treści. Dzielenie tego na
+ * dwa punkty znaczyłoby drugie okrążenie do serwera przy przywracaniu tego, co
+ * przed chwilą się oglądało.
+ */
 add_action('wp_ajax_evk_get_snippet_revision', function () {
     check_ajax_referer('evk_snippets_nonce', 'nonce');
     if (!current_user_can('manage_options')) wp_send_json_error([], 403);
@@ -13,8 +20,22 @@ add_action('wp_ajax_evk_get_snippet_revision', function () {
     if (!$rev_id) wp_send_json_error('Brak ID rewizji.');
     $rev = wp_get_post_revision($rev_id);
     if (!$rev) wp_send_json_error('Rewizja nie istnieje.');
+
+    /* TYP RODZICA, nie tylko uprawnienie do niego. Identyfikator przychodzi
+       z żądania, więc bez tego warunku punkt oddawałby treść dowolnej rewizji
+       w witrynie — ta sama klasa dziury, którą zamyka sprawdzenie typu przy
+       usuwaniu wpisu niżej. */
+    $rodzic = get_post($rev->post_parent);
+    if (!$rodzic || $rodzic->post_type !== 'evk_code_snippet') {
+        wp_send_json_error('To nie jest wersja snippetu.', 400);
+    }
     if (!current_user_can('edit_post', $rev->post_parent)) wp_send_json_error('Brak uprawnień.', 403);
-    wp_send_json_success(['content' => $rev->post_content]);
+
+    wp_send_json_success([
+        'content' => $rev->post_content,
+        'diff'    => evk_snippet_roznica_html(
+            evk_snippet_roznica($rev->post_content, $rodzic->post_content)),
+    ]);
 });
 // ENQUEUE — CodeMirror tylko na stronie snippetów
 // =========================================================================
@@ -28,26 +49,27 @@ add_action('admin_enqueue_scripts', function () {
     $sub  = $_GET['sub'] ?? 'snippets';
     if ($page !== 'evoke-one' || $tab !== 'narzedzia' || $sub !== 'snippets') return;
 
+    /* `wp_enqueue_code_editor()` oddaje `false`, gdy użytkownik wyłączył
+       kolorowanie składni w swoim profilu. Skrypt ekranu leci mimo to —
+       historia zmian ma działać także w gołym polu tekstowym. */
     $cm = wp_enqueue_code_editor(['type' => 'application/x-httpd-php']);
-    if (!$cm) return;
-    wp_enqueue_script('wp-theme-plugin-editor');
-    wp_enqueue_style('wp-codemirror');
+    if ($cm) {
+        wp_enqueue_script('wp-theme-plugin-editor');
+        wp_enqueue_style('wp-codemirror');
+    }
 
-    /* Pola edytora: jedno w edytorze wpisu i jedno w trybie zaawansowanym.
-       Do 1.139.0 była tu lista czterech identyfikatorów z `evk_snippets_defs()`
-       — tamte okna już nie istnieją. */
-    $selectors = '#evk-kod, #evk_advanced_code';
+    /* JEDEN PLIK NA CAŁY EKRAN, nie skrypt wpisany w PHP.
+       Do 1.149.0 inicjalizacja CodeMirrora stała tutaj jako `wp_add_inline_script`
+       — jedna linia. Przywracanie wersji musi jednak sięgnąć do INSTANCJI
+       edytora (podmiana `value` w polu do niego nie dociera), a instancji
+       z tamtej linii nie dało się nigdzie przechować. */
+    wp_enqueue_script('evk-snippety', EVOKE_ONE_URL . 'assets/admin/snippety.js',
+        $cm ? ['jquery', 'wp-theme-plugin-editor'] : ['jquery'], EVOKE_ONE_VERSION, true);
 
-    wp_add_inline_script('wp-theme-plugin-editor', sprintf(
-        'jQuery(function($){ var s=%s; $(%s).each(function(){ if(wp&&wp.codeEditor) wp.codeEditor.initialize(this,s); }); });',
-        wp_json_encode($cm),
-        wp_json_encode($selectors)
-    ));
-
-    /* Podgląd rewizji odchodzi razem z czterema oknami: rewizje są teraz
-       osobne dla KAŻDEGO wpisu, więc wracają jako element edytora wpisu,
-       a nie panel obok czterech pól. Do zrobienia w kolejnym wydaniu; do tego
-       czasu historia zmian nie znika — trzyma ją WordPress przy wpisach. */
+    wp_localize_script('evk-snippety', 'evkSnippety', [
+        'cm'      => $cm ?: null,
+        'ajaxurl' => admin_url('admin-ajax.php'),
+    ]);
 });
 
 // =========================================================================
@@ -102,6 +124,20 @@ add_action('admin_init', function () {
             if (!$teraz) delete_post_meta($id, EVK_SNIPPET_META_AWARIA);
         }
         wp_safe_redirect(evk_snippety_url(['evk_zapisano' => 'stan']));
+        exit;
+    }
+
+    // ── Czyszczenie historii jednego wpisu ────────────────────────────────
+    if (!empty($_POST['evk_wyczysc_wersje'])) {
+        $id = (int) $_POST['evk_wyczysc_wersje'];
+        $ile = 0;
+        if (get_post_type($id) === 'evk_code_snippet') {
+            /* Ile zostawić bierzemy Z FORMULARZA, a nie ze stałej: pole stoi
+               obok przycisku i to, co w nim widać, ma być tym, co się stanie. */
+            $ile = evk_snippet_wyczysc_wersje($id, (int) ($_POST['evk_zostaw_wersji'] ?? 10));
+        }
+        wp_safe_redirect(evk_snippety_url(['evk_widok' => 'edytor', 'evk_wpis' => $id,
+                                           'evk_zapisano' => 'wersje', 'evk_ile' => $ile]));
         exit;
     }
 

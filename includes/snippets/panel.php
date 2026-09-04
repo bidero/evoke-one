@@ -33,6 +33,8 @@ function evk_snippets_render_tab(): void {
                 'usuniety'=> 'Snippet usunięty.',
                 'stan'    => 'Stan snippetu zmieniony.',
                 'logi'    => 'Logi wyczyszczone.',
+                'wersje'  => 'Historia wyczyszczona — skasowanych wersji: '
+                           . (int) ($_GET['evk_ile'] ?? 0) . '.',
             ][$_GET['evk_zapisano']] ?? 'Zapisano.'));
     }
 
@@ -351,6 +353,76 @@ function evk_snippety_edytor(): void {
             <a href="<?php echo esc_url(evk_snippety_url()); ?>" class="button">Anuluj</a>
         </div>
     </form>
+
+    <?php /* HISTORIA POZA FORMULARZEM EDYTORA — formularz w formularzu jest
+             nieprawidłowy i przeglądarka rozwiązuje to po swojemu: wewnętrzny
+             znika, a jego przycisk zaczyna wysyłać zewnętrzny. Czyszczenie
+             historii wysyłałoby wtedy zapis wpisu. */ ?>
+    <?php evk_snippety_wersje_ekran($wpis); ?>
+    <?php
+}
+
+// =========================================================================
+// HISTORIA ZMIAN
+// =========================================================================
+
+function evk_snippety_wersje_ekran(array $wpis): void {
+    if (empty($wpis['id'])) return;   // nowy wpis nie ma jeszcze czego pokazać
+
+    $wersje = evk_snippet_wersje((int) $wpis['id']);
+    ?>
+    <div class="evo-box evo-mt-lg evo-wersje" data-wpis="<?php echo (int) $wpis['id']; ?>"
+         data-nonce="<?php echo esc_attr(wp_create_nonce('evk_snippets_nonce')); ?>">
+        <h3>Historia zmian</h3>
+
+        <?php if (!$wersje): ?>
+        <p class="evo-desc evo-mb-0">Ten wpis nie ma jeszcze zapisanej historii —
+           pierwsza wersja odłoży się przy następnym zapisie.</p>
+        <?php else: ?>
+
+        <p class="evo-desc">
+            <strong>Przywrócenie nie zapisuje.</strong> Wstawia starą treść do pola kodu wyżej;
+            na stronie zacznie działać dopiero po kliknięciu „Zapisz snippet".
+            Podgląd pokazuje, czym ta wersja różni się od tego, co masz teraz.
+        </p>
+
+        <div class="evo-tbl-wrap">
+        <table class="evo-tbl evo-wersje-tbl">
+            <thead><tr>
+                <th>Kiedy</th><th>Kto</th><th>Rozmiar</th><th>Akcje</th>
+            </tr></thead>
+            <tbody>
+            <?php foreach ($wersje as $w): ?>
+            <tr data-wersja="<?php echo (int) $w['id']; ?>">
+                <td><?php echo esc_html(mysql2date('j.m.Y, H:i', $w['data'])); ?></td>
+                <td class="evo-hint" data-etykieta="Kto"><?php echo $w['autor'] !== '' ? esc_html($w['autor']) : '—'; ?></td>
+                <td class="evo-hint" data-etykieta="Rozmiar"><?php echo (int) $w['znakow']; ?> zn.</td>
+                <td class="evo-akcje">
+                    <button type="button" class="button evo-wersja-podglad">Podgląd</button>
+                    <button type="button" class="button evo-wersja-przywroc">Przywróć</button>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        </div>
+
+        <div class="evo-wersja-widok" hidden></div>
+
+        <?php /* Czyszczenie stoi POD listą i ma własne pole z liczbą — bo to,
+                 co znika, jest nie do odzyskania, a liczba obok przycisku
+                 mówi wprost, co zostanie. */ ?>
+        <form method="post" action="<?php echo esc_url(evk_snippety_url()); ?>" class="evo-mt-lg evo-wersje-czysc"
+              onsubmit="return confirm('Skasować starsze wersje tego snippetu? Tego nie da się cofnąć.');">
+            <?php wp_nonce_field('evk_snippets_save', 'evk_snippets_nonce_field'); ?>
+            <input type="hidden" name="evk_wyczysc_wersje" value="<?php echo (int) $wpis['id']; ?>">
+            <label for="evk-zostaw-wersji">Zostaw najnowszych wersji</label>
+            <input type="number" id="evk-zostaw-wersji" name="evk_zostaw_wersji" value="10" min="0" step="1">
+            <button type="submit" class="button">Wyczyść starsze</button>
+        </form>
+
+        <?php endif; ?>
+    </div>
     <?php
 }
 

@@ -1,0 +1,105 @@
+<!--
+  Edytor snippetu z historią zmian, W PRAWDZIWEJ POWŁOCE PANELU.
+
+  Wstrzyknięcia jak przy liście (`snippety-lista.html`): powłoka z
+  `evoke_one_render_settings()`, treść z `evk_snippets_render_tab()`. Skrypt
+  ekranu jest ten sam, który jedzie na żywą stronę — `assets/admin/snippety.js`.
+
+  ATRAPY SĄ DWIE I OBIE SĄ KONIECZNE:
+
+    wp.codeEditor — CodeMirror nie jest w repozytorium. Atrapa udaje dokładnie
+                    to, czego używa skrypt: `initialize()` oddające obiekt
+                    z `codemirror.setValue()`. To ta droga jest badana —
+                    podmiana `value` w polu tekstowym do edytora nie dociera.
+
+    jQuery.post   — odpowiedź serwera podstawiamy z testu, bo tu nie ma PHP.
+                    Sama TREŚĆ odpowiedzi pochodzi z prawdziwego uchwytu
+                    (scenariusz „wersje-ajax" w tests/php/snippety.php).
+-->
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  body { margin: 0; background: #f0f0f1; font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #wpbody-content { padding: 0; }
+</style>
+
+<div id="wpbody-content"></div>
+
+<script>
+  document.getElementById('wpbody-content').innerHTML = window.__panel || '';
+  var panel = document.querySelector('.evo-panel');
+  if (panel) panel.innerHTML = window.__tresc || '';
+</script>
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<script>
+  /* Atrapa CodeMirrora. `zapisane` trzyma to, co skrypt do niej wstawił —
+     test czyta stamtąd, więc sprawdza DROGĘ DO EDYTORA, a nie pole tekstowe. */
+  window.__cm = { zapisane: null, ogniska: 0 };
+  window.wp = {
+    codeEditor: {
+      initialize: function (el) {
+        if (el.id !== 'evk-kod') return { codemirror: { setValue: function () {}, focus: function () {} } };
+        return {
+          codemirror: {
+            setValue: function (v) { window.__cm.zapisane = v; },
+            focus:    function ()  { window.__cm.ogniska++; },
+          },
+        };
+      },
+    },
+  };
+  window.evkSnippety = { cm: { indentUnit: 4 }, ajaxurl: '/nie-ma-serwera' };
+
+  /* Odpowiedź serwera podstawiona z testu. Zapisujemy też, o co skrypt
+     zapytał — nonce i identyfikator wersji są częścią tego, co ma działać. */
+  window.__zapytania = [];
+  jQuery.post = function (url, dane) {
+    window.__zapytania.push({ url: url, dane: dane });
+    var d = jQuery.Deferred();
+    d.resolve(window.__odpowiedz || { success: true, data: { content: '', diff: '' } });
+    return d.promise();
+  };
+</script>
+<script src="../../assets/admin/snippety.js"></script>
+<script>
+  /** Klika „Podgląd" w wierszu o zadanym numerze i oddaje, co stanęło w panelu. */
+  window.__podglad = function (nr) {
+    var wiersze = document.querySelectorAll('.evo-wersje-tbl tbody tr');
+    if (!wiersze[nr]) return null;
+    wiersze[nr].querySelector('.evo-wersja-podglad').click();
+    var widok = document.querySelector('.evo-wersja-widok');
+    return {
+      html:       widok.innerHTML,
+      widoczny:   !widok.hidden,
+      podswietlony: wiersze[nr].classList.contains('is-otwarta'),
+      zapytanie:  window.__zapytania[window.__zapytania.length - 1] || null,
+    };
+  };
+
+  /** Klika „Przywróć" i oddaje to, co trafiło do edytora. */
+  window.__przywroc = function (nr) {
+    var wiersze = document.querySelectorAll('.evo-wersje-tbl tbody tr');
+    if (!wiersze[nr]) return null;
+    var pole = document.getElementById('evk-kod');
+    var przed = pole ? pole.value : null;
+    wiersze[nr].querySelector('.evo-wersja-przywroc').click();
+    var widok = document.querySelector('.evo-wersja-widok');
+    return {
+      doEdytora:  window.__cm.zapisane,
+      poleWczesniej: przed,
+      polePotem:  pole ? pole.value : null,
+      komunikat:  widok.textContent.trim(),
+    };
+  };
+
+  /** Ile wierszy historii i czy panel podglądu startuje schowany. */
+  window.__historia = function () {
+    var widok = document.querySelector('.evo-wersja-widok');
+    return {
+      wierszy:  document.querySelectorAll('.evo-wersje-tbl tbody tr').length,
+      schowany: widok ? widok.hidden : null,
+      nonce:    (document.querySelector('.evo-wersje') || {}).dataset
+                  ? document.querySelector('.evo-wersje').dataset.nonce : null,
+    };
+  };
+</script>

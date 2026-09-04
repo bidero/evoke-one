@@ -2,6 +2,55 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.149.0] — 2026-09-04
+
+### Dodane
+
+- **Historia zmian wpisu wraca do edytora.** Rewizje zapisuje WordPress od
+  początku, odkąd typ wpisu ma `supports => revisions`; podgląd na nie zniknął
+  w 1.139.0 razem z czterema stałymi oknami i od tamtej pory historia była
+  w bazie, ale nie było jak do niej sięgnąć. Ekran pokazuje dwadzieścia
+  ostatnich wersji: kiedy, kto i ile znaków.
+
+  **Przywrócenie nie zapisuje.** Kliknięcie wstawia starą treść do pola kodu
+  i na tym kończy swoją robotę — na stronie nadal pracuje to, co pracowało,
+  aż do „Zapisz snippet". Treść snippetu jest wykonywana, więc moment, w którym
+  zaczyna działać, ma być decyzją, a nie skutkiem kliknięcia w listę.
+
+  Wstawianie idzie do **instancji CodeMirrora**, nie do pola pod nim. Edytor
+  trzyma własną kopię treści i przepisuje pole dopiero przy wysyłce formularza,
+  więc podmiana `value` nie zmieniłaby ani tego, co widać, ani tego, co się
+  zapisze. Dlatego inicjalizacja edytora przeniosła się z jednej linii
+  wpisanej w PHP do `assets/admin/snippety.js`: instancję trzeba było gdzieś
+  przechować.
+
+- **Podgląd pokazuje RÓŻNICĘ wobec obecnej treści**, a nie samą starą wersję.
+  Przy poprawce jednej linii w stu to jedyny sposób, żeby zobaczyć, co się
+  zmieniło, bez czytania obu wersji od początku. Linie bez zmian są zwijane,
+  a zwinięte miejsce mówi, ile ich pominięto.
+
+  Porównanie jest własne, nie `wp_text_diff()`: tamto rysuje tabelę o klasach
+  z arkuszy rdzenia, których panel nie ładuje. Najpierw odcinane są wspólne
+  końce, potem liczony najdłuższy wspólny podciąg. **Odcięcie końców nie jest
+  tu oszczędnością, tylko warunkiem sensowności wyniku:** zmierzone na pliku
+  ośmiuset linii z jedną poprawką — bez odcięcia całość przekracza próg
+  dokładnego porównania i podgląd pokazałby osiemset zmienionych linii zamiast
+  jednej. Powyżej progu (trzysta linii po odcięciu) blok idzie wymieniony
+  w całości: mniej dokładnie, ale bez tablicy o setkach tysięcy komórek
+  w żądaniu panelu.
+
+- **Czyszczenie historii jednego wpisu** — pole z liczbą i przycisk pod listą.
+  Zostają najnowsze wersje, starsze znikają. Liczba stoi obok przycisku,
+  bo tego, co zniknie, nie da się odzyskać.
+
+### Naprawione
+
+- **Punkt AJAX z treścią rewizji nie sprawdzał, czyja to rewizja.** Identyfikator
+  przychodzi z żądania, więc oddawał treść dowolnej rewizji w witrynie —
+  wpisu bloga, strony, szablonu. Teraz sprawdzany jest typ rodzica, tak samo
+  jak przy usuwaniu wpisu. To samo dołożone przy czyszczeniu historii:
+  identyfikator z formularza nie ma prawa skasować historii cudzej strony.
+
 ## [1.148.0] — 2026-09-04
 
 ### Zmienione

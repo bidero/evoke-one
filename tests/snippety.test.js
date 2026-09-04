@@ -350,6 +350,166 @@ module.exports = async function (t) {
     /\.evo-badge\s*\{/.test(arkuszPanelu) && /\.evo-badge-alarm\s*\{/.test(arkuszPanelu),
     'reguły .evo-badge i .evo-badge-alarm');
 
+  // ── Historia zmian (1.149.0) ───────────────────────────────────────────
+  t.section('historia zmian wpisu');
+
+  const roz = scen('roznica');
+
+  /* PODGLĄD MA POKAZAĆ ZMIANĘ, NIE CAŁY PLIK. Poprawka jednej linii w sześćdziesięciu
+     daje sześćdziesiąt jeden wierszy różnicy — na ekran idzie zmiana z otoczeniem
+     i wiersz mówiący, ile linii zwinięto. */
+  const zmiany = roz.jedna_linia.filter((w) => w.typ !== 'rowny');
+  t.check('różnica znajduje dokładnie jedną poprawioną linię',
+    zmiany.length === 2 && zmiany[0].typ === 'usuniete' && zmiany[1].typ === 'dodane'
+      && zmiany[1].tekst === 'linia 30 POPRAWIONA',
+    zmiany.map((w) => w.typ + ' „' + w.tekst + '"').join(', '));
+  t.check('i numeruje ją po obu stronach',
+    zmiany[0].stara === 30 && zmiany[0].nowa === null
+      && zmiany[1].nowa === 30 && zmiany[1].stara === null,
+    JSON.stringify(zmiany.map((w) => [w.stara, w.nowa])));
+
+  const liniiHtml = (roz.jedna_linia_html.match(/evo-diff-linia/g) || []).length;
+  const przerw    = (roz.jedna_linia_html.match(/evo-diff-przerwa/g) || []).length;
+  t.check('na ekran idzie zmiana z otoczeniem, a nie sześćdziesiąt linii',
+    liniiHtml > 0 && liniiHtml <= 10 && roz.jedna_linia.length === 61,
+    liniiHtml + ' z ' + roz.jedna_linia.length + ' wierszy');
+  t.check('a zwinięte miejsca mówią, ile linii pominięto',
+    przerw === 2 && /\d+ linii bez zmian/.test(roz.jedna_linia_html),
+    (roz.jedna_linia_html.match(/… [^<]*…/g) || []).join(' | '));
+
+  t.check('dopisana linia jest „dodane", nie „zmienione"',
+    roz.dodane.length === 3 && roz.dodane[1].typ === 'dodane' && roz.dodane[1].tekst === 'NOWA',
+    roz.dodane.map((w) => w.typ).join(' '));
+  t.check('a skasowana — „usunięte"',
+    roz.usuniete.length === 3 && roz.usuniete[1].typ === 'usuniete',
+    roz.usuniete.map((w) => w.typ).join(' '));
+
+  /* PRZEPLOT. Bez porównania szukającego wspólnego podciągu wyszłoby
+     „wszystko usunięte, wszystko dodane" — i podgląd nie pokazywałby niczego
+     poza tym, że plik jest inny. */
+  t.check('wspólne linie w środku zostają rozpoznane',
+    roz.przeplot.filter((w) => w.typ === 'rowny').map((w) => w.tekst).join(',') === 'a,c',
+    roz.przeplot.map((w) => w.typ[0] + w.tekst).join(' '));
+
+  t.check('identyczna treść nie udaje różnicy',
+    roz.bez_zmian.every((w) => w.typ === 'rowny')
+      && /niczym się nie różni/.test(roz.bez_zmian_html),
+    roz.bez_zmian.length + ' wierszy, same równe');
+
+  /* PRÓG DOKŁADNEGO PORÓWNANIA. Powyżej niego blok idzie wymieniony w całości —
+     mniej dokładnie, ale bez tablicy o milionie komórek w żądaniu panelu.
+     Co dziesiąta linia jest tu wspólna: dokładne porównanie znalazłoby ich
+     trzydzieści kilka, blok nie znajduje żadnej poza odciętym ogonem. */
+  t.check('wielka zmiana nie liczy się dokładnie, tylko blokiem',
+    roz.wielka.rownych === 1 && roz.wielka.usuniete === 349 && roz.wielka.dodane === 349,
+    JSON.stringify(roz.wielka));
+  t.check('i mieści się w kilkudziesięciu milisekundach', roz.wielka.ms < 300,
+    roz.wielka.ms + ' ms');
+
+  /* ODCIĘCIE WSPÓLNYCH KOŃCÓW rozstrzyga tu o WYNIKU, nie o czasie: plik ma
+     osiemset linii, czyli więcej niż próg dokładnego porównania. Bez odcięcia
+     całość poszłaby blokiem i podgląd pokazywałby osiemset zmienionych linii
+     zamiast jednej poprawionej. Zmierzone mutacją — bez tego przypadku
+     zdjęcie odcięcia przechodziło na zielono. */
+  t.check('poprawka jednej linii w długim pliku zostaje jedną linią',
+    roz.duzy_plik.zmian === 2 && roz.duzy_plik.rownych === 799
+      && roz.duzy_plik.tresci.join(' → ') === 'linia 400 → linia 400 POPRAWIONA',
+    roz.duzy_plik.zmian + ' zmian, ' + roz.duzy_plik.rownych + ' równych');
+  t.check('i liczy się w kilku milisekundach', roz.duzy_plik.ms < 300,
+    roz.duzy_plik.ms + ' ms');
+
+  const wl = scen('wersje-lista');
+  t.check('ekran dostaje dwadzieścia ostatnich wersji',
+    wl.ile === 20 && wl.w_bazie === 25, wl.ile + ' z ' + wl.w_bazie + ' w bazie');
+  t.check('od najnowszej', wl.najnowsza > wl.najstarsza,
+    wl.najnowsza + ' … ' + wl.najstarsza);
+  t.check('a historia cudzego wpisu tu nie wchodzi', wl.po_dolozeniu_cudzej === 20,
+    wl.po_dolozeniu_cudzej + ' wersji po dołożeniu rewizji strony');
+
+  const wc = scen('wersje-czyszczenie');
+  t.check('czyszczenie zostawia zadaną liczbę wersji',
+    wc.skasowane === 15 && wc.zostalo === 10,
+    'skasowanych ' + wc.skasowane + ', zostało ' + wc.zostalo);
+  /* Liczba wyszłaby ta sama przy kasowaniu z drugiej strony listy — a zniknęłaby
+     wtedy historia, po którą się tu przychodzi. */
+  t.check('i zostawia NAJNOWSZE, nie pierwsze z brzegu',
+    wc.najnowsza_zostala && wc.najstarsza_znikla,
+    'najnowsza została: ' + wc.najnowsza_zostala + ', najstarsza znikła: ' + wc.najstarsza_znikla);
+  t.check('powtórzone nie kasuje już nic', wc.drugi_raz === 0, wc.drugi_raz + ' skasowanych');
+  t.check('a liczba ujemna znaczy zero, nie „od końca"',
+    wc.ujemne === 10 && wc.po_ujemnym === 0,
+    'skasowano ' + wc.ujemne + ', zostało ' + wc.po_ujemnym);
+
+  const wa = scen('wersje-ajax');
+  t.check('uchwyt oddaje treść wersji i różnicę',
+    wa.wersja.success === true && wa.wersja.data.content.includes('STARE')
+      && wa.wersja.data.diff.includes('evo-diff-usuniete'),
+    wa.wersja.success ? 'treść + różnica' : JSON.stringify(wa.wersja));
+  /* KONTROLA NEGATYWNA. Identyfikator przychodzi z żądania, więc bez sprawdzenia
+     typu rodzica punkt oddawałby treść dowolnej rewizji w witrynie. */
+  t.check('ale nie odda historii cudzego wpisu',
+    wa.cudza.success === false && !JSON.stringify(wa.cudza).includes('sekret'),
+    JSON.stringify(wa.cudza.data));
+  t.check('ani nieistniejącej wersji', wa.nieistniejaca.success === false,
+    JSON.stringify(wa.nieistniejaca.data));
+
+  const wf = scen('wersje-formularz');
+  t.check('czyszczenie z formularza działa i wraca do edytora',
+    wf.zostalo === 5 && wf.adres.includes('evk_widok=edytor') && wf.adres.includes('evk_ile=10'),
+    wf.zostalo + ' wersji, adres: ' + wf.adres.split('&').slice(-3).join('&'));
+  t.check('bez nonce’a nie kasuje nic', wf.bez_nonce_bez_zmian, String(wf.bez_nonce_bez_zmian));
+  /* Ta sama klasa dziury, którą zamyka sprawdzenie typu przy usuwaniu wpisu:
+     identyfikator z formularza nie ma prawa skasować historii cudzej strony. */
+  t.check('i nie rusza historii wpisu spoza snippetów', wf.obca_historia_zyje === 4,
+    wf.obca_historia_zyje + ' rewizji strony');
+
+  // ── Historia w przeglądarce ────────────────────────────────────────────
+  t.section('przywracanie trafia do edytora, nie do pola pod nim');
+
+  const ekranEdytora = phpOutput('tab.php', 'tools-snippety ' + JSON.stringify(JSON.stringify(
+    { evk_widok: 'edytor', evk_wpis: 'pierwszy' })));
+
+  /* Odpowiedź serwera jest PRAWDZIWA — wprost z uchwytu AJAX wyżej. */
+  const odpowiedz = { success: true, data: wa.wersja.data };
+
+  const strEd = await t.open('snippety-edytor.html', {
+    viewport: { width: 1280, height: 900 },
+    head: 'window.__panel = ' + JSON.stringify(
+            phpOutput('panel-start.php', '"{}" narzedzia')) + ';'
+        + 'window.__tresc = ' + JSON.stringify(ekranEdytora) + ';'
+        + 'window.__odpowiedz = ' + JSON.stringify(odpowiedz) + ';',
+  });
+
+  const hist = await strEd.evaluate(() => window.__historia());
+  t.check('edytor pokazuje historię wpisu', hist.wierszy === 3, hist.wierszy + ' wersji');
+  t.check('a panel podglądu startuje schowany', hist.schowany === true, String(hist.schowany));
+
+  const pod = await strEd.evaluate(() => window.__podglad(1));
+  t.check('podgląd wczytuje różnicę tej wersji',
+    pod.widoczny && pod.html.includes('evo-diff-usuniete'),
+    pod.html.slice(0, 60));
+  t.check('i pyta o wersję z tego wiersza, z nonce’em',
+    pod.zapytanie && String(pod.zapytanie.dane.revision_id) === '1003'
+      && pod.zapytanie.dane.nonce === 'testnonce'
+      && pod.zapytanie.dane.action === 'evk_get_snippet_revision',
+    pod.zapytanie ? JSON.stringify(pod.zapytanie.dane) : 'brak żądania');
+  t.check('otwarty wiersz jest oznaczony', pod.podswietlony, String(pod.podswietlony));
+
+  /* SEDNO. CodeMirror trzyma własną kopię treści i przepisuje pole dopiero przy
+     wysyłce — przywracanie ustawiające `value` pola nie zmieniłoby niczego, co
+     widać na ekranie, a przy zapisie zostałaby stara treść z edytora. */
+  const wrot = await strEd.evaluate(() => window.__przywroc(2));
+  t.check('przywracanie wstawia treść do INSTANCJI edytora',
+    wrot.doEdytora && wrot.doEdytora.includes('STARE'),
+    wrot.doEdytora === null ? 'nic nie trafiło do CodeMirrora' : '„' + wrot.doEdytora + '"');
+  t.check('i mówi wprost, że na stronie nic się jeszcze nie zmieniło',
+    /Zapisz snippet/.test(wrot.komunikat) && /po klikni/.test(wrot.komunikat),
+    wrot.komunikat.slice(0, 70));
+
+  t.check('bez błędów JS w edytorze z historią', strEd.errors.length === 0,
+    strEd.errors.join(' | ') || 'brak');
+  await strEd.close();
+
   t.section('edytor pyta o wszystko, czego wpis potrzebuje');
 
   const edytor = phpOutput('tab.php', 'tools-snippety ' + JSON.stringify(JSON.stringify(
@@ -362,6 +522,10 @@ module.exports = async function (t) {
   t.check('i wszystkie pięć rodzajów do wyboru',
     ['PHP', 'CSS', 'JavaScript', 'HTML', 'HTML + PHP'].every((r) => edytor.includes(r)),
     'pięć pozycji');
+  /* Nowy wpis nie ma historii i nie ma jej skąd wziąć — pudełko z pustą tabelą
+     i przyciskiem „Wyczyść starsze" byłoby obietnicą bez pokrycia. */
+  t.check('a nowy wpis nie dostaje pudełka historii',
+    !edytor.includes('evo-wersje'), 'brak sekcji historii');
 
   // ── Żądanie panelu ─────────────────────────────────────────────────────
   t.section('wpisy panelu i frontu nie mieszają się');

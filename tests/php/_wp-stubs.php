@@ -295,6 +295,61 @@ if (!function_exists('delete_post_meta')) {
     }
 }
 
+/* ── Rewizje ─────────────────────────────────────────────────────────────
+   Rewizje to w WordPressie ZWYKŁE WPISY typu `revision` z `post_parent`
+   wskazującym rodzica — i tak samo tutaj. Trzymanie ich w osobnej tablicy
+   rozjechałoby się z `get_post()`, którego `wp_get_post_revision()` używa. */
+if (!function_exists('wp_get_post_revisions')) {
+    function wp_get_post_revisions($id, $args = []) {
+        $out = [];
+        foreach ($GLOBALS['posts_store'] as $p) {
+            if (($p->post_type ?? '') !== 'revision') continue;
+            if ((int) ($p->post_parent ?? 0) !== (int) $id) continue;
+            $out[$p->ID] = $p;
+        }
+        // Najnowsze pierwsze — tak samo jak w WordPressie.
+        uasort($out, function ($a, $b) {
+            return [$b->post_date ?? '', $b->ID] <=> [$a->post_date ?? '', $a->ID];
+        });
+        if (($args['posts_per_page'] ?? -1) > 0) {
+            $out = array_slice($out, 0, (int) $args['posts_per_page'], true);
+        }
+        return $out;
+    }
+}
+if (!function_exists('wp_get_post_revision')) {
+    function wp_get_post_revision($id) {
+        $p = get_post($id);
+        return ($p && ($p->post_type ?? '') === 'revision') ? $p : null;
+    }
+}
+if (!function_exists('wp_delete_post_revision')) {
+    function wp_delete_post_revision($id) {
+        if (!wp_get_post_revision($id)) return false;
+        unset($GLOBALS['posts_store'][(int) $id]);
+        return true;
+    }
+}
+/** Zakłada rewizję. W WordPressie robi to `wp_insert_post()` sam. */
+function evk_test_rewizja($rodzic, $tresc, $data, $autor = 1) {
+    return wp_insert_post([
+        'post_type' => 'revision', 'post_parent' => (int) $rodzic, 'post_content' => $tresc,
+        'post_date' => $data, 'post_author' => $autor, 'post_status' => 'inherit',
+    ]);
+}
+if (!function_exists('mysql2date')) {
+    function mysql2date($format, $data, $translate = true) {
+        $ts = strtotime((string) $data);
+        return $ts ? date($format, $ts) : '';
+    }
+}
+if (!function_exists('get_the_author_meta')) {
+    function get_the_author_meta($pole, $id = 0) {
+        return $GLOBALS['autorzy'][(int) $id][$pole] ?? '';
+    }
+}
+$GLOBALS['autorzy'] = [1 => ['display_name' => 'Radek']];
+
 function checked($a, $b = true, $echo = true) { if ($a == $b) echo ' checked'; }
 
 // ── AJAX ────────────────────────────────────────────────────────────────

@@ -114,7 +114,6 @@ function wp_upload_dir() { return ['basedir' => '/tmp', 'baseurl' => 'https://ex
    tutaj wystarczy jej nie przesłaniać. */
 function esc_attr__($s, $d = '') { return $s; }
 function wp_kses_post($s) { return $s; }
-function mysql2date($f, $d, $t = true) { return '2026-08-08 12:00'; }
 /* Prawdziwe `current_time()` oddaje LICZBĘ dla 'timestamp' i datę tekstem dla
    reszty. Atrapa oddawała zawsze tekst, więc kod liczący wygasanie blokad
    odejmował łańcuch od liczby. Ostrzeżenie leciało do stderr, a zakładka i tak
@@ -669,8 +668,16 @@ $TABS = [
             $GLOBALS['options']['evk_snippets_enabled'] = 1;
             $GLOBALS['caps']['manage_options'] = true;
             // Dwa wpisy, żeby lista miała co pokazać.
-            evk_snippet_zapisz_wpis(['tytul' => 'Sticky header', 'kod' => 'body{}', 'rodzaj' => 'css',
+            $pierwszy = evk_snippet_zapisz_wpis(['tytul' => 'Sticky header', 'kod' => "body{\n  color: red;\n}", 'rodzaj' => 'css',
                                      'miejsce' => 'head', 'grupa' => 'Wygląd', 'wlaczony' => 1, 'kolejnosc' => 10]);
+
+            /* Historia pierwszego wpisu. Identyfikatory wpisów zależą od
+               kolejności zakładania, więc test nie ma ich skąd znać — podaje
+               `evk_wpis=pierwszy`, a zasiew podmienia to na prawdziwą liczbę. */
+            evk_test_rewizja($pierwszy, "body{\n  color: blue;\n}",       '2026-08-01 09:00:00');
+            evk_test_rewizja($pierwszy, "body{\n  color: green;\n}",      '2026-08-05 14:30:00');
+            evk_test_rewizja($pierwszy, "body{\n  color: green;\n}\np{}", '2026-08-07 11:15:00');
+            if (($_GET['evk_wpis'] ?? '') === 'pierwszy') $_GET['evk_wpis'] = (string) $pierwszy;
             $wylaczony = evk_snippet_zapisz_wpis(['tytul' => 'Wyłączony test', 'kod' => 'echo 1;', 'rodzaj' => 'php',
                                      'miejsce' => 'init', 'grupa' => '', 'wlaczony' => 0, 'kolejnosc' => 20]);
             /* Log przez PRAWDZIWY zapis, nie przez tablicę wpisaną tutaj.

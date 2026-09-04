@@ -2897,6 +2897,63 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     white-space: nowrap;
 }
 
+/* ── Historia zmian snippetu ─────────────────────────────────────────── */
+
+.evo-wersje-tbl td { vertical-align: middle; }
+.evo-wersje-tbl tr.is-otwarta { background: var(--evo-accent-soft); }
+.evo-wersje-tbl .evo-akcje { display: flex; gap: 6px; justify-content: flex-end; }
+
+.evo-wersje-czysc { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.evo-wersje-czysc label { color: var(--evo-text-dim); font-size: 12px; }
+.evo-wersje-czysc input[type="number"] { width: 80px; }
+
+.evo-wersja-widok { margin-top: 14px; }
+.evo-wersja-info {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--evo-on-line);
+    border-radius: var(--evo-radius-sm);
+    background: var(--evo-on-soft);
+    color: var(--evo-on-dark);
+}
+
+/* Różnica wersji.
+   Własna, a nie `wp_text_diff()`: tamta rysuje tabelę o klasach z arkuszy
+   rdzenia, których panel nie ładuje — wyszedłby z tego goły tekst w dwóch
+   kolumnach bez ani jednego koloru. */
+.evo-diff {
+    max-width: 100%;
+    overflow-x: auto;
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius-sm);
+    background: var(--evo-bg);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+}
+.evo-diff-linia { display: flex; white-space: pre; }
+.evo-diff-nr {
+    flex: 0 0 44px;
+    padding-right: 8px;
+    border-right: 1px solid var(--evo-border-soft);
+    color: var(--evo-text-faint);
+    text-align: right;
+    user-select: none;
+}
+.evo-diff-znak { flex: 0 0 20px; text-align: center; user-select: none; }
+.evo-diff-tekst { flex: 1 1 auto; padding-right: 10px; }
+
+.evo-diff-dodane   { background: var(--evo-on-soft);     color: var(--evo-on-dark); }
+.evo-diff-usuniete { background: var(--evo-danger-soft); color: var(--evo-danger-dark); }
+
+.evo-diff-przerwa {
+    padding: 3px 10px;
+    background: var(--evo-surface);
+    color: var(--evo-text-faint);
+    font-size: 11px;
+    text-align: center;
+}
+
 /* Wpis, który silnik sam wyłączył po wywrotce. */
 .evo-badge-alarm {
     margin-left: 6px;
