@@ -7,12 +7,21 @@ Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer
 ### Naprawione
 
 - **Animacja wejściowa pod wyzwalaczem wyjścia — element o tym mówi.**
-  Zgłoszone z użycia: „zamykanie powoduje, że tło się nie animuje — kliknięcie
-  burgera powoduje, że tło znika, napisy zostają i po chwili znikają, tylko
-  bez tła".
 
-  Odtworzone i zmierzone w fixturze: krycie **1 → 0,3 w pierwszej klatce
-  i z powrotem do 1 po 120 ms**. Wyzwalacze „Wyjście z kadru" i „Zamknięcie
+  > **SPROSTOWANIE (dopisane po wydaniu).** Ta pozycja była pierwotnie opisana
+  > jako naprawa zgłoszenia „tło znika, napisy zostają". **To był błędny trop.**
+  > Prawdziwa przyczyna leżała po stronie arkusza strony: `.evk-oc-shell`
+  > trafiła do reguły przejścia trybu ciemnego, a to podmienia CAŁY skrót
+  > `transition` powłoki — razem z `transition: visibility 0s linear
+  > var(--evk-oc-time)`, czyli z jedyną rzeczą, która trzyma powłokę
+  > narysowaną przez czas wyjazdu kadru. Zmierzone: bez reguły powłoka jest
+  > `visible` przez cały wyjazd, z regułą `hidden` już po 60 ms, gdy kadr
+  > przejechał dopiero 18 z 390 px.
+  >
+  > Ostrzeżenie opisane niżej **zostaje**, bo pilnuje osobnej, prawdziwej
+  > pomyłki — tylko nie tej, którą zgłoszono.
+
+  Wyzwalacze „Wyjście z kadru" i „Zamknięcie
   menu" grają wiersz **do przodu**, a ich stan końcowy jest z założenia stanem
   po zniknięciu — dlatego biblioteka ma osobne presety „Wyjście: zanik"
   i pokrewne. Wiersz wejściowy ma to odwrotnie: jego stan początkowy jest
@@ -25,12 +34,14 @@ Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer
   w panelu. Ostrzeżenie nazywa też drogę wyjścia: wybrać animację „Wyjście: …"
   albo zamienić miejscami pola „skąd" i „dokąd".
 
-  Rozpoznanie idzie po **stanie końcowym**, nie po nazwie presetu: wiersz może
-  mieć pola wpisane z ręki i wtedy żadna nazwa nic nie mówi. Wiersz oznaczony
-  jako wyjściowy jest przy tym nietykalny — to deklaracja autora.
+  Zmierzone w fixturze na takim właśnie wierszu: krycie **1 → 0,3 w pierwszej
+  klatce i z powrotem do 1 po 120 ms**.
 
-  **To nie była usterka z 1.143.0.** Potwierdzone przez zgłaszającego: tak
-  samo przy zamknięciu Esc i kliknięciem w przyciemnienie.
+  Rozstrzyga **stan początkowy**, i tylko on: animacja wyjścia nie ma prawa
+  zaczynać się od zerowego krycia, bo to ono gasi element w pierwszej klatce.
+  Dokąd taki wiersz zmierza, nie ma już znaczenia. Rozpoznanie idzie po
+  wartościach, nie po nazwie presetu — wiersz może mieć pola wpisane z ręki
+  i wtedy żadna nazwa nic nie mówi.
 
 ### Zmienione
 

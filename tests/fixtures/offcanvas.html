@@ -154,6 +154,12 @@
   r2.setAttribute('data-trigger', '');
 
   root.setAttribute('data-header-above', q.get('above') === '1' ? '1' : '0');
+  /* Rozmiar i tło menu — kontrolki `css` Bricksa, pisane NA KORZENIU. Menu na
+     cały ekran (`size=100%`) to nie egzotyka, tylko domyślny wybór na telefonie
+     i zupełnie inny przypadek niż panel przy krawędzi: kadr kryje wtedy całe
+     okno, więc widać wyłącznie jego tło. */
+  if (q.get('size')) root.style.setProperty('--evk-oc-size', q.get('size'));
+  if (q.get('bg'))   root.style.setProperty('--evk-oc-bg',   q.get('bg'));
   // Warstwa powłoki z kontrolki „Warstwa menu" — Bricks pisze ją na korzeniu.
   if (q.get('z')) root.style.setProperty('--evk-oc-z', q.get('z'));
 
