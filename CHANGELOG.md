@@ -2,6 +2,70 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.141.0] — 2026-09-04
+
+### Dodane
+
+- **Sonda otwierania offcanvasu — pomiar prosto na telefonie.** Zgłoszone
+  z użycia: „offcanvas zacina się, kiedy burger jest kliknięty jako pierwszy;
+  jeśli trochę przewinę stronę do dołu, otwiera się pięknie — i to na każdej
+  stronie. Mobilne Safari i Chrome (iPhone)".
+
+  Z tego opisu wynikają trzy warunki: **tylko iOS, tylko przy zerowej pozycji
+  przewijania, tylko za pierwszym razem**. Żadnego z nich nie da się odtworzyć
+  na pulpicie — wcześniejszy pomiar w headless Chromium wyszedł na zero
+  (najdłuższa klatka 17–19 ms, samo `open()` 2–3 ms) i to znaczy dokładnie
+  tyle, że mierzył nie ten silnik i nie te warunki. Mierzyć trzeba na
+  telefonie, a telefon nie ma konsoli — więc wynik wychodzi na ekran.
+
+  Do adresu strony dopisuje się `?evk-oc-proba=…`, otwiera menu i czyta
+  tabliczkę na dole ekranu. Pokazuje numer otwarcia, pozycję przewijania,
+  czas samego `open()` oraz **dwie miary klatek**: przerwę do pierwszej klatki
+  (jednorazowy koszt ułożenia i namalowania powłoki) i najdłuższą klatkę
+  dalszą (koszt samego ruchu). To dwie różne przyczyny i dwie różne poprawki.
+
+  Warianty zdejmują po jednym podejrzanym:
+
+  | wariant | co zdejmuje |
+  | --- | --- |
+  | `1` | nic — samo odniesienie |
+  | `zamek` | blokadę przewijania |
+  | `zaslona` | przyciemnienie strony |
+  | `anim` | odgrywanie animacji treści menu |
+  | `fokus` | przenoszenie fokusu do panelu |
+  | `wygiecie` | oś czasu wygiętej ściany |
+  | `goly` | wszystkie pięć naraz |
+  | `grzanie` | nic nie zdejmuje — **dokłada** kandydata na poprawkę |
+
+  Kilka naraz po przecinku. `goly` odpowiada na pytanie wstępne: czy przyczyny
+  szukać po naszej stronie, czy kosztuje samo namalowanie warstwy nad treścią
+  strony — jeśli i gołe otwarcie się zacina, szukać trzeba w treści.
+
+- **Grzanie powłoki — kandydat na poprawkę, na razie za flagą.** Powłoka menu
+  stoi `visibility: hidden`, czyli do pierwszego otwarcia nie jest malowana
+  wcale: układ, malowanie, rasteryzacja i (na iOS) promocja warstw dla
+  `position: fixed` spadają na tę jedną klatkę, w której ma ruszyć przejście.
+  Przewinięcie strony wymusza tę robotę wcześniej — stąd hipoteza, czemu po
+  przewinięciu jest płynnie.
+
+  `?evk-oc-proba=grzanie` przekłada ją na **dotknięcie** przełącznika; otwarcie
+  zostaje na kliknięciu. Między jednym a drugim jest kilkadziesiąt milisekund
+  do wzięcia za darmo. Nic przy tym nie widać: kadr stoi wysunięty poza ekran,
+  przyciemnienie ma zerowe krycie, a kliknięcia łapie dopiero otwarte menu.
+  `will-change` schodzi razem z zamknięciem — trzymane na stałe zostawiłoby
+  element na własnej warstwie kompozytora przez całe życie strony.
+
+  **Domyślnie wyłączone i tak zostanie do czasu pomiaru.** Optymalizacja bez
+  liczb jest zgadywaniem, a zgadywanie kosztowało już w tej wtyczce jedną
+  wyrzuconą przebudowę.
+
+### Uwagi
+
+- Bez `?evk-oc-proba=` w adresie sonda nie robi nic: żadnego nasłuchu, żadnego
+  pomiaru, żadnego węzła w dokumencie. Pilnuje tego osobna kontrola w testach —
+  narzędzie diagnostyczne, które po cichu zmienia to, co bada, wskazałoby
+  przyczynę tam, gdzie jej nie ma.
+
 ## [1.140.2] — 2026-09-03
 
 ### Naprawione

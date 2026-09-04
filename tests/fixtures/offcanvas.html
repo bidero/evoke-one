@@ -770,6 +770,67 @@ window.__klawiszNa = function (id, key) {
   return true;
 };
 
+/* ── SONDA OTWIERANIA ──────────────────────────────────────────────────────
+ *
+ * Wariant `?evk-oc-proba=anim` ma NIE prosić Animatora o odegranie treści.
+ * Mierzymy to licznikiem wywołań, a nie objawem: po odegraniu krycie wraca
+ * do jedynki i wygląda dokładnie tak samo jak wtedy, gdy nic nie zagrało —
+ * pomiar z krycia byłby więc zielony w obie strony.
+ *
+ * Owijka staje między Animatorem a menu: menu czyta `window.evkAnimatorReplay`
+ * w chwili wołania, więc podmiana tutaj jest dla niego niewidoczna. */
+window.__ileReplay = 0;
+(function () {
+  var org = window.evkAnimatorReplay;
+  window.evkAnimatorReplay = function () {
+    window.__ileReplay++;
+    return typeof org === 'function' ? org.apply(this, arguments) : 0;
+  };
+})();
+
+/** Treść tablicy sondy — albo null, gdy sondy na stronie nie ma. */
+window.__proba = function () {
+  var el = document.querySelector('[data-evk-oc-proba]');
+  return el ? el.textContent : null;
+};
+
+/** Dotknięcie przełącznika. Grzanie wisi na NIM, nie na kliknięciu — cały
+ *  jego sens jest w przerwie między jednym a drugim. */
+window.__dotknij = function () {
+  document.getElementById('trigger')
+    .dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+};
+
+/**
+ * Stan grzania — i to, czego przy nim widać NIE MA.
+ *
+ * Sama klasa nic by nie dowodziła: grzanie zdejmuje `visibility: hidden`,
+ * czyli robi powłokę malowalną, i całe pytanie brzmi, czy przy okazji czegoś
+ * nie pokazuje. Stąd obok flag prostokąt kadru i krycie przyciemnienia.
+ */
+window.__grzanie = function () {
+  var s = shellOf(0);
+  var f = s.querySelector('.evk-oc-frame');
+  var c = s.querySelector('.evk-oc-scrim');
+  var r = f.getBoundingClientRect();
+  return {
+    armed:      s.classList.contains('is-armed'),
+    open:       s.classList.contains('is-open'),
+    widocznosc: getComputedStyle(s).visibility,
+    kliki:      getComputedStyle(s).pointerEvents,
+    willFrame:  getComputedStyle(f).willChange,
+    willScrim:  getComputedStyle(c).willChange,
+    krycieZaslony: +parseFloat(getComputedStyle(c).opacity).toFixed(2),
+    // Kadr ma stać POZA oknem — grzanie nie ma prawa niczego pokazać.
+    kadrWOknie: r.right > 1 && r.left < window.innerWidth - 1,
+  };
+};
+
+/** Czy przyciemnienie w ogóle się rysuje. */
+window.__zaslonaWidoczna = function () {
+  return getComputedStyle(shellOf(0).querySelector('.evk-oc-scrim')).display !== 'none';
+};
+
 /** Stan drugiego korzenia — panele bez nazw, adresowane kolejnością. */
 window.__open2  = function () { document.getElementById('trigger2').click(); };
 window.__state2 = function () {

@@ -28,6 +28,120 @@ function evk_offcanvas_menu_init() {
     });
 }
 
+/* ── SONDA OTWIERANIA ───────────────────────────────────────────────────────
+ *
+ * ZGŁOSZONE Z UŻYCIA: „offcanvas zacina się, kiedy burger jest kliknięty jako
+ * pierwszy; jeśli trochę przewinę stronę do dołu, otwiera się pięknie — i to
+ * na każdej stronie. Mobilne Safari i Chrome (iPhone)".
+ *
+ * Trzy warunki z tego opisu wyznaczają całą metodę: rzecz dzieje się TYLKO na
+ * iOS, TYLKO przy zerowej pozycji przewijania i TYLKO za pierwszym razem.
+ * Żadnego z nich nie da się odtworzyć w headless Chromium na pulpicie —
+ * i pomiar stamtąd już raz wyszedł na zero (najdłuższa klatka 17–19 ms, samo
+ * `open()` 2–3 ms), co znaczy dokładnie tyle, że mierzył nie ten silnik i nie
+ * te warunki. Zielony pomiar w złych warunkach nie jest dowodem, tylko szumem.
+ *
+ * Mierzyć trzeba więc NA TELEFONIE. Telefon nie ma konsoli, więc wynik musi
+ * wyjść na ekran, a wariant — do adresu:
+ *
+ *   ?evk-oc-proba=1          sam pomiar, nic nie zdjęte — ODNIESIENIE
+ *   ?evk-oc-proba=zamek      bez blokady przewijania
+ *   ?evk-oc-proba=zaslona    bez przyciemnienia strony
+ *   ?evk-oc-proba=anim       bez odgrywania animacji treści menu
+ *   ?evk-oc-proba=fokus      bez przenoszenia fokusu do panelu
+ *   ?evk-oc-proba=wygiecie   bez osi czasu wygiętej ściany
+ *   ?evk-oc-proba=goly       wszystkie pięć naraz
+ *   ?evk-oc-proba=grzanie    kandydat na poprawkę — patrz `przygotuj()`
+ *
+ * Kilka naraz po przecinku. Który wariant otworzy się płynnie, ten wskazuje
+ * przyczynę; `goly` odpowiada przy tym na pytanie WSTĘPNE — czy przyczyny
+ * w ogóle szukać po naszej stronie. Jeśli i gołe otwarcie się zacina, kosztuje
+ * samo namalowanie warstwy nad treścią strony i szukać trzeba w treści.
+ *
+ * Bez parametru nie dzieje się NIC: żadnego nasłuchu, żadnego pomiaru, żadnego
+ * węzła w dokumencie. */
+var EVK_OC_PROBA = (function () {
+    var zbior = {};
+    var lista = [];
+
+    try {
+        var s = new URLSearchParams(location.search).get('evk-oc-proba');
+        if (s !== null) {
+            lista = s.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+            lista.forEach(function (x) { zbior[x] = true; });
+            if (zbior.goly) {
+                ['zamek', 'zaslona', 'anim', 'fokus', 'wygiecie'].forEach(function (x) {
+                    zbior[x] = true;
+                });
+            }
+            zbior['-wlaczona'] = true;
+        }
+    } catch (e) { /* starsza przeglądarka — sonda po prostu nie wchodzi */ }
+
+    return {
+        wlaczona: !!zbior['-wlaczona'],
+        ma: function (co) { return !!zbior[co]; },
+        opis: lista.join(', ') || 'nic nie zdjęte',
+    };
+})();
+
+var evk_oc_tablica = null;
+var evk_oc_ktore = 0;
+
+/**
+ * Tablica wyników — jeden węzeł na stronę, tworzony przy pierwszym użyciu.
+ *
+ * Stoi na wierzchu powłoki (`z-index` maksymalny) i nie łapie kliknięć, więc
+ * nie zasłania menu w sensie użytkowym. Treść podmieniamy DOPIERO po zamknięciu
+ * okna pomiaru — podmiana w trakcie znaczyłaby przemalowywanie tablicy w tych
+ * samych klatkach, które właśnie mierzymy.
+ */
+function evk_oc_wypisz(txt) {
+    if (!evk_oc_tablica) {
+        evk_oc_tablica = document.createElement('div');
+        evk_oc_tablica.setAttribute('data-evk-oc-proba', '1');
+        evk_oc_tablica.style.cssText =
+            'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;pointer-events:none;'
+          + 'background:rgba(0,0,0,.85);color:#fff;padding:10px 12px;border-radius:10px;'
+          + 'font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap';
+        document.body.appendChild(evk_oc_tablica);
+    }
+    evk_oc_tablica.textContent = txt;
+}
+
+/**
+ * Mierzy klatki po otwarciu i wypisuje wynik.
+ *
+ * Rozdzielone są DWIE liczby, bo to dwie różne przyczyny i dwie różne
+ * poprawki. „Do 1. klatki" to przerwa między kliknięciem a pierwszym
+ * odrysowaniem — w niej siedzi układ, malowanie i rasteryzacja całej powłoki,
+ * czyli koszt JEDNORAZOWY. „Najdłuższa dalsza" mówi, czy drogi jest sam ruch,
+ * który potem trwa.
+ */
+function evk_oc_zmierz(naglowek, ile) {
+    var klik = performance.now();
+    var pierwsza = 0, max = 0, klatek = 0, poprz = klik;
+
+    requestAnimationFrame(function krok(t) {
+        /* Bez zera od dołu wychodzą liczby UJEMNE, i to nie teoretycznie —
+           zmierzone przy obciążonej maszynie. Stempel `requestAnimationFrame`
+           to chwila ROZPOCZĘCIA klatki, więc gdy klatka była już w robocie
+           w momencie kliknięcia, jest wcześniejszy niż nasz punkt startu.
+           Uczciwą odpowiedzią jest wtedy zero: nie było na co czekać. */
+        var d = Math.max(0, t - poprz);
+        poprz = t;
+        klatek++;
+        if (klatek === 1) pierwsza = d; else if (d > max) max = d;
+
+        if (t - klik < ile) { requestAnimationFrame(krok); return; }
+
+        evk_oc_wypisz(naglowek
+            + '\ndo 1. klatki:      ' + Math.round(pierwsza) + ' ms'
+            + '\nnajdłuższa dalsza: ' + Math.round(max) + ' ms'
+            + '\nklatek przez ' + ile + ' ms: ' + klatek);
+    });
+}
+
 /**
  * Przodek, który zamyka `position: fixed` w swoim pudełku — albo `null`.
  *
@@ -380,6 +494,14 @@ function evk_offcanvas_menu_init_one(root) {
     frame.appendChild(hold);
     shell.appendChild(scrim);
     shell.appendChild(frame);
+
+    /* Wariant sondy `zaslona`: przyciemnienie w ogóle się nie rysuje.
+       Pełnoekranowa warstwa animująca `opacity` NAD treścią strony jest
+       kandydatem numer jeden — gdy pod nią stoją elementy z `mix-blend-mode`
+       albo `backdrop-filter`, przeglądarka musi w każdej klatce przeliczyć
+       całe tło pod spodem, a takie warstwy siedzą zwykle w pierwszym ekranie
+       strony. To by tłumaczyło, czemu po przewinięciu jest płynnie. */
+    if (EVK_OC_PROBA.ma('zaslona')) scrim.style.display = 'none';
 
     /* Zmienne NA POWŁOCE, nie na korzeniu. Powłoka jedzie do <body>, więc
        przestaje być potomkiem korzenia i nic z niego nie dziedziczy —
@@ -800,7 +922,42 @@ function evk_offcanvas_menu_init_one(root) {
        w tym oknie zostaje po chwili cofnięte przez zaległy zegar. */
     var closeTimer = null;
 
+    /**
+     * GRZANIE — kandydat na poprawkę, włączany `?evk-oc-proba=grzanie`.
+     *
+     * Powłoka stoi `visibility: hidden`, czyli nie jest malowana wcale. Przy
+     * pierwszym otwarciu przeglądarka musi więc w JEDNEJ klatce ułożyć ją,
+     * namalować, zrasteryzować i dopiero ruszyć przejściem. Na iOS dochodzi do
+     * tego promocja warstw dla `position: fixed`, którą WebKit robi leniwie —
+     * i którą wymusza już samo przewinięcie strony. Stąd hipoteza: po
+     * przewinięciu jest płynnie, bo robota jest już zrobiona.
+     *
+     * Grzanie przekłada ją na DOTKNIĘCIE, a otwarcie zostaje na kliknięciu.
+     * Między jednym a drugim iOS daje kilkadziesiąt milisekund (palec musi się
+     * jeszcze oderwać) — cała ta przerwa jest tu do wzięcia za darmo.
+     *
+     * Nic przy tym nie widać: kadr stoi wysunięty poza ekran, przyciemnienie
+     * ma zerowe krycie, a `pointer-events` włącza dopiero `.is-open`.
+     */
+    var grzanieTimer = null;
+
+    function przygotuj() {
+        if (shell.classList.contains('is-open')) return;
+        shell.classList.add('is-armed');
+        /* Dotknięcie bez otwarcia (palec zjechał w bok, przewijanie) też się
+           zdarza — bez tego powłoka zostawałaby ogrzana do końca życia strony,
+           czyli dokładnie w stanie, którego arkusz unika przy taśmie. */
+        if (grzanieTimer) clearTimeout(grzanieTimer);
+        grzanieTimer = setTimeout(function () {
+            grzanieTimer = null;
+            if (!shell.classList.contains('is-open')) shell.classList.remove('is-armed');
+        }, 3000);
+    }
+
     function open(trigger) {
+        var pomiar = EVK_OC_PROBA.wlaczona ? performance.now() : 0;
+        var yPrzed = window.pageYOffset;
+
         if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
         lastTrigger = trigger || null;
         stack = [startIdx];
@@ -809,16 +966,24 @@ function evk_offcanvas_menu_init_one(root) {
         /* Oś czasu wygięcia idzie RAZEM z klasą. `play()` na osi, która jest
            w połowie drogi wstecz, zawraca ją z tego miejsca — bez skoku
            i bez drugiej animacji obok pierwszej. */
-        wygnijOtwarcie();
+        if (!EVK_OC_PROBA.ma('wygiecie')) wygnijOtwarcie();
         // Stan po naszemu na powłoce, po Bricksowemu na korzeniu. Korzeń, nie
         // powłoka: powłoka jedzie do <body> i przestaje być czymkolwiek
         // w okolicy przełącznika, a reguły Bricksa czytają stan przez
         // pokrewieństwo w drzewie.
         root.classList.add(BRICKS_OPEN);
-        lock();
+        if (!EVK_OC_PROBA.ma('zamek')) lock();
         setTrigAria(true);
-        replayAnimations();
-        focusFirst(stack[stack.length - 1]);
+        if (!EVK_OC_PROBA.ma('anim'))  replayAnimations();
+        if (!EVK_OC_PROBA.ma('fokus')) focusFirst(stack[stack.length - 1]);
+
+        if (EVK_OC_PROBA.wlaczona) {
+            evk_oc_ktore++;
+            evk_oc_zmierz('otwarcie #' + evk_oc_ktore
+                + '   scrollY ' + Math.round(yPrzed)
+                + '\nzdjęte: ' + EVK_OC_PROBA.opis
+                + '\nopen(): ' + (performance.now() - pomiar).toFixed(1) + ' ms', 900);
+        }
     }
 
     function close() {
@@ -835,6 +1000,11 @@ function evk_offcanvas_menu_init_one(root) {
 
     function finishClose() {
         shell.classList.remove('is-open');
+        /* Ogrzana powłoka wraca do stanu spoczynku razem z zamknięciem —
+           `will-change` trzymane na stałe zostawia element na własnej warstwie
+           kompozytora przez całe życie strony, a to jest dokładnie to, czego
+           arkusz unika przy taśmie (patrz komentarz przy `.evk-oc-track`). */
+        shell.classList.remove('is-armed');
         wygnijZamkniecie();
         root.classList.remove(BRICKS_OPEN);
         unlock();
@@ -942,6 +1112,10 @@ function evk_offcanvas_menu_init_one(root) {
 
     triggers.forEach(function (t) {
         t.addEventListener('click', function (e) { e.preventDefault(); open(t); });
+        /* Grzanie wisi na DOTKNIĘCIU, nie na kliknięciu — cały jego sens leży
+           w przerwie między jednym a drugim. `pointerdown` łapie i palec,
+           i mysz, i rysik jednym nasłuchem. */
+        if (EVK_OC_PROBA.ma('grzanie')) t.addEventListener('pointerdown', przygotuj);
     });
 
     scrim.addEventListener('click', close);

@@ -1719,4 +1719,243 @@ module.exports = async function (t) {
     JSON.stringify(await aria.evaluate(() => window.__state())));
   t.check('bez błędów JS', !aria.errors.length, aria.errors.join(' | ') || 'brak');
   await aria.close();
+
+  /* ── SONDA OTWIERANIA ────────────────────────────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: „offcanvas zacina się, kiedy burger jest kliknięty
+   * jako pierwszy; jeśli trochę przewinę stronę do dołu, otwiera się pięknie —
+   * i to na każdej stronie. Mobilne Safari i Chrome (iPhone)".
+   *
+   * Samego zacięcia TU NIE ZMIERZYMY i nie ma sensu udawać, że zmierzymy:
+   * dzieje się na iOS, przy zerowej pozycji przewijania i tylko za pierwszym
+   * razem. Pomiar w headless Chromium na pulpicie już raz wyszedł na zero.
+   * Mierzalne jest natomiast NARZĘDZIE do pomiaru na telefonie — a narzędzie
+   * diagnostyczne, które po cichu zmienia to, co bada, jest gorsze niż jego
+   * brak: wskazałoby przyczynę tam, gdzie jej nie ma.
+   *
+   * Stąd dwie rzeczy pod sprawdzeniem: że bez parametru nie dzieje się NIC,
+   * i że każdy wariant zdejmuje DOKŁADNIE JEDNEGO podejrzanego.
+   */
+  t.section('sonda: bez parametru w adresie nie dzieje się nic');
+
+  const czysto = await t.open('offcanvas.html', { viewport: V, settle: 120, head: ZAMEK });
+  await czysto.evaluate(() => window.__open());
+  /* DŁUŻEJ NIŻ OKNO POMIARU (900 ms), i to jest tu warunek, nie ostrożność.
+     Tablica powstaje dopiero przy zapisie wyniku, więc odczyt po 150 ms nie
+     zastałby jej TAKŻE wtedy, gdyby sonda chodziła na każdej stronie —
+     zmierzone: przy sondzie włączonej na sztywno to sprawdzenie świeciło na
+     zielono. */
+  await czysto.waitForTimeout(1100);
+  const cz = await czysto.evaluate(() => ({
+    tablica: window.__proba(),
+    zamek:   window.__lock().locked,
+    replay:  window.__ileReplay,
+    zaslona: window.__zaslonaWidoczna(),
+    fokus:   window.__focusId(),
+  }));
+
+  t.check('żadnej tablicy w dokumencie', cz.tablica === null,
+    cz.tablica === null ? 'brak' : 'JEST tablica sondy');
+  /* Kontrola pozytywna do wszystkich wariantów niżej. Bez niej „wariant zdjął
+     zamek" pasowałoby także do kodu, w którym zamka nie zakłada nikt. */
+  t.check('blokada przewijania działa jak zwykle', cz.zamek === true, String(cz.zamek));
+  t.check('animacje treści są odgrywane', cz.replay >= 1, cz.replay + ' wywołań');
+  t.check('przyciemnienie się rysuje', cz.zaslona === true, String(cz.zaslona));
+  t.check('fokus wchodzi do panelu', cz.fokus === 's-a', String(cz.fokus));
+  await czysto.close();
+
+  // ── Odniesienie: sam pomiar, nic nie zdjęte ────────────────────────────
+  t.section('sonda odniesienia mierzy i NICZEGO nie zmienia');
+
+  const p1 = await t.open('offcanvas.html',
+    { viewport: V, settle: 120, head: ZAMEK, query: 'evk-oc-proba=1' });
+  await p1.evaluate(() => window.__open());
+  // Okno pomiaru to 900 ms — tablica zapisuje się dopiero po jego zamknięciu.
+  await p1.waitForTimeout(1100);
+
+  const w1 = await p1.evaluate(() => ({
+    tablica: window.__proba(),
+    zamek:   window.__lock().locked,
+    replay:  window.__ileReplay,
+    zaslona: window.__zaslonaWidoczna(),
+    fokus:   window.__focusId(),
+  }));
+
+  t.check('tablica pokazuje pierwsze otwarcie', /otwarcie #1/.test(w1.tablica || ''),
+    (w1.tablica || 'brak').split('\n')[0]);
+  t.check('z pozycją przewijania', /scrollY \d/.test(w1.tablica || ''), 'scrollY w nagłówku');
+  /* Dwie liczby, bo to dwie różne przyczyny: przerwa do pierwszej klatki
+     (jednorazowy koszt ułożenia i namalowania powłoki) i najdłuższa klatka
+     dalsza (koszt samego ruchu). Jedna liczba nie odróżniłaby ich od siebie. */
+  t.check('i obiema miarami klatek',
+    /do 1\. klatki:\s+\d+ ms/.test(w1.tablica || '')
+    && /najdłuższa dalsza:\s+\d+ ms/.test(w1.tablica || ''),
+    (w1.tablica || '').replace(/\n/g, ' | '));
+
+  /* SEDNO tej sekcji. Odniesienie ma być odniesieniem — jeśli sam pomiar
+     cokolwiek zdejmuje, wszystkie porównania z nim są bez wartości. */
+  t.check('a zachowanie zostaje nietknięte',
+    w1.zamek === true && w1.replay >= 1 && w1.zaslona === true && w1.fokus === 's-a',
+    'zamek ' + w1.zamek + ', replay ' + w1.replay + ', zasłona ' + w1.zaslona
+    + ', fokus ' + w1.fokus);
+
+  await p1.evaluate(() => window.__key('Escape'));
+  await p1.waitForTimeout(200);
+  await p1.evaluate(() => window.__open());
+  await p1.waitForTimeout(1100);
+  t.check('drugie otwarcie liczy się osobno',
+    /otwarcie #2/.test(await p1.evaluate(() => window.__proba()) || ''),
+    (await p1.evaluate(() => window.__proba()) || '').split('\n')[0]);
+  t.check('bez błędów JS', !p1.errors.length, p1.errors.join(' | ') || 'brak');
+  await p1.close();
+
+  // ── Po jednym podejrzanym ──────────────────────────────────────────────
+  /* Każdy wariant sprawdzany PARĄ: że zdjął swojego podejrzanego I że nie
+     ruszył pozostałych. Bez tej drugiej połowy „zamek" mógłby po cichu gasić
+     też animacje, a wynik na telefonie wskazywałby wtedy nie tę przyczynę. */
+  t.section('każdy wariant zdejmuje dokładnie jednego podejrzanego');
+
+  async function wariant(co) {
+    const p = await t.open('offcanvas.html',
+      { viewport: V, settle: 120, head: ZAMEK, query: 'evk-oc-proba=' + co });
+    await p.evaluate(() => window.__open());
+    await p.waitForTimeout(150);
+    const stan = await p.evaluate(() => ({
+      zamek:   window.__lock().locked,
+      replay:  window.__ileReplay,
+      zaslona: window.__zaslonaWidoczna(),
+      fokus:   window.__focusId(),
+      bledy:   [],
+    }));
+    stan.bledy = p.errors.slice();
+    await p.close();
+    return stan;
+  }
+
+  const wZamek = await wariant('zamek');
+  t.check('„zamek" nie zakłada blokady przewijania', wZamek.zamek === false, String(wZamek.zamek));
+  t.check('a reszta pracuje dalej',
+    wZamek.replay >= 1 && wZamek.zaslona === true && wZamek.fokus === 's-a',
+    'replay ' + wZamek.replay + ', zasłona ' + wZamek.zaslona + ', fokus ' + wZamek.fokus);
+
+  const wZaslona = await wariant('zaslona');
+  t.check('„zaslona" nie rysuje przyciemnienia', wZaslona.zaslona === false,
+    String(wZaslona.zaslona));
+  t.check('a reszta pracuje dalej',
+    wZaslona.zamek === true && wZaslona.replay >= 1 && wZaslona.fokus === 's-a',
+    'zamek ' + wZaslona.zamek + ', replay ' + wZaslona.replay + ', fokus ' + wZaslona.fokus);
+
+  const wAnim = await wariant('anim');
+  t.check('„anim" nie odgrywa animacji treści', wAnim.replay === 0, wAnim.replay + ' wywołań');
+  t.check('a reszta pracuje dalej',
+    wAnim.zamek === true && wAnim.zaslona === true && wAnim.fokus === 's-a',
+    'zamek ' + wAnim.zamek + ', zasłona ' + wAnim.zaslona + ', fokus ' + wAnim.fokus);
+
+  const wFokus = await wariant('fokus');
+  t.check('„fokus" nie przenosi fokusu do panelu', wFokus.fokus !== 's-a', String(wFokus.fokus));
+  t.check('a reszta pracuje dalej',
+    wFokus.zamek === true && wFokus.replay >= 1 && wFokus.zaslona === true,
+    'zamek ' + wFokus.zamek + ', replay ' + wFokus.replay + ', zasłona ' + wFokus.zaslona);
+
+  /* `goly` to skrót na wszystkie naraz — i osobna gałąź w kodzie, więc osobne
+     sprawdzenie. Odpowiada na pytanie WSTĘPNE: czy przyczyny w ogóle szukać
+     po naszej stronie, czy kosztuje samo namalowanie warstwy nad stroną. */
+  const wGoly = await wariant('goly');
+  t.check('„goly" zdejmuje wszystko naraz',
+    wGoly.zamek === false && wGoly.replay === 0 && wGoly.zaslona === false
+    && wGoly.fokus !== 's-a',
+    'zamek ' + wGoly.zamek + ', replay ' + wGoly.replay + ', zasłona ' + wGoly.zaslona
+    + ', fokus ' + wGoly.fokus);
+
+  // ── Wygięta ściana ─────────────────────────────────────────────────────
+  /* Osobno, bo mierzalna jest tylko przy `effect=curve` — a tam kształt
+     krawędzi ustawia oś czasu GSAP-a, nie klasa. */
+  t.section('„wygiecie" zatrzymuje oś czasu wygiętej ściany');
+
+  const kOd = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'effect=curve&evk-oc-proba=1' });
+  const kZamkniete = await kOd.evaluate(() => window.__sciezkaWyg());
+  await kOd.evaluate(() => window.__open());
+  await kOd.waitForTimeout(400);
+  const kOtwarte = await kOd.evaluate(() => window.__sciezkaWyg());
+  t.check('odniesienie: krawędź dojeżdża do pełnej', kOtwarte !== kZamkniete,
+    kOtwarte === kZamkniete ? 'ścieżka się nie zmieniła' : 'ścieżka zmieniona');
+  await kOd.close();
+
+  const kBez = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'effect=curve&evk-oc-proba=wygiecie' });
+  await kBez.evaluate(() => window.__open());
+  await kBez.waitForTimeout(400);
+  t.check('wariant: ścieżka zostaje w stanie wyjściowym',
+    (await kBez.evaluate(() => window.__sciezkaWyg())) === kZamkniete, 'bez zmiany');
+  await kBez.close();
+
+  // ── Grzanie ────────────────────────────────────────────────────────────
+  /* KANDYDAT NA POPRAWKĘ, nie pomiar. Powłoka stoi `visibility: hidden`, czyli
+     do pierwszego otwarcia nie jest malowana wcale — układ, malowanie
+     i rasteryzacja spadają na tę jedną klatkę, w której ma ruszyć przejście.
+     Grzanie przekłada tę robotę na dotknięcie przełącznika.
+     Warunek: nie ma prawa NICZEGO pokazać przed kliknięciem. */
+  t.section('grzanie przygotowuje powłokę, nie pokazując jej');
+
+  /* NIEZEROWY czas otwierania jest tu warunkiem pomiaru, nie ozdobą. Powłoka
+     ma `transition: visibility 0s linear var(--evk-oc-time)`, więc dopiero przy
+     niezerowym czasie widać, czy grzanie kasuje to opóźnienie. Przy `dur=0`
+     opóźnienia nie ma z czego skasować i sprawdzenie „dotknięcie robi powłokę
+     malowalną" przechodziłoby także bez `transition-delay: 0s` w arkuszu. */
+  const g = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'evk-oc-proba=grzanie&dur=0.4' });
+
+  const przedD = await g.evaluate(() => window.__grzanie());
+  t.check('przed dotknięciem powłoka jest nierysowana',
+    !przedD.armed && przedD.widocznosc === 'hidden',
+    'armed ' + przedD.armed + ', widoczność ' + przedD.widocznosc);
+
+  await g.evaluate(() => window.__dotknij());
+  await g.waitForTimeout(60);
+  const poD = await g.evaluate(() => window.__grzanie());
+
+  t.check('dotknięcie robi powłokę malowalną',
+    poD.armed && poD.widocznosc === 'visible',
+    'armed ' + poD.armed + ', widoczność ' + poD.widocznosc);
+  t.check('kadr i przyciemnienie dostają zapowiedź zmiany',
+    /transform/.test(poD.willFrame) && /opacity/.test(poD.willScrim),
+    'kadr ' + poD.willFrame + ', zasłona ' + poD.willScrim);
+
+  /* SEDNO: „malowalna" nie może znaczyć „widoczna". Menu jest wciąż zamknięte,
+     więc kadr ma stać poza oknem, przyciemnienie mieć zerowe krycie, a kliknięć
+     powłoka nie ma prawa łapać — inaczej grzanie zasłoniłoby stronę. */
+  t.check('ale menu jest nadal zamknięte', !poD.open, String(poD.open));
+  t.check('kadr stoi poza oknem', !poD.kadrWOknie, String(poD.kadrWOknie));
+  t.check('przyciemnienie ma zerowe krycie', poD.krycieZaslony === 0,
+    String(poD.krycieZaslony));
+  t.check('a powłoka nie łapie kliknięć', poD.kliki === 'none', String(poD.kliki));
+
+  /* Zapowiedź zmiany zdejmowana z zamknięciem. Trzymana na stałe zostawia
+     element na własnej warstwie kompozytora przez całe życie strony — to jest
+     dokładnie ten skutek uboczny, którego arkusz unika przy taśmie. */
+  await g.evaluate(() => window.__open());
+  await g.waitForTimeout(120);
+  await g.evaluate(() => window.__key('Escape'));
+  // Dłużej niż czas otwierania — powłoka chowa się z opóźnieniem równym jemu.
+  await g.waitForTimeout(700);
+  const poZ = await g.evaluate(() => window.__grzanie());
+  t.check('po zamknięciu zapowiedź znika',
+    !poZ.armed && poZ.willFrame === 'auto' && poZ.widocznosc === 'hidden',
+    'armed ' + poZ.armed + ', kadr ' + poZ.willFrame + ', widoczność ' + poZ.widocznosc);
+  t.check('bez błędów JS', !g.errors.length, g.errors.join(' | ') || 'brak');
+  await g.close();
+
+  /* Kontrola negatywna: bez wariantu `grzanie` dotknięcie nie robi NIC.
+     Bez niej „dotknięcie grzeje" przechodziłoby także wtedy, gdyby powłoka
+     była ogrzana od początku — czyli w kodzie, który trzyma `will-change`
+     na stałe. */
+  const ng = await t.open('offcanvas.html', { viewport: V, settle: 150, head: ZAMEK });
+  await ng.evaluate(() => window.__dotknij());
+  await ng.waitForTimeout(60);
+  const nGrz = await ng.evaluate(() => window.__grzanie());
+  t.check('bez wariantu dotknięcie niczego nie grzeje',
+    !nGrz.armed && nGrz.widocznosc === 'hidden' && nGrz.willFrame === 'auto',
+    'armed ' + nGrz.armed + ', widoczność ' + nGrz.widocznosc + ', kadr ' + nGrz.willFrame);
+  await ng.close();
 };
