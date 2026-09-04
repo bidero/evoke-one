@@ -2880,3 +2880,27 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 
 /* Licznik przy zakładce — ile błędów czeka w logach. */
 .evo-count-badge { display: inline-block; min-width: 16px; padding: 0 5px; border-radius: 999px; background: var(--evo-danger); color: #fff; font-size: 10px; line-height: 16px; text-align: center; margin-left: 5px; }
+
+/* Plakietka: rodzaj wpisu w tabeli, rodzaj błędu w logach.
+   Do 1.148.0 klasa stała w znaczniku w trzech miejscach i NIE MIAŁA ŻADNEJ
+   REGUŁY — „PHP" i „Fatal Error" wyglądały jak zwykły tekst obok reszty
+   komórki. */
+.evo-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border: 1px solid var(--evo-border);
+    border-radius: 999px;
+    background: var(--evo-surface);
+    color: var(--evo-text-dim);
+    font-size: 11px;
+    line-height: 17px;
+    white-space: nowrap;
+}
+
+/* Wpis, który silnik sam wyłączył po wywrotce. */
+.evo-badge-alarm {
+    margin-left: 6px;
+    border-color: var(--evo-danger-line);
+    background: var(--evo-danger-soft);
+    color: var(--evo-danger-dark);
+}

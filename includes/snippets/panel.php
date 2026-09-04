@@ -65,12 +65,16 @@ function evk_snippets_render_tab(): void {
     </div>
     <?php endif; ?>
 
-    <?php if (!$wlaczone && is_array($fatal)): ?>
+    <?php /* WARUNEK NIE PATRZY JUŻ NA GŁÓWNY WŁĄCZNIK.
+             Do 1.148.0 powiadomienie pokazywało się wyłącznie przy zgaszonym
+             wykonywaniu — bo tylko tak wtedy silnik reagował na błąd. Odkąd
+             wypada pojedynczy wpis, główny włącznik zostaje włączony
+             i ten warunek chowałby jedyną informację o tym, co się stało. */ ?>
+    <?php if (is_array($fatal)): $tf = evk_snippet_tresc_powiadomienia($fatal); ?>
     <div class="notice notice-error inline evo-mb">
-        <p><strong>Wykonywanie wyłączyło się samo po błędzie krytycznym.</strong></p>
+        <p><strong><?php echo esc_html($tf['naglowek']); ?></strong> <?php echo esc_html($tf['reszta']); ?></p>
         <p class="evo-mono-xs"><?php echo esc_html($fatal['message'] ?? ''); ?>
-           <?php if (!empty($fatal['slug']) && $fatal['slug'] !== 'unknown'): ?>
-           — <?php echo esc_html($fatal['slug']); ?><?php endif; ?></p>
+           <?php if (!empty($fatal['line'])): ?>— linia <?php echo (int) $fatal['line']; ?><?php endif; ?></p>
     </div>
     <?php endif; ?>
 
@@ -226,6 +230,18 @@ function evk_snippety_lista(): void {
             <td class="evo-col-nazwa">
                 <a href="<?php echo esc_url(evk_snippety_url(['evk_widok' => 'edytor', 'evk_wpis' => $w['id']])); ?>"
                    class="evo-snippet-nazwa"><?php echo esc_html($w['tytul']); ?></a>
+                <?php /* ZNACZNIK PRZY WIERSZU, NIE TYLKO BANER U GÓRY.
+                         Baner daje się odrzucić jednym klikiem i wtedy jedynym
+                         śladem po wywrotce byłby przestawiony włącznik —
+                         nie do odróżnienia od wyłączonego ręcznie. */ ?>
+                <?php if (!empty($w['awaria'])): ?>
+                <span class="evo-badge evo-badge-alarm"
+                      title="<?php echo esc_attr(sprintf('%s: %s (linia %d, %s)',
+                          $w['awaria']['type'] ?? '', $w['awaria']['message'] ?? '',
+                          (int) ($w['awaria']['line'] ?? 0), $w['awaria']['czas'] ?? '')); ?>">
+                    wyłączony po błędzie
+                </span>
+                <?php endif; ?>
             </td>
             <td data-etykieta="Rodzaj"><span class="evo-badge"><?php echo esc_html($rodzaje[$w['rodzaj']]['label'] ?? $w['rodzaj']); ?></span></td>
             <?php /* Krótka etykieta, nie pełna: „Frontend — <head>" jest na
@@ -360,7 +376,10 @@ function evk_snippety_logi(array $logi): void {
         <article class="evo-log">
             <header class="evo-log-meta">
                 <span class="evo-badge"><?php echo esc_html($log['type'] ?? ''); ?></span>
-                <time><?php echo esc_html($log['time'] ?? ''); ?></time>
+                <?php /* `timestamp`, nie `time`. Klucz zapisuje
+                         `evk_snippet_log_error()` i nigdy nie nazywał się
+                         inaczej — pole daty stało tu puste od początku. */ ?>
+                <time><?php echo esc_html($log['timestamp'] ?? ''); ?></time>
                 <?php if (!empty($log['slug'])): ?>
                 <span class="evo-log-wpis"><?php echo esc_html($log['slug']); ?></span>
                 <?php endif; ?>

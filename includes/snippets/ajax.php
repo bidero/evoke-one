@@ -95,6 +95,11 @@ add_action('admin_init', function () {
             $teraz = get_post_meta($id, EVK_SNIPPET_META_WLACZ, true);
             $teraz = ($teraz === '' || $teraz === null) ? 1 : (int) $teraz;
             update_post_meta($id, EVK_SNIPPET_META_WLACZ, $teraz ? 0 : 1);
+
+            /* WŁĄCZENIE Z POWROTEM zdejmuje ślad po wywrotce — to świadoma
+               decyzja administratora, że wpis ma znów pracować. Wyłączenie go
+               nie zdejmuje: powód, dla którego wpis zgasł, ma zostać widoczny. */
+            if (!$teraz) delete_post_meta($id, EVK_SNIPPET_META_AWARIA);
         }
         wp_safe_redirect(evk_snippety_url(['evk_zapisano' => 'stan']));
         exit;

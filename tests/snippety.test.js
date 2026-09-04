@@ -184,6 +184,101 @@ module.exports = async function (t) {
       + ', grupa „' + mig.drugi_raz.grupa + '"');
 
   // ── Panel ──────────────────────────────────────────────────────────────
+  // ── Izolacja błędu krytycznego (1.148.0) ───────────────────────────────
+  t.section('wywraca się jeden wpis, nie cały moduł');
+
+  /* DO 1.147.1 KAŻDY BŁĄD KRYTYCZNY GASIŁ WSZYSTKO. Silnik nie wiedział, czyj
+     kod pękł, więc jedyną odpowiedzią było przestawienie głównego włącznika —
+     dwadzieścia działających wpisów milkło przez jeden zły. Teraz wykonanie
+     zostawia znacznik i po wywrotce gaśnie dokładnie ten wpis, który ją
+     wywołał. */
+  const aw = scen('awaria-wpis');
+
+  t.check('winny wpis gaśnie',
+    aw.stan.wpisy['Wywrotka'].wlaczony === 0,
+    'wlaczony = ' + aw.stan.wpisy['Wywrotka'].wlaczony);
+  t.check('a sąsiedzi pracują dalej',
+    aw.head === 'AC' && aw.stan.wpisy['Pierwszy'].wlaczony === 1
+                     && aw.stan.wpisy['Trzeci'].wlaczony === 1,
+    'wyjście „' + aw.head + '"');
+  /* SEDNO CAŁEJ ZMIANY. Bez tego sprawdzenia wszystko powyżej przeszłoby też
+     dla silnika, który po cichu gasi główny włącznik. */
+  t.check('główny włącznik zostaje włączony', aw.stan.glowny === 1,
+    'evk_snippets_enabled = ' + aw.stan.glowny);
+  t.check('przy wpisie zostaje ślad: co i w której linii',
+    !!aw.stan.wpisy['Wywrotka'].awaria
+      && aw.stan.wpisy['Wywrotka'].awaria.message === 'bum'
+      && aw.stan.wpisy['Wywrotka'].awaria.line > 0,
+    JSON.stringify(aw.stan.wpisy['Wywrotka'].awaria));
+  t.check('powiadomienie wie, KTÓRY wpis padł',
+    aw.stan.transjent && aw.stan.transjent.zakres === 'wpis'
+      && aw.stan.transjent.tytul === 'Wywrotka' && aw.stan.transjent.id > 0,
+    JSON.stringify(aw.stan.transjent));
+  /* Wyłączenie ma znaczyć „już nie wchodzi", a nie tylko „ma metadaną".
+     Licznik w kodzie wpisu odróżnia jedno od drugiego — samo wyjście nie,
+     bo wpis, który rzuca, i tak niczego nie wypisuje. */
+  t.check('w drugim przebiegu nie jest już wykonywany',
+    aw.wejsc === 1 && aw.head_drugi === 'AC',
+    aw.wejsc + ' wejść, wyjście „' + aw.head_drugi + '"');
+
+  const adv = scen('awaria-advanced');
+  t.check('tryb zaawansowany gaśnie sam, bez wpisów',
+    adv.stan.advanced === 0 && adv.stan.glowny === 1
+      && adv.stan.wpisy['Pierwszy'].wlaczony === 1 && adv.head === 'A',
+    'advanced ' + adv.stan.advanced + ', główny ' + adv.stan.glowny
+      + ', wyjście „' + adv.head + '"');
+
+  /* NIEZNANY SPRAWCA. Kod zarejestrowany przez snippet (hak, domknięcie) leci
+     długo po tym, jak znacznik zgasł — wtedy nie da się wskazać wpisu. Wraca
+     dawne zachowanie: główny włącznik na off. Zostawienie wszystkiego
+     włączonego zamknęłoby witrynę w pętli błędu 500. */
+  const nn = scen('awaria-nieznana');
+  t.check('bez znacznika gaśnie całe wykonywanie',
+    nn.stan.glowny === 0, 'evk_snippets_enabled = ' + nn.stan.glowny);
+  t.check('i powiadomienie mówi wprost, że sprawcy nie znamy',
+    nn.stan.transjent && nn.stan.transjent.zakres === 'nieznany',
+    JSON.stringify(nn.stan.transjent));
+  t.check('pojedynczych wpisów przy tym nie rusza',
+    nn.stan.wpisy['Pierwszy'].wlaczony === 1 && !nn.stan.wpisy['Pierwszy'].awaria,
+    'Pierwszy: ' + JSON.stringify(nn.stan.wpisy['Pierwszy']));
+
+  /* KONTROLA NEGATYWNA. Bez niej sprawdzenia wyżej przechodziłyby także dla
+     silnika, który uznaje za swój KAŻDY błąd krytyczny w witrynie — i gasi
+     nasze działające snippety za cudzą wywrotkę. */
+  const cu = scen('awaria-cudza');
+  t.check('cudzy eval() nie gasi naszych snippetów',
+    cu.stan.glowny === 1 && cu.stan.transjent === false,
+    'główny ' + cu.stan.glowny + ', transjent ' + JSON.stringify(cu.stan.transjent));
+  t.check('ani błąd w cudzym pliku',
+    cu.stan_po_drugim.glowny === 1 && cu.stan_po_drugim.transjent === false,
+    'główny ' + cu.stan_po_drugim.glowny);
+
+  const cz = scen('awaria-czyszczenie');
+  t.check('ślad po wywrotce zostaje aż do naprawy', !!cz.po_awarii.awaria,
+    JSON.stringify(cz.po_awarii));
+  t.check('a zapis wpisu go zdejmuje',
+    cz.po_zapisie.awaria === null && cz.po_zapisie.wlaczony === 1,
+    JSON.stringify(cz.po_zapisie));
+
+  /* PRAWDZIWY BŁĄD NIEPRZECHWYTYWALNY — i to jest ta klasa, dla której cały
+     znacznik powstał. Redeklaracji funkcji `try/catch` nie widzi: PHP nie
+     rzuca wyjątku, tylko kończy żądanie kodem 255. Zostaje funkcja zamykająca,
+     która leci w tym samym procesie — więc znacznik nadal mówi, czyj kod
+     pracował. */
+  const tw = JSON.parse(phpOutput('snippety.php', 'fatal-twardy', { dopuscBlad: true }));
+  t.check('po prawdziwym fatalu gaśnie wpis, który go wywołał',
+    tw.stan.wpisy['Redeklaracja'].wlaczony === 0
+      && !!tw.stan.wpisy['Redeklaracja'].awaria,
+    JSON.stringify(tw.stan.wpisy['Redeklaracja']));
+  t.check('sąsiad zostaje nietknięty',
+    tw.stan.wpisy['Pierwszy'].wlaczony === 1 && !tw.stan.wpisy['Pierwszy'].awaria,
+    JSON.stringify(tw.stan.wpisy['Pierwszy']));
+  t.check('a wykonywanie jako całość zostaje włączone',
+    tw.stan.glowny === 1, 'evk_snippets_enabled = ' + tw.stan.glowny);
+  t.check('log zna nazwę wpisu, nie „unknown"',
+    tw.stan.transjent && tw.stan.transjent.slug === 'Redeklaracja',
+    tw.stan.transjent ? tw.stan.transjent.slug : '—');
+
   t.section('lista pokazuje, co masz i co pracuje');
 
   /* Renderowana PRAWDZIWA `evk_snippets_render_tab()` przez harness zakładek —
@@ -211,6 +306,49 @@ module.exports = async function (t) {
   t.check('i mówi to czytnikom ekranu',
     lista.includes('aria-checked="true"') && lista.includes('aria-checked="false"'),
     'aria-checked w obu stanach');
+
+  t.section('po wywrotce panel mówi, KTÓRY wpis padł');
+
+  /* Zasiew zakłada ten stan PRAWDZIWĄ drogą — zapala znacznik i woła
+     `evk_snippet_odetnij()`, czyli to samo, co robi silnik po błędzie. Gdyby
+     metadana i transjent były tu wpisane z ręki, sprawdzenie pilnowałoby
+     własnej kopii, a nie kodu. */
+  const listaAwaria = phpOutput('tab.php', 'tools-snippety ' + JSON.stringify(JSON.stringify(
+    { evk_stan: 'awaria' })));
+
+  t.check('wiersz wpisu nosi znacznik wywrotki',
+    listaAwaria.includes('evo-badge-alarm') && listaAwaria.includes('wyłączony po błędzie'),
+    'plakietka przy wierszu');
+  t.check('a nad listą stoi powiadomienie z nazwą wpisu',
+    /wyłączył się po błędzie krytycznym/.test(listaAwaria)
+      && listaAwaria.includes('Wyłączony test'),
+    (listaAwaria.match(/<strong>[^<]*wyłączył się[^<]*<\/strong>/) || ['—'])[0]);
+  t.check('powiadomienie nie twierdzi, że stanęło całe wykonywanie',
+    !/wykonywanie snippetów wyłączone/i.test(listaAwaria),
+    'brak zdania o całym module');
+  /* WYCINAMY SAM BANER, a nie szukamy po całej stronie. Zmierzone mutacją:
+     sprawdzenie puszczone na cały ekran przechodziło także dla baneru bez
+     komunikatu — bo te same słowa niesie podpowiedź plakietki przy wierszu. */
+  const baner = (listaAwaria.match(
+    /<div class="notice notice-error inline[^"]*">([\s\S]*?)<\/div>/) || [])[1] || '';
+  t.check('i niesie powód: co pękło i w której linii',
+    baner.includes('Cannot redeclare function evk_moja_funkcja') && /linia 12/.test(baner),
+    baner ? baner.replace(/\s+/g, ' ').trim().slice(0, 90) : 'brak baneru');
+
+  /* KONTROLA NEGATYWNA. Bez niej wszystkie cztery sprawdzenia wyżej
+     przechodziłyby też dla ekranu, który maluje plakietkę i powiadomienie
+     zawsze — a wtedy nie mówią one niczego o stanie wpisu. */
+  t.check('bez wywrotki nie ma ani plakietki, ani powiadomienia',
+    !lista.includes('evo-badge-alarm') && !/wyłączył się po błędzie/.test(lista)
+      && !lista.includes('notice-error'),
+    'czysty ekran');
+
+  /* Plakietka musi mieć REGUŁĘ, nie tylko klasę. `.evo-badge` stała
+     w znaczniku w trzech miejscach i nie była opisana w arkuszu ani razu. */
+  const arkuszPanelu = fs.readFileSync(path.join(KORZEN, 'assets/admin/admin.css'), 'utf8');
+  t.check('a klasy plakietek są opisane w arkuszu',
+    /\.evo-badge\s*\{/.test(arkuszPanelu) && /\.evo-badge-alarm\s*\{/.test(arkuszPanelu),
+    'reguły .evo-badge i .evo-badge-alarm');
 
   t.section('edytor pyta o wszystko, czego wpis potrzebuje');
 
@@ -582,6 +720,13 @@ module.exports = async function (t) {
      przechodziłoby też dla układu, który wyjeżdża. */
   const widokLogow = phpOutput('tab.php', 'tools-snippety ' + JSON.stringify(JSON.stringify(
     { evk_widok: 'logi' })));
+
+  /* Karta logu ma pole daty i do 1.148.0 było ono PUSTE: znacznik czytał
+     `time`, a zapis kładzie `timestamp`. Zasiew woła teraz prawdziwy
+     `evk_snippet_log_error()`, więc rozjazd nazw zapala się tutaj. */
+  const data = widokLogow.match(/<time>([^<]*)<\/time>/);
+  t.check('karta logu pokazuje datę zdarzenia',
+    !!data && /\d{4}-\d{2}-\d{2}/.test(data[1]), data ? '„' + data[1] + '"' : 'brak <time>');
 
   for (const [szer, nazwa] of [[1280, 'szerokim'], [390, 'wąskim']]) {
     const strLog = await t.open('snippety-lista.html', {

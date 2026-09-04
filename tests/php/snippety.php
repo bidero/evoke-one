@@ -26,6 +26,27 @@ function set_transient($k, $v, $t = 0) { $GLOBALS['transients'][$k] = $v; return
 function get_transient($k) { return $GLOBALS['transients'][$k] ?? false; }
 function delete_transient($k) { unset($GLOBALS['transients'][$k]); return true; }
 function wp_get_post_revisions($id, $args = []) { return []; }
+function wp_normalize_path($s) { return str_replace('\\', '/', (string) $s); }
+function wp_strip_all_tags($s, $br = false) { return strip_tags((string) $s); }
+function wp_create_nonce($akcja = -1) { return 'nonce'; }
+
+/* Tryb zaawansowany trzyma treść w opcji, ale czyta ją WPROST z bazy
+   (`$wpdb->get_var`), z pominięciem pamięci podręcznej opcji. Atrapa robi to
+   samo po naszej tablicy opcji — inaczej scenariusz „awaria-advanced" padłby
+   na braku `$wpdb`, zanim doszedłby do badanej rzeczy. */
+class EVK_Test_Wpdb {
+    public $options = 'wp_options';
+    public function prepare($zapytanie, ...$args) { return [$zapytanie, $args]; }
+    public function get_var($przygotowane) {
+        $nazwa = $przygotowane[1][0] ?? '';
+        return $GLOBALS['options'][$nazwa] ?? null;
+    }
+    public function replace($tabela, $dane, $format = null) {
+        $GLOBALS['options'][$dane['option_name']] = $dane['option_value'];
+        return 1;
+    }
+}
+$GLOBALS['wpdb'] = new EVK_Test_Wpdb();
 /* Rejestracja typu wpisu nas tu nie interesuje — sprawdza ją
    tests/php/odpornosc.php. Przyjmujemy zgłoszenie i idziemy dalej. */
 function register_post_type($typ, $args = []) { $GLOBALS['typy'][$typ] = $args; return (object) $args; }
@@ -247,6 +268,146 @@ if ($scenariusz === 'opakowanie') {
 
     $wyslij($nonce + ['evk_usun_wpis' => (string) $id]);
     $out['snippet_usuniety'] = $stan($id) === null;
+}
+
+// =========================================================================
+// IZOLACJA BŁĘDU KRYTYCZNEGO
+// =========================================================================
+
+/** Stan po wywrotce: co zgasło, co pracuje, co silnik zapisał przy wpisie. */
+function stan_po_awarii(array $ids): array {
+    $wpisy = [];
+    foreach (evk_snippety_wszystkie() as $w) {
+        if (!in_array($w['id'], $ids, true)) continue;
+        $wpisy[$w['tytul']] = ['wlaczony' => $w['wlaczony'], 'awaria' => $w['awaria']];
+    }
+    return [
+        'wpisy'    => $wpisy,
+        'glowny'   => (int) get_option(EVK_SNIPPETS_ENABLED_OPTION, 0),
+        'advanced' => (int) get_option(EVK_SNIPPETS_ADVANCED_ENABLED, 0),
+        'transjent'=> get_transient(EVK_SNIPPETS_FATAL_TRANSIENT),
+    ];
+}
+
+if ($scenariusz === 'awaria-wpis') {
+    /* Trzy wpisy, środkowy się wywraca. Sedno: dwa pozostałe mają wyjść na
+       stronę, a główny włącznik zostać włączony. */
+    $a = zaloz(['tytul' => 'Pierwszy', 'rodzaj' => 'html', 'kod' => 'A']);
+    /* Wpis liczy własne wejścia, ZANIM się wywróci. Bez tego licznika „drugi
+       przebieg" nie miałby czego pokazać: wpis, który rzuca, i tak nic nie
+       wypisuje, więc wyjście wyglądałoby identycznie niezależnie od tego, czy
+       został pominięty, czy wykonany po raz drugi. */
+    $b = zaloz(['tytul' => 'Wywrotka', 'rodzaj' => 'php',
+                'kod'   => '$GLOBALS["wejsc"] = ($GLOBALS["wejsc"] ?? 0) + 1; throw new Error("bum");']);
+    $c = zaloz(['tytul' => 'Trzeci',   'rodzaj' => 'html', 'kod' => 'C']);
+
+    przebieg();
+    $out['head'] = preg_replace('/\s+/', '', odpal_hak('wp_head'));
+    $out['stan'] = stan_po_awarii([$a, $b, $c]);
+
+    /* DRUGI PRZEBIEG. Wyłączenie ma znaczyć „już nie wchodzi", a nie tylko
+       „ma metadaną". */
+    przebieg();
+    $out['head_drugi'] = preg_replace('/\s+/', '', odpal_hak('wp_head'));
+    $out['wejsc']      = $GLOBALS['wejsc'] ?? 0;
+
+} elseif ($scenariusz === 'awaria-advanced') {
+    /* Tryb zaawansowany to osobne pole i osobna opcja — ma gasnąć sam,
+       nie ciągnąc za sobą wpisów. */
+    $a = zaloz(['tytul' => 'Pierwszy', 'rodzaj' => 'html', 'kod' => 'A']);
+    $GLOBALS['options'][EVK_SNIPPETS_ADVANCED_ENABLED] = 1;
+    $GLOBALS['options'][EVK_SNIPPETS_ADVANCED_CONTENT] = '<?php throw new Error("bum w advanced");';
+
+    przebieg();
+    $out['head'] = trim(odpal_hak('wp_head'));
+    $out['stan'] = stan_po_awarii([$a]);
+
+} elseif ($scenariusz === 'awaria-nieznana') {
+    /* BŁĄD POZA WYKONANIEM SNIPPETU. Kod zarejestrowany przez snippet
+       (hak, domknięcie) leci długo po tym, jak znacznik zgasł — nie wiadomo
+       wtedy, czyj to kod. Wtedy i tylko wtedy gaśnie główny włącznik. */
+    $a = zaloz(['tytul' => 'Pierwszy', 'rodzaj' => 'html', 'kod' => 'A']);
+    przebieg();
+
+    evk_snippet_obsluz_fatal([
+        'type'    => E_ERROR,
+        'message' => 'Call to undefined function nie_ma()',
+        /* Ścieżkę bierzemy z kodu, a nie przepisujemy: PHP skleja `file` jako
+           „plik-z-eval-em(linia) : eval()'d code" i to jest jedyna część, którą
+           test ma prawo udawać. Że kształt się zgadza, sprawdza scenariusz
+           „fatal-twardy" na PRAWDZIWYM błędzie. */
+        'file'    => evk_snippet_plik_eval() . '(120) : eval()\'d code',
+        'line'    => 4,
+    ]);
+    $out['stan'] = stan_po_awarii([$a]);
+
+} elseif ($scenariusz === 'awaria-cudza') {
+    /* KONTROLA NEGATYWNA. Cudza wtyczka też potrafi wykonywać kod przez
+       `eval()`. Jej wywrotka nie ma prawa zgasić naszych snippetów — samo
+       „eval()'d code" w ścieżce to za mało, musi tam stać NASZ plik. */
+    $a = zaloz(['tytul' => 'Pierwszy', 'rodzaj' => 'html', 'kod' => 'A']);
+    przebieg();
+
+    evk_snippet_obsluz_fatal([
+        'type'    => E_ERROR,
+        'message' => 'Call to undefined function cudza()',
+        'file'    => '/var/www/wp-content/plugins/obca-wtyczka/silnik.php(88) : eval()\'d code',
+        'line'    => 12,
+    ]);
+    $out['stan'] = stan_po_awarii([$a]);
+
+    /* Drugi przypadek: błąd w zwykłym pliku motywu, bez śladu po `eval()`. */
+    evk_snippet_obsluz_fatal([
+        'type'    => E_ERROR,
+        'message' => 'Cannot redeclare motyw_funkcja()',
+        'file'    => '/var/www/wp-content/themes/bricks/functions.php',
+        'line'    => 30,
+    ]);
+    $out['stan_po_drugim'] = stan_po_awarii([$a]);
+
+} elseif ($scenariusz === 'awaria-czyszczenie') {
+    /* Ślad po wywrotce ma zniknąć, kiedy administrator naprawi wpis — i ma
+       ZOSTAĆ, dopóki tego nie zrobi. */
+    $b = zaloz(['tytul' => 'Wywrotka', 'rodzaj' => 'php', 'kod' => 'throw new Error("bum");']);
+    przebieg();
+    odpal_hak('wp_head');
+    $out['po_awarii'] = stan_po_awarii([$b])['wpisy']['Wywrotka'];
+
+    // Zapis wpisu = naprawa.
+    evk_snippet_zapisz_wpis(['id' => $b, 'tytul' => 'Wywrotka', 'kod' => 'echo "juz dobrze";',
+                             'rodzaj' => 'php', 'miejsce' => 'head', 'grupa' => '',
+                             'wlaczony' => 1, 'kolejnosc' => 0]);
+    $out['po_zapisie'] = stan_po_awarii([$b])['wpisy']['Wywrotka'];
+
+} elseif ($scenariusz === 'fatal-twardy') {
+    /* PRAWDZIWY BŁĄD NIEPRZECHWYTYWALNY, bez żadnej atrapy.
+     *
+     * Redeklaracji funkcji `try/catch` nie widzi: PHP nie rzuca wyjątku, tylko
+     * kończy żądanie. Zostaje funkcja zamykająca — i właśnie ona jest tu badana.
+     * Proces UMIERA z kodem 255; wynik wypisuje druga funkcja zamykająca,
+     * zarejestrowana PO tej z silnika, więc leci po niej.
+     */
+    $a = zaloz(['tytul' => 'Pierwszy', 'rodzaj' => 'html', 'kod' => 'A']);
+    $b = zaloz(['tytul' => 'Redeklaracja', 'rodzaj' => 'php',
+                'kod'   => 'function evk_test_kolizja() { return 1; }']);
+
+    przebieg();   // tu silnik rejestruje swoją funkcję zamykającą
+
+    register_shutdown_function(function () use ($a, $b) {
+        /* Bufor `odpal_hak()` został otwarty i nigdy się nie domknął — fatal
+           przerwał go w środku. PHP wypycha go po funkcjach zamykających, więc
+           bez tego wynik miałby przed sobą treść snippetu. */
+        while (ob_get_level()) ob_end_clean();
+        echo json_encode(['stan' => stan_po_awarii([$a, $b])],
+                         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    });
+
+    // Nazwa zajęta ZANIM wykona się wpis — jego `function` będzie kolizją.
+    function evk_test_kolizja() { return 0; }
+
+    odpal_hak('wp_head');   // stąd się nie wraca
+    echo json_encode(['blad' => 'fatal nie wystapil']);
+    exit;
 }
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

@@ -2,6 +2,75 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.148.0] — 2026-09-04
+
+### Zmienione
+
+- **Błąd krytyczny w snippecie gasi ten snippet, a nie wszystkie.** Do tej
+  pory silnik nie wiedział, czyj kod pękł — w logu stało `unknown` — więc
+  jedyną odpowiedzią było przestawienie głównego włącznika. Dwadzieścia
+  działających wpisów milkło przez jeden zły, a strona traciła wszystko naraz:
+  style, skrypty i te fragmenty PHP, które z wywrotką nie miały nic wspólnego.
+
+  Teraz wykonanie zostawia **znacznik**: stos wpisów, które w tej chwili
+  pracują. Po wywrotce gaśnie dokładnie ten wpis, który ją wywołał, główny
+  włącznik zostaje włączony, a przy wpisie ląduje ślad — co pękło, w której
+  linii i kiedy.
+
+  **Znacznik siedzi w pamięci i nie kosztuje ani jednego zapisu do bazy.**
+  Funkcja zamykająca leci w tym samym procesie co błąd, więc zwykła
+  właściwość statyczna jest wtedy nadal na miejscu. Zapisywanie znacznika do
+  bazy przed każdym `eval()` kosztowałoby jeden zapis na wpis na każde
+  wyświetlenie strony, a kupowałoby wyłącznie przypadek, w którym PHP nie
+  odpala już nawet funkcji zamykających — a tam i tak nie ma jak niczego
+  zapisać.
+
+  To jest **stos**, nie pojedyncza wartość: wpis z miejsca „zawsze" może sam
+  wywołać `do_action('wp_footer')` i wtedy w środku jednego wykonania siedzi
+  drugie. Gaszenie idzie przez `finally`, bo pomiędzy zapaleniem a zgaszeniem
+  stoi `eval()` cudzego kodu.
+
+  **Kiedy sprawcy nie da się wskazać, wraca dawne zachowanie.** Kod
+  zarejestrowany przez snippet — hak, domknięcie, funkcja — leci długo po tym,
+  jak znacznik zgasł. Wtedy gaśnie całe wykonywanie i powiadomienie mówi
+  wprost, że winnego nie znamy. Zostawienie wszystkiego włączonego zamknęłoby
+  witrynę w pętli błędu 500.
+
+- **Powiadomienie nazywa wpis i prowadzi prosto do niego.** Wisi na każdym
+  ekranie panelu, jak dotąd, ale zdanie „wykonywanie wyłączone" byłoby teraz
+  nieprawdą — więc treść zależy od tego, co naprawdę wypadło: jeden wpis, tryb
+  zaawansowany albo całość. Przycisk prowadzi do edytora tego wpisu.
+
+  Ekran snippetów pokazuje przy takim wierszu **trwałą plakietkę**
+  „wyłączony po błędzie". Baner daje się odrzucić jednym klikiem i wtedy
+  jedynym śladem byłby przestawiony włącznik — nie do odróżnienia od
+  wyłączonego ręcznie. Plakietka znika przy zapisie wpisu albo przy ręcznym
+  włączeniu go z powrotem.
+
+### Naprawione
+
+- **Rozpoznawanie własnego błędu krytycznego patrzyło w złe miejsce.** Warunek
+  szukał `eval()'d code` w KOMUNIKACIE błędu, a PHP wpisuje ten ślad
+  w `file`: `…/validation.php(99) : eval()'d code`. Zmierzone na prawdziwej
+  redeklaracji funkcji — najczęstszym błędzie nieprzechwytywalnym — komunikat
+  tego dopisku nie zawiera wcale, więc wywrotka przechodziła bez reakcji.
+  Teraz sprawdzane są obie części: dopisek **i** nasza ścieżka. Samo
+  `eval()'d code` łapałoby też cudzą wtyczkę wykonującą kod tą samą drogą
+  i gasiłoby nasze działające snippety za czyjś błąd — na to jest osobna
+  kontrola negatywna.
+
+- **Karta logu nie pokazywała daty.** Znacznik czytał `time`, a zapis kładzie
+  `timestamp` — pole stało puste od początku. Zasiew testu miał tę samą
+  literówkę, bo był ręczną kopią zapisu; teraz woła prawdziwe
+  `evk_snippet_log_error()`, więc rozjazd nazw nie ma gdzie się schować.
+
+- **Plakietki `.evo-badge` nie miały w arkuszu ani jednej reguły.** Klasa stała
+  w znaczniku w trzech miejscach — rodzaj wpisu w tabeli, rodzaj błędu w logach
+  — i wyglądała jak zwykły tekst obok reszty komórki.
+
+- **Uchwyt AJAX podglądu rewizji był zdublowany** w `engine.php` i `ajax.php`,
+  słowo w słowo. Została jedna kopia, w pliku od AJAX-a.
+
 ## [1.147.1] — 2026-09-04
 
 ### Naprawione

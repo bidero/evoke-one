@@ -53,8 +53,14 @@ function disabled($a, $b = true, $echo = true) {
 }
 function get_bloginfo($what = '') { return 'Witryna testowa'; }
 function wp_get_theme() { return new class { public function get($k) { return 'Bricks'; } }; }
-function get_transient($k) { return false; }
-function set_transient($k, $v, $t = 0) { return true; }
+/* Transjenty trzymamy NAPRAWDĘ. Atrapa oddająca zawsze `false` sprawiała, że
+   każde powiadomienie oparte na transjencie było w tym harnessie niewidzialne —
+   i tak samo niewidzialne dla sprawdzeń. */
+$GLOBALS['transients'] = [];
+function get_transient($k) { return $GLOBALS['transients'][$k] ?? false; }
+function set_transient($k, $v, $t = 0) { $GLOBALS['transients'][$k] = $v; return true; }
+function delete_transient($k) { unset($GLOBALS['transients'][$k]); return true; }
+function wp_strip_all_tags($s, $br = false) { return strip_tags((string) $s); }
 /* Dwóch użytkowników: jeden z własnym avatarem, jeden z Gravatarem — obie
    gałęzie kafelka mają się wyrenderować, bo różnią się klasą stanu. */
 function get_users($args = []) {
@@ -665,27 +671,45 @@ $TABS = [
             // Dwa wpisy, żeby lista miała co pokazać.
             evk_snippet_zapisz_wpis(['tytul' => 'Sticky header', 'kod' => 'body{}', 'rodzaj' => 'css',
                                      'miejsce' => 'head', 'grupa' => 'Wygląd', 'wlaczony' => 1, 'kolejnosc' => 10]);
-            evk_snippet_zapisz_wpis(['tytul' => 'Wyłączony test', 'kod' => 'echo 1;', 'rodzaj' => 'php',
+            $wylaczony = evk_snippet_zapisz_wpis(['tytul' => 'Wyłączony test', 'kod' => 'echo 1;', 'rodzaj' => 'php',
                                      'miejsce' => 'init', 'grupa' => '', 'wlaczony' => 0, 'kolejnosc' => 20]);
-            /* Log z DŁUGĄ treścią. Krótki komunikat zmieściłby się w każdym
-               układzie i sprawdzenie „nic nie wyjeżdża poza kartę" świeciłoby
-               na zielono także dla układu, który wyjeżdża. */
-            $GLOBALS['options'][EVK_SNIPPETS_LOG_OPTION] = [[
-                'time'    => '2026-09-03 08:20:11',
-                'type'    => 'PHP Fatal Error',
-                'slug'    => 'evk-snippet-frontend-head',
-                'line'    => 42,
-                'message' => 'Uncaught Error: Call to undefined method Evoke\\Modules\\Snippets\\Runner::wykonajNatychmiast() in /var/www/html/wp-content/plugins/evoke-one/includes/snippets/engine.php',
+            /* Log przez PRAWDZIWY zapis, nie przez tablicę wpisaną tutaj.
+               Ręczna kopia rozjechała się z kodem: stał w niej klucz `time`,
+               a `evk_snippet_log_error()` zapisuje `timestamp` — i pole daty
+               w karcie logu było puste, czego sprawdzenie na własnej kopii nie
+               miało jak zauważyć.
+
+               Treść DŁUGA. Krótki komunikat zmieściłby się w każdym układzie
+               i sprawdzenie „nic nie wyjeżdża poza kartę" świeciłoby na zielono
+               także dla układu, który wyjeżdża. */
+            evk_snippet_log_error(
+                'PHP Fatal Error',
+                'Uncaught Error: Call to undefined method Evoke\\Modules\\Snippets\\Runner::wykonajNatychmiast() in /var/www/html/wp-content/plugins/evoke-one/includes/snippets/engine.php',
+                'evk-snippet-frontend-head',
+                42,
                 /* Linia MUSI być dłuższa niż karta przy 1280 px — inaczej mieści
                    się bez przewijania i sprawdzenie „kod przewija się w swoim
                    pudełku" nie miałoby czego mierzyć. */
-                'context' => '  40 | function evk_bardzo_dluga_nazwa_funkcji_ktora_nie_miesci_sie_w_kolumnie($argument_pierwszy, $argument_drugi, $argument_trzeci, $argument_czwarty, $argument_piaty, $argument_szosty) {'
-                           /* Apostrofy, nie cudzysłowy: w cudzysłowie PHP podstawia
-                              `$argument_*` jako zmienne i z kontekstu znika to, co miało
-                              w nim być — łącznie z długością, która jest tu sednem. */
-                           . "\n" . '  41 |     return apply_filters(\'evk_dlugi_filtr\', $argument_pierwszy, $argument_drugi, $argument_trzeci, $argument_czwarty, $argument_piaty);'
-                           . "\n" . '  42 | }',
-            ]];
+                '  40 | function evk_bardzo_dluga_nazwa_funkcji_ktora_nie_miesci_sie_w_kolumnie($argument_pierwszy, $argument_drugi, $argument_trzeci, $argument_czwarty, $argument_piaty, $argument_szosty) {'
+                /* Apostrofy, nie cudzysłowy: w cudzysłowie PHP podstawia
+                   `$argument_*` jako zmienne i z kontekstu znika to, co miało
+                   w nim być — łącznie z długością, która jest tu sednem. */
+                . "\n" . '  41 |     return apply_filters(\'evk_dlugi_filtr\', $argument_pierwszy, $argument_drugi, $argument_trzeci, $argument_czwarty, $argument_piaty);'
+                . "\n" . '  42 | }'
+            );
+
+            /* STAN PO WYWROTCE — na żądanie, bo zmienia wygląd listy.
+               Zakładamy go PRAWDZIWĄ drogą: zapalamy znacznik i wołamy
+               `evk_snippet_odetnij()`, czyli dokładnie to, co robi silnik po
+               błędzie. Metadana przy wpisie i transjent powstają wtedy same
+               i nie mogą się rozjechać z kodem. */
+            if (($_GET['evk_stan'] ?? '') === 'awaria') {
+                EVK_Snippet_Znacznik::zapal(evk_snippet_znacznik_wpisu(
+                    ['id' => $wylaczony, 'tytul' => 'Wyłączony test']));
+                evk_snippet_odetnij('Fatal Error',
+                    'Cannot redeclare function evk_moja_funkcja()', 12);
+                EVK_Snippet_Znacznik::zgas();
+            }
         },
     ],
     'tools-io' => [

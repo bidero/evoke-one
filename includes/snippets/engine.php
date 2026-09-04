@@ -160,7 +160,11 @@ function evk_snippet_wykonaj_wpis(array $wpis): string {
        początku). Dzięki temu obie drogi mają jedną obsługę błędów. */
     $kod = ($wpis['rodzaj'] === 'php') ? "<?php\n" . $wpis['kod'] : $wpis['kod'];
 
-    return evk_snippet_execute($kod, $wpis['slug'] !== '' ? $wpis['slug'] : ('wpis-' . $wpis['id']));
+    return evk_snippet_execute(
+        $kod,
+        $wpis['slug'] !== '' ? $wpis['slug'] : ('wpis-' . $wpis['id']),
+        evk_snippet_znacznik_wpisu($wpis)
+    );
 }
 
 add_action('init', function () {
@@ -180,7 +184,9 @@ add_action('init', function () {
     // Advanced — osobna opcja sprzed podziału na wpisy, zostaje bez zmian.
     if (get_option(EVK_SNIPPETS_ADVANCED_ENABLED, 0)) {
         $adv = evk_snippets_advanced_get();
-        if (!empty(trim($adv))) evk_snippet_execute($adv, 'evk-snippet-advanced');
+        if (!empty(trim($adv))) {
+            evk_snippet_execute($adv, 'evk-snippet-advanced', evk_snippet_znacznik_advanced());
+        }
     }
 
     foreach ($wpisy as $wpis) {
@@ -200,46 +206,134 @@ add_action('init', function () {
 }, 10);
 
 // =========================================================================
-// SHUTDOWN HANDLER — przechwytuje fatalne błędy
+// FUNKCJA ZAMYKAJĄCA — łapie to, czego złapać się nie da
 // =========================================================================
 
+/**
+ * Czy ten ślad prowadzi do NASZEGO `eval()`.
+ *
+ * PHP wpisuje w `file` ścieżkę pliku, w którym stoi `eval()`, i dokleja do niej
+ * „ : eval()'d code":
+ *
+ *     /…/includes/snippets/validation.php(99) : eval()'d code
+ *
+ * Sprawdzamy OBIE części. Samo „eval()'d code" łapałoby też cudzą wtyczkę
+ * wykonującą kod tą samą drogą — i gasiłoby wtedy nasze działające snippety za
+ * czyjś błąd. Sama ścieżka bez dopisku łapałaby zwykły błąd w naszym pliku.
+ */
+function evk_snippet_slad_eval(string $tekst): bool {
+    if ($tekst === '' || strpos($tekst, "eval()'d code") === false) return false;
+    return strpos(wp_normalize_path($tekst), wp_normalize_path(evk_snippet_plik_eval())) !== false;
+}
+
+/**
+ * Czy ten błąd krytyczny jest nasz.
+ *
+ * Trzy drogi, od najpewniejszej. Znacznik zapalony to dowód wprost: w chwili
+ * błędu leciał nasz `eval()` i wiadomo nawet, czyj. Ślad w `file` zostaje
+ * wtedy, gdy pękł kod zdefiniowany w snippecie, ale wywołany później — hak,
+ * funkcja, domknięcie; znacznik jest już wtedy zgaszony. Ślad w `message` łapie
+ * przypadek odwrotny: winowajcą jest cudzy plik, ale komunikat wskazuje na
+ * nasze `eval()` („Cannot redeclare foo(), previously declared in … eval()'d
+ * code") — nasz snippet zajął nazwę i to on ma wypaść.
+ */
+function evk_snippet_blad_nasz(array $error): bool {
+    if (EVK_Snippet_Znacznik::biezacy() !== null) return true;
+    if (evk_snippet_slad_eval((string) ($error['file'] ?? ''))) return true;
+    if (evk_snippet_slad_eval((string) ($error['message'] ?? ''))) return true;
+
+    // Wywrotka w kodzie samego modułu — gasimy z ostrożności, tak jak dotąd.
+    $plik = wp_normalize_path((string) ($error['file'] ?? ''));
+    return $plik !== '' && strpos($plik, wp_normalize_path(__DIR__)) === 0;
+}
+
+/**
+ * Reakcja na błąd, którego `try/catch` nie widzi.
+ *
+ * Redeklaracja funkcji, brakujący `require`, przekroczony czas wykonania —
+ * takiego błędu `evk_snippet_execute()` nie złapie, bo PHP nie rzuca tu
+ * wyjątku, tylko kończy żądanie. Zostaje funkcja zamykająca: leci w TYM SAMYM
+ * procesie, więc znacznik wciąż mówi, czyj kod pracował.
+ *
+ * Osobna, NAZWANA funkcja zamiast domknięcia w `register_shutdown_function` —
+ * żeby dało się ją zawołać z testem, podając błąd wprost. Poza `error_get_last()`
+ * jest tu wszystko, co decyduje.
+ */
+function evk_snippet_obsluz_fatal(?array $error): void {
+    if (!$error) return;
+    if (!in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) return;
+    if (!get_option(EVK_SNIPPETS_ENABLED_OPTION, 0)) return;
+    if (!evk_snippet_blad_nasz($error)) return;
+
+    $wynik = evk_snippet_odetnij('Fatal Error', (string) $error['message'], (int) $error['line']);
+
+    /* Log dostaje nazwę wpisu, nie „unknown" — po to był cały znacznik. */
+    evk_snippet_log_error('PHP Fatal Error', (string) $error['message'],
+        $wynik['slug'], (int) $error['line']);
+}
+
 add_action('init', function () {
-    register_shutdown_function(function () {
-        $error = error_get_last();
-        if (!$error) return;
-        if (!in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) return;
-        if (!get_option(EVK_SNIPPETS_ENABLED_OPTION, 0)) return;
-
-        $is_snippet = strpos($error['message'], "eval()'d code") !== false
-            || strpos($error['message'], 'evk_snippet') !== false
-            || strpos(wp_normalize_path($error['file']), wp_normalize_path(__FILE__)) !== false;
-
-        if (!$is_snippet) return;
-
-        evk_snippet_log_error('PHP Fatal Error', $error['message'], 'unknown', $error['line']);
-        update_option(EVK_SNIPPETS_ENABLED_OPTION, 0);
-        set_transient(EVK_SNIPPETS_FATAL_TRANSIENT, [
-            'message' => $error['message'],
-            'slug'    => 'fatal',
-            'line'    => $error['line'],
-            'type'    => 'Fatal Error',
-        ], DAY_IN_SECONDS);
-    });
+    register_shutdown_function(function () { evk_snippet_obsluz_fatal(error_get_last()); });
 }, 1);
 
 // =========================================================================
-// ADMIN NOTICE — fatal error
+// POWIADOMIENIE — na każdym ekranie panelu
 // =========================================================================
+
+/**
+ * Treść powiadomienia zależy od tego, CO wypadło.
+ *
+ * Zdanie „wykonywanie wyłączone" byłoby przy zakresie `wpis` nieprawdą: reszta
+ * snippetów pracuje dalej i główny włącznik został włączony. Powiadomienie ma
+ * nazwać jeden wpis i zaprowadzić prosto do niego — bez tego administrator
+ * dostaje komunikat o błędzie i listę kilkunastu wpisów do przeszukania.
+ */
+function evk_snippet_tresc_powiadomienia(array $fatal): array {
+    $zakres = $fatal['zakres'] ?? 'nieznany';
+    $tytul  = trim((string) ($fatal['tytul'] ?? ''));
+
+    if ($zakres === 'wpis' && !empty($fatal['id'])) {
+        return [
+            'naglowek' => sprintf('Evoke ONE: snippet „%s" wyłączył się po błędzie krytycznym.',
+                                  $tytul !== '' ? $tytul : ('#' . (int) $fatal['id'])),
+            'reszta'   => 'Pozostałe wpisy pracują dalej.',
+            'url'      => evk_snippety_url(['evk_widok' => 'edytor', 'evk_wpis' => (int) $fatal['id']]),
+            'przycisk' => 'Otwórz ten snippet',
+        ];
+    }
+
+    if ($zakres === 'advanced') {
+        return [
+            'naglowek' => 'Evoke ONE: tryb zaawansowany snippetów wyłączył się po błędzie krytycznym.',
+            'reszta'   => 'Zwykłe wpisy pracują dalej.',
+            'url'      => evk_snippety_url(['evk_widok' => 'advanced']),
+            'przycisk' => 'Otwórz tryb zaawansowany',
+        ];
+    }
+
+    return [
+        'naglowek' => 'Evoke ONE: wykonywanie snippetów wyłączone po błędzie krytycznym.',
+        /* Mówimy WPROST, że sprawcy nie znamy — inaczej wygląda to na decyzję,
+           a jest to ostatnia deska ratunku. */
+        'reszta'   => 'Nie dało się wskazać wpisu: błąd wybuchł poza wykonaniem snippetu, '
+                    . 'w kodzie, który snippet zarejestrował na później.',
+        'url'      => evk_snippety_url(['evk_widok' => 'logi']),
+        'przycisk' => 'Zobacz logi błędów',
+    ];
+}
 
 add_action('admin_notices', function () {
     if (!current_user_can('manage_options')) return;
     $fatal = get_transient(EVK_SNIPPETS_FATAL_TRANSIENT);
     if (!$fatal || !is_array($fatal)) return;
-    $url = admin_url('options-general.php?page=evoke-one&tab=narzedzia&sub=snippets&evk_stab=logs');
+
+    $t = evk_snippet_tresc_powiadomienia($fatal);
+
     echo '<div class="notice notice-error evk-snippets-fatal-notice">';
-    echo '<p><strong>Evoke One Snippety: wykonywanie wyłączone z powodu błędu krytycznego.</strong></p>';
-    printf('<p>%s — linia %d</p>', esc_html($fatal['message']), (int)$fatal['line']);
-    printf('<p><a href="%s" class="button">Zobacz logi błędów</a> &nbsp;', esc_url($url));
+    printf('<p><strong>%s</strong> %s</p>', esc_html($t['naglowek']), esc_html($t['reszta']));
+    printf('<p class="evo-mono-xs">%s — linia %d</p>',
+        esc_html((string) ($fatal['message'] ?? '')), (int) ($fatal['line'] ?? 0));
+    printf('<p><a href="%s" class="button">%s</a> &nbsp;', esc_url($t['url']), esc_html($t['przycisk']));
     echo '<button type="button" class="button evk-dismiss-fatal-snippet" data-nonce="' . esc_attr(wp_create_nonce('evk_dismiss_fatal')) . '">Odrzuć</button></p>';
     echo '</div>';
     echo '<script>(function($){$(".evk-dismiss-fatal-snippet").on("click",function(){$.post(ajaxurl,{action:"evk_dismiss_snippet_fatal",nonce:$(this).data("nonce")},function(){$(".evk-snippets-fatal-notice").remove();});});})($j||jQuery);</script>';
@@ -250,19 +344,4 @@ add_action('wp_ajax_evk_dismiss_snippet_fatal', function () {
     if (!current_user_can('manage_options')) wp_die();
     delete_transient(EVK_SNIPPETS_FATAL_TRANSIENT);
     wp_send_json_success();
-});
-
-// =========================================================================
-// AJAX — pobierz treść rewizji do podglądu
-// =========================================================================
-
-add_action('wp_ajax_evk_get_snippet_revision', function () {
-    check_ajax_referer('evk_snippets_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error([], 403);
-    $rev_id = absint($_POST['revision_id'] ?? 0);
-    if (!$rev_id) wp_send_json_error('Brak ID rewizji.');
-    $rev = wp_get_post_revision($rev_id);
-    if (!$rev) wp_send_json_error('Rewizja nie istnieje.');
-    if (!current_user_can('edit_post', $rev->post_parent)) wp_send_json_error('Brak uprawnień.', 403);
-    wp_send_json_success(['content' => $rev->post_content]);
 });

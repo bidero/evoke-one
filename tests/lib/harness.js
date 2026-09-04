@@ -61,10 +61,23 @@ function chromiumPath() {
   );
 }
 
-/** Uruchamia plik PHP z katalogu tests/php i zwraca jego wyjście. */
-function phpOutput(file, args) {
-  return execSync('php ' + JSON.stringify(path.join(__dirname, '..', 'php', file)) +
-                  (args ? ' ' + args : '')).toString();
+/**
+ * Uruchamia plik PHP z katalogu tests/php i zwraca jego wyjście.
+ *
+ * `dopuscBlad` przepuszcza niezerowy kod wyjścia i oddaje to, co proces zdążył
+ * wypisać. Jest po to dla jednego scenariusza: badania PRAWDZIWEGO błędu
+ * krytycznego, po którym PHP kończy się kodem 255 — tam wywrotka jest badaną
+ * rzeczą, a nie awarią testu. Wszędzie indziej niezerowy kod ma zapalać.
+ */
+function phpOutput(file, args, opcje) {
+  const cmd = 'php ' + JSON.stringify(path.join(__dirname, '..', 'php', file)) +
+              (args ? ' ' + args : '');
+  if (!opcje || !opcje.dopuscBlad) return execSync(cmd).toString();
+  try {
+    return execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+  } catch (e) {
+    return (e.stdout || '').toString();
+  }
 }
 
 /** Wycina zawartość znacznika <style|script id="..."> z wyjścia PHP. */

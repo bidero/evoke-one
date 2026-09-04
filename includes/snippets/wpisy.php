@@ -144,6 +144,11 @@ const EVK_SNIPPET_META_RODZAJ  = '_evk_snippet_rodzaj';
 const EVK_SNIPPET_META_MIEJSCE = '_evk_snippet_miejsce';
 const EVK_SNIPPET_META_GRUPA   = '_evk_snippet_grupa';
 const EVK_SNIPPET_META_WLACZ   = '_evk_snippet_wlaczony';
+/* Ślad po wywrotce: co, kiedy i w której linii. Zostaje po tym, jak silnik
+   sam wyłączył wpis — powiadomienie na górze panelu daje się odrzucić jednym
+   klikiem, a wtedy jedynym śladem byłby przestawiony włącznik, nie do
+   odróżnienia od wyłączonego ręcznie. */
+const EVK_SNIPPET_META_AWARIA  = '_evk_snippet_awaria';
 
 /**
  * Wszystkie wpisy, w kolejności wykonania.
@@ -174,10 +179,13 @@ function evk_snippety_wszystkie(bool $tylko_wlaczone = false): array {
         $rodzaj  = (string) get_post_meta($post->ID, EVK_SNIPPET_META_RODZAJ, true);
         $miejsce = (string) get_post_meta($post->ID, EVK_SNIPPET_META_MIEJSCE, true);
 
+        $awaria = get_post_meta($post->ID, EVK_SNIPPET_META_AWARIA, true);
+
         $out[] = [
             'id'       => (int) $post->ID,
             'tytul'    => (string) $post->post_title,
             'kod'      => (string) $post->post_content,
+            'awaria'   => is_array($awaria) ? $awaria : null,
             'rodzaj'   => isset(evk_snippet_rodzaje()[$rodzaj]) ? $rodzaj : 'szablon',
             'miejsce'  => isset(evk_snippet_miejsca()[$miejsce]) ? $miejsce : 'head',
             'grupa'    => (string) get_post_meta($post->ID, EVK_SNIPPET_META_GRUPA, true),
@@ -221,6 +229,11 @@ function evk_snippet_zapisz_wpis(array $dane): int {
     update_post_meta($id, EVK_SNIPPET_META_GRUPA,
         sanitize_text_field((string) ($dane['grupa'] ?? '')));
     update_post_meta($id, EVK_SNIPPET_META_WLACZ, empty($dane['wlaczony']) ? 0 : 1);
+
+    /* Zapis to moment, w którym administrator naprawia to, co pękło — ślad po
+       wywrotce przestaje być aktualny. Zostawiony wisiałby przy wpisie, który
+       już działa, i mówił nieprawdę przy każdym wejściu na listę. */
+    delete_post_meta($id, EVK_SNIPPET_META_AWARIA);
 
     return $id;
 }
