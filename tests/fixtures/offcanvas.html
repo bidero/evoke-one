@@ -22,6 +22,13 @@
      `z-index` samemu burgerowi nie ma jak wyjść na zewnątrz. Bez takiego
      opakowania w drzewie mechanizm podnoszenia nie miałby czego podnieść. */
   #naglowek.warstwa { position: sticky; top: 0; z-index: 10; background: #fff; }
+
+  /* Przyklejony nagłówek BEZ własnej warstwy — zakładany z `?stack=sticky`.
+     `position: sticky` zakłada kontekst nakładania SAM Z SIEBIE, bez żadnego
+     `z-index`, i to jest osobny przypadek: bez niego pozycja „sticky" na
+     liście w warstwy.js jest nierozróżnialna od reguły o `z-index` niżej
+     (zmierzone — jej usunięcie przechodziło na zielono). */
+  #naglowek.warstwa-sticky { position: sticky; top: 0; background: #fff; }
 </style>
 
 <link rel="stylesheet" href="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.css">
@@ -47,6 +54,13 @@
   <button class="evk-oc-trigger" id="trigger">Menu</button>
 
   <div class="evk-oc-panel" data-panel="start">
+    <!-- POJEMNIK Z TŁEM — tak wygląda prawdziwe menu z Bricksa: treść leży na
+         kontenerze, a to on niesie kolor. Animację dostaje z `?tlo=1`, bo
+         zgłoszenie mówi „tło znika, napisy zostają": jeśli pojemnik ma własny
+         wpis w Animatorze, wyjście odgrywa go NIEZALEŻNIE od kadru. Bez takiego
+         pojemnika w drzewie ta klasa usterek jest poza zasięgiem pomiaru —
+         w gołym panelu tłem jest kadr, który zawsze wyjeżdża w całości. -->
+    <div id="tlo" style="background:#c00;padding:8px">tło panelu</div>
     <span id="anim" data-evk-anim='{"animation":"wjazd","trigger":"viewport"}'>Animowany</span>
     <a href="#a" id="s-a">Start A</a>
     <a href="#b" id="s-b">Start B</a>
@@ -146,13 +160,23 @@
   // Nagłówek zamykający `position: fixed` w sobie — patrz `#naglowek.pulapka`.
   if (q.get('trap') === '1') document.getElementById('naglowek').classList.add('pulapka');
   // Nagłówek z własną warstwą — patrz `#naglowek.warstwa`.
-  if (q.get('stack') === '1') document.getElementById('naglowek').classList.add('warstwa');
+  if (q.get('stack') === '1')      document.getElementById('naglowek').classList.add('warstwa');
+  if (q.get('stack') === 'sticky') document.getElementById('naglowek').classList.add('warstwa-sticky');
   /* Korzeń POZYCJONOWANY, ale bez własnej warstwy — zwyczajny element Bricksa.
      Staje się wtedy najbliższym pozycjonowanym przodkiem przełącznika, choć
      o kolejności nadal rozstrzyga nagłówek nad nim. Bez tego przypadku wybór
      „najdalszy kontekst, a dopiero potem najbliższy pozycjonowany" jest
      w testach nierozróżnialny: w prostym drzewie oba wskazują to samo. */
   if (q.get('rootpos') === '1') root.style.position = 'relative';
+
+  /* Pojemnik z tłem dostaje WŁASNY wpis Animatora — patrz `#tlo` wyżej.
+     `?tlo=wejscie` daje mu zwykłą animację wejściową (wyjście odgrywa ją
+     wstecz), `?tlo=zamkniecie` — osobną animację na zamknięcie menu. */
+  if (q.get('tlo')) {
+    document.getElementById('tlo').setAttribute('data-evk-anim',
+      JSON.stringify({ animation: 'wjazd',
+                       trigger: q.get('tlo') === 'zamkniecie' ? 'menu-close' : 'viewport' }));
+  }
 
   /* ZRZUT KORZENIA sprzed startu skryptu — do udawania przerysowania.
 
@@ -181,6 +205,10 @@
   };
 </script>
 <script src="../../assets/js/animator.js"></script>
+<!-- Wspólny pomocnik od warstw. Na stronie jest ZALEŻNOŚCIĄ skryptu menu
+     (patrz evk_register_warstwy w includes/89-gsap.php), więc i tu musi
+     stać przed nim. -->
+<script src="../../assets/js/warstwy.js"></script>
 <script src="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.js"></script>
 
 <script>

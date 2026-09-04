@@ -104,7 +104,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-circular-menu',
             'file'  => $dir . 'evoke-circular-menu/element.php',
             'consts'=> [
-                'EVK_CIRCULAR_MENU_VERSION' => '1.9.0',
+                'EVK_CIRCULAR_MENU_VERSION' => '1.10.0',
                 'EVK_CIRCULAR_MENU_URL'     => $url . 'evoke-circular-menu/',
                 'EVK_CIRCULAR_MENU_PATH'    => $dir . 'evoke-circular-menu/',
             ],
@@ -119,7 +119,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-offcanvas-menu',
             'file'  => $dir . 'evoke-offcanvas-menu/element.php',
             'consts'=> [
-                'EVK_OFFCANVAS_MENU_VERSION' => '1.13.0',
+                'EVK_OFFCANVAS_MENU_VERSION' => '1.13.1',
                 'EVK_OFFCANVAS_MENU_URL'     => $url . 'evoke-offcanvas-menu/',
                 'EVK_OFFCANVAS_MENU_PATH'    => $dir . 'evoke-offcanvas-menu/',
             ],

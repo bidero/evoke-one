@@ -69,6 +69,10 @@
   document.getElementById("brxe-rfepem")
     .setAttribute("data-level-style", q.get("levels") || "expand");
 </script>
+<!-- Wspólny pomocnik od warstw. Na stronie jest ZALEŻNOŚCIĄ skryptu menu
+     (patrz evk_register_warstwy w includes/89-gsap.php), więc i tu musi
+     stać przed nim. -->
+<script src="../../assets/js/warstwy.js"></script>
 <script src="../../includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.js"></script>
 
 <script>

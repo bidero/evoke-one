@@ -1657,6 +1657,16 @@ module.exports = async function (t) {
     JSON.stringify(dCurve.deps));
   t.check('i biblioteka jest wtedy zarejestrowana', dCurve.gsap === true, String(dCurve.gsap));
 
+  /* Pomocnik od warstw idzie ZAWSZE i jako ZALEŻNOŚĆ, nie samo enqueue:
+     skrypt czyta `window.evkWarstwy` przy pierwszym otwarciu menu, a bez
+     zależności kolejność w stopce nie jest niczym gwarantowana. Wspólny
+     z Circular Menu, więc jedno pobranie na stronę. */
+  t.check('pomocnik od warstw jest zależnością przy każdym efekcie',
+    dSlide.deps.includes('evk-warstwy') && dReveal.deps.includes('evk-warstwy')
+    && dCurve.deps.includes('evk-warstwy'),
+    JSON.stringify(dSlide.deps));
+  t.check('i jest przy tym zarejestrowany', dSlide.warstwy === true, String(dSlide.warstwy));
+
   /* ── Sterowanie, które nie jest przyciskiem z natury ────────────────────
    *
    * Zgłoszone z PageSpeed: „Elements must only use permitted ARIA attributes",
@@ -1853,6 +1863,22 @@ module.exports = async function (t) {
   t.check('i burger jest przez to na wierzchu', wrp.naWierzchu === 'przelacznik',
     'na wierzchu: ' + wrp.naWierzchu);
   await rp.close();
+
+  /* PRZYKLEJONY NAGŁÓWEK BEZ WŁASNEJ WARSTWY. `position: sticky` zakłada
+     kontekst nakładania sam z siebie — i to jest tu sedno, bo korzeń niżej
+     jest pozycjonowany, więc gdyby liczyła się tylko własna warstwa, wybór
+     padłby na korzeń, a podniesienie go nie wyszłoby poza nagłówek. */
+  const stk = await t.open('offcanvas.html',
+    { viewport: V, settle: 150, head: ZAMEK, query: 'stack=sticky&rootpos=1&above=1' });
+  await stk.evaluate(() => window.__open());
+  await stk.waitForTimeout(250);
+  const wstk = await stk.evaluate(() => window.__warstwy());
+  t.check('przyklejony nagłówek bez własnej warstwy też rozstrzyga',
+    Number(wstk.naglowek) === Number(wstk.powloka) + 1 && wstk.korzen === '',
+    'nagłówek ' + wstk.naglowek + ', korzeń „' + wstk.korzen + '"');
+  t.check('i burger jest na wierzchu', wstk.naWierzchu === 'przelacznik',
+    'na wierzchu: ' + wstk.naWierzchu);
+  await stk.close();
 
   /* BEZ PRZENIESIENIA DO <body> powłoka siedzi w korzeniu, obok przełącznika —
      porównanie warstw odbywa się więc wewnątrz korzenia, a nie w <body>.

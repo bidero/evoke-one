@@ -33,6 +33,12 @@ if (!function_exists('wp_enqueue_style')) {
 function evk_register_gsap_libs() {
     $GLOBALS['gsap_zarejestrowany'] = true;
 }
+/* Wspólny pomocnik od warstw — tak samo jak GSAP: liczy się, czy element
+   dopisze uchwyt do zależności, a nie skąd plik pochodzi. Bez tej atrapy
+   `function_exists` zwraca fałsz i cała gałąź jest w teście nieosiągalna. */
+function evk_register_warstwy() {
+    $GLOBALS['warstwy_zarejestrowane'] = true;
+}
 function evk_anim_easings() { return ['power2.out']; }
 function evk_anim_easing_css($e) { return 'cubic-bezier(0.33, 1, 0.68, 1)'; }
 
@@ -45,4 +51,5 @@ $el->enqueue_scripts();
 echo json_encode([
     'deps'  => $GLOBALS['enqueued']['evk-offcanvas-menu-js']['deps'] ?? null,
     'gsap'  => !empty($GLOBALS['gsap_zarejestrowany']),
+    'warstwy' => !empty($GLOBALS['warstwy_zarejestrowane']),
 ], JSON_UNESCAPED_UNICODE), "\n";

@@ -2,6 +2,65 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.144.0] — 2026-09-04
+
+### Naprawione
+
+- **Animacja wejściowa pod wyzwalaczem wyjścia — element o tym mówi.**
+  Zgłoszone z użycia: „zamykanie powoduje, że tło się nie animuje — kliknięcie
+  burgera powoduje, że tło znika, napisy zostają i po chwili znikają, tylko
+  bez tła".
+
+  Odtworzone i zmierzone w fixturze: krycie **1 → 0,3 w pierwszej klatce
+  i z powrotem do 1 po 120 ms**. Wyzwalacze „Wyjście z kadru" i „Zamknięcie
+  menu" grają wiersz **do przodu**, a ich stan końcowy jest z założenia stanem
+  po zniknięciu — dlatego biblioteka ma osobne presety „Wyjście: zanik"
+  i pokrewne. Wiersz wejściowy ma to odwrotnie: jego stan początkowy jest
+  niewidoczny. Podpięty pod zamknięcie menu najpierw **gasi** element, a potem
+  przywraca go do widoczności — w chwili, gdy panel wyjeżdża.
+
+  Odwrócenia w silniku być nie może, bo popsułoby presety wyjściowe, napisane
+  właśnie pod granie do przodu. Zostaje powiedzieć, co jest nie tak — do tej
+  wersji wtyczka milczała, a objaw wygląda na usterkę animacji, nie na wybór
+  w panelu. Ostrzeżenie nazywa też drogę wyjścia: wybrać animację „Wyjście: …"
+  albo zamienić miejscami pola „skąd" i „dokąd".
+
+  Rozpoznanie idzie po **stanie końcowym**, nie po nazwie presetu: wiersz może
+  mieć pola wpisane z ręki i wtedy żadna nazwa nic nie mówi. Wiersz oznaczony
+  jako wyjściowy jest przy tym nietykalny — to deklaracja autora.
+
+  **To nie była usterka z 1.143.0.** Potwierdzone przez zgłaszającego: tak
+  samo przy zamknięciu Esc i kliknięciem w przyciemnienie.
+
+### Zmienione
+
+- **Circular Menu: „Przełącznik nad panelem" podnosi nagłówek, zamiast
+  przenosić burger.** Zgłoszone z użycia: „wprowadź to samo do circular menu".
+
+  Dotąd przełącznik był na czas otwarcia **przenoszony do `<body>`**,
+  a w nagłówku zostawała po nim niewidoczna kopia-przekładka — bez niej
+  nagłówek zapadał się o jego szerokość. Komentarz w tym pliku sam mówił, że
+  pomaga dopiero wyciągnięcie na wierzch **całego nagłówka, razem z jego
+  tłem** — a przenoszony burger wisiał nad panelem sam, bez paska pod sobą.
+
+  Teraz pierwsza droga jest ta sama co w Offcanvas Menu: podniesienie warstwy
+  **jednemu** przodkowi — temu, który staje z panelem do porównania. Znika
+  przy tym cała klasa usterek po przenoszeniu węzła: skasowany stan przejść
+  (zgłoszone kiedyś jako „burger nie animuje się do stanu otwartego"),
+  zdublowane identyfikatory w kopii i zapadające się pudełko.
+
+  Stara droga **zostaje jako zapas** i włącza się, gdy choć jednego
+  przełącznika nie da się podnieść — bo `z-index` na elemencie
+  niepozycjonowanym nic nie znaczy, a tamta droga radzi sobie i z tym:
+  wyjmuje przełącznik z kontekstu, zamiast go przebijać. Albo cała jedna
+  droga, albo cała druga; wycofanie w połowie zostawiłoby część podniesioną,
+  część przeniesioną.
+
+- **Reguła „kto z kim rywalizuje o warstwę" ma jedno źródło.** Oba menu miały
+  ten sam problem i oba zgłoszone osobno — teraz `assets/js/warstwy.js` jest
+  wspólną zależnością obu elementów, zamiast dwóch kopii, które rozjadą się
+  przy pierwszej poprawce.
+
 ## [1.143.0] — 2026-09-04
 
 ### Naprawione

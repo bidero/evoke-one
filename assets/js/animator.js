@@ -675,6 +675,58 @@
    * WEJŚCIOWEJ na tym samym elemencie — i treść bywałaby widoczna albo nie
    * zależnie od tego, którą animację zbudowano później.
    */
+  /**
+   * Animacja WEJŚCIOWA podpięta pod wyzwalacz wyjścia — mówimy o tym głośno.
+   *
+   * ZGŁOSZONE Z UŻYCIA: „zamykanie powoduje, że tło się nie animuje —
+   * kliknięcie burgera powoduje, że tło znika, napisy zostają i po chwili
+   * znikają, tylko bez tła".
+   *
+   * Wyzwalacze `exit` i `menu-close` grają wiersz DO PRZODU, a ich `to` jest
+   * z założenia stanem po zniknięciu — dlatego biblioteka ma osobne presety
+   * wyjściowe („Wyjście: zanik" i pokrewne, ze znacznikiem `exit`). Wiersz
+   * wejściowy ma to odwrotnie: jego `from` jest stanem niewidocznym, a `to`
+   * widocznym. Podpięty tutaj najpierw GASI element, a potem przywraca go do
+   * widoczności — w chwili, gdy panel właśnie wyjeżdża. Zmierzone w fixturze:
+   * krycie 1 → 0,3 w pierwszej klatce, z powrotem do 1 po 120 ms.
+   *
+   * Odwrócenie tego w silniku popsułoby presety wyjściowe, bo one są napisane
+   * pod granie do przodu. Zostaje więc powiedzieć, co jest nie tak — do
+   * 1.144.0 wtyczka na to milczała, a objaw wygląda na usterkę animacji, nie
+   * na wybór w panelu.
+   *
+   * Rozpoznajemy po STANIE POCZĄTKOWYM, nie po nazwie presetu: wiersz może
+   * mieć własne pola „skąd/dokąd" wpisane z ręki i wtedy żadna nazwa nic nie
+   * mówi. Zerowe krycie na starcie przy wyzwalaczu wyjścia to zawsze pomyłka.
+   */
+  function ostrzezOWejsciuNaWyjsciu(el, cfg) {
+    if (cfg.trigger !== 'exit' && cfg.trigger !== 'menu-close') return;
+    if (!cfg.to) return;
+
+    /* Wiersza OZNACZONEGO jako wyjściowy nie trzeba tu wyłączać osobno —
+       i sprawdzone, że nie warto: taki wiersz kończy się stanem niewidocznym,
+       więc warunek niżej i tak go przepuszcza. Osobna bramka po znaczniku
+       była martwa (mutacja usuwająca ją przechodziła na zielono), a martwy
+       warunek udaje pilnowanie czegoś, czego nie pilnuje. */
+
+    /* Rozstrzyga STAN POCZĄTKOWY, i tylko on. Animacja wyjścia nie ma prawa
+       zaczynać się od zerowego krycia — to właśnie ono gasi element w pierwszej
+       klatce, zanim cokolwiek zdąży się ruszyć, i to jest zgłoszony objaw.
+       Dokąd taki wiersz zmierza, nie ma już znaczenia: z niewidzialności
+       wychodzi się tylko w jedną stronę. Warunek o stanie końcowym stał tu
+       do czasu, aż mutacja pokazała, że nie pilnuje niczego. */
+    var poczatkoweNiewidoczne = cfg.from && ('opacity' in cfg.from)
+        && parseFloat(cfg.from.opacity) <= 0;
+    if (!poczatkoweNiewidoczne) return;
+
+    var nazwa = cfg.trigger === 'menu-close' ? 'Zamknięcie menu' : 'Wyjście z kadru';
+
+    console.warn('[EVK Animator] Wyzwalacz „' + nazwa + '" dostał animację WEJŚCIOWĄ '
+      + '(krycie 0 → 1). Element najpierw zgaśnie, a potem wróci do widoczności — '
+      + 'w chwili, gdy powinien znikać. W wierszu biblioteki wybierz animację '
+      + '„Wyjście: …" albo zamień miejscami pola „skąd" i „dokąd".', el);
+  }
+
   function attachMenuClose(el, targets, cfg) {
     var tl    = gsap.timeline({ paused: true });
     var vars  = tweenVars(targets, cfg, { immediateRender: false });
@@ -1010,6 +1062,8 @@
     // `onSplit` tu przysyła. Dlatego siedzi w tym samym miejscu co pozostałe
     // wyjątki, a nie osobnym wejściem do potoku.
     if (cfg.swap) return attachSwap(el, targets, cfg);
+
+    ostrzezOWejsciuNaWyjsciu(el, cfg);
 
     switch (cfg.trigger) {
       case 'exit':       return attachExit(el, targets, cfg);

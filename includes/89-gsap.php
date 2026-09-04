@@ -35,6 +35,27 @@ function evk_gsap_url(): string {
     return EVOKE_ONE_URL . 'assets/vendor/gsap/';
 }
 
+/**
+ * Wspólny pomocnik od warstw — kto z kim rywalizuje o kolejność.
+ *
+ * Rejestrowany tu, obok bibliotek GSAP, i z tego samego powodu: dwa elementy
+ * (Offcanvas Menu i Circular Menu) potrzebują tej samej reguły, a jeden handle
+ * znaczy jedno pobranie i jedno źródło do poprawiania.
+ */
+const EVK_WARSTWY_VERSION = '1.0.0';
+
+function evk_register_warstwy(): void {
+    if (wp_script_is('evk-warstwy', 'registered')) return; // idempotentne
+
+    wp_register_script(
+        'evk-warstwy',
+        EVOKE_ONE_URL . 'assets/js/warstwy.js',
+        [],
+        EVK_WARSTWY_VERSION,
+        true
+    );
+}
+
 function evk_register_gsap_libs(): void {
     if (wp_script_is('evk-gsap', 'registered')) return; // idempotentne
 

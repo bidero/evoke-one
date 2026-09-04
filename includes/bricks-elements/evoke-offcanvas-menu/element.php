@@ -441,6 +441,16 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		 * buduje oś czasu zaraz po starcie.
 		 */
 		$deps = [ 'bricks-scripts' ];
+
+		/* Pomocnik od warstw — wspólny z Circular Menu (assets/js/warstwy.js).
+		   Zależność, nie samo enqueue: skrypt czyta `window.evkWarstwy` przy
+		   pierwszym otwarciu menu, a to bywa wcześniej niż stopka zdąży się
+		   wykonać po swojemu. */
+		if ( function_exists( 'evk_register_warstwy' ) ) {
+			evk_register_warstwy();
+			$deps[] = 'evk-warstwy';
+		}
+
 		if ( ( $this->settings['openEffect'] ?? '' ) === 'curve' ) {
 			if ( function_exists( 'evk_register_gsap_libs' ) ) {
 				evk_register_gsap_libs();

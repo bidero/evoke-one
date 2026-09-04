@@ -766,16 +766,27 @@ module.exports = async function (t) {
   t.check('nagłówek się NIE przebudował',
     JSON.stringify(await zr.evaluate(() => window.__rect('sasiad'))) === JSON.stringify(sasiadR),
     JSON.stringify(await zr.evaluate(() => window.__rect('sasiad'))) + ' vs ' + JSON.stringify(sasiadR));
-  t.check('na czas otwarcia siedzi w <body>',
-    (await zr.evaluate(() => window.__rodzic('zew-naglowek'))) === 'body',
+  /* NIE RUSZAMY DRZEWA. Do 1.144.0 przełącznik był na czas otwarcia
+     przenoszony do <body>, a w nagłówku zostawała po nim niewidoczna
+     przekładka — bo bez niej nagłówek zapadał się o jego szerokość. Podniesienie
+     warstwy jednemu przodkowi daje ten sam skutek i wynosi nagłówek RAZEM
+     Z TŁEM, o co chodziło w zgłoszeniu; przeniesiony burger wisiał nad panelem
+     sam, bez paska nagłówka pod sobą. Przy okazji znika cała klasa usterek
+     po przenoszeniu węzła: skasowany stan przejść, zdublowane identyfikatory
+     w kopii i zapadające się pudełko. */
+  t.check('przełącznik zostaje w nagłówku',
+    (await zr.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
     String(await zr.evaluate(() => window.__rodzic('zew-naglowek'))));
+  t.check('i nie zostaje po nim żadna przekładka',
+    (await zr.evaluate(() => document.querySelectorAll('[data-evk-cm-przekladka]').length)) === 0,
+    String(await zr.evaluate(() => document.querySelectorAll('[data-evk-cm-przekladka]').length)));
 
   // Zamknięcie DROGĄ, o której podnoszenie nic nie wie — Esc.
   await zr.evaluate(() => window.__key('Escape'));
   await zr.waitForTimeout(500);
-  t.check('po zamknięciu wraca do nagłówka',
-    (await zr.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
-    String(await zr.evaluate(() => window.__rodzic('zew-naglowek'))));
+  t.check('po zamknięciu panel znów przykrywa przełącznik',
+    (await zr.evaluate(() => window.__naWierzchu('zew-naglowek'))) === 'zew-naglowek',
+    String(await zr.evaluate(() => window.__naWierzchu('zew-naglowek'))));
   t.check('i oddaje swój styl w stanie sprzed otwarcia',
     (await zr.evaluate(() => window.__inline('zew-naglowek'))) === stylPrzed,
     JSON.stringify(await zr.evaluate(() => window.__inline('zew-naglowek'))));
@@ -840,14 +851,14 @@ module.exports = async function (t) {
   });
   await zero.evaluate(() => window.__zew('zew-naglowek'));
   await zero.waitForTimeout(120);
-  t.check('przy redukcji ruchu też się podnosi',
-    (await zero.evaluate(() => window.__rodzic('zew-naglowek'))) === 'body',
-    String(await zero.evaluate(() => window.__rodzic('zew-naglowek'))));
+  t.check('przy redukcji ruchu też jest na wierzchu',
+    (await zero.evaluate(() => window.__naWierzchu('zew-naglowek'))) === 'zew-naglowek',
+    String(await zero.evaluate(() => window.__naWierzchu('zew-naglowek'))));
   await zero.evaluate(() => window.__key('Escape'));
   await zero.waitForTimeout(200);
-  t.check('i przy redukcji ruchu NAPRAWDĘ wraca',
-    (await zero.evaluate(() => window.__rodzic('zew-naglowek'))) === 'naglowek',
-    String(await zero.evaluate(() => window.__rodzic('zew-naglowek'))));
+  t.check('i przy redukcji ruchu warstwa NAPRAWDĘ wraca',
+    (await zero.evaluate(() => window.__inline('naglowek'))) === 'position:relative;z-index:1;background:#eee;padding:10px',
+    String(await zero.evaluate(() => window.__inline('naglowek'))));
   await zero.close();
 
   // Przełącznik WBUDOWANY siedzi w korzeniu menu, a nie w panelu — ma się
@@ -860,9 +871,9 @@ module.exports = async function (t) {
   await wb.waitForTimeout(400);
   // Podnoszony jest CAŁY `.evk-cm-trigger` (opakowanie), a nie przycisk
   // w środku — bo to opakowanie zajmuje miejsce w układzie strony.
-  t.check('wbudowany przełącznik też jedzie do <body>',
-    (await wb.evaluate(() => window.__rodzic('tw'))) === 'body',
-    String(await wb.evaluate(() => window.__rodzic('tw'))));
+  t.check('wbudowany przełącznik też jest na wierzchu',
+    (await wb.evaluate(() => window.__naWierzchu('trigger'))) === 'trigger',
+    String(await wb.evaluate(() => window.__naWierzchu('trigger'))));
   t.check('a panel został tam, gdzie był',
     (await wb.evaluate(() => window.__panelParent())) === 'body',
     String(await wb.evaluate(() => window.__panelParent())));

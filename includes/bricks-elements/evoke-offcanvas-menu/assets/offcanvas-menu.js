@@ -50,59 +50,21 @@ function evk_oc_przodek_blokujacy(el) {
     return null;
 }
 
-/** Czy ten styl zakłada elementowi WŁASNY kontekst nakładania. */
-function evk_oc_tworzy_kontekst(cs) {
-    if (cs.position === 'fixed' || cs.position === 'sticky') return true;
-    if (cs.position !== 'static' && cs.zIndex !== 'auto') return true;
-    if (parseFloat(cs.opacity) < 1) return true;
-    if (cs.transform !== 'none') return true;
-    if (cs.filter && cs.filter !== 'none') return true;
-    if (cs.perspective && cs.perspective !== 'none') return true;
-    if (cs.backdropFilter && cs.backdropFilter !== 'none') return true;
-    if (cs.clipPath && cs.clipPath !== 'none') return true;
-    if (cs.mixBlendMode && cs.mixBlendMode !== 'normal') return true;
-    if (cs.isolation === 'isolate') return true;
-    if (cs.contain && /paint|layout|strict|content/.test(cs.contain)) return true;
-    if (cs.willChange && /transform|opacity|filter|perspective|contain|isolation/.test(cs.willChange)) return true;
-    return false;
-}
-
 /**
  * Element, który STANIE DO PORÓWNANIA z powłoką menu — albo `null`.
  *
  * ZGŁOSZONE Z UŻYCIA: „kiedy powłoka jest w <body>, nie mogę spowodować, żeby
- * nagłówek był ponad nim". Podniesienie nagłówkowi `z-index` bywa bezskuteczne
- * i nie dlatego, że liczba za mała: warstwy porównuje się tylko WEWNĄTRZ
- * jednego kontekstu nakładania. Gdy nagłówek siedzi w opakowaniu z własnym
- * kontekstem — a robi go `transform`, `filter`, krycie poniżej jedynki albo
- * po prostu `z-index` na czymś pozycjonowanym — to opakowanie rozstrzyga za
- * całą swoją zawartość, a nagłówek nie ma jak wyjść ponad nie.
+ * nagłówek był ponad nim". Reguła siedzi we WSPÓLNYM pomocniku
+ * (assets/js/warstwy.js), bo Circular Menu ma dokładnie ten sam problem
+ * i dokładnie to samo zgłoszenie — dwie kopie rozjechałyby się przy pierwszej
+ * poprawce.
  *
- * Szukamy więc NAJDALSZEGO przodka przełącznika, który zakłada własny
- * kontekst: to on stoi z powłoką w tym samym porównaniu. Gdy takiego nie ma,
- * do porównania staje najbliższy przodek pozycjonowany (albo sam przełącznik,
- * jeśli to on nim jest) — bo elementy niepozycjonowane w tym porównaniu nie
- * biorą udziału.
- *
- * `granica` to RODZIC POWŁOKI i ona rozstrzyga, jak daleko iść. Przy
- * przeniesieniu do `<body>` powłoka jest dzieckiem `<body>`, więc idziemy
- * przez cały nagłówek. Bez przeniesienia powłoka siedzi w korzeniu elementu,
- * czyli obok przełącznika — i wtedy porównanie odbywa się WEWNĄTRZ korzenia.
- * Pójście wyżej wskazałoby tam nagłówek, a podniesienie nagłówka podniosłoby
- * razem z nim powłokę, która jest w środku: nic by się nie zmieniło.
+ * Tutaj zostaje tylko podstawienie granicy i zachowanie na wypadek, gdyby
+ * pomocnika nie było: wtedy nie podnosimy niczego, zamiast zgadywać.
  */
 function evk_oc_konkurent_powloki(od, granica) {
-    var najdalszyKontekst = null;
-    var najblizszyPozycjonowany = null;
-
-    for (var a = od;
-         a && a !== granica && a !== document.body && a !== document.documentElement;
-         a = a.parentElement) {
-        var cs = getComputedStyle(a);
-        if (!najblizszyPozycjonowany && cs.position !== 'static') najblizszyPozycjonowany = a;
-        if (evk_oc_tworzy_kontekst(cs)) najdalszyKontekst = a;
-    }
-    return najdalszyKontekst || najblizszyPozycjonowany;
+    if (!window.evkWarstwy) return null;
+    return window.evkWarstwy.konkurent(od, granica);
 }
 
 /**

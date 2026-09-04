@@ -329,6 +329,46 @@ function evk_circular_menu_init_one( root ) {
         if ( ! raiseToggle || isBuilder || podniesione.length ) return;
         var z = panelZIndex() + 1;
 
+        /* NAJPIERW PRÓBA BEZ RUSZANIA DRZEWA.
+         *
+         * Zgłoszone z użycia po tym, jak to samo trafiło do offcanvasu:
+         * „wprowadź to samo do circular menu". Podniesienie warstwy jednemu
+         * przodkowi robi to, co ta funkcja robi przenoszeniem węzła, tylko
+         * bez żadnego z jego kosztów — a przy okazji WYNOSI NAGŁÓWEK RAZEM
+         * Z TŁEM, o co chodziło w komentarzu wyżej. Przeniesiony burger
+         * zostawiał tło nagłówka pod panelem i wisiał nad nim sam.
+         *
+         * Warunek jest jeden: element, który staje z panelem do porównania
+         * warstw, musi być pozycjonowany — na niepozycjonowanym `z-index`
+         * nic nie znaczy. Wtedy schodzimy do starej drogi, bo ona radzi sobie
+         * i z tym: wyjmuje przełącznik z kontekstu zamiast go przebijać.
+         *
+         * Reguła jest wspólna z offcanvasem (assets/js/warstwy.js) — dwie
+         * kopie rozjechałyby się przy pierwszej poprawce. */
+        if ( window.evkWarstwy ) {
+            /* NAJPIERW ZEBRAĆ, POTEM PODNIEŚĆ. Przełączników bywa kilka —
+               wbudowany i wskazane własnym selektorem — a wycofanie w połowie
+               zostawiłoby część podniesioną, część przeniesioną. Albo cała
+               droga, albo żadna. */
+            var kandydaci = [];
+            var dasie = true;
+
+            forEachTrigger( function ( el ) {
+                if ( ! dasie || panel.contains( el ) ) return;
+                var kand = window.evkWarstwy.konkurent( el, panel.parentElement );
+                if ( ! kand || getComputedStyle( kand ).position === 'static' ) { dasie = false; return; }
+                if ( kandydaci.indexOf( kand ) < 0 ) kandydaci.push( kand );
+            } );
+
+            if ( dasie && kandydaci.length ) {
+                kandydaci.forEach( function ( kand ) {
+                    podniesione.push( { el: kand, ph: null, styl: kand.getAttribute( 'style' ) } );
+                    kand.style.zIndex = String( z );
+                } );
+                return;
+            }
+        }
+
         forEachTrigger( function ( el ) {
             // Przełącznik W ŚRODKU panelu jedzie z nim portalem do <body>,
             // więc jest już nad wszystkim — wyrywanie go stamtąd zabrałoby go
@@ -422,6 +462,9 @@ function evk_circular_menu_init_one( root ) {
         podniesione.forEach( function ( w ) {
             if ( w.styl === null ) w.el.removeAttribute( 'style' );
             else                   w.el.setAttribute( 'style', w.styl );
+            // Droga przez podniesienie warstwy nie ruszała drzewa, więc nie ma
+            // przekładki do wyjęcia — sam styl wrócił linijkę wyżej.
+            if ( ! w.ph ) return;
             if ( w.ph.parentNode ) {
                 w.ph.parentNode.insertBefore( w.el, w.ph );
                 w.ph.parentNode.removeChild( w.ph );

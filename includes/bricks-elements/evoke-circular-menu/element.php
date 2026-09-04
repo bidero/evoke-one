@@ -357,10 +357,19 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			[],
 			EVK_CIRCULAR_MENU_VERSION
 		);
+		/* Pomocnik od warstw — wspólny z Offcanvas Menu (assets/js/warstwy.js).
+		   Zależność, nie samo enqueue: skrypt czyta `window.evkWarstwy` przy
+		   pierwszym otwarciu menu. */
+		$deps = [ 'evk-gsap', 'bricks-scripts' ];
+		if ( function_exists( 'evk_register_warstwy' ) ) {
+			evk_register_warstwy();
+			$deps[] = 'evk-warstwy';
+		}
+
 		wp_enqueue_script(
 			'evk-circular-menu-js',
 			EVK_CIRCULAR_MENU_URL . 'assets/circular-menu.js',
-			[ 'evk-gsap', 'bricks-scripts' ],
+			$deps,
 			EVK_CIRCULAR_MENU_VERSION,
 			true
 		);

@@ -89,8 +89,54 @@ module.exports = async function (t) {
   t.check('na wezwanie menu element gaśnie', (await p.evaluate(() => window.__opMenu())) < 0.05,
     'opacity ' + (await p.evaluate(() => window.__opMenu())));
 
+  /* ── Animacja WEJŚCIOWA pod wyzwalaczem wyjścia ─────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: „zamykanie powoduje, że tło się nie animuje —
+   * kliknięcie burgera powoduje, że tło znika, napisy zostają i po chwili
+   * znikają, tylko bez tła".
+   *
+   * Wyzwalacze wyjścia grają wiersz DO PRZODU, a ich stan końcowy jest
+   * z założenia stanem po zniknięciu — stąd osobne presety „Wyjście: …".
+   * Wiersz wejściowy ma to odwrotnie, więc podpięty tutaj najpierw GASI
+   * element, a potem przywraca go do widoczności, w chwili gdy panel wyjeżdża.
+   * Zmierzone w fixturze offcanvasu: krycie 1 → 0,3 w pierwszej klatce
+   * i z powrotem do 1 po 120 ms.
+   *
+   * Odwrócenia w silniku być nie może — popsułoby presety wyjściowe, bo one
+   * są napisane pod granie do przodu. Zostaje powiedzieć, co jest nie tak.
+   */
+  t.section('animacja wejściowa pod wyzwalaczem wyjścia');
+
+  /* KONTROLA NEGATYWNA NAJPIERW, na tej samej stronie: przy poprawnych
+     wierszach wyjściowych ostrzeżenia MA NIE BYĆ. Bez niej „ostrzeżenie pada"
+     przechodziłoby także dla kodu, który ostrzega zawsze. */
+  t.check('przy poprawnych wierszach wyjściowych element milczy',
+    !p.warnings.some((w) => /wyzwalacz|Wyjście z kadru|Zamknięcie menu/i.test(w)),
+    p.warnings.join(' | ').slice(0, 70) || 'cisza');
   t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
   await p.close();
+
+  const pom = await t.open('anim-exit.html', { viewport: V, settle: 300, query: 'pomylka=1' });
+  t.check('a przy wejściowej mówi, co jest nie tak',
+    pom.warnings.some((w) => /Zamknięcie menu.*WEJŚCIOWĄ/.test(w)),
+    pom.warnings.join(' | ').slice(0, 80) || 'brak ostrzeżenia');
+  /* Ostrzeżenie ma NAZWAĆ drogę wyjścia, nie tylko zganić. „Coś jest źle"
+     bez wskazania, co wybrać, kosztuje tyle samo czasu co brak ostrzeżenia. */
+  t.check('i podpowiada, czym to zastąpić',
+    pom.warnings.some((w) => /Wyjście: …|zamień miejscami/.test(w)),
+    'wskazuje presety wyjściowe');
+  t.check('bez błędów JS', !pom.errors.length, pom.errors.join(' | ') || 'brak');
+  await pom.close();
+
+  /* TEN SAM WIERSZ pod wyzwalaczem wejścia — ostrzeżenia MA NIE BYĆ.
+     Bez tej pary bramka po wyzwalaczu jest nierozróżnialna: zmierzone, jej
+     usunięcie przechodziło na zielono, bo strona kontrolna wyżej nie ma
+     żadnej animacji wejściowej i nie było czego zgłaszać. */
+  const wej = await t.open('anim-exit.html', { viewport: V, settle: 300, query: 'pomylka=wejscie' });
+  t.check('ten sam wiersz pod wejściem w kadr nie budzi ostrzeżenia',
+    !wej.warnings.some((w) => /WEJŚCIOWĄ/.test(w)),
+    wej.warnings.join(' | ').slice(0, 70) || 'cisza');
+  await wej.close();
 
   // ── Redukcja ruchu ────────────────────────────────────────────────────
   t.section('redukcja ruchu — element ZOSTAJE widoczny');
