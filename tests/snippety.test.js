@@ -350,6 +350,58 @@ module.exports = async function (t) {
     /\.evo-badge\s*\{/.test(arkuszPanelu) && /\.evo-badge-alarm\s*\{/.test(arkuszPanelu),
     'reguły .evo-badge i .evo-badge-alarm');
 
+  // ── Przycisk „Odrzuć" przy powiadomieniu (1.149.1) ─────────────────────
+  t.section('powiadomienie o błędzie daje się odrzucić');
+
+  /* ZGŁOSZONE Z UŻYCIA: „nie działa przycisk odrzuć po błędzie".
+     Zmierzone w przeglądarce: skrypt powiadomienia wywracał się na starcie
+     z „$j is not defined" — `$j` to konwencja z cudzych motywów
+     (`var $j = jQuery.noConflict()`), której we wtyczce nie było nigdy.
+     Goła, niezadeklarowana nazwa w JavaScripcie nie oddaje `undefined`, tylko
+     RZUCA, więc zapis `($j || jQuery)` nie miał jak sięgnąć po jQuery: obsługa
+     kliknięcia nie wpinała się wcale. */
+  const powiad = scen('powiadomienie');
+
+  t.check('uchwyt po stronie serwera naprawdę kasuje transjent',
+    powiad.transjent_przed === true && powiad.transjent_po === false,
+    'przed ' + powiad.transjent_przed + ', po ' + powiad.transjent_po);
+
+  const otworzPowiadomienie = async (odpowiedz) => t.open('snippety-powiadomienie.html', {
+    head: 'window.__notice = ' + JSON.stringify(powiad.html) + ';'
+        + (odpowiedz ? 'window.__odpowiedz = ' + JSON.stringify(odpowiedz) + ';' : ''),
+  });
+
+  const strP = await otworzPowiadomienie(null);
+  /* To sprawdzenie zapaliłoby się na kodzie sprzed poprawki — i o to chodzi:
+     usterka była JEDNYM błędem w konsoli, którego nikt nie miał powodu otwierać. */
+  t.check('skrypt powiadomienia nie wywraca się na starcie',
+    strP.errors.length === 0, strP.errors.join(' | ') || 'brak błędów');
+
+  const klik = await strP.evaluate(() => window.__odrzuc());
+  t.check('kliknięcie wysyła żądanie do panelu',
+    klik.zapytan === 1 && klik.zapytanie.dane.action === 'evk_dismiss_snippet_fatal'
+      && klik.zapytanie.dane.nonce === powiad.nonce
+      && klik.zapytanie.url.includes('admin-ajax.php'),
+    klik.zapytan === 0 ? 'zero żądań — obsługa się nie wpięła'
+                       : JSON.stringify(klik.zapytanie.dane));
+  await strP.waitForTimeout(120);
+  const poKliku = await strP.evaluate(() => window.__stan());
+  t.check('i powiadomienie znika', poKliku.jest === false, String(poKliku.jest));
+  await strP.close();
+
+  /* KONTROLA NEGATYWNA. Bez niej „powiadomienie znika" przechodziłoby też dla
+     skryptu kasującego je bez patrzenia na odpowiedź — a wtedy odmowa serwera
+     (przeterminowany nonce) wyglądałaby na załatwioną i wracałaby przy
+     następnym przeładowaniu, bez śladu, co jest zepsute. */
+  const strO = await otworzPowiadomienie({ success: false });
+  await strO.evaluate(() => window.__odrzuc());
+  await strO.waitForTimeout(120);
+  const poOdmowie = await strO.evaluate(() => window.__stan());
+  t.check('przy odmowie serwera powiadomienie zostaje',
+    poOdmowie.jest === true && poOdmowie.zablokowany === false,
+    'jest: ' + poOdmowie.jest + ', przycisk zablokowany: ' + poOdmowie.zablokowany);
+  await strO.close();
+
   // ── Historia zmian (1.149.0) ───────────────────────────────────────────
   t.section('historia zmian wpisu');
 

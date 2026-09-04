@@ -1,0 +1,77 @@
+<!--
+  Powiadomienie o błędzie krytycznym — takie, jakie WordPress wypisuje na
+  KAŻDYM ekranie panelu, razem z jego własnym skryptem.
+
+  `document.write` NIE JEST TU LENISTWEM. `innerHTML` nie uruchamia skryptów
+  w doklejanym znaczniku, więc przycisk zostałby bez obsługi niezależnie od
+  tego, czy kod jest dobry — i sprawdzenie świeciłoby na czerwono zawsze,
+  z niewłaściwego powodu. `document.write` w czasie parsowania wykonuje je tak
+  samo jak przeglądarka na żywej stronie.
+-->
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  body { margin: 0; padding: 20px; background: #f0f0f1; font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+</style>
+
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<script>
+  /* Panel WordPressa daje ten adres jako zmienną globalną. */
+  window.ajaxurl = '/wp-admin/admin-ajax.php';
+
+  /* Atrapa serwera: zapisuje żądanie i odpowiada powodzeniem. Podstawiona
+     przed skryptem powiadomienia, bo on wysyła dopiero przy kliknięciu. */
+  window.__zapytania = [];
+  window.fetch = function (url, opcje) {
+    var dane = {};
+    if (opcje && opcje.body && opcje.body.forEach) {
+      opcje.body.forEach(function (v, k) { dane[k] = v; });
+    }
+    window.__zapytania.push({ url: url, dane: dane });
+    return Promise.resolve({
+      ok: true,
+      /* Odpowiedź podstawiana z testu — domyślnie powodzenie. Odmowa
+         (przeterminowany nonce) ma dawać INNY wynik i to jest kontrola
+         negatywna: bez niej „powiadomienie znika" przechodziłoby też dla
+         skryptu, który kasuje je bez patrzenia na odpowiedź. */
+      json: function () {
+        return Promise.resolve(window.__odpowiedz || { success: true });
+      },
+    });
+  };
+  jQuery.post = function (url, dane, gotowe) {
+    window.__zapytania.push({ url: url, dane: dane });
+    if (typeof gotowe === 'function') gotowe({ success: true });
+    var d = jQuery.Deferred(); d.resolve({ success: true });
+    return d.promise();
+  };
+</script>
+
+<div id="wpbody-content"></div>
+
+<script>
+  document.write(window.__notice || '');
+</script>
+
+<script>
+  /** Klika „Odrzuć" i mówi, co się stało. */
+  window.__odrzuc = function () {
+    var b = document.querySelector('.evk-dismiss-fatal-snippet');
+    if (!b) return { blad: 'brak przycisku' };
+    b.click();
+    return {
+      zapytan:   window.__zapytania.length,
+      zapytanie: window.__zapytania[0] || null,
+    };
+  };
+
+  /** Stan powiadomienia — sprawdzany po odczekaniu na odpowiedź. */
+  window.__stan = function () {
+    var b = document.querySelector('.evk-dismiss-fatal-snippet');
+    return {
+      jest:      !!document.querySelector('.evk-snippets-fatal-notice'),
+      przycisk:  !!b,
+      zablokowany: b ? b.disabled : null,
+    };
+  };
+</script>

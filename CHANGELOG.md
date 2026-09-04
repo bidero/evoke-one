@@ -2,6 +2,35 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.149.1] — 2026-09-04
+
+### Naprawione
+
+- **Przycisk „Odrzuć" przy powiadomieniu o błędzie nie robił nic.** Zgłoszone
+  z użycia. Skrypt powiadomienia kończył się zapisem `})($j || jQuery);` —
+  `$j` to konwencja z cudzych motywów (`var $j = jQuery.noConflict()`), której
+  w tej wtyczce nie było **nigdy**.
+
+  Goła, niezadeklarowana nazwa w JavaScripcie nie oddaje `undefined`, tylko
+  **rzuca** `ReferenceError`. Alternatywa po prawej nie miała więc jak
+  zadziałać: wyrażenie wywracało się na wartości po lewej, funkcja nie była
+  wywołana ani razu, obsługa kliknięcia nie wpinała się wcale. Zmierzone
+  w przeglądarce na prawdziwym znaczniku powiadomienia: `„$j is not defined"`,
+  **zero wysłanych żądań**, powiadomienie zostaje na ekranie.
+
+  Usterka była jednym wierszem w konsoli, której nikt nie miał powodu otwierać:
+  po stronie serwera wszystko działało, więc jedynym objawem był przycisk
+  reagujący na kliknięcie niczym.
+
+  Skrypt jest teraz **bez jQuery i bez żadnej zmiennej globalnej** — adres
+  punktu AJAX idzie w atrybucie, obok nonce'a. Powiadomienie wypisuje się na
+  każdym ekranie panelu, a `admin.js` jedzie tylko na ekran Evoke ONE, więc
+  skrypt musi zostać przy znaczniku; skoro tak, niech nie zależy od niczego.
+
+  Przy okazji: powiadomienie znika **tylko po potwierdzeniu z serwera**.
+  Schowanie go przy odmowie (przeterminowany nonce) wyglądałoby na załatwione,
+  a wracałoby przy następnym przeładowaniu — bez śladu, co jest zepsute.
+
 ## [1.149.0] — 2026-09-04
 
 ### Dodane

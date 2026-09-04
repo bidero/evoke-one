@@ -410,6 +410,30 @@ if ($scenariusz === 'awaria-wpis') {
     exit;
 }
 
+if ($scenariusz === 'powiadomienie') {
+    /* PRAWDZIWE powiadomienie z `admin_notices`, razem z jego skryptem.
+       To ten znacznik jedzie na KAŻDY ekran panelu, więc to na nim ma być
+       badany przycisk „Odrzuć". */
+    /* Miejsce „zawsze": wykonuje się od razu przy starcie, więc wywrotka
+       zdarza się także w żądaniu PANELU — a to tam pokazuje się powiadomienie.
+       Wpis frontowy nie rejestrowałby się tutaj wcale. */
+    $GLOBALS['is_admin'] = true;
+    zaloz(['tytul' => 'Wywrotka', 'rodzaj' => 'php', 'miejsce' => 'init',
+           'kod' => 'throw new Error("bum");']);
+    przebieg();
+
+    $out['html']  = odpal_hak('admin_notices');
+    $out['nonce'] = wp_create_nonce('evk_dismiss_fatal');
+
+    /* Uchwyt kasujący transjent — wołany tak, jak zawoła go przeglądarka. */
+    $out['transjent_przed'] = get_transient(EVK_SNIPPETS_FATAL_TRANSIENT) !== false;
+    $_POST = ['nonce' => $out['nonce']];
+    try {
+        foreach ($GLOBALS['hooks']['wp_ajax_evk_dismiss_snippet_fatal'] ?? [] as $cb) $cb();
+    } catch (Throwable $e) { /* wp_send_json_success rzuca */ }
+    $out['transjent_po'] = get_transient(EVK_SNIPPETS_FATAL_TRANSIENT) !== false;
+}
+
 // =========================================================================
 // HISTORIA ZMIAN
 // =========================================================================

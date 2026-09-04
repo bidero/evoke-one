@@ -334,9 +334,52 @@ add_action('admin_notices', function () {
     printf('<p class="evo-mono-xs">%s — linia %d</p>',
         esc_html((string) ($fatal['message'] ?? '')), (int) ($fatal['line'] ?? 0));
     printf('<p><a href="%s" class="button">%s</a> &nbsp;', esc_url($t['url']), esc_html($t['przycisk']));
-    echo '<button type="button" class="button evk-dismiss-fatal-snippet" data-nonce="' . esc_attr(wp_create_nonce('evk_dismiss_fatal')) . '">Odrzuć</button></p>';
+    printf('<button type="button" class="button evk-dismiss-fatal-snippet" data-nonce="%s" data-url="%s">Odrzuć</button></p>',
+        esc_attr(wp_create_nonce('evk_dismiss_fatal')),
+        esc_attr(admin_url('admin-ajax.php')));
     echo '</div>';
-    echo '<script>(function($){$(".evk-dismiss-fatal-snippet").on("click",function(){$.post(ajaxurl,{action:"evk_dismiss_snippet_fatal",nonce:$(this).data("nonce")},function(){$(".evk-snippets-fatal-notice").remove();});});})($j||jQuery);</script>';
+
+    /* SKRYPT BEZ jQuery I BEZ ŻADNEJ ZMIENNEJ GLOBALNEJ.
+     *
+     * Do 1.149.1 stało tu `(function($){…})($j || jQuery)`. `$j` to konwencja
+     * z cudzych motywów (`var $j = jQuery.noConflict()`) i we wtyczce nie było
+     * jej nigdy — a goła, niezadeklarowana nazwa w JavaScripcie NIE ODDAJE
+     * `undefined`, tylko RZUCA `ReferenceError`. Alternatywa po prawej nie
+     * miała więc jak zadziałać: skrypt umierał przed wywołaniem funkcji,
+     * obsługa kliknięcia nie wpinała się wcale i przycisk nie robił nic.
+     * Zmierzone w przeglądarce: „$j is not defined", zero wysłanych żądań.
+     *
+     * Powiadomienie wypisuje się na KAŻDYM ekranie panelu, a `admin.js` jedzie
+     * tylko na ekran Evoke ONE — więc skrypt musi zostać tutaj. Skoro tak,
+     * niech nie zależy od niczego: ani od jQuery, ani od globalnego `ajaxurl`.
+     * Adres idzie w atrybucie, obok nonce'a.
+     */
+    ?>
+    <script>
+    (function () {
+        var b = document.querySelector('.evk-dismiss-fatal-snippet');
+        if (!b) return;
+        b.addEventListener('click', function () {
+            var dane = new FormData();
+            dane.append('action', 'evk_dismiss_snippet_fatal');
+            dane.append('nonce', b.dataset.nonce);
+            b.disabled = true;
+            fetch(b.dataset.url, { method: 'POST', body: dane, credentials: 'same-origin' })
+                .then(function (o) { return o.json(); })
+                .then(function (odp) {
+                    /* Znikamy TYLKO po potwierdzeniu z serwera. Schowanie
+                       powiadomienia przy odmowie (przeterminowany nonce)
+                       wyglądałoby na załatwione, a wróciłoby przy następnym
+                       przeładowaniu — i wtedy nie wiadomo, co jest zepsute. */
+                    if (!odp || !odp.success) { b.disabled = false; return; }
+                    var n = document.querySelector('.evk-snippets-fatal-notice');
+                    if (n) n.remove();
+                })
+                .catch(function () { b.disabled = false; });
+        });
+    })();
+    </script>
+    <?php
 });
 
 add_action('wp_ajax_evk_dismiss_snippet_fatal', function () {
