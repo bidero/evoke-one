@@ -1,0 +1,107 @@
+<!--
+  Ekran „Rewizje" w prawdziwej powłoce panelu, ze skryptem, który jedzie
+  na żywą stronę.
+
+  Znacznik pochodzi z `tests/php/rewizje.php ekran`, czyli powstał z PRAWDZIWYCH
+  zapytań do bazy SQLite z zasianymi rewizjami — nie z tablicy wpisanej w test.
+
+  Serwer jest tu atrapą i to jest celowe: badany jest PRZEBIEG po stronie
+  przeglądarki — dwa kroki w kolejności i pętla partii. Same zapytania
+  sprawdzają scenariusze PHP na prawdziwej bazie.
+-->
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  body { margin: 0; background: #f0f0f1; font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #wpbody-content { padding: 0; }
+</style>
+
+<div id="wpbody-content"></div>
+
+<script>
+  document.getElementById('wpbody-content').innerHTML = window.__panel || '';
+  var panel = document.querySelector('.evo-panel');
+  if (panel) panel.innerHTML = window.__tresc || '';
+
+  window.evkRewizje = { ajaxurl: '/nie-ma-serwera' };
+
+  /* Potwierdzenie kasowania odpowiada „tak", chyba że test każe inaczej —
+     `window.__potwierdz = false` sprawdza drogę odmowy.
+
+     WSZYSTKIE TE WARTOŚCI USTAWIAMY WARUNKOWO. Test wstrzykuje je przed
+     wczytaniem strony (`addInitScript`), więc zwykłe przypisanie kasowałoby
+     to, co podstawił — zmierzone: kolejka odpowiedzi znikała i pętla partii
+     robiła jedno okrążenie zamiast trzech. */
+  if (typeof window.__potwierdz === 'undefined') window.__potwierdz = true;
+  window.confirm = function () { return window.__potwierdz; };
+
+  /* Atrapa serwera. `__odpowiedzi` to KOLEJKA odpowiedzi na kasowanie —
+     pętla partii ma zrobić tyle okrążeń, ile ich tu stoi. */
+  window.__zapytania  = window.__zapytania  || [];
+  window.__odpowiedzi = window.__odpowiedzi || [];
+  window.fetch = function (url, opcje) {
+    var dane = {}, typy = [];
+    if (opcje && opcje.body && opcje.body.forEach) {
+      opcje.body.forEach(function (v, k) {
+        if (k === 'typy[]') typy.push(v); else dane[k] = v;
+      });
+    }
+    dane.typy = typy;
+    window.__zapytania.push({ url: url, dane: dane });
+
+    var odp;
+    if (dane.action === 'evk_rewizje_podsumowanie') {
+      odp = window.__podsumowanie || { success: true, data: { razem: 0, typy: {} } };
+    } else {
+      odp = window.__odpowiedzi.shift() || { success: true, data: { skasowane: 0, zostalo: 0 } };
+    }
+    return Promise.resolve({ ok: true, json: function () { return Promise.resolve(odp); } });
+  };
+</script>
+
+<script src="../../assets/admin/rewizje.js"></script>
+
+<script>
+  /** Zaznacza wyłącznie podane typy wpisów. */
+  window.__zaznacz = function (typy) {
+    document.querySelectorAll('.evk-rewizje-typ').forEach(function (i) {
+      i.checked = typy.indexOf(i.value) !== -1;
+    });
+  };
+
+  window.__ustawZostaw = function (n) {
+    document.getElementById('evk-rewizje-zostaw').value = String(n);
+  };
+
+  window.__policz = function () {
+    document.querySelector('.evk-rewizje-policz').click();
+  };
+
+  window.__kasuj = function () {
+    var b = document.querySelector('.evk-rewizje-kasuj');
+    if (!b) return false;
+    b.click();
+    return true;
+  };
+
+  /** Stan ekranu: co widać i czy przycisk kasowania w ogóle istnieje. */
+  window.__stan = function () {
+    var pods = document.querySelector('.evo-rewizje-podsumowanie');
+    var kas  = document.querySelector('.evk-rewizje-kasuj');
+    var post = document.querySelector('.evo-rewizje-postep');
+    var ile  = {};
+    document.querySelectorAll('tr[data-typ]').forEach(function (tr) {
+      ile[tr.dataset.typ] = tr.querySelector('.evk-rewizje-ile').textContent.trim();
+    });
+    return {
+      widoczne:   pods ? !pods.hidden : null,
+      tekst:      pods ? pods.textContent.replace(/\s+/g, ' ').trim() : '',
+      maPrzycisk: !!kas,
+      napis:      kas ? kas.textContent.trim() : '',
+      postep:     post ? post.textContent.trim() : '',
+      wTabeli:    ile,
+      zapytan:    window.__zapytania.length,
+      zapytania:  window.__zapytania,
+    };
+  };
+</script>

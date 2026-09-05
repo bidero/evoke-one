@@ -31,6 +31,9 @@ switch ($sub) {
     case 'logs404':
         require EVOKE_ONE_DIR . 'includes/admin/tools-logs404.php';
         break;
+    case 'rewizje':
+        require EVOKE_ONE_DIR . 'includes/admin/tools-rewizje.php';
+        break;
     case 'maintenance':
         require EVOKE_ONE_DIR . 'includes/admin/tab-maintenance.php';
         break;

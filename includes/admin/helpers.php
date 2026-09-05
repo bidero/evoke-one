@@ -82,6 +82,7 @@ function evoke_one_ekrany(): array {
             'smtp'        => ['label' => 'SMTP',              'icon' => 'dashicons-email-alt',       'szukaj' => 'poczta mail wysyłka serwer'],
             'redirect'    => ['label' => 'Przekierowania 301','icon' => 'dashicons-redo',            'szukaj' => '301 redirect przekierowanie'],
             'logs404'     => ['label' => 'Logi 404',          'icon' => 'dashicons-warning',         'szukaj' => '404 nieistniejące adresy'],
+            'rewizje'     => ['label' => 'Rewizje',           'icon' => 'dashicons-backup',          'szukaj' => 'historia wersje sprzątanie bazy wp_posts limit'],
             'maintenance' => ['label' => 'Konserwacja',       'icon' => 'dashicons-admin-tools',     'szukaj' => 'maintenance przerwa techniczna'],
             'io'          => ['label' => 'Eksport / Import',  'icon' => 'dashicons-database-import', 'szukaj' => 'kopia migracja ustawień json'],
         ],
@@ -89,7 +90,10 @@ function evoke_one_ekrany(): array {
             'interface'  => ['label' => 'Interfejs',     'icon' => 'dashicons-admin-appearance',  'szukaj' => 'kokpit menu porządki'],
             'dashboard'  => ['label' => 'Kokpit',        'icon' => 'dashicons-dashboard',         'szukaj' => 'bricks ekran startowy'],
             'avatar'     => ['label' => 'Avatar',        'icon' => 'dashicons-admin-users',       'szukaj' => 'gravatar zdjęcie profilowe'],
-            'content'    => ['label' => 'Treść',         'icon' => 'dashicons-admin-comments',    'szukaj' => 'rewizje autozapis edytor'],
+            /* Bez „rewizji" w słowach pomocniczych: ten ekran ich nie dotyka
+               i nigdy nie dotykał, a wyszukiwarka prowadziła po tym słowie
+               właśnie tutaj. Od 1.150.0 mają własny ekran w Narzędziach. */
+            'content'    => ['label' => 'Treść',         'icon' => 'dashicons-admin-comments',    'szukaj' => 'komentarze autozapis edytor'],
             'whitelabel' => ['label' => 'White label',   'icon' => 'dashicons-admin-customizer',  'szukaj' => 'logo stopka marka'],
             'roles'      => ['label' => 'Role Manager',  'icon' => 'dashicons-groups',            'szukaj' => 'role uprawnienia capabilities dostępy'],
         ],

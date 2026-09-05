@@ -2,6 +2,71 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.150.0] — 2026-09-05
+
+### Dodane
+
+- **Narzędzia → Rewizje: przegląd bazy i sprzątanie.** WordPress zapisuje
+  rewizję przy każdym zapisie wpisu i domyślnie **nie kasuje żadnej**. Na
+  stronie prowadzonej od paru lat to zwykle największy pojedynczy śmieć
+  w bazie — dziesiątki tysięcy wierszy w `wp_posts`, z których nikt nigdy nie
+  skorzysta. Do tej pory zdejmowała to osobna wtyczka do sprzątania bazy.
+
+  Ekran pokazuje, **ile tego jest i przy czym**: liczba rewizji, liczba wpisów
+  i długość treści w rozbiciu na typ wpisu rodzica. Typy zaznacza się osobno —
+  historia szablonów Bricksa bywa jedyną drogą powrotu po nieudanej przeróbce
+  i nie ma powodu, żeby znikała razem z wpisami bloga.
+
+  **Rewizje po skasowanych wpisach dostają własny wiersz** i są kasowane
+  w całości, niezależnie od „zostaw N": rodzica już nie ma, więc nie ma czego
+  zostawiać ani do czego wracać.
+
+  **Najpierw liczba, potem przycisk.** „Skasuj" pojawia się dopiero po
+  policzeniu i nosi w napisie liczbę, która zniknie. Przycisk narysowany od
+  razu byłby przyciskiem „skasuj nie wiadomo ile", a tego nie da się cofnąć.
+
+  Kasowanie idzie **partiami**, bo przy kilkudziesięciu tysiącach rewizji jedno
+  żądanie nie ma szans dobiec do końca. Warunkiem końca pętli jest
+  „skasowano zero", a nie „zostało zero" — inaczej serwer, który z jakiegokolwiek
+  powodu przestałby kasować, zapętliłby przeglądarkę bez końca.
+
+  Kasujemy przez `wp_delete_post_revision()`, a nie `DELETE FROM wp_posts`.
+  Zapytanie wprost byłoby szybsze i zostawiało po sobie metadane, relacje
+  terminów i nietknięte pamięci podręczne — czyli inny śmieć w miejsce
+  sprzątanego.
+
+- **Stały limit rewizji, domyślnie wyłączony.** Sprzątanie jest jednorazowe:
+  rewizje odrastają przy każdej edycji. Włącznik z własną liczbą podpina się
+  pod `wp_revisions_to_keep`, więc WordPress kasuje najstarsze sam, przy
+  zapisie. Wyłączony domyślnie, bo to zmiana zachowania **całej witryny**,
+  a nie ustawienie tej wtyczki. Liczba ujemna nie przechodzi przez sanityzację:
+  w tym filtrze znaczy „bez ograniczeń", więc zamieniłaby włącznik w jego
+  przeciwieństwo.
+
+### Zmienione
+
+- **Zapytania modułu są przenośne, i to nie jest kosmetyka.** `GREATEST()`
+  i `LIMIT 18446744073709551615 OFFSET n` to zapisy wyłącznie MySQL-owe —
+  a moduł jest w większości SQL-em i jego najdroższa pomyłka brzmi „skasować
+  za dużo". Test sprawdza go więc **na prawdziwej bazie** (SQLite z tabelą
+  o kształcie `wp_posts`), puszczając te same łańcuchy SQL, którymi jedzie
+  produkcja. Atrapa `$wpdb` oddająca gotowy wynik sprawdzałaby atrapę.
+  Zamiast tłumaczyć zapytania w teście, `GREATEST` zastąpiło standardowe
+  `CASE`, a odcięcie najnowszych rewizji robi teraz `array_slice()` w PHP.
+
+- **Biała lista typów wpisów zdjęta z modułu.** Sprawdzała nazwy z żądania
+  wobec typów obecnych w bazie — i **mutacja pokazała, że nie pilnuje
+  niczego**: wszystkie sprawdzenia przechodziły na zielono także bez niej.
+  Nazwy trafiają do `IN (…)` przez `%s` w `$wpdb->prepare()`, więc nazwa spoza
+  bazy nie pasuje do żadnego wiersza, a wstrzyknięcie nie ma którędy przejść.
+  Kosztowała za to pełne grupowanie po całej tabeli `wp_posts` — trzy razy na
+  jedno żądanie AJAX. Zostało odsianie wartości, które nie są łańcuchem:
+  `typy[]` z żądania bywa tablicą tablic, a `(string)` na tablicy daje
+  ostrzeżenie PHP, które psuje odpowiedź JSON.
+
+- **Ekran „Treść" nie odpowiada już w wyszukiwarce na słowo „rewizje".**
+  Miał je w słowach pomocniczych, choć rewizji nie dotyka i nigdy nie dotykał.
+
 ## [1.149.1] — 2026-09-04
 
 ### Naprawione

@@ -29,6 +29,16 @@ add_action('admin_enqueue_scripts', function (string $hook) {
         EVOKE_ONE_URL . 'assets/admin/admin.js',
         ['jquery', 'sortablejs'], EVOKE_ONE_VERSION, true);
 
+    /* Rewizje — tylko na swoim ekranie. Skrypt kasuje wiersze w bazie, więc
+       nie ma powodu, żeby wisiał na pozostałych trzydziestu ekranach panelu. */
+    if (($_GET['tab'] ?? '') === 'narzedzia' && ($_GET['sub'] ?? '') === 'rewizje') {
+        wp_enqueue_script('evk-rewizje',
+            EVOKE_ONE_URL . 'assets/admin/rewizje.js', [], EVOKE_ONE_VERSION, true);
+        wp_localize_script('evk-rewizje', 'evkRewizje', [
+            'ajaxurl' => admin_url('admin-ajax.php'),
+        ]);
+    }
+
     // Sitemap
     wp_localize_script('evoke-one-admin', 'evoSitemapAjax', [
         'url'   => admin_url('admin-ajax.php'),
