@@ -102,6 +102,27 @@ function przebieg(): void {
 $scenariusz = $argv[1] ?? '';
 $out = [];
 
+/* Ekran historii zmian JAKO ZNACZNIK — dla sprawdzeń układu w przeglądarce.
+   Wypisujemy dosłowne wyjście `evk_snippety_wersje_ekran()`, bo tabela wersji
+   ma własne reguły CSS i to je badamy; kopia znacznika w fixturze zaczęłaby
+   żyć własnym życiem. */
+if ($scenariusz === 'wersje-html') {
+    $id = zaloz(['rodzaj' => 'php', 'kod' => 'echo 1;']);
+    foreach ([['Anna Kowalska', 'echo 1;'], ['Jan Nowak', 'echo 22;'], ['', 'echo 333;']] as $i => [$kto, $kod]) {
+        $rid = 9000 + $i;
+        $GLOBALS['posts_store'][$rid] = (object) [
+            'ID' => $rid, 'post_type' => 'revision', 'post_parent' => $id,
+            'post_date' => sprintf('2027-03-%02d 10:00:00', 10 + $i),
+            'post_author' => 1, 'post_content' => $kod,
+        ];
+        $GLOBALS['autorzy'][1] = $kto ?: 'Anna Kowalska';
+    }
+    ob_start();
+    evk_snippety_wersje_ekran(['id' => $id]);
+    echo ob_get_clean();
+    exit;
+}
+
 if ($scenariusz === 'opakowanie') {
     $css = zaloz(['rodzaj' => 'css',  'kod' => 'body { color: red }', 'miejsce' => 'head']);
     $js  = zaloz(['rodzaj' => 'js',   'kod' => 'console.log(1)',      'miejsce' => 'footer']);

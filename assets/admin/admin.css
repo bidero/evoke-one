@@ -2760,16 +2760,23 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     .evo-snippety-tbl,
     .evo-snippety-tbl tbody,
     .evo-snippety-tbl tr,
-    .evo-snippety-tbl td { display: block; width: auto; }
+    .evo-snippety-tbl td,
+    .evo-wersje-tbl,
+    .evo-wersje-tbl tbody,
+    .evo-wersje-tbl tr,
+    .evo-wersje-tbl td { display: block; width: auto; }
 
-    .evo-snippety-tbl thead { display: none; }
+    .evo-snippety-tbl thead,
+    .evo-wersje-tbl thead { display: none; }
 
     /* ZGŁOSZONE Z UŻYCIA: „jest jakaś ramka ekstra". Obramowanie tabeli
        obrysowywało wszystkie karty naraz — druga ramka wokół ramek. Kartą
        jest wiersz, więc pudełko tabeli na wąskim ekranie znika. */
-    .evo-snippety-tbl { border: 0; background: none; box-shadow: none; }
+    .evo-snippety-tbl,
+    .evo-wersje-tbl { border: 0; background: none; box-shadow: none; }
 
-    .evo-snippety-tbl tr {
+    .evo-snippety-tbl tr,
+    .evo-wersje-tbl tr {
         position: relative;
         margin-bottom: 10px;
         padding: 12px 12px 12px 62px;
@@ -2778,14 +2785,17 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
         background: var(--evo-bg);
     }
     /* Pasy zebry gubią sens, gdy wiersz jest kartą z własną ramką. */
-    .evo-snippety-tbl tbody tr:nth-child(even) td { background: none; }
+    .evo-snippety-tbl tbody tr:nth-child(even) td,
+    .evo-wersje-tbl tbody tr:nth-child(even) td { background: none; }
 
-    .evo-snippety-tbl td {
+    .evo-snippety-tbl td,
+    .evo-wersje-tbl td {
         padding: 3px 0;
         border: 0;
         white-space: normal;
     }
-    .evo-snippety-tbl td[data-etykieta]::before {
+    .evo-snippety-tbl td[data-etykieta]::before,
+    .evo-wersje-tbl td[data-etykieta]::before {
         content: attr(data-etykieta) ": ";
         color: var(--evo-text-muted);
         font-size: 11px;
@@ -2804,6 +2814,12 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     /* Nazwa jest tytułem karty, nie kolejną parą z etykietą. */
     .evo-snippety-tbl td.evo-col-nazwa { font-size: 14px; padding-bottom: 6px; }
     .evo-snippety-tbl td.evo-akcje { padding-top: 10px; }
+
+    /* Karta wersji nie ma przełącznika w rogu, więc nie potrzebuje na niego
+       miejsca po lewej. Akcje schodzą pod dane i wracają na lewą krawędź —
+       wyrównanie do prawej ma sens w kolumnie tabeli, nie w karcie. */
+    .evo-wersje-tbl tr { padding-left: 12px; }
+    .evo-wersje-tbl td.evo-akcje { padding-top: 10px; text-align: left; }
 
     /* CAŁA KARTA PROWADZI DO EDYCJI. Nakładka odnośnika tytułu rozciąga się
        na wiersz, więc palec nie musi trafiać w sam napis. Przełącznik i kosz
@@ -2901,7 +2917,13 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 
 .evo-wersje-tbl td { vertical-align: middle; }
 .evo-wersje-tbl tr.is-otwarta { background: var(--evo-accent-soft); }
-.evo-wersje-tbl .evo-akcje { display: flex; gap: 6px; justify-content: flex-end; }
+/* NIE `display: flex` — to jest KOMÓRKA TABELI, a komórka przestawiona na flex
+   przestaje być komórką. Na szerokim ekranie akurat nic z tego nie widać
+   (sprawdzone: kolumna trzyma się nagłówka mimo wszystko), ale na wąskim
+   blokowałaby układ kart: reguła `td { display: block }` przegrywa
+   ze specyficznością tej. Dwa przyciski w linii załatwia `nowrap`. */
+.evo-wersje-tbl .evo-akcje { text-align: right; white-space: nowrap; }
+.evo-wersje-tbl .evo-akcje .button + .button { margin-left: 6px; }
 
 .evo-wersje-czysc { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .evo-wersje-czysc label { color: var(--evo-text-dim); font-size: 12px; }

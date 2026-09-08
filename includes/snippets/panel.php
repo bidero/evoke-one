@@ -394,7 +394,7 @@ function evk_snippety_wersje_ekran(array $wpis): void {
             <tbody>
             <?php foreach ($wersje as $w): ?>
             <tr data-wersja="<?php echo (int) $w['id']; ?>">
-                <td><?php echo esc_html(mysql2date('j.m.Y, H:i', $w['data'])); ?></td>
+                <td data-etykieta="Kiedy"><?php echo esc_html(mysql2date('j.m.Y, H:i', $w['data'])); ?></td>
                 <td class="evo-hint" data-etykieta="Kto"><?php echo $w['autor'] !== '' ? esc_html($w['autor']) : '—'; ?></td>
                 <td class="evo-hint" data-etykieta="Rozmiar"><?php echo (int) $w['znakow']; ?> zn.</td>
                 <td class="evo-akcje">

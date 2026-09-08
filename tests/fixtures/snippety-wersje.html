@@ -1,0 +1,47 @@
+<!--
+  Historia zmian snippetu — układ tabeli wersji.
+
+  ZGŁOSZONE Z UŻYCIA: „ułożenie przycisków podgląd i przywróć w rewizjach kodu".
+
+  Znacznik NIE jest tu przepisany — wstrzykuje go `window.__wersje`, czyli
+  dosłowne wyjście `evk_snippety_wersje_ekran()` (tests/php/snippety.php
+  wersje-html). Kopia zaczęłaby żyć własnym życiem i sprawdzenia przechodziłyby
+  także wtedy, gdyby panel przestał tę tabelę drukować.
+-->
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  /* Tyle otoczki wp-admin, ile realnie wpływa na mierzony układ. */
+  body { margin: 0; background: #f0f0f1; font: 13px -apple-system, system-ui, sans-serif; }
+  .button { display: inline-block; padding: 0 10px; line-height: 2.15384615;
+            border: 1px solid #2271b1; border-radius: 3px; background: #f6f7f7;
+            color: #2271b1; font-size: 13px; cursor: pointer; }
+</style>
+
+<div class="wrap"><div class="evo-panel" id="panel"></div></div>
+
+<script>
+  document.getElementById('panel').innerHTML = window.__wersje || '';
+
+  /** Prostokąty, na których stoją sprawdzenia układu. */
+  window.__uklad = function () {
+    var td   = document.querySelector('.evo-wersje-tbl td.evo-akcje');
+    var th   = document.querySelectorAll('.evo-wersje-tbl thead th')[3];
+    var btn  = td ? td.querySelectorAll('.button') : [];
+    var kto  = document.querySelector('.evo-wersje-tbl td[data-etykieta="Kto"]');
+    var r = (e) => { var b = e.getBoundingClientRect();
+                     return { x: Math.round(b.left), y: Math.round(b.top),
+                              w: Math.round(b.width), h: Math.round(b.height) }; };
+    return {
+      wiersze:   document.querySelectorAll('.evo-wersje-tbl tbody tr').length,
+      komorka:   td ? r(td) : null,
+      naglowek:  th ? r(th) : null,
+      wyswietl:  td ? getComputedStyle(td).display : null,
+      przyciski: Array.prototype.map.call(btn, r),
+      /* Etykieta kolumny na wąskim ekranie — bierze się z `::before`
+         i `data-etykieta`. Pusta znaczy, że karty nie działają. */
+      etykieta:  kto ? getComputedStyle(kto, '::before').content : null,
+      ktoDisplay: kto ? getComputedStyle(kto).display : null,
+    };
+  };
+</script>

@@ -2,6 +2,35 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.157.0] — 2026-09-08
+
+### Naprawione
+
+- **Historia zmian snippetu na telefonie była ciasną tabelą, nie kartą.**
+  Zgłoszone z użycia: „ułożenie przycisków podgląd i przywróć w rewizjach kodu".
+
+  Znacznik tabeli wersji miał atrybuty `data-etykieta` od dawna, ale **nic nie
+  robiły**: reguły kart na wąskim ekranie były zawężone do `.evo-snippety-tbl`,
+  więc tabela wersji ich nie dostawała. Cztery kolumny musiały się zmieścić
+  w szerokości telefonu razem z dwoma przyciskami.
+
+  Teraz wiersz jest kartą z podpisanymi wartościami, tak samo jak lista
+  snippetów. Pierwsza kolumna dostała brakującą etykietę — w karcie sama data
+  bez podpisu jest tylko liczbą.
+
+- **Komórka akcji przestała być kontenerem `flex`.** `display: flex` na `<td>`
+  wyjmuje komórkę z układu tabeli. **Na szerokim ekranie nie było tego widać** —
+  sprawdziłem i kolumna trzymała się nagłówka mimo wszystko, więc ta część
+  mojego rozpoznania była nietrafna. Zmiana ma znaczenie gdzie indziej:
+  reguła `td { display: block }` z układu kart przegrywała z nią
+  specyficznością i karty by nie zadziałały.
+
+### Testy
+
+Nowy zestaw `snippety-wersje` — siedem sprawdzeń na PRAWDZIWYM wyjściu
+`evk_snippety_wersje_ekran()`, mierzących prostokąty w przeglądarce na dwóch
+szerokościach. Trzy mutacje, wszystkie zapaliły.
+
 ## [1.156.0] — 2026-09-08
 
 ### Zmienione
