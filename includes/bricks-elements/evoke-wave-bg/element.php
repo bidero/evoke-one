@@ -328,6 +328,65 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'default'  => 600,
 			'required' => [ 'scroll_pause_enabled', '=', true ],
 		];
+
+		// ── WYDAJNOŚĆ ──────────────────────────────────────────────────────────
+
+		$this->controls['sep_wydajnosc'] = [
+			'tab'   => 'content',
+			'type'  => 'separator',
+			'label' => 'Wydajność',
+		];
+
+		/* SUFIT GĘSTOŚCI PIKSELI — największy pojedynczy dławik tego elementu.
+		 *
+		 * Do 1.151.0 stało tu twarde `Math.min(devicePixelRatio, 2)`. Zmierzone
+		 * w fixturze (`tests/fixtures/wave-bg-pomiar.html`, dławienie CPU 4×,
+		 * DPR 2): mediana klatki 133,4 ms przy suficie 2, 83,3 ms przy 1,5
+		 * i 50,0 ms przy 1. Praca cieniowania rośnie z kwadratem gęstości, więc
+		 * zejście o połowę to czterokrotnie mniej pikseli do policzenia.
+		 *
+		 * Domyślne 1, bo fala jest miękkim gradientem bez ostrych krawędzi —
+		 * to materiał, na którym połowa rozdzielczości jest najmniej widoczna. */
+		$this->controls['pixel_ratio_cap'] = [
+			'tab'         => 'content',
+			'label'       => 'Sufit gęstości pikseli',
+			'type'        => 'number',
+			'min'         => 0.5, 'max' => 3, 'step' => 0.25,
+			'default'     => 1,
+			'description' => 'Wyżej znaczy ostrzej i wolniej. Zmierzone: 1 → 50 ms na klatkę, 1,5 → 83 ms, 2 → 133 ms.',
+		];
+
+		/* WYBÓR, A NIE POLE ZAZNACZENIA — i to jest świadome.
+		 *
+		 * Pole zaznaczenia z `'default' => true` jest w Bricksie niejednoznaczne:
+		 * przy nietkniętym elemencie klucza w ustawieniach nie ma i nie da się
+		 * odróżnić „użytkownik odznaczył" od „użytkownik nie dotykał". Przy
+		 * wartości domyślnie WŁĄCZONEJ trafia się wtedy albo na ustawienie,
+		 * którego nie da się wyłączyć, albo na domyślną, która nie działa.
+		 * Lista wyboru nie ma tego problemu: brak klucza to `?? 'tak'`,
+		 * a `'nie'` jest wyborem zapisanym wprost. */
+		$this->controls['pause_offscreen'] = [
+			'tab'         => 'content',
+			'label'       => 'Zatrzymuj poza ekranem',
+			'type'        => 'select',
+			'options'     => [ 'tak' => 'Tak — pauza, gdy element wyjdzie z widoku', 'nie' => 'Nie — renderuj zawsze' ],
+			'default'     => 'tak',
+			'description' => 'Zmierzone: bez tego pętla chodzi z pełną prędkością także po przewinięciu daleko poza element.',
+		];
+
+		/* Bufor rysowania. Zmierzone: 133,3 ms wobec 133,4 ms bez niego, czyli
+		 * różnica w szumie pomiaru — to NIE jest ustawienie wydajności, mimo że
+		 * stoi w tej sekcji. Potrzebny tylko wtedy, gdy nad falą leży treść
+		 * z `mix-blend-mode` (także nasz własny Kursor, patrz includes/94-cursor.php):
+		 * bez zachowanego bufora mieszanie trafia na pusty obraz i widać
+		 * migotanie co kilka sekund. */
+		$this->controls['preserve_buffer'] = [
+			'tab'         => 'content',
+			'label'       => 'Zachowuj bufor rysowania',
+			'type'        => 'checkbox',
+			'default'     => false,
+			'description' => 'Włącz, jeśli nad falą leży treść z mix-blend-mode i widać migotanie.',
+		];
 	}
 
 	private function color_hex( $val, string $fallback ): string {
@@ -466,6 +525,12 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'scrollFadeOpacity'    => (float) ( $s['scroll_fade_opacity']   ?? 0    ),
 			'scrollPauseEnabled'   => ! empty( $s['scroll_pause_enabled'] ),
 			'scrollPauseThreshold' => (int)   ( $s['scroll_pause_threshold'] ?? 600 ),
+			/* Ograniczenie z obu stron, bo wartość idzie wprost do `setPixelRatio()`.
+			   Zero albo liczba ujemna dałaby płótno o zerowym rozmiarze, a bardzo
+			   duża — płótno, którego przeglądarka nie zaalokuje. */
+			'pixelRatioCap'        => max( 0.5, min( 3.0, (float) ( $s['pixel_ratio_cap'] ?? 1 ) ) ),
+			'pauseOffscreen'       => ( $s['pause_offscreen'] ?? 'tak' ) !== 'nie',
+			'preserveBuffer'       => ! empty( $s['preserve_buffer'] ),
 		];
 		$cfg_js = wp_json_encode( $cfg );
 
@@ -687,7 +752,10 @@ class EvkWaveBackground {
         this.uTime         = 0.1;
         this.reverseUTime  = false;
         this.allowRayMouse = false;
-        this.paused        = false;
+        /* Zbiór powodów wstrzymania. Zastąpił flagę `paused` w 1.151.0 —
+           powody są niezależne i nie mogą się nawzajem odkręcać. */
+        this.powody        = new Set();
+        this.obserwator    = null;
         this.rafId         = null;
 
         this.settings = {
@@ -702,19 +770,23 @@ class EvkWaveBackground {
 
         // Renderer — alpha:true, przezroczyste tło; kontener może mieć własne CSS background
         //
-        // preserveDrawingBuffer: element bywa tłem dla tekstu z mix-blend-mode.
+        // preserveDrawingBuffer: element bywa tłem dla treści z mix-blend-mode.
         // Tryb mieszania zmusza przeglądarkę do odczytania pikseli płótna, a przy
         // domyślnym `false` WebGL wolno je porzucić zaraz po wyświetleniu — odczyt
-        // trafia wtedy na pusty bufor i tekst miesza się z niczym zamiast z falą.
-        // Objawia się to migotaniem na czarno/biało co kilka sekund, bo pętla
-        // renderowania i kompozytor rozjeżdżają się fazowo. Koszt to jedna kopia
-        // bufora na klatkę — mniej niż przebieg sceny, który wyżej usunęliśmy.
+        // trafia wtedy na pusty bufor i treść miesza się z niczym zamiast z falą.
+        // Objawia się to migotaniem na czarno/biało co kilka sekund.
+        //
+        // OD 1.151.0 DOMYŚLNIE WYŁĄCZONY i przestawiany kontrolką. Komentarz stał
+        // tu wcześniej razem z oszacowaniem kosztu na „jedną kopię bufora na
+        // klatkę" — POMIAR TEGO NIE POTWIERDZIŁ: 133,3 ms wobec 133,4 ms bez
+        // niego, czyli różnica w szumie. Włączamy go więc tam, gdzie naprawdę
+        // jest potrzebny, a nie wszędzie na wszelki wypadek.
         this.renderer = new THREE.WebGLRenderer({
             alpha: true,
             powerPreference: 'high-performance',
-            preserveDrawingBuffer: true,
+            preserveDrawingBuffer: CONFIG.preserveBuffer,
         });
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, CONFIG.pixelRatioCap));
         this.renderer.setSize(this.width, this.height);
         this.renderer.setClearColor(0x000000, 0);
         container.appendChild(this.renderer.domElement);
@@ -877,11 +949,44 @@ class EvkWaveBackground {
         // ale pętla rAF nie startuje. Wspólna polityka: includes/anim/motion.php.
         if (evkWbReduced()) return;
 
+        /* Wstrzymanie mogło przyjść w trakcie tej klatki — wtedy nie zamawiamy
+           następnej i zerujemy uchwyt, żeby `wznow()` wiedział, że pętla stoi. */
+        if (this.powody.size) { this.rafId = 0; return; }
+
+        this.rafId = requestAnimationFrame(() => this.render());
+    }
+
+    /**
+     * Wstrzymanie i wznowienie pętli — ZBIÓR POWODÓW, nie flaga.
+     *
+     * Powody są dwa i niezależne: próg przewinięcia (`scrollPauseEnabled`)
+     * i wyjście elementu poza ekran. Przy zwykłej fladze ten, który wznawia,
+     * odkręcałby także pauzę tego drugiego. Warunek na `rafId` pilnuje osobnej
+     * rzeczy: podwójne wznowienie wystartowałoby DWIE pętle rAF na tym samym
+     * obiekcie i element renderowałby się dwa razy na klatkę.
+     */
+    wstrzymaj(powod) {
+        /* Samo dopisanie powodu — pętlę zatrzymuje `render()`, kiedy go zobaczy.
+         *
+         * Stało tu jeszcze `cancelAnimationFrame`, ale mutacja pokazała, że oba
+         * mechanizmy zasłaniają się nawzajem: zdjęcie któregokolwiek z osobna
+         * nie zmieniało niczego mierzalnego. Został ten, który jest poprawny
+         * w OBU przypadkach. Samo anulowanie nie wystarcza, gdy pauza przyjdzie
+         * w trakcie klatki: uchwyt jest już zużyty, anulowanie go nic nie robi,
+         * a `render()` na końcu zamawia następną klatkę i pętla leci dalej.
+         * Cena tego uproszczenia to najwyżej jedna klatka po pauzie. */
+        this.powody.add(powod);
+    }
+
+    wznow(powod) {
+        this.powody.delete(powod);
+        if (this.powody.size || this.rafId) return;
         this.rafId = requestAnimationFrame(() => this.render());
     }
 
     destroy() {
         window.removeEventListener('resize', this.onResize);
+        if (this.obserwator) this.obserwator.disconnect();
         cancelAnimationFrame(this.rafId);
         this.plane.geometry.dispose();
         this.plane.material.dispose();
@@ -909,15 +1014,30 @@ class EvkWaveBackground {
         if (CONFIG.scrollPauseEnabled) {
             const thr = CONFIG.scrollPauseThreshold;
             window.addEventListener('scroll', () => {
-                const shouldPause = window.scrollY >= thr;
-                if (shouldPause && !this.paused) {
-                    this.paused = true;
-                    cancelAnimationFrame(this.rafId);
-                } else if (!shouldPause && this.paused) {
-                    this.paused = false;
-                    this.rafId = requestAnimationFrame(() => this.render());
-                }
+                if (window.scrollY >= thr) this.wstrzymaj('scroll');
+                else                       this.wznow('scroll');
             }, { passive: true });
+        }
+
+        /* ZATRZYMANIE POZA EKRANEM.
+         *
+         * Zmierzone przed tą zmianą: pętla chodziła z pełną prędkością także
+         * po przewinięciu o 3000 px — 30 klatek na 3 sekundy tak samo w polu
+         * widzenia, jak i daleko poza nim. Element dekoracyjny w nagłówku
+         * liczył więc falę przez cały czas czytania strony.
+         *
+         * Obserwator, a nie próg przewinięcia: próg nie wie, gdzie element
+         * naprawdę jest — przy fali w stopce albo w środku strony myliłby się
+         * w obie strony. `rootMargin` daje zapas, żeby fala była już policzona,
+         * zanim wjedzie w kadr. */
+        if (CONFIG.pauseOffscreen && 'IntersectionObserver' in window) {
+            this.obserwator = new IntersectionObserver((wpisy) => {
+                wpisy.forEach((w) => {
+                    if (w.isIntersecting) this.wznow('ekran');
+                    else                  this.wstrzymaj('ekran');
+                });
+            }, { rootMargin: '200px' });
+            this.obserwator.observe(this.container);
         }
     }
 }

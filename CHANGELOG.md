@@ -2,6 +2,75 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.151.0] — 2026-09-08
+
+### Naprawione
+
+- **Wave Background zajmował telefon na 22 sekundy.** Zgłoszone z użycia razem
+  z raportem PageSpeed dla `evoke.pl`: **Total Blocking Time 22 330 ms**, czas do
+  interaktywności **42,4 s**, praca wątku głównego **40,8 s**. Diagnostyka nie
+  pozostawiała wątpliwości co do kształtu usterki: **290 zadań ponad 50 ms, 262 ponad
+  100 ms, ani jednego ponad 500 ms**. To nie był ciężki skrypt na starcie — to pętla
+  renderowania po ~130 ms na klatkę, chodząca przez trzydzieści kilka sekund. Sam start
+  strony był zdrowy: FCP 1,5 s, LCP 2,7 s, CLS zero.
+
+  **Odtworzone i zmierzone przed jakąkolwiek poprawką.** Fixture
+  (`tests/fixtures/wave-bg-pomiar.html`) renderuje prawdziwy element przy dławieniu
+  procesora 4× i gęstości pikseli 2, czyli tak, jak mierzy PageSpeed. Mediana klatki
+  wyszła **133,4 ms** — zgodnie z tym, co wyliczyliśmy z raportu.
+
+  Zmierzone dławiki, każdy osobno:
+
+  | wariant | mediana klatki | fps |
+  |---|---|---|
+  | stan poprzedni | 133,4 ms | ~7,5 |
+  | sufit gęstości pikseli 1,5 | 83,3 ms | 12 |
+  | bez post-processingu | 66,7 ms | 15 |
+  | **sufit gęstości pikseli 1** | **50,0 ms** | 20 |
+  | sufit 1 + bez post-processingu | 33,3 ms | 30 |
+
+  W tym wydaniu wchodzą dwa pierwsze z brzegu; post-processing to osobna robota,
+  bo siedzi w nim szum i jego przeniesienie zmienia wygląd.
+
+- **Sufit gęstości pikseli jako kontrolka, domyślnie 1.** Było twarde
+  `Math.min(devicePixelRatio, 2)`. Praca cieniowania rośnie z kwadratem gęstości, więc
+  zejście o połowę to czterokrotnie mniej pikseli do policzenia — **133,4 → 50,0 ms**.
+  Fala jest miękkim gradientem bez ostrych krawędzi, czyli materiałem, na którym połowa
+  rozdzielczości jest najmniej widoczna. Kto chce ostrzej, podnosi kontrolką.
+
+- **Fala zatrzymuje się, gdy wyjdzie poza ekran.** Zmierzone przed poprawką: pętla
+  chodziła z pełną prędkością także po przewinięciu o 3000 px — element dekoracyjny
+  w nagłówku liczył się przez cały czas czytania strony. Teraz pilnuje tego
+  `IntersectionObserver`, domyślnie włączony. Istniejąca pauza po progu przewinięcia
+  zostaje; oba powody trzyma jeden zbiór, żeby wznowienie jednego nie odkręcało pauzy
+  drugiego.
+
+  Zmierzone po poprawce: po wyjściu elementu z kadru wątek główny zwalnia się
+  z **50 ms na klatkę do 16,7 ms**, a przy wyłączonym zatrzymywaniu zostaje na 50 ms.
+
+### Zmienione
+
+- **`preserveDrawingBuffer` domyślnie wyłączony, przestawiany kontrolką.** Zgłaszający
+  zrezygnował z `mix-blend-mode` nad falą, a to był jedyny powód, dla którego bufor był
+  włączony na sztywno. **Przy okazji sprostowanie:** komentarz w kodzie szacował koszt na
+  „jedną kopię bufora na klatkę" — pomiar tego nie potwierdził (133,3 wobec 133,4 ms,
+  czyli różnica w szumie). To porządek, nie przyspieszenie. Kontrolka zostaje, bo
+  mieszania używa też nasz własny moduł Kursora.
+
+- **Dwa dławiki wypadły z planu po pomiarze.** `Math.random()` liczony co klatkę nie
+  kosztuje nic mierzalnego, a limit klatek przestał mieć uzasadnienie, gdy element
+  i tak trafił w 20 klatek na sekundę. Zmiana bez pokrycia w pomiarze nie wchodzi.
+
+- **Harness testów umie podać fixture przez HTTP.** Moduły ES (`<script type="module">`)
+  przeglądarka odmawia załadować z `file://`, więc bez tego elementu **nie dało się
+  w ogóle uruchomić w teście** — pomiar pokazywałby zero pracy i świecił na zielono
+  z najgorszego możliwego powodu. Doszło też dławienie procesora i gęstość pikseli
+  w opcjach `open()`.
+
+  Przy okazji ustalone, że pliki post-processingu three.js importują `three` jako
+  **nazwę pakietu** — to jest prawdziwy powód, dla którego element sięga po esm.sh,
+  i to jest do rozwiązania przy wnoszeniu biblioteki do repozytorium.
+
 ## [1.150.0] — 2026-09-05
 
 ### Dodane

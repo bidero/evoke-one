@@ -24,6 +24,7 @@ const { chromium } = require('playwright-core');
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 
 const ROOT     = path.resolve(__dirname, '..', '..');
 const FIXTURES = path.join(__dirname, '..', 'fixtures');
@@ -120,18 +121,53 @@ const rgb = (s) => {
 const near = (a, b, tol = 6) =>
   !!a && !!b && a.length === 3 && a.every((v, i) => Math.abs(v - b[i]) <= tol);
 
+/** Typy zawartości dla serwera fixtur. Tyle, ile naprawdę podajemy. */
+const TYPY_MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript',
+  '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp',
+};
+
 class Runner {
   constructor() {
     this.results = [];
     this.browser = null;
+    this.serwer  = null;
+    this.port    = 0;
   }
 
   async start() {
     this.browser = await chromium.launch({ executablePath: chromiumPath() });
   }
 
+  /**
+   * Serwer plików repozytorium — wstaje dopiero, gdy któryś fixture go zażąda.
+   *
+   * PO CO, SKORO RESZTA IDZIE PRZEZ `file://`: moduły ES (`<script type="module">`)
+   * przeglądarka odmawia załadować z `file://` — blokuje je reguła pochodzenia.
+   * Element Wave Background jest w całości modułem, więc bez serwera nie startuje
+   * wcale, a pomiar pokazywałby zero pracy i świecił na zielono z najgorszego
+   * możliwego powodu. Serwer podaje katalog repozytorium, więc fixture sięga
+   * i po `node_modules`, i po pliki wtyczki tak samo jak przeglądarka na stronie.
+   */
+  async serwerPlikow() {
+    if (this.serwer) return this.port;
+    this.serwer = http.createServer((req, res) => {
+      const cel = path.join(ROOT, decodeURIComponent(req.url.split('?')[0]));
+      if (!cel.startsWith(ROOT) || !fs.existsSync(cel) || fs.statSync(cel).isDirectory()) {
+        res.writeHead(404); return res.end('nie ma');
+      }
+      res.writeHead(200, { 'Content-Type': TYPY_MIME[path.extname(cel)] || 'application/octet-stream' });
+      fs.createReadStream(cel).pipe(res);
+    });
+    await new Promise((ok) => this.serwer.listen(0, '127.0.0.1', ok));
+    this.port = this.serwer.address().port;
+    return this.port;
+  }
+
   async stop() {
     if (this.browser) await this.browser.close();
+    if (this.serwer)  await new Promise((ok) => this.serwer.close(ok));
   }
 
   section(title) {
@@ -157,8 +193,17 @@ class Runner {
          tego ta gałąź jest w testach nieosiągalna i mutacja w niej przechodzi
          na zielono. */
       hasTouch: !!opts.touch,
+      /* Gęstość pikseli. Domyślnie 1, bo tyle mają wszystkie dotychczasowe
+         fixtury; pomiar fali potrzebuje 2, żeby odtworzyć telefon. */
+      deviceScaleFactor: opts.dpr || 1,
     });
     const page = await ctx.newPage();
+    /* Dławienie procesora jak w Lighthouse dla telefonu — inaczej pomiar kosztu
+       klatki mówi o mocy maszyny testowej, a nie o kodzie. */
+    if (opts.dlawienieCPU) {
+      const cdp = await ctx.newCDPSession(page);
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: opts.dlawienieCPU });
+    }
     page.errors = [];
     page.warnings = [];
     /* Zwykłe logi też, bo niektóre funkcje MAJĄ mówić — i wtedy „konsola
@@ -172,7 +217,12 @@ class Runner {
       if (m.type() === 'log') page.logs.push(m.text());
     });
     if (opts.head) await page.addInitScript({ content: opts.head });
-    await page.goto('file://' + path.join(FIXTURES, fixture) + (opts.query ? '?' + opts.query : ''));
+
+    /* `przezHttp` dla fixtur z modułami ES — patrz `serwerPlikow()`. */
+    const adres = opts.przezHttp
+      ? 'http://127.0.0.1:' + (await this.serwerPlikow()) + '/tests/fixtures/' + fixture
+      : 'file://' + path.join(FIXTURES, fixture);
+    await page.goto(adres + (opts.query ? '?' + opts.query : ''));
     await page.waitForTimeout(opts.settle === undefined ? 450 : opts.settle);
     return page;
   }

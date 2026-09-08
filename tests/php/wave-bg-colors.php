@@ -41,11 +41,20 @@ namespace {
     $el->render();
     $html = ob_get_clean();
 
+    /* Tryb `html`: całe wyjście render(), bez wyciągania czegokolwiek.
+       Potrzebne fixturowi pomiarowemu — mierzymy PRAWDZIWY element, a nie
+       jego odtworzenie w znaczniku testu. */
+    if (($argv[2] ?? '') === 'html') { echo $html; exit; }
+
     if (!preg_match('/const CONFIG\s+= (\{.*?\});/s', $html, $m)) {
         fwrite(STDERR, "Nie znaleziono CONFIG w wyjściu render().\n");
         exit(1);
     }
     $cfg = json_decode($m[1], true);
+
+    /* Tryb `cfg`: sam CONFIG. Sprawdzenia wydajnościowe pytają o pojedyncze
+       wartości i nie mają po co dostawać całej reszty. */
+    if (($argv[2] ?? '') === 'cfg') { echo json_encode($cfg), "\n"; exit; }
 
     // Lista wariantów palety — do sprawdzenia, że kontrolka i render znają te same.
     $el->set_controls();

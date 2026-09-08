@@ -1,0 +1,121 @@
+<!--
+  Wave Background — POMIAR KOSZTU KLATKI.
+
+  Znacznik pochodzi z PRAWDZIWEGO `render()` elementu (`tests/php/wave-bg-colors.php … html`),
+  więc mierzony jest ten kod, który jedzie na stronę — nie jego odtworzenie.
+
+  DWIE RZECZY WYMAGAJĄ WYJAŚNIENIA:
+
+  1. IMPORTY SĄ PRZEPISYWANE NA LOKALNE. Element importuje three.js z esm.sh, a Chromium
+     w środowisku testowym nie ma wyjścia na zewnątrz. Podmieniamy adresy na `node_modules`
+     — to ta sama biblioteka w tej samej wersji, więc koszt klatki jest ten sam. Sam fakt,
+     że bez tej podmiany elementu NIE DA SIĘ zmierzyć, jest osobnym argumentem za
+     wniesieniem three.js do repozytorium.
+
+  2. MODUŁ WSTAWIAMY PRZEZ createElement, nie innerHTML. Skrypty doklejone przez `innerHTML`
+     się nie wykonują — element by nie wystartował, a pomiar pokazałby zero pracy i wyszedł
+     na zielono z najgorszego możliwego powodu.
+-->
+<meta charset="utf-8">
+<!-- Puste źródło ikony. Bez tego przeglądarka pyta serwer o `/favicon.ico`,
+     dostaje 404 i wpisuje błąd do konsoli — a sprawdzenie „konsola czysta"
+     zapalałoby się na czymś, co nie ma z badanym kodem nic wspólnego. -->
+<link rel="icon" href="data:,">
+
+<!--
+  MAPA IMPORTÓW. Pliki post-processingu three.js importują `three` jako NAZWĘ PAKIETU
+  (`import { … } from 'three'`), a przeglądarka nie wie, gdzie to jest. Właśnie dlatego
+  element sięgał po esm.sh: tamten serwis przepisuje takie nazwy na adresy. To jest
+  konkretny powód techniczny, nie wygoda — i wprost pokazuje, czego będzie wymagało
+  wniesienie three.js do repozytorium: albo mapy importów na stronie, albo jednej
+  paczki zbudowanej bez nazw pakietów w środku.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/node_modules/three/build/three.module.js",
+    "three/": "/node_modules/three/"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; }
+  #scena { position: relative; width: 100%; height: 100vh; }
+  #dalej { height: 300vh; }
+</style>
+
+<div id="scena"></div>
+<div id="dalej"></div>
+
+<script>
+  /* Długie zadania — ta sama waluta, którą liczy Lighthouse: wszystko ponad 50 ms
+     wchodzi do Total Blocking Time. */
+  window.__dlugie = [];
+  try {
+    new PerformanceObserver(function (l) {
+      l.getEntries().forEach(function (e) {
+        window.__dlugie.push({ start: e.startTime, dur: e.duration });
+      });
+    }).observe({ entryTypes: ['longtask'] });
+  } catch (e) { window.__brakObserwatora = e.message; }
+
+  /* Odstępy między klatkami. Własna pętla rAF mierzy CAŁY koszt klatki — jeśli fala
+     zajmuje 130 ms, kolejne wywołania są od siebie o tyle właśnie oddalone. */
+  window.__klatki = [];
+  (function tik(poprzednia) {
+    requestAnimationFrame(function (t) {
+      if (poprzednia) window.__klatki.push(t - poprzednia);
+      tik(t);
+    });
+  })(0);
+
+  /** Wstawia moduł elementu, przepisując importy na lokalne. */
+  window.__start = function () {
+    var html = (window.__tresc || '')
+      .replace(/https:\/\/esm\.sh\/three@[\d.]+\/examples\/jsm\//g, 'three/examples/jsm/')
+      .replace(/https:\/\/esm\.sh\/three@[\d.]+/g, 'three')
+      .replace(/https:\/\/esm\.sh\/gsap@[\d.]+/g, '/node_modules/gsap/index.js');
+
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+
+    Array.prototype.forEach.call(tmp.childNodes, function (n) {
+      if (n.tagName === 'SCRIPT') return;          // skrypty dokładamy niżej
+      document.getElementById('scena').appendChild(n.cloneNode(true));
+    });
+    Array.prototype.forEach.call(tmp.querySelectorAll('script'), function (s) {
+      var n = document.createElement('script');
+      if (s.type) n.type = s.type;
+      n.textContent = s.textContent;
+      document.body.appendChild(n);
+    });
+  };
+
+  /** Zeruje próbkę, żeby zmierzyć wybrany odcinek osobno. */
+  window.__zerujKlatki = function () { window.__klatki.length = 0; };
+
+  /** Mediana odstępu między klatkami w tym, co zebrano od ostatniego zerowania. */
+  window.__medianaKlatki = function () {
+    var k = window.__klatki.slice(3).sort(function (a, b) { return a - b; });
+    return k.length ? Math.round(k[Math.floor(k.length / 2)] * 10) / 10 : null;
+  };
+
+  /** Podsumowanie pomiaru. `okno` obcina początek — start elementu nas nie interesuje. */
+  window.__wynik = function (odKiedy) {
+    odKiedy = odKiedy || 0;
+    var dl = window.__dlugie.filter(function (z) { return z.start >= odKiedy; });
+    var kl = window.__klatki.slice(10);
+    var pos = kl.slice().sort(function (a, b) { return a - b; });
+    return {
+      plotno:       !!document.querySelector('#scena canvas'),
+      klatek:       kl.length,
+      medianaKlatki: pos.length ? Math.round(pos[Math.floor(pos.length / 2)] * 10) / 10 : null,
+      najgorszaKlatka: pos.length ? Math.round(pos[pos.length - 1]) : null,
+      dlugichZadan: dl.length,
+      sumaDlugich:  Math.round(dl.reduce(function (s, z) { return s + z.dur; }, 0)),
+      /* TBT liczone tak, jak liczy je Lighthouse: nadwyżka ponad 50 ms. */
+      tbt:          Math.round(dl.reduce(function (s, z) { return s + Math.max(0, z.dur - 50); }, 0)),
+      brakObserwatora: window.__brakObserwatora || null,
+    };
+  };
+</script>

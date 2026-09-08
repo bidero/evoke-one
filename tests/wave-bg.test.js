@@ -63,6 +63,117 @@ module.exports = async function (t) {
    * zmienia się wyłącznie jego kształt. Dlatego mierzymy ĆWIARTKĘ, bo tylko
    * tam prosta i krzywa się rozjeżdżają.
    */
+  // ── Wydajność (1.151.0) ────────────────────────────────────────────────
+  t.section('fala nie liczy telefonu na śmierć');
+
+  /* ZGŁOSZONE Z UŻYCIA wraz z raportem PageSpeed: 22 330 ms blocking time,
+     42 s do interaktywności. Zmierzone w fixturze przy dławieniu procesora 4×
+     i gęstości pikseli 2: mediana klatki 133,4 ms, czyli osiem klatek na sekundę
+     przez cały czas oglądania strony. */
+
+  const cfg = (ust) => JSON.parse(phpOutput('wave-bg-colors.php',
+    JSON.stringify(JSON.stringify(ust)) + ' cfg'));
+
+  const domyslne = cfg({});
+  t.check('sufit gęstości pikseli domyślnie wynosi 1',
+    domyslne.pixelRatioCap === 1, String(domyslne.pixelRatioCap));
+  /* Wartość idzie wprost do `setPixelRatio()`. Zero dałoby płótno zerowego
+     rozmiaru, a bardzo duża — takie, którego przeglądarka nie zaalokuje. */
+  t.check('i jest ograniczony z obu stron',
+    cfg({ pixel_ratio_cap: 0 }).pixelRatioCap === 0.5
+      && cfg({ pixel_ratio_cap: 99 }).pixelRatioCap === 3,
+    cfg({ pixel_ratio_cap: 0 }).pixelRatioCap + ' … ' + cfg({ pixel_ratio_cap: 99 }).pixelRatioCap);
+  t.check('ale wartość z panelu przechodzi bez zmian',
+    cfg({ pixel_ratio_cap: 1.5 }).pixelRatioCap === 1.5,
+    String(cfg({ pixel_ratio_cap: 1.5 }).pixelRatioCap));
+
+  /* Lista wyboru, nie pole zaznaczenia — pole z domyślnym `true` jest
+     w Bricksie nieodróżnialne od nietkniętego, więc albo nie da się go
+     wyłączyć, albo domyślna nie działa. */
+  t.check('zatrzymywanie poza ekranem jest domyślnie włączone',
+    domyslne.pauseOffscreen === true, String(domyslne.pauseOffscreen));
+  t.check('i daje się wyłączyć wprost',
+    cfg({ pause_offscreen: 'nie' }).pauseOffscreen === false,
+    String(cfg({ pause_offscreen: 'nie' }).pauseOffscreen));
+
+  t.check('bufor rysowania domyślnie wyłączony',
+    domyslne.preserveBuffer === false, String(domyslne.preserveBuffer));
+  t.check('a kontrolka go włącza',
+    cfg({ preserve_buffer: true }).preserveBuffer === true,
+    String(cfg({ preserve_buffer: true }).preserveBuffer));
+
+  /* Ustawienie w CONFIG-u nic nie znaczy, jeśli moduł go nie czyta. Do 1.151.0
+     stały tam trzy wartości wpisane na sztywno. */
+  const zrodlo = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify({})) + ' html');
+  t.check('i moduł naprawdę czyta te trzy ustawienia',
+    zrodlo.includes('CONFIG.pixelRatioCap') && zrodlo.includes('CONFIG.preserveBuffer')
+      && zrodlo.includes('CONFIG.pauseOffscreen'),
+    'trzy odwołania do CONFIG');
+  t.check('a twardej dwójki i twardego bufora już nie ma',
+    !/setPixelRatio\(Math\.min\(window\.devicePixelRatio, 2\)\)/.test(zrodlo)
+      && !/preserveDrawingBuffer:\s*true/.test(zrodlo),
+    'brak wartości wpisanych na sztywno');
+
+  // ── Zatrzymanie poza ekranem, w prawdziwej przeglądarce ────────────────
+  t.section('poza ekranem fala przestaje liczyć');
+
+  /**
+   * Mediana odstępu klatek WŁASNEJ pętli obserwacyjnej fixtura — czyli miara
+   * tego, ile wolnego zostaje wątkowi głównemu.
+   *
+   * Mierzymy tak, a nie licząc klatki fali, bo to właśnie zajęty wątek główny
+   * jest usterką: Lighthouse liczy Total Blocking Time z zadań dłuższych niż
+   * 50 ms, a nie z tego, ile razy przerysowało się płótno.
+   */
+  const zajetosc = async (ust) => {
+    const html = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify(ust)) + ' html');
+    const str = await t.open('wave-bg-pomiar.html', {
+      przezHttp: true,
+      viewport: { width: 412, height: 915 },
+      dpr: 2,
+      dlawienieCPU: 4,
+      head: 'window.__tresc = ' + JSON.stringify(html) + ';',
+      settle: 200,
+    });
+    await str.evaluate(() => window.__start());
+    await str.waitForTimeout(2500);          // start modułu i kompilacja shaderów
+
+    await str.evaluate(() => window.__zerujKlatki());
+    await str.waitForTimeout(2500);
+    const widoczna = await str.evaluate(() => window.__medianaKlatki());
+
+    await str.evaluate(() => window.scrollTo(0, 3000));
+    await str.waitForTimeout(600);
+    await str.evaluate(() => window.__zerujKlatki());
+    await str.waitForTimeout(2500);
+    const poza = await str.evaluate(() => window.__medianaKlatki());
+
+    const plotno = await str.evaluate(() => !!document.querySelector('#scena canvas'));
+    const bledy  = str.errors.filter((e) => !/favicon/.test(e));
+    await str.close();
+    return { widoczna, poza, plotno, bledy };
+  };
+
+  const zPauza = await zajetosc({});
+  /* Bez tego sprawdzenia cała reszta przechodziłaby także wtedy, gdyby moduł
+     w ogóle nie wystartował — a wtedy „wątek główny wolny" jest prawdą
+     z najgorszego możliwego powodu. */
+  t.check('element naprawdę wystartował', zPauza.plotno && zPauza.bledy.length === 0,
+    zPauza.bledy.join(' | ') || 'płótno jest, konsola czysta');
+  t.check('gdy fala jest widoczna, wątek główny jest zajęty',
+    zPauza.widoczna > 25, zPauza.widoczna + ' ms na klatkę');
+  t.check('a po wyjściu poza ekran zwalnia się',
+    zPauza.poza < zPauza.widoczna * 0.7,
+    zPauza.widoczna + ' → ' + zPauza.poza + ' ms');
+
+  /* KONTROLA NEGATYWNA. Bez niej sprawdzenie wyżej przechodziłoby także dla
+     kodu, który zwalnia z innego powodu — na przykład dlatego, że po
+     przewinięciu przeglądarka i tak mniej maluje. */
+  const bezPauzy = await zajetosc({ pause_offscreen: 'nie' });
+  t.check('z wyłączonym zatrzymywaniem nie zwalnia',
+    bezPauzy.poza > bezPauzy.widoczna * 0.7,
+    bezPauzy.widoczna + ' → ' + bezPauzy.poza + ' ms');
+
   t.section('maska zanika po krzywej, a nie po prostej');
 
   const alfy = (maska) => (maska.match(/rgba\(0,0,0,([\d.]+)\)/g) || [])
