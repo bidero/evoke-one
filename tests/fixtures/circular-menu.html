@@ -182,6 +182,10 @@ window.__scrim = function () {
     krycie:  Math.round(parseFloat(cs.opacity) * 100) / 100,
     klikalny: cs.pointerEvents !== 'none',
     tlo:     cs.backgroundColor,
+    /* Czy element jest MALOWANY. Samo krycie nie odpowiada na to pytanie:
+       przezroczysty element nadal jest malowany, a Safari na iOS bierze
+       z malowanych pikseli przy krawędziach kolor swoich pasków. */
+    malowany: cs.visibility !== 'hidden',
     warstwa: parseInt(cs.zIndex, 10),
     // Czy naprawdę zakrywa okno — przyciemnienie o zerowym polu nic nie daje.
     szer: Math.round(b.width), wys: Math.round(b.height),

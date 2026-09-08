@@ -222,7 +222,12 @@ function evk_circular_menu_init_one( root ) {
        czasu lub krzywej, a przy przerwanym zamykaniu (`tl.reverse()` w połowie)
        obie rzeczy muszą cofać się razem. */
     if ( scrim ) {
-        tl.to( scrim, { duration: duration, ease: easing, opacity: 1 }, 0 );
+        /* `autoAlpha`, nie `opacity` — GSAP prowadzi wtedy krycie RAZEM
+           z `visibility`. Zamknięte przyciemnienie ma nie być malowane wcale:
+           rozciągnięte na cały kadr, przy krawędziach, podpowiada Safari na iOS
+           kolor pasków systemowych. Osobne sterowanie widocznością rozjeżdżałoby
+           się przy przerwanym zamykaniu (`tl.reverse()` w połowie). */
+        tl.to( scrim, { duration: duration, ease: easing, autoAlpha: 1 }, 0 );
     }
 
     var isOpen = false;

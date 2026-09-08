@@ -604,6 +604,16 @@ module.exports = async function (t) {
   t.check('zamknięte jest niewidoczne i nie łapie kliknięć',
     przed && przed.krycie === 0 && przed.klikalny === false,
     'krycie ' + (przed || {}).krycie + ', klikalny ' + (przed || {}).klikalny);
+  /* ZGŁOSZONE Z UŻYCIA: „czy tło może nie barwić pasków na dole i na górze po
+     zamknięciu w Safari iOS". Safari bierze kolor swoich pasków z tego, co jest
+     namalowane przy krawędziach kadru — a przezroczysty element NADAL JEST
+     malowany. Stąd `visibility`, nie samo krycie.
+
+     Czego to sprawdzenie NIE dowodzi: że paski w Safari na iOS przestają się
+     barwić. Tego nie da się zmierzyć w Chromium i nie udaję, że da. Mierzymy
+     rzecz mierzalną — że zamknięte przyciemnienie nie jest malowane. */
+  t.check('i nie jest malowane wcale, nie tylko przezroczyste',
+    przed && przed.malowany === false, 'malowany: ' + (przed || {}).malowany);
   t.check('a panel leży NAD nim',
     przed && przed.panelWyzej === true, 'panel wyżej: ' + (przed || {}).panelWyzej);
   t.check('i zakrywa całe okno',
@@ -614,6 +624,7 @@ module.exports = async function (t) {
   await zeScrimem.waitForTimeout(400);
   const po = await zeScrimem.evaluate(() => window.__scrim());
   t.check('po otwarciu jest widoczne', po && po.krycie === 1, 'krycie: ' + (po || {}).krycie);
+  t.check('i wraca do malowania', po && po.malowany === true, 'malowany: ' + (po || {}).malowany);
   t.check('i łapie kliknięcia', po && po.klikalny === true, 'klikalny: ' + (po || {}).klikalny);
 
   /* Kliknięcie zamyka — tak samo jak w Offcanvas Menu. Mierzymy promieniem
@@ -630,6 +641,12 @@ module.exports = async function (t) {
   t.check('a tło znowu przepuszcza kliknięcia',
     poZamknieciu && poZamknieciu.klikalny === false,
     'klikalny: ' + (poZamknieciu || {}).klikalny);
+  /* SEDNO ZGŁOSZENIA. Po zamknięciu element ma wypaść z malowania — nie tylko
+     wygasnąć. Inaczej zostaje na całym kadrze jako przezroczysta warstwa
+     dotykająca obu krawędzi. */
+  t.check('i po zamknięciu znowu nie jest malowane',
+    poZamknieciu && poZamknieciu.malowany === false,
+    'malowany: ' + (poZamknieciu || {}).malowany);
   await zeScrimem.close();
 
   t.section('cofnięcie odtwarza stan sprzed animacji mimo clearProps');

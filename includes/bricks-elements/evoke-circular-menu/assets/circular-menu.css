@@ -54,6 +54,26 @@
     inset: 0;
     background: var(--evk-cm-scrim, rgba(15, 23, 42, .55));
     opacity: 0;
+    /* ZAMKNIĘTE NIE JEST MALOWANE WCALE, nie tylko przezroczyste.
+     *
+     * ZGŁOSZONE Z UŻYCIA: „czy tło może nie barwić pasków na dole i na górze po
+     * zamknięciu w Safari iOS". Safari koloruje swoje paski tym, co widzi przy
+     * krawędziach kadru, a element rozciągnięty na cały ekran jest dokładnie
+     * przy krawędziach. Samo `opacity: 0` zostawia go w drzewie jako element
+     * MALOWANY, tylko całkiem przezroczysty; `visibility: hidden` wyjmuje go
+     * z malowania.
+     *
+     * Krycie i widoczność chodzą razem, bo osobno rozjechałyby się przy
+     * przerwanym zamykaniu — dlatego oś czasu rusza `autoAlpha`, czyli jedno
+     * i drugie naraz.
+     *
+     * UWAGA O ZAKRESIE: to jest higiena po naszej stronie, a nie lekarstwo na
+     * kolor pasków. Prawdziwym lekarstwem jest moduł „Kolor pasków przeglądarki"
+     * (includes/91-theme-color.php): `theme-color` odbiera Safari decyzję
+     * w ogóle, także na podstronach bez menu. Zabarwienia pasków w Safari na iOS
+     * NIE DA SIĘ sprawdzić w tym zestawie — mierzymy to, co mierzalne: że
+     * zamknięte przyciemnienie nie jest malowane. */
+    visibility: hidden;
     /* Zamknięte przyciemnienie nie może łapać kliknięć — leży na całej stronie
        i przechwyciłoby wszystko, także przy zamkniętym menu. */
     pointer-events: none;

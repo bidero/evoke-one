@@ -2,6 +2,35 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.158.1] — 2026-09-08
+
+### Naprawione
+
+- **Zamknięte przyciemnienie w Circular Menu nie jest już malowane.**
+  Zgłoszone z użycia: „czy tło może nie barwić pasków na dole i na górze
+  po zamknięciu w Safari iOS".
+
+  Safari koloruje swój górny i dolny pasek tym, co widzi przy krawędziach kadru.
+  Przyciemnienie z 1.158.0 miało po zamknięciu `opacity: 0` — a element całkiem
+  przezroczysty **nadal jest elementem malowanym**, rozciągniętym na cały ekran
+  i dotykającym obu krawędzi. Teraz krycie chodzi razem z `visibility`
+  (oś czasu rusza `autoAlpha`, nie samo `opacity`), więc po zamknięciu element
+  wypada z malowania.
+
+  **Czego to NIE załatwia i czego nie sprawdziłem.** Zabarwienia pasków
+  w Safari na iOS nie da się zmierzyć w tym zestawie i nie udaję, że da —
+  sprawdzenie mówi tylko tyle, że zamknięte przyciemnienie nie jest malowane.
+  Prawdziwym lekarstwem na kolor pasków jest moduł **„Paski przeglądarki"**
+  (Evoke ONE → Paski przeglądarki, domyślnie wyłączony): `theme-color` odbiera
+  przeglądarce decyzję w ogóle, więc kolor obowiązuje niezależnie od tego, co
+  jest namalowane — także przy otwartym menu, pełnoekranowej galerii czy ciemnej
+  sekcji, i na podstronach bez żadnego menu.
+
+### Testy
+
+Trzy nowe sprawdzenia pytające o `visibility`, nie o samo krycie: przed
+otwarciem, po otwarciu i po zamknięciu. Dwie mutacje, obie zapaliły.
+
 ## [1.158.0] — 2026-09-08
 
 ### Dodane
