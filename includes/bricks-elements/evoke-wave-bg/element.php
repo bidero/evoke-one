@@ -746,9 +746,19 @@ function evkWbBezAkceleracjiWstepnie() {
     try {
         c  = document.createElement('canvas');
         gl = c.getContext('webgl2') || c.getContext('webgl');
+        /* BRAK KONTEKSTU TO NIE JEST „NIE WIEM".
+           `evkWbBezAkceleracji()` celowo odpowiada `false`, gdy nie da się
+           odczytać nazwy sterownika — od zgadywania jest drabina jakości. Ale
+           gdy płótno nie dostaje kontekstu W OGÓLE (Firefox z `webgl.disabled`,
+           Safari z wyłączonym WebGL, stary sprzęt), odpowiedź jest pewna:
+           three.js nie ma na czym rysować i `new THREE.WebGLRenderer()` rzuci
+           wyjątkiem. Bez tego warunku element pobierał 287 KB tylko po to, żeby
+           się wywrócić, i zostawiał w układzie puste miejsce. */
+        if (!gl) return true;
         return evkWbBezAkceleracji(gl);
     } catch (e) {
-        return false;
+        /* Wyjątek z `getContext` znaczy to samo co jego brak. */
+        return true;
     } finally {
         try {
             const strata = gl && gl.getExtension('WEBGL_lose_context');
@@ -982,7 +992,15 @@ class EvkWaveBackground {
         this.renderer = new THREE.WebGLRenderer({
             alpha: true,
             powerPreference: 'high-performance',
-            preserveDrawingBuffer: CONFIG.preserveBuffer,
+            /* PRZY „OGRANICZ RUCH" WYMUSZONY, i to nie jest ozdoba.
+               Bez akceleracji i przy ograniczonym ruchu rysujemy JEDEN kadr
+               i nie zamawiamy następnego — a przy `preserveDrawingBuffer:false`
+               przeglądarce wolno porzucić zawartość płótna zaraz po
+               wyświetleniu. Przy działającej pętli nikt tego nie zauważy, bo
+               następna klatka zaraz domaluje; przy jednym kadrze wystarczy
+               przewinięcie albo powrót do karty i zostaje puste miejsce.
+               Koszt zmierzony wcześniej: 133,3 wobec 133,4 ms, czyli żaden. */
+            preserveDrawingBuffer: CONFIG.preserveBuffer || evkWbReduced(),
         });
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, CONFIG.pixelRatioCap));
 
@@ -1134,7 +1152,7 @@ class EvkWaveBackground {
         const k = EvkWaveBackground.STAN_KONCOWY;
         /* Bez animacji nie ma czego animować — od razu stan końcowy, żeby fala
            była widoczna. */
-        if (evkWbReduced() || this.bezAkceleracji) {
+        if (evkWbReduced()) {
             this.ustawStanKoncowy();
             this.rysujRaz();
             return;
@@ -1194,17 +1212,6 @@ class EvkWaveBackground {
         // to element dekoracyjny, więc jego zniknięcie zmieniłoby układ strony —
         // ale pętla rAF nie startuje. Wspólna polityka: includes/anim/motion.php.
         if (evkWbReduced()) return;
-
-        /* BEZ AKCELERACJI SPRZĘTOWEJ: jedna klatka i koniec. Gradient zostaje na
-           ekranie — element jest dekoracyjny, więc jego zniknięcie zmieniłoby
-           układ strony. Rysujemy tę jedną klatkę w PEŁNEJ jakości: jednorazowa
-           kompilacja shaderów kosztuje 152 ms (zmierzone), a obraz ma wyglądać
-           tak, jak zaprojektowany. */
-        if (this.bezAkceleracji) {
-            if (evkWbDebug()) console.log('[EVK Wave] brak akceleracji sprzętowej — jeden kadr, bez animacji');
-            this.rafId = 0;
-            return;
-        }
 
         /* Wstrzymanie mogło przyjść w trakcie tej klatki — wtedy nie zamawiamy
            następnej i zerujemy uchwyt, żeby `wznow()` wiedział, że pętla stoi. */
@@ -1457,6 +1464,23 @@ async function evkWbBoot(tries = 0) {
     }
 
     const instance = new EvkWaveBackground(container);
+
+    /* DRUGA LINIA OBRONY. Probka przed importem odpowiada „nie wiem" (czyli
+       `false`), gdy nazwa sterownika jest niedostępna — i wtedy dowiadujemy się
+       prawdy dopiero z kontekstu, którego renderer naprawdę używa.
+       Do 1.154.0 zostawał tu ZAMROŻONY KADR i to była usterka: płótno bez
+       `preserveDrawingBuffer` wolno przeglądarce wyczyścić zaraz po
+       wyświetleniu, a nic go już nie odrysowywało — zostawało puste miejsce.
+       Zdejmujemy więc płótno i rysujemy ten sam zastępnik co wyżej: gradient
+       albo obraz z kontrolki. Deterministycznie, bez zależności od tego, kiedy
+       przeglądarka zechce posprzątać bufor. */
+    if (instance.bezAkceleracji) {
+        if (evkWbDebug()) console.log('[EVK Wave] brak akceleracji sprzętowej — zastępnik zamiast płótna');
+        instance.destroy();
+        evkWbGradientZastepczy(container);
+        return;
+    }
+
     instance.initScrollBehavior();
     instance.animateIn(2, 0.5);   // jak w referencji: animateIn(2, .5)
 }

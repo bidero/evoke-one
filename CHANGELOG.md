@@ -2,6 +2,76 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.155.0] — 2026-09-08
+
+### Naprawione
+
+- **Bez akceleracji sprzętowej nie było widać ani zastępnika, ani własnego obrazu.**
+  Zgłoszone z użycia: „jak wyłączam akcelerację, to w Chrome nie mam ani obrazka
+  domyślnego, ani tego co ustawię".
+
+  Przyczyna nie leżała w zastępniku, tylko w **zamrożonym kadrze**. Tam, gdzie
+  fala rysowała jedną klatkę i nie zamawiała następnej — bez akceleracji
+  (od 1.153.0) i przy „ogranicz ruch" — płótno powstawało z
+  `preserveDrawingBuffer: false`. Przy tym ustawieniu **przeglądarce wolno
+  porzucić zawartość płótna zaraz po wyświetleniu**. Gdy pętla chodzi, nikt tego
+  nie zauważy, bo następna klatka zaraz domaluje; przy jednym kadrze wystarczy
+  przewinięcie albo powrót do karty i zostaje puste miejsce.
+
+  Zdanie o tym stało od 1.153.0 w komentarzu do testu — sprawdzenie przechodziło
+  wyłącznie dlatego, że wymuszało `preserve_buffer: true`, żeby móc odczytać
+  piksele. Napisałem tę uwagę i nie połączyłem faktów.
+
+  Naprawione w obu miejscach, każde inaczej, bo co innego jest tam potrzebne:
+  - **przy „ogranicz ruch"** płótno zostaje (obraz ma być prawdziwą falą,
+    a nie przybliżeniem), więc zachowanie bufora jest teraz wymuszane. Koszt
+    zmierzony wcześniej: 133,3 wobec 133,4 ms, czyli żaden;
+  - **przy braku akceleracji wykrytym dopiero przez renderer** płótno schodzi
+    i wchodzi ten sam zastępnik co przy probce wstępnej — deterministycznie,
+    bez zależności od tego, kiedy przeglądarka zechce posprzątać bufor.
+
+- **Parallax: koszt przeliczania stylu rósł z zawartością sekcji.**
+  `--evk-par-y` to własność **niestandardowa**, a te dziedziczą się na całe
+  poddrzewo — zapis na sekcji unieważniał styl każdego jej potomka przy każdej
+  klatce przewijania. Zmierzone przy sześciu sekcjach, dławienie CPU 4×,
+  120 klatek przewijania:
+
+  | potomków w sekcji | 0 | 20 | 100 | 400 |
+  |---|---|---|---|---|
+  | przed | 97 ms | 228 ms | 557 ms | **2059 ms** |
+  | po | 78 ms | 99 ms | 86 ms | **127 ms** |
+
+  Z parallaksem wyłączonym: 0 ms w każdym z tych przypadków, więc to nie był
+  koszt „większej strony". **Układ nie kosztował nic ani przedtem, ani dziś** —
+  `transform` go nie brudzi, więc `getBoundingClientRect()` czyta czysty stan.
+  Pierwsza hipoteza mówiła o wymuszonym układzie i **była fałszywa**; obaliła ją
+  seria pomiarów przy 1, 2, 4, 8 i 16 sekcjach, w każdej zero układów.
+
+  To spina raport PageSpeed: przeliczanie leciało wewnątrz `requestAnimationFrame`
+  z `parallax.js`, więc Lighthouse przypisywał je temu plikowi (304 ms na
+  desktopie, 511 ms na telefonie) i wrzucał do „Style & Layout" — najgrubszej
+  kategorii wątku głównego (870 / 1629 ms).
+
+### Zmienione
+
+- **Ruch parallaksy prowadzi teraz przeglądarka, nie skrypt.** Reguła warstwy
+  używa `animation-timeline` z osią widoku, więc przy przewijaniu nie wykonuje
+  się ani jedna linia JavaScriptu. Skrypt ma jedno zadanie: podać zakres ruchu
+  raz, przy starcie. Zmierzone: 1914 → 121 ms przeliczania stylu.
+
+  **Firefox i starsze przeglądarki dostają dotychczasową ścieżkę nietkniętą** —
+  do niej dołożony jest sam reset dziedziczenia, który zdejmuje jedną trzecią
+  kosztu (1898 → 1235 ms przy układzie płaskim, 2582 → 883 ms przy zagnieżdżonym).
+  Osobne sprawdzenie pilnuje, że obie drogi dają **to samo przesunięcie warstwy**
+  przy tym samym przewinięciu, żeby zmiana wydajnościowa nie przemalowała
+  gotowych stron.
+
+- **Wyłączony WebGL traktowany jest jak pewna odpowiedź, nie jak brak wiedzy.**
+  Firefox z `webgl.disabled`, Safari z odznaczonym WebGL-em: nie ma wtedy nawet
+  kontekstu, więc nie ma kogo pytać o nazwę sterownika. Element pobierał 287 KB
+  tylko po to, żeby wywrócić się na `new THREE.WebGLRenderer()` i zostawić puste
+  miejsce. Teraz od razu rysuje zastępnik.
+
 ## [1.154.0] — 2026-09-08
 
 ### Naprawione

@@ -220,6 +220,7 @@ module.exports = async function (t) {
       head: 'window.__tresc = ' + JSON.stringify(html) + ';',
       query: 'evk-wave-debug=1',
       settle: 200,
+      reduce: !!opcje.ograniczRuch,
     });
     const log = [];
     str.on('console', (m) => { if (m.text().includes('[EVK Wave]')) log.push(m.text()); });
@@ -236,6 +237,7 @@ module.exports = async function (t) {
 
     if (opcje.ukryjSterownik)    await str.evaluate(() => window.__ukryjSterownik());
     if (opcje.ukryjSterownikRaz) await str.evaluate(() => window.__ukryjSterownikRaz(1));
+    if (opcje.bezWebGL)          await str.evaluate(() => window.__wylaczWebGL());
     /* Odcięcie bibliotek — udaje niedostępny esm.sh. Fixture przepisuje adresy
        na lokalne, więc blokujemy to, po co element naprawdę sięga. */
     if (opcje.blokujBiblioteki) {
@@ -249,10 +251,19 @@ module.exports = async function (t) {
 
     const stan = await str.evaluate(() => {
       const el = document.querySelector('#scena [id^="evk-wb"]');
+      const c = document.querySelector('#scena canvas');
       return {
-        plotno:    !!document.querySelector('#scena canvas'),
+        plotno:    !!c,
         znacznik:  el ? el.getAttribute('data-evk-wb-zastepnik') : null,
         tlo:       el ? getComputedStyle(el).backgroundImage : '',
+        /* Czy płótno ZACHOWUJE narysowaną zawartość. Przy jednym kadrze i
+           `preserveDrawingBuffer:false` przeglądarce wolno je wyczyścić zaraz
+           po wyświetleniu — i nic go już nie odrysuje. */
+        bufor: (() => {
+          try { const gl = c && (c.getContext('webgl2') || c.getContext('webgl'));
+                return gl ? gl.getContextAttributes().preserveDrawingBuffer : null; }
+          catch (e) { return null; }
+        })(),
       };
     });
 
@@ -323,15 +334,61 @@ module.exports = async function (t) {
      — zasłaniała ją probka wstępna, dokładnie tak jak w 1.151.0 zasłaniały się
      nawzajem dwa mechanizmy pauzy. */
   const drugaLinia = await bezGpu({}, { ukryjSterownikRaz: true });
+  /* Biblioteki JADĄ — tego nie da się uniknąć, skoro probka wstępna niczego
+     się nie dowiedziała. O tym, co dzieje się z płótnem, mówi sprawdzenie
+     „zamrożone płótno ustępuje zastępnikowi" niżej. */
   t.check('gdy probka wstępna nic nie wie, biblioteki jadą',
-    drugaLinia.zadania.biblioteki.length > 0 && drugaLinia.plotno === true,
-    drugaLinia.zadania.biblioteki.length + ' żądań, płótno: ' + drugaLinia.plotno);
+    drugaLinia.zadania.biblioteki.length > 0,
+    drugaLinia.zadania.biblioteki.length + ' żądań');
   t.check('ale renderer sam rozpoznaje brak akceleracji',
-    drugaLinia.log.some((l) => l.includes('jeden kadr')),
+    drugaLinia.log.some((l) => l.includes('brak akceleracji')),
     drugaLinia.log[0] || 'brak komunikatu');
   t.check('i wątek główny zostaje wolny',
     drugaLinia.wolnyWatek !== null && drugaLinia.wolnyWatek < 25,
     drugaLinia.wolnyWatek + ' ms na klatkę');
+  /* ZGŁOSZONE Z UŻYCIA: „jak wyłączam akcelerację, nie mam ani obrazka
+     domyślnego, ani tego co ustawię". Zostawał tu ZAMROŻONY KADR na płótnie
+     bez `preserveDrawingBuffer` — a przeglądarce wolno je wyczyścić zaraz po
+     wyświetleniu i nic go już nie odrysowywało. Płótno schodzi, wchodzi ten
+     sam zastępnik co przy probce wstępnej. */
+  t.check('a zamrożone płótno ustępuje zastępnikowi',
+    drugaLinia.plotno === false && drugaLinia.znacznik === '1',
+    'płótno: ' + drugaLinia.plotno + ', znacznik: ' + drugaLinia.znacznik);
+  t.check('który NAPRAWDĘ coś maluje',
+    drugaLinia.barwy.barw > 200 && drugaLinia.barwy.rozrzut > 60,
+    drugaLinia.barwy.barw + ' barw, rozrzut ' + drugaLinia.barwy.rozrzut);
+
+  // ── Ograniczony ruch też rysuje jeden kadr ─────────────────────────────
+  t.section('przy ograniczonym ruchu kadr nie znika');
+
+  /* TA SAMA USTERKA, DRUGIE WEJŚCIE. Przy „ogranicz ruch" fala rysuje jeden
+     kadr prawdziwym rendererem — i tak samo mogła go stracić. Tu płótno ZOSTAJE
+     (obraz ma być prawdziwą falą, nie przybliżeniem), więc zamiast zdejmować je
+     wymuszamy zachowanie bufora. */
+  const spokojnie = await bezGpu({ auto_jakosc: 'nie' }, { ograniczRuch: true, ukryjSterownik: true });
+  t.check('płótno zostaje, bo to prawdziwa fala',
+    spokojnie.plotno === true, 'płótno: ' + spokojnie.plotno);
+  t.check('a jego zawartość jest zachowana',
+    spokojnie.bufor === true, 'preserveDrawingBuffer: ' + spokojnie.bufor);
+  t.check('i w kadrze NAPRAWDĘ coś widać',
+    spokojnie.barwy.barw > 200 && spokojnie.barwy.rozrzut > 60,
+    spokojnie.barwy.barw + ' barw, rozrzut ' + spokojnie.barwy.rozrzut);
+  t.check('bez animacji — wątek główny wolny',
+    spokojnie.wolnyWatek !== null && spokojnie.wolnyWatek < 25,
+    spokojnie.wolnyWatek + ' ms na klatkę');
+
+  /* WEBGL WYŁĄCZONY CAŁKOWICIE — Firefox z `webgl.disabled`, Safari
+     z odznaczonym WebGL-em. Nie ma wtedy kontekstu, więc nie ma kogo pytać
+     o nazwę sterownika, a `evkWbBezAkceleracji()` z założenia odpowiada wtedy
+     „nie wiem". Bez osobnego warunku element pobierał 287 KB tylko po to, żeby
+     wywrócić się na `new THREE.WebGLRenderer()` i zostawić puste miejsce. */
+  const bezWebGL = await bezGpu({}, { bezWebGL: true });
+  t.check('przy wyłączonym WebGL nie pobiera bibliotek',
+    bezWebGL.zadania.biblioteki.length === 0,
+    bezWebGL.zadania.biblioteki.length + ' żądań');
+  t.check('i rysuje zastępnik zamiast pustego miejsca',
+    bezWebGL.znacznik === '1' && bezWebGL.barwy.barw > 200,
+    'znacznik: ' + bezWebGL.znacznik + ', ' + bezWebGL.barwy.barw + ' barw');
 
   // ── Awaria cudzego CDN-a (1.154.0) ─────────────────────────────────────
   t.section('gdy bibliotek nie da się pobrać, zostaje zastępnik');

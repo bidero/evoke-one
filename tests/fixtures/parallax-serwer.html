@@ -21,7 +21,7 @@
 <script>document.write(window.__regula || '');</script>
 
 <div class="sp"></div>
-<div class="px z-serwera" data-parallax="0.4" data-parallax-css="1">z serwera</div>
+<div class="px z-serwera" data-parallax="0.4" data-parallax-css="1"><p class="tresc">z serwera</p></div>
 <div class="sp"></div>
 <div class="px ze-skryptu" data-parallax="0.4" data-skala="1.2">ze skryptu</div>
 <div class="sp"></div>
@@ -44,6 +44,17 @@
       // Skrypt nie wstawia już nic do środka.
       dzieciDiv:   el.querySelectorAll('div').length,
       przesuniecie: el.style.getPropertyValue('--evk-par-y'),
+      zakres:       el.style.getPropertyValue('--evk-par-amp'),
+      /* Transformacja warstwy — jedyny odczyt, który mówi, czy ona SIĘ RUSZA.
+         Sam `--evk-par-y` tego nie powie: przy osi natywnej skrypt go nie
+         ustawia, a warstwa jedzie. */
+      transformWarstwy: pd.transform,
+      /* Czy własność niestandardowa przecieka do zawartości sekcji. Jej
+         dziedziczenie unieważniało styl całego poddrzewa co klatkę. */
+      uDziecka: (function () {
+        var d = el.querySelector('.tresc');
+        return d ? getComputedStyle(d).getPropertyValue('--evk-par-y').trim() : null;
+      })(),
     };
   };
 

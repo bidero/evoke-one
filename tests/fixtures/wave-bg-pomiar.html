@@ -110,6 +110,21 @@
     });
   };
 
+  /**
+   * Udaje przeglądarkę z CAŁKOWICIE wyłączonym WebGL-em.
+   *
+   * Firefox z `webgl.disabled`, Safari z odznaczonym WebGL-em, sprzęt bez
+   * sterownika. Nie ma wtedy nawet kontekstu, więc nie ma kogo pytać o nazwę
+   * — a three.js nie ma na czym rysować.
+   */
+  window.__wylaczWebGL = function () {
+    var oryg = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (rodzaj) {
+      if (rodzaj === 'webgl' || rodzaj === 'webgl2' || rodzaj === 'experimental-webgl') return null;
+      return oryg.apply(this, arguments);
+    };
+  };
+
   /** Wstawia moduł elementu, przepisując importy na lokalne. */
   window.__start = function () {
     var html = (window.__tresc || '')

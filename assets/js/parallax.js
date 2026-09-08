@@ -56,6 +56,52 @@ document.addEventListener('DOMContentLoaded', () => {
             // czego nakładać ani czego pilnować.
             if (reducedCss) return;
 
+            /* OŚ NATYWNA — przeglądarka prowadzi ruch sama.
+             *
+             * DLACZEGO. `--evk-par-y` to własność NIESTANDARDOWA, a te
+             * dziedziczą się na całe poddrzewo. Zapis na sekcji unieważniał
+             * więc styl każdego jej potomka, przy każdej klatce przewijania,
+             * i koszt rósł z zawartością sekcji, nie z ich liczbą. Zmierzone
+             * przy sześciu sekcjach, dławienie CPU 4×, 120 klatek:
+             *
+             *     potomków w sekcji │   0 │  20 │ 100 │  400
+             *     czas przeliczania │  97 │ 228 │ 557 │ 2059 ms
+             *
+             * Z parallaksem wyłączonym: 0 ms w każdym z tych przypadków, więc
+             * to nie jest koszt „większej strony". Układ za to nie kosztował
+             * NIC — `transform` go nie brudzi, więc `getBoundingClientRect()`
+             * czyta czysty stan. Pierwsza hipoteza mówiła o wymuszonym
+             * układzie i była fałszywa.
+             *
+             * Reguła `@supports` w `EVK_Parallax::print_layer_css()` prowadzi
+             * tę samą animację osią widoku. Skrypt ma tu wtedy jedno zadanie:
+             * podać zakres ruchu RAZ. Zmierzone: 1914 → 121 ms.
+             *
+             * SKĄD MNOŻNIK. Stara pętla przesuwała warstwę o `wartość × 100`
+             * na skrajach, licząc `procent` od środka elementu względem środka
+             * okna — czyli pełny zakres przypadał na przejazd o wysokość okna.
+             * Oś `cover 0% … 100%` obejmuje przejazd o `okno + wysokość
+             * elementu`, więc zakres trzeba przeskalować w tej samej proporcji,
+             * inaczej ruch na gotowych stronach zrobiłby się słabszy. */
+            if (window.CSS && CSS.supports && CSS.supports('animation-timeline', 'view()')) {
+                const ustawZakres = () => {
+                    const okno = window.innerHeight || 1;
+                    const amp  = parallaxValue * 100 * (1 + element.offsetHeight / okno);
+                    element.style.setProperty('--evk-par-amp', amp.toFixed(2) + 'px');
+                };
+                ustawZakres();
+                /* Po zmianie rozmiaru okna, ale dopiero gdy przestanie się
+                   zmieniać: `offsetHeight` to odczyt układu, a przy kilku
+                   sekcjach seria odczytów przeplecionych z zapisami byłaby
+                   dokładnie tym, czego pozbywamy się wyżej. */
+                let zwloka = 0;
+                window.addEventListener('resize', () => {
+                    clearTimeout(zwloka);
+                    zwloka = setTimeout(ustawZakres, 150);
+                }, { passive: true });
+                return;
+            }
+
             let widoczny = false;
             let czeka = false;
             const przesun = () => {
