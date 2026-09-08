@@ -2,6 +2,78 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.152.0] — 2026-09-08
+
+### Dodane
+
+- **Fala dopasowuje jakość do urządzenia.** Po 1.151.0 PageSpeed nadal pokazywał
+  TBT 16 320 ms na desktopie, a przebiegi zaczęły się zrywać z `RPC::DEADLINE_EXCEEDED`.
+  Zgłaszający postawił właściwe pytanie: **Marquee też pracuje bez przerwy i nie
+  przeszkadza — czemu akurat fala?**
+
+  Zmierzone, ten sam wątek i te same warunki (dławienie procesora 4×):
+
+  | co animuje | mediana klatki |
+  |---|---|
+  | nic, pusta strona | 16,7 ms |
+  | pasek jadący `translateX` — **to robi Marquee** | 16,7 ms |
+  | Wave Background | **116,7 ms** |
+
+  **Marquee jest nieodróżnialne od strony, która nie animuje nic.** Animuje
+  `xPercent`, czyli transformację CSS: GSAP zapisuje raz na klatkę jedną
+  właściwość stylu, a przesuwaniem zajmuje się kompozytor **poza wątkiem
+  głównym**. Lighthouse mierzy zadania wątku głównego, więc nie ma tam czego
+  zobaczyć.
+
+  Fala rysuje piksele wewnątrz `requestAnimationFrame`. I tu jest sedno:
+  przeglądarka w środowisku pomiarowym zgłasza się jako
+  `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device), SwiftShader driver)` —
+  **renderowanie programowe, bez GPU**. Shader liczy wtedy procesor,
+  synchronicznie, na wątku głównym. Runnery PageSpeed stoją tak samo. Na
+  maszynie z kartą graficzną te same klatki kosztują wątek główny prawie nic —
+  dlatego strona chodzi świetnie także na dwunastoletnim komputerze.
+
+  **To nie jest „fala jest wolna", tylko „fala potrzebuje GPU, a Lighthouse go
+  nie ma".** Dlatego element mierzy teraz własne klatki i schodzi o szczebel,
+  gdy nie mieści się w budżecie:
+
+  1. pełna jakość,
+  2. bez post-processingu,
+  3. dodatkowo w połowie rozdzielczości,
+  4. nieruchomy kadr — deska ratunku.
+
+  Zmierzone zachowanie w warunkach PageSpeed: 131 ms → szczebel 1 → 80 ms →
+  szczebel 2 → **33,3 ms**, czyli pod progiem 50 ms, od którego przeglądarka
+  liczy długie zadanie. Bez dławienia: 90 → 52 → **16,7 ms**, pełne
+  sześćdziesiąt klatek. Ostatni szczebel nie jest w żadnym z tych przypadków
+  potrzebny.
+
+  **Na sprzęcie z GPU nie zmienia się nic** — odstęp klatek trafia
+  w synchronizację pionową i drabina nawet nie rusza. To ta sama zasada, co
+  przy `prefers-reduced-motion`: pytamy urządzenie o możliwości i szanujemy
+  odpowiedź.
+
+  Budżet klatki jest kontrolką (domyślnie 40 ms, pod progiem długiego zadania),
+  a całą drabinę da się wyłączyć.
+
+### Zmienione
+
+- **Mierzymy odstęp klatek, nie czas `render()`.** Sprawdzone i odrzucone:
+  `composer.render()` wraca po **1,5 ms**, bo WebGL tylko kolejkuje polecenia —
+  prawdziwa praca dzieje się poza tym wywołaniem i przy renderowaniu programowym
+  ląduje na wątku głównym dopiero potem. Odstęp między klatkami widzi cały koszt.
+
+- **Odcinanie pierwszych klatek z próbki usunięte.** Kompilacja shaderów kosztuje
+  jednorazowo 152 ms, ale jedna duża próbka na dwadzieścia pięć nie rusza
+  **mediany** — mutacja pokazała, że to odcięcie nie pilnowało niczego.
+
+### Naprawione
+
+- **Test pauzy poza ekranem mierzył dwie rzeczy naraz.** Po dołożeniu drabiny
+  schodziła ona o szczebel w trakcie pomiaru, więc okno „po przewinięciu"
+  wychodziło szybsze niezależnie od tego, czy pauza działa. Ten blok wyłącza
+  teraz drabinę — bada pauzę, nie jakość.
+
 ## [1.151.0] — 2026-09-08
 
 ### Naprawione

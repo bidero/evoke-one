@@ -380,6 +380,49 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		 * z `mix-blend-mode` (także nasz własny Kursor, patrz includes/94-cursor.php):
 		 * bez zachowanego bufora mieszanie trafia na pusty obraz i widać
 		 * migotanie co kilka sekund. */
+		/* DRABINA JAKOŚCI — odpowiedź na sedno usterki.
+		 *
+		 * Fala rysuje piksele w `requestAnimationFrame`. Na maszynie z GPU robi to
+		 * karta i wątek główny prawie tego nie widzi; na maszynie BEZ GPU rasteryzuje
+		 * procesor i każda klatka staje się długim zadaniem. Zmierzone w Chromium
+		 * z SwiftShaderem (czyli tak, jak mierzy PageSpeed) przy dławieniu 4×:
+		 * 161 ms na klatkę w pełnej jakości, 73 ms bez post-processingu, 32 ms bez
+		 * post-processingu i w połowie rozdzielczości.
+		 *
+		 * Dlatego element MIERZY WŁASNE KLATKI i schodzi z jakości, gdy nie mieści
+		 * się w budżecie. Na sprzęcie, który daje radę, nie zmienia się nic —
+		 * odstęp klatek trafia w synchronizację pionową i drabina nawet nie rusza.
+		 * To ta sama zasada, co przy `prefers-reduced-motion`: pytamy urządzenie
+		 * o jego możliwości i szanujemy odpowiedź.
+		 *
+		 * Dla porównania Marquee animuje `xPercent`, czyli transformację CSS —
+		 * przesuwaniem zajmuje się kompozytor poza wątkiem głównym, więc nie ma
+		 * tam czego dławić i nigdy nie pokazuje się w pomiarze. */
+		$this->controls['sep_jakosc'] = [
+			'tab'   => 'content',
+			'type'  => 'separator',
+			'label' => 'Jakość dopasowana do urządzenia',
+		];
+
+		$this->controls['auto_jakosc'] = [
+			'tab'         => 'content',
+			'label'       => 'Dopasuj jakość do urządzenia',
+			'type'        => 'select',
+			'options'     => [ 'tak' => 'Tak — schodź z jakości, gdy sprzęt nie nadąża', 'nie' => 'Nie — zawsze pełna jakość' ],
+			'default'     => 'tak',
+			'description' => 'Na sprzęcie z GPU nie zmienia nic. Bez GPU zdejmuje kolejno post-processing i rozdzielczość, a w ostateczności zatrzymuje animację na nieruchomym kadrze.',
+		];
+
+		$this->controls['budzet_klatki'] = [
+			'tab'         => 'content',
+			'label'       => 'Budżet klatki (ms)',
+			'type'        => 'number',
+			'min'         => 20, 'max' => 200, 'step' => 5,
+			'default'     => 40,
+			'required'    => [ 'auto_jakosc', '=', 'tak' ],
+			'description' => 'Powyżej tej wartości element schodzi o szczebel. Domyślne 40 ms mieści się pod progiem 50 ms, od którego przeglądarka liczy „długie zadanie".',
+		];
+
 		$this->controls['preserve_buffer'] = [
 			'tab'         => 'content',
 			'label'       => 'Zachowuj bufor rysowania',
@@ -531,6 +574,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'pixelRatioCap'        => max( 0.5, min( 3.0, (float) ( $s['pixel_ratio_cap'] ?? 1 ) ) ),
 			'pauseOffscreen'       => ( $s['pause_offscreen'] ?? 'tak' ) !== 'nie',
 			'preserveBuffer'       => ! empty( $s['preserve_buffer'] ),
+			'autoJakosc'           => ( $s['auto_jakosc'] ?? 'tak' ) !== 'nie',
+			'budzetKlatki'         => max( 20, min( 200, (int) ( $s['budzet_klatki'] ?? 40 ) ) ),
 		];
 		$cfg_js = wp_json_encode( $cfg );
 
@@ -573,6 +618,11 @@ function evkWbReduced() {
         return window.evkMotion.reduced();
     }
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+/** Czy pokazywać, co robi drabina jakości: `?evk-wave-debug=1` w adresie. */
+function evkWbDebug() {
+    return /[?&]evk-wave-debug=1/.test(location.search);
 }
 
 const CONFIG       = <?php echo $cfg_js; ?>;
@@ -756,6 +806,11 @@ class EvkWaveBackground {
            powody są niezależne i nie mogą się nawzajem odkręcać. */
         this.powody        = new Set();
         this.obserwator    = null;
+        /* Drabina jakości: 0 pełna, 1 bez post-processingu, 2 dodatkowo w połowie
+           rozdzielczości, 3 nieruchomy kadr. `probki` zbiera odstępy klatek. */
+        this.poziom        = 0;
+        this.probki        = [];
+        this.ostatniaKlatka = 0;
         this.rafId         = null;
 
         this.settings = {
@@ -942,7 +997,13 @@ class EvkWaveBackground {
         // porównaniem zrzutów: obraz jest identyczny co do piksela. Był to pełny,
         // wyrzucany przebieg sceny na każdą klatkę, czyli podwojona praca
         // shadera przy dwukrotnym DPR na telefonie.
-        this.composer.render();
+        /* Od pierwszego szczebla w dół rysujemy scenę wprost, z pominięciem
+           `EffectComposer`. Znika wtedy przebieg z szumem, zniekształceniem
+           i reakcją na mysz — to jest cena, którą płaci maszyna bez GPU. */
+        if (this.poziom === 0) this.composer.render();
+        else                   this.renderer.render(this.scene, this.camera);
+
+        this.zmierzKlatke();
 
         // Redukcja ruchu: jedna klatka i koniec. Gradient zostaje na ekranie —
         // to element dekoracyjny, więc jego zniknięcie zmieniłoby układ strony —
@@ -954,6 +1015,68 @@ class EvkWaveBackground {
         if (this.powody.size) { this.rafId = 0; return; }
 
         this.rafId = requestAnimationFrame(() => this.render());
+    }
+
+    /**
+     * Mierzy odstępy między klatkami i schodzi o szczebel, gdy jest za wolno.
+     *
+     * DLACZEGO ODSTĘP, A NIE CZAS `render()`. Zmierzone: samo `composer.render()`
+     * wraca po 1,5 ms, bo WebGL tylko kolejkuje polecenia — prawdziwa praca
+     * dzieje się poza tym wywołaniem i przy renderowaniu programowym ląduje
+     * na wątku głównym dopiero potem. Odstęp między klatkami widzi CAŁY koszt,
+     * łącznie z rasteryzacją i składaniem obrazu.
+     *
+     * MEDIANA, NIE ŚREDNIA — i dlatego pierwszych klatek NIE odcinamy.
+     * Kompilacja shaderów kosztuje jednorazowo 152 ms (zmierzone), ale jedna
+     * duża próbka na dwadzieścia pięć nie rusza mediany. Stało tu wcześniej
+     * pomijanie pięciu pierwszych klatek; mutacja pokazała, że nie pilnuje
+     * niczego, bo mediana i tak jest na taki wyskok odporna.
+     *
+     * SCHODZIMY TYLKO W DÓŁ. Powrót w górę po chwilowym zwolnieniu dawałby
+     * migotanie jakości przy każdym cięższym momencie strony.
+     */
+    zmierzKlatke() {
+        if (!CONFIG.autoJakosc || this.poziom >= 3) return;
+
+        const teraz = performance.now();
+        if (this.ostatniaKlatka) this.probki.push(teraz - this.ostatniaKlatka);
+        this.ostatniaKlatka = teraz;
+
+        if (this.probki.length < 25) return;
+
+        const posortowane = this.probki.slice().sort((a, b) => a - b);
+        const mediana = posortowane[Math.floor(posortowane.length / 2)];
+        this.probki = [];
+        this.ostatniaKlatka = 0;
+
+        if (mediana <= CONFIG.budzetKlatki) return;
+        this.obnizJakosc(mediana);
+    }
+
+    obnizJakosc(mediana) {
+        this.poziom++;
+
+        if (this.poziom === 2) {
+            /* Połowa rozdzielczości to czterokrotnie mniej pikseli do policzenia.
+               `resize()` przelicza rozmiary pod nowy współczynnik. */
+            this.renderer.setPixelRatio(0.5);
+            this.resize();
+        }
+
+        if (this.poziom >= 3) {
+            /* Ostatni szczebel: nieruchomy kadr. Gradient zostaje na ekranie —
+               element jest dekoracyjny, więc jego zniknięcie zmieniłoby układ
+               strony. Ta sama polityka co przy `prefers-reduced-motion`. */
+            this.wstrzymaj('jakosc');
+        }
+
+        /* Diagnostyka na żądanie, tak jak `?evk-anim-debug=1` w Animatorze —
+           bez tego zejście o szczebel jest niewidoczne i nie da się go zgłosić. */
+        if (evkWbDebug()) {
+            console.log('[EVK Wave] ' + Math.round(mediana) + ' ms na klatkę przy budżecie '
+                + CONFIG.budzetKlatki + ' ms — schodzę na poziom ' + this.poziom
+                + (this.poziom >= 3 ? ' (nieruchomy kadr)' : ''));
+        }
     }
 
     /**

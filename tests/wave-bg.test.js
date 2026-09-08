@@ -114,6 +114,21 @@ module.exports = async function (t) {
       && !/preserveDrawingBuffer:\s*true/.test(zrodlo),
     'brak wartości wpisanych na sztywno');
 
+  // ── Jakość dopasowana do urządzenia (1.152.0) ──────────────────────────
+  t.section('fala schodzi z jakości, gdy sprzęt nie nadąża');
+
+  t.check('dopasowanie jakości domyślnie włączone',
+    domyslne.autoJakosc === true, String(domyslne.autoJakosc));
+  t.check('i daje się wyłączyć wprost',
+    cfg({ auto_jakosc: 'nie' }).autoJakosc === false,
+    String(cfg({ auto_jakosc: 'nie' }).autoJakosc));
+  t.check('budżet klatki domyślnie 40 ms — pod progiem długiego zadania',
+    domyslne.budzetKlatki === 40 && domyslne.budzetKlatki < 50,
+    domyslne.budzetKlatki + ' ms');
+  t.check('i jest ograniczony z obu stron',
+    cfg({ budzet_klatki: 1 }).budzetKlatki === 20 && cfg({ budzet_klatki: 9999 }).budzetKlatki === 200,
+    cfg({ budzet_klatki: 1 }).budzetKlatki + ' … ' + cfg({ budzet_klatki: 9999 }).budzetKlatki);
+
   // ── Zatrzymanie poza ekranem, w prawdziwej przeglądarce ────────────────
   t.section('poza ekranem fala przestaje liczyć');
 
@@ -126,7 +141,12 @@ module.exports = async function (t) {
    * 50 ms, a nie z tego, ile razy przerysowało się płótno.
    */
   const zajetosc = async (ust) => {
-    const html = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify(ust)) + ' html');
+    /* DRABINA JAKOŚCI WYŁĄCZONA — ten blok bada pauzę, nie jakość. Zmierzone:
+       przy włączonej drabinie element schodził o szczebel w trakcie pomiaru,
+       więc okno „po przewinięciu" wychodziło szybsze niezależnie od tego, czy
+       pauza w ogóle działa. Dwie zmienne naraz nie dają się rozdzielić. */
+    const html = phpOutput('wave-bg-colors.php',
+      JSON.stringify(JSON.stringify(Object.assign({ auto_jakosc: 'nie' }, ust))) + ' html');
     const str = await t.open('wave-bg-pomiar.html', {
       przezHttp: true,
       viewport: { width: 412, height: 915 },
@@ -173,6 +193,86 @@ module.exports = async function (t) {
   t.check('z wyłączonym zatrzymywaniem nie zwalnia',
     bezPauzy.poza > bezPauzy.widoczna * 0.7,
     bezPauzy.widoczna + ' → ' + bezPauzy.poza + ' ms');
+
+  // ── Drabina jakości w prawdziwej przeglądarce ──────────────────────────
+  t.section('drabina jakości schodzi sama i zatrzymuje się pod progiem');
+
+  /**
+   * Puszcza falę na kilkanaście sekund i oddaje: na który szczebel zeszła
+   * i jaki jest końcowy odstęp między klatkami.
+   *
+   * Chromium w testach renderuje PROGRAMOWO (SwiftShader) — tak samo jak
+   * maszyny mierzące PageSpeed. To nie jest ograniczenie środowiska, tylko
+   * dokładnie ten przypadek, dla którego drabina powstała.
+   */
+  const drabina = async (ust, dlawienie) => {
+    const html = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify(ust)) + ' html');
+    const str = await t.open('wave-bg-pomiar.html', {
+      przezHttp: true,
+      viewport: { width: 1350, height: 940 },
+      dlawienieCPU: dlawienie,
+      head: 'window.__tresc = ' + JSON.stringify(html) + ';',
+      query: 'evk-wave-debug=1',
+      settle: 200,
+    });
+    const zejscia = [];
+    str.on('console', (m) => { if (m.text().includes('[EVK Wave]')) zejscia.push(m.text()); });
+
+    await str.evaluate(() => window.__start());
+    await str.waitForTimeout(11000);
+    await str.evaluate(() => window.__zerujKlatki());
+    await str.waitForTimeout(2500);
+    const koncowa = await str.evaluate(() => window.__medianaKlatki());
+    const plotno  = await str.evaluate(() => !!document.querySelector('#scena canvas'));
+    await str.close();
+    return { zejscia, koncowa, plotno };
+  };
+
+  const zDrabina = await drabina({}, 4);
+  t.check('element wystartował', zDrabina.plotno, String(zDrabina.plotno));
+  t.check('przy renderowaniu programowym schodzi o szczebel',
+    zDrabina.zejscia.length >= 1, zDrabina.zejscia.length + ' zejść');
+  /* SEDNO: po zejściu klatka mieści się pod progiem 50 ms, od którego
+     przeglądarka liczy długie zadanie — a Lighthouse z długich zadań liczy
+     blocking time i czeka na okno bez nich, żeby uznać stronę za wczytaną. */
+  t.check('i kończy pod progiem długiego zadania',
+    zDrabina.koncowa !== null && zDrabina.koncowa < 50,
+    zDrabina.koncowa + ' ms na klatkę');
+
+  /* KAŻDY SZCZEBEL MUSI COŚ KUPIĆ. Zmierzone mutacją: gdy pierwszy szczebel nie
+     zmieniał drogi rysowania, drabina i tak dochodziła pod próg — niżej. Samo
+     „skończyło się dobrze" nie odróżnia więc szczebla, który działa, od takiego,
+     który tylko przesuwa robotę na następny. */
+  const mediany = zDrabina.zejscia.map((l) => Number((l.match(/\] (\d+) ms/) || [])[1]));
+  t.check('a każdy szczebel naprawdę obniża koszt klatki',
+    mediany.length >= 2 && mediany.every((m, i) => i === 0 || m < mediany[i - 1]),
+    mediany.join(' → ') + ' ms');
+
+  /* I NIE KOŃCZY ZAMROŻENIEM. Ostatni szczebel zatrzymuje animację na
+     nieruchomym kadrze — to jest deska ratunku, nie normalna droga. Zmierzone
+     mutacją: bez tego sprawdzenia zamrożona fala przechodziła jako sukces,
+     bo nieruchoma strona też mieści się pod progiem. */
+  const poziomy = zDrabina.zejscia.map((l) => Number((l.match(/poziom (\d+)/) || [])[1]));
+  t.check('bez sięgania po zamrożenie kadru',
+    poziomy.length > 0 && Math.max(...poziomy) <= 2,
+    'najniższy szczebel: ' + Math.max(...poziomy));
+
+  /* KONTROLA NEGATYWNA PIERWSZA: bez drabiny zostaje wolno. Bez niej
+     sprawdzenie wyżej przechodziłoby także dla kodu, który nie robi nic,
+     a maszyna testowa akurat wyrobiła się sama. */
+  const bezDrabiny = await drabina({ auto_jakosc: 'nie' }, 4);
+  t.check('z wyłączoną drabiną zostaje wolno i nic nie schodzi',
+    bezDrabiny.zejscia.length === 0 && bezDrabiny.koncowa > 50,
+    bezDrabiny.koncowa + ' ms na klatkę');
+
+  /* KONTROLA NEGATYWNA DRUGA — i to jest obietnica dla sprzętu z GPU:
+     kiedy klatka mieści się w budżecie, NIC się nie degraduje. Zamiast szukać
+     maszyny z kartą graficzną podnosimy budżet ponad zmierzony koszt; gate jest
+     ten sam, więc dowodzi tego samego. */
+  const zLuznymBudzetem = await drabina({ budzet_klatki: 200 }, 4);
+  t.check('a przy budżecie z zapasem nie schodzi wcale',
+    zLuznymBudzetem.zejscia.length === 0,
+    zLuznymBudzetem.zejscia.length + ' zejść przy budżecie 200 ms');
 
   t.section('maska zanika po krzywej, a nie po prostej');
 
