@@ -128,6 +128,109 @@ const TYPY_MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp',
 };
 
+/**
+ * Piksele z PNG-a, którego oddaje `screenshot()`.
+ *
+ * PO CO WŁASNY DEKODER, SKORO ZESTAW NIE MA ZALEŻNOŚCI: sprawdzenie „element
+ * NAPRAWDĘ coś namalował" musi patrzeć na piksele. Dotąd robił to `gl.readPixels`
+ * — działa tylko dla płótna WebGL. Zastępnik bez akceleracji jest gradientem CSS,
+ * więc płótna nie ma i pytanie „czy w kadrze cokolwiek widać" trzeba zadać
+ * obrazowi. Bez tego zostaje porównywanie łańcucha w `style.backgroundImage`,
+ * czyli sprawdzanie własnego zapisu — a dokładnie takie sprawdzenie przepuściło
+ * w 1.152.0 nieruchomy kadr o zerowym kryciu.
+ *
+ * Obsługuje to, co wypuszcza Chromium: 8 bitów na kanał, RGB albo RGBA, bez
+ * przeplotu. Inny format zgłasza wyjątkiem, zamiast po cichu oddać śmieci.
+ */
+function pikseleZPng(buf) {
+  const PODPIS = [137, 80, 78, 71, 13, 10, 26, 10];
+  for (let i = 0; i < 8; i++) {
+    if (buf[i] !== PODPIS[i]) throw new Error('To nie jest PNG.');
+  }
+
+  let szer = 0, wys = 0, kanaly = 0;
+  const kawalki = [];
+  for (let p = 8; p + 8 <= buf.length; ) {
+    const dlugosc = buf.readUInt32BE(p);
+    const typ     = buf.toString('ascii', p + 4, p + 8);
+    const dane    = buf.subarray(p + 8, p + 8 + dlugosc);
+    if (typ === 'IHDR') {
+      szer = dane.readUInt32BE(0);
+      wys  = dane.readUInt32BE(4);
+      if (dane[8] !== 8)  throw new Error('PNG spoza obsługi: ' + dane[8] + ' bitów na kanał.');
+      if (dane[12] !== 0) throw new Error('PNG spoza obsługi: przeplot.');
+      kanaly = { 0: 1, 2: 3, 4: 2, 6: 4 }[dane[9]];
+      if (!kanaly) throw new Error('PNG spoza obsługi: typ koloru ' + dane[9] + '.');
+    } else if (typ === 'IDAT') {
+      kawalki.push(dane);
+    } else if (typ === 'IEND') {
+      break;
+    }
+    p += 12 + dlugosc;
+  }
+
+  const surowe = require('zlib').inflateSync(Buffer.concat(kawalki));
+  const wiersz = szer * kanaly;
+  const dane   = Buffer.alloc(wiersz * wys);
+
+  /* Odfiltrowanie. Każdy wiersz niesie na przedzie bajt filtra i jest zapisany
+     względem sąsiadów — bez tego kroku obraz jest szumem, a nie obrazem. */
+  for (let y = 0; y < wys; y++) {
+    const filtr = surowe[y * (wiersz + 1)];
+    const wej   = y * (wiersz + 1) + 1;
+    const wyj   = y * wiersz;
+    for (let i = 0; i < wiersz; i++) {
+      const x = surowe[wej + i];
+      const a = i >= kanaly ? dane[wyj + i - kanaly] : 0;
+      const b = y > 0       ? dane[wyj + i - wiersz] : 0;
+      const c = (i >= kanaly && y > 0) ? dane[wyj + i - wiersz - kanaly] : 0;
+      let v;
+      switch (filtr) {
+        case 0: v = x; break;
+        case 1: v = x + a; break;
+        case 2: v = x + b; break;
+        case 3: v = x + ((a + b) >> 1); break;
+        case 4: {
+          const p0 = a + b - c;
+          const pa = Math.abs(p0 - a), pb = Math.abs(p0 - b), pc = Math.abs(p0 - c);
+          v = x + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c);
+          break;
+        }
+        default: throw new Error('Nieznany filtr PNG: ' + filtr);
+      }
+      dane[wyj + i] = v & 0xff;
+    }
+  }
+
+  return { szer, wys, kanaly, dane };
+}
+
+/**
+ * Ile RÓŻNYCH barw jest w zrzucie i jaki jest rozrzut kanałów.
+ *
+ * Jedna liczba na „czy tu w ogóle coś narysowano". Płaskie tło daje jedną barwę
+ * i rozrzut zero; gradient — setki barw. Próbkujemy co kilka pikseli, bo pełny
+ * kadr to kilkaset tysięcy odczytów, a odpowiedź jest ta sama.
+ */
+function barwyZrzutu(buf, krok = 7) {
+  const { szer, wys, kanaly, dane } = pikseleZPng(buf);
+  const zbior = new Set();
+  let min = [255, 255, 255], max = [0, 0, 0];
+  for (let y = 0; y < wys; y += krok) {
+    for (let x = 0; x < szer; x += krok) {
+      const i = y * szer * kanaly + x * kanaly;
+      const r = dane[i], g = dane[i + 1], b = dane[i + 2];
+      zbior.add((r << 16) | (g << 8) | b);
+      for (let k = 0; k < 3; k++) {
+        const v = dane[i + k];
+        if (v < min[k]) min[k] = v;
+        if (v > max[k]) max[k] = v;
+      }
+    }
+  }
+  return { barw: zbior.size, rozrzut: Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]) };
+}
+
 class Runner {
   constructor() {
     this.results = [];
@@ -229,4 +332,4 @@ class Runner {
 }
 
 module.exports = { Runner, ROOT, FIXTURES, chromiumPath, phpOutput, tagContent, rgb, near,
-                   tokenPanelu, tokenRgb };
+                   tokenPanelu, tokenRgb, pikseleZPng, barwyZrzutu };

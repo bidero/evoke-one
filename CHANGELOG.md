@@ -2,6 +2,61 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.154.0] — 2026-09-08
+
+### Naprawione
+
+- **Bez akceleracji sprzętowej fala nie pobiera three.js wcale.**
+  Od 1.153.0 element na rasteryzacji programowej rysował jeden nieruchomy kadr
+  i przestawał liczyć — ale robił to **po** ściągnięciu 287 KB biblioteki
+  z esm.sh, skompilowaniu shaderów i zbudowaniu sceny. Cała ta praca szła na
+  maszynę, która i tak nie zobaczy animacji.
+
+  Element pyta teraz sterownik o akcelerację **przed** importem — jednorazowym
+  płótnem, które zaraz porzuca. Jeśli odpowiedź brzmi „SwiftShader / llvmpipe /
+  Microsoft Basic Render / mesa offscreen", biblioteki nie są pobierane w ogóle.
+  Zmierzone w zestawie: **0 żądań o three.js i GSAP-a**, brak płótna WebGL,
+  16,7 ms na klatkę (czyli wątek główny wolny).
+
+  Statyczne `import` trzeba było na to zamienić na dynamiczne: przeglądarka
+  pobiera je zawsze, zanim wykona choćby jedną linię modułu, więc żaden warunek
+  w kodzie nie mógł ich powstrzymać.
+
+- **Gdy bibliotek nie da się pobrać, element nie znika.**
+  Fala ładuje three.js i GSAP-a z esm.sh. Przy niedostępnym serwisie — awarii,
+  blokadzie w sieci firmowej, filtrze — statyczny import przewracał cały moduł
+  i w układzie strony zostawało puste miejsce. Teraz nieudane pobranie kończy
+  się zastępnikiem, tak samo jak brak akceleracji.
+
+### Dodane
+
+- **Zastępnik na maszynę bez akceleracji: gradient CSS z palety elementu.**
+  Rysowany bez jednego bajtu z sieci, w tych samych barwach co fala i pod tą samą
+  maską. Nie jest tą samą falą i nie udaje, że jest — chodzi o to, żeby kadr,
+  który i tak byłby nieruchomy, nic nie kosztował.
+
+- **Kontrolka „Obraz zamiast gradientu"** (Wave Background → Jakość dopasowana
+  do urządzenia). Pozwala podstawić własny kadr — na przykład wyeksportowany
+  z prawdziwej fali, więc wyglądający dokładnie tak jak ona. Obraz jest
+  **pobierany wyłącznie tam, gdzie jest pokazywany**: adres jedzie
+  w konfiguracji zawsze, ale tło ustawia dopiero gałąź zastępnika. Osobne
+  sprawdzenie pilnuje, że maszyna z GPU nie ściąga go nigdy.
+
+### Uwaga o kierunku
+
+Rozważane i **odrzucone**: przeniesienie fali na `OffscreenCanvas` w Web Workerze.
+W raportach po 1.153.0 fala nie występuje w żadnym z długich zadań — a tym razem
+stoi za tym mechanizm, nie sama atrybucja: fala staje po jednym kadrze, więc nie
+ma pracy w `requestAnimationFrame`, którą dałoby się przypisać komu innemu.
+Worker przeniósłby robotę, której na tej maszynie już nie ma, a kosztowałby
+przepisanie drabiny jakości, obserwatora widoczności i wszystkich punktów
+zaczepienia testów na komunikaty — plus rezygnację z GSAP-a, który w workerze
+nie działa.
+
+Najgrubszą pozycją wątku głównego jest teraz **Style & Layout** (870 ms na
+desktopie, 1 629 ms na telefonie) — więcej niż całe wykonanie skryptów.
+To jest następny cel, razem z `parallax.js` (511 ms w jednym zadaniu na telefonie).
+
 ## [1.153.0] — 2026-09-08
 
 ### Naprawione

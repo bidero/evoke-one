@@ -10,7 +10,7 @@
  * nie z regexa po źródle — regex sprawdzałby naszą interpretację pliku.
  */
 
-const { phpOutput } = require('./lib/harness');
+const { phpOutput, barwyZrzutu } = require('./lib/harness');
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const run = (settings) => JSON.parse(phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify(settings))));
@@ -194,19 +194,24 @@ module.exports = async function (t) {
     bezPauzy.poza > bezPauzy.widoczna * 0.7,
     bezPauzy.widoczna + ' → ' + bezPauzy.poza + ' ms');
 
-  // ── Brak akceleracji sprzętowej (1.153.0) ──────────────────────────────
-  t.section('bez GPU fala rysuje jeden kadr i przestaje obciążać');
+  // ── Brak akceleracji sprzętowej (1.153.0, przebudowane w 1.154.0) ──────
+  t.section('bez GPU fala nie pobiera three.js');
 
   /* ZGŁOSZONE PORÓWNANIEM A/B NA ŻYWEJ STRONIE: przy włączonej fali praca wątku
      głównego wynosiła 9,1 s, przy wyłączonej 1,3 s — a kategoria „Other" 7119
      wobec 200 ms. Drabina jakości z 1.152.0 zbiła TBT ośmiokrotnie, ale
      zejście pod próg długiego zadania to NIE jest to samo, co przestać
-     obciążać procesor: przy 33 ms na klatkę fala nadal zjadała wątek bez
-     przerwy.
+     obciążać procesor.
+
+     1.153.0 zatrzymywało falę na jednym kadrze — po ZAŁADOWANIU 287 KB three.js,
+     kompilacji shaderów i zbudowaniu sceny. 1.154.0 pyta sterownik o akcelerację
+     PRZED importem, więc na takiej maszynie nie pobiera bibliotek wcale i rysuje
+     zastępnik: własny obraz albo gradient CSS z palety.
 
      Chromium w testach rasteryzuje programowo (SwiftShader) — czyli jest
      dokładnie tą maszyną, dla której ta ścieżka powstała. */
-  const bezGpu = async (ust) => {
+  const bezGpu = async (ust, opcje) => {
+    opcje = opcje || {};
     const html = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify(ust)) + ' html');
     const str = await t.open('wave-bg-pomiar.html', {
       przezHttp: true,
@@ -218,54 +223,161 @@ module.exports = async function (t) {
     });
     const log = [];
     str.on('console', (m) => { if (m.text().includes('[EVK Wave]')) log.push(m.text()); });
+
+    /* Licznik żądań, bo o to w tym wydaniu chodzi: biblioteki mają się NIE
+       pobrać. Podpięty po `open()`, ale przed `__start()` — moduł wstawia się
+       dopiero tam, więc nic nam nie ucieknie. */
+    const zadania = { biblioteki: [], obraz: [] };
+    str.on('request', (r) => {
+      const u = r.url();
+      if (/three|gsap/.test(u))              zadania.biblioteki.push(u);
+      if (/obraz-zastepczy\.svg/.test(u))    zadania.obraz.push(u);
+    });
+
+    if (opcje.ukryjSterownik)    await str.evaluate(() => window.__ukryjSterownik());
+    if (opcje.ukryjSterownikRaz) await str.evaluate(() => window.__ukryjSterownikRaz(1));
+    /* Odcięcie bibliotek — udaje niedostępny esm.sh. Fixture przepisuje adresy
+       na lokalne, więc blokujemy to, po co element naprawdę sięga. */
+    if (opcje.blokujBiblioteki) {
+      await str.route('**/node_modules/**', (r) => r.abort());
+    }
     await str.evaluate(() => window.__start());
     await str.waitForTimeout(4000);
     await str.evaluate(() => window.__zerujKlatki());
     await str.waitForTimeout(2500);
     const wolnyWatek = await str.evaluate(() => window.__medianaKlatki());
 
-    /* Czy w kadrze COKOLWIEK widać. Odczyt pikseli wymaga zachowanego bufora,
-       stąd `preserve_buffer` w ustawieniach tego przypadku — bez niego WebGL
-       wolno porzucić zawartość zaraz po wyświetleniu i odczyt trafia na pustkę
-       niezależnie od tego, czy fala się narysowała. */
-    const jasnosc = await str.evaluate(() => {
-      const c = document.querySelector('#scena canvas');
-      if (!c) return null;
-      const gl = c.getContext('webgl2') || c.getContext('webgl');
-      if (!gl) return null;
-      const px = new Uint8Array(4 * 64 * 64);
-      gl.readPixels(Math.floor(c.width / 2) - 32, Math.floor(c.height / 2) - 32,
-                    64, 64, gl.RGBA, gl.UNSIGNED_BYTE, px);
-      let suma = 0;
-      for (let i = 0; i < px.length; i += 4) suma += px[i] + px[i + 1] + px[i + 2];
-      return Math.round(suma / (px.length / 4));
+    const stan = await str.evaluate(() => {
+      const el = document.querySelector('#scena [id^="evk-wb"]');
+      return {
+        plotno:    !!document.querySelector('#scena canvas'),
+        znacznik:  el ? el.getAttribute('data-evk-wb-zastepnik') : null,
+        tlo:       el ? getComputedStyle(el).backgroundImage : '',
+      };
     });
+
+    /* Piksele, nie łańcuch w arkuszu. Sprawdzanie samego `backgroundImage`
+       byłoby czytaniem własnego zapisu — a to jest dokładnie ten rodzaj
+       sprawdzenia, który w 1.152.0 przepuścił nieruchomy kadr o zerowym
+       kryciu, czyli obraz, którego NIE BYŁO WIDAĆ. */
+    let barwy = null;
+    try {
+      barwy = barwyZrzutu(await str.locator('#scena').screenshot());
+    } catch (e) { barwy = { blad: e.message }; }
+
     await str.close();
-    return { log, wolnyWatek, jasnosc };
+    return { log, wolnyWatek, zadania, ...stan, barwy };
   };
 
-  const naSofcie = await bezGpu({ preserve_buffer: true });
+  const naSofcie = await bezGpu({});
   t.check('rozpoznaje renderowanie programowe',
     naSofcie.log.some((l) => l.includes('brak akceleracji')),
     naSofcie.log[0] || 'brak komunikatu');
+  /* SEDNO WYDANIA. Do 1.153.0 te 287 KB szły na łącze zawsze — także na maszynę,
+     która i tak zobaczy jeden nieruchomy kadr. */
+  t.check('nie pobiera three.js ani GSAP-a',
+    naSofcie.zadania.biblioteki.length === 0,
+    naSofcie.zadania.biblioteki.length + ' żądań');
+  t.check('nie stawia płótna WebGL',
+    naSofcie.plotno === false, 'płótno: ' + naSofcie.plotno);
   t.check('i oddaje wątek główny',
     naSofcie.wolnyWatek !== null && naSofcie.wolnyWatek < 25,
     naSofcie.wolnyWatek + ' ms na klatkę');
-  /* NAJWAŻNIEJSZE SPRAWDZENIE. `uAlpha` startuje od ZERA i dochodzi do jedynki
-     dopiero animacją wejściową — pojedyncza klatka narysowana przed nią jest
-     całkowicie niewidoczna. Tak działała dotąd także ścieżka „ograniczonego
-     ruchu", wbrew temu, co obiecywał komentarz w kodzie. */
-  t.check('a nieruchomy kadr NAPRAWDĘ coś pokazuje',
-    naSofcie.jasnosc !== null && naSofcie.jasnosc > 15,
-    'średnia jasność środka kadru: ' + naSofcie.jasnosc);
+  t.check('oznacza się znacznikiem zastępnika',
+    naSofcie.znacznik === '1', 'data-evk-wb-zastepnik: ' + naSofcie.znacznik);
+  /* NAJWAŻNIEJSZE SPRAWDZENIE — i to na pikselach, nie na łańcuchu w arkuszu.
+     `uAlpha` startuje od zera, więc w 1.152.0 „narysowany" nieruchomy kadr był
+     w rzeczywistości niewidoczny, a sprawdzenie na samych ustawieniach tego nie
+     złapało. Płaskie tło daje jedną barwę i rozrzut zero; gradient — setki. */
+  t.check('a zastępnik NAPRAWDĘ coś maluje',
+    naSofcie.barwy.barw > 200 && naSofcie.barwy.rozrzut > 60,
+    naSofcie.barwy.barw + ' barw, rozrzut ' + naSofcie.barwy.rozrzut);
+  /* Same trójki liczb, bez `rgb(`: warstwy z kryciem poniżej pełnego
+     przeglądarka wypisuje jako `rgba(...)`, więc dopasowanie do `rgb(` łapałoby
+     tylko te nieprzezroczyste i milczałoby o zgubieniu całej reszty palety. */
+  t.check('gradient bierze kolory z palety elementu',
+    ['244, 63, 249', '113, 217, 233', '242, 230, 219']
+      .every((barwa) => naSofcie.tlo.includes(barwa)),
+    naSofcie.tlo.slice(0, 60) + '…');
 
-  /* KONTROLA NEGATYWNA: z wyłączonym dopasowaniem jakości fala ma dalej
-     obciążać wątek. Bez tego sprawdzenia „wątek wolny" przechodziłoby także
-     dla elementu, który w ogóle nie wystartował. */
-  const bezDopasowania = await bezGpu({ auto_jakosc: 'nie' });
+  /* KONTROLA NEGATYWNA. Bez niej wszystko powyżej przechodziłoby także dla
+     elementu, który w ogóle nie wystartował — „nic nie pobrano" i „wątek wolny"
+     są wtedy prawdziwe z najgorszego możliwego powodu. Ze sterownikiem ukrytym
+     przed odczytem element nie ma prawa zgadywać: ładuje biblioteki i liczy. */
+  const zeSterownikiem = await bezGpu({ auto_jakosc: 'nie' });
+  t.check('z wyłączonym dopasowaniem POBIERA biblioteki',
+    zeSterownikiem.zadania.biblioteki.length > 0,
+    zeSterownikiem.zadania.biblioteki.length + ' żądań');
+  t.check('z wyłączonym dopasowaniem stawia płótno',
+    zeSterownikiem.plotno === true, 'płótno: ' + zeSterownikiem.plotno);
   t.check('z wyłączonym dopasowaniem nadal obciąża',
-    bezDopasowania.log.length === 0 && bezDopasowania.wolnyWatek > 50,
-    bezDopasowania.wolnyWatek + ' ms na klatkę');
+    zeSterownikiem.log.length === 0 && zeSterownikiem.wolnyWatek > 50,
+    zeSterownikiem.wolnyWatek + ' ms na klatkę');
+
+  /* DRUGA LINIA OBRONY. Probka przed importem zwraca „nie wiem" jako `false`
+     — rozszerzenie z nazwą sterownika bywa wyłączone, a jednorazowe płótno może
+     w ogóle nie dostać kontekstu. Wtedy biblioteki JADĄ, a rozpoznaniem zajmuje
+     się kontekst, którego renderer naprawdę używa: jedna klatka i koniec.
+
+     Bez tego sprawdzenia mutacja wyłączająca tę probkę przechodziła na zielono
+     — zasłaniała ją probka wstępna, dokładnie tak jak w 1.151.0 zasłaniały się
+     nawzajem dwa mechanizmy pauzy. */
+  const drugaLinia = await bezGpu({}, { ukryjSterownikRaz: true });
+  t.check('gdy probka wstępna nic nie wie, biblioteki jadą',
+    drugaLinia.zadania.biblioteki.length > 0 && drugaLinia.plotno === true,
+    drugaLinia.zadania.biblioteki.length + ' żądań, płótno: ' + drugaLinia.plotno);
+  t.check('ale renderer sam rozpoznaje brak akceleracji',
+    drugaLinia.log.some((l) => l.includes('jeden kadr')),
+    drugaLinia.log[0] || 'brak komunikatu');
+  t.check('i wątek główny zostaje wolny',
+    drugaLinia.wolnyWatek !== null && drugaLinia.wolnyWatek < 25,
+    drugaLinia.wolnyWatek + ' ms na klatkę');
+
+  // ── Awaria cudzego CDN-a (1.154.0) ─────────────────────────────────────
+  t.section('gdy bibliotek nie da się pobrać, zostaje zastępnik');
+
+  /* Element ładuje three.js i GSAP-a z esm.sh. Serwis bywa niedostępny —
+     awaria, blokada w sieci firmowej, filtr. Do 1.154.0 kończyło się to pustym
+     miejscem w układzie strony: statyczny import przewracał cały moduł.
+     Sprawdzamy sprzęt Z AKCELERACJĄ (sterownik ukryty), żeby element naprawdę
+     próbował pobrać biblioteki, a nie poszedł ścieżką „bez GPU". */
+  const bezCdn = await bezGpu({}, { ukryjSterownik: true, blokujBiblioteki: true });
+  t.check('element nie znika, tylko rysuje zastępnik',
+    bezCdn.znacznik === '1', 'data-evk-wb-zastepnik: ' + bezCdn.znacznik);
+  t.check('a zastępnik NAPRAWDĘ coś maluje',
+    bezCdn.barwy.barw > 200 && bezCdn.barwy.rozrzut > 60,
+    bezCdn.barwy.barw + ' barw, rozrzut ' + bezCdn.barwy.rozrzut);
+  t.check('płótna WebGL nie ma, bo nie było z czego',
+    bezCdn.plotno === false, 'płótno: ' + bezCdn.plotno);
+
+  // ── Własny obraz zamiast gradientu (1.154.0) ───────────────────────────
+  t.section('zastępnik może być własnym obrazem');
+
+  const OBRAZ = { _zalaczniki: { 7: '/tests/fixtures/obraz-zastepczy.svg' },
+                  zastepnik_obraz: { id: 7 } };
+
+  const zObrazem = await bezGpu(OBRAZ);
+  t.check('obraz wygrywa z gradientem',
+    /obraz-zastepczy\.svg/.test(zObrazem.tlo) && !/gradient/.test(zObrazem.tlo),
+    zObrazem.tlo.slice(0, 70));
+  t.check('i naprawdę zostaje pobrany',
+    zObrazem.zadania.obraz.length > 0,
+    zObrazem.zadania.obraz.length + ' żądań');
+  t.check('a bibliotek dalej nie ma',
+    zObrazem.zadania.biblioteki.length === 0,
+    zObrazem.zadania.biblioteki.length + ' żądań');
+
+  /* NA MASZYNIE Z GPU OBRAZ MA SIĘ NIE POBRAĆ. Adres jedzie w konfiguracji
+     zawsze — gdyby `background-image` ustawiać bezwarunkowo, każdy odwiedzający
+     ściągałby plik, którego nigdy nie zobaczy. Sterownik ukrywamy, żeby element
+     poszedł ścieżką „jest akceleracja". */
+  const obrazZeSprzetem = await bezGpu(OBRAZ, { ukryjSterownik: true });
+  t.check('z akceleracją obraz NIE jest pobierany',
+    obrazZeSprzetem.zadania.obraz.length === 0,
+    obrazZeSprzetem.zadania.obraz.length + ' żądań');
+  t.check('a fala rusza normalnie',
+    obrazZeSprzetem.plotno === true && obrazZeSprzetem.zadania.biblioteki.length > 0,
+    'płótno: ' + obrazZeSprzetem.plotno + ', bibliotek: ' + obrazZeSprzetem.zadania.biblioteki.length);
 
   // ── Drabina jakości w prawdziwej przeglądarce ──────────────────────────
   t.section('drabina jakości schodzi sama i zatrzymuje się pod progiem');

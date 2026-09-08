@@ -423,6 +423,27 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'description' => 'Powyżej tej wartości element schodzi o szczebel. Domyślne 40 ms mieści się pod progiem 50 ms, od którego przeglądarka liczy „długie zadanie".',
 		];
 
+		/* ZASTĘPNIK NA MASZYNĘ BEZ AKCELERACJI.
+		 *
+		 * Gdy przeglądarka rasteryzuje programowo, element nie pobiera three.js
+		 * WCALE (patrz `evkWbBezAkceleracjiWstepnie()` w module niżej) i rysuje
+		 * zamiast fali gradient CSS z tej samej palety. Ta kontrolka pozwala
+		 * podstawić własny obraz — na przykład kadr wyeksportowany z prawdziwej
+		 * fali, który wygląda dokładnie tak jak ona, a nie tylko podobnie.
+		 *
+		 * OBRAZ POBIERANY JEST WYŁĄCZNIE BEZ AKCELERACJI. Adres trafia do
+		 * konfiguracji zawsze, ale `background-image` ustawia dopiero gałąź
+		 * zastępnika — inaczej każda maszyna z GPU ściągałaby plik, którego
+		 * nigdy nie zobaczy. Pilnuje tego osobne sprawdzenie w sekcji
+		 * „bez GPU fala nie pobiera three.js" w tests/wave-bg.test.js. */
+		$this->controls['zastepnik_obraz'] = [
+			'tab'         => 'content',
+			'label'       => 'Obraz zamiast gradientu',
+			'type'        => 'image',
+			'required'    => [ 'auto_jakosc', '=', 'tak' ],
+			'description' => 'Nieobowiązkowy. Pokazywany tylko tam, gdzie fala i tak by się nie animowała — bez akceleracji sprzętowej. Bez obrazu rysowany jest gradient z palety wyżej.',
+		];
+
 		$this->controls['preserve_buffer'] = [
 			'tab'         => 'content',
 			'label'       => 'Zachowuj bufor rysowania',
@@ -430,6 +451,30 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'default'     => false,
 			'description' => 'Włącz, jeśli nad falą leży treść z mix-blend-mode i widać migotanie.',
 		];
+	}
+
+	/**
+	 * Adres obrazu zastępczego albo pusty łańcuch.
+	 *
+	 * Bricks zapisuje kontrolkę `image` jako tablicę z `id` załącznika, ale przy
+	 * obrazie spoza biblioteki mediów (dane dynamiczne, zewnętrzny adres) bywa
+	 * tam samo `url`. Bierzemy oba, bo oba realnie występują.
+	 *
+	 * `esc_url_raw` odsiewa schematy spoza białej listy WordPressa — wartość
+	 * ląduje w arkuszu jako `url(...)`, więc nie ma tu miejsca na `javascript:`
+	 * ani na łańcuch, który wyszedłby z nawiasu. Drugie zabezpieczenie, po
+	 * stronie JS, ucieka cudzysłowy i ukośniki.
+	 */
+	private function zastepnik_obraz_url( array $s ): string {
+		$img = $s['zastepnik_obraz'] ?? null;
+		if ( ! is_array( $img ) ) return '';
+
+		if ( ! empty( $img['id'] ) ) {
+			$src = wp_get_attachment_image_src( (int) $img['id'], 'full' );
+			if ( ! empty( $src[0] ) ) return esc_url_raw( (string) $src[0] );
+		}
+
+		return ! empty( $img['url'] ) ? esc_url_raw( (string) $img['url'] ) : '';
 	}
 
 	private function color_hex( $val, string $fallback ): string {
@@ -576,6 +621,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'preserveBuffer'       => ! empty( $s['preserve_buffer'] ),
 			'autoJakosc'           => ( $s['auto_jakosc'] ?? 'tak' ) !== 'nie',
 			'budzetKlatki'         => max( 20, min( 200, (int) ( $s['budzet_klatki'] ?? 40 ) ) ),
+			'zastepnikObraz'       => $this->zastepnik_obraz_url( $s ),
 		];
 		$cfg_js = wp_json_encode( $cfg );
 
@@ -598,19 +644,48 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		);
 		?>
 <script type="module">
-import * as THREE from 'https://esm.sh/three@0.185.1';
-import { EffectComposer } from 'https://esm.sh/three@0.185.1/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass }     from 'https://esm.sh/three@0.185.1/examples/jsm/postprocessing/RenderPass.js';
-import { ShaderPass }     from 'https://esm.sh/three@0.185.1/examples/jsm/postprocessing/ShaderPass.js';
-import gsap from 'https://esm.sh/gsap@<?php echo EVK_GSAP_VERSION; ?>';
+/* BIBLIOTEKI ŁADOWANE WARUNKOWO, nie statycznym `import`.
+ *
+ * Statyczne importy pobiera przeglądarka ZAWSZE, zanim wykona choćby jedną linię
+ * modułu — a to 287 KB samego three.js. Na maszynie bez akceleracji sprzętowej
+ * fala i tak rysuje tylko jeden nieruchomy kadr (patrz `evkWbBezAkceleracji`),
+ * więc płaciliśmy pełną bibliotekę i kompilację shaderów za obraz, który da się
+ * postawić gradientem CSS. Zmierzone na żywej stronie: 438 ms samej ewaluacji
+ * skryptów przy włączonej fali.
+ *
+ * Dynamiczny `import()` pobiera dopiero wtedy, gdy do niego dojdziemy — a probka
+ * akceleracji nie potrzebuje three.js, wystarczy jej jedno tymczasowe płótno. */
+let THREE, EffectComposer, RenderPass, ShaderPass, gsap;
 
-// three ≥0.152 domyślnie włącza zarządzanie kolorem: `new THREE.Color('#hex')`
-// przelicza sRGB na przestrzeń liniową. Ten element podaje kolory wprost do
-// własnego ShaderMaterial i renderuje przez EffectComposer bez OutputPass, więc
-// nic tej konwersji nie odwraca — gradient wyszedłby ciemniejszy niż dotąd.
-// Wyłączenie przywraca zachowanie sprzed 0.152, czyli dokładnie ten obraz,
-// który jest na stronach dziś.
-THREE.ColorManagement.enabled = false;
+async function evkWbZaladujBiblioteki() {
+    const [t, ec, rp, sp, g] = await Promise.all([
+        import('https://esm.sh/three@0.185.1'),
+        import('https://esm.sh/three@0.185.1/examples/jsm/postprocessing/EffectComposer.js'),
+        import('https://esm.sh/three@0.185.1/examples/jsm/postprocessing/RenderPass.js'),
+        import('https://esm.sh/three@0.185.1/examples/jsm/postprocessing/ShaderPass.js'),
+        import('https://esm.sh/gsap@<?php echo EVK_GSAP_VERSION; ?>'),
+    ]);
+    THREE = t;
+    EffectComposer = ec.EffectComposer;
+    RenderPass     = rp.RenderPass;
+    ShaderPass     = sp.ShaderPass;
+    gsap           = g.default || g.gsap || g;
+
+    /* three ≥0.152 domyślnie włącza zarządzanie kolorem: `new THREE.Color('#hex')`
+       przelicza sRGB na przestrzeń liniową. Ten element podaje kolory wprost do
+       własnego ShaderMaterial i renderuje przez EffectComposer bez OutputPass,
+       więc nic tej konwersji nie odwraca — gradient wyszedłby ciemniejszy niż
+       dotąd. Wyłączenie przywraca zachowanie sprzed 0.152, czyli dokładnie ten
+       obraz, który jest na stronach dziś.
+
+       STOI TU, A NIE NA POZIOMIE MODUŁU: przy dynamicznym imporcie kod modułu
+       wykonuje się ZANIM biblioteka istnieje, więc `THREE.ColorManagement`
+       wywracało się na `undefined`. Miejsce zaraz po przypisaniu jest jedynym,
+       w którym ta linia ma co ustawiać. */
+    THREE.ColorManagement.enabled = false;
+
+    COLORS = CONFIG.colors.map((c) => new THREE.Color(c));
+}
 
 /** Wspólna polityka ruchu — patrz includes/anim/motion.php. */
 function evkWbReduced() {
@@ -652,6 +727,36 @@ function evkWbBezAkceleracji(gl) {
     }
 }
 
+/**
+ * To samo pytanie co `evkWbBezAkceleracji()`, ale PRZED pobraniem three.js.
+ *
+ * Tworzy jednorazowe płótno tylko po to, żeby zapytać sterownik, i zaraz je
+ * porzuca. Kontekst zwalniamy wprost przez `WEBGL_lose_context`.
+ *
+ * UCZCIWIE O TEJ LINII: pierwotnie stało tu, że bez zwolnienia można wyczerpać
+ * limit kontekstów WebGL na stronie z kilkoma falami. NIE UDAŁO SIĘ TEGO
+ * ODTWORZYĆ — w Chromium udało się otworzyć 64 konteksty i przeciek jednego nie
+ * zmieniał niczego mierzalnego. Linia zostaje jako porządek (zwolnienie jest
+ * natychmiastowe zamiast czekać na sprzątanie pamięci), a nie jako naprawa
+ * zmierzonej usterki. Żadne sprawdzenie jej nie pilnuje i mutacja usuwająca ją
+ * przechodzi na zielono — jest to zapisane świadomie, nie przeoczone.
+ */
+function evkWbBezAkceleracjiWstepnie() {
+    let c = null, gl = null;
+    try {
+        c  = document.createElement('canvas');
+        gl = c.getContext('webgl2') || c.getContext('webgl');
+        return evkWbBezAkceleracji(gl);
+    } catch (e) {
+        return false;
+    } finally {
+        try {
+            const strata = gl && gl.getExtension('WEBGL_lose_context');
+            if (strata) strata.loseContext();
+        } catch (e) { /* nie ma czego zwalniać */ }
+    }
+}
+
 /** Czy pokazywać, co robi drabina jakości: `?evk-wave-debug=1` w adresie. */
 function evkWbDebug() {
     return /[?&]evk-wave-debug=1/.test(location.search);
@@ -671,7 +776,10 @@ const BACKGROUNDS = [
 ];
 
 // ── Kolory ────────────────────────────────────────────────────────────────────
-const COLORS = CONFIG.colors.map(c => new THREE.Color(c));
+/* LENIWIE, nie na poziomie modułu. Przy dynamicznym imporcie kod modułu wykonuje
+   się, zanim three.js istnieje — `new THREE.Color()` wywracało się na `undefined`.
+   Wypełniane w `evkWbZaladujBiblioteki()`, tuż po przypisaniu biblioteki. */
+let COLORS = [];
 
 // ── Perlin noise GLSL — identyczny z referencją ───────────────────────────────
 const perlinGLSL = `
@@ -695,7 +803,9 @@ float cnoise21(vec2 P){
 }`;
 
 // ── DotScreen post-process shader — port 1:1 + szum (grain) ─────────────────
-const DotScreenShader = {
+/* WYTWÓRNIA, nie stała — z tego samego powodu co `COLORS`: `new THREE.Vector2()`
+   w uniformach nie ma prawa wykonać się przed załadowaniem biblioteki. */
+function dotScreenShader() { return {
     uniforms: {
         uTime:          { value: null },
         uMouse:         { value: new THREE.Vector2(0,0) },
@@ -755,7 +865,7 @@ const DotScreenShader = {
             }
             gl_FragColor = vec4(color.xyz, color.w);  // przepuszczamy alphę z siatki
         }`,
-};
+}; }
 
 // ── Vertex shader siatki — port 1:1 ──────────────────────────────────────────
 const vertexShader = `
@@ -907,7 +1017,7 @@ class EvkWaveBackground {
     initPostProcessing() {
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(new RenderPass(this.scene, this.camera));
-        this.effect1 = new ShaderPass(DotScreenShader);
+        this.effect1 = new ShaderPass(dotScreenShader());
         this.effect1.uniforms.uAmount.value       = this.settings.distortionAmount;
         this.effect1.uniforms.uMouseEffect.value  = this.settings.mouseEffect;
         this.effect1.uniforms.uNoiseEnabled.value  = CONFIG.noiseEnabled ? 1.0 : 0.0;
@@ -1252,17 +1362,103 @@ class EvkWaveBackground {
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-function evkWbBoot(tries = 0) {
-    const container = document.getElementById(CONTAINER_ID);
-    if (container) {
-        const instance = new EvkWaveBackground(container);
-        instance.initScrollBehavior();
-        instance.animateIn(2, 0.5);   // jak w referencji: animateIn(2, .5)
-    } else if (tries < 50) {
-        setTimeout(() => evkWbBoot(tries + 1), 50);
-    } else {
-        console.error('EvkWaveBackground: nie znaleziono #' + CONTAINER_ID);
+/**
+ * Zastępnik na maszynę bez akceleracji: gradient CSS z TEJ SAMEJ palety.
+ *
+ * Kąt i rozkład przystanków przybliżają pasmo, które rysuje shader — nie jest to
+ * ta sama fala i nie udaje, że jest. Chodzi o to, żeby na maszynie, która i tak
+ * dostałaby jeden nieruchomy kadr, dostać go ZA DARMO: bez 287 KB biblioteki
+ * i bez kompilacji shaderów.
+ *
+ * Maska (`mask-image` z krzywej S) siedzi już na kontenerze, więc wygaszenie
+ * krawędzi działa na gradiencie tak samo jak działało na płótnie.
+ */
+function evkWbGradientZastepczy(container) {
+    /* WŁASNY OBRAZ WYGRYWA. Kadr wyeksportowany z prawdziwej fali wygląda tak,
+       jak ona — gradient poniżej tylko ją przypomina. Cudzysłowy i ukośniki
+       uciekamy, bo adres wchodzi do wartości arkusza jako `url("…")`. */
+    const obraz = CONFIG.zastepnikObraz || '';
+    if (obraz) {
+        container.style.backgroundImage    = 'url("' + obraz.replace(/["\\]/g, '\\$&') + '")';
+        container.style.backgroundSize     = 'cover';
+        container.style.backgroundPosition = 'center';
+        container.style.backgroundRepeat   = 'no-repeat';
+        container.setAttribute('data-evk-wb-zastepnik', '1');
+        return true;
     }
+
+    const k = CONFIG.colors || [];
+    if (k.length < 2) return false;
+
+    /* Barwa po ułamku palety, nie po indeksie — palety mają dziś po sześć
+       kolorów, ale własna może mieć mniej i wtedy `k[4]` byłoby `undefined`,
+       czyli łańcuch „undefinedcc" w arkuszu i cała warstwa wypadałaby po cichu. */
+    const barwa = (u) => k[Math.min(k.length - 1, Math.round(u * (k.length - 1)))];
+    const krem = barwa(0), cyan = barwa(0.2), fiolet = barwa(0.4),
+          roz  = barwa(0.6), magenta = barwa(0.8);
+
+    /* PASMO WCHODZI Z PRAWEJ, TŁO ZOSTAJE PRZEZROCZYSTE.
+     *
+     * Rysowane z fotografii prawdziwej fali: lewa połowa kadru to czysty kolor
+     * sekcji, mniej więcej w połowie szerokości wchodzi kremowe czoło, za nim
+     * wąska smuga cyjanu, a prawą stronę wypełniają dwa płaty magenty spięte
+     * fioletem — górny przy prawej krawędzi, dolny przy dolnej.
+     *
+     * Poprzednia wersja kładła na to `rgba(0,0,0,0.55)` winiety „bo shader
+     * wygasza brzegi". Shader wygasza KRYCIE, a nie jasność — winieta
+     * przyciemniała jasną kompozycję i wychodziła z tego zupełnie inna rzecz.
+     * Tu wygaszamy tak samo: przezroczystością.
+     *
+     * To nie jest ta sama fala i nie udaje, że jest. Chodzi o to, żeby maszyna,
+     * która i tak dostałaby jeden nieruchomy kadr, dostała go ZA DARMO — bez
+     * 287 KB biblioteki i bez kompilacji shaderów. Maska (`mask-image` z krzywej
+     * S) siedzi już na kontenerze i wygasza krawędzie tak samo jak przy płótnie. */
+    /* KOLEJNOŚĆ WARSTW JEST CZĘŚCIĄ RYSUNKU, nie porządkiem alfabetycznym:
+       pierwsza w tablicy leży na wierzchu. Cyjan stoi NAD fioletem, bo na
+       zdjęciu jest wyraźnym pasem na czole pasma — pod fioletem gasł i pierwsza
+       wersja wyszła przez to pastelowa zamiast nasyconej. */
+    container.style.backgroundImage = [
+        'radial-gradient(ellipse 56% 60% at 93% 14%, ' + magenta + 'ff 0%, ' + magenta + 'b3 36%, transparent 70%)',
+        'radial-gradient(ellipse 52% 50% at 77% 99%, ' + roz     + 'ff 0%, ' + roz     + 'a6 38%, transparent 72%)',
+        'radial-gradient(ellipse 20% 68% at 62% 46%, ' + cyan    + 'e6 0%, ' + cyan    + '73 44%, transparent 74%)',
+        'radial-gradient(ellipse 44% 78% at 87% 58%, ' + fiolet  + 'd9 0%, ' + fiolet  + '73 44%, transparent 76%)',
+        'linear-gradient(112deg, transparent 33%, '    + krem    + 'e6 46%, ' + krem   + '73 57%, transparent 68%)',
+    ].join(', ');
+    container.setAttribute('data-evk-wb-zastepnik', '1');
+    return true;
+}
+
+async function evkWbBoot(tries = 0) {
+    const container = document.getElementById(CONTAINER_ID);
+    if (!container) {
+        if (tries < 50) setTimeout(() => evkWbBoot(tries + 1), 50);
+        else console.error('EvkWaveBackground: nie znaleziono #' + CONTAINER_ID);
+        return;
+    }
+
+    /* PROBKA PRZED POBRANIEM BIBLIOTEKI. Tymczasowe płótno wystarczy, żeby
+       zapytać sterownik — a to jedyne, czego potrzeba, żeby wiedzieć, że
+       pobieranie three.js nie ma sensu. */
+    if (CONFIG.autoJakosc && evkWbBezAkceleracjiWstepnie()) {
+        if (evkWbDebug()) console.log('[EVK Wave] brak akceleracji sprzętowej — gradient CSS, bez ładowania three.js');
+        if (evkWbGradientZastepczy(container)) return;
+    }
+
+    /* BIBLIOTEKI JADĄ Z CUDZEGO SERWERA. Gdy esm.sh nie odpowiada — awaria,
+       blokada sieci, strona za korporacyjnym filtrem — obietnica odrzuca się
+       i bez tego przechwycenia element po prostu znika, zostawiając w układzie
+       dziurę. Zastępnik już mamy; niech posłuży także tutaj. */
+    try {
+        await evkWbZaladujBiblioteki();
+    } catch (e) {
+        console.warn('[EVK Wave] nie udało się pobrać bibliotek: ' + e.message);
+        evkWbGradientZastepczy(container);
+        return;
+    }
+
+    const instance = new EvkWaveBackground(container);
+    instance.initScrollBehavior();
+    instance.animateIn(2, 0.5);   // jak w referencji: animateIn(2, .5)
 }
 evkWbBoot();
 </script>

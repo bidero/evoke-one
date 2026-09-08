@@ -37,6 +37,15 @@ namespace {
     $el = new Evk_Wave_Bg_Element();
     $el->settings = json_decode($argv[1] ?? '{}', true) ?: [];
 
+    /* Biblioteka mediów dla kontrolki obrazu. Atrapa `wp_get_attachment_image_src()`
+       czyta załączniki z $GLOBALS, a podajemy je w tym samym JSON-ie co ustawienia
+       — jeden argument zamiast dwóch, i widać w teście, że obraz i ustawienie
+       należą do siebie. */
+    if (!empty($el->settings['_zalaczniki'])) {
+        $GLOBALS['attachments'] = $el->settings['_zalaczniki'];
+        unset($el->settings['_zalaczniki']);
+    }
+
     ob_start();
     $el->render();
     $html = ob_get_clean();

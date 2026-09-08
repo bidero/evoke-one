@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80" width="120" height="80">
+  <!-- Atrapa „kadru wyeksportowanego z fali" dla kontrolki `zastepnik_obraz`.
+       Celowo w barwach spoza palety elementu: dzięki temu sprawdzenie „obraz
+       wygrał z gradientem" nie przeszłoby przypadkiem, gdyby narysował się
+       gradient z palety. -->
+  <rect width="120" height="80" fill="#0b3d0b"/>
+  <circle cx="90" cy="24" r="34" fill="#1e7a1e"/>
+</svg>

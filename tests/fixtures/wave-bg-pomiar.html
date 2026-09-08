@@ -88,6 +88,28 @@
     });
   };
 
+  /**
+   * Chowa sterownik tylko przed PIERWSZYMI `ile` pytaniami.
+   *
+   * Element pyta o akcelerację dwa razy: raz jednorazowym płótnem przed
+   * pobraniem three.js, drugi raz kontekstem, którego naprawdę używa.
+   * `__ukryjSterownik()` zasłania oba naraz, więc nie da się nim sprawdzić
+   * DRUGIEJ linii obrony. Ta atrapa odtwarza sytuację, która zdarza się
+   * naprawdę: jednorazowe płótno nie dowiaduje się niczego (kontekst odmówiony,
+   * rozszerzenie niedostępne), a prawdziwy renderer już tak.
+   */
+  window.__ukryjSterownikRaz = function (ile) {
+    var zostalo = ile || 1;
+    [window.WebGLRenderingContext, window.WebGL2RenderingContext].forEach(function (K) {
+      if (!K) return;
+      var oryg = K.prototype.getExtension;
+      K.prototype.getExtension = function (nazwa) {
+        if (nazwa === 'WEBGL_debug_renderer_info' && zostalo > 0) { zostalo--; return null; }
+        return oryg.call(this, nazwa);
+      };
+    });
+  };
+
   /** Wstawia moduł elementu, przepisując importy na lokalne. */
   window.__start = function () {
     var html = (window.__tresc || '')
