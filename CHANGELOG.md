@@ -2,6 +2,48 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.158.0] — 2026-09-08
+
+### Dodane
+
+- **Circular Menu: przyciemnienie tła strony.** Zgłoszone z użycia: „dodanie
+  przyciemnianego tła, kiedy circular menu nie zajmuje 100% wysokości/szerokości".
+  Panel ma własne kontrolki szerokości i wysokości, więc bywa mniejszy od ekranu
+  — a wtedy nic nie pokazywało, że strona pod spodem jest nieaktywna.
+
+  Nowa kontrolka **„Przyciemnij tło strony"** wraz z wyborem koloru
+  (domyślnie `rgba(15, 23, 42, .55)`, ten sam co w Offcanvas Menu).
+  **Domyślnie wyłączona** — przy panelu na pełny ekran przyciemnienia i tak nie
+  widać spod niczego, a włączone z automatu zmieniłoby wygląd gotowych stron
+  z panelem przezroczystym.
+
+  Przyciemnienie jest osobnym elementem obok panelu, nie jego tłem: panel bywa
+  mniejszy od ekranu, a przyciemnić trzeba całą stronę. Jedzie do `<body>` razem
+  z panelem przy włączonym portalu i leży o jeden poziom pod nim, więc panel
+  zostaje na wierzchu niezależnie od ustawionej warstwy. Krycie animuje **ta sama
+  oś czasu GSAP-a**, która rozwija kadr — osobne `transition` w arkuszu
+  rozjeżdżałoby się przy każdej zmianie czasu i przy przerwanym zamykaniu.
+
+  Zamknięte przyciemnienie ma `pointer-events: none`. To nie jest kosmetyka:
+  leży na całej stronie, więc bez tego przechwytywałoby każde kliknięcie także
+  przy zamkniętym menu.
+
+### Uwaga o jednej rzeczy, której NIE dopisałem
+
+Kliknięcie w przyciemnione tło zamyka menu — ale **nie trzeba było do tego ani
+jednej linii**. Element od dawna ma nasłuch „klik poza panelem", a przyciemnienie
+nie jest częścią panelu. Napisałem najpierw własny `scrim.addEventListener` i
+mutacja zdejmująca go **przeszła na zielono**, bo niczego nie wnosił. Wyleciał:
+dwie drogi do tego samego zamknięcia to prosta droga do podwójnego wywołania przy
+następnej zmianie. Sprawdzenie zostało i pilnuje tej ścieżki — mutacja wyłączająca
+prawdziwy nasłuch zapala.
+
+### Testy
+
+Dwanaście nowych sprawdzeń w zestawie `circular-menu`, w tym kontrola negatywna
+idąca pierwsza: z wyłączoną kontrolką przyciemnienia **nie ma w drzewie wcale**.
+Sześć mutacji, wszystkie rozliczone.
+
 ## [1.157.0] — 2026-09-08
 
 ### Naprawione

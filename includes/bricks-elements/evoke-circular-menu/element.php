@@ -357,6 +357,38 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'placeholder' => '100svh',
 			'default'     => '100svh',
 		];
+		/* PRZYCIEMNIENIE TŁA.
+		 *
+		 * ZGŁOSZONE Z UŻYCIA: „dodanie przyciemnianego tła, kiedy circular menu
+		 * nie zajmuje 100% wysokości/szerokości". Panel ma kontrolki szerokości
+		 * i wysokości, więc może być mniejszy od ekranu — a wtedy reszta strony
+		 * zostaje w pełnym świetle i nie widać, że menu jest otwarte.
+		 *
+		 * DOMYŚLNIE WYŁĄCZONE, i to jest decyzja, nie zaniedbanie: przy panelu
+		 * na pełny ekran przyciemnienia nie widać spod niczego, a włączone
+		 * z automatu zmieniłoby wygląd gotowych stron z panelem przezroczystym.
+		 */
+		$this->controls['scrimEnabled'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Przyciemnij tło strony', 'evk-circular-menu' ),
+			'type'        => 'checkbox',
+			'default'     => false,
+			'description' => esc_html__( 'Ma sens, gdy panel nie zajmuje całego ekranu. Kliknięcie w przyciemnione tło zamyka menu.', 'evk-circular-menu' ),
+		];
+
+		$this->controls['scrimColor'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Kolor przyciemnienia', 'evk-circular-menu' ),
+			'type'     => 'color',
+			'required' => [ 'scrimEnabled', '=', true ],
+			/* Zmienna siedzi na PANELU, nie na przyciemnieniu — panel jedzie do
+			   <body> razem z nim, a skrypt czyta ją stamtąd przed przeprowadzką
+			   i wpisuje wprost, tak samo jak `--evk-cm-from-top`. Reguła Bricksa
+			   celuje w `.brxe-XXXX .evk-cm-content` i po portalu przestaje
+			   pasować. */
+			'css'      => [ [ 'property' => '--evk-cm-scrim', 'selector' => '.evk-cm-content' ] ],
+		];
+
 		$this->controls['background'] = [
 			'hasDynamicData' => false,
 			'tab'   => 'content',
@@ -447,6 +479,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$raiseMode         = ! empty( $settings['raiseMode'] ) ? $settings['raiseMode'] : 'przelacznik';
 		$raiseSelector     = ! empty( $settings['raiseSelector'] ) ? $settings['raiseSelector'] : '';
 		$closeOnEsc        = ! empty( $settings['closeOnEsc'] )        ? '1' : '0';
+		$scrim             = ! empty( $settings['scrimEnabled'] )      ? '1' : '0';
 
 		$this->set_attribute( '_root', 'class',                                 'evk-cm' );
 		$this->set_attribute( '_root', 'data-portal',                           $portalToBody );
@@ -458,6 +491,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$this->set_attribute( '_root', 'data-customtoggle',                     $customtoggle );
 		$this->set_attribute( '_root', 'data-toggle-class',                     $toggleClass );
 		$this->set_attribute( '_root', 'data-lock-scroll',                      $lockBodyScrolling );
+		$this->set_attribute( '_root', 'data-scrim',                            $scrim );
 		$this->set_attribute( '_root', 'data-raise-toggle',                     $raiseToggle );
 		$this->set_attribute( '_root', 'data-raise-mode',                       $raiseMode );
 		$this->set_attribute( '_root', 'data-raise-selector',                   $raiseSelector );

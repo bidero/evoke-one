@@ -105,6 +105,7 @@ function evk_circular_menu_init_one( root ) {
     var isBuilder   = ! bricksIsFrontend;
     var openBuilder = root.getAttribute( 'data-open-builder' ) === '1';
     var usePortal   = root.getAttribute( 'data-portal' ) !== '0';
+    var useScrim    = root.getAttribute( 'data-scrim' ) === '1';
     // Redukcja ruchu: menu MUSI się nadal otwierać i zamykać — zerujemy sam czas
     // trwania, więc clip-path przeskakuje zamiast się rozwijać. Wyłączenie
     // animacji nie może odebrać dostępu do nawigacji.
@@ -150,6 +151,33 @@ function evk_circular_menu_init_one( root ) {
     var panel = root.querySelector( '.evk-cm-content' );
     if ( ! panel ) return false;
 
+    /* ── PRZYCIEMNIENIE TŁA ────────────────────────────────────────
+     *
+     * Osobny element obok panelu, nie jego tło: panel ma własne kontrolki
+     * szerokości i wysokości, więc bywa mniejszy od ekranu, a przyciemnić
+     * trzeba całą stronę.
+     *
+     * Powstaje PRZED portalem i jest wstawiany jako rodzeństwo panelu, więc
+     * przeprowadzka do <body> zabiera oba. Zmienne czytamy z panelu, dopóki
+     * jeszcze stoi w treści strony — reguła Bricksa celuje w
+     * `.brxe-XXXX .evk-cm-content` i po przenosinach przestaje pasować. To ten
+     * sam problem i to samo lekarstwo co przy `--evk-cm-from-top`.
+     */
+    var scrim = null;
+    if ( useScrim ) {
+        var cs      = getComputedStyle( panel );
+        var barwa   = cs.getPropertyValue( '--evk-cm-scrim' ).trim();
+        var warstwa = cs.getPropertyValue( '--evk-cm-z-index' ).trim();
+
+        scrim = document.createElement( 'div' );
+        scrim.className = 'evk-cm-scrim';
+        /* O jeden POD panelem — panel ma być nad przyciemnieniem niezależnie
+           od tego, jaką warstwę ustawi użytkownik. */
+        scrim.style.zIndex = String( ( parseInt( warstwa, 10 ) || 9999 ) - 1 );
+        if ( barwa ) scrim.style.background = barwa;
+        panel.parentNode.insertBefore( scrim, panel );
+    }
+
     // ── Portal: przenieś panel do <body> ──────────────────────────
     if ( usePortal && ! isBuilder ) {
         // Bricks generuje CSS jako `.brxe-XXXX .evk-cm-content { --evk-cm-from-top: ... }`
@@ -159,6 +187,7 @@ function evk_circular_menu_init_one( root ) {
         var fromTop  = panelComputedStyle.getPropertyValue( '--evk-cm-from-top' ).trim();
         var fromLeft = panelComputedStyle.getPropertyValue( '--evk-cm-from-left' ).trim();
 
+        if ( scrim ) document.body.appendChild( scrim );
         document.body.appendChild( panel );
 
         if ( fromTop )  panel.style.setProperty( '--evk-cm-from-top',  fromTop );
@@ -188,6 +217,13 @@ function evk_circular_menu_init_one( root ) {
         ease: easing,
         clipPath: clipOpen,
     } );
+    /* Przyciemnienie na TEJ SAMEJ osi, w tej samej chwili zero. Osobne
+       `transition` w arkuszu rozjeżdżałoby się z kadrem przy każdej zmianie
+       czasu lub krzywej, a przy przerwanym zamykaniu (`tl.reverse()` w połowie)
+       obie rzeczy muszą cofać się razem. */
+    if ( scrim ) {
+        tl.to( scrim, { duration: duration, ease: easing, opacity: 1 }, 0 );
+    }
 
     var isOpen = false;
 
@@ -408,6 +444,7 @@ function evk_circular_menu_init_one( root ) {
         podniesPrzelaczniki();
         setTabIndex( panel );
         panel.classList.add( EVK_CM_OPEN );
+        if ( scrim ) scrim.classList.add( EVK_CM_OPEN );
         // Stan po naszemu na panelu, po Bricksowemu na korzeniu. Korzeń, nie
         // panel: przy włączonym portalu panel jedzie do <body> i przestaje być
         // czymkolwiek w okolicy przełącznika, a reguły Bricksa czytają stan
@@ -431,6 +468,11 @@ function evk_circular_menu_init_one( root ) {
      */
     function startCollapse() {
         panel.classList.remove( EVK_CM_OPEN );
+        /* Klasa schodzi tu razem z panelem — a to znaczy, że przyciemnienie
+           przestaje łapać kliknięcia od RAZU, choć jest jeszcze widoczne przez
+           czas zwijania. Tak jest dobrze: menu już się zamyka, więc strona pod
+           spodem ma znowu odpowiadać. */
+        if ( scrim ) scrim.classList.remove( EVK_CM_OPEN );
         root.classList.remove( EVK_BRICKS_OPEN );
         tl.reverse();
 
@@ -466,6 +508,14 @@ function evk_circular_menu_init_one( root ) {
             startCollapse();
         }, wait * 1000 );
     }
+
+    /* KLIKNIĘCIE W PRZYCIEMNIONE TŁO ZAMYKA — i nie trzeba do tego ani jednej
+       linii. Robi to nasłuch „klik poza panelem" niżej: przyciemnienie nie jest
+       częścią panelu, więc kliknięcie w nie jest kliknięciem na zewnątrz.
+       Miałem tu własny `scrim.addEventListener('click', closeMenu)` — mutacja
+       zdejmująca go przeszła na ZIELONO, bo niczego nie wnosił. Dwie drogi do
+       tego samego zamknięcia to prosta droga do podwójnego wywołania przy
+       następnej zmianie, więc został jeden mechanizm — ten, który już był. */
 
     function toggle() {
         if ( ! panel ) return;

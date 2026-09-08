@@ -104,6 +104,7 @@
   root.setAttribute('data-raise-selector', q.get('raisesel')  || '');
   root.setAttribute('data-open-builder',  q.get('ob') === '1' ? '1' : '0');
   root.setAttribute('data-close-on-esc',  q.get('esc')    === '0' ? '0' : '1');
+  root.setAttribute('data-scrim',         q.get('scrim')  === '1' ? '1' : '0');
 </script>
 
 <script src="../../assets/vendor/gsap/gsap.min.js"></script>
@@ -169,6 +170,34 @@ window.__stanPrzycisku = function (id) {
 
 /** Gdzie wylądował panel — portal przenosi go wprost do <body>. */
 window.__panelParent = function () { return panel().parentElement.tagName.toLowerCase(); };
+
+/** Stan przyciemnienia tła. `null`, gdy elementu nie ma w drzewie wcale. */
+window.__scrim = function () {
+  var s = document.querySelector('.evk-cm-scrim');
+  if (!s) return null;
+  var cs = getComputedStyle(s);
+  var b = s.getBoundingClientRect();
+  return {
+    rodzic:  s.parentElement.tagName.toLowerCase(),
+    krycie:  Math.round(parseFloat(cs.opacity) * 100) / 100,
+    klikalny: cs.pointerEvents !== 'none',
+    tlo:     cs.backgroundColor,
+    warstwa: parseInt(cs.zIndex, 10),
+    // Czy naprawdę zakrywa okno — przyciemnienie o zerowym polu nic nie daje.
+    szer: Math.round(b.width), wys: Math.round(b.height),
+    /* Panel MA BYĆ NAD przyciemnieniem. Porównujemy warstwy, bo to one
+       rozstrzygają, a nie kolejność w drzewie. */
+    panelWyzej: parseInt(getComputedStyle(panel()).zIndex, 10) > parseInt(cs.zIndex, 10),
+  };
+};
+
+/** Klik w przyciemnione tło — dokładnie w róg, z dala od panelu. */
+window.__klikScrim = function () {
+  var s = document.querySelector('.evk-cm-scrim');
+  if (!s) return false;
+  s.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  return true;
+};
 
 /**
  * Promień obcięcia panelu — jedyna miara, po której widać stan menu.

@@ -37,6 +37,33 @@
     --evk-cm-clip-open: circle(150% at var(--evk-cm-from-left) var(--evk-cm-from-top));
 }
 
+/* ── PRZYCIEMNIENIE TŁA ────────────────────────────────────────────────────
+ *
+ * Osobny element, nie tło panelu — panel bywa mniejszy od ekranu (ma własne
+ * kontrolki szerokości i wysokości), a przyciemnić trzeba całą stronę. Leży
+ * o jeden poziom pod panelem, więc panel zawsze jest nad nim niezależnie od
+ * tego, jaki `z-index` ustawi użytkownik.
+ *
+ * Krycie, nie `display` — zmiana `display` nie da się animować, a przejście ma
+ * trwać dokładnie tyle co rozwijanie kadru. Czas i krzywa idą z tej samej
+ * osi czasu GSAP-a co `clip-path` panelu, więc nie ma tu żadnego `transition`:
+ * dwie animacje tej samej rzeczy to prosta droga do rozjazdu.
+ */
+.evk-cm-scrim {
+    position: fixed;
+    inset: 0;
+    background: var(--evk-cm-scrim, rgba(15, 23, 42, .55));
+    opacity: 0;
+    /* Zamknięte przyciemnienie nie może łapać kliknięć — leży na całej stronie
+       i przechwyciłoby wszystko, także przy zamkniętym menu. */
+    pointer-events: none;
+}
+.evk-cm-scrim.is-open { pointer-events: auto; }
+
+/* Przy „ogranicz ruch" przyciemnienie pojawia się bez przejścia, ale POJAWIA
+   SIĘ — jest informacją o stanie, nie ozdobą. Czas animacji jest wtedy
+   wyzerowany w skrypcie, więc oś czasu ustawia krycie natychmiast. */
+
 /* Gdy portal=0 (bez przenoszenia) — fallback na absolute */
 .evk-cm[data-portal="0"] .evk-cm-content {
     position: absolute;

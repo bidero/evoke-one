@@ -572,6 +572,66 @@ module.exports = async function (t) {
   // czy `reverse()` ma jeszcze co odtwarzać — GSAP trzyma wartości brzegowe
   // w tweenach z chwili inicjalizacji, ale to było przypuszczenie.
   // Zmierzone: ma.
+  // ── Przyciemnienie tła ─────────────────────────────────────────────────
+  t.section('przyciemnienie tła — tylko gdy włączone');
+
+  /* ZGŁOSZONE Z UŻYCIA: „dodanie przyciemnianego tła, kiedy circular menu nie
+     zajmuje 100% wysokości/szerokości". Panel ma kontrolki szerokości
+     i wysokości, więc bywa mniejszy od ekranu — a wtedy nic nie pokazuje, że
+     strona pod spodem jest nieaktywna.
+
+     KONTROLA NEGATYWNA IDZIE PIERWSZA i jest tu ważniejsza niż zwykle:
+     domyślnie wyłączone znaczy, że żadna gotowa strona nie może wyglądać
+     inaczej po aktualizacji. */
+  const bezScrimu = await t.open('circular-menu.html', { viewport: V, query: 'dur=0.1', settle: 250 });
+  t.check('wyłączone — nie ma go w drzewie wcale',
+    (await bezScrimu.evaluate(() => window.__scrim())) === null, 'brak .evk-cm-scrim');
+  await bezScrimu.evaluate(() => window.__open());
+  await bezScrimu.waitForTimeout(300);
+  t.check('i po otwarciu nadal go nie ma',
+    (await bezScrimu.evaluate(() => window.__scrim())) === null, 'brak .evk-cm-scrim');
+  await bezScrimu.close();
+
+  const zeScrimem = await t.open('circular-menu.html',
+    { viewport: V, query: 'dur=0.1&scrim=1', settle: 250 });
+
+  const przed = await zeScrimem.evaluate(() => window.__scrim());
+  t.check('włączone — element powstaje', przed !== null, JSON.stringify(przed));
+  t.check('jedzie do <body> razem z panelem', przed && przed.rodzic === 'body',
+    'rodzic: ' + (przed || {}).rodzic);
+  /* Zamknięte MUSI być przezroczyste i nieklikalne — leży na całej stronie,
+     więc inaczej przechwytywałoby każde kliknięcie przy zamkniętym menu. */
+  t.check('zamknięte jest niewidoczne i nie łapie kliknięć',
+    przed && przed.krycie === 0 && przed.klikalny === false,
+    'krycie ' + (przed || {}).krycie + ', klikalny ' + (przed || {}).klikalny);
+  t.check('a panel leży NAD nim',
+    przed && przed.panelWyzej === true, 'panel wyżej: ' + (przed || {}).panelWyzej);
+  t.check('i zakrywa całe okno',
+    przed && przed.szer === V.width && przed.wys === V.height,
+    (przed || {}).szer + '×' + (przed || {}).wys);
+
+  await zeScrimem.evaluate(() => window.__open());
+  await zeScrimem.waitForTimeout(400);
+  const po = await zeScrimem.evaluate(() => window.__scrim());
+  t.check('po otwarciu jest widoczne', po && po.krycie === 1, 'krycie: ' + (po || {}).krycie);
+  t.check('i łapie kliknięcia', po && po.klikalny === true, 'klikalny: ' + (po || {}).klikalny);
+
+  /* Kliknięcie zamyka — tak samo jak w Offcanvas Menu. Mierzymy promieniem
+     obcięcia, bo to jedyna miara stanu tego menu (patrz nagłówek pliku). */
+  t.check('menu jest otwarte przed klikiem',
+    await zeScrimem.evaluate(() => window.__rozwiniety()),
+    (await zeScrimem.evaluate(() => window.__clip())).raw);
+  await zeScrimem.evaluate(() => window.__klikScrim());
+  await zeScrimem.waitForTimeout(400);
+  t.check('kliknięcie w tło zamyka menu',
+    !(await zeScrimem.evaluate(() => window.__rozwiniety())),
+    (await zeScrimem.evaluate(() => window.__clip())).raw);
+  const poZamknieciu = await zeScrimem.evaluate(() => window.__scrim());
+  t.check('a tło znowu przepuszcza kliknięcia',
+    poZamknieciu && poZamknieciu.klikalny === false,
+    'klikalny: ' + (poZamknieciu || {}).klikalny);
+  await zeScrimem.close();
+
   t.section('cofnięcie odtwarza stan sprzed animacji mimo clearProps');
 
   const cp = await t.open('circular-menu.html',
