@@ -69,6 +69,25 @@
     });
   })(0);
 
+  /**
+   * Udaje przeglądarkę, która UKRYWA nazwę sterownika.
+   *
+   * `WEBGL_debug_renderer_info` bywa wyłączone ze względu na prywatność i jest
+   * wyłączane w kolejnych przeglądarkach. Element ma wtedy nie zgadywać, tylko
+   * zdać się na zmierzony koszt klatki — a bez tej atrapy tego przypadku nie da
+   * się w ogóle wywołać w środowisku, w którym nazwa sterownika JEST dostępna.
+   */
+  window.__ukryjSterownik = function () {
+    [window.WebGLRenderingContext, window.WebGL2RenderingContext].forEach(function (K) {
+      if (!K) return;
+      var oryg = K.prototype.getExtension;
+      K.prototype.getExtension = function (nazwa) {
+        if (nazwa === 'WEBGL_debug_renderer_info') return null;
+        return oryg.call(this, nazwa);
+      };
+    });
+  };
+
   /** Wstawia moduł elementu, przepisując importy na lokalne. */
   window.__start = function () {
     var html = (window.__tresc || '')

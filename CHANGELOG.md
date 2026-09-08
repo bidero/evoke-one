@@ -2,6 +2,71 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.153.0] — 2026-09-08
+
+### Naprawione
+
+- **Bez akceleracji sprzętowej fala rysuje jeden kadr i nie animuje się wcale.**
+  Zgłaszający zrobił porównanie A/B na żywej stronie — ten sam adres, jedyna różnica
+  to przełącznik modułu w panelu:
+
+  | | Wave włączony | Wave wyłączony |
+  |---|---|---|
+  | Total Blocking Time | 2 598 ms | **83 ms** |
+  | Praca wątku głównego | 9,1 s | **1,3 s** |
+  | kategoria „Other" | 7 119 ms | **200 ms** |
+  | zadań ponad 50 ms | 76 | **4** |
+
+  **To był mój błąd w odczycie.** Po 1.152.0 napisałem, że fala „zniknęła z listy
+  długich zadań", bo w raporcie stało przy nich `gsap.min.js` i `parallax.js`.
+  Tymczasem te dziewiętnaście zadań przypisanych do GSAP-a **to była fala** —
+  po jej wyłączeniu z 2 566 ms zostaje 97 ms. Lighthouse przypisuje zadanie do
+  skryptu na wierzchu stosu przy próbkowaniu, a praca fali leci z
+  `requestAnimationFrame` w tych samych klatkach, w których tyka lokalny GSAP.
+  Rozbieżność między atrybucją a mechanizmem zauważyłem na początku i zapisałem
+  w planie, po czym potraktowałem tę samą atrybucję jak dowód. Test A/B jest tym
+  pomiarem, którego wtedy zabrakło.
+
+  **Drabina jakości z 1.152.0 celowała w niewłaściwą metrykę.** Budżet 40 ms zbija
+  liczbę zadań ponad 50 ms, czyli TBT — i to zadziałało, z 22 330 na 2 598 ms. Ale
+  zejście pod próg długiego zadania **to nie jest to samo, co przestać obciążać
+  procesor**: przy 33 ms na klatkę fala nadal zjadała wątek bez przerwy, stąd 7,1 s
+  w „Other" i interaktywność dopiero po 7,5 s.
+
+  Element sprawdza teraz, czy przeglądarka rasteryzuje **programowo** — odczytem
+  `WEBGL_debug_renderer_info` z kontekstu, którego naprawdę używa (SwiftShader,
+  llvmpipe, Microsoft Basic Render, mesa offscreen). Jeśli tak, rysuje **jeden kadr
+  i kończy**, tak samo jak przy `prefers-reduced-motion`. Zmierzone: wątek główny
+  wraca do 16,7 ms na klatkę, czyli jest wolny.
+
+  **Na sprzęcie z GPU nie zmienia się nic** — także na starym, byle miał kartę.
+  Brak odpowiedzi od przeglądarki (rozszerzenie bywa wyłączane dla prywatności)
+  **nie znaczy „zamroź"**: wtedy pracuje drabina jakości, która mierzy rzeczywisty
+  koszt klatki i nie potrzebuje niczyjej deklaracji.
+
+- **Nieruchomy kadr był całkowicie niewidoczny — także przy „ograniczonym ruchu".**
+  Znalezione przy dokładaniu ścieżki bez akceleracji. `uAlpha` startuje od **zera**
+  i dochodzi do jedynki dopiero animacją wejściową, więc pojedyncza klatka
+  narysowana przed nią nie pokazuje **nic**. Komentarz w kodzie obiecywał, że
+  „gradient zostaje na ekranie" — i nie była to prawda od czasu dołożenia tej
+  ścieżki. Obie drogi ustawiają teraz stan końcowy przed narysowaniem kadru,
+  a wartości `uPow` i `uAlpha` stoją w jednym miejscu, żeby kadr nie mógł się
+  rozjechać z wyglądem po animacji wejściowej.
+
+### Zmienione
+
+- **Drabina jakości jest teraz drugą linią, nie pierwszą.** Pracuje tam, gdzie
+  wykrycie sterownika nie pomoże: na słabym, ale prawdziwym GPU oraz w przeglądarce,
+  która nazwę sterownika ukrywa. Test wywołuje ten przypadek atrapą zwracającą
+  `null` z `WEBGL_debug_renderer_info` — bez niej tej ścieżki nie dałoby się
+  w ogóle sprawdzić w środowisku, w którym nazwa jest dostępna.
+
+- **Sprawdzenie drabiny pyta o KOLEJNOŚĆ szczebli, nie o to, jak nisko zeszła.**
+  Poprzednia wersja wymagała zatrzymania się na drugim szczeblu i zapaliła się przy
+  pierwszej zmianie rozmiaru okna w teście: na wolniejszej maszynie drugi szczebel
+  trafia w 42 ms przy budżecie 40 i schodzenie dalej jest poprawne. Warunek zależał
+  od szybkości maszyny testowej zamiast od zachowania kodu.
+
 ## [1.152.0] — 2026-09-08
 
 ### Dodane

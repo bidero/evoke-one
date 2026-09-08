@@ -194,6 +194,79 @@ module.exports = async function (t) {
     bezPauzy.poza > bezPauzy.widoczna * 0.7,
     bezPauzy.widoczna + ' → ' + bezPauzy.poza + ' ms');
 
+  // ── Brak akceleracji sprzętowej (1.153.0) ──────────────────────────────
+  t.section('bez GPU fala rysuje jeden kadr i przestaje obciążać');
+
+  /* ZGŁOSZONE PORÓWNANIEM A/B NA ŻYWEJ STRONIE: przy włączonej fali praca wątku
+     głównego wynosiła 9,1 s, przy wyłączonej 1,3 s — a kategoria „Other" 7119
+     wobec 200 ms. Drabina jakości z 1.152.0 zbiła TBT ośmiokrotnie, ale
+     zejście pod próg długiego zadania to NIE jest to samo, co przestać
+     obciążać procesor: przy 33 ms na klatkę fala nadal zjadała wątek bez
+     przerwy.
+
+     Chromium w testach rasteryzuje programowo (SwiftShader) — czyli jest
+     dokładnie tą maszyną, dla której ta ścieżka powstała. */
+  const bezGpu = async (ust) => {
+    const html = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify(ust)) + ' html');
+    const str = await t.open('wave-bg-pomiar.html', {
+      przezHttp: true,
+      viewport: { width: 1350, height: 940 },
+      dlawienieCPU: 4,
+      head: 'window.__tresc = ' + JSON.stringify(html) + ';',
+      query: 'evk-wave-debug=1',
+      settle: 200,
+    });
+    const log = [];
+    str.on('console', (m) => { if (m.text().includes('[EVK Wave]')) log.push(m.text()); });
+    await str.evaluate(() => window.__start());
+    await str.waitForTimeout(4000);
+    await str.evaluate(() => window.__zerujKlatki());
+    await str.waitForTimeout(2500);
+    const wolnyWatek = await str.evaluate(() => window.__medianaKlatki());
+
+    /* Czy w kadrze COKOLWIEK widać. Odczyt pikseli wymaga zachowanego bufora,
+       stąd `preserve_buffer` w ustawieniach tego przypadku — bez niego WebGL
+       wolno porzucić zawartość zaraz po wyświetleniu i odczyt trafia na pustkę
+       niezależnie od tego, czy fala się narysowała. */
+    const jasnosc = await str.evaluate(() => {
+      const c = document.querySelector('#scena canvas');
+      if (!c) return null;
+      const gl = c.getContext('webgl2') || c.getContext('webgl');
+      if (!gl) return null;
+      const px = new Uint8Array(4 * 64 * 64);
+      gl.readPixels(Math.floor(c.width / 2) - 32, Math.floor(c.height / 2) - 32,
+                    64, 64, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      let suma = 0;
+      for (let i = 0; i < px.length; i += 4) suma += px[i] + px[i + 1] + px[i + 2];
+      return Math.round(suma / (px.length / 4));
+    });
+    await str.close();
+    return { log, wolnyWatek, jasnosc };
+  };
+
+  const naSofcie = await bezGpu({ preserve_buffer: true });
+  t.check('rozpoznaje renderowanie programowe',
+    naSofcie.log.some((l) => l.includes('brak akceleracji')),
+    naSofcie.log[0] || 'brak komunikatu');
+  t.check('i oddaje wątek główny',
+    naSofcie.wolnyWatek !== null && naSofcie.wolnyWatek < 25,
+    naSofcie.wolnyWatek + ' ms na klatkę');
+  /* NAJWAŻNIEJSZE SPRAWDZENIE. `uAlpha` startuje od ZERA i dochodzi do jedynki
+     dopiero animacją wejściową — pojedyncza klatka narysowana przed nią jest
+     całkowicie niewidoczna. Tak działała dotąd także ścieżka „ograniczonego
+     ruchu", wbrew temu, co obiecywał komentarz w kodzie. */
+  t.check('a nieruchomy kadr NAPRAWDĘ coś pokazuje',
+    naSofcie.jasnosc !== null && naSofcie.jasnosc > 15,
+    'średnia jasność środka kadru: ' + naSofcie.jasnosc);
+
+  /* KONTROLA NEGATYWNA: z wyłączonym dopasowaniem jakości fala ma dalej
+     obciążać wątek. Bez tego sprawdzenia „wątek wolny" przechodziłoby także
+     dla elementu, który w ogóle nie wystartował. */
+  const bezDopasowania = await bezGpu({ auto_jakosc: 'nie' });
+  t.check('z wyłączonym dopasowaniem nadal obciąża',
+    bezDopasowania.log.length === 0 && bezDopasowania.wolnyWatek > 50,
+    bezDopasowania.wolnyWatek + ' ms na klatkę');
+
   // ── Drabina jakości w prawdziwej przeglądarce ──────────────────────────
   t.section('drabina jakości schodzi sama i zatrzymuje się pod progiem');
 
@@ -218,6 +291,12 @@ module.exports = async function (t) {
     const zejscia = [];
     str.on('console', (m) => { if (m.text().includes('[EVK Wave]')) zejscia.push(m.text()); });
 
+    /* UKRYWAMY NAZWĘ STEROWNIKA — i to jest badany przypadek, nie obejście.
+       Gdy przeglądarka nie mówi, czym renderuje (a coraz częściej nie mówi),
+       element ma nie zgadywać, tylko zdać się na zmierzony koszt klatki.
+       Bez tej atrapy fala rozpoznałaby tu SwiftShadera i zamroziła kadr, więc
+       drabina nie miałaby jak ruszyć. */
+    await str.evaluate(() => window.__ukryjSterownik());
     await str.evaluate(() => window.__start());
     await str.waitForTimeout(11000);
     await str.evaluate(() => window.__zerujKlatki());
@@ -248,14 +327,20 @@ module.exports = async function (t) {
     mediany.length >= 2 && mediany.every((m, i) => i === 0 || m < mediany[i - 1]),
     mediany.join(' → ') + ' ms');
 
-  /* I NIE KOŃCZY ZAMROŻENIEM. Ostatni szczebel zatrzymuje animację na
-     nieruchomym kadrze — to jest deska ratunku, nie normalna droga. Zmierzone
-     mutacją: bez tego sprawdzenia zamrożona fala przechodziła jako sukces,
-     bo nieruchoma strona też mieści się pod progiem. */
+  /* SCHODZI PO KOLEI, NIE SKACZE OD RAZU NA DÓŁ. Ostatni szczebel zatrzymuje
+     animację — to deska ratunku, a nie skrót. Zmierzone mutacją: bez tego
+     sprawdzenia zamrożona fala przechodziła jako sukces, bo nieruchoma strona
+     też mieści się pod progiem.
+
+     Sprawdzamy KOLEJNOŚĆ, nie to, jak nisko zeszła. Poprzednia wersja wymagała
+     zatrzymania się na drugim szczeblu i zapaliła się przy pierwszej zmianie
+     rozmiaru okna w teście: na wolniejszej maszynie drugi szczebel trafia
+     w 42 ms przy budżecie 40 i schodzenie dalej jest POPRAWNE. Warunek
+     zależał od szybkości maszyny testowej zamiast od zachowania kodu. */
   const poziomy = zDrabina.zejscia.map((l) => Number((l.match(/poziom (\d+)/) || [])[1]));
-  t.check('bez sięgania po zamrożenie kadru',
-    poziomy.length > 0 && Math.max(...poziomy) <= 2,
-    'najniższy szczebel: ' + Math.max(...poziomy));
+  t.check('schodząc po jednym szczeblu, bez przeskoków',
+    poziomy.length > 0 && poziomy.every((p, i) => p === i + 1),
+    'kolejność szczebli: ' + poziomy.join(' → '));
 
   /* KONTROLA NEGATYWNA PIERWSZA: bez drabiny zostaje wolno. Bez niej
      sprawdzenie wyżej przechodziłoby także dla kodu, który nie robi nic,

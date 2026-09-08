@@ -620,6 +620,38 @@ function evkWbReduced() {
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 }
 
+/**
+ * Czy ta przeglądarka rasteryzuje PROGRAMOWO, bez akceleracji sprzętowej.
+ *
+ * PO CO. Fala rysuje piksele w `requestAnimationFrame`. Na maszynie z GPU robi to
+ * karta i wątek główny prawie tego nie widzi. Bez GPU tę samą pracę wykonuje
+ * procesor — i wtedy sama animacja, nawet zbita do trzydziestu klatek na sekundę,
+ * zjada wątek główny bez przerwy. Zmierzone na żywej stronie porównaniem
+ * z wyłączonym modułem: 7119 ms w kategorii „Other" wobec 200 ms bez fali.
+ *
+ * Zejście pod próg długiego zadania to NIE JEST to samo, co przestać obciążać
+ * procesor — pierwsze zbija Total Blocking Time, drugie dopiero uwalnia maszynę.
+ * Dlatego tutaj nie schodzimy o szczebel, tylko zatrzymujemy animację na jednym
+ * kadrze, tak samo jak przy `prefers-reduced-motion`.
+ *
+ * ZWRACA `false`, GDY NIE WIADOMO. Rozszerzenie `WEBGL_debug_renderer_info` bywa
+ * wyłączone ze względu na prywatność i z czasem będzie coraz częściej. Brak
+ * odpowiedzi nie może znaczyć „zamroź" — od zgadywania jest drabina jakości,
+ * która mierzy rzeczywisty koszt klatki i nie potrzebuje niczyjej deklaracji.
+ */
+function evkWbBezAkceleracji(gl) {
+    try {
+        const ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+        if (!ext) return false;
+        const nazwa = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '').toLowerCase();
+        if (!nazwa) return false;
+        return ['swiftshader', 'llvmpipe', 'software', 'microsoft basic render', 'mesa offscreen']
+            .some((s) => nazwa.indexOf(s) !== -1);
+    } catch (e) {
+        return false;
+    }
+}
+
 /** Czy pokazywać, co robi drabina jakości: `?evk-wave-debug=1` w adresie. */
 function evkWbDebug() {
     return /[?&]evk-wave-debug=1/.test(location.search);
@@ -806,6 +838,7 @@ class EvkWaveBackground {
            powody są niezależne i nie mogą się nawzajem odkręcać. */
         this.powody        = new Set();
         this.obserwator    = null;
+        this.bezAkceleracji = false;
         /* Drabina jakości: 0 pełna, 1 bez post-processingu, 2 dodatkowo w połowie
            rozdzielczości, 3 nieruchomy kadr. `probki` zbiera odstępy klatek. */
         this.poziom        = 0;
@@ -842,6 +875,9 @@ class EvkWaveBackground {
             preserveDrawingBuffer: CONFIG.preserveBuffer,
         });
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, CONFIG.pixelRatioCap));
+
+        /* Sprawdzamy KONTEKST, którego naprawdę używamy, a nie nowe płótno obok. */
+        this.bezAkceleracji = CONFIG.autoJakosc && evkWbBezAkceleracji(this.renderer.getContext());
         this.renderer.setSize(this.width, this.height);
         this.renderer.setClearColor(0x000000, 0);
         container.appendChild(this.renderer.domElement);
@@ -959,9 +995,42 @@ class EvkWaveBackground {
         }
     }
 
+    /**
+     * Stan, do którego dochodzi animacja wejściowa — jedno miejsce, dwa użycia.
+     *
+     * Wartości muszą być te same tutaj i w `animateIn()`, inaczej nieruchomy kadr
+     * wyglądałby inaczej niż fala po wejściu. Stąd stała zamiast dwóch liczb
+     * wpisanych osobno.
+     */
+    static get STAN_KONCOWY() { return { uPow: 1.5, uAlpha: 1 }; }
+
+    /**
+     * Ustawia stan końcowy od razu, bez animacji.
+     *
+     * POTRZEBNE WSZĘDZIE TAM, GDZIE RYSUJEMY JEDEN KADR I KOŃCZYMY.
+     * `uAlpha` startuje od ZERA i dochodzi do jedynki dopiero animacją wejściową
+     * — pojedyncza klatka narysowana przed nią jest więc CAŁKOWICIE NIEWIDOCZNA.
+     * Dotyczyło to także ścieżki `prefers-reduced-motion`, która obiecywała
+     * w komentarzu, że „gradient zostaje na ekranie", a w rzeczywistości nie
+     * rysowała nic. Znalezione przy dokładaniu kadru dla maszyn bez akceleracji.
+     */
+    ustawStanKoncowy() {
+        const k = EvkWaveBackground.STAN_KONCOWY;
+        this.material.uniforms.uPow.value   = k.uPow;
+        this.material.uniforms.uAlpha.value = k.uAlpha;
+    }
+
     animateIn(duration, delay) {
-        gsap.to(this.material.uniforms.uPow,   { value: 1.5, duration, delay, ease: 'power4.out' });
-        gsap.to(this.material.uniforms.uAlpha, { value: 1,   duration, delay, ease: 'power4.out' });
+        const k = EvkWaveBackground.STAN_KONCOWY;
+        /* Bez animacji nie ma czego animować — od razu stan końcowy, żeby fala
+           była widoczna. */
+        if (evkWbReduced() || this.bezAkceleracji) {
+            this.ustawStanKoncowy();
+            this.rysujRaz();
+            return;
+        }
+        gsap.to(this.material.uniforms.uPow,   { value: k.uPow,   duration, delay, ease: 'power4.out' });
+        gsap.to(this.material.uniforms.uAlpha, { value: k.uAlpha, duration, delay, ease: 'power4.out' });
         this.allowRayMouse = false;
         gsap.to(this.rayMouse, {
             x: -0.4, y: -0.4,
@@ -970,6 +1039,12 @@ class EvkWaveBackground {
             immediateRender: false,   // jak w referencji
             onComplete: () => { this.allowRayMouse = true; },
         });
+    }
+
+    /** Jedna klatka, bez zamawiania następnej. */
+    rysujRaz() {
+        if (this.poziom === 0) this.composer.render();
+        else                   this.renderer.render(this.scene, this.camera);
     }
 
     render() {
@@ -1009,6 +1084,17 @@ class EvkWaveBackground {
         // to element dekoracyjny, więc jego zniknięcie zmieniłoby układ strony —
         // ale pętla rAF nie startuje. Wspólna polityka: includes/anim/motion.php.
         if (evkWbReduced()) return;
+
+        /* BEZ AKCELERACJI SPRZĘTOWEJ: jedna klatka i koniec. Gradient zostaje na
+           ekranie — element jest dekoracyjny, więc jego zniknięcie zmieniłoby
+           układ strony. Rysujemy tę jedną klatkę w PEŁNEJ jakości: jednorazowa
+           kompilacja shaderów kosztuje 152 ms (zmierzone), a obraz ma wyglądać
+           tak, jak zaprojektowany. */
+        if (this.bezAkceleracji) {
+            if (evkWbDebug()) console.log('[EVK Wave] brak akceleracji sprzętowej — jeden kadr, bez animacji');
+            this.rafId = 0;
+            return;
+        }
 
         /* Wstrzymanie mogło przyjść w trakcie tej klatki — wtedy nie zamawiamy
            następnej i zerujemy uchwyt, żeby `wznow()` wiedział, że pętla stoi. */
