@@ -87,11 +87,6 @@ class EVK_Parallax {
      */
     public function print_layer_css(): void {
         $scale = esc_html((string) $this->get_scale_value());
-        /* Domyślny zakres ruchu w pikselach. Skrypt liczył go jako
-           `wartość × 100` i tę samą liczbę wpisujemy tutaj, żeby oś natywna
-           ruszała warstwę dokładnie tak samo jak dotąd. */
-        $amp   = esc_html((string) round($this->get_parallax_value() * 100, 2));
-
         printf(
             '<style id="evk-parallax-layer">%s</style>' . "\n",
             '[data-parallax-css]{position:relative;overflow:hidden;isolation:isolate}'
@@ -107,7 +102,17 @@ class EVK_Parallax {
           . $scale . '))}'
 
           /* ZATRZYMANIE DZIEDZICZENIA — jeden wiersz, który zdejmuje jedną
-             trzecią kosztu ścieżki skryptowej.
+             trzecią kosztu ruchu.
+
+             BYŁ TU TAKŻE BLOK `@supports (animation-timeline: view())`,
+             prowadzący ten sam ruch osią widoku za 121 zamiast 1914 ms.
+             WYCOFANY w 1.155.1: oś widoku mierzy położenie względem
+             NAJBLIŻSZEGO PRZODKA BĘDĄCEGO KONTENEREM PRZEWIJANIA, a sekcje
+             Bricksa siedzą w kontenerach z `overflow:hidden`, które nigdy się
+             nie przewijają. Postęp animacji stał wtedy w miejscu i parallax
+             nie działał wcale. Sprawdzone na żywej stronie: 11 z 11 sekcji
+             miało takiego przodka. Zielony test brał się stąd, że fixture był
+             płaski — dziś ma ten sam kontener co strona.
              `--evk-par-y` i `--evk-par-amp` to własności NIESTANDARDOWE, a te
              dziedziczą się na całe poddrzewo. Zapis na sekcji unieważniał więc
              styl każdego jej potomka co klatkę przewijania. Zmierzone przy
@@ -124,37 +129,6 @@ class EVK_Parallax {
           . '{transform:translate3d(0,0,0) scale(var(--evk-par-scale,'
           . $scale . '))}}'
 
-          /* RUCH PROWADZONY PRZEZ PRZEGLĄDARKĘ, bez ani jednej linii skryptu
-             na klatkę.
-             Zmierzone przy sekcjach z 400 potomkami, dławienie CPU 4×:
-             dzisiejsza droga 1914 ms przeliczania stylu, ta sama animacja na
-             osi natywnej — 121 ms. Różnica bierze się stąd, że nie ma czego
-             unieważniać: przeglądarka prowadzi animację sama, a skrypt nie
-             dotyka już żadnej własności przy przewijaniu.
-
-             OŚ NAZWANA NA SEKCJI, nie `view()` na pseudoelemencie. Sekcja ma
-             `overflow:hidden`, więc SAMA jest kontenerem przewijania —
-             `view()` postawione na `::before` mierzyłoby ruch pseudoelementu
-             względem tej sekcji, a tam nic się nie przesuwa. W pomiarze
-             wyszło z tego „za darmo": wariant nie kosztował nic, bo nie robił
-             nic. Sonda „warstwa naprawdę się rusza" to złapała.
-
-             Kto tej składni nie zna — dziś Firefox — dostaje ścieżkę skryptową
-             wyżej, nietkniętą. */
-          . '@supports (animation-timeline: view()){'
-          .   '[data-parallax-css]{view-timeline-name:--evk-par;view-timeline-axis:block}'
-          .   '[data-parallax-css]::before{animation:evk-par linear both;'
-          .     'animation-timeline:--evk-par;animation-range:cover 0% cover 100%}'
-          .   '@keyframes evk-par{'
-          .     'from{transform:translate3d(0,var(--evk-par-amp,' . $amp . 'px),0) '
-          .       'scale(var(--evk-par-scale,' . $scale . '))}'
-          .     'to{transform:translate3d(0,calc(-1 * var(--evk-par-amp,' . $amp . 'px)),0) '
-          .       'scale(var(--evk-par-scale,' . $scale . '))}}'
-          /* Animacja przebija statyczną transformację z reguły „ogranicz
-             ruch", więc tam trzeba ją zdjąć wprost, a nie liczyć na kolejność. */
-          .   '@media (prefers-reduced-motion: reduce){'
-          .     '[data-parallax-css]::before{animation-name:none}}'
-          . '}'
         );
     }
 

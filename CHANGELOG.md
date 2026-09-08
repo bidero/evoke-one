@@ -2,6 +2,45 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.155.1] — 2026-09-08
+
+### Naprawione
+
+- **Parallax przestał działać po 1.155.0.** Zgłoszone z użycia: „parallax nie
+  działa, na pewno w Chrome". Wycofuję zmianę, która to spowodowała.
+
+  1.155.0 przeniosło ruch warstwy na `animation-timeline` z osią widoku.
+  Oś widoku mierzy położenie elementu **względem najbliższego przodka będącego
+  kontenerem przewijania** — a sekcje Bricksa siedzą w kontenerach
+  `.brxe-container` z `overflow: hidden`, które nigdy się nie przewijają.
+  Postęp animacji stał więc w miejscu i warstwa nie ruszała się wcale.
+  Sprawdzone na żywej stronie: **11 z 11 sekcji parallaksy** miało takiego
+  przodka, więc ta droga nie nadaje się tu do niczego.
+
+  **Test przechodził, bo sprawdzał nie to, co trzeba.** Fixture był płaski —
+  sekcje leżały bezpośrednio w `<body>`, bez kontenera z `overflow: hidden`.
+  Zmierzyłem koszt na własnym znaczniku i uznałem to za dowód, nie sprawdziwszy
+  ani razu prawdziwego. Teraz fixture ma ten sam kontener co strona, a nowe
+  sprawdzenie czyta **transformację warstwy**, nie samą zmienną: w 1.155.0
+  skrypt zapisywał `--evk-par-y` poprawnie i warstwa i tak stała, bo sterowała
+  nią zamrożona animacja.
+
+  Odtworzone i zweryfikowane na znaczniku trzech podstron: z regułą wgraną
+  warstwy stoją w tym samym miejscu przy każdym przewinięciu, z poprawioną
+  jadą.
+
+### Zostaje
+
+- **Reset dziedziczenia własności niestandardowych** — jedyna część 1.155.0,
+  która przetrwała, i ta zmierzona uczciwie. `--evk-par-y` dziedziczy się na
+  całe poddrzewo, więc zapis na sekcji unieważniał styl każdego jej potomka co
+  klatkę. Jeden wiersz w regule zdejmuje jedną trzecią kosztu: **1898 → 1235 ms**
+  przy układzie płaskim i **2582 → 883 ms** przy zagnieżdżonym (sześć sekcji po
+  400 potomków, dławienie CPU 4×, 120 klatek). Sprawdzone także na prawdziwym
+  znaczniku: własność nie dociera do zawartości sekcji.
+
+- Poprawki fali z 1.155.0 zostają bez zmian.
+
 ## [1.155.0] — 2026-09-08
 
 ### Naprawione

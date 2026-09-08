@@ -15,16 +15,28 @@
   body { margin: 0; }
   .sp { height: 150vh; }
   /* Parallax rusza wyłącznie przy tle graficznym — stąd data URI zamiast koloru. */
+  .brxe-container { overflow: hidden; }
   .px { height: 400px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='8' height='8' fill='%23334455'/%3E%3C/svg%3E"); }
 </style>
 
 <script>document.write(window.__regula || '');</script>
 
-<div class="sp"></div>
-<div class="px z-serwera" data-parallax="0.4" data-parallax-css="1"><p class="tresc">z serwera</p></div>
-<div class="sp"></div>
-<div class="px ze-skryptu" data-parallax="0.4" data-skala="1.2">ze skryptu</div>
-<div class="sp"></div>
+<!--
+  KONTENER Z `overflow: hidden` WOKÓŁ SEKCJI — tak wygląda prawdziwa strona.
+  Bricks owija sekcje w `.brxe-container`, a te mają `overflow: hidden`.
+  Bez tego przodka fixture był płaski i przepuścił regresję z 1.155.0: ruch
+  przeniesiony na `animation-timeline` działał tutaj, a na stronie stał
+  w miejscu, bo oś widoku mierzy położenie względem najbliższego przodka
+  będącego kontenerem przewijania. Sprawdzone na żywej stronie: 11 z 11 sekcji
+  parallaksy miało takiego przodka.
+-->
+<div class="brxe-container">
+  <div class="sp"></div>
+  <div class="px z-serwera" data-parallax="0.4" data-parallax-css="1"><p class="tresc">z serwera</p></div>
+  <div class="sp"></div>
+  <div class="px ze-skryptu" data-parallax="0.4" data-skala="1.2">ze skryptu</div>
+  <div class="sp"></div>
+</div>
 
 <script>window.evkParallaxSettings = { defaultValue: 0.3, defaultScale: 1.2 };</script>
 <script src="../../assets/js/parallax.js"></script>
