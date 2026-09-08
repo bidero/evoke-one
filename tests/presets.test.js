@@ -66,13 +66,34 @@ module.exports = async function (t) {
      podkreślenia). Czego mieć nie może, to `from`, które element GASI: to
      dopiero byłoby wejście w przebraniu i wróciłaby usterka „niewidoczny
      przed hover". */
-  const stanGasi = stany.filter((k) => {
+  const gasiWeFrom = (k) => {
     var f = presets[k].from || {};
     return f.opacity === 0 || f.visibility === 'hidden'
       || (typeof f.scale === 'number' && f.scale === 0);
-  });
+  };
+  /* JEDYNY DOPUSZCZALNY WYJĄTEK jest jawny: `ukrywa` oznacza preset, którego
+     CAŁĄ funkcją jest ukrycie celu do najechania (ikona wjeżdżająca na hoverze
+     przycisku). Znacznik zamiast rozluźnienia reguły — bez niego trzeba by
+     dopuścić gaszenie wszystkim stanom i sprawdzenie przestałoby cokolwiek
+     łapać. */
+  const stanGasi = stany.filter((k) => gasiWeFrom(k) && !presets[k].ukrywa);
   t.check('żaden preset stanowy nie gasi się we `from`', !stanGasi.length,
     stanGasi.join(', ') || 'brak');
+
+  /* Wyjątek nie może być furtką. Preset z `ukrywa` MUSI przywracać pełne
+     krycie w `to` — inaczej znacznikiem dałoby się zostawić element schowany
+     na zawsze, czyli dokładnie to, przed czym broni reguła wyżej. */
+  const ukrywaj = keys.filter((k) => presets[k].ukrywa);
+  t.check('wyjątek „ukrywa" jest używany oszczędnie',
+    ukrywaj.length > 0 && ukrywaj.length <= 4, ukrywaj.join(', ') || 'żaden');
+  const ukrywaBezPowrotu = ukrywaj.filter((k) => (presets[k].to || {}).opacity !== 1);
+  t.check('a każdy taki preset przywraca krycie w `to`', !ukrywaBezPowrotu.length,
+    ukrywaBezPowrotu.join(', ') || 'wszystkie wracają do opacity 1');
+  /* I musi być stanem — `ukrywa` na presecie wejściowym nic nie znaczy, bo tam
+     `from` i tak jest pomijane pod hoverem. Cichy zapis, który nie działa. */
+  const ukrywaNieStan = ukrywaj.filter((k) => !presets[k].stan);
+  t.check('i jest stanem, nie wejściem', !ukrywaNieStan.length,
+    ukrywaNieStan.join(', ') || 'wszystkie stanowe');
 
   const badPtr = keys.filter(
     (k) => presets[k].pointer && !['magnetic', 'tilt'].includes(presets[k].pointer));

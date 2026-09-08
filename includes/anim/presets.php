@@ -213,6 +213,64 @@ function evk_anim_presets(): array {
             'duration' => 0.35,
             'easing'   => 'power2.out',
         ],
+        /*
+         * ── IKONA POJAWIAJĄCA SIĘ NA NAJECHANIU ───────────────────────────
+         *
+         * ZGŁOSZONE Z UŻYCIA: „animacja przycisku na hover, która powoduje, że
+         * ikona SVG pojawia się animacją z prawej lub lewej strony".
+         *
+         * JAK TEGO UŻYĆ, bo to nie jest oczywiste z samej nazwy: animację
+         * zakłada się PRZYCISKOWI, wyzwalacz „Hover", a w polu „Cel animacji"
+         * wybiera „Selektor w środku" i wpisuje np. `svg`. Wtedy najechanie na
+         * przycisk rusza ikoną — silnik od początku rozdziela wyzwalacz od celu
+         * (patrz resolveTargets w animator.js), więc nie trzeba do tego niczego
+         * nowego.
+         *
+         * RODZINA STANOWA, i to jest tu istotne. Preset WEJŚCIOWY pod hoverem
+         * ma `from` celowo pomijane (`bezFrom = !cfg.stan`) — to była naprawa
+         * zgłoszenia „większość animacji powoduje, że element jest niewidoczny
+         * przed hover". Ikona ma być odwrotnie: ukryta do najechania. Znacznik
+         * `stan` przywraca `fromTo`, a wstrzymana oś czasu renderuje `from`
+         * natychmiast, więc ikona czeka schowana.
+         *
+         * PRZESUNIĘCIE JEST MAŁE (14 px) I BEZ ZMIANY UKŁADU. Ikona przy kryciu
+         * zero nadal zajmuje swoje miejsce, więc przycisk nie zmienia szerokości
+         * ani w spoczynku, ani po najechaniu — nic nie skacze. Wjazd „spoza
+         * przycisku" wymagałby przycięcia go `overflow: hidden`, a to zmienia
+         * wygląd elementu, którego preset nie powinien ruszać.
+         *
+         * Przy ograniczonym ruchu bramka w animator.js pomija wyzwalacz `hover`
+         * w całości — nie jest nakładany ani `from`, ani `to`, więc ikona
+         * zostaje widoczna w swoim naturalnym stanie. Ukryta na stałe byłaby
+         * funkcją zabraną, a nie animacją wyłączoną.
+         *
+         * ZNACZNIK `ukrywa` JEST JAWNYM WYJĄTKIEM OD REGUŁY. Zestaw pilnuje, że
+         * żaden preset stanowy nie gasi się we `from` — bo taki byłby wejściem
+         * w przebraniu i wracałaby usterka „niewidoczny przed hover". Tu ukrycie
+         * w spoczynku jest CAŁĄ FUNKCJĄ, więc zamiast rozluźniać regułę,
+         * oznaczamy odstępstwo. Sprawdzenie wymaga przy okazji, żeby `to`
+         * przywracało pełne krycie — inaczej znacznik dałoby się użyć do
+         * zostawienia czegoś schowanego na zawsze.
+         */
+        'hover-icon-right' => [
+            'label'    => 'Hover: ikona wjeżdża z prawej',
+            'stan'     => true,
+            'ukrywa'   => true,
+            'from'     => ['opacity' => 0, 'x' => 14],
+            'to'       => ['opacity' => 1, 'x' => 0],
+            'duration' => 0.3,
+            'easing'   => 'power2.out',
+        ],
+        'hover-icon-left' => [
+            'label'    => 'Hover: ikona wjeżdża z lewej',
+            'stan'     => true,
+            'ukrywa'   => true,
+            'from'     => ['opacity' => 0, 'x' => -14],
+            'to'       => ['opacity' => 1, 'x' => 0],
+            'duration' => 0.3,
+            'easing'   => 'power2.out',
+        ],
+
         'split-lines' => [
             'label'    => 'Tekst po liniach',
             'split'    => 'lines',

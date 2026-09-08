@@ -2,6 +2,65 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.159.0] — 2026-09-08
+
+### Dodane
+
+- **Animator: dwa presety „ikona wjeżdża na najechaniu".** Zgłoszone z użycia:
+  „animacja przycisku na hover, która powoduje, że ikona SVG pojawia się
+  animacją z prawej lub lewej strony". W bibliotece: **Hover: ikona wjeżdża
+  z prawej** i **z lewej**.
+
+  **Jak tego użyć** — bo z samej nazwy to nie wynika: animację zakłada się
+  **przyciskowi**, wyzwalacz „Hover", a w polu „Cel animacji" wybiera
+  „Selektor w środku" i wpisuje `svg`. Najechanie na przycisk rusza wtedy ikoną.
+  Silnik od początku rozdziela wyzwalacz od celu, więc nie trzeba było do tego
+  dokładać żadnego mechanizmu — tylko preset.
+
+  Presety należą do **rodziny stanowej**, i to jest tu istotne: preset wejściowy
+  pod hoverem ma `from` celowo pomijane (naprawa zgłoszenia „większość animacji
+  powoduje, że element jest niewidoczny przed hover"), a ikona ma być odwrotnie —
+  ukryta do najechania.
+
+  **Układ nie skacze.** Ikona przy kryciu zero nadal zajmuje swoje miejsce, więc
+  przycisk ma tę samą szerokość przed i po (zmierzone: 116,45 → 116,45 px).
+  Przesunięcie jest małe, 14 px — wjazd „spoza przycisku" wymagałby przycięcia go
+  `overflow: hidden`, czyli zmiany wyglądu, której preset nie powinien narzucać.
+
+  Przy ograniczonym ruchu bramka silnika pomija wyzwalacz `hover` w całości —
+  ikona zostaje **widoczna** w swoim naturalnym stanie. Ukryta na stałe byłaby
+  funkcją zabraną, a nie animacją wyłączoną.
+
+### Uwaga o regule, którą trzeba było ominąć
+
+Zestaw pilnował, że **żaden preset stanowy nie gasi się we `from`** — bo taki
+byłby wejściem w przebraniu i wracałaby usterka „niewidoczny przed hover".
+Ikona łamie tę regułę świadomie: ukrycie w spoczynku jest jej całą funkcją.
+Zamiast rozluźniać sprawdzenie, doszedł jawny znacznik `ukrywa` i trzy nowe
+warunki wokół niego: wolno go użyć tylko na presecie **stanowym**, `to` musi
+**przywracać pełne krycie**, a lista takich odstępstw ma zostać krótka. Bez tego
+znacznikiem dałoby się zostawić element schowany na zawsze — czyli dokładnie to,
+przed czym broni reguła.
+
+### Testy
+
+Sześć nowych sprawdzeń w zestawie `animator`: ikona czeka schowana i odsunięta,
+najechanie **na przycisk** ją odsłania, po zjechaniu znika, a przycisk nie
+zmienia szerokości. Do tego dwa sprawdzenia na presecie **„Hover: podkreślenie"**,
+który nie miał żadnego pokrycia — powstały przy okazji, gdy odczytałem
+`bezFrom = !cfg.stan` z odwrotnym znakiem i wziąłem działający preset za
+zepsuty. Nie jest zepsuty; teraz jest pilnowany.
+
+Cztery mutacje. Piąta — przeniesienie nasłuchu z przycisku na ikonę — zapaliła
+dopiero za trzecim podejściem: pierwsze złapało sprawdzenie parzystości
+`animator.min.js` zamiast sprawdzenia zachowania, a drugie było mutacją pustą
+(oś czasu GSAP-a nie ma metody `targets()`, więc wyrażenie cofało się do
+wyzwalacza i nic nie zmieniało).
+
+Trzy dalsze mutacje na samym wyjątku `ukrywa`: bez znacznika stanu, bez powrotu
+do pełnego krycia i ze zdjętym wyjątkiem — każda zapaliła to sprawdzenie, które
+miała.
+
 ## [1.158.1] — 2026-09-08
 
 ### Naprawione

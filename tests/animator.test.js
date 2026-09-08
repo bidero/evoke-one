@@ -200,6 +200,68 @@ module.exports = async function (t) {
   t.check('i dopisuje treść do końca', naKoniec.text === 'tekstowy',
     JSON.stringify(naKoniec.text));
 
+  /* ── Podkreślenie: rodzina stanowa DOSTAJE swój `from` ─────────────────
+   *
+   * Preset rysuje podkreślenie gradientem tła, który nadaje właśnie `from`.
+   * Bez niego `backgroundSize: 100% 2px` animowałoby rozmiar nieistniejącego
+   * obrazu i nie byłoby widać nic. Sprawdzenie powstało po tym, jak odczytałem
+   * `bezFrom = !cfg.stan` z odwrotnym znakiem i uznałem to za usterkę — nie
+   * jest nią, ale nic tego nie pilnowało. */
+  const podkrSpoczynek = await hv.evaluate(() => window.__tlo('podkreslenie'));
+  t.check('podkreślenie ma gradient już w spoczynku',
+    /gradient/.test(podkrSpoczynek.obraz) && /^0%/.test(podkrSpoczynek.rozmiar),
+    podkrSpoczynek.obraz.slice(0, 30) + ' | ' + podkrSpoczynek.rozmiar);
+  await hv.evaluate(() => window.__najedz('podkreslenie'));
+  /* JAWNY CZAS, nie `__bezRuchu()`. Ten pomocnik pyta, czy COŚ jest w ruchu —
+     a tuż po zdarzeniu oś czasu jeszcze nie wystartowała, więc odpowiada
+     „spokój" i czekanie kończy się natychmiast, przed pierwszą klatką.
+     Zmierzone: sprawdzenie padało na 0% → 0% mimo działającego presetu. */
+  await hv.waitForTimeout(700);
+  const podkrPo = await hv.evaluate(() => window.__tlo('podkreslenie'));
+  t.check('a po najechaniu rozjeżdża się na pełną szerokość',
+    /^100%/.test(podkrPo.rozmiar), podkrSpoczynek.rozmiar + ' → ' + podkrPo.rozmiar);
+
+  /* ── Ikona wjeżdżająca na najechaniu przycisku ─────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: „animacja przycisku na hover, która powoduje, że ikona
+   * SVG pojawia się animacją z prawej lub lewej strony".
+   *
+   * Rzecz do zmierzenia jest podwójna: ikona ma czekać SCHOWANA (inaczej preset
+   * nie robi nic, bo ikona i tak jest widoczna) i ma się pokazywać po najechaniu
+   * NA PRZYCISK, a nie na siebie. */
+  const ikonaSpoczynek = await hv.evaluate(() => window.__stan('ikonka'));
+  t.check('ikona czeka schowana',
+    ikonaSpoczynek.opacity <= 0.01, 'opacity ' + ikonaSpoczynek.opacity);
+  t.check('i odsunięta w bok, nie na swoim miejscu',
+    /matrix\([^)]*,\s*1[0-9](\.\d+)?,\s*0\)/.test(ikonaSpoczynek.transform)
+      || /matrix\(1, 0, 0, 1, 1[0-9]/.test(ikonaSpoczynek.transform),
+    ikonaSpoczynek.transform);
+
+  /* NAJECHANIE IDZIE NA PRZYCISK. To jest sedno: gdyby nasłuch siedział na
+     ikonie, nie dałoby się jej odsłonić — nie da się najechać na coś, czego
+     nie widać. */
+  const szerPrzed = await hv.evaluate(() => window.__szer('przycisk'));
+  await hv.evaluate(() => window.__najedz('przycisk'));
+  await hv.waitForTimeout(700);
+  const ikonaPo = await hv.evaluate(() => window.__stan('ikonka'));
+  t.check('najechanie na PRZYCISK odsłania ikonę',
+    ikonaPo.opacity >= 0.99, 'opacity ' + ikonaSpoczynek.opacity + ' → ' + ikonaPo.opacity);
+  t.check('i stawia ją na swoim miejscu',
+    spoczynkowa(ikonaPo.transform), ikonaPo.transform);
+
+  /* UKŁAD NIE SKACZE. Ikona przy kryciu zero nadal zajmuje swoje miejsce, więc
+     przycisk ma tę samą szerokość przed i po. Gdyby preset chował ją przez
+     `display` albo szerokość, napis przesuwałby się przy każdym najechaniu. */
+  const szerPo = await hv.evaluate(() => window.__szer('przycisk'));
+  t.check('a przycisk nie zmienia szerokości',
+    Math.abs(szerPo - szerPrzed) < 0.5, szerPrzed + ' → ' + szerPo + ' px');
+
+  await hv.evaluate(() => window.__zjedz('przycisk'));
+  await hv.waitForTimeout(700);
+  const ikonaWroc = await hv.evaluate(() => window.__stan('ikonka'));
+  t.check('a po zjechaniu ikona znowu znika',
+    ikonaWroc.opacity <= 0.01, 'opacity ' + ikonaWroc.opacity);
+
   t.check('bez błędów JS przy hoverze', !hv.errors.length, hv.errors.join(' | ') || 'brak');
   await hv.close();
 

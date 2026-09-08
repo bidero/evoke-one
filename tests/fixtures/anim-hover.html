@@ -34,6 +34,16 @@
      z serwera. Elementy stąd nigdy nie przeszły `initAll()` przy wczytaniu. -->
 <div id="pojemnik"></div>
 
+<!-- Podkreślenie: preset STANOWY, którego `from` nadaje gradient tła. Bez
+     nałożonego `from` animowałby rozmiar nieistniejącego obrazu. -->
+<a id="podkreslenie" href="#" data-evk-anim='{"animation":"podkr"}'>Podkreślenie</a>
+
+<!-- Ikona pojawiająca się na najechaniu NA PRZYCISK. Animacja siedzi na
+     przycisku, a rusza się `svg` w środku — wyzwalacz i cel są w silniku
+     rozdzielone od początku. Ikona ma własne id tylko po to, żeby dało się
+     ją zmierzyć. -->
+<button id="przycisk" data-evk-anim='{"animation":"ikona"}'>Zobacz więcej<svg id="ikonka" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+
 <script src="../../assets/vendor/gsap/gsap.min.js"></script>
 <script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
 <script src="../../assets/vendor/gsap/TextPlugin.min.js"></script>
@@ -50,6 +60,10 @@
       tekst:    row('typewriter',  'hover'),
       stanvp:   row('hover-dim',   'viewport'),
       kontrola: row('fade-up',     'viewport'),
+      podkr:    row('underline-sweep', 'hover'),
+      // Cel inny niż wyzwalacz: najechanie na przycisk, ruch ikony w środku.
+      ikona:    Object.assign(row('hover-icon-right', 'hover'),
+                              { targets: 'selector', selector: 'svg', duration: 0.3 }),
     },
     // Prawdziwa tablica presetów, wstrzyknięta przez `head` z PHP.
     presets: (window.__presets && window.__presets.presets) || {},
@@ -72,6 +86,17 @@
       html += '<div id="nowy' + i + '" data-evk-anim=\'{"animation":"stan"}\'>NOWY ' + i + '</div>';
     }
     document.getElementById('pojemnik').innerHTML = html;
+  };
+
+  /** Tło elementu — do presetów rysujących gradientem (podkreślenie). */
+  window.__tlo = function (id) {
+    var cs = getComputedStyle(document.getElementById(id));
+    return { obraz: cs.backgroundImage, rozmiar: cs.backgroundSize };
+  };
+
+  /** Szerokość elementu — do sprawdzenia, czy układ nie skacze przy najechaniu. */
+  window.__szer = function (id) {
+    return Math.round(document.getElementById(id).getBoundingClientRect().width * 100) / 100;
   };
 
   /** Ile węzłów silnika jest na stronie — do wykrycia zapętlenia obserwatora. */
