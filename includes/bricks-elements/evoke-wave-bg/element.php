@@ -1,6 +1,12 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
+/* Wersja three.js leżącego w assets/vendor/three. Ta liczba jest jednocześnie
+   cache-busterem w adresie modułu — bez jej zmiany po podbiciu biblioteki
+   przeglądarki zostaną przy starym pliku. Skąd biorą się pliki i jak je
+   podbić: assets/vendor/README.md. */
+if ( ! defined( 'EVK_THREE_VERSION' ) ) define( 'EVK_THREE_VERSION', '0.185.1' );
+
 class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 	public $category = EVK_BRICKS_CATEGORY;
@@ -465,6 +471,22 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 	 * ani na łańcuch, który wyszedłby z nawiasu. Drugie zabezpieczenie, po
 	 * stronie JS, ucieka cudzysłowy i ukośniki.
 	 */
+	/**
+	 * GSAP z `assets/vendor`, nie druga kopia z esm.sh.
+	 *
+	 * Element potrzebuje `gsap.quickTo` do wygładzania myszy i `gsap.to` do
+	 * wejścia fali. Do 1.156.0 importował własną kopię z cudzego serwera —
+	 * 34 KB obok tych samych 34 KB, które wtyczka już wozi dla Animatora,
+	 * Parallaksu i reszty. Ten sam handle znaczy jedno pobranie niezależnie
+	 * od tego, ile funkcji jest włączonych.
+	 */
+	public function enqueue_scripts(): void {
+		if ( function_exists( 'evk_register_gsap_libs' ) ) {
+			evk_register_gsap_libs();
+			wp_enqueue_script( 'evk-gsap' );
+		}
+	}
+
 	private function zastepnik_obraz_url( array $s ): string {
 		$img = $s['zastepnik_obraz'] ?? null;
 		if ( ! is_array( $img ) ) return '';
@@ -622,6 +644,20 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'autoJakosc'           => ( $s['auto_jakosc'] ?? 'tak' ) !== 'nie',
 			'budzetKlatki'         => max( 20, min( 200, (int) ( $s['budzet_klatki'] ?? 40 ) ) ),
 			'zastepnikObraz'       => $this->zastepnik_obraz_url( $s ),
+			/* three.js JEDZIE Z WŁASNEGO SERWERA, nie z esm.sh — z tych samych
+			   powodów co GSAP i Lenis (patrz assets/vendor/README.md): cudzy host
+			   to osobne DNS + TCP + TLS przed pierwszym bajtem, zależność od
+			   cudzej dostępności i wyciek adresów IP odwiedzających.
+			   JEDEN PLIK I JEDNO ŻĄDANIE. Paczka jest zbudowana z tego, czego
+			   element naprawdę używa, więc nic nie dociąga — oficjalny
+			   `three.module.min.js` ciągnąłby jeszcze `three.core.min.js`, czyli
+			   trzy pliki w kaskadzie i 190 KB po gzipie zamiast 133.
+			   Zmierzone zrzutami przy ustalonej chwili animacji: obraz z paczki
+			   jest IDENTYCZNY CO DO PIKSELA z obrazem z oficjalnych plików,
+			   zminifikowanych i nie. Wersja siedzi w ścieżce, nie w `?ver=`,
+			   żeby podbicie biblioteki nie mogło zostawić w pamięci podręcznej
+			   niedobranej pary plików. */
+			'vendorThree'          => EVOKE_ONE_URL . 'assets/vendor/three/' . EVK_THREE_VERSION . '/evoke-three.min.js',
 		];
 		$cfg_js = wp_json_encode( $cfg );
 
@@ -658,18 +694,19 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 let THREE, EffectComposer, RenderPass, ShaderPass, gsap;
 
 async function evkWbZaladujBiblioteki() {
-    const [t, ec, rp, sp, g] = await Promise.all([
-        import('https://esm.sh/three@0.185.1'),
-        import('https://esm.sh/three@0.185.1/examples/jsm/postprocessing/EffectComposer.js'),
-        import('https://esm.sh/three@0.185.1/examples/jsm/postprocessing/RenderPass.js'),
-        import('https://esm.sh/three@0.185.1/examples/jsm/postprocessing/ShaderPass.js'),
-        import('https://esm.sh/gsap@<?php echo EVK_GSAP_VERSION; ?>'),
-    ]);
-    THREE = t;
-    EffectComposer = ec.EffectComposer;
-    RenderPass     = rp.RenderPass;
-    ShaderPass     = sp.ShaderPass;
-    gsap           = g.default || g.gsap || g;
+    const m = await import(CONFIG.vendorThree);
+    THREE          = m;
+    EffectComposer = m.EffectComposer;
+    RenderPass     = m.RenderPass;
+    ShaderPass     = m.ShaderPass;
+
+    /* GSAP JEST JUŻ NA STRONIE — element go enqueue'uje (`enqueue_scripts()`),
+       a nie importuje własnej kopii. Czekamy, zamiast zakładać kolejność:
+       skrypty ze stopki wykonują się przed modułem, ale to jest własność
+       układu strony, a nie gwarancja, i przy odroczonym ładowaniu przestaje
+       obowiązywać. Gdy GSAP nie przyjdzie, obietnica odrzuca się i `evkWbBoot()`
+       rysuje zastępnik — tą samą drogą co przy niedostępnej bibliotece. */
+    gsap = await evkWbPoczekajNaGsap();
 
     /* three ≥0.152 domyślnie włącza zarządzanie kolorem: `new THREE.Color('#hex')`
        przelicza sRGB na przestrzeń liniową. Ten element podaje kolory wprost do
@@ -680,11 +717,18 @@ async function evkWbZaladujBiblioteki() {
 
        STOI TU, A NIE NA POZIOMIE MODUŁU: przy dynamicznym imporcie kod modułu
        wykonuje się ZANIM biblioteka istnieje, więc `THREE.ColorManagement`
-       wywracało się na `undefined`. Miejsce zaraz po przypisaniu jest jedynym,
-       w którym ta linia ma co ustawiać. */
+       wywracało się na `undefined`. */
     THREE.ColorManagement.enabled = false;
 
     COLORS = CONFIG.colors.map((c) => new THREE.Color(c));
+}
+
+/** Czeka na `window.gsap` najwyżej dwie sekundy. Potem się poddaje. */
+function evkWbPoczekajNaGsap(proba = 0) {
+    if (window.gsap) return Promise.resolve(window.gsap);
+    if (proba > 40)  return Promise.reject(new Error('GSAP nie pojawił się na stronie'));
+    return new Promise((ok, nie) => setTimeout(
+        () => evkWbPoczekajNaGsap(proba + 1).then(ok, nie), 50));
 }
 
 /** Wspólna polityka ruchu — patrz includes/anim/motion.php. */
@@ -1455,15 +1499,26 @@ async function evkWbBoot(tries = 0) {
        blokada sieci, strona za korporacyjnym filtrem — obietnica odrzuca się
        i bez tego przechwycenia element po prostu znika, zostawiając w układzie
        dziurę. Zastępnik już mamy; niech posłuży także tutaj. */
+    let instance;
     try {
         await evkWbZaladujBiblioteki();
+        instance = new EvkWaveBackground(container);
     } catch (e) {
-        console.warn('[EVK Wave] nie udało się pobrać bibliotek: ' + e.message);
+        /* Obejmuje też BUDOWĘ sceny, nie samo pobranie. Konstruktor sięga po
+           `gsap.quickTo` i po WebGL — jedno i drugie potrafi się wywrócić,
+           a wtedy bez tej klamry zostawał nieobsłużony wyjątek i puste miejsce
+           w układzie strony zamiast czegokolwiek. */
+        console.warn('[EVK Wave] fala nie wystartowała: ' + e.message);
+        /* KONSTRUKTOR ZDĄŻYŁ JUŻ WSTAWIĆ PŁÓTNO, zanim się wywrócił — dokłada je
+           do kontenera na długo przed `gsap.quickTo` i przed pierwszym
+           renderowaniem. Zostawione, przykrywałoby zastępnik pustym prostokątem.
+           Zmierzone: bez tej linii płótno zostawało w drzewie i sprawdzenie
+           „fala wystartowała" przechodziło mimo wywrotki. */
+        const plotno = container.querySelector('canvas');
+        if (plotno) plotno.remove();
         evkWbGradientZastepczy(container);
         return;
     }
-
-    const instance = new EvkWaveBackground(container);
 
     /* DRUGA LINIA OBRONY. Probka przed importem odpowiada „nie wiem" (czyli
        `false`), gdy nazwa sterownika jest niedostępna — i wtedy dowiadujemy się
@@ -1480,6 +1535,18 @@ async function evkWbBoot(tries = 0) {
         evkWbGradientZastepczy(container);
         return;
     }
+
+    /* UCHWYT DO PORÓWNAŃ WZROKOWYCH, tylko przy `?evk-wave-debug=1`.
+     *
+     * PO CO. Fala rysuje kadr zależny od `this.time`, a ten zależy od tego, ile
+     * razy zdążył wypaść `render()` — czyli od obciążenia maszyny. Zmierzone:
+     * dwa przebiegi TEGO SAMEGO kodu dają zrzuty różniące się średnio o 10
+     * poziomów jasności przy maksimum 129. To więcej niż różnica, którą chce
+     * się zwykle wykryć, więc porównywanie zrzutów bez ustalonej chwili animacji
+     * jest bezwartościowe — i przez chwilę wyciągałem z takich porównań wnioski.
+     *
+     * Uchwyt pozwala testowi ustawić chwilę wprost i narysować jeden kadr. */
+    if (evkWbDebug()) window.__evkWave = instance;
 
     instance.initScrollBehavior();
     instance.animateIn(2, 0.5);   // jak w referencji: animateIn(2, .5)

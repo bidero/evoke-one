@@ -6,11 +6,18 @@
 
   DWIE RZECZY WYMAGAJĄ WYJAŚNIENIA:
 
-  1. IMPORTY SĄ PRZEPISYWANE NA LOKALNE. Element importuje three.js z esm.sh, a Chromium
-     w środowisku testowym nie ma wyjścia na zewnątrz. Podmieniamy adresy na `node_modules`
-     — to ta sama biblioteka w tej samej wersji, więc koszt klatki jest ten sam. Sam fakt,
-     że bez tej podmiany elementu NIE DA SIĘ zmierzyć, jest osobnym argumentem za
-     wniesieniem three.js do repozytorium.
+  1. GSAP ŁADUJEMY TAK, JAK ROBI TO STRONA — z `assets/vendor/gsap`, tym samym
+     plikiem, który wtyczka enqueue'uje handlem `evk-gsap`. Element od 1.156.0
+     nie importuje własnej kopii, tylko sięga po `window.gsap`; fixture musi
+     więc postawić go tak samo jak WordPress, inaczej sprawdzalibyśmy coś innego,
+     niż jedzie na stronę.
+
+     Do 1.155.1 stała tu MAPA IMPORTÓW i przepisywanie adresów esm.sh na
+     `node_modules`. Jedno i drugie było potrzebne wyłącznie dlatego, że
+     biblioteka szła z cudzego serwera i pliki postprocessingu importowały
+     `three` jako NAZWĘ PAKIETU. Odkąd three.js leży w `assets/vendor/three`,
+     a paczka dodatków ma podmieniony specyfikator na ścieżkę względną, nie ma
+     czego przepisywać — fixture prosi o dokładnie te pliki co strona.
 
   2. MODUŁ WSTAWIAMY PRZEZ createElement, nie innerHTML. Skrypty doklejone przez `innerHTML`
      się nie wykonują — element by nie wystartował, a pomiar pokazałby zero pracy i wyszedł
@@ -22,27 +29,15 @@
      zapalałoby się na czymś, co nie ma z badanym kodem nic wspólnego. -->
 <link rel="icon" href="data:,">
 
-<!--
-  MAPA IMPORTÓW. Pliki post-processingu three.js importują `three` jako NAZWĘ PAKIETU
-  (`import { … } from 'three'`), a przeglądarka nie wie, gdzie to jest. Właśnie dlatego
-  element sięgał po esm.sh: tamten serwis przepisuje takie nazwy na adresy. To jest
-  konkretny powód techniczny, nie wygoda — i wprost pokazuje, czego będzie wymagało
-  wniesienie three.js do repozytorium: albo mapy importów na stronie, albo jednej
-  paczki zbudowanej bez nazw pakietów w środku.
--->
-<script type="importmap">
-{
-  "imports": {
-    "three": "/node_modules/three/build/three.module.js",
-    "three/": "/node_modules/three/"
-  }
-}
-</script>
+
 <style>
   html, body { margin: 0; height: 100%; background: #111; }
   #scena { position: relative; width: 100%; height: 100vh; }
   #dalej { height: 300vh; }
 </style>
+
+<!-- Ten sam plik, który wtyczka podaje handlem `evk-gsap`. -->
+<script src="/assets/vendor/gsap/gsap.min.js"></script>
 
 <div id="scena"></div>
 <div id="dalej"></div>
@@ -127,10 +122,7 @@
 
   /** Wstawia moduł elementu, przepisując importy na lokalne. */
   window.__start = function () {
-    var html = (window.__tresc || '')
-      .replace(/https:\/\/esm\.sh\/three@[\d.]+\/examples\/jsm\//g, 'three/examples/jsm/')
-      .replace(/https:\/\/esm\.sh\/three@[\d.]+/g, 'three')
-      .replace(/https:\/\/esm\.sh\/gsap@[\d.]+/g, '/node_modules/gsap/index.js');
+    var html = window.__tresc || '';
 
     var tmp = document.createElement('div');
     tmp.innerHTML = html;
@@ -145,6 +137,40 @@
       n.textContent = s.textContent;
       document.body.appendChild(n);
     });
+  };
+
+  /**
+   * Udaje stronę, na której GSAP przychodzi PÓŹNIEJ niż moduł fali.
+   *
+   * Element nie importuje już własnej kopii — bierze `window.gsap` postawiony
+   * przez WordPressa. Kolejność „skrypt ze stopki przed modułem" jest własnością
+   * układu strony, a nie gwarancją: przy odroczonym ładowaniu albo skrypcie
+   * przeniesionym do nagłówka przestaje obowiązywać. Bez tej atrapy czekanie
+   * na GSAP-a nie ma jak zapalić — w fixturze biblioteka jest zawsze na miejscu.
+   */
+  window.__gsapPozniej = function (ms) {
+    var g = window.gsap;
+    delete window.gsap;
+    setTimeout(function () { window.gsap = g; }, ms || 700);
+  };
+
+  /**
+   * Rysuje kadr w USTALONEJ chwili animacji i oddaje sterowanie.
+   *
+   * Bez tego porównywanie zrzutów nie ma sensu: `time` rośnie o 0,01 przy każdym
+   * wywołaniu `render()`, więc kadr zależy od tego, ile klatek zdążyło wypaść —
+   * czyli od obciążenia maszyny. Zmierzone: dwa przebiegi tego samego kodu
+   * różniły się średnio o 10 poziomów jasności przy maksimum 129.
+   */
+  window.__kadr = function (chwila) {
+    var w = window.__evkWave;
+    if (!w) return false;
+    w.wstrzymaj('zrzut');          // pętla ma stanąć, inaczej zaraz nadpisze kadr
+    w.time  = chwila;
+    w.uTime = 0.1;
+    w.ustawStanKoncowy();
+    w.rysujRaz();
+    return true;
   };
 
   /** Zeruje próbkę, żeby zmierzyć wybrany odcinek osobno. */

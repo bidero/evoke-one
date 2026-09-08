@@ -10,7 +10,7 @@
  * nie z regexa po źródle — regex sprawdzałby naszą interpretację pliku.
  */
 
-const { phpOutput, barwyZrzutu } = require('./lib/harness');
+const { phpOutput, barwyZrzutu, ROOT } = require('./lib/harness');
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const run = (settings) => JSON.parse(phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify(settings))));
@@ -194,6 +194,39 @@ module.exports = async function (t) {
     bezPauzy.poza > bezPauzy.widoczna * 0.7,
     bezPauzy.widoczna + ' → ' + bezPauzy.poza + ' ms');
 
+  // ── Biblioteki z własnego serwera (1.156.0) ────────────────────────────
+  t.section('nic nie leci z cudzego CDN-u');
+
+  /* Do 1.155.1 element importował three.js i GSAP-a z esm.sh: 11 żądań, dwa
+     poziomy przekierowań i adres IP każdego odwiedzającego wysyłany na obcy
+     serwer. Sprawdzenie jest na ŹRÓDLE, nie na wyjściu — adres wpisany
+     w komentarzu albo w martwej gałęzi też ma zapalić. */
+  const zrodloElementu = require('fs').readFileSync(
+    require('path').join(ROOT, 'includes/bricks-elements/evoke-wave-bg/element.php'), 'utf8');
+  const kod = zrodloElementu.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  t.check('w kodzie elementu nie ma adresu do esm.sh',
+    !/esm\.sh/.test(kod), (kod.match(/https?:\/\/[^'"\s]*/g) || ['brak adresów zewnętrznych'])[0]);
+  t.check('paczka three.js leży w repozytorium',
+    require('fs').existsSync(require('path').join(ROOT, 'assets/vendor/three/0.185.1/evoke-three.min.js')),
+    'assets/vendor/three/0.185.1/evoke-three.min.js');
+  /* Paczka ma być SAMOWYSTARCZALNA — inaczej przeglądarka poprosi o plik,
+     którego nie wozimy, i wróci zależność od cudzego serwera tylnymi drzwiami. */
+  const paczka = require('fs').readFileSync(
+    require('path').join(ROOT, 'assets/vendor/three/0.185.1/evoke-three.min.js'), 'utf8');
+  /* JEDNA KOPIA GSAP-a NA STRONIE. Element deklaruje to jedynym miejscem —
+     `enqueue_scripts()`. Fixture przeglądarkowy ładuje GSAP-a sam (tak jak robi
+     to strona), więc zdjęcie tej metody nie zapaliłoby tam NICZEGO: sprawdzamy
+     więc kolejkę WordPressa, a nie stronę. */
+  const kolejka = JSON.parse(phpOutput('wave-bg-colors.php',
+    JSON.stringify(JSON.stringify({})) + ' skrypty'));
+  t.check('element prosi o wspólnego GSAP-a, zamiast wozić własnego',
+    kolejka.enqueued.includes('evk-gsap'),
+    'w kolejce: ' + (kolejka.enqueued.join(', ') || 'nic'));
+
+  t.check('i nie dociąga niczego dalej',
+    !/\bfrom\s*["'][^"']+["']/.test(paczka),
+    (paczka.match(/from\s*["'][^"']+["']/g) || ['zero importów']).join(', '));
+
   // ── Brak akceleracji sprzętowej (1.153.0, przebudowane w 1.154.0) ──────
   t.section('bez GPU fala nie pobiera three.js');
 
@@ -228,20 +261,28 @@ module.exports = async function (t) {
     /* Licznik żądań, bo o to w tym wydaniu chodzi: biblioteki mają się NIE
        pobrać. Podpięty po `open()`, ale przed `__start()` — moduł wstawia się
        dopiero tam, więc nic nam nie ucieknie. */
-    const zadania = { biblioteki: [], obraz: [] };
+    const zadania = { biblioteki: [], gsap: [], obraz: [] };
     str.on('request', (r) => {
       const u = r.url();
-      if (/three|gsap/.test(u))              zadania.biblioteki.push(u);
-      if (/obraz-zastepczy\.svg/.test(u))    zadania.obraz.push(u);
+      if (/evoke-three/.test(u))                  zadania.biblioteki.push(u);
+      /* GSAP osobno: od 1.156.0 element go NIE POBIERA — bierze `window.gsap`
+         postawiony przez stronę. Fixture ładuje go przed `__start()`, więc to,
+         co tu wpadnie, jest żądaniem samego modułu. */
+      if (/gsap/.test(u))                         zadania.gsap.push(u);
+      if (/obraz-zastepczy\.svg/.test(u))         zadania.obraz.push(u);
     });
 
     if (opcje.ukryjSterownik)    await str.evaluate(() => window.__ukryjSterownik());
     if (opcje.ukryjSterownikRaz) await str.evaluate(() => window.__ukryjSterownikRaz(1));
     if (opcje.bezWebGL)          await str.evaluate(() => window.__wylaczWebGL());
-    /* Odcięcie bibliotek — udaje niedostępny esm.sh. Fixture przepisuje adresy
-       na lokalne, więc blokujemy to, po co element naprawdę sięga. */
+        /* 1500 ms, a nie 700: paczka three.js waży pół megabajta i samo jej
+       pobranie trwa dłużej niż krótkie opóźnienie — GSAP wracał, zanim
+       czekanie miało co robić, i mutacja zdejmująca je przechodziła. */
+    if (opcje.gsapPozniej)       await str.evaluate(() => window.__gsapPozniej(1500));
+    /* Odcięcie bibliotek — udaje serwer, który nie oddaje plików three.js
+       (uszkodzone wdrożenie, blokada, literówka w adresie). */
     if (opcje.blokujBiblioteki) {
-      await str.route('**/node_modules/**', (r) => r.abort());
+      await str.route('**/assets/vendor/three/**', (r) => r.abort());
     }
     await str.evaluate(() => window.__start());
     await str.waitForTimeout(4000);
@@ -256,6 +297,11 @@ module.exports = async function (t) {
         plotno:    !!c,
         znacznik:  el ? el.getAttribute('data-evk-wb-zastepnik') : null,
         tlo:       el ? getComputedStyle(el).backgroundImage : '',
+        /* Uchwyt debugowy — jedyne, co pozwala porównywać zrzuty przy USTALONEJ
+           chwili animacji. Bez niego kadr zależy od tego, ile klatek zdążyło
+           wypaść, i porównanie zrzutów jest bezwartościowe (zmierzone: dwa
+           przebiegi tego samego kodu różniły się średnio o 10 poziomów). */
+        uchwyt:    !!window.__evkWave,
         /* Czy płótno ZACHOWUJE narysowaną zawartość. Przy jednym kadrze i
            `preserveDrawingBuffer:false` przeglądarce wolno je wyczyścić zaraz
            po wyświetleniu — i nic go już nie odrysuje. */
@@ -271,6 +317,17 @@ module.exports = async function (t) {
        byłoby czytaniem własnego zapisu — a to jest dokładnie ten rodzaj
        sprawdzenia, który w 1.152.0 przepuścił nieruchomy kadr o zerowym
        kryciu, czyli obraz, którego NIE BYŁO WIDAĆ. */
+    /* `ustalKadr` zdejmuje zależność od czasu tam, gdzie ona przeszkadza.
+       Wejście fali trwa 2,5 s i przy opóźnionym GSAP-ie potrafi się nie zmieścić
+       przed zrzutem — pod obciążeniem pełnego zestawu sprawdzenie „kadr nie jest
+       pusty" padało, choć w izolacji przechodziło trzy razy z rzędu na tej samej
+       liczbie. To był za ciasny margines w teście, nie usterka: drabina jakości
+       dochodzi do zamrożenia i kadr ZACHOWUJE treść (sprawdzone osobno, 6333
+       barwy także dziesięć sekund później). */
+    if (opcje.ustalKadr) {
+      await str.evaluate(() => window.__kadr && window.__kadr(3.7));
+      await str.waitForTimeout(250);
+    }
     let barwy = null;
     try {
       barwy = barwyZrzutu(await str.locator('#scena').screenshot());
@@ -286,7 +343,7 @@ module.exports = async function (t) {
     naSofcie.log[0] || 'brak komunikatu');
   /* SEDNO WYDANIA. Do 1.153.0 te 287 KB szły na łącze zawsze — także na maszynę,
      która i tak zobaczy jeden nieruchomy kadr. */
-  t.check('nie pobiera three.js ani GSAP-a',
+  t.check('nie pobiera three.js',
     naSofcie.zadania.biblioteki.length === 0,
     naSofcie.zadania.biblioteki.length + ' żądań');
   t.check('nie stawia płótna WebGL',
@@ -319,8 +376,17 @@ module.exports = async function (t) {
   t.check('z wyłączonym dopasowaniem POBIERA biblioteki',
     zeSterownikiem.zadania.biblioteki.length > 0,
     zeSterownikiem.zadania.biblioteki.length + ' żądań');
+  /* JEDNA KOPIA GSAP-a NA STRONIE. Do 1.156.0 element importował własną
+     z esm.sh — 34 KB obok tych samych 34 KB, które wtyczka już wozi dla
+     Animatora i reszty. Teraz bierze `window.gsap`, więc sam nie prosi
+     o nic. */
+  t.check('ale GSAP-a nie pobiera — bierze ten ze strony',
+    zeSterownikiem.zadania.gsap.length === 0,
+    zeSterownikiem.zadania.gsap.length + ' żądań o GSAP-a');
   t.check('z wyłączonym dopasowaniem stawia płótno',
     zeSterownikiem.plotno === true, 'płótno: ' + zeSterownikiem.plotno);
+  t.check('i wystawia uchwyt do porównań zrzutów',
+    zeSterownikiem.uchwyt === true, 'window.__evkWave: ' + zeSterownikiem.uchwyt);
   t.check('z wyłączonym dopasowaniem nadal obciąża',
     zeSterownikiem.log.length === 0 && zeSterownikiem.wolnyWatek > 50,
     zeSterownikiem.wolnyWatek + ' ms na klatkę');
@@ -389,6 +455,21 @@ module.exports = async function (t) {
   t.check('i rysuje zastępnik zamiast pustego miejsca',
     bezWebGL.znacznik === '1' && bezWebGL.barwy.barw > 200,
     'znacznik: ' + bezWebGL.znacznik + ', ' + bezWebGL.barwy.barw + ' barw');
+
+  /* GSAP PRZYCHODZI PÓŹNIEJ NIŻ MODUŁ. Element czeka na `window.gsap` zamiast
+     zakładać, że skrypt ze stopki zdążył. Bez tego sprawdzenia mutacja
+     zdejmująca to czekanie przechodziła na zielono — w fixturze GSAP jest
+     zawsze na miejscu, więc nie było czego łapać. */
+  const gsapZOpoznieniem = await bezGpu({}, { ukryjSterownik: true, gsapPozniej: true, ustalKadr: true });
+  /* PŁÓTNO NIE WYSTARCZA. Konstruktor wstawia je zanim dojdzie do `gsap.quickTo`,
+     więc przy nieudanym starcie też tam jest — pytamy dodatkowo o BRAK znacznika
+     zastępnika, bo to on odróżnia „fala jedzie" od „fala padła i zastąpiliśmy ją". */
+  t.check('poczeka na GSAP-a i mimo to wystartuje',
+    gsapZOpoznieniem.plotno === true && gsapZOpoznieniem.znacznik !== '1',
+    'płótno: ' + gsapZOpoznieniem.plotno + ', zastępnik: ' + gsapZOpoznieniem.znacznik);
+  t.check('a kadr nie jest pusty',
+    gsapZOpoznieniem.barwy.barw > 200,
+    gsapZOpoznieniem.barwy.barw + ' barw');
 
   // ── Awaria cudzego CDN-a (1.154.0) ─────────────────────────────────────
   t.section('gdy bibliotek nie da się pobrać, zostaje zastępnik');

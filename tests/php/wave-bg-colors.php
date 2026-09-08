@@ -30,7 +30,12 @@ namespace {
     require __DIR__ . '/_wp-stubs.php';
 
     define('EVK_BRICKS_CATEGORY', 'evoke');
-    define('EVK_GSAP_VERSION', '3.15.0');
+    /* Adres wtyczki jako KORZEŃ SERWERA fixtur. Dzięki temu moduł prosi
+       o `/assets/vendor/three/...` — czyli o te same pliki, które jadą na
+       stronę, podane przez serwer plików repozytorium. Do 1.155.1 fixture
+       przepisywał adresy esm.sh na `node_modules`; ta atrapa była potrzebna
+       tylko dlatego, że biblioteka szła z cudzego serwera. */
+    if (!defined('EVOKE_ONE_URL')) define('EVOKE_ONE_URL', '/');
 
     require EVK_TEST_ROOT . '/includes/bricks-elements/evoke-wave-bg/element.php';
 
@@ -64,6 +69,22 @@ namespace {
     /* Tryb `cfg`: sam CONFIG. Sprawdzenia wydajnościowe pytają o pojedyncze
        wartości i nie mają po co dostawać całej reszty. */
     if (($argv[2] ?? '') === 'cfg') { echo json_encode($cfg), "\n"; exit; }
+
+    /* Tryb `skrypty`: co element wkłada do kolejki WordPressa.
+       Fixture przeglądarkowy ładuje GSAP-a SAM (tak jak robi to strona), więc
+       zdjęcie `enqueue_scripts()` nie zapaliłoby tam niczego — a to jest jedyne
+       miejsce, w którym element mówi „potrzebuję wspólnego GSAP-a zamiast
+       własnej kopii". Bez tego trybu ta deklaracja nie ma pokrycia. */
+    if (($argv[2] ?? '') === 'skrypty') {
+        require_once EVK_TEST_ROOT . '/includes/89-gsap.php';
+        $GLOBALS['enqueued'] = [];
+        if (method_exists($el, 'enqueue_scripts')) $el->enqueue_scripts();
+        echo json_encode([
+            'enqueued'   => array_keys($GLOBALS['enqueued'] ?? []),
+            'registered' => array_keys($GLOBALS['registered'] ?? []),
+        ]), "\n";
+        exit;
+    }
 
     // Lista wariantów palety — do sprawdzenia, że kontrolka i render znają te same.
     $el->set_controls();

@@ -2,6 +2,70 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.156.0] — 2026-09-08
+
+### Zmienione
+
+- **three.js i GSAP jadą z własnego serwera. Koniec z esm.sh.**
+  Wave Background importował trzy pliki three.js i **drugą kopię GSAP-a**
+  z cudzego CDN-u: jedenaście żądań, dwa poziomy przekierowań, zależność od
+  cudzej dostępności i adres IP każdego odwiedzającego wysyłany na zewnątrz.
+  Te same powody, dla których GSAP i Lenis zjechały z CDN-ów w 1.72.0.
+
+  Teraz: **jedno żądanie, 133 KB po gzipie**, plik leży w
+  `assets/vendor/three/<wersja>/`. GSAP-a element bierze z `window.gsap` — tego
+  samego, którego wtyczka już wozi dla Animatora i reszty, więc na stronie jest
+  jedna kopia zamiast dwóch.
+
+- **Paczka three.js jest budowana, nie kopiowana** — jedyny taki wyjątek wśród
+  vendorów, i opisany w `assets/vendor/README.md`. Oficjalny
+  `three.module.min.js` nie działa sam: ciągnie jeszcze `three.core.min.js`,
+  a pliki post-processingu importują `three` jako **nazwę pakietu**, której
+  przeglądarka nie rozwiąże bez mapy importów. Komplet oficjalny to trzy pliki,
+  **190 KB i kaskada zależności**; paczka z tego, czego element naprawdę używa —
+  jeden plik i 133 KB. Buduje ją jedna udokumentowana komenda z pliku
+  źródłowego, który też jest w repozytorium; sprawdzone, że odtwarza wynik
+  **co do bajta**.
+
+### Naprawione
+
+- **Nieudany start fali zostawiał puste płótno na wierzchu.** Konstruktor
+  dokłada `<canvas>` do kontenera na długo przed pierwszym renderowaniem, więc
+  wywrotka po drodze (brak GSAP-a, odmowa kontekstu WebGL) zostawiała je
+  w drzewie — przykrywało zastępnik pustym prostokątem. Teraz przy nieudanym
+  starcie płótno jest usuwane, a klamra obejmuje **budowę sceny**, nie tylko
+  pobranie bibliotek.
+
+- **Element czeka na GSAP-a zamiast zakładać kolejność.** Skrypty ze stopki
+  wykonują się przed modułem, ale to własność układu strony, a nie gwarancja —
+  przy odroczonym ładowaniu przestaje obowiązywać. Gdy GSAP nie przyjdzie
+  w dwie sekundy, wchodzi zastępnik zamiast wywrotki.
+
+### Sprostowanie — moja metoda porównywania zrzutów była nieważna
+
+Fala rysuje kadr zależny od `this.time`, a ten rośnie przy każdym `render()` —
+czyli zależy od tego, ile klatek zdążyło wypaść, czyli od obciążenia maszyny.
+Zmierzone: **dwa przebiegi TEGO SAMEGO kodu dawały zrzuty różniące się średnio
+o 10 poziomów jasności przy maksimum 129.**
+
+Na takich porównaniach oparłem w trakcie prac dwa wnioski i **oba były
+nieprawdziwe**: że przeniesienie zniekształcenia do shadera siatki pogarsza
+obraz (14,4 wobec 10,9 — cały ten zakres to szum) i że paczka okrojona renderuje
+inaczej niż oficjalne pliki (9,8 — to samo). Po dołożeniu uchwytu ustalającego
+chwilę animacji (`window.__evkWave` przy `?evk-wave-debug=1` i `__kadr()`
+w fixturze pomiarowym) dwa przebiegi są **identyczne co do piksela**, a paczka
+okrojona daje obraz **identyczny** z oficjalnymi plikami — zminifikowanymi i nie.
+
+Uchwyt zostaje w kodzie: bez niego porównywanie zrzutów tego elementu nie ma
+sensu, a to jedyny sposób, żeby zmiana w shaderze nie przeszła niezauważona.
+Posłużył od razu do czegoś jeszcze: sprawdzenie „kadr nie jest pusty" padało
+w pełnym zestawie, a w izolacji przechodziło trzy razy z rzędu na tej samej
+liczbie. Podejrzewałem, że drabina jakości gubi zawartość płótna przy
+zamrożeniu — **sprawdzone i nieprawda**, kadr zachowuje treść także dziesięć
+sekund później. Był to za ciasny margines czasu w teście (wejście fali trwa
+2,5 s i przy opóźnionym GSAP-ie nie zdążało przed zrzutem), więc ten jeden
+przypadek rysuje teraz kadr w ustalonej chwili.
+
 ## [1.155.1] — 2026-09-08
 
 ### Naprawione
