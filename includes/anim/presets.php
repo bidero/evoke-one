@@ -271,6 +271,41 @@ function evk_anim_presets(): array {
             'easing'   => 'power2.out',
         ],
 
+        /*
+         * ── PODMIANA CELU (ikona wymieniana na najechaniu) ────────────────
+         *
+         * Oryginał ucieka za krawędź własnej maski, a jego kopia wjeżdża
+         * z przeciwnej strony na to samo miejsce. Maskę i klon robi silnik
+         * (patrz attachPodmianaCelu w animator.js) — tutaj stoi tylko kierunek
+         * i czasy.
+         *
+         * TO NIE JEST `swap`. Tamten dzieli TEKST przez SplitText i dostaje
+         * maski gotowe; ten owija dowolny cel — `svg`, obrazek, całe pudełko.
+         * Ustawia się tak samo jak ikonę wjeżdżającą: animacja na przycisku,
+         * wyzwalacz „Hover", cel „Selektor w środku" i `svg`.
+         *
+         * `stagger` znaczy tu OPÓŹNIENIE KLONU wobec oryginału, a nie odstęp
+         * między celami. To ono daje przeskok — przez ułamek sekundy w masce
+         * nie ma nic. Zero jest sensownym wyborem (obie kopie ruszają razem),
+         * więc silnik nie podstawia tu żadnej domyślki.
+         */
+        'hover-swap-diag' => [
+            'label'    => 'Hover: podmiana ikony (skos w prawo-górę)',
+            'stan'     => true,
+            'podmiana' => 'diag',
+            'duration' => 0.4,
+            'stagger'  => 0.06,
+            'easing'   => 'power3.out',
+        ],
+        'hover-swap-right' => [
+            'label'    => 'Hover: podmiana ikony (w prawo)',
+            'stan'     => true,
+            'podmiana' => 'right',
+            'duration' => 0.4,
+            'stagger'  => 0.06,
+            'easing'   => 'power3.out',
+        ],
+
         'split-lines' => [
             'label'    => 'Tekst po liniach',
             'split'    => 'lines',

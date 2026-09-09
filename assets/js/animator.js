@@ -137,7 +137,8 @@
      ponownie i wysypał lawinę ostrzeżeń przy każdej zmianie progu.
      
      Nowy efekt, który coś generuje, ma dopisać się TUTAJ. */
-  var WEZEL_SILNIKA = /^(?:line|word|char)(?:-mask)?$|^swap-klon$|^host$/;
+  var WEZEL_SILNIKA =
+    /^(?:line|word|char)(?:-mask)?$|^swap-klon$|^host$|^podmiana(?:-klon)?$/;
 
   /** Co Animator uważa za swoją robotę — jeden zapis dla `initAll()`
       i dla obserwatora podmian, żeby nie rozjechały się przy poprawce. */
@@ -269,7 +270,17 @@
     // znacznik, a oś czasu składa attachSwap().
     var swap = pick(attr.swap, lib.swap, pre.swap, '');
 
-    if (!from && !to && !textFx && !swap) return null;
+    // Podmiana CELU — z tego samego powodu co `swap`: dwie rzeczy ruszają się
+    // naraz (oryginał wychodzi, klon wchodzi), więc para from/to by tego nie
+    // opisała. Różnica wobec `swap` jest w tym, co dostaje maskę: tam kawałki
+    // po podziale tekstu, tu dowolny cel opakowany przez silnik.
+    var podmiana = pick(attr.podmiana, lib.podmiana, pre.podmiana, '');
+
+    /* BRAMKA WPUSZCZAJĄCA. Element bez żadnego z tych znaczników nie ma czego
+       animować i jest pomijany. Dopisanie nowego rodzaju animacji WYMAGA
+       dopisania go tutaj — inaczej preset jest poprawny, widoczny w panelu
+       i po cichu nie robi nic. */
+    if (!from && !to && !textFx && !swap && !podmiana) return null;
 
     return {
       from:     from,
@@ -278,6 +289,7 @@
       words:    attr.words || lib.words || null,
       pointer:  pointer,
       swap:     swap,
+      podmiana: podmiana,
       strength: num(pick(attr.strength, lib.strength, pre.strength), 0.35),
       split:    pick(attr.split, lib.split, pre.split, ''),
       mask:     pick(attr.mask, lib.mask, pre.mask, ''),
@@ -972,6 +984,109 @@
     return null;   // brak osi czasu — nie ma czym sterować z zewnątrz
   }
 
+  // ── Podmiana CELU na najechaniu (ikona, obrazek, dowolne pudełko) ───────
+
+  /** Klasa maski dokładanej przez silnik. Służy też za znak „już opakowane". */
+  var KLASA_PODMIANY = 'evk-anim-podmiana';
+
+  /**
+   * Oryginał ucieka, jego kopia wchodzi na to samo miejsce.
+   *
+   * TO SAMO CO `attachSwap`, ALE BEZ SplitText — i dlatego osobna funkcja,
+   * a nie gałąź w tamtej. Podmiana treści dostaje gotowe kawałki po podziale
+   * tekstu, razem z maskami, które SplitText zakłada opcją `mask`. Ikona nie
+   * jest tekstem: nie ma czego dzielić, więc maski i klonu nie ma od kogo
+   * dostać. Tutaj robimy jedno i drugie sami.
+   *
+   * MASKA JEST KONIECZNA. Bez `overflow: hidden` obie kopie widać przez cały
+   * ruch — oryginał odjeżdżający w bok i klon nadjeżdżający z drugiej strony.
+   * Dopiero przycięcie do pudełka ikony daje wrażenie, że jedna wymienia drugą.
+   *
+   * OPAKOWANIE MA NIE RUSZYĆ UKŁADU. Stąd `inline-flex` i zero marginesów:
+   * pudełko dostaje rozmiar zawartości, więc przycisk zostaje tej samej
+   * szerokości. Pilnuje tego osobne sprawdzenie w tests/animator.test.js —
+   * opakowanie zmieniające szerokość przycisku byłoby usterką widoczną na
+   * każdej stronie z tym presetem, a nie drobiazgiem.
+   *
+   * `stagger` znaczy tu co innego niż zwykle: nie odstęp między wieloma celami,
+   * tylko OPÓŹNIENIE KLONU wobec oryginału. To ono daje charakterystyczny
+   * przeskok — przez ułamek sekundy w masce nie ma nic.
+   */
+  function attachPodmianaCelu(el, targets, cfg) {
+    if (!targets.length) return null;
+
+    // Oryginał ucieka w prawo, a przy skosie dodatkowo w górę.
+    var dx = 100;
+    var dy = cfg.podmiana === 'diag' ? -100 : 0;
+
+    /* NAJPIERW SAME ODCZYTY, POTEM SAME ZAPISY — ta sama zasada co w attachSwap.
+       Czytanie stylu po każdym dołożeniu klonu unieważniałoby go za każdym
+       obrotem pętli i przeglądarka przeliczałaby styl tyle razy, ile celów. */
+    var pudelka = targets.map(function (cel) {
+      var rodzic = cel.parentNode;
+      return {
+        opakowany: !!rodzic && rodzic.classList
+          && rodzic.classList.contains(KLASA_PODMIANY),
+        rodzic: rodzic,
+      };
+    });
+
+    var klony = [];
+    targets.forEach(function (cel, i) {
+      var maska = pudelka[i].rodzic;
+
+      if (!pudelka[i].opakowany) {
+        if (!maska) return;
+        maska = document.createElement('span');
+        maska.className = KLASA_PODMIANY;
+        /* `inline-flex`, nie `inline-block`: pudełko przylega do zawartości bez
+           szpary na linii bazowej, którą inline-block zostawia pod obrazkami
+           i SVG. Ta szpara podnosiłaby wysokość przycisku o kilka pikseli. */
+        gsap.set(maska, {
+          display: 'inline-flex', position: 'relative', overflow: 'hidden',
+        });
+        pudelka[i].rodzic.insertBefore(maska, cel);
+        maska.appendChild(cel);
+      }
+
+      /* Klony z poprzedniego przebiegu precz. Silnik buduje elementy ponownie
+         po podmianie treści przez filtr pętli Bricksa — bez tego przy każdym
+         przebiegu w masce przybywałby jeden klon. */
+      Array.prototype.slice.call(maska.children).forEach(function (dziecko) {
+        if (dziecko !== cel) maska.removeChild(dziecko);
+      });
+
+      var klon = cel.cloneNode(true);
+      // Klasa nie jest ozdobą: po niej `WEZEL_SILNIKA` poznaje, że to wytwór
+      // silnika, a nie element do zainicjalizowania. Bez tego obserwator
+      // podmian brał maskę i klon za nową treść ze strony.
+      klon.classList.add('evk-anim-podmiana-klon');
+      klon.setAttribute('aria-hidden', 'true');
+      // Klon jest czystym powtórzeniem — bez tego czytnik ekranu przeczytałby
+      // ikonę dwa razy, a w przycisku „Zobacz więcej →" to jest jedna strzałka.
+      klon.removeAttribute('id');
+      gsap.set(klon, { position: 'absolute', top: 0, left: 0 });
+      maska.appendChild(klon);
+      klony.push(klon);
+    });
+
+    if (!klony.length) return null;
+
+    // Klon czeka po PRZECIWNEJ stronie niż ta, w którą wyjeżdża oryginał —
+    // inaczej obie kopie jechałyby w tę samą stronę i maska byłaby pusta.
+    gsap.set(klony, { xPercent: -dx, yPercent: -dy });
+
+    var tl  = gsap.timeline({ paused: true });
+    var wsp = { duration: cfg.duration, ease: cfg.easing };
+
+    tl.to(targets, Object.assign({ xPercent: dx, yPercent: dy }, wsp), 0);
+    /* Klon rusza PÓŹNIEJ o `stagger` — to jest cały przeskok. Zero znaczy
+       „oba naraz" i też jest sensownym wyborem, więc nie ma tu domyślki. */
+    tl.to(klony, Object.assign({ xPercent: 0, yPercent: 0 }, wsp), cfg.stagger || 0);
+
+    return podepnijInteraktywnie(el, tl, cfg, 'evkPodmianaAbort');
+  }
+
   function queueLoad(el, targets, cfg) {
     if (loadQueueRan) {
       /* Kolejka startowa przebiegła. Rozstrzyga teraz ZNACZNIK GOTOWOŚCI, bo
@@ -1062,6 +1177,11 @@
     // `onSplit` tu przysyła. Dlatego siedzi w tym samym miejscu co pozostałe
     // wyjątki, a nie osobnym wejściem do potoku.
     if (cfg.swap) return attachSwap(el, targets, cfg);
+
+    /* Podmiana CELU stoi obok podmiany treści, a nie w niej: tamta dostaje
+       kawałki po podziale tekstu, ta owija cel własną maską. Wspólny jest
+       tylko pomysł — oryginał wychodzi, kopia wchodzi. */
+    if (cfg.podmiana) return attachPodmianaCelu(el, targets, cfg);
 
     ostrzezOWejsciuNaWyjsciu(el, cfg);
 

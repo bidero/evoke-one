@@ -2,6 +2,70 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.160.0] — 2026-09-09
+
+### Dodane
+
+- **Animator: podmiana ikony na najechaniu.** Wzorzec ze zgłoszenia
+  (nextbricks „arrow button v5"): przycisk z etykietą i strzałką, a na
+  najechaniu strzałka ucieka za krawędź, gdy jej kopia wjeżdża z przeciwnej
+  strony. Dwa presety: **skos w prawo-górę** i **w prawo**.
+
+  Ustawia się tak samo jak ikonę wjeżdżającą: animacja na **przycisku**,
+  wyzwalacz „Hover", cel „Selektor w środku" i `svg`.
+
+  **Działa na dowolnym celu**, nie tylko na SVG — silnik owija cel własną maską
+  i klonuje go, więc obsłuży też obrazek albo całe pudełko. To jest różnica
+  wobec istniejącej „podmiany treści", która dostaje gotowe kawałki i maski od
+  SplitText, czyli działa wyłącznie na tekście.
+
+  **Maska jest konieczna.** Bez `overflow: hidden` obie kopie widać przez cały
+  ruch i nie ma żadnej wymiany — jest strzałka odjeżdżająca obok nadjeżdżającej.
+  **Opakowanie nie rusza układu**: `inline-flex` bez marginesów, więc przycisk
+  ma tę samą szerokość co bliźniak bez animacji (zmierzone: 62,38 → 62,38 px).
+
+  `stagger` znaczy tu **opóźnienie kopii wobec oryginału**, nie odstęp między
+  celami — i to ono daje charakterystyczny przeskok, bo przez ułamek sekundy
+  w masce nie ma nic. Kopia dostaje `aria-hidden` i traci `id`: czytnik ekranu
+  ma przeczytać jedną strzałkę, a dwa te same `id` psują `getElementById`.
+
+### Naprawione
+
+- **Bramka wpuszczająca w silniku pomijała nowe rodzaje animacji.** Element bez
+  `from`, `to`, efektu tekstowego ani podmiany treści był odrzucany — więc
+  poprawny preset, widoczny w panelu, po cichu nie robił nic. Warunek zna teraz
+  także podmianę celu, a komentarz przy nim mówi wprost, że dołożenie nowego
+  rodzaju animacji wymaga dopisania go w tym miejscu.
+
+- **Zestaw presetów był kruchy wobec własnej długości.** Siatka rośnie z każdym
+  nowym presetem, a wyzwalacz stoi na `top 85%` — dwa dołożone presety
+  przesunęły ostatni wiersz poniżej linii i jego animacja nigdy nie zagrała.
+  Objawiło się to zapaleniem sprawdzenia **„po animacji wyjścia element ZNIKA"
+  na presecie, którego nikt nie ruszał**, czyli w miejscu bez związku
+  z przyczyną. Zestaw przewija teraz stronę przed odczytem i jest niezależny od
+  liczby presetów.
+
+- **Maska podmiany nie była zarejestrowana jako wytwór silnika.** Obserwator
+  podmian treści brał ją za nową zawartość strony i próbował inicjalizować —
+  policzył się jako dodatkowy „gotowy" węzeł. Objawiło się to zapaleniem
+  sprawdzeń o obserwatorze, czyli znowu z dala od przyczyny. Wzorzec
+  `WEZEL_SILNIKA` zna teraz maskę i klon podmiany; komentarz przy nim od dawna
+  mówił „nowy efekt, który coś generuje, ma dopisać się TUTAJ" — przeoczyłem to.
+
+### Testy
+
+Dziewięć nowych sprawdzeń: maska powstaje i naprawdę przycina, w masce leży
+oryginał i **dokładnie jedna** kopia, kopia jest ukryta przed czytnikiem i bez
+`id`, czeka poza maską, po najechaniu wymienia się z oryginałem, przy skosie
+ruch idzie także w górę, a przycisk ma tę samą szerokość co bliźniak bez
+animacji.
+
+Sześć mutacji. Jedna — zdjęcie `aria-hidden` — przeszła najpierw **na zielono**,
+bo SVG w fixturze sam miał ten atrybut i klon dziedziczył go niezależnie od
+silnika. Atrybut zszedł ze znacznika testowego (ikona użytkownika często go nie
+ma) i dopiero wtedy sprawdzenie zaczęło cokolwiek pilnować. Siódma potwierdziła,
+że rejestracja maski w `WEZEL_SILNIKA` jest nośna.
+
 ## [1.159.0] — 2026-09-08
 
 ### Dodane

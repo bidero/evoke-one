@@ -239,6 +239,17 @@ module.exports = async function (t) {
   });
   t.check('bez błędów JS', !page.errors.length, page.errors.join(' | ') || 'brak');
 
+  /* PRZEWIJAMY DO KOŃCA PRZED ODCZYTEM — i to nie jest ostrożność na zapas.
+     Siatka rośnie z każdym nowym presetem, a wyzwalacz stoi na `top 85%`, czyli
+     850 px przy oknie 1000. Przy 70 presetach ostatni wiersz zaczynał się na
+     832 px i mieścił się nad linią; dwa dołożone presety przesunęły go na
+     896 px i jego animacja nigdy nie zagrała. Objawiło się to zapaleniem
+     sprawdzenia „po animacji wyjścia element ZNIKA" na presecie, którego nikt
+     nie ruszał — czyli w miejscu bez związku z przyczyną.
+     Przewinięcie uniezależnia zestaw od liczby presetów. */
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForTimeout(1500);
+
   const st = await page.evaluate(() => window.__state());
   const built = Object.keys(st);
   t.check('zbudowane wszystkie presety', built.length === keys.length - 1,

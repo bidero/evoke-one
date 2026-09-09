@@ -147,6 +147,21 @@ module.exports = async function (t) {
   const h = await t.open('anim-hover.html',
     { viewport: { width: 1000, height: 700 }, head: presety, settle: 600 });
 
+  /* CZEKAMY NA WARUNEK, nie na sekundy. Sprawdzenie niżej porównuje PRZYROST
+     gotowych węzłów, więc pierwszy odczyt musi zastać stronę wyciszoną, a stały
+     czas tego nie gwarantuje — fixture rośnie razem z biblioteką presetów.
+
+     Uczciwie: to NIE była przyczyna zapalenia, które doprowadziło do tej linii.
+     Tamto brało się stąd, że maska dokładana przez podmianę celu nie była
+     zarejestrowana w `WEZEL_SILNIKA`, więc obserwator brał ją za nową treść
+     i liczył jako czwarty gotowy węzeł. Czekanie zostaje mimo to: zdejmuje
+     osobną, realną kruchość, przez którą ten sam objaw mógłby wrócić z zupełnie
+     innego powodu. */
+  await h.waitForFunction(
+    () => document.querySelectorAll('[data-evk-anim]').length
+       === document.querySelectorAll('[data-evk-anim-ready="1"]').length,
+    null, { timeout: 5000 },
+  ).catch(() => {});
   const przed = await h.evaluate(() => window.__wezly());
 
   await h.evaluate(() => window.__podmien(3));

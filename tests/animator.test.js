@@ -262,6 +262,60 @@ module.exports = async function (t) {
   t.check('a po zjechaniu ikona znowu znika',
     ikonaWroc.opacity <= 0.01, 'opacity ' + ikonaWroc.opacity);
 
+  /* ── Podmiana ikony: oryginał ucieka, kopia wchodzi ────────────────────
+   *
+   * Wzorzec ze zgłoszenia (nextbricks „arrow button v5"): etykieta i strzałka,
+   * a na najechaniu strzałka wyjeżdża za krawędź, gdy jej kopia wjeżdża
+   * z przeciwnej strony. Silnik robi maskę i klon sam — cel może być dowolny,
+   * nie tylko `svg`.
+   */
+  const podmZ = await hv.evaluate(() => window.__podmiana());
+  t.check('silnik owija cel maską', podmZ && podmZ.opakowany === true,
+    'opakowany: ' + (podmZ || {}).opakowany);
+  /* MASKA MUSI PRZYCINAĆ. Bez tego obie kopie widać przez cały ruch i nie ma
+     żadnej wymiany — jest strzałka odjeżdżająca obok strzałki nadjeżdżającej. */
+  t.check('a maska naprawdę przycina',
+    podmZ && /hidden|clip/.test(podmZ.przycina), 'overflow: ' + (podmZ || {}).przycina);
+  t.check('w masce leży oryginał i DOKŁADNIE jedna kopia',
+    podmZ && podmZ.dzieci === 2, 'dzieci: ' + (podmZ || {}).dzieci);
+  /* Kopia jest czystym powtórzeniem — czytnik ekranu ma przeczytać jedną
+     strzałkę, nie dwie. Id też schodzi, bo dwa te same id to nieprawidłowy
+     dokument i `getElementById` zaczyna zwracać losowo jedno z nich. */
+  t.check('kopia jest ukryta przed czytnikiem i bez id',
+    podmZ && podmZ.klonUkryty === true && podmZ.klonBezId === true,
+    'aria-hidden: ' + (podmZ || {}).klonUkryty + ', bez id: ' + (podmZ || {}).klonBezId);
+  t.check('kopia czeka POZA maską, oryginał na miejscu',
+    podmZ && podmZ.orgX === 0 && podmZ.klonX <= -podmZ.szerIkony + 1,
+    'oryginał x=' + (podmZ || {}).orgX + ', kopia x=' + (podmZ || {}).klonX
+      + ' przy ikonie ' + (podmZ || {}).szerIkony + ' px');
+
+  /* OPAKOWANIE NIE RUSZA UKŁADU. Bliźniak ma identyczny znacznik i żadnej
+     animacji — gdyby maska cokolwiek przestawiała, szerokości by się
+     rozjechały. To jedyna rzecz, którą to opakowanie mogłoby popsuć naraz
+     na każdej stronie z tym presetem. */
+  const szerZ = await hv.evaluate(() => window.__szer('przycisk2'));
+  const szerB = await hv.evaluate(() => window.__szer('blizniak'));
+  t.check('a przycisk ma tę samą szerokość co bliźniak bez animacji',
+    Math.abs(szerZ - szerB) < 0.5, szerB + ' → ' + szerZ + ' px');
+
+  await hv.evaluate(() => window.__najedz('przycisk2'));
+  await hv.waitForTimeout(700);
+  const podmPo = await hv.evaluate(() => window.__podmiana());
+  t.check('po najechaniu oryginał wyjeżdża, a kopia staje na miejscu',
+    podmPo && podmPo.orgX >= podmZ.szerIkony - 1 && Math.abs(podmPo.klonX) <= 1,
+    'oryginał x=' + (podmPo || {}).orgX + ', kopia x=' + (podmPo || {}).klonX);
+  /* Skos: przy wariancie „w prawo-górę" obie kopie ruszają się TAKŻE w pionie.
+     Bez tego sprawdzenia preset skośny przechodziłby jako poziomy. */
+  t.check('i przy skosie ruch idzie także w górę',
+    podmPo && podmPo.orgY <= -1, 'oryginał y=' + (podmPo || {}).orgY);
+
+  await hv.evaluate(() => window.__zjedz('przycisk2'));
+  await hv.waitForTimeout(700);
+  const podmWroc = await hv.evaluate(() => window.__podmiana());
+  t.check('a po zjechaniu wraca oryginał',
+    podmWroc && Math.abs(podmWroc.orgX) <= 1 && podmWroc.klonX <= -podmZ.szerIkony + 1,
+    'oryginał x=' + (podmWroc || {}).orgX + ', kopia x=' + (podmWroc || {}).klonX);
+
   t.check('bez błędów JS przy hoverze', !hv.errors.length, hv.errors.join(' | ') || 'brak');
   await hv.close();
 

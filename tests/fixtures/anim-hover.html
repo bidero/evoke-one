@@ -42,6 +42,16 @@
      przycisku, a rusza się `svg` w środku — wyzwalacz i cel są w silniku
      rozdzielone od początku. Ikona ma własne id tylko po to, żeby dało się
      ją zmierzyć. -->
+<!-- Bliźniak BEZ animacji. Bez niego nie da się dowieść, że maska dokładana
+     przez silnik nie rusza układu — a to jedyna rzecz, którą to opakowanie
+     mogłoby popsuć na każdej stronie naraz. -->
+<button id="blizniak">Dalej<svg id="strzalka-wzor" width="16" height="16" viewBox="0 0 16 16"><path d="M2 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+<!-- SVG BEZ `aria-hidden` — celowo. Ikona użytkownika często go nie ma,
+     a to silnik ma dołożyć go KLONOWI. Z atrybutem w znaczniku klon dziedziczy
+     go sam i sprawdzenie „kopia ukryta przed czytnikiem" nie ma czego łapać
+     (zmierzone mutacją: przechodziło na zielono po zdjęciu setAttribute). -->
+<button id="przycisk2" data-evk-anim='{"animation":"podmiana"}'>Dalej<svg id="strzalka" width="16" height="16" viewBox="0 0 16 16"><path d="M2 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+
 <button id="przycisk" data-evk-anim='{"animation":"ikona"}'>Zobacz więcej<svg id="ikonka" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
 
 <script src="../../assets/vendor/gsap/gsap.min.js"></script>
@@ -64,6 +74,9 @@
       // Cel inny niż wyzwalacz: najechanie na przycisk, ruch ikony w środku.
       ikona:    Object.assign(row('hover-icon-right', 'hover'),
                               { targets: 'selector', selector: 'svg', duration: 0.3 }),
+      podmiana: Object.assign(row('hover-swap-diag', 'hover'),
+                              { targets: 'selector', selector: 'svg',
+                                duration: 0.3, stagger: 0.05 }),
     },
     // Prawdziwa tablica presetów, wstrzyknięta przez `head` z PHP.
     presets: (window.__presets && window.__presets.presets) || {},
@@ -92,6 +105,37 @@
   window.__tlo = function (id) {
     var cs = getComputedStyle(document.getElementById(id));
     return { obraz: cs.backgroundImage, rozmiar: cs.backgroundSize };
+  };
+
+  /** Stan podmiany celu: maska, klon i położenie obu kopii. */
+  window.__podmiana = function () {
+    var org = document.getElementById('strzalka');
+    if (!org) return null;
+    var maska = org.parentElement;
+    var opakowany = maska.classList.contains('evk-anim-podmiana');
+    var klon = opakowany
+      ? Array.prototype.filter.call(maska.children, function (c) { return c !== org; })[0]
+      : null;
+    var x = function (el) {
+      if (!el) return null;
+      var m = /matrix\(([^)]*)\)/.exec(getComputedStyle(el).transform);
+      return m ? Math.round(Number(m[1].split(',')[4])) : 0;
+    };
+    var y = function (el) {
+      if (!el) return null;
+      var m = /matrix\(([^)]*)\)/.exec(getComputedStyle(el).transform);
+      return m ? Math.round(Number(m[1].split(',')[5])) : 0;
+    };
+    return {
+      opakowany: opakowany,
+      przycina:  opakowany ? getComputedStyle(maska).overflow : null,
+      dzieci:    opakowany ? maska.children.length : null,
+      klonUkryty: klon ? klon.getAttribute('aria-hidden') === 'true' : null,
+      klonBezId:  klon ? !klon.id : null,
+      orgX: x(org), orgY: y(org),
+      klonX: x(klon), klonY: y(klon),
+      szerIkony: Math.round(org.getBoundingClientRect().width),
+    };
   };
 
   /** Szerokość elementu — do sprawdzenia, czy układ nie skacze przy najechaniu. */
