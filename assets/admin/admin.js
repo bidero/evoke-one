@@ -71,6 +71,76 @@
     }
 
     /* =========================================================
+       ZAPIS FORMULARZA USTAWIEŃ BEZ PRZEŁADOWANIA
+       =========================================================
+
+       PRZYCISK ZOSTAJE. Zmienia się jedno: strona się nie przeładowuje.
+       Stan „masz niezapisane zmiany" i moment zapisu są nadal w rękach
+       użytkownika — autozapis pola po polu to inny kontrakt i inna decyzja.
+
+       DZIAŁA JAKO NAKŁADKA. Formularz ma komplet `settings_fields()` i bez tego
+       skryptu jedzie normalnie do `options.php`: gdy JS nie wystartuje albo
+       uchwyt odpowie błędem, wysyłamy go po staremu. Ekran ustawień, którego
+       nie da się zapisać, jest gorszy niż przeładowanie.
+
+       Pola idą SUROWYM `serialize()`, a rozbiera je PHP przez `parse_str()` —
+       składanie tablicy z `name="evk_x[y][z]"` tutaj byłoby drugą implementacją
+       tego samego parsera i pierwszym miejscem rozjazdu przy polu zagnieżdżonym. */
+    if (typeof evkZapis !== 'undefined') {
+        $(document).on('submit', 'form[data-evo-zapis]', function (e) {
+            var $form  = $(this);
+            var option = $form.data('evo-zapis');
+            if (!option) return;
+
+            e.preventDefault();
+
+            var $btn = $form.find('[type=submit]');
+            var etykieta = $btn.text();
+            $btn.prop('disabled', true);
+
+            /* Komunikat siada nad przyciskiem i zastępuje poprzedni — dwa
+               „Zapisano" jedno pod drugim po dwóch zapisach mówiłyby o liczbie
+               kliknięć, nie o stanie. */
+            var $info = $form.find('.evo-zapis-info');
+            if (!$info.length) $info = $('<p class="evo-zapis-info" role="status"></p>').insertBefore($btn);
+            $info.removeClass('is-err').text('Zapisywanie…');
+
+            /* WYSŁANIE AWARYJNE IDZIE `form.submit()` Z DOM-u, nie przez jQuery.
+               Nasłuch wisi na dokumencie (delegowany), więc `$form.off('submit')`
+               go NIE zdejmuje: `trigger('submit')` wracał tutaj, znowu strzelał
+               AJAX-em, znowu padał — i tak w kółko. Zmierzone: 264 żądania
+               w trzysta milisekund. Natywny `submit()` nie odpala nasłuchów
+               w ogóle, więc wychodzi z pętli raz na zawsze. */
+            var poddajSie = function (komunikat) {
+                $info.addClass('is-err').text(komunikat);
+                $form[0].submit();
+            };
+
+            $.post(evkZapis.url, {
+                action: 'evk_save_settings',
+                nonce:  evkZapis.nonce,
+                option: option,
+                form:   $form.serialize(),
+            })
+            .done(function (r) {
+                if (!r || !r.success) {
+                    console.error('evk zapis error:', r && r.data);
+                    poddajSie('Nie udało się zapisać — wysyłam formularz zwykłą drogą…');
+                    return;
+                }
+                $info.text('Zapisano.');
+            })
+            .fail(function (xhr) {
+                console.error('evk zapis fail:', xhr.status);
+                poddajSie('Brak połączenia — wysyłam formularz zwykłą drogą…');
+            })
+            .always(function () {
+                $btn.prop('disabled', false).text(etykieta);
+            });
+        });
+    }
+
+    /* =========================================================
        RANGE SLIDER HELPER
        ========================================================= */
     /* Gdy element wartości jest polem <input> (a nie <span>), staje się on

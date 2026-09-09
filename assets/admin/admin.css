@@ -267,6 +267,12 @@
 .evo-toggle input:checked + .evo-slider:before { transform: translateX(22px); }
 .evo-toggle-label { font-size: 13px; font-weight: 500; color: var(--evo-text-soft); }
 
+/* Komunikat zapisu bez przeładowania (1.165.0). `role="status"` czyta go
+   czytnik ekranu — bez tego zapis bez przeładowania jest dla niewidzącego
+   niewidoczny, bo nie ma ani nowej strony, ani powiadomienia WordPressa. */
+.evo-zapis-info { margin: 0 0 10px; font-size: 12.5px; font-weight: 600; color: var(--evo-on-dark); }
+.evo-zapis-info.is-err { color: var(--evo-danger-dark); }
+
 /* Przegląd sekcji — lista ekranów z przełącznikami (1.163.0)
    Wiersz, nie kafel: 12 kart w siatce to ekran przewijany w poszukiwaniu jednej
    nazwy, a lista czyta się pionowo jak spis treści, którym jest.

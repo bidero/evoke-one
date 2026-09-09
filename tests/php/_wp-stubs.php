@@ -73,6 +73,12 @@ function register_setting($group, $option, $args = []) {
     $GLOBALS['new_allowed_options'][$group][] = $option;
     if (!empty($args['sanitize_callback'])) {
         $GLOBALS['sanitizers'][$option] = $args['sanitize_callback'];
+        /* WordPress podpina `sanitize_callback` pod filtr `sanitize_option_{$option}`
+           i tamtędy przechodzi zapis ustawień. Bez tego wiersza fixture wołający
+           ten filtr dostawał wartość NIETKNIĘTĄ i sprawdzenie sanitacji nie
+           mierzyło niczego. Dla pozostałych testów bez zmian: przelotowe
+           `apply_filters` niżej i tak nie odpala zarejestrowanych filtrów. */
+        add_filter("sanitize_option_{$option}", $args['sanitize_callback']);
     }
 }
 

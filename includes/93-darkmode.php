@@ -666,11 +666,19 @@ CSS;
         // bezpieczeństwa, bo tak było tu sprawdzane wcześniej.
         if ($key !== '_root' && $key !== 'root') return $attributes;
 
-        $el_classes = (array)($element->settings['_cssClasses'] ?? []);
-        // Bricks przechowuje klasy jako string lub array
-        if (is_string($el_classes)) {
-            $el_classes = array_filter(array_map('trim', explode(' ', $el_classes)));
-        }
+        /* Bricks przechowuje klasy raz jako TABLICĘ, raz jako JEDEN ŁAŃCUCH
+           („hero-title big") — zależnie od tego, którędy element powstał.
+           Rozbicie na spacje musi więc iść PRZED rzutowaniem na tablicę.
+
+           Do 1.165.0 stało odwrotnie: `(array)` najpierw, `is_string()` po nim.
+           Warunek był martwy (po rzutowaniu nic nie jest łańcuchem), a łańcuch
+           zostawał w tablicy jako jeden element z całą treścią w środku, więc
+           `array_intersect(['hero-title'], ['hero-title big'])` nie trafiał
+           NIGDY. U kogo Bricks zapisał klasy łańcuchem, przejścia po prostu nie
+           działały i nic o tym nie mówiło. Znalezione analizą statyczną. */
+        $el_classes = $element->settings['_cssClasses'] ?? [];
+        if (is_string($el_classes)) $el_classes = preg_split('/[\s,]+/', $el_classes);
+        $el_classes = array_filter(array_map('trim', (array) $el_classes));
 
         $is_title = !empty($title_classes) && count(array_intersect($title_classes, $el_classes)) > 0;
         $is_image = !empty($image_classes) && count(array_intersect($image_classes, $el_classes)) > 0;

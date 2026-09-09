@@ -31,12 +31,6 @@ parameters:
 			path: includes/92-parallax.php
 
 		-
-			message: '#^Call to function is_string\(\) with array will always evaluate to false\.$#'
-			identifier: function.impossibleType
-			count: 1
-			path: includes/93-darkmode.php
-
-		-
 			message: '#^Parameter \#1 \$array \(array\{non\-falsy\-string, non\-falsy\-string\}\) to function array_filter does not contain falsy values, the array will always stay the same\.$#'
 			identifier: arrayFilter.same
 			count: 1

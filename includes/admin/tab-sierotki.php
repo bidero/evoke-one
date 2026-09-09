@@ -5,7 +5,11 @@ if (!defined('ABSPATH')) exit;
  */
 ?>
 <?php $sierotki = EVK_Sierotki::get_instance()->get_settings(); ?>
-            <form method="post" action="options.php">
+            <?php /* `data-evo-zapis` włącza zapis bez przeładowania (1.165.0).
+                     Formularz zostaje pełnoprawny: `action="options.php"`
+                     i `settings_fields()` na miejscu, więc bez JS-u albo przy
+                     błędzie uchwytu jedzie normalną drogą. */ ?>
+            <form method="post" action="options.php" data-evo-zapis="evk_sierotki">
                 <?php settings_fields('evoke_one_sierotki'); ?>
 
                 <div class="evo-status-card">

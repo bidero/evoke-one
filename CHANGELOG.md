@@ -2,6 +2,80 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.165.0] — 2026-09-09
+
+### Naprawione
+
+- **View Transitions na liście wpisów nie działały u części użytkowników.**
+  Znalezione analizą statyczną, nie z użycia — i to jest tu istotne, bo objawu
+  nie było żadnego. `is_string()` stało PO rzutowaniu `(array)`, więc warunek
+  był martwy. Sam martwy warunek jest niegroźny; groźne jest to, przed czym miał
+  chronić: Bricks przechowuje `_cssClasses` raz tablicą, raz **jednym łańcuchem**
+  („hero-title big"), a łańcuch po rzutowaniu zostawał w tablicy jako pojedynczy
+  element z całą treścią w środku. Wtedy
+  `array_intersect(['hero-title'], ['hero-title big'])` nie trafiał **nigdy**.
+  Rozbicie na spacje i przecinki idzie teraz przed rzutowaniem. Wpis zdjęty
+  z `phpstan-baseline.neon`.
+
+### Dodane
+
+- **Zapis ustawień bez przeładowania strony — próba na jednym ekranie
+  (Sierotki).** Przycisk „Zapisz" zostaje: zmienia się tylko to, że strona się
+  nie przeładowuje, a nad przyciskiem pojawia się komunikat. Stan „masz
+  niezapisane zmiany" i moment zapisu zostają w rękach użytkownika — autozapis
+  pola po polu to inny kontrakt i osobna decyzja.
+
+  **Działa jako nakładka, nie jako zamiennik.** Formularz zachowuje
+  `action="options.php"` i `settings_fields()`, więc bez JS-u albo przy błędzie
+  uchwytu jedzie normalną drogą. Ekran ustawień, którego nie da się zapisać,
+  jest gorszy niż przeładowanie.
+
+  **Pola idą surowym `serialize()`, a rozbiera je `parse_str()` po stronie PHP** —
+  czyli tym samym, czym rozebrałby je PHP przy zwykłym POST. Składanie tablicy
+  z `name="evk_x[y][z]"` w JavaScripcie byłoby drugą implementacją tego samego
+  parsera i pierwszym miejscem rozjazdu przy polu zagnieżdżonym.
+
+  **Osobna lista dozwolonych opcji** (`evk_settings_allowlist()`), krótsza
+  i pilnowana ostrzej niż lista przełączników: przez tamtą przechodzi 0/1 na
+  wskazanym polu, przez tę **cała tablica ustawień**. Na razie jedna pozycja.
+
+### Zmienione
+
+- **Uchwyt zapisu nie woła sanitacji z ręki.** Pierwsza wersja wołała filtr
+  `sanitize_option_{$option}` dodatkowo, „na wszelki wypadek". Zmierzone
+  mutacją: **usunięcie tego wołania nie zmieniało niczego** — wartość i tak
+  przechodzi przez sito w `update_option()`, tą samą drogą, którą jedzie
+  przełącznik AJAX od kilkudziesięciu wydań (`evk_preserve_toggle()` istnieje
+  wyłącznie dlatego, że callback się wtedy naprawdę odpala). Kod, którego
+  usunięcie niczego nie psuje, nie broni przed niczym — poszedł, a sprawdzenie
+  zostało przepisane na warunek, który naprawdę rozstrzyga: **czy każda opcja
+  z listy dozwolonych ma zarejestrowane sito**. Wpis bez `sanitize_callback`
+  zapisywałby surową tablicę z żądania prosto do bazy, a uchwyt wyglądałby przy
+  tym identycznie.
+
+### Sprawdzenia
+
+- **`tests/zapis-ajax.test.js` — 20 sprawdzeń**, w tym: śmieci nie dojeżdżają do
+  bazy, opcja spoza listy odrzucona **przed** zapisem, wysyłka bez danych tej
+  opcji nie kasuje ustawień, a zapis formularza **nie gasi przełącznika modułu**
+  (formularz nie niesie pola `enabled`, więc bez tej ostrożności każda zmiana
+  czegokolwiek innego wyłączałaby moduł po cichu).
+
+- **Złapana kaskada żądań, zanim wyszła z repozytorium.** `$form.off('submit')`
+  **nie zdejmuje nasłuchu delegowanego** na dokumencie, więc wysłanie awaryjne
+  wracało tym samym uchwytem do siebie: zmierzone **264 żądania w trzysta
+  milisekund** przy jednym kliknięciu. Wysłanie awaryjne idzie teraz natywnym
+  `form.submit()`, który nasłuchów nie odpala wcale.
+
+- **`tests/darkmode-klasy.test.js`** — klasy podane tablicą i łańcuchem mają dać
+  ten sam wynik, a klasa spoza ustawień ma się nie dopasować. Bez tej kontroli
+  negatywnej „dopasowuje się" byłoby prawdą także dla funkcji dopasowującej
+  wszystko — a wtedy każdy element listy dostawałby tę samą nazwę przejścia.
+
+- **`register_setting()` w atrapach podpina sito pod `sanitize_option_{$option}`,**
+  jak robi to WordPress. Bez tego fixture wołający ten filtr dostawał wartość
+  nietkniętą.
+
 ## [1.164.0] — 2026-09-09
 
 ### Naprawione

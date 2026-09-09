@@ -99,6 +99,14 @@ add_action('admin_enqueue_scripts', function (string $hook) {
         'nonce' => wp_create_nonce('evk-toggle-nonce'),
     ]);
 
+    /* Zapis formularza bez przeładowania. Osobny nonce, bo to osobny uchwyt
+       o innym zasięgu: przez tamten przechodzi 0/1 na wskazanym polu, przez ten
+       cała tablica ustawień. */
+    wp_localize_script('evoke-one-admin', 'evkZapis', [
+        'url'   => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('evk-save-settings'),
+    ]);
+
     // ── Podgląd animacji w bibliotece ──
     // Silnik jest ten sam, którym animuje się strona: podgląd podaje wartości
     // pól w data-evk-anim i przechodzi przez buildConfig() → tweenVars().
