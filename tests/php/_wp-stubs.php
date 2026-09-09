@@ -393,8 +393,17 @@ if (!function_exists('wp_die')) {
 }
 function wp_unslash($v) { return $v; }
 function absint($v) { return abs((int) $v); }
+/* OBIEKTY TEŻ, nie tylko tablice. Prawdziwy `wp_list_pluck()` czyta pole
+   jednych i drugich, a `get_the_category()` — z której czyta moduł Schema —
+   oddaje OBIEKTY. Atrapa zwracająca dla nich `null` nie „upraszczała": robiła
+   z poprawnego `keywords: "Aktualności, Wydarzenia"` łańcuch `", "` i kazała
+   szukać błędu we wtyczce, której nic nie dolegało. */
 function wp_list_pluck($list, $field) {
-    return array_map(function ($row) use ($field) { return is_array($row) ? ($row[$field] ?? null) : null; }, $list);
+    return array_map(static function ($row) use ($field) {
+        if (is_array($row))  return $row[$field] ?? null;
+        if (is_object($row)) return $row->$field ?? null;
+        return null;
+    }, $list);
 }
 
 /** Odpala wszystkie callbacki podpięte pod hook i zwraca wypisaną treść. */

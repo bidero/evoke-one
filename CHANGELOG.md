@@ -4,77 +4,61 @@ Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer
 
 ## [1.162.0] — 2026-09-09
 
-### Dodane
-
-- **Analiza statyczna PHP-a (PHPStan, poziom 5).** `composer install`, potem
-  `vendor/bin/phpstan analyse`. Pilnuje tego `tests/drobiazgi.test.js`, żeby
-  konfiguracja w repozytorium nie zdziczała — nieuruchamiane narzędzie jest
-  gorsze niż jego brak, bo daje poczucie pokrycia bez pokrycia.
-
-  **Po co, skoro jest 3007 sprawdzeń:** łapią inną klasę usterek. Zestaw mierzy
-  zachowanie, więc widzi wyłącznie linie, które faktycznie wykonał. PHPStan
-  czyta wszystkie i mówi o martwych gałęziach, niezgodnych typach i zmiennych,
-  których w danej ścieżce nie ma.
-
-  **Czego NIE robi — żeby nie było nieporozumienia:** nie widzi JavaScriptu,
-  czyli połowy tej wtyczki, i nie zastępuje ani jednego sprawdzenia. To
-  **8 sekund doliczone**, nie odjęte. Żadna z usterek naprawionych w tym
-  tygodniu (szerokość przycisku, ściskanie ikon, regresja parallaxu, znikający
-  kadr) nie zostałaby przez niego złapana — wszystkie były geometrią
-  w przeglądarce.
-
-  Zysk jest inny i skromniejszy: literówka w nazwie zmiennej wychodzi po
-  8 sekundach zamiast po 12-minutowym przebiegu albo po zgłoszeniu z żywej
-  strony.
-
-- **Atrapy dla analizy** — `tests/php/_stale-stubs.php` (stałe WordPressa
-  i wtyczki) oraz `tests/php/_bricks-phpstan-stubs.php`.
-
-  Ten drugi jest osobnym plikiem, a nie dopiskiem do istniejącej atrapy Bricksa,
-  i to nie z zamiłowania do porządku: `loader.php:222` ma wprost
-  `if (!class_exists('\Bricks\Frontend')) return;`. Gdyby ta klasa trafiła do
-  atrapy wciąganej przez testy, warunek odwróciłby się w środowisku testowym
-  i testy zaczęłyby chodzić po gałęzi, której na żywej stronie nie ma.
-
-### Znalezione
-
-Pierwszy przebieg dał 296 zastrzeżeń, z czego **198 to był szum** z nieznanych
-funkcji WordPressa, klas Bricksa i stałych. Po atrapach zostały **83** i to są
-już zdania o naszym kodzie. Rozkład:
-
-| | ile | co to |
-|---|---:|---|
-| pliki cząstkowe | 37 | `tab-*.php` wciągane przez `require` z cudzego zakresu — fałszywe alarmy z konstrukcji, PHPStan nie widzi wołającego |
-| martwe gałęzie | 20 | warunki, które zawsze wychodzą tak samo |
-| typy argumentów | 18 | głównie liczba tam, gdzie funkcja WordPressa deklaruje łańcuch |
-| reszta | 23 | |
-
-**Jedno znalezisko jest prawdziwym błędem**, nie kosmetyką —
-`includes/93-darkmode.php:671`:
-
-```php
-$el_classes = (array)($element->settings['_cssClasses'] ?? []);
-if (is_string($el_classes)) {          // ← nigdy prawdziwe
-```
-
-Rzutowanie linijkę wyżej zabija warunek. Gdy Bricks poda klasy jako łańcuch
-`"a b c"`, powstaje `["a b c"]` — jeden element ze sklejonymi klasami —
-i `array_intersect` niżej nigdy nie trafi, więc **przejścia dark mode po cichu
-nie zadziałają**. Komentarz obok pokazuje, że autor się tego przypadku
-spodziewał; kod go nie obsługuje. Nie naprawiam tego w tym wydaniu: naprawa
-wymaga sprawdzenia dowodzącego zachowania, a to osobna robota. Zapisane
-w pliku bazowym, do zdjęcia jako pierwsze.
-
-Stan zastany zamraża `phpstan-baseline.neon`. Sprawdzenie pyta więc „czy
-przybyło czegoś nowego", a nie „czy jest zero". Wpisy schodzą z niego przez
-naprawę kodu, nie przez dopisanie wyjątku.
-
 ### Testy
 
-Trzy sprawdzenia, trzy mutacje, wszystkie zapalają — w tym ta najważniejsza:
-**brak `vendor/` zapala**, zamiast po cichu pomijać analizę. Sprawdzenie
-pomijane pod nieobecność narzędzi świeciłoby na zielono dokładnie tam, gdzie
-niczego nie sprawdza.
+- **Moduł Schema dostał siatkę regresyjną — pierwszą w swoim istnieniu.**
+  Do 1.161.1 wyjście JSON-LD nie było sprawdzane przez nic: w 51 plikach
+  testowych nie występowało ani `@graph`, ani `application/ld+json`. Pokryte
+  było wyłącznie renderowanie zakładki, czyli formularz — a moduł wstawia
+  dane strukturalne do `<head>` **każdej podstrony**.
+
+  Nowy `tests/php/schema-graf.php` odpala prawdziwe `render_graph()` dla
+  dziesięciu konfiguracji, a `tests/schema-graf.test.js` porównuje wynik na
+  dwa sposoby: z plikiem wzorcowym (cały graf, węzeł po węźle — zapala na
+  różnicę, której nikt nie przewidział) i sprawdzeniami pisanymi wprost
+  (unikalność `@id`, rozwiązywalność wskazań, rozdział `#organization`
+  od `#place`, numeracja encji podrzędnych, parser godzin otwarcia).
+  Razem **84 sprawdzenia w 1,3 s** — graf to czysty PHP, więc siatka nie
+  potrzebuje przeglądarki.
+
+  Dwie konfiguracje istnieją po to, żeby MILCZEĆ: moduł wyłączony i moduł
+  z odhaczonymi wszystkimi blokami. Bez nich reszta pliku przechodzi także
+  wtedy, gdy graf drukuje się zawsze.
+
+  **Dowiedzione mutacją:** 25 celowych uszkodzeń modułu, od przemianowania
+  `@id` po wyłączenie sprawdzenia przełącznika. Każde zapaliło; żadne nie
+  przeszło na zielono.
+
+- **`node tests/run.js schema` zaczęło cokolwiek robić.** Filtr dopasowuje
+  nazwę pliku `.test.js`, a żaden plik nie miał w nazwie „schema" — polecenie
+  z dokumentacji kończyło się komunikatem „Brak testów pasujących".
+
+### Naprawione
+
+- **Atrapa `wp_list_pluck()` gubiła pola obiektów.** Wspólna atrapa czytała
+  pole wyłącznie z tablic i oddawała `null` dla obiektów; prawdziwa funkcja
+  WordPressa obsługuje jedne i drugie. `get_the_category()` zwraca obiekty,
+  więc atrapa robiła z poprawnego `keywords: "Aktualności, Wydarzenia"`
+  łańcuch `", "` — i kazałaby szukać usterki we wtyczce, której nic nie
+  dolegało. Zmiana dotyczy wyłącznie testów; kod wtyczki bez zmian.
+
+### Znalezione, jeszcze nienaprawione
+
+Obie usterki są zapisane w siatce jako **stan zastany** — sprawdzenia są
+zielone, dopóki usterka trwa, i zapalą po naprawie. Bez tego naprawa
+przechodzi niezauważona.
+
+- **Blok FAQPage nie wyemitował nigdy ani jednego węzła.** `extract_faq()`
+  szuka akordeonu Bricksa przez `array_walk_recursive` z warunkiem
+  `$key === 'items' && is_array($value)`. `array_walk_recursive` **nie podaje
+  tablic do callbacka** — wchodzi w nie i podaje wyłącznie liście, więc
+  warunek nie może być prawdziwy nigdy. Blok jest włączony domyślnie
+  i opisany w panelu jako działający.
+
+- **`WebSite.publisher` wskazuje donikąd, gdy blok Organization jest
+  odhaczony.** Układ osiągalny jednym kliknięciem w panelu. Wskazanie na
+  nieistniejący węzeł jest poprawnym JSON-em, więc nie zauważy go ani
+  parser, ani oko.
 
 ## [1.161.1] — 2026-09-09
 

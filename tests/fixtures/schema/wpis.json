@@ -1,0 +1,90 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://example.test/#website",
+      "url": "https://example.test/",
+      "name": "Witryna testowa",
+      "description": "Opis z ustawień WordPressa",
+      "publisher": {
+        "@id": "https://example.test/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://example.test/?s={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://example.test/#organization",
+      "name": "Witryna testowa",
+      "url": "https://example.test/",
+      "description": "Opis z ustawień WordPressa"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://example.test/blog/sezon-otwarty/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Witryna testowa",
+          "item": "https://example.test/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Sezon otwarty",
+          "item": "https://example.test/blog/sezon-otwarty/"
+        }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://example.test/blog/sezon-otwarty/#webpage",
+      "url": "https://example.test/blog/sezon-otwarty/",
+      "name": "Sezon otwarty",
+      "description": "Opis z ustawień WordPressa",
+      "isPartOf": {
+        "@id": "https://example.test/#website"
+      },
+      "breadcrumb": {
+        "@id": "https://example.test/blog/sezon-otwarty/#breadcrumb"
+      },
+      "about": {
+        "@id": "https://example.test/#organization"
+      }
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://example.test/blog/sezon-otwarty/#article",
+      "isPartOf": {
+        "@id": "https://example.test/blog/sezon-otwarty/#webpage"
+      },
+      "url": "https://example.test/blog/sezon-otwarty/",
+      "headline": "Sezon otwarty",
+      "datePublished": "2026-01-15T10:00:00+01:00",
+      "dateModified": "2026-02-03T18:30:00+01:00",
+      "author": {
+        "@type": "Person",
+        "@id": "https://example.test/autor/1/#author",
+        "name": "Radek",
+        "url": "https://example.test/autor/1/"
+      },
+      "publisher": {
+        "@id": "https://example.test/#organization"
+      },
+      "inLanguage": "pl-PL",
+      "breadcrumb": {
+        "@id": "https://example.test/blog/sezon-otwarty/#breadcrumb"
+      },
+      "description": "Zapraszamy od maja.",
+      "keywords": "Aktualności, Wydarzenia"
+    }
+  ]
+}
