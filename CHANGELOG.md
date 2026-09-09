@@ -2,6 +2,65 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.166.0] — 2026-09-09
+
+### Zmienione
+
+- **Przekierowania 301 i Logi 404 przełączają się AJAX-em, jak reszta panelu.**
+  Były ostatnimi dwoma modułami przełączanymi **przeładowaniem strony**. Teraz
+  wszystkie 28 włączników w panelu jedzie jedną drogą; poza nimi zostaje już
+  tylko włącznik pojedynczej warstwy OG, który nie jest włącznikiem modułu,
+  tylko polem w edytorze warstw.
+
+  **Dlaczego były wyjątkiem i dlaczego to już nie obowiązuje.** Do 1.14.4
+  włącznik 301 miał JEDNOCZEŚNIE `data-option` i `onchange="this.form.submit()"`
+  — **dwa niezależne sterowniki na jedno kliknięcie**: uchwyt AJAX zapisywał
+  opcję, a formularz zaraz potem przeładowywał stronę i zapisywał ją drugi raz.
+  Naprawiono to wtedy przez zdjęcie AJAX-a. Teraz jest odwrotnie i tak samo
+  jednoznacznie: został sam AJAX, a formularz włącznika i jego uchwyt POST
+  poszły. **Jedna opcja — jeden sterownik.**
+
+- **Zapis ustawień Logów 404 nie dotyka już włącznika.** Uchwyt przestał
+  zapisywać `evk_404_enabled`, a z formularza zniknęło ukryte pole niosące jego
+  stan. Pole stało tam od 1.14.4, bo zapis ustawień **zawsze wyłączał moduł** —
+  formularz nie przekazywał klucza, a uchwyt zerował brakujący. Przy włączniku
+  AJAX-owym to samo pole byłoby szkodliwe z odwrotnego powodu: renderuje się raz,
+  przy wejściu na ekran, więc po przełączeniu modułu i zapisaniu ustawień
+  wracałaby **wartość sprzed przełączenia**. Ta sama klasa błędu, tylko odwrócona.
+
+- **Lista „włącznik tylko na przeglądzie" jest pusta** i niech taka zostanie.
+  Stały na niej właśnie te dwa ekrany. Sprawdzenie porównuje listę znalezioną
+  z zadeklarowaną **w obie strony**, więc pusta lista jest najmocniejszym stanem,
+  jaki może mieć: **każdy z 20 przełączników na ekranach przeglądu przełącza
+  dokładnie tę opcję, co ekran modułu** — bez ani jednego wyjątku.
+
+### Sprawdzenia
+
+- **`tests/przelaczniki-narzedzia.test.js` — 12 sprawdzeń.** Najważniejsze nie
+  opisuje podwójnego strzału, tylko **go mierzy**: klika suwak w przeglądarce
+  i liczy żądania oraz nawigacje. Jedno kliknięcie ma dać jedno żądanie i zero
+  przeładowań. Mutacja odtwarzająca układ z 1.14.4 (formularz wokół włącznika
+  plus `onchange` → `submit`) zapala trzy sprawdzenia naraz.
+
+- **Stan włącznika sprawdzany w obie strony** przy zapisie ustawień: włączony ma
+  zostać włączony, a **wyłączony wyłączony** — bez tej drugiej połowy „nie dotyka"
+  znaczyłoby „zawsze włącza". Do tego kontrola pozytywna, że uchwyt POST w ogóle
+  się wykonał (maks. logów zapisane), bo inaczej obie połowy przechodziłyby nie
+  mierząc niczego.
+
+- **`tests/php/tab.php` przyjmuje POST i nadpisania opcji** (argumenty 3 i 4).
+  Kilka ekranów obsługuje własny zapis u siebie, poza Settings API — bez tego ich
+  uchwyt był w harnessie nieosiągalny i mierzył się wyłącznie render. Tam właśnie
+  siedzą błędy w rodzaju „zapis ustawień gasi moduł".
+
+- **Wyszukiwanie pliku ekranu radzi sobie z nazwą dłuższą niż klucz**
+  (`redirect` → `tools-redirect301.php`). Bez tego plik jest nie do znalezienia,
+  ekran wygląda na „bez własnego przełącznika" i wpada na listę wyjątków — czyli
+  **luka w wyszukiwaniu udaje świadomą decyzję**.
+
+- **Baseline PHPStana skurczył się o dwa wpisy** — usunięty kod zabrał ze sobą
+  swoje zastrzeżenia.
+
 ## [1.165.1] — 2026-09-09
 
 ### Naprawione

@@ -2,15 +2,22 @@
 /**
  * Evoke ONE — Admin: Przekierowania 301
  */
+/*
+ * WŁĄCZNIK JEDZIE AJAX-em, jak wszystkie pozostałe w panelu (1.166.0).
+ *
+ * Do 1.14.4 miał JEDNOCZEŚNIE `data-option` i `onchange="this.form.submit()"`,
+ * czyli DWA niezależne sterowniki na jedno kliknięcie: uchwyt AJAX zapisywał
+ * opcję, a formularz zaraz potem przeładowywał stronę i zapisywał ją drugi raz.
+ * Naprawiono to wtedy przez zdjęcie AJAX-a — i tak zostało, jako jedyny moduł
+ * przełączany przeładowaniem.
+ *
+ * Teraz jest odwrotnie i tak samo jednoznacznie: został sam AJAX, a formularz
+ * i jego uchwyt POST poszły. Nie ma czego zdublować, bo nie ma drugiej drogi.
+ * Pilnuje tego sprawdzenie liczące żądania na jedno kliknięcie.
+ */
 $enabled   = evk_301_is_enabled();
 $redirects = evk_301_get_all();
 $nonce     = wp_create_nonce('evk_tools_nonce');
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_301_toggle'])
-    && check_admin_referer('evk_301_toggle_action')) {
-    update_option('evk_301_enabled', !empty($_POST['evk_301_enabled']) ? 1 : 0);
-    $enabled = evk_301_is_enabled();
-}
 ?>
 <div class="evo-status-card">
     <div class="evo-status-icon <?php echo $enabled ? 'on' : 'off'; ?>">
@@ -20,18 +27,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_301_toggle'])
         <h3>Przekierowania 301: <?php echo $enabled ? 'AKTYWNE' : 'WYŁĄCZONE'; ?></h3>
         <p>Automatyczne przekierowania z licznikiem kliknięć. Obsługuje wildcards (<code>/stara/*</code>).</p>
     </div>
-    <form method="post" class="evo-contents">
-        <?php wp_nonce_field('evk_301_toggle_action'); ?>
-        <input type="hidden" name="evk_301_toggle" value="1">
-        <div class="evo-status-actions">
-            <label class="evo-toggle">
-                <?php /* bez data-option — zapis wyłącznie przez submit formularza,
-                         wcześniej strzelał podwójnie (AJAX + POST) */ ?>
-                <input type="checkbox" name="evk_301_enabled" value="1" <?php checked($enabled); ?> onchange="this.form.submit()">
-                <span class="evo-slider"></span>
-            </label>
-        </div>
-    </form>
+    <div class="evo-status-actions">
+        <span class="evo-toggle-label"><?php echo $enabled ? 'Włączone' : 'Wyłączone'; ?></span>
+        <label class="evo-toggle">
+            <input type="checkbox"
+                   data-option="evk_301_enabled"
+                   data-field="_scalar"
+                   value="1"
+                   <?php checked($enabled); ?>>
+            <span class="evo-slider"></span>
+        </label>
+    </div>
 </div>
 
 <!-- Dodaj regułę -->

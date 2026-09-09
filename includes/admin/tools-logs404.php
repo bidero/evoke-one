@@ -3,10 +3,20 @@
  * Evoke ONE — Admin: Logi 404
  */
 
-// Obsługa formularza
+/*
+ * Obsługa formularza ustawień.
+ *
+ * `evk_404_enabled` NIE JEST TU ZAPISYWANE, i to jest cała treść zmiany
+ * z 1.166.0. Włącznik jedzie AJAX-em, więc formularz nie ma prawa go dotykać:
+ * wartość wpisana w ukryte pole przy renderze strony jest KOPIĄ SPRZED
+ * przełączenia i nadpisałaby to, co ustawił AJAX. Ta sama klasa błędu co
+ * w 1.14.4, tylko odwrócona — wtedy zapis ustawień gasił moduł, bo klucza
+ * w POST brakowało; teraz gasiłby go, bo klucz jest, ale nieaktualny.
+ *
+ * Jedna opcja — jeden sterownik.
+ */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_404_save'])
     && check_admin_referer('evk_404_save_action')) {
-    update_option('evk_404_enabled',   !empty($_POST['evk_404_enabled'])   ? 1 : 0);
     update_option('evk_404_max_logs',  max(10, absint($_POST['evk_404_max_logs']  ?? 200)));
     update_option('evk_404_skip_bots', !empty($_POST['evk_404_skip_bots']) ? 1 : 0);
     update_option('evk_404_bot_list',  sanitize_textarea_field($_POST['evk_404_bot_list'] ?? ''));
@@ -29,19 +39,20 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
         <h3>Logi 404: <?php echo $enabled ? 'WŁĄCZONE' : 'WYŁĄCZONE'; ?></h3>
         <p>Rejestruje nieistniejące adresy URL z datą, IP i referrerem.</p>
     </div>
+    <?php /* Bez formularza i bez ukrytych kopii pozostałych ustawień. Włącznik
+             przełączał się przeładowaniem, więc musiał wieźć ze sobą wszystkie
+             inne pola, żeby ich nie wyzerować — czyli w jednym kliknięciu
+             przepisywał cztery opcje, z których trzech nie dotyczył. */ ?>
     <div class="evo-status-actions">
-        <form method="post" class="evo-contents">
-            <?php wp_nonce_field('evk_404_save_action'); ?>
-            <input type="hidden" name="evk_404_save" value="1">
-            <input type="hidden" name="evk_404_enabled" value="<?php echo $enabled ? '0' : '1'; ?>">
-            <input type="hidden" name="evk_404_max_logs" value="<?php echo esc_attr($max_logs); ?>">
-            <input type="hidden" name="evk_404_skip_bots" value="<?php echo $skip_bots ? '1' : '0'; ?>">
-            <input type="hidden" name="evk_404_bot_list" value="<?php echo esc_attr($bot_list); ?>">
-            <label class="evo-toggle">
-                <input type="checkbox" <?php checked($enabled); ?> onchange="this.form.elements['evk_404_enabled'].value=this.checked?'1':'0';this.form.submit()">
-                <span class="evo-slider"></span>
-            </label>
-        </form>
+        <span class="evo-toggle-label"><?php echo $enabled ? 'Włączone' : 'Wyłączone'; ?></span>
+        <label class="evo-toggle">
+            <input type="checkbox"
+                   data-option="evk_404_enabled"
+                   data-field="_scalar"
+                   value="1"
+                   <?php checked($enabled); ?>>
+            <span class="evo-slider"></span>
+        </label>
     </div>
 </div>
 
@@ -49,9 +60,11 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
 <form method="post" class="evo-mt-lg">
     <?php wp_nonce_field('evk_404_save_action'); ?>
     <input type="hidden" name="evk_404_save" value="1">
-    <?php /* Stan włącznika przekazywany jawnie — bez tego pola zapis ustawień
-             wyłączał logi 404 (handler zerował brakujący klucz w POST). */ ?>
-    <input type="hidden" name="evk_404_enabled" value="<?php echo $enabled ? '1' : '0'; ?>">
+    <?php /* Ukryte pole `evk_404_enabled` stało tu do 1.166.0 i wiozło stan
+             włącznika, bo handler zerował brakujący klucz w POST. Handler już
+             tej opcji nie dotyka, więc pole jest zbędne — a przy włączniku
+             AJAX-owym byłoby wręcz szkodliwe: niosłoby wartość sprzed
+             przełączenia. */ ?>
 
     <?php /* Ustawienia w pudełku, jak na każdym innym ekranie. Do 1.139.7
              wisiały luzem w karcie — stąd zgłoszenie „brakuje delikatnej,

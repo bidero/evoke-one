@@ -68,9 +68,25 @@ const paryZnacznika = (html) => {
 const PREFIKSY = ['tab-', 'security-', 'tools-', 'seo/tab-', 'other-', 'admin-'];
 
 const plikEkranu = (sub) => {
+  const kat = path.join(__dirname, '..', 'includes', 'admin');
   for (const prefiks of PREFIKSY) {
-    const p = path.join(__dirname, '..', 'includes', 'admin', prefiks + sub + '.php');
-    if (fs.existsSync(p)) return p;
+    const dokladny = path.join(kat, prefiks + sub + '.php');
+    if (fs.existsSync(dokladny)) return dokladny;
+
+    /* Nazwa pliku bywa DŁUŻSZA niż klucz ekranu: `redirect` mieszka
+       w `tools-redirect301.php`. Bez tego dopasowania plik jest nie do
+       znalezienia, ekran wygląda na „bez własnego przełącznika" i wpada na
+       listę wyjątków — czyli luka w wyszukiwaniu udaje świadomą decyzję.
+       Bierzemy najkrótsze dopasowanie, żeby dłuższy klucz nie łapał cudzego
+       pliku. */
+    const [katalog, nazwa] = prefiks.includes('/')
+      ? [path.join(kat, prefiks.split('/')[0]), prefiks.split('/')[1] + sub]
+      : [kat, prefiks + sub];
+    if (!fs.existsSync(katalog)) continue;
+    const pasujace = fs.readdirSync(katalog)
+      .filter((f) => f.startsWith(nazwa) && f.endsWith('.php'))
+      .sort((a, b) => a.length - b.length);
+    if (pasujace.length) return path.join(katalog, pasujace[0]);
   }
   return null;
 };

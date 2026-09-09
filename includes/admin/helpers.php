@@ -214,17 +214,20 @@ function evoke_one_sekcje_z_przegladem(): array {
 /**
  * EKRANY, KTÓRYCH WŁĄCZNIK ŻYJE WYŁĄCZNIE NA PRZEGLĄDZIE.
  *
- * Zwykle przegląd i ekran modułu przełączają tę samą opcję tym samym uchwytem
- * AJAX, i sprawdzenie tego pilnuje — bo wiersz wpięty w cudzą opcję wygląda
- * poprawnie i po prostu przełącza nie to. Te dwa są świadomym wyjątkiem:
- * na własnych ekranach mają włącznik jadący submitem formularza, bo AJAX i POST
- * razem strzelały podwójnie (1.101.0, `tools-redirect301.php`).
+ * PUSTA OD 1.166.0 — i niech taka zostanie.
  *
- * Lista jest tutaj po to, żeby wyjątek był POLICZONY. Trzeci taki ekran nie
- * pojawi się po cichu — sprawdzenie zapali, dopóki ktoś świadomie go nie dopisze.
+ * Stały tu Przekierowania 301 i Logi 404: na własnych ekranach miały włącznik
+ * jadący submitem formularza, bo AJAX i POST razem strzelały tam podwójnie
+ * (1.14.4). Oba jadą już AJAX-em, więc wyjątek zniknął razem z powodem.
+ *
+ * Funkcja zostaje, bo sprawdzenie porównuje listę znalezioną z zadeklarowaną
+ * W OBIE STRONY: dopisanie tu ekranu bez powodu zapali tak samo, jak pojawienie
+ * się ekranu z włącznikiem tylko na przeglądzie. Pusta lista jest najmocniejszym
+ * stanem, jaki to sprawdzenie może mieć — każdy przełącznik na przeglądzie
+ * przełącza to samo, co ekran modułu.
  */
 function evoke_one_przelacznik_tylko_na_przegladzie(): array {
-    return ['narzedzia/redirect', 'narzedzia/logs404'];
+    return [];
 }
 
 /**

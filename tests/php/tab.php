@@ -368,6 +368,21 @@ if (!empty($argv[2])) {
     $_GET = array_merge($_GET, (array) json_decode($argv[2], true));
 }
 
+// Argument 3 (opcjonalny): JSON z polami POST. Kilka ekranów obsługuje własny
+// zapis u siebie, a nie przez Settings API — bez tego argumentu ich uchwyt jest
+// w harnessie nieosiągalny i mierzy się wyłącznie render. To właśnie tam siedzą
+// błędy w rodzaju „zapis ustawień gasi moduł, bo klucza brakuje w POST".
+if (!empty($argv[3])) {
+    $_POST = array_merge($_POST, (array) json_decode($argv[3], true));
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+}
+
+/* Argument 4 (opcjonalny): JSON z opcjami nakładanymi PO zasiewie zakładki.
+   Zasiewy ustawiają moduły włączone, bo o pełny markup w nich chodzi — a bez
+   możliwości zejścia z tego stanu „zachowuje włączony" przechodziłoby tak samo
+   dla kodu, który po prostu zawsze włącza. */
+$evk_nadpisz_opcje = !empty($argv[4]) ? (array) json_decode($argv[4], true) : [];
+
 // ── Moduł + dane, które sprawiają, że zakładka renderuje PEŁNY markup ──
 // Pusta konfiguracja rysuje zakładkę bez wierszy repeaterów, a to właśnie
 // w wierszach siedzi większość pól, o które w tym teście chodzi.
@@ -839,6 +854,9 @@ require EVK_TEST_ROOT . '/includes/newsletter/' . $m;
     foreach ((array) $tab['module'] as $module) { require EVK_TEST_ROOT . '/' . $module; }
 }
 if (isset($tab['seed'])) $tab['seed']();
+
+// Nadpisania z argumentu 4 — PO zasiewie, żeby dało się zejść z jego stanu.
+foreach ($evk_nadpisz_opcje as $klucz => $wartosc) $GLOBALS['options'][$klucz] = $wartosc;
 
 /* Podstrony Bezpieczeństwa dostają te zmienne od `tab-bezpieczenstwo.php`
    i liczą na nie bez sprawdzania. Bez nich renderowały się z pustymi polami
