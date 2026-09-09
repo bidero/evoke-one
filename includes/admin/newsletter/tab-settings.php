@@ -16,9 +16,9 @@ $first_list = function_exists('evk_nl_get_lists') ? (evk_nl_get_lists()[0] ?? nu
 $example_id = $first_list['id'] ?? 1;
 ?>
 
-<?php if (!empty($_GET['nl_saved'])): ?>
-<div class="notice notice-success inline" style="margin:0 0 16px;"><p>Ustawienia zapisane.</p></div>
-<?php endif; ?>
+<?php /* Potwierdzenie zapisu stoi przy przycisku, jak w całym panelu (1.167.0).
+         Czarne powiadomienie u góry było tu jedynym śladem po zapisie i mówiło
+         to samo, tylko gdzie indziej i w innym kolorze. */ ?>
 
 <form method="post" action="">
     <?php wp_nonce_field('evk_nl_settings', 'evk_nl_settings_nonce'); ?>
@@ -139,5 +139,6 @@ $example_id = $first_list['id'] ?? 1;
 
     <div class="evo-save-bar">
         <button type="submit" class="button button-primary">Zapisz ustawienia</button>
+        <?php evoke_one_komunikat_zapisu(!empty($_GET['nl_saved'])); ?>
     </div>
 </form>

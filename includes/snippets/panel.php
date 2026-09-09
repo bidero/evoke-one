@@ -26,7 +26,11 @@ function evk_snippets_render_tab(): void {
     $widok = sanitize_key($_GET['evk_widok'] ?? 'lista');
     if (!in_array($widok, ['lista', 'edytor', 'logi', 'advanced'], true)) $widok = 'lista';
 
-    if (!empty($_GET['evk_zapisano'])) {
+    /* Zapis snippetu potwierdza zielony komunikat przy przycisku (1.167.0),
+       więc czarne powiadomienie u góry byłoby drugim potwierdzeniem tego samego.
+       Pozostałe wyniki — usunięcie, zmiana stanu — nie są zapisem ustawień
+       i zostają przy powiadomieniu. */
+    if (!empty($_GET['evk_zapisano']) && $_GET['evk_zapisano'] !== 'wpis') {
         printf('<div class="updated notice is-dismissible"><p>%s</p></div>',
             esc_html([
                 'wpis'    => 'Snippet zapisany.',
@@ -350,6 +354,7 @@ function evk_snippety_edytor(): void {
 
         <div class="evo-save-bar">
             <?php submit_button('Zapisz snippet', 'primary', 'evk_zapisz_wpis', false); ?>
+            <?php evoke_one_komunikat_zapisu(($_GET['evk_zapisano'] ?? '') === 'wpis'); ?>
             <a href="<?php echo esc_url(evk_snippety_url()); ?>" class="button">Anuluj</a>
         </div>
     </form>
@@ -518,6 +523,7 @@ function evk_snippety_advanced(int $wlaczony): void { ?>
         </div>
         <div class="evo-save-bar">
             <?php submit_button('Zapisz', 'primary', 'evk_zapisz_advanced', false); ?>
+            <?php evoke_one_komunikat_zapisu(($_GET['evk_zapisano'] ?? '') === 'wpis'); ?>
         </div>
     </form>
     <?php

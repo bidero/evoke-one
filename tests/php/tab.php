@@ -358,6 +358,13 @@ if (!defined('TL_MENU_TITLE'))  define('TL_MENU_TITLE', 'Tłumaczenia');
 if (!defined('TL_VERSION'))     define('TL_VERSION', '1.126.0');
 if (!defined('EVOKE_ONE_VERSION')) define('EVOKE_ONE_VERSION', '1.126.0');
 
+/* Pomocniki panelu — na żywo `evoke-one.php` ładuje je PRZED plikami zakładek
+   (`evoke-one.php:134`), więc zakładka może wołać `evoke_one_pasek_zapisu()`
+   i `evoke_one_komunikat_zapisu()`. Bez tego wiersza harness wywraca się na tym
+   fatalem — czyli dokładnie tak, jak ekran mapy strony na żywej instalacji:
+   funkcja wołana z pliku, którego w danym kontekście nie ma. */
+require_once EVK_TEST_ROOT . '/includes/admin/helpers.php';
+
 $slug = $argv[1] ?? '';
 
 // Argument 2 (opcjonalny): JSON z parametrami zapytania. Zakładki, które

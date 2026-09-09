@@ -29,5 +29,5 @@ if (!defined('ABSPATH')) exit;
             <div class="evo-mt evo-mb-sm"><button type="button" class="button button-secondary" onclick="tlAddImageCard()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj obrazek</button></div>
             <div class="tl-save-bar">
                 <button type="button" class="button button-primary" onclick="tlSaveImages()"><span class="dashicons dashicons-saved"></span> Zapisz obrazki</button>
-                <span class="tl-save-status" id="save-status-images"></span>
+                <span class="evo-save-msg" role="status" id="save-status-images"></span>
             </div>

@@ -381,9 +381,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-desc" style="margin-top:8px;">Przetworzy wszystkie opublikowane posty z przypisanymi miniaturami.</div>
                 </div>
 
-                <div class="evo-save-bar">
-                    <?php submit_button('Zapisz ustawienia OpenGraph', 'primary', 'submit', false); ?>
-                </div>
+                <?php evoke_one_pasek_zapisu('Zapisz ustawienia OpenGraph'); ?>
             </form>
 
             <?php // Skrypty zakładki siedzą w assets/admin/admin.js.

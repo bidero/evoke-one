@@ -355,9 +355,9 @@ module.exports = async function (t) {
         tlo:  s.backgroundColor,
         blur: s.backdropFilter,
         odchylenie: Math.round(Math.max(Math.abs(b.left - lewaTresci), Math.abs(b.right - prawaTresci))),
-        /* Komunikat jest ukryty do chwili zapisu (`display: none`), więc nie ma
-           czego mierzyć w pikselach — `auto` jest tu całą treścią reguły. */
-        komunikatZPrawej: msg ? getComputedStyle(msg).marginLeft : null,
+        /* Komunikat bywa ukryty do chwili zapisu (`display: none`), więc nie ma
+           czego mierzyć w pikselach — cała treść reguły siedzi w marginesie. */
+        marginesKomunikatu: msg ? getComputedStyle(msg).marginLeft : null,
       };
     });
 
@@ -373,9 +373,15 @@ module.exports = async function (t) {
       pasek && pasek.odchylenie <= 1,
       pasek ? pasek.odchylenie + ' px od krawędzi „' + pasek.rodzic + '"' : '—');
     if (ekran === 'sec-login') {
-      t.check('a potwierdzenie zapisu odpychane jest na prawy koniec',
-        pasek && pasek.komunikatZPrawej === 'auto',
-        pasek ? 'margin-left: ' + pasek.komunikatZPrawej : '—');
+      /* DO 1.167.0 STAŁO TU ODWROTNE ŻĄDANIE: „potwierdzenie odpychane jest na
+         prawy koniec", czyli `margin-left: auto`. Sprawdzenie utrwalało to, co
+         okazało się usterką — na ekranie 1400 px „✓ Zapisano" wypadało ponad
+         tysiąc pikseli od przycisku, którego dotyczyło. ZGŁOSZONE Z UŻYCIA.
+         Odstęp daje teraz `gap` paska, więc własnego marginesu ma nie być
+         wcale; pozycję w pikselach mierzy `potwierdzenie-zapisu.test.js`. */
+      t.check('a potwierdzenie zapisu nie ma własnego marginesu — odstęp daje gap paska',
+        pasek && pasek.marginesKomunikatu === '0px',
+        pasek ? 'margin-left: ' + pasek.marginesKomunikatu : '—');
     }
     await zPaskiem.close();
   }

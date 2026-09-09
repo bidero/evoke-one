@@ -32,6 +32,10 @@ function selected($a, $b = true, $echo = true) { if ($a == $b) echo ' selected';
    z atrap i niczego więcej. */
 require_once EVK_TEST_ROOT . '/includes/00-context-safety.php';
 
+/* Pomocniki panelu — zakładka woła z nich `evoke_one_pasek_zapisu()`, a na żywo
+   `evoke-one.php` ładuje je przed plikami zakładek. */
+require_once EVK_TEST_ROOT . '/includes/admin/helpers.php';
+
 require EVK_TEST_ROOT . '/includes/anim/animator.php';
 
 $slugs = json_decode($argv[1] ?? '[]', true) ?: [];

@@ -98,5 +98,5 @@ if (!defined('ABSPATH')) exit;
             </div>
             <div class="tl-save-bar">
                 <button type="button" class="button button-primary" id="btn-save-translations" onclick="tlSaveTranslations()"><span class="dashicons dashicons-saved"></span> Zapisz tłumaczenia</button>
-                <span class="tl-save-status" id="save-status-translations"></span>
+                <span class="evo-save-msg" role="status" id="save-status-translations"></span>
             </div>

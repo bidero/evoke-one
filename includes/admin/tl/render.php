@@ -96,8 +96,11 @@ function tl_render_page() {
 
         /* Sticky pasek zapisu */
         .tl-save-bar { position:sticky; bottom:0; background:rgba(255,255,255,.94); backdrop-filter:saturate(180%) blur(8px); border-top:1px solid #e5e7eb; padding:14px 24px; margin:22px -24px -24px; z-index:100; }
-        .tl-save-status { font-size:13px; color:#047857; display:none; }
-        .tl-save-status.err { color:var(--evo-danger); }
+        /* Potwierdzenie zapisu ma tu wspólną klasę `.evo-save-msg` i wygląd
+           z admin.css (1.167.0). Wcześniej stała tu własna klasa o dokładnie
+           tym samym kolorze — dwa opisy tej samej rzeczy, z których jeden
+           zawsze zostaje w tyle. */
+        .evo-save-msg.err { color:var(--evo-danger); }
 
         /* Drag & drop sortowanie */
         .drag-handle { color:var(--evo-border-dash); cursor:move !important; font-size:16px; flex-shrink:0; line-height:1; padding:4px; user-select:none; -webkit-user-select:none; }

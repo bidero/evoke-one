@@ -87,7 +87,5 @@ $detected = EVK_Fonts::detect_local_fonts();
                 
                 </div>
 
-<div class="evo-save-bar">
-                    <?php submit_button('Zapisz ustawienia czcionek', 'primary', 'submit', false); ?>
-                </div>
+<?php evoke_one_pasek_zapisu('Zapisz ustawienia czcionek'); ?>
             </form>

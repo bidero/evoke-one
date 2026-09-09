@@ -41,7 +41,7 @@ if (!defined('ABSPATH')) exit;
 
             <div class="tl-save-bar">
                 <button type="button" class="button button-primary" onclick="tlSaveSlugs()"><span class="dashicons dashicons-saved"></span> Zapisz slugi URL</button>
-                <span class="tl-save-status" id="save-status-slugs"></span>
+                <span class="evo-save-msg" role="status" id="save-status-slugs"></span>
             </div>
 
             <script>

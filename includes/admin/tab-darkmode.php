@@ -262,9 +262,7 @@ if (!defined('ABSPATH')) exit;
                         </div>
                     </div>
 
-                    <div class="evo-save-bar">
-                        <?php submit_button('Zapisz ustawienia Dark Mode', 'primary', 'submit', false); ?>
-                    </div>
+                    <?php evoke_one_pasek_zapisu('Zapisz ustawienia Dark Mode'); ?>
 
                 </div>
 

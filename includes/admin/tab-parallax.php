@@ -64,7 +64,5 @@ $par_enabled  = !empty($parallax_opt['enabled']);
                 
                 </div>
 
-<div class="evo-save-bar">
-                    <?php submit_button('Zapisz ustawienia parallax', 'primary', 'submit', false); ?>
-                </div>
+<?php evoke_one_pasek_zapisu('Zapisz ustawienia parallax'); ?>
             </form>

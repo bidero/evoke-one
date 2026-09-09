@@ -296,6 +296,67 @@ function evoke_one_stan_sekcji(string $tab): array {
     return ['wlaczone' => $wlaczone, 'wszystkie' => $wszystkie];
 }
 
+/**
+ * PASEK ZAPISU — przycisk i potwierdzenie, jedno miejsce dla całego panelu.
+ *
+ * Do 1.167.0 pasków było dwadzieścia dziewięć i każdy budował się u siebie.
+ * Wychodziło z tego pięć różnych sposobów potwierdzania zapisu: zielony
+ * `.evo-save-msg` obok przycisku (4 ekrany), zielony `.tl-save-status` z własną
+ * klasą i stylem wpisanym w PHP (6 ekranów tłumaczeń), CZARNE natywne
+ * powiadomienie WordPressa u góry strony (Logi 404, snippety, newsletter),
+ * napis wpisywany w sam przycisk (Meta SEO) — a na dwudziestu pięciu paskach
+ * nie było niczego. ZGŁOSZONE Z UŻYCIA: „czasami jest przesunięty maksymalnie
+ * w prawo, a czasami czarny".
+ *
+ * „Maksymalnie w prawo" brało się z `.evo-save-bar .evo-save-msg { margin-left:
+ * auto }` — reguła odpychała komunikat na drugi koniec paska, więc przy szerokiej
+ * karcie stał metr od przycisku, którego dotyczył.
+ *
+ * Teraz jest jedna funkcja i jeden wygląd: zielony tekst tuż na prawo od
+ * przycisku. Ekran, który nie woła tej funkcji, nie ma paska zapisu w ogóle —
+ * nie ma jak mieć własnego wariantu.
+ *
+ * `$zapisano === null` (domyślnie) pyta o `?settings-updated`, które WordPress
+ * dokłada wracając z `options.php` — czyli ekrany na Settings API dostają
+ * potwierdzenie bez ani jednej linii u siebie. Ekrany z własnym POST-em podają
+ * `true`, gdy właśnie zapisały. `false` renderuje komunikat ukryty, dla ekranów,
+ * które pokazują go z JavaScriptu po zapisie AJAX-em.
+ */
+function evoke_one_pasek_zapisu(string $etykieta = 'Zapisz ustawienia', ?bool $zapisano = null, string $klasy = ''): void {
+    echo '<div class="evo-save-bar">';
+    submit_button($etykieta, 'primary', 'submit', false);
+    evoke_one_komunikat_zapisu($zapisano, $klasy);
+    echo '</div>';
+}
+
+/**
+ * SAM KOMUNIKAT, bez paska.
+ *
+ * Pięć pasków w panelu ma przycisk innego kształtu, niż umie `submit_button()`
+ * z funkcji wyżej: przycisk typu `button` z własnym `onclick` (Mapa strony),
+ * przyciski o własnych nazwach pola i przycisk z odsyłaczem „Anuluj" obok
+ * (snippety). Dokładanie na to trzech kolejnych parametrów zrobiłoby z paska
+ * funkcję, której nikt nie czyta ze zrozumieniem — więc rozdzielone jest to,
+ * co naprawdę ma być wspólne: WYGLĄD I TREŚĆ KOMUNIKATU. Pasek typowy woła tę
+ * funkcję u siebie, nietypowy woła ją wprost.
+ *
+ * `role="status"` czyta czytnik ekranu. Przy zapisie AJAX-em nie ma ani nowej
+ * strony, ani powiadomienia WordPressa, więc bez tego niewidzący nie dostaje
+ * żadnego sygnału, że zapis się wydarzył.
+ */
+function evoke_one_komunikat_zapisu(?bool $zapisano = null, string $klasy = ''): void {
+    /* Domyślnie pytamy o `?settings-updated`, które WordPress dokłada wracając
+       z `options.php` — ekrany na Settings API dostają potwierdzenie bez ani
+       jednej linii u siebie. */
+    if ($zapisano === null) $zapisano = !empty($_GET['settings-updated']);
+
+    printf(
+        '<span class="evo-save-msg%s%s" role="status">✓ Zapisano</span>',
+        $zapisano ? ' is-widoczny' : '',
+        $klasy !== '' ? ' ' . esc_attr($klasy) : ''
+    );
+}
+
 /* `evoke_one_render_subtabs()` stała tutaj do 1.139.1. Rysowała nad treścią
    pasek ekranów bieżącej sekcji — czyli od 1.138.0 to samo, co drugi poziom
    paska bocznego, tylko innym krojem. Ekran snippetów ma własny pasek WIDOKÓW

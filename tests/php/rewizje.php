@@ -108,6 +108,10 @@ function wp_delete_post_revision($id) {
 $GLOBALS['skasowano_nie_rewizje'] = [];
 
 require_once EVK_TEST_ROOT . '/includes/30-admin-settings-ajax.php';
+
+/* Pomocniki panelu — ekran rewizji woła z nich `evoke_one_pasek_zapisu()`,
+   a na żywo `evoke-one.php` ładuje je przed plikami zakładek. */
+require_once EVK_TEST_ROOT . '/includes/admin/helpers.php';
 require_once EVK_TEST_ROOT . '/includes/tools/rewizje.php';
 
 // =========================================================================

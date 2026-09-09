@@ -72,7 +72,5 @@ $tc = EVK_Theme_Color::get_instance()->get_settings();
                     </div>
                 </div>
 
-<div class="evo-save-bar">
-                    <?php submit_button('Zapisz kolory pasków', 'primary', 'submit', false); ?>
-                </div>
+<?php evoke_one_pasek_zapisu('Zapisz kolory pasków'); ?>
             </form>

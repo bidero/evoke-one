@@ -180,9 +180,7 @@ if (!defined('ABSPATH')) exit;
                 
                 </div>
 
-<div class="evo-save-bar">
-                    <?php submit_button('Zapisz konfigurację kursora', 'primary', 'submit', false); ?>
-                </div>
+<?php evoke_one_pasek_zapisu('Zapisz konfigurację kursora'); ?>
             </form>
 
             <script type="text/template" id="evo-cursor-row-template">

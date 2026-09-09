@@ -34,7 +34,7 @@ if (!defined('ABSPATH')) exit;
             <div class="evo-mt evo-mb"><button type="button" class="button" onclick="tlDDAddRow()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj klucz</button></div>
             <div class="tl-save-bar">
                 <button type="button" class="button button-primary" onclick="tlSaveDDKeys()"><span class="dashicons dashicons-saved"></span> Zapisz klucze DD</button>
-                <span class="tl-save-status" id="save-status-dd"></span>
+                <span class="evo-save-msg" role="status" id="save-status-dd"></span>
             </div>
             <script>
             (function($){

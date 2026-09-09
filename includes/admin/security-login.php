@@ -42,7 +42,7 @@ $active_blocks = evk_login_active_blocks();
         </div>
     </div>
 
-    <div class="evo-save-bar"><button type="submit" class="button button-primary">Zapisz</button><span class="evk-sec-saved evo-save-msg evo-ml">✓ Zapisano</span></div>
+    <?php evoke_one_pasek_zapisu('Zapisz', false, 'evk-sec-saved'); ?>
 </form>
 
 <?php if (!empty($active_blocks)): ?>

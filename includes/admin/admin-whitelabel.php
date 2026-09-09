@@ -633,7 +633,7 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
 
     </div><!-- /akordeony -->
 
-<div class="evo-save-bar"><?php submit_button('Zapisz White Label', 'primary', 'submit', false); ?></div>
+<?php evoke_one_pasek_zapisu('Zapisz White Label'); ?>
 </form>
 
 

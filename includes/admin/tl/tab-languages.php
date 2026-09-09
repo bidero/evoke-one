@@ -64,5 +64,5 @@ if (!defined('ABSPATH')) exit;
             <div class="tl-footer">
                 <button type="button" class="button" onclick="tlAddLang()"><span class="dashicons dashicons-plus-alt2"></span> Dodaj język</button>
                 <button type="button" class="button button-primary" onclick="tlSaveSettings()"><span class="dashicons dashicons-saved"></span> Zapisz ustawienia</button>
-                <span class="tl-save-status" id="save-status-settings"></span>
+                <span class="evo-save-msg" role="status" id="save-status-settings"></span>
             </div>

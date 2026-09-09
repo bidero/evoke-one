@@ -20,7 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_404_save'])
     update_option('evk_404_max_logs',  max(10, absint($_POST['evk_404_max_logs']  ?? 200)));
     update_option('evk_404_skip_bots', !empty($_POST['evk_404_skip_bots']) ? 1 : 0);
     update_option('evk_404_bot_list',  sanitize_textarea_field($_POST['evk_404_bot_list'] ?? ''));
-    echo '<div class="updated notice is-dismissible"><p>Zapisano.</p></div>';
+    /* Potwierdzenie stoi przy przycisku, jak w całym panelu (1.167.0). Czarne
+       powiadomienie u góry mówiło to samo, tylko gdzie indziej. */
+    $evk_404_zapisano = true;
 }
 
 $enabled   = evk_404_is_enabled();
@@ -96,6 +98,7 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
              Kursorze i Fragmentach kodu, zamiast emoji. */ ?>
     <div class="evo-save-bar evo-toolbar" style="--evo-gap:12px">
         <?php submit_button('Zapisz ustawienia', 'primary', 'evk_404_save', false); ?>
+        <?php evoke_one_komunikat_zapisu(!empty($evk_404_zapisano)); ?>
         <button type="button" class="button" id="evk-clear-404" data-nonce="<?php echo esc_attr($nonce_ajax); ?>"><span class="dashicons dashicons-trash evo-ico"></span> Wyczyść wszystkie logi</button>
         <span id="evk-clear-404-msg" class="evo-save-msg">Wyczyszczono.</span>
     </div>

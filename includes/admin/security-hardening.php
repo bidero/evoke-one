@@ -33,5 +33,5 @@ if (!defined('ABSPATH')) exit;
         </div>
     </div>
 
-<div class="evo-save-bar"><button type="submit" class="button button-primary">Zapisz</button><span class="evk-sec-saved evo-save-msg evo-ml">✓ Zapisano</span></div>
+<?php evoke_one_pasek_zapisu('Zapisz', false, 'evk-sec-saved'); ?>
 </form>

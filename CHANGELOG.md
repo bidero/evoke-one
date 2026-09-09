@@ -2,6 +2,66 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.167.0] — 2026-09-09
+
+### Zmienione
+
+- **Potwierdzenie zapisu wygląda tak samo na całym panelu: zielony `✓ Zapisano`
+  tuż na prawo od przycisku.** ZGŁOSZONE Z UŻYCIA: „czasami jest przesunięty
+  maksymalnie w prawo, a czasami czarny".
+
+  **Jedno i drugie było prawdą, bo potwierdzeń było PIĘĆ RÓŻNYCH:** zielony
+  `.evo-save-msg` obok przycisku (4 ekrany), zielony `.tl-save-status` z własną
+  klasą i stylem wpisanym w PHP (6 ekranów tłumaczeń), **czarne natywne
+  powiadomienie WordPressa u góry strony** (Logi 404, snippety, newsletter),
+  napis wpisywany w sam przycisk (Meta SEO) — a na **dwudziestu pięciu z
+  dwudziestu dziewięciu pasków zapisu nie było niczego**.
+
+  **„Maksymalnie w prawo"** brało się z `.evo-save-bar .evo-save-msg
+  { margin-left: auto }` — reguły dołożonej kiedyś dlatego, że „po prawej była
+  sama pustka". Pustka rzeczywiście była, ale lekarstwo odpychało komunikat na
+  drugi koniec paska: na ekranie 1400 px „✓ Zapisano" wypadało **ponad tysiąc
+  pikseli** od przycisku, którego dotyczyło. Zmierzone.
+
+  Teraz pasek zapisu wychodzi z jednej funkcji (`evoke_one_pasek_zapisu()`),
+  a sam komunikat z drugiej (`evoke_one_komunikat_zapisu()`) — dla pięciu pasków
+  o nietypowym przycisku, których `submit_button()` nie obsłuży. **Ekran, który
+  nie woła żadnej z nich, nie ma paska zapisu w ogóle — nie ma jak mieć własnego
+  wariantu.**
+
+- **Ekrany na Settings API dostają potwierdzenie bez ani jednej linii u siebie.**
+  Funkcja pyta o `?settings-updated`, które WordPress dokłada wracając
+  z `options.php`. Ekrany z własnym POST-em podają stan wprost.
+
+- **Odstęp od przycisku daje `gap` paska, nie własny margines.** Pierwsza wersja
+  poprawki zamieniała `auto` na `margin-left: 10px` — i **dokładała się do
+  `gap: 12px`**, dając 22 px zamiast dwunastu. Też zmierzone; reguła odstępu
+  poszła zupełnie.
+
+- **`.tl-save-status` zniknęła.** Sześć ekranów tłumaczeń miało własną klasę
+  o dokładnie tym samym kolorze, ze stylem wpisanym w PHP zamiast w arkuszu —
+  dwa opisy tej samej rzeczy, z których jeden zawsze zostaje w tyle.
+
+- **Czarne powiadomienia zastąpione zielonym komunikatem** w Logach 404,
+  newsletterze i przy zapisie snippetu. W snippetach powiadomienie **zostaje dla
+  pozostałych wyników** — usunięcia i zmiany stanu — bo to nie są zapisy ustawień
+  i „✓ Zapisano" mówiłoby o nich nieprawdę.
+
+### Sprawdzenia
+
+- **`tests/potwierdzenie-zapisu.test.js` — 11 sprawdzeń, mierzących JEDNOLITOŚĆ,
+  nie obecność.** Pytanie nie brzmi „czy ekran ma potwierdzenie", tylko „czy
+  wszystkie wyglądają tak samo i stoją w tym samym miejscu" — bo to różnice były
+  usterką. Kolor i pozycja mierzone w przeglądarce: obie zależą od reguł
+  wygrywających kaskadę, czego w źródle nie widać.
+
+- **Mutacje odtwarzające oba zgłoszone objawy zapalają.** Przywrócenie
+  `margin-left: auto` daje „1067 px od przycisku", zabranie koloru — `rgb(0,0,0)`.
+
+- **`tests/php/tab.php` ładuje `helpers.php`.** Bez tego zakładka wołająca
+  funkcję panelu wywracała harness fatalem — ta sama klasa błędu co na ekranie
+  Mapy strony, tylko złapana od razu.
+
 ## [1.166.0] — 2026-09-09
 
 ### Zmienione

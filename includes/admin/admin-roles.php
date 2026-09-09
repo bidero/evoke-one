@@ -120,7 +120,7 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
             </div>
         </div>
 
-<div class="evo-save-bar"><?php submit_button('Zapisz rolę', 'primary', 'submit', false); ?></div>
+<?php evoke_one_pasek_zapisu('Zapisz rolę'); ?>
     </form>
 
 <?php elseif ($action === 'add'): ?>
@@ -147,7 +147,7 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
                 <?php endforeach; ?>
             </select>
         </div>
-        <div class="evo-save-bar"><?php submit_button('Dodaj rolę', 'primary', 'submit', false); ?></div>
+        <?php evoke_one_pasek_zapisu('Dodaj rolę'); ?>
     </form>
 
 <?php else: // Lista ról ?>

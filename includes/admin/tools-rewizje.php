@@ -113,7 +113,5 @@ $bajtow   = array_sum(array_column($przeglad, 'bajtow'));
         </div>
     </div>
 
-    <div class="evo-save-bar">
-        <?php submit_button('Zapisz ustawienia', 'primary', 'submit', false); ?>
-    </div>
+    <?php evoke_one_pasek_zapisu('Zapisz ustawienia'); ?>
 </form>

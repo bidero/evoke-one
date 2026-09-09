@@ -84,9 +84,7 @@ $nonce = wp_create_nonce('evk_tools_nonce');
         <span id="evk-smtp-test-result" class="evo-note-tx"></span>
     </div>
 
-    <div class="evo-save-bar">
-        <?php submit_button('Zapisz SMTP', 'primary', 'submit', false); ?>
-    </div>
+    <?php evoke_one_pasek_zapisu('Zapisz SMTP'); ?>
 </div>
 
 </form>

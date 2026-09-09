@@ -383,8 +383,14 @@
     border-top: 1px solid var(--evo-border);
     border-radius: 0;
 }
-/* Potwierdzenie zapisu na drugi koniec paska — po prawej była sama pustka. */
-.evo-save-bar .evo-save-msg { margin-left: auto; }
+/* POTWIERDZENIE ZAPISU STOI TUŻ PRZY PRZYCISKU, którego dotyczy — i nie ma tu
+   własnej reguły odstępu, bo pasek jest flexem z `gap: 12px` i sam go daje.
+   Do 1.167.0 stało tu `margin-left: auto` („potwierdzenie na drugi koniec paska,
+   po prawej była sama pustka"). Pustka rzeczywiście była, ale lekarstwo odsuwało
+   komunikat od przycisku na całą szerokość karty: na ekranie 1400 px „✓ Zapisano"
+   wypadało ponad tysiąc pikseli od tego, czego dotyczyło. ZGŁOSZONE Z UŻYCIA.
+   Zamiana `auto` na własny margines też była błędem — dokładała się do `gap`
+   i dawała 22 px zamiast dwunastu. Zmierzone. */
 .evo-save-bar .button-primary { background: var(--evo-accent); border-color: var(--evo-accent); }
 .evo-save-bar .button-primary:hover { background: var(--evo-accent-dark); border-color: var(--evo-accent-dark); }
 
@@ -2613,7 +2619,14 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 /* Nagłówek grupy w zakładce SEO — kreska pod tytułem, poza boksem. */
 .evo-group-title { margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--evo-border-soft); }
 .evo-ok-tx { color: var(--evo-on); }
+/* POTWIERDZENIE ZAPISU — jeden wygląd dla całego panelu (1.167.0).
+   Domyślnie ukryte, bo część ekranów renderuje je z góry i odsłania dopiero
+   po zapisie AJAX-em (`.show()` z jQuery). Ekrany, które przeładowują stronę,
+   dostają je od razu widoczne — stąd `is-widoczny`, dokładany po stronie PHP.
+   Selektor dwuklasowy, więc wygrywa z `display: none` niezależnie od kolejności
+   reguł w pliku. */
 .evo-save-msg { display: none; font-size: 13px; color: #047857; }
+.evo-save-msg.is-widoczny { display: inline-block; }
 .evo-col-label { min-width: 42px; font-size: 11px; text-transform: uppercase; color: var(--evo-text-dim); }
 .evo-top { vertical-align: top; padding-top: 8px; }
 

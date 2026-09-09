@@ -197,9 +197,7 @@ $row_def    = $anim->row_defaults();
     
     </div>
 
-<div class="evo-save-bar">
-        <?php submit_button('Zapisz bibliotekę animacji', 'primary', 'submit', false); ?>
-    </div>
+<?php evoke_one_pasek_zapisu('Zapisz bibliotekę animacji'); ?>
 </form>
 
 <script type="text/template" id="evo-anim-row-template">
