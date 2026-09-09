@@ -49,44 +49,24 @@ require EVK_TEST_ROOT . '/includes/opengraph/settings.php';
 require EVK_TEST_ROOT . '/includes/security/settings.php';
 require EVK_TEST_ROOT . '/includes/30-admin-settings-ajax.php';
 
+/* Rejestr elementów Bricksa — przegląd sekcji liczy z niego przełączniki wiersza
+   „Elementy Bricks", dokładnie tak jak robi to `evk_toggle_allowlist()`. Bez
+   rejestru wiersz pokazałby „0 z 0" i sprawdzenie licznika nie mierzyłoby nic. */
+require EVK_TEST_ROOT . '/includes/bricks-elements/loader.php';
+
 /* Kolejność jak w evoke-one.php:133-134 — `page.php` woła
    `evoke_one_zakladki()` i `evoke_one_ekrany()` z helpers. */
 require EVK_TEST_ROOT . '/includes/admin/helpers.php';
 require EVK_TEST_ROOT . '/includes/admin/page.php';
 
-/* Struktura panelu na żądanie — `--mapa` zamiast renderu.
-   Test porównuje to, co widać na ekranie, z tym, co deklaruje wtyczka; obie
-   rzeczy muszą pochodzić z niej samej, nie z listy przepisanej w teście. */
-if (($argv[1] ?? '') === '--mapa') {
-    echo json_encode([
-        'zakladki' => evoke_one_zakladki(),
-        'ekrany'   => evoke_one_ekrany(),
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-// ── Zasiew ────────────────────────────────────────────────────────────────
-// Klucz → wartość. Moduły z flagą `enabled` podajemy jako 1/0, opcje płaskie
-// tak samo; plik sam wie, które są tablicami.
-$plaskie = ['evk_301_enabled', 'evk_404_enabled', 'maintenance_mode'];
-
-$zasiew = json_decode($argv[1] ?? '{}', true) ?: [];
-foreach ($zasiew as $klucz => $wartosc) {
-    if ($klucz === 'ssl')  { $GLOBALS['ssl'] = (bool) $wartosc; continue; }
-    if (in_array($klucz, $plaskie, true)) { $GLOBALS['options'][$klucz] = $wartosc; continue; }
-    if ($klucz === 'evk_cleanup')  { $GLOBALS['options'][$klucz] = $wartosc; continue; }
-    if ($klucz === 'evk_security') { $GLOBALS['options'][$klucz] = $wartosc; continue; }
-    $GLOBALS['options'][$klucz] = ['enabled' => (int) $wartosc];
-}
-
-$_GET['tab'] = $argv[2] ?? 'dashboard';
-$GLOBALS['caps']['manage_options'] = true;
-
 /* Zakładka inna niż pulpit wciąga plik swojej treści, a ten potrzebuje całego
  * modułu, który obsługuje. Tutaj chodzi WYŁĄCZNIE o powłokę — sidebar, nagłówek
  * i paletę — więc `EVOKE_ONE_DIR` wskazuje katalog z pustymi plikami zakładek.
  * Treść zakładek ma własne pokrycie w tests/php/tab.php i nie ma powodu
- * powtarzać go tutaj drugi raz. */
+ * powtarzać go tutaj drugi raz.
+ *
+ * Stała musi stać PRZED `--mapa`: rejestr elementów Bricksa buduje z niej
+ * ścieżki, a mapa przełączników czyta z rejestru listę elementów. */
 $katalog = sys_get_temp_dir() . '/evk-panel-start-' . getmypid();
 @mkdir($katalog . '/includes/admin', 0700, true);
 foreach (['wydajnosc', 'strona', 'bezpieczenstwo', 'narzedzia', 'admin', 'newsletter', 'forminbox'] as $nazwa) {
@@ -97,5 +77,52 @@ register_shutdown_function(static function () use ($katalog) {
     foreach (glob($katalog . '/includes/admin/*.php') ?: [] as $plik) unlink($plik);
     @rmdir($katalog . '/includes/admin'); @rmdir($katalog . '/includes'); @rmdir($katalog);
 });
+
+/* Struktura panelu na żądanie — `--mapa` zamiast renderu.
+   Test porównuje to, co widać na ekranie, z tym, co deklaruje wtyczka; obie
+   rzeczy muszą pochodzić z niej samej, nie z listy przepisanej w teście. */
+if (($argv[1] ?? '') === '--mapa') {
+    /* `przelaczniki` rozwinięte przez wtyczkę, nie surowa mapa: wiersz „Elementy
+       Bricks" deklaruje w niej rejestr, a test ma zobaczyć te same pary, które
+       trafiają na ekran. */
+    $przelaczniki = [];
+    foreach (evoke_one_ekrany() as $zakladka => $ekrany) {
+        foreach (array_keys($ekrany) as $sub) {
+            $przelaczniki[$zakladka][$sub] = evoke_one_przelaczniki($zakladka, $sub);
+        }
+    }
+
+    echo json_encode([
+        'zakladki'     => evoke_one_zakladki(),
+        'ekrany'       => evoke_one_ekrany(),
+        'przeglad'     => evoke_one_sekcje_z_przegladem(),
+        'przelaczniki' => $przelaczniki,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ── Zasiew ────────────────────────────────────────────────────────────────
+// Klucz → wartość. Moduły z flagą `enabled` podajemy jako 1/0, opcje płaskie
+// tak samo; plik sam wie, które są tablicami.
+$plaskie = ['evk_301_enabled', 'evk_404_enabled', 'maintenance_mode',
+    'evk_tl_module_enabled', 'evk_tl_fab_enabled'];
+
+$zasiew = json_decode($argv[1] ?? '{}', true) ?: [];
+foreach ($zasiew as $klucz => $wartosc) {
+    if ($klucz === 'ssl')  { $GLOBALS['ssl'] = (bool) $wartosc; continue; }
+    if (in_array($klucz, $plaskie, true)) { $GLOBALS['options'][$klucz] = $wartosc; continue; }
+    if ($klucz === 'evk_cleanup')  { $GLOBALS['options'][$klucz] = $wartosc; continue; }
+    if ($klucz === 'evk_security') { $GLOBALS['options'][$klucz] = $wartosc; continue; }
+    // Elementy Bricksa trzymają flagę per element, nie jedno `enabled`.
+    if ($klucz === 'evk_elements') { $GLOBALS['options'][$klucz] = $wartosc; continue; }
+    $GLOBALS['options'][$klucz] = ['enabled' => (int) $wartosc];
+}
+
+$_GET['tab'] = $argv[2] ?? 'dashboard';
+/* Trzeci argument to `?sub=`. Bez niego nie da się pokazać, że sekcja
+   z przeglądem prowadzi starym adresem dalej na ekran modułu — a to jest
+   dokładnie ta zmiana, która mogłaby po cichu popsuć zapisane odsyłacze. */
+if (($argv[3] ?? '') !== '') $_GET['sub'] = $argv[3];
+$GLOBALS['caps']['manage_options'] = true;
 
 evoke_one_render_settings();

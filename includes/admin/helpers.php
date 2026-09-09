@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) exit;
  * Stały wcześniej w `evoke_one_render_settings()`, czyli były niewidoczne dla
  * palety wyszukiwania i dla ekranu startowego, które renderują się w osobnych
  * funkcjach. Razem z `evoke_one_ekrany()` niżej tworzą komplet struktury
- * panelu: osiem zakładek i 31 ekranów w środku.
+ * panelu: osiem zakładek i 33 ekrany w środku.
  */
 function evoke_one_zakladki(): array {
     return [
@@ -34,7 +34,7 @@ function evoke_one_zakladki(): array {
  * w lokalnej zmiennej `$subs`. Widział ją wyłącznie ten plik, który akurat się
  * renderował — więc pasek boczny nie mógł pokazać, co jest w środku sekcji,
  * a wyszukiwarka miała własną listę czternastu pozycji wpisanych z ręki obok
- * `$tabs`. Panel ma 34 ekrany; ta lista rozjeżdżała się z rzeczywistością przy
+ * `$tabs`. Panel ma 33 ekrany; ta lista rozjeżdżała się z rzeczywistością przy
  * pierwszym dołożonym module i nie było jak tego zauważyć.
  *
  * Teraz czytają stąd trzy rzeczy: drugi poziom paska bocznego, paleta
@@ -48,22 +48,55 @@ function evoke_one_zakladki(): array {
  * `szukaj` to słowa pomocnicze do wyszukiwarki. Etykiety są polskie, a nazwy,
  * pod którymi ludzie znają te rzeczy — nie: „dark mode", „gsap", „301".
  * Bez nich wpisanie „dark" nie znajduje „Trybu ciemnego".
+ *
+ * `opis` i `przelaczniki` czyta EKRAN PRZEGLĄDU SEKCJI (1.163.0). Opis to jedno
+ * zdanie do wiersza listy; `przelaczniki` to pary „opcja/pole", którymi ten
+ * ekran daje się włączyć — patrz `evoke_one_przelaczniki()` niżej. Na razie ma
+ * je wyłącznie Frontend: przegląd jest próbą kształtu, a nie gotową zmianą we
+ * wszystkich sekcjach.
  */
 function evoke_one_ekrany(): array {
     return [
         'wydajnosc' => [
-            'parallax'    => ['label' => 'Parallax',           'icon' => 'dashicons-image-flip-vertical', 'szukaj' => 'paralaksa scroll tło'],
-            'darkmode'    => ['label' => 'Tryb ciemny',        'icon' => 'dashicons-lightbulb',           'szukaj' => 'dark mode ciemny motyw'],
-            'cursor'      => ['label' => 'Kursor',             'icon' => 'dashicons-arrow-up-alt',        'szukaj' => 'cursor wskaźnik myszka'],
-            'lenis'       => ['label' => 'Płynne przewijanie', 'icon' => 'dashicons-sort',                'szukaj' => 'lenis smooth scroll'],
-            'animator'    => ['label' => 'Animator',           'icon' => 'dashicons-controls-play',       'szukaj' => 'gsap animacje scrolltrigger presety'],
-            'bgshift'     => ['label' => 'Tło przy scrollu',   'icon' => 'dashicons-art',                 'szukaj' => 'background kolor sekcji'],
-            'fonts'       => ['label' => 'Czcionki (FOUT)',    'icon' => 'dashicons-editor-textcolor',    'szukaj' => 'fonts webfont typografia'],
-            'sierotki'    => ['label' => 'Sierotki',           'icon' => 'dashicons-editor-paragraph',    'szukaj' => 'typografia spójniki twarda spacja nbsp wdowy'],
-            'themecolor'  => ['label' => 'Paski przeglądarki', 'icon' => 'dashicons-smartphone',          'szukaj' => 'theme-color pasek telefon'],
-            'a11y'        => ['label' => 'Dostępność',         'icon' => 'dashicons-universal-access',    'szukaj' => 'accessibility a11y kontrast wcag'],
-            'elementy'    => ['label' => 'Elementy Bricks',    'icon' => 'dashicons-screenoptions',       'szukaj' => 'marquee hscroll offcanvas splide'],
-            'tlumaczenia' => ['label' => 'Tłumaczenia',        'icon' => 'dashicons-translation',         'szukaj' => 'języki wielojęzyczność i18n'],
+            'parallax'    => ['label' => 'Parallax',           'icon' => 'dashicons-image-flip-vertical', 'szukaj' => 'paralaksa scroll tło',
+                              'opis' => 'Tło sekcji przesuwa się wolniej niż treść.',
+                              'przelaczniki' => [['evk_parallax', 'enabled']]],
+            'darkmode'    => ['label' => 'Tryb ciemny',        'icon' => 'dashicons-lightbulb',           'szukaj' => 'dark mode ciemny motyw',
+                              'opis' => 'Przełączanie motywu z przejściami CSS i View Transition API.',
+                              'przelaczniki' => [['evk_darkmode', 'enabled']]],
+            'cursor'      => ['label' => 'Kursor',             'icon' => 'dashicons-arrow-up-alt',        'szukaj' => 'cursor wskaźnik myszka',
+                              'opis' => 'Niestandardowy kursor zintegrowany z GSAP.',
+                              'przelaczniki' => [['evk_cursor', 'enabled']]],
+            'lenis'       => ['label' => 'Płynne przewijanie', 'icon' => 'dashicons-sort',                'szukaj' => 'lenis smooth scroll',
+                              'opis' => 'Płynne przewijanie strony oparte o bibliotekę Lenis.',
+                              'przelaczniki' => [['evk_lenis', 'enabled']]],
+            'animator'    => ['label' => 'Animator',           'icon' => 'dashicons-controls-play',       'szukaj' => 'gsap animacje scrolltrigger presety',
+                              'opis' => 'Animacje GSAP dla elementów Bricks przez klasę evk-anim-{slug}.',
+                              'przelaczniki' => [['evk_animator', 'enabled']]],
+            'bgshift'     => ['label' => 'Tło przy scrollu',   'icon' => 'dashicons-art',                 'szukaj' => 'background kolor sekcji',
+                              'opis' => 'Kolor tła przewija się płynnie od sekcji do sekcji.',
+                              'przelaczniki' => [['evk_bgshift', 'enabled']]],
+            'fonts'       => ['label' => 'Czcionki (FOUT)',    'icon' => 'dashicons-editor-textcolor',    'szukaj' => 'fonts webfont typografia',
+                              'opis' => 'Preload lokalnych plików czcionek — ogranicza miganie tekstu.',
+                              'przelaczniki' => [['evk_fonts', 'enabled']]],
+            'sierotki'    => ['label' => 'Sierotki',           'icon' => 'dashicons-editor-paragraph',    'szukaj' => 'typografia spójniki twarda spacja nbsp wdowy',
+                              'opis' => 'Spójniki jednoliterowe nie zostają na końcu wiersza.',
+                              'przelaczniki' => [['evk_sierotki', 'enabled']]],
+            'themecolor'  => ['label' => 'Paski przeglądarki', 'icon' => 'dashicons-smartphone',          'szukaj' => 'theme-color pasek telefon',
+                              'opis' => 'Kolor pasków Safari na telefonie, stały mimo zmiany sekcji.',
+                              'przelaczniki' => [['evk_theme_color', 'enabled']]],
+            'a11y'        => ['label' => 'Dostępność',         'icon' => 'dashicons-universal-access',    'szukaj' => 'accessibility a11y kontrast wcag',
+                              'opis' => 'Widget WCAG — kontrast, czcionki, sterowanie głosem.',
+                              'przelaczniki' => [['evk_a11y', 'enabled']]],
+            /* Lista przełączników PROSTO Z REJESTRU, tak jak w
+               `evk_toggle_allowlist()` — przepisana rozjechałaby się przy
+               pierwszym nowym elemencie. Rozwiązuje ją `evoke_one_przelaczniki()`. */
+            'elementy'    => ['label' => 'Elementy Bricks',    'icon' => 'dashicons-screenoptions',       'szukaj' => 'marquee hscroll offcanvas splide',
+                              'opis' => 'Elementy dokładane do edytora Bricks.',
+                              'przelaczniki' => 'rejestr-elementow'],
+            'tlumaczenia' => ['label' => 'Tłumaczenia',        'icon' => 'dashicons-translation',         'szukaj' => 'języki wielojęzyczność i18n',
+                              'opis' => 'Silnik wielojęzyczności i pływający przycisk edycji.',
+                              'przelaczniki' => [['evk_tl_module_enabled', '_scalar'], ['evk_tl_fab_enabled', '_scalar']]],
         ],
         'strona' => [
             'meta'    => ['label' => 'Meta SEO',    'icon' => 'dashicons-edit',         'szukaj' => 'tytuł opis description'],
@@ -98,6 +131,88 @@ function evoke_one_ekrany(): array {
             'roles'      => ['label' => 'Role Manager',  'icon' => 'dashicons-groups',            'szukaj' => 'role uprawnienia capabilities dostępy'],
         ],
     ];
+}
+
+/**
+ * SEKCJE, KTÓRE OTWIERAJĄ SIĘ EKRANEM PRZEGLĄDU.
+ *
+ * Na razie jedna. Przegląd jest próbą kształtu: zanim rozejdzie się na
+ * pozostałe cztery sekcje, ma zostać obejrzany na Frontendzie — tam, gdzie
+ * ekranów jest najwięcej (12) i gdzie są oba przypadki brzegowe: ekran
+ * z jednym włącznikiem i ekran z listą włączników pod spodem.
+ *
+ * Lista rozstrzyga trzy rzeczy naraz — co robi `?tab=` bez `?sub=`, czy pasek
+ * boczny dokłada pozycję „Przegląd" i czy paleta zna ten ekran — więc żadna
+ * z nich nie może się od pozostałych oderwać.
+ */
+function evoke_one_sekcje_z_przegladem(): array {
+    return ['wydajnosc'];
+}
+
+/**
+ * PRZEŁĄCZNIKI EKRANU — pary „opcja/pole", którymi da się go włączyć.
+ *
+ * Zwraca listę, nie pojedynczą parę, bo ekrany dzielą się na trzy przypadki
+ * i przegląd rysuje każdy inaczej: zero par to sam odsyłacz, jedna para to
+ * przełącznik, wiele par to licznik „N z M włączonych". Rozstrzyga o tym
+ * DŁUGOŚĆ listy, więc nie ma tu gałęzi per ekran.
+ *
+ * Elementy Bricksa są jedynym wpisem liczonym z rejestru — dokładnie tak, jak
+ * robi to `evk_toggle_allowlist()`, i z tego samego powodu: lista przepisana
+ * ręcznie rozjechała się w 1.56.0 przy pierwszym nowym elemencie.
+ */
+function evoke_one_przelaczniki(string $tab, string $sub): array {
+    $ekran = evoke_one_ekrany()[$tab][$sub] ?? [];
+    $spis  = $ekran['przelaczniki'] ?? [];
+
+    if ($spis === 'rejestr-elementow') {
+        if (!function_exists('evk_elements_registry')) return [];
+        $pary = [];
+        foreach (array_keys(evk_elements_registry()) as $klucz) $pary[] = ['evk_elements', $klucz];
+        return $pary;
+    }
+
+    return is_array($spis) ? $spis : [];
+}
+
+/**
+ * Czy ta para „opcja/pole" jest włączona.
+ *
+ * `_scalar` odpowiada gałęzi w `evk_ajax_toggle`: opcje płaskie handler zapisuje
+ * jako '1' albo '' i tak samo trzeba je czytać. Bez tego rozróżnienia przegląd
+ * pokazywałby przy Tłumaczeniach stan wyłączony niezależnie od bazy — czyli
+ * kłamałby po cichu, bo nic by się nie wywróciło.
+ */
+function evoke_one_wlaczony(string $option, string $field): bool {
+    if ($field === '_scalar') return (bool) get_option($option, 0);
+
+    $wartosc = get_option($option, []);
+    return is_array($wartosc) && !empty($wartosc[$field]);
+}
+
+/**
+ * Ile modułów sekcji jest włączonych i ile da się włączyć.
+ *
+ * MIANOWNIKIEM SĄ EKRANY Z JEDNYM WŁĄCZNIKIEM, nie wszystkie ekrany sekcji.
+ * Frontend ma 12 ekranów, ale Elementy Bricksa i Tłumaczenia mają pod sobą po
+ * kilka niezależnych przełączników i własne liczniki w wierszu. Wrzucenie ich
+ * do zbiorczej liczby dawałoby „13 z 12" albo kazałoby zgadywać, czy ekran
+ * z czterema włączonymi elementami liczy się jako jeden włączony — a liczba
+ * w nagłówku ma odpowiadać temu, co widać na liście obok.
+ */
+function evoke_one_stan_sekcji(string $tab): array {
+    $wlaczone = 0;
+    $wszystkie = 0;
+
+    foreach (array_keys(evoke_one_ekrany()[$tab] ?? []) as $sub) {
+        $pary = evoke_one_przelaczniki($tab, $sub);
+        if (count($pary) !== 1) continue;
+
+        $wszystkie++;
+        if (evoke_one_wlaczony($pary[0][0], $pary[0][1])) $wlaczone++;
+    }
+
+    return ['wlaczone' => $wlaczone, 'wszystkie' => $wszystkie];
 }
 
 /* `evoke_one_render_subtabs()` stała tutaj do 1.139.1. Rysowała nad treścią

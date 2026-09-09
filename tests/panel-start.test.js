@@ -196,9 +196,13 @@ module.exports = async function (t) {
      więc sprawdzenie sprowadza się do porównania liczb. */
   const wpisyPalety = [...pusty.matchAll(/data-evo-search-item>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
   const bezEkranow = zakladki.filter((z) => z !== 'dashboard' && !podzakladki[z]).length;
+  /* Sekcja z przeglądem (1.163.0) ma w palecie jeden wpis więcej niż ekranów:
+     przegląd jest osiągalny adresem `?tab=` bez `?sub=`, więc paleta ma go znać
+     jak każdy inny ekran. Liczba bierze się z mapy, nie z poprawki „+1". */
+  const zPrzegladem = (mapa.przeglad || []).length;
   t.check('wpisów palety tyle, ile ekranów panelu',
-    wpisyPalety.length === ekranowRazem + bezEkranow,
-    wpisyPalety.length + ' wpisów wobec ' + (ekranowRazem + bezEkranow) + ' ekranów');
+    wpisyPalety.length === ekranowRazem + bezEkranow + zPrzegladem,
+    wpisyPalety.length + ' wpisów wobec ' + (ekranowRazem + bezEkranow + zPrzegladem) + ' ekranów');
 
   /* Kontrola, że to naprawdę TE ekrany, a nie tylko tyle samo sztuk. */
   const brakujace = [];
@@ -256,16 +260,24 @@ module.exports = async function (t) {
   const podlinki = (html) => [...html.matchAll(/evo-sidebar-sublink[^>]*>([^<]+)</g)].map((m) => m[1]);
 
   const naFrontendzie = panel({}, 'wydajnosc');
+  /* Sekcja z przeglądem ma o jedną pozycję więcej niż ekranów — „Przegląd"
+     na czele listy. Liczba płynie z mapy, żeby dołożenie przeglądu w kolejnej
+     sekcji nie wymagało poprawiania tego sprawdzenia z ręki. */
+  const pozycjiFrontendu = podzakladki.wydajnosc.length
+    + ((mapa.przeglad || []).includes('wydajnosc') ? 1 : 0);
+
   t.check('rozwinięta sekcja pokazuje swoje ekrany',
-    podlinki(naFrontendzie).length === podzakladki.wydajnosc.length,
-    podlinki(naFrontendzie).length + ' z ' + podzakladki.wydajnosc.length);
+    podlinki(naFrontendzie).length === pozycjiFrontendu,
+    podlinki(naFrontendzie).length + ' z ' + pozycjiFrontendu);
   t.check('Animator jest wśród nich', podlinki(naFrontendzie).includes('Animator'),
     podlinki(naFrontendzie).slice(0, 5).join(', ') + '…');
 
-  /* Rozwinięta ma być TYLKO bieżąca sekcja — komplet 31 pozycji naraz jest
-     równie nieczytelny co dwupoziomowy pasek u góry, od którego uciekaliśmy. */
+  /* Rozwinięta ma być TYLKO bieżąca sekcja — komplet 33 pozycji naraz jest
+     równie nieczytelny co dwupoziomowy pasek u góry, od którego uciekaliśmy.
+     Mierzy to porównanie CAŁKOWITEJ liczby podlinków na stronie z liczbą pozycji
+     samego Frontendu: gdyby rozwinęła się druga sekcja, suma byłaby większa. */
   t.check('a pozostałe sekcje zostają zwinięte',
-    podlinki(naFrontendzie).length === podzakladki.wydajnosc.length,
+    podlinki(naFrontendzie).length === pozycjiFrontendu,
     'na pulpicie: ' + podlinki(pusty).length + ' podlinków');
   t.check('na pulpicie nie ma żadnych', podlinki(pusty).length === 0,
     podlinki(pusty).length + '');

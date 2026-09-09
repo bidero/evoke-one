@@ -2,6 +2,74 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.163.0] — 2026-09-09
+
+### Dodane
+
+- **Ekran przeglądu sekcji — próba na Frontendzie.** `?tab=wydajnosc` bez
+  `?sub=` otwiera teraz listę dwunastu ekranów sekcji: ikona, nazwa, jedno
+  zdanie opisu i przełącznik modułu. To, co pulpit robi globalnie dla sześciu
+  kart, dzieje się tu na poziomie pojedynczego modułu — moduł da się włączyć
+  bez wchodzenia na jego ekran.
+
+  **KAŻDY EKRAN SEKCJI JEST NA LIŚCIE**, także taki, którego nie da się
+  włączyć. Lista ma być spisem sekcji; gdyby pokazywała wyłącznie przełączalne,
+  do reszty trzeba by szukać innej drogi. Rozstrzyga liczba par „opcja/pole"
+  zadeklarowanych przy ekranie: brak pary to sam odsyłacz, jedna para to
+  przełącznik, więcej par to licznik „N z M włączonych".
+
+  **Dlaczego licznik, a nie zbiorczy włącznik.** Elementy Bricksa (9 osobnych
+  opcji) i Tłumaczenia (moduł + przycisk edycji) mają pod sobą kilka
+  niezależnych przełączników. Jeden włącznik na nie wszystkie musiałby zgadywać,
+  co znaczy „włącz wszystko", a przy wyłączeniu **gubiłby informację, które
+  z nich były włączone**. Wiersz mówi więc liczbę i prowadzi na ekran po resztę.
+
+  **Zmienia się wyłącznie samo `?tab=`.** Adresy z `?sub=` prowadzą dalej prosto
+  na moduł, więc żaden zapisany odsyłacz nie przestaje działać. Pasek boczny
+  dostał pozycję „Przegląd" na czele listy ekranów, a wyszukiwarka (⌘K) —
+  wpis „Frontend / Przegląd"; jedno i drugie płynie z tej samej mapy.
+
+  **Na razie jedna sekcja.** Przegląd jest próbą kształtu: zanim rozejdzie się
+  na pozostałe cztery, ma zostać obejrzany tam, gdzie ekranów jest najwięcej
+  i gdzie są oba przypadki brzegowe. Decyduje o tym jedna lista
+  (`evoke_one_sekcje_z_przegladem()`), którą czytają wszystkie trzy miejsca.
+
+### Zmienione
+
+- **Plakietka w nagłówku sekcji z przeglądem mówi „N z 10 włączonych"** zamiast
+  „12 ekranów". Listę ekranów widać teraz pod spodem, więc ich liczba
+  powtarzałaby to, co i tak stoi obok. **Mianownikiem są ekrany z jednym
+  włącznikiem**, nie wszystkie ekrany sekcji — inaczej wychodziłoby „13 z 12"
+  albo trzeba by zgadywać, czy ekran z czterema włączonymi elementami liczy się
+  jako jeden włączony. Pozostałe sekcje mają plakietkę bez zmian.
+
+### Sprawdzenia
+
+- **`tests/przeglad-sekcji.test.js` — 28 sprawdzeń.** Ekran przeglądowy to
+  prawie same liczniki i stany, a te **potrafią być fałszywe bez żadnego
+  objawu**: przełącznik sięgający po nieistniejącą opcję rysuje się poprawnie
+  i po prostu nie działa. Dlatego każdy przełącznik sprawdzany jest OSOBNO,
+  z własnym zasiewem — licznik zbiorczy przechodziłby także wtedy, gdyby jedna
+  nazwa opcji była błędna, a inna liczyła się podwójnie.
+
+- **Sprawdzenie „przegląd przełącza tę samą opcję, co ekran modułu" powstało
+  z mutacji, która przeszła na zielono.** Zasiew w teście brany jest z tej samej
+  mapy, którą test sprawdza, więc sam nie dowodzi, że nazwa opcji jest
+  prawdziwa: wiersz „Tryb ciemny" wpięty w `evk_smtp` przechodził wszystko —
+  opcja istnieje, jest na białej liście uchwytu, zapala się dokładnie jeden
+  wiersz — **tylko przełączał cudzy moduł**. Drugim spisem jest teraz plik
+  ekranu (`tab-{klucz}.php`), wybierany tą samą regułą, co w routerze zakładki.
+
+- Poprawione dwa sprawdzenia w `tests/panel-start.test.js`, które liczyły
+  pozycje paska i palety. Liczby biorą się z mapy panelu, nie z poprawki „+1",
+  więc dołożenie przeglądu w kolejnej sekcji nie będzie wymagało ich ruszania.
+
+### Naprawione
+
+- **Liczby w komentarzach `helpers.php` mówiły „31 ekranów" i „34 ekrany"**
+  przy panelu mającym 33. Nic się o to nie potykało — obie stały w prozie —
+  ale to jest dokładnie ten rodzaj zapisu, po którym potem liczy się z ręki.
+
 ## [1.162.1] — 2026-09-09
 
 > **Dlaczego 1.162.1, a nie 1.162.0.** To wydanie i „siatka regresyjna Schema"

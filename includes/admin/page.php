@@ -263,10 +263,17 @@ function evoke_one_render_settings(): void {
                     <?php /* Stała plakietka „GOTOWE" stała tu do 1.138.0 i mówiła to samo
                              na każdej zakładce, niezależnie od stanu czegokolwiek. Zamiast niej
                              liczba ekranów sekcji — to akurat jest prawdą i mówi, ile jest do
-                             obejrzenia po prawej. */ ?>
+                             obejrzenia po prawej.
+
+                             Od 1.163.0 sekcja z przeglądem mówi zamiast tego, ile modułów jest
+                             włączonych: listę ekranów widać wtedy pod spodem, więc ich liczba
+                             powtarzałaby to, co i tak stoi obok. */ ?>
                     <?php $ile_ekranow = count(evoke_one_ekrany()[$tab] ?? []); ?>
-                    <?php if ($ile_ekranow): ?>
-                    <span class="evo-content-status"><span></span> <?php echo (int) $ile_ekranow; ?> ekranów</span>
+                    <?php if (in_array($tab, evoke_one_sekcje_z_przegladem(), true)): ?>
+                        <?php $stan = evoke_one_stan_sekcji($tab); ?>
+                        <span class="evo-content-status"><span></span> <?php echo (int) $stan['wlaczone']; ?> z <?php echo (int) $stan['wszystkie']; ?> włączonych</span>
+                    <?php elseif ($ile_ekranow): ?>
+                        <span class="evo-content-status"><span></span> <?php echo (int) $ile_ekranow; ?> ekranów</span>
                     <?php endif; ?>
                 </header>
                 <?php endif; ?>
@@ -274,6 +281,11 @@ function evoke_one_render_settings(): void {
             <?php
             if ($tab === 'dashboard') {
                 evoke_one_render_control_center($base);
+            } elseif ($sub === '' && in_array($tab, evoke_one_sekcje_z_przegladem(), true)) {
+                /* Sekcja z przeglądem otwiera się listą swoich ekranów, a nie
+                   pierwszym z nich. Stare adresy z `?sub=` trafiają dalej prosto
+                   na moduł — zmienia się wyłącznie to, co robi samo `?tab=`. */
+                evoke_one_render_przeglad($tab, $base);
             } else {
                 $tab_file = EVOKE_ONE_DIR . 'includes/admin/' . ($tab_files[$tab] ?? '');
                 if ($tab_file && file_exists($tab_file)) {
@@ -317,13 +329,28 @@ function evoke_one_render_sidebar_link(string $key, array $tab, string $active, 
     $ekrany = evoke_one_ekrany()[$key] ?? [];
     if (!$ekrany || $key !== $active) return;
 
-    /* Bez `?sub=` w adresie każda zakładka otwiera swój pierwszy ekran —
-       tak samo, jak rozstrzygają to same pliki zakładek (`if (!array_key_exists(
-       $sub, $subs)) $sub = 'parallax';` i odpowiedniki). Zaznaczamy więc
-       pierwszy, żeby pasek mówił to, co widać po prawej. */
-    $biezacy = isset($ekrany[$sub_active]) ? $sub_active : (string) array_key_first($ekrany);
+    $ma_przeglad = in_array($key, evoke_one_sekcje_z_przegladem(), true);
+
+    /* Bez `?sub=` w adresie zakładka otwiera swój pierwszy ekran — tak samo, jak
+       rozstrzygają to same pliki zakładek (`if (!array_key_exists($sub, $subs))
+       $sub = 'parallax';` i odpowiedniki). Zaznaczamy więc pierwszy, żeby pasek
+       mówił to, co widać po prawej.
+
+       W sekcji z przeglądem samo `?tab=` prowadzi do przeglądu, więc żaden
+       z ekranów nie jest wtedy bieżący — zaznaczony zostaje „Przegląd". */
+    $biezacy = isset($ekrany[$sub_active]) ? $sub_active
+        : ($ma_przeglad ? '' : (string) array_key_first($ekrany));
 
     echo '<div class="evo-sidebar-sub">';
+
+    if ($ma_przeglad) {
+        printf(
+            '<a href="%s" class="evo-sidebar-sublink%s">Przegląd</a>',
+            esc_url(add_query_arg('tab', $key, $base)),
+            $biezacy === '' ? ' is-active' : ''
+        );
+    }
+
     foreach ($ekrany as $klucz => $ekran) {
         printf(
             '<a href="%s" class="evo-sidebar-sublink%s">%s</a>',
@@ -361,6 +388,15 @@ function evoke_one_render_command_palette(string $base): void {
             $items[] = [$zakladka['label'], $klucz, '', ''];
             continue;
         }
+
+        /* Przegląd jest osiągalny adresem, więc paleta ma go znać — inaczej
+           robi się wyjątek od zasady „paleta zna każdy ekran panelu", a to
+           właśnie ręcznie utrzymywana lista wpisów doprowadziła do rozjazdu,
+           od którego ta funkcja zaczęła czytać z mapy. */
+        if (in_array($klucz, evoke_one_sekcje_z_przegladem(), true)) {
+            $items[] = [$zakladka['label'] . ' / Przegląd', $klucz, '', 'wszystkie moduły włączniki'];
+        }
+
         foreach ($ekrany[$klucz] as $sub => $ekran) {
             $items[] = [
                 $zakladka['label'] . ' / ' . $ekran['label'],
@@ -381,6 +417,79 @@ function evoke_one_render_command_palette(string $base): void {
             </div>
             <p class="evo-command-empty">Brak pasujących ustawień.</p>
         </div>
+    </div>
+    <?php
+}
+
+/**
+ * EKRAN PRZEGLĄDU SEKCJI — lista ekranów tej zakładki z przełącznikami.
+ *
+ * Pulpit robi to globalnie dla sześciu kart; tutaj to samo dzieje się wewnątrz
+ * jednej sekcji, na poziomie pojedynczego modułu. Wiersz prowadzi do ekranu
+ * modułu, a przełącznik obok włącza go bez wchodzenia tam.
+ *
+ * KAŻDY EKRAN SEKCJI JEST NA LIŚCIE, także ten, którego nie da się włączyć —
+ * lista ma być spisem sekcji, a nie osobnym, krótszym bytem, do którego trzeba
+ * potem szukać drogi. Rozstrzyga liczba par „opcja/pole" z mapy ekranów:
+ *
+ *   0 par  → sam odsyłacz (we Frontendzie taki ekran nie występuje)
+ *   1 para → przełącznik AJAX
+ *   >1 par → licznik „N z M włączonych" i wejście na ekran po resztę
+ *
+ * Przełącznik jest RODZEŃSTWEM odsyłacza, nie jego dzieckiem: kontrolka w środku
+ * `<a>` przełączałaby moduł i zaraz potem przenosiła na inny ekran.
+ *
+ * Stan czytamy przy renderze i nie synchronizujemy z niczym. Ten sam moduł ma
+ * drugi przełącznik na swoim ekranie, ale te dwa nigdy nie są widoczne naraz,
+ * więc nie ma czego uzgadniać — po wejściu na ekran modułu stan i tak przychodzi
+ * z bazy.
+ */
+function evoke_one_render_przeglad(string $tab, string $base): void {
+    $ekrany = evoke_one_ekrany()[$tab] ?? [];
+    ?>
+    <div class="evo-przeglad">
+    <?php foreach ($ekrany as $sub => $ekran):
+        $pary   = evoke_one_przelaczniki($tab, $sub);
+        $adres  = add_query_arg(['tab' => $tab, 'sub' => $sub], $base);
+        $ile_on = count(array_filter($pary, static function ($para) {
+            return evoke_one_wlaczony($para[0], $para[1]);
+        }));
+        ?>
+        <div class="evo-przeglad-wiersz">
+            <a class="evo-przeglad-link" href="<?php echo esc_url($adres); ?>">
+                <span class="dashicons <?php echo esc_attr($ekran['icon']); ?>"></span>
+                <span class="evo-przeglad-tekst">
+                    <strong><?php echo esc_html($ekran['label']); ?></strong>
+                    <?php if (!empty($ekran['opis'])): ?>
+                        <span class="evo-przeglad-opis"><?php echo esc_html($ekran['opis']); ?></span>
+                    <?php endif; ?>
+                </span>
+            </a>
+            <div class="evo-przeglad-akcja">
+                <?php if (count($pary) === 1): ?>
+                    <label class="evo-toggle">
+                        <?php /* Nazwa dla czytnika ekranu: sam przełącznik w wierszu nie ma
+                                 nagłówka obok, jak na karcie modułu, więc bez tego jest to
+                                 „checkbox" bez etykiety. */ ?>
+                        <span class="screen-reader-text"><?php echo esc_html('Włącz moduł ' . $ekran['label']); ?></span>
+                        <input type="checkbox"
+                               data-option="<?php echo esc_attr($pary[0][0]); ?>"
+                               data-field="<?php echo esc_attr($pary[0][1]); ?>"
+                               value="1"
+                               <?php checked(evoke_one_wlaczony($pary[0][0], $pary[0][1])); ?>>
+                        <span class="evo-slider"></span>
+                    </label>
+                <?php elseif (count($pary) > 1): ?>
+                    <?php /* Bez przełącznika: jeden włącznik na kilka niezależnych opcji musiałby
+                             albo zgadywać, co znaczy „włącz wszystko", albo przy wyłączeniu gubić
+                             informację, które z nich były włączone. */ ?>
+                    <a class="evo-przeglad-licznik" href="<?php echo esc_url($adres); ?>">
+                        <?php echo (int) $ile_on; ?> z <?php echo count($pary); ?> włączonych
+                    </a>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endforeach; ?>
     </div>
     <?php
 }
