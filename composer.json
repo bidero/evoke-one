@@ -1,0 +1,13 @@
+{
+    "name": "evoke/evoke-one",
+    "description": "Wtyczka Evoke ONE — narzędzia deweloperskie (analiza statyczna). Wtyczka nie ma zależności produkcyjnych i nie ładuje autoloadera Composera.",
+    "type": "wordpress-plugin",
+    "license": "proprietary",
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "php-stubs/wordpress-stubs": "^7.1"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

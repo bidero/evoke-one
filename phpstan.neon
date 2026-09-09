@@ -1,0 +1,57 @@
+#
+# Analiza statyczna PHP-a wtyczki.
+#
+# PO CO, SKORO JEST 3007 SPRAWDZEŃ: łapie inną klasę usterek. Testy mierzą
+# zachowanie — geometrię w przeglądarce, kolory, drzewo dostępności, wyjście
+# PHP-a — ale widzą wyłącznie linie, które faktycznie wykonają. PHPStan czyta
+# wszystkie i mówi o martwych gałęziach, niezgodnych typach i zmiennych, które
+# w danej ścieżce nie istnieją. Przy pierwszym przebiegu znalazł w ten sposób
+# usterkę w `93-darkmode.php`, której żaden test nie dotykał.
+#
+# CZEGO NIE ROBI: nie widzi JavaScriptu, czyli połowy tej wtyczki, i nie
+# zastępuje ani jednego sprawdzenia. To 8 sekund DOLICZONE, nie odjęte.
+#
+# URUCHOMIENIE:
+#     composer install          (raz — zaciąga PHPStan i atrapy WordPressa)
+#     vendor/bin/phpstan analyse
+#
+# Pilnuje tego także `tests/drobiazgi.test.js`, żeby nie okazało się po pół roku,
+# że nikt tego nie odpalał.
+#
+# Stan zastany, zamrożony przy wprowadzeniu narzędzia. Sens jest jeden:
+# od dziś ma nie przybywać. Wpisy z tego pliku zdejmujemy naprawiając kod,
+# a nie dopisując wyjątki.
+includes:
+    - phpstan-baseline.neon
+
+parameters:
+    level: 5
+
+    paths:
+        - includes
+        - evoke-one.php
+
+    # Atrapy. Same deklaracje — PHPStan tych plików nie uruchamia, tylko czyta.
+    #
+    # Bez nich analiza tonie we własnym szumie: przy pierwszym przebiegu 296
+    # błędów, z czego 198 to „nie znam tej funkcji WordPressa / tej klasy
+    # Bricksa / tej stałej". Po dołożeniu atrap zostaje 98 — i to są zdania
+    # o NASZYM kodzie.
+    scanFiles:
+        - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+        - tests/php/_bricks-stubs.php
+        - tests/php/_bricks-phpstan-stubs.php
+        - tests/php/_stale-stubs.php
+
+    bootstrapFiles:
+        - vendor/php-stubs/wordpress-stubs/functionMap.php
+
+    ignoreErrors:
+        # `EVOKE_ONE_DIR` w atrapie jest zmyśloną ścieżką — musi być, bo PHPStan
+        # nie uruchamia `evoke-one.php`, więc prawdziwej wartości nie zobaczy.
+        # Skutkiem ubocznym jest zarzut, że `require` wskazuje nieistniejący
+        # plik. To zarzut do atrapy, nie do kodu.
+        - '#^Path in require\(\) "/ścieżka/do/wtyczki/.*" is not a file or it does not exist\.$#'
+        # WooCommerce jest zależnością opcjonalną — kod pyta o nią przez
+        # `function_exists()` i bez niej po prostu nic nie robi.
+        - '#^Function (get_woocommerce_currency|wc_[a-z_]+) not found\.$#'

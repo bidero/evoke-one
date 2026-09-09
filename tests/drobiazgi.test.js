@@ -58,6 +58,53 @@ module.exports = async function (t) {
   t.check('i changelog mówi to samo', zChangeloga === zNaglowka,
     'nagłówek ' + zNaglowka + ', changelog ' + zChangeloga);
 
+  // ── Analiza statyczna PHP-a ───────────────────────────────────────────
+  /*
+   * PHPStan łapie inną klasę usterek niż reszta zestawu: tamta mierzy
+   * ZACHOWANIE, więc widzi wyłącznie linie, które faktycznie wykonała. Ta
+   * czyta wszystkie i mówi o martwych gałęziach, niezgodnych typach
+   * i zmiennych, których w danej ścieżce nie ma.
+   *
+   * Sprawdzenie jest tutaj po to, żeby narzędzie nie zdziczało. Konfiguracja
+   * w repozytorium, której nikt nie uruchamia, jest gorsza niż jej brak —
+   * daje poczucie pokrycia bez pokrycia.
+   *
+   * Plik bazowy zamraża 83 zastane błędy. Sprawdzenie pyta więc: „czy PRZYBYŁO
+   * czegoś nowego", a nie „czy jest zero". Wpisy z pliku bazowego schodzą przez
+   * naprawę kodu, nie przez dopisanie wyjątku.
+   *
+   * BRAK NARZĘDZI ZAPALA, nie jest po cichu pomijany — inaczej sprawdzenie
+   * świeciłoby na zielono wszędzie tam, gdzie nikt nie zrobił `composer install`,
+   * czyli dokładnie tam, gdzie nic nie sprawdza. Zestaw i tak wymaga
+   * `npm install` dla playwrighta; to jest ta sama umowa.
+   */
+  t.section('analiza statyczna PHP-a nie ma nowych zastrzeżeń');
+
+  const { execFileSync } = require('child_process');
+  const phpstan = path.join(korzen, 'vendor', 'bin', 'phpstan');
+  const stuby   = path.join(korzen, 'vendor', 'php-stubs', 'wordpress-stubs',
+                            'wordpress-stubs.php');
+
+  const maNarzedzia = fs.existsSync(phpstan) && fs.existsSync(stuby);
+  t.check('narzędzia są zainstalowane', maNarzedzia,
+    maNarzedzia ? 'vendor/ na miejscu' : 'brak — uruchom `composer install`');
+
+  t.check('plik bazowy istnieje', fs.existsSync(path.join(korzen, 'phpstan-baseline.neon')),
+    'phpstan-baseline.neon');
+
+  if (maNarzedzia) {
+    let czysto = true, powod = 'bez nowych zastrzeżeń';
+    try {
+      execFileSync('php', [phpstan, 'analyse', '--no-progress', '--error-format=raw'],
+        { cwd: korzen, stdio: 'pipe', timeout: 120000 });
+    } catch (e) {
+      czysto = false;
+      const out = String(e.stdout || e.stderr || e.message).trim().split('\n');
+      powod = out.length + ' zastrzeżeń, pierwsze: ' + (out[0] || '').slice(0, 120);
+    }
+    t.check('PHPStan przechodzi wobec pliku bazowego', czysto, powod);
+  }
+
   // ── Własny CSS panelu ─────────────────────────────────────────────────
   t.section('własny CSS nie wychodzi z bloku <style>');
 

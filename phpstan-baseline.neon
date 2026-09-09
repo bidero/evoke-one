@@ -1,0 +1,385 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Variable \$atts on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.variable
+			count: 1
+			path: includes/40-dynamic-data-shortcode.php
+
+		-
+			message: '#^Cannot unset offset ''useDynamicData'' on array\{id\: int, url\: string\|false\}\.$#'
+			identifier: unset.offset
+			count: 1
+			path: includes/70-bricks-language-switcher.php
+
+		-
+			message: '#^Right side of && is always false\.$#'
+			identifier: booleanAnd.rightAlwaysFalse
+			count: 1
+			path: includes/90-schema.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between non\-empty\-string and '''' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: includes/91-sierotki.php
+
+		-
+			message: '#^Parameter \#2 \$replace of function str_replace expects array\<string\>\|string, float given\.$#'
+			identifier: argument.type
+			count: 2
+			path: includes/92-parallax.php
+
+		-
+			message: '#^Call to function is_string\(\) with array will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: includes/93-darkmode.php
+
+		-
+			message: '#^Parameter \#1 \$array \(array\{non\-falsy\-string, non\-falsy\-string\}\) to function array_filter does not contain falsy values, the array will always stay the same\.$#'
+			identifier: arrayFilter.same
+			count: 1
+			path: includes/93-darkmode.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between non\-falsy\-string and '''' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: includes/98-accessibility.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_html expects string, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/newsletter/tab-campaigns.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_html expects string, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/newsletter/tab-lists.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: includes/admin/newsletter/tab-reports.php
+
+		-
+			message: '#^Variable \$evk_iface might not be defined\.$#'
+			identifier: variable.undefined
+			count: 5
+			path: includes/admin/other-interface.php
+
+		-
+			message: '#^Left side of && is always true\.$#'
+			identifier: booleanAnd.leftAlwaysTrue
+			count: 1
+			path: includes/admin/page.php
+
+		-
+			message: '#^Variable \$evk_sec might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: includes/admin/security-hardening.php
+
+		-
+			message: '#^File ends with a trailing whitespace\. This may cause problems when running the code in the web browser\. Remove the closing \?\> mark or remove the whitespace\.$#'
+			identifier: whitespace.fileEnd
+			count: 1
+			path: includes/admin/security-login.php
+
+		-
+			message: '#^Variable \$evk_sec might not be defined\.$#'
+			identifier: variable.undefined
+			count: 4
+			path: includes/admin/security-login.php
+
+		-
+			message: '#^Variable \$sec_nonce might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: includes/admin/security-login.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_attr expects string, int\|false given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/seo/tab-meta.php
+
+		-
+			message: '#^Variable \$base might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/admin/seo/tab-meta.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_attr expects string, int given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/seo/tab-og.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_attr expects string, int\<0, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/seo/tab-sitemap.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_html expects string, int\<0, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/seo/tab-sitemap.php
+
+		-
+			message: '#^Variable \$parallax_value might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: includes/admin/tab-parallax.php
+
+		-
+			message: '#^Variable \$scale_value might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: includes/admin/tab-parallax.php
+
+		-
+			message: '#^Variable \$ajax_url might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/admin/tl/tab-dd.php
+
+		-
+			message: '#^Variable \$dd_keys might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/admin/tl/tab-dd.php
+
+		-
+			message: '#^Variable \$nonce might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/admin/tl/tab-dd.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_attr expects string, int\<min, \-1\>\|int\<1, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/tl/tab-images.php
+
+		-
+			message: '#^Variable \$images might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/admin/tl/tab-images.php
+
+		-
+			message: '#^Variable \$langs might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/admin/tl/tab-images.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_attr expects string, int\<min, \-1\>\|int\<1, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/tl/tab-languages.php
+
+		-
+			message: '#^Variable \$menu_location might not be defined\.$#'
+			identifier: variable.undefined
+			count: 4
+			path: includes/admin/tl/tab-languages.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_attr expects string, int\<0, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/tl/tab-sitemap.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_html expects string, int\<0, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/tl/tab-sitemap.php
+
+		-
+			message: '#^Variable \$nonce might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/admin/tl/tab-sitemap.php
+
+		-
+			message: '#^Variable \$codes might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: includes/admin/tl/tab-slugs.php
+
+		-
+			message: '#^Variable \$langs might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/admin/tl/tab-slugs.php
+
+		-
+			message: '#^Variable \$nonce might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: includes/admin/tl/tab-slugs.php
+
+		-
+			message: '#^Variable \$url_slugs might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/admin/tl/tab-slugs.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_html expects string, int\<0, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/admin/tl/tab-translations.php
+
+		-
+			message: '#^Variable \$langs might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: includes/admin/tl/tab-translations.php
+
+		-
+			message: '#^Variable \$stats might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: includes/admin/tl/tab-translations.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_attr expects string, int given\.$#'
+			identifier: argument.type
+			count: 2
+			path: includes/admin/tools-logs404.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: includes/admin/tools-logs404.php
+
+		-
+			message: '#^Right side of && is always true\.$#'
+			identifier: booleanAnd.rightAlwaysTrue
+			count: 1
+			path: includes/admin/tools-redirect301.php
+
+		-
+			message: '#^Call to function method_exists\(\) with ''\\\\Bricks\\\\Breakpoints'' and ''get_breakpoints'' will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: includes/anim/presets.php
+
+		-
+			message: '#^Call to function method_exists\(\) with ''\\\\Bricks\\\\Element'' and ''render_icon'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: includes/bricks-elements/evoke-burger/element.php
+
+		-
+			message: '#^Call to an undefined method Evk_Circular_Title\:\:set_link_attributes\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: includes/bricks-elements/evoke-circular-title/element.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 1
+			path: includes/bricks-elements/evoke-scroll-reading/element.php
+
+		-
+			message: '#^Access to an undefined property Evk_Wave_Bg_Element\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: includes/bricks-elements/evoke-wave-bg/element.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 1
+			path: includes/bricks-elements/evoke-wave-bg/element.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between non\-falsy\-string and '''' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: includes/interface/white-label.php
+
+		-
+			message: '#^Function evk_nl_add_subscriber\(\) never assigns null to &\$created so it can be removed from the by\-ref type\.$#'
+			identifier: parameterByRef.unusedType
+			count: 1
+			path: includes/newsletter/lists.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: includes/newsletter/mailer.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between ''campaigns''\|''lists''\|''reports''\|''templates'' and ''settings'' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: includes/newsletter/menu.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function add_shortcode expects callable\(array\<string\>, string\|null, string\)\: string, ''evk_og_get_url'' given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/opengraph/hooks.php
+
+		-
+			message: '#^Function evk_og_svg_to_gd\(\) never returns resource so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: includes/opengraph/image-generator.php
+
+		-
+			message: '#^Variable \$words in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: includes/opengraph/image-generator.php
+
+		-
+			message: '#^Parameter \#2 \$replace of function str_replace expects array\<string\>\|string, array\<int, int\<1, max\>\|string\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/security/login-limit.php
+
+		-
+			message: '#^Expression "@\\token_get_all\("\<\?php\\n" \. \$code\)" on a separate line does not do anything\.$#'
+			identifier: expr.resultUnused
+			count: 1
+			path: includes/snippets/validation.php
+
+		-
+			message: '#^Negated boolean expression is always true\.$#'
+			identifier: booleanNot.alwaysTrue
+			count: 1
+			path: includes/snippets/validation.php
+
+		-
+			message: '#^Parameter \#2 \$user_id of function get_the_author_meta expects int\|false, ''''\|numeric\-string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: includes/snippets/wersje.php
+
+		-
+			message: '#^Call to function is_wp_error\(\) with int\<0, max\> will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: includes/tools/draft-revision.php
+
+		-
+			message: '#^Call to function is_wp_error\(\) with int\<0, max\> will always evaluate to false\.$#'
+			identifier: function.impossibleType
+			count: 1
+			path: includes/tools/redirect-301.php
