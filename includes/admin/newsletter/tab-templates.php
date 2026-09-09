@@ -182,7 +182,7 @@ jQuery(function($) {
         $('#evk-nl-tpl-msg').text('Zapisywanie...').css('color','#64748b');
         $.post(ajaxurl, {action:'evk_nl_save_template', nonce:nonce, id:$('#evk-nl-template-id').val(), name:$('#evk-nl-tpl-name').val(), subject:$('#evk-nl-tpl-subject').val(), body_html:getBody(), attachments:JSON.stringify(attachments)}, function(res) {
             if (res.success) {
-                $('#evk-nl-tpl-msg').text('Zapisano!').css('color','#16a34a');
+                $('#evk-nl-tpl-msg').text('✓ Zapisano').addClass('evo-save-msg is-widoczny');
                 if (!$('#evk-nl-template-id').val()||$('#evk-nl-template-id').val()==='0') {
                     setTimeout(function(){ location.href='<?php echo esc_url_raw(add_query_arg('subtab', 'templates', evk_nl_base_url())); ?>&template_id='+res.data.id; },500);
                 } else {

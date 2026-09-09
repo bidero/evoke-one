@@ -254,7 +254,7 @@ jQuery(function($) {
         $('#evk-nl-camp-msg').text('Zapisywanie...').css('color','#64748b');
         $.post(ajaxurl, $.extend({action:'evk_nl_save_campaign', nonce:nonce}, getCampData()), function(res) {
             if (res.success) {
-                $('#evk-nl-camp-msg').text('Zapisano!').css('color','#16a34a');
+                $('#evk-nl-camp-msg').text('✓ Zapisano').addClass('evo-save-msg is-widoczny');
                 if (!$('#evk-nl-camp-id').val() || $('#evk-nl-camp-id').val() === '0') {
                     setTimeout(function() { location.href = '<?php echo esc_url_raw(add_query_arg('subtab', 'campaigns', evk_nl_base_url())); ?>&campaign_id=' + res.data.id; }, 500);
                 } else {

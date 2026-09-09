@@ -211,7 +211,7 @@ jQuery(function($) {
             name: $('#evk-nl-edit-name').val()
         }, function(res) {
             if (res.success) {
-                $('#evk-nl-edit-msg').text('Zapisano!').css('color','#16a34a');
+                $('#evk-nl-edit-msg').text('✓ Zapisano').addClass('evo-save-msg is-widoczny');
                 setTimeout(function(){ location.reload(); }, 700);
             } else {
                 $('#evk-nl-edit-msg').text(res.data?.msg||'Błąd').css('color','#dc2626');
@@ -223,7 +223,7 @@ jQuery(function($) {
 
     $('#evk-nl-save-list-btn').on('click', function() {
         $.post(ajaxurl, {action:'evk_nl_save_list', nonce:nonce, id:$('#evk-nl-list-id').val(), name:$('#evk-nl-list-name').val()}, function(res) {
-            if (res.success) { $('#evk-nl-list-msg').text('Zapisano!').css('color','#16a34a'); setTimeout(function(){location.reload();},700); }
+            if (res.success) { $('#evk-nl-list-msg').text('✓ Zapisano').addClass('evo-save-msg is-widoczny'); setTimeout(function(){location.reload();},700); }
             else { $('#evk-nl-list-msg').text(res.data?.msg||'Błąd').css('color','#dc2626'); }
         });
     });

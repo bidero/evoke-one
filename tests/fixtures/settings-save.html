@@ -7,7 +7,7 @@
 window.evkSettingsSave = {
   url:    '/fake-admin-ajax.php',
   saving: 'Zapisuję…',
-  saved:  'Zapisano.',
+  saved:  '✓ Zapisano',   /* jak w page.php — fixture nie ma być jedynym miejscem ze starym napisem */
   failed: 'Nie udało się zapisać — wysyłam formularz normalnie.',
 };
 
@@ -88,8 +88,11 @@ window.__lastBody = function () {
   };
 };
 
+/* `.evo-save-msg`, nie `.evo-save-note` — od 1.168.0 potwierdzenie zapisu ma
+   w całym panelu jedną klasę. Stara była jedynym miejscem, gdzie komunikat
+   wychodził szary. */
 window.__note = function (id) {
-  var n = document.querySelector('#' + id + ' .evo-save-note');
+  var n = document.querySelector('#' + id + ' .evo-save-msg');
   return n ? { text: n.textContent, err: n.classList.contains('is-err') } : null;
 };
 </script>

@@ -96,7 +96,7 @@ if (!defined('ABSPATH')) exit;
                     }).done(function(r) {
                         if (r.success) {
                             _dirty = false;
-                            $st.addClass('ok').text('Zapisano').show();
+                            $st.addClass('ok').text('✓ Zapisano').show();
                         } else {
                             $st.addClass('err').text(r.data || 'Błąd').show();
                         }

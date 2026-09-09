@@ -71,88 +71,6 @@
     }
 
     /* =========================================================
-       ZAPIS FORMULARZA USTAWIEŃ BEZ PRZEŁADOWANIA
-       =========================================================
-
-       PRZYCISK ZOSTAJE. Zmienia się jedno: strona się nie przeładowuje.
-       Stan „masz niezapisane zmiany" i moment zapisu są nadal w rękach
-       użytkownika — autozapis pola po polu to inny kontrakt i inna decyzja.
-
-       DZIAŁA JAKO NAKŁADKA. Formularz ma komplet `settings_fields()` i bez tego
-       skryptu jedzie normalnie do `options.php`: gdy JS nie wystartuje albo
-       uchwyt odpowie błędem, wysyłamy go po staremu. Ekran ustawień, którego
-       nie da się zapisać, jest gorszy niż przeładowanie.
-
-       Pola idą SUROWYM `serialize()`, a rozbiera je PHP przez `parse_str()` —
-       składanie tablicy z `name="evk_x[y][z]"` tutaj byłoby drugą implementacją
-       tego samego parsera i pierwszym miejscem rozjazdu przy polu zagnieżdżonym. */
-    if (typeof evkZapis !== 'undefined') {
-        $(document).on('submit', 'form[data-evo-zapis]', function (e) {
-            var $form  = $(this);
-            var option = $form.data('evo-zapis');
-            if (!option) return;
-
-            e.preventDefault();
-
-            var $btn = $form.find('[type=submit]');
-            var etykieta = $btn.text();
-            $btn.prop('disabled', true);
-
-            /* Komunikat siada W PASKU ZAPISU i zastępuje poprzedni — dwa
-               „Zapisano" jedno pod drugim po dwóch zapisach mówiłyby o liczbie
-               kliknięć, nie o stanie.
-
-               Klasa `.evo-save-msg` jest tą, której panel używa do potwierdzeń
-               zapisu od dawna (Limit logowań, REST API, Ochrona WP, Mapa strony):
-               ta sama zieleń i to samo miejsce po prawej stronie paska. Pierwsza
-               wersja miała własny `<p>` nad przyciskiem — wynalazek obok gotowej
-               konwencji, w dodatku w innym kolorze. */
-            var $bar  = $form.find('.evo-save-bar');
-            var $info = $form.find('.evo-zapis-info');
-            if (!$info.length) {
-                $info = $('<span class="evo-save-msg evo-zapis-info" role="status"></span>');
-                if ($bar.length) $bar.append($info); else $info.insertAfter($btn);
-            }
-            $info.removeClass('is-err').text('Zapisywanie…');
-
-            /* WYSŁANIE AWARYJNE IDZIE `form.submit()` Z DOM-u, nie przez jQuery.
-               Nasłuch wisi na dokumencie (delegowany), więc `$form.off('submit')`
-               go NIE zdejmuje: `trigger('submit')` wracał tutaj, znowu strzelał
-               AJAX-em, znowu padał — i tak w kółko. Zmierzone: 264 żądania
-               w trzysta milisekund. Natywny `submit()` nie odpala nasłuchów
-               w ogóle, więc wychodzi z pętli raz na zawsze. */
-            var poddajSie = function (komunikat) {
-                $info.addClass('is-err').text(komunikat);
-                $form[0].submit();
-            };
-
-            $.post(evkZapis.url, {
-                action: 'evk_save_settings',
-                nonce:  evkZapis.nonce,
-                option: option,
-                form:   $form.serialize(),
-            })
-            .done(function (r) {
-                if (!r || !r.success) {
-                    console.error('evk zapis error:', r && r.data);
-                    poddajSie('Nie udało się zapisać — wysyłam formularz zwykłą drogą…');
-                    return;
-                }
-                /* Ptaszek jak przy pozostałych potwierdzeniach w panelu
-                   (`✓ Zapisano` w Limicie logowań, REST API, Ochronie WP). */
-                $info.text('✓ Zapisano');
-            })
-            .fail(function (xhr) {
-                console.error('evk zapis fail:', xhr.status);
-                poddajSie('Brak połączenia — wysyłam formularz zwykłą drogą…');
-            })
-            .always(function () {
-                $btn.prop('disabled', false).text(etykieta);
-            });
-        });
-    }
-
-    /* =========================================================
        RANGE SLIDER HELPER
        ========================================================= */
     /* Gdy element wartości jest polem <input> (a nie <span>), staje się on
@@ -237,7 +155,7 @@
                 nonce:   evoSitemapAjax.nonce,
                 payload: JSON.stringify(payload)
             }).done(function (r) {
-                $st.text(r.success ? 'Zapisano' : 'Błąd: ' + (r.data || '')).show();
+                $st.text(r.success ? '✓ Zapisano' : 'Błąd: ' + (r.data || '')).show();
             });
         };
     }
@@ -624,7 +542,15 @@
             e.preventDefault();
 
             var $btn  = $form.find('[type=submit]').prop('disabled', true);
-            var $note = $('#evo-anim-order-note').text('Zapisuję…').show();
+
+            /* POTWIERDZENIE ZAPISU IDZIE DO PASKA, jak w całym panelu (1.168.0).
+               Stało tu `#evo-anim-order-note` — własny szary element NAD listą,
+               dzielony z komunikatem o przestawianiu kolejności. Zapis biblioteki
+               potwierdzał się więc w innym miejscu i w innym kolorze niż każdy
+               inny zapis w panelu. Notka nad listą zostaje przy swojej robocie:
+               przeciąganie wierszy to inna akcja i ma własne miejsce. */
+            var $note = $form.find('.evo-save-bar .evo-save-msg');
+            $note.removeClass('is-err').text('Zapisuję…').show();
 
             // Ciąg pól, nie obiekt — i tylko pola należące do biblioteki.
             //
@@ -652,16 +578,16 @@
             $.post(evoOneAnimData.url, body).done(function (res) {
                 $btn.prop('disabled', false);
                 if (res && res.success) {
-                    $note.text('Zapisano (' + res.data.count + ' animacji).');
+                    $note.text('✓ Zapisano (' + res.data.count + ' animacji)');
                     refreshBadges();
                     setTimeout(function () { $note.fadeOut(); }, 2500);
                 } else {
-                    $note.text('Nie udało się zapisać — wysyłam formularz normalnie.');
+                    $note.addClass('is-err').text('Nie udało się zapisać — wysyłam formularz normalnie.');
                     $form.data('evkFallback', true).trigger('submit');
                 }
             }).fail(function () {
                 $btn.prop('disabled', false);
-                $note.text('Nie udało się zapisać — wysyłam formularz normalnie.');
+                $note.addClass('is-err').text('Nie udało się zapisać — wysyłam formularz normalnie.');
                 $form.data('evkFallback', true).trigger('submit');
             });
         });
@@ -709,8 +635,13 @@
 
             var $bar  = $form.find('.evo-save-bar');
             var $btn  = $form.find('[type=submit]').prop('disabled', true);
-            var $note = $bar.find('.evo-save-note');
-            if (!$note.length) $note = $('<span class="evo-save-note"></span>').appendTo($bar);
+            /* WSPÓLNY KOMUNIKAT PANELU, nie własna szara notka (1.168.0).
+               `.evo-save-note` była jedynym miejscem, gdzie potwierdzenie zapisu
+               miało kolor `--evo-text-dim` — stąd zgłoszone „czasami czarny".
+               Element jest zwykle wydrukowany przez `evoke_one_pasek_zapisu()`;
+               dokładamy go tylko wtedy, gdy pasek go nie ma. */
+            var $note = $bar.find('.evo-save-msg');
+            if (!$note.length) $note = $('<span class="evo-save-msg" role="status"></span>').appendTo($bar);
             $note.removeClass('is-err').text(evkSettingsSave.saving).show();
 
             // Ciąg par, nie obiekt — kolejność pól w ciele żądania jest
@@ -968,7 +899,7 @@
                 seo_keywords: d.seo_keywords, seo_robots: JSON.stringify(d.seo_robots),
             }).done(function (r) {
                 if (r && r.success) $row.removeClass('is-dirty');
-                seoFlash($btn, !!(r && r.success), (r && r.success) ? 'Zapisano!' : 'Błąd!');
+                seoFlash($btn, !!(r && r.success), (r && r.success) ? '✓ Zapisano' : 'Błąd!');
             }).fail(function () {
                 seoFlash($btn, false, 'Błąd!');
             });

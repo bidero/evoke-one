@@ -276,7 +276,7 @@ add_action('admin_footer', function () {
         $btn.prop('disabled', true).text('Zapisywanie...');
         $st.removeClass('ok err').hide();
         $.post(AJAX, { action: 'tl_save_translations', nonce: NONCE, tl_translations: JSON.stringify(collectTranslations()) })
-            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('Zapisano pomyslnie').show(); } else { $st.addClass('err').text(r.data||'Błąd zapisu').show(); } })
+            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('✓ Zapisano').show(); } else { $st.addClass('err').text(r.data||'Błąd zapisu').show(); } })
             .fail(function() { $st.addClass('err').text('Błąd połączenia').show(); })
             .always(function() { $btn.prop('disabled', false).text('Zapisz Tłumaczenia'); });
     };
@@ -342,7 +342,7 @@ add_action('admin_footer', function () {
         const plFlagEl = $('.lang-row-pl').find('.tl-lang-flag-preview, .tl-lang-flag-empty');
         const plFlag = parseInt(plFlagEl.data('att') || 0, 10);
         $.post(AJAX, { action: 'tl_save_settings', nonce: NONCE, payload: JSON.stringify({ tl_languages: langs, tl_menu_location: $('#tl-menu-location').val(), tl_pl_flag: plFlag }) })
-            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('Zapisano - odśwież stronę').show(); } else { $st.addClass('err').text(r.data||'Błąd').show(); } })
+            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('✓ Zapisano — odśwież stronę').show(); } else { $st.addClass('err').text(r.data||'Błąd').show(); } })
             .fail(function() { $st.addClass('err').text('Błąd połączenia').show(); });
     };
 
@@ -409,7 +409,7 @@ add_action('admin_footer', function () {
             $(this).find('[data-lang]').each(function() { payload[key][$(this).data('lang')] = parseInt($(this).data('att')||0, 10); });
         });
         $.post(AJAX, { action: 'tl_save_images', nonce: NONCE, tl_images: JSON.stringify(payload) })
-            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('Zapisano').show(); } else { $st.addClass('err').text(r.data||'Błąd').show(); } })
+            .done(function(r) { if (r.success) { _dirty = false; $st.addClass('ok').text('✓ Zapisano').show(); } else { $st.addClass('err').text(r.data||'Błąd').show(); } })
             .fail(function() { $st.addClass('err').text('Błąd połączenia').show(); });
     };
 

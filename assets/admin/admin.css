@@ -276,8 +276,6 @@
    SELEKTOR DWUKLASOWY, i to nie jest ozdoba: `.evo-save-msg` jest domyślnie
    `display: none` i stoi w tym pliku NIŻEJ. Przy równej wadze wygrywa reguła
    późniejsza, więc jednoklasowa nie odsłoniłaby komunikatu w ogóle. */
-.evo-save-msg.evo-zapis-info { display: inline-block; font-weight: 600; }
-.evo-save-msg.evo-zapis-info.is-err { color: var(--evo-danger-dark, #b91c1c); }
 
 /* Przegląd sekcji — lista ekranów z przełącznikami (1.163.0)
    Wiersz, nie kafel: 12 kart w siatce to ekran przewijany w poszukiwaniu jednej
@@ -2113,8 +2111,11 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 .evo-box > :last-child { margin-bottom: 0; }
 
 /* Komunikat zapisu w pasku — pojawia się obok przycisku, nie zamiast niego. */
-.evo-save-note { font-size: 12px; color: var(--evo-text-dim); }
-.evo-save-note.is-err { color: var(--evo-danger); }
+/* `.evo-save-note` odeszła w 1.168.0 — była JEDYNYM miejscem, gdzie
+   potwierdzenie zapisu miało kolor `--evo-text-dim`, czyli szary. Stąd
+   zgłoszone „czasami czarny". Komunikat jedzie teraz wspólnym `.evo-save-msg`;
+   stan błędu ma tam własną klasę. */
+.evo-save-msg.is-err { color: var(--evo-danger); }
 
 /* =========================================================================
    PODGLĄD ANIMACJI W BIBLIOTECE

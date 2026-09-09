@@ -2,6 +2,68 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.168.0] — 2026-09-09
+
+### Usunięte
+
+- **Drugi mechanizm zapisu bez przeładowania — ten, który dołożyłem w 1.165.0 —
+  poszedł w całości.** Panel MIAŁ JUŻ taki mechanizm (`evkSettingsSave`), i to
+  lepszy: generyczny dla każdego formularza Settings API, z listą opcji braną
+  **prosto z rejestru WordPressa** zamiast z ręcznie utrzymywanej, z zachowaniem
+  kolejności pól repeaterów i z drogą zapasową — a do tego z 25 własnymi
+  sprawdzeniami w `tests/settings-save.test.js`.
+
+  Nie znalazłem go przed napisaniem swojego i przez trzy wydania w panelu
+  działały dwa. **Na ekranie Sierotek potwierdzały ten sam zapis dwa razy:**
+  zielone „✓ Zapisano" obok szarego „Zapisano.". ZGŁOSZONE ZRZUTAMI EKRANU.
+  Razem z mechanizmem odeszły: uchwyt `evk_save_settings`, ręczna lista
+  `evk_settings_allowlist()` (czyli osobna powierzchnia bezpieczeństwa),
+  znacznik `data-evo-zapis`, blok w `admin.js` i cały plik testu.
+
+### Zmienione
+
+- **Potwierdzenie zapisu brzmi „✓ Zapisano" wszędzie, gdzie trafia na ekran
+  panelu.** W 1.167.0 ujednolicone zostały ZNACZNIKI, a napis, który użytkownik
+  widzi po zapisie, dokłada JavaScript — więc ujednolicona była ta połowa,
+  której nie widać. Poprawione wszystkie źródła:
+  Mapa strony („Zapisano" bez ptaszka), sześć ekranów tłumaczeń („Zapisano",
+  „Zapisano pomyslnie" — z literówką, „Zapisano - odśwież stronę"), cztery
+  ekrany newslettera („Zapisano!" z **kolorem wpisanym w JavaScript**), Meta SEO
+  („Zapisano!") i Animator („Zapisano (N animacji).").
+
+- **`.evo-save-note` zniknęła.** Była jedynym miejscem, gdzie potwierdzenie
+  zapisu miało kolor `--evo-text-dim`, czyli szary — **to jest ten „czarny"
+  ze zgłoszenia.** Mechanizm zapisu bez przeładowania pisze teraz we wspólny
+  `.evo-save-msg`, wydrukowany przez pasek zapisu.
+
+- **Animator potwierdza zapis w pasku, nie nad listą.** Pisał w
+  `#evo-anim-order-note` — własny szary element NAD listą, dzielony
+  z komunikatem o przestawianiu kolejności. Notka zostaje przy swojej robocie:
+  przeciąganie wierszy to inna akcja i ma własne miejsce.
+
+- Zapasowy napis powiadomienia snippetów to „Gotowe." zamiast „Zapisano." —
+  dotyczy wyników INNYCH niż zapis (usunięcie, zmiana stanu), więc mówił
+  nieprawdę.
+
+### Sprawdzenia
+
+- **Sprawdzenie mierzy teraz to, co widać PO ZAPISIE**, w przeglądarce, a nie
+  znaczniki wychodzące z PHP. Tam była dziura, przez którą przeszły wszystkie
+  warianty z tego wydania.
+
+- **Dwie mutacje przeszły na zielono i obie skończyły się przepisaniem
+  sprawdzenia**, zgodnie z zasadą:
+  - napis do przeglądarki był **wpisany w fixture**, więc zmiana napisu
+    w `page.php` nie zapalała niczego — test czytał własną atrapę. Teraz bierze
+    go z produktu;
+  - liczenie komunikatów **filtrowało po widoczności**, więc para „jeden
+    widoczny, drugi chwilowo ukryty" przechodziła. Teraz liczy każdy element
+    potwierdzenia w pasku.
+
+- **Fixture nie odwzorowywał otoczki `.evo-panel`**, której wymaga selektor
+  zapisu bez przeładowania — formularz w pomiarze nie łapał zapisu i nawigował.
+  Druga taka pomyłka w tym pliku po `.wrap`; otoczka jest teraz w jednym miejscu.
+
 ## [1.167.0] — 2026-09-09
 
 ### Zmienione

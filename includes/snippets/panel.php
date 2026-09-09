@@ -39,7 +39,7 @@ function evk_snippets_render_tab(): void {
                 'logi'    => 'Logi wyczyszczone.',
                 'wersje'  => 'Historia wyczyszczona — skasowanych wersji: '
                            . (int) ($_GET['evk_ile'] ?? 0) . '.',
-            ][$_GET['evk_zapisano']] ?? 'Zapisano.'));
+            ][$_GET['evk_zapisano']] ?? 'Gotowe.'));
     }
 
     // ── Stan modułu ───────────────────────────────────────────────────────
