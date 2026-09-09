@@ -2,6 +2,88 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.162.1] — 2026-09-09
+
+> **Dlaczego 1.162.1, a nie 1.162.0.** To wydanie i „siatka regresyjna Schema"
+> powstawały równolegle w dwóch rozmowach i oba wzięły numer **1.162.0**.
+> Przy scalaniu wygrała wersja CHANGELOG-a ze Schemą, więc opis poniżej wypadł
+> z pliku, choć cały kod wszedł do `main` i działa. Zapis jest odtworzony,
+> a numer podniesiony do 1.162.1 — zgodnie z tym, co już stoi
+> w `evoke-one.php`. Kolejność w historii jest więc: 1.162.0 Schema,
+> 1.162.1 analiza statyczna.
+
+### Dodane
+
+- **Analiza statyczna PHP-a (PHPStan, poziom 5).** `composer install`, potem
+  `vendor/bin/phpstan analyse`. Pilnuje tego `tests/drobiazgi.test.js`, żeby
+  konfiguracja w repozytorium nie zdziczała — nieuruchamiane narzędzie jest
+  gorsze niż jego brak, bo daje poczucie pokrycia bez pokrycia.
+
+  **Po co, skoro jest 3007 sprawdzeń:** łapią inną klasę usterek. Zestaw mierzy
+  zachowanie, więc widzi wyłącznie linie, które faktycznie wykonał. PHPStan
+  czyta wszystkie i mówi o martwych gałęziach, niezgodnych typach i zmiennych,
+  których w danej ścieżce nie ma.
+
+  **Czego NIE robi — żeby nie było nieporozumienia:** nie widzi JavaScriptu,
+  czyli połowy tej wtyczki, i nie zastępuje ani jednego sprawdzenia. To
+  **8 sekund doliczone**, nie odjęte. Żadna z usterek naprawionych w tym
+  tygodniu (szerokość przycisku, ściskanie ikon, regresja parallaxu, znikający
+  kadr) nie zostałaby przez niego złapana — wszystkie były geometrią
+  w przeglądarce.
+
+  Zysk jest inny i skromniejszy: literówka w nazwie zmiennej wychodzi po
+  8 sekundach zamiast po 12-minutowym przebiegu albo po zgłoszeniu z żywej
+  strony.
+
+- **Atrapy dla analizy** — `tests/php/_stale-stubs.php` (stałe WordPressa
+  i wtyczki) oraz `tests/php/_bricks-phpstan-stubs.php`.
+
+  Ten drugi jest osobnym plikiem, a nie dopiskiem do istniejącej atrapy Bricksa,
+  i to nie z zamiłowania do porządku: `loader.php:222` ma wprost
+  `if (!class_exists('\Bricks\Frontend')) return;`. Gdyby ta klasa trafiła do
+  atrapy wciąganej przez testy, warunek odwróciłby się w środowisku testowym
+  i testy zaczęłyby chodzić po gałęzi, której na żywej stronie nie ma.
+
+### Znalezione
+
+Pierwszy przebieg dał 296 zastrzeżeń, z czego **198 to był szum** z nieznanych
+funkcji WordPressa, klas Bricksa i stałych. Po atrapach zostały **83** i to są
+już zdania o naszym kodzie. Rozkład:
+
+| | ile | co to |
+|---|---:|---|
+| pliki cząstkowe | 37 | `tab-*.php` wciągane przez `require` z cudzego zakresu — fałszywe alarmy z konstrukcji, PHPStan nie widzi wołającego |
+| martwe gałęzie | 20 | warunki, które zawsze wychodzą tak samo |
+| typy argumentów | 18 | głównie liczba tam, gdzie funkcja WordPressa deklaruje łańcuch |
+| reszta | 23 | |
+
+**Jedno znalezisko jest prawdziwym błędem**, nie kosmetyką —
+`includes/93-darkmode.php:671`:
+
+```php
+$el_classes = (array)($element->settings['_cssClasses'] ?? []);
+if (is_string($el_classes)) {          // ← nigdy prawdziwe
+```
+
+Rzutowanie linijkę wyżej zabija warunek. Gdy Bricks poda klasy jako łańcuch
+`"a b c"`, powstaje `["a b c"]` — jeden element ze sklejonymi klasami —
+i `array_intersect` niżej nigdy nie trafi, więc **przejścia dark mode po cichu
+nie zadziałają**. Komentarz obok pokazuje, że autor się tego przypadku
+spodziewał; kod go nie obsługuje. Nie naprawiam tego w tym wydaniu: naprawa
+wymaga sprawdzenia dowodzącego zachowania, a to osobna robota. Zapisane
+w pliku bazowym, do zdjęcia jako pierwsze.
+
+Stan zastany zamraża `phpstan-baseline.neon`. Sprawdzenie pyta więc „czy
+przybyło czegoś nowego", a nie „czy jest zero". Wpisy schodzą z niego przez
+naprawę kodu, nie przez dopisanie wyjątku.
+
+### Testy
+
+Trzy sprawdzenia, trzy mutacje, wszystkie zapalają — w tym ta najważniejsza:
+**brak `vendor/` zapala**, zamiast po cichu pomijać analizę. Sprawdzenie
+pomijane pod nieobecność narzędzi świeciłoby na zielono dokładnie tam, gdzie
+niczego nie sprawdza.
+
 ## [1.162.0] — 2026-09-09
 
 ### Testy
