@@ -318,22 +318,26 @@ private function build_website(array $s, string $home_url, string $lang): array 
 	$descriptions = json_decode($s['descriptions'], true) ?: [];
     $description  = $descriptions[$lang] ?? $descriptions['pl'] ?? get_bloginfo('description');
 
-return [
-    '@type'           => 'WebSite',
-    '@id'             => $home_url . '#website',
-    'url'             => $home_url,
-    'name'            => $s['site_name'] ?: get_bloginfo('name'),
-    'description'     => $description,
-    'publisher'       => ['@id' => $home_url . '#organization'],
-            'potentialAction' => [
-                '@type'        => 'SearchAction',
-                'target'       => [
-                    '@type'       => 'EntryPoint',
-                    'urlTemplate' => $home_url . '?s={search_term_string}',
-                ],
-                'query-input' => 'required name=search_term_string',
-            ],
+        $site = [
+            '@type'           => 'WebSite',
+            '@id'             => $home_url . '#website',
+            'url'             => $home_url,
+            'name'            => $s['site_name'] ?: get_bloginfo('name'),
+            'description'     => $description,
         ];
+        // Wydawca TYLKO wtedy, gdy węzeł #organization naprawdę jest w grafie.
+        if (!empty($s['block_org'])) {
+            $site['publisher'] = ['@id' => $home_url . '#organization'];
+        }
+        $site['potentialAction'] = [
+            '@type'        => 'SearchAction',
+            'target'       => [
+                '@type'       => 'EntryPoint',
+                'urlTemplate' => $home_url . '?s={search_term_string}',
+            ],
+            'query-input' => 'required name=search_term_string',
+        ];
+        return $site;
     }
     private function build_organization(array $s, string $home_url, string $lang): array {
         $site_name = $s['site_name'] ?: get_bloginfo('name');
@@ -473,6 +477,16 @@ private function build_article(WP_Post $post, string $permalink, string $home_ur
         'breadcrumb'       => ['@id' => $permalink . '#breadcrumb'],
     ];
 
+    /* Wydawca TYLKO wtedy, gdy węzeł #organization naprawdę jest w grafie —
+       tak samo jak w build_website(); oba miejsca ustawiały go bezwarunkowo
+       i przy odhaczonym bloku Organization zostawiały wskazanie donikąd.
+       Zdejmujemy po zbudowaniu, a nie dopisujemy warunkowo, żeby kolejność
+       kluczy została ta sama — inaczej plik wzorcowy pokazywałby przy każdej
+       takiej zmianie przetasowanie zamiast różnicy w treści. */
+    if (empty($this->get_settings()['block_org'])) {
+        unset($article['publisher']);
+    }
+
     if ($excerpt) {
         $article['description'] = $excerpt;
     }
@@ -539,28 +553,49 @@ private function build_webpage(WP_Post $post, string $permalink, string $home_ur
 
     return $page;
 }
+    /**
+     * Pytania i odpowiedzi z akordeonów Bricksa (klucz `items` w ustawieniach
+     * elementu).
+     *
+     * WŁASNY OBCHÓD, A NIE array_walk_recursive — i to jest cała treść naprawy.
+     * Poprzednia wersja pytała `if ($key === 'items' && is_array($value))`
+     * wewnątrz `array_walk_recursive`, a ta funkcja NIE PODAJE tablic do
+     * callbacka: wchodzi w nie i podaje wyłącznie liście. Warunek nie mógł być
+     * prawdziwy nigdy, więc blok FAQPage — włączony domyślnie i opisany
+     * w panelu jako działający — nie wyemitował ani jednego węzła, odkąd
+     * istnieje. Wyszło dopiero przy pisaniu siatki regresyjnej na graf.
+     */
     private function extract_faq(int $post_id): array {
         $bricks_data = get_post_meta($post_id, '_bricks_page_data', true);
         if (!is_array($bricks_data)) return [];
         $faq = [];
-        array_walk_recursive($bricks_data, function ($value, $key) use (&$faq) {
-            if ($key === 'items' && is_array($value)) {
-                foreach ($value as $item) {
-                    $title   = $item['title']   ?? '';
-                    $content = $item['content']  ?? '';
-                    if (!empty($title) && !empty($content)) {
-                        $faq[] = [
-                            '@type'          => 'Question',
-                            'name'           => wp_strip_all_tags($title),
-                            'acceptedAnswer' => [
-                                '@type' => 'Answer',
-                                'text'  => wp_strip_all_tags($content),
-                            ],
-                        ];
+        $obejdz = static function (array $dane) use (&$obejdz, &$faq): void {
+            foreach ($dane as $key => $value) {
+                if (!is_array($value)) continue;
+                if ($key === 'items') {
+                    foreach ($value as $item) {
+                        if (!is_array($item)) continue;
+                        $title   = $item['title']   ?? '';
+                        $content = $item['content'] ?? '';
+                        if (!empty($title) && !empty($content)) {
+                            $faq[] = [
+                                '@type'          => 'Question',
+                                'name'           => wp_strip_all_tags($title),
+                                'acceptedAnswer' => [
+                                    '@type' => 'Answer',
+                                    'text'  => wp_strip_all_tags($content),
+                                ],
+                            ];
+                        }
                     }
                 }
+                /* Schodzimy TAKŻE w gałąź `items`: akordeon bywa zagnieżdżony
+                   w innym akordeonie, a pominięcie tego gubiłoby pytania
+                   z zakładek i sekcji rozwijanych. */
+                $obejdz($value);
             }
-        });
+        };
+        $obejdz($bricks_data);
         return $faq;
     }
     private function build_product(int $post_id, string $permalink, string $lang, array $s): array {

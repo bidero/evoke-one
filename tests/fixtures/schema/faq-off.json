@@ -85,31 +85,6 @@
       },
       "description": "Zapraszamy od maja.",
       "keywords": "Aktualności, Wydarzenia"
-    },
-    {
-      "@type": "FAQPage",
-      "@id": "https://example.test/blog/sezon-otwarty/#faq",
-      "isPartOf": {
-        "@id": "https://example.test/blog/sezon-otwarty/#webpage"
-      },
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "Czy jest parking?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Tak, bezpłatny."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Od kiedy sezon?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Od 1 maja."
-          }
-        }
-      ]
     }
   ]
 }

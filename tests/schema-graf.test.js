@@ -97,7 +97,7 @@ function lancuchy(o, out = []) {
    z założenia milczeć, więc chodzą osobno — wzorzec z pustego wyjścia byłby
    sprawdzeniem, że plik jest pusty. */
 const SCENARIUSZE = ['minimalny', 'firma', 'firma-en', 'atrakcja',
-                     'podstrona', 'wpis', 'produkt', 'bez-org'];
+                     'podstrona', 'wpis', 'produkt', 'bez-org', 'faq-off'];
 
 module.exports = async function (t) {
 
@@ -167,9 +167,11 @@ module.exports = async function (t) {
       powtorzone.length ? powtorzone.join(', ') : ids.length + ' węzłów');
   }
 
-  /* Wskazania muszą trafiać w istniejący węzeł. `bez-org` jest wyjęty
-     ŚWIADOMIE — ma znaną usterkę, opisaną niżej własnym sprawdzeniem. */
-  for (const s of SCENARIUSZE.filter((x) => x !== 'bez-org')) {
+  /* Wskazania muszą trafiać w istniejący węzeł — we WSZYSTKICH scenariuszach.
+     Do 1.168.0 `bez-org` był stąd wyjęty, bo miał dwa wskazania donikąd;
+     po naprawie wyjątek zniknął i to on jest dowodem, że naprawa objęła
+     oba miejsca, a nie jedno. */
+  for (const s of SCENARIUSZE) {
     const ids = new Set(identyfikatory(grafy[s]));
     const wiszace = wskazania(grafy[s]).filter((w) => !ids.has(w.cel));
     t.check('wskazania trafiają w węzeł: ' + s, !wiszace.length,
@@ -357,29 +359,57 @@ module.exports = async function (t) {
   t.check('podstrona bez produktu nie dostaje węzła Product — kontrola',
     !wezel(grafy.podstrona, 'Product'));
 
-  // ── Stan zastany: znane usterki ────────────────────────────────────────
-  t.section('STAN ZASTANY — usterki do naprawy, zapisane żeby naprawa zapaliła');
+  t.section('FAQPage z akordeonu Bricksa');
 
-  /* USTERKA 1. `extract_faq()` szuka akordeonu przez array_walk_recursive
-     z warunkiem `is_array($value)`. array_walk_recursive NIE PODAJE tablic
-     do callbacka — wchodzi w nie i podaje wyłącznie liście. Warunek nie może
-     być prawdziwy nigdy, więc blok FAQPage — włączony domyślnie i opisany
-     w panelu jako „FAQPage (Bricks accordion)" — nie wyemitował ani jednego
-     węzła, odkąd istnieje.
+  /* Do 1.168.0 ten blok nie wyemitował ANI JEDNEGO węzła, odkąd istniał:
+     `extract_faq()` pytało `$key === 'items' && is_array($value)` wewnątrz
+     `array_walk_recursive`, a ta funkcja nie podaje tablic do callbacka.
+     Blok był włączony domyślnie i opisany w panelu jako działający.
+     Sprawdzenia niżej pilnują, żeby nie wrócił do tego stanu po cichu. */
+  const faq = wezel(grafy.wpis, 'FAQPage');
+  t.check('akordeon w meta Bricksa daje węzeł FAQPage', !!faq,
+    faq ? faq['@id'] : 'brak węzła');
+  t.check('oba pytania z akordeonu, nie jedno', faq?.mainEntity?.length === 2,
+    faq?.mainEntity?.map((q) => q.name).join(' | '));
+  t.check('pytanie ma kształt Question + acceptedAnswer',
+    faq?.mainEntity?.[0]?.['@type'] === 'Question' &&
+    faq?.mainEntity?.[0]?.acceptedAnswer?.['@type'] === 'Answer',
+    faq?.mainEntity?.[0] && Object.keys(faq.mainEntity[0]).join(','));
+  /* Odpowiedź w Bricksie jest HTML-em. Znaczniki w JSON-LD to nie kosmetyka —
+     Google czyta wartość dosłownie i pokazuje ją w wynikach wyszukiwania. */
+  t.check('HTML odpowiedzi zdjęty do czystego tekstu',
+    faq?.mainEntity?.[0]?.acceptedAnswer?.text === 'Tak, bezpłatny.',
+    faq?.mainEntity?.[0]?.acceptedAnswer?.text);
+  t.check('FAQPage wskazuje swoją stronę przez isPartOf',
+    faq?.isPartOf?.['@id'] === wezel(grafy.wpis, 'WebPage')?.['@id'],
+    faq?.isPartOf?.['@id']);
 
-     Scenariusz `wpis` NIESIE poprawny akordeon w meta Bricksa i ma
-     `block_faq` włączony, więc gdy usterka zniknie, to sprawdzenie zapali. */
-  t.check('FAQPage nie powstaje mimo akordeonu w meta (usterka)',
-    !wezel(grafy.wpis, 'FAQPage'),
-    'array_walk_recursive nie podaje tablic — 90-schema.php:546');
+  /* Dwie kontrole negatywne. Bez nich „węzeł powstaje" przechodzi także
+     wtedy, gdy powstaje zawsze — niezależnie od ustawienia i od treści. */
+  t.check('odhaczony blok FAQPage — węzła nie ma mimo akordeonu',
+    !wezel(grafy['faq-off'], 'FAQPage'));
+  t.check('strona bez akordeonu nie dostaje FAQPage',
+    !wezel(grafy.podstrona, 'FAQPage'));
 
-  /* USTERKA 2. Przy odhaczonym bloku Organization `WebSite.publisher` dalej
-     wskazuje na #organization, którego w grafie nie ma. Poprawny JSON,
-     wskazanie donikąd — nie zauważy tego ani parser, ani oko. */
-  const idsBezOrg = new Set(identyfikatory(grafy['bez-org']));
-  const wiszaceBezOrg = wskazania(grafy['bez-org']).filter((w) => !idsBezOrg.has(w.cel));
-  t.check('publisher wisi, gdy blok Organization odhaczony (usterka)',
-    wiszaceBezOrg.length === 1 &&
-    wiszaceBezOrg[0].sciezka === 'WebSite/publisher',
-    wiszaceBezOrg.map((w) => w.sciezka + ' → ' + w.cel).join('; ') || 'brak — naprawione?');
+  t.section('publisher tylko wtedy, gdy wydawca jest w grafie');
+
+  /* Do 1.168.0 `publisher` ustawiały bezwarunkowo DWA węzły — WebSite
+     i BlogPosting — więc odhaczenie bloku Organization zostawiało w grafie
+     dwa wskazania na węzeł, którego nie ma. Poprawny JSON, wskazanie
+     donikąd: nie zauważy tego ani parser, ani oko. Ogólne sprawdzenie
+     rozwiązywalności wskazań (wyżej) obejmuje już `bez-org`; tutaj pytamy
+     wprost o oba miejsca, żeby powód był widoczny w nazwie. */
+  t.check('WebSite bez publisher, gdy blok Organization odhaczony',
+    wezel(grafy['bez-org'], 'WebSite')?.publisher === undefined,
+    wezel(grafy['bez-org'], 'WebSite')?.publisher?.['@id']);
+  t.check('BlogPosting bez publisher, gdy blok Organization odhaczony',
+    wezel(grafy['bez-org'], 'BlogPosting')?.publisher === undefined,
+    wezel(grafy['bez-org'], 'BlogPosting')?.publisher?.['@id']);
+
+  /* Kontrola dodatnia: przy włączonym bloku publisher MA być w obu miejscach.
+     Bez niej naprawa przechodzi też wtedy, gdy skasowała pole na dobre. */
+  t.check('a przy włączonym bloku WebSite ma publisher',
+    wezel(grafy.wpis, 'WebSite')?.publisher?.['@id'] === 'https://example.test/#organization');
+  t.check('i BlogPosting też ma publisher',
+    wezel(grafy.wpis, 'BlogPosting')?.publisher?.['@id'] === 'https://example.test/#organization');
 };

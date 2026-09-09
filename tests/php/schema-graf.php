@@ -278,15 +278,31 @@ $scenariusze = [
 
     /* WebSite włączony, Organization odhaczony — układ osiągalny jednym
        kliknięciem w panelu. Interesuje nas, czy `publisher` nie zostaje
-       wskazaniem na węzeł, którego w grafie nie ma. */
+       wskazaniem na węzeł, którego w grafie nie ma.
+
+       WPIS, a nie strona, i to celowo: `publisher` ustawiają DWA węzły —
+       WebSite i BlogPosting — a druga z nich powstaje wyłącznie na wpisie.
+       Pierwsza wersja tego scenariusza była stroną i pokazywała jedno
+       wiszące wskazanie zamiast dwóch, więc naprawa jednego miejsca
+       wyglądałaby na komplet. */
     'bez-org' => function () {
         $GLOBALS['options']['evk_schema'] = [
             'enabled' => 1, 'site_name' => 'Ośrodek', 'block_org' => 0,
             'org_type' => 'Hotel', 'street_address' => 'Leśna 4', 'locality' => 'Mikołajki',
         ];
-        $GLOBALS['strony'][10] = new WP_Post(['ID' => 10, 'post_title' => 'Oferta']);
+        $GLOBALS['strony'][10] = new WP_Post([
+            'ID' => 10, 'post_type' => 'post', 'post_title' => 'Oferta',
+        ]);
         $GLOBALS['permalinki'][10] = 'https://example.test/oferta/';
         $GLOBALS['current_post'] = 10;
+    },
+
+    /* Ten sam wpis z akordeonem, ale z odhaczonym blokiem FAQPage.
+       Kontrola do naprawy FAQ: „węzeł powstaje" przechodzi także wtedy,
+       gdy powstaje bez względu na ustawienie. */
+    'faq-off' => function () use (&$scenariusze) {
+        $scenariusze['wpis']();
+        $GLOBALS['options']['evk_schema']['block_faq'] = 0;
     },
 
     /* KONTROLA NEGATYWNA 1 — moduł wyłączony. Ma nie wyjść NIC.

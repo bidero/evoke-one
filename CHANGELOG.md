@@ -2,6 +2,65 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.169.0] — 2026-09-09
+
+### Naprawione
+
+- **Blok FAQPage nie wyemitował ani jednego węzła, odkąd istnieje.**
+  `extract_faq()` szukało akordeonu Bricksa tak:
+
+  ```php
+  array_walk_recursive($bricks_data, function ($value, $key) use (&$faq) {
+      if ($key === 'items' && is_array($value)) { … }
+  ```
+
+  `array_walk_recursive` **nie podaje tablic do callbacka** — wchodzi w nie
+  i podaje wyłącznie liście. Warunek `is_array($value)` nie mógł być prawdziwy
+  nigdy. Blok jest włączony domyślnie i opisany w panelu jako
+  „FAQPage (Bricks accordion)", więc każda strona z akordeonem obiecywała
+  dane strukturalne, których nie wysyłała.
+
+  Teraz własny obchód, schodzący także w gałąź `items` — akordeon bywa
+  zagnieżdżony w akordeonie i pominięcie tego gubiłoby pytania z sekcji
+  rozwijanych.
+
+- **`publisher` wskazywał na węzeł, którego w grafie nie ma** — w DWÓCH
+  miejscach, nie w jednym. `build_website()` i `build_article()` ustawiały
+  `['@id' => …#organization]` bezwarunkowo, więc odhaczenie bloku Organization
+  (jedno kliknięcie w panelu) zostawiało dwa wskazania donikąd. Wskazanie na
+  nieistniejący węzeł jest poprawnym JSON-em — nie zauważy go ani parser,
+  ani oko.
+
+  Pierwsza wersja siatki pokazywała tylko jedno z tych miejsc, bo scenariusz
+  `bez-org` był STRONĄ, a `BlogPosting` powstaje wyłącznie na wpisie. Naprawa
+  jednego miejsca wyglądałaby na komplet. Scenariusz jest teraz wpisem.
+
+  W `build_article()` wydawca jest **zdejmowany po zbudowaniu tablicy**, a nie
+  dopisywany warunkowo — żeby kolejność kluczy została ta sama i plik wzorcowy
+  pokazywał różnice w treści, a nie przetasowania.
+
+### Testy
+
+- Siatka grafu z 84 sprawdzeń urosła do **97**. Oba sprawdzenia opisujące te
+  usterki jako „stan zastany" zapaliły przy naprawie — po to były — i zostały
+  odwrócone na normalne, z kontrolami w obie strony: `publisher` ma **nie
+  istnieć** przy odhaczonym bloku i **istnieć** przy włączonym; FAQPage ma
+  powstawać z akordeonu, ale **nie** przy odhaczonym bloku i **nie** bez
+  akordeonu.
+
+- Nowy scenariusz `faq-off` — ten sam wpis z akordeonem, blok FAQPage
+  odhaczony. Bez niego „węzeł powstaje" przechodzi także wtedy, gdy powstaje
+  bez względu na ustawienie.
+
+- `bez-org` wrócił do ogólnego sprawdzenia rozwiązywalności wskazań, z którego
+  był wyjęty jako znana usterka. To wyjęcie zniknęło i właśnie to jest dowodem,
+  że naprawa objęła oba miejsca.
+
+- **Dowiedzione mutacją:** 12 uszkodzeń, każde zapaliło. W tym powrót do
+  `array_walk_recursive` (6 sprawdzeń), obchód bez schodzenia w głąb (6),
+  odwrócony warunek wydawcy (6) i dwa warianty gubienia `publisher` mimo
+  włączonego bloku.
+
 ## [1.168.0] — 2026-09-09
 
 ### Usunięte
