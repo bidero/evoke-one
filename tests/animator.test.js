@@ -21,6 +21,13 @@ module.exports = async function (t) {
    * silnik, zapomina przebudować, testy świecą na zielono na nowym kodzie,
    * a odwiedzający dostaje stary. Dlatego pierwsze sprawdzenie w tym pliku
    * pyta o aktualność wytworu, a nie o zachowanie.
+   *
+   * PUŁAPKA PRZY MUTACJACH — kto tego nie wie, traci godzinę. To sprawdzenie
+   * zapala się na KAŻDEJ zmianie `animator.js`, więc mutacja badająca silnik
+   * zawsze wygląda na złapaną, choć złapała ją wyłącznie niezgodność skrótu.
+   * Prawdziwe sprawdzenia zachowania mogą przy tym spać. Skrypt mutujący musi
+   * więc uruchomić `node tools/minifikuj.js` PO wprowadzeniu mutacji
+   * i odtworzyć oba pliki po przebiegu.
    */
   t.section('skrócony silnik jest aktualny');
 
