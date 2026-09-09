@@ -4,6 +4,12 @@ Notatka przekazująca do osobnej rozmowy. Spisana 2026-09-09, przy wersji
 **1.161.1**. Zawiera stan zastany, a nie plan — plan wymaga najpierw decyzji,
 których nie da się podjąć za zgłaszającego (lista pytań na końcu).
 
+> **Aktualizacja 1.162.0.** Pytania z końca zostały rozstrzygnięte (patrz
+> „Decyzje" niżej), a siatka regresyjna z punktu 1 — napisana. Przy okazji
+> wyszły dwie usterki w module; obie opisane niżej i zapisane w siatce jako
+> stan zastany. Sekcja „Czego NIE ma" jest zachowana jako zapis tego, jak
+> było — nie jest już prawdziwa.
+
 ## Zadanie
 
 Trzy rzeczy, słowami zgłaszającego:
@@ -85,6 +91,11 @@ z resztą, żeby nie została jedyną wzmianką.
 
 ## Czego NIE ma — i to jest najważniejsza rzecz w tej notatce
 
+> **Nieaktualne od 1.162.0** — siatka istnieje: `tests/php/schema-graf.php`
+> (10 scenariuszy) + `tests/schema-graf.test.js` (84 sprawdzenia, 1,3 s),
+> 25 mutacji, wszystkie zapaliły. Poniższy opis zostaje jako zapis stanu,
+> od którego zaczynaliśmy.
+
 **Wyjście JSON-LD nie ma ani jednego sprawdzenia.** W 51 plikach testowych
 (3007 sprawdzeń) nie występuje `@graph`, `application/ld+json` ani nic, co
 czytałoby wygenerowany graf. Pokryte jest wyłącznie **renderowanie zakładki**
@@ -113,7 +124,45 @@ Schema — brakuje bliźniaka dla `render_graph()`.
 jadą na żywe strony razem z wtyczką przez updater i bez tego byłyby osiągalne
 przez HTTP.
 
+## Decyzje (2026-09-09)
+
+Odpowiedzi na pytania, które stały niżej. Zostawiam je w oryginalnym
+brzmieniu pod spodem — bez pytania decyzja nie mówi, czego dotyczy.
+
+| Pytanie | Rozstrzygnięcie |
+|---|---|
+| 1. Zakres | **(a) + (c)**: pełne właściwości typów, które wtyczka już generuje, **oraz** generyczny edytor węzłów. **Bez (b)** — żadnych Event / Recipe / Course / JobPosting. |
+| 2. Uporządkowanie | Sekcje wg **typu węzła**, a nad nimi wybór **branży**, który rozwija i zwija właściwe sekcje oraz podpowiada wartości. Jedna prawda o strukturze, prowadzenie za rękę na wierzchu. |
+| 3. Edytor pól | Datalist ze znanymi właściwościami dla wybranego węzła, ale **własny klucz dozwolony** — z ostrzeżeniem, nie z błędem. |
+| 4. Per-wpis czy globalnie | **Wszystko globalne.** Metaboks per wpis to osobne zadanie na później. |
+| 5. `knowsAbout` | **Jedno pole**, jedna pozycja na linię. Linia zaczynająca się od `http` → `{"@type":"Thing","@id":URL}`, reszta → zwykły tekst. |
+| 6. Walidacja | **Podgląd JSON-LD w zakładce** + **link do Google Rich Results**. Bez listy ostrzeżeń „LodgingBusiness bez adresu" — na razie. |
+| Kolejność | Najpierw siatka regresyjna, potem zmiany. |
+
+**Napięcie do zapamiętania:** skoro metaboksu nie ma, generyczny edytor
+dopisuje właściwości **globalnie** — ta sama wartość poleci w `<head>` każdej
+podstrony. Dla `knowsAbout` czy `foundingDate` to w porządku; dopisanie
+`datePublished` do WebPage zrobi tę samą datę wszędzie. Zapis ma być zrobiony
+tak, żeby metaboks dało się dołożyć bez przepisywania go od nowa.
+
+## Usterki znalezione przy pisaniu siatki
+
+Obie są w siatce zapisane jako **stan zastany** — sprawdzenia są zielone,
+dopóki usterka trwa, i zapalą po naprawie.
+
+1. **FAQPage nie powstaje nigdy.** `extract_faq()` (l. 542) szuka akordeonu
+   przez `array_walk_recursive` z warunkiem `$key === 'items' && is_array($value)`.
+   `array_walk_recursive` nie podaje tablic do callbacka — wchodzi w nie
+   i podaje wyłącznie liście, więc warunek nie może być prawdziwy nigdy.
+   Blok jest włączony domyślnie i opisany w panelu jako działający.
+2. **`WebSite.publisher` wskazuje donikąd** przy odhaczonym bloku
+   Organization — układ osiągalny jednym kliknięciem. Wskazanie na
+   nieistniejący węzeł jest poprawnym JSON-em, więc nie zauważy go ani
+   parser, ani oko.
+
 ## Pytania do rozstrzygnięcia przed pisaniem kodu
+
+*Rozstrzygnięte — patrz tabela wyżej. Zostawione dla kontekstu.*
 
 Bez odpowiedzi na nie „wszystkie możliwe opcje" nie ma granicy — schema.org ma
 ponad 800 typów i kilka tysięcy właściwości.
@@ -154,11 +203,30 @@ ponad 800 typów i kilka tysięcy właściwości.
 ## Uruchamianie testów
 
 ```
-node tests/run.js                 # wszystko: 51 plików, 3007 sprawdzeń, ~12 min
-node tests/run.js schema          # tylko pasujące nazwą pliku
-node tests/run.js admin-tabs panel-start
+node tests/run.js                 # wszystko: 52 pliki, 3091 sprawdzeń, ~12 min
+node tests/run.js schema          # siatka grafu: 84 sprawdzenia, 1,3 s
+node tests/run.js schema admin-tabs   # graf + zakładka: ~32 s
 ```
 
-Filtr dopasowuje **fragment nazwy pliku**, można podać kilka. W trakcie pracy
-wystarczy sekcja (~1–2 min); pełny zestaw przed commitem wydania — łapie
+Filtr dopasowuje **fragment nazwy pliku**, można podać kilka.
+
+**Zmierzone**, bo pytanie „czy da się odpalać w obrębie zmiany" wraca:
+
+| Co | Czas |
+|---|---:|
+| start i zamknięcie Chromium (stały narzut runnera) | 0,17 s |
+| `php tests/php/schema-graf.php <scenariusz>` | 0,04 s |
+| `node tests/run.js schema` — 84 sprawdzenia | **1,3 s** |
+| `node tests/run.js admin-tabs` — 762 sprawdzenia | 32 s |
+| pełny zestaw | ~12 min |
+
+Dwanaście minut to nie PHP, tylko przeglądarka: fixtury animacji czekają po
+450 ms każda i tych czekań są setki. Graf jest czystym PHP — `phpOutput()`
+odpala CLI i oddaje tekst Node'owi — więc siatka grafu nie potrzebuje
+przeglądarki wcale. **W trakcie pracy nad grafem `node tests/run.js schema`
+jest praktycznie darmowe.** Pełny zestaw przed commitem wydania — łapie
 sprzężenia między modułami, których sekcja z definicji nie widzi.
+
+Pułapka do 1.161.1: `node tests/run.js schema` kończyło się komunikatem
+„Brak testów pasujących", bo filtr patrzy na nazwę pliku `.test.js`, a żaden
+nie miał w nazwie „schema". Polecenie z tej notatki nie robiło nic.

@@ -2,6 +2,64 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.162.0] — 2026-09-09
+
+### Testy
+
+- **Moduł Schema dostał siatkę regresyjną — pierwszą w swoim istnieniu.**
+  Do 1.161.1 wyjście JSON-LD nie było sprawdzane przez nic: w 51 plikach
+  testowych nie występowało ani `@graph`, ani `application/ld+json`. Pokryte
+  było wyłącznie renderowanie zakładki, czyli formularz — a moduł wstawia
+  dane strukturalne do `<head>` **każdej podstrony**.
+
+  Nowy `tests/php/schema-graf.php` odpala prawdziwe `render_graph()` dla
+  dziesięciu konfiguracji, a `tests/schema-graf.test.js` porównuje wynik na
+  dwa sposoby: z plikiem wzorcowym (cały graf, węzeł po węźle — zapala na
+  różnicę, której nikt nie przewidział) i sprawdzeniami pisanymi wprost
+  (unikalność `@id`, rozwiązywalność wskazań, rozdział `#organization`
+  od `#place`, numeracja encji podrzędnych, parser godzin otwarcia).
+  Razem **84 sprawdzenia w 1,3 s** — graf to czysty PHP, więc siatka nie
+  potrzebuje przeglądarki.
+
+  Dwie konfiguracje istnieją po to, żeby MILCZEĆ: moduł wyłączony i moduł
+  z odhaczonymi wszystkimi blokami. Bez nich reszta pliku przechodzi także
+  wtedy, gdy graf drukuje się zawsze.
+
+  **Dowiedzione mutacją:** 25 celowych uszkodzeń modułu, od przemianowania
+  `@id` po wyłączenie sprawdzenia przełącznika. Każde zapaliło; żadne nie
+  przeszło na zielono.
+
+- **`node tests/run.js schema` zaczęło cokolwiek robić.** Filtr dopasowuje
+  nazwę pliku `.test.js`, a żaden plik nie miał w nazwie „schema" — polecenie
+  z dokumentacji kończyło się komunikatem „Brak testów pasujących".
+
+### Naprawione
+
+- **Atrapa `wp_list_pluck()` gubiła pola obiektów.** Wspólna atrapa czytała
+  pole wyłącznie z tablic i oddawała `null` dla obiektów; prawdziwa funkcja
+  WordPressa obsługuje jedne i drugie. `get_the_category()` zwraca obiekty,
+  więc atrapa robiła z poprawnego `keywords: "Aktualności, Wydarzenia"`
+  łańcuch `", "` — i kazałaby szukać usterki we wtyczce, której nic nie
+  dolegało. Zmiana dotyczy wyłącznie testów; kod wtyczki bez zmian.
+
+### Znalezione, jeszcze nienaprawione
+
+Obie usterki są zapisane w siatce jako **stan zastany** — sprawdzenia są
+zielone, dopóki usterka trwa, i zapalą po naprawie. Bez tego naprawa
+przechodzi niezauważona.
+
+- **Blok FAQPage nie wyemitował nigdy ani jednego węzła.** `extract_faq()`
+  szuka akordeonu Bricksa przez `array_walk_recursive` z warunkiem
+  `$key === 'items' && is_array($value)`. `array_walk_recursive` **nie podaje
+  tablic do callbacka** — wchodzi w nie i podaje wyłącznie liście, więc
+  warunek nie może być prawdziwy nigdy. Blok jest włączony domyślnie
+  i opisany w panelu jako działający.
+
+- **`WebSite.publisher` wskazuje donikąd, gdy blok Organization jest
+  odhaczony.** Układ osiągalny jednym kliknięciem w panelu. Wskazanie na
+  nieistniejący węzeł jest poprawnym JSON-em, więc nie zauważy go ani
+  parser, ani oko.
+
 ## [1.161.1] — 2026-09-09
 
 ### Poprawione
