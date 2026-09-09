@@ -99,36 +99,94 @@ function evoke_one_ekrany(): array {
                               'przelaczniki' => [['evk_tl_module_enabled', '_scalar'], ['evk_tl_fab_enabled', '_scalar']]],
         ],
         'strona' => [
-            'meta'    => ['label' => 'Meta SEO',    'icon' => 'dashicons-edit',         'szukaj' => 'tytuł opis description'],
-            'sitemap' => ['label' => 'Mapa strony', 'icon' => 'dashicons-networking',   'szukaj' => 'sitemap xml indeksowanie'],
-            'schema'  => ['label' => 'Schema',      'icon' => 'dashicons-database',     'szukaj' => 'json-ld dane strukturalne'],
-            'og'      => ['label' => 'OpenGraph',   'icon' => 'dashicons-format-image', 'szukaj' => 'og:image social facebook podgląd'],
+            'meta'    => ['label' => 'Meta SEO',    'icon' => 'dashicons-edit',         'szukaj' => 'tytuł opis description',
+                          'opis' => 'Tytuły i opisy stron w wynikach wyszukiwania.'],
+            /* BEZ PRZEŁĄCZNIKA, i to jest decyzja, nie przeoczenie. Jedyna flaga
+               tego ekranu — `tl_sitemap_settings['enabled']` — jest w panelu
+               podpisana „Włącz sekcję tłumaczeń w wp-sitemap.xml", więc
+               przełącznik obok nazwy „Mapa strony" mówiłby nieprawdę. Nie ma jej
+               też na `evk_toggle_allowlist()` i nie dokładamy jej tam po to,
+               żeby wiersz wyglądał jak reszta. */
+            'sitemap' => ['label' => 'Mapa strony', 'icon' => 'dashicons-networking',   'szukaj' => 'sitemap xml indeksowanie',
+                          'opis' => 'Sekcja tłumaczeń w wp-sitemap.xml i diagnostyka noindex.'],
+            'schema'  => ['label' => 'Schema',      'icon' => 'dashicons-database',     'szukaj' => 'json-ld dane strukturalne',
+                          'opis' => 'Dane strukturalne JSON-LD dla wyszukiwarek.',
+                          'przelaczniki' => [['evk_schema', 'enabled']]],
+            'og'      => ['label' => 'OpenGraph',   'icon' => 'dashicons-format-image', 'szukaj' => 'og:image social facebook podgląd',
+                          'opis' => 'Obrazek i opis podglądu przy udostępnianiu.',
+                          'przelaczniki' => [['evk_og', 'enabled']]],
         ],
         'bezpieczenstwo' => [
-            'login'     => ['label' => 'Limit logowań', 'icon' => 'dashicons-lock',       'szukaj' => 'brute force blokada ip'],
-            'rest'      => ['label' => 'REST API',      'icon' => 'dashicons-rest-api',   'szukaj' => 'api json wp-json'],
-            'hardening' => ['label' => 'Ochrona WP',    'icon' => 'dashicons-shield-alt', 'szukaj' => 'hardening wersja edytor plików'],
-            'cleanup'   => ['label' => 'Czyszczenie',   'icon' => 'dashicons-trash',      'szukaj' => 'xml-rpc rss rewizje śmietnik'],
+            'login'     => ['label' => 'Limit logowań', 'icon' => 'dashicons-lock',       'szukaj' => 'brute force blokada ip',
+                            'opis' => 'Blokada adresu po serii nieudanych logowań.',
+                            'przelaczniki' => [['evk_security', 'limit_login_enabled']]],
+            'rest'      => ['label' => 'REST API',      'icon' => 'dashicons-rest-api',   'szukaj' => 'api json wp-json',
+                            'opis' => 'Ograniczenie dostępu do REST API.',
+                            'przelaczniki' => [['evk_security', 'rest_block_all']]],
+            /* Dwa niezależne pola, zapisywane formularzem na własnym ekranie.
+               Licznik tylko CZYTA ich stan — nie wymaga ani przełącznika, ani
+               nowego wpisu na białej liście. */
+            'hardening' => ['label' => 'Ochrona WP',    'icon' => 'dashicons-shield-alt', 'szukaj' => 'hardening wersja edytor plików',
+                            'opis' => 'Ukrycie wersji WP i motywów z paczki.',
+                            'przelaczniki' => [['evk_security', 'hide_wp_version'], ['evk_security', 'disable_bundled_themes']]],
+            'cleanup'   => ['label' => 'Czyszczenie',   'icon' => 'dashicons-trash',      'szukaj' => 'xml-rpc rss rewizje śmietnik',
+                            'opis' => 'Wyłączenie XML-RPC i kanałów RSS.',
+                            'przelaczniki' => [['evk_cleanup', 'disable_xmlrpc'], ['evk_cleanup', 'remove_rss']]],
         ],
         'narzedzia' => [
-            'snippets'    => ['label' => 'Fragmenty kodu',    'icon' => 'dashicons-editor-code',     'szukaj' => 'snippety skrypty php kod functions.php css js'],
-            'smtp'        => ['label' => 'SMTP',              'icon' => 'dashicons-email-alt',       'szukaj' => 'poczta mail wysyłka serwer'],
-            'redirect'    => ['label' => 'Przekierowania 301','icon' => 'dashicons-redo',            'szukaj' => '301 redirect przekierowanie'],
-            'logs404'     => ['label' => 'Logi 404',          'icon' => 'dashicons-warning',         'szukaj' => '404 nieistniejące adresy'],
-            'rewizje'     => ['label' => 'Rewizje',           'icon' => 'dashicons-backup',          'szukaj' => 'historia wersje sprzątanie bazy wp_posts limit'],
-            'maintenance' => ['label' => 'Konserwacja',       'icon' => 'dashicons-admin-tools',     'szukaj' => 'maintenance przerwa techniczna'],
-            'io'          => ['label' => 'Eksport / Import',  'icon' => 'dashicons-database-import', 'szukaj' => 'kopia migracja ustawień json'],
+            'snippets'    => ['label' => 'Fragmenty kodu',    'icon' => 'dashicons-editor-code',     'szukaj' => 'snippety skrypty php kod functions.php css js',
+                              'opis' => 'Własny PHP, CSS i JS bez ruszania functions.php.',
+                              'przelaczniki' => [['evk_snippets_enabled', '_scalar'], ['evk_snippets_advanced_enabled', '_scalar']]],
+            'smtp'        => ['label' => 'SMTP',              'icon' => 'dashicons-email-alt',       'szukaj' => 'poczta mail wysyłka serwer',
+                              'opis' => 'Wysyłka poczty przez serwer SMTP zamiast mail().',
+                              'przelaczniki' => [['evk_smtp', 'enabled']]],
+            /* PRZEŁĄCZNIK TYLKO TUTAJ, ekran modułu zostaje formularzowy.
+               Na własnym ekranie te dwa moduły mają włącznik jadący submitem,
+               bo AJAX i POST razem strzelały podwójnie (patrz komentarz
+               w `tools-redirect301.php`). Przegląd to osobny ekran z jedną drogą
+               zapisu, więc tamten problem tu nie wraca — a obie opcje są już na
+               `evk_toggle_allowlist()`, więc nie poszerzamy granicy. */
+            'redirect'    => ['label' => 'Przekierowania 301','icon' => 'dashicons-redo',            'szukaj' => '301 redirect przekierowanie',
+                              'opis' => 'Przekierowania z licznikiem kliknięć i wildcards.',
+                              'przelaczniki' => [['evk_301_enabled', '_scalar']]],
+            'logs404'     => ['label' => 'Logi 404',          'icon' => 'dashicons-warning',         'szukaj' => '404 nieistniejące adresy',
+                              'opis' => 'Rejestr nieistniejących adresów, z pomijaniem botów.',
+                              'przelaczniki' => [['evk_404_enabled', '_scalar']]],
+            'rewizje'     => ['label' => 'Rewizje',           'icon' => 'dashicons-backup',          'szukaj' => 'historia wersje sprzątanie bazy wp_posts limit',
+                              'opis' => 'Limit rewizji wpisów i sprzątanie bazy.',
+                              'przelaczniki' => [['evk_rewizje', 'limit_on']]],
+            /* JEDYNY PRZEŁĄCZNIK Z POTWIERDZENIEM. Na liście stoi obok dziewięciu
+               innych, wygląda tak samo, a kosztuje widoczność całej strony dla
+               gości. Pytamy wyłącznie przy włączaniu — wyłączenie przywraca stan
+               normalny i zwłoka w nim nikomu nie służy. */
+            'maintenance' => ['label' => 'Konserwacja',       'icon' => 'dashicons-admin-tools',     'szukaj' => 'maintenance przerwa techniczna',
+                              'opis' => 'Strona niedostępna dla gości, widoczna dla zalogowanych.',
+                              'przelaczniki' => [['maintenance_mode', '_scalar']],
+                              'potwierdzenie' => 'Strona przestanie być widoczna dla gości. Włączyć konserwację?'],
+            'io'          => ['label' => 'Eksport / Import',  'icon' => 'dashicons-database-import', 'szukaj' => 'kopia migracja ustawień json',
+                              'opis' => 'Kopia ustawień wtyczki do pliku i z powrotem.'],
         ],
         'admin_panel' => [
-            'interface'  => ['label' => 'Interfejs',     'icon' => 'dashicons-admin-appearance',  'szukaj' => 'kokpit menu porządki'],
-            'dashboard'  => ['label' => 'Kokpit',        'icon' => 'dashicons-dashboard',         'szukaj' => 'bricks ekran startowy'],
-            'avatar'     => ['label' => 'Avatar',        'icon' => 'dashicons-admin-users',       'szukaj' => 'gravatar zdjęcie profilowe'],
+            'interface'  => ['label' => 'Interfejs',     'icon' => 'dashicons-admin-appearance',  'szukaj' => 'kokpit menu porządki',
+                             'opis' => 'Porządki w listach wpisów i menu WordPressa.'],
+            'dashboard'  => ['label' => 'Kokpit',        'icon' => 'dashicons-dashboard',         'szukaj' => 'bricks ekran startowy',
+                             'opis' => 'Kokpit Bricks Builder zamiast ekranu WordPressa.',
+                             'przelaczniki' => [['evoke_dashboard_active', '_scalar'], ['evoke_dashboard_remove_native', '_scalar'],
+                                                ['evoke_dashboard_remove_help', '_scalar'], ['evoke_dashboard_fit_content', '_scalar'],
+                                                ['evoke_dashboard_shadow', '_scalar']]],
+            'avatar'     => ['label' => 'Avatar',        'icon' => 'dashicons-admin-users',       'szukaj' => 'gravatar zdjęcie profilowe',
+                             'opis' => 'Zdjęcia profilowe użytkowników bez Gravatara.'],
             /* Bez „rewizji" w słowach pomocniczych: ten ekran ich nie dotyka
                i nigdy nie dotykał, a wyszukiwarka prowadziła po tym słowie
                właśnie tutaj. Od 1.150.0 mają własny ekran w Narzędziach. */
-            'content'    => ['label' => 'Treść',         'icon' => 'dashicons-admin-comments',    'szukaj' => 'komentarze autozapis edytor'],
-            'whitelabel' => ['label' => 'White label',   'icon' => 'dashicons-admin-customizer',  'szukaj' => 'logo stopka marka'],
-            'roles'      => ['label' => 'Role Manager',  'icon' => 'dashicons-groups',            'szukaj' => 'role uprawnienia capabilities dostępy'],
+            'content'    => ['label' => 'Treść',         'icon' => 'dashicons-admin-comments',    'szukaj' => 'komentarze autozapis edytor',
+                             'opis' => 'Komentarze i zachowanie edytora treści.',
+                             'przelaczniki' => [['evoke_disable_global_comments', '_scalar'], ['evoke_require_reg_to_comment', '_scalar']]],
+            'whitelabel' => ['label' => 'White label',   'icon' => 'dashicons-admin-customizer',  'szukaj' => 'logo stopka marka',
+                             'opis' => 'Własne logo i stopka w panelu WordPressa.',
+                             'przelaczniki' => [['evk_white_label', 'enabled']]],
+            'roles'      => ['label' => 'Role Manager',  'icon' => 'dashicons-groups',            'szukaj' => 'role uprawnienia capabilities dostępy',
+                             'opis' => 'Role użytkowników i ich uprawnienia.'],
         ],
     ];
 }
@@ -136,17 +194,37 @@ function evoke_one_ekrany(): array {
 /**
  * SEKCJE, KTÓRE OTWIERAJĄ SIĘ EKRANEM PRZEGLĄDU.
  *
- * Na razie jedna. Przegląd jest próbą kształtu: zanim rozejdzie się na
- * pozostałe cztery sekcje, ma zostać obejrzany na Frontendzie — tam, gdzie
- * ekranów jest najwięcej (12) i gdzie są oba przypadki brzegowe: ekran
- * z jednym włącznikiem i ekran z listą włączników pod spodem.
+ * Wszystkie pięć, które mają ekrany w środku. Do 1.163.0 stał tu sam Frontend —
+ * przegląd był próbą kształtu i miał zostać obejrzany, zanim rozejdzie się
+ * dalej. Został obejrzany.
+ *
+ * Newslettera i Formularzy tu nie ma i nie będzie, dopóki nie dostaną ekranów:
+ * to zakładki z jednym modułem, więc przegląd byłby listą o jednej pozycji
+ * prowadzącą tam, gdzie już jesteś. Lista bierze się z mapy ekranów, więc
+ * dołożenie im podzakładek włączy przegląd samo.
  *
  * Lista rozstrzyga trzy rzeczy naraz — co robi `?tab=` bez `?sub=`, czy pasek
  * boczny dokłada pozycję „Przegląd" i czy paleta zna ten ekran — więc żadna
  * z nich nie może się od pozostałych oderwać.
  */
 function evoke_one_sekcje_z_przegladem(): array {
-    return ['wydajnosc'];
+    return array_keys(evoke_one_ekrany());
+}
+
+/**
+ * EKRANY, KTÓRYCH WŁĄCZNIK ŻYJE WYŁĄCZNIE NA PRZEGLĄDZIE.
+ *
+ * Zwykle przegląd i ekran modułu przełączają tę samą opcję tym samym uchwytem
+ * AJAX, i sprawdzenie tego pilnuje — bo wiersz wpięty w cudzą opcję wygląda
+ * poprawnie i po prostu przełącza nie to. Te dwa są świadomym wyjątkiem:
+ * na własnych ekranach mają włącznik jadący submitem formularza, bo AJAX i POST
+ * razem strzelały podwójnie (1.101.0, `tools-redirect301.php`).
+ *
+ * Lista jest tutaj po to, żeby wyjątek był POLICZONY. Trzeci taki ekran nie
+ * pojawi się po cichu — sprawdzenie zapali, dopóki ktoś świadomie go nie dopisze.
+ */
+function evoke_one_przelacznik_tylko_na_przegladzie(): array {
+    return ['narzedzia/redirect', 'narzedzia/logs404'];
 }
 
 /**

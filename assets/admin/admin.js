@@ -17,6 +17,18 @@
             var $card   = $cb.closest('.evo-status-card');
             var checked = $cb.is(':checked') ? 1 : 0;
 
+            /* POTWIERDZENIE PRZED WŁĄCZENIEM — dla przełączników, które kosztują
+               coś widocznego z zewnątrz (dziś: Konserwacja, czyli strona
+               niedostępna dla gości). Na ekranie przeglądu taki przełącznik stoi
+               w rzędzie identycznych, więc pomyłka jest o jedno kliknięcie.
+               Pytamy TYLKO przy włączaniu: wyłączenie przywraca stan normalny.
+               Odmowa cofa zaznaczenie i nie wysyła żądania. */
+            var potwierdz = $cb.data('potwierdz');
+            if (checked && potwierdz && !window.confirm(potwierdz)) {
+                $cb.prop('checked', false);
+                return;
+            }
+
             $cb.prop('disabled', true);
 
             $.post(evkToggle.url, {

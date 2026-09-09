@@ -472,9 +472,13 @@ function evoke_one_render_przeglad(string $tab, string $base): void {
                                  nagłówka obok, jak na karcie modułu, więc bez tego jest to
                                  „checkbox" bez etykiety. */ ?>
                         <span class="screen-reader-text"><?php echo esc_html('Włącz moduł ' . $ekran['label']); ?></span>
+                        <?php /* Pytanie zadaje `admin.js` przed wysłaniem, i TYLKO przy włączaniu:
+                                 wyłączenie przywraca stan normalny, więc zwłoka w nim nikomu
+                                 nie służy. Bez atrybutu przełącznik działa jak każdy inny. */ ?>
                         <input type="checkbox"
                                data-option="<?php echo esc_attr($pary[0][0]); ?>"
                                data-field="<?php echo esc_attr($pary[0][1]); ?>"
+                               <?php if (!empty($ekran['potwierdzenie'])): ?>data-potwierdz="<?php echo esc_attr($ekran['potwierdzenie']); ?>"<?php endif; ?>
                                value="1"
                                <?php checked(evoke_one_wlaczony($pary[0][0], $pary[0][1])); ?>>
                         <span class="evo-slider"></span>

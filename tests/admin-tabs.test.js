@@ -396,6 +396,49 @@ module.exports = async function (t) {
     seenStates + ' szt. (oczekiwane co najmniej 3)');
   t.check('dymki w ogóle istnieją', seenTips > 0, seenTips + ' szt.');
 
+  /* ── Ekran nie może wołać funkcji z modułu, który bywa niezaładowany ────
+   *
+   * ZGŁOSZONE Z ŻYWEJ STRONY: „Wejście w sitemap powoduje błąd E_ERROR…
+   * Uncaught Error: Call to undefined function tl_meta_value_means_noindex()".
+   *
+   * `80-sitemap.php` ładuje się WYŁĄCZNIE przy włączonym module tłumaczeń, a
+   * diagnostyka noindex na ekranie SEO → Mapa strony wołała stamtąd funkcję
+   * bezwarunkowo. Przy wyłączonych tłumaczeniach — czyli w domyślnej instalacji
+   * — ekranu nie dawało się otworzyć.
+   *
+   * DLACZEGO NIE ZŁAPAŁY TEGO TESTY, choć renderują ten ekran od dawna: fixture
+   * nie miał ani jednego wpisu z metadanymi, a atrapa `get_post_meta()` bez
+   * klucza oddawała pustą tablicę zamiast kompletu metadanych. Pętla kręciła
+   * się zero razy i wywołanie w jej środku nigdy się nie wykonywało. Sprawdzenie
+   * renderu przechodziło, bo kod się rysował — tylko jego środek był martwy.
+   * Atrapy naprostowane razem z tą poprawką; sprawdzenie niżej pilnuje, żeby
+   * pętla miała po czym chodzić.
+   *
+   * `tab.php` ładuje dla tego ekranu wyłącznie `30-admin-settings-ajax.php`,
+   * czyli dokładnie warunki z wyłączonym modułem tłumaczeń. Fatal wywraca
+   * `phpOutput`, więc samo dojście do sprawdzeń niżej coś już znaczy.
+   */
+  t.section('mapa strony otwiera się przy wyłączonym module tłumaczeń');
+
+  const mapaStrony = phpOutput('tab.php', 'sitemap');
+
+  /* Fatal na tym ekranie wywraca cały ten plik już w pętli renderującej
+     zakładki wyżej — zmierzone mutacją: po zabraniu funkcji test kończy się
+     wyjątkiem, nie tym sprawdzeniem. Ono jest więc nazwą dla tej awarii,
+     a prawdziwą robotę odwala sprawdzenie pod spodem. */
+  t.check('ekran renderuje się bez fatala',
+    mapaStrony.includes('Diagnostyka noindex') && !/Fatal error/i.test(mapaStrony),
+    /Fatal error/i.test(mapaStrony) ? 'fatal w wyjściu' : 'ekran się rysuje');
+
+  /* Kontrola pozytywna dla samej pętli: gdyby fixture znów został bez wpisów
+     z metadanymi, ekran renderowałby się poprawnie, a wywołanie w środku
+     nie wykonałoby się ani razu — i sprawdzenie wyżej znów niczego by nie
+     dowodziło. Dwa wpisy, dwa różne kształty metadanych: Yoast (płaski klucz)
+     i Bricks (JSON z `metaRobots`). */
+  const wykryte = (mapaStrony.match(/evo-list-row/g) || []).length;
+  t.check('a diagnostyka naprawdę przechodzi po metadanych', wykryte === 2,
+    wykryte + ' z 2 wpisów wykrytych jako noindex');
+
   /* ── Przełączniki muszą być na białej liście ────────────────────────────
    *
    * ZGŁOSZONE Z UŻYCIA: „póki co nie da się włączyć sierotek".

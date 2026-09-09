@@ -97,24 +97,44 @@ if (($argv[1] ?? '') === '--mapa') {
         'ekrany'       => evoke_one_ekrany(),
         'przeglad'     => evoke_one_sekcje_z_przegladem(),
         'przelaczniki' => $przelaczniki,
+        'wyjatki'      => evoke_one_przelacznik_tylko_na_przegladzie(),
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 // ── Zasiew ────────────────────────────────────────────────────────────────
-// Klucz → wartość. Moduły z flagą `enabled` podajemy jako 1/0, opcje płaskie
-// tak samo; plik sam wie, które są tablicami.
+//
+// Trzy kształty, wszystkie jednoznaczne:
+//
+//   {"evk_animator": 1}                 moduł z flagą `enabled`
+//   {"evk_rewizje": {"limit_on": 1}}    opcja tablicowa o innym polu
+//   {"maintenance_mode": 1}             opcja PŁASKA (skalar w bazie)
+//
+// Tablicę zapisujemy DOSŁOWNIE. Wcześniej stały tu wyliczone z ręki wyjątki
+// (`evk_cleanup`, `evk_security`, `evk_elements`), a wszystko inne szło przez
+// `['enabled' => (int) $wartosc]` — czyli opcja o polu innym niż `enabled`
+// cicho zamieniała się w `enabled` i zasiew mówił co innego niż test prosił.
+//
+// Lista opcji płaskich powstaje Z MAPY EKRANÓW: każda para z polem `_scalar`
+// jest z definicji płaska. Przepisana z ręki rozjeżdżałaby się przy pierwszym
+// dołożonym przełączniku.
 $plaskie = ['evk_301_enabled', 'evk_404_enabled', 'maintenance_mode',
     'evk_tl_module_enabled', 'evk_tl_fab_enabled'];
+
+foreach (evoke_one_ekrany() as $zakladka => $ekrany) {
+    foreach (array_keys($ekrany) as $sub) {
+        foreach (evoke_one_przelaczniki($zakladka, $sub) as [$opcja, $pole]) {
+            if ($pole === '_scalar') $plaskie[] = $opcja;
+        }
+    }
+}
+$plaskie = array_unique($plaskie);
 
 $zasiew = json_decode($argv[1] ?? '{}', true) ?: [];
 foreach ($zasiew as $klucz => $wartosc) {
     if ($klucz === 'ssl')  { $GLOBALS['ssl'] = (bool) $wartosc; continue; }
+    if (is_array($wartosc)) { $GLOBALS['options'][$klucz] = $wartosc; continue; }
     if (in_array($klucz, $plaskie, true)) { $GLOBALS['options'][$klucz] = $wartosc; continue; }
-    if ($klucz === 'evk_cleanup')  { $GLOBALS['options'][$klucz] = $wartosc; continue; }
-    if ($klucz === 'evk_security') { $GLOBALS['options'][$klucz] = $wartosc; continue; }
-    // Elementy Bricksa trzymają flagę per element, nie jedno `enabled`.
-    if ($klucz === 'evk_elements') { $GLOBALS['options'][$klucz] = $wartosc; continue; }
     $GLOBALS['options'][$klucz] = ['enabled' => (int) $wartosc];
 }
 

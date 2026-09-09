@@ -99,6 +99,78 @@ function tl_get_sitemap_settings(): array {
     return array_merge($defaults, is_array($saved) ? $saved : []);
 }
 
+/**
+ * Czy ta wartość metadanych znaczy „noindex".
+ *
+ * MIESZKA TUTAJ, NIE W `80-sitemap.php`, i to jest cała treść poprawki z 1.164.0.
+ * Tamten plik ładuje się WYŁĄCZNIE przy włączonym module tłumaczeń
+ * (`evoke-one.php`, gałąź `$evk_tl_enabled`), a diagnostyka noindex na ekranie
+ * SEO → Mapa strony woła tę funkcję bezwarunkowo — więc przy wyłączonych
+ * tłumaczeniach ekran kończył się fatalem i nie dawało się go otworzyć.
+ * ZGŁOSZONE Z ŻYWEJ STRONY.
+ *
+ * Sama funkcja nie ma z tłumaczeniami nic wspólnego: to predykat po metadanych
+ * SEO, bez jednej zależności od silnika języków. Stała tam z historii.
+ *
+ * Sąsiaduje z `tl_get_sitemap_settings()` powyżej z tego samego powodu — oba są
+ * pomocnikami mapy strony, których panel potrzebuje niezależnie od tego, czy
+ * moduł tłumaczeń jest włączony.
+ */
+function tl_meta_value_means_noindex($value, string $key = ''): bool {
+    $key_l = strtolower($key);
+
+    // Deserializacja stringa
+    if (is_string($value)) {
+        $decoded_json = json_decode($value, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded_json)) {
+            return tl_meta_value_means_noindex($decoded_json, $key);
+        }
+        $decoded = maybe_unserialize($value);
+        if ($decoded !== $value && (is_array($decoded) || is_object($decoded))) {
+            return tl_meta_value_means_noindex($decoded, $key);
+        }
+    }
+
+    // Rekurencja po tablicach/obiektach
+    if (is_array($value) || is_object($value)) {
+        foreach ((array) $value as $child_key => $child_value) {
+            if (tl_meta_value_means_noindex($child_value, (string) $child_key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Bricks: metaRobots => ["noindex", "nofollow"]
+    // Wartość jest stringiem "noindex" lub "nofollow" pod kluczem numerycznym,
+    // ale rodzic ma klucz "metaRobots" — sprawdzamy czy wartość == "noindex"
+    if ($key_l === '' || is_numeric($key)) {
+        if (is_string($value) && strtolower(trim($value)) === 'noindex') {
+            return true;
+        }
+    }
+
+    // Klucz zawiera "noindex"
+    if (strpos($key_l, 'noindex') !== false) {
+        if (is_bool($value)) return $value;
+        $value_l = strtolower(trim((string) $value));
+        return !in_array($value_l, ['', '0', 'false', 'no', 'off', 'none'], true);
+    }
+
+    // Klucz zawiera "robots" i wartość zawiera "noindex"
+    if (strpos($key_l, 'robots') !== false && is_string($value)) {
+        return stripos($value, 'noindex') !== false;
+    }
+
+    // Klucz zawiera "metarobots" lub "meta_robots"
+    if (preg_match('/meta.?robots/i', $key_l) && is_string($value)) {
+        return stripos($value, 'noindex') !== false;
+    }
+
+    // Generyczne klucze SEO z wartością zawierającą "noindex"
+    $seoish_key = preg_match('/(bricks|seo|robots|rank_math|yoast|aioseo)/i', $key_l);
+    return $seoish_key && is_string($value) && stripos($value, 'noindex') !== false;
+}
 function tl_sanitize_sitemap_settings($input): array {
     $input = is_array($input) ? $input : [];
     $excluded_ids = [];

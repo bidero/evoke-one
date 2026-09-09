@@ -142,8 +142,16 @@ function get_posts($args = []) {
        i renderowała je jako swoje wpisy — z pustymi metadanymi, więc wszystkie
        „włączone" i wszystkie tego samego rodzaju. Wyglądało wiarygodnie
        i było nieprawdą; złapane oglądaniem wyrenderowanej listy. */
-    $typ = $args['post_type'] ?? '';
-    if ($typ !== '' && !in_array($typ, ['page', 'post'], true)) {
+    /* `post_type` bywa TABLICĄ — diagnostyka noindex pyta o `['page','post']`.
+       Porównanie samym `in_array($typ, …)` wpychało takie zapytanie do gałęzi
+       własnych typów, gdzie filtr `$post->post_type !== $typ` nie dopasowuje się
+       nigdy: ekran dostawał pustą listę i jego pętla nie robiła ani obrotu. */
+    $typ   = $args['post_type'] ?? '';
+    $typy  = array_filter((array) $typ, static function ($t) { return $t !== ''; });
+    $wlasny = $typy && array_diff($typy, ['page', 'post']);
+
+    if ($wlasny) {
+        $typ = (string) reset($typy);
         $out = [];
         foreach ($GLOBALS['posts_store'] as $post) {
             if ($post->post_type !== $typ) continue;
@@ -156,7 +164,7 @@ function get_posts($args = []) {
         return $out;
     }
 
-    return array_map(function ($id) {
+    $strony = array_map(function ($id) {
         return (object) ['ID' => $id, 'post_title' => $GLOBALS['posts'][$id]['title'],
                          'post_name' => $GLOBALS['posts'][$id]['name'],
                          // Zakładka mapy strony rozdziela strony od wpisów po
@@ -164,6 +172,16 @@ function get_posts($args = []) {
                          // W MIERZONY MARKUP.
                          'post_type' => $id % 2 ? 'page' : 'post'];
     }, array_keys($GLOBALS['posts']));
+
+    /* `fields => 'ids'` obsługiwane także tutaj, nie tylko w gałęzi własnych
+       typów wyżej. Bez tego diagnostyka noindex na ekranie mapy strony
+       dostawała OBIEKTY tam, gdzie prosiła o identyfikatory, i pytała o meta
+       wpisu numer 1 — czyli nie wykonywała się wcale. Fatal, który się pod tym
+       chował, wyszedł dopiero z użycia. */
+    if (($args['fields'] ?? '') === 'ids') {
+        return array_map(function ($p) { return $p->ID; }, $strony);
+    }
+    return $strony;
 }
 function get_the_title($p = 0) {
     $id = is_object($p) ? $p->ID : (int) ($p ?: $GLOBALS['cur_post']);
@@ -175,6 +193,16 @@ function the_permalink() { echo 'https://example.test/wpis'; }
 function get_permalink($p = 0) { return 'https://example.test/wpis'; }
 function get_edit_post_link($p = 0) { return 'https://example.test/wp-admin/post.php?post=' . (int) $p; }
 function get_post_meta($id, $key = '', $single = false) {
+    /* BEZ KLUCZA WordPress oddaje KOMPLET metadanych wpisu jako
+       `[klucz => [wartości]]`. Atrapa oddawała pustą tablicę, więc każda pętla
+       „po wszystkich meta" kręciła się zero razy — i tak właśnie ukrył się fatal
+       w diagnostyce noindex na ekranie mapy strony: kod się renderował, bo jego
+       środek nigdy się nie wykonał. */
+    if ($key === '') {
+        $out = [];
+        foreach ($GLOBALS['post_meta'][(int) $id] ?? [] as $k => $v) $out[$k] = [$v];
+        return $out;
+    }
     $v = $GLOBALS['post_meta'][(int) $id][$key] ?? '';
     return $single ? $v : ($v === '' ? [] : [$v]);
 }
@@ -409,6 +437,13 @@ $TABS = [
             $GLOBALS['options']['tl_sitemap_settings'] = [
                 'enabled' => 1, 'include_pages' => 1, 'excluded_ids' => [11],
             ];
+            /* WPIS Z META NOINDEX — bez niego pętla diagnostyki na tym ekranie
+               nie wykonuje ani jednego obrotu i sprawdzenie renderu przechodzi,
+               choć w środku siedzi wywołanie funkcji, której przy wyłączonym
+               module tłumaczeń NIE MA. Dokładnie tak zniknął fatal zgłoszony
+               z żywej strony. */
+            $GLOBALS['post_meta'][11]['_yoast_wpseo_meta-robots-noindex'] = '1';
+            $GLOBALS['post_meta'][12]['_bricks_page_settings'] = '{"metaRobots":["noindex"]}';
         },
     ],
     'seo-meta' => [

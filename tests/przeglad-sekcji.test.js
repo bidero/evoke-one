@@ -11,6 +11,11 @@
  * zbiorczy („ile zaznaczonych") przeszedłby także wtedy, gdyby jedna nazwa opcji
  * była błędna, a inna liczyła się podwójnie.
  *
+ * Wszystko chodzi po WSZYSTKICH sekcjach z przeglądu, a listę sekcji podaje
+ * wtyczka. Sprawdzenie napisane pod jedną sekcję przestałoby cokolwiek znaczyć
+ * dla czterech dołożonych później — a dokładnie to się wydarzyło między
+ * 1.163.0 a 1.164.0.
+ *
  * Znacznik bierzemy z PRAWDZIWEJ `evoke_one_render_settings()`, a strukturę
  * panelu z `--mapa`, czyli z tej samej wtyczki — żadna lista nie jest przepisana
  * w teście, bo rozjeżdżanie się dwóch spisów jest właśnie tą klasą usterki,
@@ -42,7 +47,7 @@ const wiersze = (html) =>
       return { sub: m ? m[1] : null, html: kawalek };
     });
 
-const zaznaczony = (wiersz) => !!wiersz && /<input[^>]*\bchecked/.test(wiersz.html);
+const zaznaczony = (w) => !!w && /<input[^>]*\bchecked/.test(w.html);
 
 /** Wiersz o danym kluczu; nigdy `undefined`, żeby zepsuty render dał wynik, a nie wyjątek. */
 const wiersz = (html, sub) => wiersze(html).find((w) => w.sub === sub) || { sub, html: '' };
@@ -55,57 +60,155 @@ const paryZnacznika = (html) => {
   return out;
 };
 
+/* Plik ekranu modułu — tymi samymi drogami, którymi dobierają go routery
+   zakładek: `tab-{klucz}.php`, `security-{klucz}.php`, `tools-{klucz}.php`,
+   `seo/tab-{klucz}.php`, `other-{klucz}.php`, `admin-{klucz}.php`. Lista
+   prefiksów, nie mapa „ekran → plik": mapa byłaby trzecim spisem do
+   utrzymywania obok mapy ekranów i samych routerów. */
+const PREFIKSY = ['tab-', 'security-', 'tools-', 'seo/tab-', 'other-', 'admin-'];
+
+const plikEkranu = (sub) => {
+  for (const prefiks of PREFIKSY) {
+    const p = path.join(__dirname, '..', 'includes', 'admin', prefiks + sub + '.php');
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+};
+
+/** Zasiew jednej pary „opcja/pole" w kształcie, jakiego oczekuje panel-start.php. */
+const zasiewPary = (zasiew, option, field) => {
+  if (field === '_scalar') zasiew[option] = 1;
+  else (zasiew[option] = zasiew[option] || {})[field] = 1;
+  return zasiew;
+};
+
 module.exports = async function (t) {
 
   const mapa = JSON.parse(phpOutput('panel-start.php', '--mapa'));
-  const sekcja = mapa.przeglad[0];
-  const ekrany = mapa.ekrany[sekcja];
-  const klucze = Object.keys(ekrany);
+  const sekcje = mapa.przeglad;
+
+  const pary1 = (s, sub) => (mapa.przelaczniki[s][sub] || []);
+  const pojedyncze = (s) => Object.keys(mapa.ekrany[s]).filter((sub) => pary1(s, sub).length === 1);
+  const wielokrotne = (s) => Object.keys(mapa.ekrany[s]).filter((sub) => pary1(s, sub).length > 1);
+  const bezOpcji = (s) => Object.keys(mapa.ekrany[s]).filter((sub) => pary1(s, sub).length === 0);
 
   // ── Kompletność listy ──────────────────────────────────────────────────
-  t.section('przegląd wypisuje komplet ekranów sekcji');
-
-  const pusty = panel({}, sekcja);
-  const bezZasiewu = wiersze(pusty);
+  t.section('przegląd wypisuje komplet ekranów każdej sekcji');
 
   /* Kontrola pozytywna: bez niej wszystkie sprawdzenia niżej przechodziłyby
-     na zielono nie mając czego sprawdzać. */
-  t.check('lista ma tyle wierszy, ile sekcja ma ekranów',
-    bezZasiewu.length === klucze.length,
-    bezZasiewu.length + ' wierszy wobec ' + klucze.length + ' ekranów');
+     na zielono nie mając czego sprawdzać. Liczba z mapy, nie wpisana. */
+  t.check('jest co sprawdzać — sekcji z przeglądem jest tyle, ile ekranowych zakładek',
+    sekcje.length === Object.keys(mapa.ekrany).length && sekcje.length > 1,
+    sekcje.length + ' sekcji: ' + sekcje.join(', '));
 
-  /* Nie „tyle samo sztuk", tylko TE ekrany — i po nazwie widocznej na ekranie,
-     nie po samym adresie. */
-  const brakujace = klucze.filter((sub) =>
-    !bezZasiewu.some((w) => w.sub === sub && w.html.includes(ekrany[sub].label)));
-  t.check('i każdy z nich po nazwie', !brakujace.length,
-    brakujace.join(', ') || 'komplet');
+  const puste = {};
+  for (const s of sekcje) puste[s] = panel({}, s);
 
-  /* EKRAN, KTÓREGO NIE DA SIĘ WŁĄCZYĆ, TEŻ MA BYĆ NA LIŚCIE. Lista jest spisem
-     sekcji; gdyby pokazywała wyłącznie przełączalne, do reszty trzeba by szukać
-     innej drogi. We Frontendzie takiego ekranu dziś nie ma, więc sprawdzamy to,
-     co jest sprawdzalne: liczba wierszy nie zależy od liczby przełączników. */
-  const zPrzelacznikami = klucze.filter((sub) => (mapa.przelaczniki[sekcja][sub] || []).length);
-  t.check('wierszy jest więcej niż samych przełączalnych ekranów, albo tyle samo',
-    bezZasiewu.length >= zPrzelacznikami.length,
-    zPrzelacznikami.length + ' przełączalnych z ' + bezZasiewu.length);
+  const zleLiczby = sekcje.filter((s) => wiersze(puste[s]).length !== Object.keys(mapa.ekrany[s]).length);
+  t.check('każda sekcja ma tyle wierszy, ile ekranów', !zleLiczby.length,
+    zleLiczby.map((s) => s + ': ' + wiersze(puste[s]).length + ' z ' + Object.keys(mapa.ekrany[s]).length).join(', ')
+      || sekcje.map((s) => wiersze(puste[s]).length).join(' + ') + ' wierszy');
 
-  const zlyAdres = bezZasiewu.filter((w) => !w.sub || !ekrany[w.sub]);
+  const brakujace = [];
+  const zlyAdres = [];
+  for (const s of sekcje) {
+    for (const sub of Object.keys(mapa.ekrany[s])) {
+      const w = wiersz(puste[s], sub);
+      if (!w.html.includes(mapa.ekrany[s][sub].label)) brakujace.push(s + '/' + sub);
+    }
+    for (const w of wiersze(puste[s])) if (!w.sub || !mapa.ekrany[s][w.sub]) zlyAdres.push(s + '/' + w.sub);
+  }
+  t.check('i każdy ekran po nazwie', !brakujace.length, brakujace.join(', ') || 'komplet');
   t.check('każdy wiersz prowadzi do istniejącego ekranu', !zlyAdres.length,
-    zlyAdres.map((w) => w.sub).join(', ') || 'komplet');
+    zlyAdres.join(', ') || 'komplet');
+
+  /* KAŻDY OPIS JEST NA MIEJSCU. Wiersz bez opisu to sama nazwa modułu, a nazwy
+     w rodzaju „Sierotki" czy „Kokpit" nic nie mówią komuś, kto wchodzi tu
+     pierwszy raz — po to opis wszedł do mapy. */
+  const bezOpisu = [];
+  for (const s of sekcje) {
+    for (const [sub, ekran] of Object.entries(mapa.ekrany[s])) {
+      if (!ekran.opis) bezOpisu.push(s + '/' + sub);
+      else if (!wiersz(puste[s], sub).html.includes(ekran.opis)) bezOpisu.push(s + '/' + sub + ' (nie na ekranie)');
+    }
+  }
+  t.check('każdy ekran ma opis i widać go w wierszu', !bezOpisu.length,
+    bezOpisu.join(', ') || 'komplet');
+
+  // ── Trzy kształty wiersza ──────────────────────────────────────────────
+  t.section('kształt wiersza wynika z liczby opcji, nie z gałęzi per ekran');
+
+  /* Ekran, którego nie da się włączyć, TEŻ jest na liście — lista ma być spisem
+     sekcji. Ma być odsyłaczem: ani przełącznika, ani licznika. */
+  const zNadmiarem = [];
+  for (const s of sekcje) {
+    for (const sub of bezOpcji(s)) {
+      const h = wiersz(puste[s], sub).html;
+      if (h.includes('data-option') || h.includes('evo-przeglad-licznik')) zNadmiarem.push(s + '/' + sub);
+    }
+  }
+  const ileBezOpcji = sekcje.reduce((n, s) => n + bezOpcji(s).length, 0);
+  t.check('jest co sprawdzać — są ekrany bez czego włączać', ileBezOpcji > 0,
+    ileBezOpcji + ' ekranów');
+  t.check('ekran bez opcji jest samym odsyłaczem', !zNadmiarem.length,
+    zNadmiarem.join(', ') || ileBezOpcji + ' odsyłaczy');
+
+  /* Jeden przełącznik na kilka niezależnych opcji musiałby zgadywać, co znaczy
+     „włącz wszystko", a przy wyłączeniu gubiłby informację, które były włączone.
+     Wiersz mówi więc liczbę i prowadzi na ekran po resztę. */
+  const zPrzelacznikiem = [];
+  for (const s of sekcje) {
+    for (const sub of wielokrotne(s)) {
+      if (wiersz(puste[s], sub).html.includes('data-option')) zPrzelacznikiem.push(s + '/' + sub);
+    }
+  }
+  const ileWielu = sekcje.reduce((n, s) => n + wielokrotne(s).length, 0);
+  t.check('jest co sprawdzać — są ekrany z wieloma opcjami', ileWielu > 0, ileWielu + ' ekranów');
+  t.check('ekran z wieloma opcjami ma licznik, nie przełącznik', !zPrzelacznikiem.length,
+    zPrzelacznikiem.join(', ') || ileWielu + ' liczników');
+
+  // ── Liczniki ───────────────────────────────────────────────────────────
+  t.section('licznik mówi prawdę o liczbie włączonych');
+
+  const zleLiczniki = [];
+  for (const s of sekcje) {
+    for (const sub of wielokrotne(s)) {
+      const wszystkie = pary1(s, sub);
+
+      const zero = wiersz(puste[s], sub).html;
+      if (!new RegExp('0 z ' + wszystkie.length + ' włączonych').test(zero)) {
+        zleLiczniki.push(s + '/' + sub + ' pusty: ' + (zero.match(/\d+ z \d+ włączonych/) || ['brak'])[0]);
+        continue;
+      }
+
+      /* Mianownik z mapy, licznik z zasiewu dwóch pierwszych opcji — przy
+         dołożonym elemencie Bricksa ma urosnąć sam. */
+      const zasiew = {};
+      for (const [o, f] of wszystkie.slice(0, 2)) zasiewPary(zasiew, o, f);
+      const dwie = wiersz(panel(zasiew, s), sub).html;
+      if (!new RegExp('2 z ' + wszystkie.length + ' włączonych').test(dwie)) {
+        zleLiczniki.push(s + '/' + sub + ' z dwiema: ' + (dwie.match(/\d+ z \d+ włączonych/) || ['brak'])[0]);
+      }
+    }
+  }
+  t.check('każdy licznik liczy od zera i rośnie z zasiewem', !zleLiczniki.length,
+    zleLiczniki.join(' | ') || ileWielu + ' liczników');
 
   // ── Stany przełączników ────────────────────────────────────────────────
   t.section('stan przełącznika odpowiada opcji w bazie');
 
-  const pojedyncze = klucze.filter((sub) => (mapa.przelaczniki[sekcja][sub] || []).length === 1);
+  const zapalone = [];
+  for (const s of sekcje) {
+    const on = wiersze(puste[s]).filter(zaznaczony).map((w) => s + '/' + w.sub);
+    zapalone.push(...on);
+  }
+  t.check('bez zasiewu żaden przełącznik nie jest włączony', !zapalone.length,
+    zapalone.join(', ') || 'wszystkie wyłączone');
 
-  t.check('bez zasiewu żaden przełącznik nie jest włączony',
-    !bezZasiewu.some(zaznaczony),
-    bezZasiewu.filter(zaznaczony).map((w) => w.sub).join(', ') || 'wszystkie wyłączone');
-
-  /* Każda opcja z osobna: zasiewamy JĄ JEDNĄ i żądamy, żeby zapalił się dokładnie
-     jeden przełącznik i żeby był to ten właściwy. Nazwa użyta w dwóch wierszach
-     zapala wtedy dwa, a przełącznik zaznaczony na stałe — wszystkie.
+  /* Każda opcja z osobna: zasiewamy JĄ JEDNĄ i żądamy, żeby w tej sekcji zapalił
+     się dokładnie jeden przełącznik i żeby był to ten właściwy. Nazwa użyta
+     w dwóch wierszach zapala wtedy dwa, a przełącznik zaznaczony na stałe —
+     wszystkie.
 
      ZASIEW IDZIE Z TEJ SAMEJ MAPY, którą sprawdzamy, więc samo to nie dowodzi,
      że nazwa opcji jest prawdziwa: zmierzone mutacją — literówka `evk_paralax`
@@ -113,16 +216,32 @@ module.exports = async function (t) {
      nazwy rozstrzygają dwa sprawdzenia niżej: zgodność z ekranem modułu i biała
      lista uchwytu AJAX. */
   const zle = [];
-  for (const sub of pojedyncze) {
-    const [option, field] = mapa.przelaczniki[sekcja][sub][0];
-    const on = wiersze(panel({ [option]: 1 }, sekcja)).filter(zaznaczony).map((w) => w.sub);
-
-    if (on.length !== 1 || on[0] !== sub) {
-      zle.push(sub + ' (' + option + '/' + field + ') → ' + (on.join(', ') || 'nic'));
+  let ilePojedynczych = 0;
+  for (const s of sekcje) {
+    for (const sub of pojedyncze(s)) {
+      ilePojedynczych++;
+      const [option, field] = pary1(s, sub)[0];
+      const on = wiersze(panel(zasiewPary({}, option, field), s)).filter(zaznaczony).map((w) => w.sub);
+      if (on.length !== 1 || on[0] !== sub) {
+        zle.push(s + '/' + sub + ' (' + option + '/' + field + ') → ' + (on.join(', ') || 'nic'));
+      }
     }
   }
   t.check('każda opcja zapala swój i tylko swój wiersz', !zle.length,
-    zle.join(' | ') || pojedyncze.length + ' z ' + pojedyncze.length);
+    zle.join(' | ') || ilePojedynczych + ' z ' + ilePojedynczych);
+
+  /* Odwrotna strona: wyłączona opcja ma gasić przełącznik. Bez tego „zawsze
+     zaznaczony" przeszedłby wszystko powyżej. */
+  const [sPierwsza] = sekcje;
+  const subPierwszy = pojedyncze(sPierwsza)[0];
+  const [opcjaP, poleP] = pary1(sPierwsza, subPierwszy)[0];
+  const zasiewZero = poleP === '_scalar' ? { [opcjaP]: 0 } : { [opcjaP]: { [poleP]: 0 } };
+  const zgaszony = wiersz(panel(zasiewZero, sPierwsza), subPierwszy);
+  t.check('a opcja ustawiona na zero go gasi', !zaznaczony(zgaszony),
+    subPierwszy + ' = ' + (zaznaczony(zgaszony) ? 'włączony' : 'wyłączony'));
+
+  // ── Zgodność z ekranem modułu ──────────────────────────────────────────
+  t.section('przegląd przełącza to samo, co ekran modułu');
 
   /* PRZEGLĄD MA PRZEŁĄCZAĆ TO, CO EKRAN MODUŁU — a nie cokolwiek, co przejdzie
      przez białą listę. Bez tego wiersz „Tryb ciemny" wpięty w `evk_smtp`
@@ -130,40 +249,42 @@ module.exports = async function (t) {
      się jeden wiersz i wygląda to poprawnie, tylko przełącza cudzy moduł.
      Zmierzone mutacją, zanim to sprawdzenie powstało.
 
-     Drugim spisem jest PLIK EKRANU, wybierany tą samą regułą, co w routerze
-     zakładki (`tab-{klucz}.php`) — nie lista przepisana w teście. */
+     Drugim spisem jest PLIK EKRANU, dobierany tymi samymi prefiksami, co
+     w routerach zakładek — nie lista przepisana w teście. */
   const rozjazd = [];
-  let zPliku = 0;
-  for (const sub of pojedyncze) {
-    const plik = path.join(__dirname, '..', 'includes', 'admin', 'tab-' + sub + '.php');
-    if (!fs.existsSync(plik)) continue;
+  const bezWlasnego = [];
+  let zgodnych = 0;
 
-    const wModule = paryZnacznika(fs.readFileSync(plik, 'utf8'));
-    if (!wModule.length) continue;
-    zPliku++;
+  for (const s of sekcje) {
+    for (const sub of pojedyncze(s)) {
+      const plik = plikEkranu(sub);
+      const wModule = plik ? paryZnacznika(fs.readFileSync(plik, 'utf8')) : [];
+      const [option, field] = pary1(s, sub)[0];
 
-    const [option, field] = mapa.przelaczniki[sekcja][sub][0];
-    if (!wModule.includes(option + '/' + field)) {
-      rozjazd.push(sub + ': przegląd ' + option + '/' + field + ', moduł ' + wModule.join(', '));
+      if (!wModule.length) { bezWlasnego.push(s + '/' + sub); continue; }
+
+      if (wModule.includes(option + '/' + field)) zgodnych++;
+      else rozjazd.push(s + '/' + sub + ': przegląd ' + option + '/' + field + ', moduł ' + wModule.join(', '));
     }
   }
 
-  /* Kontrola pozytywna: gdyby żaden plik nie dał się odczytać, sprawdzenie niżej
-     byłoby puste. Ekran z włącznikiem tylko na przeglądzie (np. formularzowy
-     301) ma tu zapalić i wymusić świadomą decyzję, a nie przejść po cichu. */
-  t.check('każdy przełączalny ekran deklaruje przełącznik także u siebie',
-    zPliku === pojedyncze.length, zPliku + ' z ' + pojedyncze.length + ' plików ekranów');
+  t.check('i robi to zgodnie z ekranem modułu', !rozjazd.length,
+    rozjazd.join(' | ') || zgodnych + ' zgodnych');
 
-  t.check('i przegląd przełącza dokładnie tę opcję, co ekran modułu', !rozjazd.length,
-    rozjazd.join(' | ') || zPliku + ' zgodnych');
+  /* WYJĄTEK MUSI BYĆ POLICZONY. Przekierowania 301 i Logi 404 mają na własnych
+     ekranach włącznik jadący submitem — AJAX i POST razem strzelały podwójnie —
+     więc ich pary są tylko na przeglądzie. Sprawdzenie porównuje listę
+     znalezioną z listą ZADEKLAROWANĄ we wtyczce w obie strony: trzeci taki ekran
+     nie pojawi się po cichu, a wpis, który przestał być wyjątkiem, nie zostanie
+     na liście na zawsze. */
+  const zadeklarowane = [...mapa.wyjatki].sort().join(', ');
+  t.check('a ekran z włącznikiem tylko na przeglądzie jest zadeklarowany',
+    bezWlasnego.sort().join(', ') === zadeklarowane,
+    'znalezione: ' + (bezWlasnego.join(', ') || 'brak') + ' | zadeklarowane: ' + (zadeklarowane || 'brak'));
 
-  /* Odwrotna strona: wyłączona opcja ma gasić przełącznik. Bez tego „zawsze
-     zaznaczony" przeszedłby wszystko powyżej. */
-  const pierwszy = pojedyncze[0];
-  const [opcjaP] = mapa.przelaczniki[sekcja][pierwszy][0];
-  const zgaszony = wiersz(panel({ [opcjaP]: 0 }, sekcja), pierwszy);
-  t.check('a opcja ustawiona na zero go gasi', !zaznaczony(zgaszony),
-    pierwszy + ' = ' + (zaznaczony(zgaszony) ? 'włączony' : 'wyłączony'));
+  t.check('jest co porównywać — większość ekranów ma własny przełącznik',
+    zgodnych >= ilePojedynczych - mapa.wyjatki.length,
+    zgodnych + ' z ' + ilePojedynczych + ' przełączalnych');
 
   // ── Granica bezpieczeństwa ─────────────────────────────────────────────
   t.section('każdy przełącznik przeglądu da się naprawdę włączyć');
@@ -177,116 +298,149 @@ module.exports = async function (t) {
      Że uchwyt naprawdę ODRZUCA obce pary, dowodzi kontrola negatywna
      w tests/admin-tabs.test.js — bez niej „komplet przechodzi" byłoby prawdą
      także dla uchwytu, który nie sprawdza niczego. */
-  const pary = paryZnacznika(listaPrzegladu(pusty)).map((p) => p.split('/'));
+  const pary = [];
+  for (const s of sekcje) for (const p of paryZnacznika(listaPrzegladu(puste[s]))) pary.push(p.split('/'));
 
   t.check('jest co sprawdzać — przegląd wypisuje przełączniki',
-    pary.length === pojedyncze.length && pary.length > 0,
-    pary.length + ' przełączników wobec ' + pojedyncze.length + ' ekranów z jedną opcją');
+    pary.length === ilePojedynczych && pary.length > 0,
+    pary.length + ' przełączników wobec ' + ilePojedynczych + ' ekranów z jedną opcją');
 
   const odp = JSON.parse(phpOutput('toggle.php', JSON.stringify(JSON.stringify(pary)))).result;
   const odrzucone = Object.keys(odp).filter((k) => odp[k] !== 'ok').map((k) => k + ' → ' + odp[k]);
   t.check('żaden nie odbija się od uchwytu AJAX', !odrzucone.length,
     odrzucone.join(' | ') || pary.length + ' par, komplet przechodzi');
 
-  // ── Ekrany z wieloma przełącznikami ────────────────────────────────────
-  t.section('ekran z wieloma włącznikami pokazuje licznik, nie przełącznik');
-
-  const wielokrotne = klucze.filter((sub) => (mapa.przelaczniki[sekcja][sub] || []).length > 1);
-  t.check('jest co sprawdzać — sekcja ma taki ekran', wielokrotne.length > 0,
-    wielokrotne.join(', ') || 'brak');
-
-  /* Jeden przełącznik na kilka niezależnych opcji musiałby zgadywać, co znaczy
-     „włącz wszystko", a przy wyłączeniu gubiłby informację, które z nich były
-     włączone. Wiersz mówi więc liczbę i prowadzi na ekran po resztę. */
-  const zPrzelacznikiem = wielokrotne.filter((sub) => wiersz(pusty, sub).html.includes('data-option'));
-  t.check('taki wiersz nie ma własnego przełącznika', !zPrzelacznikiem.length,
-    zPrzelacznikiem.join(', ') || wielokrotne.join(', ') + ' — same liczniki');
-
-  for (const sub of wielokrotne) {
-    const wszystkie = mapa.przelaczniki[sekcja][sub];
-    const wiersz0 = wiersz(pusty, sub);
-    t.check('„' + ekrany[sub].label + '" bez zasiewu to zero z ' + wszystkie.length,
-      new RegExp('0 z ' + wszystkie.length + ' włączonych').test(wiersz0.html),
-      (wiersz0.html.match(/\d+ z \d+ włączonych/) || ['brak licznika'])[0]);
-
-    /* Mianownik z rejestru, nie wpisany: przy dołożonym elemencie Bricksa ma
-       urosnąć sam. Licznik sprawdzamy z zasiewem dwóch pierwszych opcji. */
-    const dwie = wszystkie.slice(0, 2);
-    const zasiew = {};
-    for (const [option, field] of dwie) {
-      if (field === '_scalar') zasiew[option] = 1;
-      else (zasiew[option] = zasiew[option] || {})[field] = 1;
-    }
-    const wiersz2 = wiersz(panel(zasiew, sekcja), sub);
-    t.check('a z dwiema włączonymi — dwa z ' + wszystkie.length,
-      new RegExp('2 z ' + wszystkie.length + ' włączonych').test(wiersz2.html),
-      (wiersz2.html.match(/\d+ z \d+ włączonych/) || ['brak licznika'])[0]);
-  }
-
   // ── Plakietka w nagłówku ───────────────────────────────────────────────
   t.section('plakietka sekcji liczy to samo, co lista pod nią');
 
   const plakietka = (html) => (html.match(/evo-content-status"><span><\/span>\s*([^<]+)</) || [, ''])[1].trim();
 
-  /* MIANOWNIKIEM SĄ EKRANY Z JEDNYM WŁĄCZNIKIEM. Frontend ma 12 ekranów, ale
-     dwa z nich mają pod sobą po kilka niezależnych opcji i własne liczniki
-     w wierszu — wrzucenie ich do zbiorczej liczby dawałoby „13 z 12". */
-  t.check('bez włączonych modułów plakietka pokazuje zero',
-    plakietka(pusty) === '0 z ' + pojedyncze.length + ' włączonych',
-    plakietka(pusty));
-
-  const [o1] = mapa.przelaczniki[sekcja][pojedyncze[0]][0];
-  const [o2] = mapa.przelaczniki[sekcja][pojedyncze[1]][0];
-  const dwaModuly = panel({ [o1]: 1, [o2]: 1 }, sekcja);
-  t.check('dwa włączone moduły to dwa na plakietce',
-    plakietka(dwaModuly) === '2 z ' + pojedyncze.length + ' włączonych',
-    plakietka(dwaModuly));
+  /* MIANOWNIKIEM SĄ EKRANY Z JEDNYM WŁĄCZNIKIEM, nie wszystkie ekrany sekcji:
+     ekrany z kilkoma opcjami mają własne liczniki w wierszu, a ekranów bez opcji
+     nie da się włączyć wcale. Inaczej Frontend pokazywałby „13 z 12". */
+  const zlePlakietki = [];
+  for (const s of sekcje) {
+    const m = pojedyncze(s).length;
+    if (plakietka(puste[s]) !== '0 z ' + m + ' włączonych') {
+      zlePlakietki.push(s + ': ' + plakietka(puste[s]) + ', oczekiwane 0 z ' + m);
+    }
+  }
+  t.check('bez włączonych modułów każda plakietka pokazuje zero', !zlePlakietki.length,
+    zlePlakietki.join(' | ') || sekcje.map((s) => pojedyncze(s).length).join(' + ') + ' modułów);'.replace(');', ')'));
 
   /* Liczba na plakietce i liczba zaznaczonych przełączników pod nią to dwie
      drogi do tej samej prawdy. Rozjazd oznacza, że któraś kłamie. */
-  t.check('i tyle samo zaznaczonych przełączników na liście',
-    wiersze(dwaModuly).filter(zaznaczony).length === 2,
-    wiersze(dwaModuly).filter(zaznaczony).length + ' zaznaczonych');
+  const zRozjazdem = [];
+  for (const s of sekcje) {
+    if (pojedyncze(s).length < 2) continue;
+    const zasiew = {};
+    for (const sub of pojedyncze(s).slice(0, 2)) zasiewPary(zasiew, ...pary1(s, sub)[0]);
+    const html = panel(zasiew, s);
+    const naLiscie = wiersze(html).filter(zaznaczony).length;
+    if (plakietka(html) !== '2 z ' + pojedyncze(s).length + ' włączonych' || naLiscie !== 2) {
+      zRozjazdem.push(s + ': plakietka „' + plakietka(html) + '", na liście ' + naLiscie);
+    }
+  }
+  t.check('dwa włączone moduły to dwa na plakietce i dwa na liście', !zRozjazdem.length,
+    zRozjazdem.join(' | ') || 'zgodne w każdej sekcji');
 
   // ── Nawigacja ──────────────────────────────────────────────────────────
   t.section('przegląd jest domyślnym widokiem sekcji, ale nie zabiera starych adresów');
 
-  t.check('pasek boczny ma pozycję „Przegląd"',
-    /evo-sidebar-sublink[^"]*"[^>]*>Przegląd</.test(pusty), 'jest');
-  t.check('i jest ona zaznaczona, gdy w adresie nie ma ?sub=',
-    /evo-sidebar-sublink is-active">Przegląd</.test(pusty),
-    (pusty.match(/evo-sidebar-sublink is-active">([^<]*)/) || [, 'brak'])[1]);
+  const bezPozycji = sekcje.filter((s) => !/evo-sidebar-sublink is-active">Przegląd</.test(puste[s]));
+  t.check('pasek boczny ma zaznaczoną pozycję „Przegląd" w każdej sekcji', !bezPozycji.length,
+    bezPozycji.join(', ') || sekcje.length + ' sekcji');
 
   /* Zmiana dotyczy WYŁĄCZNIE samego `?tab=`. Adres z `?sub=` ma dalej prowadzić
      prosto na moduł — inaczej po cichu psujemy każdy zapisany odsyłacz. */
-  const naModule = panel({}, sekcja, klucze[0]);
-  t.check('adres z ?sub= nadal otwiera moduł, nie przegląd',
-    !wiersze(naModule).length,
-    wiersze(naModule).length + ' wierszy przeglądu');
-  t.check('a w pasku zaznaczony jest ten moduł',
-    new RegExp('evo-sidebar-sublink is-active">' + ekrany[klucze[0]].label + '<').test(naModule),
-    (naModule.match(/evo-sidebar-sublink is-active">([^<]*)/) || [, 'brak'])[1]);
+  const zjedzone = [];
+  for (const s of sekcje) {
+    const pierwszy = Object.keys(mapa.ekrany[s])[0];
+    const html = panel({}, s, pierwszy);
+    if (wiersze(html).length) zjedzone.push(s + '/' + pierwszy);
+    else if (!new RegExp('evo-sidebar-sublink is-active">' + mapa.ekrany[s][pierwszy].label + '<').test(html)) {
+      zjedzone.push(s + '/' + pierwszy + ' (pasek nie zaznacza modułu)');
+    }
+  }
+  t.check('adres z ?sub= nadal otwiera moduł i zaznacza go w pasku', !zjedzone.length,
+    zjedzone.join(', ') || sekcje.length + ' sekcji');
 
   /* Paleta zna każdy ekran panelu — przegląd jest osiągalny adresem, więc ma
      w niej być. Wyjątek od tej zasady zaczyna się od jednego wyjątku. */
-  t.check('wyszukiwarka zna przegląd',
-    pusty.includes(mapa.zakladki[sekcja].label + ' / Przegląd'),
-    mapa.zakladki[sekcja].label + ' / Przegląd');
+  const bezWPalecie = sekcje.filter((s) => !puste[s].includes(mapa.zakladki[s].label + ' / Przegląd'));
+  t.check('wyszukiwarka zna przegląd każdej sekcji', !bezWPalecie.length,
+    bezWPalecie.join(', ') || sekcje.length + ' wpisów');
 
-  // ── Sekcje bez przeglądu ───────────────────────────────────────────────
-  t.section('pozostałe sekcje zachowują się jak dotąd');
+  // ── Potwierdzenie przed włączeniem ─────────────────────────────────────
+  t.section('przełącznik, który kosztuje widoczność strony, pyta przed włączeniem');
 
-  /* Przegląd jest próbą kształtu na jednej sekcji. Sprawdzenie pilnuje, żeby
-     nie rozlał się na resztę niezauważenie — i żeby lista sekcji z przeglądem
-     była jedynym miejscem, które o tym decyduje. */
-  const inna = Object.keys(mapa.ekrany).find((k) => !mapa.przeglad.includes(k));
-  const innaHtml = panel({}, inna);
+  /* Konserwacja wyłącza stronę dla gości, a na liście stoi w rzędzie
+     identycznych przełączników — pomyłka jest o jedno kliknięcie. Sprawdzamy to
+     w PRZEGLĄDARCE, prawdziwym `admin.js`: sam atrybut w znaczniku dowodziłby
+     tylko tego, że go wypisaliśmy. */
+  const zPotwierdzeniem = [];
+  for (const s of sekcje) {
+    for (const [sub, ekran] of Object.entries(mapa.ekrany[s])) {
+      if (ekran.potwierdzenie) zPotwierdzeniem.push([s, sub, ekran.potwierdzenie]);
+    }
+  }
+  t.check('jest co sprawdzać — jakiś ekran deklaruje potwierdzenie',
+    zPotwierdzeniem.length > 0, zPotwierdzeniem.map((x) => x[0] + '/' + x[1]).join(', ') || 'brak');
 
-  t.check('sekcja spoza listy nie dostaje przeglądu', !wiersze(innaHtml).length,
-    inna + ': ' + wiersze(innaHtml).length + ' wierszy');
-  t.check('i ma dalej plakietkę z liczbą ekranów',
-    plakietka(innaHtml) === Object.keys(mapa.ekrany[inna]).length + ' ekranów',
-    inna + ': ' + plakietka(innaHtml));
-  t.check('ani pozycji „Przegląd" w pasku',
-    !/evo-sidebar-sublink[^"]*"[^>]*>Przegląd</.test(innaHtml), 'brak');
+  for (const [s, sub, tekst] of zPotwierdzeniem) {
+    const [option, field] = pary1(s, sub)[0];
+    const inne = pojedyncze(s).find((x) => x !== sub && !mapa.ekrany[s][x].potwierdzenie);
+
+    const strona = await t.open('panel-start.html', {
+      viewport: { width: 1400, height: 1000 },
+      head: 'window.evkToggle = { url: "about:blank", nonce: "x" };'
+          + 'window.__pytania = []; window.__zadania = []; window.__odpowiedz = false;'
+          + 'window.confirm = function (tekst) { window.__pytania.push(tekst); return window.__odpowiedz; };'
+          + '(function () { var o = XMLHttpRequest.prototype.open;'
+          + '  XMLHttpRequest.prototype.open = function (m, u) { window.__zadania.push(m + " " + u); return o.apply(this, arguments); };'
+          + '}());'
+          + 'window.__panel = ' + JSON.stringify(puste[s]) + ';',
+    });
+
+    const suwak = (opcja) => 'label.evo-toggle:has(input[data-option="' + opcja + '"]) .evo-slider';
+
+    // ODMOWA: pyta, nie wysyła, nie zostaje włączony.
+    await strona.click(suwak(option));
+    const poOdmowie = await strona.evaluate((sel) => ({
+      pytania: window.__pytania.slice(),
+      zadania: window.__zadania.length,
+      zaznaczony: document.querySelector(sel).checked,
+    }), 'input[data-option="' + option + '"]');
+
+    t.check('„' + mapa.ekrany[s][sub].label + '" pyta przed włączeniem',
+      poOdmowie.pytania.length === 1 && poOdmowie.pytania[0] === tekst,
+      poOdmowie.pytania[0] ? poOdmowie.pytania[0].slice(0, 60) : 'nie zapytał');
+    t.check('odmowa nie wysyła żądania', poOdmowie.zadania === 0,
+      poOdmowie.zadania + ' żądań');
+    t.check('i nie zostawia go włączonego', !poOdmowie.zaznaczony,
+      poOdmowie.zaznaczony ? 'włączony' : 'wyłączony');
+
+    // ZGODA: pyta drugi raz i tym razem wysyła.
+    await strona.evaluate(() => { window.__odpowiedz = true; });
+    await strona.click(suwak(option));
+    const poZgodzie = await strona.evaluate(() => ({
+      pytania: window.__pytania.length, zadania: window.__zadania.length,
+    }));
+    t.check('a zgoda dopuszcza zapis',
+      poZgodzie.pytania === 2 && poZgodzie.zadania === 1,
+      poZgodzie.pytania + ' pytań, ' + poZgodzie.zadania + ' żądań');
+
+    /* KONTROLA NEGATYWNA. Bez niej „pyta" byłoby prawdą także dla kodu, który
+       pyta przy KAŻDYM przełączniku — a wtedy potwierdzenie przestaje cokolwiek
+       znaczyć i zaczyna przeszkadzać. */
+    if (inne) {
+      const [innaOpcja] = pary1(s, inne)[0];
+      await strona.click(suwak(innaOpcja));
+      const poInnym = await strona.evaluate(() => window.__pytania.length);
+      t.check('a zwykły przełącznik („' + mapa.ekrany[s][inne].label + '") nie pyta',
+        poInnym === 2, poInnym - 2 + ' dodatkowych pytań');
+    }
+
+    await strona.close();
+  }
 };

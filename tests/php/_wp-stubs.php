@@ -218,6 +218,28 @@ if (!function_exists('wp_get_attachment_image_src')) {
     }
 }
 
+/* Metadane WordPressa bywają zserializowane — `get_post_meta()` oddaje wtedy
+   łańcuch, a kod czytający je musi go rozpakować. Bez tej atrapy diagnostyka
+   noindex na ekranie mapy strony kończyła się w harnessie fatalem o funkcji,
+   która na żywej stronie jest zawsze. */
+if (!function_exists('wp_trim_words')) {
+    function wp_trim_words($text, $num_words = 55, $more = null) {
+        $slowa = preg_split('/\s+/', trim(strip_tags((string) $text))) ?: [];
+        if (count($slowa) <= $num_words) return implode(' ', $slowa);
+        return implode(' ', array_slice($slowa, 0, $num_words)) . ($more === null ? ' …' : $more);
+    }
+}
+
+if (!function_exists('maybe_unserialize')) {
+    function maybe_unserialize($data) {
+        if (!is_string($data)) return $data;
+        $trimmed = trim($data);
+        if ($trimmed === 'b:0;') return false;
+        $rozpakowane = @unserialize($trimmed);
+        return $rozpakowane === false ? $data : $rozpakowane;
+    }
+}
+
 if (!function_exists('get_post_meta')) {
     function get_post_meta($id, $key = '', $single = false) {
         $v = $GLOBALS['post_meta'][(int) $id][$key] ?? '';

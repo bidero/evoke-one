@@ -37,62 +37,6 @@ function tl_has_translated_path(string $pl_path, string $lang): bool {
     return true;
 }
 
-function tl_meta_value_means_noindex($value, string $key = ''): bool {
-    $key_l = strtolower($key);
-
-    // Deserializacja stringa
-    if (is_string($value)) {
-        $decoded_json = json_decode($value, true);
-        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded_json)) {
-            return tl_meta_value_means_noindex($decoded_json, $key);
-        }
-        $decoded = maybe_unserialize($value);
-        if ($decoded !== $value && (is_array($decoded) || is_object($decoded))) {
-            return tl_meta_value_means_noindex($decoded, $key);
-        }
-    }
-
-    // Rekurencja po tablicach/obiektach
-    if (is_array($value) || is_object($value)) {
-        foreach ((array) $value as $child_key => $child_value) {
-            if (tl_meta_value_means_noindex($child_value, (string) $child_key)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Bricks: metaRobots => ["noindex", "nofollow"]
-    // Wartość jest stringiem "noindex" lub "nofollow" pod kluczem numerycznym,
-    // ale rodzic ma klucz "metaRobots" — sprawdzamy czy wartość == "noindex"
-    if ($key_l === '' || is_numeric($key)) {
-        if (is_string($value) && strtolower(trim($value)) === 'noindex') {
-            return true;
-        }
-    }
-
-    // Klucz zawiera "noindex"
-    if (strpos($key_l, 'noindex') !== false) {
-        if (is_bool($value)) return $value;
-        $value_l = strtolower(trim((string) $value));
-        return !in_array($value_l, ['', '0', 'false', 'no', 'off', 'none'], true);
-    }
-
-    // Klucz zawiera "robots" i wartość zawiera "noindex"
-    if (strpos($key_l, 'robots') !== false && is_string($value)) {
-        return stripos($value, 'noindex') !== false;
-    }
-
-    // Klucz zawiera "metarobots" lub "meta_robots"
-    if (preg_match('/meta.?robots/i', $key_l) && is_string($value)) {
-        return stripos($value, 'noindex') !== false;
-    }
-
-    // Generyczne klucze SEO z wartością zawierającą "noindex"
-    $seoish_key = preg_match('/(bricks|seo|robots|rank_math|yoast|aioseo)/i', $key_l);
-    return $seoish_key && is_string($value) && stripos($value, 'noindex') !== false;
-}
-
 function tl_post_has_noindex_meta(int $post_id): bool {
     foreach (get_post_meta($post_id) as $meta_key => $values) {
         foreach ((array) $values as $value) {

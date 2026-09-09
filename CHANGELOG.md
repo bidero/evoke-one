@@ -2,6 +2,90 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.164.0] — 2026-09-09
+
+### Naprawione
+
+- **Ekran SEO → Mapa strony kończył się fatalem i nie dawało się go otworzyć.**
+  ZGŁOSZONE Z ŻYWEJ STRONY: `Uncaught Error: Call to undefined function
+  tl_meta_value_means_noindex()`. Diagnostyka noindex wołała tę funkcję
+  bezwarunkowo, a mieszkała ona w `80-sitemap.php` — pliku ładowanym **wyłącznie
+  przy włączonym module tłumaczeń**. Czyli w domyślnej instalacji ekran był
+  martwy. Funkcja przeniesiona do `30-admin-settings-ajax.php`, obok
+  `tl_get_sitemap_settings()`: nie ma ona z tłumaczeniami nic wspólnego, to
+  predykat po metadanych SEO, i stała tam wyłącznie z historii.
+
+  **Dlaczego nie złapały tego testy, choć renderują ten ekran od dawna.** Trzy
+  atrapy kłamały naraz i każda z osobna wystarczyła, żeby pętla diagnostyki
+  kręciła się zero razy: `get_post_meta()` bez klucza oddawało pustą tablicę
+  zamiast kompletu metadanych, `get_posts()` nie rozumiało `post_type` podanego
+  TABLICĄ (`['page','post']`), a `fields => 'ids'` było obsługiwane tylko dla
+  własnych typów wpisów. **Ekran renderował się poprawnie, bo jego środek nigdy
+  się nie wykonywał** — sprawdzenie przechodziło na zielono, nie mając czego
+  sprawdzać. Wszystkie trzy naprostowane; fixture ma teraz dwa wpisy z meta
+  noindex w dwóch różnych kształtach (Yoast i Bricks JSON), a nowe sprawdzenie
+  wymaga, żeby diagnostyka je znalazła. Dołożone też brakujące atrapy
+  `maybe_unserialize()` i `wp_trim_words()`.
+
+### Dodane
+
+- **Ekran przeglądu w pozostałych czterech sekcjach** — SEO, Bezpieczeństwo,
+  Narzędzia i Panel admina. Kształt bez zmian wobec Frontendu z 1.163.0:
+  wiersz z ikoną, nazwą, opisem i przełącznikiem, a o tym, co stoi po prawej,
+  decyduje liczba par „opcja/pole" (odsyłacz / przełącznik / licznik).
+  Wszystkie 33 ekrany panelu mają teraz opis.
+
+- **Potwierdzenie przed włączeniem Konserwacji.** Na liście stoi w rzędzie
+  identycznych przełączników, a kosztuje widoczność całej strony dla gości —
+  pomyłka jest o jedno kliknięcie. Pytamy **wyłącznie przy włączaniu**:
+  wyłączenie przywraca stan normalny i zwłoka w nim nikomu nie służy. Odmowa
+  cofa zaznaczenie i **nie wysyła żądania**. Mechanizm jest ogólny
+  (`potwierdzenie` w mapie ekranów → `data-potwierdz` → gałąź w `admin.js`),
+  ale dziś używa go jeden ekran.
+
+- **Przekierowania 301 i Logi 404 dostały przełącznik na przeglądzie**, mimo że
+  na własnych ekranach mają włącznik jadący submitem formularza (AJAX i POST
+  razem strzelały tam podwójnie). Przegląd to osobny ekran z jedną drogą zapisu,
+  więc tamten problem nie wraca, a obie opcje były już na
+  `evk_toggle_allowlist()` — granica bezpieczeństwa nie została poszerzona.
+  Wyjątek jest **policzony**: `evoke_one_przelacznik_tylko_na_przegladzie()`
+  wylicza te dwa ekrany, a sprawdzenie porównuje listę znalezioną
+  z zadeklarowaną **w obie strony**, więc trzeci taki ekran nie pojawi się po
+  cichu, a wpis, który przestał być wyjątkiem, nie zostanie na liście na zawsze.
+
+### Zmienione
+
+- **Ekran „Mapa strony" świadomie nie ma przełącznika.** Jego jedyna flaga jest
+  w panelu podpisana „Włącz sekcję tłumaczeń w `wp-sitemap.xml`", więc
+  przełącznik obok nazwy „Mapa strony" mówiłby nieprawdę. Nie ma jej też na
+  białej liście uchwytu AJAX i nie dokładamy jej tam po to, żeby wiersz wyglądał
+  jak reszta.
+
+- **Newsletter i Formularze zostają bez przeglądu** — to zakładki z jednym
+  modułem, więc przegląd byłby listą o jednej pozycji prowadzącą tam, gdzie już
+  jesteś. Lista sekcji bierze się z mapy ekranów, więc dołożenie im podzakładek
+  włączy przegląd samo.
+
+### Sprawdzenia
+
+- **`tests/przeglad-sekcji.test.js` chodzi teraz po WSZYSTKICH sekcjach** i bierze
+  ich listę z wtyczki. Sprawdzenie napisane pod jedną sekcję przestałoby cokolwiek
+  znaczyć dla czterech dołożonych później — a dokładnie to działo się między
+  1.163.0 a tym wydaniem.
+
+- **Potwierdzenie sprawdzane w przeglądarce, prawdziwym `admin.js`** — sam
+  atrybut w znaczniku dowodziłby tylko tego, że go wypisaliśmy. Test klika suwak,
+  podstawia `window.confirm` i liczy żądania XHR: odmowa ma nie wysłać nic
+  i nie zostawić modułu włączonego, zgoda ma dopuścić zapis, a **zwykły
+  przełącznik obok nie ma pytać** — bez tej kontroli negatywnej „pyta" byłoby
+  prawdą także dla kodu pytającego przy każdym przełączniku.
+
+- **Naprostowany zasiew w `tests/php/panel-start.php`.** Opcje o polu innym niż
+  `enabled` (np. `evk_rewizje['limit_on']`) cicho zamieniały się w `enabled`,
+  więc zasiew mówił co innego, niż test prosił. Lista opcji płaskich powstaje
+  teraz **z mapy ekranów** — każda para z polem `_scalar` — zamiast być
+  przepisana z ręki.
+
 ## [1.163.0] — 2026-09-09
 
 ### Dodane
