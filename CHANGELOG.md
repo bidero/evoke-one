@@ -2,6 +2,46 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.161.1] — 2026-09-09
+
+### Poprawione
+
+- **Przycisk nie zmienia już szerokości w trakcie animacji.** Zgłoszone
+  z użycia zaraz po 1.161.0. Zmierzone klatka po klatce: ubytek **7 px z 72**
+  w połowie ruchu, czyli dziesiąta część przycisku.
+
+  Przyczyna: opóźnienie `stagger` dotyczyło także **szerokości** lewego
+  gniazda, więc przez te 50 ms prawe już się zwijało, a lewe jeszcze stało —
+  i suma, która miała być stała, chwilowo nie była. Oba gniazda ruszają teraz
+  w tej samej chwili i po tej samej krzywej, więc prawe oddaje dokładnie tyle,
+  ile lewe bierze. Przeskok robi wyłącznie opóźniona kopia ikony — i to ona
+  robiła go zawsze, szerokości nie były do tego potrzebne.
+
+  **Dlaczego przeszło przez testy 1.161.0:** wszystkie sześć sprawdzeń
+  mierzyło stany skrajne — w spoczynku i po dojściu do końca. Tam było
+  poprawnie. Usterka istniała wyłącznie w środku ruchu, gdzie nie patrzyłem.
+
+- **Ikony są przycinane, a nie ściskane.** Znalezione tym samym pomiarem,
+  nikt tego nie zgłaszał. Gniazdo jest `inline-flex`, a element flex ma
+  domyślnie `flex-shrink: 1`, więc przy gnieździe zwijanym do zera SVG
+  zgniatał się razem z nim: szerokość oryginału szła **16 → 0 px**. Strzałka
+  nie odjeżdżała za krawędź — spłaszczała się w miejscu.
+
+### Testy
+
+Trzy nowe sprawdzenia, próbkujące przebieg **w każdej klatce** zamiast na
+końcach. Cztery mutacje, wszystkie zapalają.
+
+Jedna przeszła najpierw na zielono i skończyła się **uproszczeniem kodu**:
+`flex-shrink` ustawiany osobno na kopii był nadmiarowy, bo klon powstaje przez
+skopiowanie celu wraz z jego stylem. Działało — ale wyłącznie przez kolejność
+linii, której nic nie pilnowało. Teraz jest to jeden zapis na obie ikony.
+
+Poprawione też zdanie w komentarzu, które twierdziło, że „przez ułamek sekundy
+nie ma ani jednej ikony". Zmierzone: widoczność spada do 2,3 px z 16, ale do
+zera nie dochodzi — a czy przerwa jest pełna, zależy od stosunku `stagger` do
+`duration`, więc jest to ustawienie, nie własność efektu.
+
 ## [1.161.0] — 2026-09-09
 
 ### Dodane

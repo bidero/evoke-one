@@ -1101,6 +1101,19 @@
       // Klon czeka wysunięty w lewo — w miarę rozwijania gniazda wjeżdża.
       gsap.set(klon, { xPercent: -100 });
 
+      /* IKONY MAJĄ BYĆ PRZYCINANE, NIE ŚCISKANE — i dlatego jeden zapis na obie.
+         Gniazdo jest `inline-flex`, a element flex ma domyślnie `flex-shrink: 1`,
+         więc gdy gniazdo zwijało się do zera, SVG zgniatał się razem z nim
+         zamiast wyjechać za krawędź. Zmierzone: szerokość oryginału szła
+         16 → 0 px w trakcie ruchu — strzałka nie odjeżdżała, tylko się
+         spłaszczała.
+
+         JEDEN ZAPIS, NIE DWA. Osobne ustawienie na klonie przechodziło mutację
+         na zielono, bo `klonCelu()` kopiuje cel wraz z jego stylem — klon
+         dziedziczył więc `flex-shrink` po oryginale. Działało, ale wyłącznie
+         przez kolejność linii, której nic nie pilnowało. */
+      gsap.set([cel, klon], { flexShrink: 0 });
+
       zestawy.push({ cel: cel, prawa: prawa, lewa: lewa, klon: klon, w: szer[i] });
     });
 
@@ -1108,14 +1121,31 @@
 
     var tl  = gsap.timeline({ paused: true });
     var wsp = { duration: cfg.duration, ease: cfg.easing };
-    // Kopia rusza PÓŹNIEJ o `stagger` — to jest cały przeskok. Przez ułamek
-    // sekundy nie ma ani jednej ikony i dopiero to czyta się jako wymianę.
+    /* Kopia rusza PÓŹNIEJ o `stagger` — i to jest cały przeskok.
+       Stało tu wcześniej, że „przez ułamek sekundy nie ma ani jednej ikony".
+       Zmierzone klatka po klatce przy domyślnych 0,05 s opóźnienia i 0,4 s
+       ruchu: widoczność spada do 2,3 px z 16, czyli do ~15%, ale do zera nie
+       dochodzi. Czy przerwa jest pełna, zależy od stosunku `stagger` do
+       `duration` — więc jest to ustawienie, a nie własność efektu. */
     var op = cfg.stagger || 0;
 
     zestawy.forEach(function (z) {
+      /* OBA GNIAZDA RUSZAJĄ RAZEM — w tej samej chwili i po tej samej krzywej.
+         To jest jedyny sposób, żeby ich suma była stała: przy identycznym
+         postępie prawe oddaje dokładnie tyle, ile lewe bierze.
+
+         Zgłoszone z użycia: „przycisk zmienia szerokość podczas animacji".
+         Opóźnienie o `stagger` dotyczyło wcześniej także SZEROKOŚCI, więc przez
+         te 50 ms prawe gniazdo już się zwijało, a lewe jeszcze stało — zmierzony
+         ubytek 7 px z 72, czyli dziesiąta część przycisku. Sam koniec ruchu
+         wyglądał poprawnie i dlatego przeszedł mi przez sprawdzenia mierzące
+         wyłącznie stany skrajne.
+
+         Przeskok robi teraz wyłącznie opóźniony KLON — i to on robił go zawsze;
+         szerokości nie były do tego potrzebne. */
       tl.to(z.prawa, Object.assign({ width: 0 }, wsp), 0);
+      tl.to(z.lewa,  Object.assign({ width: z.w }, wsp), 0);
       tl.to(z.cel,   Object.assign({ xPercent: 100 }, wsp), 0);
-      tl.to(z.lewa,  Object.assign({ width: z.w }, wsp), op);
       tl.to(z.klon,  Object.assign({ xPercent: 0 }, wsp), op);
     });
 

@@ -361,6 +361,31 @@ module.exports = async function (t) {
       && Math.abs(strWroc.xTekstu - strZ.xTekstu) <= 1,
     'lewe ' + (strWroc || {}).lewe + ', x napisu ' + (strWroc || {}).xTekstu);
 
+  /* ── ŚRODEK RUCHU, nie tylko jego końce ───────────────────────────────
+   *
+   * Zgłoszone z użycia po 1.161.0: „przycisk zmienia szerokość podczas
+   * animacji". Przeszło mi przez komplet sprawdzeń wyżej, bo WSZYSTKIE mierzą
+   * stany skrajne — w spoczynku i po dojściu do końca było poprawnie.
+   * Zmierzone klatka po klatce: ubytek 7 px z 72 w połowie ruchu, bo `stagger`
+   * opóźniał także szerokość lewego gniazda, więc przez ten czas prawe już się
+   * zwijało, a lewe jeszcze stało.
+   *
+   * Ten sam przebieg wyciągnął drugą usterkę, której nikt nie zgłosił: gniazdo
+   * jest `inline-flex`, a element flex ma domyślnie `flex-shrink: 1`, więc ikony
+   * ŚCISKAŁY się razem z gniazdem (16 → 0 px) zamiast być przycinane. Strzałka
+   * nie odjeżdżała — spłaszczała się. */
+  const bieg = await hv.evaluate(() => window.__przebieg());
+  const zakres = (a) => Math.max(...a) - Math.min(...a);
+  t.check('przebieg ma z czego wnioskować — próbki z wielu klatek',
+    bieg.szer.length >= 10, bieg.szer.length + ' klatek');
+  t.check('przycisk nie zmienia szerokości ANI PRZEZ JEDNĄ KLATKĘ',
+    zakres(bieg.szer) <= 1,
+    'min ' + Math.min(...bieg.szer) + ', max ' + Math.max(...bieg.szer) + ' px');
+  t.check('a ikony są przez cały ruch przycinane, nie ściskane',
+    Math.min(...bieg.org) >= 15 && Math.min(...bieg.klon) >= 15,
+    'oryginał min ' + Math.min(...bieg.org)
+      + ' px, kopia min ' + Math.min(...bieg.klon) + ' px');
+
   t.check('bez błędów JS przy hoverze', !hv.errors.length, hv.errors.join(' | ') || 'brak');
   await hv.close();
 

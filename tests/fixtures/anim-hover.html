@@ -169,6 +169,31 @@
     };
   };
 
+  /**
+   * Cały przebieg najechania, próbkowany W KAŻDEJ KLATCE.
+   *
+   * Osobny pomocnik, bo `__strona()` czyta stan w jednej chwili, a usterka,
+   * dla której to powstało, była widoczna WYŁĄCZNIE w środku ruchu: przycisk
+   * chudł o 7 px w połowie i wracał do swojej szerokości na końcu. Odczyty
+   * z Node'a są na to za rzadkie — między nimi mieści się kilka klatek.
+   */
+  window.__przebieg = function () {
+    var b = document.getElementById('przycisk3');
+    var szer = function (el) { return el ? Math.round(el.getBoundingClientRect().width * 10) / 10 : null; };
+    var wynik = { szer: [], org: [], klon: [] };
+    var start = performance.now();
+    return new Promise(function (ok) {
+      window.__najedz('przycisk3');
+      var krok = function () {
+        wynik.szer.push(szer(b));
+        wynik.org.push(szer(document.getElementById('strzalka3')));
+        wynik.klon.push(szer(document.querySelector('.evk-anim-podmiana-lewa .evk-anim-podmiana-klon')));
+        if (performance.now() - start < 600) requestAnimationFrame(krok); else ok(wynik);
+      };
+      requestAnimationFrame(krok);
+    });
+  };
+
   /** Szerokość elementu — do sprawdzenia, czy układ nie skacze przy najechaniu. */
   window.__szer = function (id) {
     return Math.round(document.getElementById(id).getBoundingClientRect().width * 100) / 100;
