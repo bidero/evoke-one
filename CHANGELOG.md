@@ -2,6 +2,39 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.165.1] — 2026-09-09
+
+### Naprawione
+
+- **Potwierdzenie zapisu nie było zielone.** ZGŁOSZONE Z UŻYCIA. Komunikat miał
+  własny `<p>` nad przyciskiem, w kolorze `--evo-on-dark` — a panel **ma już
+  swoją konwencję potwierdzeń zapisu**: `.evo-save-msg`, czyli zielony
+  `✓ Zapisano` po prawej stronie paska zapisu, używany przez Limit logowań,
+  REST API, Ochronę WP i Mapę strony. Komunikat korzysta teraz z niej: ten sam
+  kolor, to samo miejsce, ten sam ptaszek. Wynalazek obok gotowej konwencji
+  poszedł.
+
+  **Selektor jest dwuklasowy (`.evo-save-msg.evo-zapis-info`) i to nie ozdoba:**
+  `.evo-save-msg` jest domyślnie `display: none` i stoi w arkuszu niżej, więc
+  przy równej wadze wygrałaby reguła późniejsza i komunikat nie pokazałby się
+  wcale. Zmierzone mutacją — przy jednoklasowym selektorze kolor jest zielony,
+  a element niewidoczny.
+
+### Sprawdzenia
+
+- **Kolor komunikatu mierzony w przeglądarce**, nie odczytany z arkusza:
+  pierwsza wersja miała w regule zieleń, a na ekranie wychodziła inaczej.
+  Sprawdzenie pyta o kanały (zielony przeważa i wyraźnie odstaje od czerwonego),
+  a nie o konkretny odcień — reguła ma pilnować, że to zieleń, nie zamrażać
+  wartość, której nikt nie ustalał.
+
+- **Poprawione otoczenie pomiaru.** Fixture wstrzykiwał samą treść zakładki, bez
+  przodka `.wrap` — a **zmienne kolorów panelu są zadeklarowane na `.wrap`, nie
+  na `:root`**. W takim otoczeniu `var(--evo-…)` nie rozwiązuje się wcale
+  i każdy pomiar koloru mówił o czymś, czego użytkownik nigdy nie zobaczy
+  (komunikat wychodził czarny). Zakładka siedzi teraz w tej samej otoczce, co
+  na żywo.
+
 ## [1.165.0] — 2026-09-09
 
 ### Naprawione

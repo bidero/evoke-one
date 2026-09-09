@@ -98,11 +98,21 @@
             var etykieta = $btn.text();
             $btn.prop('disabled', true);
 
-            /* Komunikat siada nad przyciskiem i zastępuje poprzedni — dwa
+            /* Komunikat siada W PASKU ZAPISU i zastępuje poprzedni — dwa
                „Zapisano" jedno pod drugim po dwóch zapisach mówiłyby o liczbie
-               kliknięć, nie o stanie. */
+               kliknięć, nie o stanie.
+
+               Klasa `.evo-save-msg` jest tą, której panel używa do potwierdzeń
+               zapisu od dawna (Limit logowań, REST API, Ochrona WP, Mapa strony):
+               ta sama zieleń i to samo miejsce po prawej stronie paska. Pierwsza
+               wersja miała własny `<p>` nad przyciskiem — wynalazek obok gotowej
+               konwencji, w dodatku w innym kolorze. */
+            var $bar  = $form.find('.evo-save-bar');
             var $info = $form.find('.evo-zapis-info');
-            if (!$info.length) $info = $('<p class="evo-zapis-info" role="status"></p>').insertBefore($btn);
+            if (!$info.length) {
+                $info = $('<span class="evo-save-msg evo-zapis-info" role="status"></span>');
+                if ($bar.length) $bar.append($info); else $info.insertAfter($btn);
+            }
             $info.removeClass('is-err').text('Zapisywanie…');
 
             /* WYSŁANIE AWARYJNE IDZIE `form.submit()` Z DOM-u, nie przez jQuery.
@@ -128,7 +138,9 @@
                     poddajSie('Nie udało się zapisać — wysyłam formularz zwykłą drogą…');
                     return;
                 }
-                $info.text('Zapisano.');
+                /* Ptaszek jak przy pozostałych potwierdzeniach w panelu
+                   (`✓ Zapisano` w Limicie logowań, REST API, Ochronie WP). */
+                $info.text('✓ Zapisano');
             })
             .fail(function (xhr) {
                 console.error('evk zapis fail:', xhr.status);

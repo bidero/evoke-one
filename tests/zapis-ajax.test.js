@@ -26,7 +26,7 @@
  * za groźne.
  */
 
-const { phpOutput } = require('./lib/harness');
+const { phpOutput, rgb } = require('./lib/harness');
 
 const zapisz = (form, stan, option) =>
   JSON.parse(phpOutput('zapis.php', JSON.stringify(JSON.stringify(
@@ -118,6 +118,11 @@ module.exports = async function (t) {
     /data-evo-zapis="evk_sierotki"/.test(ekran), 'data-evo-zapis');
   t.check('przycisk zapisu nie zniknął', /type="submit"/.test(ekran), 'jest');
 
+  /* ZAKŁADKA MUSI SIEDZIEĆ W `.wrap`, tak jak na żywo. Zmienne kolorów panelu
+     są zadeklarowane na `.wrap`, nie na `:root` — wstrzyknięcie samej treści
+     zakładki daje otoczenie, w którym `var(--evo-…)` nie rozwiązuje się wcale
+     i każdy pomiar koloru mówi o czymś, czego użytkownik nigdy nie zobaczy.
+     Zmierzone: bez tej otoczki komunikat wychodził czarny. */
   const strona = await t.open('panel-start.html', {
     viewport: { width: 1200, height: 900 },
     head: 'window.evkZapis = { url: "about:blank", nonce: "x" };'
@@ -125,7 +130,7 @@ module.exports = async function (t) {
         + '(function () { var o = XMLHttpRequest.prototype.open;'
         + '  XMLHttpRequest.prototype.open = function (m, u) { window.__wyslane.push(m + " " + u); return o.apply(this, arguments); };'
         + '}());'
-        + 'window.__panel = ' + JSON.stringify(ekran) + ';',
+        + 'window.__panel = ' + JSON.stringify('<div class="wrap evo-control-center">' + ekran + '</div>') + ';',
   });
 
   /* Zwykły submit przeładowałby stronę. Liczymy to wprost: nasłuch na
@@ -173,17 +178,38 @@ module.exports = async function (t) {
   });
   await strona.waitForTimeout(200);
 
-  const udany = await strona.evaluate(() => ({
-    info: (document.querySelector('.evo-zapis-info') || {}).textContent || '',
-    nawigacje: window.__nawigacje,
-    blad: (document.querySelector('.evo-zapis-info') || { classList: { contains: () => false } })
-      .classList.contains('is-err'),
-    przycisk: !document.querySelector('form[data-evo-zapis] [type=submit]').disabled,
-  }));
+  const udany = await strona.evaluate(() => {
+    var el = document.querySelector('.evo-zapis-info');
+    var cs = el ? getComputedStyle(el) : null;
+    return {
+      info: el ? el.textContent : '',
+      nawigacje: window.__nawigacje,
+      blad: !!el && el.classList.contains('is-err'),
+      kolor: cs ? cs.color : '',
+      widoczny: !!cs && cs.display !== 'none',
+      przycisk: !document.querySelector('form[data-evo-zapis] [type=submit]').disabled,
+    };
+  });
 
   t.check('udany zapis potwierdza i nie przeładowuje',
-    udany.info === 'Zapisano.' && udany.nawigacje === 0 && !udany.blad,
+    /Zapisano/.test(udany.info) && udany.nawigacje === 0 && !udany.blad,
     '„' + udany.info + '", ' + udany.nawigacje + ' nawigacji');
+
+  /* KOMUNIKAT MA BYĆ ZIELONY — zgłoszone z użycia po pierwszym wydaniu.
+     Mierzymy kolor wyliczony przez przeglądarkę, nie zapis w arkuszu: pierwsza
+     wersja miała w regule zieleń (`--evo-on-dark`), a na ekranie wychodziła
+     inaczej. Zieleń bierze się teraz z `.evo-save-msg`, czyli stąd, skąd biorą
+     ją pozostałe potwierdzenia w panelu.
+
+     Sprawdzamy KANAŁY, nie równość z jedną wartością: reguła ma pilnować, że
+     to zieleń, a nie zamrażać konkretny odcień, którego nikt nie ustalał.
+     Warunek brzmi „zielony przeważa i wyraźnie odstaje od czerwonego" — bez
+     wymagania przewagi nad niebieskim, bo zieleń panelu (#047857) jest morska
+     i taki próg odrzucałby kolor, który jest w porządku. */
+  const [r, g, b] = rgb(udany.kolor);
+  t.check('i jest zielony',
+    udany.widoczny && g === Math.max(r, g, b) && g - r > 60,
+    udany.kolor + (udany.widoczny ? '' : ' (ukryty!)'));
 
   /* Przycisk zablokowany na czas zapisu ma wrócić do użycia — inaczej po
      pierwszym zapisie ekran jest martwy aż do przeładowania, czyli dokładnie
