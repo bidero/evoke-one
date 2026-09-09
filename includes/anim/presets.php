@@ -305,6 +305,28 @@ function evk_anim_presets(): array {
             'stagger'  => 0.06,
             'easing'   => 'power3.out',
         ],
+        /*
+         * WARIANT ZE WZORCA („arrow button"): ikona nie wymienia się w miejscu,
+         * tylko PRZECHODZI NA DRUGĄ STRONĘ napisu i spycha go.
+         *
+         * Strzałka stojąca po prawej wyjeżdża w prawo, a jej kopia wjeżdża
+         * z lewej strony tekstu — tekst przesuwa się w prawo, robiąc jej
+         * miejsce. Po zjechaniu wszystko wraca.
+         *
+         * Silnik robi do tego DWA GNIAZDA: prawe zwija się do zera, lewe
+         * rozwija do szerokości ikony. Suma zostaje stała, więc przycisk nie
+         * zmienia szerokości — przesuwa się tylko napis. Samo przesunięcie
+         * ikony by nie wystarczyło: żeby zepchnąć tekst, coś w układzie musi
+         * naprawdę zmienić rozmiar.
+         */
+        'hover-swap-strona' => [
+            'label'    => 'Hover: ikona przechodzi na drugą stronę napisu',
+            'stan'     => true,
+            'podmiana' => 'strona',
+            'duration' => 0.4,
+            'stagger'  => 0.06,
+            'easing'   => 'power3.out',
+        ],
 
         'split-lines' => [
             'label'    => 'Tekst po liniach',

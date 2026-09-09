@@ -138,7 +138,7 @@
      
      Nowy efekt, który coś generuje, ma dopisać się TUTAJ. */
   var WEZEL_SILNIKA =
-    /^(?:line|word|char)(?:-mask)?$|^swap-klon$|^host$|^podmiana(?:-klon)?$/;
+    /^(?:line|word|char)(?:-mask)?$|^swap-klon$|^host$|^podmiana(?:-[a-z]+)?$/;
 
   /** Co Animator uważa za swoją robotę — jeden zapis dla `initAll()`
       i dla obserwatora podmian, żeby nie rozjechały się przy poprawce. */
@@ -1012,6 +1012,116 @@
    * tylko OPÓŹNIENIE KLONU wobec oryginału. To ono daje charakterystyczny
    * przeskok — przez ułamek sekundy w masce nie ma nic.
    */
+  /** Owija cel maską przycinającą albo oddaje tę z poprzedniego przebiegu. */
+  function maskaCelu(cel, opakowany, rodzic) {
+    if (opakowany) return rodzic;
+    var maska = document.createElement('span');
+    maska.className = KLASA_PODMIANY;
+    /* `inline-flex`, nie `inline-block`: pudełko przylega do zawartości bez
+       szpary na linii bazowej, którą inline-block zostawia pod obrazkami
+       i SVG. Ta szpara podnosiłaby wysokość przycisku o kilka pikseli. */
+    gsap.set(maska, {
+      display: 'inline-flex', position: 'relative', overflow: 'hidden',
+    });
+    rodzic.insertBefore(maska, cel);
+    maska.appendChild(cel);
+    return maska;
+  }
+
+  /** Świeży klon celu, oznaczony i odebrany czytnikowi ekranu. */
+  function klonCelu(cel) {
+    var klon = cel.cloneNode(true);
+    // Klasa nie jest ozdobą: po niej `WEZEL_SILNIKA` poznaje, że to wytwór
+    // silnika, a nie element do zainicjalizowania. Bez tego obserwator
+    // podmian brał maskę i klon za nową treść ze strony.
+    klon.classList.add('evk-anim-podmiana-klon');
+    // Klon jest czystym powtórzeniem — bez tego czytnik ekranu przeczytałby
+    // ikonę dwa razy, a w przycisku „Zobacz więcej →" to jest jedna strzałka.
+    klon.setAttribute('aria-hidden', 'true');
+    // Dwa te same `id` to nieprawidłowy dokument, a `getElementById` zaczyna
+    // wtedy zwracać jedno z nich bez żadnej reguły.
+    klon.removeAttribute('id');
+    return klon;
+  }
+
+  /**
+   * Wariant „strona": ikona PRZECHODZI NA DRUGĄ STRONĘ napisu i spycha go.
+   *
+   * To jest zachowanie ze wzorca (nextbricks „arrow button v5"), opisane przez
+   * zgłaszającego: strzałka stojąca po prawej wyjeżdża w prawo, a jej kopia
+   * wjeżdża z lewej strony tekstu i przesuwa tekst w prawo. Po zjechaniu
+   * wszystko wraca.
+   *
+   * CZYM SIĘ RÓŻNI OD WYMIANY W MIEJSCU: tam obie kopie siedzą w jednej masce
+   * i napis stoi nieruchomo. Tu są DWA GNIAZDA — prawe zwija się do zera, lewe
+   * rozwija do szerokości ikony. Suma zostaje stała, więc przycisk nie zmienia
+   * szerokości; przesuwa się tylko napis między gniazdami. Bez animowania
+   * szerokości nie da się tekstu zepchnąć — samo przesunięcie ikony niczego
+   * w układzie nie rusza.
+   *
+   * SZEROKOŚĆ CZYTAMY RAZ, przed jakąkolwiek zmianą drzewa. Odczyt po wstawieniu
+   * gniazda wymuszałby przeliczenie układu przy każdym celu.
+   */
+  function podmianaStrony(el, targets, cfg, pudelka) {
+    var szer = targets.map(function (cel) {
+      return Math.round(cel.getBoundingClientRect().width * 100) / 100;
+    });
+
+    var zestawy = [];
+    targets.forEach(function (cel, i) {
+      var rodzic = pudelka[i].rodzic;
+      if (!rodzic || !szer[i]) return;
+
+      /* Prawe gniazdo — dotychczasowe miejsce ikony. BEZ jawnej szerokości:
+         wpisywałem ją tu „bo do zera animuje się liczba, a nie auto", ale
+         mutacja zdejmująca ją przeszła na zielono. GSAP czyta wymiar sam
+         i zwija gniazdo tak samo, więc zapis był tylko domysłem. */
+      var prawa = maskaCelu(cel, pudelka[i].opakowany, rodzic);
+      Array.prototype.slice.call(prawa.children).forEach(function (d) {
+        if (d !== cel) prawa.removeChild(d);
+      });
+
+      // Lewe gniazdo — zwinięte do zera, PRZED całą treścią rodzica.
+      var lewa = null;
+      Array.prototype.forEach.call(rodzic.children, function (d) {
+        if (!lewa && d.classList && d.classList.contains(KLASA_PODMIANY + '-lewa')) lewa = d;
+      });
+      if (!lewa) {
+        lewa = document.createElement('span');
+        lewa.className = KLASA_PODMIANY + '-lewa';
+        gsap.set(lewa, {
+          display: 'inline-flex', position: 'relative', overflow: 'hidden', width: 0,
+        });
+        rodzic.insertBefore(lewa, rodzic.firstChild);
+      }
+      while (lewa.firstChild) lewa.removeChild(lewa.firstChild);
+
+      var klon = klonCelu(cel);
+      lewa.appendChild(klon);
+      // Klon czeka wysunięty w lewo — w miarę rozwijania gniazda wjeżdża.
+      gsap.set(klon, { xPercent: -100 });
+
+      zestawy.push({ cel: cel, prawa: prawa, lewa: lewa, klon: klon, w: szer[i] });
+    });
+
+    if (!zestawy.length) return null;
+
+    var tl  = gsap.timeline({ paused: true });
+    var wsp = { duration: cfg.duration, ease: cfg.easing };
+    // Kopia rusza PÓŹNIEJ o `stagger` — to jest cały przeskok. Przez ułamek
+    // sekundy nie ma ani jednej ikony i dopiero to czyta się jako wymianę.
+    var op = cfg.stagger || 0;
+
+    zestawy.forEach(function (z) {
+      tl.to(z.prawa, Object.assign({ width: 0 }, wsp), 0);
+      tl.to(z.cel,   Object.assign({ xPercent: 100 }, wsp), 0);
+      tl.to(z.lewa,  Object.assign({ width: z.w }, wsp), op);
+      tl.to(z.klon,  Object.assign({ xPercent: 0 }, wsp), op);
+    });
+
+    return podepnijInteraktywnie(el, tl, cfg, 'evkPodmianaAbort');
+  }
+
   function attachPodmianaCelu(el, targets, cfg) {
     if (!targets.length) return null;
 
@@ -1031,23 +1141,12 @@
       };
     });
 
+    if (cfg.podmiana === 'strona') return podmianaStrony(el, targets, cfg, pudelka);
+
     var klony = [];
     targets.forEach(function (cel, i) {
-      var maska = pudelka[i].rodzic;
-
-      if (!pudelka[i].opakowany) {
-        if (!maska) return;
-        maska = document.createElement('span');
-        maska.className = KLASA_PODMIANY;
-        /* `inline-flex`, nie `inline-block`: pudełko przylega do zawartości bez
-           szpary na linii bazowej, którą inline-block zostawia pod obrazkami
-           i SVG. Ta szpara podnosiłaby wysokość przycisku o kilka pikseli. */
-        gsap.set(maska, {
-          display: 'inline-flex', position: 'relative', overflow: 'hidden',
-        });
-        pudelka[i].rodzic.insertBefore(maska, cel);
-        maska.appendChild(cel);
-      }
+      if (!pudelka[i].rodzic) return;
+      var maska = maskaCelu(cel, pudelka[i].opakowany, pudelka[i].rodzic);
 
       /* Klony z poprzedniego przebiegu precz. Silnik buduje elementy ponownie
          po podmianie treści przez filtr pętli Bricksa — bez tego przy każdym
@@ -1056,15 +1155,7 @@
         if (dziecko !== cel) maska.removeChild(dziecko);
       });
 
-      var klon = cel.cloneNode(true);
-      // Klasa nie jest ozdobą: po niej `WEZEL_SILNIKA` poznaje, że to wytwór
-      // silnika, a nie element do zainicjalizowania. Bez tego obserwator
-      // podmian brał maskę i klon za nową treść ze strony.
-      klon.classList.add('evk-anim-podmiana-klon');
-      klon.setAttribute('aria-hidden', 'true');
-      // Klon jest czystym powtórzeniem — bez tego czytnik ekranu przeczytałby
-      // ikonę dwa razy, a w przycisku „Zobacz więcej →" to jest jedna strzałka.
-      klon.removeAttribute('id');
+      var klon = klonCelu(cel);
       gsap.set(klon, { position: 'absolute', top: 0, left: 0 });
       maska.appendChild(klon);
       klony.push(klon);

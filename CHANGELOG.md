@@ -2,6 +2,55 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.161.0] — 2026-09-09
+
+### Dodane
+
+- **Animator: „Hover: ikona przechodzi na drugą stronę napisu".** To jest ten
+  efekt, o który chodziło we wzorcu „arrow button" — a 1.160.0 zrobiło co
+  innego.
+
+  Zgłaszający opisał go dokładnie: strzałka stojąca **po prawej** wyjeżdża
+  w prawo, a jej kopia wjeżdża **z lewej strony tekstu** i spycha tekst w prawo.
+  Po zjechaniu wszystko wraca. Presety z 1.160.0 wymieniały ikonę **w miejscu**,
+  a napis stał nieruchomo — ładny efekt, ale nie ten.
+
+  Silnik robi do tego **dwa gniazda**: prawe zwija się do zera, lewe rozwija do
+  szerokości ikony. Suma zostaje stała, więc przycisk nie zmienia szerokości —
+  przesuwa się tylko napis. Samo przesunięcie ikony by nie wystarczyło: żeby
+  zepchnąć tekst, coś w układzie musi naprawdę zmienić rozmiar.
+
+  Zmierzone: napis przesuwa się o **dokładnie szerokość ikony** (327 → 343 px
+  przy ikonie 16 px), a przycisk stoi na 72 px przed, w trakcie i po — tyle samo
+  co bliźniak bez animacji.
+
+  Presety z 1.160.0 zostają — wymiana w miejscu to osobny, sensowny efekt.
+  Etykiet nie ruszałem; te z 1.160.0 mówią „podmiana ikony", nowy mówi
+  „ikona przechodzi na drugą stronę napisu", więc w panelu widać, który jest
+  który.
+
+### Testy
+
+Sześć nowych sprawdzeń, mierzących przede wszystkim **położenie napisu**, a nie
+samą ikonę — bo to właśnie po nim poznaje się różnicę między tym wariantem
+a wymianą w miejscu.
+
+Cztery mutacje. Jedna przeszła na zielono i skończyła się **uproszczeniem kodu**:
+prawe gniazdo dostawało jawną szerokość „bo do zera animuje się liczba, a nie
+`auto`". Okazało się to domysłem — GSAP czyta wymiar sam, zapis wyleciał razem
+z nieużywanym już parametrem pomocnika.
+
+Osobno, przy okazji pełnego przebiegu: **sprawdzenie drabiny jakości Wave BG
+było rzutem monetą** i zapaliło się na obciążonej maszynie, choć puszczone
+osobno świeciło na zielono. Kontrola „przy budżecie z zapasem nie schodzi
+wcale" ustawiała budżet na 200 ms, czyli górną granicę kontrolki, przy klatce
+kosztującej ~195 ms — zapas wynosił kilka milisekund. Margines robi teraz
+mniejszy widok (900×600, klatka ~67 ms), a nie zegar. Widok jest dobrany
+z dwóch stron: pierwsza próba (480×320, klatka 33 ms) dawała większy zapas, ale
+przepuszczała mutację zaszywającą próg 40 ms na sztywno — czyli przestawała
+dowodzić, że budżet w ogóle jest czytany. Zmierzony koszt klatki jest teraz
+wypisany w wyniku sprawdzenia.
+
 ## [1.160.0] — 2026-09-09
 
 ### Dodane

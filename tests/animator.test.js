@@ -316,6 +316,51 @@ module.exports = async function (t) {
     podmWroc && Math.abs(podmWroc.orgX) <= 1 && podmWroc.klonX <= -podmZ.szerIkony + 1,
     'oryginał x=' + (podmWroc || {}).orgX + ', kopia x=' + (podmWroc || {}).klonX);
 
+  /* ── Ikona przechodzi na DRUGĄ STRONĘ napisu ───────────────────────────
+   *
+   * Wariant ze wzorca, opisany przez zgłaszającego: strzałka stojąca po prawej
+   * wyjeżdża w prawo, a jej kopia wjeżdża z LEWEJ strony tekstu i spycha go
+   * w prawo. Po zjechaniu wszystko wraca.
+   *
+   * Pierwsza wersja tego presetu wymieniała ikonę W MIEJSCU i napis stał
+   * nieruchomo — czyli nie to, o co chodziło. Stąd sprawdzenie mierzy przede
+   * wszystkim POŁOŻENIE NAPISU, a nie samą ikonę. */
+  const strZ = await hv.evaluate(() => window.__strona());
+  t.check('w spoczynku lewe gniazdo jest zwinięte, prawe trzyma ikonę',
+    strZ && strZ.lewe === 0 && strZ.prawe >= 15,
+    'lewe ' + (strZ || {}).lewe + ' px, prawe ' + (strZ || {}).prawe + ' px');
+  t.check('a kopia czeka w lewym gnieździe',
+    strZ && strZ.klonWLewym === true, 'klon w lewym: ' + (strZ || {}).klonWLewym);
+
+  await hv.evaluate(() => window.__najedz('przycisk3'));
+  await hv.waitForTimeout(700);
+  const strPo = await hv.evaluate(() => window.__strona());
+  t.check('po najechaniu gniazda zamieniają się rolami',
+    strPo && strPo.prawe === 0 && strPo.lewe >= 15,
+    'lewe ' + (strPo || {}).lewe + ' px, prawe ' + (strPo || {}).prawe + ' px');
+  /* SEDNO WARIANTU. Bez przesunięcia napisu to jest zwykła wymiana w miejscu —
+     a właśnie tym różnił się mój pierwszy strzał od wzorca. */
+  t.check('a NAPIS przesuwa się w prawo o szerokość ikony',
+    strPo && strZ && strPo.xTekstu - strZ.xTekstu >= strZ.prawe - 1,
+    'x napisu ' + (strZ || {}).xTekstu + ' → ' + (strPo || {}).xTekstu
+      + ' przy ikonie ' + (strZ || {}).prawe + ' px');
+  /* Suma gniazd jest stała, więc przycisk nie może zmienić szerokości —
+     ani wobec siebie sprzed najechania, ani wobec bliźniaka bez animacji. */
+  const szerB3 = await hv.evaluate(() => window.__szer('blizniak3'));
+  t.check('a sam przycisk nie zmienia szerokości',
+    strZ && strPo && Math.abs(strPo.szerPrzycisku - strZ.szerPrzycisku) < 1
+      && Math.abs(strZ.szerPrzycisku - szerB3) < 1,
+    szerB3 + ' (bliźniak) / ' + (strZ || {}).szerPrzycisku + ' → '
+      + (strPo || {}).szerPrzycisku);
+
+  await hv.evaluate(() => window.__zjedz('przycisk3'));
+  await hv.waitForTimeout(700);
+  const strWroc = await hv.evaluate(() => window.__strona());
+  t.check('a po zjechaniu wszystko wraca',
+    strWroc && strWroc.lewe === 0 && strWroc.prawe >= 15
+      && Math.abs(strWroc.xTekstu - strZ.xTekstu) <= 1,
+    'lewe ' + (strWroc || {}).lewe + ', x napisu ' + (strWroc || {}).xTekstu);
+
   t.check('bez błędów JS przy hoverze', !hv.errors.length, hv.errors.join(' | ') || 'brak');
   await hv.close();
 

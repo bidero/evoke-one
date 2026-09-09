@@ -528,11 +528,11 @@ module.exports = async function (t) {
    * maszyny mierzące PageSpeed. To nie jest ograniczenie środowiska, tylko
    * dokładnie ten przypadek, dla którego drabina powstała.
    */
-  const drabina = async (ust, dlawienie) => {
+  const drabina = async (ust, dlawienie, widok) => {
     const html = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify(ust)) + ' html');
     const str = await t.open('wave-bg-pomiar.html', {
       przezHttp: true,
-      viewport: { width: 1350, height: 940 },
+      viewport: widok || { width: 1350, height: 940 },
       dlawienieCPU: dlawienie,
       head: 'window.__tresc = ' + JSON.stringify(html) + ';',
       query: 'evk-wave-debug=1',
@@ -603,11 +603,29 @@ module.exports = async function (t) {
   /* KONTROLA NEGATYWNA DRUGA — i to jest obietnica dla sprzętu z GPU:
      kiedy klatka mieści się w budżecie, NIC się nie degraduje. Zamiast szukać
      maszyny z kartą graficzną podnosimy budżet ponad zmierzony koszt; gate jest
-     ten sam, więc dowodzi tego samego. */
-  const zLuznymBudzetem = await drabina({ budzet_klatki: 200 }, 4);
+     ten sam, więc dowodzi tego samego.
+
+     MARGINES ROBIMY LICZBĄ PIKSELI, nie zegarem. Przy dławieniu 4× i pełnym
+     widoku klatka kosztuje ~195 ms, a górna granica kontrolki to 200 ms —
+     „zapas" wynosił więc kilka milisekund i sprawdzenie było rzutem monetą:
+     w pełnym zestawie, na obciążonej maszynie, zapaliło się na „1 zejść",
+     choć ta sama sekcja puszczona osobno świeciła na zielono.
+
+     WIDOK JEST DOBRANY Z DWÓCH STRON, nie „jak najmniejszy". Pierwsza próba
+     (480×320) dawała klatkę 33 ms i sześciokrotny zapas — ale przeszła na
+     zielono mutacja zaszywająca próg 40 ms na sztywno w miejsce
+     `CONFIG.budzetKlatki`, bo 33 ms mieści się i tu, i tam. Sprawdzenie
+     przestawało dowodzić, że budżet w ogóle jest CZYTANY. Przy 900×600 klatka
+     kosztuje ~67 ms: trzykrotnie poniżej ustawionych 200, ale powyżej 40,
+     więc bramka z zaszytą liczbą schodzi i mutacja zapala. Zmierzony koszt
+     jest wypisany w wyniku, żeby przy następnym zapaleniu było widać, czy
+     margines się skurczył, czy naprawdę coś schodzi. */
+  const zLuznymBudzetem = await drabina(
+    { budzet_klatki: 200 }, 1, { width: 900, height: 600 });
   t.check('a przy budżecie z zapasem nie schodzi wcale',
     zLuznymBudzetem.zejscia.length === 0,
-    zLuznymBudzetem.zejscia.length + ' zejść przy budżecie 200 ms');
+    zLuznymBudzetem.zejscia.length + ' zejść przy budżecie 200 ms, klatka '
+      + zLuznymBudzetem.koncowa + ' ms');
 
   t.section('maska zanika po krzywej, a nie po prostej');
 
