@@ -763,8 +763,29 @@ if (($argv[2] ?? '') === '--sanityzuj') {
        właściwości byłaby kodem, którego nie sprawdza nic — a to ona decyduje,
        czy `@id` da się podmienić z formularza. */
     if (isset($wejscie['_post']) && is_array($wejscie['_post'])) {
+        /* ZNACZNIK `__ZLY_BAJT__` → prawdziwy bajt 0xFF.
+           Nieprawidłowego UTF-8 NIE DA SIĘ przenieść JSON-em — z definicji,
+           bo JSON jest tekstem w UTF-8. A to jedyne wejście, przy którym
+           `wp_json_encode()` oddaje `false`, więc bez tej podmiany bramka
+           `zakoduj()` byłaby kodem, którego nie sprawdza nic. Bajt wchodzi
+           na żywo zwykłym wklejeniem z Worda albo z PDF-a. */
+        array_walk_recursive($wejscie['_post'], static function (&$v) {
+            if (is_string($v)) $v = str_replace('__ZLY_BAJT__', chr(0xFF), $v);
+        });
         foreach ($wejscie['_post'] as $k => $v) $_POST[$k] = $v;
         unset($wejscie['_post']);
+    }
+
+    /* `_opcja` wchodzi do ZAPISANEJ opcji, a nie do `$input`. Potrzebne tam,
+       gdzie zapis sięga po stan sprzed siebie — jak wartość zapasowa
+       w `zakoduj()`. Bez tego „zostaje poprzednia zawartość" nie ma czego
+       zostawić i sprawdzenie przechodzi na pustce. */
+    if (isset($wejscie['_opcja']) && is_array($wejscie['_opcja'])) {
+        $GLOBALS['options']['evk_schema'] = array_merge(
+            (array) ($GLOBALS['options']['evk_schema'] ?? []),
+            $wejscie['_opcja']
+        );
+        unset($wejscie['_opcja']);
     }
 
     echo json_encode(

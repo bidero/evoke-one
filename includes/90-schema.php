@@ -601,9 +601,33 @@ class EVK_Schema {
         }
     }
 
+    /**
+     * Repeater → JSON do zapisu, z ratunkiem na wypadek niepowodzenia.
+     *
+     * `wp_json_encode()` ODDAJE `false` przy nieprawidłowym UTF-8 — a taki
+     * bajt wchodzi przez wklejenie z Worda albo z PDF-a. Bez tej bramki
+     * `false` lądowało w opcji, `json_decode()` oddawało `null`, i CAŁA
+     * zawartość repeatera znikała przez jeden felerny znak w jednym polu.
+     * Wygląda to jak „nie zapisuje" i nie zostawia po sobie żadnego objawu.
+     *
+     * Przy niepowodzeniu zostaje wartość POPRZEDNIA: lepiej nie zapisać
+     * zmiany, niż skasować to, co było.
+     */
+    private static function zakoduj(array $dane, $zapasowa): string {
+        $json = wp_json_encode($dane, JSON_UNESCAPED_UNICODE);
+        return is_string($json) ? $json : (string) $zapasowa;
+    }
+
     public function sanitize_settings($input): array {
         $input = is_array($input) ? $input : [];
         $clean = [];
+
+        /* Ustawienia SPRZED zapisu — potrzebne tylko jako wartość zapasowa,
+           gdy kodowanie repeatera do JSON-a się nie powiedzie (patrz
+           `zakoduj()`). Czytamy opcję wprost, a nie przez `get_settings()`,
+           bo tamto przepuszcza wynik przez filtr i scala nadpisania wpisu —
+           a tu chodzi o to, co naprawdę leży w bazie. */
+        $sc_teraz = (array) get_option('evk_schema', []);
 
         /* PĘTLA PO REJESTRZE, a nie po ręcznie wypisanych listach.
            Wcześniej stały tu cztery listy nazw (`$checkboxes`, `$texts`,
@@ -712,7 +736,7 @@ if (isset($_POST['evk_schema_contact']) && is_array($_POST['evk_schema_contact']
             'email'     => $mail,
         ];
     }
-    $clean['contact_points'] = wp_json_encode($punkty, JSON_UNESCAPED_UNICODE);
+    $clean['contact_points'] = self::zakoduj($punkty, $sc_teraz['contact_points'] ?? '[]');
 } else {
     $clean['contact_points'] = self::sanityzuj_wartosc(
         'json',
@@ -745,7 +769,7 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
             'image'       => esc_url_raw($imgs[$i] ?? ''),
         ];
     }
-    $clean['sub_entities'] = wp_json_encode($subs, JSON_UNESCAPED_UNICODE);
+    $clean['sub_entities'] = self::zakoduj($subs, $sc_teraz['sub_entities'] ?? '[]');
 } else {
     /* Bez repeatera w POST bierzemy wartość z wejścia, ale PRZEZ walidację —
        inaczej zepsuty JSON wchodzi do opcji i `build_sub_entities()` cicho
@@ -772,21 +796,30 @@ if (isset($_POST['evk_schema_custom']) && is_array($_POST['evk_schema_custom']))
     $dozwolone = self::wezly_edytora();
     $wlasne    = [];
     foreach ($klucze as $i => $klucz) {
-        $klucz = trim(sanitize_text_field($klucz));
-        $wezel = sanitize_text_field($wezly[$i] ?? '');
-        /* Wiersz odpada, gdy klucz nie jest nazwą właściwości albo węzeł nie
-           jest z listy. Wartość PUSTA zostaje — patrz `dolacz_wlasne()`:
-           pusty łańcuch znaczy „usuń tę właściwość z węzła", i jest to
-           jedyny sposób, żeby zdjąć coś, co moduł wstawia sam. */
-        if (!self::poprawny_klucz($klucz)) continue;
+        $klucz   = trim(sanitize_text_field($klucz));
+        $wezel   = sanitize_text_field($wezly[$i] ?? '');
+        $wartosc = sanitize_textarea_field($wartosci[$i] ?? '');
+
+        /* ZŁY KLUCZ NIE KASUJE WIERSZA. Do 1.178.0 wiersz z kluczem, który nie
+           jest nazwą właściwości, znikał przy zapisie BEZ SŁOWA — ktoś wpisywał
+           „nazwa firmy", zapisywał i zastawał puste miejsce. Wygląda dokładnie
+           jak „edytor nie zapisuje", a jest utratą tego, co ktoś napisał.
+
+           Trzymanie takiego wiersza jest bezpieczne, bo grafu broni bramka
+           w `dolacz_wlasne()` — i to ona MUSI być tą właściwą, skoro warstwa
+           nadpisań per podstrona i filtr `evk_schema_settings` wchodzą do
+           ustawień z pominięciem tego zapisu. Tutaj wystarczy nie gubić
+           danych; panel taki klucz oznacza ostrzeżeniem.
+
+           Odpada tylko wiersz PUSTY (bez klucza i bez wartości) oraz wiersz
+           z węzłem spoza listy — węzeł idzie z `select`, więc obca wartość
+           nie może pochodzić z formularza. */
+        if ($klucz === '' && $wartosc === '') continue;
         if (!array_key_exists($wezel, $dozwolone)) continue;
-        $wlasne[] = [
-            'wezel'   => $wezel,
-            'klucz'   => $klucz,
-            'wartosc' => sanitize_textarea_field($wartosci[$i] ?? ''),
-        ];
+
+        $wlasne[] = ['wezel' => $wezel, 'klucz' => $klucz, 'wartosc' => $wartosc];
     }
-    $clean['custom_props'] = wp_json_encode($wlasne, JSON_UNESCAPED_UNICODE);
+    $clean['custom_props'] = self::zakoduj($wlasne, $sc_teraz['custom_props'] ?? '[]');
 } else {
     $clean['custom_props'] = self::sanityzuj_wartosc(
         'json',

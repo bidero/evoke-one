@@ -47,8 +47,14 @@ if (!defined('ABSPATH')) exit;
                     <input type="text" name="evk_schema_custom[klucz][]" class="evk-wlasne-klucz"
                            list="evk-wlasciwosci-<?php echo esc_attr($r_wezel); ?>"
                            value="<?php echo esc_attr($row['klucz'] ?? ''); ?>" placeholder="Właściwość, np. slogan">
-                    <input type="text" name="evk_schema_custom[wartosc][]" class="evo-mono"
-                           value="<?php echo esc_attr($row['wartosc'] ?? ''); ?>" placeholder='Wartość — tekst albo JSON, np. {"@type":"Rating","ratingValue":5}'>
+                    <?php /* TEXTAREA, nie `input`. Wartością bywa cały węzeł
+                             JSON — `{"@type":"QuantitativeValue","value":12}`
+                             nie mieści się w jednolinijkowym polu na tyle,
+                             żeby dało się go przeczytać przy pisaniu.
+                             `flex-basis` w CSS daje temu polu najwięcej
+                             miejsca w wierszu. */ ?>
+                    <textarea name="evk_schema_custom[wartosc][]" class="evo-mono evk-wlasne-wartosc" rows="2"
+                              placeholder='Wartość — tekst albo JSON, np. {"@type":"Rating","ratingValue":5}'><?php echo esc_textarea($row['wartosc'] ?? ''); ?></textarea>
                     <button type="button" class="button evk-sub-remove" title="Usuń"><span class="dashicons dashicons-trash"></span></button>
                 </div>
                 <?php return ob_get_clean();

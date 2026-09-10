@@ -1226,17 +1226,62 @@ module.exports = async function (t) {
     ['cudzy',        'name',          'x'],
     ['place',        'priceRange',    '$$'],
   ]);
-  t.check('zapis przepuszcza tylko prawidłowe wiersze',
-    przeszly.length === 2, JSON.stringify(przeszly.map((r) => r.klucz)));
-  t.check('klucz z @ nie wchodzi do bazy',
-    !przeszly.some((r) => r.klucz.startsWith('@')));
-  t.check('klucz ze spacją nie wchodzi do bazy',
-    !przeszly.some((r) => /\s/.test(r.klucz)));
-  t.check('klucz od cyfry nie wchodzi do bazy',
-    !przeszly.some((r) => /^\d/.test(r.klucz)));
-  t.check('węzeł spoza listy nie wchodzi do bazy',
+
+  /* ZŁY KLUCZ NIE KASUJE WIERSZA (zmiana w 1.179.0, zgłoszona z użycia jako
+     „edytor nie zapisuje"). Do 1.178.0 wiersz z kluczem, który nie jest nazwą
+     właściwości, znikał przy zapisie bez słowa — a to jest utrata tego, co
+     ktoś napisał, nie ochrona. Grafu broni bramka w `dolacz_wlasne()`
+     i to ona MUSI być tą właściwą, bo nadpisania per podstrona i filtr
+     wchodzą do ustawień z pominięciem tego zapisu.
+
+     Odpada tylko wiersz z węzłem spoza listy: węzeł idzie z `select`,
+     więc obca wartość nie może pochodzić z formularza. */
+  t.check('zapis zachowuje wiersze z formularza, odsiewa tylko obcy węzeł',
+    przeszly.length === 6, JSON.stringify(przeszly.map((r) => r.klucz)));
+  t.check('klucz z @ ZOSTAJE w bazie — nie gubimy tego, co ktoś wpisał',
+    przeszly.some((r) => r.klucz === '@id'));
+  t.check('klucz ze spacją zostaje w bazie',
+    przeszly.some((r) => r.klucz === 'zły klucz'));
+  t.check('węzeł spoza listy NIE wchodzi do bazy',
     przeszly.every((r) => ['website', 'organization', 'place', 'attraction'].includes(r.wezel)),
     przeszly.map((r) => r.wezel).join(' '));
+
+  /* Wiersz pusty na obie strony to nie jest dana, tylko nieużyty wiersz
+     repeatera — ten odpada, inaczej każde kliknięcie „Dodaj" zostawiałoby
+     śmieć w bazie. */
+  t.check('wiersz bez klucza I bez wartości odpada',
+    zapisz([['organization', '', '']]).length === 0);
+  t.check('ale wiersz z samą wartością zostaje — wartość też jest daną',
+    zapisz([['organization', '', 'coś']]).length === 1);
+
+  /* NIEPRAWIDŁOWY UTF-8 NIE KASUJE CAŁEGO REPEATERA. `wp_json_encode()`
+     oddaje wtedy `false`; do 1.178.0 to `false` szło wprost do opcji,
+     `json_decode()` oddawało `null` i znikała CAŁA zawartość edytora przez
+     jeden felerny bajt w jednym polu — a taki bajt wchodzi zwykłym
+     wklejeniem z Worda albo PDF-a. Objawu brak, wygląda jak „nie zapisuje".
+     Teraz zostaje wartość poprzednia: lepiej nie zapisać zmiany, niż
+     skasować to, co było. */
+  const zepsutyBajt = JSON.parse(san({
+    _opcja: { custom_props: '[{"wezel":"organization","klucz":"slogan","wartosc":"stare"}]' },
+    _post: { evk_schema_custom: {
+      wezel: ['organization'], klucz: ['slogan'], wartosc: ['__ZLY_BAJT__'],
+    } },
+  }).custom_props);
+  t.check('felerny bajt nie kasuje repeatera — zostaje poprzednia zawartość',
+    zepsutyBajt.length === 1 && zepsutyBajt[0].wartosc === 'stare',
+    JSON.stringify(zepsutyBajt));
+
+  /* Kontrola dodatnia: BEZ felernego bajtu ta sama droga MA nadpisać starą
+     wartość. Bez niej „zostaje poprzednia" przechodzi też wtedy, gdyby zapis
+     przestał działać w ogóle. */
+  const dobryBajt = JSON.parse(san({
+    _opcja: { custom_props: '[{"wezel":"organization","klucz":"slogan","wartosc":"stare"}]' },
+    _post: { evk_schema_custom: {
+      wezel: ['organization'], klucz: ['slogan'], wartosc: ['nowe'],
+    } },
+  }).custom_props);
+  t.check('a bez felernego bajtu zapis normalnie nadpisuje',
+    dobryBajt[0].wartosc === 'nowe', JSON.stringify(dobryBajt));
 
   /* Wartość ma wrócić do formularza DOKŁADNIE taka, jaka weszła. Gdyby JSON
      był parsowany przy zapisie i zapisywany jako struktura, pole po zapisie

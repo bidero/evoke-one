@@ -336,6 +336,37 @@ module.exports = async function (t) {
             .map((h) => h.where + ' → ' + h.decls.join('; ')).join(' | ')
         : 'brak literałów');
 
+    /* ── Wiersze repeaterów: żadne pole nie może być ucięte ───────────────
+       ZGŁOSZONE Z UŻYCIA: „encje podrzędne ucina pola". `.evk-sub-row` była
+       siatką o CZTERECH kolumnach (`230px 1fr 1fr 34px`), a wiersz encji
+       podrzędnych ma SIEDEM pól — nadmiarowe spadały do drugiego rzędu
+       i lądowały w kolumnie szerokiej na 34 piksele.
+
+       Pomiary wyżej tego nie widziały, bo pytają o WYSOKOŚĆ, promień i kolor
+       ramki — a ucięte pole ma je wszystkie prawidłowe. Szerokości nie pytał
+       nikt, więc liczba kolumn wpisana w CSS mogła się rozjechać z liczbą pól
+       w formularzu i nic nie zapalało. */
+    const wiersze = await p.evaluate(() => [...document.querySelectorAll('#panel .evk-sub-row')]
+      .map((row) => {
+        const rb = row.getBoundingClientRect();
+        return [...row.querySelectorAll('input,select,textarea')].map((e) => ({
+          gdzie: (e.name || e.className || '?').slice(0, 32),
+          w: Math.round(e.getBoundingClientRect().width),
+          wystaje: Math.round(e.getBoundingClientRect().right - rb.right),
+        }));
+      }).flat());
+
+    if (wiersze.length) {
+      const waskie = wiersze.filter((f) => f.w < 80);
+      t.check('żadne pole repeatera nie jest ściśnięte poniżej 80 px', !waskie.length,
+        waskie.slice(0, 4).map((f) => f.gdzie + ': ' + f.w + 'px').join(' | ')
+        || wiersze.length + ' pól, najwęższe ' + Math.min(...wiersze.map((f) => f.w)) + 'px');
+
+      const wystajace = wiersze.filter((f) => f.wystaje > 1);
+      t.check('żadne pole repeatera nie wychodzi poza wiersz', !wystajace.length,
+        wystajace.slice(0, 4).map((f) => f.gdzie + ': +' + f.wystaje + 'px').join(' | ') || 'zgodne');
+    }
+
     t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
     await p.close();
 
@@ -367,6 +398,23 @@ module.exports = async function (t) {
         t.check(vw + ' px — nic nie jest ucięte przez kontener', c.count === 0,
           c.items.map((x) => '.' + x.cls + ' ucina ' + x.cut + 'px („' + x.what + '")')
             .join(' | ') || 'czysto');
+
+        /* Pola repeaterów NA TELEFONIE. Ten sam pomiar co przy 1400 px, ale
+           tam mieści się wszystko i defekt układu bywa niewidoczny: siedem
+           pól bez zawijania dostaje po 180 px na szerokim ekranie i przechodzi.
+           Dopiero tutaj widać, czy wiersz naprawdę umie się złożyć — mutacja
+           „nie zawijaj" przechodziła na zielono, dopóki tego nie było. */
+        const wm = await m.evaluate(() => [...document.querySelectorAll('#panel .evk-sub-row')]
+          .map((row) => [...row.querySelectorAll('input,select,textarea')].map((e) => ({
+            gdzie: (e.name || e.className || '?').slice(0, 32),
+            w: Math.round(e.getBoundingClientRect().width),
+          }))).flat());
+        if (wm.length) {
+          const ciasne = wm.filter((f) => f.w < 80);
+          t.check(vw + ' px — pola repeatera zostają czytelne', !ciasne.length,
+            ciasne.slice(0, 4).map((f) => f.gdzie + ': ' + f.w + 'px').join(' | ')
+            || wm.length + ' pól, najwęższe ' + Math.min(...wm.map((f) => f.w)) + 'px');
+        }
 
         // Kafelki statystyk mają zostać czytelne, a nie tylko zmieścić się.
         // Sztywne `repeat(5, 1fr)` MIEŚCIŁO się na 390 px — po prostu ściskało

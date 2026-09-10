@@ -456,7 +456,11 @@ $TABS = [
             $GLOBALS['options']['evk_schema'] = [
                 'enabled'         => 1,
                 'site_name'       => 'Firma Przykładowa',
-                'sub_entities'    => '[{"type":"ParkingFacility","name":"Parking dla gości","description":"Bezpłatny"}]',
+                'sub_entities'    => '[{"type":"ParkingFacility","name":"Parking dla gości","description":"Bezpłatny","url":"https://example.test/parking","telephone":"+48 111 222 333","image":"https://example.test/p.jpg"}]',
+                /* Wiersz edytora węzłów — z tego samego powodu co wyżej:
+                   repeater bez danych nie rysuje ani jednego pola, więc
+                   pomiary układu nie mają czego mierzyć. */
+                'custom_props'    => '[{"wezel":"organization","klucz":"slogan","wartosc":"Odpoczywaj u nas"}]',
                 'social_links'    => '["https://example.test/fb"]',
                 'descriptions'    => '{"pl":"Opis","en":"Description"}',
                 'lang_currencies' => '{"en":"EUR"}',

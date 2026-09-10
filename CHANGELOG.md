@@ -2,6 +2,74 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.179.0] — 2026-09-10
+
+Trzy zgłoszenia z użycia: edytor węzłów nie zapisuje, pole wartości za małe,
+encje podrzędne ucinają pola.
+
+### Naprawione
+
+- **Repeatery ucinały pola.** `.evk-sub-row` była siatką o **czterech**
+  kolumnach (`230px 1fr 1fr 34px`), a wiersz encji podrzędnych ma **siedem**
+  pól. Nadmiarowe spadały do drugiego rzędu i lądowały w kolumnie szerokiej
+  na **34 piksele**. Siatka powstała przy trzech polach i nikt nie zauważył,
+  że dołożenie kolejnych ją przerasta.
+
+  Teraz `flex` ze zawijaniem: liczba pól przestaje być wpisana w CSS, więc
+  ósme pole niczego nie utnie.
+
+- **Pole wartości w edytorze węzłów to `textarea`.** Wartością bywa cały
+  węzeł JSON i w jednolinijkowym polu nie dało się go przeczytać przy
+  pisaniu. Dostaje też najwięcej miejsca w wierszu — **657 px zamiast 292**
+  przy panelu 1400 px — i rośnie w pionie zamiast kurczyć się w poziomie.
+
+- **Zły klucz nie kasuje już wiersza.** Do 1.178.0 wiersz z kluczem, który
+  nie jest nazwą właściwości (np. „nazwa firmy" — ze spacją), znikał przy
+  zapisie **bez słowa**. Wygląda dokładnie jak „edytor nie zapisuje", a jest
+  utratą tego, co ktoś napisał.
+
+  Trzymanie takiego wiersza jest bezpieczne, bo grafu broni bramka
+  w `dolacz_wlasne()` — i to **ona** musi być tą właściwą, skoro nadpisania
+  per podstrona i filtr `evk_schema_settings` wchodzą do ustawień
+  z pominięciem zapisu formularza. Odpada tylko wiersz **pusty na obie
+  strony** i wiersz z węzłem spoza listy (węzeł idzie z `select`, więc obca
+  wartość nie może pochodzić z formularza).
+
+- **Jeden felerny bajt kasował cały repeater.** `wp_json_encode()` oddaje
+  `false` przy nieprawidłowym UTF-8 — a taki bajt wchodzi zwykłym wklejeniem
+  z Worda albo z PDF-a. To `false` szło wprost do opcji, `json_decode()`
+  oddawało `null` i znikała **cała** zawartość repeatera. Bez objawu, i też
+  wygląda jak „nie zapisuje". Dotyczyło również punktów kontaktowych
+  i encji podrzędnych — wszystkie trzy mają teraz wspólną bramkę
+  `zakoduj()`, która przy niepowodzeniu **zostawia wartość poprzednią**:
+  lepiej nie zapisać zmiany, niż skasować to, co było.
+
+### Czego NIE udało się odtworzyć
+
+**Zapisu prawidłowego wiersza.** Przejechany cały obieg — prawdziwa
+przeglądarka klika „Dodaj właściwość", wypełnia pola, `FormData` niesie
+`evk_schema_custom[wezel|klucz|wartosc][]`, `sanitize_settings()` je
+przyjmuje, panel rysuje je z powrotem. Wszystko działa. Dwie usterki wyżej
+są najbardziej prawdopodobnym wyjaśnieniem zgłoszenia, ale dopóki nie
+wiadomo, co dokładnie było wpisane, jest to **hipoteza, nie ustalenie**.
+
+### Testy
+
+364 sprawdzenia w module, 768 w panelu (+4). Nowe pomiary **szerokości pól
+repeaterów** — przy 1400, 390 i 360 px. Dotychczasowe pomiary pytały
+o wysokość, promień i kolor ramki, a ucięte pole ma je wszystkie
+prawidłowe; szerokości nie pytał nikt, więc liczba kolumn w CSS mogła się
+rozjechać z liczbą pól w formularzu i nic nie zapalało.
+
+Harness `--sanityzuj` umie teraz podstawiać zapisaną opcję (`_opcja`)
+i wstawiać prawdziwy bajt 0xFF przez znacznik `__ZLY_BAJT__` — nieprawidłowego
+UTF-8 nie da się przenieść JSON-em, więc bez tego bramka `zakoduj()` byłaby
+kodem, którego nie sprawdza nic.
+
+Siedem mutacji, wszystkie zapalają — w tym dokładny powrót do siatki
+czterokolumnowej i „nie zawijaj", która przeżyła pierwszy przebieg
+i wymusiła rozszerzenie pomiaru na wąski ekran.
+
 ## [1.178.0] — 2026-09-10
 
 **Pusty opis nie zostawia już `"description": ""`.** Znalezione w surowym

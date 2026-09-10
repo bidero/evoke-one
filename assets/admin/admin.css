@@ -2585,13 +2585,29 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
    ========================================================================= */
 
 /* Wiersz podstrony w schemacie: typ, klucz, wartość, usuwanie. */
+/* Wiersz repeatera.
+   SIATKA MIAŁA CZTERY KOLUMNY (`230px 1fr 1fr 34px`), a wiersz encji
+   podrzędnych ma SIEDEM pól. Nadmiarowe spadały do drugiego rzędu i lądowały
+   w kolumnie szerokiej na 34 piksele — stąd „ucina pola". Nie dało się tego
+   zobaczyć przy trzech polach, z którymi ta siatka powstała.
+   Teraz flex ze zawijaniem: liczba pól w wierszu przestaje być wpisana w CSS,
+   więc dołożenie ósmego pola niczego nie utnie. */
 .evk-sub-row {
-    display: grid;
-    grid-template-columns: 230px 1fr 1fr 34px;
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 8px;
 }
+/* `flex: 1 1 180px` — pola dzielą się szerokością po równo, a gdy zabraknie
+   miejsca, zawijają zamiast się kurczyć do nieczytelnych. */
+.evk-sub-row > select,
+.evk-sub-row > input,
+.evk-sub-row > textarea { flex: 1 1 180px; min-width: 0; }
+.evk-sub-row > .evk-sub-remove { flex: 0 0 34px; }
+/* Wartość w edytorze węzłów bywa całym węzłem JSON, więc dostaje najwięcej
+   miejsca w wierszu i rośnie w pionie, a nie kurczy się w poziomie. */
+.evk-sub-row > .evk-wlasne-wartosc { flex: 3 1 320px; resize: vertical; }
 .evk-sub-row > * { min-width: 0; }
 .evk-sub-row select,
 .evk-sub-row input { margin: 0; }
@@ -2602,7 +2618,11 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 }
 .evk-sub-remove .dashicons { font-size: 16px; width: 16px; height: 16px; line-height: 1; color: var(--evo-danger); }
 @media screen and (max-width: 782px) {
-    .evk-sub-row { grid-template-columns: 1fr; }
+    /* Na telefonie każde pole w osobnym wierszu. `flex-basis: 100%` zamiast
+       dawnego `grid-template-columns: 1fr` — siatki tu już nie ma. */
+    .evk-sub-row > select,
+    .evk-sub-row > input,
+    .evk-sub-row > textarea { flex-basis: 100%; }
 }
 
 /* Pola meta w tabeli wpisów — kolumna pól obok listy. */
