@@ -98,7 +98,8 @@ function lancuchy(o, out = []) {
    sprawdzeniem, że plik jest pusty. */
 const SCENARIUSZE = ['minimalny', 'firma', 'firma-en', 'atrakcja',
                      'podstrona', 'wpis', 'produkt', 'bez-org', 'faq-off',
-                     'organizacja-pelna', 'nadpisanie-wpisu', 'nadpisanie-puste', 'bez-okruszkow',
+                     'organizacja-pelna', 'hotel', 'restauracja', 'gabinet', 'wyciek-presetu',
+                     'nadpisanie-wpisu', 'nadpisanie-puste', 'bez-okruszkow',
                      'filtr-ustawien'];
 
 /** Scalone ustawienia scenariusza (warstwy: domyślne → globalne → meta wpisu). */
@@ -107,6 +108,9 @@ const ustawienia = (scenariusz) =>
 
 /** Rejestr pól — pytamy o niego kod, zamiast trzymać drugą kopię listy. */
 const rejestr = () => JSON.parse(phpOutput('schema-graf.php', 'minimalny --pola'));
+
+/** Rejestr presetów branżowych — jw. */
+const presety = () => JSON.parse(phpOutput('schema-graf.php', 'minimalny --presety'));
 
 module.exports = async function (t) {
 
@@ -470,6 +474,123 @@ module.exports = async function (t) {
   t.check('niewypełnione pola nie zostawiają śladu w grafie', !przecieki.length,
     przecieki.join(', ') || NOWE.length + ' pól cicho');
 
+  // ── Presety branżowe ───────────────────────────────────────────────────
+  t.section('presety: każdy typ działalności ma dokładnie jeden');
+
+  /* Preset NIE JEST osobnym ustawieniem — wynika z `org_type`. Rozpiska
+     przewidywała nad sekcjami osobny przełącznik branży, ale dwa sterowniki
+     dla jednej rzeczy pozwalają je rozjechać (Hotel + branża „gastronomia"),
+     a wtedy panel pokazuje pola, których wybrany typ nie ma. Skoro preset ma
+     być mechanizmem POPRAWNOŚCI, nie może dać się ustawić wbrew typowi. */
+  const pres = presety();
+  const typyZPresetow = Object.values(pres).flatMap((p) => p.typy);
+  const wszystkieTypy = Object.keys(
+    JSON.parse(phpOutput('schema-graf.php', 'minimalny --typy')));
+
+  const bezPresetu = wszystkieTypy.filter((t) => !typyZPresetow.includes(t));
+  t.check('każdy typ działalności należy do jakiegoś presetu', !bezPresetu.length,
+    bezPresetu.join(', ') || wszystkieTypy.length + ' typów');
+
+  const wDwoch = typyZPresetow.filter((t, i) => typyZPresetow.indexOf(t) !== i);
+  t.check('i tylko do jednego', !wDwoch.length, wDwoch.join(', ') || 'bez powtórzeń');
+
+  const widmo = typyZPresetow.filter((t) => !wszystkieTypy.includes(t));
+  t.check('żaden preset nie wskazuje typu, którego nie ma', !widmo.length,
+    widmo.join(', ') || Object.keys(pres).length + ' presetów');
+
+  /* Rozdział zdrowia od urody. Rozpiska trzymała je w jednym presecie;
+     sprawdzone przy pisaniu kodu: `MedicalBusiness` i `Dentist` mają
+     `medicalSpecialty`, a `BeautySalon` i `HairSalon` idą przez
+     `HealthAndBeautyBusiness` i tej właściwości NIE mają. Jeden preset
+     dawałby salonowi fryzjerskiemu pole „specjalizacja medyczna" —
+     dokładnie ten błąd, przed którym presety mają bronić. */
+  t.check('salon fryzjerski nie jest w presecie medycznym',
+    !pres.zdrowie.typy.includes('HairSalon') && pres.uroda.typy.includes('HairSalon'));
+  t.check('a gabinet stomatologiczny jest', pres.zdrowie.typy.includes('Dentist'));
+
+  t.section('pola branżowe: każda branża dostaje swoje i tylko swoje');
+
+  const bran = (scen, typ) => wezel(grafy[scen], typ) || {};
+  const h = bran('hotel', 'Hotel');
+  t.check('hotel: godziny zameldowania i wymeldowania',
+    h.checkinTime === '15:00' && h.checkoutTime === '11:00',
+    h.checkinTime + '/' + h.checkoutTime);
+  t.check('hotel: liczba pokoi jako QuantitativeValue',
+    h.numberOfRooms?.['@type'] === 'QuantitativeValue' && h.numberOfRooms?.value === 24);
+  t.check('hotel: kategoria jako Rating z liczbą',
+    h.starRating?.['@type'] === 'Rating' && h.starRating?.ratingValue === 4,
+    JSON.stringify(h.starRating));
+  t.check('hotel: języki obsługi jako lista',
+    h.availableLanguage?.join(',') === 'Polish,English');
+  t.check('hotel: zwierzęta dozwolone jako true', h.petsAllowed === true);
+  /* Każdy scenariusz branżowy NIESIE pola cudzych branż — dlatego te trzy
+     sprawdzenia badają bramkę w trzy strony, a nie tylko w jedną. Zanim
+     scenariusze je dostały, mutacja „bramka zdjęta ze specjalizacji medycznej"
+     przechodziła na zielono: żaden scenariusz nie miał `place_specialty`
+     przy typie spoza presetu medycznego. */
+  t.check('hotel NIE dostaje pól gastronomicznych ani medycznych',
+    h.servesCuisine === undefined && h.hasMenu === undefined &&
+    h.medicalSpecialty === undefined,
+    ['servesCuisine', 'hasMenu', 'medicalSpecialty'].filter((k) => k in h).join(', '));
+
+  const r = bran('restauracja', 'Restaurant');
+  t.check('restauracja: rodzaje kuchni jako lista',
+    r.servesCuisine?.join(',') === 'polska,wegetariańska');
+  t.check('restauracja: menu i rezerwacje',
+    r.hasMenu === 'https://przyklad.test/menu' && r.acceptsReservations === true);
+  t.check('restauracja: drive-through', r.hasDriveThroughService === true);
+  t.check('restauracja też ma starRating — jedyne pole wspólne dla dwóch presetów',
+    r.starRating?.ratingValue === 3);
+  t.check('restauracja NIE dostaje pól hotelowych ani medycznych',
+    r.checkinTime === undefined && r.numberOfRooms === undefined &&
+    r.medicalSpecialty === undefined,
+    ['checkinTime', 'numberOfRooms', 'medicalSpecialty'].filter((k) => k in r).join(', '));
+
+  const gab = bran('gabinet', 'Dentist');
+  t.check('gabinet: specjalizacja medyczna', gab.medicalSpecialty?.join(',') === 'Dentistry');
+  t.check('gabinet NIE dostaje ani hotelowych, ani gastronomicznych',
+    gab.checkinTime === undefined && gab.servesCuisine === undefined,
+    ['checkinTime', 'servesCuisine'].filter((k) => k in gab).join(', '));
+
+  /* hasOfferCatalog opisuje ofertę FIRMY, nie zawartość budynku — dlatego
+     siedzi na #organization. Rozpiska zostawiała to jako pytanie otwarte. */
+  const orgGab = wezel(grafy.gabinet, 'Organization');
+  t.check('oferta usług trafia na #organization, nie na #place',
+    !!orgGab?.hasOfferCatalog && gab.hasOfferCatalog === undefined);
+  t.check('oferta ma kształt OfferCatalog z pozycjami',
+    orgGab?.hasOfferCatalog?.['@type'] === 'OfferCatalog' &&
+    orgGab?.hasOfferCatalog?.itemListElement?.length === 2,
+    JSON.stringify(orgGab?.hasOfferCatalog?.itemListElement?.length));
+  t.check('pozycja oferty to Offer z Service w środku',
+    orgGab?.hasOfferCatalog?.itemListElement?.[0]?.itemOffered?.['@type'] === 'Service' &&
+    orgGab?.hasOfferCatalog?.itemListElement?.[0]?.itemOffered?.name === 'Przegląd');
+
+  t.section('bramka presetu: wartości zostają, ale nie wyciekają');
+
+  /* SEDNO WYDANIA. Ustawienia niosą komplet pól hotelowych i gastronomicznych,
+     ale typ działalności to gabinet — stan po przestawieniu typu na stronie,
+     która wcześniej była hotelem. Wartości MUSZĄ zostać w bazie (powrót do
+     poprzedniego typu ma je przywrócić), więc jedyne, co dzieli je od cudzego
+     grafu, to bramka w `build_place()`. */
+  const uW = ustawienia('wyciek-presetu');
+  t.check('wartości hotelowe DALEJ SĄ w ustawieniach',
+    uW.place_checkin === '15:00' && uW.place_rooms === '24',
+    uW.place_checkin + ' / ' + uW.place_rooms);
+
+  const wyciek = bran('wyciek-presetu', 'Dentist');
+  const OBCE = ['checkinTime', 'checkoutTime', 'numberOfRooms', 'petsAllowed',
+                'availableLanguage', 'starRating', 'servesCuisine', 'hasMenu'];
+  const przeciekly = OBCE.filter((k) => k in wyciek);
+  t.check('ale ANI JEDNA nie wychodzi do grafu gabinetu', !przeciekly.length,
+    przeciekly.join(', ') || 'graf czysty');
+  t.check('status pożytku publicznego też nie — to preset „organizacja"',
+    wezel(grafy['wyciek-presetu'], 'Organization')?.nonprofitStatus === undefined);
+
+  /* Kontrola dodatnia: te same pola przy WŁAŚCIWYM typie wychodzą. Bez niej
+     „nic nie wycieka" przechodzi też wtedy, gdy nic nie wychodzi nigdy. */
+  t.check('a przy typie Hotel te same pola wychodzą — kontrola',
+    OBCE.filter((k) => k in h).length === 6, Object.keys(h).length + ' pól');
+
   t.section('rejestr pól jest jedyną prawdą o polach');
 
   /* Do 1.171.0 prawda o polu była w trzech miejscach: wartość domyślna
@@ -492,7 +613,7 @@ module.exports = async function (t) {
      zanim padła jakakolwiek inna różnica. O to chodzi: nowy typ sanityzacji
      ma być decyzją, a nie czymś, co wchodzi bokiem razem z polem. */
   const TYPY = ['tekst', 'wieloliniowe', 'url', 'wspolrzedna', 'data', 'liczba',
-                'checkbox', 'json', 'wlasne'];
+                'czas', 'checkbox', 'json', 'wlasne'];
   const zleTypy = klucze.filter((k) => !TYPY.includes(pola[k].typ));
   t.check('żaden typ spoza znanej listy', !zleTypy.length,
     zleTypy.map((k) => k + '=' + pola[k].typ).join(', ') || TYPY.length + ' typów');
@@ -512,6 +633,39 @@ module.exports = async function (t) {
      liście. */
   t.check('a formularz w ogóle ma pola do sprawdzenia', new Set(zForm).size > 10,
     new Set(zForm).size + '');
+
+  /* Bramka presetu jest w DWÓCH miejscach: w panelu (co widać) i w budowaniu
+     grafu (co wychodzi). Muszą mówić to samo — panel pokazujący pole, którego
+     graf i tak nie wyemituje, to formularz kłamiący użytkownikowi w twarz.
+     Sprawdzamy, że każde pole rejestru z kluczem `preset` niesie w znaczniku
+     DOKŁADNIE tę samą listę presetów. */
+  const bramkowane = klucze.filter((k) => pola[k].preset);
+
+  /* Szukamy WSTECZ od nazwy pola do najbliższego `data-preset`, zamiast do
+     przodu od atrybutu. Pierwsza wersja szła do przodu i przy trzech
+     sąsiadujących checkboxach przypisywała drugiemu atrybut pierwszego —
+     sprawdzenie zapalało na poprawnym kodzie. */
+  const presetWZakladce = (klucz) => {
+    const i = zakladka.indexOf('evk_schema[' + klucz + ']');
+    if (i < 0) return null;
+    const przed = zakladka.slice(0, i);
+    const j = przed.lastIndexOf('data-preset="');
+    if (j < 0) return null;
+    return przed.slice(j + 'data-preset="'.length, przed.indexOf('"', j + 13));
+  };
+
+  const rozjazd = bramkowane.filter(
+    (k) => presetWZakladce(k) !== pola[k].preset.join(' '));
+  t.check('bramka w panelu zgadza się z rejestrem', !rozjazd.length,
+    rozjazd.join(', ') || bramkowane.length + ' pól bramkowanych');
+
+  /* Przy typie „Organizacja" widoczne ma być TYLKO pole tego presetu.
+     Kontrola, że atrybut `hidden` w ogóle jest wystawiany — bez niej
+     sprawdzenie wyżej przechodzi także wtedy, gdy panel nie chowa nic. */
+  const ukryte = (zakladka.match(/data-preset="[^"]*" hidden/g) || []).length;
+  t.check('pola spoza bieżącego presetu wychodzą jako hidden',
+    ukryte === bramkowane.length - 1,
+    ukryte + ' z ' + bramkowane.length + ' (jedno widoczne: preset „organizacja")');
 
   // ── Sanityzacja zapisu ─────────────────────────────────────────────────
   t.section('sanityzacja ustawień — pętla po rejestrze');
@@ -668,14 +822,24 @@ module.exports = async function (t) {
   t.check('WebPage bez breadcrumb, gdy blok odhaczony',
     wezel(grafy['bez-okruszkow'], 'WebPage')?.breadcrumb === undefined,
     wezel(grafy['bez-okruszkow'], 'WebPage')?.breadcrumb?.['@id']);
-  t.check('BlogPosting bez breadcrumb, gdy blok odhaczony',
+  /* BlogPosting NIE MA `breadcrumb` NIGDY — nie z powodu przełącznika, tylko
+     dlatego, że ta właściwość ma w schema.org dziedzinę WYŁĄCZNIE `WebPage`,
+     a BlogPosting to Article → CreativeWork. Do 1.173.0 moduł wysyłał ją tam
+     zawsze; znalazł to audyt właściwość-po-właściwości, nie żadne sprawdzenie.
+     Okruszki i tak są w grafie dwa razy — własnym węzłem i na WebPage —
+     więc nie zginęło nic poza nieprawidłowością. */
+  t.check('BlogPosting nie ma breadcrumb — dziedzina tej właściwości to WebPage',
+    wezel(grafy.wpis, 'BlogPosting')?.breadcrumb === undefined &&
     wezel(grafy['bez-okruszkow'], 'BlogPosting')?.breadcrumb === undefined,
-    wezel(grafy['bez-okruszkow'], 'BlogPosting')?.breadcrumb?.['@id']);
+    wezel(grafy.wpis, 'BlogPosting')?.breadcrumb?.['@id']);
   t.check('a przy włączonym bloku WebPage MA breadcrumb — kontrola',
     wezel(grafy.podstrona, 'WebPage')?.breadcrumb?.['@id']
       === 'https://example.test/oferta/domki/#breadcrumb');
-  t.check('i BlogPosting też — kontrola',
-    !!wezel(grafy.wpis, 'BlogPosting')?.breadcrumb);
+  /* Kontrola: okruszki JAKO WĘZEŁ dalej powstają przy włączonym bloku —
+     bez niej „BlogPosting nie ma breadcrumb" przechodzi także wtedy, gdyby
+     okruszki zniknęły z grafu w ogóle. */
+  t.check('a węzeł BreadcrumbList przy włączonym bloku jest — kontrola',
+    !!wezel(grafy.wpis, 'BreadcrumbList'));
 
   t.section('publisher tylko wtedy, gdy wydawca jest w grafie');
 

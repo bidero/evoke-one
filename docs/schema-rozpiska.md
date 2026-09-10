@@ -172,6 +172,27 @@ Tu trafia najwięcej, bo to jedyny węzeł, który jest globalny **z definicji**
 
 ### 5.4 Sekcja 3a — Pola branżowe (`#place`, zależne od typu)
 
+> **KOREKTA po wydaniu 1.173.0.** Ta sekcja była pisana z pamięci schema.org
+> i przy pisaniu kodu okazała się częściowo błędna. Zweryfikowane wobec
+> hierarchii typów, poprawki niżej:
+>
+> | Co | Jak było | Jak jest |
+> |---|---|---|
+> | Preset „zdrowie i uroda" | jeden preset na 4 typy | **rozbity na dwa.** `MedicalBusiness` i `Dentist` mają `medicalSpecialty`; `BeautySalon` i `HairSalon` idą przez `HealthAndBeautyBusiness` i tej właściwości NIE mają. Jeden preset dawałby fryzjerowi pole „specjalizacja medyczna" — dokładnie błąd, przed którym presety mają bronić. Presetów jest więc **9, nie 8**. |
+> | `serviceArea` | preset usługi | **usunięte** — schema.org zastąpiło je przez `areaServed`, które już mamy na organizacji i miejscu. |
+> | `hasDeliveryMethod` | preset sklep | **usunięte** — nie istnieje na `Store`; dziedzina to `Order`, `ParcelDelivery`, `DeliveryChargeSpecification`. |
+> | `isAcceptingNewPatients` | preset zdrowie | **usunięte** — dziedzina to `Physician`, nie `MedicalBusiness`/`Dentist`. |
+> | `availableService` | preset zdrowie | **usunięte** — `MedicalClinic`, `Hospital`, `Physician`; nie plain `MedicalBusiness`. |
+> | `sport` | preset sport | **usunięte** — nie ma tej właściwości na `SportsActivityLocation`. |
+> | `knowsLanguage` | preset usługi | **usunięte** — dubluje `contactPoint.availableLanguage`, które moduł już wyprowadza. |
+> | `hasOfferCatalog` | w dwóch sekcjach naraz (pytanie otwarte w sekcji 9) | **rozstrzygnięte: na `#organization`.** Opisuje ofertę FIRMY, nie zawartość budynku. |
+> | Przełącznik branży | osobny sterownik nad sekcjami | **preset wynika z `org_type`.** Dwa sterowniki dla jednej rzeczy dają się rozjechać — „Hotel" plus branża „gastronomia" — i wtedy panel pokazuje pola, których typ nie ma. Skoro preset ma być mechanizmem poprawności, nie może dać się ustawić wbrew typowi. |
+>
+> Zostało **11 pól branżowych na `#place`** i **2 na `#organization`**, zamiast
+> zapowiadanych 26. Presety `sklep`, `firma-lokalna`, `uroda` i `sport` nie mają
+> własnych pól — i to jest w porządku: ich rolą jest **chować** pola noclegowe
+> i gastronomiczne, a nie dokładać własne.
+
 Tu preset przestaje być wygodą, a staje się poprawnością. Każde z tych pól
 **nie istnieje** na typach spoza swojego presetu.
 
@@ -342,7 +363,7 @@ regresyjna straciłaby sens (nie odróżniłbym zamierzonej zmiany od zepsucia).
 |---|---|---|---|
 | 1 ✅ | **Rejestr i pętla sanityzacji** (1.171.0) | Przebudowa zapisu **bez ani jednego nowego pola**. Wyjście grafu musi zostać **bit w bit takie samo** — pliki wzorcowe nie drgną. | Największe. Dlatego idzie pierwsze i osobno: jeśli coś się rozjedzie, wiadomo, że to zapis, a nie nowe pole. |
 | 2 ✅ | **`knowsAbout` + Organizacja** (1.172.0) | Pozycja nr 1 z listy zgłaszającego plus pozostałe 16 pól sekcji 2. | Małe — same dopiski do jednego węzła. |
-| 3 | **Układ wg węzła + presety** | Przemeblowanie zakładki na siedem sekcji, pasek presetu, pola branżowe. | Średnie, ale wyłącznie w panelu — graf bez zmian poza polami branżowymi. |
+| 3 ✅ | **Układ wg węzła + presety** (1.173.0) | Przemeblowanie zakładki na siedem sekcji, pasek presetu, pola branżowe. | Średnie, ale wyłącznie w panelu — graf bez zmian poza polami branżowymi. |
 | 4 | **Miejsce, atrakcja, encje** | Sekcje 3, 4, 5. | Małe. |
 | 5 | **Edytor węzłów + podgląd** | Sekcja 7 i walidacja. | Średnie — nowy mechanizm wstrzykiwania do grafu. |
 
@@ -350,6 +371,21 @@ Każde wydanie kończy się zielonym `node tests/run.js schema` i mutacjami na
 dopisanych sprawdzeniach.
 
 ---
+
+## 8a. Audyt zgodności ze schema.org (1.173.0)
+
+Po zbudowaniu presetów przeszedłem każdą właściwość na każdym typie, który
+moduł emituje — 34 typy, ~110 par typ↔właściwość, wyliczonych z prawdziwego
+wyjścia `render_graph()`.
+
+| Znalezisko | Stan |
+|---|---|
+| `BlogPosting.breadcrumb` — dziedzina tej właściwości to **wyłącznie `WebPage`** | **usunięte**; okruszki i tak są w grafie dwa razy |
+| `medicalSpecialty`, `nonprofitStatus` — oczekują wyliczeń, przyjmują wolny tekst | opisy w panelu wskazują słownik; zamknięcie w select → wydanie 5 |
+| `latitude`/`longitude` jako tekst | schema.org dopuszcza `Number` albo `Text` — zgodne, zostawione |
+| 26 typów działalności, 11 typów encji podrzędnych | wszystkie istnieją; `containedInPlace` prawidłowe na każdym z jedenastu |
+| 25 właściwości `#organization` | wszystkie prawidłowe |
+| pola noclegowe i gastronomiczne | wszystkie na właściwych typach bazowych |
 
 ## 9. Czego ta rozpiska nie rozstrzyga
 

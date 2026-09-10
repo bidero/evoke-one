@@ -41,6 +41,7 @@ class EVK_Schema {
      *   wspolrzedna    — przecinek → kropka, niebędące liczbą → puste
      *   data           — YYYY, YYYY-MM albo YYYY-MM-DD; cokolwiek innego → puste
      *   liczba         — nieujemna liczba całkowita; cokolwiek innego → puste
+     *   czas           — HH:MM (doba 24-godzinna); cokolwiek innego → puste
      *   checkbox       — 0 albo 1
      *   json           — przepuszczane, gdy się parsuje; inaczej wartość domyślna
      *   wlasne         — obsługiwane osobno w sanitize_settings()
@@ -84,6 +85,14 @@ class EVK_Schema {
             'org_member_of'    => ['wezel' => 'organization', 'typ' => 'wieloliniowe', 'domyslnie' => ''],
             'org_area_served'  => ['wezel' => 'organization', 'typ' => 'wieloliniowe', 'domyslnie' => ''],
 
+            /* Pola organizacji BRAMKOWANE PRESETEM (1.173.0). Klucz `preset`
+               mówi, przy których typach działalności pole jest widoczne
+               w panelu I emitowane do grafu. */
+            'org_nonprofit'    => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => '',
+                                   'preset' => ['organizacja']],
+            'org_offer_catalog'=> ['wezel' => 'organization', 'typ' => 'wieloliniowe', 'domyslnie' => '',
+                                   'preset' => ['uslugi', 'zdrowie', 'uroda']],
+
             // ── Miejsce / firma lokalna (#place) ────────────────────────
             'geo_lat'          => ['wezel' => 'place',        'typ' => 'wspolrzedna',  'domyslnie' => ''],
             'geo_lng'          => ['wezel' => 'place',        'typ' => 'wspolrzedna',  'domyslnie' => ''],
@@ -92,6 +101,34 @@ class EVK_Schema {
             'has_map'          => ['wezel' => 'place',        'typ' => 'url',          'domyslnie' => ''],
             'opening_hours'    => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => ''],
             'area_served'      => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => ''],
+
+            /* Pola miejsca BRAMKOWANE PRESETEM (1.173.0).
+               Każde istnieje WYŁĄCZNIE na typach swojego presetu — to nie jest
+               kwestia przydatności, tylko poprawności grafu. */
+            'place_checkin'    => ['wezel' => 'place',        'typ' => 'czas',         'domyslnie' => '',
+                                   'preset' => ['noclegi']],
+            'place_checkout'   => ['wezel' => 'place',        'typ' => 'czas',         'domyslnie' => '',
+                                   'preset' => ['noclegi']],
+            'place_rooms'      => ['wezel' => 'place',        'typ' => 'liczba',       'domyslnie' => '',
+                                   'preset' => ['noclegi']],
+            'place_pets'       => ['wezel' => 'place',        'typ' => 'checkbox',     'domyslnie' => 0,
+                                   'preset' => ['noclegi']],
+            'place_languages'  => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => '',
+                                   'preset' => ['noclegi']],
+            // starRating żyje i na LodgingBusiness, i na FoodEstablishment —
+            // jedyne pole branżowe wspólne dla dwóch presetów.
+            'place_stars'      => ['wezel' => 'place',        'typ' => 'liczba',       'domyslnie' => '',
+                                   'preset' => ['noclegi', 'gastronomia']],
+            'place_cuisine'    => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => '',
+                                   'preset' => ['gastronomia']],
+            'place_menu'       => ['wezel' => 'place',        'typ' => 'url',          'domyslnie' => '',
+                                   'preset' => ['gastronomia']],
+            'place_reservations'=> ['wezel' => 'place',       'typ' => 'checkbox',     'domyslnie' => 0,
+                                   'preset' => ['gastronomia']],
+            'place_drive_thru' => ['wezel' => 'place',        'typ' => 'checkbox',     'domyslnie' => 0,
+                                   'preset' => ['gastronomia']],
+            'place_specialty'  => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => '',
+                                   'preset' => ['zdrowie']],
 
             // ── Atrakcja turystyczna (#attraction) ──────────────────────
             'attraction_name'  => ['wezel' => 'attraction',   'typ' => 'tekst',        'domyslnie' => ''],
@@ -112,6 +149,74 @@ class EVK_Schema {
             'block_product'    => ['wezel' => 'bloki',        'typ' => 'checkbox',     'domyslnie' => 1],
             'block_attraction' => ['wezel' => 'bloki',        'typ' => 'checkbox',     'domyslnie' => 0],
         ];
+    }
+
+    // ================================================================
+    // PRESETY BRANŻOWE
+    // ================================================================
+    /**
+     * Preset → etykieta i typy działalności, które do niego należą.
+     *
+     * PRESET NIE JEST OSOBNYM USTAWIENIEM. Wynika z `org_type`: wybór „Hotel"
+     * SAM ustawia preset „noclegi". Rozpiska przewidywała nad sekcjami osobny
+     * przełącznik branży, ale dwa sterowniki dla jednej rzeczy pozwalają je
+     * rozjechać — wybrać „Hotel" i preset „gastronomia" — i wtedy panel
+     * pokazuje pola, których wybrany typ nie ma. Skoro preset ma być
+     * mechanizmem POPRAWNOŚCI, nie może dać się ustawić wbrew typowi.
+     *
+     * PO CO W OGÓLE, SKORO TO TYLKO CHOWANIE PÓL: bo `servesCuisine` istnieje
+     * na `FoodEstablishment`, a nie na `Dentist`; `checkinTime` na
+     * `LodgingBusiness`, a nie na `HairSalon`. Panel pokazujący wszystkim
+     * wszystko nie jest tylko zagracony — PRODUKUJE NIEPRAWIDŁOWY GRAF, gdy
+     * ktoś wypełni pole spoza swojego typu.
+     *
+     * DLACZEGO ZDROWIE I URODA TO DWA PRESETY, A NIE JEDEN. Rozpiska trzymała
+     * je razem („zdrowie i uroda"). Sprawdzone przy pisaniu kodu: te typy
+     * dziedziczą z różnych gałęzi. `MedicalBusiness` i `Dentist` mają
+     * `medicalSpecialty`; `BeautySalon` i `HairSalon` idą przez
+     * `HealthAndBeautyBusiness` i tej właściwości NIE mają. Jeden preset
+     * dawałby salonowi fryzjerskiemu pole „specjalizacja medyczna" — dokładnie
+     * ten błąd, przed którym presety mają bronić.
+     */
+    public static function presety(): array {
+        return [
+            'organizacja'   => ['etykieta' => 'Organizacja (bez fizycznego obiektu)',
+                                'typy' => ['Organization']],
+            'firma-lokalna' => ['etykieta' => 'Firma lokalna (ogólna)',
+                                'typy' => ['LocalBusiness']],
+            'noclegi'       => ['etykieta' => 'Obiekt noclegowy',
+                                'typy' => ['LodgingBusiness', 'Hotel', 'BedAndBreakfast',
+                                           'Campground', 'Resort', 'Hostel']],
+            'gastronomia'   => ['etykieta' => 'Gastronomia',
+                                'typy' => ['Restaurant', 'CafeOrCoffeeShop', 'BarOrPub',
+                                           'FoodEstablishment']],
+            'sklep'         => ['etykieta' => 'Sklep stacjonarny',
+                                'typy' => ['Store']],
+            'uslugi'        => ['etykieta' => 'Usługi profesjonalne',
+                                'typy' => ['ProfessionalService', 'LegalService', 'FinancialService',
+                                           'RealEstateAgent', 'TravelAgency', 'AutoRepair',
+                                           'HomeAndConstructionBusiness']],
+            'zdrowie'       => ['etykieta' => 'Placówka medyczna',
+                                'typy' => ['MedicalBusiness', 'Dentist']],
+            'uroda'         => ['etykieta' => 'Uroda i fryzjerstwo',
+                                'typy' => ['BeautySalon', 'HairSalon']],
+            'sport'         => ['etykieta' => 'Sport, rekreacja, turystyka',
+                                'typy' => ['SportsActivityLocation', 'TouristInformationCenter']],
+        ];
+    }
+
+    /** Preset dla typu działalności. Typ spoza wszystkich list → 'firma-lokalna'. */
+    public static function preset_dla_typu(string $org_type): string {
+        foreach (self::presety() as $klucz => $preset) {
+            if (in_array($org_type, $preset['typy'], true)) return $klucz;
+        }
+        return 'firma-lokalna';
+    }
+
+    /** Czy pole rejestru jest widoczne (i emitowane) przy danym presecie. */
+    public static function pole_w_presecie(array $opis, string $preset): bool {
+        // Brak klucza `preset` = pole wspólne, widoczne zawsze.
+        return !isset($opis['preset']) || in_array($preset, $opis['preset'], true);
     }
 
     /** Klucze rejestru o danym typie sanityzacji. */
@@ -282,6 +387,14 @@ class EVK_Schema {
                    a wymuszanie pełnej daty kazałoby zmyślać dzień. */
                 $d = trim(sanitize_text_field((string) $wartosc));
                 return preg_match('/^\d{4}(-\d{2}(-\d{2})?)?$/', $d) ? $d : '';
+
+            case 'czas':
+                // schema.org Time w zapisie HH:MM. Godziny otwarcia mają
+                // własny parser (parse_opening_hours), ale checkinTime to
+                // jedna godzina, nie reguła — własny parser byłby przesadą.
+                $t = trim(sanitize_text_field((string) $wartosc));
+                if ($t === '') return '';
+                return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t) ? $t : '';
 
             case 'liczba':
                 $n = trim(sanitize_text_field((string) $wartosc));
@@ -643,6 +756,33 @@ private function build_website(array $s, string $home_url, string $lang): array 
         }
         if ($czlonkostwa) $org['memberOf'] = $czlonkostwa;
 
+        /* Pola bramkowane presetem. Bramka jest TUTAJ, a nie tylko w panelu:
+           wartość zapisana przy poprzednim typie działalności zostaje w bazie
+           (zmiana typu nie kasuje danych — patrz komentarz przy `sanitize_settings`),
+           więc bez tego warunku hotel przerobiony na kancelarię dalej
+           wysyłałby godzinę zameldowania. */
+        $preset = self::preset_dla_typu($s['org_type'] ?? 'Organization');
+
+        if ($preset === 'organizacja' && !empty($s['org_nonprofit'])) {
+            $org['nonprofitStatus'] = $s['org_nonprofit'];
+        }
+        if (in_array($preset, ['uslugi', 'zdrowie', 'uroda'], true)) {
+            $uslugi = self::linie($s['org_offer_catalog'] ?? '');
+            if ($uslugi) {
+                /* hasOfferCatalog opisuje, co oferuje FIRMA, a nie co zawiera
+                   BUDYNEK — dlatego siedzi na #organization, nie na #place.
+                   Rozpiska zostawiała to jako pytanie otwarte. */
+                $org['hasOfferCatalog'] = [
+                    '@type'          => 'OfferCatalog',
+                    'name'           => 'Oferta',
+                    'itemListElement' => array_map(static function ($nazwa) {
+                        return ['@type' => 'Offer', 'itemOffered' =>
+                            ['@type' => 'Service', 'name' => $nazwa]];
+                    }, $uslugi),
+                ];
+            }
+        }
+
         return $org;
     }
     private function build_breadcrumbs(WP_Post $post, string $home_url, string $site_name): array {
@@ -720,7 +860,12 @@ private function build_article(array $s, WP_Post $post, string $permalink, strin
         ],
         'publisher'        => ['@id' => $home_url . '#organization'],
         'inLanguage'       => get_bloginfo('language'),
-        'breadcrumb'       => ['@id' => $permalink . '#breadcrumb'],
+        /* BEZ `breadcrumb`. Właściwość ma w schema.org dziedzinę WYŁĄCZNIE
+           `WebPage`, a BlogPosting to Article → CreativeWork. Okruszki i tak
+           są w grafie dwa razy: jako własny węzeł BreadcrumbList i jako
+           `WebPage.breadcrumb`, więc usunięcie stąd niczego nie gubi.
+           Znalezione audytem właściwość-po-właściwości w 1.173.0; usterka
+           istniała, odkąd moduł powstał. */
     ];
 
     /* Wydawca TYLKO wtedy, gdy węzeł #organization naprawdę jest w grafie —
@@ -731,11 +876,6 @@ private function build_article(array $s, WP_Post $post, string $permalink, strin
        takiej zmianie przetasowanie zamiast różnicy w treści. */
     if (empty($s['block_org'])) {
         unset($article['publisher']);
-    }
-
-    // Okruszki — jak w build_webpage(), z tego samego powodu.
-    if (empty($s['block_breadcrumb'])) {
-        unset($article['breadcrumb']);
     }
 
     if ($excerpt) {
@@ -949,6 +1089,52 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
         if (!empty($s['block_org'])) {
             $place['parentOrganization'] = ['@id' => $home_url . '#organization'];
         }
+
+        /* Pola branżowe — emitowane wyłącznie przy pasującym presecie.
+           Ta bramka jest powodem, dla którego presety w ogóle istnieją. */
+        $preset = self::preset_dla_typu($org_type);
+
+        if ($preset === 'noclegi') {
+            if (!empty($s['place_checkin']))  $place['checkinTime']  = $s['place_checkin'];
+            if (!empty($s['place_checkout'])) $place['checkoutTime'] = $s['place_checkout'];
+            if ($s['place_rooms'] !== '') {
+                $place['numberOfRooms'] = [
+                    '@type' => 'QuantitativeValue',
+                    'value' => (int) $s['place_rooms'],
+                ];
+            }
+            // petsAllowed emitujemy TYLKO gdy zaznaczone: `false` znaczy
+            // „zwierzęta zabronione", a to inna deklaracja niż brak zdania.
+            if (!empty($s['place_pets'])) $place['petsAllowed'] = true;
+            if ($jezyki = self::linie($s['place_languages'] ?? '')) {
+                $place['availableLanguage'] = $jezyki;
+            }
+        }
+
+        if ($preset === 'gastronomia') {
+            if ($kuchnie = self::linie($s['place_cuisine'] ?? '')) {
+                $place['servesCuisine'] = $kuchnie;
+            }
+            if (!empty($s['place_menu'])) $place['hasMenu'] = $s['place_menu'];
+            if (!empty($s['place_reservations'])) $place['acceptsReservations'] = true;
+            if (!empty($s['place_drive_thru'])) $place['hasDriveThroughService'] = true;
+        }
+
+        // Jedyne pole branżowe wspólne dla dwóch presetów — starRating istnieje
+        // i na LodgingBusiness, i na FoodEstablishment.
+        if (in_array($preset, ['noclegi', 'gastronomia'], true) && $s['place_stars'] !== '') {
+            $place['starRating'] = [
+                '@type'       => 'Rating',
+                'ratingValue' => (int) $s['place_stars'],
+            ];
+        }
+
+        if ($preset === 'zdrowie') {
+            if ($specjalizacje = self::linie($s['place_specialty'] ?? '')) {
+                $place['medicalSpecialty'] = $specjalizacje;
+            }
+        }
+
         return $place;
     }
 

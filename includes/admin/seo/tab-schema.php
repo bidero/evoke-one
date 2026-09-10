@@ -28,6 +28,25 @@ if (!defined('ABSPATH')) exit;
                 </div>
                 <?php return ob_get_clean();
             };
+
+            /*
+             * PRESET WYNIKA Z TYPU DZIAŁALNOŚCI, nie jest osobnym ustawieniem.
+             * Sekcje i pola branżowe noszą `data-preset` z listą presetów,
+             * przy których mają być widoczne; skrypt na dole pokazuje właściwe
+             * i przełącza je NATYCHMIAST po zmianie selecta, bez zapisu.
+             * Dzięki temu widać skutek wyboru, zanim się go zatwierdzi.
+             */
+            $preset_teraz = EVK_Schema::preset_dla_typu($sc['org_type']);
+
+            // Atrybut widoczności dla pola z rejestru — jedno miejsce, żeby
+            // formularz i rejestr nie mogły się rozjechać.
+            $atr_presetu = static function (string $klucz) use ($preset_teraz): string {
+                $opis = EVK_Schema::pola()[$klucz] ?? [];
+                if (!isset($opis['preset'])) return '';
+                $widoczne = EVK_Schema::pole_w_presecie($opis, $preset_teraz);
+                return ' data-preset="' . esc_attr(implode(' ', $opis['preset'])) . '"'
+                     . ($widoczne ? '' : ' hidden');
+            };
             ?>
             <form method="post" action="options.php">
                 <?php settings_fields('evoke_one_schema'); ?>
@@ -50,15 +69,24 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Dane organizacji</h3>
+                    <details class="evo-note"><summary>Skąd biorą się widoczne pola</summary><div class="evo-note-body">Typ działalności decyduje, które pola branżowe zobaczysz niżej — i nie jest to tylko porządek na ekranie. <code>servesCuisine</code> istnieje w schema.org na gastronomii, a nie na gabinecie stomatologicznym; <code>checkinTime</code> na obiekcie noclegowym, a nie na salonie fryzjerskim. Pokazanie wszystkim wszystkiego dawałoby <strong>nieprawidłowy graf</strong> u każdego, kto wypełniłby pole spoza swojego typu. Zmiana typu <strong>nie kasuje</strong> tego, co już wpisane — ukryte pola zachowują wartości i wrócą po powrocie do poprzedniego typu.</div></details>
                     <div class="evo-grid evo-mb" style="--evo-col:280px;--evo-gap:16px">
                         <div class="evo-field evo-mb-0">
                             <label>Typ działalności (@type)<span class="evo-tip" tabindex="0" role="note" data-tip="Typ inny niż „Organizacja&quot; tworzy w grafie osobny węzeł miejsca (#place) z polami firmy lokalnej poniżej; #organization pozostaje czystym wydawcą strony." aria-label="Typ inny niż „Organizacja&quot; tworzy w grafie osobny węzeł miejsca (#place) z polami firmy lokalnej poniżej; #organization pozostaje czystym wydawcą strony.">?</span></label>
-                            <select name="evk_schema[org_type]">
+                            <select name="evk_schema[org_type]" id="evk-org-type" data-presety="<?php
+                                $mapa = [];
+                                foreach (EVK_Schema::presety() as $pk => $pv) {
+                                    foreach ($pv['typy'] as $t) $mapa[$t] = $pk;
+                                }
+                                echo esc_attr(wp_json_encode($mapa));
+                            ?>">
                                 <?php foreach (EVK_Schema::org_types() as $type_key => $type_label): ?>
                                 <option value="<?php echo esc_attr($type_key); ?>" <?php selected($sc['org_type'], $type_key); ?>><?php echo esc_html($type_label); ?> — <?php echo esc_html($type_key); ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            
+                            <div class="evo-desc">Branża: <strong id="evk-preset-nazwa"><?php
+                                echo esc_html(EVK_Schema::presety()[$preset_teraz]['etykieta']);
+                            ?></strong></div>
                         </div>
                         <div class="evo-field evo-mb-0"><label>Nazwa obiektu / firmy (site_name)</label><input type="text" name="evk_schema[site_name]" value="<?php echo esc_attr($sc['site_name']); ?>" placeholder="np. Piekarnia Przykładowa"></div>
                         <div class="evo-field evo-mb-0"><label>Nazwa operatora (Organization)</label><input type="text" name="evk_schema[operator_name]" value="<?php echo esc_attr($sc['operator_name']); ?>" placeholder="np. Przykładowa sp. z o.o."><div class="evo-desc">Wydawca strony / właściciel obiektu. Puste = nazwa obiektu.</div></div>
@@ -95,6 +123,8 @@ if (!defined('ABSPATH')) exit;
 
                     <div class="evo-field"><label>Obsługiwany obszar firmy (areaServed) — jeden na linię</label><textarea name="evk_schema[org_area_served]" rows="3" class="evo-w-480" placeholder="Warszawa&#10;mazowieckie&#10;Polska"><?php echo esc_textarea($sc['org_area_served']); ?></textarea><div class="evo-desc">Dla firmy bez fizycznego obiektu. Pole o tej samej nazwie w sekcji miejsca dotyczy obiektu.</div></div>
                     <div class="evo-field"><label>Nagrody i wyróżnienia (award) — jedno na linię</label><textarea name="evk_schema[org_award]" rows="3" class="evo-w-480" placeholder="Gazele Biznesu 2024"><?php echo esc_textarea($sc['org_award']); ?></textarea></div>
+                    <div class="evo-field"<?php echo $atr_presetu('org_nonprofit'); ?>><label>Status organizacji pożytku (nonprofitStatus)</label><input type="text" name="evk_schema[org_nonprofit]" value="<?php echo esc_attr($sc['org_nonprofit']); ?>" placeholder="NonprofitANBI" class="evo-w-480"><div class="evo-desc">Dla fundacji i stowarzyszeń. <strong>Wartość ze słownika schema.org</strong> (<code>NonprofitType</code>), np. <code>NonprofitANBI</code>, <code>Nonprofit501c3</code>. Własny opis przejdzie, ale nic nie znaczy dla wyszukiwarek.</div></div>
+                    <div class="evo-field"<?php echo $atr_presetu('org_offer_catalog'); ?>><label>Oferowane usługi (hasOfferCatalog) — jedna na linię</label><textarea name="evk_schema[org_offer_catalog]" rows="4" class="evo-w-480" placeholder="Porada prawna&#10;Reprezentacja w sądzie&#10;Obsługa spółek"><?php echo esc_textarea($sc['org_offer_catalog']); ?></textarea><div class="evo-desc">Opisuje ofertę <strong>firmy</strong>, nie zawartość budynku — dlatego trafia do <code>#organization</code>, a nie do miejsca.</div></div>
                     <div class="evo-field"><label>Członkostwa (memberOf) — jedno na linię<span class="evo-tip" tabindex="0" role="note" data-tip="Format: „Nazwa | https://adres". Adres jest opcjonalny — sama nazwa wystarczy. Rozdzielnikiem jest pionowa kreska, bo nazwy zrzeszeń zawierają przecinki." aria-label="Format: „Nazwa | https://adres". Adres jest opcjonalny — sama nazwa wystarczy. Rozdzielnikiem jest pionowa kreska, bo nazwy zrzeszeń zawierają przecinki.">?</span></label><textarea name="evk_schema[org_member_of]" rows="3" class="evo-w-480" placeholder="Izba Rzemieślnicza | https://przyklad.test"><?php echo esc_textarea($sc['org_member_of']); ?></textarea><div class="evo-desc">Format: <code>Nazwa | adres</code>, adres opcjonalny.</div></div>
                 </div>
 
@@ -109,6 +139,22 @@ if (!defined('ABSPATH')) exit;
                     </div>
                     <div class="evo-field"><label>Udogodnienia (amenityFeature) — jedno na linię</label><textarea name="evk_schema[amenities]" rows="4" class="evo-w-480" placeholder="Parking&#10;Wi-Fi&#10;Dostęp dla wózków"><?php echo esc_textarea($sc['amenities']); ?></textarea></div>
                     <div class="evo-field"><label>Godziny otwarcia (openingHoursSpecification) — jedna reguła na linię<span class="evo-tip" tabindex="0" role="note" data-tip="Format: dni + godziny, np. „Pn-Pt 08:00-20:00&quot;, „Sob 09:00-14:00&quot;, „Codziennie 08:00-20:00&quot;. Dni: Pn, Wt, Śr, Cz, Pt, Sob, Nd (można łączyć przecinkiem i zakresem)." aria-label="Format: dni + godziny, np. „Pn-Pt 08:00-20:00&quot;, „Sob 09:00-14:00&quot;, „Codziennie 08:00-20:00&quot;. Dni: Pn, Wt, Śr, Cz, Pt, Sob, Nd (można łączyć przecinkiem i zakresem).">?</span></label><textarea name="evk_schema[opening_hours]" rows="3" class="evo-mono evo-w-480" placeholder="Pn-Pt 08:00-20:00&#10;Sob-Nd 09:00-18:00"><?php echo esc_textarea($sc['opening_hours']); ?></textarea></div>
+                    <div class="evo-grid evo-mb" style="--evo-col:280px;--evo-gap:16px">
+                        <div class="evo-field evo-mb-0"<?php echo $atr_presetu('place_checkin'); ?>><label>Zameldowanie od (checkinTime)</label><input type="text" name="evk_schema[place_checkin]" value="<?php echo esc_attr($sc['place_checkin']); ?>" placeholder="15:00"></div>
+                        <div class="evo-field evo-mb-0"<?php echo $atr_presetu('place_checkout'); ?>><label>Wymeldowanie do (checkoutTime)</label><input type="text" name="evk_schema[place_checkout]" value="<?php echo esc_attr($sc['place_checkout']); ?>" placeholder="11:00"></div>
+                        <div class="evo-field evo-mb-0"<?php echo $atr_presetu('place_rooms'); ?>><label>Liczba pokoi (numberOfRooms)</label><input type="text" name="evk_schema[place_rooms]" value="<?php echo esc_attr($sc['place_rooms']); ?>" placeholder="24"></div>
+                        <div class="evo-field evo-mb-0"<?php echo $atr_presetu('place_stars'); ?>><label>Kategoria / gwiazdki (starRating)</label><input type="text" name="evk_schema[place_stars]" value="<?php echo esc_attr($sc['place_stars']); ?>" placeholder="4"><div class="evo-desc">Oficjalna kategoria obiektu, nie ocena gości.</div></div>
+                        <div class="evo-field evo-mb-0"<?php echo $atr_presetu('place_menu'); ?>><label>Adres menu (hasMenu)</label><input type="text" name="evk_schema[place_menu]" value="<?php echo esc_attr($sc['place_menu']); ?>" placeholder="https://przyklad.test/menu"></div>
+                    </div>
+                    <div class="evo-grid evo-mb" style="--evo-col:220px;--evo-gap:10px">
+                        <label class="evo-choice"<?php echo $atr_presetu('place_pets'); ?>><input type="checkbox" name="evk_schema[place_pets]" value="1" <?php checked(!empty($sc['place_pets'])); ?>> Zwierzęta dozwolone</label>
+                        <label class="evo-choice"<?php echo $atr_presetu('place_reservations'); ?>><input type="checkbox" name="evk_schema[place_reservations]" value="1" <?php checked(!empty($sc['place_reservations'])); ?>> Przyjmujemy rezerwacje</label>
+                        <label class="evo-choice"<?php echo $atr_presetu('place_drive_thru'); ?>><input type="checkbox" name="evk_schema[place_drive_thru]" value="1" <?php checked(!empty($sc['place_drive_thru'])); ?>> Okienko drive-through</label>
+                    </div>
+                    <div class="evo-field"<?php echo $atr_presetu('place_languages'); ?>><label>Języki obsługi (availableLanguage) — jeden na linię</label><textarea name="evk_schema[place_languages]" rows="3" class="evo-w-480" placeholder="Polish&#10;English"><?php echo esc_textarea($sc['place_languages']); ?></textarea></div>
+                    <div class="evo-field"<?php echo $atr_presetu('place_cuisine'); ?>><label>Rodzaj kuchni (servesCuisine) — jeden na linię</label><textarea name="evk_schema[place_cuisine]" rows="3" class="evo-w-480" placeholder="polska&#10;wegetariańska"><?php echo esc_textarea($sc['place_cuisine']); ?></textarea></div>
+                    <div class="evo-field"<?php echo $atr_presetu('place_specialty'); ?>><label>Specjalizacja medyczna (medicalSpecialty) — jedna na linię<span class="evo-tip" tabindex="0" role="note" data-tip="To pole oczekuje nazwy ze słownika schema.org (MedicalSpecialty), po angielsku: Dentistry, Dermatology, Physiotherapy. Polska nazwa przejdzie, ale dla wyszukiwarek nic nie znaczy." aria-label="To pole oczekuje nazwy ze słownika schema.org (MedicalSpecialty), po angielsku: Dentistry, Dermatology, Physiotherapy. Polska nazwa przejdzie, ale dla wyszukiwarek nic nie znaczy.">?</span></label><textarea name="evk_schema[place_specialty]" rows="3" class="evo-w-480" placeholder="Dentistry"><?php echo esc_textarea($sc['place_specialty']); ?></textarea><div class="evo-desc"><strong>Po angielsku, ze słownika schema.org</strong> (<code>MedicalSpecialty</code>): <code>Dentistry</code>, <code>Dermatology</code>, <code>Physiotherapy</code>… Polska nazwa przejdzie, ale nic nie znaczy dla wyszukiwarek.</div></div>
+
                     <div class="evo-field"><label>Obsługiwany obszar (areaServed) — jeden na linię</label><textarea name="evk_schema[area_served]" rows="3" class="evo-w-480" placeholder="Warszawa&#10;mazowieckie&#10;Polska"><?php echo esc_textarea($sc['area_served']); ?></textarea></div>
 
                 </div>
@@ -202,6 +248,44 @@ if (!defined('ABSPATH')) exit;
 
                 
                 </div>
+
+<script>
+                (function () {
+                    var select = document.getElementById('evk-org-type');
+                    var nazwa  = document.getElementById('evk-preset-nazwa');
+                    if (!select) return;
+
+                    var mapa;
+                    try { mapa = JSON.parse(select.dataset.presety || '{}'); }
+                    catch (e) { return; }   // bez mapy zostaje stan z serwera
+
+                    /* Etykiety branż idą z PHP jednym obiektem. Druga kopia nazw
+                       wpisana w skrypcie rozjechałaby się z rejestrem przy
+                       pierwszej zmianie nazwy branży. */
+                    var etykiety = <?php
+                        $et = [];
+                        foreach (EVK_Schema::presety() as $pk => $pv) $et[$pk] = $pv['etykieta'];
+                        echo wp_json_encode($et);
+                    ?>;
+
+                    function odswiez() {
+                        var preset = mapa[select.value] || 'firma-lokalna';
+                        if (nazwa) nazwa.textContent = etykiety[preset] || preset;
+                        var pola = document.querySelectorAll('[data-preset]');
+                        for (var i = 0; i < pola.length; i++) {
+                            /* `hidden`, a nie usunięcie z formularza: ukryte pole
+                               DALEJ SIĘ ZAPISUJE. Zmiana typu działalności nie może
+                               kasować tego, co ktoś wpisał — powrót do poprzedniego
+                               typu ma przywrócić wartości, a nie zastać puste pola. */
+                            pola[i].hidden =
+                                pola[i].dataset.preset.split(' ').indexOf(preset) === -1;
+                        }
+                    }
+
+                    select.addEventListener('change', odswiez);
+                    odswiez();
+                })();
+                </script>
 
 <?php evoke_one_pasek_zapisu('Zapisz ustawienia Schema'); ?>
             </form>

@@ -80,9 +80,6 @@
         "@id": "https://example.test/#organization"
       },
       "inLanguage": "pl-PL",
-      "breadcrumb": {
-        "@id": "https://example.test/blog/sezon-otwarty/#breadcrumb"
-      },
       "description": "Zapraszamy od maja.",
       "keywords": "Aktualności, Wydarzenia"
     }

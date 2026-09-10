@@ -1,0 +1,69 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://example.test/#website",
+      "url": "https://example.test/",
+      "name": "Hotel Przykładowy",
+      "description": "Opis z ustawień WordPressa",
+      "publisher": {
+        "@id": "https://example.test/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://example.test/?s={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://example.test/#organization",
+      "name": "Hotel Przykładowy",
+      "url": "https://example.test/",
+      "description": "Opis z ustawień WordPressa",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Leśna 4",
+        "addressLocality": "Mikołajki",
+        "postalCode": "",
+        "addressCountry": "PL"
+      }
+    },
+    {
+      "@type": "Hotel",
+      "@id": "https://example.test/#place",
+      "name": "Hotel Przykładowy",
+      "url": "https://example.test/",
+      "description": "Opis z ustawień WordPressa",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Leśna 4",
+        "addressLocality": "Mikołajki",
+        "postalCode": "",
+        "addressCountry": "PL"
+      },
+      "parentOrganization": {
+        "@id": "https://example.test/#organization"
+      },
+      "checkinTime": "15:00",
+      "checkoutTime": "11:00",
+      "numberOfRooms": {
+        "@type": "QuantitativeValue",
+        "value": 24
+      },
+      "petsAllowed": true,
+      "availableLanguage": [
+        "Polish",
+        "English"
+      ],
+      "starRating": {
+        "@type": "Rating",
+        "ratingValue": 4
+      }
+    }
+  ]
+}

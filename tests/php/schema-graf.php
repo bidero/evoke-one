@@ -346,6 +346,62 @@ $scenariusze = [
         ];
     },
 
+    /* Pola branżowe wypełnione KOMPLETNIE, ale dla trzech różnych branż —
+       żeby widać było, że każda dostaje swoje i tylko swoje. */
+    'hotel' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'Hotel', 'site_name' => 'Hotel Przykładowy',
+            'street_address' => 'Leśna 4', 'locality' => 'Mikołajki',
+            'place_checkin' => '15:00', 'place_checkout' => '11:00',
+            'place_rooms' => '24', 'place_pets' => 1, 'place_stars' => '4',
+            'place_languages' => "Polish\nEnglish",
+            /* Pola CUDZYCH branż, wypełnione celowo. Dzięki nim każdy
+               scenariusz branżowy jest jednocześnie sprawdzeniem wycieku
+               w swoją stronę — bez tego bramka danej branży jest badana
+               tylko wtedy, gdy akurat trafi w scenariusz `wyciek-presetu`. */
+            'place_cuisine' => 'polska', 'place_specialty' => 'Dentistry',
+        ];
+    },
+
+    'restauracja' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'Restaurant', 'site_name' => 'Restauracja Przykładowa',
+            'street_address' => 'Leśna 4', 'locality' => 'Mikołajki',
+            'place_cuisine' => "polska\nwegetariańska",
+            'place_menu' => 'https://przyklad.test/menu',
+            'place_reservations' => 1, 'place_drive_thru' => 1, 'place_stars' => '3',
+            // Jw. — pola noclegowe i medyczne, których restauracja nie ma prawa wysłać.
+            'place_checkin' => '15:00', 'place_rooms' => '24', 'place_specialty' => 'Dentistry',
+        ];
+    },
+
+    'gabinet' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'Dentist', 'site_name' => 'Gabinet Przykładowy',
+            'street_address' => 'Leśna 4', 'locality' => 'Mikołajki',
+            'place_specialty' => "Dentistry",
+            'org_offer_catalog' => "Przegląd\nLeczenie kanałowe",
+            // Jw. — pola noclegowe i gastronomiczne.
+            'place_checkin' => '15:00', 'place_cuisine' => 'polska',
+        ];
+    },
+
+    /* KLUCZOWY SCENARIUSZ TEGO WYDANIA. Ustawienia niosą KOMPLET pól hotelowych
+       i gastronomicznych, ale typ działalności to gabinet stomatologiczny —
+       stan po przestawieniu typu na stronie, która wcześniej była hotelem.
+
+       Wartości ZOSTAJĄ w bazie (zmiana typu nie kasuje danych, bo powrót do
+       poprzedniego typu ma je przywrócić), więc jedyne, co dzieli je od
+       cudzego grafu, to bramka w `build_place()`. Bez niej gabinet wysyłałby
+       godzinę zameldowania i rodzaj kuchni. */
+    'wyciek-presetu' => function () use (&$scenariusze) {
+        $scenariusze['hotel']();
+        $GLOBALS['options']['evk_schema']['org_type'] = 'Dentist';
+        $GLOBALS['options']['evk_schema']['place_cuisine'] = "polska";
+        $GLOBALS['options']['evk_schema']['place_menu'] = 'https://przyklad.test/menu';
+        $GLOBALS['options']['evk_schema']['org_nonprofit'] = 'Nonprofit501c3';
+    },
+
     /* NADPISANIA PER PODSTRONA — warstwa 3 z `get_settings()`.
        Meta wpisu `_evk_schema` bije ustawienia globalne. Nie ma dziś
        interfejsu, który by ją zapisywał, więc scenariusz zapisuje ją wprost —
@@ -489,6 +545,19 @@ if (($argv[2] ?? '') === '--sanityzuj') {
         EVK_Schema::get_instance()->sanitize_settings(is_array($wejscie) ? $wejscie : []),
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
     );
+    exit;
+}
+
+/* Argument 2 `--presety` / `--typy` oddaje rejestry presetów i typów
+   działalności — żeby sprawdzenia pytały o nie kod, a nie trzymały drugiej
+   kopii list po stronie Node'a. Druga kopia rozjechałaby się przy pierwszym
+   dołożonym typie i zapaliłaby wtedy, gdy nic złego się nie stało. */
+if (($argv[2] ?? '') === '--presety') {
+    echo json_encode(EVK_Schema::presety(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+if (($argv[2] ?? '') === '--typy') {
+    echo json_encode(EVK_Schema::org_types(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
 

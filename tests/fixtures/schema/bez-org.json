@@ -80,10 +80,7 @@
         "name": "Radek",
         "url": "https://example.test/autor/1/"
       },
-      "inLanguage": "pl-PL",
-      "breadcrumb": {
-        "@id": "https://example.test/oferta/#breadcrumb"
-      }
+      "inLanguage": "pl-PL"
     }
   ]
 }

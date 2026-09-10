@@ -2,6 +2,130 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.173.0] — 2026-09-10
+
+Trzecie z pięciu wydań przebudowy zakładki Schema: **presety branżowe**.
+
+### Dodane
+
+- **Preset wynika z typu działalności, nie jest osobnym ustawieniem.**
+  Wybór „Hotel" sam ustawia branżę „Obiekt noclegowy" i odsłania pola
+  noclegowe; zmiana na „Gabinet stomatologiczny" chowa je i pokazuje
+  medyczne — natychmiast, bez zapisu.
+
+  Rozpiska przewidywała nad sekcjami osobny przełącznik branży. Odrzucone
+  przy pisaniu kodu: **dwa sterowniki dla jednej rzeczy dają się rozjechać.**
+  Można by wybrać „Hotel" i branżę „gastronomia", a wtedy panel pokazuje pola,
+  których wybrany typ nie ma. Skoro preset ma być mechanizmem poprawności,
+  nie może dać się ustawić wbrew typowi.
+
+- **Trzynaście pól branżowych.** Na `#place`: `checkinTime`, `checkoutTime`,
+  `numberOfRooms`, `petsAllowed`, `availableLanguage`, `starRating`,
+  `servesCuisine`, `hasMenu`, `acceptsReservations`, `hasDriveThroughService`,
+  `medicalSpecialty`. Na `#organization`: `nonprofitStatus`, `hasOfferCatalog`.
+
+- **Typ sanityzacji `czas`** (HH:MM, doba 24-godzinna).
+
+### Dlaczego presety to poprawność, a nie porządek na ekranie
+
+`servesCuisine` istnieje w schema.org na `FoodEstablishment`, a nie na
+`Dentist`. `checkinTime` na `LodgingBusiness`, a nie na `HairSalon`. Panel
+pokazujący wszystkim wszystko nie jest tylko zagracony — **produkuje
+nieprawidłowy graf** u każdego, kto wypełni pole spoza swojego typu.
+
+Dlatego bramka stoi w **dwóch miejscach**: w panelu (co widać) i w budowaniu
+grafu (co wychodzi). Osobne sprawdzenie pilnuje, żeby mówiły to samo —
+formularz pokazujący pole, którego graf i tak nie wyemituje, kłamie
+użytkownikowi w twarz.
+
+**Zmiana typu nie kasuje danych.** Ukryte pole dalej się zapisuje, więc powrót
+do poprzedniego typu przywraca wartości. To dlatego bramka w grafie jest
+konieczna: wartości hotelowe ZOSTAJĄ w bazie po przestawieniu na gabinet
+i bez niej wyciekłyby do cudzego JSON-LD.
+
+### Korekty rozpiski — znalezione przy pisaniu kodu
+
+Rozpiska była pisana z pamięci schema.org. Weryfikacja wobec hierarchii typów
+wykazała siedem błędów; wszystkie opisane w `docs/schema-rozpiska.md` § 5.4:
+
+- **Preset „zdrowie i uroda" rozbity na dwa.** `MedicalBusiness` i `Dentist`
+  mają `medicalSpecialty`; `BeautySalon` i `HairSalon` idą przez
+  `HealthAndBeautyBusiness` i tej właściwości **nie mają**. Jeden preset
+  dawałby salonowi fryzjerskiemu pole „specjalizacja medyczna" — dokładnie
+  ten błąd, przed którym presety mają bronić. Presetów jest **9, nie 8**.
+- Usunięte jako nieistniejące na swoich typach: `serviceArea` (zastąpione
+  przez `areaServed`), `hasDeliveryMethod` (nie ma na `Store`),
+  `isAcceptingNewPatients` (dziedzina `Physician`), `availableService`
+  (`MedicalClinic`/`Hospital`, nie `MedicalBusiness`), `sport` (nie ma na
+  `SportsActivityLocation`), `knowsLanguage` (dubluje wyprowadzane
+  `contactPoint.availableLanguage`).
+- **`hasOfferCatalog` rozstrzygnięte** — pytanie otwarte z § 9 rozpiski.
+  Trafia na `#organization`, bo opisuje ofertę **firmy**, a nie zawartość
+  budynku.
+
+Zostało 13 pól branżowych zamiast zapowiadanych 26. Presety `sklep`,
+`firma-lokalna`, `uroda` i `sport` nie mają własnych pól — i to jest
+w porządku: ich rolą jest **chować** pola noclegowe i gastronomiczne,
+a nie dokładać własne.
+
+### Audyt zgodności ze schema.org
+
+Po zbudowaniu presetów przeszedłem **każdą właściwość na każdym typie**, który
+moduł emituje — 34 typy, około 110 par typ↔właściwość, wyliczonych z prawdziwego
+wyjścia, nie z lektury kodu.
+
+**Jedna niepoprawność, istniejąca odkąd moduł powstał:**
+
+- **`BlogPosting.breadcrumb` usunięte.** Właściwość `breadcrumb` ma
+  w schema.org dziedzinę **wyłącznie `WebPage`**, a `BlogPosting` to
+  `Article` → `CreativeWork`. Moduł wysyłał ją tam na każdym wpisie.
+  Nie zginęło nic poza nieprawidłowością: okruszki są w grafie i tak dwa razy
+  — jako własny węzeł `BreadcrumbList` i jako `WebPage.breadcrumb`.
+
+**Dwa pola luźne — poprawione w opisach, nie w kodzie:**
+
+- `medicalSpecialty` i `nonprofitStatus` oczekują **wyliczeń** schema.org
+  (`MedicalSpecialty`, `NonprofitType`), a przyjmują wolny tekst. Wpisanie
+  „stomatologia" jest składniowo poprawne i nic nie znaczy dla wyszukiwarek.
+  Pola dostały wyraźne opisy z przykładami ze słownika. Zamknięcie ich
+  w select wymaga wbudowania obu słowników — kandydat na wydanie 5, razem
+  z edytorem węzłów.
+
+**Sprawdzone i poprawne:** wszystkie 26 typów działalności i 11 typów encji
+podrzędnych istnieje w schema.org; `containedInPlace` jest prawidłowe na
+każdym z jedenastu; wszystkie 25 właściwości `#organization`, komplet pól
+noclegowych (`checkinTime`, `checkoutTime`, `numberOfRooms`, `petsAllowed`,
+`starRating`, `availableLanguage` — wszystkie na `LodgingBusiness`)
+i gastronomicznych (`servesCuisine`, `hasMenu`, `acceptsReservations`,
+`hasDriveThroughService`, `starRating` — wszystkie na `FoodEstablishment`).
+Kształty wartości: `QuantitativeValue` dla liczb, `Rating` dla gwiazdek,
+`Person`/`Brand`/`Thing` dla węzłów zagnieżdżonych, `Time` w zapisie HH:MM.
+
+`latitude`/`longitude` wychodzą jako tekst — schema.org dopuszcza `Number`
+albo `Text`, więc jest to zgodne; zostawione bez zmian.
+
+### Testy
+
+- Siatka grafu: 177 → **216 sprawdzeń**. Cztery nowe scenariusze: `hotel`,
+  `restauracja`, `gabinet` i `wyciek-presetu`.
+
+- **Każdy scenariusz branżowy niesie pola cudzych branż** i przez to jest
+  sprawdzeniem wycieku w swoją stronę. Zanim je dostał, mutacja „bramka
+  zdjęta ze specjalizacji medycznej" przechodziła na zielono: żaden scenariusz
+  nie miał `place_specialty` przy typie spoza presetu medycznego.
+
+- `wyciek-presetu` niesie komplet pól hotelowych i gastronomicznych przy typie
+  „gabinet" — stan po przestawieniu typu na stronie, która wcześniej była
+  hotelem. Sprawdzane jest **jedno i drugie**: że wartości dalej są
+  w ustawieniach, i że ani jedna nie wychodzi do grafu.
+
+- Kompletność przypisania typów do presetów sprawdzana **wobec kodu**, nie
+  wobec drugiej kopii listy po stronie Node'a.
+
+- **Dowiedzione mutacją:** 15 uszkodzeń, wszystkie zapalają. W tym trzy
+  wycieki międzybranżowe, zwrot salonu fryzjerskiego do presetu medycznego,
+  rozjazd bramki panelu z rejestrem i powrót `breadcrumb` na `BlogPosting`.
+
 ## [1.172.0] — 2026-09-10
 
 Drugie z pięciu wydań przebudowy zakładki Schema. **`knowsAbout` — pozycja
