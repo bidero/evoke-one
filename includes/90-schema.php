@@ -923,7 +923,50 @@ if (isset($_POST['evk_schema_custom']) && is_array($_POST['evk_schema_custom']))
                 if ($product) $graph[] = $product;
             }
         }
-        return $this->dolacz_wlasne($graph, $s, $home_url);
+        return self::bez_pustych($this->dolacz_wlasne($graph, $s, $home_url));
+    }
+
+    /**
+     * Usuwa z grafu wartości będące PUSTYM ŁAŃCUCHEM — rekurencyjnie.
+     *
+     * `"description": ""` to nie kosmetyka: dla czytnika jest to ZADEKLAROWANY
+     * pusty opis, a nie brak opisu. Moduł trzyma tę zasadę wszędzie tam, gdzie
+     * pole ma bramkę „if niepuste" — ale cztery węzły (`#website`,
+     * `#organization`, `#place`, `WebPage`) wypisywały `description` zawsze,
+     * bo łańcuch źródeł kończy się na `get_bloginfo('description')` i nikt nie
+     * zakładał, że opis witryny w WordPressie bywa pusty. Na żywej stronie
+     * bywa.
+     *
+     * JEDNO MIEJSCE NA KOŃCU, a nie bramka w każdym budowniczym: bramek
+     * musiałoby być kilkadziesiąt i każde nowe pole to kolejna szansa na
+     * przeoczenie. Tutaj klasa jest zamknięta raz, także dla pól dopisanych
+     * w przyszłości.
+     *
+     * ŚCIŚLE `=== ''`, nie `empty()`. `false` znaczy „u nas się nie pali"
+     * i jest deklaracją (patrz `trojstan()`), a `0` bywa prawidłową liczbą —
+     * `empty()` zjadłoby oba i zamieniło jedną usterkę na gorszą.
+     */
+    private static function bez_pustych(array $dane): array {
+        $out = [];
+        foreach ($dane as $klucz => $wartosc) {
+            if ($wartosc === '') continue;
+            if (is_array($wartosc)) {
+                $wartosc = self::bez_pustych($wartosc);
+                if ($wartosc === []) continue;
+            }
+            $out[$klucz] = $wartosc;
+        }
+        /* Lista po odsianiu ma zostać LISTĄ. Bez przenumerowania dziura
+           w kluczach zamienia tablicę JSON-a w obiekt — `["a","b"]` wychodzi
+           wtedy jako `{"0":"a","2":"b"}` i przestaje być tym, czym była.
+
+           Sprawdzenie ręczne, a nie `array_is_list()`: ta funkcja jest z PHP
+           8.1, a wtyczka nie deklaruje minimalnej wersji PHP i jedzie
+           aktualizatorem na cudze serwery. W całym `includes/` nie ma nawet
+           `str_contains()` z 8.0 — jedna funkcja z 8.1 to fatal u pierwszego
+           klienta na starszym hostingu, za oszczędność jednej linijki. */
+        $lista = array_keys($dane) === range(0, count($dane) - 1);
+        return $lista ? array_values($out) : $out;
     }
 
     /**

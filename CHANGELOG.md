@@ -2,6 +2,71 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.178.0] — 2026-09-10
+
+**Pusty opis nie zostawia już `"description": ""`.** Znalezione w surowym
+źródle żywej strony, przy okazji rozstrzygania trzech zgłoszeń, które
+okazały się odczytem rozwiniętym (niżej).
+
+### Naprawione
+
+- **Cztery węzły wypisywały `description` zawsze**, także gdy nie było czego
+  wypisać: `#website`, `#organization`, `#place` i `WebPage`. Łańcuch źródeł
+  opisu kończy się na `get_bloginfo('description')` i nikt nie zakładał, że
+  opis witryny w WordPressie bywa pusty. Bywa. Dla czytnika `""` to
+  **zadeklarowany pusty opis**, a nie brak opisu.
+
+  Zamknięte jako **klasa, nie cztery łaty**: graf przechodzi na końcu przez
+  `bez_pustych()`, które rekurencyjnie usuwa wartości będące pustym
+  łańcuchem. Każde pole dopisane w przyszłości jest objęte od pierwszego dnia.
+  Ścisłe `=== ''`, nie `empty()` — `smokingAllowed: false` jest deklaracją,
+  a `0` bywa prawidłową liczbą.
+
+  Na wszystkich istniejących scenariuszach odsiewanie jest **bezczynne**:
+  pliki wzorcowe nie drgnęły ani o bajt.
+
+### Dlaczego siatka tego nie widziała
+
+Sprawdzenie „bez pustych wartości" chodziło po wszystkich scenariuszach —
+ale **żaden nie umiał wytworzyć tego stanu**, bo atrapa `get_bloginfo()`
+zawsze oddawała niepusty opis. Atrapa **z danymi** chroni przed „pole nie
+wyszło" i dokładnie tym samym ukrywa „pole wyszło puste". To jest cena tej
+techniki i trzeba ją płacić świadomie: **każde pole z łańcuchem awaryjnym
+potrzebuje scenariusza, w którym ten łańcuch dochodzi do końca.** Atrapa
+daje się teraz opróżnić, a scenariusz `opis-pusty` to robi.
+
+Druga luka wyszła z mutacji: gałąź przenumerowania listy po odsianiu pustej
+pozycji nie była sprawdzana, bo pola panelu takiej listy nie wytworzą
+(`linie()` odsiewa puste). Wytworzy ją **edytor węzłów**, który przyjmuje
+JSON dosłownie — bez przenumerowania `["a","","b"]` wychodzi jako
+`{"0":"a","2":"b"}`, czyli tablica zamieniona w obiekt. Dopisane do
+scenariusza `edytor`.
+
+### Trzy zgłoszenia rozstrzygnięte na źródle strony
+
+Wszystkie trzy opisują **odczyt rozwinięty**, nie nasze wyjście. Policzone
+w surowym HTML-u strony:
+
+| Zgłoszenie | Co jest w źródle |
+|---|---|
+| blok firmy wyrenderowany dwa razy (`publisher` + `about`) | `hasOfferCatalog`, `openingHoursSpecification`, `knowsAbout`, `areaServed` — **po jednym wystąpieniu**; `publisher` i `about` to `{"@id": "…#organization"}`, po jednej linijce |
+| `addressCountry` przepakowany na obiekt `Country` | **już jest** `"addressCountry": "PL"` |
+| dni tygodnia jako URI schema.org | **już są** `["Monday","Tuesday","Wednesday","Thursday"]` |
+
+Cały blok: **2825 bajtów, cztery węzły, jeden znacznik `application/ld+json`
+na stronie.** Zdublowany graf ważyłby dwa razy tyle.
+
+Jedyne prawdziwe powtórzenie w bloku to numer telefonu — raz jako
+`telephone` organizacji, raz w `contactPoint`. To zamierzone: `contactPoint`
+z pustym repeaterem dostaje jeden punkt zbudowany z numeru głównego, żeby
+witryna sprzed 1.174.0 nie straciła danych.
+
+### Testy
+
+361 sprawdzeń (+11). Nowy scenariusz `opis-pusty`. Cztery mutacje,
+wszystkie zapalają — w tym „nie przenumerowuj listy", która przeżyła
+pierwszy przebieg i wymusiła dopisanie scenariusza.
+
 ## [1.177.0] — 2026-09-10
 
 **HOTFIX: pól wyboru nie dało się odznaczyć.** Zgłoszone z użycia:

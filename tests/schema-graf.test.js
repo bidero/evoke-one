@@ -107,7 +107,7 @@ const SCENARIUSZE = ['minimalny', 'firma', 'firma-en', 'atrakcja',
                      'podstrona', 'wpis', 'produkt', 'bez-org', 'faq-off',
                      'organizacja-pelna', 'miejsce-pelne', 'trojstan-intem', 'agencja', 'scalenie-kolizje', 'hotel', 'restauracja', 'gabinet', 'wyciek-presetu',
                      'nadpisanie-wpisu', 'nadpisanie-puste', 'bez-okruszkow',
-                     'filtr-ustawien', 'edytor', 'edytor-atak'];
+                     'filtr-ustawien', 'edytor', 'edytor-atak', 'opis-pusty'];
 
 /** Scalone ustawienia scenariusza (warstwy: domyślne → globalne → meta wpisu). */
 const ustawienia = (scenariusz) =>
@@ -341,6 +341,18 @@ module.exports = async function (t) {
   t.check('niedomknięty JSON zostaje tekstem, nie znika',
     edO?.award === '{niedomknięty', JSON.stringify(edO?.award));
 
+  /* Lista po odsianiu pustej pozycji ma ZOSTAĆ LISTĄ. Bez przenumerowania
+     dziura w kluczach zamienia tablicę JSON-a w obiekt: `["a","","b"]`
+     wychodzi jako `{"0":"a","2":"b"}` i przestaje być tablicą. Pola panelu
+     tego stanu nie wytworzą (`linie()` odsiewa puste), więc jedyną drogą
+     jest edytor przyjmujący JSON dosłownie — i dopiero to sprawdzenie
+     zapala mutację „nie przenumerowuj". */
+  t.check('lista z odsianą pustą pozycją zostaje TABLICĄ, nie obiektem',
+    Array.isArray(edO?.knowsLanguage) &&
+    edO.knowsLanguage.length === 2 &&
+    edO.knowsLanguage[0] === 'Polish' && edO.knowsLanguage[1] === 'English',
+    JSON.stringify(edO?.knowsLanguage));
+
   /* Edytor wygrywa z tym, co moduł wyliczył sam — inaczej nie dałoby się
      poprawić niczego, co moduł podaje źle, a to jest cały sens furtki. */
   t.check('edytor nadpisuje wartość wyliczoną przez moduł',
@@ -489,6 +501,38 @@ module.exports = async function (t) {
     const p = lancuchy(grafy[s]).filter((x) => x === '');
     t.check(`bez pustych wartości: ${s}`, !p.length, p.length + ' pustych');
   }
+
+  /* PUSTY OPIS WITRYNY — znalezione w surowym źródle żywej strony, nie tutaj.
+     Pętla wyżej chodziła po wszystkich scenariuszach, ale ŻADEN nie umiał
+     wytworzyć tego stanu: łańcuch źródeł opisu kończy się na
+     `get_bloginfo('description')`, a atrapa oddawała tam niepusty tekst.
+     Atrapa z danymi chroni przed „pole nie wyszło" i tym samym ukrywa
+     „pole wyszło puste" — to jest cena, którą się za nią płaci, i trzeba
+     ją płacić świadomie: każde pole z łańcuchem awaryjnym potrzebuje
+     scenariusza, w którym ten łańcuch dochodzi do końca.
+
+     Na żywej stronie cztery węzły wypisywały `"description": ""`, co dla
+     czytnika jest ZADEKLAROWANYM pustym opisem, a nie brakiem opisu. */
+  const op = grafy['opis-pusty'];
+  t.check('scenariusz naprawdę ma pusty opis na wejściu — inaczej nie bada nic',
+    !JSON.stringify(op).includes('Opis z ustawień WordPressa'));
+  for (const sufiks of ['#website', '#organization', '#webpage']) {
+    const n = op['@graph'].find((x) => x['@id'].endsWith(sufiks));
+    t.check(`brak opisu nie zostawia pustego description: ${sufiks}`,
+      !!n && !('description' in n),
+      n ? JSON.stringify(n.description) : 'brak węzła');
+  }
+  t.check('a scenariusz z opisem MA description — kontrola',
+    typeof wezelId(grafy.firma, '#website')?.description === 'string' &&
+    wezelId(grafy.firma, '#website').description !== '');
+
+  /* `false` i `0` muszą PRZEŻYĆ odsiewanie. `smokingAllowed: false` znaczy
+     „u nas się nie pali" i jest deklaracją; `empty()` zamiast `=== ''`
+     zjadłoby oba i zamieniło jedną usterkę na gorszą. */
+  const tri = wezelId(grafy['trojstan-intem'], '#organization');
+  t.check('odsiewanie pustych nie zjada wartości false',
+    Object.values(tri || {}).some((v) => v === false),
+    JSON.stringify(Object.entries(tri || {}).filter(([, v]) => v === false)));
   t.check('żadnego null', !/null/.test(JSON.stringify(grafy.minimalny)));
   t.check('tylko WebSite i Organization', grafy.minimalny['@graph'].length === 2,
     grafy.minimalny['@graph'].map((n) => n['@type']).join(', '));

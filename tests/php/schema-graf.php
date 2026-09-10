@@ -40,12 +40,18 @@ require __DIR__ . '/_wp-stubs.php';
 
 // ── Atrapy WP, których nie ma we wspólnym pliku ─────────────────────────────
 function untrailingslashit($s) { return rtrim((string) $s, '/\\'); }
+/* Atrapa Z DANYMI, ale dająca się OPRÓŻNIĆ przez scenariusz.
+   Niepuste wartości chronią przed „pole nie wyszło" — i dokładnie tym samym
+   ukrywają „pole wyszło puste". Opis witryny w WordPressie bywa pusty
+   i wtedy cztery węzły wypisywały `"description": ""`; nie było tego widać,
+   bo atrapa opisu nigdy pusta nie była. Scenariusz `opis-pusty` nadpisuje
+   `$GLOBALS['bloginfo']` i dopiero tam ten stan istnieje. */
 function get_bloginfo($what = '') {
-    $map = [
+    $map = array_merge([
         'name'        => 'Witryna testowa',
         'description' => 'Opis z ustawień WordPressa',
         'language'    => 'pl-PL',
-    ];
+    ], $GLOBALS['bloginfo'] ?? []);
     return $map[$what] ?? '';
 }
 
@@ -617,6 +623,15 @@ $scenariusze = [
                 // Wygląda na JSON, ale się nie parsuje — ma zostać TEKSTEM.
                 ['wezel' => 'organization', 'klucz' => 'award',
                  'wartosc' => '{niedomknięty'],
+                /* LISTA Z DZIURĄ PO ODSIANIU. Pola panelu nigdy nie wpuszczą
+                   pustej pozycji na listę (`linie()` je odsiewa), ale edytor
+                   przyjmuje JSON dosłownie — więc to jedyna droga, którą
+                   `["a","","b"]` w ogóle dociera do `bez_pustych()`.
+                   Bez przenumerowania wychodzi stamtąd `{"0":"a","2":"b"}`,
+                   czyli tablica JSON-a zamieniona w obiekt. Dopisane, bo
+                   mutacja „nie przenumerowuj" przechodziła na zielono. */
+                ['wezel' => 'organization', 'klucz' => 'knowsLanguage',
+                 'wartosc' => '["Polish","","English"]'],
                 // Węzeł, którego w grafie nie ma (blok atrakcji odhaczony).
                 ['wezel' => 'attraction', 'klucz' => 'touristType',
                  'wartosc' => 'rodziny'],
@@ -653,6 +668,29 @@ $scenariusze = [
             ], JSON_UNESCAPED_UNICODE);
             return $u;
         });
+    },
+
+    /* OPIS PUSTY NA WSZYSTKICH SZCZEBLACH — odtworzenie stanu żywej strony.
+       Łańcuch źródeł opisu kończy się na `get_bloginfo('description')`,
+       a atrapa oddaje tam niepusty tekst, więc ŻADEN scenariusz nie widział,
+       co się dzieje, gdy opis witryny w WordPressie jest pusty. Na żywej
+       stronie był, i cztery węzły wypisywały `"description": ""`.
+
+       Znalezione dopiero w surowym źródle strony klienta — sprawdzenie
+       „bez pustych wartości" chodziło po wszystkich scenariuszach, ale
+       żaden nie umiał tego stanu wytworzyć. Atrapa Z DANYMI chroni przed
+       „pole nie wyszło" i jednocześnie ukrywa „pole wyszło puste". */
+    'opis-pusty' => function () {
+        $GLOBALS['bloginfo']['description'] = '';
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'ProfessionalService',
+            'site_name' => 'Agencja Przykładowa',
+            'locality' => 'Warszawa', 'country' => 'PL',
+            'descriptions' => '{}',
+        ];
+        $GLOBALS['strony'][61] = new WP_Post(['ID' => 61, 'post_title' => 'Kontakt']);
+        $GLOBALS['permalinki'][61] = 'https://example.test/kontakt/';
+        $GLOBALS['current_post'] = 61;
     },
 
     'bloki-off' => function () {

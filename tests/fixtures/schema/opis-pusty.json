@@ -1,0 +1,66 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://example.test/#website",
+      "url": "https://example.test/",
+      "name": "Agencja Przykładowa",
+      "publisher": {
+        "@id": "https://example.test/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://example.test/?s={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "ProfessionalService",
+      "@id": "https://example.test/#organization",
+      "name": "Agencja Przykładowa",
+      "url": "https://example.test/",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Warszawa",
+        "addressCountry": "PL"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://example.test/kontakt/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Agencja Przykładowa",
+          "item": "https://example.test/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Kontakt",
+          "item": "https://example.test/kontakt/"
+        }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://example.test/kontakt/#webpage",
+      "url": "https://example.test/kontakt/",
+      "name": "Kontakt",
+      "isPartOf": {
+        "@id": "https://example.test/#website"
+      },
+      "breadcrumb": {
+        "@id": "https://example.test/kontakt/#breadcrumb"
+      },
+      "about": {
+        "@id": "https://example.test/#organization"
+      }
+    }
+  ]
+}
