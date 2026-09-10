@@ -18,6 +18,24 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * Argument 1: nazwa scenariusza (patrz $scenariusze niżej). Bez argumentu —
  * wypisuje listę i kończy się kodem 1.
  */
+/*
+ * PRAWDZIWY `apply_filters`, zadeklarowany PRZED wspólnymi atrapami — te
+ * mają go pod `function_exists`, więc nasza wersja wygrywa.
+ *
+ * Po co: `get_settings()` przepuszcza wynik przez filtr `evk_schema_settings`,
+ * żeby kod spoza modułu mógł dołożyć warstwę, nie czekając na metaboks.
+ * Wspólna atrapa oddaje wartość nietkniętą, więc pod nią filtr byłby kodem,
+ * którego nie sprawdza nic — a to dokładnie ta klasa dodatku, która okazuje
+ * się nie działać w dniu, w którym ktoś na nią liczy.
+ */
+function apply_filters($hook, $value) {
+    $args = array_slice(func_get_args(), 2);
+    foreach ($GLOBALS['hooks'][$hook] ?? [] as $cb) {
+        $value = $cb($value, ...$args);
+    }
+    return $value;
+}
+
 require __DIR__ . '/_wp-stubs.php';
 
 // ── Atrapy WP, których nie ma we wspólnym pliku ─────────────────────────────
@@ -297,12 +315,72 @@ $scenariusze = [
         $GLOBALS['current_post'] = 10;
     },
 
+    /* NADPISANIA PER PODSTRONA — warstwa 3 z `get_settings()`.
+       Meta wpisu `_evk_schema` bije ustawienia globalne. Nie ma dziś
+       interfejsu, który by ją zapisywał, więc scenariusz zapisuje ją wprost —
+       dokładnie tak, jak zrobi to przyszły metaboks.
+
+       Trzy rzeczy naraz, bo każda dowodzi czego innego:
+         · `site_name`   — nadpisanie WARTOŚCI (widać w WebSite i okruszkach),
+         · `block_breadcrumb` — nadpisanie KSZTAŁTU grafu (węzeł znika),
+         · `nie_ma_takiego_pola` — klucz spoza rejestru ma być zignorowany. */
+    'nadpisanie-wpisu' => function () use (&$scenariusze) {
+        $scenariusze['podstrona']();
+        $GLOBALS['post_meta'][11]['_evk_schema'] = [
+            'site_name'        => 'Nazwa tylko dla tej podstrony',
+            'block_breadcrumb' => 0,
+            'nie_ma_takiego_pola' => 'wartość, która nie ma prawa przejść',
+        ];
+    },
+
+    /* PUSTY ŁAŃCUCH NADPISUJE. „Na tej podstronie nie podawaj telefonu"
+       musi dać się odróżnić od „nie ustawiaj tu nic" — pierwsze to klucz
+       z pustą wartością, drugie to brak klucza. Bez tego scenariusza
+       scalanie po `!empty()` przechodziłoby niezauważone. */
+    'nadpisanie-puste' => function () use (&$scenariusze) {
+        $scenariusze['firma']();
+        $GLOBALS['strony'][12] = new WP_Post(['ID' => 12, 'post_title' => 'Kontakt']);
+        $GLOBALS['permalinki'][12] = 'https://example.test/kontakt/';
+        $GLOBALS['current_post'] = 12;
+        $GLOBALS['post_meta'][12]['_evk_schema'] = ['telephone' => '', 'email' => ''];
+    },
+
     /* Ten sam wpis z akordeonem, ale z odhaczonym blokiem FAQPage.
        Kontrola do naprawy FAQ: „węzeł powstaje" przechodzi także wtedy,
        gdy powstaje bez względu na ustawienie. */
     'faq-off' => function () use (&$scenariusze) {
         $scenariusze['wpis']();
         $GLOBALS['options']['evk_schema']['block_faq'] = 0;
+    },
+
+    /* Filtr `evk_schema_settings` — drugie wejście dla kodu spoza modułu,
+       obok meta wpisu. Filtr dostaje komplet ustawień i numer wpisu, więc
+       wtyczka klienta może dołożyć własną warstwę, nie czekając na metaboks.
+       Scenariusz podpina filtr, który nadpisuje nazwę i widzi numer wpisu. */
+    'filtr-ustawien' => function () use (&$scenariusze) {
+        $scenariusze['podstrona']();
+        add_filter('evk_schema_settings', static function ($u, $post_id) {
+            $u['site_name'] = 'Z filtru, wpis ' . (int) $post_id;
+            return $u;
+        });
+    },
+
+    /* Okruszki odhaczone GLOBALNIE, przy włączonej stronie i wpisie.
+       Układ osiągalny jednym kliknięciem w „Aktywne bloki JSON-LD".
+       Do 1.171.0 zostawiał `WebPage.breadcrumb` i `BlogPosting.breadcrumb`
+       wskazujące na węzeł, którego w grafie nie ma — trzeci przypadek tej
+       samej klasy co `publisher`. Wyszło z ogólnego sprawdzenia
+       rozwiązywalności wskazań, nie z lektury kodu. */
+    'bez-okruszkow' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'site_name' => 'Firma Przykładowa',
+            'block_breadcrumb' => 0,
+        ];
+        $GLOBALS['strony'][41] = new WP_Post([
+            'ID' => 41, 'post_type' => 'post', 'post_title' => 'Wpis bez okruszków',
+        ]);
+        $GLOBALS['permalinki'][41] = 'https://example.test/blog/bez-okruszkow/';
+        $GLOBALS['current_post'] = 41;
     },
 
     /* KONTROLA NEGATYWNA 1 — moduł wyłączony. Ma nie wyjść NIC.
@@ -339,5 +417,64 @@ require dirname(__DIR__, 2) . '/includes/90-schema.php';
 
 global $post;
 $post = $GLOBALS['strony'][(int) $GLOBALS['current_post']] ?? null;
+
+/*
+ * Argument 2 `--ustawienia` oddaje SCALONE USTAWIENIA zamiast grafu.
+ *
+ * Po co osobne wyjście, skoro graf i tak z nich powstaje: bo warstwa
+ * nadpisań per podstrona ma przypadki NIEWIDOCZNE w grafie. Klucz spoza
+ * rejestru ma zostać odrzucony — a odrzucony klucz z definicji nie zostawia
+ * śladu w wyjściu, więc po samym grafie nie da się odróżnić „odrzucony"
+ * od „przyjęty, ale nieużywany przez żaden build_*".
+ */
+/*
+ * Argument 2 `--sanityzuj` przepuszcza JSON z argumentu 3 przez PRAWDZIWĄ
+ * `sanitize_settings()` i oddaje wynik.
+ *
+ * Po co: do 1.171.0 sanityzacji ustawień Schema nie sprawdzało NIC w całym
+ * zestawie — ani współrzędnych, ani JSON-ów, ani typu działalności spoza
+ * listy. Wyszło przy mutacji: „sanityzacja współrzędnych przepuszcza tekst"
+ * przechodziła na zielono. Ta logika właśnie przeniosła się do
+ * `sanityzuj_wartosc()`, a przenoszenie kodu, którego nie sprawdza nic,
+ * jest dokładnie tym momentem, w którym trzeba go objąć.
+ */
+if (($argv[2] ?? '') === '--sanityzuj') {
+    // Prawdziwa funkcja z modułu ustawień — nie atrapa, bo to ona decyduje
+    // o zachowaniu przełącznika przy zapisie formularza.
+    if (!function_exists('evk_preserve_toggle')) {
+        function evk_preserve_toggle($input, string $option, string $field = 'enabled', int $default = 0): int {
+            if (is_array($input) && array_key_exists($field, $input)) {
+                return !empty($input[$field]) ? 1 : 0;
+            }
+            $current = get_option($option, null);
+            if (is_array($current) && array_key_exists($field, $current)) {
+                return !empty($current[$field]) ? 1 : 0;
+            }
+            return $default;
+        }
+    }
+    $wejscie = json_decode($argv[3] ?? '{}', true);
+    echo json_encode(
+        EVK_Schema::get_instance()->sanitize_settings(is_array($wejscie) ? $wejscie : []),
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
+    );
+    exit;
+}
+
+/* Argument 2 `--pola` oddaje sam rejestr — żeby sprawdzenia mogły pytać
+   o niego kod, zamiast trzymać drugą kopię listy pól po stronie Node'a. */
+if (($argv[2] ?? '') === '--pola') {
+    echo json_encode(EVK_Schema::pola(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
+if (($argv[2] ?? '') === '--ustawienia') {
+    $post_id = (int) $GLOBALS['current_post'];
+    echo json_encode(
+        EVK_Schema::get_instance()->get_settings($post_id),
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
+    );
+    exit;
+}
 
 EVK_Schema::get_instance()->render_graph();

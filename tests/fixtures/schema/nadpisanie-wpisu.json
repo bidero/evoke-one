@@ -1,0 +1,47 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://example.test/#website",
+      "url": "https://example.test/",
+      "name": "Nazwa tylko dla tej podstrony",
+      "description": "Opis z ustawień WordPressa",
+      "publisher": {
+        "@id": "https://example.test/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://example.test/?s={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://example.test/#organization",
+      "name": "Nazwa tylko dla tej podstrony",
+      "url": "https://example.test/",
+      "description": "Opis z ustawień WordPressa"
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://example.test/oferta/domki/#webpage",
+      "url": "https://example.test/oferta/domki/",
+      "name": "Domki nad jeziorem — oferta",
+      "description": "Opis z zakładki SEO",
+      "isPartOf": {
+        "@id": "https://example.test/#website"
+      },
+      "about": {
+        "@id": "https://example.test/#organization"
+      },
+      "primaryImageOfPage": {
+        "@type": "ImageObject",
+        "url": "https://example.test/img/domki.jpg"
+      }
+    }
+  ]
+}

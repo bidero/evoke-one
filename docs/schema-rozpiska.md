@@ -290,9 +290,24 @@ Dziś `evk_schema` to jedna płaska opcja; kilka pól trzyma JSON w stringu.
 Czterdzieści osiem nowych kluczy w tej samej płaskiej przestrzeni zrobi
 bałagan i rozjedzie się z sanityzacją.
 
-**Propozycja:** zostajemy przy jednej opcji i płaskich kluczach — bo
-`sanitize_settings()` jest na tym zbudowane i działa — ale **z prefiksem
-węzła**:
+> **Zrobione w 1.171.0 — z jedną zmianą wobec propozycji niżej.**
+> Prefiksów **nie** wprowadziłem dla kluczy, które już istnieją. Powód wyszedł
+> przy pisaniu kodu: te klucze siedzą w bazach żywych stron, a przemianowanie
+> ich to migracja cudzych danych — klasa zmian, która psuje się po cichu
+> (klient traci NIP i dowiaduje się po pół roku). Wszystko, co miał dawać
+> prefiks — pętla sanityzacji i mapowanie na węzeł — daje **kolumna `wezel`
+> w rejestrze `EVK_Schema::pola()`**, bez dotykania czegokolwiek zapisanego.
+> Pola dokładane od wydania 2 dostają prefiksy od razu, bo tam nie ma czego
+> migrować.
+>
+> Doszła też warstwa, której ta sekcja nie przewidywała: `get_settings($post_id)`
+> scala domyślne → globalne → **meta wpisu `_evk_schema`**. Metaboks nie
+> istnieje, ale mechanizm tak — i jest sprawdzony, więc dopisanie interfejsu
+> nie będzie odkrywaniem, czy to w ogóle działa.
+
+**Propozycja (nieaktualna w części o prefiksach):** zostajemy przy jednej
+opcji i płaskich kluczach — bo `sanitize_settings()` jest na tym zbudowane
+i działa — ale **z prefiksem węzła**:
 
 ```
 site_alternate_name      → #website
@@ -325,7 +340,7 @@ regresyjna straciłaby sens (nie odróżniłbym zamierzonej zmiany od zepsucia).
 
 | # | Wydanie | Zawartość | Ryzyko |
 |---|---|---|---|
-| 1 | **Prefiksy i pętla sanityzacji** | Przebudowa zapisu **bez ani jednego nowego pola**. Wyjście grafu musi zostać **bit w bit takie samo** — pliki wzorcowe nie drgną. | Największe. Dlatego idzie pierwsze i osobno: jeśli coś się rozjedzie, wiadomo, że to zapis, a nie nowe pole. |
+| 1 ✅ | **Rejestr i pętla sanityzacji** (1.171.0) | Przebudowa zapisu **bez ani jednego nowego pola**. Wyjście grafu musi zostać **bit w bit takie samo** — pliki wzorcowe nie drgną. | Największe. Dlatego idzie pierwsze i osobno: jeśli coś się rozjedzie, wiadomo, że to zapis, a nie nowe pole. |
 | 2 | **`knowsAbout` + Organizacja** | Pozycja nr 1 z listy zgłaszającego plus pozostałe 16 pól sekcji 2. | Małe — same dopiski do jednego węzła. |
 | 3 | **Układ wg węzła + presety** | Przemeblowanie zakładki na siedem sekcji, pasek presetu, pola branżowe. | Średnie, ale wyłącznie w panelu — graf bez zmian poza polami branżowymi. |
 | 4 | **Miejsce, atrakcja, encje** | Sekcje 3, 4, 5. | Małe. |

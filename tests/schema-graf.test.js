@@ -97,7 +97,16 @@ function lancuchy(o, out = []) {
    z założenia milczeć, więc chodzą osobno — wzorzec z pustego wyjścia byłby
    sprawdzeniem, że plik jest pusty. */
 const SCENARIUSZE = ['minimalny', 'firma', 'firma-en', 'atrakcja',
-                     'podstrona', 'wpis', 'produkt', 'bez-org', 'faq-off'];
+                     'podstrona', 'wpis', 'produkt', 'bez-org', 'faq-off',
+                     'nadpisanie-wpisu', 'nadpisanie-puste', 'bez-okruszkow',
+                     'filtr-ustawien'];
+
+/** Scalone ustawienia scenariusza (warstwy: domyślne → globalne → meta wpisu). */
+const ustawienia = (scenariusz) =>
+  JSON.parse(phpOutput('schema-graf.php', scenariusz + ' --ustawienia'));
+
+/** Rejestr pól — pytamy o niego kod, zamiast trzymać drugą kopię listy. */
+const rejestr = () => JSON.parse(phpOutput('schema-graf.php', 'minimalny --pola'));
 
 module.exports = async function (t) {
 
@@ -390,6 +399,187 @@ module.exports = async function (t) {
     !wezel(grafy['faq-off'], 'FAQPage'));
   t.check('strona bez akordeonu nie dostaje FAQPage',
     !wezel(grafy.podstrona, 'FAQPage'));
+
+  // ── Rejestr pól ────────────────────────────────────────────────────────
+  t.section('rejestr pól jest jedyną prawdą o polach');
+
+  /* Do 1.171.0 prawda o polu była w trzech miejscach: wartość domyślna
+     w `$defaults`, sposób sanityzacji w ręcznie wypisanej liście, a węzeł
+     grafu nigdzie. Pole dopisane do formularza, a zapomniane w liście
+     `$texts`, przestawało się zapisywać BEZ ŻADNEGO OBJAWU — formularz
+     przyjmował wartość, sanityzacja jej nie przepisywała, po przeładowaniu
+     pole było puste. Przy ~86 polach z rozpiski to kwestia czasu, nie ryzyka. */
+  const pola = rejestr();
+  const klucze = Object.keys(pola);
+
+  t.check('rejestr niepusty', klucze.length > 20, klucze.length + ' pól');
+  const bezOpisu = klucze.filter((k) =>
+    !pola[k].wezel || !pola[k].typ || pola[k].domyslnie === undefined);
+  t.check('każde pole ma węzeł, typ i wartość domyślną', !bezOpisu.length,
+    bezOpisu.join(', ') || 'komplet');
+
+  const TYPY = ['tekst', 'wieloliniowe', 'url', 'wspolrzedna', 'checkbox', 'json', 'wlasne'];
+  const zleTypy = klucze.filter((k) => !TYPY.includes(pola[k].typ));
+  t.check('żaden typ spoza znanej listy', !zleTypy.length,
+    zleTypy.map((k) => k + '=' + pola[k].typ).join(', ') || TYPY.length + ' typów');
+
+  /* SEDNO: każde pole formularza zakładki MUSI być w rejestrze. To jest
+     dokładnie ta pomyłka, przed którą rejestr broni — i jedyny sposób, żeby
+     zapaliła, zanim klient zgłosi „zapisuję i nie zapisuje". */
+  const zakladka = phpOutput('tab.php', 'schema');
+  const zForm = [...zakladka.matchAll(/name="evk_schema\[([a-z0-9_]+)\]"/g)]
+    .map((m) => m[1]);
+  const nieznane = [...new Set(zForm)].filter((k) => !klucze.includes(k));
+  t.check('każde pole formularza jest w rejestrze', !nieznane.length,
+    nieznane.join(', ') || new Set(zForm).size + ' pól formularza');
+
+  /* Kontrola do kontroli: gdyby regexp przestał cokolwiek łapać — bo zakładka
+     zmieni sposób nazywania pól — sprawdzenie wyżej byłoby zielone na pustej
+     liście. */
+  t.check('a formularz w ogóle ma pola do sprawdzenia', new Set(zForm).size > 10,
+    new Set(zForm).size + '');
+
+  // ── Sanityzacja zapisu ─────────────────────────────────────────────────
+  t.section('sanityzacja ustawień — pętla po rejestrze');
+
+  /* Do 1.171.0 sanityzacji ustawień Schema nie sprawdzało NIC w całym
+     zestawie: ani współrzędnych, ani JSON-ów, ani typu działalności spoza
+     listy. Wyszło przy mutacji — „sanityzacja współrzędnych przepuszcza
+     tekst" przechodziła na zielono, bo harness zasiewał opcję wprost,
+     z pominięciem zapisu. Sprawdzenia niżej idą przez PRAWDZIWĄ
+     `sanitize_settings()`. */
+  const san = (wejscie) =>
+    JSON.parse(phpOutput('schema-graf.php',
+      'minimalny --sanityzuj ' + JSON.stringify(JSON.stringify(wejscie))));
+
+  const w = san({
+    geo_lat: '53,8021',            // przecinek dziesiętny
+    geo_lng: 'na pewno nie liczba',
+    site_name: '<b>Firma</b>',
+    org_type: 'NieMaTakiegoTypu',
+    amenities: 'a\nb',
+    block_faq: '1',
+    block_org: '',
+  });
+
+  t.check('przecinek dziesiętny zamieniony na kropkę', w.geo_lat === '53.8021', w.geo_lat);
+  t.check('współrzędna niebędąca liczbą wyczyszczona', w.geo_lng === '', JSON.stringify(w.geo_lng));
+  t.check('znaczniki HTML zdjęte z pola tekstowego', w.site_name === 'Firma', w.site_name);
+  t.check('typ działalności spoza listy wraca do Organization',
+    w.org_type === 'Organization', w.org_type);
+  t.check('checkbox zaznaczony to 1', w.block_faq === 1, JSON.stringify(w.block_faq));
+  t.check('checkbox pusty to 0, nie pusty łańcuch', w.block_org === 0, JSON.stringify(w.block_org));
+  t.check('pole nieobecne w wejściu dostaje wartość domyślną',
+    w.country === 'PL' && w.contact_type === 'customer service',
+    w.country + ' / ' + w.contact_type);
+
+  /* Zepsuty JSON ma wrócić do wartości domyślnej. Do 1.171.0 przechodził na
+     wylot: pętla walidująca ustawiała wartość poprawnie, a stojąca niżej
+     gałąź `else` nadpisywała ją SUROWYM wejściem — obejście walidacji
+     w czterech polach naraz. */
+  const zepsuty = san({
+    descriptions: '{zepsuty', social_links: '[zepsute',
+    lang_currencies: 'nie json', sub_entities: '{{{',
+  });
+  t.check('zepsuty JSON opisów wraca do domyślnego', zepsuty.descriptions === '{}',
+    zepsuty.descriptions);
+  t.check('zepsuty JSON socialów wraca do domyślnego', zepsuty.social_links === '',
+    JSON.stringify(zepsuty.social_links));
+  t.check('zepsuty JSON walut wraca do domyślnego',
+    zepsuty.lang_currencies === '{"en":"EUR","de":"EUR"}', zepsuty.lang_currencies);
+  t.check('zepsuty JSON encji podrzędnych wraca do domyślnego',
+    zepsuty.sub_entities === '[]', zepsuty.sub_entities);
+
+  /* Kontrola: POPRAWNY JSON ma przejść nietknięty. Bez niej „zepsuty wraca
+     do domyślnego" przechodzi także wtedy, gdy do domyślnego wraca wszystko. */
+  const dobry = san({ descriptions: '{"pl":"Opis"}', sub_entities: '[{"type":"Beach","name":"Plaża"}]' });
+  t.check('poprawny JSON przechodzi nietknięty',
+    dobry.descriptions === '{"pl":"Opis"}', dobry.descriptions);
+  t.check('i poprawny repeater też',
+    dobry.sub_entities === '[{"type":"Beach","name":"Plaża"}]', dobry.sub_entities);
+
+  /* Każdy klucz rejestru MUSI wyjść z sanityzacji. Pole dopisane do rejestru,
+     a pominięte przy zapisie, przestaje się zapisywać bez żadnego objawu —
+     to jest ta usterka, przed którą rejestr broni. */
+  const brakujace = klucze.filter((k) => !(k in w));
+  t.check('sanityzacja oddaje każdy klucz rejestru', !brakujace.length,
+    brakujace.join(', ') || klucze.length + ' kluczy');
+
+  // ── Nadpisania per podstrona ───────────────────────────────────────────
+  t.section('nadpisania per podstrona (warstwa pod przyszły metaboks)');
+
+  /* `get_settings($post_id)` scala trzy warstwy: domyślne → globalne →
+     meta wpisu `_evk_schema`. Interfejsu zapisującego tę meta jeszcze nie ma,
+     ale mechanizm jest kompletny i musi być sprawdzony — inaczej jest martwym
+     kodem, który przy dopisywaniu metaboksu okaże się nie działać. */
+  const u = ustawienia('nadpisanie-wpisu');
+  t.check('meta wpisu bije ustawienie globalne',
+    u.site_name === 'Nazwa tylko dla tej podstrony', u.site_name);
+  t.check('pole nienadpisane zostaje z warstwy globalnej',
+    u.country === 'PL', u.country);
+
+  /* Klucz spoza rejestru ma odpaść. Meta wpisu bywa zapisywana z zewnątrz
+     i nie chcemy, żeby dowolny klucz wjeżdżał do ustawień tylnymi drzwiami.
+     Widać to WYŁĄCZNIE w ustawieniach — odrzucony klucz z definicji nie
+     zostawia śladu w grafie. */
+  t.check('klucz spoza rejestru odrzucony',
+    !('nie_ma_takiego_pola' in u), Object.keys(u).length + ' kluczy');
+
+  /* Nadpisanie zmienia nie tylko wartości, ale i KSZTAŁT grafu. */
+  const gNad = grafy['nadpisanie-wpisu'];
+  t.check('nadpisana nazwa wychodzi do grafu',
+    wezel(gNad, 'WebSite')?.name === 'Nazwa tylko dla tej podstrony');
+  t.check('odhaczony blok w meta usuwa węzeł z grafu',
+    !wezel(gNad, 'BreadcrumbList'),
+    gNad['@graph'].map((n) => n['@type']).join(', '));
+  t.check('a bez nadpisania ten sam scenariusz węzeł MA — kontrola',
+    !!wezel(grafy.podstrona, 'BreadcrumbList'));
+
+  /* PUSTY ŁAŃCUCH NADPISUJE, BRAK KLUCZA NIE. Scalanie po `!empty()`
+     przechodziłoby wszystkie sprawdzenia wyżej i wywracało się dopiero tutaj. */
+  const uPuste = ustawienia('nadpisanie-puste');
+  t.check('pusty łańcuch w meta nadpisuje niepustą wartość globalną',
+    uPuste.telephone === '', JSON.stringify(uPuste.telephone));
+  t.check('i telefon znika z #organization',
+    wezel(grafy['nadpisanie-puste'], 'Organization')?.telephone === undefined);
+  t.check('razem z contactPoint, który na nim stał',
+    wezel(grafy['nadpisanie-puste'], 'Organization')?.contactPoint === undefined);
+  t.check('i z #place',
+    wezel(grafy['nadpisanie-puste'], 'LodgingBusiness')?.telephone === undefined);
+  t.check('a w scenariuszu bez nadpisania telefon jest — kontrola',
+    wezel(grafy.firma, 'Organization')?.telephone === '+48 111 222 333');
+
+  /* Filtr `evk_schema_settings` — drugie wejście dla kodu spoza modułu.
+     Sprawdzane PRAWDZIWYM `apply_filters` (harness ma własny, bo wspólna
+     atrapa jest przelotowa); pod atrapą filtr byłby dodatkiem, którego nie
+     sprawdza nic i który okazuje się nie działać w dniu, gdy ktoś na niego
+     liczy. Numer wpisu w drugim argumencie jest tym, co pozwala filtrowi
+     rozróżnić podstrony — bez niego byłby wart tyle, co stała. */
+  const uFiltr = ustawienia('filtr-ustawien');
+  t.check('filtr może nadpisać ustawienia',
+    uFiltr.site_name === 'Z filtru, wpis 11', uFiltr.site_name);
+  t.check('i dostaje numer wpisu, nie tylko wartości',
+    /wpis 11$/.test(uFiltr.site_name));
+  t.check('wynik filtru wychodzi do grafu',
+    wezel(grafy['filtr-ustawien'], 'WebSite')?.name === 'Z filtru, wpis 11');
+
+  t.section('okruszki tylko wtedy, gdy węzeł BreadcrumbList powstaje');
+
+  /* Trzeci przypadek tej samej klasy co `publisher`, znaleziony przez ogólne
+     sprawdzenie rozwiązywalności wskazań przy okazji warstwy nadpisań.
+     Odhaczenie okruszków — globalnie albo na jednej podstronie — zostawiało
+     `WebPage.breadcrumb` i `BlogPosting.breadcrumb` wskazujące donikąd. */
+  t.check('WebPage bez breadcrumb, gdy blok odhaczony',
+    wezel(grafy['bez-okruszkow'], 'WebPage')?.breadcrumb === undefined,
+    wezel(grafy['bez-okruszkow'], 'WebPage')?.breadcrumb?.['@id']);
+  t.check('BlogPosting bez breadcrumb, gdy blok odhaczony',
+    wezel(grafy['bez-okruszkow'], 'BlogPosting')?.breadcrumb === undefined,
+    wezel(grafy['bez-okruszkow'], 'BlogPosting')?.breadcrumb?.['@id']);
+  t.check('a przy włączonym bloku WebPage MA breadcrumb — kontrola',
+    wezel(grafy.podstrona, 'WebPage')?.breadcrumb?.['@id']
+      === 'https://example.test/oferta/domki/#breadcrumb');
+  t.check('i BlogPosting też — kontrola',
+    !!wezel(grafy.wpis, 'BlogPosting')?.breadcrumb);
 
   t.section('publisher tylko wtedy, gdy wydawca jest w grafie');
 

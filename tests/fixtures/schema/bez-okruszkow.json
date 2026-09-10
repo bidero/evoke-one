@@ -1,0 +1,64 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://example.test/#website",
+      "url": "https://example.test/",
+      "name": "Firma Przykładowa",
+      "description": "Opis z ustawień WordPressa",
+      "publisher": {
+        "@id": "https://example.test/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://example.test/?s={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://example.test/#organization",
+      "name": "Firma Przykładowa",
+      "url": "https://example.test/",
+      "description": "Opis z ustawień WordPressa"
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://example.test/blog/bez-okruszkow/#webpage",
+      "url": "https://example.test/blog/bez-okruszkow/",
+      "name": "Wpis bez okruszków",
+      "description": "Opis z ustawień WordPressa",
+      "isPartOf": {
+        "@id": "https://example.test/#website"
+      },
+      "about": {
+        "@id": "https://example.test/#organization"
+      }
+    },
+    {
+      "@type": "BlogPosting",
+      "@id": "https://example.test/blog/bez-okruszkow/#article",
+      "isPartOf": {
+        "@id": "https://example.test/blog/bez-okruszkow/#webpage"
+      },
+      "url": "https://example.test/blog/bez-okruszkow/",
+      "headline": "Wpis bez okruszków",
+      "datePublished": "2026-01-15T10:00:00+01:00",
+      "dateModified": "2026-02-03T18:30:00+01:00",
+      "author": {
+        "@type": "Person",
+        "@id": "https://example.test/autor/1/#author",
+        "name": "Radek",
+        "url": "https://example.test/autor/1/"
+      },
+      "publisher": {
+        "@id": "https://example.test/#organization"
+      },
+      "inLanguage": "pl-PL"
+    }
+  ]
+}

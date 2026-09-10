@@ -2,6 +2,89 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.171.0] — 2026-09-10
+
+Pierwsze z pięciu wydań przebudowy zakładki Schema (`docs/schema-rozpiska.md`).
+**Ani jednego nowego pola** — sama hydraulika ustawień. Wyjście grafu miało
+zostać bit w bit takie samo dla każdej konfiguracji, która istniała wcześniej,
+i zostało: żaden z dziewięciu plików wzorcowych sprzed tego wydania nie drgnął.
+
+### Dodane
+
+- **Rejestr pól (`EVK_Schema::pola()`).** Jedno miejsce, z którego biorą się
+  trzy rzeczy: wartości domyślne, sanityzacja przy zapisie i przypisanie pola
+  do węzła grafu.
+
+  Dotąd prawda o polu leżała w trzech miejscach: domyślna w `$defaults`,
+  sposób sanityzacji w ręcznie wypisanej liście, a węzeł nigdzie — trzeba było
+  czytać `build_*`. Przy czternastu polach dawało się to unieść. Rozpiska
+  przewiduje około osiemdziesięciu sześciu, a wtedy pole dopisane do
+  formularza i zapomniane w liście `$texts` **przestaje się zapisywać bez
+  żadnego objawu**: formularz przyjmuje wartość, sanityzacja jej nie
+  przepisuje, po przeładowaniu pole jest puste.
+
+  `sanitize_settings()` idzie teraz pętlą po rejestrze zamiast po czterech
+  ręcznych listach nazw.
+
+- **Nadpisania per podstrona — warstwa pod przyszły metaboks.**
+  `get_settings($post_id)` scala trzy warstwy: domyślne → globalne → meta
+  wpisu `_evk_schema`. Interfejsu zapisującego tę meta jeszcze nie ma i to
+  jedyne, czego brakuje — mechanizm jest kompletny i sprawdzony. Dopisanie
+  metaboksu albo zakładki w rodzaju ustawień SEO sprowadzi się do zapisania
+  tablicy pod tym kluczem, bez dotykania budowania grafu.
+
+  **Pusty łańcuch nadpisuje, brak klucza nie.** To rozróżnienie jest tu całą
+  treścią: „na tej podstronie nie podawaj telefonu" musi dać się odróżnić od
+  „nie ustawiaj tu nic". Scalanie idzie po obecności klucza, nie po niepustej
+  wartości. Klucze spoza rejestru są odrzucane — meta bywa zapisywana
+  z zewnątrz i nie ma wjeżdżać do ustawień tylnymi drzwiami.
+
+  Nadpisanie zmienia nie tylko wartości, ale i **kształt grafu**: odhaczenie
+  bloku w meta usuwa węzeł z tej jednej podstrony.
+
+- **Filtr `evk_schema_settings`** — drugie wejście dla kodu spoza modułu,
+  dostaje komplet ustawień i numer wpisu.
+
+### Naprawione
+
+- **`WebPage.breadcrumb` i `BlogPosting.breadcrumb` wskazywały donikąd**, gdy
+  blok BreadcrumbList był odhaczony. Trzeci przypadek tej samej klasy co
+  `publisher` naprawiony w 1.169.0. Usterka istniała przy samych ustawieniach
+  globalnych — jedno kliknięcie w „Aktywne bloki JSON-LD". Znalazło ją ogólne
+  sprawdzenie rozwiązywalności wskazań, nie lektura kodu.
+
+- **Obejście walidacji JSON-a w czterech polach.** `descriptions`,
+  `social_links`, `lang_currencies` i `sub_entities` były walidowane, a zaraz
+  potem gałąź `else` nadpisywała wynik **surowym wejściem**. Zepsuty JSON
+  przechodził na wylot i lądował w opcji; `build_*` cicho oddawało pustą listę,
+  więc klient widział zniknięte opisy albo encje bez żadnego komunikatu.
+  Usterka istniała przed tym wydaniem — wyszła dopiero, gdy sanityzacja
+  dostała pierwsze sprawdzenia w historii.
+
+### Testy
+
+- Siatka grafu: 97 → **146 sprawdzeń**. Cztery nowe scenariusze
+  (`nadpisanie-wpisu`, `nadpisanie-puste`, `bez-okruszkow`, `filtr-ustawien`).
+
+- **Sanityzacja ustawień Schema dostała pierwsze sprawdzenia w całym
+  zestawie.** Wcześniej nie sprawdzało jej nic — ani współrzędnych, ani
+  JSON-ów, ani typu działalności spoza listy. Wyszło przy mutacji:
+  „sanityzacja współrzędnych przepuszcza tekst" przechodziła na zielono, bo
+  harness zasiewał opcję wprost, z pominięciem zapisu. Harness ma teraz tryb
+  `--sanityzuj`, `--ustawienia` i `--pola`.
+
+- **Każde pole formularza zakładki musi być w rejestrze** — sprawdzenie
+  parsuje wyrenderowany formularz i porównuje z rejestrem. To dokładnie ta
+  pomyłka, przed którą rejestr broni.
+
+- Filtr sprawdzany **prawdziwym `apply_filters`** — harness ma własny, bo
+  wspólna atrapa jest przelotowa i pod nią filtr byłby dodatkiem, którego nie
+  sprawdza nic.
+
+- **Dowiedzione mutacją:** 22 uszkodzenia, wszystkie zapalają. W tym trzy
+  warianty psucia scalania warstw, dwa gubienia okruszków, dwa obejścia
+  walidacji JSON-a i kontrola do kontroli sprawdzenia formularza.
+
 ## [1.170.0] — 2026-09-10
 
 ### Zmienione

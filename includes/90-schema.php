@@ -5,51 +5,111 @@ if (!defined('ABSPATH')) exit;
  */
 class EVK_Schema {
     private static $instance = null;
-    // ----------------------------------------------------------------
-    // Domyślne ustawienia
-    // ----------------------------------------------------------------
-    private $defaults = [
-        'enabled'          => 0,
-        // Dane organizacji
-        'org_type'         => 'Organization',
-        'operator_name'    => '',   // wydawca strony (Organization); puste = site_name
-        'site_name'        => '',
-        'telephone'        => '',
-        'email'            => '',
-        'street_address'   => '',
-        'locality'         => '',
-        'postal_code'      => '',
-        'country'          => 'PL',
-        'favicon_url'      => '',
-        'contact_type'     => 'customer service',
-        // Dane firmy lokalnej / miejsca (typy LocalBusiness i pochodne → węzeł #place)
-        'geo_lat'          => '',
-        'geo_lng'          => '',
-        'price_range'      => '',
-        'amenities'        => '',   // jedna linia = jedno udogodnienie (amenityFeature)
-        'has_map'          => '',   // URL do Map Google (hasMap)
-        'opening_hours'    => '',   // jedna linia = jedna reguła, np. "Pn-Pt 08:00-20:00"
-        'area_served'      => '',   // jedna linia = jeden obszar (areaServed)
-        // TouristAttraction
-        'attraction_name'  => '',
-        // Social sameAs (JSON array string)
-        'social_links'     => '',
-        // Opisy per język (JSON string: {"pl":"...","en":"...","de":"..."})
-        'descriptions'     => '{}',
-        // Flagi włączające poszczególne bloki
-        'block_website'    => 1,
-        'block_org'        => 1,
-        'block_breadcrumb' => 1,
-        'block_webpage'    => 1,
-        'block_article'    => 1,
-        'block_faq'        => 1,
-        'block_product'    => 1,
-        'block_attraction' => 0,
-        // Dodatkowe obiekty/usługi podrzędne (JSON: [{"type":..,"name":..,"description":..}])
-        'sub_entities'     => '[]',
-        // WooCommerce: lista walut per język (JSON: {"en":"EUR","de":"EUR"})
-        'lang_currencies'  => '{"en":"EUR","de":"EUR"}',
-    ];
+
+    /** Klucz meta wpisu, z którego biorą się nadpisania per podstrona. */
+    public const META_KEY = '_evk_schema';
+
+    // ================================================================
+    // REJESTR PÓL
+    // ================================================================
+    /**
+     * Jedno miejsce, z którego biorą się TRZY rzeczy: wartości domyślne,
+     * sanityzacja przy zapisie i informacja, do którego węzła grafu pole trafia.
+     *
+     * PO CO REJESTR, SKORO BYŁA PŁASKA TABLICA `$defaults`: bo prawda o polu
+     * była rozsypana po trzech miejscach. Domyślna wartość stała w `$defaults`,
+     * sposób sanityzacji w ręcznie wypisanej liście w `sanitize_settings()`,
+     * a przynależność do węzła nigdzie — trzeba było czytać `build_*`.
+     * Przy czternastu polach dawało się to unieść. Rozpiska
+     * (`docs/schema-rozpiska.md`) przewiduje około osiemdziesięciu sześciu
+     * i wtedy pole dopisane do formularza, a zapomniane w liście `$texts`,
+     * przestaje się zapisywać BEZ ŻADNEGO OBJAWU: formularz przyjmuje wartość,
+     * `sanitize_settings()` jej nie przepisuje, po przeładowaniu pole jest puste.
+     *
+     * DLACZEGO NAZWY KLUCZY ZOSTAJĄ BEZ PREFIKSU. Rozpiska proponowała
+     * przemianowanie na `org_*` / `place_*`. Odrzucone przy pisaniu kodu:
+     * te klucze siedzą w bazach żywych stron, a przemianowanie ich to
+     * migracja cudzych danych — klasa zmian, która psuje się po cichu.
+     * Kolumna `wezel` daje dokładnie to, co miał dawać prefiks, i nie dotyka
+     * niczego, co już zapisane. Pola dokładane od wydania 2 dostają prefiksy
+     * od razu, bo tam nie ma czego migrować.
+     *
+     * Kolumna `typ` steruje sanityzacją:
+     *   tekst          — sanitize_text_field
+     *   wieloliniowe   — sanitize_textarea_field
+     *   url            — esc_url_raw
+     *   wspolrzedna    — przecinek → kropka, niebędące liczbą → puste
+     *   checkbox       — 0 albo 1
+     *   json           — przepuszczane, gdy się parsuje; inaczej wartość domyślna
+     *   wlasne         — obsługiwane osobno w sanitize_settings()
+     */
+    public static function pola(): array {
+        return [
+            // ── Sterowanie modułem ──────────────────────────────────────
+            'enabled'          => ['wezel' => 'modul',        'typ' => 'wlasne',       'domyslnie' => 0],
+
+            // ── Organizacja (#organization) ─────────────────────────────
+            'org_type'         => ['wezel' => 'organization', 'typ' => 'wlasne',       'domyslnie' => 'Organization'],
+            'operator_name'    => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'site_name'        => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'telephone'        => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'email'            => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'street_address'   => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'locality'         => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'postal_code'      => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'country'          => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => 'PL'],
+            'favicon_url'      => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'contact_type'     => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => 'customer service'],
+            'social_links'     => ['wezel' => 'organization', 'typ' => 'json',         'domyslnie' => ''],
+            'descriptions'     => ['wezel' => 'organization', 'typ' => 'json',         'domyslnie' => '{}'],
+
+            // ── Miejsce / firma lokalna (#place) ────────────────────────
+            'geo_lat'          => ['wezel' => 'place',        'typ' => 'wspolrzedna',  'domyslnie' => ''],
+            'geo_lng'          => ['wezel' => 'place',        'typ' => 'wspolrzedna',  'domyslnie' => ''],
+            'price_range'      => ['wezel' => 'place',        'typ' => 'tekst',        'domyslnie' => ''],
+            'amenities'        => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'has_map'          => ['wezel' => 'place',        'typ' => 'url',          'domyslnie' => ''],
+            'opening_hours'    => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'area_served'      => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => ''],
+
+            // ── Atrakcja turystyczna (#attraction) ──────────────────────
+            'attraction_name'  => ['wezel' => 'attraction',   'typ' => 'tekst',        'domyslnie' => ''],
+
+            // ── Encje podrzędne (repeater) ──────────────────────────────
+            'sub_entities'     => ['wezel' => 'entities',     'typ' => 'wlasne',       'domyslnie' => '[]'],
+
+            // ── WooCommerce ─────────────────────────────────────────────
+            'lang_currencies'  => ['wezel' => 'product',      'typ' => 'json',         'domyslnie' => '{"en":"EUR","de":"EUR"}'],
+
+            // ── Aktywne bloki JSON-LD ───────────────────────────────────
+            'block_website'    => ['wezel' => 'bloki',        'typ' => 'checkbox',     'domyslnie' => 1],
+            'block_org'        => ['wezel' => 'bloki',        'typ' => 'checkbox',     'domyslnie' => 1],
+            'block_breadcrumb' => ['wezel' => 'bloki',        'typ' => 'checkbox',     'domyslnie' => 1],
+            'block_webpage'    => ['wezel' => 'bloki',        'typ' => 'checkbox',     'domyslnie' => 1],
+            'block_article'    => ['wezel' => 'bloki',        'typ' => 'checkbox',     'domyslnie' => 1],
+            'block_faq'        => ['wezel' => 'bloki',        'typ' => 'checkbox',     'domyslnie' => 1],
+            'block_product'    => ['wezel' => 'bloki',        'typ' => 'checkbox',     'domyslnie' => 1],
+            'block_attraction' => ['wezel' => 'bloki',        'typ' => 'checkbox',     'domyslnie' => 0],
+        ];
+    }
+
+    /** Klucze rejestru o danym typie sanityzacji. */
+    public static function pola_typu(string $typ): array {
+        $out = [];
+        foreach (self::pola() as $klucz => $opis) {
+            if ($opis['typ'] === $typ) $out[] = $klucz;
+        }
+        return $out;
+    }
+
+    /** Wartości domyślne — wyprowadzane z rejestru, nie trzymane osobno. */
+    public static function domyslne(): array {
+        $out = [];
+        foreach (self::pola() as $klucz => $opis) {
+            $out[$klucz] = $opis['domyslnie'];
+        }
+        return $out;
+    }
     // ----------------------------------------------------------------
     public static function get_instance(): self {
         if (self::$instance === null) {
@@ -118,8 +178,53 @@ class EVK_Schema {
             'Park'                   => 'Park / teren zielony',
         ];
     }
-    public function get_settings(): array {
-        return wp_parse_args(get_option('evk_schema', []), $this->defaults);
+    /**
+     * Ustawienia obowiązujące dla danej podstrony.
+     *
+     * TRZY WARSTWY, każda nadpisuje poprzednią:
+     *
+     *   1. wartości domyślne z rejestru
+     *   2. ustawienia globalne (opcja `evk_schema`)
+     *   3. NADPISANIA PER PODSTRONA — meta wpisu `_evk_schema`
+     *
+     * Warstwa 3 jest miejscem, w które wepnie się przyszły metaboks „Schema"
+     * przy wpisie albo osobna zakładka w rodzaju ustawień SEO. Nie ma dziś
+     * żadnego interfejsu, który by ją zapisywał, i to jest jedyne, czego
+     * brakuje: sam mechanizm jest kompletny i sprawdzany
+     * (`tests/php/schema-graf.php`, scenariusz `nadpisanie-wpisu`). Dopisanie
+     * interfejsu sprowadza się do zapisania tablicy pod tym kluczem meta —
+     * bez dotykania budowania grafu.
+     *
+     * PUSTY ŁAŃCUCH NADPISUJE, BRAK KLUCZA NIE. To rozróżnienie jest tu
+     * całą treścią: „wpisz pusto, żeby na tej podstronie nie było telefonu"
+     * musi dać się odróżnić od „nie ustawiaj nic na tej podstronie".
+     * Meta niosąca wyłącznie ustawione klucze załatwia jedno i drugie —
+     * dlatego scalanie idzie po kluczach obecnych w tablicy, a nie po
+     * niepustych wartościach.
+     *
+     * Filtr `evk_schema_settings` dostaje komplet i numer wpisu, więc kod
+     * spoza modułu też może dołożyć warstwę, nie czekając na metaboks.
+     *
+     * @param int $post_id 0 = same ustawienia globalne (strona główna, archiwa).
+     */
+    public function get_settings(int $post_id = 0): array {
+        $ustawienia = wp_parse_args(get_option('evk_schema', []), self::domyslne());
+
+        if ($post_id > 0) {
+            $nadpisania = get_post_meta($post_id, self::META_KEY, true);
+            if (is_array($nadpisania)) {
+                /* Tylko klucze, które modul zna — meta wpisu bywa edytowana
+                   z zewnątrz i nie chcemy, żeby dowolny klucz wjeżdżał do
+                   ustawień tylnymi drzwiami. */
+                foreach (self::pola() as $klucz => $_) {
+                    if (array_key_exists($klucz, $nadpisania)) {
+                        $ustawienia[$klucz] = $nadpisania[$klucz];
+                    }
+                }
+            }
+        }
+
+        return apply_filters('evk_schema_settings', $ustawienia, $post_id);
     }
     public function register_settings(): void {
         register_setting('evoke_one_schema', 'evk_schema', [
@@ -127,49 +232,65 @@ class EVK_Schema {
             'sanitize_callback' => [$this, 'sanitize_settings'],
         ]);
     }
+    /**
+     * Sanityzuje JEDNĄ wartość zgodnie z typem z rejestru.
+     *
+     * Osobno, bo tę samą regułę stosuje i zapis ustawień globalnych,
+     * i — gdy dojdzie — zapis nadpisań per podstrona. Dwie kopie tej
+     * logiki rozjechałyby się przy pierwszym nowym typie pola.
+     */
+    public static function sanityzuj_wartosc(string $typ, $wartosc, $domyslnie) {
+        switch ($typ) {
+            case 'checkbox':
+                return !empty($wartosc) ? 1 : 0;
+
+            case 'url':
+                return esc_url_raw((string) $wartosc);
+
+            case 'wieloliniowe':
+                return sanitize_textarea_field((string) $wartosc);
+
+            case 'wspolrzedna':
+                // Przecinek dziesiętny na kropkę; cokolwiek innego niż liczba → puste.
+                $v = str_replace(',', '.', sanitize_text_field((string) $wartosc));
+                return ($v !== '' && !is_numeric($v)) ? '' : $v;
+
+            case 'json':
+                $raw = (string) $wartosc;
+                json_decode($raw);
+                return (json_last_error() === JSON_ERROR_NONE) ? $raw : $domyslnie;
+
+            case 'tekst':
+            default:
+                return sanitize_text_field((string) $wartosc);
+        }
+    }
+
     public function sanitize_settings($input): array {
         $input = is_array($input) ? $input : [];
         $clean = [];
+
+        /* PĘTLA PO REJESTRZE, a nie po ręcznie wypisanych listach.
+           Wcześniej stały tu cztery listy nazw (`$checkboxes`, `$texts`,
+           wieloliniowe, JSON-y) i pole dopisane do formularza, a pominięte
+           w liście, przestawało się zapisywać BEZ ŻADNEGO OBJAWU. Teraz
+           dopisanie pola do `pola()` wystarcza; nie ma drugiego miejsca,
+           w którym można je przeoczyć. */
+        foreach (self::pola() as $klucz => $opis) {
+            if ($opis['typ'] === 'wlasne') continue;   // niżej, każde ze swojego powodu
+            $clean[$klucz] = self::sanityzuj_wartosc(
+                $opis['typ'],
+                $input[$klucz] ?? $opis['domyslnie'],
+                $opis['domyslnie']
+            );
+        }
+
         // 'enabled' zarządzany przez AJAX toggle — zachowaj gdy brak w POST
         $clean['enabled'] = evk_preserve_toggle($input, 'evk_schema');
-        // Checkboxy
-        $checkboxes = [
-            'block_website', 'block_org', 'block_breadcrumb',
-            'block_webpage', 'block_article', 'block_faq', 'block_product',
-            'block_attraction',
-        ];
-        foreach ($checkboxes as $key) {
-            $clean[$key] = !empty($input[$key]) ? 1 : 0;
-        }
+
         // Typ działalności — tylko z listy dozwolonych
         $org_type = sanitize_text_field($input['org_type'] ?? 'Organization');
         $clean['org_type'] = array_key_exists($org_type, self::org_types()) ? $org_type : 'Organization';
-        // Teksty jednoliniowe
-        $texts = [
-            'operator_name', 'site_name', 'telephone', 'email', 'street_address',
-            'locality', 'postal_code', 'country', 'favicon_url', 'contact_type',
-            'geo_lat', 'geo_lng', 'price_range', 'attraction_name',
-        ];
-        foreach ($texts as $key) {
-            $clean[$key] = sanitize_text_field($input[$key] ?? '');
-        }
-        // Współrzędne — tylko liczby (kropka dziesiętna, opcjonalny minus)
-        foreach (['geo_lat', 'geo_lng'] as $key) {
-            $clean[$key] = str_replace(',', '.', $clean[$key]);
-            if ($clean[$key] !== '' && !is_numeric($clean[$key])) $clean[$key] = '';
-        }
-        // Link do mapy
-        $clean['has_map'] = esc_url_raw($input['has_map'] ?? '');
-        // Pola wieloliniowe (jedna linia = jedna pozycja)
-        foreach (['amenities', 'opening_hours', 'area_served'] as $key) {
-            $clean[$key] = sanitize_textarea_field($input[$key] ?? '');
-        }
-        // JSON-y (opisy, social, waluty)
-        foreach (['descriptions', 'social_links', 'lang_currencies'] as $key) {
-            $raw = $input[$key] ?? '{}';
-            json_decode($raw); // test poprawności
-            $clean[$key] = (json_last_error() === JSON_ERROR_NONE) ? $raw : $this->defaults[$key];
-        }
 		// Opisy per język (z osobnych pól formularza)
 if (isset($_POST['evk_schema_desc']) && is_array($_POST['evk_schema_desc'])) {
     $descs = [];
@@ -181,14 +302,22 @@ if (isset($_POST['evk_schema_desc']) && is_array($_POST['evk_schema_desc'])) {
     }
     $clean['descriptions'] = wp_json_encode($descs, JSON_UNESCAPED_UNICODE);
 } else {
-    $clean['descriptions'] = $input['descriptions'] ?? $this->defaults['descriptions'];
+    /* Wynik pętli rejestru, a NIE surowe `$input`. Wcześniej stało tu
+       sięgnięcie po wejście z pominięciem walidacji JSON-a, którą
+       pętla właśnie wykonała — zepsuty JSON przechodził na wylot
+       i lądował w opcji. */
+    $clean['descriptions'] = $clean['descriptions'];
 }
 // Social links
 if (isset($_POST['evk_schema_socials'])) {
     $lines = array_filter(array_map('esc_url_raw', explode("\n", wp_unslash($_POST['evk_schema_socials']))));
     $clean['social_links'] = wp_json_encode(array_values($lines));
 } else {
-    $clean['social_links'] = $input['social_links'] ?? $this->defaults['social_links'];
+    /* Wynik pętli rejestru, a NIE surowe `$input`. Wcześniej stało tu
+       sięgnięcie po wejście z pominięciem walidacji JSON-a, którą
+       pętla właśnie wykonała — zepsuty JSON przechodził na wylot
+       i lądował w opcji. */
+    $clean['social_links'] = $clean['social_links'];
 }
 // Waluty per język
 if (isset($_POST['evk_schema_curr']) && is_array($_POST['evk_schema_curr'])) {
@@ -202,7 +331,11 @@ if (isset($_POST['evk_schema_curr']) && is_array($_POST['evk_schema_curr'])) {
     }
     $clean['lang_currencies'] = wp_json_encode($currs);
 } else {
-    $clean['lang_currencies'] = $input['lang_currencies'] ?? $this->defaults['lang_currencies'];
+    /* Wynik pętli rejestru, a NIE surowe `$input`. Wcześniej stało tu
+       sięgnięcie po wejście z pominięciem walidacji JSON-a, którą
+       pętla właśnie wykonała — zepsuty JSON przechodził na wylot
+       i lądował w opcji. */
+    $clean['lang_currencies'] = $clean['lang_currencies'];
 }
 // Podrzędne obiekty/usługi (repeater — równoległe tablice type/name/description)
 if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
@@ -224,7 +357,14 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
     }
     $clean['sub_entities'] = wp_json_encode($subs, JSON_UNESCAPED_UNICODE);
 } else {
-    $clean['sub_entities'] = $input['sub_entities'] ?? $this->defaults['sub_entities'];
+    /* Bez repeatera w POST bierzemy wartość z wejścia, ale PRZEZ walidację —
+       inaczej zepsuty JSON wchodzi do opcji i `build_sub_entities()` cicho
+       oddaje pustą listę, a klient widzi zniknięte encje bez komunikatu. */
+    $clean['sub_entities'] = self::sanityzuj_wartosc(
+        'json',
+        $input['sub_entities'] ?? self::pola()['sub_entities']['domyslnie'],
+        self::pola()['sub_entities']['domyslnie']
+    );
 }
         return $clean;
     }
@@ -234,7 +374,15 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
     public function render_graph(): void {
         if (is_admin()) return;
         if (function_exists('tl_is_bricks_editor') && tl_is_bricks_editor()) return;
-        $s = $this->get_settings();
+
+        /* Ustawienia pobierane RAZ, dla bieżącej podstrony, i przekazywane
+           dalej — zamiast dosięgane osobno przez `build_webpage()`
+           i `build_article()`. Dwa powody: jedno żądanie ma jedną prawdę
+           o ustawieniach (przy nadpisaniach per podstrona to przestaje być
+           kosmetyką), i pytamy bazę raz zamiast trzy razy. */
+        global $post;
+        $post_id = (is_singular() && $post) ? (int) $post->ID : 0;
+        $s = $this->get_settings($post_id);
         if (empty($s['enabled'])) return;
         $lang     = function_exists('get_current_lang') ? get_current_lang() : 'pl';
         $home_url = $this->home_url($lang);
@@ -261,9 +409,8 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
             $graph[] = $sub;
         }
         // Bloki per-strona
-        if (is_singular()) {
-            global $post;
-            $permalink = get_permalink($post->ID);
+        if ($post_id) {
+            $permalink = get_permalink($post_id);
             // Ten sam łańcuch źródeł co meta tagi (Bricks → zakładka SEO → fallback)
             if (function_exists('evk_seo_get_meta')) {
                 $og_image = evk_seo_get_meta($post->ID)['og_image'];
@@ -277,11 +424,11 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
             }
             // 4. WebPage
             if (!empty($s['block_webpage'])) {
-                $graph[] = $this->build_webpage($post, $permalink, $home_url, $og_image);
+                $graph[] = $this->build_webpage($s, $post, $permalink, $home_url, $og_image);
             }
             // 5. Article / BlogPosting
             if (!empty($s['block_article']) && is_single() && get_post_type() === 'post') {
-                $graph[] = $this->build_article($post, $permalink, $home_url, $og_image);
+                $graph[] = $this->build_article($s, $post, $permalink, $home_url, $og_image);
             }
             // 6. FAQPage (Bricks accordions)
             if (!empty($s['block_faq'])) {
@@ -449,7 +596,7 @@ private function build_website(array $s, string $home_url, string $lang): array 
         'itemListElement' => $items,
     ];
 }
-private function build_article(WP_Post $post, string $permalink, string $home_url, string $og_image): array {
+private function build_article(array $s, WP_Post $post, string $permalink, string $home_url, string $og_image): array {
     $author_id   = (int) $post->post_author;
     $author_name = get_the_author_meta('display_name', $author_id);
     $author_url  = get_author_posts_url($author_id);
@@ -483,8 +630,13 @@ private function build_article(WP_Post $post, string $permalink, string $home_ur
        Zdejmujemy po zbudowaniu, a nie dopisujemy warunkowo, żeby kolejność
        kluczy została ta sama — inaczej plik wzorcowy pokazywałby przy każdej
        takiej zmianie przetasowanie zamiast różnicy w treści. */
-    if (empty($this->get_settings()['block_org'])) {
+    if (empty($s['block_org'])) {
         unset($article['publisher']);
+    }
+
+    // Okruszki — jak w build_webpage(), z tego samego powodu.
+    if (empty($s['block_breadcrumb'])) {
+        unset($article['breadcrumb']);
     }
 
     if ($excerpt) {
@@ -507,8 +659,7 @@ private function build_article(WP_Post $post, string $permalink, string $home_ur
     return $article;
 }
 
-private function build_webpage(WP_Post $post, string $permalink, string $home_url, string $og_image): array {
-    $s = $this->get_settings();
+private function build_webpage(array $s, WP_Post $post, string $permalink, string $home_url, string $og_image): array {
 
     // Tytuł i opis — ten sam łańcuch źródeł co meta tagi
     // (Bricks: Ustawienia strony → zakładka SEO Evoke → fallback)
@@ -540,6 +691,15 @@ private function build_webpage(WP_Post $post, string $permalink, string $home_ur
         'isPartOf'    => ['@id' => $home_url . '#website'],
         'breadcrumb'  => ['@id' => $permalink . '#breadcrumb'],
     ];
+
+    /* Okruszki TYLKO wtedy, gdy węzeł BreadcrumbList naprawdę powstaje.
+       Ta sama klasa usterki co `publisher` naprawiony w 1.169.0: wskazanie
+       na nieistniejący węzeł jest poprawnym JSON-em, więc nie zauważa go
+       ani parser, ani oko. Wyszło z ogólnego sprawdzenia rozwiązywalności
+       wskazań, nie z lektury kodu. */
+    if (empty($s['block_breadcrumb'])) {
+        unset($page['breadcrumb']);
+    }
 
     if ($this->has_place($s)) {
         $page['about'] = ['@id' => $home_url . '#place'];
