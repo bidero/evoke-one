@@ -22,7 +22,7 @@
     {
       "@type": "Organization",
       "@id": "https://example.test/#organization",
-      "name": "Gabinet Przykładowy",
+      "name": "Przykładowa Klinika sp. z o.o.",
       "url": "https://example.test/",
       "description": "Opis z ustawień WordPressa",
       "address": {
@@ -66,12 +66,12 @@
         "postalCode": "",
         "addressCountry": "PL"
       },
-      "parentOrganization": {
-        "@id": "https://example.test/#organization"
-      },
       "medicalSpecialty": [
         "Dentistry"
-      ]
+      ],
+      "parentOrganization": {
+        "@id": "https://example.test/#organization"
+      }
     }
   ]
 }

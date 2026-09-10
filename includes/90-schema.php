@@ -605,12 +605,34 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
             $graph[] = $this->build_website($s, $home_url, $lang);
 
         }
-        // 2. Organization — wydawca strony (zawsze czysta Organization)
+        /* 2. Organization — wydawca strony.
+
+           JEDEN WĘZEŁ CZY DWA, decyduje pole „Nazwa operatora".
+
+           Do 1.174.0 typ działalności ZAWSZE tworzył osobny węzeł #place,
+           a #organization zostawał czystą Organization. Przy jednej firmie
+           dawało to dwa węzły o tej samej nazwie, z których jeden wskazywał
+           drugi jako swojego rodzica — zgłoszone z użycia jako „redundancja
+           i zapętlenie", i słusznie: to nie jest struktura, tylko powtórzenie.
+
+           Teraz: gdy operator jest naprawdę inną firmą, węzły zostają dwa
+           (sieć hoteli i jeden hotel to realnie dwie encje). Gdy operatora
+           nie podano albo jest tą samą firmą — JEDEN węzeł `#organization`
+           typu działalności. Jest to poprawne, bo LocalBusiness i pochodne
+           dziedziczą i z `Organization`, i z `Place`. */
+        $scalone = $this->scalone($s);
+
         if (!empty($s['block_org'])) {
-            $graph[] = $this->build_organization($s, $home_url, $lang);
+            $org = $this->build_organization($s, $home_url, $lang);
+            if ($scalone) {
+                $org['@type'] = array_key_exists($s['org_type'] ?? '', self::org_types())
+                    ? $s['org_type'] : 'LocalBusiness';
+                $org = $this->scal_organizacje_z_miejscem($org, $s);
+            }
+            $graph[] = $org;
         }
-        // 2b. Miejsce / firma lokalna (#place) — gdy wybrano typ działalności
-        if ($this->has_place($s)) {
+        // 2b. Osobny węzeł miejsca — tylko przy odrębnym operatorze.
+        if ($this->has_place($s) && !$scalone) {
             $graph[] = $this->build_place($s, $home_url, $lang);
         }
         // 2c. TouristAttraction (obiekt/miejsce jako atrakcja turystyczna)
@@ -1034,8 +1056,10 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
         unset($page['breadcrumb']);
     }
 
-    if ($this->has_place($s)) {
-        $page['about'] = ['@id' => $home_url . '#place'];
+    /* `about` wskazuje węzeł obiektu, gdy taki jest — a po scaleniu jest nim
+       sam `#organization`, więc wskazanie trafia tam i dalej jest poprawne. */
+    if ($miejsce = $this->miejsce_id($s, $home_url)) {
+        $page['about'] = ['@id' => $miejsce];
     } elseif (!empty($s['block_org'])) {
         $page['about'] = ['@id' => $home_url . '#organization'];
     }
@@ -1152,6 +1176,57 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
                 ? $s['favicon_url']
                 : untrailingslashit(get_option('home')) . $s['favicon_url'];
         }
+        $place = array_merge($place, $this->wlasciwosci_miejsca($s));
+
+        /* parentOrganization TYLKO w trybie dwuwęzłowym — czyli gdy operator
+           jest naprawdę inną firmą niż obiekt. Przy jednej firmie oba węzły
+           nosiły tę samą nazwę i jeden wskazywał drugi jako swojego rodzica;
+           zgłoszone z użycia jako „redundancja i zapętlenie". W tym przypadku
+           węzły są teraz SCALONE i ten wskaźnik nie ma po co istnieć. */
+        if (!empty($s['block_org'])) {
+            $place['parentOrganization'] = ['@id' => $home_url . '#organization'];
+        }
+        return $place;
+    }
+
+    /**
+     * Dokłada właściwości obiektu do węzła organizacji.
+     *
+     * Dwie właściwości mają odpowiednik po obu stronach i tu się spotykają:
+     *   · `areaServed` — listy się SUMUJĄ (bez powtórzeń): jedna firma może
+     *     obsługiwać obszar szerszy niż zasięg samego lokalu.
+     *   · `faxNumber` — pojedyncza wartość, więc wygrywa numer firmy;
+     *     numer obiektu wchodzi tylko wtedy, gdy firmowego nie podano.
+     * Bez tego jedna z dwóch wartości ginęłaby po cichu przy scaleniu.
+     */
+    private function scal_organizacje_z_miejscem(array $org, array $s): array {
+        $miejsce = $this->wlasciwosci_miejsca($s);
+
+        if (isset($org['areaServed'], $miejsce['areaServed'])) {
+            $miejsce['areaServed'] = array_values(array_unique(
+                array_merge($org['areaServed'], $miejsce['areaServed'])
+            ));
+        }
+        if (isset($org['faxNumber'], $miejsce['faxNumber'])) {
+            unset($miejsce['faxNumber']);
+        }
+
+        return array_merge($org, $miejsce);
+    }
+
+    /**
+     * Właściwości opisujące FIZYCZNY OBIEKT — bez `@id`, `@type` i danych
+     * wspólnych z organizacją (nazwa, adres, telefon).
+     *
+     * Osobno, bo trafiają w dwa miejsca: do węzła `#place` w trybie
+     * dwuwęzłowym i wprost do `#organization`, gdy węzły są scalone.
+     * Dwie kopie tej listy rozjechałyby się przy pierwszym nowym polu —
+     * a jest ich tu ponad dwadzieścia.
+     */
+    private function wlasciwosci_miejsca(array $s): array {
+        $place = [];
+        $org_type = array_key_exists($s['org_type'] ?? '', self::org_types())
+            ? $s['org_type'] : 'LocalBusiness';
         if ($geo = $this->build_geo($s)) {
             $place['geo'] = $geo;
         }
@@ -1178,10 +1253,6 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
         $areas = self::linie($s['area_served']);
         if (!empty($areas)) {
             $place['areaServed'] = $areas;
-        }
-        // Powiązanie z wydawcą strony
-        if (!empty($s['block_org'])) {
-            $place['parentOrganization'] = ['@id' => $home_url . '#organization'];
         }
 
         /* Pola wspólne dla wszystkich branż (1.174.0). Bez bramki presetu —
@@ -1310,9 +1381,9 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
             if ($v !== null) $att[$wlasciwosc] = $v;
         }
 
-        // Powiązanie z węzłem miejsca (#place), jeśli istnieje
-        if ($this->has_place($s)) {
-            $att['containedInPlace'] = ['@id' => $home_url . '#place'];
+        // Powiązanie z węzłem obiektu, jeśli w grafie istnieje.
+        if ($miejsce = $this->miejsce_id($s, $home_url)) {
+            $att['containedInPlace'] = ['@id' => $miejsce];
         }
         return $att;
     }
@@ -1326,7 +1397,7 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
         $raw = json_decode($s['sub_entities'] ?? '[]', true);
         if (!is_array($raw) || empty($raw)) return [];
         $allowed   = self::sub_entity_types();
-        $parent_id = $this->has_place($s) ? $home_url . '#place' : '';
+        $parent_id = $this->miejsce_id($s, $home_url);
         $out = [];
         $i   = 0;
         foreach ($raw as $entry) {
@@ -1450,6 +1521,56 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
             'longitude' => $s['geo_lng'],
         ];
     }
+    /**
+     * Czy operator strony to NAPRAWDĘ inna firma niż opisywany obiekt?
+     *
+     * Rozstrzyga, czy graf ma jeden węzeł, czy dwa. Pole „Nazwa operatora"
+     * ma sens tylko wtedy, gdy wydawca strony jest inną encją niż obiekt —
+     * sieć hoteli i jeden hotel, fundacja i prowadzona przez nią kawiarnia.
+     * Gdy zostawione puste albo wpisane tak samo jak nazwa obiektu, mamy
+     * JEDNĄ firmę i dwa węzły są redundancją, a nie strukturą.
+     */
+    private function osobny_operator(array $s): bool {
+        $operator = trim((string) ($s['operator_name'] ?? ''));
+        $obiekt   = trim((string) ($s['site_name'] ?? ''));
+        return $operator !== '' && $operator !== $obiekt;
+    }
+
+    /**
+     * `@id` węzła, który reprezentuje FIZYCZNY OBIEKT — albo pusty łańcuch,
+     * gdy w grafie takiego węzła nie ma.
+     *
+     * W trybie dwuwęzłowym to `#place`. Po scaleniu obiekt JEST węzłem
+     * `#organization` (typ działalności dziedziczy i z Organization,
+     * i z Place), więc wskazania `containedInPlace` i `about` idą tam —
+     * i dalej trafiają w istniejący, poprawny typ.
+     */
+    private function miejsce_id(array $s, string $home_url): string {
+        if (!$this->has_place($s)) return '';
+        return $this->scalone($s) ? $home_url . '#organization' : $home_url . '#place';
+    }
+
+    /**
+     * Czy obiekt i wydawca są JEDNYM węzłem grafu.
+     *
+     * Trzy warunki, wszystkie konieczne:
+     *   · jest typ działalności (inaczej nie ma czego scalać),
+     *   · operator nie jest odrębną firmą,
+     *   · blok Organization jest WŁĄCZONY.
+     *
+     * Trzeci warunek wyszedł ze sprawdzenia rozwiązywalności wskazań przy
+     * pisaniu 1.175.0: przy odhaczonym bloku Organization scalony węzeł nie
+     * miałby gdzie zamieszkać — `#organization` nie powstaje — a `about`
+     * i `containedInPlace` wskazywałyby donikąd. W tym układzie wracamy
+     * do osobnego `#place`, bo obiekt istnieje niezależnie od tego, czy
+     * ktoś chce mieć w grafie wydawcę strony.
+     */
+    private function scalone(array $s): bool {
+        return $this->has_place($s)
+            && !$this->osobny_operator($s)
+            && !empty($s['block_org']);
+    }
+
     /** Czy ustawienia definiują osobny węzeł miejsca (#place)? */
     private function has_place(array $s): bool {
         $type = $s['org_type'] ?? 'Organization';

@@ -2,6 +2,75 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.175.0] — 2026-09-10
+
+Wydanie z użycia: pierwsza strona wypełniła zakładkę prawdziwymi danymi
+i graf pokazał **redundancję, której nie widać było na danych testowych**.
+
+### Zmienione
+
+- **Jedna firma to teraz jeden węzeł, nie dwa.** Do 1.174.0 wybór typu
+  działalności zawsze tworzył osobny `#place`, a `#organization` zostawał
+  czystą `Organization`. Przy jednej firmie dawało to dwa węzły o tej samej
+  nazwie, z których jeden wskazywał drugi jako swojego rodzica
+  (`parentOrganization`) — zapętlenie, nie struktura.
+
+  Rozstrzyga pole **„Nazwa operatora"**:
+
+  | Operator | Graf |
+  |---|---|
+  | pusty albo równy nazwie obiektu | **jeden** węzeł `#organization` typu działalności |
+  | inna firma | **dwa** węzły, `#place` z `parentOrganization` → `#organization` |
+
+  Scalenie jest poprawne, bo `LocalBusiness` i typy pochodne dziedziczą
+  **i z `Organization`, i z `Place`** — jeden węzeł unosi obie role.
+  Sieć hoteli i pojedynczy hotel to realnie dwie encje i tam dwa węzły
+  zostają.
+
+- **Wskazania idą za scaleniem.** `about` na `WebPage`, `containedInPlace`
+  na `TouristAttraction` i na encjach podrzędnych wskazują `#organization`,
+  gdy węzły są scalone, a `#place`, gdy nie są. Adres węzła obiektu liczy
+  jedna metoda (`miejsce_id()`), więc nie ma jak rozjechać tych trzech
+  miejsc osobno.
+
+- **Kolizje właściwości przy scaleniu rozstrzygnięte jawnie.** Dwie
+  właściwości istnieją po obu stronach: `areaServed` **sumuje się**
+  bez powtórzeń (firma bywa szersza niż zasięg lokalu), a `faxNumber`
+  jest pojedynczy, więc wygrywa numer firmy — numer obiektu wchodzi tylko
+  wtedy, gdy firmowego nie podano. Bez tego jedna z wartości ginęłaby
+  po cichu.
+
+- **Odhaczony blok Organization wraca do dwóch węzłów.** Wyszło ze
+  sprawdzenia rozwiązywalności wskazań: bez bloku Organization węzeł
+  `#organization` nie powstaje, więc scalony obiekt nie miałby gdzie
+  zamieszkać, a `about` wskazywałoby donikąd. Obiekt istnieje niezależnie
+  od tego, czy ktoś chce mieć w grafie wydawcę strony.
+
+### Sprawdzone
+
+Zgłoszenie z użycia miało pięć punktów. **Trafiony był jeden** — powyższy.
+Pozostałe cztery opisują JSON-LD, którego ten moduł nie produkuje; są teraz
+przykryte nazwanymi sprawdzeniami, żeby ktoś kiedyś nie „poprawił" ich
+w złą stronę:
+
+| Zgłoszenie | Stan faktyczny |
+|---|---|
+| `SearchAction` siedzi na `WebPage` | jest na **`WebSite`**, zgodnie z dokumentacją Google; na `WebPage` nie ma go wcale |
+| `addressCountry` jako obiekt `Country` | jest **łańcuchem** `"PL"` |
+| `dayOfWeek` jako pełne adresy schema.org | są **skrótami**: `["Monday","Tuesday",…]` |
+| brak `@context` | **jest**: `"@context": "https://schema.org"` |
+
+Jeśli na stronie widać `Country` albo `dayOfWeek` w adresach — drukuje
+to coś innego niż ta wtyczka (druga wtyczka SEO albo własny blok
+w Bricksie). Dwa bloki JSON-LD na jednej stronie nie są błędem dla Google,
+ale sprzeczne dane w nich już tak.
+
+### Testy
+
+272 sprawdzenia (+18). Nowe scenariusze: `agencja` (odtworzenie zgłoszonej
+konfiguracji), `scalenie-kolizje` (obie właściwości kolidujące wypełnione
+po obu stronach). Wszystkie mutacje na dopisanych sprawdzeniach odpalają.
+
 ## [1.174.0] — 2026-09-10
 
 Czwarte z pięciu wydań przebudowy zakładki Schema: **miejsce, atrakcja,

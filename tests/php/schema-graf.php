@@ -408,6 +408,46 @@ $scenariusze = [
         ];
     },
 
+    /* KOLIZJE PRZY SCALANIU — cztery rzeczy naraz, których nie dotykał
+       żaden inny scenariusz (wszystkie cztery wyszły z mutacji, które
+       przechodziły na zielono):
+
+         · operator wpisany TĄ SAMĄ nazwą co obiekt — ma znaczyć „jedna
+           firma", tak samo jak pole puste,
+         · `org_area_served` I `area_served` naraz — obie listy mapują się
+           na `areaServed`, więc przy scaleniu jedna mogłaby zniknąć,
+         · `org_fax` I `place_fax` naraz — `faxNumber` jest pojedyncze,
+         · PODSTRONA, nie strona główna — bo `about` powstaje tylko na
+           WebPage i tylko tam widać, dokąd wskazuje po scaleniu. */
+    'scalenie-kolizje' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'LegalService',
+            'site_name'     => 'Kancelaria Przykładowa',
+            'operator_name' => 'Kancelaria Przykładowa',   // TA SAMA nazwa
+            'street_address' => 'ul. Przykładowa 1', 'locality' => 'Warszawa',
+            'org_area_served' => "Polska\nmazowieckie",
+            'area_served'     => "Warszawa\nmazowieckie",  // „mazowieckie" w obu
+            'org_fax'   => '+48 11 111 11 11',
+            'place_fax' => '+48 22 222 22 22',
+        ];
+        $GLOBALS['strony'][51] = new WP_Post(['ID' => 51, 'post_title' => 'Kontakt']);
+        $GLOBALS['permalinki'][51] = 'https://example.test/kontakt/';
+        $GLOBALS['current_post'] = 51;
+    },
+
+    /* Odtworzenie konfiguracji zgłoszonej z użycia: agencja jako
+       ProfessionalService, BEZ osobnego operatora. */
+    'agencja' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'ProfessionalService',
+            'site_name' => 'Evoke Design Studio',
+            'street_address' => 'ul. Przykładowa 1', 'locality' => 'Warszawa',
+            'postal_code' => '00-000', 'country' => 'PL',
+            'telephone' => '+48 111 222 333',
+            'opening_hours' => "Pn-Pt 09:00-17:00",
+        ];
+    },
+
     /* Pola branżowe wypełnione KOMPLETNIE, ale dla trzech różnych branż —
        żeby widać było, że każda dostaje swoje i tylko swoje. */
     'hotel' => function () {
@@ -440,6 +480,11 @@ $scenariusze = [
     'gabinet' => function () {
         $GLOBALS['options']['evk_schema'] = [
             'enabled' => 1, 'org_type' => 'Dentist', 'site_name' => 'Gabinet Przykładowy',
+            /* Odrębny operator, więc graf zostaje DWUWĘZŁOWY — i tylko dzięki
+               temu da się sprawdzić, że oferta usług siedzi na firmie,
+               a nie na gabinecie. Po scaleniu ten rozdział przestaje istnieć,
+               bo węzeł jest jeden. */
+            'operator_name' => 'Przykładowa Klinika sp. z o.o.',
             'street_address' => 'Leśna 4', 'locality' => 'Mikołajki',
             'place_specialty' => "Dentistry",
             'org_offer_catalog' => "Przegląd\nLeczenie kanałowe",

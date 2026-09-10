@@ -20,7 +20,7 @@
       }
     },
     {
-      "@type": "Organization",
+      "@type": "Resort",
       "@id": "https://example.test/#organization",
       "name": "Ośrodek Przykładowy",
       "url": "https://example.test/",
@@ -52,25 +52,7 @@
             "English"
           ]
         }
-      ]
-    },
-    {
-      "@type": "Resort",
-      "@id": "https://example.test/#place",
-      "name": "Ośrodek Przykładowy",
-      "url": "https://example.test/",
-      "description": "Opis z ustawień WordPressa",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "Leśna 4",
-        "addressLocality": "Mikołajki",
-        "postalCode": "",
-        "addressCountry": "PL"
-      },
-      "telephone": "+48 111 222 333",
-      "parentOrganization": {
-        "@id": "https://example.test/#organization"
-      },
+      ],
       "specialOpeningHoursSpecification": [
         {
           "@type": "OpeningHoursSpecification",
@@ -151,7 +133,7 @@
       "publicAccess": true,
       "isAccessibleForFree": true,
       "containedInPlace": {
-        "@id": "https://example.test/#place"
+        "@id": "https://example.test/#organization"
       }
     },
     {
@@ -163,7 +145,7 @@
       "telephone": "+48 999 888 777",
       "image": "https://przyklad.test/plaza.jpg",
       "containedInPlace": {
-        "@id": "https://example.test/#place"
+        "@id": "https://example.test/#organization"
       }
     },
     {
@@ -171,7 +153,7 @@
       "@id": "https://example.test/#entity-2",
       "name": "Parking",
       "containedInPlace": {
-        "@id": "https://example.test/#place"
+        "@id": "https://example.test/#organization"
       }
     }
   ]

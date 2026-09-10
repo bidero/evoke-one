@@ -5,7 +5,7 @@
       "@type": "WebSite",
       "@id": "https://example.test/#website",
       "url": "https://example.test/",
-      "name": "Restauracja Przykładowa",
+      "name": "Evoke Design Studio",
       "description": "Opis z ustawień WordPressa",
       "publisher": {
         "@id": "https://example.test/#organization"
@@ -20,29 +20,41 @@
       }
     },
     {
-      "@type": "Restaurant",
+      "@type": "ProfessionalService",
       "@id": "https://example.test/#organization",
-      "name": "Restauracja Przykładowa",
+      "name": "Evoke Design Studio",
       "url": "https://example.test/",
       "description": "Opis z ustawień WordPressa",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "Leśna 4",
-        "addressLocality": "Mikołajki",
-        "postalCode": "",
+        "streetAddress": "ul. Przykładowa 1",
+        "addressLocality": "Warszawa",
+        "postalCode": "00-000",
         "addressCountry": "PL"
       },
-      "servesCuisine": [
-        "polska",
-        "wegetariańska"
-      ],
-      "hasMenu": "https://przyklad.test/menu",
-      "acceptsReservations": true,
-      "hasDriveThroughService": false,
-      "starRating": {
-        "@type": "Rating",
-        "ratingValue": 3
-      }
+      "telephone": "+48 111 222 333",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+48 111 222 333",
+        "contactType": "customer service",
+        "availableLanguage": [
+          "Polish"
+        ]
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday"
+          ],
+          "opens": "09:00",
+          "closes": "17:00"
+        }
+      ]
     }
   ]
 }

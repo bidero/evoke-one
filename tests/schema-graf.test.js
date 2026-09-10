@@ -86,6 +86,13 @@ function wskazania(g) {
 /** Węzeł danego typu, albo undefined. */
 const wezel = (g, typ) => g['@graph'].find((n) => n['@type'] === typ);
 
+/**
+ * Węzeł po sufiksie `@id` — po scaleniu w 1.175.0 typ węzła firmy zależy od
+ * konfiguracji (`Organization` albo typ działalności), więc szukanie po typie
+ * przestało być niezawodne. `@id` jest stały.
+ */
+const wezelId = (g, sufiks) => g['@graph'].find((n) => n['@id'].endsWith(sufiks));
+
 /** Wszystkie łańcuchy w strukturze — do polowania na puste wartości. */
 function lancuchy(o, out = []) {
   if (typeof o === 'string') out.push(o);
@@ -98,7 +105,7 @@ function lancuchy(o, out = []) {
    sprawdzeniem, że plik jest pusty. */
 const SCENARIUSZE = ['minimalny', 'firma', 'firma-en', 'atrakcja',
                      'podstrona', 'wpis', 'produkt', 'bez-org', 'faq-off',
-                     'organizacja-pelna', 'miejsce-pelne', 'trojstan-intem', 'hotel', 'restauracja', 'gabinet', 'wyciek-presetu',
+                     'organizacja-pelna', 'miejsce-pelne', 'trojstan-intem', 'agencja', 'scalenie-kolizje', 'hotel', 'restauracja', 'gabinet', 'wyciek-presetu',
                      'nadpisanie-wpisu', 'nadpisanie-puste', 'bez-okruszkow',
                      'filtr-ustawien'];
 
@@ -192,11 +199,113 @@ module.exports = async function (t) {
                      : wskazania(grafy[s]).length + ' wskazań');
   }
 
-  t.section('rozdział #organization / #place');
+  t.section('jeden węzeł czy dwa — decyduje nazwa operatora');
 
-  /* Cała zakładka stoi na tej zasadzie: wydawca strony to zawsze czysta
-     Organization, a typ działalności tworzy OSOBNY węzeł miejsca. Zlanie
-     ich w jeden jest najbardziej prawdopodobnym skutkiem przebudowy. */
+  /* ZGŁOSZONE Z UŻYCIA po wypełnieniu prawdziwych danych: „redundancja
+     i pętla w parentOrganization — ProfessionalService wskazuje jako
+     rodzica tę samą firmę".
+
+     Do 1.175.0 typ działalności ZAWSZE tworzył osobny węzeł #place, a
+     #organization zostawał czystą Organization. Przy jednej firmie dawało
+     to dwa węzły o tej samej nazwie, z których jeden wskazywał drugi jako
+     rodzica. To nie była struktura, tylko powtórzenie.
+
+     Teraz decyduje pole „Nazwa operatora": wypełnione inną nazwą → dwa
+     węzły (sieć hoteli i jeden hotel to realnie dwie encje); puste albo
+     takie samo → jeden węzeł typu działalności. Poprawne, bo LocalBusiness
+     i pochodne dziedziczą i z `Organization`, i z `Place`. */
+  const ag = grafy.agencja['@graph'];
+  t.check('bez osobnego operatora graf ma JEDEN węzeł firmy, nie dwa',
+    ag.filter((n) => /#(organization|place)$/.test(n['@id'])).length === 1,
+    ag.map((n) => n['@type']).join(', '));
+  t.check('i jest nim #organization typu działalności',
+    wezel(grafy.agencja, 'ProfessionalService')?.['@id'] === 'https://example.test/#organization');
+  t.check('bez parentOrganization wskazującego samego siebie',
+    !('parentOrganization' in (wezel(grafy.agencja, 'ProfessionalService') || {})));
+  t.check('scalony węzeł niesie dane obiektu, nie tylko firmy',
+    !!wezel(grafy.agencja, 'ProfessionalService')?.openingHoursSpecification);
+
+  /* Kontrola dodatnia: przy ODRĘBNYM operatorze węzły dalej są dwa
+     i `parentOrganization` ma sens. Bez niej „jeden węzeł" przechodzi też
+     wtedy, gdyby rozdział zniknął na dobre. */
+  t.check('z osobnym operatorem węzły zostają dwa',
+    !!wezel(grafy.firma, 'Organization') && !!wezel(grafy.firma, 'LodgingBusiness'));
+  t.check('i wtedy parentOrganization wskazuje INNĄ firmę',
+    wezel(grafy.firma, 'LodgingBusiness')?.parentOrganization?.['@id']
+      === wezel(grafy.firma, 'Organization')?.['@id'] &&
+    wezel(grafy.firma, 'Organization')?.name !== wezel(grafy.firma, 'LodgingBusiness')?.name,
+    wezel(grafy.firma, 'Organization')?.name + ' ≠ ' + wezel(grafy.firma, 'LodgingBusiness')?.name);
+
+  /* Po scaleniu wskazania encji podrzędnych i atrakcji idą na #organization —
+     i dalej trafiają w węzeł, który JEST miejscem. Ogólne sprawdzenie
+     rozwiązywalności (wyżej) obejmuje to dla wszystkich scenariuszy; tutaj
+     pytamy wprost, żeby powód był widoczny w nazwie. */
+  t.check('encje podrzędne wiszą na scalonym węźle',
+    grafy.atrakcja['@graph'].filter((n) => /#entity-/.test(n['@id']))
+      .every((n) => n.containedInPlace['@id'] === 'https://example.test/#organization'));
+
+  /* Cztery kolizje przy scalaniu, wszystkie z mutacji, które przechodziły
+     na zielono, bo żaden scenariusz nie wchodził w te ścieżki. */
+  const kol = wezelId(grafy['scalenie-kolizje'], '#organization');
+
+  t.check('operator wpisany TĄ SAMĄ nazwą znaczy „jedna firma"',
+    kol?.['@type'] === 'LegalService' &&
+    grafy['scalenie-kolizje']['@graph'].filter((n) => /#place$/.test(n['@id'])).length === 0,
+    kol?.['@type']);
+
+  /* Obszar firmy i obszar obiektu mapują się na TĘ SAMĄ właściwość.
+     Przy scaleniu jedna lista mogłaby cicho zniknąć — sumujemy je,
+     bez powtórzeń. */
+  t.check('areaServed sumuje obie listy',
+    kol?.areaServed?.length === 3, JSON.stringify(kol?.areaServed));
+  t.check('i nie powtarza pozycji wspólnej dla obu',
+    kol?.areaServed?.filter((x) => x === 'mazowieckie').length === 1);
+
+  /* `faxNumber` jest pojedyncze — wygrywa numer FIRMY, bo to jej węzeł;
+     numer obiektu wchodzi tylko wtedy, gdy firmowego nie podano. */
+  t.check('faks firmy wygrywa z faksem obiektu',
+    kol?.faxNumber === '+48 11 111 11 11', kol?.faxNumber);
+
+  /* `about` powstaje tylko na WebPage, więc tylko podstrona pokazuje,
+     dokąd wskazuje po scaleniu. */
+  t.check('about podstrony wskazuje scalony węzeł, nie nieistniejące #place',
+    wezel(grafy['scalenie-kolizje'], 'WebPage')?.about?.['@id']
+      === 'https://example.test/#organization',
+    wezel(grafy['scalenie-kolizje'], 'WebPage')?.about?.['@id']);
+
+  t.section('kształty zakwestionowane w analizie z użycia — stan faktyczny');
+
+  /* Analiza wyjścia żywej strony zgłosiła cztery rzeczy, których moduł
+     NIE robi. Najprawdopodobniej dotyczyły bloku JSON-LD drukowanego przez
+     inną wtyczkę na tej samej podstronie. Sprawdzenia niżej nazywają stan
+     faktyczny wprost, żeby nikt tego później nie „naprawił" w złą stronę. */
+
+  t.check('SearchAction siedzi na WebSite, zgodnie z dokumentacją Google',
+    !!wezel(grafy.agencja, 'WebSite')?.potentialAction);
+  t.check('i NIE ma go na WebPage',
+    grafy['scalenie-kolizje']['@graph']
+      .every((n) => n['@type'] !== 'WebPage' || !('potentialAction' in n)));
+
+  t.check('addressCountry to łańcuch ISO, nie węzeł Country',
+    typeof wezelId(grafy.agencja, '#organization')?.address?.addressCountry === 'string',
+    JSON.stringify(wezelId(grafy.agencja, '#organization')?.address?.addressCountry));
+
+  const dni = wezelId(grafy.agencja, '#organization')?.openingHoursSpecification?.[0]?.dayOfWeek;
+  t.check('dayOfWeek to skróty tekstowe, nie adresy schema.org',
+    Array.isArray(dni) && dni.every((d) => /^[A-Z][a-z]+$/.test(d)),
+    JSON.stringify(dni));
+
+  t.check('@context jest i wskazuje schema.org',
+    grafy.agencja['@context'] === 'https://schema.org', grafy.agencja['@context']);
+
+  t.section('rozdział #organization / #place — przy odrębnym operatorze');
+
+  /* Tryb DWUWĘZŁOWY, czyli scenariusz `firma`: operator (Fundacja) jest inną
+     firmą niż obiekt (Ośrodek), więc wydawca zostaje czystą Organization,
+     a typ działalności ma własny węzeł. Od 1.175.0 to już nie jest zasada
+     całej zakładki — jest jednym z dwóch układów, wybieranym nazwą operatora
+     (drugi wyżej). Zlanie tych dwóch węzłów TUTAJ byłoby błędem: dwie firmy
+     to dwie encje. */
   const org = wezel(grafy.firma, 'Organization');
   const place = wezel(grafy.firma, 'LodgingBusiness');
   t.check('typ działalności robi osobny węzeł #place', !!place,
@@ -214,6 +323,8 @@ module.exports = async function (t) {
   t.check('przy typie Organizacja nie ma węzła #place',
     !identyfikatory(grafy.minimalny).some((id) => /#place$/.test(id)),
     identyfikatory(grafy.minimalny).join(' '));
+  t.check('i #organization zostaje czystą Organization',
+    wezel(grafy.minimalny, 'Organization')?.['@id'] === 'https://example.test/#organization');
 
   /* Pola firmy lokalnej mają siedzieć na #place, a nie na wydawcy. */
   for (const pole of ['geo', 'priceRange', 'amenityFeature', 'openingHoursSpecification', 'hasMap', 'areaServed']) {
@@ -250,12 +361,17 @@ module.exports = async function (t) {
     !podrzedne.some((n) => n['@type'] === 'Service'));
   t.check('odrzucony wiersz bez nazwy (Playground)',
     !podrzedne.some((n) => n['@type'] === 'Playground'));
-  t.check('każda encja wisi na #place',
-    podrzedne.length > 0 &&
-    podrzedne.every((n) => n.containedInPlace?.['@id'] === 'https://example.test/#place'),
+  /* Scenariusz `atrakcja` nie ma odrębnego operatora, więc od 1.175.0 węzeł
+     obiektu JEST węzłem `#organization`. Sprawdzamy wskazanie na ten węzeł,
+     nie na dosłowne `#place` — dosłowność zapisywałaby tu tryb dwuwęzłowy
+     jako jedyny poprawny. */
+  const idMiejsca = wezelId(grafy.atrakcja, '#organization')?.['@id'];
+  t.check('każda encja wisi na węźle obiektu',
+    podrzedne.length > 0 && !!idMiejsca &&
+    podrzedne.every((n) => n.containedInPlace?.['@id'] === idMiejsca),
     podrzedne.map((n) => n.containedInPlace?.['@id'] ?? 'BRAK').join(' '));
-  t.check('atrakcja też wisi na #place',
-    wezel(grafy.atrakcja, 'TouristAttraction')?.containedInPlace?.['@id'] === 'https://example.test/#place');
+  t.check('atrakcja też wisi na węźle obiektu',
+    wezel(grafy.atrakcja, 'TouristAttraction')?.containedInPlace?.['@id'] === idMiejsca);
   t.check('własna nazwa atrakcji wygrywa z nazwą obiektu',
     wezel(grafy.atrakcja, 'TouristAttraction')?.name === 'Półwysep nad jeziorem');
 
@@ -311,7 +427,7 @@ module.exports = async function (t) {
   t.check('a polski scenariusz ma polski opis — kontrola',
     org?.description === 'Opis po polsku');
   t.check('brak tłumaczenia opisu schodzi na polski',
-    wezel(grafy.atrakcja, 'Organization')?.description === 'Opis po polsku');
+    wezelId(grafy.atrakcja, '#organization')?.description === 'Opis po polsku');
 
   t.section('podstrona i wpis');
 
@@ -563,7 +679,7 @@ module.exports = async function (t) {
      najważniejszy: gdy repeater pusty, wychodzi DOKŁADNIE jeden punkt
      złożony z telefonu i typu kontaktu — czyli to, co moduł robił dotąd,
      więc witryna nietknięta ma graf bez zmian. */
-  const kont = wezel(grafy['miejsce-pelne'], 'Organization')?.contactPoint;
+  const kont = wezelId(grafy['miejsce-pelne'], '#organization')?.contactPoint;
   t.check('dwa punkty z trzech wierszy — pusty odrzucony',
     Array.isArray(kont) && kont.length === 2, JSON.stringify(kont?.length));
   t.check('punkt z telefonem nie dostaje pustego e-maila',

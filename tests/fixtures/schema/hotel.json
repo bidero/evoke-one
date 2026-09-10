@@ -20,7 +20,7 @@
       }
     },
     {
-      "@type": "Organization",
+      "@type": "Hotel",
       "@id": "https://example.test/#organization",
       "name": "Hotel Przykładowy",
       "url": "https://example.test/",
@@ -31,23 +31,6 @@
         "addressLocality": "Mikołajki",
         "postalCode": "",
         "addressCountry": "PL"
-      }
-    },
-    {
-      "@type": "Hotel",
-      "@id": "https://example.test/#place",
-      "name": "Hotel Przykładowy",
-      "url": "https://example.test/",
-      "description": "Opis z ustawień WordPressa",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "Leśna 4",
-        "addressLocality": "Mikołajki",
-        "postalCode": "",
-        "addressCountry": "PL"
-      },
-      "parentOrganization": {
-        "@id": "https://example.test/#organization"
       },
       "checkinTime": "15:00",
       "checkoutTime": "11:00",

@@ -367,6 +367,12 @@ regresyjna straciłaby sens (nie odróżniłbym zamierzonej zmiany od zepsucia).
 | 4 ✅ | **Miejsce, atrakcja, encje** (1.174.0) | Sekcje 3, 4, 5. | Małe. |
 | 5 | **Edytor węzłów + podgląd** | Sekcja 7 i walidacja. | Średnie — nowy mechanizm wstrzykiwania do grafu. |
 
+Poza planem weszło **1.175.0 — scalenie organizacji z obiektem**, z użycia:
+pierwsza strona wypełniła zakładkę prawdziwymi danymi i pokazała, że przy
+jednej firmie graf robi dwa węzły o tej samej nazwie. Nie dało się tego
+zobaczyć na danych testowych, bo w scenariuszach nazwa obiektu i nazwa
+operatora były różne. Opis w § 8b.
+
 Każde wydanie kończy się zielonym `node tests/run.js schema` i mutacjami na
 dopisanych sprawdzeniach.
 
@@ -386,6 +392,37 @@ wyjścia `render_graph()`.
 | 26 typów działalności, 11 typów encji podrzędnych | wszystkie istnieją; `containedInPlace` prawidłowe na każdym z jedenastu |
 | 25 właściwości `#organization` | wszystkie prawidłowe |
 | pola noclegowe i gastronomiczne | wszystkie na właściwych typach bazowych |
+
+## 8b. Jeden węzeł czy dwa (1.175.0)
+
+Rozpiska przez cały czas zakładała dwa węzły: `#organization` jako wydawcę
+strony i `#place` jako obiekt. To założenie było **niesprawdzone** — brało
+się z tego, że w każdym scenariuszu testowym nazwa obiektu różniła się od
+nazwy operatora, więc dwa węzły wyglądały sensownie.
+
+Na prawdziwych danych jednej firmy oba węzły dostają tę samą nazwę, a jeden
+wskazuje drugi jako `parentOrganization`. Rozstrzyga teraz pole **„Nazwa
+operatora"**: puste albo równe nazwie obiektu → **jeden** węzeł
+`#organization` typu działalności; inna firma → **dwa** węzły, jak dotąd.
+
+Poprawne, bo `LocalBusiness` dziedziczy i z `Organization`, i z `Place`.
+Konsekwencje, wszystkie w kodzie:
+
+- adres węzła obiektu liczy jedna metoda `miejsce_id()` — `about`,
+  `containedInPlace` na atrakcji i na encjach podrzędnych biorą stamtąd;
+- kolizje właściwości: `areaServed` sumuje się, `faxNumber` bierze wartość
+  organizacji;
+- odhaczony blok Organization wraca do dwóch węzłów (scalony nie miałby
+  gdzie zamieszkać).
+
+### Cztery zgłoszenia, które okazały się cudzym JSON-LD
+
+`SearchAction` na `WebPage`, `addressCountry` jako obiekt `Country`,
+`dayOfWeek` w pełnych adresach schema.org, brak `@context` — nic z tego
+moduł nie robi, sprawdzone wobec prawdziwego wyjścia. Każde ma teraz
+nazwane sprawdzenie w `tests/schema-graf.test.js`, żeby ktoś kiedyś nie
+„poprawił" ich w złą stronę. Jeśli takie rzeczy widać na stronie, drukuje
+je coś innego niż ta wtyczka.
 
 ## 9. Czego ta rozpiska nie rozstrzyga
 

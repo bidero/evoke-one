@@ -20,22 +20,8 @@
       }
     },
     {
-      "@type": "Organization",
-      "@id": "https://example.test/#organization",
-      "name": "Ośrodek Nad Jeziorem",
-      "url": "https://example.test/",
-      "description": "Opis po polsku",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "Leśna 4",
-        "addressLocality": "Mikołajki",
-        "postalCode": "11-730",
-        "addressCountry": "PL"
-      }
-    },
-    {
       "@type": "Campground",
-      "@id": "https://example.test/#place",
+      "@id": "https://example.test/#organization",
       "name": "Ośrodek Nad Jeziorem",
       "url": "https://example.test/",
       "description": "Opis po polsku",
@@ -50,9 +36,6 @@
         "@type": "GeoCoordinates",
         "latitude": "53.8021",
         "longitude": "21.5731"
-      },
-      "parentOrganization": {
-        "@id": "https://example.test/#organization"
       }
     },
     {
@@ -74,7 +57,7 @@
         "longitude": "21.5731"
       },
       "containedInPlace": {
-        "@id": "https://example.test/#place"
+        "@id": "https://example.test/#organization"
       }
     },
     {
@@ -83,7 +66,7 @@
       "name": "Plaża główna",
       "description": "Piaszczysta",
       "containedInPlace": {
-        "@id": "https://example.test/#place"
+        "@id": "https://example.test/#organization"
       }
     },
     {
@@ -91,7 +74,7 @@
       "@id": "https://example.test/#entity-2",
       "name": "Parking",
       "containedInPlace": {
-        "@id": "https://example.test/#place"
+        "@id": "https://example.test/#organization"
       }
     },
     {
@@ -99,7 +82,7 @@
       "@id": "https://example.test/#entity-3",
       "name": "Karczma",
       "containedInPlace": {
-        "@id": "https://example.test/#place"
+        "@id": "https://example.test/#organization"
       }
     }
   ]

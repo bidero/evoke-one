@@ -1,0 +1,77 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://example.test/#website",
+      "url": "https://example.test/",
+      "name": "Kancelaria Przykładowa",
+      "description": "Opis z ustawień WordPressa",
+      "publisher": {
+        "@id": "https://example.test/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://example.test/?s={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "LegalService",
+      "@id": "https://example.test/#organization",
+      "name": "Kancelaria Przykładowa",
+      "url": "https://example.test/",
+      "description": "Opis z ustawień WordPressa",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "ul. Przykładowa 1",
+        "addressLocality": "Warszawa",
+        "postalCode": "",
+        "addressCountry": "PL"
+      },
+      "faxNumber": "+48 11 111 11 11",
+      "areaServed": [
+        "Polska",
+        "mazowieckie",
+        "Warszawa"
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://example.test/kontakt/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Kancelaria Przykładowa",
+          "item": "https://example.test/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Kontakt",
+          "item": "https://example.test/kontakt/"
+        }
+      ]
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://example.test/kontakt/#webpage",
+      "url": "https://example.test/kontakt/",
+      "name": "Kontakt",
+      "description": "Opis z ustawień WordPressa",
+      "isPartOf": {
+        "@id": "https://example.test/#website"
+      },
+      "breadcrumb": {
+        "@id": "https://example.test/kontakt/#breadcrumb"
+      },
+      "about": {
+        "@id": "https://example.test/#organization"
+      }
+    }
+  ]
+}
