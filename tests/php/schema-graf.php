@@ -40,6 +40,24 @@ require __DIR__ . '/_wp-stubs.php';
 
 // ── Atrapy WP, których nie ma we wspólnym pliku ─────────────────────────────
 function untrailingslashit($s) { return rtrim((string) $s, '/\\'); }
+
+/* Atrapa modułu tłumaczeń. PRAWDZIWE nazwy funkcji i prawdziwe wyrażenie
+   regularne z `40-dynamic-data-shortcode.php` — bo moduł Schema pyta o nie
+   przez `function_exists()`, a scenariusz bez tych funkcji sprawdzałby
+   wyłącznie gałąź „tłumaczeń nie ma". Słownik podaje scenariusz. */
+function tl_render_dd_tags_in_content(string $content, string $lang = ''): string {
+    if ($content === '') return $content;
+    /* Słownik JEST ZALEŻNY OD JĘZYKA, bo o to w całej zmianie chodzi:
+       moduł ma podawać język wprost z adresu podstrony, zamiast liczyć na
+       kontekst bufora. Atrapa oddająca zawsze to samo przepuszczała mutację
+       „język na sztywno" na zielono. */
+    return preg_replace_callback('/\{tl_([a-z0-9_]+)\}/i', static function ($m) use ($lang) {
+        $v = $GLOBALS['tl_slownik'][$lang][$m[1]]
+            ?? $GLOBALS['tl_slownik']['pl'][$m[1]]
+            ?? '';
+        return $v !== '' ? $v : $m[0];
+    }, $content);
+}
 /* Atrapa Z DANYMI, ale dająca się OPRÓŻNIĆ przez scenariusz.
    Niepuste wartości chronią przed „pole nie wyszło" — i dokładnie tym samym
    ukrywają „pole wyszło puste". Opis witryny w WordPressie bywa pusty
@@ -691,6 +709,59 @@ $scenariusze = [
         $GLOBALS['strony'][61] = new WP_Post(['ID' => 61, 'post_title' => 'Kontakt']);
         $GLOBALS['permalinki'][61] = 'https://example.test/kontakt/';
         $GLOBALS['current_post'] = 61;
+    },
+
+    /* OFERTA W SKŁADNI `Nazwa | adres | opis` — wszystkie kombinacje naraz,
+       łącznie z odwróconą kolejnością członów i adresem względnym. */
+    'oferta' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'ProfessionalService',
+            'site_name' => 'Agencja Przykładowa',
+            'locality' => 'Warszawa',
+            'org_offer_catalog' => implode("\n", [
+                'Projektowanie stron | /strony/ | Sklepy i wizytówki',
+                'Projektowanie logo | Znak, który przetrwa dekadę',   // sam opis
+                'Fotografia | https://inna.test/foto/',                // sam adres
+                'Branding',                                            // sama nazwa
+                'Audyt | Opis przed adresem | /audyt/',                // ODWRÓCONA kolejność
+                'Szkolenia | /a/ | /b/ | pierwszy opis | drugi opis',  // nadmiar członów
+            ]),
+        ];
+    },
+
+    /* ZNACZNIKI TŁUMACZEŃ w polach zakładki.
+       Atrapy `tl_*` niżej udają moduł tłumaczeń — z wartościami, które
+       ROZWALAŁY blok JSON-LD, gdy podmiany dokonywał bufor nad całą stroną:
+       cudzysłów, ukośnik wsteczny i nowa linia. Tu mają przejść przez
+       `json_encode()` i wyjść jako zwykłe znaki. */
+    'znaczniki' => function () {
+        $GLOBALS['tl_slownik'] = [
+            'pl' => [
+                'nazwa'  => 'Evoke "Design" Studio',
+                'opis'   => "Studio\\projektowe\nz Warszawy",
+                'usluga' => 'Projektowanie stron',
+            ],
+            'en' => [
+                'nazwa'  => 'Evoke "Design" Studio EN',
+                'opis'   => 'English description',
+                'usluga' => 'Web design',
+            ],
+        ];
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'ProfessionalService',
+            'site_name' => '{tl_nazwa}',
+            'locality'  => 'Warszawa',
+            'descriptions' => '{"pl":"{tl_opis}"}',
+            'org_offer_catalog' => "{tl_usluga} | /web/\n{tl_nieistniejacy}\nBranding {tl_nieistniejacy}",
+        ];
+    },
+
+    /* Ten sam scenariusz na podstronie angielskiej. Bez niego przekazywanie
+       języka do słownika nie jest badane — a to jedyny powód, dla którego
+       rozwijamy znaczniki w module, a nie zostawiamy ich buforowi. */
+    'znaczniki-en' => function () use (&$scenariusze) {
+        $scenariusze['znaczniki']();
+        $GLOBALS['lang'] = 'en';
     },
 
     'bloki-off' => function () {

@@ -1,0 +1,56 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://example.test/en/#website",
+      "url": "https://example.test/en/",
+      "name": "Evoke \"Design\" Studio EN",
+      "description": "English description",
+      "publisher": {
+        "@id": "https://example.test/en/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://example.test/en/?s={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "ProfessionalService",
+      "@id": "https://example.test/en/#organization",
+      "name": "Evoke \"Design\" Studio EN",
+      "url": "https://example.test/en/",
+      "description": "English description",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Warszawa",
+        "addressCountry": "PL"
+      },
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Oferta",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Web design",
+              "url": "https://example.test/en/web/"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Branding"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

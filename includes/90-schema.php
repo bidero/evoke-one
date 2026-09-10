@@ -956,7 +956,61 @@ if (isset($_POST['evk_schema_custom']) && is_array($_POST['evk_schema_custom']))
                 if ($product) $graph[] = $product;
             }
         }
-        return self::bez_pustych($this->dolacz_wlasne($graph, $s, $home_url));
+        $graph = $this->dolacz_wlasne($graph, $s, $home_url);
+        $graph = self::rozwin_znaczniki($graph, $lang);
+        return self::bez_pustych($graph);
+    }
+
+    /**
+     * Rozwija znaczniki tłumaczeń (`{tl_klucz}`, `{tl:…}`) w wartościach grafu.
+     *
+     * DZIAŁO TO JUŻ WCZEŚNIEJ, ALE PRZEZ PRZYPADEK I NIEBEZPIECZNIE.
+     * `60-image-replacement.php` otwiera `ob_start()` nad CAŁĄ stroną i puszcza
+     * gotowy HTML przez `tl_replace_tl_tags_in_html()`. To łapie również nasz
+     * blok `<script type="application/ld+json">` — czyli podmienia tekst
+     * w GOTOWYM JSON-ie, nie wiedząc, że to JSON. Wartość wchodzi surowa,
+     * więc tłumaczenie z cudzysłowem, ukośnikiem wstecznym albo nową linią
+     * ROZWALA CAŁY BLOK: Google odrzuca wtedy nie jedno pole, tylko wszystkie
+     * węzły naraz, po cichu. Sprawdzone na prawdziwej funkcji — patrz
+     * sprawdzenia „znacznik z cudzysłowem" w `tests/schema-graf.test.js`.
+     *
+     * Robiąc to TUTAJ, przed `json_encode()`, oddajemy kodowanie tej funkcji,
+     * dla której te znaki są zwykłymi znakami. Bufor zastaje potem graf bez
+     * znaczników i nie ma czego zepsuć.
+     *
+     * JĘZYK BIERZEMY WPROST, z adresu podstrony — a nie z kontekstu, w którym
+     * akurat wykonuje się bufor.
+     *
+     * ZNACZNIK NIEROZWIĄZANY WYPADA. W treści strony zostawienie go jest
+     * sensowne, bo widać, że czegoś brakuje. W danych dla Google `{tl_nazwa}`
+     * to śmieć podany jako fakt — lepiej nie powiedzieć nic. Właściwość, która
+     * po wycięciu zostaje pusta, znika przez `bez_pustych()`.
+     */
+    private static function rozwin_znaczniki(array $dane, string $lang): array {
+        // Moduł tłumaczeń bywa wyłączony — wtedy zostaje samo wycięcie.
+        $rozwin = function_exists('tl_render_dd_tags_in_content');
+        $inline = function_exists('tl_parse_inline_tag');
+
+        foreach ($dane as $klucz => $wartosc) {
+            if (is_array($wartosc)) {
+                $dane[$klucz] = self::rozwin_znaczniki($wartosc, $lang);
+                continue;
+            }
+            if (!is_string($wartosc) || strpos($wartosc, '{tl') === false) continue;
+
+            if ($rozwin) {
+                $wartosc = tl_render_dd_tags_in_content($wartosc, $lang);
+            }
+            if ($inline && strpos($wartosc, '{tl:') !== false) {
+                $wartosc = preg_replace_callback('/\{tl:([^}]+)\}/i', static function ($m) {
+                    return tl_parse_inline_tag($m[1]);
+                }, $wartosc);
+            }
+            // Co się nie rozwiązało — wycinamy, razem z osieroconą spacją.
+            $wartosc = preg_replace('/\{tl[_:][^}]*\}/i', '', $wartosc);
+            $dane[$klucz] = trim(preg_replace('/\s{2,}/', ' ', $wartosc));
+        }
+        return $dane;
     }
 
     /**
@@ -986,6 +1040,13 @@ if (isset($_POST['evk_schema_custom']) && is_array($_POST['evk_schema_custom']))
             if (is_array($wartosc)) {
                 $wartosc = self::bez_pustych($wartosc);
                 if ($wartosc === []) continue;
+                /* WĘZEŁ Z SAMYM `@type` NIE NIESIE NICZEGO i wypada razem
+                   z rodzicem, który go opakowywał. Powstaje, gdy wszystkie
+                   dane węzła odpadły — na przykład gdy nazwa usługi była
+                   nierozwiązanym znacznikiem `{tl_…}`. Zostawał wtedy
+                   `{"@type":"Service"}` w `Offer`, czyli oferta czegoś,
+                   o czym nie wiadomo nic. */
+                if (array_keys($wartosc) === ['@type']) continue;
             }
             $out[$klucz] = $wartosc;
         }
@@ -1307,9 +1368,8 @@ private function build_website(array $s, string $home_url, string $lang): array 
                 $org['hasOfferCatalog'] = [
                     '@type'          => 'OfferCatalog',
                     'name'           => 'Oferta',
-                    'itemListElement' => array_map(static function ($nazwa) {
-                        return ['@type' => 'Offer', 'itemOffered' =>
-                            ['@type' => 'Service', 'name' => $nazwa]];
+                    'itemListElement' => array_map(static function ($linia) use ($home_url) {
+                        return ['@type' => 'Offer', 'itemOffered' => self::usluga($linia, $home_url)];
                     }, $uslugi),
                 ];
             }
@@ -1993,6 +2053,42 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
         return $this->has_place($s)
             && !$this->osobny_operator($s)
             && !empty($s['block_org']);
+    }
+
+    /**
+     * Jedna linia pola „Oferta" → węzeł `Service`.
+     *
+     * Składnia: `Nazwa | adres | opis`, człony po kresce OPCJONALNE
+     * i w DOWOLNEJ KOLEJNOŚCI. Rozpoznajemy je po kształcie, nie po pozycji:
+     * człon zaczynający się od `/` albo `http` to adres, każdy inny to opis.
+     *
+     * PO KSZTAŁCIE, A NIE PO POZYCJI — bo sztywna kolejność wymusza puste
+     * miejsce, gdy adresu nie ma (`Nazwa || opis`), a podwójna kreska to
+     * dokładnie ten rodzaj składni, w którym człowiek się myli i nie ma jak
+     * tego zauważyć. Ta sama zasada, co przy godzinach świątecznych: pole
+     * przyjmuje to, co ktoś naturalnie napisze.
+     *
+     * Linia bez kreski działa jak przed 1.180.0 — sama nazwa.
+     * `url` i `description` istnieją na `Service` (obie są na `Thing`).
+     */
+    private static function usluga(string $linia, string $home_url): array {
+        $czesci = array_values(array_filter(array_map('trim', explode('|', $linia)),
+            static function ($c) { return $c !== ''; }));
+
+        $usluga = ['@type' => 'Service', 'name' => array_shift($czesci) ?? ''];
+
+        foreach ($czesci as $czesc) {
+            $adres = $czesc[0] === '/' || stripos($czesc, 'http') === 0;
+            /* Pierwszy człon danego rodzaju wygrywa. Drugi adres w jednej
+               linii to pomyłka, a nie druga wartość — `url` jest pojedyncze. */
+            $pole = $adres ? 'url' : 'description';
+            /* Adres względny robimy bezwzględnym — tak jak przy faviconie.
+               `url` w schema.org ma być pełne; `/strony/` bez domeny jest
+               dla czytnika nierozstrzygalne. */
+            if ($adres && $czesc[0] === '/') $czesc = untrailingslashit($home_url) . $czesc;
+            if (!isset($usluga[$pole])) $usluga[$pole] = $czesc;
+        }
+        return $usluga;
     }
 
     /** Czy ustawienia definiują osobny węzeł miejsca (#place)? */

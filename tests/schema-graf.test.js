@@ -107,7 +107,8 @@ const SCENARIUSZE = ['minimalny', 'firma', 'firma-en', 'atrakcja',
                      'podstrona', 'wpis', 'produkt', 'bez-org', 'faq-off',
                      'organizacja-pelna', 'miejsce-pelne', 'trojstan-intem', 'agencja', 'scalenie-kolizje', 'hotel', 'restauracja', 'gabinet', 'wyciek-presetu',
                      'nadpisanie-wpisu', 'nadpisanie-puste', 'bez-okruszkow',
-                     'filtr-ustawien', 'edytor', 'edytor-atak', 'opis-pusty'];
+                     'filtr-ustawien', 'edytor', 'edytor-atak', 'opis-pusty',
+                     'oferta', 'znaczniki', 'znaczniki-en'];
 
 /** Scalone ustawienia scenariusza (warstwy: domyślne → globalne → meta wpisu). */
 const ustawienia = (scenariusz) =>
@@ -316,6 +317,107 @@ module.exports = async function (t) {
 
   t.check('@context jest i wskazuje schema.org',
     grafy.agencja['@context'] === 'https://schema.org', grafy.agencja['@context']);
+
+  t.section('oferta — nazwa, adres i opis w jednej linii');
+
+  /* Do 1.179.0 pole „Oferta" przyjmowało SAME NAZWY usług. Składnia
+     `Nazwa | adres | opis` rozpoznaje człony PO KSZTAŁCIE, nie po pozycji:
+     zaczyna się od `/` albo `http` → adres, cokolwiek innego → opis.
+     Po pozycji wymagałoby pustego miejsca (`Nazwa || opis`), a podwójna
+     kreska to składnia, w której człowiek się myli i nie ma jak tego
+     zauważyć. */
+  const uslugi = wezelId(grafy.oferta, '#organization')
+    ?.hasOfferCatalog?.itemListElement?.map((o) => o.itemOffered) || [];
+  const usluga = (n) => uslugi.find((u) => u.name === n);
+
+  t.check('każda linia daje jedną usługę', uslugi.length === 6, uslugi.length + ' usług');
+  t.check('trzy człony: nazwa, adres i opis',
+    usluga('Projektowanie stron')?.description === 'Sklepy i wizytówki' &&
+    usluga('Projektowanie stron')?.url === 'https://example.test/strony/',
+    JSON.stringify(usluga('Projektowanie stron')));
+  t.check('sam opis, bez adresu — bez pustego miejsca w składni',
+    usluga('Projektowanie logo')?.description === 'Znak, który przetrwa dekadę' &&
+    !('url' in (usluga('Projektowanie logo') || {})));
+  t.check('sam adres, bez opisu',
+    usluga('Fotografia')?.url === 'https://inna.test/foto/' &&
+    !('description' in (usluga('Fotografia') || {})));
+  t.check('sama nazwa działa jak przed zmianą',
+    JSON.stringify(usluga('Branding')) === '{"@type":"Service","name":"Branding"}',
+    JSON.stringify(usluga('Branding')));
+
+  /* SEDNO rozpoznawania po kształcie: opis przed adresem ma wyjść tak samo. */
+  t.check('kolejność członów nie ma znaczenia',
+    usluga('Audyt')?.description === 'Opis przed adresem' &&
+    usluga('Audyt')?.url === 'https://example.test/audyt/',
+    JSON.stringify(usluga('Audyt')));
+
+  /* `url` jest pojedyncze, więc drugi adres w linii to pomyłka, nie dana. */
+  t.check('nadmiarowe człony nie tworzą tablic — wygrywa pierwszy swojego rodzaju',
+    typeof usluga('Szkolenia')?.url === 'string' &&
+    typeof usluga('Szkolenia')?.description === 'string' &&
+    usluga('Szkolenia').url === 'https://example.test/a/' &&
+    usluga('Szkolenia').description === 'pierwszy opis',
+    JSON.stringify(usluga('Szkolenia')));
+
+  t.check('adres względny wychodzi bezwzględny',
+    uslugi.filter((u) => u.url && !/^https?:\/\//.test(u.url)).length === 0,
+    uslugi.map((u) => u.url).filter(Boolean).join(' '));
+
+  t.section('znaczniki tłumaczeń rozwijane PRZED kodowaniem JSON-a');
+
+  /* DZIAŁAŁO TO WCZEŚNIEJ, ALE PRZEZ PRZYPADEK: `60-image-replacement.php`
+     otwiera bufor nad całą stroną i podmienia tekst w GOTOWYM JSON-ie, nie
+     wiedząc, że to JSON. Wartość wchodziła surowa, więc tłumaczenie
+     z cudzysłowem, ukośnikiem wstecznym albo nową linią rozwalało CAŁY blok
+     — a Google odrzuca wtedy wszystkie węzły naraz, po cichu.
+
+     Teraz rozwijamy przed `json_encode()`, więc kodowaniem zajmuje się
+     funkcja, dla której to są zwykłe znaki. Słownik w scenariuszu zawiera
+     dokładnie te trzy znaki. */
+  const zn = grafy.znaczniki;
+  const znO = wezelId(zn, '#organization');
+
+  t.check('graf ze znacznikami jest PRAWIDŁOWYM JSON-em', !!zn && !!znO,
+    'sparsowany przez helper `graf()`');
+  t.check('cudzysłów w tłumaczeniu nie rozwala bloku',
+    znO?.name === 'Evoke "Design" Studio', JSON.stringify(znO?.name));
+  t.check('ukośnik wsteczny i nowa linia też przechodzą',
+    znO?.description === 'Studio\\projektowe\nz Warszawy',
+    JSON.stringify(znO?.description));
+  t.check('znacznik nie zostaje w wyjściu dosłownie',
+    !/\{tl[_:]/.test(JSON.stringify(zn)),
+    (JSON.stringify(zn).match(/\{tl[_:][^}]*\}/g) || []).join(' ') || 'brak');
+
+  /* Nierozwiązany znacznik WYPADA, a nie zostaje. W treści strony zostawienie
+     go jest sensowne — widać, że czegoś brakuje. W danych dla Google
+     `{tl_nazwa}` to śmieć podany jako fakt. */
+  const znUsl = znO?.hasOfferCatalog?.itemListElement?.map((o) => o.itemOffered) || [];
+  t.check('usługa z samego nierozwiązanego znacznika nie tworzy węzła bez nazwy',
+    znUsl.length === 2 && znUsl.every((u) => !!u.name),
+    JSON.stringify(znUsl));
+  t.check('a znacznik obok tekstu tylko znika, reszta linii zostaje',
+    znUsl.some((u) => u.name === 'Branding'), JSON.stringify(znUsl.map((u) => u.name)));
+  t.check('rozwiązany znacznik działa razem z adresem w tej samej linii',
+    znUsl.some((u) => u.name === 'Projektowanie stron' && u.url === 'https://example.test/web/'),
+    JSON.stringify(znUsl));
+
+  /* JĘZYK IDZIE Z ADRESU PODSTRONY — i to jest jedyny powód, dla którego
+     rozwijamy znaczniki w module, zamiast zostawić je buforowi nad stroną.
+     Ten sam scenariusz na `/en/` ma dać angielskie wartości. Bez tego
+     sprawdzenia mutacja „język na sztywno `pl`" przechodziła na zielono. */
+  const znEn = wezelId(grafy['znaczniki-en'], '#organization');
+  t.check('podstrona angielska dostaje angielskie tłumaczenia',
+    znEn?.name === 'Evoke "Design" Studio EN' &&
+    znEn?.description === 'English description',
+    JSON.stringify([znEn?.name, znEn?.description]));
+  t.check('i angielską nazwę usługi, nie polską',
+    (znEn?.hasOfferCatalog?.itemListElement || [])
+      .some((o) => o.itemOffered.name === 'Web design'),
+    JSON.stringify((znEn?.hasOfferCatalog?.itemListElement || [])
+      .map((o) => o.itemOffered.name)));
+  t.check('a polska podstrona dostaje polską — kontrola',
+    znUsl.some((u) => u.name === 'Projektowanie stron'),
+    JSON.stringify(znUsl.map((u) => u.name)));
 
   t.section('edytor węzłów — furtka na resztę schema.org');
 

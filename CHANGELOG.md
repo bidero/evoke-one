@@ -2,6 +2,77 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.180.0] — 2026-09-10
+
+Oferta z adresem i opisem w jednej linii, oraz **tłumaczenia rozwijane
+w module, zanim powstanie JSON.**
+
+### Naprawione
+
+- **Tłumaczenie z cudzysłowem rozwalało cały blok JSON-LD.** Znaczniki
+  `{tl_klucz}` w polach zakładki działały — ale **przez przypadek**:
+  `60-image-replacement.php` otwiera `ob_start()` nad całą stroną i puszcza
+  gotowy HTML przez `tl_replace_tl_tags_in_html()`. To łapie również nasz
+  `<script type="application/ld+json">`, czyli **podmienia tekst w gotowym
+  JSON-ie, nie wiedząc, że to JSON.** Wartość wchodziła surowa:
+
+  | Tłumaczenie zawiera | Wynik przed 1.180.0 |
+  |---|---|
+  | zwykły tekst | w porządku |
+  | `"` cudzysłów | **cały blok nieczytelny** |
+  | `\` ukośnik wsteczny | **cały blok nieczytelny** |
+  | nową linię | **cały blok nieczytelny** |
+
+  Google odrzuca wtedy nie jedno pole, tylko **wszystkie węzły naraz**, po
+  cichu. Wystarczyło tłumaczenie w rodzaju `Studio "Evoke"`.
+
+  Teraz znaczniki rozwija sam moduł, **przed `json_encode()`** — czyli
+  kodowaniem zajmuje się funkcja, dla której te znaki są zwykłymi znakami.
+  Bufor zastaje graf bez znaczników i nie ma czego zepsuć. Istniejące wpisy
+  działają bez zmiany.
+
+- **Język brany wprost z adresu podstrony**, a nie z kontekstu, w którym
+  akurat wykonuje się bufor. To jedyny powód, dla którego warto było
+  przenieść to do modułu.
+
+- **Nierozwiązany znacznik wypada z grafu.** W treści strony zostawienie
+  `{tl_nazwa}` jest sensowne — widać, że czegoś brakuje. W danych dla Google
+  to śmieć podany jako fakt. Właściwość, która po wycięciu zostaje pusta,
+  znika przez `bez_pustych()`.
+
+- **Węzeł z samym `@type` wypada razem z opakowaniem.** Powstawał, gdy
+  wszystkie dane odpadły — na przykład gdy nazwa usługi była nierozwiązanym
+  znacznikiem. Zostawała wtedy „oferta czegoś, o czym nie wiadomo nic".
+
+### Dodane
+
+- **Pole „Oferta" przyjmuje `Nazwa | adres | opis`.** Człony po kresce są
+  opcjonalne i **w dowolnej kolejności** — rozpoznawane **po kształcie, nie
+  po pozycji**: zaczyna się od `/` albo `http` → adres, cokolwiek innego →
+  opis.
+
+  ```
+  Projektowanie stron | /strony/ | Sklepy i wizytówki na WordPressie
+  Projektowanie logo | Znak, który przetrwa dekadę
+  Fotografia | /fotografia/
+  Branding
+  ```
+
+  Po pozycji wymagałoby pustego miejsca (`Nazwa || opis`), a podwójna kreska
+  to dokładnie ten rodzaj składni, w którym człowiek się myli i nie ma jak
+  tego zauważyć. Ta sama zasada, co przy godzinach świątecznych.
+
+  Linia bez kreski działa jak przed zmianą. Adres względny sam dostaje
+  domenę. `url` i `description` istnieją na `Service` — obie są na `Thing`.
+
+### Testy
+
+394 sprawdzenia (+30). Nowe scenariusze: `oferta` (wszystkie kombinacje
+członów, łącznie z odwróconą kolejnością i nadmiarem), `znaczniki`
+i `znaczniki-en`. Atrapa modułu tłumaczeń jest **zależna od języka** —
+oddająca zawsze to samo przepuszczała mutację „język na sztywno" na zielono.
+Osiem mutacji, wszystkie zapalają.
+
 ## [1.179.0] — 2026-09-10
 
 Trzy zgłoszenia z użycia: edytor węzłów nie zapisuje, pole wartości za małe,
