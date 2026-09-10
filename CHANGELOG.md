@@ -2,6 +2,53 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.177.0] — 2026-09-10
+
+**HOTFIX: pól wyboru nie dało się odznaczyć.** Zgłoszone z użycia:
+„odznaczam WooCommerce, zapisuję, wraca zaznaczony".
+
+### Naprawione
+
+- **Siedem z ośmiu bloków JSON-LD nie dawało się wyłączyć.** Odznaczenie
+  wracało zaznaczone po zapisie, więc `block_website`, `block_org`,
+  `block_breadcrumb`, `block_webpage`, `block_article`, `block_faq`
+  i `block_product` były w praktyce na stałe włączone. Działał wyłącznie
+  `block_attraction` — jedyny z domyślną `0`.
+
+  Przyczyna: przeglądarka **nie wysyła** niezaznaczonego pola wyboru, więc
+  jego brak w danych formularza jest pełnoprawną odpowiedzią „nie", a nie
+  brakiem odpowiedzi. Przebudowa zapisu w **1.171.0** zastąpiła osobną listę
+  pól wyboru (`!empty($input[$k]) ? 1 : 0` — reguła prawidłowa) wspólną pętlą
+  po rejestrze z `?? $opis['domyslnie']`. Dla pola o domyślnej `1` znaczyło
+  to: „nie przysłano → włącz".
+
+  **Regresja mojej przebudowy, żywa od 1.171.0.** Sprawdzone: pozostałe
+  moduły wtyczki (dostępność, tryb ciemny, parallax, konserwacja) trzymają
+  regułę prawidłową — usterka była wyłącznie w Schema.
+
+  Czego trzeba, żeby wrócił stan sprzed usterki: nic. Odznaczenie działa
+  od tego wydania, a bloki, które ktoś próbował wyłączyć i mu się nie
+  udało, trzeba odznaczyć jeszcze raz.
+
+### Dlaczego nie złapała tego siatka
+
+Pliki wzorcowe patrzą na **graf**, a usterka siedziała w **zapisie**: graf
+dla zapisanych ustawień był prawidłowy — tylko zapisywały się nie te
+ustawienia, co trzeba. Sprawdzenia sanityzacji podawały zawsze komplet pól
+i ani razu nie zadały jedynego pytania, które to odsłania: **co się dzieje,
+gdy pola w wejściu NIE MA.**
+
+Teraz zadają, pętlą po rejestrze, w obie strony (odznaczone zostaje
+odznaczone, zaznaczone zostaje zaznaczone), więc pole wyboru dopisane
+w przyszłości jest objęte od pierwszego dnia. Trzy mutacje, wszystkie
+zapalają — w tym „bramka tylko dla `block_product`", która sprawdza, że
+sprawdzenie wymusza regułę, a nie łatę na ten jeden blok, który akurat
+zgłoszono.
+
+### Testy
+
+350 sprawdzeń (+17).
+
 ## [1.176.0] — 2026-09-10
 
 Piąte i ostatnie z wydań przebudowy zakładki Schema: **edytor węzłów,

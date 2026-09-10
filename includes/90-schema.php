@@ -613,9 +613,31 @@ class EVK_Schema {
            w którym można je przeoczyć. */
         foreach (self::pola() as $klucz => $opis) {
             if ($opis['typ'] === 'wlasne') continue;   // niżej, każde ze swojego powodu
+
+            /* POLE WYBORU: BRAK W POST ZNACZY „ODZNACZONE", A NIE „WEŹ DOMYŚLNĄ".
+               Przeglądarka NIE WYSYŁA niezaznaczonego pola wyboru — to jest
+               zachowanie HTML-a, nie dziwactwo WordPressa. Więc dla checkboxa
+               nieobecność w `$input` jest PEŁNOPRAWNĄ ODPOWIEDZIĄ „nie", a nie
+               brakiem odpowiedzi.
+
+               REGRESJA Z 1.171.0, naprawiona w 1.177.0. Przed przebudową
+               zapisu stała tu osobna lista pól wyboru i `!empty($input[$k])`,
+               czyli reguła prawidłowa. Pętla po rejestrze zastąpiła ją wspólnym
+               `?? $opis['domyslnie']` — dla siedmiu bloków o domyślnej `1`
+               znaczyło to, że odznaczenie wracało jako zaznaczone i bloku NIE
+               DAŁO SIĘ WYŁĄCZYĆ. Jedyny blok z domyślną `0` działał, więc przy
+               sprawdzaniu „czy zapis działa" można było trafić akurat na niego.
+
+               Wyjścia grafu to nie ruszało, więc pliki wzorcowe milczały —
+               usterka siedziała po stronie ZAPISU, a sprawdzenia sanityzacji
+               nie zadawały jedynego pytania, które ją odsłania: „co się dzieje,
+               gdy pola NIE MA w wejściu". Teraz zadają, dla każdego pola wyboru
+               z rejestru. */
+            $brak = $opis['typ'] === 'checkbox' ? 0 : $opis['domyslnie'];
+
             $clean[$klucz] = self::sanityzuj_wartosc(
                 $opis['typ'],
-                $input[$klucz] ?? $opis['domyslnie'],
+                $input[$klucz] ?? $brak,
                 $opis['domyslnie']
             );
         }

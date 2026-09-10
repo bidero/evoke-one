@@ -1125,6 +1125,41 @@ module.exports = async function (t) {
   t.check('i poprawny repeater też',
     dobry.sub_entities === '[{"type":"Beach","name":"Plaża"}]', dobry.sub_entities);
 
+  /* ── POLA WYBORU DAJĄ SIĘ ODZNACZYĆ ────────────────────────────────────
+     ZGŁOSZONE Z UŻYCIA: „odznaczam WooCommerce, zapisuję, wraca zaznaczony".
+
+     Przeglądarka NIE WYSYŁA niezaznaczonego pola wyboru — więc jego brak
+     w wejściu jest pełnoprawną odpowiedzią „nie", a nie brakiem odpowiedzi.
+     Przebudowa zapisu w 1.171.0 zastąpiła osobną listę pól wyboru wspólnym
+     `?? $opis['domyslnie']` i dla siedmiu bloków o domyślnej `1` odznaczenie
+     wracało jako zaznaczone. Bloku nie dało się wyłączyć przez sześć wydań.
+
+     DLACZEGO NIE ZŁAPAŁA TEGO SIATKA: pliki wzorcowe patrzą na GRAF, a usterka
+     siedziała w ZAPISIE — graf dla zapisanych ustawień był prawidłowy, tylko
+     zapisywały się nie te ustawienia, co trzeba. A sprawdzenia sanityzacji
+     podawały zawsze KOMPLET pól i nigdy nie zadały jedynego pytania, które to
+     odsłania: co się dzieje, gdy pola W WEJŚCIU NIE MA.
+
+     Dlatego pętla po REJESTRZE, a nie lista siedmiu nazw: pole wyboru dopisane
+     w przyszłości jest objęte od pierwszego dnia. */
+  const wyboru = klucze.filter((k) => pola[k].typ === 'checkbox');
+  t.check('rejestr ma pola wyboru — inaczej pętla niżej kręci się zero razy',
+    wyboru.length >= 8, wyboru.length + ' pól');
+
+  const bezNiczego = san({ site_name: 'X' });
+  for (const k of wyboru) {
+    t.check(`odznaczone zostaje odznaczone: ${k}`, bezNiczego[k] === 0, String(bezNiczego[k]));
+  }
+
+  /* Kontrola dodatnia. Bez niej „odznaczone zostaje odznaczone" przechodzi
+     także wtedy, gdyby zapis zerował pola wyboru zawsze — a to byłaby ta sama
+     usterka odwrócona i tak samo niewidoczna w grafie. */
+  const wszystkieZaznaczone = san(Object.fromEntries(wyboru.map((k) => [k, '1'])));
+  for (const k of wyboru) {
+    t.check(`zaznaczone zostaje zaznaczone: ${k}`, wszystkieZaznaczone[k] === 1,
+      String(wszystkieZaznaczone[k]));
+  }
+
   /* ── Edytor węzłów: BRAMKA PRZY ZAPISIE ────────────────────────────────
      Ta gałąź czyta z `$_POST`, nie z `$input` — tak działa formularz. Bramka
      w `dolacz_wlasne()` (sprawdzona wyżej) łapie to samo, ale dopiero przy
