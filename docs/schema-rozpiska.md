@@ -146,10 +146,10 @@ Tu trafia najwięcej, bo to jedyny węzeł, który jest globalny **z definicji**
 | `memberOf` | textarea (nazwa + URL) | wszystkie | Izby, zrzeszenia. |
 | `brand` | tekst | wszystkie | |
 | `areaServed` | textarea | wszystkie | **Dziś tylko na `#place`.** Organizacja bez fizycznego obiektu nie ma jak podać obszaru. |
-| `contactPoint` ⏭ wyd. 4 | **repeater** | wszystkie | Dziś jeden, wyprowadzany z telefonu. Realnie firmy mają osobne numery do sprzedaży, wsparcia i rezerwacji — a `contactType` to właśnie rozróżnia. |
+| `contactPoint` ✅ | **repeater** | wszystkie | Dziś jeden, wyprowadzany z telefonu. Realnie firmy mają osobne numery do sprzedaży, wsparcia i rezerwacji — a `contactType` to właśnie rozróżnia. |
 | `faxNumber` | tekst | wszystkie | Kancelarie i przychodnie nadal go mają. |
-| `nonprofitStatus` ⏭ wyd. 3 | select | organizacja | Fundacje i stowarzyszenia. |
-| `hasOfferCatalog` ⏭ wyd. 3 | repeater nazw usług | usługi, zdrowie | Lista usług bez wchodzenia w `Service` jako osobny typ. |
+| `nonprofitStatus` ✅ | select | organizacja | Fundacje i stowarzyszenia. |
+| `hasOfferCatalog` ✅ | repeater nazw usług | usługi, zdrowie | Lista usług bez wchodzenia w `Service` jako osobny typ. |
 
 **17 nowych.** Z 10 właściwości robi się 27.
 
@@ -364,7 +364,7 @@ regresyjna straciłaby sens (nie odróżniłbym zamierzonej zmiany od zepsucia).
 | 1 ✅ | **Rejestr i pętla sanityzacji** (1.171.0) | Przebudowa zapisu **bez ani jednego nowego pola**. Wyjście grafu musi zostać **bit w bit takie samo** — pliki wzorcowe nie drgną. | Największe. Dlatego idzie pierwsze i osobno: jeśli coś się rozjedzie, wiadomo, że to zapis, a nie nowe pole. |
 | 2 ✅ | **`knowsAbout` + Organizacja** (1.172.0) | Pozycja nr 1 z listy zgłaszającego plus pozostałe 16 pól sekcji 2. | Małe — same dopiski do jednego węzła. |
 | 3 ✅ | **Układ wg węzła + presety** (1.173.0) | Przemeblowanie zakładki na siedem sekcji, pasek presetu, pola branżowe. | Średnie, ale wyłącznie w panelu — graf bez zmian poza polami branżowymi. |
-| 4 | **Miejsce, atrakcja, encje** | Sekcje 3, 4, 5. | Małe. |
+| 4 ✅ | **Miejsce, atrakcja, encje** (1.174.0) | Sekcje 3, 4, 5. | Małe. |
 | 5 | **Edytor węzłów + podgląd** | Sekcja 7 i walidacja. | Średnie — nowy mechanizm wstrzykiwania do grafu. |
 
 Każde wydanie kończy się zielonym `node tests/run.js schema` i mutacjami na

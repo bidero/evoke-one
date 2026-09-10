@@ -2,6 +2,89 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.174.0] — 2026-09-10
+
+Czwarte z pięciu wydań przebudowy zakładki Schema: **miejsce, atrakcja,
+encje podrzędne i punkty kontaktowe.**
+
+### Dodane
+
+- **Dziesięć pól wspólnych węzła `#place`** — widocznych przy każdej branży,
+  bo każde istnieje na `Place` albo `LocalBusiness`: `currenciesAccepted`,
+  `paymentAccepted`, `branchCode`, `maximumAttendeeCapacity`, `photo`,
+  `faxNumber`, trzy trójstany i godziny świąteczne.
+
+- **`specialOpeningHoursSpecification` — święta i przerwy.** Jedna reguła
+  na linię, w trzech postaciach:
+
+  ```
+  2026-12-24 zamknięte
+  2026-12-25..2026-12-26 nieczynne
+  2026-12-31 09:00-14:00
+  ```
+
+  Dzień zamknięty wychodzi jako `opens` i `closes` równe `00:00` — tak Google
+  dokumentuje dzień bez otwarcia. Bez tej konwencji dzień zamknięty jest nie
+  do odróżnienia od dnia, o którym nic nie powiedziano. Cokolwiek poza
+  godzinami znaczy „zamknięte": pole przyjmuje słowo od klienta, a lista
+  dopuszczalnych słów byłaby pułapką na literówkę.
+
+- **Pięć pól atrakcji** — `touristType`, `availableLanguage`, własne
+  `openingHoursSpecification` i dwa trójstany. Godziny są **własne**, a nie
+  dziedziczone z obiektu: plaża bywa czynna od maja, gdy recepcja cały rok.
+
+- **Encje podrzędne dostały `url`, `telephone` i `image`.**
+
+- **`contactPoint` jako repeater — z fallbackiem.** Firmy mają osobne numery
+  do rezerwacji, sprzedaży i wsparcia, a `contactType` jest właśnie od ich
+  rozróżniania. **Pusty repeater = zachowanie dotychczasowe:** jeden punkt
+  złożony z telefonu i typu kontaktu, w dodatku jako **obiekt, a nie
+  jednoelementowa tablica** — inaczej graf istniejących witryn zmieniłby
+  kształt bez powodu. Wiersz bez telefonu i bez e-maila jest pomijany.
+
+### Zmienione
+
+- **Boolean'y zamienione na trójstan.** `smokingAllowed: false` znaczy
+  „u nas się nie pali" i **jest deklaracją**; brak właściwości znaczy
+  „nie mówimy". Checkbox tych dwóch rzeczy nie odróżniał, więc zamiast niego
+  jest select o trzech stanach: „— nie podano", „Tak", „Nie".
+
+  Objęło to także trzy pola z 1.173.0 (`petsAllowed`, `acceptsReservations`,
+  `hasDriveThroughService`) — przy jednej stronie używającej modułu lepiej
+  ujednolicić teraz niż zostawić dwie konwencje na stałe.
+
+  Odczyt jest **tolerancyjny na liczby**: opcja bywa zapisana int-em przez
+  checkbox sprzed tego wydania, przez `update_option()` z cudzego kodu albo
+  przez import ustawień. Ścisłe porównanie do łańcucha gubiłoby takie wartości
+  **cicho** — klient widziałby w panelu „nie podano" i nie wiedział, dlaczego
+  jego ustawienie zniknęło.
+
+### Testy
+
+- Siatka grafu: 216 → **248 sprawdzeń**. Dwa nowe scenariusze:
+  `miejsce-pelne` (komplet pól, trójstan we wszystkich trzech stanach naraz,
+  trzy postacie reguły świątecznej, repeater kontaktów z wierszem pustym
+  do odrzucenia) i `trojstan-intem`.
+
+- Scenariusz `trojstan-intem` powstał **z mutacji, która przeszła na zielono**:
+  „trójstan gubi wartość zapisaną int-em". Żaden scenariusz nie trzymał
+  wartości int-em, więc tolerancja była kodem niesprawdzanym.
+
+- **Dowiedzione mutacją:** 16 uszkodzeń, wszystkie zapalają. W tym zniknięcie
+  fallbacku kontaktów, zwinięcie zakresu dni świątecznych do jednego dnia,
+  `paymentAccepted` jako tablica zamiast tekstu i jeden punkt kontaktowy
+  opakowany w tablicę.
+
+### Sprawdzone wobec schema.org
+
+Wszystkie właściwości tego wydania zweryfikowane wobec dziedzin **przed**
+napisaniem kodu, po doświadczeniu z 1.173.0: `specialOpeningHoursSpecification`,
+`publicAccess`, `isAccessibleForFree`, `smokingAllowed`, `branchCode`,
+`maximumAttendeeCapacity`, `photo` → `Place`; `currenciesAccepted`,
+`paymentAccepted` → `LocalBusiness`; `touristType` → `TouristAttraction`;
+`url`, `image` → `Thing`; `telephone` → `Place`. Bez poprawek — tym razem
+lista była trafna.
+
 ## [1.173.0] — 2026-09-10
 
 Trzecie z pięciu wydań przebudowy zakładki Schema: **presety branżowe**.

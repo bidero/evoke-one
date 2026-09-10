@@ -42,6 +42,7 @@ class EVK_Schema {
      *   data           — YYYY, YYYY-MM albo YYYY-MM-DD; cokolwiek innego → puste
      *   liczba         — nieujemna liczba całkowita; cokolwiek innego → puste
      *   czas           — HH:MM (doba 24-godzinna); cokolwiek innego → puste
+     *   trojstan       — '' (nie podano), '1' (tak) albo '0' (nie)
      *   checkbox       — 0 albo 1
      *   json           — przepuszczane, gdy się parsuje; inaczej wartość domyślna
      *   wlasne         — obsługiwane osobno w sanitize_settings()
@@ -111,7 +112,7 @@ class EVK_Schema {
                                    'preset' => ['noclegi']],
             'place_rooms'      => ['wezel' => 'place',        'typ' => 'liczba',       'domyslnie' => '',
                                    'preset' => ['noclegi']],
-            'place_pets'       => ['wezel' => 'place',        'typ' => 'checkbox',     'domyslnie' => 0,
+            'place_pets'       => ['wezel' => 'place',        'typ' => 'trojstan',     'domyslnie' => '',
                                    'preset' => ['noclegi']],
             'place_languages'  => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => '',
                                    'preset' => ['noclegi']],
@@ -123,18 +124,39 @@ class EVK_Schema {
                                    'preset' => ['gastronomia']],
             'place_menu'       => ['wezel' => 'place',        'typ' => 'url',          'domyslnie' => '',
                                    'preset' => ['gastronomia']],
-            'place_reservations'=> ['wezel' => 'place',       'typ' => 'checkbox',     'domyslnie' => 0,
+            'place_reservations'=> ['wezel' => 'place',       'typ' => 'trojstan',     'domyslnie' => '',
                                    'preset' => ['gastronomia']],
-            'place_drive_thru' => ['wezel' => 'place',        'typ' => 'checkbox',     'domyslnie' => 0,
+            'place_drive_thru' => ['wezel' => 'place',        'typ' => 'trojstan',     'domyslnie' => '',
                                    'preset' => ['gastronomia']],
             'place_specialty'  => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => '',
                                    'preset' => ['zdrowie']],
 
+            /* Pola miejsca WSPÓLNE dla wszystkich branż (1.174.0) — bez klucza
+               `preset`, więc widoczne zawsze. */
+            'place_special_hours' => ['wezel' => 'place',     'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'place_currencies' => ['wezel' => 'place',        'typ' => 'tekst',        'domyslnie' => ''],
+            'place_payment'    => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'place_public'     => ['wezel' => 'place',        'typ' => 'trojstan',     'domyslnie' => ''],
+            'place_free'       => ['wezel' => 'place',        'typ' => 'trojstan',     'domyslnie' => ''],
+            'place_smoking'    => ['wezel' => 'place',        'typ' => 'trojstan',     'domyslnie' => ''],
+            'place_branch'     => ['wezel' => 'place',        'typ' => 'tekst',        'domyslnie' => ''],
+            'place_capacity'   => ['wezel' => 'place',        'typ' => 'liczba',       'domyslnie' => ''],
+            'place_photos'     => ['wezel' => 'place',        'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'place_fax'        => ['wezel' => 'place',        'typ' => 'tekst',        'domyslnie' => ''],
+
             // ── Atrakcja turystyczna (#attraction) ──────────────────────
             'attraction_name'  => ['wezel' => 'attraction',   'typ' => 'tekst',        'domyslnie' => ''],
+            'attr_tourist_type'=> ['wezel' => 'attraction',   'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'attr_languages'   => ['wezel' => 'attraction',   'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'attr_hours'       => ['wezel' => 'attraction',   'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'attr_public'      => ['wezel' => 'attraction',   'typ' => 'trojstan',     'domyslnie' => ''],
+            'attr_free'        => ['wezel' => 'attraction',   'typ' => 'trojstan',     'domyslnie' => ''],
 
             // ── Encje podrzędne (repeater) ──────────────────────────────
             'sub_entities'     => ['wezel' => 'entities',     'typ' => 'wlasne',       'domyslnie' => '[]'],
+
+            // Repeater punktów kontaktowych (1.174.0) — patrz build_organization().
+            'contact_points'   => ['wezel' => 'organization', 'typ' => 'wlasne',       'domyslnie' => '[]'],
 
             // ── WooCommerce ─────────────────────────────────────────────
             'lang_currencies'  => ['wezel' => 'product',      'typ' => 'json',         'domyslnie' => '{"en":"EUR","de":"EUR"}'],
@@ -396,6 +418,19 @@ class EVK_Schema {
                 if ($t === '') return '';
                 return preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t) ? $t : '';
 
+            case 'trojstan':
+                /* TRZY stany, nie dwa. `smokingAllowed: false` znaczy
+                   „u nas się nie pali" i jest deklaracją; brak właściwości
+                   znaczy „nie mówimy". Checkbox tych dwóch rzeczy nie
+                   odróżnia, więc zamiast niego jest select. */
+                /* Tolerancyjnie na liczby, bo opcja bywa zapisana int-em:
+                   przez checkbox sprzed 1.174.0, przez `update_option()`
+                   z cudzego kodu albo przez import ustawień. Ścisłe
+                   porównanie do łańcucha cicho gubiłoby takie wartości. */
+                if ($wartosc === 1 || $wartosc === '1' || $wartosc === true)  return '1';
+                if ($wartosc === 0 || $wartosc === '0' || $wartosc === false) return '0';
+                return '';
+
             case 'liczba':
                 $n = trim(sanitize_text_field((string) $wartosc));
                 return preg_match('/^\d+$/', $n) ? $n : '';
@@ -482,12 +517,42 @@ if (isset($_POST['evk_schema_curr']) && is_array($_POST['evk_schema_curr'])) {
        i lądował w opcji. */
     $clean['lang_currencies'] = $clean['lang_currencies'];
 }
+// Punkty kontaktowe (repeater — równoległe tablice type/telephone/email)
+if (isset($_POST['evk_schema_contact']) && is_array($_POST['evk_schema_contact'])) {
+    $raw    = wp_unslash($_POST['evk_schema_contact']);
+    $typy   = (array) ($raw['type'] ?? []);
+    $tele   = (array) ($raw['telephone'] ?? []);
+    $maile  = (array) ($raw['email'] ?? []);
+    $punkty = [];
+    foreach ($typy as $i => $typ) {
+        $tel  = sanitize_text_field($tele[$i] ?? '');
+        $mail = sanitize_text_field($maile[$i] ?? '');
+        // Wiersz bez telefonu I bez maila nie jest punktem kontaktowym.
+        if ($tel === '' && $mail === '') continue;
+        $punkty[] = [
+            'type'      => sanitize_text_field($typ),
+            'telephone' => $tel,
+            'email'     => $mail,
+        ];
+    }
+    $clean['contact_points'] = wp_json_encode($punkty, JSON_UNESCAPED_UNICODE);
+} else {
+    $clean['contact_points'] = self::sanityzuj_wartosc(
+        'json',
+        $input['contact_points'] ?? self::pola()['contact_points']['domyslnie'],
+        self::pola()['contact_points']['domyslnie']
+    );
+}
+
 // Podrzędne obiekty/usługi (repeater — równoległe tablice type/name/description)
 if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
     $sub_raw = wp_unslash($_POST['evk_schema_sub']);
     $types   = (array) ($sub_raw['type'] ?? []);
     $names   = (array) ($sub_raw['name'] ?? []);
     $descs   = (array) ($sub_raw['description'] ?? []);
+    $urls    = (array) ($sub_raw['url'] ?? []);
+    $tels    = (array) ($sub_raw['telephone'] ?? []);
+    $imgs    = (array) ($sub_raw['image'] ?? []);
     $allowed = self::sub_entity_types();
     $subs    = [];
     foreach ($types as $i => $type) {
@@ -498,6 +563,9 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
             'type'        => $type,
             'name'        => $name,
             'description' => sanitize_textarea_field($descs[$i] ?? ''),
+            'url'         => esc_url_raw($urls[$i] ?? ''),
+            'telephone'   => sanitize_text_field($tels[$i] ?? ''),
+            'image'       => esc_url_raw($imgs[$i] ?? ''),
         ];
     }
     $clean['sub_entities'] = wp_json_encode($subs, JSON_UNESCAPED_UNICODE);
@@ -658,15 +726,41 @@ private function build_website(array $s, string $home_url, string $lang): array 
         if ($s['email']) {
             $org['email'] = $s['email'];
         }
-        // ContactPoint
-        if ($s['telephone']) {
-            $org['contactPoint'] = [
+        /* ContactPoint — repeater z FALLBACKIEM na dotychczasowe zachowanie.
+           Firmy mają osobne numery do sprzedaży, rezerwacji i wsparcia,
+           a `contactType` jest właśnie od ich rozróżniania. Gdy repeater jest
+           pusty, wychodzi dokładnie jeden punkt złożony z telefonu i typu
+           kontaktu — czyli to, co moduł robił dotąd. Dzięki temu witryna,
+           która repeatera nie tknęła, ma graf bez zmian. */
+        $kontakty = json_decode($s['contact_points'] ?? '[]', true);
+        $punkty   = [];
+        if (is_array($kontakty)) {
+            foreach ($kontakty as $k) {
+                $tel  = trim((string) ($k['telephone'] ?? ''));
+                $mail = trim((string) ($k['email'] ?? ''));
+                if ($tel === '' && $mail === '') continue;   // pusty wiersz
+                $punkt = [
+                    '@type'       => 'ContactPoint',
+                    'contactType' => trim((string) ($k['type'] ?? '')) ?: 'customer service',
+                ];
+                if ($tel !== '')  $punkt['telephone'] = $tel;
+                if ($mail !== '') $punkt['email'] = $mail;
+                $punkt['availableLanguage'] = $this->get_available_languages();
+                $punkty[] = $punkt;
+            }
+        }
+        if (!$punkty && $s['telephone']) {
+            $punkty[] = [
                 '@type'             => 'ContactPoint',
                 'telephone'         => $s['telephone'],
                 'contactType'       => $s['contact_type'] ?: 'customer service',
                 'availableLanguage' => $this->get_available_languages(),
-
             ];
+        }
+        if ($punkty) {
+            // Jeden punkt zostaje obiektem, nie jednoelementową tablicą —
+            // inaczej graf istniejących witryn zmieniłby kształt bez powodu.
+            $org['contactPoint'] = count($punkty) === 1 ? $punkty[0] : $punkty;
         }
         // Logo
         if ($s['favicon_url']) {
@@ -1090,6 +1184,34 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
             $place['parentOrganization'] = ['@id' => $home_url . '#organization'];
         }
 
+        /* Pola wspólne dla wszystkich branż (1.174.0). Bez bramki presetu —
+           każde istnieje na `Place` albo `LocalBusiness`, więc jest prawidłowe
+           przy dowolnym typie działalności. */
+        if ($swieta = self::parse_special_hours($s['place_special_hours'] ?? '')) {
+            $place['specialOpeningHoursSpecification'] = $swieta;
+        }
+        if (!empty($s['place_currencies'])) $place['currenciesAccepted'] = $s['place_currencies'];
+        if ($platnosci = self::linie($s['place_payment'] ?? '')) {
+            // paymentAccepted to Text — lista idzie przecinkami, nie tablicą.
+            $place['paymentAccepted'] = implode(', ', $platnosci);
+        }
+        foreach (['place_public' => 'publicAccess',
+                  'place_free'   => 'isAccessibleForFree',
+                  'place_smoking'=> 'smokingAllowed'] as $klucz => $wlasciwosc) {
+            $v = self::trojstan($s[$klucz] ?? '');
+            if ($v !== null) $place[$wlasciwosc] = $v;
+        }
+        if (!empty($s['place_branch'])) $place['branchCode'] = $s['place_branch'];
+        if (($s['place_capacity'] ?? '') !== '') {
+            $place['maximumAttendeeCapacity'] = (int) $s['place_capacity'];
+        }
+        if ($zdjecia = self::linie($s['place_photos'] ?? '')) {
+            $place['photo'] = array_map(static function ($url) {
+                return ['@type' => 'ImageObject', 'url' => $url];
+            }, $zdjecia);
+        }
+        if (!empty($s['place_fax'])) $place['faxNumber'] = $s['place_fax'];
+
         /* Pola branżowe — emitowane wyłącznie przy pasującym presecie.
            Ta bramka jest powodem, dla którego presety w ogóle istnieją. */
         $preset = self::preset_dla_typu($org_type);
@@ -1103,9 +1225,10 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
                     'value' => (int) $s['place_rooms'],
                 ];
             }
-            // petsAllowed emitujemy TYLKO gdy zaznaczone: `false` znaczy
-            // „zwierzęta zabronione", a to inna deklaracja niż brak zdania.
-            if (!empty($s['place_pets'])) $place['petsAllowed'] = true;
+            // `false` znaczy „zwierzęta zabronione" i jest deklaracją —
+            // dlatego trójstan, a nie checkbox (patrz self::trojstan()).
+            $pets = self::trojstan($s['place_pets'] ?? '');
+            if ($pets !== null) $place['petsAllowed'] = $pets;
             if ($jezyki = self::linie($s['place_languages'] ?? '')) {
                 $place['availableLanguage'] = $jezyki;
             }
@@ -1116,8 +1239,11 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
                 $place['servesCuisine'] = $kuchnie;
             }
             if (!empty($s['place_menu'])) $place['hasMenu'] = $s['place_menu'];
-            if (!empty($s['place_reservations'])) $place['acceptsReservations'] = true;
-            if (!empty($s['place_drive_thru'])) $place['hasDriveThroughService'] = true;
+            foreach (['place_reservations' => 'acceptsReservations',
+                      'place_drive_thru'   => 'hasDriveThroughService'] as $klucz => $wlasciwosc) {
+                $v = self::trojstan($s[$klucz] ?? '');
+                if ($v !== null) $place[$wlasciwosc] = $v;
+            }
         }
 
         // Jedyne pole branżowe wspólne dla dwóch presetów — starRating istnieje
@@ -1163,6 +1289,27 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
                 ? $s['favicon_url']
                 : untrailingslashit(get_option('home')) . $s['favicon_url'];
         }
+        /* Pola atrakcji (1.174.0). `touristType` jest jedyną właściwością
+           swoistą dla TouristAttraction; reszta pochodzi z Place, więc jest
+           prawidłowa także tutaj. */
+        if ($grupy = self::linie($s['attr_tourist_type'] ?? '')) {
+            $att['touristType'] = $grupy;
+        }
+        if ($jezyki = self::linie($s['attr_languages'] ?? '')) {
+            $att['availableLanguage'] = $jezyki;
+        }
+        /* Atrakcja bywa czynna inaczej niż obiekt — plaża od maja do września,
+           gdy recepcja cały rok. Dlatego własne godziny, a nie dziedziczone
+           z #place; puste pole zostawia atrakcję bez godzin, tak jak dotąd. */
+        if ($godziny = $this->parse_opening_hours((string) ($s['attr_hours'] ?? ''))) {
+            $att['openingHoursSpecification'] = $godziny;
+        }
+        foreach (['attr_public' => 'publicAccess',
+                  'attr_free'   => 'isAccessibleForFree'] as $klucz => $wlasciwosc) {
+            $v = self::trojstan($s[$klucz] ?? '');
+            if ($v !== null) $att[$wlasciwosc] = $v;
+        }
+
         // Powiązanie z węzłem miejsca (#place), jeśli istnieje
         if ($this->has_place($s)) {
             $att['containedInPlace'] = ['@id' => $home_url . '#place'];
@@ -1195,6 +1342,10 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
             if (!empty($entry['description'])) {
                 $node['description'] = (string) $entry['description'];
             }
+            // Pola dołożone w 1.174.0 — każde tylko wtedy, gdy wypełnione.
+            foreach (['url' => 'url', 'telephone' => 'telephone', 'image' => 'image'] as $k => $w) {
+                if (!empty($entry[$k])) $node[$w] = (string) $entry[$k];
+            }
             if ($parent_id) {
                 $node['containedInPlace'] = ['@id' => $parent_id];
             }
@@ -1220,6 +1371,63 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
             'trim',
             preg_split('/\r\n|\r|\n/', (string) $raw) ?: []
         ), static function ($linia) { return $linia !== ''; }));
+    }
+
+    /**
+     * Wartość trójstanowa → `true`/`false` albo `null` (nie emitować).
+     *
+     * `false` to DEKLARACJA („u nas się nie pali"), a nie brak zdania — i tym
+     * różni się od pustego. Bez tego rozróżnienia jedyne, co można powiedzieć,
+     * to „palenie dozwolone albo nie wiadomo".
+     */
+    private static function trojstan($wartosc): ?bool {
+        if ($wartosc === '' || $wartosc === null) return null;
+        if ($wartosc === '1' || $wartosc === 1 || $wartosc === true)  return true;
+        if ($wartosc === '0' || $wartosc === 0 || $wartosc === false) return false;
+        return null;
+    }
+
+    /**
+     * Godziny świąteczne i przerwy → specialOpeningHoursSpecification.
+     *
+     * Jedna linia = jedna reguła:
+     *   2026-12-24 zamknięte
+     *   2026-12-24..2026-12-26 zamknięte
+     *   2026-12-31 09:00-14:00
+     *
+     * „Zamknięte" wychodzi jako `opens` i `closes` równe `00:00` — tak Google
+     * dokumentuje dzień bez otwarcia. Bez tej konwencji dzień zamknięty jest
+     * nie do odróżnienia od dnia, o którym nic nie powiedziano.
+     */
+    private static function parse_special_hours($raw): array {
+        $specs = [];
+        foreach (self::linie($raw) as $linia) {
+            if (!preg_match('/^(\d{4}-\d{2}-\d{2})(?:\s*\.\.\s*(\d{4}-\d{2}-\d{2}))?\s+(.+)$/u', trim($linia), $m)) {
+                continue;
+            }
+            $od = $m[1];
+            $do = $m[2] ?: $m[1];
+            $reszta = trim($m[3]);
+
+            if (preg_match('/^([01]\d|2[0-3]):([0-5]\d)\s*[-–—]\s*([01]\d|2[0-3]):([0-5]\d)$/u', $reszta, $g)) {
+                $opens  = $g[1] . ':' . $g[2];
+                $closes = $g[3] . ':' . $g[4];
+            } else {
+                // Cokolwiek innego traktujemy jako „zamknięte" — pole przyjmuje
+                // słowo od klienta („zamknięte", „nieczynne", „closed"),
+                // a lista dopuszczalnych słów byłaby pułapką na literówkę.
+                $opens = $closes = '00:00';
+            }
+
+            $specs[] = [
+                '@type'       => 'OpeningHoursSpecification',
+                'validFrom'   => $od,
+                'validThrough' => $do,
+                'opens'       => $opens,
+                'closes'      => $closes,
+            ];
+        }
+        return $specs;
     }
 
     private function build_address(array $s): array {

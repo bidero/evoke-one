@@ -346,6 +346,68 @@ $scenariusze = [
         ];
     },
 
+    /* Komplet pól WSPÓLNYCH miejsca, atrakcji, encji podrzędnych i repeatera
+       kontaktów (1.174.0). Wszystko naraz, bo kształty są różne: trójstany,
+       listy, węzły ImageObject, godziny świąteczne i punkty kontaktowe. */
+    'miejsce-pelne' => function () {
+        $GLOBALS['jezyki'] = ['en' => ['name' => 'English']];
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled'         => 1,
+            'org_type'        => 'Resort',
+            'site_name'       => 'Ośrodek Przykładowy',
+            'street_address'  => 'Leśna 4', 'locality' => 'Mikołajki',
+            'telephone'       => '+48 111 222 333',
+            'block_attraction' => 1,
+            'attraction_name' => 'Punkt widokowy',
+
+            // Trzy postacie reguły świątecznej: jeden dzień zamknięty,
+            // zakres dni zamkniętych i dzień o skróconych godzinach.
+            'place_special_hours' => "2026-12-24 zamknięte\n2026-12-25..2026-12-26 nieczynne\n2026-12-31 09:00-14:00",
+            'place_currencies' => 'PLN',
+            'place_payment'    => "Gotówka\nKarta\nBLIK",
+            // Trójstan we wszystkich trzech stanach naraz.
+            'place_public'     => '1',
+            'place_smoking'    => '0',
+            'place_free'       => '',
+            'place_branch'     => 'MIK-01',
+            'place_capacity'   => '120',
+            'place_photos'     => "https://przyklad.test/1.jpg\nhttps://przyklad.test/2.jpg",
+            'place_fax'        => '+48 00 000 00 00',
+
+            'attr_tourist_type' => "Rodziny z dziećmi\nWędkarze",
+            'attr_languages'    => "Polish\nEnglish",
+            'attr_hours'        => "Pn-Nd 09:00-17:00",
+            'attr_free'         => '1',
+            'attr_public'       => '1',
+
+            // Repeater kontaktów: trzy punkty, w tym jeden bez telefonu
+            // i jeden pusty (do odrzucenia).
+            'contact_points'  => '[{"type":"reservations","telephone":"+48 111 222 333","email":""},'
+                               . '{"type":"customer support","telephone":"","email":"pomoc@przyklad.test"},'
+                               . '{"type":"sales","telephone":"","email":""}]',
+
+            'sub_entities'    => '[{"type":"Beach","name":"Plaża","description":"Piaszczysta",'
+                               . '"url":"https://przyklad.test/plaza","telephone":"+48 999 888 777",'
+                               . '"image":"https://przyklad.test/plaza.jpg"},'
+                               . '{"type":"ParkingFacility","name":"Parking"}]',
+        ];
+    },
+
+    /* Wartości trójstanowe zapisane INT-em, nie łańcuchem.
+       Tak wygląda opcja po checkboxie sprzed 1.174.0, po `update_option()`
+       z cudzego kodu albo po imporcie ustawień. Ścisłe porównanie do łańcucha
+       cicho gubiłoby takie wartości — a „cicho" znaczy: klient widzi w panelu
+       „nie podano" i nie wie, dlaczego jego ustawienie zniknęło. */
+    'trojstan-intem' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'Hotel', 'site_name' => 'Hotel Przykładowy',
+            'street_address' => 'Leśna 4', 'locality' => 'Mikołajki',
+            'place_pets'    => 1,    // int, nie '1'
+            'place_public'  => 1,
+            'place_smoking' => 0,    // int zero — „nie", a nie „nie podano"
+        ];
+    },
+
     /* Pola branżowe wypełnione KOMPLETNIE, ale dla trzech różnych branż —
        żeby widać było, że każda dostaje swoje i tylko swoje. */
     'hotel' => function () {
@@ -353,7 +415,7 @@ $scenariusze = [
             'enabled' => 1, 'org_type' => 'Hotel', 'site_name' => 'Hotel Przykładowy',
             'street_address' => 'Leśna 4', 'locality' => 'Mikołajki',
             'place_checkin' => '15:00', 'place_checkout' => '11:00',
-            'place_rooms' => '24', 'place_pets' => 1, 'place_stars' => '4',
+            'place_rooms' => '24', 'place_pets' => '1', 'place_stars' => '4',
             'place_languages' => "Polish\nEnglish",
             /* Pola CUDZYCH branż, wypełnione celowo. Dzięki nim każdy
                scenariusz branżowy jest jednocześnie sprawdzeniem wycieku
@@ -369,7 +431,7 @@ $scenariusze = [
             'street_address' => 'Leśna 4', 'locality' => 'Mikołajki',
             'place_cuisine' => "polska\nwegetariańska",
             'place_menu' => 'https://przyklad.test/menu',
-            'place_reservations' => 1, 'place_drive_thru' => 1, 'place_stars' => '3',
+            'place_reservations' => '1', 'place_drive_thru' => '0', 'place_stars' => '3',
             // Jw. — pola noclegowe i medyczne, których restauracja nie ma prawa wysłać.
             'place_checkin' => '15:00', 'place_rooms' => '24', 'place_specialty' => 'Dentistry',
         ];

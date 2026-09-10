@@ -98,7 +98,7 @@ function lancuchy(o, out = []) {
    sprawdzeniem, że plik jest pusty. */
 const SCENARIUSZE = ['minimalny', 'firma', 'firma-en', 'atrakcja',
                      'podstrona', 'wpis', 'produkt', 'bez-org', 'faq-off',
-                     'organizacja-pelna', 'hotel', 'restauracja', 'gabinet', 'wyciek-presetu',
+                     'organizacja-pelna', 'miejsce-pelne', 'trojstan-intem', 'hotel', 'restauracja', 'gabinet', 'wyciek-presetu',
                      'nadpisanie-wpisu', 'nadpisanie-puste', 'bez-okruszkow',
                      'filtr-ustawien'];
 
@@ -289,8 +289,8 @@ module.exports = async function (t) {
   t.check('adres relatywny logo dostaje adres witryny z przodu',
     org?.logo?.url === 'https://example.test/wp-content/uploads/logo.png', org?.logo?.url);
   t.check('kontakt niesie języki z modułu Tłumaczeń',
-    org?.contactPoint?.availableLanguage.join(',') === 'Polish,English,German',
-    org?.contactPoint?.availableLanguage.join(','));
+    org?.contactPoint?.availableLanguage?.join(',') === 'Polish,English,German',
+    org?.contactPoint?.availableLanguage?.join(','));
   t.check('własny contactType wygrywa z domyślnym',
     org?.contactPoint?.contactType === 'reservations', org?.contactPoint?.contactType);
 
@@ -474,6 +474,112 @@ module.exports = async function (t) {
   t.check('niewypełnione pola nie zostawiają śladu w grafie', !przecieki.length,
     przecieki.join(', ') || NOWE.length + ' pól cicho');
 
+  // ── Miejsce, atrakcja, encje (wydanie 4) ───────────────────────────────
+  t.section('miejsce: pola wspólne dla wszystkich branż');
+
+  const mp = wezel(grafy['miejsce-pelne'], 'Resort');
+
+  /* TRÓJSTAN. `smokingAllowed: false` znaczy „u nas się nie pali" i jest
+     deklaracją; brak właściwości znaczy „nie mówimy". Checkbox tych dwóch
+     rzeczy nie odróżniał, więc te pola mają select o trzech stanach —
+     i scenariusz używa wszystkich trzech naraz. */
+  t.check('trójstan: TAK wychodzi jako true', mp?.publicAccess === true);
+  t.check('trójstan: NIE wychodzi jako false, a nie jako brak',
+    mp?.smokingAllowed === false, JSON.stringify(mp?.smokingAllowed));
+  t.check('trójstan: „nie podano" nie wychodzi wcale',
+    !('isAccessibleForFree' in (mp || {})),
+    JSON.stringify(mp?.isAccessibleForFree));
+
+  t.check('waluty i formy płatności', mp?.currenciesAccepted === 'PLN' &&
+    mp?.paymentAccepted === 'Gotówka, Karta, BLIK', mp?.paymentAccepted);
+  t.check('numer oddziału i pojemność',
+    mp?.branchCode === 'MIK-01' && mp?.maximumAttendeeCapacity === 120,
+    JSON.stringify(mp?.maximumAttendeeCapacity));
+  t.check('zdjęcia jako węzły ImageObject, nie gołe adresy',
+    mp?.photo?.length === 2 && mp?.photo?.[0]['@type'] === 'ImageObject');
+  t.check('faks miejsca osobno od faksu organizacji',
+    mp?.faxNumber === '+48 00 000 00 00');
+
+  /* Wartość zapisana INT-em, nie łańcuchem — tak wygląda opcja po checkboxie
+     sprzed 1.174.0 albo po imporcie ustawień. Ścisłe porównanie do łańcucha
+     gubiłoby ją CICHO: klient widzi w panelu „nie podano" i nie wie, czemu
+     jego ustawienie zniknęło. Mutacja „trójstan gubi wartość zapisaną int-em"
+     przechodziła na zielono, zanim ten scenariusz powstał. */
+  const ti = wezel(grafy['trojstan-intem'], 'Hotel');
+  t.check('int 1 czytany jako TAK', ti?.petsAllowed === true && ti?.publicAccess === true,
+    JSON.stringify([ti?.petsAllowed, ti?.publicAccess]));
+  t.check('int 0 czytany jako NIE, a nie jako „nie podano"',
+    ti?.smokingAllowed === false, JSON.stringify(ti?.smokingAllowed));
+
+  t.section('godziny świąteczne (specialOpeningHoursSpecification)');
+
+  /* Trzy postacie reguły naraz: dzień zamknięty, ZAKRES dni zamkniętych
+     i dzień o skróconych godzinach. Jedna postać sprawdzałaby wyłącznie
+     tę jedną gałąź parsera. */
+  const sw = mp?.specialOpeningHoursSpecification || [];
+  t.check('trzy reguły z trzech linii', sw.length === 3, sw.length + '');
+  t.check('dzień zamknięty to opens=closes=00:00 — konwencja Google',
+    sw[0]?.opens === '00:00' && sw[0]?.closes === '00:00' &&
+    sw[0]?.validFrom === '2026-12-24' && sw[0]?.validThrough === '2026-12-24',
+    JSON.stringify(sw[0]));
+  t.check('zakres dni daje validFrom różne od validThrough',
+    sw[1]?.validFrom === '2026-12-25' && sw[1]?.validThrough === '2026-12-26',
+    sw[1]?.validFrom + '..' + sw[1]?.validThrough);
+  t.check('skrócone godziny zachowane, nie zamienione na zamknięte',
+    sw[2]?.opens === '09:00' && sw[2]?.closes === '14:00',
+    sw[2]?.opens + '-' + sw[2]?.closes);
+  t.check('a witryna bez świąt nie dostaje tej właściwości — kontrola',
+    !('specialOpeningHoursSpecification' in (wezel(grafy.firma, 'LodgingBusiness') || {})));
+
+  t.section('atrakcja: własne pola i własne godziny');
+
+  const at = wezel(grafy['miejsce-pelne'], 'TouristAttraction');
+  t.check('grupy odbiorców jako lista', at?.touristType?.join(',') === 'Rodziny z dziećmi,Wędkarze');
+  t.check('języki atrakcji', at?.availableLanguage?.join(',') === 'Polish,English');
+  /* Atrakcja bywa czynna inaczej niż obiekt — plaża od maja, gdy recepcja
+     cały rok. Dlatego WŁASNE godziny, a nie dziedziczone z #place. */
+  t.check('atrakcja ma własne godziny otwarcia',
+    at?.openingHoursSpecification?.[0]?.dayOfWeek?.length === 7,
+    at?.openingHoursSpecification?.[0]?.dayOfWeek?.length);
+  t.check('i własne trójstany', at?.publicAccess === true && at?.isAccessibleForFree === true);
+  t.check('a atrakcja bez tych pól ich nie dostaje — kontrola',
+    !('touristType' in (wezel(grafy.atrakcja, 'TouristAttraction') || {})));
+
+  t.section('encje podrzędne: adres, telefon, obraz');
+
+  const encje = grafy['miejsce-pelne']['@graph'].filter((n) => /#entity-\d+$/.test(n['@id']));
+  t.check('encja z kompletem pól niesie wszystkie trzy',
+    encje[0]?.url === 'https://przyklad.test/plaza' &&
+    encje[0]?.telephone === '+48 999 888 777' &&
+    encje[0]?.image === 'https://przyklad.test/plaza.jpg');
+  t.check('encja bez nich nie dostaje pustych kluczy',
+    !('url' in (encje[1] || {})) && !('telephone' in (encje[1] || {})),
+    Object.keys(encje[1] || {}).join(','));
+
+  t.section('punkty kontaktowe (repeater z fallbackiem)');
+
+  /* Firmy mają osobne numery do rezerwacji, sprzedaży i wsparcia, a
+     `contactType` jest właśnie od ich rozróżniania. Fallback jest tu
+     najważniejszy: gdy repeater pusty, wychodzi DOKŁADNIE jeden punkt
+     złożony z telefonu i typu kontaktu — czyli to, co moduł robił dotąd,
+     więc witryna nietknięta ma graf bez zmian. */
+  const kont = wezel(grafy['miejsce-pelne'], 'Organization')?.contactPoint;
+  t.check('dwa punkty z trzech wierszy — pusty odrzucony',
+    Array.isArray(kont) && kont.length === 2, JSON.stringify(kont?.length));
+  t.check('punkt z telefonem nie dostaje pustego e-maila',
+    kont?.[0]?.telephone === '+48 111 222 333' && !('email' in (kont?.[0] || {})));
+  t.check('punkt z samym e-mailem nie dostaje pustego telefonu',
+    kont?.[1]?.email === 'pomoc@przyklad.test' && !('telephone' in (kont?.[1] || {})));
+  t.check('każdy punkt ma własny contactType', kont?.[0]?.contactType === 'reservations' &&
+    kont?.[1]?.contactType === 'customer support');
+
+  /* FALLBACK — sedno zgodności wstecznej tego wydania. */
+  const kontStary = wezel(grafy.firma, 'Organization')?.contactPoint;
+  t.check('pusty repeater → jeden punkt jak dotąd, OBIEKT a nie tablica',
+    !Array.isArray(kontStary) && kontStary?.['@type'] === 'ContactPoint' &&
+    kontStary?.telephone === '+48 111 222 333',
+    Array.isArray(kontStary) ? 'tablica!' : kontStary?.contactType);
+
   // ── Presety branżowe ───────────────────────────────────────────────────
   t.section('presety: każdy typ działalności ma dokładnie jeden');
 
@@ -538,7 +644,13 @@ module.exports = async function (t) {
     r.servesCuisine?.join(',') === 'polska,wegetariańska');
   t.check('restauracja: menu i rezerwacje',
     r.hasMenu === 'https://przyklad.test/menu' && r.acceptsReservations === true);
-  t.check('restauracja: drive-through', r.hasDriveThroughService === true);
+  /* Scenariusz ma drive-through ustawiony na NIE, nie na „nie podano" —
+     i to jest sedno trójstanu. `false` znaczy „nie mamy okienka" i JEST
+     deklaracją; brak właściwości znaczy „nie mówimy". Checkbox tych dwóch
+     rzeczy nie odróżniał. */
+  t.check('restauracja: drive-through jako świadome NIE, nie brak',
+    r.hasDriveThroughService === false,
+    JSON.stringify(r.hasDriveThroughService));
   t.check('restauracja też ma starRating — jedyne pole wspólne dla dwóch presetów',
     r.starRating?.ratingValue === 3);
   t.check('restauracja NIE dostaje pól hotelowych ani medycznych',
@@ -613,7 +725,7 @@ module.exports = async function (t) {
      zanim padła jakakolwiek inna różnica. O to chodzi: nowy typ sanityzacji
      ma być decyzją, a nie czymś, co wchodzi bokiem razem z polem. */
   const TYPY = ['tekst', 'wieloliniowe', 'url', 'wspolrzedna', 'data', 'liczba',
-                'czas', 'checkbox', 'json', 'wlasne'];
+                'czas', 'trojstan', 'checkbox', 'json', 'wlasne'];
   const zleTypy = klucze.filter((k) => !TYPY.includes(pola[k].typ));
   t.check('żaden typ spoza znanej listy', !zleTypy.length,
     zleTypy.map((k) => k + '=' + pola[k].typ).join(', ') || TYPY.length + ' typów');

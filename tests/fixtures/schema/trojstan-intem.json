@@ -5,7 +5,7 @@
       "@type": "WebSite",
       "@id": "https://example.test/#website",
       "url": "https://example.test/",
-      "name": "Restauracja Przykładowa",
+      "name": "Hotel Przykładowy",
       "description": "Opis z ustawień WordPressa",
       "publisher": {
         "@id": "https://example.test/#organization"
@@ -22,7 +22,7 @@
     {
       "@type": "Organization",
       "@id": "https://example.test/#organization",
-      "name": "Restauracja Przykładowa",
+      "name": "Hotel Przykładowy",
       "url": "https://example.test/",
       "description": "Opis z ustawień WordPressa",
       "address": {
@@ -34,9 +34,9 @@
       }
     },
     {
-      "@type": "Restaurant",
+      "@type": "Hotel",
       "@id": "https://example.test/#place",
-      "name": "Restauracja Przykładowa",
+      "name": "Hotel Przykładowy",
       "url": "https://example.test/",
       "description": "Opis z ustawień WordPressa",
       "address": {
@@ -49,17 +49,9 @@
       "parentOrganization": {
         "@id": "https://example.test/#organization"
       },
-      "servesCuisine": [
-        "polska",
-        "wegetariańska"
-      ],
-      "hasMenu": "https://przyklad.test/menu",
-      "acceptsReservations": true,
-      "hasDriveThroughService": false,
-      "starRating": {
-        "@type": "Rating",
-        "ratingValue": 3
-      }
+      "publicAccess": true,
+      "smokingAllowed": false,
+      "petsAllowed": true
     }
   ]
 }

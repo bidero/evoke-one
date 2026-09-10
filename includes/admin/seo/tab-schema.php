@@ -9,6 +9,22 @@ if (!defined('ABSPATH')) exit;
             $currs   = json_decode($sc['lang_currencies'], true) ?: [];
             $subs    = json_decode($sc['sub_entities'] ?? '[]', true) ?: [];
             $sub_types = EVK_Schema::sub_entity_types();
+            $kontakty  = json_decode($sc['contact_points'] ?? '[]', true) ?: [];
+
+            /* Wiersz repeatera punktów kontaktowych. `contactType` jest polem
+               tekstowym, a nie listą: schema.org nie ma tu zamkniętego
+               słownika, a Google podaje przykłady („customer service",
+               „technical support", „reservations"), nie listę dozwolonych. */
+            $render_kontakt_row = static function (array $row) {
+                ob_start(); ?>
+                <div class="evk-sub-row">
+                    <input type="text" name="evk_schema_contact[type][]" value="<?php echo esc_attr($row['type'] ?? ''); ?>" placeholder="Rodzaj, np. reservations">
+                    <input type="text" name="evk_schema_contact[telephone][]" value="<?php echo esc_attr($row['telephone'] ?? ''); ?>" placeholder="Telefon">
+                    <input type="text" name="evk_schema_contact[email][]" value="<?php echo esc_attr($row['email'] ?? ''); ?>" placeholder="E-mail">
+                    <button type="button" class="button evk-sub-remove" title="Usuń"><span class="dashicons dashicons-trash"></span></button>
+                </div>
+                <?php return ob_get_clean();
+            };
 
             // Renderuje jeden wiersz repeatera podrzędnych encji
             $render_sub_row = static function (array $row) use ($sub_types) {
@@ -24,6 +40,9 @@ if (!defined('ABSPATH')) exit;
                     </select>
                     <input type="text" name="evk_schema_sub[name][]" value="<?php echo esc_attr($r_name); ?>" placeholder="Nazwa, np. Parking dla gości">
                     <input type="text" name="evk_schema_sub[description][]" value="<?php echo esc_attr($r_desc); ?>" placeholder="Opis (opcjonalnie)">
+                    <input type="text" name="evk_schema_sub[url][]" value="<?php echo esc_attr($row['url'] ?? ''); ?>" placeholder="Adres podstrony (opcjonalnie)">
+                    <input type="text" name="evk_schema_sub[telephone][]" value="<?php echo esc_attr($row['telephone'] ?? ''); ?>" placeholder="Telefon (opcjonalnie)">
+                    <input type="text" name="evk_schema_sub[image][]" value="<?php echo esc_attr($row['image'] ?? ''); ?>" placeholder="Adres zdjęcia (opcjonalnie)">
                     <button type="button" class="button evk-sub-remove" title="Usuń"><span class="dashicons dashicons-trash"></span></button>
                 </div>
                 <?php return ob_get_clean();
@@ -40,6 +59,23 @@ if (!defined('ABSPATH')) exit;
 
             // Atrybut widoczności dla pola z rejestru — jedno miejsce, żeby
             // formularz i rejestr nie mogły się rozjechać.
+            /* Select trójstanowy. Pięć takich pól w tej zakładce, a każde
+               wpisane z ręki to osobna szansa na pomylenie „nie" z „nie podano"
+               w wartości opcji. */
+            $trojstan = static function (string $klucz, string $etykieta, string $sc_val, string $opis = ''): string {
+                ob_start(); ?>
+                <div class="evo-field evo-mb-0">
+                    <label><?php echo esc_html($etykieta); ?></label>
+                    <select name="evk_schema[<?php echo esc_attr($klucz); ?>]">
+                        <option value=""  <?php selected($sc_val, '');  ?>>— nie podano</option>
+                        <option value="1" <?php selected($sc_val, '1'); ?>>Tak</option>
+                        <option value="0" <?php selected($sc_val, '0'); ?>>Nie</option>
+                    </select>
+                    <?php if ($opis): ?><div class="evo-desc"><?php echo esc_html($opis); ?></div><?php endif; ?>
+                </div>
+                <?php return ob_get_clean();
+            };
+
             $atr_presetu = static function (string $klucz) use ($preset_teraz): string {
                 $opis = EVK_Schema::pola()[$klucz] ?? [];
                 if (!isset($opis['preset'])) return '';
@@ -103,6 +139,31 @@ if (!defined('ABSPATH')) exit;
                 </div>
 
                 <div class="evo-box">
+                    <h3>Punkty kontaktowe (contactPoint)</h3>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Firmy mają zwykle osobne numery do rezerwacji, sprzedaży i wsparcia — <code>contactType</code> jest właśnie od ich rozróżniania. <strong>Puste = zachowanie dotychczasowe:</strong> jeden punkt złożony z telefonu i typu kontaktu z sekcji „Dane organizacji". Wiersz bez telefonu i bez e-maila jest pomijany.</div></details>
+                    <div id="evk-kontakt-lista">
+                        <?php foreach ($kontakty as $row) { echo $render_kontakt_row((array) $row); } ?>
+                    </div>
+                    <template id="evk-kontakt-tpl"><?php echo $render_kontakt_row([]); ?></template>
+                    <button type="button" class="button evo-mt-xs" id="evk-kontakt-add"><span class="dashicons dashicons-plus-alt2 evo-ico-sm evo-ico-lead"></span> Dodaj punkt kontaktowy</button>
+                    <script>
+                    (function(){
+                        var lista = document.getElementById('evk-kontakt-lista');
+                        var tpl   = document.getElementById('evk-kontakt-tpl');
+                        var add   = document.getElementById('evk-kontakt-add');
+                        if (!lista || !tpl || !add) return;
+                        add.addEventListener('click', function(){
+                            lista.appendChild(tpl.content.cloneNode(true));
+                        });
+                        lista.addEventListener('click', function(e){
+                            var btn = e.target.closest('.evk-sub-remove');
+                            if (btn) btn.closest('.evk-sub-row').remove();
+                        });
+                    })();
+                    </script>
+                </div>
+
+                <div class="evo-box">
                     <h3>Organizacja — dane rozszerzone</h3>
                     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Wszystkie pola są opcjonalne i wchodzą do węzła <code>#organization</code> wyłącznie wypełnione — puste nie zostawiają po sobie śladu w JSON-LD. Google używa ich do panelu wiedzy i do rozpoznania, że witryna i firma to ta sama encja.</div></details>
 
@@ -155,6 +216,21 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-field"<?php echo $atr_presetu('place_cuisine'); ?>><label>Rodzaj kuchni (servesCuisine) — jeden na linię</label><textarea name="evk_schema[place_cuisine]" rows="3" class="evo-w-480" placeholder="polska&#10;wegetariańska"><?php echo esc_textarea($sc['place_cuisine']); ?></textarea></div>
                     <div class="evo-field"<?php echo $atr_presetu('place_specialty'); ?>><label>Specjalizacja medyczna (medicalSpecialty) — jedna na linię<span class="evo-tip" tabindex="0" role="note" data-tip="To pole oczekuje nazwy ze słownika schema.org (MedicalSpecialty), po angielsku: Dentistry, Dermatology, Physiotherapy. Polska nazwa przejdzie, ale dla wyszukiwarek nic nie znaczy." aria-label="To pole oczekuje nazwy ze słownika schema.org (MedicalSpecialty), po angielsku: Dentistry, Dermatology, Physiotherapy. Polska nazwa przejdzie, ale dla wyszukiwarek nic nie znaczy.">?</span></label><textarea name="evk_schema[place_specialty]" rows="3" class="evo-w-480" placeholder="Dentistry"><?php echo esc_textarea($sc['place_specialty']); ?></textarea><div class="evo-desc"><strong>Po angielsku, ze słownika schema.org</strong> (<code>MedicalSpecialty</code>): <code>Dentistry</code>, <code>Dermatology</code>, <code>Physiotherapy</code>… Polska nazwa przejdzie, ale nic nie znaczy dla wyszukiwarek.</div></div>
 
+                    <div class="evo-grid evo-mb" style="--evo-col:280px;--evo-gap:16px">
+                        <div class="evo-field evo-mb-0"><label>Akceptowane waluty (currenciesAccepted)</label><input type="text" name="evk_schema[place_currencies]" value="<?php echo esc_attr($sc['place_currencies']); ?>" placeholder="PLN, EUR"></div>
+                        <div class="evo-field evo-mb-0"><label>Numer oddziału (branchCode)</label><input type="text" name="evk_schema[place_branch]" value="<?php echo esc_attr($sc['place_branch']); ?>" placeholder="WAW-01"><div class="evo-desc">Przy wielu lokalizacjach.</div></div>
+                        <div class="evo-field evo-mb-0"><label>Maksymalna liczba osób (maximumAttendeeCapacity)</label><input type="text" name="evk_schema[place_capacity]" value="<?php echo esc_attr($sc['place_capacity']); ?>" placeholder="120"></div>
+                        <div class="evo-field evo-mb-0"><label>Faks obiektu (faxNumber)</label><input type="text" name="evk_schema[place_fax]" value="<?php echo esc_attr($sc['place_fax']); ?>" placeholder="+48 00 000 00 00"></div>
+                        <?php
+                        echo $trojstan('place_public',  'Dostępne publicznie (publicAccess)', (string) $sc['place_public']);
+                        echo $trojstan('place_free',    'Wstęp bezpłatny (isAccessibleForFree)', (string) $sc['place_free']);
+                        echo $trojstan('place_smoking', 'Palenie dozwolone (smokingAllowed)', (string) $sc['place_smoking']);
+                        ?>
+                    </div>
+                    <div class="evo-field"><label>Formy płatności (paymentAccepted) — jedna na linię</label><textarea name="evk_schema[place_payment]" rows="3" class="evo-w-480" placeholder="Gotówka&#10;Karta&#10;BLIK"><?php echo esc_textarea($sc['place_payment']); ?></textarea></div>
+                    <div class="evo-field"><label>Zdjęcia obiektu (photo) — jeden adres na linię</label><textarea name="evk_schema[place_photos]" rows="3" class="evo-mono evo-w-480" placeholder="https://przyklad.test/1.jpg"><?php echo esc_textarea($sc['place_photos']); ?></textarea></div>
+                    <div class="evo-field"><label>Święta i przerwy (specialOpeningHoursSpecification) — jedna reguła na linię<span class="evo-tip" tabindex="0" role="note" data-tip="Format: data, potem godziny albo słowo oznaczające zamknięcie. Przykłady: „2026-12-24 zamknięte”, „2026-12-25..2026-12-26 nieczynne”, „2026-12-31 09:00-14:00”. Data w zapisie RRRR-MM-DD; dwie kropki oznaczają zakres dni." aria-label="Format: data, potem godziny albo słowo oznaczające zamknięcie. Przykłady: „2026-12-24 zamknięte”, „2026-12-25..2026-12-26 nieczynne”, „2026-12-31 09:00-14:00”. Data w zapisie RRRR-MM-DD; dwie kropki oznaczają zakres dni.">?</span></label><textarea name="evk_schema[place_special_hours]" rows="4" class="evo-mono evo-w-480" placeholder="2026-12-24 zamknięte&#10;2026-12-25..2026-12-26 nieczynne&#10;2026-12-31 09:00-14:00"><?php echo esc_textarea($sc['place_special_hours']); ?></textarea><div class="evo-desc">Nadpisuje zwykłe godziny w podanych dniach. Cokolwiek poza godzinami znaczy „zamknięte".</div></div>
+
                     <div class="evo-field"><label>Obsługiwany obszar (areaServed) — jeden na linię</label><textarea name="evk_schema[area_served]" rows="3" class="evo-w-480" placeholder="Warszawa&#10;mazowieckie&#10;Polska"><?php echo esc_textarea($sc['area_served']); ?></textarea></div>
 
                 </div>
@@ -163,6 +239,15 @@ if (!defined('ABSPATH')) exit;
                     <h3>Atrakcja turystyczna (TouristAttraction)</h3>
                     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Osobny obiekt w grafie — włącz go w „Aktywne bloki JSON-LD" poniżej. Używa adresu i współrzędnych z pól powyżej.</div></details>
                     <div class="evo-field"><label>Nazwa atrakcji</label><input type="text" name="evk_schema[attraction_name]" value="<?php echo esc_attr($sc['attraction_name']); ?>" placeholder="np. Zabytkowy młyn nad rzeką" class="evo-w-480"><div class="evo-desc">Puste pole = nazwa organizacji.</div></div>
+                    <div class="evo-grid evo-mb" style="--evo-col:280px;--evo-gap:16px">
+                        <?php
+                        echo $trojstan('attr_public', 'Dostępna publicznie (publicAccess)', (string) $sc['attr_public']);
+                        echo $trojstan('attr_free',   'Wstęp bezpłatny (isAccessibleForFree)', (string) $sc['attr_free']);
+                        ?>
+                    </div>
+                    <div class="evo-field"><label>Dla kogo (touristType) — jedna grupa na linię</label><textarea name="evk_schema[attr_tourist_type]" rows="3" class="evo-w-480" placeholder="Rodziny z dziećmi&#10;Wędkarze"><?php echo esc_textarea($sc['attr_tourist_type']); ?></textarea></div>
+                    <div class="evo-field"><label>Języki obsługi atrakcji (availableLanguage) — jeden na linię</label><textarea name="evk_schema[attr_languages]" rows="3" class="evo-w-480" placeholder="Polish&#10;English"><?php echo esc_textarea($sc['attr_languages']); ?></textarea></div>
+                    <div class="evo-field"><label>Godziny atrakcji (openingHoursSpecification) — jedna reguła na linię</label><textarea name="evk_schema[attr_hours]" rows="3" class="evo-mono evo-w-480" placeholder="Pn-Nd 09:00-17:00"><?php echo esc_textarea($sc['attr_hours']); ?></textarea><div class="evo-desc">Ten sam zapis co godziny obiektu. Atrakcja bywa czynna inaczej — plaża od maja, gdy recepcja cały rok.</div></div>
 
                 </div>
 
