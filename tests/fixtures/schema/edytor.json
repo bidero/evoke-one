@@ -5,8 +5,7 @@
       "@type": "WebSite",
       "@id": "https://example.test/#website",
       "url": "https://example.test/",
-      "name": "Restauracja Przykładowa",
-      "description": "Opis z ustawień WordPressa",
+      "name": "Ośrodek Przykładowy",
       "publisher": {
         "@id": "https://example.test/#organization"
       },
@@ -17,31 +16,40 @@
           "urlTemplate": "https://example.test/?s={search_term_string}"
         },
         "query-input": "required name=search_term_string"
-      }
+      },
+      "keywords": [
+        "nocleg",
+        "mazury"
+      ]
     },
     {
-      "@type": "Restaurant",
+      "@type": "LodgingBusiness",
       "@id": "https://example.test/#organization",
-      "name": "Restauracja Przykładowa",
+      "name": "Ośrodek Przykładowy",
       "url": "https://example.test/",
       "description": "Opis z ustawień WordPressa",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "Leśna 4",
+        "streetAddress": "Leśna 1",
         "addressLocality": "Mikołajki",
         "addressCountry": "PL"
       },
-      "servesCuisine": [
-        "polska",
-        "wegetariańska"
-      ],
-      "hasMenu": "https://przyklad.test/menu",
-      "acceptsReservations": true,
-      "hasDriveThroughService": false,
-      "starRating": {
-        "@type": "Rating",
-        "ratingValue": 3
-      }
+      "telephone": "+48 999 888 777",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+48 111 222 333",
+        "contactType": "customer service",
+        "availableLanguage": [
+          "Polish"
+        ]
+      },
+      "slogan": "Odpoczywaj u nas",
+      "numberOfEmployees": {
+        "@type": "QuantitativeValue",
+        "value": 12
+      },
+      "priceRange": "$$",
+      "award": "{niedomknięty"
     }
   ]
 }

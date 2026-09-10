@@ -26,6 +26,34 @@ if (!defined('ABSPATH')) exit;
                 <?php return ob_get_clean();
             };
 
+            $wlasne     = json_decode($sc['custom_props'] ?? '[]', true) ?: [];
+            $wezly_ed   = EVK_Schema::wezly_edytora();
+            $znane      = EVK_Schema::wlasciwosci_znane();
+
+            /* Wiersz edytora węzłów: węzeł + klucz + wartość.
+               Klucz ma `list` wskazujący datalist WYBRANEGO węzła — podpowiedzi
+               przełącza skrypt niżej, żeby przy „Witrynie" nie proponować
+               `checkinTime`. Wpisanie klucza spoza listy jest DOZWOLONE
+               (schema.org rośnie), ale skrypt zaznacza to ostrzeżeniem. */
+            $render_wlasny_row = static function (array $row) use ($wezly_ed) {
+                $r_wezel = $row['wezel'] ?? 'organization';
+                ob_start(); ?>
+                <div class="evk-sub-row evk-wlasne-row">
+                    <select name="evk_schema_custom[wezel][]" class="evk-wlasne-wezel">
+                        <?php foreach ($wezly_ed as $wk => $wl): ?>
+                        <option value="<?php echo esc_attr($wk); ?>" <?php selected($r_wezel, $wk); ?>><?php echo esc_html($wl); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <input type="text" name="evk_schema_custom[klucz][]" class="evk-wlasne-klucz"
+                           list="evk-wlasciwosci-<?php echo esc_attr($r_wezel); ?>"
+                           value="<?php echo esc_attr($row['klucz'] ?? ''); ?>" placeholder="Właściwość, np. slogan">
+                    <input type="text" name="evk_schema_custom[wartosc][]" class="evo-mono"
+                           value="<?php echo esc_attr($row['wartosc'] ?? ''); ?>" placeholder='Wartość — tekst albo JSON, np. {"@type":"Rating","ratingValue":5}'>
+                    <button type="button" class="button evk-sub-remove" title="Usuń"><span class="dashicons dashicons-trash"></span></button>
+                </div>
+                <?php return ob_get_clean();
+            };
+
             // Renderuje jeden wiersz repeatera podrzędnych encji
             $render_sub_row = static function (array $row) use ($sub_types) {
                 $r_type = $row['type'] ?? '';
@@ -74,6 +102,17 @@ if (!defined('ABSPATH')) exit;
                     <?php if ($opis): ?><div class="evo-desc"><?php echo esc_html($opis); ?></div><?php endif; ?>
                 </div>
                 <?php return ob_get_clean();
+            };
+
+            /* Podpowiedzi do pól, które oczekują NAZWY ZE SŁOWNIKA schema.org.
+               `datalist`, a nie `select`: wyliczenia schema.org rosną, a lista
+               sprzed dwóch lat blokowałaby prawidłową wartość bez obejścia. */
+            $slownik_datalist = static function (string $klucz): string {
+                $lista = EVK_Schema::slowniki()[$klucz] ?? [];
+                if (!$lista) return '';
+                $out = '<datalist id="evk-slownik-' . esc_attr($klucz) . '">';
+                foreach ($lista as $v) $out .= '<option value="' . esc_attr($v) . '"></option>';
+                return $out . '</datalist>';
             };
 
             $atr_presetu = static function (string $klucz) use ($preset_teraz): string {
@@ -184,7 +223,8 @@ if (!defined('ABSPATH')) exit;
 
                     <div class="evo-field"><label>Obsługiwany obszar firmy (areaServed) — jeden na linię</label><textarea name="evk_schema[org_area_served]" rows="3" class="evo-w-480" placeholder="Warszawa&#10;mazowieckie&#10;Polska"><?php echo esc_textarea($sc['org_area_served']); ?></textarea><div class="evo-desc">Dla firmy bez fizycznego obiektu. Pole o tej samej nazwie w sekcji miejsca dotyczy obiektu.</div></div>
                     <div class="evo-field"><label>Nagrody i wyróżnienia (award) — jedno na linię</label><textarea name="evk_schema[org_award]" rows="3" class="evo-w-480" placeholder="Gazele Biznesu 2024"><?php echo esc_textarea($sc['org_award']); ?></textarea></div>
-                    <div class="evo-field"<?php echo $atr_presetu('org_nonprofit'); ?>><label>Status organizacji pożytku (nonprofitStatus)</label><input type="text" name="evk_schema[org_nonprofit]" value="<?php echo esc_attr($sc['org_nonprofit']); ?>" placeholder="NonprofitANBI" class="evo-w-480"><div class="evo-desc">Dla fundacji i stowarzyszeń. <strong>Wartość ze słownika schema.org</strong> (<code>NonprofitType</code>), np. <code>NonprofitANBI</code>, <code>Nonprofit501c3</code>. Własny opis przejdzie, ale nic nie znaczy dla wyszukiwarek.</div></div>
+                    <div class="evo-field"<?php echo $atr_presetu('org_nonprofit'); ?>><label>Status organizacji pożytku (nonprofitStatus)</label><input type="text" name="evk_schema[org_nonprofit]" value="<?php echo esc_attr($sc['org_nonprofit']); ?>" placeholder="NonprofitANBI" class="evo-w-480" list="evk-slownik-org_nonprofit"><div class="evo-desc">Dla fundacji i stowarzyszeń. <strong>Wartość ze słownika schema.org</strong> (<code>NonprofitType</code>) — lista podpowiada, ale nie blokuje, bo schema.org ją rozszerza. Polskie OPP nie ma własnej pozycji w tym słowniku; jeśli żadna nie pasuje, <strong>lepiej zostawić puste</strong> niż wpisać nieprawdę.</div></div>
+                    <?php echo $slownik_datalist('org_nonprofit'); ?>
                     <div class="evo-field"<?php echo $atr_presetu('org_offer_catalog'); ?>><label>Oferowane usługi (hasOfferCatalog) — jedna na linię</label><textarea name="evk_schema[org_offer_catalog]" rows="4" class="evo-w-480" placeholder="Porada prawna&#10;Reprezentacja w sądzie&#10;Obsługa spółek"><?php echo esc_textarea($sc['org_offer_catalog']); ?></textarea><div class="evo-desc">Opisuje ofertę <strong>firmy</strong>, nie zawartość budynku — dlatego trafia do <code>#organization</code>, a nie do miejsca.</div></div>
                     <div class="evo-field"><label>Członkostwa (memberOf) — jedno na linię<span class="evo-tip" tabindex="0" role="note" data-tip="Format: „Nazwa | https://adres". Adres jest opcjonalny — sama nazwa wystarczy. Rozdzielnikiem jest pionowa kreska, bo nazwy zrzeszeń zawierają przecinki." aria-label="Format: „Nazwa | https://adres". Adres jest opcjonalny — sama nazwa wystarczy. Rozdzielnikiem jest pionowa kreska, bo nazwy zrzeszeń zawierają przecinki.">?</span></label><textarea name="evk_schema[org_member_of]" rows="3" class="evo-w-480" placeholder="Izba Rzemieślnicza | https://przyklad.test"><?php echo esc_textarea($sc['org_member_of']); ?></textarea><div class="evo-desc">Format: <code>Nazwa | adres</code>, adres opcjonalny.</div></div>
                 </div>
@@ -214,7 +254,7 @@ if (!defined('ABSPATH')) exit;
                     </div>
                     <div class="evo-field"<?php echo $atr_presetu('place_languages'); ?>><label>Języki obsługi (availableLanguage) — jeden na linię</label><textarea name="evk_schema[place_languages]" rows="3" class="evo-w-480" placeholder="Polish&#10;English"><?php echo esc_textarea($sc['place_languages']); ?></textarea></div>
                     <div class="evo-field"<?php echo $atr_presetu('place_cuisine'); ?>><label>Rodzaj kuchni (servesCuisine) — jeden na linię</label><textarea name="evk_schema[place_cuisine]" rows="3" class="evo-w-480" placeholder="polska&#10;wegetariańska"><?php echo esc_textarea($sc['place_cuisine']); ?></textarea></div>
-                    <div class="evo-field"<?php echo $atr_presetu('place_specialty'); ?>><label>Specjalizacja medyczna (medicalSpecialty) — jedna na linię<span class="evo-tip" tabindex="0" role="note" data-tip="To pole oczekuje nazwy ze słownika schema.org (MedicalSpecialty), po angielsku: Dentistry, Dermatology, Physiotherapy. Polska nazwa przejdzie, ale dla wyszukiwarek nic nie znaczy." aria-label="To pole oczekuje nazwy ze słownika schema.org (MedicalSpecialty), po angielsku: Dentistry, Dermatology, Physiotherapy. Polska nazwa przejdzie, ale dla wyszukiwarek nic nie znaczy.">?</span></label><textarea name="evk_schema[place_specialty]" rows="3" class="evo-w-480" placeholder="Dentistry"><?php echo esc_textarea($sc['place_specialty']); ?></textarea><div class="evo-desc"><strong>Po angielsku, ze słownika schema.org</strong> (<code>MedicalSpecialty</code>): <code>Dentistry</code>, <code>Dermatology</code>, <code>Physiotherapy</code>… Polska nazwa przejdzie, ale nic nie znaczy dla wyszukiwarek.</div></div>
+                    <div class="evo-field"<?php echo $atr_presetu('place_specialty'); ?>><label>Specjalizacja medyczna (medicalSpecialty) — jedna na linię<span class="evo-tip" tabindex="0" role="note" data-tip="To pole oczekuje nazwy ze słownika schema.org (MedicalSpecialty), po angielsku: Dentistry, Dermatology, Physiotherapy. Polska nazwa przejdzie, ale dla wyszukiwarek nic nie znaczy." aria-label="To pole oczekuje nazwy ze słownika schema.org (MedicalSpecialty), po angielsku: Dentistry, Dermatology, Physiotherapy. Polska nazwa przejdzie, ale dla wyszukiwarek nic nie znaczy.">?</span></label><textarea name="evk_schema[place_specialty]" rows="3" class="evo-w-480" placeholder="Dentistry"><?php echo esc_textarea($sc['place_specialty']); ?></textarea><div class="evo-desc"><strong>Po angielsku, ze słownika schema.org</strong> (<code>MedicalSpecialty</code>). Pełną listę masz niżej — pole jest wielolinijkowe, więc podpowiedzi nie da się w nie wpiąć; przepisz stamtąd.</div><details class="evo-note"><summary>Słownik MedicalSpecialty (<?php echo count(EVK_Schema::slowniki()['place_specialty']); ?> pozycji)</summary><div class="evo-note-body evo-mono"><?php echo esc_html(implode(', ', EVK_Schema::slowniki()['place_specialty'])); ?></div></details></div>
 
                     <div class="evo-grid evo-mb" style="--evo-col:280px;--evo-gap:16px">
                         <div class="evo-field evo-mb-0"><label>Akceptowane waluty (currenciesAccepted)</label><input type="text" name="evk_schema[place_currencies]" value="<?php echo esc_attr($sc['place_currencies']); ?>" placeholder="PLN, EUR"></div>
@@ -307,6 +347,122 @@ if (!defined('ABSPATH')) exit;
                     </div>
                     <?php endforeach; ?>
 
+                </div>
+
+                <div class="evo-box">
+                    <h3>Edytor węzłów — właściwości spoza listy</h3>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
+                        Ujście na wszystko, czego nie ma w polach wyżej, i na to, co schema.org dopiero doda.
+                        Każdy wiersz to <strong>węzeł + właściwość + wartość</strong>.
+                        <ul style="margin:8px 0 0 18px;list-style:disc">
+                            <li><strong>Wpisane tutaj wygrywa</strong> z tym, co moduł wyliczył sam — dlatego da się poprawić każdą wartość, ale i zepsuć literówką. Sprawdź w podglądzie niżej.</li>
+                            <li><strong>Pusta wartość usuwa</strong> właściwość z węzła. To jedyny sposób, żeby zdjąć coś, co moduł wstawia zawsze.</li>
+                            <li>Wartość zaczynająca się od <code>{</code> albo <code>[</code> i będąca poprawnym JSON-em wchodzi jako <strong>struktura</strong>, np. <code>{"@type":"QuantitativeValue","value":42}</code>. Reszta wchodzi jako tekst.</li>
+                            <li>Podpowiedzi zmieniają się wraz z węzłem, bo <code>checkinTime</code> istnieje na obiekcie noclegowym, a nie na organizacji. Klucz spoza listy <strong>wolno wpisać</strong> — dostaniesz tylko ostrzeżenie.</li>
+                            <li>Właściwości zaczynających się od <code>@</code> nie da się ustawić: <code>@id</code> i <code>@type</code> spinają graf i podmienione rozspoiłyby go.</li>
+                        </ul>
+                    </div></details>
+                    <?php foreach ($znane as $wk => $lista): ?>
+                    <datalist id="evk-wlasciwosci-<?php echo esc_attr($wk); ?>">
+                        <?php foreach ($lista as $wl): ?><option value="<?php echo esc_attr($wl); ?>"></option><?php endforeach; ?>
+                    </datalist>
+                    <?php endforeach; ?>
+                    <div id="evk-wlasne-list">
+                        <?php foreach ($wlasne as $row) { echo $render_wlasny_row((array) $row); } ?>
+                    </div>
+                    <template id="evk-wlasne-tpl"><?php echo $render_wlasny_row([]); ?></template>
+                    <button type="button" class="button evo-mt-xs" id="evk-wlasne-add"><span class="dashicons dashicons-plus-alt2 evo-ico-sm evo-ico-lead"></span> Dodaj właściwość</button>
+                    <div id="evk-wlasne-ostrzezenia" class="evo-desc"></div>
+                    <script>
+                    (function () {
+                        var list = document.getElementById('evk-wlasne-list');
+                        var tpl  = document.getElementById('evk-wlasne-tpl');
+                        var add  = document.getElementById('evk-wlasne-add');
+                        var info = document.getElementById('evk-wlasne-ostrzezenia');
+                        if (!list || !tpl || !add) return;
+
+                        /* Listy podpowiedzi idą z PHP jednym obiektem — druga kopia
+                           nazw wpisana w skrypcie rozjechałaby się z rejestrem przy
+                           pierwszej dopisanej właściwości. */
+                        var znane = <?php echo wp_json_encode($znane); ?>;
+
+                        function odswiezWiersz(row) {
+                            var wezel = row.querySelector('.evk-wlasne-wezel');
+                            var klucz = row.querySelector('.evk-wlasne-klucz');
+                            if (!wezel || !klucz) return;
+                            klucz.setAttribute('list', 'evk-wlasciwosci-' + wezel.value);
+                        }
+
+                        /* OSTRZEŻENIE, NIE BLOKADA. Klucz spoza listy bywa
+                           prawidłowy — schema.org rośnie szybciej, niż aktualizuje
+                           się wtyczka. Blokada zapisu zamieniłaby furtkę w kolejną
+                           zamkniętą listę, czyli w to, przed czym ten edytor jest. */
+                        function odswiezOstrzezenia() {
+                            var obce = [];
+                            var wiersze = list.querySelectorAll('.evk-wlasne-row');
+                            for (var i = 0; i < wiersze.length; i++) {
+                                var wezel = wiersze[i].querySelector('.evk-wlasne-wezel');
+                                var klucz = wiersze[i].querySelector('.evk-wlasne-klucz');
+                                if (!wezel || !klucz) continue;
+                                var v = klucz.value.trim();
+                                var zly = v !== '' && !/^[A-Za-z][A-Za-z0-9_]*$/.test(v);
+                                var spoza = v !== '' && !zly &&
+                                    (znane[wezel.value] || []).indexOf(v) === -1;
+                                klucz.style.borderColor = (zly || spoza) ? '#d98500' : '';
+                                if (zly)   obce.push('„' + v + '" nie jest nazwą właściwości — ten wiersz NIE zostanie zapisany.');
+                                if (spoza) obce.push('„' + v + '" nie ma na liście znanych właściwości tego węzła. Zapisze się — sprawdź pisownię w schema.org.');
+                            }
+                            if (info) info.textContent = obce.join(' ');
+                        }
+
+                        function odswiez() {
+                            var wiersze = list.querySelectorAll('.evk-wlasne-row');
+                            for (var i = 0; i < wiersze.length; i++) odswiezWiersz(wiersze[i]);
+                            odswiezOstrzezenia();
+                        }
+
+                        add.addEventListener('click', function () {
+                            list.appendChild(tpl.content.cloneNode(true));
+                            odswiez();
+                        });
+                        list.addEventListener('click', function (e) {
+                            var btn = e.target.closest('.evk-sub-remove');
+                            if (btn) { btn.closest('.evk-wlasne-row').remove(); odswiezOstrzezenia(); }
+                        });
+                        list.addEventListener('change', odswiez);
+                        list.addEventListener('input',  odswiezOstrzezenia);
+                        odswiez();
+                    })();
+                    </script>
+                </div>
+
+                <div class="evo-box">
+                    <h3>Podgląd JSON-LD</h3>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
+                        Graf <strong>strony głównej</strong>, zbudowany tą samą drogą co wyjście w <code>&lt;head&gt;</code>.
+                        Pokazuje <strong>ustawienia ZAPISANE</strong> — po zmianie pola trzeba zapisać, żeby zobaczyć skutek.
+                        Węzłów <code>BlogPosting</code>, <code>FAQPage</code> i <code>Product</code> tu nie ma:
+                        powstają tylko na wpisie, stronie z akordeonem i karcie produktu, a panel nie jest żadną z nich.
+                    </div></details>
+                    <?php
+                    $podglad = EVK_Schema::get_instance()->podglad_json($sc);
+                    $adres   = home_url('/');
+                    ?>
+                    <?php if ($podglad === ''): ?>
+                    <p class="evo-desc">Graf wychodzi pusty — moduł jest wyłączony albo wszystkie bloki są odhaczone.</p>
+                    <?php else: ?>
+                    <details class="evo-note">
+                        <summary>Pokaż graf (<?php echo count(json_decode($podglad, true)['@graph']); ?> węzłów)</summary>
+                        <pre class="evo-mono" style="max-height:420px;overflow:auto;white-space:pre-wrap;word-break:break-word"><?php echo esc_html($podglad); ?></pre>
+                    </details>
+                    <?php endif; ?>
+                    <p class="evo-mt-xs">
+                        <a class="button" target="_blank" rel="noopener"
+                           href="https://search.google.com/test/rich-results?url=<?php echo rawurlencode($adres); ?>">
+                            <span class="dashicons dashicons-external evo-ico-sm evo-ico-lead"></span> Sprawdź w Rich Results Test
+                        </a>
+                    </p>
+                    <div class="evo-desc">Google pobiera stronę <strong>ze swojej strony</strong>, więc test działa tylko dla adresów dostępnych publicznie. Na <code>localhost</code> i za logowaniem nie zadziała — to nie jest usterka przycisku.</div>
                 </div>
 
                 <div class="evo-box">

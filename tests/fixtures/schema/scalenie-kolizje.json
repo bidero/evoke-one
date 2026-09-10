@@ -29,7 +29,6 @@
         "@type": "PostalAddress",
         "streetAddress": "ul. Przykładowa 1",
         "addressLocality": "Warszawa",
-        "postalCode": "",
         "addressCountry": "PL"
       },
       "faxNumber": "+48 11 111 11 11",

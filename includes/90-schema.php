@@ -158,6 +158,11 @@ class EVK_Schema {
             // Repeater punktów kontaktowych (1.174.0) — patrz build_organization().
             'contact_points'   => ['wezel' => 'organization', 'typ' => 'wlasne',       'domyslnie' => '[]'],
 
+            /* Edytor węzłów (1.176.0) — repeater „węzeł + klucz + wartość".
+               Ujście na wszystko, czego nie ma na liście pól, i na to,
+               co schema.org doda w przyszłości. Patrz `dolacz_wlasne()`. */
+            'custom_props'     => ['wezel' => 'edytor',       'typ' => 'wlasne',       'domyslnie' => '[]'],
+
             // ── WooCommerce ─────────────────────────────────────────────
             'lang_currencies'  => ['wezel' => 'product',      'typ' => 'json',         'domyslnie' => '{"en":"EUR","de":"EUR"}'],
 
@@ -326,6 +331,156 @@ class EVK_Schema {
             'Park'                   => 'Park / teren zielony',
         ];
     }
+
+    // ================================================================
+    // EDYTOR WĘZŁÓW (1.176.0)
+    // ================================================================
+    /**
+     * Węzły, do których edytor umie dopisywać właściwości: klucz → etykieta.
+     *
+     * Cztery, bo tyle powstaje z USTAWIEŃ GLOBALNYCH. `#webpage`,
+     * `#breadcrumb`, `#faq` i `#product` są per podstrona i dopisana im
+     * globalnie właściwość siadałaby na KAŻDEJ stronie serwisu — co jest
+     * prawie nigdy tym, czego ktoś chce. Te węzły są robotą dla nadpisań
+     * per podstrona (warstwa 3 w `get_settings()`), nie dla tej listy.
+     */
+    public static function wezly_edytora(): array {
+        return [
+            'website'      => 'Witryna (#website)',
+            'organization' => 'Organizacja (#organization)',
+            'place'        => 'Obiekt / firma lokalna (#place)',
+            'attraction'   => 'Atrakcja turystyczna (#attraction)',
+        ];
+    }
+
+    /**
+     * Podpowiedzi właściwości dla `datalist` — węzeł → nazwy ze schema.org.
+     *
+     * PODPOWIEDŹ, NIE ZAMKNIĘTA LISTA. Klucz spoza listy wolno wpisać:
+     * schema.org rośnie, a lista, która blokuje, starzeje się szybciej niż
+     * wtyczka się aktualizuje. Panel przy takim kluczu pokazuje ostrzeżenie
+     * i na tym koniec — patrz opis pola w zakładce.
+     *
+     * PODZIAŁ ORGANIZACJA / OBIEKT jest ten sam, co w presetach i z tego
+     * samego powodu: `checkinTime` istnieje na `LodgingBusiness`, a nie na
+     * `Organization`. Po scaleniu (1.175.0) wybór „Obiekt" trafia w węzeł
+     * `#organization`, ale ten węzeł jest wtedy typem działalności — więc
+     * podpowiedzi obiektu są na nim prawidłowe, a organizacji też. Rozdział
+     * pilnuje przypadku NIEscalonego, gdzie pomyłka daje nieprawidłowy graf.
+     *
+     * Kompletność listy wobec tego, co moduł NAPRAWDĘ emituje, sprawdza
+     * `tests/schema-graf.test.js` — inaczej dopisane pole miałoby własną
+     * właściwość poza podpowiedziami i nikt by tego nie zauważył.
+     */
+    public static function wlasciwosci_znane(): array {
+        return [
+            'website' => [
+                'about', 'alternateName', 'author', 'copyrightHolder', 'copyrightYear',
+                'dateModified', 'datePublished', 'description', 'image', 'inLanguage',
+                'isPartOf', 'keywords', 'license', 'mainEntity', 'name', 'potentialAction',
+                'publisher', 'sameAs', 'thumbnailUrl', 'url',
+            ],
+            'organization' => [
+                'address', 'alternateName', 'areaServed', 'award', 'brand', 'contactPoint',
+                'description', 'dissolutionDate', 'duns', 'email', 'employee', 'ethicsPolicy',
+                'event', 'faxNumber', 'founder', 'foundingDate', 'foundingLocation', 'funder',
+                'globalLocationNumber', 'hasCredential', 'hasOfferCatalog', 'iso6523Code',
+                'image', 'keywords', 'knowsAbout', 'knowsLanguage', 'legalName', 'leiCode',
+                'logo', 'makesOffer', 'member', 'memberOf', 'naics', 'name', 'nonprofitStatus',
+                'numberOfEmployees', 'ownershipFundingInfo', 'parentOrganization',
+                'publishingPrinciples', 'review', 'sameAs', 'seeks', 'slogan', 'sponsor',
+                'subOrganization', 'taxID', 'telephone', 'url', 'vatID',
+            ],
+            'place' => [
+                'acceptsReservations', 'additionalProperty', 'address', 'amenityFeature',
+                'areaServed', 'availableLanguage', 'branchCode', 'checkinTime', 'checkoutTime',
+                'containedInPlace', 'containsPlace', 'currenciesAccepted', 'description',
+                'email', 'faxNumber', 'geo', 'hasDriveThroughService', 'hasMap', 'hasMenu',
+                'hasOfferCatalog', 'image', 'isAccessibleForFree', 'isicV4', 'latitude',
+                'longitude', 'maximumAttendeeCapacity', 'medicalSpecialty', 'name',
+                'numberOfRooms', 'openingHoursSpecification', 'parentOrganization',
+                'paymentAccepted', 'petsAllowed', 'photo', 'priceRange', 'publicAccess',
+                'review', 'servesCuisine', 'slogan', 'smokingAllowed',
+                'specialOpeningHoursSpecification', 'starRating', 'telephone',
+                'tourBookingPage', 'url',
+            ],
+            'attraction' => [
+                'address', 'amenityFeature', 'availableLanguage', 'containedInPlace',
+                'description', 'geo', 'hasMap', 'image', 'isAccessibleForFree', 'isicV4',
+                'latitude', 'longitude', 'maximumAttendeeCapacity', 'name',
+                'openingHoursSpecification', 'photo', 'publicAccess', 'review', 'slogan',
+                'telephone', 'tourBookingPage', 'touristType', 'url',
+            ],
+        ];
+    }
+
+    /**
+     * Wyliczenia schema.org, których nie da się zamknąć w `select`.
+     *
+     * Otwarty punkt z audytu 1.173.0 (§ 8a rozpiski): `medicalSpecialty`
+     * i `nonprofitStatus` oczekują NAZW ZE SŁOWNIKA, a pola przyjmują wolny
+     * tekst, więc „stomatologia" wchodzi i nic nie znaczy.
+     *
+     * DLACZEGO PODPOWIEDŹ, A NIE ZAMKNIĘTA LISTA — mimo że wyliczenie jest
+     * zamknięte: schema.org je rozszerza, a `select` z listą sprzed dwóch lat
+     * BLOKUJE prawidłową wartość i nie ma jak jej obejść. Podpowiedź daje
+     * to samo prowadzenie za rękę bez tej pułapki, a błędną wartość widać
+     * w podglądzie JSON-LD. Ten sam wybór, co przy edytorze węzłów, i z tego
+     * samego powodu.
+     */
+    public static function slowniki(): array {
+        return [
+            // MedicalSpecialty — członkowie wyliczenia, po angielsku.
+            'place_specialty' => [
+                'Anesthesia', 'Cardiovascular', 'CommunityHealth', 'Dentistry',
+                'Dermatology', 'DietNutrition', 'Emergency', 'Geriatric',
+                'Gynecologic', 'Hematologic', 'Infectious', 'LaboratoryScience',
+                'Midwifery', 'Musculoskeletal', 'Neurologic', 'Nursing',
+                'Obstetric', 'Oncologic', 'Optometric', 'Otolaryngologic',
+                'Pathology', 'Pediatric', 'PharmacySpecialty', 'Physiotherapy',
+                'PlasticSurgery', 'Podiatric', 'PrimaryCare', 'Psychiatric',
+                'PublicHealth', 'Pulmonary', 'Radiography', 'Renal',
+                'RespiratoryTherapy', 'Rheumatologic', 'SpeechPathology',
+                'Surgical', 'Toxicologic', 'Urologic',
+            ],
+            /* NonprofitType — podtypy amerykańskie (`Nonprofit501c*`), unijne
+               i holenderskie. Polskie OPP nie ma własnego członka wyliczenia;
+               najbliżej jest `NonprofitANBI`, ale to status holenderski,
+               więc uczciwiej zostawić puste, niż wpisać nieprawdę. */
+            'org_nonprofit' => [
+                'NonprofitANBI', 'NonprofitSBBI', 'UnincorporatedAssociationCharity',
+                'CharitableIncorporatedOrganization', 'LimitedByGuaranteeCharity',
+                'UKTrust', 'Nonprofit501a', 'Nonprofit501c1', 'Nonprofit501c2',
+                'Nonprofit501c3', 'Nonprofit501c4', 'Nonprofit501c5', 'Nonprofit501c6',
+                'Nonprofit501c7', 'Nonprofit501c8', 'Nonprofit501c9', 'Nonprofit501c10',
+                'Nonprofit501c11', 'Nonprofit501c12', 'Nonprofit501c13', 'Nonprofit501c14',
+                'Nonprofit501c15', 'Nonprofit501c16', 'Nonprofit501c17', 'Nonprofit501c18',
+                'Nonprofit501c19', 'Nonprofit501c20', 'Nonprofit501c21', 'Nonprofit501c22',
+                'Nonprofit501c23', 'Nonprofit501c24', 'Nonprofit501c25', 'Nonprofit501c26',
+                'Nonprofit501c27', 'Nonprofit501c28', 'Nonprofit501d', 'Nonprofit501e',
+                'Nonprofit501f', 'Nonprofit501k', 'Nonprofit501n', 'Nonprofit501q',
+                'Nonprofit527',
+            ],
+        ];
+    }
+
+    /**
+     * Nazwa właściwości schema.org — kształt, nie słownik.
+     *
+     * Klucz SPOZA podpowiedzi jest dozwolony (schema.org rośnie), ale klucz
+     * ze spacją, cudzysłowem albo zaczynający się od cyfry nie jest „spoza
+     * listy" — nie jest nazwą właściwości w ogóle i w grafie może tylko
+     * zaszkodzić. `sanitize_key()` się tu nie nadaje, bo sprowadza do małych
+     * liter, a wszystkie nazwy schema.org są camelCase.
+     *
+     * `@` z przodu odpada osobno i zawsze: `@id`, `@type` i `@context` są
+     * własnością modułu, a podmienione rozspajają graf — wskazania
+     * `publisher`, `about` i `containedInPlace` trafiłyby donikąd.
+     */
+    public static function poprawny_klucz($klucz): bool {
+        return is_string($klucz) && (bool) preg_match('/^[A-Za-z][A-Za-z0-9_]*$/', $klucz);
+    }
+
     /**
      * Ustawienia obowiązujące dla danej podstrony.
      *
@@ -579,6 +734,44 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
         self::pola()['sub_entities']['domyslnie']
     );
 }
+
+/* Edytor węzłów (repeater — równoległe tablice wezel/klucz/wartosc).
+
+   WARTOŚĆ TRZYMAMY SUROWO, jako wpisany tekst, a na strukturę zamieniamy
+   dopiero przy budowaniu grafu (`wartosc_wlasna()`). Gdyby JSON parsować
+   tutaj i zapisywać jako tablicę, powrót do formularza wymagałby ponownego
+   zakodowania — i pokazałby coś innego, niż ktoś wpisał. Pole, które po
+   zapisie pokazuje przeformatowaną treść, wygląda jak zepsute. */
+if (isset($_POST['evk_schema_custom']) && is_array($_POST['evk_schema_custom'])) {
+    $raw      = wp_unslash($_POST['evk_schema_custom']);
+    $wezly    = (array) ($raw['wezel'] ?? []);
+    $klucze   = (array) ($raw['klucz'] ?? []);
+    $wartosci = (array) ($raw['wartosc'] ?? []);
+    $dozwolone = self::wezly_edytora();
+    $wlasne    = [];
+    foreach ($klucze as $i => $klucz) {
+        $klucz = trim(sanitize_text_field($klucz));
+        $wezel = sanitize_text_field($wezly[$i] ?? '');
+        /* Wiersz odpada, gdy klucz nie jest nazwą właściwości albo węzeł nie
+           jest z listy. Wartość PUSTA zostaje — patrz `dolacz_wlasne()`:
+           pusty łańcuch znaczy „usuń tę właściwość z węzła", i jest to
+           jedyny sposób, żeby zdjąć coś, co moduł wstawia sam. */
+        if (!self::poprawny_klucz($klucz)) continue;
+        if (!array_key_exists($wezel, $dozwolone)) continue;
+        $wlasne[] = [
+            'wezel'   => $wezel,
+            'klucz'   => $klucz,
+            'wartosc' => sanitize_textarea_field($wartosci[$i] ?? ''),
+        ];
+    }
+    $clean['custom_props'] = wp_json_encode($wlasne, JSON_UNESCAPED_UNICODE);
+} else {
+    $clean['custom_props'] = self::sanityzuj_wartosc(
+        'json',
+        $input['custom_props'] ?? self::pola()['custom_props']['domyslnie'],
+        self::pola()['custom_props']['domyslnie']
+    );
+}
         return $clean;
     }
     // ================================================================
@@ -594,12 +787,37 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
            o ustawieniach (przy nadpisaniach per podstrona to przestaje być
            kosmetyką), i pytamy bazę raz zamiast trzy razy. */
         global $post;
-        $post_id = (is_singular() && $post) ? (int) $post->ID : 0;
-        $s = $this->get_settings($post_id);
+        $strona  = (is_singular() && $post) ? $post : null;
+        $s = $this->get_settings($strona ? (int) $strona->ID : 0);
         if (empty($s['enabled'])) return;
         $lang     = function_exists('get_current_lang') ? get_current_lang() : 'pl';
-        $home_url = $this->home_url($lang);
-        $graph    = [];
+        $graph    = $this->zbuduj_graf($s, $strona, $lang, $this->home_url($lang));
+
+        if (empty($graph)) return;
+        $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            $flags |= JSON_PRETTY_PRINT;
+        }
+        echo "\n\n";
+        echo '<script type="application/ld+json">';
+        echo json_encode(['@context' => 'https://schema.org', '@graph' => $graph], $flags);
+        echo "</script>\n\n";
+    }
+
+    /**
+     * Graf jako TABLICA — bez drukowania, bez bramek żądania.
+     *
+     * Wydzielone z `render_graph()` w 1.176.0 pod podgląd w panelu.
+     * `render_graph()` wychodzi na `is_admin()`, więc dopóki budowanie
+     * i drukowanie były jedną metodą, panel nie miał jak pokazać tego,
+     * co moduł naprawdę wystawia — a to jedyna odpowiedź na pytanie
+     * „czy to, co wpisałem, w ogóle dochodzi do wyjścia".
+     *
+     * `$post` zamiast identyfikatora i `global $post`, bo podgląd buduje
+     * graf dla strony głównej z panelu, gdzie globalnego wpisu nie ma.
+     */
+    public function zbuduj_graf(array $s, ?WP_Post $post, string $lang, string $home_url): array {
+        $graph = [];
         // 1. WebSite
         if (!empty($s['block_website'])) {
             $graph[] = $this->build_website($s, $home_url, $lang);
@@ -644,8 +862,8 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
             $graph[] = $sub;
         }
         // Bloki per-strona
-        if ($post_id) {
-            $permalink = get_permalink($post_id);
+        if ($post) {
+            $permalink = get_permalink($post->ID);
             // Ten sam łańcuch źródeł co meta tagi (Bricks → zakładka SEO → fallback)
             if (function_exists('evk_seo_get_meta')) {
                 $og_image = evk_seo_get_meta($post->ID)['og_image'];
@@ -683,15 +901,115 @@ if (isset($_POST['evk_schema_sub']) && is_array($_POST['evk_schema_sub'])) {
                 if ($product) $graph[] = $product;
             }
         }
-        if (empty($graph)) return;
-        $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $flags |= JSON_PRETTY_PRINT;
+        return $this->dolacz_wlasne($graph, $s, $home_url);
+    }
+
+    /**
+     * Graf strony głównej jako sformatowany JSON — do podglądu w panelu.
+     *
+     * TĄ SAMĄ DROGĄ co wyjście na stronie (`zbuduj_graf()`), bo podgląd
+     * budowany osobno pokazywałby własną prawdę i mijałby się z celem:
+     * pytanie brzmi „czy to, co wpisałem, dochodzi do WYJŚCIA".
+     *
+     * Czego tu z natury nie widać: `BlogPosting`, `FAQPage` i `Product`
+     * są bramkowane stanem żądania (`is_single()`, `is_product()`), którego
+     * w panelu nie ma. Zakładka to podpisuje.
+     */
+    public function podglad_json(array $s): string {
+        $lang  = function_exists('get_current_lang') ? get_current_lang() : 'pl';
+        $front = (int) get_option('page_on_front');
+        $post  = $front ? get_post($front) : null;
+        $graph = $this->zbuduj_graf(
+            $s,
+            $post instanceof WP_Post ? $post : null,
+            $lang,
+            $this->home_url($lang)
+        );
+        if (empty($graph)) return '';
+        return (string) json_encode(
+            ['@context' => 'https://schema.org', '@graph' => $graph],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+        );
+    }
+
+    /**
+     * Dokłada do grafu właściwości z edytora węzłów.
+     *
+     * JEDNO MIEJSCE, NA SAMYM KOŃCU, a nie po kawałku w każdej metodzie
+     * budującej. Dzięki temu działa niezależnie od tego, która metoda dany
+     * węzeł wyprodukowała — również dla węzła scalonego (1.175.0), którego
+     * „miejsce" i „organizacja" to ten sam wpis w tablicy.
+     *
+     * EDYTOR WYGRYWA z tym, co moduł wyliczył sam. Inaczej nie dałoby się
+     * poprawić niczego, co moduł podaje źle — a to jest cały sens furtki.
+     * Kosztem jest to, że literówka w kluczu podmienia dobrą wartość na złą;
+     * dlatego pod edytorem stoi podgląd JSON-LD, w którym to widać.
+     *
+     * PUSTA WARTOŚĆ USUWA właściwość z węzła. Bez tego nie da się zdjąć
+     * czegoś, co moduł wstawia zawsze, a pusty łańcuch w grafie i tak jest
+     * bezużyteczny — moduł nigdzie takiego nie emituje.
+     *
+     * KLUCZE Z `@` ODPADAJĄ TU RÓWNIEŻ, mimo że zapis ustawień już je odsiewa.
+     * Nie jest to podwójna asekuracja tego samego: warstwa nadpisań per
+     * podstrona (`_evk_schema`) i filtr `evk_schema_settings` wchodzą do
+     * `get_settings()` Z POMINIĘCIEM `sanitize_settings()`, więc bez tej
+     * bramki cudzy kod mógłby podmienić `@id` albo `@type` i rozspoić graf.
+     */
+    private function dolacz_wlasne(array $graph, array $s, string $home_url): array {
+        $wiersze = json_decode($s['custom_props'] ?? '[]', true);
+        if (!is_array($wiersze) || empty($wiersze)) return $graph;
+
+        /* Węzeł „obiekt" ma adres zależny od scalenia, więc idzie przez
+           `miejsce_id()` — tę samą metodę, z której korzystają `about`
+           i `containedInPlace`. Pusty łańcuch znaczy „takiego węzła nie ma". */
+        $adresy = [
+            'website'      => $home_url . '#website',
+            'organization' => $home_url . '#organization',
+            'place'        => $this->miejsce_id($s, $home_url),
+            'attraction'   => $home_url . '#attraction',
+        ];
+
+        foreach ($wiersze as $wiersz) {
+            if (!is_array($wiersz)) continue;
+            $klucz = trim((string) ($wiersz['klucz'] ?? ''));
+            $cel   = $adresy[$wiersz['wezel'] ?? ''] ?? '';
+            if ($cel === '' || !self::poprawny_klucz($klucz)) continue;
+
+            foreach ($graph as $i => $wezel) {
+                if (($wezel['@id'] ?? '') !== $cel) continue;
+                $wartosc = self::wartosc_wlasna((string) ($wiersz['wartosc'] ?? ''));
+                if ($wartosc === null) {
+                    unset($graph[$i][$klucz]);
+                } else {
+                    $graph[$i][$klucz] = $wartosc;
+                }
+                break;
+            }
         }
-        echo "\n\n";
-        echo '<script type="application/ld+json">';
-        echo json_encode(['@context' => 'https://schema.org', '@graph' => $graph], $flags);
-        echo "</script>\n\n";
+        return array_values($graph);
+    }
+
+    /**
+     * Wartość z edytora → to, co ma wejść do grafu. `null` znaczy „usuń".
+     *
+     * Tekst zaczynający się od `{` albo `[` i parsujący się jako JSON wchodzi
+     * jako STRUKTURA. Bez tego edytor umiałby dopisać wyłącznie płaskie
+     * łańcuchy, a połowa schema.org to węzły zagnieżdżone — `{"@type":
+     * "QuantitativeValue", "value": 42}` musi dać się wpisać.
+     *
+     * Tekst, który tylko WYGLĄDA jak JSON, ale się nie parsuje, zostaje
+     * tekstem. Nie jest to milczące połknięcie błędu: w podglądzie JSON-LD
+     * widać wtedy łańcuch z nawiasami zamiast struktury, więc pomyłka jest
+     * widoczna dokładnie tam, gdzie się jej szuka.
+     */
+    private static function wartosc_wlasna(string $surowa) {
+        $v = trim($surowa);
+        if ($v === '') return null;
+        if ($v[0] === '{' || $v[0] === '[') {
+            $struktura = json_decode($v, true);
+            if (json_last_error() === JSON_ERROR_NONE) return $struktura;
+        }
+        return $v;
     }
     // ================================================================
     // BLOKI GRAFU
@@ -1505,13 +1823,21 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
         if (trim((string) $s['street_address']) === '' && trim((string) $s['locality']) === '') {
             return [];
         }
-        return [
-            '@type'           => 'PostalAddress',
+        /* PUSTE KLUCZE ODPADAJĄ. Do 1.176.0 adres wychodził zawsze z całą
+           czwórką, więc obiekt bez kodu pocztowego dostawał `"postalCode": ""`.
+           Reszta modułu trzyma zasadę „puste pole nie zostawia śladu”; adres
+           był jedynym miejscem, w którym jej nie trzymał, i nie było tego
+           widać, bo jedyny scenariusz polujący na puste wartości nie miał
+           adresu w ogóle. Walidatory takie klucze przy WYŚWIETLANIU ukrywają,
+           więc po odczycie z narzędzia to również jest niewidoczne. */
+        $adres = array_filter([
             'streetAddress'   => $s['street_address'],
             'addressLocality' => $s['locality'],
             'postalCode'      => $s['postal_code'],
             'addressCountry'  => $s['country'],
-        ];
+        ], static function ($v) { return trim((string) $v) !== ''; });
+
+        return array_merge(['@type' => 'PostalAddress'], $adres);
     }
     private function build_geo(array $s): array {
         if ($s['geo_lat'] === '' || $s['geo_lng'] === '') return [];

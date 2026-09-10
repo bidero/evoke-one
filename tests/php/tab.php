@@ -28,6 +28,11 @@ function wp_nonce_field($a = -1, $n = '_wpnonce', $r = true, $echo = true) {
 }
 function admin_url($path = '') { return 'https://example.test/wp-admin/' . $path; }
 function home_url($path = '') { return 'https://example.test' . $path; }
+/* Od 1.176.0 zakładka Schema buduje PRAWDZIWY graf pod podgląd JSON-LD,
+   więc potrzebuje tych samych atrap co `schema-graf.php`. To nie jest koszt,
+   tylko zysk: sprawdzenie zakładki przechodzi teraz przez `zbuduj_graf()`,
+   a więc wychwyci fatal w budowaniu grafu wywołany z panelu. */
+function untrailingslashit($s) { return rtrim((string) $s, '/\\'); }
 function site_url($path = '') { return 'https://example.test' . $path; }
 function settings_fields($group) {
     echo '<input type="hidden" name="option_page" value="' . $group . '">';

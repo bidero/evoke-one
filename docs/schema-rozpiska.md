@@ -365,7 +365,19 @@ regresyjna straciłaby sens (nie odróżniłbym zamierzonej zmiany od zepsucia).
 | 2 ✅ | **`knowsAbout` + Organizacja** (1.172.0) | Pozycja nr 1 z listy zgłaszającego plus pozostałe 16 pól sekcji 2. | Małe — same dopiski do jednego węzła. |
 | 3 ✅ | **Układ wg węzła + presety** (1.173.0) | Przemeblowanie zakładki na siedem sekcji, pasek presetu, pola branżowe. | Średnie, ale wyłącznie w panelu — graf bez zmian poza polami branżowymi. |
 | 4 ✅ | **Miejsce, atrakcja, encje** (1.174.0) | Sekcje 3, 4, 5. | Małe. |
-| 5 | **Edytor węzłów + podgląd** | Sekcja 7 i walidacja. | Średnie — nowy mechanizm wstrzykiwania do grafu. |
+| 5 ✅ | **Edytor węzłów + podgląd** (1.176.0) | Sekcja 7 i walidacja. | Średnie — nowy mechanizm wstrzykiwania do grafu. |
+
+Wszystkie pięć wydań są zrobione. Co z rozpiski **weszło inaczej, niż tu
+napisano**, i dlaczego:
+
+| Punkt rozpiski | Jak weszło |
+|---|---|
+| prefiksy w nazwach kluczy (§ 7) | **odrzucone** — klucze siedzą w bazach żywych stron; kolumna `wezel` w rejestrze daje to samo bez migracji |
+| osobny przełącznik branży nad sekcjami (§ 4) | **odrzucone** — preset wynika z typu działalności; dwa sterowniki dla jednej rzeczy dają się rozjechać |
+| „zdrowie i uroda" jako jeden preset (§ 5.4) | **rozdzielone** — `BeautySalon` nie ma `medicalSpecialty`, więc jeden preset dawałby fryzjerowi pole „specjalizacja medyczna" |
+| `medicalSpecialty`/`nonprofitStatus` jako `select` (§ 8a) | **`datalist`** — wyliczenia schema.org są rozszerzane, zamknięta lista blokowałaby prawidłową wartość |
+| dwa węzły zawsze (§ 5.2, § 5.3) | **zależnie od operatora** (1.175.0) — patrz § 8b |
+| edytor obejmuje `#webpage` i dalsze | **cztery węzły globalne** — reszta jest per podstrona i dopisana globalnie siadałaby na każdej stronie serwisu |
 
 Poza planem weszło **1.175.0 — scalenie organizacji z obiektem**, z użycia:
 pierwsza strona wypełniła zakładkę prawdziwymi danymi i pokazała, że przy
@@ -415,14 +427,38 @@ Konsekwencje, wszystkie w kodzie:
 - odhaczony blok Organization wraca do dwóch węzłów (scalony nie miałby
   gdzie zamieszkać).
 
-### Cztery zgłoszenia, które okazały się cudzym JSON-LD
+### Cztery zgłoszenia i czytanie wyjścia przez walidator
+
+> **SPROSTOWANIE (1.176.0).** Stało tu, że te cztery znaleziska opisują
+> cudzy JSON-LD. Nieprawda i warto wiedzieć dlaczego, bo to samo nieporozumienie
+> wróci przy każdym następnym odczycie.
 
 `SearchAction` na `WebPage`, `addressCountry` jako obiekt `Country`,
-`dayOfWeek` w pełnych adresach schema.org, brak `@context` — nic z tego
-moduł nie robi, sprawdzone wobec prawdziwego wyjścia. Każde ma teraz
-nazwane sprawdzenie w `tests/schema-graf.test.js`, żeby ktoś kiedyś nie
-„poprawił" ich w złą stronę. Jeśli takie rzeczy widać na stronie, drukuje
-je coś innego niż ta wtyczka.
+`dayOfWeek` w pełnych adresach schema.org, brak `@context` — **nic z tego moduł
+nie emituje w źródle**. Ale to jest nasze wyjście: walidatory pokazują graf
+**po rozwinięciu**, a rozwinięcie robi trzy rzeczy naraz.
+
+| U nas w źródle | W odczycie z walidatora |
+|---|---|
+| `"publisher": {"@id": "…#organization"}` | cały węzeł organizacji, wklejony |
+| `"about": {"@id": "…#organization"}` | ten sam węzeł, wklejony drugi raz |
+| `"dayOfWeek": ["Monday", …]` | `http://schema.org/Monday` |
+| `"addressCountry": "PL"` | `{"@type": "Country", "name": "PL"}` |
+| `"query-input": "required name=search_term_string"` | węzeł `PropertyValueSpecification` |
+| `"@context": "https://schema.org"` | rozwiązany i niewidoczny |
+| `"postalCode": ""` | ukryte przy wyświetlaniu |
+
+Stąd bierze się wrażenie, że blok danych firmy leci dwa razy. **Nie leci** —
+`publisher` i `about` to po jednej linijce ze wskazaniem, i o to właśnie
+chodzi w `@graph` spiętym przez `@id`. Sprawdzić można jednym ruchem: podgląd
+źródła strony i szukanie `"publisher"`.
+
+Ostatni wiersz tabeli był prawdziwym znaleziskiem: `build_address()` emitował
+wszystkie cztery klucze niezależnie od wypełnienia, a walidator to ukrywał.
+Naprawione w 1.176.0.
+
+Wszystkie cztery kształty mają nazwane sprawdzenia w
+`tests/schema-graf.test.js` — mówią o źródle i tam zostają.
 
 ## 9. Czego ta rozpiska nie rozstrzyga
 

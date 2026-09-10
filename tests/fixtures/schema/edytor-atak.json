@@ -5,7 +5,7 @@
       "@type": "WebSite",
       "@id": "https://example.test/#website",
       "url": "https://example.test/",
-      "name": "Restauracja Przykładowa",
+      "name": "Ośrodek Przykładowy",
       "description": "Opis z ustawień WordPressa",
       "publisher": {
         "@id": "https://example.test/#organization"
@@ -20,28 +20,18 @@
       }
     },
     {
-      "@type": "Restaurant",
+      "@type": "LodgingBusiness",
       "@id": "https://example.test/#organization",
-      "name": "Restauracja Przykładowa",
+      "name": "Ośrodek Przykładowy",
       "url": "https://example.test/",
       "description": "Opis z ustawień WordPressa",
       "address": {
         "@type": "PostalAddress",
-        "streetAddress": "Leśna 4",
+        "streetAddress": "Leśna 1",
         "addressLocality": "Mikołajki",
         "addressCountry": "PL"
       },
-      "servesCuisine": [
-        "polska",
-        "wegetariańska"
-      ],
-      "hasMenu": "https://przyklad.test/menu",
-      "acceptsReservations": true,
-      "hasDriveThroughService": false,
-      "starRating": {
-        "@type": "Rating",
-        "ratingValue": 3
-      }
+      "slogan": "Kontrola"
     }
   ]
 }

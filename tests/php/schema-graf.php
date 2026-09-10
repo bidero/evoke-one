@@ -587,6 +587,74 @@ $scenariusze = [
     /* KONTROLA NEGATYWNA 2 — moduł włączony, wszystkie bloki odhaczone.
        Graf wychodzi pusty, więc `render_graph()` ma się wycofać przed
        wydrukiem znacznika, a nie wypisać pusty @graph. */
+    /* EDYTOR WĘZŁÓW (1.176.0) — wszystkie ścieżki `wartosc_wlasna()` naraz,
+       na węźle SCALONYM (bez osobnego operatora), bo to układ, w którym
+       „obiekt" i „organizacja" są jednym wpisem tablicy i wybór węzła
+       musi trafić w to samo miejsce. */
+    'edytor' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'LodgingBusiness',
+            'site_name' => 'Ośrodek Przykładowy',
+            'street_address' => 'Leśna 1', 'locality' => 'Mikołajki',
+            'telephone' => '+48 111 222 333',
+            'custom_props' => json_encode([
+                // Właściwość, której moduł nie ma w polach — jako zwykły tekst.
+                ['wezel' => 'organization', 'klucz' => 'slogan',
+                 'wartosc' => 'Odpoczywaj u nas'],
+                // STRUKTURA z JSON-a — bez tego edytor umie tylko płaskie łańcuchy.
+                ['wezel' => 'organization', 'klucz' => 'numberOfEmployees',
+                 'wartosc' => '{"@type":"QuantitativeValue","value":12}'],
+                // Tablica z JSON-a.
+                ['wezel' => 'website', 'klucz' => 'keywords',
+                 'wartosc' => '["nocleg","mazury"]'],
+                // NADPISANIE tego, co moduł wyliczył sam.
+                ['wezel' => 'organization', 'klucz' => 'telephone',
+                 'wartosc' => '+48 999 888 777'],
+                // PUSTA WARTOŚĆ = usuń właściwość z węzła.
+                ['wezel' => 'website', 'klucz' => 'description', 'wartosc' => ''],
+                // Wybór „obiekt" przy węźle scalonym ma trafić w #organization.
+                ['wezel' => 'place', 'klucz' => 'priceRange', 'wartosc' => '$$'],
+                // Wygląda na JSON, ale się nie parsuje — ma zostać TEKSTEM.
+                ['wezel' => 'organization', 'klucz' => 'award',
+                 'wartosc' => '{niedomknięty'],
+                // Węzeł, którego w grafie nie ma (blok atrakcji odhaczony).
+                ['wezel' => 'attraction', 'klucz' => 'touristType',
+                 'wartosc' => 'rodziny'],
+            ], JSON_UNESCAPED_UNICODE),
+        ];
+    },
+
+    /* Klucze, które NIE MOGĄ przejść, wstrzyknięte z pominięciem zapisu —
+       przez filtr `evk_schema_settings`, tak jak zrobiłby to metaboks per
+       podstrona albo cudzy kod. `sanitize_settings()` odsiewa je przy
+       zapisie formularza, ale tamtą drogą tu nie idziemy i właśnie o to
+       chodzi: bramka w `dolacz_wlasne()` jest jedyną, która działa dla
+       WSZYSTKICH trzech warstw ustawień. */
+    'edytor-atak' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled' => 1, 'org_type' => 'LodgingBusiness',
+            'site_name' => 'Ośrodek Przykładowy',
+            'street_address' => 'Leśna 1', 'locality' => 'Mikołajki',
+        ];
+        add_filter('evk_schema_settings', static function ($u) {
+            $u['custom_props'] = json_encode([
+                ['wezel' => 'organization', 'klucz' => '@id',
+                 'wartosc' => 'https://cudze.test/#organization'],
+                ['wezel' => 'organization', 'klucz' => '@type', 'wartosc' => 'Thing'],
+                ['wezel' => 'website', 'klucz' => '@context',
+                 'wartosc' => 'https://cudze.test'],
+                ['wezel' => 'organization', 'klucz' => 'zły klucz', 'wartosc' => 'x'],
+                ['wezel' => 'organization', 'klucz' => '2mokry', 'wartosc' => 'x'],
+                ['wezel' => 'cudzy-wezel', 'klucz' => 'name', 'wartosc' => 'x'],
+                // Kontrola dodatnia: prawidłowy wiersz w tej samej paczce
+                // MA przejść — inaczej „nic nie weszło" przechodziłoby też
+                // wtedy, gdyby filtr w ogóle nie działał.
+                ['wezel' => 'organization', 'klucz' => 'slogan', 'wartosc' => 'Kontrola'],
+            ], JSON_UNESCAPED_UNICODE);
+            return $u;
+        });
+    },
+
     'bloki-off' => function () {
         $GLOBALS['options']['evk_schema'] = [
             'enabled' => 1, 'site_name' => 'Ośrodek',
@@ -648,8 +716,21 @@ if (($argv[2] ?? '') === '--sanityzuj') {
         }
     }
     $wejscie = json_decode($argv[3] ?? '{}', true);
+    $wejscie = is_array($wejscie) ? $wejscie : [];
+
+    /* Repeatery (punkty kontaktowe, encje podrzędne, edytor węzłów) czytają
+       Z `$_POST`, a nie z argumentu `$input` — tak działa formularz zakładki.
+       Klucz `_post` w wejściu ląduje więc w `$_POST` i dzięki temu sprawdzenia
+       sięgają TĘ gałąź zapisu, a nie tylko awaryjną. Bez tego bramka na klucz
+       właściwości byłaby kodem, którego nie sprawdza nic — a to ona decyduje,
+       czy `@id` da się podmienić z formularza. */
+    if (isset($wejscie['_post']) && is_array($wejscie['_post'])) {
+        foreach ($wejscie['_post'] as $k => $v) $_POST[$k] = $v;
+        unset($wejscie['_post']);
+    }
+
     echo json_encode(
-        EVK_Schema::get_instance()->sanitize_settings(is_array($wejscie) ? $wejscie : []),
+        EVK_Schema::get_instance()->sanitize_settings($wejscie),
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
     );
     exit;
@@ -672,6 +753,14 @@ if (($argv[2] ?? '') === '--typy') {
    o niego kod, zamiast trzymać drugą kopię listy pól po stronie Node'a. */
 if (($argv[2] ?? '') === '--pola') {
     echo json_encode(EVK_Schema::pola(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
+/* Argument 2 `--wlasciwosci` oddaje podpowiedzi edytora węzłów. Sprawdzenia
+   porównują je z tym, co moduł NAPRAWDĘ emituje we wszystkich scenariuszach —
+   lista pisana ręcznie inaczej cicho zostaje w tyle za nowymi polami. */
+if (($argv[2] ?? '') === '--wlasciwosci') {
+    echo json_encode(EVK_Schema::wlasciwosci_znane(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     exit;
 }
 

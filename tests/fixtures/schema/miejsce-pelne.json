@@ -29,7 +29,6 @@
         "@type": "PostalAddress",
         "streetAddress": "Leśna 4",
         "addressLocality": "Mikołajki",
-        "postalCode": "",
         "addressCountry": "PL"
       },
       "telephone": "+48 111 222 333",
@@ -103,7 +102,6 @@
         "@type": "PostalAddress",
         "streetAddress": "Leśna 4",
         "addressLocality": "Mikołajki",
-        "postalCode": "",
         "addressCountry": "PL"
       },
       "touristType": [

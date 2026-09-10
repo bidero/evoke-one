@@ -107,7 +107,7 @@ const SCENARIUSZE = ['minimalny', 'firma', 'firma-en', 'atrakcja',
                      'podstrona', 'wpis', 'produkt', 'bez-org', 'faq-off',
                      'organizacja-pelna', 'miejsce-pelne', 'trojstan-intem', 'agencja', 'scalenie-kolizje', 'hotel', 'restauracja', 'gabinet', 'wyciek-presetu',
                      'nadpisanie-wpisu', 'nadpisanie-puste', 'bez-okruszkow',
-                     'filtr-ustawien'];
+                     'filtr-ustawien', 'edytor', 'edytor-atak'];
 
 /** Scalone ustawienia scenariusza (warstwy: domyślne → globalne → meta wpisu). */
 const ustawienia = (scenariusz) =>
@@ -275,10 +275,29 @@ module.exports = async function (t) {
 
   t.section('kształty zakwestionowane w analizie z użycia — stan faktyczny');
 
-  /* Analiza wyjścia żywej strony zgłosiła cztery rzeczy, których moduł
-     NIE robi. Najprawdopodobniej dotyczyły bloku JSON-LD drukowanego przez
-     inną wtyczkę na tej samej podstronie. Sprawdzenia niżej nazywają stan
-     faktyczny wprost, żeby nikt tego później nie „naprawił" w złą stronę. */
+  /* Analiza wyjścia żywej strony zgłosiła cztery rzeczy, których moduł NIE
+     robi w źródle.
+
+     SPROSTOWANIE (1.176.0): pisało tu wcześniej, że to najpewniej cudza
+     wtyczka drukująca własny blok. Nieprawda — to NASZE wyjście, czytane
+     w postaci ROZWINIĘTEJ. Walidatory rozwiązują wskazania `@id`, wklejając
+     wskazywany węzeł w każde miejsce, w którym się pojawia, i sprowadzają
+     wartości wyliczeń do pełnych adresów:
+
+       "dayOfWeek": ["Monday"]        → http://schema.org/Monday
+       "addressCountry": "PL"         → {"@type":"Country","name":"PL"}
+       "query-input": "required …"    → węzeł PropertyValueSpecification
+       "@context": "https://schema.org" → rozwiązany, niewidoczny
+       "publisher": {"@id": "…"}      → cały węzeł organizacji, wklejony
+
+     Stąd też wrażenie, że dane firmy lecą dwa razy: `publisher` w WebSite
+     i `about` w WebPage to w źródle po jednej linijce ze wskazaniem.
+
+     Sprawdzenia niżej mówią o ŹRÓDLE i dlatego zostają: gdyby ktoś kiedyś
+     „poprawił" moduł tak, żeby emitował te kształty dosłownie, byłaby to
+     zmiana na gorsze — dosłowny `Country` i pełne adresy dni są dopuszczalne,
+     ale dłuższe i niepotrzebne, a wklejony węzeł zamiast `@id` to już
+     prawdziwa duplikacja. */
 
   t.check('SearchAction siedzi na WebSite, zgodnie z dokumentacją Google',
     !!wezel(grafy.agencja, 'WebSite')?.potentialAction);
@@ -297,6 +316,123 @@ module.exports = async function (t) {
 
   t.check('@context jest i wskazuje schema.org',
     grafy.agencja['@context'] === 'https://schema.org', grafy.agencja['@context']);
+
+  t.section('edytor węzłów — furtka na resztę schema.org');
+
+  const ed  = grafy.edytor;
+  const edO = wezelId(ed, '#organization');
+  const edW = wezelId(ed, '#website');
+
+  t.check('właściwość spoza pól panelu wchodzi do węzła',
+    edO?.slogan === 'Odpoczywaj u nas', edO?.slogan);
+
+  /* Bez parsowania JSON-a edytor umiałby dopisać wyłącznie płaskie łańcuchy,
+     a połowa schema.org to węzły zagnieżdżone. */
+  t.check('wartość w JSON wchodzi jako STRUKTURA, nie jako tekst',
+    edO?.numberOfEmployees?.['@type'] === 'QuantitativeValue' &&
+    edO?.numberOfEmployees?.value === 12,
+    JSON.stringify(edO?.numberOfEmployees));
+  t.check('tablica w JSON też',
+    Array.isArray(edW?.keywords) && edW.keywords.length === 2,
+    JSON.stringify(edW?.keywords));
+
+  /* Tekst, który tylko WYGLĄDA jak JSON, ma zostać tekstem. Gdyby zamiast
+     tego wchodził jako `null` albo znikał, pomyłka byłaby niewidoczna. */
+  t.check('niedomknięty JSON zostaje tekstem, nie znika',
+    edO?.award === '{niedomknięty', JSON.stringify(edO?.award));
+
+  /* Edytor wygrywa z tym, co moduł wyliczył sam — inaczej nie dałoby się
+     poprawić niczego, co moduł podaje źle, a to jest cały sens furtki. */
+  t.check('edytor nadpisuje wartość wyliczoną przez moduł',
+    edO?.telephone === '+48 999 888 777', edO?.telephone);
+  t.check('a punkt kontaktowy zachowuje swój numer — nadpisanie sięga JEDNEGO klucza',
+    edO?.contactPoint?.telephone === '+48 111 222 333', edO?.contactPoint?.telephone);
+
+  t.check('pusta wartość USUWA właściwość z węzła',
+    !('description' in (edW || {})), JSON.stringify(edW?.description));
+  t.check('a w scenariuszu bez usuwania opis jest — kontrola',
+    typeof wezelId(grafy.firma, '#website')?.description === 'string');
+
+  /* Wybór „obiekt" przy węźle scalonym musi trafić w #organization — ten sam
+     `miejsce_id()`, z którego korzystają `about` i `containedInPlace`. */
+  t.check('wybór „obiekt" trafia w węzeł scalony',
+    edO?.priceRange === '$$', edO?.priceRange);
+
+  t.check('wiersz wskazujący węzeł spoza grafu nie tworzy węzła-widma',
+    ed['@graph'].length === 2 &&
+    !identyfikatory(ed).some((id) => /#attraction$/.test(id)),
+    identyfikatory(ed).join(' '));
+
+  /* KLUCZE, KTÓRE NIE MOGĄ PRZEJŚĆ — wstrzyknięte filtrem, czyli z pominięciem
+     `sanitize_settings()`. Warstwa nadpisań per podstrona i cudzy kod wchodzą
+     do `get_settings()` tą samą drogą, więc bramka przy zapisie ich nie
+     obejmuje i sprawdzenie tamtej nic by o tym nie powiedziało. */
+  const atk  = grafy['edytor-atak'];
+  const atkO = wezelId(atk, '#organization');
+
+  t.check('kontrola dodatnia: prawidłowy wiersz z tej samej paczki PRZESZEDŁ',
+    atkO?.slogan === 'Kontrola', atkO?.slogan);
+  t.check('@id węzła nie do podmienienia',
+    atkO?.['@id'] === 'https://example.test/#organization', atkO?.['@id']);
+  t.check('@type węzła nie do podmienienia',
+    atkO?.['@type'] === 'LodgingBusiness', atkO?.['@type']);
+  t.check('@context nie do podmienienia',
+    atk['@context'] === 'https://schema.org', atk['@context']);
+  t.check('klucz ze spacją odrzucony',
+    !Object.keys(atkO || {}).some((k) => /\s/.test(k)),
+    Object.keys(atkO || {}).join(' '));
+  t.check('klucz zaczynający się od cyfry odrzucony',
+    !('2mokry' in (atkO || {})));
+  t.check('wiersz z nieznanym węzłem nie rusza żadnego węzła',
+    !identyfikatory(atk).some((id) => /cudz/.test(id)) &&
+    !JSON.stringify(atk).includes('cudze.test'),
+    identyfikatory(atk).join(' '));
+
+  t.section('podpowiedzi właściwości nadążają za tym, co moduł emituje');
+
+  /* Lista podpowiedzi jest pisana ręcznie, więc może się zestarzeć — nowe
+     pole w panelu emituje właściwość, której w podpowiedziach nie ma, i nikt
+     tego nie zauważy, bo brak podpowiedzi niczego nie psuje w grafie.
+     Dlatego kontrolą jest PRAWDZIWE WYJŚCIE ze wszystkich scenariuszy. */
+  const znane = JSON.parse(phpOutput('schema-graf.php', 'minimalny --wlasciwosci'));
+  const wszystkieZnane = new Set([...znane.organization, ...znane.place]);
+
+  for (const [wezelKlucz, sufiks] of [['website', '#website'], ['attraction', '#attraction']]) {
+    const emitowane = new Set();
+    for (const s of SCENARIUSZE) {
+      for (const n of grafy[s]['@graph']) {
+        if (!n['@id'].endsWith(sufiks)) continue;
+        Object.keys(n).forEach((k) => { if (!k.startsWith('@')) emitowane.add(k); });
+      }
+    }
+    const braki = [...emitowane].filter((k) => !znane[wezelKlucz].includes(k));
+    t.check(`podpowiedzi ${wezelKlucz} pokrywają to, co moduł emituje`,
+      emitowane.size > 0 && !braki.length, braki.length ? braki.join(', ') : emitowane.size + ' właściwości');
+  }
+
+  /* #organization i #place idą razem: po scaleniu (1.175.0) właściwości
+     obiektu siedzą na węźle organizacji, więc rozdzielne sprawdzenie
+     wymagałoby wiedzy, który scenariusz jest scalony — a to zapisywałoby
+     scalanie w sprawdzeniu podpowiedzi, gdzie nie ma czego szukać. */
+  const emitFirma = new Set();
+  for (const s of SCENARIUSZE) {
+    for (const n of grafy[s]['@graph']) {
+      if (!/#(organization|place)$/.test(n['@id'])) continue;
+      Object.keys(n).forEach((k) => { if (!k.startsWith('@')) emitFirma.add(k); });
+    }
+  }
+  const brakiFirma = [...emitFirma].filter((k) => !wszystkieZnane.has(k));
+  t.check('podpowiedzi organizacji i obiektu pokrywają to, co moduł emituje',
+    emitFirma.size > 20 && !brakiFirma.length,
+    brakiFirma.length ? brakiFirma.join(', ') : emitFirma.size + ' właściwości');
+
+  /* Podpowiedź z `@` byłaby zaproszeniem do wpisania klucza, który i tak
+     zostanie odrzucony — a to gorsze niż brak podpowiedzi. */
+  for (const [w, lista] of Object.entries(znane)) {
+    t.check(`podpowiedzi ${w}: żadnej z @ i wszystkie w kształcie nazwy`,
+      lista.length > 0 && lista.every((k) => /^[A-Za-z][A-Za-z0-9_]*$/.test(k)),
+      lista.filter((k) => !/^[A-Za-z][A-Za-z0-9_]*$/.test(k)).join(', ') || lista.length + ' nazw');
+  }
 
   t.section('rozdział #organization / #place — przy odrębnym operatorze');
 
@@ -340,6 +476,19 @@ module.exports = async function (t) {
      wartość pustą, a nie jako brak deklaracji. */
   const puste = lancuchy(grafy.minimalny).filter((s) => s.trim() === '');
   t.check('żadnej pustej wartości w grafie', !puste.length, puste.length + ' pustych');
+
+  /* TO SAMO WE WSZYSTKICH SCENARIUSZACH, nie tylko w pustym.
+     `minimalny` nie ma adresu w ogóle, więc przez trzy wydania nie widział,
+     że `build_address()` emituje wszystkie cztery klucze niezależnie od
+     tego, czy są wypełnione — obiekt bez kodu pocztowego dostawał
+     `"postalCode": ""`. Znalezione dopiero przy odczycie z walidatora,
+     który puste klucze przy WYŚWIETLANIU ukrywa, więc i tam było
+     niewidoczne. Ta pętla zamyka całą klasę: każde pole dopisane
+     w przyszłości bez bramki na pustkę wywali sprawdzenie od razu. */
+  for (const s of SCENARIUSZE) {
+    const p = lancuchy(grafy[s]).filter((x) => x === '');
+    t.check(`bez pustych wartości: ${s}`, !p.length, p.length + ' pustych');
+  }
   t.check('żadnego null', !/null/.test(JSON.stringify(grafy.minimalny)));
   t.check('tylko WebSite i Organization', grafy.minimalny['@graph'].length === 2,
     grafy.minimalny['@graph'].map((n) => n['@type']).join(', '));
@@ -975,6 +1124,55 @@ module.exports = async function (t) {
     dobry.descriptions === '{"pl":"Opis"}', dobry.descriptions);
   t.check('i poprawny repeater też',
     dobry.sub_entities === '[{"type":"Beach","name":"Plaża"}]', dobry.sub_entities);
+
+  /* ── Edytor węzłów: BRAMKA PRZY ZAPISIE ────────────────────────────────
+     Ta gałąź czyta z `$_POST`, nie z `$input` — tak działa formularz. Bramka
+     w `dolacz_wlasne()` (sprawdzona wyżej) łapie to samo, ale dopiero przy
+     budowaniu grafu; ta odsiewa przed wejściem do bazy, więc zły wiersz nie
+     wraca do formularza po zapisie. Obie są potrzebne i każda ma inny zasięg. */
+  const zapisz = (wiersze) => JSON.parse(san({
+    _post: { evk_schema_custom: {
+      wezel:   wiersze.map((r) => r[0]),
+      klucz:   wiersze.map((r) => r[1]),
+      wartosc: wiersze.map((r) => r[2]),
+    } },
+  }).custom_props);
+
+  const przeszly = zapisz([
+    ['organization', 'slogan',        'Dobry'],
+    ['organization', '@id',           'https://cudze.test/#x'],
+    ['website',      '@type',         'Thing'],
+    ['organization', 'zły klucz',     'x'],
+    ['organization', '9zle',          'x'],
+    ['cudzy',        'name',          'x'],
+    ['place',        'priceRange',    '$$'],
+  ]);
+  t.check('zapis przepuszcza tylko prawidłowe wiersze',
+    przeszly.length === 2, JSON.stringify(przeszly.map((r) => r.klucz)));
+  t.check('klucz z @ nie wchodzi do bazy',
+    !przeszly.some((r) => r.klucz.startsWith('@')));
+  t.check('klucz ze spacją nie wchodzi do bazy',
+    !przeszly.some((r) => /\s/.test(r.klucz)));
+  t.check('klucz od cyfry nie wchodzi do bazy',
+    !przeszly.some((r) => /^\d/.test(r.klucz)));
+  t.check('węzeł spoza listy nie wchodzi do bazy',
+    przeszly.every((r) => ['website', 'organization', 'place', 'attraction'].includes(r.wezel)),
+    przeszly.map((r) => r.wezel).join(' '));
+
+  /* Wartość ma wrócić do formularza DOKŁADNIE taka, jaka weszła. Gdyby JSON
+     był parsowany przy zapisie i zapisywany jako struktura, pole po zapisie
+     pokazałoby przeformatowaną treść — co wygląda jak zepsute pole. */
+  const surowe = zapisz([['organization', 'numberOfEmployees',
+    '{"@type":"QuantitativeValue",  "value":12}']]);
+  t.check('wartość wraca surowa, bez przeformatowania',
+    surowe[0].wartosc === '{"@type":"QuantitativeValue",  "value":12}', surowe[0].wartosc);
+
+  /* Wiersz z pustą wartością MA zostać — pusta wartość znaczy „usuń tę
+     właściwość z węzła", więc odsianie go zabrałoby jedyny sposób na zdjęcie
+     czegoś, co moduł wstawia zawsze. */
+  const doUsuniecia = zapisz([['website', 'description', '']]);
+  t.check('wiersz z pustą wartością zostaje — to jest polecenie usunięcia',
+    doUsuniecia.length === 1 && doUsuniecia[0].wartosc === '', JSON.stringify(doUsuniecia));
 
   /* Każdy klucz rejestru MUSI wyjść z sanityzacji. Pole dopisane do rejestru,
      a pominięte przy zapisie, przestaje się zapisywać bez żadnego objawu —

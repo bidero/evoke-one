@@ -29,7 +29,6 @@
         "@type": "PostalAddress",
         "streetAddress": "Leśna 4",
         "addressLocality": "Mikołajki",
-        "postalCode": "",
         "addressCountry": "PL"
       },
       "publicAccess": true,

@@ -1321,7 +1321,11 @@
 /* ── Sekcja zwijana ── */
 .evo-note { border-radius: var(--evo-radius-md); }
 .evo-note > summary { color: var(--evo-text-soft); font-weight: 600; }
-.evo-note code { background: var(--evo-code-bg); color: var(--evo-code-text); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+/* `overflow-wrap: anywhere`, bo przykład w notce bywa dłuższy niż telefon jest
+   szeroki — `{"@type":"QuantitativeValue","value":42}` nie ma ani jednej spacji,
+   więc bez tego wychodzi poza ekran i rozpycha całą stronę w poziomie.
+   Dotyczy każdej notki w panelu, nie tylko zakładki Schema. */
+.evo-note code { background: var(--evo-code-bg); color: var(--evo-code-text); padding: 1px 6px; border-radius: 4px; font-size: 12px; overflow-wrap: anywhere; }
 
 /* ── Plakietka klasy ── */
 .evo-anim-class { background: var(--evo-code-bg); color: var(--evo-code-text); border-radius: 4px; }

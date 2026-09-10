@@ -2,6 +2,105 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.176.0] — 2026-09-10
+
+Piąte i ostatnie z wydań przebudowy zakładki Schema: **edytor węzłów,
+podgląd JSON-LD i sprostowanie diagnozy z 1.175.0.**
+
+### Sprostowanie do 1.175.0
+
+Poprzednie wydanie orzekło, że cztery z pięciu zgłoszonych znalezisk
+(`SearchAction` na `WebPage`, `addressCountry` jako `Country`, `dayOfWeek`
+w adresach schema.org, brak `@context`) opisują **cudzy** JSON-LD.
+**To było błędne.** Odczyt z narzędzia pokazał potem, że to nasze wyjście,
+tylko czytane w postaci **rozwiniętej**: walidatory rozwiązują wskazania
+`@id`, wklejając cały wskazywany węzeł w każde miejsce, w którym się
+pojawia, i sprowadzają wartości wyliczeń do pełnych adresów.
+
+Co robi walidator z naszego wyjścia:
+
+| U nas w źródle | W odczycie z walidatora |
+|---|---|
+| `"publisher": {"@id": "…#organization"}` | cały węzeł organizacji, wklejony |
+| `"about": {"@id": "…#organization"}` | ten sam węzeł, wklejony drugi raz |
+| `"dayOfWeek": ["Monday", …]` | `http://schema.org/Monday` |
+| `"addressCountry": "PL"` | `{"@type": "Country", "name": "PL"}` |
+| `"query-input": "required name=search_term_string"` | węzeł `PropertyValueSpecification` |
+| `"@context": "https://schema.org"` | rozwiązany i niewidoczny |
+
+Sprawdzenia dopisane w 1.175.0 są prawdziwe i zostają — mówią o źródle.
+Zmieniony jest ich **komentarz**: opisywały „cudzy JSON-LD", a opisują
+wyjście czytane po rozwinięciu. Blok wyjaśniający jest teraz w § 8b
+rozpiski.
+
+**Danych nie dublujemy.** W źródle strony `publisher` i `about` to po
+jednej linijce ze wskazaniem — o to chodzi w `@graph` z `@id`.
+
+### Dodane
+
+- **Edytor węzłów.** Repeater „węzeł + właściwość + wartość", ujście na
+  wszystko, czego nie ma w polach panelu, i na to, co schema.org dopiero
+  doda. Cztery węzły do wyboru: `#website`, `#organization`, `#place`,
+  `#attraction`.
+
+  - **Wpisane tutaj wygrywa** z tym, co moduł wyliczył sam — bez tego nie
+    dałoby się poprawić niczego, co moduł podaje źle, a to jest cały sens
+    furtki.
+  - **Pusta wartość usuwa** właściwość z węzła. Jedyny sposób, żeby zdjąć
+    coś, co moduł wstawia zawsze.
+  - Wartość zaczynająca się od `{` albo `[` i parsująca się jako JSON wchodzi
+    jako **struktura**. Bez tego edytor umiałby dopisać wyłącznie płaskie
+    łańcuchy, a połowa schema.org to węzły zagnieżdżone.
+  - Podpowiedzi (`datalist`) **zależne od wybranego węzła**, bo `checkinTime`
+    istnieje na obiekcie noclegowym, a nie na organizacji. Klucz spoza listy
+    **wolno wpisać** — dostajesz ostrzeżenie, nie blokadę: schema.org rośnie
+    szybciej, niż aktualizuje się wtyczka.
+  - Kluczy z `@` nie da się ustawić. `@id` i `@type` spinają graf; podmienione
+    rozspoiłyby wskazania `publisher`, `about` i `containedInPlace`.
+    Bramka stoi **w dwóch miejscach**: przy zapisie i przy budowaniu grafu —
+    bo warstwa nadpisań per podstrona i filtr `evk_schema_settings` wchodzą
+    do ustawień z pominięciem zapisu formularza.
+  - Wybór „Obiekt" trafia w węzeł scalony (1.175.0), a nie w nieistniejący
+    `#place` — przez tę samą metodę `miejsce_id()`, z której korzystają
+    `about` i `containedInPlace`.
+
+- **Podgląd JSON-LD w zakładce.** Graf strony głównej, budowany **tą samą
+  drogą** co wyjście w `<head>` — podgląd liczony osobno pokazywałby własną
+  prawdę i mijał się z celem. Pokazuje ustawienia **zapisane**.
+
+- **Przycisk „Sprawdź w Rich Results Test".** Z podpisem, że Google pobiera
+  stronę ze swojej strony, więc na `localhost` i za logowaniem nie zadziała —
+  to nie jest usterka przycisku.
+
+- **Słowniki dla `medicalSpecialty` i `nonprofitStatus`** — otwarty punkt
+  z audytu 1.173.0. Podpowiedź, nie `select`: wyliczenia schema.org są
+  rozszerzane, a zamknięta lista sprzed dwóch lat blokowałaby prawidłową
+  wartość bez obejścia. Przy `nonprofitStatus` panel mówi wprost, że polskie
+  OPP nie ma swojej pozycji w tym słowniku i lepiej zostawić puste.
+
+### Naprawione
+
+- **Adres emitował puste klucze.** `build_address()` zawsze wypisywał całą
+  czwórkę, więc obiekt bez kodu pocztowego dostawał `"postalCode": ""`.
+  Reszta modułu trzyma zasadę „puste pole nie zostawia śladu"; adres był
+  jedynym miejscem, w którym jej nie trzymał. Nie było tego widać z dwóch
+  stron naraz: jedyny scenariusz polujący na puste wartości nie miał adresu
+  w ogóle, a walidatory puste klucze przy wyświetlaniu ukrywają. Sprawdzenie
+  chodzi teraz po **wszystkich** scenariuszach.
+
+- **Długi przykład w notce panelu wychodził poza ekran** na telefonie
+  (`overflow-wrap` na `.evo-note code`). Dotyczyło każdej zakładki, nie tylko
+  Schema.
+
+### Testy
+
+333 sprawdzenia (+61). Nowe scenariusze: `edytor` (wszystkie ścieżki wartości
+naraz, na węźle scalonym) i `edytor-atak` (klucze `@`, klucze bez kształtu
+nazwy i nieznany węzeł, wstrzyknięte **filtrem**, czyli z pominięciem zapisu).
+Harness `--sanityzuj` umie teraz podstawić `$_POST`, więc gałąź repeaterów —
+ta, którą naprawdę idzie formularz — przestała być kodem, którego nie
+sprawdza nic. Dwanaście mutacji, wszystkie zapalają.
+
 ## [1.175.0] — 2026-09-10
 
 Wydanie z użycia: pierwsza strona wypełniła zakładkę prawdziwymi danymi
