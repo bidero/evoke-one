@@ -1,5 +1,15 @@
 // assets/js/parallax.js
-document.addEventListener('DOMContentLoaded', () => {
+/*
+ * START ODPORNY NA PÓŹNE WCZYTANIE.
+ *
+ * Stało tu samo `addEventListener('DOMContentLoaded', ...)`, bez pytania, czy
+ * to zdarzenie już nie minęło. Skrypt wczytany PO nim — a tak robią wtyczki
+ * optymalizujące, które dokładają `async`, i tak wygląda wstawienie znacznika
+ * z JS — nie robił wtedy NIC i parallax po prostu nie działał, bez śladu
+ * w konsoli. Wyszło to przy pisaniu fixture'a, który celowo opóźnia skrypt,
+ * żeby odwzorować żądanie ze stopki.
+ */
+const evkParallaxStart = () => {
     const elements = document.querySelectorAll('[data-parallax]');
 
     // Pobierz domyślne wartości z ustawień WordPress
@@ -44,6 +54,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const zSerwera = !isImg && element.hasAttribute('data-parallax-css');
 
         if (zSerwera) {
+            /* TŁO BEZ OBRAZU NIE JEST RUSZANE. Gradient CSS to `background-image`
+               tak samo jak `url(...)`, więc warstwa dziedziczyła go i przesuwała.
+               Zdjęcie na ruchu zyskuje głębię, gradient tylko rozjeżdża się
+               z projektem — a przy okazji warstwa rozciągałaby go o piątą część
+               wysokości, bo jej pudełko sięga od -10% do 110%.
+               Znacznik wyłącza warstwę regułą z arkusza. Ten sam test robi
+               wczesny ustawiacz w nagłówku; tutaj jest drugi raz, bo skrypt
+               dochodzi też do elementów wstawionych po starcie, których tamten
+               nie widział. */
+            if (style.backgroundImage.indexOf('url(') < 0) {
+                element.setAttribute('data-evk-par-bez-obrazu', '1');
+                element.dataset.parallaxActive = 'true';
+                return;
+            }
             if (Math.abs(customScale - (defaults.defaultScale || 1.2)) > 0.001) {
                 element.style.setProperty('--evk-par-scale', String(customScale));
             }
@@ -290,4 +314,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     bodyObserver.observe(document.body, { childList: true, subtree: true });
-});
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', evkParallaxStart);
+} else {
+    evkParallaxStart();
+}

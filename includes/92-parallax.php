@@ -124,6 +124,22 @@ class EVK_Parallax {
              tego osobne sprawdzenie w tests/parallax.test.js. */
           . '[data-parallax-css] > *{--evk-par-y:initial;--evk-par-amp:initial}'
 
+          /* TŁO BEZ OBRAZU NIE DOSTAJE WARSTWY WCALE.
+             Gradient CSS jest `background-image` tak samo jak `url(...)`, więc
+             reguła dziedziczyła go i ruszała nim — od zawsze, nie od dziś.
+             Sprawdzone porównawczo na wersji sprzed poprawki przeskoku:
+             transformacje przy przewijaniu były co do wartości takie same.
+             Widać to dopiero teraz, bo do 1.181.0 pierwsza klatka pokazywała
+             spoczynek i przesunięcie pojawiało się skokiem.
+             Zdjęcie na ruchu zyskuje głębię; gradient tylko rozjeżdża się
+             z projektem. Wyłączamy więc CAŁĄ warstwę, nie sam ruch: pudełko
+             `::before` sięga od -10% do 110%, więc nawet nieruchome rozciągałoby
+             gradient o piątą część wysokości i przycinało mu oba końce.
+             Bez warstwy widać własne tło sekcji — dokładnie takie, jak
+             zaprojektowane. Znacznik nadaje skrypt, bo tylko on umie zajrzeć
+             w wyliczone tło; CSS nie ma jak odróżnić gradientu od obrazu. */
+          . '[data-parallax-css][data-evk-par-bez-obrazu]::before{content:none}'
+
           /* Przy „ogranicz ruch" warstwa stoi. Skala zostaje: element bywa
              przeskalowany po to, żeby ruch nie odsłaniał krawędzi. */
           . '@media (prefers-reduced-motion: reduce){[data-parallax-css]::before'
@@ -173,7 +189,15 @@ class EVK_Parallax {
   var SILA = <?php echo wp_json_encode($sila); ?>, SKALA = <?php echo wp_json_encode($skala); ?>;
   // Przy „ogranicz ruch" reguła i tak zeruje przesunięcie — nie ma co liczyć.
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  /* Ruszamy wyłącznie tłem, które ma OBRAZ. Sam gradient (albo brak tła)
+     dostaje znacznik wyłączający warstwę — patrz reguła w arkuszu.
+     `url(` wystarczy: tło mieszane „gradient + url(...)" ma obraz, więc jedzie
+     normalnie. */
+  var maObraz = function (el) {
+    return getComputedStyle(el).backgroundImage.indexOf('url(') >= 0;
+  };
   var ustaw = function (el) {
+    if (!maObraz(el)) { el.setAttribute('data-evk-par-bez-obrazu', '1'); return; }
     var s = parseFloat(el.getAttribute('data-parallax')) || SILA;
     var r = el.getBoundingClientRect();
     var p = ((r.top + r.height / 2) - innerHeight / 2) / (innerHeight / 2);

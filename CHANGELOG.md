@@ -2,6 +2,56 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.182.0] — 2026-09-10
+
+### Zmienione
+
+- **Parallax rusza już tylko tłem, które ma obraz.** Zgłoszone z użycia:
+  „przesuwa mi też gradient. Możliwe, że tak było?".
+
+  **Tak było** — i to od wprowadzenia warstwy serwerowej, nie od wczoraj.
+  Sprawdzone porównawczo: ten sam fixture uruchomiony na 1.180.0 i 1.181.0 dał
+  przy przewijaniu transformacje **co do wartości takie same**. Gradient CSS
+  jest `background-image` dokładnie tak samo jak `url(...)`, a reguła
+  dziedziczy tło przez `background-image: inherit` i nie ma jak ich odróżnić.
+
+  Widać to było jednak dopiero od 1.181.0: wcześniej pierwsza namalowana klatka
+  pokazywała gradient w spoczynku i przesunięcie pojawiało się skokiem.
+  Usunięcie przeskoku odsłoniło to, co przeskok maskował.
+
+  **Wyłączona jest CAŁA WARSTWA, nie sam ruch.** Pudełko `::before` sięga od
+  −10% do 110% wysokości sekcji, więc nawet nieruchome rozciągałoby gradient
+  o piątą część i przycinało mu oba końce. Bez warstwy widać własne tło sekcji
+  — dokładnie takie, jak zaprojektowane.
+
+  Rozstrzyga obecność `url(` w wyliczonym tle, więc tło mieszane
+  („gradient + zdjęcie") jedzie jak dotąd. Znacznik stawia skrypt — CSS nie ma
+  jak zajrzeć w wartość tła — i stawia go **już w nagłówku**, żeby gradient nie
+  mrugnął rozciągnięty przy pierwszym malowaniu.
+
+### Naprawione
+
+- **`parallax.js` wczytany po `DOMContentLoaded` nie robił nic.** Znalezione
+  przy pisaniu fixture'a, nie zgłoszone. Skrypt zapinał się samym
+  `addEventListener('DOMContentLoaded', …)`, bez pytania, czy zdarzenie już nie
+  minęło — więc wczytany później milczał, bez śladu w konsoli i bez działającego
+  parallaxu. Dotyczy to wtyczek optymalizujących, które dokładają `async`, oraz
+  każdego wstawienia znacznika skryptu z poziomu JS.
+
+### Testy
+
+Dziesięć nowych sprawdzeń, sześć mutacji, wszystkie zapalają. Dwie rzeczy
+wyszły dopiero na mutacjach i obie prowadziły do przepisania sprawdzenia:
+
+- **Stan gradientu czytany po wszystkim** przechodził także po wycięciu
+  znacznika z nagłówka, bo `parallax.js` stawia go również — tyle że za późno,
+  czyli z tym mrugnięciem, które naprawiamy. Mierzona jest teraz pierwsza
+  klatka.
+- **Sprawdzenie ruchu w spoczynku** przechodziło po wycięciu warunku ze
+  skryptu, bo gradient stoi wtedy do pierwszego przewinięcia. Doszedł pomiar
+  po przewinięciu, z kontrolą pozytywną na sąsiedniej sekcji ze zdjęciem —
+  i to ona pokazała, że skrypt w ogóle nie startuje, gdy dojedzie za późno.
+
 ## [1.181.0] — 2026-09-10
 
 ### Naprawione

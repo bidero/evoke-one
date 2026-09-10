@@ -206,6 +206,78 @@ module.exports = async function (t) {
     await w.evaluate(() => document.getElementById('sekcja').style.getPropertyValue('--evk-par-scale')) === '',
     'zapis inline: „' + await w.evaluate(() => document.getElementById('sekcja').style.getPropertyValue('--evk-par-scale')) + '”');
 
+  // ── Sam gradient nie jest ruszany ──────────────────────────────────────
+  /*
+   * ZGŁOSZONE Z UŻYCIA po 1.181.0: „przesuwa mi też gradient. Możliwe, że tak
+   * było?". Było — sprawdzone porównawczo na wersji sprzed tamtej poprawki:
+   * transformacje przy przewijaniu wychodziły co do wartości takie same.
+   * Widać to było jednak dopiero od 1.181.0, bo wcześniej pierwsza klatka
+   * pokazywała spoczynek i przesunięcie pojawiało się skokiem.
+   *
+   * Gradient CSS jest `background-image` tak samo jak `url(...)`, więc reguła
+   * dziedziczyła go i ruszała. Zdjęcie na ruchu zyskuje głębię, gradient tylko
+   * rozjeżdża się z projektem.
+   *
+   * WYŁĄCZAMY CAŁĄ WARSTWĘ, NIE SAM RUCH. Pudełko `::before` sięga od -10% do
+   * 110%, więc nawet nieruchome rozciągałoby gradient o piątą część wysokości
+   * i przycinało mu oba końce. Bez warstwy widać własne tło sekcji.
+   */
+  /* ZNALEZIONE PRZY PISANIU TEGO BLOKU, nie zgłoszone: skrypt startował samym
+     `DOMContentLoaded`, bez pytania, czy zdarzenie już nie minęło. Wczytany
+     później — a tak robią wtyczki optymalizujące dokładające `async` — nie
+     robił NIC, bez śladu w konsoli. Fixture wczytuje go z opóźnieniem, czyli
+     dokładnie w tej sytuacji, więc to sprawdzenie stoi na realnym przypadku:
+     gdyby skrypt milczał, poniższa kontrola pozytywna przy przewijaniu
+     nie miałaby czego pokazać. */
+  t.check('skrypt rusza także wczytany po DOMContentLoaded',
+    await w.evaluate(() => document.querySelector('[data-parallax-css]').dataset.parallaxActive === 'true'),
+    'znacznik gotowości na sekcji');
+
+  t.section('tło bez obrazu nie dostaje warstwy');
+
+  t.check('reguła zna wyłączenie warstwy',
+    regula.includes('[data-parallax-css][data-evk-par-bez-obrazu]::before{content:none}'),
+    'selektor wyłączający');
+
+  const grad = await w.evaluate(() => window.__warstwa('gradient'));
+  const obraz = await w.evaluate(() => window.__warstwa('sekcja'));
+
+  /* OD PIERWSZEJ KLATKI, nie „kiedyś". Znacznik stawia też `parallax.js`,
+     więc odczyt po wszystkim przechodził także po wycięciu go z nagłówka —
+     a wtedy gradient mruga warstwą rozciągającą go o piątą część wysokości
+     i dopiero potem ją traci. Wyszło to na mutacji. */
+  t.check('sekcja z samym gradientem jest oznaczona od pierwszej klatki',
+    bieg.pierwszyGradient === true, 'pierwsza klatka: ' + bieg.pierwszyGradient);
+  t.check('i znacznik zostaje', grad.znacznik === true, 'znacznik: ' + grad.znacznik);
+  t.check('i nie ma warstwy wcale', grad.trescWarstwy === 'none',
+    'content: ' + grad.trescWarstwy);
+  t.check('więc nic jej nie przesuwa', grad.y === '(brak)',
+    '--evk-par-y: ' + grad.y);
+
+  /* KONTROLA NEGATYWNA, bez której powyższe przechodziłoby też wtedy, gdyby
+     warstwa zniknęła WSZYSTKIM — czyli gdyby parallax przestał działać. */
+  t.check('a sekcja ze zdjęciem warstwę ma',
+    obraz.znacznik === false && obraz.trescWarstwy !== 'none',
+    'znacznik: ' + obraz.znacznik + ', content: ' + obraz.trescWarstwy);
+  t.check('i jest przesuwana', obraz.y !== '(brak)' && parseFloat(obraz.y) !== 0,
+    '--evk-par-y: ' + obraz.y);
+
+  /* A TERAZ PRZY PRZEWIJANIU — bo zgłoszenie brzmiało „przesuwa mi gradient",
+     a nie „gradient stoi krzywo". Sam odczyt w spoczynku przechodził także po
+     wycięciu warunku ze skryptu: wtedy gradient stoi do pierwszego przewinięcia
+     i dopiero potem rusza. Wyszło to na mutacji. */
+  await w.evaluate(() => window.scrollTo(0, 300));
+  await w.waitForTimeout(250);
+  const gradPo = await w.evaluate(() => window.__warstwa('gradient'));
+  const obrazPo = await w.evaluate(() => window.__warstwa('sekcja'));
+
+  t.check('gradient stoi także PO przewinięciu', gradPo.y === '(brak)',
+    '--evk-par-y: ' + gradPo.y);
+  /* Kontrola pozytywna: przewinięcie naprawdę czymś ruszyło, więc powyższe
+     nie przechodzi dlatego, że nic się nie wydarzyło. */
+  t.check('a zdjęcie owszem — przewinięcie zmieniło jego przesunięcie',
+    obrazPo.y !== obraz.y, obraz.y + ' → ' + obrazPo.y);
+
   t.check('bez błędów JS', !w.errors.length, w.errors.join(' | ') || 'brak');
   await w.close();
 };
