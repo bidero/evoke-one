@@ -75,6 +75,11 @@ plus pomocnicze: `build_address`, `build_geo`, `has_place`,
 
 ## Placeholdery po PTTK — pełna lista
 
+> **Zrobione w 1.170.0.** Wszystkie usunięte, plus dwa miejsca, których ta
+> lista nie obejmowała: opis „Jak to działa" przy encjach podrzędnych (mówił
+> o portalach turystycznych) i podpowiedź nazwy encji. Pilnuje tego teraz
+> sprawdzenie w `drobiazgi` przeszukujące całe `includes/`.
+
 | Plik | Wiersz | Treść |
 |---|---:|---|
 | `includes/admin/seo/tab-schema.php` | 63 | `np. Stanica Wodna PTTK Ukta` |
@@ -147,8 +152,15 @@ tak, żeby metaboks dało się dołożyć bez przepisywania go od nowa.
 
 ## Usterki znalezione przy pisaniu siatki
 
-Obie są w siatce zapisane jako **stan zastany** — sprawdzenia są zielone,
-dopóki usterka trwa, i zapalą po naprawie.
+> **Obie naprawione w 1.169.0.** Sprawdzenia stanu zastanego zapaliły przy
+> naprawie — po to tam były — i zostały odwrócone na normalne, z kontrolami
+> w obie strony. Przy okazji wyszło, że `publisher` wisiał w **dwóch**
+> miejscach, nie w jednym: `build_article()` ustawiał go tak samo
+> bezwarunkowo jak `build_website()`, a scenariusz `bez-org` był stroną, więc
+> `BlogPosting` w nim nie powstawał i drugie miejsce było niewidoczne.
+> Scenariusz jest teraz wpisem.
+
+Opis stanu sprzed naprawy, zostawiony dla kontekstu:
 
 1. **FAQPage nie powstaje nigdy.** `extract_faq()` (l. 542) szuka akordeonu
    przez `array_walk_recursive` z warunkiem `$key === 'items' && is_array($value)`.

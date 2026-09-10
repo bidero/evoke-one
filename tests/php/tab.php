@@ -442,10 +442,16 @@ $TABS = [
         'seed'   => function () {
             // Repeater encji podrzędnych i lista walut per język rysują się
             // tylko przy danych — a to w nich siedzi połowa pól tej zakładki.
+            //
+            // Typ encji MUSI być jednym z `sub_entity_types()`. Wcześniej stało
+            // tu „Service", którego na tej liście nie ma — `selected()` nie
+            // trafiało w żadną opcję, więc zakładka rysowała select bez
+            // zaznaczenia i ścieżka „zapisany typ wraca zaznaczony" nie była
+            // badana wcale.
             $GLOBALS['options']['evk_schema'] = [
                 'enabled'         => 1,
-                'site_name'       => 'Stanica Wodna',
-                'sub_entities'    => '[{"type":"Service","name":"Spływy","description":"Krutynia"}]',
+                'site_name'       => 'Firma Przykładowa',
+                'sub_entities'    => '[{"type":"ParkingFacility","name":"Parking dla gości","description":"Bezpłatny"}]',
                 'social_links'    => '["https://example.test/fb"]',
                 'descriptions'    => '{"pl":"Opis","en":"Description"}',
                 'lang_currencies' => '{"en":"EUR"}',

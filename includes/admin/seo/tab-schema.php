@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) exit;
                         <option value="<?php echo esc_attr($tk); ?>" <?php selected($r_type, $tk); ?>><?php echo esc_html($tl); ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <input type="text" name="evk_schema_sub[name][]" value="<?php echo esc_attr($r_name); ?>" placeholder="Nazwa, np. Wypożyczalnia kajaków">
+                    <input type="text" name="evk_schema_sub[name][]" value="<?php echo esc_attr($r_name); ?>" placeholder="Nazwa, np. Parking dla gości">
                     <input type="text" name="evk_schema_sub[description][]" value="<?php echo esc_attr($r_desc); ?>" placeholder="Opis (opcjonalnie)">
                     <button type="button" class="button evk-sub-remove" title="Usuń"><span class="dashicons dashicons-trash"></span></button>
                 </div>
@@ -60,8 +60,8 @@ if (!defined('ABSPATH')) exit;
                             </select>
                             
                         </div>
-                        <div class="evo-field evo-mb-0"><label>Nazwa obiektu / firmy (site_name)</label><input type="text" name="evk_schema[site_name]" value="<?php echo esc_attr($sc['site_name']); ?>" placeholder="np. Stanica Wodna PTTK Ukta"></div>
-                        <div class="evo-field evo-mb-0"><label>Nazwa operatora (Organization)</label><input type="text" name="evk_schema[operator_name]" value="<?php echo esc_attr($sc['operator_name']); ?>" placeholder="np. PTTK Oddział Mazurski"><div class="evo-desc">Wydawca strony / właściciel obiektu. Puste = nazwa obiektu.</div></div>
+                        <div class="evo-field evo-mb-0"><label>Nazwa obiektu / firmy (site_name)</label><input type="text" name="evk_schema[site_name]" value="<?php echo esc_attr($sc['site_name']); ?>" placeholder="np. Piekarnia Przykładowa"></div>
+                        <div class="evo-field evo-mb-0"><label>Nazwa operatora (Organization)</label><input type="text" name="evk_schema[operator_name]" value="<?php echo esc_attr($sc['operator_name']); ?>" placeholder="np. Przykładowa sp. z o.o."><div class="evo-desc">Wydawca strony / właściciel obiektu. Puste = nazwa obiektu.</div></div>
                         <div class="evo-field evo-mb-0"><label>Telefon</label><input type="text" name="evk_schema[telephone]" value="<?php echo esc_attr($sc['telephone']); ?>" placeholder="+48 000 000 000"></div>
                         <div class="evo-field evo-mb-0"><label>E-mail</label><input type="text" name="evk_schema[email]" value="<?php echo esc_attr($sc['email']); ?>" placeholder="biuro@domena.pl"></div>
                         <div class="evo-field evo-mb-0"><label>Ulica i numer</label><input type="text" name="evk_schema[street_address]" value="<?php echo esc_attr($sc['street_address']); ?>" placeholder="ul. Przykładowa 1"></div>
@@ -83,22 +83,22 @@ if (!defined('ABSPATH')) exit;
                         <div class="evo-field evo-mb-0"><label>Przedział cenowy (priceRange)</label><input type="text" name="evk_schema[price_range]" value="<?php echo esc_attr($sc['price_range']); ?>" placeholder="$$"><div class="evo-desc">Umownie: $ tanio … $$$$ drogo (albo np. „50–200 zł").</div></div>
                         <div class="evo-field evo-mb-0"><label>Link do mapy (hasMap)</label><input type="text" name="evk_schema[has_map]" value="<?php echo esc_attr($sc['has_map']); ?>" placeholder="https://maps.google.com/…"><div class="evo-desc">Np. link „Udostępnij" z Map Google.</div></div>
                     </div>
-                    <div class="evo-field"><label>Udogodnienia (amenityFeature) — jedno na linię</label><textarea name="evk_schema[amenities]" rows="4" class="evo-w-480" placeholder="Spływy kajakowe&#10;Pole namiotowe&#10;Sauna"><?php echo esc_textarea($sc['amenities']); ?></textarea></div>
+                    <div class="evo-field"><label>Udogodnienia (amenityFeature) — jedno na linię</label><textarea name="evk_schema[amenities]" rows="4" class="evo-w-480" placeholder="Parking&#10;Wi-Fi&#10;Dostęp dla wózków"><?php echo esc_textarea($sc['amenities']); ?></textarea></div>
                     <div class="evo-field"><label>Godziny otwarcia (openingHoursSpecification) — jedna reguła na linię<span class="evo-tip" tabindex="0" role="note" data-tip="Format: dni + godziny, np. „Pn-Pt 08:00-20:00&quot;, „Sob 09:00-14:00&quot;, „Codziennie 08:00-20:00&quot;. Dni: Pn, Wt, Śr, Cz, Pt, Sob, Nd (można łączyć przecinkiem i zakresem)." aria-label="Format: dni + godziny, np. „Pn-Pt 08:00-20:00&quot;, „Sob 09:00-14:00&quot;, „Codziennie 08:00-20:00&quot;. Dni: Pn, Wt, Śr, Cz, Pt, Sob, Nd (można łączyć przecinkiem i zakresem).">?</span></label><textarea name="evk_schema[opening_hours]" rows="3" class="evo-mono evo-w-480" placeholder="Pn-Pt 08:00-20:00&#10;Sob-Nd 09:00-18:00"><?php echo esc_textarea($sc['opening_hours']); ?></textarea></div>
-                    <div class="evo-field"><label>Obsługiwany obszar (areaServed) — jeden na linię</label><textarea name="evk_schema[area_served]" rows="3" class="evo-w-480" placeholder="Mazury&#10;Puszcza Piska&#10;Krutynia"><?php echo esc_textarea($sc['area_served']); ?></textarea></div>
+                    <div class="evo-field"><label>Obsługiwany obszar (areaServed) — jeden na linię</label><textarea name="evk_schema[area_served]" rows="3" class="evo-w-480" placeholder="Warszawa&#10;mazowieckie&#10;Polska"><?php echo esc_textarea($sc['area_served']); ?></textarea></div>
 
                 </div>
 
                 <div class="evo-box">
                     <h3>Atrakcja turystyczna (TouristAttraction)</h3>
                     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Osobny obiekt w grafie — włącz go w „Aktywne bloki JSON-LD" poniżej. Używa adresu i współrzędnych z pól powyżej.</div></details>
-                    <div class="evo-field"><label>Nazwa atrakcji</label><input type="text" name="evk_schema[attraction_name]" value="<?php echo esc_attr($sc['attraction_name']); ?>" placeholder="np. Stanica Wodna PTTK Ukta nad rzeką Krutynią" class="evo-w-480"><div class="evo-desc">Puste pole = nazwa organizacji.</div></div>
+                    <div class="evo-field"><label>Nazwa atrakcji</label><input type="text" name="evk_schema[attraction_name]" value="<?php echo esc_attr($sc['attraction_name']); ?>" placeholder="np. Zabytkowy młyn nad rzeką" class="evo-w-480"><div class="evo-desc">Puste pole = nazwa organizacji.</div></div>
 
                 </div>
 
                 <div class="evo-box">
                     <h3>Dodatkowe obiekty i usługi (encje podrzędne)</h3>
-                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Każda pozycja to osobny węzeł w grafie (np. pole namiotowe, wypożyczalnia kajaków, restauracja, plaża). Gdy ustawiony jest typ działalności inny niż „Organizacja", encje są powiązane z obiektem (#place) przez <code>containedInPlace</code>. To poziom danych spotykany w portalach turystycznych — dokładniej opisuje ofertę niż jeden typ.</div></details>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Każda pozycja to osobny węzeł w grafie (np. parking, restauracja, sala konferencyjna, plac zabaw). Gdy ustawiony jest typ działalności inny niż „Organizacja", encje są powiązane z obiektem (#place) przez <code>containedInPlace</code>. Opisuje ofertę dokładniej niż jeden typ działalności.</div></details>
                     <div id="evk-sub-list">
                         <?php foreach ($subs as $row) { echo $render_sub_row((array) $row); } ?>
                     </div>

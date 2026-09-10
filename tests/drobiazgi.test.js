@@ -105,6 +105,43 @@ module.exports = async function (t) {
     t.check('PHPStan przechodzi wobec pliku bazowego', czysto, powod);
   }
 
+  // ── Ślady po pojedynczym wdrożeniu ────────────────────────────────────
+  t.section('wtyczka nie nosi nazw z jednej realizacji');
+
+  /* Zakładka Schema miała przez wiele wydań podpowiedzi wpisane pod JEDNEGO
+     klienta: „np. Stanica Wodna PTTK Ukta", „Mazury / Puszcza Piska /
+     Krutynia", „Spływy kajakowe / Pole namiotowe / Sauna". To nie jest
+     kosmetyka — podpowiedź z cudzej branży każe czytać całą sekcję jako
+     niedotyczącą, a wtyczka obsługuje 26 typów działalności, od kancelarii
+     po warsztat samochodowy.
+     Usunięcie ich raz niczego nie gwarantuje, więc sprawdzamy CAŁE `includes/`
+     — nowa podpowiedź dopisana pod następnego klienta zapali tutaj. */
+  const slady = ['PTTK', 'Ukta', 'Krutyni', 'Puszcza Piska', 'Stanica Wodna'];
+
+  const zebrane = (function zbierz(kat, akc) {
+    for (const wpis of fs.readdirSync(kat, { withFileTypes: true })) {
+      const sciezka = path.join(kat, wpis.name);
+      if (wpis.isDirectory()) zbierz(sciezka, akc);
+      else if (wpis.name.endsWith('.php')) {
+        akc.push([sciezka, fs.readFileSync(sciezka, 'utf8')]);
+      }
+    }
+    return akc;
+  })(path.join(korzen, 'includes'), []);
+
+  const trafienia = [];
+  for (const [sciezka, tresc] of zebrane) {
+    for (const slad of slady) {
+      if (tresc.includes(slad)) trafienia.push(path.relative(korzen, sciezka) + ': ' + slad);
+    }
+  }
+  t.check('żadnej nazwy z cudzego wdrożenia w includes/', !trafienia.length,
+    trafienia.join(' | ') || zebrane.length + ' plików czystych');
+
+  /* Kontrola do kontroli: gdyby lista plików była pusta albo czytanie padało,
+     sprawdzenie wyżej byłoby zielone bez powodu. */
+  t.check('a plików w ogóle jest co czytać', zebrane.length > 20, zebrane.length + '');
+
   // ── Własny CSS panelu ─────────────────────────────────────────────────
   t.section('własny CSS nie wychodzi z bloku <style>');
 

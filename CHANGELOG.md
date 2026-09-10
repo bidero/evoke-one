@@ -2,6 +2,55 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.170.0] — 2026-09-10
+
+### Zmienione
+
+- **Zakładka Schema przestała podpowiadać pod jednego klienta.** Przez wiele
+  wydań stało w niej „np. Stanica Wodna PTTK Ukta", „np. PTTK Oddział
+  Mazurski", „Mazury / Puszcza Piska / Krutynia", „Spływy kajakowe / Pole
+  namiotowe / Sauna" — podpowiedzi z jednej realizacji, w zakładce
+  obsługującej **26 typów działalności**, od kancelarii po warsztat
+  samochodowy.
+
+  To nie jest kosmetyka. Podpowiedź z cudzej branży każe przeczytać całą
+  sekcję jako niedotyczącą: prowadząc przychodnię i widząc „Spływy kajakowe"
+  w polu udogodnień, nie wpisuje się tam parkingu — pomija się pole.
+
+  Nowe przykłady są dobrane tak, żeby znaczyły to samo w hotelu, restauracji
+  i gabinecie (`Parking / Wi-Fi / Dostęp dla wózków`), a obsługiwany obszar
+  pokazuje teraz drabinkę `Warszawa → mazowieckie → Polska`, czyli jaka
+  ziarnistość jest w tym polu w ogóle dopuszczalna. Trzy nazwy z jednego
+  powiatu tego nie pokazywały. Nazwy firm trzymają się konwencji, która była
+  już w tym pliku (`ul. Przykładowa 1`, `biuro@domena.pl`), więc nie da się
+  ich wziąć za prawdziwą działalność.
+
+  Zniknęło też zdanie „To poziom danych spotykany w portalach turystycznych"
+  z opisu encji podrzędnych — z tego samego powodu.
+
+### Naprawione
+
+- **Atrapa zakładki Schema badała mniej, niż się wydawało.** Wiersz repeatera
+  encji podrzędnych miał typ `Service`, którego **nie ma** w
+  `sub_entity_types()`. `selected()` nie trafiało w żadną opcję, więc
+  `<select>` rysował się bez zaznaczenia, a ścieżka „zapisany typ wraca
+  zaznaczony" nie była badana wcale. Teraz `ParkingFacility` — typ z listy —
+  i opcja faktycznie wraca z atrybutem `selected`.
+
+### Testy
+
+- Nowe sprawdzenie w `drobiazgi`: **żadna nazwa z cudzego wdrożenia nie
+  występuje w `includes/`** (141 plików). Usunięcie podpowiedzi raz niczego
+  nie gwarantuje — nowa, dopisana pod następnego klienta, zapali tutaj.
+
+  Obok stoi kontrola do kontroli: „a plików w ogóle jest co czytać". Bez niej
+  sprawdzenie jest zielone także wtedy, gdy obchód katalogu nie zbierze nic —
+  co potwierdziła mutacja: przy zerowej liczbie plików główne sprawdzenie
+  raportuje „0 plików czystych" i przechodzi.
+
+- **Dowiedzione mutacją:** cztery uszkodzenia, każde zapaliło — trzy
+  podpowiedzi wstawione z powrotem i obchód zbierający zero plików.
+
 ## [1.169.0] — 2026-09-09
 
 ### Naprawione
