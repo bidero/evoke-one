@@ -2,6 +2,91 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.172.0] — 2026-09-10
+
+Drugie z pięciu wydań przebudowy zakładki Schema. **`knowsAbout` — pozycja
+nr 1 z listy zgłaszającego** — plus trzynaście innych pól węzła
+`#organization`. Pierwsze wydanie tej serii, po którym coś widać w panelu.
+
+### Dodane
+
+- **`knowsAbout`.** Jedno pole, jedna pozycja na linię. Linia zaczynająca się
+  od adresu staje się **wskazaniem na encję** (`{"@type":"Thing","@id":…}`),
+  reszta idzie zwykłym tekstem. Można mieszać jedno z drugim w dowolnej
+  kolejności.
+
+  Dwie postacie w jednym polu, bo Google czyta obie, a wskazanie na encję jest
+  mocniejsze — natomiast pole przyjmujące **wyłącznie** adresy zostałoby puste:
+  mało kto umie znaleźć identyfikator Wikidaty, a każdy umie napisać, czym się
+  zajmuje.
+
+- **Trzynaście pozostałych pól organizacji:** `legalName`, `alternateName`,
+  `slogan`, `foundingDate`, `founder`, `numberOfEmployees`, `vatID` (NIP),
+  `taxID` (REGON/KRS), `brand`, `faxNumber`, `award`, `memberOf`, `areaServed`.
+
+  Trzy z nich są **węzłami, nie łańcuchami**: `founder` → `Person`,
+  `brand` → `Brand`, `numberOfEmployees` → `QuantitativeValue` z liczbą.
+  Goły tekst w tych miejscach konsumenci potraktują jako nazwę bez typu.
+
+  `memberOf` przyjmuje `Nazwa | https://adres`, adres opcjonalny. Rozdzielnikiem
+  jest pionowa kreska, bo nazwy zrzeszeń zawierają przecinki i myślniki —
+  te dzieliłyby połowę realnych wpisów w złym miejscu.
+
+  `org_area_served` jest osobnym polem od `area_served`: pierwsze opisuje
+  **firmę**, drugie **fizyczny obiekt**. Firma bez obiektu nie miała dotąd jak
+  podać obszaru w ogóle.
+
+- **Dwa nowe typy sanityzacji w rejestrze:** `data` (YYYY, YYYY-MM albo
+  YYYY-MM-DD — sam rok wystarcza, bo „rok założenia" bywa znany co do roku
+  i wymuszanie pełnej daty kazałoby zmyślać dzień) oraz `liczba` (nieujemna
+  całkowita). Cokolwiek innego → puste.
+
+### Zasada wydania
+
+**Pole puste nie zostawia śladu w grafie.** Witryna, która nie tknęła żadnego
+z czternastu nowych pól, dostaje JSON-LD bajt w bajt taki jak przed tym
+wydaniem — i tak jest: **żaden z trzynastu plików wzorcowych sprzed 1.172.0
+nie drgnął**. Osobne sprawdzenie pilnuje tego wprost, bo „wzorce się zgadzają"
+nie mówi, dlaczego.
+
+### Zmienione
+
+- `linie()` — wspólny pomocnik dzielący pole wieloliniowe na niepuste,
+  przycięte pozycje. Ten sam podział stał wpisany z ręki w trzech miejscach;
+  po tym wydaniu byłoby ich siedem, a każda kopia to osobna szansa na
+  pominięcie odfiltrowania i wpuszczenie do grafu pustej pozycji z pustej
+  linii — czego JSON-LD nie zgłasza w żaden sposób.
+
+### Przesunięte względem rozpiski
+
+- **`contactPoint` jako repeater → wydanie 4.** Rozpiska umieszczała go
+  tutaj, ale to nowy mechanizm (repeater, własny kształt zapisu, zmiana
+  istniejącego wyjścia), a wydanie i tak niesie czternaście pól. Repeatery
+  idą razem, w wydaniu 4.
+- **`nonprofitStatus` i `hasOfferCatalog` → wydanie 3**, bo są bramkowane
+  presetem, a presetów jeszcze nie ma. Pokazanie ich teraz wszystkim byłoby
+  dokładnie tym, przed czym rozpiska ostrzega.
+
+### Testy
+
+- Siatka grafu: 146 → **177 sprawdzeń**. Nowy scenariusz `organizacja-pelna`
+  z kompletem czternastu pól naraz.
+
+- **Walidacja dat i liczb dostała sprawdzenia przez prawdziwy zapis**, nie
+  przez scenariusz grafu. Scenariusze zasiewają opcję wprost, z pominięciem
+  `sanitize_settings()`, więc walidacja przechodziłaby na zielono, cokolwiek
+  by robiła — mutacja „walidacja daty przepuszcza cokolwiek" to potwierdziła,
+  zanim sprawdzenia powstały. Ta sama luka co przy współrzędnych w 1.171.0.
+
+- Sprawdzenie „żaden typ spoza znanej listy" zapaliło jako pierwsze przy
+  dokładaniu typów `data` i `liczba` — o to w nim chodzi: nowy typ sanityzacji
+  ma być decyzją, a nie czymś, co wchodzi bokiem razem z polem.
+
+- **Dowiedzione mutacją:** 14 uszkodzeń, wszystkie zapalają. W tym trzy
+  warianty psucia `knowsAbout` (wszystko tekstem, wszystko encją, przełączenie
+  na stałe po pierwszym adresie), dwa `memberOf` i wpuszczenie pustych pól
+  do grafu.
+
 ## [1.171.0] — 2026-09-10
 
 Pierwsze z pięciu wydań przebudowy zakładki Schema (`docs/schema-rozpiska.md`).

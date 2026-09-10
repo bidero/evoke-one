@@ -315,6 +315,37 @@ $scenariusze = [
         $GLOBALS['current_post'] = 10;
     },
 
+    /* Komplet pól rozszerzonych organizacji (1.172.0). Wszystkie czternaście
+       naraz, bo każde ma inny kształt w grafie: gołe łańcuchy, węzły Person
+       i Brand, QuantitativeValue, listy, i `knowsAbout` mieszające tekst
+       z wskazaniem na encję. */
+    'organizacja-pelna' => function () {
+        $GLOBALS['options']['evk_schema'] = [
+            'enabled'         => 1,
+            'site_name'       => 'Piekarnia Przykładowa',
+            'operator_name'   => 'Przykładowa sp. z o.o.',
+            'descriptions'    => '{"pl":"Opis po polsku"}',
+            // Trzy postacie naraz: tekst, adres encji i tekst po adresie —
+            // żeby kolejność nie decydowała o rozpoznaniu.
+            'org_knows_about' => "wypiek chleba na zakwasie\nhttps://pl.wikipedia.org/wiki/Chleb\ncukiernictwo",
+            'org_legal_name'  => 'Przykładowa spółka z ograniczoną odpowiedzialnością',
+            'org_alternate'   => 'Przykładowa',
+            'org_slogan'      => 'Chleb od 1998 roku',
+            'org_founding'    => '1998-04-20',
+            'org_founder'     => 'Anna Przykładowa',
+            'org_employees'   => '12',
+            'org_vat_id'      => 'PL0000000000',
+            'org_tax_id'      => '000000000',
+            'org_brand'       => 'Zakwas Przykładowy',
+            'org_fax'         => '+48 00 000 00 00',
+            // Pusta linia w środku — ma zniknąć, a nie zrobić pustej pozycji.
+            'org_award'       => "Gazele Biznesu 2024\n\nZłoty Bochenek 2023",
+            // Jeden wpis z adresem, jeden bez — obie gałęzie parsera.
+            'org_member_of'   => "Izba Rzemieślnicza | https://izba.example.test\nCech Piekarzy",
+            'org_area_served' => "Warszawa\nmazowieckie",
+        ];
+    },
+
     /* NADPISANIA PER PODSTRONA — warstwa 3 z `get_settings()`.
        Meta wpisu `_evk_schema` bije ustawienia globalne. Nie ma dziś
        interfejsu, który by ją zapisywał, więc scenariusz zapisuje ją wprost —

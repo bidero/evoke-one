@@ -75,6 +75,30 @@ if (!defined('ABSPATH')) exit;
                 </div>
 
                 <div class="evo-box">
+                    <h3>Organizacja — dane rozszerzone</h3>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Wszystkie pola są opcjonalne i wchodzą do węzła <code>#organization</code> wyłącznie wypełnione — puste nie zostawiają po sobie śladu w JSON-LD. Google używa ich do panelu wiedzy i do rozpoznania, że witryna i firma to ta sama encja.</div></details>
+
+                    <div class="evo-field"><label>Czym się zajmujecie (knowsAbout) — jedna pozycja na linię<span class="evo-tip" tabindex="0" role="note" data-tip="Linia zaczynająca się od http staje się wskazaniem na encję (Wikipedia, Wikidata) — to mocniejszy sygnał. Pozostałe linie idą jako zwykły tekst. Można mieszać jedno z drugim." aria-label="Linia zaczynająca się od http staje się wskazaniem na encję (Wikipedia, Wikidata) — to mocniejszy sygnał. Pozostałe linie idą jako zwykły tekst. Można mieszać jedno z drugim.">?</span></label><textarea name="evk_schema[org_knows_about]" rows="4" class="evo-w-480" placeholder="stolarstwo meblowe&#10;renowacja mebli&#10;https://pl.wikipedia.org/wiki/Stolarstwo"><?php echo esc_textarea($sc['org_knows_about']); ?></textarea><div class="evo-desc">Linia od <code>http</code> → wskazanie na encję; reszta → tekst. Można mieszać.</div></div>
+
+                    <div class="evo-grid evo-mb" style="--evo-col:280px;--evo-gap:16px">
+                        <div class="evo-field evo-mb-0"><label>Nazwa rejestrowa (legalName)</label><input type="text" name="evk_schema[org_legal_name]" value="<?php echo esc_attr($sc['org_legal_name']); ?>" placeholder="Przykładowa sp. z o.o."><div class="evo-desc">Gdy inna niż handlowa.</div></div>
+                        <div class="evo-field evo-mb-0"><label>Nazwa skrócona (alternateName)</label><input type="text" name="evk_schema[org_alternate]" value="<?php echo esc_attr($sc['org_alternate']); ?>" placeholder="Przykładowa"></div>
+                        <div class="evo-field evo-mb-0"><label>Hasło firmy (slogan)</label><input type="text" name="evk_schema[org_slogan]" value="<?php echo esc_attr($sc['org_slogan']); ?>" placeholder="Od 1998 roku"></div>
+                        <div class="evo-field evo-mb-0"><label>Marka (brand)</label><input type="text" name="evk_schema[org_brand]" value="<?php echo esc_attr($sc['org_brand']); ?>" placeholder="Nazwa marki"></div>
+                        <div class="evo-field evo-mb-0"><label>Data założenia (foundingDate)</label><input type="text" name="evk_schema[org_founding]" value="<?php echo esc_attr($sc['org_founding']); ?>" placeholder="1998 albo 1998-04-20"><div class="evo-desc">Sam rok wystarczy.</div></div>
+                        <div class="evo-field evo-mb-0"><label>Założyciel (founder)</label><input type="text" name="evk_schema[org_founder]" value="<?php echo esc_attr($sc['org_founder']); ?>" placeholder="Imię i nazwisko"></div>
+                        <div class="evo-field evo-mb-0"><label>Liczba pracowników</label><input type="text" name="evk_schema[org_employees]" value="<?php echo esc_attr($sc['org_employees']); ?>" placeholder="12"></div>
+                        <div class="evo-field evo-mb-0"><label>NIP (vatID)</label><input type="text" name="evk_schema[org_vat_id]" value="<?php echo esc_attr($sc['org_vat_id']); ?>" placeholder="PL0000000000"></div>
+                        <div class="evo-field evo-mb-0"><label>REGON / KRS (taxID)</label><input type="text" name="evk_schema[org_tax_id]" value="<?php echo esc_attr($sc['org_tax_id']); ?>" placeholder="000000000"></div>
+                        <div class="evo-field evo-mb-0"><label>Faks (faxNumber)</label><input type="text" name="evk_schema[org_fax]" value="<?php echo esc_attr($sc['org_fax']); ?>" placeholder="+48 00 000 00 00"></div>
+                    </div>
+
+                    <div class="evo-field"><label>Obsługiwany obszar firmy (areaServed) — jeden na linię</label><textarea name="evk_schema[org_area_served]" rows="3" class="evo-w-480" placeholder="Warszawa&#10;mazowieckie&#10;Polska"><?php echo esc_textarea($sc['org_area_served']); ?></textarea><div class="evo-desc">Dla firmy bez fizycznego obiektu. Pole o tej samej nazwie w sekcji miejsca dotyczy obiektu.</div></div>
+                    <div class="evo-field"><label>Nagrody i wyróżnienia (award) — jedno na linię</label><textarea name="evk_schema[org_award]" rows="3" class="evo-w-480" placeholder="Gazele Biznesu 2024"><?php echo esc_textarea($sc['org_award']); ?></textarea></div>
+                    <div class="evo-field"><label>Członkostwa (memberOf) — jedno na linię<span class="evo-tip" tabindex="0" role="note" data-tip="Format: „Nazwa | https://adres". Adres jest opcjonalny — sama nazwa wystarczy. Rozdzielnikiem jest pionowa kreska, bo nazwy zrzeszeń zawierają przecinki." aria-label="Format: „Nazwa | https://adres". Adres jest opcjonalny — sama nazwa wystarczy. Rozdzielnikiem jest pionowa kreska, bo nazwy zrzeszeń zawierają przecinki.">?</span></label><textarea name="evk_schema[org_member_of]" rows="3" class="evo-w-480" placeholder="Izba Rzemieślnicza | https://przyklad.test"><?php echo esc_textarea($sc['org_member_of']); ?></textarea><div class="evo-desc">Format: <code>Nazwa | adres</code>, adres opcjonalny.</div></div>
+                </div>
+
+                <div class="evo-box">
                     <h3>Miejsce / firma lokalna (węzeł #place)</h3>
                     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Pola używane tylko, gdy typ działalności jest inny niż „Organizacja" (LocalBusiness i pochodne — np. obiekt noclegowy, restauracja). Trafiają do osobnego węzła #place powiązanego z #organization przez parentOrganization. Współrzędne znajdziesz np. w Mapach Google (PPM na pinezce).</div></details>
                     <div class="evo-grid evo-mb" style="--evo-col:280px;--evo-gap:16px">

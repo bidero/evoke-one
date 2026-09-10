@@ -39,6 +39,8 @@ class EVK_Schema {
      *   wieloliniowe   — sanitize_textarea_field
      *   url            — esc_url_raw
      *   wspolrzedna    — przecinek → kropka, niebędące liczbą → puste
+     *   data           — YYYY, YYYY-MM albo YYYY-MM-DD; cokolwiek innego → puste
+     *   liczba         — nieujemna liczba całkowita; cokolwiek innego → puste
      *   checkbox       — 0 albo 1
      *   json           — przepuszczane, gdy się parsuje; inaczej wartość domyślna
      *   wlasne         — obsługiwane osobno w sanitize_settings()
@@ -62,6 +64,25 @@ class EVK_Schema {
             'contact_type'     => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => 'customer service'],
             'social_links'     => ['wezel' => 'organization', 'typ' => 'json',         'domyslnie' => ''],
             'descriptions'     => ['wezel' => 'organization', 'typ' => 'json',         'domyslnie' => '{}'],
+
+            /* Pola dołożone w 1.172.0. Prefiks `org_`, bo od tego wydania nowe
+               klucze go dostają — nie ma czego migrować, a przy ~86 polach
+               `area_served` (miejsce) i `org_area_served` (organizacja) muszą
+               dać się odróżnić na pierwszy rzut oka. */
+            'org_knows_about'  => ['wezel' => 'organization', 'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'org_legal_name'   => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'org_alternate'    => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'org_slogan'       => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'org_founding'     => ['wezel' => 'organization', 'typ' => 'data',         'domyslnie' => ''],
+            'org_founder'      => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'org_employees'    => ['wezel' => 'organization', 'typ' => 'liczba',       'domyslnie' => ''],
+            'org_vat_id'       => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'org_tax_id'       => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'org_brand'        => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'org_fax'          => ['wezel' => 'organization', 'typ' => 'tekst',        'domyslnie' => ''],
+            'org_award'        => ['wezel' => 'organization', 'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'org_member_of'    => ['wezel' => 'organization', 'typ' => 'wieloliniowe', 'domyslnie' => ''],
+            'org_area_served'  => ['wezel' => 'organization', 'typ' => 'wieloliniowe', 'domyslnie' => ''],
 
             // ── Miejsce / firma lokalna (#place) ────────────────────────
             'geo_lat'          => ['wezel' => 'place',        'typ' => 'wspolrzedna',  'domyslnie' => ''],
@@ -254,6 +275,17 @@ class EVK_Schema {
                 // Przecinek dziesiętny na kropkę; cokolwiek innego niż liczba → puste.
                 $v = str_replace(',', '.', sanitize_text_field((string) $wartosc));
                 return ($v !== '' && !is_numeric($v)) ? '' : $v;
+
+            case 'data':
+                /* schema.org przyjmuje Date w ISO 8601. Dopuszczamy trzy
+                   ziarnistości, bo „rok założenia" bywa znany co do roku,
+                   a wymuszanie pełnej daty kazałoby zmyślać dzień. */
+                $d = trim(sanitize_text_field((string) $wartosc));
+                return preg_match('/^\d{4}(-\d{2}(-\d{2})?)?$/', $d) ? $d : '';
+
+            case 'liczba':
+                $n = trim(sanitize_text_field((string) $wartosc));
+                return preg_match('/^\d+$/', $n) ? $n : '';
 
             case 'json':
                 $raw = (string) $wartosc;
@@ -544,6 +576,73 @@ private function build_website(array $s, string $home_url, string $lang): array 
         if (!empty($social)) {
             $org['sameAs'] = $social;
         }
+
+        /* Pola dołożone w 1.172.0. KAŻDE wchodzi tylko wtedy, gdy wypełnione —
+           dzięki temu graf witryny, która ich nie tknęła, jest bajt w bajt
+           taki sam jak przed tym wydaniem. Pilnują tego pliki wzorcowe:
+           żaden ze scenariuszy sprzed 1.172.0 nie drgnął. */
+        $proste = [
+            'org_legal_name' => 'legalName',
+            'org_alternate'  => 'alternateName',
+            'org_slogan'     => 'slogan',
+            'org_founding'   => 'foundingDate',
+            'org_vat_id'     => 'vatID',
+            'org_tax_id'     => 'taxID',
+            'org_fax'        => 'faxNumber',
+        ];
+        foreach ($proste as $klucz => $wlasciwosc) {
+            if (!empty($s[$klucz])) $org[$wlasciwosc] = $s[$klucz];
+        }
+
+        if (!empty($s['org_founder'])) {
+            $org['founder'] = ['@type' => 'Person', 'name' => $s['org_founder']];
+        }
+        if (!empty($s['org_brand'])) {
+            $org['brand'] = ['@type' => 'Brand', 'name' => $s['org_brand']];
+        }
+        /* QuantitativeValue, a nie goła liczba: schema.org dopuszcza oba,
+           ale forma z jednostką jest tą, którą rozumieją konsumenci bez
+           zgadywania, czego dotyczy liczba. */
+        if ($s['org_employees'] !== '') {
+            $org['numberOfEmployees'] = [
+                '@type' => 'QuantitativeValue',
+                'value' => (int) $s['org_employees'],
+            ];
+        }
+
+        /* knowsAbout — pozycja nr 1 z listy zgłaszającego. Jedno pole niesie
+           dwie postacie naraz: linia zaczynająca się od adresu staje się
+           WSKAZANIEM NA ENCJĘ (Wikipedia, Wikidata), reszta zwykłym tekstem.
+           Google czyta oba, ale wskazanie na encję jest mocniejsze — a pole
+           przyjmujące wyłącznie adresy zostałoby puste, bo mało kto umie
+           znaleźć identyfikator Wikidaty. */
+        $tematy = [];
+        foreach (self::linie($s['org_knows_about'] ?? '') as $linia) {
+            $tematy[] = preg_match('~^https?://~i', $linia)
+                ? ['@type' => 'Thing', '@id' => $linia]
+                : $linia;
+        }
+        if ($tematy) $org['knowsAbout'] = $tematy;
+
+        if ($nagrody = self::linie($s['org_award'] ?? '')) {
+            $org['award'] = $nagrody;
+        }
+        if ($obszary = self::linie($s['org_area_served'] ?? '')) {
+            $org['areaServed'] = $obszary;
+        }
+
+        /* memberOf: „Nazwa | https://adres" — adres opcjonalny. Pionowa kreska,
+           bo nazwy zrzeszeń zawierają przecinki i myślniki, a te rozdzielniki
+           dzieliłyby połowę realnych wpisów w złym miejscu. */
+        $czlonkostwa = [];
+        foreach (self::linie($s['org_member_of'] ?? '') as $linia) {
+            $czesci = array_map('trim', explode('|', $linia, 2));
+            $wpis   = ['@type' => 'Organization', 'name' => $czesci[0]];
+            if (!empty($czesci[1])) $wpis['url'] = $czesci[1];
+            $czlonkostwa[] = $wpis;
+        }
+        if ($czlonkostwa) $org['memberOf'] = $czlonkostwa;
+
         return $org;
     }
     private function build_breadcrumbs(WP_Post $post, string $home_url, string $site_name): array {
@@ -825,7 +924,7 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
         if (!empty($s['price_range'])) {
             $place['priceRange'] = $s['price_range'];
         }
-        $amenities = array_values(array_filter(array_map('trim', explode("\n", (string) $s['amenities']))));
+        $amenities = self::linie($s['amenities']);
         if (!empty($amenities)) {
             $place['amenityFeature'] = array_map(static function ($name) {
                 return [
@@ -842,7 +941,7 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
         if (!empty($hours)) {
             $place['openingHoursSpecification'] = $hours;
         }
-        $areas = array_values(array_filter(array_map('trim', explode("\n", (string) $s['area_served']))));
+        $areas = self::linie($s['area_served']);
         if (!empty($areas)) {
             $place['areaServed'] = $areas;
         }
@@ -921,6 +1020,22 @@ private function build_webpage(array $s, WP_Post $post, string $permalink, strin
     // HELPERS
     // ================================================================
     /** Adres pocztowy — pusty gdy brak ulicy i miejscowości. */
+    /**
+     * Pole wieloliniowe → lista niepustych, przyciętych pozycji.
+     *
+     * Ten sam podział stał wcześniej wpisany z ręki w trzech miejscach
+     * (`amenities`, `area_served` i przy godzinach). Przy polach dokładanych
+     * w 1.172.0 byłoby ich siedem — a każda kopia to osobna szansa na
+     * pominięcie `array_filter` i wpuszczenie do grafu pustej pozycji z pustej
+     * linii, czego JSON-LD nie zgłasza w żaden sposób.
+     */
+    private static function linie($raw): array {
+        return array_values(array_filter(array_map(
+            'trim',
+            preg_split('/\r\n|\r|\n/', (string) $raw) ?: []
+        ), static function ($linia) { return $linia !== ''; }));
+    }
+
     private function build_address(array $s): array {
         if (trim((string) $s['street_address']) === '' && trim((string) $s['locality']) === '') {
             return [];

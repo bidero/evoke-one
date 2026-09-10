@@ -98,7 +98,7 @@ function lancuchy(o, out = []) {
    sprawdzeniem, że plik jest pusty. */
 const SCENARIUSZE = ['minimalny', 'firma', 'firma-en', 'atrakcja',
                      'podstrona', 'wpis', 'produkt', 'bez-org', 'faq-off',
-                     'nadpisanie-wpisu', 'nadpisanie-puste', 'bez-okruszkow',
+                     'organizacja-pelna', 'nadpisanie-wpisu', 'nadpisanie-puste', 'bez-okruszkow',
                      'filtr-ustawien'];
 
 /** Scalone ustawienia scenariusza (warstwy: domyślne → globalne → meta wpisu). */
@@ -401,6 +401,75 @@ module.exports = async function (t) {
     !wezel(grafy.podstrona, 'FAQPage'));
 
   // ── Rejestr pól ────────────────────────────────────────────────────────
+  t.section('organizacja — dane rozszerzone');
+
+  /* Czternaście pól dołożonych w 1.172.0. Zasada nadrzędna wydania: pole
+     puste NIE ZOSTAWIA śladu w grafie, więc witryna, która ich nie tknęła,
+     dostaje JSON-LD bajt w bajt taki jak przedtem. Pilnuje tego brak zmian
+     w plikach wzorcowych wszystkich wcześniejszych scenariuszy — i osobne
+     sprawdzenie niżej, bo „wzorce się zgadzają" nie mówi DLACZEGO. */
+  const orgP = wezel(grafy['organizacja-pelna'], 'Organization');
+
+  t.check('legalName, alternateName, slogan wychodzą gołym tekstem',
+    orgP?.legalName === 'Przykładowa spółka z ograniczoną odpowiedzialnością' &&
+    orgP?.alternateName === 'Przykładowa' &&
+    orgP?.slogan === 'Chleb od 1998 roku');
+  t.check('NIP i REGON na swoich właściwościach',
+    orgP?.vatID === 'PL0000000000' && orgP?.taxID === '000000000');
+  t.check('data założenia bez przerabiania', orgP?.foundingDate === '1998-04-20',
+    orgP?.foundingDate);
+
+  /* Założyciel i marka to WĘZŁY, nie łańcuchy — schema.org oczekuje tam
+     Person i Brand, a goły tekst konsumenci potraktują jako nazwę bez typu. */
+  t.check('założyciel jako węzeł Person',
+    orgP?.founder?.['@type'] === 'Person' && orgP?.founder?.name === 'Anna Przykładowa');
+  t.check('marka jako węzeł Brand',
+    orgP?.brand?.['@type'] === 'Brand' && orgP?.brand?.name === 'Zakwas Przykładowy');
+  t.check('liczba pracowników jako QuantitativeValue z liczbą, nie łańcuchem',
+    orgP?.numberOfEmployees?.['@type'] === 'QuantitativeValue' &&
+    orgP?.numberOfEmployees?.value === 12,
+    JSON.stringify(orgP?.numberOfEmployees));
+
+  /* knowsAbout — pozycja nr 1 z listy zgłaszającego. Jedno pole, dwie
+     postacie: adres staje się wskazaniem na encję, reszta tekstem. */
+  t.check('knowsAbout ma trzy pozycje', orgP?.knowsAbout?.length === 3,
+    JSON.stringify(orgP?.knowsAbout));
+  t.check('linia bez adresu zostaje tekstem',
+    orgP?.knowsAbout?.[0] === 'wypiek chleba na zakwasie');
+  t.check('linia z adresem staje się encją Thing z @id',
+    orgP?.knowsAbout?.[1]?.['@type'] === 'Thing' &&
+    orgP?.knowsAbout?.[1]?.['@id'] === 'https://pl.wikipedia.org/wiki/Chleb');
+  /* Kontrola: tekst PO adresie też ma zostać tekstem. Bez niej przechodzi
+     też implementacja, która po pierwszym adresie przełącza się na stałe. */
+  t.check('a tekst po adresie dalej jest tekstem',
+    orgP?.knowsAbout?.[2] === 'cukiernictwo', JSON.stringify(orgP?.knowsAbout?.[2]));
+
+  t.check('pusta linia w nagrodach nie robi pustej pozycji',
+    orgP?.award?.length === 2, JSON.stringify(orgP?.award));
+  t.check('obszar firmy osobno od obszaru miejsca',
+    orgP?.areaServed?.join(',') === 'Warszawa,mazowieckie', orgP?.areaServed?.join(','));
+
+  /* memberOf: „Nazwa | adres", adres opcjonalny — obie gałęzie w jednym
+     scenariuszu, bo tylko razem pokazują, że kreska jest opcjonalna,
+     a nie wymagana. */
+  t.check('członkostwo z adresem ma nazwę i url',
+    orgP?.memberOf?.[0]?.name === 'Izba Rzemieślnicza' &&
+    orgP?.memberOf?.[0]?.url === 'https://izba.example.test');
+  t.check('członkostwo bez adresu ma samą nazwę, bez pustego url',
+    orgP?.memberOf?.[1]?.name === 'Cech Piekarzy' &&
+    orgP?.memberOf?.[1]?.url === undefined,
+    JSON.stringify(orgP?.memberOf?.[1]));
+
+  /* SEDNO WYDANIA: puste pole nie zostawia śladu. Scenariusz `firma` nie tknął
+     ani jednego z czternastu nowych pól i jego węzeł Organization ma dokładnie
+     tyle właściwości, co przed 1.172.0. */
+  const NOWE = ['legalName', 'alternateName', 'slogan', 'foundingDate', 'founder',
+                'numberOfEmployees', 'vatID', 'taxID', 'brand', 'faxNumber',
+                'knowsAbout', 'award', 'memberOf'];
+  const przecieki = NOWE.filter((k) => k in (wezel(grafy.firma, 'Organization') || {}));
+  t.check('niewypełnione pola nie zostawiają śladu w grafie', !przecieki.length,
+    przecieki.join(', ') || NOWE.length + ' pól cicho');
+
   t.section('rejestr pól jest jedyną prawdą o polach');
 
   /* Do 1.171.0 prawda o polu była w trzech miejscach: wartość domyślna
@@ -418,7 +487,12 @@ module.exports = async function (t) {
   t.check('każde pole ma węzeł, typ i wartość domyślną', !bezOpisu.length,
     bezOpisu.join(', ') || 'komplet');
 
-  const TYPY = ['tekst', 'wieloliniowe', 'url', 'wspolrzedna', 'checkbox', 'json', 'wlasne'];
+  /* Lista rośnie razem z rejestrem — i to sprawdzenie ma o tym POWIEDZIEĆ.
+     Przy dokładaniu typów `data` i `liczba` w 1.172.0 zapaliło jako pierwsze,
+     zanim padła jakakolwiek inna różnica. O to chodzi: nowy typ sanityzacji
+     ma być decyzją, a nie czymś, co wchodzi bokiem razem z polem. */
+  const TYPY = ['tekst', 'wieloliniowe', 'url', 'wspolrzedna', 'data', 'liczba',
+                'checkbox', 'json', 'wlasne'];
   const zleTypy = klucze.filter((k) => !TYPY.includes(pola[k].typ));
   t.check('żaden typ spoza znanej listy', !zleTypy.length,
     zleTypy.map((k) => k + '=' + pola[k].typ).join(', ') || TYPY.length + ' typów');
@@ -472,6 +546,28 @@ module.exports = async function (t) {
   t.check('pole nieobecne w wejściu dostaje wartość domyślną',
     w.country === 'PL' && w.contact_type === 'customer service',
     w.country + ' / ' + w.contact_type);
+
+  /* Typy `data` i `liczba` dołożone w 1.172.0. Sprawdzane TU, a nie przez
+     scenariusz grafu — scenariusze zasiewają opcję wprost, z pominięciem
+     zapisu, więc walidacja przechodziłaby na zielono, cokolwiek by robiła.
+     Ta sama luka co przy współrzędnych: mutacja „walidacja daty przepuszcza
+     cokolwiek" przeszła, zanim to sprawdzenie powstało. */
+  const daty = san({ org_founding: '1998' });
+  t.check('sam rok to poprawna data', daty.org_founding === '1998', daty.org_founding);
+  t.check('rok z miesiącem też', san({ org_founding: '1998-04' }).org_founding === '1998-04');
+  t.check('pełna data też', san({ org_founding: '1998-04-20' }).org_founding === '1998-04-20');
+  for (const zle of ['kiedyś', '20.04.1998', '98', '1998-4-20', '1998-04-20T10:00']) {
+    t.check('odrzucona data: ' + JSON.stringify(zle),
+      san({ org_founding: zle }).org_founding === '',
+      JSON.stringify(san({ org_founding: zle }).org_founding));
+  }
+
+  t.check('liczba całkowita przechodzi', san({ org_employees: '12' }).org_employees === '12');
+  for (const zle of ['-5', '12,5', 'dwunastu', '12 osób']) {
+    t.check('odrzucona liczba: ' + JSON.stringify(zle),
+      san({ org_employees: zle }).org_employees === '',
+      JSON.stringify(san({ org_employees: zle }).org_employees));
+  }
 
   /* Zepsuty JSON ma wrócić do wartości domyślnej. Do 1.171.0 przechodził na
      wylot: pętla walidująca ustawiała wartość poprawnie, a stojąca niżej

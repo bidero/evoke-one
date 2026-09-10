@@ -1,0 +1,76 @@
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://example.test/#website",
+      "url": "https://example.test/",
+      "name": "Piekarnia Przykładowa",
+      "description": "Opis po polsku",
+      "publisher": {
+        "@id": "https://example.test/#organization"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://example.test/?s={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://example.test/#organization",
+      "name": "Przykładowa sp. z o.o.",
+      "url": "https://example.test/",
+      "description": "Opis po polsku",
+      "legalName": "Przykładowa spółka z ograniczoną odpowiedzialnością",
+      "alternateName": "Przykładowa",
+      "slogan": "Chleb od 1998 roku",
+      "foundingDate": "1998-04-20",
+      "vatID": "PL0000000000",
+      "taxID": "000000000",
+      "faxNumber": "+48 00 000 00 00",
+      "founder": {
+        "@type": "Person",
+        "name": "Anna Przykładowa"
+      },
+      "brand": {
+        "@type": "Brand",
+        "name": "Zakwas Przykładowy"
+      },
+      "numberOfEmployees": {
+        "@type": "QuantitativeValue",
+        "value": 12
+      },
+      "knowsAbout": [
+        "wypiek chleba na zakwasie",
+        {
+          "@type": "Thing",
+          "@id": "https://pl.wikipedia.org/wiki/Chleb"
+        },
+        "cukiernictwo"
+      ],
+      "award": [
+        "Gazele Biznesu 2024",
+        "Złoty Bochenek 2023"
+      ],
+      "areaServed": [
+        "Warszawa",
+        "mazowieckie"
+      ],
+      "memberOf": [
+        {
+          "@type": "Organization",
+          "name": "Izba Rzemieślnicza",
+          "url": "https://izba.example.test"
+        },
+        {
+          "@type": "Organization",
+          "name": "Cech Piekarzy"
+        }
+      ]
+    }
+  ]
+}
