@@ -2,6 +2,80 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.181.0] — 2026-09-10
+
+### Naprawione
+
+- **Parallax nie przeskakuje już przy wejściu na stronę.** Zgłoszone z użycia:
+  „obraz pojawia się i momentalnie przesuwa się w górę minimalnie". Zgłaszający
+  wyłączył Animatora i objaw został — to zawęziło rzecz do parallaxu.
+
+  Reguła warstwy jest w nagłówku, więc maluje się od pierwszej klatki, ale
+  bierze `var(--evk-par-y, 0px)`, czyli **spoczynek**. Prawdziwe przesunięcie
+  zależy od pozycji przewinięcia i wysokości okna, których PHP nie zna, więc
+  wpisywał je dopiero `parallax.js` ze stopki — osobne żądanie, które nie ma
+  szans przed pierwszym malowaniem.
+
+  Zmierzone na sekcji nad zgięciem: przez pierwsze **30–70 ms** warstwa stoi na
+  zerze, po czym **jedną klatką wskakuje na 19 px**. To jest cały przeskok.
+
+  Nagłówek dostał więc ustawiacz, który pozycjonuje sekcję **w chwili jej
+  sparsowania**, zanim przeglądarka ją namaluje. Po poprawce wartość jest
+  poprawna od pierwszej klatki i nie zmienia się już ani razu.
+
+  Nie zależy to od strony ani od ustawień — dlatego objaw był widoczny na dwóch
+  różnych witrynach.
+
+- **Skala własna elementu miała tę samą wadę** i zamknęła się przy okazji:
+  reguła niosła skalę domyślną, a `data-skala` dopisywał skrypt klatkę później.
+
+### Wydajność
+
+Ustawiacz jedzie **w treści strony, nie osobnym plikiem** — żadnego dodatkowego
+żądania. Wybór między obserwatorem drzewa a pętlą klatek rozstrzygnął pomiar
+na stronie z 3000 węzłów, przy dławieniu CPU 4×:
+
+| | wywołań | koszt |
+|---|---:|---:|
+| obserwator drzewa | 7 | **3,4 ms** |
+| pętla `requestAnimationFrame` | 3 | 20 ms |
+
+Spodziewałem się odwrotnego wyniku — obserwator zapala się przy każdej partii
+węzłów, więc wyglądał drożej. Pętla jednak przeszukuje całe rosnące drzewo
+w każdej klatce, a obserwator dostaje wyłącznie dołożone węzły.
+
+### Testy
+
+Osiem sprawdzeń, sześć mutacji, wszystkie zapalają. Trzy rzeczy warte
+zapamiętania, bo wszystkie wyszły dopiero na mutacjach:
+
+- **Sprawdzenie porównujące oba wzory zapaliło przy pierwszym uruchomieniu.**
+  Ustawiacz w nagłówku jest kopią rachunku z `parallax.js`, bo PHP nie ma jak
+  go stamtąd wziąć. Zapaliło się na różnicy sił — fixture podawał inną wartość
+  do PHP, a inną do skryptu. Ustawienia idą teraz do fixture'a **z tego samego
+  źródła co reguła**.
+- **Sprawdzenie skali czytało stan końcowy** i przechodziło na zielono także po
+  wycięciu obsługi skali, bo `parallax.js` i tak ją wpisuje — tyle że klatkę za
+  późno, czyli z dokładnie tą usterką, którą naprawiamy. Mierzy teraz pierwszą
+  klatkę.
+- **`parallax.js` w fixturze dojeżdża z opóźnieniem**, tak jak na prawdziwej
+  stronie. Wczytany zwyczajnie wykonywał się w tym maleńkim dokumencie przed
+  pierwszą klatką i maskował usterkę.
+
+Odrzucone po drodze: wersja dwustopniowa, w której obserwator tylko zbierał
+sekcje, a mierzyło je `requestAnimationFrame`. Wyglądała bezpieczniej, ale
+powód, dla którego ją napisałem, okazał się pomyłką w teście — a kosztowała
+klatkę opóźnienia. Została prostsza.
+
+### Znane, jeszcze nienaprawione
+
+**Warstwa wyjeżdża poza własną sekcję.** Zapas to `top:-10%; bottom:-10%`,
+czyli procent wysokości sekcji, a ruch liczony jest w pikselach związanych
+z oknem. Przy sile −0,4 daje to do ±82 px wobec 20 px zapasu na sekcji 200 px —
+dziura w 35 z 41 zmierzonych klatek. Sekcja musiałaby mieć ponad 820 px, żeby
+było szczelnie. Odsłania to jej własne tło, nieruchome i w innym kadrowaniu.
+Osobna sprawa od przeskoku wyżej i osobna decyzja.
+
 ## [1.180.0] — 2026-09-10
 
 Oferta z adresem i opisem w jednej linii, oraz **tłumaczenia rozwijane

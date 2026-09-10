@@ -134,4 +134,78 @@ module.exports = async function (t) {
 
   t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
   await p.close();
+
+  // ── Przesunięcie gotowe od pierwszej klatki ─────────────────────────────
+  /*
+   * ZGŁOSZONE Z UŻYCIA: „obraz pojawia się i momentalnie przesuwa się w górę
+   * minimalnie". Zgłaszający wyłączył Animatora i objaw został — to zawęziło
+   * rzecz do parallaxu.
+   *
+   * Reguła jest w nagłówku, więc warstwa maluje się od razu, ale bierze
+   * `var(--evk-par-y, 0px)` — SPOCZYNEK. Prawdziwa wartość zależy od pozycji
+   * przewinięcia i wysokości okna, których PHP nie zna, więc wpisywał ją
+   * dopiero `parallax.js` ze stopki. Zmierzone przed poprawką: przez pierwsze
+   * ~30–70 ms warstwa stała na zerze, po czym jedną klatką szła na 19 px.
+   *
+   * Sekcje sprawdzenia stoją NAD ZGIĘCIEM. Pod zgięciem przeskoku nie widać
+   * i całe to sprawdzenie świeciłoby na zielono z powodu, który z niego
+   * nie wynika.
+   */
+  t.section('przesunięcie jest gotowe, zanim sekcja zostanie namalowana');
+
+  t.check('moduł drukuje wczesny ustawiacz',
+    regula.includes('<script id="evk-parallax-wczesnie">'),
+    regula.includes('evk-parallax-wczesnie') ? 'jest' : 'brak');
+
+  const w = await t.open('parallax-start.html', {
+    viewport: { width: 1200, height: 800 }, settle: 0,
+    head: 'window.__regula = ' + JSON.stringify(regula) + ';',
+  });
+  const bieg = await w.evaluate(() => window.__przebieg());
+
+  t.check('przebieg ma z czego wnioskować', bieg.klatek > 20, bieg.klatek + ' klatek');
+
+  /* SEDNO. Przed poprawką pierwsza klatka pokazywała „(brak)”. */
+  t.check('PIERWSZA klatka ma już przesunięcie', bieg.pierwsza !== '(brak)',
+    'pierwsza klatka: ' + bieg.pierwsza);
+
+  /* I nie ma drugiej wartości — czyli nie ma przeskoku, tylko jedno ustawienie.
+     Samo „pierwsza klatka niepusta” przeszłoby też wtedy, gdyby wartość
+     zaraz potem skoczyła na inną. */
+  t.check('i nie zmienia się już ani razu', bieg.zmiany.length === 1,
+    bieg.zmiany.map((z) => z.ms + 'ms:' + z.y).join(' → '));
+
+  /* KOPIA WZORU. Wczesny ustawiacz powtarza rachunek z `parallax.js`, bo PHP
+     nie ma jak go z niego wziąć. Bez tego sprawdzenia kopia kiedyś odjedzie
+     i zamienimy jeden przeskok na drugi — mniejszy, ale przy przewinięciu. */
+  const zNaglowka = parseFloat(await w.evaluate(() => window.__zmienna('sekcja', '--evk-par-y')));
+  const zeSkryptu = await w.evaluate(() => window.__wzorZeSkryptu('sekcja'));
+  t.check('wzór w nagłówku daje to samo, co wzór w skrypcie',
+    Math.abs(zNaglowka - zeSkryptu) < 0.5,
+    'nagłówek ' + zNaglowka + ' px, skrypt ' + zeSkryptu + ' px');
+
+  /* Kontrola pozytywna: liczba nie jest zerem, więc porównanie wyżej naprawdę
+     coś porównuje. Dwa zera zgadzałyby się doskonale i nie znaczyły nic. */
+  t.check('a nie jest to zgodność dwóch zer', Math.abs(zeSkryptu) > 1,
+    zeSkryptu + ' px');
+
+  /* Skala własna elementu miała tę samą wadę — reguła niosła domyślną,
+     a skrypt nadpisywał ją klatkę później.
+
+     MIERZONA NA PIERWSZEJ KLATCE, nie na stanie końcowym. Pierwsza wersja tego
+     sprawdzenia czytała stan po wszystkim i przechodziła na zielono także po
+     wycięciu obsługi skali z ustawiacza — bo `parallax.js` i tak ją wpisze,
+     tyle że klatkę za późno, czyli dokładnie z tą usterką, którą naprawiamy.
+     Wyszło to na mutacji. */
+  t.check('skala własna też jest gotowa od pierwszej klatki',
+    parseFloat(bieg.pierwszaSkala) === 1.35, 'pierwsza klatka: ' + bieg.pierwszaSkala);
+
+  /* KONTROLA NEGATYWNA: element BEZ własnej skali nie dostaje zapisu wcale —
+     inaczej ustawiacz nadpisywałby domyślną z reguły bez powodu. */
+  t.check('a bez własnej skali nic nie jest wpisywane',
+    await w.evaluate(() => document.getElementById('sekcja').style.getPropertyValue('--evk-par-scale')) === '',
+    'zapis inline: „' + await w.evaluate(() => document.getElementById('sekcja').style.getPropertyValue('--evk-par-scale')) + '”');
+
+  t.check('bez błędów JS', !w.errors.length, w.errors.join(' | ') || 'brak');
+  await w.close();
 };

@@ -1,0 +1,122 @@
+<!--
+  Parallax — przesunięcie od PIERWSZEJ KLATKI, bez przeskoku.
+
+  Zgłoszone z użycia: „obraz pojawia się i momentalnie przesuwa się w górę
+  minimalnie". Zgłaszający wyłączył Animatora i objaw został, co zawęziło rzecz
+  do parallaxu.
+
+  Reguła warstwy jest w nagłówku, więc maluje się od razu — ale bierze
+  `var(--evk-par-y, 0px)`, czyli SPOCZYNEK. Prawdziwą wartość wpisywał dopiero
+  `parallax.js` ze stopki. Zmierzone przed poprawką: przez pierwsze ~30–70 ms
+  warstwa stoi na zerze, potem jedną klatką wskakuje na 19 px.
+
+  Sekcja stoi NAD ZGIĘCIEM, bo tylko taka jest malowana, zanim skrypt ze stopki
+  zdąży cokolwiek policzyć. Sekcja pod zgięciem przeskoku nie pokaże i test
+  świeciłby na zielono z powodu, który z niego nie wynika.
+
+  Nagrywanie zaczyna się PRZED skryptem parallaxu — inaczej najciekawsze klatki
+  przepadają.
+
+  Zarówno regułę, jak i wczesny ustawiacz wstrzykuje `tests/php/parallax.php`,
+  czyli prawdziwy moduł. Kopii w fixturze nie ma celowo.
+-->
+<!-- Reguła i wczesny ustawiacz PROSTO Z MODUŁU, wpisane synchronicznie
+     w tym miejscu dokumentu — czyli dokładnie tam, gdzie wypisuje je
+     `wp_head`, i przed sekcją, tak jak na prawdziwej stronie. -->
+<script>document.write(window.__regula || '');</script>
+
+<style>
+  body { margin: 0; font: 16px system-ui; }
+  .sekcja {
+    height: 420px;
+    background-image: linear-gradient(180deg, #1d4ed8 0%, #f59e0b 100%);
+    background-position: center;
+    background-size: cover;
+  }
+  .odstep { height: 1600px; background: #fafafa; }
+</style>
+
+<script>
+  /* Rejestrator klatek stoi PRZED sekcją, żeby złapać jej pierwsze malowanie. */
+  window.__klatki = [];
+  (function () {
+    var start = performance.now();
+    var krok = function () {
+      var el = document.getElementById('sekcja');
+      var sk = document.getElementById('zeskala');
+      if (el) {
+        window.__klatki.push([
+          Math.round(performance.now() - start),
+          getComputedStyle(el).getPropertyValue('--evk-par-y').trim() || '(brak)',
+          /* Skala WŁASNA elementu, też od pierwszej klatki. Czytana z zapisu
+             inline, a nie z wartości wyliczonej: wyliczona niesie domyślną
+             z reguły i wygląda tak samo, gdy ustawiacza nie ma wcale. */
+          sk ? (sk.style.getPropertyValue('--evk-par-scale') || '(brak)') : '(nie ma)',
+        ]);
+      }
+      if (performance.now() - start < 1200) requestAnimationFrame(krok);
+    };
+    requestAnimationFrame(krok);
+  })();
+</script>
+
+<div class="sekcja" id="sekcja" data-parallax="" data-skala="" data-parallax-css="1"></div>
+<!-- Druga sekcja z WŁASNĄ skalą: jej `--evk-par-scale` też ma być gotowe
+     od pierwszej klatki, a nie dopisane przez skrypt ze stopki. -->
+<div class="sekcja" id="zeskala" data-parallax="" data-skala="1.35" data-parallax-css="1"></div>
+<div class="odstep"></div>
+
+<!-- `parallax.js` DOJEŻDŻA PÓŹNIEJ — tak jak na prawdziwej stronie, gdzie jest
+     osobnym żądaniem ze stopki i nie zdąży przed pierwszym malowaniem.
+     Wczytany zwyczajnie, w tym miejscu, wykonywał się w tym maleńkim dokumencie
+     PRZED pierwszą klatką i sam wpisywał skalę własną — przez co sprawdzenie
+     „skala gotowa od pierwszej klatki" przechodziło także po wycięciu obsługi
+     skali z ustawiacza. Wyszło to na mutacji. -->
+<script>
+  setTimeout(function () {
+    var s = document.createElement('script');
+    s.src = '../../assets/js/parallax.js';
+    document.body.appendChild(s);
+  }, 150);
+</script>
+<script>
+  /** Przebieg od pierwszej klatki: same momenty zmiany wartości. */
+  window.__przebieg = function () {
+    return new Promise(function (ok) {
+      setTimeout(function () {
+        var zmiany = [], poprz = null;
+        for (var i = 0; i < window.__klatki.length; i++) {
+          if (window.__klatki[i][1] !== poprz) {
+            zmiany.push({ ms: window.__klatki[i][0], y: window.__klatki[i][1] });
+            poprz = window.__klatki[i][1];
+          }
+        }
+        ok({ pierwsza: (window.__klatki[0] || [])[1],
+             pierwszaSkala: (window.__klatki[0] || [])[2],
+             zmiany: zmiany, klatek: window.__klatki.length });
+      }, 1300);
+    });
+  };
+
+  /** Wartość zmiennej na elemencie w tej chwili. */
+  window.__zmienna = function (id, nazwa) {
+    return getComputedStyle(document.getElementById(id))
+      .getPropertyValue(nazwa).trim() || '(brak)';
+  };
+
+  /**
+   * Ta sama liczba policzona DRUGĄ DROGĄ — wzorem z `parallax.js`.
+   *
+   * Wczesny ustawiacz w nagłówku jest KOPIĄ tego wzoru, wypisaną przez PHP.
+   * Kopia bez sprawdzenia zacznie kiedyś odjeżdżać i zamienimy jeden przeskok
+   * na drugi: mniejszy, ale przy pierwszym przewinięciu.
+   */
+  window.__wzorZeSkryptu = function (id) {
+    var el = document.getElementById(id);
+    var sila = parseFloat(el.getAttribute('data-parallax'))
+      || parseFloat(window.evkParallaxSettings.defaultValue);
+    var r = el.getBoundingClientRect();
+    var procent = ((r.top + r.height / 2) - window.innerHeight / 2) / (window.innerHeight / 2);
+    return Math.round(procent * (sila * 100) * 100) / 100;
+  };
+</script>

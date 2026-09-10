@@ -23,6 +23,7 @@ class EVK_Parallax {
             /* Priorytet 1: warstwa ma być w arkuszu ZANIM przeglądarka
                pomaluje stronę pierwszy raz. To jest cała poprawka. */
             add_action('wp_head',                         [$this, 'print_layer_css'], 1);
+            add_action('wp_head',                         [$this, 'print_early_positioner'], 2);
             add_filter('bricks/dynamic_tags_list',        [$this, 'register_bricks_tag']);
             add_filter('bricks/dynamic_data/render_tag',  [$this, 'render_bricks_tag'], 10, 3);
             add_filter('bricks/dynamic_data/render_content', [$this, 'render_bricks_content'], 10, 3);
@@ -130,6 +131,82 @@ class EVK_Parallax {
           . $scale . '))}}'
 
         );
+    }
+
+    /**
+     * Ustawienie przesunięcia ZANIM przeglądarka pomaluje sekcję.
+     *
+     * ZGŁOSZONE Z UŻYCIA: „obraz pojawia się i momentalnie przesuwa się w górę
+     * minimalnie". Zgłaszający wyłączył Animatora i objaw został — to zawęziło
+     * rzecz do parallaxu.
+     *
+     * PRZYCZYNA. Reguła warstwy jest w nagłówku, więc maluje się od razu — ale
+     * bierze `var(--evk-par-y, 0px)`, czyli SPOCZYNEK. Prawdziwe przesunięcie
+     * zależy od pozycji przewinięcia i wysokości okna, których PHP nie zna,
+     * więc wpisuje je dopiero `parallax.js` ze stopki. Zmierzone na sekcji nad
+     * zgięciem: przez pierwsze ~30–70 ms warstwa stoi na zerze, po czym jedną
+     * klatką wskakuje na 19 px. To jest cały przeskok.
+     *
+     * DLACZEGO OBSERWATOR DRZEWA, A NIE PĘTLA KLATEK. Obie ustawiają wartość
+     * przed pierwszym malowaniem, więc obie usuwają przeskok. Zmierzone na
+     * stronie z 3000 węzłów, dławienie CPU 4×:
+     *
+     *     obserwator drzewa   7 wywołań    3,4 ms
+     *     pętla rAF           3 wywołania   20 ms
+     *
+     * Spodziewałem się odwrotnie — obserwator zapala się przy każdej partii
+     * węzłów, więc wyglądał drożej. Pętla jednak przeszukuje CAŁE rosnące
+     * drzewo w każdej klatce, a obserwator dostaje wyłącznie dołożone węzły
+     * i robi na nich tani test atrybutu.
+     *
+     * WZÓR MUSI BYĆ CO DO ZNAKU TEN SAM co w `parallax.js`. Inaczej zamienimy
+     * jeden przeskok na drugi — mniejszy, ale przy pierwszym przewinięciu.
+     * Pilnuje tego osobne sprawdzenie porównujące obie drogi na tej samej
+     * stronie, bo to jest kopia wzoru i sama z siebie zacznie kiedyś odjeżdżać.
+     */
+    public function print_early_positioner(): void {
+        $sila  = $this->get_parallax_value();
+        $skala = $this->get_scale_value();
+        ?>
+<script id="evk-parallax-wczesnie">
+(function () {
+  var SILA = <?php echo wp_json_encode($sila); ?>, SKALA = <?php echo wp_json_encode($skala); ?>;
+  // Przy „ogranicz ruch" reguła i tak zeruje przesunięcie — nie ma co liczyć.
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var ustaw = function (el) {
+    var s = parseFloat(el.getAttribute('data-parallax')) || SILA;
+    var r = el.getBoundingClientRect();
+    var p = ((r.top + r.height / 2) - innerHeight / 2) / (innerHeight / 2);
+    el.style.setProperty('--evk-par-y', (p * (s * 100)) + 'px');
+    /* Skala własna elementu miała dotąd tę samą wadę co przesunięcie: reguła
+       niosła domyślną, a skrypt nadpisywał ją klatkę później. Skoro i tak tu
+       jesteśmy, zamykamy to za darmo. */
+    var sk = parseFloat(el.getAttribute('data-skala')) || SKALA;
+    if (Math.abs(sk - SKALA) > 0.001) el.style.setProperty('--evk-par-scale', String(sk));
+  };
+  /* Pomiar idzie OD RAZU, w wywołaniu obserwatora. Próbowałem odłożyć go do
+     `requestAnimationFrame` — po układzie, przed malowaniem — bo wyglądało to
+     na bezpieczniejsze. Okazało się niepotrzebne (rozbieżność, która mnie do
+     tego popchnęła, brała się z dwóch różnych sił w teście, nie z układu),
+     a kosztowało jedną klatkę opóźnienia: wartość wchodziła już po pierwszym
+     odczycie. Wersja prostsza jest tu i szybsza, i dokładniejsza. */
+  var obs = new MutationObserver(function (paczki) {
+    for (var i = 0; i < paczki.length; i++) {
+      var dodane = paczki[i].addedNodes;
+      for (var j = 0; j < dodane.length; j++) {
+        var n = dodane[j];
+        if (n.nodeType === 1 && n.hasAttribute && n.hasAttribute('data-parallax-css')) ustaw(n);
+      }
+    }
+  });
+  obs.observe(document.documentElement, { childList: true, subtree: true });
+  // Po sparsowaniu dokumentu nie ma czego wyprzedzać — dalej prowadzi
+  // `parallax.js`. Obserwator zostawiony na stałe pracowałby przy każdej
+  // podmianie treści, nic już nie wnosząc.
+  document.addEventListener('DOMContentLoaded', function () { obs.disconnect(); });
+})();
+</script>
+        <?php
     }
 
     public function enqueue_scripts(): void {
