@@ -148,14 +148,88 @@ class EVK_Animator {
         foreach ($s['animations'] as $row) {
             $row = $this->row_with_defaults($row);
             if ($row['slug'] === '' || !$this->wiersz_zaslania($row, $presets)) continue;
+            /* Klasa zostaje BEZ wyjątku po znaczniku. Element z klasą
+               `evk-anim-*` niesie animację, o której filtr atrybutów nic nie
+               wie — mógłby więc mieć znacznik „nie chowaj" wyliczony z listy
+               w panelu i jednocześnie czekającą animację z klasy. Pomyłka w tę
+               stronę kosztuje zbędne czekanie, w drugą byłby błysk treści. */
             $sel[] = '.evk-veil .evk-anim-' . $row['slug'];
-            $sel[] = '.evk-veil [data-evk-anim*=\'"animation":"' . $row['slug'] . '"\']';
+            $sel[] = '.evk-veil [data-evk-anim*=\'"animation":"' . $row['slug']
+                   . '"\']' . self::BEZ_ZNACZNIKA_NIE;
         }
 
-        $sel[] = '.evk-veil [data-evk-anim*=\'"preset"\']';
-        $sel[] = '.evk-veil [data-evk-anim*=\'"trigger"\']';
+        /* Wiersz biblioteki nie chowa, ale element nadpisał wyzwalacz na taki,
+           który chowa — tego nie wyłapie żaden selektor po slugu wyżej. */
+        $sel[] = '.evk-veil [data-evk-anim-zaslona="1"]';
+
+        /*
+         * BEZPIECZNIK DLA ATRYBUTÓW WPISANYCH RĘCZNIE.
+         *
+         * Atrybut z własnym `preset` albo `trigger` nadpisuje wiersz biblioteki,
+         * a PHP nie wie na co — taki element zostaje pod zasłoną bez pytania.
+         *
+         * `:not([data-evk-anim-zaslona])` zawęża to do atrybutów, których PHP
+         * naprawdę nie zna. ZGŁOSZONE Z UŻYCIA: „elementy z ustawioną animacją
+         * pojawiają się z opóźnieniem — mam animację, która kurczy nagłówek,
+         * nie powoduje pojawiania się, a nagłówek pojawia się później niż inne
+         * elementy". Kontrolka w panelu zapisuje wybrany wyzwalacz do JSON-a,
+         * więc fragment `"trigger"` niósł KAŻDY element ustawiony w builderze
+         * i bezpiecznik łapał je wszystkie — także te, które niczego nie chowają.
+         * Filtr render_attributes wystawia tym elementom znacznik z wyliczoną
+         * odpowiedzią (patrz `element_zaslania()` niżej i filtr
+         * `bricks/element/render_attributes` w bricks-controls.php),
+         * więc bezpiecznik jest im niepotrzebny.
+         */
+        $sel[] = '.evk-veil [data-evk-anim*=\'"preset"\']'  . self::BEZ_ZNACZNIKA;
+        $sel[] = '.evk-veil [data-evk-anim*=\'"trigger"\']' . self::BEZ_ZNACZNIKA;
 
         return $sel;
+    }
+
+    /** Element, którego PHP nie zdołał ocenić — nie ma znacznika w ogóle. */
+    private const BEZ_ZNACZNIKA = ':not([data-evk-anim-zaslona])';
+
+    /** Element oceniony i uznany za niewymagający zasłony. */
+    private const BEZ_ZNACZNIKA_NIE = ':not([data-evk-anim-zaslona="0"])';
+
+    /**
+     * Czy TEN element ma czekać pod zasłoną — pytane przez filtr atrybutów.
+     *
+     * Wejściem jest lista konfiguracji z kontrolki w panelu, w kształcie, w jakim
+     * jedzie do `data-evk-anim`. Repeater nie ma pól `preset`, `from` ani `to`,
+     * więc JEDYNYM nadpisaniem, które zmienia odpowiedź, jest `trigger` —
+     * i dlatego da się ją wyliczyć dokładnie, zamiast zgadywać selektorem CSS.
+     *
+     * Slug spoza biblioteki daje `false`: silnik i tak nie zbuduje z niego osi
+     * czasu ani nie nałoży stanu początkowego, więc nie ma czego chować.
+     */
+    public function element_zaslania(array $cfgs): bool {
+        /* Bufory na żądanie, nie na element: metoda leci raz na KAŻDY element
+           strony, a `evk_anim_presets()` składa za każdym razem całą tablicę
+           presetów. */
+        static $presets = null;
+        static $rows    = null;
+
+        if ($presets === null) {
+            $presets = evk_anim_presets();
+            $rows    = [];
+            foreach ($this->get_settings()['animations'] as $row) {
+                $row = $this->row_with_defaults($row);
+                if ($row['slug'] !== '') $rows[$row['slug']] = $row;
+            }
+        }
+
+        foreach ($cfgs as $cfg) {
+            $row = $rows[(string) ($cfg['animation'] ?? '')] ?? null;
+            if ($row === null) continue;
+
+            if (isset($cfg['trigger']) && $cfg['trigger'] !== '') {
+                $row['trigger'] = (string) $cfg['trigger'];
+            }
+            if ($this->wiersz_zaslania($row, $presets)) return true;
+        }
+
+        return false;
     }
 
     /**

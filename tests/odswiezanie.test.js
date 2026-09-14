@@ -22,6 +22,9 @@
 const { phpOutput, tagContent } = require('./lib/harness');
 
 const HELPER  = phpOutput('gsap-inline.php');
+/* Cała kolejka inline razem z uchwytem i POZYCJĄ — do sekcji o wygładzaniu
+   długich klatek niżej. Pozycja jest tam treścią sprawdzenia. */
+const INLINE  = JSON.parse(phpOutput('gsap-inline.php', 'json'));
 
 /* Zasłona Z PHP — te same reguły i ten sam mikroskrypt, które Animator drukuje
    w <head>. Przepisane do fixture'a przechodziłyby na zielono nawet wtedy,
@@ -66,6 +69,65 @@ module.exports = async function (t) {
   const p = await open();
   t.check('helper istnieje na stronie',
     await p.evaluate(() => typeof window.evkOdswiez === 'function'), 'funkcja');
+
+  /* ── Wygładzanie długich klatek ──────────────────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: „jeśli są na stronie animacje animatora, to jest
+   * przeskok" (fala w tle) i „animator też się tnie; dodanie opóźnienia 0,2 s
+   * odrobinę poprawia problem".
+   *
+   * Oś czasu GSAP dostaje przy tworzeniu czas z OSTATNIEGO tyknięcia zegara,
+   * a rysowana jest przy NASTĘPNYM. Kiedy między nimi wątek stoi — parsowanie
+   * three.js, kompilacja shaderów fali, budowanie ScrollTriggerów — pierwsza
+   * narysowana klatka wypada już w środku animacji. Domyślny próg GSAP-a to
+   * 500 ms, czyli poza zasięgiem typowej blokady startowej.
+   */
+  t.section('długa klatka nie przesuwa animacji skokiem');
+
+  const wygladzanie = INLINE.filter((i) => /lagSmoothing/.test(i.data));
+
+  t.check('wygładzanie jest ustawiane', wygladzanie.length === 1,
+    wygladzanie.length + ' wpisów');
+
+  /* POZYCJA `after`, nie `before` — `gsap.ticker` istnieje dopiero po wykonaniu
+     gsap.min.js. Wydrukowane przed nim wykonałoby się na pustym oknie i po cichu
+     nie zrobiło nic: strona wyglądałaby tak samo, a przeskoki zostały. */
+  t.check('i to PO bibliotece, nie przed nią',
+    wygladzanie[0] && wygladzanie[0].handle === 'evk-gsap'
+      && wygladzanie[0].position === 'after',
+    wygladzanie[0] ? wygladzanie[0].handle + ' / ' + wygladzanie[0].position : 'brak');
+
+  /* Próg MUSI zejść poniżej domyślnych 500 ms — inaczej zmiana nie łapie
+     niczego, o co poszło zgłoszenie. Sprawdzamy liczbę, nie samą obecność
+     wywołania: `lagSmoothing(500, 33)` to dokładnie stan sprzed zmiany. */
+  const prog = Number((String(wygladzanie[0] && wygladzanie[0].data)
+    .match(/lagSmoothing\(\s*(\d+)/) || [])[1]);
+  t.check('próg jest niższy niż domyślne 500 ms', prog > 0 && prog < 500,
+    prog + ' ms');
+
+  /* I DZIAŁA NAPRAWDĘ, nie tylko w źródle. Zatrzymujemy wątek na tyle, żeby
+     przekroczyć próg, i patrzymy, ile czasu zaliczyła oś czasu. Bez wygładzania
+     tween przeskakuje o całą blokadę; z wygładzaniem posuwa się o jedną klatkę. */
+  const skok = await p.evaluate(async (ms) => {
+    const kod = document.createElement('script');
+    kod.textContent = 'if (window.gsap && gsap.ticker) gsap.ticker.lagSmoothing(' + ms + ', 16);';
+    document.head.appendChild(kod);
+
+    const cel = { x: 0 };
+    const tl = gsap.to(cel, { x: 1000, duration: 10, ease: 'none' });
+    // Blokada dłuższa niż próg, krótsza niż domyślne 500 ms GSAP-a.
+    const koniec = performance.now() + 300;
+    while (performance.now() < koniec) { /* wątek stoi */ }
+    await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
+    const przebyte = tl.time();
+    tl.kill();
+    return Math.round(przebyte * 1000);
+  }, prog);
+
+  /* 300 ms blokady przy domyślnym progu dałoby ~300 ms przeskoku. Przy naszym
+     progu oś posuwa się o dwie klatki wygładzania, czyli kilkadziesiąt ms. */
+  t.check('po 300 ms blokady oś posunęła się o klatki, nie o blokadę',
+    skok !== null && skok < 120, skok + ' ms na osi');
 
   // ── Sedno: odświeżenie NIE ucina przewijania ───────────────────────────
   t.section('odświeżenie czeka, aż przewijanie ustanie');

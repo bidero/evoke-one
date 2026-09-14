@@ -1275,6 +1275,51 @@
       else       master.to(item.targets, vars, pos);
     });
     loadQueue = [];
+    return master;
+  }
+
+  /* ── Sygnał „wejście strony odegrane" ─────────────────────────────────────
+   *
+   * PO CO KOMU TO WIEDZIEĆ. Element Wave BG buduje scenę WebGL: pobiera 287 KB
+   * three.js, kompiluje shadery (zmierzone: 152 ms) i zakłada pętlę rAF.
+   * Wypadając w środku wejścia strony, blokuje wątek na tyle, że animacje
+   * Animatora przeskakują — zgłoszone z użycia dokładnie tak: „jeśli są na
+   * stronie animacje animatora, to jest przeskok". Fala nasłuchuje więc tego
+   * zdarzenia i buduje się PO wejściu (pobieranie biblioteki rusza wcześniej,
+   * bo to sieć, nie wątek główny).
+   *
+   * FLAGA OBOK ZDARZENIA JEST KONIECZNA, nie zapasowa. Skrypt Animatora stoi
+   * w stopce jako zwykły `<script>`, a fala jest modułem — moduły wykonują się
+   * PO całym parsowaniu dokumentu, więc nasłuch bywa założony już po fakcie.
+   * Zdarzenie bez flagi przepadałoby wtedy bez śladu, a fala czekałaby do końca
+   * własnego limitu czasu.
+   */
+  var wejscieOgloszone = false;
+  /* Ogłoszenie JUŻ CZEKA na koniec sekwencji startowej. Bez tej flagi kolejne
+     wejście w initAll() — zmiana progu szerokości, treść z AJAX-a — ogłaszałoby
+     natychmiast (kolejka startowa jest wtedy pusta, więc nie ma na co czekać)
+     i wyprzedzało grającą jeszcze sekwencję. */
+  var wejscieCzeka = false;
+
+  function ogloszWejscie(tl) {
+    if (wejscieOgloszone || wejscieCzeka) return;
+
+    var teraz = function () {
+      if (wejscieOgloszone) return;
+      wejscieOgloszone = true;
+      window.evkAnimatorWejscieKoniec = true;
+      try {
+        document.dispatchEvent(new CustomEvent('evk-animator-wejscie'));
+      } catch (e) { /* bez konstruktora CustomEvent zostaje sama flaga */ }
+    };
+
+    // Sekwencja startowa jeszcze gra — ogłaszamy po jej ostatniej klatce.
+    if (tl && tl.duration() > 0) {
+      wejscieCzeka = true;
+      tl.eventCallback('onComplete', teraz);
+    } else {
+      teraz();
+    }
   }
 
   // ── Init ───────────────────────────────────────────────────────────────
@@ -1649,7 +1694,7 @@
 
     var faza2 = function () {
       zadania.forEach(zbuduj);
-      runLoadQueue();
+      ogloszWejscie(runLoadQueue());
       fazaDwa = Math.round(performance.now());
       if (poBudowaniu) poBudowaniu();
     };
@@ -1911,6 +1956,10 @@
   function start() {
     if (!Object.keys(LIBRARY).length && !document.querySelector('[data-evk-anim]')) {
       unveil();
+      /* Nie ma czego odgrywać, więc wejście jest skończone już teraz. Bez tego
+         Wave BG czekałby na sygnał, który nigdy nie przyjdzie — do końca
+         własnego limitu czasu, na stronie bez ani jednej animacji. */
+      ogloszWejscie(null);
       return;
     }
 

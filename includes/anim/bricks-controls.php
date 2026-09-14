@@ -241,29 +241,55 @@ function evk_bricks_animator_controls(array $controls): array {
      * Repeater umie wszystko, co umiały pola płaskie, więc pola zniknęły,
      * a ich role przejęły kolumny wiersza.
      *
-     * `default => []` jest tu WARUNKIEM BEZPIECZEŃSTWA, nie preferencją.
+     * BRAK `default` jest tu WARUNKIEM BEZPIECZEŃSTWA, nie preferencją.
      * Ta kontrolka wchodzi filtrem do KAŻDEGO zarejestrowanego elementu Bricks,
      * więc domyślny wiersz — jak w evoke-marquee, gdzie repeater jest własną
-     * kontrolką treści jednego elementu — dołożyłby animację wszystkiemu
-     * na stronie.
+     * kontrolką treści jednego elementu i domyślne wiersze niesie NIEPUSTA
+     * tablica (patrz includes/bricks-elements/evoke-marquee/element.php) —
+     * dołożyłby animację wszystkiemu na stronie.
+     *
+     * Do 1.182.0 stało tu `default => []`, które przed domyślnym wierszem broni
+     * tak samo dobrze jak brak klucza — ale zapalało kropkę „ta grupa ma
+     * ustawienia" na każdym świeżo wstawionym elemencie. Patrz komentarz przy
+     * `$row_fields` niżej.
      *
      * Pola wiersza są BEZ prefiksu \`evk\`: repeater niesie własną przestrzeń
      * nazw, a evk_bricks_anim_cfg() czyta dokładnie te klucze.
      */
     $gate = ['animation', '!=', ''];
 
+    /*
+     * ŻADNE POLE NIE MA `default` — i to jest warunek, nie przeoczenie.
+     *
+     * ZGŁOSZONE Z UŻYCIA: „gdy dodam nowy element w builderze, zawsze pojawia
+     * się żółta kropka obok atrybutów, tak jakby było coś ustawione". Kropka
+     * w Bricks znaczy dokładnie to: grupa ma zapisane ustawienia, a kliknięcie
+     * jej je cofa. Kontrolki Evoke wchodzą filtrem do KAŻDEGO elementu i siedzą
+     * w natywnej grupie Atrybuty — więc to my zapalaliśmy tam kropkę na każdym
+     * świeżo wstawionym elemencie, zanim ktokolwiek czegokolwiek dotknął.
+     *
+     * Wszystkie te wartości domyślne były i tak PUSTE (`''`, `false`, `[]`),
+     * czyli nie ustawiały niczego poza tym, co kontrolka pokazuje sama:
+     * select bez `default` staje na pierwszej pozycji listy, a pierwsza to
+     * wszędzie „— brak —" albo „— z biblioteki —"; checkbox bez `default` jest
+     * odznaczony. Zniknięcie tych kluczy nie zmienia więc ANI JEDNEJ wartości
+     * — zmienia tylko to, czy Bricks uważa kontrolkę za wypełnioną.
+     */
     $row_fields = [
         'animation' => [
             'label'   => esc_html__('Animacja', 'evoke-one'),
             'type'    => 'select',
             'options' => $options,
-            'default' => '',
+            /* Lista rośnie razem z biblioteką, więc przewijanie przestaje
+               wystarczać — `searchable` daje pole, w którym wpisuje się kawałek
+               nazwy. Klucz jest natywny dla kontrolki `select` w Bricks, więc
+               nie ma tu ani linijki własnego JS-u w panelu. */
+            'searchable' => true,
         ],
         'trigger' => [
             'label'    => esc_html__('Wyzwalacz', 'evoke-one'),
             'type'     => 'select',
             'options'  => $trigger_options,
-            'default'  => '',
             'required' => $gate,
         ],
         'duration' => [
@@ -305,11 +331,12 @@ function evk_bricks_animator_controls(array $controls): array {
             'required'    => $gate,
         ],
         'easing' => [
-            'label'    => esc_html__('Easing', 'evoke-one'),
-            'type'     => 'select',
-            'options'  => $easing_options,
-            'default'  => '',
-            'required' => $gate,
+            'label'      => esc_html__('Easing', 'evoke-one'),
+            'type'       => 'select',
+            'options'    => $easing_options,
+            // Lista krzywych jest jeszcze dłuższa od listy animacji.
+            'searchable' => true,
+            'required'   => $gate,
         ],
         'targets' => [
             'label'   => esc_html__('Cel animacji', 'evoke-one'),
@@ -321,7 +348,6 @@ function evk_bricks_animator_controls(array $controls): array {
                 'selector' => esc_html__('Selektor w środku', 'evoke-one'),
                 'external' => esc_html__('Element poza tym (cała strona)', 'evoke-one'),
             ],
-            'default'  => '',
             'required' => $gate,
         ],
         /*
@@ -344,22 +370,22 @@ function evk_bricks_animator_controls(array $controls): array {
         ],
         'repeat' => [
             'label'    => esc_html__('Powtarzaj przy każdym wejściu', 'evoke-one'),
-            'type'     => 'select', 'options' => $bool_options, 'default' => '',
+            'type'     => 'select', 'options' => $bool_options,
             'required' => $gate,
         ],
         'loop' => [
             'label'    => esc_html__('Zapętl', 'evoke-one'),
-            'type'     => 'select', 'options' => $bool_options, 'default' => '',
+            'type'     => 'select', 'options' => $bool_options,
             'required' => $gate,
         ],
         'loopYoyo' => [
             'label'    => esc_html__('Pętla z odbiciem', 'evoke-one'),
-            'type'     => 'select', 'options' => $bool_options, 'default' => '',
+            'type'     => 'select', 'options' => $bool_options,
             'required' => $gate,
         ],
         'pin' => [
             'label'    => esc_html__('Pin (tylko scrub)', 'evoke-one'),
-            'type'     => 'select', 'options' => $bool_options, 'default' => '',
+            'type'     => 'select', 'options' => $bool_options,
             'required' => $gate,
         ],
         // Lista słów ma sens per element — każdy może cyklować po innych.
@@ -378,7 +404,6 @@ function evk_bricks_animator_controls(array $controls): array {
         'label'         => esc_html__('Animacje', 'evoke-one'),
         'type'          => 'repeater',
         'titleProperty' => 'animation',
-        'default'       => [],
         'fields'        => $row_fields,
         'description'   => esc_html__(
             'Każdy wiersz to jedna animacja; pusty wiersz nic nie robi. Wyjście '
@@ -411,7 +436,6 @@ function evk_bricks_bgshift_controls(array $controls): array {
         'group'       => evk_bricks_target_group(),
         'label'       => esc_html__('Przenikaj tło przy scrollu', 'evoke-one'),
         'type'        => 'checkbox',
-        'default'     => false,
         'description' => esc_html__('Sekcja oddaje swój kolor tła wspólnej warstwie pod stroną i sama robi się przezroczysta. Kolor przewija się płynnie do następnej takiej sekcji — bez szwu na granicy. Ustaw tło sekcji normalnie, także kolorem globalnym; nie ma osobnego pola na kolor. Sekcja z tłem graficznym albo gradientowym zostanie pominięta.', 'evoke-one'),
     ];
 
@@ -493,7 +517,6 @@ function evk_bricks_parallax_controls(array $controls): array {
         'group'   => evk_bricks_target_group(),
         'label'   => esc_html__('Włącz parallax', 'evoke-one'),
         'type'    => 'checkbox',
-        'default' => false,
     ];
 
     // Placeholder pokazuje wartość globalną — puste pole ją właśnie oznacza.
@@ -656,6 +679,22 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
              */
             $payload = count($cfgs) === 1 ? $cfgs[0] : $cfgs;
             $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-anim', wp_json_encode($payload));
+
+            /*
+             * ODPOWIEDŹ DLA ZASŁONY, wyliczona tu i teraz.
+             *
+             * Zasłona w <head> (EVK_Animator::selektory_zaslony()) musi zgadnąć
+             * z samego CSS-u, czy element ma stan początkowy do ukrycia — a CSS
+             * potrafi tylko szukać fragmentów tekstu w atrybucie. Bezpiecznik
+             * po fragmencie `"trigger"` łapał przez to KAŻDY element ustawiony
+             * w panelu, bo kontrolka zapisuje wybrany wyzwalacz zawsze.
+             *
+             * PHP zna pełną konfigurację, więc odpowiada wprost: „1" czeka,
+             * „0" jest widoczny od pierwszego malowania. Atrybut stawiamy TAKŻE
+             * przy „0" — to on wypisuje element z bezpiecznika.
+             */
+            $zaslona = EVK_Animator::get_instance()->element_zaslania($cfgs) ? '1' : '0';
+            $attributes = evk_bricks_set_attr($attributes, $key, 'data-evk-anim-zaslona', $zaslona);
         }
     }
 

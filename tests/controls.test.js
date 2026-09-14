@@ -136,6 +136,75 @@ module.exports = async function (t) {
   t.check('builderowe `id` wiersza nie wychodzi na stronę', !('id' in zId),
     JSON.stringify(Object.keys(zId)));
 
+  // ── Znacznik dla zasłony ───────────────────────────────────────────────
+  /*
+   * ZGŁOSZONE Z UŻYCIA: „drażni mnie to, że elementy z ustawioną animacją
+   * pojawiają się z opóźnieniem. Np. mam animację, która kurczy nagłówek. Mam
+   * ją podpiętą na sekcji nagłówka (nie powoduje pojawiania się), a nagłówek
+   * pojawia się później niż inne elementy".
+   *
+   * Zasłona w <head> zgaduje z samego CSS-u, bo CSS umie tylko szukać fragmentu
+   * tekstu w atrybucie — a bezpiecznik po fragmencie `"trigger"` łapał KAŻDY
+   * element ustawiony w panelu, bo kontrolka zapisuje wyzwalacz zawsze.
+   * Od 1.182.0 odpowiada PHP, które zna pełną konfigurację.
+   *
+   * Biblioteka w tests/php/controls.php ma dwa wiersze na dwa brzegi:
+   * `wejscie` (fade-up + viewport → nakłada stan początkowy, musi czekać)
+   * i `najazd` (lift + hover → `from` jest stanem SPOCZYNKU, więc silnik go nie
+   * nakłada i czekać nie ma po co).
+   */
+  t.section('znacznik zasłony liczony z konfiguracji, nie zgadywany');
+
+  t.check('wejście w kadrze czeka pod zasłoną',
+    emit({ evkAnimList: [{ animation: 'wejscie' }] }).zaslona === '1',
+    String(emit({ evkAnimList: [{ animation: 'wejscie' }] }).zaslona));
+
+  t.check('sam hover NIE czeka',
+    emit({ evkAnimList: [{ animation: 'najazd' }] }).zaslona === '0',
+    String(emit({ evkAnimList: [{ animation: 'najazd' }] }).zaslona));
+
+  /* SEDNO ZGŁOSZENIA: nadpisanie wyzwalacza w elemencie zmienia odpowiedź.
+     To jest ten nagłówek — wiersz biblioteki chowa, ale element przestawiony
+     na hover nie ma czego chować i ma być widoczny od pierwszego malowania. */
+  const nadpisanyNaHover = emit({ evkAnimList: [{ animation: 'wejscie', trigger: 'hover' }] });
+  t.check('nadpisany wyzwalacz ZDEJMUJE potrzebę czekania',
+    nadpisanyNaHover.zaslona === '0', String(nadpisanyNaHover.zaslona));
+
+  /* I w drugą stronę — inaczej zmiana kupowałaby brak opóźnienia za cenę
+     błysku treści, czyli usterki gorszej niż ta naprawiana. */
+  const nadpisanyNaWejscie = emit({ evkAnimList: [{ animation: 'najazd', trigger: 'viewport' }] });
+  t.check('a w drugą stronę ją DODAJE', nadpisanyNaWejscie.zaslona === '1',
+    String(nadpisanyNaWejscie.zaslona));
+
+  /* Element z kilkoma animacjami czeka, gdy czeka CHOĆ JEDNA — kolejność
+     wierszy nie może o tym decydować. */
+  t.check('przy kilku animacjach wystarczy jedna czekająca',
+    emit({ evkAnimList: [{ animation: 'najazd' }, { animation: 'wejscie' }] }).zaslona === '1'
+    && emit({ evkAnimList: [{ animation: 'wejscie' }, { animation: 'najazd' }] }).zaslona === '1',
+    'obie kolejności: 1');
+
+  t.check('same hovery nie czekają nawet w kilku wierszach',
+    emit({ evkAnimList: [{ animation: 'najazd' }, { animation: 'najazd' }] }).zaslona === '0',
+    String(emit({ evkAnimList: [{ animation: 'najazd' }, { animation: 'najazd' }] }).zaslona));
+
+  /* Slug spoza biblioteki: silnik i tak nie zbuduje z niego osi czasu ani nie
+     nałoży stanu początkowego, więc nie ma czego chować. */
+  t.check('nieznana animacja nie chowa elementu',
+    emit({ evkAnimList: [{ animation: 'nie-ma-takiej' }] }).zaslona === '0',
+    String(emit({ evkAnimList: [{ animation: 'nie-ma-takiej' }] }).zaslona));
+
+  /* BEZ ANIMACJI NIE MA ZNACZNIKA — i to jest znaczące, nie kosmetyczne:
+     `:not([data-evk-anim-zaslona])` w regule zasłony wypisuje z bezpiecznika
+     dokładnie te elementy, które znacznik NIOSĄ. Postawiony wszędzie,
+     rozbroiłby bezpiecznik także dla atrybutów wpisanych ręcznie. */
+  t.check('element bez animacji nie dostaje znacznika', emit({}).zaslona === null,
+    String(emit({}).zaslona));
+
+  const reczny = { _attributes: [{ id: 'q1', name: 'data-evk-anim', value: 'wjazd' }],
+                   evkAnimList: [{ animation: 'wejscie' }] };
+  t.check('wklejony ręcznie atrybut też go NIE dostaje',
+    emit(reczny).zaslona === null, String(emit(reczny).zaslona));
+
 
   // ── Droga kopiowania ustawień z elementu na element ────────────────────
   // Bricks kopiuje prawym przyciskiem WYŁĄCZNIE natywną kontrolkę Atrybuty

@@ -90,6 +90,38 @@ function evk_register_gsap_libs(): void {
         'before'
     );
 
+    /*
+     * WYGŁADZANIE DŁUGICH KLATEK — próg 120 ms zamiast domyślnych 500 ms.
+     *
+     * ZGŁOSZONE Z UŻYCIA: „jeśli są na stronie animacje animatora, to jest
+     * przeskok" (fala w tle) oraz „animator też się tnie; dodanie opóźnienia
+     * 0,2 s odrobinę poprawia problem".
+     *
+     * MECHANIZM, nie ozdoba. Oś czasu dostaje przy tworzeniu czas z OSTATNIEGO
+     * tyknięcia zegara GSAP-a, a rysowana jest dopiero przy NASTĘPNYM. Jeśli
+     * pomiędzy nimi wątek główny stał — parsowanie 287 KB three.js, kompilacja
+     * shaderów fali (zmierzone w tym repo na 152 ms), budowanie ScrollTriggerów
+     * Animatora — to pierwsza narysowana klatka wypada już w środku animacji.
+     * Stąd „przeskok", stąd cięcie, i stąd to, że ręczne opóźnienie 0,2 s
+     * pomaga: przesuwa start poza tę blokadę.
+     *
+     * GSAP ma na to `lagSmoothing`, ale domyślny próg 500 ms łapie wyłącznie
+     * katastrofy. Typowa blokada startowa mieści się w 150–400 ms i przechodzi
+     * przez niego nietknięta. Przy 120 ms (siedem klatek przy 60 Hz — nic
+     * normalnego tyle nie trwa) taka klatka liczy się jako jedna: animacja jest
+     * przez moment wolniejsza, ale CIĄGŁA. Skoku nie da się nadrobić, a płynność
+     * tak.
+     *
+     * Ustawienie jest globalne dla całego GSAP-a na stronie — i takie ma być:
+     * dotyczy tak samo Animatora, fali, marquee i Horizontal Scrolla.
+     * Nie dotyczy wcale animacji `scrub`, bo te idą za przewijaniem, nie za zegarem.
+     */
+    wp_add_inline_script(
+        'evk-gsap',
+        'if (window.gsap && gsap.ticker) gsap.ticker.lagSmoothing(120, 16);',
+        'after'
+    );
+
     // Na telefonie chowanie i pokazywanie paska adresu wypala `resize` w trakcie
     // przewijania. Bez tego ScrollTrigger przemierza wtedy wszystkie triggery na
     // stronie i scroll widocznie się zacina — mimo że zmieniła się sama wysokość

@@ -387,8 +387,15 @@ module.exports = async function (t) {
     zeSterownikiem.plotno === true, 'płótno: ' + zeSterownikiem.plotno);
   t.check('i wystawia uchwyt do porównań zrzutów',
     zeSterownikiem.uchwyt === true, 'window.__evkWave: ' + zeSterownikiem.uchwyt);
+  /* Pytamy o BRAK KOMUNIKATU O REZYGNACJI, nie o milczącą konsolę. Stało tu
+     `log.length === 0`, czyli „element nie powiedział nic" — a przy
+     `?evk-wave-debug=1` element mówi też o rzeczach zwyczajnych (od 1.183.0
+     o chwili startu sceny). Każda nowa linia diagnostyki zapalałaby to
+     sprawdzenie, choć badana rzecz — że fala NIE rezygnuje z płótna — miałaby
+     się dobrze. */
   t.check('z wyłączonym dopasowaniem nadal obciąża',
-    zeSterownikiem.log.length === 0 && zeSterownikiem.wolnyWatek > 50,
+    !zeSterownikiem.log.some((l) => l.includes('brak akceleracji'))
+      && zeSterownikiem.wolnyWatek > 50,
     zeSterownikiem.wolnyWatek + ' ms na klatkę');
 
   /* DRUGA LINIA OBRONY. Probka przed importem zwraca „nie wiem" jako `false`
@@ -538,8 +545,20 @@ module.exports = async function (t) {
       query: 'evk-wave-debug=1',
       settle: 200,
     });
+    /* Zbieramy WYŁĄCZNIE komunikaty o zejściu o szczebel, nie wszystko, co
+       element wypisuje przy `?evk-wave-debug=1`. Filtr po samym `[EVK Wave]`
+       wystarczał, dopóki drabina była jedyną rzeczą gadającą w tym miejscu —
+       od 1.183.0 element loguje też moment startu sceny (czeka na wejście
+       Animatora) i ta linia wpadała tu jako czwarte „zejście": mediany
+       parsowały się na NaN, a obie kontrole negatywne zapalały na „1 zejść".
+       Dopasowanie po treści komunikatu, bo to z niej test i tak czyta numer
+       szczebla i medianę kilka linii niżej. */
     const zejscia = [];
-    str.on('console', (m) => { if (m.text().includes('[EVK Wave]')) zejscia.push(m.text()); });
+    str.on('console', (m) => {
+      if (m.text().includes('[EVK Wave]') && m.text().includes('schodzę na poziom')) {
+        zejscia.push(m.text());
+      }
+    });
 
     /* UKRYWAMY NAZWĘ STEROWNIKA — i to jest badany przypadek, nie obejście.
        Gdy przeglądarka nie mówi, czym renderuje (a coraz częściej nie mówi),
@@ -626,6 +645,99 @@ module.exports = async function (t) {
     zLuznymBudzetem.zejscia.length === 0,
     zLuznymBudzetem.zejscia.length + ' zejść przy budżecie 200 ms, klatka '
       + zLuznymBudzetem.koncowa + ' ms');
+
+  /* ── Fala czeka z budową sceny na wejście Animatora ──────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: „potrzebne jest dodanie opóźnienia uruchamiania wave bg,
+   * bo jeśli są na stronie animacje animatora, to jest przeskok".
+   *
+   * Budowa sceny to wykonanie modułu three.js, kompilacja shaderów (zmierzone
+   * wyżej w tym pliku: sto kilkadziesiąt milisekund) i pierwsze klatki pętli
+   * rAF. Wypadając w środku wejścia strony, blokuje wątek na tyle, że animacje
+   * Animatora przeskakują. Fala czeka więc na sygnał `evk-animator-wejscie`,
+   * a POBIERANIE biblioteki rusza od razu — to sieć, nie wątek główny.
+   *
+   * Mierzymy CHWILĘ POJAWIENIA SIĘ PŁÓTNA, a nie same ustawienia: reguła może
+   * wyglądać poprawnie i nie trafiać w nic.
+   */
+  t.section('fala czeka z budową sceny na wejście Animatora');
+
+  /**
+   * Puszcza falę i oddaje: czy płótno było o `probka` ms i po ilu ms powstało.
+   *
+   * `animator` udaje stronę z włączonym Animatorem (globalną stawia on sam,
+   * skryptem inline przed `animator.js`). `ogloszPo` wysyła zdarzenie końca
+   * wejścia po tylu ms od startu.
+   */
+  const koordynacja = async (opcje) => {
+    const html = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify({})) + ' html');
+    const str = await t.open('wave-bg-pomiar.html', {
+      przezHttp: true,
+      viewport: { width: 900, height: 600 },
+      head: 'window.__tresc = ' + JSON.stringify(html) + ';'
+        + (opcje.animator ? 'window.evkAnimator = { library: {}, presets: {} };' : '')
+        + (opcje.poWejsciu ? 'window.evkAnimatorWejscieKoniec = true;' : ''),
+      settle: 200,
+    });
+    /* Bez tego Chromium rozpoznaje SwiftShadera i fala rysuje gradient zastępczy
+       zamiast płótna — badany przypadek w ogóle by nie wystąpił. */
+    await str.evaluate(() => window.__ukryjSterownik());
+
+    await str.evaluate(() => { window.__t0 = performance.now(); window.__start(); });
+    if (opcje.ogloszPo !== undefined) {
+      await str.evaluate((ms) => setTimeout(
+        () => document.dispatchEvent(new CustomEvent('evk-animator-wejscie')), ms),
+        opcje.ogloszPo);
+    }
+
+    /* Czekamy na płótno przez poll, nie na sztywny odstęp: budowa sceny trwa
+       tyle, ile trwa na maszynie testowej, a mierzymy przecież RÓŻNICĘ. */
+    const czas = await str.evaluate(async () => {
+      for (let i = 0; i < 120; i++) {
+        if (document.querySelector('#scena canvas')) return Math.round(performance.now() - window.__t0);
+        await new Promise((ok) => setTimeout(ok, 50));
+      }
+      return null;
+    });
+    const bledy = str.errors.slice();
+    await str.close();
+    return { czas, bledy };
+  };
+
+  /* Odniesienie: bez Animatora na stronie nie ma na co czekać. Ta liczba jest
+     kosztem samej budowy na tej maszynie i punktem odniesienia dla reszty. */
+  const bezAnimatora = await koordynacja({});
+  t.check('bez Animatora scena powstaje od razu',
+    bezAnimatora.czas !== null && bezAnimatora.czas < 1200,
+    bezAnimatora.czas + ' ms od startu');
+
+  /* SEDNO: z Animatorem i BEZ sygnału fala czeka do własnego limitu 1200 ms.
+     Gdyby czekania nie było, płótno powstałoby tak szybko jak wyżej. */
+  const bezSygnalu = await koordynacja({ animator: true });
+  t.check('z Animatorem bez sygnału czeka do limitu',
+    bezSygnalu.czas !== null && bezSygnalu.czas >= 1200,
+    bezSygnalu.czas + ' ms (limit 1200)');
+
+  /* …ale limit jest RATUNKIEM, nie normą: gdy sygnał przyjdzie, fala rusza
+     wcześniej. Bez tego sprawdzenia „czeka" przechodziłoby także dla kodu,
+     który zawsze odlicza 1200 ms i nikogo nie słucha. */
+  const zeSygnalem = await koordynacja({ animator: true, ogloszPo: 150 });
+  t.check('a po sygnale rusza przed limitem',
+    zeSygnalem.czas !== null && zeSygnalem.czas < bezSygnalu.czas,
+    zeSygnalem.czas + ' ms vs ' + bezSygnalu.czas + ' ms bez sygnału');
+
+  /* Wejście odegrane, ZANIM moduł fali zaczął nasłuchiwać — zdarzenie dawno
+     przepadło. To nie jest przypadek teoretyczny: `animator.js` jedzie ze stopki
+     jako zwykły skrypt, a fala jest modułem, więc wykonuje się po nim. Bez flagi
+     obok zdarzenia fala czekałaby tu do limitu na każdej stronie. */
+  const poWejsciu = await koordynacja({ animator: true, poWejsciu: true });
+  t.check('flaga „wejście już było" zdejmuje czekanie',
+    poWejsciu.czas !== null && poWejsciu.czas < 1200,
+    poWejsciu.czas + ' ms od startu');
+
+  t.check('bez błędów JS przy koordynacji',
+    !bezSygnalu.bledy.length && !zeSygnalem.bledy.length && !poWejsciu.bledy.length,
+    [...bezSygnalu.bledy, ...zeSygnalem.bledy, ...poWejsciu.bledy].join(' | ') || 'brak');
 
   t.section('maska zanika po krzywej, a nie po prostej');
 

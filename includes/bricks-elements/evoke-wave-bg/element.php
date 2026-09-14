@@ -723,6 +723,50 @@ async function evkWbZaladujBiblioteki() {
     COLORS = CONFIG.colors.map((c) => new THREE.Color(c));
 }
 
+/**
+ * Czeka, aż Animator odegra wejście strony — najwyżej `LIMIT_WEJSCIA` ms.
+ *
+ * ZGŁOSZONE Z UŻYCIA: „potrzebne jest dodanie opóźnienia uruchamiania wave bg,
+ * bo jeśli są na stronie animacje animatora, to jest przeskok".
+ *
+ * CZEKA BUDOWA SCENY, NIE POBIERANIE BIBLIOTEKI. Pobranie 287 KB three.js idzie
+ * siecią i wątku głównego prawie nie dotyka; blokuje dopiero to, co po nim —
+ * wykonanie modułu, kompilacja shaderów (zmierzone: 152 ms) i pierwsze klatki
+ * pętli rAF. Dlatego `evkWbBoot()` startuje import OD RAZU, a czeka dopiero
+ * przed `new EvkWaveBackground()`: opóźnienie nic nie kosztuje w czasie dojazdu.
+ *
+ * Efekt uboczny, też pożądany: automat jakości (`zmierzKlatke()`) przestaje
+ * mierzyć medianę klatki w trakcie cudzej blokady. Schodzi on TYLKO W DÓŁ
+ * i nigdy nie wraca, więc pomiar na starcie potrafił trwale zepchnąć falę na pół
+ * rozdzielczości albo na nieruchomy kadr — z powodu, który minął po sekundzie.
+ *
+ * TRZY DROGI WYJŚCIA, każda na inny przypadek:
+ * — Animatora na stronie nie ma (`window.evkAnimator`) → nie czekamy wcale;
+ * — wejście już się odegrało → flaga, bo zdarzenie dawno przepadło;
+ * — wejście trwa i trwa (długa sekwencja, awaria GSAP-a) → limit czasu.
+ *   Fala jest tłem i ma się pojawić nawet wtedy, gdy Animator nie dojedzie.
+ */
+const LIMIT_WEJSCIA = 1200;
+
+function evkWbPoczekajNaWejscie() {
+    if (!window.evkAnimator)             return Promise.resolve('bez animatora');
+    if (window.evkAnimatorWejscieKoniec) return Promise.resolve('wejście już było');
+
+    return new Promise((ok) => {
+        let zrobione = false;
+        const koniec = (powod) => {
+            if (zrobione) return;
+            zrobione = true;
+            document.removeEventListener('evk-animator-wejscie', poZdarzeniu);
+            ok(powod);
+        };
+        const poZdarzeniu = () => koniec('po wejściu');
+
+        document.addEventListener('evk-animator-wejscie', poZdarzeniu);
+        setTimeout(() => koniec('limit czasu'), LIMIT_WEJSCIA);
+    });
+}
+
 /** Czeka na `window.gsap` najwyżej dwie sekundy. Potem się poddaje. */
 function evkWbPoczekajNaGsap(proba = 0) {
     if (window.gsap) return Promise.resolve(window.gsap);
@@ -1501,7 +1545,20 @@ async function evkWbBoot(tries = 0) {
        dziurę. Zastępnik już mamy; niech posłuży także tutaj. */
     let instance;
     try {
-        await evkWbZaladujBiblioteki();
+        /* Import RUSZA TERAZ, budowa czeka — patrz `evkWbPoczekajNaWejscie()`.
+           Kolejność tych dwóch linii jest całą zmianą: odwrócona kazałaby
+           pobierać bibliotekę dopiero po wejściu strony i fala pojawiałaby się
+           o cały dojazd sieci później. */
+        const biblioteki = evkWbZaladujBiblioteki();
+        /* Odrzucenie obsługuje `await` niżej, razem z resztą budowy. Ta klamra
+           jest tylko po to, żeby przeglądarka nie zgłosiła go jako nieobsłużone
+           w tej chwili — obietnica czeka bez odbiorcy przez czas wejścia strony. */
+        biblioteki.catch(() => {});
+
+        const powod = await evkWbPoczekajNaWejscie();
+        if (evkWbDebug()) console.log('[EVK Wave] start sceny: ' + powod);
+
+        await biblioteki;
         instance = new EvkWaveBackground(container);
     } catch (e) {
         /* Obejmuje też BUDOWĘ sceny, nie samo pobranie. Konstruktor sięga po

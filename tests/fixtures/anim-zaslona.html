@@ -31,10 +31,26 @@
 <div class="kafel evk-anim-najazd" id="klasaHover">hover przez klasę</div>
 <div class="kafel" id="atrybutHover" data-evk-anim='{"animation":"najazd"}'>hover przez atrybut</div>
 
-<!-- Atrybut nadpisuje wyzwalacz wiersza. PHP nie wie, na co — taki element
-     zostaje pod zasłoną z ostrożności i to jest świadomy bezpiecznik. -->
+<!-- Atrybut wpisany RĘCZNIE nadpisuje wyzwalacz wiersza. PHP takiego nie widzi,
+     więc nie zna odpowiedzi — element zostaje pod zasłoną z ostrożności i to jest
+     świadomy bezpiecznik. Poznaje się go po BRAKU znacznika. -->
 <div class="kafel" id="atrybutNadpisanie"
      data-evk-anim='{"animation":"najazd","trigger":"viewport"}'>nadpisanie wyzwalacza</div>
+
+<!-- ZNACZNIK Z PHP — to jest zgłoszenie „elementy z ustawioną animacją pojawiają
+     się z opóźnieniem".
+
+     Kontrolka w panelu zapisuje wybrany wyzwalacz ZAWSZE, więc fragment
+     `"trigger"` niósł każdy element ustawiony w builderze i bezpiecznik wyżej
+     łapał je wszystkie — także scrub, który niczego nie chowa. Filtr atrybutów
+     wystawia takim elementom wyliczoną odpowiedź i to ona rozstrzyga. -->
+<div class="kafel" id="znacznikNie" data-evk-anim-zaslona="0"
+     data-evk-anim='{"animation":"najazd","trigger":"scrub"}'>znacznik: nie chowaj</div>
+
+<!-- I w drugą stronę: wiersz biblioteki nie chowa, ale element owszem. Żaden
+     selektor po slugu tego nie złapie — łapie selektor dodatni po znaczniku. -->
+<div class="kafel" id="znacznikTak" data-evk-anim-zaslona="1"
+     data-evk-anim='{"animation":"najazd","trigger":"viewport"}'>znacznik: chowaj</div>
 
 <!-- Kontrola: element bez animacji nigdy nie może zniknąć. -->
 <div class="kafel" id="bezAnimacji">bez animacji</div>
@@ -46,7 +62,7 @@
   window.__zaslona = function () {
     var out = { naKorzeniu: document.documentElement.classList.contains('evk-veil'), widac: {} };
     ['klasaWjazd', 'atrybutWjazd', 'klasaHover', 'atrybutHover',
-     'atrybutNadpisanie', 'bezAnimacji'].forEach(function (id) {
+     'atrybutNadpisanie', 'znacznikNie', 'znacznikTak', 'bezAnimacji'].forEach(function (id) {
       var el = document.getElementById(id);
       out.widac[id] = el ? getComputedStyle(el).visibility !== 'hidden' : null;
     });

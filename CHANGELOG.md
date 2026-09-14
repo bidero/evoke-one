@@ -2,6 +2,140 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.183.0] — 2026-09-14
+
+### Naprawione
+
+- **Żółta kropka przy Atrybutach na KAŻDYM nowo wstawionym elemencie.** Zgłoszone
+  z użycia: „zawsze pojawia się żółta kropka obok atrybutów, tak jakby było coś
+  ustawione. A ani paralax, ani animacje nie są".
+
+  Kropka w Bricks znaczy „ta grupa ma zapisane ustawienia" i kliknięta cofa je do
+  domyślnych. Kontrolki Evoke wchodzą filtrem do grupy **Atrybuty** KAŻDEGO
+  elementu, więc to one ją tam zapalały — jedenaście z nich deklarowało klucz
+  `default`, a kontrolka z tym kluczem raportuje wartość także wtedy, gdy
+  w ustawieniach elementu nie ma nic.
+
+  Wszystkie te wartości domyślne były PUSTE (`''`, `false`, `[]`), czyli nie
+  ustawiały niczego ponad to, co kontrolka pokazuje sama: select bez `default`
+  staje na pierwszej pozycji listy, a pierwsza to wszędzie „— brak —" albo
+  „— z biblioteki —"; checkbox bez `default` jest odznaczony. Żadna wartość się
+  więc nie zmienia — zmienia się tylko to, czy Bricks uważa kontrolkę za
+  wypełnioną.
+
+  `default => []` przy liście animacji było przy tym zabezpieczeniem przed
+  domyślnym WIERSZEM (kontrolka wchodzi do każdego elementu, więc domyślny wiersz
+  dołożyłby animację wszystkiemu na stronie). Brak klucza broni przed tym dokładnie
+  tak samo: wiersze domyślne robi dopiero NIEPUSTA tablica, jak w evoke-marquee.
+  (`includes/anim/bricks-controls.php`)
+
+- **Elementy z animacją, która niczego nie chowa, pojawiały się później niż reszta
+  strony.** Zgłoszone z użycia: „mam animację, która kurczy nagłówek, podpiętą na
+  sekcji nagłówka (nie powoduje pojawiania się), a nagłówek pojawia się później niż
+  inne elementy".
+
+  Zasłona przeciw błyskowi treści jest arkuszem w `<head>`, a CSS potrafi tylko
+  szukać FRAGMENTU TEKSTU w atrybucie. Bezpiecznik po fragmentach `"preset"`
+  i `"trigger"` istniał dla atrybutów wpisanych ręcznie — ale kontrolka w panelu
+  zapisuje wybrany wyzwalacz ZAWSZE, więc łapał każdy element ustawiony
+  w builderze. Także scrub, który żadnego stanu początkowego nie nakłada.
+
+  PHP zna jednak pełną konfigurację takiego elementu: lista animacji nie ma pól
+  `preset`, `from` ani `to`, więc jedynym nadpisaniem zmieniającym odpowiedź jest
+  wyzwalacz. Filtr atrybutów wylicza ją teraz wprost i wystawia jako
+  `data-evk-anim-zaslona`; reguła zasłony pyta o znacznik, a bezpiecznik zostaje
+  dokładnie tam, gdzie był potrzebny — przy atrybutach, których PHP nie zna.
+  Decyzję podejmuje jedna funkcja (`EVK_Animator::element_zaslania()`), oparta na
+  tej samej regule co dotąd. Selektory po KLASIE zostają bez zmian: element z klasą
+  `evk-anim-*` może nieść animację, o której filtr atrybutów nic nie wie, a pomyłka
+  w tę stronę kosztuje zbędne czekanie — w drugą byłby błysk treści.
+  (`includes/anim/animator.php`, `includes/anim/bricks-controls.php`)
+
+- **Przeskok fali w tle i cięcie Animatora przy starcie.** Zgłoszone z użycia
+  osobno — „jeśli są na stronie animacje animatora, to jest przeskok. Może winnym
+  jest Parallax?" i „animator też się tnie; dodanie opóźnienia 0,2 s odrobinę
+  poprawia problem" — ale przyczyna jest JEDNA, a Parallax nie ma z nią nic
+  wspólnego (jego udokumentowany koszt siedzi w przewijaniu, nie w starcie).
+
+  Oś czasu GSAP dostaje przy tworzeniu czas z OSTATNIEGO tyknięcia zegara,
+  a rysowana jest przy NASTĘPNYM. Kiedy wątek główny stoi pomiędzy nimi —
+  parsowanie 287 KB three.js, kompilacja shaderów fali (zmierzone: 152 ms),
+  budowanie ScrollTriggerów — pierwsza narysowana klatka wypada już w środku
+  animacji. Stąd przeskok, stąd cięcie i stąd to, że ręczne opóźnienie 0,2 s
+  pomaga: przesuwa start poza blokadę.
+
+  GSAP ma na to `lagSmoothing`, ale domyślny próg 500 ms łapie wyłącznie
+  katastrofy — typowa blokada startowa mieści się w 150–400 ms i przechodzi przez
+  niego nietknięta. Próg zszedł do **120 ms** (siedem klatek przy 60 Hz; nic
+  normalnego tyle nie trwa), a taka klatka liczy się teraz jako jedna. Zmierzone
+  w teście: przy 300 ms zatrzymanego wątku oś czasu posuwa się o **16 ms zamiast
+  306 ms**. Animacja jest przez moment wolniejsza, ale ciągła — skoku nie da się
+  nadrobić, a płynność tak. Animacje `scrub` nie są tym objęte wcale, bo idą za
+  przewijaniem, nie za zegarem. (`includes/89-gsap.php`)
+
+### Zmienione
+
+- **Fala (Wave BG) buduje scenę dopiero po wejściu strony.** Druga połowa poprawki
+  wyżej. Element czeka na sygnał `evk-animator-wejscie`, który Animator wysyła po
+  pierwszym przebiegu i po odegraniu sekwencji startowej.
+
+  CZEKA BUDOWA SCENY, NIE POBIERANIE BIBLIOTEKI: import three.js rusza jak dotąd,
+  od razu, bo to sieć, a nie wątek główny. Opóźnienie nie kosztuje więc nic
+  w czasie dojazdu. Limit 1200 ms pilnuje, żeby fala pojawiła się także wtedy, gdy
+  Animator nie dojedzie; bez Animatora na stronie nie ma żadnego czekania.
+  Obok zdarzenia jedzie flaga `window.evkAnimatorWejscieKoniec`, bo `animator.js`
+  stoi w stopce jako zwykły skrypt, a fala jest modułem — nasłuch bywa założony po
+  fakcie i samo zdarzenie by przepadło.
+
+  Efekt uboczny, też pożądany: automat jakości przestaje mierzyć medianę klatki
+  w trakcie cudzej blokady. Schodzi on TYLKO W DÓŁ i nigdy nie wraca, więc pomiar
+  na starcie potrafił trwale zepchnąć falę na pół rozdzielczości albo na nieruchomy
+  kadr — z powodu, który minął po sekundzie.
+  (`includes/bricks-elements/evoke-wave-bg/element.php`, `assets/js/animator.js`)
+
+- **Listę animacji i listę krzywych easing da się filtrować pisząc.** Zgłoszone
+  z użycia. `searchable` jest natywnym kluczem kontrolki `select` w Bricks, więc
+  nie doszła ani jedna linijka własnego JS-u w panelu buildera. Krótkie listy
+  trójstanowe („— z biblioteki — / Tak / Nie") zostają bez pola wyszukiwania:
+  nie ma tam czego szukać. (`includes/anim/bricks-controls.php`)
+
+### Testy
+
+Dwadzieścia osiem nowych sprawdzeń, w tym dwa nowe pliki.
+
+- **`anim-kontrolki`** (nowy, `tests/php/anim-kontrolki.php` +
+  `tests/anim-kontrolki.test.js`) — kształt kontrolek dokładanych filtrem. Zero
+  kluczy `default`, `searchable` na dwóch długich listach i NIE na trójstanach,
+  pierwsza pozycja listy animacji pusta. Tego nie widać ani w HTML, ani
+  w przeglądarce: panel jest aplikacją Vue w drugim oknie buildera.
+- **Znacznik zasłony** — dziesięć sprawdzeń w `controls.test.js` (oba kierunki
+  nadpisania wyzwalacza, kilka animacji na elemencie, nieznany slug, brak znacznika
+  bez animacji i przy atrybucie wpisanym ręcznie) plus dwa w `animator.test.js`,
+  mierzone WIDOCZNOŚCIĄ w przeglądarce — reguła może wyglądać poprawnie i nie
+  trafiać w nic.
+- **Koordynacja fali** — cztery sprawdzenia mierzące CHWILĘ powstania płótna.
+  Zmierzone: 286 ms bez Animatora, 1468 ms z Animatorem bez sygnału (czyli limit),
+  436 ms po sygnale. Ostatnia liczba jest tu najważniejsza: bez niej „czeka"
+  przechodziłoby także dla kodu, który zawsze odlicza 1200 ms i nikogo nie słucha.
+- **Wygładzanie długich klatek** — cztery sprawdzenia w `odswiezanie.test.js`,
+  w tym pomiar na żywej osi czasu. Mutacja na domyślne `lagSmoothing(500, 33)`
+  zapala je na „306 ms na osi".
+
+Trzy rzeczy wyszły przy okazji i wszystkie prowadziły do poprawienia sprawdzenia,
+nie kodu:
+
+- **Biblioteki testowe używały nieistniejącego presetu `hover-lift`.** Nieznany
+  preset daje pustą tablicę, więc „hover nie czeka" przechodziło przez BRAK
+  presetu, a nie przez regułę o wyzwalaczu. Zmienione na prawdziwy `lift`, który
+  ma własne `from` i sprawdza regułę naprawdę.
+- **`tests/php/controls.php` miał atrapę `EVK_Animator` z jedną metodą.** Reguła
+  zasłony musiałaby zostać w niej przepisana i od tej chwili żyć własnym życiem.
+  Wchodzi prawdziwa klasa.
+- **Dwa sprawdzenia w `wave-bg.test.js` czytały konsolę za szeroko** — „każdy
+  komunikat `[EVK Wave]`" znaczyło u nich raz „zejście o szczebel jakości", raz
+  „rezygnacja z płótna". Nowa linia diagnostyczna wpadała do obu. Oba pytają teraz
+  o to, o co naprawdę pytają.
+
 ## [1.182.0] — 2026-09-10
 
 ### Zmienione

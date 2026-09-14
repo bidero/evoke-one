@@ -662,7 +662,10 @@ module.exports = async function (t) {
      potrzebna) i hover (silnik nie nakłada `from`, zasłona zbędna). */
   const BIBLIOTEKA_ZASLONY = JSON.stringify([
     { slug: 'wjazd',  preset: 'fade-up',    trigger: 'viewport' },
-    { slug: 'najazd', preset: 'hover-lift', trigger: 'hover' },
+    /* `lift`, nie wymyślony `hover-lift`: preset spoza listy daje pustą tablicę,
+       więc "hover nie czeka" przechodziłoby przez BRAK presetu, a nie przez
+       regułę o wyzwalaczu. `lift` ma własne `from` i sprawdza ją naprawdę. */
+    { slug: 'najazd', preset: 'lift', trigger: 'hover' },
   ]);
   const blokZaslony = phpOutput('anim-preveil.php', JSON.stringify(BIBLIOTEKA_ZASLONY));
 
@@ -689,6 +692,19 @@ module.exports = async function (t) {
      błysk treści. */
   t.check('atrybut nadpisujący wyzwalacz zostaje pod zasłoną',
     zw.widac.atrybutNadpisanie === false, 'widoczny: ' + zw.widac.atrybutNadpisanie);
+
+  /* ZNACZNIK Z PHP WYGRYWA Z BEZPIECZNIKIEM — sedno zgłoszenia „elementy
+     z ustawioną animacją pojawiają się z opóźnieniem".
+
+     Oba kafle niosą w atrybucie fragment `"trigger"`, więc oba wpadały pod
+     bezpiecznik i czekały na silnik. Teraz rozstrzyga wyliczona odpowiedź:
+     kafel z „0" jest widoczny od pierwszego malowania, z „1" dalej czeka.
+     Sprawdzenie na WIDOCZNOŚCI, nie na treści reguły — reguła może wyglądać
+     poprawnie i nie trafiać w nic. */
+  t.check('znacznik „nie chowaj" zdejmuje bezpiecznik',
+    zw.widac.znacznikNie === true, 'widoczny: ' + zw.widac.znacznikNie);
+  t.check('a znacznik „chowaj" chowa mimo braku slugu w regule',
+    zw.widac.znacznikTak === false, 'widoczny: ' + zw.widac.znacznikTak);
   t.check('element bez animacji jest widoczny', zw.widac.bezAnimacji === true,
     'widoczny: ' + zw.widac.bezAnimacji);
   await zas.close();

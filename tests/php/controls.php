@@ -11,18 +11,36 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  */
 require __DIR__ . '/_wp-stubs.php';
 
-class EVK_Animator {
-    private static $i = null;
-    public static function get_instance() { return self::$i ?: (self::$i = new self()); }
-    public function get_settings() { return ['enabled' => 1]; }
-}
 function evk_preserve_toggle($input, $key, $field = 'enabled', $default = 0) {
     return isset($input[$field]) ? (int) !empty($input[$field]) : $default;
 }
 function evk_register_gsap_libs() {}
+function esc_textarea($s) { return $s; }
 function bricks_is_builder_main() { return false; }
 
+define('EVOKE_ONE_URL',     'https://example.test/wp-content/plugins/evoke-one/');
+define('EVOKE_ONE_VERSION', 'test');
+
 $GLOBALS['options']['evk_bgshift'] = ['enabled' => 1];
+
+/* PRAWDZIWY EVK_Animator, nie atrapa z jedną metodą.
+ *
+ * Filtr atrybutów pyta go od 1.183.0, czy element ma czekać pod zasłoną
+ * (`element_zaslania()`) — a odpowiedź zależy od wiersza biblioteki i presetu.
+ * Atrapa musiałaby przepisać u siebie regułę `wiersz_zaslania()` i od tej
+ * chwili żyć własnym życiem: sprawdzenie przechodziłoby także wtedy, gdyby
+ * wtyczka zaczęła odpowiadać inaczej.
+ *
+ * Dwa wiersze na dwa brzegi: wejście w kadrze nakłada stan początkowy i musi
+ * czekać, hover nie nakłada niczego i czekać nie ma po co.
+ */
+$GLOBALS['options']['evk_animator'] = [
+    'enabled'    => 1,
+    'animations' => [
+        ['slug' => 'wejscie', 'preset' => 'fade-up',    'trigger' => 'viewport'],
+        ['slug' => 'najazd',  'preset' => 'lift',       'trigger' => 'hover'],
+    ],
+];
 
 /* Wspólne wykrywanie buildera — moduły frontowe pytają o nie przez
    `evk_w_builderze()`. Plik jest liściem: potrzebuje tylko `is_admin()`
@@ -40,6 +58,7 @@ require EVK_TEST_ROOT . '/includes/anim/presets.php';
 $GLOBALS['options']['evk_parallax'] = ['enabled' => 1];
 require EVK_TEST_ROOT . '/includes/92-parallax.php';
 
+require EVK_TEST_ROOT . '/includes/anim/animator.php';
 require EVK_TEST_ROOT . '/includes/anim/bricks-controls.php';
 
 $settings = json_decode($argv[1] ?? '{}', true) ?: [];
@@ -52,6 +71,11 @@ $out = $cb(['_root' => ['class' => ['brxe-section']]], '_root', $el);
 
 echo json_encode([
     'anim' => $out['_root']['data-evk-anim'][0] ?? null,
+    /* Znacznik dla zasłony. Rozróżnienie brak/„0" jest tu całą treścią:
+       „0" WYPISUJE element z bezpiecznika w <head>, brak znacznika zostawia go
+       pod nim. Dlatego wartość, nie sama obecność. */
+    'zaslona' => array_key_exists('data-evk-anim-zaslona', $out['_root'])
+        ? (string) ($out['_root']['data-evk-anim-zaslona'][0] ?? '') : null,
     // WARTOŚĆ atrybutu, nie sama jego obecność: od 1.53.0 `data-evk-bg` może
     // nieść procent, na którym sekcja przejmuje tło. Pusty ciąg nadal znaczy
     // „wartość globalna", więc rozróżnienie pusty/brak musi zostać.
