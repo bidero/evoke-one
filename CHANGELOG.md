@@ -2,6 +2,88 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.202.0] — 2026-09-15
+
+### Naprawione
+
+- **Ziarno na całej stronie zabierało stronie dwie trzecie klatek.** ZGŁOSZONE
+  Z UŻYCIA: „Kiedy jest szum na całej stronie animacje animatora się tną. Tzn
+  często nie widać ich przy scrollu — tak jakby szum blokował scrolltrigger".
+
+  **ScrollTrigger nie był blokowany** i to pierwsza rzecz, którą ustalił pomiar:
+  we WSZYSTKICH wariantach, także w najgorszym, wszystkie osiem wyzwalaczy
+  zapalało się i dochodziło do pełnego krycia. Brakowało KLATEK, w których
+  miałyby to pokazać — przy 20 klatkach na sekundę animacja trwająca 0,6 s
+  dostaje ich dwanaście i wygląda jak przeskok.
+
+  Zmierzone (okno 900×600, osiem osi czasu z `scrollTrigger`, mediana odstępu
+  klatek przeglądarki, dławienie procesora jak w Lighthouse):
+
+  ```
+                            │ dławienie 4x │ 6x
+      bez ziarna            │ 16,7 ms      │ 16,7
+      ziarno, sufit DPR 2   │ 50,0 ms      │ 66,7
+      ziarno, sufit DPR 1   │ 16,7 ms      │ 16,7
+  ```
+
+  **Rozstrzyga sufit gęstości pikseli, nie częstotliwość rysowania.** Zejście
+  z dwójki na jedynkę zdejmuje trzy czwarte pikseli i wraca do kosztu strony
+  bez ziarna. Uzasadnienie jest to samo, które wcześniej usprawiedliwiało sufit
+  na dwójce: ziarno to szum poniżej progu rozdzielczości oka, a liczba pikseli
+  rośnie z kwadratem.
+
+  **DO OBEJRZENIA NA STRONIE:** na ekranie gęstym drobina jest teraz wielkości
+  dwóch pikseli fizycznych zamiast jednego, czyli odrobinę grubsza. To widoczna
+  różnica i żaden przebieg jej nie oceni.
+
+- **Ograniczenie do 24 klatek na sekundę wyleciało — bo mutacja nie zapaliła
+  nic.** Stało tu przez chwilę, uzasadnione najgorszą klatką 33 ms wobec 17 ms.
+  Kolejne przebiegi przy identycznych ustawieniach dawały raz 33, raz 17 —
+  to był rozrzut pomiaru, nie skutek. Kod, którego działania nie da się
+  pokazać, to optymalizacja bez pomiaru.
+
+### Zmienione
+
+- **„Ziarno" nazywa się w builderze „Grain".** ZGŁOSZONE Z UŻYCIA: „zmienić
+  nazwę na Grain albo coś podobnego, bo wszystkie elementy bricks mają
+  angielskie nazwy". Zmienia się etykieta w rejestrze, `get_label()`
+  i przedrostek w konsoli (`[EVK Grain]`, jak `[EVK Wave]` czy `[EVK Marquee]`).
+
+  **Nazwa konstruktora w JS zostaje polska.** Cały kod tej wtyczki mówi po
+  polsku — `rysujRaz`, `przesiew`, `intensywnosc` — więc jeden angielski
+  identyfikator byłby wyjątkiem, a nie porządkiem. Po angielsku jest to, co
+  widzi użytkownik.
+
+### Dodane strażniki
+
+- **`tests/grain-koszt.test.js`** — nowy plik, nie sekcja. Każdy scenariusz
+  stawia przeglądarkę z dławieniem procesora i przewija dziesięcioma skokami,
+  więc chodzi minutami; w `grain.test.js` odebrałby możliwość szybkiego
+  iterowania (filtr dopasowuje nazwę PLIKU, nie sekcji). Pilnuje też
+  PRZYCZYNY, nie tylko objawu: kanwa ma być w gęstości jeden — bez tego próg
+  spełniłoby ziarno, które w ogóle się nie uruchomiło.
+
+  Dławienie jest tu warunkiem pomiaru: bez niego maszyna testowa rysuje ziarno
+  za darmo i wszystkie warianty wychodzą identycznie. Pierwsza wersja tego
+  pomiaru pokazała trzy razy 16,7 ms i nie mówiła nic.
+
+- **Zgodność nazwy elementu w rejestrze i w builderze** (`tests/php/etykiety.php`,
+  sekcja w `drobiazgi.test.js`). Nazwa stoi w dwóch miejscach, loader mówi
+  „zmieniając jedną, zmień drugą" — i do teraz pilnował tego wyłącznie
+  komentarz. Rozjazdu nie widać z żadnego pojedynczego ekranu: panel pokazuje
+  jedną nazwę, builder drugą, obie wyglądają normalnie.
+
+  Pierwsza wersja tej sondy porównywała nazwy klas razem z przestrzenią i po
+  cichu pomijała trzy elementy deklarowane wewnątrz `namespace Bricks` —
+  pilnowała siedmiu z dziesięciu i świeciła na zielono. Stąd osobne sprawdzenie
+  pokrycia PRZED sprawdzeniem zgodności.
+
+  **Czego ten strażnik NIE robi:** nie pilnuje, że nazwy są po angielsku. Stało
+  tam sprawdzenie „żadna etykieta nie ma znaków spoza ASCII" i wyleciało przy
+  mutacji — „Ziarno" przechodzi przez nie bez zająknięcia. Wybór nazwy jest
+  decyzją człowieka, a jedyna dająca się napisać reguła łapałaby ogonki zamiast
+  polskich słów.
+
 ## [1.201.0] — 2026-09-15
 
 ### Zmienione

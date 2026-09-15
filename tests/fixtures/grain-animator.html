@@ -1,0 +1,122 @@
+<!--
+  Ziarno a animacje przewijane — POMIAR, nie sprawdzenie.
+
+  ZGŁOSZONE Z UŻYCIA: „Kiedy jest szum na całej stronie animacje animatora się
+  tną. Tzn często nie widać ich przy scrollu — tak jakby szum blokował
+  scrolltrigger".
+
+  Fixture odtwarza MECHANIZM Animatora, a nie jego kod: oś czasu GSAP-a
+  z `scrollTrigger` w varsach, `once: true`, `toggleActions: 'play none none
+  none'`, `fromTo` — dokładnie to, co robi `attachViewport()`
+  w assets/js/animator.js:608. Całego Animatora tu nie ma celowo: chcemy
+  wiedzieć, czy winne jest ZIARNO, a nie która warstwa Animatora.
+
+  Parametry: ?ziarno=tak|nie, ?przesiew=klatka|stop, ?pudel=8
+
+  STEROWNIK UKRYTY tak samo jak w grain.html — bez tego element świadomie nie
+  rusza na programowej rasteryzacji i nie byłoby czego mierzyć.
+-->
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../includes/bricks-elements/evoke-grain/assets/grain.css">
+
+<style>
+  html, body { margin: 0; background: #101014; color: #eee; font: 14px system-ui; }
+  .pudlo { height: 60vh; margin: 40vh 24px; background: #2a2a38; padding: 24px; }
+</style>
+
+<script>
+  var q = new URLSearchParams(location.search);
+  if (q.get('gpu') !== 'nie') {
+    [window.WebGLRenderingContext, window.WebGL2RenderingContext].forEach(function (K) {
+      if (!K) return;
+      var o = K.prototype.getExtension;
+      K.prototype.getExtension = function (n) {
+        if (n === 'WEBGL_debug_renderer_info') return null;
+        return o.call(this, n);
+      };
+    });
+  }
+</script>
+
+<script src="../../assets/vendor/gsap/gsap.min.js"></script>
+<script src="../../assets/vendor/gsap/ScrollTrigger.min.js"></script>
+
+<div id="pudla"></div>
+
+<script>
+  gsap.registerPlugin(ScrollTrigger);
+  /* Ta sama bramka co na stronie — includes/89-gsap.php:139. */
+  gsap.ticker.lagSmoothing(250, 33);
+
+  var ILE = parseInt(q.get('pudel'), 10) || 8;
+  var host = document.getElementById('pudla');
+  for (var i = 0; i < ILE; i++) {
+    var d = document.createElement('div');
+    d.className = 'pudlo';
+    d.id = 'p' + i;
+    d.textContent = 'pudło ' + i;
+    host.appendChild(d);
+  }
+</script>
+
+<script>
+  /* ZIARNO WSTAWIAMY PRZED OSIAMI, tak jak na stronie: element Bricks jest
+     w znaczniku, a Animator startuje po nim. */
+  (function () {
+    if (q.get('ziarno') !== 'tak') return;
+    var d = document.createElement('div');
+    d.className = 'evk-grain';
+    d.setAttribute('data-evk-grain', '1');
+    d.setAttribute('data-intensywnosc', q.get('moc') || '0.08');
+    d.setAttribute('data-przesiew', q.get('przesiew') || 'klatka');
+    d.setAttribute('data-mnoznik', '1');
+    d.setAttribute('data-warstwa', '9990');
+    d.setAttribute('data-auto-jakosc', q.get('auto') || '0');
+    document.body.appendChild(d);
+  })();
+</script>
+
+<script src="../../includes/bricks-elements/evoke-grain/assets/grain.js"></script>
+
+<script>
+  /* Osie czasu ODWZOROWUJĄ attachViewport() — patrz nagłówek pliku. */
+  window.__wystrzelilo = {};
+  for (var i = 0; i < ILE; i++) (function (n) {
+    var el = document.getElementById('p' + n);
+    gsap.timeline({
+      scrollTrigger: {
+        trigger: el,
+        start: 'top 80%',
+        once: true,
+        toggleActions: 'play none none none',
+        onEnter: function () { window.__wystrzelilo['p' + n] = performance.now(); },
+      },
+    }).fromTo(el, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.6 });
+  })(i);
+
+  /** Krycie pudła — po TYM poznaje się, czy animacja doszła do końca. */
+  window.__krycie = function (n) {
+    return parseFloat(getComputedStyle(document.getElementById('p' + n)).opacity);
+  };
+
+  /* ODSTĘPY KLATEK. Zbieramy co klatkę, bo pytanie brzmi „ile kosztuje ziarno",
+     a nie „czy strona żyje". Mierzymy własnym rAF-em, nie zegarem GSAP-a —
+     zegar GSAP-a ma lagSmoothing i pokazałby czas UGŁADZONY. */
+  window.__odstepy = [];
+  (function () {
+    var ost = 0;
+    (function k(t) {
+      if (ost) window.__odstepy.push(t - ost);
+      ost = t;
+      requestAnimationFrame(k);
+    })(performance.now());
+  })();
+
+  window.__mediana = function () {
+    var p = window.__odstepy.slice().sort(function (a, b) { return a - b; });
+    return p.length ? p[Math.floor(p.length / 2)] : null;
+  };
+  window.__wyczysc = function () { window.__odstepy.length = 0; };
+  window.__przewin = function (px) { window.scrollTo(0, px); };
+</script>

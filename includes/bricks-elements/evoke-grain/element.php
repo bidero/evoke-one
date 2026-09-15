@@ -2,7 +2,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Evoke ONE — Ziarno
+ * Evoke ONE — Grain
  *
  * Ziarno filmowe z shadera, na całe okno przeglądarki, przewijane z treścią.
  *
@@ -38,7 +38,7 @@ class Evk_Grain_Element extends \Bricks\Element {
 
 	// Etykieta MUSI się zgadzać z evk_elements_registry()['grain']['label'].
 	public function get_label() {
-		return 'Ziarno';
+		return 'Grain';
 	}
 
 	public function get_keywords() {

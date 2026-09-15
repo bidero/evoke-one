@@ -1,5 +1,5 @@
 /**
- * Evoke ONE — Ziarno.
+ * Evoke ONE — Grain.
  *
  * Ziarno filmowe z shadera, na całe okno, przewijane z treścią.
  *
@@ -44,6 +44,48 @@
         '}',
     ].join('\n');
 
+    /* JEDNA LICZBA, KTÓRA DECYDUJE O KOSZCIE CAŁEGO ELEMENTU.
+     *
+     * ZGŁOSZONE Z UŻYCIA: „Kiedy jest szum na całej stronie animacje animatora
+     * się tną. Tzn często nie widać ich przy scrollu — tak jakby szum blokował
+     * scrolltrigger". ScrollTrigger nie był blokowany: w pomiarze WSZYSTKIE
+     * osiem wyzwalaczy zapalało się i dochodziło do pełnego krycia w każdym
+     * wariancie. Zabrakło KLATEK, w których miałyby to pokazać.
+     *
+     * Zmierzone (okno 900x600, osiem osi czasu z `scrollTrigger`, mediana
+     * odstępu klatek przeglądarki — patrz tests/grain-koszt.test.js):
+     *
+     *     sufit DPR │ klatek/s │ dławienie 4x │ 6x     │ najgorsza
+     *     2         │ bez      │ 50,0 ms      │ 66,7   │ 67 ms
+     *     2         │ 24       │ 50,0 ms      │ 66,7   │ 83 ms
+     *     1         │ bez      │ 16,7 ms      │ 16,7   │ 33 ms  ← wybrane
+     *     1         │ 24       │ 16,7 ms      │ 16,7   │ 17 ms
+     *     1         │ 12       │ 16,7 ms      │ 16,7   │ 17 ms
+     *     (bez ziarna w ogóle: 16,7 ms / 16,7 / 17 ms)
+     *
+     * Kolumna „najgorsza" JEST ROZRZUTEM, nie sygnałem — te same ustawienia
+     * dawały w kolejnych przebiegach 33 i 17 ms. Decyduje mediana.
+     *
+     * ROZSTRZYGA SUFIT, NIE CZĘSTOTLIWOŚĆ. Zejście z dwójki na jedynkę zdejmuje
+     * trzy czwarte pikseli i wraca do kosztu strony bez ziarna; samo
+     * przesiewanie rzadziej nie daje nic, dopóki każda rysowana klatka ma
+     * czterokrotnie za dużo pikseli.
+     *
+     * DLACZEGO WOLNO ZEJŚĆ DO JEDYNKI. Ten sam argument, który wcześniej
+     * uzasadniał sufit na dwójce: ziarno jest szumem poniżej progu
+     * rozdzielczości oka, a liczba pikseli rośnie z kwadratem. Na ekranie
+     * gęstym drobina jest po tej zmianie wielkości dwóch pikseli fizycznych
+     * zamiast jednego — czyli odrobinę grubsza. To jest widoczna różnica
+     * i trzeba ją obejrzeć, nie tylko zmierzyć.
+     *
+     * PRZESIEWU RZADZIEJ NIŻ CO KLATKĘ TU NIE MA — i to też jest wynik pomiaru,
+     * a nie przeoczenie. Przez chwilę stała tu druga liczba, 24 klatki na
+     * sekundę, uzasadniona najgorszą klatką 33 ms wobec 17 ms. Mutacja
+     * zdejmująca to ograniczenie NIE ZAPALIŁA ŻADNEGO SPRAWDZENIA: te 33 ms
+     * było rozrzutem pomiaru, nie skutkiem. Kod, którego działania nie da się
+     * pokazać, to optymalizacja bez pomiaru — więc poszedł. */
+    var SUFIT_DPR = 1;
+
     /** Redukcja ruchu — wspólna polityka wtyczki, patrz includes/anim/motion.php. */
     function ograniczonyRuch() {
         if (window.evkMotion && typeof window.evkMotion.reduced === 'function') {
@@ -77,12 +119,17 @@
         gl.shaderSource(sh, zrodlo);
         gl.compileShader(sh);
         if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-            console.warn('[EVK Ziarno] shader się nie skompilował: ' + gl.getShaderInfoLog(sh));
+            console.warn('[EVK Grain] shader się nie skompilował: ' + gl.getShaderInfoLog(sh));
             return null;
         }
         return sh;
     }
 
+    /* NAZWA KONSTRUKTORA ZOSTAJE POLSKA, choć element nazywa się w builderze
+       „Grain". Cały kod tej wtyczki mówi po polsku — `rysujRaz`, `przesiew`,
+       `intensywnosc`, `zmierz` — więc jeden angielski identyfikator byłby tu
+       wyjątkiem, a nie porządkiem. Po angielsku jest to, co widzi użytkownik:
+       etykieta w builderze i przedrostek w konsoli. */
     function Ziarno(root) {
         this.root = root;
         this.intensywnosc = parseFloat(root.getAttribute('data-intensywnosc'));
@@ -109,11 +156,11 @@
             /* Bez WebGL-a nie ma czym rysować. Element ma wtedy PO PROSTU NIE
                BYĆ — jest dekoracją, więc jego brak niczego nie psuje, a pusta
                kanwa nad całą stroną potrafiłaby przykryć treść. */
-            console.warn('[EVK Ziarno] brak kontekstu WebGL — element się nie uruchamia');
+            console.warn('[EVK Grain] brak kontekstu WebGL — element się nie uruchamia');
             return;
         }
         if (bezAkceleracji(this.gl)) {
-            console.warn('[EVK Ziarno] rasteryzacja programowa — element się nie uruchamia');
+            console.warn('[EVK Grain] rasteryzacja programowa — element się nie uruchamia');
             this.gl = null;
             return;
         }
@@ -172,7 +219,7 @@
         gl.attachShader(pr, fs);
         gl.linkProgram(pr);
         if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) {
-            console.warn('[EVK Ziarno] program się nie zlinkował: ' + gl.getProgramInfoLog(pr));
+            console.warn('[EVK Grain] program się nie zlinkował: ' + gl.getProgramInfoLog(pr));
             return false;
         }
         gl.useProgram(pr);
@@ -197,9 +244,9 @@
 
     Ziarno.prototype.przelicz = function () {
         if (!this.gl) return;
-        /* DPR OGRANICZONY DO DWÓCH. Powyżej dwójki ziarno i tak jest poniżej
-           progu rozdzielczości oka, a liczba pikseli rośnie z kwadratem. */
-        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        /* Sufit gęstości pikseli — SUFIT_DPR wyżej, razem z pomiarem, który
+           go ustawił. Tu tylko go stosujemy. */
+        var dpr = Math.min(window.devicePixelRatio || 1, SUFIT_DPR);
         var sz = Math.round(window.innerWidth * dpr);
         var wy = Math.round(window.innerHeight * dpr);
         if (this.kanwa.width === sz && this.kanwa.height === wy) return;
@@ -264,7 +311,7 @@
         this.stoi = true;
         this.stop();
         this.rysujRaz();
-        console.warn('[EVK Ziarno] ' + Math.round(mediana)
+        console.warn('[EVK Grain] ' + Math.round(mediana)
             + ' ms na klatkę — przechodzę na nieruchome ziarno');
     };
 

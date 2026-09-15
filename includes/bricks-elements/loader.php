@@ -70,7 +70,7 @@ function evk_elements_registry(): array {
             'style' => ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.css', '1.5.0'],
         ],
         'grain' => [
-            'label' => 'Ziarno',
+            'label' => 'Grain',
             'desc'  => 'Ziarno filmowe z shadera na całe okno, przewijane z treścią.',
             'icon'  => 'dashicons-art',
             'class' => 'Evk_Grain_Element',

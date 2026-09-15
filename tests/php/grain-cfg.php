@@ -3,7 +3,7 @@
 // na żywe strony — bez tej bramki byłyby osiągalne przez HTTP.
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 /**
- * Element „Ziarno" — kontrolki i to, co render() wypisuje na korzeniu.
+ * Element „Grain" — kontrolki i to, co render() wypisuje na korzeniu.
  *
  * Ustawienia jadą do skryptu ATRYBUTAMI DANYCH, nie wplecione w kod modułu.
  * Pomyłka w nazwie atrybutu daje więc pole, które zapisuje się w builderze

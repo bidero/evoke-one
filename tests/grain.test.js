@@ -1,5 +1,5 @@
 /**
- * Element „Ziarno" — ziarno filmowe z shadera na całe okno.
+ * Element „Grain" — ziarno filmowe z shadera na całe okno.
  *
  * Powstał ze zgłoszenia przy elemencie fali: „dodatkowy element Bricks tylko
  * z ziarnem. Dodany na stronę wyświetla ziarno z shaderem na całym oknie

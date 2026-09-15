@@ -27,6 +27,31 @@ const { phpOutput } = require('./lib/harness');
 module.exports = async function (t) {
   const php = JSON.parse(phpOutput('drobiazgi.php'));
 
+  // ── Etykiety elementów ────────────────────────────────────────────────
+  /* Nazwa elementu stoi w DWÓCH miejscach: rejestrze w loaderze (panel wtyczki)
+     i `get_label()` (builder Bricksa). Loader mówi „zmieniając jedną, zmień
+     drugą" — i do 1.202.0 pilnował tego wyłącznie komentarz.
+
+     Rozjazdu nie widać z żadnego pojedynczego ekranu: panel pokazuje jedną
+     nazwę, builder drugą, obie wyglądają normalnie. Wyszło przy zmianie
+     „Ziarno" na „Grain", gdzie trzeba było poprawić dwa pliki. */
+  t.section('nazwa elementu zgadza się w rejestrze i w builderze');
+
+  const et = JSON.parse(phpOutput('etykiety.php'));
+
+  /* POKRYCIE NAJPIERW. Pierwsza wersja tej sondy porównywała nazwy klas razem
+     z przestrzenią i po cichu pomijała trzy elementy deklarowane wewnątrz
+     `namespace Bricks` — pilnowała siedmiu z dziesięciu i świeciła na zielono. */
+  t.check('rejestr i katalog mówią o dziesięciu elementach',
+    et.wRejestrze === 10 && et.zElementow === 10,
+    et.wRejestrze + ' w rejestrze, ' + et.zElementow + ' plików');
+  t.check('każdy wpis rejestru trafia w istniejącą klasę', et.dopasowanych === 10,
+    et.dopasowanych + ' dopasowanych');
+
+  t.check('żadna nazwa się nie rozjeżdża', et.rozjazdy.length === 0,
+    et.rozjazdy.join(', ') || et.etykiety.join(', '));
+
+
   // ── Numer wersji ──────────────────────────────────────────────────────
   t.section('numer wersji w trzech miejscach');
 

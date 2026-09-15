@@ -26,7 +26,7 @@ module.exports = async function (t) {
   /* LICZBA JEST WPISANA RĘCZNIE I TAK MA ZOSTAĆ. To nie jest uciążliwość, tylko
      sens tego sprawdzenia: nowy element ma ZATRZYMAĆ przebieg, żeby ktoś
      potwierdził, że strażnik go obejmuje. Ostatnio zatrzymał się na elemencie
-     „Ziarno" (1.198.0) — dziesiątym. */
+     „Grain" (1.198.0, wtedy jeszcze „Ziarno") — dziesiątym. */
   t.check('weszło dziesięć plików elementów', d.plikow === 10, d.plikow + ' plików');
   t.check('żaden nie odpadł po drodze', d.niezaladowane.length === 0,
     d.niezaladowane.join(', ') || 'brak');
