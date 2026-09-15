@@ -2,6 +2,50 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.195.0] — 2026-09-15
+
+### Naprawione
+
+- **Otwarcie menu po zamknięciu na panelu podrzędnym wyglądało jak odsłanianie,
+  choć ustawione było wysuwanie.** ZGŁOSZONE Z UŻYCIA: „jeśli jestem na drugiej
+  stronie i zamknę menu przez kliknięcie w wolne pole, ponowne otwarcie pokazuje
+  tekst w miejscu, a nie wyjeżdżający razem z panelem. Jeśli zamknę na pierwszej
+  stronie, kolejne otwarcie jest ok".
+
+  `finishClose()` zdejmuje tylko klasę `is-open` — **kadr zostaje szeroki na dwie
+  kolumny** (zmierzone: 840 px w spoczynku). `open()` przywracał szerokość
+  PRZEJŚCIEM, w tej samej chwili, w której kadr zaczynał wjeżdżać. Kadr trzyma
+  się prawej krawędzi, więc zwężając się z 840 do 420 przesuwał swój lewy brzeg
+  w prawo — a panel ma sztywne `flex-basis` i siedzi przy tym brzegu, więc jechał
+  razem z nim, przeciwnie do wjazdu.
+
+  Geometria wraca teraz do stanu spoczynku **natychmiast, bez przejścia**
+  (wyłączenie przejść, wymuszenie przeliczenia układu, przywrócenie), zanim
+  wejdzie klasa `is-open`. Zerowanie w `finishClose()` by nie wystarczyło: menu
+  wolno otworzyć W TRAKCIE wyjazdu, a wtedy żaden zegar odłożony na koniec
+  zamykania by nie zdążył.
+  (`includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.js`)
+
+### Dodane
+
+- **Sprawdzenie mierzące KSZTAŁT ścieżki panelu, nie jej końce.** Zmierzone przy
+  oknie 1200 px i wjeździe 0,4 s (lewa krawędź panelu startowego):
+
+      zamknięcie na panelu głównym  │ 1200 → 1189 → 863 → 780
+      zamknięcie na podmenu, źle    │ 1200 → 1179 → 720 → 780
+      zamknięcie na podmenu, dobrze │ 1200 → 1189 → 882 → 780
+
+  **Punkt początkowy i końcowy były poprawne w OBU drogach** — usterka siedzi
+  wyłącznie w środku: droga zepsuta przestrzeliwuje o 60 px i wraca. Sprawdzenie
+  śledzi więc 45 klatek i pilnuje, żeby ścieżka nie zeszła poniżej pozycji
+  końcowej. Mutacja zapala **tylko** to sprawdzenie; kontrola odniesienia
+  (zwykłe otwarcie) zostaje zielona.
+
+  Doszedł też strażnik samego pomiaru: fixture domyślnie ma `--evk-oc-time: 0s`,
+  więc bez jawnych czasów przejść menu otwiera się natychmiast, ścieżka ma jeden
+  punkt i **każdy próg tutaj przechodzi, nie mierząc niczego**. Na to nadziała
+  się pierwsza sonda.
+
 ## [1.194.0] — 2026-09-15
 
 ### Naprawione
