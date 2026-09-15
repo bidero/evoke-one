@@ -585,33 +585,55 @@ module.exports = async function (t) {
   t.section('ziarno wychodzi poza falę, gdy się je o to poprosi');
 
   /**
-   * SZORSTKOŚĆ kadru: średnia różnica między sąsiadującymi pikselami.
+   * SZORSTKOŚĆ TAM, GDZIE FALI NIE MA.
    *
-   * PIERWSZA WERSJA MIERZYŁA ROZRZUT W NAROŻNIKACH i była oparta na złym
-   * założeniu — że fala tam nie sięga. Sięga: przy `heightMultiplier: 2`
-   * wypełnia kadr w pionie, a rozrzut w narożniku wychodził 40 przy ZEROWYM
-   * rozlaniu, czyli miara mówiła o gradiencie fali, nie o ziarnie.
+   * Dwie wcześniejsze wersje tego pomiaru były nietrafione i obie warto
+   * pamiętać, bo pokazują, jak łatwo zmierzyć nie to, co się chciało:
    *
-   * Sąsiedztwo rozdziela jedno od drugiego bez zgadywania, gdzie fala jest:
-   * gradient zmienia się GŁADKO, więc różnica między sąsiadami jest bliska
-   * zeru niezależnie od tego, jak bardzo barwy różnią się przez cały kadr.
-   * Ziarno jest z definicji wysokoczęstotliwościowe i tę różnicę podnosi.
+   *   1. Rozrzut barw w narożnikach — przy założeniu, że fala tam nie sięga.
+   *      Sięga: `heightMultiplier: 2` wypełnia kadr w pionie, więc miara
+   *      opisywała GRADIENT FALI, nie ziarno (rozrzut 40 przy zerowym rozlaniu).
+   *   2. Szorstkość całego kadru. Poprawna, ale ROZCIEŃCZONA: przy zerowym
+   *      rozlaniu ziarno jest już widać wszędzie tam, gdzie fala jest
+   *      nieprzezroczysta, a to większość kadru. Rozlanie zmienia wtedy samo
+   *      obrzeże i różnica wychodzi 5,96 → 6,70 przy szumie pomiaru 0,16.
+   *      Efekt prawdziwy, margines za ciasny, żeby na nim polegać.
    *
-   * Dlatego mierzymy CAŁY kadr, a nie wybrany kawałek: przy zerowym rozlaniu
-   * ziarno jest tylko tam, gdzie fala jest nieprzezroczysta, przy pełnym —
-   * wszędzie. Średnia po całości musi więc urosnąć.
+   * Ta wersja pyta wprost o obszar, o który chodzi. Obszar wyznaczamy
+   * POMIAREM, a nie założeniem: osobny zrzut z WYŁĄCZONYM szumem pokazuje,
+   * gdzie kadr jest gołym tłem strony — a tam właśnie fala jest przezroczysta.
+   * W tym obszarze zerowe rozlanie ma dawać szorstkość bliską zeru (ziarno
+   * jest policzone, ale mnoży się przez zerową alphę), a pełne — wyraźną.
    */
-  const szorstkosc = (buf) => {
+  const TLO_STRONY = 17;   // #111 z arkusza fixture'u
+
+  const maskaPozaFala = (buf) => {
+    const { szer, wys, kanaly, dane } = pikseleZPng(buf);
+    const m = new Uint8Array(szer * wys);
+    let ile = 0;
+    for (let i = 0; i < szer * wys; i++) {
+      const p = i * kanaly;
+      const goly = Math.abs(dane[p] - TLO_STRONY) <= 2
+        && Math.abs(dane[p + 1] - TLO_STRONY) <= 2
+        && Math.abs(dane[p + 2] - TLO_STRONY) <= 2;
+      if (goly) { m[i] = 1; ile++; }
+    }
+    return { m, szer, wys, ile };
+  };
+
+  const szorstkoscW = (buf, maska) => {
     const { szer, wys, kanaly, dane } = pikseleZPng(buf);
     let suma = 0, prob = 0;
-    for (let y = 0; y < wys; y += 2) {
-      const w = y * szer * kanaly;
+    for (let y = 0; y < wys; y++) {
       for (let x = 0; x < szer - 1; x++) {
-        suma += Math.abs(dane[w + x * kanaly] - dane[w + (x + 1) * kanaly]);
+        const i = y * szer + x;
+        if (!maska.m[i] || !maska.m[i + 1]) continue;   // oba sąsiady poza falą
+        const p = i * kanaly;
+        suma += Math.abs(dane[p] - dane[p + kanaly]);
         prob++;
       }
     }
-    return prob ? Math.round((suma / prob) * 100) / 100 : null;
+    return { szorstkosc: prob ? Math.round((suma / prob) * 100) / 100 : null, prob };
   };
 
   /* DRABINA JAKOŚCI MUSI BYĆ WYŁĄCZONA i to nie jest ułatwianie sobie pomiaru,
@@ -623,46 +645,46 @@ module.exports = async function (t) {
 
      a ziarno siedzi w przebiegu post-process, czyli właśnie w composerze.
      Chromium w testach rasteryzuje programowo, więc drabina schodzi tu o trzy
-     szczeble w kilka sekund — i pierwsza wersja tego pomiaru mierzyła scenę
-     BEZ ZIARNA w każdym z trzech wariantów, pokazując zgodnie 0,2 szorstkości.
+     szczeble w kilka sekund — i wcześniejsza wersja pomiaru mierzyła scenę
+     BEZ ZIARNA w każdym wariancie, pokazując zgodnie 0,2 szorstkości.
      Wyglądało to jak „rozlanie nie działa", a znaczyło „nie ma czego rozlewać".
 
      To zresztą ta sama drabina, która na słabej maszynie zdejmuje dziś ziarno
      razem ze zniekształceniem — patrz `obnizJakosc()`. */
-  const zrzutZiarna = (spread) => bezGpu(
-    Object.assign({ noise_enabled: true, auto_jakosc: 'nie' },
-      spread === null ? {} : { noise_spread: spread }),
+  const zrzutZiarna = (ust) => bezGpu(
+    Object.assign({ auto_jakosc: 'nie' }, ust),
     { ukryjSterownik: true, ustalKadr: true, zrzut: true });
 
-  /* Trzy przebiegi. `null` to STARY KSZTAŁT USTAWIEŃ — bez klucza `noise_spread`
-     w ogóle, czyli dokładnie to, co siedzi dziś w bazach żywych stron. */
-  const zBrak  = await zrzutZiarna(null);
-  const zZero  = await zrzutZiarna(0);
-  const zJeden = await zrzutZiarna(1);
+  const zBezSzumu = await zrzutZiarna({ noise_enabled: false });
+  const zZero     = await zrzutZiarna({ noise_enabled: true, noise_spread: 0 });
+  const zJeden    = await zrzutZiarna({ noise_enabled: true, noise_spread: 1 });
 
-  const sBrak  = szorstkosc(zBrak.zrzut);
-  const sZero  = szorstkosc(zZero.zrzut);
-  const sJeden = szorstkosc(zJeden.zrzut);
+  const poza  = maskaPozaFala(zBezSzumu.zrzut);
+  const wZero = szorstkoscW(zZero.zrzut, poza);
+  const wJede = szorstkoscW(zJeden.zrzut, poza);
 
-  /* ZGODNOŚĆ WSTECZNA I NAJWAŻNIEJSZE SPRAWDZENIE TEJ ZMIANY. Brak ustawienia
-     ma znaczyć dokładnie to samo co zero — inaczej aktualizacja zmieniłaby
-     wygląd wszystkim, którzy o nic nie prosili. Porównujemy statystykę, a nie
-     piksele: `uNoiseSeed` losuje się co klatkę, więc dwa zrzuty tego samego
-     ustawienia NIGDY nie są identyczne bajt w bajt. */
-  t.check('brak ustawienia znaczy to samo co zero', Math.abs(sBrak - sZero) < 1.0,
-    'szorstkość ' + sBrak + ' vs ' + sZero);
-  /* KONTROLA NEGATYWNA powyższego: gdyby rozlanie nie działało wcale, wszystkie
-     trzy liczby byłyby takie same i sprawdzenie wyżej też by przeszło. */
-  t.check('a rozlanie dosypuje ziarna poza falę', sJeden > sZero + 1.0,
-    'szorstkość ' + sZero + ' → ' + sJeden);
-  /* Ziarno, nie placki. Barwa NIEprzemnożona przez alphę rozjaśniłaby drobiny
-     kilkunastokrotnie — i to jest ten błąd, przed którym broni mnożenie
-     w shaderze, bo renderer stoi na domyślnym premultiplied alpha. */
-  t.check('i nie zamienia kadru w śnieg', sJeden < sZero + 40,
-    'szorstkość ' + sJeden);
+  /* STRAŻNIK POMIARU. Pusty obszar znaczy, że fala kryje cały kadr — a wtedy
+     obie liczby niżej byłyby `null` i sekcja przechodziłaby, nie mierząc
+     niczego. Dokładnie ten rodzaj cichej pustki, przez który pierwsza wersja
+     tego pomiaru wyglądała na sensowną. */
+  t.check('jest gdzie mierzyć — fala nie kryje całego kadru',
+    poza.ile > 5000 && wZero.prob > 5000,
+    poza.ile + ' pikseli poza falą, ' + wZero.prob + ' par do pomiaru');
+
+  /* ZGODNOŚĆ WSTECZNA: przy zerze ziarno nadal kończy się na fali. Bez tego
+     „rozlanie działa" przechodziłoby także dla zmiany, która rozlewa ziarno
+     ZAWSZE — czyli u wszystkich, którzy o nic nie prosili. */
+  t.check('przy zerze poza falą jest gładko', wZero.szorstkosc < 1.5,
+    'szorstkość ' + wZero.szorstkosc);
+  t.check('a przy jedynce ziarno tam jest', wJede.szorstkosc > 3,
+    'szorstkość ' + wZero.szorstkosc + ' → ' + wJede.szorstkosc);
+  /* Ziarno, nie śnieg. Barwa NIEprzemnożona przez alphę rozjaśniłaby drobiny
+     kilkunastokrotnie — renderer stoi na domyślnym premultiplied alpha. */
+  t.check('i nie zamienia kadru w śnieg', wJede.szorstkosc < 60,
+    'szorstkość ' + wJede.szorstkosc);
   t.check('fala rusza w każdym z trzech przypadków',
-    zBrak.plotno === true && zZero.plotno === true && zJeden.plotno === true,
-    'płótna: ' + zBrak.plotno + ' / ' + zZero.plotno + ' / ' + zJeden.plotno);
+    zBezSzumu.plotno === true && zZero.plotno === true && zJeden.plotno === true,
+    'płótna: ' + zBezSzumu.plotno + ' / ' + zZero.plotno + ' / ' + zJeden.plotno);
 
   // ── Drabina jakości w prawdziwej przeglądarce ──────────────────────────
   t.section('drabina jakości schodzi sama i zatrzymuje się pod progiem');
