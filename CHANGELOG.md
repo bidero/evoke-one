@@ -2,6 +2,58 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.192.0] — 2026-09-15
+
+### Zmienione
+
+- **Pokrycie „Ziarna poza falą" z 1.191.0 — wraz z opisem trzech nietrafionych
+  pomiarów, bo każdy z nich wyglądał na sensowny.** Wszystkie trzy wzięły się
+  z tego samego: z zakładania zamiast mierzenia.
+
+  1. **Rozrzut barw w narożnikach**, przy założeniu, że fala tam nie sięga.
+     Sięga — `heightMultiplier: 2` wypełnia kadr w pionie — więc miara opisywała
+     GRADIENT FALI, nie ziarno (rozrzut 40 przy zerowym rozlaniu).
+  2. **Szorstkość całego kadru** (średnia różnica między sąsiadującymi
+     pikselami). Poprawna, ale rozcieńczona: przy zerowym rozlaniu ziarno widać
+     już wszędzie tam, gdzie fala jest nieprzezroczysta, a to większość kadru.
+     Rozlanie zmienia wtedy samo obrzeże — 5,96 → 6,70 przy szumie pomiaru 0,16.
+     Efekt prawdziwy, margines za ciasny, żeby na nim polegać.
+  3. **Szorstkość w obszarze poza falą, porównywana z zerem bezwzględnym.**
+     Obszar wyznaczany już pomiarem (osobny zrzut z wyłączonym szumem pokazuje,
+     gdzie kadr jest gołym tłem strony), ale próg „ma być gładko" opisywał stan,
+     którego nigdy nie było — patrz znalezisko niżej.
+
+  Ostateczny pomiar porównuje **dwa ustawienia między sobą**, w obszarze
+  wyznaczonym pomiarem. Zmierzone na 364 tys. par pikseli:
+
+      brak klucza noise_spread (stan z baz żywych stron) │ 3,47
+      jawne zero                                         │ 4,02
+      rozlanie pełne                                     │ 6,63
+
+  Pierwsze dwa mieszczą się w szumie — aktualizacja nie rusza wyglądu nikomu,
+  kto o nic nie prosił. Trzecie jest o 65% wyżej. Mutacja (odcięcie
+  `uNoiseSpread` od shadera przy nietkniętej kontrolce, konfiguracji
+  i uniformie) daje 3,34 → 3,35, czyli zapala to sprawdzenie i tylko je.
+
+  Do tego strażnik na sam pomiar: pusty obszar poza falą zapala sprawdzenie
+  zamiast po cichu przejść na `null`.
+
+### Znalezione przy okazji — do rozważenia osobno
+
+- **Shader siatki wpisuje barwę NIEprzemnożoną przez alphę, a renderer stoi na
+  domyślnym `premultipliedAlpha`.** `gl_FragColor = vec4(color, alpha)`
+  w miejscu, gdzie bufor oczekuje wartości już przemnożonej.
+
+  Skutek widoczny w pomiarze: przy alfie bliskiej zeru dodane
+  `color.rgb += g` trafia do bufora wprost, jako gotowy wkład — więc **jasna
+  połowa ziarna prześwituje poza falą, a ciemna obcina się na zerze**. Ziarno
+  było tam zawsze: jednostronne, samo rozjaśniające i niesterowalne. Nowe
+  rozlanie robi z niego ziarno symetryczne i podpięte pod suwak.
+
+  **Nie ruszam tego teraz.** Poprawka zmieniałaby wygląd na każdej stronie
+  z falą i weszłaby w tym samym wydaniu co nowa funkcja — nie dałoby się
+  rozróżnić, co za co odpowiada. To osobna decyzja, nie skutek uboczny.
+
 ## [1.191.0] — 2026-09-15
 
 ### Dodane
