@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.187.0] — 2026-09-15
+
+### Dodane
+
+- **Narzędzie do rozstrzygnięcia, czy ziarno Wave BG ma iść przez CSS.**
+  W `docs/ekrany-sekcji-szkic.md` leżało to odłożone z warunkiem „tylko po
+  pomiarze; `feTurbulence` potrafi kosztować więcej niż oszczędzany kadr".
+  Pomiaru nie da się zrobić tutaj: pytanie brzmi „czy na TAMTYM komputerze jest
+  lepiej", a odpowiedź zależy od GPU, sterownika i przeglądarki, których na
+  maszynie budującej nie ma.
+
+  `tests/fixtures/wave-ziarno.html` — otwierane przez człowieka, bez konsoli
+  i bez PHP-a. Pięć wariantów pod przełącznikiem (dzisiejszy shader, bez ziarna,
+  CSS nieruchome, CSS migoczące, SVG `feTurbulence`), pomiar mediany klatki
+  z wynikami na ekranie i przyciskiem kopiującym je razem z nazwą sterownika.
+  Plik jedzie na stronę razem z resztą `tests/`, więc na starym komputerze
+  otwiera się wprost spod adresu wtyczki.
+
+  **Przy pisaniu wyszła rzecz, która zmienia samo pytanie.** Dzisiejsze ziarno
+  siedzi w przebiegu post-process, a drabina jakości schodzi z tego przebiegu
+  na poziomie 1 — razem ze zniekształceniem i reakcją na mysz. Na maszynie,
+  która nie mieści się w budżecie klatki, **ziarna już dziś nie ma**. Jeśli
+  pomiar pokaże poziom ≥ 1, pytanie „czy CSS jest szybszy" jest nie to; właściwe
+  brzmi „czy chcemy mieć ziarno na takim sprzęcie w ogóle" — a wtedy CSS jest
+  jedyną drogą, bo nie przechodzi przez shader wcale. Narzędzie wypisuje to
+  wprost i nie pozwala nazwać różnicy „kosztem ziarna", gdy ziarno nie poszło.
+
+  Znacznik elementu bierze się z prawdziwego `render()`
+  (`tools/wave-ziarno-element.js` → `tests/fixtures/wave-ziarno-element.html`),
+  a nie z odtworzenia w znaczniku narzędzia — odtworzenie mierzyłoby nasze
+  wyobrażenie o elemencie.
+
+  Narzędzie **nie wchodzi do `tests/run.js`**: mierzy przeglądarkę i sprzęt,
+  nie nasz kod, więc próg „ma być poniżej X" byłby tu zmyśleniem. Od pilnowania
+  naszego kodu jest `tests/wave-bg.test.js`.
+
 ## [1.186.0] — 2026-09-15
 
 ### Naprawione
