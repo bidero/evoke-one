@@ -685,7 +685,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		$panel_height  = isset( $settings['panel_height'] ) && $settings['panel_height'] !== '' ? $settings['panel_height'] : '100vh';
 		$scrub         = isset( $settings['scrub'] ) && $settings['scrub'] !== '' ? (float) $settings['scrub'] : 1;
 		$start_offset  = ! empty( $settings['start_offset'] ) ? $settings['start_offset'] : 'top top';
-		$snap          = ! isset( $settings['snap'] ) ? true : ! empty( $settings['snap'] );
+		$snap          = evk_flaga( $settings, 'snap', true );
 		$snap_duration = isset( $settings['snap_duration'] ) && $settings['snap_duration'] !== '' ? (float) $settings['snap_duration'] : 0.5;
 		$disable_below = isset( $settings['disable_below'] ) && $settings['disable_below'] !== '' ? (int) $settings['disable_below'] : 991;
 		$progressbar   = ! empty( $settings['progressbar'] );

@@ -30,6 +30,10 @@ if (!class_exists('Bricks\\Element')) {
         /* Wpis, w którego kontekście Bricks rysuje element — element podaje go
            dalej do danych dynamicznych. */
         public $post_id    = 0;
+        /* Identyfikator wystąpienia elementu. Prawdziwy Bricks go deklaruje
+           i fala go czyta (element.php:697); bez tego atrapa sypie ostrzeżeniem
+           o nieznanej właściwości przy każdym render(). */
+        public $id         = '';
 
         public function set_attribute($key, $attr, $value = null) {
             if (is_array($value)) $value = implode(' ', $value);

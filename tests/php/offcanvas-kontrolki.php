@@ -33,6 +33,12 @@ define('EVK_BRICKS_CATEGORY',        'evoke');
 function evk_anim_easings() { return ['power2.out']; }
 function evk_anim_easing_css($e) { return 'cubic-bezier(0.33, 1, 0.68, 1)'; }
 
+/* Na produkcji dociąga to loader.php — element.php nigdy nie trafia do PHP-a
+
+   inaczej niż przez niego. Że loader NAPRAWDĘ to robi, pilnuje tests/php/flaga.php. */
+
+require EVK_TEST_ROOT . '/includes/bricks-elements/flaga.php';
+
 require EVK_TEST_ROOT . '/includes/bricks-elements/evoke-offcanvas-menu/element.php';
 require EVK_TEST_ROOT . '/includes/bricks-elements/evoke-circular-menu/element.php';
 

@@ -2,6 +2,86 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.203.0] — 2026-09-15
+
+### Naprawione
+
+- **Osiem pól zaznaczenia deklarowało domyślną WŁĄCZONĄ, a renderowało się
+  jako wyłączone.** Bricks przy nietkniętym elemencie nie ma klucza
+  w ustawieniach; `! empty( $s['klucz'] )` daje wtedy `false`, więc
+  `'default' => true` nie obowiązuje. Z panelu buildera wygląda to normalnie —
+  pole jest zaznaczone.
+
+  | Element | Kontrolka | Co było wyłączone mimo zaznaczenia |
+  |---|---|---|
+  | Wave Background | `noise_enabled` | ziarno |
+  | Wave Background | `mask_enabled` | dolna maska |
+  | Offcanvas Menu | `escGoesBack` | Esc cofa o poziom |
+  | Offcanvas Menu | `closeOnLinkClick` | zamknij po kliknięciu w odnośnik |
+  | Offcanvas Menu | `lockScroll` | blokada przewijania strony |
+  | Offcanvas Menu | `toBody` | przeniesienie do `<body>` |
+  | Circular Menu | `portalToBody` | portal do `<body>` |
+  | Circular Menu | `closeOnEsc` | zamknięcie klawiszem Esc |
+
+  **Dotyczy wyłącznie elementów NIETKNIĘTYCH w tej kontrolce.** Kto raz
+  kliknął pole (w jedną i drugą stronę), ma klucz zapisany i działało u niego
+  poprawnie — stąd usterka przeżyła tak długo.
+
+  Wszystkie osiem czyta teraz przez `evk_flaga()` z 1.199.0. Przy okazji
+  `snap` w Horizontal Scroll i `pause_offscreen` w Marquee przechodzą na tę
+  samą funkcję — te dwa działały poprawnie, znika tylko druga i trzecia kopia
+  wzorca.
+
+### Dodane strażniki
+
+- **Reguła ogólna zamiast ośmiu sprawdzeń z nazwy.** Szukałem sześciu
+  przypadków wypisanych ręcznie z kodu. Reguła znalazła osiem — dwa w Wave
+  Background, w miejscu, w które w ogóle nie zaglądałem.
+
+  ```
+  kontrolka z 'type' => 'checkbox' i 'default' => true
+  → render() z PUSTYMI ustawieniami musi dać DOKŁADNIE TO SAMO,
+    co render() z tą jedną kontrolką ustawioną na true
+  ```
+
+  Sprawdzenie nie zna żadnego elementu z nazwy i nie musi wiedzieć, w jaki
+  atrybut dana kontrolka pisze — a właśnie ta wiedza robi ze strażników rzecz
+  pisaną osobno dla każdego elementu i zapominaną przy nowych. Sonda
+  `tests/php/domyslne-wlaczone.php`, sekcja w `controls.test.js`, szesnaście
+  kontrolek w dziesięciu elementach.
+
+  Element o niepowtarzalnym wyjściu `render()` (losowy identyfikator, znacznik
+  czasu) wypada z tej reguły — sonda mówi o tym wprost zamiast go cicho
+  przepuszczać, a sprawdzenie pokrycia na to patrzy.
+
+### Sprawdzenie, które opisywało usterkę
+
+- **`wave-bg.test.js` mierzył maskę górną „samą" — a sama była wyłącznie
+  dzięki tej usterce.** Scenariusz podawał `mask_top_enabled: true` i nie
+  mówił nic o dolnej, licząc na to, że dolnej nie ma. Po naprawie odczytu
+  dolna jest (bo taka jest jej domyślna), rampa ma czternaście przystanków
+  zamiast siedmiu i pięć sprawdzeń o krzywej S przestaje mieć sens.
+
+  Poprawiony jest SCENARIUSZ, nie kod: `mask_enabled: false` stoi teraz
+  jawnie, razem z wyjaśnieniem, dlaczego tam jest.
+
+  **Wyszło to dopiero w pełnym przebiegu przed pushem** — czyli w tym, którego
+  regułę dopisałem wydanie wcześniej, po pytaniu „czy sprawdzasz wszystko
+  testami z katalogu tests". Wąski przebieg po `controls` i `offcanvas` świecił
+  na zielono.
+
+### Zmniejszony plik bazowy PHPStana
+
+- **61 wpisów zamiast 62.** Atrapa Bricksa dostała `public $id`, którą prawdziwy
+  Bricks deklaruje, a fala czyta (`element.php:697`) — wpis o nieznanej
+  właściwości przestał być potrzebny. Przy okazji znikają ostrzeżenia PHP-a
+  z każdej sondy renderującej falę.
+
+### Poprawione w `CLAUDE.md`
+
+- Cztery polecenia partii pełnego przebiegu skleiły się przy zapisie w jedną
+  linię z ciągiem spacji. Działały, ale nie dawały się czytać.
+
 ## [1.202.1] — 2026-09-15
 
 ### Zmienione

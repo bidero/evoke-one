@@ -23,6 +23,9 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 require __DIR__ . '/_wp-stubs.php';
 require EVK_TEST_ROOT . '/includes/anim/presets.php';
 require __DIR__ . '/_bricks-stubs.php';
+/* Na produkcji dociąga to loader.php — element.php nigdy nie trafia do PHP-a
+   inaczej niż przez niego. Że loader NAPRAWDĘ to robi, pilnuje tests/php/flaga.php. */
+require EVK_TEST_ROOT . '/includes/bricks-elements/flaga.php';
 
 define('EVK_BRICKS_CATEGORY', 'evoke-one');
 

@@ -969,7 +969,16 @@ module.exports = async function (t) {
   const alfy = (maska) => (maska.match(/rgba\(0,0,0,([\d.]+)\)/g) || [])
     .map((x) => parseFloat(x.replace(/rgba\(0,0,0,|\)/g, '')));
 
-  const gora = run({ mask_top_enabled: true, mask_top_end: 10 }).maska;
+  /* `mask_enabled: false` STOI TU JAWNIE i jest konieczne. Do 1.203.0 ten
+     scenariusz go nie podawał i mierzył maskę górną „samą" — ale sama była
+     wyłącznie dlatego, że dolna GUBIŁA swoją domyślną (`! empty()` przy
+     `'default' => true`, patrz CHANGELOG 1.203.0). Po naprawie odczytu obie
+     maski wychodzą naraz, rampa ma czternaście przystanków zamiast siedmiu
+     i sprawdzenia o krzywej S przestają mieć sens.
+
+     Czyli test opisywał stan, który istniał tylko dzięki usterce. Wyszło to
+     dopiero w pełnym przebiegu przed pushem. */
+  const gora = run({ mask_enabled: false, mask_top_enabled: true, mask_top_end: 10 }).maska;
   const a = alfy(gora);
 
   t.check('rampa ma więcej niż dwa przystanki', a.length >= 5, a.length + ' przystanków');

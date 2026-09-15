@@ -283,12 +283,6 @@ parameters:
 			path: includes/bricks-elements/evoke-scroll-reading/element.php
 
 		-
-			message: '#^Access to an undefined property Evk_Wave_Bg_Element\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: includes/bricks-elements/evoke-wave-bg/element.php
-
-		-
 			message: '#^Ternary operator condition is always true\.$#'
 			identifier: ternary.alwaysTrue
 			count: 1

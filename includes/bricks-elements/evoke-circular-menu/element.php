@@ -450,7 +450,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$settings = $this->settings;
 
 		$openbuilder       = ! empty( $settings['openbuilder'] )       ? $settings['openbuilder']       : 0;
-		$portalToBody      = ! empty( $settings['portalToBody'] )      ? '1' : '0';
+		$portalToBody      = evk_flaga( $settings, 'portalToBody', true ) ? '1' : '0';
 		$duration          = ! empty( $settings['duration'] )          ? $settings['duration']          : '0.4';
 		$easing            = ! empty( $settings['easing'] )            ? $settings['easing']            : 'none';
 		/*
@@ -478,7 +478,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$raiseToggle       = ! empty( $settings['raiseToggle'] ) ? '1' : '0';
 		$raiseMode         = ! empty( $settings['raiseMode'] ) ? $settings['raiseMode'] : 'przelacznik';
 		$raiseSelector     = ! empty( $settings['raiseSelector'] ) ? $settings['raiseSelector'] : '';
-		$closeOnEsc        = ! empty( $settings['closeOnEsc'] )        ? '1' : '0';
+		$closeOnEsc        = evk_flaga( $settings, 'closeOnEsc', true )   ? '1' : '0';
 		$scrim             = ! empty( $settings['scrimEnabled'] )      ? '1' : '0';
 
 		$this->set_attribute( '_root', 'class',                                 'evk-cm' );

@@ -368,6 +368,37 @@ module.exports = async function (t) {
   t.check('loader.php dociąga flaga.php', f.loader_dociaga === true,
     String(f.loader_dociaga));
 
+  // ── Domyślnie WŁĄCZONE pola zaznaczenia ─────────────────────────────────
+  /* REGUŁA JEST OGÓLNA I NIE ZNA ŻADNEGO ELEMENTU Z NAZWY:
+
+       kontrolka z `'type' => 'checkbox'` i `'default' => true`
+       → render() z PUSTYMI ustawieniami musi dać DOKŁADNIE TO SAMO,
+         co render() z tą jedną kontrolką ustawioną na true.
+
+     Bo to znaczy dokładnie tyle, co „domyślna obowiązuje". Nie trzeba przy tym
+     wiedzieć, w jaki atrybut dana kontrolka pisze — a właśnie ta wiedza robi ze
+     sprawdzeń rzecz pisaną osobno dla każdego elementu i zapominaną przy nowych.
+
+     ZNALAZŁA OSIEM, SZUKANYCH BYŁO SZEŚĆ. Sześć wypisałem ręcznie z kodu
+     (offcanvas ×4, circular-menu ×2). Reguła dorzuciła `noise_enabled`
+     i `mask_enabled` w Wave BG — czyli świeżo wstawiona fala rysowała się BEZ
+     ziarna i BEZ dolnej maski, mimo obu kontrolek zaznaczonych w panelu. */
+  t.section('domyślnie włączone pole zaznaczenia naprawdę jest włączone');
+
+  const dw = JSON.parse(phpOutput('domyslne-wlaczone.php'));
+
+  /* POKRYCIE NAJPIERW — reguła bez ani jednej zbadanej kontrolki byłaby
+     spełniona przez pustkę, a element pomijany (bo render nie jest
+     powtarzalny) wypadałby z niej po cichu. */
+  t.check('weszło dziesięć elementów', dw.elementow === 10, dw.elementow + ' elementów');
+  t.check('żaden nie wypadł z badania', dw.pominiete.length === 0,
+    dw.pominiete.join(', ') || 'wszystkie zbadane');
+  t.check('a kontrolek do zbadania jest kilkanaście', dw.zbadanych >= 16,
+    dw.zbadanych + ' kontrolek');
+
+  t.check('w żadnej domyślna nie gubi się po drodze', dw.rozjazdy.length === 0,
+    dw.rozjazdy.join(', ') || 'wszystkie obowiązują');
+
   // ── Wave BG po zamianie list wyboru na przełączniki ─────────────────────
   /* SIEDZI TU, A NIE W wave-bg.test.js, ŚWIADOMIE. To są dwa odczyty czystego
      PHP-a — nie ma tu czego rysować. `wave-bg` stawia przeglądarkę i chodzi

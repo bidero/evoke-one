@@ -597,7 +597,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		$min_height     = $s['min_height']     ?? '100vh';
 		$pointer_events = $s['pointer_events'] ?? 'none';
 
-		$mask_enabled     = ! empty( $s['mask_enabled'] );
+		$mask_enabled     = evk_flaga( $s, 'mask_enabled', true );
 		$mask_start       = (int) ( $s['mask_start']     ?? 90 );
 		$mask_top_enabled = ! empty( $s['mask_top_enabled'] );
 		$mask_top_end     = (int) ( $s['mask_top_end']   ?? 10 );
@@ -657,7 +657,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		$cfg = [
 			'variation'            => $variation_key === 'custom' ? 'custom' : ( $variation_map[ $variation_key ] ?? 0 ),
 			'customBg'             => $custom_bg,
-			'noiseEnabled'         => ! empty( $s['noise_enabled'] ),
+			'noiseEnabled'         => evk_flaga( $s, 'noise_enabled', true ),
 			'noiseIntensity'       => (float) ( $s['noise_intensity'] ?? 0.08 ),
 			'noiseSpread'          => (float) ( $s['noise_spread']    ?? 0    ),
 			'colors'               => $colors,

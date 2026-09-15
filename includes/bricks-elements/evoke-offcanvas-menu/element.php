@@ -585,16 +585,16 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		 * a nie brak klucza — `! empty()` czyta to poprawnie, ale JS musi
 		 * dostać jawne „nie", inaczej nie odróżni go od „nie ustawiono".
 		 */
-		$this->set_attribute( '_root', 'data-esc-back',   ! empty( $s['escGoesBack'] )      ? '1' : '0' );
-		$this->set_attribute( '_root', 'data-close-link', ! empty( $s['closeOnLinkClick'] ) ? '1' : '0' );
-		$this->set_attribute( '_root', 'data-lock',       ! empty( $s['lockScroll'] )       ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-esc-back',   evk_flaga( $s, 'escGoesBack', true )      ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-close-link', evk_flaga( $s, 'closeOnLinkClick', true ) ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-lock',       evk_flaga( $s, 'lockScroll', true )       ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-anim-exit', ! empty( $s['animateExit'] )      ? '1' : '0' );
 		// Puste = „cały czas animacji", wyliczane w JS. Jawne ZERO musi przejść
 		// jako '0' — `! empty()` potraktowałoby je jak brak wartości i ruchy
 		// wróciłyby do grania jeden po drugim mimo wybrania „naraz".
 		$this->set_attribute( '_root', 'data-exit-wait',
 			isset( $s['exitWait'] ) && $s['exitWait'] !== '' ? (string) $s['exitWait'] : '' );
-		$this->set_attribute( '_root', 'data-portal',     ! empty( $s['toBody'] )           ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-portal',     evk_flaga( $s, 'toBody', true )           ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-header-above', ! empty( $s['headerAbove'] )   ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-raise-mode',
 			! empty( $s['raiseMode'] ) ? $s['raiseMode'] : 'przelacznik' );

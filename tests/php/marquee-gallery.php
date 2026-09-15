@@ -32,6 +32,9 @@ require __DIR__ . '/_wp-stubs.php';
 require __DIR__ . '/_bricks-stubs.php';
 
 define('EVK_BRICKS_CATEGORY', 'evoke-one');
+/* Na produkcji dociąga to loader.php — element.php nigdy nie trafia do PHP-a
+   inaczej niż przez niego. Że loader NAPRAWDĘ to robi, pilnuje tests/php/flaga.php. */
+require EVK_TEST_ROOT . '/includes/bricks-elements/flaga.php';
 require EVK_TEST_ROOT . '/includes/bricks-elements/evoke-marquee/element.php';
 
 // ── Biblioteka mediów ────────────────────────────────────────────────────────

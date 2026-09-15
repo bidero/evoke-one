@@ -67,10 +67,10 @@ Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
 Podział, który się mieści (61 plików, cztery partie):
 
 ```
-node tests/run.js admin- anim animator aria bg-shift bricks-required                   builder-context burger circular-menu controls
-node tests/run.js darkmode drobiazgi grain hscroll inbox konserwacja                   kursor loop marquee motion
-node tests/run.js newsletter odpornosc odswiezanie offcanvas og-layers                   panel-start parallax potwierdzenie presets przeglad-sekcji                   przelaczniki rewizje
-node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki                   snippety splide stacking-cards svg theme-color tl-                   uprawnienia vendor-libs wave-bg
+node tests/run.js admin- anim animator aria bg-shift bricks-required builder-context burger circular-menu controls
+node tests/run.js darkmode drobiazgi grain hscroll inbox konserwacja kursor loop marquee motion
+node tests/run.js newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
+node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
 ```
 
 **Że partie pokrywają wszystko, trzeba SPRAWDZIĆ, a nie założyć** — dopisany

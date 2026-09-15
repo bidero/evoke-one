@@ -271,9 +271,10 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		$gap          = $this->settings['gap']          ?? '80px';
 		$slow_down    = $this->settings['slow_down']    ?? 2;
 		// Brak klucza = element zapisany przed 1.36.0. Domyślnie włączone,
-		// bo taka była dotychczasowa, zaszyta na sztywno wartość.
-		$pause_offscreen = ! array_key_exists( 'pause_offscreen', $this->settings )
-			|| ! empty( $this->settings['pause_offscreen'] );
+		// bo taka była dotychczasowa, zaszyta na sztywno wartość. Tu narodził
+		// się wzorzec, który od 1.199.0 nazywa się evk_flaga() i obowiązuje
+		// w całej wtyczce — zachowanie bez zmian, znika tylko druga kopia.
+		$pause_offscreen = evk_flaga( $this->settings, 'pause_offscreen', true );
 		$pause_offset    = $this->settings['pause_offset'] ?? 200;
 
 		// Wykryj builder: AJAX render elementu lub iframe buildera.
