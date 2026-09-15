@@ -2,6 +2,23 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.197.0] — 2026-09-15
+
+### Zmienione
+
+- **„Suwak" w opisach ziarna zamieniony na „kontrolkę".** Sprostowane przez
+  zgłaszającego: „gradient oczywiście nie ma suwaka jak pisałeś, a pole tekstowe
+  do wpisania wartości".
+
+  Racja — i była to pomyłka w OPISIE, nie w kodzie. Kontrolka „Ziarno poza falą"
+  to `'type' => 'number'`, czyli pole do wpisania wartości, a w **całej wtyczce
+  nie ma ani jednej kontrolki typu `slider`** (sprawdzone). Kod trzymał się więc
+  konwencji od początku; nazwałem go tylko nie tak, jak wygląda.
+
+  Poprawione w tym pliku przy 1.191.0 i 1.193.0 oraz w komentarzu przy samej
+  kontrolce. Gdyby prawdziwy suwak był kiedyś potrzebny, będzie to osobna
+  decyzja — pierwszy taki w projekcie.
+
 ## [1.196.0] — 2026-09-15
 
 ### Usunięte
@@ -197,7 +214,7 @@ Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer
   `color.rgb += g` trafia do bufora wprost, jako gotowy wkład — więc **jasna
   połowa ziarna prześwituje poza falą, a ciemna obcina się na zerze**. Ziarno
   było tam zawsze: jednostronne, samo rozjaśniające i niesterowalne. Nowe
-  rozlanie robi z niego ziarno symetryczne i podpięte pod suwak.
+  rozlanie robi z niego ziarno symetryczne i podpięte pod kontrolkę.
 
   **Nie ruszam tego teraz.** Poprawka zmieniałaby wygląd na każdej stronie
   z falą i weszłaby w tym samym wydaniu co nowa funkcja — nie dałoby się
@@ -220,7 +237,7 @@ Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer
       gl_FragColor = vec4(color.xyz, color.w);   // przepuszczamy alphę z siatki
 
   Ziarno liczyło się więc na całym kadrze i nie miało czym się pokazać tam,
-  gdzie fala jest przezroczysta. Nowy suwak daje mu WŁASNĄ przezroczystość,
+  gdzie fala jest przezroczysta. Nowa kontrolka daje mu WŁASNĄ przezroczystość,
   niezależną od fali, więc rysuje się na całym pudełku elementu.
 
   Barwa drobiny jest przy tym **przemnożona przez alphę**, bo renderer stoi na

@@ -233,7 +233,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		 * bez zmian. Ziarno jest więc policzone na całym kadrze, tylko nie ma go
 		 * czym pokazać tam, gdzie fala jest przezroczysta.
 		 *
-		 * Ten suwak daje ziarnu WŁASNĄ przezroczystość, niezależną od fali.
+		 * Ta kontrolka daje ziarnu WŁASNĄ przezroczystość, niezależną od fali.
 		 * ZERO ZNACZY DOKŁADNIE DZISIEJSZE ZACHOWANIE — i to jest warunek,
 		 * nie uprzejmość: nikomu nie wolno zmienić wyglądu po aktualizacji.
 		 *
