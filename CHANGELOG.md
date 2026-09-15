@@ -2,6 +2,67 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.191.0] — 2026-09-15
+
+### Dodane
+
+- **„Ziarno poza falą" w elemencie Wave Background.** Zgłoszone z użycia:
+  „może dodać opcję, żeby rozszerzyć ziarno na całą szerokość okna, a nie tylko
+  nad falą".
+
+  **Ziarno nigdy nie było przycięte do fali — było przemnożone przez jej
+  przezroczystość.** Shader siatki wygasza falę ku krawędziom
+  (`alpha = uAlpha * pow(sin(vUv.x*PI), uPow) * …`), a przebieg post-process
+  dosypywał ziarno wyłącznie do BARWY i przepuszczał tę alphę bez zmian:
+
+      color.rgb += (grain - 0.5) * uNoiseIntensity;
+      gl_FragColor = vec4(color.xyz, color.w);   // przepuszczamy alphę z siatki
+
+  Ziarno liczyło się więc na całym kadrze i nie miało czym się pokazać tam,
+  gdzie fala jest przezroczysta. Nowy suwak daje mu WŁASNĄ przezroczystość,
+  niezależną od fali, więc rysuje się na całym pudełku elementu.
+
+  Barwa drobiny jest przy tym **przemnożona przez alphę**, bo renderer stoi na
+  domyślnym `premultipliedAlpha`. Pełna biel przy alfie 0,08 rozjaśniłaby
+  drobinę ośmiokrotnie — zamiast ziarna wyszłyby białe placki.
+
+  **Zero znaczy dokładnie dzisiejsze zachowanie** i to jest warunek, nie
+  uprzejmość: gałąź stoi w shaderze pod warunkiem, a domyślną wartością jest
+  zero, więc aktualizacja nie rusza wyglądu nikomu, kto o nic nie prosił.
+  Maska górna i dolna działa jak dotąd i wygasza wszystko naraz — falę i ziarno.
+  (`includes/bricks-elements/evoke-wave-bg/element.php`)
+
+  Sprawdzenie mierzy **szorstkość kadru** — średnią różnicę między sąsiadującymi
+  pikselami. Pierwsza wersja liczyła rozrzut barw w narożnikach i opierała się na
+  złym założeniu, że fala tam nie sięga; przy `heightMultiplier: 2` sięga, więc
+  miara opisywała gradient fali, nie ziarno. Sąsiedztwo rozdziela jedno od
+  drugiego bez zgadywania geometrii: gradient zmienia się gładko, ziarno jest
+  z definicji wysokoczęstotliwościowe. Porównanie jest statystyczne, bo
+  `uNoiseSeed` losuje się co klatkę i dwa zrzuty tego samego ustawienia nigdy
+  nie są identyczne bajt w bajt.
+
+### Naprawione
+
+- **Moduł elementu fali mógł się rozsypać przez znak w KOMENTARZU.** Shadery
+  siedzą w literałach szablonowych JS-a wewnątrz łańcucha PHP-a, więc odwrotny
+  apostrof użyty do zacytowania nazwy zamyka literał w połowie zdania i wywraca
+  cały moduł. Ta sama klasa błędu co prosty cudzysłów w `includes/96-lenis.php`
+  — z przeglądarki widać wtedy wyłącznie objaw („element nie wystartował"),
+  nigdy przyczynę.
+
+  Doszło sprawdzenie, które wyciąga moduł z prawdziwego wyjścia `render()`
+  i przepuszcza go przez parser Node'a, bez stawiania przeglądarki.
+
+### Zmienione
+
+- **`tests/fixtures/wave-ziarno-element.html` jest pilnowany przed cichym
+  rozjazdem.** To wytwór: wyjście prawdziwego `render()`, wstrzykiwane przez
+  narzędzie do porównywania ziarna, które otwiera człowiek na swojej maszynie
+  bez PHP-a. Element mógł się zmienić, a wytwór zostać stary — i pomiar
+  opisywałby wydanie sprzed kilku zmian, wyglądając przy tym normalnie.
+  `drobiazgi` woła teraz `tools/wave-ziarno-element.js --sprawdz`, tą samą
+  zasadą, którą `animator.test.js` pilnuje wytworu `minifikuj.js`.
+
 ## [1.190.0] — 2026-09-15
 
 ### Dodane

@@ -13,7 +13,7 @@
   tests/fixtures/, żeby ten sam plik działał i z serwera testowego
   repozytorium, i spod adresu wtyczki zainstalowanej na stronie.
 
-  Zbudowane z wersji: 1.190.0
+  Zbudowane z wersji: 1.191.0
 -->
 <div id="evk-wb-test" class="evk-wave-bg" style="position:absolute;z-index:0;top:0;left:0;width:100%;height:100%;min-height:100vh;pointer-events:none;overflow:hidden;"></div><script type="module">
 /* BIBLIOTEKI ŁADOWANE WARUNKOWO, nie statycznym `import`.
@@ -196,7 +196,7 @@ function evkWbDebug() {
     return /[?&]evk-wave-debug=1/.test(location.search);
 }
 
-const CONFIG       = {"variation":0,"customBg":null,"noiseEnabled":true,"noiseIntensity":0.08,"colors":["#F2E6DB","#71D9E9","#8c3dd0","#D03F83","#F43FF9","#8c3dd0"],"mouseEffect":1,"scrollFadeEnabled":false,"scrollFadeThreshold":600,"scrollFadeDuration":500,"scrollFadeOpacity":0,"scrollPauseEnabled":false,"scrollPauseThreshold":600,"pixelRatioCap":1,"pauseOffscreen":true,"preserveBuffer":false,"autoJakosc":true,"budzetKlatki":40,"zastepnikObraz":"","vendorThree":"..\/..\/assets\/vendor\/three\/0.185.1\/evoke-three.min.js"};
+const CONFIG       = {"variation":0,"customBg":null,"noiseEnabled":true,"noiseIntensity":0.08,"noiseSpread":0,"colors":["#F2E6DB","#71D9E9","#8c3dd0","#D03F83","#F43FF9","#8c3dd0"],"mouseEffect":1,"scrollFadeEnabled":false,"scrollFadeThreshold":600,"scrollFadeDuration":500,"scrollFadeOpacity":0,"scrollPauseEnabled":false,"scrollPauseThreshold":600,"pixelRatioCap":1,"pauseOffscreen":true,"preserveBuffer":false,"autoJakosc":true,"budzetKlatki":40,"zastepnikObraz":"","vendorThree":"..\/..\/assets\/vendor\/three\/0.185.1\/evoke-three.min.js"};
 const CONTAINER_ID = "evk-wb-test";
 
 // ── Presety — port 1:1 z referencji ──────────────────────────────────────────
@@ -254,6 +254,7 @@ function dotScreenShader() { return {
         uNoiseEnabled:  { value: 0.0 },
         uNoiseIntensity:{ value: 0.0 },
         uNoiseSeed:     { value: 0.0 },
+        uNoiseSpread:   { value: 0.0 },
     },
     vertexShader: `
         varying vec2 vUv;
@@ -275,6 +276,7 @@ function dotScreenShader() { return {
         uniform float uNoiseEnabled;
         uniform float uNoiseIntensity;
         uniform float uNoiseSeed;
+        uniform float uNoiseSpread;
         float PI = ${Math.PI};
         float uRandom = ${Math.random()};
         varying vec3 vPosition;
@@ -295,7 +297,34 @@ function dotScreenShader() { return {
             vec4 color = texture2D(tDiffuse, newUv);
             if (uNoiseEnabled > 0.5) {
                 float grain = fract(sin(dot(newUv + uNoiseSeed, vec2(12.9898,78.233))) * 43758.5453123);
-                color.rgb += (grain - 0.5) * uNoiseIntensity;
+                float g = (grain - 0.5) * uNoiseIntensity;
+                color.rgb += g;
+                /* ZIARNO POZA FALĄ.
+
+                   UWAGA NA ODWROTNY APOSTROF: ten komentarz siedzi w literale
+                   szablonowym JS-a, więc znak, którym zwykle cytujemy tu nazwy,
+                   zamknąłby shader w połowie zdania. Kosztowało to jeden przebieg
+                   testów: modul wywracał sie na "Unexpected identifier".
+
+                   Linia wyżej dosypuje ziarno do BARWY, a barwy nie widać tam,
+                   gdzie siatka jest przezroczysta — i to, a nie żadne przycięcie,
+                   kończyło dotąd ziarno na fali. Poniżej ziarno dostaje WŁASNĄ
+                   przezroczystość, więc rysuje się także nad tym, co jest za kanwą.
+
+                   BARWA PRZEMNOŻONA PRZEZ ALPHĘ, bo renderer stoi na domyślnym
+                   premultipliedAlpha. Pełna biel przy alfie 0.08 rozjaśniłaby
+                   drobinę ośmiokrotnie — zamiast ziarna wyszłyby białe placki.
+
+                   ZERO ZOSTAWIA WSZYSTKO DOKŁADNIE JAK DOTĄD: mieszanie przy
+                   pełnej alfie oddaje barwę fali bez zmian, a max() z zerem nie
+                   rusza jej przezroczystości. To jest warunek zgodności
+                   wstecznej, nie szczegół. */
+                if (uNoiseSpread > 0.0) {
+                    float aZiarna = abs(g) * uNoiseSpread * 2.0;
+                    vec3  cZiarna = vec3(step(0.0, g)) * aZiarna;
+                    color.rgb = mix(cZiarna, color.rgb, color.a);
+                    color.a   = max(color.a, aZiarna);
+                }
             }
             gl_FragColor = vec4(color.xyz, color.w);  // przepuszczamy alphę z siatki
         }`,
@@ -464,6 +493,7 @@ class EvkWaveBackground {
         this.effect1.uniforms.uMouseEffect.value  = this.settings.mouseEffect;
         this.effect1.uniforms.uNoiseEnabled.value  = CONFIG.noiseEnabled ? 1.0 : 0.0;
         this.effect1.uniforms.uNoiseIntensity.value = CONFIG.noiseIntensity;
+        this.effect1.uniforms.uNoiseSpread.value    = CONFIG.noiseSpread || 0;
         this.composer.addPass(this.effect1);
     }
 

@@ -221,6 +221,38 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'required' => [ 'noise_enabled', '=', true ],
 		];
 
+		/* ZIARNO POZA FALĄ.
+		 *
+		 * Zgłoszone z użycia: „może dodać opcję, żeby rozszerzyć je na całą
+		 * szerokość okna, a nie tylko nad falą".
+		 *
+		 * Ziarno nie jest dziś przycięte do fali — jest PRZEMNOŻONE PRZEZ JEJ
+		 * PRZEZROCZYSTOŚĆ. Shader siatki wygasza falę ku krawędziom
+		 * (`alpha = uAlpha * pow(sin(vUv.x*PI), uPow) * …`), a przebieg
+		 * post-process dosypuje ziarno wyłącznie do `rgb` i przepuszcza tę alphę
+		 * bez zmian. Ziarno jest więc policzone na całym kadrze, tylko nie ma go
+		 * czym pokazać tam, gdzie fala jest przezroczysta.
+		 *
+		 * Ten suwak daje ziarnu WŁASNĄ przezroczystość, niezależną od fali.
+		 * ZERO ZNACZY DOKŁADNIE DZISIEJSZE ZACHOWANIE — i to jest warunek,
+		 * nie uprzejmość: nikomu nie wolno zmienić wyglądu po aktualizacji.
+		 *
+		 * Maska (`mask-image` na kontenerze) działa osobno i nadal wygasza
+		 * wszystko razem — falę i ziarno. Tak ma zostać.
+		 */
+		$this->controls['noise_spread'] = [
+			'tab'         => 'content',
+			'label'       => 'Ziarno poza falą',
+			'type'        => 'number',
+			'min'         => 0, 'max' => 1, 'step' => 0.05,
+			'default'     => 0,
+			'required'    => [ 'noise_enabled', '=', true ],
+			'description' => 'Ile ziarna widać tam, gdzie fala jest przezroczysta — '
+				. 'czyli na całym pudełku elementu, a nie tylko na samej fali. '
+				. 'Zero to zachowanie dotychczasowe: ziarno kończy się razem z falą. '
+				. 'Maska górna i dolna nadal wygasza wszystko naraz.',
+		];
+
 		// ── MASKA DOLNA ────────────────────────────────────────────────────────
 
 		$this->controls['sep_mask'] = [
@@ -627,6 +659,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'customBg'             => $custom_bg,
 			'noiseEnabled'         => ! empty( $s['noise_enabled'] ),
 			'noiseIntensity'       => (float) ( $s['noise_intensity'] ?? 0.08 ),
+			'noiseSpread'          => (float) ( $s['noise_spread']    ?? 0    ),
 			'colors'               => $colors,
 			'mouseEffect'          => (float) ( $s['mouse_effect']          ?? 1.0  ),
 			'scrollFadeEnabled'    => ! empty( $s['scroll_fade_enabled'] ),
@@ -918,6 +951,7 @@ function dotScreenShader() { return {
         uNoiseEnabled:  { value: 0.0 },
         uNoiseIntensity:{ value: 0.0 },
         uNoiseSeed:     { value: 0.0 },
+        uNoiseSpread:   { value: 0.0 },
     },
     vertexShader: `
         varying vec2 vUv;
@@ -939,6 +973,7 @@ function dotScreenShader() { return {
         uniform float uNoiseEnabled;
         uniform float uNoiseIntensity;
         uniform float uNoiseSeed;
+        uniform float uNoiseSpread;
         float PI = ${Math.PI};
         float uRandom = ${Math.random()};
         varying vec3 vPosition;
@@ -959,7 +994,34 @@ function dotScreenShader() { return {
             vec4 color = texture2D(tDiffuse, newUv);
             if (uNoiseEnabled > 0.5) {
                 float grain = fract(sin(dot(newUv + uNoiseSeed, vec2(12.9898,78.233))) * 43758.5453123);
-                color.rgb += (grain - 0.5) * uNoiseIntensity;
+                float g = (grain - 0.5) * uNoiseIntensity;
+                color.rgb += g;
+                /* ZIARNO POZA FALĄ.
+
+                   UWAGA NA ODWROTNY APOSTROF: ten komentarz siedzi w literale
+                   szablonowym JS-a, więc znak, którym zwykle cytujemy tu nazwy,
+                   zamknąłby shader w połowie zdania. Kosztowało to jeden przebieg
+                   testów: modul wywracał sie na "Unexpected identifier".
+
+                   Linia wyżej dosypuje ziarno do BARWY, a barwy nie widać tam,
+                   gdzie siatka jest przezroczysta — i to, a nie żadne przycięcie,
+                   kończyło dotąd ziarno na fali. Poniżej ziarno dostaje WŁASNĄ
+                   przezroczystość, więc rysuje się także nad tym, co jest za kanwą.
+
+                   BARWA PRZEMNOŻONA PRZEZ ALPHĘ, bo renderer stoi na domyślnym
+                   premultipliedAlpha. Pełna biel przy alfie 0.08 rozjaśniłaby
+                   drobinę ośmiokrotnie — zamiast ziarna wyszłyby białe placki.
+
+                   ZERO ZOSTAWIA WSZYSTKO DOKŁADNIE JAK DOTĄD: mieszanie przy
+                   pełnej alfie oddaje barwę fali bez zmian, a max() z zerem nie
+                   rusza jej przezroczystości. To jest warunek zgodności
+                   wstecznej, nie szczegół. */
+                if (uNoiseSpread > 0.0) {
+                    float aZiarna = abs(g) * uNoiseSpread * 2.0;
+                    vec3  cZiarna = vec3(step(0.0, g)) * aZiarna;
+                    color.rgb = mix(cZiarna, color.rgb, color.a);
+                    color.a   = max(color.a, aZiarna);
+                }
             }
             gl_FragColor = vec4(color.xyz, color.w);  // przepuszczamy alphę z siatki
         }`,
@@ -1128,6 +1190,7 @@ class EvkWaveBackground {
         this.effect1.uniforms.uMouseEffect.value  = this.settings.mouseEffect;
         this.effect1.uniforms.uNoiseEnabled.value  = CONFIG.noiseEnabled ? 1.0 : 0.0;
         this.effect1.uniforms.uNoiseIntensity.value = CONFIG.noiseIntensity;
+        this.effect1.uniforms.uNoiseSpread.value    = CONFIG.noiseSpread || 0;
         this.composer.addPass(this.effect1);
     }
 

@@ -10,7 +10,7 @@
  * nie z regexa po źródle — regex sprawdzałby naszą interpretację pliku.
  */
 
-const { phpOutput, barwyZrzutu, ROOT } = require('./lib/harness');
+const { phpOutput, barwyZrzutu, pikseleZPng, ROOT } = require('./lib/harness');
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const run = (settings) => JSON.parse(phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify(settings))));
@@ -328,13 +328,18 @@ module.exports = async function (t) {
       await str.evaluate(() => window.__kadr && window.__kadr(3.7));
       await str.waitForTimeout(250);
     }
-    let barwy = null;
+    let barwy = null, zrzut = null;
     try {
-      barwy = barwyZrzutu(await str.locator('#scena').screenshot());
+      /* Surowy PNG zostaje, gdy wołający o niego prosi — sprawdzenia ziarna
+         liczą piksele W WYBRANYM OBSZARZE, a `barwyZrzutu` zbiera cały kadr
+         i różnicy w narożnikach by nie pokazało. */
+      const png = await str.locator('#scena').screenshot();
+      barwy = barwyZrzutu(png);
+      if (opcje.zrzut) zrzut = png;
     } catch (e) { barwy = { blad: e.message }; }
 
     await str.close();
-    return { log, wolnyWatek, zadania, ...stan, barwy };
+    return { log, wolnyWatek, zadania, ...stan, barwy, zrzut };
   };
 
   const naSofcie = await bezGpu({});
@@ -523,6 +528,141 @@ module.exports = async function (t) {
   t.check('a fala rusza normalnie',
     obrazZeSprzetem.plotno === true && obrazZeSprzetem.zadania.biblioteki.length > 0,
     'płótno: ' + obrazZeSprzetem.plotno + ', bibliotek: ' + obrazZeSprzetem.zadania.biblioteki.length);
+
+  // ── Wyjście render() musi być poprawnym JavaScriptem ───────────────────
+  /* KLASA BŁĘDU, KTÓRA UGRYZŁA JUŻ DWA RAZY.
+     Moduł elementu powstaje w PHP-ie jako jeden wielki literał, a shadery
+     siedzą w nim w literałach szablonowych JS-a. Znak użyty w KOMENTARZU
+     potrafi więc zamknąć literał w połowie zdania i wywalić cały moduł —
+     raz zrobił to prosty cudzysłów w `includes/96-lenis.php`, raz odwrotny
+     apostrof w komentarzu do ziarna.
+
+     Z przeglądarki widać wtedy wyłącznie objaw („element nie wystartował"),
+     a nie przyczynę. Parser odpowiada wprost i na każdej zmianie tego pliku,
+     bez stawiania przeglądarki. */
+  t.section('moduł elementu parsuje się jako JavaScript');
+
+  const { execFileSync } = require('child_process');
+  const os = require('os');
+  const fs = require('fs');
+  const path = require('path');
+
+  const modul = (ust) => {
+    const html = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify(ust)) + ' html');
+    const m = html.match(/<script type="module">([\s\S]*?)<\/script>/);
+    if (!m) return { blad: 'nie znalazłem modułu w wyjściu render()' };
+    const plik = path.join(os.tmpdir(), 'evk-wave-' + process.pid + '-' + Math.random().toString(36).slice(2) + '.mjs');
+    try {
+      fs.writeFileSync(plik, m[1]);
+      execFileSync(process.execPath, ['--check', plik], { stdio: 'pipe' });
+      return { ok: true, znakow: m[1].length };
+    } catch (e) {
+      return { ok: false, blad: String(e.stderr || e.message).split('\n').slice(0, 3).join(' ') };
+    } finally { try { fs.unlinkSync(plik); } catch (e) {} }
+  };
+
+  /* Oba ustawienia ziarna, bo gałąź rozlania jest w shaderze pod warunkiem —
+     a literał szablonowy psuje się niezależnie od tego, czy gałąź się wykona. */
+  const mBez = modul({ noise_enabled: true, noise_spread: 0 });
+  const mZ   = modul({ noise_enabled: true, noise_spread: 1 });
+
+  t.check('przy ziarnie bez rozlania', mBez.ok === true, mBez.blad || mBez.znakow + ' znaków');
+  t.check('i z rozlaniem', mZ.ok === true, mZ.blad || mZ.znakow + ' znaków');
+
+  // ── Ziarno poza falą ───────────────────────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „może dodać opcję, żeby rozszerzyć ziarno na całą
+     szerokość okna, a nie tylko nad falą".
+
+     Ziarno NIE BYŁO przycięte do fali — było przemnożone przez jej
+     przezroczystość: shader siatki wygasza falę ku krawędziom, a przebieg
+     post-process dosypywał ziarno wyłącznie do BARWY i przepuszczał tę alphę
+     bez zmian. Ziarno liczyło się więc na całym kadrze i nie miało czym się
+     pokazać tam, gdzie fala jest przezroczysta.
+
+     MIERZYMY NAROŻNIKI, bo tam fala nie sięga — `pow(sin(vUv.x*PI), uPow)`
+     jest przy krawędziach zerem. Pomiar w środku kadru nie odróżniłby niczego:
+     tam ziarno było widać zawsze. */
+  t.section('ziarno wychodzi poza falę, gdy się je o to poprosi');
+
+  /**
+   * SZORSTKOŚĆ kadru: średnia różnica między sąsiadującymi pikselami.
+   *
+   * PIERWSZA WERSJA MIERZYŁA ROZRZUT W NAROŻNIKACH i była oparta na złym
+   * założeniu — że fala tam nie sięga. Sięga: przy `heightMultiplier: 2`
+   * wypełnia kadr w pionie, a rozrzut w narożniku wychodził 40 przy ZEROWYM
+   * rozlaniu, czyli miara mówiła o gradiencie fali, nie o ziarnie.
+   *
+   * Sąsiedztwo rozdziela jedno od drugiego bez zgadywania, gdzie fala jest:
+   * gradient zmienia się GŁADKO, więc różnica między sąsiadami jest bliska
+   * zeru niezależnie od tego, jak bardzo barwy różnią się przez cały kadr.
+   * Ziarno jest z definicji wysokoczęstotliwościowe i tę różnicę podnosi.
+   *
+   * Dlatego mierzymy CAŁY kadr, a nie wybrany kawałek: przy zerowym rozlaniu
+   * ziarno jest tylko tam, gdzie fala jest nieprzezroczysta, przy pełnym —
+   * wszędzie. Średnia po całości musi więc urosnąć.
+   */
+  const szorstkosc = (buf) => {
+    const { szer, wys, kanaly, dane } = pikseleZPng(buf);
+    let suma = 0, prob = 0;
+    for (let y = 0; y < wys; y += 2) {
+      const w = y * szer * kanaly;
+      for (let x = 0; x < szer - 1; x++) {
+        suma += Math.abs(dane[w + x * kanaly] - dane[w + (x + 1) * kanaly]);
+        prob++;
+      }
+    }
+    return prob ? Math.round((suma / prob) * 100) / 100 : null;
+  };
+
+  /* DRABINA JAKOŚCI MUSI BYĆ WYŁĄCZONA i to nie jest ułatwianie sobie pomiaru,
+     tylko warunek, żeby w ogóle było co mierzyć. `rysujRaz()` woła composer
+     WYŁĄCZNIE na poziomie zerowym:
+
+         if (this.poziom === 0) this.composer.render();
+         else                   this.renderer.render(this.scene, this.camera);
+
+     a ziarno siedzi w przebiegu post-process, czyli właśnie w composerze.
+     Chromium w testach rasteryzuje programowo, więc drabina schodzi tu o trzy
+     szczeble w kilka sekund — i pierwsza wersja tego pomiaru mierzyła scenę
+     BEZ ZIARNA w każdym z trzech wariantów, pokazując zgodnie 0,2 szorstkości.
+     Wyglądało to jak „rozlanie nie działa", a znaczyło „nie ma czego rozlewać".
+
+     To zresztą ta sama drabina, która na słabej maszynie zdejmuje dziś ziarno
+     razem ze zniekształceniem — patrz `obnizJakosc()`. */
+  const zrzutZiarna = (spread) => bezGpu(
+    Object.assign({ noise_enabled: true, auto_jakosc: 'nie' },
+      spread === null ? {} : { noise_spread: spread }),
+    { ukryjSterownik: true, ustalKadr: true, zrzut: true });
+
+  /* Trzy przebiegi. `null` to STARY KSZTAŁT USTAWIEŃ — bez klucza `noise_spread`
+     w ogóle, czyli dokładnie to, co siedzi dziś w bazach żywych stron. */
+  const zBrak  = await zrzutZiarna(null);
+  const zZero  = await zrzutZiarna(0);
+  const zJeden = await zrzutZiarna(1);
+
+  const sBrak  = szorstkosc(zBrak.zrzut);
+  const sZero  = szorstkosc(zZero.zrzut);
+  const sJeden = szorstkosc(zJeden.zrzut);
+
+  /* ZGODNOŚĆ WSTECZNA I NAJWAŻNIEJSZE SPRAWDZENIE TEJ ZMIANY. Brak ustawienia
+     ma znaczyć dokładnie to samo co zero — inaczej aktualizacja zmieniłaby
+     wygląd wszystkim, którzy o nic nie prosili. Porównujemy statystykę, a nie
+     piksele: `uNoiseSeed` losuje się co klatkę, więc dwa zrzuty tego samego
+     ustawienia NIGDY nie są identyczne bajt w bajt. */
+  t.check('brak ustawienia znaczy to samo co zero', Math.abs(sBrak - sZero) < 1.0,
+    'szorstkość ' + sBrak + ' vs ' + sZero);
+  /* KONTROLA NEGATYWNA powyższego: gdyby rozlanie nie działało wcale, wszystkie
+     trzy liczby byłyby takie same i sprawdzenie wyżej też by przeszło. */
+  t.check('a rozlanie dosypuje ziarna poza falę', sJeden > sZero + 1.0,
+    'szorstkość ' + sZero + ' → ' + sJeden);
+  /* Ziarno, nie placki. Barwa NIEprzemnożona przez alphę rozjaśniłaby drobiny
+     kilkunastokrotnie — i to jest ten błąd, przed którym broni mnożenie
+     w shaderze, bo renderer stoi na domyślnym premultiplied alpha. */
+  t.check('i nie zamienia kadru w śnieg', sJeden < sZero + 40,
+    'szorstkość ' + sJeden);
+  t.check('fala rusza w każdym z trzech przypadków',
+    zBrak.plotno === true && zZero.plotno === true && zJeden.plotno === true,
+    'płótna: ' + zBrak.plotno + ' / ' + zZero.plotno + ' / ' + zJeden.plotno);
 
   // ── Drabina jakości w prawdziwej przeglądarce ──────────────────────────
   t.section('drabina jakości schodzi sama i zatrzymuje się pod progiem');
