@@ -656,35 +656,61 @@ module.exports = async function (t) {
     { ukryjSterownik: true, ustalKadr: true, zrzut: true });
 
   const zBezSzumu = await zrzutZiarna({ noise_enabled: false });
-  const zZero     = await zrzutZiarna({ noise_enabled: true, noise_spread: 0 });
-  const zJeden    = await zrzutZiarna({ noise_enabled: true, noise_spread: 1 });
+  /* `brak` to STARY KSZTAŁT USTAWIEŃ — bez klucza `noise_spread` w ogóle,
+     czyli dokładnie to, co siedzi dziś w bazach żywych stron. */
+  const zBrak  = await zrzutZiarna({ noise_enabled: true });
+  const zZero  = await zrzutZiarna({ noise_enabled: true, noise_spread: 0 });
+  const zJeden = await zrzutZiarna({ noise_enabled: true, noise_spread: 1 });
 
   const poza  = maskaPozaFala(zBezSzumu.zrzut);
-  const wZero = szorstkoscW(zZero.zrzut, poza);
+  const wBrak = szorstkoscW(zBrak.zrzut,  poza);
+  const wZero = szorstkoscW(zZero.zrzut,  poza);
   const wJede = szorstkoscW(zJeden.zrzut, poza);
 
   /* STRAŻNIK POMIARU. Pusty obszar znaczy, że fala kryje cały kadr — a wtedy
-     obie liczby niżej byłyby `null` i sekcja przechodziłaby, nie mierząc
+     wszystkie liczby niżej byłyby `null` i sekcja przechodziłaby, nie mierząc
      niczego. Dokładnie ten rodzaj cichej pustki, przez który pierwsza wersja
      tego pomiaru wyglądała na sensowną. */
   t.check('jest gdzie mierzyć — fala nie kryje całego kadru',
     poza.ile > 5000 && wZero.prob > 5000,
     poza.ile + ' pikseli poza falą, ' + wZero.prob + ' par do pomiaru');
 
-  /* ZGODNOŚĆ WSTECZNA: przy zerze ziarno nadal kończy się na fali. Bez tego
-     „rozlanie działa" przechodziłoby także dla zmiany, która rozlewa ziarno
-     ZAWSZE — czyli u wszystkich, którzy o nic nie prosili. */
-  t.check('przy zerze poza falą jest gładko', wZero.szorstkosc < 1.5,
-    'szorstkość ' + wZero.szorstkosc);
-  t.check('a przy jedynce ziarno tam jest', wJede.szorstkosc > 3,
+  /* ZGODNOŚĆ WSTECZNA — najważniejsze sprawdzenie tej zmiany. Brak ustawienia
+     ma znaczyć dokładnie to samo co zero, inaczej aktualizacja ruszyłaby wygląd
+     wszystkim, którzy o nic nie prosili. Porównujemy statystykę, bo `uNoiseSeed`
+     losuje się co klatkę i dwa zrzuty tego samego ustawienia nigdy nie są
+     identyczne bajt w bajt. */
+  t.check('brak ustawienia znaczy to samo co zero',
+    Math.abs(wBrak.szorstkosc - wZero.szorstkosc) < 0.8,
+    'szorstkość ' + wBrak.szorstkosc + ' vs ' + wZero.szorstkosc);
+
+  /* SEDNO ZMIANY. Zmierzone: 3,38 → 6,60, czyli blisko dwukrotnie.
+
+     POZA FALĄ COŚ WIDAĆ TAKŻE PRZY ZERZE i to nie jest usterka tej zmiany,
+     tylko zastana właściwość shadera, którą ten pomiar obnażył. Renderer stoi
+     na domyślnym premultiplied alpha, a siatka wpisuje barwę NIEprzemnożoną
+     (`gl_FragColor = vec4(color, alpha)`). Przy alfie bliskiej zeru dodane
+     `color.rgb += g` trafia więc do bufora wprost, jako gotowy wkład — i jasna
+     połowa ziarna prześwituje, podczas gdy ciemna obcina się na zerze.
+     Ziarno było tam zawsze: jednostronne, samo rozjaśniające i niesterowalne.
+     Rozlanie robi z niego ziarno symetryczne i podpięte pod suwak.
+
+     Dlatego sprawdzenie porównuje DWA USTAWIENIA, a nie ustawienie z zerem
+     bezwzględnym — próg „ma być gładko" opisywałby stan, którego nigdy nie
+     było, i zapalałby się na kodzie działającym poprawnie. */
+  t.check('rozlanie wyraźnie dokłada ziarna poza falą',
+    wJede.szorstkosc > wZero.szorstkosc * 1.5,
     'szorstkość ' + wZero.szorstkosc + ' → ' + wJede.szorstkosc);
+
   /* Ziarno, nie śnieg. Barwa NIEprzemnożona przez alphę rozjaśniłaby drobiny
-     kilkunastokrotnie — renderer stoi na domyślnym premultiplied alpha. */
+     kilkunastokrotnie — i to jest ten błąd, przed którym broni mnożenie
+     w shaderze. */
   t.check('i nie zamienia kadru w śnieg', wJede.szorstkosc < 60,
     'szorstkość ' + wJede.szorstkosc);
-  t.check('fala rusza w każdym z trzech przypadków',
-    zBezSzumu.plotno === true && zZero.plotno === true && zJeden.plotno === true,
-    'płótna: ' + zBezSzumu.plotno + ' / ' + zZero.plotno + ' / ' + zJeden.plotno);
+  t.check('fala rusza w każdym z czterech przypadków',
+    zBezSzumu.plotno === true && zBrak.plotno === true
+    && zZero.plotno === true && zJeden.plotno === true,
+    'płótna: ' + [zBezSzumu, zBrak, zZero, zJeden].map((z) => z.plotno).join(' / '));
 
   // ── Drabina jakości w prawdziwej przeglądarce ──────────────────────────
   t.section('drabina jakości schodzi sama i zatrzymuje się pod progiem');
