@@ -2,6 +2,46 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.201.0] — 2026-09-15
+
+### Zmienione
+
+- **Wave BG: „Zatrzymuj poza ekranem" i „Dopasuj jakość do urządzenia" to
+  przełączniki, a nie listy wyboru.** Odczyt idzie przez `evk_flaga()`, więc
+  zapisane wcześniej `'nie'` dalej znaczy wyłączone.
+
+  Stał przy nich komentarz tłumaczący, że listy są tu ŚWIADOME: pole
+  zaznaczenia z `'default' => true` jest w Bricksie niejednoznaczne, bo przy
+  nietkniętym elemencie klucza w ustawieniach nie ma i `! empty()` gubi wtedy
+  domyślną. Rozpoznanie było trafne, rozwiązanie za szerokie — dokładnie ten
+  problem rozwiązuje `evk_flaga()`, więc listy przestały być potrzebne.
+
+### Naprawione w strażniku
+
+- **`bricks-required` widzi TRZECIĄ klasę cichej usterki: warunek pytający
+  o wartość, której pole nie zapisuje.**
+
+  Znalezione przy powyższej zamianie. `[ 'auto_jakosc', '=', 'tak' ]` było
+  poprawne, dopóki `auto_jakosc` było listą. Po zamianie na `checkbox` pole
+  zapisuje wartość logiczną, więc warunek **nie zajdzie już nigdy** — „Budżet
+  klatki" i „Obraz zamiast gradientu" zniknęłyby z panelu na zawsze.
+
+  Żadne z dotychczasowych sprawdzeń tego nie widziało: warunek ma trzy człony
+  (więc nie jest łańcuchem) i wskazuje istniejące pole (więc nie jest wiszący).
+  Nowa reguła: **warunek na polu zaznaczenia oczekuje `true` albo `false`**.
+  Obejmuje całą wtyczkę — dziś 33 takie warunki. Mutacja przywracająca `'tak'`
+  zapala dokładnie to jedno sprawdzenie i wymienia obie kontrolki po nazwie.
+
+  Poprzedni wpis planu zakładał, że złapie to istniejący strażnik. Nie łapał —
+  stąd ta reguła.
+
+### Uwaga o umiejscowieniu sprawdzeń
+
+- Odczyty obu kontrolek pilnuje `controls.test.js`, a nie `wave-bg.test.js`.
+  To czysty PHP, nie ma tam czego rysować, a `wave-bg` stawia przeglądarkę
+  i chodzi około pięciu minut — iterowanie po dwóch wierszach kosztowałoby tam
+  pełny przebieg za każdym razem.
+
 ## [1.200.0] — 2026-09-15
 
 ### Zmienione

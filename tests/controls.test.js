@@ -367,4 +367,39 @@ module.exports = async function (t) {
      produkcji. Elementy widzą tę funkcję WYŁĄCZNIE przez loader.php. */
   t.check('loader.php dociąga flaga.php', f.loader_dociaga === true,
     String(f.loader_dociaga));
+
+  // ── Wave BG po zamianie list wyboru na przełączniki ─────────────────────
+  /* SIEDZI TU, A NIE W wave-bg.test.js, ŚWIADOMIE. To są dwa odczyty czystego
+     PHP-a — nie ma tu czego rysować. `wave-bg` stawia przeglądarkę i chodzi
+     około pięciu minut, więc iterowanie po tych dwóch wierszach kosztowałoby
+     tam pełny przebieg za każdym razem. Ten plik odpowiada w sekundy.
+
+     Pilnują tego, co przy zamianie kontrolki może pójść nie tak po cichu:
+     zapisane wcześniej `'nie'` ma dalej znaczyć wyłączone. Fala jest jedynym
+     elementem, w którym obie takie kontrolki są domyślnie WŁĄCZONE, więc
+     pomyłka nie gasiłaby funkcji — włączałaby ją komuś z powrotem. */
+  t.section('Wave BG: stary zapis „nie" przeżył zamianę na przełączniki');
+
+  const wave = (ust) => JSON.parse(phpOutput('wave-bg-colors.php',
+    JSON.stringify(JSON.stringify(ust)) + ' cfg'));
+
+  t.check('stara lista: automat jakości wyłączony',
+    wave({ auto_jakosc: 'nie' }).autoJakosc === false,
+    String(wave({ auto_jakosc: 'nie' }).autoJakosc));
+  t.check('stara lista: pauza poza ekranem wyłączona',
+    wave({ pause_offscreen: 'nie' }).pauseOffscreen === false,
+    String(wave({ pause_offscreen: 'nie' }).pauseOffscreen));
+
+  /* Nowy kształt — pole odznaczone w builderze. */
+  t.check('odznaczony przełącznik też wyłącza',
+    wave({ auto_jakosc: false }).autoJakosc === false
+      && wave({ pause_offscreen: false }).pauseOffscreen === false,
+    'oba false');
+
+  /* Kontrola negatywna: bez niej „wyłączone" byłoby nie do odróżnienia od
+     odczytu, który NIGDY nie oddaje prawdy. Element nietknięty ma obie
+     włączone — taka jest domyślna od zawsze. */
+  t.check('nietknięty element ma obie włączone',
+    wave({}).autoJakosc === true && wave({}).pauseOffscreen === true,
+    'oba true');
 };

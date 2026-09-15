@@ -58,6 +58,11 @@ function warunki(string $element, array $controls, string $prefiks = ''): array 
                 'warunek'  => $def['required'],
                 'wskazuje' => $def['required'][0] ?? null,
                 'istnieje' => in_array($def['required'][0] ?? '', $rodzenstwo, true),
+                // Typ pola, na które warunek wskazuje, i oczekiwana wartość —
+                // razem odpowiadają na pytanie, czy warunek pyta o to, co to
+                // pole w ogóle może zapisać.
+                'typCelu'  => $controls[ $def['required'][0] ?? '' ]['type'] ?? null,
+                'oczekuje' => $def['required'][2] ?? null,
             ];
         }
         // Repeater niesie własną przestrzeń nazw — te same reguły obowiązują
@@ -91,6 +96,20 @@ $lancuchy = array_values(array_filter($wszystkie, fn($w) => $w['czlonow'] > 3));
 // kontrolka też się wtedy nie pokaże, a w źródle wygląda poprawnie.
 $wiszace = array_values(array_filter($wszystkie, fn($w) => !$w['istnieje']));
 
+/* TRZECIA KLASA CICHEJ USTERKI, znaleziona przy zamianie list wyboru na
+ * przełączniki (1.201.0). Warunek może wskazywać pole, które ISTNIEJE, i mimo
+ * to nigdy się nie spełnić — bo pyta o wartość, której to pole nie zapisuje.
+ *
+ * Konkretnie: `[ 'auto_jakosc', '=', 'tak' ]' było poprawne, dopóki
+ * `auto_jakosc` było listą wyboru. Po zamianie na `checkbox` pole zapisuje
+ * wartość logiczną i łańcuch „tak" nie zajdzie już nigdy — dwie kontrolki
+ * zniknęłyby z panelu na zawsze. Ani „brak łańcuchów", ani „brak wiszących
+ * odwołań" tego nie widzi: warunek ma trzy człony i wskazuje istniejące pole.
+ *
+ * Reguła: warunek na polu zaznaczenia oczekuje `true` albo `false`. Nic innego. */
+$zleTypy = array_values(array_filter($wszystkie, fn($w) =>
+    $w['typCelu'] === 'checkbox' && !is_bool($w['oczekuje'])));
+
 echo json_encode([
     // Ile plików elementów naprawdę weszło pod strażnika. Bez tej liczby „zero
     // łańcuchów" byłoby prawdą także wtedy, gdyby żaden element się nie załadował.
@@ -99,6 +118,13 @@ echo json_encode([
     'elementow'   => count(array_unique(array_column($wszystkie, 'element'))),
     'warunkow'    => count($wszystkie),
     'wiszace'     => array_map(fn($w) => $w['element'] . '/' . $w['pole'] . ' → ' . $w['wskazuje'], $wiszace),
+    'zleTypy'     => array_map(
+        fn($w) => $w['element'] . '/' . $w['pole'] . ' → ' . $w['wskazuje']
+            . ' = ' . json_encode($w['oczekuje'], JSON_UNESCAPED_UNICODE),
+        $zleTypy),
+    // Ile warunków w ogóle pyta o pole zaznaczenia — bez tej liczby reguła
+    // wyżej byłaby spełniona także wtedy, gdyby takich warunków nie było wcale.
+    'naPrzelaczniku' => count(array_filter($wszystkie, fn($w) => $w['typCelu'] === 'checkbox')),
     'lancuchy'    => array_map(fn($w) => $w['element'] . '/' . $w['pole'] . ' (' . $w['czlonow'] . ')', $lancuchy),
     // Ile warunków używa tablicowej formy alternatywy — to ma być droga,
     // którą zapisuje się „którakolwiek z tych wartości".

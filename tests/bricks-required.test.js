@@ -52,6 +52,25 @@ module.exports = async function (t) {
   t.check('brak wiszących odwołań', d.wiszace.length === 0,
     d.wiszace.join(', ') || 'wszystkie trafiają');
 
+  // ── Warunek pytający o wartość, której pole nie zapisuje ─────────────────
+  /* TRZECIA klasa cichej usterki, znaleziona przy zamianie list wyboru na
+     przełączniki (1.201.0) — i przeoczona przez oba sprawdzenia wyżej.
+
+     `[ 'auto_jakosc', '=', 'tak' ]` było poprawne, dopóki `auto_jakosc` było
+     listą wyboru. Po zamianie na `checkbox` pole zapisuje wartość logiczną,
+     więc warunek nie zajdzie NIGDY i dwie kontrolki znikają z panelu na
+     zawsze. Warunek ma przy tym trzy człony i wskazuje istniejące pole, więc
+     ani „brak łańcuchów", ani „brak wiszących odwołań" go nie widzi. */
+  t.section('warunek pyta o wartość, którą pole może zapisać');
+
+  /* Kontrola pokrycia: bez niej reguła niżej byłaby spełniona także wtedy,
+     gdyby żaden warunek nie pytał o przełącznik. */
+  t.check('warunki na przełącznikach w ogóle są', d.naPrzelaczniku > 20,
+    d.naPrzelaczniku + ' warunków');
+
+  t.check('każdy pyta o wartość logiczną', d.zleTypy.length === 0,
+    d.zleTypy.join(', ') || 'wszystkie logiczne');
+
   // ── Wskaźnik Horizontal Scroll ───────────────────────────────────────────
   /* Zgłoszone z użycia: „brak możliwości wybrania koloru aktywnego". Pole było
      w kodzie, ale z łańcuchem — czyli nie do dosięgnięcia w panelu. */

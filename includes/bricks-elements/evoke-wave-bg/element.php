@@ -394,22 +394,23 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'description' => 'Wyżej znaczy ostrzej i wolniej. Zmierzone: 1 → 50 ms na klatkę, 1,5 → 83 ms, 2 → 133 ms.',
 		];
 
-		/* WYBÓR, A NIE POLE ZAZNACZENIA — i to jest świadome.
+		/* POLE ZAZNACZENIA — od 1.201.0, wcześniej lista wyboru „tak"/„nie".
 		 *
-		 * Pole zaznaczenia z `'default' => true` jest w Bricksie niejednoznaczne:
-		 * przy nietkniętym elemencie klucza w ustawieniach nie ma i nie da się
-		 * odróżnić „użytkownik odznaczył" od „użytkownik nie dotykał". Przy
-		 * wartości domyślnie WŁĄCZONEJ trafia się wtedy albo na ustawienie,
-		 * którego nie da się wyłączyć, albo na domyślną, która nie działa.
-		 * Lista wyboru nie ma tego problemu: brak klucza to `?? 'tak'`,
-		 * a `'nie'` jest wyborem zapisanym wprost. */
+		 * Stał tu komentarz tłumaczący, że listy są tu świadome, bo pole
+		 * zaznaczenia z `'default' => true` jest w Bricksie niejednoznaczne:
+		 * przy NIETKNIĘTYM elemencie klucza w ustawieniach nie ma i `! empty()`
+		 * gubi wtedy domyślną. Rozpoznanie było trafne — rozwiązanie za szerokie.
+		 *
+		 * Problem rozwiązuje `evk_flaga()` (includes/bricks-elements/flaga.php):
+		 * brak klucza oddaje domyślną, a zapisane wcześniej `'nie'` dalej znaczy
+		 * wyłączone. Dzięki temu kontrolka mogła stać się przełącznikiem BEZ
+		 * przestawienia ustawień na stronach, które już je mają. */
 		$this->controls['pause_offscreen'] = [
 			'tab'         => 'content',
 			'label'       => 'Zatrzymuj poza ekranem',
-			'type'        => 'select',
-			'options'     => [ 'tak' => 'Tak — pauza, gdy element wyjdzie z widoku', 'nie' => 'Nie — renderuj zawsze' ],
-			'default'     => 'tak',
-			'description' => 'Zmierzone: bez tego pętla chodzi z pełną prędkością także po przewinięciu daleko poza element.',
+			'type'        => 'checkbox',
+			'default'     => true,
+			'description' => 'Wstrzymuje pętlę po wyjściu elementu z widoku. Bez tego chodzi z pełną prędkością także po przewinięciu daleko poza niego.',
 		];
 
 		/* Bufor rysowania. Zmierzone: 133,3 ms wobec 133,4 ms bez niego, czyli
@@ -445,9 +446,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		$this->controls['auto_jakosc'] = [
 			'tab'         => 'content',
 			'label'       => 'Dopasuj jakość do urządzenia',
-			'type'        => 'select',
-			'options'     => [ 'tak' => 'Tak — schodź z jakości, gdy sprzęt nie nadąża', 'nie' => 'Nie — zawsze pełna jakość' ],
-			'default'     => 'tak',
+			'type'        => 'checkbox',
+			'default'     => true,
 			'description' => 'Na sprzęcie z GPU nie zmienia nic. Bez GPU zdejmuje kolejno post-processing i rozdzielczość, a w ostateczności zatrzymuje animację na nieruchomym kadrze.',
 		];
 
@@ -457,7 +457,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'type'        => 'number',
 			'min'         => 20, 'max' => 200, 'step' => 5,
 			'default'     => 40,
-			'required'    => [ 'auto_jakosc', '=', 'tak' ],
+			'required'    => [ 'auto_jakosc', '=', true ],
 			'description' => 'Powyżej tej wartości element schodzi o szczebel. Domyślne 40 ms mieści się pod progiem 50 ms, od którego przeglądarka liczy „długie zadanie".',
 		];
 
@@ -478,7 +478,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'tab'         => 'content',
 			'label'       => 'Obraz zamiast gradientu',
 			'type'        => 'image',
-			'required'    => [ 'auto_jakosc', '=', 'tak' ],
+			'required'    => [ 'auto_jakosc', '=', true ],
 			'description' => 'Nieobowiązkowy. Pokazywany tylko tam, gdzie fala i tak by się nie animowała — bez akceleracji sprzętowej. Bez obrazu rysowany jest gradient z palety wyżej.',
 		];
 
@@ -672,9 +672,9 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			   Zero albo liczba ujemna dałaby płótno o zerowym rozmiarze, a bardzo
 			   duża — płótno, którego przeglądarka nie zaalokuje. */
 			'pixelRatioCap'        => max( 0.5, min( 3.0, (float) ( $s['pixel_ratio_cap'] ?? 1 ) ) ),
-			'pauseOffscreen'       => ( $s['pause_offscreen'] ?? 'tak' ) !== 'nie',
+			'pauseOffscreen'       => evk_flaga( $s, 'pause_offscreen', true ),
 			'preserveBuffer'       => ! empty( $s['preserve_buffer'] ),
-			'autoJakosc'           => ( $s['auto_jakosc'] ?? 'tak' ) !== 'nie',
+			'autoJakosc'           => evk_flaga( $s, 'auto_jakosc', true ),
 			'budzetKlatki'         => max( 20, min( 200, (int) ( $s['budzet_klatki'] ?? 40 ) ) ),
 			'zastepnikObraz'       => $this->zastepnik_obraz_url( $s ),
 			/* three.js JEDZIE Z WŁASNEGO SERWERA, nie z esm.sh — z tych samych
