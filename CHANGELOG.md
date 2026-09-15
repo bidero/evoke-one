@@ -2,6 +2,67 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.204.0] — 2026-09-15
+
+### Zmienione
+
+- **Offcanvas Menu: siedem sekcji zamiast jednego ciągu, opisy o połowę
+  krótsze.** Pierwsza partia porządkowania zgłoszonego z użycia: „trzeba
+  uporządkować opisy w moich elementach bricks — sensowne krótkie informacje,
+  sensowniejsze ułożenie sekcji. Ogólnie dużo tam tekstu w circular czy
+  offcanvas".
+
+  | | przed | po |
+  |---|---|---|
+  | separatorów | **0** | 7 |
+  | znaków opisów | 4647 | 2217 |
+  | najdłuższy opis | 573 | 394 (i to pod bramką) |
+  | kontrolek bez opisu | 13 z 28 | 9 z 29 |
+
+  Sekcje: Tryb · Wygląd · Otwieranie · Przejścia między panelami · Zamykanie ·
+  Przełącznik · Warstwy. „Trzymaj otwarte w builderze" zostaje PRZED pierwszym
+  separatorem — to zgłoszona wcześniej decyzja i pilnuje jej osobne
+  sprawdzenie.
+
+  **Zasada podziału tekstu:** w opisie kontrolki zostaje jedno–dwa zdania (co
+  robi, co się stanie), a mechanika i powody idą do komentarza nad kontrolką.
+  Tam szuka się ich czytając kod, a nie składając menu.
+
+- **Instrukcja `data-evk-oc-go` przeniesiona z opisu „Trybu" do osobnej
+  kontrolki `info` pod bramką.** To jedyny tekst w tym elemencie, który trzeba
+  mieć otwarty PRZY PRACY — reszta odpowiada na pytanie raz. Wisiał przed
+  każdym, kto wybrał swobodny panel i nigdy nie będzie go potrzebował; teraz
+  pokazuje się dopiero przy trybie „Poziomy". To jest ten wzorzec z pytania:
+  „może opisy powinny być widoczne dopiero po włączeniu kontrolki (jak
+  w parallax)".
+
+### Dodane strażniki
+
+- **Sufity długości opisów — jak plik bazowy PHPStana.** Tabela
+  z najdłuższym opisem każdego z dziesięciu elementów; liczby mają już tylko
+  maleć. Mierzone jest MAKSIMUM, nie suma: element o wielu krótkich
+  podpowiedziach jest czytelny, a jeden o wywodzie na tysiąc znaków nie — i to
+  ten drugi był zgłoszeniem. Obniżenie sufitu po uprzątnięciu elementu jest
+  częścią roboty, bo inaczej przestaje cokolwiek znaczyć w następnej partii.
+
+  Stan zastany pokazuje, gdzie iść dalej: **Circular Menu ma opis na 1002
+  znaki** (`raiseToggle`) — najgorszy w całej wtyczce, gorszy niż cokolwiek
+  w offcanvasie przed tą zmianą. Potem Burger (697) i Horizontal Scroll (562).
+
+- **Żadna sekcja nie stoi pusta** — separator, pod którym nie ma ani jednej
+  kontrolki, wygląda w panelu jak brakująca zawartość. Łatwo go zrobić
+  bramkując kontrolki i zapominając o nagłówku albo odwrotnie. Reguła obejmuje
+  całą wtyczkę, dziś 43 separatory.
+
+### Do sprawdzenia w builderze
+
+- Separator „Przejścia między panelami" ma `required` — czyli sekcja znika
+  razem ze swoimi kontrolkami w trybie swobodnym. Ten wzorzec jest już we
+  wtyczce (`evoke-wave-bg/element.php:127`), więc nie wprowadza nowego ryzyka,
+  ale Bricksa nie da się tu sprawdzić.
+- Kontrolka `info` niesie tekst w `description`, tak jak jedyna taka kontrolka
+  w Horizontal Scroll.
+
 ## [1.203.0] — 2026-09-15
 
 ### Naprawione

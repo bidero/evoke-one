@@ -368,6 +368,67 @@ module.exports = async function (t) {
   t.check('loader.php dociąga flaga.php', f.loader_dociaga === true,
     String(f.loader_dociaga));
 
+  // ── Opisy i sekcje w panelu buildera ────────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „trzeba uporządkować opisy w moich elementach bricks —
+     sensowne krótkie informacje, sensowniejsze ułożenie sekcji. Ogólnie dużo
+     tam tekstu w circular czy offcanvas".
+
+     PANELU BUILDERA NIE DA SIĘ TU ZOBACZYĆ — to osobna aplikacja Vue w oknie
+     Bricksa, a testy chodzą po froncie. Widać go wyłącznie z kształtu tablicy,
+     którą wpisuje `set_controls()`.
+
+     SUFITY DZIAŁAJĄ JAK PLIK BAZOWY PHPSTANA: to stan zastany, nie cel. Mają
+     już tylko maleć, a porządkowanie idzie partiami, po jednym elemencie na
+     wydanie. Obniżenie liczby po uprzątnięciu elementu jest częścią roboty —
+     bez tego sufit przestaje cokolwiek znaczyć w następnym. */
+  t.section('opisy kontrolek nie puchną, a sekcje nie są puste');
+
+  const op = JSON.parse(phpOutput('opisy-kontrolek.php'));
+
+  /* Najdłuższy pojedynczy opis w elemencie. Mierzymy MAKSIMUM, nie sumę:
+     element o wielu krótkich podpowiedziach jest czytelny, a jeden o jednym
+     wywodzie na tysiąc znaków nie — i to ten drugi był zgłoszeniem. */
+  const SUFITY = {
+    'evoke-burger':            697,
+    'evoke-circular-menu':    1002,   // najgorszy w całej wtyczce (raiseToggle)
+    'evoke-circular-title':      0,
+    'evoke-grain':             202,
+    'evoke-horizontal-scroll': 562,
+    'evoke-marquee':           434,
+    'evoke-offcanvas-menu':    394,   // było 573; uprzątnięte w 1.204.0
+    'evoke-scroll-reading':    111,
+    'evoke-stacking-cards':    220,
+    'evoke-wave-bg':           229,
+  };
+
+  /* POKRYCIE NAJPIERW: sufit dla elementu, którego sonda nie zwróciła, jest
+     spełniony przez nieobecność. */
+  t.check('sufity obejmują wszystkie dziesięć elementów',
+    Object.keys(op).length === 10
+      && Object.keys(op).every((k) => k in SUFITY),
+    Object.keys(op).join(', '));
+
+  const przekroczone = Object.keys(SUFITY)
+    .filter((k) => op[k] && op[k].najdluzszy > SUFITY[k])
+    .map((k) => k + '/' + op[k].gdzie + ': ' + op[k].najdluzszy + ' > ' + SUFITY[k]);
+  t.check('żaden opis nie przebił sufitu swojego elementu',
+    przekroczone.length === 0, przekroczone.join(', ') || 'wszystkie pod sufitem');
+
+  /* Separator, pod którym nie ma ani jednej kontrolki, wygląda w panelu jak
+     brakująca zawartość. Łatwo go zrobić bramkując kontrolki i zapominając
+     o nagłówku — albo odwrotnie. */
+  const pusteSekcje = Object.keys(op)
+    .filter((k) => op[k].puste.length)
+    .map((k) => k + '/' + op[k].puste.join('+'));
+  t.check('żadna sekcja nie stoi pusta', pusteSekcje.length === 0,
+    pusteSekcje.join(', ') || 'wszystkie mają zawartość');
+
+  /* Kontrola pokrycia dla reguły wyżej: „zero pustych sekcji" jest prawdą
+     także w elemencie bez ani jednego separatora. */
+  t.check('a sekcji w ogóle jest kilkadziesiąt',
+    Object.values(op).reduce((a, v) => a + v.separatorow, 0) > 30,
+    Object.values(op).reduce((a, v) => a + v.separatorow, 0) + ' separatorów');
+
   // ── Domyślnie WŁĄCZONE pola zaznaczenia ─────────────────────────────────
   /* REGUŁA JEST OGÓLNA I NIE ZNA ŻADNEGO ELEMENTU Z NAZWY:
 
