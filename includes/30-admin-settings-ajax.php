@@ -29,11 +29,11 @@ function tl_sanitize_translations_payload($input): array {
         foreach (($group['rows'] ?? []) as $row_id => $row) {
             $row_key = sanitize_key($row_id) ?: ('row_' . wp_rand(1000, 9999));
             $clean['groups'][$group_key]['rows'][$row_key] = [
-                'pl'     => sanitize_textarea_field($row['pl'] ?? ''),
+                'pl'     => tl_sanitize_phrase($row['pl'] ?? ''),
                 'dd_key' => sanitize_key($row['dd_key'] ?? ''),
             ];
             foreach ($codes as $code) {
-                $clean['groups'][$group_key]['rows'][$row_key][$code] = sanitize_textarea_field($row[$code] ?? '');
+                $clean['groups'][$group_key]['rows'][$row_key][$code] = tl_sanitize_phrase($row[$code] ?? '');
             }
         }
     }
@@ -197,7 +197,7 @@ function tl_rebuild_dd_keys_from_rows(array $payload, array $previous_keys = [])
     $dd_keys = $previous_keys;
     foreach (($payload['groups'] ?? []) as $group) {
         foreach (($group['rows'] ?? []) as $row) {
-            $pl     = sanitize_textarea_field($row['pl'] ?? '');
+            $pl     = tl_sanitize_phrase($row['pl'] ?? '');
             $dd_key = sanitize_key($row['dd_key'] ?? '');
             if ($pl && $dd_key) $dd_keys[$dd_key] = $pl;
         }
@@ -297,7 +297,7 @@ add_action('wp_ajax_tl_save_dd_keys', function () {
     $clean = [];
     foreach ($data as $key => $phrase) {
         $key = sanitize_key($key);
-        if ($key) $clean[$key] = sanitize_textarea_field($phrase);
+        if ($key) $clean[$key] = tl_sanitize_phrase($phrase);
     }
     update_option('tl_dd_keys', $clean);
     tl_invalidate_cache();
@@ -634,7 +634,11 @@ add_action('wp_ajax_tl_import', function () {
 
 add_action('wp_ajax_tl_inline_get', function () {
     evk_tl_ajax_check('tl_inline_nonce');
-    $pl = sanitize_textarea_field(wp_unslash($_POST['pl'] ?? ''));
+    /* Ta sama sanityzacja co przy zapisie — fraza jest tu KLUCZEM wyszukiwania
+       w `tl_dd_keys` i `strings`. Gdyby czyściła inaczej niż zapis, fraza ze
+       znacznikiem nie odnalazłaby własnego wiersza i edytor inline zakładałby
+       przy każdym otwarciu nowy. */
+    $pl = tl_sanitize_phrase(wp_unslash($_POST['pl'] ?? ''));
     if (!$pl) wp_send_json_error('Brak frazy.');
     $dd_keys = get_option('tl_dd_keys', []);
     $existing_key = '';
@@ -659,8 +663,8 @@ add_action('wp_ajax_tl_inline_get', function () {
 
 add_action('wp_ajax_tl_inline_save_full', function () {
     evk_tl_ajax_check('tl_inline_nonce');
-    $old_pl           = sanitize_textarea_field(wp_unslash($_POST['old_pl'] ?? ''));
-    $pl               = sanitize_textarea_field(wp_unslash($_POST['pl'] ?? ''));
+    $old_pl           = tl_sanitize_phrase(wp_unslash($_POST['old_pl'] ?? ''));
+    $pl               = tl_sanitize_phrase(wp_unslash($_POST['pl'] ?? ''));
     $translations_raw = isset($_POST['translations']) ? wp_unslash($_POST['translations']) : '';
     $translations     = json_decode($translations_raw, true);
     $dd_key           = sanitize_key(wp_unslash($_POST['dd_key'] ?? ''));
@@ -675,7 +679,7 @@ add_action('wp_ajax_tl_inline_save_full', function () {
         foreach ($group['rows'] as &$row) {
             if (trim($row['pl'] ?? '') === $lookup_pl) {
                 $row['pl'] = $pl; $row['dd_key'] = $dd_key;
-                foreach ($codes as $code) { if (isset($translations[$code])) $row[$code] = sanitize_textarea_field($translations[$code]); }
+                foreach ($codes as $code) { if (isset($translations[$code])) $row[$code] = tl_sanitize_phrase($translations[$code]); }
                 $found = true; break 2;
             }
         }
@@ -685,7 +689,7 @@ add_action('wp_ajax_tl_inline_save_full', function () {
         if (empty($data['groups'])) $data['groups']['group_inline'] = ['name' => 'Inline Editor', 'rows' => []];
         $row_id = 'row_' . time() . '_' . wp_rand(1000, 9999);
         $new_row = ['pl' => $pl, 'dd_key' => $dd_key];
-        foreach ($codes as $code) { $new_row[$code] = sanitize_textarea_field($translations[$code] ?? ''); }
+        foreach ($codes as $code) { $new_row[$code] = tl_sanitize_phrase($translations[$code] ?? ''); }
         $target_group = ($group_id && isset($data['groups'][$group_id])) ? $group_id : array_key_first($data['groups']);
         $data['groups'][$target_group]['rows'][$row_id] = $new_row;
     }

@@ -81,10 +81,12 @@ function tl_replace_tl_tags_in_html(string $html, string $lang = ''): string {
 
     $html = tl_render_dd_tags_in_content($html, $lang);
 
+    /* `tl_sanitize_phrase()` zamiast `esc_html()` — patrz komentarz przy
+       skrótkodzie `[tl]` niżej. */
     $html = preg_replace_callback('/\[tl\s+key=["\']?([a-z0-9_]+)["\']?\s*(?:fallback=["\']([^"\']*)["\'])?\s*\]/i', function ($match) use ($lang) {
         $value = tl_get_dd_value($match[1], $lang);
-        if ($value !== '') return esc_html($value);
-        return isset($match[2]) ? esc_html($match[2]) : $match[0];
+        if ($value !== '') return tl_sanitize_phrase($value);
+        return isset($match[2]) ? tl_sanitize_phrase($match[2]) : $match[0];
     }, $html);
 
     return $html;
@@ -151,12 +153,24 @@ add_filter('bricks/dynamic_data/render_content', function ($content, $post, $con
 add_shortcode('tl', function ($atts) {
     $atts = shortcode_atts(['key' => '', 'fallback' => ''], $atts ?? [], 'tl');
 
+    /*
+     * SITO ZAMIAST ESCAPOWANIA.
+     *
+     * Stało tu `esc_html()`, co przy frazie z `<br>` wypisywało na stronie
+     * `&lt;br&gt;` jako widoczny tekst. Fraza przechodzi przy ZAPISIE przez
+     * `tl_sanitize_phrase()`, więc w bazie siedzi już wyłącznie to, co jest
+     * na liście znaczników liniowych — puszczenie jej tu przez to samo sito
+     * jest tańsze niż zaufanie bazie i jednocześnie nie gubi łamania wiersza.
+     *
+     * `fallback` idzie tą samą drogą: wpisuje go osoba edytująca stronę, więc
+     * ma podlegać tej samej regule co fraza, a nie ostrzejszej.
+     */
     if (!empty($atts['key'])) {
         $value = tl_get_dd_value(sanitize_key($atts['key']));
-        return esc_html($value !== '' ? $value : $atts['fallback']);
+        return tl_sanitize_phrase($value !== '' ? $value : $atts['fallback']);
     }
 
-    return esc_html($atts['fallback']);
+    return tl_sanitize_phrase($atts['fallback']);
 });
 
 foreach (['the_content', 'widget_text'] as $_tl_filter) {

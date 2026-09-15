@@ -2,6 +2,83 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.185.0] — 2026-09-15
+
+### Naprawione
+
+- **Fraza tłumaczenia gubiła `<br>` — i nie przy wyświetlaniu, tylko przy
+  ZAPISIE.** Zgłoszone z użycia: „moduł tłumaczeń nie wyświetla poprawnie
+  elementów z zapisanym `<br>` przy użyciu `{tl_...}`. Pomija `<br>`".
+
+  Objaw brzmiał jak usterka wyświetlania, ale znacznik w ogóle nie dojeżdżał do
+  bazy. Wszystkie punkty zapisu frazy — panel Tłumaczeń, klucze Dynamic Data
+  i edytor inline na froncie — wołały `sanitize_textarea_field()`, a ono woła
+  w środku `wp_strip_all_tags()`. Odtworzone na tej samej drodze, którą jedzie
+  panel: „Pierwsza linia`<br>`druga linia" zapisywało się jako **„Pierwsza
+  liniadruga linia"**, czyli razem ze sklejeniem słów — bo strip nie zostawia
+  po znaczniku nawet spacji.
+
+  Wchodzi jedna wspólna `tl_sanitize_phrase()` na `wp_kses()` z listą znaczników
+  LINIOWYCH: `br`, `strong`, `b`, `em`, `i`, `u`, `s`, `small`, `sup`, `sub`,
+  `span` i `a`. Zasada, nie lista z sufitu — przechodzi to, co mieści się
+  w środku zdania i nie buduje układu strony. `div`, `p`, `script`, `iframe`
+  i atrybuty zdarzeń wylatują dalej, bo fraza jest kawałkiem tekstu wstawianym
+  w cudzy element.
+
+  **Fraza bez znaczników przechodzi BAJT W BAJT tak jak dotąd** — tekst bez `<`
+  idzie dalej przez `sanitize_textarea_field()` i zachowuje całe dotychczasowe
+  czyszczenie. Zmiana dotyka wyłącznie tych fraz, które znacznik naprawdę niosą.
+
+  Po stronie wyjścia zniknęło `esc_html()` ze skrótkodu `[tl]` i z jego wariantu
+  w `tl_replace_tl_tags_in_html()` — przy zachowanym `<br>` wypisywałoby na
+  stronie `&lt;br&gt;` jako widoczny tekst. Wartość idzie tam przez to samo
+  sito, więc nie polega na zaufaniu do bazy. Ścieżka `{tl_...}` nic nie
+  escapowała i nie wymagała zmiany.
+
+  Atrybuty (`placeholder`, `aria-label`, `title`, `value`) zostają przy
+  `esc_attr()` — znacznik w atrybucie i tak nic nie znaczy.
+  (`includes/20-helpers-cache-inline.php`, `includes/30-admin-settings-ajax.php`,
+  `includes/40-dynamic-data-shortcode.php`)
+
+### Wiadomo i nie zmienia się
+
+- **Automatyczna podmiana tekstu na stronie nadal nie dopasuje frazy PL ze
+  znacznikiem.** `tl_tokenize_content()` szuka wyrażeniem `/>([^<]+)</`, czyli
+  wyłącznie w węzłach tekstowych — fraza „Pierwsza linia`<br>`druga linia"
+  rozpada się w HTML-u na dwa węzły i nie ma się z czym dopasować. Drogą dla
+  tekstu ze znacznikiem jest `{tl_...}` (to ona była w zgłoszeniu) albo `[tl]`.
+
+  W drugą stronę działa bez przeszkód: fraza PL bez znaczników, a TŁUMACZENIE
+  z `<br>` — podmiana idzie przez token i wstawia znacznik poprawnie.
+
+### Testy
+
+Siedemnaście nowych sprawdzeń w nowym pliku `tl-frazy`, na PRAWDZIWYM
+`wp_kses` (kopia WordPressa w `tests/php/wp/kses.php`). Atrapa sita byłaby tu
+bezwartościowa z definicji: pytanie brzmi „co sito przepuszcza", więc sito
+udawane odpowiadałoby samo sobie. Ta sama zasada, na której stoi
+`tests/php/svg-sanityzacja.php`.
+
+Sprawdzenia patrzą na OBA końce drogi — co wylądowało w opcji i co wychodzi na
+stronę. Samo wyjście przechodziłoby także wtedy, gdyby ktoś naprawił
+escapowanie, a zapis zostawił wycinający. Obie mutacje zapalają: przywrócenie
+`sanitize_textarea_field()` gasi 12 sprawdzeń, a wypuszczenie wartości bez sita
+— 5 kontroli negatywnych.
+
+Przy okazji, znalezione przez ten test: **`tests/php/tl-uprawnienia.php` ładował
+`30-admin-settings-ajax.php` bez `20-helpers-cache-inline.php`** i podstawiał
+własną atrapę `tl_invalidate_cache()`. Harness odtwarza teraz układ z żywej
+strony i ładuje prawdziwe helpery — atrapa sanityzacji przechodziłaby także
+wtedy, gdyby prawdziwa przestała działać.
+
+### Narzędzia
+
+- **PHPStan wreszcie chodzi w tym środowisku.** `composer install` nie
+  uwierzytelniał się do github.com, bo `phpstan/phpstan` nie ma w locku źródła
+  gitowego — tylko zipball przez `api.github.com`, a ten pod limitem żąda
+  tokenu. Obie paczki dają się sklonować wprost po gicie, bez logowania.
+  Analiza na całej wtyczce: **bez zastrzeżeń**, baseline nietknięty.
+
 ## [1.184.0] — 2026-09-15
 
 Dwie poprawki z 1.183.0 nie zadziałały na żywej stronie. Obie przyczyny są

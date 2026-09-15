@@ -31,6 +31,62 @@ function tl_split_paragraphs(string $text): array {
     return array_values(array_filter($parts, fn($p) => $p !== ''));
 }
 
+/**
+ * Znaczniki, które wolno zostawić we frazie tłumaczenia.
+ *
+ * ZASADA, nie lista z sufitu: przechodzi to, co mieści się W ŚRODKU ZDANIA
+ * i nie buduje układu strony. Łamanie wiersza, wyróżnienie, odnośnik. Nie ma
+ * tu `div`, `p`, `script`, `iframe` ani niczego, co otwiera blok — fraza jest
+ * kawałkiem tekstu wstawianym w cudzy element, więc znacznik blokowy i tak
+ * rozjechałby jego układ.
+ *
+ * NAZWY MAŁYMI LITERAMI — `wp_kses()` porównuje je po sprowadzeniu do małych,
+ * a w wyniku zostawia pisownię nienaruszoną. To samo, co przy sicie SVG
+ * (`tl_svg_allowed_tags()` w 70-bricks-language-switcher.php).
+ *
+ * `style` przechodzi przez własne sito WordPressa (`safecss_filter_attr`),
+ * które przepuszcza wyłącznie znane właściwości CSS — nie jest to więc furtka
+ * na dowolną treść atrybutu.
+ */
+function tl_phrase_allowed_tags(): array {
+    $liniowe = ['class' => [], 'id' => [], 'style' => [], 'lang' => [], 'dir' => []];
+
+    return [
+        'br'     => [],
+        'strong' => $liniowe, 'b'   => $liniowe,
+        'em'     => $liniowe, 'i'   => $liniowe,
+        'u'      => $liniowe, 's'   => $liniowe,
+        'small'  => $liniowe, 'sup' => $liniowe, 'sub' => $liniowe,
+        'span'   => $liniowe,
+        'a'      => $liniowe + ['href' => [], 'title' => [], 'target' => [], 'rel' => []],
+    ];
+}
+
+/**
+ * Sanityzacja frazy tłumaczenia — jedna dla WSZYSTKICH punktów zapisu.
+ *
+ * ZGŁOSZONE Z UŻYCIA: „moduł tłumaczeń nie wyświetla poprawnie elementów
+ * z zapisanym <br> przy użyciu {tl_...}. Pomija <br>".
+ *
+ * Stało tu wszędzie `sanitize_textarea_field()`, a ono woła w środku
+ * `wp_strip_all_tags()` — znacznik nie tyle „nie wyświetlał się", co NIE
+ * DOJEŻDŻAŁ DO BAZY. Zmierzone na tej samej drodze, którą jedzie panel:
+ * „Pierwsza linia<br>druga linia" zapisywało się jako „Pierwsza liniadruga
+ * linia", czyli razem ze sklejeniem słów.
+ *
+ * ŚCIEŻKA BEZ ZNACZNIKÓW ZOSTAJE BAJT W BAJT TAKA JAK BYŁA. Fraza bez `<`
+ * idzie dalej przez `sanitize_textarea_field()`, więc zachowuje całe
+ * dotychczasowe czyszczenie (nieprawidłowy UTF-8, oktety, znaki sterujące),
+ * a zmiana dotyka wyłącznie tych fraz, które znacznik naprawdę niosą.
+ */
+function tl_sanitize_phrase($value): string {
+    $value = (string) $value;
+    if ($value === '') return '';
+    if (strpos($value, '<') === false) return sanitize_textarea_field($value);
+
+    return trim(wp_kses($value, tl_phrase_allowed_tags()));
+}
+
 function tl_invalidate_cache(): void {
     delete_transient(TL_TRANSIENT_CONFIG);
     delete_transient(TL_TRANSIENT_INLINE);

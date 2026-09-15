@@ -35,8 +35,19 @@ function wp_slash($v) { return $v; }
 function current_time($type = 'mysql') { return '2026-01-01 00:00:00'; }
 function admin_url($path = '') { return 'https://example.test/wp-admin/' . $path; }
 function wp_create_nonce($action = -1) { return 'testnonce'; }
-function tl_invalidate_cache() {}
 function tl_flush_rewrite_rules() {}
+
+/* Pamięć podręczna — same atrapy, bo ten plik bada uprawnienia, nie cache.
+   Są tu po to, żeby dało się załadować PRAWDZIWY `20-helpers-cache-inline.php`
+   (patrz niżej), a nie po to, żeby cokolwiek pamiętać. */
+function get_transient($k) { return false; }
+function set_transient($k, $v, $t = 0) { return true; }
+function delete_transient($k) { return true; }
+define('TL_TRANSIENT_CONFIG', 'tl_compiled_config');
+define('TL_TRANSIENT_TOKENS', 'tl_compiled_tokens_');
+define('TL_TRANSIENT_INLINE', 'tl_inline_phrases');
+define('TL_TRANSIENT_SLUGS',  'tl_compiled_slugs');
+define('TL_CACHE_TTL', 604800);
 
 /**
  * Użytkownik, który ZAPAMIĘTUJE każdą próbę nadania uprawnienia.
@@ -88,6 +99,12 @@ class EVK_Test_Wpdb {
 $GLOBALS['wpdb'] = new EVK_Test_Wpdb();
 
 require_once EVK_TEST_ROOT . '/includes/00-context-safety.php';
+/* PRAWDZIWE helpery, nie atrapy — `30-admin-settings-ajax.php` woła stąd
+   `tl_sanitize_phrase()` przy każdym zapisie frazy. Na żywej stronie ten plik
+   ładuje się zawsze i przed nim (evoke-one.php, lista modułów płaskich), więc
+   harness ma odtwarzać ten układ, a nie podstawiać własną wersję sanityzacji —
+   podstawiona przechodziłaby także wtedy, gdyby prawdziwa przestała działać. */
+require_once EVK_TEST_ROOT . '/includes/20-helpers-cache-inline.php';
 require_once EVK_TEST_ROOT . '/includes/30-admin-settings-ajax.php';
 require_once EVK_TEST_ROOT . '/includes/admin/page.php';   // evoke_one_get_io_modules()
 require_once EVK_TEST_ROOT . '/includes/admin/role-manager-logic.php';
