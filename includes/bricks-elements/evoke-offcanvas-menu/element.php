@@ -68,6 +68,19 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 
 	public function set_controls() {
 
+		/* NA SAMEJ GÓRZE, tak jak „Otwórz w builderze" w Circular Menu.
+		   To jedyna kontrolka, której się używa PODCZAS składania menu, a nie
+		   przy jego ustawianiu: bez niej panel zamyka się i każda poprawka
+		   treści zaczyna się od otwierania go od nowa. Na dole listy, za
+		   dwudziestoma polami wyglądu, trafiało się na nią dopiero wtedy, gdy
+		   już nie była potrzebna. */
+		$this->controls['openInBuilder'] = [
+			'tab'     => 'content',
+			'label'   => esc_html__( 'Trzymaj otwarte w builderze', 'evoke-one' ),
+			'type'    => 'checkbox',
+			'default' => false,
+		];
+
 		$this->controls['mode'] = [
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Tryb', 'evoke-one' ),
@@ -451,13 +464,6 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 				. 'przełącznika wyżej.',
 				'evoke-one'
 			),
-		];
-
-		$this->controls['openInBuilder'] = [
-			'tab'     => 'content',
-			'label'   => esc_html__( 'Trzymaj otwarte w builderze', 'evoke-one' ),
-			'type'    => 'checkbox',
-			'default' => false,
 		];
 	}
 

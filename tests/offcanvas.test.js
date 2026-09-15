@@ -1667,6 +1667,32 @@ module.exports = async function (t) {
     JSON.stringify(dSlide.deps));
   t.check('i jest przy tym zarejestrowany', dSlide.warstwy === true, String(dSlide.warstwy));
 
+  // ── Kolejność kontrolek w panelu ───────────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „kontrolkę »Trzymaj otwarte w builderze« trzeba
+     przesunąć na górę, jak w Circular Menu". To jedyna kontrolka używana
+     PODCZAS składania menu, a nie przy jego ustawianiu — za dwudziestoma
+     polami wyglądu trafiało się na nią dopiero wtedy, gdy nie była potrzebna.
+
+     Z PRZEGLĄDARKI TEGO NIE WIDAĆ: panel Bricksa to osobna aplikacja Vue
+     w oknie buildera, a ten plik mierzy front. Kolejność widać wyłącznie
+     z tablicy, którą wpisuje `set_controls()`. */
+  t.section('przełącznik buildera stoi pierwszy, tak jak w Circular Menu');
+
+  const kontrolki = JSON.parse(phpOutput('offcanvas-kontrolki.php'));
+
+  t.check('w Offcanvasie jest pierwszy', kontrolki.offcanvas[0] === 'openInBuilder',
+    kontrolki.offcanvas.slice(0, 3).join(', '));
+  /* WZORZEC, nie ozdoba: zgłoszenie brzmiało „jak w Circular Menu". Gdyby
+     kiedyś ktoś przestawił wzorzec, ta para ma o tym powiedzieć — inaczej
+     zgodność zostałaby tylko w tym komentarzu. */
+  t.check('i w Circular Menu tak samo', kontrolki.circular[0] === 'openbuilder',
+    kontrolki.circular.slice(0, 3).join(', '));
+  /* KONTROLA NEGATYWNA. Bez niej „pierwszy klucz się zgadza" przechodziłoby
+     także dla `set_controls()`, które zgubiło całą resztę. */
+  t.check('a reszta kontrolek nie wyparowała', kontrolki.offcanvas.length > 20
+    && kontrolki.offcanvas.includes('mode') && kontrolki.offcanvas.includes('shellZ'),
+    kontrolki.offcanvas.length + ' kontrolek');
+
   /* ── Sterowanie, które nie jest przyciskiem z natury ────────────────────
    *
    * Zgłoszone z PageSpeed: „Elements must only use permitted ARIA attributes",

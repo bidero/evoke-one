@@ -2,6 +2,28 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.188.0] — 2026-09-15
+
+### Zmienione
+
+- **„Trzymaj otwarte w builderze" stoi w Offcanvas Menu na samej górze listy
+  kontrolek** — tak jak „Otwórz w builderze" w Circular Menu. Zgłoszone
+  z użycia.
+
+  To jedyna kontrolka tego elementu, której używa się PODCZAS składania menu,
+  a nie przy jego ustawianiu: bez niej panel zamyka się i każda poprawka treści
+  zaczyna się od otwierania go od nowa. Stała dwudziesta siódma, za wszystkimi
+  polami wyglądu — czyli trafiało się na nią dopiero wtedy, gdy nie była już
+  potrzebna. Sama kontrolka bez zmian, przeniesiona jest tylko jej pozycja.
+  (`includes/bricks-elements/evoke-offcanvas-menu/element.php`)
+
+  Kolejności kontrolek nie widać z przeglądarki — panel Bricksa to osobna
+  aplikacja Vue w oknie buildera, a testy chodzą po froncie. Doszło więc
+  sprawdzenie po stronie PHP-a (`tests/php/offcanvas-kontrolki.php`), które
+  czyta kolejność wprost z `set_controls()` i pilnuje pary z Circular Menu,
+  bo zgłoszenie brzmiało „jak w Circular Menu". Mutacja (kontrolka z powrotem
+  na dole) zapala.
+
 ## [1.187.0] — 2026-09-15
 
 ### Dodane
