@@ -659,6 +659,81 @@ module.exports = async function (t) {
   t.check('a nie domyślną biel', bgv.frame !== 'rgb(255, 255, 255)', bgv.frame);
   await bgc.close();
 
+  // ── Gradient tła menu ──────────────────────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „jak nałożę gradient na 1 panel, podczas zmiany paneli
+     odjeżdża i zastaje tło menu. Chciałbym, żeby gradient był na całym tym tle
+     podczas przewijania".
+
+     Panele jadą na taśmie, więc ich tło jedzie razem z nimi; kadr stoi.
+     Gradient na kadrze leży pod wszystkimi panelami naraz — i o to chodzi, żeby
+     PRZY PRZEJŚCIU BYŁ TEN SAM. Dlatego mierzymy go w trzech chwilach:
+     przed przejściem, W JEGO TRAKCIE i po nim. Sam odczyt „po" przechodziłby
+     także wtedy, gdyby gradient w połowie ruchu znikał i wracał. */
+  t.section('gradient tła menu stoi pod panelami przez całe przejście');
+
+  const gr = await t.open('offcanvas.html', {
+    viewport: V, settle: 150,
+    /* `panele=1` DAJE PANELOM WŁASNE KOLORY i bez tego dwa sprawdzenia niżej
+       byłyby puste: dopasowanie tła do panelu wychodzi wcześniej, gdy panel nie
+       ma czym się podzielić, więc „nie nadpisało gradientu" przechodziłoby także
+       wtedy, gdyby strażnik w ogóle nie istniał. Z kolorami panel ma co wpisać
+       i strażnik jest jedyną rzeczą, która mu tego zabrania. */
+    query: 'mode=levels&panele=1&bggrad='
+      + encodeURIComponent('linear-gradient(rgb(10, 20, 30), rgb(40, 50, 60))'),
+  });
+  await gr.evaluate(() => window.__open());
+  await gr.waitForTimeout(500);
+
+  const gPrzed = await gr.evaluate(() => window.__frameBg());
+  t.check('gradient doszedł na kadr', /linear-gradient/.test(gPrzed.obraz), gPrzed.obraz);
+  /* KONTROLA NEGATYWNA na skrót `background:` w arkuszu. Skrót zerował
+     `background-image`, więc bez rozdzielenia na długie nazwy kolor i gradient
+     wykluczały się nawzajem — jedna z dwóch kontrolek zawsze przegrywała. */
+  t.check('i nie zdmuchnął koloru kadru', gPrzed.kolor === 'rgb(255, 255, 255)', gPrzed.kolor);
+
+  await gr.evaluate(() => window.__click('go-uslugi'));
+  await gr.waitForTimeout(150);                       // ŚRODEK ruchu, nie koniec
+  const gWTrakcie = await gr.evaluate(() => window.__frameBg());
+  t.check('w trakcie przejścia gradient stoi', gWTrakcie.obraz === gPrzed.obraz, gWTrakcie.obraz);
+
+  await gr.waitForTimeout(800);
+  const gPo = await gr.evaluate(() => window.__frameBg());
+  t.check('i po przejściu jest ten sam', gPo.obraz === gPrzed.obraz, gPo.obraz);
+  /* Dopasowanie tła do panelu wpisuje `frame.style` — atrybut, który wygrywa
+     z każdą regułą. Przy ustawionym gradiencie MUSI ustąpić, inaczej pierwsza
+     zmiana paneli zmiotłaby go z kadru. */
+  /* Panele mają tu zielone tło (`panele=1`). Gdyby strażnik nie obejmował
+     gradientu, dopasowanie wpisałoby ten zielony w `frame.style` i kolor kadru
+     przestałby być bielą z arkusza. To jest ten pomiar, nie sam obraz. */
+  t.check('dopasowanie do panelu ustąpiło przed gradientem',
+    gPo.kolor === 'rgb(255, 255, 255)', gPo.kolor + ' (panel: rgb(0, 150, 0))');
+  t.check('bez błędów JS', !gr.errors.length, gr.errors.join(' | ') || 'brak');
+  await gr.close();
+
+  /* DRUGA DROGA do tego samego zgłoszenia: gradient postawiony na PANELU,
+     bez żadnego tła menu. Dopasowanie czytało dotąd wyłącznie `backgroundColor`,
+     a panel z samym gradientem ma go `rgba(0, 0, 0, 0)` — czyli wpadał dokładnie
+     w warunek odrzucający i kadr zostawał biały. To jest ten „zastaje tło menu”
+     ze zgłoszenia. */
+  t.section('gradient z panelu też dojeżdża na kadr');
+
+  const gp = await t.open('offcanvas.html', {
+    viewport: V, settle: 150, query: 'mode=levels&panelgrad=1',
+  });
+  await gp.evaluate(() => window.__open());
+  await gp.waitForTimeout(500);
+
+  const pBg = await gp.evaluate(() => window.__frameBg());
+  t.check('kadr przejął gradient panelu', /linear-gradient/.test(pBg.obraz), pBg.obraz);
+  t.check('a nie został biały', pBg.kolor !== 'rgb(255, 255, 255)' || /linear-gradient/.test(pBg.obraz),
+    pBg.kolor + ' / ' + pBg.obraz);
+  /* Gradient panelu liczy się od JEGO szerokości. Kadr przy poszerzeniu jest
+     szerszy, więc bez zakotwiczenia rozciągnąłby się i szew byłby widoczny
+     mimo dopasowania. */
+  t.check('i jest zakotwiczony na szerokości panelu', /px|%/.test(pBg.rozmiar), pBg.rozmiar);
+  t.check('bez błędów JS', !gp.errors.length, gp.errors.join(' | ') || 'brak');
+  await gp.close();
+
   // ── Wąskie okno: poszerzać nie ma dokąd ────────────────────────────────
   // Dwa panele po 420 px nie zmieszczą się na telefonie. Menu MUSI wtedy
   // samo wrócić do pokazywania jednego — inaczej byłoby szersze niż ekran
@@ -1692,6 +1767,18 @@ module.exports = async function (t) {
   t.check('a reszta kontrolek nie wyparowała', kontrolki.offcanvas.length > 20
     && kontrolki.offcanvas.includes('mode') && kontrolki.offcanvas.includes('shellZ'),
     kontrolki.offcanvas.length + ' kontrolek');
+
+  /* OKABLOWANIE KONTROLEK TŁA. „Kontrolka istnieje" nie mówi nic o tym, czy
+     cokolwiek robi: pomyłka w nazwie zmiennej daje w panelu pole, które
+     zapisuje się poprawnie i nie zmienia na stronie niczego. Z przeglądarki
+     tego nie widać — nieustawiona kontrolka i kontrolka pisząca nie tam, gdzie
+     trzeba, wyglądają tak samo. Nazwy muszą się zgadzać z arkuszem
+     (`.evk-oc-frame`) i z listą przenoszoną na powłokę (`EVK_OC_ZMIENNE`). */
+  const w = kontrolki.wlasciwosci || {};
+  t.check('„Tło menu" pisze --evk-oc-bg',
+    (w.bgColor || []).join() === '--evk-oc-bg', (w.bgColor || []).join() || 'nic');
+  t.check('„Gradient tła menu" pisze --evk-oc-bg-img',
+    (w.bgGradient || []).join() === '--evk-oc-bg-img', (w.bgGradient || []).join() || 'nic');
 
   /* ── Sterowanie, które nie jest przyciskiem z natury ────────────────────
    *

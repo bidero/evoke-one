@@ -51,7 +51,8 @@ function evk_oc_przodek_blokujacy(el) {
 }
 
 /** Zmienne, które kontrolki `css` zapisują na korzeniu elementu. */
-var EVK_OC_ZMIENNE = ['--evk-oc-size', '--evk-oc-bg', '--evk-oc-scrim', '--evk-oc-z'];
+var EVK_OC_ZMIENNE = ['--evk-oc-size', '--evk-oc-bg', '--evk-oc-bg-img',
+                      '--evk-oc-scrim', '--evk-oc-z'];
 
 /**
  * Przenosi zmienne korzenia na powłokę — DEKLARACJĄ, nie wartością.
@@ -669,17 +670,48 @@ function evk_offcanvas_menu_init_one(root) {
      * domyślnej wartości. Ustawiona z automatu wygrałaby zawsze i to
      * dopasowanie nigdy by się nie odpaliło.
      */
-    var bgFromBuilder = !!(getComputedStyle(root).getPropertyValue('--evk-oc-bg') || '').trim();
+    function zZarkusza(nazwa) {
+        return !!(getComputedStyle(root).getPropertyValue(nazwa) || '').trim();
+    }
+
+    /* OBIE kontrolki wygrywają, nie tylko kolor. Gradient wpisany w panelu jest
+       tak samo wyborem użytkownika jak kolor, a dopasowanie do panelu i tak nie
+       miałoby jak go uszanować: wpisuje SKRÓT `background` w atrybut `style`,
+       który wygrywa z każdą regułą — więc przy pierwszej zmianie paneli zmiotłoby
+       gradient z arkusza. Dlatego ustawiony gradient wyłącza dopasowanie. */
+    var bgFromBuilder = zZarkusza('--evk-oc-bg') || zZarkusza('--evk-oc-bg-img');
 
     function syncFrameBg() {
         if (bgFromBuilder) return;
-        var p  = panels[stack[stack.length - 1]];
-        var bg = p && getComputedStyle(p).backgroundColor;
+        var p = panels[stack[stack.length - 1]];
+        if (!p) return;
+        var st = getComputedStyle(p);
+
+        /* CAŁE TŁO, NIE SAM KOLOR.
+           ZGŁOSZONE Z UŻYCIA: „jak nałożę gradient na 1 panel, podczas zmiany
+           paneli odjeżdża i zastaje tło menu". Do 1.190.0 czytaliśmy tu wyłącznie
+           `backgroundColor`, a panel z samym gradientem ma go `rgba(0, 0, 0, 0)` —
+           czyli wpadał dokładnie w warunek odrzucający niżej. Dopasowanie nie
+           odpalało się nigdy i spod odjeżdżającego panelu wychodziło gołe tło
+           kadru. Obraz gradientu bierzemy więc osobno i kładziemy go na kolorze,
+           tak samo jak robi to arkusz. */
+        var kolor = st.backgroundColor;
+        var obraz = st.backgroundImage;
+        var maObraz = obraz && obraz !== 'none';
+        var maKolor = kolor && kolor !== 'rgba(0, 0, 0, 0)' && kolor !== 'transparent';
+
         // Panel bez własnego tła nie ma czym się podzielić — zostaje domyślne
         // z arkusza. Podstawienie przezroczystości odsłaniałoby stronę.
-        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
-            frame.style.background = bg;
-        }
+        if (!maObraz && !maKolor) return;
+
+        /* Długimi nazwami, nie skrótem — inaczej ustawienie koloru kasowałoby
+           obraz i na odwrót, dokładnie tak jak w arkuszu. */
+        frame.style.backgroundColor = maKolor ? kolor : '';
+        frame.style.backgroundImage = maObraz ? obraz : '';
+        /* Gradient panelu liczy się od JEGO szerokości, a kadr bywa szerszy —
+           przy poszerzeniu rozciągnąłby się i szew byłby widoczny mimo
+           dopasowania. Kotwiczymy go na szerokości jednego panelu. */
+        frame.style.backgroundSize = maObraz ? 'var(--evk-oc-panel-basis, 100%) 100%' : '';
     }
 
     /* Zmiana motywu PRZY OTWARTYM MENU.

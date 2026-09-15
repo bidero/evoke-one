@@ -42,7 +42,20 @@ $oc->set_controls();
 $cm = new \Bricks\Evk_Circular_Menu();
 $cm->set_controls();
 
+/* WŁAŚCIWOŚCI CSS, KTÓRE PISZĄ KONTROLKI. Bez tego „kontrolka istnieje" nie
+   mówi nic o tym, czy cokolwiek robi: pomyłka w nazwie zmiennej daje w panelu
+   pole, które zapisuje się poprawnie i nie zmienia niczego na stronie. Z okna
+   przeglądarki tego nie widać, bo nieustawiona kontrolka i kontrolka pisząca
+   nie tam, gdzie trzeba, wyglądają identycznie. */
+$wlasciwosci = [];
+foreach ($oc->controls as $klucz => $k) {
+    foreach ($k['css'] ?? [] as $r) {
+        if (isset($r['property'])) $wlasciwosci[$klucz][] = $r['property'];
+    }
+}
+
 echo json_encode([
-    'offcanvas' => array_keys($oc->controls),
-    'circular'  => array_keys($cm->controls),
+    'offcanvas'    => array_keys($oc->controls),
+    'circular'     => array_keys($cm->controls),
+    'wlasciwosci'  => $wlasciwosci,
 ], JSON_UNESCAPED_UNICODE), "\n";

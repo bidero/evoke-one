@@ -157,6 +157,29 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			),
 		];
 
+		/* GRADIENT NA KADRZE, NIE NA PANELU — i to jest cała różnica.
+		   ZGŁOSZONE Z UŻYCIA: „jak nałożę gradient na 1 panel, podczas zmiany
+		   paneli odjeżdża i zastaje tło menu". Panele jadą na taśmie, więc ich
+		   tło jedzie razem z nimi; kadr stoi. Gradient położony tutaj leży pod
+		   wszystkimi panelami naraz i przy przejściu się nie rusza — a panele są
+		   domyślnie przezroczyste, więc prześwieca przez nie bez ustawiania
+		   czegokolwiek. Własny gradient na panelu nadal działa i przykrywa ten
+		   spodni. */
+		$this->controls['bgGradient'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Gradient tła menu', 'evoke-one' ),
+			'type'        => 'gradient',
+			'css'         => [ [ 'property' => '--evk-oc-bg-img', 'selector' => '' ] ],
+			'description' => esc_html__(
+				'Gradient rozciągnięty na całe tło menu — leży POD panelami, więc '
+				. 'przy przechodzeniu między nimi stoi w miejscu zamiast odjeżdżać '
+				. 'razem z panelem. Kładzie się na kolorze z pola wyżej, więc gradient '
+				. 'z przezroczystością ma na czym leżeć. W trybie „kadr się poszerza" '
+				. 'rozciąga się razem z menu.',
+				'evoke-one'
+			),
+		];
+
 		$this->controls['scrimColor'] = [
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Przyciemnienie strony', 'evoke-one' ),

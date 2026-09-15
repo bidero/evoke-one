@@ -81,7 +81,14 @@
        przeglądarek bez `clip`. */
     overflow: hidden;
     overflow: clip;
-    background: var(--evk-oc-bg, #fff);
+    /* DŁUGIE NAZWY, NIE SKRÓT. `background:` zeruje `background-image`, więc
+       skrótem nie da się mieć koloru z jednej kontrolki i gradientu z drugiej —
+       ta, która trafi później, kasuje tamtą. Rozdzielenie na dwie właściwości
+       jest jedynym sposobem, żeby „Tło menu" i „Gradient tła menu" mogły stać
+       obok siebie. Gradient leży NA kolorze, więc kolor zostaje jako podkład
+       dla gradientów z przezroczystością. */
+    background-color: var(--evk-oc-bg, #fff);
+    background-image: var(--evk-oc-bg-img, none);
     /* Dwie właściwości, dwa tempa. `transform` to wysuwanie menu — czas kadru.
        `width` to POSZERZANIE kadru przy wejściu w podmenu, czyli ruch między
        panelami — więc bierze czas i krzywą taśmy. Wspólny czas spłaszczyłby

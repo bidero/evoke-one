@@ -2,6 +2,49 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.190.0] — 2026-09-15
+
+### Dodane
+
+- **Gradient tła menu w Offcanvas Menu.** ZGŁOSZONE Z UŻYCIA: „jak nałożę
+  gradient na 1 panel, podczas zmiany paneli odjeżdża i zastaje tło menu.
+  Chciałbym, żeby gradient był na całym tym tle podczas przewijania".
+
+  Panele jadą na taśmie, więc ich tło jedzie razem z nimi; kadr stoi. Nowa
+  kontrolka kładzie gradient na **kadrze**, czyli pod wszystkimi panelami
+  naraz — przy przejściu nie ma czego odjeżdżać. Panele nie mają własnego tła
+  (w całym arkuszu elementu są dokładnie dwie reguły `background`: przyciemnienie
+  i kadr), więc gradient prześwieca przez nie bez ustawiania czegokolwiek.
+  Własny gradient na panelu dalej działa i przykrywa ten spodni.
+
+  Arkusz musiał przy tym przejść ze skrótu `background:` na długie nazwy —
+  skrót zeruje `background-image`, więc kolor z jednej kontrolki i gradient
+  z drugiej wykluczały się nawzajem. (`assets/offcanvas-menu.css`)
+
+### Naprawione
+
+- **Dopasowanie tła kadru do panelu nie widziało gradientów.** To jest to samo
+  zgłoszenie od drugiej strony i przyczyna, dla której „zastaje tło menu".
+
+  `syncFrameBg()` czytało wyłącznie `backgroundColor`, a panel z samym
+  gradientem ma go `rgba(0, 0, 0, 0)` — czyli wpadał dokładnie w warunek
+  odrzucający („panel bez własnego tła nie ma czym się podzielić"). Dopasowanie
+  nie odpalało się więc **nigdy**, gdy panel był pomalowany gradientem,
+  i spod odjeżdżającego panelu wychodził goły kadr. Teraz bierzemy całe tło —
+  kolor i obraz osobno, długimi nazwami — i kotwiczymy gradient na szerokości
+  panelu, żeby przy poszerzonym kadrze się nie rozciągał.
+
+  Przy ustawionym gradiencie menu dopasowanie **ustępuje**: wpisuje
+  `frame.style`, czyli atrybut wygrywający z każdą regułą, więc bez tego
+  pierwsza zmiana paneli zmiotłaby gradient z kadru.
+  (`assets/offcanvas-menu.js`)
+
+  Nowe sprawdzenia mierzą gradient w **trzech chwilach** — przed przejściem,
+  w jego trakcie i po nim. Sam odczyt „po" przechodziłby także wtedy, gdyby
+  gradient w połowie ruchu znikał i wracał. Trzy mutacje (powrót skrótu
+  w arkuszu, powrót odczytu samego koloru, strażnik bez gradientu) zapalają
+  trzy różne sprawdzenia.
+
 ## [1.189.0] — 2026-09-15
 
 ### Naprawione
