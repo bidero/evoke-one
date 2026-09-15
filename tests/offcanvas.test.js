@@ -734,6 +734,55 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !gp.errors.length, gp.errors.join(' | ') || 'brak');
   await gp.close();
 
+  /* TRZECIA DROGA, i ta jest odpowiedzią na drugą połowę zgłoszenia:
+     „gradient w OC nie działa. NAKŁADA SIĘ NA NAGŁÓWEK pod panelem".
+
+     Kontrolka typu `gradient` celuje we własną właściwość `--evk-oc-bg-img`,
+     ale w całej wtyczce nie ma drugiego takiego użycia — jedyny precedens
+     (Circular Title) pisze wprost `background-image`. Bricksa nie da się
+     uruchomić poza stroną, więc czego naprawdę użył, stąd nie sprawdzę.
+     Objaw mówi, że gradient wylądował na KORZENIU elementu: korzeń leży
+     w nagłówku (trzyma trigger), a powłoka menu jest w <body> i nic po nim
+     nie dziedziczy.
+
+     Zamiast zgadywać, przenoszenie zmiennych zbiera OBIE postacie. Ten
+     scenariusz odtwarza tę drugą: gradient jako `background-image` w regule
+     korzenia, bez śladu naszej własnej właściwości. */
+  t.section('gradient zapisany na korzeniu trafia na menu, nie na nagłówek');
+
+  const gk = await t.open('offcanvas.html', {
+    viewport: V, settle: 150, query: 'mode=levels&bggradroot=1',
+  });
+  await gk.evaluate(() => window.__open());
+  await gk.waitForTimeout(500);
+
+  const kBg = await gk.evaluate(() => window.__frameBg());
+  const kRoot = await gk.evaluate(() => window.__rootBg());
+
+  t.check('kadr menu dostał gradient', /linear-gradient/.test(kBg.obraz), kBg.obraz);
+  /* SEDNO ZGŁOSZENIA. Bez zgaszenia na korzeniu gradient nadal malowałby
+     nagłówek — i „gradient jest na kadrze" przechodziłoby przy wciąż obecnej
+     usterce. */
+  t.check('a z korzenia w nagłówku zniknął', kRoot === 'none', kRoot);
+  t.check('bez błędów JS', !gk.errors.length, gk.errors.join(' | ') || 'brak');
+  await gk.close();
+
+  /* KONTROLA NEGATYWNA ZGASZENIA. Obrazek ustawiony korzeniowi świadomie —
+     czyli nie gradient — ma zostać nietknięty. Bez tego „gasimy na korzeniu"
+     mogłoby znaczyć „gasimy zawsze", a to zabierałoby ludziom tło, o które
+     nikt nie pytał. */
+  t.section('zwykłe tło korzenia zostaje nietknięte');
+
+  const gz = await t.open('offcanvas.html', { viewport: V, settle: 150, query: 'mode=levels' });
+  await gz.evaluate(() => {
+    document.getElementById('root').style.backgroundImage = 'url("data:image/gif;base64,R0lGODlhAQABAAAAACw=")';
+  });
+  await gz.evaluate(() => window.__open());
+  await gz.waitForTimeout(400);
+  const zRoot = await gz.evaluate(() => window.__rootBg());
+  t.check('obrazek na korzeniu przeżywa', /url\(/.test(zRoot), zRoot);
+  await gz.close();
+
   // ── Wąskie okno: poszerzać nie ma dokąd ────────────────────────────────
   // Dwa panele po 420 px nie zmieszczą się na telefonie. Menu MUSI wtedy
   // samo wrócić do pokazywania jednego — inaczej byłoby szersze niż ekran
