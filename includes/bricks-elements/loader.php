@@ -14,6 +14,11 @@ if (!defined('ABSPATH')) exit;
  *   (klasa już istnieje), Evoke ONE pomija rejestrację (zero konfliktu).
  */
 
+/* Wspólny odczyt pól włącz/wyłącz. Ładowany TU, bo element.php trafia do PHP-a
+   wyłącznie przez ten plik — tak samo jak EVK_BRICKS_CATEGORY niżej, którego
+   elementy też nie definiują same. Sondy w tests/php/ dociągają go wprost. */
+require_once __DIR__ . '/flaga.php';
+
 /** Slug grupy elementów w builderze Bricks. */
 const EVK_BRICKS_CATEGORY = 'evoke-one';
 

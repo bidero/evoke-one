@@ -2,6 +2,44 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.199.0] — 2026-09-15
+
+### Dodane
+
+- **`evk_flaga()` — jeden odczyt pól włącz/wyłącz dla wszystkich elementów.**
+  Nowy plik `includes/bricks-elements/flaga.php`, dociągany przez `loader.php`.
+  Sam w sobie nie zmienia zachowania niczego; jest warunkiem wstępnym dla
+  zapowiedzianej zamiany pól tekstowych i list wyboru na przełączniki.
+
+  **Po co.** Na to samo pytanie — „czy użytkownik to włączył" — były w kodzie
+  TRZY odpowiedzi: `array_key_exists()` w marquee, `! empty()` przy
+  `'default' => true` w offcanvas, circular-menu i horizontal-scroll, oraz
+  lista wyboru „tak"/„nie" w wave-bg i ziarnie. Druga jest cicho zepsuta: przy
+  NIETKNIĘTYM elemencie Bricks nie ma klucza w ustawieniach, `! empty()` daje
+  wtedy `false` i zadeklarowana domyślna po prostu nie obowiązuje. Z panelu
+  buildera wygląda to normalnie — pole jest zaznaczone.
+
+  **Dlaczego funkcja rozumie „tak" i „nie".** To nie bałagan, tylko warunek
+  zmiany typu kontrolki bez utraty ustawień. Gałąź jedzie aktualizatorem na
+  żywe strony: zamiana listy na pole zaznaczenia zostawia w bazie zapisane
+  wcześniej `'nie'`, a `! empty('nie')` to PRAWDA. Bez tego czyjś wyłączony
+  automat jakości wróciłby włączony.
+
+  **Czego nie wiemy i po co tak napisana.** Czy Bricks dokłada `default` do
+  zapisanych ustawień — nie da się tu sprawdzić (patrz `CLAUDE.md`). Funkcja
+  odpowiada poprawnie przy obu zachowaniach, więc odpowiedź przestaje być
+  potrzebna.
+
+  Sprawdzenie: nowa sonda `tests/php/flaga.php` i sekcja w `controls.test.js`
+  — dziesięć wierszy, w KAŻDYM wartość domyślna ustawiona odwrotnie do
+  oczekiwanej odpowiedzi, żeby funkcja oddająca po prostu domyślną nie
+  przeszła. Plus strażnik rozjazdu: sonda ładuje plik wprost, więc osobno
+  pilnuje, że dociąga go też `loader.php` — inaczej elementy by go nie widziały.
+
+  Trzy mutacje, każda gasi INNY podzbiór: usunięcie obsługi starego `'nie'`
+  zapala jedno sprawdzenie, zawsze-domyślna pięć, wycięcie `require_once`
+  z `loader.php` jedno — i za każdym razem inne.
+
 ## [1.198.1] — 2026-09-15
 
 ### Naprawione

@@ -330,4 +330,41 @@ module.exports = async function (t) {
     emit({ _attributes: [{ id: 'z', name: 'data-evk-bg-text', value: 'red' }],
            evkBgShift: true, evkBgShiftText: { hex: '#00c800' } }).bgText === null,
     'kontrolka milczy');
+
+  // ── Wspólny odczyt pól włącz/wyłącz ──────────────────────────────────────
+  /* `evk_flaga()` powstała dlatego, że na to samo pytanie były w elementach
+     trzy różne odpowiedzi, a jedna z nich cicho nie działała: `! empty()`
+     przy `'default' => true` gubi domyślną na NIETKNIĘTYM elemencie, bo Bricks
+     nie ma wtedy klucza w ustawieniach. Z panelu buildera wygląda to normalnie
+     — pole jest zaznaczone — więc jedynym miejscem, gdzie to widać, jest ten
+     pomiar na prawdziwej funkcji.
+
+     W KAŻDYM wierszu wartość domyślna jest USTAWIONA ODWROTNIE do oczekiwanej
+     odpowiedzi. Bez tego funkcja zwracająca po prostu `$domyslnie` przeszłaby
+     połowę sprawdzeń. */
+  t.section('evk_flaga — jeden odczyt dla wszystkich elementów');
+
+  const f = JSON.parse(phpOutput('flaga.php'));
+  const w = f.wyniki;
+
+  t.check('brak klucza oddaje domyślną (włączoną)',  w['brak klucza, domyślnie włączone'] === true);
+  t.check('brak klucza oddaje domyślną (wyłączoną)', w['brak klucza, domyślnie wyłączone'] === false);
+
+  /* SEDNO: zamiana listy wyboru na pole zaznaczenia zostawia w bazie zapisane
+     wcześniej „nie". Gałąź jedzie aktualizatorem na żywe strony, więc bez tych
+     dwóch wierszy czyjeś wyłączone ustawienie wróciłoby włączone. */
+  t.check('stary zapis „nie" dalej znaczy wyłączone', w['stara lista: nie'] === false);
+  t.check('stary zapis „tak" dalej znaczy włączone',  w['stara lista: tak'] === true);
+
+  t.check('zaznaczone to włączone',   w['pole zaznaczone'] === true);
+  t.check('odznaczone to wyłączone',  w['pole odznaczone (false)'] === false
+    && w['pole odznaczone (pusty łańcuch)'] === false);
+  t.check('„1" i „0" z Bricksa czytane jak liczby',
+    w['Bricks zapisuje jedynkę'] === true && w['Bricks zapisuje zero'] === false);
+  t.check('obcy klucz nie podszywa się pod pytany', w['klucz obok nie ma wpływu'] === true);
+
+  /* Sonda ładuje flaga.php wprost, więc sama nie dowodzi, że plik dociera do
+     produkcji. Elementy widzą tę funkcję WYŁĄCZNIE przez loader.php. */
+  t.check('loader.php dociąga flaga.php', f.loader_dociaga === true,
+    String(f.loader_dociaga));
 };
