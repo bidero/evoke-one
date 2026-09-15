@@ -465,6 +465,22 @@ window.__track = function () {
  *  nie chcemy. Bez tego „gradient jest na kadrze" przechodziłoby także wtedy,
  *  gdy jednocześnie nadal maluje nagłówek — czyli przy usterce ze zgłoszenia.
  */
+/** Ślad pozycji panelu startowego przez kolejne klatki wjazdu.
+ *
+ *  Pojedyncze próbki nie wystarczą: usterka ze zgłoszenia polega na tym, że
+ *  panel PRZESTRZELIWUJE i wraca, a punkt początkowy i końcowy ma przy tym
+ *  poprawny. Widać ją wyłącznie po KSZTAŁCIE ścieżki.
+ */
+window.__sledzPanel = function (klatek) {
+  window.__sladPanelu = [];
+  var pa = shellOf(0).querySelector('.evk-oc-panel[data-panel="start"]');
+  var n = 0;
+  (function tik() {
+    window.__sladPanelu.push(Math.round(pa.getBoundingClientRect().left));
+    if (++n < (klatek || 45)) requestAnimationFrame(tik);
+  })();
+};
+
 window.__rootBg = function () {
   var r = document.getElementById('root');
   return r ? getComputedStyle(r).backgroundImage : null;

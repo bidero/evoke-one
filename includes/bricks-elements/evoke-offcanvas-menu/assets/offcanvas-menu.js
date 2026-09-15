@@ -1061,11 +1061,57 @@ function evk_offcanvas_menu_init_one(root) {
         }, frameTime * 1000 + 40);
     }
 
+    /**
+     * Wykonuje `fn` z WYŁĄCZONYMI przejściami kadru i taśmy.
+     *
+     * Potrzebne przy powrocie do stanu spoczynku: to nie jest ruch, który ktoś
+     * ma oglądać, tylko ustawienie punktu wyjścia. Reflow pomiędzy wymusza
+     * zapisanie nowych wartości, zanim przejścia wrócą — bez niego przeglądarka
+     * sklei obie zmiany w jedną i animuje mimo wszystko.
+     */
+    function bezPrzejscia(fn) {
+        var pf = frame.style.transition, pt = track.style.transition;
+        frame.style.transition = 'none';
+        track.style.transition = 'none';
+        fn();
+        void frame.offsetWidth;
+        frame.style.transition = pf;
+        track.style.transition = pt;
+    }
+
     function open(trigger) {
         if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
         lastTrigger = trigger || null;
-        stack = [startIdx];
-        applyState();
+
+        /* GEOMETRIA WRACA NATYCHMIAST, nie przejściem.
+         *
+         * ZGŁOSZONE Z UŻYCIA: „jeśli jestem na drugiej stronie i zamknę menu
+         * przez kliknięcie w wolne pole, ponowne otwarcie pokazuje tekst
+         * w miejscu, a nie wyjeżdżający razem z panelem".
+         *
+         * `finishClose()` zdejmuje tylko klasę — kadr zostaje SZEROKI na dwie
+         * kolumny. Dopóki przywracanie szerokości szło przejściem, kadr zwężał
+         * się z 840 do 420 W TRAKCIE wjazdu, a że trzyma się prawej krawędzi,
+         * jego lewy brzeg jechał przy tym w prawo. Panel siedzi przy tym brzegu
+         * i szedł razem z nim — w stronę przeciwną do wjazdu.
+         *
+         * Zmierzone (panel startowy, okno 1200 px, wjazd 0,4 s):
+         *
+         *     zamknięcie na panelu głównym │ 1200 → 1189 → 863 → 780
+         *     zamknięcie na podmenu        │ 1200 → 1179 → 720 → 780
+         *
+         * Druga droga PRZESTRZELIWUJE o 60 px i wraca. Ruch przestaje być
+         * monotoniczny i całość czyta się jak odsłanianie, którego nikt nie
+         * wybierał.
+         *
+         * Zerowanie w `finishClose()` nie wystarczy: menu wolno otworzyć
+         * w TRAKCIE wyjazdu, a wtedy żaden zegar odłożony na koniec zamykania
+         * by nie zdążył. */
+        bezPrzejscia(function () {
+            stack = [startIdx];
+            applyState();
+        });
+
         shell.classList.add('is-open');
         /* Oś czasu wygięcia idzie RAZEM z klasą. `play()` na osi, która jest
            w połowie drogi wstecz, zawraca ją z tego miejsca — bez skoku

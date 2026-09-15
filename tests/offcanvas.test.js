@@ -767,6 +767,85 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !gk.errors.length, gk.errors.join(' | ') || 'brak');
   await gk.close();
 
+  // ── Otwarcie po zamknięciu na podmenu ──────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „jeśli jestem na drugiej stronie i zamknę menu przez
+     kliknięcie w wolne pole, ponowne otwarcie pokazuje tekst w miejscu, a nie
+     wyjeżdżający razem z panelem. Jeśli zamknę na pierwszej stronie, kolejne
+     otwarcie jest ok".
+
+     `finishClose()` zdejmuje tylko klasę — kadr zostaje SZEROKI na dwie kolumny.
+     Dopóki przywracanie szerokości szło przejściem, kadr zwężał się w TRAKCIE
+     wjazdu, a że trzyma się prawej krawędzi, jego lewy brzeg jechał w prawo.
+     Panel siedzi przy tym brzegu i szedł razem z nim, przeciwnie do wjazdu.
+
+     MIERZYMY KSZTAŁT ŚCIEŻKI, nie punkty. Początek i koniec były POPRAWNE także
+     przy usterce — panel wyruszał z 1200 i kończył na 780 w obu drogach.
+     Różnica siedzi w środku: droga zepsuta przestrzeliwuje do 720, czyli 60 px
+     za daleko, i wraca. Zmierzone przy oknie 1200 px i wjeździe 0,4 s:
+
+         zamknięcie na panelu głównym │ 1200 → 1189 → 863 → 780
+         zamknięcie na podmenu, źle   │ 1200 → 1179 → 720 → 780
+         zamknięcie na podmenu, dobrze│ 1200 → 1189 → 882 → 780
+
+     Stąd próg: ścieżka nie ma prawa zejść poniżej pozycji końcowej. */
+  t.section('otwarcie po zamknięciu na podmenu jedzie tak samo jak zwykłe');
+
+  const sciezka = async (przezPodmenu) => {
+    const q = await t.open('offcanvas.html', {
+      viewport: V, settle: 150, query: 'mode=levels&dur=0.4&pdur=0.6',
+    });
+    await q.evaluate(() => window.__open());
+    await q.waitForTimeout(700);
+    if (przezPodmenu) {
+      await q.evaluate(() => window.__click('go-uslugi'));
+      await q.waitForTimeout(900);
+    }
+    // Zamknięcie kliknięciem w przyciemnienie — tak, jak w zgłoszeniu.
+    await q.evaluate(() => document.querySelector('.evk-oc-scrim').click());
+    await q.waitForTimeout(900);
+
+    const kadrPrzed = await q.evaluate(() => window.__frameBg() && Math.round(
+      document.querySelector('.evk-oc-frame').getBoundingClientRect().width));
+
+    await q.evaluate(() => { window.__sledzPanel(45); window.__open(); });
+    await q.waitForTimeout(1000);
+    const slad = await q.evaluate(() => window.__sladPanelu);
+    const bledy = q.errors.slice();
+    await q.close();
+    return { slad, kadrPrzed, bledy };
+  };
+
+  const zwykla = await sciezka(false);
+  const poPodmenu = await sciezka(true);
+
+  const koniec = (s) => s[s.length - 1];
+  const najdalej = (s) => Math.min.apply(null, s);
+
+  /* STRAŻNIK POMIARU: bez prawdziwych czasów przejść fixture otwiera menu
+     natychmiast (`--evk-oc-time: 0s`) i ścieżka ma jeden punkt — wtedy każdy
+     próg przechodzi, nie mierząc niczego. Na to nadziałem się sondą. */
+  t.check('ścieżka ma co pokazywać', zwykla.slad.length > 10
+    && Math.abs(zwykla.slad[0] - koniec(zwykla.slad)) > 100,
+    zwykla.slad.length + ' klatek, droga '
+    + Math.abs(zwykla.slad[0] - koniec(zwykla.slad)) + ' px');
+
+  /* KONTROLA ODNIESIENIA — droga, która działała i ma dalej działać. */
+  t.check('zwykłe otwarcie nie przestrzeliwuje',
+    najdalej(zwykla.slad) >= koniec(zwykla.slad) - 10,
+    'najdalej ' + najdalej(zwykla.slad) + ', koniec ' + koniec(zwykla.slad));
+
+  /* Kadr NAPRAWDĘ został szeroki po zamknięciu na podmenu — bez tego cały
+     scenariusz odtwarzałby drogę zwykłą i przechodziłby z byle powodu. */
+  t.check('po zamknięciu na podmenu kadr jest jeszcze szeroki',
+    poPodmenu.kadrPrzed > 600, poPodmenu.kadrPrzed + ' px');
+
+  /* SEDNO ZGŁOSZENIA. */
+  t.check('i otwarcie po podmenu też nie przestrzeliwuje',
+    najdalej(poPodmenu.slad) >= koniec(poPodmenu.slad) - 10,
+    'najdalej ' + najdalej(poPodmenu.slad) + ', koniec ' + koniec(poPodmenu.slad));
+  t.check('bez błędów JS', !poPodmenu.bledy.length,
+    poPodmenu.bledy.join(' | ') || 'brak');
+
   /* KONTROLA NEGATYWNA ZGASZENIA. Obrazek ustawiony korzeniowi świadomie —
      czyli nie gradient — ma zostać nietknięty. Bez tego „gasimy na korzeniu"
      mogłoby znaczyć „gasimy zawsze", a to zabierałoby ludziom tło, o które
