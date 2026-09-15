@@ -1,0 +1,37 @@
+/* Evoke ONE — Ziarno.
+ *
+ * Korzeń elementu NIE MA WŁASNEGO WYGLĄDU: kanwa jedzie do <body>, więc korzeń
+ * zostaje pustym znacznikiem w miejscu wstawienia. Bez `display: none`, bo
+ * Bricks musi go w builderze zaznaczyć i pokazać obrys.
+ */
+.evk-grain {
+    display: block;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+/* Kanwa: całe okno, przyklejona do ekranu, przezroczysta dla zdarzeń.
+ *
+ * `position: fixed` A NIE `absolute` — ziarno ma pokrywać okno niezależnie od
+ * przewinięcia, a wrażenie przewijania robi przesunięcie współrzędnych
+ * w shaderze (patrz grain.js). Kanwa wysoka na cały dokument kosztowałaby
+ * setki megabajtów pamięci karty.
+ *
+ * `pointer-events: none` jest tu WARUNKIEM DZIAŁANIA STRONY, nie kosmetyką:
+ * nakładka nad całą treścią bez tego przechwytywałaby każde kliknięcie. */
+.evk-grain__plotno {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    /* Bez `mix-blend-mode` — zmierzone: pełnoekranowa warstwa z mieszaniem łamie
+       budżet klatki (33,2 ms wobec 17,1 bez). Ziarno niesie własną
+       przezroczystość, tak jak shader fali. */
+}
+
+/* Druk: nakładka filmowa nie ma czego robić na papierze. */
+@media print {
+    .evk-grain__plotno { display: none; }
+}

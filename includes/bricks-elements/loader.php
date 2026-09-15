@@ -64,6 +64,24 @@ function evk_elements_registry(): array {
             'script'=> ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.js', ['evk-gsap', 'evk-scrolltrigger'], '1.11.0'],
             'style' => ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.css', '1.5.0'],
         ],
+        'grain' => [
+            'label' => 'Ziarno',
+            'desc'  => 'Ziarno filmowe z shadera na całe okno, przewijane z treścią.',
+            'icon'  => 'dashicons-art',
+            'class' => 'Evk_Grain_Element',
+            'name'  => 'evk-grain',
+            'file'  => $dir . 'evoke-grain/element.php',
+            'consts'=> [
+                'EVK_GRAIN_VERSION' => '1.0.0',
+                'EVK_GRAIN_URL'     => $url . 'evoke-grain/',
+                'EVK_GRAIN_PATH'    => $dir . 'evoke-grain/',
+            ],
+            /* BEZ ZALEŻNOŚCI. Ziarno to jeden trójkąt i jedna linijka
+               arytmetyki — nie potrzebuje ani GSAP-a, ani three.js. Pusta
+               tablica jest tu informacją, nie przeoczeniem. */
+            'script'=> ['evk-grain', $url . 'evoke-grain/assets/grain.js', [], '1.0.0'],
+            'style' => ['evk-grain', $url . 'evoke-grain/assets/grain.css', '1.0.0'],
+        ],
         'scroll_reading' => [
             'label' => 'Scroll Reading',
             'desc'  => 'Tekst rozjaśniany przy scrollu (SplitText z Bricks Animator).',

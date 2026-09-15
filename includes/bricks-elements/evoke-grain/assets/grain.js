@@ -1,0 +1,306 @@
+/**
+ * Evoke ONE — Ziarno.
+ *
+ * Ziarno filmowe z shadera, na całe okno, przewijane z treścią.
+ *
+ * KANWA JEST WIELKOŚCI OKNA, NIE DOKUMENTU. Kanwa wysoka na całą stronę
+ * wyglądałaby prościej i jest nie do przyjęcia: strona 10 000 px przy DPR 2 to
+ * ~115 megapikseli zaplecza, czyli setki megabajtów pamięci karty. Wrażenie
+ * przewijania robi PRZESUNIĘCIE WSPÓŁRZĘDNYCH w shaderze — obraz jest ten sam,
+ * a koszt stały i niezależny od długości strony.
+ *
+ * FORMUŁA JEST TA SAMA CO W PRZEBIEGU POST-PROCESS FALI i to warunek, nie
+ * wygoda: inaczej na jednej stronie byłyby dwa różne ziarna. Barwa wychodzi
+ * PRZEMNOŻONA PRZEZ ALPHĘ, bo kontekst WebGL domyślnie tak ją czyta — pełna
+ * biel przy alfie 0,08 rozjaśniłaby drobinę ośmiokrotnie i zamiast ziarna
+ * wyszłyby białe placki.
+ */
+(function () {
+    'use strict';
+
+    var WIERZCHOLKI = [
+        'attribute vec2 aPoz;',
+        'void main() { gl_Position = vec4(aPoz, 0.0, 1.0); }',
+    ].join('\n');
+
+    var FRAGMENTY = [
+        'precision mediump float;',
+        'uniform vec2  uRozmiar;',
+        'uniform float uIntensywnosc;',
+        'uniform float uSeed;',
+        'uniform float uPrzesuniecie;',
+        'void main() {',
+        /* Te same współrzędne 0..1 co `newUv` w shaderze fali. Sąsiednie piksele
+           różnią się o ułamek, ale sinus pomnożony przez 43758 zamienia tę
+           różnicę w niezależną losową wartość — stąd ziarno, a nie gradient. */
+        '    vec2 uv = gl_FragCoord.xy / uRozmiar;',
+        '    uv.y += uPrzesuniecie / uRozmiar.y;',
+        '    float ziarno = fract(sin(dot(uv + uSeed, vec2(12.9898, 78.233))) * 43758.5453123);',
+        '    float w = (ziarno - 0.5) * uIntensywnosc;',
+        /* Jasne drobiny rozjaśniają, ciemne przyciemniają — symetrycznie, tak
+           jak ziarno fali po 1.193.0. Barwa premnożona przez alphę. */
+        '    float a = abs(w) * 2.0;',
+        '    gl_FragColor = vec4(vec3(step(0.0, w)) * a, a);',
+        '}',
+    ].join('\n');
+
+    /** Redukcja ruchu — wspólna polityka wtyczki, patrz includes/anim/motion.php. */
+    function ograniczonyRuch() {
+        if (window.evkMotion && typeof window.evkMotion.reduced === 'function') {
+            return window.evkMotion.reduced();
+        }
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    /**
+     * Czy przeglądarka rasteryzuje programowo.
+     *
+     * WŁASNA, KRÓTSZA PRÓBKA — element fali ma swoją, ale siedzi ona wewnątrz
+     * jego modułu i niesie jego własny problem: nie wolno pobrać 287 KB
+     * biblioteki, zanim się wie. Ziarno nie ma czego odraczać, więc pyta
+     * kontekstu, którego i tak używa. To jest duplikat i lepiej nazwać go
+     * duplikatem, niż udawać ponowne użycie.
+     */
+    function bezAkceleracji(gl) {
+        try {
+            var ext = gl.getExtension('WEBGL_debug_renderer_info');
+            if (!ext) return false;   // nazwa ukryta to nie jest „nie ma GPU"
+            var nazwa = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '');
+            return /swiftshader|llvmpipe|software|basic render/i.test(nazwa);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function kompiluj(gl, rodzaj, zrodlo) {
+        var sh = gl.createShader(rodzaj);
+        gl.shaderSource(sh, zrodlo);
+        gl.compileShader(sh);
+        if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+            console.warn('[EVK Ziarno] shader się nie skompilował: ' + gl.getShaderInfoLog(sh));
+            return null;
+        }
+        return sh;
+    }
+
+    function Ziarno(root) {
+        this.root = root;
+        this.intensywnosc = parseFloat(root.getAttribute('data-intensywnosc'));
+        if (!isFinite(this.intensywnosc)) this.intensywnosc = 0.08;
+        this.mnoznik = parseFloat(root.getAttribute('data-mnoznik'));
+        if (!isFinite(this.mnoznik)) this.mnoznik = 1;
+        this.stoi = root.getAttribute('data-przesiew') === 'stop';
+        this.autoJakosc = root.getAttribute('data-auto-jakosc') !== '0';
+
+        this.uchwyt = 0;
+        this.probki = [];
+        this.ostatnia = 0;
+        this.zeszloNaStop = false;
+
+        this.kanwa = document.createElement('canvas');
+        this.kanwa.className = 'evk-grain__plotno';
+        this.kanwa.setAttribute('aria-hidden', 'true');
+        var w = parseInt(root.getAttribute('data-warstwa'), 10);
+        this.kanwa.style.zIndex = isFinite(w) ? String(w) : '9990';
+
+        var opcje = { alpha: true, antialias: false, depth: false, stencil: false };
+        this.gl = this.kanwa.getContext('webgl', opcje) || this.kanwa.getContext('experimental-webgl', opcje);
+        if (!this.gl) {
+            /* Bez WebGL-a nie ma czym rysować. Element ma wtedy PO PROSTU NIE
+               BYĆ — jest dekoracją, więc jego brak niczego nie psuje, a pusta
+               kanwa nad całą stroną potrafiłaby przykryć treść. */
+            console.warn('[EVK Ziarno] brak kontekstu WebGL — element się nie uruchamia');
+            return;
+        }
+        if (bezAkceleracji(this.gl)) {
+            console.warn('[EVK Ziarno] rasteryzacja programowa — element się nie uruchamia');
+            this.gl = null;
+            return;
+        }
+
+        if (!this.zbuduj()) { this.gl = null; return; }
+
+        document.body.appendChild(this.kanwa);
+        this.przelicz();
+
+        this.naRozmiar = this.przelicz.bind(this);
+        window.addEventListener('resize', this.naRozmiar);
+
+        /* NASŁUCH PRZEWIJANIA — tylko dla ziarna NIERUCHOMEGO.
+         *
+         * Ziarno przesiewane rysuje się co klatkę, więc za przewinięciem nadąża
+         * samo. Nieruchome rysuje raz i bez tego nasłuchu STAŁOBY W MIEJSCU —
+         * czyli cała obietnica „przewijane z treścią" znikałaby dokładnie w tym
+         * trybie, który jest wyjściem dla słabszych maszyn. Znalezione sondą:
+         * przy przesiewie „stop" przewinięcie o 500 px zmieniało ZERO pikseli.
+         *
+         * Przy ograniczonym ruchu nasłuchu NIE MA: ziarno wędrujące za
+         * przewijaniem to ruch jak każdy inny, a użytkownik prosił, żeby go nie
+         * było. Zostaje wtedy jeden nieruchomy kadr.
+         *
+         * Rysowanie schodzi do jednej klatki — bez tego szybkie przewijanie
+         * zamawiałoby rysowanie kilkadziesiąt razy na klatkę. */
+        if (!ograniczonyRuch()) {
+            var ja = this;
+            this.czekaNaScroll = false;
+            this.naScroll = function () {
+                if (!ja.stoi || ja.czekaNaScroll) return;
+                ja.czekaNaScroll = true;
+                requestAnimationFrame(function () {
+                    ja.czekaNaScroll = false;
+                    ja.rysujRaz();
+                });
+            };
+            window.addEventListener('scroll', this.naScroll, { passive: true });
+        }
+
+        /* REDUKCJA RUCHU: jeden kadr i koniec. Ziarno ZOSTAJE na ekranie —
+           jest dekoracyjne, więc jego zniknięcie zmieniłoby wygląd strony.
+           Ta sama polityka co w fali. */
+        if (this.stoi || ograniczonyRuch()) this.rysujRaz();
+        else this.ruszaj();
+    }
+
+    Ziarno.prototype.zbuduj = function () {
+        var gl = this.gl;
+        var vs = kompiluj(gl, gl.VERTEX_SHADER, WIERZCHOLKI);
+        var fs = kompiluj(gl, gl.FRAGMENT_SHADER, FRAGMENTY);
+        if (!vs || !fs) return false;
+
+        var pr = gl.createProgram();
+        gl.attachShader(pr, vs);
+        gl.attachShader(pr, fs);
+        gl.linkProgram(pr);
+        if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) {
+            console.warn('[EVK Ziarno] program się nie zlinkował: ' + gl.getProgramInfoLog(pr));
+            return false;
+        }
+        gl.useProgram(pr);
+        this.program = pr;
+
+        /* JEDEN TRÓJKĄT, nie dwa. Trójkąt (-1,-1), (3,-1), (-1,3) wychodzi poza
+           kadr i pokrywa go w całości — bez szwu na przekątnej, który przy
+           dwóch trójkątach potrafi zostawić linię przy niektórych sterownikach. */
+        var buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+        var aPoz = gl.getAttribLocation(pr, 'aPoz');
+        gl.enableVertexAttribArray(aPoz);
+        gl.vertexAttribPointer(aPoz, 2, gl.FLOAT, false, 0, 0);
+
+        this.uRozmiar      = gl.getUniformLocation(pr, 'uRozmiar');
+        this.uIntensywnosc = gl.getUniformLocation(pr, 'uIntensywnosc');
+        this.uSeed         = gl.getUniformLocation(pr, 'uSeed');
+        this.uPrzesuniecie = gl.getUniformLocation(pr, 'uPrzesuniecie');
+        return true;
+    };
+
+    Ziarno.prototype.przelicz = function () {
+        if (!this.gl) return;
+        /* DPR OGRANICZONY DO DWÓCH. Powyżej dwójki ziarno i tak jest poniżej
+           progu rozdzielczości oka, a liczba pikseli rośnie z kwadratem. */
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var sz = Math.round(window.innerWidth * dpr);
+        var wy = Math.round(window.innerHeight * dpr);
+        if (this.kanwa.width === sz && this.kanwa.height === wy) return;
+        this.kanwa.width = sz;
+        this.kanwa.height = wy;
+        this.gl.viewport(0, 0, sz, wy);
+        this.rysujRaz();
+    };
+
+    Ziarno.prototype.rysujRaz = function () {
+        var gl = this.gl;
+        if (!gl) return;
+        gl.uniform2f(this.uRozmiar, this.kanwa.width, this.kanwa.height);
+        gl.uniform1f(this.uIntensywnosc, this.intensywnosc);
+        gl.uniform1f(this.uSeed, this.stoi ? 0.0 : Math.random());
+        gl.uniform1f(this.uPrzesuniecie,
+            (window.pageYOffset || document.documentElement.scrollTop || 0) * this.mnoznik);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+    };
+
+    Ziarno.prototype.ruszaj = function () {
+        var ja = this;
+        (function klatka() {
+            ja.rysujRaz();
+            ja.zmierz();
+            ja.uchwyt = requestAnimationFrame(klatka);
+        })();
+    };
+
+    Ziarno.prototype.stop = function () {
+        if (this.uchwyt) cancelAnimationFrame(this.uchwyt);
+        this.uchwyt = 0;
+    };
+
+    /**
+     * Automat jakości — jeden szczebel, nie drabina.
+     *
+     * Fala ma cztery poziomy, bo ma co zdejmować: post-process, rozdzielczość,
+     * ruch. Ziarno jest jednym przebiegiem i albo się miesta, albo nie — więc
+     * jedyne sensowne zejście to przestać przesiewać. Kadr ZOSTAJE, bo element
+     * jest dekoracją i jego zniknięcie zmieniłoby wygląd strony.
+     *
+     * SCHODZIMY TYLKO W DÓŁ, tak jak w fali: powrót w górę po chwilowym
+     * zwolnieniu dawałby migotanie jakości przy każdym cięższym momencie.
+     */
+    Ziarno.prototype.zmierz = function () {
+        if (!this.autoJakosc || this.zeszloNaStop) return;
+        var teraz = (window.performance && performance.now) ? performance.now() : Date.now();
+        if (this.ostatnia) this.probki.push(teraz - this.ostatnia);
+        this.ostatnia = teraz;
+        if (this.probki.length < 30) return;
+
+        var p = this.probki.slice().sort(function (a, b) { return a - b; });
+        var mediana = p[Math.floor(p.length / 2)];
+        this.probki = [];
+        this.ostatnia = 0;
+        if (mediana <= 40) return;
+
+        this.zeszloNaStop = true;
+        this.stoi = true;
+        this.stop();
+        this.rysujRaz();
+        console.warn('[EVK Ziarno] ' + Math.round(mediana)
+            + ' ms na klatkę — przechodzę na nieruchome ziarno');
+    };
+
+    var wszystkie = [];
+
+    function uruchom(root) {
+        if (root.__evkZiarno) return;
+        var z = new Ziarno(root);
+        root.__evkZiarno = z;
+        wszystkie.push(z);
+    }
+
+    function skanuj(gdzie) {
+        var lista = (gdzie || document).querySelectorAll('[data-evk-grain]');
+        Array.prototype.forEach.call(lista, uruchom);
+    }
+
+    /* Bricks woła to po wyrenderowaniu elementu w canvasie buildera. Ta sama
+       nazwa musi stać w `$this->scripts` w element.php. */
+    window.evk_grain_init = function () {
+        /* W builderze element bywa przerysowywany — stare kanwy zostają
+           w <body>, bo nie są dziećmi korzenia. Sprzątamy po osieroconych. */
+        wszystkie = wszystkie.filter(function (z) {
+            if (z.root && z.root.isConnected) return true;
+            z.stop();
+            if (z.naRozmiar) window.removeEventListener('resize', z.naRozmiar);
+            if (z.naScroll) window.removeEventListener('scroll', z.naScroll);
+            if (z.kanwa && z.kanwa.parentNode) z.kanwa.parentNode.removeChild(z.kanwa);
+            return false;
+        });
+        skanuj();
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { skanuj(); });
+    } else {
+        skanuj();
+    }
+})();

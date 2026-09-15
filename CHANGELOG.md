@@ -2,6 +2,62 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.198.0] — 2026-09-15
+
+### Dodane
+
+- **Nowy element Bricks: „Ziarno".** Ziarno filmowe z shadera na całe okno
+  przeglądarki, przewijane z treścią. ZGŁOSZONE Z UŻYCIA: „dodatkowy element
+  Bricks tylko z ziarnem. Dodany na stronę wyświetla ziarno z shaderem na całym
+  oknie przeglądarki. Dobrze by było, żeby był przewijany z treścią".
+
+  **Bez three.js.** Ziarno to jeden trójkąt na pełny ekran i jedna linijka
+  arytmetyki — pobranie 287 KB biblioteki po to, żeby narysować szum, byłoby
+  dokładnie tym, czego element fali unika dynamicznym importem. Własny moduł
+  WebGL, bez żadnej zależności.
+
+  **Ta sama formuła co w przebiegu post-process fali** — warunek, nie wygoda:
+  inaczej na jednej stronie byłyby dwa różne ziarna. Barwa wychodzi przemnożona
+  przez alphę, tak jak w fali po 1.193.0.
+
+  **Kanwa jest wielkości OKNA, nie dokumentu.** Wrażenie przewijania robi
+  przesunięcie współrzędnych w shaderze. Kanwa wysoka na całą stronę wyglądałaby
+  prościej i jest nie do przyjęcia: strona 10 000 px przy DPR 2 to ~115 Mpx
+  zaplecza, czyli setki megabajtów pamięci karty.
+
+  **Bez `mix-blend-mode`** — zmierzone przy okazji ziarna fali: pełnoekranowa
+  warstwa z mieszaniem łamie budżet klatki (33,2 ms wobec 17,1 bez).
+
+  Kontrolki: intensywność, przesiew (co klatkę / nieruchome), przewijanie
+  z treścią, warstwa, automat jakości. Wszystkie jako pola do wpisania, zgodnie
+  z konwencją wtyczki.
+
+  Element **nie uruchamia się** przy rasteryzacji programowej ani bez WebGL-a
+  i mówi dlaczego w konsoli. Pusta kanwa nad całą stroną byłaby gorsza niż brak
+  ziarna. Przy ograniczonym ruchu rysuje jeden kadr i staje — ziarno zostaje na
+  ekranie, bo jest dekoracją i jego zniknięcie zmieniłoby wygląd strony.
+
+### Naprawione (w trakcie budowy, sondą przed napisaniem sprawdzenia)
+
+- **Ziarno nieruchome nie przewijało się z treścią.** Pętla stoi, a nasłuchu
+  przewijania nie było — przewinięcie o 500 px zmieniało ZERO pikseli. Cała
+  obietnica znikała dokładnie w tym trybie, który jest wyjściem dla słabszych
+  maszyn. Po poprawce: 55 105 z 66 000 pikseli przy mnożniku 1, zero przy
+  mnożniku 0. Przy ograniczonym ruchu nasłuchu nie ma — ziarno wędrujące za
+  przewijaniem to ruch jak każdy inny.
+
+### Pokrycie
+
+`tests/grain.test.js` — 25 sprawdzeń, w tym pomiar na PIKSELACH (obecność
+`<canvas>` przepuściłaby pustą kanwę), kontrola, że nakładka nie łapie kliknięć,
+i kontrole negatywne przy przesiewie oraz redukcji ruchu. Mierzymy złożony
+obraz, bo `readPixels` czyta bufor wyczyszczony po klatce — pierwsza wersja
+sondy pokazywała przez to zera wszędzie.
+
+Pięć mutacji, każda zapala inny podzbiór: zdjęcie nasłuchu przewijania,
+zignorowanie mnożnika, zignorowanie intensywności, zignorowanie przesiewu
+i zdjęcie `pointer-events`.
+
 ## [1.197.0] — 2026-09-15
 
 ### Zmienione

@@ -1,0 +1,123 @@
+<!--
+  Element „Ziarno" — zachowanie w przeglądarce.
+
+  CO TU JEST ZNACZNIKIEM, A CO NIE. Korzeń elementu to zwykły `<div>` z atrybutami
+  danych, więc stoi w tym pliku wprost — nie ma potrzeby wozić wytworu z PHP-a,
+  jak przy fali. Podział odpowiedzialności jest za to jawny:
+
+    · czy kontrolka pisze WŁAŚCIWY atrybut  → tests/php/grain-cfg.php
+    · co skrypt robi z atrybutami           → ten plik
+
+  Sam znacznik nie jest więc niczyim dowodem — gdyby render() zaczął wypisywać
+  inne nazwy, złapie to sonda PHP-owa, a nie ten fixture.
+
+  STEROWNIK TRZEBA UKRYĆ. Chromium w testach rasteryzuje programowo, a element
+  świadomie NIE URUCHAMIA SIĘ na programowej rasteryzacji. Bez atrapy każdy
+  scenariusz kończyłby się „element się nie uruchomił" i nie dałoby się zmierzyć
+  niczego innego. Ta sama atrapa co w wave-bg-pomiar.html.
+-->
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../includes/bricks-elements/evoke-grain/assets/grain.css">
+
+<style>
+  html, body { margin: 0; background: #101014; }
+  #dalej { height: 400vh; }
+  #tresc { position: relative; z-index: 1; color: #eee; font: 16px system-ui; padding: 24px; }
+</style>
+
+<script>
+  var q = new URLSearchParams(location.search);
+
+  /* Udaje przeglądarkę, która UKRYWA nazwę sterownika — wtedy element nie
+     rozpozna SwiftShadera i pójdzie ścieżką „jest akceleracja". */
+  if (q.get('gpu') !== 'nie') {
+    [window.WebGLRenderingContext, window.WebGL2RenderingContext].forEach(function (K) {
+      if (!K) return;
+      var o = K.prototype.getExtension;
+      K.prototype.getExtension = function (n) {
+        if (n === 'WEBGL_debug_renderer_info') return null;
+        return o.call(this, n);
+      };
+    });
+  }
+
+  /* Przeglądarka z CAŁKIEM wyłączonym WebGL-em: Firefox z webgl.disabled,
+     Safari z odznaczonym WebGL, stary sprzęt bez sterownika. */
+  if (q.get('webgl') === 'nie') {
+    var oryg = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (rodzaj) {
+      if (/webgl/.test(rodzaj)) return null;
+      return oryg.apply(this, arguments);
+    };
+  }
+
+  /* Wspólna polityka ruchu — element pyta o nią tak samo jak reszta wtyczki. */
+  if (q.get('ruch') === 'ogranicz') {
+    window.evkMotion = { reduced: function () { return true; } };
+  }
+
+  window.__ostrzezenia = [];
+  var stareWarn = console.warn;
+  console.warn = function () {
+    window.__ostrzezenia.push(Array.prototype.join.call(arguments, ' '));
+    return stareWarn.apply(console, arguments);
+  };
+</script>
+
+<div id="tresc">Treść strony — ziarno ma leżeć nad nią i nie łapać kliknięć.</div>
+<div id="dalej"></div>
+
+<script>
+  /* Korzeń wstawiamy Z PARAMETRÓW, żeby każdy scenariusz mógł ustawić swoje. */
+  (function () {
+    var d = document.createElement('div');
+    d.className = 'evk-grain';
+    d.setAttribute('data-evk-grain', '1');
+    d.setAttribute('data-intensywnosc', q.get('moc')     || '0.08');
+    d.setAttribute('data-przesiew',     q.get('przesiew')|| 'klatka');
+    d.setAttribute('data-mnoznik',      q.get('mnoznik') || '1');
+    d.setAttribute('data-warstwa',      q.get('warstwa') || '9990');
+    d.setAttribute('data-auto-jakosc',  q.get('auto')    || '1');
+    document.body.appendChild(d);
+  })();
+</script>
+
+<script src="../../includes/bricks-elements/evoke-grain/assets/grain.js"></script>
+
+<script>
+  /** Kanwa ziarna, jeśli w ogóle powstała. */
+  window.__plotno = function () { return document.querySelector('.evk-grain__plotno'); };
+
+  /** Odcisk obrazu: suma i rozrzut próbki pikseli wprost z kanwy WebGL.
+   *
+   *  Czytamy `readPixels`, a nie zrzut strony — zrzut pokazuje ziarno ZMIESZANE
+   *  z tłem i treścią, więc „obraz się zmienił" mogłoby znaczyć, że zmieniło się
+   *  cokolwiek innego na stronie. Tu patrzymy wyłącznie na to, co narysował
+   *  shader. */
+  window.__odcisk = function () {
+    var c = window.__plotno();
+    if (!c) return null;
+    var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+    if (!gl) return null;
+    var bok = 64;
+    var buf = new Uint8Array(bok * bok * 4);
+    gl.readPixels(0, 0, bok, bok, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+    var suma = 0, min = 255, max = 0;
+    for (var i = 0; i < buf.length; i += 4) {
+      var a = buf[i + 3];
+      suma += a;
+      if (a < min) min = a;
+      if (a > max) max = a;
+    }
+    return { suma: suma, rozrzut: max - min, probek: bok * bok };
+  };
+
+  /** Czy kanwa łapie kliknięcia — nakładka nad całą stroną nie ma prawa. */
+  window.__ktoNaWierzchu = function () {
+    var el = document.elementFromPoint(window.innerWidth / 2, 40);
+    return el ? (el.id || el.className || el.tagName) : null;
+  };
+
+  window.__przewin = function (px) { window.scrollTo(0, px); };
+</script>
