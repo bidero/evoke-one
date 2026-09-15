@@ -47,6 +47,12 @@ sekcjami. Nie da się puścić jednej sekcji z pliku; jeśli plik jest za duży,
 iterować, właściwym ruchem jest **podzielić go na dwa pliki**, a nie kombinować
 z filtrowaniem.
 
+### Jeden przebieg, wiele odczytów
+
+Przebieg idzie **do pliku**, potem czyta się go dowolną liczbę razy. Puszczenie
+tego samego zestawu drugi raz po to, żeby obejrzeć inny fragment wyniku, to
+czysta strata — a łatwo w to wpaść, gdy pierwszy `grep` był za wąski.
+
 ### Zanim puścisz przeglądarkę
 
 Te odpowiadają w sekundy i łapią większość wpadek:
@@ -96,7 +102,18 @@ i tylko ono** zapala. Mutacja przechodząca na zielono kończy się przepisaniem
 sprawdzenia albo uproszczeniem kodu — nie zaliczeniem.
 
 Zepsutej wersji **nigdy nie commituj**: gałąź jedzie aktualizatorem na żywe
-strony. Trzymaj kopię pliku obok i przywróć ją z niej.
+strony.
+
+Trzy rzeczy, które robią z tego rutynę zamiast pola minowego:
+
+- **Kopia i `trap EXIT`.** Skrypt mutacyjny odkłada dobrą wersję obok
+  i przywraca ją w `trap`, więc nawet przerwany przebieg nie zostawia zepsutego
+  pliku w drzewie.
+- **Kilka mutacji w JEDNYM skrypcie w tle**, z przywróceniem między nimi.
+  Pilnowanie tego ręcznie przez kolejne tury kosztuje więcej niż sam przebieg.
+- **Różnicowanie.** Gdy sprawdzeń jest kilka, mutacje mają zapalać RÓŻNE ich
+  podzbiory. Dwie mutacje gasnące na tym samym zestawie nie dowodzą, że
+  sprawdzenia mierzą różne rzeczy.
 
 ---
 

@@ -2,6 +2,41 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.194.0] — 2026-09-15
+
+### Naprawione
+
+- **Gradient tła Offcanvasu nie docierał na menu i malował nagłówek.**
+  ZGŁOSZONE Z UŻYCIA: „gradient w OC nie działa. Nakłada się na nagłówek pod
+  panelem. Miał się nakładać tam, gdzie ustawiam kolor tła dla przejścia".
+
+  Kontrolka `bgGradient` z 1.190.0 celuje we własną właściwość
+  `--evk-oc-bg-img`. **W całej wtyczce nie ma drugiego takiego użycia** — jedyny
+  precedens dla typu `gradient` (Circular Title) pisze wprost `background-image`
+  — a Bricksa nie da się uruchomić poza stroną, więc czego naprawdę użył, nie
+  sposób tu sprawdzić. Ryzyko było nazwane w planie i zmaterializowało się.
+
+  Objaw wskazuje, że gradient wylądował na KORZENIU elementu. Korzeń leży
+  w nagłówku, bo trzyma trigger, a powłoka menu jest przeniesiona do `<body>`
+  i nic po korzeniu nie dziedziczy — stąd oba objawy naraz: na menu go nie ma,
+  a nagłówek dostaje go w całości.
+
+  **Zamiast zgadywać, zbieramy obie postacie.** `evk_oc_przenies_zmienne()`
+  harvestuje z reguł Bricksa nie tylko własne zmienne, ale i `background-image`
+  — z dwoma zastrzeżeniami: własna właściwość ma pierwszeństwo, a `background-image`
+  bierzemy tylko wtedy, gdy niesie GRADIENT, żeby nie porwać obrazka ustawionego
+  korzeniowi świadomie. Gdy gradient przyszedł stamtąd, gasimy go na korzeniu
+  stylem w atrybucie (wygrywa z regułą po identyfikatorze) — i to zdejmuje go
+  z nagłówka.
+
+  Gdyby okazało się, że Bricks jednak honoruje własną właściwość, gałąź
+  `background-image` po prostu nigdy się nie odpali.
+  (`includes/bricks-elements/evoke-offcanvas-menu/assets/offcanvas-menu.js`)
+
+  Pokrycie obejmuje trzy drogi wejścia i kontrolę negatywną gaszenia (zwykły
+  obrazek na korzeniu ma przeżyć). Dwie mutacje rozdzielają sprawdzenia:
+  zdjęcie zbierania zapala oba, zdjęcie samego gaszenia — tylko to o nagłówku.
+
 ## [1.193.0] — 2026-09-15
 
 ### Naprawione
