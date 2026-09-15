@@ -31,14 +31,22 @@ $GLOBALS['options']['evk_bgshift'] = ['enabled' => 1];
  * chwili żyć własnym życiem: sprawdzenie przechodziłoby także wtedy, gdyby
  * wtyczka zaczęła odpowiadać inaczej.
  *
- * Dwa wiersze na dwa brzegi: wejście w kadrze nakłada stan początkowy i musi
- * czekać, hover nie nakłada niczego i czekać nie ma po co.
+ * Trzy wiersze na trzy brzegi: wejście w kadrze nakłada stan początkowy i musi
+ * czekać, hover nie nakłada niczego i czekać nie ma po co, a cel zewnętrzny
+ * nakłada stan GDZIE INDZIEJ — element z atrybutem jest tam samym wyzwalaczem.
+ *
+ * Trzeci wiersz ma DOKŁADNIE ten kształt, który przyszedł ze zgłoszenia: ten sam
+ * preset z `from` co wiersz czekający, ten sam wyzwalacz z listy chowających —
+ * różni się wyłącznie celem. Gdyby różnił się czymkolwiek jeszcze, sprawdzenie
+ * nie dowodziłoby, że rozstrzyga właśnie cel.
  */
 $GLOBALS['options']['evk_animator'] = [
     'enabled'    => 1,
     'animations' => [
-        ['slug' => 'wejscie', 'preset' => 'fade-up',    'trigger' => 'viewport'],
-        ['slug' => 'najazd',  'preset' => 'lift',       'trigger' => 'hover'],
+        ['slug' => 'wejscie',    'preset' => 'fade-up', 'trigger' => 'viewport'],
+        ['slug' => 'najazd',     'preset' => 'lift',    'trigger' => 'hover'],
+        ['slug' => 'zewnetrzny', 'preset' => 'fade-up', 'trigger' => 'viewport',
+         'targets' => 'external', 'selector' => '.cel'],
     ],
 ];
 

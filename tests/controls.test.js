@@ -187,6 +187,36 @@ module.exports = async function (t) {
     emit({ evkAnimList: [{ animation: 'najazd' }, { animation: 'najazd' }] }).zaslona === '0',
     String(emit({ evkAnimList: [{ animation: 'najazd' }, { animation: 'najazd' }] }).zaslona));
 
+  /* ── Cel zewnętrzny ────────────────────────────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA po 1.183.0: „element, który ma podpiętą animację, nadal
+   * pojawia się później. Jego animacja to scrub, więc nie ma powodu". Zmierzone
+   * na żywej stronie: nagłówek niósł dwa wiersze, oba z celem `external`.
+   *
+   * Przy takim celu silnik nakłada `from` na SELEKTOR gdzie indziej na stronie,
+   * nie na element z atrybutem — ten jest samym wyzwalaczem. Chowanie go nie
+   * chroni przed niczym i kosztuje dokładnie to opóźnienie ze zgłoszenia.
+   *
+   * Wiersz `zewnetrzny` w atrapie różni się od czekającego `wejscie` WYŁĄCZNIE
+   * celem: ten sam preset z `from`, ten sam wyzwalacz. Gdyby różnił się czymś
+   * jeszcze, sprawdzenie nie dowodziłoby, że rozstrzyga cel. */
+  t.check('cel zewnętrzny NIE każe czekać',
+    emit({ evkAnimList: [{ animation: 'zewnetrzny' }] }).zaslona === '0',
+    String(emit({ evkAnimList: [{ animation: 'zewnetrzny' }] }).zaslona));
+
+  /* KONTROLA NEGATYWNA — ten sam wiersz zawrócony na „sam element" czeka.
+     Bez niej sprawdzenie wyżej przechodziłoby także wtedy, gdyby preset
+     `fade-up` przestał cokolwiek nakładać. */
+  t.check('a ten sam wiersz z celem „sam element" już tak',
+    emit({ evkAnimList: [{ animation: 'zewnetrzny', targets: 'self' }] }).zaslona === '1',
+    String(emit({ evkAnimList: [{ animation: 'zewnetrzny', targets: 'self' }] }).zaslona));
+
+  /* Cel jest polem wiersza w panelu, więc element przestawia go w OBIE strony —
+     tak samo jak wyzwalacz. */
+  const naZewnatrz = { evkAnimList: [{ animation: 'wejscie', targets: 'external', selector: '.cel' }] };
+  t.check('nadpisanie celu na zewnętrzny zdejmuje czekanie',
+    emit(naZewnatrz).zaslona === '0', String(emit(naZewnatrz).zaslona));
+
   /* Slug spoza biblioteki: silnik i tak nie zbuduje z niego osi czasu ani nie
      nałoży stanu początkowego, więc nie ma czego chować. */
   t.check('nieznana animacja nie chowa elementu',

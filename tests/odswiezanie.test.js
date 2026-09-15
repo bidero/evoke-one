@@ -25,6 +25,10 @@ const HELPER  = phpOutput('gsap-inline.php');
 /* Cała kolejka inline razem z uchwytem i POZYCJĄ — do sekcji o wygładzaniu
    długich klatek niżej. Pozycja jest tam treścią sprawdzenia. */
 const INLINE  = JSON.parse(phpOutput('gsap-inline.php', 'json'));
+/* Skrypt inline modułu płynnego przewijania — do sekcji o ZDERZENIU modułów.
+   Na żywej stronie drukuje się PO skrypcie GSAP-a, więc może mu przestawić
+   ustawienia zegara i przez to unieważnić poprawkę z 1.183.0. */
+const LENIS   = phpOutput('lenis-inline.php');
 
 /* Zasłona Z PHP — te same reguły i ten sam mikroskrypt, które Animator drukuje
    w <head>. Przepisane do fixture'a przechodziłyby na zielono nawet wtedy,
@@ -128,6 +132,77 @@ module.exports = async function (t) {
      progu oś posuwa się o dwie klatki wygładzania, czyli kilkadziesiąt ms. */
   t.check('po 300 ms blokady oś posunęła się o klatki, nie o blokadę',
     skok !== null && skok < 120, skok + ' ms na osi');
+
+  /* ── ZDERZENIE Z PŁYNNYM PRZEWIJANIEM ────────────────────────────────────
+   *
+   * TEGO SPRAWDZENIA ZABRAKŁO i dlatego 1.183.0 wyszło na żywą stronę
+   * niedziałające. Zgłoszone z użycia po wydaniu: „animacje nadal się tną".
+   *
+   * Moduł Lenisa miał u siebie `gsap.ticker.lagSmoothing(0)`, przepisane
+   * z oficjalnego przepisu GSAP + Lenis. Jego skrypt drukuje się PO
+   * `89-gsap.php`, więc to zero nadpisywało próg 120 ms i strona z płynnym
+   * przewijaniem zostawała bez wygładzania W OGÓLE.
+   *
+   * Sprawdzenie wyżej tego nie widziało, bo czyta kolejkę inline JEDNEGO
+   * modułu. Usterka nie siedziała w żadnym z nich z osobna — tylko w tym,
+   * co robią razem i w jakiej kolejności. Dlatego mierzymy tu OBA na jednej
+   * stronie, ustawione tak, jak ustawia je WordPress.
+   */
+  t.section('płynne przewijanie nie odkręca wygładzania');
+
+  /* Atrapa samego Lenisa, nie biblioteka: badany jest NASZ kod spinający —
+     to on decyduje, czym napędzić pętlę i czy ruszyć ustawienia zegara.
+     Prawdziwa biblioteka niczego by tu nie dowiodła, a dołożyłaby własne
+     przechwytywanie przewijania w środku pomiaru. */
+  const poZderzeniu = await p.evaluate(async ({ lenisJs, prog }) => {
+    window.Lenis = function () {
+      this.raf = function (t) { window.__lenisCzas = t; };
+      this.on = function () {};
+      this.scrollTo = function () {};
+      this.destroy = function () {};
+    };
+    // Próg z PHP — tak jak na stronie, przed skryptem Lenisa.
+    gsap.ticker.lagSmoothing(prog, 16);
+
+    const kod = document.createElement('script');
+    kod.textContent = lenisJs;
+    document.head.appendChild(kod);
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    // Spięcie z GSAP-em jedzie przez odpytanie co 100 ms.
+    await new Promise((ok) => setTimeout(ok, 400));
+
+    const cel = { x: 0 };
+    const tl = gsap.to(cel, { x: 1000, duration: 10, ease: 'none' });
+    const koniec = performance.now() + 300;
+    while (performance.now() < koniec) { /* wątek stoi */ }
+    await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
+    const przebyte = tl.time();
+    tl.kill();
+    return { skok: Math.round(przebyte * 1000), lenisCzas: window.__lenisCzas };
+  }, { lenisJs: LENIS, prog });
+
+  /* SEDNO: po wejściu Lenisa wygładzanie ma nadal działać. Przed poprawką ta
+     liczba to ~300 ms — czyli dokładnie przeskok ze zgłoszenia. */
+  t.check('po wejściu Lenisa wygładzanie NADAL działa',
+    poZderzeniu.skok !== null && poZderzeniu.skok < 120,
+    poZderzeniu.skok + ' ms na osi');
+
+  /* A pętla Lenisa naprawdę jest napędzana — inaczej sprawdzenie wyżej
+     przechodziłoby także wtedy, gdyby spięcie w ogóle nie wystartowało
+     i nie miało czego odkręcać. */
+  t.check('a Lenis dostaje czas z pętli', typeof poZderzeniu.lenisCzas === 'number',
+    'lenis.raf(' + poZderzeniu.lenisCzas + ')');
+
+  /* Kontrola statyczna, po zdjęciu komentarzy: w kodzie modułu nie ma już
+     wywołania, które odkręcało próg. Komentarz o nim ZOSTAJE — ma powstrzymać
+     następne przepisanie z przepisu GSAP-a — więc samo szukanie nazwy
+     w źródle zapalałoby się na dokumentacji zamiast na kodzie. */
+  const lenisBezKomentarzy = LENIS.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  t.check('moduł nie woła już lagSmoothing',
+    !/lagSmoothing/.test(lenisBezKomentarzy),
+    /lagSmoothing/.test(lenisBezKomentarzy) ? 'wywołanie wróciło' : 'brak wywołania');
+  t.check('ale komentarz ostrzegawczy zostaje', /lagSmoothing/.test(LENIS),
+    'jest w komentarzu');
 
   // ── Sedno: odświeżenie NIE ucina przewijania ───────────────────────────
   t.section('odświeżenie czeka, aż przewijanie ustanie');

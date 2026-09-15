@@ -666,8 +666,25 @@ module.exports = async function (t) {
        więc "hover nie czeka" przechodziłoby przez BRAK presetu, a nie przez
        regułę o wyzwalaczu. `lift` ma własne `from` i sprawdza ją naprawdę. */
     { slug: 'najazd', preset: 'lift', trigger: 'hover' },
+    /* Cel zewnętrzny: ten sam preset i wyzwalacz co `wjazd`, inny wyłącznie cel.
+       Silnik nakłada `from` na SELEKTOR gdzie indziej na stronie, więc element
+       z klasą jest tu samym wyzwalaczem i nie ma czego chować. */
+    { slug: 'zewnetrzny', preset: 'fade-up', trigger: 'viewport',
+      targets: 'external', selector: '.cel' },
   ]);
   const blokZaslony = phpOutput('anim-preveil.php', JSON.stringify(BIBLIOTEKA_ZASLONY));
+
+  /* Selektory zasłony po KLASIE — czytane wprost z bloku, który drukuje PHP.
+     Droga przez klasę nie ma znacznika z filtru atrybutów, więc rozstrzyga
+     wyłącznie to, czy wiersz w ogóle wystawi selektor. */
+  const maSelektorKlasy = (slug) =>
+    blokZaslony.includes('.evk-veil .evk-anim-' + slug + ',')
+    || blokZaslony.includes('.evk-veil .evk-anim-' + slug + ' ');
+  t.check('wiersz chowający wystawia selektor klasy', maSelektorKlasy('wjazd'),
+    'evk-anim-wjazd w regule');
+  t.check('wiersz z celem zewnętrznym NIE wystawia go', !maSelektorKlasy('zewnetrzny'),
+    'evk-anim-zewnetrzny poza regułą');
+  t.check('hover też nie', !maSelektorKlasy('najazd'), 'evk-anim-najazd poza regułą');
 
   const zas = await t.open('anim-zaslona.html', {
     viewport: { width: 900, height: 700 },

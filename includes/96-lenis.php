@@ -194,8 +194,31 @@ html.lenis,html.lenis body{height:auto;}
     when(function(){ return window.gsap; }, function(){
         if (!autoRaf) return;   // pętlę prowadzi ktoś inny — nie odbieramy jej
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-        gsap.ticker.add(function(t){ lenis.raf(t * 1000); });
-        gsap.ticker.lagSmoothing(0);
+
+        /* CZAS RZECZYWISTY, NIE CZAS TICKERA — i dlatego nie ma tu już
+         * gsap.ticker.lagSmoothing(0).
+         *
+         * ZGŁOSZONE Z UŻYCIA: animacje nadal się tną, mimo że 1.183.0 ustawiło
+         * wygładzanie długich klatek na 120 ms. Zmierzone na żywej stronie:
+         * skrypt Lenisa drukuje się PO 89-gsap.php, więc to zero nadpisywało
+         * tamten próg i strona z płynnym przewijaniem zostawała BEZ wygładzania
+         * w ogóle — gorzej niż na domyślnych 500 ms GSAP-a. Poprawka z 1.183.0
+         * była tam martwa.
+         *
+         * Zero było przepisane z oficjalnego przepisu GSAP + Lenis i miało tam
+         * sens: Lenis jedzie z tickera, więc wygładzony zegar spowalniałby jego
+         * własne easing przewijania. Powód znika, gdy Lenis dostanie czas
+         * PRAWDZIWY — a że liczy wyłącznie różnice, performance.now() jest
+         * dokładnie tym, co i tak podałby mu requestAnimationFrame.
+         *
+         * Wspólna pętla i kolejność zostają nietknięte; to po nie jest to
+         * spięcie (patrz komentarz wyżej). Rozłącza się tylko ŹRÓDŁO CZASU.
+         * Próg wygładzania ma jednego właściciela: includes/89-gsap.php.
+         *
+         * UWAGA NA PRZYSZŁOŚĆ: ten blok jest wnętrzem łańcucha w cudzysłowach
+         * podwójnych (sprintf niżej), więc nie wolno tu postawić ani znaku
+         * cudzysłowu prostego, ani znaku procenta. */
+        gsap.ticker.add(function(){ lenis.raf(performance.now()); });
     });
 
     /* Kotwice — ale TYLKO te, które gdziekolwiek prowadzą.

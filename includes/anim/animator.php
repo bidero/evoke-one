@@ -110,6 +110,30 @@ class EVK_Animator {
      *   `fromTo`, które renderuje stan początkowy natychmiast.
      */
     private function wiersz_zaslania(array $row, array $presets): bool {
+        /*
+         * CEL ZEWNĘTRZNY — PIERWSZE PYTANIE, przed wszystkimi pozostałymi.
+         *
+         * ZGŁOSZONE Z UŻYCIA (1.183.0 tego nie naprawiło): „element, który ma
+         * podpiętą animację, nadal pojawia się później. Jego animacja to scrub,
+         * więc nie ma powodu". Zmierzone na żywej stronie: nagłówek niósł dwa
+         * wiersze, oba z celem `external` i selektorem `.header-inside`.
+         *
+         * Przy takim celu silnik nakłada stan początkowy GDZIE INDZIEJ:
+         * `przygotuj()` woła `gsap.set(resolveTargets(el, cfg), start)`,
+         * a `resolveTargets()` zwraca wtedy `document.querySelectorAll(selector)`,
+         * nie `el`. Element z klasą albo atrybutem NIE DOSTAJE `from` nigdy —
+         * jest samym wyzwalaczem — więc chowanie go nie chroni przed niczym,
+         * a kosztuje dokładnie to opóźnienie, o którym mowa w zgłoszeniu.
+         *
+         * Stoi PRZED `textFx` i przed bramką po wyzwalaczu, bo cel rozstrzyga,
+         * KTO dostaje stan — a to wyprzedza pytanie, JAKI to stan.
+         *
+         * Czego to świadomie NIE robi: nie zakłada zasłony na sam CEL. Musiałaby
+         * wstrzyknąć selektor z panelu do arkusza, a jeden błędny selektor
+         * w grupie unieważnia CAŁĄ regułę — czyli zdejmuje zasłonę wszystkim.
+         */
+        if (($row['targets'] ?? '') === 'external') return false;
+
         $preset = $presets[$row['preset']] ?? [];
         if (!empty($preset['textFx'])) return true;
 
@@ -197,7 +221,7 @@ class EVK_Animator {
      *
      * Wejściem jest lista konfiguracji z kontrolki w panelu, w kształcie, w jakim
      * jedzie do `data-evk-anim`. Repeater nie ma pól `preset`, `from` ani `to`,
-     * więc JEDYNYM nadpisaniem, które zmienia odpowiedź, jest `trigger` —
+     * więc odpowiedź zmieniają z niego tylko DWA pola — `trigger` i `targets` —
      * i dlatego da się ją wyliczyć dokładnie, zamiast zgadywać selektorem CSS.
      *
      * Slug spoza biblioteki daje `false`: silnik i tak nie zbuduje z niego osi
@@ -223,8 +247,13 @@ class EVK_Animator {
             $row = $rows[(string) ($cfg['animation'] ?? '')] ?? null;
             if ($row === null) continue;
 
-            if (isset($cfg['trigger']) && $cfg['trigger'] !== '') {
-                $row['trigger'] = (string) $cfg['trigger'];
+            /* Nadpisania z wiersza listy w panelu. Oba pola zmieniają odpowiedź
+               W OBIE STRONY, więc nakładamy je tak samo: element może przestawić
+               wyzwalacz na chowający i cel na zewnętrzny — albo odwrotnie. */
+            foreach (['trigger', 'targets'] as $pole) {
+                if (isset($cfg[$pole]) && $cfg[$pole] !== '') {
+                    $row[$pole] = (string) $cfg[$pole];
+                }
             }
             if ($this->wiersz_zaslania($row, $presets)) return true;
         }

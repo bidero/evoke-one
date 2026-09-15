@@ -2,6 +2,87 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.184.0] — 2026-09-15
+
+Dwie poprawki z 1.183.0 nie zadziałały na żywej stronie. Obie przyczyny są
+zmierzone na `evoke.pl/projekty/stanica-wodna/`, nie wywnioskowane.
+
+### Naprawione
+
+- **Zasłona chowała element, którego animacja nic na nim nie nakłada.**
+  Zgłoszone z użycia po 1.183.0: „element, który ma podpiętą animację, nadal
+  pojawia się później. Jego animacja to scrub, więc nie ma powodu".
+
+  Nagłówek niósł dwa wiersze, oba z **celem zewnętrznym** i selektorem
+  `.header-inside`. Przy takim celu silnik nakłada stan początkowy GDZIE INDZIEJ:
+  `przygotuj()` woła `gsap.set(resolveTargets(el, cfg), start)`, a
+  `resolveTargets()` zwraca wtedy `document.querySelectorAll(selector)`, nie
+  `el`. Element z klasą albo atrybutem nie dostaje `from` NIGDY — jest samym
+  wyzwalaczem — więc chowanie go nie chroniło przed niczym, a kosztowało
+  dokładnie to opóźnienie, o którym mowa w zgłoszeniu.
+
+  To nie jest heurystyka, tylko odczyt z kodu silnika. Sprawdzone też na
+  danych: przejechana reguła po wszystkich elementach tamtej strony pokazała,
+  że każdy inny czekający chowa prawdziwą treść (`opacity: 0`, `yPercent: 110`),
+  a jedyne dwa bez powodu to te z celem zewnętrznym.
+
+  Warunek siedzi w `wiersz_zaslania()`, czyli przed wszystkimi pozostałymi
+  pytaniami i wspólnie dla OBU dróg — selektorów po klasie i znacznika
+  z filtru atrybutów. Cel rozstrzyga, KTO dostaje stan, więc wyprzedza pytanie,
+  JAKI to stan. Cel jest polem wiersza w panelu, więc element przestawia go
+  w obie strony, tak samo jak wyzwalacz.
+
+  Świadomie BEZ zasłony dla samego celu zewnętrznego: musiałaby wstrzyknąć
+  selektor z panelu do arkusza, a jeden błędny selektor w grupie unieważnia
+  CAŁĄ regułę, czyli zdejmuje zasłonę wszystkim.
+  (`includes/anim/animator.php`)
+
+- **Moduł płynnego przewijania wyłączał wygładzanie długich klatek.** Zgłoszone
+  z użycia po 1.183.0: „animacje nadal się tną".
+
+  `includes/96-lenis.php` wołał `gsap.ticker.lagSmoothing(0)`. Jego skrypt
+  drukuje się PO `89-gsap.php`, więc to zero nadpisywało próg 120 ms ustawiony
+  w 1.183.0 — i strona z płynnym przewijaniem zostawała bez wygładzania
+  W OGÓLE, czyli gorzej niż na domyślnych 500 ms GSAP-a. Poprawka z 1.183.0
+  była tam martwa od pierwszego dnia.
+
+  Zero było przepisane z oficjalnego przepisu GSAP + Lenis i miało tam sens:
+  Lenis jedzie z tickera GSAP-a, więc wygładzony zegar spowalniałby jego własne
+  easing przewijania. Powód znika, gdy Lenis dostanie czas PRAWDZIWY — a że
+  liczy wyłącznie różnice, `performance.now()` jest dokładnie tym, co i tak
+  podałby mu `requestAnimationFrame`. Wspólna pętla rAF i kolejność, dla
+  których to spięcie powstało, zostają nietknięte; rozłącza się samo ŹRÓDŁO
+  CZASU. Próg wygładzania ma teraz jednego właściciela: `includes/89-gsap.php`.
+
+  Zmierzone: przy 300 ms zatrzymanego wątku oś czasu posuwała się o **310 ms**,
+  a po poprawce o **16 ms**. (`includes/96-lenis.php`)
+
+### Testy
+
+Siedem nowych sprawdzeń. Jedno z nich jest ważniejsze od reszty:
+
+- **Zderzenie dwóch modułów na jednej stronie** — sprawdzenie, którego zabrakło
+  i przez które 1.183.0 wyszło na żywo niedziałające. Dotychczasowe czytało
+  kolejkę inline JEDNEGO modułu, a usterka nie siedziała w żadnym z nich
+  z osobna: tylko w tym, co robią razem i w jakiej kolejności. Teraz oba lecą
+  na jednej stronie, ustawione tak, jak ustawia je WordPress, a pomiar idzie
+  na żywej osi czasu. Mutacja przywracająca `lagSmoothing(0)` zapala je na
+  „310 ms na osi", czyli odtwarza objaw ze zgłoszenia co do liczby.
+
+  Lenis jest w tym sprawdzeniu ATRAPĄ, nie biblioteką: badany jest nasz kod
+  spinający, a prawdziwa biblioteka dokładałaby własne przechwytywanie
+  przewijania w środku pomiaru.
+
+- **Cel zewnętrzny, obie drogi** — znacznik z filtru atrybutów (w tym
+  nadpisanie celu z elementu w obie strony) i brak selektorów po klasie.
+  Wiersz `zewnetrzny` w atrapie różni się od czekającego `wejscie` WYŁĄCZNIE
+  celem: ten sam preset z `from`, ten sam wyzwalacz. Gdyby różnił się czymś
+  jeszcze, sprawdzenie nie dowodziłoby, że rozstrzyga cel.
+
+- Kontrola statyczna po zdjęciu komentarzy: moduł Lenisa nie woła już
+  `lagSmoothing`, ale komentarz o nim ZOSTAJE — ma powstrzymać następne
+  przepisanie z przepisu GSAP-a.
+
 ## [1.183.0] — 2026-09-14
 
 ### Naprawione
