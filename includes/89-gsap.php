@@ -91,26 +91,44 @@ function evk_register_gsap_libs(): void {
     );
 
     /*
-     * WYGŁADZANIE DŁUGICH KLATEK — próg 120 ms zamiast domyślnych 500 ms.
+     * WYGŁADZANIE DŁUGICH KLATEK — próg 250 ms zamiast domyślnych 500 ms.
      *
      * ZGŁOSZONE Z UŻYCIA: „jeśli są na stronie animacje animatora, to jest
-     * przeskok" (fala w tle) oraz „animator też się tnie; dodanie opóźnienia
-     * 0,2 s odrobinę poprawia problem".
+     * przeskok" (fala w tle) oraz „animator też się tnie".
      *
      * MECHANIZM, nie ozdoba. Oś czasu dostaje przy tworzeniu czas z OSTATNIEGO
      * tyknięcia zegara GSAP-a, a rysowana jest dopiero przy NASTĘPNYM. Jeśli
      * pomiędzy nimi wątek główny stał — parsowanie 287 KB three.js, kompilacja
      * shaderów fali (zmierzone w tym repo na 152 ms), budowanie ScrollTriggerów
      * Animatora — to pierwsza narysowana klatka wypada już w środku animacji.
-     * Stąd „przeskok", stąd cięcie, i stąd to, że ręczne opóźnienie 0,2 s
-     * pomaga: przesuwa start poza tę blokadę.
      *
-     * GSAP ma na to `lagSmoothing`, ale domyślny próg 500 ms łapie wyłącznie
-     * katastrofy. Typowa blokada startowa mieści się w 150–400 ms i przechodzi
-     * przez niego nietknięta. Przy 120 ms (siedem klatek przy 60 Hz — nic
-     * normalnego tyle nie trwa) taka klatka liczy się jako jedna: animacja jest
-     * przez moment wolniejsza, ale CIĄGŁA. Skoku nie da się nadrobić, a płynność
-     * tak.
+     * DLACZEGO NIE 120 ms, CZYLI CZEGO NIE ZOBACZYŁEM W 1.184.0.
+     *
+     * `lagSmoothing` to BRAMKA: klatka dłuższa od progu liczy się jako `lag`.
+     * Patrzyłem wyłącznie na jedno zablokowanie i dobrałem próg jak najniżej,
+     * żeby złapać każde. Przy ładowaniu strony długich klatek jest jednak SERIA,
+     * a wtedy niski próg łapie je wszystkie i oś posuwa się o 33 ms na klatkę,
+     * zamiast o czas rzeczywisty — animacja nie tyle płynie, co PEŁZNIE.
+     * Zgłoszone z użycia zaraz po wydaniu: „animacje jakby baaardzo wolno się
+     * rozpoczynają".
+     *
+     * Zmierzone (oś 0,8 s w sztormie ~1,8 s; im bliżej 1800 ms, tym lepiej):
+     *
+     *     klatki sztormu │ 100 │ 150  │ 200  │ 250  │ 300
+     *     próg 120       │1806 │ 2417 │ 2467 │ 2450 │ 2517   ← pełznie od 150 ms
+     *     próg 250       │1805 │ 1803 │ 1803 │ 1752 │ 2417
+     *     próg 500       │1806 │ 1805 │ 1803 │ 1752 │ 1802
+     *
+     * i w drugą stronę — przeskok po JEDNYM zablokowaniu:
+     *
+     *     zablokowanie   │ 200 │ 300 │ 500 │ 800
+     *     próg 250       │ 217 │  49 │  49 │  49
+     *     próg 500       │ 217 │ 317 │  49 │  49   ← puszcza 300 ms, czyli objaw
+     *
+     * 250 ms to NAJWYŻSZY próg, który wciąż ucina zablokowanie ~300 ms —
+     * a właśnie 300 ms zmierzyliśmy przy pierwotnym zgłoszeniu. Wyżej wraca
+     * przeskok, niżej zaczyna się pełzanie. Zmiana progu bez ponownego pomiaru
+     * OBU tych kolumn cofnie jedno albo drugie.
      *
      * Ustawienie jest globalne dla całego GSAP-a na stronie — i takie ma być:
      * dotyczy tak samo Animatora, fali, marquee i Horizontal Scrolla.
@@ -118,7 +136,7 @@ function evk_register_gsap_libs(): void {
      */
     wp_add_inline_script(
         'evk-gsap',
-        'if (window.gsap && gsap.ticker) gsap.ticker.lagSmoothing(120, 16);',
+        'if (window.gsap && gsap.ticker) gsap.ticker.lagSmoothing(250, 33);',
         'after'
     );
 

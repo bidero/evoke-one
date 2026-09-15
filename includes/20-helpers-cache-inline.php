@@ -136,6 +136,54 @@ function get_translation_config(): array {
     return $mem_cache;
 }
 
+/**
+ * Indeks dopasowań: znormalizowana fraza PL → token i tłumaczenie.
+ *
+ * PO CO. Silnik porównywał tekst ze strony z KAŻDĄ frazą biblioteki po kolei,
+ * a przy każdym porównaniu normalizował frazę wyszukiwaną od nowa. Koszt rósł
+ * jak `węzły × frazy`: przy 600 akapitach i 300 frazach to 180 000 normalizacji
+ * na jedno żądanie, z czego 179 400 wyrzucanych. Zmierzone przed zmianą:
+ * 40,3 ms na samo tokenizowanie strony.
+ *
+ * Porównanie w obu miejscach było DOKŁADNĄ RÓWNOŚCIĄ (`===`), więc nie było
+ * czego szukać liniowo — wystarczy tablica asocjacyjna i jedno sięgnięcie.
+ * Normalizacja fraz dzieje się raz, przy budowie indeksu.
+ *
+ * KOLEJNOŚĆ WEDŁUG DŁUGOŚCI ZOSTAJE, choć wygląda na zbędną: gdy dwie różne
+ * frazy sprowadzą się do tego samego klucza (np. różnią się tylko odstępami),
+ * wygrać ma dłuższa — dokładnie tak, jak wygrywała w pętli po `uksort`.
+ * Dlatego budujemy od najdłuższych i NIE nadpisujemy istniejącego klucza.
+ *
+ * BEZ WŁASNEGO TRANSIENTA. Indeks powstaje z `get_translation_config()`, który
+ * już jest w pamięci podręcznej, a jego zbudowanie to jeden przebieg po frazach.
+ * Własny transient trzeba by unieważniać razem z resztą — czyli dołożyć kolejne
+ * miejsce, w którym da się o tym zapomnieć. Statyk na żądanie wystarcza.
+ */
+function tl_get_match_index(string $lang): array {
+    static $mem = [];
+    if (isset($mem[$lang])) return $mem[$lang];
+
+    $strings = get_translation_config()['strings'] ?? [];
+    uksort($strings, fn($a, $b) => mb_strlen($b) - mb_strlen($a));
+
+    $index = [];
+    foreach ($strings as $search => $translations) {
+        if (empty($translations[$lang])) continue;
+
+        $trimmed = trim($search);
+        $klucz   = mb_strtolower(tl_normalize_text_for_match($trimmed));
+        if ($klucz === '' || isset($index[$klucz])) continue;
+
+        $index[$klucz] = [
+            'token' => '##TL_' . md5($trimmed) . '##',
+            'tlum'  => $translations[$lang],
+        ];
+    }
+
+    $mem[$lang] = $index;
+    return $index;
+}
+
 function tl_get_token_map(string $lang): array {
     static $mem = [];
     if (isset($mem[$lang])) return $mem[$lang];

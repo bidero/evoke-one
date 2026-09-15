@@ -104,8 +104,10 @@ module.exports = async function (t) {
   /* Próg MUSI zejść poniżej domyślnych 500 ms — inaczej zmiana nie łapie
      niczego, o co poszło zgłoszenie. Sprawdzamy liczbę, nie samą obecność
      wywołania: `lagSmoothing(500, 33)` to dokładnie stan sprzed zmiany. */
-  const prog = Number((String(wygladzanie[0] && wygladzanie[0].data)
-    .match(/lagSmoothing\(\s*(\d+)/) || [])[1]);
+  const liczby = String(wygladzanie[0] && wygladzanie[0].data)
+    .match(/lagSmoothing\(\s*(\d+)\s*,\s*(\d+)/) || [];
+  const prog = Number(liczby[1]);
+  const lag  = Number(liczby[2]);
   t.check('próg jest niższy niż domyślne 500 ms', prog > 0 && prog < 500,
     prog + ' ms');
 
@@ -114,7 +116,7 @@ module.exports = async function (t) {
      tween przeskakuje o całą blokadę; z wygładzaniem posuwa się o jedną klatkę. */
   const skok = await p.evaluate(async (ms) => {
     const kod = document.createElement('script');
-    kod.textContent = 'if (window.gsap && gsap.ticker) gsap.ticker.lagSmoothing(' + ms + ', 16);';
+    kod.textContent = 'if (window.gsap && gsap.ticker) gsap.ticker.lagSmoothing(' + ms[0] + ', ' + ms[1] + ');';
     document.head.appendChild(kod);
 
     const cel = { x: 0 };
@@ -126,12 +128,51 @@ module.exports = async function (t) {
     const przebyte = tl.time();
     tl.kill();
     return Math.round(przebyte * 1000);
-  }, prog);
+  }, [prog, lag]);
 
   /* 300 ms blokady przy domyślnym progu dałoby ~300 ms przeskoku. Przy naszym
      progu oś posuwa się o dwie klatki wygładzania, czyli kilkadziesiąt ms. */
   t.check('po 300 ms blokady oś posunęła się o klatki, nie o blokadę',
     skok !== null && skok < 120, skok + ' ms na osi');
+
+  /* ── I DRUGA STRONA TEJ SAMEJ BRAMKI ─────────────────────────────────────
+   *
+   * TEGO SPRAWDZENIA ZABRAKŁO W 1.184.0 i dlatego wyszedł stamtąd defekt.
+   * Patrzyłem wyłącznie na przeskok i dobrałem próg jak najniżej (120 ms),
+   * żeby złapać każde zablokowanie. Przy ładowaniu strony długich klatek jest
+   * jednak SERIA — niski próg łapie je wszystkie i oś posuwa się o `lag`
+   * na klatkę zamiast o czas rzeczywisty. Zgłoszone zaraz po wydaniu:
+   * „animacje jakby baaardzo wolno się rozpoczynają".
+   *
+   * Sztorm z klatek 150 ms to typowe ciężkie ładowanie. Oś 0,8 s ma się w nim
+   * zmieścić mniej więcej w czasie rzeczywistym sztormu — a nie pełznąć.
+   * Przy progu 120 ms ta liczba rośnie z ~1800 do ~2400 ms.
+   */
+  const pelzanie = await p.evaluate(async (ms) => {
+    const kod = document.createElement('script');
+    kod.textContent = 'gsap.ticker.lagSmoothing(' + ms[0] + ', ' + ms[1] + ');';
+    document.head.appendChild(kod);
+
+    const blokuj = (t) => { const k = performance.now() + t; while (performance.now() < k) {} };
+    const klatka = () => new Promise((ok) => requestAnimationFrame(() => ok()));
+    await klatka();
+
+    const cel = { x: 0 };
+    const tl = gsap.to(cel, { x: 1000, duration: 0.8, ease: 'none' });
+    const start = performance.now();
+    for (let i = 0; i < 12; i++) { blokuj(150); await klatka(); }
+    let s = 0;
+    while (tl.time() < tl.duration() && s++ < 600) await klatka();
+    const realnie = Math.round(performance.now() - start);
+    tl.kill();
+    return realnie;
+  }, [prog, lag]);
+
+  /* Sam sztorm zjada ~1800 ms, więc tyle jest podłogą. Zapas do 2100 ms zostawia
+     miejsce na wahania maszyny testowej, a próg 120 ms i tak zapala się tu na
+     ~2400 ms — sprawdzone mutacją. */
+  t.check('a w SERII długich klatek oś nie pełznie',
+    pelzanie !== null && pelzanie < 2100, pelzanie + ' ms na sztorm 1800 ms');
 
   /* ── ZDERZENIE Z PŁYNNYM PRZEWIJANIEM ────────────────────────────────────
    *

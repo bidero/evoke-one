@@ -2,6 +2,94 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.186.0] — 2026-09-15
+
+### Naprawione
+
+- **Animacje pełzły przy ładowaniu strony — to był defekt z 1.184.0, nie
+  z 1.185.0.** Zgłoszone z użycia: „animacje czasami się zacinają przy
+  ładowaniu strony, ale inaczej. Tak jakby baaardzo wolno się rozpoczynały".
+
+  `lagSmoothing` to BRAMKA: klatka dłuższa od progu liczy się jako `lag`.
+  W 1.184.0 patrzyłem wyłącznie na JEDNO zablokowanie i dobrałem próg jak
+  najniżej (120 ms), żeby złapać każde. Przy ładowaniu strony długich klatek
+  jest jednak SERIA — niski próg łapie je wszystkie i oś posuwa się o `lag`
+  na klatkę zamiast o czas rzeczywisty.
+
+  Zmierzone (oś 0,8 s w sztormie ~1,8 s; im bliżej 1800 ms, tym lepiej):
+
+      klatki sztormu │ 100  │ 150  │ 200  │ 250  │ 300
+      próg 120       │ 1806 │ 2417 │ 2467 │ 2450 │ 2517   ← pełznie od 150 ms
+      próg 250       │ 1805 │ 1803 │ 1803 │ 1752 │ 2417
+      próg 500       │ 1806 │ 1805 │ 1803 │ 1752 │ 1802
+
+  i w drugą stronę — przeskok po jednym zablokowaniu:
+
+      zablokowanie   │ 200 │ 300 │ 500 │ 800
+      próg 250       │ 217 │  49 │  49 │  49
+      próg 500       │ 217 │ 317 │  49 │  49   ← puszcza 300 ms, czyli objaw z 1.183.0
+
+  Próg idzie na **250 ms** — najwyższy, który wciąż ucina zablokowanie ~300 ms,
+  a właśnie tyle zmierzyliśmy przy pierwotnym zgłoszeniu. Wyżej wraca przeskok,
+  niżej zaczyna się pełzanie. (`includes/89-gsap.php`)
+
+### Zmienione
+
+- **Silnik tłumaczeń przestał przeglądać całą bibliotekę na każdy węzeł
+  tekstowy.** Zapytane wprost: „czy jest coś, co można zrobić, żeby przyspieszyć
+  efekty pracy modułu".
+
+  Było: każdy węzeł tekstowy strony porównywał się po kolei z KAŻDĄ frazą
+  biblioteki, a przy każdym porównaniu normalizował frazę wyszukiwaną od nowa.
+  Koszt rósł jak `węzły × frazy`. Porównanie było przy tym DOKŁADNĄ RÓWNOŚCIĄ,
+  więc nie było czego szukać liniowo — a `uksort` po długości, wykonywany przy
+  każdym wywołaniu, nie rozstrzygał niczego.
+
+  Jest: indeks `znormalizowana fraza → token i przekład`, budowany raz
+  (`tl_get_match_index()`), i jedno sięgnięcie na węzeł. Zmierzone na 600
+  węzłach:
+
+      frazy │ przed     │ po
+         30 │  12,9 ms  │ 1,6 ms
+        100 │  40,1 ms  │ 1,5 ms
+        300 │ 119,2 ms  │ 1,7 ms
+       1000 │ 418,7 ms  │ 1,5 ms
+
+  Przy 300 frazach to **119 ms serwera z każdego żądania obcojęzycznej
+  podstrony**. Koszt przestał też rosnąć z biblioteką — można ją powiększać
+  bez oglądania się na stronę.
+
+  Bez własnego transienta: indeks powstaje z `get_translation_config()`, który
+  już jest w pamięci podręcznej, więc nie dokłada miejsca do unieważniania.
+  Kolejność według długości została zachowana przy BUDOWIE indeksu — gdy dwie
+  frazy sprowadzą się do tego samego klucza, wygrywa dłuższa, dokładnie jak
+  w dotychczasowej pętli.
+
+  **Po polsku silnik wychodzi natychmiast i kosztuje zero** — to się nie
+  zmieniło i dotyczy większości ruchu.
+  (`includes/20-helpers-cache-inline.php`, `includes/50-translation-engine.php`)
+
+### Testy
+
+- **Silnik podmiany dostał pierwsze w historii pokrycie** (`tl-silnik`,
+  16 sprawdzeń). Przechodzi przez niego każdy znak każdej obcojęzycznej
+  podstrony, a nie miał ani jednego sprawdzenia — przepisania nietestowanego
+  kodu nie da się obronić inaczej niż „wygląda tak samo". Przed zmianą stara
+  i nowa ścieżka zostały porównane na 15 przypadkach brzegowych (wielkość liter,
+  twarda spacja, encje, pusty przekład, atrybuty): wynik identyczny co do znaku.
+
+- **Brakujące sprawdzenie z 1.184.0 dołożone.** Tamto wydanie mierzyło wyłącznie
+  PRZESKOK i dlatego wypuściło pełzanie. Doszło sprawdzenie drugiej strony tej
+  samej bramki: oś 0,8 s w sztormie klatek 150 ms ma się zmieścić w czasie
+  rzeczywistym sztormu. Przy progu 120 ms zapala się na ~2400 ms.
+
+- **Pomiar kosztu naprawiony, zanim czegokolwiek dowiódł.** Pierwsza wersja
+  mierzyła wszystkie rozmiary biblioteki w jednym procesie i „dowodziła", że
+  koszt nie rośnie — podczas gdy `get_translation_config()` trzyma wynik
+  w statyku i drugi rozmiar nigdy nie wchodził. Każdy rozmiar idzie teraz
+  w osobnym procesie, a osobne sprawdzenie pilnuje, że biblioteka naprawdę
+  urosła.
+
 ## [1.185.0] — 2026-09-15
 
 ### Naprawione

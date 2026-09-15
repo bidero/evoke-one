@@ -8,20 +8,21 @@ if (!defined('ABSPATH')) exit;
 // ====================================================================
 // 7. TRANSLATION ENGINE
 // ====================================================================
+/**
+ * Tłumaczenie wartości atrybutu — jedno sięgnięcie do indeksu, nie pętla.
+ *
+ * `$strings` zostaje w sygnaturze, choć funkcja już go nie przegląda: wołający
+ * (`tl_tokenize_attributes()`) i tak ma go pod ręką, a zmiana sygnatury zerwałaby
+ * zgodność bez żadnego zysku. Rozstrzyga indeks z `tl_get_match_index()`.
+ */
 function tl_translate_attr_value(string $value, string $lang, array $strings): string {
     if ($value === '') return $value;
 
-    uksort($strings, fn($a, $b) => mb_strlen($b) - mb_strlen($a));
+    $klucz = mb_strtolower(tl_normalize_text_for_match($value));
+    if ($klucz === '') return $value;
 
-    foreach ($strings as $search => $translations) {
-        if (empty($translations[$lang])) continue;
-
-        if (mb_strtolower(tl_normalize_text_for_match($value)) === mb_strtolower(tl_normalize_text_for_match(trim($search)))) {
-            return $translations[$lang];
-        }
-    }
-
-    return $value;
+    $trafienie = tl_get_match_index($lang)[$klucz] ?? null;
+    return $trafienie === null ? $value : $trafienie['tlum'];
 }
 
 function tl_tokenize_attributes(string $content, string $lang): string {
@@ -66,26 +67,17 @@ function tl_tokenize_content(string $content, string $lang): string {
     $strings = get_translation_config()['strings'] ?? [];
     if (empty($strings)) return $content;
 
-    uksort($strings, fn($a, $b) => mb_strlen($b) - mb_strlen($a));
+    /* Indeks zamiast pętli po wszystkich frazach na KAŻDY węzeł tekstowy —
+       patrz `tl_get_match_index()`. Porównanie było i jest dokładną równością,
+       więc tablica asocjacyjna daje ten sam wynik jednym sięgnięciem. */
+    $index = tl_get_match_index($lang);
+    if (empty($index)) return tl_tokenize_attributes($content, $lang);
 
-    $content = preg_replace_callback('/>([^<]+)</u', function ($matches) use ($strings, $lang) {
-        $text = $matches[1];
-        $text_normalized = tl_normalize_text_for_match($text);
+    $content = preg_replace_callback('/>([^<]+)</u', function ($matches) use ($index) {
+        $klucz = mb_strtolower(tl_normalize_text_for_match($matches[1]));
+        if ($klucz === '') return $matches[0];
 
-        if ($text_normalized === '') return $matches[0];
-
-        foreach ($strings as $search => $translations) {
-            if (empty($translations[$lang])) continue;
-
-            $search_trimmed = trim($search);
-            if (mb_strtolower($text_normalized) !== mb_strtolower(tl_normalize_text_for_match($search_trimmed))) {
-                continue;
-            }
-
-            return '>##TL_' . md5($search_trimmed) . '##<';
-        }
-
-        return $matches[0];
+        return isset($index[$klucz]) ? '>' . $index[$klucz]['token'] . '<' : $matches[0];
     }, $content);
 
     return tl_tokenize_attributes($content, $lang);
