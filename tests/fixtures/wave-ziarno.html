@@ -111,12 +111,23 @@
   <div id="ziarno"></div>
 </div>
 
-<!-- feTurbulence — wariant, przed którym ostrzega notatka. Filtr nie zależy od
-     zawartości elementu, więc pusty <div> z `filter: url(#…)` rysuje samo
-     zafalowanie i to jest tu całą treścią warstwy. -->
+<!-- feTurbulence. Filtr nie zależy od zawartości elementu, więc pusty <div>
+     z `filter: url(#…)` rysuje samo zafalowanie i to jest tu całą treścią warstwy.
+
+     JEDEN FILTR, DWA WARIANTY — i to rozróżnienie jest tu sednem. Nieruchomy
+     feTurbulence przeglądarka rasteryzuje RAZ i trzyma gotową warstwę, więc
+     kosztuje tyle co obrazek. Dopiero zmiana `seed` co klatkę każe policzyć
+     cały filtr od nowa na każdą klatkę — i to jest ten przypadek, przed którym
+     ostrzega notatka („feTurbulence potrafi kosztować więcej niż oszczędzany
+     kadr"), a zarazem jedyny, który robi to samo co shader: dzisiejsze ziarno
+     przesiewa się co klatkę (`uNoiseSeed = Math.random()`).
+
+     Mierzenie samego nieruchomego wariantu odpowiadałoby więc na łatwiejsze
+     pytanie i wyglądałoby jak zdjęcie zarzutu, którego nikt nie postawił. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <filter id="ziarno-svg" x="0%" y="0%" width="100%" height="100%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" stitchTiles="stitch"/>
+    <feTurbulence id="turbulencja" type="fractalNoise" baseFrequency="0.85"
+                  numOctaves="1" seed="1" stitchTiles="stitch"/>
   </filter>
 </svg>
 
@@ -177,10 +188,20 @@
   var WARIANTY = [
     { id: 'dzis',    nazwa: 'Dziś (shader)',   opis: 'ziarno w przebiegu post-process' },
     { id: 'brak',    nazwa: 'Bez ziarna',      opis: 'odniesienie — ile kosztuje samo ziarno' },
-    { id: 'css',     nazwa: 'CSS nieruchome',  opis: 'kafelek szumu, warstwa nad elementem' },
-    { id: 'cssRuch', nazwa: 'CSS migoczące',   opis: 'to samo + skok co 0,5 s transformem' },
-    { id: 'svg',     nazwa: 'SVG feTurbulence', opis: 'to, przed czym ostrzega notatka' },
+    { id: 'css',        nazwa: 'CSS nieruchome', opis: 'kafelek szumu, mieszanie overlay' },
+    { id: 'cssBezBlend', nazwa: 'CSS bez mieszania',
+      opis: 'ten sam kafelek, mix-blend-mode: normal — rozdziela koszt ziarna od kosztu mieszania' },
+    { id: 'cssRuch',    nazwa: 'CSS migoczące',  opis: 'kafelek + przesiew 16×/s transformem' },
+    { id: 'svg',     nazwa: 'SVG nieruchome',  opis: 'feTurbulence policzony raz i zapamiętany' },
+    { id: 'svgRuch', nazwa: 'SVG migoczące',   opis: 'feTurbulence z seedem co klatkę — to, przed czym ostrzega notatka' },
   ];
+
+  /* Które warianty PRZESIEWAJĄ ziarno, a które stoją. Dzisiejszy shader losuje
+     `uNoiseSeed` co klatkę, więc tylko migoczące są z nim porównywalne co do
+     WYGLĄDU — nieruchome odpowiadają na inne pytanie („czy statyczne ziarno
+     wystarczy"), i to też jest pytanie warte zadania, byle nie pomylić go
+     z pierwszym. */
+  var MIGOCZE = { dzis: 'co klatkę', cssRuch: '16×/s', svgRuch: 'co klatkę' };
 
   var KLUCZ = 'evk-wave-ziarno';
   var ROZGRZEWKA = 2500;   // ms wyrzucane na starcie — kompilacja shaderów i pierwsze klatki
@@ -237,6 +258,33 @@
     return kafelek;
   }
 
+  // ── Przesiew SVG ────────────────────────────────────────────────────────
+  /**
+   * Zmienia `seed` filtra co klatkę — jedyny wariant SVG porównywalny
+   * z shaderem, bo dzisiejsze ziarno też przesiewa się co klatkę.
+   *
+   * PĘTLA MUSI DAĆ SIĘ ZATRZYMAĆ i to nie jest porządek, tylko warunek
+   * poprawności pomiaru: zostawiona w tle przeliczałaby filtr także wtedy, gdy
+   * mierzony jest już inny wariant, i dopisywała mu swój koszt. `uchwyt`
+   * trzymamy po to, żeby przełączenie wariantu naprawdę ją zdejmowało.
+   */
+  var uchwytPrzesiewu = 0;
+
+  function zacznijPrzesiewSvg() {
+    var f = document.getElementById('turbulencja');
+    if (!f) return;
+    var n = 1;
+    (function klatka() {
+      f.setAttribute('seed', String(n = (n % 9999) + 1));
+      uchwytPrzesiewu = requestAnimationFrame(klatka);
+    })();
+  }
+
+  function zatrzymajPrzesiewSvg() {
+    if (uchwytPrzesiewu) cancelAnimationFrame(uchwytPrzesiewu);
+    uchwytPrzesiewu = 0;
+  }
+
   // ── Przełączanie wariantu ───────────────────────────────────────────────
   var biezacy = null;
 
@@ -252,6 +300,10 @@
     var w = window.__evkWave;
     var wShaderze = (id === 'dzis');
 
+    /* ZAWSZE NAJPIERW, bez względu na to, na co przełączamy — patrz komentarz
+       przy `zatrzymajPrzesiewSvg`. */
+    zatrzymajPrzesiewSvg();
+
     if (w && w.effect1) {
       w.effect1.uniforms.uNoiseEnabled.value = wShaderze ? 1.0 : 0.0;
     }
@@ -260,24 +312,44 @@
     z.className = '';
     z.style.cssText = '';
     z.style.position = 'absolute';
-    z.style.left = '-25%'; z.style.top = '-25%';
-    z.style.width = '150%'; z.style.height = '150%';
     z.style.pointerEvents = 'none';
+
+    /* WARSTWA NA MIARĘ. Do 1.189.0 stała tu na stałe półtora kadru
+       (`-25%`, `150%`), bo tyle potrzebuje wariant przesuwany transformem —
+       żeby przy skoku nie odsłonić krawędzi. Warianty NIERUCHOME płaciły przez
+       to za 2,25 raza większą powierzchnię, której nie używały, i wychodziły
+       z pomiaru droższe, niż są. Oversize dostaje więc tylko ten, kto się
+       rusza. */
+    var rusza = (id === 'cssRuch');
+    if (rusza) {
+      z.style.left = '-25%'; z.style.top = '-25%';
+      z.style.width = '150%'; z.style.height = '150%';
+    } else {
+      z.style.left = '0'; z.style.top = '0';
+      z.style.width = '100%'; z.style.height = '100%';
+    }
 
     var moc = el('moc').valueAsNumber / 100;
 
-    if (id === 'css' || id === 'cssRuch') {
+    /* Tryb mieszania jest tu ZMIENNĄ NIEZALEŻNĄ, nie ozdobą. `overlay` każe
+       kompozytorowi odczytać tło pod warstwą i policzyć mieszanie na całym
+       kadrze — na pełnym ekranie przy wysokim DPR to jest praca rzędu
+       milionów pikseli na klatkę, niezależna od tego, czy ziarno przyszło
+       z kafelka, czy z filtra. Wariant „bez mieszania" jest po to, żeby dało
+       się odróżnić koszt SAMEGO ziarna od kosztu mieszania. */
+    if (id === 'css' || id === 'cssRuch' || id === 'cssBezBlend') {
       z.style.backgroundImage = 'url("' + adresKafelka() + '")';
       z.style.backgroundRepeat = 'repeat';
-      z.style.mixBlendMode = 'overlay';
+      z.style.mixBlendMode = (id === 'cssBezBlend') ? 'normal' : 'overlay';
       z.style.opacity = String(moc);
       z.classList.add('widac');
-      if (id === 'cssRuch') z.classList.add('rusza');
-    } else if (id === 'svg') {
+      if (rusza) z.classList.add('rusza');
+    } else if (id === 'svg' || id === 'svgRuch') {
       z.style.filter = 'url(#ziarno-svg)';
       z.style.mixBlendMode = 'overlay';
       z.style.opacity = String(moc);
       z.classList.add('widac');
+      if (id === 'svgRuch') zacznijPrzesiewSvg();
     }
 
     Array.prototype.forEach.call(document.querySelectorAll('#warianty button'), function (b) {
@@ -475,6 +547,7 @@
       return '<tr><td>' + w.nazwa + pusty + '</td>'
         + '<td>' + (r.mediana == null ? '—' : r.mediana.toFixed(1).replace('.', ',')) + '</td>'
         + '<td>' + (r.najgorsza == null ? '—' : Math.round(r.najgorsza)) + '</td>'
+        + '<td>' + (MIGOCZE[w.id] || 'stoi') + '</td>'
         + '<td>' + r.poziom + '</td>'
         + '<td>' + r.dlugich + '</td></tr>';
     }).join('');
@@ -482,6 +555,7 @@
     var odniesienie = s.wyniki['brak'];
     var dzis = s.wyniki['dzis'];
     var css = s.wyniki['css'];
+    var bezBlend = s.wyniki['cssBezBlend'];
     var wniosek = '';
 
     if (dzis && dzis.poziom >= 1 && s.tryb === 'realny') {
@@ -510,15 +584,37 @@
         + css.poziom + ').</p>';
     }
 
+    /* ROZDZIELENIE WINY. Ta sama warstwa, ta sama powierzchnia, jedyna różnica
+       to `mix-blend-mode`. Bez tego porównania „CSS jest drogi" nie mówi, czy
+       drogie jest ziarno, czy mieszanie — a to są dwa różne wnioski i tylko
+       jeden z nich zamyka sprawę. */
+    if (css && bezBlend && css.mediana != null && bezBlend.mediana != null) {
+      var r3 = css.mediana - bezBlend.mediana;
+      var rb = bezBlend.mediana - (odniesienie && odniesienie.mediana != null
+        ? odniesienie.mediana : bezBlend.mediana);
+      wniosek += '<p><b>Za co dokładnie się płaci:</b> sama warstwa z ziarnem, bez mieszania, '
+        + 'kosztuje ' + (rb >= 0 ? '+' : '') + rb.toFixed(1).replace('.', ',')
+        + ' ms; dołożenie <code>mix-blend-mode: overlay</code> dokłada '
+        + (r3 >= 0 ? '+' : '') + r3.toFixed(1).replace('.', ',') + ' ms. '
+        + (Math.abs(r3) > Math.abs(rb) * 2
+            ? 'Czyli droga jest <b>nie warstwa, tylko mieszanie</b> — a ono ma zamienniki.'
+            : 'Czyli płaci się za <b>samą dodatkową warstwę na pełnym kadrze</b>, '
+              + 'nie za tryb mieszania.')
+        + '</p>';
+    }
+
     el('wyniki').innerHTML =
       '<h2>Wyniki — pomiar ' + (s.tryb === 'realny' ? 'realny' : 'przypięty do poziomu 0') + '</h2>'
       + '<table><tr><th>Wariant</th><th>Mediana klatki</th><th>Najgorsza</th>'
-      + '<th>Poziom</th><th>Długich zadań</th></tr>' + wiersze + '</table>'
+      + '<th>Przesiew</th><th>Poziom</th><th>Długich zadań</th></tr>' + wiersze + '</table>'
       + wniosek
       + '<p style="font-size:12px">Mediana i najgorsza w milisekundach na klatkę — mniej znaczy '
-      + 'płynniej; 60 kl./s to 16,7 ms. „Poziom" to szczebel drabiny jakości, na którym '
-      + 'fala skończyła: 0 pełna, 1 bez post-processu, 2 połowa rozdzielczości, '
-      + '3 nieruchomy kadr.</p>';
+      + 'płynniej; 60 kl./s to 16,7 ms, 30 kl./s to 33,3 ms. <b>Wynik przy samym 33 ms nie znaczy '
+      + '„dwa razy więcej pracy"</b>, tylko że klatka nie zmieściła się w budżecie i kompozytor '
+      + 'zszedł na co drugie odświeżenie — prawdziwa nadwyżka bywa ułamkiem milisekundy. '
+      + '„Przesiew" mówi, czy ziarno losuje się od nowa (jak dziś w shaderze), czy stoi. '
+      + '„Poziom" to szczebel drabiny jakości: 0 pełna, 1 bez post-processu, '
+      + '2 połowa rozdzielczości, 3 nieruchomy kadr.</p>';
   }
 
   // ── Przebieg ────────────────────────────────────────────────────────────

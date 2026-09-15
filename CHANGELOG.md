@@ -2,6 +2,49 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.189.0] — 2026-09-15
+
+### Naprawione
+
+- **Narzędzie do ziarna mierzyło warianty CSS niesprawiedliwie, na dwa sposoby
+  naraz — oba moje.** Wyszło dopiero na prawdziwych liczbach ze starego
+  komputera (Intel Iris, DPR 1,8), więc pierwsza seria pomiarów jest tą poprawką
+  unieważniona.
+
+  1. **Warstwa ziarna miała na stałe półtora kadru** (`-25%`, `150%`).
+     Oversize potrzebny jest WYŁĄCZNIE wariantowi przesuwanemu transformem,
+     żeby przy skoku nie odsłonić krawędzi. Warianty nieruchome płaciły przez
+     to za 2,25 raza większą powierzchnię, której nie używały.
+  2. **`mix-blend-mode: overlay` był stałą, nie zmienną.** Wszystkie warianty
+     CSS i SVG miały go zawsze, więc pomiar nie umiał odróżnić kosztu ZIARNA
+     od kosztu MIESZANIA — a to są dwa różne wnioski i tylko jeden z nich
+     zamyka sprawę. Doszedł wariant „CSS bez mieszania": ta sama warstwa, ten
+     sam kafelek, `mix-blend-mode: normal`.
+
+### Zmienione
+
+- **SVG feTurbulence dostał wariant z przesiewem — i to on jest tym, przed
+  którym ostrzegała notatka.** Zapytane wprost: „SVG feTurbulence jest
+  nieanimowany?". Był, i to była usterka pomiaru, nie szczegół.
+
+  Nieruchomy `feTurbulence` przeglądarka rasteryzuje RAZ i trzyma gotową
+  warstwę — kosztuje tyle co obrazek. Dopiero zmiana `seed` co klatkę każe
+  policzyć filtr od nowa na każdą klatkę. Notatka
+  (`docs/ekrany-sekcji-szkic.md`) ostrzegała właśnie przed tym drugim, a mierzony
+  był pierwszy — czyli łatwiejsze pytanie, wyglądające jak zdjęcie zarzutu,
+  którego nikt nie postawił. Przy okazji tylko wariant z przesiewem jest
+  porównywalny z dzisiejszym shaderem co do WYGLĄDU, bo tam `uNoiseSeed`
+  losuje się co klatkę.
+
+  Tabela wyników ma teraz kolumnę „Przesiew" (co klatkę / 16×/s / stoi), żeby
+  nie dało się zestawić ze sobą wariantów, które migoczą, i tych, które stoją.
+
+- **Odczyt tabeli mówi o progu odświeżania.** Wynik „33 ms" przy 60 Hz nie
+  znaczy „dwa razy więcej pracy", tylko że klatka nie zmieściła się w budżecie
+  i kompozytor zszedł na co drugie odświeżenie; prawdziwa nadwyżka bywa
+  ułamkiem milisekundy. Bez tego zdania liczby czyta się jako katastrofę tam,
+  gdzie chodzi o przekroczenie progu o włos.
+
 ## [1.188.0] — 2026-09-15
 
 ### Zmienione
