@@ -2,6 +2,52 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.193.0] — 2026-09-15
+
+### Naprawione
+
+- **Ziarno poza falą dokładało ciemnej poświaty na jej obrzeżu.** ZGŁOSZONE
+  Z UŻYCIA: „ziarno jest ładne, ale włączenie go na całym kadrze powoduje
+  dodanie za falą jakiejś ciemnej poświaty".
+
+  Usterka była w linii, którą sam dopisałem w 1.191.0:
+
+      color.rgb = mix(cZiarna, color.rgb, color.a);
+
+  `mix` **zastępuje** barwę fali barwą ziarna proporcjonalnie do jej alfy.
+  Przy premnożonej alfie `cZiarna` jest bliskie czerni (najwyżej 0,08), więc
+  wszędzie tam, gdzie fala jest półprzezroczysta — czyli na całym jej miękkim
+  obrzeżu — jej własna barwa gasła tym mocniej, im bardziej fala zanikała.
+  To nie było ziarno, tylko przygaszanie fali.
+
+  Wkład ziarna jest teraz **dokładany**, nie zastępujący, i ważony tym, ile
+  miejsca fala zostawia (jeden minus jej alfa): środek fali nietknięty, poza
+  falą pełne ziarno, obrzeże płynnie. Zero dalej znaczy stan sprzed 1.191.0.
+
+  Zmierzone (średnia jasność kadru, rozlanie zero → pełne):
+
+      z usterką   │ 65,85 → 45,25   (spadek o 31%)
+      po poprawce │ 64,60 → 66,71   (wzrost, bo ziarno DOKŁADA światła)
+
+  Przy okazji wyszło, że `mix` tłumił także samo ziarno, które miał rozlewać:
+  szorstkość poza falą rośnie teraz 3,35 → 10,07 zamiast 4,02 → 6,63.
+
+### Dodane
+
+- **Pomiar średniej jasności kadru w pokryciu fali.** Dotychczasowa szorstkość
+  tej usterki nie widziała i nie mogła: mierzy RÓŻNICE między sąsiadami, a
+  przygaszanie zmienia POZIOM — i to na obrzeżu fali, czyli poza obszarem,
+  który tamten pomiar w ogóle obejmuje. Mutacja (powrót `mix`) zapala to
+  sprawdzenie i tylko je.
+
+- **`CLAUDE.md`** — pułapki tego repozytorium zebrane w miejscu, które czyta się
+  PRZED dotknięciem kodu, a nie po awarii. Powód wprost ze zgłoszenia: „martwi
+  mnie duża ilość niepotrzebnych błędów i przebiegów". Zawiera m.in. znaki
+  zakazane w komentarzach do shaderów i do bloku JS w `96-lenis.php`, koszt
+  poszczególnych przebiegów, regułę „najpierw zobacz liczby, potem ustaw próg",
+  `pkill -f` zabijający własną powłokę oraz to, że Bricksa nie da się na tej
+  maszynie sprawdzić.
+
 ## [1.192.0] — 2026-09-15
 
 ### Zmienione
