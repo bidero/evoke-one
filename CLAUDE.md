@@ -47,6 +47,52 @@ sekcjami. Nie da się puścić jednej sekcji z pliku; jeśli plik jest za duży,
 iterować, właściwym ruchem jest **podzielić go na dwa pliki**, a nie kombinować
 z filtrowaniem.
 
+### Wąsko podczas pracy, PEŁNY przed pushem
+
+Puszczanie wszystkiego przy każdej iteracji to strata — i o to poszło zgłoszenie
+o „dużej ilości niepotrzebnych przebiegów". Ale wąski filtr przed **wypchnięciem
+gałęzi** to co innego: gałąź jedzie aktualizatorem na żywe strony.
+
+Reguła: **wąsko, dopóki się iteruje — pełny przebieg przed `git push`.**
+
+Wpadka, która to napisała (1.199.0–1.202.0): cztery wydania poszły na podstawie
+przebiegów z `controls`, `drobiazgi`, `grain`, `wave-bg` i `bricks-required`.
+Jedno z nich dopisało `require_once` do `loader.php`, czyli do pliku ładującego
+WSZYSTKIE dziesięć elementów, a dwa kolejne ruszyły sondy PHP-owe współdzielone
+z innymi zestawami. Sprawdzenia burgera, circular-menu, offcanvas, marquee,
+stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
+zielono, ale to był łut szczęścia, nie wynik.
+
+Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
+Podział, który się mieści (61 plików, cztery partie):
+
+```
+node tests/run.js admin- anim animator aria bg-shift bricks-required                   builder-context burger circular-menu controls
+node tests/run.js darkmode drobiazgi grain hscroll inbox konserwacja                   kursor loop marquee motion
+node tests/run.js newsletter odpornosc odswiezanie offcanvas og-layers                   panel-start parallax potwierdzenie presets przeglad-sekcji                   przelaczniki rewizje
+node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki                   snippety splide stacking-cards svg theme-color tl-                   uprawnienia vendor-libs wave-bg
+```
+
+**Że partie pokrywają wszystko, trzeba SPRAWDZIĆ, a nie założyć** — dopisany
+plik testowy nie pasujący do żadnego filtra nie zgłosi się sam, a przebieg
+wypisze wtedy „wszystko przeszło" o zbiorze bez niego. Jedno polecenie, ta sama
+lista filtrów co wyżej:
+
+```
+FILTRY="admin- anim animator aria bg-shift bricks-required builder-context
+burger circular-menu controls darkmode drobiazgi grain hscroll inbox
+konserwacja kursor loop marquee motion newsletter odpornosc odswiezanie
+offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji
+przelaczniki rewizje schema-graf scroll-lock seo-meta settings-save sierotki
+snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs
+wave-bg"
+
+ls tests/*.test.js | sed 's|tests/||;s|\.test\.js||' | while read -r P; do
+  for F in $FILTRY; do case "$P" in *"$F"*) continue 2;; esac; done
+  echo "POMINIĘTY: $P"
+done
+```
+
 ### Jeden przebieg, wiele odczytów
 
 Przebieg idzie **do pliku**, potem czyta się go dowolną liczbę razy. Puszczenie

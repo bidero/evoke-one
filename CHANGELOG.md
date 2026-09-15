@@ -2,6 +2,34 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.202.1] — 2026-09-15
+
+### Zmienione
+
+- **`CLAUDE.md`: wąsko podczas pracy, PEŁNY przebieg przed pushem.** Reguła
+  napisana po pytaniu z użycia: „Czy sprawdzasz wszystko testami z katalogu
+  tests?".
+
+  Nie sprawdzałem. Wydania 1.199.0–1.202.0 poszły na gałąź na podstawie
+  przebiegów z `controls`, `drobiazgi`, `grain`, `wave-bg` i `bricks-required`.
+  Jedno z nich dopisało `require_once` do `loader.php`, czyli do pliku
+  ładującego WSZYSTKIE dziesięć elementów, a dwa kolejne ruszyły sondy PHP-owe
+  współdzielone z innymi zestawami. Sprawdzenia burgera, circular-menu,
+  offcanvas, marquee, stacking-cards i całego panelu nie widziały tych zmian
+  ani razu.
+
+  Puszczony teraz pełny przebieg wyszedł czysty — **3655 sprawdzeń w czterech
+  partiach, zero błędów** — ale to był łut szczęścia, nie wynik. Gałąź jedzie
+  aktualizatorem na żywe strony, więc wąski filtr przed `git push` jest czymś
+  innym niż wąski filtr podczas iterowania.
+
+  `CLAUDE.md` dostaje gotowy podział na cztery partie mieszczące się w ~600 s
+  oraz polecenie sprawdzające, że partie POKRYWAJĄ wszystkie 61 plików —
+  dopisany plik testowy nie pasujący do żadnego filtra nie zgłosi się sam,
+  a przebieg wypisze wtedy „wszystko przeszło" o zbiorze bez niego.
+  (Polecenie przetestowane też na skróconej liście filtrów, żeby potwierdzić,
+  że w ogóle umie wskazać pominięty plik.)
+
 ## [1.202.0] — 2026-09-15
 
 ### Naprawione
