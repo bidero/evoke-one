@@ -97,13 +97,55 @@ module.exports = async function (t) {
   t.check('mnożnik przewijania', wlasne.atrybuty['data-mnoznik'] === '2.5',
     wlasne.atrybuty['data-mnoznik']);
   t.check('warstwa', wlasne.atrybuty['data-warstwa'] === '5', wlasne.atrybuty['data-warstwa']);
-  t.check('automat jakości', wlasne.atrybuty['data-auto-jakosc'] === '0',
-    wlasne.atrybuty['data-auto-jakosc']);
+  /* `auto_jakosc: 'nie'` wyżej to ZAPIS PO STAREJ LIŚCIE WYBORU, celowo
+     zostawiony po zamianie kontrolki na przełącznik w 1.200.0. Gałąź jedzie
+     aktualizatorem na żywe strony, więc to jest jedyne miejsce, które pilnuje,
+     że komuś wyłączony automat nie wrócił włączony. */
+  t.check('stary zapis „nie" dalej wyłącza automat',
+    wlasne.atrybuty['data-auto-jakosc'] === '0', wlasne.atrybuty['data-auto-jakosc']);
   /* Żadna kontrolka nie jest suwakiem — w całej wtyczce nie ma ani jednej
      kontrolki typu `slider`, a wartości liczbowe wpisuje się w pole. */
   t.check('wartości liczbowe są polami, nie suwakami',
     domyslne.typy.intensywnosc === 'number' && domyslne.typy.mnoznik_scrolla === 'number',
     domyslne.typy.intensywnosc + ' / ' + domyslne.typy.mnoznik_scrolla);
+
+  // ── Przełącznik przewijania ─────────────────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „Dlaczego używamy pól tekstowych tam gdzie może być
+     bricksowy toggle? Przewijanie z treścią, czy np Automat jakości?".
+     Pierwszą decyzją jest „czy w ogóle", a dopiero drugą „jak mocno" — więc
+     przełącznik, a pod nim pole siły. */
+  t.check('przewijanie i automat jakości to przełączniki',
+    domyslne.typy.przewijaj === 'checkbox' && domyslne.typy.auto_jakosc === 'checkbox',
+    domyslne.typy.przewijaj + ' / ' + domyslne.typy.auto_jakosc);
+
+  /* Wyłączony przełącznik oddaje ZERO, a nie osobny atrybut — zero już wcześniej
+     znaczyło w skrypcie „przyklejone do ekranu", więc grain.js nie wymagał
+     zmiany. Gdyby oddawał cokolwiek innego, ziarno przewijałoby się mimo
+     wyłączenia i z panelu nie dałoby się tego zobaczyć. */
+  const bezPrzewijania = JSON.parse(phpOutput('grain-cfg.php',
+    JSON.stringify(JSON.stringify({ przewijaj: false, mnoznik_scrolla: 2.5 }))));
+  t.check('wyłączony przełącznik zeruje mnożnik mimo wpisanej siły',
+    bezPrzewijania.atrybuty['data-mnoznik'] === '0', bezPrzewijania.atrybuty['data-mnoznik']);
+
+  /* Kontrola negatywna: bez niej „zero" byłoby nie do odróżnienia od pola,
+     które nigdy nie przepuszcza wpisanej wartości. */
+  const zPrzewijaniem = JSON.parse(phpOutput('grain-cfg.php',
+    JSON.stringify(JSON.stringify({ przewijaj: true, mnoznik_scrolla: 2.5 }))));
+  t.check('włączony przepuszcza wpisaną siłę',
+    zPrzewijaniem.atrybuty['data-mnoznik'] === '2.5', zPrzewijaniem.atrybuty['data-mnoznik']);
+
+  /* Element zapisany PRZED 1.200.0 nie ma klucza `przewijaj` — i ma dalej
+     przewijać, bo przewijał. To jest ta połowa evk_flaga(), której nie widać
+     w żadnym innym sprawdzeniu ziarna. */
+  t.check('element sprzed przełącznika przewija dalej',
+    domyslne.atrybuty['data-mnoznik'] === '1', domyslne.atrybuty['data-mnoznik']);
+
+  /* Bricks nie obsługuje ŁAŃCUCHÓW w `required` — pilnuje tego
+     bricks-required.test.js dla całej wtyczki. Tu sprawdzamy drugą połowę:
+     że bramka w ogóle wskazuje na przełącznik, a nie na nieistniejące pole. */
+  t.check('siła przewijania jest pod bramką przełącznika',
+    JSON.stringify(domyslne.bramki.mnoznik_scrolla) === JSON.stringify(['przewijaj', '=', true]),
+    JSON.stringify(domyslne.bramki.mnoznik_scrolla));
 
   // ── Ziarno naprawdę się rysuje ──────────────────────────────────────────
   /* NA PIKSELACH, nie na obecności węzła. Sprawdzenie „jest <canvas>"

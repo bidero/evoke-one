@@ -15,6 +15,9 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  */
 require __DIR__ . '/_wp-stubs.php';
 require __DIR__ . '/_bricks-stubs.php';
+/* Na produkcji dociąga to loader.php — element.php nigdy nie trafia do PHP-a
+   inaczej niż przez niego. Że loader NAPRAWDĘ to robi, pilnuje flaga.php. */
+require EVK_TEST_ROOT . '/includes/bricks-elements/flaga.php';
 
 define('EVK_BRICKS_CATEGORY',  'evoke');
 define('EVK_GRAIN_VERSION',    'test');
@@ -40,6 +43,7 @@ if (preg_match_all('/([a-z-]+)="([^"]*)"/', $html, $m, PREG_SET_ORDER)) {
 echo json_encode([
     'kontrolki' => array_keys($el->controls),
     'typy'      => array_map(static fn($k) => $k['type'] ?? '', $el->controls),
+    'bramki'    => array_map(static fn($k) => $k['required'] ?? null, $el->controls),
     'atrybuty'  => $atrybuty,
     'html'      => $html,
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";

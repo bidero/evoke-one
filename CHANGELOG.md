@@ -2,6 +2,45 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.200.0] — 2026-09-15
+
+### Zmienione
+
+- **Ziarno: „Przewijanie z treścią" to przełącznik, a nie pole liczbowe.**
+  ZGŁOSZONE Z UŻYCIA: „Dlaczego używamy pól tekstowych tam gdzie może być
+  bricksowy toggle? Przewijanie z treścią, czy np Automat jakości?".
+
+  Pierwszą decyzją jest „czy w ogóle", a dopiero drugą „jak mocno" — więc
+  przełącznik, a pod nim, pod bramką `required`, pole „Siła przewijania".
+  Wcześniej było jedno pole 0–4, w którym zero znaczyło „wyłączone" i trzeba
+  to było wyczytać z opisu.
+
+  **„Automat jakości" też przestaje być listą wyboru** i staje się
+  przełącznikiem. Zapisane wcześniej `'nie'` dalej znaczy wyłączony, bo odczyt
+  idzie przez `evk_flaga()` z 1.199.0 — pilnuje tego osobne sprawdzenie, bo
+  gałąź jedzie aktualizatorem na żywe strony.
+
+  **`grain.js` bez zmian.** Wyłączony przełącznik wypisuje `data-mnoznik="0"`,
+  a zero już wcześniej znaczyło w skrypcie „przyklejone do ekranu".
+
+### Dopisane w opisie kontrolki
+
+- **Przewijanie widać przy przesiewie NIERUCHOMYM.** Przy „co klatkę"
+  `rysujRaz()` losuje `uSeed` za każdym razem (`assets/grain.js:217`), więc cały
+  wzór powstaje od nowa — zmierzone: dwie kolejne klatki różnią się na 55 040
+  z 88 000 pikseli. Przesunięcie o `scrollY` jak najbardziej trafia do shadera,
+  tylko nie ma czego przesuwać.
+
+  Kontrolka NIE jest z tego powodu ukryta pod przesiewem, bo zgłaszający
+  wybrał „zostawmy jak jest" — ukrycie odbierałoby możliwość ustawienia siły
+  z wyprzedzeniem. Zamiast tego mówi o tym opis, a przyczynę notuje komentarz
+  nad kontrolką.
+
+  Sprawdzeń w `grain.test.js` przybyło z 25 na 30. Trzy mutacje, każda gasi
+  INNE, pojedyncze sprawdzenie: przełącznik przestający zerować siłę, automat
+  jakości czytany przez `! empty()`, bramka wskazująca przesiew zamiast
+  przełącznika.
+
 ## [1.199.0] — 2026-09-15
 
 ### Dodane

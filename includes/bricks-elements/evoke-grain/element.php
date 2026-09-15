@@ -76,15 +76,35 @@ class Evk_Grain_Element extends \Bricks\Element {
 				. 'i jest wyjściem dla słabszych maszyn.',
 		];
 
-		$this->controls['mnoznik_scrolla'] = [
+		/* PRZEŁĄCZNIK, A POD NIM SIŁA — bo pierwszą decyzją jest „czy w ogóle",
+		 * a dopiero drugą „jak mocno". Wcześniej było tu jedno pole liczbowe
+		 * i zero znaczyło „wyłączone", co trzeba było wyczytać z opisu.
+		 *
+		 * WAŻNE, CZEGO Z PANELU NIE WIDAĆ: przesunięcie działa na oko wyłącznie
+		 * przy przesiewie „Nieruchome". Przy „co klatkę" `rysujRaz()` losuje
+		 * `uSeed` za każdym razem (assets/grain.js:217), więc cały wzór powstaje
+		 * od nowa — zmierzone: dwie kolejne klatki różnią się na 55 082 z 88 000
+		 * pikseli. Przesunięcie jak najbardziej trafia do shadera, tylko nie ma
+		 * czego przesuwać. Mówi o tym opis kontrolki, bo ukrycie jej pod
+		 * przesiewem odbierałoby możliwość ustawienia siły z wyprzedzeniem. */
+		$this->controls['przewijaj'] = [
 			'tab'         => 'content',
 			'label'       => 'Przewijanie z treścią',
+			'type'        => 'checkbox',
+			'default'     => true,
+			'description' => 'Ziarno wędruje razem z treścią zamiast stać w miejscu na ekranie.',
+		];
+
+		$this->controls['mnoznik_scrolla'] = [
+			'tab'         => 'content',
+			'label'       => 'Siła przewijania',
 			'type'        => 'number',
 			'min'         => 0, 'max' => 4, 'step' => 0.1,
 			'default'     => 1,
-			'description' => 'Ile ziarno przesuwa się na każdy piksel przewinięcia. '
-				. 'Jeden znaczy „przyklejone do treści", zero — „przyklejone do ekranu". '
-				. 'Wartości pomiędzy dają efekt głębi.',
+			'required'    => [ 'przewijaj', '=', true ],
+			'description' => 'Ile ziarno przesuwa się na piksel przewinięcia; jeden to jeden do '
+				. 'jednego, mniej i więcej daje efekt głębi. Widać to przy przesiewie '
+				. 'NIERUCHOMYM — przy „co klatkę" wzór i tak powstaje od nowa co klatkę.',
 		];
 
 		$this->controls['warstwa'] = [
@@ -100,9 +120,8 @@ class Evk_Grain_Element extends \Bricks\Element {
 		$this->controls['auto_jakosc'] = [
 			'tab'         => 'content',
 			'label'       => 'Automat jakości',
-			'type'        => 'select',
-			'options'     => [ 'tak' => 'Tak', 'nie' => 'Nie' ],
-			'default'     => 'tak',
+			'type'        => 'checkbox',
+			'default'     => true,
 			'description' => 'Gdy klatki zaczynają wypadać z budżetu, ziarno samo przechodzi '
 				. 'na nieruchome zamiast dokładać się do zacinania. Wyłącz tylko wtedy, '
 				. 'gdy mierzysz.',
@@ -114,9 +133,14 @@ class Evk_Grain_Element extends \Bricks\Element {
 
 		$intensywnosc = max( 0, min( 1, (float) ( $s['intensywnosc'] ?? 0.08 ) ) );
 		$przesiew     = ( $s['przesiew'] ?? 'klatka' ) === 'stop' ? 'stop' : 'klatka';
-		$mnoznik      = max( 0, min( 4, (float) ( $s['mnoznik_scrolla'] ?? 1 ) ) );
+		/* WYŁĄCZONY PRZEŁĄCZNIK ODDAJE ZERO, a nie osobny atrybut — zero już
+		   dziś znaczy w skrypcie „przyklejone do ekranu", więc grain.js nie
+		   wymaga żadnej zmiany. Mniej kodu po obu stronach. */
+		$mnoznik      = evk_flaga( $s, 'przewijaj', true )
+			? max( 0, min( 4, (float) ( $s['mnoznik_scrolla'] ?? 1 ) ) )
+			: 0.0;
 		$warstwa      = (int) ( $s['warstwa'] ?? 9990 );
-		$auto         = ( $s['auto_jakosc'] ?? 'tak' ) !== 'nie';
+		$auto         = evk_flaga( $s, 'auto_jakosc', true );
 
 		/* USTAWIENIA JADĄ ATRYBUTAMI, nie wplecione w kod modułu. Dzięki temu
 		   skrypt jest jednym plikiem dla całej strony — przeglądarka pobiera go
