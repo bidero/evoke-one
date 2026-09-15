@@ -86,6 +86,8 @@ var EVK_OC_ZMIENNE = ['--evk-oc-size', '--evk-oc-bg', '--evk-oc-bg-img',
 function evk_oc_przenies_zmienne(root, uid) {
     var sel = '.evk-oc-shell[data-evk-oc-owner="' + uid + '"]';
     var bloki = [];   // { media, tresc }
+    /* Czy gradient przyszedł jako `background-image` na korzeniu — patrz niżej. */
+    var gradientZKorzenia = false;
 
     function dopisz(styl, media) {
         var tresc = '';
@@ -95,6 +97,33 @@ function evk_oc_przenies_zmienne(root, uid) {
             var waga = styl.getPropertyPriority(v);
             tresc += v + ':' + val.trim() + (waga ? ' !' + waga : '') + ';';
         });
+
+        /* GRADIENT TŁA MENU — DWIE DROGI, BO NIE WIEMY, KTÓRĄ WYBIERZE BRICKS.
+         *
+         * ZGŁOSZONE Z UŻYCIA: „gradient w OC nie działa. Nakłada się na nagłówek
+         * pod panelem. Miał się nakładać tam, gdzie ustawiam kolor tła dla
+         * przejścia".
+         *
+         * Kontrolka typu `gradient` celuje we własną właściwość
+         * `--evk-oc-bg-img`. W całej wtyczce nie ma drugiego takiego użycia —
+         * jedyny precedens (Circular Title) pisze wprost `background-image` —
+         * a Bricksa nie da się uruchomić poza stroną, więc sprawdzić tego
+         * u siebie nie sposób. Objaw mówi, że gradient wylądował na KORZENIU
+         * elementu: korzeń leży w nagłówku (trzyma trigger), a powłoka menu
+         * jest przeniesiona do <body> i nic po korzeniu nie dziedziczy.
+         *
+         * Zamiast zgadywać, zbieramy OBIE postacie. Własna właściwość ma
+         * pierwszeństwo; `background-image` bierzemy tylko wtedy, gdy jej nie
+         * ma — i tylko gdy niesie GRADIENT, żeby nie porwać obrazka, który ktoś
+         * świadomie ustawił korzeniowi. */
+        if (!(styl.getPropertyValue('--evk-oc-bg-img') || '').trim()) {
+            var obraz = (styl.getPropertyValue('background-image') || '').trim();
+            if (obraz && obraz !== 'none' && obraz.indexOf('gradient') >= 0) {
+                tresc += '--evk-oc-bg-img:' + obraz + ';';
+                gradientZKorzenia = true;
+            }
+        }
+
         if (tresc) bloki.push({ media: media || '', tresc: tresc });
     }
 
@@ -121,6 +150,14 @@ function evk_oc_przenies_zmienne(root, uid) {
 
     // Styl wpisany wprost w atrybut — ostatni, bo wygrywa z regułami.
     dopisz(root.style, '');
+
+    /* ZGASZENIE NA KORZENIU — dopiero TERAZ, po zebraniu wszystkiego.
+       Gdyby stało wyżej, `dopisz(root.style)` przechwyciłby własne „none".
+       Styl w atrybucie wygrywa z regułą po identyfikatorze, więc to jedyny
+       sposób, żeby zdjąć gradient z nagłówka bez `!important` w arkuszu.
+       Robimy to WYŁĄCZNIE wtedy, gdy gradient naprawdę stamtąd przyszedł —
+       komu innemu nic nie znika. */
+    if (gradientZKorzenia) root.style.backgroundImage = 'none';
 
     /* Po starym arkuszu sprząta evk_oc_sprzatnij_osierocone(), i to wystarcza
        w obu drogach: przy ponownej inicjalizacji tego samego korzenia stara

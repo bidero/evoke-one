@@ -636,6 +636,33 @@ module.exports = async function (t) {
     return { szorstkosc: prob ? Math.round((suma / prob) * 100) / 100 : null, prob };
   };
 
+  /**
+   * ŚREDNIA JASNOŚĆ całego kadru.
+   *
+   * ZGŁOSZONE Z UŻYCIA: „włączenie ziarna na całym kadrze powoduje dodanie za
+   * falą jakiejś ciemnej poświaty". Szorstkość tego nie widziała i nie mogła:
+   * mierzy RÓŻNICE między sąsiadami, a przygaszanie zmienia poziom, nie
+   * ziarnistość — i to na miękkim obrzeżu fali, czyli poza obszarem, który
+   * tamten pomiar w ogóle obejmuje.
+   *
+   * Usterka polegała na tym, że wkład ziarna ZASTĘPOWAŁ barwę fali
+   * (`mix(cZiarna, color.rgb, color.a)`) zamiast się do niej dokładać, więc
+   * tam, gdzie fala jest półprzezroczysta, jej własna barwa gasła. Poziom
+   * jasności jest na to miarą wprost.
+   */
+  const jasnosc = (buf) => {
+    const { szer, wys, kanaly, dane } = pikseleZPng(buf);
+    let suma = 0, prob = 0;
+    for (let y = 0; y < wys; y += 2) {
+      for (let x = 0; x < szer; x += 2) {
+        const p = (y * szer + x) * kanaly;
+        suma += (dane[p] + dane[p + 1] + dane[p + 2]) / 3;
+        prob++;
+      }
+    }
+    return prob ? Math.round((suma / prob) * 100) / 100 : null;
+  };
+
   /* DRABINA JAKOŚCI MUSI BYĆ WYŁĄCZONA i to nie jest ułatwianie sobie pomiaru,
      tylko warunek, żeby w ogóle było co mierzyć. `rysujRaz()` woła composer
      WYŁĄCZNIE na poziomie zerowym:
@@ -707,6 +734,16 @@ module.exports = async function (t) {
      w shaderze. */
   t.check('i nie zamienia kadru w śnieg', wJede.szorstkosc < 60,
     'szorstkość ' + wJede.szorstkosc);
+  /* CIEMNA POŚWIATA — sprawdzenie dopisane po zgłoszeniu z 1.193.0.
+     Rozlanie ma DOKŁADAĆ światła (jasne drobiny poza falą), więc jasność kadru
+     nie ma prawa spaść. Przy usterce spadała, bo barwa fali była ciągnięta
+     w stronę prawie czarnego wkładu ziarna wszędzie tam, gdzie fala jest
+     półprzezroczysta — czyli na całym jej obrzeżu. */
+  const jZero  = jasnosc(zZero.zrzut);
+  const jJeden = jasnosc(zJeden.zrzut);
+  t.check('rozlanie nie przygasza fali',
+    jJeden >= jZero - 0.5, 'jasność ' + jZero + ' → ' + jJeden);
+
   t.check('fala rusza w każdym z czterech przypadków',
     zBezSzumu.plotno === true && zBrak.plotno === true
     && zZero.plotno === true && zJeden.plotno === true,

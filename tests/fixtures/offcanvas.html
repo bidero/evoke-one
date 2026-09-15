@@ -175,6 +175,17 @@
      „jak nałożę gradient na 1 panel, podczas zmiany paneli odjeżdża i zastaje
      tło menu". Panel z samym gradientem ma `background-color: rgba(0,0,0,0)`,
      więc dopasowanie tła kadru czytające sam kolor nie miało czego skopiować. */
+  /* DRUGI KSZTAŁT WEJŚCIA: gradient jako `background-image` w regule korzenia —
+     tak, jak (wedle objawu) zapisuje go Bricks, zamiast do własnej właściwości.
+     Reguła, nie atrybut: Bricks pisze wszystko regułami po identyfikatorze,
+     a przenoszenie zmiennych czyta właśnie arkusz. */
+  if (q.get('bggradroot') === '1') {
+    var sr = document.createElement('style');
+    sr.textContent =
+      '#root { background-image: linear-gradient(rgb(70, 80, 90), rgb(100, 110, 120)); }';
+    document.head.appendChild(sr);
+  }
+
   if (q.get('panelgrad') === '1') {
     var sg = document.createElement('style');
     sg.textContent =
@@ -448,6 +459,17 @@ window.__track = function () {
  *  mówiłby „nic tu nie ma" dokładnie wtedy, gdy stoi tam gradient — czyli
  *  w jedynym przypadku, o który chodzi.
  */
+/** Tło KORZENIA elementu — ten, który leży w nagłówku i trzyma trigger.
+ *
+ *  Sprawdzenie, czy przechwycony gradient naprawdę zniknął stamtąd, gdzie go
+ *  nie chcemy. Bez tego „gradient jest na kadrze" przechodziłoby także wtedy,
+ *  gdy jednocześnie nadal maluje nagłówek — czyli przy usterce ze zgłoszenia.
+ */
+window.__rootBg = function () {
+  var r = document.getElementById('root');
+  return r ? getComputedStyle(r).backgroundImage : null;
+};
+
 window.__frameBg = function () {
   var f = shellOf(0).querySelector('.evk-oc-frame');
   if (!f) return null;
