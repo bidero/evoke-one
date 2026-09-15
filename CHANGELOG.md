@@ -2,6 +2,30 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.196.0] — 2026-09-15
+
+### Usunięte
+
+- **Narzędzie do porównywania ziarna.** Zbudowane w 1.187.0 do JEDNEJ decyzji —
+  shader czy CSS — i decyzja zapadła: **zostaje ziarno shadera**. Żadne
+  sprawdzenie zachowania z niego nie korzystało, a wytwór trzeba było utrzymywać
+  w zgodzie ze źródłem przy każdej zmianie elementu fali.
+
+  Znikają: `tests/fixtures/wave-ziarno.html`,
+  `tests/fixtures/wave-ziarno-element.html`, `tools/wave-ziarno-element.js`,
+  sekcja strażnika w `tests/drobiazgi.test.js` i wiersz w tabeli wytworów
+  w `CLAUDE.md`.
+
+  **Wiedza nie ginie** — pomiary zostają opisane wyżej w tym pliku:
+  ziarno w shaderze kosztuje zero (16,8 vs 16,8 ms), `mix-blend-mode: overlay`
+  łamie budżet klatki (33,2 ms przy 17,1 bez mieszania), a animowany
+  `feTurbulence` spycha drabinę jakości na poziom 3, czyli zamraża kadr.
+  Patrz 1.187.0–1.192.0.
+
+  **Zostają** `tests/fixtures/wave-bg-pomiar.html` (używa go `wave-bg.test.js`)
+  i `tests/fixtures/odswiezanie.html` (pilnuje ucinania bezwładnego przewijania
+  na iOS) — to są fixtury nośne, nie narzędzia jednorazowe.
+
 ## [1.195.0] — 2026-09-15
 
 ### Naprawione

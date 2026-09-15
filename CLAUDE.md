@@ -151,7 +151,6 @@ partiami do ~600 s i czekaj na nie jawnie.
 | Wytwór | Buduje | Pilnuje |
 |---|---|---|
 | `assets/js/animator.min.js` | `node tools/minifikuj.js` | `animator.test.js` |
-| `tests/fixtures/wave-ziarno-element.html` | `node tools/wave-ziarno-element.js` | `drobiazgi.test.js` |
 
 Cichy rozjazd wytworu ze źródłem wygląda zupełnie normalnie — stąd strażnicy.
 

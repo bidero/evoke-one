@@ -105,30 +105,6 @@ module.exports = async function (t) {
     t.check('PHPStan przechodzi wobec pliku bazowego', czysto, powod);
   }
 
-  // ── Wytwory nie rozjeżdżają się ze źródłem ────────────────────────────
-  /* `tests/fixtures/wave-ziarno-element.html` to WYTWÓR: wyjście prawdziwego
-     `render()` elementu fali, wstrzykiwane przez narzędzie do porównywania
-     ziarna. Narzędzie otwiera CZŁOWIEK na swojej maszynie, bez PHP-a, więc
-     znacznik musi tam leżeć gotowy.
-     Najgroźniejszy błąd tej konstrukcji to CICHY ROZJAZD: element się zmienia,
-     wytwór zostaje stary i pomiar opisuje wydanie sprzed kilku zmian, wyglądając
-     przy tym zupełnie normalnie. Ta sama zasada, na której `animator.test.js`
-     pilnuje wytworu `tools/minifikuj.js`. */
-  t.section('wytwór dla narzędzia do ziarna jest aktualny');
-
-  const budowniczy = path.join(korzen, 'tools', 'wave-ziarno-element.js');
-  t.check('narzędzie budujące istnieje', fs.existsSync(budowniczy), 'tools/wave-ziarno-element.js');
-
-  let swiezy = true, czemu = 'zgodny z wyjściem render()';
-  try {
-    execFileSync(process.execPath, [budowniczy, '--sprawdz'],
-      { cwd: korzen, stdio: 'pipe', timeout: 60000 });
-  } catch (e) {
-    swiezy = false;
-    czemu = String(e.stderr || e.stdout || e.message).trim().split('\n')[0].slice(0, 140);
-  }
-  t.check('wytwór zgadza się ze źródłem', swiezy, czemu);
-
   // ── Ślady po pojedynczym wdrożeniu ────────────────────────────────────
   t.section('wtyczka nie nosi nazw z jednej realizacji');
 
