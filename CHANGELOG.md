@@ -2,6 +2,21 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.198.1] — 2026-09-15
+
+### Naprawione
+
+- **Licznik plików elementów w `bricks-required` podniesiony z dziewięciu na
+  dziesięć.** Strażnik zatrzymał pełny przebieg na nowym elemencie „Ziarno"
+  i zrobił dokładnie to, do czego służy: liczba jest tam wpisana RĘCZNIE po to,
+  żeby każdy nowy element wymagał potwierdzenia, że ochrona go obejmuje.
+
+  Sprawdzenie pilnuje rzeczy niewidocznej ani w znaczniku, ani w przeglądarce:
+  Bricks nie obsługuje ŁAŃCUCHÓW w `required`, więc kontrolka z warunkiem
+  złożonym po prostu nie pojawia się w panelu, a strona wygląda normalnie.
+  Kosztowało to już dwa razy (1.103.1 i 1.107.0). „Ziarno" nie używa żadnego
+  `required`, więc do puli warunków nie dokłada nic — ale jest już objęte.
+
 ## [1.198.0] — 2026-09-15
 
 ### Dodane

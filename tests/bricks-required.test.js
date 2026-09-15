@@ -23,7 +23,11 @@ module.exports = async function (t) {
      się nie załadował. Liczba plików jest pierwszym, co trzeba sprawdzić. */
   t.section('strażnik obejmuje wszystkie elementy');
 
-  t.check('weszło dziewięć plików elementów', d.plikow === 9, d.plikow + ' plików');
+  /* LICZBA JEST WPISANA RĘCZNIE I TAK MA ZOSTAĆ. To nie jest uciążliwość, tylko
+     sens tego sprawdzenia: nowy element ma ZATRZYMAĆ przebieg, żeby ktoś
+     potwierdził, że strażnik go obejmuje. Ostatnio zatrzymał się na elemencie
+     „Ziarno" (1.198.0) — dziesiątym. */
+  t.check('weszło dziesięć plików elementów', d.plikow === 10, d.plikow + ' plików');
   t.check('żaden nie odpadł po drodze', d.niezaladowane.length === 0,
     d.niezaladowane.join(', ') || 'brak');
   /* I warunki w ogóle SĄ — reguła nie może być spełniona przez pustkę. */
