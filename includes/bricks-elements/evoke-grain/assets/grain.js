@@ -154,6 +154,33 @@
         return sh;
     }
 
+    /**
+     * Sekcja, w której ma leżeć ziarno.
+     *
+     * JEDNA DROGA DLA KONSTRUKTORA I DLA ODZYSKIWANIA. Do 1.211.0 ta logika
+     * stała wyłącznie w konstruktorze — a odzyskiwanie po zniknięciu sekcji
+     * musi szukać dokładnie tak samo, inaczej ziarno po odzyskaniu trafiałoby
+     * gdzie indziej niż przy wczytaniu strony.
+     *
+     * PUSTY SELEKTOR = RODZIC. Korzeń elementu jest pustym znacznikiem
+     * wstawionym w sekcji, więc jego rodzic to ta sekcja albo kontener w niej —
+     * czyli dokładnie to, co widać w drzewie buildera. Żadnego zgadywania po
+     * nazwach klas Bricksa: te zmieniają się między wersjami, a rodzic nie.
+     *
+     * Z SELEKTOREM szukamy najpierw PRZODKA, tak jak „Selektor przodka"
+     * w Horizontal Scrollu — dzięki temu dwa ziarna na jednej stronie nie
+     * wskazują sobie nawzajem tej samej sekcji.
+     */
+    function znajdzSekcje(root, sel) {
+        if (!sel) return root.parentElement;
+        try {
+            return root.closest(sel) || document.querySelector(sel);
+        } catch (e) {
+            console.warn('[EVK Grain] niepoprawny selektor sekcji: ' + sel);
+            return null;
+        }
+    }
+
     /* NAZWA KONSTRUKTORA ZOSTAJE POLSKA, choć element nazywa się w builderze
        „Grain". Cały kod tej wtyczki mówi po polsku — `rysujRaz`, `przesiew`,
        `intensywnosc`, `zmierz` — więc jeden angielski identyfikator byłby tu
@@ -179,33 +206,16 @@
         this.ogranicz = root.getAttribute('data-zakres') === 'sekcja';
         this.wtopienie = parseFloat(root.getAttribute('data-wtopienie'));
         if (!isFinite(this.wtopienie) || this.wtopienie < 0) this.wtopienie = 120;
+        this.selektor = root.getAttribute('data-sekcja') || '';
         this.sekcja = null;
+        this.powiedziane = {};
         if (this.ogranicz) {
-            var sel = root.getAttribute('data-sekcja') || '';
-            /* PUSTY SELEKTOR = RODZIC. Korzeń elementu jest pustym znacznikiem
-               wstawionym w sekcji, więc jego rodzic to ta sekcja albo kontener
-               w niej — czyli dokładnie to, co widać w drzewie buildera. Żadnego
-               zgadywania po nazwach klas Bricksa: te zmieniają się między
-               wersjami, a rodzic nie.
-
-               Z SELEKTOREM szukamy najpierw PRZODKA, tak jak „Selektor
-               przodka" w Horizontal Scrollu — dzięki temu dwa ziarna na jednej
-               stronie nie wskazują sobie nawzajem tej samej sekcji. Dopiero gdy
-               przodek nie pasuje, bierzemy pierwszy pasujący element strony. */
-            if (sel) {
-                try {
-                    this.sekcja = root.closest(sel) || document.querySelector(sel);
-                } catch (e) {
-                    console.warn('[EVK Grain] niepoprawny selektor sekcji: ' + sel);
-                }
-            } else {
-                this.sekcja = root.parentElement;
-            }
+            this.sekcja = znajdzSekcje(root, this.selektor);
             /* NIETRAFIONY SELEKTOR NIE MOŻE ZNIKNĄĆ PO CICHU. Ziarno rozlane na
                całe okno zamiast jednej sekcji wygląda jak usterka układu,
                a nie jak literówka w selektorze. */
             if (!this.sekcja) {
-                console.warn('[EVK Grain] nie znalazłem sekcji („' + sel
+                console.warn('[EVK Grain] nie znalazłem sekcji („' + this.selektor
                     + '") — ziarno zostaje na całym oknie');
                 this.ogranicz = false;
             }
@@ -362,8 +372,46 @@
          * odjęcie od `innerHeight` i zamiana miejscami: dolna krawędź sekcji
          * ma MNIEJSZY `y` w kanwie niż górna.
          */
+        /* KORZEŃ ZNIKNĄŁ ZE STRONY. Kanwa leży w <body>, a nie w korzeniu, więc
+           bez tego malowałaby dalej po stronie, z której element usunięto —
+           zombi widoczny na całym oknie. Odtworzone sondą `usunKorzenPo`:
+           korzeń wycięty z drzewa, a ziarno migotało jak gdyby nigdy nic.
+
+           CZYŚCIMY I NIE RYSUJEMY, ale instancji NIE NISZCZYMY. Węzeł
+           przeniesiony (a nie usunięty) wraca do drzewa i rysowanie wraca samo;
+           raz zniszczonego elementu nikt na froncie by nie odtworzył, bo
+           `evk_grain_init` woła wyłącznie builder. */
+        if (!this.root.isConnected) {
+            this.powiedzRaz('korzeń elementu zniknął ze strony — ziarno przestaje malować');
+            return;
+        }
+
+        /* SEKCJA MOŻE ZNIKNĄĆ MIĘDZY KLATKAMI — patrz `odzyskajSekcje()`.
+           Sprawdzenie idzie PRZED odczytem prostokąta, bo odpięty element
+           oddaje same zera i maska gasi ziarno po cichu. */
+        if (this.ogranicz && !this.sekcja.isConnected) this.odzyskajSekcje();
+
+        /* ODCZYT POŁOŻENIA W SWOIM `try`, a nie pod wspólną siatką z `ruszaj()`.
+           Złapanie wyjątku wyżej ratuje PĘTLĘ, ale nie ratuje OBRAZU: kanwa
+           jest już wtedy wyczyszczona, a rysowania nie było — więc ziarno
+           znika i to w każdej klatce. Sonda `rzucPo` pokazała dokładnie to:
+           po naprawie samej pętli różnica dwóch zrzutów dalej wynosiła zero.
+
+           Rzucający odczyt to stan trwały, nie potknięcie jednej klatki, więc
+           degradujemy tak samo jak przy sekcji odpiętej: zasięg wraca na całe
+           okno, raz z ostrzeżeniem. Ziarno maluje dalej. */
+        var r = null;
         if (this.ogranicz) {
-            var r = this.sekcja.getBoundingClientRect();
+            try {
+                r = this.sekcja.getBoundingClientRect();
+            } catch (e) {
+                this.powiedzRaz('odczyt położenia sekcji rzucił wyjątkiem — '
+                    + 'ziarno wraca na całe okno: ' + ((e && e.message) ? e.message : e));
+                this.ogranicz = false;
+            }
+        }
+
+        if (r) {
             var wys = window.innerHeight || document.documentElement.clientHeight;
             var wtop = this.wtopienie;
 
@@ -404,13 +452,94 @@
         gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
 
+    /**
+     * Pętla rysowania — i dlaczego kolejność linijek w niej jest istotna.
+     *
+     * ZGŁOSZONE Z UŻYCIA: „podczas przewijania zatrzymuje się i przestaje
+     * animować. Nie zawsze". Zamrożone na stałe, na telefonie i na desktopie,
+     * przy zasięgu „tylko jedna sekcja".
+     *
+     * PRZYCZYNA BYŁA W KOLEJNOŚCI. Do 1.211.0 ciało klatki kończyło się
+     * zamówieniem następnej:
+     *
+     *     ja.rysujRaz(); ja.zmierz();
+     *     ja.uchwyt = requestAnimationFrame(klatka);   ← ostatnia linijka
+     *
+     * czyli JEDEN wyjątek gdziekolwiek w klatce zabijał animację NA ZAWSZE —
+     * następna nigdy nie była zamawiana, a kanwa zostawała z ostatnim złożonym
+     * kadrem. Stąd „zamrożone", a nie „zniknęło".
+     *
+     * Do 1.210.0 nie miało to jak wystrzelić: ciało klatki było wyłącznie
+     * wywołaniami WebGL-a, a te nie rzucają — zgłaszają się przez
+     * `gl.getError()`. 1.211.0 wstawił tam PIERWSZY ODCZYT DOM-u
+     * (`sekcja.getBoundingClientRect()` w `rysujRaz()`), czyli pierwszą
+     * instrukcję, która rzucić może. I siedzi wyłącznie w gałęzi trybu sekcji —
+     * stąd „tylko w jednej sekcji" w zgłoszeniu.
+     *
+     * Odtworzone sondą (tests/fixtures/grain.html, `rzucPo`): po jednym rzucie
+     * dwa zrzuty oddalone o 300 ms różniły się na ZERU pikseli, wobec 23 247
+     * przy pętli zdrowej.
+     *
+     * ZAMÓWIENIE IDZIE TERAZ PIERWSZE, a rysowanie w `try`. Zła klatka kosztuje
+     * jedną klatkę, a nie cały element.
+     */
     Ziarno.prototype.ruszaj = function () {
         var ja = this;
         (function klatka() {
-            ja.rysujRaz();
-            ja.zmierz();
+            /* NAJPIERW ZAMÓW, POTEM RYSUJ. */
             ja.uchwyt = requestAnimationFrame(klatka);
+            try {
+                ja.rysujRaz();
+                ja.zmierz();
+            } catch (e) {
+                ja.zglosKlatke(e);
+            }
         })();
+    };
+
+    /**
+     * Wyjątek z klatki — mówimy o nim RAZ.
+     *
+     * Ostrzeżenie w każdej klatce to sześćdziesiąt wpisów na sekundę: konsola
+     * przestaje się nadawać do czytania, a samo logowanie staje się kosztem
+     * porównywalnym z rysowaniem. Jeden wpis wystarczy, żeby usterka nazwała
+     * się sama.
+     */
+    Ziarno.prototype.zglosKlatke = function (e) {
+        if (this.juzZglosil) return;
+        this.juzZglosil = true;
+        console.warn('[EVK Grain] klatka rzuciła wyjątkiem, animacja jedzie dalej: '
+            + ((e && e.message) ? e.message : e));
+    };
+
+    /** Ostrzeżenie o danej treści leci raz na instancję, nie co klatkę. */
+    Ziarno.prototype.powiedzRaz = function (tekst) {
+        if (this.powiedziane[tekst]) return;
+        this.powiedziane[tekst] = true;
+        console.warn('[EVK Grain] ' + tekst);
+    };
+
+    /**
+     * Sekcja zniknęła z drzewa — spróbuj ją odzyskać.
+     *
+     * DRUGA POŁOWA TEGO SAMEGO ZGŁOSZENIA. Sonda `usunPo` pokazała, że sekcja
+     * wypadająca z drzewa NIE rzuca niczym: `getBoundingClientRect()` na
+     * odpiętym elemencie oddaje same zera, więc maska gasi ziarno w całości
+     * i element wygląda na zamarły — przy CISZY w konsoli. To gorszy przypadek
+     * niż wyjątek, bo nie zostawia po sobie żadnego śladu.
+     *
+     * Na żywej stronie robi to builder przy przerysowaniu albo ScrollTrigger,
+     * który przy przypinaniu przenosi element do `pin-spacera`.
+     *
+     * ZNIKNIĘCIEM SAMEGO KORZENIA zajmuje się `rysujRaz()` osobno — to inna
+     * usterka i inna odpowiedź.
+     */
+    Ziarno.prototype.odzyskajSekcje = function () {
+        var znowu = znajdzSekcje(this.root, this.selektor);
+        if (znowu && znowu.isConnected) { this.sekcja = znowu; return; }
+        this.powiedzRaz('sekcja („' + this.selektor + '") wypadła z drzewa — '
+            + 'ziarno wraca na całe okno');
+        this.ogranicz = false;
     };
 
     Ziarno.prototype.stop = function () {

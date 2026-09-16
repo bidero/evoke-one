@@ -2,6 +2,88 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.212.0] — 2026-09-16
+
+### Naprawione
+
+- **Ziarno zamierało na stałe w trybie sekcji.** ZGŁOSZONE Z UŻYCIA: „coś jest
+  nie tak z ziarnem. Podczas przewijania zatrzymuje się i przestaje animować.
+  Nie zawsze. Automat jakości jest wyłączony." Doprecyzowane: **zamrożone na
+  stałe**, na telefonie i na desktopie tak samo, przy zasięgu „tylko jedna
+  sekcja" — czyli w trybie dodanym wydanie wcześniej.
+
+  **Przyczyna była w kolejności linijek w pętli rysowania.** Zamówienie
+  następnej klatki stało na KOŃCU ciała:
+
+  ```js
+  ja.rysujRaz(); ja.zmierz();
+  ja.uchwyt = requestAnimationFrame(klatka);   // ← ostatnia linijka
+  ```
+
+  czyli jeden wyjątek gdziekolwiek w klatce zabijał animację na zawsze —
+  następna nigdy nie była zamawiana, a kanwa zostawała z ostatnim złożonym
+  kadrem. Stąd „zamrożone", a nie „zniknęło".
+
+  **Do 1.210.0 nie miało to jak wystrzelić**: ciało klatki było wyłącznie
+  wywołaniami WebGL-a, a te nie rzucają — zgłaszają się przez `gl.getError()`.
+  1.211.0 wstawił tam pierwszy odczyt DOM-u (`sekcja.getBoundingClientRect()`),
+  czyli pierwszą instrukcję, która rzucić może — i tylko w gałęzi trybu sekcji.
+
+  **Sekcja potrafi zniknąć spod nóg na trzy sposoby i każdy wymagał innej
+  odpowiedzi.** Odtworzone sondami w `tests/fixtures/grain.html`, bo Bricksa na
+  maszynie testowej nie ma; na żywej stronie robi to builder przy przerysowaniu
+  albo ScrollTrigger, który przy przypinaniu przenosi element do `pin-spacera`.
+
+  | wariant | przed | po | co się dzieje |
+  |---|---|---|---|
+  | sekcja zdrowa | 23 247 | 23 240 | odniesienie |
+  | odczyt rzuca | **0** | 23 213 | pętla umierała na zawsze |
+  | sekcja znika z drzewa | **0** | 23 259 | i to po CICHU |
+  | znika sam korzeń | 23 215 | **0** | zombi malujący po całym oknie |
+
+  (piksele zmienione między dwoma zrzutami oddalonymi o 400 ms, wycinek 400×80)
+
+  **Dwa ostatnie wiersze idą w przeciwne strony i o to chodzi.** Sekcja
+  wypadająca z drzewa nie rzuca niczym — `getBoundingClientRect()` na odpiętym
+  elemencie oddaje same zera, więc maska gasiła ziarno w ciszy, bez śladu
+  w konsoli. Odwrotnie przy zniknięciu KORZENIA: kanwa leży w `<body>`, a nie
+  w korzeniu, więc malowała dalej po stronie, z której element usunięto.
+
+  Naprawa ma cztery części:
+
+  - **zamówienie klatki idzie pierwsze, ciało w `try`** — zła klatka kosztuje
+    jedną klatkę, a nie cały element;
+  - **rzucający odczyt degraduje na całe okno**, raz, zamiast dobijać się do
+    sekcji w każdej klatce (mierzone liczbą prób: dokładnie jedna);
+  - **odpięta sekcja jest odszukiwana ponownie**, a gdy jej nie ma — zasięg
+    wraca na całe okno z ostrzeżeniem;
+  - **zniknięty korzeń gasi ziarno**, ale nie niszczy instancji: węzeł
+    przeniesiony wraca do drzewa i rysowanie wraca samo.
+
+  Każde ostrzeżenie leci **raz na instancję**. Sześćdziesiąt wpisów na sekundę
+  zamieniłoby konsolę w bezużyteczną, a samo logowanie w koszt porównywalny
+  z rysowaniem.
+
+  Szukanie sekcji wyjechało do wspólnej funkcji `znajdzSekcje()` — konstruktor
+  i odzyskiwanie muszą szukać identycznie, inaczej ziarno po odzyskaniu
+  trafiałoby gdzie indziej niż przy wczytaniu strony.
+
+### Czego NIE zmieniono
+
+- **Drugiego wariantu shadera dla trybu pełnoekranowego.** Dziś shader liczy
+  dwa `smoothstep` w każdym fragmencie także przy zasięgu „całe okno" (maskę
+  wygasza `mix`). Zmierzone (okno 900×600, DPR 2, dławienie CPU 4×, mediana
+  odstępu klatek): całe okno z maską 16,7 ms, sekcja z maską czynną 16,7,
+  bez ziarna 16,6. Różnicy nie widać, więc osobny program nie powstaje.
+
+  Ta sama decyzja co przy `KLATEK_NA_SEK` (1.198.0) i przy pominięciu rysowania
+  poza kadrem (1.211.0): kod, którego działania nie da się pokazać, to
+  optymalizacja bez pomiaru.
+
+  **Uwaga o zakresie tego pomiaru:** mierzone bez sekcji przypiętej przez
+  ScrollTrigger. Przypięcie przesuwa element transformacją i `pin-spacerem`,
+  czego fixture nie odtwarza — tego przypadku ta liczba nie opisuje.
+
 ## [1.211.0] — 2026-09-16
 
 ### Dodane

@@ -317,6 +317,9 @@ module.exports = async function (t) {
      nie osiąga pełnej mocy. */
   t.section('ziarno w jednej sekcji, z wtopieniem na krawędziach');
 
+  /* Środek sekcji — ten sam wycinek, którego używa sekcja o awariach niżej. */
+  const SRODEK_SEKCJI = { x: 0, y: 260, width: 400, height: 80 };
+
   const PASMA = {
     gora:   { x: 0, y: 80,  width: 400, height: 80 },
     brzeg:  { x: 0, y: 170, width: 400, height: 60 },
@@ -385,6 +388,106 @@ module.exports = async function (t) {
     pudlo.ostrzezenia.some((o) => /nie znalazłem sekcji/.test(o)),
     pudlo.ostrzezenia.join(' | ') || 'cisza');
   await pudlo.p.close();
+
+  // ── Zła klatka nie zabija animacji ──────────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „coś jest nie tak z ziarnem. Podczas przewijania
+     zatrzymuje się i przestaje animować. Nie zawsze". Doprecyzowane: zamrożone
+     NA STAŁE, na telefonie i na desktopie, przy zasięgu „tylko jedna sekcja".
+
+     PRZYCZYNA BYŁA W KOLEJNOŚCI LINIJEK w pętli rysowania — zamówienie
+     następnej klatki stało na KOŃCU ciała, więc jeden wyjątek zabijał animację
+     na zawsze. Do 1.210.0 nie miało to jak wystrzelić: ciało klatki było samymi
+     wywołaniami WebGL-a, a te nie rzucają. 1.211.0 wstawił tam pierwszy odczyt
+     DOM-u — `sekcja.getBoundingClientRect()` — i tylko w gałęzi trybu sekcji.
+
+     TRZY SPOSOBY, NA JAKIE SEKCJA POTRAFI ZNIKNĄĆ SPOD NÓG, i każdy wymaga
+     innej odpowiedzi. Na żywej stronie robi to builder przy przerysowaniu albo
+     ScrollTrigger, który przy przypinaniu przenosi element do `pin-spacera`;
+     tu odtwarza je fixture, bo Bricksa na tej maszynie nie ma.
+
+     Zmierzone (wycinek 400×80, dwa zrzuty oddalone o 400 ms):
+
+         wariant           │ przed naprawą │ po naprawie
+         sekcja zdrowa     │   23 247      │  23 240
+         rect rzuca        │        0      │  23 213   ← zamrożone na stałe
+         sekcja znika      │        0      │  23 259   ← i to po CICHU
+         korzeń znika      │   23 215      │       0   ← zombi na całym oknie
+
+     DWA OSTATNIE WIERSZE IDĄ W PRZECIWNE STRONY i o to chodzi. Sekcja
+     wypadająca z drzewa nie rzuca niczym — `getBoundingClientRect()` na
+     odpiętym elemencie oddaje same zera, więc maska gasiła ziarno w ciszy.
+     Odwrotnie przy zniknięciu KORZENIA: kanwa leży w <body>, nie w korzeniu,
+     więc malowała dalej po stronie, z której element usunięto. */
+  t.section('zła klatka nie zabija animacji, a znikająca sekcja nie gasi ziarna');
+
+  const poAwarii = async (query) => {
+    const p = await t.open('grain.html', { viewport: OKNO, settle: 1200, query });
+    const a = await p.screenshot({ clip: SRODEK_SEKCJI });
+    await p.waitForTimeout(400);
+    const b = await p.screenshot({ clip: SRODEK_SEKCJI });
+    const ostrzezenia = await p.evaluate(() => window.__ostrzezenia);
+    const rzutow = await p.evaluate(() => window.__rzutow);
+    await p.close();
+    return { zmiana: roznica(a, b), ostrzezenia, rzutow, bledy: p.errors };
+  };
+
+  const BAZA_AWARII = 'moc=0.5&zakres=sekcja&sekcja=%23sekcja&wtop=0';
+
+  /* ODNIESIENIE: bez awarii ziarno w sekcji migocze. Bez tego „migocze po
+     awarii" przechodziłoby także dla sprawdzenia, które mierzy co innego. */
+  const zdrowe = await poAwarii(BAZA_AWARII);
+  t.check('sekcja zdrowa: ziarno migocze', zdrowe.zmiana > 5000,
+    zdrowe.zmiana + ' pikseli różnicy');
+  t.check('i nic nie ma do powiedzenia', zdrowe.ostrzezenia.length === 0,
+    zdrowe.ostrzezenia.join(' | ') || 'cisza');
+
+  const rzuca = await poAwarii(BAZA_AWARII + '&rzucPo=400');
+  t.check('rzucający odczyt sekcji NIE zabija animacji', rzuca.zmiana > 5000,
+    rzuca.zmiana + ' pikseli różnicy');
+  /* Rzucający odczyt to stan trwały, nie potknięcie jednej klatki — więc
+     zasięg schodzi na całe okno, zamiast czyścić kanwę w każdej klatce. */
+  t.check('i mówi o tym RAZ, nie co klatkę', rzuca.ostrzezenia.length === 1,
+    rzuca.ostrzezenia.length + ': ' + rzuca.ostrzezenia.join(' | '));
+  t.check('a treść nazywa przyczynę',
+    /odczyt położenia sekcji rzucił wyjątkiem/.test(rzuca.ostrzezenia[0] || ''),
+    rzuca.ostrzezenia[0] || 'cisza');
+
+  /* NIEUDANY ODCZYT TO STAN TRWAŁY, nie potknięcie jednej klatki — więc zasięg
+     schodzi na całe okno i element przestaje się dobijać do sekcji. Po obrazie
+     tego nie widać (wygląda tak samo), więc liczymy PRÓBY: ma być dokładnie
+     jedna. Bez zejścia byłoby tyle, ile klatek — przy 400 ms grubo ponad
+     dwadzieścia, każda z rzutem i złapaniem. */
+  t.check('po nieudanym odczycie nie dobija się co klatkę', rzuca.rzutow === 1,
+    rzuca.rzutow + ' prób odczytu');
+
+  /* WYJĄTEK POZA ODCZYTEM SEKCJI — tu ratuje wyłącznie kolejność linijek
+     w `ruszaj()`: zamówienie następnej klatki idzie PRZED rysowaniem, a ciało
+     jest w `try`. `zmierz()` leci po narysowaniu, więc kadr zdążył powstać
+     i widać różnicę między „pętla żyje" a „pętla umarła". */
+  const wZmierz = await poAwarii('moc=0.5&rzucWZmierz=400');
+  t.check('wyjątek poza odczytem sekcji też nie zabija pętli', wZmierz.zmiana > 5000,
+    wZmierz.zmiana + ' pikseli różnicy');
+  t.check('i zgłasza się raz, z treścią wyjątku',
+    wZmierz.ostrzezenia.length === 1
+      && /klatka rzuciła wyjątkiem/.test(wZmierz.ostrzezenia[0])
+      && /zmierz rzuca/.test(wZmierz.ostrzezenia[0]),
+    wZmierz.ostrzezenia.join(' | ') || 'cisza');
+
+  const znika = await poAwarii(BAZA_AWARII + '&usunPo=400');
+  t.check('sekcja wypadła z drzewa: ziarno maluje dalej', znika.zmiana > 5000,
+    znika.zmiana + ' pikseli różnicy');
+  t.check('i nie robi tego po cichu',
+    znika.ostrzezenia.length === 1 && /wypadła z drzewa/.test(znika.ostrzezenia[0]),
+    znika.ostrzezenia.join(' | ') || 'cisza');
+
+  /* ODWROTNY KIERUNEK: tu ziarno ma PRZESTAĆ malować. Kanwa leży w <body>,
+     więc po usunięciu korzenia malowałaby dalej po cudzej stronie. */
+  const zombi = await poAwarii(BAZA_AWARII + '&usunKorzenPo=400');
+  t.check('zniknięty korzeń gasi ziarno', zombi.zmiana === 0,
+    zombi.zmiana + ' pikseli różnicy');
+  t.check('i też mówi dlaczego',
+    zombi.ostrzezenia.length === 1 && /korzeń elementu zniknął/.test(zombi.ostrzezenia[0]),
+    zombi.ostrzezenia.join(' | ') || 'cisza');
 
   // ── Maska nadąża za sekcją przy przewijaniu ─────────────────────────────
   /* WARUNEK DZIAŁANIA, NIE OZDOBA: maska liczy się z prostokąta sekcji

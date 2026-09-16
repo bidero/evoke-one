@@ -96,6 +96,51 @@
   })();
 </script>
 
+<script>
+  /* DWIE SONDY DO USTERKI „ziarno zamarza na stałe".
+     Obie odtwarzają bez Bricksa to, co na żywej stronie robi builder albo
+     ScrollTrigger: zabierają spod nóg sekcję, na którą wskazuje maska.
+
+       rzucPo=<ms>  — `getBoundingClientRect` sekcji zaczyna rzucać wyjątkiem.
+                      To jedyna instrukcja w ciele klatki, która MOŻE rzucić.
+       usunPo=<ms>  — sekcja wypada z drzewa, a korzeń ziarna zostaje.
+                      Stąd wisząca referencja i prostokąt z samych zer. */
+  (function () {
+    var sek = function () { return document.getElementById('sekcja'); };
+    /* LICZNIK PRÓB, nie tylko rzut. Po nieudanym odczycie element ma ZEJŚĆ na
+       całe okno, a nie dobijać się do sekcji w każdej klatce — a tego nie widać
+       po obrazie, bo wygląda tak samo. Widać po liczbie prób. */
+    window.__rzutow = 0;
+    if (q.get('rzucPo')) setTimeout(function () {
+      var s = sek();
+      if (s) s.getBoundingClientRect = function () {
+        window.__rzutow++;
+        throw new Error('sonda: rect rzuca');
+      };
+    }, parseInt(q.get('rzucPo'), 10));
+
+    /* RZUT POZA ODCZYTEM SEKCJI. `zmierz()` leci w ciele klatki już PO
+       narysowaniu, więc kadr zdążył powstać — i tylko siatka w `ruszaj()` może
+       tu uratować pętlę. Bez niej pierwsza taka klatka jest ostatnią. */
+    if (q.get('rzucWZmierz')) setTimeout(function () {
+      var d = document.querySelector('[data-evk-grain]');
+      if (d && d.__evkZiarno) d.__evkZiarno.zmierz = function () {
+        throw new Error('sonda: zmierz rzuca');
+      };
+    }, parseInt(q.get('rzucWZmierz'), 10));
+    if (q.get('usunPo')) setTimeout(function () {
+      var s = sek();
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+    }, parseInt(q.get('usunPo'), 10));
+    /* Trzeci wariant: znika sam KORZEŃ elementu. Ziarno ma się wtedy wyłączyć,
+       a nie rozlać na całe okno — patrz `odzyskajSekcje()` w grain.js. */
+    if (q.get('usunKorzenPo')) setTimeout(function () {
+      var d = document.querySelector('[data-evk-grain]');
+      if (d && d.parentNode) d.parentNode.removeChild(d);
+    }, parseInt(q.get('usunKorzenPo'), 10));
+  })();
+</script>
+
 <script src="../../includes/bricks-elements/evoke-grain/assets/grain.js"></script>
 
 <script>
