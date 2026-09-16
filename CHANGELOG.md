@@ -2,6 +2,71 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.206.0] — 2026-09-16
+
+### Zmienione
+
+- **Burger: najdłuższy opis z 697 znaków na 143.** Trzecia partia
+  porządkowania.
+
+  | | przed | po |
+  |---|---|---|
+  | najdłuższy opis | **697** (`mode`) | 143 (`mode`) |
+  | znaków opisów | 4393 | 1811 |
+  | separatorów | 5 | 6 |
+
+  **To był inny przypadek niż oba menu — i zakres z tego wynikł.** W offcanvasie
+  i circularze trzeba było przestawiać sekcje, bo kontrolki leżały nie tam,
+  gdzie się ich szuka. Burger tego problemu nie miał: pięć grup stało na
+  miejscu, w kolejności, w jakiej się przycisk składa. **Nie przeniosłem nic,
+  bo nie było czego** — robota poszła w tekst.
+
+- **Pierwsza grupa dostała nagłówek „Wygląd przycisku".** Pięć kontrolek —
+  źródło, styl, dwie ikony i ich wielkość — stało przed pierwszym separatorem,
+  bez nazwy. W obu menu stoi tam JEDNA kontrolka, i z podanym powodem; tutaj
+  była to pełnoprawna grupa bez tytułu.
+
+- **„Puste pole znaczy »to samo co przed«" powiedziane raz na sekcję zamiast
+  czterech razy przy kontrolkach.** To zdanie stało w `iconOpen`, `textOpen`,
+  `colorOpen` i `textColorOpen`, za każdym razem innymi słowami. Teraz jest
+  w opisie sekcji „Wygląd przycisku", „Tekst" i „Kolory" — czyli tam, gdzie
+  czytający tę sekcję je zobaczy.
+
+  To nie jest samo przycinanie: znika powtórzenie, a nie treść.
+
+### Gdzie poszła mechanika
+
+Wszystko, co wypadło z opisów, wylądowało w komentarzach nad kontrolkami —
+sprawdzone frazami, nie na oko:
+
+- pułapka „nie kieruj wskazanego elementu na menu Evoke, stan miałby dwóch
+  właścicieli" (`mode`);
+- dlaczego wpisany tekst wyklucza opis dla czytnika ekranu, i co to ma do
+  sterowania głosem (`ariaLabel`);
+- arytmetyka pustki w pudełku rysunku, przez którą `textGap` potrzebuje
+  wartości ujemnych — około dziewięciu pikseli przy kresce 60%;
+- wyliczanie kreski środkowej w „schodkach" z jednej wartości (`shortLine`);
+- `openRotate` jako MNOŻNIK listy stylów, dzięki któremu lista nie puchnie
+  o pozycje różniące się wyłącznie kierunkiem.
+
+### Sprawdzenie
+
+Nowych strażników nie trzeba było — te z 1.204.0 wystarczyły, a sufit dla
+`evoke-burger` zszedł z 697 na 143. Trzy mutacje gaszą trzy rozłączne
+sprawdzenia: rozdęty opis `mode` → sufit w `controls`; pusta sekcja „Wygląd
+przycisku" → reguła o pustych sekcjach; `required` przy `shortLine` wpisany
+z ręki zamiast z rejestru → `burger.test.js:297`, i ani `controls`, ani
+`bricks-required`.
+
+### Zostało do uprzątnięcia
+
+| Element | Najdłuższy opis |
+|---|---|
+| Horizontal Scroll | 562 |
+| Marquee | 434 |
+| Offcanvas Menu | 394 |
+| reszta | ≤ 229 |
+
 ## [1.205.0] — 2026-09-16
 
 ### Zmienione

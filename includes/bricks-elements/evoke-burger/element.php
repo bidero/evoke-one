@@ -129,6 +129,26 @@ class Evk_Burger extends \Bricks\Element {
 		 * To wszystko jest niezależne od tego, CO przycisk pokazuje — więc kreski
 		 * przestają być wbudowanym założeniem i stają się jedną z możliwości.
 		 */
+		/* PIERWSZA GRUPA DOSTAJE NAGŁÓWEK. Do 1.206.0 pięć kontrolek — źródło,
+		   styl, dwie ikony i ich wielkość — stało przed pierwszym separatorem,
+		   bez nazwy. W obu menu przed pierwszym separatorem stoi JEDNA kontrolka
+		   i z podanym powodem („używa się jej podczas składania, nie przy
+		   ustawianiu"); tutaj była to pełnoprawna grupa bez tytułu.
+
+		   PUSTE POLE ZNACZY „TO SAMO CO PRZED" — reguła obowiązuje w tym
+		   elemencie wszędzie (druga ikona, drugi napis, oba kolory po otwarciu)
+		   i dlatego stoi w opisach SEKCJI, a nie czterokrotnie przy kontrolkach,
+		   za każdym razem innymi słowami. */
+		$this->controls['sep_wyglad'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Wygląd przycisku', 'evoke-one' ),
+			'type'        => 'separator',
+			'description' => esc_html__(
+				'Pusta ikona „otwarte" znaczy „ta sama co zamknięta".',
+				'evoke-one'
+			),
+		];
+
 		$this->controls['iconSource'] = [
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Co pokazuje przycisk', 'evoke-one' ),
@@ -172,12 +192,12 @@ class Evk_Burger extends \Bricks\Element {
 			'label'       => esc_html__( 'Ikona — otwarte', 'evoke-one' ),
 			'type'        => 'icon',
 			'required'    => [ 'iconSource', '=', 'ikona' ],
+			/* Obie ikony leżą NA SOBIE, więc przełączenie nie przesuwa niczego
+			   obok. Ikony rysowane obrysem zostają obrysem, a kolor biorą z pól
+			   w sekcji „Kolory". Prostokąt albo koło, którego nie da się zdjąć,
+			   siedzi w samym pliku SVG — wtedy trzeba innego pliku. */
 			'description' => esc_html__(
-				'Pusta znaczy „ta sama co zamknięta" — przycisk zmienia wtedy tylko kolor. '
-				. 'Obie leżą NA SOBIE, więc przełączenie nie przesuwa niczego obok. '
-				. 'Ikony rysowane obrysem zostają obrysem, a kolor biorą z pól niżej. '
-				. 'Jeśli mimo to widzisz pod ikoną prostokąt albo koło, których nie da się '
-				. 'zdjąć — jest w samym pliku SVG i trzeba innego pliku.',
+				'Pusta — przycisk zmienia przy otwarciu tylko kolor, nie kształt.',
 				'evoke-one'
 			),
 		];
@@ -197,8 +217,12 @@ class Evk_Burger extends \Bricks\Element {
 		// OSOBNA oś, nie wariant źródła: dwa sloty, bo napis przy otwartym menu
 		// zwykle brzmi inaczej niż przy zamkniętym.
 		$this->controls['textSeparator'] = [
-			'label' => esc_html__( 'Tekst', 'evoke-one' ),
-			'type'  => 'separator',
+			'label'       => esc_html__( 'Tekst', 'evoke-one' ),
+			'type'        => 'separator',
+			'description' => esc_html__(
+				'Pusty napis „otwarte" znaczy „ten sam co zamknięty".',
+				'evoke-one'
+			),
 		];
 
 		$this->controls['textClosed'] = [
@@ -215,12 +239,12 @@ class Evk_Burger extends \Bricks\Element {
 			'type'        => 'text',
 			'inline'      => true,
 			'placeholder' => 'ZAMKNIJ',
+			/* Oba napisy leżą NA SOBIE, a przycisk ma szerokość dłuższego z nich
+			   — dzięki temu przełączenie nie przesuwa sąsiadów. Wpisany tekst
+			   wyłącza „Opis dla czytnika ekranu": nazwą przycisku staje się to,
+			   co widać, i pole samo schodzi z oczu (`required` przy ariaLabel). */
 			'description' => esc_html__(
-				'Pusty znaczy „ten sam co zamknięty", więc przy niezmiennym napisie '
-				. 'wystarczy jedno pole. Oba napisy leżą NA SOBIE i przycisk ma szerokość '
-				. 'dłuższego z nich — dzięki temu przełączenie nie przesuwa sąsiadów. '
-				. 'Gdy tekst jest wpisany, opis dla czytnika ekranu NIE wychodzi: nazwą '
-				. 'przycisku staje się to, co widać.',
+				'Przycisk ma szerokość dłuższego z obu napisów, więc nie przesuwa sąsiadów.',
 				'evoke-one'
 			),
 		];
@@ -242,12 +266,13 @@ class Evk_Burger extends \Bricks\Element {
 			'inline'      => true,
 			'css'         => [ [ 'property' => '--evk-burger-text-gap', 'selector' => '' ] ],
 			'placeholder' => '8px',
+			/* SKĄD BIERZE SIĘ POTRZEBA WARTOŚCI UJEMNYCH. Pudełko rysunku jest
+			   kwadratem o boku pola klikalnego, więc kreski krótsze niż pełna
+			   szerokość zostawiają w nim pustkę — napis stoi wtedy od nich dalej,
+			   niż mówi ta wartość. Przy kresce 60% jest to około dziewięciu
+			   pikseli, a minus tę pustkę odejmuje. */
 			'description' => esc_html__(
-				'Przyjmuje wartości UJEMNE i przy węższych kreskach to one są zwykle '
-				. 'potrzebne. Pudełko rysunku jest kwadratem o boku pola klikalnego, więc '
-				. 'kreski krótsze niż pełna szerokość zostawiają w nim pustkę i napis stoi '
-				. 'od nich dalej, niż mówi ta wartość — przy kresce 60% jest to około '
-				. 'dziewięciu pikseli. Minus tę pustkę odejmuje.',
+				'Przyjmuje wartości UJEMNE — przy węższych kreskach zwykle są potrzebne.',
 				'evoke-one'
 			),
 		];
@@ -264,11 +289,13 @@ class Evk_Burger extends \Bricks\Element {
 			'label'       => esc_html__( 'Wewnętrzny odstęp napisu', 'evoke-one' ),
 			'type'        => 'dimensions',
 			'css'         => [ [ 'property' => 'padding', 'selector' => '.evk-burger__text' ] ],
+			/* Przycisk ŚRODKUJE pudełko napisu, więc nierówna góra i dół
+			   przesuwają go o POŁOWĘ różnicy: cztery piksele u góry dają dwa
+			   piksele w dół. Przy napisie nad ikoną albo pod nią tak samo
+			   działają lewa i prawa. */
 			'description' => esc_html__(
 				'Do wyrównania napisu z ikoną, gdy krój odstawia go od jej linii. '
-				. 'Przycisk ŚRODKUJE pudełko napisu, więc nierówna góra i dół przesuwają '
-				. 'go o POŁOWĘ różnicy — cztery piksele u góry dają dwa piksele w dół. '
-				. 'Przy napisie nad ikoną albo pod nią tak samo działają lewa i prawa.',
+				. 'Nierówna góra i dół przesuwają napis o POŁOWĘ różnicy.',
 				'evoke-one'
 			),
 		];
@@ -288,19 +315,29 @@ class Evk_Burger extends \Bricks\Element {
 				'self'   => esc_html__( 'Tylko siebie', 'evoke-one' ),
 			],
 			'default'     => 'menu',
+			/*
+			 * TRZY DROGI, I DLACZEGO DOMYŚLNA JEST WŁAŚNIE TA.
+			 *
+			 * „Nic" jest właściwe, gdy burger otwiera Circular Menu albo
+			 * Offcanvas Menu: wskazujesz go w polu „Przełącznik → Selektor CSS"
+			 * tego menu, a stan wystawia MENU. Dzięki temu kreski wracają na
+			 * miejsce także wtedy, gdy menu zamknie Esc, kliknięcie poza panelem
+			 * albo kliknięcie w link — czyli w trzech sytuacjach, o których sam
+			 * przycisk nie ma skąd wiedzieć.
+			 *
+			 * „Wskazany element" jest dla CUDZYCH rzeczy: kliknięcie nakłada
+			 * celowi klasę brx-open (tak jak przełącznik Bricksa), a burger idzie
+			 * za celem, więc zamknięcie go czymkolwiek innym też wraca do kresek.
+			 *
+			 * „Tylko siebie" — gdy klasa na samym przycisku wystarcza i resztą
+			 * steruje własny kod.
+			 *
+			 * PUŁAPKA: nie kieruj „wskazanego elementu" na menu Evoke. Ono
+			 * pilnuje brx-open samo i stan miałby wtedy dwóch właścicieli.
+			 */
 			'description' => esc_html__(
-				'DOMYŚLNE „nic" jest właściwe, gdy burger otwiera Circular Menu albo '
-				. 'Offcanvas Menu: wskazujesz go wtedy w polu „Własny przełącznik → '
-				. 'Selektor CSS" tego menu, a stan wystawia MENU. Dzięki temu kreski '
-				. 'wracają na miejsce także wtedy, gdy menu zamknie Esc, kliknięcie poza '
-				. 'panelem albo kliknięcie w link. '
-				. 'WSKAZANY ELEMENT — dla cudzych rzeczy: kliknięcie nakłada celowi klasę '
-				. 'brx-open (tak jak robi to przełącznik Bricksa), a burger idzie za celem, '
-				. 'więc zamknięcie go czymkolwiek innym też wraca do kresek. '
-				. 'TYLKO SIEBIE — gdy klasa na samym przycisku wystarcza i resztą steruje '
-				. 'Twój własny kod. '
-				. 'Nie kieruj „wskazanego elementu" na menu Evoke: ono pilnuje brx-open samo '
-				. 'i stan miałby dwóch właścicieli.',
+				'Przy menu Evoke zostaw „nic" i wskaż ten przycisk w polu „Selektor CSS" '
+				. 'tego menu — stan wystawia wtedy MENU, więc kreski wracają także po Esc.',
 				'evoke-one'
 			),
 		];
@@ -311,11 +348,13 @@ class Evk_Burger extends \Bricks\Element {
 			'type'        => 'text',
 			'placeholder' => '#moj-panel',
 			'required'    => [ 'mode', '=', 'target' ],
+			/* Stan czytamy z PIERWSZEGO pasującego, choć klasę dostają wszystkie
+			   — inaczej rozjechane cele dawałyby przycisk migający między
+			   stanami. Gdy cel ma identyfikator, burger dostaje dodatkowo
+			   aria-controls, żeby czytnik ekranu wiedział, czym steruje. */
 			'description' => esc_html__(
-				'Pasuje kilka elementów? Klasę dostaną wszystkie, ale stan czytamy '
-				. 'z PIERWSZEGO — inaczej rozjechane cele dawałyby przycisk migający '
-				. 'między stanami. Gdy cel ma identyfikator, burger dostaje jeszcze '
-				. 'aria-controls, żeby czytnik ekranu wiedział, czym ten przycisk steruje.',
+				'Gdy pasuje kilka elementów: klasę dostaną wszystkie, ale stan czytany '
+				. 'jest z pierwszego.',
 				'evoke-one'
 			),
 		];
@@ -341,12 +380,13 @@ class Evk_Burger extends \Bricks\Element {
 			// Widoczny tekst wyklucza ten opis, więc pole schodzi z oczu razem
 			// z powodem, dla którego istnieje.
 			'required'    => [ 'textClosed', '=', '' ],
+			/* DLACZEGO WPISANY TEKST WYKLUCZA TEN OPIS. Przykryłby widoczny napis,
+			   a nazwa inna od tego, co widać, psuje sterowanie głosem —
+			   użytkownik mówi „kliknij MENU", a przeglądarka szuka czegoś innego.
+			   Stan otwarcia idzie osobno, atrybutem aria-expanded. */
 			'description' => esc_html__(
-				'Przycisk BEZ TEKSTU nie ma czego przeczytać, więc czytnik ekranu powie '
-				. 'tylko „przycisk". Gdy wpiszesz tekst, ten opis nie wychodzi wcale: '
-				. 'przykryłby widoczny napis, a nazwa inna od tego, co widać, psuje '
-				. 'sterowanie głosem — użytkownik mówi „kliknij MENU", a przeglądarka '
-				. 'szuka czegoś innego. Stan otwarcia idzie osobno, atrybutem aria-expanded.',
+				'Przycisk bez tekstu nie ma czego przeczytać — czytnik ekranu powie '
+				. 'tylko „przycisk".',
 				'evoke-one'
 			),
 		];
@@ -400,12 +440,11 @@ class Evk_Burger extends \Bricks\Element {
 			// schowane akurat tam, gdzie jest potrzebne.
 			'required'    => [ 'style', '=', array_keys( array_filter(
 				self::styles(), function ( $d ) { return ! empty( $d['short'] ); } ) ) ],
+			/* W „schodkach" wylicza się z tej wartości także kreska środkowa,
+			   żeby jedno pole sterowało całą proporcją. */
 			'description' => esc_html__(
-				'Dotyczy wyłącznie stylów ASYMETRYCZNYCH — tam co najmniej jedna kreska '
-				. 'jest krótsza od pozostałych już w stanie zamkniętym. Podana w procentach '
-				. 'liczy się od boku pola klikalnego, więc trzyma proporcję przy każdym '
-				. 'rozmiarze przycisku. W „schodkach" wylicza się z niej także kreska '
-				. 'środkowa, żeby jedno pole sterowało całą proporcją.',
+				'Procent liczy się od boku pola klikalnego, więc trzyma proporcję przy '
+				. 'każdym rozmiarze przycisku.',
 				'evoke-one'
 			),
 		];
@@ -456,8 +495,7 @@ class Evk_Burger extends \Bricks\Element {
 			'type'        => 'separator',
 			'description' => esc_html__(
 				'Rysunek i napis mają OSOBNE pary pól i nie malują się nawzajem. '
-				. 'W każdej parze pole „po otwarciu" zostawione puste znaczy „ten sam '
-				. 'kolor co przed".',
+				. 'Puste pole „po otwarciu" znaczy „ten sam kolor co przed".',
 				'evoke-one'
 			),
 		];
@@ -480,12 +518,9 @@ class Evk_Burger extends \Bricks\Element {
 			'label'       => esc_html__( 'Kolor kresek i ikony po otwarciu', 'evoke-one' ),
 			'type'        => 'color',
 			'css'         => [ [ 'property' => '--evk-burger-color-open', 'selector' => '' ] ],
-			'description' => esc_html__(
-				'Pusty znaczy „ten sam co przed" — rysunek zmienia wtedy tylko kształt. '
-				. 'Ustawiony przenika do niego w tym samym czasie, w którym składa się '
-				. 'krzyżyk. To pole NIE dotyczy napisu.',
-				'evoke-one'
-			),
+			/* Ustawiony przenika w tym samym czasie, w którym składa się krzyżyk.
+			   „Puste = ten sam co przed" mówi opis sekcji. */
+			'description' => esc_html__( 'Nie dotyczy napisu — ten ma własne pole niżej.', 'evoke-one' ),
 		];
 
 		/*
@@ -507,11 +542,11 @@ class Evk_Burger extends \Bricks\Element {
 			// pól, a `required` umie patrzeć tylko na jedno. Schowanie tej
 			// kontrolki przy wypełnionym samym „otwartym" byłoby gorsze niż
 			// pokazanie jej o jeden raz za dużo.
+			/* Pusty znaczy, że napis trzyma kolor wzięty z typografii przycisku.
+			   Ustawiony przenika w tym samym czasie, w którym składa się
+			   krzyżyk. */
 			'description' => esc_html__(
-				'Dotyczy WYŁĄCZNIE napisu — kreski i ikona mają własne pole wyżej '
-				. 'i za tym kolorem nie idą. Pusty znaczy „ten sam co przed otwarciem": '
-				. 'napis trzyma wtedy kolor wzięty z typografii przycisku. Ustawiony '
-				. 'przenika do niego w tym samym czasie, w którym składa się krzyżyk.',
+				'Dotyczy WYŁĄCZNIE napisu — kreski i ikona mają własne pole wyżej.',
 				'evoke-one'
 			),
 		];
@@ -562,12 +597,13 @@ class Evk_Burger extends \Bricks\Element {
 			'inline'      => true,
 			'css'         => [ [ 'property' => '--evk-burger-open-rotate', 'selector' => '' ] ],
 			'placeholder' => '0deg',
+			/* TO JEST MNOŻNIK LISTY STYLÓW, A NIE OZDOBA: krzyżyk z obrotem 90°
+			   to krzyżyk stojący, a daszek z obrotem 90° pokazuje w dół. Dzięki
+			   temu lista stylów nie puchnie o pozycje różniące się wyłącznie
+			   kierunkiem. */
 			'description' => esc_html__(
 				'Obraca CAŁY rysunek przy otwarciu, niezależnie od tego, co robią same '
-				. 'kreski. To jest mnożnik listy stylów, a nie ozdoba: krzyżyk z obrotem 90° '
-				. 'to krzyżyk stojący, a daszek z obrotem 90° pokazuje w dół. Dzięki temu '
-				. 'lista nie puchnie o pozycje różniące się wyłącznie kierunkiem. '
-				. 'Wartości ujemne obracają w drugą stronę.',
+				. 'kreski. Wartości ujemne obracają w drugą stronę.',
 				'evoke-one'
 			),
 		];

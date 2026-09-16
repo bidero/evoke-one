@@ -394,11 +394,11 @@ module.exports = async function (t) {
      element o wielu krótkich podpowiedziach jest czytelny, a jeden o jednym
      wywodzie na tysiąc znaków nie — i to ten drugi był zgłoszeniem. */
   const SUFITY = {
-    'evoke-burger':            697,   // najgorszy w całej wtyczce (mode)
+    'evoke-burger':            143,   // było 697; uprzątnięte w 1.206.0
     'evoke-circular-menu':     168,   // było 1042; uprzątnięte w 1.205.0
     'evoke-circular-title':      0,
     'evoke-grain':             202,
-    'evoke-horizontal-scroll': 562,
+    'evoke-horizontal-scroll': 562,   // najgorszy w całej wtyczce (peek_next)
     'evoke-marquee':           434,
     'evoke-offcanvas-menu':    394,   // było 573; uprzątnięte w 1.204.0
     'evoke-scroll-reading':    111,
