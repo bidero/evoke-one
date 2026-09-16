@@ -55,17 +55,48 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 	}
 
+	/**
+	 * SEKCJE SĄ ZWIJANYMI GRUPAMI BRICKSA, nie separatorami — jak w Circular
+	 * Menu od 1.207.0. Ten element zyskuje na tym najwięcej w całej wtyczce:
+	 * czterdzieści pięć kontrolek zwija się do ośmiu wierszy.
+	 *
+	 * DWANAŚCIE SEKCJI ZESZŁO DO OŚMIU GRUP, i każde scalenie ma powód:
+	 *
+	 *  · „Wariant" + „Własny wariant" — to NIE jest kosmetyka, tylko warunek
+	 *    wykonalności. Wszystkie dziewięć pól „własnego" jest bramkowanych na
+	 *    `variation`, czyli na jedynej kontrolce sekcji wyżej. Osobne grupy
+	 *    znaczyłyby dziewięć bramek przez granicę grupy — a nie wiadomo, czy
+	 *    Bricks to obsługuje (patrz `controls.test.js`). Scalone: zero bramek
+	 *    przez granicę, i struktura poprawniejsza, bo „własny" jest przypadkiem
+	 *    szczególnym wariantu, a nie osobnym tematem.
+	 *  · dwie maski → „Maski": sekcja na dwie kontrolki to nagłówek droższy niż
+	 *    jego zawartość.
+	 *  · dwie sekcje scrolla → „Scroll": jak wyżej.
+	 *  · „Wydajność" + „Jakość dopasowana do urządzenia" → „Wydajność": ten sam
+	 *    temat, a bramki `budzet_klatki` i `zastepnik_obraz` i tak wskazują
+	 *    `auto_jakosc`, czyli zostają w środku.
+	 *
+	 * „Efekt myszy" zostaje grupą na JEDNĄ kontrolkę — nie ma jej z czym
+	 * scalić bez naciągania, a jest osobnym pytaniem, na które się odpowiada
+	 * raz i zwija.
+	 */
+	public function set_control_groups() {
+		$this->control_groups['evk_pozycja']   = [ 'title' => 'Pozycjonowanie',   'tab' => 'content' ];
+		$this->control_groups['evk_wariant']   = [ 'title' => 'Wariant',          'tab' => 'content' ];
+		$this->control_groups['evk_kolory']    = [ 'title' => 'Kolory gradientu', 'tab' => 'content' ];
+		$this->control_groups['evk_mysz']      = [ 'title' => 'Efekt myszy',      'tab' => 'content' ];
+		$this->control_groups['evk_szum']      = [ 'title' => 'Szum (grain)',     'tab' => 'content' ];
+		$this->control_groups['evk_maski']     = [ 'title' => 'Maski',            'tab' => 'content' ];
+		$this->control_groups['evk_scroll']    = [ 'title' => 'Scroll',           'tab' => 'content' ];
+		$this->control_groups['evk_wydajnosc'] = [ 'title' => 'Wydajność',        'tab' => 'content' ];
+	}
+
 	public function set_controls() {
 
 		// ── POZYCJONOWANIE ─────────────────────────────────────────────────────
 
-		$this->controls['sep_position'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Pozycjonowanie',
-		];
-
 		$this->controls['position'] = [
+			'group'       => 'evk_pozycja',
 			'tab'     => 'content',
 			'label'   => 'Pozycja',
 			'type'    => 'select',
@@ -74,6 +105,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		$this->controls['z_index'] = [
+			'group'       => 'evk_pozycja',
 			'tab'     => 'content',
 			'label'   => 'Z-indeks',
 			'type'    => 'number',
@@ -81,13 +113,14 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'default' => 0,
 		];
 
-		$this->controls['top']        = [ 'tab' => 'content', 'label' => 'Góra',       'type' => 'text', 'default' => '0'    ];
-		$this->controls['left']       = [ 'tab' => 'content', 'label' => 'Lewa',       'type' => 'text', 'default' => '0'    ];
-		$this->controls['width']      = [ 'tab' => 'content', 'label' => 'Szerokość',  'type' => 'text', 'default' => '100%' ];
-		$this->controls['height']     = [ 'tab' => 'content', 'label' => 'Wysokość',   'type' => 'text', 'default' => '100%' ];
-		$this->controls['min_height'] = [ 'tab' => 'content', 'label' => 'Min. wys.',  'type' => 'text', 'default' => '100vh', 'description' => 'Bez tego canvas może mieć 0px.' ];
+		$this->controls['top']        = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Góra',       'type' => 'text', 'default' => '0'    ];
+		$this->controls['left']       = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Lewa',       'type' => 'text', 'default' => '0'    ];
+		$this->controls['width']      = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Szerokość',  'type' => 'text', 'default' => '100%' ];
+		$this->controls['height']     = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Wysokość',   'type' => 'text', 'default' => '100%' ];
+		$this->controls['min_height'] = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Min. wys.',  'type' => 'text', 'default' => '100vh', 'description' => 'Bez tego canvas może mieć 0px.' ];
 
 		$this->controls['pointer_events'] = [
+			'group'       => 'evk_pozycja',
 			'tab'     => 'content',
 			'label'   => 'Zdarzenia wskaźnika',
 			'type'    => 'select',
@@ -97,13 +130,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── WARIANT ────────────────────────────────────────────────────────────
 
-		$this->controls['sep_variant'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Wariant',
-		];
-
 		$this->controls['variation'] = [
+			'group'       => 'evk_wariant',
 			'tab'     => 'content',
 			'label'   => 'Wariant',
 			'type'    => 'select',
@@ -121,13 +149,6 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── WŁASNY WARIANT ─────────────────────────────────────────────────────
 
-		$this->controls['sep_custom'] = [
-			'tab'      => 'content',
-			'type'     => 'separator',
-			'label'    => 'Własny wariant',
-			'required' => [ 'variation', '=', 'custom' ],
-		];
-
 		$custom_fields = [
 			'custom_width_multiplier'  => [ 'Szerokość siatki',       0.1, 2.0,  0.05,  0.6   ],
 			'custom_height_multiplier' => [ 'Wysokość siatki',        0.1, 4.0,  0.05,  2.0   ],
@@ -142,6 +163,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		foreach ( $custom_fields as $key => [ $label, $min, $max, $step, $default ] ) {
 			$this->controls[ $key ] = [
+				'group'    => 'evk_wariant',
 				'tab'      => 'content',
 				'label'    => $label,
 				'type'     => 'number',
@@ -153,15 +175,10 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── KOLORY ─────────────────────────────────────────────────────────────
 
-		$this->controls['sep_colors'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Kolory gradientu',
-		];
-
 		$palettes = self::palettes();
 
 		$this->controls['palette'] = [
+			'group'       => 'evk_kolory',
 			'tab'         => 'content',
 			'label'       => 'Paleta',
 			'type'        => 'select',
@@ -173,6 +190,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		$color_defaults = $palettes['custom']['colors'];
 		for ( $i = 1; $i <= 6; $i++ ) {
 			$this->controls[ 'color_' . $i ] = [
+				'group'   => 'evk_kolory',
 				'tab'      => 'content',
 				'label'    => 'Kolor ' . $i,
 				'type'     => 'color',
@@ -183,13 +201,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── EFEKT MYSZY ────────────────────────────────────────────────────────
 
-		$this->controls['sep_mouse'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Efekt myszy',
-		];
-
 		$this->controls['mouse_effect'] = [
+			'group'       => 'evk_mysz',
 			'tab'     => 'content',
 			'label'   => 'Siła efektu myszy',
 			'type'    => 'number',
@@ -199,13 +212,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── SZUM (GRAIN) ───────────────────────────────────────────────────────
 
-		$this->controls['sep_noise'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Szum (grain)',
-		];
-
 		$this->controls['noise_enabled'] = [
+			'group'       => 'evk_szum',
 			'tab'     => 'content',
 			'label'   => 'Włącz szum',
 			'type'    => 'checkbox',
@@ -213,6 +221,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		$this->controls['noise_intensity'] = [
+			'group'       => 'evk_szum',
 			'tab'      => 'content',
 			'label'    => 'Intensywność szumu',
 			'type'     => 'number',
@@ -241,6 +250,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		 * wszystko razem — falę i ziarno. Tak ma zostać.
 		 */
 		$this->controls['noise_spread'] = [
+			'group'       => 'evk_szum',
 			'tab'         => 'content',
 			'label'       => 'Ziarno poza falą',
 			'type'        => 'number',
@@ -255,13 +265,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── MASKA DOLNA ────────────────────────────────────────────────────────
 
-		$this->controls['sep_mask'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Maska (fade-out dół)',
-		];
-
 		$this->controls['mask_enabled'] = [
+			'group'       => 'evk_maski',
 			'tab'     => 'content',
 			'label'   => 'Włącz maskę dolną',
 			'type'    => 'checkbox',
@@ -269,6 +274,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		$this->controls['mask_start'] = [
+			'group'       => 'evk_maski',
 			'tab'      => 'content',
 			'label'    => 'Start zanikania (%)',
 			'type'     => 'number',
@@ -279,13 +285,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── MASKA GÓRNA ────────────────────────────────────────────────────────
 
-		$this->controls['sep_mask_top'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Maska (fade-out góra)',
-		];
-
 		$this->controls['mask_top_enabled'] = [
+			'group'       => 'evk_maski',
 			'tab'     => 'content',
 			'label'   => 'Włącz maskę górną',
 			'type'    => 'checkbox',
@@ -293,6 +294,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		$this->controls['mask_top_end'] = [
+			'group'       => 'evk_maski',
 			'tab'      => 'content',
 			'label'    => 'Koniec zanikania (%)',
 			'type'     => 'number',
@@ -303,13 +305,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── SCROLL: OPACITY FADE ───────────────────────────────────────────────
 
-		$this->controls['sep_scroll_fade'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Scroll — zanikanie (opacity)',
-		];
-
 		$this->controls['scroll_fade_enabled'] = [
+			'group'       => 'evk_scroll',
 			'tab'     => 'content',
 			'label'   => 'Zanikaj po scrollu',
 			'type'    => 'checkbox',
@@ -317,6 +314,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		$this->controls['scroll_fade_threshold'] = [
+			'group'       => 'evk_scroll',
 			'tab'      => 'content',
 			'label'    => 'Próg zanikania (px)',
 			'type'     => 'number',
@@ -326,6 +324,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		$this->controls['scroll_fade_duration'] = [
+			'group'       => 'evk_scroll',
 			'tab'      => 'content',
 			'label'    => 'Czas zanikania (ms)',
 			'type'     => 'number',
@@ -335,6 +334,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		$this->controls['scroll_fade_opacity'] = [
+			'group'       => 'evk_scroll',
 			'tab'      => 'content',
 			'label'    => 'Docelowe opacity (0–1)',
 			'type'     => 'number',
@@ -345,13 +345,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── SCROLL: PAUZA CPU/GPU ──────────────────────────────────────────────
 
-		$this->controls['sep_scroll_pause'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Scroll — pauza CPU/GPU',
-		];
-
 		$this->controls['scroll_pause_enabled'] = [
+			'group'       => 'evk_scroll',
 			'tab'     => 'content',
 			'label'   => 'Pauzuj render po scrollu',
 			'type'    => 'checkbox',
@@ -359,6 +354,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		$this->controls['scroll_pause_threshold'] = [
+			'group'       => 'evk_scroll',
 			'tab'      => 'content',
 			'label'    => 'Próg pauzy (px)',
 			'type'     => 'number',
@@ -368,12 +364,6 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		// ── WYDAJNOŚĆ ──────────────────────────────────────────────────────────
-
-		$this->controls['sep_wydajnosc'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Wydajność',
-		];
 
 		/* SUFIT GĘSTOŚCI PIKSELI — największy pojedynczy dławik tego elementu.
 		 *
@@ -386,6 +376,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		 * Domyślne 1, bo fala jest miękkim gradientem bez ostrych krawędzi —
 		 * to materiał, na którym połowa rozdzielczości jest najmniej widoczna. */
 		$this->controls['pixel_ratio_cap'] = [
+			'group'       => 'evk_wydajnosc',
 			'tab'         => 'content',
 			'label'       => 'Sufit gęstości pikseli',
 			'type'        => 'number',
@@ -406,6 +397,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		 * wyłączone. Dzięki temu kontrolka mogła stać się przełącznikiem BEZ
 		 * przestawienia ustawień na stronach, które już je mają. */
 		$this->controls['pause_offscreen'] = [
+			'group'       => 'evk_wydajnosc',
 			'tab'         => 'content',
 			'label'       => 'Zatrzymuj poza ekranem',
 			'type'        => 'checkbox',
@@ -437,13 +429,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		 * Dla porównania Marquee animuje `xPercent`, czyli transformację CSS —
 		 * przesuwaniem zajmuje się kompozytor poza wątkiem głównym, więc nie ma
 		 * tam czego dławić i nigdy nie pokazuje się w pomiarze. */
-		$this->controls['sep_jakosc'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Jakość dopasowana do urządzenia',
-		];
-
 		$this->controls['auto_jakosc'] = [
+			'group'       => 'evk_wydajnosc',
 			'tab'         => 'content',
 			'label'       => 'Dopasuj jakość do urządzenia',
 			'type'        => 'checkbox',
@@ -452,6 +439,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		$this->controls['budzet_klatki'] = [
+			'group'       => 'evk_wydajnosc',
 			'tab'         => 'content',
 			'label'       => 'Budżet klatki (ms)',
 			'type'        => 'number',
@@ -475,6 +463,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		 * nigdy nie zobaczy. Pilnuje tego osobne sprawdzenie w sekcji
 		 * „bez GPU fala nie pobiera three.js" w tests/wave-bg.test.js. */
 		$this->controls['zastepnik_obraz'] = [
+			'group'       => 'evk_wydajnosc',
 			'tab'         => 'content',
 			'label'       => 'Obraz zamiast gradientu',
 			'type'        => 'image',
@@ -483,6 +472,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		];
 
 		$this->controls['preserve_buffer'] = [
+			'group'       => 'evk_wydajnosc',
 			'tab'         => 'content',
 			'label'       => 'Zachowuj bufor rysowania',
 			'type'        => 'checkbox',

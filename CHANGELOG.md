@@ -2,6 +2,57 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.208.0] — 2026-09-16
+
+### Zmienione
+
+- **Wave BG: dwanaście sekcji zeszło do ośmiu zwijanych grup.** Ten element
+  zyskuje na grupach najwięcej w całej wtyczce — **czterdzieści pięć kontrolek
+  zwija się do ośmiu wierszy**, a panel miał dotąd dwanaście separatorów
+  i żadnego sposobu, żeby cokolwiek schować.
+
+  Grupy: Pozycjonowanie (8) · Wariant (10) · Kolory gradientu (7) · Efekt myszy
+  (1) · Szum (3) · Maski (4) · Scroll (6) · Wydajność (6). Separatorów zero,
+  kontrolek poza grupami zero.
+
+- **Scalenie „Wariantu" z „Własnym wariantem" to warunek wykonalności, nie
+  kosmetyka.** Wszystkie dziewięć pól „własnego" jest bramkowanych na
+  `variation` — jedynej kontrolce sekcji wyżej. Osobne grupy znaczyłyby
+  dziewięć bramek przez granicę grupy, a nie wiadomo, czy Bricks to obsługuje.
+  Scalone: zero przecięć, i struktura poprawniejsza, bo „własny" jest
+  przypadkiem szczególnym wariantu, a nie osobnym tematem.
+
+  Pozostałe scalenia: dwie maski → „Maski", dwie sekcje scrolla → „Scroll",
+  „Wydajność" + „Jakość dopasowana do urządzenia" → „Wydajność" (ten sam temat,
+  a bramki `budzet_klatki` i `zastepnik_obraz` i tak wskazują `auto_jakosc`).
+  Sekcja na dwie kontrolki to nagłówek droższy niż jego zawartość.
+
+  „Efekt myszy" zostaje grupą na JEDNĄ kontrolkę — nie ma jej z czym scalić bez
+  naciągania.
+
+### Czego ta zmiana dowiodła o strażniku z 1.207.0
+
+Mutacja rozdzielająca „Wariant" z powrotem na dwie grupy zapala regułę
+**„żadna bramka nie przechodzi przez granicę grupy"** i wymienia wszystkie
+dziewięć przecięć po nazwie — a **osiemdziesiąt dziewięć sprawdzeń zachowania
+fali zostaje zielonych.**
+
+To jest cała racja bytu tego strażnika: usterka żyje wyłącznie w panelu
+buildera, więc żaden test w przeglądarce jej nie zobaczy. Strona wygląda
+normalnie, a dziewięć kontrolek po prostu nie ma jak się pokazać.
+
+### Do sprawdzenia w builderze
+
+- Osiem zwijanych grup zamiast jednej listy na czterdzieści pięć pól.
+
+### Co zostaje na separatorach i dlaczego
+
+- **Offcanvas Menu** (3 przecięcia: `panelDuration`, `panelEasing`,
+  `escGoesBack` ← `mode`) i **Burger** (2: `ariaLabel` ← `textClosed`,
+  `shortLine` ← `style`). Tutaj scalenie sekcji nie usuwa przecięć tak czysto
+  jak w fali — trzeba by przesunąć kontrolki między sekcjami, czyli zmienić
+  układ, który dopiero co został zatwierdzony. To osobna decyzja.
+
 ## [1.207.0] — 2026-09-16
 
 ### Zmienione
