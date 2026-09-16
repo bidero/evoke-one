@@ -5,22 +5,43 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 /**
  * Pola zaznaczenia domyślnie WŁĄCZONE — czy domyślna naprawdę obowiązuje.
  *
- * REGUŁA, KTÓRA TO SPRAWDZA, JEST OGÓLNA I NIE ZNA ŻADNEGO ELEMENTU Z NAZWY:
+ * DWIE REGUŁY, OBIE OGÓLNE I NIEZNAJĄCE ŻADNEGO ELEMENTU Z NAZWY. Dla każdej
+ * kontrolki z 'type' => 'checkbox' i 'default' => true:
  *
- *     jeśli kontrolka ma 'type' => 'checkbox' i 'default' => true,
- *     to render() z PUSTYMI ustawieniami musi dać DOKŁADNIE TO SAMO,
- *     co render() z tą jedną kontrolką ustawioną na true.
+ *   1. DOMYŚLNA OBOWIĄZUJE
+ *      render([]) === render([klucz => true])
  *
- * Bo to znaczy dokładnie tyle, co „domyślna obowiązuje". Nie trzeba przy tym
- * wiedzieć, w jaki atrybut dana kontrolka pisze — a właśnie ta wiedza robi ze
- * sprawdzeń rzecz pisaną osobno dla każdego elementu i zapominaną przy nowych.
+ *   2. DA SIĘ JĄ WYŁĄCZYĆ
+ *      render([klucz => null]) === render([klucz => false])
  *
- * CO TO ŁAPIE. Odczyt `! empty( $s['klucz'] )` przy domyślnej WŁĄCZONEJ: Bricks
- * przy nietkniętym elemencie nie ma klucza w ustawieniach, `! empty()` daje
- * wtedy `false` i zadeklarowane `'default' => true` nie obowiązuje. Z panelu
- * buildera wygląda to normalnie — pole jest zaznaczone.
+ * Nie trzeba przy tym wiedzieć, w jaki atrybut dana kontrolka pisze — a właśnie
+ * ta wiedza robi ze sprawdzeń rzecz pisaną osobno dla każdego elementu
+ * i zapominaną przy nowych.
  *
- * Wyjście: lista kontrolek, przy których oba wyjścia się różnią.
+ * CO ŁAPIE REGUŁA 1. Odczyt `! empty( $s['klucz'] )` przy domyślnej WŁĄCZONEJ:
+ * Bricks przy nietkniętym elemencie nie ma klucza w ustawieniach, `! empty()`
+ * daje wtedy `false` i zadeklarowane `'default' => true` nie obowiązuje.
+ * Z panelu buildera wygląda to normalnie — pole jest zaznaczone.
+ *
+ * CO ŁAPIE REGUŁA 2 — i dlaczego jej brak kosztował zgłoszenie. Do 1.213.0
+ * stała tu wyłącznie reguła 1, czyli sprawdzana była POŁOWA UMOWY: że domyślna
+ * działa. Nikt nie pytał, czy da się ją zdjąć. Stacking Cards czytał swoje dwa
+ * pola tak:
+ *
+ *     'shadow' => ! isset( $s['shadow'] ) || ! empty( $s['shadow'] ),
+ *
+ * i przechodził regułę 1 na zielono, będąc NIE DO WYŁĄCZENIA. Zgłoszone
+ * z użycia: „nie działa wyłączanie cienia kart. Zawsze się wyświetla".
+ *
+ * Sedno to `isset()` wobec `array_key_exists()`. `isset()` oddaje `false` dla
+ * wartości `null`, więc pierwszy człon zapala się przy ODZNACZONYM polu
+ * zapisanym jako `null` i wraca domyślna — włączona. `evk_flaga()` pyta
+ * `array_key_exists()`, które dla `null` oddaje `true`, i dopiero wtedy
+ * sprawdza `! empty()`. Dlatego reguła 2 porównuje właśnie `null` z `false`:
+ * to jedyna para, która te dwa odczyty rozróżnia.
+ *
+ * Wyjście: listy kontrolek, przy których wyjścia się różnią — osobno dla obu
+ * reguł, bo to dwie różne usterki i dwie różne naprawy.
  */
 require __DIR__ . '/_wp-stubs.php';
 require EVK_TEST_ROOT . '/includes/anim/presets.php';
@@ -50,6 +71,7 @@ function wyjscie(string $klasa, array $ustawienia): string {
 }
 
 $rozjazdy = [];
+$nieDoWylaczenia = [];
 $zbadanych = 0;
 $elementow = 0;
 $pominiete = [];
@@ -78,10 +100,22 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
         if (($def['default'] ?? null) !== true) { continue; }
 
         $zbadanych++;
+
+        // Reguła 1: domyślna obowiązuje.
         $puste     = wyjscie($klasa, []);
         $zWlaczona = wyjscie($klasa, [ $klucz => true ]);
         if ($puste !== $zWlaczona) {
             $rozjazdy[] = $nazwa . '/' . $klucz;
+        }
+
+        /* Reguła 2: da się ją wyłączyć. `null` to postać, w jakiej odznaczenie
+           potrafi trafić do ustawień — i jedyna, którą `isset()` myli z brakiem
+           klucza. Porównujemy z `false`, bo „odznaczone" ma znaczyć to samo
+           niezależnie od tego, jak zostało zapisane. */
+        $jakoNull  = wyjscie($klasa, [ $klucz => null ]);
+        $jakoFalse = wyjscie($klasa, [ $klucz => false ]);
+        if ($jakoNull !== $jakoFalse) {
+            $nieDoWylaczenia[] = $nazwa . '/' . $klucz;
         }
     }
 }
@@ -90,5 +124,6 @@ echo json_encode([
     'elementow'  => $elementow,
     'zbadanych'  => $zbadanych,
     'rozjazdy'   => $rozjazdy,
+    'nieDoWylaczenia' => $nieDoWylaczenia,
     'pominiete'  => $pominiete,
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";

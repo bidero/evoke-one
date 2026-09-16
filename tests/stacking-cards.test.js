@@ -91,4 +91,119 @@ module.exports = async function (t) {
     (await page.evaluate(() => window.__m())).spacer === 250, 'pół karty 500px = 250px');
   t.check('bez błędów JS', !page.errors.length, page.errors.join(' | ') || 'brak');
   await page.close();
+
+  // ── Sticky pod przodkiem z overflow ─────────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „Stacking cards nie działa wewnątrz kontenera.
+     W sekcji tak, ale jeśli jest dalej w kolejnym bloku przestaje." Karty
+     w ogóle się nie przyklejały, a na kontenerze stał `overflow: hidden`
+     albo `overflow-x: hidden`.
+
+     `position: sticky` PRZESTAJE ISTNIEĆ pod przodkiem będącym kontenerem
+     przewijania — nie ma stanu pośredniego. I nie widać tego w devtoolsach:
+     karta ma dalej wyliczone `position: sticky` i mimo to odjeżdża z ekranu.
+     Dlatego mierzymy POŁOŻENIE pierwszej karty po przewinięciu, a nie
+     `position`.
+
+     Zmierzone (okno 1200×800, przewinięcie o 1200 px, `top` pierwszej karty;
+     przyklejona stoi na 80 px, czyli na zadanym offsecie):
+
+         owijka            │ overflow x/y  │ przed │ po naprawie
+         brak              │ —             │    80 │  80
+         visible           │ visible/…     │    80 │  80
+         hidden            │ hidden/hidden │  -520 │  80   (→ clip/clip)
+         overflow-x:hidden │ hidden/AUTO   │  -520 │  80   (→ clip/visible)
+         auto              │ auto/auto     │  -520 │ -520  (celowo nietknięte)
+
+     WIERSZ TRZECI OD DOŁU JEST SEDNEM ZGŁOSZENIA. Ustawienie samego
+     `overflow-x: hidden` WYLICZA `overflow-y: auto` — taka jest specyfikacja.
+     Zabieg „żeby nie było poziomego scrolla" tworzy więc pionowy kontener
+     przewijania, choć nikt nie tknął osi pionowej.
+
+     OSTATNI WIERSZ NIE JEST USTERKĄ. Przodka, który przewija własną treść,
+     nie ruszamy — autor chce tam przewijania, a zamiana odebrałaby mu je.
+     Element mówi o tym w konsoli i na tym poprzestaje. */
+  t.section('karty przyklejają się także w kontenerze z overflow');
+
+  const PRZEWIN = 1200;
+  const PRZYKLEJONA = 80;     // = offsetTop z konfiguracji
+
+  const wOwijce = async (query, viewport) => {
+    const p = await t.open('stacking-cards.html',
+      { viewport: viewport || { width: 1200, height: 800 }, settle: 700, query });
+    await p.evaluate((y) => window.scrollTo(0, y), PRZEWIN);
+    await p.waitForTimeout(300);
+    const m = await p.evaluate(() => window.__m());
+    return { p, ...m };
+  };
+
+  /* ODNIESIENIE: bez owijki i pod owijką `visible` karta stoi na offsecie.
+     Bez tego „przykleja się w kontenerze" przechodziłoby także dla pomiaru,
+     który mierzy coś innego niż przyklejanie. */
+  const bezOwijki = await wOwijce('');
+  t.check('bez owijki karta stoi na offsecie', bezOwijki.tops[0] === PRZYKLEJONA,
+    'top = ' + bezOwijki.tops[0]);
+  await bezOwijki.p.close();
+
+  const przezroczysta = await wOwijce('owijka=visible');
+  t.check('owijka bez overflow niczego nie psuje', przezroczysta.tops[0] === PRZYKLEJONA,
+    'top = ' + przezroczysta.tops[0]);
+  t.check('i nie ma o czym mówić', przezroczysta.ostrzezenia.length === 0,
+    przezroczysta.ostrzezenia.join(' | ') || 'cisza');
+  await przezroczysta.p.close();
+
+  const schowana = await wOwijce('owijka=hidden');
+  t.check('owijka overflow:hidden — karta dalej się przykleja',
+    schowana.tops[0] === PRZYKLEJONA, 'top = ' + schowana.tops[0]);
+  /* `clip`, NIE `hidden` — to jest cała naprawa. `clip` przycina identycznie,
+     ale nie tworzy kontenera przewijania. */
+  t.check('bo overflow zamieniony na clip na obu osiach',
+    schowana.owijka.x === 'clip' && schowana.owijka.y === 'clip',
+    schowana.owijka.x + '/' + schowana.owijka.y);
+  t.check('i element mówi, co zrobił i komu',
+    schowana.ostrzezenia.length === 1
+      && /div#owijka/.test(schowana.ostrzezenia[0])
+      && /clip/.test(schowana.ostrzezenia[0]),
+    schowana.ostrzezenia.join(' | ') || 'cisza');
+  await schowana.p.close();
+
+  const poziomo = await wOwijce('owijka=x-hidden');
+  t.check('owijka overflow-x:hidden — karta dalej się przykleja',
+    poziomo.tops[0] === PRZYKLEJONA, 'top = ' + poziomo.tops[0]);
+  /* Oś pionowa wraca do `visible`, bo `clip` w parze z `visible` jest
+     dozwolony — a to `auto` wyliczone z `hidden` było zabójcą sticky. */
+  t.check('a oś pionowa przestaje być kontenerem przewijania',
+    poziomo.owijka.y === 'visible', 'overflow-y = ' + poziomo.owijka.y);
+  await poziomo.p.close();
+
+  const przewijana = await wOwijce('owijka=auto');
+  t.check('owijki z overflow:auto NIE ruszamy',
+    przewijana.owijka.x === 'auto' && przewijana.owijka.y === 'auto',
+    przewijana.owijka.x + '/' + przewijana.owijka.y);
+  t.check('ale mówimy, dlaczego karty się nie przyklejają',
+    przewijana.ostrzezenia.length === 1
+      && /przewija własną treść/.test(przewijana.ostrzezenia[0]),
+    przewijana.ostrzezenia.join(' | ') || 'cisza');
+  await przewijana.p.close();
+
+  // ── Przywracanie przy wyłączeniu stosu ──────────────────────────────────
+  /* OBOWIĄZKOWE, NIE KOSMETYCZNE: element zmienia CUDZE węzły, a teardown leci
+     przy zejściu poniżej breakpointu i przy redukcji ruchu. Zostawiony `clip`
+     na obcym kontenerze byłby zmianą, której nikt nie zamawiał. */
+  t.section('poniżej breakpointu owijka dostaje swój overflow z powrotem');
+
+  const wracamy = await t.open('stacking-cards.html',
+    { viewport: { width: 1200, height: 800 }, settle: 700, query: 'owijka=hidden' });
+  const zanim = await wracamy.evaluate(() => window.__m());
+  t.check('nad breakpointem naprawione na clip', zanim.owijka.x === 'clip',
+    zanim.owijka.x + '/' + zanim.owijka.y);
+
+  await wracamy.setViewportSize({ width: 500, height: 800 });
+  await wracamy.waitForTimeout(700);
+  const potem = await wracamy.evaluate(() => window.__m());
+  t.check('stos się wyłączył', potem.active === false, 'is-active: ' + potem.active);
+  t.check('a owijka odzyskała overflow: hidden',
+    potem.owijka.x === 'hidden' && potem.owijka.y === 'hidden',
+    potem.owijka.x + '/' + potem.owijka.y);
+  t.check('bez błędów JS', !wracamy.errors.length, wracamy.errors.join(' | ') || 'brak');
+  await wracamy.close();
 };

@@ -2,6 +2,99 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.213.0] — 2026-09-16
+
+### Naprawione
+
+- **Stacking Cards nie przyklejał kart wewnątrz kontenera.** ZGŁOSZONE Z UŻYCIA:
+  „nie działa wewnątrz kontenera. W sekcji tak, ale jeśli jest dalej w kolejnym
+  bloku przestaje." Karty w ogóle się nie przyklejały — przewijały się jedna za
+  drugą jak zwykłe bloki.
+
+  `position: sticky` **przestaje istnieć**, gdy którykolwiek przodek między kartą
+  a korzeniem przewijania jest kontenerem przewijania. Nie ma stanu pośredniego.
+  I nie widać tego w devtoolsach: karta ma dalej wyliczone `position: sticky`
+  i mimo to odjeżdża z ekranu — dlatego sprawdzenia mierzą POŁOŻENIE karty,
+  a nie jej `position`.
+
+  **Pułapka jest w `overflow-x`.** Ustawienie samego `overflow-x: hidden`
+  **wylicza `overflow-y: auto`** — taka jest specyfikacja. Zabieg „żeby nie było
+  poziomego scrolla", w Bricksie bardzo popularny, tworzy więc pionowy kontener
+  przewijania, choć nikt nie tknął osi pionowej.
+
+  Arkusz elementu znał ten problem, ale leczył go za płytko: przywracał
+  `visible` na samym `.evk-sc` i jego kartach, czyli tam, gdzie problemu nie ma.
+  Selektora „w górę" w CSS-ie nie ma, więc przodkami musiał zająć się skrypt.
+
+  **`overflow: hidden` na przodku zamieniany jest teraz na `overflow: clip`** —
+  przycina identycznie, ale NIE tworzy kontenera przewijania. Wygląd bez zmian.
+
+  Zmierzone (okno 1200×800, przewinięcie o 1200 px, `top` pierwszej karty;
+  przyklejona stoi na 80 px):
+
+  | owijka | overflow x/y | przed | po |
+  |---|---|---|---|
+  | brak | — | 80 | 80 |
+  | `visible` | visible/visible | 80 | 80 |
+  | `hidden` | hidden/hidden | **−520** | 80 (→ clip/clip) |
+  | `overflow-x: hidden` | hidden/**auto** | **−520** | 80 (→ clip/visible) |
+  | `auto` | auto/auto | −520 | −520 (celowo nietknięte) |
+
+  **Przodków z `auto`/`scroll` nie ruszamy** — tam autor chce przewijania,
+  a zamiana odebrałaby mu je. Element mówi o tym w konsoli i na tym poprzestaje.
+  Tak samo w przeglądarkach bez `overflow: clip` (Safari poniżej 16): samo
+  ostrzeżenie, bo ciche zepsucie przycinania byłoby gorsze niż brak nakładania.
+  `<body>` i wyżej są poza zasięgiem naprawy — tam `overflow: hidden` bywa
+  blokadą przewijania stawianą świadomie przez offcanvas.
+
+  Przy wyłączeniu stosu (zejście poniżej breakpointu, redukcja ruchu) przodkowie
+  **odzyskują swój `overflow`**. Element zmienia tu cudze węzły, więc sprzątanie
+  po sobie jest warunkiem, nie kosmetyką.
+
+- **Nie dało się wyłączyć cienia kart ani ich zmniejszania.** ZGŁOSZONE
+  Z UŻYCIA: „nie działa też wyłączanie cienia kart. Zawsze się wyświetla."
+  Usterka była na DWÓCH polach, nie na jednym — „Zmniejszanie kart" nie dawało
+  się wyłączyć dokładnie tak samo.
+
+  **Stacking Cards był jedynym elementem, który nigdy nie przeszedł na
+  `evk_flaga()`** — pomocnik dodany w 1.199.0 właśnie do czytania pól
+  włącz/wyłącz. Zostały w nim dwa odczyty w starej postaci:
+
+  ```php
+  'shadow' => ! isset( $s['shadow'] ) || ! empty( $s['shadow'] ),
+  ```
+
+  Sedno to **`isset()` wobec `array_key_exists()`**. `isset()` oddaje fałsz dla
+  wartości `null`, więc odznaczone pole zapisane jako `null` było nie do
+  odróżnienia od pola, którego nigdy nie tknięto — i wracała domyślna, czyli
+  WŁĄCZONA. `evk_flaga()` pyta `array_key_exists()`, które dla `null` oddaje
+  prawdę, i dopiero wtedy sprawdza `! empty()`.
+
+  | jak zapisane odznaczenie | przed | po |
+  |---|---|---|
+  | brak klucza | true | true |
+  | **`null`** | **true** | **false** |
+  | `false` | false | false |
+  | pusty łańcuch | false | false |
+
+  Naprawa zmienia wyłącznie wiersz `null` — pozostałe trzy czytały się dobrze.
+
+### Zmienione
+
+- **Strażnik domyślnych sprawdzał połowę umowy.** `tests/php/domyslne-wlaczone.php`
+  pilnował reguły „domyślna obowiązuje" (`render([])` = `render([klucz => true])`),
+  ale nigdy nie pytał, **czy da się ją zdjąć**. Oba pola Stacking Cards
+  przechodziły przez niego na zielono, będąc nie do wyłączenia.
+
+  Dołożona druga reguła, równie ogólna i tak samo nieznająca żadnego elementu
+  z nazwy:
+
+  > checkbox z `'default' => true` ⟹ `render([klucz => null])` identyczne
+  > z `render([klucz => false])`
+
+  Uruchomiona na zastanym kodzie nazwała dokładnie te dwa pola i tylko je —
+  na szesnastu przełącznikach w dziesięciu elementach.
+
 ## [1.212.0] — 2026-09-16
 
 ### Naprawione

@@ -513,6 +513,18 @@ module.exports = async function (t) {
   t.check('w żadnej domyślna nie gubi się po drodze', dw.rozjazdy.length === 0,
     dw.rozjazdy.join(', ') || 'wszystkie obowiązują');
 
+  /* DRUGA POŁOWA UMOWY, dołożona w 1.213.0. Do tej pory sprawdzane było
+     wyłącznie, że domyślna OBOWIĄZUJE — nikt nie pytał, czy da się ją ZDJĄĆ.
+     Stacking Cards przechodził tamto na zielono, mając dwa pola nie do
+     wyłączenia: „nie działa wyłączanie cienia kart. Zawsze się wyświetla".
+
+     Sedno w `isset()` wobec `array_key_exists()` — szczegóły w nagłówku sondy.
+     Strażnik nazwał wtedy dokładnie te dwa pola i tylko je, na szesnastu
+     przełącznikach w dziesięciu elementach. */
+  t.check('i w żadnej nie da się jej zablokować na stałe',
+    dw.nieDoWylaczenia.length === 0,
+    dw.nieDoWylaczenia.join(', ') || 'wszystkie dają się wyłączyć');
+
   // ── Wave BG po zamianie list wyboru na przełączniki ─────────────────────
   /* SIEDZI TU, A NIE W wave-bg.test.js, ŚWIADOMIE. To są dwa odczyty czystego
      PHP-a — nie ma tu czego rysować. `wave-bg` stawia przeglądarkę i chodzi

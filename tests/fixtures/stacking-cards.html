@@ -1,4 +1,4 @@
-<!-- Parametry przez query: stagger, space, shrink, dim -->
+<!-- Parametry przez query: stagger, space, shrink, dim, owijka -->
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font: 16px system-ui; }
@@ -25,6 +25,30 @@
     bottomSpace: q.get('space') || '',
     disableBelow: 768,
   }));
+  /* OWIJKA — odtwarza kontener Bricksa z ustawionym `overflow`.
+     ZGŁOSZONE Z UŻYCIA: „Stacking cards nie działa wewnątrz kontenera.
+     W sekcji tak, ale jeśli jest dalej w kolejnym bloku przestaje."
+     Sticky przestaje istnieć pod przodkiem będącym kontenerem przewijania,
+     a `overflow-x: hidden` WYLICZA `overflow-y: auto` — stąd osobny wariant.
+     Owijka powstaje PRZED skryptem elementu, tak jak na prawdziwej stronie. */
+  var ow = q.get('owijka');
+  if (ow) {
+    var sc = document.getElementById('sc');
+    var w = document.createElement('div');
+    w.id = 'owijka';
+    if (ow === 'x-hidden') w.style.overflowX = 'hidden';
+    else w.style.overflow = ow;
+    sc.parentNode.insertBefore(w, sc);
+    w.appendChild(sc);
+  }
+
+  window.__ostrzezenia = [];
+  var stareWarn = console.warn;
+  console.warn = function () {
+    window.__ostrzezenia.push(Array.prototype.join.call(arguments, ' '));
+    return stareWarn.apply(console, arguments);
+  };
+
   // Licznik wymuszonych refreshów — regresja 1.27.3 (zacinanie na telefonie).
   window.__refresh = 0;
   var _r = ScrollTrigger.refresh.bind(ScrollTrigger);
@@ -47,6 +71,13 @@
       cardPos: getComputedStyle(cards[0]).position,
       vis: getComputedStyle(cards[0]).visibility,
       refresh: window.__refresh,
+      owijka: (function () {
+        var w = document.getElementById('owijka');
+        if (!w) return null;
+        var cs = getComputedStyle(w);
+        return { x: cs.overflowX, y: cs.overflowY, inline: w.style.overflow + '|' + w.style.overflowX };
+      })(),
+      ostrzezenia: window.__ostrzezenia.slice(),
     };
   };
 </script>

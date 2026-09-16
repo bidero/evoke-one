@@ -54,6 +54,101 @@ function evk_stacking_cards_init() {
         var triggers = [];
         var active   = false;
         var spacer   = null;
+        var naprawione = [];      // przodkowie, którym zmieniliśmy overflow
+        var powiedziane = {};     // ostrzeżenia lecą raz, nie przy każdym setup()
+
+        function powiedzRaz(tekst) {
+            if (powiedziane[tekst]) return;
+            powiedziane[tekst] = true;
+            console.warn('[EVK Stacking Cards] ' + tekst);
+        }
+
+        /** Nazwa węzła do konsoli — żeby dało się go znaleźć w drzewie. */
+        function nazwaWezla(el) {
+            var n = el.tagName.toLowerCase();
+            if (el.id) n += '#' + el.id;
+            var k = (typeof el.className === 'string') ? el.className.trim() : '';
+            if (k) n += '.' + k.split(/\s+/).join('.');
+            return n;
+        }
+
+        /**
+         * Sticky pod przodkiem z `overflow` — i dlaczego to trzeba naprawiać
+         * z JS-a, a nie CSS-em.
+         *
+         * ZGŁOSZONE Z UŻYCIA: „Stacking cards nie działa wewnątrz kontenera.
+         * W sekcji tak, ale jeśli jest dalej w kolejnym bloku przestaje."
+         *
+         * `position: sticky` PRZESTAJE ISTNIEĆ, gdy którykolwiek przodek między
+         * kartą a korzeniem przewijania jest kontenerem przewijania. Nie ma
+         * stanu pośredniego: karta zachowuje się wtedy jak `relative`. Co gorsza
+         * w devtoolsach nadal widać `position: sticky` — zmierzone, karta ma
+         * wyliczone `sticky` i mimo to odjeżdża z ekranu.
+         *
+         * PUŁAPKA JEST W `overflow-x`. Ustawienie samego `overflow-x: hidden`
+         * WYLICZA `overflow-y: auto` — taka jest specyfikacja. Zabieg „żeby nie
+         * było poziomego scrolla", w Bricksie bardzo popularny, tworzy więc
+         * pionowy kontener przewijania, choć nikt nie tknął osi pionowej.
+         * Zmierzone na owijce testowej: `overflow x/y = hidden/auto`.
+         *
+         * CSS TEGO NIE DOSIĘGNIE. Arkusz elementu przywraca `visible` na samym
+         * `.evk-sc` i jego kartach — czyli tam, gdzie problemu nie ma. Selektora
+         * „w górę" nie ma, więc przodkami musi zająć się skrypt.
+         *
+         * `clip` ZAMIAST `hidden`: przycina identycznie, ale NIE tworzy
+         * kontenera przewijania. To jedyna zamiana, która zachowuje zamiar
+         * autora strony i jednocześnie oddaje sticky — wygląd bez zmian.
+         *
+         * CZEGO NIE RUSZAMY: przodków z `auto`/`scroll` (tam autor CHCE
+         * przewijania, zamiana odebrałaby mu je) ani `<body>` i wyżej — tam
+         * `overflow: hidden` bywa blokadą przewijania stawianą świadomie przez
+         * offcanvas. W obu wypadkach samo ostrzeżenie.
+         */
+        function odblokujSticky() {
+            if (!window.getComputedStyle) return;
+            var mozeClip = !!(window.CSS && CSS.supports && CSS.supports('overflow', 'clip'));
+
+            var el = root.parentElement;
+            while (el && el !== document.body && el !== document.documentElement) {
+                var cs = getComputedStyle(el);
+
+                ['overflowX', 'overflowY'].forEach(function (os) {
+                    if (getComputedStyle(el)[os] !== 'hidden') return;
+                    if (!mozeClip) {
+                        powiedzRaz('przodek ' + nazwaWezla(el) + ' ma overflow: hidden, '
+                            + 'co wyłącza przyklejanie kart — a ta przeglądarka nie zna '
+                            + 'overflow: clip, więc nie naprawiam tego sama');
+                        return;
+                    }
+                    naprawione.push({ el: el, os: os, byla: el.style[os] });
+                    el.style[os] = 'clip';
+                    powiedzRaz('przodek ' + nazwaWezla(el) + ' miał overflow: hidden, '
+                        + 'co wyłącza przyklejanie kart — zamieniam na overflow: clip '
+                        + '(przycina tak samo, ale nie tworzy kontenera przewijania)');
+                });
+
+                /* DOPIERO PO NAPRAWIE pytamy o `auto`/`scroll`. Przed nią
+                   `overflow-y` bywa `auto` wyłącznie dlatego, że ktoś ustawił
+                   `overflow-x: hidden` — ostrzeganie o tym byłoby myleniem
+                   tropu, bo autor osi pionowej nie tknął. */
+                var po = getComputedStyle(el);
+                if (po.overflowX === 'auto' || po.overflowX === 'scroll'
+                    || po.overflowY === 'auto' || po.overflowY === 'scroll') {
+                    powiedzRaz('przodek ' + nazwaWezla(el) + ' przewija własną treść '
+                        + '(overflow: ' + po.overflowX + '/' + po.overflowY + '), '
+                        + 'więc karty nie mogą się przyklejać. Tego nie ruszam — '
+                        + 'przewijanie jest tam ustawione celowo');
+                }
+
+                el = el.parentElement;
+            }
+        }
+
+        /** Oddaje przodkom to, co im zabraliśmy — patrz `odblokujSticky()`. */
+        function przywrocSticky() {
+            naprawione.forEach(function (w) { w.el.style[w.os] = w.byla; });
+            naprawione = [];
+        }
 
         function sizeSpacer() {
             if (!spacer || !spacer.parentNode) return;
@@ -67,6 +162,11 @@ function evk_stacking_cards_init() {
 
         function teardown() {
             active = false;
+            /* PRZYWRACANIE JEST OBOWIĄZKOWE, nie kosmetyczne: zmieniamy tu CUDZE
+               węzły, a teardown leci przy zejściu poniżej breakpointu i przy
+               redukcji ruchu. Zostawiony `clip` na obcym kontenerze byłby
+               zmianą, której nikt nie zamawiał. */
+            przywrocSticky();
             ScrollTrigger.removeEventListener('refreshInit', sizeSpacer);
             triggers.forEach(function (t) { t.kill(); });
             triggers = [];
@@ -79,6 +179,9 @@ function evk_stacking_cards_init() {
         function setup() {
             active = true;
             root.classList.add('is-active');
+            /* PRZED pomiarem rozpórki i przed evkOdswiez() — naprawa zmienia
+               układ, więc ScrollTrigger musi mierzyć już po niej. */
+            odblokujSticky();
             if (cfg.shadow) {
                 root.classList.add('has-shadow');
                 root.style.setProperty('--evk-sc-shadow', cfg.shadowValue || '0 -8px 30px rgba(0,0,0,.18)');

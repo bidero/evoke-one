@@ -176,10 +176,24 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'offsetTop' => $this->px( $s['offset_top'] ?? '80px', '80px' ),
 			'gap'       => $this->px( $s['card_gap'] ?? '40px', '40px' ),
 			'stagger'   => (int) ( $s['stagger_offset'] ?? 0 ),
-			'shrink'    => ! isset( $s['shrink'] ) || ! empty( $s['shrink'] ),
+			/* PRZEZ evk_flaga(), A NIE `! isset(...) || ! empty(...)`.
+			 *
+			 * ZGŁOSZONE Z UŻYCIA: „nie działa wyłączanie cienia kart. Zawsze się
+			 * wyświetla". Dotyczyło obu pól poniżej, nie tylko cienia.
+			 *
+			 * Sedno: `isset()` oddaje FAŁSZ dla wartości `null`, więc odznaczone
+			 * pole zapisane jako `null` było nie do odróżnienia od pola, którego
+			 * nigdy nie tknięto — i wracała domyślna, czyli WŁĄCZONA.
+			 * `evk_flaga()` pyta `array_key_exists()`, które dla `null` oddaje
+			 * prawdę, i dopiero wtedy sprawdza `! empty()`.
+			 *
+			 * Stacking Cards był jedynym elementem, który nigdy nie przeszedł na
+			 * ten pomocnik (1.199.0) — pozostałe sześć używało go od dawna.
+			 * Pilnuje tego teraz reguła 2 w tests/php/domyslne-wlaczone.php. */
+			'shrink'    => evk_flaga( $s, 'shrink', true ),
 			'minScale'  => (float) ( $s['min_scale'] ?? 0.9 ),
 			'dim'       => (float) ( $s['dim'] ?? 0.25 ),
-			'shadow'    => ! isset( $s['shadow'] ) || ! empty( $s['shadow'] ),
+			'shadow'    => evk_flaga( $s, 'shadow', true ),
 			'shadowValue'  => sanitize_text_field( $s['shadow_value'] ?? '' ) ?: '0 -8px 30px rgba(0,0,0,.18)',
 			'bottomSpace'  => sanitize_text_field( $s['bottom_space'] ?? '' ),
 			'disableBelow' => (int) ( $s['disable_below'] ?? 768 ),
