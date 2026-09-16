@@ -147,6 +147,51 @@ module.exports = async function (t) {
     JSON.stringify(domyslne.bramki.mnoznik_scrolla) === JSON.stringify(['przewijaj', '=', true]),
     JSON.stringify(domyslne.bramki.mnoznik_scrolla));
 
+  // ── Zasięg: co render() wypisuje na korzeniu ────────────────────────────
+  /* Zachowanie w przeglądarce sprawdza sekcja o masce niżej. Tu chodzi
+     wyłącznie o parę „kontrolka ↔ nazwa atrybutu": pomyłka w niej daje pole,
+     które zapisuje się w builderze poprawnie i nie zmienia na stronie nic. */
+  t.check('domyślnie ziarno jest na całym oknie',
+    domyslne.atrybuty['data-zakres'] === 'strona', domyslne.atrybuty['data-zakres']);
+  t.check('zasięg i wtopienie są bramkowane wyborem zasięgu',
+    JSON.stringify(domyslne.bramki.sekcja_selektor) === JSON.stringify(['zakres', '=', 'sekcja'])
+      && JSON.stringify(domyslne.bramki.wtopienie) === JSON.stringify(['zakres', '=', 'sekcja']),
+    JSON.stringify(domyslne.bramki.sekcja_selektor) + ' / ' + JSON.stringify(domyslne.bramki.wtopienie));
+
+  const wSekcji = JSON.parse(phpOutput('grain-cfg.php',
+    JSON.stringify(JSON.stringify({ zakres: 'sekcja', sekcja_selektor: '.hero', wtopienie: 40 }))));
+  t.check('tryb sekcji dojeżdża z selektorem i wtopieniem',
+    wSekcji.atrybuty['data-zakres'] === 'sekcja'
+      && wSekcji.atrybuty['data-sekcja'] === '.hero'
+      && wSekcji.atrybuty['data-wtopienie'] === '40',
+    [wSekcji.atrybuty['data-zakres'], wSekcji.atrybuty['data-sekcja'],
+     wSekcji.atrybuty['data-wtopienie']].join(' / '));
+
+  /* PUSTY SELEKTOR NIE WYPISUJE ATRYBUTU — brak i pusty znaczą w skrypcie to
+     samo („weź rodzica"), więc pusty byłby wyłącznie szumem w kodzie strony. */
+  const rodzic = JSON.parse(phpOutput('grain-cfg.php',
+    JSON.stringify(JSON.stringify({ zakres: 'sekcja' }))));
+  t.check('pusty selektor nie zostawia pustego atrybutu',
+    !('data-sekcja' in rodzic.atrybuty), JSON.stringify(rodzic.atrybuty['data-sekcja']));
+
+  /* SELEKTOR JEST PIERWSZYM POLEM TEKSTOWYM TEGO ELEMENTU W ATRYBUCIE HTML.
+     Cudzysłów zamieniamy na apostrof, bo to jedyny znak, który mógłby wyjść
+     z wartości atrybutu — a `[data-rola='hero']` znaczy w CSS-ie to samo co
+     `[data-rola="hero"]`. Podwójnego ucieczkowania tu nie ma i być nie może:
+     zamieniłoby taki selektor w `&amp;quot;` i przestałby działać. */
+  const zCudzyslowem = JSON.parse(phpOutput('grain-cfg.php',
+    JSON.stringify(JSON.stringify({ zakres: 'sekcja', sekcja_selektor: '[data-rola="hero"] > .karta' }))));
+  /* SONDA ODDAJE WARTOŚĆ JESZCZE ZAKODOWANĄ HTML-owo — rozkodowuje ją dopiero
+     przeglądarka, czytając atrybut. Pierwsza wersja tego sprawdzenia
+     porównywała wprost i zapalała się na `&#039;`, czyli na własnym błędzie
+     odczytu, a nie na kodzie. Liczy się to, co zobaczy `getAttribute()`. */
+  const odkoduj = (w) => String(w || '')
+    .replace(/&#0?39;/g, "'").replace(/&quot;/g, '"')
+    .replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&');
+  t.check('cudzysłów w selektorze nie wychodzi z atrybutu',
+    odkoduj(zCudzyslowem.atrybuty['data-sekcja']) === "[data-rola='hero'] > .karta",
+    odkoduj(zCudzyslowem.atrybuty['data-sekcja']));
+
   // ── Ziarno naprawdę się rysuje ──────────────────────────────────────────
   /* NA PIKSELACH, nie na obecności węzła. Sprawdzenie „jest <canvas>"
      przepuściłoby pustą kanwę — czyli element, który nie rysuje nic, a wygląda
@@ -242,6 +287,145 @@ module.exports = async function (t) {
   /* KONTROLA NEGATYWNA powyższego: bez niej „stoi" przechodziłoby także dla
      elementu, który w ogóle nie rysuje. */
   t.check('a przesiewane dwa różne', miga > 1000, miga + ' pikseli różnicy');
+
+  // ── Zasięg: całe okno albo jedna sekcja ─────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „dodaj do samej kontrolki grain możliwość wyświetlania
+     tylko w jednej sekcji z łagodnym przejściem na górze/dole, a nie na całej
+     stronie".
+
+     MIERZYMY PASMAMI KADRU, bo maska jest właśnie rozkładem ziarna po
+     wysokości — jedna liczba na cały kadr nie odróżniłaby „ziarno w sekcji" od
+     „ziarno wszędzie, tylko słabsze". Sekcja w fixturze stoi absolutnie na
+     wierszach 200–400, więc pasma są policzalne bez zgadywania.
+
+     ZMIERZONE (okno 900×600, moc 0,5, przesiew nieruchomy; szorstkość wycinka):
+
+         wariant              │ 80–160 │ 170–230 │ 260–340 │ 470–550
+         całe okno            │  42,64 │   42,68 │   42,85 │   42,49
+         sekcja, wtopienie 0  │      0 │   20,99 │   42,85 │       0
+         sekcja, wtopienie120 │      0 │    1,17 │   30,80 │       0
+         sekcja z selektorem  │      0 │   20,99 │   42,85 │       0
+         selektor nietrafiony │  42,64 │   42,68 │   42,85 │   42,49
+
+     PASMO 170–230 LEŻY NA KRAWĘDZI sekcji i to ono pokazuje wtopienie: przy
+     twardej krawędzi ma połowę ziarna (20,99 — bo połowa pasma jest w środku),
+     a przy wtopieniu 120 px dopiero się zaczyna (1,17).
+
+     ŚRODEK PRZY WTOPIENIU 120 NIE DOCHODZI DO PEŁNI (30,80 wobec 42,85) i to
+     nie jest usterka: sekcja ma 200 px, więc wtopienia z góry i z dołu na siebie
+     zachodzą. Wtopienie dłuższe niż połowa sekcji znaczy ziarno, które nigdzie
+     nie osiąga pełnej mocy. */
+  t.section('ziarno w jednej sekcji, z wtopieniem na krawędziach');
+
+  const PASMA = {
+    gora:   { x: 0, y: 80,  width: 400, height: 80 },
+    brzeg:  { x: 0, y: 170, width: 400, height: 60 },
+    srodek: { x: 0, y: 260, width: 400, height: 80 },
+    dol:    { x: 0, y: 470, width: 400, height: 80 },
+  };
+
+  /** Szorstkość w każdym z czterech pasm kadru. */
+  const pasma = async (p) => {
+    const w = {};
+    for (const k of Object.keys(PASMA)) w[k] = szorstkosc(await p.screenshot({ clip: PASMA[k] }));
+    return w;
+  };
+
+  const zasieg = async (query) => {
+    const p = await t.open('grain.html', { viewport: OKNO, settle: 500, query });
+    const w = await pasma(p);
+    w.ostrzezenia = await p.evaluate(() => window.__ostrzezenia);
+    w.p = p;
+    return w;
+  };
+
+  const BAZA = 'moc=0.5&przesiew=stop';
+
+  /* ODNIESIENIE: przy zasięgu „całe okno" wszystkie pasma mają tyle samo.
+     Bez tego „w sekcji jest ziarno" przechodziłoby także dla maski, która nie
+     robi nic. */
+  const cale = await zasieg(BAZA);
+  t.check('całe okno: ziarno w każdym paśmie',
+    Math.min(cale.gora, cale.brzeg, cale.srodek, cale.dol) > 30,
+    [cale.gora, cale.brzeg, cale.srodek, cale.dol].join(' / '));
+  await cale.p.close();
+
+  const twarda = await zasieg(BAZA + '&zakres=sekcja&gdzie=sekcja&wtop=0');
+  t.check('sekcja: nad nią goło', twarda.gora < 0.5, 'szorstkość ' + twarda.gora);
+  t.check('sekcja: pod nią goło', twarda.dol < 0.5, 'szorstkość ' + twarda.dol);
+  t.check('sekcja: w środku pełne ziarno', twarda.srodek > 30, 'szorstkość ' + twarda.srodek);
+  t.check('bez błędów JS', !twarda.p.errors.length, twarda.p.errors.join(' | ') || 'brak');
+  await twarda.p.close();
+
+  /* SEDNO PROŚBY O „ŁAGODNE PRZEJŚCIE": przy tej samej krawędzi i tej samej
+     mocy wtopienie musi dać na niej WYRAŹNIE MNIEJ ziarna niż twarda granica.
+     Porównanie jest względne, bo obie liczby wychodzą z tego samego pomiaru —
+     próg bezwzględny opisywałby maszynę testową. */
+  const miekka = await zasieg(BAZA + '&zakres=sekcja&gdzie=sekcja&wtop=120');
+  t.check('wtopienie wygasza krawędź', miekka.brzeg < twarda.brzeg / 5,
+    'krawędź ' + twarda.brzeg + ' → ' + miekka.brzeg);
+  t.check('a poza sekcją dalej goło', miekka.gora < 0.5 && miekka.dol < 0.5,
+    miekka.gora + ' / ' + miekka.dol);
+  await miekka.p.close();
+
+  /* Selektor ma trafiać w to samo, co domyślny rodzic — inaczej dwie drogi
+     do tej samej sekcji dawałyby dwa różne wyniki. */
+  const przezSelektor = await zasieg(BAZA + '&zakres=sekcja&sekcja=%23sekcja&wtop=0');
+  t.check('selektor daje to samo co rodzic',
+    przezSelektor.gora < 0.5 && przezSelektor.srodek > 30,
+    przezSelektor.gora + ' / ' + przezSelektor.srodek);
+  await przezSelektor.p.close();
+
+  /* NIETRAFIONY SELEKTOR NIE MOŻE ZNIKNĄĆ PO CICHU. Ziarno rozlane na całe
+     okno zamiast jednej sekcji wygląda jak usterka układu, nie jak literówka
+     w selektorze — a wtedy szuka się jej w CSS-ie. */
+  const pudlo = await zasieg(BAZA + '&zakres=sekcja&sekcja=.nie-ma&wtop=0');
+  t.check('nietrafiony selektor wraca na całe okno', pudlo.gora > 30, 'szorstkość ' + pudlo.gora);
+  t.check('i mówi o tym w konsoli',
+    pudlo.ostrzezenia.some((o) => /nie znalazłem sekcji/.test(o)),
+    pudlo.ostrzezenia.join(' | ') || 'cisza');
+  await pudlo.p.close();
+
+  // ── Maska nadąża za sekcją przy przewijaniu ─────────────────────────────
+  /* WARUNEK DZIAŁANIA, NIE OZDOBA: maska liczy się z prostokąta sekcji
+     w kadrze, więc bez odświeżenia przy przewinięciu ziarno zostawałoby tam,
+     gdzie sekcja była przy wczytaniu strony.
+
+     TRZY TRYBY, BO SĄ TRZY DROGI DO JEDNEJ KLATKI: przesiew „nieruchome",
+     ograniczony ruch i automat jakości schodzący w trakcie. Nasłuch pyta
+     o BRAK PĘTLI (`uchwyt`), a nie o przesiew — pytanie o przesiew obejmowało
+     jeden z tych trzech i przy ograniczonym ruchu maska stała w miejscu.
+
+     Zmierzone (przewinięcie o 200 px przesuwa sekcję z wierszy 200–400 na
+     0–200, więc pasma zamieniają się rolami):
+
+         tryb              │ przed: góra / środek │ po: góra / środek
+         nieruchome        │      0 / 42,85       │ 43,06 / 0
+         co klatkę         │      0 / 42,65       │ 42,72 / 0
+         ograniczony ruch  │      0 / 42,89       │ 42,39 / 0
+  */
+  t.section('maska jedzie za sekcją przy przewijaniu');
+
+  const pasmaPoPrzewinieciu = async (query) => {
+    const p = await t.open('grain.html', { viewport: OKNO, settle: 500, query });
+    const przed = await pasma(p);
+    await p.evaluate(() => window.__przewin(200));
+    await p.waitForTimeout(400);
+    const po = await pasma(p);
+    await p.close();
+    return { przed, po };
+  };
+
+  for (const [nazwa, ogon] of [
+    ['nieruchome',       '&przesiew=stop'],
+    ['co klatkę',        ''],
+    ['ograniczony ruch', '&ruch=ogranicz'],
+  ]) {
+    const r = await pasmaPoPrzewinieciu('moc=0.5&zakres=sekcja&gdzie=sekcja&wtop=0' + ogon);
+    t.check(nazwa + ': maska zjeżdża z sekcją',
+      r.przed.gora < 0.5 && r.przed.srodek > 30 && r.po.gora > 30 && r.po.srodek < 0.5,
+      'góra ' + r.przed.gora + ' → ' + r.po.gora + ', środek ' + r.przed.srodek + ' → ' + r.po.srodek);
+  }
 
   // ── Redukcja ruchu ──────────────────────────────────────────────────────
   /* Ziarno ZOSTAJE na ekranie — jest dekoracją, więc jego zniknięcie zmieniłoby

@@ -1,9 +1,10 @@
 /**
  * Evoke ONE — Grain.
  *
- * Ziarno filmowe z shadera, na całe okno, przewijane z treścią.
+ * Ziarno filmowe z shadera — na całe okno albo w jednej sekcji, przewijane
+ * z treścią.
  *
- * KANWA JEST WIELKOŚCI OKNA, NIE DOKUMENTU. Kanwa wysoka na całą stronę
+ * KANWA JEST WIELKOŚCI OKNA, NIE DOKUMENTU — I NIE SEKCJI. Kanwa wysoka na całą stronę
  * wyglądałaby prościej i jest nie do przyjęcia: strona 10 000 px przy DPR 2 to
  * ~115 megapikseli zaplecza, czyli setki megabajtów pamięci karty. Wrażenie
  * przewijania robi PRZESUNIĘCIE WSPÓŁRZĘDNYCH w shaderze — obraz jest ten sam,
@@ -14,6 +15,12 @@
  * PRZEMNOŻONA PRZEZ ALPHĘ, bo kontekst WebGL domyślnie tak ją czyta — pełna
  * biel przy alfie 0,08 rozjaśniłaby drobinę ośmiokrotnie i zamiast ziarna
  * wyszłyby białe placki.
+ *
+ * Zasięg „jedna sekcja" NIE ZMIENIA TEGO NIC: sekcja jest MASKĄ w shaderze,
+ * a nie rozmiarem kanwy. Kanwa wielkości sekcji musiałaby jechać razem z nią
+ * przy każdym przewinięciu, a przy sekcji wysokiej na kilka ekranów wracałby
+ * dokładnie ten sam problem z pamięcią karty. Przy masce koszt zostaje stały
+ * i niezależny od tego, jak wysoka jest sekcja.
  */
 (function () {
     'use strict';
@@ -29,6 +36,13 @@
         'uniform float uIntensywnosc;',
         'uniform float uSeed;',
         'uniform float uPrzesuniecie;',
+        /* Maska sekcji. `uDol` i `uGora` są we WSPÓŁRZĘDNYCH KANWY, liczonych
+           od jej dołu — tak jak `gl_FragCoord.y`. Przeliczenie z prostokąta
+           sekcji siedzi w `rysujRaz()`, bo tylko tam wiadomo, ile wynosi DPR. */
+        'uniform float uOgranicz;',
+        'uniform float uDol;',
+        'uniform float uGora;',
+        'uniform float uWtopienie;',
         'void main() {',
         /* Te same współrzędne 0..1 co `newUv` w shaderze fali. Sąsiednie piksele
            różnią się o ułamek, ale sinus pomnożony przez 43758 zamienia tę
@@ -40,6 +54,21 @@
         /* Jasne drobiny rozjaśniają, ciemne przyciemniają — symetrycznie, tak
            jak ziarno fali po 1.193.0. Barwa premnożona przez alphę. */
         '    float a = abs(w) * 2.0;',
+        /* WTOPIENIE ROBI `smoothstep`, NIE GRADIENT W CSS-ie — bo maska ma
+           działać na przezroczystości ziarna, a nie przyciemniać to, co pod
+           spodem. Dwa progi: narastanie od dolnej krawędzi w górę i opadanie
+           przy górnej.
+
+           `max(…, 1.0)` NIE JEST OSTROŻNOŚCIĄ NA ZAPAS: przy wtopieniu zero
+           oba progi `smoothstep` byłyby równe, a to w GLSL-u jest dzielenie
+           przez zero i wynik zależny od sterownika. Jeden piksel przejścia
+           wygląda jak twarda krawędź i jest policzalny. */
+        '    float wt = max(uWtopienie, 1.0);',
+        '    float m = smoothstep(uDol, uDol + wt, gl_FragCoord.y)',
+        '            * (1.0 - smoothstep(uGora - wt, uGora, gl_FragCoord.y));',
+        /* `mix` zamiast `if` — przy zasięgu „całe okno" maska ma nie istnieć,
+           a rozgałęzienie w shaderze fragmentów kosztuje więcej niż mnożenie. */
+        '    a *= mix(1.0, m, uOgranicz);',
         '    gl_FragColor = vec4(vec3(step(0.0, w)) * a, a);',
         '}',
     ].join('\n');
@@ -139,6 +168,49 @@
         this.stoi = root.getAttribute('data-przesiew') === 'stop';
         this.autoJakosc = root.getAttribute('data-auto-jakosc') !== '0';
 
+        /* ZASIĘG. Kanwa ZOSTAJE WIELKOŚCI OKNA także w trybie sekcji — to nie
+           jest przeoczenie. Kanwa wielkości sekcji musiałaby jechać razem
+           z nią przy każdym przewinięciu (czyli układ przeliczany co klatkę),
+           a przy sekcji wysokiej na kilka ekranów wracałby problem, dla
+           którego kanwa nie ma wysokości dokumentu: pamięć karty.
+
+           Zamiast tego sekcja jest MASKĄ w shaderze. Koszt zostaje stały
+           i niezależny od tego, jak wysoka jest sekcja. */
+        this.ogranicz = root.getAttribute('data-zakres') === 'sekcja';
+        this.wtopienie = parseFloat(root.getAttribute('data-wtopienie'));
+        if (!isFinite(this.wtopienie) || this.wtopienie < 0) this.wtopienie = 120;
+        this.sekcja = null;
+        if (this.ogranicz) {
+            var sel = root.getAttribute('data-sekcja') || '';
+            /* PUSTY SELEKTOR = RODZIC. Korzeń elementu jest pustym znacznikiem
+               wstawionym w sekcji, więc jego rodzic to ta sekcja albo kontener
+               w niej — czyli dokładnie to, co widać w drzewie buildera. Żadnego
+               zgadywania po nazwach klas Bricksa: te zmieniają się między
+               wersjami, a rodzic nie.
+
+               Z SELEKTOREM szukamy najpierw PRZODKA, tak jak „Selektor
+               przodka" w Horizontal Scrollu — dzięki temu dwa ziarna na jednej
+               stronie nie wskazują sobie nawzajem tej samej sekcji. Dopiero gdy
+               przodek nie pasuje, bierzemy pierwszy pasujący element strony. */
+            if (sel) {
+                try {
+                    this.sekcja = root.closest(sel) || document.querySelector(sel);
+                } catch (e) {
+                    console.warn('[EVK Grain] niepoprawny selektor sekcji: ' + sel);
+                }
+            } else {
+                this.sekcja = root.parentElement;
+            }
+            /* NIETRAFIONY SELEKTOR NIE MOŻE ZNIKNĄĆ PO CICHU. Ziarno rozlane na
+               całe okno zamiast jednej sekcji wygląda jak usterka układu,
+               a nie jak literówka w selektorze. */
+            if (!this.sekcja) {
+                console.warn('[EVK Grain] nie znalazłem sekcji („' + sel
+                    + '") — ziarno zostaje na całym oknie');
+                this.ogranicz = false;
+            }
+        }
+
         this.uchwyt = 0;
         this.probki = [];
         this.ostatnia = 0;
@@ -187,11 +259,22 @@
          *
          * Rysowanie schodzi do jednej klatki — bez tego szybkie przewijanie
          * zamawiałoby rysowanie kilkadziesiąt razy na klatkę. */
-        if (!ograniczonyRuch()) {
+        /* W TRYBIE SEKCJI NASŁUCH JEST NAWET PRZY OGRANICZONYM RUCHU — i to
+           nie łamie obietnicy „bez ruchu". Maska musi nadążać za sekcją, bo
+           inaczej ziarno zostaje tam, gdzie sekcja była przy wczytaniu strony,
+           czyli w złym miejscu. To nie jest animacja, tylko trzymanie się
+           swojego miejsca; ruchu ziarna (przesiewu) i tak wtedy nie ma. */
+        if (!ograniczonyRuch() || this.ogranicz) {
             var ja = this;
             this.czekaNaScroll = false;
             this.naScroll = function () {
-                if (!ja.stoi || ja.czekaNaScroll) return;
+                /* WARUNKIEM JEST BRAK PĘTLI, nie „przesiew stop". Element bywa
+                   jednoklatkowy na trzy sposoby: przez przesiew, przez
+                   ograniczony ruch i przez automat jakości, który schodzi
+                   w trakcie. Pytanie o `uchwyt` obejmuje wszystkie trzy —
+                   pytanie o `stoi` obejmowało jeden i przy ograniczonym ruchu
+                   maska stałaby w miejscu. */
+                if (ja.uchwyt || ja.czekaNaScroll) return;
                 ja.czekaNaScroll = true;
                 requestAnimationFrame(function () {
                     ja.czekaNaScroll = false;
@@ -239,6 +322,10 @@
         this.uIntensywnosc = gl.getUniformLocation(pr, 'uIntensywnosc');
         this.uSeed         = gl.getUniformLocation(pr, 'uSeed');
         this.uPrzesuniecie = gl.getUniformLocation(pr, 'uPrzesuniecie');
+        this.uOgranicz     = gl.getUniformLocation(pr, 'uOgranicz');
+        this.uDol          = gl.getUniformLocation(pr, 'uDol');
+        this.uGora         = gl.getUniformLocation(pr, 'uGora');
+        this.uWtopienie    = gl.getUniformLocation(pr, 'uWtopienie');
         return true;
     };
 
@@ -259,13 +346,61 @@
     Ziarno.prototype.rysujRaz = function () {
         var gl = this.gl;
         if (!gl) return;
+
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        /* MASKA SEKCJI — przeliczenie z prostokąta na współrzędne kanwy.
+         *
+         * `getBoundingClientRect()` UWZGLĘDNIA TRANSFORMACJE, a zapamiętane
+         * `offsetTop` nie. To nie jest drobiazg akurat w tej wtyczce: sekcje
+         * bywają przypięte przez ScrollTrigger (Horizontal Scroll, Stacking
+         * Cards), a przypięcie przesuwa je właśnie transformacją. Sekcja
+         * zapamiętana przy wczytaniu strony rozjechałaby się z tym, co widać.
+         *
+         * `rect` liczy od GÓRY okna, a `gl_FragCoord.y` od DOŁU kanwy — stąd
+         * odjęcie od `innerHeight` i zamiana miejscami: dolna krawędź sekcji
+         * ma MNIEJSZY `y` w kanwie niż górna.
+         */
+        if (this.ogranicz) {
+            var r = this.sekcja.getBoundingClientRect();
+            var wys = window.innerHeight || document.documentElement.clientHeight;
+            var wtop = this.wtopienie;
+
+            /* POMIJANIA RYSOWANIA, GDY SEKCJA JEST POZA KADREM, TU NIE MA —
+               i to jest wynik pomiaru, a nie przeoczenie. Przez chwilę stało
+               tu wyjście `if (r.bottom < -wtop || r.top > wys + wtop) return;`.
+               Zmierzone (okno 900x600, DPR 2, dławienie CPU 4x, mediana
+               odstępu klatek):
+
+                   bez ziarna                 16,7 ms
+                   całe okno                  16,7 ms
+                   sekcja widoczna            16,5 ms
+                   sekcja daleko poza kadrem  16,8 ms
+
+               Cztery wartości nie do odróżnienia — po zejściu sufitu DPR na
+               jedynkę (patrz SUFIT_DPR wyżej) ten shader nie kosztuje już tyle,
+               żeby dało się cokolwiek zaoszczędzić. `getBoundingClientRect()`
+               i tak trzeba zawołać, więc wyjście oszczędzało wyłącznie
+               `drawArrays` po masce z samych zer.
+
+               Ta sama decyzja co przy `KLATEK_NA_SEK`: kod, którego działania
+               nie da się pokazać, to optymalizacja bez pomiaru. */
+
+            var dpr = this.kanwa.height / wys;
+            gl.uniform1f(this.uOgranicz, 1.0);
+            gl.uniform1f(this.uDol,  (wys - r.bottom) * dpr);
+            gl.uniform1f(this.uGora, (wys - r.top) * dpr);
+            gl.uniform1f(this.uWtopienie, wtop * dpr);
+        } else {
+            gl.uniform1f(this.uOgranicz, 0.0);
+        }
+
         gl.uniform2f(this.uRozmiar, this.kanwa.width, this.kanwa.height);
         gl.uniform1f(this.uIntensywnosc, this.intensywnosc);
         gl.uniform1f(this.uSeed, this.stoi ? 0.0 : Math.random());
         gl.uniform1f(this.uPrzesuniecie,
             (window.pageYOffset || document.documentElement.scrollTop || 0) * this.mnoznik);
-        gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
 

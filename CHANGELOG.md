@@ -2,6 +2,97 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.211.0] — 2026-09-16
+
+### Dodane
+
+- **Grain: zasięg „tylko jedna sekcja", z wtopieniem na górnej i dolnej
+  krawędzi.** ZGŁOSZONE Z UŻYCIA: „dodaj do samej kontrolki grain możliwość
+  wyświetlania tylko w jednej sekcji z łagodnym przejściem na górze/dole,
+  a nie na całej stronie".
+
+  Trzy nowe kontrolki w grupie **Zasięg**: wybór „Całe okno / Tylko jedna
+  sekcja", selektor sekcji i wtopienie w pikselach. Domyślnie nic się nie
+  zmienia — zasięg to dalej całe okno.
+
+  **Sekcja jest MASKĄ W SHADERZE, a nie rozmiarem kanwy.** Kanwa zostaje
+  wielkości okna, bo kanwa wielkości sekcji musiałaby jechać razem z nią przy
+  każdym przewinięciu, a przy sekcji wysokiej na kilka ekranów wracałby ten sam
+  problem z pamięcią karty, dla którego kanwa nie ma wysokości dokumentu.
+  Koszt zostaje stały i niezależny od tego, jak wysoka jest sekcja.
+
+  **Pusty selektor = rodzic elementu**, czyli sekcja lub kontener, w którym się
+  go postawiło — bez zgadywania po nazwach klas Bricksa, bo te zmieniają się
+  między wersjami. Podany selektor szuka najpierw PRZODKA, tak jak „Selektor
+  przodka" w Horizontal Scrollu: dzięki temu dwa ziarna na jednej stronie nie
+  wskazują sobie nawzajem tej samej sekcji. Nietrafiony selektor wraca na całe
+  okno i mówi o tym w konsoli — cicho wrócić nie może, bo ziarno rozlane na całą
+  stronę wygląda jak usterka układu, a nie jak literówka w selektorze.
+
+  Zmierzone (okno 900×600, moc 0,5, przesiew nieruchomy; szorstkość wycinka
+  w czterech pasmach kadru, sekcja na wierszach 200–400):
+
+  | wariant | 80–160 | 170–230 | 260–340 | 470–550 |
+  |---|---|---|---|---|
+  | całe okno | 42,64 | 42,68 | 42,85 | 42,49 |
+  | sekcja, wtopienie 0 | 0 | 20,99 | 42,85 | 0 |
+  | sekcja, wtopienie 120 | 0 | 1,17 | 30,80 | 0 |
+  | selektor nietrafiony | 42,64 | 42,68 | 42,85 | 42,49 |
+
+  Środek przy wtopieniu 120 nie dochodzi do pełni (30,80 wobec 42,85) i to nie
+  jest usterka: sekcja ma 200 px, więc wtopienia z góry i z dołu na siebie
+  zachodzą. **Wtopienie dłuższe niż połowa sekcji znaczy ziarno, które nigdzie
+  nie osiąga pełnej mocy.**
+
+  Wtopienie jest w PIKSELACH EKRANU, nie w procentach sekcji — ma być tą samą
+  miękkością niezależnie od tego, czy sekcja ma 400 px, czy pięć ekranów.
+
+### Naprawione
+
+- **Nasłuch przewijania pytał o przesiew zamiast o brak pętli.** Element bywa
+  jednoklatkowy na trzy sposoby — przez przesiew „Nieruchome", przez ograniczony
+  ruch i przez automat jakości schodzący w trakcie — a warunek `!stoi` obejmował
+  jeden z nich. Przy pełnej wersji na całe okno nie było tego widać; przy masce
+  sekcji znaczy to ziarno stojące tam, gdzie sekcja była przy wczytaniu strony.
+
+  Nasłuch pyta teraz o `uchwyt` (brak pętli), a w trybie sekcji jest podpięty
+  **także przy ograniczonym ruchu**: maska musi nadążać za sekcją, bo to nie jest
+  animacja, tylko trzymanie się swojego miejsca. Ruchu ziarna i tak wtedy nie ma.
+
+  Zmierzone, przewinięcie o 200 px (góra / środek kadru, przed → po):
+
+  | tryb | góra | środek |
+  |---|---|---|
+  | nieruchome | 0 → 43,06 | 42,85 → 0 |
+  | co klatkę | 0 → 42,72 | 42,65 → 0 |
+  | ograniczony ruch | 0 → 42,39 | 42,89 → 0 |
+
+### Zmienione
+
+- **Grain przeszedł na zwijane grupy** — „Wygląd", „Zasięg", „Ruch". Przy
+  sześciu kontrolkach grupa była tylko dodatkowym kliknięciem; przy dziewięciu
+  panel rozjeżdżał się bez podziału. Reszta wtyczki jest na grupach od 1.209.0.
+
+- **Cudzysłów w selektorze sekcji zamieniany na apostrof.** To pierwsze pole
+  tekstowe tego elementu, które jedzie do atrybutu HTML, a `[data-rola='hero']`
+  znaczy w CSS-ie to samo co `[data-rola="hero"]`. Podwójnego ucieczkowania tu
+  być nie może — `esc_attr()` puszczone na to, co Bricks i tak ucieknie,
+  zamieniłoby taki selektor w `&amp;quot;` i przestałby działać. Zamiana znaku
+  rozwiązuje to bez zgadywania, czego o builderze na tej maszynie sprawdzić się
+  nie da.
+
+### Czego NIE dodano
+
+- **Pominięcia rysowania, gdy sekcja jest poza kadrem.** Stało w kodzie
+  i wypadło po pomiarze (okno 900×600, DPR 2, dławienie CPU 4×, mediana odstępu
+  klatek): bez ziarna 16,7 ms, całe okno 16,7, sekcja widoczna 16,5, sekcja
+  daleko poza kadrem 16,8. Cztery wartości nie do odróżnienia — po zejściu
+  sufitu DPR na jedynkę (1.198.0) ten shader nie kosztuje już tyle, żeby dało
+  się cokolwiek zaoszczędzić.
+
+  Ta sama decyzja co przy `KLATEK_NA_SEK` w 1.198.0: kod, którego działania nie
+  da się pokazać, to optymalizacja bez pomiaru.
+
 ## [1.210.0] — 2026-09-16
 
 ### Naprawione
