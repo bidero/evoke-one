@@ -2,6 +2,54 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.210.0] — 2026-09-16
+
+### Naprawione
+
+- **Strażnik długości opisów nie widział pól repeatera.** Sonda
+  `tests/php/opisy-kontrolek.php` chodziła wyłącznie po `$el->controls`, a pola
+  repeatera leżą w `fields` kontrolki nadrzędnej. Marquee — jedyny element
+  z repeaterem w całej wtyczce — miał tam **sześć opisów, razem 1110 znaków,
+  poza wszelkim nadzorem**: sufit ustawiony na 434 pilnował opisów drugiego
+  planu, a te z repeatera mogły rosnąć bez końca.
+
+  To druga dziura tej samej klasy co pomijanie opisów separatorów (1.205.0).
+  Maksimum akurat się nie zmieniło, bo najdłuższy opis i tak stał poza
+  repeaterem — ale suma dla Marquee skoczyła z 646 na 1756 i dopiero to
+  pokazuje, ile było niewidoczne.
+
+  Pokazane mutacją: opis w repeaterze rozdęty do 366 znaków przechodzi na
+  starej sondzie („wszystkie 83 sprawdzeń przeszło"), a na nowej zapala sufit
+  i nazywa ścieżkę — `evoke-marquee/items.type: 366 > 134`. `gdzie` dostało
+  kropkę właśnie po to, żeby było wiadomo, którego pola szukać.
+
+### Zmienione
+
+- **Horizontal Scroll i Marquee: opisy skrócone, mechanika do komentarzy.**
+  Ostatnie dwa elementy wyraźnie odstające po porządkach z 1.204.0–1.206.0.
+
+  | Element | Najdłuższy opis | Suma |
+  |---|---|---|
+  | Horizontal Scroll | 562 → **225** | 3077 → 2153 |
+  | Marquee | 434 → **134** | 1756 → 1008 |
+
+  Skrócone w Horizontal Scrollu: `peek_next` (562 → 194), `progressbar_target`
+  (501 → 223), `width_mode`, `pin_selector`, `progressbar_style`,
+  `start_offset`. W Marquee: `pause_offset` (434 → 133) i cztery pola
+  repeatera.
+
+  **Nic nie zostało skasowane** — wywody przeniosły się do komentarzy w plikach,
+  bo tam zagląda się przy pracy nad kodem. W panelu został wzór „co to robi
+  + na czym się przejedziesz": że `peek_next` KOSZTUJE PŁYNNOŚĆ, że tag galerii
+  musi być wariantem `__ids`, że kolejność liczy się przed limitem.
+
+  Z `pause_offset` zniknął cały akapit o ujemnym zapasie jako sposobie na
+  sprawdzenie, czy pauza działa — to notatka diagnostyczna dla nas, nie dla
+  stawiającego stronę, i siedzi teraz w komentarzu.
+
+  Najdłuższym opisem w Horizontal Scrollu jest po tej zmianie kontrolka `info`
+  (225 znaków) — instrukcja do czytania przy pracy, celowo nietknięta.
+
 ## [1.209.0] — 2026-09-16
 
 ### Zmienione

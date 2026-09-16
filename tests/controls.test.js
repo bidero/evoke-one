@@ -385,7 +385,15 @@ module.exports = async function (t) {
      OPISY NA SEPARATORACH LICZĄ SIĘ TAK SAMO. Pierwsza wersja sondy je
      pomijała i nie widziała notki sekcji na 531 znaków w Circular Menu —
      jednej z najdłuższych w całej wtyczce. Sufit, który nie widzi połowy
-     miejsc, gdzie tekst może urosnąć, nie pilnuje niczego. */
+     miejsc, gdzie tekst może urosnąć, nie pilnuje niczego.
+
+     OPISY W POLACH REPEATERA TAK SAMO — druga dziura tej samej klasy, załatana
+     w 1.210.0. Pola repeatera leżą w `fields` kontrolki nadrzędnej, a nie
+     w `controls`, więc sonda ich nie widziała. Marquee jest jedynym elementem
+     z repeaterem i miał tam SZEŚĆ opisów, w sumie 1110 znaków, poza wszelkim
+     nadzorem. Maksimum akurat się nie zmieniło — najdłuższy opis i tak stał
+     poza repeaterem — ale suma skoczyła z 646 na 1756 i to pokazuje, ile było
+     niewidoczne. */
   t.section('opisy kontrolek nie puchną, a sekcje nie są puste');
 
   const op = JSON.parse(phpOutput('opisy-kontrolek.php'));
@@ -398,8 +406,8 @@ module.exports = async function (t) {
     'evoke-circular-menu':     168,   // było 1042; uprzątnięte w 1.205.0
     'evoke-circular-title':      0,
     'evoke-grain':             202,
-    'evoke-horizontal-scroll': 562,   // najgorszy w całej wtyczce (peek_next)
-    'evoke-marquee':           434,
+    'evoke-horizontal-scroll': 225,   // było 562; uprzątnięte w 1.210.0
+    'evoke-marquee':           134,   // było 434; uprzątnięte w 1.210.0
     'evoke-offcanvas-menu':    394,   // było 573; uprzątnięte w 1.204.0
     'evoke-scroll-reading':    111,
     'evoke-stacking-cards':    220,

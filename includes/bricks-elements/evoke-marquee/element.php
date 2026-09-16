@@ -79,10 +79,11 @@ class Evk_Marquee_Element extends \Bricks\Element {
 					'type'        => 'number',
 					'units'       => true,
 					'placeholder' => 'z proporcji',
-					'description' => 'Puste — wysokość wychodzi z proporcji obrazu. '
-						. 'Podana ZAMRAŻA wiersz taśmy, więc jego geometria przestaje zależeć od tego, '
-						. 'czy pliki zdążyły dojechać. Przy obu podanych rozmiarach obraz jest kadrowany, '
-						. 'żeby narzucenie proporcji go nie rozciągnęło.',
+					/* Podana wysokość ZAMRAŻA wiersz taśmy: jego geometria przestaje
+					   zależeć od tego, czy pliki zdążyły dojechać — a to właśnie
+					   dojeżdżające obrazy potrafią przestawić taśmę w trakcie. */
+					'description' => 'Puste — z proporcji obrazu. Podana zamraża geometrię wiersza. '
+						. 'Przy obu podanych rozmiarach obraz jest kadrowany, nie rozciągany.',
 					'required'    => [ 'type', '!=', 'text' ],
 				],
 				'image_loading' => [
@@ -93,10 +94,12 @@ class Evk_Marquee_Element extends \Bricks\Element {
 						'eager' => 'Od razu',
 					],
 					'default'     => 'lazy',
-					'description' => 'Leniwe wczytywanie mierzy odległość od kadru w OBU osiach, '
-						. 'a pozycje taśmy leżą w poziomie poza nim — dalsze obrazy dojeżdżają więc '
-						. 'dopiero wtedy, gdy taśma sama je dowiezie, i widać, jak wskakują. '
-						. 'Przy dłuższej taśmie zwykle chcesz „od razu".',
+					/* DLACZEGO LENIWE SZWANKUJE AKURAT TUTAJ: przeglądarka mierzy
+					   odległość od kadru w OBU osiach, a pozycje taśmy leżą
+					   w poziomie poza nim. Dalsze obrazy dojeżdżają więc dopiero
+					   wtedy, gdy taśma sama je dowiezie — i widać, jak wskakują. */
+					'description' => 'Leniwe wczytywanie źle znosi taśmę: dalsze obrazy wskakują '
+						. 'w trakcie jazdy. Przy dłuższej taśmie wybierz „od razu".',
 					'required'    => [ 'type', '!=', 'text' ],
 				],
 
@@ -119,10 +122,10 @@ class Evk_Marquee_Element extends \Bricks\Element {
 					'hasDynamicData' => true,
 					'placeholder'    => '{evk_field_logotypy__ids}',
 					'required'       => [ 'type', '=', 'gallery' ],
+					/* Goły tag galerii oddaje ADRES PIERWSZEGO OBRAZU, a nie listę —
+					   wtedy nie ma czego pokazać i element mówi o tym na kanwie. */
 					'description'    => 'Kliknij piorunek i wybierz wariant oddający LISTĘ ID — '
-						. 'w Evoke Fields to „(lista ID)", czyli tag z końcówką __ids. '
-						. 'Goły tag galerii oddaje adres pierwszego obrazu, a nie listę: '
-						. 'wtedy nie będzie czego pokazać i element powie o tym na kanwie.',
+						. 'w Evoke Fields „(lista ID)", czyli tag z końcówką __ids.',
 				],
 
 				'gallery_order' => [
@@ -144,9 +147,10 @@ class Evk_Marquee_Element extends \Bricks\Element {
 					'min'         => 0,
 					'placeholder' => 'wszystkie',
 					'required'    => [ 'type', '=', 'gallery' ],
-					'description' => 'Kolejność liczy się PRZED limitem: „odwrotna + 3" '
-						. 'daje trzy OSTATNIE obrazy galerii. Każdy obraz trafia na stronę '
-						. 'dwa razy, bo taśma jedzie w dwóch kopiach.',
+					/* Taśma jedzie w dwóch kopiach, więc każdy obraz trafia na stronę
+					   dwa razy — limit liczy obrazy galerii, nie kafelki na taśmie. */
+					'description' => 'Kolejność liczy się PRZED limitem: „odwrotna + 3" daje '
+						. 'trzy OSTATNIE obrazy galerii.',
 				],
 			],
 		];
@@ -243,6 +247,19 @@ class Evk_Marquee_Element extends \Bricks\Element {
 			'description' => 'Wstrzymuje pętlę i przestaje reagować na przewijanie, gdy marquee jest poza kadrem.',
 		];
 
+		/*
+		 * Zapas przed wejściem w kadr.
+		 *
+		 * WARTOŚĆ UJEMNA NIE JEST POMYŁKĄ i dlatego suwak schodzi do -500:
+		 * opóźnia start, aż marquee wjedzie GŁĘBIEJ w kadr. Przy -150 rusza
+		 * dopiero wtedy, gdy widać już sto pięćdziesiąt pikseli.
+		 *
+		 * DO CZEGO TO SŁUŻY NAM, a nie stawiającemu stronę: przy domyślnych 200
+		 * marquee rusza, ZANIM je zobaczysz, więc zjeżdżając do niego stroną
+		 * widzisz je już rozpędzone — i pauza wygląda, jakby nie działała.
+		 * Ujemny zapas jest najprostszym sposobem, żeby ją zobaczyć na oczy.
+		 * To notatka diagnostyczna, więc siedzi tutaj, a nie w panelu.
+		 */
 		$this->controls['pause_offset'] = [
 			'group' => 'evk_pauza',
 			'tab'         => 'content',
@@ -254,12 +271,8 @@ class Evk_Marquee_Element extends \Bricks\Element {
 			'default'     => 200,
 			'required'    => [ 'pause_offscreen', '=', true ],
 			'description' => 'O ile pikseli przed wejściem w kadr pętla ma już działać. '
-				. 'WARTOŚĆ UJEMNA robi coś odwrotnego i to nie jest pomyłka: opóźnia start, '
-				. 'aż marquee wjedzie GŁĘBIEJ w kadr. Przy -150 rusza dopiero, gdy widać już '
-				. 'sto pięćdziesiąt pikseli. Przydaje się, gdy chcesz sprawdzić, czy pauza '
-				. 'w ogóle działa: przy domyślnych 200 marquee rusza, ZANIM je zobaczysz, '
-				. 'więc zjeżdżając do niego stroną widzisz je już rozpędzone i wygląda to '
-				. 'jak brak pauzy.',
+				. 'WARTOŚĆ UJEMNA odwrotnie: opóźnia start, aż marquee wjedzie głębiej '
+				. 'w kadr.',
 		];
 	}
 

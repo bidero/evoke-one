@@ -83,11 +83,9 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			],
 			'default'     => 'fill',
 			'description' => esc_html__(
-				'Dwa pierwsze tryby narzucają panelom szerokość i wysokość. '
-				. '„Z buildera" nie rusza żadnego rozmiaru: karty stylujesz zwyczajnie '
-				. 'w Bricksie, a skrypt liczy tylko, o ile przesunąć taśmę. Ten tryb '
-				. 'wybierz, gdy karty mają być WĘŻSZE od ekranu i jechać pod nieruchomym '
-				. 'nagłówkiem — razem z opcją „Co przypiąć".',
+				'Dwa pierwsze tryby narzucają panelom rozmiar. „Z buildera" nie rusza '
+				. 'żadnego — wybierz go, gdy karty mają być WĘŻSZE od ekranu i jechać '
+				. 'pod nieruchomym nagłówkiem.',
 				'evk-horizontal-scroll'
 			),
 		];
@@ -126,8 +124,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'placeholder' => '.moja-sekcja',
 			'required'    => [ 'pin_target', '=', 'selector' ],
 			'description' => esc_html__(
-				'Szukany jest PRZODEK tego elementu, nie pierwszy pasujący na stronie — '
-				. 'dzięki temu dwie takie sekcje na jednej stronie nie wchodzą sobie w drogę. '
+				'Szukany jest PRZODEK tego elementu, nie pierwszy pasujący na stronie. '
 				. 'Gdy nic nie pasuje, element przypina sam siebie i mówi o tym w konsoli.',
 				'evk-horizontal-scroll'
 			),
@@ -140,6 +137,19 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		 * następna sekcja stoi w dokumencie o tę drogę niżej i wjeżdża dopiero
 		 * na koniec. Włącznik sprawia, że treść pod spodem jedzie razem
 		 * z przewijaniem i przez cały czas stoi tuż pod sekcją.
+		 *
+		 * SKĄD BIERZE SIĘ KOSZT — bo z panelu widać tylko, że kosztuje.
+		 * Żeby treść stała w miejscu, KAŻDA sekcja pod spodem, ze stopką
+		 * włącznie, dostaje własną warstwę i jest przesuwana w każdej klatce
+		 * przewijania. Na starszych maszynach, zwłaszcza w Safari, potrafi to
+		 * szarpać całą stroną. Dlatego domyślnie wyłączone.
+		 *
+		 * ILE WIDAĆ: tyle, ile zostaje ekranu pod przypiętą sekcją — przy sekcji
+		 * na cały ekran nie będzie widać nic, i to nie jest usterka.
+		 *
+		 * DRUGI PRZYPINANY ELEMENT niżej na stronie wyklucza podgląd: obie drogi
+		 * przesuwałyby tę samą treść. Wtedy podgląd się nie włącza i mówi o tym
+		 * w konsoli.
 		 */
 		$this->controls['peek_next'] = [
 			'group'       => 'evk_uklad',
@@ -148,14 +158,9 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'type'        => 'checkbox',
 			'default'     => false,
 			'description' => esc_html__(
-				'Następna sekcja stoi nieruchomo tuż pod przypiętą przez cały czas przewijania '
-				. 'kart, zamiast wjeżdżać na końcu. Widać jej tyle, ile zostaje ekranu pod sekcją '
-				. '— przy sekcji na cały ekran nie będzie widać nic. Nie łączy się z drugim '
-				. 'przypinanym elementem niżej na stronie: wtedy podgląd się nie włącza '
-				. 'i mówi o tym w konsoli. KOSZTUJE PŁYNNOŚĆ: żeby treść stała w miejscu, '
-				. 'każda sekcja pod spodem — ze stopką włącznie — dostaje własną warstwę '
-				. 'i jest przesuwana w każdej klatce przewijania. Na starszych maszynach, '
-				. 'zwłaszcza w Safari, potrafi to szarpać całą stroną.',
+				'Następna sekcja stoi nieruchomo pod przypiętą, zamiast wjeżdżać na końcu. '
+				. 'KOSZTUJE PŁYNNOŚĆ — na starszych maszynach szarpie całą stroną. '
+				. 'Nie łączy się z drugim przypinanym elementem na stronie.',
 				'evk-horizontal-scroll'
 			),
 		];
@@ -208,8 +213,8 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'default'     => 'top top',
 			'placeholder' => 'top top',
 			'description' => esc_html__(
-				'Punkt rozpoczęcia przypięcia, np. „top top". Przyjmuje też przesunięcie: '
-				. '„top top+=100" przypnie sto pikseli niżej — tyle, ile zajmuje przyklejony nagłówek.',
+				'Punkt rozpoczęcia przypięcia. „top top+=100" przypnie sto pikseli niżej — '
+				. 'tyle, ile zajmuje przyklejony nagłówek.',
 				'evk-horizontal-scroll'
 			),
 		];
@@ -278,9 +283,8 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'inline'      => true,
 			'required'    => [ 'progressbar', '=', true ],
 			'description' => esc_html__(
-				'Segmentów jest tyle, ile paneli; bieżący jest podświetlony. '
-				. '„Tylko bieżący" pokazuje jedną pozycję naraz — w pustym kontenerze '
-				. 'będą to numery kart (1, 2, 3…).',
+				'Segmentów jest tyle, ile paneli. „Tylko bieżący" pokazuje jedną pozycję '
+				. 'naraz — w pustym kontenerze numery kart.',
 				'evk-horizontal-scroll'
 			),
 		];
@@ -295,6 +299,19 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		 * Szukany jest PIERWSZY PASUJĄCY NA STRONIE, nie przodek: kontener leży
 		 * poza elementem, zwykle w innej gałęzi drzewa. To odwrotnie niż przy
 		 * kontrolce „Selektor przodka" wyżej — stąd inna treść opisu.
+		 *
+		 * CO ROBI ZAWARTOŚĆ KONTENERA — bo to decyduje, który styl zadziała:
+		 *
+		 *  · kontener PUSTY skrypt wypełnia sam; działa każdy styl;
+		 *  · kontener z WŁASNĄ TREŚCIĄ zostaje nietknięty, a skrypt tylko
+		 *    podświetla w nim bieżące dziecko — do tego nadają się „segmenty"
+		 *    i „tylko bieżący".
+		 *
+		 * Styl „jedna kreska" potrzebuje kontenera PUSTEGO: nie ma czego
+		 * podświetlać w cudzej treści. W kontenerze z treścią wskaźnik wraca
+		 * więc do środka elementu i mówi o tym w konsoli — tak samo jak wtedy,
+		 * gdy selektor w nic nie trafi. Cicho wracać nie wolno: wskaźnik
+		 * stojący w innym miejscu niż wskazane wygląda jak usterka układu.
 		 */
 		$this->controls['progressbar_target'] = [
 			'group'       => 'evk_progress',
@@ -305,13 +322,10 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'placeholder' => '.moj-wskaznik',
 			'required'    => [ 'progressbar', '=', true ],
 			'description' => esc_html__(
-				'Pusty = wskaźnik zostaje w środku elementu. Podany selektor wskazuje '
-				. 'DOWOLNY element na stronie — pierwszy pasujący. Kontener PUSTY skrypt '
-				. 'wypełnia sam; kontener z własną treścią zostawia w spokoju i tylko '
-				. 'podświetla w nim bieżące dziecko — do tego nadają się style „segmenty" '
-				. 'i „tylko bieżący". Styl „jedna kreska" potrzebuje kontenera PUSTEGO; '
-				. 'w kontenerze z własną treścią wskaźnik wraca do środka elementu i mówi '
-				. 'o tym w konsoli. Tak samo, gdy selektor w nic nie trafi.',
+				'Pusty = wskaźnik w środku elementu. Selektor wskazuje pierwszy pasujący '
+				. 'element na stronie: kontener PUSTY skrypt wypełnia sam, kontener '
+				. 'z własną treścią tylko podświetla. Nietrafiony wraca do środka '
+				. 'i mówi o tym w konsoli.',
 				'evk-horizontal-scroll'
 			),
 		];

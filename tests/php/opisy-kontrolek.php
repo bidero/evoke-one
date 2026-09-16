@@ -87,6 +87,39 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
         }
     }
 
+    /* ZLICZANIE SCHODZI W `fields`, czyli w kontrolki repeatera.
+     *
+     * Kontrolka `info` i separator niosą tekst w `description` tak samo jak
+     * każda inna kontrolka — i tak samo się liczą, bo w panelu zajmują tyle
+     * samo miejsca.
+     *
+     * A POLA REPEATERA NIE SIEDZĄ W `$el->controls` WCALE — leżą w `fields`
+     * kontrolki nadrzędnej. Pierwsza wersja tej sondy tam nie schodziła i przez
+     * to nie widziała SZEŚCIU najgęstszych opisów Marquee (jedyny element
+     * z repeaterem w całej wtyczce): „Galeria to JEDEN wiersz…", „Leniwe
+     * wczytywanie…", notka o wariancie `__ids`. Sufit ustawiony na 434 pilnował
+     * opisów drugiego planu, a te z repeatera mogły rosnąć bez końca.
+     *
+     * To ta sama klasa dziury co pomijanie opisów separatorów, załatana
+     * w 1.205.0: licznik, który nie widzi połowy miejsc, gdzie tekst może
+     * urosnąć, nie pilnuje niczego.
+     *
+     * Ścieżka w `gdzie` dostaje kropkę — `items.loading` — żeby po przekroczeniu
+     * sufitu było wiadomo, którego pola szukać, a nie tylko w której kontrolce. */
+    $zlicz = function (array $def, string $sciezka) use (&$zlicz, &$najdluzszy, &$gdzie, &$suma, &$opisow) {
+        $opis = (string) ($def['description'] ?? '');
+        if ($opis !== '') {
+            $dl = mb_strlen($opis);
+            $suma += $dl; $opisow++;
+            if ($dl > $najdluzszy) { $najdluzszy = $dl; $gdzie = $sciezka; }
+        }
+        if (!empty($def['fields']) && is_array($def['fields'])) {
+            foreach ($def['fields'] as $k => $pole) {
+                if (is_array($pole)) { $zlicz($pole, $sciezka . '.' . $k); }
+            }
+        }
+    };
+
     foreach ($el->controls as $klucz => $def) {
         if (!is_array($def)) { continue; }
 
@@ -109,14 +142,7 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
             $odOstatniego++;
         }
 
-        /* Kontrolka `info` i separator niosą tekst w `description` tak samo jak
-           każda inna kontrolka — i tak samo się liczą, bo w panelu zajmują
-           tyle samo miejsca. */
-        $opis = (string) ($def['description'] ?? '');
-        if ($opis === '') { continue; }
-        $dl = mb_strlen($opis);
-        $suma += $dl; $opisow++;
-        if ($dl > $najdluzszy) { $najdluzszy = $dl; $gdzie = $klucz; }
+        $zlicz($def, $klucz);
     }
     // Ostatnia sekcja w pliku też może być pusta.
     if ($ostatniSeparator !== null && $odOstatniego === 0) { $puste[] = $ostatniSeparator; }
