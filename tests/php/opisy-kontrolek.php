@@ -52,19 +52,28 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
     foreach ($el->controls as $klucz => $def) {
         if (!is_array($def)) { continue; }
 
-        if (($def['type'] ?? '') === 'separator') {
+        $jestSeparatorem = ($def['type'] ?? '') === 'separator';
+
+        if ($jestSeparatorem) {
             /* Separator zamyka poprzednią sekcję. Pusta znaczy, że nagłówek
                stoi sam — w panelu wygląda to jak brakująca zawartość. */
             if ($ostatniSeparator !== null && $odOstatniego === 0) { $puste[] = $ostatniSeparator; }
             $ostatniSeparator = $klucz;
             $odOstatniego = 0;
             $separatorow++;
-            continue;
+            /* ALE OPIS SEPARATORA LICZY SIĘ TAK SAMO. Pierwsza wersja tej sondy
+               przechodziła tu do następnej kontrolki i przez to nie widziała
+               notek sekcji — a w Circular Menu stała taka na 531 znaków
+               („Styl zawartości"), czyli jedna z najdłuższych w całej wtyczce.
+               Sufit, który nie widzi połowy miejsc, gdzie tekst może urosnąć,
+               nie pilnuje niczego. */
+        } else if ($ostatniSeparator !== null) {
+            $odOstatniego++;
         }
-        if ($ostatniSeparator !== null) { $odOstatniego++; }
 
-        /* Kontrolka `info` niesie tekst w `description` tak samo jak każda inna
-           — i tak samo się liczy, bo w panelu zajmuje tyle samo miejsca. */
+        /* Kontrolka `info` i separator niosą tekst w `description` tak samo jak
+           każda inna kontrolka — i tak samo się liczą, bo w panelu zajmują
+           tyle samo miejsca. */
         $opis = (string) ($def['description'] ?? '');
         if ($opis === '') { continue; }
         $dl = mb_strlen($opis);

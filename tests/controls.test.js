@@ -380,7 +380,12 @@ module.exports = async function (t) {
      SUFITY DZIAŁAJĄ JAK PLIK BAZOWY PHPSTANA: to stan zastany, nie cel. Mają
      już tylko maleć, a porządkowanie idzie partiami, po jednym elemencie na
      wydanie. Obniżenie liczby po uprzątnięciu elementu jest częścią roboty —
-     bez tego sufit przestaje cokolwiek znaczyć w następnym. */
+     bez tego sufit przestaje cokolwiek znaczyć w następnym.
+
+     OPISY NA SEPARATORACH LICZĄ SIĘ TAK SAMO. Pierwsza wersja sondy je
+     pomijała i nie widziała notki sekcji na 531 znaków w Circular Menu —
+     jednej z najdłuższych w całej wtyczce. Sufit, który nie widzi połowy
+     miejsc, gdzie tekst może urosnąć, nie pilnuje niczego. */
   t.section('opisy kontrolek nie puchną, a sekcje nie są puste');
 
   const op = JSON.parse(phpOutput('opisy-kontrolek.php'));
@@ -389,8 +394,8 @@ module.exports = async function (t) {
      element o wielu krótkich podpowiedziach jest czytelny, a jeden o jednym
      wywodzie na tysiąc znaków nie — i to ten drugi był zgłoszeniem. */
   const SUFITY = {
-    'evoke-burger':            697,
-    'evoke-circular-menu':    1002,   // najgorszy w całej wtyczce (raiseToggle)
+    'evoke-burger':            697,   // najgorszy w całej wtyczce (mode)
+    'evoke-circular-menu':     168,   // było 1042; uprzątnięte w 1.205.0
     'evoke-circular-title':      0,
     'evoke-grain':             202,
     'evoke-horizontal-scroll': 562,

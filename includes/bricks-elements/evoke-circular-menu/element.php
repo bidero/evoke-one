@@ -51,8 +51,26 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		];
 	}
 
+	/**
+	 * UKŁAD PANELU: sześć sekcji, nazwanych TAK SAMO jak w Offcanvas Menu.
+	 *
+	 * Dwa elementy robiące podobną rzecz mają się otwierać tak samo — stąd
+	 * Lokalizacja · Wygląd · Animacja · Zamykanie · Przełącznik · Warstwy,
+	 * a nie własny słownik dla każdego z nich.
+	 *
+	 * Do 1.205.0 stało tu pięć sekcji, w których dwie kontrolki leżały nie tam,
+	 * gdzie ich szukać: „Blokuj scroll strony" pod nagłówkiem „Własny
+	 * przełącznik", a „Zamknij klawiszem ESC" sama jedna w sekcji „Dostępność".
+	 * Obie robią to samo co reszta Zamykania.
+	 *
+	 * ZASADA PODZIAŁU TEKSTU, ta sama co w offcanvasie od 1.204.0: w opisie
+	 * kontrolki zostaje jedno–dwa zdania (co robi, co się stanie), a mechanika
+	 * i powody idą do komentarza nad kontrolką.
+	 */
 	public function set_controls() {
 
+		/* PRZED PIERWSZYM SEPARATOREM, tak jak w Offcanvas Menu: to jedyna
+		   kontrolka używana PODCZAS składania menu, a nie przy jego ustawianiu. */
 		$this->controls['openbuilder'] = [
 			'hasDynamicData' => false,
 			'tab'   => 'content',
@@ -60,21 +78,28 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'type'  => 'checkbox',
 		];
 
-		// ----- Lokalizacja -----
-		$this->controls['locationSeparator'] = [
+		// ── Lokalizacja ─────────────────────────────────────────────────────
+		$this->controls['sep_lokalizacja'] = [
+			'tab'   => 'content',
 			'label' => esc_html__( 'Lokalizacja', 'evk-circular-menu' ),
 			'type'  => 'separator',
 		];
+
 		$this->controls['portalToBody'] = [
 			'hasDynamicData' => false,
-			'tab'    => 'content',
-			'label'  => esc_html__( 'Portal do &lt;body&gt;', 'evk-circular-menu' ),
-			'type'   => 'checkbox',
-			'inline' => true,
-			'small'  => true,
+			'tab'     => 'content',
+			'label'   => esc_html__( 'Portal do &lt;body&gt;', 'evk-circular-menu' ),
+			'type'    => 'checkbox',
+			'inline'  => true,
+			'small'   => true,
 			'default' => true,
-			'description' => esc_html__( 'Przenosi panel menu bezpośrednio do <body>, dzięki czemu nie jest ograniczany przez overflow:hidden ani position rodziców.', 'evk-circular-menu' ),
+			'description' => esc_html__( 'Panel nie jest wtedy ograniczany przez overflow:hidden ani position rodziców.', 'evk-circular-menu' ),
 		];
+
+		/* Punkt, z którego kadr się rozwija. Zmienne siedzą na `.evk-cm-content`,
+		   bo panel jedzie portalem do <body> razem z nimi — reguła Bricksa
+		   celująca w `.brxe-XXXX .evk-cm-content` po przeprowadzce przestaje
+		   pasować, a zmienna na samym panelu jedzie z nim. */
 		$this->controls['fromTop'] = [
 			'hasDynamicData' => false,
 			'tab'         => 'content',
@@ -91,6 +116,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'placeholder' => '24px',
 			'default'     => '24px',
 		];
+
 		$this->controls['fromLeft'] = [
 			'hasDynamicData' => false,
 			'tab'         => 'content',
@@ -108,109 +134,115 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'default'     => '24px',
 		];
 
-		// ----- Custom toggle -----
-		$this->controls['toggleSeparator'] = [
+		// ── Wygląd ──────────────────────────────────────────────────────────
+		/* ZACZEPY DLA WŁASNEGO CSS-a przy otwartym menu — zostają w opisie
+		   sekcji, bo to jedyny tekst tutaj, którego szuka się PISZĄC STYLE,
+		   a nie ustawiając element. Reszta dawnego opisu („można edytować
+		   style na elemencie Zawartość menu", kiedy dokładnie schodzą klasy)
+		   przeniesiona tu, do komentarza: klasy schodzą dopiero, gdy kadr
+		   zaczyna się zwijać, więc przez czas wychodzenia treści styl otwartego
+		   menu nadal obowiązuje. */
+		$this->controls['sep_wyglad'] = [
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Własny przełącznik', 'evk-circular-menu' ),
+			'label'       => esc_html__( 'Wygląd', 'evk-circular-menu' ),
 			'type'        => 'separator',
-			'description' => esc_html__( 'Elementy z tą klasą będą otwierać/zamykać menu.', 'evk-circular-menu' ),
-		];
-		$this->controls['customtoggle'] = [
-			'label'       => esc_html__( 'Selektor CSS', 'evk-circular-menu' ),
-			'type'        => 'text',
-			'placeholder' => '.moj-burger',
-		];
-		$this->controls['toggleClass'] = [
-			'hasDynamicData' => false,
-			'label'       => esc_html__( 'Klasy otwarcia przełącznika', 'evk-circular-menu' ),
-			'type'        => 'text',
-			'placeholder' => 'brx-open  is-active',
 			'description' => esc_html__(
-				'Przy otwartym menu przełącznik dostaje z automatu brx-open (konwencja '
-				. 'Bricksa), is-active (konwencja burgerów) oraz swoją pierwszą klasę '
-				. 'z końcówką --opened. To pole jest na wypadek, gdy Twój burger animuje '
-				. 'się na jeszcze innej klasie: wpisz ją tutaj, a dojdzie do tamtych. '
-				. 'Kilka oddziel spacją. Klasy schodzą przy każdym zamknięciu — także '
-				. 'klawiszem Esc i kliknięciem poza panelem.',
+				'Zaczepy przy otwartym menu: panel niesie .is-open, a korzeń elementu '
+				. 'i przełącznik — .brx-open.',
 				'evk-circular-menu'
 			),
 		];
-		$this->controls['raiseToggle'] = [
-			'label'       => esc_html__( 'Przełącznik nad panelem', 'evk-circular-menu' ),
+
+		$this->controls['width'] = [
+			'hasDynamicData' => false,
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Szerokość', 'evk-circular-menu' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [
+				[
+					'property' => 'width',
+					'selector' => '.evk-cm-content',
+				],
+			],
+			'placeholder' => '100svw',
+			'default'     => '100svw',
+		];
+
+		$this->controls['height'] = [
+			'hasDynamicData' => false,
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Wysokość', 'evk-circular-menu' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [
+				[
+					'property' => 'height',
+					'selector' => '.evk-cm-content',
+				],
+			],
+			'placeholder' => '100svh',
+			'default'     => '100svh',
+		];
+
+		$this->controls['background'] = [
+			'hasDynamicData' => false,
+			'tab'   => 'content',
+			'label' => esc_html__( 'Tło', 'evk-circular-menu' ),
+			'type'  => 'background',
+			'units' => true,
+			'css'   => [
+				[
+					'property' => 'background',
+					'selector' => '.evk-cm-content',
+				],
+			],
+			'default' => [
+				'color' => [ 'hex' => '#c4c4c4' ],
+			],
+		];
+
+		/* PRZYCIEMNIENIE TŁA.
+		 *
+		 * ZGŁOSZONE Z UŻYCIA: „dodanie przyciemnianego tła, kiedy circular menu
+		 * nie zajmuje 100% wysokości/szerokości". Panel ma kontrolki szerokości
+		 * i wysokości, więc może być mniejszy od ekranu — a wtedy reszta strony
+		 * zostaje w pełnym świetle i nie widać, że menu jest otwarte.
+		 *
+		 * DOMYŚLNIE WYŁĄCZONE, i to jest decyzja, nie zaniedbanie: przy panelu
+		 * na pełny ekran przyciemnienia nie widać spod niczego, a włączone
+		 * z automatu zmieniłoby wygląd gotowych stron z panelem przezroczystym.
+		 */
+		$this->controls['scrimEnabled'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Przyciemnij tło strony', 'evk-circular-menu' ),
 			'type'        => 'checkbox',
 			'default'     => false,
-			'description' => esc_html__(
-				'Dla przełącznika siedzącego w nagłówku, który panel przykrywa. Podniesienie '
-				. 'samego przełącznika z-indeksem wtedy NIE pomaga: nagłówek tworzy kontekst '
-				. 'układania (wystarczy position: relative z własnym z-index, transform, '
-				. 'filter albo opacity poniżej jedynki), a wewnątrz niego z-index dziecka '
-				. 'rywalizuje wyłącznie z rodzeństwem — z panelem rywalizuje cały nagłówek '
-				. 'jako jedna warstwa. Dlatego działa dopiero wyciągnięcie na wierzch całego '
-				. 'nagłówka, razem z jego tłem. '
-				. 'Ta opcja na czas otwarcia PRZENOSI sam przełącznik na koniec strony '
-				. 'i ustawia go dokładnie tam, gdzie stał, nad panelem — a przy zamknięciu '
-				. 'odkłada go na miejsce. W nagłówku zostaje przekładka tej samej wielkości, '
-				. 'więc nic się nie przebudowuje. '
-				. 'Dwie rzeczy warto wiedzieć: reguły pisane przez potomka nagłówka '
-				. '(np. „.header .burger") przestają na ten czas pasować — style Bricksa '
-				. 'i wtyczki to przeżywają, bo jadą po identyfikatorze i klasach; a bez '
-				. 'blokady przewijania przełącznik zostaje w miejscu, gdy strona pod panelem '
-				. 'się przewija.',
-				'evk-circular-menu'
-			),
-		];
-		$this->controls['raiseMode'] = [
-			'label'    => esc_html__( 'Co nad panelem', 'evk-circular-menu' ),
-			'type'     => 'select',
-			'options'  => [
-				'przelacznik' => esc_html__( 'Sam przełącznik', 'evk-circular-menu' ),
-				'wskazane'    => esc_html__( 'Przełącznik i wskazane elementy', 'evk-circular-menu' ),
-				'naglowek'    => esc_html__( 'Cały nagłówek', 'evk-circular-menu' ),
-			],
-			'default'  => 'przelacznik',
-			'required' => [ 'raiseToggle', '=', true ],
-			'description' => esc_html__(
-				'Co dokładnie ma wyjechać nad panel. '
-				. 'SAM PRZEŁĄCZNIK — nad panelem staje goły burger, bez ramki nagłówka. '
-				. 'Węzeł jedzie na czas otwarcia na koniec strony i wraca po zamknięciu, a w nagłówku zostaje niewidoczna przekładka tej samej wielkości, więc nic się nie przebudowuje. '
-				. 'PRZEŁĄCZNIK I WSKAZANE — to samo, ale wyjeżdża też to, co wskażesz selektorem '
-				. '(np. logo). Każdy element osobno, każdy ze swoją przekładką. '
-				. 'CAŁY NAGŁÓWEK — nic nie rusza się w drzewie, podnoszona jest tylko warstwa jednego przodka, więc nad panel wjeżdża cały pasek RAZEM Z TŁEM. '
-				. 'Ta droga wymaga, żeby ten przodek był pozycjonowany — na niepozycjonowanym z-index nic nie znaczy i element powie o tym w konsoli.',
-				'evk-circular-menu'
-			),
+			'description' => esc_html__( 'Ma sens, gdy panel nie zajmuje całego ekranu. Kliknięcie w tło zamyka menu.', 'evk-circular-menu' ),
 		];
 
-		$this->controls['raiseSelector'] = [
-			'label'       => esc_html__( 'Co jeszcze wyjąć (selektor)', 'evk-circular-menu' ),
-			'type'        => 'text',
-			'placeholder' => '.logo',
-			/* JEDEN warunek, nie łańcuch — łańcuchy w Bricksie nie działają
-			   i pilnuje tego tests/bricks-required.test.js. Sam tryb wystarczy:
-			   jest widoczny dopiero przy włączonym przełączniku wyżej. */
-			'required'    => [ 'raiseMode', '=', 'wskazane' ],
-			'description' => esc_html__(
-				'Selektor CSS elementów, które mają wyjechać nad panel razem z przełącznikiem — '
-				. 'na przykład samo logo. Każdy dostaje własną przekładkę, więc nagłówek zostaje '
-				. 'nietknięty. Elementy leżące w panelu są pomijane: jadą z nim portalem i są już '
-				. 'na wierzchu.',
-				'evk-circular-menu'
-			),
+		$this->controls['scrimColor'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Kolor przyciemnienia', 'evk-circular-menu' ),
+			'type'     => 'color',
+			'required' => [ 'scrimEnabled', '=', true ],
+			/* Zmienna siedzi na PANELU, nie na przyciemnieniu — panel jedzie do
+			   <body> razem z nim, a skrypt czyta ją stamtąd przed przeprowadzką
+			   i wpisuje wprost, tak samo jak `--evk-cm-from-top`. Reguła Bricksa
+			   celuje w `.brxe-XXXX .evk-cm-content` i po portalu przestaje
+			   pasować. */
+			'css'      => [ [ 'property' => '--evk-cm-scrim', 'selector' => '.evk-cm-content' ] ],
 		];
 
-		$this->controls['lockBodyScrolling'] = [
-			'label'   => esc_html__( 'Blokuj scroll strony', 'evk-circular-menu' ),
-			'type'    => 'checkbox',
-			'inline'  => true,
-			'small'   => true,
-			'default' => false,
-		];
-
-		// ----- Animacja -----
-		$this->controls['animationSeparator'] = [
+		// ── Animacja ────────────────────────────────────────────────────────
+		$this->controls['sep_animacja'] = [
+			'tab'   => 'content',
 			'label' => esc_html__( 'Animacja', 'evk-circular-menu' ),
 			'type'  => 'separator',
 		];
+
 		$this->controls['duration'] = [
 			'label'       => esc_html__( 'Czas trwania', 'evk-circular-menu' ),
 			'type'        => 'number',
@@ -218,6 +250,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'inline'      => true,
 			'placeholder' => '0.4',
 		];
+
 		/*
 		 * Ta sama lista krzywych, co w Animatorze i w Offcanvas Menu — jedna
 		 * lista dla całej wtyczki znaczy, że dorzucenie krzywej działa wszędzie
@@ -248,6 +281,9 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'default'     => '',
 		];
 
+		/* Bez odstępu kadr i treść startują w tej samej klatce i całość wygląda
+		   sztywno — nie widać, co po czym następuje. Przez czas odstępu treść
+		   stoi w stanie POCZĄTKOWYM swojej animacji, więc nic nie miga. */
 		$this->controls['contentDelay'] = [
 			'hasDynamicData' => false,
 			'tab'         => 'content',
@@ -259,15 +295,23 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'inline'      => true,
 			'placeholder' => '0',
 			'description' => esc_html__(
-				'Odstęp między rozwinięciem kadru a ruszeniem animacji w środku. '
-				. 'Bez niego kadr i treść startują w tej samej klatce i całość wygląda '
-				. 'sztywno — nie widać, co po czym następuje. Przez czas odstępu treść '
-				. 'stoi w stanie POCZĄTKOWYM swojej animacji, więc nic nie miga. '
-				. 'Zero wyłącza odstęp.',
+				'Odstęp między rozwinięciem kadru a ruszeniem animacji w środku. Zero wyłącza.',
 				'evk-circular-menu'
 			),
 		];
 
+		// ── Zamykanie ───────────────────────────────────────────────────────
+		$this->controls['sep_zamykanie'] = [
+			'tab'   => 'content',
+			'label' => esc_html__( 'Zamykanie', 'evk-circular-menu' ),
+			'type'  => 'separator',
+		];
+
+		/* Domyślnie treść wychodzi TĄ SAMĄ animacją, którą weszła, tylko od
+		   końca — bez ustawiania czegokolwiek. Kto chce innego wyjścia, ustawia
+		   elementowi animację z wyzwalaczem „Zamknięcie menu"; ona wygrywa
+		   z cofaniem. Bez ustawienia czekania menu czeka na całą animację, ale
+		   nie dłużej niż sekundę. */
 		$this->controls['animateExit'] = [
 			'hasDynamicData' => false,
 			'tab'     => 'content',
@@ -278,15 +322,14 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'default' => false,
 			'description' => esc_html__(
 				'Przy zamykaniu treść najpierw wychodzi, a dopiero potem zwija się kadr. '
-				. 'Domyślnie wychodzi TĄ SAMĄ animacją, którą weszła, tylko od końca — '
-				. 'bez ustawiania czegokolwiek. Chcesz innego wyjścia? Ustaw elementowi '
-				. 'animację z wyzwalaczem „Zamknięcie menu" — ona wygra z cofaniem. '
-				. 'Bez ustawienia czekania menu czeka na całą animację, ale nie dłużej '
-				. 'niż sekundę.',
+				. 'Domyślnie tą samą animacją co wejście, tylko od końca.',
 				'evk-circular-menu'
 			),
 		];
 
+		/* Wartość większa niż sama animacja daje chwilę ciszy, zanim menu się
+		   zamknie. Puste pole to całkowity czas animacji wyjścia, najwyżej
+		   sekunda — czyli ruchy jeden po drugim. */
 		$this->controls['exitWait'] = [
 			'hasDynamicData' => false,
 			'tab'         => 'content',
@@ -299,124 +342,141 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'placeholder' => esc_html__( 'cały czas animacji', 'evk-circular-menu' ),
 			'required'    => [ 'animateExit', '=', true ],
 			'description' => esc_html__(
-				'Ile menu czeka z zwijaniem kadru na wychodzącą treść. '
-				. 'ZERO znaczy „naraz": kadr zamyka się RAZEM z animacją linków, '
-				. 'zamiast po niej — treść nie musi zdążyć zniknąć, zanim cokolwiek '
-				. 'ruszy. Puste pole to całkowity czas animacji wyjścia (najwyżej '
-				. 'sekunda), czyli ruchy jeden po drugim. Wartość większa niż sama '
-				. 'animacja daje chwilę ciszy, zanim menu się zamknie.',
+				'Ile menu czeka ze zwijaniem kadru na wychodzącą treść. ZERO znaczy „naraz".',
 				'evk-circular-menu'
 			),
 		];
 
-		// ----- Styl zawartości -----
-		$this->controls['contentseparator'] = [
-			'label'       => esc_html__( 'Styl zawartości', 'evk-circular-menu' ),
-			'description' => esc_html__(
-				'Możesz też edytować style bezpośrednio na elemencie Zawartość menu. '
-				. 'ZACZEPY DLA WŁASNEGO CSS-a przy otwartym menu: panel niesie klasę '
-				. '.is-open (selektor .evk-cm-content.is-open), a KORZEŃ elementu i sam '
-				. 'przełącznik — .brx-open, czyli tę samą klasę, którą Bricks zakłada '
-				. 'swoim otwartym elementom. Dzięki temu burger zbudowany w Bricksie '
-				. 'animuje się bez żadnej konfiguracji. Klasy schodzą dopiero, gdy kadr '
-				. 'zaczyna się zwijać, więc przez czas wychodzenia treści styl otwartego '
-				. 'menu nadal obowiązuje.',
-				'evk-circular-menu'
-			),
-			'type'        => 'separator',
-		];
-		$this->controls['width'] = [
-			'hasDynamicData' => false,
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Szerokość', 'evk-circular-menu' ),
-			'type'        => 'number',
-			'units'       => true,
-			'inline'      => true,
-			'css'         => [
-				[
-					'property' => 'width',
-					'selector' => '.evk-cm-content',
-				],
-			],
-			'placeholder' => '100svw',
-			'default'     => '100svw',
-		];
-		$this->controls['height'] = [
-			'hasDynamicData' => false,
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Wysokość', 'evk-circular-menu' ),
-			'type'        => 'number',
-			'units'       => true,
-			'inline'      => true,
-			'css'         => [
-				[
-					'property' => 'height',
-					'selector' => '.evk-cm-content',
-				],
-			],
-			'placeholder' => '100svh',
-			'default'     => '100svh',
-		];
-		/* PRZYCIEMNIENIE TŁA.
-		 *
-		 * ZGŁOSZONE Z UŻYCIA: „dodanie przyciemnianego tła, kiedy circular menu
-		 * nie zajmuje 100% wysokości/szerokości". Panel ma kontrolki szerokości
-		 * i wysokości, więc może być mniejszy od ekranu — a wtedy reszta strony
-		 * zostaje w pełnym świetle i nie widać, że menu jest otwarte.
-		 *
-		 * DOMYŚLNIE WYŁĄCZONE, i to jest decyzja, nie zaniedbanie: przy panelu
-		 * na pełny ekran przyciemnienia nie widać spod niczego, a włączone
-		 * z automatu zmieniłoby wygląd gotowych stron z panelem przezroczystym.
-		 */
-		$this->controls['scrimEnabled'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Przyciemnij tło strony', 'evk-circular-menu' ),
-			'type'        => 'checkbox',
-			'default'     => false,
-			'description' => esc_html__( 'Ma sens, gdy panel nie zajmuje całego ekranu. Kliknięcie w przyciemnione tło zamyka menu.', 'evk-circular-menu' ),
-		];
-
-		$this->controls['scrimColor'] = [
-			'tab'      => 'content',
-			'label'    => esc_html__( 'Kolor przyciemnienia', 'evk-circular-menu' ),
-			'type'     => 'color',
-			'required' => [ 'scrimEnabled', '=', true ],
-			/* Zmienna siedzi na PANELU, nie na przyciemnieniu — panel jedzie do
-			   <body> razem z nim, a skrypt czyta ją stamtąd przed przeprowadzką
-			   i wpisuje wprost, tak samo jak `--evk-cm-from-top`. Reguła Bricksa
-			   celuje w `.brxe-XXXX .evk-cm-content` i po portalu przestaje
-			   pasować. */
-			'css'      => [ [ 'property' => '--evk-cm-scrim', 'selector' => '.evk-cm-content' ] ],
-		];
-
-		$this->controls['background'] = [
-			'hasDynamicData' => false,
-			'tab'   => 'content',
-			'label' => esc_html__( 'Tło', 'evk-circular-menu' ),
-			'type'  => 'background',
-			'units' => true,
-			'css'   => [
-				[
-					'property' => 'background',
-					'selector' => '.evk-cm-content',
-				],
-			],
-			'default' => [
-				'color' => [ 'hex' => '#c4c4c4' ],
-			],
-		];
-
-		// ----- Dostępność -----
-		$this->controls['accessibilitySeparator'] = [
-			'label' => esc_html__( 'Dostępność', 'evk-circular-menu' ),
-			'type'  => 'separator',
-		];
 		$this->controls['closeOnEsc'] = [
 			'label'   => esc_html__( 'Zamknij klawiszem ESC', 'evk-circular-menu' ),
 			'type'    => 'checkbox',
 			'inline'  => true,
 			'small'   => true,
 			'default' => true,
+		];
+
+		/* DOMYŚLNIE WYŁĄCZONE, w odróżnieniu od „Blokuj przewijanie strony"
+		   w Offcanvas Menu, gdzie jest włączone. Ta różnica jest zastana i tu
+		   zostaje: panel circular bywa mniejszy od ekranu, więc blokowanie
+		   strony pod nim nie zawsze ma sens. Zmiana domyślnej przestawiłaby
+		   gotowe strony, więc jest decyzją zgłaszającego, nie porządków. */
+		$this->controls['lockBodyScrolling'] = [
+			'label'   => esc_html__( 'Blokuj scroll strony', 'evk-circular-menu' ),
+			'type'    => 'checkbox',
+			'inline'  => true,
+			'small'   => true,
+			'default' => false,
+		];
+
+		// ── Przełącznik ─────────────────────────────────────────────────────
+		$this->controls['sep_przelacznik'] = [
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Przełącznik', 'evk-circular-menu' ),
+			'type'        => 'separator',
+			'description' => esc_html__( 'Elementy z tą klasą będą otwierać i zamykać menu.', 'evk-circular-menu' ),
+		];
+
+		$this->controls['customtoggle'] = [
+			'label'       => esc_html__( 'Selektor CSS', 'evk-circular-menu' ),
+			'type'        => 'text',
+			'placeholder' => '.moj-burger',
+		];
+
+		/* Przy otwartym menu przełącznik dostaje z automatu brx-open (konwencja
+		   Bricksa), is-active (konwencja burgerów) oraz swoją pierwszą klasę
+		   z końcówką --opened. Wszystkie schodzą przy każdym zamknięciu, także
+		   klawiszem Esc i kliknięciem poza panelem. To pole jest na wypadek
+		   burgera, który animuje się na jeszcze innej klasie. */
+		$this->controls['toggleClass'] = [
+			'hasDynamicData' => false,
+			'label'       => esc_html__( 'Klasy otwarcia przełącznika', 'evk-circular-menu' ),
+			'type'        => 'text',
+			'placeholder' => 'brx-open  is-active',
+			'description' => esc_html__(
+				'Dodatkowa klasa dla Twojego burgera — obok brx-open, is-active i własnej '
+				. 'klasy z końcówką --opened, które dochodzą same. Kilka oddziel spacją.',
+				'evk-circular-menu'
+			),
+		];
+
+		// ── Warstwy ─────────────────────────────────────────────────────────
+		$this->controls['sep_warstwy'] = [
+			'tab'   => 'content',
+			'label' => esc_html__( 'Warstwy', 'evk-circular-menu' ),
+			'type'  => 'separator',
+		];
+
+		/*
+		 * Przełącznik NAD otwartym panelem.
+		 *
+		 * Dla przełącznika siedzącego w nagłówku, który panel przykrywa.
+		 * Podniesienie samego przełącznika z-indeksem wtedy NIE pomaga, i to
+		 * nie z powodu za małej liczby: nagłówek tworzy kontekst układania
+		 * (wystarczy position: relative z własnym z-index, transform, filter
+		 * albo opacity poniżej jedynki), a wewnątrz niego z-index dziecka
+		 * rywalizuje wyłącznie z rodzeństwem — z panelem rywalizuje cały
+		 * nagłówek jako jedna warstwa.
+		 *
+		 * DWIE RZECZY, KTÓRE KIEDYŚ ZASKOCZYŁY:
+		 *  · reguły pisane przez potomka nagłówka (np. „.header .burger")
+		 *    przestają na czas otwarcia pasować, bo węzeł jest gdzie indziej;
+		 *    style Bricksa i wtyczki to przeżywają, bo jadą po identyfikatorze
+		 *    i klasach;
+		 *  · bez blokady przewijania przełącznik zostaje w miejscu, gdy strona
+		 *    pod panelem się przewija.
+		 *
+		 * CO DOKŁADNIE wyjeżdża, wybiera kontrolka niżej — dlatego ten opis
+		 * mówi tylko PO CO to jest. Do 1.205.0 powtarzał całą jej treść, czyli
+		 * wywód o trzech drogach wisiał przed każdym, kto tej opcji nie włączył.
+		 */
+		$this->controls['raiseToggle'] = [
+			'label'       => esc_html__( 'Przełącznik nad panelem', 'evk-circular-menu' ),
+			'type'        => 'checkbox',
+			'default'     => false,
+			'description' => esc_html__(
+				'Na czas otwarcia stawia przełącznik ponad panelem, żeby burger został '
+				. 'widoczny i klikalny. Samo podniesienie mu z-indeksu zwykle NIE pomaga.',
+				'evk-circular-menu'
+			),
+		];
+
+		/* Dwie pierwsze drogi przenoszą węzeł na czas otwarcia na koniec strony
+		   i zostawiają w nagłówku niewidoczną przekładkę tej samej wielkości,
+		   więc nic się nie przebudowuje. Trzecia nie rusza drzewa wcale —
+		   podnosi warstwę jednego przodka, przez co nad panel wjeżdża cały pasek
+		   RAZEM Z TŁEM; wymaga, żeby ten przodek był pozycjonowany, a na
+		   niepozycjonowanym element powie o tym w konsoli. */
+		$this->controls['raiseMode'] = [
+			'label'    => esc_html__( 'Co nad panelem', 'evk-circular-menu' ),
+			'type'     => 'select',
+			'options'  => [
+				'przelacznik' => esc_html__( 'Sam przełącznik', 'evk-circular-menu' ),
+				'wskazane'    => esc_html__( 'Przełącznik i wskazane elementy', 'evk-circular-menu' ),
+				'naglowek'    => esc_html__( 'Cały nagłówek', 'evk-circular-menu' ),
+			],
+			'default'  => 'przelacznik',
+			'required' => [ 'raiseToggle', '=', true ],
+			'description' => esc_html__(
+				'Dwie pierwsze drogi wyjmują sam węzeł i zostawiają przekładkę, więc nagłówek '
+				. 'zostaje nietknięty. CAŁY NAGŁÓWEK wjeżdża razem z tłem, ale wymaga '
+				. 'pozycjonowanego przodka.',
+				'evk-circular-menu'
+			),
+		];
+
+		$this->controls['raiseSelector'] = [
+			'label'       => esc_html__( 'Co jeszcze wyjąć (selektor)', 'evk-circular-menu' ),
+			'type'        => 'text',
+			'placeholder' => '.logo',
+			/* JEDEN warunek, nie łańcuch — łańcuchy w Bricksie nie działają
+			   i pilnuje tego tests/bricks-required.test.js. Sam tryb wystarczy:
+			   jest widoczny dopiero przy włączonym przełączniku wyżej. */
+			'required'    => [ 'raiseMode', '=', 'wskazane' ],
+			'description' => esc_html__(
+				'Co ma wyjechać nad panel razem z przełącznikiem — na przykład logo. '
+				. 'Elementy leżące w panelu są pomijane, bo jadą z nim portalem.',
+				'evk-circular-menu'
+			),
 		];
 	}
 

@@ -2,6 +2,77 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.205.0] — 2026-09-16
+
+### Zmienione
+
+- **Circular Menu: sekcje nazwane tak samo jak w Offcanvas Menu, najdłuższy
+  opis z 1042 znaków na 168.** Druga partia porządkowania.
+
+  | | przed | po |
+  |---|---|---|
+  | najdłuższy opis | **1042** (`raiseToggle`) | 168 (`raiseMode`) |
+  | znaków opisów | 3518 | 1153 |
+  | separatorów | 5 | 6 |
+
+  Sekcje: Lokalizacja · Wygląd · Animacja · Zamykanie · Przełącznik · Warstwy —
+  te same nazwy co w offcanvasie. Dwa elementy robiące podobną rzecz mają się
+  otwierać tak samo, zamiast mieć własny słownik każdy.
+
+- **Dwie kontrolki leżały nie tam, gdzie się ich szuka.** „Blokuj scroll
+  strony" stała pod nagłówkiem **„Własny przełącznik"**, a „Zamknij klawiszem
+  ESC" sama jedna w sekcji „Dostępność". Obie robią to samo co reszta
+  Zamykania i tam wracają; sekcja z jedną kontrolką to nagłówek droższy niż
+  jego zawartość.
+
+- **Opis „Przełącznika nad panelem" powtarzał całą treść kontrolki pod nim.**
+  Wywód o trzech drogach wyjazdu wisiał przed każdym, kto tej opcji nie
+  włączył — a `raiseMode`, który o nich mówi, pokazuje się dopiero po jej
+  włączeniu. Teraz `raiseToggle` mówi tylko PO CO to jest; mechanika kontekstu
+  układania poszła do komentarza nad kontrolką.
+
+  Cztery opisy (`toggleClass`, `raiseMode`, `raiseSelector`, `animateExit`,
+  `exitWait`) to bliźniaki opisów z offcanvas — dostały ten sam skrócony tekst
+  co tam w 1.204.0. To nie nowa redakcja, tylko przeniesienie gotowej decyzji.
+
+### Naprawione w strażniku
+
+- **Sufity długości opisów NIE WIDZIAŁY opisów na separatorach.** Sonda
+  przechodziła nad separatorem do następnej kontrolki — a notki sekcji mają
+  w Bricksie własny opis i zajmują w panelu tyle samo miejsca. W Circular Menu
+  stała taka na **531 znaków** („Styl zawartości"), jedna z najdłuższych
+  w całej wtyczce, i strażnik dopisany wydanie wcześniej nie miał jej prawa
+  zobaczyć.
+
+  Sufit, który nie widzi połowy miejsc, gdzie tekst może urosnąć, nie pilnuje
+  niczego.
+
+  **Dowód różnicowy**, bo po uprzątnięciu żaden separator nie ma już długiego
+  opisu i zwykła mutacja nie zapaliłaby nic: ten sam element z 612-znakowym
+  opisem na separatorze daje **612 w sondzie po poprawce i 168 przed nią**.
+
+### Do sprawdzenia w builderze
+
+- Przenoszenie kontrolek między sekcjami nie zmienia zapisanych ustawień —
+  klucze zostają te same, zmienia się kolejność w tablicy. Ale to warto
+  zobaczyć na stronie, która to menu ma.
+
+### Czego świadomie NIE ruszyłem
+
+- **`lockBodyScrolling` ma tu domyślnie WYŁĄCZONE**, a jego odpowiednik
+  w offcanvasie (`lockScroll`) włączone. Wygląda to na różnicę zamierzoną —
+  panel circular bywa mniejszy od ekranu — a zmiana domyślnej przestawiłaby
+  gotowe strony. To decyzja zgłaszającego, nie porządków.
+
+### Zostało do uprzątnięcia
+
+| Element | Najdłuższy opis |
+|---|---|
+| Burger | 697 |
+| Horizontal Scroll | 562 |
+| Marquee | 434 |
+| reszta | ≤ 394 |
+
 ## [1.204.0] — 2026-09-15
 
 ### Zmienione
