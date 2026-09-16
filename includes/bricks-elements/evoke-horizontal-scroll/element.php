@@ -53,6 +53,8 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 	}
 
 	public function set_control_groups() {
+		$this->control_groups['evk_uklad'] = [ 'title' => esc_html__( 'Układ paneli', 'evk-horizontal-scroll' ),   'tab' => 'content' ];
+		$this->control_groups['evk_anim']  = [ 'title' => esc_html__( 'Animacja i snap', 'evk-horizontal-scroll' ), 'tab' => 'content' ];
 		$this->control_groups['evk_progress'] = [
 			'title' => esc_html__( 'Pasek postępu', 'evk-horizontal-scroll' ),
 			'tab'   => 'content',
@@ -62,11 +64,6 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 	public function set_controls() {
 
 		// ── INFO ────────────────────────────────────────────────────────────
-		$this->controls['note0'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Jak używać', 'evk-horizontal-scroll' ),
-		];
 		$this->controls['note1'] = [
 			'tab'         => 'content',
 			'type'        => 'info',
@@ -74,13 +71,8 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		];
 
 		// ── UKŁAD ───────────────────────────────────────────────────────────
-		$this->controls['sep_layout'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Układ paneli', 'evk-horizontal-scroll' ),
-		];
-
 		$this->controls['width_mode'] = [
+			'group'       => 'evk_uklad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Szerokość panelu', 'evk-horizontal-scroll' ),
 			'type'        => 'select',
@@ -108,6 +100,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		 * z nagłówkiem stoi w miejscu, a pod nagłówkiem jedzie taśma kart.
 		 */
 		$this->controls['pin_target'] = [
+			'group'       => 'evk_uklad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Co przypiąć', 'evk-horizontal-scroll' ),
 			'type'        => 'select',
@@ -125,6 +118,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		];
 
 		$this->controls['pin_selector'] = [
+			'group'       => 'evk_uklad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Selektor przodka', 'evk-horizontal-scroll' ),
 			'type'        => 'text',
@@ -148,6 +142,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		 * z przewijaniem i przez cały czas stoi tuż pod sekcją.
 		 */
 		$this->controls['peek_next'] = [
+			'group'       => 'evk_uklad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Pokaż treść pod sekcją', 'evk-horizontal-scroll' ),
 			'type'        => 'checkbox',
@@ -166,6 +161,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		];
 
 		$this->controls['panel_height'] = [
+			'group'       => 'evk_uklad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Wysokość panelu', 'evk-horizontal-scroll' ),
 			'type'        => 'text',
@@ -177,14 +173,22 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'required'    => [ 'width_mode', '!=', 'auto' ],
 		];
 
-		// ── ANIMACJA ──────────────────────────────────────────────────────────
-		$this->controls['sep_anim'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Animacja / ScrollTrigger', 'evk-horizontal-scroll' ),
+		// ── RESPONSYWNOŚĆ ─────────────────────────────────────────────────────
+		$this->controls['disable_below'] = [
+			'group'       => 'evk_uklad',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Wyłącz poniżej (px)', 'evk-horizontal-scroll' ),
+			'type'        => 'number',
+			'min'         => 0,
+			'max'         => 2000,
+			'step'        => 1,
+			'default'     => 991,
+			'description' => esc_html__( 'Poniżej tej szerokości ekranu panele układają się pionowo (bez przypięcia). 0 = nigdy nie wyłączaj.', 'evk-horizontal-scroll' ),
 		];
 
+		// ── ANIMACJA ──────────────────────────────────────────────────────────
 		$this->controls['scrub'] = [
+			'group'       => 'evk_anim',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Płynność scrolla (scrub)', 'evk-horizontal-scroll' ),
 			'type'        => 'number',
@@ -196,6 +200,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		];
 
 		$this->controls['start_offset'] = [
+			'group'       => 'evk_anim',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Start (ScrollTrigger)', 'evk-horizontal-scroll' ),
 			'type'        => 'text',
@@ -210,13 +215,8 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		];
 
 		// ── SNAP ──────────────────────────────────────────────────────────────
-		$this->controls['sep_snap'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Snap', 'evk-horizontal-scroll' ),
-		];
-
 		$this->controls['snap'] = [
+			'group'       => 'evk_anim',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Przyciągaj do paneli', 'evk-horizontal-scroll' ),
 			'type'        => 'checkbox',
@@ -225,6 +225,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		];
 
 		$this->controls['snap_duration'] = [
+			'group'       => 'evk_anim',
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Czas snapu (s)', 'evk-horizontal-scroll' ),
 			'type'     => 'number',
@@ -233,24 +234,6 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'step'     => 0.05,
 			'default'  => 0.5,
 			'required' => [ 'snap', '=', true ],
-		];
-
-		// ── RESPONSYWNOŚĆ ─────────────────────────────────────────────────────
-		$this->controls['sep_responsive'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Responsywność', 'evk-horizontal-scroll' ),
-		];
-
-		$this->controls['disable_below'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Wyłącz poniżej (px)', 'evk-horizontal-scroll' ),
-			'type'        => 'number',
-			'min'         => 0,
-			'max'         => 2000,
-			'step'        => 1,
-			'default'     => 991,
-			'description' => esc_html__( 'Poniżej tej szerokości ekranu panele układają się pionowo (bez przypięcia). 0 = nigdy nie wyłączaj.', 'evk-horizontal-scroll' ),
 		];
 
 		/*

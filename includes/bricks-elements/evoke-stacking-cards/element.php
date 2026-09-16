@@ -57,15 +57,15 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 		return $children;
 	}
 
+	public function set_control_groups() {
+		$this->control_groups['evk_uklad'] = [ 'title' => esc_html__( 'Układ', 'evoke-one' ),                 'tab' => 'content' ];
+		$this->control_groups['evk_efekt'] = [ 'title' => esc_html__( 'Efekt kart pod spodem', 'evoke-one' ), 'tab' => 'content' ];
+	}
+
 	public function set_controls() {
 
-		$this->controls['sep_layout'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Układ', 'evk-stacking-cards' ),
-		];
-
 		$this->controls['offset_top'] = [
+			'group' => 'evk_uklad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Offset od góry', 'evk-stacking-cards' ),
 			'type'        => 'number',
@@ -75,6 +75,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 		];
 
 		$this->controls['card_gap'] = [
+			'group' => 'evk_uklad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Odstęp między kartami', 'evk-stacking-cards' ),
 			'type'        => 'number',
@@ -84,6 +85,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 		];
 
 		$this->controls['stagger_offset'] = [
+			'group' => 'evk_uklad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Schodkowanie (px)', 'evk-stacking-cards' ),
 			'type'        => 'number',
@@ -94,13 +96,8 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'description' => esc_html__( 'Każda kolejna karta zatrzymuje się niżej o tę wartość — widać krawędzie kart pod spodem.', 'evk-stacking-cards' ),
 		];
 
-		$this->controls['sep_effect'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Efekt kart pod spodem', 'evk-stacking-cards' ),
-		];
-
 		$this->controls['shrink'] = [
+			'group' => 'evk_efekt',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Zmniejszaj karty pod spodem', 'evk-stacking-cards' ),
 			'type'    => 'checkbox',
@@ -108,6 +105,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 		];
 
 		$this->controls['min_scale'] = [
+			'group' => 'evk_efekt',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Skala docelowa', 'evk-stacking-cards' ),
 			'type'        => 'number',
@@ -119,6 +117,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 		];
 
 		$this->controls['dim'] = [
+			'group' => 'evk_efekt',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Przyciemnienie', 'evk-stacking-cards' ),
 			'type'        => 'number',
@@ -130,6 +129,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 		];
 
 		$this->controls['shadow'] = [
+			'group' => 'evk_efekt',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Cień kart', 'evk-stacking-cards' ),
 			'type'        => 'checkbox',
@@ -138,6 +138,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 		];
 
 		$this->controls['shadow_value'] = [
+			'group' => 'evk_efekt',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Cień (CSS)', 'evk-stacking-cards' ),
 			'type'        => 'text',
@@ -147,6 +148,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 		];
 
 		$this->controls['bottom_space'] = [
+			'group' => 'evk_efekt',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Zapas pod stosem', 'evk-stacking-cards' ),
 			'type'        => 'text',
@@ -154,13 +156,8 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'description' => esc_html__( 'Jak długo gotowy stos stoi, zanim odjedzie w górę. Puste = połowa wysokości ostatniej karty. Można podać dowolną jednostkę CSS, np. 50vh albo 300px. Zapas nie zostawia pustego miejsca — wychodzący stos przykrywa go sobą.', 'evk-stacking-cards' ),
 		];
 
-		$this->controls['sep_responsive'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Responsywność', 'evk-stacking-cards' ),
-		];
-
 		$this->controls['disable_below'] = [
+			'group' => 'evk_uklad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Wyłącz poniżej (px)', 'evk-stacking-cards' ),
 			'type'        => 'number',

@@ -115,6 +115,31 @@ class Evk_Burger extends \Bricks\Element {
 		];
 	}
 
+	/**
+	 * SEKCJE SĄ ZWIJANYMI GRUPAMI BRICKSA — jak w pozostałych elementach
+	 * od 1.207.0.
+	 *
+	 * SZEŚĆ SEKCJI ZESZŁO DO PIĘCIU GRUP, i oba ruchy wynikają z tego, że
+	 * grupa musi mieścić swoje bramki — warunek `required` wskazujący pole
+	 * z innej grupy jest w tej wtyczce bez pokrycia (patrz `controls.test.js`):
+	 *
+	 *  · „Wygląd przycisku" + „Rozmiar" → „Wygląd". „Długość krótszej kreski"
+	 *    jest bramkowana na „Styl", czyli na polu z pierwszej sekcji. Scalenie
+	 *    jest przy okazji poprawniejsze: co przycisk pokazuje i jak duże są
+	 *    jego części to dla składającego jedno pytanie.
+	 *  · „Opis dla czytnika ekranu" PRZENOSI SIĘ z „Działania" do „Tekstu" —
+	 *    jest bramkowany na „Tekst — zamknięte" i mówi o tym, co czytnik
+	 *    przeczyta, gdy tekstu NIE MA. To jest pole tekstowe, nie pole
+	 *    działania, i po przeniesieniu stoi tuż obok tego, co je wyłącza.
+	 */
+	public function set_control_groups() {
+		$this->control_groups['evk_wyglad']    = [ 'title' => esc_html__( 'Wygląd', 'evoke-one' ),    'tab' => 'content' ];
+		$this->control_groups['evk_tekst']     = [ 'title' => esc_html__( 'Tekst', 'evoke-one' ),     'tab' => 'content' ];
+		$this->control_groups['evk_dzialanie'] = [ 'title' => esc_html__( 'Działanie', 'evoke-one' ), 'tab' => 'content' ];
+		$this->control_groups['evk_kolory']    = [ 'title' => esc_html__( 'Kolory', 'evoke-one' ),    'tab' => 'content' ];
+		$this->control_groups['evk_animacja']  = [ 'title' => esc_html__( 'Animacja', 'evoke-one' ),  'tab' => 'content' ];
+	}
+
 	public function set_controls() {
 
 		$options = [];
@@ -139,17 +164,15 @@ class Evk_Burger extends \Bricks\Element {
 		   elemencie wszędzie (druga ikona, drugi napis, oba kolory po otwarciu)
 		   i dlatego stoi w opisach SEKCJI, a nie czterokrotnie przy kontrolkach,
 		   za każdym razem innymi słowami. */
-		$this->controls['sep_wyglad'] = [
+		$this->controls['pomocWyglad'] = [
+			'group'       => 'evk_wyglad',
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Wygląd przycisku', 'evoke-one' ),
-			'type'        => 'separator',
-			'description' => esc_html__(
-				'Pusta ikona „otwarte" znaczy „ta sama co zamknięta".',
-				'evoke-one'
-			),
+			'type'        => 'info',
+			'description' => esc_html__( 'Pusta ikona „otwarte" znaczy „ta sama co zamknięta".', 'evoke-one' ),
 		];
 
 		$this->controls['iconSource'] = [
+			'group'       => 'evk_wyglad',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Co pokazuje przycisk', 'evoke-one' ),
 			'type'    => 'select',
@@ -168,6 +191,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['style'] = [
+			'group'       => 'evk_wyglad',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Styl', 'evoke-one' ),
 			'type'    => 'select',
@@ -181,6 +205,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['iconClosed'] = [
+			'group'       => 'evk_wyglad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Ikona — zamknięte', 'evoke-one' ),
 			'type'        => 'icon',
@@ -188,6 +213,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['iconOpen'] = [
+			'group'       => 'evk_wyglad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Ikona — otwarte', 'evoke-one' ),
 			'type'        => 'icon',
@@ -203,6 +229,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['iconSize'] = [
+			'group'       => 'evk_wyglad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Wielkość ikony', 'evoke-one' ),
 			'type'        => 'number',
@@ -213,19 +240,107 @@ class Evk_Burger extends \Bricks\Element {
 			'required'    => [ 'iconSource', '=', 'ikona' ],
 		];
 
-		// ── Tekst ──────────────────────────────────────────────────────────
-		// OSOBNA oś, nie wariant źródła: dwa sloty, bo napis przy otwartym menu
-		// zwykle brzmi inaczej niż przy zamkniętym.
-		$this->controls['textSeparator'] = [
-			'label'       => esc_html__( 'Tekst', 'evoke-one' ),
-			'type'        => 'separator',
+		// ── Rozmiar ────────────────────────────────────────────────────────
+		$this->controls['size'] = [
+			'group'       => 'evk_wyglad',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Pole klikalne', 'evoke-one' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [ [ 'property' => '--evk-burger-size', 'selector' => '' ] ],
+			'placeholder' => '44px',
 			'description' => esc_html__(
-				'Pusty napis „otwarte" znaczy „ten sam co zamknięty".',
+				'Bok przycisku. Czterdzieści cztery piksele to dolna granica zalecana '
+				. 'dla celu dotykowego — mniejszy da się kliknąć myszą, ale nie palcem.',
 				'evoke-one'
 			),
 		];
 
+		$this->controls['lineWidth'] = [
+			'group'       => 'evk_wyglad',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Szerokość kresek', 'evoke-one' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [ [ 'property' => '--evk-burger-line-width', 'selector' => '' ] ],
+			'placeholder' => '100%',
+			'description' => esc_html__(
+				'Osobno od pola klikalnego: krótsze kreski w większym przycisku dają '
+				. 'zapas na palec bez zmiany rysunku.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['shortLine'] = [
+			'group'       => 'evk_wyglad',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Długość krótszej kreski', 'evoke-one' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [ [ 'property' => '--evk-burger-short', 'selector' => '' ] ],
+			'placeholder' => '60%',
+			// Lista stylów asymetrycznych IDZIE Z REJESTRU. Wpisana tu z ręki
+			// rozjeżdżałaby się przy każdym nowym stylu, a objawem byłoby pole
+			// schowane akurat tam, gdzie jest potrzebne.
+			'required'    => [ 'style', '=', array_keys( array_filter(
+				self::styles(), function ( $d ) { return ! empty( $d['short'] ); } ) ) ],
+			/* W „schodkach" wylicza się z tej wartości także kreska środkowa,
+			   żeby jedno pole sterowało całą proporcją. */
+			'description' => esc_html__(
+				'Procent liczy się od boku pola klikalnego, więc trzyma proporcję przy '
+				. 'każdym rozmiarze przycisku.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['stroke'] = [
+			'group'       => 'evk_wyglad',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Grubość kreski', 'evoke-one' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [ [ 'property' => '--evk-burger-stroke', 'selector' => '' ] ],
+			'placeholder' => '2px',
+		];
+
+		$this->controls['gap'] = [
+			'group'       => 'evk_wyglad',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Odstęp między kreskami', 'evoke-one' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [ [ 'property' => '--evk-burger-gap', 'selector' => '' ] ],
+			'placeholder' => '7px',
+		];
+
+		$this->controls['radius'] = [
+			'group'       => 'evk_wyglad',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Zaokrąglenie kresek', 'evoke-one' ),
+			'type'        => 'number',
+			'units'       => true,
+			'inline'      => true,
+			'css'         => [ [ 'property' => '--evk-burger-radius', 'selector' => '' ] ],
+			'placeholder' => '0px',
+		];
+
+		// ── Tekst ──────────────────────────────────────────────────────────
+		// OSOBNA oś, nie wariant źródła: dwa sloty, bo napis przy otwartym menu
+		// zwykle brzmi inaczej niż przy zamkniętym.
+		$this->controls['pomocTekst'] = [
+			'group'       => 'evk_tekst',
+			'tab'         => 'content',
+			'type'        => 'info',
+			'description' => esc_html__( 'Pusty napis „otwarte" znaczy „ten sam co zamknięty".', 'evoke-one' ),
+		];
+
 		$this->controls['textClosed'] = [
+			'group'       => 'evk_tekst',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Tekst — zamknięte', 'evoke-one' ),
 			'type'        => 'text',
@@ -234,6 +349,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['textOpen'] = [
+			'group'       => 'evk_tekst',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Tekst — otwarte', 'evoke-one' ),
 			'type'        => 'text',
@@ -250,6 +366,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['textPosition'] = [
+			'group'       => 'evk_tekst',
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Pozycja tekstu', 'evoke-one' ),
 			'type'     => 'select',
@@ -259,6 +376,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['textGap'] = [
+			'group'       => 'evk_tekst',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Odstęp od ikony', 'evoke-one' ),
 			'type'        => 'number',
@@ -285,6 +403,7 @@ class Evk_Burger extends \Bricks\Element {
 		 * tak jak Circular Title celuje typografią w `.evk-arc__inner`.
 		 */
 		$this->controls['textPadding'] = [
+			'group'       => 'evk_tekst',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Wewnętrzny odstęp napisu', 'evoke-one' ),
 			'type'        => 'dimensions',
@@ -300,12 +419,28 @@ class Evk_Burger extends \Bricks\Element {
 			),
 		];
 
-		$this->controls['modeSeparator'] = [
-			'label' => esc_html__( 'Działanie', 'evoke-one' ),
-			'type'  => 'separator',
+		$this->controls['ariaLabel'] = [
+			'group'       => 'evk_tekst',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Opis dla czytnika ekranu', 'evoke-one' ),
+			'type'        => 'text',
+			'default'     => esc_html__( 'Menu', 'evoke-one' ),
+			// Widoczny tekst wyklucza ten opis, więc pole schodzi z oczu razem
+			// z powodem, dla którego istnieje.
+			'required'    => [ 'textClosed', '=', '' ],
+			/* DLACZEGO WPISANY TEKST WYKLUCZA TEN OPIS. Przykryłby widoczny napis,
+			   a nazwa inna od tego, co widać, psuje sterowanie głosem —
+			   użytkownik mówi „kliknij MENU", a przeglądarka szuka czegoś innego.
+			   Stan otwarcia idzie osobno, atrybutem aria-expanded. */
+			'description' => esc_html__(
+				'Przycisk bez tekstu nie ma czego przeczytać — czytnik ekranu powie '
+				. 'tylko „przycisk".',
+				'evoke-one'
+			),
 		];
 
 		$this->controls['mode'] = [
+			'group'       => 'evk_dzialanie',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Co przełącza', 'evoke-one' ),
 			'type'    => 'select',
@@ -343,6 +478,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['target'] = [
+			'group'       => 'evk_dzialanie',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Selektor celu', 'evoke-one' ),
 			'type'        => 'text',
@@ -360,6 +496,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['targetClass'] = [
+			'group'       => 'evk_dzialanie',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Dodatkowe klasy dla celu', 'evoke-one' ),
 			'type'        => 'text',
@@ -370,113 +507,6 @@ class Evk_Burger extends \Bricks\Element {
 				. 'klasie, dopisz ją tutaj — dojdzie do tamtej. Kilka oddziel spacją.',
 				'evoke-one'
 			),
-		];
-
-		$this->controls['ariaLabel'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Opis dla czytnika ekranu', 'evoke-one' ),
-			'type'        => 'text',
-			'default'     => esc_html__( 'Menu', 'evoke-one' ),
-			// Widoczny tekst wyklucza ten opis, więc pole schodzi z oczu razem
-			// z powodem, dla którego istnieje.
-			'required'    => [ 'textClosed', '=', '' ],
-			/* DLACZEGO WPISANY TEKST WYKLUCZA TEN OPIS. Przykryłby widoczny napis,
-			   a nazwa inna od tego, co widać, psuje sterowanie głosem —
-			   użytkownik mówi „kliknij MENU", a przeglądarka szuka czegoś innego.
-			   Stan otwarcia idzie osobno, atrybutem aria-expanded. */
-			'description' => esc_html__(
-				'Przycisk bez tekstu nie ma czego przeczytać — czytnik ekranu powie '
-				. 'tylko „przycisk".',
-				'evoke-one'
-			),
-		];
-
-		// ── Rozmiar ────────────────────────────────────────────────────────
-		$this->controls['sizeSeparator'] = [
-			'label' => esc_html__( 'Rozmiar', 'evoke-one' ),
-			'type'  => 'separator',
-		];
-
-		$this->controls['size'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Pole klikalne', 'evoke-one' ),
-			'type'        => 'number',
-			'units'       => true,
-			'inline'      => true,
-			'css'         => [ [ 'property' => '--evk-burger-size', 'selector' => '' ] ],
-			'placeholder' => '44px',
-			'description' => esc_html__(
-				'Bok przycisku. Czterdzieści cztery piksele to dolna granica zalecana '
-				. 'dla celu dotykowego — mniejszy da się kliknąć myszą, ale nie palcem.',
-				'evoke-one'
-			),
-		];
-
-		$this->controls['lineWidth'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Szerokość kresek', 'evoke-one' ),
-			'type'        => 'number',
-			'units'       => true,
-			'inline'      => true,
-			'css'         => [ [ 'property' => '--evk-burger-line-width', 'selector' => '' ] ],
-			'placeholder' => '100%',
-			'description' => esc_html__(
-				'Osobno od pola klikalnego: krótsze kreski w większym przycisku dają '
-				. 'zapas na palec bez zmiany rysunku.',
-				'evoke-one'
-			),
-		];
-
-		$this->controls['shortLine'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Długość krótszej kreski', 'evoke-one' ),
-			'type'        => 'number',
-			'units'       => true,
-			'inline'      => true,
-			'css'         => [ [ 'property' => '--evk-burger-short', 'selector' => '' ] ],
-			'placeholder' => '60%',
-			// Lista stylów asymetrycznych IDZIE Z REJESTRU. Wpisana tu z ręki
-			// rozjeżdżałaby się przy każdym nowym stylu, a objawem byłoby pole
-			// schowane akurat tam, gdzie jest potrzebne.
-			'required'    => [ 'style', '=', array_keys( array_filter(
-				self::styles(), function ( $d ) { return ! empty( $d['short'] ); } ) ) ],
-			/* W „schodkach" wylicza się z tej wartości także kreska środkowa,
-			   żeby jedno pole sterowało całą proporcją. */
-			'description' => esc_html__(
-				'Procent liczy się od boku pola klikalnego, więc trzyma proporcję przy '
-				. 'każdym rozmiarze przycisku.',
-				'evoke-one'
-			),
-		];
-
-		$this->controls['stroke'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Grubość kreski', 'evoke-one' ),
-			'type'        => 'number',
-			'units'       => true,
-			'inline'      => true,
-			'css'         => [ [ 'property' => '--evk-burger-stroke', 'selector' => '' ] ],
-			'placeholder' => '2px',
-		];
-
-		$this->controls['gap'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Odstęp między kreskami', 'evoke-one' ),
-			'type'        => 'number',
-			'units'       => true,
-			'inline'      => true,
-			'css'         => [ [ 'property' => '--evk-burger-gap', 'selector' => '' ] ],
-			'placeholder' => '7px',
-		];
-
-		$this->controls['radius'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Zaokrąglenie kresek', 'evoke-one' ),
-			'type'        => 'number',
-			'units'       => true,
-			'inline'      => true,
-			'css'         => [ [ 'property' => '--evk-burger-radius', 'selector' => '' ] ],
-			'placeholder' => '0px',
 		];
 
 		// ── Kolory ─────────────────────────────────────────────────────────
@@ -490,9 +520,10 @@ class Evk_Burger extends \Bricks\Element {
 		 * czytało się je jako to właściwe i kreski zostawały w swoim kolorze.
 		 * Stąd nazwy mówiące wprost, co które maluje.
 		 */
-		$this->controls['colorSeparator'] = [
-			'label'       => esc_html__( 'Kolory', 'evoke-one' ),
-			'type'        => 'separator',
+		$this->controls['pomocKolory'] = [
+			'group'       => 'evk_kolory',
+			'tab'         => 'content',
+			'type'        => 'info',
 			'description' => esc_html__(
 				'Rysunek i napis mają OSOBNE pary pól i nie malują się nawzajem. '
 				. 'Puste pole „po otwarciu" znaczy „ten sam kolor co przed".',
@@ -501,6 +532,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['color'] = [
+			'group'       => 'evk_kolory',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Kolor kresek i ikony', 'evoke-one' ),
 			'type'        => 'color',
@@ -514,6 +546,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['colorOpen'] = [
+			'group'       => 'evk_kolory',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Kolor kresek i ikony po otwarciu', 'evoke-one' ),
 			'type'        => 'color',
@@ -534,6 +567,7 @@ class Evk_Burger extends \Bricks\Element {
 		 * przemalowałoby to tekst każdemu, kto ustawił kolor kresek.
 		 */
 		$this->controls['textColorOpen'] = [
+			'group'       => 'evk_kolory',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Kolor napisu po otwarciu', 'evoke-one' ),
 			'type'        => 'color',
@@ -552,12 +586,8 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		// ── Animacja ───────────────────────────────────────────────────────
-		$this->controls['animSeparator'] = [
-			'label' => esc_html__( 'Animacja', 'evoke-one' ),
-			'type'  => 'separator',
-		];
-
 		$this->controls['duration'] = [
+			'group'       => 'evk_animacja',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Czas', 'evoke-one' ),
 			'type'        => 'number',
@@ -581,6 +611,7 @@ class Evk_Burger extends \Bricks\Element {
 			foreach ( evk_anim_easings() as $e ) $easings[ $e ] = $e;
 		}
 		$this->controls['easing'] = [
+			'group'       => 'evk_animacja',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Krzywa', 'evoke-one' ),
 			'type'    => 'select',
@@ -590,6 +621,7 @@ class Evk_Burger extends \Bricks\Element {
 		];
 
 		$this->controls['openRotate'] = [
+			'group'       => 'evk_animacja',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Obrót po otwarciu', 'evoke-one' ),
 			'type'        => 'number',

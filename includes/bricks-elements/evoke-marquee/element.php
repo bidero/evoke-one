@@ -22,6 +22,11 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		wp_enqueue_style( 'evk-marquee' );
 	}
 
+	public function set_control_groups() {
+		$this->control_groups['evk_ruch']  = [ 'title' => esc_html__( 'Ruch', 'evoke-one' ),               'tab' => 'content' ];
+		$this->control_groups['evk_pauza'] = [ 'title' => esc_html__( 'Pauza poza ekranem', 'evoke-one' ), 'tab' => 'content' ];
+	}
+
 	public function set_controls() {
 
 		// ── CONTENT ─────────────────────────────────────────────────────────
@@ -148,13 +153,8 @@ class Evk_Marquee_Element extends \Bricks\Element {
 
 		// ── SETTINGS ────────────────────────────────────────────────────────
 
-		$this->controls['sep_settings'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Ustawienia ruchu',
-		];
-
 		$this->controls['direction'] = [
+			'group' => 'evk_ruch',
 			'tab'     => 'content',
 			'label'   => 'Kierunek bazowy',
 			'type'    => 'select',
@@ -166,6 +166,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		];
 
 		$this->controls['reverse_on_scroll_up'] = [
+			'group' => 'evk_ruch',
 			'tab'         => 'content',
 			'label'       => 'Odwróć kierunek przy scrollu w górę',
 			'type'        => 'checkbox',
@@ -174,6 +175,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		];
 
 		$this->controls['base_speed'] = [
+			'group' => 'evk_ruch',
 			'tab'         => 'content',
 			'label'       => 'Prędkość bazowa (px/s)',
 			'type'        => 'number',
@@ -185,6 +187,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		];
 
 		$this->controls['scroll_divisor'] = [
+			'group' => 'evk_ruch',
 			'tab'         => 'content',
 			'label'       => 'Siła przyspieszenia przy scrollu',
 			'type'        => 'number',
@@ -196,6 +199,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		];
 
 		$this->controls['max_scale'] = [
+			'group' => 'evk_ruch',
 			'tab'     => 'content',
 			'label'   => 'Maks. przyspieszenie (x razy)',
 			'type'    => 'number',
@@ -206,6 +210,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		];
 
 		$this->controls['gap'] = [
+			'group' => 'evk_ruch',
 			'tab'     => 'content',
 			'label'   => 'Odstęp między elementami',
 			'type'    => 'number',
@@ -214,6 +219,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		];
 
 		$this->controls['slow_down'] = [
+			'group' => 'evk_ruch',
 			'tab'     => 'content',
 			'label'   => 'Czas zwalniania (s)',
 			'type'    => 'number',
@@ -225,16 +231,11 @@ class Evk_Marquee_Element extends \Bricks\Element {
 
 		// ── PAUZA POZA EKRANEM ─────────────────────────────────────────────────
 
-		$this->controls['sep_pause'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Pauza poza ekranem',
-		];
-
 		// Domyślnie włączone — to dotychczasowe zachowanie, wcześniej zaszyte
 		// na sztywno w marquee.js. Wyłączenie ma sens tylko wtedy, gdy pętla
 		// musi trwać także niewidoczna (np. dwa marquee zsynchronizowane ze sobą).
 		$this->controls['pause_offscreen'] = [
+			'group' => 'evk_pauza',
 			'tab'         => 'content',
 			'label'       => 'Pauzuj poza ekranem',
 			'type'        => 'checkbox',
@@ -243,6 +244,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		];
 
 		$this->controls['pause_offset'] = [
+			'group' => 'evk_pauza',
 			'tab'         => 'content',
 			'label'       => 'Zapas (px)',
 			'type'        => 'number',

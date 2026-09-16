@@ -2,6 +2,77 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.209.0] — 2026-09-16
+
+### Zmienione
+
+- **Wszystkie elementy przeszły na zwijane grupy Bricksa. Separatorów w całej
+  wtyczce jest zero.** ZGŁOSZONE Z UŻYCIA: „zrób wszystko na rozwijanych
+  panelach co robiliśmy".
+
+  | Element | Grup | Kontrolek |
+  |---|---|---|
+  | Wave BG | 8 | 45 |
+  | Offcanvas Menu | 6 | 28 |
+  | Circular Menu | 6 | 22 |
+  | Burger | 5 | 29 |
+  | Horizontal Scroll | 3 | 30 |
+  | Marquee · Stacking Cards · Scroll Reading · Circular Title | 2 każdy | — |
+  | **Grain** | **0** | 6 |
+
+  **Grain zostaje bez grup i to jest decyzja.** Sześć kontrolek, żadnej sekcji
+  — grupa dołożyłaby kliknięcie i nie schowała niczego, co przeszkadza.
+
+### Dwie kontrolki zmieniły sąsiedztwo
+
+Obie dlatego, że **grupa musi mieścić swoje bramki**: warunek `required`
+wskazujący pole z innej grupy jest w tej wtyczce bez pokrycia. To jedyne
+miejsca, gdzie ruszony został układ już zatwierdzony — warto o nich wiedzieć:
+
+- **„Esc cofa o poziom" (Offcanvas): z „Zamykania" do „Trybu".** Jest
+  bramkowane na `mode = levels`, tak jak „Wejście w podmenu", „Panel startowy"
+  i „Opóźnienie panelu podrzędnego". „Tryb" jest teraz grupą wszystkiego, co
+  istnieje WYŁĄCZNIE w trybie poziomów — razem z czasem i krzywą przejścia
+  między panelami, które weszły tam z tego samego powodu.
+- **„Opis dla czytnika ekranu" (Burger): z „Działania" do „Tekstu".** Jest
+  bramkowany na „Tekst — zamknięte" i mówi o tym, co czytnik przeczyta, gdy
+  tekstu NIE MA. To pole tekstowe, nie pole działania — po przeniesieniu stoi
+  tuż obok tego, co je wyłącza.
+
+Scalenia sekcji z tego samego powodu: „Przejścia między panelami" → „Tryb"
+(Offcanvas), „Wygląd przycisku" + „Rozmiar" → „Wygląd" (Burger),
+„Animacja / ScrollTrigger" + „Snap" → „Animacja i snap" oraz „Responsywność"
+→ „Układ paneli" (Horizontal Scroll), „Responsywność" → „Układ" (Stacking
+Cards), „Gradient" → „Styl" (Circular Title).
+
+### Naprawione po drodze
+
+- **`Undefined variable $easings` w Offcanvasie.** Lista krzywych powstawała
+  tuż przed pierwszą kontrolką, która jej używa — a gdy „Krzywa przejścia
+  między panelami" powędrowała do grupy „Tryb", została za nią. Efektem byłaby
+  pusta lista wariantów w builderze.
+
+  **Złapał to PHPStan, nie przebieg przeglądarkowy** — dla testów `options` to
+  tylko tablica, więc pusta wygląda tak samo jak pełna. Lista powstaje teraz
+  na początku `set_controls()`, z komentarzem mówiącym dlaczego.
+
+### Czego ta partia dowiodła o strażniku z 1.207.0
+
+Reguła **„żadna bramka nie przechodzi przez granicę grupy"** rozstrzygnęła
+cały zakres tego wydania: to ona powiedziała, które kontrolki muszą się
+przenieść i które sekcje trzeba scalić. Mutacje cofające oba przeniesienia
+zapalają ją i wymieniają winowajcę po nazwie —
+`escGoesBack [evk_zamykanie] ← mode [evk_tryb]`,
+`ariaLabel [evk_dzialanie] ← textClosed [evk_tekst]` — a **166 sprawdzeń
+zachowania burgera zostaje zielonych.**
+
+### Do sprawdzenia w builderze
+
+- Dziewięć elementów na zwijanych grupach. Szczególnie dwa przeniesienia wyżej:
+  czy „Esc cofa o poziom" i „Opis dla czytnika ekranu" dają się znaleźć tam,
+  gdzie teraz stoją. Jeśli nie — to jedna linia z powrotem, ale wtedy ten
+  element musi zostać na separatorach.
+
 ## [1.208.0] — 2026-09-16
 
 ### Zmienione

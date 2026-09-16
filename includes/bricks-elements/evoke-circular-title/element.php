@@ -20,10 +20,11 @@ class Evk_Circular_Title extends \Bricks\Element {
     }
 
     public function set_control_groups() {
-        $this->control_groups['gradient'] = [
-            'title' => esc_html__( 'Gradient', 'evoke-circular-title' ),
-            'tab'   => 'content',
-        ];
+        /* GRADIENT WSIĄKA W „STYL". Osobna grupa na jedną kontrolkę to
+           zwijany nagłówek droższy niż jego zawartość — a gradient liter jest
+           elementem stylu tak samo jak typografia i odstęp. */
+        $this->control_groups['evk_styl']     = [ 'title' => esc_html__( 'Styl', 'evoke-circular-title' ),     'tab' => 'content' ];
+        $this->control_groups['evk_animacja'] = [ 'title' => esc_html__( 'Animacja', 'evoke-circular-title' ), 'tab' => 'content' ];
     }
 
     public function set_controls() {
@@ -63,12 +64,8 @@ class Evk_Circular_Title extends \Bricks\Element {
             'type'  => 'link',
         ];
 
-        $this->controls['styleSeparator'] = [
-            'label' => esc_html__( 'Styl', 'evoke-circular-title' ),
-            'type'  => 'separator',
-        ];
-
         $this->controls['typography'] = [
+            'group' => 'evk_styl',
             'tab'    => 'content',
             'label'  => esc_html__( 'Typografia', 'evoke-circular-title' ),
             'type'   => 'typography',
@@ -88,6 +85,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['width'] = [
+            'group' => 'evk_styl',
             'tab'         => 'content',
             'label'       => esc_html__( 'Wymiary', 'evoke-circular-title' ),
             'type'        => 'number',
@@ -103,6 +101,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['spacing'] = [
+            'group' => 'evk_styl',
             'tab'         => 'content',
             'label'       => esc_html__( 'Odstęp liter', 'evoke-circular-title' ),
             'type'        => 'number',
@@ -112,7 +111,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['titleGradient'] = [
-            'group' => 'gradient',
+            'group' => 'evk_styl',
             'tab'   => 'content',
             'type'  => 'gradient',
             'css'   => [
@@ -123,12 +122,8 @@ class Evk_Circular_Title extends \Bricks\Element {
             ],
         ];
 
-        $this->controls['animationSeparator'] = [
-            'label' => esc_html__( 'Animacja', 'evoke-circular-title' ),
-            'type'  => 'separator',
-        ];
-
         $this->controls['velocity'] = [
+            'group' => 'evk_animacja',
             'hasDynamicData' => false,
             'tab'   => 'content',
             'label' => esc_html__( 'Przyśpieszaj przy scrollu', 'evoke-circular-title' ),
@@ -137,6 +132,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['velocityMultiplier'] = [
+            'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Mnożnik prędkości', 'evoke-circular-title' ),
             'type'        => 'number',
@@ -147,6 +143,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['reverse'] = [
+            'group' => 'evk_animacja',
             'hasDynamicData' => false,
             'tab'      => 'content',
             'label'    => esc_html__( 'Odwróć kierunek', 'evoke-circular-title' ),
@@ -156,6 +153,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['animationduration'] = [
+            'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Czas trwania (s)', 'evoke-circular-title' ),
             'type'        => 'number',
@@ -172,6 +170,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['easing'] = [
+            'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Easing', 'evoke-circular-title' ),
             'type'        => 'text',
@@ -187,6 +186,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['scroll'] = [
+            'group' => 'evk_animacja',
             'hasDynamicData' => false,
             'tab'   => 'content',
             'label' => esc_html__( 'Przypisz do scrolla (GSAP)', 'evoke-circular-title' ),
@@ -194,6 +194,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['scrollstart'] = [
+            'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Start', 'evoke-circular-title' ),
             'type'        => 'text',
@@ -203,6 +204,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['scrollend'] = [
+            'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Koniec', 'evoke-circular-title' ),
             'type'        => 'text',
@@ -212,6 +214,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['scrub'] = [
+            'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Scrub', 'evoke-circular-title' ),
             'type'        => 'text',
@@ -221,6 +224,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['scrollrotation'] = [
+            'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Obrót (deg)', 'evoke-circular-title' ),
             'type'        => 'text',
@@ -230,6 +234,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['scrolleasing'] = [
+            'group' => 'evk_animacja',
             'hasDynamicData' => false,
             'tab'     => 'content',
             'label'   => esc_html__( 'GSAP easing', 'evoke-circular-title' ),

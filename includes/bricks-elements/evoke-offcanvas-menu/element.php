@@ -82,7 +82,48 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 	 * osobną kontrolkę typu `info` pod bramką, żeby nie wisiały nad każdym,
 	 * kto ich nie potrzebuje.
 	 */
+	/**
+	 * SEKCJE SĄ ZWIJANYMI GRUPAMI BRICKSA — jak w Circular Menu i fali.
+	 *
+	 * SIEDEM SEKCJI ZESZŁO DO SZEŚCIU GRUP, i to nie jest upraszczanie dla
+	 * samego upraszczania: grupa musi mieścić swoje bramki, bo warunek
+	 * `required` wskazujący pole z innej grupy jest w tej wtyczce bez pokrycia
+	 * (patrz `controls.test.js`). Trzy bramki offcanvasu przecinały sekcje
+	 * i obie zmiany wynikają wprost z tego:
+	 *
+	 *  · „Przejścia między panelami" (dwie kontrolki) wchodzą do „Trybu".
+	 *    Obie są bramkowane na `mode = levels`, dokładnie jak „Wejście
+	 *    w podmenu", „Panel startowy" i „Opóźnienie panelu podrzędnego".
+	 *  · „Esc cofa o poziom" PRZENOSI SIĘ z „Zamykania" do „Trybu" — też jest
+	 *    bramkowane na `mode = levels`. To jedyne pole, które zmienia sąsiedztwo
+	 *    wbrew swojej nazwie, i warto o tym wiedzieć: „Tryb" jest teraz grupą
+	 *    wszystkiego, co istnieje WYŁĄCZNIE w trybie poziomów.
+	 */
+	public function set_control_groups() {
+		$this->control_groups['evk_tryb']        = [ 'title' => esc_html__( 'Tryb', 'evoke-one' ),        'tab' => 'content' ];
+		$this->control_groups['evk_wyglad']      = [ 'title' => esc_html__( 'Wygląd', 'evoke-one' ),      'tab' => 'content' ];
+		$this->control_groups['evk_otwieranie']  = [ 'title' => esc_html__( 'Otwieranie', 'evoke-one' ),  'tab' => 'content' ];
+		$this->control_groups['evk_zamykanie']   = [ 'title' => esc_html__( 'Zamykanie', 'evoke-one' ),   'tab' => 'content' ];
+		$this->control_groups['evk_przelacznik'] = [ 'title' => esc_html__( 'Przełącznik', 'evoke-one' ), 'tab' => 'content' ];
+		$this->control_groups['evk_warstwy']     = [ 'title' => esc_html__( 'Warstwy', 'evoke-one' ),     'tab' => 'content' ];
+	}
+
 	public function set_controls() {
+
+		/* LISTA KRZYWYCH POWSTAJE NA POCZĄTKU, bo używają jej DWIE kontrolki
+		   z różnych grup: „Krzywa" w Otwieraniu i „Krzywa przejścia między
+		   panelami" w Trybie. Stała niżej, tuż przed pierwszą z nich — i przy
+		   przejściu na grupy (1.209.0), gdy „Krzywa przejścia" powędrowała
+		   do Trybu, została za nią. Objaw: `Undefined variable $easings`
+		   i lista wariantów pusta. Złapał to PHPStan, nie przebieg
+		   przeglądarkowy — dla testów opcje są tylko tablicą.
+
+		   Ta sama lista co w Animatorze: jedna dla całej wtyczki znaczy, że
+		   dorzucenie krzywej działa wszędzie naraz. */
+		$easings = [ '' => esc_html__( '— domyślny —', 'evoke-one' ) ];
+		if ( function_exists( 'evk_anim_easings' ) ) {
+			foreach ( evk_anim_easings() as $e ) $easings[ $e ] = $e;
+		}
 
 		/* NA SAMEJ GÓRZE, PRZED PIERWSZYM SEPARATOREM, tak jak „Otwórz
 		   w builderze" w Circular Menu. To jedyna kontrolka, której się używa
@@ -96,14 +137,8 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'default' => false,
 		];
 
-		// ── Tryb ────────────────────────────────────────────────────────────
-		$this->controls['sep_tryb'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Tryb', 'evoke-one' ),
-		];
-
 		$this->controls['mode'] = [
+			'group'       => 'evk_tryb',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Tryb', 'evoke-one' ),
 			'type'        => 'select',
@@ -126,6 +161,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		 * go potrzebował. Kontrolka `info` pod tym samym warunkiem co reszta
 		 * poziomów pokazuje go dokładnie wtedy, kiedy ma sens. */
 		$this->controls['pomocPoziomy'] = [
+			'group'       => 'evk_tryb',
 			'tab'      => 'content',
 			'type'     => 'info',
 			'required' => [ 'mode', '=', 'levels' ],
@@ -152,6 +188,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		   · menu z góry i z dołu zawsze jedzie trybem „rodzic wyjeżdża całkiem",
 		     bo poszerzanie ma sens wyłącznie w poziomie. */
 		$this->controls['levelStyle'] = [
+			'group'       => 'evk_tryb',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Wejście w podmenu', 'evoke-one' ),
 			'type'        => 'select',
@@ -169,6 +206,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['startPanel'] = [
+			'group'       => 'evk_tryb',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Panel startowy (ID)', 'evoke-one' ),
 			'type'        => 'text',
@@ -181,6 +219,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		   poszerza się kadr (albo wyjeżdża poprzedni panel podrzędny), a potem
 		   dopiero nowy dojeżdża. */
 		$this->controls['subDelay'] = [
+			'group'       => 'evk_tryb',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Opóźnienie panelu podrzędnego (s)', 'evoke-one' ),
 			'type'        => 'number',
@@ -194,14 +233,51 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			),
 		];
 
-		// ── Wygląd ──────────────────────────────────────────────────────────
-		$this->controls['sep_wyglad'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Wygląd', 'evoke-one' ),
+		/*
+		 * Czas i krzywa TAŚMY — osobno od kadru.
+		 *
+		 * To jest sedno efektu, nie kosmetyka: wspólny czas daje ruch liniowy,
+		 * bo menu wjeżdża i panele przesuwają się dokładnie tak samo. Rozdzielone
+		 * czasy sprawiają, że przejście między panelami ma własne tempo.
+		 */
+		$this->controls['panelDuration'] = [
+			'group'       => 'evk_tryb',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Czas przejścia między panelami (s)', 'evoke-one' ),
+			'type'        => 'number',
+			'min'         => 0,
+			'max'         => 3,
+			'step'        => 0.05,
+			'placeholder' => esc_html__( 'jak wysuwanie', 'evoke-one' ),
+			'required'    => [ 'mode', '=', 'levels' ],
+			'description' => esc_html__(
+				'Własne tempo przejścia między panelami. Puste = to samo co wysuwanie kadru.',
+				'evoke-one'
+			),
+		];
+
+		$this->controls['panelEasing'] = [
+			'group'       => 'evk_tryb',
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Krzywa przejścia między panelami', 'evoke-one' ),
+			'type'     => 'select',
+			'options'  => $easings,
+			'default'  => '',
+			'required' => [ 'mode', '=', 'levels' ],
+		];
+
+		$this->controls['escGoesBack'] = [
+			'group'       => 'evk_tryb',
+			'tab'         => 'content',
+			'label'       => esc_html__( 'Esc cofa o poziom', 'evoke-one' ),
+			'type'        => 'checkbox',
+			'default'     => true,
+			'required'    => [ 'mode', '=', 'levels' ],
+			'description' => esc_html__( 'Na panelu startowym Esc zamyka. Wyłączone: Esc zawsze zamyka.', 'evoke-one' ),
 		];
 
 		$this->controls['side'] = [
+			'group'       => 'evk_wyglad',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Z której strony', 'evoke-one' ),
 			'type'    => 'select',
@@ -215,6 +291,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['panelWidth'] = [
+			'group'       => 'evk_wyglad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Szerokość / wysokość panelu', 'evoke-one' ),
 			'type'        => 'text',
@@ -228,6 +305,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		   DZIAŁAJĄCĄ, nie brakiem ustawienia: skrypt bierze wtedy kolor wprost
 		   z panelu, na którym właśnie jesteśmy. */
 		$this->controls['bgColor'] = [
+			'group'       => 'evk_wyglad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Tło menu', 'evoke-one' ),
 			'type'        => 'color',
@@ -248,6 +326,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		   czegokolwiek. Własny gradient na panelu nadal działa i przykrywa ten
 		   spodni. W trybie „kadr się poszerza" rozciąga się razem z menu. */
 		$this->controls['bgGradient'] = [
+			'group'       => 'evk_wyglad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Gradient tła menu', 'evoke-one' ),
 			'type'        => 'gradient',
@@ -260,18 +339,12 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['scrimColor'] = [
+			'group'       => 'evk_wyglad',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Przyciemnienie strony', 'evoke-one' ),
 			'type'    => 'color',
 			'default' => [ 'rgb' => 'rgba(15, 23, 42, 0.55)' ],
 			'css'     => [ [ 'property' => '--evk-oc-scrim', 'selector' => '' ] ],
-		];
-
-		// ── Otwieranie ──────────────────────────────────────────────────────
-		$this->controls['sep_otwieranie'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Otwieranie', 'evoke-one' ),
 		];
 
 		/*
@@ -288,6 +361,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		 * `.evk-oc-hold`), więc czas i krzywa niżej rządzą wszystkimi tak samo.
 		 */
 		$this->controls['openEffect'] = [
+			'group'       => 'evk_otwieranie',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Efekt otwierania', 'evoke-one' ),
 			'type'    => 'select',
@@ -302,6 +376,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		/* Steruje punktem kontrolnym Béziery: przy pełnej sile środek brzegu
 		   wyprzedza krawędź o ćwierć panelu. */
 		$this->controls['curveIntensity'] = [
+			'group'       => 'evk_otwieranie',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Siła wygięcia', 'evoke-one' ),
 			'type'        => 'number',
@@ -314,6 +389,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['duration'] = [
+			'group'       => 'evk_otwieranie',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Czas wysuwania (s)', 'evoke-one' ),
 			'type'    => 'number',
@@ -323,64 +399,13 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'default' => 0.35,
 		];
 
-		// Ta sama lista, co w Animatorze — jedna lista dla całej wtyczki znaczy,
-		// że dorzucenie krzywej działa wszędzie naraz.
-		$easings = [ '' => esc_html__( '— domyślny —', 'evoke-one' ) ];
-		if ( function_exists( 'evk_anim_easings' ) ) {
-			foreach ( evk_anim_easings() as $e ) $easings[ $e ] = $e;
-		}
 		$this->controls['easing'] = [
+			'group'       => 'evk_otwieranie',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Krzywa', 'evoke-one' ),
 			'type'    => 'select',
 			'options' => $easings,
 			'default' => '',
-		];
-
-		// ── Przejścia między panelami ───────────────────────────────────────
-		$this->controls['sep_panele'] = [
-			'tab'      => 'content',
-			'type'     => 'separator',
-			'label'    => esc_html__( 'Przejścia między panelami', 'evoke-one' ),
-			'required' => [ 'mode', '=', 'levels' ],
-		];
-
-		/*
-		 * Czas i krzywa TAŚMY — osobno od kadru.
-		 *
-		 * To jest sedno efektu, nie kosmetyka: wspólny czas daje ruch liniowy,
-		 * bo menu wjeżdża i panele przesuwają się dokładnie tak samo. Rozdzielone
-		 * czasy sprawiają, że przejście między panelami ma własne tempo.
-		 */
-		$this->controls['panelDuration'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Czas przejścia między panelami (s)', 'evoke-one' ),
-			'type'        => 'number',
-			'min'         => 0,
-			'max'         => 3,
-			'step'        => 0.05,
-			'placeholder' => esc_html__( 'jak wysuwanie', 'evoke-one' ),
-			'required'    => [ 'mode', '=', 'levels' ],
-			'description' => esc_html__(
-				'Własne tempo przejścia między panelami. Puste = to samo co wysuwanie kadru.',
-				'evoke-one'
-			),
-		];
-
-		$this->controls['panelEasing'] = [
-			'tab'      => 'content',
-			'label'    => esc_html__( 'Krzywa przejścia między panelami', 'evoke-one' ),
-			'type'     => 'select',
-			'options'  => $easings,
-			'default'  => '',
-			'required' => [ 'mode', '=', 'levels' ],
-		];
-
-		// ── Zamykanie ───────────────────────────────────────────────────────
-		$this->controls['sep_zamykanie'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Zamykanie', 'evoke-one' ),
 		];
 
 		/* Domyślnie treść wychodzi TĄ SAMĄ animacją, którą weszła, tylko od
@@ -389,6 +414,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		   z cofaniem. Bez ustawienia czekania menu czeka na całą animację, ale
 		   nie dłużej niż sekundę. Atrybut na korzeniu: data-anim-exit. */
 		$this->controls['animateExit'] = [
+			'group'       => 'evk_zamykanie',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Animuj wyjście treści', 'evoke-one' ),
 			'type'        => 'checkbox',
@@ -404,6 +430,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		   zamknie. Puste pole to całkowity czas animacji wyjścia, najwyżej
 		   sekunda — czyli ruchy jeden po drugim. */
 		$this->controls['exitWait'] = [
+			'group'       => 'evk_zamykanie',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Czekanie na wyjście (s)', 'evoke-one' ),
 			'type'        => 'number',
@@ -418,16 +445,8 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			),
 		];
 
-		$this->controls['escGoesBack'] = [
-			'tab'         => 'content',
-			'label'       => esc_html__( 'Esc cofa o poziom', 'evoke-one' ),
-			'type'        => 'checkbox',
-			'default'     => true,
-			'required'    => [ 'mode', '=', 'levels' ],
-			'description' => esc_html__( 'Na panelu startowym Esc zamyka. Wyłączone: Esc zawsze zamyka.', 'evoke-one' ),
-		];
-
 		$this->controls['closeOnLinkClick'] = [
+			'group'       => 'evk_zamykanie',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Zamknij po kliknięciu w odnośnik', 'evoke-one' ),
 			'type'    => 'checkbox',
@@ -435,20 +454,15 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['lockScroll'] = [
+			'group'       => 'evk_zamykanie',
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Blokuj przewijanie strony', 'evoke-one' ),
 			'type'    => 'checkbox',
 			'default' => true,
 		];
 
-		// ── Przełącznik ─────────────────────────────────────────────────────
-		$this->controls['sep_przelacznik'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Przełącznik', 'evoke-one' ),
-		];
-
 		$this->controls['triggerSelector'] = [
+			'group'       => 'evk_przelacznik',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Dodatkowy trigger (selektor)', 'evoke-one' ),
 			'type'        => 'text',
@@ -462,6 +476,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		   klawiszem Esc i kliknięciem w tło. To pole jest na wypadek burgera,
 		   który animuje się na jeszcze innej klasie. */
 		$this->controls['toggleClass'] = [
+			'group'       => 'evk_przelacznik',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Klasy otwarcia przełącznika', 'evoke-one' ),
 			'type'        => 'text',
@@ -473,14 +488,8 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			),
 		];
 
-		// ── Warstwy ─────────────────────────────────────────────────────────
-		$this->controls['sep_warstwy'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => esc_html__( 'Warstwy', 'evoke-one' ),
-		];
-
 		$this->controls['toBody'] = [
+			'group'       => 'evk_warstwy',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Przenieś do <body>', 'evoke-one' ),
 			'type'        => 'checkbox',
@@ -503,6 +512,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		 * otwarcia — patrz `podniesNaglowek()`.
 		 */
 		$this->controls['headerAbove'] = [
+			'group'       => 'evk_warstwy',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Przełącznik nad menu', 'evoke-one' ),
 			'type'        => 'checkbox',
@@ -520,6 +530,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		   podnosi warstwę jednego przodka, przez co nad panel wjeżdża cały pasek
 		   RAZEM Z TŁEM; wymaga, żeby ten przodek był pozycjonowany. */
 		$this->controls['raiseMode'] = [
+			'group'       => 'evk_warstwy',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Co nad menu', 'evoke-one' ),
 			'type'        => 'select',
@@ -539,6 +550,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['raiseSelector'] = [
+			'group'       => 'evk_warstwy',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Co jeszcze wyjąć (selektor)', 'evoke-one' ),
 			'type'        => 'text',
@@ -558,6 +570,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		   kontekście nakładania; jeśli nie, właściwą drogą jest przełącznik
 		   „Przełącznik nad menu" wyżej, a nie większa liczba tutaj. */
 		$this->controls['shellZ'] = [
+			'group'       => 'evk_warstwy',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Warstwa menu (z-index)', 'evoke-one' ),
 			'type'        => 'number',

@@ -23,11 +23,17 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 		wp_enqueue_style( 'evk-scroll-reading' );
 	}
 
+	public function set_control_groups() {
+		$this->control_groups['evk_tekst'] = [ 'title' => esc_html__( 'Tekst', 'evoke-one' ),         'tab' => 'content' ];
+		$this->control_groups['evk_st']    = [ 'title' => esc_html__( 'ScrollTrigger', 'evoke-one' ), 'tab' => 'content' ];
+	}
+
 	public function set_controls() {
 
 		// ── KOLORY ─────────────────────────────────────────────────────────
 
 		$this->controls['color_active'] = [
+			'group' => 'evk_tekst',
 			'tab'     => 'content',
 			'label'   => 'Kolor aktywny',
 			'type'    => 'color',
@@ -35,6 +41,7 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 		];
 
 		$this->controls['color_dim'] = [
+			'group' => 'evk_tekst',
 			'tab'     => 'content',
 			'label'   => 'Kolor dim (wyjściowy)',
 			'type'    => 'color',
@@ -43,13 +50,8 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 
 		// ── SPLIT ──────────────────────────────────────────────────────────
 
-		$this->controls['sep_split'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'Podział tekstu',
-		];
-
 		$this->controls['split_type'] = [
+			'group' => 'evk_tekst',
 			'tab'         => 'content',
 			'label'       => 'Podziel na',
 			'type'        => 'select',
@@ -64,13 +66,8 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 
 		// ── SCROLL TRIGGER ─────────────────────────────────────────────────
 
-		$this->controls['sep_st'] = [
-			'tab'   => 'content',
-			'type'  => 'separator',
-			'label' => 'ScrollTrigger',
-		];
-
 		$this->controls['st_start'] = [
+			'group' => 'evk_st',
 			'tab'     => 'content',
 			'label'   => 'Start',
 			'type'    => 'text',
@@ -78,6 +75,7 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 		];
 
 		$this->controls['st_end'] = [
+			'group' => 'evk_st',
 			'tab'     => 'content',
 			'label'   => 'End',
 			'type'    => 'text',
@@ -85,6 +83,7 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 		];
 
 		$this->controls['scrub'] = [
+			'group' => 'evk_st',
 			'tab'     => 'content',
 			'label'   => 'Scrub',
 			'type'    => 'number',
@@ -95,6 +94,7 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 		];
 
 		$this->controls['stagger'] = [
+			'group' => 'evk_st',
 			'tab'     => 'content',
 			'label'   => 'Stagger (s)',
 			'type'    => 'number',
