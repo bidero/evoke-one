@@ -52,7 +52,38 @@ class Evk_Circular_Menu extends \Bricks\Element {
 	}
 
 	/**
-	 * UKŁAD PANELU: sześć sekcji, nazwanych TAK SAMO jak w Offcanvas Menu.
+	 * SEKCJE SĄ ZWIJANYMI GRUPAMI BRICKSA, nie separatorami.
+	 *
+	 * Separator rysuje kreskę z nazwą i tyle — panel dalej jest jedną długą
+	 * listą. Grupa się ZWIJA, więc dwadzieścia parę kontrolek zwija się do
+	 * sześciu wierszy i widać całą mapę elementu naraz. Mechanizm był we
+	 * wtyczce od dawna (Horizontal Scroll trzyma tak dziewiętnaście kontrolek
+	 * wskaźnika, Circular Title — gradient), tylko nikt go nie stosował poza
+	 * pojedynczą grupą doklejaną do listy separatorów.
+	 *
+	 * WARUNEK, KTÓREGO NIE WOLNO ZŁAMAĆ: bramka `required` musi wskazywać pole
+	 * z TEJ SAMEJ grupy. W całej wtyczce nie ma ani jednego warunku przez
+	 * granicę grupy, więc nie wiadomo, czy Bricks to obsługuje — a objawem
+	 * byłaby kontrolka, która po prostu się nie pokazuje, przy stronie
+	 * wyglądającej normalnie. Ta sama pułapka co z łańcuchami w `required`
+	 * (1.103.1, 1.107.0). Ten element nadaje się do zamiany właśnie dlatego,
+	 * że wszystkie jego cztery bramki mieszczą się w swoich sekcjach; pilnuje
+	 * tego osobne sprawdzenie w `controls.test.js`.
+	 *
+	 * NOTKI SEKCJI JADĄ JAKO KONTROLKA `info`, bo grupa niesie tylko `title`
+	 * i `tab` — opisu nie ma gdzie na niej powiesić.
+	 */
+	public function set_control_groups() {
+		$this->control_groups['evk_lokalizacja'] = [ 'title' => esc_html__( 'Lokalizacja', 'evk-circular-menu' ), 'tab' => 'content' ];
+		$this->control_groups['evk_wyglad']      = [ 'title' => esc_html__( 'Wygląd', 'evk-circular-menu' ),      'tab' => 'content' ];
+		$this->control_groups['evk_animacja']    = [ 'title' => esc_html__( 'Animacja', 'evk-circular-menu' ),    'tab' => 'content' ];
+		$this->control_groups['evk_zamykanie']   = [ 'title' => esc_html__( 'Zamykanie', 'evk-circular-menu' ),   'tab' => 'content' ];
+		$this->control_groups['evk_przelacznik'] = [ 'title' => esc_html__( 'Przełącznik', 'evk-circular-menu' ), 'tab' => 'content' ];
+		$this->control_groups['evk_warstwy']     = [ 'title' => esc_html__( 'Warstwy', 'evk-circular-menu' ),     'tab' => 'content' ];
+	}
+
+	/**
+	 * UKŁAD PANELU: sześć grup, nazwanych TAK SAMO jak sekcje w Offcanvas Menu.
 	 *
 	 * Dwa elementy robiące podobną rzecz mają się otwierać tak samo — stąd
 	 * Lokalizacja · Wygląd · Animacja · Zamykanie · Przełącznik · Warstwy,
@@ -78,14 +109,8 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'type'  => 'checkbox',
 		];
 
-		// ── Lokalizacja ─────────────────────────────────────────────────────
-		$this->controls['sep_lokalizacja'] = [
-			'tab'   => 'content',
-			'label' => esc_html__( 'Lokalizacja', 'evk-circular-menu' ),
-			'type'  => 'separator',
-		];
-
 		$this->controls['portalToBody'] = [
+			'group'       => 'evk_lokalizacja',
 			'hasDynamicData' => false,
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Portal do &lt;body&gt;', 'evk-circular-menu' ),
@@ -101,6 +126,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		   celująca w `.brxe-XXXX .evk-cm-content` po przeprowadzce przestaje
 		   pasować, a zmienna na samym panelu jedzie z nim. */
 		$this->controls['fromTop'] = [
+			'group'       => 'evk_lokalizacja',
 			'hasDynamicData' => false,
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Góra (punkt rozwinięcia)', 'evk-circular-menu' ),
@@ -118,6 +144,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['fromLeft'] = [
+			'group'       => 'evk_lokalizacja',
 			'hasDynamicData' => false,
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Lewa (punkt rozwinięcia)', 'evk-circular-menu' ),
@@ -134,18 +161,15 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'default'     => '24px',
 		];
 
-		// ── Wygląd ──────────────────────────────────────────────────────────
-		/* ZACZEPY DLA WŁASNEGO CSS-a przy otwartym menu — zostają w opisie
-		   sekcji, bo to jedyny tekst tutaj, którego szuka się PISZĄC STYLE,
-		   a nie ustawiając element. Reszta dawnego opisu („można edytować
-		   style na elemencie Zawartość menu", kiedy dokładnie schodzą klasy)
-		   przeniesiona tu, do komentarza: klasy schodzą dopiero, gdy kadr
-		   zaczyna się zwijać, więc przez czas wychodzenia treści styl otwartego
-		   menu nadal obowiązuje. */
-		$this->controls['sep_wyglad'] = [
+		/* NOTKA SEKCJI JAKO `info`, bo grupa niesie tylko `title` i `tab`.
+		   Zaczepy dla własnego CSS-a to jedyny tekst tutaj, którego szuka się
+		   PISZĄC STYLE, a nie ustawiając element — reszta dawnego opisu poszła
+		   do komentarza: klasy schodzą dopiero, gdy kadr zaczyna się zwijać,
+		   więc przez czas wychodzenia treści styl otwartego menu obowiązuje. */
+		$this->controls['pomocWyglad'] = [
+			'group'       => 'evk_wyglad',
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Wygląd', 'evk-circular-menu' ),
-			'type'        => 'separator',
+			'type'        => 'info',
 			'description' => esc_html__(
 				'Zaczepy przy otwartym menu: panel niesie .is-open, a korzeń elementu '
 				. 'i przełącznik — .brx-open.',
@@ -154,6 +178,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['width'] = [
+			'group'       => 'evk_wyglad',
 			'hasDynamicData' => false,
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Szerokość', 'evk-circular-menu' ),
@@ -171,6 +196,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['height'] = [
+			'group'       => 'evk_wyglad',
 			'hasDynamicData' => false,
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Wysokość', 'evk-circular-menu' ),
@@ -188,6 +214,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['background'] = [
+			'group'       => 'evk_wyglad',
 			'hasDynamicData' => false,
 			'tab'   => 'content',
 			'label' => esc_html__( 'Tło', 'evk-circular-menu' ),
@@ -216,6 +243,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		 * z automatu zmieniłoby wygląd gotowych stron z panelem przezroczystym.
 		 */
 		$this->controls['scrimEnabled'] = [
+			'group'       => 'evk_wyglad',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Przyciemnij tło strony', 'evk-circular-menu' ),
 			'type'        => 'checkbox',
@@ -224,6 +252,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['scrimColor'] = [
+			'group'       => 'evk_wyglad',
 			'tab'      => 'content',
 			'label'    => esc_html__( 'Kolor przyciemnienia', 'evk-circular-menu' ),
 			'type'     => 'color',
@@ -236,14 +265,8 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'css'      => [ [ 'property' => '--evk-cm-scrim', 'selector' => '.evk-cm-content' ] ],
 		];
 
-		// ── Animacja ────────────────────────────────────────────────────────
-		$this->controls['sep_animacja'] = [
-			'tab'   => 'content',
-			'label' => esc_html__( 'Animacja', 'evk-circular-menu' ),
-			'type'  => 'separator',
-		];
-
 		$this->controls['duration'] = [
+			'group'       => 'evk_animacja',
 			'label'       => esc_html__( 'Czas trwania', 'evk-circular-menu' ),
 			'type'        => 'number',
 			'unit'        => 's',
@@ -272,6 +295,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			foreach ( evk_anim_easings() as $e ) $easings[ $e ] = $e;
 		}
 		$this->controls['easing'] = [
+			'group'       => 'evk_animacja',
 			'hasDynamicData' => false,
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Krzywa', 'evk-circular-menu' ),
@@ -285,6 +309,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		   sztywno — nie widać, co po czym następuje. Przez czas odstępu treść
 		   stoi w stanie POCZĄTKOWYM swojej animacji, więc nic nie miga. */
 		$this->controls['contentDelay'] = [
+			'group'       => 'evk_animacja',
 			'hasDynamicData' => false,
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Opóźnienie treści (s)', 'evk-circular-menu' ),
@@ -300,19 +325,13 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			),
 		];
 
-		// ── Zamykanie ───────────────────────────────────────────────────────
-		$this->controls['sep_zamykanie'] = [
-			'tab'   => 'content',
-			'label' => esc_html__( 'Zamykanie', 'evk-circular-menu' ),
-			'type'  => 'separator',
-		];
-
 		/* Domyślnie treść wychodzi TĄ SAMĄ animacją, którą weszła, tylko od
 		   końca — bez ustawiania czegokolwiek. Kto chce innego wyjścia, ustawia
 		   elementowi animację z wyzwalaczem „Zamknięcie menu"; ona wygrywa
 		   z cofaniem. Bez ustawienia czekania menu czeka na całą animację, ale
 		   nie dłużej niż sekundę. */
 		$this->controls['animateExit'] = [
+			'group'       => 'evk_zamykanie',
 			'hasDynamicData' => false,
 			'tab'     => 'content',
 			'label'   => esc_html__( 'Animuj wyjście treści', 'evk-circular-menu' ),
@@ -331,6 +350,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		   zamknie. Puste pole to całkowity czas animacji wyjścia, najwyżej
 		   sekunda — czyli ruchy jeden po drugim. */
 		$this->controls['exitWait'] = [
+			'group'       => 'evk_zamykanie',
 			'hasDynamicData' => false,
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Czekanie na wyjście (s)', 'evk-circular-menu' ),
@@ -348,6 +368,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['closeOnEsc'] = [
+			'group'       => 'evk_zamykanie',
 			'label'   => esc_html__( 'Zamknij klawiszem ESC', 'evk-circular-menu' ),
 			'type'    => 'checkbox',
 			'inline'  => true,
@@ -361,6 +382,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		   strony pod nim nie zawsze ma sens. Zmiana domyślnej przestawiłaby
 		   gotowe strony, więc jest decyzją zgłaszającego, nie porządków. */
 		$this->controls['lockBodyScrolling'] = [
+			'group'       => 'evk_zamykanie',
 			'label'   => esc_html__( 'Blokuj scroll strony', 'evk-circular-menu' ),
 			'type'    => 'checkbox',
 			'inline'  => true,
@@ -368,15 +390,15 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'default' => false,
 		];
 
-		// ── Przełącznik ─────────────────────────────────────────────────────
-		$this->controls['sep_przelacznik'] = [
+		$this->controls['pomocPrzelacznik'] = [
+			'group'       => 'evk_przelacznik',
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Przełącznik', 'evk-circular-menu' ),
-			'type'        => 'separator',
+			'type'        => 'info',
 			'description' => esc_html__( 'Elementy z tą klasą będą otwierać i zamykać menu.', 'evk-circular-menu' ),
 		];
 
 		$this->controls['customtoggle'] = [
+			'group'       => 'evk_przelacznik',
 			'label'       => esc_html__( 'Selektor CSS', 'evk-circular-menu' ),
 			'type'        => 'text',
 			'placeholder' => '.moj-burger',
@@ -388,6 +410,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		   klawiszem Esc i kliknięciem poza panelem. To pole jest na wypadek
 		   burgera, który animuje się na jeszcze innej klasie. */
 		$this->controls['toggleClass'] = [
+			'group'       => 'evk_przelacznik',
 			'hasDynamicData' => false,
 			'label'       => esc_html__( 'Klasy otwarcia przełącznika', 'evk-circular-menu' ),
 			'type'        => 'text',
@@ -397,13 +420,6 @@ class Evk_Circular_Menu extends \Bricks\Element {
 				. 'klasy z końcówką --opened, które dochodzą same. Kilka oddziel spacją.',
 				'evk-circular-menu'
 			),
-		];
-
-		// ── Warstwy ─────────────────────────────────────────────────────────
-		$this->controls['sep_warstwy'] = [
-			'tab'   => 'content',
-			'label' => esc_html__( 'Warstwy', 'evk-circular-menu' ),
-			'type'  => 'separator',
 		];
 
 		/*
@@ -430,6 +446,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		 * wywód o trzech drogach wisiał przed każdym, kto tej opcji nie włączył.
 		 */
 		$this->controls['raiseToggle'] = [
+			'group'       => 'evk_warstwy',
 			'label'       => esc_html__( 'Przełącznik nad panelem', 'evk-circular-menu' ),
 			'type'        => 'checkbox',
 			'default'     => false,
@@ -447,6 +464,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		   RAZEM Z TŁEM; wymaga, żeby ten przodek był pozycjonowany, a na
 		   niepozycjonowanym element powie o tym w konsoli. */
 		$this->controls['raiseMode'] = [
+			'group'       => 'evk_warstwy',
 			'label'    => esc_html__( 'Co nad panelem', 'evk-circular-menu' ),
 			'type'     => 'select',
 			'options'  => [
@@ -465,6 +483,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['raiseSelector'] = [
+			'group'       => 'evk_warstwy',
 			'label'       => esc_html__( 'Co jeszcze wyjąć (selektor)', 'evk-circular-menu' ),
 			'type'        => 'text',
 			'placeholder' => '.logo',

@@ -13,12 +13,23 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * Bricksa, a testy chodzą po froncie. Widać go wyłącznie stąd: z kształtu
  * tablicy, którą wpisuje `set_controls()`.
  *
- * Mierzone są trzy rzeczy:
+ * Mierzone jest sześć rzeczy:
  *  · długość NAJDŁUŻSZEGO opisu w elemencie — po to, żeby tekst mógł już tylko
  *    ubywać, tak jak wpisy w pliku bazowym PHPStana;
  *  · sekcje puste, czyli separator, pod którym nie ma ani jednej kontrolki;
  *  · liczba separatorów, bo „zero pustych sekcji" jest prawdą także wtedy,
- *    gdy sekcji nie ma wcale.
+ *    gdy sekcji nie ma wcale;
+ *  · grupy puste — zwijany nagłówek bez zawartości to ten sam problem;
+ *  · grupy wiszące, czyli `'group' => …` wskazujące coś, czego
+ *    `set_control_groups()` nie zadeklarował;
+ *  · **bramki przez granicę grupy** — patrz niżej.
+ *
+ * BRAMKA PRZEZ GRANICĘ GRUPY. W całej wtyczce nie ma ani jednego warunku
+ * `required` wskazującego pole z INNEJ grupy, więc nie wiadomo, czy Bricks to
+ * obsługuje. Objawem byłaby kontrolka, która po prostu się nie pokazuje, przy
+ * stronie wyglądającej normalnie — ta sama klasa cichej usterki co łańcuchy
+ * w `required` (1.103.1, 1.107.0). Dopóki nie ma dowodu ze strony, reguła
+ * brzmi: warunek zostaje w swojej grupie.
  */
 require __DIR__ . '/_wp-stubs.php';
 require EVK_TEST_ROOT . '/includes/anim/presets.php';
@@ -48,6 +59,33 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
     $najdluzszy = 0; $gdzie = null; $suma = 0; $opisow = 0;
     $separatorow = 0; $puste = [];
     $ostatniSeparator = null; $odOstatniego = 0;
+
+    /* Grupy: zadeklarowane, użyte i przynależność każdej kontrolki. */
+    $zadeklarowane = array_keys($el->control_groups ?? []);
+    $wGrupie = [];
+    foreach ($el->controls as $k => $d) {
+        if (is_array($d) && isset($d['group'])) { $wGrupie[$k] = (string) $d['group']; }
+    }
+    $uzyte      = array_values(array_unique($wGrupie));
+    $pusteGrupy = array_values(array_diff($zadeklarowane, $uzyte));
+    $wiszaceGrupy = array_values(array_diff($uzyte, $zadeklarowane));
+
+    /* Warunek wskazujący pole z innej grupy — albo z grupy, gdy sam jest poza
+       nią, i odwrotnie. Pole spoza grup traktujemy jak jedną wspólną
+       przestrzeń, bo tak zachowuje się panel: wszystko poza grupami leży na
+       wierzchu, jedno pod drugim. */
+    $przezGranice = [];
+    foreach ($el->controls as $k => $d) {
+        if (!is_array($d) || empty($d['required'][0]) || !is_string($d['required'][0])) { continue; }
+        $cel = $d['required'][0];
+        if (!array_key_exists($cel, $el->controls)) { continue; }   // wiszące łapie bricks-required
+        $mojaGrupa  = $wGrupie[$k]   ?? '';
+        $celuGrupa  = $wGrupie[$cel] ?? '';
+        if ($mojaGrupa !== $celuGrupa) {
+            $przezGranice[] = $k . ' [' . ($mojaGrupa ?: 'poza grupami') . '] ← '
+                . $cel . ' [' . ($celuGrupa ?: 'poza grupami') . ']';
+        }
+    }
 
     foreach ($el->controls as $klucz => $def) {
         if (!is_array($def)) { continue; }
@@ -90,6 +128,10 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
         'opisow'      => $opisow,
         'separatorow' => $separatorow,
         'puste'       => $puste,
+        'grup'        => count($zadeklarowane),
+        'pusteGrupy'  => $pusteGrupy,
+        'wiszaceGrupy'=> $wiszaceGrupy,
+        'przezGranice'=> $przezGranice,
     ];
 }
 

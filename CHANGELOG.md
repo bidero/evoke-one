@@ -2,6 +2,78 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.207.0] — 2026-09-16
+
+### Zmienione
+
+- **Circular Menu: sekcje są teraz ZWIJANYMI GRUPAMI Bricksa, nie
+  separatorami.** ZGŁOSZONE Z UŻYCIA: „może powróćmy do poprzednich elementów
+  i zastosujmy zwijane grupy gdzie się da i jest to logiczne".
+
+  Separator rysuje kreskę z nazwą i tyle — panel dalej jest jedną długą listą.
+  Grupa się zwija, więc dwadzieścia parę kontrolek zwija się do sześciu wierszy
+  i widać całą mapę elementu naraz. Mechanizm był we wtyczce od dawna:
+  Horizontal Scroll trzyma tak dziewiętnaście kontrolek wskaźnika, Circular
+  Title — gradient. Nikt go tylko nie stosował poza pojedynczą grupą doklejaną
+  do listy separatorów.
+
+  Grupy: Lokalizacja · Wygląd · Animacja · Zamykanie · Przełącznik · Warstwy.
+  „Otwórz w builderze" zostaje nad nimi, poza grupami. Separatorów w tym
+  elemencie jest teraz zero.
+
+  Dwie notki sekcji (zaczepy CSS, opis przełącznika) pojechały jako kontrolki
+  `info` wewnątrz swoich grup — **grupa niesie tylko `title` i `tab`, opisu nie
+  ma gdzie na niej powiesić.**
+
+### Dlaczego akurat ten element, a nie wszystkie naraz
+
+- **W całej wtyczce nie ma ani jednego warunku `required` wskazującego pole
+  z INNEJ grupy.** Obie istniejące grupy mają wszystkie swoje bramki
+  w środku — więc nie wiadomo, czy Bricks obsługuje bramkę przez granicę grupy,
+  a Bricksa nie da się tu sprawdzić.
+
+  Objawem byłaby kontrolka, która po prostu się nie pokazuje, przy stronie
+  wyglądającej normalnie. Dokładnie ta klasa cichej usterki, która zjadła to
+  repozytorium dwa razy przy łańcuchach w `required` (1.103.1, 1.107.0).
+
+  Policzone, gdzie sekcje przecinają bramki:
+
+  | Element | Bramki przez granicę |
+  |---|---|
+  | **Circular Menu** | **żadnej** |
+  | Grain, Marquee, Stacking Cards, Scroll Reading, Circular Title, HScroll | żadnej |
+  | Offcanvas Menu | `panelDuration`, `panelEasing`, `escGoesBack` ← `mode` |
+  | Burger | `ariaLabel` ← `textClosed`, `shortLine` ← `style` |
+  | Wave BG | dziewięć `custom_*` ← `variation` |
+
+  Circular Menu przechodzi bez ryzyka — pozostałe trzy wymagałyby albo dowodu
+  ze strony, albo przesunięcia kontrolek między sekcjami, czyli zmiany, którą
+  widać w panelu i trzeba ją osobno obejrzeć.
+
+### Dodane strażniki
+
+Trzy reguły, każda na inną cichą usterkę, obejmujące całą wtyczkę:
+
+- **żadna grupa nie jest zadeklarowana na darmo** — zwijany nagłówek bez
+  zawartości to ten sam problem co pusty separator;
+- **żadna kontrolka nie wskazuje niezadeklarowanej grupy**;
+- **żadna bramka nie przechodzi przez granicę grupy** — reguła, która
+  rozstrzygnęła zakres tego wydania, spisana teraz jako sprawdzenie zamiast
+  jako notatka.
+
+Trzy mutacje gaszą trzy różne sprawdzenia i każda wymienia winowajcę po
+nazwie: `raiseSelector [evk_zamykanie] ← raiseMode [evk_warstwy]`,
+`evoke-circular-menu/evk_animacja`, `evoke-circular-menu/evk_rozmiary`.
+
+Sprawdzenie pokrycia liczy teraz separatory **i** grupy — inaczej „zero pustych
+sekcji" byłoby prawdą w elemencie, który przeszedł na grupy w całości.
+
+### Do sprawdzenia w builderze
+
+- Czy sześć zwijanych grup czyta się lepiej niż siedem sekcji na jednej liście.
+  To jedyne pytanie, na które żaden przebieg tutaj nie odpowie — i od niego
+  zależy, czy ten sam ruch ma sens w pozostałych elementach.
+
 ## [1.206.0] — 2026-09-16
 
 ### Zmienione

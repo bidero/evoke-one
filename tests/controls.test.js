@@ -429,10 +429,50 @@ module.exports = async function (t) {
     pusteSekcje.join(', ') || 'wszystkie mają zawartość');
 
   /* Kontrola pokrycia dla reguły wyżej: „zero pustych sekcji" jest prawdą
-     także w elemencie bez ani jednego separatora. */
-  t.check('a sekcji w ogóle jest kilkadziesiąt',
-    Object.values(op).reduce((a, v) => a + v.separatorow, 0) > 30,
-    Object.values(op).reduce((a, v) => a + v.separatorow, 0) + ' separatorów');
+     także w elemencie bez ani jednego separatora — a od 1.207.0 sekcja bywa
+     ZWIJANĄ GRUPĄ i wtedy separatorów nie ma tam wcale. Liczymy więc jedno
+     i drugie. */
+  const sekcji = Object.values(op).reduce((a, v) => a + v.separatorow + v.grup, 0);
+  t.check('a sekcji w ogóle jest kilkadziesiąt', sekcji > 30, sekcji + ' sekcji');
+
+  // ── Zwijane grupy Bricksa ────────────────────────────────────────────────
+  /* Grupa robi to samo co separator, tylko SIĘ ZWIJA: dwadzieścia parę
+     kontrolek zwija się do sześciu wierszy i widać całą mapę elementu naraz.
+     Mechanizm był we wtyczce od dawna (Horizontal Scroll trzyma tak
+     dziewiętnaście kontrolek wskaźnika), tylko nikt go nie stosował poza
+     pojedynczą grupą doklejaną do listy separatorów.
+
+     TRZY REGUŁY, KAŻDA NA INNĄ CICHĄ USTERKĘ. */
+  t.section('zwijane grupy: puste, wiszące i bramki przez granicę');
+
+  const pusteGrupy = Object.keys(op).filter((k) => op[k].pusteGrupy.length)
+    .map((k) => k + '/' + op[k].pusteGrupy.join('+'));
+  t.check('żadna grupa nie jest zadeklarowana na darmo', pusteGrupy.length === 0,
+    pusteGrupy.join(', ') || 'każda ma zawartość');
+
+  const wiszaceGrupy = Object.keys(op).filter((k) => op[k].wiszaceGrupy.length)
+    .map((k) => k + '/' + op[k].wiszaceGrupy.join('+'));
+  t.check('żadna kontrolka nie wskazuje nieistniejącej grupy', wiszaceGrupy.length === 0,
+    wiszaceGrupy.join(', ') || 'wszystkie zadeklarowane');
+
+  /* NAJWAŻNIEJSZA Z TRZECH. W całej wtyczce nie ma ani jednego warunku
+     `required` wskazującego pole z INNEJ grupy, więc nie wiadomo, czy Bricks
+     to obsługuje. Objawem byłaby kontrolka, która po prostu się nie pokazuje,
+     przy stronie wyglądającej normalnie — ta sama klasa usterki co łańcuchy
+     w `required`, która zjadła to repo dwa razy (1.103.1, 1.107.0).
+
+     Dopóki nie ma dowodu ze strony, reguła brzmi: warunek zostaje w swojej
+     grupie. To ona rozstrzygnęła, KTÓRY element nadaje się do zamiany jako
+     pierwszy — Circular Menu, bo wszystkie jego bramki mieszczą się w swoich
+     sekcjach. W offcanvasie, burgerze i fali nie mieszczą się. */
+  const przezGranice = Object.keys(op).filter((k) => op[k].przezGranice.length)
+    .map((k) => k + ': ' + op[k].przezGranice.join('; '));
+  t.check('żadna bramka nie przechodzi przez granicę grupy', przezGranice.length === 0,
+    przezGranice.join(' | ') || 'wszystkie w swoich grupach');
+
+  /* Pokrycie: reguła wyżej jest spełniona przez pustkę w elemencie bez grup. */
+  t.check('a grupy w ogóle są', Object.values(op).reduce((a, v) => a + v.grup, 0) >= 8,
+    Object.values(op).reduce((a, v) => a + v.grup, 0) + ' grup');
 
   // ── Domyślnie WŁĄCZONE pola zaznaczenia ─────────────────────────────────
   /* REGUŁA JEST OGÓLNA I NIE ZNA ŻADNEGO ELEMENTU Z NAZWY:
