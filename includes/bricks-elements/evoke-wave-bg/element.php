@@ -212,12 +212,16 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── SZUM (GRAIN) ───────────────────────────────────────────────────────
 
-		$this->controls['noise_enabled'] = [
+		$this->controls['noise_enabled_off'] = [
 			'group'       => 'evk_szum',
 			'tab'     => 'content',
-			'label'   => 'Włącz szum',
+			'label'   => 'Wyłącz szum',
 			'type'    => 'checkbox',
-			'default' => true,
+			'default' => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 		];
 
 		$this->controls['noise_intensity'] = [
@@ -227,7 +231,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'type'     => 'number',
 			'min'      => 0, 'max' => 1, 'step' => 0.01,
 			'default'  => 0.08,
-			'required' => [ 'noise_enabled', '=', true ],
+			'required' => [ 'noise_enabled_off', '=', false ],
 		];
 
 		/* ZIARNO POZA FALĄ.
@@ -256,7 +260,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'type'        => 'number',
 			'min'         => 0, 'max' => 1, 'step' => 0.05,
 			'default'     => 0,
-			'required'    => [ 'noise_enabled', '=', true ],
+			'required'    => [ 'noise_enabled_off', '=', false ],
 			'description' => 'Ile ziarna widać tam, gdzie fala jest przezroczysta — '
 				. 'czyli na całym pudełku elementu, a nie tylko na samej fali. '
 				. 'Zero to zachowanie dotychczasowe: ziarno kończy się razem z falą. '
@@ -265,12 +269,16 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 
 		// ── MASKA DOLNA ────────────────────────────────────────────────────────
 
-		$this->controls['mask_enabled'] = [
+		$this->controls['mask_enabled_off'] = [
 			'group'       => 'evk_maski',
 			'tab'     => 'content',
-			'label'   => 'Włącz maskę dolną',
+			'label'   => 'Wyłącz maskę dolną',
 			'type'    => 'checkbox',
-			'default' => true,
+			'default' => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 		];
 
 		$this->controls['mask_start'] = [
@@ -280,7 +288,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'type'     => 'number',
 			'min'      => 0, 'max' => 100, 'step' => 1,
 			'default'  => 90,
-			'required' => [ 'mask_enabled', '=', true ],
+			'required' => [ 'mask_enabled_off', '=', false ],
 		];
 
 		// ── MASKA GÓRNA ────────────────────────────────────────────────────────
@@ -396,12 +404,12 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		 * brak klucza oddaje domyślną, a zapisane wcześniej `'nie'` dalej znaczy
 		 * wyłączone. Dzięki temu kontrolka mogła stać się przełącznikiem BEZ
 		 * przestawienia ustawień na stronach, które już je mają. */
-		$this->controls['pause_offscreen'] = [
+		$this->controls['pause_offscreen_off'] = [
 			'group'       => 'evk_wydajnosc',
 			'tab'         => 'content',
-			'label'       => 'Zatrzymuj poza ekranem',
+			'label'       => 'Nie zatrzymuj poza ekranem',
 			'type'        => 'checkbox',
-			'default'     => true,
+			'default'     => false,
 			'description' => 'Wstrzymuje pętlę po wyjściu elementu z widoku. Bez tego chodzi z pełną prędkością także po przewinięciu daleko poza niego.',
 		];
 
@@ -429,12 +437,12 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		 * Dla porównania Marquee animuje `xPercent`, czyli transformację CSS —
 		 * przesuwaniem zajmuje się kompozytor poza wątkiem głównym, więc nie ma
 		 * tam czego dławić i nigdy nie pokazuje się w pomiarze. */
-		$this->controls['auto_jakosc'] = [
+		$this->controls['auto_jakosc_off'] = [
 			'group'       => 'evk_wydajnosc',
 			'tab'         => 'content',
-			'label'       => 'Dopasuj jakość do urządzenia',
+			'label'       => 'Nie dopasowuj jakości',
 			'type'        => 'checkbox',
-			'default'     => true,
+			'default'     => false,
 			'description' => 'Na sprzęcie z GPU nie zmienia nic. Bez GPU zdejmuje kolejno post-processing i rozdzielczość, a w ostateczności zatrzymuje animację na nieruchomym kadrze.',
 		];
 
@@ -445,7 +453,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'type'        => 'number',
 			'min'         => 20, 'max' => 200, 'step' => 5,
 			'default'     => 40,
-			'required'    => [ 'auto_jakosc', '=', true ],
+			'required'    => [ 'auto_jakosc_off', '=', false ],
 			'description' => 'Powyżej tej wartości element schodzi o szczebel. Domyślne 40 ms mieści się pod progiem 50 ms, od którego przeglądarka liczy „długie zadanie".',
 		];
 
@@ -467,7 +475,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'tab'         => 'content',
 			'label'       => 'Obraz zamiast gradientu',
 			'type'        => 'image',
-			'required'    => [ 'auto_jakosc', '=', true ],
+			'required'    => [ 'auto_jakosc_off', '=', false ],
 			'description' => 'Nieobowiązkowy. Pokazywany tylko tam, gdzie fala i tak by się nie animowała — bez akceleracji sprzętowej. Bez obrazu rysowany jest gradient z palety wyżej.',
 		];
 
@@ -587,7 +595,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		$min_height     = $s['min_height']     ?? '100vh';
 		$pointer_events = $s['pointer_events'] ?? 'none';
 
-		$mask_enabled     = evk_flaga( $s, 'mask_enabled', true );
+		$mask_enabled     = evk_wlaczone( $s, 'mask_enabled', 'mask_enabled_off' );
 		$mask_start       = (int) ( $s['mask_start']     ?? 90 );
 		$mask_top_enabled = ! empty( $s['mask_top_enabled'] );
 		$mask_top_end     = (int) ( $s['mask_top_end']   ?? 10 );
@@ -647,7 +655,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 		$cfg = [
 			'variation'            => $variation_key === 'custom' ? 'custom' : ( $variation_map[ $variation_key ] ?? 0 ),
 			'customBg'             => $custom_bg,
-			'noiseEnabled'         => evk_flaga( $s, 'noise_enabled', true ),
+			'noiseEnabled'         => evk_wlaczone( $s, 'noise_enabled', 'noise_enabled_off' ),
 			'noiseIntensity'       => (float) ( $s['noise_intensity'] ?? 0.08 ),
 			'noiseSpread'          => (float) ( $s['noise_spread']    ?? 0    ),
 			'colors'               => $colors,
@@ -662,9 +670,9 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			   Zero albo liczba ujemna dałaby płótno o zerowym rozmiarze, a bardzo
 			   duża — płótno, którego przeglądarka nie zaalokuje. */
 			'pixelRatioCap'        => max( 0.5, min( 3.0, (float) ( $s['pixel_ratio_cap'] ?? 1 ) ) ),
-			'pauseOffscreen'       => evk_flaga( $s, 'pause_offscreen', true ),
+			'pauseOffscreen'       => evk_wlaczone( $s, 'pause_offscreen', 'pause_offscreen_off' ),
 			'preserveBuffer'       => ! empty( $s['preserve_buffer'] ),
-			'autoJakosc'           => evk_flaga( $s, 'auto_jakosc', true ),
+			'autoJakosc'           => evk_wlaczone( $s, 'auto_jakosc', 'auto_jakosc_off' ),
 			'budzetKlatki'         => max( 20, min( 200, (int) ( $s['budzet_klatki'] ?? 40 ) ) ),
 			'zastepnikObraz'       => $this->zastepnik_obraz_url( $s ),
 			/* three.js JEDZIE Z WŁASNEGO SERWERA, nie z esm.sh — z tych samych

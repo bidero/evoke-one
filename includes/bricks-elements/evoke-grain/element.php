@@ -163,12 +163,16 @@ class Evk_Grain_Element extends \Bricks\Element {
 		 * pikseli. Przesunięcie jak najbardziej trafia do shadera, tylko nie ma
 		 * czego przesuwać. Mówi o tym opis kontrolki, bo ukrycie jej pod
 		 * przesiewem odbierałoby możliwość ustawienia siły z wyprzedzeniem. */
-		$this->controls['przewijaj'] = [
+		$this->controls['przewijaj_off'] = [
 			'group'       => 'evk_ruch',
 			'tab'         => 'content',
-			'label'       => 'Przewijanie z treścią',
+			'label'       => 'Bez przewijania z treścią',
 			'type'        => 'checkbox',
-			'default'     => true,
+			'default'     => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 			'description' => 'Ziarno wędruje razem z treścią zamiast stać w miejscu na ekranie.',
 		];
 
@@ -179,7 +183,7 @@ class Evk_Grain_Element extends \Bricks\Element {
 			'type'        => 'number',
 			'min'         => 0, 'max' => 4, 'step' => 0.1,
 			'default'     => 1,
-			'required'    => [ 'przewijaj', '=', true ],
+			'required'    => [ 'przewijaj_off', '=', false ],
 			'description' => 'Ile ziarno przesuwa się na piksel przewinięcia; jeden to jeden do '
 				. 'jednego, mniej i więcej daje efekt głębi. Widać to przy przesiewie '
 				. 'NIERUCHOMYM — przy „co klatkę" wzór i tak powstaje od nowa co klatkę.',
@@ -196,12 +200,16 @@ class Evk_Grain_Element extends \Bricks\Element {
 				. 'niezależnie od warstwy.',
 		];
 
-		$this->controls['auto_jakosc'] = [
+		$this->controls['auto_jakosc_off'] = [
 			'group'       => 'evk_ruch',
 			'tab'         => 'content',
-			'label'       => 'Automat jakości',
+			'label'       => 'Wyłącz automat jakości',
 			'type'        => 'checkbox',
-			'default'     => true,
+			'default'     => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 			'description' => 'Gdy klatki zaczynają wypadać z budżetu, ziarno samo przechodzi '
 				. 'na nieruchome zamiast dokładać się do zacinania. Wyłącz tylko wtedy, '
 				. 'gdy mierzysz.',
@@ -216,11 +224,11 @@ class Evk_Grain_Element extends \Bricks\Element {
 		/* WYŁĄCZONY PRZEŁĄCZNIK ODDAJE ZERO, a nie osobny atrybut — zero już
 		   dziś znaczy w skrypcie „przyklejone do ekranu", więc grain.js nie
 		   wymaga żadnej zmiany. Mniej kodu po obu stronach. */
-		$mnoznik      = evk_flaga( $s, 'przewijaj', true )
+		$mnoznik      = evk_wlaczone( $s, 'przewijaj', 'przewijaj_off' )
 			? max( 0, min( 4, (float) ( $s['mnoznik_scrolla'] ?? 1 ) ) )
 			: 0.0;
 		$warstwa      = (int) ( $s['warstwa'] ?? 9990 );
-		$auto         = evk_flaga( $s, 'auto_jakosc', true );
+		$auto         = evk_wlaczone( $s, 'auto_jakosc', 'auto_jakosc_off' );
 		$zakres       = ( $s['zakres'] ?? 'strona' ) === 'sekcja' ? 'sekcja' : 'strona';
 		/* CUDZYSŁÓW NA APOSTROF — jedyny znak, który może wyjść z atrybutu.
 		   Selektor jest pierwszym polem TEKSTOWYM tego elementu, które jedzie

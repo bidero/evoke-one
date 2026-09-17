@@ -702,6 +702,18 @@ module.exports = async function (t) {
     poza.ile > 5000 && wZero.prob > 5000,
     poza.ile + ' pikseli poza falą, ' + wZero.prob + ' par do pomiaru');
 
+  /* WYŁĄCZONY SZUM MA NAPRAWDĘ NIE MALOWAĆ — i tego do 1.214.0 nikt nie
+     sprawdzał. Zrzut `zBezSzumu` służył WYŁĄCZNIE za odniesienie do wyliczenia
+     maski `poza`: brano go jako „obraz bez ziarna" i ani razu nie pytano, czy
+     ziarna faktycznie nie ma. Przełącznik mógł nie robić nic, a cała sekcja
+     i tak świeciła na zielono.
+
+     ZGŁOSZONE Z UŻYCIA: „szum w WaveBG nie działa (zawsze widoczny)". */
+  const wBez = szorstkoscW(zBezSzumu.zrzut, poza);
+  t.check('wyłączony szum naprawdę nie maluje ziarna',
+    wBez.szorstkosc < wZero.szorstkosc / 2,
+    'wyłączony ' + wBez.szorstkosc + ' vs włączony ' + wZero.szorstkosc);
+
   /* ZGODNOŚĆ WSTECZNA — najważniejsze sprawdzenie tej zmiany. Brak ustawienia
      ma znaczyć dokładnie to samo co zero, inaczej aktualizacja ruszyłaby wygląd
      wszystkim, którzy o nic nie prosili. Porównujemy statystykę, bo `uNoiseSeed`

@@ -96,12 +96,16 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'description' => esc_html__( 'Każda kolejna karta zatrzymuje się niżej o tę wartość — widać krawędzie kart pod spodem.', 'evk-stacking-cards' ),
 		];
 
-		$this->controls['shrink'] = [
+		$this->controls['shrink_off'] = [
 			'group' => 'evk_efekt',
 			'tab'     => 'content',
-			'label'   => esc_html__( 'Zmniejszaj karty pod spodem', 'evk-stacking-cards' ),
+			'label'   => esc_html__( 'Nie zmniejszaj kart', 'evk-stacking-cards' ),
 			'type'    => 'checkbox',
-			'default' => true,
+			'default' => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 		];
 
 		$this->controls['min_scale'] = [
@@ -113,7 +117,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'max'         => 1,
 			'step'        => 0.01,
 			'default'     => 0.9,
-			'required'    => [ 'shrink', '=', true ],
+			'required'    => [ 'shrink_off', '=', false ],
 		];
 
 		$this->controls['dim'] = [
@@ -128,12 +132,16 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'description' => esc_html__( 'Karta pod spodem ciemnieje, ale zostaje nieprzezroczysta — nie prześwituje przez nią tło. 0 = bez przyciemniania.', 'evk-stacking-cards' ),
 		];
 
-		$this->controls['shadow'] = [
+		$this->controls['shadow_off'] = [
 			'group' => 'evk_efekt',
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Cień kart', 'evk-stacking-cards' ),
+			'label'       => esc_html__( 'Bez cienia kart', 'evk-stacking-cards' ),
 			'type'        => 'checkbox',
-			'default'     => true,
+			'default'     => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 			'description' => esc_html__( 'Oddziela karty od siebie — bez cienia stos bywa płaski.', 'evk-stacking-cards' ),
 		];
 
@@ -144,7 +152,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'type'        => 'text',
 			'default'     => '0 -8px 30px rgba(0,0,0,.18)',
 			'placeholder' => '0 -8px 30px rgba(0,0,0,.18)',
-			'required'    => [ 'shadow', '=', true ],
+			'required'    => [ 'shadow_off', '=', false ],
 		];
 
 		$this->controls['bottom_space'] = [
@@ -190,10 +198,10 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			 * Stacking Cards był jedynym elementem, który nigdy nie przeszedł na
 			 * ten pomocnik (1.199.0) — pozostałe sześć używało go od dawna.
 			 * Pilnuje tego teraz reguła 2 w tests/php/domyslne-wlaczone.php. */
-			'shrink'    => evk_flaga( $s, 'shrink', true ),
+			'shrink'    => evk_wlaczone( $s, 'shrink', 'shrink_off' ),
 			'minScale'  => (float) ( $s['min_scale'] ?? 0.9 ),
 			'dim'       => (float) ( $s['dim'] ?? 0.25 ),
-			'shadow'    => evk_flaga( $s, 'shadow', true ),
+			'shadow'    => evk_wlaczone( $s, 'shadow', 'shadow_off' ),
 			'shadowValue'  => sanitize_text_field( $s['shadow_value'] ?? '' ) ?: '0 -8px 30px rgba(0,0,0,.18)',
 			'bottomSpace'  => sanitize_text_field( $s['bottom_space'] ?? '' ),
 			'disableBelow' => (int) ( $s['disable_below'] ?? 768 ),

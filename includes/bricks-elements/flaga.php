@@ -53,3 +53,59 @@ function evk_flaga( array $ustawienia, string $klucz, bool $domyslnie ): bool {
 
 	return ! empty( $w );
 }
+
+/**
+ * Pole, które MA BYĆ WŁĄCZONE domyślnie — czytane przez ODWRÓCONY przełącznik.
+ *
+ * DLACZEGO ODWRÓCONY, skoro `evk_flaga()` przyjmuje domyślną. ZGŁOSZONE
+ * Z UŻYCIA, w kilku turach: „nie działa wyłączanie cienia kart", „szum
+ * w WaveBG nie działa (zawsze widoczny)", „przyciągaj do paneli nie działa",
+ * „dolna maska nie działa, górna tak".
+ *
+ * DOŚWIADCZENIE KONTROLNE SIEDZIAŁO W JEDNYM ELEMENCIE, w dwóch linijkach obok
+ * siebie w evoke-wave-bg/element.php:
+ *
+ *     $mask_enabled     = evk_flaga( $s, 'mask_enabled', true );   // domyślna WŁĄCZONA
+ *     $mask_top_enabled = ! empty( $s['mask_top_enabled'] );       // domyślna WYŁĄCZONA
+ *
+ * Ten sam render(), ten sam gradient, dwie identycznie wyglądające kontrolki
+ * w panelu. Różniła je WYŁĄCZNIE domyślna — i tylko ta z domyślną wyłączoną
+ * dawała się przełączać. Do tego dowód wprost ze strony zgłaszającego:
+ * w źródle HTML `shadow` był `true` PO ODZNACZENIU.
+ *
+ * WNIOSEK: Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+ * jako „wyłączone". Brak klucza jest nie do odróżnienia od elementu
+ * nietkniętego, więc `'default' => true` na polu zaznaczenia jest w tej wtyczce
+ * NIE DO UŻYCIA — żadna poprawka odczytu tego nie obejdzie. Pilnuje tego teraz
+ * osobna reguła w tests/php/domyslne-wlaczone.php.
+ *
+ * Jedyne wyjście zgodne z „przełączniki mają zostać": domyślna WYŁĄCZONA
+ * i odwrócony sens. Zaznaczenie zawsze coś zapisuje, więc jest jednoznaczne.
+ *
+ * STARY KLUCZ CZYTAMY DALEJ i to warunek, nie ozdoba. Na żywych stronach siedzą
+ * zapisy z czasów list wyboru (`'nie'`) oraz jawne `false`. Gdyby funkcja ich
+ * nie widziała, aktualizacja zapaliłaby komuś maskę albo szum, o które nie
+ * prosił — a gałąź jedzie aktualizatorem.
+ *
+ * @param array<string,mixed> $ustawienia `$this->settings` elementu.
+ * @param string              $stary      Klucz sprzed odwrócenia, tylko do odczytu.
+ * @param string              $nowy       Klucz odwróconego przełącznika („…_off").
+ * @return bool Czy funkcja ma być WŁĄCZONA.
+ */
+function evk_wlaczone( array $ustawienia, string $stary, string $nowy ): bool {
+
+	/* Nowy przełącznik zaznaczony = użytkownik wyłączył. Ma pierwszeństwo przed
+	   wszystkim, bo to jedyne, co na pewno zostało zapisane świadomie. */
+	if ( evk_flaga( $ustawienia, $nowy, false ) ) {
+		return false;
+	}
+
+	/* Stary klucz obecny: element zapisany przed odwróceniem. Czytamy go tą
+	   samą drogą co dotąd, żeby `'nie'` i jawne `false` dalej znaczyły to samo. */
+	if ( array_key_exists( $stary, $ustawienia ) ) {
+		return evk_flaga( $ustawienia, $stary, true );
+	}
+
+	// Ani jednego klucza: domyślnie włączone, dokładnie jak dotąd.
+	return true;
+}

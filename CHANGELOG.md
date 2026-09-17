@@ -2,6 +2,88 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.214.0] — 2026-09-17
+
+### Naprawione
+
+- **Szesnaście przełączników domyślnie włączonych było nie do wyłączenia.**
+  ZGŁOSZONE Z UŻYCIA, w kilku turach: „nie działa wyłączanie cienia kart",
+  „szum w WaveBG nie działa (zawsze widoczny)", „Przyciągaj do paneli w HS nie
+  działa (zawsze przyciąga)", „dolna maska nie działa, górna tak".
+
+  **Dowód siedział w jednym elemencie, w dwóch linijkach obok siebie**
+  (`evoke-wave-bg/element.php`):
+
+  ```php
+  $mask_enabled     = evk_flaga( $s, 'mask_enabled', true );   // domyślna WŁĄCZONA
+  $mask_top_enabled = ! empty( $s['mask_top_enabled'] );       // domyślna WYŁĄCZONA
+  ```
+
+  Ten sam `render()`, ten sam gradient, dwie identycznie wyglądające kontrolki
+  w panelu. Różniła je **wyłącznie domyślna** — i tylko ta z domyślną wyłączoną
+  dawała się przełączać. Do tego dowód wprost ze strony zgłaszającego: w źródle
+  HTML `shadow` był `true` **po odznaczeniu**.
+
+  **Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać jako
+  „wyłączone".** Brak klucza jest nie do odróżnienia od elementu nietkniętego,
+  więc `'default' => true` na polu zaznaczenia jest w tej wtyczce nie do użycia
+  — żadna poprawka odczytu tego nie obejdzie.
+
+  Wszystkie szesnaście pól przeszło na **odwrócony przełącznik**: domyślna
+  wyłączona, zaznaczenie coś zapisuje. Przełączniki zostają, zmienia się sens
+  etykiety — „Włącz szum" → **„Wyłącz szum"**, „Cień kart" → **„Bez cienia
+  kart"**, „Przyciągaj do paneli" → **„Nie przyciągaj do paneli"** i tak dalej
+  w Wave BG, Horizontal Scrollu, Stacking Cards, Grain, Marquee i obu menu.
+
+  **Na istniejących stronach nic nie zmienia wyglądu.** Nowe pola są
+  odznaczone, więc wszystko zostaje włączone — dokładnie jak dziś.
+
+  Nowa funkcja `evk_wlaczone()` obok `evk_flaga()` czyta **stary klucz**, gdy
+  nowego nie ma: zapisane wcześniej `'nie'` z czasów list wyboru i jawne
+  `false` dalej znaczą wyłączone. Bez tego aktualizacja zapaliłaby komuś maskę
+  albo szum, o które nie prosił.
+
+  Zweryfikowane osobnym procesem na każde pole — szesnaście na szesnaście
+  wyłącza się nowym przełącznikiem i honoruje oba stare zapisy.
+
+### Zmienione
+
+- **Strażnik domyślnych dostał regułę zero i dwie dalsze.** Dotychczasowe
+  sprawdzenia mierzyły, czy domyślna obowiązuje — i przepuszczały pola, których
+  nie dało się wyłączyć. Reguła z 1.213.0 leczyła zapis `null`, który, jak się
+  okazało, w ogóle nie występuje.
+
+  | reguła | co mówi |
+  |---|---|
+  | **0** | żaden checkbox nie ma prawa mieć `'default' => true` |
+  | 1 | brak klucza znaczy to samo co jawne `false` |
+  | 2 | `null` znaczy to samo co `false` |
+  | **3** | zaznaczony przełącznik `…_off` musi COŚ zmienić w wyjściu |
+  | **4** | nowy klucz to zawsze stary klucz + `_off` |
+
+  Reguła 3 jest dosłownie treścią zgłoszenia („przełączanie działa, ale nie ma
+  efektu"), więc sprawdzana jest wprost, a nie wnioskowana z odczytu. Reguła 4
+  powstała, bo przy odwracaniu dwa pola dostały skróconą nazwę i skrypt
+  sprawdzający przestał je widzieć — pokazywał „bez zmian" dla kodu, który
+  działał.
+
+  **Marquee jest z reguły 3 wyłączony JAWNIE**, a nie po cichu: bez pozycji
+  wychodzi z `render()` pierwszą linijką, drukując pudełko zastępcze, więc żaden
+  przełącznik nie ma prawa zmienić wyjścia. Lista wyłączeń jest sprawdzana.
+
+- **Wave BG: wyłączony szum ma naprawdę nie malować.** Zrzut z wyłączonym
+  szumem służył dotąd wyłącznie za odniesienie do wyliczenia maski pomiarowej —
+  brano go jako „obraz bez ziarna" i ani razu nie pytano, czy ziarna tam
+  faktycznie nie ma. Przełącznik mógł nie robić nic, a sekcja i tak świeciła na
+  zielono.
+
+### Przy okazji
+
+- Trzy błędne diagnozy przed trafną. Pierwsza (1.213.0) leczyła zapis `null`,
+  druga porzuciła właściwy trop po informacji, że „maski da się wyłączyć" —
+  dopiero rozbicie masek na górną i dolną pokazało wzorzec. Reguła zero istnieje
+  po to, żeby następnym razem nie trzeba było tego odkrywać z objawów.
+
 ## [1.213.0] — 2026-09-16
 
 ### Naprawione

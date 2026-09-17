@@ -115,8 +115,21 @@ module.exports = async function (t) {
      Pierwszą decyzją jest „czy w ogóle", a dopiero drugą „jak mocno" — więc
      przełącznik, a pod nim pole siły. */
   t.check('przewijanie i automat jakości to przełączniki',
-    domyslne.typy.przewijaj === 'checkbox' && domyslne.typy.auto_jakosc === 'checkbox',
-    domyslne.typy.przewijaj + ' / ' + domyslne.typy.auto_jakosc);
+    domyslne.typy.przewijaj_off === 'checkbox' && domyslne.typy.auto_jakosc_off === 'checkbox',
+    domyslne.typy.przewijaj_off + ' / ' + domyslne.typy.auto_jakosc_off);
+
+  /* ŻE DOMYŚLNA JEST WYŁĄCZONA, pilnuje ogólna reguła w controls.test.js —
+     dla wszystkich dziesięciu elementów naraz, a nie po jednym. Powtarzanie
+     jej tutaj dublowałoby strażnika i rozjechałoby się przy pierwszej zmianie. */
+
+  /* NOWY PRZEŁĄCZNIK ZAZNACZONY = wyłączone. Kontrola pozytywna do sprawdzenia
+     zgodności wstecznej niżej: bez niej „stary zapis dalej wyłącza" mogłoby
+     przechodzić dla kodu, który nie czyta w ogóle nowego pola. */
+  const bezPrzewijaniaNowy = JSON.parse(phpOutput('grain-cfg.php',
+    JSON.stringify(JSON.stringify({ przewijaj_off: true, mnoznik_scrolla: 2.5 }))));
+  t.check('zaznaczony „Bez przewijania" zeruje mnożnik',
+    bezPrzewijaniaNowy.atrybuty['data-mnoznik'] === '0',
+    bezPrzewijaniaNowy.atrybuty['data-mnoznik']);
 
   /* Wyłączony przełącznik oddaje ZERO, a nie osobny atrybut — zero już wcześniej
      znaczyło w skrypcie „przyklejone do ekranu", więc grain.js nie wymagał
@@ -124,7 +137,9 @@ module.exports = async function (t) {
      wyłączenia i z panelu nie dałoby się tego zobaczyć. */
   const bezPrzewijania = JSON.parse(phpOutput('grain-cfg.php',
     JSON.stringify(JSON.stringify({ przewijaj: false, mnoznik_scrolla: 2.5 }))));
-  t.check('wyłączony przełącznik zeruje mnożnik mimo wpisanej siły',
+  /* ZGODNOŚĆ WSTECZNA: element zapisany PRZED odwróceniem z 1.214.0 ma dalej
+     znaczyć to samo. `evk_wlaczone()` czyta stary klucz, gdy nowego nie ma. */
+  t.check('stary zapis „przewijaj: false" dalej zeruje mnożnik',
     bezPrzewijania.atrybuty['data-mnoznik'] === '0', bezPrzewijania.atrybuty['data-mnoznik']);
 
   /* Kontrola negatywna: bez niej „zero" byłoby nie do odróżnienia od pola,
@@ -144,7 +159,7 @@ module.exports = async function (t) {
      bricks-required.test.js dla całej wtyczki. Tu sprawdzamy drugą połowę:
      że bramka w ogóle wskazuje na przełącznik, a nie na nieistniejące pole. */
   t.check('siła przewijania jest pod bramką przełącznika',
-    JSON.stringify(domyslne.bramki.mnoznik_scrolla) === JSON.stringify(['przewijaj', '=', true]),
+    JSON.stringify(domyslne.bramki.mnoznik_scrolla) === JSON.stringify(['przewijaj_off', '=', false]),
     JSON.stringify(domyslne.bramki.mnoznik_scrolla));
 
   // ── Zasięg: co render() wypisuje na korzeniu ────────────────────────────

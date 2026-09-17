@@ -504,10 +504,25 @@ module.exports = async function (t) {
   /* POKRYCIE NAJPIERW — reguła bez ani jednej zbadanej kontrolki byłaby
      spełniona przez pustkę, a element pomijany (bo render nie jest
      powtarzalny) wypadałby z niej po cichu. */
+  /* REGUŁA ZERO, dodana w 1.214.0 i najważniejsza z trzech. Pole zaznaczenia
+     z domyślną WŁĄCZONĄ jest w tej wtyczce nie do wyłączenia: Bricks przy
+     odznaczeniu nie zapisuje nic, co dałoby się odczytać jako „wyłączone".
+
+     Kosztowało to trzy błędne diagnozy i dwa wydania. Dowód siedział w jednym
+     elemencie, w dwóch linijkach obok siebie: maska DOLNA (domyślna włączona)
+     nie dawała się wyłączyć, GÓRNA (domyślna wyłączona) — owszem. Ten sam
+     render(), ten sam gradient, ta sama kontrolka w panelu.
+
+     ZGŁOSZONE Z UŻYCIA: „szum w WaveBG nie działa (zawsze widoczny)",
+     „Przyciągaj do paneli w HS nie działa", „nie działa wyłączanie cienia". */
+  t.check('żaden przełącznik nie ma domyślnej WŁĄCZONEJ',
+    dw.zDomyslnaWlaczona.length === 0,
+    dw.zDomyslnaWlaczona.join(', ') || 'wszystkie domyślnie wyłączone');
+
   t.check('weszło dziesięć elementów', dw.elementow === 10, dw.elementow + ' elementów');
   t.check('żaden nie wypadł z badania', dw.pominiete.length === 0,
     dw.pominiete.join(', ') || 'wszystkie zbadane');
-  t.check('a kontrolek do zbadania jest kilkanaście', dw.zbadanych >= 16,
+  t.check('a kontrolek do zbadania jest kilkadziesiąt', dw.zbadanych >= 30,
     dw.zbadanych + ' kontrolek');
 
   t.check('w żadnej domyślna nie gubi się po drodze', dw.rozjazdy.length === 0,
@@ -524,6 +539,27 @@ module.exports = async function (t) {
   t.check('i w żadnej nie da się jej zablokować na stałe',
     dw.nieDoWylaczenia.length === 0,
     dw.nieDoWylaczenia.join(', ') || 'wszystkie dają się wyłączyć');
+
+  /* REGUŁA 3: odwrócony przełącznik ma COŚ ZMIENIĆ, gdy go zaznaczyć. To jest
+     dosłownie treść zgłoszenia („przełączanie działa, ale nie ma efektu"),
+     więc sprawdzamy to wprost, a nie wnioskujemy z odczytu.
+
+     Marquee jest z tej reguły wyłączony JAWNIE, nie po cichu: bez pozycji
+     wychodzi z render() pierwszą linijką, drukując pudełko zastępcze, więc
+     żaden przełącznik nie ma prawa zmienić wyjścia. */
+  t.check('zaznaczony przełącznik „…_off" naprawdę coś wyłącza',
+    dw.bezEfektu.length === 0,
+    dw.bezEfektu.join(', ') || 'wszystkie mają efekt');
+  /* NAZWA NOWEGO KLUCZA = stary klucz + „_off". Przy odwracaniu szesnastu pól
+     dwa dostały skróconą nazwę i skrypt sprawdzający przestał je widzieć —
+     pokazywał „bez zmian" dla kodu, który działał. Dwie konwencje na raz są
+     gorsze niż jedna brzydka. */
+  t.check('odwrócone klucze trzymają się jednej konwencji',
+    dw.zleNazwane.length === 0, dw.zleNazwane.join(', ') || 'wszystkie „…_off"');
+
+  t.check('a wyłączenia z tej reguły są nazwane',
+    JSON.stringify(dw.bezTresci) === JSON.stringify(['evoke-marquee']),
+    dw.bezTresci.join(', ') || 'brak');
 
   // ── Wave BG po zamianie list wyboru na przełączniki ─────────────────────
   /* SIEDZI TU, A NIE W wave-bg.test.js, ŚWIADOMIE. To są dwa odczyty czystego

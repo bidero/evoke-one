@@ -91,7 +91,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 	 *
 	 * Do 1.205.0 stało tu pięć sekcji, w których dwie kontrolki leżały nie tam,
 	 * gdzie ich szukać: „Blokuj scroll strony" pod nagłówkiem „Własny
-	 * przełącznik", a „Zamknij klawiszem ESC" sama jedna w sekcji „Dostępność".
+	 * przełącznik", a „Nie zamykaj klawiszem ESC" sama jedna w sekcji „Dostępność".
 	 * Obie robią to samo co reszta Zamykania.
 	 *
 	 * ZASADA PODZIAŁU TEKSTU, ta sama co w offcanvasie od 1.204.0: w opisie
@@ -109,15 +109,19 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'type'  => 'checkbox',
 		];
 
-		$this->controls['portalToBody'] = [
+		$this->controls['portalToBody_off'] = [
 			'group'       => 'evk_lokalizacja',
 			'hasDynamicData' => false,
 			'tab'     => 'content',
-			'label'   => esc_html__( 'Portal do &lt;body&gt;', 'evk-circular-menu' ),
+			'label'   => esc_html__( 'Nie przenoś do &lt;body&gt;', 'evk-circular-menu' ),
 			'type'    => 'checkbox',
 			'inline'  => true,
 			'small'   => true,
-			'default' => true,
+			'default' => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 			'description' => esc_html__( 'Panel nie jest wtedy ograniczany przez overflow:hidden ani position rodziców.', 'evk-circular-menu' ),
 		];
 
@@ -367,13 +371,17 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			),
 		];
 
-		$this->controls['closeOnEsc'] = [
+		$this->controls['closeOnEsc_off'] = [
 			'group'       => 'evk_zamykanie',
-			'label'   => esc_html__( 'Zamknij klawiszem ESC', 'evk-circular-menu' ),
+			'label'   => esc_html__( 'Nie zamykaj klawiszem ESC', 'evk-circular-menu' ),
 			'type'    => 'checkbox',
 			'inline'  => true,
 			'small'   => true,
-			'default' => true,
+			'default' => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 		];
 
 		/* DOMYŚLNIE WYŁĄCZONE, w odróżnieniu od „Blokuj przewijanie strony"
@@ -529,7 +537,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$settings = $this->settings;
 
 		$openbuilder       = ! empty( $settings['openbuilder'] )       ? $settings['openbuilder']       : 0;
-		$portalToBody      = evk_flaga( $settings, 'portalToBody', true ) ? '1' : '0';
+		$portalToBody      = evk_wlaczone( $settings, 'portalToBody', 'portalToBody_off' ) ? '1' : '0';
 		$duration          = ! empty( $settings['duration'] )          ? $settings['duration']          : '0.4';
 		$easing            = ! empty( $settings['easing'] )            ? $settings['easing']            : 'none';
 		/*
@@ -557,7 +565,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		$raiseToggle       = ! empty( $settings['raiseToggle'] ) ? '1' : '0';
 		$raiseMode         = ! empty( $settings['raiseMode'] ) ? $settings['raiseMode'] : 'przelacznik';
 		$raiseSelector     = ! empty( $settings['raiseSelector'] ) ? $settings['raiseSelector'] : '';
-		$closeOnEsc        = evk_flaga( $settings, 'closeOnEsc', true )   ? '1' : '0';
+		$closeOnEsc        = evk_wlaczone( $settings, 'closeOnEsc', 'closeOnEsc_off' )   ? '1' : '0';
 		$scrim             = ! empty( $settings['scrimEnabled'] )      ? '1' : '0';
 
 		$this->set_attribute( '_root', 'class',                                 'evk-cm' );

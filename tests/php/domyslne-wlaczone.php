@@ -5,13 +5,27 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 /**
  * Pola zaznaczenia domyślnie WŁĄCZONE — czy domyślna naprawdę obowiązuje.
  *
- * DWIE REGUŁY, OBIE OGÓLNE I NIEZNAJĄCE ŻADNEGO ELEMENTU Z NAZWY. Dla każdej
- * kontrolki z 'type' => 'checkbox' i 'default' => true:
+ * TRZY REGUŁY, WSZYSTKIE OGÓLNE I NIEZNAJĄCE ŻADNEGO ELEMENTU Z NAZWY.
+ *
+ *   0. ŻADEN CHECKBOX NIE MA PRAWA MIEĆ 'default' => true
+ *
+ *      Bo Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać jako
+ *      „wyłączone", więc takie pole jest NIE DO WYŁĄCZENIA — żadna poprawka
+ *      odczytu tego nie obejdzie. Pola, które mają być domyślnie włączone,
+ *      idą przez ODWRÓCONY przełącznik i `evk_wlaczone()` (patrz flaga.php).
+ *
+ *      To jest reguła, której brak kosztował trzy błędne diagnozy i dwa
+ *      wydania. Dowód siedział w jednym elemencie, w dwóch linijkach obok
+ *      siebie w evoke-wave-bg/element.php: maska dolna czytana z domyślną
+ *      włączoną NIE dawała się wyłączyć, górna z domyślną wyłączoną — owszem.
+ *      Ten sam render(), ten sam gradient, ta sama kontrolka w panelu.
+ *
+ *   Dla pozostałych pól zaznaczenia (domyślnie wyłączonych):
  *
  *   1. DOMYŚLNA OBOWIĄZUJE
- *      render([]) === render([klucz => true])
+ *      render([]) === render([klucz => false])
  *
- *   2. DA SIĘ JĄ WYŁĄCZYĆ
+ *   2. DA SIĘ JĄ PRZESTAWIĆ NIEZALEŻNIE OD ZAPISU
  *      render([klucz => null]) === render([klucz => false])
  *
  * Nie trzeba przy tym wiedzieć, w jaki atrybut dana kontrolka pisze — a właśnie
@@ -72,6 +86,9 @@ function wyjscie(string $klasa, array $ustawienia): string {
 
 $rozjazdy = [];
 $nieDoWylaczenia = [];
+$zDomyslnaWlaczona = [];
+$bezEfektu = [];
+$bezTresci = [];
 $zbadanych = 0;
 $elementow = 0;
 $pominiete = [];
@@ -85,6 +102,15 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
     $el->set_controls();
     $elementow++;
 
+    /* ELEMENT, KTÓRY PRZY PUSTYCH USTAWIENIACH DRUKUJE PUDEŁKO ZASTĘPCZE, nie
+       nadaje się do reguły 3. Marquee bez pozycji wychodzi z render() pierwszą
+       linijką („Dodaj elementy w zakładce Treść"), więc żadne przestawienie
+       przełącznika nie ma prawa zmienić wyjścia — i nie jest to usterka
+       przełącznika, tylko brak treści. Mówimy o tym wprost zamiast cicho
+       przepuszczać. */
+    $zastepcze = strpos(wyjscie($klasa, []), 'bricks-element-placeholder') !== false;
+    if ($zastepcze) { $bezTresci[] = $nazwa; }
+
     /* Element musi dać STABILNE wyjście dla tych samych ustawień — inaczej
        porównanie dwóch wyjść nie znaczy nic. Losowy identyfikator albo znacznik
        czasu w znaczniku dyskwalifikuje element z tego sprawdzenia, i lepiej
@@ -97,13 +123,22 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
     foreach ($el->controls as $klucz => $def) {
         if (!is_array($def)) { continue; }
         if (($def['type'] ?? '') !== 'checkbox') { continue; }
-        if (($def['default'] ?? null) !== true) { continue; }
+
+        /* REGUŁA 0 — najważniejsza i najprostsza. Pole zaznaczenia z domyślną
+           WŁĄCZONĄ jest w tej wtyczce nie do wyłączenia, bo Bricks przy
+           odznaczeniu nie zapisuje nic, co dałoby się odczytać jako
+           „wyłączone". Powody i dowód: evk_wlaczone() w flaga.php. */
+        if (($def['default'] ?? null) === true) {
+            $zDomyslnaWlaczona[] = $nazwa . '/' . $klucz;
+            continue;
+        }
 
         $zbadanych++;
 
-        // Reguła 1: domyślna obowiązuje.
+        /* Reguła 1: domyślna obowiązuje. Dla pól domyślnie wyłączonych znaczy
+           to, że brak klucza ma dać dokładnie to samo co jawne `false`. */
         $puste     = wyjscie($klasa, []);
-        $zWlaczona = wyjscie($klasa, [ $klucz => true ]);
+        $zWlaczona = wyjscie($klasa, [ $klucz => false ]);
         if ($puste !== $zWlaczona) {
             $rozjazdy[] = $nazwa . '/' . $klucz;
         }
@@ -117,13 +152,49 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
         if ($jakoNull !== $jakoFalse) {
             $nieDoWylaczenia[] = $nazwa . '/' . $klucz;
         }
+
+        /* REGUŁA 3 — DLA ODWRÓCONYCH PRZEŁĄCZNIKÓW: zaznaczenie MA COŚ ZMIENIĆ.
+           To jest dosłownie treść zgłoszenia („przełączanie działa, ale nie ma
+           efektu"), więc warto ją sprawdzać wprost, a nie wnioskować z odczytu.
+           Ograniczone do przyrostka `_off`, bo tylko tam wiadomo z nazwy, że
+           zaznaczenie ma coś WYŁĄCZAĆ — przy zwykłym polu włączającym funkcję
+           dodatkową brak różnicy bywa poprawny. */
+        if (substr($klucz, -4) === '_off' && !$zastepcze
+            && $puste === wyjscie($klasa, [ $klucz => true ])) {
+            $bezEfektu[] = $nazwa . '/' . $klucz;
+        }
+    }
+}
+
+/* NAZWA NOWEGO KLUCZA MUSI BYĆ STARYM KLUCZEM + „_off".
+ *
+ * Nie jest to pedanteria: przy odwracaniu szesnastu pól w 1.214.0 dwa z nich
+ * dostały skróconą nazwę (`noise_off` zamiast `noise_enabled_off`) i skrypt
+ * sprawdzający przestał je widzieć — pokazywał „bez zmian" dla kodu, który
+ * działał. Dwie konwencje na raz są gorsze niż jedna brzydka.
+ *
+ * Czytamy ŹRÓDŁO, bo stary klucz nie jest już kontrolką i w tablicy `controls`
+ * go nie ma — istnieje wyłącznie jako argument `evk_wlaczone()`. */
+$zleNazwane = [];
+foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $plik) {
+    $tresc = (string) file_get_contents($plik);
+    if (preg_match_all("/evk_wlaczone\(\s*[^,]+,\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/", $tresc, $m, PREG_SET_ORDER)) {
+        foreach ($m as $para) {
+            if ($para[2] !== $para[1] . '_off') {
+                $zleNazwane[] = basename(dirname($plik)) . ': ' . $para[1] . ' → ' . $para[2];
+            }
+        }
     }
 }
 
 echo json_encode([
     'elementow'  => $elementow,
     'zbadanych'  => $zbadanych,
+    'zDomyslnaWlaczona' => $zDomyslnaWlaczona,
     'rozjazdy'   => $rozjazdy,
     'nieDoWylaczenia' => $nieDoWylaczenia,
+    'bezEfektu'  => $bezEfektu,
+    'bezTresci'  => $bezTresci,
+    'zleNazwane' => $zleNazwane,
     'pominiete'  => $pominiete,
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";

@@ -238,12 +238,16 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		// Domyślnie włączone — to dotychczasowe zachowanie, wcześniej zaszyte
 		// na sztywno w marquee.js. Wyłączenie ma sens tylko wtedy, gdy pętla
 		// musi trwać także niewidoczna (np. dwa marquee zsynchronizowane ze sobą).
-		$this->controls['pause_offscreen'] = [
+		$this->controls['pause_offscreen_off'] = [
 			'group' => 'evk_pauza',
 			'tab'         => 'content',
-			'label'       => 'Pauzuj poza ekranem',
+			'label'       => 'Nie pauzuj poza ekranem',
 			'type'        => 'checkbox',
-			'default'     => true,
+			'default'     => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 			'description' => 'Wstrzymuje pętlę i przestaje reagować na przewijanie, gdy marquee jest poza kadrem.',
 		];
 
@@ -269,7 +273,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 			'max'         => 2000,
 			'step'        => 50,
 			'default'     => 200,
-			'required'    => [ 'pause_offscreen', '=', true ],
+			'required'    => [ 'pause_offscreen_off', '=', false ],
 			'description' => 'O ile pikseli przed wejściem w kadr pętla ma już działać. '
 				. 'WARTOŚĆ UJEMNA odwrotnie: opóźnia start, aż marquee wjedzie głębiej '
 				. 'w kadr.',
@@ -289,7 +293,7 @@ class Evk_Marquee_Element extends \Bricks\Element {
 		// bo taka była dotychczasowa, zaszyta na sztywno wartość. Tu narodził
 		// się wzorzec, który od 1.199.0 nazywa się evk_flaga() i obowiązuje
 		// w całej wtyczce — zachowanie bez zmian, znika tylko druga kopia.
-		$pause_offscreen = evk_flaga( $this->settings, 'pause_offscreen', true );
+		$pause_offscreen = evk_wlaczone( $this->settings, 'pause_offscreen', 'pause_offscreen_off' );
 		$pause_offset    = $this->settings['pause_offset'] ?? 200;
 
 		// Wykryj builder: AJAX render elementu lub iframe buildera.

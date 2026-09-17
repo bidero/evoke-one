@@ -220,12 +220,16 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		];
 
 		// ── SNAP ──────────────────────────────────────────────────────────────
-		$this->controls['snap'] = [
+		$this->controls['snap_off'] = [
 			'group'       => 'evk_anim',
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Przyciągaj do paneli', 'evk-horizontal-scroll' ),
+			'label'       => esc_html__( 'Nie przyciągaj do paneli', 'evk-horizontal-scroll' ),
 			'type'        => 'checkbox',
-			'default'     => true,
+			'default'     => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 			'description' => esc_html__( 'Po zatrzymaniu scrolla widok dociąga się do najbliższego panelu.', 'evk-horizontal-scroll' ),
 		];
 
@@ -238,7 +242,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'max'      => 2,
 			'step'     => 0.05,
 			'default'  => 0.5,
-			'required' => [ 'snap', '=', true ],
+			'required' => [ 'snap_off', '=', false ],
 		];
 
 		/*
@@ -682,7 +686,7 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 		$panel_height  = isset( $settings['panel_height'] ) && $settings['panel_height'] !== '' ? $settings['panel_height'] : '100vh';
 		$scrub         = isset( $settings['scrub'] ) && $settings['scrub'] !== '' ? (float) $settings['scrub'] : 1;
 		$start_offset  = ! empty( $settings['start_offset'] ) ? $settings['start_offset'] : 'top top';
-		$snap          = evk_flaga( $settings, 'snap', true );
+		$snap          = evk_wlaczone( $settings, 'snap', 'snap_off' );
 		$snap_duration = isset( $settings['snap_duration'] ) && $settings['snap_duration'] !== '' ? (float) $settings['snap_duration'] : 0.5;
 		$disable_below = isset( $settings['disable_below'] ) && $settings['disable_below'] !== '' ? (int) $settings['disable_below'] : 991;
 		$progressbar   = ! empty( $settings['progressbar'] );

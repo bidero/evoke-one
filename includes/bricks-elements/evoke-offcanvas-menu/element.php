@@ -94,7 +94,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 	 *  · „Przejścia między panelami" (dwie kontrolki) wchodzą do „Trybu".
 	 *    Obie są bramkowane na `mode = levels`, dokładnie jak „Wejście
 	 *    w podmenu", „Panel startowy" i „Opóźnienie panelu podrzędnego".
-	 *  · „Esc cofa o poziom" PRZENOSI SIĘ z „Zamykania" do „Trybu" — też jest
+	 *  · „Esc nie cofa o poziom" PRZENOSI SIĘ z „Zamykania" do „Trybu" — też jest
 	 *    bramkowane na `mode = levels`. To jedyne pole, które zmienia sąsiedztwo
 	 *    wbrew swojej nazwie, i warto o tym wiedzieć: „Tryb" jest teraz grupą
 	 *    wszystkiego, co istnieje WYŁĄCZNIE w trybie poziomów.
@@ -266,12 +266,16 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'required' => [ 'mode', '=', 'levels' ],
 		];
 
-		$this->controls['escGoesBack'] = [
+		$this->controls['escGoesBack_off'] = [
 			'group'       => 'evk_tryb',
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Esc cofa o poziom', 'evoke-one' ),
+			'label'       => esc_html__( 'Esc nie cofa o poziom', 'evoke-one' ),
 			'type'        => 'checkbox',
-			'default'     => true,
+			'default'     => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 			'required'    => [ 'mode', '=', 'levels' ],
 			'description' => esc_html__( 'Na panelu startowym Esc zamyka. Wyłączone: Esc zawsze zamyka.', 'evoke-one' ),
 		];
@@ -445,20 +449,28 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			),
 		];
 
-		$this->controls['closeOnLinkClick'] = [
+		$this->controls['closeOnLinkClick_off'] = [
 			'group'       => 'evk_zamykanie',
 			'tab'     => 'content',
-			'label'   => esc_html__( 'Zamknij po kliknięciu w odnośnik', 'evoke-one' ),
+			'label'   => esc_html__( 'Nie zamykaj po kliknięciu w odnośnik', 'evoke-one' ),
 			'type'    => 'checkbox',
-			'default' => true,
+			'default' => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 		];
 
-		$this->controls['lockScroll'] = [
+		$this->controls['lockScroll_off'] = [
 			'group'       => 'evk_zamykanie',
 			'tab'     => 'content',
-			'label'   => esc_html__( 'Blokuj przewijanie strony', 'evoke-one' ),
+			'label'   => esc_html__( 'Nie blokuj przewijania strony', 'evoke-one' ),
 			'type'    => 'checkbox',
-			'default' => true,
+			'default' => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 		];
 
 		$this->controls['triggerSelector'] = [
@@ -488,12 +500,16 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			),
 		];
 
-		$this->controls['toBody'] = [
+		$this->controls['toBody_off'] = [
 			'group'       => 'evk_warstwy',
 			'tab'         => 'content',
-			'label'       => esc_html__( 'Przenieś do <body>', 'evoke-one' ),
+			'label'       => esc_html__( 'Nie przenoś do <body>', 'evoke-one' ),
 			'type'        => 'checkbox',
-			'default'     => true,
+			'default'     => false,
+			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
+			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
+			   jako „wyłączone", więc pole z `'default' => true` jest nie do
+			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
 			'description' => esc_html__( 'Panel nie jest wtedy ograniczany przez overflow:hidden ani position rodziców.', 'evoke-one' ),
 		];
 
@@ -679,16 +695,16 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		 * a nie brak klucza — `! empty()` czyta to poprawnie, ale JS musi
 		 * dostać jawne „nie", inaczej nie odróżni go od „nie ustawiono".
 		 */
-		$this->set_attribute( '_root', 'data-esc-back',   evk_flaga( $s, 'escGoesBack', true )      ? '1' : '0' );
-		$this->set_attribute( '_root', 'data-close-link', evk_flaga( $s, 'closeOnLinkClick', true ) ? '1' : '0' );
-		$this->set_attribute( '_root', 'data-lock',       evk_flaga( $s, 'lockScroll', true )       ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-esc-back',   evk_wlaczone( $s, 'escGoesBack', 'escGoesBack_off' )      ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-close-link', evk_wlaczone( $s, 'closeOnLinkClick', 'closeOnLinkClick_off' ) ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-lock',       evk_wlaczone( $s, 'lockScroll', 'lockScroll_off' )       ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-anim-exit', ! empty( $s['animateExit'] )      ? '1' : '0' );
 		// Puste = „cały czas animacji", wyliczane w JS. Jawne ZERO musi przejść
 		// jako '0' — `! empty()` potraktowałoby je jak brak wartości i ruchy
 		// wróciłyby do grania jeden po drugim mimo wybrania „naraz".
 		$this->set_attribute( '_root', 'data-exit-wait',
 			isset( $s['exitWait'] ) && $s['exitWait'] !== '' ? (string) $s['exitWait'] : '' );
-		$this->set_attribute( '_root', 'data-portal',     evk_flaga( $s, 'toBody', true )           ? '1' : '0' );
+		$this->set_attribute( '_root', 'data-portal',     evk_wlaczone( $s, 'toBody', 'toBody_off' )           ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-header-above', ! empty( $s['headerAbove'] )   ? '1' : '0' );
 		$this->set_attribute( '_root', 'data-raise-mode',
 			! empty( $s['raiseMode'] ) ? $s['raiseMode'] : 'przelacznik' );
