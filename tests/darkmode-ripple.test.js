@@ -322,19 +322,101 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !f.errors.length, f.errors.join(' | ') || 'brak');
   await f.close();
 
+  // ── Element spoza listy selektorów ──────────────────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „dopisanie tych elementów do grupy powoduje, że fala
+     się na nich animuje. Gdy nie są dopisane, fala idzie w tle, a elementy
+     zmieniają kolor przez fade".
+
+     `.poza-lista` w fixturze jest dokładnie takim elementem: klasa nie pasuje
+     do żadnego `.brxe-*`, znacznik to nie `section` ani `body`, a przejście
+     przychodzi z CSS-a strony — nie z wtyczki. Tak wygląda na żywej stronie
+     wszystko, czego nikt nie dopisał do listy.
+
+     Zmierzone na jego linii (fala 1200 ms, jasność za czołem fali; niżej =
+     bliżej koloru docelowego):
+
+         czas     przed 1.215.0     po
+         360 ms        163           0
+         600 ms        102           0
+
+     Przy 204 ms obie wersje dają 250 i to nie jest usterka — fala po prostu
+     nie doszła jeszcze do tej linii. Dlatego mierzymy PO przejściu czoła. */
+  t.section('element spoza listy też jest odsłaniany, a nie farbowany');
+
+  const q = await t.open('darkmode-ripple.html', V);
+  const czasQ = await zapal(q);
+
+  /** Jasność pasma `.poza-lista` tuż za punktem startu fali. */
+  const pozaLista = async (ms) => {
+    await q.evaluate((v) => document.getAnimations().forEach((a) => { a.currentTime = v; }), ms);
+    await q.waitForTimeout(30);
+    const buf = await q.screenshot({ clip: { x: 45, y: 230, width: 75, height: 1 } });
+    return q.evaluate(async (b64) => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = 1;
+      const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+      const d = x.getImageData(0, 0, img.width, 1).data;
+      let suma = 0;
+      for (let i = 0; i < img.width; i++) suma += (d[i*4] + d[i*4+1] + d[i*4+2]) / 3;
+      return Math.round(suma / img.width);
+    }, buf.toString('base64'));
+  };
+
+  const poCzole  = await pozaLista(Math.round(czasQ * 0.3));
+  const pozniejQ = await pozaLista(Math.round(czasQ * 0.5));
+  t.check('za czołem fali jest już kolor docelowy', poCzole < 20, 'jasność ' + poCzole);
+  t.check('i zostaje docelowy dalej', pozniejQ < 20, 'jasność ' + pozniejQ);
+
+  /* KONTROLA POZYTYWNA: bez niej „ciemno" przechodziłoby także dla strony,
+     która nigdy nie była jasna. Przed falą pasmo ma być jasne. */
+  const przedFala = await t.open('darkmode-ripple.html', V);
+  const jasneNaStarcie = await przedFala.evaluate(() => {
+    const el = document.querySelector('.poza-lista');
+    return getComputedStyle(el).backgroundColor;
+  });
+  t.check('a przed falą pasmo jest jasne',
+    /255,\s*255,\s*255/.test(jasneNaStarcie), jasneNaStarcie);
+  t.check('bez błędów JS', !q.errors.length, q.errors.join(' | ') || 'brak');
+  await przedFala.close();
+  await q.close();
+
   // ── Sam znacznik: co i kiedy jest wyciszane ──────────────────────────────
   t.section('wyciszenie obejmuje ustawione selektory i tylko przy fali');
 
   const zFala = phpOutput('darkmode-head.php', JSON.stringify(JSON.stringify({})));
   const bezFali = phpOutput('darkmode-head.php', JSON.stringify(JSON.stringify({ ripple_enabled: 0 })));
 
-  /* Wycinamy CAŁY blok reguły, zamiast zgadywać, ile znaków ma lista
-     selektorów — jest konfigurowalna i potrafi urosnąć. */
-  const blok = zFala.match(/html\.is-theme-settled body[\s\S]*?\}/);
-  const selektory = blok ? (blok[0].match(/html\.is-theme-settled /g) || []).length : 0;
-  t.check('przy fali reguła wycisza wszystkie skonfigurowane selektory',
-    !!blok && /transition: none !important/.test(blok[0]) && selektory >= 6,
-    blok ? selektory + ' selektorów' : 'brak reguły');
+  /* OD 1.215.0 REGUŁA NIE WYLICZA SELEKTORÓW, tylko bierze `*`. Wcześniej
+     wyciszała wyłącznie to, co stało na liście, więc żeby fala odsłoniła
+     element, trzeba go było tam dopisać — zgłoszone z użycia. Sprawdzamy więc
+     dwie rzeczy naraz: że reguła jest uniwersalna i że NIE trafia w korzeń. */
+  const blok = zFala.match(/html\.is-theme-settled \*[\s\S]*?\}/);
+  t.check('przy fali wyciszenie obejmuje każdy element',
+    !!blok && /transition: none !important/.test(blok[0]),
+    blok ? blok[0].split('\n')[0] : 'brak reguły');
+
+  /* KORZEŃ MUSI ZOSTAĆ NIETKNIĘTY: jego przejście trzyma stary kolor pod
+     nieodsłoniętą częścią ekranu, a bez tego znika samo odsłanianie (1.117.0).
+     Stąd `*` w formie POTOMKA.
+
+     PIERWSZA WERSJA TEGO SPRAWDZENIA BYŁA PUSTA i pokazała to dopiero mutacja:
+     wyrażenie wymagało `{` zaraz po nazwie klasy, więc reguła rozszerzona
+     przecinkiem („html.is-theme-settled, html.is-theme-settled *") przechodziła
+     na zielono. Teraz rozbieramy PRELUDIUM reguły na selektory i pytamy o każdy
+     z osobna — bo to jest rzecz, której ma pilnować.
+
+     CZEGO TO SPRAWDZENIE NIE DOWODZI: ta sama mutacja NIE ruszyła żadnego
+     pomiaru pikseli w tym pliku — „daleki róg trzyma stary kolor" został
+     zielony. Strażnik jest więc STRUKTURALNY: pilnuje zapisu z 1.117.0, a nie
+     objawu, który umiemy tu zobaczyć. Gdyby kiedyś dało się ten objaw zmierzyć,
+     lepszy byłby pomiar. */
+  const preludium = (zFala.match(/([^}]*?)\{[^}]*transition:\s*none\s*!important/) || [])[1] || '';
+  const goleKorzenie = preludium
+    .split(',')
+    .map((x) => x.trim())
+    .filter((x) => x && !/\s/.test(x));      // selektor bez spacji = sam korzeń
+  t.check('ale nie zdejmuje przejścia z samego korzenia',
+    goleKorzenie.length === 0, goleKorzenie.join(', ') || 'korzeń nietknięty');
   t.check('a bez fali nie ma jej wcale',
     !/html\.is-theme-settled [^{]*transition: none/.test(bezFali), 'brak');
 

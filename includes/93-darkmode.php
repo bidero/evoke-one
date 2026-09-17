@@ -580,18 +580,43 @@ CSS;
              * są wtedy zrobione, a żywy dokument pod falą przeskakuje na kolory
              * docelowe, więc znika i szara smuga, i utrata odsłaniania.
              *
-             * Lista selektorów celowo zostaje w formie „potomek": na stronie
-             * z `[data-brx-theme]` na `html` reguła nie trafia w korzeń, a to
-             * właśnie nietknięte przejście korzenia trzyma stary kolor pod
-             * nieodsłoniętą częścią ekranu.
+             * GWIAZDKA ZAMIAST LISTY SELEKTORÓW — i to jest cała odpowiedź na
+             * zgłoszenie: „dopisanie tych elementów do grupy powoduje, że fala
+             * się na nich animuje. Gdy nie są dopisane, fala idzie w tle,
+             * a elementy zmieniają kolor przez fade".
+             *
+             * Do 1.215.0 wyciszenie obejmowało WYŁĄCZNIE selektory z listy, więc
+             * żeby fala odsłoniła element, trzeba go było tam dopisać. Wszystko
+             * pozostałe farbowało się własnym zegarem — z CSS-a strony albo
+             * z ustawień Bricksa — i wychodziło z tego fade niezależny od fali.
+             *
+             * Zmierzone na tej samej linii pikseli (fala 1200 ms, jasność za
+             * czołem fali; niżej = bliżej koloru docelowego):
+             *
+             *     czas     body (na liście)   element spoza listy
+             *     204 ms          63                  250
+             *     360 ms          63                  163
+             *     600 ms          63                  102
+             *
+             * `*` obejmuje każdy element bez wyjątku, więc lista przestaje
+             * decydować o tym, co fala odsłania. Klasa żyje wyłącznie przez czas
+             * fali — zakłada ją `transition.ready`, zdejmuje `transition.finished`
+             * — więc poza przełączaniem motywu nie zmienia się nic.
+             *
+             * KORZEŃ MUSI ZOSTAĆ POZA TĄ REGUŁĄ i dlatego jest to `*` w formie
+             * POTOMKA, a nie `html.is-theme-settled`. Nietknięte przejście
+             * korzenia trzyma stary kolor pod nieodsłoniętą częścią ekranu —
+             * bez tego znika samo odsłanianie (1.117.0).
+             *
+             * LISTA SELEKTORÓW ZOSTAJE i dalej rządzi tym, co ma płynne
+             * przejście kolorów przy zmianie motywu BEZ fali — wyłączonej albo
+             * niedostępnej (brak `startViewTransition`). Zmieniło się tylko to,
+             * że przy fali nie trzeba jej uzupełniać.
              */
-            $bez_przejscia = array_merge($global_selectors, $bricks_selectors);
-            if ($bez_przejscia) {
-                echo "html.is-theme-settled " . implode(",\nhtml.is-theme-settled ", $bez_przejscia) . " {\n";
-                echo "    transition: none !important;\n";
-                echo "    -webkit-transition: none !important;\n";
-                echo "}\n\n";
-            }
+            echo "html.is-theme-settled * {\n";
+            echo "    transition: none !important;\n";
+            echo "    -webkit-transition: none !important;\n";
+            echo "}\n\n";
 
             /*
              * ZMIENNE KOLORÓW MILKNĄ PO MIGAWKACH, ALE KORZEŃ NIE.

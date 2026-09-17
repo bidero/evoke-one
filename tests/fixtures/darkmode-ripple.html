@@ -24,6 +24,19 @@
     position: fixed; left: 40px; top: 40px; width: 40px; height: 40px;
     border: 0; background: #888; cursor: pointer;
   }
+
+  /* ELEMENT SPOZA LISTY SELEKTORÓW DARKMODE, z WŁASNYM przejściem.
+     Tak wygląda na żywej stronie wszystko, czego nikt nie dopisał do listy:
+     klasa nie pasuje do `.brxe-*`, znacznik to nie `section` ani `body`,
+     a przejście przychodzi z CSS-a strony, nie z wtyczki.
+     Pasmo jest szerokie i leży na własnej linii pomiaru (y=230). */
+  .poza-lista {
+    position: fixed; left: 0; top: 200px; width: 100%; height: 60px;
+    background: #ffffff;
+    transition: background-color 1s linear;
+  }
+  html[data-theme="dark"] .poza-lista { background: #000000; }
 </style>
 
 <button class="brxe-toggle-mode" aria-label="Zmień motyw"></button>
+<div class="poza-lista"></div>

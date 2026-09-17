@@ -2,6 +2,63 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.215.0] — 2026-09-17
+
+### Zmienione
+
+- **Fala darkmode odsłania teraz KAŻDY element, bez dopisywania go do listy.**
+  ZGŁOSZONE Z UŻYCIA: „dopisanie tych elementów do grupy powoduje, że fala się
+  na nich animuje. Gdy nie są dopisane, fala idzie w tle, a elementy zmieniają
+  kolor przez fade".
+
+  **Skąd to się brało.** `::view-transition-new` w Chrome pokazuje ŻYWY
+  dokument, a nie zamrożony obrazek — odsłaniany obszar rysuje to, co w tej
+  chwili naprawdę jest na stronie. Element, któremu `is-theme-settled` wyciszy
+  przejście, przeskakuje na kolor docelowy i fala odsłania go gotowego. Element,
+  który zachowa własne przejście, farbuje się swoim zegarem i widać fade
+  niezależny od fali.
+
+  Do 1.215.0 wyciszenie obejmowało **wyłącznie selektory z listy**, więc lista
+  decydowała o tym, co fala odsłania. Teraz jest to jedna reguła:
+
+  ```css
+  html.is-theme-settled * { transition: none !important; }
+  ```
+
+  Zmierzone na linii pasma spoza listy (fala 1200 ms, jasność za czołem fali;
+  niżej = bliżej koloru docelowego):
+
+  | czas | przed | po |
+  |---|---|---|
+  | 360 ms | 163 | **0** |
+  | 600 ms | 102 | **0** |
+
+  Przy 204 ms obie wersje dają 250 i to nie jest usterka — fala po prostu nie
+  doszła jeszcze do tej linii.
+
+  **Korzeń zostaje poza regułą** i dlatego jest to `*` w formie POTOMKA:
+  nietknięte przejście korzenia trzyma stary kolor pod nieodsłoniętą częścią
+  ekranu, a bez tego znika samo odsłanianie (1.117.0).
+
+  **Lista selektorów zostaje** i dalej rządzi płynnym przejściem kolorów przy
+  zmianie motywu BEZ fali — wyłączonej albo niedostępnej. Zmieniło się tylko to,
+  że przy fali nie trzeba jej uzupełniać.
+
+  Klasa `is-theme-settled` żyje wyłącznie przez czas fali (zakłada ją
+  `transition.ready`, zdejmuje `transition.finished`), więc poza przełączaniem
+  motywu nie zmienia się nic. Przez te kilkaset milisekund zamiera jednak KAŻDE
+  przejście na stronie, także niezwiązane z motywem.
+
+- **Strażnik korzenia był pusty i pokazała to dopiero mutacja.** Wyrażenie
+  wymagało `{` zaraz po nazwie klasy, więc reguła rozszerzona przecinkiem
+  („html.is-theme-settled, html.is-theme-settled *") przechodziła na zielono.
+  Teraz sprawdzenie rozbiera preludium reguły na selektory i pyta o każdy
+  z osobna.
+
+  Odnotowane wprost w komentarzu: ta sama mutacja **nie ruszyła żadnego pomiaru
+  pikseli** w tym pliku, więc strażnik jest strukturalny — pilnuje zapisu
+  z 1.117.0, a nie objawu, który umiemy tu zobaczyć.
+
 ## [1.214.0] — 2026-09-17
 
 ### Naprawione
