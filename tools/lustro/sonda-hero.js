@@ -38,6 +38,47 @@
         };
     })();
 
+    /* KOSZT POJEDYNCZEGO PODZIAŁU. Rozbicie pętli na partie pomaga tylko wtedy,
+       gdy drogie jest WIELE tanich elementów. Jeśli jeden podział sam w sobie
+       trwa ponad budżet klatki, żadne partiowanie go nie skróci — i to trzeba
+       wiedzieć, zanim się coś naprawi. */
+    window.__splity = [];
+    (function czekajSplit() {
+        if (typeof window.SplitText === 'undefined') return setTimeout(czekajSplit, 20);
+        if (window.__splityGotowe) return;
+        window.__splityGotowe = true;
+        ['create'].forEach(function (m) {
+            if (typeof SplitText[m] !== 'function') return;
+            var orig = SplitText[m].bind(SplitText);
+            SplitText[m] = function (cel) {
+                var t0 = performance.now();
+                var wynik = orig.apply(null, arguments);
+                /* CEL BYWA TABLICĄ ALBO LISTĄ WĘZŁÓW, nie pojedynczym elementem —
+                   pierwsza wersja rzutowała go na łańcuch i wypisywała listę
+                   adresów zamiast nazwy elementu. Normalizujemy. */
+                var cele = [];
+                if (cel && cel.nodeType) cele = [cel];
+                else if (typeof cel === 'string') cele = Array.prototype.slice.call(document.querySelectorAll(cel));
+                else if (cel && typeof cel.length === 'number') cele = Array.prototype.slice.call(cel);
+                var opis = cele.slice(0, 2).map(function (e) {
+                    var r = e.getBoundingClientRect();
+                    return e.tagName.toLowerCase()
+                        + (e.id ? '#' + e.id : '')
+                        + (e.className ? '.' + String(e.className).trim().split(/\s+/).slice(0, 2).join('.') : '')
+                        + '  y=' + Math.round(r.top)
+                        + (r.top < innerHeight && r.bottom > 0 ? ' [W KADRZE]' : ' [poza kadrem]');
+                }).join('  +  ');
+                window.__splity.push({
+                    t: Math.round(t0),
+                    ms: Math.round((performance.now() - t0) * 10) / 10,
+                    cel: (cele.length > 2 ? '(' + cele.length + ' elementów) ' : '') + opis,
+                    znakow: cele.reduce(function (a, e) { return a + (e.textContent || '').trim().length; }, 0)
+                });
+                return wynik;
+            };
+        });
+    })();
+
     /* Klatki i postęp liter. Postęp bierzemy z PIERWSZEJ litery hero: jej
        przesunięcie w pionie jest tym, co widać jako wlot. */
     var poprzednia = null;

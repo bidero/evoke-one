@@ -62,6 +62,14 @@ const SONDA = fs.readFileSync(path.join(__dirname, 'sonda-hero.js'), 'utf8');
   }
   if (!ile) console.log('  (żadnego)');
 
+  const splity = await page.evaluate(() => window.__splity || []);
+  console.log('\n── KOSZT KAŻDEGO PODZIAŁU TEKSTU ──');
+  if (!splity.length) console.log('  (żadnego nie przechwycono)');
+  splity.forEach((x) => console.log('  ' + String(x.t).padStart(6) + ' ms   '
+    + String(x.ms).padStart(7) + ' ms   ' + String(x.znakow).padStart(5) + ' znaków   ' + x.cel));
+  const suma = splity.reduce((a, x) => a + x.ms, 0);
+  console.log('  razem: ' + suma.toFixed(1) + ' ms w ' + splity.length + ' wywołaniach');
+
   const pierwsza = litery.length ? litery[0].t : null;
   console.log('\n  pierwsza próbka litery: ' + pierwsza + ' ms');
   await b.close();
