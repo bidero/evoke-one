@@ -37,4 +37,15 @@ JS-a, a sieć przy jego pobieraniu. Lustro stoi na localhoście, więc bez dław
 sieci wyszłoby, że pobieranie nic nie kosztuje — a to warunki, w których nikt tej
 strony nie ogląda.
 
+`zmierz-fale.js` odpowiada na zgłoszenie „elementy zmieniają kolor przed
+przejściem fali". Wypisuje **kolejność zdarzeń** od kliknięcia (kiedy zmienia się
+`data-brx-theme`, kiedy `data-theme`, kiedy powstaje stara migawka) i porównuje
+**cały kadr przy promieniu fali równym zeru** ze stanem sprzed kliknięcia: fala
+niczego jeszcze nie odsłoniła, więc każdy piksel, który się różni, przefarbował
+się poza nią. Tu też atrapa mówiła „wszystko gra" — bo nie miała skryptu
+Bricksa, a to on okazał się sprawcą (1.218.0).
+
+`POPRAWKA=1` wstrzykuje prototyp poprawki przed kliknięciem, więc ten sam pomiar
+daje liczbę przed i po, bez dotykania kodu wtyczki.
+
 Pobrana strona **nie wchodzi do repozytorium** — patrz `.gitignore` obok.

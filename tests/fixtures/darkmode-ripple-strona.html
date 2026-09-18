@@ -38,8 +38,15 @@
     --evk-tekst:  #101010;
     --evk-karta:  #f2f2f2;
   }
+  /* TŁO `body` PROWADZI `data-theme` WTYCZKI… */
   html[data-theme="dark"] {
     --evk-tlo:    #000000;
+  }
+  /* …a kolory TREŚCI prowadzi `data-brx-theme`, czyli motyw Bricksa.
+     Tak jest na żywej stronie: `:root[data-brx-theme="dark"] { --kolor-…: … }`.
+     Ten podział jest sednem sprawy — przy błędzie fala odsłaniała tylko to,
+     co wisiało na `data-theme`, czyli samo tło `body`. */
+  html[data-brx-theme="dark"] {
     --evk-tekst:  #f0f0f0;
     --evk-karta:  #0d0d0d;
   }
@@ -92,6 +99,12 @@
   #dalej { height: 2500px; }   /* dokument wyraźnie wyższy od kadru */
 </style>
 
+<script>
+  /* Stan początkowy motywu Bricksa — na żywej stronie ustawia go własny skrypt
+     Bricksa w `<head>`, z tego samego klucza `brx_mode`. */
+  document.documentElement.setAttribute('data-brx-theme', 'light');
+</script>
+
 <button class="brxe-toggle-mode" aria-label="Zmień motyw"></button>
 
 <div id="brx-content">
@@ -108,6 +121,32 @@
 </div>
 
 <script>
+  /* ATRAPA `bricksToggleModeFn` z `bricks.min.js` — DRUGA, NIEZALEŻNA OBSŁUGA
+     tego samego przycisku, przełączająca motyw SYNCHRONICZNIE.
+     
+     TEGO WŁAŚNIE BRAKOWAŁO TU PRZEZ PIĘĆ OBALONYCH HIPOTEZ. Bez sprawcy fala
+     zachowywała się poprawnie także w wersji z błędem, więc atrapa mówiła
+     „wszystko gra" o scenie, w której nie było czego badać.
+     
+     Wierna kopia zachowania z Bricksa: `preventDefault`, przestawienie
+     `dataset.brxTheme` i zapis do tego samego klucza `brx_mode`. */
+  document.querySelector('.brxe-toggle-mode').addEventListener('click', function (e) {
+    e.preventDefault();
+    var t = document.documentElement.dataset.brxTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.brxTheme = t;
+    try { localStorage.setItem('brx_mode', t); } catch (err) {}
+  });
+
+  /* KTO BYŁ PIERWSZY. Przy błędzie `data-brx-theme` zmienia się w zadaniu
+     kliknięcia, czyli ZANIM powstanie stara migawka — a `data-theme` dopiero
+     wewnątrz przejścia. Po poprawce oba idą razem, z wnętrza przejścia. */
+  window.__kolejnosc = [];
+  new MutationObserver(function (m) {
+    m.forEach(function (r) { window.__kolejnosc.push(r.attributeName); });
+  }).observe(document.documentElement, {
+    attributes: true, attributeFilter: ['data-theme', 'data-brx-theme']
+  });
+
   /* PRZEWINIĘCIE PRZED KLIKNIĘCIEM — na żywej stronie nikt nie przełącza motywu
      stojąc dokładnie na samej górze. Wartość jest stała, żeby punkty pomiaru
      zawsze trafiały w te same karty. */

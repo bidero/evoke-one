@@ -808,18 +808,80 @@ CSS;
             });
         });
 
-        var toggleBtns = document.querySelectorAll(toggleSelector);
-        toggleBtns.forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
-                var currentMode = html.getAttribute('data-theme');
-                var newMode     = currentMode === 'light' ? 'dark' : 'light';
+        /* NASŁUCH NA DOKUMENCIE, W FAZIE PRZECHWYTYWANIA — NIE NA PRZYCISKU.
+         *
+         * ZGŁOSZONE Z UŻYCIA: „tła elementów przeskakują — zmieniają kolor przed
+         * przejściem fali. Tak jak teksty (co ciekawe nie wszystkie)
+         * i gradienty", a wcześniej „fala zmienia tylko kolor body".
+         *
+         * PRZYCZYNA. Do tego samego przycisku podpina się druga, niezależna
+         * obsługa — WBUDOWANA W BRICKSA. Z „bricks.min.js":
+         *
+         *     var bricksToggleModeFn = new BricksFunction({
+         *         selector: '.brxe-toggle-mode',
+         *         eachElement: function (btn) {
+         *             btn.addEventListener('click', function (e) {
+         *                 e.preventDefault();
+         *                 var t = 'dark' === document.documentElement.dataset.brxTheme
+         *                       ? 'light' : 'dark';
+         *                 document.documentElement.dataset.brxTheme = t;
+         *                 localStorage.setItem('brx_mode', t);
+         *             });
+         *         }
+         *     });
+         *
+         * Na tym atrybucie wiszą WSZYSTKIE kolory strony
+         * („:root[data-brx-theme='dark'] { --kolor-…: … }"), a Bricks przestawia
+         * go SYNCHRONICZNIE, w zadaniu kliknięcia. Tymczasem
+         * „startViewTransition" nie woła swojego wywołania zwrotnego od razu —
+         * robi to dopiero w kroku renderowania, a STARĄ MIGAWKĘ ZDEJMUJE JESZCZE
+         * PRZED NIM. Zanim więc powstanie, dokument jest już przefarbowany. Fala
+         * nie ma czego odsłaniać poza tłem „body", które prowadzi „data-theme".
+         *
+         * ZMIERZONE NA LUSTRZE ŻYWEJ STRONY (tools/lustro/zmierz-fale.js,
+         * evoke.pl/home, kadr 1280×800). Kolejność zdarzeń od kliknięcia:
+         *
+         *      57 ms  data-brx-theme = light        ← Bricks
+         *      72 ms  startViewTransition wywołane
+         *     124 ms  stara migawka zrobiona        ← o 67 ms za późno
+         *     124 ms  data-theme = light            ← wtyczka
+         *
+         * Cały kadr przy promieniu fali RÓWNYM ZERU, wobec stanu sprzed
+         * kliknięcia — czyli powierzchnia, której fala jeszcze nie tknęła:
+         *
+         *     przed poprawką   101 z 336 komórek przefarbowanych
+         *     po poprawce        1 z 336
+         *
+         * ROZWIĄZANIE. Faza przechwytywania biegnie PRZED celem, więc obsługa
+         * Bricksa podpięta do samego przycisku nie dochodzi do głosu —
+         * niezależnie od kolejności rejestracji, która przy dwóch skryptach na
+         * „DOMContentLoaded" nie jest niczym zagwarantowana. Jej robotę
+         * przejmuje „updateTheme()", wołane WEWNĄTRZ przejścia.
+         *
+         * Dlaczego nie klonowanie węzła (zdejmuje wszystkie nasłuchy): Bricks
+         * wiąże swoją obsługę PONOWNIE po AJAX-ie i po otwarciu popupu
+         * („bricksToggleModeFn.run()"), a nasłuch na dokumencie to przetrzymuje.
+         *
+         * KOSZT, WPROST: na tym przycisku nie odezwą się też inne nasłuchy —
+         * gdyby ktoś podpiął pod niego interakcję Bricksa. Element służy
+         * wyłącznie przełączaniu motywu, więc to koszt przyjęty świadomie. */
+        document.addEventListener('click', function (e) {
+            var btn = e.target && e.target.closest ? e.target.closest(toggleSelector) : null;
+            if (!btn) return;
 
-                if (!rippleEnabled || !document.startViewTransition) {
-                    updateTheme(newMode);
-                    return;
-                }
+            e.preventDefault();
+            e.stopPropagation();
 
-                var rect = this.getBoundingClientRect();
+            var currentMode = html.getAttribute('data-theme');
+            var newMode     = currentMode === 'light' ? 'dark' : 'light';
+
+            if (!rippleEnabled || !document.startViewTransition) {
+                updateTheme(newMode);
+                return;
+            }
+
+            {
+                var rect = btn.getBoundingClientRect();
                 var x    = rect.left + rect.width  / 2;
                 var y    = rect.top  + rect.height / 2;
                 var endRadius = Math.hypot(
@@ -875,12 +937,19 @@ CSS;
                     html.classList.remove('is-theme-toggling');
                     html.classList.remove('is-theme-settled');
                 });
-            });
-        });
+            }
+        }, true);
     });
 
     function updateTheme(mode) {
         html.setAttribute('data-theme', mode);
+        /* PRZEŁĄCZENIE MOTYWU BRICKSA — przejęte z „bricksToggleModeFn".
+         * Na tym atrybucie wiszą zmienne kolorów całej strony. Musi się dziać
+         * TUTAJ, czyli wewnątrz wywołania „startViewTransition", bo inaczej
+         * stara migawka powstaje już z nowymi kolorami. Powód i pomiary —
+         * przy nasłuchu kliknięcia powyżej. Klucz „brx_mode" i tak był
+         * wspólny, więc stan po odświeżeniu zostaje zgodny. */
+        html.setAttribute('data-brx-theme', mode);
         localStorage.setItem(storageKey, mode);
         if (mode === 'dark') {
             html.classList.add('dark');

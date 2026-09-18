@@ -2,6 +2,87 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.218.0] — 2026-09-18
+
+### Naprawione
+
+- **Elementy zmieniały kolor przed przejściem fali — bo motyw przełączał się
+  dwa razy.** ZGŁOSZONE Z UŻYCIA, po pięciu nietrafionych próbach: „tła
+  elementów przeskakują — zmieniają kolor przed przejściem fali. Tak jak teksty
+  (co ciekawe nie wszystkie) i gradienty", a wcześniej „fala zmienia tylko kolor
+  body".
+
+  PRZYCZYNĘ WSKAZAŁ ZGŁASZAJĄCY: „ten sam przełącznik uruchamia tryb dark mode
+  wbudowany w Bricksa, a on zamienia kolory skonfigurowane w var". Potwierdzone
+  kodem z `bricks.min.js` żywej strony:
+
+  ```js
+  var bricksToggleModeFn = new BricksFunction({
+      selector: '.brxe-toggle-mode',          // TEN SAM przycisk
+      eachElement: function (btn) {
+          btn.addEventListener('click', function (e) {
+              e.preventDefault();
+              var t = 'dark' === document.documentElement.dataset.brxTheme ? 'light' : 'dark';
+              document.documentElement.dataset.brxTheme = t;
+              localStorage.setItem('brx_mode', t);   // ten sam klucz co nasz
+          });
+      }
+  });
+  ```
+
+  Na `data-brx-theme` wiszą wszystkie kolory strony
+  (`:root[data-brx-theme="dark"] { --kolor-…: … }`). Bricks przestawia go
+  **synchronicznie**, w zadaniu kliknięcia, a `startViewTransition` woła swoje
+  wywołanie zwrotne dopiero w kroku renderowania i **zdejmuje starą migawkę
+  jeszcze przed nim**. Migawka łapała więc już nowe kolory — fala nie miała
+  czego odsłaniać poza tłem `body`, które prowadzi `data-theme` wtyczki.
+
+  Kolejność rejestracji obsług nic tu nie zmieniała: nasza tylko *planowała*
+  zmianę, więc cokolwiek Bricks zrobił w tym zadaniu, trafiało do starej
+  migawki. Stąd stuprocentowa powtarzalność objawu.
+
+  ROZWIĄZANIE: nasłuch kliknięcia przeniesiony z przycisku na **dokument,
+  w fazie przechwytywania**. Ta biegnie przed celem, więc obsługa Bricksa nie
+  dochodzi do głosu — a jej robotę (`data-brx-theme`, `brx_mode`) przejmuje
+  `updateTheme()`, wołane wewnątrz przejścia. Nasłuch na dokumencie przetrzymuje
+  też ponowne wiązanie przez Bricksa po AJAX-ie i popupach, czego klonowanie
+  węzła by nie zrobiło.
+
+  KOSZT, WPROST: na tym przycisku nie odezwą się inne nasłuchy. Element służy
+  wyłącznie przełączaniu motywu, więc to koszt przyjęty świadomie.
+
+- **Dlaczego pięć poprzednich prób nie trafiło.** Wszystkie mierzyły na atrapach
+  z `tests/fixtures/`, gdzie **nie ma skryptu Bricksa** — druga obsługa nie
+  istniała i fala zachowywała się poprawnie także w wersji z błędem. Mierzyłem
+  scenę bez sprawcy. `tools/lustro/README.md` mówił to wprost („przy usterce
+  zgłoszonej z żywej strony pierwszy krok to lustro, nie atrapa"); to zdanie
+  zostało zignorowane pięć razy z rzędu.
+
+### Dodane
+
+- **`tools/lustro/zmierz-fale.js`** — pomiar fali na lustrze żywej strony.
+  Wypisuje kolejność zdarzeń od kliknięcia i porównuje **cały kadr przy
+  promieniu fali równym zeru** ze stanem sprzed kliknięcia: każdy piksel, który
+  się różni, przefarbował się poza falą. Zmierzone na `evoke.pl/home`
+  (kadr 1280×800):
+
+  | | data-brx-theme | stara migawka | komórek przefarbowanych poza falą |
+  |---|---|---|---|
+  | przed poprawką | 57 ms | 124 ms | **101 / 336** |
+  | po poprawce | wewnątrz przejścia | — | **2 / 336** |
+
+- **Atrapa obsługi Bricksa w `tests/fixtures/darkmode-ripple-strona.html`** —
+  to, czego tej atrapie brakowało. Drugi, niezależny nasłuch na tym samym
+  przycisku, przełączający motyw synchronicznie; kolory treści przeniesione pod
+  `data-brx-theme`, tło `body` zostaje pod `data-theme`. Nowa sekcja
+  w `tests/darkmode-strona.test.js` pyta o **kolejność** zmian atrybutów
+  i o jasność punktu **na karcie**, nie na tle.
+
+  Mutacje różnicujące (`e.stopPropagation()`, `data-brx-theme` w `updateTheme`,
+  faza bąbelkowania zamiast przechwytywania) zapalają różne podzbiory sprawdzeń;
+  przy dwóch pierwszych karta pokazuje `13 → 13 → 13`, czyli zgłoszony objaw
+  odtworzony liczbami.
+
 ## [1.217.0] — 2026-09-18
 
 ### Dodane

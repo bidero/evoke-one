@@ -33,7 +33,22 @@
 const { phpOutput } = require('./lib/harness');
 
 const V = { viewport: { width: 800, height: 600 }, settle: 300 };
-const ROG = [770, 570];   // róg przeciwległy do przycisku — fala dochodzi tam na końcu
+/* Róg przeciwległy do przycisku — fala dochodzi tam na końcu. Punkt leży na
+   TLE strony (`--evk-tlo`, prowadzone przez `data-theme` wtyczki), nie na
+   karcie; karta ma osobny punkt niżej. */
+const ROG = [770, 570];
+
+/* PUNKT NA KARCIE, nie na tle. ROG powyżej leży na tle `body`, które prowadzi
+   `data-theme` wtyczki — a sedno zgłoszenia dotyczy powierzchni prowadzonych
+   przez motyw BRICKSA (`data-brx-theme`). Bez tego punktu mutacja zdejmująca
+   przejęcie zdarzenia przechodziła tu na zielono.
+
+   Współrzędna ZMIERZONA, nie policzona: przy przewinięciu 400 piąta karta
+   (bez własnej animacji) zajmuje w kadrze pas 260–380 i kończy się na x = 770,
+   więc 770 trafia już w sekcję pod nią — stąd 760. Fala (łatwość
+   `cubic-bezier(0.4, 0, 0.2, 1)`, promień docelowy ~1066 px) dociera tu przy
+   ~45 % czasu, więc próbki idą do 30 %. */
+const KARTA = [760, 330];
 
 /** Wstrzykuje PRAWDZIWY moduł z 93-darkmode.php i klika w przełącznik. */
 async function zapal(p, ustawienia) {
@@ -50,6 +65,10 @@ async function zapal(p, ustawienia) {
     window.dispatchEvent(new Event('DOMContentLoaded'));
   }, phpOutput('darkmode-head.php', JSON.stringify(JSON.stringify(ustawienia || {}))));
   await p.waitForTimeout(300);
+  /* ZERUJEMY REJESTR TUŻ PRZED KLIKNIĘCIEM. Bez tego pierwszym wpisem byłoby
+     `data-theme` ustawiane przy rozruchu modułu — a wtedy sprawdzenie
+     kolejności przechodziłoby także w wersji z błędem. */
+  await p.evaluate(() => { window.__kolejnosc.length = 0; });
   await p.click('.brxe-toggle-mode');
   await p.waitForTimeout(120);
 }
@@ -98,13 +117,12 @@ module.exports = async function (t) {
   t.check('a maska ma swoją animację', czas > 0, czas + ' ms');
 
   // ── Treść czeka na falę, choć nie ma jej na żadnej liście ───────────────
-  /* SEDNO ZGŁOSZENIA. Listy selektorów są tu PUSTE — dokładnie ta konfiguracja,
-     przy której objaw był widoczny. Karta w rogu ma kolor ze zmiennej CSS, tak
-     jak elementy Bricksa, i nie jest wymieniona nigdzie. */
-  t.section('karta spoza list czeka, aż fala po niej przejdzie');
+  /* Listy selektorów są tu PUSTE — dokładnie ta konfiguracja, przy której objaw
+     był widoczny. Punkt ma kolor ze zmiennej CSS i nie jest wymieniony nigdzie. */
+  t.section('tło spoza list czeka, aż fala po nim przejdzie');
 
   const start = await wPunkcie(p, 0, ROG);
-  t.check('na starcie karta jest jasna', start > 250, 'jasność ' + start);
+  t.check('na starcie tło jest jasne', start > 250, 'jasność ' + start);
 
   const dryf = [
     await wPunkcie(p, Math.round(czas * 0.15), ROG),
@@ -122,6 +140,47 @@ module.exports = async function (t) {
      fali, która nigdy do rogu nie dociera. */
   const poFali = await wPunkcie(p, Math.round(czas * 0.9), ROG);
   t.check('a gdy fala dojdzie — zmienia się', poFali < 40, 'jasność ' + poFali);
+
+  // ── Motyw Bricksa nie wyprzedza migawki ─────────────────────────────────
+  /* PRZYCZYNA CAŁEJ SPRAWY, zmierzona na lustrze żywej strony
+     (`tools/lustro/zmierz-fale.js`). Do tego samego przycisku podpina się
+     `bricksToggleModeFn` z `bricks.min.js` i przestawia `data-brx-theme`
+     SYNCHRONICZNIE — a na tym atrybucie wiszą wszystkie kolory strony. Stara
+     migawka powstaje dopiero w kroku renderowania, więc łapie już nowe kolory.
+
+         57 ms  data-brx-theme = light     ← Bricks
+         72 ms  startViewTransition
+        124 ms  stara migawka zrobiona     ← o 67 ms za późno
+
+     Cały kadr przy promieniu fali równym zeru, wobec stanu sprzed kliknięcia:
+     101 z 336 komórek przefarbowanych przed poprawką, 2 po niej.
+
+     Pomiary powyżej łapią to jasnością. TU pytamy o KOLEJNOŚĆ — bo ona mówi
+     wprost, kto wygrał wyścig, i nie da się jej zaliczyć przypadkiem. */
+  t.section('motyw Bricksa przełącza się wewnątrz fali, nie przed nią');
+
+  const kolejnosc = await p.evaluate(() => window.__kolejnosc);
+  t.check('atrybuty motywu zmieniają się razem, z wnętrza przejścia',
+    kolejnosc.length >= 2 && kolejnosc[0] === 'data-theme',
+    kolejnosc.join(' → ') || 'nic się nie zmieniło');
+  t.check('a motyw Bricksa faktycznie doszedł do nowej wartości',
+    (await p.evaluate(() => document.documentElement.dataset.brxTheme)) === 'dark',
+    await p.evaluate(() => String(document.documentElement.dataset.brxTheme)));
+
+  /* TA SAMA MIARA CO NA LUSTRZE: przy promieniu fali równym zeru powierzchnia ma
+     wyglądać dokładnie jak przed kliknięciem. Karta jest jasna (#f2f2f2 → 242)
+     i ma pociemnieć (#0d0d0d → 13) dopiero wtedy, gdy fala po niej przejdzie. */
+  const naKarcie = [
+    await wPunkcie(p, 0, KARTA),
+    await wPunkcie(p, Math.round(czas * 0.15), KARTA),
+    await wPunkcie(p, Math.round(czas * 0.3), KARTA),
+  ];
+  t.check('karta prowadzona motywem Bricksa też czeka na falę',
+    naKarcie.every((j) => j > 200), naKarcie.join(' → '));
+  t.check('a po przejściu fali ciemnieje',
+    (await wPunkcie(p, Math.round(czas * 0.9), KARTA)) < 60,
+    'jasność ' + (await wPunkcie(p, Math.round(czas * 0.9), KARTA)));
+
   t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
   await p.close();
 };
