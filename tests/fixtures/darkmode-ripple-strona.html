@@ -82,6 +82,13 @@
     background: var(--evk-karta);
   }
 
+  /* KARTA WYJĘTA Z MIGAWKI FALI — odtwarza to, co na żywej stronie robi
+     `evk-post-trans`: element z WŁASNYM `view-transition-name`. Taki element
+     nie jest częścią migawki `theme-ripple`, więc fala go nie przykrywa
+     i animuje się osobną grupą, czyli przenika. Nadawana tylko przy
+     `?wyjeta=tak`, żeby pozostałe sekcje mierzyły kartę bez nazwy. */
+  .karta-wyjeta { view-transition-name: karta-wyjeta; }
+
   /* Gradient ze zmiennych — osobna ścieżka niż zwykły kolor (background-image
      nie interpoluje się, gdy kolor siedzi w `var()`). */
   .gradient {
@@ -152,6 +159,21 @@
      zawsze trafiały w te same karty. */
   var q = new URLSearchParams(location.search);
   if (q.get('przewin') !== 'nie') window.scrollTo(0, 400);
+
+  /* Nazwa na PIĄTEJ karcie — tej samej, którą mierzy `KARTA` w teście.
+     Jedyna różnica wobec pozostałych sekcji to właśnie ta nazwa. */
+  if (q.get('wyjeta') === 'tak') {
+    document.querySelectorAll('.brxe-div')[3].classList.add('karta-wyjeta');
+
+    /* DRUGA DROGA NADANIA NAZWY: atrybut `style`, a nie arkusz.
+       Tak robi `inject_post_trans_attrs()` dla elementów w pętli wpisów —
+       i tylko tędy potrzebny jest `!important` w regule gaszącej, bo arkusz
+       bez niego nie bije atrybutu. Bez tej karty mutacja zdejmująca
+       `!important` przechodziła na zielono. */
+    var inline = document.querySelectorAll('.brxe-div')[2];
+    inline.classList.add('karta-inline');
+    inline.setAttribute('style', 'view-transition-name: karta-inline');
+  }
 
   /* Zamrożenie fali: test przestawia czas z ręki, tak jak w darkmode-ripple. */
   window.__zamrozone = false;

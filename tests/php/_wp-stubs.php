@@ -177,6 +177,26 @@ function wp_localize_script($handle, $name, $data) {
    nieosiągalne i mutacja w nich przechodzi na zielono. */
 function is_admin() { return !empty($GLOBALS['is_admin']); }
 
+/* Kontekst zapytania — sterowany z zewnątrz, tak samo jak `is_admin()`.
+   Domyślnie „pojedynczy wpis", bo tak wygląda strona, na której zgłoszono
+   fade nagłówka przy „lista → wpis", i to jest kontekst, w którym moduł
+   drukuje `evk-post-trans`. Bez tej atrapy ta gałąź była w testach
+   nieosiągalna. */
+/* BRAMKI `function_exists` NIE SĄ TU OZDOBĄ. Kilka sond deklaruje te same
+   funkcje po swojemu, z góry pliku, i PHP przetwarza takie bezwarunkowe
+   deklaracje ZANIM wykona `require` tej atrapy: `darkmode-klasy.php`,
+   `schema-graf.php`, `seo-zapis.php`. Bez bramek każda z nich wywraca się na
+   „Cannot redeclare" — sprawdzone pełnym przebiegiem, nie przewidziane. */
+if (!function_exists('is_singular')) {
+    function is_singular($post_types = '') { return !isset($GLOBALS['is_singular']) || !empty($GLOBALS['is_singular']); }
+}
+if (!function_exists('in_the_loop')) {
+    function in_the_loop() { return !empty($GLOBALS['in_the_loop']); }
+}
+if (!function_exists('get_queried_object_id')) {
+    function get_queried_object_id() { return (int) ($GLOBALS['current_post'] ?? 264); }
+}
+
 /*
  * Biblioteka mediów i meta wpisów — na tyle, ile potrzebuje `render()`
  * elementu rysującego obrazy.

@@ -50,8 +50,14 @@ const ROG = [770, 570];
    ~45 % czasu, więc próbki idą do 30 %. */
 const KARTA = [760, 330];
 
-/** Wstrzykuje PRAWDZIWY moduł z 93-darkmode.php i klika w przełącznik. */
-async function zapal(p, ustawienia) {
+/* Druga karta z własną nazwą — tą nadaną w ATRYBUCIE `style`, jak robi to
+   `inject_post_trans_attrs()` dla elementów w pętli wpisów. Zmierzone: pas
+   120–380 w kadrze; x = 700, a nie przy krawędzi, bo ta karta ma animację
+   `translateX(3px)` i przy brzegu odsłaniałaby tło. */
+const KARTA_INLINE = [700, 180];
+
+/** Wstrzykuje PRAWDZIWY moduł z 93-darkmode.php — bez klikania. */
+async function wstrzyknij(p, ustawienia) {
   await p.evaluate((html) => {
     const d = document.createElement('div');
     d.innerHTML = html;
@@ -65,6 +71,11 @@ async function zapal(p, ustawienia) {
     window.dispatchEvent(new Event('DOMContentLoaded'));
   }, phpOutput('darkmode-head.php', JSON.stringify(JSON.stringify(ustawienia || {}))));
   await p.waitForTimeout(300);
+}
+
+/** Wstrzykuje moduł i klika w przełącznik. */
+async function zapal(p, ustawienia) {
+  await wstrzyknij(p, ustawienia);
   /* ZERUJEMY REJESTR TUŻ PRZED KLIKNIĘCIEM. Bez tego pierwszym wpisem byłoby
      `data-theme` ustawiane przy rozruchu modułu — a wtedy sprawdzenie
      kolejności przechodziłoby także w wersji z błędem. */
@@ -183,4 +194,99 @@ module.exports = async function (t) {
 
   t.check('bez błędów JS', !p.errors.length, p.errors.join(' | ') || 'brak');
   await p.close();
+
+  // ── „Lista → wpis" nie wyjmuje elementów spod fali ──────────────────────
+  /* ZGŁOSZONE Z UŻYCIA (selenit-gastro.pl): „przy zaznaczonym Przejścia
+     elementów lista → wpis nagłówek — logo i linki — przechodzi przez fade,
+     a nie przez falę". Na tamtej stronie nie ma nawet wpisów.
+
+     MECHANIZM: opcja nadaje elementom własne `view-transition-name` NA STAŁE.
+     Element z własną nazwą jest wyjmowany z migawki `theme-ripple` i animuje
+     się osobną grupą — domyślnie przez przenikanie.
+
+     ZMIERZONE NA LUSTRZE ŻYWEJ STRONY. Spis nazw w trakcie przejścia motywu:
+
+         theme-ripple     ←  html.lenis.is-theme-toggling.dark
+         post-title-264   ←  div#brxe-e43e4d.brxe-container
+
+     a ten `div` to kontener wewnątrz `<header id="brx-header">` — z logo
+     i linkami. Kadr przy promieniu fali równym zeru, wobec stanu sprzed
+     kliknięcia:
+
+         przed poprawką   19 z 336 komórek, wszystkie w pasie nagłówka
+         po poprawce      10 z 336 — a KONTROLA NEGATYWNA (dwa zrzuty BEZ
+                          kliknięcia) daje te same 10, bo to obracający się
+                          tytuł łukowy. Przecieku z motywu nie ma.
+
+     Tu ten sam układ w atrapie: `?wyjeta=tak` nadaje piątej karcie własną
+     nazwę, a ustawienia wskazują ją jako selektor tytułu wpisu. */
+  t.section('element z „lista → wpis" i tak czeka na falę');
+
+  const w = await t.open('darkmode-ripple-strona.html', { ...V, query: 'wyjeta=tak' });
+  await zapal(w, {
+    global_selectors: '', bricks_selectors: '',
+    post_trans_enabled: 1,
+    post_trans_title_single: '.karta-wyjeta',   // nazwa z arkusza
+    post_trans_image_single: '.karta-inline',   // nazwa z atrybutu `style`
+  });
+  await w.evaluate(() => window.__zamroz());
+  const czasW = await w.evaluate(() => (window.__fala.length
+    ? window.__fala[0].effect.getComputedTiming().duration : 0));
+
+  /* Nazwa ma być zgaszona NA CZAS PRZEJŚCIA — pytamy w jego trakcie, bo poza
+     nim reguła nie obowiązuje i ma nie obowiązywać (przejście lista → wpis
+     musi dalej działać). */
+  const nazwy = await w.evaluate(() => {
+    const out = [];
+    document.querySelectorAll('*').forEach((el) => {
+      const n = getComputedStyle(el).viewTransitionName;
+      if (n && n !== 'none') out.push(n);
+    });
+    return out;
+  });
+  t.check('w trakcie fali jedyną nazwą jest theme-ripple',
+    nazwy.length === 1 && nazwy[0] === 'theme-ripple', nazwy.join(', ') || 'brak');
+
+  const naWyjetej = [
+    await wPunkcie(w, 0, KARTA),
+    await wPunkcie(w, Math.round(czasW * 0.15), KARTA),
+    await wPunkcie(w, Math.round(czasW * 0.3), KARTA),
+  ];
+  t.check('i karta z nazwą z arkusza trzyma kolor',
+    naWyjetej.every((j) => j > 200), naWyjetej.join(' → '));
+
+  /* NAZWA Z ATRYBUTU `style` — druga droga, którą idą elementy w pętli wpisów.
+     Tylko tu potrzebny jest `!important` w regule gaszącej. Bez tego
+     sprawdzenia mutacja zdejmująca `!important` przechodziła na zielono. */
+  const naInline = [
+    await wPunkcie(w, 0, KARTA_INLINE),
+    await wPunkcie(w, Math.round(czasW * 0.15), KARTA_INLINE),
+    await wPunkcie(w, Math.round(czasW * 0.3), KARTA_INLINE),
+  ];
+  t.check('i karta z nazwą w atrybucie style również',
+    naInline.every((j) => j > 200), naInline.join(' → '));
+
+  t.check('a po przejściu fali ciemnieje',
+    (await wPunkcie(w, Math.round(czasW * 0.9), KARTA)) < 60,
+    'jasność ' + (await wPunkcie(w, Math.round(czasW * 0.9), KARTA)));
+  t.check('bez błędów JS', !w.errors.length, w.errors.join(' | ') || 'brak');
+  await w.close();
+
+  /* GASZENIE MA OBOWIĄZYWAĆ TYLKO W TRAKCIE PRZEJŚCIA MOTYWU. Poza nim nazwy
+     muszą zostać — inaczej zniknęłoby przejście lista → wpis, czyli to, po co
+     ta opcja w ogóle istnieje. Bez tego sprawdzenia mutacja gasząca nazwy
+     ZAWSZE przechodziła na zielono. */
+  const z = await t.open('darkmode-ripple-strona.html', { ...V, query: 'wyjeta=tak' });
+  await wstrzyknij(z, {
+    global_selectors: '', bricks_selectors: '',
+    post_trans_enabled: 1, post_trans_title_single: '.karta-wyjeta',
+    post_trans_image_single: '.karta-inline',
+  });
+  const pozaPrzejsciem = await z.evaluate(() => [
+    getComputedStyle(document.querySelector('.karta-wyjeta')).viewTransitionName,
+    getComputedStyle(document.querySelector('.karta-inline')).viewTransitionName,
+  ]);
+  t.check('poza przejściem motywu nazwy zostają nietknięte',
+    pozaPrzejsciem.every((n) => n && n !== 'none'), pozaPrzejsciem.join(', '));
+  await z.close();
 };

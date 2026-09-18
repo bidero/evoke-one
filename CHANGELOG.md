@@ -2,6 +2,77 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.219.0] — 2026-09-18
+
+### Naprawione
+
+- **„Przejścia elementów lista → wpis" wyjmowały nagłówek spod fali.**
+  ZGŁOSZONE Z UŻYCIA (`selenit-gastro.pl`): „przy zaznaczonym Przejścia
+  elementów lista → wpis nagłówek — logo i linki — przechodzi przez fade,
+  a nie przez falę". Na tamtej stronie nie ma nawet wpisów, więc opcja niczego
+  nie animowała — a szkodziła.
+
+  MECHANIZM. Fala stoi na tym, że `html.is-theme-toggling` dostaje
+  `view-transition-name: theme-ripple` i CAŁA strona jest jedną migawką,
+  odsłanianą maską. Element z WŁASNĄ nazwą jest z tej migawki wyjmowany
+  i animuje się osobną grupą — domyślnie przez przenikanie. A „lista → wpis"
+  nadaje takie nazwy NA STAŁE, nie tylko na czas nawigacji, dla której powstały.
+
+  ZMIERZONE NA LUSTRZE ŻYWEJ STRONY (`tools/lustro/zmierz-fale.js`). Spis
+  elementów z własną nazwą w trakcie przejścia motywu:
+
+      theme-ripple     ←  html.lenis.is-theme-toggling.dark
+      post-title-264   ←  div#brxe-e43e4d.brxe-container
+
+  a ten `div` to w markupie kontener wewnątrz `<header id="brx-header">` —
+  z logo i linkami menu. Cały kadr przy promieniu fali RÓWNYM ZERU, wobec stanu
+  sprzed kliknięcia:
+
+  | | komórek przefarbowanych poza falą |
+  |---|---|
+  | przed poprawką | **19 / 336**, wszystkie w pasie nagłówka |
+  | po poprawce | **10 / 336** |
+
+  Te dziesięć to **nie** przeciek: kontrola negatywna — dwa zrzuty BEZ żadnego
+  kliknięcia, w tym samym odstępie — daje identyczną mapę. To obracający się
+  `evk-circular-title`. Przecieku z motywu nie ma.
+
+  ROZWIĄZANIE: reguła gasząca nazwy na czas przejścia motywu. Klasa
+  `is-theme-toggling` wisi na `html` dokładnie przez ten czas i jest zakładana
+  PRZED `startViewTransition`, więc w chwili robienia migawki nazwa jest już
+  zgaszona i element wraca pod falę. Przy nawigacji tej klasy nie ma, więc
+  przejście lista → wpis działa bez zmian.
+
+  Gaszone są wszystkie cztery źródła nazw: selektory wpisu (`*_single`) i klasy
+  z pętli (`*_class`). `!important` jest konieczny, bo
+  `inject_post_trans_attrs()` wpisuje nazwę w atrybut `style`, a arkusz bije
+  atrybut tylko wtedy, gdy sam ma `!important`. Przejście logo (`site-logo`)
+  zostaje nietknięte — ma się animować przy zmianie motywu, bo na tym polega
+  podmiana logo jasne/ciemne.
+
+### Dodane
+
+- **Spis nazwanych elementów w `tools/lustro/zmierz-fale.js`** — w trakcie
+  przejścia motywu wypisuje wszystko, co ma własne `view-transition-name`.
+  To jedyny znany mechanizm, przez który treść może nie czekać na falę mimo
+  poprawki z 1.218.0, i to on wskazał sprawcę w dwie minuty.
+
+- **Dwie karty z własną nazwą w `tests/fixtures/darkmode-ripple-strona.html`**
+  (przy `?wyjeta=tak`): jedna z nazwą z ARKUSZA, druga z atrybutu `style` —
+  bo to dwie różne drogi, którymi moduł nadaje nazwy, i tylko druga wymaga
+  `!important`. Nowa sekcja w `tests/darkmode-strona.test.js` pyta o spis nazw
+  w trakcie fali, o jasność obu kart i o to, że **poza** przejściem nazwy
+  zostają — inaczej zniknęłoby przejście lista → wpis.
+
+  Trzy mutacje różnicujące zapalają trzy RÓŻNE podzbiory: wyłączenie całego
+  bloku (3 sprawdzenia, karta pokazuje `52 → 14 → 13`, czyli zgłoszony objaw
+  odtworzony liczbami), zdjęcie `!important` (2 — tylko karta z atrybutu),
+  gaszenie bez klasy `is-theme-toggling` (1 — tylko stan poza przejściem).
+
+- **Atrapy `is_singular()`, `in_the_loop()` i `get_queried_object_id()`**
+  w `tests/php/_wp-stubs.php`. Bez nich gałąź drukująca `evk-post-trans` była
+  w testach nieosiągalna — mutacja w niej przechodziła na zielono.
+
 ## [1.218.0] — 2026-09-18
 
 ### Naprawione

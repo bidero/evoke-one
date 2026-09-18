@@ -667,6 +667,67 @@ html.is-theme-toggling {
 CSS;
         }
 
+        /* ── NAZWY Z „LISTA → WPIS" GASZONE NA CZAS PRZEJŚCIA MOTYWU ──────────
+         *
+         * ZGŁOSZONE Z UŻYCIA (selenit-gastro.pl): „przy zaznaczonym Przejścia
+         * elementów lista → wpis nagłówek — logo i linki — przechodzi przez
+         * fade, a nie przez falę". Na tamtej stronie nie ma nawet wpisów, więc
+         * opcja niczego nie animowała — a szkodziła.
+         *
+         * MECHANIZM. Fala stoi na tym, że `html.is-theme-toggling` dostaje
+         * `view-transition-name: theme-ripple` i CAŁA strona jest jedną
+         * migawką, odsłanianą maską. Element z WŁASNĄ nazwą jest z tej migawki
+         * wyjmowany i animuje się osobną grupą — domyślnie przez przenikanie.
+         * A „lista → wpis" nadaje takie nazwy NA STAŁE, nie tylko na czas
+         * nawigacji, dla której powstały.
+         *
+         * ZMIERZONE NA LUSTRZE ŻYWEJ STRONY (tools/lustro/zmierz-fale.js).
+         * Spis elementów z własną nazwą w trakcie przejścia motywu:
+         *
+         *     theme-ripple     ←  html.lenis.is-theme-toggling.dark
+         *     post-title-264   ←  div#brxe-e43e4d.brxe-container
+         *
+         * a ten `div` to w markupie kontener wewnątrz `<header id="brx-header">`
+         * — z logo i linkami menu. Cały kadr przy promieniu fali RÓWNYM ZERU,
+         * wobec stanu sprzed kliknięcia: 19 z 336 komórek przefarbowanych,
+         * wszystkie w pasie nagłówka, w kolumnach logo i linków.
+         *
+         * ROZWIĄZANIE. Klasa `is-theme-toggling` wisi na `html` dokładnie przez
+         * czas przejścia motywu i jest zakładana PRZED `startViewTransition`,
+         * więc w chwili robienia migawki nazwa jest już zgaszona i element
+         * wraca pod falę. Przy nawigacji tej klasy nie ma, więc przejście
+         * lista → wpis działa bez zmian.
+         *
+         * `!important` jest tu konieczny: `inject_post_trans_attrs()` wpisuje
+         * nazwę w atrybut `style` elementu, a arkusz bije atrybut tylko wtedy,
+         * gdy sam ma `!important`.
+         *
+         * Gaszone są WSZYSTKIE cztery źródła nazw: selektory wpisu (`*_single`)
+         * i klasy z pętli (`*_class`). Przejście logo (`site-logo`) zostaje
+         * nietknięte — ma się animować przy zmianie motywu, bo na tym polega
+         * podmiana logo jasne/ciemne. */
+        if (!empty($s['post_trans_enabled'])) {
+            $gaszone = [];
+            foreach (['post_trans_title_single', 'post_trans_image_single'] as $pole) {
+                $sel = trim($s[$pole] ?? '');
+                if ($sel !== '') $gaszone[] = $sel;
+            }
+            foreach (['post_trans_title_class', 'post_trans_image_class'] as $pole) {
+                foreach (array_filter(array_map('trim', preg_split('/[\s,]+/', $s[$pole] ?? ''))) as $klasa) {
+                    $gaszone[] = '.' . $klasa;
+                }
+            }
+            if ($gaszone) {
+                $reguly = implode(",\n", array_map(
+                    fn($sel) => "html.is-theme-toggling " . $sel,
+                    $gaszone
+                ));
+                echo $reguly . " {\n";
+                echo "    view-transition-name: none !important;\n";
+                echo "}\n\n";
+            }
+        }
+
         echo "</style>\n";
     }
 

@@ -251,6 +251,27 @@ async function wPunkcie(page, ms, xy) {
     return { kom, zmienione, wszystkie };
   }, { a64: przedPelny, b64: przyZerze, kolX: 24, kolY: 14 });
 
+  /* KTO MA WŁASNĄ NAZWĘ. Element z własnym `view-transition-name` jest wyjmowany
+     z migawki `theme-ripple` i animuje się osobną grupą — domyślnie przez
+     przenikanie. To jedyny znany mechanizm, przez który treść może nie czekać
+     na falę mimo poprawki z 1.218.0. */
+  const nazwane = await page.evaluate(() => {
+    const out = [];
+    document.querySelectorAll('*').forEach((el) => {
+      const n = getComputedStyle(el).viewTransitionName;
+      if (n && n !== 'none') {
+        out.push(n + '  ←  ' + el.tagName.toLowerCase()
+          + (el.id ? '#' + el.id : '')
+          + (el.className && typeof el.className === 'string'
+             ? '.' + el.className.trim().split(/\s+/).slice(0, 3).join('.') : ''));
+      }
+    });
+    return out;
+  });
+  console.log('\n── ELEMENTY Z WŁASNYM view-transition-name ──');
+  nazwane.forEach((n) => console.log('  ' + n));
+  if (!nazwane.length) console.log('  (żaden — cała strona jest jedną migawką)');
+
   console.log('\n── CAŁY KADR PRZY PROMIENIU FALI = 0 ──');
   console.log('Mapa średniej różnicy koloru wobec stanu SPRZED kliknięcia.');
   console.log('Kropka = bez zmian (fala jeszcze tam nie doszła i dobrze).');
