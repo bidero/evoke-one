@@ -84,7 +84,14 @@
     var poprzednia = null;
     (function klatka(teraz) {
         if (poprzednia !== null) {
-            window.__klatki.push(Math.round((teraz - poprzednia) * 10) / 10);
+            /* CZAS BEZWZGLĘDNY, nie sama długość. Pierwsza wersja zapisywała
+               tylko delty i czas klatek trzeba było sumować narastająco — a to
+               inna oś niż `performance.now()` w próbkach litery. Zestawienie
+               jednego z drugim było wtedy zgadywaniem. */
+            window.__klatki.push({
+                t: Math.round(teraz),
+                d: Math.round((teraz - poprzednia) * 10) / 10
+            });
         }
         poprzednia = teraz;
 

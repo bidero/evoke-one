@@ -37,12 +37,10 @@ const SONDA = fs.readFileSync(path.join(__dirname, 'sonda-hero.js'), 'utf8');
   /* DŁUGIE KLATKI. Próg 50 ms to trzy pominięte klatki przy 60 Hz — tyle widać
      gołym okiem jako szarpnięcie. Wypisujemy z czasem, żeby dało się je zestawić
      z odświeżeniami powyżej. */
-  let t = 0;
-  const dlugie = [];
-  klatki.forEach((d) => { t += d; if (d > 50) dlugie.push({ t: Math.round(t), d }); });
+  const dlugie = klatki.filter((k) => k.d > 50);
   console.log('\n── KLATKI DŁUŻSZE NIŻ 50 ms ──');
   if (!dlugie.length) console.log('  (żadnej)');
-  dlugie.slice(0, 25).forEach((k) => console.log('  ' + String(k.t).padStart(6) + ' ms   ' + k.d + ' ms'));
+  dlugie.slice(0, 25).forEach((k) => console.log('  ' + String(k.t).padStart(6) + ' ms   trwała ' + k.d + ' ms'));
 
   /* NIECIĄGŁOŚĆ POSTĘPU. Przeskok widoczny na ekranie to skok wartości między
      dwiema kolejnymi klatkami — większy niż zwykły krok animacji. */
