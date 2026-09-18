@@ -48,4 +48,17 @@ Bricksa, a to on okazał się sprawcą (1.218.0).
 `POPRAWKA=1` wstrzykuje prototyp poprawki przed kliknięciem, więc ten sam pomiar
 daje liczbę przed i po, bez dotykania kodu wtyczki.
 
+`zmierz-motyw-start.js` odpowiada na pytanie „kto i kiedy ustawia motyw przy
+ładowaniu". Sonda (`sonda-motyw.js`, wstrzykiwana przed skryptami strony) łapie
+KAŻDY zapis mogący zmienić motyw — `setAttribute` na korzeniu, przypisanie do
+`documentElement.dataset` (Bricks pisze właśnie tak, co omija `setAttribute`),
+`classList` i `localStorage.setItem('brx_mode', …)` — razem ze ŚLADEM STOSU,
+więc wynik wskazuje plik i linię sprawcy. Przebieg idzie w dwóch wariantach
+pamięci lokalnej: pustej i „dark". Do tego pierwsze malowanie ze stanem motywu
+w tej chwili, bo dopiero to mówi, co zobaczył człowiek.
+
+Sonda siedzi w OSOBNYM PLIKU, a nie w łańcuchu — kod, który loguje ślady stosu,
+sam musi być czytelny w narzędziach przeglądarki, a w literale szablonowym
+przestaje nim być (i wpada w pułapkę odwrotnego apostrofu z `CLAUDE.md`).
+
 Pobrana strona **nie wchodzi do repozytorium** — patrz `.gitignore` obok.
