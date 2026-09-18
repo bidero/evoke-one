@@ -61,4 +61,15 @@ Sonda siedzi w OSOBNYM PLIKU, a nie w łańcuchu — kod, który loguje ślady s
 sam musi być czytelny w narzędziach przeglądarki, a w literale szablonowym
 przestaje nim być (i wpada w pułapkę odwrotnego apostrofu z `CLAUDE.md`).
 
+`zmierz-hero.js` odpowiada na zgłoszenie „lecą litery i po trzeciej czy czwartej
+jest mini przeskok". Objaw jest JEDNORAZOWY, więc nie liczy średniej, tylko
+szuka pojedynczej nieciągłości: zestawia długość każdej klatki, postęp
+przesunięcia pierwszej litery i wywołania `ScrollTrigger.refresh()` na jednej
+osi czasu.
+
+`zmierz-hero-profil.js` mówi, KTO tę klatkę zjada — profilem procesora zawężonym
+do okna wokół przeskoku, a nie opakowywaniem funkcji, które przyszły do głowy.
+Zmierzone na `evoke.pl/home`: klatka 183 ms, a w oknie 600–1100 ms czas własny
+to `SplitText` 201 ms, GSAP 58 ms, ScrollTrigger ~60 ms.
+
 Pobrana strona **nie wchodzi do repozytorium** — patrz `.gitignore` obok.
