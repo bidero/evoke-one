@@ -72,4 +72,26 @@ do okna wokół przeskoku, a nie opakowywaniem funkcji, które przyszły do gło
 Zmierzone na `evoke.pl/home`: klatka 183 ms, a w oknie 600–1100 ms czas własny
 to `SplitText` 201 ms, GSAP 58 ms, ScrollTrigger ~60 ms.
 
+`zmierz-lancuch.js` porównuje cztery warianty TEJ SAMEJ strony, przepisując jej
+HTML w lustrze i **nie dotykając kodu wtyczki**: jak jest, ze skryptami wtyczki
+opatrzonymi `defer`, dodatkowo z arkuszami wczytywanymi bez blokowania renderu,
+oraz z redukcją ruchu (wtedy Animator nie zakłada zasłony). Sieć jest dławiona —
+bez tego lustro stoi na localhoście i wychodzi, że liczba żądań nic nie kosztuje.
+
+Zmierzone na `evoke.pl/home` (mediana z trzech przebiegów, 150 ms opóźnienia,
+1,6 Mb/s):
+
+| wariant | FCP | LCP | TBT |
+|---|---|---|---|
+| jak jest | 4064 | 4064 | 307 |
+| `defer` | 4060 | 4060 | 288 |
+| `defer` + arkusze | 4080 | 4080 | 302 |
+| bez zasłony (redukcja ruchu) | 4060 | 4060 | **117** |
+
+Wniosek, który oszczędził przepisania rejestracji skryptów: **`defer` i sklejanie
+arkuszy nie dają nic**, a pierwszego malowania **nie trzyma zasłona** — przy tej
+przepustowości trzyma je sam dokument. Jedyna różnica, jaka się pojawia, jest
+w CZASIE BLOKOWANIA głównego wątku: 307 → 117 ms. To jest koszt pracy Animatora
+i to samo, co widać jako przeskok liter w `zmierz-hero.js`.
+
 Pobrana strona **nie wchodzi do repozytorium** — patrz `.gitignore` obok.
