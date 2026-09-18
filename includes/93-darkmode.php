@@ -851,15 +851,24 @@ CSS;
                             fill: 'forwards'
                         }
                     );
-                    html.animate(
-                        { opacity: [1, 0.8] },
-                        {
-                            duration: rippleDuration,
-                            easing: rippleEasing,
-                            pseudoElement: '::view-transition-old(theme-ripple)',
-                            fill: 'forwards'
-                        }
-                    );
+                    /* STARA MIGAWKA NIE JEST JUŻ PRZYGASZANA.
+                     *
+                     * ZGŁOSZONE Z UŻYCIA: „przy kliknięciu dark/mode trochę się
+                     * rozjaśnia przed przejściem" — przy celu, który brzmiał
+                     * „nic nie zmienia koloru, dopóki fala po tym nie przejdzie".
+                     *
+                     * Stała tu animacja `opacity: 1 → 0.8` przez CAŁY czas fali,
+                     * czyli nieodsłonięta część ekranu przez cały czas przepuszczała
+                     * dwadzieścia procent tego, co pod spodem. Zmierzone na
+                     * przeciwległym rogu (fala 1200 ms, start 255):
+                     *
+                     *     t=0 ms   255      t=600 ms   215
+                     *     t=120    253      t=900        0  (fala doszła)
+                     *     t=300    242
+                     *
+                     * Czterdzieści poziomów dryfu ZANIM fala tam dotarła. Stara
+                     * migawka jest teraz w pełni kryjąca, więc to, czego fala nie
+                     * odsłoniła, wygląda dokładnie jak przed kliknięciem. */
                 });
 
                 transition.finished.then(function () {

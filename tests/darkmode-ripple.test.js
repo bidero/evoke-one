@@ -322,6 +322,83 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !f.errors.length, f.errors.join(' | ') || 'brak');
   await f.close();
 
+  // ── Nieodsłonięta część ekranu stoi w miejscu ───────────────────────────
+  /* ZGŁOSZONE Z UŻYCIA: „przy kliknięciu dark/mode trochę się rozjaśnia przed
+     przejściem", przy celu „nic nie zmienia koloru, dopóki fala po tym nie
+     przejdzie".
+
+     Stara migawka była animowana `opacity: 1 → 0.8` przez CAŁY czas fali, więc
+     to, czego fala jeszcze nie odsłoniła, przez cały czas przepuszczało
+     dwadzieścia procent tego, co pod spodem. Zmierzone na przeciwległym rogu
+     (fala 1200 ms, start 255):
+
+         czas      przed      po
+         120 ms     253       255
+         300 ms     242       255
+         600 ms     215       255
+         900 ms       0         0   (fala doszła — ma się zmienić)
+
+     Czterdzieści poziomów dryfu ZANIM fala tam dotarła. Mierzymy róg
+     PRZECIWLEGŁY do przycisku, bo tam fala dochodzi na samym końcu. */
+  t.section('to, czego fala nie odsłoniła, nie zmienia się wcale');
+
+  const r = await t.open('darkmode-ripple.html', V);
+  const czasR = await zapal(r);
+  /* Ten sam punkt co ROG niżej — okno testowe ma 800x600, więc 860x660
+     leżałoby poza kadrem i pomiar oddawałby NaN. Sprawdzone. */
+  const ROG_DALEKI = [770, 570];
+
+  const wRogu = async (u) => (await jasnosci(r, Math.round(czasR * u), [ROG_DALEKI]))[0];
+
+  const rogStart = await wRogu(0);
+  t.check('na starcie róg jest jasny', rogStart > 250, 'jasność ' + rogStart);
+
+  const dryf = [await wRogu(0.1), await wRogu(0.25), await wRogu(0.5)];
+  t.check('i trzyma się, dopóki fala nie dojdzie',
+    dryf.every((j) => Math.abs(j - rogStart) <= 2),
+    rogStart + ' → ' + dryf.join(' → '));
+
+  /* KONTROLA POZYTYWNA: bez niej „nic się nie zmienia" przechodziłoby także
+     dla fali, która nigdy nie dociera do rogu. */
+  const poFali = await wRogu(0.9);
+  t.check('a gdy dojdzie — zmienia się', poFali < 40, 'jasność ' + poFali);
+  t.check('bez błędów JS', !r.errors.length, r.errors.join(' | ') || 'brak');
+  await r.close();
+
+  // ── Gradient BEZ rejestracji zmiennej ───────────────────────────────────
+  /* PRZYPADEK DOMYŚLNY, KTÓREGO NIE SPRAWDZAŁ ŻADEN TEST. Pole „Zmienne kolorów
+     do animowania" jest puste, dopóki ktoś go nie wypełni — a sekcja niżej
+     mierzy gradient WYŁĄCZNIE z rejestracją. To, co widzi większość stron,
+     leżało poza zasięgiem strażników.
+
+     Od czasu, gdy stara migawka kryje w pełni, rejestracja przestała mieć
+     znaczenie PRZY FALI. Zmierzone na przeciwległym rogu:
+
+         wariant                t=0   t=30%  t=60%
+         bez rejestracji        255    255     0
+         z rejestracją          255    255     0
+
+     Rejestracja zostaje potrzebna wyłącznie do płynnego fade BEZ fali — i o to
+     dba sekcja niżej. */
+  t.section('gradient bez zarejestrowanej zmiennej też czeka na falę');
+
+  const g = await t.open('darkmode-gradient.html', V);
+  await wstrzyknij(g, {});            // pole zmiennych PUSTE, jak domyślnie
+  await zamroz(g);
+  await g.click('.brxe-toggle-mode');
+  await g.waitForFunction('window.__zamrozone === true', null, { timeout: 5000 });
+  const czasG = await g.evaluate('window.__fala[0].effect.getComputedTiming().duration');
+
+  const gStart = (await jasnosci(g, 0, [ROG]))[0];
+  const gPolowa = (await jasnosci(g, Math.round(czasG * 0.3), [ROG]))[0];
+  t.check('na starcie gradient jest w starym kolorze', gStart > 200, 'jasność ' + gStart);
+  t.check('i trzyma go, choć zmienna nie jest zarejestrowana',
+    gPolowa > 200, 'jasność ' + gPolowa);
+  const gKoniec = (await jasnosci(g, czasG, [ROG]))[0];
+  t.check('a gdy fala dojdzie — zmienia się', gKoniec < 40, 'jasność ' + gKoniec);
+  t.check('bez błędów JS', !g.errors.length, g.errors.join(' | ') || 'brak');
+  await g.close();
+
   // ── Element spoza listy selektorów ──────────────────────────────────────
   /* ZGŁOSZONE Z UŻYCIA: „dopisanie tych elementów do grupy powoduje, że fala
      się na nich animuje. Gdy nie są dopisane, fala idzie w tle, a elementy

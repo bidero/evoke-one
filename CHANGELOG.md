@@ -2,6 +2,71 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.216.0] — 2026-09-18
+
+### Naprawione
+
+- **Nieodsłonięta część ekranu zmieniała się, zanim doszła do niej fala.**
+  ZGŁOSZONE Z UŻYCIA: „przy kliknięciu dark/mode trochę się rozjaśnia przed
+  przejściem", przy celu postawionym wprost: „nic nie zmienia koloru, dopóki
+  fala po tym nie przejdzie".
+
+  Stara migawka była animowana **`opacity: 1 → 0.8` przez cały czas fali**
+  (1200 ms, na sztywno, bez ustawienia), więc to, czego fala jeszcze nie
+  odsłoniła, przez cały czas przepuszczało dwadzieścia procent tego, co pod
+  spodem. Zmierzone na przeciwległym rogu (start 255):
+
+  | czas | przed | po |
+  |---|---|---|
+  | 120 ms | 253 | **255** |
+  | 300 ms | 242 | **255** |
+  | 600 ms | 215 | **255** |
+  | 900 ms | 0 | 0 (fala doszła — ma się zmienić) |
+
+  **Czterdzieści poziomów dryfu, zanim fala tam dotarła.** Stara migawka jest
+  teraz w pełni kryjąca: to, czego fala nie odsłoniła, wygląda dokładnie jak
+  przed kliknięciem.
+
+### Zmienione
+
+- **Listy selektorów i zmienne kolorów zeszły do roli awaryjnej.** ZGŁOSZONE
+  Z UŻYCIA: „te pola miały być rozwiązaniem na płynne przejście rosnącego koła
+  i nie zmienianie koloru elementów do momentu aż przejdzie po nich fala.
+  Najchętniej bym się tego pozbył".
+
+  Po 1.215.0 (wyciszenie wszystkich przejść przy fali) i po usunięciu
+  przygaszania migawki **fala nie potrzebuje już żadnej z tych list**. Każdy
+  element — także taki, którego nie ma na liście — czeka nieruchomo, aż fala po
+  nim przejdzie.
+
+  **Gradienty również.** Zmierzone pod falą, przeciwległy róg:
+
+  | wariant | t=0 | t=30% | t=60% |
+  |---|---|---|---|
+  | bez zarejestrowanej zmiennej | 255 | 255 | 0 |
+  | z zarejestrowaną zmienną | 255 | 255 | 0 |
+
+  Rejestracja `@property` przestała mieć znaczenie przy fali.
+
+  Pola **zostają w kodzie i w panelu**, bo dalej rządzą płynnym przefarbowaniem
+  tam, gdzie fali nie ma — wyłączonej albo nieobsługiwanej przez przeglądarkę
+  (starsze Safari, Firefox sprzed niedawna). Zmieniły się ich nagłówki i opisy
+  w zakładce: mówią teraz wprost, że **przy włączonej fali nie mają znaczenia**.
+
+  Usunąć ich nie można właśnie dlatego, że płynny fade bez fali ma zostać —
+  i to jest świadomy kompromis, nie przeoczenie.
+
+### Dopisane sprawdzenia
+
+- **„To, czego fala nie odsłoniła, nie zmienia się wcale"** — róg przeciwległy
+  do przycisku mierzony w czterech chwilach; dryf większy niż dwa poziomy
+  zapala sprawdzenie. Kontrola pozytywna pilnuje, że fala tam w końcu dochodzi.
+
+- **Gradient BEZ zarejestrowanej zmiennej** — przypadek DOMYŚLNY, którego nie
+  sprawdzał żaden test. Pole „Zmienne kolorów" jest puste, dopóki ktoś go nie
+  wypełni, a dotychczasowa sekcja mierzyła gradient wyłącznie z rejestracją.
+  To, co widzi większość stron, leżało poza zasięgiem strażników.
+
 ## [1.215.0] — 2026-09-17
 
 ### Zmienione

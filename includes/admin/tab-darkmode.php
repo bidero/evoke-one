@@ -142,8 +142,8 @@ if (!defined('ABSPATH')) exit;
                 </div>
 
                 <div class="evo-box">
-                    <h3>Przejścia CSS przy zmianie motywu (globalne)</h3>
-                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Przejścia dla głównych kontenerów strony (<code>body</code>, <code>section</code>, etc.).</div></details>
+                    <h3>Przejścia CSS bez fali (wyjście awaryjne)</h3>
+                    <details class="evo-note"><summary>Kiedy to w ogóle działa</summary><div class="evo-note-body"><p><strong>Przy włączonej fali te pola nie mają znaczenia.</strong> Fala odsłania stronę spod starej migawki, więc każdy element — także taki, którego tu nie ma — czeka nieruchomo, aż fala po nim przejdzie. Niczego nie trzeba dopisywać.</p><p>Listy poniżej są <strong>wyjściem awaryjnym</strong>: rządzą płynnym przefarbowaniem tam, gdzie fali nie ma — bo jest wyłączona albo bo przeglądarka nie zna View Transitions (starsze Safari, Firefox sprzed niedawna). Wtedy i tylko wtedy decydują, co zmienia kolor płynnie, a co przeskakuje.</p></div></details>
                     <div class="evo-field">
                         <label>Selektory (jeden na linię)</label>
                         <textarea name="evk_darkmode[global_selectors]" rows="4"><?php echo esc_textarea($dm['global_selectors']); ?></textarea>
@@ -156,10 +156,12 @@ if (!defined('ABSPATH')) exit;
                         <label>Zmienne kolorów do animowania (jedna na linię)</label>
                         <textarea name="evk_darkmode[color_vars]" rows="3" placeholder="--kolor-glowny-d-2"><?php echo esc_textarea($dm['color_vars']); ?></textarea>
                         <details class="evo-note"><summary>Po co to jest</summary><div class="evo-note-body">
-                            <p>Dla <strong>gradientów</strong>, których kolory mają odpowiedniki w ciemnym motywie.
-                            Gradient to <code>background-image</code>, a przeglądarka nie potrafi go płynnie
-                            przefarbować, gdy kolor siedzi w <code>var()</code> — dlatego przeskakuje od razu
-                            po kliknięciu, zamiast poczekać na falę.</p>
+                            <p><strong>Przy włączonej fali to pole nie jest potrzebne.</strong> Zmierzone:
+                            gradient z zarejestrowaną zmienną i bez niej zachowują się pod falą tak samo —
+                            oba czekają nieruchomo, aż fala po nich przejdzie.</p>
+                            <p>Przydaje się dopiero <strong>bez fali</strong>. Gradient to
+                            <code>background-image</code>, a przeglądarka nie potrafi go płynnie przefarbować,
+                            gdy kolor siedzi w <code>var()</code> — wtedy przeskakuje zamiast płynąć.</p>
                             <p>Wpisz tu nazwy zmiennych, które trzymają te kolory (po jednej w wierszu,
                             np. <code>--kolor-glowny-d-2</code>). Wtedy zmieniają się płynnie razem z resztą
                             motywu, a fala je odsłania tak samo jak zwykłe tła.</p>
@@ -181,7 +183,8 @@ if (!defined('ABSPATH')) exit;
                 </div>
 
                 <div class="evo-box">
-                    <h3>Elementy Bricks Builder</h3>
+                    <h3>Elementy Bricks — przejścia bez fali (wyjście awaryjne)</h3>
+                    <details class="evo-note"><summary>Kiedy to w ogóle działa</summary><div class="evo-note-body"><p><strong>Przy włączonej fali te pola nie mają znaczenia.</strong> Fala odsłania stronę spod starej migawki, więc każdy element — także taki, którego tu nie ma — czeka nieruchomo, aż fala po nim przejdzie. Niczego nie trzeba dopisywać.</p><p>Listy poniżej są <strong>wyjściem awaryjnym</strong>: rządzą płynnym przefarbowaniem tam, gdzie fali nie ma — bo jest wyłączona albo bo przeglądarka nie zna View Transitions (starsze Safari, Firefox sprzed niedawna). Wtedy i tylko wtedy decydują, co zmienia kolor płynnie, a co przeskakuje.</p></div></details>
                     <div class="evo-field">
                         <label class="checkbox-label">
                             <input type="checkbox" name="evk_darkmode[bricks_enabled]" value="1" <?php checked(!empty($dm['bricks_enabled'])); ?>>
