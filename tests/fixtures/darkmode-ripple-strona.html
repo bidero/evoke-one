@@ -1,0 +1,143 @@
+<!--
+  Fala przy zmianie motywu — na STRONIE, a nie na gołym tle.
+
+  Zgłoszone z użycia: „po usunięciu elementów z list fala zmienia tylko kolor
+  body. Teksty, divy, pola, wszystkie elementy i gradienty zmieniają się od
+  razu."
+
+  CZYM SIĘ RÓŻNI OD `darkmode-ripple.html` i po co istnieje osobno. Tamten ma
+  body z tłem i jedno pasmo — mieści się w kadrze i nie ma w nim treści. Pomiar
+  z żywej strony wykluczył po kolei: własne `view-transition-name` na elementach
+  (jest tylko `html`), nazwę w trakcie (`theme-ripple`, poprawna), animację maski
+  (działa), wyciszenie przejść (zero żywych) i Lenisa (wyłączenie nic nie
+  zmieniło). Została JEDYNA nieprzebadana różnica: tamta strona to pełna strona
+  Bricksa — wyższa od kadru, przewinięta, z nagłówkiem, dziesiątkami divów,
+  SVG i osiemdziesięcioma kilkoma działającymi animacjami.
+
+  Ten plik odtwarza właśnie to:
+
+    · dokument WYŻSZY od kadru, przewijany przed kliknięciem;
+    · `#brx-content` jako opakowanie treści, tak jak u Bricksa;
+    · nagłówek `position: sticky`;
+    · kolory z ZMIENNEJ CSS o dwóch wartościach (`:root` / `[data-theme]`) —
+      tak działa motyw Bricksa, a nie regułą na każdy element;
+    · działające animacje CSS, żeby odtworzyć kompozytowanie warstw.
+
+  CSS i skrypt idą PRAWDZIWE, z `93-darkmode.php` przez `darkmode-head.php`.
+  Listy selektorów zostają PUSTE — to jest ta konfiguracja, przy której objaw
+  widać.
+-->
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+
+  /* MOTYW SIEDZI W ZMIENNYCH, nie w regułach na element — tak jak w Bricksie.
+     Skrajne wartości (biel ↔ czerń), bo mierzymy jasność ze zrzutu ekranu. */
+  :root {
+    --evk-tlo:    #ffffff;
+    --evk-tekst:  #101010;
+    --evk-karta:  #f2f2f2;
+  }
+  html[data-theme="dark"] {
+    --evk-tlo:    #000000;
+    --evk-tekst:  #f0f0f0;
+    --evk-karta:  #0d0d0d;
+  }
+
+  html, body { margin: 0; }
+  body {
+    background: var(--evk-tlo);
+    color: var(--evk-tekst);
+    font: 16px/1.4 system-ui;
+  }
+
+  /* Nagłówek przyklejony — na prawdziwej stronie prawie zawsze jest. */
+  #naglowek {
+    position: sticky; top: 0; z-index: 5;
+    height: 70px; background: var(--evk-karta);
+  }
+
+  /* Przycisk w lewym górnym rogu: fala rozchodzi się wtedy w jedną stronę
+     i promień da się odczytać z jednej linii pikseli. */
+  .brxe-toggle-mode {
+    position: fixed; left: 40px; top: 40px; width: 40px; height: 40px;
+    border: 0; background: #888; cursor: pointer; z-index: 10;
+  }
+
+  .brxe-section { padding: 30px; }
+
+  /* KARTY POKRYWAJĄ DOLNĄ POŁOWĘ KADRU jednolitym kolorem ze zmiennej.
+     Mierzymy je zamiast tekstu, bo litery mają własną szorstkość, a tu chodzi
+     o to, KIEDY powierzchnia zmienia kolor, a nie jak wygląda. */
+  .brxe-div {
+    height: 120px;
+    margin-bottom: 20px;
+    background: var(--evk-karta);
+  }
+
+  /* Gradient ze zmiennych — osobna ścieżka niż zwykły kolor (background-image
+     nie interpoluje się, gdy kolor siedzi w `var()`). */
+  .gradient {
+    height: 120px;
+    margin-bottom: 20px;
+    background-image: linear-gradient(var(--evk-karta), var(--evk-karta));
+  }
+
+  /* DZIAŁAJĄCE ANIMACJE — na żywej stronie było ich osiemdziesiąt kilka.
+     Kompozytowanie warstw jest jedyną rzeczą, którą mogą tu wnosić, więc
+     animujemy `transform`, a nie kolor: inaczej mieszałyby się do pomiaru. */
+  @keyframes evk-drga { from { transform: translateX(0); } to { transform: translateX(3px); } }
+  .rusza { animation: evk-drga 1.5s infinite alternate; }
+
+  #dalej { height: 2500px; }   /* dokument wyraźnie wyższy od kadru */
+</style>
+
+<button class="brxe-toggle-mode" aria-label="Zmień motyw"></button>
+
+<div id="brx-content">
+  <header id="naglowek" class="rusza"></header>
+  <section class="brxe-section">
+    <div class="brxe-div rusza"></div>
+    <div class="brxe-div"></div>
+    <div class="gradient"></div>
+    <div class="brxe-div rusza"></div>
+    <div class="brxe-div"></div>
+    <div class="gradient rusza"></div>
+  </section>
+  <div id="dalej"></div>
+</div>
+
+<script>
+  /* PRZEWINIĘCIE PRZED KLIKNIĘCIEM — na żywej stronie nikt nie przełącza motywu
+     stojąc dokładnie na samej górze. Wartość jest stała, żeby punkty pomiaru
+     zawsze trafiały w te same karty. */
+  var q = new URLSearchParams(location.search);
+  if (q.get('przewin') !== 'nie') window.scrollTo(0, 400);
+
+  /* Zamrożenie fali: test przestawia czas z ręki, tak jak w darkmode-ripple. */
+  window.__zamrozone = false;
+  window.__fala = [];
+  window.__zamroz = function () {
+    window.__fala = document.getAnimations().filter(function (a) {
+      return a.effect && a.effect.pseudoElement
+        && a.effect.pseudoElement.indexOf('theme-ripple') !== -1;
+    });
+    window.__fala.forEach(function (a) { a.pause(); });
+    window.__zamrozone = true;
+  };
+
+  /* CZY STARA MIGAWKA W OGÓLE ISTNIEJE — główny podejrzany.
+     Dokładamy do niej własną, nic niezmieniającą animację: jeśli pseudoelementu
+     nie ma, `animate()` nie doda niczego do `getAnimations()`. */
+  window.__czyJestStara = function () {
+    try {
+      document.documentElement.animate(
+        { opacity: [1, 1] },
+        { duration: 1, pseudoElement: '::view-transition-old(theme-ripple)' }
+      );
+    } catch (e) { return 'wyjątek: ' + e.message; }
+    return document.getAnimations().some(function (a) {
+      return a.effect && a.effect.pseudoElement === '::view-transition-old(theme-ripple)';
+    });
+  };
+</script>

@@ -2,6 +2,51 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.217.0] — 2026-09-18
+
+### Dodane
+
+- **Fala mierzona na STRONIE, a nie na gołym tle.** ZGŁOSZONE Z UŻYCIA: „po
+  usunięciu elementów z list fala zmienia tylko kolor body. Teksty, divy, pola,
+  wszystkie elementy i gradienty zmieniają się od razu."
+
+  Objaw **nie odtwarzał się w żadnym istniejącym teście**. `darkmode-ripple`
+  mierzy na gołym tle: body z kolorem i jedno pasmo, wszystko w kadrze. Nowy
+  fixture `darkmode-ripple-strona.html` odtwarza to, czym jest prawdziwa strona
+  Bricksa: dokument wyższy od kadru i przewinięty, `#brx-content`, przyklejony
+  nagłówek, kolory ze **zmiennych CSS** o dwóch wartościach, działające animacje
+  — i **puste listy selektorów**, czyli dokładnie tę konfigurację, przy której
+  objaw było widać.
+
+  Na tym fixturze objaw odtworzył się natychmiast. Karta w rogu przeciwległym do
+  przycisku (jasność, start 255):
+
+  | czas | z przygaszaniem migawki | bez (1.216.0) |
+  |---|---|---|
+  | 180 ms | 251 | **255** |
+  | 360 ms | 236 | **255** |
+  | 600 ms | 215 | **255** |
+  | 1080 ms | 0 | 0 (fala doszła — ma się zmienić) |
+
+  **To nie było „elementy się nie animują".** To dwadzieścia procent już
+  przefarbowanej strony prześwitujące przez przygaszoną starą migawkę — usunięte
+  w 1.216.0. Nowy plik `tests/darkmode-strona.test.js` pilnuje, żeby nie wróciło:
+  mutacja przywracająca przygaszanie zapala oba strażniki, stary i nowy.
+
+  Doszło do tego przez **cztery obalone hipotezy**, każdą zdjętą pomiarem
+  z żywej strony, nie rozumowaniem: własne `view-transition-name` na elementach
+  (jest tylko `html`), nazwa w trakcie (`theme-ripple`, poprawna), animacja maski
+  (działa), wyciszenie przejść (zero żywych) i Lenis (wyłączenie nic nie
+  zmieniło). Dopiero to zostawiło jedyną nieprzebadaną różnicę: że fixtury nie
+  przypominały strony.
+
+- **Strażnik istnienia starej migawki.** `::view-transition-old(theme-ripple)`
+  jest strukturalnym warunkiem całego efektu — bez niego nie ma czym przykryć
+  tego, do czego fala nie doszła. Sprawdzenie dokłada mu animację, która nic nie
+  zmienia: gdy pseudoelementu nie ma, nie pojawi się w `getAnimations()`.
+  Był głównym podejrzanym w tej sprawie i wart jest własnego sprawdzenia, mimo
+  że okazał się niewinny.
+
 ## [1.216.0] — 2026-09-18
 
 ### Naprawione
