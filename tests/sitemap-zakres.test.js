@@ -226,10 +226,59 @@ module.exports = async function (t) {
     'add_rewrite_rule w źródle: ' + php.stary_generator.rewrite_rule);
   t.check('brak query var mapy', php.stary_generator.query_var === false,
     String(php.stary_generator.query_var));
-  t.check('brak przejęcia template_redirect', php.stary_generator.template_redirect === false,
-    String(php.stary_generator.template_redirect));
   t.check('robots.txt wskazuje wp-sitemap.xml',
     php.stary_generator.robots_txt.includes('/wp-sitemap.xml') &&
     !php.stary_generator.robots_txt.includes('test/sitemap.xml'),
     php.stary_generator.robots_txt.trim().split('\n').pop());
+
+  // ── Sekcja hreflang ───────────────────────────────────────────────────
+  t.section('hreflang: powiązania wersji językowych w mapie');
+
+  /* Renderer kończy się `exit` — musi, skoro wypisuje cały dokument zamiast
+     szablonu strony — więc każde wywołanie idzie osobnym procesem i całym
+     wyjściem sondy jest XML. */
+  const xml = phpOutput('sitemap-hreflang.php', 'en');
+
+  t.check('dokument deklaruje przestrzeń xhtml',
+    xml.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"'), xml.split('\n')[2]);
+
+  /* Trzy wersje językowe strony = trzy bloki `<url>`. Wersja, która ma tylko
+     wpis w cudzych powiązaniach, a własnego bloku nie ma, jest dla
+     wyszukiwarki niezgłoszona. */
+  const bloki = xml.split('<url>').slice(1);
+  t.check('każda wersja ma własny blok', bloki.length === 9, bloki.length + ' bloków');
+
+  /* KOMPLET powiązań w KAŻDYM bloku, nie tylko wskazanie na siebie: deklaracja,
+     której druga strona nie potwierdza, jest odrzucana. */
+  const niepelne = bloki.filter((b) =>
+    !b.includes('hreflang="pl"') || !b.includes('hreflang="en-US"') || !b.includes('hreflang="x-default"'));
+  t.check('każdy blok niesie komplet powiązań', !niepelne.length,
+    niepelne.length ? niepelne.length + ' bloków niepełnych' : 'pl, en-US, de-DE, x-default');
+
+  // Etykiety z ustawień języków, nie gołe kody — `en-US`, nie `en`.
+  t.check('etykiety językowe z ustawień', xml.includes('hreflang="de-DE"') && !xml.includes('hreflang="de"'),
+    'de-DE');
+
+  const xDefault = (xml.match(/hreflang="x-default" href="([^"]+)"/) || [])[1];
+  t.check('x-default wskazuje wybrany język', xDefault === 'https://example.test/en/',
+    String(xDefault));
+
+  const xmlPl = phpOutput('sitemap-hreflang.php', 'pl');
+  const xDefaultPl = (xmlPl.match(/hreflang="x-default" href="([^"]+)"/) || [])[1];
+  t.check('zmiana ustawienia zmienia x-default', xDefaultPl === 'https://example.test/',
+    String(xDefaultPl));
+
+  /* „Pomijaj podstrony bez przetłumaczonego sluga": adres niemiecki strony
+     `kontakt` znika — i z bloków, i z powiązań, bo jedno bez drugiego to
+     zerwane wskazanie. */
+  const xmlTlum = phpOutput('sitemap-hreflang.php', 'pl tylko-tlumaczone');
+  t.check('bez tłumaczenia sluga nie ma ani bloku, ani powiązania',
+    !xmlTlum.includes('/de/kontakt/') && xmlTlum.split('<url>').length - 1 === 8,
+    (xmlTlum.split('<url>').length - 1) + ' bloków');
+
+  /* Renderer wisi na `template_redirect` i musi schodzić z drogi każdemu
+     innemu żądaniu — także pozostałym sekcjom mapy, które rysuje rdzeń. */
+  const obce = phpOutput('sitemap-hreflang.php', 'pl inna-sekcja');
+  t.check('żądanie innej sekcji przechodzi do rdzenia', obce.trim() === 'NIE-PRZEJETO',
+    obce.trim().slice(0, 40));
 };

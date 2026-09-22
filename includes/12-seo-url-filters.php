@@ -63,8 +63,17 @@ add_action('wp_head', function () {
         echo '<link rel="alternate" hreflang="' . esc_attr($lang['html'] ?? $code) . '" href="' . esc_url($lang_url) . '" />' . "\n";
     }
 
-    // x-default wskazuje na PL (domyślna wersja strony)
-    echo '<link rel="alternate" hreflang="x-default" href="' . esc_url($pl_url) . '" />' . "\n";
+    /* x-default — język wskazany na ekranie SEO → Mapa strony.
+       TEN SAM wybór czyta sekcja `hreflang` w mapie (`80-sitemap.php`).
+       Dwa źródła deklaracji wskazujące różne wersje domyślne to sygnał
+       sprzeczny: wyszukiwarka rozstrzyga go po swojemu, nie po naszemu. */
+    $domyslny = function_exists('evk_sitemap_jezyk_domyslny') ? evk_sitemap_jezyk_domyslny() : 'pl';
+    $x_default = $pl_url;
+    if ($domyslny !== 'pl') {
+        $tr_path   = tl_translate_url_path($path, 'pl', $domyslny);
+        $x_default = $home_raw . '/' . $domyslny . rtrim($tr_path, '/') . '/';
+    }
+    echo '<link rel="alternate" hreflang="x-default" href="' . esc_url($x_default) . '" />' . "\n";
 }, 1);
 
 // ====================================================================

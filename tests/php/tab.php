@@ -507,12 +507,16 @@ $TABS = [
                 'anchor_sections' => [
                     ['name' => 'Menu', 'slug' => 'menu', 'page' => 11, 'url' => '', 'anchors' => ['desery', 'napoje']],
                 ],
+                'hreflang_default' => 'pl',
             ];
             /* WPIS Z META NOINDEX — bez niego pętla diagnostyki na tym ekranie
                nie wykonuje ani jednego obrotu i sprawdzenie renderu przechodzi,
                choć w środku siedzi wywołanie funkcji, której przy wyłączonym
                module tłumaczeń NIE MA. Dokładnie tak zniknął fatal zgłoszony
                z żywej strony. */
+            /* Moduł tłumaczeń włączony — bez tego akordeon sekcji hreflang
+               w ogóle się nie rysuje i jego pola nie są przez nic mierzone. */
+            $GLOBALS['options']['evk_tl_module_enabled'] = 1;
             $GLOBALS['post_meta'][11]['_yoast_wpseo_meta-robots-noindex'] = '1';
             $GLOBALS['post_meta'][12]['_bricks_page_settings'] = '{"metaRobots":["noindex"]}';
         },

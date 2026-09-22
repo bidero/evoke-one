@@ -13,18 +13,26 @@ if (!defined('ABSPATH')) exit;
  * WordPressa, a ten od 5.5 sam przekierowuje `/sitemap.xml` na
  * `/wp-sitemap.xml`. Sto trzydzieści linii, których nikt nigdy nie zobaczył.
  *
- * Skasowanie ich niczego nie zabiera, bo `hreflang` i tak jedzie w `<head>`
- * każdej podstrony (`12-seo-url-filters.php`) — a to jest źródło równorzędne
- * z mapą. Do `wp-sitemap.xml` `hreflang` nie wejdzie w żadnym wariancie:
- * `WP_Sitemaps_Renderer::get_sitemap_xml()` przyjmuje dla adresu wyłącznie
- * `loc`, `lastmod`, `changefreq` i `priority`, a każdy inny klucz kwituje
- * `_doing_it_wrong()`. Przestrzeni nazw `xmlns:xhtml` nie da się dołożyć
- * filtrem — trzeba by podmienić cały renderer.
+ * HREFLANG W MAPIE MIMO TO JEST — od 1.223.0, tylko inną drogą. Renderer
+ * rdzenia (`WP_Sitemaps_Renderer::get_sitemap_xml()`) przyjmuje dla adresu
+ * wyłącznie `loc`, `lastmod`, `changefreq` i `priority`, każdy inny klucz
+ * kwituje `_doing_it_wrong()`, a przestrzeni `xmlns:xhtml` nie da się dołożyć
+ * filtrem. Dlatego sekcja `hreflang` bierze od rdzenia to, co rdzeń robi
+ * dobrze — adres, regułę przepisywania i wpis w indeksie — a samą TREŚĆ
+ * wypisuje sama, przechwytując żądanie na `template_redirect` przed nim.
+ * Własnej reguły przepisywania nie ma tu nigdzie i to jest różnica wobec
+ * generatora sprzed 1.221.0: tamten nie odpowiadał właśnie dlatego, że jego
+ * reguła nigdy nie trafiła do bazy.
+ *
+ * Tagi `hreflang` jadą RÓWNOLEGLE w `<head>` każdej podstrony
+ * (`12-seo-url-filters.php`). Oba źródła są równorzędne i oba czytają ten sam
+ * wybór języka domyślnego (`evk_sitemap_jezyk_domyslny()`) — rozbieżność
+ * byłaby sygnałem sprzecznym, rozstrzyganym przez wyszukiwarkę po swojemu.
  *
  * PLIK ŁADUJE SIĘ ZAWSZE, nie tylko przy włączonych tłumaczeniach. Steruje
  * mapą, którą WordPress wystawia na każdej stronie, więc związanie go
  * z modułem tłumaczeń znaczyłoby, że na stronie bez tłumaczeń nie ma czym
- * sterować. Sekcja tłumaczeń (dawny provider `translations`) siedzi na końcu
+ * sterować. Sekcja hreflang (dawny provider `translations`) siedzi na końcu
  * i rejestruje się tylko wtedy, gdy silnik języków faktycznie jest.
  */
 
@@ -316,32 +324,213 @@ add_action('wp_sitemaps_init', function () {
         wp_register_sitemap_provider($sekcja['slug'], new EVK_Sitemap_Kotwice_Provider($sekcja['slug'], $urls));
     }
 
-    /* Sekcja tłumaczeń — tylko przy żywym silniku języków. Plik ładuje się
+    /* Sekcja hreflang — tylko przy żywym silniku języków. Plik ładuje się
        teraz zawsze, a `tl_translate_slug()` przychodzi z modułu tłumaczeń. */
     if (empty($ustawienia['enabled']) || !function_exists('tl_get_languages') || !function_exists('tl_translate_slug')) return;
 
-    if (!class_exists('TL_Translated_Sitemap_Provider')) {
-        class TL_Translated_Sitemap_Provider extends WP_Sitemaps_Provider {
+    if (!class_exists('EVK_Sitemap_Hreflang_Provider')) {
+        /**
+         * Provider istnieje po to, żeby sekcja ZNALAZŁA SIĘ W INDEKSIE
+         * `wp-sitemap.xml` i dostała od rdzenia własny adres
+         * (`wp-sitemap-hreflang-1.xml`) razem z regułą przepisywania.
+         *
+         * Zawartości tego adresu rdzeń jednak nie wyrenderuje poprawnie:
+         * `WP_Sitemaps_Renderer::get_sitemap_xml()` przyjmuje wyłącznie `loc`,
+         * `lastmod`, `changefreq` i `priority`, a powiązania językowe to
+         * `xhtml:link` z atrybutami, w cudzej przestrzeni nazw. Dlatego
+         * żądanie przechwytuje `evk_sitemap_hreflang_renderuj()` niżej, na
+         * `template_redirect` PRZED rdzeniem.
+         *
+         * `get_url_list()` zostaje uczciwą listą adresów: jest drogą zapasową
+         * na wypadek, gdyby przechwycenie nie doszło do skutku. Lepiej wydać
+         * poprawną mapę bez powiązań niż pustą.
+         */
+        class EVK_Sitemap_Hreflang_Provider extends WP_Sitemaps_Provider {
             const NA_STRONE = 2000;
 
             public function __construct() {
-                $this->name        = 'translations';
-                $this->object_type = 'translations';
+                $this->name        = 'hreflang';
+                $this->object_type = 'hreflang';
             }
 
             public function get_url_list($page_num, $object_subtype = '') {
-                $urls = tl_get_translated_sitemap_urls();
+                $urls = [];
+                foreach (evk_sitemap_hreflang_adresy() as $wpis) {
+                    $urls[] = ['loc' => $wpis['loc'], 'lastmod' => $wpis['lastmod']];
+                }
                 return array_slice($urls, max(0, $page_num - 1) * self::NA_STRONE, self::NA_STRONE);
             }
 
             public function get_max_num_pages($object_subtype = '') {
-                return (int) ceil(count(tl_get_translated_sitemap_urls()) / self::NA_STRONE);
+                return (int) ceil(count(evk_sitemap_hreflang_adresy()) / self::NA_STRONE);
             }
         }
     }
 
-    wp_register_sitemap_provider('translations', new TL_Translated_Sitemap_Provider());
+    wp_register_sitemap_provider('hreflang', new EVK_Sitemap_Hreflang_Provider());
 });
+
+// =========================================================================
+// SEKCJA HREFLANG — POWIĄZANIA WERSJI JĘZYKOWYCH
+// =========================================================================
+
+/**
+ * Język, na który wskazuje `x-default` — kod z ustawień albo polski.
+ *
+ * Z tej samej funkcji korzystają OBA źródła deklaracji: ta sekcja mapy
+ * i tagi `<link rel="alternate">` w `<head>` (`12-seo-url-filters.php`).
+ * Rozbieżność między nimi to sygnał sprzeczny, który wyszukiwarka rozstrzyga
+ * po swojemu — a nie tak, jak chciał piszący.
+ */
+function evk_sitemap_jezyk_domyslny(): string {
+    $kod = sanitize_key((string) (tl_get_sitemap_settings()['hreflang_default'] ?? 'pl'));
+    if ($kod === '' || $kod === 'pl') return 'pl';
+    if (!function_exists('tl_get_languages')) return 'pl';
+
+    return isset(tl_get_languages()[$kod]) ? $kod : 'pl';
+}
+
+/**
+ * Adresy sekcji hreflang — po jednym wpisie na wersję językową strony.
+ *
+ * Każdy wpis niesie KOMPLET powiązań, nie tylko wskazanie na siebie: taka jest
+ * reguła protokołu. Wersje językowe muszą wskazywać na siebie nawzajem,
+ * a wyszukiwarka odrzuca deklarację, której druga strona nie potwierdza —
+ * dlatego ten sam zestaw `xhtml:link` powtarza się w bloku każdej wersji.
+ *
+ * Zwraca: [['loc' => …, 'lastmod' => …, 'alternaty' => [tag => url],
+ *           'x_default' => url], …].
+ */
+function evk_sitemap_hreflang_adresy(): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+
+    $ustawienia = tl_get_sitemap_settings();
+    if (empty($ustawienia['enabled']) || !function_exists('tl_get_languages') || !function_exists('tl_translate_slug')) {
+        return $cache = [];
+    }
+
+    $home     = untrailingslashit(get_option('home'));
+    $langi    = tl_get_languages();
+    $domyslny = evk_sitemap_jezyk_domyslny();
+    $wpisy    = [];
+
+    /* Jeden „dokument" = strona plus jej wersje językowe. Tutaj powstaje mapa
+       [kod języka => adres]; dopiero z niej robią się bloki `<url>`. */
+    $zbuduj = static function (array $adresy, string $lastmod) use ($langi, $domyslny, $ustawienia): array {
+        $tagi = [];
+        foreach ($adresy as $kod => $url) {
+            /* Etykieta języka: dla polskiego „pl", dla reszty wartość z
+               ustawień języków („en-US"). W `<head>` polski dostaje dodatkowo
+               `pl-PL`; tutaj tego nie powtarzamy, bo drugi tag na ten sam
+               adres nic nie wnosi, a podwaja rozmiar pliku. */
+            $tagi[$kod === 'pl' ? 'pl' : ($langi[$kod]['html'] ?? $kod)] = $url;
+        }
+
+        $x_default = $adresy[$domyslny] ?? ($adresy['pl'] ?? reset($adresy));
+
+        $bloki = [];
+        foreach ($adresy as $kod => $url) {
+            /* Polski blok pomijamy, gdy ekran mapy tak mówi — ale polski
+               adres ZOSTAJE w powiązaniach każdego innego bloku. Wersja
+               nieobecna w deklaracjach to zerwane powiązanie, a nie
+               oszczędność. */
+            if ($kod === 'pl' && empty($ustawienia['include_polish'])) continue;
+
+            $bloki[] = [
+                'loc'       => $url,
+                'lastmod'   => $lastmod,
+                'alternaty' => $tagi,
+                'x_default' => $x_default,
+            ];
+        }
+        return $bloki;
+    };
+
+    if (!empty($ustawienia['include_home'])) {
+        $adresy = ['pl' => $home . '/'];
+        foreach (array_keys($langi) as $kod) $adresy[$kod] = $home . '/' . $kod . '/';
+        $wpisy = array_merge($wpisy, $zbuduj($adresy, gmdate(DATE_W3C)));
+    }
+
+    $typy = [];
+    if (!empty($ustawienia['include_pages'])) $typy[] = 'page';
+    if (!empty($ustawienia['include_posts'])) $typy[] = 'post';
+    if (empty($typy)) return $cache = $wpisy;
+
+    $posty = get_posts([
+        'post_type'      => $typy,
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'orderby'        => 'modified',
+        'order'          => 'DESC',
+    ]);
+
+    foreach ($posty as $post) {
+        if (tl_is_post_excluded_from_sitemap((int) $post->ID, $ustawienia)) continue;
+
+        $pl_path = tl_get_post_pl_path($post);
+        if (!$pl_path) continue;
+
+        $czas    = $post->post_modified_gmt ? strtotime($post->post_modified_gmt) : false;
+        $lastmod = gmdate(DATE_W3C, $czas ?: time());
+
+        $adresy = ['pl' => $home . '/' . trim($pl_path, '/') . '/'];
+        foreach (array_keys($langi) as $kod) {
+            if (!empty($ustawienia['only_translated_slugs']) && !tl_has_translated_path($pl_path, $kod)) continue;
+
+            $segmenty = array_values(array_filter(explode('/', $pl_path)));
+            $tr       = implode('/', array_map(static fn($s) => tl_translate_slug($s, $kod), $segmenty));
+            $adresy[$kod] = $home . '/' . $kod . '/' . $tr . '/';
+        }
+
+        $wpisy = array_merge($wpisy, $zbuduj($adresy, $lastmod));
+    }
+
+    return $cache = $wpisy;
+}
+
+/**
+ * Renderowanie `wp-sitemap-hreflang-*.xml` z pełnymi powiązaniami.
+ *
+ * PRZECHWYTUJE ŻĄDANIE PRZED RDZENIEM (priorytet 5 na `template_redirect`;
+ * `WP_Sitemaps::render_sitemaps()` siedzi na domyślnym 10). Adres, reguła
+ * przepisywania i wpis w indeksie pochodzą od rdzenia — własnej reguły nie ma
+ * tu wcale i to jest cała odporność tego rozwiązania: martwy generator
+ * `/sitemap.xml` sprzed 1.221.0 nie odpowiadał właśnie dlatego, że jego reguła
+ * nigdy nie trafiła do bazy.
+ */
+function evk_sitemap_hreflang_renderuj(): void {
+    if ((string) get_query_var('sitemap') !== 'hreflang') return;
+
+    $wpisy = evk_sitemap_hreflang_adresy();
+    if (empty($wpisy)) return; // niech rdzeń odpowie tak, jak umie
+
+    $strona = max(1, (int) get_query_var('paged'));
+    $wpisy  = array_slice($wpisy, ($strona - 1) * 2000, 2000);
+
+    header('Content-Type: application/xml; charset=UTF-8');
+    header('X-Robots-Tag: noindex, follow', true);
+
+    echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+    echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' . "\n";
+    echo '        xmlns:xhtml="http://www.w3.org/1999/xhtml">' . "\n";
+
+    foreach ($wpisy as $wpis) {
+        echo "\t<url>\n";
+        echo "\t\t<loc>" . esc_url($wpis['loc']) . "</loc>\n";
+        if (!empty($wpis['lastmod'])) echo "\t\t<lastmod>" . esc_html($wpis['lastmod']) . "</lastmod>\n";
+        foreach ($wpis['alternaty'] as $tag => $url) {
+            echo "\t\t" . '<xhtml:link rel="alternate" hreflang="' . esc_attr($tag) . '" href="' . esc_url($url) . '" />' . "\n";
+        }
+        echo "\t\t" . '<xhtml:link rel="alternate" hreflang="x-default" href="' . esc_url($wpis['x_default']) . '" />' . "\n";
+        echo "\t</url>\n";
+    }
+
+    echo '</urlset>';
+    exit;
+}
+add_action('template_redirect', 'evk_sitemap_hreflang_renderuj', 5);
 
 // =========================================================================
 // WYKLUCZENIA POJEDYNCZYCH WPISÓW
@@ -394,7 +583,7 @@ function tl_is_post_excluded_from_sitemap(int $post_id, $settings = null): bool 
 }
 
 // =========================================================================
-// SEKCJA TŁUMACZEŃ — ADRESY Z PRZETŁUMACZONYMI SLUGAMI
+// ŚCIEŻKI POLSKIE — WSPÓLNE DLA SEKCJI HREFLANG
 // =========================================================================
 
 function tl_get_post_pl_path(WP_Post $post): string {
@@ -425,67 +614,6 @@ function tl_has_translated_path(string $pl_path, string $lang): bool {
     return true;
 }
 
-function tl_get_translated_sitemap_urls(): array {
-    static $cache = null;
-    if ($cache !== null) return $cache;
-
-    $settings = tl_get_sitemap_settings();
-    if (empty($settings['enabled']) || !function_exists('tl_get_languages')) return $cache = [];
-
-    $home_raw   = untrailingslashit(get_option('home'));
-    $langs      = tl_get_languages();
-    $lang_codes = array_keys($langs);
-    $urls       = [];
-
-    if (!empty($settings['include_home'])) {
-        if (!empty($settings['include_polish'])) {
-            $urls[] = ['loc' => $home_raw . '/', 'lastmod' => gmdate('Y-m-d')];
-        }
-        foreach ($lang_codes as $code) {
-            $urls[] = ['loc' => $home_raw . '/' . $code . '/', 'lastmod' => gmdate('Y-m-d')];
-        }
-    }
-
-    $post_types = [];
-    if (!empty($settings['include_pages'])) $post_types[] = 'page';
-    if (!empty($settings['include_posts'])) $post_types[] = 'post';
-    if (empty($post_types)) return $cache = $urls;
-
-    $posts = get_posts([
-        'post_type'      => $post_types,
-        'post_status'    => 'publish',
-        'posts_per_page' => -1,
-        'orderby'        => 'modified',
-        'order'          => 'DESC',
-    ]);
-
-    foreach ($posts as $post) {
-        if (tl_is_post_excluded_from_sitemap((int) $post->ID, $settings)) continue;
-
-        $pl_path = tl_get_post_pl_path($post);
-        if (!$pl_path) continue;
-
-        $lastmod_time = $post->post_modified_gmt ? strtotime($post->post_modified_gmt) : false;
-        $lastmod = $lastmod_time ? gmdate('Y-m-d', $lastmod_time) : gmdate('Y-m-d');
-
-        if (!empty($settings['include_polish'])) {
-            $urls[] = ['loc' => $home_raw . '/' . trim($pl_path, '/') . '/', 'lastmod' => $lastmod];
-        }
-
-        foreach ($lang_codes as $code) {
-            if (!empty($settings['only_translated_slugs']) && !tl_has_translated_path($pl_path, $code)) {
-                continue;
-            }
-
-            $segments    = array_values(array_filter(explode('/', $pl_path)));
-            $tr_segments = array_map(fn($s) => tl_translate_slug($s, $code), $segments);
-            $tr_path     = implode('/', $tr_segments);
-            $urls[] = ['loc' => $home_raw . '/' . $code . '/' . $tr_path . '/', 'lastmod' => $lastmod];
-        }
-    }
-
-    return $cache = $urls;
-}
 
 // =========================================================================
 // ROBOTS.TXT

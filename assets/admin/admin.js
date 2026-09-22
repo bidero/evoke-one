@@ -163,6 +163,12 @@
                 return parseInt(this.value, 10);
             }).get();
 
+            /* Język domyślny — pole żyje w sekcji hreflang, czyli tylko przy
+               włączonym module tłumaczeń. Bez elementu nie wysyłamy klucza,
+               żeby zapis z innego ekranu nie cofnął wyboru do polskiego. */
+            var $domyslny = $('#tl-sm-hreflang-default');
+            if ($domyslny.length) payload.hreflang_default = $domyslny.val();
+
             /* Typy treści: odznaczone „W mapie" → `excluded_types`, zaznaczone
                „Poza indeksem" → `noindex_types`. Pola zablokowane (flaga
                z Evoke FIELDS) pomijamy — ich źródłem jest tamta wtyczka

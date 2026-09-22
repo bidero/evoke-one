@@ -103,6 +103,9 @@ function tl_get_sitemap_settings(): array {
         'excluded_taxonomies'      => [],
         'noindex_taxonomies'       => [],
         'anchor_sections'          => [],
+        /* Język, na który wskazuje `x-default` — w mapie I w tagach `<head>`.
+           Domyślnie polski, czyli to, co panel deklarował od zawsze. */
+        'hreflang_default'         => 'pl',
     ];
     $saved = get_option('tl_sitemap_settings', []);
     return array_merge($defaults, is_array($saved) ? $saved : []);
@@ -203,6 +206,13 @@ function tl_sanitize_sitemap_settings($input): array {
         return $domyslna;
     };
 
+    /** Pojedyncza wartość słownikowa (kod języka): wejście, baza, domyślna. */
+    $tekst = static function (string $klucz, string $domyslna) use ($input, $obecne): string {
+        $zrodlo = array_key_exists($klucz, $input) ? $input[$klucz] : ($obecne[$klucz] ?? $domyslna);
+        $czyste = sanitize_key((string) $zrodlo);
+        return $czyste !== '' ? $czyste : $domyslna;
+    };
+
     /** Lista slugów: z wejścia, gdy klucz przyszedł; inaczej stan z bazy. */
     $slugi = static function (string $klucz) use ($input, $obecne): array {
         $zrodlo = array_key_exists($klucz, $input) ? $input[$klucz] : ($obecne[$klucz] ?? []);
@@ -274,6 +284,7 @@ function tl_sanitize_sitemap_settings($input): array {
         'excluded_taxonomies'  => $slugi('excluded_taxonomies'),
         'noindex_taxonomies'   => $slugi('noindex_taxonomies'),
         'anchor_sections'      => $anchor_sections,
+        'hreflang_default'     => $tekst('hreflang_default', 'pl'),
     ];
 }
 

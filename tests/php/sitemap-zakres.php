@@ -229,10 +229,9 @@ $out['zapis_nowym_ekranem'] = tl_sanitize_sitemap_settings([
 // ── Martwy generator /sitemap.xml ma nie wrócić ──────────────────────────
 $zrodlo = file_get_contents(EVK_TEST_ROOT . '/includes/80-sitemap.php');
 $out['stary_generator'] = [
-    'rewrite_rule'      => strpos($zrodlo, 'add_rewrite_rule') !== false,
-    'query_var'         => isset($GLOBALS['hooks']['query_vars']),
-    'template_redirect' => isset($GLOBALS['hooks']['template_redirect']),
-    'robots_txt'        => call_user_func(filtr('robots_txt'), "User-agent: *\n"),
+    'rewrite_rule' => strpos($zrodlo, 'add_rewrite_rule') !== false,
+    'query_var'    => isset($GLOBALS['hooks']['query_vars']),
+    'robots_txt'   => call_user_func(filtr('robots_txt'), "User-agent: *\n"),
 ];
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);

@@ -3203,3 +3203,8 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     .evk-map-head { display: none; }
     .evk-map-sec-head { grid-template-columns: 1fr; }
 }
+
+/* Wybór języka domyślnego — etykieta, pole i objaśnienie w kolumnie. */
+.evk-map-select { display: flex; flex-direction: column; gap: 4px; max-width: 420px; margin-bottom: 14px; font-size: 13px; }
+.evk-map-select > span:first-child { font-size: 11px; font-weight: 600; color: var(--evo-text-dim); }
+.evk-map-select .evo-muted { font-size: 11px; }

@@ -268,15 +268,38 @@ if (!defined('ABSPATH')) exit;
 
             <?php if ($sm_tl_on): ?>
             <details class="evo-acc">
-                <summary>Sekcja tłumaczeń</summary>
+                <summary>Sekcja hreflang (tłumaczenia)</summary>
                 <div class="evo-acc-body">
-                    <p class="evo-lead">Dopisuje do mapy adresy z przetłumaczonymi slugami jako osobną sekcję <code>wp-sitemap-translations-1.xml</code>.</p>
+                    <p class="evo-lead">
+                        Dokłada do mapy sekcję <code>wp-sitemap-hreflang-1.xml</code>: każdy adres z kompletem powiązań
+                        <code>xhtml:link</code> — wskazaniem na siebie, na pozostałe wersje językowe i na <code>x-default</code>.
+                        Ten sam zestaw powtarza się w bloku każdej wersji, bo wyszukiwarka odrzuca deklarację,
+                        której druga strona nie potwierdza.
+                    </p>
+                    <details class="evo-note"><summary>Dlaczego osobna sekcja</summary><div class="evo-note-body">
+                        Renderer WordPressa przyjmuje dla adresu wyłącznie <code>loc</code>, <code>lastmod</code>,
+                        <code>changefreq</code> i <code>priority</code> — powiązań językowych nie umie wypisać wcale.
+                        Evoke ONE bierze od rdzenia adres sekcji, regułę przepisywania i wpis w indeksie,
+                        a treść pliku wypisuje sam.
+                    </div></details>
+                    <label class="evk-map-select">
+                        <span>Język domyślny (<code>x-default</code>)</span>
+                        <select id="tl-sm-hreflang-default">
+                            <option value="pl" <?php selected(($sitemap_settings['hreflang_default'] ?? 'pl'), 'pl'); ?>>Polski</option>
+                            <?php foreach ((function_exists('tl_get_languages') ? tl_get_languages() : []) as $sm_kod => $sm_lang): ?>
+                            <option value="<?php echo esc_attr($sm_kod); ?>" <?php selected(($sitemap_settings['hreflang_default'] ?? 'pl'), $sm_kod); ?>>
+                                <?php echo esc_html(($sm_lang['name'] ?? $sm_kod) . ' (' . $sm_kod . ')'); ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <span class="evo-muted">Używany w mapie i w tagach <code>&lt;head&gt;</code> — oba źródła muszą mówić to samo.</span>
+                    </label>
                     <div class="evk-map-checks">
-                        <label><input type="checkbox" id="tl-sm-enabled"         <?php checked(!empty($sitemap_settings['enabled'])); ?>> Włącz sekcję tłumaczeń</label>
+                        <label><input type="checkbox" id="tl-sm-enabled"         <?php checked(!empty($sitemap_settings['enabled'])); ?>> Włącz sekcję hreflang</label>
                         <label><input type="checkbox" id="tl-sm-home"            <?php checked(!empty($sitemap_settings['include_home'])); ?>> Strona główna w wersjach językowych</label>
                         <label><input type="checkbox" id="tl-sm-pages"           <?php checked(!empty($sitemap_settings['include_pages'])); ?>> Strony</label>
                         <label><input type="checkbox" id="tl-sm-posts"           <?php checked(!empty($sitemap_settings['include_posts'])); ?>> Wpisy</label>
-                        <label><input type="checkbox" id="tl-sm-polish"          <?php checked(!empty($sitemap_settings['include_polish'])); ?>> Dodaj też polskie adresy do sekcji tłumaczeń</label>
+                        <label><input type="checkbox" id="tl-sm-polish"          <?php checked(!empty($sitemap_settings['include_polish'])); ?>> Polskie adresy też jako osobne wpisy (w powiązaniach są zawsze)</label>
                         <label><input type="checkbox" id="tl-sm-only-translated" <?php checked(!empty($sitemap_settings['only_translated_slugs'])); ?>> Pomijaj podstrony bez przetłumaczonego sluga</label>
                     </div>
                 </div>

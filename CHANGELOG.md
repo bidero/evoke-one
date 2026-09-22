@@ -2,6 +2,50 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.223.0] — 2026-09-22
+
+### Dodane
+
+- **`hreflang` w mapie strony — pełne powiązania `xhtml:link`.** Sekcja
+  `wp-sitemap-hreflang-1.xml` wystawia każdą wersję językową jako osobny blok
+  `<url>` z KOMPLETEM wskazań: na siebie, na pozostałe języki i na
+  `x-default`. Ten sam zestaw powtarza się w bloku każdej wersji, bo
+  wyszukiwarka odrzuca deklarację, której druga strona nie potwierdza.
+
+  **Jak, skoro renderer rdzenia tego nie umie.** `WP_Sitemaps_Renderer` przyjmuje
+  dla adresu wyłącznie `loc`, `lastmod`, `changefreq` i `priority`, a przestrzeni
+  `xmlns:xhtml` nie da się dołożyć filtrem. Sekcja bierze więc od rdzenia to,
+  co rdzeń robi dobrze — adres, regułę przepisywania i wpis w indeksie
+  `wp-sitemap.xml` — a samą treść wypisuje sama, przechwytując żądanie na
+  `template_redirect` (priorytet 5, przed `WP_Sitemaps::render_sitemaps()`).
+
+  Własnej reguły przepisywania nie ma tu nigdzie i to jest różnica wobec
+  generatora skasowanego w 1.221.0: tamten nie odpowiadał właśnie dlatego, że
+  jego reguła nigdy nie trafiła do bazy. Gdyby przechwycenie kiedyś nie doszło
+  do skutku, provider oddaje poprawną mapę bez powiązań — lepiej niż pustą.
+
+- **Wybór języka dla `x-default`** (SEO → Mapa strony → Sekcja hreflang).
+  Używany przez OBA źródła deklaracji: mapę i tagi `<link rel="alternate">`
+  w `<head>` (`12-seo-url-filters.php`). Wcześniej `x-default` wskazywał
+  polską wersję na sztywno. Rozbieżność między dwoma źródłami to sygnał
+  sprzeczny, rozstrzygany przez wyszukiwarkę po swojemu — dlatego oba czytają
+  jedną funkcję, a nie dwie kopie tej samej decyzji.
+
+### Zmienione
+
+- **Sekcja `translations` zastąpiona przez `hreflang`.** Tamta wymieniała
+  przetłumaczone adresy jako gołe `<loc>`, bez powiązań — trzymanie obu
+  znaczyłoby te same strony zgłoszone dwa razy. Ustawienia zostają te same
+  (`enabled`, `include_home`, `include_pages`, `include_posts`,
+  `include_polish`, `only_translated_slugs`), zmienia się tylko to, co sekcja
+  wypisuje. Checkbox „Dodaj też polskie adresy" mówi teraz wprost, że dotyczy
+  osobnych wpisów: w powiązaniach polska wersja jest zawsze, bo wersja
+  nieobecna w deklaracjach to zerwane wskazanie, a nie oszczędność.
+
+- Sprawdzeń w `sitemap-zakres`: 40 → 47. Renderer kończy się `exit`, więc jego
+  wyjście bada osobna sonda (`tests/php/sitemap-hreflang.php`) — całym wyjściem
+  procesu jest XML. Sześć mutacji, każda zapala inny podzbiór.
+
 ## [1.222.1] — 2026-09-22
 
 ### Naprawione
