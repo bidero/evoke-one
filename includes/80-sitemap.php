@@ -391,6 +391,39 @@ function evk_sitemap_jezyk_domyslny(): string {
 }
 
 /**
+ * `lastmod` strony głównej — data treści, nie moment wygenerowania pliku.
+ *
+ * ZGŁOSZONE Z ŻYWEJ STRONY: wpis strony głównej niósł `gmdate(DATE_W3C)`, czyli
+ * godzinę bieżącego żądania. Dwa wejścia pod ten sam adres w odstępie czterech
+ * minut dawały dwie różne daty ostatniej zmiany — a to pole ma znaczyć „kiedy
+ * treść się zmieniła". Zmyślona świeżość podana przy każdym pobraniu jest
+ * gorsza niż brak pola: wyszukiwarka przestaje wierzyć wszystkim datom w tym
+ * pliku, nie tylko tej jednej.
+ *
+ * Kolejność: statyczna strona startowa (jeśli jest), inaczej najnowsza zmiana
+ * wśród treści, które i tak trafiają do sekcji. Gdy nie ma ani jednej — puste,
+ * a renderer pomija wtedy `lastmod` w całości.
+ */
+function evk_sitemap_lastmod_glownej(array $posty): string {
+    $front = (int) get_option('page_on_front');
+    if ($front) {
+        $wpis = get_post($front);
+        if ($wpis && !empty($wpis->post_modified_gmt)) {
+            $czas = strtotime($wpis->post_modified_gmt);
+            if ($czas) return gmdate(DATE_W3C, $czas);
+        }
+    }
+
+    $najnowszy = 0;
+    foreach ($posty as $post) {
+        $czas = !empty($post->post_modified_gmt) ? (int) strtotime($post->post_modified_gmt) : 0;
+        if ($czas > $najnowszy) $najnowszy = $czas;
+    }
+
+    return $najnowszy ? gmdate(DATE_W3C, $najnowszy) : '';
+}
+
+/**
  * Adresy sekcji hreflang — po jednym wpisie na wersję językową strony.
  *
  * Każdy wpis niesie KOMPLET powiązań, nie tylko wskazanie na siebie: taka jest
@@ -447,24 +480,26 @@ function evk_sitemap_hreflang_adresy(): array {
         return $bloki;
     };
 
-    if (!empty($ustawienia['include_home'])) {
-        $adresy = ['pl' => $home . '/'];
-        foreach (array_keys($langi) as $kod) $adresy[$kod] = $home . '/' . $kod . '/';
-        $wpisy = array_merge($wpisy, $zbuduj($adresy, gmdate(DATE_W3C)));
-    }
-
     $typy = [];
     if (!empty($ustawienia['include_pages'])) $typy[] = 'page';
     if (!empty($ustawienia['include_posts'])) $typy[] = 'post';
-    if (empty($typy)) return $cache = $wpisy;
 
-    $posty = get_posts([
+    $posty = $typy ? get_posts([
         'post_type'      => $typy,
         'post_status'    => 'publish',
         'posts_per_page' => -1,
         'orderby'        => 'modified',
         'order'          => 'DESC',
-    ]);
+    ]) : [];
+
+    /* Strona główna PO pobraniu wpisów, bo jej `lastmod` liczy się z treści. */
+    if (!empty($ustawienia['include_home'])) {
+        $adresy = ['pl' => $home . '/'];
+        foreach (array_keys($langi) as $kod) $adresy[$kod] = $home . '/' . $kod . '/';
+        $wpisy = array_merge($wpisy, $zbuduj($adresy, evk_sitemap_lastmod_glownej($posty)));
+    }
+
+    if (empty($typy)) return $cache = $wpisy;
 
     foreach ($posty as $post) {
         if (tl_is_post_excluded_from_sitemap((int) $post->ID, $ustawienia)) continue;
@@ -513,6 +548,26 @@ function evk_sitemap_hreflang_renderuj(): void {
     header('X-Robots-Tag: noindex, follow', true);
 
     echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+
+    /* ARKUSZ STYLÓW RDZENIA — ta jedna linia decyduje o tym, co widać po
+       wejściu w adres z przeglądarki. Każda sekcja `wp-sitemap-*.xml` niesie
+       `<?xml-stylesheet ?>` wskazujący `wp-sitemap.xsl`, który zamienia XML
+       w tabelę. Bez niego przeglądarka pokazuje dokument po swojemu: Chrome
+       drzewko z ostrzeżeniem „no style information", Safari — sam tekst
+       z wnętrza znaczników, czyli adresy i daty zlepione w ciąg. Plik był
+       przez cały czas poprawny, wyglądał na zepsuty.
+
+       Adres bierzemy z rdzenia, nie wpisujemy: bez ładnych odnośników
+       `get_sitemap_stylesheet_url()` oddaje `?sitemap-stylesheet=sitemap`,
+       a wpisany na sztywno `/wp-sitemap.xsl` byłby wtedy pustym strzałem. */
+    if (function_exists('wp_sitemaps_get_server')) {
+        $serwer = wp_sitemaps_get_server();
+        if ($serwer && isset($serwer->renderer) && method_exists($serwer->renderer, 'get_sitemap_stylesheet_url')) {
+            $xsl = $serwer->renderer->get_sitemap_stylesheet_url();
+            if ($xsl) echo '<?xml-stylesheet type="text/xsl" href="' . esc_url($xsl) . '" ?>' . "\n";
+        }
+    }
+
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' . "\n";
     echo '        xmlns:xhtml="http://www.w3.org/1999/xhtml">' . "\n";
 

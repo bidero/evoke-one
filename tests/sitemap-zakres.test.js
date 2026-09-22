@@ -240,7 +240,22 @@ module.exports = async function (t) {
   const xml = phpOutput('sitemap-hreflang.php', 'en');
 
   t.check('dokument deklaruje przestrzeń xhtml',
-    xml.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"'), xml.split('\n')[2]);
+    xml.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"'), xml.split('\n')[3]);
+
+  /* ARKUSZ STYLÓW — ZGŁOSZONE Z ŻYWEJ STRONY („czy tak ma być, że wyświetla
+     się goły tekst?"). Plik był poprawny, ale bez `<?xml-stylesheet ?>`
+     przeglądarka pokazuje go po swojemu: Safari samą treść znaczników, czyli
+     adresy i daty zlepione w ciąg. Pozostałe sekcje `wp-sitemap-*` niosą tę
+     linię od rdzenia i wyglądają jak tabela.
+
+     Instrukcja przetwarzania MUSI stać przed elementem głównym — po nim jest
+     poza prologiem i parser ją ignoruje. Stąd sprawdzenie kolejności, a nie
+     samej obecności. */
+  const liniaXsl = xml.indexOf('<?xml-stylesheet');
+  t.check('arkusz stylów rdzenia dopięty przed <urlset>',
+    liniaXsl > 0 && liniaXsl < xml.indexOf('<urlset') &&
+    xml.includes('href="https://example.test/wp-sitemap.xsl"'),
+    xml.split('\n')[1]);
 
   /* Trzy wersje językowe strony = trzy bloki `<url>`. Wersja, która ma tylko
      wpis w cudzych powiązaniach, a własnego bloku nie ma, jest dla
@@ -258,6 +273,15 @@ module.exports = async function (t) {
   // Etykiety z ustawień języków, nie gołe kody — `en-US`, nie `en`.
   t.check('etykiety językowe z ustawień', xml.includes('hreflang="de-DE"') && !xml.includes('hreflang="de"'),
     'de-DE');
+
+  /* `lastmod` strony głównej — data TREŚCI, nie moment wygenerowania pliku.
+     Na żywej stronie stała tam godzina bieżącego żądania: dwa wejścia pod ten
+     sam adres w odstępie czterech minut dawały dwie różne daty ostatniej
+     zmiany. Zmyślona świeżość jest gorsza niż brak pola, bo podważa wszystkie
+     pozostałe daty w tym pliku. Fixtura ma dwie strony: 1 i 2 kwietnia. */
+  const lastmodGlownej = (bloki[0].match(/<lastmod>([^<]+)<\/lastmod>/) || [])[1];
+  t.check('lastmod strony głównej z najnowszej treści',
+    lastmodGlownej === '2026-04-02T09:00:00+00:00', String(lastmodGlownej));
 
   const xDefault = (xml.match(/hreflang="x-default" href="([^"]+)"/) || [])[1];
   t.check('x-default wskazuje wybrany język', xDefault === 'https://example.test/en/',

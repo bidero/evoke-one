@@ -34,6 +34,21 @@ function get_query_var($klucz, $domyslna = '') {
     return $GLOBALS['query_vars'][$klucz] ?? $domyslna;
 }
 
+/* Serwer map rdzenia — potrzebny wyłącznie po to, by sekcja wzięła stamtąd
+   adres arkusza stylów. Bez niego plik jest poprawnym XML-em, który Safari
+   pokazuje jako zlepek adresów i dat, a Chrome jako drzewko z ostrzeżeniem
+   „no style information" — czyli wygląda na zepsuty, będąc poprawnym. */
+function wp_sitemaps_get_server() {
+    return new class {
+        public $renderer;
+        public function __construct() {
+            $this->renderer = new class {
+                public function get_sitemap_stylesheet_url() { return 'https://example.test/wp-sitemap.xsl'; }
+            };
+        }
+    };
+}
+
 /* Silnik języków — atrapa odwzorowująca to, co robi prawdziwy: nieznany slug
    oddaje bez zmian, i właśnie po tym `tl_has_translated_path()` poznaje brak
    tłumaczenia. */

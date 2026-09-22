@@ -2,6 +2,31 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.223.1] — 2026-09-22
+
+### Naprawione
+
+- **Sekcja hreflang wygląda teraz jak reszta mapy.** Brakowało jednej linii:
+  `<?xml-stylesheet type="text/xsl" href="…/wp-sitemap.xsl" ?>`. Plik był przez
+  cały czas poprawnym XML-em z kompletem `xhtml:link` (sprawdzone na żywej
+  stronie: `content-type: application/xml`, powiązania na miejscu), ale bez
+  wskazania arkusza każda przeglądarka pokazuje go po swojemu — Safari sam
+  tekst z wnętrza znaczników, czyli adresy i daty zlepione w ciąg, Chrome
+  drzewko z ostrzeżeniem „no style information". Pozostałe sekcje
+  `wp-sitemap-*` niosą tę linię od rdzenia i dlatego rysują się jako tabela.
+  Adres arkusza bierzemy z `WP_Sitemaps_Renderer::get_sitemap_stylesheet_url()`,
+  bo bez ładnych odnośników rdzeń oddaje `?sitemap-stylesheet=sitemap`,
+  a wpisany na sztywno `/wp-sitemap.xsl` byłby wtedy pustym strzałem.
+  ZGŁOSZONE Z ŻYWEJ STRONY.
+
+- **`lastmod` strony głównej to data treści, nie moment pobrania pliku.**
+  Stało tam `gmdate(DATE_W3C)`, więc dwa wejścia pod ten sam adres w odstępie
+  czterech minut dawały dwie różne daty ostatniej zmiany. Zmyślona świeżość
+  podawana przy każdym żądaniu jest gorsza niż brak pola, bo podważa wszystkie
+  pozostałe daty w tym pliku. Teraz: statyczna strona startowa, a gdy jej nie
+  ma — najnowsza zmiana wśród treści, które i tak trafiają do sekcji; przy
+  braku jednego i drugiego pola nie ma wcale.
+
 ## [1.223.0] — 2026-09-22
 
 ### Dodane
