@@ -127,8 +127,8 @@ function evk_sr_parse_url(string $url): ?array {
     if (!preg_match('~^[a-z][a-z0-9+.\-]*://([^/:?#]+)(:\d+)?([^?#]*)~i', $url, $m)) return null;
     return [
         'host' => strtolower($m[1]),
-        'port' => $m[2] ?? '',
-        'path' => rtrim($m[3] ?? '', '/'),
+        'port' => $m[2],
+        'path' => rtrim($m[3], '/'),
     ];
 }
 
@@ -357,7 +357,6 @@ function evk_sr_walk(string $s, int &$p, array $compiled, array &$stats, int $de
     }
 
     evk_sr_fail('nieznany token „' . $typ . '"', $p);
-    return '';   // nieosiągalne — dla analizy statycznej
 }
 
 /** $n par klucz–wartość wewnątrz a:{…} albo O:{…}. */

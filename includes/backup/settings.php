@@ -88,7 +88,9 @@ function evk_backup_enabled(): bool {
  */
 function evk_backup_exclusion_patterns(): array {
     $s = evk_backup_get_settings();
-    $lista = array_filter(array_map('trim', explode("\n", (string) $s['exclusions'])), 'strlen');
+    $lista = array_filter(array_map('trim', explode("\n", (string) $s['exclusions'])), static function ($w) {
+        return $w !== '';
+    });
     return array_values(array_unique(array_merge($lista, evk_backup_hard_exclusions())));
 }
 
