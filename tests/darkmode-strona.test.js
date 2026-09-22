@@ -272,6 +272,70 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !w.errors.length, w.errors.join(' | ') || 'brak');
   await w.close();
 
+  // ── Trzy typy przejścia różnią się TYM, CO ODSŁANIAJĄ ───────────────────
+  /* Wszystkie trzy stoją na jednej migawce `theme-ripple`, więc dziedziczą
+     poprawki z 1.218.0 i 1.219.0. Różni je wyłącznie kształt odsłaniania —
+     i właśnie to tu mierzymy, w trzech punktach kadru.
+
+     ZMIERZONE (jasność, start 255, koniec 0), przy połowie czasu przejścia:
+
+         typ       góra-środek   dół-lewo   dół-prawo
+         ripple          0           0         255      ← liczy się ODLEGŁOŚĆ
+         wipe            0         255         255      ← liczy się WYSOKOŚĆ
+         fade           58          58          58      ← wszędzie tak samo
+
+     Progi stoją wokół tych liczb, a nie wokół wyobrażenia o nich. Dwa poziomy
+     luzu przy porównaniach „tak samo", bo zrzut jest ośmiobitowy. */
+  t.section('trzy typy przejścia odsłaniają różnym kształtem');
+
+  const GORA = [400, 100], DOL_L = [60, 560], DOL_P = [770, 560];
+
+  for (const typ of ['ripple', 'wipe', 'fade']) {
+    const q = await t.open('darkmode-ripple-strona.html', V);
+    await zapal(q, { global_selectors: '', bricks_selectors: '', theme_trans_type: typ });
+    await q.evaluate(() => window.__zamroz());
+    const czasQ = await q.evaluate(() => (window.__fala.length
+      ? window.__fala[0].effect.getComputedTiming().duration : 0));
+    t.check(typ + ': przejście ma swoją animację', czasQ > 0, czasQ + ' ms');
+
+    const polowa = Math.round(czasQ * 0.5);
+    const gora  = await wPunkcie(q, polowa, GORA);
+    const dolL  = await wPunkcie(q, polowa, DOL_L);
+    const dolP  = await wPunkcie(q, polowa, DOL_P);
+    const opis  = 'góra ' + gora + ', dół-lewo ' + dolL + ', dół-prawo ' + dolP;
+
+    if (typ === 'ripple') {
+      /* Fala idzie od przycisku w lewym górnym rogu, więc o kolejności decyduje
+         ODLEGŁOŚĆ: bliższy dolny róg jest już przemalowany, dalszy jeszcze nie. */
+      t.check('ripple: bliższy róg przemalowany, dalszy jeszcze nie',
+        dolL < 40 && dolP > 200, opis);
+    } else if (typ === 'wipe') {
+      /* Zasłona schodzi poziomą krawędzią, więc o kolejności decyduje WYSOKOŚĆ,
+         a położenie w poziomie nie znaczy nic — oba dolne punkty mają być
+         jeszcze nietknięte i RÓWNE SOBIE. Bez tego drugiego warunku
+         sprawdzenie przechodziłoby także dla fali. */
+      t.check('wipe: góra przemalowana, cały dół jeszcze nie',
+        gora < 40 && dolL > 200 && dolP > 200, opis);
+      t.check('wipe: i oba dolne punkty są tak samo nietknięte',
+        Math.abs(dolL - dolP) <= 2, 'różnica ' + Math.abs(dolL - dolP));
+    } else {
+      /* Przenikanie nie ma krawędzi: cały kadr idzie razem, wartością POŚREDNIĄ.
+         Sprawdzamy oba — bez „pośredniej" przeszłoby też przejście, które
+         jeszcze się nie zaczęło albo już skończyło. */
+      t.check('fade: cały kadr zmienia się razem',
+        Math.abs(gora - dolL) <= 2 && Math.abs(gora - dolP) <= 2, opis);
+      t.check('fade: i jest w połowie drogi, nie na końcu',
+        gora > 20 && gora < 200, 'jasność ' + gora);
+    }
+
+    t.check(typ + ': na starcie kadr nietknięty',
+      (await wPunkcie(q, 0, DOL_P)) > 250, 'jasność ' + (await wPunkcie(q, 0, DOL_P)));
+    t.check(typ + ': na końcu przemalowany w całości',
+      (await wPunkcie(q, czasQ, DOL_P)) < 20, 'jasność ' + (await wPunkcie(q, czasQ, DOL_P)));
+    t.check(typ + ': bez błędów JS', !q.errors.length, q.errors.join(' | ') || 'brak');
+    await q.close();
+  }
+
   /* GASZENIE MA OBOWIĄZYWAĆ TYLKO W TRAKCIE PRZEJŚCIA MOTYWU. Poza nim nazwy
      muszą zostać — inaczej zniknęłoby przejście lista → wpis, czyli to, po co
      ta opcja w ogóle istnieje. Bez tego sprawdzenia mutacja gasząca nazwy

@@ -2,6 +2,54 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.220.0] — 2026-09-22
+
+### Dodane
+
+- **Trzy efekty przy przełączaniu motywu, do wyboru w panelu.** Dotąd był
+  jeden — fala od przycisku. Doszły **zasłona z góry na dół** i **fade całej
+  strony**.
+
+  Wszystkie trzy stoją na tej samej konstrukcji co dotychczasowa fala: `html`
+  dostaje `view-transition-name: theme-ripple`, więc CAŁA strona jest jedną
+  migawką, a stara leży pod spodem w pełni kryjąca. Różni je wyłącznie to, czym
+  odsłaniana jest nowa — maską kołową, maską liniową albo przezroczystością.
+  Dzięki temu każdy z nich dziedziczy poprawki z 1.218.0 (motyw Bricksa
+  przełączany wewnątrz przejścia) i z 1.219.0 (nazwy z „lista → wpis" gaszone
+  na czas przejścia); przy trzech osobnych konstrukcjach trzeba by je naprawiać
+  trzy razy.
+
+  ZMIERZONE na atrapie, jasność w trzech punktach kadru przy POŁOWIE czasu
+  przejścia (start 255, koniec 0):
+
+  | typ | góra-środek | dół-lewo | dół-prawo | o czym decyduje |
+  |---|---|---|---|---|
+  | ripple | 0 | 0 | **255** | odległość od przycisku |
+  | wipe | 0 | **255** | **255** | wysokość, nie poziom |
+  | fade | 58 | 58 | 58 | nic — cały kadr razem |
+
+  Progi w sprawdzeniach stoją wokół tych liczb, a nie wokół wyobrażenia o nich.
+
+  Nowa zmienna `--wipe-theme-pos` jest osobna od `--wipe-pos`, którą prowadzi
+  przejście nawigacyjne: wspólna oznaczałaby, że przełączenie motywu w trakcie
+  przechodzenia między stronami szarpie jednym i drugim.
+
+- **Sekcja w panelu przemianowana** z „Efekt Ripple" na „Przejście przy
+  przełączaniu motywu", z trzema opcjami do wyboru i wyjaśnieniem, na czym
+  polega odsłanianie spod migawki. Pole „Rozmycie krawędzi" dostało
+  podpowiedź, że przy przenikaniu nie ma znaczenia — fade nie ma krawędzi.
+
+- **Odsiew typu w `tests/php/darkmode-easing.php`.** Easing jest zbiorem
+  OTWARTYM, typ przejścia — zamkniętym, trzyelementowym. Bez tej sondy odsiew
+  nie był niczym pilnowany: mutacja wpuszczająca dowolną wartość przechodziła
+  na zielono, bo pomiar z kadru sprawdza, JAK wygląda przejście, a nie co
+  przeżywa zapis. Sprawdzane jest też, że „nav-ripple" — legalny typ przejścia
+  NAWIGACJI — nie przechodzi tu przez podobieństwo nazwy.
+
+  Cztery mutacje różnicujące zapalają cztery RÓŻNE podzbiory: maska kołowa
+  zamiast liniowej (2), przenikanie z maską zamiast przezroczystości (2), JS
+  ignorujący typ (4), odsiew wpuszczający wszystko (2, w innym pliku).
+
 ## [1.219.0] — 2026-09-18
 
 ### Naprawione

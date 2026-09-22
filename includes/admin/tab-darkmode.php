@@ -242,14 +242,42 @@ if (!defined('ABSPATH')) exit;
                 </div>
 
                 <div class="evo-box">
-                    <h3>Efekt Ripple (przełączanie motywu)</h3>
-                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Fala rozchodząca się od przycisku przy zmianie motywu. Wymaga Chrome/Edge 111+.</div></details>
+                    <h3>Przejście przy przełączaniu motywu</h3>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body"><p>Cała strona zostaje zapamiętana jako jedna migawka, a nowy motyw jest spod niej ODSŁANIANY. Dlatego nic nie zmienia koloru, dopóki przejście po nim nie przejdzie — i dlatego niczego nie trzeba dopisywać do żadnej listy.</p><p>Wymaga Chrome/Edge 111+. Gdzie View Transitions nie działają, motyw przełącza się przejściami CSS z sekcji „przejścia bez fali".</p></div></details>
                     <div class="evo-field">
                         <label class="checkbox-label">
                             <input type="checkbox" name="evk_darkmode[ripple_enabled]" value="1" <?php checked(!empty($dm['ripple_enabled'])); ?>>
-                            Włącz efekt ripple
+                            Włącz przejście przy zmianie motywu
                         </label>
                     </div>
+
+                    <?php
+                    /* Typ przejścia MOTYWU. Osobna lista niż przy nawigacji —
+                       tam przechodzi się między dwiema stronami, tu przemalowuje
+                       tę samą. Wspólna jest migawka, na której stoją wszystkie
+                       trzy, więc poprawki z 1.218.0 i 1.219.0 dotyczą każdego. */
+                    $theme_types = [
+                        'ripple' => ['Fala od przycisku', 'Koło rozchodzi się od miejsca kliknięcia'],
+                        'wipe'   => ['Zasłona z góry na dół', 'Nowy motyw zjeżdża poziomą krawędzią'],
+                        'fade'   => ['Fade całej strony', 'Nowy motyw przenika przez stary, bez krawędzi'],
+                    ];
+                    $cur_theme = $dm['theme_trans_type'] ?? 'ripple';
+                    ?>
+                    <div class="evo-field">
+                        <label>Typ przejścia</label>
+                        <div class="evo-grid" style="--evo-col:180px;--evo-gap:8px;margin-top:6px">
+                            <?php foreach ($theme_types as $val => [$name, $desc]): ?>
+                            <label class="evo-choice evo-choice-stack">
+                                <input type="radio" name="evk_darkmode[theme_trans_type]" value="<?php echo $val; ?>" <?php checked($cur_theme, $val); ?>>
+                                <span>
+                                    <strong><?php echo $name; ?></strong>
+                                    <span class="evo-hint-sm"><?php echo $desc; ?></span>
+                                </span>
+                            </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
                     <div class="evo-inline-fields">
                         <div class="evo-field">
                             <label>Czas trwania (ms)</label>
@@ -258,6 +286,7 @@ if (!defined('ABSPATH')) exit;
                         <div class="evo-field">
                             <label>Rozmycie krawędzi (px)</label>
                             <input type="number" name="evk_darkmode[ripple_blur]" value="<?php echo esc_attr($dm['ripple_blur']); ?>" min="0" max="100" step="5" class="evo-w-xs">
+                            <span class="evo-hint-sm">Dotyczy krawędzi fali i zasłony. Przy przenikaniu nie ma znaczenia — fade nie ma krawędzi.</span>
                         </div>
                         <div class="evo-field">
                             <label>Easing</label>

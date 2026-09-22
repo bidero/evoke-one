@@ -42,7 +42,8 @@ class EVK_DarkMode {
         'logo_dark_class'   => 'item-dark',
         'logo_duration'     => 1.0,
         'logo_easing'       => 'ease-in-out',
-        // Ripple
+        // Przejście motywu
+        'theme_trans_type'  => 'ripple',   // ripple | wipe | fade
         'ripple_enabled'    => 1,
         'ripple_duration'   => 1200,
         'ripple_blur'       => 20,
@@ -156,6 +157,15 @@ class EVK_DarkMode {
         foreach ($texts as $key) {
             $clean[$key] = isset($input[$key]) ? sanitize_textarea_field($input[$key]) : $this->defaults[$key];
         }
+
+        /* Typ przejścia MOTYWU — osobna lista niż przy nawigacji, bo to inne
+           zjawisko: nawigacja przechodzi między dwiema stronami, motyw
+           przemalowuje tę samą. Wspólna jest tylko migawka `theme-ripple`,
+           na której stoją wszystkie trzy. */
+        $allowed_theme_types = ['ripple', 'wipe', 'fade'];
+        $clean['theme_trans_type'] = in_array($input['theme_trans_type'] ?? '', $allowed_theme_types, true)
+            ? $input['theme_trans_type']
+            : $this->defaults['theme_trans_type'];
 
         $allowed_nav_types = ['wipe', 'fade', 'zoom-out', 'zoom-in', 'slide-push', 'iris', 'nav-ripple'];
         $clean['nav_trans_type'] = in_array($input['nav_trans_type'] ?? '', $allowed_nav_types, true)
@@ -322,6 +332,7 @@ class EVK_DarkMode {
         $wipe_easing = esc_attr($s['wipe_easing']);
         $wipe_color  = esc_attr($s['wipe_color']);
         $ripple_blur = intval($s['ripple_blur']);
+        $theme_trans_type = $s['theme_trans_type'] ?? 'ripple';
 
         echo "<style id=\"evk-darkmode-css\">\n";
 
@@ -383,6 +394,15 @@ CSS;
     syntax: '<length>';
     inherits: false;
     initial-value: 0px;
+}
+/* Pozycja czoła zasłony przy przełączaniu MOTYWU — osobna od `--wipe-pos`,
+   którą prowadzi przejście nawigacyjne. Wspólna zmienna oznaczałaby, że
+   przełączenie motywu w trakcie przechodzenia między stronami szarpie jednym
+   i drugim. */
+@property --wipe-theme-pos {
+    syntax: '<percentage>';
+    inherits: false;
+    initial-value: 0%;
 }
 @property --nav-circle-r {
     syntax: '<percentage>';
@@ -636,6 +656,46 @@ CSS;
                 echo "}\n\n";
             }
 
+            /* CO ODSŁANIA NOWĄ MIGAWKĘ — zależnie od wybranego typu.
+             *
+             * Wszystkie trzy stoją na tej samej konstrukcji: `html` dostaje
+             * `view-transition-name: theme-ripple`, więc CAŁA strona jest jedną
+             * migawką, a stara leży pod spodem w pełni kryjąca. Różni je
+             * wyłącznie to, CZYM odsłaniamy nową:
+             *
+             *   · ripple — maska kołowa rosnąca od przycisku,
+             *   · wipe   — maska liniowa schodząca z góry na dół,
+             *   · fade   — bez maski, przenikanie przezroczystością.
+             *
+             * Dzięki wspólnej migawce każdy z nich dziedziczy poprawki z 1.218.0
+             * (motyw Bricksa przełączany wewnątrz przejścia) i z 1.219.0 (nazwy
+             * z „lista → wpis" gaszone na czas przejścia). Gdyby każdy typ miał
+             * własną konstrukcję, trzeba by je naprawiać trzy razy.
+             *
+             * `--ripple-radius` i `--wipe-theme-pos` są zarejestrowane przez
+             * `@property`, więc dają się animować; samo `mask-image` nie. */
+            $maska_kolo = "radial-gradient(
+        circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+        black calc(max(0px, var(--ripple-radius) - {$ripple_blur}px)),
+        transparent var(--ripple-radius)
+    )";
+            $maska_pasmo = "linear-gradient(
+        to bottom,
+        black calc(var(--wipe-theme-pos) - {$ripple_blur}px),
+        transparent var(--wipe-theme-pos)
+    )";
+
+            if ($theme_trans_type === 'fade') {
+                /* FADE. Bez maski — nowa migawka po prostu narasta
+                   przezroczystością. Stara zostaje w pełni kryjąca pod spodem,
+                   więc nie wraca artefakt rozjaśniania usunięty w 1.216.0. */
+                $odslaniacz = "    opacity: 0;";
+            } else {
+                $maska = ($theme_trans_type === 'wipe') ? $maska_pasmo : $maska_kolo;
+                $odslaniacz = "    -webkit-mask-image: {$maska} !important;\n"
+                            . "    mask-image: {$maska} !important;";
+            }
+
             echo <<<CSS
 html.is-theme-toggling {
     view-transition-name: theme-ripple;
@@ -652,16 +712,7 @@ html.is-theme-toggling {
 ::view-transition-new(theme-ripple) {
     animation: none !important;
     z-index: 2;
-    -webkit-mask-image: radial-gradient(
-        circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
-        black calc(max(0px, var(--ripple-radius) - {$ripple_blur}px)),
-        transparent var(--ripple-radius)
-    ) !important;
-    mask-image: radial-gradient(
-        circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
-        black calc(max(0px, var(--ripple-radius) - {$ripple_blur}px)),
-        transparent var(--ripple-radius)
-    ) !important;
+{$odslaniacz}
 }
 
 CSS;
@@ -837,6 +888,7 @@ CSS;
         $ripple_enabled   = !empty($s['ripple_enabled']);
         $ripple_duration  = intval($s['ripple_duration']);
         $ripple_easing    = esc_js($s['ripple_easing']);
+        $theme_trans_type = esc_js($s['theme_trans_type'] ?? 'ripple');
         $toggle_selector  = esc_js($s['toggle_selector'] ?: '.brxe-toggle-mode');
         $nav_trans_type   = esc_js($s['nav_trans_type'] ?? 'wipe');
         $nav_enabled      = !empty($s['wipe_enabled']);
@@ -850,6 +902,7 @@ CSS;
     var rippleEnabled  = <?php echo $ripple_enabled ? 'true' : 'false'; ?>;
     var rippleDuration = <?php echo $ripple_duration; ?>;
     var rippleEasing   = '<?php echo $ripple_easing; ?>';
+    var themeTransType = '<?php echo $theme_trans_type; ?>';
     var toggleSelector = '<?php echo $toggle_selector; ?>';
     var navTransType   = '<?php echo $nav_trans_type; ?>';
     var navEnabled     = <?php echo $nav_enabled ? 'true' : 'false'; ?>;
@@ -965,8 +1018,23 @@ CSS;
                     // zabierało starej migawce jej stary kolor.
                     html.classList.add('is-theme-settled');
 
+                    /* CZYM ODSŁANIAMY NOWĄ MIGAWKĘ. Trzy typy, jedna
+                     * konstrukcja — różni je wyłącznie animowana wartość:
+                     *
+                     *   · ripple — promień maski kołowej, od przycisku,
+                     *   · wipe   — czoło maski liniowej, z góry na dół,
+                     *   · fade   — przezroczystość, bez maski.
+                     *
+                     * Sto pięćdziesiąt pikseli zapasu przy fali i dwadzieścia
+                     * procent przy zasłonie biorą się z rozmycia krawędzi:
+                     * bez zapasu ostatni pas ekranu zostawałby nieodsłonięty. */
+                    var doAnimacji =
+                          themeTransType === 'wipe' ? { '--wipe-theme-pos': ['0%', '120%'] }
+                        : themeTransType === 'fade' ? { opacity: [0, 1] }
+                        : { '--ripple-radius': ['0px', (endRadius + 150) + 'px'] };
+
                     html.animate(
-                        { '--ripple-radius': ['0px', (endRadius + 150) + 'px'] },
+                        doAnimacji,
                         {
                             duration: rippleDuration,
                             easing: rippleEasing,

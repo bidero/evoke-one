@@ -102,4 +102,17 @@ $wyniki['zmienne_smieci'] = przepusc($el, [
 
 $wyniki['zmienne_puste'] = przepusc($el, ['color_vars' => '']);
 
+/* ── Typ przejścia motywu: zbiór ZAMKNIĘTY ───────────────────────────────────
+ *
+ * Easing jest otwarty — krzywych jest nieskończenie wiele — ale typów przejścia
+ * są trzy i czwartego nie będzie. Bez tej sondy odsiew był nieprzypilnowany:
+ * mutacja wpuszczająca dowolną wartość przechodziła na zielono, bo z markupu
+ * zakładki widać tylko, JAKIE pola są, a nie co przeżywa zapis.
+ *
+ * Wartość spoza listy ma wrócić do domyślnej, a nie wylądować w CSS-ie. */
+$wyniki['typ_z_listy']   = $el->sanitize_settings(['theme_trans_type' => 'wipe'])['theme_trans_type'];
+$wyniki['typ_spoza']     = $el->sanitize_settings(['theme_trans_type' => 'nav-ripple'])['theme_trans_type'];
+$wyniki['typ_smieci']    = $el->sanitize_settings(['theme_trans_type' => '"><script>'])['theme_trans_type'];
+$wyniki['typ_brak_pola'] = $el->sanitize_settings([])['theme_trans_type'];
+
 echo json_encode($wyniki, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";

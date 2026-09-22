@@ -43,6 +43,27 @@ module.exports = async function (t) {
   t.check('w tym „logo_easing", którego wcześniej nie było wcale',
     pola.includes('logo_easing'), pola.includes('logo_easing') ? 'jest' : 'brak');
 
+  // ── Typ przejścia motywu: zbiór zamknięty, więc odsiew musi być szczelny ──
+  /* Easing jest otwarty — krzywych jest nieskończenie wiele — ale typów
+     przejścia motywu są trzy. Bez tej sekcji odsiew był nieprzypilnowany:
+     mutacja wpuszczająca dowolną wartość przechodziła na zielono, bo pomiar
+     z kadru sprawdza, JAK wygląda przejście, a nie co przeżywa zapis. */
+  t.section('typ przejścia motywu odsiewa wszystko spoza trzech wartości');
+
+  t.check('wartość z listy przechodzi', d.typ_z_listy === 'wipe', String(d.typ_z_listy));
+  /* „nav-ripple" jest legalnym typem przejścia NAWIGACJI — i właśnie dlatego
+     to dobry test: podobieństwo nazw nie może go przepuścić. */
+  t.check('typ z sąsiedniej listy nie przechodzi', d.typ_spoza === 'ripple', String(d.typ_spoza));
+  t.check('a śmieci tym bardziej', d.typ_smieci === 'ripple', String(d.typ_smieci));
+  t.check('brak pola daje domyślną falę', d.typ_brak_pola === 'ripple', String(d.typ_brak_pola));
+
+  const wybory = (phpOutput('tab.php', 'darkmode').match(
+    /name="evk_darkmode\[theme_trans_type\]"[^>]*value="([a-z-]+)"/g) || [])
+    .map((m) => m.match(/value="([a-z-]+)"/)[1]);
+  t.check('a w panelu są dokładnie te trzy do wyboru',
+    wybory.length === 3 && ['ripple', 'wipe', 'fade'].every((v) => wybory.includes(v)),
+    wybory.join(', ') || 'brak');
+
   /* KONTROLA NEGATYWNA: lista zostaje tam, gdzie zestaw wartości jest ZAMKNIĘTY.
      Kierunek wycierania ma cztery możliwe wartości i piątej nie będzie — easing
      jest otwarty, kierunek nie. Bez tego sprawdzenia „zamieniliśmy listy na
