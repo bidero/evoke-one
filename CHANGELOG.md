@@ -2,6 +2,44 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.226.1] — 2026-09-22
+
+### Naprawione (zgłoszone z użycia)
+
+- **Pasek postępu kopii odświeża się co sekundę.** Zmierzone przed
+  poprawką: kopia z plikiem 150 MB trwała 10,7 s, a pasek zmienił się
+  3 razy — przez całe pakowanie stał na 0%. Dwie osobne przyczyny: postęp
+  zapisywał się dopiero na końcu kroku (co 20 s), a pakowanie liczyło
+  wyłącznie pliki skończone, więc duży plik w połowie dawał 0%. Teraz krok
+  pracuje porcjami po najwyżej sekundzie z zapisem po każdej, liczy bajty
+  pliku w połowie, a panel pyta co sekundę. Po poprawce ta sama kopia:
+  0 → 16 → 32 → 48 → 63 → 80 → 100% w 7 s. Obok procentu szczegół etapu
+  w liczbach („36,8 MB z 195,6 MB", „znaleziono 1340 plików").
+- **Lista kopii na telefonie.** Przyciski Pobierz / Przypnij / Usuń miały
+  różne wysokości (40 px wobec 44 px — `<a>` i `<button>` dostają
+  w WordPressie inną), a wiersz 536 px przy ekranie 390 px chował je za
+  przewijaniem w bok. Teraz każda kopia to karta: opis w liniach, pod nim
+  trzy przyciski rzędem, równej wysokości i szerokości.
+- **„Środowisko serwera" zwinięte w akordeon**, z podsumowaniem w nagłówku
+  („wszystko w porządku", „1 uwaga"). Otwiera się samo tylko wtedy, gdy coś
+  blokuje moduł — ramka błędu odsyła do tabeli, więc tabela ma być widoczna.
+- **„Napęd kopii w tle" → „Praca w tle"** — brzmiało nienaturalnie. Opis
+  stoi teraz nad przyciskiem, wynik testu pod nim; wcześniej opis opływał
+  przycisk i łamał się w dziwnych miejscach.
+- Komunikat „Kopia gotowa" pojawia się razem z nową pozycją na liście, a nie
+  chwilę przed nią.
+
+### Testy
+
+- `backup-panel`: lista na 390 px (równa wysokość, rząd pod opisem, bez
+  przewijania w bok), co najmniej 5 różnych wartości paska w trakcie kopii
+  (próg ustawiony po pomiarze: przed 3, po 8), akordeon, brak słowa
+  „napęd" — sprawdzany w `textContent`, bo `innerText` pomija zwinięty
+  akordeon i mutacja przechodziła. `backup-silnik`: bajty pliku w połowie
+  w postępie i zapis postępu przed śmiercią kroku — dwie mutacje, dwa różne
+  zestawy. Reguła CSS wyrównująca przyciski na szerokim ekranie usunięta:
+  mutacja pokazała, że niczego nie zmieniała.
+
 ## [1.226.0] — 2026-09-22
 
 ### Dodane

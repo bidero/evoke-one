@@ -35,6 +35,15 @@ module.exports = async function (t) {
     (dobry.html.match(/<tr class="is-/g) || []).length === dobry.checks.length,
     dobry.checks.length + ' wierszy oceny');
 
+  /* Środowisko zwinięte w akordeon (1.226.1) — otwarte wyłącznie wtedy, gdy
+     coś blokuje moduł: ramka błędu odsyła „do tabeli niżej", więc tabela
+     musi być widoczna bez szukania. */
+  const akordeon = (w) => (w.html.match(/<details class="evo-acc[^"]*evk-backup-srodowisko"[^>]*>/) || [''])[0];
+  const podsum = (w) => ((w.html.match(/<span class="evo-acc-count">([^<]*)</) || [])[1] || '');
+  t.check('akordeon zwinięty, gdy nic nie blokuje; podsumowanie „wszystko w porządku"',
+    akordeon(dobry) !== '' && !/\bopen\b/.test(akordeon(dobry)) && podsum(dobry) === 'wszystko w porządku',
+    akordeon(dobry) + ' / ' + podsum(dobry));
+
   t.section('braki blokujące');
 
   for (const [nazwa, fakty, label] of [
@@ -65,7 +74,14 @@ module.exports = async function (t) {
 
   t.section('ostrzeżenia nie blokują');
 
+  const zablokowany = sonda({ zip: false });
+  t.check('blokada: akordeon otwarty, podsumowanie „blokuje moduł"',
+    /\bopen\b/.test(akordeon(zablokowany)) && podsum(zablokowany) === 'blokuje moduł',
+    akordeon(zablokowany) + ' / ' + podsum(zablokowany));
+
   const nginx = sonda({ server: 'nginx/1.24.0' });
+  t.check('ostrzeżenie: akordeon zwinięty, podsumowanie „1 uwaga"',
+    !/\bopen\b/.test(akordeon(nginx)) && podsum(nginx) === '1 uwaga', podsum(nginx));
   t.check('nginx: ostrzeżenie o .htaccess, moduł nie zablokowany',
     wiersz(nginx, 'Serwer WWW').status === 'warn' && !nginx.blocked, statusy(nginx));
   t.check('Apache: bez ostrzeżenia', wiersz(dobry, 'Serwer WWW').status === 'info');

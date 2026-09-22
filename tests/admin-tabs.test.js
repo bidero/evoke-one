@@ -83,7 +83,10 @@ const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
                /* Tłumaczenia NIE używają `.evo-box` — mają własny
                   `.tl-menu-settings`, więc do BOXED nie należą. */
                'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-themecolor', 'fe-sierotki',
-               'backup'];
+               /* Kopie: boksy ma wersja z włączonym modułem (kopia teraz, lista,
+                  ustawienia). Przy wyłączonym jest tylko ramka informacyjna
+                  i akordeon środowiska (od 1.226.1), więc „backup" tu nie należy. */
+               'backup-on'];
 
 module.exports = async function (t) {
   // ── Zdublowany atrybut class ──────────────────────────────────────────

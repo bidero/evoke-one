@@ -40,6 +40,8 @@ const EVK_BACKUP_LOCK_MARGIN  = 60;      // s
 const EVK_BACKUP_MAX_KILLS    = 8;
 /** Linii logu trzymanych w zadaniu. */
 const EVK_BACKUP_LOG_LINES    = 300;
+/** Najdłuższa porcja pracy między zapisami postępu (s) — patrz run_phases. */
+const EVK_BACKUP_SLICE        = 1.0;
 
 add_action('evk_backup_tick', 'evk_backup_tick');
 
@@ -294,6 +296,12 @@ function evk_backup_phase_label(string $faza): string {
  */
 function evk_backup_run_phases(array $job, float $deadline): array {
     do {
+        /* PORCJA najwyżej ~1 s, nawet w kroku 20-sekundowym: po każdej idzie
+           checkpoint, więc pasek w panelu (odpytywanie co 1 s) widzi postęp
+           na bieżąco. Zmierzone przed zmianą: kopia z plikiem 150 MB trwała
+           10,7 s, a pasek zmienił się 3 razy — postęp zapisywał się na
+           końcu kroku. Porcja kończy też anulowanie szybciej. */
+        $porcja = min($deadline, microtime(true) + EVK_BACKUP_SLICE);
         // Anulowanie z panelu sprawdzane między porcjami.
         $status = evk_backup_job_status($job['id']);
         if ($status === 'cancelled') {
@@ -304,9 +312,9 @@ function evk_backup_run_phases(array $job, float $deadline): array {
 
         switch ($job['phase']) {
             case 'init':     $job = evk_backup_phase_init($job); break;
-            case 'db':       $job = evk_backup_phase_db($job, $deadline); break;
-            case 'list':     $job = evk_backup_phase_list($job, $deadline); break;
-            case 'pack':     $job = evk_backup_phase_pack($job, $deadline); break;
+            case 'db':       $job = evk_backup_phase_db($job, $porcja); break;
+            case 'list':     $job = evk_backup_phase_list($job, $porcja); break;
+            case 'pack':     $job = evk_backup_phase_pack($job, $porcja); break;
             case 'finalize': $job = evk_backup_phase_finalize($job); break;
             default: throw new \RuntimeException('Nieznana faza zadania: ' . $job['phase']);
         }
@@ -432,11 +440,16 @@ function evk_backup_phase_pack(array $job, float $deadline): array {
 
     if ($job['state']['pack_sub'] === 'files' && microtime(true) < $deadline) {
         $job['state']['pack'] = evk_backup_pack_step($w, $job['state']['pack'], $deadline);
-        $job['progress_done'] = (int) $job['state']['db']['bytes'] + (int) $job['state']['pack']['bytes'];
         if ($job['state']['pack']['done']) $job['phase'] = 'finalize';
     }
 
     $job['state']['zip'] = $w->state();
+    /* Postęp liczy też bajty pliku przerwanego w połowie — inaczej duży plik
+       (wideo, archiwum) trzymał pasek w miejscu przez cały swój czas. */
+    $wisi = (int) ($job['state']['zip']['pending']['pos'] ?? 0);
+    $job['progress_done'] = $job['state']['pack_sub'] === 'files'
+        ? (int) $job['state']['db']['bytes'] + (int) $job['state']['pack']['bytes'] + $wisi
+        : $wisi;
     return $job;
 }
 

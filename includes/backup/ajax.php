@@ -34,8 +34,30 @@ function evk_backup_job_public(?array $job): ?array {
         'error'    => (string) $job['error'],
         'ticks'    => $job['ticks'],
         'budget_s' => round($job['budget_ms'] / 1000, 1),
+        'detail'   => evk_backup_job_detail($job),
         'log'      => array_slice(explode("\n", (string) $job['log']), -12),
     ];
+}
+
+/**
+ * Szczegół etapu w liczbach, które zmieniają się przy każdej porcji —
+ * procent bywa przez chwilę ten sam, a „ile już" rośnie zawsze.
+ */
+function evk_backup_job_detail(array $job): string {
+    $s = $job['state'];
+    switch ($job['phase']) {
+        case 'db':
+            return sprintf('%s wierszy z ok. %s', number_format_i18n((int) ($s['db']['rows'] ?? 0)),
+                number_format_i18n((int) ($s['db']['estimate'] ?? 0)));
+        case 'list':
+            return sprintf('znaleziono %s plików (%s)', number_format_i18n((int) ($s['list']['files'] ?? 0)),
+                evk_backup_bytes_label((float) ($s['list']['size'] ?? 0)));
+        case 'pack':
+        case 'finalize':
+            return sprintf('%s z %s', evk_backup_bytes_label((float) $job['progress_done']),
+                evk_backup_bytes_label((float) $job['progress_total']));
+    }
+    return '';
 }
 
 add_action('wp_ajax_evk_backup_start', function () {
@@ -235,17 +257,17 @@ function evk_backup_render_list(): string {
         <tbody>
         <?php foreach ($kopie as $k): $n = (string) $k['archive']; $pin = !empty($k['pinned']); ?>
             <tr data-archive="<?php echo esc_attr($n); ?>">
-                <td><?php echo esc_html(wp_date('Y-m-d H:i', (int) $k['created_at'])); ?>
+                <td class="evk-backup-data"><?php echo esc_html(wp_date('Y-m-d H:i', (int) $k['created_at'])); ?>
                     <?php if ($pin): ?><span class="evo-badge" title="Przypięta — retencja jej nie usuwa">przypięta</span><?php endif; ?></td>
-                <td><?php echo esc_html(evk_backup_source_label((string) $k['source'])); ?></td>
-                <td><?php echo esc_html(evk_backup_bytes_label((float) $k['size'])); ?></td>
-                <td class="evo-muted"><?php
+                <td data-label="Rodzaj"><?php echo esc_html(evk_backup_source_label((string) $k['source'])); ?></td>
+                <td data-label="Rozmiar"><?php echo esc_html(evk_backup_bytes_label((float) $k['size'])); ?></td>
+                <td data-label="Zawartość" class="evo-muted"><?php
                     echo isset($k['files']) ? esc_html(sprintf('%d plików, %d wierszy bazy', (int) $k['files'], (int) ($k['db_rows'] ?? 0))) : '—';
                 ?></td>
-                <td class="is-right">
+                <td class="is-right evk-backup-akcje">
                     <a class="button button-small" href="<?php echo esc_url(evk_backup_download_url($n)); ?>" data-evk-backup-download>Pobierz</a>
                     <button type="button" class="button button-small" data-evk-backup-pin="<?php echo $pin ? '0' : '1'; ?>"><?php echo $pin ? 'Odepnij' : 'Przypnij'; ?></button>
-                    <button type="button" class="button button-small evo-btn-plain is-danger" data-evk-backup-delete>Usuń</button>
+                    <button type="button" class="button button-small evk-backup-usun" data-evk-backup-delete>Usuń</button>
                 </td>
             </tr>
         <?php endforeach; ?>

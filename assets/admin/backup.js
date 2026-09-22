@@ -1,6 +1,6 @@
-/* Evoke ONE — Kopie zapasowe: kopia teraz, postęp, lista, test napędu w tle.
+/* Evoke ONE — Kopie zapasowe: kopia teraz, postęp, lista, test pracy w tle.
  *
- * Bez jQuery: fetch + FormData do admin-ajax. Odpytywanie stanu co 2 s —
+ * Bez jQuery: fetch + FormData do admin-ajax. Odpytywanie stanu co 1 s —
  * serwer przy okazji POPYCHA zadanie, którego od kilku sekund nikt nie ruszył
  * (ajax.php, evk_backup_status), więc przy otwartej karcie kopia idzie dalej
  * nawet wtedy, gdy żądania serwera do siebie są blokowane. */
@@ -41,7 +41,8 @@
         var pasek = $('[data-evk-backup-bar]');
         pasek.firstElementChild.style.width = job.percent + '%';
         pasek.setAttribute('aria-valuenow', String(job.percent));
-        $('[data-evk-backup-percent]').textContent = job.percent + '% · kroków: ' + job.ticks + ' · długość kroku: ' + job.budget_s + ' s';
+        $('[data-evk-backup-percent]').textContent = job.percent + '%' + (job.detail ? ' · ' + job.detail : '')
+            + ' · kroków: ' + job.ticks + ' · długość kroku: ' + job.budget_s + ' s';
         $('[data-evk-backup-log]').textContent = (job.log || []).join('\n');
     }
 
@@ -62,11 +63,17 @@
             if (!r || !r.success) { komunikat('Nie udało się odczytać stanu kopii.', 'warn'); ustawPrzyciski(false); return; }
             var job = r.data.job;
             pokaz(job);
-            if (trwa(job)) { timer = setTimeout(odpytuj, 2000); return; }
+            /* Co sekundę: silnik zapisuje postęp po każdej porcji (≤ 1 s),
+               więc rzadsze odpytywanie gubiłoby zmiany paska. */
+            if (trwa(job)) { timer = setTimeout(odpytuj, 1000); return; }
             ustawPrzyciski(false);
             if (job.status === 'done') {
-                komunikat('Kopia gotowa: ' + job.archive, 'ok');
-                post('evk_backup_list').then(function (l) { if (l && l.success) odswiezListe(l.data.html); });
+                /* Najpierw lista, potem komunikat — pojawiają się razem, zamiast
+                   „Kopia gotowa" nad listą, w której kopii jeszcze nie ma. */
+                post('evk_backup_list').then(function (l) {
+                    if (l && l.success) odswiezListe(l.data.html);
+                    komunikat('Kopia gotowa: ' + job.archive, 'ok');
+                }, function () { komunikat('Kopia gotowa: ' + job.archive, 'ok'); });
             } else if (job.status === 'failed') {
                 komunikat('Kopia nie powiodła się: ' + job.error, 'err');
             } else if (job.status === 'cancelled') {
@@ -82,7 +89,7 @@
             if (!r || !r.success) { komunikat((r && r.data && r.data.msg) || 'Nie udało się rozpocząć kopii.', 'err'); ustawPrzyciski(false); return; }
             jobId = r.data.job.id;
             pokaz(r.data.job);
-            timer = setTimeout(odpytuj, 1500);
+            timer = setTimeout(odpytuj, 700);
         });
     });
 
@@ -109,15 +116,19 @@
         }
     });
 
-    // Test napędu w tle: ile żyje żądanie serwera do samego siebie.
+    // Test pracy w tle: ile żyje żądanie serwera do samego siebie.
     var probe = $('[data-evk-backup-probe-start]');
     var probeWynik = $('[data-evk-backup-probe-result]');
+    function wynikTla(tekst, rodzaj) {
+        probeWynik.textContent = tekst;
+        probeWynik.className = 'evk-backup-tlo-wynik' + (rodzaj ? ' is-' + rodzaj : '');
+    }
     if (probe) probe.addEventListener('click', function () {
         probe.disabled = true;
-        probeWynik.textContent = 'Test trwa…';
+        wynikTla('Test trwa…', '');
         post('evk_backup_probe_start').then(function (r) {
             if (!r || !r.success || !r.data.sent) {
-                probeWynik.textContent = 'Serwer nie wysłał żądania do samego siebie — kopia pójdzie przez WP-Cron i otwartą zakładkę.';
+                wynikTla('Serwer nie może wysłać żądania do samego siebie. Kopia i tak się zrobi — przez WP-Cron i otwartą kartę, wolniej.', 'warn');
                 probe.disabled = false;
                 return;
             }
@@ -125,14 +136,16 @@
             (function sprawdz() {
                 post('evk_backup_probe_status').then(function (s) {
                     var d = s && s.data ? s.data : {};
-                    probeWynik.textContent = 'Żądanie w tle żyje: ' + d.alive_s + ' s z ' + d.seconds + ' s…';
+                    wynikTla('Test trwa… praca w tle: ' + d.alive_s + ' s z ' + d.seconds + ' s.', '');
                     if (d.done || d.since_s >= koniec) {
                         probe.disabled = false;
-                        probeWynik.textContent = d.done
-                            ? 'W porządku: żądanie w tle przeżyło pełne ' + d.seconds + ' s. Kopia będzie szła w tle także przy zamkniętej karcie.'
-                            : (d.alive_s < 2
-                                ? 'Żądanie w tle zostało ubite po ' + d.alive_s + ' s. Serwer przerywa pracę po rozłączeniu — kopia pójdzie przez WP-Cron i otwartą zakładkę (wolniej). Na LiteSpeed pomaga reguła noabort w .htaccess.'
-                                : 'Żądanie w tle przeżyło ' + d.alive_s + ' s z ' + d.seconds + ' s — kroki kopii dopasują się do tego same.');
+                        if (d.done) {
+                            wynikTla('Praca w tle działa: test przetrwał pełne ' + d.seconds + ' s. Kopia zrobi się także po zamknięciu karty.', 'ok');
+                        } else if (d.alive_s < 2) {
+                            wynikTla('Serwer przerwał pracę w tle po ' + d.alive_s + ' s. Kopia i tak się zrobi, ale wolniej — przez WP-Cron i otwartą kartę. Na LiteSpeed pomaga reguła noabort w .htaccess.', 'warn');
+                        } else {
+                            wynikTla('Praca w tle trwała ' + d.alive_s + ' s z ' + d.seconds + ' s. Kopia sama dopasuje długość kroków do tego serwera.', 'warn');
+                        }
                         return;
                     }
                     setTimeout(sprawdz, 2000);

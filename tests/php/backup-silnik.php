@@ -204,6 +204,16 @@ switch ($scen) {
             budzet($id, 1); evk_backup_tick($id);
             if (++$n > 5000) throw new RuntimeException('nie doszło do pakowania');
         }
+        /* Krok w połowie dużego pliku (duży idzie pierwszy — pliki z korzenia
+           przed podkatalogami): postęp ma wliczać już przeczytane bajty tego
+           pliku, inaczej pasek stoi przez cały jego czas (1.226.1). */
+        $przed_krokiem = evk_backup_job_get($id);
+        budzet($id, 1); evk_backup_tick($id);
+        $w_polowie = evk_backup_job_get($id);
+        $wynik['wisi_duzy'] = ($w_polowie['state']['zip']['pending']['name'] ?? '') === 'wp-content/evk-test-duzy.txt';
+        $wynik['postep_z_polowy'] = $w_polowie['progress_done'] - $przed_krokiem['progress_done'];
+        $wynik['wisi_bajtow'] = (int) ($w_polowie['state']['zip']['pending']['pos'] ?? 0);
+
         $przed = evk_backup_job_get($id);
         $cmd = [PHP_BINARY, __FILE__, 'krok', (string) $id, '20000'];
         if ($scen === 'pamiec') $cmd[] = 'pamiec';

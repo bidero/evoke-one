@@ -1452,6 +1452,33 @@
 .evk-backup-log { max-height: 220px; overflow: auto; margin: 6px 0 0; padding: 8px 10px; font-size: 11px; line-height: 1.6;
     background: var(--evo-code-bg); color: var(--evo-code-text); border-radius: 6px; white-space: pre-wrap; word-break: break-word; }
 .evk-backup-lista td .evo-badge { margin-left: 6px; }
+/* Praca w tle — opis nad przyciskiem, wynik pod nim; nic nie opływa przycisku. */
+.evk-backup-tlo { padding-top: 14px; border-top: 1px solid var(--evo-border-soft); }
+.evk-backup-tlo h4 { margin: 0 0 4px; font-size: 13px; }
+.evk-backup-tlo p { margin: 0 0 10px; max-width: 70ch; }
+.evk-backup-tlo .evk-backup-tlo-wynik { margin: 10px 0 0; }
+.evk-backup-tlo .evk-backup-tlo-wynik:empty { display: none; }
+.evk-backup-tlo-wynik.is-ok { color: var(--evo-on); }
+.evk-backup-tlo-wynik.is-warn { color: var(--evo-warn); }
+.evk-backup-lista .evk-backup-akcje .evk-backup-usun { color: var(--evo-danger); }
+/* Telefon: wiersz jako karta — opis w liniach, akcje rzędem POD opisem, po
+   równo szerokości. Zmierzone przed zmianą: wiersz 536 px przy ekranie 390 px,
+   przyciski za przewijaniem w bok. */
+@media (max-width: 782px) {
+    .evk-backup-lista thead { display: none; }
+    .evk-backup-lista, .evk-backup-lista tbody, .evk-backup-lista tr, .evk-backup-lista td { display: block; width: 100%; box-sizing: border-box; }
+    .evk-backup-lista tr { padding: 12px 0; }
+    .evk-backup-lista td { padding: 2px 0; }
+    .evk-backup-lista td.evk-backup-data { font-weight: 600; }
+    .evk-backup-lista td[data-label]::before { content: attr(data-label) ": "; color: var(--evo-text-dim); }
+    .evk-backup-lista td.evk-backup-akcje { display: flex; gap: 8px; margin-top: 8px; white-space: normal; text-align: left; }
+    /* Trzy akcje tej samej wysokości: <a class="button"> i <button> dostają
+       w WordPressie na telefonie różną (zmierzone: 40 px wobec 44 px). Rząd
+       flex rozciąga je do jednej i to wystarcza — dodatkowe min-height
+       i inline-flex nie zmieniały niczego poza liczbą (sprawdzone mutacją
+       i pomiarem położenia tekstu: środek w obu wariantach). */
+    .evk-backup-lista td.evk-backup-akcje .button { flex: 1 1 0; margin: 0; }
+}
 /* Pusty stan — komunikat zamiast pustej ramki. */
 .evo-empty {
     padding: 16px 10px;

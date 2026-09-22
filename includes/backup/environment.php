@@ -144,7 +144,7 @@ function evk_backup_environment_checks(array $f): array {
             'note'   => [
                 'tak' => 'Serwer podaje pliki z katalogu kopii mimo .htaccess (albo go nie czyta). Kopie chroni wtedy tylko losowa, 20-znakowa nazwa katalogu — pobieraj je wyłącznie przez panel.',
                 'nie' => 'Sprawdzone plikiem próbnym: serwer odmawia dostępu z sieci.',
-            ][$wyst] ?? 'Serwer nie odpowiedział sam sobie (zapora, Basic Auth, DNS). To samo może blokować napędzanie kopii żądaniami do siebie — kopia pójdzie wtedy przez WP-Cron.',
+            ][$wyst] ?? 'Serwer nie odpowiedział sam sobie (zapora, Basic Auth, DNS). To samo może blokować pracę kopii w tle — kopia pójdzie wtedy przez WP-Cron i otwartą kartę.',
         ];
     }
 

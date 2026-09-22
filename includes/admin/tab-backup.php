@@ -130,9 +130,14 @@ $bk_ikony  = [
 </div>
 <?php endif; ?>
 
-<!-- ŚRODOWISKO -->
-<div class="evo-box evo-mt">
-    <h3>Środowisko serwera</h3>
+<!-- ŚRODOWISKO — zwinięte; otwarte, gdy coś blokuje moduł -->
+<?php
+$bk_uwag = count(array_filter($bk_checks, static function ($c) { return in_array($c['status'], ['warn', 'err'], true); }));
+$bk_podsum = $bk_block ? 'blokuje moduł' : ($bk_uwag ? $bk_uwag . ' ' . ($bk_uwag === 1 ? 'uwaga' : ($bk_uwag < 5 ? 'uwagi' : 'uwag')) : 'wszystko w porządku');
+?>
+<details class="evo-acc evo-mt evk-backup-srodowisko"<?php echo $bk_block ? ' open' : ''; ?>>
+    <summary>Środowisko serwera <span class="evo-acc-count"><?php echo esc_html($bk_podsum); ?></span></summary>
+    <div class="evo-acc-body">
     <p class="evo-muted evo-mb">Odczytane z tego serwera przy otwarciu zakładki. Wiersze z krzyżykiem blokują moduł, z trójkątem — warto o nich wiedzieć.</p>
     <div class="evo-tbl-wrap"><table class="evo-table evo-srodowisko">
         <thead>
@@ -149,9 +154,14 @@ $bk_ikony  = [
         </tbody>
     </table></div>
     <?php if ($bk_silnik): ?>
-    <div class="evo-mt" data-evk-backup-probe>
-        <button type="button" class="button" data-evk-backup-probe-start>Sprawdź napęd kopii w tle (30 s)</button>
-        <span class="evo-muted" data-evk-backup-probe-result>Kopia idzie żądaniami serwera do samego siebie. Niektóre serwery (np. LiteSpeed bez <code>noabort</code>) ubijają je po chwili — ten test mierzy, ile takie żądanie żyje tutaj.</span>
+    <div class="evk-backup-tlo evo-mt" data-evk-backup-probe>
+        <h4>Praca w tle</h4>
+        <p class="evo-muted">Kopia robi się w tle: serwer sam zleca sobie kolejne kroki. Niektóre serwery
+        (np. LiteSpeed bez reguły <code>noabort</code>) przerywają taką pracę po chwili. Test trwa 30&nbsp;sekund
+        i pokazuje, jak jest na tym serwerze.</p>
+        <button type="button" class="button" data-evk-backup-probe-start>Sprawdź pracę w tle</button>
+        <p class="evk-backup-tlo-wynik" data-evk-backup-probe-result aria-live="polite"></p>
     </div>
     <?php endif; ?>
-</div>
+    </div>
+</details>

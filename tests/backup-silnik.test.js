@@ -63,6 +63,13 @@ module.exports = async function (t) {
   const k = sonda('zabity');
   t.check('zabity z zewnątrz (SIGKILL): lock zostaje, następny krok to rozpoznaje',
     k.lock_zostal === true && k.log_wykryty === true && k.budzet_po_wykryciu === 10000, JSON.stringify(k));
+  /* Postęp na bieżąco (1.226.1, zgłoszone: „pasek musi się odświeżać
+     znacznie częściej"): dwie osobne przyczyny, dwa osobne sprawdzenia. */
+  t.check('krok w połowie dużego pliku wlicza do postępu jego przeczytane bajty',
+    k.wisi_duzy === true && k.wisi_bajtow > 0 && k.postep_z_polowy === k.wisi_bajtow,
+    '+' + k.postep_z_polowy + ' B postępu, ' + k.wisi_bajtow + ' B pliku w połowie');
+  t.check('krok zabity po 1,5 s zdążył zapisać postęp (zapis po każdej porcji ≤ 1 s)',
+    k.postep_w_zabitym === true);
   t.check('plik przerwany w połowie ma w archiwum dobry rozmiar i CRC',
     k.status === 'done' && k.duzy_w_archiwum === true && archiwumOk(k.fakty));
 
