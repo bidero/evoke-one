@@ -227,7 +227,7 @@ $out['zapis_nowym_ekranem'] = tl_sanitize_sitemap_settings([
 ]);
 
 // ── Skan noindex: tylko znane pola SEO ───────────────────────────────────
-/* Do 1.223.3 skan chodził po WSZYSTKICH metadanych i uznawał za noindex każdy
+/* Do 1.224.3 skan chodził po WSZYSTKICH metadanych i uznawał za noindex każdy
    klucz z „noindex" albo „robots" w nazwie. Własne pole z Evoke FIELDS czy ACF
    wyrzucało przez to stronę z mapy — po cichu. Fixtura niżej stawia obok siebie
    pola znane i podszywające się pod nie nazwą. */

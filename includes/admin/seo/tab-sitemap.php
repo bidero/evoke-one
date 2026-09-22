@@ -346,7 +346,7 @@ if (!defined('ABSPATH')) exit;
                         <?php /* Escapujemy KLUCZE, nie sklejenie — `esc_html()` na całości zjadłoby
                                  znaczniki `<code>` i wypisało je jako tekst. */ ?>
                         <code><?php echo implode('</code>, <code>', array_map('esc_html', array_keys(evk_sitemap_klucze_noindex()))); ?></code>.
-                        Do 1.223.3 skan chodził po wszystkich metadanych i uznawał za <code>noindex</code> każde pole,
+                        Do 1.224.3 skan chodził po wszystkich metadanych i uznawał za <code>noindex</code> każde pole,
                         którego nazwa zawierała „noindex" albo „robots" — własne pole <code>noindex_uwagi</code>
                         czy <code>robots_txt_snippet</code> wyrzucało stronę z mapy po cichu. Wtyczkę SEO spoza listy
                         dodaje filtr <code>evk_sitemap_klucze_noindex</code>.

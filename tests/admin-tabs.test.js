@@ -483,7 +483,7 @@ module.exports = async function (t) {
      nie wykonałoby się ani razu — i sprawdzenie wyżej znów niczego by nie
      dowodziło. Dwa wpisy, dwa różne kształty metadanych: Yoast (płaski klucz)
      i Bricks (JSON z `metaRobots`). */
-  /* Liczone po `evo-mono-xs`, nie po `evo-list-row`: od 1.221.0 ten sam ekran
+  /* Liczone po `evo-mono-xs`, nie po `evo-list-row`: od 1.222.0 ten sam ekran
      rysuje wierszami listy także typy treści i taksonomie, więc wspólna klasa
      przestała odróżniać diagnostykę od reszty. `evo-mono-xs` niesie wykryte
      klucze metadanych i występuje wyłącznie w tej jednej pętli. */

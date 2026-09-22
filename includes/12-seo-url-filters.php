@@ -53,7 +53,7 @@ add_action('wp_head', function () {
 
     /* hreflang PL — JEDEN tag, `pl`.
      *
-     * Do 1.223.2 leciały dwa: `pl` i `pl-PL`, oba na ten sam adres. Sprzeczności
+     * Do 1.224.2 leciały dwa: `pl` i `pl-PL`, oba na ten sam adres. Sprzeczności
      * w tym nie ma, ale `pl-PL` niczego nie dokładał: sam kod języka jest
      * pełnoprawną wartością (Google: „you can specify a language code by
      * itself"), a dopisany region ZAWĘŻA — `pl-PL` znaczy „polski w Polsce",

@@ -4,7 +4,7 @@
   * { box-sizing: border-box; }
   body { margin: 0; font: 16px system-ui; }
   section { min-height: 100vh; display: grid; place-items: center; font-size: 2rem; color: #fff; }
-  /* Przejście na `section` jak w domyślnych global_selectors trybu ciemnego —
+  /* Przejście na `section` jak we wbudowanym przejściu zapasowym trybu ciemnego —
      to ono psuło odczyt koloru w 1.29.1 (regresja trybu ciemnego). */
   [data-brx-theme], body, #brx-content, section { transition: background-color .4s ease; }
   #s1 { background-color: #0b2a1a; }
@@ -40,8 +40,8 @@
      zasięgiem pomiaru. Parametrem, a nie na stałe, bo pozostałe sprawdzenia
      czytają kolory wprost i trwające przejście by je rozchwiało. */
   if (new URLSearchParams(location.search).get('tcol') === '1') {
-    /* Sekcja dostaje przejście jak z `global_selectors`, a POTOMEK jak
-       z `bricks_selectors` (`.brxe-text`, `bricks_duration` = 1). Dwa
+    /* Sekcja dostaje przejście jak z globalnej warstwy zapasu, a POTOMEK jak
+       z warstwy dla elementów Bricksa (`.brxe-text`, 1 s). Dwa
        osobne miejsca, bo tryb ciemny naprawdę wystawia dwie reguły —
        a usterka mieszkała w tej drugiej.
 

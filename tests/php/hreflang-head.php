@@ -8,7 +8,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * PO CO OSOBNA SONDA. Mapa strony i `<head>` mówią wyszukiwarce to samo
  * i muszą mówić to samo: rozbieżność jest sygnałem sprzecznym, rozstrzyganym
  * po stronie wyszukiwarki, a nie po naszej. Sekcję mapy sprawdza
- * `sitemap-hreflang.php`; tu jest ta druga połowa, do 1.223.2 nie sprawdzana
+ * `sitemap-hreflang.php`; tu jest ta druga połowa, do 1.224.2 nie sprawdzana
  * przez nic.
  *
  * Argument 1: kod języka dla `x-default` (`pl` albo `en`).

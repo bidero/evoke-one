@@ -81,9 +81,9 @@ module.exports = async function (t) {
     ssl: 1, evk_smtp: 1, evk_schema: 1,
     evk_cleanup: { disable_xmlrpc: 1 },
     evk_security: { limit_login_enabled: 1 },
-    /* Kontrolka „Sitemap" pyta od 1.223.3 o to, czy WordPress WYSTAWIA mapę
+    /* Kontrolka „Sitemap" pyta od 1.224.3 o to, czy WordPress WYSTAWIA mapę
        (`blog_public` plus filtr rdzenia), a nie o włącznik sekcji tłumaczeń:
-       ten od 1.221.0 znaczy co innego niż „mapa działa". */
+       ten od 1.222.0 znaczy co innego niż „mapa działa". */
     blog_public: 1,
   });
   t.check('komplet kontrolek to sto', wynik(komplet) === 100, wynik(komplet) + '/100');

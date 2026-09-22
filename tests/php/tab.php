@@ -102,7 +102,7 @@ function get_post_types($args = [], $output = 'names') {
     return ['post' => $mk('post', 'Wpisy', 'Wpis'), 'page' => $mk('page', 'Strony', 'Strona')];
 }
 /* Taksonomie i wyszukiwanie typu po slugu — potrzebne ekranowi mapy strony,
-   który od 1.221.0 listuje typy i taksonomie z KAŻDEGO źródła. Bez tych atrap
+   który od 1.222.0 listuje typy i taksonomie z KAŻDEGO źródła. Bez tych atrap
    ekran kończy się fatalem, czyli dokładnie tą awarią, którą ten harness ma
    łapać. Trzeci typ (`slajd`) nie jest publiczny i pojawia się na ekranie
    wyłącznie dlatego, że ktoś go wcześniej oznaczył — to jest przypadek, przez
@@ -490,7 +490,7 @@ $TABS = [
         },
     ],
     'sitemap' => [
-        /* Oba moduły, bo tak jest w produkcji od 1.221.0: `80-sitemap.php`
+        /* Oba moduły, bo tak jest w produkcji od 1.222.0: `80-sitemap.php`
            ładuje się ZAWSZE, nie tylko przy włączonych tłumaczeniach. Lista
            z samym `30-…` opisywała stan sprzed tamtej zmiany i ekran wołałby
            tu funkcje, których w harnessie nie ma — czyli test zgłaszałby

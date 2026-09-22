@@ -48,9 +48,11 @@ function przepusc($el, array $wejscie) {
     $GLOBALS['settings_errors'] = [];
     $out = $el->sanitize_settings($wejscie);
     return [
+        /* CZTERY, NIE SZEŚĆ. „global_easing" i „bricks_easing" wypadły
+           w 1.221.0 razem z listami selektorów — przejście zapasowe jest
+           wbudowane i nie ma czego ustawiać. */
         'easingi'    => array_intersect_key($out, array_flip(
-            ['global_easing', 'bricks_easing', 'logo_easing',
-             'ripple_easing', 'wipe_easing', 'post_trans_easing'])),
+            ['logo_easing', 'ripple_easing', 'wipe_easing', 'post_trans_easing'])),
         'zmienne'    => $out['color_vars'],
         'komunikaty' => array_map(function ($k) { return $k['message']; }, $GLOBALS['settings_errors']),
     ];
@@ -60,26 +62,26 @@ $wyniki = [];
 
 // ── Dowolna krzywa przechodzi ────────────────────────────────────────────────
 $wyniki['wlasna'] = przepusc($el, [
-    'global_easing'     => 'cubic-bezier(0.87, 0, 0.13, 1)',
+    'ripple_easing'     => 'cubic-bezier(0.87, 0, 0.13, 1)',
     'wipe_easing'       => 'cubic-bezier(.25,.1,.25,1)',
     'post_trans_easing' => 'cubic-bezier(0.16, 1, 0.3, 1)',
     'logo_easing'       => 'cubic-bezier(0.65, 0, 0.35, 1)',
 ]);
 
 // ── Nazwy z listy dalej działają ─────────────────────────────────────────────
-$wyniki['nazwa'] = przepusc($el, ['global_easing' => 'ease-in-out']);
+$wyniki['nazwa'] = przepusc($el, ['ripple_easing' => 'ease-in-out']);
 
 // ── Śmieci odlatują I MÓWIĄ O SOBIE ──────────────────────────────────────────
 $wyniki['smieci'] = przepusc($el, [
-    'global_easing' => 'javascript:alert(1)',
+    'ripple_easing' => 'javascript:alert(1)',
     'wipe_easing'   => '1s ease',
 ]);
 
 // Ujemne wartości sterujące są w krzywych legalne — regex musi je puścić.
-$wyniki['ujemne'] = przepusc($el, ['global_easing' => 'cubic-bezier(0.68, -0.55, 0.27, 1.55)']);
+$wyniki['ujemne'] = przepusc($el, ['ripple_easing' => 'cubic-bezier(0.68, -0.55, 0.27, 1.55)']);
 
 // ── Puste pole to świadome „wróć do domyślnego", nie pomyłka ─────────────────
-$wyniki['puste'] = przepusc($el, ['global_easing' => '']);
+$wyniki['puste'] = przepusc($el, ['ripple_easing' => '']);
 
 // ── Zmienne kolorów: normalizacja nazw i odrzucanie śmieci ───────────────────
 /*

@@ -17,8 +17,10 @@
 const { phpOutput } = require('./lib/harness');
 
 /** Wszystkie klucze easingów, które moduł sanityzuje. */
-const EASINGI = ['global_easing', 'bricks_easing', 'logo_easing',
-                 'ripple_easing', 'wipe_easing', 'post_trans_easing'];
+/* CZTERY, NIE SZEŚĆ. „global_easing" i „bricks_easing" wypadły w 1.221.0
+   razem z listami selektorów: przejście zapasowe jest wbudowane, a wraz z nim
+   jego czas i krzywa. */
+const EASINGI = ['logo_easing', 'ripple_easing', 'wipe_easing', 'post_trans_easing'];
 
 module.exports = async function (t) {
 
@@ -31,11 +33,11 @@ module.exports = async function (t) {
   const listy = EASINGI.filter((k) =>
     new RegExp('<select[^>]*name="evk_darkmode\\[' + k + '\\]"').test(tab));
   t.check('żaden easing nie jest listą wyboru', listy.length === 0,
-    listy.length ? listy.join(', ') : 'wszystkie sześć to pola');
+    listy.length ? listy.join(', ') : 'wszystkie cztery to pola');
 
   const pola = EASINGI.filter((k) =>
     new RegExp('<input[^>]*type="text"[^>]*name="evk_darkmode\\[' + k + '\\]"').test(tab));
-  t.check('i wszystkie sześć naprawdę są w formularzu', pola.length === 6,
+  t.check('i wszystkie cztery naprawdę są w formularzu', pola.length === 4,
     pola.length + ': ' + pola.join(', '));
 
   /* `logo_easing` był sanityzowany i wchodził do CSS, ale nie miał pola —
@@ -75,24 +77,27 @@ module.exports = async function (t) {
   t.section('sanityzacja przepuszcza dowolną krzywą, a śmieci odrzuca');
 
   t.check('własne cubic-bezier przechodzą wszystkie cztery',
-    d.wlasna.easingi.global_easing === 'cubic-bezier(0.87, 0, 0.13, 1)'
+    d.wlasna.easingi.ripple_easing === 'cubic-bezier(0.87, 0, 0.13, 1)'
       && d.wlasna.easingi.wipe_easing === 'cubic-bezier(.25,.1,.25,1)'
       && d.wlasna.easingi.post_trans_easing === 'cubic-bezier(0.16, 1, 0.3, 1)'
       && d.wlasna.easingi.logo_easing === 'cubic-bezier(0.65, 0, 0.35, 1)',
-    JSON.stringify(d.wlasna.easingi.global_easing));
+    JSON.stringify(d.wlasna.easingi.ripple_easing));
 
   /* Punkty sterujące poza zakresem 0–1 są w krzywych legalne i to one dają
      „przestrzelenie". Regex musi je puścić razem z minusem. */
   t.check('ujemne punkty sterujące też', 
-    d.ujemne.easingi.global_easing === 'cubic-bezier(0.68, -0.55, 0.27, 1.55)',
-    d.ujemne.easingi.global_easing);
+    d.ujemne.easingi.ripple_easing === 'cubic-bezier(0.68, -0.55, 0.27, 1.55)',
+    d.ujemne.easingi.ripple_easing);
 
-  t.check('nazwy z zestawu dalej działają', d.nazwa.easingi.global_easing === 'ease-in-out',
-    d.nazwa.easingi.global_easing);
+  t.check('nazwy z zestawu dalej działają', d.nazwa.easingi.ripple_easing === 'ease-in-out',
+    d.nazwa.easingi.ripple_easing);
 
-  t.check('śmieci nie przechodzą', d.smieci.easingi.global_easing === 'ease'
+  /* Domyślna krzywa fali to `cubic-bezier(0.4, 0, 0.2, 1)`, nie „ease" —
+     odrzucona wartość wraca do domyślnej TEGO pola, a nie do jakiejś wspólnej. */
+  t.check('śmieci nie przechodzą',
+    d.smieci.easingi.ripple_easing === 'cubic-bezier(0.4, 0, 0.2, 1)'
     && d.smieci.easingi.wipe_easing !== '1s ease',
-    d.smieci.easingi.global_easing + ' / ' + d.smieci.easingi.wipe_easing);
+    d.smieci.easingi.ripple_easing + ' / ' + d.smieci.easingi.wipe_easing);
 
   // ── Odrzucenie mówi o sobie ──────────────────────────────────────────────
   /*
@@ -104,7 +109,7 @@ module.exports = async function (t) {
   t.section('odrzucona wartość mówi o sobie');
 
   t.check('jest komunikat i wymienia oba pola', d.smieci.komunikaty.length === 1
-    && /global_easing/.test(d.smieci.komunikaty[0])
+    && /ripple_easing/.test(d.smieci.komunikaty[0])
     && /wipe_easing/.test(d.smieci.komunikaty[0]),
     d.smieci.komunikaty[0] || 'brak komunikatu');
 
@@ -115,8 +120,8 @@ module.exports = async function (t) {
 
   /* Wyczyszczone pole to świadome „wróć do domyślnego", nie pomyłka. */
   t.check('puste pole też milczy', d.puste.komunikaty.length === 0
-    && d.puste.easingi.global_easing === 'ease',
-    d.puste.easingi.global_easing + ', komunikatów: ' + d.puste.komunikaty.length);
+    && d.puste.easingi.ripple_easing === 'cubic-bezier(0.4, 0, 0.2, 1)',
+    d.puste.easingi.ripple_easing + ', komunikatów: ' + d.puste.komunikaty.length);
 
   // ── Zmienne kolorów: nazwy przed wpuszczeniem do @property ───────────────
   /*

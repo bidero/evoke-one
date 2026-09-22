@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) exit;
  * WordPressa, a ten od 5.5 sam przekierowuje `/sitemap.xml` na
  * `/wp-sitemap.xml`. Sto trzydzieści linii, których nikt nigdy nie zobaczył.
  *
- * HREFLANG W MAPIE MIMO TO JEST — od 1.223.0, tylko inną drogą. Renderer
+ * HREFLANG W MAPIE MIMO TO JEST — od 1.224.0, tylko inną drogą. Renderer
  * rdzenia (`WP_Sitemaps_Renderer::get_sitemap_xml()`) przyjmuje dla adresu
  * wyłącznie `loc`, `lastmod`, `changefreq` i `priority`, każdy inny klucz
  * kwituje `_doing_it_wrong()`, a przestrzeni `xmlns:xhtml` nie da się dołożyć
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) exit;
  * dobrze — adres, regułę przepisywania i wpis w indeksie — a samą TREŚĆ
  * wypisuje sama, przechwytując żądanie na `template_redirect` przed nim.
  * Własnej reguły przepisywania nie ma tu nigdzie i to jest różnica wobec
- * generatora sprzed 1.221.0: tamten nie odpowiadał właśnie dlatego, że jego
+ * generatora sprzed 1.222.0: tamten nie odpowiadał właśnie dlatego, że jego
  * reguła nigdy nie trafiła do bazy.
  *
  * Tagi `hreflang` jadą RÓWNOLEGLE w `<head>` każdej podstrony
@@ -73,7 +73,7 @@ function evk_sitemap_taksonomie_noindex(): array {
  * TEN SAM WARUNEK, KTÓREGO UŻYWA RDZEŃ w `WP_Sitemaps::sitemaps_enabled()`:
  * opcja „widoczność dla wyszukiwarek" plus filtr, którym wtyczki mapę wyłączają.
  * Ekran startowy pytał wcześniej o `tl_sitemap_settings['enabled']`, a to pole
- * od 1.221.0 znaczy wyłącznie „sekcja hreflang włączona" — strona bez
+ * od 1.222.0 znaczy wyłącznie „sekcja hreflang włączona" — strona bez
  * tłumaczeń miała więc poprawną mapę i czerwoną kontrolkę obok niej.
  *
  * Czerwień znaczy teraz coś, co warto zobaczyć: Ustawienia → Czytanie
@@ -548,7 +548,7 @@ function evk_sitemap_hreflang_adresy(): array {
  * `WP_Sitemaps::render_sitemaps()` siedzi na domyślnym 10). Adres, reguła
  * przepisywania i wpis w indeksie pochodzą od rdzenia — własnej reguły nie ma
  * tu wcale i to jest cała odporność tego rozwiązania: martwy generator
- * `/sitemap.xml` sprzed 1.221.0 nie odpowiadał właśnie dlatego, że jego reguła
+ * `/sitemap.xml` sprzed 1.222.0 nie odpowiadał właśnie dlatego, że jego reguła
  * nigdy nie trafiła do bazy.
  */
 function evk_sitemap_hreflang_renderuj(): void {
@@ -610,7 +610,7 @@ add_action('template_redirect', 'evk_sitemap_hreflang_renderuj', 5);
 /**
  * Klucze metadanych, w których szukamy `noindex` — ZNANE, nie zgadywane.
  *
- * DO 1.223.3 SKAN CHODZIŁ PO WSZYSTKICH METADANYCH i uznawał za `noindex`
+ * DO 1.224.3 SKAN CHODZIŁ PO WSZYSTKICH METADANYCH i uznawał za `noindex`
  * każdy klucz zawierający „noindex" albo „robots" o niepustej wartości. Pole
  * z Evoke FIELDS czy ACF nazwane `noindex_uwagi` („sprawdzić z klientem")
  * albo `robots_txt_snippet` wyrzucało stronę z mapy — po cichu, bez śladu na

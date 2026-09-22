@@ -341,7 +341,7 @@ module.exports = async function (t) {
   // ── Drugie źródło deklaracji: tagi w <head> ───────────────────────────
   t.section('hreflang w <head> mówi to samo co mapa');
 
-  /* Do 1.223.2 tej połowy nie sprawdzało NIC, a to ona jest źródłem, które
+  /* Do 1.224.2 tej połowy nie sprawdzało NIC, a to ona jest źródłem, które
      wyszukiwarka widzi na każdej podstronie. Mapa i `<head>` muszą deklarować
      to samo — rozbieżność jest sygnałem sprzecznym, rozstrzyganym po stronie
      wyszukiwarki, nie po naszej. */
