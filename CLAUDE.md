@@ -64,10 +64,10 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (63 pliki, cztery partie):
+Podział, który się mieści (65 plików, cztery partie):
 
 ```
-node tests/run.js admin- anim animator aria bg-shift bricks-required builder-context burger circular-menu controls
+node tests/run.js admin- anim animator aria backup- bg-shift bricks-required builder-context burger circular-menu controls
 node tests/run.js darkmode drobiazgi grain hscroll inbox konserwacja kursor loop marquee motion
 node tests/run.js newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
@@ -79,7 +79,7 @@ wypisze wtedy „wszystko przeszło" o zbiorze bez niego. Jedno polecenie, ta sa
 lista filtrów co wyżej:
 
 ```
-FILTRY="admin- anim animator aria bg-shift bricks-required builder-context
+FILTRY="admin- anim animator aria backup- bg-shift bricks-required builder-context
 burger circular-menu controls darkmode drobiazgi grain hscroll inbox
 konserwacja kursor loop marquee motion newsletter odpornosc odswiezanie
 offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji
