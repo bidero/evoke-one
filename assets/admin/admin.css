@@ -3058,3 +3058,143 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     background: var(--evo-danger-soft);
     color: var(--evo-danger-dark);
 }
+
+/* =========================================================================
+   MAPA STRONY — AKORDEONY I SIATKA LIST
+   =========================================================================
+   Ekran mapy ma sześć list (typy treści, taksonomie, sekcje kotwic, pozostałe
+   sekcje, tłumaczenia, wykluczone wpisy) plus diagnostykę. Rozwinięte naraz
+   dawały ścianę pól bez hierarchii — stąd akordeony na natywnym <details>,
+   tak jak `.evo-note` wyżej: działają bez JavaScriptu i z klawiatury.
+
+   Wiersze list są SIATKĄ o stałych kolumnach. Przy układzie pływającym
+   pozycja checkboksa zależała od długości nazwy typu i żadne dwa wiersze nie
+   miały pól w tej samej kolumnie. */
+
+.evo-acc {
+    margin-bottom: 12px;
+    border: 1px solid var(--evo-border);
+    border-radius: var(--evo-radius);
+    background: var(--evo-bg);
+}
+.evo-acc > summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--evo-text);
+    cursor: pointer;
+    list-style: none;
+}
+.evo-acc > summary::-webkit-details-marker { display: none; }
+.evo-acc > summary::before {
+    content: '\f345';
+    font-family: dashicons;
+    font-size: 18px;
+    color: var(--evo-text-dim);
+    transition: transform .15s;
+}
+.evo-acc[open] > summary::before { transform: rotate(90deg); }
+.evo-acc[open] > summary { border-bottom: 1px solid var(--evo-border-soft); }
+.evo-acc > summary:hover { color: var(--evo-accent); }
+.evo-acc > summary:focus-visible { outline: 2px solid var(--evo-accent); outline-offset: -2px; }
+.evo-acc-count {
+    min-width: 22px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--evo-surface-alt);
+    color: var(--evo-text-dim);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+}
+.evo-acc-body { padding: 16px; }
+.evo-acc-body > .evo-lead:first-child { margin-top: 0; }
+
+/* ── Lista typów treści i taksonomii ────────────────────────────────────── */
+.evk-sm-grid {
+    border: 1px solid var(--evo-border-field);
+    border-radius: var(--evo-radius-sm);
+    overflow: hidden;
+}
+.evk-sm-row {
+    display: grid;
+    /* Nazwa bierze resztę, obie kolumny pól mają stałą szerokość — to jest
+       cały mechanizm wyrównania. */
+    grid-template-columns: minmax(0, 1fr) 120px 150px;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--evo-border-soft);
+    font-size: 13px;
+}
+.evk-sm-row:last-child { border-bottom: 0; }
+/* Pasy: nagłówek jest pierwszym dzieckiem i ma własne tło, więc pasuje
+   „co drugi, licząc od niego". `nth-child(… of …)` byłby czytelniejszy, ale
+   nie jest w Firefoksie na tyle długo, żeby polegać na nim w panelu. */
+.evk-sm-row:nth-child(odd):not(.evk-sm-head) { background: var(--evo-surface); }
+.evk-sm-head {
+    background: var(--evo-surface-alt);
+    color: var(--evo-text-dim);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+.evk-sm-name {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+.evk-sm-name code { font-size: 11px; }
+.evk-sm-name .evo-faint { font-size: 11px; }
+.evk-sm-cell { display: flex; align-items: center; gap: 7px; margin: 0; cursor: pointer; }
+.evk-sm-cell input[disabled] + .evk-sm-cell-label { color: var(--evo-text-faint); }
+
+/* ── Pozostałe przełączniki ─────────────────────────────────────────────── */
+.evk-sm-checks { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.evk-sm-checks label { display: flex; align-items: center; gap: 8px; margin: 0; }
+
+/* ── Sekcje z kotwicami ─────────────────────────────────────────────────── */
+.evk-sm-section {
+    margin-bottom: 12px;
+    padding: 14px;
+    border: 1px solid var(--evo-border-field);
+    border-radius: var(--evo-radius-sm);
+    background: var(--evo-surface);
+}
+.evk-sm-sec-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 10px;
+}
+.evk-sm-field { display: flex; flex-direction: column; gap: 4px; margin: 0; min-width: 0; }
+.evk-sm-field > span { font-size: 11px; font-weight: 600; color: var(--evo-text-dim); }
+.evk-sm-field input, .evk-sm-field select { width: 100%; }
+.evk-sm-anchors { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 8px; }
+.evk-sm-anchor { display: flex; align-items: center; gap: 6px; }
+.evk-sm-anchor input { flex: 1; min-width: 0; }
+.evk-sm-hash {
+    color: var(--evo-text-faint);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+}
+.evk-sm-preview {
+    margin: 10px 0 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--evo-text-muted);
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 782px) {
+    .evk-sm-row { grid-template-columns: 1fr; gap: 6px; }
+    .evk-sm-head { display: none; }
+    .evk-sm-sec-head { grid-template-columns: 1fr; }
+}

@@ -43,6 +43,31 @@ function get_the_title($p = 0) { return 'Tytuł'; }
 function has_post_thumbnail($p = null) { return false; }
 function get_the_post_thumbnail_url($p = null, $size = 'full') { return ''; }
 function get_post_type($p = null) { return $GLOBALS['typ_biezacy'] ?? 'page'; }
+function get_post($id = 0) {
+    $strony = [
+        7 => (object) ['ID' => 7, 'post_modified_gmt' => '2026-03-10 08:00:00'],
+        9 => (object) ['ID' => 9, 'post_modified_gmt' => '2026-03-11 08:00:00'],
+    ];
+    return $strony[(int) $id] ?? null;
+}
+function trailingslashit($s) { return rtrim((string) $s, '/\\') . '/'; }
+function home_url($path = '') { return 'https://example.test' . $path; }
+
+/* Atrapy mapy strony WordPressa — tyle, ile potrzeba, żeby zobaczyć, KTÓRE
+   sekcje moduł rejestruje i z jakimi adresami. Bez nich sprawdzenie sekcji
+   kotwic mierzyłoby wyłącznie funkcję budującą listę, a nie to, co trafia do
+   indeksu mapy. */
+abstract class WP_Sitemaps_Provider {
+    public $name = '';
+    public $object_type = '';
+    abstract public function get_url_list($page_num, $object_subtype = '');
+    abstract public function get_max_num_pages($object_subtype = '');
+}
+$GLOBALS['providers'] = [];
+function wp_register_sitemap_provider($name, $provider) {
+    $GLOBALS['providers'][$name] = $provider;
+    return true;
+}
 
 /** Wpisy typu — tyle, ile potrzebuje budowanie kotwic. */
 function get_posts($args = []) {
@@ -125,15 +150,40 @@ ustaw(['noindex_types' => ['menu']]);
 $out['rejestracja_menu']  = call_user_func(filtr('register_post_type_args'), ['public' => true], 'menu');
 $out['rejestracja_strony'] = call_user_func(filtr('register_post_type_args'), ['public' => true], 'page');
 
-// ── Kotwice ──────────────────────────────────────────────────────────────
-ustaw(['anchor_types' => ['menu' => 7], 'excluded_ids' => [102], 'auto_exclude_noindex' => 0]);
-$out['kotwice'] = evk_sitemap_kotwice_urls();
+// ── Sekcje z kotwicami ───────────────────────────────────────────────────
+/** Odpala `wp_sitemaps_init` i opisuje, co moduł zarejestrował. */
+function zarejestrowane(): array {
+    $GLOBALS['providers'] = [];
+    foreach ($GLOBALS['hooks']['wp_sitemaps_init'] ?? [] as $cb) { $cb(); }
 
-ustaw(['anchor_types' => ['menu' => 999], 'auto_exclude_noindex' => 0]);
-$out['kotwice_bez_strony'] = evk_sitemap_kotwice_urls();
+    $out = [];
+    foreach ($GLOBALS['providers'] as $nazwa => $provider) {
+        $out[$nazwa] = [
+            'adresy' => $provider->get_url_list(1),
+            'stron'  => $provider->get_max_num_pages(),
+        ];
+    }
+    return $out;
+}
 
-ustaw(['anchor_types' => [], 'auto_exclude_noindex' => 0]);
-$out['kotwice_bez_konfiguracji'] = evk_sitemap_kotwice_urls();
+ustaw(['anchor_sections' => [
+    // Strona bazowa z listy — adres i lastmod z permalinka.
+    ['name' => 'Menu', 'slug' => 'menu', 'page' => 7, 'url' => '', 'anchors' => ['desery', 'napoje']],
+    // Własny adres wygrywa ze stroną; względny dostaje domenę i ukośnik.
+    ['name' => 'Cennik', 'slug' => 'cennik', 'page' => 9, 'url' => '/uslugi', 'anchors' => ['pakiety']],
+    // Nazwa zajęta przez rdzeń — sekcja nie może powstać.
+    ['name' => 'Posts', 'slug' => 'posts', 'page' => 7, 'url' => '', 'anchors' => ['cokolwiek']],
+    // Bez kotwic nie ma czego wystawić.
+    ['name' => 'Puste', 'slug' => 'puste', 'page' => 7, 'url' => '', 'anchors' => []],
+    /* Kotwice są, ale strona bazowa zniknęła (skasowana po konfiguracji).
+       Adresu nie da się zbudować i sekcja też nie może powstać — inaczej
+       w indeksie mapy zostaje pozycja odpowiadająca zerem wpisów. */
+    ['name' => 'Widmo', 'slug' => 'widmo', 'page' => 999, 'url' => '', 'anchors' => ['cokolwiek']],
+]]);
+$out['sekcje'] = zarejestrowane();
+
+ustaw(['anchor_sections' => []]);
+$out['sekcje_bez_konfiguracji'] = array_keys(zarejestrowane());
 
 // ── Meta robots dla typu „poza indeksem" ─────────────────────────────────
 ustaw(['noindex_types' => ['menu']]);
@@ -146,11 +196,11 @@ $out['robots_slajd'] = evk_seo_get_meta(201)['robots'];
 
 // ── Sanityzacja: brak klucza nie kasuje ustawienia ───────────────────────
 ustaw([
-    'enabled'        => 1,
-    'excluded_types' => ['realizacja'],
-    'noindex_types'  => ['slajd'],
-    'anchor_types'   => ['menu' => 7],
-    'excluded_ids'   => [42],
+    'enabled'         => 1,
+    'excluded_types'  => ['realizacja'],
+    'noindex_types'   => ['slajd'],
+    'anchor_sections' => [['name' => 'Menu', 'slug' => 'menu', 'page' => 7, 'url' => '', 'anchors' => ['desery']]],
+    'excluded_ids'    => [42],
 ]);
 
 // Zapis ze starszego ekranu Tłumaczeń — zna wyłącznie pola sekcji tłumaczeń.
@@ -166,8 +216,14 @@ $out['zapis_nowym_ekranem'] = tl_sanitize_sitemap_settings([
     'excluded_types'      => ['Realizacja!', ''],
     'noindex_types'       => ['slajd', 'slajd'],
     'excluded_taxonomies' => ['rodzaj'],
-    'anchor_types'        => ['menu' => '7', 'cennik' => '0'],
     'excluded_ids'        => ['42', 'x', 0],
+    'anchor_sections'     => [
+        /* Kotwice tak, jak je wpisze człowiek: z kratką, z wielką literą,
+           z duplikatem i z pustym wierszem po kliknięciu „dodaj". */
+        ['name' => 'Menu Lokalu', 'page' => '7', 'url' => '', 'anchors' => ['#Desery', 'desery', 'napoje ', '']],
+        ['name' => '',      'page' => 0, 'url' => '', 'anchors' => ['bez-nazwy']],
+        ['name' => 'Puste', 'page' => 0, 'url' => '', 'anchors' => ['', ' ']],
+    ],
 ]);
 
 // ── Martwy generator /sitemap.xml ma nie wrócić ──────────────────────────

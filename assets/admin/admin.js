@@ -171,17 +171,36 @@
             if ($('#tl-sm-types').length) {
                 payload.excluded_types = [];
                 payload.noindex_types  = [];
-                payload.anchor_types   = {};
                 $('#tl-sm-types .evk-sm-type').each(function () {
                     var slug     = $(this).data('slug');
                     var $noindex = $(this).find('.tl-sm-type-noindex');
                     var $wMapie  = $(this).find('.tl-sm-type-in');
-                    var anchor   = parseInt($(this).find('.tl-sm-type-anchor').val(), 10) || 0;
 
                     if ($noindex.is(':checked') && !$noindex.is(':disabled')) payload.noindex_types.push(slug);
                     else if (!$wMapie.is(':checked') && !$noindex.is(':checked')) payload.excluded_types.push(slug);
+                });
+            }
 
-                    if (anchor) payload.anchor_types[slug] = anchor;
+            /* Sekcje kotwic. Sekcja bez nazwy albo bez ani jednej wypełnionej
+               kotwicy nie ma czego wystawić — nie wysyłamy jej wcale, zamiast
+               liczyć na to, że odsieje ją PHP. Pusty wiersz w edytorze to
+               normalny etap pisania, nie błąd do zgłoszenia. */
+            if ($('#tl-sm-sections').length) {
+                payload.anchor_sections = [];
+                $('#tl-sm-sections .evk-sm-section').each(function () {
+                    var nazwa = $.trim($(this).find('.tl-sm-sec-name').val() || '');
+                    var kotwice = $(this).find('.tl-sm-anchor').map(function () {
+                        return $.trim(this.value || '').replace(/^#/, '');
+                    }).get().filter(function (k) { return k !== ''; });
+
+                    if (!nazwa || !kotwice.length) return;
+
+                    payload.anchor_sections.push({
+                        name:    nazwa,
+                        page:    parseInt($(this).find('.tl-sm-sec-page').val(), 10) || 0,
+                        url:     $.trim($(this).find('.tl-sm-sec-url').val() || ''),
+                        anchors: kotwice
+                    });
                 });
             }
 
@@ -217,6 +236,74 @@
             $wMapie.prop('disabled', poza);
             if (poza) $wMapie.prop('checked', false);
         });
+
+        /* ── Sekcje z kotwicami ────────────────────────────────────────────
+           Wiersze idą z <template> wyrenderowanego przez PHP — lista stron
+           jest tam już gotowa i przeszła przez esc_*. Składanie jej drugi raz
+           w JavaScripcie znaczyłoby dwa opisy tej samej kontrolki, z których
+           jeden przy pierwszej zmianie zostaje w tyle. */
+        var klonSzablonu = function (id) {
+            var tpl = document.getElementById(id);
+            if (!tpl) return null;
+            return document.importNode(tpl.content, true);
+        };
+
+        /* Podgląd adresów — po to, żeby przed zapisem było widać, co dokładnie
+           pójdzie do mapy. Adres bazowy: własny przed wybraną stroną, dokładnie
+           jak po stronie PHP. */
+        var odswiezPodglad = function ($sekcja) {
+            var wlasny = $.trim($sekcja.find('.tl-sm-sec-url').val() || '');
+            /* Permalink strony przychodzi w `data-url` opcji — składanie go
+               z tytułu kłamałoby przy stronach zagnieżdżonych i przy ręcznie
+               zmienionym slugu. */
+            var baza   = wlasny || $sekcja.find('.tl-sm-sec-page option:selected').data('url') || '';
+
+            var kotwice = $sekcja.find('.tl-sm-anchor').map(function () {
+                return $.trim(this.value || '').replace(/^#/, '');
+            }).get().filter(function (k) { return k !== ''; });
+
+            if (!baza || !kotwice.length) {
+                $sekcja.find('.evk-sm-preview').text(baza
+                    ? 'Dodaj kotwicę, żeby sekcja trafiła do mapy.'
+                    : 'Wskaż stronę bazową albo wpisz adres.');
+                return;
+            }
+
+            $sekcja.find('.evk-sm-preview').text(kotwice.map(function (k) {
+                return baza.replace(/\/?$/, '/') + '#' + k;
+            }).join('\n'));
+        };
+
+        $('#tl-sm-section-add').on('click', function () {
+            var frag = klonSzablonu('tl-sm-section-tpl');
+            if (!frag) return;
+            document.getElementById('tl-sm-sections').appendChild(frag);
+            $('#tl-sm-sections .evk-sm-section').last().find('.tl-sm-sec-name').trigger('focus');
+        });
+
+        $(document).on('click', '.evk-sm-anchor-add', function () {
+            var frag = klonSzablonu('tl-sm-anchor-tpl');
+            if (!frag) return;
+            var $sekcja = $(this).closest('.evk-sm-section');
+            $sekcja.find('.evk-sm-anchors')[0].appendChild(frag);
+            $sekcja.find('.tl-sm-anchor').last().trigger('focus');
+        });
+
+        $(document).on('click', '.evk-sm-anchor-remove', function () {
+            var $sekcja = $(this).closest('.evk-sm-section');
+            $(this).closest('.evk-sm-anchor').remove();
+            odswiezPodglad($sekcja);
+        });
+
+        $(document).on('click', '.evk-sm-sec-remove', function () {
+            $(this).closest('.evk-sm-section').remove();
+        });
+
+        $(document).on('input change', '.tl-sm-anchor, .tl-sm-sec-url, .tl-sm-sec-page', function () {
+            odswiezPodglad($(this).closest('.evk-sm-section'));
+        });
+
+        $('#tl-sm-sections .evk-sm-section').each(function () { odswiezPodglad($(this)); });
     }
 
     /* =========================================================

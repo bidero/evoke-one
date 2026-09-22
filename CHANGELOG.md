@@ -2,6 +2,53 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.222.0] — 2026-09-22
+
+### Zmienione
+
+- **Kotwice to teraz WŁASNE SEKCJE mapy, a nie dodatek do typu treści.**
+  Poprzednie rozwiązanie (1.221.0) brało wpisy CPT i doklejało je jako kotwice
+  do wskazanej strony — czyli rozwiązywało inny problem niż zgłoszony. Teraz
+  sekcję definiuje się wprost: **nazwa** (np. „Menu"), **strona bazowa albo
+  własny adres** i **lista kotwic wpisanych ręcznie** (`desery`, `napoje`).
+
+  Każda sekcja to osobna pozycja w indeksie mapy, nazwana po swojemu —
+  `wp-sitemap-menu-1.xml` z adresami `/menu/#desery` i `/menu/#napoje`. Dzięki
+  temu strona jednoekranowa, która w mapie była jednym adresem, zgłasza się
+  treść po treści, a w Search Console widać ją jako oddzielną pozycję.
+
+  Szczegóły, które wyszły dopiero przy pisaniu sprawdzeń:
+  - nazwy `posts`, `taxonomies`, `users` i `translations` są zajęte przez
+    WordPressa i przez sekcję tłumaczeń — `WP_Sitemaps_Registry::add_sitemap()`
+    odmawia drugiego providera o tej samej nazwie, więc sekcja powstałaby
+    z samej nazwy, bez ani jednego adresu. Takie nazwy są pomijane;
+  - sekcja bez adresów (brak kotwic albo skasowana strona bazowa) nie
+    rejestruje się wcale, bo pusty provider dokłada do indeksu pozycję
+    odpowiadającą zerem wpisów;
+  - `lastmod` idzie ze strony bazowej tylko wtedy, gdy adres NAPRAWDĘ z niej
+    pochodzi. Przy ręcznie wpisanym adresie pola nie ma — jest opcjonalne,
+    a data wybranej wcześniej strony opisywałaby inny dokument.
+
+  Ustawienie `anchor_types` z 1.221.0 zostało zastąpione przez
+  `anchor_sections`; poprzednia wersja nie trafiła na żywe strony, więc nie ma
+  czego migrować.
+
+- **Ekran SEO → Mapa strony przebudowany.** Siedem list rozwiniętych naraz
+  dawało ścianę pól bez hierarchii — teraz każdy blok to akordeon na natywnym
+  `<details>` (bez JavaScriptu, dostępny z klawiatury), otwarte startowo są
+  tylko typy treści. Przy nagłówku licznik pozycji, żeby dało się zobaczyć
+  zawartość bez rozwijania.
+
+  **Wiersze list są siatką o stałych kolumnach.** Wcześniej pozycja checkboksa
+  zależała od długości nazwy typu i żadne dwa wiersze nie miały pól w tej samej
+  kolumnie: przy ośmiu taksonomiach nie dawało się wzrokiem sprawdzić, co jest
+  zaznaczone. Doszedł wiersz nagłówka kolumn i pasy co drugi wiersz.
+
+  Edytor sekcji kotwic pokazuje **podgląd adresów**, które pójdą do mapy —
+  budowany z prawdziwego permalinka strony (`data-url` na opcji listy), a nie
+  z jej tytułu, bo tytuł kłamie przy stronach zagnieżdżonych i przy ręcznie
+  zmienionym slugu.
+
 ## [1.221.0] — 2026-09-22
 
 ### Dodane

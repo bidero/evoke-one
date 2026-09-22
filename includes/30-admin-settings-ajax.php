@@ -102,7 +102,7 @@ function tl_get_sitemap_settings(): array {
         'noindex_types'            => [],
         'excluded_taxonomies'      => [],
         'noindex_taxonomies'       => [],
-        'anchor_types'             => [],
+        'anchor_sections'          => [],
     ];
     $saved = get_option('tl_sitemap_settings', []);
     return array_merge($defaults, is_array($saved) ? $saved : []);
@@ -225,15 +225,38 @@ function tl_sanitize_sitemap_settings($input): array {
         $excluded_ids = array_values(array_unique(array_filter(array_map('absint', (array) ($obecne['excluded_ids'] ?? [])))));
     }
 
-    /* Kotwice: [slug typu treści => ID strony docelowej]. Zero jako ID znaczy
-       „bez kotwic" i wypada z tablicy — inaczej provider próbowałby zbudować
-       adres na nieistniejącej stronie. */
-    $anchor_zrodlo = array_key_exists('anchor_types', $input) ? $input['anchor_types'] : ($obecne['anchor_types'] ?? []);
-    $anchor_types  = [];
-    foreach ((array) $anchor_zrodlo as $slug => $page_id) {
-        $slug    = sanitize_key((string) $slug);
-        $page_id = absint($page_id);
-        if ($slug !== '' && $page_id) $anchor_types[$slug] = $page_id;
+    /* Sekcje kotwic: własna pozycja w indeksie mapy z ręcznie wpisanymi
+       kotwicami. Sekcja bez nazwy albo bez ani jednej kotwicy nie ma czego
+       wystawić i wypada — inaczej indeks mapy dostawałby adres odpowiadający
+       zerem wpisów.
+
+       Slug bierzemy z nazwy (`sanitize_title`), bo to on staje się nazwą pliku
+       `wp-sitemap-<slug>-1.xml`. Zderzenia z nazwami rdzenia odsiewa dopiero
+       `evk_sitemap_sekcje_kotwic()` — tam, gdzie wiadomo, co jest już
+       zarejestrowane. */
+    $sekcje_zrodlo = array_key_exists('anchor_sections', $input) ? $input['anchor_sections'] : ($obecne['anchor_sections'] ?? []);
+    $anchor_sections = [];
+    foreach ((array) $sekcje_zrodlo as $sekcja) {
+        if (!is_array($sekcja)) continue;
+
+        $nazwa = sanitize_text_field((string) ($sekcja['name'] ?? ''));
+        if ($nazwa === '') continue;
+
+        $kotwice = [];
+        foreach ((array) ($sekcja['anchors'] ?? []) as $kotwica) {
+            $kotwica = sanitize_title(ltrim((string) $kotwica, '#'));
+            if ($kotwica !== '' && !in_array($kotwica, $kotwice, true)) $kotwice[] = $kotwica;
+        }
+        if (empty($kotwice)) continue;
+
+        $url = trim((string) ($sekcja['url'] ?? ''));
+        $anchor_sections[] = [
+            'name'    => $nazwa,
+            'slug'    => sanitize_title((string) ($sekcja['slug'] ?? '') ?: $nazwa),
+            'page'    => absint($sekcja['page'] ?? 0),
+            'url'     => $url === '' ? '' : esc_url_raw($url),
+            'anchors' => $kotwice,
+        ];
     }
 
     return [
@@ -250,7 +273,7 @@ function tl_sanitize_sitemap_settings($input): array {
         'noindex_types'        => $slugi('noindex_types'),
         'excluded_taxonomies'  => $slugi('excluded_taxonomies'),
         'noindex_taxonomies'   => $slugi('noindex_taxonomies'),
-        'anchor_types'         => $anchor_types,
+        'anchor_sections'      => $anchor_sections,
     ];
 }
 

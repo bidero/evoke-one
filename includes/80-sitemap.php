@@ -154,65 +154,121 @@ add_filter('register_post_type_args', function ($args, $post_type) {
 }, 10, 2);
 
 // =========================================================================
-// KOTWICE — WPISY, KTÓRE NIE MAJĄ WŁASNEGO ADRESU
+// SEKCJE Z KOTWICAMI — WŁASNE WPISY W MAPIE
 // =========================================================================
 
 /**
- * Mapa [slug typu => ID strony docelowej] dla typów pokazywanych jako sekcje.
+ * Sekcje kotwic z ustawień: nazwa, adres bazowy i lista kotwic.
  *
- * Typ w rodzaju „menu" albo „pozycja cennika" nie ma sensownej podstrony —
- * jego wpisy renderują się jako sekcje JEDNEJ strony. Do mapy ma wtedy trafić
- * adres tamtej strony z kotwicą, np. `/oferta/#danie-dnia`, a nie martwy
- * permalink CPT-a.
+ * PO CO. Strona jednoekranowa — menu lokalu, cennik, program wydarzenia —
+ * jest w mapie JEDNYM adresem, choć niesie kilkanaście osobnych treści.
+ * Sekcja kotwic pozwala zgłosić je z osobna: `/menu/#desery`, `/menu/#napoje`.
+ * Każda sekcja to własny plik w indeksie mapy, nazwany po swojemu
+ * (`wp-sitemap-menu-1.xml`), więc w Search Console widać ją jako oddzielną
+ * pozycję, a nie wymieszaną z resztą.
+ *
+ * ADRES BAZOWY: wybrana strona ALBO wpisany ręcznie adres. Ręczny wygrywa,
+ * bo bywa, że jednoekranowa treść nie jest stroną WordPressa (szablon Bricks
+ * pod własnym adresem, podstrona archiwum).
+ *
+ * Kształt wpisu: ['name' => 'Menu', 'slug' => 'menu', 'page' => 12,
+ *                 'url' => '', 'anchors' => ['desery', 'napoje']].
  */
-function evk_sitemap_kotwice_typy(): array {
-    $surowe = (array) (tl_get_sitemap_settings()['anchor_types'] ?? []);
+function evk_sitemap_sekcje_kotwic(): array {
+    $surowe = (array) (tl_get_sitemap_settings()['anchor_sections'] ?? []);
     $out    = [];
-    foreach ($surowe as $slug => $page_id) {
-        $slug    = sanitize_key((string) $slug);
-        $page_id = absint($page_id);
-        if ($slug && $page_id) $out[$slug] = $page_id;
+    $uzyte  = [];
+
+    foreach ($surowe as $sekcja) {
+        if (!is_array($sekcja)) continue;
+
+        $nazwa = trim((string) ($sekcja['name'] ?? ''));
+        $slug  = sanitize_title((string) ($sekcja['slug'] ?? $nazwa));
+        if ($nazwa === '' || $slug === '') continue;
+
+        /* Nazwy zajęte przez rdzeń i przez sekcję tłumaczeń są pomijane:
+           `WP_Sitemaps_Registry::add_sitemap()` odmawia rejestracji drugiego
+           providera o tej samej nazwie i sekcja po cichu by nie powstała. */
+        if (in_array($slug, ['posts', 'taxonomies', 'users', 'translations'], true)) continue;
+        if (isset($uzyte[$slug])) continue;
+        $uzyte[$slug] = true;
+
+        $kotwice = [];
+        foreach ((array) ($sekcja['anchors'] ?? []) as $kotwica) {
+            $kotwica = sanitize_title(ltrim((string) $kotwica, '#'));
+            if ($kotwica !== '' && !in_array($kotwica, $kotwice, true)) $kotwice[] = $kotwica;
+        }
+
+        /* Sekcji bez kotwic NIE odsiewamy tutaj, choć kusi. Robi to warunek
+           przy rejestracji („sekcja bez adresów nie powstaje"), a ten jest
+           szerszy: łapie także sekcję z kotwicami, której strona bazowa
+           została skasowana. Drugi strażnik na węższym przypadku niczego by
+           nie dokładał — byłby wyłącznie miejscem, w którym warunek może się
+           rozjechać z tamtym. */
+
+        $out[] = [
+            'name'    => $nazwa,
+            'slug'    => $slug,
+            'page'    => absint($sekcja['page'] ?? 0),
+            'url'     => trim((string) ($sekcja['url'] ?? '')),
+            'anchors' => $kotwice,
+        ];
     }
+
     return $out;
 }
 
 /**
- * Adresy z kotwicami — po jednym na opublikowany wpis skonfigurowanych typów.
+ * Adres bazowy sekcji — ręczny przed wybraną stroną.
  *
- * Kotwica to `post_name` wpisu, czyli ten sam slug, którego zwykle używa się
- * jako `id` sekcji. Gdy w szablonie kotwica nazywa się inaczej, adres wskaże
- * początek strony — Google i tak traktuje fragment jako część tego samego
- * dokumentu, więc kosztem błędu jest zdublowany wpis, nie błędny adres.
+ * Adres względny (`/menu/`) dostaje adres witryny z przodu; bez tego w mapie
+ * wylądowałby `loc` bez domeny, który jest błędem formatu, a nie literówką
+ * do naprawienia przez wyszukiwarkę.
  */
-function evk_sitemap_kotwice_urls(): array {
-    $ustawienia = tl_get_sitemap_settings();
-    $urls       = [];
+function evk_sitemap_sekcja_baza(array $sekcja): string {
+    $url = $sekcja['url'] ?? '';
 
-    foreach (evk_sitemap_kotwice_typy() as $slug => $page_id) {
-        if (!post_type_exists($slug)) continue;
+    if ($url !== '') {
+        if (strpos($url, '//') === false) $url = home_url('/' . ltrim($url, '/'));
+        /* Ukośnik na końcu tylko dla adresów bez zapytania — `?p=12/` nie jest
+           tym samym adresem co `?p=12`. */
+        return strpos($url, '?') === false ? trailingslashit($url) : $url;
+    }
 
-        $baza = get_permalink($page_id);
-        if (!$baza) continue;
+    if (!empty($sekcja['page'])) {
+        $link = get_permalink((int) $sekcja['page']);
+        if ($link) return (string) $link;
+    }
 
-        $wpisy = get_posts([
-            'post_type'        => $slug,
-            'post_status'      => 'publish',
-            'posts_per_page'   => -1,
-            'orderby'          => 'menu_order title',
-            'order'            => 'ASC',
-            'suppress_filters' => false,
-        ]);
+    return '';
+}
 
-        foreach ($wpisy as $wpis) {
-            if (tl_is_post_excluded_from_sitemap((int) $wpis->ID, $ustawienia)) continue;
-            if (!$wpis->post_name) continue;
+/** Adresy jednej sekcji: adres bazowy z każdą kotwicą po kolei. */
+function evk_sitemap_kotwice_urls(array $sekcja): array {
+    $baza = evk_sitemap_sekcja_baza($sekcja);
+    if ($baza === '') return [];
 
-            $czas = $wpis->post_modified_gmt ? strtotime($wpis->post_modified_gmt) : false;
-            $urls[] = [
-                'loc'     => $baza . '#' . $wpis->post_name,
-                'lastmod' => gmdate(DATE_W3C, $czas ?: time()),
-            ];
+    /* `lastmod` bierzemy ze strony bazowej — wszystkie kotwice wskazują na tę
+       samą treść, więc data jej ostatniej zmiany jest jedyną prawdziwą.
+       Tylko wtedy, gdy adres NAPRAWDĘ pochodzi z tej strony: przy ręcznie
+       wpisanym adresie wybrana wcześniej strona nie jest już tym dokumentem
+       i jej data opisywałaby coś innego niż zgłaszany adres. Bez strony pola
+       nie wysyłamy wcale — jest opcjonalne, a dzisiejsza data przy treści
+       sprzed roku to fałszywa informacja, nie brak informacji. */
+    $lastmod = '';
+    if (($sekcja['url'] ?? '') === '' && !empty($sekcja['page'])) {
+        $wpis = get_post((int) $sekcja['page']);
+        if ($wpis && $wpis->post_modified_gmt) {
+            $czas    = strtotime($wpis->post_modified_gmt);
+            $lastmod = $czas ? gmdate(DATE_W3C, $czas) : '';
         }
+    }
+
+    $urls = [];
+    foreach ($sekcja['anchors'] as $kotwica) {
+        $wpis = ['loc' => $baza . '#' . $kotwica];
+        if ($lastmod !== '') $wpis['lastmod'] = $lastmod;
+        $urls[] = $wpis;
     }
 
     return $urls;
@@ -227,31 +283,37 @@ add_action('wp_sitemaps_init', function () {
 
     $ustawienia = tl_get_sitemap_settings();
 
-    /* Sekcja kotwic — rejestrowana wyłącznie, gdy jest co pokazać. Provider
-       bez adresów dokłada do indeksu pustą sekcję, czyli adres zgłaszany
-       Google'owi po to, by odpowiedzieć zerem wpisów. */
+    /* Sekcje kotwic — po jednym providerze na sekcję, każdy pod własną nazwą.
+       Rejestrowana tylko sekcja, która ma adresy: provider bez adresów dokłada
+       do indeksu pozycję zgłaszaną Google'owi po to, by odpowiedzieć zerem
+       wpisów. */
     if (!class_exists('EVK_Sitemap_Kotwice_Provider')) {
         class EVK_Sitemap_Kotwice_Provider extends WP_Sitemaps_Provider {
             const NA_STRONE = 2000;
 
-            public function __construct() {
-                $this->name        = 'kotwice';
-                $this->object_type = 'kotwice';
+            /** @var array<int,array<string,string>> */
+            private $urls;
+
+            public function __construct(string $slug, array $urls) {
+                $this->name        = $slug;
+                $this->object_type = $slug;
+                $this->urls        = $urls;
             }
 
             public function get_url_list($page_num, $object_subtype = '') {
-                $urls = evk_sitemap_kotwice_urls();
-                return array_slice($urls, max(0, $page_num - 1) * self::NA_STRONE, self::NA_STRONE);
+                return array_slice($this->urls, max(0, $page_num - 1) * self::NA_STRONE, self::NA_STRONE);
             }
 
             public function get_max_num_pages($object_subtype = '') {
-                return (int) ceil(count(evk_sitemap_kotwice_urls()) / self::NA_STRONE);
+                return (int) ceil(count($this->urls) / self::NA_STRONE);
             }
         }
     }
 
-    if (evk_sitemap_kotwice_typy()) {
-        wp_register_sitemap_provider('kotwice', new EVK_Sitemap_Kotwice_Provider());
+    foreach (evk_sitemap_sekcje_kotwic() as $sekcja) {
+        $urls = evk_sitemap_kotwice_urls($sekcja);
+        if (empty($urls)) continue;
+        wp_register_sitemap_provider($sekcja['slug'], new EVK_Sitemap_Kotwice_Provider($sekcja['slug'], $urls));
     }
 
     /* Sekcja tłumaczeń — tylko przy żywym silniku języków. Plik ładuje się

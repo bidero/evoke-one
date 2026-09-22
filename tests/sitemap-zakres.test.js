@@ -90,23 +90,54 @@ module.exports = async function (t) {
   t.check('zwykła strona bez noindex', php.robots_strona.length === 0,
     JSON.stringify(php.robots_strona));
 
-  // ── Kotwice ───────────────────────────────────────────────────────────
-  t.section('kotwice zamiast martwych permalinków');
+  // ── Sekcje z kotwicami ────────────────────────────────────────────────
+  t.section('sekcje kotwic jako osobne pozycje w indeksie mapy');
 
-  t.check('adres to strona docelowa z kotwicą',
-    php.kotwice.length === 1 && php.kotwice[0].loc === 'https://example.test/oferta/#danie-dnia',
-    JSON.stringify(php.kotwice));
-  // Wykluczony wpis (#102) i wpis bez sluga (#103) nie mają czego wnieść.
-  t.check('wykluczony wpis i wpis bez sluga odpadają', php.kotwice.length === 1,
-    php.kotwice.map((k) => k.loc).join(' | '));
-  t.check('lastmod w formacie W3C',
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/.test(php.kotwice[0].lastmod),
-    String(php.kotwice[0].lastmod));
-  // Nieistniejąca strona docelowa daje PUSTĄ listę, nie adres z „false".
-  t.check('brak strony docelowej — brak adresów', php.kotwice_bez_strony.length === 0,
-    JSON.stringify(php.kotwice_bez_strony));
-  t.check('bez konfiguracji — brak adresów', php.kotwice_bez_konfiguracji.length === 0,
-    JSON.stringify(php.kotwice_bez_konfiguracji));
+  /* Strona jednoekranowa jest w mapie JEDNYM adresem, choć niesie kilkanaście
+     osobnych treści. Sekcja kotwic zgłasza je z osobna i robi to WŁASNYM
+     plikiem w indeksie (`wp-sitemap-menu-1.xml`) — dlatego sprawdzamy nie samą
+     listę adresów, tylko to, co moduł rejestruje w `wp_sitemaps_init`. */
+  const nazwy = Object.keys(php.sekcje);
+  t.check('każda sekcja to osobny provider pod swoją nazwą',
+    nazwy.includes('menu') && nazwy.includes('cennik'), nazwy.join(', '));
+
+  const menu = php.sekcje.menu || { adresy: [] };
+  t.check('adresy to strona bazowa z kolejnymi kotwicami',
+    menu.adresy.length === 2 &&
+    menu.adresy[0].loc === 'https://example.test/oferta/#desery' &&
+    menu.adresy[1].loc === 'https://example.test/oferta/#napoje',
+    menu.adresy.map((a) => a.loc).join(' | '));
+  t.check('lastmod ze strony bazowej, w formacie W3C',
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/.test(menu.adresy[0].lastmod),
+    String(menu.adresy[0].lastmod));
+
+  // Własny adres bywa jedynym wyjściem, gdy jednoekranowa treść nie jest
+  // stroną WordPressa (szablon Bricks pod własnym adresem).
+  const cennik = php.sekcje.cennik || { adresy: [] };
+  t.check('własny adres wygrywa ze stroną i dostaje domenę',
+    cennik.adresy.length === 1 && cennik.adresy[0].loc === 'https://example.test/uslugi/#pakiety',
+    JSON.stringify(cennik.adresy));
+  /* `lastmod` musi iść z tego samego źródła co adres. Przy ręcznym adresie
+     data wybranej wcześniej strony opisywałaby inny dokument — pole jest
+     opcjonalne, więc lepiej go nie ma, niż ma kłamać. */
+  t.check('przy własnym adresie nie ma zmyślonego lastmod',
+    cennik.adresy[0].lastmod === undefined, JSON.stringify(cennik.adresy[0]));
+
+  /* Nazwy `posts`, `taxonomies`, `users` i `translations` są zajęte przez
+     WordPressa i przez sekcję tłumaczeń. `WP_Sitemaps_Registry::add_sitemap()`
+     odmawia drugiego providera o tej samej nazwie, więc sekcja powstałaby
+     tylko z nazwy — bez ani jednego adresu w mapie. */
+  t.check('nazwa zajęta przez rdzeń nie rejestruje sekcji', !nazwy.includes('posts'),
+    nazwy.join(', '));
+  // Provider bez adresów dokłada do indeksu pozycję, która odpowiada zerem.
+  t.check('sekcja bez kotwic nie rejestruje się', !nazwy.includes('puste'),
+    nazwy.join(', '));
+  /* Ten sam warunek, drugi powód: kotwice są, ale strona bazowa została
+     skasowana po skonfigurowaniu sekcji. Adresu nie ma z czego zbudować. */
+  t.check('sekcja ze skasowaną stroną bazową też nie', !nazwy.includes('widmo'),
+    nazwy.join(', '));
+  t.check('bez konfiguracji nie ma żadnej sekcji', php.sekcje_bez_konfiguracji.length === 0,
+    JSON.stringify(php.sekcje_bez_konfiguracji));
 
   // ── Sanityzacja zapisu ────────────────────────────────────────────────
   t.section('zapis z jednego ekranu nie kasuje ustawień drugiego');
@@ -120,9 +151,9 @@ module.exports = async function (t) {
   t.check('typy treści przeżywają zapis starym ekranem',
     JSON.stringify(stary.excluded_types) === JSON.stringify(['realizacja']),
     JSON.stringify(stary.excluded_types));
-  t.check('kotwice przeżywają zapis starym ekranem',
-    JSON.stringify(stary.anchor_types) === JSON.stringify({ menu: 7 }),
-    JSON.stringify(stary.anchor_types));
+  t.check('sekcje kotwic przeżywają zapis starym ekranem',
+    stary.anchor_sections.length === 1 && stary.anchor_sections[0].slug === 'menu',
+    JSON.stringify(stary.anchor_sections));
   t.check('pole obecne w zapisie jednak się zmienia', stary.enabled === 0, String(stary.enabled));
 
   const nowy = php.zapis_nowym_ekranem;
@@ -130,9 +161,17 @@ module.exports = async function (t) {
     JSON.stringify(nowy.excluded_types) === JSON.stringify(['realizacja']) &&
     JSON.stringify(nowy.noindex_types) === JSON.stringify(['slajd']),
     JSON.stringify(nowy.excluded_types) + ' / ' + JSON.stringify(nowy.noindex_types));
-  t.check('kotwica bez strony docelowej wypada',
-    JSON.stringify(nowy.anchor_types) === JSON.stringify({ menu: 7 }),
-    JSON.stringify(nowy.anchor_types));
+  /* Kotwice przychodzą tak, jak je wpisze człowiek: z kratką, wielką literą,
+     duplikatem i pustym wierszem po kliknięciu „dodaj". Wszystkie cztery
+     przypadki wychodzą jedną listą dwóch kotwic. */
+  const sekcje = nowy.anchor_sections;
+  t.check('kotwice znormalizowane, bez duplikatów i pustych',
+    sekcje.length === 1 && JSON.stringify(sekcje[0].anchors) === JSON.stringify(['desery', 'napoje']),
+    JSON.stringify(sekcje.map((s) => s.anchors)));
+  // Slug decyduje o nazwie pliku w indeksie mapy, więc powstaje z nazwy.
+  t.check('slug sekcji powstaje z nazwy', sekcje[0].slug === 'menu-lokalu', String(sekcje[0].slug));
+  t.check('sekcja bez nazwy i sekcja bez kotwic wypadają', sekcje.length === 1,
+    sekcje.map((s) => s.name).join(', '));
   t.check('ID wpisów przechodzą przez absint',
     JSON.stringify(nowy.excluded_ids) === JSON.stringify([42]),
     JSON.stringify(nowy.excluded_ids));

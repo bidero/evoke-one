@@ -501,7 +501,12 @@ $TABS = [
                    z pozycją, która je niesie. */
                 'noindex_types'  => ['slajd'],
                 'excluded_types' => ['post'],
-                'anchor_types'   => ['slajd' => 11],
+                /* Sekcja kotwic — żeby ekran renderował edytor z wypełnionym
+                   wierszem, a nie samym przyciskiem „Dodaj sekcję". Pusty
+                   edytor nie pokazuje ani jednego pola do zmierzenia. */
+                'anchor_sections' => [
+                    ['name' => 'Menu', 'slug' => 'menu', 'page' => 11, 'url' => '', 'anchors' => ['desery', 'napoje']],
+                ],
             ];
             /* WPIS Z META NOINDEX — bez niego pętla diagnostyki na tym ekranie
                nie wykonuje ani jednego obrotu i sprawdzenie renderu przechodzi,
