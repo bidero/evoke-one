@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="tl-img-lang-row">
                         <span class="tl-img-lang-label"><?php echo esc_html($code==='pl'?'PL':strtoupper($code)); ?></span>
                         <?php if ($img_url): ?>
-                        <img src="<?php echo esc_url($img_url); ?>" class="tl-img-preview" data-lang="<?php echo esc_attr($code); ?>" data-att="<?php echo esc_attr($att_id); ?>" onclick="tlOpenMedia(this,'<?php echo esc_js($code); ?>')">
+                        <img src="<?php echo esc_url($img_url); ?>" class="tl-img-preview" data-lang="<?php echo esc_attr($code); ?>" data-att="<?php echo esc_attr((string) $att_id); ?>" onclick="tlOpenMedia(this,'<?php echo esc_js($code); ?>')">
                         <?php else: ?>
                         <div class="tl-img-preview-empty" data-lang="<?php echo esc_attr($code); ?>" data-att="0" onclick="tlOpenMedia(this,'<?php echo esc_js($code); ?>')">+</div>
                         <?php endif; ?>

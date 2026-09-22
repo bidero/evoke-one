@@ -577,11 +577,8 @@ function evk_sitemap_hreflang_renderuj(): void {
        `get_sitemap_stylesheet_url()` oddaje `?sitemap-stylesheet=sitemap`,
        a wpisany na sztywno `/wp-sitemap.xsl` byłby wtedy pustym strzałem. */
     if (function_exists('wp_sitemaps_get_server')) {
-        $serwer = wp_sitemaps_get_server();
-        if ($serwer && isset($serwer->renderer) && method_exists($serwer->renderer, 'get_sitemap_stylesheet_url')) {
-            $xsl = $serwer->renderer->get_sitemap_stylesheet_url();
-            if ($xsl) echo '<?xml-stylesheet type="text/xsl" href="' . esc_url($xsl) . '" ?>' . "\n";
-        }
+        $xsl = wp_sitemaps_get_server()->renderer->get_sitemap_stylesheet_url();
+        if ($xsl !== '') echo '<?xml-stylesheet type="text/xsl" href="' . esc_url($xsl) . '" ?>' . "\n";
     }
 
     echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' . "\n";

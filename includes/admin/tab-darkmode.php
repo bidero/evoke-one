@@ -244,8 +244,6 @@ if (!defined('ABSPATH')) exit;
                         </div>
                     </div>
 
-                    <?php evoke_one_pasek_zapisu('Zapisz ustawienia Dark Mode'); ?>
-
                 </div>
 
                 <div class="evo-box">
@@ -291,8 +289,7 @@ if (!defined('ABSPATH')) exit;
                         </div>
                     </div>
 
-                    <?php submit_button('Zapisz ustawienia Dark Mode', 'primary', 'submit', false); ?>
-            
                 </div>
 
+<?php evoke_one_pasek_zapisu('Zapisz ustawienia Dark Mode'); ?>
 </form>

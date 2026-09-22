@@ -115,18 +115,6 @@ parameters:
 			path: includes/admin/seo/tab-og.php
 
 		-
-			message: '#^Parameter \#1 \$text of function esc_attr expects string, int\<0, max\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: includes/admin/seo/tab-sitemap.php
-
-		-
-			message: '#^Parameter \#1 \$text of function esc_html expects string, int\<0, max\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: includes/admin/seo/tab-sitemap.php
-
-		-
 			message: '#^Variable \$parallax_value might not be defined\.$#'
 			identifier: variable.undefined
 			count: 2
@@ -157,12 +145,6 @@ parameters:
 			path: includes/admin/tl/tab-dd.php
 
 		-
-			message: '#^Parameter \#1 \$text of function esc_attr expects string, int\<min, \-1\>\|int\<1, max\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: includes/admin/tl/tab-images.php
-
-		-
 			message: '#^Variable \$images might not be defined\.$#'
 			identifier: variable.undefined
 			count: 1
@@ -173,12 +155,6 @@ parameters:
 			identifier: variable.undefined
 			count: 1
 			path: includes/admin/tl/tab-images.php
-
-		-
-			message: '#^Parameter \#1 \$text of function esc_attr expects string, int\<min, \-1\>\|int\<1, max\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: includes/admin/tl/tab-languages.php
 
 		-
 			message: '#^Variable \$menu_location might not be defined\.$#'

@@ -2,6 +2,38 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.224.4] — 2026-09-22
+
+### Naprawione
+
+- **Tryb ciemny miał dwa przyciski zapisu w jednym formularzu.** Pasek panelu
+  stał w środku, za boksem „Przejście przy przełączaniu motywu", a na końcu
+  formularza siedział goły `submit_button()`. Oba zapisywały dokładnie to samo
+  i wyglądały inaczej, więc ekran sugerował dwa osobne zapisy tam, gdzie jest
+  jeden. Został JEDEN pasek, na końcu formularza, zbudowany
+  `evoke_one_pasek_zapisu()` — tak jak w pozostałych zakładkach.
+  ZGŁOSZONE Z UŻYCIA.
+
+  Doszedł strażnik w `admin-tabs.test.js`: żaden formularz w żadnej zakładce
+  nie może mieć dwóch przycisków zapisu. Próg zmierzony przed dopisaniem —
+  po naprawie wszystkie 47 zakładek mają najwyżej jeden przycisk na formularz,
+  więc stoi na zerze, a nie na „mniej niż wcześniej". Liczone przy okazji tego
+  samego renderu, który sprawdza zagnieżdżenie znaczników, więc nie kosztuje
+  ani jednego wywołania PHP-a więcej.
+
+- **Analiza statyczna przechodzi na czysto** — pierwszy raz od początku prac
+  nad mapą strony, bo w kontenerze sesji `composer install` odbija się od
+  uwierzytelnienia GitHuba i PHPStana po prostu nie było. Sposób obejścia
+  (klon repozytoriów przez `git`, który przez to samo proxy działa) opisany
+  w `CLAUDE.md`.
+
+  Znalezione i naprawione: martwy warunek w sekcji hreflang (`isset()` na
+  właściwości, która nie bywa pusta, i `method_exists()` na metodzie, która
+  zawsze istnieje), oraz pięć wywołań `esc_attr()`/`esc_html()` dostających
+  liczbę zamiast łańcucha — dwa w ekranie mapy strony, trzy w zakładkach
+  tłumaczeń. Odpowiadające wpisy zdjęte z `phpstan-baseline.neon` — ten plik ma
+  maleć przez naprawianie kodu, a nie rosnąć od dopisywanych wyjątków.
+
 ## [1.224.3] — 2026-09-22
 
 ### Naprawione

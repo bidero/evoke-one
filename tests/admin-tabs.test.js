@@ -132,6 +132,7 @@ module.exports = async function (t) {
                      'ul', 'ol', 'select'];
 
   const zleZagniezdzone = [];
+  const dwaZapisy = [];
   for (const slug of TABS) {
     const html = phpOutput('tab.php', slug)
       .replace(/<script\b[\s\S]*?<\/script>/gi, '')
@@ -161,10 +162,25 @@ module.exports = async function (t) {
       bledy.push('<' + otwarty.tag + '> nigdy nie zamknięty (poz. ' + otwarty.poz + ')');
     }
     if (bledy.length) zleZagniezdzone.push(slug + ': ' + bledy.join(' | '));
+
+    /* Przy okazji tego samego renderu: ile przycisków zapisu ma każdy
+       formularz. ZGŁOSZONE Z UŻYCIA — Dark Mode miał dwa, w jednym
+       formularzu: pasek panelu w środku i goły `submit_button()` na końcu.
+       Oba zapisywały dokładnie to samo i wyglądały inaczej, więc ekran
+       sugerował dwa różne zapisy tam, gdzie jest jeden. */
+    const naFormularz = html.split(/<form\b/i).slice(1)
+      .map((f) => (f.split(/<\/form>/i)[0].match(/type="submit"/g) || []).length);
+    if (naFormularz.some((n) => n > 1)) dwaZapisy.push(slug + ': ' + naFormularz.join('+'));
   }
   t.check('każda zakładka zamyka to, co otworzyła, i w tej kolejności',
     !zleZagniezdzone.length,
     zleZagniezdzone.join(' | ') || TABS.length + ' zakładek poprawnych');
+
+  /* Zmierzone przed dopisaniem progu: po naprawie Dark Mode ŻADEN formularz
+     w 47 zakładkach nie ma dwóch przycisków zapisu. Próg stoi więc na zerze,
+     a nie na „mniej niż wcześniej". */
+  t.check('żaden formularz nie ma dwóch przycisków zapisu', !dwaZapisy.length,
+    dwaZapisy.join(' | ') || TABS.length + ' zakładek z jednym zapisem na formularz');
 
   // ── Objaw: stopka wp-admin nad treścią ────────────────────────────────
   /*

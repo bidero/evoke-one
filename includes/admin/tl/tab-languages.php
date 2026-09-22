@@ -50,7 +50,7 @@ if (!defined('ABSPATH')) exit;
                         <td><input type="text" class="lang-html" value="<?php echo esc_attr($lang['html']); ?>" placeholder="en-GB"></td>
                         <td>
                             <?php if ($flag_url): ?>
-                            <img src="<?php echo esc_url($flag_url); ?>" class="tl-lang-flag-preview evo-flag" data-att="<?php echo esc_attr($flag_id); ?>" onclick="tlOpenLangFlag(this)">
+                            <img src="<?php echo esc_url($flag_url); ?>" class="tl-lang-flag-preview evo-flag" data-att="<?php echo esc_attr((string) $flag_id); ?>" onclick="tlOpenLangFlag(this)">
                             <?php else: ?>
                             <div class="tl-lang-flag-empty evo-flag is-empty" data-att="0" onclick="tlOpenLangFlag(this)">+</div>
                             <?php endif; ?>

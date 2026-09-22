@@ -99,6 +99,24 @@ Przebieg idzie **do pliku**, potem czyta się go dowolną liczbę razy. Puszczen
 tego samego zestawu drugi raz po to, żeby obejrzeć inny fragment wyniku, to
 czysta strata — a łatwo w to wpaść, gdy pierwszy `grep` był za wąski.
 
+### PHPStan, gdy `composer install` odmawia
+
+W kontenerze sesji zdalnej composer pada na `Could not authenticate against
+github.com` — dist-y paczek idą przez `api.github.com`, a tamten adres przez
+proxy oddaje 403. **`git` przez to samo proxy działa**, więc narzędzia zaciąga
+się wprost z repozytoriów (obie paczki trzymają gotowe wytwory w gicie):
+
+```
+git clone --depth 1 --branch 2.1.17 https://github.com/phpstan/phpstan.git vendor/phpstan/phpstan
+git clone --depth 1 https://github.com/php-stubs/wordpress-stubs.git vendor/php-stubs/wordpress-stubs
+mkdir -p vendor/bin && ln -sf ../phpstan/phpstan/phpstan.phar vendor/bin/phpstan
+vendor/bin/phpstan analyse --no-progress
+```
+
+Bez tego sekcja „analiza statyczna" w `drobiazgi` świeci na czerwono przez CAŁĄ
+sesję, a analiza nie przechodzi ani razu — i tak właśnie przejechało kilka wydań
+z łańcucha mapy strony, zanim ktoś powiedział, że PHPStan da się uruchomić.
+
 ### Zanim puścisz przeglądarkę
 
 Te odpowiadają w sekundy i łapią większość wpadek:

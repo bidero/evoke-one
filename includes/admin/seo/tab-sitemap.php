@@ -72,7 +72,7 @@ if (!defined('ABSPATH')) exit;
                            permalink. Skrypt składający go z tytułu strony
                            kłamałby przy każdej stronie zagnieżdżonej i przy
                            ręcznie zmienionym slugu. */
-                        $out .= '<option value="' . esc_attr($sm_strona->ID) . '"'
+                        $out .= '<option value="' . esc_attr((string) $sm_strona->ID) . '"'
                               . ' data-url="' . esc_attr((string) get_permalink($sm_strona)) . '"'
                               . selected((int) $wybrana, (int) $sm_strona->ID, false) . '>'
                               . esc_html(get_the_title($sm_strona) ?: '(bez tytułu)') . '</option>';
@@ -312,11 +312,11 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-sm-excluded-list">
                         <?php foreach ($sitemap_posts as $sm_post): ?>
                         <label>
-                            <input type="checkbox" class="tl-sm-excluded-id" value="<?php echo esc_attr($sm_post->ID); ?>" <?php checked(in_array((int) $sm_post->ID, $excluded_ids, true)); ?>>
+                            <input type="checkbox" class="tl-sm-excluded-id" value="<?php echo esc_attr((string) $sm_post->ID); ?>" <?php checked(in_array((int) $sm_post->ID, $excluded_ids, true)); ?>>
                             <span class="evo-col-label"><?php echo esc_html($sm_post->post_type); ?></span>
                             <strong class="evo-grow"><?php echo esc_html(get_the_title($sm_post) ?: '(bez tytułu)'); ?></strong>
                             <code class="evo-muted"><?php echo esc_html($sm_post->post_name); ?></code>
-                            <span class="evo-faint">#<?php echo esc_html($sm_post->ID); ?></span>
+                            <span class="evo-faint">#<?php echo esc_html((string) $sm_post->ID); ?></span>
                         </label>
                         <?php endforeach; ?>
                     </div>
