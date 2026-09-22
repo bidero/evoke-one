@@ -72,8 +72,9 @@ const MOBILE = ['schema', 'sitemap', 'seo-meta',
                 'tl-translations', 'tl-slugs', 'tl-languages',
                 /* Role mają tabelę uprawnień — ten sam kształt. */
                 'adm-roles',
-                /* Kopie zapasowe: trzykolumnowa tabela środowiska z długimi uwagami. */
-                'backup'];
+                /* Kopie zapasowe: trzykolumnowa tabela środowiska z długimi uwagami,
+                   przy włączonym module także lista kopii z przyciskami akcji. */
+                'backup', 'backup-on'];
 
 /** Zakładki, które mają już treść w boksach. */
 const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',

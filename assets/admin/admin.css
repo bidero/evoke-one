@@ -1441,6 +1441,17 @@
 .evo-srodowisko .is-warn .evo-srodowisko-ico { color: var(--evo-warn); }
 .evo-srodowisko .is-err  .evo-srodowisko-ico { color: var(--evo-danger); }
 .evo-srodowisko .is-info .evo-srodowisko-ico { color: var(--evo-text-dim); }
+/* Kopia teraz — pasek postępu i dziennik kroków. */
+/* `hidden` przegrywa z `.button { display: inline-block }` z WordPressa
+   i z `.evo-info-box { display: flex }` — zmierzone: „Anuluj" i pusta ramka
+   komunikatu były widoczne mimo atrybutu. */
+#evk-backup-teraz [hidden] { display: none !important; }
+.evk-backup-pasek { height: 8px; border-radius: 999px; background: var(--evo-border-soft); overflow: hidden; margin: 8px 0 4px; }
+.evk-backup-pasek > span { display: block; height: 100%; width: 0; background: var(--evo-accent); transition: width .4s ease; }
+.evk-backup-procent { margin: 0; font-size: 12px; }
+.evk-backup-log { max-height: 220px; overflow: auto; margin: 6px 0 0; padding: 8px 10px; font-size: 11px; line-height: 1.6;
+    background: var(--evo-code-bg); color: var(--evo-code-text); border-radius: 6px; white-space: pre-wrap; word-break: break-word; }
+.evk-backup-lista td .evo-badge { margin-left: 6px; }
 /* Pusty stan — komunikat zamiast pustej ramki. */
 .evo-empty {
     padding: 16px 10px;

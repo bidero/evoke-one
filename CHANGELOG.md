@@ -2,6 +2,68 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.226.0] — 2026-09-22
+
+### Dodane
+
+- **Kopie zapasowe działają: „Utwórz kopię teraz", lista kopii, pobieranie.**
+  Zakładka Kopie zapasowe (przy włączonym module) tworzy pełną kopię strony —
+  baza i cały wp-content — w jednym archiwum ZIP, z paskiem postępu
+  i dziennikiem kroków. Lista kopii na serwerze: data, rodzaj, rozmiar,
+  zawartość; Pobierz / Przypnij / Usuń. Ustawienia, które w tej wersji
+  działają: ile kopii trzymać (retencja w sztukach — przypięte się nie
+  liczą), wykluczenia, tryb konserwacji na czas zrzutu bazy. Harmonogramu
+  nocnego i przywracania jeszcze NIE MA — kolejne wydania.
+
+  Kopia idzie KROKAMI w tle (domyślnie po 20 s) i przeżywa ubicie procesu
+  w dowolnym miejscu. Napęd: żądanie serwera do samego siebie, zapasowo
+  WP-Cron, a przy otwartej zakładce — samo odpytywanie o postęp. Długość
+  kroku dopasowuje się do serwera: krok, który nie dożył końca, skraca
+  następne o połowę (do 3 s), udany wydłuża o ćwierć (do 60 s).
+
+  Nowy przycisk „Sprawdź napęd kopii w tle (30 s)" mierzy, ile na TYM
+  serwerze żyje żądanie do samego siebie. Na LiteSpeed bez reguły `noabort`
+  takie żądania bywają ubijane po rozłączeniu — wtedy kopia pójdzie przez
+  WP-Cron i otwartą kartę, wolniej, ale do końca.
+
+- **Wiersz „Katalog kopii z sieci" w tabeli środowiska** — plik próbny
+  w katalogu kopii i żądanie HTTP z serwera do siebie. „DOSTĘPNY" znaczy, że
+  serwer nie czyta `.htaccess` (nginx) albo go ignoruje; kopie chroni wtedy
+  losowa, 20-znakowa nazwa katalogu.
+
+### Pod spodem (etapy A–C modułu kopii)
+
+- Zrzut bazy do JSONL (nie SQL): wartości kolumn osobno, gotowe do podmiany
+  adresu przy przenosinach. Paczka dobierana z `LENGTH()` przed pobraniem —
+  zmierzone: stała paczka 200 wierszy dawała szczyt pamięci +195 MB (fatal
+  przy limicie 128 MB), dopasowana +16 MB i szybciej.
+- Zbieranie plików z wykluczeniami zakotwiczonymi (`cache/` to
+  wp-content/cache, nie kod wtyczki w katalogu cache), dowiązaniami
+  śledzonymi bez pętli, nazwami spoza UTF-8.
+- Lock warunkowym UPDATE-em, zapasowy krok w WP-Cron planowany przed pracą,
+  żądanie zwrotne podpisane HMAC. Przy zablokowanym `set_time_limit()`
+  budżet kroku = 80% `max_execution_time` minus czas od początku żądania.
+
+### Naprawione przed wydaniem
+
+- `set_time_limit()` wyłączone w `disable_functions` — w PHP 8 funkcja wtedy
+  NIE ISTNIEJE i wywołanie rzuca Error, którego `@` nie tłumi. Krok kopii nie
+  ruszał wcale. Znalezione testem, zanim trafiło na hosting.
+- Atrybut `hidden` przegrywał z `.button { display: inline-block }`
+  WordPressa: „Anuluj" i pusta ramka komunikatu wisiały na ekranie.
+
+### Testy
+
+- Nowe zestawy: `backup-baza`, `backup-pliki`, `backup-katalog`,
+  `backup-silnik`, `backup-panel` — na PRAWDZIWYM WordPressie i MariaDB
+  (`tools/testowy-wp.sh`), `backup-panel` przeklikuje zakładkę w Chromium.
+  Scenariusze śmierci kroku: SIGKILL w środku pliku 60 MB, fatal z braku
+  pamięci, limit PHP przy zablokowanym `set_time_limit`. Kopia napędzana
+  wyłącznie otwartą kartą (bez żądań zwrotnych i WP-Cron). Mutacje
+  (9 + 8 + 8 + 12 + 5), każda zapala.
+- `CLAUDE.md`: pełny przebieg obowiązkowy przed wydaniem i przy plikach
+  wspólnych; push „bez wydania" w obrębie modułu — testy modułu + drobiazgi.
+
 ## [1.225.0] — 2026-09-22
 
 ### Dodane

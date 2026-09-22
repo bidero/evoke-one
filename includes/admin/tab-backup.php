@@ -3,10 +3,11 @@ if (!defined('ABSPATH')) exit;
 /**
  * Evoke ONE — Tab: Kopie zapasowe
  *
- * Na razie szkielet: włącznik modułu i sprawdzenie środowiska serwera.
- * Tworzenie kopii, harmonogram i przywracanie dochodzą w kolejnych etapach —
- * zakładka mówi o tym wprost, zamiast pokazywać ustawienia, które jeszcze
- * niczego nie robią.
+ * Kopia ręczna z paskiem postępu, lista kopii (pobierz / przypnij / usuń),
+ * ustawienia, które w tej wersji naprawdę działają (retencja, wykluczenia,
+ * tryb konserwacji na czas zrzutu), i sprawdzenie środowiska. Harmonogram
+ * nocny i przywracanie dochodzą w kolejnych wydaniach — zakładka mówi to
+ * wprost, zamiast pokazywać ustawienia, które niczego nie robią.
  */
 
 $bk_on     = evk_backup_enabled();
@@ -15,6 +16,8 @@ $bk_on     = evk_backup_enabled();
    zmienne. W panelu zmiennej nie ma i fakty czytamy z serwera. */
 $bk_checks = evk_backup_environment_checks($bk_facts ?? evk_backup_environment_facts());
 $bk_block  = evk_backup_environment_blocked($bk_checks);
+$bk_silnik = $bk_on && function_exists('evk_backup_render_list');
+$bk_s      = evk_backup_get_settings();
 $bk_ikony  = [
     'ok'   => 'dashicons-yes-alt',
     'warn' => 'dashicons-warning',
@@ -56,11 +59,76 @@ $bk_ikony  = [
 </div>
 <?php endif; ?>
 
+<?php if ($bk_on && !$bk_silnik): ?>
 <div class="evo-info-box evo-mt">
-    <span class="dashicons dashicons-hammer"></span>
-    <div><strong>Moduł w budowie.</strong> W tej wersji: włącznik i sprawdzenie środowiska serwera.
-    Tworzenie kopii, harmonogram nocny, lista kopii i przywracanie pojawią się tutaj w kolejnych wydaniach.</div>
+    <span class="dashicons dashicons-update"></span>
+    <div>Moduł właśnie włączony — <a href="">odśwież stronę</a>, żeby pojawił się przycisk kopii i lista.</div>
 </div>
+<?php endif; ?>
+
+<?php if ($bk_silnik && !$bk_block): ?>
+<!-- KOPIA TERAZ -->
+<div class="evo-box evo-mt" id="evk-backup-teraz">
+    <h3>Kopia teraz</h3>
+    <p class="evo-muted evo-mb">Baza i cały wp-content w jednym archiwum ZIP. Kopia idzie krokami w tle — możesz zamknąć tę kartę, praca się nie przerwie.</p>
+    <div class="evo-inline" style="--evo-gap:10px">
+        <button type="button" class="button button-primary" data-evk-backup-start>
+            <span class="dashicons dashicons-backup evo-ico"></span> Utwórz kopię teraz
+        </button>
+        <button type="button" class="button" data-evk-backup-cancel hidden>Anuluj</button>
+    </div>
+    <div class="evk-backup-postep evo-mt" data-evk-backup-progress hidden>
+        <div class="evk-backup-etap"><strong data-evk-backup-label>—</strong> <span class="evo-muted" data-evk-backup-step></span></div>
+        <div class="evk-backup-pasek" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-evk-backup-bar><span></span></div>
+        <p class="evo-muted evk-backup-procent" data-evk-backup-percent></p>
+        <details class="evo-mt-xs"><summary>Dziennik</summary><pre class="evk-backup-log" data-evk-backup-log></pre></details>
+    </div>
+    <div class="evo-info-box evo-mt" data-evk-backup-msg hidden><span class="dashicons dashicons-info-outline"></span><div></div></div>
+</div>
+
+<!-- LISTA KOPII -->
+<div class="evo-box evo-mt">
+    <h3>Kopie na serwerze</h3>
+    <p class="evo-muted evo-mb">Katalog: <code><?php echo esc_html('wp-content/' . basename(evk_backup_dir())); ?></code>.
+    Przypięte kopie nie są usuwane przez retencję. Przywracanie — w kolejnym wydaniu.</p>
+    <div data-evk-backup-list><?php echo evk_backup_render_list(); // phpcs:ignore WordPress.Security.EscapeOutput -- zbudowane z esc_* ?></div>
+</div>
+
+<!-- USTAWIENIA -->
+<form method="post" action="options.php" class="evo-box evo-mt">
+    <?php settings_fields('evoke_one_backup'); ?>
+    <?php /* 'enabled' idzie przełącznikiem AJAX — sanitizer zachowuje go przy zapisie formularza. */ ?>
+    <h3>Ustawienia</h3>
+    <div class="evo-grid evo-mb" style="--evo-col:240px">
+        <div class="evo-field">
+            <label for="evk-backup-retencja">Ile kopii trzymać</label>
+            <input type="number" id="evk-backup-retencja" name="evk_backup[retention_count]" min="1" max="100" class="evo-w-xs"
+                   value="<?php echo esc_attr((string) $bk_s['retention_count']); ?>">
+            <div class="evo-desc">Po każdej udanej kopii najstarsze ponad ten limit są usuwane. Nie liczą się przypięte, sprzed przywrócenia i wgrane.</div>
+        </div>
+        <div class="evo-field">
+            <label class="checkbox-label">
+                <input type="checkbox" name="evk_backup[maintenance_db]" value="1" <?php checked(!empty($bk_s['maintenance_db'])); ?>>
+                Tryb konserwacji na czas zrzutu bazy
+            </label>
+            <div class="evo-desc">Zrzut w kilku krokach nie jest migawką — zamówienie złożone w trakcie może trafić do kopii częściowo. Przy sklepie warto włączyć; strona zasłania się na czas zrzutu bazy (zwykle sekundy).</div>
+        </div>
+    </div>
+    <div class="evo-field">
+        <label for="evk-backup-wykluczenia">Wykluczenia (względem wp-content, jedno na linię)</label>
+        <textarea id="evk-backup-wykluczenia" name="evk_backup[exclusions]" rows="8" class="large-text code"><?php echo esc_textarea((string) $bk_s['exclusions']); ?></textarea>
+        <div class="evo-desc"><code>cache/</code> to wyłącznie <code>wp-content/cache</code> (katalog o tej nazwie w środku wtyczki zostaje — bywa w nim kod).
+        Wzorzec bez ukośnika, np. <code>*.log</code>, łapie nazwę w każdym miejscu. Katalogi kopii tej wtyczki są wykluczone zawsze.</div>
+    </div>
+    <?php evoke_one_pasek_zapisu(); ?>
+</form>
+<?php else: ?>
+<div class="evo-info-box evo-mt">
+    <span class="dashicons dashicons-info-outline"></span>
+    <div>Włącz moduł powyżej — pojawi się przycisk kopii, lista kopii i ustawienia. W tej wersji: kopie ręczne z pobieraniem.
+    Harmonogram nocny i przywracanie dochodzą w kolejnych wydaniach.</div>
+</div>
+<?php endif; ?>
 
 <!-- ŚRODOWISKO -->
 <div class="evo-box evo-mt">
@@ -80,4 +148,10 @@ $bk_ikony  = [
             <?php endforeach; ?>
         </tbody>
     </table></div>
+    <?php if ($bk_silnik): ?>
+    <div class="evo-mt" data-evk-backup-probe>
+        <button type="button" class="button" data-evk-backup-probe-start>Sprawdź napęd kopii w tle (30 s)</button>
+        <span class="evo-muted" data-evk-backup-probe-result>Kopia idzie żądaniami serwera do samego siebie. Niektóre serwery (np. LiteSpeed bez <code>noabort</code>) ubijają je po chwili — ten test mierzy, ile takie żądanie żyje tutaj.</span>
+    </div>
+    <?php endif; ?>
 </div>

@@ -90,7 +90,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (69 plików, cztery partie):
+Podział, który się mieści (71 plików, cztery partie):
 
 ```
 node tests/run.js admin- anim animator aria backup- bg-shift bricks-required builder-context burger circular-menu controls
@@ -162,6 +162,12 @@ niego DOWIĄZANA, więc testy widzą bieżący kod.
 
 Brak środowiska **zapala test na czerwono** z instrukcją, a nie pomija go po
 cichu — ta sama umowa co przy PHPStanie w `drobiazgi`.
+
+`backup-panel` idzie dalej: podaje testowego WordPressa przez `php -S`
+z routerem `tests/php/_router-wp.php` (adres strony z portu, baza bez zmian)
+i przeklikuje zakładkę w Chromium. Serwer musi mieć kilka procesów
+(`PHP_CLI_SERVER_WORKERS`) — kopia napędza się żądaniami serwera do samego
+siebie, a jednoprocesowy `php -S` czekałby na samego siebie.
 
 ### Zanim puścisz przeglądarkę
 

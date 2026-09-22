@@ -39,6 +39,17 @@ add_action('admin_enqueue_scripts', function (string $hook) {
         ]);
     }
 
+    /* Kopie zapasowe — tylko na swojej zakładce i tylko przy włączonym
+       module (bez niego nie ma endpointów, do których skrypt by mówił). */
+    if (($_GET['tab'] ?? '') === 'backup' && function_exists('evk_backup_job_public')) {
+        wp_enqueue_script('evk-backup', EVOKE_ONE_URL . 'assets/admin/backup.js', [], EVOKE_ONE_VERSION, true);
+        wp_localize_script('evk-backup', 'evkBackup', [
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce'   => wp_create_nonce('evk_backup'),
+            'job'     => evk_backup_job_public(evk_backup_job_active()),
+        ]);
+    }
+
     // Sitemap
     wp_localize_script('evoke-one-admin', 'evoSitemapAjax', [
         'url'   => admin_url('admin-ajax.php'),

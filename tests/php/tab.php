@@ -63,6 +63,20 @@ function wp_get_theme() { return new class { public function get($k) { return 'B
    i tak samo niewidzialne dla sprawdzeń. */
 $GLOBALS['transients'] = [];
 function get_transient($k) { return $GLOBALS['transients'][$k] ?? false; }
+/* Kopie zapasowe (1.226.0): katalog kopii leży w WP_CONTENT_DIR — tu
+   w katalogu tymczasowym tego procesu, sprzątanym na końcu. */
+if (!defined('WP_CONTENT_DIR')) define('WP_CONTENT_DIR', sys_get_temp_dir() . '/evk-tab-wpc-' . getmypid());
+register_shutdown_function(static function () {
+    if (!is_dir(WP_CONTENT_DIR)) return;
+    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(WP_CONTENT_DIR, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST);
+    foreach ($it as $f) { $f->isDir() ? @rmdir($f->getPathname()) : @unlink($f->getPathname()); }
+    @rmdir(WP_CONTENT_DIR);
+});
+if (!function_exists('wp_date')) { function wp_date($f, $t = null) { return gmdate($f, $t ?? time()); } }
+if (!function_exists('wp_nonce_url')) { function wp_nonce_url($u, $a = -1) { return $u . '&_wpnonce=testnonce'; } }
+if (!function_exists('content_url')) { function content_url($p = '') { return 'https://example.test/wp-content' . ($p ? '/' . $p : ''); } }
+if (!function_exists('wp_mkdir_p')) { function wp_mkdir_p($d) { return is_dir($d) || @mkdir($d, 0700, true); } }
 function set_transient($k, $v, $t = 0) { $GLOBALS['transients'][$k] = $v; return true; }
 function delete_transient($k) { unset($GLOBALS['transients'][$k]); return true; }
 function wp_strip_all_tags($s, $br = false) { return strip_tags((string) $s); }
@@ -641,9 +655,23 @@ $TABS = [
         'seed'   => function () { $GLOBALS['options']['evk_backup'] = ['enabled' => 0]; },
     ],
     'backup-on' => [
-        'module' => ['includes/backup/settings.php', 'includes/backup/tables.php', 'includes/backup/environment.php'],
+        /* Moduł WŁĄCZONY z silnikiem: karta, kopia teraz, lista z jedną kopią,
+           formularz ustawień i test napędu — pełny markup. Katalog kopii
+           w katalogu tymczasowym (sprzątany), z jedną kopią i jej opisem. */
+        'module' => ['includes/backup/settings.php', 'includes/backup/tables.php', 'includes/backup/storage.php',
+                     'includes/backup/environment.php', 'includes/backup/engine.php', 'includes/backup/ajax.php'],
         'file'   => 'includes/admin/tab-backup.php',
-        'seed'   => function () { $GLOBALS['options']['evk_backup'] = ['enabled' => 1]; },
+        'seed'   => function () {
+            $GLOBALS['options']['evk_backup'] = ['enabled' => 1];
+            $GLOBALS['options']['evk_backup_dir'] = 'a1b2c3d4e5f6a7b8c9d0';
+            // Wynik kanarka z pamięci — sonda nie wysyła żądań HTTP.
+            $GLOBALS['transients']['evk_backup_exposed'] = 'nie';
+            $dir = WP_CONTENT_DIR . '/evk-backups-a1b2c3d4e5f6a7b8c9d0';
+            @mkdir($dir, 0700, true);
+            file_put_contents("$dir/strona-2026-09-22-0300-reczna-abcd1234.zip", 'PK');
+            file_put_contents("$dir/strona-2026-09-22-0300-reczna-abcd1234.zip.json",
+                json_encode(['created_at' => 1790000000, 'source' => 'manual', 'pinned' => true, 'files' => 12, 'db_rows' => 34]));
+        },
     ],
     'fe-newsletter' => [
         /* Bez `menu.php`: definiuje `evk_nl_base_url()`, którą atrapa wyżej
