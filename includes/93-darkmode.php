@@ -9,6 +9,44 @@ class EVK_DarkMode {
 
     private static $instance = null;
 
+    /* ── PRZEJŚCIE ZAPASOWE: wbudowane, bez pól w panelu ─────────────────────
+     *
+     * ZGŁOSZONE Z UŻYCIA: „te pola z wpisanymi elementami Bricks miały być
+     * rozwiązaniem na płynne przejście… najchętniej bym się tego pozbył
+     * i wolałbym, żeby system sam animował przy ripple te elementy."
+     *
+     * Od 1.215.0 fala robi to sama: wyciszenie obejmuje `html.is-theme-settled *`,
+     * czyli WSZYSTKO, więc przy włączonym przejściu motywu te listy nie mają
+     * znaczenia. Ale nie były martwe — rządziły płynnym przefarbowaniem
+     * w dwóch sytuacjach, które zostają:
+     *
+     *   · gdy przejście motywu jest WYŁĄCZONE w panelu,
+     *   · na przeglądarkach bez View Transitions (Firefox < 129, Safari < 18).
+     *
+     * Dlatego pola znikają, a zachowanie zostaje — z dokładnie tymi wartościami,
+     * które były domyślne do 1.220.0. Kto ich nie zmieniał, nie zobaczy różnicy.
+     *
+     * TO SĄ STAŁE, NIE USTAWIENIA. Gdyby wróciły do panelu, wróciłoby też
+     * pytanie „co tu wpisać, żeby fala działała" — a odpowiedź brzmi: nic,
+     * fala nie potrzebuje listy. */
+    private const ZAPAS_SELEKTORY = ['[data-brx-theme]', 'body', '#brx-content', 'section'];
+    private const ZAPAS_WLASCIWOSCI = ['background-color', 'color', 'border-color', 'fill', 'stroke', 'filter'];
+    private const ZAPAS_CZAS = 0.4;
+    private const ZAPAS_EASING = 'ease';
+
+    /* Elementy Bricksa mają własny, wolniejszy krok — tekst i ikony zmieniają
+       kolor łagodniej niż tła. Prefiks `[data-brx-theme]` zawęża regułę do
+       stron, na których motyw Bricksa w ogóle istnieje. */
+    private const ZAPAS_BRICKS_SELEKTORY = [
+        '.brxe-text', '.brxe-text-basic', '.brxe-heading', '.brxe-text-link',
+        '.brx-submenu-toggle', 'input::placeholder', '.form-group',
+        '.form-group textarea', 'input[type=checkbox]+label', '.splide',
+        '.brxe-slider-nested', 'svg', '.brxe-div',
+    ];
+    private const ZAPAS_BRICKS_WLASCIWOSCI = ['color', 'filter', 'border-color', 'background-color'];
+    private const ZAPAS_BRICKS_CZAS = 1.0;
+    private const ZAPAS_BRICKS_EASING = 'cubic-bezier(0.33, 1, 0.68, 1)';
+
     private $defaults = [
         'enabled'           => 0,
         // Przełącznik
@@ -24,18 +62,7 @@ class EVK_DarkMode {
         // Nav ripple (klik → fala)
         'nav_ripple_color'  => '#ffffff',
         'nav_ripple_blur'   => 20,
-        // Globalne przejścia CSS
-        'global_duration'   => 0.4,
-        'global_easing'     => 'ease',
-        'global_selectors'  => "[data-brx-theme]\nbody\n#brx-content\nsection",
-        'global_properties' => "background-color\ncolor\nborder-color\nfill\nstroke\nfilter",
         'color_vars'        => '',
-        // Elementy Bricks
-        'bricks_enabled'    => 1,
-        'bricks_duration'   => 1.0,
-        'bricks_easing'     => 'cubic-bezier(0.33, 1, 0.68, 1)',
-        'bricks_selectors'  => ".brxe-text\n.brxe-text-basic\n.brxe-heading\n.brxe-text-link\n.brx-submenu-toggle\ninput::placeholder\n.form-group\n.form-group textarea\ninput[type=checkbox]+label\n.splide\n.brxe-slider-nested\nsvg\n.brxe-div",
-        'bricks_properties' => "color\nfilter\nborder-color\nbackground-color",
         // Logo transition
         'logo_enabled'      => 1,
         'logo_light_class'  => 'item-light',
@@ -91,13 +118,11 @@ class EVK_DarkMode {
         // 'enabled' zarządzany przez AJAX toggle — zachowaj gdy brak w POST
         $clean['enabled'] = evk_preserve_toggle($input, 'evk_darkmode');
 
-        foreach (['bricks_enabled', 'logo_enabled', 'ripple_enabled', 'wipe_enabled', 'post_trans_enabled'] as $key) {
+        foreach (['logo_enabled', 'ripple_enabled', 'wipe_enabled', 'post_trans_enabled'] as $key) {
             $clean[$key] = !empty($input[$key]) ? 1 : 0;
         }
 
         $floats = [
-            'global_duration'      => [0.1, 5.0, 0.4],
-            'bricks_duration'      => [0.1, 5.0, 1.0],
             'logo_duration'        => [0.1, 5.0, 1.0],
             'wipe_duration'        => [0.3, 5.0, 1.5],
             'post_trans_duration'  => [0.1, 3.0, 0.5],
@@ -147,8 +172,6 @@ class EVK_DarkMode {
         }
 
         $texts = [
-            'global_selectors', 'global_properties',
-            'bricks_selectors', 'bricks_properties',
             'logo_light_class', 'logo_dark_class',
             'toggle_selector',
             'post_trans_title_class', 'post_trans_image_class',
@@ -183,7 +206,7 @@ class EVK_DarkMode {
             ? $input['wipe_direction']
             : $this->defaults['wipe_direction'];
 
-        $easings = ['global_easing', 'bricks_easing', 'logo_easing', 'ripple_easing', 'wipe_easing', 'post_trans_easing'];
+        $easings = ['logo_easing', 'ripple_easing', 'wipe_easing', 'post_trans_easing'];
         $allowed_easings = ['ease', 'ease-in', 'ease-out', 'ease-in-out', 'linear',
                             'cubic-bezier(0.33, 1, 0.68, 1)', 'cubic-bezier(0.4, 0, 0.2, 1)'];
         $odrzucone = [];
@@ -266,10 +289,10 @@ class EVK_DarkMode {
         $s = $this->get_settings();
         if (empty($s['enabled'])) return;
 
-        $global_selectors  = $this->parse_lines($s['global_selectors']);
-        $global_properties = $this->parse_lines($s['global_properties']);
-        $bricks_selectors  = $this->parse_lines($s['bricks_selectors']);
-        $bricks_properties = $this->parse_lines($s['bricks_properties']);
+        $global_selectors  = self::ZAPAS_SELEKTORY;
+        $global_properties = self::ZAPAS_WLASCIWOSCI;
+        $bricks_selectors  = self::ZAPAS_BRICKS_SELEKTORY;
+        $bricks_properties = self::ZAPAS_BRICKS_WLASCIWOSCI;
 
         /*
          * GRADIENTY NIE PRZECHODZĄ SAME — TRZEBA IM ZAREJESTROWAĆ ZMIENNĄ.
@@ -294,7 +317,7 @@ class EVK_DarkMode {
          */
         $color_vars = $this->parse_lines($s['color_vars'] ?? '');
 
-        $krok = fn($prop) => "{$prop} {$s['global_duration']}s {$s['global_easing']}";
+        $krok = fn($prop) => $prop . ' ' . self::ZAPAS_CZAS . 's ' . self::ZAPAS_EASING;
 
         $global_transition = implode(', ', array_map($krok, $global_properties));
 
@@ -314,7 +337,7 @@ class EVK_DarkMode {
             array_merge($global_properties, $color_vars)));
 
         $bricks_transition = implode(', ', array_map(
-            fn($prop) => "{$prop} {$s['bricks_duration']}s {$s['bricks_easing']}",
+            fn($prop) => $prop . ' ' . self::ZAPAS_BRICKS_CZAS . 's ' . self::ZAPAS_BRICKS_EASING,
             $bricks_properties
         ));
 
@@ -345,26 +368,25 @@ class EVK_DarkMode {
         }
         if ($color_vars) echo "\n";
 
-        if (!empty($global_selectors) && !empty($global_properties)) {
-            echo implode(",\n", $global_selectors) . " {\n";
-            echo "    transition: {$global_transition};\n";
-            echo "    -webkit-transition: {$global_transition};\n";
-            echo "}\n\n";
+        /* BEZ OSŁON `!empty()`. Do 1.220.0 listy przychodziły z panelu i mogły
+           być puste; teraz są stałymi modułu, więc warunek był zawsze prawdziwy
+           — PHPStan to wytknął i miał rację. */
+        echo implode(",\n", $global_selectors) . " {\n";
+        echo "    transition: {$global_transition};\n";
+        echo "    -webkit-transition: {$global_transition};\n";
+        echo "}\n\n";
 
-            if ($color_vars) {
-                echo ":root {\n";
-                echo "    transition: {$root_transition};\n";
-                echo "    -webkit-transition: {$root_transition};\n";
-                echo "}\n\n";
-            }
-        }
-
-        if (!empty($s['bricks_enabled']) && !empty($bricks_selectors) && !empty($bricks_properties)) {
-            $prefixed = array_map(fn($sel) => "[data-brx-theme] {$sel}", $bricks_selectors);
-            echo implode(",\n", $prefixed) . " {\n";
-            echo "    transition: {$bricks_transition};\n";
+        if ($color_vars) {
+            echo ":root {\n";
+            echo "    transition: {$root_transition};\n";
+            echo "    -webkit-transition: {$root_transition};\n";
             echo "}\n\n";
         }
+
+        $prefixed = array_map(fn($sel) => "[data-brx-theme] {$sel}", $bricks_selectors);
+        echo implode(",\n", $prefixed) . " {\n";
+        echo "    transition: {$bricks_transition};\n";
+        echo "}\n\n";
 
         if (!empty($s['logo_enabled'])) {
             $light = esc_attr($s['logo_light_class']);
@@ -650,7 +672,7 @@ CSS;
              * jest wtedy od razu docelowy, a płótno dalej płynie starym kolorem
              * pod tym, do czego fala jeszcze nie doszła.
              */
-            if ($color_vars && $global_properties) {
+            if ($color_vars) {
                 echo "html.is-theme-settled {\n";
                 echo "    transition-property: " . implode(', ', $global_properties) . ";\n";
                 echo "}\n\n";

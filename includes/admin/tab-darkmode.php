@@ -142,16 +142,7 @@ if (!defined('ABSPATH')) exit;
                 </div>
 
                 <div class="evo-box">
-                    <h3>Przejścia CSS bez fali (wyjście awaryjne)</h3>
-                    <details class="evo-note"><summary>Kiedy to w ogóle działa</summary><div class="evo-note-body"><p><strong>Przy włączonej fali te pola nie mają znaczenia.</strong> Fala odsłania stronę spod starej migawki, więc każdy element — także taki, którego tu nie ma — czeka nieruchomo, aż fala po nim przejdzie. Niczego nie trzeba dopisywać.</p><p>Listy poniżej są <strong>wyjściem awaryjnym</strong>: rządzą płynnym przefarbowaniem tam, gdzie fali nie ma — bo jest wyłączona albo bo przeglądarka nie zna View Transitions (starsze Safari, Firefox sprzed niedawna). Wtedy i tylko wtedy decydują, co zmienia kolor płynnie, a co przeskakuje.</p></div></details>
-                    <div class="evo-field">
-                        <label>Selektory (jeden na linię)</label>
-                        <textarea name="evk_darkmode[global_selectors]" rows="4"><?php echo esc_textarea($dm['global_selectors']); ?></textarea>
-                    </div>
-                    <div class="evo-field">
-                        <label>Właściwości CSS (jeden na linię)</label>
-                        <textarea name="evk_darkmode[global_properties]" rows="4"><?php echo esc_textarea($dm['global_properties']); ?></textarea>
-                    </div>
+                    <h3>Zmienne kolorów w gradientach</h3>
                     <div class="evo-field">
                         <label>Zmienne kolorów do animowania (jedna na linię)</label>
                         <textarea name="evk_darkmode[color_vars]" rows="3" placeholder="--kolor-glowny-d-2"><?php echo esc_textarea($dm['color_vars']); ?></textarea>
@@ -169,47 +160,6 @@ if (!defined('ABSPATH')) exit;
                             z rozmiarem albo cieniem sprawi, że w tym miejscu zrobi się przezroczyście.</p>
                         </div></details>
                     </div>
-                    <div class="evo-inline-fields">
-                        <div class="evo-field">
-                            <label>Czas trwania (s)</label>
-                            <input type="number" name="evk_darkmode[global_duration]" value="<?php echo esc_attr($dm['global_duration']); ?>" min="0.1" max="5" step="0.1" class="evo-w-xs">
-                        </div>
-                        <div class="evo-field">
-                            <label>Easing</label>
-                            <input type="text" name="evk_darkmode[global_easing]" value="<?php echo esc_attr($dm['global_easing']); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="evo-box">
-                    <h3>Elementy Bricks — przejścia bez fali (wyjście awaryjne)</h3>
-                    <details class="evo-note"><summary>Kiedy to w ogóle działa</summary><div class="evo-note-body"><p><strong>Przy włączonej fali te pola nie mają znaczenia.</strong> Fala odsłania stronę spod starej migawki, więc każdy element — także taki, którego tu nie ma — czeka nieruchomo, aż fala po nim przejdzie. Niczego nie trzeba dopisywać.</p><p>Listy poniżej są <strong>wyjściem awaryjnym</strong>: rządzą płynnym przefarbowaniem tam, gdzie fali nie ma — bo jest wyłączona albo bo przeglądarka nie zna View Transitions (starsze Safari, Firefox sprzed niedawna). Wtedy i tylko wtedy decydują, co zmienia kolor płynnie, a co przeskakuje.</p></div></details>
-                    <div class="evo-field">
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="evk_darkmode[bricks_enabled]" value="1" <?php checked(!empty($dm['bricks_enabled'])); ?>>
-                            Włącz przejścia dla elementów Bricks
-                        </label>
-                    </div>
-                    <div class="evo-field">
-                        <label>Selektory Bricks (jeden na linię, bez prefiksu <code>[data-brx-theme]</code>)</label>
-                        <textarea name="evk_darkmode[bricks_selectors]" rows="6"><?php echo esc_textarea($dm['bricks_selectors']); ?></textarea>
-                    </div>
-                    <div class="evo-field">
-                        <label>Właściwości CSS</label>
-                        <textarea name="evk_darkmode[bricks_properties]" rows="3"><?php echo esc_textarea($dm['bricks_properties']); ?></textarea>
-                    </div>
-                    <div class="evo-inline-fields">
-                        <div class="evo-field">
-                            <label>Czas trwania (s)</label>
-                            <input type="number" name="evk_darkmode[bricks_duration]" value="<?php echo esc_attr($dm['bricks_duration']); ?>" min="0.1" max="5" step="0.1" class="evo-w-xs">
-                        </div>
-                        <div class="evo-field">
-                            <label>Easing</label>
-                            <input type="text" name="evk_darkmode[bricks_easing]" value="<?php echo esc_attr($dm['bricks_easing']); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
-                        </div>
-                    </div>
-
                 </div>
 
                 <div class="evo-box">
@@ -243,7 +193,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-box">
                     <h3>Przejście przy przełączaniu motywu</h3>
-                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body"><p>Cała strona zostaje zapamiętana jako jedna migawka, a nowy motyw jest spod niej ODSŁANIANY. Dlatego nic nie zmienia koloru, dopóki przejście po nim nie przejdzie — i dlatego niczego nie trzeba dopisywać do żadnej listy.</p><p>Wymaga Chrome/Edge 111+. Gdzie View Transitions nie działają, motyw przełącza się przejściami CSS z sekcji „przejścia bez fali".</p></div></details>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body"><p>Cała strona zostaje zapamiętana jako jedna migawka, a nowy motyw jest spod niej ODSŁANIANY. Dlatego nic nie zmienia koloru, dopóki przejście po nim nie przejdzie — i dlatego niczego nie trzeba dopisywać do żadnej listy.</p><p>Wymaga Chrome/Edge 111+. <strong>Tam, gdzie to nie zadziała — bo przejście jest wyłączone albo przeglądarka go nie zna — kolory i tak zmieniają się płynnie.</strong> To jest wbudowane i nie ma czego ustawiać; do 1.220.0 stały tu dwie sekcje z listami selektorów, w których trzeba było zgadywać, co dopisać.</p></div></details>
                     <div class="evo-field">
                         <label class="checkbox-label">
                             <input type="checkbox" name="evk_darkmode[ripple_enabled]" value="1" <?php checked(!empty($dm['ripple_enabled'])); ?>>

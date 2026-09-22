@@ -2,6 +2,69 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.221.0] — 2026-09-22
+
+### Zmienione
+
+- **Listy selektorów przejść znikają z panelu; płynne przefarbowanie zostaje.**
+  ZGŁOSZONE Z UŻYCIA: „te pola z wpisanymi elementami Bricks miały być
+  rozwiązaniem na płynne przejście… najchętniej bym się tego pozbył i wolałbym,
+  żeby system sam animował przy ripple te elementy."
+
+  Od 1.215.0 fala robi to sama: wyciszenie obejmuje `html.is-theme-settled *`,
+  czyli WSZYSTKO, więc przy włączonym przejściu motywu listy nie miały
+  znaczenia. Nie były jednak martwe — rządziły płynnym przefarbowaniem
+  w dwóch sytuacjach, które zostają: gdy przejście motywu jest **wyłączone**,
+  i na przeglądarkach bez View Transitions (Firefox < 129, Safari < 18).
+
+  Dlatego pola znikają, a zachowanie zostaje **wbudowane**, z dokładnie tymi
+  wartościami, które były domyślne. Z panelu wypada **dziewięć ustawień**:
+
+      global_selectors    global_properties   global_duration   global_easing
+      bricks_selectors    bricks_properties   bricks_duration   bricks_easing
+      bricks_enabled
+
+  **Wygenerowany CSS jest identyczny co do bajtu** — sprawdzone wprost na
+  wyjściu modułu. Zmieniło się źródło wartości, nie wynik. Kto list nie
+  zmieniał, nie zobaczy żadnej różnicy.
+
+  **Pole zmiennych kolorów ZOSTAJE**, przeniesione do własnej sekcji. To osobna
+  sprawa: gradienty wymagają rejestracji przez `@property`, inaczej przeskakują
+  zamiast płynąć.
+
+### Dodane
+
+- **Strażnik na to, co po listach zostało.** Wartości siedzą teraz w kodzie,
+  więc nikt ich nie zobaczy w panelu i nikt nie zauważyłby, gdyby wyparowały.
+  Nowa sekcja w `tests/darkmode-strona.test.js` mierzy kolor tła po kliknięciu:
+
+  | | |
+  |---|---|
+  | fala **wyłączona** | `255 → 237 → 175 → 90 → 50 → 0` — wartości pośrednie, czyli przejście trwa |
+  | fala włączona (kontrola negatywna) | `255 → 0` — pośrednich nie ma, bo odsłania je fala |
+
+  Bez kontroli negatywnej „kolory płyną" przechodziłoby także wtedy, gdyby
+  przejście zapasowe zaczęło psuć falę.
+
+  Osobne sprawdzenie pyta o **obecność reguły w arkuszu i jej niezerowy czas**.
+  Bez niego mutacja czyszcząca listę selektorów i mutacja zerująca czas gasiły
+  dokładnie to samo sprawdzenie — a to dwie różne awarie i dwie różne naprawy.
+
+  Trzy mutacje różnicujące zapalają trzy RÓŻNE podzbiory: pusta lista (3),
+  zerowy czas (2), wyłączone wyciszenie na czas fali (3).
+
+### Naprawione
+
+- **Easingów jest cztery, nie sześć** — `global_easing` i `bricks_easing`
+  wypadły razem z listami. Sonda `tests/php/darkmode-easing.php` i jej test
+  zaktualizowane; przy okazji wyszło, że dwa sprawdzenia zakładały „ease" jako
+  wartość domyślną odrzuconego easingu, podczas gdy każde pole wraca do
+  **swojej** domyślnej.
+
+- **Komentarze w `bg-shift` i jego atrapach** obiecywały ustawienia, których
+  już nie ma. Sam pomiar bez zmian — te pliki nigdy nie czytały tych pól,
+  odtwarzały tylko ten sam kształt CSS-a.
+
 ## [1.220.0] — 2026-09-22
 
 ### Dodane

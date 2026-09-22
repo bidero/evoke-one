@@ -117,7 +117,7 @@ module.exports = async function (t) {
   t.section('fala ma z czego odsłaniać: stara migawka istnieje');
 
   const p = await t.open('darkmode-ripple-strona.html', V);
-  await zapal(p, { global_selectors: '', bricks_selectors: '' });
+  await zapal(p, {});
 
   t.check('::view-transition-old(theme-ripple) jest',
     (await p.evaluate(() => window.__czyJestStara())) === true, 'jest');
@@ -224,7 +224,6 @@ module.exports = async function (t) {
 
   const w = await t.open('darkmode-ripple-strona.html', { ...V, query: 'wyjeta=tak' });
   await zapal(w, {
-    global_selectors: '', bricks_selectors: '',
     post_trans_enabled: 1,
     post_trans_title_single: '.karta-wyjeta',   // nazwa z arkusza
     post_trans_image_single: '.karta-inline',   // nazwa z atrybutu `style`
@@ -272,6 +271,73 @@ module.exports = async function (t) {
   t.check('bez błędów JS', !w.errors.length, w.errors.join(' | ') || 'brak');
   await w.close();
 
+  // ── Bez fali kolory nadal PŁYNĄ, a nie przeskakują ──────────────────────
+  /* TO JEST CAŁE, CO ZOSTAŁO PO LISTACH SELEKTORÓW.
+     Do 1.220.0 płynnym przefarbowaniem przy wyłączonej fali rządziły cztery
+     pola w panelu (`global_selectors`, `global_properties` i para dla elementów
+     Bricksa). Zgłaszający chciał się ich pozbyć — bo przy włączonej fali nie
+     mają znaczenia, a przy wyłączonej trzeba było zgadywać, co tam wpisać.
+     Pola zniknęły, zachowanie zostało wbudowane na stałe.
+
+     I właśnie dlatego potrzebuje strażnika: wartości siedzą teraz w kodzie,
+     więc nikt ich już nie zobaczy w panelu i nikt nie zauważy, gdyby
+     wyparowały.
+
+     ZMIERZONE (kolor tła `body` po kliknięciu, przy WYŁĄCZONEJ fali):
+
+         przed    rgb(255,255,255)
+         ~60 ms   rgb(220,220,220)   ← wartość POŚREDNIA, czyli płynie
+         ~150 ms  rgb(50,50,50)
+         ~250 ms  rgb(0,0,0)
+
+     Przy włączonej fali wartości pośrednich NIE MA — żywy dokument stoi już na
+     kolorze docelowym, a odsłania go fala. To jest kontrola negatywna: bez niej
+     „kolory płyną" przechodziłoby też wtedy, gdyby przejście zapasowe zostało
+     włączone na stałe i psuło falę. */
+  t.section('przy wyłączonej fali kolory nadal płyną');
+
+  /** Zbiera kolor tła przez pół sekundy po kliknięciu. */
+  async function przebieg(ustawienia) {
+    const b = await t.open('darkmode-ripple-strona.html', V);
+    await wstrzyknij(b, ustawienia);
+    await b.click('.brxe-toggle-mode');
+    const probki = [];
+    for (let i = 0; i < 10; i++) {
+      probki.push(await b.evaluate(() => getComputedStyle(document.body).backgroundColor));
+      await b.waitForTimeout(50);
+    }
+    await b.close();
+    return probki;
+  }
+
+  const posrednia = (kolor) => {
+    const m = kolor.match(/\d+/g);
+    return m && +m[0] > 10 && +m[0] < 245;
+  };
+
+  /* ODRÓŻNIENIE „reguły nie ma" od „reguła jest, ale nic nie trwa".
+     Bez tego sprawdzenia mutacja czyszcząca listę selektorów i mutacja zerująca
+     czas gasiły dokładnie to samo — a to dwie różne awarie i dwie różne
+     naprawy. */
+  const arkusz = phpOutput('darkmode-head.php',
+    JSON.stringify(JSON.stringify({ ripple_enabled: 0 })));
+  const regula = arkusz.match(/\[data-brx-theme\],\nbody,\n#brx-content,\nsection \{\n([^}]*)/);
+  t.check('reguła zapasowa jest w arkuszu i obejmuje tło strony',
+    !!regula, regula ? 'jest' : 'BRAK reguły dla body');
+  t.check('i ma niezerowy czas',
+    !!regula && /background-color 0\.[1-9]/.test(regula[1]),
+    regula ? regula[1].trim().split('\n')[0].slice(0, 60) : 'brak');
+
+  const bezFali = await przebieg({ ripple_enabled: 0 });
+  t.check('jest wartość pośrednia, czyli przejście trwa',
+    bezFali.some(posrednia), bezFali.slice(0, 5).join('  '));
+  t.check('a na końcu kolor jest docelowy',
+    /\b0, 0, 0\b/.test(bezFali[bezFali.length - 1]), bezFali[bezFali.length - 1]);
+
+  const zFala = await przebieg({ ripple_enabled: 1 });
+  t.check('a przy fali wartości pośredniej nie ma — odsłania ją fala',
+    !zFala.some(posrednia), zFala.slice(0, 5).join('  '));
+
   // ── Trzy typy przejścia różnią się TYM, CO ODSŁANIAJĄ ───────────────────
   /* Wszystkie trzy stoją na jednej migawce `theme-ripple`, więc dziedziczą
      poprawki z 1.218.0 i 1.219.0. Różni je wyłącznie kształt odsłaniania —
@@ -292,7 +358,7 @@ module.exports = async function (t) {
 
   for (const typ of ['ripple', 'wipe', 'fade']) {
     const q = await t.open('darkmode-ripple-strona.html', V);
-    await zapal(q, { global_selectors: '', bricks_selectors: '', theme_trans_type: typ });
+    await zapal(q, { theme_trans_type: typ });
     await q.evaluate(() => window.__zamroz());
     const czasQ = await q.evaluate(() => (window.__fala.length
       ? window.__fala[0].effect.getComputedTiming().duration : 0));
@@ -342,7 +408,6 @@ module.exports = async function (t) {
      ZAWSZE przechodziła na zielono. */
   const z = await t.open('darkmode-ripple-strona.html', { ...V, query: 'wyjeta=tak' });
   await wstrzyknij(z, {
-    global_selectors: '', bricks_selectors: '',
     post_trans_enabled: 1, post_trans_title_single: '.karta-wyjeta',
     post_trans_image_single: '.karta-inline',
   });

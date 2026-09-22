@@ -6,7 +6,9 @@
  * przejścia zwraca wartość ANIMOWANĄ, nie docelową. Silnik odczytywał kolor
  * dokładnie w tym momencie i warstwa zostawała o jeden motyw w tyle — po
  * powrocie do jasnego trzymała ciemny kolor. Fixture ma to samo przejście CSS,
- * co domyślne `global_selectors`, więc regresja odtworzyłaby się natychmiast.
+ * które moduł trybu ciemnego kładzie na `section`, więc regresja odtworzyłaby
+ * się natychmiast. (Do 1.220.0 pochodziło z pola `global_selectors`; od 1.221.0
+ * jest wbudowane — patrz `ZAPAS_SELEKTORY` w `93-darkmode.php`.)
  */
 
 const { phpOutput, tagContent, rgb, near } = require('./lib/harness');
@@ -377,8 +379,8 @@ module.exports = async function (t) {
    * celu przez cały czas przewijania i dochodzi do niego dopiero po nim.
    *
    * Zbieg nie jest teoretyczny — sekundowe przejście na `color` dokłada
-   * domyślnie moduł trybu ciemnego TEJ WTYCZKI, do `section` (global_selectors)
-   * ORAZ do `.brxe-text` i `.brxe-heading` (bricks_selectors). Fixture
+   * moduł trybu ciemnego TEJ WTYCZKI — do `section` oraz do `.brxe-text`
+   * i `.brxe-heading`, wbudowanym przejściem zapasowym. Fixture
    * odtwarzał dotąd tylko przejście TŁA, i to tylko na sekcji, więc cała ta
    * klasa usterek była poza zasięgiem pomiaru.
    *
@@ -471,8 +473,10 @@ module.exports = async function (t) {
    * czyli kolor odziedziczony. Każde wywołanie oddaje to samo, wszystkie
    * sekcje dostają jeden kolor i tween nie ma czego przenikać.
    *
-   * Na tamtej stronie do `global_selectors` trybu ciemnego dopisano `div`,
-   * a warstwa jest divem — i fixture odtwarza dokładnie tę regułę.
+   * Na tamtej stronie do selektorów trybu ciemnego dopisano wtedy `div`,
+   * a warstwa jest divem — i fixture odtwarza dokładnie tę regułę. Dopisać się
+   * już nie da (pola zniknęły w 1.221.0), ale własne przejście na divie może
+   * przyjść z CSS-a strony, więc pomiar zostaje.
    *
    * Ta sama pułapka co w regresji 1.29.1 przy odczycie kolorów sekcji, gdzie
    * broni jej `.evk-bg-measure`. Warstwa nie miała odpowiednika.
