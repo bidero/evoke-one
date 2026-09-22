@@ -18,23 +18,44 @@ function evk_backup_ajax_guard(): void {
 /** Zadanie w postaci dla panelu — bez stanu wewnętrznego. */
 function evk_backup_job_public(?array $job): ?array {
     if (!$job) return null;
-    $etapy = ['init' => 1, 'db' => 1, 'list' => 2, 'pack' => 3, 'finalize' => 3, 'done' => 3];
+    /* Przywracanie czekające na kopię sprzed niego pokazuje postęp TEJ kopii —
+       panel śledzi jedno zadanie od kliknięcia do końca. */
+    if ($job['status'] === 'waiting') {
+        $przed = evk_backup_job_before($job['id']);
+        if ($przed) {
+            $pub = evk_backup_job_public($przed);
+            if ($pub) {
+                $pub['id'] = $job['id'];
+                $pub['type'] = 'restore';
+                $pub['status'] = 'waiting';
+                $pub['label'] = 'kopia obecnego stanu: ' . $pub['label'];
+                return $pub;
+            }
+        }
+    }
+    $przywracanie = $job['type'] === 'restore';
+    $etapy = $przywracanie
+        ? ['r_check' => 1, 'r_extract' => 1, 'r_db' => 2, 'r_files' => 3, 'r_sweep' => 3, 'r_swap' => 4, 'done' => 4]
+        : ['init' => 1, 'db' => 1, 'list' => 2, 'pack' => 3, 'finalize' => 3, 'done' => 3];
     $proc = $job['progress_total'] > 0 ? (int) floor(100 * $job['progress_done'] / $job['progress_total']) : 0;
     // Szacunek wierszy bazy bywa zaniżony — 100% tylko po faktycznym końcu.
     if ($job['status'] !== 'done') $proc = min(99, $proc);
     return [
         'id'       => $job['id'],
+        'type'     => $job['type'],
         'status'   => $job['status'],
         'phase'    => $job['phase'],
         'label'    => evk_backup_phase_label($job['phase']),
         'step'     => $etapy[$job['phase']] ?? 1,
-        'steps'    => 3,
+        'steps'    => $przywracanie ? 4 : 3,
         'percent'  => $job['status'] === 'done' ? 100 : $proc,
         'archive'  => $job['archive'],
         'error'    => (string) $job['error'],
         'ticks'    => $job['ticks'],
         'budget_s' => round($job['budget_ms'] / 1000, 1),
         'detail'   => evk_backup_job_detail($job),
+        // Przywracanie: zakres decyduje, czy po końcu trzeba się zalogować od nowa.
+        'scope'    => $przywracanie ? (string) ($job['state']['scope'] ?? 'all') : '',
         'log'      => array_slice(explode("\n", (string) $job['log']), -12),
     ];
 }
@@ -54,8 +75,14 @@ function evk_backup_job_detail(array $job): string {
                 evk_backup_bytes_label((float) ($s['list']['size'] ?? 0)));
         case 'pack':
         case 'finalize':
+        case 'r_extract':
             return sprintf('%s z %s', evk_backup_bytes_label((float) $job['progress_done']),
                 evk_backup_bytes_label((float) $job['progress_total']));
+        case 'r_db':
+            return sprintf('tabela %s, %s wierszy', number_format_i18n(count((array) ($s['db']['tables'] ?? []))),
+                number_format_i18n((int) ($s['db']['rows'] ?? 0)));
+        case 'r_files':
+            return sprintf('%s plików na miejscu', number_format_i18n((int) ($s['mv']['files'] ?? 0)));
     }
     return '';
 }
@@ -73,17 +100,71 @@ add_action('wp_ajax_evk_backup_start', function () {
  * dalej przy otwartej zakładce nawet wtedy, gdy serwer blokuje żądania do
  * samego siebie. Krótszy budżet (8 s), żeby pasek postępu żył.
  */
+/** Popchnięcie zadania z żądania panelu (także kopii, na którą czeka przywracanie). */
+function evk_backup_nudge(?array $job): ?array {
+    if (!$job) return null;
+    $praca = $job['status'] === 'waiting' ? evk_backup_job_before($job['id']) : $job;
+    if ($praca && in_array($praca['status'], ['queued', 'running'], true)
+        && $praca['lock_until'] === 0 && time() - $praca['heartbeat'] >= 3) {
+        evk_backup_tick($praca['id'], 8000);
+    }
+    return evk_backup_job_get($job['id']);
+}
+
 add_action('wp_ajax_evk_backup_status', function () {
     evk_backup_ajax_guard();
     $id = absint($_POST['id'] ?? 0);
-    $job = $id ? evk_backup_job_get($id) : evk_backup_job_active();
-    if ($job && in_array($job['status'], ['queued', 'running'], true)
-        && $job['lock_until'] === 0 && time() - $job['heartbeat'] >= 3) {
-        evk_backup_tick($job['id'], 8000);
-        $job = evk_backup_job_get($job['id']);
-    }
+    $job = evk_backup_nudge($id ? evk_backup_job_get($id) : evk_backup_job_active());
     wp_send_json_success(['job' => evk_backup_job_public($job)]);
 });
+
+// =========================================================================
+// PRZYWRACANIE
+// =========================================================================
+
+/**
+ * Stan przywracania BEZ SESJI. Podmiana bazy podmienia użytkowników i sesje —
+ * osoba, która kliknęła „Przywróć", jest od tej chwili wylogowana, a pasek
+ * postępu ma dojść do końca. Poświadczeniem jest token zadania (HMAC kluczem
+ * instalacji, który przywracanie zachowuje), wydany przy starcie.
+ */
+function evk_restore_status_token(int $id): string {
+    return hash_hmac('sha256', 'evk-restore-status-' . $id, evk_backup_loopback_key());
+}
+
+add_action('wp_ajax_evk_backup_restore_info', function () {
+    evk_backup_ajax_guard();
+    try {
+        wp_send_json_success(evk_restore_info(sanitize_file_name(wp_unslash($_POST['archive'] ?? ''))));
+    } catch (\RuntimeException $e) {
+        wp_send_json_error(['msg' => $e->getMessage()]);
+    }
+});
+
+add_action('wp_ajax_evk_backup_restore_start', function () {
+    evk_backup_ajax_guard();
+    // Słowo z okna potwierdzenia sprawdzane też tu — nie tylko przyciskiem w przeglądarce.
+    if (trim((string) wp_unslash($_POST['confirm'] ?? '')) !== 'PRZYWRÓĆ') {
+        wp_send_json_error(['msg' => 'Wpisz PRZYWRÓĆ, żeby potwierdzić.']);
+    }
+    $id = evk_restore_start(sanitize_file_name(wp_unslash($_POST['archive'] ?? '')),
+        sanitize_key(wp_unslash($_POST['scope'] ?? 'all')), !empty($_POST['mirror']), !empty($_POST['snapshot']));
+    if (is_wp_error($id)) wp_send_json_error(['msg' => $id->get_error_message()]);
+    wp_send_json_success(['job' => evk_backup_job_public(evk_backup_job_get($id)), 'token' => evk_restore_status_token($id)]);
+});
+
+function evk_restore_status_handler(): void {
+    $id = absint($_POST['id'] ?? 0);
+    $token = (string) wp_unslash($_POST['token'] ?? '');
+    if (!$id || !hash_equals(evk_restore_status_token($id), $token)) {
+        wp_send_json_error(['msg' => 'Zły token przywracania.'], 403);
+    }
+    $job = evk_backup_job_get($id);
+    if (!$job || $job['type'] !== 'restore') wp_send_json_error(['msg' => 'Nie ma takiego przywracania.'], 404);
+    wp_send_json_success(['job' => evk_backup_job_public(evk_backup_nudge($job))]);
+}
+add_action('wp_ajax_nopriv_evk_backup_restore_status', 'evk_restore_status_handler');
+add_action('wp_ajax_evk_backup_restore_status', 'evk_restore_status_handler');
 
 add_action('wp_ajax_evk_backup_cancel', function () {
     evk_backup_ajax_guard();
@@ -93,7 +174,12 @@ add_action('wp_ajax_evk_backup_cancel', function () {
 
 add_action('wp_ajax_evk_backup_delete', function () {
     evk_backup_ajax_guard();
-    if (!evk_backup_delete_archive(sanitize_file_name(wp_unslash($_POST['archive'] ?? '')))) {
+    $nazwa = sanitize_file_name(wp_unslash($_POST['archive'] ?? ''));
+    $trwa = evk_backup_job_active();
+    if ($trwa && $trwa['type'] === 'restore' && ($trwa['state']['archive'] ?? '') === $nazwa) {
+        wp_send_json_error(['msg' => 'Z tej kopii właśnie trwa przywracanie.']);
+    }
+    if (!evk_backup_delete_archive($nazwa)) {
         wp_send_json_error(['msg' => 'Nie ma takiej kopii.']);
     }
     wp_send_json_success(['html' => evk_backup_render_list()]);
@@ -108,6 +194,7 @@ add_action('wp_ajax_evk_backup_pin', function () {
 
 add_action('wp_ajax_evk_backup_list', function () {
     evk_backup_ajax_guard();
+    evk_backup_import_scan();
     wp_send_json_success(['html' => evk_backup_render_list()]);
 });
 
@@ -267,6 +354,7 @@ function evk_backup_render_list(): string {
                 <td class="is-right evk-backup-akcje">
                     <a class="button button-small" href="<?php echo esc_url(evk_backup_download_url($n)); ?>" data-evk-backup-download>Pobierz</a>
                     <button type="button" class="button button-small" data-evk-backup-pin="<?php echo $pin ? '0' : '1'; ?>"><?php echo $pin ? 'Odepnij' : 'Przypnij'; ?></button>
+                    <button type="button" class="button button-small" data-evk-backup-restore>Przywróć</button>
                     <button type="button" class="button button-small evk-backup-usun" data-evk-backup-delete>Usuń</button>
                 </td>
             </tr>

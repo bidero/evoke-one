@@ -3,11 +3,10 @@ if (!defined('ABSPATH')) exit;
 /**
  * Evoke ONE — Tab: Kopie zapasowe
  *
- * Kopia ręczna z paskiem postępu, lista kopii (pobierz / przypnij / usuń),
- * ustawienia, które w tej wersji naprawdę działają (retencja, wykluczenia,
- * tryb konserwacji na czas zrzutu), i sprawdzenie środowiska. Harmonogram
- * nocny i przywracanie dochodzą w kolejnych wydaniach — zakładka mówi to
- * wprost, zamiast pokazywać ustawienia, które niczego nie robią.
+ * Kopia ręczna z paskiem postępu, lista kopii (pobierz / przypnij /
+ * przywróć / usuń), kopie wgrane przez FTP, kopia nocna i powiadomienia,
+ * retencja, wykluczenia, tryb konserwacji na czas zrzutu i sprawdzenie
+ * środowiska. Wgrywanie kopii z przeglądarki dochodzi w kolejnym wydaniu.
  */
 
 $bk_on     = evk_backup_enabled();
@@ -18,6 +17,8 @@ $bk_checks = evk_backup_environment_checks($bk_facts ?? evk_backup_environment_f
 $bk_block  = evk_backup_environment_blocked($bk_checks);
 $bk_silnik = $bk_on && function_exists('evk_backup_render_list');
 $bk_s      = evk_backup_get_settings();
+// Kopie wgrane przez FTP — przeniesione z katalogu o stałej nazwie przy otwarciu zakładki.
+$bk_wgrane = $bk_silnik && !$bk_block ? evk_backup_import_scan() : [];
 $bk_ikony  = [
     'ok'   => 'dashicons-yes-alt',
     'warn' => 'dashicons-warning',
@@ -90,9 +91,40 @@ $bk_ikony  = [
 <div class="evo-box evo-mt">
     <h3>Kopie na serwerze</h3>
     <p class="evo-muted evo-mb">Katalog: <code><?php echo esc_html('wp-content/' . basename(evk_backup_dir())); ?></code>.
-    Przypięte kopie nie są usuwane przez retencję. Przywracanie — w kolejnym wydaniu.</p>
+    Przypięte kopie nie są usuwane przez retencję.</p>
+    <?php if ($bk_wgrane): ?>
+    <div class="evo-info-box is-ok evo-mb"><span class="dashicons dashicons-yes-alt"></span>
+        <div>Przeniesione z katalogu FTP: <?php echo esc_html(implode(', ', $bk_wgrane)); ?>.</div></div>
+    <?php endif; ?>
     <div data-evk-backup-list><?php echo evk_backup_render_list(); // phpcs:ignore WordPress.Security.EscapeOutput -- zbudowane z esc_* ?></div>
+    <p class="evo-muted evo-mt-xs evk-backup-ftp">Kopię z innego serwera wgraj przez FTP do
+    <code>wp-content/<?php echo esc_html(basename(evk_backup_import_dir())); ?>/</code> — pojawi się tu po odświeżeniu zakładki.
+    Plik wgrywany w tej chwili czeka minutę, żeby nie przenieść go w połowie.</p>
 </div>
+
+<!-- PRZYWRACANIE: okno potwierdzenia (wypełnia backup.js danymi z manifestu kopii) -->
+<dialog class="evk-backup-dialog" data-evk-restore-dialog aria-labelledby="evk-restore-tytul">
+    <h3 id="evk-restore-tytul">Przywróć kopię</h3>
+    <div class="evk-restore-info" data-evk-restore-info aria-live="polite"><p class="evo-muted">Czytam kopię…</p></div>
+    <fieldset class="evk-restore-zakres" data-evk-restore-scope>
+        <legend>Co przywrócić</legend>
+        <label><input type="radio" name="evk-restore-scope" value="all" checked> Całość — baza i pliki</label>
+        <label><input type="radio" name="evk-restore-scope" value="db"> Tylko baza <span class="evo-muted">(treści, ustawienia, użytkownicy — bez wtyczek i motywów)</span></label>
+        <label><input type="radio" name="evk-restore-scope" value="files"> Tylko pliki <span class="evo-muted">(wp-content — np. po włamaniu; bez cofania zamówień)</span></label>
+    </fieldset>
+    <label class="evk-restore-opcja"><input type="checkbox" data-evk-restore-mirror>
+        Usuń pliki, których nie ma w kopii <span class="evo-muted">— wp-content wygląda potem dokładnie jak w kopii. Wykluczenia kopii (cache, logi) i ta wtyczka zostają.</span></label>
+    <label class="evk-restore-opcja"><input type="checkbox" data-evk-restore-snapshot>
+        Najpierw zrób kopię obecnego stanu <span class="evo-muted">— droga powrotu, jeśli przywrócona wersja okaże się zła. Wydłuża przywracanie.</span></label>
+    <div class="evo-info-box is-warn evk-restore-uwaga"><span class="dashicons dashicons-warning"></span>
+        <div data-evk-restore-warning>Przywrócenie bazy podmienia użytkowników i hasła — po zakończeniu zaloguj się kontem ze strony z kopii. Na czas podmiany strona jest w trybie konserwacji.</div></div>
+    <label class="evk-restore-potwierdz">Wpisz <strong>PRZYWRÓĆ</strong>, żeby potwierdzić
+        <input type="text" data-evk-restore-confirm autocomplete="off" spellcheck="false"></label>
+    <div class="evk-restore-przyciski">
+        <button type="button" class="button" data-evk-restore-close>Anuluj</button>
+        <button type="button" class="button button-primary" data-evk-restore-go disabled>Przywróć</button>
+    </div>
+</dialog>
 
 <!-- USTAWIENIA -->
 <form method="post" action="options.php" class="evo-box evo-mt">
@@ -114,6 +146,46 @@ $bk_ikony  = [
             <div class="evo-desc">Zrzut w kilku krokach nie jest migawką — zamówienie złożone w trakcie może trafić do kopii częściowo. Przy sklepie warto włączyć; strona zasłania się na czas zrzutu bazy (zwykle sekundy).</div>
         </div>
     </div>
+    <h4 class="evk-backup-podtytul">Kopia nocna</h4>
+    <div class="evo-grid evo-mb" style="--evo-col:240px">
+        <div class="evo-field">
+            <label class="checkbox-label">
+                <input type="checkbox" name="evk_backup[schedule_enabled]" value="1" <?php checked(!empty($bk_s['schedule_enabled'])); ?>>
+                Kopia codziennie o godzinie
+            </label>
+            <input type="time" name="evk_backup[schedule_time]" class="evo-w-xs" aria-label="Godzina kopii nocnej"
+                   value="<?php echo esc_attr((string) $bk_s['schedule_time']); ?>">
+            <div class="evo-desc">Czas strony (<?php echo esc_html(wp_timezone_string()); ?>).
+            <?php $bk_plan = get_option('evk_backup_sched'); if (!empty($bk_s['schedule_enabled']) && is_array($bk_plan) && !empty($bk_plan['at'])): ?>
+                Następna: <strong data-evk-backup-next><?php echo esc_html(wp_date('Y-m-d H:i', (int) $bk_plan['at'])); ?></strong>.
+            <?php endif; ?>
+            Jeśli nikt nie odwiedzi strony o tej porze, kopia ruszy przy pierwszej wizycie.</div>
+        </div>
+        <div class="evo-field">
+            <label for="evk-backup-adresy">E-mail o nieudanej kopii</label>
+            <input type="text" id="evk-backup-adresy" name="evk_backup[notify_address]" class="regular-text"
+                   placeholder="adres@domena.pl" value="<?php echo esc_attr((string) $bk_s['notify_address']); ?>">
+            <div class="evo-desc">Kilka adresów po przecinku. Puste pole — bez maili.</div>
+            <label class="checkbox-label evo-mt-xs">
+                <input type="checkbox" name="evk_backup[notify_notice]" value="1" <?php checked(!empty($bk_s['notify_notice'])); ?>>
+                Komunikat w panelu WordPressa o nieudanej kopii
+            </label>
+            <div class="evo-desc">Znika po następnej udanej kopii albo po zamknięciu.</div>
+        </div>
+    </div>
+    <details class="evo-acc evo-mb evk-backup-cron">
+        <summary>Cron systemowy <span class="evo-acc-count"><?php echo defined('DISABLE_WP_CRON') && DISABLE_WP_CRON ? 'WP-Cron wyłączony' : 'zalecany przy małym ruchu'; ?></span></summary>
+        <div class="evo-acc-body">
+            <p class="evo-muted">WP-Cron uruchamia zadania przy odwiedzinach strony. Przy małym ruchu kopia nocna ruszy z opóźnieniem
+            — dostaniesz wtedy powiadomienie. Pewniej jest dodać w panelu hostingu zadanie cron co 15 minut:</p>
+            <pre class="evk-backup-kod" data-evk-backup-cron-cmd>*/15 * * * * wget -q -O - "<?php echo esc_html(site_url('wp-cron.php?doing_wp_cron')); ?>" &gt;/dev/null 2&gt;&amp;1</pre>
+            <p class="evo-muted">Po jego dodaniu można wyłączyć uruchamianie przy odwiedzinach — w <code>wp-config.php</code>:
+            <code>define('DISABLE_WP_CRON', true);</code><?php if (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON): ?>
+            <strong>Na tej stronie jest już wyłączone</strong> — bez crona systemowego kopia nocna nie ruszy wcale.<?php endif; ?></p>
+        </div>
+    </details>
+
+    <h4 class="evk-backup-podtytul">Co wchodzi do kopii</h4>
     <div class="evo-field">
         <label for="evk-backup-wykluczenia">Wykluczenia (względem wp-content, jedno na linię)</label>
         <textarea id="evk-backup-wykluczenia" name="evk_backup[exclusions]" rows="8" class="large-text code"><?php echo esc_textarea((string) $bk_s['exclusions']); ?></textarea>
@@ -125,8 +197,7 @@ $bk_ikony  = [
 <?php else: ?>
 <div class="evo-info-box evo-mt">
     <span class="dashicons dashicons-info-outline"></span>
-    <div>Włącz moduł powyżej — pojawi się przycisk kopii, lista kopii i ustawienia. W tej wersji: kopie ręczne z pobieraniem.
-    Harmonogram nocny i przywracanie dochodzą w kolejnych wydaniach.</div>
+    <div>Włącz moduł powyżej — pojawi się przycisk kopii, lista kopii z przywracaniem, kopia nocna i ustawienia.</div>
 </div>
 <?php endif; ?>
 

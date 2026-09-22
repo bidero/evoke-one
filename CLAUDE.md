@@ -90,10 +90,12 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (71 plików, cztery partie):
+Podział, który się mieści (75 plików, pięć partii; same testy kopii trwają
+ok. 8 min, więc idą osobno):
 
 ```
-node tests/run.js admin- anim animator aria backup- bg-shift bricks-required builder-context burger circular-menu controls
+node tests/run.js backup-
+node tests/run.js admin- anim animator aria bg-shift bricks-required builder-context burger circular-menu controls
 node tests/run.js darkmode drobiazgi grain hscroll inbox konserwacja kursor loop marquee motion
 node tests/run.js newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
@@ -159,6 +161,15 @@ W kontenerze sesji zdalnej serwera bazy nie ma — raz na sesję
 `apt-get install -y mariadb-server`, dalej skrypt sam go uruchamia. WordPress
 ląduje w `~/.cache/evk-testowy-wp` (zmienna `EVK_WP_PATH`), wtyczka jest do
 niego DOWIĄZANA, więc testy widzą bieżący kod.
+
+Skrypt stawia DWA WordPressy w jednej bazie: `stara.test` (prefiks `wp_`)
+i `nowa.test` (prefiks `nowy_`, katalog `EVK_WP2_PATH`) — drugi jest celem
+`backup-przywracanie` (przenosiny: inny adres, prefiks, ścieżka). Wspólna baza
+jest celowa: test sprawdza sumami kontrolnymi, że przywracanie na drugiej
+instalacji nie ruszyło tabel pierwszej. Sonda ustawia stan drugiej strony
+od nowa przy każdym przebiegu (adres, klucz, sufiks katalogu kopii) —
+bez tego mutacja zostawiała go zmienionego i następne przebiegi porównywały
+wartość z nią samą.
 
 Brak środowiska **zapala test na czerwono** z instrukcją, a nie pomija go po
 cichu — ta sama umowa co przy PHPStanie w `drobiazgi`.

@@ -88,24 +88,56 @@ function evk_backup_job_active(): ?array {
 }
 
 /**
- * Nowe zadanie kopii. $source: manual | schedule | snapshot.
- * Zwraca id albo WP_Error, gdy inne zadanie już pracuje.
+ * Wiersz nowego zadania. $status 'waiting' — czeka na inne zadanie
+ * (przywracanie na kopię sprzed przywrócenia, patrz evk_backup_release_next).
+ * Zwraca id albo WP_Error.
  */
-function evk_backup_start(string $source = 'manual') {
-    if (evk_backup_job_active()) {
-        return new WP_Error('evk_backup_busy', 'Inna kopia albo przywracanie już trwa.');
-    }
+function evk_backup_job_create(string $type, string $source, string $status, string $phase, array $state = [], int $next = 0) {
     global $wpdb;
     $wpdb->insert(evk_backup_jobs_table(), [
-        'type' => 'backup', 'source' => $source, 'status' => 'queued', 'phase' => 'init',
-        'budget_ms' => EVK_BACKUP_BUDGET_START, 'created_at' => time(), 'state' => '{}',
+        'type' => $type, 'source' => $source, 'status' => $status, 'phase' => $phase, 'next_job_id' => $next,
+        'budget_ms' => EVK_BACKUP_BUDGET_START, 'created_at' => time(),
+        'state' => wp_json_encode((object) $state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
     ]);
     $id = (int) $wpdb->insert_id;
     if (!$id) return new WP_Error('evk_backup_db', 'Nie udało się zapisać zadania: ' . $wpdb->last_error);
+    return $id;
+}
+
+/**
+ * Nowe zadanie kopii. $source: manual | schedule | snapshot. $next — zadanie
+ * czekające na tę kopię (przywracanie). Zwraca id albo WP_Error, gdy inne
+ * zadanie już pracuje.
+ */
+function evk_backup_start(string $source = 'manual', int $next = 0) {
+    if (evk_backup_job_active()) {
+        return new WP_Error('evk_backup_busy', 'Inna kopia albo przywracanie już trwa.');
+    }
+    $id = evk_backup_job_create('backup', $source, 'queued', 'init', [], $next);
+    if (is_wp_error($id)) return $id;
     evk_backup_job_log($id, 'Zadanie utworzone (' . $source . ').');
     evk_backup_schedule($id, 0);
     evk_backup_kick($id);
     return $id;
+}
+
+/** Zadanie, na które czeka $id (kopia sprzed przywrócenia), jeśli jeszcze trwa. */
+function evk_backup_job_before(int $id): ?array {
+    global $wpdb;
+    $przed = (int) $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . evk_backup_jobs_table()
+        . " WHERE next_job_id = %d AND status IN ('queued','running') ORDER BY id DESC LIMIT 1", $id));
+    return $przed ? evk_backup_job_get($przed) : null;
+}
+
+/** Zadanie czekające na to (przywracanie po kopii sprzed niego) rusza. */
+function evk_backup_release_next(array $job): void {
+    if (!$job['next_job_id']) return;
+    $nast = evk_backup_job_get($job['next_job_id']);
+    if (!$nast || $nast['status'] !== 'waiting') return;
+    evk_backup_job_update($nast['id'], ['status' => 'queued']);
+    evk_backup_job_log($nast['id'], 'Kopia sprzed przywrócenia gotowa: ' . $job['archive'] . '.');
+    evk_backup_schedule($nast['id'], 0);
+    evk_backup_kick($nast['id']);
 }
 
 // =========================================================================
@@ -283,6 +315,8 @@ function evk_backup_phase_label(string $faza): string {
     return [
         'init' => 'przygotowanie', 'db' => 'zrzut bazy', 'list' => 'lista plików',
         'pack' => 'pakowanie', 'finalize' => 'zamykanie archiwum', 'done' => 'gotowe',
+        'r_check' => 'sprawdzanie archiwum', 'r_extract' => 'rozpakowywanie', 'r_db' => 'wczytywanie bazy',
+        'r_files' => 'podmiana plików', 'r_sweep' => 'usuwanie plików spoza kopii', 'r_swap' => 'podmiana bazy',
     ][$faza] ?? $faza;
 }
 
@@ -310,7 +344,8 @@ function evk_backup_run_phases(array $job, float $deadline): array {
             return $job;
         }
 
-        switch ($job['phase']) {
+        switch ($job['type'] === 'restore' ? 'restore' : $job['phase']) {
+            case 'restore':  $job = evk_restore_phase($job, $porcja); break;
             case 'init':     $job = evk_backup_phase_init($job); break;
             case 'db':       $job = evk_backup_phase_db($job, $porcja); break;
             case 'list':     $job = evk_backup_phase_list($job, $porcja); break;
@@ -353,8 +388,12 @@ function evk_backup_phase_init(array $job): array {
 
     // Tryb konserwacji na czas zrzutu bazy — zapamiętujemy stan sprzed.
     $job['state']['maint_before'] = null;
+    $job['state']['maint_forced'] = null;
     if (!empty($s['maintenance_db'])) {
         $job['state']['maint_before'] = (string) get_option('maintenance_mode', '');
+        /* Do manifestu: zrzut złapie tryb konserwacji WŁĄCZONY przez kopię,
+           a strona po przywróceniu ma wrócić do stanu sprzed niej. */
+        $job['state']['maint_forced'] = $job['state']['maint_before'];
         update_option('maintenance_mode', '1');
         evk_backup_job_log($job['id'], 'Tryb konserwacji włączony na czas zrzutu bazy.');
     }
@@ -424,6 +463,10 @@ function evk_backup_phase_pack(array $job, float $deadline): array {
             'files_log'   => $job['state']['list']['log_n'],
             'exclusions'  => evk_backup_exclusion_patterns(),
             'root_files'  => array_keys(evk_backup_root_preview_files()),
+            // Katalog tej wtyczki — przywracanie go pomija, także pod inną nazwą.
+            'plugin_dir'  => basename(rtrim(EVOKE_ONE_DIR, '/')),
+            // null = kopia nie ruszała trybu konserwacji; inaczej stan sprzed niej.
+            'maintenance_before' => $job['state']['maint_forced'] ?? null,
         ]);
         $w->add_string('manifest.json', (string) wp_json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $job['state']['pack_sub'] = 'db';
@@ -486,9 +529,14 @@ function evk_backup_phase_finalize(array $job): array {
         $job['archive'], evk_backup_bytes_label((float) $meta['size']), $meta['files'], $meta['db_rows'],
         $meta['skipped'] ? ', pominięte w trakcie: ' . $meta['skipped'] : ''));
 
-    $usuniete = evk_backup_rotate();
-    if ($usuniete) evk_backup_job_log($job['id'], 'Retencja: usunięte starsze kopie: ' . implode(', ', $usuniete) . '.');
+    /* Kopia sprzed przywrócenia: bez retencji — mogłaby usunąć archiwum,
+       z którego zaraz przywracamy (starsze niż limit). */
+    if (!$job['next_job_id']) {
+        $usuniete = evk_backup_rotate();
+        if ($usuniete) evk_backup_job_log($job['id'], 'Retencja: usunięte starsze kopie: ' . implode(', ', $usuniete) . '.');
+    }
     do_action('evk_backup_done', $job, $meta);
+    evk_backup_release_next($job);
     return $job;
 }
 
@@ -504,6 +552,7 @@ function evk_backup_maintenance_restore(array $job): void {
 
 /** Usuwa to, co zadanie zostawiło: katalog roboczy i niedokończone archiwum. */
 function evk_backup_cleanup(array $job): void {
+    if ($job['type'] === 'restore') { evk_restore_cleanup($job); return; }
     evk_backup_maintenance_restore($job);
     if (!empty($job['state']['zip_path'])) {
         @unlink($job['state']['zip_path']);
@@ -517,16 +566,30 @@ function evk_backup_fail(array $job, string $powod): void {
     evk_backup_job_update($job['id'], ['status' => 'failed', 'error' => $powod, 'finished_at' => time(), 'lock_until' => 0]);
     evk_backup_job_log($job['id'], 'BŁĄD: ' . $powod);
     wp_clear_scheduled_hook('evk_backup_tick', [$job['id']]);
+    // Przywracanie czekające na tę kopię nie ruszy — i mówi dlaczego.
+    if ($job['next_job_id']) {
+        $nast = evk_backup_job_get($job['next_job_id']);
+        if ($nast && $nast['status'] === 'waiting') {
+            evk_backup_job_update($nast['id'], ['status' => 'failed', 'finished_at' => time(),
+                'error' => 'Kopia sprzed przywrócenia nie powiodła się — przywracanie nie ruszyło, strona bez zmian. ' . $powod]);
+        }
+    }
     do_action('evk_backup_failed', $job, $powod);
 }
 
 /** Anulowanie z panelu. Pracujący krok zobaczy status między porcjami i posprząta. */
 function evk_backup_cancel(int $id): bool {
     $job = evk_backup_job_get($id);
-    if (!$job || !in_array($job['status'], ['queued', 'running'], true)) return false;
+    if (!$job || !in_array($job['status'], ['queued', 'running', 'waiting'], true)) return false;
+    // Przywracanie, które podmienia już pliki albo bazę, przerwane zostawiłoby stronę w połowie.
+    if ($job['type'] === 'restore' && !evk_restore_cancellable($job)) return false;
     evk_backup_job_update($id, ['status' => 'cancelled', 'finished_at' => time()]);
     evk_backup_job_log($id, 'Anulowane z panelu.');
     wp_clear_scheduled_hook('evk_backup_tick', [$id]);
+    // Anulowana kopia sprzed przywrócenia anuluje też czekające przywracanie — i odwrotnie.
+    if ($job['next_job_id']) evk_backup_cancel($job['next_job_id']);
+    $przed = evk_backup_job_before($id);
+    if ($przed) evk_backup_cancel($przed['id']);
     // Nikt nie pracuje — sprzątamy od razu. Pracujący krok posprząta sam.
     if ($job['lock_until'] === 0 || $job['lock_until'] < time()) evk_backup_cleanup($job);
     return true;

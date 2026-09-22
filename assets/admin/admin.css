@@ -1461,6 +1461,36 @@
 .evk-backup-tlo-wynik.is-ok { color: var(--evo-on); }
 .evk-backup-tlo-wynik.is-warn { color: var(--evo-warn); }
 .evk-backup-lista .evk-backup-akcje .evk-backup-usun { color: var(--evo-danger); }
+/* Ustawienia: podtytuły sekcji formularza, godzina kopii, polecenie crona. */
+.evk-backup-podtytul { margin: 18px 0 10px; font-size: 13px; }
+.evo-panel .evk-backup-podtytul:first-of-type { margin-top: 4px; }
+.evo-panel input[type="time"][name="evk_backup[schedule_time]"] { max-width: 120px; margin-top: 6px; }
+.evk-backup-kod { margin: 8px 0 12px; padding: 8px 10px; font-size: 12px; background: var(--evo-code-bg); color: var(--evo-code-text);
+    border-radius: 6px; white-space: pre-wrap; word-break: break-all; }
+.evk-backup-ftp { font-size: 12px; }
+/* Okno przywracania — natywny <dialog> z showModal(): fokus zamknięty
+   w oknie i Escape zamykający go daje przeglądarka. */
+.evk-backup-dialog { width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; box-sizing: border-box;
+    padding: 20px; border: 1px solid var(--evo-border); border-radius: 10px; background: var(--evo-bg); color: var(--evo-text);
+    box-shadow: var(--evo-shadow-modal); }
+.evk-backup-dialog::backdrop { background: rgba(15, 17, 26, .55); }
+.evk-backup-dialog h3 { margin: 0 0 12px; }
+.evk-restore-info dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0 0 14px; font-size: 13px; }
+.evk-restore-info dt { color: var(--evo-text-dim); }
+.evk-restore-info dd { margin: 0; overflow-wrap: anywhere; }
+.evk-restore-info dd.is-warn { color: var(--evo-warn); }
+.evk-restore-zakres { margin: 0 0 12px; padding: 0; border: 0; }
+.evk-restore-zakres legend { margin-bottom: 6px; font-weight: 600; }
+.evk-restore-zakres label, .evk-restore-opcja { display: block; margin: 0 0 6px; }
+.evk-restore-opcja { margin: 10px 0; }
+.evk-restore-uwaga { margin: 12px 0; }
+.evk-restore-potwierdz { display: block; margin: 12px 0; }
+.evk-restore-potwierdz input { display: block; width: 100%; max-width: 240px; margin-top: 6px; }
+.evk-restore-przyciski { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+@media (max-width: 600px) {
+    .evk-restore-info dl { grid-template-columns: 1fr; }
+    .evk-restore-info dd { margin-bottom: 6px; }
+}
 /* Telefon: wiersz jako karta — opis w liniach, akcje rzędem POD opisem, po
    równo szerokości. Zmierzone przed zmianą: wiersz 536 px przy ekranie 390 px,
    przyciski za przewijaniem w bok. */

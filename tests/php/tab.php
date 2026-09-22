@@ -74,6 +74,7 @@ register_shutdown_function(static function () {
     @rmdir(WP_CONTENT_DIR);
 });
 if (!function_exists('wp_date')) { function wp_date($f, $t = null) { return gmdate($f, $t ?? time()); } }
+if (!function_exists('wp_timezone_string')) { function wp_timezone_string() { return 'Europe/Warsaw'; } }
 if (!function_exists('wp_nonce_url')) { function wp_nonce_url($u, $a = -1) { return $u . '&_wpnonce=testnonce'; } }
 if (!function_exists('content_url')) { function content_url($p = '') { return 'https://example.test/wp-content' . ($p ? '/' . $p : ''); } }
 if (!function_exists('wp_mkdir_p')) { function wp_mkdir_p($d) { return is_dir($d) || @mkdir($d, 0700, true); } }
@@ -656,10 +657,13 @@ $TABS = [
     ],
     'backup-on' => [
         /* Moduł WŁĄCZONY z silnikiem: karta, kopia teraz, lista z jedną kopią,
-           formularz ustawień i test napędu — pełny markup. Katalog kopii
+           okno przywracania, formularz ustawień z kopią nocną i test pracy
+           w tle — pełny markup. Katalog kopii
            w katalogu tymczasowym (sprzątany), z jedną kopią i jej opisem. */
         'module' => ['includes/backup/settings.php', 'includes/backup/tables.php', 'includes/backup/storage.php',
-                     'includes/backup/environment.php', 'includes/backup/engine.php', 'includes/backup/ajax.php'],
+                     'includes/backup/environment.php', 'includes/backup/engine.php', 'includes/backup/zip-reader.php',
+                     'includes/backup/serialize-replace.php', 'includes/backup/restore.php', 'includes/backup/schedule.php',
+                     'includes/backup/ajax.php'],
         'file'   => 'includes/admin/tab-backup.php',
         'seed'   => function () {
             $GLOBALS['options']['evk_backup'] = ['enabled' => 1];

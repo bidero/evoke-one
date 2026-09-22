@@ -85,14 +85,36 @@ function evk_backup_db_tables(): array {
     $tabele = [];
     $pominiete = [];
     $bez = evk_backup_jobs_table();
+    $nazwy = array_map(static function ($w) { return (string) $w['n']; }, (array) $wiersze);
+    $obce = evk_backup_db_foreign_prefixes($nazwy, $wpdb->prefix);
     foreach ((array) $wiersze as $w) {
         $n = (string) $w['n'];
         // LIKE bywa niewrażliwy na wielkość liter — prefiks sprawdzamy dosłownie.
         if (strpos($n, $wpdb->prefix) !== 0 || $n === $bez) continue;
+        foreach ($obce as $o) { if (strpos($n, $o) === 0) continue 2; }
         if ($w['t'] === 'BASE TABLE') $tabele[] = $n;
         else $pominiete[] = $n;
     }
     return [$tabele, $pominiete];
+}
+
+/**
+ * Prefiksy INNYCH instalacji, które zaczynają się od naszego: przy `wp_`
+ * druga instalacja w tej samej bazie z prefiksem `wp_sklep_` ma tabele
+ * pasujące do `wp_%`. Poznajemy ją po trzech tabelach rdzenia naraz
+ * (options, posts, users) — pojedynczą tabelę wtyczki z takim
+ * przyrostkiem trudno pomylić z całą instalacją. Bez tego zrzut
+ * zabierałby cudzą instalację, a przywracanie by ją usuwało.
+ */
+function evk_backup_db_foreign_prefixes(array $tabele, string $prefix): array {
+    $zbior = array_flip($tabele);
+    $obce = [];
+    foreach ($tabele as $t) {
+        if (strpos($t, $prefix) !== 0 || substr($t, -7) !== 'options' || $t === $prefix . 'options') continue;
+        $p = substr($t, 0, -7);
+        if (isset($zbior[$p . 'posts'], $zbior[$p . 'users'])) $obce[] = $p;
+    }
+    return $obce;
 }
 
 /** Stan początkowy zrzutu. */

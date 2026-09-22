@@ -39,9 +39,10 @@ function evk_backup_defaults(): array {
         // Tryb konserwacji na czas zrzutu bazy — spójna migawka kosztem
         // zasłonięcia strony na kilka–kilkadziesiąt sekund.
         'maintenance_db'   => 0,
-        // Powiadomienia o nieudanej kopii.
-        'notify_email'     => 0,
-        'notify_address'   => '',   // puste = adres administratora
+        // Powiadomienia o nieudanej kopii (schedule.php). E-mail idzie
+        // WYŁĄCZNIE na wpisane adresy (po przecinku) — puste pole = bez maili,
+        // bez cichego zastępstwa adresem administratora (decyzja z 1.227.0).
+        'notify_address'   => '',
         'notify_notice'    => 0,
     ];
 }
@@ -122,7 +123,7 @@ function evk_backup_sanitize($input): array {
        formularzem — formularz, który go nie zawiera, nie może go wyzerować. */
     $c['enabled'] = array_key_exists('enabled', $in) ? (!empty($in['enabled']) ? 1 : 0) : (int) $cur['enabled'];
 
-    foreach (['schedule_enabled', 'maintenance_db', 'notify_email', 'notify_notice'] as $k) {
+    foreach (['schedule_enabled', 'maintenance_db', 'notify_notice'] as $k) {
         $c[$k] = !empty($in[$k]) ? 1 : 0;
     }
 
@@ -139,8 +140,13 @@ function evk_backup_sanitize($input): array {
     }
     $c['exclusions'] = implode("\n", $wzorce);
 
-    $adres = sanitize_email((string) ($in['notify_address'] ?? ''));
-    $c['notify_address'] = $adres ?: '';
+    // Adresy po przecinku (średnik i spacje też) — poprawne zostają, reszta odpada. Najwyżej 5.
+    $adresy = [];
+    foreach (preg_split('/[\s,;]+/', (string) ($in['notify_address'] ?? '')) ?: [] as $a) {
+        $a = sanitize_email($a);
+        if ($a !== '' && is_email($a) && !in_array($a, $adresy, true)) $adresy[] = $a;
+    }
+    $c['notify_address'] = implode(', ', array_slice($adresy, 0, 5));
 
     return $c;
 }

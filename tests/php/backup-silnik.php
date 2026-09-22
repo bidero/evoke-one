@@ -34,7 +34,13 @@ $scen = $argv[1] ?? '';
 // Pomocniczy: jeden krok z budżetem z argumentu — w osobnym procesie.
 // Czwarty argument `pamiec`: limit pamięci tuż nad bieżącym zużyciem.
 if ($scen === 'krok') {
-    if (($argv[4] ?? '') === 'pamiec') ini_set('memory_limit', (string) (memory_get_usage() + 1048576));
+    /* Limit względem pamięci PRZYDZIELONEJ (true): PHP odmawia limitu
+       niższego niż ona. Od memory_get_usage() bez `true` dzieliło ją 2,7 MB
+       po dołożeniu plików przywracania (1.227.0) — ini_set() zwracało false,
+       limitu nie było i fatal się nie zdarzał. Odmowa idzie teraz na wyjście. */
+    if (($argv[4] ?? '') === 'pamiec' && ini_set('memory_limit', (string) (memory_get_usage(true) + 1048576)) === false) {
+        echo 'SONDA: limit pamięci odrzucony';
+    }
     evk_backup_tick((int) $argv[2], (int) ($argv[3] ?? 20000));
     exit;
 }

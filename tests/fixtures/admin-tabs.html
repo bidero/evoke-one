@@ -234,10 +234,15 @@ window.__tips = function () {
   });
 };
 
-/** Ramki, które MAJĄ być widoczne od razu. */
+/**
+ * Ramki, które MAJĄ być widoczne od razu. Poza ramkami w oknach `<dialog>`:
+ * ostrzeżenie w zamkniętym oknie (przywracanie kopii, 1.227.0) pokazuje się
+ * razem z oknem — tam jest jego miejsce, a nie na wierzchu zakładki.
+ */
 window.__stateBoxes = function () {
   var sel = '#panel .evo-info-box.is-ok, #panel .evo-info-box.is-warn, #panel .evo-info-box.is-err';
-  return Array.prototype.map.call(document.querySelectorAll(sel), function (b) {
+  var poza = Array.prototype.filter.call(document.querySelectorAll(sel), function (b) { return !b.closest('dialog'); });
+  return poza.map(function (b) {
     return { visible: b.getClientRects().length > 0, cls: String(b.className).slice(0, 40) };
   });
 };

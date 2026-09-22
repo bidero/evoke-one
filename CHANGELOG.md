@@ -2,6 +2,81 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.227.0] — 2026-09-22
+
+### Dodane
+
+- **Przywracanie kopii jednym kliknięciem — także na innym serwerze.**
+  Przy każdej kopii na liście „Przywróć". Okno pokazuje, skąd jest kopia
+  i dokąd idzie (adres, prefiks tabel, wersja WordPressa, zawartość, pliki
+  z katalogu głównego, brakujące stałe wp-config.php), pozwala wybrać
+  zakres (całość / tylko baza / tylko pliki), usuwanie plików spoza kopii
+  (lustro) i kopię obecnego stanu przed przywróceniem — obie opcje domyślnie
+  wyłączone. Potwierdzenie wpisaniem PRZYWRÓĆ, sprawdzane też na serwerze.
+
+  Przy przenosinach adresy i ścieżki są podmieniane w całej bazie parserem
+  bezpiecznym dla serializacji (bez unserialize() na cudzych danych),
+  w wariantach http/https, www, JSON i zakodowanym w adresie; prefiks tabel
+  przyjmuje ten z nowej instalacji (także klucze user_roles i capabilities).
+
+  Kolejność: najpierw wszystko, co może się nie udać — rozpakowanie
+  z kontrolą CRC do katalogu roboczego, wczytanie bazy do tabel
+  tymczasowych — i dopiero potem podmiana plików i bazy (jednym
+  `RENAME TABLE`). Uszkodzona kopia, brak miejsca albo błąd importu kończą
+  się stroną w stanie sprzed. Do tego momentu przywracanie da się anulować.
+  Nie są przywracane: ta wtyczka, katalogi kopii, pliki z katalogu
+  głównego (.htaccess itd. — tylko do podglądu w archiwum). Tabele strony,
+  których nie ma w kopii, są usuwane; tabele innych instalacji w tej samej
+  bazie — nietknięte. Przywrócenie bazy wylogowuje (podmienia
+  użytkowników), a pasek postępu i tak dochodzi do końca — stan idzie
+  tokenem zadania, nie sesją; na końcu odnośnik do logowania.
+- **Kopie wgrane przez FTP**: plik .zip wrzucony do
+  `wp-content/evk-backups-import/` trafia na listę (jako „wgrana") przy
+  otwarciu zakładki. Plik zmieniony w ostatniej minucie czeka — może się
+  jeszcze wgrywać. Wgrywanie z przeglądarki — w kolejnym wydaniu.
+- **Kopia nocna** o godzinie z ustawień, w strefie czasowej strony (także
+  przez zmianę czasu). Gdy o tej porze nikt nie odwiedzi strony, kopia rusza
+  przy pierwszej wizycie; spóźnienie ponad dobę i WP-Cron, który nie działa
+  wcale, dają powiadomienie. W zakładce następny termin i gotowe polecenie
+  crona systemowego.
+- **Powiadomienia o nieudanej kopii**: e-mail wyłącznie na wpisane adresy
+  (kilka po przecinku; puste pole = bez maili) i komunikat w panelu
+  WordPressa, znikający po następnej udanej kopii albo po zamknięciu.
+
+### Zmienione
+
+- Zrzut bazy pomija tabele innej instalacji z prefiksem zaczynającym się od
+  naszego (`wp_` i `wp_sklep_` w jednej bazie) — rozpoznawanej po trzech
+  tabelach rdzenia naraz.
+- Manifest kopii zapisuje katalog wtyczki i stan trybu konserwacji sprzed
+  kopii — kopia z trybem konserwacji na czas zrzutu nie przywraca strony
+  zasłoniętej.
+
+### Testy
+
+- `backup-czytnik` (czysty PHP): odczyt archiwów wtyczki i obcych, ZIP64,
+  wznawianie w połowie wpisu, krok ubity przed zapisem stanu, odmowa przy
+  uszkodzeniu i nazwach typu `../`. Test złapał pętlę bez postępu przy
+  strumieniu deflate urwanym przez uszkodzenie — poprawione przed wydaniem.
+- `backup-przywracanie`: kopia ze stara.test (wp_) przywracana na
+  nowa.test (nowy_) w tej samej bazie — adresy, serializacja, prefiks,
+  BLOB co do bajtu, sumy kontrolne tabel pierwszej strony, lustro, zakresy,
+  anulowanie, porcja importu powtórzona po ubitym kroku (z kluczem i bez).
+  `tools/testowy-wp.sh` stawia do tego drugi WordPress.
+- `backup-harmonogram`, `backup-panel-przywracanie` (przeglądarka: okno,
+  przywrócenie z wylogowaniem, FTP, zapis ustawień, zamykanie komunikatu).
+- Harness: serwer `php -S` testów panelu (`tests/lib/wp-serwer.js`) startuje
+  we własnej grupie procesów i jest zatrzymywany całą grupą. Zmierzone:
+  `kill()` na rodzicu zostawiał wszystkie sześć procesów roboczych, a ten
+  w trakcie żądania pracował dalej na bazie następnego testu. Logowanie
+  w teście, które nie dojdzie do końca, podaje teraz wiszące żądania i stan
+  bazy. Sonda limitu pamięci w `backup-silnik` ustawia limit względem pamięci
+  przydzielonej — PHP odrzucał niższy po cichu i fatala nie było.
+- Mutacje: 6 czytnika, 12 przywracania, 10 harmonogramu, 7 panelu — każda
+  zapala swój podzbiór. Jedna przeszła na zielono (osobny literał X'…' dla
+  bajtów spoza UTF-8): pomiar pokazał, że MariaDB zapisuje do BLOB-a to samo
+  obiema drogami — kod uproszczony.
+
 ## [1.226.1] — 2026-09-22
 
 ### Naprawione (zgłoszone z użycia)

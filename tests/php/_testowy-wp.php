@@ -25,12 +25,16 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * WordPressa, a jego nadpisanie wywraca rejestrację taksonomii.
  */
 
-$evk_sciezka_wp = getenv('EVK_WP_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp');
+/* $evk_drugi = true: DRUGI testowy WordPress (nowa.test, prefiks nowy_) —
+   cel przywracania na innej stronie. */
+$evk_sciezka_wp = !empty($evk_drugi)
+    ? (getenv('EVK_WP2_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp2'))
+    : (getenv('EVK_WP_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp'));
 if (!is_file($evk_sciezka_wp . '/wp-load.php') || !is_file($evk_sciezka_wp . '/wp-config.php')) {
     echo json_encode(['brak' => 'Brak testowego WordPressa w ' . $evk_sciezka_wp . ' — uruchom tools/testowy-wp.sh']);
     exit;
 }
-$_SERVER['HTTP_HOST']   = 'stara.test';
+$_SERVER['HTTP_HOST']   = !empty($evk_drugi) ? 'nowa.test' : 'stara.test';
 $_SERVER['REQUEST_URI'] = '/';
 if (!defined('WP_USE_THEMES')) define('WP_USE_THEMES', false);
 /* Bez tego każde załadowanie WordPressa odpala WP-Cron, a ten żądaniem HTTP

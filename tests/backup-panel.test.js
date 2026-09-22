@@ -14,25 +14,10 @@
 
 const { phpOutput, chromiumPath } = require('./lib/harness');
 const { chromium } = require('playwright-core');
-const { spawn } = require('child_process');
-const net = require('net');
-const http = require('http');
-const path = require('path');
+const serwerWp = require('./lib/wp-serwer');
 
 const sonda = (a) => JSON.parse(phpOutput('backup-panel.php', a));
 
-function wolnyPort() {
-  return new Promise((ok) => { const s = net.createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => ok(p)); }); });
-}
-function czekajNaSerwer(port) {
-  return new Promise((ok, zle) => {
-    const koniec = Date.now() + 15000;
-    (function proba() {
-      http.get({ host: '127.0.0.1', port, path: '/wp-login.php' }, (r) => { r.resume(); ok(); })
-        .on('error', () => (Date.now() > koniec ? zle(new Error('serwer nie wstał')) : setTimeout(proba, 200)));
-    })();
-  });
-}
 /** Czy element naprawdę widać — nie „czy ma atrybut hidden". */
 const widac = (page, sel) => page.locator(sel).isVisible();
 
@@ -43,22 +28,17 @@ module.exports = async function (t) {
   t.check('testowy WordPress jest (tools/testowy-wp.sh)', !prep.brak, prep.brak || prep.wp);
   if (prep.brak) return;
 
-  const port = await wolnyPort();
-  const baza = 'http://127.0.0.1:' + port;
-  const serwer = spawn('php', ['-S', '127.0.0.1:' + port, path.join(__dirname, 'php', '_router-wp.php')],
-    { cwd: prep.wp, env: Object.assign({}, process.env, { PHP_CLI_SERVER_WORKERS: '6' }), stdio: 'ignore' });
+  let serwer = null;
   let browser;
   try {
-    await czekajNaSerwer(port);
+    serwer = await serwerWp.start(prep.wp);
+    const baza = serwer.baza;
     browser = await chromium.launch({ executablePath: chromiumPath() });
     const p = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
     const bledy = [];
     p.on('pageerror', (e) => bledy.push(e.message));
     p.on('dialog', (d) => d.accept());
-    await p.goto(baza + '/wp-login.php');
-    await p.fill('#user_login', 'admin');
-    await p.fill('#user_pass', 'admin');
-    await Promise.all([p.waitForNavigation(), p.click('#wp-submit')]);
+    await serwerWp.zaloguj(p, baza);
     const zakladka = baza + '/wp-admin/options-general.php?page=evoke-one&tab=backup';
     await p.goto(zakladka);
 
@@ -122,7 +102,7 @@ module.exports = async function (t) {
         dokument: document.documentElement.scrollWidth,
       };
     });
-    t.check('trzy przyciski tej samej wysokości, w jednym rzędzie',
+    t.check('cztery przyciski (pobierz, przypnij, przywróć, usuń) tej samej wysokości, w jednym rzędzie',
       new Set(tel.wysokosci).size === 1 && new Set(tel.gory).size === 1, JSON.stringify(tel));
     t.check('akcje pod opisem, w granicach ekranu, bez przewijania w bok',
       tel.podOpisem && tel.prawa <= 390 && tel.dokument <= 390, JSON.stringify(tel));
@@ -229,7 +209,7 @@ module.exports = async function (t) {
     t.check('bez błędów JS przez cały przebieg', !bledy.length, bledy.join(' | ') || 'czysto');
   } finally {
     if (browser) await browser.close();
-    serwer.kill();
+    if (serwer) await serwer.zatrzymaj();
     sonda('sprzataj');
   }
 };
