@@ -305,4 +305,35 @@ module.exports = async function (t) {
   const obce = phpOutput('sitemap-hreflang.php', 'pl inna-sekcja');
   t.check('żądanie innej sekcji przechodzi do rdzenia', obce.trim() === 'NIE-PRZEJETO',
     obce.trim().slice(0, 40));
+
+  // ── Drugie źródło deklaracji: tagi w <head> ───────────────────────────
+  t.section('hreflang w <head> mówi to samo co mapa');
+
+  /* Do 1.223.2 tej połowy nie sprawdzało NIC, a to ona jest źródłem, które
+     wyszukiwarka widzi na każdej podstronie. Mapa i `<head>` muszą deklarować
+     to samo — rozbieżność jest sygnałem sprzecznym, rozstrzyganym po stronie
+     wyszukiwarki, nie po naszej. */
+  const glowa = JSON.parse(phpOutput('hreflang-head.php', 'pl'));
+  const tagi  = glowa.tagi.map((t2) => t2.tag);
+
+  /* `pl-PL` leciał obok `pl`, oba na ten sam adres. Sprzeczności w tym nie ma,
+     ale region ZAWĘŻA („polski w Polsce"), a mapa wypisywała samo `pl` — więc
+     dwa źródła opisywały ten sam język dwoma zestawami tagów. */
+  t.check('polski deklarowany raz, jako pl',
+    tagi.filter((x) => x.toLowerCase().startsWith('pl')).length === 1 && tagi.includes('pl'),
+    tagi.join(', '));
+  t.check('żaden język nie jest zadeklarowany dwa razy',
+    new Set(tagi).size === tagi.length, tagi.join(', '));
+  // Etykiety obcych języków idą z ustawień, nie z kodu katalogu.
+  t.check('etykiety obcych języków z ustawień',
+    tagi.includes('en') && tagi.includes('de-DE'), tagi.join(', '));
+
+  const xdGlowa = glowa.tagi.find((t2) => t2.tag === 'x-default');
+  t.check('x-default w <head> z tego samego ustawienia co w mapie',
+    xdGlowa && xdGlowa.url === 'https://example.test/oferta/', JSON.stringify(xdGlowa));
+
+  const glowaEn = JSON.parse(phpOutput('hreflang-head.php', 'en'));
+  const xdEn = glowaEn.tagi.find((t2) => t2.tag === 'x-default');
+  t.check('i zmienia się razem z nim', xdEn && xdEn.url === 'https://example.test/en/offer/',
+    JSON.stringify(xdEn));
 };

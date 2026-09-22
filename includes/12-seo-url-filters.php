@@ -51,10 +51,23 @@ add_action('wp_head', function () {
     }
     echo '<link rel="canonical" href="' . esc_url($canonical) . '" />' . "\n";
 
-    // hreflang PL
+    /* hreflang PL — JEDEN tag, `pl`.
+     *
+     * Do 1.223.2 leciały dwa: `pl` i `pl-PL`, oba na ten sam adres. Sprzeczności
+     * w tym nie ma, ale `pl-PL` niczego nie dokładał: sam kod języka jest
+     * pełnoprawną wartością (Google: „you can specify a language code by
+     * itself"), a dopisany region ZAWĘŻA — `pl-PL` znaczy „polski w Polsce",
+     * czyli mówi o mniejszej grupie niż `pl`. Region ma sens wyłącznie wtedy,
+     * gdy istnieją OSOBNE strony dla tego samego języka w różnych krajach
+     * (`en-GB` obok `en-US`, inne ceny i dostawa). Przy jednej wersji polskiej
+     * drugi tag to tylko szum, w dodatku rozjeżdżający się z sekcją `hreflang`
+     * w mapie strony, która wypisuje samo `pl`.
+     *
+     * Atrybut `lang` dokumentu (filtr `language_attributes` na górze pliku)
+     * zostaje przy `pl-PL` — to inna deklaracja, dla przeglądarki i czytników
+     * ekranu, i tam pełny tag BCP 47 jest w porządku. */
     $pl_url = $home_raw . $pl_path;
     echo '<link rel="alternate" hreflang="pl" href="' . esc_url($pl_url) . '" />' . "\n";
-    echo '<link rel="alternate" hreflang="pl-PL" href="' . esc_url($pl_url) . '" />' . "\n";
 
     // hreflang pozostałe języki z przetłumaczonymi slugami
     foreach (tl_get_languages() as $code => $lang) {

@@ -2,6 +2,29 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.223.2] — 2026-09-22
+
+### Zmienione
+
+- **Polski deklarowany w `<head>` jednym tagiem `hreflang="pl"`.** Leciały dwa,
+  `pl` i `pl-PL`, oba na ten sam adres. Sprzeczności w tym nie było, ale
+  `pl-PL` niczego nie dokładał: sam kod języka jest pełnoprawną wartością
+  (Google: „you can specify a language code by itself"), a dopisany region
+  ZAWĘŻA — `pl-PL` znaczy „polski w Polsce", czyli mówi o mniejszej grupie niż
+  `pl`. Region ma sens tylko przy OSOBNYCH stronach dla tego samego języka
+  w różnych krajach (`en-GB` obok `en-US`). Przy jednej wersji polskiej drugi
+  tag był szumem rozjeżdżającym się z sekcją `hreflang` w mapie, która
+  wypisuje samo `pl`.
+
+  Atrybut `lang` dokumentu zostaje przy `pl-PL` — to inna deklaracja, dla
+  przeglądarki i czytników ekranu, i tam pełny tag BCP 47 jest w porządku.
+
+- **Tagi `hreflang` w `<head>` mają wreszcie sprawdzenia** (`tests/php/hreflang-head.php`,
+  5 sprawdzeń). Do tej pory nie pilnowało ich NIC, choć to źródło, które
+  wyszukiwarka widzi na każdej podstronie — sekcję mapy sprawdzał osobny
+  zestaw, a tę połowę nikt. Pilnowane są: jeden tag na język, etykiety
+  z ustawień języków i `x-default` idący za tym samym ustawieniem co w mapie.
+
 ## [1.223.1] — 2026-09-22
 
 ### Naprawione
