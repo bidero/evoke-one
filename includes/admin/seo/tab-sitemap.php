@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) exit;
  * teraz sześć list i rozwinięte naraz nie da się na nim niczego znaleźć.
  * Otwarte startowo są tylko typy treści — reszta czeka na kliknięcie.
  *
- * Wiersze list są SIATKĄ o stałych kolumnach (`.evk-sm-row`), a nie rzędem
+ * Wiersze list są SIATKĄ o stałych kolumnach (`.evk-map-row`), a nie rzędem
  * pływających etykiet. Przy układzie pływającym pozycja checkboksa zależała od
  * długości nazwy typu i żadne dwa wiersze nie miały pól w tej samej kolumnie —
  * przy ośmiu taksonomiach nie dawało się wzrokiem sprawdzić, co jest
@@ -95,8 +95,8 @@ if (!defined('ABSPATH')) exit;
                 <summary>Typy treści <span class="evo-acc-count"><?php echo count($sm_typy); ?></span></summary>
                 <div class="evo-acc-body">
                     <p class="evo-lead">Każdy zarejestrowany typ — także z Evoke FIELDS, ACF czy Metabox.</p>
-                    <div class="evk-sm-grid" id="tl-sm-types">
-                        <div class="evk-sm-row evk-sm-head">
+                    <div class="evk-map-grid" id="tl-sm-types">
+                        <div class="evk-map-row evk-map-head">
                             <span>Typ treści</span>
                             <span>W mapie</span>
                             <span>Poza indeksem</span>
@@ -106,19 +106,19 @@ if (!defined('ABSPATH')) exit;
                             $sm_noindex  = $sm_z_fields || in_array($sm_slug, $sm_noidx_typy, true);
                             $sm_w_mapie  = !$sm_noindex && !in_array($sm_slug, $sm_wykl_typy, true);
                         ?>
-                        <div class="evk-sm-row evk-sm-type" data-slug="<?php echo esc_attr($sm_slug); ?>">
-                            <span class="evk-sm-name">
+                        <div class="evk-map-row evk-map-type" data-slug="<?php echo esc_attr($sm_slug); ?>">
+                            <span class="evk-map-name">
                                 <strong><?php echo esc_html($sm_obj->labels->name ?? $sm_slug); ?></strong>
                                 <code class="evo-muted"><?php echo esc_html($sm_slug); ?></code>
                                 <?php if ($sm_z_fields): ?><span class="evo-faint">z Evoke FIELDS</span><?php endif; ?>
                             </span>
-                            <label class="evk-sm-cell">
+                            <label class="evk-map-cell">
                                 <input type="checkbox" class="tl-sm-type-in" <?php checked($sm_w_mapie); ?> <?php disabled($sm_noindex); ?>>
-                                <span class="evk-sm-cell-label">W mapie</span>
+                                <span class="evk-map-cell-label">W mapie</span>
                             </label>
-                            <label class="evk-sm-cell">
+                            <label class="evk-map-cell">
                                 <input type="checkbox" class="tl-sm-type-noindex" <?php checked($sm_noindex); ?> <?php disabled($sm_z_fields); ?>>
-                                <span class="evk-sm-cell-label">Poza indeksem</span>
+                                <span class="evk-map-cell-label">Poza indeksem</span>
                             </label>
                         </div>
                         <?php endforeach; ?>
@@ -130,8 +130,8 @@ if (!defined('ABSPATH')) exit;
                 <summary>Taksonomie <span class="evo-acc-count"><?php echo count($sm_taks); ?></span></summary>
                 <div class="evo-acc-body">
                     <p class="evo-lead">Archiwa termów: kategorie, tagi i taksonomie własne.</p>
-                    <div class="evk-sm-grid" id="tl-sm-taxonomies">
-                        <div class="evk-sm-row evk-sm-head">
+                    <div class="evk-map-grid" id="tl-sm-taxonomies">
+                        <div class="evk-map-row evk-map-head">
                             <span>Taksonomia</span>
                             <span>W mapie</span>
                             <span>Poza indeksem</span>
@@ -141,19 +141,19 @@ if (!defined('ABSPATH')) exit;
                             $sm_noindex  = $sm_z_fields || in_array($sm_slug, $sm_noidx_taks, true);
                             $sm_w_mapie  = !$sm_noindex && !in_array($sm_slug, $sm_wykl_taks, true);
                         ?>
-                        <div class="evk-sm-row evk-sm-tax" data-slug="<?php echo esc_attr($sm_slug); ?>">
-                            <span class="evk-sm-name">
+                        <div class="evk-map-row evk-map-tax" data-slug="<?php echo esc_attr($sm_slug); ?>">
+                            <span class="evk-map-name">
                                 <strong><?php echo esc_html($sm_obj->labels->name ?? $sm_slug); ?></strong>
                                 <code class="evo-muted"><?php echo esc_html($sm_slug); ?></code>
                                 <?php if ($sm_z_fields): ?><span class="evo-faint">z Evoke FIELDS</span><?php endif; ?>
                             </span>
-                            <label class="evk-sm-cell">
+                            <label class="evk-map-cell">
                                 <input type="checkbox" class="tl-sm-tax-in" <?php checked($sm_w_mapie); ?> <?php disabled($sm_noindex); ?>>
-                                <span class="evk-sm-cell-label">W mapie</span>
+                                <span class="evk-map-cell-label">W mapie</span>
                             </label>
-                            <label class="evk-sm-cell">
+                            <label class="evk-map-cell">
                                 <input type="checkbox" class="tl-sm-tax-noindex" <?php checked($sm_noindex); ?> <?php disabled($sm_z_fields); ?>>
-                                <span class="evk-sm-cell-label">Poza indeksem</span>
+                                <span class="evk-map-cell-label">Poza indeksem</span>
                             </label>
                         </div>
                         <?php endforeach; ?>
@@ -181,33 +181,33 @@ if (!defined('ABSPATH')) exit;
                         <?php foreach ($sm_sekcje as $sm_sekcja):
                             $sm_kotwice = (array) ($sm_sekcja['anchors'] ?? []);
                         ?>
-                        <div class="evk-sm-section">
-                            <div class="evk-sm-sec-head">
-                                <label class="evk-sm-field">
+                        <div class="evk-map-section">
+                            <div class="evk-map-sec-head">
+                                <label class="evk-map-field">
                                     <span>Nazwa sekcji</span>
                                     <input type="text" class="tl-sm-sec-name" value="<?php echo esc_attr($sm_sekcja['name'] ?? ''); ?>" placeholder="np. Menu">
                                 </label>
-                                <label class="evk-sm-field">
+                                <label class="evk-map-field">
                                     <span>Strona bazowa</span>
                                     <select class="tl-sm-sec-page"><?php echo $sm_opcje_stron($sm_sekcja['page'] ?? 0); /* phpcs:ignore — zbudowane z esc_* wyżej */ ?></select>
                                 </label>
-                                <label class="evk-sm-field">
+                                <label class="evk-map-field">
                                     <span>albo własny adres</span>
                                     <input type="text" class="tl-sm-sec-url" value="<?php echo esc_attr($sm_sekcja['url'] ?? ''); ?>" placeholder="/menu/">
                                 </label>
-                                <button type="button" class="button evk-sm-sec-remove" title="Usuń sekcję" aria-label="Usuń sekcję"><span class="dashicons dashicons-trash"></span></button>
+                                <button type="button" class="button evk-map-sec-remove" title="Usuń sekcję" aria-label="Usuń sekcję"><span class="dashicons dashicons-trash"></span></button>
                             </div>
-                            <div class="evk-sm-anchors">
+                            <div class="evk-map-anchors">
                                 <?php foreach ($sm_kotwice as $sm_kotwica): ?>
-                                <div class="evk-sm-anchor">
-                                    <span class="evk-sm-hash">#</span>
+                                <div class="evk-map-anchor">
+                                    <span class="evk-map-hash">#</span>
                                     <input type="text" class="tl-sm-anchor" value="<?php echo esc_attr($sm_kotwica); ?>" placeholder="desery">
-                                    <button type="button" class="button evk-sm-anchor-remove" title="Usuń kotwicę" aria-label="Usuń kotwicę"><span class="dashicons dashicons-no-alt"></span></button>
+                                    <button type="button" class="button evk-map-anchor-remove" title="Usuń kotwicę" aria-label="Usuń kotwicę"><span class="dashicons dashicons-no-alt"></span></button>
                                 </div>
                                 <?php endforeach; ?>
                             </div>
-                            <button type="button" class="button evk-sm-anchor-add"><span class="dashicons dashicons-plus-alt2 evo-ico-sm evo-ico-lead"></span> Dodaj kotwicę</button>
-                            <p class="evk-sm-preview"></p>
+                            <button type="button" class="button evk-map-anchor-add"><span class="dashicons dashicons-plus-alt2 evo-ico-sm evo-ico-lead"></span> Dodaj kotwicę</button>
+                            <p class="evk-map-preview"></p>
                         </div>
                         <?php endforeach; ?>
                     </div>
@@ -219,38 +219,38 @@ if (!defined('ABSPATH')) exit;
                              i przeszły przez `esc_*`, więc nowy wiersz nie musi
                              ich budować drugi raz, innym kodem. */ ?>
                     <template id="tl-sm-section-tpl">
-                        <div class="evk-sm-section">
-                            <div class="evk-sm-sec-head">
-                                <label class="evk-sm-field">
+                        <div class="evk-map-section">
+                            <div class="evk-map-sec-head">
+                                <label class="evk-map-field">
                                     <span>Nazwa sekcji</span>
                                     <input type="text" class="tl-sm-sec-name" value="" placeholder="np. Menu">
                                 </label>
-                                <label class="evk-sm-field">
+                                <label class="evk-map-field">
                                     <span>Strona bazowa</span>
                                     <select class="tl-sm-sec-page"><?php echo $sm_opcje_stron(0); /* phpcs:ignore — zbudowane z esc_* wyżej */ ?></select>
                                 </label>
-                                <label class="evk-sm-field">
+                                <label class="evk-map-field">
                                     <span>albo własny adres</span>
                                     <input type="text" class="tl-sm-sec-url" value="" placeholder="/menu/">
                                 </label>
-                                <button type="button" class="button evk-sm-sec-remove" title="Usuń sekcję" aria-label="Usuń sekcję"><span class="dashicons dashicons-trash"></span></button>
+                                <button type="button" class="button evk-map-sec-remove" title="Usuń sekcję" aria-label="Usuń sekcję"><span class="dashicons dashicons-trash"></span></button>
                             </div>
-                            <div class="evk-sm-anchors">
-                                <div class="evk-sm-anchor">
-                                    <span class="evk-sm-hash">#</span>
+                            <div class="evk-map-anchors">
+                                <div class="evk-map-anchor">
+                                    <span class="evk-map-hash">#</span>
                                     <input type="text" class="tl-sm-anchor" value="" placeholder="desery">
-                                    <button type="button" class="button evk-sm-anchor-remove" title="Usuń kotwicę" aria-label="Usuń kotwicę"><span class="dashicons dashicons-no-alt"></span></button>
+                                    <button type="button" class="button evk-map-anchor-remove" title="Usuń kotwicę" aria-label="Usuń kotwicę"><span class="dashicons dashicons-no-alt"></span></button>
                                 </div>
                             </div>
-                            <button type="button" class="button evk-sm-anchor-add"><span class="dashicons dashicons-plus-alt2 evo-ico-sm evo-ico-lead"></span> Dodaj kotwicę</button>
-                            <p class="evk-sm-preview"></p>
+                            <button type="button" class="button evk-map-anchor-add"><span class="dashicons dashicons-plus-alt2 evo-ico-sm evo-ico-lead"></span> Dodaj kotwicę</button>
+                            <p class="evk-map-preview"></p>
                         </div>
                     </template>
                     <template id="tl-sm-anchor-tpl">
-                        <div class="evk-sm-anchor">
-                            <span class="evk-sm-hash">#</span>
+                        <div class="evk-map-anchor">
+                            <span class="evk-map-hash">#</span>
                             <input type="text" class="tl-sm-anchor" value="" placeholder="napoje">
-                            <button type="button" class="button evk-sm-anchor-remove" title="Usuń kotwicę" aria-label="Usuń kotwicę"><span class="dashicons dashicons-no-alt"></span></button>
+                            <button type="button" class="button evk-map-anchor-remove" title="Usuń kotwicę" aria-label="Usuń kotwicę"><span class="dashicons dashicons-no-alt"></span></button>
                         </div>
                     </template>
                 </div>
@@ -259,7 +259,7 @@ if (!defined('ABSPATH')) exit;
             <details class="evo-acc">
                 <summary>Pozostałe sekcje mapy</summary>
                 <div class="evo-acc-body">
-                    <div class="evk-sm-checks">
+                    <div class="evk-map-checks">
                         <label><input type="checkbox" id="tl-sm-users"        <?php checked(!empty($sitemap_settings['include_users'])); ?>> Użytkownicy (<code>wp-sitemap-users-1.xml</code>)</label>
                         <label><input type="checkbox" id="tl-sm-auto-noindex" <?php checked(!empty($sitemap_settings['auto_exclude_noindex'])); ?>> Automatycznie pomijaj strony i wpisy z meta <code>noindex</code></label>
                     </div>
@@ -271,7 +271,7 @@ if (!defined('ABSPATH')) exit;
                 <summary>Sekcja tłumaczeń</summary>
                 <div class="evo-acc-body">
                     <p class="evo-lead">Dopisuje do mapy adresy z przetłumaczonymi slugami jako osobną sekcję <code>wp-sitemap-translations-1.xml</code>.</p>
-                    <div class="evk-sm-checks">
+                    <div class="evk-map-checks">
                         <label><input type="checkbox" id="tl-sm-enabled"         <?php checked(!empty($sitemap_settings['enabled'])); ?>> Włącz sekcję tłumaczeń</label>
                         <label><input type="checkbox" id="tl-sm-home"            <?php checked(!empty($sitemap_settings['include_home'])); ?>> Strona główna w wersjach językowych</label>
                         <label><input type="checkbox" id="tl-sm-pages"           <?php checked(!empty($sitemap_settings['include_pages'])); ?>> Strony</label>

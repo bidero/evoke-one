@@ -3114,12 +3114,17 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 .evo-acc-body > .evo-lead:first-child { margin-top: 0; }
 
 /* ── Lista typów treści i taksonomii ────────────────────────────────────── */
-.evk-sm-grid {
+/* PREFIKS `evk-map-`, NIE `evk-sm-`. Ten drugi jest zajęty przez wiersze
+   kolejności menu bocznego w white-label (`admin-whitelabel.php`) i niesie
+   `max-width: 600px`. Pierwsza wersja tego ekranu wzięła tamtą nazwę i wiersze
+   mapy kończyły się w dwóch trzecich akordeonu — bez jednej własnej reguły,
+   która by to robiła. Widać było wyłącznie skutek. */
+.evk-map-grid {
     border: 1px solid var(--evo-border-field);
     border-radius: var(--evo-radius-sm);
     overflow: hidden;
 }
-.evk-sm-row {
+.evk-map-row {
     display: grid;
     /* Nazwa bierze resztę, obie kolumny pól mają stałą szerokość — to jest
        cały mechanizm wyrównania. */
@@ -3130,12 +3135,12 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     border-bottom: 1px solid var(--evo-border-soft);
     font-size: 13px;
 }
-.evk-sm-row:last-child { border-bottom: 0; }
+.evk-map-row:last-child { border-bottom: 0; }
 /* Pasy: nagłówek jest pierwszym dzieckiem i ma własne tło, więc pasuje
    „co drugi, licząc od niego". `nth-child(… of …)` byłby czytelniejszy, ale
    nie jest w Firefoksie na tyle długo, żeby polegać na nim w panelu. */
-.evk-sm-row:nth-child(odd):not(.evk-sm-head) { background: var(--evo-surface); }
-.evk-sm-head {
+.evk-map-row:nth-child(odd):not(.evk-map-head) { background: var(--evo-surface); }
+.evk-map-head {
     background: var(--evo-surface-alt);
     color: var(--evo-text-dim);
     font-size: 11px;
@@ -3143,48 +3148,48 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     text-transform: uppercase;
     letter-spacing: .03em;
 }
-.evk-sm-name {
+.evk-map-name {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
     gap: 8px;
     min-width: 0;
 }
-.evk-sm-name code { font-size: 11px; }
-.evk-sm-name .evo-faint { font-size: 11px; }
-.evk-sm-cell { display: flex; align-items: center; gap: 7px; margin: 0; cursor: pointer; }
-.evk-sm-cell input[disabled] + .evk-sm-cell-label { color: var(--evo-text-faint); }
+.evk-map-name code { font-size: 11px; }
+.evk-map-name .evo-faint { font-size: 11px; }
+.evk-map-cell { display: flex; align-items: center; gap: 7px; margin: 0; cursor: pointer; }
+.evk-map-cell input[disabled] + .evk-map-cell-label { color: var(--evo-text-faint); }
 
 /* ── Pozostałe przełączniki ─────────────────────────────────────────────── */
-.evk-sm-checks { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
-.evk-sm-checks label { display: flex; align-items: center; gap: 8px; margin: 0; }
+.evk-map-checks { display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.evk-map-checks label { display: flex; align-items: center; gap: 8px; margin: 0; }
 
 /* ── Sekcje z kotwicami ─────────────────────────────────────────────────── */
-.evk-sm-section {
+.evk-map-section {
     margin-bottom: 12px;
     padding: 14px;
     border: 1px solid var(--evo-border-field);
     border-radius: var(--evo-radius-sm);
     background: var(--evo-surface);
 }
-.evk-sm-sec-head {
+.evk-map-sec-head {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
     align-items: end;
     gap: 10px;
 }
-.evk-sm-field { display: flex; flex-direction: column; gap: 4px; margin: 0; min-width: 0; }
-.evk-sm-field > span { font-size: 11px; font-weight: 600; color: var(--evo-text-dim); }
-.evk-sm-field input, .evk-sm-field select { width: 100%; }
-.evk-sm-anchors { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 8px; }
-.evk-sm-anchor { display: flex; align-items: center; gap: 6px; }
-.evk-sm-anchor input { flex: 1; min-width: 0; }
-.evk-sm-hash {
+.evk-map-field { display: flex; flex-direction: column; gap: 4px; margin: 0; min-width: 0; }
+.evk-map-field > span { font-size: 11px; font-weight: 600; color: var(--evo-text-dim); }
+.evk-map-field input, .evk-map-field select { width: 100%; }
+.evk-map-anchors { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 8px; }
+.evk-map-anchor { display: flex; align-items: center; gap: 6px; }
+.evk-map-anchor input { flex: 1; min-width: 0; }
+.evk-map-hash {
     color: var(--evo-text-faint);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 13px;
 }
-.evk-sm-preview {
+.evk-map-preview {
     margin: 10px 0 0;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 11px;
@@ -3194,7 +3199,7 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 }
 
 @media (max-width: 782px) {
-    .evk-sm-row { grid-template-columns: 1fr; gap: 6px; }
-    .evk-sm-head { display: none; }
-    .evk-sm-sec-head { grid-template-columns: 1fr; }
+    .evk-map-row { grid-template-columns: 1fr; gap: 6px; }
+    .evk-map-head { display: none; }
+    .evk-map-sec-head { grid-template-columns: 1fr; }
 }

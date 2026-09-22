@@ -2,6 +2,23 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.222.1] — 2026-09-22
+
+### Naprawione
+
+- **Listy na ekranie mapy strony zajmują całą szerokość akordeonu.** Wiersze
+  dostały w 1.222.0 klasę `.evk-sm-row` — a ta jest zajęta przez wiersze
+  kolejności menu bocznego w white-label (`admin-whitelabel.php`) i niesie
+  `max-width: 600px`. Listy kończyły się w dwóch trzecich akordeonu, mimo że
+  ani jedna reguła ekranu mapy tego nie robiła; widać było wyłącznie skutek.
+  Klasy ekranu przeniesione na własny prefiks `evk-map-`.
+
+  Doszło sprawdzenie w przeglądarce (`tests/sitemap-zakres.test.js`): siatka ma
+  wypełniać wnętrze akordeonu, a żaden wiersz nie ma być od niej węższy.
+  Zmierzone przy 1400 px — wnętrze 1308 px, wiersze 1306 px — więc próg stoi
+  wokół liczb, a nie wokół wyobrażenia o nich. Cudza reguła zwężająca wiersze
+  jest niewidoczna dla sprawdzeń PHP-owych: markup był poprawny.
+
 ## [1.222.0] — 2026-09-22
 
 ### Zmienione

@@ -171,7 +171,7 @@
             if ($('#tl-sm-types').length) {
                 payload.excluded_types = [];
                 payload.noindex_types  = [];
-                $('#tl-sm-types .evk-sm-type').each(function () {
+                $('#tl-sm-types .evk-map-type').each(function () {
                     var slug     = $(this).data('slug');
                     var $noindex = $(this).find('.tl-sm-type-noindex');
                     var $wMapie  = $(this).find('.tl-sm-type-in');
@@ -187,7 +187,7 @@
                normalny etap pisania, nie błąd do zgłoszenia. */
             if ($('#tl-sm-sections').length) {
                 payload.anchor_sections = [];
-                $('#tl-sm-sections .evk-sm-section').each(function () {
+                $('#tl-sm-sections .evk-map-section').each(function () {
                     var nazwa = $.trim($(this).find('.tl-sm-sec-name').val() || '');
                     var kotwice = $(this).find('.tl-sm-anchor').map(function () {
                         return $.trim(this.value || '').replace(/^#/, '');
@@ -207,7 +207,7 @@
             if ($('#tl-sm-taxonomies').length) {
                 payload.excluded_taxonomies = [];
                 payload.noindex_taxonomies  = [];
-                $('#tl-sm-taxonomies .evk-sm-tax').each(function () {
+                $('#tl-sm-taxonomies .evk-map-tax').each(function () {
                     var slug     = $(this).data('slug');
                     var $noindex = $(this).find('.tl-sm-tax-noindex');
                     var $wMapie  = $(this).find('.tl-sm-tax-in');
@@ -230,7 +230,7 @@
            blokady pochodziłby wyłącznie z renderu: odznaczenie „Poza indeksem"
            zostawiałoby martwe, wyszarzone pole aż do zapisu i przeładowania. */
         $(document).on('change', '.tl-sm-type-noindex, .tl-sm-tax-noindex', function () {
-            var $wiersz = $(this).closest('.evk-sm-type, .evk-sm-tax');
+            var $wiersz = $(this).closest('.evk-map-type, .evk-map-tax');
             var $wMapie = $wiersz.find('.tl-sm-type-in, .tl-sm-tax-in');
             var poza    = $(this).is(':checked');
             $wMapie.prop('disabled', poza);
@@ -263,13 +263,13 @@
             }).get().filter(function (k) { return k !== ''; });
 
             if (!baza || !kotwice.length) {
-                $sekcja.find('.evk-sm-preview').text(baza
+                $sekcja.find('.evk-map-preview').text(baza
                     ? 'Dodaj kotwicę, żeby sekcja trafiła do mapy.'
                     : 'Wskaż stronę bazową albo wpisz adres.');
                 return;
             }
 
-            $sekcja.find('.evk-sm-preview').text(kotwice.map(function (k) {
+            $sekcja.find('.evk-map-preview').text(kotwice.map(function (k) {
                 return baza.replace(/\/?$/, '/') + '#' + k;
             }).join('\n'));
         };
@@ -278,32 +278,32 @@
             var frag = klonSzablonu('tl-sm-section-tpl');
             if (!frag) return;
             document.getElementById('tl-sm-sections').appendChild(frag);
-            $('#tl-sm-sections .evk-sm-section').last().find('.tl-sm-sec-name').trigger('focus');
+            $('#tl-sm-sections .evk-map-section').last().find('.tl-sm-sec-name').trigger('focus');
         });
 
-        $(document).on('click', '.evk-sm-anchor-add', function () {
+        $(document).on('click', '.evk-map-anchor-add', function () {
             var frag = klonSzablonu('tl-sm-anchor-tpl');
             if (!frag) return;
-            var $sekcja = $(this).closest('.evk-sm-section');
-            $sekcja.find('.evk-sm-anchors')[0].appendChild(frag);
+            var $sekcja = $(this).closest('.evk-map-section');
+            $sekcja.find('.evk-map-anchors')[0].appendChild(frag);
             $sekcja.find('.tl-sm-anchor').last().trigger('focus');
         });
 
-        $(document).on('click', '.evk-sm-anchor-remove', function () {
-            var $sekcja = $(this).closest('.evk-sm-section');
-            $(this).closest('.evk-sm-anchor').remove();
+        $(document).on('click', '.evk-map-anchor-remove', function () {
+            var $sekcja = $(this).closest('.evk-map-section');
+            $(this).closest('.evk-map-anchor').remove();
             odswiezPodglad($sekcja);
         });
 
-        $(document).on('click', '.evk-sm-sec-remove', function () {
-            $(this).closest('.evk-sm-section').remove();
+        $(document).on('click', '.evk-map-sec-remove', function () {
+            $(this).closest('.evk-map-section').remove();
         });
 
         $(document).on('input change', '.tl-sm-anchor, .tl-sm-sec-url, .tl-sm-sec-page', function () {
-            odswiezPodglad($(this).closest('.evk-sm-section'));
+            odswiezPodglad($(this).closest('.evk-map-section'));
         });
 
-        $('#tl-sm-sections .evk-sm-section').each(function () { odswiezPodglad($(this)); });
+        $('#tl-sm-sections .evk-map-section').each(function () { odswiezPodglad($(this)); });
     }
 
     /* =========================================================

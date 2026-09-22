@@ -26,6 +26,43 @@ const { phpOutput } = require('./lib/harness');
 module.exports = async function (t) {
   const php = JSON.parse(phpOutput('sitemap-zakres.php'));
 
+  // ── Szerokość list ────────────────────────────────────────────────────
+  /* JEDYNE sprawdzenie w tym pliku, które potrzebuje przeglądarki — i ma
+     powód. Pierwsza wersja ekranu nazwała wiersze `.evk-sm-row`, a ta klasa
+     jest zajęta przez wiersze kolejności menu bocznego w white-label i niesie
+     `max-width: 600px`. Skutek: listy mapy kończyły się w dwóch trzecich
+     akordeonu, mimo że ani jedna reguła ekranu tego nie robiła. Żaden
+     sprawdzian PHP-owy tego nie widzi, bo markup był poprawny.
+
+     Zmierzone przy 1400 px: wnętrze akordeonu 1308 px, siatka 1308 px,
+     wiersze 1306 px (dwa piksele to własna ramka siatki). Próg stoi wokół
+     tych liczb, a nie wokół wyobrażenia o nich. */
+  t.section('listy zajmują całą szerokość akordeonu');
+
+  const head = 'window.__tab = ' + JSON.stringify(phpOutput('tab.php', 'sitemap')) + ';';
+  const p = await t.open('admin-tabs.html', { viewport: { width: 1400, height: 900 }, head, settle: 120 });
+
+  const szer = await p.evaluate(() => {
+    const szerokosc = (el) => (el ? Math.round(el.getBoundingClientRect().width) : 0);
+    const body = document.querySelector('.evo-acc[open] .evo-acc-body');
+    const grid = document.querySelector('.evk-map-grid');
+    const styl = body ? getComputedStyle(body) : null;
+    return {
+      wnetrze: styl ? Math.round(szerokosc(body) - parseFloat(styl.paddingLeft) - parseFloat(styl.paddingRight)) : 0,
+      siatka:  szerokosc(grid),
+      wiersze: [...document.querySelectorAll('.evk-map-row')].map(szerokosc),
+    };
+  });
+  await p.close();
+
+  t.check('siatka wypełnia akordeon', Math.abs(szer.siatka - szer.wnetrze) <= 2,
+    szer.siatka + ' px przy wnętrzu ' + szer.wnetrze + ' px');
+  const waskie = szer.wiersze.filter((w) => w < szer.siatka - 4);
+  t.check('żaden wiersz nie jest węższy od siatki', !waskie.length,
+    waskie.length ? waskie.join(', ') + ' px' : szer.wiersze.length + ' wierszy po ' + szer.wiersze[0] + ' px');
+  // Kontrola sensowności: bez wierszy dwa sprawdzenia wyżej przechodzą na pusto.
+  t.check('było co mierzyć', szer.wiersze.length >= 4, szer.wiersze.length + ' wierszy');
+
   // ── Typy treści ───────────────────────────────────────────────────────
   t.section('typy treści wchodzą do mapy wg ustawień, nie na sztywno');
 
