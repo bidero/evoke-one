@@ -77,3 +77,10 @@ function evk_backup_maybe_create_tables(): void {
 }
 
 add_action('plugins_loaded', 'evk_backup_maybe_create_tables');
+
+/* Włącznik w panelu zapisuje opcję przez AJAX — już PO plugins_loaded, więc
+   bez tego tabela powstałaby dopiero przy następnym wczytaniu dowolnej strony,
+   a zakładka tuż po włączeniu mówiłaby „brak tabeli". Pierwszy zapis opcji
+   idzie przez add_option, każdy kolejny przez update_option. */
+add_action('add_option_' . EVK_BACKUP_OPTION, 'evk_backup_maybe_create_tables');
+add_action('update_option_' . EVK_BACKUP_OPTION, 'evk_backup_maybe_create_tables');

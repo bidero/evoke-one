@@ -73,7 +73,7 @@ require EVK_TEST_ROOT . '/includes/admin/page.php';
  * ścieżki, a mapa przełączników czyta z rejestru listę elementów. */
 $katalog = sys_get_temp_dir() . '/evk-panel-start-' . getmypid();
 @mkdir($katalog . '/includes/admin', 0700, true);
-foreach (['wydajnosc', 'strona', 'bezpieczenstwo', 'narzedzia', 'admin', 'newsletter', 'forminbox'] as $nazwa) {
+foreach (['wydajnosc', 'strona', 'bezpieczenstwo', 'narzedzia', 'admin', 'newsletter', 'forminbox', 'backup'] as $nazwa) {
     file_put_contents($katalog . '/includes/admin/tab-' . $nazwa . '.php', '<?php // pusta treść zakładki');
 }
 define('EVOKE_ONE_DIR', $katalog . '/');

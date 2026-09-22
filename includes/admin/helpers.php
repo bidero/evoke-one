@@ -12,7 +12,8 @@ if (!defined('ABSPATH')) exit;
  * Stały wcześniej w `evoke_one_render_settings()`, czyli były niewidoczne dla
  * palety wyszukiwania i dla ekranu startowego, które renderują się w osobnych
  * funkcjach. Razem z `evoke_one_ekrany()` niżej tworzą komplet struktury
- * panelu: osiem zakładek i 33 ekrany w środku.
+ * panelu: dziewięć zakładek (od 1.225.0 także Kopie zapasowe) i 33 ekrany
+ * w środku.
  */
 function evoke_one_zakladki(): array {
     return [
@@ -24,6 +25,7 @@ function evoke_one_zakladki(): array {
         'admin_panel'    => ['label' => 'Panel admina',    'icon' => 'dashicons-admin-settings'],
         'newsletter'     => ['label' => 'Newsletter',      'icon' => 'dashicons-email-alt'],
         'forminbox'      => ['label' => 'Formularze',      'icon' => 'dashicons-feedback'],
+        'backup'         => ['label' => 'Kopie zapasowe',  'icon' => 'dashicons-backup'],
     ];
 }
 

@@ -1434,6 +1434,13 @@
 .evo-table .is-center { text-align: center; }
 .evo-table .is-right  { text-align: right; white-space: nowrap; }
 .evo-table .is-tight  { padding: 6px 4px; }
+/* Sprawdzenie środowiska w zakładce Kopie zapasowe — ikona niesie stan
+   wiersza, bo kolumna „Wartość" to liczby i nazwy, nie oceny. */
+.evo-srodowisko .evo-srodowisko-ico { font-size: 16px; width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
+.evo-srodowisko .is-ok   .evo-srodowisko-ico { color: var(--evo-on); }
+.evo-srodowisko .is-warn .evo-srodowisko-ico { color: var(--evo-warn); }
+.evo-srodowisko .is-err  .evo-srodowisko-ico { color: var(--evo-danger); }
+.evo-srodowisko .is-info .evo-srodowisko-ico { color: var(--evo-text-dim); }
 /* Pusty stan — komunikat zamiast pustej ramki. */
 .evo-empty {
     padding: 16px 10px;

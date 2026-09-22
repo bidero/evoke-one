@@ -215,6 +215,7 @@ function evoke_one_render_settings(): void {
         'admin_panel'    => 'tab-admin.php',
         'newsletter'     => 'tab-newsletter.php',
         'forminbox'      => 'tab-forminbox.php',
+        'backup'         => 'tab-backup.php',
     ];
 
     ?>
@@ -242,7 +243,7 @@ function evoke_one_render_settings(): void {
                     <p class="evo-nav-label">Przegląd</p>
                     <?php evoke_one_render_sidebar_link('dashboard', $tabs['dashboard'], $tab, $base, $sub); ?>
                     <p class="evo-nav-label">Moduły</p>
-                    <?php foreach (['wydajnosc', 'strona', 'bezpieczenstwo', 'narzedzia', 'newsletter', 'forminbox'] as $key): ?>
+                    <?php foreach (['wydajnosc', 'strona', 'bezpieczenstwo', 'narzedzia', 'newsletter', 'forminbox', 'backup'] as $key): ?>
                         <?php evoke_one_render_sidebar_link($key, $tabs[$key], $tab, $base, $sub); ?>
                     <?php endforeach; ?>
                     <p class="evo-nav-label">System</p>
@@ -540,6 +541,7 @@ function evoke_one_render_control_center(string $base): void {
     $newsletter_active = !empty(get_option('evk_newsletter', [])['enabled']);
     $inbox_settings    = get_option('evk_forminbox', []);
     $inbox_active      = !empty($inbox_settings['enabled']);
+    $backup_active     = function_exists('evk_backup_enabled') && evk_backup_enabled();
 
     /* OCENIAMY WYŁĄCZNIE TO, CO DA SIĘ NIE ZDAĆ.
      *
@@ -578,6 +580,7 @@ function evoke_one_render_control_center(string $base): void {
         ['tab' => 'narzedzia', 'icon' => 'dashicons-admin-tools',    'name' => 'Narzędzia',     'meta' => $tool_active . ' aktywne narzędzia'],
         ['tab' => 'newsletter', 'icon' => 'dashicons-email-alt',     'name' => 'Newsletter',    'meta' => $newsletter_active ? 'moduł aktywny' : 'moduł wyłączony'],
         ['tab' => 'forminbox', 'icon' => 'dashicons-feedback',       'name' => 'Formularze',    'meta' => $inbox_active ? 'skrzynka aktywna' : 'skrzynka wyłączona'],
+        ['tab' => 'backup', 'icon' => 'dashicons-backup',            'name' => 'Kopie zapasowe', 'meta' => $backup_active ? 'moduł aktywny' : 'moduł wyłączony'],
     ];
     ?>
     <header class="evo-dashboard-header">

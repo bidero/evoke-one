@@ -56,6 +56,7 @@ const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               'adm-roles', 'adm-tlumaczenia',
               'fe-cursor', 'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-sierotki',
               'fe-themecolor', 'fe-parallax', 'fe-elementy', 'fe-newsletter', 'fe-newsletter-on',
+              'backup', 'backup-on',
               /* Tłumaczenia to osobny ekran, ale ładuje ten sam `admin.css`
                  (patrz `tl/bootstrap.php`), więc obowiązuje go ta sama skóra. */
               'tl-translations', 'tl-images', 'tl-slugs', 'tl-dd',
@@ -70,7 +71,9 @@ const MOBILE = ['schema', 'sitemap', 'seo-meta',
                 /* Tłumaczenia: trzy zakładki z tabelami. */
                 'tl-translations', 'tl-slugs', 'tl-languages',
                 /* Role mają tabelę uprawnień — ten sam kształt. */
-                'adm-roles'];
+                'adm-roles',
+                /* Kopie zapasowe: trzykolumnowa tabela środowiska z długimi uwagami. */
+                'backup'];
 
 /** Zakładki, które mają już treść w boksach. */
 const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
@@ -78,7 +81,8 @@ const BOXED = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
                'adm-interface', 'adm-dashboard', 'adm-content',
                /* Tłumaczenia NIE używają `.evo-box` — mają własny
                   `.tl-menu-settings`, więc do BOXED nie należą. */
-               'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-themecolor', 'fe-sierotki'];
+               'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-themecolor', 'fe-sierotki',
+               'backup'];
 
 module.exports = async function (t) {
   // ── Zdublowany atrybut class ──────────────────────────────────────────

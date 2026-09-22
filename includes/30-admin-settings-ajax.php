@@ -878,6 +878,7 @@ function evk_toggle_allowlist(): array {
         'evk_tl_module_enabled'         => ['_scalar'],
         'evk_tl_fab_enabled'             => ['_scalar'],
         'evk_forminbox'                  => ['enabled'],
+        'evk_backup'                     => ['enabled'],
         'evk_snippets_enabled'          => ['_scalar'],
         'evk_snippets_advanced_enabled' => ['_scalar'],
         /*

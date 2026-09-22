@@ -2,6 +2,60 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.225.0] — 2026-09-22
+
+### Dodane
+
+- **Zakładka „Kopie zapasowe" — szkielet modułu backupu.** Pozycja w pasku
+  bocznym, kafel na pulpicie, karta z włącznikiem i sekcja „Środowisko
+  serwera": ZipArchive (z wersją libzip), zlib, Multisite, prawo zapisu do
+  wp-content, serwer WWW, limity czasu i pamięci, największy plik
+  z przeglądarki, wolne miejsce, WP-Cron, tabela zadań. Tworzenia kopii,
+  harmonogramu i przywracania jeszcze NIE MA — zakładka mówi to wprost,
+  zamiast pokazywać ustawienia, które niczego nie robią.
+
+  Braki, bez których kopia nie powstanie albo nie da się jej odtworzyć (zip,
+  zlib, Multisite, zapis do wp-content), świecą na czerwono i gaszą
+  włącznik — ale tylko przy WŁĄCZANIU: moduł już włączony da się wyłączyć
+  także na serwerze, który zmienił się pod nim. nginx dostaje ostrzeżenie:
+  nie czyta `.htaccess`, więc katalog kopii będzie chroniła wyłącznie losowa
+  nazwa.
+
+  Tabela `evk_backup_jobs` powstaje w chwili włączenia (zaczep na zapisie
+  opcji), a nie przy następnym wczytaniu strony — bez tego zakładka tuż po
+  kliknięciu pokazywałaby „brak tabeli". Wyłączony moduł nie zostawia
+  w bazie niczego.
+
+- **Fundament modułu, na razie bez interfejsu:**
+  - `includes/backup/serialize-replace.php` — podmiana adresu i ścieżki przy
+    przenoszeniu strony, bezpieczna dla danych zserializowanych. Parser
+    TEKSTOWY, bez `unserialize()` (żadna klasa nie powstaje, więc nie ma
+    ryzyka łańcuchów gadżetów ani wywrotki na klasie wtyczki, której nie ma).
+    Przelicza długości w bajtach, schodzi w serializacje zagnieżdżone
+    w łańcuchach, podmienia jednym przejściem z granicą domeny
+    (`stara.pl` nie rusza `stara.pl.eu`), w wariantach http/https, www,
+    JSON `\/`, zakodowanym w URL i `//host`. Zapis zepsuty już w źródle
+    zostaje bez zmian i jest liczony.
+  - `includes/backup/zip-writer.php` — zapis archiwum ZIP, który tylko
+    dopisuje i daje się wznawiać między krokami. ZipArchive odpadł po
+    pomiarze: jego `close()` przepisuje całe archiwum przy każdym dopisaniu
+    (800 MB → 7,6 s na jeden plik 1 KB), więc kopia w wielu krokach nie
+    skończyłaby się nigdy. ZIP64 włącza się sam (plik ≥ 3,75 GB, offset
+    ≥ 4 GB, > 65 535 wpisów). Sprawdzone też na archiwum 4,4 GB z wpisem za
+    granicą 4 GB — czytają je `unzip`, Python i ZipArchive.
+
+### Testy
+
+- `backup-serialize` (42 sprawdzenia + porównanie z wzorcem
+  unserialize→serialize na 800 losowych strukturach), `backup-zip` (20,
+  każdy wpis porównywany ze źródłem treścią i CRC — ZipArchive czytający
+  strumieniem CRC NIE sprawdza, co wyszło z mutacji), `backup-srodowisko`
+  (22, fakty o serwerze podstawiane, render zakładki prawdziwy). Mutacje:
+  10 + 7 + 5, każda zapala.
+- Zakładka objęta istniejącymi strażnikami panelu (zagnieżdżenie znaczników,
+  biała lista przełączników, szerokość 360 px — ten ostatni zapalił przy
+  pierwszym podejściu: tabela środowiska wystawała o 17 px).
+
 ## [1.224.4] — 2026-09-22
 
 ### Naprawione

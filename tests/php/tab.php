@@ -632,6 +632,19 @@ $TABS = [
         'file'   => 'includes/admin/tab-elementy.php',
         'seed'   => function () { $GLOBALS['options']['evk_elements'] = ['evk-marquee' => 1]; },
     ],
+    'backup' => [
+        /* Kopie zapasowe — moduł WYŁĄCZONY: karta, ramka „w budowie" i tabela
+           środowiska. Tabela jest z PRAWDZIWEGO sprawdzenia tej maszyny, więc
+           jej treść zależy od serwera — do oceny markupu to bez znaczenia. */
+        'module' => ['includes/backup/settings.php', 'includes/backup/tables.php', 'includes/backup/environment.php'],
+        'file'   => 'includes/admin/tab-backup.php',
+        'seed'   => function () { $GLOBALS['options']['evk_backup'] = ['enabled' => 0]; },
+    ],
+    'backup-on' => [
+        'module' => ['includes/backup/settings.php', 'includes/backup/tables.php', 'includes/backup/environment.php'],
+        'file'   => 'includes/admin/tab-backup.php',
+        'seed'   => function () { $GLOBALS['options']['evk_backup'] = ['enabled' => 1]; },
+    ],
     'fe-newsletter' => [
         /* Bez `menu.php`: definiuje `evk_nl_base_url()`, którą atrapa wyżej
            już podstawiła — zakładka potrzebuje tylko adresu, nie całego menu. */
