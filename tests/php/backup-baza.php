@@ -19,26 +19,9 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * Scenariusze: pelny, ubity, pamiec.
  */
 
-$sciezka_wp = getenv('EVK_WP_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp');
-if (!is_file($sciezka_wp . '/wp-load.php') || !is_file($sciezka_wp . '/wp-config.php')) {
-    echo json_encode(['brak' => 'Brak testowego WordPressa w ' . $sciezka_wp . ' — uruchom tools/testowy-wp.sh']);
-    exit;
-}
-
-$_SERVER['HTTP_HOST']   = 'stara.test';
-$_SERVER['REQUEST_URI'] = '/';
-define('WP_USE_THEMES', false);
-/* Nie `$wp`: tak nazywa się globalny obiekt WordPressa i nadpisanie go
-   wywraca rejestrację taksonomii. */
-require $sciezka_wp . '/wp-load.php';
-
-$root = getenv('EVK_TEST_ROOT') ?: dirname(__DIR__, 2);
-/* Wtyczka w testowym WordPressie jest dowiązaniem do repozytorium, więc jej
-   pliki mogą być już załadowane spod innej ścieżki — require_once by tego nie
-   rozpoznał. Pytamy o funkcję, nie o plik. */
-foreach (['settings' => 'evk_backup_get_settings', 'tables' => 'evk_backup_create_tables', 'db-dump' => 'evk_backup_db_dump_step'] as $plik => $fn) {
-    if (!function_exists($fn)) require $root . '/includes/backup/' . $plik . '.php';
-}
+$evk_pliki = ['settings' => 'evk_backup_get_settings', 'tables' => 'evk_backup_create_tables',
+              'db-dump' => 'evk_backup_db_dump_step'];
+require __DIR__ . '/_testowy-wp.php';
 
 global $wpdb;
 $p = $wpdb->prefix;

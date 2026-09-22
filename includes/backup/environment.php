@@ -22,6 +22,14 @@ function evk_backup_environment_facts(): array {
     $content = defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR : ABSPATH . 'wp-content';
     $wolne   = function_exists('disk_free_space') ? @disk_free_space($content) : false;
     $tabela  = null;
+    /* Czy katalog kopii da się pobrać z sieci — sprawdzone kanarkiem
+       (storage.php), z pamięcią na 12 h. Tylko przy włączonym module:
+       wyłączony nie zakłada katalogu. */
+    $wyst = '';
+    if (evk_backup_enabled() && function_exists('evk_backup_exposure_cached')) {
+        $r = evk_backup_exposure_cached();
+        $wyst = $r === true ? 'tak' : ($r === false ? 'nie' : 'nieznane');
+    }
     if (evk_backup_enabled() && isset($wpdb)) {
         $tabela = (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', evk_backup_jobs_table())) !== '';
     }
@@ -40,6 +48,7 @@ function evk_backup_environment_facts(): array {
         'content_write'  => is_writable($content),
         'wp_cron_off'    => defined('DISABLE_WP_CRON') && DISABLE_WP_CRON,
         'jobs_table'     => $tabela,
+        'dir_exposed'    => $wyst,
     ];
 }
 
@@ -125,6 +134,19 @@ function evk_backup_environment_checks(array $f): array {
     $w[] = ['label' => 'WP-Cron', 'value' => $f['wp_cron_off'] ? 'wyłączony (DISABLE_WP_CRON)' : 'włączony',
             'status' => 'info',
             'note' => $f['wp_cron_off'] ? 'Nocna kopia potrzebuje wtedy crona systemowego — instrukcja pojawi się tu razem z harmonogramem.' : ''];
+
+    $wyst = (string) ($f['dir_exposed'] ?? '');
+    if ($wyst !== '') {
+        $w[] = [
+            'label'  => 'Katalog kopii z sieci',
+            'value'  => ['tak' => 'DOSTĘPNY', 'nie' => 'zablokowany', 'nieznane' => 'nie sprawdzono'][$wyst] ?? $wyst,
+            'status' => ['tak' => 'warn', 'nie' => 'ok'][$wyst] ?? 'info',
+            'note'   => [
+                'tak' => 'Serwer podaje pliki z katalogu kopii mimo .htaccess (albo go nie czyta). Kopie chroni wtedy tylko losowa, 20-znakowa nazwa katalogu — pobieraj je wyłącznie przez panel.',
+                'nie' => 'Sprawdzone plikiem próbnym: serwer odmawia dostępu z sieci.',
+            ][$wyst] ?? 'Serwer nie odpowiedział sam sobie (zapora, Basic Auth, DNS). To samo może blokować napędzanie kopii żądaniami do siebie — kopia pójdzie wtedy przez WP-Cron.',
+        ];
+    }
 
     if ($f['jobs_table'] !== null) {
         $w[] = ['label' => 'Tabela zadań', 'value' => $f['jobs_table'] ? 'jest' : 'brak',

@@ -64,7 +64,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (67 plików, cztery partie):
+Podział, który się mieści (69 plików, cztery partie):
 
 ```
 node tests/run.js admin- anim animator aria backup- bg-shift bricks-required builder-context burger circular-menu controls

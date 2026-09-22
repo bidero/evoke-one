@@ -83,6 +83,20 @@ module.exports = async function (t) {
   t.check('hosting nie podaje miejsca: informacja, nie błąd',
     wiersz(dyskNieznany, 'Wolne miejsce').status === 'info' && !dyskNieznany.blocked);
 
+  t.section('katalog kopii z sieci (wynik kanarka)');
+
+  /* Samo sprawdzenie kanarkiem na prawdziwych serwerach HTTP jest
+     w backup-katalog; tu — co z jego wyniku robi tabela. */
+  const odsl = sonda({ dir_exposed: 'tak' });
+  t.check('odsłonięty: ostrzeżenie, ale bez blokady (chroni losowa nazwa)',
+    wiersz(odsl, 'Katalog kopii z sieci').status === 'warn' && !odsl.blocked, statusy(odsl));
+  t.check('zablokowany: w porządku', wiersz(sonda({ dir_exposed: 'nie' }), 'Katalog kopii z sieci').status === 'ok');
+  const niezn = sonda({ dir_exposed: 'nieznane' });
+  t.check('nie sprawdzono: informacja z podpowiedzią o żądaniach do siebie',
+    wiersz(niezn, 'Katalog kopii z sieci').status === 'info' && /WP-Cron/.test(wiersz(niezn, 'Katalog kopii z sieci').note));
+  t.check('moduł wyłączony: wiersza nie ma (katalogu jeszcze nie ma)',
+    wiersz(dobry, 'Katalog kopii z sieci').status === 'BRAK WIERSZA');
+
   t.section('odczyt wartości z php.ini');
 
   const b = dobry.bajty;

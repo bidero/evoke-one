@@ -29,7 +29,7 @@ $dobre = [
     'php' => '8.3.0', 'zip' => true, 'libzip' => '1.10.1', 'deflate' => true, 'multisite' => false,
     'server' => 'Apache', 'max_execution' => 30, 'memory_limit' => '256M', 'upload_max' => '64M',
     'post_max' => '128M', 'disk_free' => 50.0 * 1073741824, 'content_write' => true,
-    'wp_cron_off' => false, 'jobs_table' => null,
+    'wp_cron_off' => false, 'jobs_table' => null, 'dir_exposed' => '',
 ];
 $bk_facts = array_merge($dobre, (array) json_decode($argv[1] ?? '{}', true));
 $GLOBALS['options']['evk_backup'] = ['enabled' => ($argv[2] ?? '') === 'wlaczony' ? 1 : 0];
