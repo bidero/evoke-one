@@ -173,6 +173,10 @@ foreach ($evoke_tools_modules as $module) {
 
 // ── Form Inbox ───────────────────────────────────────────────────────────
 require_once EVOKE_ONE_DIR . 'includes/88-form-inbox.php';
+
+// ── Backup (moduł narzędziowy z własną zakładką) ─────────────────────────
+require_once EVOKE_ONE_DIR . 'includes/backup/settings.php';
+require_once EVOKE_ONE_DIR . 'includes/backup/tables.php';
 require_once EVOKE_ONE_DIR . 'includes/bricks-elements/loader.php';
 require_once EVOKE_ONE_DIR . 'includes/anim/motion.php';
 require_once EVOKE_ONE_DIR . 'includes/anim/animator.php';
