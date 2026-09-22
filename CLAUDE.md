@@ -47,13 +47,39 @@ sekcjami. Nie da się puścić jednej sekcji z pliku; jeśli plik jest za duży,
 iterować, właściwym ruchem jest **podzielić go na dwa pliki**, a nie kombinować
 z filtrowaniem.
 
-### Wąsko podczas pracy, PEŁNY przed pushem
+### Wąsko podczas pracy, PEŁNY przed wydaniem
 
 Puszczanie wszystkiego przy każdej iteracji to strata — i o to poszło zgłoszenie
-o „dużej ilości niepotrzebnych przebiegów". Ale wąski filtr przed **wypchnięciem
-gałęzi** to co innego: gałąź jedzie aktualizatorem na żywe strony.
+o „dużej ilości niepotrzebnych przebiegów". Ale wąski filtr przed **wydaniem**
+to co innego: wydanie jedzie aktualizatorem na żywe strony.
 
-Reguła: **wąsko, dopóki się iteruje — pełny przebieg przed `git push`.**
+Reguła przed `git push`:
+
+| Co idzie na gałąź | Przebieg |
+|---|---|
+| **wydanie** (podbita wersja) | **pełny, zawsze** |
+| „(bez wydania)", ruszony **plik wspólny** (lista niżej) | **pełny** |
+| „(bez wydania)", zmiany wyłącznie w plikach modułu i jego testach | testy modułu + `drobiazgi` |
+
+Commit „(bez wydania)" nie zmienia numeru wersji, a aktualizator porównuje
+wersje (`99-github-updater.php`) — taki push na strony NIE jedzie. Ryzyko,
+przed którym chroni pełny przebieg, to zmiana w czymś, czego wąski filtr nie
+obejmuje. Takie pliki to **pliki wspólne**:
+
+- `evoke-one.php`, `includes/0*`, `includes/20-*`, `includes/30-*`, `includes/31-*`
+  — ładowane przy każdym żądaniu, przez wszystkie moduły,
+- `includes/admin/page.php`, `includes/admin/helpers.php`, `assets/admin/*`
+  — cały panel,
+- `includes/bricks-elements/loader.php`, `flaga.php` — wszystkie elementy,
+- `tests/lib/*`, `tests/run.js`, `tests/php/_*.php` — harness i atrapy
+  współdzielone przez zestawy.
+
+Pomiar, który tę regułę doprecyzował (moduł kopii, 1.225.0–1.226.0): cztery
+pełne przebiegi po ~35 min przed pushami „bez wydania" nie złapały niczego,
+czego nie złapałby przebieg modułu — prawdziwe usterki (tabela wystająca na
+360 px, licznik zakładek) złapały testy panelu puszczone od razu przy dotknięciu
+`page.php` i `admin.css`. Czyli: **dotykasz pliku wspólnego — puść też jego
+zestawy od razu, nie czekaj na pełny przebieg.**
 
 Wpadka, która to napisała (1.199.0–1.202.0): cztery wydania poszły na podstawie
 przebiegów z `controls`, `drobiazgi`, `grain`, `wave-bg` i `bricks-required`.
