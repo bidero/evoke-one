@@ -2,6 +2,36 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.223.3] — 2026-09-22
+
+### Naprawione
+
+- **Kontrolka „Sitemap" na ekranie startowym mówi o mapie, nie o sekcji
+  tłumaczeń.** Czytała `tl_sitemap_settings['enabled']`, a to pole od 1.221.0
+  znaczy wyłącznie „sekcja hreflang włączona" — strona bez tłumaczeń miała
+  poprawną mapę, czerwoną kontrolkę i zaniżony wynik gotowości. Teraz pyta
+  o to samo, o co pyta rdzeń w `WP_Sitemaps::sitemaps_enabled()`: opcję
+  widoczności dla wyszukiwarek plus filtr `wp_sitemaps_enabled`. Czerwień znaczy
+  odtąd coś, co warto zobaczyć — Ustawienia → Czytanie odradzają indeksowanie,
+  więc mapy nie ma wcale. Tym samym warunkiem liczy się kafelek „SEO".
+
+- **Automatyczne pomijanie `noindex` czyta tylko znane pola SEO.** Skan chodził
+  po WSZYSTKICH metadanych wpisu i uznawał za `noindex` każdy klucz zawierający
+  „noindex" albo „robots" o niepustej wartości. Własne pole z Evoke FIELDS czy
+  ACF — `noindex_uwagi` z treścią „sprawdzić z klientem", `robots_txt_snippet`
+  z fragmentem konfiguracji — wyrzucało przez to stronę z mapy po cichu, bez
+  śladu na ekranie edycji wpisu. Kierunek błędu był najgorszy z możliwych:
+  heurystyka myliła się przez USUNIĘCIE treści z mapy.
+
+  Pytamy teraz wyłącznie o pola, o których wiadomo, co znaczą: Bricks, zakładka
+  SEO Evoke ONE, Yoast (dwa pola), Rank Math, Genesis, SEOPress, AIOSEO.
+  Rozpoznanie jest przy okazji lepsze niż wcześniej — SEOPress trzyma decyzję
+  pod kluczem bez słowa „noindex" i z wartością „yes", więc dawna reguła nie
+  miała jak go zobaczyć. Wtyczkę spoza listy dodaje filtr
+  `evk_sitemap_klucze_noindex`, a ekran diagnostyki wypisuje przeszukiwane pola
+  wprost i korzysta z TEJ SAMEJ funkcji co mapa — wcześniej miał własną pętlę,
+  czyli opisywał regułę podobną, ale nie tę samą.
+
 ## [1.223.2] — 2026-09-22
 
 ### Zmienione

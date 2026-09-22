@@ -67,6 +67,22 @@ function evk_sitemap_taksonomie_noindex(): array {
     return array_values(array_unique(array_merge($z_panelu, array_map('sanitize_key', (array) $z_fields))));
 }
 
+/**
+ * Czy WordPress w ogóle wystawia mapę strony.
+ *
+ * TEN SAM WARUNEK, KTÓREGO UŻYWA RDZEŃ w `WP_Sitemaps::sitemaps_enabled()`:
+ * opcja „widoczność dla wyszukiwarek" plus filtr, którym wtyczki mapę wyłączają.
+ * Ekran startowy pytał wcześniej o `tl_sitemap_settings['enabled']`, a to pole
+ * od 1.221.0 znaczy wyłącznie „sekcja hreflang włączona" — strona bez
+ * tłumaczeń miała więc poprawną mapę i czerwoną kontrolkę obok niej.
+ *
+ * Czerwień znaczy teraz coś, co warto zobaczyć: Ustawienia → Czytanie
+ * odradzają wyszukiwarkom indeksowanie, więc mapy nie ma wcale.
+ */
+function evk_sitemap_wystawiana(): bool {
+    return (bool) apply_filters('wp_sitemaps_enabled', (bool) get_option('blog_public'));
+}
+
 function evk_sitemap_typ_poza_indeksem(string $typ): bool {
     return in_array($typ, evk_sitemap_typy_noindex(), true);
 }
@@ -591,16 +607,83 @@ add_action('template_redirect', 'evk_sitemap_hreflang_renderuj', 5);
 // WYKLUCZENIA POJEDYNCZYCH WPISÓW
 // =========================================================================
 
-function tl_post_has_noindex_meta(int $post_id): bool {
-    foreach (get_post_meta($post_id) as $meta_key => $values) {
-        foreach ((array) $values as $value) {
-            if (tl_meta_value_means_noindex($value, (string) $meta_key)) {
-                return true;
+/**
+ * Klucze metadanych, w których szukamy `noindex` — ZNANE, nie zgadywane.
+ *
+ * DO 1.223.3 SKAN CHODZIŁ PO WSZYSTKICH METADANYCH i uznawał za `noindex`
+ * każdy klucz zawierający „noindex" albo „robots" o niepustej wartości. Pole
+ * z Evoke FIELDS czy ACF nazwane `noindex_uwagi` („sprawdzić z klientem")
+ * albo `robots_txt_snippet` wyrzucało stronę z mapy — po cichu, bez śladu na
+ * ekranie edycji wpisu. Kierunek błędu był najgorszy z możliwych: heurystyka
+ * myliła się PRZEZ USUNIĘCIE treści z mapy, a nie przez jej zostawienie.
+ *
+ * Teraz pytamy wyłącznie o klucze, o których wiadomo, co znaczą. Wtyczka SEO
+ * spoza listy nie zostanie rozpoznana — ale to jest pomyłka odwracalna jednym
+ * checkboksem na liście wykluczeń, w przeciwieństwie do strony, która zniknęła
+ * z mapy i nikt nie wie dlaczego. Listę rozszerza filtr.
+ *
+ * Tryby: `flaga` — sama niepusta wartość znaczy `noindex` (Yoast, Genesis,
+ * SEOPress trzymają tam „1" albo „yes"); `wartosc` — trzeba zajrzeć do środka,
+ * bo pole niesie całą konfigurację (Bricks: JSON z `metaRobots`, Rank Math:
+ * tablica dyrektyw).
+ */
+function evk_sitemap_klucze_noindex(): array {
+    $klucze = [
+        '_bricks_page_settings'            => 'wartosc', // Bricks — JSON z metaRobots
+        '_evoke_seo_robots'                => 'wartosc', // zakładka SEO Evoke ONE
+        '_yoast_wpseo_meta-robots-noindex' => 'flaga',
+        '_yoast_wpseo_meta-robots-adv'     => 'wartosc',
+        'rank_math_robots'                 => 'wartosc',
+        '_genesis_noindex'                 => 'flaga',
+        '_seopress_robots_index'           => 'flaga',   // „yes" = nie indeksuj
+        '_aioseo_robots_noindex'           => 'flaga',   // AIOSEO ≤ 3; nowsze trzymają to we własnej tabeli
+    ];
+
+    $out = [];
+    foreach ((array) apply_filters('evk_sitemap_klucze_noindex', $klucze) as $klucz => $tryb) {
+        $klucz = (string) $klucz;
+        if ($klucz !== '') $out[$klucz] = $tryb === 'flaga' ? 'flaga' : 'wartosc';
+    }
+    return $out;
+}
+
+/** Czy wartość pola-przełącznika znaczy „włączone". */
+function evk_sitemap_flaga_wlaczona($wartosc): bool {
+    if (is_bool($wartosc)) return $wartosc;
+    if (is_array($wartosc)) return !empty(array_filter($wartosc));
+
+    return !in_array(strtolower(trim((string) $wartosc)), ['', '0', 'false', 'no', 'off', 'none'], true);
+}
+
+/**
+ * Czy wpis ma ustawione `noindex` w którymś ze znanych pól.
+ *
+ * Zwraca też, KTÓRE pole zadecydowało — ekran diagnostyki pokazuje to wprost,
+ * żeby zniknięcie strony z mapy dawało się prześledzić bez czytania kodu.
+ *
+ * @return array<string,string> [klucz => wartość w skrócie]; pusta = brak noindex
+ */
+function evk_sitemap_noindex_wpisu(int $post_id): array {
+    $znalezione = [];
+
+    foreach (evk_sitemap_klucze_noindex() as $klucz => $tryb) {
+        foreach ((array) get_post_meta($post_id, $klucz, false) as $wartosc) {
+            $trafienie = $tryb === 'flaga'
+                ? evk_sitemap_flaga_wlaczona($wartosc)
+                : tl_meta_value_means_noindex($wartosc, $klucz);
+
+            if ($trafienie) {
+                $znalezione[$klucz] = is_scalar($wartosc) ? (string) $wartosc : wp_json_encode($wartosc);
+                break;
             }
         }
     }
 
-    return false;
+    return $znalezione;
+}
+
+function tl_post_has_noindex_meta(int $post_id): bool {
+    return !empty(evk_sitemap_noindex_wpisu($post_id));
 }
 
 function tl_get_sitemap_excluded_ids($settings = null): array {

@@ -48,6 +48,10 @@ require EVK_TEST_ROOT . '/includes/opengraph/settings.php';
    dla której ten plik powstał. */
 require EVK_TEST_ROOT . '/includes/security/settings.php';
 require EVK_TEST_ROOT . '/includes/30-admin-settings-ajax.php';
+/* Moduł mapy — ekran startowy pyta go, czy WordPress wystawia mapę. Bez tego
+   pliku panel spadłby na wariant zapasowy i sprawdzenie kontrolki „Sitemap"
+   mierzyłoby atrapę zamiast prawdziwego warunku. */
+require EVK_TEST_ROOT . '/includes/80-sitemap.php';
 
 /* Rejestr elementów Bricksa — przegląd sekcji liczy z niego przełączniki wiersza
    „Elementy Bricks", dokładnie tak jak robi to `evk_toggle_allowlist()`. Bez

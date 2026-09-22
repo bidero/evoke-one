@@ -522,9 +522,16 @@ function evoke_one_render_control_center(string $base): void {
         !empty($security['limit_login_enabled']), !empty($security['hide_wp_version']),
         !empty($security['rest_block_all']), !empty($cleanup['disable_xmlrpc']), !empty($cleanup['remove_rss']),
     ]));
+    /* Mapa strony liczy się jako aktywny obszar SEO wtedy, gdy WordPress ją
+       WYSTAWIA — nie wtedy, gdy włączona jest sekcja tłumaczeń. To samo pytanie
+       zadaje kontrolka „Sitemap" niżej, żeby karta i pasek nie mówiły dwóch
+       różnych rzeczy o tym samym. */
+    $mapa_wystawiana = function_exists('evk_sitemap_wystawiana')
+        ? evk_sitemap_wystawiana()
+        : !empty(tl_get_sitemap_settings()['enabled']);
     $seo_active = count(array_filter([
         !empty(get_option('evk_schema', [])['enabled']), !empty(get_option('evk_og', [])['enabled']),
-        !empty(tl_get_sitemap_settings()['enabled']),
+        $mapa_wystawiana,
     ]));
     $tool_active = count(array_filter([
         (bool) get_option('evk_301_enabled', 0), (bool) get_option('evk_404_enabled', 0),
@@ -551,7 +558,7 @@ function evoke_one_render_control_center(string $base): void {
         ['label' => 'Limit logowań', 'ok' => !empty($security['limit_login_enabled']), 'url' => add_query_arg(['tab' => 'bezpieczenstwo', 'sub' => 'login'], $base)],
         ['label' => 'SMTP',    'ok' => !empty(get_option('evk_smtp', [])['enabled']), 'url' => add_query_arg(['tab' => 'narzedzia', 'sub' => 'smtp'], $base)],
         ['label' => 'Schema',  'ok' => !empty(get_option('evk_schema', [])['enabled']), 'url' => add_query_arg(['tab' => 'strona', 'sub' => 'schema'], $base)],
-        ['label' => 'Sitemap', 'ok' => !empty(tl_get_sitemap_settings()['enabled']), 'url' => add_query_arg(['tab' => 'strona', 'sub' => 'sitemap'], $base)],
+        ['label' => 'Sitemap', 'ok' => $mapa_wystawiana, 'url' => add_query_arg(['tab' => 'strona', 'sub' => 'sitemap'], $base)],
     ];
 
     /* Środowisko — do zobaczenia, nie do oceniania. Wersja PHP i obecność

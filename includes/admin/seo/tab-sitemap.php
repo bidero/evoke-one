@@ -324,16 +324,16 @@ if (!defined('ABSPATH')) exit;
             </details>
 
             <?php
+            /* Diagnostyka pyta TĄ SAMĄ funkcją co mapa (`evk_sitemap_noindex_wpisu()`).
+               Wcześniej przebiegała po metadanych własną pętlą — czyli opisywała
+               regułę podobną, ale nie tę samą, a ekran diagnostyczny pokazujący
+               co innego niż mechanizm, który diagnozuje, jest gorszy niż brak
+               ekranu. */
             $diag_posts    = get_posts(['post_type' => ['page', 'post'], 'post_status' => 'publish', 'posts_per_page' => -1, 'fields' => 'ids']);
             $noindex_found = [];
             foreach ($diag_posts as $pid) {
-                foreach (get_post_meta($pid) as $meta_key => $values) {
-                    foreach ((array) $values as $v) {
-                        if (tl_meta_value_means_noindex($v, $meta_key)) {
-                            $noindex_found[$pid][] = $meta_key . ' = ' . wp_trim_words((string) $v, 6);
-                            break;
-                        }
-                    }
+                foreach (evk_sitemap_noindex_wpisu((int) $pid) as $meta_key => $v) {
+                    $noindex_found[$pid][] = $meta_key . ' = ' . wp_trim_words((string) $v, 6);
                 }
             }
             ?>
@@ -341,6 +341,16 @@ if (!defined('ABSPATH')) exit;
                 <summary>Diagnostyka noindex <span class="evo-acc-count"><?php echo count($noindex_found); ?></span></summary>
                 <div class="evo-acc-body">
                     <p class="evo-lead">Które strony mają wykryte meta <code>noindex</code> i przez jakie pole. Skan obejmuje strony i wpisy — typy treści wyklucza się wyżej, jednym checkboksem, bez czytania metadanych każdego wpisu.</p>
+                    <details class="evo-note"><summary>Przeszukiwane pola</summary><div class="evo-note-body">
+                        Sprawdzane są wyłącznie <strong>znane pola SEO</strong>:
+                        <?php /* Escapujemy KLUCZE, nie sklejenie — `esc_html()` na całości zjadłoby
+                                 znaczniki `<code>` i wypisało je jako tekst. */ ?>
+                        <code><?php echo implode('</code>, <code>', array_map('esc_html', array_keys(evk_sitemap_klucze_noindex()))); ?></code>.
+                        Do 1.223.3 skan chodził po wszystkich metadanych i uznawał za <code>noindex</code> każde pole,
+                        którego nazwa zawierała „noindex" albo „robots" — własne pole <code>noindex_uwagi</code>
+                        czy <code>robots_txt_snippet</code> wyrzucało stronę z mapy po cichu. Wtyczkę SEO spoza listy
+                        dodaje filtr <code>evk_sitemap_klucze_noindex</code>.
+                    </div></details>
                     <?php if (empty($noindex_found)): ?>
                         <p class="evk-nl-13 evo-muted">Żadna strona nie została wykryta jako noindex.</p>
                     <?php else: ?>

@@ -490,7 +490,12 @@ $TABS = [
         },
     ],
     'sitemap' => [
-        'module' => 'includes/30-admin-settings-ajax.php',
+        /* Oba moduły, bo tak jest w produkcji od 1.221.0: `80-sitemap.php`
+           ładuje się ZAWSZE, nie tylko przy włączonych tłumaczeniach. Lista
+           z samym `30-…` opisywała stan sprzed tamtej zmiany i ekran wołałby
+           tu funkcje, których w harnessie nie ma — czyli test zgłaszałby
+           awarię, której w produkcji nie ma. */
+        'module' => ['includes/30-admin-settings-ajax.php', 'includes/80-sitemap.php'],
         'file'   => 'includes/admin/seo/tab-sitemap.php',
         'seed'   => function () {
             $GLOBALS['options']['tl_sitemap_settings'] = [

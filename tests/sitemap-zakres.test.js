@@ -213,6 +213,38 @@ module.exports = async function (t) {
     JSON.stringify(nowy.excluded_ids) === JSON.stringify([42]),
     JSON.stringify(nowy.excluded_ids));
 
+  // ── Skan noindex ──────────────────────────────────────────────────────
+  t.section('automatyczne pomijanie czyta tylko znane pola SEO');
+
+  /* Skan chodził po WSZYSTKICH metadanych i uznawał za `noindex` każdy klucz
+     z „noindex" albo „robots" w nazwie, o niepustej wartości. Własne pole
+     `noindex_uwagi` z treścią „sprawdzić z klientem" wyrzucało przez to stronę
+     z mapy — po cichu, bez śladu na ekranie edycji. Kierunek błędu był
+     najgorszy z możliwych: pomyłka USUWAŁA treść z mapy. */
+  const skan = php.noindex_skan;
+  t.check('Yoast z włączoną flagą wyklucza',
+    JSON.stringify(skan['11']) === JSON.stringify(['_yoast_wpseo_meta-robots-noindex']),
+    JSON.stringify(skan['11']));
+  // Kontrola negatywna dla tego samego pola: „0" znaczy „indeksuj".
+  t.check('Yoast z wyłączoną flagą nie wyklucza', skan['12'].length === 0, JSON.stringify(skan['12']));
+  // Bricks trzyma to w JSON-ie razem z resztą ustawień strony.
+  t.check('Bricks rozpoznany w środku JSON-a',
+    JSON.stringify(skan['13']) === JSON.stringify(['_bricks_page_settings']), JSON.stringify(skan['13']));
+  /* SEOPress: klucz nie zawiera słowa „noindex", a wartością jest „yes" —
+     dawna heurystyka nie miała jak go rozpoznać. */
+  t.check('SEOPress rozpoznany mimo innej nazwy i wartości',
+    JSON.stringify(skan['14']) === JSON.stringify(['_seopress_robots_index']), JSON.stringify(skan['14']));
+  t.check('pole z zakładki SEO Evoke ONE rozpoznane',
+    JSON.stringify(skan['17']) === JSON.stringify(['_evoke_seo_robots']), JSON.stringify(skan['17']));
+
+  // Sedno poprawki: własne pola o mylącej nazwie nie ruszają mapy.
+  t.check('własne pole „noindex_uwagi" nie wyklucza', skan['15'].length === 0, JSON.stringify(skan['15']));
+  t.check('własne pole „robots_txt_snippet" nie wyklucza', skan['16'].length === 0, JSON.stringify(skan['16']));
+
+  // Lista jest po to, żeby dało się ją zobaczyć — ekran diagnostyki ją drukuje.
+  t.check('lista znanych pól nie jest pusta', php.noindex_klucze.length >= 6,
+    php.noindex_klucze.length + ' kluczy');
+
   // ── Martwy generator /sitemap.xml ─────────────────────────────────────
   t.section('własny /sitemap.xml nie wraca');
 

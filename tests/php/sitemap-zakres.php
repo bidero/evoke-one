@@ -226,6 +226,28 @@ $out['zapis_nowym_ekranem'] = tl_sanitize_sitemap_settings([
     ],
 ]);
 
+// ── Skan noindex: tylko znane pola SEO ───────────────────────────────────
+/* Do 1.223.3 skan chodził po WSZYSTKICH metadanych i uznawał za noindex każdy
+   klucz z „noindex" albo „robots" w nazwie. Własne pole z Evoke FIELDS czy ACF
+   wyrzucało przez to stronę z mapy — po cichu. Fixtura niżej stawia obok siebie
+   pola znane i podszywające się pod nie nazwą. */
+$GLOBALS['meta'] = [
+    11 => ['_yoast_wpseo_meta-robots-noindex' => '1'],                  // Yoast, włączone
+    12 => ['_yoast_wpseo_meta-robots-noindex' => '0'],                  // Yoast, wyłączone
+    13 => ['_bricks_page_settings' => '{"metaRobots":["noindex"]}'],    // Bricks, w środku JSON-a
+    14 => ['_seopress_robots_index' => 'yes'],                          // SEOPress: „yes" = nie indeksuj
+    15 => ['noindex_uwagi'  => 'sprawdzić z klientem'],                 // WŁASNE pole, nie SEO
+    16 => ['robots_txt_snippet' => 'User-agent: * noindex'],            // WŁASNE pole, nie SEO
+    17 => ['_evoke_seo_robots' => ['noindex', 'follow']],               // zakładka SEO Evoke ONE
+];
+
+$out['noindex_skan'] = [];
+foreach (array_keys($GLOBALS['meta']) as $id) {
+    $out['noindex_skan'][$id] = array_keys(evk_sitemap_noindex_wpisu((int) $id));
+}
+$out['noindex_klucze'] = array_keys(evk_sitemap_klucze_noindex());
+$GLOBALS['meta'] = [];
+
 // ── Martwy generator /sitemap.xml ma nie wrócić ──────────────────────────
 $zrodlo = file_get_contents(EVK_TEST_ROOT . '/includes/80-sitemap.php');
 $out['stary_generator'] = [
