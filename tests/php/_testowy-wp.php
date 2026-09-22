@@ -33,6 +33,11 @@ if (!is_file($evk_sciezka_wp . '/wp-load.php') || !is_file($evk_sciezka_wp . '/w
 $_SERVER['HTTP_HOST']   = 'stara.test';
 $_SERVER['REQUEST_URI'] = '/';
 if (!defined('WP_USE_THEMES')) define('WP_USE_THEMES', false);
+/* Bez tego każde załadowanie WordPressa odpala WP-Cron, a ten żądaniem HTTP
+   do siebie potrafi dopisać opcje MIĘDZY dwiema sondami — zmierzone:
+   zrzut „bez przerwy" i „wznowiony" z osobnych procesów różniły się o jedną
+   linię. Sondy mają widzieć bazę, którą same ustawiły. */
+if (!defined('DISABLE_WP_CRON')) define('DISABLE_WP_CRON', true);
 require $evk_sciezka_wp . '/wp-load.php';
 
 $evk_root = getenv('EVK_TEST_ROOT') ?: dirname(__DIR__, 2);

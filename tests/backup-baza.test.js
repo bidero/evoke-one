@@ -82,7 +82,10 @@ module.exports = async function (t) {
   t.check('po wznowieniu każdy wiersz zgodny z bazą (bez powtórzeń)',
     !nierowneU.length && u.zle_linie === 0 && u.kolejnosc_zla.length === 0,
     nierowneU.join(', ') || u.linii + ' linii');
-  t.check('liczba linii taka jak w zrzucie bez przerwy', u.linii === pelny.linii, u.linii + ' vs ' + pelny.linii);
+  /* Odniesienie z tego samego procesu — porównanie z osobną sondą łapało
+     zmiany w bazie między procesami (WP-Cron), a nie błędy wznawiania. */
+  t.check('plik po wznowieniu bajt w bajt taki jak zrzut bez przerwy',
+    u.identyczny_z_bez_przerwy === true, u.linii + ' vs ' + u.linii_wzor + ' linii');
 
   // ── Pamięć ───────────────────────────────────────────────────────────────
   t.section('duże wiersze: paczka mniejsza PRZED pobraniem');

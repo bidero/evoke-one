@@ -195,6 +195,15 @@ switch ($scen) {
         $krokow = 0;
         $st = do_konca($plik, $zapisany, 50, $krokow);
         $wynik += fakty($plik, $st, $T, $widok, $obcy);
+        /* Odniesienie w TYM SAMYM procesie: zrzut bez przerw do drugiego
+           pliku. Porównanie z przebiegiem z osobnej sondy łapało zmiany
+           w bazie zrobione między procesami, a nie błędy wznawiania. */
+        $wzor = $plik . '.wzor';
+        $k2 = 0;
+        do_konca($wzor, evk_backup_db_dump_start(), 50, $k2);
+        $wynik['identyczny_z_bez_przerwy'] = md5_file($plik) === md5_file($wzor);
+        $wynik['linii_wzor'] = count(file($wzor));
+        @unlink($wzor);
         break;
 
     case 'pamiec':
