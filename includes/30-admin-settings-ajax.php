@@ -94,6 +94,15 @@ function tl_get_sitemap_settings(): array {
         'auto_exclude_noindex'     => 1,
         'excluded_ids'             => [],
 		'include_users'            => 0,
+        /* Sterowanie natywną mapą (`wp-sitemap.xml`) — puste tablice znaczą
+           „jak WordPress domyślnie", czyli wszystkie publiczne typy treści
+           i taksonomie w mapie. Dzięki temu aktualizacja nie zmienia niczego
+           na stronie, na której nikt tych ekranów nie dotknął. */
+        'excluded_types'           => [],
+        'noindex_types'            => [],
+        'excluded_taxonomies'      => [],
+        'noindex_taxonomies'       => [],
+        'anchor_types'             => [],
     ];
     $saved = get_option('tl_sitemap_settings', []);
     return array_merge($defaults, is_array($saved) ? $saved : []);
@@ -171,25 +180,77 @@ function tl_meta_value_means_noindex($value, string $key = ''): bool {
     $seoish_key = preg_match('/(bricks|seo|robots|rank_math|yoast|aioseo)/i', $key_l);
     return $seoish_key && is_string($value) && stripos($value, 'noindex') !== false;
 }
+/**
+ * Sanityzacja ustawień mapy strony.
+ *
+ * BRAK KLUCZA ZOSTAWIA WARTOŚĆ Z BAZY, a nie kasuje jej — i to nie jest
+ * kosmetyka. Ten sam wpis w opcjach zapisują DWA ekrany: SEO → Mapa strony
+ * (komplet pól) i starsza zakładka Tłumaczenia → Mapa strony
+ * (`includes/admin/tl/tab-sitemap.php`, same pola sekcji tłumaczeń). Przy
+ * budowaniu tablicy od zera zapis z tego drugiego ekranu zerowałby typy
+ * treści, taksonomie i kotwice ustawione na pierwszym — po cichu, bo żaden
+ * z tych ekranów drugiego nie pokazuje.
+ */
 function tl_sanitize_sitemap_settings($input): array {
-    $input = is_array($input) ? $input : [];
-    $excluded_ids = [];
-    foreach ((array) ($input['excluded_ids'] ?? []) as $post_id) {
-        $post_id = absint($post_id);
-        if ($post_id) $excluded_ids[] = $post_id;
+    $input    = is_array($input) ? $input : [];
+    $obecne   = get_option('tl_sitemap_settings', []);
+    $obecne   = is_array($obecne) ? $obecne : [];
+
+    /** Flaga 0/1: z wejścia, gdy klucz przyszedł; inaczej stan z bazy. */
+    $flaga = static function (string $klucz, int $domyslna) use ($input, $obecne): int {
+        if (array_key_exists($klucz, $input))  return !empty($input[$klucz]) ? 1 : 0;
+        if (array_key_exists($klucz, $obecne)) return !empty($obecne[$klucz]) ? 1 : 0;
+        return $domyslna;
+    };
+
+    /** Lista slugów: z wejścia, gdy klucz przyszedł; inaczej stan z bazy. */
+    $slugi = static function (string $klucz) use ($input, $obecne): array {
+        $zrodlo = array_key_exists($klucz, $input) ? $input[$klucz] : ($obecne[$klucz] ?? []);
+        $out    = [];
+        foreach ((array) $zrodlo as $slug) {
+            $slug = sanitize_key((string) $slug);
+            if ($slug !== '') $out[] = $slug;
+        }
+        return array_values(array_unique($out));
+    };
+
+    if (array_key_exists('excluded_ids', $input)) {
+        $excluded_ids = [];
+        foreach ((array) $input['excluded_ids'] as $post_id) {
+            $post_id = absint($post_id);
+            if ($post_id) $excluded_ids[] = $post_id;
+        }
+        $excluded_ids = array_values(array_unique($excluded_ids));
+    } else {
+        $excluded_ids = array_values(array_unique(array_filter(array_map('absint', (array) ($obecne['excluded_ids'] ?? [])))));
     }
-    $excluded_ids = array_values(array_unique($excluded_ids));
+
+    /* Kotwice: [slug typu treści => ID strony docelowej]. Zero jako ID znaczy
+       „bez kotwic" i wypada z tablicy — inaczej provider próbowałby zbudować
+       adres na nieistniejącej stronie. */
+    $anchor_zrodlo = array_key_exists('anchor_types', $input) ? $input['anchor_types'] : ($obecne['anchor_types'] ?? []);
+    $anchor_types  = [];
+    foreach ((array) $anchor_zrodlo as $slug => $page_id) {
+        $slug    = sanitize_key((string) $slug);
+        $page_id = absint($page_id);
+        if ($slug !== '' && $page_id) $anchor_types[$slug] = $page_id;
+    }
 
     return [
-        'enabled'              => !empty($input['enabled']) ? 1 : 0,
-        'include_home'         => !empty($input['include_home']) ? 1 : 0,
-        'include_pages'        => !empty($input['include_pages']) ? 1 : 0,
-        'include_posts'        => !empty($input['include_posts']) ? 1 : 0,
-        'include_polish'       => !empty($input['include_polish']) ? 1 : 0,
-        'only_translated_slugs'=> !empty($input['only_translated_slugs']) ? 1 : 0,
-        'auto_exclude_noindex' => !empty($input['auto_exclude_noindex']) ? 1 : 0,
-		'include_users'        => !empty($input['include_users']) ? 1 : 0,
+        'enabled'              => $flaga('enabled', 0),
+        'include_home'         => $flaga('include_home', 1),
+        'include_pages'        => $flaga('include_pages', 1),
+        'include_posts'        => $flaga('include_posts', 1),
+        'include_polish'       => $flaga('include_polish', 0),
+        'only_translated_slugs'=> $flaga('only_translated_slugs', 0),
+        'auto_exclude_noindex' => $flaga('auto_exclude_noindex', 1),
+		'include_users'        => $flaga('include_users', 0),
         'excluded_ids'         => $excluded_ids,
+        'excluded_types'       => $slugi('excluded_types'),
+        'noindex_types'        => $slugi('noindex_types'),
+        'excluded_taxonomies'  => $slugi('excluded_taxonomies'),
+        'noindex_taxonomies'   => $slugi('noindex_taxonomies'),
+        'anchor_types'         => $anchor_types,
     ];
 }
 

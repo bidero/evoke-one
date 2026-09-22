@@ -137,19 +137,66 @@
         window.evoSaveSitemap = function () {
             var $st = $('#save-status-sitemap');
             $st.hide();
-            var payload = {
-                enabled:               $('#tl-sm-enabled').is(':checked')        ? 1 : 0,
-                include_home:          $('#tl-sm-home').is(':checked')            ? 1 : 0,
-                include_pages:         $('#tl-sm-pages').is(':checked')           ? 1 : 0,
-                include_posts:         $('#tl-sm-posts').is(':checked')           ? 1 : 0,
-                include_polish:        $('#tl-sm-polish').is(':checked')          ? 1 : 0,
-                only_translated_slugs: $('#tl-sm-only-translated').is(':checked') ? 1 : 0,
-                auto_exclude_noindex:  $('#tl-sm-auto-noindex').is(':checked')    ? 1 : 0,
-                include_users:         $('#tl-sm-users').is(':checked')           ? 1 : 0,
-                excluded_ids:          $('.tl-sm-excluded-id:checked').map(function () {
-                    return parseInt(this.value, 10);
-                }).get()
+            var payload = {};
+
+            /* KLUCZA, KTÓREGO NA EKRANIE NIE MA, NIE WYSYŁAMY. Sekcja tłumaczeń
+               rysuje się tylko przy włączonym module języków, a `is(':checked')`
+               na nieistniejącym elemencie oddaje `false` — wysłane zero kasowałoby
+               ustawienia, których nikt nie widział. Po stronie PHP brak klucza
+               znaczy „zostaw jak było". */
+            var flagi = {
+                enabled:               '#tl-sm-enabled',
+                include_home:          '#tl-sm-home',
+                include_pages:         '#tl-sm-pages',
+                include_posts:         '#tl-sm-posts',
+                include_polish:        '#tl-sm-polish',
+                only_translated_slugs: '#tl-sm-only-translated',
+                auto_exclude_noindex:  '#tl-sm-auto-noindex',
+                include_users:         '#tl-sm-users'
             };
+            Object.keys(flagi).forEach(function (klucz) {
+                var $pole = $(flagi[klucz]);
+                if ($pole.length) payload[klucz] = $pole.is(':checked') ? 1 : 0;
+            });
+
+            payload.excluded_ids = $('.tl-sm-excluded-id:checked').map(function () {
+                return parseInt(this.value, 10);
+            }).get();
+
+            /* Typy treści: odznaczone „W mapie" → `excluded_types`, zaznaczone
+               „Poza indeksem" → `noindex_types`. Pola zablokowane (flaga
+               z Evoke FIELDS) pomijamy — ich źródłem jest tamta wtyczka
+               i zapisanie ich tutaj zdublowałoby jedno ustawienie w dwóch
+               miejscach, z których tylko jedno da się odznaczyć. */
+            if ($('#tl-sm-types').length) {
+                payload.excluded_types = [];
+                payload.noindex_types  = [];
+                payload.anchor_types   = {};
+                $('#tl-sm-types .evk-sm-type').each(function () {
+                    var slug     = $(this).data('slug');
+                    var $noindex = $(this).find('.tl-sm-type-noindex');
+                    var $wMapie  = $(this).find('.tl-sm-type-in');
+                    var anchor   = parseInt($(this).find('.tl-sm-type-anchor').val(), 10) || 0;
+
+                    if ($noindex.is(':checked') && !$noindex.is(':disabled')) payload.noindex_types.push(slug);
+                    else if (!$wMapie.is(':checked') && !$noindex.is(':checked')) payload.excluded_types.push(slug);
+
+                    if (anchor) payload.anchor_types[slug] = anchor;
+                });
+            }
+
+            if ($('#tl-sm-taxonomies').length) {
+                payload.excluded_taxonomies = [];
+                payload.noindex_taxonomies  = [];
+                $('#tl-sm-taxonomies .evk-sm-tax').each(function () {
+                    var slug     = $(this).data('slug');
+                    var $noindex = $(this).find('.tl-sm-tax-noindex');
+                    var $wMapie  = $(this).find('.tl-sm-tax-in');
+
+                    if ($noindex.is(':checked') && !$noindex.is(':disabled')) payload.noindex_taxonomies.push(slug);
+                    else if (!$wMapie.is(':checked') && !$noindex.is(':checked')) payload.excluded_taxonomies.push(slug);
+                });
+            }
             $.post(evoSitemapAjax.url, {
                 action:  'tl_save_sitemap_settings',
                 nonce:   evoSitemapAjax.nonce,
@@ -158,6 +205,18 @@
                 $st.text(r.success ? '✓ Zapisano' : 'Błąd: ' + (r.data || '')).show();
             });
         };
+
+        /* „Poza indeksem" zawiera w sobie wyjście z mapy, więc checkbox „W mapie"
+           przy zaznaczonej fladze jest zablokowany. Bez tego handlera stan
+           blokady pochodziłby wyłącznie z renderu: odznaczenie „Poza indeksem"
+           zostawiałoby martwe, wyszarzone pole aż do zapisu i przeładowania. */
+        $(document).on('change', '.tl-sm-type-noindex, .tl-sm-tax-noindex', function () {
+            var $wiersz = $(this).closest('.evk-sm-type, .evk-sm-tax');
+            var $wMapie = $wiersz.find('.tl-sm-type-in, .tl-sm-tax-in');
+            var poza    = $(this).is(':checked');
+            $wMapie.prop('disabled', poza);
+            if (poza) $wMapie.prop('checked', false);
+        });
     }
 
     /* =========================================================

@@ -14,6 +14,7 @@ if (!defined('ABSPATH')) exit;
             ?>
             <div class="tl-info-box">
                 <strong>Mapa strony WordPress:</strong> Te ustawienia dodają tłumaczone adresy ze slugami do natywnej mapy <code>wp-sitemap.xml</code> jako osobną sekcję tłumaczeń.
+                Typy treści, taksonomie, użytkowników i kotwice ustawia się na ekranie <strong>SEO → Mapa strony</strong> — zapis stąd ich nie zmienia.
             </div>
 
             <div class="tl-menu-settings">

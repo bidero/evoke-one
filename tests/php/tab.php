@@ -101,6 +101,28 @@ function get_post_types($args = [], $output = 'names') {
     };
     return ['post' => $mk('post', 'Wpisy', 'Wpis'), 'page' => $mk('page', 'Strony', 'Strona')];
 }
+/* Taksonomie i wyszukiwanie typu po slugu — potrzebne ekranowi mapy strony,
+   który od 1.221.0 listuje typy i taksonomie z KAŻDEGO źródła. Bez tych atrap
+   ekran kończy się fatalem, czyli dokładnie tą awarią, którą ten harness ma
+   łapać. Trzeci typ (`slajd`) nie jest publiczny i pojawia się na ekranie
+   wyłącznie dlatego, że ktoś go wcześniej oznaczył — to jest przypadek, przez
+   który ustawienie musi dać się zdjąć. */
+function get_taxonomies($args = [], $output = 'names') {
+    $mk = function ($name, $label) {
+        return (object) ['name' => $name, 'label' => $label, 'public' => true,
+                         'labels' => (object) ['name' => $label, 'singular_name' => $label]];
+    };
+    return ['category' => $mk('category', 'Kategorie'), 'post_tag' => $mk('post_tag', 'Tagi')];
+}
+function get_post_type_object($slug) {
+    $wszystkie = get_post_types(['public' => true], 'objects');
+    if (isset($wszystkie[$slug])) return $wszystkie[$slug];
+    if ($slug === 'slajd') {
+        return (object) ['name' => 'slajd', 'label' => 'Slajdy', 'public' => false,
+                         'labels' => (object) ['name' => 'Slajdy', 'singular_name' => 'Slajd']];
+    }
+    return null;
+}
 /* Adres MUSI być lokalny. Przy `https://example.test/…` headless próbuje wyjść
    w sieć przez proxy i test zgłasza ERR_TUNNEL_CONNECTION_FAILED jako „błąd JS"
    — usterka nie w kodzie panelu, tylko w atrapie. Jednopikselowy GIF w data:
@@ -473,6 +495,13 @@ $TABS = [
         'seed'   => function () {
             $GLOBALS['options']['tl_sitemap_settings'] = [
                 'enabled' => 1, 'include_pages' => 1, 'excluded_ids' => [11],
+                /* Typ nie-publiczny, oznaczony wcześniej — ekran ma go pokazać
+                   mimo że `get_post_types(['public' => true])` go nie odda.
+                   Inaczej ustawienia nie dałoby się zdjąć: znikałoby razem
+                   z pozycją, która je niesie. */
+                'noindex_types'  => ['slajd'],
+                'excluded_types' => ['post'],
+                'anchor_types'   => ['slajd' => 11],
             ];
             /* WPIS Z META NOINDEX — bez niego pętla diagnostyki na tym ekranie
                nie wykonuje ani jednego obrotu i sprawdzenie renderu przechodzi,

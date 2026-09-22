@@ -483,7 +483,11 @@ module.exports = async function (t) {
      nie wykonałoby się ani razu — i sprawdzenie wyżej znów niczego by nie
      dowodziło. Dwa wpisy, dwa różne kształty metadanych: Yoast (płaski klucz)
      i Bricks (JSON z `metaRobots`). */
-  const wykryte = (mapaStrony.match(/evo-list-row/g) || []).length;
+  /* Liczone po `evo-mono-xs`, nie po `evo-list-row`: od 1.221.0 ten sam ekran
+     rysuje wierszami listy także typy treści i taksonomie, więc wspólna klasa
+     przestała odróżniać diagnostykę od reszty. `evo-mono-xs` niesie wykryte
+     klucze metadanych i występuje wyłącznie w tej jednej pętli. */
+  const wykryte = (mapaStrony.match(/evo-mono-xs/g) || []).length;
   t.check('a diagnostyka naprawdę przechodzi po metadanych', wykryte === 2,
     wykryte + ' z 2 wpisów wykrytych jako noindex');
 

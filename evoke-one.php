@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.220.0
+ * Version: 1.221.0
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
@@ -22,7 +22,7 @@ define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
    przeglądarkom podawać stare pliki z pamięci mimo aktualizacji wtyczki.
    Zgodności trzech miejsc (nagłówek, stała, changelog) pilnuje sekcja
    „numer wersji w trzech miejscach" w tests/drobiazgi.test.js. */
-define('EVOKE_ONE_VERSION', '1.220.0');
+define('EVOKE_ONE_VERSION', '1.221.0');
 
 // Stałe modułu tłumaczeń (zachowane dla kompatybilności z istniejącymi ustawieniami)
 define('TL_MENU_SLUG',        'evoke-tlumaczenia');
@@ -82,6 +82,11 @@ $evoke_one_modules = [
     '20-helpers-cache-inline.php',
     '30-admin-settings-ajax.php',
     '31-admin-page.php',
+    /* Mapa strony steruje `wp-sitemap.xml`, czyli czymś, co WordPress wystawia
+       na każdej stronie — także bez tłumaczeń. Do 1.220.0 plik siedział
+       w gałęzi modułu tłumaczeń niżej i na stronie bez tłumaczeń nie było
+       czym sterować: ani typami treści, ani taksonomiami, ani użytkownikami. */
+    '80-sitemap.php',
     '85-seo.php',
     '86-dashboard.php',
     '87-snippets.php',
@@ -120,7 +125,6 @@ if ($evk_tl_enabled) {
         '50-translation-engine.php',
         '60-image-replacement.php',
         '70-bricks-language-switcher.php',
-        '80-sitemap.php',
     ];
     foreach ($evoke_tl_modules as $module) {
         require_once EVOKE_ONE_DIR . 'includes/' . $module;

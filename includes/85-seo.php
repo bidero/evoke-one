@@ -109,6 +109,18 @@ function evk_seo_get_meta(int $pid): array {
         ));
     }
 
+    /* Typ treści „poza indeksem" (slajdy, pozycje menu, wiersze cennika).
+       Wyrzucenie z mapy strony samo z siebie NIE WYPROWADZA z indeksu tego,
+       co już się tam znalazło — mapa jest podpowiedzią, a nie zakazem. Dlatego
+       flaga dokłada `noindex` do meta tagu. `follow` zostaje, żeby linki z tej
+       podstrony dalej przekazywały wartość stronie, do której prowadzą. */
+    if (function_exists('evk_sitemap_typ_poza_indeksem') && evk_sitemap_typ_poza_indeksem((string) get_post_type($pid))) {
+        $robots = array_values(array_unique(array_merge(
+            array_diff($robots, ['index']),
+            ['noindex', 'follow']
+        )));
+    }
+
     // OG — najpierw Media społecznościowe Bricksa, potem łańcuch meta
     $og_title = evk_seo_render_bricks_value($b['sharingTitle'] ?? '', $pid);
     if ($og_title === '') $og_title = $title;
@@ -188,6 +200,32 @@ add_filter('pre_get_document_title', function ($title) {
     $custom = evk_seo_get_meta($pid)['title_custom'];
     return $custom !== '' ? $custom : $title;
 }, 999);
+
+/**
+ * Archiwa typów i taksonomii oznaczonych jako „poza indeksem".
+ *
+ * Resolver `evk_seo_get_meta()` pracuje na ID wpisu, więc nie widzi archiwum
+ * typu ani strony termu — a to właśnie one zostają w indeksie najdłużej, bo
+ * linkuje do nich nawigacja. Osobny wpis w `<head>`, ten sam warunek co
+ * w mapie strony.
+ */
+add_action('wp_head', function () {
+    if (is_singular() || is_home()) return;
+    if (!function_exists('evk_sitemap_typ_poza_indeksem')) return;
+
+    $poza = false;
+
+    if (is_post_type_archive()) {
+        $typ  = get_query_var('post_type');
+        $typ  = is_array($typ) ? (string) reset($typ) : (string) $typ;
+        $poza = $typ !== '' && evk_sitemap_typ_poza_indeksem($typ);
+    } elseif (is_category() || is_tag() || is_tax()) {
+        $term = get_queried_object();
+        $poza = $term instanceof WP_Term && evk_sitemap_taksonomia_poza_indeksem($term->taxonomy);
+    }
+
+    if ($poza) echo '<meta name="robots" content="noindex, follow">' . "\n";
+}, 5);
 
 // 2. Meta tagi w <head>
 add_action('wp_head', function () {

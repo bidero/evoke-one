@@ -2,6 +2,90 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.221.0] — 2026-09-22
+
+### Dodane
+
+- **Mapa strony obejmuje wszystkie typy treści i taksonomie, nie tylko strony
+  i wpisy.** Ekran SEO → Mapa strony listuje każdy zarejestrowany typ —
+  niezależnie od tego, czy zarejestrował go Evoke FIELDS, ACF, Metabox czy
+  motyw — i pozwala odznaczyć go z mapy albo oznaczyć jako **poza indeksem**.
+  To samo dla taksonomii. Do tej pory mapa znała na sztywno `page` i `post`
+  (`80-sitemap.php`), a filtr wykluczeń odpuszczał wszystko poza nimi, więc
+  wpisu CPT nie dawało się z mapy zabrać nawet przez listę wykluczeń.
+
+  „Poza indeksem" to trzy rzeczy naraz, bo każda z osobna zostawia dziurę:
+  wyjście z mapy (`wp_sitemaps_post_types`), `noindex` w `<head>` pojedynczego
+  wpisu i archiwum (`85-seo.php`) oraz `exclude_from_search` dokładane przy
+  rejestracji typu (`register_post_type_args` — działa na typ dowolnego
+  pochodzenia). Samo wyjście z mapy NIE wyprowadza z indeksu tego, co już się
+  w nim znalazło: mapa jest podpowiedzią, nie zakazem.
+
+- **Kotwice dla typów bez własnego adresu.** Typ, którego wpisy renderują się
+  jako sekcje jednej strony (pozycje menu, wiersze cennika), dostaje
+  w ustawieniach stronę docelową — do mapy trafia wtedy `/oferta/#slug-wpisu`
+  zamiast martwego permalinka. Osobna sekcja `wp-sitemap-kotwice-1.xml`,
+  rejestrowana wyłącznie, gdy jest co pokazać: provider bez adresów dokłada do
+  indeksu adres po to, by odpowiedzieć zerem wpisów.
+
+- **Flaga „poza indeksem" z Evoke FIELDS 1.67.0.** Panel czyta
+  `evk_noindex_post_types()` i `evk_noindex_taxonomies()`, gdy tamta wtyczka
+  jest zainstalowana, i pokazuje takie pozycje jako zaznaczone i zablokowane —
+  odznaczenie ich tutaj wyglądałoby na skuteczne, a wracałoby przy pierwszym
+  zapisie ekranu w FIELDS.
+
+### Naprawione
+
+- **Checkbox „Użytkownicy" w mapie strony wreszcie coś robi.** `include_users`
+  zapisywało się od 1.95.0 i NIE BYŁO CZYTANE PRZEZ NIC —
+  `wp-sitemap-users-1.xml` wisiał w mapie niezależnie od tego, co pokazywał
+  panel, a pokazywał „wyłączone". Domyślna wartość zostaje przy 0, więc
+  pierwszy request po aktualizacji usuwa sekcję: to jest zachowanie, które
+  panel deklarował od początku.
+
+- **Zapis ze starszej zakładki Tłumaczenia → Mapa strony nie kasuje ustawień
+  z ekranu SEO.** Ten sam wpis w opcjach zapisują dwa ekrany, a sanityzacja
+  budowała tablicę od zera — pola, których starszy ekran nie zna (typy,
+  taksonomie, kotwice), znikały po cichu. Teraz brak klucza w żądaniu znaczy
+  „zostaw jak było".
+
+- **Wykluczone wpisy działają w każdym typie treści.** Filtr
+  `wp_sitemaps_posts_query_args` sprawdzał wcześniej `in_array($post_type,
+  ['page','post'])` i wychodził — odznaczony wpis CPT i tak jechał do mapy.
+
+### Usunięte
+
+- **Własny generator `/sitemap.xml` z tagami `hreflang` (ok. 130 linii).**
+  Nigdy nie odpowiedział na żywej stronie: regułę `^sitemap\.xml$` dokładał
+  `init`, ale `flush_rewrite_rules()` wołało się wyłącznie przy aktywacji
+  wtyczki oraz przy zapisie języków i slugów — po samym włączeniu modułu
+  tłumaczeń reguły w bazie zostawały bez niej. Żądanie przejmował więc rdzeń
+  WordPressa, który od 5.5 przekierowuje `/sitemap.xml` na `/wp-sitemap.xml`.
+
+  Nic to nie zabiera. `hreflang` jedzie w `<head>` każdej podstrony
+  (`12-seo-url-filters.php`), a Google traktuje to źródło równorzędnie z mapą.
+  Do `wp-sitemap.xml` `hreflang` nie wejdzie w żadnym wariancie:
+  `WP_Sitemaps_Renderer::get_sitemap_xml()` przyjmuje dla adresu wyłącznie
+  `loc`, `lastmod`, `changefreq` i `priority`, a każdy inny klucz kwituje
+  `_doing_it_wrong()`; przestrzeni `xmlns:xhtml` nie da się dołożyć filtrem.
+
+  Reguła wypchnięta wcześniej na żywe strony siedzi w `rewrite_rules` w bazie,
+  więc moduł raz przebudowuje reguły (`evk_sitemap_rules_cleaned`) — inaczej
+  `/sitemap.xml` trafiałby w 404 zamiast w przekierowanie rdzenia.
+
+### Zmienione
+
+- **`80-sitemap.php` ładuje się zawsze**, nie tylko przy włączonym module
+  tłumaczeń. Steruje `wp-sitemap.xml`, czyli czymś, co WordPress wystawia na
+  każdej stronie; w gałęzi tłumaczeń na stronie bez tłumaczeń nie było czym
+  sterować. Sekcja tłumaczeń w mapie rejestruje się jak dotąd — tylko przy
+  żywym silniku języków.
+
+- **Nowy zestaw sprawdzeń `tests/sitemap-zakres.test.js`** (31 sprawdzeń, czysty
+  PHP, ~1 s). Mapy strony nie sprawdzało wcześniej nic poza renderowaniem
+  zakładki — i dlatego obie powyższe usterki przeżyły kilkadziesiąt wydań:
+  w panelu wyglądały poprawnie.
+
 ## [1.220.0] — 2026-09-22
 
 ### Dodane
