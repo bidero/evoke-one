@@ -64,7 +64,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (65 plików, cztery partie):
+Podział, który się mieści (67 plików, cztery partie):
 
 ```
 node tests/run.js admin- anim animator aria backup- bg-shift bricks-required builder-context burger circular-menu controls
@@ -116,6 +116,26 @@ vendor/bin/phpstan analyse --no-progress
 Bez tego sekcja „analiza statyczna" w `drobiazgi` świeci na czerwono przez CAŁĄ
 sesję, a analiza nie przechodzi ani razu — i tak właśnie przejechało kilka wydań
 z łańcucha mapy strony, zanim ktoś powiedział, że PHPStan da się uruchomić.
+
+### Testy kopii zapasowych potrzebują prawdziwej bazy
+
+`backup-baza` (i kolejne testy modułu kopii) gada z prawdziwym MariaDB/MySQL
+przez prawdziwego WordPressa — atrapa `$wpdb` nie odpowie na pytania o
+`SHOW CREATE TABLE`, kolację przy stronicowaniu ani o to, co baza oddaje
+z kolumny BLOB. Środowisko stawia jedno polecenie:
+
+```
+tools/testowy-wp.sh              postaw albo sprawdź (~15 s za pierwszym razem)
+tools/testowy-wp.sh --od-nowa    wyczyść bazę i katalog, postaw jeszcze raz
+```
+
+W kontenerze sesji zdalnej serwera bazy nie ma — raz na sesję
+`apt-get install -y mariadb-server`, dalej skrypt sam go uruchamia. WordPress
+ląduje w `~/.cache/evk-testowy-wp` (zmienna `EVK_WP_PATH`), wtyczka jest do
+niego DOWIĄZANA, więc testy widzą bieżący kod.
+
+Brak środowiska **zapala test na czerwono** z instrukcją, a nie pomija go po
+cichu — ta sama umowa co przy PHPStanie w `drobiazgi`.
 
 ### Zanim puścisz przeglądarkę
 
