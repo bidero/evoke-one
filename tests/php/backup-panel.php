@@ -107,6 +107,12 @@ switch ($argv[1] ?? '') {
         $wynik = ['wp' => rtrim(ABSPATH, '/'), 'status' => $j['status'], 'archive' => $j['archive']];
         break;
 
+    case 'ftp-postarz':
+        // Plik „wgrywający się" skończył się wgrywać — ma już ponad minutę.
+        touch(evk_backup_import_dir() . '/wgrywa-sie.zip', time() - 120);
+        $wynik = ['ok' => true];
+        break;
+
     case 'fakty-przywracania':
         wp_cache_flush();
         $imp = evk_backup_import_dir();

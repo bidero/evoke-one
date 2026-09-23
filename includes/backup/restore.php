@@ -58,6 +58,23 @@ function evk_restore_cancellable(array $job): bool {
     return in_array($job['phase'], ['r_check', 'r_extract', 'r_db'], true);
 }
 
+/**
+ * Pliki „drop-in" w wp-content — WordPress ładuje je SAM przy każdym żądaniu,
+ * zanim ruszy jakakolwiek wtyczka (pamięć podręczna obiektów, strony, własna
+ * obsługa bazy). Zgłoszone z użycia (1.227.1): przywrócony `object-cache.php`
+ * ze starego serwera łączył się z jego pamięcią podręczną i zatrzymywał
+ * każde żądanie — także kroki samego przywracania; pomogło dopiero ręczne
+ * usunięcie pliku. Należą więc do SERWERA, nie do strony: przywracanie ich
+ * nie nadpisuje ani (lustro) nie usuwa. Wtyczka cache odtwarza swój plik
+ * sama po włączeniu.
+ */
+function evk_restore_dropins(): array {
+    $lista = function_exists('_get_dropins') ? array_keys(_get_dropins()) : [];
+    return array_values(array_unique(array_merge($lista, ['advanced-cache.php', 'db.php', 'db-error.php', 'install.php',
+        'maintenance.php', 'object-cache.php', 'php-error.php', 'fatal-error-handler.php', 'sunrise.php',
+        'blog-deleted.php', 'blog-inactive.php', 'blog-suspended.php'])));
+}
+
 /** Nazwy katalogu tej wtyczki, których przywracanie nie rusza. */
 function evk_restore_own_dirs(array $manifest): array {
     return array_values(array_unique(array_filter([
@@ -231,7 +248,7 @@ function evk_restore_phase_check(array $job): array {
     $m = evk_restore_read_manifest($zip, $w['manifest.json'] ?? null);
     $db = $w['database.jsonl'] ?? null;
     $wlasne = evk_restore_own_dirs($m);
-    $licz = ['files' => 0, 'files_size' => 0, 'skipped' => [], 'root' => [], 'unsafe' => 0];
+    $licz = ['files' => 0, 'files_size' => 0, 'skipped' => [], 'root' => [], 'unsafe' => 0, 'dropins' => []];
     $bajty = 0;
 
     $lista = $praca . '/wpisy.jsonl';
@@ -244,13 +261,15 @@ function evk_restore_phase_check(array $job): array {
             $bajty += $db['z'];
         }
         if ($s['scope'] !== 'db') {
-            EVK_Zip_Reader::scan($zip, static function ($w) use ($fh, $wlasne, &$licz, &$bajty) {
+            $dropiny = evk_restore_dropins();
+            EVK_Zip_Reader::scan($zip, static function ($w) use ($fh, $wlasne, $dropiny, &$licz, &$bajty) {
                 $n = $w['n'];
                 if ($n === 'manifest.json' || $n === 'database.jsonl') return;
                 if (strpos($n, '_root/') === 0) { $licz['root'][] = substr($n, 6); return; }
                 if (evk_zip_safe_name($n) === null || strpos($n, 'wp-content/') !== 0 || $n === 'wp-content/') { $licz['unsafe']++; return; }
                 $rel = substr($n, 11);
                 if (strpos($rel, 'evk-backups-') === 0) return;
+                if (in_array($rel, $dropiny, true)) { $licz['dropins'][] = $rel; return; }
                 foreach ($wlasne as $d) {
                     if (strpos($rel, 'plugins/' . $d . '/') === 0) { $licz['skipped'][$d] = true; return; }
                 }
@@ -294,6 +313,10 @@ function evk_restore_phase_check(array $job): array {
     }
     if ($licz['root']) {
         evk_backup_job_log($job['id'], 'Pliki z katalogu głównego w kopii (nieprzywracane, są w archiwum pod _root/): ' . implode(', ', $licz['root']) . '.');
+    }
+    if ($licz['dropins']) {
+        evk_backup_job_log($job['id'], 'Pominięte pliki drop-in (należą do serwera, zostają te z tego): ' . implode(', ', $licz['dropins'])
+            . '. Wtyczka pamięci podręcznej odtworzy swój plik po włączeniu.');
     }
     if ($licz['skipped']) evk_backup_job_log($job['id'], 'Pominięty katalog tej wtyczki: plugins/' . implode(', plugins/', array_keys($licz['skipped'])) . '.');
     if ($licz['unsafe']) evk_backup_job_log($job['id'], 'Pominięte wpisy o niebezpiecznych albo obcych nazwach: ' . $licz['unsafe'] . '.');
@@ -697,6 +720,7 @@ function evk_restore_phase_sweep(array $job, float $deadline): array {
     $s = $job['state']['sw'] ?? ['stack' => [''], 'dirs' => [], 'deleted' => 0, 'names' => [], 'links' => 0];
     $zbior = evk_restore_archive_set($job['state']['list']);
     $chron = evk_restore_protected($job);
+    $dropiny = evk_restore_dropins();
 
     while ($s['stack']) {
         $rel = array_pop($s['stack']);
@@ -708,6 +732,7 @@ function evk_restore_phase_sweep(array $job, float $deadline): array {
             $p = $kat . '/' . $e;
             $katalog = is_dir($p);
             if (evk_backup_excluded($r, $katalog, $chron)) continue;
+            if ($rel === '' && in_array($r, $dropiny, true)) continue;   // drop-in tego serwera
             if (is_link($p)) { if (!isset($zbior[$r])) $s['links']++; continue; }
             if ($katalog) {
                 $s['stack'][] = $r;

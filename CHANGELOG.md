@@ -2,6 +2,47 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.227.1] — 2026-09-23
+
+### Naprawione (zgłoszone z użycia)
+
+- **Przywracanie zatrzymywało się na `object-cache.php`.** Pliki drop-in
+  z wp-content (pamięć podręczna obiektów i stron, `db.php` i pokrewne)
+  WordPress ładuje sam przy każdym żądaniu. Przywrócony drop-in starego
+  serwera łączył się z jego pamięcią podręczną i zatrzymywał wszystko —
+  także kroki przywracania; pomagało dopiero ręczne usunięcie pliku. Teraz
+  należą do serwera: przywracanie ich nie nadpisuje, a lustro nie usuwa.
+  Log mówi, które pominięto; wtyczka cache odtwarza swój plik po włączeniu.
+- **Włącznik modułu „nic nie robił"** — przycisk kopii, lista i ustawienia
+  pojawiały się dopiero po ręcznym odświeżeniu. Zakładka przeładowuje się
+  sama po przełączeniu.
+- **Lista kopii na telefonie znów się mieści**: przypięcie to sama pinezka
+  na początku rzędu (nazwa dla czytnika ekranu i w dymku). Sprawdzone przy
+  390 i 360 px.
+- **Pierwsze włączenie modułu zerowało wykluczenia.** Przełącznik zapisuje
+  do opcji samo pole „włączony", a sanitizer brak pozostałych pól traktował
+  jak puste — na świeżej instalacji kopie brały `cache/`, logi i katalogi
+  kopii innych wtyczek. Brak pola znaczy teraz „bez zmian"; „odznaczone"
+  tylko w zapisie z formularza. Przy polu wykluczeń doszedł przycisk
+  „Przywróć domyślne wykluczenia" — **sprawdź to pole, jeśli moduł był
+  włączany na 1.226.x–1.227.0.**
+
+### Dodane
+
+- „Sprawdź katalog FTP" — przenosi wgrane kopie na listę bez przeładowania
+  i mówi, co czeka (plik zmieniony w ostatniej minucie).
+- Komunikat w panelu o nieudanej kopii domyślnie włączony. Zapisane już
+  ustawienie zostaje, jakie było.
+- Ramka w zakładce, gdy nie ma adresu do powiadomień e-mail.
+
+### Testy
+
+- Drop-iny w złośliwym archiwum i drop-in serwera docelowego przy lustrze;
+  zapis z przełącznika na świeżej instalacji; telefon 360 px; katalog FTP
+  z przycisku; włącznik z przeładowaniem. 8 mutacji — jedna (pinezka
+  rosnąca do ćwiartki rzędu) przechodziła, test sprawdza teraz jej
+  szerokość.
+
 ## [1.227.0] — 2026-09-22
 
 ### Dodane

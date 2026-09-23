@@ -151,6 +151,9 @@ switch ($scen) {
         file_put_contents(WP_CONTENT_DIR . '/uploads/obcy.txt', 'obcy');
         file_put_contents(WP_CONTENT_DIR . '/uploads/obcy-katalog/a.txt', 'obcy');
         file_put_contents(WP_CONTENT_DIR . '/debug.log', 'log');
+        /* Drop-in TEGO serwera. db-error.php, bo WordPress ładuje go wyłącznie
+           przy błędzie bazy — object-cache.php zmieniłby działanie sond B. */
+        file_put_contents(WP_CONTENT_DIR . '/db-error.php', '<?php // serwer B');
         wp_mkdir_p(WP_CONTENT_DIR . '/cache');
         file_put_contents(WP_CONTENT_DIR . '/cache/x.txt', 'cache');
         // Znaczniki zakresu: opcja B (znika tylko z podmianą bazy), pliki z kopii (wracają tylko z plikami).
@@ -228,6 +231,10 @@ switch ($scen) {
         $w->add_string('_root/.htaccess', 'Deny from all # z kopii');
         $w->add_string('wp-content/evk-backups-obcy/x.txt', 'kopia w kopii');
         $w->add_string('wp-content/uploads/evk-ok.txt', 'ok');
+        // Drop-iny starego serwera: pierwszy zatrzymałby KAŻDE żądanie (zgłoszone z użycia, 1.227.1).
+        $w->add_string('wp-content/object-cache.php', "<?php die('pamięć podręczna starego serwera');");
+        $w->add_string('wp-content/db-error.php', '<?php // z kopii');
+        file_put_contents(WP_CONTENT_DIR . '/db-error.php', '<?php // serwer B');
         $w->finish();
         $zrodlo->close();
         $htaccess = @file_get_contents(ABSPATH . '.htaccess');
@@ -240,10 +247,13 @@ switch ($scen) {
             'wyzej'      => file_exists(ABSPATH . 'evk-zly-wyzej.txt') || file_exists(dirname(WP_CONTENT_DIR) . '/evk-zly-wyzej.txt'),
             'htaccess'   => @file_get_contents(ABSPATH . '.htaccess') === $htaccess,
             'kopia'      => is_dir(WP_CONTENT_DIR . '/evk-backups-obcy'),
-            'log'        => array_values(preg_grep('/Pominię|katalogu głównego/u', explode("\n", (string) $job['log']))),
+            'object_cache' => file_exists(WP_CONTENT_DIR . '/object-cache.php'),
+            'db_error'   => @file_get_contents(WP_CONTENT_DIR . '/db-error.php'),
+            'log'        => array_values(preg_grep('/Pominię|katalogu głównego|drop-in/u', explode("\n", (string) $job['log']))),
         ];
-        // Sprzątanie także po mutacji, która zapisała do repozytorium.
+        // Sprzątanie także po mutacji, która zapisała do repozytorium albo drop-in.
         @unlink(EVOKE_ONE_DIR . 'evk-zly.php');
+        @unlink(WP_CONTENT_DIR . '/object-cache.php');
         @unlink(ABSPATH . 'evk-zly-wyzej.txt');
         @unlink(WP_CONTENT_DIR . '/uploads/evk-ok.txt');
         evk_backup_rmdir(WP_CONTENT_DIR . '/evk-backups-obcy');
@@ -290,6 +300,7 @@ switch ($scen) {
                 'obcy'      => file_exists(WP_CONTENT_DIR . '/uploads/obcy.txt'),
                 'obcy_kat'  => is_dir(WP_CONTENT_DIR . '/uploads/obcy-katalog'),
                 'debug_log' => file_exists(WP_CONTENT_DIR . '/debug.log'),
+                'db_error'  => @file_get_contents(WP_CONTENT_DIR . '/db-error.php'),
                 'cache'     => file_exists(WP_CONTENT_DIR . '/cache/x.txt'),
                 'wtyczka_link' => is_link(WP_CONTENT_DIR . '/plugins/evoke-one'),
                 'katalog_kopii' => is_dir(evk_backup_dir()),

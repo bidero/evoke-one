@@ -59,6 +59,11 @@
                 if ($tlabel.length) {
                     $tlabel.text(checked ? 'Włączony' : 'Wyłączony');
                 }
+                /* Włącznik modułu, którego treść zakładki rysuje dopiero PHP
+                   (Kopie zapasowe: przycisk kopii, lista, ustawienia) — bez
+                   przeładowania przełączenie „nic nie robiło" (zgłoszone
+                   z użycia, 1.227.1). */
+                if ($cb.data('przeladuj')) window.location.reload();
             })
             .fail(function (xhr) {
                 console.error('evk toggle fail:', xhr.status);

@@ -62,6 +62,23 @@ module.exports = async function (t) {
       JSON.stringify(ftp.ftp));
     t.check('zakładka mówi, co przeniosła', /Przeniesione z katalogu FTP: z-ftp-1/.test(await p.locator('#wpbody-content').innerText()));
     t.check('lista: obie kopie, każda z przyciskiem „Przywróć"', (await p.locator('tr[data-archive] [data-evk-backup-restore]').count()) === 2);
+    /* Zgłoszone z użycia (1.227.1): sprawdzenie wgranych kopii bez przeładowania zakładki. */
+    sonda('ftp-postarz');
+    await p.click('[data-evk-backup-ftp]');
+    await p.locator('[data-evk-backup-ftp-result]').filter({ hasText: /Przeniesione|Nowych/ }).waitFor({ timeout: 15000 });
+    const ftpTxt = await p.locator('[data-evk-backup-ftp-result]').innerText();
+    t.check('„Sprawdź katalog FTP": przenosi bez przeładowania, lista od razu z nową kopią',
+      /Przeniesione na listę: wgrywa-sie\.zip/.test(ftpTxt) && (await p.locator('tr[data-archive]').count()) === 3, ftpTxt);
+    await p.click('[data-evk-backup-ftp]');
+    await p.locator('[data-evk-backup-ftp-result]').filter({ hasText: /Nowych kopii/ }).waitFor({ timeout: 15000 });
+    t.check('drugie sprawdzenie: „nowych kopii nie ma"', true);
+
+    t.section('przypomnienie o adresie i domyślne wykluczenia');
+    t.check('bez adresu do powiadomień: ramka z odnośnikiem do pola', await widac(p, '[data-evk-backup-bez-maila]'));
+    await p.fill('#evk-backup-wykluczenia', '');
+    await p.click('[data-evk-backup-domyslne]');
+    const wykl = await p.inputValue('#evk-backup-wykluczenia');
+    t.check('„Przywróć domyślne wykluczenia" wpisuje domyślną listę', /^cache\/\n/.test(wykl) && /litespeed\//.test(wykl), JSON.stringify(wykl));
 
     // ── Kopia nocna i powiadomienia: zapis ustawień ────────────────────────
     t.section('ustawienia kopii nocnej i powiadomień');
@@ -73,6 +90,7 @@ module.exports = async function (t) {
     let ust;
     for (let i = 0; i < 40; i++) { ust = sonda('fakty-przywracania'); if (ust.ustawienia.schedule_time === '02:30') break; await p.waitForTimeout(250); }
     await p.reload();
+    t.check('po wpisaniu adresu ramka przypomnienia znika', !(await widac(p, '[data-evk-backup-bez-maila]')));
     t.check('zapisane: harmonogram 02:30, złe adresy odrzucone',
       ust.ustawienia.schedule_enabled === 1 && ust.ustawienia.schedule_time === '02:30' && ust.ustawienia.notify_address === 'kopie@example.com',
       JSON.stringify(ust.ustawienia));
@@ -156,6 +174,15 @@ module.exports = async function (t) {
     await p.goto(zakladka);
     t.check('po zalogowaniu kontem z kopii zakładka działa, kopie na liście',
       (await p.locator('tr[data-archive]').count()) >= 2 && (await widac(p, '[data-evk-backup-start]')));
+
+    /* Zgłoszone z użycia (1.227.1): przełączenie włącznika „nic nie robiło",
+       treść pojawiała się dopiero po odświeżeniu. */
+    t.section('włącznik modułu przeładowuje zakładkę');
+    await Promise.all([p.waitForNavigation(), p.locator('.evo-status-card .evo-toggle').click()]);
+    t.check('wyłączony: przycisk kopii znika bez ręcznego odświeżania', !(await widac(p, '[data-evk-backup-start]')));
+    await Promise.all([p.waitForNavigation(), p.locator('.evo-status-card .evo-toggle').click()]);
+    t.check('włączony: przycisk kopii i lista są od razu',
+      (await widac(p, '[data-evk-backup-start]')) && (await p.locator('tr[data-archive]').count()) >= 2);
 
     t.check('bez błędów JS przez cały przebieg', !bledy.length, bledy.join(' | ') || 'czysto');
   } finally {

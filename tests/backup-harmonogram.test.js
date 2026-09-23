@@ -77,6 +77,19 @@ module.exports = async function (t) {
     b.bez_ustawien[0] === 0 && b.bez_ustawien[1] === false, JSON.stringify(b.bez_ustawien));
   t.check('nieudane przywracanie nie wysyła powiadomień o kopii', b.przywracanie[0] === 0 && b.przywracanie[1] === false);
 
+  t.section('domyślne ustawienia i zapis z przełącznika modułu');
+
+  const d = sonda('domyslne');
+  t.check('świeża instalacja: komunikat w panelu domyślnie włączony', d.swieza === 1);
+  /* Zmierzone przed poprawką (1.227.1): pierwsze włączenie modułu zapisywało
+     puste wykluczenia i wyłączony komunikat. */
+  t.check('przełącznik na świeżej instalacji: wykluczenia domyślne, komunikat włączony, retencja 5',
+    JSON.stringify(d.przelacznik_swieza) === '[true,1,5]', JSON.stringify(d.przelacznik_swieza));
+  t.check('zapisane „wyłączony" i własne wykluczenia zostają po przełączniku',
+    JSON.stringify(d.przelacznik_zapisane) === '[0,"moje/"]', JSON.stringify(d.przelacznik_zapisane));
+  t.check('formularz z odznaczonym komunikatem wyłącza go; moduł zostaje włączony; znacznik nie trafia do opcji',
+    JSON.stringify(d.formularz_odznaczony) === '[0,1,false]', JSON.stringify(d.formularz_odznaczony));
+
   const k = sonda('komunikat');
   t.check('komunikat w panelu: dla administratora, z krzyżykiem i linkiem do zakładki',
     k.jest && k.zamykany && k.link, JSON.stringify(k));

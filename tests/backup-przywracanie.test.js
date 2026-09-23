@@ -94,6 +94,8 @@ module.exports = async function (t) {
       !fl.pliki.obcy && !fl.pliki.obcy_kat, JSON.stringify(fl.pliki));
     t.check('…ale zostawiło wykluczenia kopii (debug.log, cache/) i dowiązanie wtyczki',
       fl.pliki.debug_log && fl.pliki.cache && fl.pliki.wtyczka_link && fl.pliki.plik === 'treść zażółć\n');
+    t.check('…i drop-in tego serwera (db-error.php), którego w kopii nie ma', fl.pliki.db_error === '<?php // serwer B',
+      JSON.stringify(fl.pliki.db_error));
 
     // ── Zakresy ────────────────────────────────────────────────────────────
     t.section('zakres: tylko baza, tylko pliki');
@@ -118,6 +120,11 @@ module.exports = async function (t) {
       z.status + (z.blad ? ': ' + z.blad : ''));
     t.check('katalog tej wtyczki nietknięty (kod, który przywraca, nie podmienia sam siebie)', z.wtyczka === false);
     t.check('„../" nie wychodzi poza wp-content', z.wyzej === false);
+    /* Zgłoszone z użycia (1.227.1): object-cache.php starego serwera
+       zatrzymywał każde żądanie, także kroki przywracania. */
+    t.check('drop-iny z kopii pominięte: bez object-cache.php, db-error.php tego serwera zostaje',
+      z.object_cache === false && z.db_error === '<?php // serwer B' && z.log.some((l) => /drop-in.*object-cache\.php/.test(l)),
+      JSON.stringify({ oc: z.object_cache, db: z.db_error }));
     t.check('pliki z katalogu głównego tylko do podglądu (.htaccess bez zmian), katalogi kopii pominięte',
       z.htaccess === true && z.kopia === false && z.log.length >= 2, JSON.stringify(z.log));
 

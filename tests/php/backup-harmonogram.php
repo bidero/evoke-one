@@ -161,6 +161,25 @@ switch ($scen) {
         $wynik['przywracanie'] = [count($maile), get_option(EVK_BACKUP_ALERT_OPTION)];
         break;
 
+    case 'domyslne':
+        /* Zapis spoza formularza (przełącznik modułu przez AJAX) na świeżej
+           instalacji: do 1.227.0 zerował wykluczenia i komunikat. */
+        $zapis = get_option(EVK_BACKUP_OPTION);
+        delete_option(EVK_BACKUP_OPTION);
+        $wynik['swieza'] = evk_backup_get_settings()['notify_notice'];
+        $po = evk_backup_sanitize(['enabled' => 1]);
+        $wynik['przelacznik_swieza'] = [$po['exclusions'] === implode("\n", evk_backup_default_exclusions()), $po['notify_notice'], $po['retention_count']];
+        // Zapisane „wyłączony" zostaje (decyzja z 1.227.1), także po przełączniku.
+        update_option(EVK_BACKUP_OPTION, ['enabled' => 0, 'notify_notice' => 0, 'exclusions' => 'moje/']);
+        $po = evk_backup_sanitize(['enabled' => 1, 'notify_notice' => 0, 'exclusions' => 'moje/']);
+        $wynik['przelacznik_zapisane'] = [$po['notify_notice'], $po['exclusions']];
+        // Formularz bez pola checkboxa (odznaczony) — wyłącza.
+        update_option(EVK_BACKUP_OPTION, ['enabled' => 1, 'notify_notice' => 1]);
+        $po = evk_backup_sanitize(['_formularz' => '1', 'retention_count' => '5', 'exclusions' => 'x/']);
+        $wynik['formularz_odznaczony'] = [$po['notify_notice'], $po['enabled'], isset($po['_formularz'])];
+        update_option(EVK_BACKUP_OPTION, $zapis);
+        break;
+
     case 'komunikat':
         update_option(EVK_BACKUP_ALERT_OPTION, ['title' => 'Kopia zapasowa nie powiodła się', 'text' => 'Test <b>komunikatu</b>', 'time' => time()]);
         $admin = get_users(['role' => 'administrator', 'number' => 1])[0] ?? null;

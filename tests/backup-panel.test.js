@@ -89,23 +89,39 @@ module.exports = async function (t) {
     /* ZGŁOSZONE Z UŻYCIA: „przyciski usuń, przypnij, pobierz w wersji mobilnej
        mają różne wysokości, chyba powinny się zwijać pod opis". Zmierzone
        przed poprawką: 40 px wobec 44 px, wiersz 536 px przy ekranie 390 px. */
-    await p.setViewportSize({ width: 390, height: 844 });
-    const tel = await p.evaluate(() => {
-      const w = document.querySelector('tr[data-archive]');
-      const opis = w.querySelector('td[data-label="Zawartość"]').getBoundingClientRect();
-      const btn = [...w.querySelectorAll('.evk-backup-akcje > *')].map((e) => e.getBoundingClientRect());
-      return {
-        wysokosci: btn.map((r) => Math.round(r.height)),
-        gory: btn.map((r) => Math.round(r.top)),
-        prawa: Math.max(...btn.map((r) => r.right)),
-        podOpisem: Math.min(...btn.map((r) => r.top)) >= opis.bottom - 1,
-        dokument: document.documentElement.scrollWidth,
-      };
-    });
-    t.check('cztery przyciski (pobierz, przypnij, przywróć, usuń) tej samej wysokości, w jednym rzędzie',
-      new Set(tel.wysokosci).size === 1 && new Set(tel.gory).size === 1, JSON.stringify(tel));
-    t.check('akcje pod opisem, w granicach ekranu, bez przewijania w bok',
-      tel.podOpisem && tel.prawa <= 390 && tel.dokument <= 390, JSON.stringify(tel));
+    /* ZGŁOSZONE Z UŻYCIA drugi raz (1.227.1): po dojściu „Przywróć" cztery
+       opisane przyciski przestały się mieścić. Przypięcie to teraz sama
+       pinezka na początku rzędu. Dwie szerokości: 390 px i 360 px (małe
+       telefony z Androidem). */
+    for (const szer of [390, 360]) {
+      await p.setViewportSize({ width: szer, height: 844 });
+      const tel = await p.evaluate(() => {
+        const w = document.querySelector('tr[data-archive]');
+        const opis = w.querySelector('td[data-label="Zawartość"]').getBoundingClientRect();
+        const el = [...w.querySelectorAll('.evk-backup-akcje > *')];
+        const btn = el.map((e) => e.getBoundingClientRect());
+        return {
+          pierwszy: el[0].hasAttribute('data-evk-backup-pin'),
+          pinezka: el[0].getAttribute('aria-label') + ' / ' + Math.round(btn[0].width) + ' px',
+          wysokosci: btn.map((r) => Math.round(r.height)),
+          gory: btn.map((r) => Math.round(r.top)),
+          prawa: Math.round(Math.max(...btn.map((r) => r.right))),
+          ucieteTeksty: el.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim()),
+          podOpisem: Math.min(...btn.map((r) => r.top)) >= opis.bottom - 1,
+          dokument: document.documentElement.scrollWidth,
+        };
+      });
+      /* Wąska pinezka to sens zmiany: reszta rzędu idzie na przyciski
+         z tekstem (zapas na większą czcionkę systemową). Mutacja, po której
+         rosła do ćwiartki rzędu, przechodziła — stąd szerokość wprost. */
+      t.check(szer + ' px: pinezka pierwsza, wąska (sama ikona), z nazwą dla czytnika',
+        tel.pierwszy && /Przypnij kopię/.test(tel.pinezka) && parseInt(tel.pinezka.split(' / ')[1], 10) <= 48, tel.pinezka);
+      t.check(szer + ' px: cztery przyciski tej samej wysokości, w jednym rzędzie, bez uciętego tekstu',
+        new Set(tel.wysokosci).size === 1 && new Set(tel.gory).size === 1 && tel.wysokosci.length === 4 && !tel.ucieteTeksty.length,
+        JSON.stringify(tel));
+      t.check(szer + ' px: akcje pod opisem, w granicach ekranu, bez przewijania w bok',
+        tel.podOpisem && tel.prawa <= szer && tel.dokument <= szer, JSON.stringify(tel));
+    }
     await p.setViewportSize({ width: 1280, height: 1000 });
     const desk = await p.$$eval('tr[data-archive] .evk-backup-akcje > *', (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
     t.check('na szerokim ekranie też równa wysokość', new Set(desk).size === 1, JSON.stringify(desk));

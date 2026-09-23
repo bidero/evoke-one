@@ -6,7 +6,8 @@ if (!defined('ABSPATH')) exit;
  *
  * Wszystko, co jest decyzją osoby przy panelu, siedzi w JEDNEJ opcji
  * `evk_backup`. Świeża instalacja nie zapisuje nic: każda flaga ma domyślnie 0,
- * zgodnie z zasadą z `01-install.php`.
+ * zgodnie z zasadą z `01-install.php` — z jednym wyjątkiem, komunikatem
+ * o nieudanej kopii (niżej, przy `notify_notice`).
  *
  * Czego tu NIE MA, i dlaczego — stan maszyny, a nie decyzje:
  *
@@ -43,7 +44,10 @@ function evk_backup_defaults(): array {
         // WYŁĄCZNIE na wpisane adresy (po przecinku) — puste pole = bez maili,
         // bez cichego zastępstwa adresem administratora (decyzja z 1.227.0).
         'notify_address'   => '',
-        'notify_notice'    => 0,
+        /* Komunikat w panelu o nieudanej kopii: domyślnie WŁĄCZONY (1.227.1) —
+           cicha porażka kopii to najgorszy scenariusz modułu. Wartość już
+           zapisana formularzem zostaje, jaka była (decyzja z 1.227.1). */
+        'notify_notice'    => 1,
     ];
 }
 
@@ -118,6 +122,15 @@ function evk_backup_sanitize($input): array {
     $in  = is_array($input) ? $input : [];
     $cur = evk_backup_get_settings();
     $c   = [];
+
+    /* SKĄD ZAPIS. Formularz zakładki niesie znacznik `_formularz` — tylko tam
+       brak pola checkboxa znaczy „odznaczone". Każdy inny zapis (przełącznik
+       modułu przez AJAX, przywracanie) dokłada do opcji pojedyncze pole:
+       czego w nim nie ma, zostaje jak było, a na świeżej instalacji —
+       domyślne. Do 1.227.0 pierwsze włączenie modułu zapisywało puste
+       wykluczenia i wyłączony komunikat (zmierzone: `exclusions` = ''). */
+    $formularz = !empty($in['_formularz']);
+    if (!$formularz) $in += $cur;
 
     /* Włącznik modułu idzie przełącznikiem AJAX (evk_toggle_allowlist), nie
        formularzem — formularz, który go nie zawiera, nie może go wyzerować. */

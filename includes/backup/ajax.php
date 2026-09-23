@@ -194,8 +194,10 @@ add_action('wp_ajax_evk_backup_pin', function () {
 
 add_action('wp_ajax_evk_backup_list', function () {
     evk_backup_ajax_guard();
-    evk_backup_import_scan();
-    wp_send_json_success(['html' => evk_backup_render_list()]);
+    $wgrane = evk_backup_import_scan();
+    // Pliki, które jeszcze czekają (zmienione w ostatniej minucie — mogą się wgrywać).
+    $czekaja = array_map('basename', glob(evk_backup_import_dir() . '/*.zip') ?: []);
+    wp_send_json_success(['html' => evk_backup_render_list(), 'moved' => $wgrane, 'waiting' => $czekaja]);
 });
 
 // =========================================================================
@@ -352,8 +354,14 @@ function evk_backup_render_list(): string {
                     echo isset($k['files']) ? esc_html(sprintf('%d plików, %d wierszy bazy', (int) $k['files'], (int) ($k['db_rows'] ?? 0))) : '—';
                 ?></td>
                 <td class="is-right evk-backup-akcje">
+                    <?php /* Przypięcie jako SAMA pinezka, pierwsza: z czterema opisanymi
+                             przyciskami rząd nie mieścił się na telefonie (zgłoszone,
+                             1.227.1). Nazwa w aria-label i dymku, stan w aria-pressed. */ ?>
+                    <button type="button" class="button button-small evk-backup-pin<?php echo $pin ? ' is-pinned' : ''; ?>"
+                            data-evk-backup-pin="<?php echo $pin ? '0' : '1'; ?>" aria-pressed="<?php echo $pin ? 'true' : 'false'; ?>"
+                            aria-label="<?php echo $pin ? 'Odepnij kopię' : 'Przypnij kopię'; ?>"
+                            title="<?php echo $pin ? 'Odepnij — retencja znów może ją usunąć' : 'Przypnij — retencja jej nie usunie'; ?>"><span class="dashicons dashicons-admin-post" aria-hidden="true"></span></button>
                     <a class="button button-small" href="<?php echo esc_url(evk_backup_download_url($n)); ?>" data-evk-backup-download>Pobierz</a>
-                    <button type="button" class="button button-small" data-evk-backup-pin="<?php echo $pin ? '0' : '1'; ?>"><?php echo $pin ? 'Odepnij' : 'Przypnij'; ?></button>
                     <button type="button" class="button button-small" data-evk-backup-restore>Przywróć</button>
                     <button type="button" class="button button-small evk-backup-usun" data-evk-backup-delete>Usuń</button>
                 </td>

@@ -45,6 +45,7 @@ $bk_ikony  = [
                    data-option="evk_backup"
                    data-field="enabled"
                    value="1"
+                   data-przeladuj="1"
                    <?php checked($bk_on); ?>
                    <?php disabled($bk_block && !$bk_on); ?>>
             <span class="evo-slider"></span>
@@ -63,7 +64,15 @@ $bk_ikony  = [
 <?php if ($bk_on && !$bk_silnik): ?>
 <div class="evo-info-box evo-mt">
     <span class="dashicons dashicons-update"></span>
-    <div>Moduł właśnie włączony — <a href="">odśwież stronę</a>, żeby pojawił się przycisk kopii i lista.</div>
+    <div>Moduł właśnie włączony — <a href="">odśwież stronę</a>, jeśli przycisk kopii i lista nie pojawiły się same.</div>
+</div>
+<?php endif; ?>
+
+<?php if ($bk_silnik && !$bk_block && trim((string) $bk_s['notify_address']) === ''): ?>
+<div class="evo-info-box is-warn evo-mt" data-evk-backup-bez-maila>
+    <span class="dashicons dashicons-email-alt"></span>
+    <div><strong>Nie ma adresu do powiadomień.</strong> Nieudana kopia nocna nie wyśle maila —
+    <a href="#evk-backup-adresy">wpisz adres w ustawieniach niżej</a>.</div>
 </div>
 <?php endif; ?>
 
@@ -97,9 +106,15 @@ $bk_ikony  = [
         <div>Przeniesione z katalogu FTP: <?php echo esc_html(implode(', ', $bk_wgrane)); ?>.</div></div>
     <?php endif; ?>
     <div data-evk-backup-list><?php echo evk_backup_render_list(); // phpcs:ignore WordPress.Security.EscapeOutput -- zbudowane z esc_* ?></div>
-    <p class="evo-muted evo-mt-xs evk-backup-ftp">Kopię z innego serwera wgraj przez FTP do
-    <code>wp-content/<?php echo esc_html(basename(evk_backup_import_dir())); ?>/</code> — pojawi się tu po odświeżeniu zakładki.
-    Plik wgrywany w tej chwili czeka minutę, żeby nie przenieść go w połowie.</p>
+    <div class="evk-backup-ftp evo-mt">
+        <p class="evo-muted">Kopię z innego serwera wgraj przez FTP do
+        <code>wp-content/<?php echo esc_html(basename(evk_backup_import_dir())); ?>/</code> i sprawdź katalog.
+        Plik zmieniony w ostatniej minucie czeka — może się jeszcze wgrywać.</p>
+        <button type="button" class="button" data-evk-backup-ftp>
+            <span class="dashicons dashicons-update evo-ico" aria-hidden="true"></span> Sprawdź katalog FTP
+        </button>
+        <p class="evk-backup-ftp-wynik" data-evk-backup-ftp-result aria-live="polite"></p>
+    </div>
 </div>
 
 <!-- PRZYWRACANIE: okno potwierdzenia (wypełnia backup.js danymi z manifestu kopii) -->
@@ -129,6 +144,8 @@ $bk_ikony  = [
 <!-- USTAWIENIA -->
 <form method="post" action="options.php" class="evo-box evo-mt">
     <?php settings_fields('evoke_one_backup'); ?>
+    <?php /* Znacznik: tylko w zapisie z formularza brak checkboxa = odznaczony (settings.php). */ ?>
+    <input type="hidden" name="evk_backup[_formularz]" value="1">
     <?php /* 'enabled' idzie przełącznikiem AJAX — sanitizer zachowuje go przy zapisie formularza. */ ?>
     <h3>Ustawienia</h3>
     <div class="evo-grid evo-mb" style="--evo-col:240px">
@@ -189,6 +206,8 @@ $bk_ikony  = [
     <div class="evo-field">
         <label for="evk-backup-wykluczenia">Wykluczenia (względem wp-content, jedno na linię)</label>
         <textarea id="evk-backup-wykluczenia" name="evk_backup[exclusions]" rows="8" class="large-text code"><?php echo esc_textarea((string) $bk_s['exclusions']); ?></textarea>
+        <button type="button" class="button button-small evo-mt-xs" data-evk-backup-domyslne
+                data-wartosc="<?php echo esc_attr(implode("\n", evk_backup_default_exclusions())); ?>">Przywróć domyślne wykluczenia</button>
         <div class="evo-desc"><code>cache/</code> to wyłącznie <code>wp-content/cache</code> (katalog o tej nazwie w środku wtyczki zostaje — bywa w nim kod).
         Wzorzec bez ukośnika, np. <code>*.log</code>, łapie nazwę w każdym miejscu. Katalogi kopii tej wtyczki są wykluczone zawsze.</div>
     </div>

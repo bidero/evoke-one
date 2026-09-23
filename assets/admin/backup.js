@@ -161,6 +161,33 @@
         }
     });
 
+    // ── Katalog FTP: sprawdzenie bez przeładowania zakładki ────────────────
+    var btnFtp = $('[data-evk-backup-ftp]');
+    var ftpWynik = $('[data-evk-backup-ftp-result]');
+    if (btnFtp) btnFtp.addEventListener('click', function () {
+        btnFtp.disabled = true;
+        ftpWynik.textContent = 'Sprawdzam…';
+        post('evk_backup_list').then(function (r) {
+            btnFtp.disabled = false;
+            if (!r || !r.success) { ftpWynik.textContent = 'Nie udało się sprawdzić katalogu.'; return; }
+            odswiezListe(r.data.html);
+            var d = r.data;
+            var tekst = d.moved.length ? 'Przeniesione na listę: ' + d.moved.join(', ') + '.' : 'Nowych kopii w katalogu nie ma.';
+            if (d.waiting.length) tekst += ' Czeka (zmienione przed chwilą, mogą się jeszcze wgrywać): ' + d.waiting.join(', ') + ' — sprawdź za minutę.';
+            ftpWynik.textContent = tekst;
+        }, function () { btnFtp.disabled = false; ftpWynik.textContent = 'Nie udało się sprawdzić katalogu.'; });
+    });
+
+    // Domyślne wykluczenia — do pola; zapis jak każda zmiana, przyciskiem formularza.
+    var btnDomyslne = $('[data-evk-backup-domyslne]');
+    if (btnDomyslne) btnDomyslne.addEventListener('click', function () {
+        var pole = $('#evk-backup-wykluczenia');
+        if (!pole) return;
+        pole.value = btnDomyslne.getAttribute('data-wartosc');
+        pole.dispatchEvent(new Event('input', { bubbles: true }));
+        pole.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
     // ── Okno przywracania ──────────────────────────────────────────────────
     var dlg = $('[data-evk-restore-dialog]');
     var dlgArchiwum = '';
