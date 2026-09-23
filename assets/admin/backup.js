@@ -406,6 +406,26 @@
     if (dyskListaEl) {
         dyskLista();
         dyskListaEl.addEventListener('click', function (e) {
+            /* Usunięcie jednej kopii z Dysku (1.229.6). Pytanie mówi, czyja to
+               kopia, czy przypięta i że ta na serwerze zostaje. */
+            var u = e.target.closest('[data-evk-gdrive-delete]');
+            var wu = e.target.closest('tr[data-drive-id]');
+            if (u && wu) {
+                var pytanie = 'Usunąć z Dysku Google kopię z ' + u.getAttribute('data-when') + '? Tego nie da się cofnąć.'
+                    + (u.hasAttribute('data-site') ? '\nTo kopia strony ' + u.getAttribute('data-site') + '.' : '')
+                    + (u.hasAttribute('data-pinned') ? '\nJest przypięta — retencja jej nie rusza.' : '')
+                    + (u.hasAttribute('data-local') ? '\nKopia na serwerze zostaje.' : '');
+                if (!window.confirm(pytanie)) return;
+                u.disabled = true;
+                post('evk_backup_gdrive_delete', { file: wu.getAttribute('data-drive-id') }).then(function (r) {
+                    u.disabled = false;
+                    if (!r || !r.success) { komunikat((r && r.data && r.data.msg) || 'Nie udało się usunąć kopii z Dysku.', 'err'); dyskLista(); return; }
+                    odswiezListe(r.data.html);
+                    dyskLista();
+                    komunikat(r.data.msg, 'ok');
+                }, function () { u.disabled = false; });
+                return;
+            }
             var b = e.target.closest('[data-evk-gdrive-restore]');
             var wiersz = e.target.closest('tr[data-drive-id]');
             if (!b || !wiersz) return;

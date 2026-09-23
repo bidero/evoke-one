@@ -152,6 +152,29 @@ module.exports = async function (t) {
     const sb = w.strumien_blad;
     t.check('błąd od Google w strumieniu (403): czytelny komunikat, do części nie trafia ani bajt',
       sb.status === 'failed' && /download quota/.test(sb.blad) && sb.czesc === false, JSON.stringify(sb));
+    // ── Usuwanie jednej kopii z Dysku (1.229.6) ─────────────────────────
+    t.section('usuwanie pojedynczej kopii z Dysku');
+    const us = w.usuwanie;
+    t.check('wysłana kopia usunięta z Dysku; na serwerze zostaje, bez identyfikatora Dysku',
+      us.wysylka === 'done' && us.id && us.wyslana.local === 'dysk-usun.zip' && us.wyslana_na_dysku === false
+        && us.lokalna === true && us.lokalna_drive_id === null && us.lokalna_zrodlo === 'manual', JSON.stringify(us));
+    t.check('przypiętą i kopię innej strony też można usunąć (decyzja zgłaszającego)',
+      us.przypieta.name === 'usun-przypieta.zip' && us.cudza.name === 'usun-cudza.zip'
+        && us.przypieta_na_dysku === false && us.cudza_na_dysku === false, JSON.stringify([us.przypieta, us.cudza]));
+    /* drive.file widzi też folder „Evoke ONE — …" — jego usunięcie zabrałoby
+       wszystkie kopie w nim. */
+    t.check('folder kopii i plik bez znacznika kopii: odmowa, zostają (z kopiami w folderze)',
+      /nie jest kopia zapasowa/.test(us.folder) && /nie jest kopia zapasowa/.test(us.nie_kopia)
+        && us.folder_na_dysku && us.nie_kopia_na_dysku && us.w_folderze >= 5, JSON.stringify([us.folder, us.w_folderze]));
+    const li = w.lista;
+    t.check('przycisk usuwania przy każdej kopii na liście; niesie stronę (inna), przypięcie i „na serwerze" do pytania',
+      li.usun === li.wierszy && li.usun_strona === 1 && li.usun_przypieta === li.przypietych && li.przypietych >= 1 && li.usun_lokalna === li.na_serwerze,
+      JSON.stringify({ usun: li.usun, wierszy: li.wierszy, strona: li.usun_strona, przyp: [li.usun_przypieta, li.przypietych], lok: [li.usun_lokalna, li.na_serwerze] }));
+    t.check('zły identyfikator: odmowa bez żądania do Google', /Nieprawidłowy identyfikator/.test(us.zly_id) && us.zly_id_zadan === 0,
+      us.zly_id + ' / żądań: ' + us.zly_id_zadan);
+    t.check('kopia już usunięta: czytelny komunikat', /nie ma już na Dysku/.test(us.juz_nie_ma), us.juz_nie_ma);
+    t.check('kopia, która właśnie się pobiera: odmowa, zostaje', /właśnie pobiera/.test(us.w_trakcie) && us.pobierana_na_dysku,
+      us.w_trakcie);
     const lc = w.lista_czasy;
     t.check('lista z Dysku oddaje czasy każdego żądania (lista, miejsce) z rozbiciem',
       lc.n >= 2 && lc.co.includes('GET /drive/v3/files') && lc.co.includes('GET /drive/v3/about') && lc.opisy.every((o) => /DNS/.test(o)),

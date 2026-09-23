@@ -2,6 +2,58 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.229.6] — 2026-09-23
+
+### Dodane (zgłoszone z evoke.pl)
+
+- **Usuwanie pojedynczej kopii z Dysku Google.** Przy każdej kopii na liście
+  z Dysku jest przycisk „Usuń", obok „Pobierz i przywróć". Usuwa na stałe,
+  jak retencja, bo kosz dalej zajmuje miejsce.
+  - Pytanie podaje datę kopii i dopowiada, gdy to kopia innej strony z tego
+    konta Google, gdy jest przypięta („retencja jej nie rusza") i gdy jest
+    też na serwerze.
+  - Przypiętą i kopię innej strony też można usunąć.
+  - Kopia na serwerze zostaje: traci plakietkę „na Dysku" i wraca przy niej
+    „Wyślij na Dysk Google".
+- Zabezpieczenia:
+  - usuwany jest wyłącznie plik oznaczony jako kopia tej wtyczki. Zakres
+    `drive.file` widzi też folder „Evoke ONE — …", a jego usunięcie
+    zabrałoby wszystkie kopie w nim;
+  - odmowa, gdy ta kopia właśnie się pobiera;
+  - zły identyfikator jest odrzucany bez pytania Google;
+  - kopia już usunięta daje czytelny komunikat.
+
+### Testy
+
+- `backup-drive`:
+  - wysłana kopia usunięta, a lokalna zostaje bez `drive_id`;
+  - przypięta i innej strony usuwają się;
+  - folder i plik bez znacznika zostają (z 7 plikami w folderze);
+  - zły identyfikator: 0 żądań do Google;
+  - kopia już usunięta;
+  - kopia w trakcie pobierania;
+  - przycisk przy każdej kopii niesie stronę, przypięcie i „na serwerze".
+- `backup-panel-drive`:
+  - „Anuluj" w pytaniu nic nie usuwa;
+  - treść pytania;
+  - po zgodzie kopia znika z Dysku i z listy, a lokalna odzyskuje przycisk
+    wysyłki;
+  - 403 bez nonce;
+  - na 360 px oba przyciski mieszczą się w wierszu.
+- Mutacje, każda zapala swoje:
+  - bez sprawdzenia znacznika;
+  - bez czyszczenia `drive_id`;
+  - bez walidacji identyfikatora;
+  - bez blokady w trakcie pobierania;
+  - panel bez pytania;
+  - przycisk bez strony.
+
+### Wydanie
+
+- To wydanie idzie też na `main` (fast-forward z gałęzi roboczej). Tag
+  z `auto-tag.yml`, więc aktualizator rozsyła na wszystkie strony cały moduł
+  kopii (1.225.0–1.229.6).
+
 ## [1.229.5] — 2026-09-23
 
 ### Zmienione (zgłoszone z evoke.pl)

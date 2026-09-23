@@ -514,6 +514,44 @@ function evk_gdrive_retention(string $zostaw = ''): array {
     return $usuniete;
 }
 
+/**
+ * Usunięcie JEDNEJ kopii z Dysku z panelu (1.229.6) — na stałe, jak retencja
+ * (kosz dalej zajmuje miejsce). Także przypiętej i kopii innej strony z tego
+ * konta (decyzja zgłaszającego; pytanie w panelu to mówi). Kopia na serwerze
+ * zostaje, traci tylko `drive_id`. Oddaje nazwę i nazwę kopii lokalnej ('' gdy
+ * nie ma); rzuca RuntimeException z komunikatem dla panelu.
+ */
+function evk_gdrive_delete_backup(string $id): array {
+    if (!preg_match('/^[A-Za-z0-9_-]{10,200}$/', $id)) throw new \RuntimeException('Nieprawidłowy identyfikator pliku na Dysku.');
+    $trwa = evk_backup_job_active();
+    if ($trwa && $trwa['type'] === 'download' && ($trwa['state']['file'] ?? '') === $id) {
+        throw new \RuntimeException('Ta kopia właśnie pobiera się z Dysku.');
+    }
+    $c = evk_gdrive_config();
+    $url = $c['api'] . '/files/' . rawurlencode($id);
+    /* Zakres drive.file widzi WSZYSTKO, co wtyczka utworzyła — także folder
+       „Evoke ONE — …". Usunięcie folderu zabrałoby wszystkie kopie w nim, więc
+       usuwamy wyłącznie plik oznaczony jako kopia. */
+    $r = evk_gdrive_api('GET', $url . '?fields=id,name,appProperties,trashed');
+    if ($r['code'] === 404) throw new \RuntimeException('Tej kopii nie ma już na Dysku — lista zaraz się odświeży.');
+    if ($r['code'] !== 200) throw new \RuntimeException(evk_gdrive_error($r, 'usuwanie'));
+    if ((($r['json']['appProperties'] ?? [])['evk'] ?? '') !== 'backup') {
+        throw new \RuntimeException('To nie jest kopia zapasowa tej wtyczki — nie usuwam.');
+    }
+    $d = evk_gdrive_api('DELETE', $url);
+    if (!in_array($d['code'], [200, 204, 404], true)) throw new \RuntimeException(evk_gdrive_error($d, 'usuwanie'));
+    $lokalna = evk_gdrive_local_for($id);
+    if ($lokalna !== '') {
+        $p = evk_backup_archive_path($lokalna);
+        $meta = $p && is_file($p . '.json') ? (json_decode((string) file_get_contents($p . '.json'), true) ?: []) : [];
+        if ($p && $meta) {
+            unset($meta['drive_id']);
+            evk_backup_meta_write($p, $meta);
+        }
+    }
+    return ['name' => (string) ($r['json']['name'] ?? ''), 'local' => $lokalna];
+}
+
 /** Przypięcie kopii lokalnej idzie też na Dysk — retencja Dysku go szanuje. */
 add_action('evk_backup_pinned', static function (string $nazwa, bool $przypieta, array $meta): void {
     if (empty($meta['drive_id']) || !evk_gdrive_connected()) return;
@@ -1085,6 +1123,17 @@ add_action('wp_ajax_evk_backup_gdrive_upload', static function (): void {
     wp_send_json_success(['job' => evk_backup_job_public(evk_backup_job_get($id))]);
 });
 
+add_action('wp_ajax_evk_backup_gdrive_delete', static function (): void {
+    evk_backup_ajax_guard();
+    try {
+        $w = evk_gdrive_delete_backup((string) wp_unslash($_POST['file'] ?? ''));
+    } catch (\RuntimeException $e) {
+        wp_send_json_error(['msg' => $e->getMessage()]);
+    }
+    wp_send_json_success(['html' => evk_backup_render_list(),
+        'msg' => 'Usunięto z Dysku Google: ' . $w['name'] . '.' . ($w['local'] !== '' ? ' Kopia na serwerze zostaje.' : '')]);
+});
+
 add_action('wp_ajax_evk_backup_gdrive_download', static function (): void {
     evk_backup_ajax_guard();
     $plik = (string) wp_unslash($_POST['file'] ?? '');
@@ -1127,6 +1176,12 @@ function evk_gdrive_render_list(array $pliki): string {
                 <td data-label="Zawartość" class="evo-muted"><?php echo esc_html(sprintf('%d plików, %d wierszy bazy', $f['files'], $f['db_rows'])); ?></td>
                 <td class="is-right evk-backup-akcje">
                     <button type="button" class="button button-small" data-evk-gdrive-restore>Pobierz i przywróć</button>
+                    <button type="button" class="button button-small evk-backup-usun" data-evk-gdrive-delete
+                        data-when="<?php echo esc_attr($f['created'] ? wp_date('Y-m-d H:i', $f['created']) : $f['name']); ?>"
+                        <?php if ($f['site'] !== $tu): ?>data-site="<?php echo esc_attr($f['site']); ?>"<?php endif; ?>
+                        <?php if ($f['pinned']): ?>data-pinned<?php endif; ?>
+                        <?php if (isset($lokalne[$f['id']])): ?>data-local<?php endif; ?>
+                        aria-label="Usuń z Dysku Google">Usuń</button>
                 </td>
             </tr>
         <?php endforeach; ?>

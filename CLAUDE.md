@@ -289,6 +289,10 @@ push z sekretem, NIE jest do odblokowywania „bo tak ustaliliśmy" — to sygna
 
 - Numer wersji w **trzech miejscach**: `evoke-one.php` (nagłówek + stała)
   i `CHANGELOG.md`. Pilnuje tego `tests/drobiazgi.test.js`.
+- **`main` tylko na hasło zgłaszającego.** Praca i wydania idą na gałąź
+  roboczą. Push na `main` tworzy tag (`.github/workflows/auto-tag.yml`),
+  a aktualizator (`99-github-updater.php`) rozsyła tagi na WSZYSTKIE strony
+  z wtyczką. Pierwszy taki push: 1.229.6, na wyraźną prośbę zgłaszającego.
 - Każdy commit to wydanie. Wyjątkiem są commity wyraźnie oznaczone
   *„(bez wydania)"* — praca w toku, której przebieg jeszcze nie potwierdził.
 - Gałąź robocza jedzie na żywe strony aktualizatorem, razem z katalogiem

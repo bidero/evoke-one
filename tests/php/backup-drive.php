@@ -256,7 +256,10 @@ $lista = evk_gdrive_list_backups();
 $html = evk_gdrive_render_list($lista);
 $w['lista'] = ['nazwy' => array_column($lista, 'name'), 'cudza_strona' => strpos($html, 'inna.test') !== false,
     'ta_strona' => substr_count($html, 'ta strona'), 'na_serwerze' => substr_count($html, 'data-evk-gdrive-local'),
-    'miejsce' => evk_gdrive_quota_label((array) evk_gdrive_quota())];
+    'miejsce' => evk_gdrive_quota_label((array) evk_gdrive_quota()),
+    'usun' => substr_count($html, 'data-evk-gdrive-delete'), 'usun_strona' => substr_count($html, 'data-site="inna.test"'),
+    'usun_przypieta' => substr_count($html, ' data-pinned'), 'usun_lokalna' => substr_count($html, ' data-local'),
+    'przypietych' => count(array_filter($lista, static function ($f) { return $f['pinned']; })), 'wierszy' => count($lista)];
 
 // ── Pobranie z Dysku zakresami, z chwilowym błędem ───────────────────────────
 evk_backup_delete_archive('dysk-test-1.zip');
@@ -370,6 +373,45 @@ $jobE = do_konca((int) evk_gdrive_download_start((string) ($metaT['drive_id'] ??
 $w['strumien_blad'] = ['status' => $jobE['status'], 'blad' => $jobE['error'],
     'czesc' => (bool) glob(evk_backup_dir() . '/.pobieranie-*')];
 $sufit = 262144;
+
+// ── Usuwanie jednej kopii z Dysku z panelu (1.229.6) ─────────────────────
+$wpdb->query('DELETE FROM ' . evk_backup_jobs_table());
+kopia('dysk-usun.zip', 100000, 31, time());
+$jobU = do_konca(evk_gdrive_upload_start('dysk-usun.zip'));
+$idU = (string) (json_decode((string) file_get_contents(evk_backup_dir() . '/dysk-usun.zip.json'), true)['drive_id'] ?? '');
+$usun = static function (string $id) {
+    try { return evk_gdrive_delete_backup($id); } catch (\RuntimeException $e) { return 'odmowa: ' . $e->getMessage(); }
+};
+$uPrzypieta = $posiej('usun-przypieta.zip', [$folder], ['evk_site' => evk_gdrive_site_key(), 'created' => (string) time(), 'pinned' => '1']);
+$uCudza     = $posiej('usun-cudza.zip', ['INNYFOLDER'], ['evk_site' => 'inna.test', 'created' => (string) time()]);
+$uPobierana = $posiej('usun-pobierana.zip', [$folder], ['evk_site' => evk_gdrive_site_key(), 'created' => (string) time()]);
+$w['usuwanie'] = ['wysylka' => $jobU['status'], 'id' => $idU !== ''];
+$w['usuwanie']['wyslana'] = $usun($idU);
+$stan = atrapa('/_atrapa/stan');
+$metaU = json_decode((string) file_get_contents(evk_backup_dir() . '/dysk-usun.zip.json'), true);
+$w['usuwanie'] += ['wyslana_na_dysku' => isset($stan['pliki'][$idU]), 'lokalna' => is_file(evk_backup_dir() . '/dysk-usun.zip'),
+    'lokalna_drive_id' => $metaU['drive_id'] ?? null, 'lokalna_zrodlo' => $metaU['source'] ?? null];
+$w['usuwanie']['przypieta'] = $usun($uPrzypieta);
+$w['usuwanie']['cudza'] = $usun($uCudza);
+$w['usuwanie']['folder'] = $usun($folder);
+$w['usuwanie']['nie_kopia'] = $usun($inny);
+$doDysku = static function (): int {
+    return count(array_filter(atrapa('/_atrapa/stan')['log'], static function ($l) { return strpos($l['p'], '/drive/') === 0; }));
+};
+$przed = $doDysku();
+$w['usuwanie']['zly_id'] = $usun('../../x');
+$w['usuwanie']['zly_id_zadan'] = $doDysku() - $przed;
+$w['usuwanie']['juz_nie_ma'] = $usun($idU);
+$idPob = evk_gdrive_download_start($uPobierana);
+$w['usuwanie']['w_trakcie'] = $usun($uPobierana);
+if (!is_wp_error($idPob)) evk_backup_cancel((int) $idPob);
+$wpdb->query('DELETE FROM ' . evk_backup_jobs_table());
+$stan = atrapa('/_atrapa/stan');
+$w['usuwanie'] += ['przypieta_na_dysku' => isset($stan['pliki'][$uPrzypieta]), 'cudza_na_dysku' => isset($stan['pliki'][$uCudza]),
+    'folder_na_dysku' => isset($stan['pliki'][$folder]), 'nie_kopia_na_dysku' => isset($stan['pliki'][$inny]),
+    'pobierana_na_dysku' => isset($stan['pliki'][$uPobierana]),
+    'w_folderze' => count(array_filter($stan['pliki'], static function ($f) use ($folder) { return in_array($folder, (array) ($f['parents'] ?? []), true); }))];
+evk_backup_delete_archive('dysk-usun.zip');
 
 // ── Dostęp cofnięty w Google (invalid_grant) ─────────────────────────────
 delete_option(EVK_BACKUP_ALERT_OPTION);

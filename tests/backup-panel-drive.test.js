@@ -34,7 +34,9 @@ module.exports = async function (t) {
     const p = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
     const bledy = [];
     p.on('pageerror', (e) => bledy.push(e.message));
-    p.on('dialog', (d) => d.accept());
+    const dialogi = [];
+    let odrzucaj = false;
+    p.on('dialog', (d) => { dialogi.push(d.message()); return odrzucaj ? d.dismiss() : d.accept(); });
     await serwerWp.zaloguj(p, baza);
     const zakladka = baza + '/wp-admin/options-general.php?page=evoke-one&tab=backup';
     await p.goto(zakladka);
@@ -199,6 +201,39 @@ module.exports = async function (t) {
     t.check('licznik sekund czekania rośnie („Dysk Google przygotowuje plik… N s")', liczby.length >= 2, liczby.join(' → ') || 'brak');
     t.check('po pobraniu pasek znów zwykły', !/is-czeka/.test(koniecKlasa), koniecKlasa);
     await g.ster({ czekaj: 0, wolno: 0 });
+
+    t.section('usuwanie kopii z Dysku');
+    await p.goto(zakladka);
+    await p.waitForSelector('[data-evk-gdrive-list] tr[data-drive-id]', { timeout: 15000 }).catch(() => {});
+    const usunDysk = '[data-evk-gdrive-list] tr[data-drive-id] [data-evk-gdrive-delete]';
+    t.check('przy kopii z Dysku przycisk „Usuń z Dysku Google"', (await p.getAttribute(usunDysk, 'aria-label')) === 'Usuń z Dysku Google');
+    odrzucaj = true;
+    dialogi.length = 0;
+    await p.click(usunDysk);
+    await p.waitForTimeout(1500);
+    odrzucaj = false;
+    const plikiPoOdmowie = Object.values((await g.stan()).pliki).filter((x) => x.name === 'panel-dysk.zip').length;
+    t.check('„Anuluj" w pytaniu: nic nie znika', plikiPoOdmowie === 1 && (await p.locator('[data-evk-gdrive-list] tr[data-drive-id]').count()) === 1,
+      'na Dysku: ' + plikiPoOdmowie);
+    t.check('pytanie z datą kopii i informacją, że kopia na serwerze zostaje',
+      dialogi.length === 1 && /^Usunąć z Dysku Google kopię z \d{4}-\d\d-\d\d \d\d:\d\d\? Tego nie da się cofnąć\.\nKopia na serwerze zostaje\.$/.test(dialogi[0]),
+      JSON.stringify(dialogi));
+    await p.click(usunDysk);
+    await p.waitForSelector('[data-evk-gdrive-empty]', { timeout: 15000 }).catch(() => {});
+    const msgU = await p.locator('[data-evk-backup-msg]').textContent().catch(() => '');
+    t.check('po zgodzie: kopia znika z Dysku i z listy, komunikat',
+      Object.values((await g.stan()).pliki).every((x) => x.name !== 'panel-dysk.zip') && await widac(p, '[data-evk-gdrive-empty]')
+        && /Usunięto z Dysku Google: panel-dysk\.zip\. Kopia na serwerze zostaje\./.test(msgU || ''), msgU);
+    t.check('kopia na serwerze zostaje: bez plakietki „na Dysku", wraca „Wyślij na Dysk Google"',
+      (await p.locator('tr[data-archive="panel-dysk.zip"]').count()) === 1
+        && (await p.locator('tr[data-archive="panel-dysk.zip"] [data-evk-backup-on-drive]').count()) === 0
+        && await widac(p, 'tr[data-archive="panel-dysk.zip"] [data-evk-backup-drive]'));
+    const nonceU = await p.request.post(baza + '/wp-admin/admin-ajax.php', { form: { action: 'evk_backup_gdrive_delete', nonce: 'zly', file: 'F000000000000' } });
+    t.check('usuwanie z Dysku bez ważnego nonce: 403', nonceU.status() === 403, String(nonceU.status()));
+    // Z powrotem na Dysk — dalsze sprawdzenia (rozłączenie) liczą na tę kopię.
+    await p.click('tr[data-archive="panel-dysk.zip"] [data-evk-backup-drive]');
+    await p.locator('[data-evk-backup-msg]').filter({ hasText: /Kopia na Dysku Google: panel-dysk\.zip/ }).waitFor({ timeout: 60000 }).catch(() => {});
+    t.check('i można ją wysłać jeszcze raz', Object.values((await g.stan()).pliki).some((x) => x.name === 'panel-dysk.zip'));
 
     t.section('odmowa w Google, rozłączenie');
     await p.click('[data-evk-gdrive-disconnect]');
