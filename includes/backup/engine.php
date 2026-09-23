@@ -14,8 +14,9 @@ if (!defined('ABSPATH')) exit;
  *     działa także w nocy na stronie bez ruchu,
  *   - WP-Cron — zapasowy krok planowany Z GÓRY, zanim zacznie się praca:
  *     krok ubity w połowie nie zostawia zadania bez następcy,
- *   - panel — dopóki zakładka jest otwarta, jej odpytywanie popycha zadanie,
- *     które od kilku sekund nikt nie ruszył (loopback zablokowany).
+ *   - panel — dopóki zakładka jest otwarta, popycha osobnym żądaniem zadanie,
+ *     które od kilku sekund nikt nie ruszył (loopback zablokowany); pytanie
+ *     o stan tylko czyta (ajax.php, evk_backup_nudge).
  *
  * LOCK — warunkowy UPDATE na wierszu zadania, sprawdzany liczbą zmienionych
  * wierszy. Atomowy, w przeciwieństwie do transientu. Krok odnawia go przy
@@ -43,7 +44,7 @@ const EVK_BACKUP_LOG_LINES    = 300;
 /** Najdłuższa porcja pracy między zapisami postępu (s) — patrz run_phases. */
 const EVK_BACKUP_SLICE        = 1.0;
 
-add_action('evk_backup_tick', 'evk_backup_tick');
+add_action('evk_backup_tick', static function (int $id): void { evk_backup_tick($id, null, 'WP-Cron'); });
 
 // =========================================================================
 // ZADANIA
@@ -189,10 +190,11 @@ function evk_backup_kick(int $id): void {
 
 /**
  * Jeden krok zadania. $budzet_ms nadpisuje budżet z zadania (panel popycha
- * krótszymi krokami, żeby pasek postępu żył). Zwraca stan po kroku albo null,
+ * krótszymi krokami, żeby pasek postępu żył). $skad — kto zrobił krok („w tle",
+ * „z panelu", „WP-Cron"), do dziennika. Zwraca stan po kroku albo null,
  * gdy krok się nie odbył (brak zadania, zakończone, lock zajęty).
  */
-function evk_backup_tick(int $id, ?int $budzet_ms = null): ?array {
+function evk_backup_tick(int $id, ?int $budzet_ms = null, string $skad = ''): ?array {
     global $wpdb;
     $job = evk_backup_job_get($id);
     if (!$job || !in_array($job['status'], ['queued', 'running'], true)) return null;
@@ -276,6 +278,10 @@ function evk_backup_tick(int $id, ?int $budzet_ms = null): ?array {
     if (in_array($job['status'], ['done', 'failed', 'cancelled'], true)) {
         wp_clear_scheduled_hook('evk_backup_tick', [$id]);
         evk_backup_job_update($id, ['lock_until' => 0]);
+        // Ostatni krok też w dzienniku — z tym, kto go zrobił.
+        if ($job['status'] === 'done') {
+            evk_backup_job_log($id, sprintf('Krok %d%s: gotowe, %.1f s.', $job['ticks'], $skad !== '' ? ' (' . $skad . ')' : '', $czas / 1000));
+        }
         return evk_backup_job_get($id);
     }
 
@@ -286,7 +292,8 @@ function evk_backup_tick(int $id, ?int $budzet_ms = null): ?array {
         'progress_total' => $job['progress_total'], 'heartbeat' => time(), 'lock_until' => 0,
         'kills' => 0, 'budget_ms' => $budzet_ms === null ? $nowy : $job['budget_ms'],
     ]);
-    evk_backup_job_log($id, sprintf('Krok %d: %s, %.1f s.', $job['ticks'], evk_backup_phase_label($job['phase']), $czas / 1000));
+    evk_backup_job_log($id, sprintf('Krok %d%s: %s, %.1f s.', $job['ticks'], $skad !== '' ? ' (' . $skad . ')' : '',
+        evk_backup_phase_label($job['phase']), $czas / 1000));
     evk_backup_kick($id);
     return evk_backup_job_get($id);
 }

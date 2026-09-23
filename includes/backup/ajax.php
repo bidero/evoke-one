@@ -99,27 +99,48 @@ add_action('wp_ajax_evk_backup_start', function () {
 });
 
 /**
- * Stan zadania — i POPYCHANIE: zadanie, którego od 3 s nikt nie ruszył
- * (lock wolny, znak życia stary), dostaje krok z tego żądania. Tak kopia idzie
- * dalej przy otwartej zakładce nawet wtedy, gdy serwer blokuje żądania do
- * samego siebie. Krótszy budżet (8 s), żeby pasek postępu żył.
+ * POPYCHANIE: zadanie, którego od 3 s nikt nie ruszył (lock wolny, znak życia
+ * stary), dostaje krok z panelu. Tak kopia idzie dalej przy otwartej zakładce
+ * nawet wtedy, gdy serwer blokuje żądania do samego siebie. Krótszy budżet
+ * (8 s).
+ *
+ * Krok idzie OSOBNYM żądaniem (evk_backup_nudge), nie w pytaniu o stan. Do
+ * 1.229.3 robiło go samo pytanie o stan, więc odpowiedź przychodziła dopiero
+ * po kroku, a zapisy postępu w jego trakcie czytał nikt. Zgłoszone z evoke.pl:
+ * „pasek się nie odświeża". Zmierzone w teście panelu (pobranie z Dysku bez
+ * pracy w tle, ~6,5 s): pasek 0 → 100, nic pomiędzy.
  */
-/** Popchnięcie zadania z żądania panelu (także kopii, na którą czeka przywracanie). */
-function evk_backup_nudge(?array $job): ?array {
-    if (!$job) return null;
+/** Id zadania do popchnięcia z panelu (także kopii, na którą czeka przywracanie) albo 0. */
+function evk_backup_needs_nudge(?array $job): int {
+    if (!$job) return 0;
     $praca = $job['status'] === 'waiting' ? evk_backup_job_before($job['id']) : $job;
-    if ($praca && in_array($praca['status'], ['queued', 'running'], true)
-        && $praca['lock_until'] === 0 && time() - $praca['heartbeat'] >= 3) {
-        evk_backup_tick($praca['id'], 8000);
-    }
-    return evk_backup_job_get($job['id']);
+    return $praca && in_array($praca['status'], ['queued', 'running'], true)
+        && $praca['lock_until'] === 0 && time() - $praca['heartbeat'] >= 3 ? (int) $praca['id'] : 0;
+}
+
+function evk_backup_nudge(?array $job): void {
+    $id = evk_backup_needs_nudge($job);
+    if ($id) evk_backup_tick($id, 8000, 'z panelu');
+}
+
+/** Stan dla panelu z podpowiedzią, czy wysłać popchnięcie. */
+function evk_backup_status_payload(?array $job): array {
+    $pub = evk_backup_job_public($job);
+    if ($pub) $pub['popchnij'] = evk_backup_needs_nudge($job) > 0;
+    return ['job' => $pub];
 }
 
 add_action('wp_ajax_evk_backup_status', function () {
     evk_backup_ajax_guard();
     $id = absint($_POST['id'] ?? 0);
-    $job = evk_backup_nudge($id ? evk_backup_job_get($id) : evk_backup_job_active());
-    wp_send_json_success(['job' => evk_backup_job_public($job)]);
+    wp_send_json_success(evk_backup_status_payload($id ? evk_backup_job_get($id) : evk_backup_job_active()));
+});
+
+add_action('wp_ajax_evk_backup_nudge', function () {
+    evk_backup_ajax_guard();
+    $id = absint($_POST['id'] ?? 0);
+    evk_backup_nudge($id ? evk_backup_job_get($id) : evk_backup_job_active());
+    wp_send_json_success();
 });
 
 // =========================================================================
@@ -157,7 +178,8 @@ add_action('wp_ajax_evk_backup_restore_start', function () {
     wp_send_json_success(['job' => evk_backup_job_public(evk_backup_job_get($id)), 'token' => evk_restore_status_token($id)]);
 });
 
-function evk_restore_status_handler(): void {
+/** Przywracanie wskazane przez id i token z żądania — albo 403/404 i koniec. */
+function evk_restore_job_by_token(): array {
     $id = absint($_POST['id'] ?? 0);
     $token = (string) wp_unslash($_POST['token'] ?? '');
     if (!$id || !hash_equals(evk_restore_status_token($id), $token)) {
@@ -165,10 +187,21 @@ function evk_restore_status_handler(): void {
     }
     $job = evk_backup_job_get($id);
     if (!$job || $job['type'] !== 'restore') wp_send_json_error(['msg' => 'Nie ma takiego przywracania.'], 404);
-    wp_send_json_success(['job' => evk_backup_job_public(evk_backup_nudge($job))]);
+    return $job;
+}
+
+function evk_restore_status_handler(): void {
+    wp_send_json_success(evk_backup_status_payload(evk_restore_job_by_token()));
 }
 add_action('wp_ajax_nopriv_evk_backup_restore_status', 'evk_restore_status_handler');
 add_action('wp_ajax_evk_backup_restore_status', 'evk_restore_status_handler');
+
+function evk_restore_nudge_handler(): void {
+    evk_backup_nudge(evk_restore_job_by_token());
+    wp_send_json_success();
+}
+add_action('wp_ajax_nopriv_evk_backup_restore_nudge', 'evk_restore_nudge_handler');
+add_action('wp_ajax_evk_backup_restore_nudge', 'evk_restore_nudge_handler');
 
 add_action('wp_ajax_evk_backup_cancel', function () {
     evk_backup_ajax_guard();
@@ -229,7 +262,7 @@ function evk_backup_loopback_handler(): void {
         wp_die('', '', ['response' => 403]);
     }
     evk_backup_finish_request();
-    evk_backup_tick($id);
+    evk_backup_tick($id, null, 'w tle');
     wp_die('', '', ['response' => 200]);
 }
 add_action('wp_ajax_nopriv_evk_backup_loopback', 'evk_backup_loopback_handler');

@@ -143,7 +143,7 @@ switch ($scen) {
             'zaplanowany' => (bool) wp_next_scheduled('evk_backup_tick', [$id]),
             'lock'        => $job['lock_until'],
             'log_fazy'    => array_values(array_unique(array_filter(array_map(static function ($l) {
-                return preg_match('/Krok \d+: ([^,]+),/u', $l, $m) ? $m[1] : null; }, explode("\n", (string) $job['log']))))),
+                return preg_match('/Krok \d+(?: \([^)]*\))?: ([^,]+),/u', $l, $m) ? $m[1] : null; }, explode("\n", (string) $job['log']))))),
             'fakty'       => archiwum_fakty($zip),
         ];
         break;

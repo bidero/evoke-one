@@ -2,6 +2,52 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.229.4] — 2026-09-23
+
+### Poprawione (zgłoszone z evoke.pl)
+
+- **Pasek postępu rusza się, gdy krok robi karta panelu.** Po 1.229.3
+  pobieranie z Dysku szło szybko, ale pasek stał, a potem od razu było
+  „gotowe". Przyczyna: gdy praca w tle nie ruszy kroku na czas (serwer blokuje
+  żądania do samego siebie albo pierwsze pytanie panelu ją wyprzedzi), krok
+  robi karta panelu. Do tej pory robiło go samo pytanie o stan, więc
+  odpowiedź przychodziła dopiero po kroku, a zapisy postępu z jego trakcie
+  czytał nikt. Szybkie pobranie mieściło się w jednym takim kroku.
+- Teraz pytanie o stan tylko czyta i odpowiada od razu, z podpowiedzią
+  „popchnij". Krok idzie osobnym żądaniem (`evk_backup_nudge`, przy
+  przywracaniu `evk_backup_restore_nudge` z tokenem, bo sesja znika przy
+  podmianie bazy), a panel na nie nie czeka. Naraz jest w drodze najwyżej
+  jedno takie żądanie.
+- Dotyczy też robienia kopii i przywracania bez pracy w tle — tam było tak
+  samo.
+- W dzienniku zadania widać, kto zrobił krok: `Krok 3 (w tle)`, `(z panelu)`
+  albo `(WP-Cron)`. Ostatni krok też ma swoją linię.
+
+### Testy
+
+- Zmierzone przed poprawką (próbki paska co 250 ms, bez pracy w tle):
+  - pobranie z Dysku: 0 → 100 w 8,0 s;
+  - kopia: 0 → 100 w 6,4 s.
+- Po poprawce:
+  - pobranie z Dysku: 0 → 23 → 39 → 54 → 69 → 85 → 100;
+  - kopia: 0 → 17 → 35 → 52 → 69 → 100.
+- Progi: co najmniej 5 różnych wartości w `backup-panel-drive` (nowa sekcja)
+  i w `backup-panel`. Do tego dziennik z „(z panelu)" oraz 403 dla kroku bez
+  nonce i dla kroku przywracania ze złym tokenem.
+- Mutacje, każda zapala swoje sprawdzenia:
+  - pytanie o stan znowu robi krok;
+  - panel bez popychania;
+  - krok przywracania bez tokenu;
+  - krok bez nonce;
+  - dziennik bez źródła kroku.
+- `wave-bg`: sprawdzenie „rozlanie nie przygasza fali" zapaliło się w pełnym
+  przebiegu dwa razy z rzędu, choć tego wydania nie dotyczy. Przyczyna była
+  w teście: element losuje kształt fali przy każdym wczytaniu, więc
+  porównywał dwie różne sceny. Jasność przy rozlaniu zero wychodziła
+  63,44 / 68,71 / 70,75, a tolerancja to 0,5. Pomiar ziarna ma teraz ustalone
+  losowanie: dwa przebiegi dały identyczne 63,15 → 65,82. Mutacja z usterką
+  z 1.193.0 dalej zapala (63,14 → 44,68).
+
 ## [1.229.3] — 2026-09-23
 
 ### Poprawione (zgłoszone z evoke.pl)

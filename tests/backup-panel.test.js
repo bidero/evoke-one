@@ -83,6 +83,8 @@ module.exports = async function (t) {
     const bezNonce = await p.request.post(ajax, { form: { action: 'evk_backup_delete', nonce: 'zly', archive: fakty1.kopie[0].archive } });
     t.check('usuwanie kopii bez ważnego nonce: 403, kopia zostaje',
       bezNonce.status() === 403 && sonda('fakty').kopie.length === 1, String(bezNonce.status()));
+    const popchnijBezNonce = await p.request.post(ajax, { form: { action: 'evk_backup_nudge', nonce: 'zly' } });
+    t.check('krok z panelu bez ważnego nonce: 403', popchnijBezNonce.status() === 403, String(popchnijBezNonce.status()));
 
     // ── Telefon ────────────────────────────────────────────────────────────
     t.section('lista na telefonie (390 px): karta, akcje rzędem pod opisem');
@@ -186,8 +188,23 @@ module.exports = async function (t) {
     sonda('bez-loopbacku 1');
     await p.goto(zakladka);
     await p.click('[data-evk-backup-start]');
+    const procenty4 = [];
+    const t4 = Date.now();
+    while (Date.now() - t4 < 240000) {
+      const txt = await p.locator('[data-evk-backup-percent]').innerText().catch(() => '');
+      const m = txt.match(/^(\d+)%/);
+      if (m && procenty4[procenty4.length - 1] !== +m[1]) procenty4.push(+m[1]);
+      if (await widac(p, '[data-evk-backup-msg]')) break;
+      await p.waitForTimeout(250);
+    }
     await p.locator('[data-evk-backup-msg]').filter({ hasText: /Kopia gotowa|nie powiodła/ }).waitFor({ timeout: 240000 });
     const msg4 = await p.locator('[data-evk-backup-msg]').innerText();
+    /* Krok z panelu idzie osobnym żądaniem (ajax.php, evk_backup_nudge) —
+       pytanie o stan odpowiada od razu. Zmierzone przed poprawką: 0 → 100
+       w 6,4 s (pytanie o stan robiło krok i odpowiadało po nim); po niej
+       0 → 17 → 35 → 52 → 69 → 100. Próg: co najmniej 5 wartości. */
+    t.check('bez pracy w tle pasek i tak rusza się w trakcie kroku (≥ 5 wartości)', new Set(procenty4).size >= 5,
+      procenty4.join(' → ') + ' (' + ((Date.now() - t4) / 1000).toFixed(1) + ' s)');
     const fakty4 = sonda('fakty');
     const ost = fakty4.zadania[fakty4.zadania.length - 1];
     /* Bez żądań zwrotnych i bez WP-Cron jedynym, kto może zrobić krok, jest

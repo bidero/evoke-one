@@ -1,10 +1,11 @@
 /* Evoke ONE — Kopie zapasowe: kopia teraz, przywracanie, postęp, lista,
  * wgrywanie, Dysk Google, test pracy w tle.
  *
- * Bez jQuery: fetch + FormData do admin-ajax. Odpytywanie stanu co 1 s —
- * serwer przy okazji POPYCHA zadanie, którego od kilku sekund nikt nie ruszył
- * (ajax.php, evk_backup_status), więc przy otwartej karcie kopia idzie dalej
- * nawet wtedy, gdy żądania serwera do siebie są blokowane.
+ * Bez jQuery: fetch + FormData do admin-ajax. Odpytywanie stanu co 1 s. Gdy
+ * serwer odpowie `popchnij` (zadania od kilku sekund nikt nie ruszył), idzie
+ * OSOBNE żądanie z krokiem (ajax.php, evk_backup_nudge), na które odpytywanie
+ * nie czeka — więc przy otwartej karcie kopia idzie dalej nawet wtedy, gdy
+ * żądania serwera do siebie są blokowane, a pasek widzi postęp tego kroku.
  *
  * PRZYWRACANIE pyta o stan TOKENEM zadania, nie sesją: podmiana bazy
  * podmienia użytkowników, więc od tej chwili nikt tu nie jest zalogowany,
@@ -163,6 +164,17 @@
         timer = setTimeout(odpytuj, 700);
     }
 
+    /* Krok z panelu: jedno naraz, bez czekania na nie. Do 1.229.3 krok robiło
+       samo pytanie o stan — pasek stał do końca kroku (zgłoszone z evoke.pl). */
+    var popycha = false;
+    function popchnij() {
+        if (popycha) return;
+        popycha = true;
+        var zdejmij = function () { popycha = false; };
+        (token ? post('evk_backup_restore_nudge', { id: jobId, token: token }) : post('evk_backup_nudge', { id: jobId }))
+            .then(zdejmij, zdejmij);
+    }
+
     function odpytuj() {
         clearTimeout(timer);
         var zapytanie = token ? post('evk_backup_restore_status', { id: jobId, token: token }) : post('evk_backup_status', { id: jobId });
@@ -172,7 +184,11 @@
             pokaz(job);
             /* Co sekundę: silnik zapisuje postęp po każdej porcji (≤ 1 s),
                więc rzadsze odpytywanie gubiłoby zmiany paska. */
-            if (trwa(job)) { timer = setTimeout(odpytuj, 1000); return; }
+            if (trwa(job)) {
+                if (job.popchnij) popchnij();
+                timer = setTimeout(odpytuj, 1000);
+                return;
+            }
             if (job.type === 'restore') { koniecPrzywracania(job); return; }
             if (job.type === 'upload' || job.type === 'download') { koniecDysku(job); return; }
             ustawPrzyciski(false);

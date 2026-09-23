@@ -250,7 +250,17 @@ module.exports = async function (t) {
       przezHttp: true,
       viewport: { width: 1350, height: 940 },
       dlawienieCPU: 4,
-      head: 'window.__tresc = ' + JSON.stringify(html) + ';',
+      /* `ustalLos`: to samo losowanie przy każdym wczytaniu. Element losuje
+         kształt fali (`uRandom = Math.random()` w shaderze), więc dwa zrzuty
+         porównywane ze sobą były dwiema RÓŻNYMI scenami. Zmierzone (1.229.4):
+         średnia jasność przy rozlaniu zero 63,44 / 68,71 / 70,75 w trzech
+         przebiegach, a próg „nie przygasza" ma tolerancję 0,5 — sprawdzenie
+         przechodziło albo nie zależnie od losowania. Z ustalonym losowaniem
+         dwa przebiegi: 63,15 → 65,82 i 63,15 → 65,82; mutacja z usterką
+         z 1.193.0 (ziarno zastępuje barwę fali): 63,14 → 44,68. */
+      head: (opcje.ustalLos ? '(function () { var s = 20260923; Math.random = function () {'
+        + ' s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; })();' : '')
+        + 'window.__tresc = ' + JSON.stringify(html) + ';',
       query: 'evk-wave-debug=1',
       settle: 200,
       reduce: !!opcje.ograniczRuch,
@@ -680,7 +690,7 @@ module.exports = async function (t) {
      razem ze zniekształceniem — patrz `obnizJakosc()`. */
   const zrzutZiarna = (ust) => bezGpu(
     Object.assign({ auto_jakosc: 'nie' }, ust),
-    { ukryjSterownik: true, ustalKadr: true, zrzut: true });
+    { ukryjSterownik: true, ustalKadr: true, ustalLos: true, zrzut: true });
 
   const zBezSzumu = await zrzutZiarna({ noise_enabled: false });
   /* `brak` to STARY KSZTAŁT USTAWIEŃ — bez klucza `noise_spread` w ogóle,

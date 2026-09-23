@@ -246,6 +246,8 @@ module.exports = async function (t) {
         && !sonda('fakty-przywracania').zadania.some((z) => z.type === 'restore'), JSON.stringify(bezSlowaJ));
     const zlyToken = await p.request.post(ajax, { form: { action: 'evk_backup_restore_status', id: '1', token: 'zly' } });
     t.check('stan przywracania ze złym tokenem: 403', zlyToken.status() === 403, String(zlyToken.status()));
+    const zlyTokenKrok = await p.request.post(ajax, { form: { action: 'evk_backup_restore_nudge', id: '1', token: 'zly' } });
+    t.check('krok przywracania z panelu ze złym tokenem: 403', zlyTokenKrok.status() === 403, String(zlyTokenKrok.status()));
 
     await p.setViewportSize({ width: 390, height: 844 });
     const oknoTel = await okno.evaluate((e) => { const r = e.getBoundingClientRect(); return { l: r.left, p: r.right, sw: document.documentElement.scrollWidth }; });

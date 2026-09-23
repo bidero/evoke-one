@@ -157,6 +157,7 @@ switch ($argv[1] ?? '') {
         foreach (evk_backup_list_archives() as $k) evk_backup_delete_archive($k['archive']);
         delete_option('evk_backup_gdrive');
         delete_option('evk_backup_alert');
+        delete_option('evk_test_bez_loopbacku');
         update_option('evk_test_google', (string) ($argv[2] ?? ''));
         update_option('evk_test_google_posrednik', (string) ($argv[3] ?? ''));
         $zip = evk_backup_dir() . '/panel-dysk.zip';
@@ -180,7 +181,9 @@ switch ($argv[1] ?? '') {
             . "    add_filter('evk_backup_gdrive_endpoints', static function (\$c) use (\$evk_g, \$evk_p) { return array_merge(\$c, ['auth' => \$evk_g . '/o/oauth2/v2/auth',\n"
             . "        'token' => \$evk_p, 'revoke' => \$evk_g . '/revoke', 'api' => \$evk_g . '/drive/v3', 'upload' => \$evk_g . '/upload/drive/v3',\n"
             . "        'redirect' => \$evk_g . '/evk-oauth/', 'client_id' => 'test-klient']); });\n"
-            . "    add_filter('evk_backup_gdrive_chunk', static function () { return 262144; });\n}\n");
+            . "    add_filter('evk_backup_gdrive_chunk', static function () { return 262144; });\n}\n"
+            . "if (get_option('evk_test_bez_loopbacku')) {\n    add_filter('evk_backup_loopback', '__return_false');\n"
+            . "    if (!defined('DISABLE_WP_CRON')) define('DISABLE_WP_CRON', true);\n}\n");
         $wynik = ['wp' => rtrim(ABSPATH, '/'), 'md5' => md5_file($zip), 'rozmiar' => filesize($zip)];
         break;
 
@@ -194,7 +197,7 @@ switch ($argv[1] ?? '') {
                 $p = evk_backup_dir() . '/' . $k['archive'];
                 return ['archive' => $k['archive'], 'source' => $k['source'], 'drive_id' => $k['drive_id'] ?? '', 'md5' => md5_file($p)];
             }, evk_backup_list_archives()),
-            'zadania'   => $wpdb->get_results('SELECT id, type, status, error FROM ' . evk_backup_jobs_table() . ' ORDER BY id', ARRAY_A),
+            'zadania'   => $wpdb->get_results('SELECT id, type, status, error, log FROM ' . evk_backup_jobs_table() . ' ORDER BY id', ARRAY_A),
             'czesci'    => array_map('basename', glob(evk_backup_dir() . '/.pobieranie-*') ?: []),
         ];
         break;

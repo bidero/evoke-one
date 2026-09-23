@@ -129,6 +129,44 @@ module.exports = async function (t) {
       await p.locator('[data-evk-restore-dialog]').evaluate((d) => d.open) && zadania === 1, 'pobrań: ' + zadania);
     await p.click('[data-evk-restore-close]');
 
+    t.section('pobieranie bez pracy w tle: pasek żyje');
+    /* ZGŁOSZONE (evoke.pl, 1.229.3): „idzie szybko, ale pasek się nie
+       odświeża" — stoi, potem od razu gotowe. Bez żądań zwrotnych i WP-Cron
+       kroki robi karta panelu; pobranie ~1,3 MB po 200 KB/s trwa ~6,5 s. */
+    sonda('bez-loopbacku 1');
+    await g.ster({ czekaj: 0.5, wolno: 200000 });
+    await p.goto(zakladka);
+    await p.waitForSelector('[data-evk-gdrive-list] tr[data-drive-id]', { timeout: 15000 }).catch(() => {});
+    await p.click('tr[data-archive="panel-dysk.zip"] [data-evk-backup-delete]');
+    await p.waitForSelector('[data-evk-backup-empty]', { timeout: 10000 });
+    await p.click('[data-evk-gdrive-list] [data-evk-gdrive-restore]');
+    const probki = [];
+    const tp = Date.now();
+    while (Date.now() - tp < 90000) {
+      const txt = await p.locator('[data-evk-backup-percent]').innerText().catch(() => '');
+      const m = txt.match(/^(\d+)%/);
+      if (m && probki[probki.length - 1] !== +m[1]) probki.push(+m[1]);
+      if (await widac(p, '[data-evk-backup-msg]')) break;
+      await p.waitForTimeout(250);
+    }
+    const czasPobrania = (Date.now() - tp) / 1000;
+    await p.waitForSelector('[data-evk-restore-dialog][open]', { timeout: 10000 }).catch(() => {});
+    if (await p.locator('[data-evk-restore-dialog]').evaluate((d) => d.open)) await p.click('[data-evk-restore-close]');
+    const f3 = sonda('fakty-dysku');
+    const pob = f3.zadania.filter((z) => z.type === 'download').pop() || {};
+    const kroki = (pob.log || '').split('\n').filter((l) => / Krok \d+/.test(l)).map((l) => l.replace(/^\S+ /, ''));
+    /* Zmierzone przed poprawką: 0 → 100 w 8,0 s (krok robiło pytanie o stan,
+       odpowiedź dopiero po kroku). Po niej: 0 → 23 → 39 → 54 → 69 → 85 → 100.
+       Próg: co najmniej 5 różnych wartości. */
+    t.check('pasek rusza się w trakcie pobierania, gdy krok robi karta panelu (≥ 5 wartości)',
+      new Set(probki).size >= 5, probki.join(' → ') + ' (' + czasPobrania.toFixed(1) + ' s)');
+    t.check('dziennik: kto zrobił krok („z panelu")', kroki.length > 0 && kroki.every((k) => /^Krok \d+ \(z panelu\): /.test(k)),
+      kroki.join(' | ') || 'brak linii kroku');
+    const f3k = f3.kopie.find((k) => k.archive === 'panel-dysk.zip');
+    t.check('pobrana bez pracy w tle co do bajtu', f3k && f3k.md5 === prep.md5 && pob.status === 'done', JSON.stringify(f3k || null));
+    sonda('bez-loopbacku 0');
+    await g.ster({ czekaj: 0, wolno: 0 });
+
     t.section('odmowa w Google, rozłączenie');
     await p.click('[data-evk-gdrive-disconnect]');
     await p.waitForSelector('[data-evk-gdrive-connect]', { timeout: 15000 });
