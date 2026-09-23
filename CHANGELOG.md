@@ -2,6 +2,69 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.229.0] — 2026-09-23
+
+### Dodane
+
+- **Dysk Google** (etap G) — kopia poza serwerem, na wypadek awarii całego
+  hostingu. Ramka „Dysk Google" w zakładce Kopie zapasowe.
+  - **Łączenie jednym kliknięciem**: „Połącz z Dyskiem Google" → zgoda
+    w Google → powrót do panelu. Google odsyła przez stronę przekierowującą
+    na evoke.pl (`tools/oauth-relay/index.html`, wgrana na
+    `evoke.pl/evk-oauth/`), która przepuszcza wyłącznie powrót do
+    `wp-admin/admin-post.php` z akcją wtyczki. Kod przechodzący przez
+    evoke.pl jest bezużyteczny bez weryfikatora PKCE, który nie opuszcza
+    strony; `state` podpisany kluczem instalacji, jednorazowy, ważny
+    15 minut, przypisany do użytkownika.
+  - Zakres `drive.file`: wtyczka widzi na Dysku wyłącznie pliki, które sama
+    utworzyła. Folder „Evoke ONE — <adres strony>"; ponowne połączenie
+    tego samego konta trafia w ten sam folder.
+  - **Kopie nocne jadą na Dysk same** (ustawienie, domyślnie włączone),
+    pozostałe — ikoną chmury przy kopii na liście. Plakietka „na Dysku".
+    Wysyłka w kawałkach po 8 MB jako zadanie w tle (te same kroki co
+    kopia); krok przerwany przez serwer pyta Google, ile już dotarło,
+    i ciągnie od tego miejsca. Chwilowe błędy Google (5xx, 429) ponawiane.
+  - **Retencja na Dysku w dniach** (domyślnie 14), osobna od lokalnej.
+    Przypięte zostają — przypięcie na liście działa też na Dysku. Kopie
+    innych stron w tym samym koncie nietknięte.
+  - **Kopie z Dysku**: lista wszystkich kopii wysłanych z tego konta, także
+    z innych stron (przenosiny na nowy serwer), z zajętym miejscem.
+    „Pobierz i przywróć" pobiera kopię zakresami do katalogu kopii
+    i otwiera okno przywracania; kopia, która już jest na serwerze, nie jest
+    pobierana drugi raz.
+  - Dostęp cofnięty w koncie Google: rozłączenie i powiadomienie (mail
+    i komunikat w panelu). Nieudana wysyłka kopii nocnej: powiadomienie,
+    kopia na serwerze zostaje.
+  - Połączenie należy do instalacji (opcja `evk_backup_gdrive`, jak klucz
+    i katalog kopii): przywracanie go nie podmienia.
+
+### Naprawione
+
+- **Akcje kopii na telefonie wystawały za ramkę.** Zmierzone na 360 px:
+  wiersz 278 px, „Usuń" kończył się 20 px za nim (sprawdzenie patrzyło na
+  szerokość ekranu, nie wiersza, więc przepuszczało). Z piątym przyciskiem
+  (Dysk) — 74 px. Teraz rząd się zawija: co się nie mieści, schodzi niżej
+  i wypełnia szerokość.
+
+### Testy
+
+- Atrapa Google (`tests/php/_google-atrapa.php`, router `php -S`): OAuth
+  z prawdziwym sprawdzeniem PKCE S256, Drive API v3, resumable upload
+  (308 + Range, `bytes */rozmiar`), pobieranie z Range, awarie na żądanie.
+- `backup-drive` (nowy, 35 sprawdzeń): podpis, jednorazowość, użytkownik,
+  PKCE, zgoda bez dostępu do Dysku, folder, wysyłka z krokiem ubitym
+  w połowie i błędami w środku kroku, 401 → odświeżenie tokenu, retencja,
+  przypięcie, lista, pobieranie, kopia nocna, invalid_grant; strona
+  przekierowująca w Chromium (javascript:, inna ścieżka, akcja, kotwica,
+  login w adresie).
+- `backup-panel-drive` (nowy): cała droga łączenia w przeglądarce przez
+  PRAWDZIWĄ stronę przekierowującą, wysyłka z listy, pobranie
+  z przywracaniem, telefon 360 px, odmowa w Google, rozłączenie.
+- `backup-przywracanie`: połączenie z Dyskiem instalacji docelowej
+  przeżywa przywrócenie kopii innej strony. `backup-panel`: akcje w granicach
+  wiersza, nie ekranu.
+- 18 mutacji, każda zapala swoje sprawdzenie (wznowienie po ubitym kroku i odczyt stanu po chwilowym błędzie rozdzielone — do rozdzielenia zapalały ten sam zestaw).
+
 ## [1.228.1] — 2026-09-23
 
 ### Naprawione (zgłoszone zrzutami)

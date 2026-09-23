@@ -34,9 +34,11 @@ function evk_backup_job_public(?array $job): ?array {
         }
     }
     $przywracanie = $job['type'] === 'restore';
-    $etapy = $przywracanie
-        ? ['r_check' => 1, 'r_extract' => 1, 'r_db' => 2, 'r_files' => 3, 'r_sweep' => 3, 'r_swap' => 4, 'done' => 4]
-        : ['init' => 1, 'db' => 1, 'list' => 2, 'pack' => 3, 'finalize' => 3, 'done' => 3];
+    $etapy = [
+        'restore'  => ['r_check' => 1, 'r_extract' => 1, 'r_db' => 2, 'r_files' => 3, 'r_sweep' => 3, 'r_swap' => 4, 'done' => 4],
+        'upload'   => ['u_session' => 1, 'u_send' => 1, 'u_finish' => 2, 'done' => 2],
+        'download' => ['d_fetch' => 1, 'done' => 1],
+    ][$job['type']] ?? ['init' => 1, 'db' => 1, 'list' => 2, 'pack' => 3, 'finalize' => 3, 'done' => 3];
     $proc = $job['progress_total'] > 0 ? (int) floor(100 * $job['progress_done'] / $job['progress_total']) : 0;
     // Szacunek wierszy bazy bywa zaniżony — 100% tylko po faktycznym końcu.
     if ($job['status'] !== 'done') $proc = min(99, $proc);
@@ -47,7 +49,7 @@ function evk_backup_job_public(?array $job): ?array {
         'phase'    => $job['phase'],
         'label'    => evk_backup_phase_label($job['phase']),
         'step'     => $etapy[$job['phase']] ?? 1,
-        'steps'    => $przywracanie ? 4 : 3,
+        'steps'    => max($etapy),
         'percent'  => $job['status'] === 'done' ? 100 : $proc,
         'archive'  => $job['archive'],
         'error'    => (string) $job['error'],
@@ -76,6 +78,8 @@ function evk_backup_job_detail(array $job): string {
         case 'pack':
         case 'finalize':
         case 'r_extract':
+        case 'u_send':
+        case 'd_fetch':
             return sprintf('%s z %s', evk_backup_bytes_label((float) $job['progress_done']),
                 evk_backup_bytes_label((float) $job['progress_total']));
         case 'r_db':
@@ -176,8 +180,8 @@ add_action('wp_ajax_evk_backup_delete', function () {
     evk_backup_ajax_guard();
     $nazwa = sanitize_file_name(wp_unslash($_POST['archive'] ?? ''));
     $trwa = evk_backup_job_active();
-    if ($trwa && $trwa['type'] === 'restore' && ($trwa['state']['archive'] ?? '') === $nazwa) {
-        wp_send_json_error(['msg' => 'Z tej kopii właśnie trwa przywracanie.']);
+    if ($trwa && in_array($trwa['type'], ['restore', 'upload'], true) && ($trwa['state']['archive'] ?? '') === $nazwa) {
+        wp_send_json_error(['msg' => $trwa['type'] === 'restore' ? 'Z tej kopii właśnie trwa przywracanie.' : 'Ta kopia właśnie jedzie na Dysk Google.']);
     }
     if (!evk_backup_delete_archive($nazwa)) {
         wp_send_json_error(['msg' => 'Nie ma takiej kopii.']);
@@ -330,11 +334,13 @@ add_action('admin_init', function () {
 // =========================================================================
 
 function evk_backup_source_label(string $s): string {
-    return ['manual' => 'ręczna', 'schedule' => 'nocna', 'snapshot' => 'przed przywróceniem', 'upload' => 'wgrana'][$s] ?? $s;
+    return ['manual' => 'ręczna', 'schedule' => 'nocna', 'snapshot' => 'przed przywróceniem', 'upload' => 'wgrana',
+            'gdrive' => 'z Dysku Google'][$s] ?? $s;
 }
 
 function evk_backup_render_list(): string {
     $kopie = evk_backup_list_archives();
+    $dysk = function_exists('evk_gdrive_connected') && evk_gdrive_connected();
     ob_start();
     if (!$kopie) {
         echo '<p class="evo-empty evo-muted" data-evk-backup-empty>Nie ma jeszcze żadnej kopii.</p>';
@@ -347,7 +353,8 @@ function evk_backup_render_list(): string {
         <?php foreach ($kopie as $k): $n = (string) $k['archive']; $pin = !empty($k['pinned']); ?>
             <tr data-archive="<?php echo esc_attr($n); ?>">
                 <td class="evk-backup-data"><?php echo esc_html(wp_date('Y-m-d H:i', (int) $k['created_at'])); ?>
-                    <?php if ($pin): ?><span class="evo-badge" title="Przypięta — retencja jej nie usuwa">przypięta</span><?php endif; ?></td>
+                    <?php if ($pin): ?><span class="evo-badge" title="Przypięta — retencja jej nie usuwa">przypięta</span><?php endif; ?>
+                    <?php if (!empty($k['drive_id'])): ?><span class="evo-badge evk-badge-dysk" data-evk-backup-on-drive title="Kopia jest też na Dysku Google">na Dysku</span><?php endif; ?></td>
                 <td data-label="Rodzaj"><?php echo esc_html(evk_backup_source_label((string) $k['source'])); ?></td>
                 <td data-label="Rozmiar"><?php echo esc_html(evk_backup_bytes_label((float) $k['size'])); ?></td>
                 <td data-label="Zawartość" class="evo-muted"><?php
@@ -361,6 +368,10 @@ function evk_backup_render_list(): string {
                             data-evk-backup-pin="<?php echo $pin ? '0' : '1'; ?>" aria-pressed="<?php echo $pin ? 'true' : 'false'; ?>"
                             aria-label="<?php echo $pin ? 'Odepnij kopię' : 'Przypnij kopię'; ?>"
                             title="<?php echo $pin ? 'Odepnij — retencja znów może ją usunąć' : 'Przypnij — retencja jej nie usunie'; ?>"><span class="dashicons dashicons-admin-post" aria-hidden="true"></span></button>
+                    <?php if ($dysk && empty($k['drive_id'])): /* Sama ikona, jak pinezka — rząd musi się zmieścić na telefonie. */ ?>
+                    <button type="button" class="button button-small evk-backup-ikona" data-evk-backup-drive
+                            aria-label="Wyślij na Dysk Google" title="Wyślij na Dysk Google"><span class="dashicons dashicons-cloud-upload" aria-hidden="true"></span></button>
+                    <?php endif; ?>
                     <a class="button button-small" href="<?php echo esc_url(evk_backup_download_url($n)); ?>" data-evk-backup-download>Pobierz</a>
                     <button type="button" class="button button-small" data-evk-backup-restore>Przywróć</button>
                     <button type="button" class="button button-small evk-backup-usun" data-evk-backup-delete>Usuń</button>

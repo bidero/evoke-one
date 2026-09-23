@@ -1488,9 +1488,10 @@
 .evk-backup-ftp p { margin: 0 0 8px; font-size: 12px; }
 .evk-backup-ftp .evk-backup-ftp-wynik { margin: 8px 0 0; }
 .evk-backup-ftp .evk-backup-ftp-wynik:empty { display: none; }
-/* Pinezka: sama ikona; przypięta — w akcencie. */
-.evk-backup-lista .evk-backup-pin { display: inline-flex; align-items: center; justify-content: center; }
-.evk-backup-lista .evk-backup-pin .dashicons { font-size: 16px; width: 16px; height: 16px; opacity: .55; }
+/* Pinezka i „Wyślij na Dysk": same ikony; przypięta — w akcencie. */
+.evk-backup-lista .evk-backup-pin, .evk-backup-lista .evk-backup-ikona { display: inline-flex; align-items: center; justify-content: center; }
+.evk-backup-lista .evk-backup-pin .dashicons, .evk-backup-lista .evk-backup-ikona .dashicons { font-size: 16px; width: 16px; height: 16px; }
+.evk-backup-lista .evk-backup-pin .dashicons { opacity: .55; }
 .evk-backup-lista .evk-backup-pin.is-pinned .dashicons { opacity: 1; color: var(--evo-accent); transform: rotate(-35deg); }
 /* Okno przywracania — natywny <dialog> z showModal(): fokus zamknięty
    w oknie i Escape zamykający go daje przeglądarka. */
@@ -1531,10 +1532,21 @@
        flex rozciąga je do jednej i to wystarcza — dodatkowe min-height
        i inline-flex nie zmieniały niczego poza liczbą (sprawdzone mutacją
        i pomiarem położenia tekstu: środek w obu wariantach). */
-    .evk-backup-lista td.evk-backup-akcje .button { flex: 1 1 0; margin: 0; }
+    /* Zawijanie (1.229.0): z przyciskiem „Wyślij na Dysk" rząd ma pięć
+       elementów, a wiersz na 360 px ma 278 px — zmierzone: „Usuń" kończył
+       się 74 px za wierszem (już przy czterech wystawał 20 px za ramkę, choć
+       mieścił się w ekranie). Co się nie mieści, schodzi do drugiego rzędu
+       i rośnie na jego szerokość. */
+    .evk-backup-lista td.evk-backup-akcje { flex-wrap: wrap; }
+    .evk-backup-lista td.evk-backup-akcje .button { flex: 1 1 auto; margin: 0; }
     /* Pinezka nie rośnie — tylko przyciski z tekstem dzielą resztę rzędu. */
-    .evk-backup-lista td.evk-backup-akcje .evk-backup-pin { flex: 0 0 44px; }
+    .evk-backup-lista td.evk-backup-akcje .evk-backup-pin,
+    .evk-backup-lista td.evk-backup-akcje .evk-backup-ikona { flex: 0 0 44px; }
 }
+/* Dysk Google: konto i „Rozłącz" w jednym rzędzie, na telefonie jedno pod drugim. */
+.evk-gdrive-konto { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.evk-gdrive-konto .evk-gdrive-kto { margin: 0; flex: 1 1 320px; overflow-wrap: anywhere; }
+.evk-gdrive-lista td .evo-badge { margin-left: 6px; }
 /* Pusty stan — komunikat zamiast pustej ramki. */
 .evo-empty {
     padding: 16px 10px;

@@ -90,11 +90,12 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (76 plików, pięć partii; same testy kopii trwają
-ok. 8 min, więc idą osobno):
+Podział, który się mieści (78 plików, sześć partii; testy kopii trwają
+razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
-node tests/run.js backup-
+node tests/run.js backup-panel
+node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize backup-silnik backup-srodowisko backup-wgrywanie backup-zip
 node tests/run.js admin- anim animator aria bg-shift bricks-required builder-context burger circular-menu controls
 node tests/run.js darkmode drobiazgi grain hscroll inbox konserwacja kursor loop marquee motion
 node tests/run.js newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
@@ -107,7 +108,9 @@ wypisze wtedy „wszystko przeszło" o zbiorze bez niego. Jedno polecenie, ta sa
 lista filtrów co wyżej:
 
 ```
-FILTRY="admin- anim animator aria backup- bg-shift bricks-required builder-context
+FILTRY="admin- anim animator aria backup-panel backup-baza backup-czytnik backup-drive
+backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize
+backup-silnik backup-srodowisko backup-wgrywanie backup-zip bg-shift bricks-required builder-context
 burger circular-menu controls darkmode drobiazgi grain hscroll inbox
 konserwacja kursor loop marquee motion newsletter odpornosc odswiezanie
 offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji
@@ -170,6 +173,13 @@ instalacji nie ruszyło tabel pierwszej. Sonda ustawia stan drugiej strony
 od nowa przy każdym przebiegu (adres, klucz, sufiks katalogu kopii) —
 bez tego mutacja zostawiała go zmienionego i następne przebiegi porównywały
 wartość z nią samą.
+
+Dysk Google (`backup-drive`, `backup-panel-drive`) idzie przez **atrapę
+Google** — `tests/php/_google-atrapa.php` na `php -S` (`tests/lib/google-atrapa.js`),
+adresy podmienia filtr `evk_backup_gdrive_endpoints`. Prawdziwego Google
+z tej maszyny nie ma (sieć, identyfikatory); pierwsze prawdziwe połączenie
+sprawdza się na evoke.pl. Atrapa podaje PRAWDZIWĄ stronę przekierowującą
+z `tools/oauth-relay/index.html`, więc test panelu przechodzi całą drogę.
 
 Brak środowiska **zapala test na czerwono** z instrukcją, a nie pomija go po
 cichu — ta sama umowa co przy PHPStanie w `drobiazgi`.

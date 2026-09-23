@@ -1,5 +1,5 @@
 /* Evoke ONE — Kopie zapasowe: kopia teraz, przywracanie, postęp, lista,
- * test pracy w tle.
+ * wgrywanie, Dysk Google, test pracy w tle.
  *
  * Bez jQuery: fetch + FormData do admin-ajax. Odpytywanie stanu co 1 s —
  * serwer przy okazji POPYCHA zadanie, którego od kilku sekund nikt nie ruszył
@@ -72,13 +72,19 @@
         slot.appendChild(r);
     }
 
-    function komunikat(tekst, rodzaj, link) {
-        ramka(msgSlot, 'data-evk-backup-msg', tekst, rodzaj,
-            link ? { tekst: link.tekst, href: link.href, attr: 'data-evk-backup-login' } : null);
+    /* `akcja`: przycisk w ramce — {tekst, attr, href?, klik?}. */
+    function komunikat(tekst, rodzaj, akcja) {
+        ramka(msgSlot, 'data-evk-backup-msg', tekst, rodzaj, akcja || null);
     }
 
+    function akcjaPrzywroc(nazwa) {
+        return { tekst: 'Przywróć teraz', attr: 'data-evk-backup-msg-restore', klik: function () { otworzPrzywracanie(nazwa); } };
+    }
+
+    var jobTyp = '';
     function pokaz(job) {
         if (!job || !box) return;
+        jobTyp = job.type;
         box.hidden = false;
         $('[data-evk-backup-label]').textContent = job.label.charAt(0).toUpperCase() + job.label.slice(1);
         $('[data-evk-backup-step]').textContent = job.status === 'done' ? '' : 'etap ' + job.step + ' z ' + job.steps;
@@ -108,7 +114,7 @@
             if (btnStart) btnStart.disabled = true;
             if (lista) lista.hidden = true;
             komunikat('Kopia przywrócona. Zaloguj się kontem ze strony z kopii.', 'ok',
-                { href: evkBackup.login, tekst: 'Przejdź do logowania' });
+                { href: evkBackup.login, tekst: 'Przejdź do logowania', attr: 'data-evk-backup-login' });
             return;
         }
         ustawPrzyciski(false);
@@ -122,6 +128,41 @@
         }
     }
 
+    /* Koniec wysyłki na Dysk albo pobrania z Dysku. Pobranie kliknięte
+       „Pobierz i przywróć" otwiera od razu okno przywracania — z danymi
+       z manifestu, jak każda inna kopia na serwerze. */
+    var poPobraniuOtworz = false;
+    function koniecDysku(job) {
+        ustawPrzyciski(false);
+        var wyslana = job.type === 'upload';
+        if (job.status === 'done') {
+            post('evk_backup_list').then(function (l) { if (l && l.success) odswiezListe(l.data.html); });
+            dyskLista();
+            if (wyslana) {
+                komunikat('Kopia na Dysku Google: ' + job.archive + '.', 'ok');
+            } else {
+                komunikat('Kopia pobrana z Dysku Google: ' + job.archive + '.', 'ok', akcjaPrzywroc(job.archive));
+                if (poPobraniuOtworz) otworzPrzywracanie(job.archive);
+            }
+        } else if (job.status === 'failed') {
+            komunikat((wyslana ? 'Wysyłka na Dysk Google nie powiodła się: ' : 'Pobieranie z Dysku Google nie powiodło się: ') + job.error, 'err');
+        } else if (job.status === 'cancelled') {
+            komunikat(wyslana ? 'Wysyłka na Dysk anulowana.' : 'Pobieranie z Dysku anulowane.', '');
+        }
+        poPobraniuOtworz = false;
+    }
+
+    /* Zadanie wystartowane z listy (wysyłka, pobranie) — ten sam pasek co kopia. */
+    function sledz(job) {
+        jobId = job.id;
+        token = '';
+        komunikat('');
+        ustawPrzyciski(true);
+        pokaz(job);
+        if (box && box.scrollIntoView) box.scrollIntoView({ block: 'center' });
+        timer = setTimeout(odpytuj, 700);
+    }
+
     function odpytuj() {
         clearTimeout(timer);
         var zapytanie = token ? post('evk_backup_restore_status', { id: jobId, token: token }) : post('evk_backup_status', { id: jobId });
@@ -133,6 +174,7 @@
                więc rzadsze odpytywanie gubiłoby zmiany paska. */
             if (trwa(job)) { timer = setTimeout(odpytuj, 1000); return; }
             if (job.type === 'restore') { koniecPrzywracania(job); return; }
+            if (job.type === 'upload' || job.type === 'download') { koniecDysku(job); return; }
             ustawPrzyciski(false);
             if (job.status === 'done') {
                 /* Najpierw lista, potem komunikat — pojawiają się razem, zamiast
@@ -162,7 +204,9 @@
 
     if (btnCancel) btnCancel.addEventListener('click', function () {
         var pytanie = token ? 'Anulować przywracanie? Strona zostanie bez zmian.'
-            : 'Anulować tworzenie kopii? Niedokończone archiwum zostanie usunięte.';
+            : ({ upload: 'Anulować wysyłkę na Dysk Google? Kopia na serwerze zostaje.',
+                 download: 'Anulować pobieranie z Dysku Google? Pobrana część zostanie usunięta.' }[jobTyp]
+               || 'Anulować tworzenie kopii? Niedokończone archiwum zostanie usunięte.');
         if (!jobId || !window.confirm(pytanie)) return;
         post('evk_backup_cancel', { id: jobId }).then(function (r) {
             // Przywracanie, które podmienia już pliki albo bazę, odmawia — przerwane zostawiłoby stronę w połowie.
@@ -183,6 +227,16 @@
             return;
         }
         if (e.target.closest('[data-evk-backup-restore]')) { otworzPrzywracanie(nazwa); return; }
+        var naDysk = e.target.closest('[data-evk-backup-drive]');
+        if (naDysk) {
+            naDysk.disabled = true;
+            post('evk_backup_gdrive_upload', { archive: nazwa }).then(function (r) {
+                naDysk.disabled = false;
+                if (!r || !r.success) { komunikat((r && r.data && r.data.msg) || 'Nie udało się rozpocząć wysyłki.', 'err'); return; }
+                sledz(r.data.job);
+            }, function () { naDysk.disabled = false; });
+            return;
+        }
         if (e.target.closest('[data-evk-backup-delete]')) {
             if (!window.confirm('Usunąć kopię ' + nazwa + '? Tego nie da się cofnąć.')) return;
             post('evk_backup_delete', { archive: nazwa })
@@ -286,6 +340,46 @@
             });
         });
     }
+
+    // ── Dysk Google: lista kopii, pobranie z przywróceniem, rozłączenie ────
+    var dysk = $('[data-evk-gdrive]');
+    var dyskListaEl = $('[data-evk-gdrive-list]');
+    function dyskLista() {
+        if (!dyskListaEl) return;
+        post('evk_backup_gdrive_list').then(function (r) {
+            if (!r || !r.success) {
+                dyskListaEl.textContent = 'Nie udało się odczytać listy z Dysku: ' + ((r && r.data && r.data.msg) || 'brak odpowiedzi.');
+                return;
+            }
+            dyskListaEl.innerHTML = r.data.html;
+            var q = $('[data-evk-gdrive-quota]', dysk);
+            if (q) q.textContent = r.data.quota;
+        }, function () { dyskListaEl.textContent = 'Nie udało się odczytać listy z Dysku.'; });
+    }
+    if (dyskListaEl) {
+        dyskLista();
+        dyskListaEl.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-evk-gdrive-restore]');
+            var wiersz = e.target.closest('tr[data-drive-id]');
+            if (!b || !wiersz) return;
+            b.disabled = true;
+            post('evk_backup_gdrive_download', { file: wiersz.getAttribute('data-drive-id') }).then(function (r) {
+                b.disabled = false;
+                if (!r || !r.success) { komunikat((r && r.data && r.data.msg) || 'Nie udało się rozpocząć pobierania.', 'err'); return; }
+                // Ta kopia już jest na serwerze — od razu okno przywracania.
+                if (r.data.local) { otworzPrzywracanie(r.data.local); return; }
+                poPobraniuOtworz = true;
+                sledz(r.data.job);
+            }, function () { b.disabled = false; });
+        });
+    }
+    var btnRozlacz = $('[data-evk-gdrive-disconnect]');
+    if (btnRozlacz) btnRozlacz.addEventListener('click', function () {
+        if (!window.confirm('Rozłączyć Dysk Google? Kopie, które już tam są, zostają na Dysku.')) return;
+        btnRozlacz.disabled = true;
+        post('evk_backup_gdrive_disconnect').then(function () { window.location.reload(); },
+            function () { btnRozlacz.disabled = false; });
+    });
 
     // ── Katalog FTP: sprawdzenie bez przeładowania zakładki ────────────────
     var btnFtp = $('[data-evk-backup-ftp]');

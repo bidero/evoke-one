@@ -4,9 +4,9 @@ if (!defined('ABSPATH')) exit;
  * Evoke ONE — Tab: Kopie zapasowe
  *
  * Kopia ręczna z paskiem postępu, lista kopii (pobierz / przypnij /
- * przywróć / usuń), kopie wgrane przez FTP, kopia nocna i powiadomienia,
- * retencja, wykluczenia, tryb konserwacji na czas zrzutu i sprawdzenie
- * środowiska. Wgrywanie kopii z przeglądarki dochodzi w kolejnym wydaniu.
+ * przywróć / usuń / wyślij na Dysk), wgrywanie z komputera i przez FTP,
+ * Dysk Google, kopia nocna i powiadomienia, retencja, wykluczenia, tryb
+ * konserwacji na czas zrzutu i sprawdzenie środowiska.
  */
 
 $bk_on     = evk_backup_enabled();
@@ -133,6 +133,36 @@ $bk_ikony  = [
     </div>
 </div>
 
+<!-- DYSK GOOGLE (gdrive.php) -->
+<?php $bk_dysk = evk_gdrive_state(); $bk_dysk_msg = evk_gdrive_flash_take(); ?>
+<div class="evo-box evo-mt evk-gdrive" id="evk-gdrive" data-evk-gdrive data-connected="<?php echo !empty($bk_dysk['refresh']) ? '1' : '0'; ?>">
+    <h3>Dysk Google</h3>
+    <?php if ($bk_dysk_msg): ?>
+    <div class="evo-info-box is-<?php echo esc_attr($bk_dysk_msg['kind'] === 'ok' ? 'ok' : 'err'); ?> evo-mb" data-evk-gdrive-msg role="status">
+        <span class="dashicons <?php echo esc_attr($bk_dysk_msg['kind'] === 'ok' ? 'dashicons-yes-alt' : 'dashicons-dismiss'); ?>" aria-hidden="true"></span>
+        <div><?php echo esc_html((string) $bk_dysk_msg['text']); ?></div>
+    </div>
+    <?php endif; ?>
+    <?php if (empty($bk_dysk['refresh'])): ?>
+    <p class="evo-muted evo-mb">Kopia poza serwerem — na wypadek awarii całego hostingu. Po połączeniu kopie nocne trafiają na Dysk same,
+    a pozostałe wyślesz przyciskiem z listy. Wtyczka widzi na Dysku wyłącznie pliki, które sama utworzyła.</p>
+    <a class="button button-primary" data-evk-gdrive-connect
+       href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=evk_backup_gdrive_connect'), 'evk_backup_gdrive_connect')); ?>">
+        <span class="dashicons dashicons-cloud evo-ico" aria-hidden="true"></span> Połącz z Dyskiem Google</a>
+    <?php else: ?>
+    <div class="evk-gdrive-konto">
+        <p class="evk-gdrive-kto">Połączono<?php echo !empty($bk_dysk['email']) ? ': <strong data-evk-gdrive-email>' . esc_html((string) $bk_dysk['email']) . '</strong>' : ''; ?>.
+        Folder: <code>Evoke ONE — <?php echo esc_html(evk_gdrive_site_key()); ?></code>.
+        <span class="evo-muted" data-evk-gdrive-quota></span></p>
+        <button type="button" class="button" data-evk-gdrive-disconnect>Rozłącz</button>
+    </div>
+    <p class="evo-muted evo-mt-xs"><?php echo !empty($bk_s['gdrive_auto_schedule']) ? 'Kopie nocne trafiają na Dysk same.' : 'Wysyłka kopii nocnych na Dysk wyłączona w ustawieniach.'; ?>
+    Kopie starsze niż <?php echo (int) $bk_s['gdrive_retention_days']; ?> dni znikają z Dysku (przypięte zostają).</p>
+    <h4 class="evk-backup-podtytul">Kopie na Dysku</h4>
+    <div data-evk-gdrive-list aria-live="polite"><p class="evo-muted">Czytam listę z Dysku…</p></div>
+    <?php endif; ?>
+</div>
+
 <!-- PRZYWRACANIE: okno potwierdzenia (wypełnia backup.js danymi z manifestu kopii) -->
 <dialog class="evk-backup-dialog" data-evk-restore-dialog aria-labelledby="evk-restore-tytul">
     <h3 id="evk-restore-tytul">Przywróć kopię</h3>
@@ -204,6 +234,22 @@ $bk_ikony  = [
                 Komunikat w panelu WordPressa o nieudanej kopii
             </label>
             <div class="evo-desc">Znika po następnej udanej kopii albo po zamknięciu.</div>
+        </div>
+    </div>
+    <h4 class="evk-backup-podtytul">Dysk Google</h4>
+    <div class="evo-grid evo-mb" style="--evo-col:240px">
+        <div class="evo-field">
+            <label class="checkbox-label">
+                <input type="checkbox" name="evk_backup[gdrive_auto_schedule]" value="1" <?php checked(!empty($bk_s['gdrive_auto_schedule'])); ?>>
+                Wysyłaj kopie nocne na Dysk
+            </label>
+            <div class="evo-desc">Po każdej udanej kopii nocnej, gdy Dysk jest połączony. Nieudana wysyłka nie rusza kopii na serwerze — idzie powiadomienie.</div>
+        </div>
+        <div class="evo-field">
+            <label for="evk-gdrive-retencja">Ile dni trzymać kopie na Dysku</label>
+            <input type="number" id="evk-gdrive-retencja" name="evk_backup[gdrive_retention_days]" min="1" max="365" class="evo-w-xs"
+                   value="<?php echo esc_attr((string) $bk_s['gdrive_retention_days']); ?>">
+            <div class="evo-desc">Starsze znikają z Dysku po następnej wysyłce. Przypięte zostają — przypięcie na liście działa też na Dysku.</div>
         </div>
     </div>
     <details class="evo-acc evo-mb evk-backup-cron">

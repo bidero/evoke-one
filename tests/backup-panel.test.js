@@ -100,12 +100,15 @@ module.exports = async function (t) {
         const opis = w.querySelector('td[data-label="Zawartość"]').getBoundingClientRect();
         const el = [...w.querySelectorAll('.evk-backup-akcje > *')];
         const btn = el.map((e) => e.getBoundingClientRect());
+        const rzad = w.querySelector('.evk-backup-akcje').getBoundingClientRect();
         return {
           pierwszy: el[0].hasAttribute('data-evk-backup-pin'),
           pinezka: el[0].getAttribute('aria-label') + ' / ' + Math.round(btn[0].width) + ' px',
           wysokosci: btn.map((r) => Math.round(r.height)),
           gory: btn.map((r) => Math.round(r.top)),
           prawa: Math.round(Math.max(...btn.map((r) => r.right))),
+          wiersz: [Math.round(rzad.left), Math.round(rzad.right)],
+          wWierszu: btn.every((r) => r.left >= rzad.left - 0.5 && r.right <= rzad.right + 0.5),
           ucieteTeksty: el.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim()),
           podOpisem: Math.min(...btn.map((r) => r.top)) >= opis.bottom - 1,
           dokument: document.documentElement.scrollWidth,
@@ -116,11 +119,14 @@ module.exports = async function (t) {
          rosła do ćwiartki rzędu, przechodziła — stąd szerokość wprost. */
       t.check(szer + ' px: pinezka pierwsza, wąska (sama ikona), z nazwą dla czytnika',
         tel.pierwszy && /Przypnij kopię/.test(tel.pinezka) && parseInt(tel.pinezka.split(' / ')[1], 10) <= 48, tel.pinezka);
-      t.check(szer + ' px: cztery przyciski tej samej wysokości, w jednym rzędzie, bez uciętego tekstu',
-        new Set(tel.wysokosci).size === 1 && new Set(tel.gory).size === 1 && tel.wysokosci.length === 4 && !tel.ucieteTeksty.length,
-        JSON.stringify(tel));
-      t.check(szer + ' px: akcje pod opisem, w granicach ekranu, bez przewijania w bok',
-        tel.podOpisem && tel.prawa <= szer && tel.dokument <= szer, JSON.stringify(tel));
+      /* W granicach WIERSZA, nie ekranu (1.229.0): do tego wydania „Usuń"
+         na 360 px wystawał 20 px za ramkę kopii, a sprawdzenie „prawa ≤
+         szerokość ekranu" to przepuszczało. Co się nie mieści, zawija się
+         do drugiego rzędu (admin.css). */
+      t.check(szer + ' px: cztery przyciski tej samej wysokości, bez uciętego tekstu',
+        new Set(tel.wysokosci).size === 1 && tel.wysokosci.length === 4 && !tel.ucieteTeksty.length, JSON.stringify(tel));
+      t.check(szer + ' px: akcje pod opisem, w granicach wiersza, bez przewijania w bok',
+        tel.podOpisem && tel.wWierszu && tel.dokument <= szer, JSON.stringify(tel));
     }
     await p.setViewportSize({ width: 1280, height: 1000 });
     const desk = await p.$$eval('tr[data-archive] .evk-backup-akcje > *', (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));

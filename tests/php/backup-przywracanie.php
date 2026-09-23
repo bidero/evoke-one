@@ -119,8 +119,12 @@ switch ($scen) {
         file_put_contents($up . '/plik.txt', "treść zażółć\n");
         file_put_contents($up . '/obraz.jpg', losowe(300000, 7));
 
+        // Połączenie z Dyskiem strony A jedzie w zrzucie — przywracanie na B nie może go przejąć.
+        update_option('evk_backup_gdrive', ['refresh' => 'dysk-strony-a'], false);
         $id = evk_backup_start('manual');
         $job = do_konca($id);
+        // Bez tego panel strony A (testy panelu) próbowałby rozmawiać z prawdziwym Google.
+        delete_option('evk_backup_gdrive');
         $zip = evk_backup_dir() . '/' . $job['archive'];
         $wynik = ['status' => $job['status'], 'blad' => $job['error'], 'zip' => $zip,
                   'blob_md5' => md5(bajty_blob()), 'obraz_md5' => md5_file($up . '/obraz.jpg')];
@@ -168,6 +172,8 @@ switch ($scen) {
            wartość A z wartością A (tak przeżyła mutacja R5). */
         update_option(EVK_BACKUP_DIR_OPTION, 'b0b0b0b0b0b0b0b0b0b0', false);
         update_option('evk_backup_key', str_repeat('klucz-b-', 6), false);
+        // Dysk strony B: po przywróceniu zostaje ten, nie ten z kopii A.
+        update_option('evk_backup_gdrive', ['refresh' => 'dysk-strony-b'], false);
         $zrodlo = $argv[2];
         $dir = evk_backup_dir();
         evk_backup_ensure_dir($dir);
@@ -290,6 +296,7 @@ switch ($scen) {
             'klucz_url'   => (string) $wpdb->get_var('SELECT b FROM nowy_evk_test_klucz WHERE id = 7'),
             'dir_zostal'  => get_option('evk_backup_dir') === 'b0b0b0b0b0b0b0b0b0b0' && ($przed['dir'] ?? '') === get_option('evk_backup_dir'),
             'key_zostal'  => get_option('evk_backup_key') === str_repeat('klucz-b-', 6),
+            'dysk'        => (get_option('evk_backup_gdrive')['refresh'] ?? null),
             'wtyczka'     => in_array('evoke-one/evoke-one.php', (array) get_option('active_plugins'), true),
             'modul'       => !empty(get_option(EVK_BACKUP_OPTION)['enabled']),
             'maint'       => get_option('maintenance_mode'),

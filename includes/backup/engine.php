@@ -111,7 +111,7 @@ function evk_backup_job_create(string $type, string $source, string $status, str
  */
 function evk_backup_start(string $source = 'manual', int $next = 0) {
     if (evk_backup_job_active()) {
-        return new WP_Error('evk_backup_busy', 'Inna kopia albo przywracanie już trwa.');
+        return new WP_Error('evk_backup_busy', 'Inna kopia, wysyłka albo przywracanie już trwa.');
     }
     $id = evk_backup_job_create('backup', $source, 'queued', 'init', [], $next);
     if (is_wp_error($id)) return $id;
@@ -317,6 +317,8 @@ function evk_backup_phase_label(string $faza): string {
         'pack' => 'pakowanie', 'finalize' => 'zamykanie archiwum', 'done' => 'gotowe',
         'r_check' => 'sprawdzanie archiwum', 'r_extract' => 'rozpakowywanie', 'r_db' => 'wczytywanie bazy',
         'r_files' => 'podmiana plików', 'r_sweep' => 'usuwanie plików spoza kopii', 'r_swap' => 'podmiana bazy',
+        'u_session' => 'łączenie z Dyskiem Google', 'u_send' => 'wysyłka na Dysk Google', 'u_finish' => 'porządki na Dysku Google',
+        'd_fetch' => 'pobieranie z Dysku Google',
     ][$faza] ?? $faza;
 }
 
@@ -344,8 +346,10 @@ function evk_backup_run_phases(array $job, float $deadline): array {
             return $job;
         }
 
-        switch ($job['type'] === 'restore' ? 'restore' : $job['phase']) {
+        switch (in_array($job['type'], ['restore', 'upload', 'download'], true) ? $job['type'] : $job['phase']) {
             case 'restore':  $job = evk_restore_phase($job, $porcja); break;
+            case 'upload':
+            case 'download': $job = evk_gdrive_phase($job, $porcja); break;
             case 'init':     $job = evk_backup_phase_init($job); break;
             case 'db':       $job = evk_backup_phase_db($job, $porcja); break;
             case 'list':     $job = evk_backup_phase_list($job, $porcja); break;
@@ -553,6 +557,7 @@ function evk_backup_maintenance_restore(array $job): void {
 /** Usuwa to, co zadanie zostawiło: katalog roboczy i niedokończone archiwum. */
 function evk_backup_cleanup(array $job): void {
     if ($job['type'] === 'restore') { evk_restore_cleanup($job); return; }
+    if ($job['type'] === 'upload' || $job['type'] === 'download') { evk_gdrive_cleanup($job); return; }
     evk_backup_maintenance_restore($job);
     if (!empty($job['state']['zip_path'])) {
         @unlink($job['state']['zip_path']);
@@ -651,7 +656,10 @@ function evk_backup_set_pinned(string $nazwa, bool $przypieta): bool {
     if (!$p) return false;
     $meta = is_file($p . '.json') ? (json_decode((string) file_get_contents($p . '.json'), true) ?: []) : [];
     $meta['pinned'] = $przypieta;
-    evk_backup_meta_write($p, $meta + ['archive' => $nazwa, 'created_at' => (int) filemtime($p), 'source' => 'upload']);
+    $meta += ['archive' => $nazwa, 'created_at' => (int) filemtime($p), 'source' => 'upload'];
+    evk_backup_meta_write($p, $meta);
+    // Kopia wysłana na Dysk Google — przypięcie jedzie też tam (gdrive.php).
+    do_action('evk_backup_pinned', $nazwa, $przypieta, $meta);
     return true;
 }
 

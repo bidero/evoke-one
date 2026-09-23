@@ -75,6 +75,7 @@ register_shutdown_function(static function () {
 });
 if (!function_exists('wp_date')) { function wp_date($f, $t = null) { return gmdate($f, $t ?? time()); } }
 if (!function_exists('wp_timezone_string')) { function wp_timezone_string() { return 'Europe/Warsaw'; } }
+if (!function_exists('get_current_user_id')) { function get_current_user_id() { return 1; } }
 if (!function_exists('wp_nonce_url')) { function wp_nonce_url($u, $a = -1) { return $u . '&_wpnonce=testnonce'; } }
 if (!function_exists('content_url')) { function content_url($p = '') { return 'https://example.test/wp-content' . ($p ? '/' . $p : ''); } }
 if (!function_exists('wp_mkdir_p')) { function wp_mkdir_p($d) { return is_dir($d) || @mkdir($d, 0700, true); } }
@@ -663,7 +664,7 @@ $TABS = [
         'module' => ['includes/backup/settings.php', 'includes/backup/tables.php', 'includes/backup/storage.php',
                      'includes/backup/environment.php', 'includes/backup/engine.php', 'includes/backup/zip-reader.php',
                      'includes/backup/serialize-replace.php', 'includes/backup/restore.php', 'includes/backup/schedule.php', 'includes/backup/upload.php',
-                     'includes/backup/ajax.php'],
+                     'includes/backup/gdrive.php', 'includes/backup/ajax.php'],
         'file'   => 'includes/admin/tab-backup.php',
         'seed'   => function () {
             $GLOBALS['options']['evk_backup'] = ['enabled' => 1];

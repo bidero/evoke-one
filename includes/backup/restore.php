@@ -32,8 +32,8 @@ if (!defined('ABSPATH')) exit;
  *   - tabeli zadań — przywracanie w niej właśnie trwa.
  *
  * CO ZOSTAJE Z INSTALACJI DOCELOWEJ mimo podmiany tabeli opcji: sufiks
- * katalogu kopii i klucz żądań zwrotnych (należą do instalacji — patrz
- * settings.php), wtyczka aktywna, moduł włączony.
+ * katalogu kopii, klucz żądań zwrotnych i połączenie z Dyskiem Google
+ * (należą do instalacji — patrz settings.php), wtyczka aktywna, moduł włączony.
  *
  * Tabele docelowe z prefiksem strony, których nie ma w kopii, są USUWANE
  * (decyzja z 1.227.0) — po przywróceniu baza = baza z kopii. Tabele innych
@@ -178,7 +178,7 @@ function evk_restore_start(string $archiwum, string $scope = 'all', bool $mirror
     if (is_multisite()) return new WP_Error('evk_restore_multisite', 'Przywracanie na multisite nie jest obsługiwane.');
     if (!evk_backup_archive_path($archiwum)) return new WP_Error('evk_restore_archive', 'Nie ma takiej kopii.');
     if (!in_array($scope, ['all', 'db', 'files'], true)) return new WP_Error('evk_restore_scope', 'Nieznany zakres przywracania.');
-    if (evk_backup_job_active()) return new WP_Error('evk_backup_busy', 'Inna kopia albo przywracanie już trwa.');
+    if (evk_backup_job_active()) return new WP_Error('evk_backup_busy', 'Inna kopia, wysyłka albo przywracanie już trwa.');
 
     $stan = ['archive' => $archiwum, 'scope' => $scope, 'mirror' => $mirror && $scope !== 'db'];
     $id = evk_backup_job_create('restore', 'manual', $snapshot ? 'waiting' : 'queued', 'r_check', $stan);
@@ -782,6 +782,10 @@ function evk_restore_phase_swap(array $job): array {
             EVK_BACKUP_DIR_OPTION => evk_backup_dir_suffix(),
             'evk_backup_key'      => evk_backup_loopback_key(),
         ];
+        /* Połączenie z Dyskiem Google (gdrive.php) — też tej instalacji:
+           kopia z innej strony nie może podpiąć tu cudzego Dysku, a przywrócenie
+           własnej nie może go odłączyć. Brak połączenia przed = brak po. */
+        $dysk = get_option('evk_backup_gdrive', null);
         $wtyczka = plugin_basename(EVOKE_ONE_FILE);
 
         [$obecne] = evk_backup_db_tables();
@@ -807,6 +811,7 @@ function evk_restore_phase_swap(array $job): array {
         wp_cache_flush();
 
         foreach ($zostaje as $opcja => $wartosc) update_option($opcja, $wartosc, false);
+        if (is_array($dysk)) update_option('evk_backup_gdrive', $dysk, false); else delete_option('evk_backup_gdrive');
         $ust = get_option(EVK_BACKUP_OPTION, []);
         $ust = is_array($ust) ? $ust : [];
         if (empty($ust['enabled'])) { $ust['enabled'] = 1; update_option(EVK_BACKUP_OPTION, $ust); }
@@ -888,12 +893,12 @@ function evk_backup_import_scan(): array {
 }
 
 /**
- * Archiwum z zewnątrz (FTP, wgrane z przeglądarki) → katalog kopii: nazwa
+ * Archiwum z zewnątrz (FTP, wgrane z przeglądarki, pobrane z Dysku) → katalog kopii: nazwa
  * oczyszczona i unikalna, przeniesienie, opis z danymi z manifestu (albo
  * z powodem, dla którego manifestu nie ma). Oddaje nazwę w katalogu kopii,
  * pusty łańcuch, gdy przeniesienie się nie udało.
  */
-function evk_backup_register_upload(string $sciezka, string $nazwa): string {
+function evk_backup_register_upload(string $sciezka, string $nazwa, string $zrodlo = 'upload', array $dodatki = []): string {
     $dir = evk_backup_dir();
     // Polskie litery na łacińskie („kopia źródło" → kopia-zrodlo), reszta spoza [A-Za-z0-9._-] na myślnik.
     $baza = preg_replace('/[^A-Za-z0-9._-]+/', '-', remove_accents((string) preg_replace('/\.zip$/i', '', basename($nazwa))));
@@ -901,8 +906,8 @@ function evk_backup_register_upload(string $sciezka, string $nazwa): string {
     $cel = $baza . '.zip';
     for ($i = 2; file_exists($dir . '/' . $cel); $i++) $cel = $baza . '-' . $i . '.zip';
     if (!@rename($sciezka, $dir . '/' . $cel)) return '';
-    $meta = ['archive' => $cel, 'created_at' => (int) filemtime($dir . '/' . $cel), 'source' => 'upload', 'pinned' => false,
-             'imported_at' => time()];
+    $meta = array_merge(['archive' => $cel, 'created_at' => (int) filemtime($dir . '/' . $cel), 'source' => $zrodlo, 'pinned' => false,
+             'imported_at' => time()], $dodatki);
     try {
         $m = evk_restore_read_manifest($dir . '/' . $cel);
         $meta['created_at'] = strtotime((string) ($m['created_at'] ?? '')) ?: $meta['created_at'];

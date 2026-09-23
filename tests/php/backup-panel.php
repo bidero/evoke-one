@@ -19,6 +19,10 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *                           sama kopia w katalogu FTP (stara) i plik świeży;
  *                           komunikat o nieudanej kopii do zamknięcia
  *   fakty-przywracania      znaczniki, komunikat, katalog FTP, zadania
+ *
+ * Dla tests/backup-panel-drive.test.js:
+ *   przygotuj-dysk <adres>  atrapa Google pod adresem (mu-plugin), jedna kopia
+ *   fakty-dysku             połączenie, kopie z identyfikatorami Dysku, zadania
  */
 
 $evk_pliki = [
@@ -141,8 +145,61 @@ switch ($argv[1] ?? '') {
         ];
         break;
 
+    case 'przygotuj-dysk':
+        /* Dysk Google przez atrapę (tests/php/_google-atrapa.php) pod adresem
+           z argumentu: mu-plugin kieruje tam adresy Google i tnie kawałki do
+           256 KB. Na liście jedna kopia ~1,3 MB (5 kawałków). */
+        evk_backup_create_tables();
+        $wpdb->query('DELETE FROM ' . evk_backup_jobs_table());
+        update_option(EVK_BACKUP_OPTION, ['enabled' => 1, 'retention_count' => 50, 'notify_address' => 'test@example.com',
+            'exclusions' => implode("\n", array_merge(evk_backup_default_exclusions(), ['plugins/evoke-one/']))]);
+        foreach (evk_backup_list_archives() as $k) evk_backup_delete_archive($k['archive']);
+        delete_option('evk_backup_gdrive');
+        delete_option('evk_backup_alert');
+        update_option('evk_test_google', (string) ($argv[2] ?? ''));
+        $zip = evk_backup_dir() . '/panel-dysk.zip';
+        evk_backup_ensure_dir(evk_backup_dir());
+        $w = EVK_Zip_Writer::create($zip);
+        $w->add_string('manifest.json', (string) json_encode(['format' => 1, 'created_at' => gmdate('c'), 'home' => 'http://zrodlo-dysku.test',
+            'siteurl' => 'http://zrodlo-dysku.test', 'db_rows' => 0, 'files' => 1]));
+        mt_srand(21);
+        $b = '';
+        while (strlen($b) < 1300000) $b .= pack('N', mt_rand());
+        file_put_contents(sys_get_temp_dir() . '/evk-panel-dysk.bin', $b);
+        $w->add_file(sys_get_temp_dir() . '/evk-panel-dysk.bin', 'wp-content/uploads/evk-dysk.bin', microtime(true) + 60);
+        $w->finish();
+        @unlink(sys_get_temp_dir() . '/evk-panel-dysk.bin');
+        evk_backup_meta_write($zip, ['archive' => 'panel-dysk.zip', 'created_at' => time(), 'source' => 'manual', 'pinned' => false,
+            'db_rows' => 0, 'files' => 1]);
+        wp_mkdir_p(dirname($mu));
+        file_put_contents($mu, "<?php\n// Wyłącznie testy panelu (tests/php/backup-panel.php) — usuwany po teście.\n"
+            . "if (\$evk_g = (string) get_option('evk_test_google')) {\n"
+            . "    add_filter('evk_backup_gdrive_endpoints', static function (\$c) use (\$evk_g) { return array_merge(\$c, ['auth' => \$evk_g . '/o/oauth2/v2/auth',\n"
+            . "        'token' => \$evk_g . '/token', 'revoke' => \$evk_g . '/revoke', 'api' => \$evk_g . '/drive/v3', 'upload' => \$evk_g . '/upload/drive/v3',\n"
+            . "        'redirect' => \$evk_g . '/evk-oauth/', 'client_id' => 'test-klient', 'client_secret' => 'test-sekret']); });\n"
+            . "    add_filter('evk_backup_gdrive_chunk', static function () { return 262144; });\n}\n");
+        $wynik = ['wp' => rtrim(ABSPATH, '/'), 'md5' => md5_file($zip), 'rozmiar' => filesize($zip)];
+        break;
+
+    case 'fakty-dysku':
+        wp_cache_flush();
+        $g = get_option('evk_backup_gdrive');
+        $wynik = [
+            'polaczone' => is_array($g) && !empty($g['refresh']),
+            'email'     => is_array($g) ? ($g['email'] ?? '') : '',
+            'kopie'     => array_map(static function ($k) {
+                $p = evk_backup_dir() . '/' . $k['archive'];
+                return ['archive' => $k['archive'], 'source' => $k['source'], 'drive_id' => $k['drive_id'] ?? '', 'md5' => md5_file($p)];
+            }, evk_backup_list_archives()),
+            'zadania'   => $wpdb->get_results('SELECT id, type, status, error FROM ' . evk_backup_jobs_table() . ' ORDER BY id', ARRAY_A),
+            'czesci'    => array_map('basename', glob(evk_backup_dir() . '/.pobieranie-*') ?: []),
+        ];
+        break;
+
     case 'sprzataj':
         @unlink($mu);
+        delete_option('evk_test_google');
+        delete_option('evk_backup_gdrive');
         // Po przywracaniu przez panel adres w bazie mógł przyjąć adres serwera testowego.
         update_option('home', 'http://stara.test');
         update_option('siteurl', 'http://stara.test');

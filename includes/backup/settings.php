@@ -12,9 +12,10 @@ if (!defined('ABSPATH')) exit;
  * Czego tu NIE MA, i dlaczego — stan maszyny, a nie decyzje:
  *
  *   `evk_backup_dir`   losowy sufiks katalogu kopii,
- *   `evk_backup_key`   tajny klucz żądań zwrotnych (loopback).
+ *   `evk_backup_key`   tajny klucz żądań zwrotnych (loopback),
+ *   `evk_backup_gdrive` połączenie z Dyskiem Google (token odświeżania, folder).
  *
- * Oba są osobnymi opcjami, bo należą do TEJ instalacji, nie do strony.
+ * Wszystkie są osobnymi opcjami, bo należą do TEJ instalacji, nie do strony.
  * Restore podmienia całą tabelę opcji na tę ze starej strony — gdyby sufiks
  * siedział w `evk_backup`, po przełączeniu tabel wskazywałby katalog, którego
  * na nowym serwerze nie ma, a w nim leży archiwum, z którego właśnie
@@ -48,6 +49,10 @@ function evk_backup_defaults(): array {
            cicha porażka kopii to najgorszy scenariusz modułu. Wartość już
            zapisana formularzem zostaje, jaka była (decyzja z 1.227.1). */
         'notify_notice'    => 1,
+        // Dysk Google (gdrive.php): kopie nocne wysyłane same, gdy Dysk połączony.
+        'gdrive_auto_schedule'  => 1,
+        // Retencja na Dysku w DNIACH, osobna od lokalnej (przypięte zostają).
+        'gdrive_retention_days' => 14,
     ];
 }
 
@@ -136,7 +141,7 @@ function evk_backup_sanitize($input): array {
        formularzem — formularz, który go nie zawiera, nie może go wyzerować. */
     $c['enabled'] = array_key_exists('enabled', $in) ? (!empty($in['enabled']) ? 1 : 0) : (int) $cur['enabled'];
 
-    foreach (['schedule_enabled', 'maintenance_db', 'notify_notice'] as $k) {
+    foreach (['schedule_enabled', 'maintenance_db', 'notify_notice', 'gdrive_auto_schedule'] as $k) {
         $c[$k] = !empty($in[$k]) ? 1 : 0;
     }
 
@@ -144,6 +149,7 @@ function evk_backup_sanitize($input): array {
     $c['schedule_time'] = preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $czas) ? $czas : $d['schedule_time'];
 
     $c['retention_count'] = max(1, min(100, (int) ($in['retention_count'] ?? $d['retention_count'])));
+    $c['gdrive_retention_days'] = max(1, min(365, (int) ($in['gdrive_retention_days'] ?? $d['gdrive_retention_days'])));
 
     $wzorce = [];
     foreach (explode("\n", (string) ($in['exclusions'] ?? '')) as $linia) {

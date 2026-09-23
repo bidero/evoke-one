@@ -64,6 +64,8 @@ module.exports = async function (t) {
     t.check('zostaje z instalacji docelowej: katalog kopii, klucz, wtyczka aktywna, moduł włączony',
       f.dir_zostal && f.key_zostal && f.wtyczka && f.modul && f.pliki.katalog_kopii,
       JSON.stringify({ dir: f.dir_zostal, key: f.key_zostal, wtyczka: f.wtyczka, modul: f.modul }));
+    t.check('zostaje z instalacji docelowej: połączenie z Dyskiem Google (nie to ze strony z kopii)',
+      f.dysk === 'dysk-strony-b', JSON.stringify(f.dysk));
     /* Kopia robiona z trybem konserwacji na czas zrzutu ma go WŁĄCZONEGO
        w zrzucie — po przywróceniu strona ma wrócić do stanu sprzed kopii. */
     t.check('tryb konserwacji: stan sprzed kopii, nie ten złapany w zrzucie', f.maint === '', JSON.stringify(f.maint));

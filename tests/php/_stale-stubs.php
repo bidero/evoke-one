@@ -23,6 +23,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 // ── WordPress ────────────────────────────────────────────────────────────
 define('ARRAY_A', 'ARRAY_A');
 define('OBJECT', 'OBJECT');
+define('MINUTE_IN_SECONDS', 60);
 define('HOUR_IN_SECONDS', 3600);
 define('DAY_IN_SECONDS', 86400);
 define('WPINC', 'wp-includes');
