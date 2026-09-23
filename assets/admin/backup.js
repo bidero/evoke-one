@@ -17,7 +17,7 @@
     var btnStart  = $('[data-evk-backup-start]');
     var btnCancel = $('[data-evk-backup-cancel]');
     var box       = $('[data-evk-backup-progress]');
-    var msg       = $('[data-evk-backup-msg]');
+    var msgSlot   = $('[data-evk-backup-msg-slot]');
     var lista     = $('[data-evk-backup-list]');
     var jobId     = 0;
     var token     = evkBackup.token || '';
@@ -32,20 +32,49 @@
             .then(function (r) { return r.json(); });
     }
 
-    function komunikat(tekst, rodzaj, link) {
-        if (!msg) return;
-        msg.hidden = !tekst;
-        msg.className = 'evo-info-box evo-mt' + (rodzaj ? ' is-' + rodzaj : '');
-        var cel = msg.querySelector('div');
-        cel.textContent = tekst || '';
-        if (link) {
-            var a = document.createElement('a');
-            a.href = link.href;
-            a.textContent = link.tekst;
-            a.setAttribute('data-evk-backup-login', '');
-            cel.appendChild(document.createTextNode(' '));
-            cel.appendChild(a);
+    /* RAMKA KOMUNIKATU powstaje tu, dopiero z treścią, i znika przy pustej.
+       Do 1.228.0 stała w HTML-u z atrybutem `hidden`, a chowała ją reguła
+       w admin.css — na evoke.pl (zgłoszone zrzutem) była widoczna pusta od
+       razu po wejściu, choć w testowym panelu miała display: none. Czego nie
+       ma w DOM, tego żaden stary ani cudzy CSS nie odsłoni.
+       `akcja`: {tekst, attr, href?, klik?} — przycisk po prawej, w jednej
+       linii z ikoną i tekstem. */
+    var IKONY = { ok: 'yes-alt', err: 'dismiss', warn: 'warning', '': 'info-outline' };
+    function ramka(slot, attr, tekst, rodzaj, akcja) {
+        if (!slot) return;
+        var stara = slot.querySelector('[' + attr + ']');
+        if (stara) stara.parentNode.removeChild(stara);
+        if (!tekst) return;
+        var r = document.createElement('div');
+        r.className = 'evo-info-box evo-mt' + (rodzaj ? ' is-' + rodzaj : '') + (akcja ? ' evk-msg-z-akcja' : '');
+        r.setAttribute(attr, '');
+        r.setAttribute('role', rodzaj === 'err' ? 'alert' : 'status');
+        var ik = document.createElement('span');
+        ik.className = 'dashicons dashicons-' + (IKONY[rodzaj || ''] || IKONY['']);
+        ik.setAttribute('aria-hidden', 'true');
+        var tresc = document.createElement('div');
+        tresc.className = 'evk-msg-tresc';
+        var t = document.createElement('span');
+        t.className = 'evk-msg-tekst';
+        t.textContent = tekst;
+        tresc.appendChild(t);
+        if (akcja) {
+            var b = document.createElement(akcja.href ? 'a' : 'button');
+            b.className = 'button evk-msg-akcja';
+            if (akcja.href) b.href = akcja.href; else b.type = 'button';
+            b.setAttribute(akcja.attr, '');
+            b.textContent = akcja.tekst;
+            if (akcja.klik) b.addEventListener('click', akcja.klik);
+            tresc.appendChild(b);
         }
+        r.appendChild(ik);
+        r.appendChild(tresc);
+        slot.appendChild(r);
+    }
+
+    function komunikat(tekst, rodzaj, link) {
+        ramka(msgSlot, 'data-evk-backup-msg', tekst, rodzaj,
+            link ? { tekst: link.tekst, href: link.href, attr: 'data-evk-backup-login' } : null);
     }
 
     function pokaz(job) {
@@ -170,21 +199,10 @@
     var wgPrzerwij = false;
     var wgId = '';
     function wgKomunikat(tekst, rodzaj, przywroc) {
-        var m = $('[data-evk-upload-msg]', wg);
-        m.hidden = !tekst;
-        m.className = 'evo-info-box evo-mt' + (rodzaj ? ' is-' + rodzaj : '');
-        var d = m.querySelector('div');
-        d.textContent = tekst || '';
-        if (przywroc) {
-            var b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'button button-small';
-            b.setAttribute('data-evk-upload-restore', '');
-            b.textContent = 'Przywróć teraz';
-            b.addEventListener('click', function () { otworzPrzywracanie(przywroc); });
-            d.appendChild(document.createTextNode(' '));
-            d.appendChild(b);
-        }
+        ramka($('[data-evk-upload-msg-slot]', wg), 'data-evk-upload-msg', tekst, rodzaj, przywroc ? {
+            tekst: 'Przywróć teraz', attr: 'data-evk-upload-restore',
+            klik: function () { otworzPrzywracanie(przywroc); }
+        } : null);
     }
     function mb(b) { return (b / 1048576).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + ' MB'; }
     function wgPostep(plik, offset, t0, od) {

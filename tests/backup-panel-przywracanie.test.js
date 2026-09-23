@@ -76,6 +76,12 @@ module.exports = async function (t) {
 
     // ── Wgrywanie z komputera ──────────────────────────────────────────────
     t.section('wgrywanie kopii z komputera: kawałki, wznowienie, anulowanie');
+    /* Zgłoszone zrzutem (1.228.1): pusta ramka pod „Wgraj kopię z komputera"
+       widoczna od razu po wejściu. W testowym panelu była ukryta (reguła CSS
+       działała) — dlatego sprawdzamy DOM, nie widoczność: ramki mają nie
+       istnieć, dopóki nie ma treści. */
+    t.check('po wejściu w zakładkę nie ma żadnej ramki komunikatu (także ukrytej)',
+      (await p.locator('[data-evk-upload-msg], [data-evk-backup-msg]').count()) === 0);
     const wgraj = async () => {
       const [wybor] = await Promise.all([p.waitForEvent('filechooser'), p.click('[data-evk-upload-pick]')]);
       await wybor.setFiles(prep.plik);
@@ -131,6 +137,29 @@ module.exports = async function (t) {
     const wgMsg = await p.locator('[data-evk-upload-msg]').innerText();
     t.check('wgrane: komunikat z nazwą i „Przywróć teraz"', /Kopia wgrana: kopia-z-komputera\.zip/.test(wgMsg)
       && (await widac(p, '[data-evk-upload-restore]')), wgMsg.trim());
+    /* Układ ramki z akcją. Zmierzone (1.228.1): na 1280 px środek ikony,
+       tekstu i przycisku na tej samej wysokości (różnica 0), przycisk 17 px
+       od prawej krawędzi ramki; na 390 i 360 px przycisk pod tekstem,
+       w granicach ramki. */
+    const uklad = async () => p.evaluate(() => {
+      const r = document.querySelector('[data-evk-upload-msg]');
+      const q = (s) => r.querySelector(s).getBoundingClientRect();
+      const c = (b) => (b.top + b.bottom) / 2;
+      const ik = q('.dashicons'), tx = q('.evk-msg-tekst'), bt = q('[data-evk-upload-restore]'), bx = r.getBoundingClientRect();
+      const tr = q('.evk-msg-tresc');
+      return { ikona: c(ik), tekst: c(tx), przycisk: c(bt), odPrawej: bx.right - bt.right, lewa: bt.left - bx.left,
+               pelna: Math.round(bt.width) >= Math.round(tr.width) - 1,
+               pod: bt.top >= tx.bottom - 1, ramek: document.querySelectorAll('[data-evk-upload-msg]').length };
+    });
+    const u1280 = await uklad();
+    t.check('ramka z akcją: jedna, ikona, tekst i przycisk w jednej osi (±2 px), przycisk po prawej',
+      u1280.ramek === 1 && Math.abs(u1280.ikona - u1280.tekst) <= 2 && Math.abs(u1280.przycisk - u1280.tekst) <= 2 && u1280.odPrawej <= 24,
+      JSON.stringify(u1280));
+    await p.setViewportSize({ width: 360, height: 900 });
+    const u360 = await uklad();
+    t.check('360 px: przycisk pod tekstem, na całą szerokość treści, w granicach ramki',
+      u360.pod && u360.pelna && u360.lewa >= 0 && u360.odPrawej >= 0, JSON.stringify(u360));
+    await p.setViewportSize({ width: 1280, height: 1000 });
     t.check('pasek wgrywania szedł na bieżąco (kawałki po 1 MB)', procWg.size >= 5, [...procWg].sort((a, b) => a - b).join(' → '));
     const poWg = sonda('fakty-przywracania');
     t.check('wgrana kopia co do bajtu mimo zgubionej odpowiedzi i przerwy', poWg.wgrana_zgodna === true);
@@ -151,6 +180,8 @@ module.exports = async function (t) {
     let czesci = [];
     for (let i = 0; i < 20; i++) { czesci = sonda('fakty-przywracania').czesci; if (!czesci.length) break; await p.waitForTimeout(250); }
     t.check('anulowane w połowie: wgrana część usunięta z serwera', !czesci.length, JSON.stringify(czesci));
+    t.check('po anulowaniu jedna ramka komunikatu, bez przycisku', (await p.locator('[data-evk-upload-msg]').count()) === 1
+      && (await p.locator('[data-evk-upload-restore]').count()) === 0);
     const nonceWg = await p.evaluate(() => window.evkBackup.nonce);
     const zlyNonceWg = await p.request.post(baza + '/wp-admin/admin-ajax.php',
       { form: { action: 'evk_backup_upload_start', nonce: 'zly', name: 'x.zip', size: '1000', mtime: '1' } });

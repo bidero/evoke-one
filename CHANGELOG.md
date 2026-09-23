@@ -2,6 +2,31 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.228.1] — 2026-09-23
+
+### Naprawione (zgłoszone zrzutami)
+
+- **Pusta ramka pod „Wgraj kopię z komputera" od razu po wejściu.** Ramka
+  komunikatu stała w HTML-u z atrybutem `hidden`, chowała ją reguła
+  w admin.css. Zmierzone w testowym panelu: ukryta (`display: none`) — na
+  evoke.pl reguła nie zadziałała (najpewniej stary albo przetworzony CSS).
+  Teraz ramek komunikatów (wgrywanie, kopia, przywracanie) nie ma w stronie,
+  dopóki nie ma treści — tworzy je skrypt, pusta znika z DOM. Nie ma czego
+  ukrywać, więc żaden CSS jej nie odsłoni.
+- **Wyrównanie ramki z przyciskiem.** Ikona, tekst i „Przywróć teraz" stoją
+  w jednej osi (zmierzone: różnica 0 px), przycisk po prawej zamiast
+  doklejony za kropką; na telefonie pod tekstem, na całą szerokość. Ikona
+  dopasowana do rodzaju komunikatu (znacznik przy sukcesie, krzyżyk przy
+  błędzie). „Przejdź do logowania" po przywróceniu — ten sam układ.
+
+### Testy
+
+- `backup-panel-przywracanie`: po wejściu w DOM nie ma żadnej ramki
+  komunikatu (sprawdzany DOM, nie widoczność — tu widoczność była dobra),
+  oś ikony, tekstu i przycisku, przycisk na telefonie pod tekstem i na całą
+  szerokość, jedna ramka po anulowaniu. 4 mutacje — reguła „margin-left:
+  auto" nic nie zmieniała (tekst i tak dopycha przycisk), więc usunięta.
+
 ## [1.228.0] — 2026-09-23
 
 ### Dodane

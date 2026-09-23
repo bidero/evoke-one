@@ -94,7 +94,8 @@ $bk_ikony  = [
         <p class="evo-muted evk-backup-procent" data-evk-backup-percent></p>
         <details class="evo-mt-xs"><summary>Dziennik</summary><pre class="evk-backup-log" data-evk-backup-log></pre></details>
     </div>
-    <div class="evo-info-box evo-mt" data-evk-backup-msg hidden><span class="dashicons dashicons-info-outline"></span><div></div></div>
+    <?php /* Miejsce na komunikat — ramkę tworzy backup.js dopiero z treścią (1.228.1). */ ?>
+    <div data-evk-backup-msg-slot></div>
 </div>
 
 <!-- LISTA KOPII -->
@@ -119,7 +120,7 @@ $bk_ikony  = [
             <div class="evk-backup-pasek" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-evk-upload-bar><span></span></div>
             <button type="button" class="button button-small" data-evk-upload-cancel>Anuluj wgrywanie</button>
         </div>
-        <div class="evo-info-box evo-mt" data-evk-upload-msg hidden><span class="dashicons dashicons-info-outline"></span><div></div></div>
+        <div data-evk-upload-msg-slot></div>
     </div>
     <div class="evk-backup-ftp evo-mt">
         <p class="evo-muted">Kopię z innego serwera wgraj przez FTP do
