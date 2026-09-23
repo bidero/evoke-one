@@ -2,6 +2,61 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.229.3] — 2026-09-23
+
+### Poprawione (zgłoszone z evoke.pl)
+
+- **Pobieranie z Dysku Google jednym strumieniem na krok.** 1.229.2 pogorszyło
+  pobieranie i to był błąd założenia, nie pecha. Pomiar z evoke.pl pokazał, że
+  KAŻDE żądanie pliku z Dysku (`alt=media` z zakresem) czeka 25–30 s na
+  pierwszy bajt, niezależnie od wielkości: 1 MB, 256 KB i 8 MB trwały prawie
+  tyle samo. Łączenie trwa 0,21 s, lista plików 2,35 s, więc sieć jest
+  w porządku; koszt jest NA ŻĄDANIE. Dobór kawałka z 1.229.2 zakładał, że
+  czas rośnie z rozmiarem, więc przy stałych 29 s zjechał do 256 KB — czyli
+  do setek żądań po pół minuty. Atrapa w testach usypiała przed wysłaniem
+  odpowiedzi, czyli modelowała ten sam fałszywy obraz, więc go nie złapała.
+- Teraz krok pobierania to jedno żądanie `Range: bytes=<pozycja>-` do końca
+  pliku, a dane są dopisywane do części w trakcie. Czekanie na pierwszy bajt
+  płaci się raz na krok, a nie raz na kawałek. Pasek rusza się co sekundę
+  w trakcie żądania. Krok kończy się po swoim terminie, ale nigdy przed
+  pierwszym bajtem, bo inaczej przy 29 s czekania nie byłoby postępu wcale.
+  Następny krok ciągnie od rozmiaru części na dysku.
+- Do części trafia tylko odpowiedź 206 (albo 200 od początku pliku). Błąd
+  Google (403 „przekroczony limit pobrań", 401, 5xx) idzie do komunikatu,
+  nie do pliku. 401 odświeża token, 5xx i 429 to chwilowy błąd z ponowieniem.
+- Żądanie nie wysyła `Accept-Encoding`, bo ZIP już jest skompresowany.
+  Kodowanie odpowiedzi idzie do dziennika — jeśli to Google kompresował plik
+  przed pierwszym bajtem, pomiar to pokaże.
+- W dzienniku każde żądanie ma: ile, w jakim czasie, czas do pierwszego
+  bajtu, prędkość po nim, kompresję i adres Google. Na końcu jest
+  podsumowanie.
+- Bez rozszerzenia curl w PHP pobieranie idzie po staremu, kawałkami 8 MB.
+- Wysyłka wraca do stałych kawałków 8 MB (jak 1.229.1). Dobór kawałka miał tę
+  samą wadę, a wysyłki na evoke.pl jeszcze nie zmierzono. Pomiar w dzienniku
+  zostaje.
+
+### Testy
+
+- Atrapa Google odtwarza to, co zmierzono: stałe czekanie na pierwszy bajt na
+  każde żądanie (`czekaj`), potem dane wysyłane stopniowo (`wolno`), zakres
+  otwarty i 403 w strumieniu.
+- `backup-drive`:
+  - 8 MB przy 1,5 s czekania i 1 MB/s w 2 żądaniach z danymi (po 256 KB
+    byłoby ich 32);
+  - zakresy otwarte od rozmiaru części;
+  - kroki krótsze od czekania i tak robią postęp;
+  - postęp zapisywany w trakcie żądania;
+  - bez `Accept-Encoding`, 401 z odświeżeniem;
+  - 403 bez śladu w części;
+  - wysyłka stałymi kawałkami.
+- Mutacje, każda zapala inny zestaw:
+  - zapis bez sprawdzenia 206;
+  - przerwanie przed pierwszym bajtem;
+  - bez postępu w trakcie;
+  - z `Accept-Encoding`;
+  - zakres zamknięty;
+  - bez terminu kroku.
+
 ## [1.229.2] — 2026-09-23
 
 ### Zmienione (zgłoszone z evoke.pl)

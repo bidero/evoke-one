@@ -88,12 +88,9 @@ module.exports = async function (t) {
     t.check('pobrana kopia co do bajtu, na liście jako „z Dysku", z identyfikatorem i przypięciem z Dysku',
       p.status === 'done' && p.md5 && p.zrodlo === 'gdrive' && p.drive_id && p.przypieta && p.archiwum === 'dysk-test-1.zip',
       JSON.stringify({ status: p.status, blad: p.blad, md5: p.md5, zrodlo: p.zrodlo }));
-    // Rozmiar archiwum waha się o bajt (manifest z datą jest kompresowany) — zakresy liczone od niego.
-    const KAW = 262144;
-    t.check('pobieranie zakresami po 256 KB (+1 za chwilowy błąd), część sprzątnięta',
-      p.zakresow === Math.ceil(p.rozmiar / KAW) + 1 && p.pierwszy === 'bytes=0-' + (KAW - 1)
-        && p.ostatni === 'bytes=' + Math.floor(p.rozmiar / KAW) * KAW + '-' + (p.rozmiar - 1) && !p.czesc_zostala,
-      JSON.stringify({ n: p.zakresow, rozmiar: p.rozmiar, pierwszy: p.pierwszy, ostatni: p.ostatni }));
+    t.check('pobieranie jednym strumieniem od początku (+1 żądanie za chwilowy błąd 503), część sprzątnięta',
+      p.zakresow === 2 && p.pierwszy === 'bytes=0-' && p.ostatni === 'bytes=0-' && !p.czesc_zostala,
+      JSON.stringify({ n: p.zakresow, pierwszy: p.pierwszy, ostatni: p.ostatni }));
     t.check('pobrana kopia gotowa do przywrócenia (okno czyta jej manifest)', p.info === 'http://stara.test', p.info);
     t.check('kopia już na serwerze rozpoznana po identyfikatorze z Dysku (bez drugiego pobrania)',
       w.lokalna_po_usunieciu === '' && p.lokalna === 'dysk-test-1.zip', JSON.stringify([w.lokalna_po_usunieciu, p.lokalna]));
@@ -112,27 +109,35 @@ module.exports = async function (t) {
     t.check('dostęp cofnięty w Google (invalid_grant): rozłączone i powiadomienie',
       /cofnął dostęp/.test(c.blad) && c.polaczone === false && c.alert === 'Dysk Google rozłączony', JSON.stringify(c));
 
-    // ── Czasy połączeń i kawałek dopasowany do prędkości (1.229.2) ───────
-    t.section('pomiar połączeń, kawałek dopasowany do prędkości');
+    // ── Pobieranie strumieniem (1.229.3) ─────────────────────────────────
+    /* Zmierzone na evoke.pl (1.229.2): każde pobranie czeka ~29 s na pierwszy
+       bajt, niezależnie od wielkości — koszt jest na żądanie. Atrapa odtwarza
+       to: 1,5 s czekania na każde żądanie, potem 1 MB/s; kroki po 1 s. */
+    t.section('pobieranie strumieniem: jedno żądanie na krok');
     const MB = 1048576;
-    const d = w.dopasowanie;
-    t.check('evoke.pl (8 MB w 27 s): następny kawałek 512 KB — żądanie ~2 s zamiast 27 s', d.wolno === 512 * 1024, JSON.stringify(d));
-    t.check('szybkie łącze: do sufitu (8 MB); bardzo wolne: najmniej 256 KB', d.szybko === 8 * MB && d.bardzo === 256 * 1024, JSON.stringify(d));
-    t.check('duży narzut łączenia (3 s): żądanie co najmniej 3× dłuższe niż łączenie', d.narzut === 9 * 256 * 1024, JSON.stringify(d));
-    t.check('sufit spoza siatki 256 KB: w dół do wielokrotności', d.sufit === 512 * 1024, JSON.stringify(d));
-    const tp = w.tempo;
-    t.check('pobieranie przy 1 MB/s: plik co do bajtu, pierwszy zakres 1 MB (pasek rusza od razu)',
-      tp.pobranie === 'done' && tp.md5 && tp.zakresy[0] === MB, JSON.stringify(tp.zakresy));
-    t.check('…kolejne zakresy dopasowane do ~2,5 s (2–2,75 MB), nie stały sufit 4 MB',
-      tp.zakresy.length >= 3 && tp.zakresy.slice(1, -1).every((z) => z >= 2 * MB && z <= 2.75 * MB), JSON.stringify(tp.zakresy));
-    t.check('wysyłka: pierwszy kawałek 1 MB, kolejne wielokrotnością 256 KB (wymóg Google)',
-      tp.wysylka === 'done' && tp.puty[0] === MB && tp.puty.slice(0, -1).every((n) => n % 262144 === 0), JSON.stringify(tp.puty));
-    const k1 = tp.log_kawalek[0] || '';
-    t.check('dziennik: kawałek z prędkością, czasami DNS/połączenie/TLS/pierwszy bajt, adresem IP i wielkością następnego',
-      /MB\/s/.test(k1) && /DNS .+ połączenie .+ TLS .+ pierwszy bajt/.test(k1) && /127\.0\.0\.1 \(IPv4\)/.test(k1) && /Następny: 2,3 MB/.test(k1), k1);
-    t.check('dziennik: podsumowanie pobierania i wysyłki (średnia prędkość, średnie czasy, adresy)',
-      /Pomiar: \d+ kawałków, [\d,]+ MB .+ średnio .+ MB\/s; .+ adresy: 127\.0\.0\.1 \(IPv4\)/.test(tp.log_pomiar[0] || '') && tp.log_wysylka.length === 1,
-      (tp.log_pomiar[0] || '') + ' | ' + (tp.log_wysylka[0] || ''));
+    const sm = w.strumien;
+    const dane = sm.zakresy.slice(1);   // pierwsze: token dostępu odrzucony (401) → odświeżony
+    t.check('plik 8 MB co do bajtu, w 2 żądaniach z danymi (kawałkami po 256 KB byłoby ich 32)',
+      sm.pobranie === 'done' && sm.md5 && dane.length === 2, JSON.stringify({ status: sm.pobranie, blad: sm.blad, zakresy: sm.zakresy }));
+    t.check('zakresy otwarte do końca pliku, każdy od rozmiaru części na dysku (wznowienie po kroku)',
+      dane[0] === 'bytes=0-' && /^bytes=\d+-$/.test(dane[1]) && parseInt(dane[1].slice(6), 10) >= 4 * MB, JSON.stringify(sm.zakresy));
+    t.check('kroki (1 s) krótsze niż czekanie na pierwszy bajt (1,5 s) i tak robią postęp', sm.kroki <= 4, 'kroków: ' + sm.kroki);
+    t.check('postęp zapisywany W TRAKCIE żądania (pasek co sekundę), nie tylko po nim',
+      sm.postepy >= 2 * dane.length, 'zapisów postępu: ' + sm.postepy + ', żądań: ' + dane.length);
+    t.check('bez Accept-Encoding (ZIP już jest skompresowany)', sm.ae.length === 1 && sm.ae[0] === '', JSON.stringify(sm.ae));
+    t.check('token dostępu odrzucony w strumieniu (401): odświeżony, pobieranie idzie dalej', sm.odswiezenia === 1, String(sm.odswiezenia));
+    const z1 = sm.log_zadanie[0] || '';
+    t.check('dziennik: żądanie z czasem do pierwszego bajtu, prędkością po nim, kompresją, adresem i przerwaniem na końcu kroku',
+      /pierwszy bajt 1,[5-9]\d s/.test(z1) && /po pierwszym bajcie 0,9\d MB\/s|po pierwszym bajcie 1,0\d MB\/s/.test(z1)
+        && /kompresja: brak/.test(z1) && /127\.0\.0\.1 \(IPv4\)/.test(z1) && /przerwane na końcu kroku/.test(z1), z1);
+    t.check('dziennik: podsumowanie pobierania i wysyłki',
+      /Pomiar: 2 żądań, 8,0 MB .+ średnio .+ MB\/s; .+ adresy: 127\.0\.0\.1 \(IPv4\)/.test(sm.log_pomiar[0] || '') && sm.log_wysylka.length === 1,
+      (sm.log_pomiar[0] || '') + ' | ' + (sm.log_wysylka[0] || ''));
+    t.check('wysyłka znów stałymi kawałkami (dobór z 1.229.2 wycofany)',
+      sm.wysylka === 'done' && sm.puty.length === 3 && sm.puty[0] === 4 * MB && sm.puty[1] === 4 * MB, JSON.stringify(sm.puty));
+    const sb = w.strumien_blad;
+    t.check('błąd od Google w strumieniu (403): czytelny komunikat, do części nie trafia ani bajt',
+      sb.status === 'failed' && /download quota/.test(sb.blad) && sb.czesc === false, JSON.stringify(sb));
     const lc = w.lista_czasy;
     t.check('lista z Dysku oddaje czasy każdego żądania (lista, miejsce) z rozbiciem',
       lc.n >= 2 && lc.co.includes('GET /drive/v3/files') && lc.co.includes('GET /drive/v3/about') && lc.opisy.every((o) => /DNS/.test(o)),

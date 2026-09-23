@@ -304,47 +304,64 @@ $a = get_option(EVK_BACKUP_ALERT_OPTION);
 $w['nieudana'] = ['status' => $jobf['status'], 'blad' => $jobf['error'], 'alert' => is_array($a) ? $a['title'] : null,
     'kopia_zostala' => (bool) evk_backup_archive_path('dysk-test-2.zip')];
 
-// ── Czasy połączeń i kawałek dopasowany do prędkości (1.229.2) ──────────────
+// ── Czasy połączeń; pobieranie strumieniem (1.229.3) ────────────────────────
 $MB = 1048576;
-$w['dopasowanie'] = [
-    'wolno'    => evk_gdrive_next_chunk(8 * $MB, 27.0, 0.3, 8 * $MB),     // evoke.pl: 8 MB w ~27 s
-    'szybko'   => evk_gdrive_next_chunk(8 * $MB, 0.5, 0.1, 8 * $MB),
-    'bardzo'   => evk_gdrive_next_chunk(100000, 30.0, 0.2, 8 * $MB),
-    'narzut'   => evk_gdrive_next_chunk(1 * $MB, 4.0, 3.0, 8 * $MB),      // 3 s na łączenie → żądanie ≥ 9 s
-    'sufit'    => evk_gdrive_next_chunk(8 * $MB, 1.0, 0.1, 700000),        // sufit nie z 256 KB → w dół
-];
 $lista = evk_gdrive_list_core();
 $w['lista_czasy'] = ['n' => count($lista['czasy'] ?? []), 'razem' => $lista['razem'] ?? 0,
     'opisy' => array_column($lista['czasy'] ?? [], 'opis'), 'co' => array_column($lista['czasy'] ?? [], 'co')];
 
-// Sufit 4 MB przy archiwum 8 MB: stały kawałek i „pierwszy = sufit" dają RÓŻNE zakresy.
+// Wysyłka: stałe kawałki (sufit 4 MB przy archiwum 8 MB) — dobór z 1.229.2 wycofany.
 $sufit = 4 * $MB;
 kopia('dysk-tempo.zip', 8 * $MB, 21, time());
 $md5_tempo = md5_file(evk_backup_dir() . '/dysk-tempo.zip');
-$przed = count(atrapa('/_atrapa/stan')['log']);
 $jobT = do_konca(evk_gdrive_upload_start('dysk-tempo.zip'), null, 400, static function () { return 20000; });
 $stan = atrapa('/_atrapa/stan');
 $metaT = json_decode((string) file_get_contents(evk_backup_dir() . '/dysk-tempo.zip.json'), true);
-$puty = array_values(array_filter(array_slice($stan['log'], $przed), static function ($l) { return $l['m'] === 'PUT' && $l['n'] > 0; }));
+$sesjaT = '';
+foreach ($stan['log'] as $l) if ($l['m'] === 'PUT' && $l['n'] > 0) $sesjaT = $l['q'];
+$puty = array_values(array_filter($stan['log'], static function ($l) use ($sesjaT) { return $l['m'] === 'PUT' && $l['n'] > 0 && $l['q'] === $sesjaT; }));
 evk_backup_delete_archive('dysk-tempo.zip');
-atrapa('/_atrapa/ster', ['wolno' => 1 * $MB]);
-$jobP = do_konca((int) evk_gdrive_download_start((string) ($metaT['drive_id'] ?? '-')), null, 400, static function () { return 20000; });
-atrapa('/_atrapa/ster', ['wolno' => 0]);
+
+/* Pobieranie jak na evoke.pl: 1,5 s czekania na pierwszy bajt (stałe na
+   żądanie), potem 1 MB/s; kroki po 1 s — krótsze niż samo czekanie. Po
+   starcie token dostępu, którego Google już nie zna (401 w strumieniu). */
+atrapa('/_atrapa/ster', ['czekaj' => 1.5, 'wolno' => 1 * $MB]);
+$postepy = 0;
+add_action('evk_backup_gdrive_postep', static function () use (&$postepy) { $postepy++; });
+$idP = (int) evk_gdrive_download_start((string) ($metaT['drive_id'] ?? '-'));
+$st = evk_gdrive_state();
+$st['access'] = 'ya29.przeterminowany';
+$st['access_exp'] = time() + 3000;
+evk_gdrive_save($st);
+$odsw_przed = (int) (atrapa('/_atrapa/stan')['odswiezen'] ?? 0);
+$t0 = microtime(true);
+$kroki = 0;
+$jobP = do_konca($idP, static function () use (&$kroki) { $kroki++; }, 400, static function () { return 1000; });
+$czasP = microtime(true) - $t0;
+atrapa('/_atrapa/ster', ['czekaj' => 0, 'wolno' => 0]);
 $stan = atrapa('/_atrapa/stan');
-$zakresyT = array_values(array_map(static function ($l) {
-    return preg_match('/bytes=(\d+)-(\d+)/', $l['range'], $m) ? (int) $m[2] - (int) $m[1] + 1 : 0;
-}, array_filter($stan['log'], static function ($l) use ($metaT) {
+$media = array_values(array_filter($stan['log'], static function ($l) use ($metaT) {
     return strpos($l['q'], 'alt=media') !== false && strpos($l['p'], (string) ($metaT['drive_id'] ?? '-')) !== false;
-})));
+}));
 $pobranaT = evk_backup_archive_path((string) $jobP['archive']);
-$w['tempo'] = [
+$w['strumien'] = [
     'wysylka' => $jobT['status'], 'puty' => array_column($puty, 'n'),
-    'pobranie' => $jobP['status'], 'blad' => $jobP['error'], 'zakresy' => $zakresyT,
+    'pobranie' => $jobP['status'], 'blad' => $jobP['error'], 'rozmiar' => $pobranaT ? (int) filesize($pobranaT) : 0,
     'md5' => $pobranaT ? md5_file($pobranaT) === $md5_tempo : false,
-    'log_kawalek' => array_values(preg_grep('/^\S+ Kawałek \d+:/', explode("\n", (string) $jobP['log']))),
+    'zakresy' => array_column($media, 'range'), 'ae' => array_values(array_unique(array_column($media, 'ae'))),
+    'postepy' => $postepy, 'kroki' => $kroki, 'czas' => round($czasP, 1),
+    'odswiezenia' => (int) ($stan['odswiezen'] ?? 0) - $odsw_przed,
+    'log_zadanie' => array_values(preg_grep('/^\S+ Żądanie \d+:/', explode("\n", (string) $jobP['log']))),
     'log_pomiar' => array_values(preg_grep('/Pomiar:/', explode("\n", (string) $jobP['log']))),
     'log_wysylka' => array_values(preg_grep('/Pomiar:/', explode("\n", (string) $jobT['log']))),
 ];
+
+// Błąd od Google w strumieniu (403 z treścią JSON) — do części nie trafia ani bajt.
+$pobranaT && evk_backup_delete_archive((string) $jobP['archive']);
+atrapa('/_atrapa/ster', ['media_403' => 1]);
+$jobE = do_konca((int) evk_gdrive_download_start((string) ($metaT['drive_id'] ?? '-')));
+$w['strumien_blad'] = ['status' => $jobE['status'], 'blad' => $jobE['error'],
+    'czesc' => (bool) glob(evk_backup_dir() . '/.pobieranie-*')];
 $sufit = 262144;
 
 // ── Dostęp cofnięty w Google (invalid_grant) ─────────────────────────────

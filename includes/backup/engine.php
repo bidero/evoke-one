@@ -331,6 +331,8 @@ function evk_backup_phase_label(string $faza): string {
  * stan (checkpoint) — ubicie w połowie kosztuje najwyżej tę porcję.
  */
 function evk_backup_run_phases(array $job, float $deadline): array {
+    // Termin całego kroku — dla faz, które jednym żądaniem pracują dłużej niż porcja (pobieranie z Dysku strumieniem).
+    $GLOBALS['evk_backup_termin_kroku'] = $deadline;
     do {
         /* PORCJA najwyżej ~1 s, nawet w kroku 20-sekundowym: po każdej idzie
            checkpoint, więc pasek w panelu (odpytywanie co 1 s) widzi postęp

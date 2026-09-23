@@ -83,7 +83,7 @@ $metoda = $_SERVER['REQUEST_METHOD'];
 $sciezka = (string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $cialo = (string) file_get_contents('php://input');
 $stan['log'][] = ['m' => $metoda, 'p' => $sciezka, 'q' => $_SERVER['QUERY_STRING'] ?? '', 'cr' => $naglowki['content-range'] ?? '',
-                  'range' => $naglowki['range'] ?? '', 'n' => strlen($cialo)];
+                  'range' => $naglowki['range'] ?? '', 'n' => strlen($cialo), 'ae' => $naglowki['accept-encoding'] ?? ''];
 
 // ── sterowanie testami ──────────────────────────────────────────────────
 if ($sciezka === '/_atrapa/stan') json_out(200, $stan);
@@ -235,22 +235,37 @@ if (preg_match('#^/drive/v3/files/([A-Za-z0-9_-]+)$#', $sciezka, $m)) {
     }
     if (($_GET['alt'] ?? '') === 'media') {
         if (awaria('get_503')) blad(503, 'Backend Error', 'backendError');
+        if (awaria('media_403')) blad(403, 'The download quota for this file has been exceeded.', 'downloadQuotaExceeded');
         $dane = (string) file_get_contents($katalog . '/pliki/' . $id);
         $r = (string) ($naglowki['range'] ?? '');
+        /* Jak zmierzono na evoke.pl (1.229.2): `czekaj` — sekundy do pierwszego
+           bajtu, STAŁE na żądanie; `wolno` — bajty/s wysyłane stopniowo PO
+           nagłówkach (1.229.2 usypiało przed wysłaniem — to udawało coś innego). */
+        $czekaj = (float) ($stan['ster']['czekaj'] ?? 0);
+        $wolno = (int) ($stan['ster']['wolno'] ?? 0);
         zapisz();
-        if (preg_match('/^bytes=(\d+)-(\d+)$/', $r, $z)) {
+        flock($blokada, LOCK_UN);   // inne żądania do atrapy nie czekają na ten strumień
+        if ($czekaj > 0) usleep((int) ($czekaj * 1e6));
+        $od = 0;
+        $do = strlen($dane) - 1;
+        if (preg_match('/^bytes=(\d+)-(\d*)$/', $r, $z)) {
             $od = (int) $z[1];
-            $do = min((int) $z[2], strlen($dane) - 1);
-            // Wolne łącze na żądanie testu: `wolno` = bajtów na sekundę.
-            $wolno = (int) ($stan['ster']['wolno'] ?? 0);
-            if ($wolno > 0) usleep((int) (($do - $od + 1) / $wolno * 1e6));
+            if ($z[2] !== '') $do = min((int) $z[2], $do);
             http_response_code(206);
             header('Content-Range: bytes ' . $od . '-' . $do . '/' . strlen($dane));
-            echo substr($dane, $od, $do - $od + 1);
-            exit;
+        } else {
+            http_response_code(200);
         }
-        http_response_code(200);
-        echo $dane;
+        header('Content-Type: application/zip');
+        header('Content-Length: ' . ($do - $od + 1));
+        while (ob_get_level()) ob_end_flush();
+        $porcja = $wolno > 0 ? max(4096, intdiv($wolno, 20)) : 1048576;
+        for ($i = $od; $i <= $do; $i += $porcja) {
+            echo substr($dane, $i, min($porcja, $do - $i + 1));
+            flush();
+            if ($wolno > 0) usleep((int) (min($porcja, $do - $i + 1) / $wolno * 1e6));
+            if (connection_aborted()) break;
+        }
         exit;
     }
     json_out(200, $f);
