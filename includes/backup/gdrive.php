@@ -785,6 +785,14 @@ function evk_gdrive_phase_fetch(array $job, float $deadline): array {
         if (function_exists('curl_init') && apply_filters('evk_backup_gdrive_stream', true)) {
             $id = (int) $job['id'];
             $termin = (float) ($GLOBALS['evk_backup_termin_kroku'] ?? $deadline);
+            /* Czekanie na pierwszy bajt widać w panelu (evk_gdrive_czeka): od
+               kiedy i od której pozycji. Zmierzone na evoke.pl (1.229.4): 28,6 s
+               czekania, potem 81,8 MB w sekundę — przez całe czekanie pasek nie
+               miał czego pokazać. Pozycja idzie też do progress_done: po ubitym
+               kroku część na dysku bywa dłuższa niż zapisany postęp. */
+            $job['state']['czeka_od'] = microtime(true);
+            $job['state']['czeka_poz'] = $jest;
+            evk_backup_job_update($id, ['state' => $job['state'], 'progress_done' => $jest]);
             $w = evk_gdrive_stream($url, $part, $jest, $termin, static function (int $pozycja) use ($id): bool {
                 $t = time();
                 evk_backup_job_update($id, ['progress_done' => $pozycja, 'heartbeat' => $t,
@@ -792,6 +800,7 @@ function evk_gdrive_phase_fetch(array $job, float $deadline): array {
                 do_action('evk_backup_gdrive_postep', $id, $pozycja);
                 return evk_backup_job_status($id) !== 'cancelled';
             });
+            unset($job['state']['czeka_od'], $job['state']['czeka_poz']);
             if ($w['kod'] === 401) { evk_gdrive_access_token(true); return $job; }
             if ($w['dopisane'] === 0 && ($w['kod'] === 0 || evk_gdrive_transient_code($w['kod']))) {
                 return evk_gdrive_retry($job, ['code' => $w['kod'], 'json' => json_decode($w['tresc'], true)],
@@ -803,6 +812,9 @@ function evk_gdrive_phase_fetch(array $job, float $deadline): array {
             }
             $jest += $w['dopisane'];
             $job['state']['retries'] = 0;
+            if ($w['dopisane'] > 0 && !empty($w['pomiar']['pierwszy'])) {
+                update_option('evk_gdrive_czekanie', round((float) $w['pomiar']['pierwszy'], 1), false);
+            }
             $job = evk_gdrive_zapisz_pomiar($job, $w['dopisane'], $w['pomiar'], sprintf(' · od %s%s · kompresja: %s%s',
                 evk_backup_bytes_label((float) ($jest - $w['dopisane'])), evk_gdrive_po_pierwszym($w), $w['kodowanie'] ?: 'brak',
                 $w['przerwane'] ? ' · przerwane na końcu kroku' : ($w['curl'] !== '' ? ' · zerwane: ' . $w['curl'] : '')));
@@ -839,6 +851,24 @@ function evk_gdrive_phase_fetch(array $job, float $deadline): array {
     evk_backup_job_log($job['id'], 'Kopia pobrana z Dysku: ' . $nazwa . '.');
     evk_gdrive_pomiar_podsumowanie($job);
     return evk_gdrive_job_done($job);
+}
+
+/**
+ * Sekundy czekania na pierwszy bajt od Dysku w trwającym żądaniu — albo null,
+ * gdy nie czeka (dane już idą, inny etap, zadanie skończone).
+ */
+function evk_gdrive_czeka(array $job): ?int {
+    $s = $job['state'];
+    if ($job['phase'] !== 'd_fetch' || !in_array($job['status'], ['queued', 'running'], true) || empty($s['czeka_od'])
+        || (int) $job['progress_done'] !== (int) ($s['czeka_poz'] ?? -1)) return null;
+    return max(0, (int) floor(microtime(true) - (float) $s['czeka_od']));
+}
+
+/** „Dysk Google przygotowuje plik… 12 s (ostatnio ok. 29 s)". */
+function evk_gdrive_czeka_opis(int $sekundy): string {
+    $ostatnio = (float) get_option('evk_gdrive_czekanie', 0);
+    return sprintf('Dysk Google przygotowuje plik… %d s', $sekundy)
+        . ($ostatnio >= 1 ? sprintf(' (ostatnio ok. %d s)', (int) round($ostatnio)) : '');
 }
 
 /** „ · po pierwszym bajcie X MB/s" — prędkość samego transferu, bez czekania na odpowiedź. */

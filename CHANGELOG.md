@@ -2,6 +2,50 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.229.5] — 2026-09-23
+
+### Zmienione (zgłoszone z evoke.pl)
+
+- **Czekanie na Dysk Google widać w panelu.** Dziennik z evoke.pl po 1.229.4:
+  - 81,8 MB pobrane w 29,6 s (wcześniej 4 min 56 s);
+  - z tego 28,6 s to czekanie na pierwszy bajt od Google, a cały plik
+    przyszedł w sekundę (83,76 MB/s);
+  - krok zrobiła praca w tle.
+
+  Pasek nie miał więc czego pokazać: 0 B przez prawie pół minuty, potem od
+  razu 100%. Kompresja nie była przyczyną („kompresja: brak"). Przyczyny
+  czekania po stronie Google nie badamy (decyzja: 30 s wystarcza).
+- Przez czekanie po pasku jeździ odcinek, a pod nim jest licznik: „Dysk
+  Google przygotowuje plik… 12 s (ostatnio ok. 29 s)". Czas z poprzedniego
+  pobrania jest zapamiętany.
+  - Pasek nie udaje procentu: prawdziwy postęp zostaje pod spodem, a czytniki
+    ekranu dostają pasek nieokreślony (bez `aria-valuenow`).
+  - Przy ograniczonym ruchu odcinek nie jeździ, tylko cały pasek jest lekko
+    podbarwiony.
+  - Kiedy przychodzą dane, wraca zwykły postęp w MB.
+
+### Testy
+
+- `backup-drive` (atrapa: 1,5 s czekania). Zmierzone: „… przygotowuje plik…
+  1 s", przy drugim żądaniu „(ostatnio ok. 2 s)", zapamiętane 1,6 s; gdy dane
+  idą, „563,2 KB z 8,0 MB". Sprawdzenia:
+  - licznik podczas czekania;
+  - MB, gdy dane idą, i nigdy jedno z drugim;
+  - zapamiętany czas;
+  - po końcu nic nie czeka.
+- `backup-panel-drive` (3 s czekania, praca w tle). Zmierzone: 11 próbek
+  z paskiem w ruchu, licznik 0 → 1 → 2 s. Sprawdzenia:
+  - animacja;
+  - brak `aria-valuenow`;
+  - licznik rośnie;
+  - po końcu zwykły pasek.
+- Mutacje:
+  - bez zapisu czekania;
+  - „czeka" mimo danych;
+  - bez zapamiętania;
+  - JS bez klasy;
+  - CSS bez animacji.
+
 ## [1.229.4] — 2026-09-23
 
 ### Poprawione (zgłoszone z evoke.pl)

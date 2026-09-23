@@ -1466,6 +1466,14 @@
 }
 .evk-backup-pasek { height: 8px; border-radius: 999px; background: var(--evo-border-soft); overflow: hidden; margin: 8px 0 4px; }
 .evk-backup-pasek > span { display: block; height: 100%; width: 0; background: var(--evo-accent); transition: width .4s ease; }
+/* Czekanie na pierwszy bajt od Dysku Google: odcinek jeździ po pasku, nie ruszając prawdziwego postępu. */
+.evk-backup-pasek.is-czeka { position: relative; }
+.evk-backup-pasek.is-czeka::after { content: ''; position: absolute; top: 0; bottom: 0; left: -30%; width: 30%;
+    background: var(--evo-accent); opacity: .5; border-radius: 999px; animation: evk-backup-czeka 1.4s ease-in-out infinite; }
+@keyframes evk-backup-czeka { from { left: -30%; } to { left: 100%; } }
+@media (prefers-reduced-motion: reduce) {
+    .evk-backup-pasek.is-czeka::after { animation: none; left: 0; width: 100%; opacity: .25; }
+}
 .evk-backup-procent { margin: 0; font-size: 12px; }
 .evk-backup-log { max-height: 220px; overflow: auto; margin: 6px 0 0; padding: 8px 10px; font-size: 11px; line-height: 1.6;
     background: var(--evo-code-bg); color: var(--evo-code-text); border-radius: 6px; white-space: pre-wrap; word-break: break-word; }

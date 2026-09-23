@@ -165,6 +165,39 @@ module.exports = async function (t) {
     const f3k = f3.kopie.find((k) => k.archive === 'panel-dysk.zip');
     t.check('pobrana bez pracy w tle co do bajtu', f3k && f3k.md5 === prep.md5 && pob.status === 'done', JSON.stringify(f3k || null));
     sonda('bez-loopbacku 0');
+
+    t.section('czekanie na Dysk: pasek w ruchu i licznik sekund');
+    /* Zmierzone na evoke.pl (1.229.4): 28,6 s do pierwszego bajtu, potem cały
+       plik w sekundę — pasek stał na 0% i od razu był pełny. Atrapa: 3 s
+       czekania, potem plik bez dławienia; praca w tle jak na evoke.pl. */
+    await g.ster({ czekaj: 3, wolno: 0 });
+    await p.goto(zakladka);
+    await p.waitForSelector('[data-evk-gdrive-list] tr[data-drive-id]', { timeout: 15000 }).catch(() => {});
+    await p.click('tr[data-archive="panel-dysk.zip"] [data-evk-backup-delete]');
+    await p.waitForSelector('[data-evk-backup-empty]', { timeout: 10000 });
+    await p.click('[data-evk-gdrive-list] [data-evk-gdrive-restore]');
+    const czek = [];
+    const tc = Date.now();
+    while (Date.now() - tc < 60000) {
+      const s1 = await p.evaluate(() => {
+        const b = document.querySelector('[data-evk-backup-bar]');
+        return { k: b.classList.contains('is-czeka'), a: getComputedStyle(b, '::after').animationName, v: b.getAttribute('aria-valuenow'),
+          t: document.querySelector('[data-evk-backup-percent]').textContent.split(' · ')[1] || '' };
+      });
+      if (s1.k) czek.push(s1);
+      if (await widac(p, '[data-evk-backup-msg]')) break;
+      await p.waitForTimeout(250);
+    }
+    await p.waitForSelector('[data-evk-restore-dialog][open]', { timeout: 10000 }).catch(() => {});
+    if (await p.locator('[data-evk-restore-dialog]').evaluate((d) => d.open)) await p.click('[data-evk-restore-close]');
+    const liczby = [...new Set(czek.map((x) => (x.t.match(/przygotowuje plik… (\d+) s/) || [])[1]).filter(Boolean))];
+    const koniecKlasa = await p.evaluate(() => document.querySelector('[data-evk-backup-bar]').className);
+    /* Zmierzone: 11 próbek (co 250 ms) z paskiem w ruchu, licznik 0 → 1 → 2 s,
+       animacja „evk-backup-czeka", bez aria-valuenow; po końcu zwykły pasek. */
+    t.check('przez czekanie pasek w ruchu (animacja), bez udawanego procentu (bez aria-valuenow)',
+      czek.length >= 4 && czek.every((x) => x.a === 'evk-backup-czeka' && x.v === null), JSON.stringify(czek.slice(0, 2)) + ' próbek: ' + czek.length);
+    t.check('licznik sekund czekania rośnie („Dysk Google przygotowuje plik… N s")', liczby.length >= 2, liczby.join(' → ') || 'brak');
+    t.check('po pobraniu pasek znów zwykły', !/is-czeka/.test(koniecKlasa), koniecKlasa);
     await g.ster({ czekaj: 0, wolno: 0 });
 
     t.section('odmowa w Google, rozłączenie');

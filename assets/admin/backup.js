@@ -91,7 +91,14 @@
         $('[data-evk-backup-step]').textContent = job.status === 'done' ? '' : 'etap ' + job.step + ' z ' + job.steps;
         var pasek = $('[data-evk-backup-bar]');
         pasek.firstElementChild.style.width = job.percent + '%';
-        pasek.setAttribute('aria-valuenow', String(job.percent));
+        /* Dysk Google trzyma odpowiedź ~29 s przed pierwszym bajtem (zmierzone
+           na evoke.pl), a potem oddaje cały plik w sekundę — przez to czekanie
+           pasek w ruchu i licznik sekund zamiast stojącego 0%. Bez udawanego
+           procentu: pasek nieokreślony, bez aria-valuenow. */
+        var czeka = job.czeka !== null && job.czeka !== undefined;
+        pasek.classList.toggle('is-czeka', czeka);
+        if (czeka) pasek.removeAttribute('aria-valuenow');
+        else pasek.setAttribute('aria-valuenow', String(job.percent));
         $('[data-evk-backup-percent]').textContent = job.percent + '%' + (job.detail ? ' · ' + job.detail : '')
             + ' · kroków: ' + job.ticks + ' · długość kroku: ' + job.budget_s + ' s';
         $('[data-evk-backup-log]').textContent = (job.log || []).join('\n');

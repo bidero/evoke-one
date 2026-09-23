@@ -56,6 +56,8 @@ function evk_backup_job_public(?array $job): ?array {
         'ticks'    => $job['ticks'],
         'budget_s' => round($job['budget_ms'] / 1000, 1),
         'detail'   => evk_backup_job_detail($job),
+        // Pobieranie z Dysku czeka na pierwszy bajt: sekundy (panel pokazuje pasek w ruchu) albo null.
+        'czeka'    => function_exists('evk_gdrive_czeka') ? evk_gdrive_czeka($job) : null,
         // Przywracanie: zakres decyduje, czy po końcu trzeba się zalogować od nowa.
         'scope'    => $przywracanie ? (string) ($job['state']['scope'] ?? 'all') : '',
         'log'      => array_slice(explode("\n", (string) $job['log']), -12),
@@ -75,11 +77,15 @@ function evk_backup_job_detail(array $job): string {
         case 'list':
             return sprintf('znaleziono %s plików (%s)', number_format_i18n((int) ($s['list']['files'] ?? 0)),
                 evk_backup_bytes_label((float) ($s['list']['size'] ?? 0)));
+        case 'd_fetch':
+            $czeka = function_exists('evk_gdrive_czeka') ? evk_gdrive_czeka($job) : null;
+            if ($czeka !== null) return evk_gdrive_czeka_opis($czeka);
+            return sprintf('%s z %s', evk_backup_bytes_label((float) $job['progress_done']),
+                evk_backup_bytes_label((float) $job['progress_total']));
         case 'pack':
         case 'finalize':
         case 'r_extract':
         case 'u_send':
-        case 'd_fetch':
             return sprintf('%s z %s', evk_backup_bytes_label((float) $job['progress_done']),
                 evk_backup_bytes_label((float) $job['progress_total']));
         case 'r_db':

@@ -124,6 +124,20 @@ module.exports = async function (t) {
     t.check('kroki (1 s) krótsze niż czekanie na pierwszy bajt (1,5 s) i tak robią postęp', sm.kroki <= 4, 'kroków: ' + sm.kroki);
     t.check('postęp zapisywany W TRAKCIE żądania (pasek co sekundę), nie tylko po nim',
       sm.postepy >= 2 * dane.length, 'zapisów postępu: ' + sm.postepy + ', żądań: ' + dane.length);
+    /* 1.229.4 z evoke.pl: 28,6 s czekania, potem 81,8 MB w sekundę — pasek stał
+       i od razu był pełny. Panel pokazuje czekanie osobno. Zmierzone tu (atrapa
+       1,5 s czekania): „Dysk Google przygotowuje plik… 1 s", przy drugim żądaniu
+       „… (ostatnio ok. 2 s)", zapamiętane 1,6 s; gdy dane idą — „563,2 KB z 8,0 MB". */
+    const widok = sm.widok;
+    t.check('czekanie na pierwszy bajt: panel dostaje sekundy i opis „Dysk Google przygotowuje plik… N s"',
+      widok.some(([c, d]) => c >= 1 && /^Dysk Google przygotowuje plik… \d+ s/.test(d)), JSON.stringify(widok));
+    t.check('gdy dane idą: bez czekania, szczegół w MB',
+      widok.some(([c, d]) => c === 'brak' && /B z 8,0 MB$/.test(d))
+        && widok.every(([c, d]) => (c === 'brak') === /B z 8,0 MB$/.test(d)), JSON.stringify(widok));
+    t.check('czas czekania zapamiętany i podany przy następnym żądaniu („ostatnio ok. 2 s")',
+      sm.czekanie >= 1.4 && sm.czekanie <= 2.5 && widok.some(([, d]) => /\(ostatnio ok\. 2 s\)$/.test(d)),
+      'zapamiętane: ' + sm.czekanie);
+    t.check('po końcu pobierania nic nie czeka', sm.po_koncu === null, String(sm.po_koncu));
     t.check('bez Accept-Encoding (ZIP już jest skompresowany)', sm.ae.length === 1 && sm.ae[0] === '', JSON.stringify(sm.ae));
     t.check('token dostępu odrzucony w strumieniu (401): odświeżony, pobieranie idzie dalej', sm.odswiezenia === 1, String(sm.odswiezenia));
     const z1 = sm.log_zadanie[0] || '';

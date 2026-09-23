@@ -327,7 +327,13 @@ evk_backup_delete_archive('dysk-tempo.zip');
    starcie token dostępu, którego Google już nie zna (401 w strumieniu). */
 atrapa('/_atrapa/ster', ['czekaj' => 1.5, 'wolno' => 1 * $MB]);
 $postepy = 0;
-add_action('evk_backup_gdrive_postep', static function () use (&$postepy) { $postepy++; });
+$widok = [];   // co panel widział przy każdym zapisie postępu: sekundy czekania albo null, szczegół
+delete_option('evk_gdrive_czekanie');
+add_action('evk_backup_gdrive_postep', static function ($id) use (&$postepy, &$widok) {
+    $postepy++;
+    $pub = evk_backup_job_public(evk_backup_job_get((int) $id));
+    $widok[] = [$pub['czeka'] ?? 'brak', $pub['detail'] ?? ''];
+});
 $idP = (int) evk_gdrive_download_start((string) ($metaT['drive_id'] ?? '-'));
 $st = evk_gdrive_state();
 $st['access'] = 'ya29.przeterminowany';
@@ -350,6 +356,7 @@ $w['strumien'] = [
     'md5' => $pobranaT ? md5_file($pobranaT) === $md5_tempo : false,
     'zakresy' => array_column($media, 'range'), 'ae' => array_values(array_unique(array_column($media, 'ae'))),
     'postepy' => $postepy, 'kroki' => $kroki, 'czas' => round($czasP, 1),
+    'widok' => $widok, 'czekanie' => get_option('evk_gdrive_czekanie'), 'po_koncu' => evk_backup_job_public($jobP)['czeka'],
     'odswiezenia' => (int) ($stan['odswiezen'] ?? 0) - $odsw_przed,
     'log_zadanie' => array_values(preg_grep('/^\S+ Żądanie \d+:/', explode("\n", (string) $jobP['log']))),
     'log_pomiar' => array_values(preg_grep('/Pomiar:/', explode("\n", (string) $jobP['log']))),
