@@ -22,8 +22,10 @@ module.exports = async function (t) {
   let browser;
   try {
     process.env.EVK_GOOGLE = g.adres;
+    process.env.EVK_GOOGLE_BROKER = g.posrednik;
     const w = JSON.parse(phpOutput('backup-drive.php'));
     delete process.env.EVK_GOOGLE;
+    delete process.env.EVK_GOOGLE_BROKER;
 
     t.section('łączenie: adres zgody, podpis, PKCE, jednorazowość');
     t.check('testowy WordPress jest (tools/testowy-wp.sh)', !w.brak, w.brak || 'jest');
@@ -110,6 +112,45 @@ module.exports = async function (t) {
     t.check('dostęp cofnięty w Google (invalid_grant): rozłączone i powiadomienie',
       /cofnął dostęp/.test(c.blad) && c.polaczone === false && c.alert === 'Dysk Google rozłączony', JSON.stringify(c));
 
+    // ── Pośrednik tokenów (tools/oauth-relay/token.php) ──────────────────
+    t.section('pośrednik tokenów: sekret tylko na evoke.pl');
+    const dp = w.do_posrednika;
+    t.check('strona nie wysyła sekretu klienta — ani przy łączeniu, ani przy odświeżaniu',
+      dp.zadan >= 5 && dp.z_sekretem === 0 && dp.klucze.includes('client_id') && !dp.klucze.includes('client_secret'), JSON.stringify(dp));
+    /* Odrzucone ma zostać NA POŚREDNIKU: atrapa Google też odpowiada 400
+       na zły kod, więc sam status niczego nie dowodzi (mutacje „bez PKCE",
+       „obcy powrót" i „dowolny grant" przechodziły). Liczymy żądania, które
+       dotarły do Google. */
+    const doGoogle = async () => (await g.stan()).log.filter((l) => l.p === '/token').length;
+    const doP = async (dane, metoda = 'POST') => {
+      const przed = await doGoogle();
+      const r = await fetch(g.posrednik, metoda === 'POST'
+        ? { method: 'POST', body: new URLSearchParams(dane) } : { method: metoda });
+      const tekst = await r.text();
+      return { status: r.status, tekst, doGoogle: (await doGoogle()) - przed };
+    };
+    const zly = {
+      'GET': await doP({}, 'GET'),
+      'inny grant': await doP({ grant_type: 'client_credentials' }),
+      'kod bez PKCE': await doP({ grant_type: 'authorization_code', code: 'x', redirect_uri: g.adres + '/evk-oauth/' }),
+      'obcy powrót': await doP({ grant_type: 'authorization_code', code: 'x', code_verifier: 'a'.repeat(64), redirect_uri: 'https://zly.pl/' }),
+      'bez tokenu': await doP({ grant_type: 'refresh_token' }),
+    };
+    const kody = Object.fromEntries(Object.entries(zly).map(([k, v]) => [k, v.status + (v.doGoogle ? ' →Google' : '')]));
+    t.check('pośrednik: tylko POST', kody.GET === '405', JSON.stringify(kody));
+    t.check('pośrednik: inny rodzaj żądania niż kod i odświeżenie — odmowa, do Google nie idzie',
+      kody['inny grant'] === '400' && /unsupported_grant_type/.test(zly['inny grant'].tekst), JSON.stringify(kody));
+    t.check('pośrednik: kod bez weryfikatora PKCE — odmowa, do Google nie idzie',
+      kody['kod bez PKCE'] === '400' && /weryfikatora PKCE/.test(zly['kod bez PKCE'].tekst), JSON.stringify(kody));
+    t.check('pośrednik: adres powrotu inny niż evoke.pl — odmowa, do Google nie idzie',
+      kody['obcy powrót'] === '400' && /adres powrotu/.test(zly['obcy powrót'].tekst), JSON.stringify(kody));
+    t.check('pośrednik: odświeżenie bez tokenu — odmowa, do Google nie idzie', kody['bez tokenu'] === '400', JSON.stringify(kody));
+    const odmowaG = await doP({ grant_type: 'refresh_token', refresh_token: '1//nieznany', client_secret: 'podrzucony' });
+    t.check('poprawne żądanie idzie do Google, odpowiedź oddana bez zmian (tu: invalid_grant)',
+      odmowaG.status === 400 && /invalid_grant/.test(odmowaG.tekst) && odmowaG.doGoogle === 1, odmowaG.status + ' ' + odmowaG.tekst);
+    t.check('sekret nie wraca w żadnej odpowiedzi pośrednika',
+      ![...Object.values(zly), odmowaG].some((r) => r.tekst.includes('test-sekret')));
+
     // ── Strona przekierowująca w Chromium ────────────────────────────────
     t.section('strona przekierowująca (tools/oauth-relay/index.html)');
     browser = await chromium.launch({ executablePath: chromiumPath() });
@@ -146,6 +187,7 @@ module.exports = async function (t) {
       Object.values(wyniki).every(Boolean), JSON.stringify(wyniki));
   } finally {
     delete process.env.EVK_GOOGLE;
+    delete process.env.EVK_GOOGLE_BROKER;
     if (browser) await browser.close();
     await g.zatrzymaj();
   }

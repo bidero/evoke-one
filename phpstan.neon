@@ -30,6 +30,7 @@ parameters:
     paths:
         - includes
         - evoke-one.php
+        - tools/oauth-relay/token.php
 
     # Atrapy. Same deklaracje — PHPStan tych plików nie uruchamia, tylko czyta.
     #

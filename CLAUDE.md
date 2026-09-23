@@ -179,7 +179,9 @@ Google** — `tests/php/_google-atrapa.php` na `php -S` (`tests/lib/google-atrap
 adresy podmienia filtr `evk_backup_gdrive_endpoints`. Prawdziwego Google
 z tej maszyny nie ma (sieć, identyfikatory); pierwsze prawdziwe połączenie
 sprawdza się na evoke.pl. Atrapa podaje PRAWDZIWĄ stronę przekierowującą
-z `tools/oauth-relay/index.html`, więc test panelu przechodzi całą drogę.
+z `tools/oauth-relay/index.html`, a tokeny idą przez PRAWDZIWEGO pośrednika
+`tools/oauth-relay/token.php` (drugi `php -S`, konfiguracja testowa), więc test
+panelu przechodzi całą drogę.
 
 Brak środowiska **zapala test na czerwono** z instrukcją, a nie pomija go po
 cichu — ta sama umowa co przy PHPStanie w `drobiazgi`.
@@ -271,6 +273,17 @@ Kontener usypia między turami, więc **długie przebiegi w tle stają**. Puszcz
 partiami do ~600 s i czekaj na nie jawnie.
 
 ---
+
+## Sekrety: repozytorium jest PUBLICZNE
+
+Żadnych haseł, kluczy ani sekretów w kodzie, testach, komentarzach i commitach
+— także „jawnych jak w rclone". 1.229.0 miało sekret klienta Google we
+wtyczce; Google wykrył go w kilka minut i nakazał wymianę (1.229.1). Sekret
+Google leży WYŁĄCZNIE w `evk-oauth-config.php` na serwerze evoke.pl, a strony
+dostają tokeny przez pośrednika `tools/oauth-relay/token.php`. Testy używają
+zmyślonych wartości (`test-sekret`). Push protection GitHuba, który blokuje
+push z sekretem, NIE jest do odblokowywania „bo tak ustaliliśmy" — to sygnał,
+żeby sekret wyjąć.
 
 ## Wydania
 

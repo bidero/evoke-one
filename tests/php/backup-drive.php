@@ -26,15 +26,24 @@ $evk_pliki = [
 require __DIR__ . '/_testowy-wp.php';
 
 $atrapa = rtrim((string) getenv('EVK_GOOGLE'), '/');
-if ($atrapa === '') { echo json_encode(['brak' => 'Brak EVK_GOOGLE — sondę uruchamia tests/backup-drive.test.js razem z atrapą Google.']); exit; }
+$posrednik = (string) getenv('EVK_GOOGLE_BROKER');
+if ($atrapa === '' || $posrednik === '') { echo json_encode(['brak' => 'Brak EVK_GOOGLE / EVK_GOOGLE_BROKER — sondę uruchamia tests/backup-drive.test.js razem z atrapą Google.']); exit; }
 
 global $wpdb;
 add_filter('evk_backup_loopback', '__return_false');
-add_filter('evk_backup_gdrive_endpoints', static function (array $c) use ($atrapa): array {
-    return array_merge($c, ['auth' => $atrapa . '/o/oauth2/v2/auth', 'token' => $atrapa . '/token', 'revoke' => $atrapa . '/revoke',
+/* Jak na stronie klienta: bez sekretu, tokeny przez pośrednika
+   (tools/oauth-relay/token.php), który zna sekret i mówi do atrapy. */
+add_filter('evk_backup_gdrive_endpoints', static function (array $c) use ($atrapa, $posrednik): array {
+    return array_merge($c, ['auth' => $atrapa . '/o/oauth2/v2/auth', 'token' => $posrednik, 'revoke' => $atrapa . '/revoke',
         'api' => $atrapa . '/drive/v3', 'upload' => $atrapa . '/upload/drive/v3', 'redirect' => $atrapa . '/evk-oauth/',
-        'client_id' => 'test-klient', 'client_secret' => 'test-sekret']);
+        'client_id' => 'test-klient']);
 });
+// Co strona wysyła do pośrednika — sekretu nie ma mieć w ogóle.
+$do_posrednika = [];
+add_filter('http_request_args', static function ($args, $url) use ($posrednik, &$do_posrednika) {
+    if ($url === $posrednik) $do_posrednika[] = array_keys((array) ($args['body'] ?? []));
+    return $args;
+}, 10, 2);
 add_filter('evk_backup_gdrive_chunk', static function () { return 262144; });
 $maile = [];
 add_filter('pre_wp_mail', static function ($nic, $atts) use (&$maile) { $maile[] = $atts; return true; }, 10, 2);
@@ -303,4 +312,7 @@ $w['cofniety'] = ['blad' => blad(static function () { evk_gdrive_list_backups();
     'alert' => (get_option(EVK_BACKUP_ALERT_OPTION)['title'] ?? null)];
 atrapa('/_atrapa/ster', ['invalid_grant' => 0]);
 
+$w['do_posrednika'] = ['zadan' => count($do_posrednika), 'z_sekretem' => count(array_filter($do_posrednika, static function ($k) {
+    return in_array('client_secret', $k, true);
+})), 'klucze' => array_values(array_unique(array_merge(...($do_posrednika ?: [[]]))))];
 echo json_encode($w, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

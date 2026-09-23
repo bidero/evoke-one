@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.229.1] — 2026-09-23
+
+### Bezpieczeństwo
+
+- **Sekretu klienta Google nie ma już we wtyczce.** W 1.229.0 był wpisany
+  jawnie (jak w rclone); repozytorium jest publiczne i Google wykrył go kilka
+  minut po wypchnięciu, z nakazem wymiany. Stary sekret jest wyłączany
+  w Google Cloud — ten z historii gita przestaje cokolwiek znaczyć.
+- **Pośrednik tokenów na evoke.pl** (`tools/oauth-relay/token.php`, wgrany
+  przez FTP obok strony przekierowującej). Tylko on zna sekret — czyta go
+  z `evk-oauth-config.php` w katalogu nad public_html, nigdy z repozytorium.
+  Robi za strony z wtyczką dwie rzeczy, które sekretu wymagają: wymianę kodu
+  na tokeny i odświeżanie tokenu. Przepuszcza wyłącznie POST z kodem
+  i weryfikatorem PKCE (i adresem powrotu evoke.pl) albo z tokenem
+  odświeżania; adres Google stały, odpowiedź Google oddana bez zmian,
+  niczego nie zapisuje. Bez konfiguracji odpowiada 503 — tak jest w każdej
+  kopii wtyczki na stronach klientów.
+- Strona z wtyczką nie wysyła sekretu wcale. Dysk, wysyłka, pobieranie
+  i cofnięcie tokenu idą dalej wprost do Google. Chwilowa niedostępność
+  pośrednika (5xx) nie rozłącza Dysku.
+- Własna aplikacja Google bez pośrednika: stałe `EVK_GDRIVE_CLIENT_ID`
+  i `EVK_GDRIVE_CLIENT_SECRET` w wp-config.php.
+
+### Testy
+
+- Atrapa Google w testach idzie przez PRAWDZIWEGO pośrednika (osobny `php -S`
+  z konfiguracją testową) — w `backup-drive` i w przeglądarce
+  (`backup-panel-drive`).
+- `backup-drive`: strona nie wysyła sekretu (ani przy łączeniu, ani przy
+  odświeżaniu); pośrednik — tylko POST, odmowa innego rodzaju żądania, kodu
+  bez PKCE, obcego adresu powrotu i odświeżenia bez tokenu, a odrzucone NIE
+  docierają do Google (liczone żądania w atrapie — sam status 400 nie
+  wystarczał: trzy mutacje przechodziły, bo atrapa też odpowiada 400); sekret
+  nie wraca w odpowiedziach. 5 mutacji, każda zapala swoje sprawdzenie.
+- PHPStan obejmuje też `tools/oauth-relay/token.php`.
+
 ## [1.229.0] — 2026-09-23
 
 ### Dodane

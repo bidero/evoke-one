@@ -20,11 +20,15 @@ if (!defined('ABSPATH')) exit;
  * a weryfikator nie opuszcza tej strony (transient na 15 min, jednorazowy,
  * przypisany do użytkownika). `state` jest podpisany kluczem instalacji.
  *
- * IDENTYFIKATOR I SEKRET KLIENTA są jawne, jak w rclone (decyzja z 1.229.0):
- * aplikacja typu „web" nie ma jak ukryć sekretu na tysiącu stron, a samo jego
- * poznanie nie daje dostępu do niczyjego Dysku — to daje dopiero token
- * odświeżania, który zostaje na stronie, która go dostała. Stałe można
- * nadpisać w wp-config.php (własna aplikacja Google).
+ * SEKRETU KLIENTA WE WTYCZCE NIE MA (1.229.1). W 1.229.0 był jawny, jak
+ * w rclone — Google wykrył go w publicznym repozytorium w kilka minut po
+ * wypchnięciu i nakazał wymianę. Wymianę kodu na tokeny i odświeżanie tokenu
+ * (tylko te dwie operacje wymagają sekretu) robi pośrednik na evoke.pl
+ * (tools/oauth-relay/token.php), który jako jedyny zna sekret. Tokeny
+ * przechodzą przez niego, ale niczego nie zapisuje; reszta rozmowy z Google
+ * (Dysk, cofnięcie tokenu) idzie ze strony wprost. Własna aplikacja Google:
+ * stałe EVK_GDRIVE_CLIENT_ID i EVK_GDRIVE_CLIENT_SECRET w wp-config.php —
+ * wtedy strona rozmawia z Google bez pośrednika.
  *
  * ZAKRES `drive.file`: wtyczka widzi WYŁĄCZNIE pliki, które sama utworzyła —
  * żadnych innych plików z Dysku. To zakres niewrażliwy (bez audytu Google).
@@ -45,9 +49,11 @@ if (!defined('ABSPATH')) exit;
  * pliku na Dysku — lista kopii z Dysku nie otwiera archiwów.
  */
 
+// Identyfikator klienta nie jest tajny (widać go w każdym adresie zgody Google).
 if (!defined('EVK_GDRIVE_CLIENT_ID'))     define('EVK_GDRIVE_CLIENT_ID', '763290511291-49qjq33hftns0jbvup1canppi5gk1qv1.apps.googleusercontent.com');
-if (!defined('EVK_GDRIVE_CLIENT_SECRET')) define('EVK_GDRIVE_CLIENT_SECRET', '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');
 if (!defined('EVK_GDRIVE_REDIRECT'))      define('EVK_GDRIVE_REDIRECT', 'https://evoke.pl/evk-oauth/');
+/** Pośrednik tokenów — zna sekret klienta, którego we wtyczce nie ma. */
+if (!defined('EVK_GDRIVE_TOKEN_BROKER'))  define('EVK_GDRIVE_TOKEN_BROKER', 'https://evoke.pl/evk-oauth/token.php');
 
 const EVK_GDRIVE_OPTION = 'evk_backup_gdrive';
 const EVK_GDRIVE_SCOPE  = 'https://www.googleapis.com/auth/drive.file openid email';
@@ -67,17 +73,22 @@ class EVK_Gdrive_Exception extends \RuntimeException {
     }
 }
 
-/** Adresy Google i dane klienta — przez filtr, który testy kierują na atrapę. */
+/**
+ * Adresy Google i dane klienta — przez filtr, który testy kierują na atrapę.
+ * Bez sekretu w wp-config.php żądania tokenów idą do pośrednika, który
+ * dokłada sekret sam (`client_secret` pusty = nie wysyłamy go wcale).
+ */
 function evk_gdrive_config(): array {
+    $sekret = defined('EVK_GDRIVE_CLIENT_SECRET') ? (string) constant('EVK_GDRIVE_CLIENT_SECRET') : '';
     return (array) apply_filters('evk_backup_gdrive_endpoints', [
         'auth'          => 'https://accounts.google.com/o/oauth2/v2/auth',
-        'token'         => 'https://oauth2.googleapis.com/token',
+        'token'         => $sekret !== '' ? 'https://oauth2.googleapis.com/token' : EVK_GDRIVE_TOKEN_BROKER,
         'revoke'        => 'https://oauth2.googleapis.com/revoke',
         'api'           => 'https://www.googleapis.com/drive/v3',
         'upload'        => 'https://www.googleapis.com/upload/drive/v3',
         'redirect'      => EVK_GDRIVE_REDIRECT,
         'client_id'     => EVK_GDRIVE_CLIENT_ID,
-        'client_secret' => EVK_GDRIVE_CLIENT_SECRET,
+        'client_secret' => $sekret,
     ]);
 }
 
@@ -177,10 +188,15 @@ function evk_gdrive_verify_state(string $state, int $user): string {
 /** Żądanie do punktu tokenów Google. Rzuca EVK_Gdrive_Exception z kodem błędu OAuth. */
 function evk_gdrive_token_request(array $body): array {
     $c = evk_gdrive_config();
-    $r = wp_remote_post($c['token'], ['timeout' => 30, 'body' => $body + [
-        'client_id' => $c['client_id'], 'client_secret' => $c['client_secret'],
-    ]]);
-    if (is_wp_error($r)) throw new EVK_Gdrive_Exception('Brak połączenia z Google: ' . $r->get_error_message());
+    $body['client_id'] = $c['client_id'];
+    if ((string) $c['client_secret'] !== '') $body['client_secret'] = $c['client_secret'];
+    $r = wp_remote_post($c['token'], ['timeout' => 30, 'body' => $body]);
+    $kto = (string) $c['client_secret'] !== '' ? 'Google' : 'pośrednikiem logowania (' . wp_parse_url((string) $c['token'], PHP_URL_HOST) . ')';
+    if (is_wp_error($r)) throw new EVK_Gdrive_Exception('Brak połączenia z ' . $kto . ': ' . $r->get_error_message());
+    // Pośrednik bez konfiguracji albo niedostępny — to nie jest odmowa Google i nie rozłącza Dysku.
+    if ((int) wp_remote_retrieve_response_code($r) >= 500) {
+        throw new EVK_Gdrive_Exception('Chwilowy błąd połączenia z ' . $kto . ' (HTTP ' . wp_remote_retrieve_response_code($r) . '). Spróbuj za chwilę.');
+    }
     $j = json_decode((string) wp_remote_retrieve_body($r), true);
     if ((int) wp_remote_retrieve_response_code($r) !== 200 || !is_array($j) || empty($j['access_token'])) {
         $kod = is_array($j) ? (string) ($j['error'] ?? '') : '';

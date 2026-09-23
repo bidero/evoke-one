@@ -20,6 +20,10 @@
     indziej ani do javascript:;
   - kod bez weryfikatora PKCE, który zna tylko strona zaczynająca łączenie,
     jest bezużyteczny; podpis `state` sprawdza ta strona, nie ta.
+
+  OBOK LEŻY token.php — pośrednik tokenów (1.229.1). Zna sekret klienta
+  Google (z pliku evk-oauth-config.php nad public_html, nigdy z repozytorium)
+  i robi za strony z wtyczką wymianę kodu i odświeżanie tokenu. Opis w nim.
 -->
 <html lang="pl">
 <head>

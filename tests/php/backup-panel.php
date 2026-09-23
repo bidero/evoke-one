@@ -21,7 +21,8 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   fakty-przywracania      znaczniki, komunikat, katalog FTP, zadania
  *
  * Dla tests/backup-panel-drive.test.js:
- *   przygotuj-dysk <adres>  atrapa Google pod adresem (mu-plugin), jedna kopia
+ *   przygotuj-dysk <adres> <pośrednik>  atrapa Google i pośrednik tokenów
+ *                           (mu-plugin), jedna kopia
  *   fakty-dysku             połączenie, kopie z identyfikatorami Dysku, zadania
  */
 
@@ -157,6 +158,7 @@ switch ($argv[1] ?? '') {
         delete_option('evk_backup_gdrive');
         delete_option('evk_backup_alert');
         update_option('evk_test_google', (string) ($argv[2] ?? ''));
+        update_option('evk_test_google_posrednik', (string) ($argv[3] ?? ''));
         $zip = evk_backup_dir() . '/panel-dysk.zip';
         evk_backup_ensure_dir(evk_backup_dir());
         $w = EVK_Zip_Writer::create($zip);
@@ -174,9 +176,10 @@ switch ($argv[1] ?? '') {
         wp_mkdir_p(dirname($mu));
         file_put_contents($mu, "<?php\n// Wyłącznie testy panelu (tests/php/backup-panel.php) — usuwany po teście.\n"
             . "if (\$evk_g = (string) get_option('evk_test_google')) {\n"
-            . "    add_filter('evk_backup_gdrive_endpoints', static function (\$c) use (\$evk_g) { return array_merge(\$c, ['auth' => \$evk_g . '/o/oauth2/v2/auth',\n"
-            . "        'token' => \$evk_g . '/token', 'revoke' => \$evk_g . '/revoke', 'api' => \$evk_g . '/drive/v3', 'upload' => \$evk_g . '/upload/drive/v3',\n"
-            . "        'redirect' => \$evk_g . '/evk-oauth/', 'client_id' => 'test-klient', 'client_secret' => 'test-sekret']); });\n"
+            . "    \$evk_p = (string) get_option('evk_test_google_posrednik');\n"
+            . "    add_filter('evk_backup_gdrive_endpoints', static function (\$c) use (\$evk_g, \$evk_p) { return array_merge(\$c, ['auth' => \$evk_g . '/o/oauth2/v2/auth',\n"
+            . "        'token' => \$evk_p, 'revoke' => \$evk_g . '/revoke', 'api' => \$evk_g . '/drive/v3', 'upload' => \$evk_g . '/upload/drive/v3',\n"
+            . "        'redirect' => \$evk_g . '/evk-oauth/', 'client_id' => 'test-klient']); });\n"
             . "    add_filter('evk_backup_gdrive_chunk', static function () { return 262144; });\n}\n");
         $wynik = ['wp' => rtrim(ABSPATH, '/'), 'md5' => md5_file($zip), 'rozmiar' => filesize($zip)];
         break;
@@ -199,6 +202,7 @@ switch ($argv[1] ?? '') {
     case 'sprzataj':
         @unlink($mu);
         delete_option('evk_test_google');
+        delete_option('evk_test_google_posrednik');
         delete_option('evk_backup_gdrive');
         // Po przywracaniu przez panel adres w bazie mógł przyjąć adres serwera testowego.
         update_option('home', 'http://stara.test');

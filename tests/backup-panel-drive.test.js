@@ -24,7 +24,7 @@ module.exports = async function (t) {
   let serwer = null;
   let browser;
   try {
-    const prep = sonda('przygotuj-dysk ' + g.adres);
+    const prep = sonda('przygotuj-dysk ' + g.adres + ' ' + g.posrednik);
     t.check('testowy WordPress jest (tools/testowy-wp.sh)', !prep.brak, prep.brak || prep.wp);
     if (prep.brak) return;
 
@@ -45,7 +45,7 @@ module.exports = async function (t) {
     await Promise.all([p.waitForURL(/tab=backup/, { timeout: 30000 }), p.click('[data-evk-gdrive-connect]')]);
     await p.waitForLoadState('load');
     const drogi = (await g.stan()).log.map((l) => l.p);
-    t.check('droga: zgoda w Google → strona przekierowująca → wymiana kodu',
+    t.check('droga: zgoda w Google → strona przekierowująca → wymiana kodu (przez pośrednika)',
       drogi.includes('/o/oauth2/v2/auth') && drogi.includes('/evk-oauth/') && drogi.includes('/token'), JSON.stringify(drogi));
     const msg = await p.locator('[data-evk-gdrive-msg]').textContent().catch(() => '');
     t.check('powrót do zakładki z komunikatem o połączeniu i kontem',
