@@ -1547,6 +1547,10 @@
 .evk-gdrive-konto { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
 .evk-gdrive-konto .evk-gdrive-kto { margin: 0; flex: 1 1 320px; overflow-wrap: anywhere; }
 .evk-gdrive-lista td .evo-badge { margin-left: 6px; }
+.evk-gdrive-czasy { font-size: 12px; }
+.evk-gdrive-czasy summary { cursor: pointer; color: var(--evo-text-dim); }
+.evk-gdrive-czasy ul { margin: 6px 0 0 18px; list-style: disc; }
+.evk-gdrive-czasy li { margin: 2px 0; overflow-wrap: anywhere; }
 /* Pusty stan — komunikat zamiast pustej ramki. */
 .evo-empty {
     padding: 16px 10px;

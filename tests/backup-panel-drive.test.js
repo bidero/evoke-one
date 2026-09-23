@@ -54,6 +54,12 @@ module.exports = async function (t) {
     await p.waitForSelector('[data-evk-gdrive-empty]', { timeout: 15000 }).catch(() => {});
     t.check('lista z Dysku wczytana (pusta) i zajęte miejsce widoczne',
       await widac(p, '[data-evk-gdrive-empty]') && /Zajęte na Dysku/.test(await p.locator('[data-evk-gdrive-quota]').textContent()));
+    const czasy = await p.evaluate(() => {
+      const d = document.querySelector('[data-evk-gdrive-czasy]');
+      return d ? { sum: d.querySelector('summary').textContent, n: d.querySelectorAll('li').length, otwarte: d.open } : null;
+    });
+    t.check('pod listą zwinięte „Czasy połączenia z Google" z każdym żądaniem',
+      czasy && /Czasy połączenia z Google \(lista: [\d,]+ s\)/.test(czasy.sum) && czasy.n >= 2 && !czasy.otwarte, JSON.stringify(czasy));
     const f0 = sonda('fakty-dysku');
     t.check('połączenie zapisane na serwerze', f0.polaczone && f0.email === 'wlasciciel@example.com', JSON.stringify(f0));
 

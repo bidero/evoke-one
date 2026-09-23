@@ -241,6 +241,9 @@ if (preg_match('#^/drive/v3/files/([A-Za-z0-9_-]+)$#', $sciezka, $m)) {
         if (preg_match('/^bytes=(\d+)-(\d+)$/', $r, $z)) {
             $od = (int) $z[1];
             $do = min((int) $z[2], strlen($dane) - 1);
+            // Wolne łącze na żądanie testu: `wolno` = bajtów na sekundę.
+            $wolno = (int) ($stan['ster']['wolno'] ?? 0);
+            if ($wolno > 0) usleep((int) (($do - $od + 1) / $wolno * 1e6));
             http_response_code(206);
             header('Content-Range: bytes ' . $od . '-' . $do . '/' . strlen($dane));
             echo substr($dane, $od, $do - $od + 1);

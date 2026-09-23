@@ -2,6 +2,40 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.229.2] — 2026-09-23
+
+### Zmienione (zgłoszone z evoke.pl)
+
+- **Pasek przy pobieraniu z Dysku i wysyłce rusza się co ~2,5 s.** Zgłoszone:
+  81,8 MB z Dysku w 4 min 56 s (~0,28 MB/s), pasek stał po ~27 s — kawałek
+  miał stałe 8 MB. Teraz pierwszy kawałek ma 1 MB, a każdy następny jest
+  dobierany do zmierzonej prędkości tak, żeby żądanie trwało ok. 2,5 s
+  (sufit 8 MB, wielokrotność 256 KB). Gdy samo łączenie z Google trwa długo,
+  żądanie jest co najmniej 3× dłuższe od niego — łączenie nie zjada więcej niż
+  ⅓ czasu. Na pomiarze atrapą (1 MB/s): 1 MB, potem po 2,3 MB.
+  Pierwsza wersja liczyła prędkość bez czasu do pierwszego bajtu i przy
+  serwerze, który przygotowuje odpowiedź przed wysłaniem, skakała od razu
+  do 8 MB — prędkość liczona jest z całego czasu żądania.
+- Kopia nie pobiera się przez to szybciej — to wydanie MIERZY, dlaczego jest
+  wolno. W dzienniku zadania przy pierwszych trzech kawałkach i co
+  dwudziestym: ile, w jakim czasie, MB/s, czasy od startu żądania (DNS,
+  połączenie, TLS, pierwszy bajt), adres IP Google i czy to IPv4 czy IPv6;
+  na końcu podsumowanie. Pod listą kopii z Dysku zwinięte „Czasy połączenia
+  z Google" z każdym żądaniem (lista wczytywała się kilkanaście sekund).
+  Z tych liczb wyjdzie, czy winne jest łącze serwera, łączenie po IPv6,
+  czy pojedyncze połączenie — i tylko to będzie poprawiane.
+
+### Testy
+
+- `backup-drive`: dobór kawałka na liczbach z evoke.pl (8 MB w 27 s → 512 KB),
+  szybkie i bardzo wolne łącze, duży narzut łączenia, sufit spoza siatki
+  256 KB; pobieranie przez atrapę spowolnioną do 1 MB/s (1 MB, potem
+  2–2,75 MB, plik co do bajtu); wysyłka od 1 MB, wielokrotności 256 KB;
+  dziennik z czasami i adresem; czasy każdego żądania listy.
+  `backup-panel-drive`: zwinięte czasy pod listą. Mutacje: bez rozbicia
+  curl, stały kawałek (pobieranie i wysyłka osobno), pierwszy kawałek =
+  sufit, bez narzutu łączenia, opis bez IP, panel bez czasów.
+
 ## [1.229.1] — 2026-09-23
 
 ### Bezpieczeństwo

@@ -344,9 +344,33 @@
     // ── Dysk Google: lista kopii, pobranie z przywróceniem, rozłączenie ────
     var dysk = $('[data-evk-gdrive]');
     var dyskListaEl = $('[data-evk-gdrive-list]');
+    /* Czasy połączeń z Google pod listą (1.229.2) — zgłoszone: lista
+       wczytywała się kilkanaście sekund, pobieranie ~0,3 MB/s. Zwinięte;
+       tworzone dopiero z treścią, jak ramki komunikatów. */
+    function dyskCzasy(d, calosc) {
+        var stare = $('[data-evk-gdrive-czasy]', dysk);
+        if (stare) stare.parentNode.removeChild(stare);
+        if (!d || !d.czasy || !d.czasy.length) return;
+        var det = document.createElement('details');
+        det.className = 'evk-gdrive-czasy evo-mt-xs';
+        det.setAttribute('data-evk-gdrive-czasy', '');
+        var sum = document.createElement('summary');
+        sum.textContent = 'Czasy połączenia z Google (lista: ' + (calosc / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + ' s)';
+        det.appendChild(sum);
+        var ul = document.createElement('ul');
+        d.czasy.forEach(function (c) {
+            var li = document.createElement('li');
+            li.textContent = c.co + ': ' + c.opis;
+            ul.appendChild(li);
+        });
+        det.appendChild(ul);
+        dyskListaEl.parentNode.insertBefore(det, dyskListaEl.nextSibling);
+    }
     function dyskLista() {
         if (!dyskListaEl) return;
+        var t0 = Date.now();
         post('evk_backup_gdrive_list').then(function (r) {
+            dyskCzasy(r && r.data, Date.now() - t0);
             if (!r || !r.success) {
                 dyskListaEl.textContent = 'Nie udało się odczytać listy z Dysku: ' + ((r && r.data && r.data.msg) || 'brak odpowiedzi.');
                 return;

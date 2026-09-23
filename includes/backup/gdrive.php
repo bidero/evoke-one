@@ -190,7 +190,9 @@ function evk_gdrive_token_request(array $body): array {
     $c = evk_gdrive_config();
     $body['client_id'] = $c['client_id'];
     if ((string) $c['client_secret'] !== '') $body['client_secret'] = $c['client_secret'];
+    $t0 = microtime(true);
     $r = wp_remote_post($c['token'], ['timeout' => 30, 'body' => $body]);
+    evk_gdrive_notuj('token (' . wp_parse_url((string) $c['token'], PHP_URL_HOST) . ')', evk_gdrive_pomiar($t0));
     $kto = (string) $c['client_secret'] !== '' ? 'Google' : 'pośrednikiem logowania (' . wp_parse_url((string) $c['token'], PHP_URL_HOST) . ')';
     if (is_wp_error($r)) throw new EVK_Gdrive_Exception('Brak połączenia z ' . $kto . ': ' . $r->get_error_message());
     // Pośrednik bez konfiguracji albo niedostępny — to nie jest odmowa Google i nie rozłącza Dysku.
@@ -262,26 +264,147 @@ function evk_gdrive_access_token(bool $odswiez = false): string {
 }
 
 // =========================================================================
+// POMIAR POŁĄCZEŃ
+// =========================================================================
+
+/*
+ * Czasy każdego żądania do Google z curl_getinfo (1.229.2). Zgłoszone
+ * z evoke.pl: 81,8 MB z Dysku w 4 min 56 s (~0,28 MB/s), lista z Dysku
+ * kilkanaście sekund — a z dziennika nie dało się powiedzieć, czy czas idzie
+ * na szukanie adresu, łączenie (np. IPv6, które nie odpowiada), TLS, czy na
+ * sam transfer. WordPress oddaje curl_getinfo akcją
+ * `requests-curl.after_request` (WP_HTTP_Requests_Hooks) — żądania są
+ * synchroniczne, więc ostatni zapis należy do żądania, które właśnie wróciło.
+ * Czasy curl liczone od startu żądania, narastająco.
+ */
+add_action('requests-curl.after_request', static function ($naglowki, $info = null): void {
+    if (is_array($info)) $GLOBALS['evk_gdrive_curl'] = $info;
+}, 10, 2);
+
+/** Pomiar żądania, które trwało od $t0: czas całkowity i — z curl — rozbicie. */
+function evk_gdrive_pomiar(float $t0): array {
+    $m = ['czas' => microtime(true) - $t0];
+    $i = $GLOBALS['evk_gdrive_curl'] ?? null;
+    $GLOBALS['evk_gdrive_curl'] = null;
+    if (!is_array($i)) return $m;
+    return $m + [
+        'dns' => (float) ($i['namelookup_time'] ?? 0), 'tcp' => (float) ($i['connect_time'] ?? 0),
+        'tls' => (float) ($i['appconnect_time'] ?? 0), 'pierwszy' => (float) ($i['starttransfer_time'] ?? 0),
+        'curl' => (float) ($i['total_time'] ?? 0), 'pobrane' => (int) ($i['size_download'] ?? 0),
+        'wyslane' => (int) ($i['size_upload'] ?? 0), 'przekierowania' => (int) ($i['redirect_count'] ?? 0),
+        'ip' => (string) ($i['primary_ip'] ?? ''),
+    ];
+}
+
+/** Sekundy po polsku: 0,42 s. */
+function evk_gdrive_s(float $s): string {
+    return str_replace('.', ',', sprintf($s < 10 ? '%.2f' : '%.1f', $s)) . ' s';
+}
+
+/** Jedna linia o żądaniu: ile, w jakim czasie, z jaką prędkością, gdzie szedł czas, dokąd. */
+function evk_gdrive_pomiar_opis(array $m): string {
+    $bajty = max((int) ($m['pobrane'] ?? 0), (int) ($m['wyslane'] ?? 0));
+    $t = (float) $m['czas'];
+    $opis = ($bajty >= 65536 ? evk_backup_bytes_label((float) $bajty) . ' w ' : '') . evk_gdrive_s($t);
+    if ($bajty >= 65536 && $t > 0) {
+        $opis .= ' (' . str_replace('.', ',', sprintf('%.2f', $bajty / 1048576 / $t)) . ' MB/s)';
+    }
+    if (!isset($m['dns'])) return $opis . ' · bez rozbicia (transport HTTP inny niż curl)';
+    $opis .= ' · od startu: DNS ' . evk_gdrive_s($m['dns']) . ', połączenie ' . evk_gdrive_s($m['tcp'])
+        . ', TLS ' . evk_gdrive_s($m['tls']) . ', pierwszy bajt ' . evk_gdrive_s($m['pierwszy']);
+    if ($m['przekierowania'] > 0) $opis .= ' · przekierowań: ' . $m['przekierowania'];
+    if ($m['ip'] !== '') $opis .= ' · ' . $m['ip'] . (strpos($m['ip'], ':') !== false ? ' (IPv6)' : ' (IPv4)');
+    return $opis;
+}
+
+/** Żądania ostatniej operacji (lista z Dysku) — do pokazania w panelu. */
+function evk_gdrive_notuj(string $co, array $m): void {
+    $GLOBALS['evk_gdrive_czasy'][] = ['co' => $co, 'czas' => (float) $m['czas'], 'opis' => evk_gdrive_pomiar_opis($m)];
+}
+
+/**
+ * Wielkość następnego kawałka tak, żeby jedno żądanie trwało ok. 2,5 s —
+ * pasek w panelu rusza się po każdym kawałku (zgłoszone: przy 8 MB i
+ * ~0,3 MB/s stał po ~27 s). Liczone z CAŁEGO czasu żądania: czas do
+ * pierwszego bajtu nie jest narzutem (serwer, który przygotowuje odpowiedź
+ * przed wysłaniem, oddaje pierwszy bajt prawie na końcu — zmierzone na
+ * atrapie: pierwsza wersja liczyła wtedy „nieskończoną" prędkość i skakała
+ * od razu do sufitu). Narzutem jest samo łączenie (TCP + TLS): gdy jest
+ * duże, żądanie trwa co najmniej jego trzykrotność, żeby na łączenie nie
+ * szła więcej niż ⅓ czasu. Wielokrotność 256 KB (wymóg Google przy
+ * wysyłce), od 256 KB do $max.
+ */
+function evk_gdrive_next_chunk(int $bajty, float $czas, float $laczenie, int $max): int {
+    $k = 262144;
+    $max = max($k, $max - $max % $k);
+    if ($bajty <= 0) return $max;
+    $cel = (int) floor($bajty * max(2.5, 3 * $laczenie) / max(0.05, $czas));
+    return max($k, min($max, $cel - $cel % $k));
+}
+
+/** Po kawałku: następna wielkość (stan `kawalek`) i sumy do podsumowania (stan `pomiar`). */
+function evk_gdrive_po_kawalku(array $job, int $bajty, array $m): array {
+    $laczenie = isset($m['dns']) ? max((float) $m['tls'], (float) $m['tcp']) : 0.0;
+    $job['state']['kawalek'] = evk_gdrive_next_chunk($bajty, (float) $m['czas'], $laczenie, evk_gdrive_chunk());
+    $p = $job['state']['pomiar'] ?? ['n' => 0, 'bajty' => 0, 'czas' => 0.0, 'dns' => 0.0, 'tcp' => 0.0, 'tls' => 0.0, 'pierwszy' => 0.0, 'z_curl' => 0, 'ip' => []];
+    $p['n']++;
+    $p['bajty'] += $bajty;
+    $p['czas'] += (float) $m['czas'];
+    if (isset($m['dns'])) {
+        $p['z_curl']++;
+        foreach (['dns', 'tcp', 'tls', 'pierwszy'] as $k) $p[$k] += (float) $m[$k];
+        if ($m['ip'] !== '' && !in_array($m['ip'], $p['ip'], true) && count($p['ip']) < 5) $p['ip'][] = $m['ip'];
+    }
+    $job['state']['pomiar'] = $p;
+    // Pierwsze trzy kawałki i co dwudziesty — dziennik trzyma 300 linii.
+    if ($p['n'] <= 3 || $p['n'] % 20 === 0) {
+        evk_backup_job_log($job['id'], sprintf('Kawałek %d: %s. Następny: %s.', $p['n'], evk_gdrive_pomiar_opis($m),
+            evk_backup_bytes_label((float) $job['state']['kawalek'])));
+    }
+    return $job;
+}
+
+/** Podsumowanie pomiaru na koniec wysyłki albo pobierania. */
+function evk_gdrive_pomiar_podsumowanie(array $job): void {
+    $p = $job['state']['pomiar'] ?? null;
+    if (!$p || !$p['n']) return;
+    $opis = sprintf('Pomiar: %d kawałków, %s w %s, średnio %s MB/s', $p['n'], evk_backup_bytes_label((float) $p['bajty']),
+        evk_gdrive_s((float) $p['czas']), str_replace('.', ',', sprintf('%.2f', $p['czas'] > 0 ? $p['bajty'] / 1048576 / $p['czas'] : 0)));
+    if ($p['z_curl']) {
+        $sr = static function ($k) use ($p) { return evk_gdrive_s($p[$k] / $p['z_curl']); };
+        $opis .= '; na żądanie średnio od startu: DNS ' . $sr('dns') . ', połączenie ' . $sr('tcp') . ', TLS ' . $sr('tls')
+            . ', pierwszy bajt ' . $sr('pierwszy') . '; adresy: ' . implode(', ', array_map(static function ($ip) {
+                return $ip . (strpos($ip, ':') !== false ? ' (IPv6)' : ' (IPv4)');
+            }, $p['ip']));
+    }
+    evk_backup_job_log($job['id'], $opis . '.');
+}
+
+// =========================================================================
 // API DYSKU
 // =========================================================================
 
 /**
  * Żądanie do API z tokenem. 401 → token odświeżony i jedna powtórka.
- * Oddaje {code, body, json, range, location}; błąd sieci rzuca.
+ * Oddaje {code, body, json, pomiar, range, location}; błąd sieci rzuca.
  */
 function evk_gdrive_api(string $metoda, string $url, array $args = [], bool $powtorka = true): array {
     $args += ['timeout' => 60, 'headers' => []];
     $args['method'] = $metoda;
     $args['headers']['Authorization'] = 'Bearer ' . evk_gdrive_access_token();
+    $t0 = microtime(true);
     $r = wp_remote_request($url, $args);
-    if (is_wp_error($r)) throw new \RuntimeException('Brak połączenia z Dyskiem Google: ' . $r->get_error_message());
+    $pomiar = evk_gdrive_pomiar($t0);
+    if (is_wp_error($r)) throw new \RuntimeException('Brak połączenia z Dyskiem Google: ' . $r->get_error_message()
+        . ' (po ' . evk_gdrive_s($pomiar['czas']) . ')');
     $kod = (int) wp_remote_retrieve_response_code($r);
     if ($kod === 401 && $powtorka) {
         evk_gdrive_access_token(true);
         return evk_gdrive_api($metoda, $url, $args, false);
     }
     $body = (string) wp_remote_retrieve_body($r);
-    return ['code' => $kod, 'body' => $body, 'json' => json_decode($body, true),
+    evk_gdrive_notuj($metoda . ' ' . (string) wp_parse_url($url, PHP_URL_PATH), $pomiar);
+    return ['code' => $kod, 'body' => $body, 'json' => json_decode($body, true), 'pomiar' => $pomiar,
             'range' => (string) wp_remote_retrieve_header($r, 'range'), 'location' => (string) wp_remote_retrieve_header($r, 'location')];
 }
 
@@ -518,7 +641,8 @@ function evk_gdrive_phase_send(array $job, float $deadline): array {
         $u['tick'] = $job['ticks'];
     }
 
-    $dl = min(evk_gdrive_chunk(), (int) $u['size'] - (int) $u['pos']);
+    // Pierwszy kawałek 1 MB — szybki pierwszy pomiar i pasek rusza od razu; dalej dopasowany do prędkości.
+    $dl = min((int) ($job['state']['kawalek'] ?? min(1048576, evk_gdrive_chunk())), (int) $u['size'] - (int) $u['pos']);
     $fh = fopen($zip, 'rb');
     if (!$fh) throw new \RuntimeException('Nie można odczytać kopii do wysyłki.');
     fseek($fh, (int) $u['pos']);
@@ -531,7 +655,10 @@ function evk_gdrive_phase_send(array $job, float $deadline): array {
         'Content-Type' => 'application/zip',
     ]) + ['body' => $dane]);
     unset($dane);
-    if ($r['code'] === 200 || $r['code'] === 201) { $job['state']['u'] = $u; return evk_gdrive_sent($job, $r); }
+    if ($r['code'] === 200 || $r['code'] === 201) {
+        $job['state']['u'] = $u;
+        return evk_gdrive_sent(evk_gdrive_po_kawalku($job, $dl, $r['pomiar']), $r);
+    }
     if ($r['code'] === 404 || $r['code'] === 410) return evk_gdrive_restart($job, 'Sesja wysyłki wygasła — zaczynam od nowa.');
     if (evk_gdrive_transient_code($r['code'])) {
         // Po chwilowym błędzie pozycję trzeba odczytać od Google — kawałek mógł dojść.
@@ -544,7 +671,7 @@ function evk_gdrive_phase_send(array $job, float $deadline): array {
     $job['state']['retries'] = 0;
     $job['state']['u'] = $u;
     $job['progress_done'] = (int) $u['pos'];
-    return $job;
+    return evk_gdrive_po_kawalku($job, $dl, $r['pomiar']);
 }
 
 function evk_gdrive_restart(array $job, string $powod): array {
@@ -578,6 +705,7 @@ function evk_gdrive_phase_finish(array $job): array {
         evk_backup_meta_write($zip, $meta);
     }
     evk_backup_job_log($job['id'], 'Kopia na Dysku Google: ' . $archiwum . ' (' . evk_backup_bytes_label((float) $job['progress_total']) . ').');
+    evk_gdrive_pomiar_podsumowanie($job);
     try {
         $usuniete = evk_gdrive_retention((string) $job['state']['file_id']);
         if ($usuniete) evk_backup_job_log($job['id'], 'Retencja na Dysku: usunięte kopie starsze niż '
@@ -661,7 +789,8 @@ function evk_gdrive_phase_fetch(array $job, float $deadline): array {
     if ($jest > $rozmiar) { @unlink($part); $jest = 0; }
 
     if ($jest < $rozmiar) {
-        $dl = min(evk_gdrive_chunk(), $rozmiar - $jest);
+        // Pierwszy zakres 1 MB — szybki pierwszy pomiar i pasek rusza od razu; dalej dopasowany do prędkości.
+        $dl = min((int) ($s['kawalek'] ?? min(1048576, evk_gdrive_chunk())), $rozmiar - $jest);
         $c = evk_gdrive_config();
         $r = evk_gdrive_api('GET', $c['api'] . '/files/' . rawurlencode((string) $s['file']) . '?alt=media',
             ['timeout' => 120, 'headers' => ['Range' => 'bytes=' . $jest . '-' . ($jest + $dl - 1)]]);
@@ -677,6 +806,7 @@ function evk_gdrive_phase_fetch(array $job, float $deadline): array {
         }
         $jest += strlen($r['body']);
         $job['state']['retries'] = 0;
+        $job = evk_gdrive_po_kawalku($job, strlen($r['body']), $r['pomiar']);
     }
     $job['progress_done'] = $jest;
     if ($jest < $rozmiar) return $job;
@@ -692,6 +822,7 @@ function evk_gdrive_phase_fetch(array $job, float $deadline): array {
     if ($nazwa === '') throw new \RuntimeException('Nie udało się przenieść pobranej kopii do katalogu kopii.');
     $job['archive'] = $nazwa;
     evk_backup_job_log($job['id'], 'Kopia pobrana z Dysku: ' . $nazwa . '.');
+    evk_gdrive_pomiar_podsumowanie($job);
     return evk_gdrive_job_done($job);
 }
 
@@ -788,16 +919,30 @@ add_action('wp_ajax_evk_backup_gdrive_disconnect', static function (): void {
     wp_send_json_success();
 });
 
-add_action('wp_ajax_evk_backup_gdrive_list', static function (): void {
-    evk_backup_ajax_guard();
+/**
+ * Lista z Dysku dla panelu, z czasami każdego żądania (zgłoszone: lista
+ * wczytywała się kilkanaście sekund). Rdzeń bez wp_send_json — sonda testów
+ * woła go wprost.
+ */
+function evk_gdrive_list_core(): array {
+    $GLOBALS['evk_gdrive_czasy'] = [];
+    $t0 = microtime(true);
     try {
         $pliki = evk_gdrive_list_backups();
         $q = evk_gdrive_quota();
     } catch (\RuntimeException $e) {
-        wp_send_json_error(['msg' => $e->getMessage()]);
+        return ['blad' => $e->getMessage(), 'czasy' => $GLOBALS['evk_gdrive_czasy'], 'razem' => microtime(true) - $t0];
     }
-    wp_send_json_success(['html' => evk_gdrive_render_list($pliki), 'count' => count($pliki),
-        'quota' => $q ? evk_gdrive_quota_label($q) : '']);
+    return ['html' => evk_gdrive_render_list($pliki), 'count' => count($pliki), 'quota' => $q ? evk_gdrive_quota_label($q) : '',
+            'czasy' => $GLOBALS['evk_gdrive_czasy'], 'razem' => microtime(true) - $t0,
+            'razem_opis' => 'Razem ' . evk_gdrive_s(microtime(true) - $t0)];
+}
+
+add_action('wp_ajax_evk_backup_gdrive_list', static function (): void {
+    evk_backup_ajax_guard();
+    $w = evk_gdrive_list_core();
+    if (isset($w['blad'])) wp_send_json_error(['msg' => $w['blad'], 'czasy' => $w['czasy']]);
+    wp_send_json_success($w);
 });
 
 add_action('wp_ajax_evk_backup_gdrive_upload', static function (): void {

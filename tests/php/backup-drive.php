@@ -44,7 +44,9 @@ add_filter('http_request_args', static function ($args, $url) use ($posrednik, &
     if ($url === $posrednik) $do_posrednika[] = array_keys((array) ($args['body'] ?? []));
     return $args;
 }, 10, 2);
-add_filter('evk_backup_gdrive_chunk', static function () { return 262144; });
+// Sufit kawałka: 256 KB (wiele kawałków na małym archiwum); sekcja „dopasowanie" podnosi go do 8 MB.
+$sufit = 262144;
+add_filter('evk_backup_gdrive_chunk', static function () use (&$sufit) { return $sufit; });
 $maile = [];
 add_filter('pre_wp_mail', static function ($nic, $atts) use (&$maile) { $maile[] = $atts; return true; }, 10, 2);
 
@@ -302,6 +304,49 @@ $a = get_option(EVK_BACKUP_ALERT_OPTION);
 $w['nieudana'] = ['status' => $jobf['status'], 'blad' => $jobf['error'], 'alert' => is_array($a) ? $a['title'] : null,
     'kopia_zostala' => (bool) evk_backup_archive_path('dysk-test-2.zip')];
 
+// ── Czasy połączeń i kawałek dopasowany do prędkości (1.229.2) ──────────────
+$MB = 1048576;
+$w['dopasowanie'] = [
+    'wolno'    => evk_gdrive_next_chunk(8 * $MB, 27.0, 0.3, 8 * $MB),     // evoke.pl: 8 MB w ~27 s
+    'szybko'   => evk_gdrive_next_chunk(8 * $MB, 0.5, 0.1, 8 * $MB),
+    'bardzo'   => evk_gdrive_next_chunk(100000, 30.0, 0.2, 8 * $MB),
+    'narzut'   => evk_gdrive_next_chunk(1 * $MB, 4.0, 3.0, 8 * $MB),      // 3 s na łączenie → żądanie ≥ 9 s
+    'sufit'    => evk_gdrive_next_chunk(8 * $MB, 1.0, 0.1, 700000),        // sufit nie z 256 KB → w dół
+];
+$lista = evk_gdrive_list_core();
+$w['lista_czasy'] = ['n' => count($lista['czasy'] ?? []), 'razem' => $lista['razem'] ?? 0,
+    'opisy' => array_column($lista['czasy'] ?? [], 'opis'), 'co' => array_column($lista['czasy'] ?? [], 'co')];
+
+// Sufit 4 MB przy archiwum 8 MB: stały kawałek i „pierwszy = sufit" dają RÓŻNE zakresy.
+$sufit = 4 * $MB;
+kopia('dysk-tempo.zip', 8 * $MB, 21, time());
+$md5_tempo = md5_file(evk_backup_dir() . '/dysk-tempo.zip');
+$przed = count(atrapa('/_atrapa/stan')['log']);
+$jobT = do_konca(evk_gdrive_upload_start('dysk-tempo.zip'), null, 400, static function () { return 20000; });
+$stan = atrapa('/_atrapa/stan');
+$metaT = json_decode((string) file_get_contents(evk_backup_dir() . '/dysk-tempo.zip.json'), true);
+$puty = array_values(array_filter(array_slice($stan['log'], $przed), static function ($l) { return $l['m'] === 'PUT' && $l['n'] > 0; }));
+evk_backup_delete_archive('dysk-tempo.zip');
+atrapa('/_atrapa/ster', ['wolno' => 1 * $MB]);
+$jobP = do_konca((int) evk_gdrive_download_start((string) ($metaT['drive_id'] ?? '-')), null, 400, static function () { return 20000; });
+atrapa('/_atrapa/ster', ['wolno' => 0]);
+$stan = atrapa('/_atrapa/stan');
+$zakresyT = array_values(array_map(static function ($l) {
+    return preg_match('/bytes=(\d+)-(\d+)/', $l['range'], $m) ? (int) $m[2] - (int) $m[1] + 1 : 0;
+}, array_filter($stan['log'], static function ($l) use ($metaT) {
+    return strpos($l['q'], 'alt=media') !== false && strpos($l['p'], (string) ($metaT['drive_id'] ?? '-')) !== false;
+})));
+$pobranaT = evk_backup_archive_path((string) $jobP['archive']);
+$w['tempo'] = [
+    'wysylka' => $jobT['status'], 'puty' => array_column($puty, 'n'),
+    'pobranie' => $jobP['status'], 'blad' => $jobP['error'], 'zakresy' => $zakresyT,
+    'md5' => $pobranaT ? md5_file($pobranaT) === $md5_tempo : false,
+    'log_kawalek' => array_values(preg_grep('/^\S+ Kawałek \d+:/', explode("\n", (string) $jobP['log']))),
+    'log_pomiar' => array_values(preg_grep('/Pomiar:/', explode("\n", (string) $jobP['log']))),
+    'log_wysylka' => array_values(preg_grep('/Pomiar:/', explode("\n", (string) $jobT['log']))),
+];
+$sufit = 262144;
+
 // ── Dostęp cofnięty w Google (invalid_grant) ─────────────────────────────
 delete_option(EVK_BACKUP_ALERT_OPTION);
 atrapa('/_atrapa/ster', ['invalid_grant' => 1]);
@@ -311,6 +356,7 @@ evk_gdrive_save($st);
 $w['cofniety'] = ['blad' => blad(static function () { evk_gdrive_list_backups(); }), 'polaczone' => evk_gdrive_connected(),
     'alert' => (get_option(EVK_BACKUP_ALERT_OPTION)['title'] ?? null)];
 atrapa('/_atrapa/ster', ['invalid_grant' => 0]);
+
 
 $w['do_posrednika'] = ['zadan' => count($do_posrednika), 'z_sekretem' => count(array_filter($do_posrednika, static function ($k) {
     return in_array('client_secret', $k, true);

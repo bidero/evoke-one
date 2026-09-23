@@ -112,6 +112,32 @@ module.exports = async function (t) {
     t.check('dostęp cofnięty w Google (invalid_grant): rozłączone i powiadomienie',
       /cofnął dostęp/.test(c.blad) && c.polaczone === false && c.alert === 'Dysk Google rozłączony', JSON.stringify(c));
 
+    // ── Czasy połączeń i kawałek dopasowany do prędkości (1.229.2) ───────
+    t.section('pomiar połączeń, kawałek dopasowany do prędkości');
+    const MB = 1048576;
+    const d = w.dopasowanie;
+    t.check('evoke.pl (8 MB w 27 s): następny kawałek 512 KB — żądanie ~2 s zamiast 27 s', d.wolno === 512 * 1024, JSON.stringify(d));
+    t.check('szybkie łącze: do sufitu (8 MB); bardzo wolne: najmniej 256 KB', d.szybko === 8 * MB && d.bardzo === 256 * 1024, JSON.stringify(d));
+    t.check('duży narzut łączenia (3 s): żądanie co najmniej 3× dłuższe niż łączenie', d.narzut === 9 * 256 * 1024, JSON.stringify(d));
+    t.check('sufit spoza siatki 256 KB: w dół do wielokrotności', d.sufit === 512 * 1024, JSON.stringify(d));
+    const tp = w.tempo;
+    t.check('pobieranie przy 1 MB/s: plik co do bajtu, pierwszy zakres 1 MB (pasek rusza od razu)',
+      tp.pobranie === 'done' && tp.md5 && tp.zakresy[0] === MB, JSON.stringify(tp.zakresy));
+    t.check('…kolejne zakresy dopasowane do ~2,5 s (2–2,75 MB), nie stały sufit 4 MB',
+      tp.zakresy.length >= 3 && tp.zakresy.slice(1, -1).every((z) => z >= 2 * MB && z <= 2.75 * MB), JSON.stringify(tp.zakresy));
+    t.check('wysyłka: pierwszy kawałek 1 MB, kolejne wielokrotnością 256 KB (wymóg Google)',
+      tp.wysylka === 'done' && tp.puty[0] === MB && tp.puty.slice(0, -1).every((n) => n % 262144 === 0), JSON.stringify(tp.puty));
+    const k1 = tp.log_kawalek[0] || '';
+    t.check('dziennik: kawałek z prędkością, czasami DNS/połączenie/TLS/pierwszy bajt, adresem IP i wielkością następnego',
+      /MB\/s/.test(k1) && /DNS .+ połączenie .+ TLS .+ pierwszy bajt/.test(k1) && /127\.0\.0\.1 \(IPv4\)/.test(k1) && /Następny: 2,3 MB/.test(k1), k1);
+    t.check('dziennik: podsumowanie pobierania i wysyłki (średnia prędkość, średnie czasy, adresy)',
+      /Pomiar: \d+ kawałków, [\d,]+ MB .+ średnio .+ MB\/s; .+ adresy: 127\.0\.0\.1 \(IPv4\)/.test(tp.log_pomiar[0] || '') && tp.log_wysylka.length === 1,
+      (tp.log_pomiar[0] || '') + ' | ' + (tp.log_wysylka[0] || ''));
+    const lc = w.lista_czasy;
+    t.check('lista z Dysku oddaje czasy każdego żądania (lista, miejsce) z rozbiciem',
+      lc.n >= 2 && lc.co.includes('GET /drive/v3/files') && lc.co.includes('GET /drive/v3/about') && lc.opisy.every((o) => /DNS/.test(o)),
+      JSON.stringify(lc.co));
+
     // ── Pośrednik tokenów (tools/oauth-relay/token.php) ──────────────────
     t.section('pośrednik tokenów: sekret tylko na evoke.pl');
     const dp = w.do_posrednika;
