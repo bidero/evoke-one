@@ -662,7 +662,7 @@ $TABS = [
            w katalogu tymczasowym (sprzątany), z jedną kopią i jej opisem. */
         'module' => ['includes/backup/settings.php', 'includes/backup/tables.php', 'includes/backup/storage.php',
                      'includes/backup/environment.php', 'includes/backup/engine.php', 'includes/backup/zip-reader.php',
-                     'includes/backup/serialize-replace.php', 'includes/backup/restore.php', 'includes/backup/schedule.php',
+                     'includes/backup/serialize-replace.php', 'includes/backup/restore.php', 'includes/backup/schedule.php', 'includes/backup/upload.php',
                      'includes/backup/ajax.php'],
         'file'   => 'includes/admin/tab-backup.php',
         'seed'   => function () {

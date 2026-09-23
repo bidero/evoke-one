@@ -1445,7 +1445,10 @@
 /* `hidden` przegrywa z `.button { display: inline-block }` z WordPressa
    i z `.evo-info-box { display: flex }` — zmierzone: „Anuluj" i pusta ramka
    komunikatu były widoczne mimo atrybutu. */
-#evk-backup-teraz [hidden] { display: none !important; }
+#evk-backup-teraz [hidden], .evk-backup-wgraj [hidden] { display: none !important; }
+.evk-backup-wgraj-postep { margin-top: 10px; }
+.evk-backup-wgraj-postep .button { margin-top: 6px; }
+[data-evk-upload-msg] [data-evk-upload-restore] { margin-left: 4px; }
 .evk-backup-pasek { height: 8px; border-radius: 999px; background: var(--evo-border-soft); overflow: hidden; margin: 8px 0 4px; }
 .evk-backup-pasek > span { display: block; height: 100%; width: 0; background: var(--evo-accent); transition: width .4s ease; }
 .evk-backup-procent { margin: 0; font-size: 12px; }

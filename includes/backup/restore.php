@@ -877,27 +877,39 @@ function evk_restore_cleanup(array $job): void {
 function evk_backup_import_scan(): array {
     $imp = evk_backup_import_dir();
     evk_backup_ensure_dir($imp);
-    $dir = evk_backup_dir();
-    if (!evk_backup_ensure_dir($dir)) return [];
+    if (!evk_backup_ensure_dir(evk_backup_dir())) return [];
     $przeniesione = [];
     foreach (glob($imp . '/*.zip') ?: [] as $p) {
         if (!is_file($p) || time() - (int) filemtime($p) < 60) continue;
-        $nazwa = preg_replace('/[^A-Za-z0-9._-]+/', '-', basename($p, '.zip'));
-        $nazwa = trim((string) $nazwa, '.-_') ?: 'wgrana';
-        $cel = $nazwa . '.zip';
-        for ($i = 2; file_exists($dir . '/' . $cel); $i++) $cel = $nazwa . '-' . $i . '.zip';
-        if (!@rename($p, $dir . '/' . $cel)) continue;
-        $meta = ['archive' => $cel, 'created_at' => (int) filemtime($dir . '/' . $cel), 'source' => 'upload', 'pinned' => false,
-                 'imported_at' => time()];
-        try {
-            $m = evk_restore_read_manifest($dir . '/' . $cel);
-            $meta['created_at'] = strtotime((string) ($m['created_at'] ?? '')) ?: $meta['created_at'];
-            $meta += ['db_rows' => (int) ($m['db_rows'] ?? 0), 'files' => (int) ($m['files'] ?? 0), 'siteurl' => (string) ($m['siteurl'] ?? '')];
-        } catch (\RuntimeException $e) {
-            $meta['error'] = $e->getMessage();
-        }
-        evk_backup_meta_write($dir . '/' . $cel, $meta);
-        $przeniesione[] = $cel;
+        $cel = evk_backup_register_upload($p, basename($p));
+        if ($cel !== '') $przeniesione[] = $cel;
     }
     return $przeniesione;
+}
+
+/**
+ * Archiwum z zewnątrz (FTP, wgrane z przeglądarki) → katalog kopii: nazwa
+ * oczyszczona i unikalna, przeniesienie, opis z danymi z manifestu (albo
+ * z powodem, dla którego manifestu nie ma). Oddaje nazwę w katalogu kopii,
+ * pusty łańcuch, gdy przeniesienie się nie udało.
+ */
+function evk_backup_register_upload(string $sciezka, string $nazwa): string {
+    $dir = evk_backup_dir();
+    // Polskie litery na łacińskie („kopia źródło" → kopia-zrodlo), reszta spoza [A-Za-z0-9._-] na myślnik.
+    $baza = preg_replace('/[^A-Za-z0-9._-]+/', '-', remove_accents((string) preg_replace('/\.zip$/i', '', basename($nazwa))));
+    $baza = trim((string) $baza, '.-_') ?: 'wgrana';
+    $cel = $baza . '.zip';
+    for ($i = 2; file_exists($dir . '/' . $cel); $i++) $cel = $baza . '-' . $i . '.zip';
+    if (!@rename($sciezka, $dir . '/' . $cel)) return '';
+    $meta = ['archive' => $cel, 'created_at' => (int) filemtime($dir . '/' . $cel), 'source' => 'upload', 'pinned' => false,
+             'imported_at' => time()];
+    try {
+        $m = evk_restore_read_manifest($dir . '/' . $cel);
+        $meta['created_at'] = strtotime((string) ($m['created_at'] ?? '')) ?: $meta['created_at'];
+        $meta += ['db_rows' => (int) ($m['db_rows'] ?? 0), 'files' => (int) ($m['files'] ?? 0), 'siteurl' => (string) ($m['siteurl'] ?? '')];
+    } catch (\RuntimeException $e) {
+        $meta['error'] = $e->getMessage();
+    }
+    evk_backup_meta_write($dir . '/' . $cel, $meta);
+    return $cel;
 }

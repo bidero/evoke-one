@@ -19,6 +19,7 @@ $bk_silnik = $bk_on && function_exists('evk_backup_render_list');
 $bk_s      = evk_backup_get_settings();
 // Kopie wgrane przez FTP — przeniesione z katalogu o stałej nazwie przy otwarciu zakładki.
 $bk_wgrane = $bk_silnik && !$bk_block ? evk_backup_import_scan() : [];
+if ($bk_silnik && !$bk_block) evk_backup_upload_cleanup();
 $bk_ikony  = [
     'ok'   => 'dashicons-yes-alt',
     'warn' => 'dashicons-warning',
@@ -106,6 +107,20 @@ $bk_ikony  = [
         <div>Przeniesione z katalogu FTP: <?php echo esc_html(implode(', ', $bk_wgrane)); ?>.</div></div>
     <?php endif; ?>
     <div data-evk-backup-list><?php echo evk_backup_render_list(); // phpcs:ignore WordPress.Security.EscapeOutput -- zbudowane z esc_* ?></div>
+
+    <?php /* Wgrywanie z przeglądarki (upload.php) — kawałkami, wznawialne. */ ?>
+    <div class="evk-backup-wgraj evo-mt" data-evk-upload>
+        <input type="file" accept=".zip,application/zip" data-evk-upload-file hidden>
+        <button type="button" class="button" data-evk-upload-pick>
+            <span class="dashicons dashicons-upload evo-ico" aria-hidden="true"></span> Wgraj kopię z komputera
+        </button>
+        <div class="evk-backup-wgraj-postep" data-evk-upload-progress hidden>
+            <div class="evk-backup-etap"><strong data-evk-upload-name></strong> <span class="evo-muted" data-evk-upload-detail></span></div>
+            <div class="evk-backup-pasek" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-evk-upload-bar><span></span></div>
+            <button type="button" class="button button-small" data-evk-upload-cancel>Anuluj wgrywanie</button>
+        </div>
+        <div class="evo-info-box evo-mt" data-evk-upload-msg hidden><span class="dashicons dashicons-info-outline"></span><div></div></div>
+    </div>
     <div class="evk-backup-ftp evo-mt">
         <p class="evo-muted">Kopię z innego serwera wgraj przez FTP do
         <code>wp-content/<?php echo esc_html(basename(evk_backup_import_dir())); ?>/</code> i sprawdź katalog.

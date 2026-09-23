@@ -2,6 +2,39 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.228.0] — 2026-09-23
+
+### Dodane
+
+- **Wgrywanie kopii z komputera** (etap F) — przycisk „Wgraj kopię
+  z komputera" w ramce „Kopie na serwerze". Plik idzie kawałkami (do 8 MB,
+  mniej, gdy serwer ma niższe limity wgrywania), więc przechodzi przez
+  upload_max_filesize, post_max_size i limity proxy niezależnie od
+  rozmiaru. Pasek z szybkością i szacowanym czasem.
+  - **Wznawianie**: po zamknięciu karty albo zerwaniu połączenia wystarczy
+    wybrać ten sam plik — wgrywanie rusza od miejsca przerwania. Porzucona
+    część znika po dobie.
+  - Kawałek, na który odpowiedź zginęła, jest ponawiany (do trzech razy);
+    serwer dopisuje wyłącznie na właściwe miejsce, więc powtórzenie nie psuje
+    pliku.
+  - Przed wpisaniem na listę archiwum jest sprawdzane (katalog centralny,
+    manifest) — plik, który nie jest kopią tej wtyczki, jest odrzucany
+    z powodem. Brak miejsca na serwerze — odmowa przed pierwszym kawałkiem.
+  - Po wgraniu: komunikat z przyciskiem „Przywróć teraz".
+- Nazwy kopii wgranych przez FTP i z komputera: polskie litery zamieniane na
+  łacińskie („kopia źródło (1).zip" → „kopia-zrodlo-1.zip").
+
+### Testy
+
+- `backup-wgrywanie` (nowy): wznowienie, kawałek powtórzony, odmowy (nie
+  ZIP, bez manifestu, zły identyfikator, rozszerzenie, poza rozmiar, brak
+  miejsca), nazwy, anulowanie, sprzątanie. `backup-panel-przywracanie`:
+  wgranie ~45 MB kawałkami po 1 MB w przeglądarce, odpowiedź zgubiona po
+  drodze (serwer przyjął kawałek, przeglądarka dostała zerwane połączenie),
+  przerwa przeładowaniem i wznowienie, plik co do bajtu, anulowanie, 403 bez
+  nonce. 8 mutacji — jedna („wznawiaj od zera") przechodziła, bo serwer
+  i tak poprawiał offset; test liczy teraz kawałki odrzucone po wznowieniu.
+
 ## [1.227.1] — 2026-09-23
 
 ### Naprawione (zgłoszone z użycia)

@@ -53,6 +53,8 @@ add_action('admin_enqueue_scripts', function (string $hook) {
             /* Przywracanie trwające przy wejściu na stronę: token stanu bez
                sesji — podmiana bazy wyloguje, a pasek ma dojść do końca. */
             'token'   => $evk_bk_job && $evk_bk_job['type'] === 'restore' ? evk_restore_status_token($evk_bk_job['id']) : '',
+            // Wgrywanie z przeglądarki: wielkość kawałka z limitów tego serwera (upload.php).
+            'chunk'   => evk_backup_upload_chunk_size(),
             'login'   => wp_login_url(add_query_arg(['page' => 'evoke-one', 'tab' => 'backup'], admin_url('options-general.php'))),
         ]);
     }

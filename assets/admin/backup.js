@@ -161,6 +161,114 @@
         }
     });
 
+    // ── Wgrywanie kopii z komputera — kawałkami, wznawialne ────────────────
+    /* Serwer dopisuje kawałek tylko na jego miejsce (offset = rozmiar części)
+       i oddaje rzeczywisty offset, gdy się nie zgadza — wtedy przeskakujemy.
+       Ten sam plik wybrany drugi raz ma ten sam identyfikator, więc wgrywanie
+       rusza od miejsca przerwania (includes/backup/upload.php). */
+    var wg = $('[data-evk-upload]');
+    var wgPrzerwij = false;
+    var wgId = '';
+    function wgKomunikat(tekst, rodzaj, przywroc) {
+        var m = $('[data-evk-upload-msg]', wg);
+        m.hidden = !tekst;
+        m.className = 'evo-info-box evo-mt' + (rodzaj ? ' is-' + rodzaj : '');
+        var d = m.querySelector('div');
+        d.textContent = tekst || '';
+        if (przywroc) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'button button-small';
+            b.setAttribute('data-evk-upload-restore', '');
+            b.textContent = 'Przywróć teraz';
+            b.addEventListener('click', function () { otworzPrzywracanie(przywroc); });
+            d.appendChild(document.createTextNode(' '));
+            d.appendChild(b);
+        }
+    }
+    function mb(b) { return (b / 1048576).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + ' MB'; }
+    function wgPostep(plik, offset, t0, od) {
+        var proc = plik.size ? Math.floor(100 * offset / plik.size) : 0;
+        var bar = $('[data-evk-upload-bar]', wg);
+        bar.firstElementChild.style.width = proc + '%';
+        bar.setAttribute('aria-valuenow', String(proc));
+        var s = (Date.now() - t0) / 1000;
+        var tempo = s > 0.5 ? (offset - od) / s : 0;
+        var reszta = tempo > 0 ? Math.round((plik.size - offset) / tempo) : 0;
+        $('[data-evk-upload-detail]', wg).textContent = proc + '% · ' + mb(offset) + ' z ' + mb(plik.size)
+            + (tempo > 0 ? ' · ' + mb(tempo) + '/s' + (reszta > 0 ? ' · zostało ok. ' + (reszta > 90 ? Math.round(reszta / 60) + ' min' : reszta + ' s') : '') : '');
+    }
+    function wgKawalek(plik, offset, proba) {
+        var dl = Math.min(evkBackup.chunk || 1048576, plik.size - offset);
+        var fd = new FormData();
+        fd.append('action', 'evk_backup_upload_chunk');
+        fd.append('nonce', evkBackup.nonce);
+        fd.append('id', wgId);
+        fd.append('offset', String(offset));
+        fd.append('chunk', plik.slice(offset, offset + dl), 'kawalek');
+        return fetch(evkBackup.ajaxurl, { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (r) {
+                if (r && r.success) return r.data;
+                if (r && r.data && r.data.retry && proba < 3) throw new Error('ponów');
+                var e = new Error((r && r.data && r.data.msg) || 'Serwer odrzucił kawałek.');
+                e.koniec = true;
+                throw e;
+            })
+            .catch(function (e) {
+                // Sieć albo chwilowy błąd serwera: do trzech ponowień z rosnącą przerwą.
+                if (e.koniec || proba >= 3) throw e;
+                return new Promise(function (ok) { setTimeout(ok, [1000, 3000, 8000][proba]); })
+                    .then(function () { return wgKawalek(plik, offset, proba + 1); });
+            });
+    }
+    function wgraj(plik) {
+        wgPrzerwij = false;
+        wgKomunikat('');
+        $('[data-evk-upload-pick]', wg).disabled = true;
+        $('[data-evk-upload-progress]', wg).hidden = false;
+        $('[data-evk-upload-name]', wg).textContent = plik.name;
+        $('[data-evk-upload-detail]', wg).textContent = 'Przygotowanie…';
+        var koniec = function () { $('[data-evk-upload-pick]', wg).disabled = false; $('[data-evk-upload-progress]', wg).hidden = true; };
+        post('evk_backup_upload_start', { name: plik.name, size: plik.size, mtime: Math.floor(plik.lastModified / 1000) }).then(function (r) {
+            if (!r || !r.success) { koniec(); wgKomunikat((r && r.data && r.data.msg) || 'Nie udało się rozpocząć wgrywania.', 'err'); return; }
+            wgId = r.data.id;
+            evkBackup.chunk = r.data.chunk;
+            var t0 = Date.now();
+            var od = r.data.offset;
+            if (od > 0) wgKomunikat('Wznawiam od ' + mb(od) + ' — ta część była już wgrana.', '');
+            (function dalej(offset) {
+                wgPostep(plik, offset, t0, od);
+                if (wgPrzerwij) return;
+                wgKawalek(plik, offset, 0).then(function (d) {
+                    if (d.done) {
+                        koniec();
+                        if (typeof d.html === 'string') odswiezListe(d.html);
+                        wgKomunikat('Kopia wgrana: ' + d.archive + '.', 'ok', d.archive);
+                        return;
+                    }
+                    dalej(d.offset);   // przy niezgodności serwer podaje, skąd ciągnąć
+                }, function (e) {
+                    koniec();
+                    wgKomunikat('Wgrywanie przerwane: ' + e.message + ' Wybierz ten sam plik jeszcze raz, żeby dokończyć.', 'err');
+                });
+            })(r.data.offset);
+        }, function () { koniec(); wgKomunikat('Nie udało się rozpocząć wgrywania.', 'err'); });
+    }
+    if (wg) {
+        var wgPlik = $('[data-evk-upload-file]', wg);
+        $('[data-evk-upload-pick]', wg).addEventListener('click', function () { wgPlik.value = ''; wgPlik.click(); });
+        wgPlik.addEventListener('change', function () { if (wgPlik.files && wgPlik.files[0]) wgraj(wgPlik.files[0]); });
+        $('[data-evk-upload-cancel]', wg).addEventListener('click', function () {
+            wgPrzerwij = true;
+            post('evk_backup_upload_cancel', { id: wgId }).then(function () {
+                $('[data-evk-upload-pick]', wg).disabled = false;
+                $('[data-evk-upload-progress]', wg).hidden = true;
+                wgKomunikat('Wgrywanie anulowane — wgrana część usunięta.', '');
+            });
+        });
+    }
+
     // ── Katalog FTP: sprawdzenie bez przeładowania zakładki ────────────────
     var btnFtp = $('[data-evk-backup-ftp]');
     var ftpWynik = $('[data-evk-backup-ftp-result]');

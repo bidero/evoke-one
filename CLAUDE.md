@@ -90,7 +90,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (75 plików, pięć partii; same testy kopii trwają
+Podział, który się mieści (76 plików, pięć partii; same testy kopii trwają
 ok. 8 min, więc idą osobno):
 
 ```

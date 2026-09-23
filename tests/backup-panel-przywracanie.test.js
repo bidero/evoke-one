@@ -62,16 +62,100 @@ module.exports = async function (t) {
       JSON.stringify(ftp.ftp));
     t.check('zakładka mówi, co przeniosła', /Przeniesione z katalogu FTP: z-ftp-1/.test(await p.locator('#wpbody-content').innerText()));
     t.check('lista: obie kopie, każda z przyciskiem „Przywróć"', (await p.locator('tr[data-archive] [data-evk-backup-restore]').count()) === 2);
+    const bezWgranej = () => p.locator('tr[data-archive]:not([data-archive="kopia-z-komputera.zip"])');
     /* Zgłoszone z użycia (1.227.1): sprawdzenie wgranych kopii bez przeładowania zakładki. */
     sonda('ftp-postarz');
     await p.click('[data-evk-backup-ftp]');
     await p.locator('[data-evk-backup-ftp-result]').filter({ hasText: /Przeniesione|Nowych/ }).waitFor({ timeout: 15000 });
     const ftpTxt = await p.locator('[data-evk-backup-ftp-result]').innerText();
     t.check('„Sprawdź katalog FTP": przenosi bez przeładowania, lista od razu z nową kopią',
-      /Przeniesione na listę: wgrywa-sie\.zip/.test(ftpTxt) && (await p.locator('tr[data-archive]').count()) === 3, ftpTxt);
+      /Przeniesione na listę: wgrywa-sie\.zip/.test(ftpTxt) && (await bezWgranej().count()) === 3, ftpTxt);
     await p.click('[data-evk-backup-ftp]');
     await p.locator('[data-evk-backup-ftp-result]').filter({ hasText: /Nowych kopii/ }).waitFor({ timeout: 15000 });
     t.check('drugie sprawdzenie: „nowych kopii nie ma"', true);
+
+    // ── Wgrywanie z komputera ──────────────────────────────────────────────
+    t.section('wgrywanie kopii z komputera: kawałki, wznowienie, anulowanie');
+    const wgraj = async () => {
+      const [wybor] = await Promise.all([p.waitForEvent('filechooser'), p.click('[data-evk-upload-pick]')]);
+      await wybor.setFiles(prep.plik);
+    };
+    /* Odpowiedź zgubiona: drugi kawałek DOCHODZI do serwera (route.fetch),
+       a przeglądarka dostaje zerwane połączenie. Klient ponawia, serwer
+       odpowiada rzeczywistym offsetem — plik na końcu ma być co do bajtu. */
+    let kawalkow = 0;
+    let zgubiona = false;
+    await p.route('**/admin-ajax.php', async (route) => {
+      const cialo = route.request().postDataBuffer();
+      if (!zgubiona && cialo && cialo.toString('latin1').includes('evk_backup_upload_chunk') && ++kawalkow === 2) {
+        zgubiona = true;
+        await route.fetch();
+        await route.abort('connectionreset');
+        return;
+      }
+      await route.continue();
+    });
+    /* Wznowienie: przerwane przeładowaniem strony w połowie, ten sam plik
+       wybrany znowu — start od miejsca przerwania, nie od zera. */
+    await wgraj();
+    await p.waitForFunction(() => +document.querySelector('[data-evk-upload-bar]').getAttribute('aria-valuenow') >= 20, null, { timeout: 60000 });
+    await p.unroute('**/admin-ajax.php');
+    t.check('odpowiedź na kawałek zgubiona po drodze: wgrywanie poszło dalej (ponowienie)', zgubiona === true);
+    await p.reload();
+    /* Po wznowieniu klient zaczyna od offsetu ze startu — kawałek wysłany od
+       złego miejsca serwer odrzuca („resync"), ale to już megabajt na marne.
+       Mutacja „wznawiaj od zera" przechodziła, bo serwer i tak ją poprawiał. */
+    const resynce = [];
+    const naOdp = async (odp) => {
+      // Po treści odpowiedzi, nie żądania: przy blobie w FormData treść żądania bywa tu pusta.
+      if (!/admin-ajax\.php/.test(odp.url())) return;
+      const j = await odp.json().catch(() => null);
+      if (j && j.data && j.data.resync) resynce.push(j.data.offset);
+    };
+    p.on('response', naOdp);
+    await wgraj();
+    await p.locator('[data-evk-upload-msg]').filter({ hasText: /Wznawiam od/ }).waitFor({ timeout: 15000 });
+    const wzn = await p.locator('[data-evk-upload-msg]').innerText();
+    const wznMb = parseFloat(wzn.replace(/.*od ([\d,]+) MB.*/s, '$1').replace(',', '.'));
+    t.check('przerwane w połowie i wybrane znowu: wznawia od miejsca przerwania', wznMb >= 8, wzn.trim());
+    const procWg = new Set();
+    while (true) {
+      const v = await p.locator('[data-evk-upload-bar]').getAttribute('aria-valuenow').catch(() => null);
+      if (v !== null) procWg.add(+v);
+      if (await widac(p, '[data-evk-upload-restore]')) break;
+      if (/przerwane/.test(await p.locator('[data-evk-upload-msg]').innerText().catch(() => ''))) break;
+      await p.waitForTimeout(150);
+    }
+    p.off('response', naOdp);
+    t.check('wznowienie bez zbędnych kawałków (ani jednego odrzuconego „resync")', !resynce.length, JSON.stringify(resynce));
+    const wgMsg = await p.locator('[data-evk-upload-msg]').innerText();
+    t.check('wgrane: komunikat z nazwą i „Przywróć teraz"', /Kopia wgrana: kopia-z-komputera\.zip/.test(wgMsg)
+      && (await widac(p, '[data-evk-upload-restore]')), wgMsg.trim());
+    t.check('pasek wgrywania szedł na bieżąco (kawałki po 1 MB)', procWg.size >= 5, [...procWg].sort((a, b) => a - b).join(' → '));
+    const poWg = sonda('fakty-przywracania');
+    t.check('wgrana kopia co do bajtu mimo zgubionej odpowiedzi i przerwy', poWg.wgrana_zgodna === true);
+    t.check('kopia na liście jako „wgrana", bez resztek części',
+      poWg.kopie.some(([n, zr]) => n === 'kopia-z-komputera.zip' && zr === 'upload') && !poWg.czesci.length
+        && (await p.locator('tr[data-archive="kopia-z-komputera.zip"]').count()) === 1, JSON.stringify(poWg.czesci));
+    await p.click('[data-evk-upload-restore]');
+    const oknoWg = p.locator('[data-evk-restore-dialog]');
+    await oknoWg.locator('dl').waitFor({ timeout: 20000 });
+    t.check('„Przywróć teraz" otwiera okno przywracania tej kopii',
+      /stara\.test/.test(await oknoWg.locator('[data-evk-restore-info]').innerText()));
+    await oknoWg.locator('[data-evk-restore-close]').click();
+
+    await wgraj();   // drugi raz — nowa część od zera
+    await p.waitForFunction(() => +document.querySelector('[data-evk-upload-bar]').getAttribute('aria-valuenow') >= 10, null, { timeout: 60000 });
+    await p.click('[data-evk-upload-cancel]');
+    await p.locator('[data-evk-upload-msg]').filter({ hasText: /anulowane/ }).waitFor({ timeout: 15000 });
+    let czesci = [];
+    for (let i = 0; i < 20; i++) { czesci = sonda('fakty-przywracania').czesci; if (!czesci.length) break; await p.waitForTimeout(250); }
+    t.check('anulowane w połowie: wgrana część usunięta z serwera', !czesci.length, JSON.stringify(czesci));
+    const nonceWg = await p.evaluate(() => window.evkBackup.nonce);
+    const zlyNonceWg = await p.request.post(baza + '/wp-admin/admin-ajax.php',
+      { form: { action: 'evk_backup_upload_start', nonce: 'zly', name: 'x.zip', size: '1000', mtime: '1' } });
+    t.check('wgrywanie bez ważnego nonce: 403', zlyNonceWg.status() === 403 && nonceWg.length > 0, String(zlyNonceWg.status()));
+    await p.goto(zakladka);
 
     t.section('przypomnienie o adresie i domyślne wykluczenia');
     t.check('bez adresu do powiadomień: ramka z odnośnikiem do pola', await widac(p, '[data-evk-backup-bez-maila]'));

@@ -104,7 +104,16 @@ switch ($argv[1] ?? '') {
         touch($imp . '/z ftp (1).zip', time() - 300);
         file_put_contents($imp . '/wgrywa-sie.zip', 'jeszcze nie cała');
         update_option('evk_backup_alert', ['title' => 'Kopia zapasowa nie powiodła się', 'text' => 'Testowy komunikat.', 'time' => time()], false);
-        $wynik = ['wp' => rtrim(ABSPATH, '/'), 'status' => $j['status'], 'archive' => $j['archive']];
+        /* Wgrywanie z przeglądarki: ta sama kopia jako plik „z komputera"
+           i kawałek 1 MB (mu-plugin), żeby archiwum ~45 MB szło dziesiątkami kawałków. */
+        $zKomputera = sys_get_temp_dir() . '/kopia z komputera.zip';
+        copy(evk_backup_dir() . '/' . $j['archive'], $zKomputera);
+        update_option('evk_test_chunk', 1048576);
+        wp_mkdir_p(dirname($mu));
+        file_put_contents($mu, "<?php\n// Wyłącznie testy panelu (tests/php/backup-panel.php) — usuwany po teście.\n"
+            . "if (\$evk_k = (int) get_option('evk_test_chunk')) add_filter('evk_backup_upload_chunk', static function () use (\$evk_k) { return \$evk_k; });\n");
+        $wynik = ['wp' => rtrim(ABSPATH, '/'), 'status' => $j['status'], 'archive' => $j['archive'], 'plik' => $zKomputera,
+                  'rozmiar' => filesize($zKomputera)];
         break;
 
     case 'ftp-postarz':
@@ -125,6 +134,9 @@ switch ($argv[1] ?? '') {
             'zadania'  => $wpdb->get_results('SELECT id, type, status, error FROM ' . evk_backup_jobs_table() . ' ORDER BY id', ARRAY_A),
             'tabele'   => (array) $wpdb->get_col("SHOW TABLES LIKE 'evk%'"),
             'plan'     => get_option('evk_backup_sched'),
+            'czesci'   => array_map('basename', glob(evk_backup_dir() . '/.wgrywanie-*') ?: []),
+            'wgrana_zgodna' => is_file(evk_backup_dir() . '/kopia-z-komputera.zip')
+                && md5_file(evk_backup_dir() . '/kopia-z-komputera.zip') === md5_file(sys_get_temp_dir() . '/kopia z komputera.zip'),
             'ustawienia' => get_option(EVK_BACKUP_OPTION),
         ];
         break;
@@ -136,6 +148,9 @@ switch ($argv[1] ?? '') {
         update_option('siteurl', 'http://stara.test');
         delete_option('evk_test_znacznik_panel');
         delete_option('evk_backup_alert');
+        delete_option('evk_test_chunk');
+        @unlink(sys_get_temp_dir() . '/kopia z komputera.zip');
+        foreach (glob(evk_backup_dir() . '/.wgrywanie-*') ?: [] as $p) @unlink($p);
         @unlink(WP_CONTENT_DIR . '/uploads/evk-test-znacznik.txt');
         foreach (glob(evk_backup_import_dir() . '/*.zip') ?: [] as $p) @unlink($p);
         wp_unschedule_hook('evk_backup_nightly');
