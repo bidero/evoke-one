@@ -335,6 +335,9 @@ $_SERVER['REQUEST_METHOD'] = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if (!function_exists('settings_errors'))    { function settings_errors($slug = '') {} }
 if (!function_exists('current_user_can'))   { function current_user_can($cap) { return true; } }
 if (!function_exists('translate_user_role')) { function translate_user_role($n) { return $n; } }
+/* Lista ograniczeń pyta, czy jest Bricks (szablony obok stron, 1.231.2).
+   Tu go nie ma — szablony sprawdza zapis-wp na prawdziwym WordPressie. */
+if (!function_exists('post_type_exists'))   { function post_type_exists($t) { return false; } }
 if (!function_exists('get_role')) {
     function get_role($slug) {
         return new class {

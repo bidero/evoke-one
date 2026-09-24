@@ -183,6 +183,14 @@ case 'role':
     $a   = $nowy(['post_title' => 'Strona A', 'post_type' => 'page']);
     $b   = $nowy(['post_title' => 'Strona B', 'post_type' => 'page']);
     $wp_ = $nowy(['post_title' => 'Wpis', 'post_type' => 'post']);
+    /* Szablony Bricksa (1.231.2). Bricksa tu nie ma, więc typ wpisu
+       rejestrujemy sami — niepubliczny, z uprawnieniami jak wpisy. */
+    $bez_bricksa = !post_type_exists('bricks_template');
+    if ($bez_bricksa) register_post_type('bricks_template', ['public' => false, 'show_ui' => true, 'capability_type' => 'post', 'map_meta_cap' => true]);
+    $szablon_t = $nowy(['post_title' => 'Nagłówek testowy', 'post_type' => 'bricks_template']);
+    update_post_meta($szablon_t, '_bricks_template_type', 'header');
+    $szablon_u = $nowy(['post_title' => 'Stopka testowa', 'post_type' => 'bricks_template']);
+    update_post_meta($szablon_u, '_bricks_template_type', 'footer');
     $zal = (int) wp_insert_attachment(['post_title' => 'Obraz', 'post_mime_type' => 'image/png', 'post_status' => 'inherit', 'post_author' => 1]);
     $sprzatanie[] = static function () use ($zal) { wp_delete_attachment($zal, true); };
     $uzyt = static function (string $rola) use (&$sprzatanie): int {
@@ -193,7 +201,7 @@ case 'role':
     $klient = $uzyt('evk_t_klient');
     $wolny  = $uzyt('evk_t_wolny');
     $admin2 = $uzyt('administrator');
-    update_option(EVK_ROLE_RESTRICTIONS_OPTION, ['evk_t_klient' => [$a]]);
+    update_option(EVK_ROLE_RESTRICTIONS_OPTION, ['evk_t_klient' => [$a, $szablon_t]]);
     delete_option(EVK_ROLE_POWIADOMIENIE_OPCJA);
 
     $moze = static fn(int $uid, string $cap, int $pid): bool => user_can($uid, $cap, $pid);
@@ -203,7 +211,33 @@ case 'role':
         'edit_page_B' => $moze($klient, 'edit_page', $b), 'publish_B' => $moze($klient, 'publish_post', $b),
         'edit_wpis' => $moze($klient, 'edit_post', $wp_), 'edit_zalacznik' => $moze($klient, 'edit_post', $zal),
         'edit_pages' => user_can($klient, 'edit_pages'),
+        'edit_szablon_zaznaczony' => $moze($klient, 'edit_post', $szablon_t),
+        'edit_szablon_inny'       => $moze($klient, 'edit_post', $szablon_u),
     ];
+
+    // Lista w panelu Role Managera: szablony obok stron, zaznaczenie z zapisu.
+    require_once ABSPATH . 'wp-admin/includes/user.php';
+    $ekran = static function (): string {
+        $_GET = ['role_action' => 'edit', 'edit_role' => 'evk_t_klient'];
+        ob_start();
+        include EVOKE_ONE_DIR . 'includes/admin/admin-roles.php';
+        return (string) ob_get_clean();
+    };
+    $zaznaczony = static fn(string $html, int $id): bool => (bool) preg_match('/value="' . $id . '"\s+checked=/', $html);
+    wp_set_current_user(1);
+    $html = $ekran();
+    $out['lista'] = [
+        'naglowek'         => strpos($html, 'data-evk-role-szablony') !== false,
+        'zaznaczony'       => $zaznaczony($html, $szablon_t),
+        'inny_jest'        => strpos($html, 'value="' . $szablon_u . '"') !== false,
+        'inny_zaznaczony'  => $zaznaczony($html, $szablon_u),
+        'typ'              => strpos($html, '(nagłówek)') !== false,
+        'strona_zaznaczona'=> $zaznaczony($html, $a),
+    ];
+    if ($bez_bricksa) {
+        unregister_post_type('bricks_template');
+        $out['lista_bez_bricksa'] = strpos($ekran(), 'data-evk-role-szablony') === false;
+    }
     $out['wolny'] = ['edit_B' => $moze($wolny, 'edit_post', $b), 'edit_wpis' => $moze($wolny, 'edit_post', $wp_)];
     $out['admin'] = ['edit_B' => $moze($admin2, 'edit_post', $b)];
     // Dwie role naraz: klient + druga rola z inną listą → suma list.

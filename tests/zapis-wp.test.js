@@ -99,6 +99,21 @@ module.exports = async function (t) {
   t.check('dwie role z listami: suma list, reszta zablokowana',
     r.dwie_role && r.dwie_role.edit_A === true && r.dwie_role.edit_B === true && r.dwie_role.edit_wpis === false, JSON.stringify(r.dwie_role));
 
+  /* Szablony Bricksa (1.231.2): od 1.230.0 blokada obejmuje każdy typ wpisu,
+     a lista miała same strony — nagłówka ani stopki nie dało się udostępnić. */
+  t.section('Role Manager: szablony Bricksa na liście');
+  t.check('zaznaczony szablon: edycja; inny szablon: bez edycji',
+    k.edit_szablon_zaznaczony === true && k.edit_szablon_inny === false,
+    JSON.stringify({ zaznaczony: k.edit_szablon_zaznaczony, inny: k.edit_szablon_inny }));
+  const l = r.lista || {};
+  t.check('lista w panelu: sekcja szablonów pod stronami, z każdym szablonem',
+    l.naglowek === true && l.inny_jest === true, JSON.stringify({ naglowek: l.naglowek, inny: l.inny_jest }));
+  t.check('zaznaczenie z zapisu: szablon i strona z listy tak, inny szablon nie',
+    l.zaznaczony === true && l.strona_zaznaczona === true && l.inny_zaznaczony === false,
+    JSON.stringify({ szablon: l.zaznaczony, strona: l.strona_zaznaczona, inny: l.inny_zaznaczony }));
+  t.check('przy nazwie szablonu jego typ („nagłówek")', l.typ === true, JSON.stringify(l.typ));
+  t.check('bez Bricksa lista nie ma sekcji szablonów', r.lista_bez_bricksa === true, JSON.stringify(r.lista_bez_bricksa));
+
   t.section('Role Manager: jednorazowe powiadomienie');
   t.check('przy zapisanych ograniczeniach administrator dostaje powiadomienie', r.powiadomienie === true, JSON.stringify(r.powiadomienie));
   t.check('bez ograniczeń: brak powiadomienia i zamyka się samo', r.powiadomienie_bez_ograniczen === false && r.zamkniete_samo === true,

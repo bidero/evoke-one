@@ -284,7 +284,7 @@ add_action('admin_notices', function () {
     printf(
         '<div class="notice notice-warning"><p><strong>Evoke ONE:</strong> %s</p><p><a class="button" href="%s">%s</a> <a class="button-link" href="%s">%s</a></p></div>',
         esc_html(sprintf(
-            'Ograniczenia edycji stron w Role Managerze do tej pory nie blokowały niczego — od tej wersji działają. Role z ograniczeniami: %s. Ich użytkownicy edytują teraz WYŁĄCZNIE zaznaczone strony; wszystkie inne strony i wpisy są dla nich zablokowane.',
+            'Ograniczenia edycji stron w Role Managerze do tej pory nie blokowały niczego — od tej wersji działają. Role z ograniczeniami: %s. Ich użytkownicy edytują teraz WYŁĄCZNIE zaznaczone strony; wszystkie inne strony, wpisy i szablony są dla nich zablokowane. Szablony Bricksa (np. nagłówek, stopkę) można im udostępnić na tej samej liście co strony.',
             implode(', ', $nazwy)
         )),
         esc_url($ekran), esc_html('Sprawdź ograniczenia'),

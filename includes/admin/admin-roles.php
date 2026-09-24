@@ -22,6 +22,16 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
     $all_caps = evk_role_get_all_caps();
     $has_caps = array_keys(array_filter($role->capabilities));
     $pages    = get_posts(['post_type' => 'page', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC']);
+    /* Szablony Bricksa na tej samej liście. Od 1.230.0 ograniczenie blokuje
+       KAŻDY typ wpisu, a lista miała same strony — roli nie dało się pozwolić
+       na edycję nagłówka ani stopki (zgłoszone po sprawdzeniu na stronie
+       z Bricksem, 1.231.2). Blokada w map_meta_cap działa po ID, więc zapis
+       i sprawdzanie uprawnień zostają bez zmian. */
+    $szablony = post_type_exists('bricks_template')
+        ? get_posts(['post_type' => 'bricks_template', 'posts_per_page' => -1, 'orderby' => 'title', 'order' => 'ASC'])
+        : [];
+    $typy_szablonow = ['header' => 'nagłówek', 'footer' => 'stopka', 'section' => 'sekcja', 'content' => 'treść',
+                       'archive' => 'archiwum', 'search' => 'wyszukiwanie', 'error' => 'strona błędu', 'popup' => 'popup'];
     $restrict = evk_role_get_restrictions()[$edit_role] ?? [];
     ?>
     <a href="<?php echo esc_url($base_url); ?>" class="button evo-mb">← Powrót do listy ról</a>
@@ -49,8 +59,9 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
 
                 <div class="evo-box">
                     <h3>Ograniczenie edycji stron</h3>
-                    <p class="evo-hint">Zostaw puste = dostęp do wszystkich. Zaznacz strony = rola edytuje i usuwa wyłącznie je; wszystkie inne strony, wpisy i szablony są dla niej zablokowane (media zostają dostępne).</p>
+                    <p class="evo-hint">Zostaw puste = dostęp do wszystkich. Zaznacz strony<?php echo $szablony ? ' i szablony' : ''; ?> = rola edytuje i usuwa wyłącznie je; wszystkie inne strony, wpisy i szablony są dla niej zablokowane (media zostają dostępne).</p>
                     <div class="evo-scroll-box" style="--evo-scroll-h:300px">
+                        <?php if ($szablony): ?><div class="evo-group-head">Strony</div><?php endif; ?>
                         <?php foreach ($pages as $page): ?>
                         <label class="evo-ep-row">
                             <input type="checkbox" name="page_restrictions[]" value="<?php echo $page->ID; ?>"
@@ -58,6 +69,17 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
                             <?php echo esc_html($page->post_title); ?>
                         </label>
                         <?php endforeach; ?>
+                        <?php if ($szablony): ?>
+                        <div class="evo-group-head" data-evk-role-szablony>Szablony Bricksa</div>
+                        <?php foreach ($szablony as $szablon):
+                            $typ = (string) get_post_meta($szablon->ID, '_bricks_template_type', true); ?>
+                        <label class="evo-ep-row">
+                            <input type="checkbox" name="page_restrictions[]" value="<?php echo (int) $szablon->ID; ?>"
+                                   <?php checked(in_array($szablon->ID, $restrict, true)); ?>>
+                            <?php echo esc_html($szablon->post_title); ?>
+                            <?php if ($typ !== ''): ?><span class="evo-desc evo-m0">(<?php echo esc_html($typy_szablonow[$typ] ?? $typ); ?>)</span><?php endif; ?>
+                        </label>
+                        <?php endforeach; endif; ?>
                     </div>
                 </div>
             </div>

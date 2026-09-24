@@ -2,6 +2,36 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.231.2] — 2026-09-24
+
+### Naprawione (zgłoszone po sprawdzeniu ról na stronie z Bricksem)
+
+- **Roli z ograniczeniami nie dało się udostępnić żadnego szablonu
+  Bricksa.** Od 1.230.0 ograniczenie blokuje każdy typ wpisu, a lista
+  w Role Managerze miała same strony. Rola ograniczona do kilku stron nie
+  edytowała nagłówka ani stopki i nie było jak jej na to pozwolić.
+  - Pod stronami jest teraz sekcja „Szablony Bricksa", z typem przy nazwie
+    (nagłówek, stopka, sekcja…). Zaznaczony szablon rola edytuje, pozostałe
+    zostają zablokowane.
+  - Sekcja pokazuje się tylko przy włączonym Bricksie.
+- Jednorazowe powiadomienie o działających ograniczeniach wspomina
+  o szablonach.
+
+Samo ograniczenie stron sprawdzone na stronie z Bricksem: poza dozwolonymi
+stronami zostaje tylko podgląd.
+
+### Testy
+
+- `zapis-wp` (role): zaznaczony szablon z edycją, inny bez; lista z sekcją
+  szablonów, zaznaczeniem z zapisu i typem przy nazwie; bez Bricksa lista
+  bez tej sekcji. Bricksa tu nie ma, więc typ `bricks_template` rejestruje
+  sonda.
+- Atrapa panelu (`tests/php/tab.php`) zna `post_type_exists()`, więc ekran
+  edycji roli renderuje się bez szablonów.
+- Mutacje (4, każda zapala własne sprawdzenie): lista bez szablonów,
+  szablony bez zaznaczenia, sekcja bez sprawdzenia, czy jest Bricks, bez typu
+  przy nazwie.
+
 ## [1.231.1] — 2026-09-24
 
 ### Naprawione (zgłoszone z serwera Apache)
