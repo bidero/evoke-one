@@ -57,6 +57,34 @@ add_filter('bricks/code/echo_function_whitelist', function ($allowed) {
     return $allowed;
 });
 
+/**
+ * Obrazek zastępczy, gdy strona nie ma wygenerowanego obrazka OG.
+ *
+ * Kolejność: miniatura wpisu → obrazek domyślny z ustawień OG → plik
+ * `og-fallback.jpg` w katalogu uploads, ale TYLKO jeśli istnieje → nic.
+ *
+ * Do 1.230.0 bez ustawienia szedł na sztywno `/wp-content/uploads/og-fallback.jpg`
+ * — plik, którego zwykle nie ma. Każda strona sprzed włączenia generatora
+ * (dopóki ktoś jej nie zapisał) dostawała `og:image` z błędem 404, a przez
+ * niepusty adres pomijana była nawet jej miniatura (audyt 1.229.6,
+ * tools/audyt/sondy/og-fallback.php). Pusty wynik znaczy „brak obrazka"
+ * i wtedy `og:image` po prostu się nie wypisuje.
+ */
+function evk_og_obrazek_zastepczy(int $post_id): string {
+    if ($post_id && has_post_thumbnail($post_id)) {
+        return (string) get_the_post_thumbnail_url($post_id, 'full');
+    }
+
+    $ustawiony = (string) (evk_og_get_settings()['fallback_url'] ?? '');
+    if ($ustawiony !== '') return $ustawiony;
+
+    $uploads = wp_upload_dir();
+    if (is_file($uploads['basedir'] . '/og-fallback.jpg')) {
+        return $uploads['baseurl'] . '/og-fallback.jpg';
+    }
+    return '';
+}
+
 // Publiczna funkcja do użycia w Bricks / shortcode
 function evk_og_get_url(int $post_id = 0): string {
     global $post;
@@ -65,24 +93,19 @@ function evk_og_get_url(int $post_id = 0): string {
         if (!$post_id && isset($post->ID)) $post_id = $post->ID;
     }
 
-    $s = evk_og_get_settings();
-    $fallback = $s['fallback_url'] ?: home_url('/wp-content/uploads/og-fallback.jpg');
+    if (!$post_id) return evk_og_obrazek_zastepczy(0);
 
-    if (!$post_id) return $fallback;
-
-    // Jeśli wyłączony generator — użyj miniatury
+    // Generator wyłączony dla tej strony — miniatura albo obrazek domyślny
     if (get_post_meta($post_id, '_evk_og_disable', true) === '1') {
-        return has_post_thumbnail($post_id)
-            ? get_the_post_thumbnail_url($post_id, 'full')
-            : $fallback;
+        return evk_og_obrazek_zastepczy($post_id);
     }
 
     $url = get_post_meta($post_id, '_evk_og_url', true);
-    if (!$url) return $fallback;
+    if (!$url) return evk_og_obrazek_zastepczy($post_id);
 
     $upload_dir = wp_upload_dir();
     $path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], strtok($url, '?'));
-    return file_exists($path) ? $url . '?v=' . filemtime($path) : $fallback;
+    return file_exists($path) ? $url . '?v=' . filemtime($path) : evk_og_obrazek_zastepczy($post_id);
 }
 
 // Alias dla wstecznej kompatybilności z oryginalnym kodem

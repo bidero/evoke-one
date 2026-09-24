@@ -100,6 +100,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-field">
                         <label>URL fallback (gdy brak miniatury)</label>
                         <input type="text" name="evk_og[fallback_url]" value="<?php echo esc_attr($og['fallback_url']); ?>" placeholder="https://twoja-domena.pl/wp-content/uploads/og-fallback.jpg" class="evo-w-full">
+                        <div class="evo-desc">Dla stron bez wygenerowanego obrazka i bez miniatury. Puste pole: bez obrazka (albo <code>og-fallback.jpg</code> z katalogu uploads, jeśli taki plik istnieje).</div>
                     </div>
                 </div>
 

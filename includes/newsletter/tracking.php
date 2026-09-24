@@ -177,6 +177,14 @@ function evk_nl_handle_click(string $token, int $campaign_id = 0): void {
     $cel   = evk_nl_click_target($target_url, $sig, $campaign_id);
     $valid = ($cel !== '');
 
+    /* Maile wysłane przed 1.231.0 niosą cel z `&amp;` — podpisany dokładnie
+       w tej postaci, więc przechodzi weryfikację. Zamieniamy go na prawdziwe
+       `&` DOPIERO po weryfikacji: podpis dalej decyduje, dokąd wolno, a stare
+       linki z UTM-ami zaczynają działać. Hosta ta zamiana nie zmieni: encja
+       w części z hostem daje host z „&", a taki odrzuca już
+       `wp_http_validate_url()` w `evk_nl_click_target()`. */
+    if ($valid) $cel = str_replace(['&amp;', '&#038;'], '&', $cel);
+
     /* Token subskrybenta NIE decyduje o przekierowaniu — decyduje podpis.
        Uszkodzony token (obcięty przez klienta pocztowego, przepisany ręcznie)
        nie ma powodu zostawiać czytającego na stronie głównej; kliknięcie po
@@ -425,7 +433,11 @@ function evk_nl_click_url(string $token, string $target, int $campaign_id = 0): 
     if (!empty($rules) && isset($rules['^nl/click/([0-9]+)/([a-zA-Z0-9]+)/?$'])) {
         return home_url('/nl/click/' . $campaign_id . '/' . $token . '/') . '?url=' . rawurlencode($target) . '&sig=' . $sig;
     }
-    return add_query_arg(['evk_nl' => 'click', 'evk_nl_campaign' => $campaign_id, 'evk_nl_token' => $token, 'url' => $target, 'sig' => $sig], home_url('/'));
+    /* `rawurlencode()`, bo `add_query_arg()` wartości NIE koduje: cel
+       z własnym `?a=1&b=2` rozpadał się na parametry linku kliknięcia, `url`
+       urywał się na pierwszym `&`, podpis przestawał pasować i link
+       zewnętrzny kończył na stronie głównej. */
+    return add_query_arg(['evk_nl' => 'click', 'evk_nl_campaign' => $campaign_id, 'evk_nl_token' => $token, 'url' => rawurlencode($target), 'sig' => $sig], home_url('/'));
 }
 
 function evk_nl_unsubscribe_url(string $token): string {

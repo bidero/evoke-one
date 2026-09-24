@@ -83,6 +83,22 @@ module.exports = async function (t) {
   t.check('i changelog mówi to samo', zChangeloga === zNaglowka,
     'nagłówek ' + zNaglowka + ', changelog ' + zChangeloga);
 
+  /* WERSJE PLIKÓW ELEMENTÓW I TŁA PRZY SCROLLU. Do 1.230.0 każdy element miał
+     w rejestrze ręcznie wpisany `?ver=`, którego nikt nie podbijał: `grain.js`
+     zmieniony w 1.211.0 i 1.212.0 jechał dalej jako `?ver=1.0.0`, więc
+     odwiedzający z pamięcią podręczną dostawali stary kod (audyt 1.229.6).
+     Teraz jest jedna wersja — wtyczki — i żaden numer nie może wrócić
+     w postaci liczby wpisanej z ręki. */
+  t.section('pliki elementów i Tła przy scrollu mają wersję wtyczki');
+  const loader = fs.readFileSync(path.join(korzen, 'includes/bricks-elements/loader.php'), 'utf8');
+  const rejestr = (loader.match(/function evk_elements_registry\(\): array \{([\s\S]*?)\n\}/) || [])[1] || '';
+  const reczne = rejestr.match(/'[0-9]+(?:\.[0-9]+)+'/g) || [];   // także „'1.2'"
+  t.check('rejestr elementów znaleziony', rejestr.length > 1000, rejestr.length + ' znaków');
+  t.check('w rejestrze nie ma numerów wpisanych z ręki', !reczne.length, reczne.join(', ') || 'brak');
+  const bgshift = fs.readFileSync(path.join(korzen, 'includes/anim/bgshift.php'), 'utf8');
+  t.check('bg-shift.js jedzie z wersją wtyczki',
+    /assets\/js\/bg-shift\.js',\s*\[[^\]]*\],\s*EVOKE_ONE_VERSION/.test(bgshift), 'wzorzec enqueue');
+
   // ── Analiza statyczna PHP-a ───────────────────────────────────────────
   /*
    * PHPStan łapie inną klasę usterek niż reszta zestawu: tamta mierzy

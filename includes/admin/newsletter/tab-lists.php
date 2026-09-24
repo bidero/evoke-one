@@ -176,6 +176,14 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
          za tworzenie…") ląduje w połowie strony, na treści. */ ?>
 
 <script>
+/* Wynik importu słowami. Osobno WYPISANI: import ich nie przywraca (1.231.0),
+   więc bez tej pozycji znikaliby z liczb bez wyjaśnienia. */
+function evkNlWynikImportu(d) {
+    var czesci = ['Dodano: ' + (d.added || 0), 'już na liście: ' + (d.skipped || 0)];
+    if (d.unsubscribed) czesci.push('wypisani (pominięci): ' + d.unsubscribed);
+    czesci.push('błędne: ' + (d.invalid || 0));
+    return czesci.join(', ') + '.';
+}
 jQuery(function($) {
     var nonce  = '<?php echo esc_js($nonce); ?>';
     var listId = <?php echo (int) $active_list; ?>;
@@ -250,12 +258,12 @@ jQuery(function($) {
             var fd = new FormData();
             fd.append('action','evk_nl_import_csv_file'); fd.append('nonce',nonce); fd.append('list_id',listId); fd.append('csv_file',file);
             $.ajax({url:ajaxurl, type:'POST', data:fd, processData:false, contentType:false, success:function(res) {
-                if (res.success) { $('#evk-nl-import-result').text('Dodano:'+res.data.added+' pom.:'+res.data.skipped+' błędnych:'+res.data.invalid); loadSubs(); }
+                if (res.success) { $('#evk-nl-import-result').text(evkNlWynikImportu(res.data)); loadSubs(); }
                 else { $('#evk-nl-import-result').text(res.data?.msg||'Błąd'); }
             }});
         } else {
             $.post(ajaxurl, {action:'evk_nl_import_subscribers', nonce:nonce, list_id:listId, import_type:'textarea', content:$('#evk-nl-import-textarea').val()}, function(res) {
-                if (res.success) { $('#evk-nl-import-result').text('Dodano:'+res.data.added+' pom.:'+res.data.skipped+' błędnych:'+res.data.invalid); loadSubs(); }
+                if (res.success) { $('#evk-nl-import-result').text(evkNlWynikImportu(res.data)); loadSubs(); }
                 else { $('#evk-nl-import-result').text(res.data?.msg||'Błąd'); }
             });
         }

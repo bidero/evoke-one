@@ -2,6 +2,88 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.231.0] — 2026-09-24
+
+Drugie wydanie po audycie 1.229.6: newsletter, obrazek OG i wersje plików
+elementów. Każdy błąd potwierdzony na prawdziwym WordPressie (sondy
+w `tools/audyt/sondy/`) i każdy przechodził zielono przez testy na atrapach.
+
+### Naprawione
+
+- **Import CSV z polskiego Excela dodawał zepsute adresy.** Excel zapisuje CSV
+  ze średnikiem, a import czytał po przecinku. `sanitize_email()` „naprawiało"
+  wiersz `jan@firma.pl;Jan;Kowalski` do `jan@firma.plJanKowalski` i import
+  liczył go jako dodany. Wysyłka na takie adresy odbija się i psuje reputację
+  nadawcy.
+  - Separator (przecinek, średnik, tabulator) jest wykrywany, BOM z Excela
+    zdejmowany.
+  - Adres brany z pierwszego pola, które jest adresem, więc plik z imieniem
+    przed adresem też się wczyta.
+  - Pierwszy wiersz bez „@" to nagłówek i wypada. Każdy inny wiersz bez
+    adresu liczy się jako błędny.
+  - Adres przyjmowany ściśle: pole, które `sanitize_email()` musiałoby
+    zmienić, trafia do błędnych.
+  - Pole tekstowe przyjmuje też „Jan Kowalski <jan@firma.pl>"
+    i „jan@firma.pl; Jan". Linie bez adresu liczą się jako błędne, zamiast
+    znikać bez śladu.
+- **Import przywracał wypisanych.** Osoba wypisana linkiem z maila wracała na
+  listę jako aktywna, a zapis jej wypisu i zgody był kasowany. Teraz import
+  jej nie rusza. Formularz zapisu, czyli decyzja samej osoby, przywraca jak
+  dotąd.
+- **Śledzenie kliknięć psuło linki z parametrami.** Edytor zapisuje `&`
+  w odnośniku jako `&amp;`, a tracker brał to dosłownie.
+  - Przy ładnych odnośnikach UTM-y dochodziły jako `amp;utm_medium`, więc
+    Analytics widział tylko `utm_source`, bez medium i nazwy kampanii.
+  - Przy zwykłych odnośnikach adres urywał się na pierwszym `&`. Link
+    wewnętrzny gubił parametry, a zewnętrzny kończył na stronie głównej.
+  - Linki z maili wysłanych przed tą wersją też zaczynają działać: cel
+    z `&amp;` jest naprawiany po sprawdzeniu podpisu.
+- **og:image wskazywał nieistniejący plik.** Bez obrazka domyślnego
+  w ustawieniach szedł na sztywno `uploads/og-fallback.jpg`, którego zwykle
+  nie ma. Strony bez wygenerowanego obrazka udostępniały się z błędem 404
+  i bez swojej miniatury.
+  - Teraz kolejność: wygenerowany obrazek → miniatura wpisu → obrazek
+    domyślny z ustawień → `og-fallback.jpg`, tylko jeśli plik istnieje →
+    bez `og:image`.
+- **Elementy Bricks i Tło przy scrollu jechały ze starym `?ver=`.** Numery
+  w rejestrze elementów były wpisane ręcznie i nikt ich nie podbijał:
+  `grain.js` zmieniony w 1.211.0 i 1.212.0 dalej szedł jako `?ver=1.0.0`.
+  Przeglądarki i CDN podawały odwiedzającym stary kod mimo aktualizacji.
+  Teraz wszystkie te pliki mają wersję wtyczki.
+
+### Zmienione
+
+- Wynik importu pełnymi słowami, z osobną pozycją dla wypisanych: „Dodano: 3,
+  już na liście: 2, wypisani (pominięci): 1, błędne: 1."
+- Podpowiedź pod polem „URL fallback" w ustawieniach OG mówi, co się dzieje,
+  gdy pole jest puste.
+
+### Testy
+
+- `zapis-wp-newsletter` (nowy, prawdziwy WordPress + MariaDB, partia z testami
+  kopii):
+  - CSV: Excel (średnik, BOM, nagłówek), przecinek z imieniem przed adresem,
+    tabulator, średnik w polu w cudzysłowie, jedna kolumna, wiersz bez adresu;
+    pole tekstowe;
+  - zapis: cały wiersz Excela nie jest dodawany, wynik z czterema liczbami,
+    wypisana zostaje wypisana razem z zapisem zgody, niepotwierdzona zostaje
+    niepotwierdzona, formularz przywraca;
+  - kliknięcia w obu trybach odnośników: link podpisany, `&` zapisany jako
+    HTML, prawdziwy cel w linku, cel z kompletem parametrów; stary link
+    z `&amp;`; encja w części z hostem nie wyprowadza poza serwis;
+  - og:image: pusto bez niczego i po zniknięciu pliku, miniatura, obrazek
+    z ustawień, `og-fallback.jpg` tylko wtedy, gdy jest.
+- `drobiazgi`: rejestr elementów bez numerów wersji wpisanych z ręki (także
+  dwuczłonowych), bg-shift z wersją wtyczki.
+- Mutacje (17, każda zapala własny podzbiór): import przywracający wypisanych,
+  separator zawsze przecinkiem, adres naprawiany zamiast odrzucany, nagłówek
+  liczony jak wiersz, pole tekstowe gubiące błędne linie, atrybut bez
+  dekodowania encji, adres w atrybucie bez `esc_url()`, zwykłe odnośniki bez
+  `rawurlencode()`, stare linki bez naprawy `&amp;`, cel bez
+  `wp_http_validate_url()`, `og-fallback.jpg` na ślepo, bez miniatury, bez
+  obrazka z ustawień, zniknięty plik w og:image, ręczna wersja stałej
+  i stylu w rejestrze, bg-shift z ręczną wersją.
+
 ## [1.230.0] — 2026-09-24
 
 Pierwsze wydanie po audycie 1.229.6: pięć błędów, które niszczyły albo gubiły

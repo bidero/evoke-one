@@ -258,7 +258,13 @@ function evk_nl_inject_tracking(string $body, string $token, int $campaign_id): 
     $body = preg_replace_callback(
         '/<a\s[^>]*href=["\']([^"\']+)["\'][^>]*>/i',
         function ($m) use ($token, $campaign_id) {
-            $url = $m[1];
+            /* Atrybut HTML, nie adres: TinyMCE zapisuje `&` jako `&amp;`
+               (i tak ma być w HTML-u). Do 1.230.0 tracker opakowywał surowy
+               tekst atrybutu, więc cel dostawał `amp;utm_medium` zamiast
+               `utm_medium`, a przy zwykłych odnośnikach (bez rewrite) adres
+               urywał się na pierwszym `&` i link zewnętrzny lądował na stronie
+               głównej. Audyt 1.229.6, tools/audyt/sondy/nl-amp.php. */
+            $url = html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
             // Napraw podwójny protokół (TinyMCE bug)
             $url = preg_replace('#^https?://https?://#i', 'https://', $url);
@@ -275,8 +281,9 @@ function evk_nl_inject_tracking(string $body, string $token, int $campaign_id): 
                 return $m[0];
             }
 
+            // Z powrotem do atrybutu — jako HTML (`&` → `&#038;`).
             $track_url = evk_nl_click_url($token, $url, $campaign_id);
-            return str_replace($m[1], $track_url, $m[0]);
+            return str_replace($m[1], esc_url($track_url), $m[0]);
         },
         $body
     );

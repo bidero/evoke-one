@@ -29,6 +29,18 @@ add_filter('bricks/builder/i18n', function ($i18n) {
     return $i18n;
 });
 
+/**
+ * Rejestr elementów.
+ *
+ * WERSJE PLIKÓW = WERSJA WTYCZKI. Do 1.230.0 każdy element miał tu ręcznie
+ * wpisane numery (`?ver=` skryptu, stylu i stałych EVK_*_VERSION), których nikt
+ * nie podbijał: `grain.js` zmienił się w 1.211.0 i 1.212.0, a dalej jechał jako
+ * `?ver=1.0.0`; `stacking-cards.js` w 1.213.0 — dalej `1.3.1`. Przeglądarki
+ * i CDN z długą pamięcią podręczną podawały odwiedzającym stary kod mimo
+ * aktualizacji (audyt 1.229.6). Wersja wtyczki zmienia się przy każdym
+ * wydaniu, więc każde wydanie unieważnia pamięć podręczną — i nie ma czego
+ * pilnować. Pilnuje tego `tests/drobiazgi.test.js`.
+ */
 function evk_elements_registry(): array {
     $dir = EVOKE_ONE_DIR . 'includes/bricks-elements/';
     $url = EVOKE_ONE_URL . 'includes/bricks-elements/';
@@ -42,7 +54,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-marquee',
             'file'  => $dir . 'evoke-marquee/element.php',
             'consts'=> [
-                'EVK_MARQUEE_VERSION' => '1.6.0',
+                'EVK_MARQUEE_VERSION' => EVOKE_ONE_VERSION,
                 'EVK_MARQUEE_URL'     => $url . 'evoke-marquee/',
                 'EVK_MARQUEE_PATH'    => $dir . 'evoke-marquee/',
             ],
@@ -51,8 +63,8 @@ function evk_elements_registry(): array {
                Brakowało tego drugiego, więc na KAŻDEJ stronie z marquee wchodził
                loader awaryjny w marquee.js i dociągał ScrollTriggera z cdnjs —
                osobne DNS + TCP + TLS, i to dopiero po wykonaniu skryptu. */
-            'script'=> ['evk-marquee', $url . 'evoke-marquee/assets/marquee.js', ['evk-gsap', 'evk-observer', 'evk-scrolltrigger'], '1.6.0'],
-            'style' => ['evk-marquee', $url . 'evoke-marquee/assets/marquee.css', '1.5.1'],
+            'script'=> ['evk-marquee', $url . 'evoke-marquee/assets/marquee.js', ['evk-gsap', 'evk-observer', 'evk-scrolltrigger'], EVOKE_ONE_VERSION],
+            'style' => ['evk-marquee', $url . 'evoke-marquee/assets/marquee.css', EVOKE_ONE_VERSION],
         ],
         'hscroll' => [
             'label' => 'Horizontal Scroll',
@@ -62,12 +74,12 @@ function evk_elements_registry(): array {
             'name'  => 'evk-horizontal-scroll',
             'file'  => $dir . 'evoke-horizontal-scroll/element.php',
             'consts'=> [
-                'EVK_HSCROLL_VERSION' => '1.2.0',
+                'EVK_HSCROLL_VERSION' => EVOKE_ONE_VERSION,
                 'EVK_HSCROLL_URL'     => $url . 'evoke-horizontal-scroll/',
                 'EVK_HSCROLL_PATH'    => $dir . 'evoke-horizontal-scroll/',
             ],
-            'script'=> ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.js', ['evk-gsap', 'evk-scrolltrigger'], '1.11.0'],
-            'style' => ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.css', '1.5.0'],
+            'script'=> ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.js', ['evk-gsap', 'evk-scrolltrigger'], EVOKE_ONE_VERSION],
+            'style' => ['evk-horizontal-scroll', $url . 'evoke-horizontal-scroll/assets/hscroll.css', EVOKE_ONE_VERSION],
         ],
         'grain' => [
             'label' => 'Grain',
@@ -77,15 +89,15 @@ function evk_elements_registry(): array {
             'name'  => 'evk-grain',
             'file'  => $dir . 'evoke-grain/element.php',
             'consts'=> [
-                'EVK_GRAIN_VERSION' => '1.0.0',
+                'EVK_GRAIN_VERSION' => EVOKE_ONE_VERSION,
                 'EVK_GRAIN_URL'     => $url . 'evoke-grain/',
                 'EVK_GRAIN_PATH'    => $dir . 'evoke-grain/',
             ],
             /* BEZ ZALEŻNOŚCI. Ziarno to jeden trójkąt i jedna linijka
                arytmetyki — nie potrzebuje ani GSAP-a, ani three.js. Pusta
                tablica jest tu informacją, nie przeoczeniem. */
-            'script'=> ['evk-grain', $url . 'evoke-grain/assets/grain.js', [], '1.0.0'],
-            'style' => ['evk-grain', $url . 'evoke-grain/assets/grain.css', '1.0.0'],
+            'script'=> ['evk-grain', $url . 'evoke-grain/assets/grain.js', [], EVOKE_ONE_VERSION],
+            'style' => ['evk-grain', $url . 'evoke-grain/assets/grain.css', EVOKE_ONE_VERSION],
         ],
         'scroll_reading' => [
             'label' => 'Scroll Reading',
@@ -95,12 +107,12 @@ function evk_elements_registry(): array {
             'name'  => 'evk-scroll-reading',
             'file'  => $dir . 'evoke-scroll-reading/element.php',
             'consts'=> [
-                'EVK_SR_VERSION' => '1.2.0',
+                'EVK_SR_VERSION' => EVOKE_ONE_VERSION,
                 'EVK_SR_URL'     => $url . 'evoke-scroll-reading/',
                 'EVK_SR_PATH'    => $dir . 'evoke-scroll-reading/',
             ],
-            'script'=> ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.js', ['evk-gsap', 'evk-scrolltrigger', 'evk-splittext'], '1.2.0'],
-            'style' => ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.css', '1.2.0'],
+            'script'=> ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.js', ['evk-gsap', 'evk-scrolltrigger', 'evk-splittext'], EVOKE_ONE_VERSION],
+            'style' => ['evk-scroll-reading', $url . 'evoke-scroll-reading/assets/scroll-reading.css', EVOKE_ONE_VERSION],
         ],
         'circular_title' => [
             'label' => 'Circular Title',
@@ -110,7 +122,7 @@ function evk_elements_registry(): array {
             'name'  => '', // register_element(file) — Bricks odczyta klasę z pliku
             'file'  => $dir . 'evoke-circular-title/element.php',
             'consts'=> [
-                'EVK_CIRCULAR_VERSION' => '1.1.5',
+                'EVK_CIRCULAR_VERSION' => EVOKE_ONE_VERSION,
                 'EVK_CIRCULAR_URL'     => $url . 'evoke-circular-title/',
                 'EVK_CIRCULAR_PATH'    => $dir . 'evoke-circular-title/',
             ],
@@ -127,7 +139,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-circular-menu',
             'file'  => $dir . 'evoke-circular-menu/element.php',
             'consts'=> [
-                'EVK_CIRCULAR_MENU_VERSION' => '1.11.0',
+                'EVK_CIRCULAR_MENU_VERSION' => EVOKE_ONE_VERSION,
                 'EVK_CIRCULAR_MENU_URL'     => $url . 'evoke-circular-menu/',
                 'EVK_CIRCULAR_MENU_PATH'    => $dir . 'evoke-circular-menu/',
             ],
@@ -142,7 +154,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-offcanvas-menu',
             'file'  => $dir . 'evoke-offcanvas-menu/element.php',
             'consts'=> [
-                'EVK_OFFCANVAS_MENU_VERSION' => '1.15.0',
+                'EVK_OFFCANVAS_MENU_VERSION' => EVOKE_ONE_VERSION,
                 'EVK_OFFCANVAS_MENU_URL'     => $url . 'evoke-offcanvas-menu/',
                 'EVK_OFFCANVAS_MENU_PATH'    => $dir . 'evoke-offcanvas-menu/',
             ],
@@ -157,12 +169,12 @@ function evk_elements_registry(): array {
             'name'  => 'evk-burger',
             'file'  => $dir . 'evoke-burger/element.php',
             'consts'=> [
-                'EVK_BURGER_VERSION' => '1.8.0',
+                'EVK_BURGER_VERSION' => EVOKE_ONE_VERSION,
                 'EVK_BURGER_URL'     => $url . 'evoke-burger/',
                 'EVK_BURGER_PATH'    => $dir . 'evoke-burger/',
             ],
-            'script'=> ['evk-burger', $url . 'evoke-burger/assets/burger.js', ['bricks-scripts'], '1.1.0'],
-            'style' => ['evk-burger', $url . 'evoke-burger/assets/burger.css', '1.8.0'],
+            'script'=> ['evk-burger', $url . 'evoke-burger/assets/burger.js', ['bricks-scripts'], EVOKE_ONE_VERSION],
+            'style' => ['evk-burger', $url . 'evoke-burger/assets/burger.css', EVOKE_ONE_VERSION],
         ],
         'stacking_cards' => [
             'label' => 'Stacking Cards',
@@ -172,12 +184,12 @@ function evk_elements_registry(): array {
             'name'  => 'evk-stacking-cards',
             'file'  => $dir . 'evoke-stacking-cards/element.php',
             'consts'=> [
-                'EVK_SC_VERSION' => '1.3.1',
+                'EVK_SC_VERSION' => EVOKE_ONE_VERSION,
                 'EVK_SC_URL'     => $url . 'evoke-stacking-cards/',
                 'EVK_SC_PATH'    => $dir . 'evoke-stacking-cards/',
             ],
-            'script'=> ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.js', ['evk-gsap', 'evk-scrolltrigger'], '1.3.1'],
-            'style' => ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.css', '1.3.0'],
+            'script'=> ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.js', ['evk-gsap', 'evk-scrolltrigger'], EVOKE_ONE_VERSION],
+            'style' => ['evk-stacking-cards', $url . 'evoke-stacking-cards/assets/stacking-cards.css', EVOKE_ONE_VERSION],
         ],
         'wave_bg' => [
             'label' => 'Wave Background',
@@ -187,7 +199,7 @@ function evk_elements_registry(): array {
             'name'  => 'evk-wave-bg',
             'file'  => $dir . 'evoke-wave-bg/element.php',
             'consts'=> [
-                'EVK_WB_VERSION' => '1.3.0',
+                'EVK_WB_VERSION' => EVOKE_ONE_VERSION,
                 'EVK_WB_PATH'    => $dir . 'evoke-wave-bg/',
             ],
             // asety: self-contained ESM w render()

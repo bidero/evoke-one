@@ -17,8 +17,9 @@ if (!defined('ABSPATH')) exit;
  * rozjeżdżałoby się przy każdej zmianie koloru sekcji.
  */
 
-/** Wersja asetów modułu — osobna od wersji wtyczki, żeby cache-buster był celny. */
-const EVK_BGSHIFT_VERSION = '1.4.0';
+/* Stała EVK_BGSHIFT_VERSION („osobna od wersji wtyczki, żeby cache-buster był
+   celny") stała tu do 1.230.0. Celna była tylko wtedy, gdy ktoś pamiętał ją
+   podbić — plik ma teraz `?ver=` z wersji wtyczki, jak elementy Bricks. */
 
 class EVK_Bg_Shift {
 
@@ -236,7 +237,7 @@ html.evk-bg-scrub .evk-bg-handoff * {
             'evk-bgshift',
             EVOKE_ONE_URL . 'assets/js/bg-shift.js',
             ['evk-gsap', 'evk-scrolltrigger'],
-            EVK_BGSHIFT_VERSION,
+            EVOKE_ONE_VERSION,   // wersja wtyczki, nie ręczna — patrz evk_elements_registry()
             true
         );
         wp_add_inline_script('evk-bgshift', 'window.evkBgShift = ' . wp_json_encode([

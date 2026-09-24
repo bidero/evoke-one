@@ -194,20 +194,60 @@ function evk_nl_delete_subscriber(int $id): bool {
 // =========================================================================
 
 /**
+ * Adres e-mail z jednego pola — ŚCIŚLE, bez „naprawiania".
+ *
+ * `sanitize_email()` nie odrzuca śmieci, tylko je przerabia na coś, co przechodzi
+ * `is_email()`. Wiersz z polskiego Excela („;" jako separator) czytany po
+ * przecinku dawał z „jan.kowalski@firma.pl;Jan;Kowalski" adres
+ * „jan.kowalski@firma.plJanKowalski" — i import liczył go jako DODANY (audyt
+ * 1.229.6, tools/audyt/sondy/nl-csv.php). Wysyłka na takie adresy odbija się
+ * i psuje reputację nadawcy.
+ *
+ * Zasada: po przycięciu spacji, cudzysłowów i nawiasów ostrych
+ * `sanitize_email()` nie może niczego zmienić. Jeśli zmienia — to nie jest
+ * adres, tylko pole z adresem w środku, i ma trafić do „błędnych".
+ */
+function evk_nl_czysty_email(string $pole): string {
+    $pole = trim($pole, " \t\n\r\0\x0B\"'<>");
+    if ($pole === '' || strpos($pole, '@') === false) return '';
+    $czysty = sanitize_email($pole);
+    return ($czysty === $pole && is_email($czysty)) ? $czysty : '';
+}
+
+/**
+ * Stan adresu na liście: null = brak, 0 = wypisany, 1 = aktywny, 2 = oczekuje.
+ */
+function evk_nl_status_na_liscie(int $list_id, string $email): ?int {
+    global $wpdb;
+    $t = evk_nl_table('subscribers');
+    $status = $wpdb->get_var($wpdb->prepare(
+        "SELECT status FROM $t WHERE list_id=%d AND email=%s", $list_id, $email
+    ));
+    return $status === null ? null : (int) $status;
+}
+
+/**
  * Importuje listę emaili (tablica) do listy.
- * Zwraca ['added' => N, 'skipped' => N, 'invalid' => N]
- * added = faktycznie NOWE wpisy w bazie; skipped = duplikaty (w pliku
- * lub już obecne na liście); invalid = nieprawidłowe adresy.
+ * Zwraca ['added' => N, 'skipped' => N, 'unsubscribed' => N, 'invalid' => N]:
+ * added = faktycznie NOWE wpisy w bazie; skipped = duplikaty (w pliku lub już
+ * na liście); unsubscribed = osoby WYPISANE, których import nie rusza;
+ * invalid = nieprawidłowe adresy.
+ *
+ * WYPISANI ZOSTAJĄ WYPISANI. Do 1.229.6 import przywracał ich na listę jako
+ * aktywnych, kasował zapis zgody i wypisu, a w wyniku pokazywał ich jako
+ * „pominiętych" (audyt 1.229.6, tools/audyt/sondy/nl-wypisani.php). Wypisanie
+ * to decyzja tej osoby — wraca wyłącznie sama, przez formularz zapisu.
  */
 function evk_nl_import_emails(int $list_id, array $emails): array {
-    $added   = 0;
-    $skipped = 0;
-    $invalid = 0;
-    $seen    = [];
+    $added        = 0;
+    $skipped      = 0;
+    $unsubscribed = 0;
+    $invalid      = 0;
+    $seen         = [];
 
     foreach ($emails as $raw) {
-        $email = sanitize_email(trim($raw));
-        if (!is_email($email)) {
+        $email = evk_nl_czysty_email((string) $raw);
+        if ($email === '') {
             $invalid++;
             continue;
         }
@@ -218,6 +258,11 @@ function evk_nl_import_emails(int $list_id, array $emails): array {
             continue;
         }
         $seen[$key] = true;
+
+        if (evk_nl_status_na_liscie($list_id, $email) === 0) {
+            $unsubscribed++;
+            continue;
+        }
 
         $created = false;
         $result  = evk_nl_add_subscriber($list_id, $email, [], $created);
@@ -230,35 +275,86 @@ function evk_nl_import_emails(int $list_id, array $emails): array {
         }
     }
 
-    return compact('added', 'skipped', 'invalid');
+    return compact('added', 'skipped', 'unsubscribed', 'invalid');
 }
 
 /**
- * Parsuje CSV: email w pierwszej kolumnie, obsługuje przecinki i nowe linie.
+ * Separator pliku CSV: przecinek, średnik albo tabulator.
+ *
+ * Polski Excel zapisuje CSV ze ŚREDNIKIEM (przecinek jest tam separatorem
+ * dziesiętnym), Google Sheets i Numbers z przecinkiem, a wklejka z arkusza
+ * przychodzi z tabulatorem. Wygrywa ten, który dzieli pierwsze wiersze na
+ * najwięcej pól; bez żadnego podziału (jedna kolumna) — przecinek.
+ */
+function evk_nl_csv_separator(array $linie): string {
+    $proba = array_slice(array_values(array_filter($linie, static fn($l) => trim($l) !== '')), 0, 20);
+    $wynik = [',' => 0, ';' => 0, "\t" => 0];
+    foreach (array_keys($wynik) as $sep) {
+        foreach ($proba as $linia) $wynik[$sep] += count(str_getcsv($linia, $sep, '"', '')) - 1;
+    }
+    arsort($wynik);
+    $najlepszy = (string) array_key_first($wynik);
+    return $wynik[$najlepszy] > 0 ? $najlepszy : ',';
+}
+
+/**
+ * Parsuje CSV: separator wykrywany, BOM z Excela zdejmowany, adres brany
+ * z PIERWSZEGO pola, które jest adresem — nie z pierwszej kolumny na ślepo,
+ * więc plik z imieniem przed adresem też się wczyta.
+ *
+ * Wiersz bez adresu: pierwszy wiersz bez „@" to nagłówek i wypada po cichu;
+ * każdy inny idzie dalej jako błędny, żeby liczba „błędnych" mówiła prawdę.
  */
 function evk_nl_parse_csv(string $csv_content): array {
-    $emails = [];
-    $lines  = preg_split('/\r?\n/', trim($csv_content));
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if (empty($line)) continue;
-        // Weź pierwszą kolumnę
-        $parts = str_getcsv($line);
-        $email = trim($parts[0] ?? '');
-        if ($email) $emails[] = $email;
+    $tresc = (string) preg_replace('/^\xEF\xBB\xBF/', '', $csv_content);
+    $linie = preg_split('/\r\n|\r|\n/', trim($tresc)) ?: [];
+    $sep   = evk_nl_csv_separator($linie);
+
+    $emails   = [];
+    $pierwszy = true;
+    foreach ($linie as $linia) {
+        if (trim($linia) === '') continue;
+        $pola = array_map(static fn($p) => trim((string) $p), str_getcsv($linia, $sep, '"', ''));
+
+        $adres = '';
+        foreach ($pola as $pole) {
+            $adres = evk_nl_czysty_email($pole);
+            if ($adres !== '') break;
+        }
+
+        if ($adres !== '') {
+            $emails[] = $adres;
+        } elseif (!($pierwszy && strpos($linia, '@') === false)) {
+            // Błędny wiersz: pole z „@", a jak go nie ma — pierwsze niepuste.
+            $z_malpa  = array_values(array_filter($pola, static fn($p) => strpos($p, '@') !== false));
+            $niepuste = array_values(array_filter($pola, static fn($p) => $p !== ''));
+            $emails[] = $z_malpa[0] ?? ($niepuste[0] ?? $linia);
+        }
+        $pierwszy = false;
     }
     return $emails;
 }
 
 /**
- * Parsuje textarea — jeden email per linia.
+ * Parsuje textarea — jeden adres na linię, także w postaci
+ * „Jan Kowalski <jan@firma.pl>" albo „jan@firma.pl; Jan".
+ *
+ * Do 1.229.6 cała linia szła przez `sanitize_email()`, które z „Jan Kowalski
+ * <jan@firma.pl>" robiło „JanKowalskijan@firma.pl", a linie bez adresu znikały
+ * bez śladu. Teraz adres jest wyłuskiwany, a linia, w której go nie ma, liczy
+ * się jako błędna.
  */
 function evk_nl_parse_textarea(string $text): array {
     $emails = [];
-    $lines  = preg_split('/\r?\n/', trim($text));
-    foreach ($lines as $line) {
-        $email = sanitize_email(trim($line));
-        if (is_email($email)) $emails[] = $email;
+    foreach (preg_split('/\r\n|\r|\n/', trim($text)) ?: [] as $linia) {
+        if (trim($linia) === '') continue;
+        preg_match_all('/[^\s,;<>"\'()\[\]]+@[^\s,;<>"\'()\[\]]+/u', $linia, $m);
+        $adres = '';
+        foreach ($m[0] as $kandydat) {
+            $adres = evk_nl_czysty_email($kandydat);
+            if ($adres !== '') break;
+        }
+        $emails[] = $adres !== '' ? $adres : trim($linia);
     }
     return $emails;
 }
