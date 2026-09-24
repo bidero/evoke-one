@@ -26,15 +26,20 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  */
 
 /* $evk_drugi = true: DRUGI testowy WordPress (nowa.test, prefiks nowy_) —
-   cel przywracania na innej stronie. */
-$evk_sciezka_wp = !empty($evk_drugi)
-    ? (getenv('EVK_WP2_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp2'))
-    : (getenv('EVK_WP_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp'));
+   cel przywracania na innej stronie. $evk_trzeci = true: TRZECI,
+   jednorazowy (usun.test, prefiks usun_) — do testu odinstalowania. */
+if (!empty($evk_trzeci)) {
+    $evk_sciezka_wp = getenv('EVK_WP3_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp3');
+} elseif (!empty($evk_drugi)) {
+    $evk_sciezka_wp = getenv('EVK_WP2_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp2');
+} else {
+    $evk_sciezka_wp = getenv('EVK_WP_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp');
+}
 if (!is_file($evk_sciezka_wp . '/wp-load.php') || !is_file($evk_sciezka_wp . '/wp-config.php')) {
     echo json_encode(['brak' => 'Brak testowego WordPressa w ' . $evk_sciezka_wp . ' — uruchom tools/testowy-wp.sh']);
     exit;
 }
-$_SERVER['HTTP_HOST']   = !empty($evk_drugi) ? 'nowa.test' : 'stara.test';
+$_SERVER['HTTP_HOST']   = !empty($evk_trzeci) ? 'usun.test' : (!empty($evk_drugi) ? 'nowa.test' : 'stara.test');
 $_SERVER['REQUEST_URI'] = '/';
 if (!defined('WP_USE_THEMES')) define('WP_USE_THEMES', false);
 /* Bez tego każde załadowanie WordPressa odpala WP-Cron, a ten żądaniem HTTP

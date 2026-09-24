@@ -349,6 +349,8 @@
             f.append($('<input>').attr({ name: 'action',  value: 'tl_export' }));
             f.append($('<input>').attr({ name: 'nonce',   value: evoIoAjax.nonce }));
             f.append($('<input>').attr({ name: 'modules', value: JSON.stringify(keys) }));
+            // Hasła tylko na wyraźne życzenie (1.232.0) — serwer bez tego pola je wycina.
+            f.append($('<input>').attr({ name: 'hasla', value: $('#evo-export-hasla').is(':checked') ? '1' : '' }));
             $('body').append(f);
             f[0].action = evoIoAjax.url;
             f[0].submit();

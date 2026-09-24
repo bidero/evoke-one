@@ -2,6 +2,94 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.232.0] — 2026-09-24
+
+Trzecie wydanie po audycie 1.229.6: dane i prywatność.
+
+### Dodane
+
+- **Narzędzia prywatności WordPressa (RODO) obejmują dane wtyczki.**
+  Narzędzia → Eksportuj / Usuń dane osobowe do tej pory pomijały wszystko,
+  co zbiera Evoke ONE. Teraz obejmują:
+  - newsletter: zapisy na listy z zapisem zgody (czas, IP, treść), wysyłki,
+    otwarcia i kliknięcia;
+  - log wysyłki e-maili (SMTP). Wiadomość do kilku osób zostaje w logu, bez
+    tej jednej;
+  - ochronę logowania: blokady IP założone przy próbie logowania loginem
+    albo adresem tej osoby.
+
+  Po usunięciu z newslettera zostaje jednokierunkowy skrót adresu, z którego
+  adresu nie da się odtworzyć. Import z pliku liczy tę osobę jak wypisaną
+  i nie dopisze jej ponownie. Blokadę zdejmuje dopiero potwierdzenie zapisu
+  przez samą osobę albo dodanie ręczne w panelu. Logi 404 nie mają adresu
+  e-mail, więc nie da się ich przypisać osobie; mówi o tym tekst polityki.
+- **Tekst do polityki prywatności** (Ustawienia → Prywatność → Przewodnik),
+  tylko o modułach, które na stronie działają: newsletter, log e-maili,
+  ochrona logowania, logi 404, kopie zapasowe.
+- **„Usuń wszystkie dane przy odinstalowaniu"** (Narzędzia → Eksport /
+  Import), domyślnie wyłączone. Z włączonym, przy usunięciu wtyczki znikają:
+  - ustawienia i logi,
+  - newsletter,
+  - snippety i przekierowania,
+  - kopie zapasowe z serwera (te na Dysku Google zostają),
+  - role utworzone w Role Managerze; ich użytkownicy dostają rolę domyślną
+    strony.
+
+  Odinstalowanie działa tylko na dokładnych nazwach ze spisu
+  (`includes/dane-wtyczki.php`). Evoke Fields używa tego samego przedrostka
+  `evk_`, a jego typy treści, taksonomie, sejf konfiguracji, kopie
+  i uprawnienie `evk_access_fields` zostają nietknięte. Role Manager od tej
+  wersji zapamiętuje utworzone role; ról utworzonych wcześniej odinstalowanie
+  nie rusza.
+- **Pole „Dołącz hasła" przy eksporcie ustawień**, domyślnie odznaczone. Bez
+  niego plik nie ma hasła SMTP ani hasła obejścia konserwacji, a import
+  takiego pliku zostawia hasła, które są na stronie.
+
+### Zmienione
+
+- **Paczka aktualizacji to sam kod wtyczki.** Na strony nie jadą już
+  `tests/` (z sondami PHP), `tools/`, `docs/` ani pliki deweloperskie.
+  Zostają `evoke-one.php`, `uninstall.php`, `includes/`, `assets/`
+  i `CHANGELOG.md`.
+- **Wyłączenie wtyczki sprząta cron** (kroki kopii, kopia nocna, wysyłka
+  newslettera) i każe WordPressowi przebudować reguły adresów. Danych nie
+  kasuje.
+- Role Manager: dodanie roli o identyfikatorze, który już istnieje, mówi
+  o tym, zamiast „Rola dodana".
+
+### Naprawione
+
+- **Wtyczka o nazwie zaczynającej się od „system" wyłączała całe Evoke
+  ONE.** Wykrywanie kolizji łapało każdą taką aktywną wtyczkę (np.
+  systempay), a wzorzec nie miał śladu pochodzenia. Zostały trzy znane
+  kolizje: stare Tłumaczenia, Parallax, WP Maintenance Mode.
+- **Obrazek OG cudzego wpisu przegenerowywał każdy, kto pisze wpisy.**
+  Teraz trzeba mieć prawo do edycji tego wpisu.
+
+### Testy
+
+- `zapis-wp-dane` (nowy, prawdziwy WordPress):
+  - kolizje i prawo do obrazka OG;
+  - eksport z hasłami i bez (prawdziwy plik z uchwytu) oraz import, który
+    zostawia hasła; pole w panelu;
+  - RODO: eksport, usuwanie, dane innej osoby nietknięte, skrót blokujący
+    import, zdejmowanie blokady; tekst polityki.
+- `zapis-wp-odinstalowanie` (nowy, na trzecim, jednorazowym WordPressie
+  `usun.test`):
+  - deaktywacja (cron, reguły adresów);
+  - odinstalowanie bez „Usuń dane" (nic nie znika) i z nim (znika wszystko
+    nasze, dane w kształcie Evoke Fields zostają);
+  - `uninstall.php` w procesie bez załadowanej wtyczki, jak w WordPressie;
+  - strażnik spisu danych w obu kierunkach: każda opcja z kodu jest
+    w spisie, a każda ze spisu występuje w kodzie.
+- `drobiazgi`: paczka aktualizacji przez `git archive`, z listą dozwolonych
+  pozycji w korzeniu.
+- `tools/testowy-wp.sh` stawia trzecią stronę, a `_testowy-wp.php` zna
+  `$evk_trzeci`.
+- Mutacje (21, każda zapala własny podzbiór), m.in. kasowanie opcji po
+  przedrostku `evk_` (zapala ochronę danych Evoke Fields), odinstalowanie bez
+  przełącznika, import ignorujący skrót, niezgłoszony eksporter.
+
 ## [1.231.2] — 2026-09-24
 
 ### Naprawione (zgłoszone po sprawdzeniu ról na stronie z Bricksem)

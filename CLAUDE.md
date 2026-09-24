@@ -90,7 +90,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (80 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (82 pliki, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
@@ -165,7 +165,7 @@ W kontenerze sesji zdalnej serwera bazy nie ma — raz na sesję
 ląduje w `~/.cache/evk-testowy-wp` (zmienna `EVK_WP_PATH`), wtyczka jest do
 niego DOWIĄZANA, więc testy widzą bieżący kod.
 
-Skrypt stawia DWA WordPressy w jednej bazie: `stara.test` (prefiks `wp_`)
+Skrypt stawia (od 1.232.0 trzy, patrz niżej) WordPressy w jednej bazie: `stara.test` (prefiks `wp_`)
 i `nowa.test` (prefiks `nowy_`, katalog `EVK_WP2_PATH`) — drugi jest celem
 `backup-przywracanie` (przenosiny: inny adres, prefiks, ścieżka). Wspólna baza
 jest celowa: test sprawdza sumami kontrolnymi, że przywracanie na drugiej
@@ -173,6 +173,14 @@ instalacji nie ruszyło tabel pierwszej. Sonda ustawia stan drugiej strony
 od nowa przy każdym przebiegu (adres, klucz, sufiks katalogu kopii) —
 bez tego mutacja zostawiała go zmienionego i następne przebiegi porównywały
 wartość z nią samą.
+
+Od 1.232.0 jest też TRZECI, jednorazowy: `usun.test` (prefiks `usun_`,
+katalog `EVK_WP3_PATH`, w sondzie `$evk_trzeci = true`). Służy wyłącznie
+`zapis-wp-odinstalowanie`: odinstalowanie z „Usuń dane" kasuje wszystko po
+wtyczce, więc na pierwszej stronie zniszczyłoby stan innym testom. Sonda
+zasiewa go sama i na końcu aktywuje wtyczkę z powrotem. **Nie usuwaj
+wtyczki przez `wp plugin uninstall` bez `--skip-delete`** — katalog wtyczki
+to dowiązanie do repozytorium, a zwykłe usunięcie skasowałoby repozytorium.
 
 Dysk Google (`backup-drive`, `backup-panel-drive`) idzie przez **atrapę
 Google** — `tests/php/_google-atrapa.php` na `php -S` (`tests/lib/google-atrapa.js`),
@@ -295,10 +303,16 @@ push z sekretem, NIE jest do odblokowywania „bo tak ustaliliśmy" — to sygna
   z wtyczką. Pierwszy taki push: 1.229.6, na wyraźną prośbę zgłaszającego.
 - Każdy commit to wydanie. Wyjątkiem są commity wyraźnie oznaczone
   *„(bez wydania)"* — praca w toku, której przebieg jeszcze nie potwierdził.
-- Gałąź robocza jedzie na żywe strony aktualizatorem, razem z katalogiem
-  `tests/`. Dlatego **każdy plik w `tests/php/` zaczyna się od**
-  `if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }` — bez tego byłby
-  osiągalny przez HTTP.
+- Gałąź robocza jedzie na żywe strony aktualizatorem. **Od 1.232.0 paczka
+  to sam kod wtyczki**: `.gitattributes` wyrzuca z zipballa `tests/`,
+  `tools/`, `docs/` i pliki deweloperskie, a `drobiazgi` pilnuje listy
+  dozwolonych pozycji w korzeniu. Nowy plik w korzeniu repozytorium trzeba
+  świadomie dopisać: do `.gitattributes` (poza paczką) albo do listy
+  w `drobiazgi` (w paczce).
+- Mimo to **każdy plik w `tests/php/` zaczyna się od**
+  `if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }` — wtyczkę da
+  się postawić także klonem repozytorium, a wtedy te pliki leżą w katalogu
+  wtyczki i bez bramki byłyby osiągalne przez HTTP.
 
 ## Wytwory, które muszą nadążać za źródłem
 

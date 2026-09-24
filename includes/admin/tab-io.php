@@ -22,6 +22,13 @@ if (!defined('ABSPATH')) exit;
                     </label>
                     <?php endforeach; ?>
                 </div>
+                <label class="evo-check evo-mb">
+                    <input type="checkbox" id="evo-export-hasla" value="1">
+                    <div>
+                        <span class="evo-strong-500">Dołącz hasła</span>
+                        <div class="evo-desc evo-m0">Hasło SMTP i hasło obejścia konserwacji. Bez zaznaczenia plik ich nie ma, a import takiego pliku zostawia hasła, które są na stronie.</div>
+                    </div>
+                </label>
                 <button type="button" class="button button-primary" onclick="evoExportSelected()">
                     <span class="dashicons dashicons-download"></span> Eksportuj zaznaczone
                 </button>
@@ -37,6 +44,22 @@ if (!defined('ABSPATH')) exit;
                     <input type="file" id="evo-file-input" accept=".json">
                 </div>
                 <div class="evo-import-status" id="evo-import-status"></div>
+            </div>
+
+            <!-- DANE PO ODINSTALOWANIU (1.232.0) — czyta je uninstall.php -->
+            <div class="evo-io-box">
+                <h3>Dane po odinstalowaniu</h3>
+                <form method="post" action="options.php">
+                    <?php settings_fields('evk_usun_dane_grupa'); ?>
+                    <label class="evo-choice evo-choice-stack">
+                        <input type="checkbox" name="evk_usun_dane" value="1" <?php checked(1, (int) get_option('evk_usun_dane', 0)); ?>>
+                        <span>
+                            <strong>Usuń wszystkie dane przy odinstalowaniu</strong>
+                            <span class="evo-hint">Dotyczy usunięcia wtyczki z listy wtyczek — samo wyłączenie niczego nie kasuje. Znikną: ustawienia i logi, newsletter (listy, subskrybenci, kampanie), snippety i przekierowania, kopie zapasowe z serwera (te na Dysku Google zostają) oraz role utworzone w Role Managerze — ich użytkownicy dostaną rolę domyślną strony. Dane innych wtyczek, np. Evoke Fields, zostają.</span>
+                        </span>
+                    </label>
+                    <?php evoke_one_pasek_zapisu('Zapisz'); ?>
+                </form>
             </div>
 
             <!-- MODAL KONFLIKTU -->

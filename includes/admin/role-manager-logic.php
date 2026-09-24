@@ -102,6 +102,28 @@ function evk_role_is_core(string $slug): bool {
     return in_array($slug, ['administrator', 'editor', 'author', 'contributor', 'subscriber'], true);
 }
 
+/**
+ * Role UTWORZONE w Role Managerze (1.232.0). Odinstalowanie z „Usuń dane"
+ * usuwa wyłącznie je — rola spoza tej listy mogła przyjść z innej wtyczki
+ * (np. sklepu) i nie nam ją kasować. Role utworzone przed 1.232.0 nie są tu
+ * zapisane, więc odinstalowanie ich nie rusza.
+ */
+function evk_role_utworz(string $slug, string $name, array $caps): bool {
+    if (!add_role($slug, $name, $caps)) return false;   // taka rola już jest
+    $lista = (array) get_option('evk_role_utworzone', []);
+    if (!in_array($slug, $lista, true)) {
+        $lista[] = $slug;
+        update_option('evk_role_utworzone', array_values($lista), false);
+    }
+    return true;
+}
+
+function evk_role_usun(string $slug): void {
+    if (evk_role_is_core($slug)) return;
+    remove_role($slug);
+    update_option('evk_role_utworzone', array_values(array_diff((array) get_option('evk_role_utworzone', []), [$slug])), false);
+}
+
 function evk_role_get_restrictions(): array {
     return (array) get_option(EVK_ROLE_RESTRICTIONS_OPTION, []);
 }
@@ -188,14 +210,17 @@ add_action('admin_init', function () {
         $copy_of = sanitize_key($_POST['copy_from'] ?? '');
         if (empty($name) || empty($slug)) return;
         $caps = ($copy_of && ($src = get_role($copy_of))) ? $src->capabilities : [];
-        add_role($slug, $name, $caps);
-        add_settings_error('evk_role_manager', 'added', 'Rola dodana.', 'updated');
+        if (evk_role_utworz($slug, $name, $caps)) {
+            add_settings_error('evk_role_manager', 'added', 'Rola dodana.', 'updated');
+        } else {
+            add_settings_error('evk_role_manager', 'exists', 'Rola o identyfikatorze „' . $slug . '" już istnieje.', 'error');
+        }
     }
 
     if ($action === 'delete_role') {
         if (!wp_verify_nonce($_POST['evk_role_nonce'] ?? '', 'evk_delete_role')) return;
         $role_id = sanitize_key($_POST['role_id'] ?? '');
-        if (!evk_role_is_core($role_id)) remove_role($role_id);
+        evk_role_usun($role_id);
         add_settings_error('evk_role_manager', 'deleted', 'Rola usunięta.', 'updated');
     }
 }, 10);

@@ -147,6 +147,7 @@ function evk_nl_add_subscriber(int $list_id, string $email, array $fields = [], 
                 'unsubscribed_at'  => null,
                 'fields_json'      => wp_json_encode($fields),
             ], ['id' => $existing['id']]);
+            evk_nl_odblokuj($email);
         }
         return (int) $existing['id'];
     }
@@ -166,6 +167,10 @@ function evk_nl_add_subscriber(int $list_id, string $email, array $fields = [], 
     ]);
     if ($wpdb->insert_id) {
         $created = true;
+        /* Zapis przez formularz albo dodanie ręczne w panelu to decyzja — zdejmuje
+           blokadę po usunięciu danych (RODO). Import tu nie dochodzi: adres
+           zablokowany odrzuca wcześniej (evk_nl_import_emails). */
+        evk_nl_odblokuj($email);
         return $wpdb->insert_id;
     }
     return false;
@@ -260,6 +265,13 @@ function evk_nl_import_emails(int $list_id, array $emails): array {
         $seen[$key] = true;
 
         if (evk_nl_status_na_liscie($list_id, $email) === 0) {
+            $unsubscribed++;
+            continue;
+        }
+        /* Adres usunięty na żądanie RODO (skrót na liście blokady,
+           includes/prywatnosc.php) — liczy się jak wypisany: import go nie
+           dopisze z pliku ani z wklejki (1.232.0). */
+        if (evk_nl_zablokowany($email)) {
             $unsubscribed++;
             continue;
         }
@@ -439,6 +451,7 @@ function evk_nl_confirm_subscriber(string $token): bool {
     if (!$sub) return false;
     $fields = json_decode($sub['fields_json'] ?? '{}', true) ?: [];
     $fields['_confirmed_at'] = current_time('mysql');
+    evk_nl_odblokuj((string) $sub['email']);   // potwierdzenie samej osoby zdejmuje blokadę RODO
     return (bool) $wpdb->update(evk_nl_table('subscribers'), [
         'status'          => 1,
         'unsubscribed_at' => null,

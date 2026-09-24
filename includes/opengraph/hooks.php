@@ -174,10 +174,12 @@ function evk_og_render_meta_box(WP_Post $post): void {
 
 add_action('wp_ajax_evk_og_regenerate', function () {
     check_ajax_referer('evk_og_regen', 'nonce');
-    if (!current_user_can('edit_posts')) wp_send_json_error('Brak uprawnień.');
-
     $post_id = absint($_POST['post_id'] ?? 0);
     if (!$post_id) wp_send_json_error('Brak post ID.');
+    /* Prawo do TEGO wpisu. Do 1.231.x wystarczało ogólne `edit_posts`, więc
+       każdy, kto pisze wpisy (współpracownik, autor), przegenerowywał obrazek
+       OG cudzego wpisu. */
+    if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień.');
 
     evk_og_create($post_id, true);
     $url = evk_og_get_url($post_id);

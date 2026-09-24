@@ -340,6 +340,44 @@ function evk_tl_ajax_check(string $nonce = 'tl_ajax_nonce'): void {
  * mają gałęzie w imporcie, a w spisie ich nie ma). Filtrowanie przez ten spis
  * po cichu wyłączyłoby import tych dwóch modułów.
  */
+/**
+ * HASŁA W PACZCE USTAWIEŃ — tylko na wyraźne życzenie („Dołącz hasła",
+ * 1.232.0). Paczka wędruje mailem, leży w Pobranych i na dyskach klientów:
+ * hasło SMTP otwiera skrzynkę firmy, a hasło obejścia konserwacji wpuszcza na
+ * stronę, która ma być zamknięta. Do 1.231.x jechały w każdym eksporcie.
+ *
+ * Opcja => pola z hasłem (null = cała opcja jest hasłem).
+ */
+const EVK_IO_HASLA = ['evk_smtp' => ['password'], 'maintenance_bypass_password' => null];
+
+/** Eksport: bez zaznaczonego „Dołącz hasła" paczka nie ma haseł. */
+function evk_io_bez_hasel(array $data, bool $z_haslami): array {
+    if ($z_haslami) return $data;
+    foreach (EVK_IO_HASLA as $opcja => $pola) {
+        if (!array_key_exists($opcja, $data)) continue;
+        if ($pola === null) { unset($data[$opcja]); continue; }
+        if (is_array($data[$opcja])) {
+            foreach ($pola as $pole) unset($data[$opcja][$pole]);
+        }
+    }
+    return $data;
+}
+
+/**
+ * Import: pole hasła, którego w paczce nie ma, zostaje takie, jakie jest na
+ * stronie — paczka bez haseł nie może ich skasować. Opcje-hasła zapisywane
+ * w całości (maintenance_bypass_password) import pomija i tak, gdy ich brak.
+ */
+function evk_io_zachowaj_hasla(string $opcja, $wartosc) {
+    $pola = EVK_IO_HASLA[$opcja] ?? null;
+    if (!$pola || !is_array($wartosc)) return $wartosc;
+    $obecna = (array) get_option($opcja, []);
+    foreach ($pola as $pole) {
+        if (!array_key_exists($pole, $wartosc) && array_key_exists($pole, $obecna)) $wartosc[$pole] = $obecna[$pole];
+    }
+    return $wartosc;
+}
+
 function evk_io_ograniczenie_modulow(): ?array {
     if (current_user_can('manage_options')) return null;
     if (!current_user_can('evk_access_translations')) return [];
@@ -573,6 +611,7 @@ add_action('wp_ajax_tl_export', function () {
             $data = array_merge($data, ($collectors[$mod])());
         }
     }
+    $data = evk_io_bez_hasel($data, !empty($_POST['hasla']));
 
     $filename = 'evoke-one-export-' . date('Y-m-d') . '.json';
     header('Content-Type: application/json; charset=utf-8');
@@ -629,7 +668,7 @@ add_action('wp_ajax_tl_import', function () {
     // Frontend modules
     foreach (['evk_darkmode','evk_cursor','evk_lenis','evk_animator','evk_bgshift','evk_a11y','evk_schema','evk_og','evk_security','evk_smtp'] as $opt) {
         $mod = str_replace(['evk_','evoke_one_'], ['evk_','evk_'], $opt);
-        if ($should($mod) && isset($data[$opt])) { update_option($opt, $data[$opt]); $imported++; }
+        if ($should($mod) && isset($data[$opt])) { update_option($opt, evk_io_zachowaj_hasla($opt, $data[$opt])); $imported++; }
     }
 
     // Parallax (dwa klucze → jeden moduł)

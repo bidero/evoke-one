@@ -99,6 +99,32 @@ module.exports = async function (t) {
   t.check('bg-shift.js jedzie z wersją wtyczki',
     /assets\/js\/bg-shift\.js',\s*\[[^\]]*\],\s*EVOKE_ONE_VERSION/.test(bgshift), 'wzorzec enqueue');
 
+  /* PACZKA AKTUALIZACJI. Aktualizator pobiera zipball GitHuba, a ten
+     respektuje `export-ignore` z .gitattributes — więc paczkę da się
+     obejrzeć lokalnie tym samym `git archive`. Do 1.231.x na każdą stronę
+     jechały testy z sondami PHP, narzędzia audytu i szkice.
+     Lista DOZWOLONYCH, nie zakazanych: nowy plik w korzeniu repozytorium
+     zapala to sprawdzenie, dopóki ktoś nie zdecyduje, czy ma jechać na strony
+     (tu) albo nie (.gitattributes). */
+  t.section('paczka aktualizacji: sam kod wtyczki');
+  const W_PACZCE = ['evoke-one.php', 'uninstall.php', 'includes', 'assets', 'CHANGELOG.md'];
+  let wpisy = [];
+  let bladArchiwum = '';
+  try {
+    wpisy = require('child_process').execSync('git archive --worktree-attributes --format=tar HEAD | tar -tf -',
+      { cwd: korzen, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })
+      .split('\n').filter(Boolean);
+  } catch (e) { bladArchiwum = String(e.message).split('\n')[0]; }
+  const wKorzeniu = [...new Set(wpisy.map((w) => w.split('/')[0]))].sort();
+  t.check('git archive zwraca paczkę (tak jak zipball GitHuba)', !bladArchiwum && wpisy.length > 100,
+    bladArchiwum || wpisy.length + ' wpisów');
+  const nadmiar = wKorzeniu.filter((k) => !W_PACZCE.includes(k));
+  t.check('w paczce tylko kod wtyczki: bez tests/, tools/, docs/ i plików deweloperskich',
+    !bladArchiwum && !nadmiar.length, nadmiar.join(', ') || wKorzeniu.join(', '));
+  t.check('kod wtyczki jest w paczce (evoke-one.php, includes/, assets/, includes/tools/)',
+    ['evoke-one.php', 'includes', 'assets'].every((k) => wKorzeniu.includes(k)) && wpisy.some((w) => w.startsWith('includes/tools/')),
+    wKorzeniu.join(', '));
+
   // ── Analiza statyczna PHP-a ───────────────────────────────────────────
   /*
    * PHPStan łapie inną klasę usterek niż reszta zestawu: tamta mierzy

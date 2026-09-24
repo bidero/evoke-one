@@ -80,3 +80,16 @@ function evk_one_maybe_install(): void {
 }
 
 evk_one_maybe_install();
+
+/**
+ * „Usuń dane przy odinstalowaniu" (1.232.0), domyślnie WYŁĄCZONE. Czyta je
+ * uninstall.php — bez niego usunięcie wtyczki niczego nie kasuje. Przełącznik
+ * jest w Narzędziach, na ekranie Eksport / Import.
+ */
+add_action('admin_init', static function (): void {
+    register_setting('evk_usun_dane_grupa', 'evk_usun_dane', [
+        'type'              => 'integer',
+        'default'           => 0,
+        'sanitize_callback' => static function ($v): int { return empty($v) ? 0 : 1; },
+    ]);
+});

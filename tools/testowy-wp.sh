@@ -14,16 +14,22 @@
 # Czego potrzebuje na maszynie: php (z mysqli), git, curl, serwer MariaDB albo
 # MySQL (w kontenerze sesji zdalnej: apt-get install -y mariadb-server).
 #
-# Stawia DWA WordPressy w jednej bazie — drugi do testów przywracania na innej
+# Stawia TRZY WordPressy w jednej bazie — drugi do testów przywracania na innej
 # stronie (tests/backup-przywracanie.test.js): inny adres, inny prefiks tabel.
 #   pierwszy  http://stara.test, prefiks wp_
 #   drugi     http://nowa.test,  prefiks nowy_   (EVK_WP2_PATH)
+#   trzeci    http://usun.test,  prefiks usun_   (EVK_WP3_PATH)
 # Wspólna baza jest celowa: przywracanie na drugiej instalacji NIE może ruszyć
 # tabel pierwszej — i test to sprawdza.
+# Trzeci jest JEDNORAZOWY — do testu odinstalowania
+# (tests/zapis-wp-odinstalowanie.test.js). Odinstalowanie z „Usuń dane"
+# kasuje wszystko po wtyczce, więc na pierwszym zniszczyłoby stan innym
+# testom; sonda sama go zasiewa i po sobie aktywuje wtyczkę z powrotem.
 #
 # Gdzie stawia — zmienne, wszystkie z wartościami domyślnymi:
 #   EVK_WP_PATH   katalog WordPressa   (~/.cache/evk-testowy-wp)
 #   EVK_WP2_PATH  katalog drugiego     (~/.cache/evk-testowy-wp2)
+#   EVK_WP3_PATH  katalog trzeciego    (~/.cache/evk-testowy-wp3)
 #   EVK_WP_DB     baza                 (evk_test)
 #   EVK_WP_USER   użytkownik bazy      (evk)
 #   EVK_WP_PASS   hasło                (evk)
@@ -37,6 +43,7 @@ set -euo pipefail
 WP_WERSJA="7.1.2"
 EVK_WP_PATH="${EVK_WP_PATH:-$HOME/.cache/evk-testowy-wp}"
 EVK_WP2_PATH="${EVK_WP2_PATH:-$HOME/.cache/evk-testowy-wp2}"
+EVK_WP3_PATH="${EVK_WP3_PATH:-$HOME/.cache/evk-testowy-wp3}"
 EVK_WP_DB="${EVK_WP_DB:-evk_test}"
 EVK_WP_USER="${EVK_WP_USER:-evk}"
 EVK_WP_PASS="${EVK_WP_PASS:-evk}"
@@ -63,7 +70,7 @@ fi
 if [ "${1:-}" = "--od-nowa" ]; then
     krok "czyszczę poprzednie środowisko"
     mysql -e "DROP DATABASE IF EXISTS \`$EVK_WP_DB\`" || true
-    rm -rf "$EVK_WP_PATH" "$EVK_WP2_PATH"
+    rm -rf "$EVK_WP_PATH" "$EVK_WP2_PATH" "$EVK_WP3_PATH"
 fi
 
 krok "baza $EVK_WP_DB i użytkownik $EVK_WP_USER"
@@ -122,8 +129,28 @@ fi
 ln -sfn "$REPO" "$EVK_WP2_PATH/wp-content/plugins/evoke-one"
 wp2 plugin activate evoke-one >/dev/null 2>&1 || true
 
+# ── Trzeci WordPress: jednorazowy, do testu odinstalowania ────────────────
+wp3() { php "$CLI" --allow-root --path="$EVK_WP3_PATH" "$@"; }
+if [ ! -f "$EVK_WP3_PATH/wp-includes/version.php" ]; then
+    krok "trzeci WordPress (usun.test, prefiks usun_)"
+    mkdir -p "$EVK_WP3_PATH"
+    ( cd "$EVK_WP_PATH" && tar --exclude=./wp-config.php --exclude='./wp-content/plugins/evoke-one' \
+        --exclude='./wp-content/evk-backups-*' --exclude='./wp-content/uploads' -cf - . ) | ( cd "$EVK_WP3_PATH" && tar -xf - )
+fi
+if [ ! -f "$EVK_WP3_PATH/wp-config.php" ]; then
+    wp3 config create --dbname="$EVK_WP_DB" --dbuser="$EVK_WP_USER" --dbpass="$EVK_WP_PASS" \
+        --dbhost=localhost --dbprefix=usun_ --skip-check >/dev/null
+fi
+if ! wp3 core is-installed 2>/dev/null; then
+    wp3 core install --url=http://usun.test --title="Evoke usun" --admin_user=usun \
+        --admin_password=usun --admin_email=admin@usun.test --skip-email >/dev/null
+fi
+ln -sfn "$REPO" "$EVK_WP3_PATH/wp-content/plugins/evoke-one"
+wp3 plugin activate evoke-one >/dev/null 2>&1 || true
+
 krok "gotowe"
 echo "   WordPress: $EVK_WP_PATH ($(wp core version))"
 echo "   drugi:     $EVK_WP2_PATH ($(wp2 option get home))"
+echo "   trzeci:    $EVK_WP3_PATH ($(wp3 option get home))"
 echo "   wtyczka:   $(wp plugin get evoke-one --field=version) (dowiązanie do $REPO)"
 echo "   testy:     node tests/run.js backup-baza"

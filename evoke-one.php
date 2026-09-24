@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.231.2
+ * Version: 1.232.0
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
@@ -22,7 +22,19 @@ define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
    przeglądarkom podawać stare pliki z pamięci mimo aktualizacji wtyczki.
    Zgodności trzech miejsc (nagłówek, stała, changelog) pilnuje sekcja
    „numer wersji w trzech miejscach" w tests/drobiazgi.test.js. */
-define('EVOKE_ONE_VERSION', '1.231.2');
+define('EVOKE_ONE_VERSION', '1.232.0');
+
+/* DEAKTYWACJA: bez zadań w cronie i bez naszych reguł adresów. Do 1.231.x
+   wyłączona wtyczka zostawiała zaplanowane kroki kopii i wysyłki newslettera,
+   które WP-Cron odpalał dalej w próżnię. Rejestrowana PRZED sprawdzeniem
+   kolizji niżej — wtyczka zablokowana konfliktem też ma po sobie posprzątać.
+   Danych nie kasuje: to robi dopiero odinstalowanie z „Usuń dane"
+   (uninstall.php). */
+register_deactivation_hook(__FILE__, static function (): void {
+    $dane = require __DIR__ . '/includes/dane-wtyczki.php';
+    foreach ($dane['haki_crona'] as $hak) wp_unschedule_hook($hak);
+    delete_option('rewrite_rules');   // WordPress zbuduje reguły od nowa, już bez naszych
+});
 
 // Stałe modułu tłumaczeń (zachowane dla kompatybilności z istniejącymi ustawieniami)
 define('TL_MENU_SLUG',        'evoke-tlumaczenia');
@@ -48,11 +60,15 @@ function evoke_one_check_conflicts(): bool {
     if (is_multisite()) {
         $active = array_merge($active, array_keys((array) get_site_option('active_sitewide_plugins', [])));
     }
+    /* Tylko znane kolizje: stare Tłumaczenia, Parallax i WP Maintenance Mode.
+       Do 1.231.x stał tu też `/^system.*\.php$/i` — bez śladu, skąd się wziął
+       (był już w pierwszym wgraniu evoke-one-old). Każda aktywna wtyczka
+       o pliku zaczynającym się od „system" wyłączała CAŁE Evoke ONE,
+       zostawiając sam komunikat o konflikcie. */
     $conflict_patterns = [
         '/^evoke-tlumaczenia.*\.php$/i',
         '/^evk-parallax.*\.php$/i',
         '/^wp-maintenance-mode.*\.php$/i',
-        '/^system.*\.php$/i',
     ];
     foreach ($active as $plugin_file) {
         if ($plugin_file === plugin_basename(__FILE__)) continue;
@@ -212,6 +228,9 @@ if (!empty($evk_nl_opts['enabled'])) {
 require_once EVOKE_ONE_DIR . 'includes/newsletter/ajax.php';
 require_once EVOKE_ONE_DIR . 'includes/newsletter/public.php';
 require_once EVOKE_ONE_DIR . 'includes/newsletter/settings.php';
+
+// ── RODO: eksport i usuwanie danych osoby, tekst polityki (zawsze) ────────
+require_once EVOKE_ONE_DIR . 'includes/prywatnosc.php';
 
 // (Rejestracja ustawień Schema odbywa się w includes/90-schema.php —
 //  wcześniejsza duplikacja tutaj nadpisywała argumenty rejestracji.)
