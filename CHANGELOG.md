@@ -2,6 +2,64 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.231.1] — 2026-09-24
+
+### Naprawione (zgłoszone z serwera Apache)
+
+- **„Kopia nie powiodła się: scandir(): Argument #1 ($directory) must not be
+  empty".** Na serwerze, na którym WordPress stoi w katalogu głównym systemu
+  plików (hosting zamykający konto we własnym systemie plików, `ABSPATH` =
+  `/`), każda kopia padała zaraz po zrzucie bazy.
+  - Winny był podgląd plików z katalogu głównego (`.htaccess`, `robots.txt`).
+    Po obcięciu końcowego „/" ze ścieżki `/` zostawał pusty napis.
+  - PHP 8 na `scandir('')` rzuca błąd, którego `@` nie tłumi.
+- **Katalogi i pliki z nazwami spoza UTF-8 psuły kopię.** Chodzi o nazwy
+  wgrane przez FTP z Windows (cp1250, np. „Zdjęcia"). Psuły się w stanie
+  zadania zapisywanym między krokami:
+  - katalog wypadał z kopii razem z plikami jako „nieczytelny", po cichu,
+    zostawał tylko wpis w dzienniku;
+  - duży plik przerwany w połowie pakowania kończył kopię błędem „W archiwum
+    wisi inny plik";
+  - na WordPressie sprzed 6.9 bez rozszerzenia mbstring kończyło się tym
+    samym błędem `scandir()`.
+
+  Działo się to tylko wtedy, gdy lista plików albo pakowanie trwały dłużej
+  niż jeden krok (duże strony, wolny hosting). Stan zapisuje się teraz bez
+  strat. Poprawka obejmuje też przywracanie i Dysk Google, bo idą tą samą
+  drogą.
+
+### Zmienione
+
+- Błąd samego PHP w kopii, przywracaniu albo wysyłce ma w komunikacie plik
+  i linię, np. „… must not be empty (manifest.php:95)". Samo zgłoszenie
+  z panelu wskazuje wtedy miejsce. Nasze własne komunikaty bez zmian.
+- Start przywracania z panelu odpowiada stanem z chwili założenia zadania,
+  a żądanie zwrotne (trzyma ok. 1 s) wysyła dopiero potem. Małe przywracanie
+  zdążało się w tym czasie prawie skończyć: pasek zaczynał losowo od
+  któregoś etapu albo od razu od „gotowe".
+
+### Testy
+
+- `backup-katalog`: podgląd katalogu głównego przy WordPressie w „/" i „//".
+- `backup-silnik`:
+  - pełna kopia z katalogiem i dużym plikiem nazwanymi w cp1250, przy
+    budżecie 1 ms, czyli ze stanem przez bazę w każdym kroku;
+  - umowa zapisu stanu wprost: bez strat także w kluczach, UTF-8 bez zmian;
+  - miejsce przy błędzie PHP i brak dopisku przy naszych komunikatach.
+- `backup-panel-przywracanie`: odpowiedź na start przywracania pokazuje
+  „sprawdzanie archiwum". Sprawdzenie „pasek pokazał etap przywracania"
+  padało co kilka przebiegów także na kodzie sprzed zmian (1 na 4).
+  Przywracanie testowej strony trwa dziś ok. 1,1 s, a nie „kilka sekund",
+  jak zakładał komentarz testu.
+- Mutacje (7, każda zapala własny podzbiór): podgląd bez korzenia, stan bez
+  pakowania, stan bez rozpakowania, klucze bez kodowania, miejsce przy każdym
+  błędzie, bez miejsca, start popychający przed odpowiedzią. „Stan bez
+  pakowania" odtworzył oba objawy: katalog w „nieczytelnych" i „W archiwum
+  wisi inny plik".
+- Sprawdzenie „nieczytelnych" czyta licznik ze stanu listy, a nie dziennik.
+  Dziennik trzyma 300 linii, a przy ~800 krokach ten wpis z niego wypadał.
+  Wykazała to mutacja.
+
 ## [1.231.0] — 2026-09-24
 
 Drugie wydanie po audycie 1.229.6: newsletter, obrazek OG i wersje plików

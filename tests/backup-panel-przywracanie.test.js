@@ -256,11 +256,23 @@ module.exports = async function (t) {
 
     // ── Przywracanie ───────────────────────────────────────────────────────
     t.section('przywracanie z panelu: postęp, wylogowanie, cofnięte zmiany');
+    const odpStartu = p.waitForResponse((r) => r.url().includes('admin-ajax.php')
+      && (r.request().postData() || '').includes('evk_backup_restore_start'), { timeout: 20000 }).catch(() => null);
     await go.click();
     // Okno zamyka się po odpowiedzi serwera, nie w chwili kliknięcia.
     await okno.waitFor({ state: 'hidden', timeout: 20000 }).catch(() => {});
     t.check('okno zamknięte, pasek postępu widoczny', !(await okno.isVisible()) && (await widac(p, '[data-evk-backup-progress]')));
-    const etapy = new Set();
+    /* Odpowiedź na start pokazuje zadanie z chwili założenia, zanim ruszy
+       praca w tle (1.231.1). Do tej wersji budował ją serwer PO żądaniu
+       zwrotnym, które trzyma ok. 1 s — a przywracanie testowej strony trwa
+       ok. 1,1 s. Pasek zaczynał więc losowo od któregoś etapu albo od razu
+       od „gotowe" i sprawdzenie niżej padało co kilka przebiegów, także na
+       kodzie sprzed zmian (zmierzone: 1 na 4 przebiegi). */
+    const startJ = await odpStartu.then((r) => (r ? r.json() : null)).catch(() => null);
+    const etapStartu = startJ && startJ.data && startJ.data.job ? startJ.data.job.label : '';
+    t.check('start odpowiada stanem z chwili założenia („sprawdzanie archiwum"), przed pracą w tle',
+      etapStartu === 'sprawdzanie archiwum', JSON.stringify(etapStartu));
+    const etapy = new Set(etapStartu ? [etapStartu] : []);
     const t0 = Date.now();
     while (Date.now() - t0 < 240000) {
       const lab = await p.locator('[data-evk-backup-label]').innerText().catch(() => '');
@@ -271,10 +283,10 @@ module.exports = async function (t) {
     const koniec = await p.locator('[data-evk-backup-msg]').innerText();
     t.check('koniec: „Kopia przywrócona" z odnośnikiem do logowania',
       /Kopia przywrócona/.test(koniec) && (await widac(p, '[data-evk-backup-login]')), koniec.trim());
-    /* Zmierzone (próbki co 300 ms): przywracanie testowej strony trwa kilka
-       sekund, więc łapie się jeden–dwa etapy — raz „rozpakowywanie", raz
-       „wczytywanie bazy". Pewne jest to: jakiś etap przywracania, a na końcu
-       „gotowe", które przychodzi już PO podmianie bazy, więc tokenem. */
+    /* Etap ze startu pasek pokazuje od razu (pokaz() przy odpowiedzi), więc
+       jest wśród etapów; próbki co 300 ms dokładają to, co zdążą złapać.
+       Pewne jest to: etap przywracania na początku, a na końcu „gotowe",
+       które przychodzi już PO podmianie bazy, więc tokenem. */
     t.check('pasek pokazał etap przywracania i doszedł do „gotowe" (po podmianie bazy — bez sesji)',
       [...etapy].some((e) => /sprawdzanie|rozpakow|wczytywanie|podmiana/.test(e)) && [...etapy].some((e) => /gotowe/.test(e)),
       [...etapy].join(' → '));

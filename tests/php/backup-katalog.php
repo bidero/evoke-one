@@ -148,6 +148,15 @@ switch ($scen) {
         }
         file_put_contents("$root/ads.txt", str_repeat('x', 1048577));   // za duży
         $wynik['podglad'] = array_keys(evk_backup_root_preview_files($root));
+
+        /* WordPress w katalogu głównym serwera: ABSPATH = „/" albo „//"
+           (1.231.1, zgłoszone z serwera Apache — każda kopia padała na
+           scandir('')). Pliku w „/" test nie położy, to katalog systemu, więc
+           sprawdza to, co się wywracało: przejście bez wyjątku. */
+        foreach (['korzen' => '/', 'korzen_podwojny' => '//'] as $klucz => $k) {
+            try { $wynik['podglad_' . $klucz] = array_values(evk_backup_root_preview_files($k)); }
+            catch (Throwable $e) { $wynik['podglad_' . $klucz] = 'WYJĄTEK: ' . $e->getMessage(); }
+        }
         break;
 
     default:

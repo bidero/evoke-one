@@ -178,10 +178,20 @@ add_action('wp_ajax_evk_backup_restore_start', function () {
     if (trim((string) wp_unslash($_POST['confirm'] ?? '')) !== 'PRZYWRÓĆ') {
         wp_send_json_error(['msg' => 'Wpisz PRZYWRÓĆ, żeby potwierdzić.']);
     }
+    $snapshot = !empty($_POST['snapshot']);
     $id = evk_restore_start(sanitize_file_name(wp_unslash($_POST['archive'] ?? '')),
-        sanitize_key(wp_unslash($_POST['scope'] ?? 'all')), !empty($_POST['mirror']), !empty($_POST['snapshot']));
+        sanitize_key(wp_unslash($_POST['scope'] ?? 'all')), !empty($_POST['mirror']), $snapshot, false);
     if (is_wp_error($id)) wp_send_json_error(['msg' => $id->get_error_message()]);
-    wp_send_json_success(['job' => evk_backup_job_public(evk_backup_job_get($id)), 'token' => evk_restore_status_token($id)]);
+    /* Odpowiedź PRZED żądaniem zwrotnym. evk_backup_kick() trzyma żądanie
+       ok. 1 s (zmierzone na serwerze testowym: 1,0 s), a małe przywracanie
+       w tym czasie prawie się kończy. Odpowiedź pokazywała wtedy losowo
+       któryś etap albo od razu „gotowe", a pasek przeskakiwał wszystkie
+       etapy. Teraz panel zawsze zaczyna od stanu z chwili założenia zadania.
+       Przywracanie z kopią obecnego stanu czeka na nią — tę popycha
+       evk_backup_start(). */
+    $odpowiedz = ['job' => evk_backup_job_public(evk_backup_job_get($id)), 'token' => evk_restore_status_token($id)];
+    if (!$snapshot) evk_backup_kick($id);
+    wp_send_json_success($odpowiedz);
 });
 
 /** Przywracanie wskazane przez id i token z żądania — albo 403/404 i koniec. */

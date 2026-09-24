@@ -37,6 +37,31 @@ module.exports = async function (t) {
   t.check('postęp domknięty do 100%', p.postep[0] === p.postep[1] && p.postep[1] > 0, p.postep.join(' / '));
   t.check('kopia na liście', p.na_liscie === true);
 
+  /* Nazwy spoza UTF-8 (FTP z Windows). Do 1.231.0 stan zadania wracał z bazy
+     z „?" w miejscu takich bajtów: katalog wypadał z kopii jako „nieczytelny",
+     a duży plik przerwany między krokami nie pasował do siebie samego. */
+  t.section('nazwy w cp1250: stan zadania przez bazę bez strat');
+
+  const c = sonda('cp1250');
+  t.check('warunek testu: katalog i duży plik z cp1250 przeszły przez stan zapisany w bazie',
+    c.katalog_w_stanie === true && c.plik_w_stanie === true, JSON.stringify({ katalog: c.katalog_w_stanie, plik: c.plik_w_stanie }));
+  t.check('kopia kończy się bez błędu', c.status === 'done', c.status + (c.blad ? ': ' + c.blad : ''));
+  t.check('plik z katalogu nazwanego w cp1250 jest w archiwum', c.foto === true);
+  t.check('duży plik z nazwą w cp1250, przerwany między krokami, jest w archiwum bajt w bajt', c.film === true);
+  t.check('nic nie trafiło do „nieczytelnych"', c.nieczytelne === 0, 'nieczytelnych: ' + c.nieczytelne);
+  t.check('zapis stanu: bez strat także w kluczach, UTF-8 bez zmian', c.bez_strat === true && c.utf8_bez_zmian === true,
+    JSON.stringify({ bez_strat: c.bez_strat, utf8: c.utf8_bez_zmian }));
+
+  /* Zgłoszenie „scandir(): Argument #1 ($directory) must not be empty"
+     pasowało do trzech miejsc w kodzie — komunikat nie mówił, gdzie. */
+  t.section('błąd PHP w kopii: komunikat mówi, gdzie');
+
+  const bp = sonda('blad_php');
+  t.check('błąd PHP: komunikat z plikiem i linią', bp.php && bp.php.status === 'failed'
+    && /^sonda: błąd PHP \(backup-silnik\.php:\d+\)$/.test(bp.php.blad || ''), JSON.stringify(bp.php));
+  t.check('nasz komunikat (RuntimeException): bez dopisku', bp.nasz && bp.nasz.status === 'failed'
+    && bp.nasz.blad === 'sonda: nasz komunikat', JSON.stringify(bp.nasz));
+
   t.section('lock: jeden krok naraz');
 
   const l = sonda('lock');

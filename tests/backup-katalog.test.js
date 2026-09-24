@@ -56,4 +56,10 @@ module.exports = async function (t) {
   t.check('podgląd z katalogu głównego: .htaccess, robots, weryfikacje — bez wp-config, index, readme i za dużych',
     JSON.stringify(m.podglad) === JSON.stringify(['_root/.htaccess', '_root/BingSiteAuth.xml', '_root/google1a2b3c.html', '_root/robots.txt']),
     JSON.stringify(m.podglad));
+  /* WordPress w katalogu głównym serwera (ABSPATH „/"): do 1.231.0 każda
+     kopia padała zaraz po zrzucie bazy na scandir('') — zgłoszone z Apache. */
+  const bezWyjatku = (w) => Array.isArray(w) && w.every((p) => /^\/[^/]/.test(p));
+  t.check('podgląd przy WordPressie w „/" i „//": bez wyjątku, ścieżki od jednego „/"',
+    bezWyjatku(m.podglad_korzen) && bezWyjatku(m.podglad_korzen_podwojny),
+    JSON.stringify([m.podglad_korzen, m.podglad_korzen_podwojny]));
 };

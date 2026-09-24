@@ -172,9 +172,11 @@ function evk_restore_info(string $archiwum): array {
 /**
  * Nowe przywracanie. $scope: all | db | files. $mirror: usuń pliki spoza
  * kopii. $snapshot: najpierw kopia obecnego stanu (przywracanie czeka na nią).
+ * $popchnij = false: bez żądania zwrotnego — wołający wyśle je sam (panel
+ * dopiero po zebraniu odpowiedzi, patrz ajax.php).
  * Zwraca id zadania przywracania albo WP_Error.
  */
-function evk_restore_start(string $archiwum, string $scope = 'all', bool $mirror = false, bool $snapshot = false) {
+function evk_restore_start(string $archiwum, string $scope = 'all', bool $mirror = false, bool $snapshot = false, bool $popchnij = true) {
     if (is_multisite()) return new WP_Error('evk_restore_multisite', 'Przywracanie na multisite nie jest obsługiwane.');
     if (!evk_backup_archive_path($archiwum)) return new WP_Error('evk_restore_archive', 'Nie ma takiej kopii.');
     if (!in_array($scope, ['all', 'db', 'files'], true)) return new WP_Error('evk_restore_scope', 'Nieznany zakres przywracania.');
@@ -197,7 +199,7 @@ function evk_restore_start(string $archiwum, string $scope = 'all', bool $mirror
         return $id;
     }
     evk_backup_schedule($id, 0);
-    evk_backup_kick($id);
+    if ($popchnij) evk_backup_kick($id);
     return $id;
 }
 

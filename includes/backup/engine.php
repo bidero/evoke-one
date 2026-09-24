@@ -50,11 +50,62 @@ add_action('evk_backup_tick', static function (int $id): void { evk_backup_tick(
 // ZADANIA
 // =========================================================================
 
+/**
+ * Stan zadania w JSON-ie BEZ STRAT.
+ *
+ * Stan niesie ścieżki: katalogi czekające na przejście (lista plików), plik
+ * przerwany w połowie pakowania albo rozpakowywania. Nazwa spoza UTF-8
+ * (katalog albo plik wgrany przez FTP z Windows w cp1250) nie mieści się
+ * w JSON-ie, więc wp_json_encode() zamieniała jej bajty na „?" albo „�".
+ * Do 1.231.0 stan wracał z bazy w następnym kroku z INNĄ ścieżką:
+ *   - katalog był „nieczytelny" i jego pliki po cichu wypadały z kopii,
+ *   - duży plik przerwany w połowie nie pasował do siebie samego
+ *     („W archiwum wisi inny plik"),
+ *   - na WordPressie sprzed 6.9 bez mbstring ścieżka wracała pusta i kopia
+ *     padała na scandir('').
+ * Pozycje listy plików (evk_backup_list_line) miały base64 od początku —
+ * stan nie.
+ *
+ * Napis spoza UTF-8 idzie jako EVK_BACKUP_B64 + base64. Znacznik zaczyna się
+ * od bajtu NUL, którego nie ma w żadnej ścieżce ani tekście, więc nie pomyli
+ * się z prawdziwą wartością. Klucze tablic tak samo.
+ */
+const EVK_BACKUP_B64 = "\0b64:";
+
+function evk_backup_state_pack(array $a): array {
+    $out = [];
+    foreach ($a as $k => $v) {
+        if (is_string($k) && !preg_match('//u', $k)) $k = EVK_BACKUP_B64 . base64_encode($k);
+        if (is_array($v)) $v = evk_backup_state_pack($v);
+        elseif (is_string($v) && !preg_match('//u', $v)) $v = EVK_BACKUP_B64 . base64_encode($v);
+        $out[$k] = $v;
+    }
+    return $out;
+}
+
+function evk_backup_state_unpack(array $a): array {
+    $out = [];
+    $n = strlen(EVK_BACKUP_B64);
+    foreach ($a as $k => $v) {
+        if (is_string($k) && strncmp($k, EVK_BACKUP_B64, $n) === 0) $k = (string) base64_decode(substr($k, $n));
+        if (is_array($v)) $v = evk_backup_state_unpack($v);
+        elseif (is_string($v) && strncmp($v, EVK_BACKUP_B64, $n) === 0) $v = (string) base64_decode(substr($v, $n));
+        $out[$k] = $v;
+    }
+    return $out;
+}
+
+/** Stan do kolumny `state` — jedyna droga zapisu (tworzenie i każdy krok). */
+function evk_backup_state_json(array $state): string {
+    return (string) wp_json_encode((object) evk_backup_state_pack($state), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
+
 function evk_backup_job_get(int $id): ?array {
     global $wpdb;
     $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . evk_backup_jobs_table() . ' WHERE id = %d', $id), ARRAY_A);
     if (!$row) return null;
-    $row['state'] = $row['state'] ? (json_decode($row['state'], true) ?: []) : [];
+    $stan = $row['state'] ? json_decode($row['state'], true) : null;
+    $row['state'] = is_array($stan) ? evk_backup_state_unpack($stan) : [];
     foreach (['id', 'next_job_id', 'lock_until', 'heartbeat', 'budget_ms', 'ticks', 'kills', 'progress_done',
               'progress_total', 'created_at', 'started_at', 'finished_at'] as $k) {
         $row[$k] = (int) $row[$k];
@@ -65,7 +116,7 @@ function evk_backup_job_get(int $id): ?array {
 function evk_backup_job_update(int $id, array $pola): void {
     global $wpdb;
     if (isset($pola['state']) && is_array($pola['state'])) {
-        $pola['state'] = wp_json_encode($pola['state'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $pola['state'] = evk_backup_state_json($pola['state']);
     }
     $wpdb->update(evk_backup_jobs_table(), $pola, ['id' => $id]);
 }
@@ -98,7 +149,7 @@ function evk_backup_job_create(string $type, string $source, string $status, str
     $wpdb->insert(evk_backup_jobs_table(), [
         'type' => $type, 'source' => $source, 'status' => $status, 'phase' => $phase, 'next_job_id' => $next,
         'budget_ms' => EVK_BACKUP_BUDGET_START, 'created_at' => time(),
-        'state' => wp_json_encode((object) $state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        'state' => evk_backup_state_json($state),
     ]);
     $id = (int) $wpdb->insert_id;
     if (!$id) return new WP_Error('evk_backup_db', 'Nie udało się zapisać zadania: ' . $wpdb->last_error);
@@ -269,7 +320,13 @@ function evk_backup_tick(int $id, ?int $budzet_ms = null, string $skad = ''): ?a
         $job = evk_backup_run_phases($job, $deadline);
     } catch (\Throwable $e) {
         evk_backup_tick_finished($id, true);
-        evk_backup_fail($job, $e->getMessage());
+        /* Błąd samego PHP (ValueError, TypeError…) mówi „co", ale nie „gdzie"
+           — zgłoszenie z panelu „scandir(): Argument #1 ($directory) must not
+           be empty" pasowało do trzech miejsc w kodzie. Nasze komunikaty
+           (RuntimeException) są dla ludzi i zostają bez dopisku. */
+        $powod = $e->getMessage();
+        if ($e instanceof \Error) $powod .= ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')';
+        evk_backup_fail($job, $powod);
         return evk_backup_job_get($id);
     }
     evk_backup_tick_finished($id, true);

@@ -82,14 +82,20 @@ function evk_backup_wp_config_constants(?string $plik = null): array {
  * się złapać; test pilnuje tego wprost.
  */
 function evk_backup_root_preview_files(?string $katalog = null): array {
-    $katalog = rtrim($katalog ?? ABSPATH, '/');
-    $wzorce  = ['.htaccess', '.user.ini', 'robots.txt', 'ads.txt', 'app-ads.txt', 'google*.html',
-                'BingSiteAuth.xml', 'yandex_*.html', 'pinterest-*.html'];
+    /* Bez końcowego „/", bo niżej doklejamy „/nazwa". WordPress w KATALOGU
+       GŁÓWNYM serwera (hosting, który zamyka konto we własnym systemie plików:
+       ABSPATH = „/" albo „//") dawał tu pusty napis, a scandir('') w PHP 8
+       rzuca ValueError, którego @ nie tłumi. Każda kopia kończyła się wtedy
+       zaraz po zrzucie bazy komunikatem „scandir(): Argument #1 ($directory)
+       must not be empty" (zgłoszone z serwera Apache, 1.231.1). */
+    $baza   = rtrim($katalog ?? ABSPATH, '/');
+    $wzorce = ['.htaccess', '.user.ini', 'robots.txt', 'ads.txt', 'app-ads.txt', 'google*.html',
+               'BingSiteAuth.xml', 'yandex_*.html', 'pinterest-*.html'];
     $wynik = [];
-    foreach ((array) @scandir($katalog) as $e) {
+    foreach ((array) @scandir($baza === '' ? '/' : $baza) as $e) {
         $e = (string) $e;
         if ($e === '' || $e === '.' || $e === '..') continue;
-        $p = $katalog . '/' . $e;
+        $p = $baza . '/' . $e;
         if (!is_file($p) || filesize($p) > 1048576) continue;
         foreach ($wzorce as $w) {
             if (fnmatch($w, $e)) { $wynik['_root/' . $e] = $p; break; }

@@ -13,7 +13,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/backup-silnik.php <scenariusz>
  *
  * Scenariusze: pelny, lock, ubity, zabity, pamiec, limit_php, anuluj,
- * konserwacja, retencja, nazwy, zajety. `krok <id> <budżet> [pamiec]` —
+ * konserwacja, retencja, nazwy, zajety, cp1250, blad_php. `krok <id> <budżet> [pamiec]` —
  * pomocniczy: jeden krok w osobnym procesie.
  */
 
@@ -346,6 +346,88 @@ switch ($scen) {
         }
         @unlink("$dir/prawdziwa-kopia.zip");
         @unlink(WP_CONTENT_DIR . '/poza.zip');
+        break;
+
+    case 'cp1250':
+        /* Nazwy spoza UTF-8 (FTP z Windows, cp1250): katalog z podkatalogiem
+           i — osobno, w zwykłym katalogu — duży plik, żeby każda z dwóch dróg
+           w stanie (stos katalogów listy, plik przerwany w połowie
+           pakowania) miała własne sprawdzenie. Budżet 1 ms, więc stan wraca z bazy
+           przy każdym kroku — dokładnie ta droga do 1.231.0 zmieniała
+           ścieżki na „?" i gubiła pliki. „zzz" na początku: katalog idzie
+           ostatni, więc czeka na stosie przez wiele kroków (mały katalog
+           na początku alfabetu przechodził w całości w jednym). */
+        $kat = WP_CONTENT_DIR . "/zzz-evk-test-Zdj\xEAcia";          // „ę" w cp1250 to 0xEA
+        @mkdir("$kat/podkatalog", 0755, true);
+        register_shutdown_function(static function () use ($kat) { evk_backup_rmdir($kat); });
+        file_put_contents("$kat/podkatalog/foto.jpg", 'zdjecie');
+        $duzy = WP_CONTENT_DIR . "/zzz-evk-test-film-\xB9.txt";      // „ą" w cp1250 to 0xB9
+        register_shutdown_function(static function () use ($duzy) { @unlink($duzy); });
+        $f = fopen($duzy, 'w');
+        mt_srand(7);   // 3 MB nieściśliwych danych: trzy porcje po 1 MB, każda w innym kroku
+        for ($i = 0; $i < 3; $i++) { $b = ''; for ($k = 0; $k < 262144; $k++) $b .= pack('N', mt_rand()); fwrite($f, $b); }
+        fclose($f);
+        $md5 = md5_file($duzy);
+
+        $id = evk_backup_start('manual');
+        $katalog_w_stanie = false; $plik_w_stanie = false; $n = 0;
+        while (true) {
+            $job = evk_backup_job_get($id);
+            if (!in_array($job['status'], ['queued', 'running'], true)) break;
+            // Warunek testu — po nazwie z przedrostkiem, który przeżywa też zepsutą ścieżkę.
+            foreach ($job['state']['list']['stack'] ?? [] as $w) {
+                if (strpos((string) $w['rel'], 'zzz-evk-test-Zdj') === 0) $katalog_w_stanie = true;
+            }
+            if (strpos((string) ($job['state']['zip']['pending']['name'] ?? ''), 'wp-content/zzz-evk-test-film-') === 0) $plik_w_stanie = true;
+            budzet($id, 1);
+            evk_backup_tick($id);
+            if (++$n > 20000) throw new RuntimeException('zadanie się nie kończy');
+        }
+
+        $tresc = [];
+        $z = new ZipArchive();
+        if ($job['status'] === 'done' && $z->open(evk_backup_dir() . '/' . $job['archive'], ZipArchive::RDONLY) === true) {
+            for ($i = 0; $i < $z->numFiles; $i++) $tresc[$z->getNameIndex($i, ZipArchive::FL_ENC_RAW)] = $i;
+            $foto = isset($tresc["wp-content/zzz-evk-test-Zdj\xEAcia/podkatalog/foto.jpg"])
+                ? $z->getFromIndex($tresc["wp-content/zzz-evk-test-Zdj\xEAcia/podkatalog/foto.jpg"]) : null;
+            $film = isset($tresc["wp-content/zzz-evk-test-film-\xB9.txt"])
+                ? $z->getFromIndex($tresc["wp-content/zzz-evk-test-film-\xB9.txt"]) : null;
+            $z->close();
+        }
+        $wynik = [
+            'status'           => $job['status'],
+            'blad'             => $job['error'],
+            'krokow'           => $job['ticks'],
+            'katalog_w_stanie' => $katalog_w_stanie,
+            'plik_w_stanie'    => $plik_w_stanie,
+            'foto'             => ($foto ?? null) === 'zdjecie',
+            'film'             => isset($film) && md5($film) === $md5,
+            /* Z licznika w stanie listy, nie z dziennika: dziennik trzyma 300
+               ostatnich linii, a przy ~800 krokach wpis z końca listy z niego
+               wypada (zmierzone mutacją — sprawdzenie przez dziennik milczało). */
+            'nieczytelne'      => (int) ($job['state']['list']['log_n']['nieczytelne'] ?? 0),
+        ];
+
+        // Umowa zapisu stanu wprost: bez strat także w kluczach; UTF-8 bez zmian.
+        $probka = ["klucz-\xEA" => ["\xB9" => "wartosc-\xEA", 'zwykly' => 'zażółć', 'lista' => ["a\xB9", 1, true, null]]];
+        $wynik['bez_strat'] = evk_backup_state_unpack(json_decode((string) wp_json_encode(evk_backup_state_pack($probka)), true)) === $probka;
+        $wynik['utf8_bez_zmian'] = evk_backup_state_pack(['a' => 'zażółć', 'b' => 5]) === ['a' => 'zażółć', 'b' => 5];
+        break;
+
+    case 'blad_php':
+        /* Błąd samego PHP w fazie kopii (tu: rzucony z odczytu ustawień,
+           który robi faza „przygotowanie") ma w komunikacie plik i linię.
+           Nasz RuntimeException — bez dopisku. Filtr rzuca RAZ: sprzątanie
+           po porażce może znowu czytać ustawienia. */
+        foreach (['php' => static function () { throw new TypeError('sonda: błąd PHP'); },
+                  'nasz' => static function () { throw new RuntimeException('sonda: nasz komunikat'); }] as $rodzaj => $rzuc) {
+            $raz = true;
+            $filtr = static function ($v) use (&$raz, $rzuc) { if ($raz) { $raz = false; $rzuc(); } return $v; };
+            add_filter('option_' . EVK_BACKUP_OPTION, $filtr);
+            $job = do_konca(evk_backup_start('manual'));
+            remove_filter('option_' . EVK_BACKUP_OPTION, $filtr);
+            $wynik[$rodzaj] = ['status' => $job['status'], 'blad' => $job['error']];
+        }
         break;
 
     case 'zajety':
