@@ -440,6 +440,10 @@ if (!function_exists('wp_die')) {
     function wp_die($message = '', $title = '', $args = []) { throw new EVK_Test_Die((string) $message); }
 }
 function wp_unslash($v) { return $v; }
+/* Para do `wp_unslash()` wyżej: atrapa nie dokłada ukośników, bo jej
+   `wp_insert_post()` ich nie zdejmuje. Prawdziwe zachowanie tej pary sprawdza
+   tests/zapis-wp.test.js na prawdziwym WordPressie. */
+if (!function_exists('wp_slash')) { function wp_slash($v) { return $v; } }
 function absint($v) { return abs((int) $v); }
 /* OBIEKTY TEŻ, nie tylko tablice. Prawdziwy `wp_list_pluck()` czyta pole
    jednych i drugich, a `get_the_category()` — z której czyta moduł Schema —

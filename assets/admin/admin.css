@@ -3176,6 +3176,14 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     text-align: center;
 }
 
+/* Wpis, który mógł stracić znaki \ przy zapisie sprzed 1.230.0. */
+.evo-badge-uwaga {
+    margin-left: 6px;
+    border-color: var(--evo-warn-line);
+    background: var(--evo-warn-soft);
+    color: var(--evo-warn);
+}
+
 /* Wpis, który silnik sam wyłączył po wywrotce. */
 .evo-badge-alarm {
     margin-left: 6px;

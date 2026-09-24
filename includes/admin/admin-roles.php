@@ -49,7 +49,7 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
 
                 <div class="evo-box">
                     <h3>Ograniczenie edycji stron</h3>
-                    <p class="evo-hint">Zostaw puste = dostęp do wszystkich. Zaznacz = tylko te strony.</p>
+                    <p class="evo-hint">Zostaw puste = dostęp do wszystkich. Zaznacz strony = rola edytuje i usuwa wyłącznie je; wszystkie inne strony, wpisy i szablony są dla niej zablokowane (media zostają dostępne).</p>
                     <div class="evo-scroll-box" style="--evo-scroll-h:300px">
                         <?php foreach ($pages as $page): ?>
                         <label class="evo-ep-row">

@@ -87,11 +87,42 @@ function tl_sanitize_phrase($value): string {
     return trim(wp_kses($value, tl_phrase_allowed_tags()));
 }
 
+/**
+ * Kody języków — także wtedy, gdy moduł Tłumaczeń jest WYŁĄCZONY.
+ *
+ * `tl_get_active_lang_codes()` mieszka w `10-language-system.php`, który
+ * `evoke-one.php` ładuje wyłącznie przy włączonym module. Ten plik i
+ * `30-admin-settings-ajax.php` ładują się zawsze, a wołały ją bezwarunkowo:
+ * przy wyłączonych Tłumaczeniach (domyślnie od 1.20.0) KAŻDY import ustawień
+ * kończył się błędem krytycznym na `tl_invalidate_cache()`, a paczka
+ * z frazami — już na sanityzacji `tl_translations` (audyt 1.229.6,
+ * tools/audyt/sondy/import-fatal.php).
+ *
+ * Bez modułu liczymy to samo, co `tl_get_languages()`: zapisane języki,
+ * a przy pustej opcji — te same domyślne en/de. Dzięki temu frazy
+ * zaimportowane przy wyłączonym module mają komplet kolumn, gdy moduł
+ * zostanie włączony. Nie definiujemy tu `tl_get_languages()`, bo kilka miejsc
+ * pyta `function_exists('tl_get_languages')`, żeby poznać, czy moduł działa.
+ */
+function evk_tl_kody_jezykow(): array {
+    if (function_exists('tl_get_active_lang_codes')) return tl_get_active_lang_codes();
+
+    $zapisane = get_option('tl_languages', []);
+    if (empty($zapisane)) return ['en', 'de'];
+
+    $kody = [];
+    foreach ((array) $zapisane as $jezyk) {
+        $kod = trim((string) (is_array($jezyk) ? ($jezyk['code'] ?? '') : ''));
+        if ($kod !== '' && $kod !== 'pl') $kody[$kod] = true;
+    }
+    return array_keys($kody);
+}
+
 function tl_invalidate_cache(): void {
     delete_transient(TL_TRANSIENT_CONFIG);
     delete_transient(TL_TRANSIENT_INLINE);
     delete_transient(TL_TRANSIENT_SLUGS);
-    foreach (tl_get_active_lang_codes() as $code) {
+    foreach (evk_tl_kody_jezykow() as $code) {
         delete_transient(TL_TRANSIENT_TOKENS . $code);
     }
 }
@@ -108,7 +139,7 @@ function get_translation_config(): array {
         return $mem_cache;
     }
     $data   = get_option('tl_translations', ['groups' => []]);
-    $codes  = tl_get_active_lang_codes();
+    $codes  = evk_tl_kody_jezykow();
     $config = ['strings' => [], 'meta' => []];
     foreach (($data['groups'] ?? []) as $group) {
         foreach (($group['rows'] ?? []) as $row) {

@@ -204,18 +204,98 @@ add_action('admin_init', function () {
 // OGRANICZENIE EDYCJI STRON
 // =========================================================================
 
-add_filter('user_has_cap', function (array $allcaps, array $caps, array $args) {
-    if (!in_array('edit_page', $caps, true) && !in_array('edit_post', $caps, true)) return $allcaps;
-    $post_id = $args[2] ?? 0;
-    if (!$post_id) return $allcaps;
-    $user = wp_get_current_user();
-    if (!$user->ID || $user->has_cap('administrator')) return $allcaps;
-    $restrictions = evk_role_get_restrictions();
-    foreach ($user->roles as $role_id) {
-        if (!empty($restrictions[$role_id]) && !in_array((int)$post_id, $restrictions[$role_id], true)) {
-            $allcaps['edit_pages'] = false;
-            $allcaps['edit_posts'] = false;
-        }
+/**
+ * Strony, które użytkownik wolno edytować — albo `null`, gdy żadna jego rola
+ * nie ma ograniczeń.
+ *
+ * Kilka ról z ograniczeniami sumuje się (lista A ∪ lista B). Administrator nie
+ * podlega ograniczeniom nigdy — sprawdzamy ROLĘ, nie uprawnienie, bo to
+ * wywołanie leci z wnętrza `map_meta_cap` i pytanie o uprawnienie wróciłoby
+ * tutaj rekurencyjnie.
+ */
+function evk_role_dozwolone_strony(int $user_id): ?array {
+    if (!$user_id) return null;
+    $user = get_userdata($user_id);
+    if (!$user || in_array('administrator', (array) $user->roles, true)) return null;
+
+    $ograniczenia = evk_role_get_restrictions();
+    $dozwolone    = null;
+    foreach ((array) $user->roles as $rola) {
+        if (empty($ograniczenia[$rola])) continue;
+        $dozwolone = array_merge($dozwolone ?? [], array_map('intval', (array) $ograniczenia[$rola]));
     }
-    return $allcaps;
-}, 10, 3);
+    return $dozwolone === null ? null : array_values(array_unique($dozwolone));
+}
+
+/**
+ * Ograniczenie: rola edytuje i usuwa WYŁĄCZNIE zaznaczone strony.
+ * Każdy inny wpis dowolnego typu (strony, wpisy, szablony Bricksa…) — bez
+ * edycji, usuwania i publikacji. Media zostają poza ograniczeniem: wgrany
+ * obrazek jest załącznikiem i jego opis musi dać się poprawić.
+ *
+ * DLACZEGO `map_meta_cap`, a nie `user_has_cap` jak do 1.229.6. Tamten filtr
+ * dostawał uprawnienia JUŻ ZMAPOWANE (`edit_others_pages`,
+ * `edit_published_pages`…) i szukał wśród nich `edit_page`/`edit_post`,
+ * których po mapowaniu nigdy tam nie ma — wychodził przy każdym wywołaniu.
+ * Użytkownik ograniczony do strony A edytował i usuwał stronę B (audyt 1.229.6,
+ * tools/audyt/sondy/role-ograniczenia.php). Nawet gdyby warunek łapał, zdjęcie
+ * `edit_pages` nie blokowało cudzych opublikowanych stron, bo te wymagają
+ * `edit_others_pages`. Tu decydujemy na etapie meta-uprawnienia, z ID wpisu
+ * w ręku: `do_not_allow` przegrywa z każdym uprawnieniem roli.
+ */
+add_filter('map_meta_cap', function (array $caps, string $cap, int $user_id, array $args): array {
+    static $meta = ['edit_post', 'edit_page', 'delete_post', 'delete_page', 'publish_post'];
+    if (!in_array($cap, $meta, true) || empty($args[0])) return $caps;
+
+    $dozwolone = evk_role_dozwolone_strony($user_id);
+    if ($dozwolone === null) return $caps;
+
+    $post_id = (int) $args[0];
+    if (get_post_type($post_id) === 'attachment') return $caps;
+    if (in_array($post_id, $dozwolone, true)) return $caps;
+
+    $caps[] = 'do_not_allow';
+    return $caps;
+}, 10, 4);
+
+/**
+ * Jednorazowe powiadomienie po aktualizacji: ograniczenia ZACZĘŁY działać.
+ *
+ * Do 1.229.6 nie blokowały niczego, więc klienci z ograniczoną rolą mogli się
+ * przyzwyczaić do edycji stron spoza listy — od tej wersji stracą do nich
+ * dostęp. Administrator ma o tym wiedzieć, zanim zadzwoni klient.
+ */
+const EVK_ROLE_POWIADOMIENIE_OPCJA = 'evk_role_restrictions_notice_1230';
+
+add_action('admin_notices', function () {
+    if (!current_user_can('manage_evk_roles') || get_option(EVK_ROLE_POWIADOMIENIE_OPCJA)) return;
+    $ograniczenia = array_filter(evk_role_get_restrictions());
+    /* Strona bez ograniczeń w chwili aktualizacji nie ma czego ogłaszać — a
+       ograniczenia ustawione później od początku działają, więc zdanie
+       „do tej pory nie blokowały" byłoby nieprawdą. Zamykamy od razu. */
+    if (!$ograniczenia) { update_option(EVK_ROLE_POWIADOMIENIE_OPCJA, 1, false); return; }
+
+    $nazwy = [];
+    $role  = wp_roles()->get_names();
+    foreach (array_keys($ograniczenia) as $slug) $nazwy[] = translate_user_role($role[$slug] ?? $slug);
+
+    $zamknij = wp_nonce_url(admin_url('admin-post.php?action=evk_role_powiadomienie'), 'evk_role_powiadomienie');
+    $ekran   = add_query_arg(['page' => 'evoke-one', 'tab' => 'admin_panel', 'sub' => 'roles'], admin_url('options-general.php'));
+    printf(
+        '<div class="notice notice-warning"><p><strong>Evoke ONE:</strong> %s</p><p><a class="button" href="%s">%s</a> <a class="button-link" href="%s">%s</a></p></div>',
+        esc_html(sprintf(
+            'Ograniczenia edycji stron w Role Managerze do tej pory nie blokowały niczego — od tej wersji działają. Role z ograniczeniami: %s. Ich użytkownicy edytują teraz WYŁĄCZNIE zaznaczone strony; wszystkie inne strony i wpisy są dla nich zablokowane.',
+            implode(', ', $nazwy)
+        )),
+        esc_url($ekran), esc_html('Sprawdź ograniczenia'),
+        esc_url($zamknij), esc_html('Rozumiem, ukryj')
+    );
+});
+
+add_action('admin_post_evk_role_powiadomienie', function () {
+    if (!current_user_can('manage_evk_roles')) wp_die('Brak uprawnień.', 403);
+    check_admin_referer('evk_role_powiadomienie');
+    update_option(EVK_ROLE_POWIADOMIENIE_OPCJA, 1, false);
+    wp_safe_redirect(wp_get_referer() ?: admin_url());
+    exit;
+});

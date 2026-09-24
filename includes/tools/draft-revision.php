@@ -52,11 +52,18 @@ add_action('admin_action_evk_create_revision', function () {
     $orig = get_post($post_id);
     if (!$orig) wp_die('Post nie istnieje.');
 
+    /* `wp_slash()` na polach tekstowych i na metadanych — na wszystkim, co
+       idzie przez `wp_insert_post()`,
+       `wp_update_post()` i `add_post_meta()`: te funkcje zdejmują ukośniki
+       (zakładają dane z `$_POST`). Bez tego kopia i SYNCHRONIZACJA Z ORYGINAŁEM
+       gubiły `\` w treści i w danych Bricksa — kod, regexy, CSS
+       `content:"\f101"` — także na żywej stronie. Audyt 1.229.6,
+       tools/audyt/sondy/draft-slash.php; pilnuje tests/zapis-wp.test.js. */
     $new_id = wp_insert_post([
         'post_author'  => get_current_user_id(),
-        'post_content' => $orig->post_content,
-        'post_title'   => $orig->post_title . ' (Wersja robocza)',
-        'post_excerpt' => $orig->post_excerpt,
+        'post_content' => wp_slash($orig->post_content),
+        'post_title'   => wp_slash($orig->post_title . ' (Wersja robocza)'),
+        'post_excerpt' => wp_slash($orig->post_excerpt),
         'post_status'  => 'draft',
         'post_type'    => $orig->post_type,
     ]);
@@ -66,7 +73,7 @@ add_action('admin_action_evk_create_revision', function () {
     // Kopiuj meta
     foreach (get_post_meta($orig->ID) as $key => $values) {
         if ($key === '_evk_original_post_id') continue;
-        foreach ($values as $val) add_post_meta($new_id, $key, maybe_unserialize($val));
+        foreach ($values as $val) add_post_meta($new_id, $key, wp_slash(maybe_unserialize($val)));
     }
     update_post_meta($new_id, '_evk_original_post_id', $post_id);
 
@@ -97,12 +104,12 @@ add_action('admin_action_evk_sync_revision', function () {
     if (!$draft || !$original) wp_die('Post nie istnieje.');
     if (!current_user_can('edit_post', $original_id)) wp_die('Brak uprawnień do edycji oryginału.');
 
-    // Aktualizuj oryginał
+    // Aktualizuj oryginał (ukośniki — patrz komentarz przy tworzeniu kopii)
     wp_update_post([
         'ID'           => $original_id,
-        'post_content' => $draft->post_content,
-        'post_title'   => str_replace(' (Wersja robocza)', '', $draft->post_title),
-        'post_excerpt' => $draft->post_excerpt,
+        'post_content' => wp_slash($draft->post_content),
+        'post_title'   => wp_slash(str_replace(' (Wersja robocza)', '', $draft->post_title)),
+        'post_excerpt' => wp_slash($draft->post_excerpt),
     ]);
 
     // Zastąp meta
@@ -111,7 +118,7 @@ add_action('admin_action_evk_sync_revision', function () {
     }
     foreach (get_post_meta($draft_id) as $key => $vals) {
         if (in_array($key, ['_evk_original_post_id', '_edit_lock', '_edit_last'], true)) continue;
-        foreach ($vals as $val) add_post_meta($original_id, $key, maybe_unserialize($val));
+        foreach ($vals as $val) add_post_meta($original_id, $key, wp_slash(maybe_unserialize($val)));
     }
 
     // Featured image

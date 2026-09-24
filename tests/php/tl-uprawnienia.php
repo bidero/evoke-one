@@ -31,7 +31,7 @@ require __DIR__ . '/_wp-stubs.php';
 function tl_get_active_lang_codes() { return ['pl', 'en']; }
 function bricks_is_builder_main() { return false; }
 function wp_rand($min = 0, $max = 0) { return $min; }
-function wp_slash($v) { return $v; }
+if (!function_exists('wp_slash')) { function wp_slash($v) { return $v; } }
 function current_time($type = 'mysql') { return '2026-01-01 00:00:00'; }
 function admin_url($path = '') { return 'https://example.test/wp-admin/' . $path; }
 function wp_create_nonce($action = -1) { return 'testnonce'; }

@@ -102,11 +102,17 @@ function evk_snippet_get_id(string $slug): int {
     return !empty($posts) ? (int) $posts[0] : 0;
 }
 
+/**
+ * Zapis wpisu po slugu. `$content` to SUROWY kod — ukośniki dokładamy tutaj,
+ * bo `wp_insert_post()`/`wp_update_post()` je zdejmują (patrz
+ * `evk_snippet_zapisz_wpis()`). Do 1.229.6 slashował wołający (import), co
+ * było jedynym miejscem, w którym ta funkcja działała poprawnie.
+ */
 function evk_snippet_save(string $slug, string $title, string $content): void {
     $id = evk_snippet_get_id($slug);
     $data = [
-        'post_title'   => $title,
-        'post_content' => $content,
+        'post_title'   => wp_slash($title),    // ukośniki — patrz evk_snippet_zapisz_wpis()
+        'post_content' => wp_slash($content),
         'post_status'  => 'private',
         'post_type'    => 'evk_code_snippet',
         'post_name'    => $slug,

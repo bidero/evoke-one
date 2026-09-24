@@ -21,7 +21,7 @@ add_action('admin_init', function () {
 });
 
 function tl_sanitize_translations_payload($input): array {
-    $codes = tl_get_active_lang_codes();
+    $codes = evk_tl_kody_jezykow();
     $clean = ['groups' => []];
     foreach (($input['groups'] ?? []) as $group_id => $group) {
         $group_key = sanitize_key($group_id) ?: ('group_' . wp_rand(1000, 9999));
@@ -57,7 +57,7 @@ function tl_sanitize_languages_payload($input): array {
 }
 
 function tl_sanitize_images_payload($input): array {
-    $codes = tl_get_active_lang_codes();
+    $codes = evk_tl_kody_jezykow();
     $clean = [];
     foreach ((array) $input as $key => $entry) {
         $image_key = sanitize_key($key);
@@ -69,7 +69,7 @@ function tl_sanitize_images_payload($input): array {
 }
 
 function tl_sanitize_slugs_payload($input): array {
-    $codes = tl_get_active_lang_codes();
+    $codes = evk_tl_kody_jezykow();
     $clean = [];
     foreach ((array) $input as $entry) {
         $pl_slug = sanitize_title($entry['pl'] ?? '');
@@ -520,12 +520,22 @@ add_action('wp_ajax_tl_export', function () {
                 'post_status'    => 'private',
                 'suppress_filters' => true,
             ]);
+            /* Z METADANYMI. Do 1.229.6 szły sam slug, tytuł i treść, a wpis bez
+               rodzaju odczytuje się jako „szablon" w <head>: snippet PHP po
+               imporcie WYPISYWAŁ SWÓJ KOD na każdej stronie (razem z kluczami,
+               które w nim siedzą), zamiast go wykonać. Audyt 1.229.6,
+               tools/audyt/sondy/snippet-io.php. */
             $snippets = [];
             foreach ($posts as $p) {
                 $snippets[] = [
-                    'slug'    => $p->post_name,
-                    'title'   => $p->post_title,
-                    'content' => $p->post_content,
+                    'slug'      => $p->post_name,
+                    'title'     => $p->post_title,
+                    'content'   => $p->post_content,
+                    'rodzaj'    => (string) get_post_meta($p->ID, EVK_SNIPPET_META_RODZAJ, true),
+                    'miejsce'   => (string) get_post_meta($p->ID, EVK_SNIPPET_META_MIEJSCE, true),
+                    'grupa'     => (string) get_post_meta($p->ID, EVK_SNIPPET_META_GRUPA, true),
+                    'wlaczony'  => (string) get_post_meta($p->ID, EVK_SNIPPET_META_WLACZ, true),
+                    'kolejnosc' => (int) $p->menu_order,
                 ];
             }
             return [
@@ -598,6 +608,7 @@ add_action('wp_ajax_tl_import', function () {
     };
 
     $imported = 0;
+    $snippety_wylaczone = 0;
 
     // TL
     if ($should('tl_translations') && isset($data['tl_translations'])) {
@@ -657,19 +668,44 @@ add_action('wp_ajax_tl_import', function () {
         $imported++;
     }
     if ($should('evk_snippets')) {
-        if (isset($data['evk_snippets_posts']) && is_array($data['evk_snippets_posts'])) {
+        if (isset($data['evk_snippets_posts']) && is_array($data['evk_snippets_posts']) && function_exists('evk_snippet_save')) {
             foreach ($data['evk_snippets_posts'] as $s) {
-                $slug    = sanitize_key($s['slug'] ?? '');
-                $title   = sanitize_text_field($s['title'] ?? '');
-                $content = wp_slash($s['content'] ?? '');
-                if ($slug && function_exists('evk_snippet_save')) {
-                    evk_snippet_save($slug, $title, $content);
+                if (!is_array($s)) continue;
+                $slug = sanitize_key($s['slug'] ?? '');
+                if (!$slug) continue;
+
+                /* Kod idzie SUROWY — ukośniki dokłada evk_snippet_save(). Do
+                   1.229.6 slashował tutaj import, a „zaawansowany" niżej szedł
+                   przez update_option(), która ukośników nie zdejmuje — więc
+                   jego kod po imporcie miał je PODWOJONE. */
+                $istnial = evk_snippet_get_id($slug) > 0;
+                evk_snippet_save($slug, sanitize_text_field($s['title'] ?? ''), (string) ($s['content'] ?? ''));
+                $id = evk_snippet_get_id($slug);
+                if (!$id) continue;
+
+                $rodzaj  = (string) ($s['rodzaj'] ?? '');
+                $miejsce = (string) ($s['miejsce'] ?? '');
+                if (isset(evk_snippet_rodzaje()[$rodzaj]))  update_post_meta($id, EVK_SNIPPET_META_RODZAJ, $rodzaj);
+                if (isset(evk_snippet_miejsca()[$miejsce])) update_post_meta($id, EVK_SNIPPET_META_MIEJSCE, $miejsce);
+                if (isset($s['grupa']))     update_post_meta($id, EVK_SNIPPET_META_GRUPA, sanitize_text_field((string) $s['grupa']));
+                if (isset($s['kolejnosc'])) wp_update_post(['ID' => $id, 'menu_order' => (int) $s['kolejnosc']]);
+
+                /* NOWY WPIS WCHODZI WYŁĄCZONY. Kod z pliku to kod z innej strony
+                   (albo ze starego eksportu bez rodzaju) — ma go obejrzeć
+                   człowiek, zanim się wykona. Istniejący wpis zachowuje swój
+                   włącznik: import nie przełącza tego, co już tu pracuje. */
+                if (!$istnial) {
+                    update_post_meta($id, EVK_SNIPPET_META_WLACZ, 0);
+                    $snippety_wylaczone++;
                 }
             }
         }
         if (isset($data['evk_snippets_enabled']))          update_option('evk_snippets_enabled',          absint($data['evk_snippets_enabled']));
         if (isset($data['evk_snippets_advanced_enabled'])) update_option('evk_snippets_advanced_enabled', absint($data['evk_snippets_advanced_enabled']));
-        if (isset($data['evk_snippets_advanced_content'])) update_option('evk_snippets_advanced_content', wp_slash($data['evk_snippets_advanced_content']));
+        if (isset($data['evk_snippets_advanced_content'])) {
+            $adv = (string) $data['evk_snippets_advanced_content'];
+            function_exists('evk_snippets_advanced_save') ? evk_snippets_advanced_save($adv) : update_option('evk_snippets_advanced_content', $adv, false);
+        }
         $imported++;
     }
     if ($should('evk_other')) {
@@ -724,7 +760,13 @@ add_action('wp_ajax_tl_import', function () {
     if (function_exists('tl_invalidate_cache'))    tl_invalidate_cache();
     if (function_exists('tl_flush_rewrite_rules')) tl_flush_rewrite_rules();
 
-    wp_send_json_success('Zaimportowano ' . $imported . ' modułów — odśwież stronę.');
+    /* Bez „odśwież stronę" — dokleja to panel (admin.js). Do 1.229.6 zdanie
+       pojawiało się dwa razy. Liczba po dwukropku, żeby nie odmieniać. */
+    $komunikat = 'Zaimportowano moduły: ' . $imported . '.';
+    if ($snippety_wylaczone) {
+        $komunikat .= ' Nowe snippety (' . $snippety_wylaczone . ') są WYŁĄCZONE — przejrzyj kod i włącz je ręcznie.';
+    }
+    wp_send_json_success($komunikat);
 });
 
 add_action('wp_ajax_tl_inline_get', function () {
@@ -767,7 +809,7 @@ add_action('wp_ajax_tl_inline_save_full', function () {
     if (!$pl) wp_send_json_error('Brak frazy PL.');
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($translations)) wp_send_json_error('Nieprawidlowy JSON tlumaczen.');
     $lookup_pl = $old_pl ?: $pl;
-    $codes     = tl_get_active_lang_codes();
+    $codes     = evk_tl_kody_jezykow();
     $data      = get_option('tl_translations', ['groups' => []]);
     $found     = false;
     foreach ($data['groups'] as &$group) {

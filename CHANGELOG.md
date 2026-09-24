@@ -2,6 +2,73 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.230.0] — 2026-09-24
+
+Pierwsze wydanie po audycie 1.229.6: pięć błędów, które niszczyły albo gubiły
+dane. Każdy potwierdzony na prawdziwym WordPressie (sondy w `tools/audyt/`)
+i każdy przechodził zielono przez testy na atrapach.
+
+### Naprawione
+
+- **Snippety gubiły znaki `\` przy każdym zapisie.** Edytor zdejmował
+  ukośniki, a `wp_insert_post()` zdejmował je drugi raz: `"a\nb"` zapisywało
+  się jako `"anb"`, `/^\d{2}$/` jako `/^d{2}$/`, CSS `content:"\f101"` jako
+  `"f101"`. Każdy kolejny zapis zjadał następny poziom.
+  - **Ostrzeżenie przy wpisach, które mogły już ucierpieć.** Lista snippetów
+    i edytor oznaczają „sprawdź \" wpisy sprzed tej wersji, jeśli:
+    - starsza wersja w historii zmian ma więcej ukośników niż bieżąca,
+    - albo kod zawiera ślad typu `d{2}`, `s+` w wyrażeniu regularnym
+      (preg_*, RegExp, `/…/.test`) lub `content: "f101"` w CSS.
+  - Niczego nie poprawiamy automatycznie. Zapis wpisu po przejrzeniu usuwa
+    oznaczenie.
+- **Wersje robocze: kopia i synchronizacja z oryginałem gubiły `\`** w treści
+  i w danych Bricksa (kod, CSS, wyrażenia regularne). Uszkodzony kod trafiał
+  na żywą stronę przy synchronizacji.
+- **Import ustawień przy wyłączonych Tłumaczeniach kończył się błędem
+  krytycznym.** Dotyczyło każdej strony z wyłączonym modułem (domyślnie od
+  1.20.0). Część modułów zdążyła się zapisać, reszta nie, a panel pokazywał
+  „Błąd połączenia". Paczka z frazami wywracała się już na pierwszym module.
+  Frazy zaimportowane przy wyłączonym module mają teraz komplet kolumn
+  językowych.
+- **Eksport snippetów gubił rodzaj, miejsce, grupę i włącznik.** Po imporcie
+  snippet PHP stawał się włączonym „szablonem" w `<head>` i **wypisywał swój
+  kod na każdej stronie** (razem z kluczami, które w nim były).
+  - Eksport niesie teraz komplet metadanych.
+  - **Nowe snippety z importu wchodzą wyłączone**, a komunikat to mówi.
+    Istniejące zachowują swój włącznik.
+- **Import „zaawansowanego" snippetu podwajał ukośniki** (`\n` → `\\n`).
+- **Role Manager: „Ograniczenie edycji stron" nie blokowało niczego.** Rola
+  ograniczona do strony A edytowała i usuwała stronę B.
+  - Teraz rola z zaznaczonymi stronami edytuje, usuwa i publikuje wyłącznie
+    je. Wszystkie inne strony, wpisy i szablony są dla niej zablokowane.
+  - Media zostają dostępne. Kilka ról z listami sumuje się. Administrator
+    i role bez ograniczeń bez zmian.
+  - **Jednorazowe powiadomienie dla administratora** na stronach, które mają
+    zapisane ograniczenia: od tej wersji działają, z listą ról i odnośnikiem
+    do Role Managera. Na stronie bez ograniczeń zamyka się samo.
+- Komunikat importu: bez zdublowanego „odśwież stronę" i złej odmiany
+  („3 modułów").
+
+### Testy
+
+- `zapis-wp` (nowy, prawdziwy WordPress + MariaDB, partia z testami kopii):
+  - snippety: dwa kolejne zapisy bajt w bajt, znacznik po zapisie,
+    ostrzeżenia (regex PHP i JS, CSS, historia zmian) i brak fałszywego
+    alarmu na poprawnym kodzie;
+  - wersje robocze: kopia i oryginał po synchronizacji bajt w bajt (treść
+    i dane Bricksa);
+  - import przy wyłączonych Tłumaczeniach: bez błędu, frazy z kolumnami en/de,
+    „zaawansowany" bez podwojonych ukośników, snippet PHP wraca jako PHP
+    i wyłączony, stary eksport bez rodzaju nic nie wypisuje;
+  - eksport snippetów z metadanymi;
+  - role: strona dozwolona/inna/wpis/media, rola bez ograniczeń,
+    administrator, dwie role, powiadomienie.
+- Mutacje (każda zapala własny podzbiór): brak `wp_slash()` na kodzie
+  snippetu, w metadanych i w synchronizacji wersji roboczej, kody języków wprost z modułu Tłumaczeń, eksport bez rodzaju,
+  import bez wyłączania nowych, role przepuszczające, detektor bez wyrażeń,
+  „zaawansowany" przez `update_option(wp_slash())`, powiadomienie niezamykające
+  się samo.
+
 ## [1.229.6] — 2026-09-23
 
 ### Dodane (zgłoszone z evoke.pl)

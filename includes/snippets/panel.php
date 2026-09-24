@@ -139,6 +139,24 @@ function evk_snippety_lista(): void {
         });
     }
     ?>
+    <?php
+    /* Wpisy, które mogły stracić `\` przy zapisie sprzed 1.230.0 — liczone
+       tylko tutaj, na ekranie listy (historia zmian to zapytanie na wpis). */
+    $ukosniki = [];
+    foreach ($wpisy as $w) {
+        $powod = evk_snippet_podejrzenie_ukosnikow($w);
+        if ($powod !== '') $ukosniki[$w['id']] = $powod;
+    }
+    ?>
+    <?php if ($ukosniki): ?>
+    <div class="evo-info-box is-warn" role="status">
+        <span class="dashicons dashicons-warning"></span>
+        <div><strong>Sprawdź <?php echo count($ukosniki); ?> <?php echo count($ukosniki) === 1 ? 'wpis' : (count($ukosniki) < 5 ? 'wpisy' : 'wpisów'); ?> oznaczone „sprawdź \".</strong>
+            Do wersji 1.229.6 zapis snippetu gubił znaki <code>\</code> (np. <code>\n</code>, <code>\d</code> w wyrażeniach regularnych,
+            <code>\f101</code> w CSS). Te wpisy wyglądają, jakby je straciły. Otwórz każdy, popraw kod i zapisz — zapis usuwa oznaczenie.</div>
+    </div>
+    <?php endif; ?>
+
     <div class="evo-row-between evo-mb">
         <span class="evo-hint evo-m0"><?php echo count($wpisy); ?> <?php
             echo count($wpisy) === 1 ? 'wpis' : (count($wpisy) < 5 ? 'wpisy' : 'wpisów'); ?></span>
@@ -248,6 +266,9 @@ function evk_snippety_lista(): void {
                     wyłączony po błędzie
                 </span>
                 <?php endif; ?>
+                <?php if (isset($ukosniki[$w['id']])): ?>
+                <span class="evo-badge evo-badge-uwaga" title="<?php echo esc_attr($ukosniki[$w['id']]); ?>">sprawdź \</span>
+                <?php endif; ?>
             </td>
             <td data-etykieta="Rodzaj"><span class="evo-badge"><?php echo esc_html($rodzaje[$w['rodzaj']]['label'] ?? $w['rodzaj']); ?></span></td>
             <?php /* Krótka etykieta, nie pełna: „Frontend — <head>" jest na
@@ -295,7 +316,16 @@ function evk_snippety_edytor(): void {
 
     $rodzaje = evk_snippet_rodzaje();
     $miejsca = evk_snippet_miejsca();
+    $powod   = $wpis['id'] ? evk_snippet_podejrzenie_ukosnikow($wpis) : '';
     ?>
+
+    <?php if ($powod !== ''): ?>
+    <div class="evo-info-box is-warn" role="status">
+        <span class="dashicons dashicons-warning"></span>
+        <div><strong>Ten kod mógł stracić znaki <code>\</code> przy zapisie sprzed 1.230.0.</strong>
+            <?php echo esc_html($powod); ?> Popraw kod i zapisz — zapis usuwa to ostrzeżenie.</div>
+    </div>
+    <?php endif; ?>
 
     <form method="post" action="<?php echo esc_url(evk_snippety_url()); ?>">
         <?php wp_nonce_field('evk_snippets_save', 'evk_snippets_nonce_field'); ?>

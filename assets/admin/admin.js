@@ -498,7 +498,7 @@
                 decisions: JSON.stringify(dec),
             }).done(function (r) {
                 $st.removeClass('ok err').addClass(r.success ? 'ok' : 'err')
-                   .text(r.success ? (r.data + ' — odśwież stronę.') : (r.data || 'Błąd')).show();
+                   .text(r.success ? (r.data + ' Odśwież stronę.') : (r.data || 'Błąd')).show();
                 importData = null;
                 decisions  = {};
             }).fail(function () {

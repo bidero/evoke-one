@@ -149,6 +149,11 @@ const EVK_SNIPPET_META_WLACZ   = '_evk_snippet_wlaczony';
    klikiem, a wtedy jedynym śladem byłby przestawiony włącznik, nie do
    odróżnienia od wyłączonego ręcznie. */
 const EVK_SNIPPET_META_AWARIA  = '_evk_snippet_awaria';
+/* Wpis zapisany w edytorze PO naprawie ukośników (1.230.0). Do tej wersji każdy
+   zapis zjadał `\` (patrz `evk_snippet_zapisz_wpis()`), więc wpis bez tego
+   znacznika mógł je już stracić — panel go wtedy sprawdza i ostrzega. Zapis
+   w edytorze to przejrzenie kodu przez człowieka: znacznik gasi ostrzeżenie. */
+const EVK_SNIPPET_META_UKOSNIKI_OK = '_evk_snippet_ukosniki_ok';
 
 /**
  * Wszystkie wpisy, w kolejności wykonania.
@@ -205,12 +210,22 @@ function evk_snippet_zapisz_wpis(array $dane): int {
     $id = (int) ($dane['id'] ?? 0);
 
     $post = [
-        'post_title'   => (string) ($dane['tytul'] ?? 'Snippet'),
-        'post_content' => (string) ($dane['kod'] ?? ''),
+        'post_title'   => wp_slash((string) ($dane['tytul'] ?? 'Snippet')),
+        'post_content' => wp_slash((string) ($dane['kod'] ?? '')),
         'post_status'  => 'private',
         'post_type'    => 'evk_code_snippet',
         'menu_order'   => (int) ($dane['kolejnosc'] ?? 0),
     ];
+    /* `wp_slash()` NA POLACH TEKSTOWYCH WYŻEJ, BO `wp_insert_post()`
+       I `wp_update_post()` ZDEJMUJĄ UKOŚNIKI. Na każdym polu osobno, nie na
+       całej tablicy — tak analiza statyczna dalej widzi typy pól.
+       Obie funkcje zakładają dane prosto z `$_POST`, czyli „slashowane", i same
+       wołają `wp_unslash()`. Wołający podaje tu kod już po `wp_unslash()`, więc
+       bez tej linii WordPress zdejmował `\` DRUGI raz: `"a\nb"` zapisywało się
+       jako `"anb"`, `/^\d{2}$/` jako `/^d{2}$/`, a każdy kolejny zapis zjadał
+       następny poziom. Zmierzone na prawdziwym WordPressie (audyt 1.229.6,
+       tools/audyt/sondy/snippet-slash.php); atrapy w tests/php tego nie widzą,
+       dlatego pilnuje tego tests/zapis-wp.test.js. */
     if ($id) {
         $post['ID'] = $id;
         wp_update_post($post);
@@ -234,8 +249,62 @@ function evk_snippet_zapisz_wpis(array $dane): int {
        wywrotce przestaje być aktualny. Zostawiony wisiałby przy wpisie, który
        już działa, i mówił nieprawdę przy każdym wejściu na listę. */
     delete_post_meta($id, EVK_SNIPPET_META_AWARIA);
+    update_post_meta($id, EVK_SNIPPET_META_UKOSNIKI_OK, 1);
 
     return $id;
+}
+
+/**
+ * Czy wpis wygląda na taki, który stracił `\` przy zapisie sprzed 1.230.0.
+ *
+ * Zwraca powód do pokazania w panelu albo pusty łańcuch. NICZEGO nie
+ * poprawia — pewności, gdzie stał ukośnik, nie ma; ma spojrzeć człowiek.
+ *
+ * Dwa rodzaje śladów:
+ *  1. Historia zmian: starsza wersja ma WIĘCEJ ukośników niż bieżąca. Każdy
+ *     zapis zjadał jeden poziom, więc to ślad najpewniejszy.
+ *  2. Wzorce, które bez ukośnika nie mają sensu: `d{2}`, `d+`, `s*`, `w+`
+ *     w wyrażeniu regularnym (preg_*, RegExp, /…/.test) i czterocyfrowy kod
+ *     szesnastkowy w CSS `content: "f101"` (ikonki fontów).
+ *
+ * Tylko dla wpisów bez znacznika EVK_SNIPPET_META_UKOSNIKI_OK. Liczone
+ * wyłącznie na ekranie panelu — nie przy każdym żądaniu.
+ */
+function evk_snippet_podejrzenie_ukosnikow(array $wpis): string {
+    $id  = (int) ($wpis['id'] ?? 0);
+    $kod = (string) ($wpis['kod'] ?? '');
+    if (!$id || trim($kod) === '' || get_post_meta($id, EVK_SNIPPET_META_UKOSNIKI_OK, true)) return '';
+
+    $teraz = substr_count($kod, '\\');
+    if (function_exists('wp_get_post_revisions')) {
+        foreach (wp_get_post_revisions($id) as $wersja) {
+            if (substr_count((string) $wersja->post_content, '\\') > $teraz) {
+                return sprintf('Wersja z %s ma więcej znaków \\ niż bieżący kod — zajrzyj do historii zmian.',
+                    mysql2date('j.m.Y H:i', $wersja->post_modified));
+            }
+        }
+    }
+
+    /* Wyrażenie regularne: ciało literału w preg_*( '…' ), new RegExp('…')
+       albo /…/ tuż przed .test/.match/.replace/.split lub jako argument. */
+    $ciala = [];
+    if (preg_match_all('/preg_[a-z_]+\(\s*([\'"])(.*?)(?<!\\\\)\1/s', $kod, $m)) $ciala = array_merge($ciala, $m[2]);
+    if (preg_match_all('/RegExp\(\s*([\'"])(.*?)(?<!\\\\)\1/s', $kod, $m))      $ciala = array_merge($ciala, $m[2]);
+    if (preg_match_all('~(?:\.(?:test|match|matchAll|replace|replaceAll|split|search)\(\s*|[=(,:]\s*)/((?:[^/\\\\\n]|\\\\.)+)/[gimsuy]*~', $kod, $m)) {
+        $ciala = array_merge($ciala, $m[1]);
+    }
+    foreach ($ciala as $cialo) {
+        if (preg_match('/(?<![\\\\A-Za-z0-9_])[dswDSW](?:[+*?]|\{\d)/', $cialo, $z)) {
+            return sprintf('Wyrażenie regularne „%s" wygląda na pozbawione \\ (np. „%s" zamiast „\\%s").',
+                mb_substr($cialo, 0, 40), $z[0], $z[0]);
+        }
+    }
+
+    if (preg_match('/content\s*:\s*([\'"])([0-9a-fA-F]{4,6})\1/', $kod, $z)) {
+        return sprintf('CSS content: "%s" wygląda na kod ikony bez \\ (powinno być "\\%s").', $z[2], $z[2]);
+    }
+
+    return '';
 }
 
 // =========================================================================
