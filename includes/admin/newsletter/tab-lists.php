@@ -33,6 +33,26 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
             <?php endif; ?>
         </div>
 
+        <?php /* Lista wykluczeń (1.233.0). Wpisy dociąga JS (evk_nl_wykluczenia),
+                 jak tabelę subskrybentów — ta sama droga przy pierwszym
+                 wyświetleniu i po każdej zmianie. */ ?>
+        <div class="evk-nl-card" id="evk-nl-wykluczenia" style="margin-bottom:14px;">
+            <div class="evk-nl-card-head">
+                <strong>Lista wykluczeń</strong>
+                <span class="evk-nl-badge-count" id="evk-nl-wyk-licznik">…</span>
+            </div>
+            <div class="evk-nl-card-body">
+                <p class="evo-hint" style="margin:0 0 8px">Import nigdy nie dopisuje tych adresów ani osób wypisanych z dowolnej listy czy usuniętych na żądanie RODO. Adres dopisany tutaj przestaje dostawać maile ze wszystkich list; adres odrzucony przy wysyłce („skrzynka nie istnieje") trafia tu sam.</p>
+                <label for="evk-nl-wyk-adresy" class="evk-nl-label">Dodaj adresy</label>
+                <textarea id="evk-nl-wyk-adresy" rows="2" class="evo-w-full" placeholder="adres@example.com"></textarea>
+                <div class="evo-inline" style="--evo-gap:8px;margin-top:6px;flex-wrap:wrap">
+                    <button type="button" class="button button-small" id="evk-nl-wyk-dodaj">Dodaj do wykluczeń</button>
+                    <span id="evk-nl-wyk-msg" class="evo-hint" role="status" aria-live="polite"></span>
+                </div>
+                <ul id="evk-nl-wyk-lista" class="evk-nl-wyk-lista" style="margin:8px 0 0;padding:0;list-style:none;max-height:220px;overflow:auto"></ul>
+            </div>
+        </div>
+
         <!-- Formularz nowej/edycji listy -->
         <div id="evk-nl-list-form" class="evk-nl-hidden evk-nl-card">
             <div class="evk-nl-card-body">
@@ -85,29 +105,53 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
                 </div>
             </div>
 
-            <!-- Import -->
-            <div class="evk-nl-card-body evk-nl-hr">
+            <!-- Import: podgląd → mapowanie kolumn → import (1.233.0) -->
+            <div class="evk-nl-card-body evk-nl-hr" id="evk-nl-import">
                 <p class="evk-nl-h-sm" style="margin-bottom:8px">Import subskrybentów</p>
                 <div class="evo-inline evo-mb-xs" style="--evo-gap:12px;flex-wrap:wrap">
                     <label class="evk-nl-check">
-                        <input type="radio" name="evk-nl-import-type" value="textarea" checked> Wklej emaile
+                        <input type="radio" name="evk-nl-import-type" value="textarea" checked> Wklej adresy
                     </label>
                     <label class="evk-nl-check">
                         <input type="radio" name="evk-nl-import-type" value="csv"> Plik CSV/TXT
                     </label>
                 </div>
                 <div id="evk-nl-import-textarea-wrap">
+                    <label for="evk-nl-import-textarea" class="screen-reader-text">Adresy do importu</label>
                     <textarea id="evk-nl-import-textarea" rows="3" class="evo-w-full"
                               placeholder="jan@example.com&#10;anna@example.com"></textarea>
                 </div>
                 <div id="evk-nl-import-file-wrap" class="evk-nl-hidden">
+                    <label for="evk-nl-import-file" class="screen-reader-text">Plik CSV albo TXT</label>
                     <input type="file" id="evk-nl-import-file" accept=".csv,.txt">
-                    <p class="evk-nl-note" style="margin:4px 0 0">Email w pierwszej kolumnie.</p>
                 </div>
+                <p class="evk-nl-note" style="margin:4px 0 0">Kolumnę z adresem wtyczka znajdzie sama, a nagłówki pozostałych kolumn staną się znacznikami w treści maila (np. „Imię" → {imie}). Przed zapisem zobaczysz podgląd.</p>
                 <div class="evo-inline" style="--evo-gap:8px;margin-top:8px;flex-wrap:wrap">
-                    <button class="button button-primary button-small" id="evk-nl-import-btn"
-                            data-list-id="<?php echo (int) $active_list; ?>">Importuj</button>
-                    <span id="evk-nl-import-result" class="evo-hint"></span>
+                    <button type="button" class="button button-small" id="evk-nl-import-podglad-btn"
+                            data-list-id="<?php echo (int) $active_list; ?>">Podgląd</button>
+                    <span id="evk-nl-import-result" class="evo-hint" role="status" aria-live="polite"></span>
+                </div>
+                <div id="evk-nl-import-podglad" class="evk-nl-hidden" style="margin-top:10px">
+                    <p class="evk-nl-h-sm" style="margin-bottom:6px">Kolumny pliku</p>
+                    <div class="evk-nl-tbl-wrap">
+                        <table class="evk-nl-tbl" id="evk-nl-import-kolumny">
+                            <thead><tr><th scope="col">Kolumna</th><th scope="col">Przykład</th><th scope="col">Zapisz jako</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <p id="evk-nl-import-liczby" class="evo-hint" style="margin:8px 0" role="status" aria-live="polite"></p>
+                    <div class="evk-nl-tbl-wrap">
+                        <table class="evk-nl-tbl" id="evk-nl-import-probka">
+                            <caption class="evo-hint" style="text-align:left">Pierwsze wiersze i co się z nimi stanie</caption>
+                            <thead><tr><th scope="col">Adres</th><th scope="col">Stan</th><th scope="col">Znaczniki</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="evo-inline" style="--evo-gap:8px;margin-top:8px;flex-wrap:wrap">
+                        <button type="button" class="button button-primary button-small" id="evk-nl-import-btn"
+                                data-list-id="<?php echo (int) $active_list; ?>">Importuj</button>
+                        <button type="button" class="button button-small" id="evk-nl-import-anuluj">Anuluj</button>
+                    </div>
                 </div>
             </div>
 
@@ -176,11 +220,18 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
          za tworzenie…") ląduje w połowie strony, na treści. */ ?>
 
 <script>
-/* Wynik importu słowami. Osobno WYPISANI: import ich nie przywraca (1.231.0),
-   więc bez tej pozycji znikaliby z liczb bez wyjaśnienia. */
-function evkNlWynikImportu(d) {
-    var czesci = ['Dodano: ' + (d.added || 0), 'już na liście: ' + (d.skipped || 0)];
-    if (d.unsubscribed) czesci.push('wypisani (pominięci): ' + d.unsubscribed);
+/* Wynik importu słowami. Osobno WYKLUCZENI: import ich nie dopisuje (od
+   1.231.0 wypisani, od 1.233.0 cała lista wykluczeń), więc bez tej pozycji
+   znikaliby z liczb bez wyjaśnienia. `nowe` — w podglądzie to, co DOPIERO
+   zostanie dodane. */
+var EVK_NL_POWODY = {wypisany: 'wypisani', odbity: 'odbici', reczny: 'z listy wykluczeń', rodo: 'usunięci na żądanie RODO'};
+function evkNlWynikImportu(d, nowe) {
+    var czesci = [(nowe ? 'Nowe: ' : 'Dodano: ') + (d.added || 0), 'już na liście: ' + (d.skipped || 0)];
+    if (d.unsubscribed) {
+        var powody = [];
+        Object.keys(d.powody || {}).forEach(function (p) { if (d.powody[p]) powody.push((EVK_NL_POWODY[p] || p) + ' ' + d.powody[p]); });
+        czesci.push('wykluczeni (pominięci): ' + d.unsubscribed + (powody.length ? ' — ' + powody.join(', ') : ''));
+    }
     czesci.push('błędne: ' + (d.invalid || 0));
     return czesci.join(', ') + '.';
 }
@@ -244,30 +295,146 @@ jQuery(function($) {
         $.post(ajaxurl, {action:'evk_nl_delete_list', nonce:nonce, id:$(this).data('id')}, function(res) { if (res.success) location.reload(); });
     });
 
-    // ---- Import ----
+    // ---- Import: podgląd → mapowanie → import ----
+    var importMapa = null;
     $('input[name="evk-nl-import-type"]').on('change', function() {
         $(this).val()==='csv' ? ($('#evk-nl-import-textarea-wrap').hide(), $('#evk-nl-import-file-wrap').show())
                               : ($('#evk-nl-import-file-wrap').hide(), $('#evk-nl-import-textarea-wrap').show());
+        zamknijPodglad();
     });
-    $('#evk-nl-import-btn').on('click', function() {
-        var type = $('input[name="evk-nl-import-type"]:checked').val();
-        $('#evk-nl-import-result').text('Importowanie...');
-        if (type === 'csv') {
+    $('#evk-nl-import-textarea, #evk-nl-import-file').on('input change', zamknijPodglad);
+
+    function zamknijPodglad() { importMapa = null; $('#evk-nl-import-podglad').hide(); }
+
+    /* To samo żądanie dla podglądu i importu — różni je akcja. Plik idzie
+       za każdym razem od nowa: serwer niczego między krokami nie trzyma. */
+    function importDane(akcja) {
+        var fd = new FormData();
+        fd.append('action', akcja); fd.append('nonce', nonce); fd.append('list_id', listId);
+        if ($('input[name="evk-nl-import-type"]:checked').val() === 'csv') {
             var file = $('#evk-nl-import-file')[0].files[0];
-            if (!file) { $('#evk-nl-import-result').text('Wybierz plik.'); return; }
-            var fd = new FormData();
-            fd.append('action','evk_nl_import_csv_file'); fd.append('nonce',nonce); fd.append('list_id',listId); fd.append('csv_file',file);
-            $.ajax({url:ajaxurl, type:'POST', data:fd, processData:false, contentType:false, success:function(res) {
-                if (res.success) { $('#evk-nl-import-result').text(evkNlWynikImportu(res.data)); loadSubs(); }
-                else { $('#evk-nl-import-result').text(res.data?.msg||'Błąd'); }
-            }});
+            if (!file) return null;
+            fd.append('csv_file', file);
         } else {
-            $.post(ajaxurl, {action:'evk_nl_import_subscribers', nonce:nonce, list_id:listId, import_type:'textarea', content:$('#evk-nl-import-textarea').val()}, function(res) {
-                if (res.success) { $('#evk-nl-import-result').text(evkNlWynikImportu(res.data)); loadSubs(); }
-                else { $('#evk-nl-import-result').text(res.data?.msg||'Błąd'); }
-            });
+            var tekst = $('#evk-nl-import-textarea').val();
+            if (!$.trim(tekst)) return null;
+            fd.append('content', tekst);
         }
+        if (importMapa) fd.append('mapa', JSON.stringify(importMapa));
+        return fd;
+    }
+    function wyslij(fd, gotowe) {
+        $.ajax({url: ajaxurl, type: 'POST', data: fd, processData: false, contentType: false, success: gotowe,
+                error: function() { $('#evk-nl-import-result').text('Błąd połączenia.'); }});
+    }
+    var esc = function (t) { return $('<div>').text(t == null ? '' : String(t)).html(); };
+    var STANY = {nowy: 'nowy', jest: 'już na liście', duplikat: 'powtórzony w pliku', bledny: 'błędny adres'};
+
+    function pokazPodglad(d) {
+        importMapa = d.mapa;
+        var $k = $('#evk-nl-import-kolumny tbody').empty();
+        d.kolumny.forEach(function (kol, i) {
+            var jestPole = Object.prototype.hasOwnProperty.call(d.mapa.pola, String(i));
+            var klucz = jestPole ? d.mapa.pola[i] : (kol.klucz || ('kolumna_' + (i + 1)));
+            var wybor = (d.mapa.email === i) ? 'email' : (jestPole ? 'pole' : 'pomin');
+            var nazwa = kol.nazwa || ('Kolumna ' + (i + 1));
+            $k.append('<tr data-kolumna="' + i + '"><td>' + esc(nazwa) + '</td><td class="evo-faint">' + esc(kol.przyklad) + '</td><td>'
+                + '<select class="evk-nl-map" aria-label="' + esc(nazwa) + ': zapisz jako">'
+                + '<option value="pomin"' + (wybor === 'pomin' ? ' selected' : '') + '>Pomiń</option>'
+                + '<option value="email"' + (wybor === 'email' ? ' selected' : '') + '>Adres e-mail</option>'
+                + '<option value="pole"' + (wybor === 'pole' ? ' selected' : '') + '>Znacznik</option></select> '
+                + '<input type="text" class="evk-nl-map-klucz" size="12" value="' + esc(klucz) + '" aria-label="' + esc(nazwa) + ': nazwa znacznika"'
+                + (wybor === 'pole' ? '' : ' hidden') + '></td></tr>');
+        });
+        $('#evk-nl-import-liczby').text(evkNlWynikImportu(d, true) + (d.wierszy > d.probka.length ? ' Wierszy w pliku: ' + d.wierszy + '.' : ''));
+        var $p = $('#evk-nl-import-probka tbody').empty();
+        d.probka.forEach(function (w) {
+            var stan = w.stan === 'wykluczony' ? 'wykluczony (' + (EVK_NL_POWODY[w.powod] || w.powod) + ')' : (STANY[w.stan] || w.stan);
+            var pola = Object.keys(w.pola || {}).map(function (k) { return '{' + k + '} ' + w.pola[k]; }).join(', ');
+            $p.append('<tr data-stan="' + esc(w.stan) + '"><td>' + esc(w.adres || w.komorki.join(' · ')) + '</td><td>' + esc(stan) + '</td><td class="evo-faint">' + esc(pola) + '</td></tr>');
+        });
+        $('#evk-nl-import-btn').text('Importuj ' + (d.added || 0) + ' ' + ((d.added === 1) ? 'adres' : ((d.added % 10 >= 2 && d.added % 10 <= 4 && (d.added % 100 < 12 || d.added % 100 > 14)) ? 'adresy' : 'adresów')))
+            .prop('disabled', !d.added);
+        $('#evk-nl-import-podglad').show();
+        $('#evk-nl-import-result').text('');
+    }
+
+    function podglad() {
+        var fd = importDane('evk_nl_import_podglad');
+        if (!fd) { $('#evk-nl-import-result').text($('input[name="evk-nl-import-type"]:checked').val() === 'csv' ? 'Wybierz plik.' : 'Wklej adresy.'); return; }
+        $('#evk-nl-import-result').text('Czytam…');
+        wyslij(fd, function (res) {
+            if (res.success) pokazPodglad(res.data);
+            else { zamknijPodglad(); $('#evk-nl-import-result').text((res.data && res.data.msg) || 'Błąd'); }
+        });
+    }
+    $('#evk-nl-import-podglad-btn').on('click', function () { importMapa = null; podglad(); });
+
+    // Zmiana mapowania: nowa mapa i świeże liczby z serwera (te same, które zrobi import).
+    $(document).on('change input', '.evk-nl-map, .evk-nl-map-klucz', function () {
+        var mapa = {email: null, pola: {}};
+        $('#evk-nl-import-kolumny tbody tr').each(function () {
+            var i = parseInt($(this).data('kolumna'), 10), wybor = $(this).find('.evk-nl-map').val();
+            $(this).find('.evk-nl-map-klucz').prop('hidden', wybor !== 'pole');
+            if (wybor === 'email') mapa.email = i;
+            if (wybor === 'pole') mapa.pola[i] = $(this).find('.evk-nl-map-klucz').val();
+        });
+        if (mapa.email === null) { $('#evk-nl-import-liczby').text('Wskaż kolumnę z adresem e-mail.'); $('#evk-nl-import-btn').prop('disabled', true); return; }
+        importMapa = mapa;
+        clearTimeout(podglad.t);
+        podglad.t = setTimeout(podglad, 300);
     });
+
+    $('#evk-nl-import-anuluj').on('click', zamknijPodglad);
+    $('#evk-nl-import-btn').on('click', function () {
+        var csv = $('input[name="evk-nl-import-type"]:checked').val() === 'csv';
+        var fd = importDane(csv ? 'evk_nl_import_csv_file' : 'evk_nl_import_subscribers');
+        if (!fd || !importMapa) return;
+        $(this).prop('disabled', true);
+        $('#evk-nl-import-result').text('Importowanie…');
+        wyslij(fd, function (res) {
+            if (res.success) {
+                $('#evk-nl-import-result').text(evkNlWynikImportu(res.data));
+                zamknijPodglad();
+                loadSubs();
+            } else {
+                $('#evk-nl-import-btn').prop('disabled', false);
+                $('#evk-nl-import-result').text((res.data && res.data.msg) || 'Błąd');
+            }
+        });
+    });
+
+    // ---- Lista wykluczeń ----
+    var WYK_POWODY = {odbity: 'odbity przy wysyłce', reczny: 'dopisany ręcznie'};
+    function pokazWykluczenia(lista) {
+        $('#evk-nl-wyk-licznik').text(lista.length);
+        var $l = $('#evk-nl-wyk-lista').empty();
+        if (!lista.length) { $l.append('<li class="evo-faint">Pusto.</li>'); return; }
+        lista.forEach(function (w) {
+            $l.append('<li style="display:flex;gap:6px;align-items:center;justify-content:space-between;padding:3px 0">'
+                + '<span><strong>' + esc(w.email) + '</strong> <span class="evo-hint">' + esc(WYK_POWODY[w.powod] || w.powod) + ' · ' + esc(String(w.kiedy).substring(0, 10)) + '</span></span>'
+                + '<button type="button" class="evk-nl-btn-icon evk-nl-wyk-usun" data-email="' + esc(w.email) + '" aria-label="Usuń ' + esc(w.email) + ' z wykluczeń" title="Usuń z wykluczeń">'
+                + '<span class="dashicons dashicons-no-alt evo-ico-sm evo-danger-tx"></span></button></li>');
+        });
+    }
+    function wykluczenia(dane, gotowe) {
+        $.post(ajaxurl, $.extend({action: 'evk_nl_wykluczenia', nonce: nonce}, dane), function (res) {
+            if (res.success) { pokazWykluczenia(res.data.lista); if (gotowe) gotowe(res.data); }
+        });
+    }
+    $('#evk-nl-wyk-dodaj').on('click', function () {
+        var adresy = $('#evk-nl-wyk-adresy').val();
+        if (!$.trim(adresy)) return;
+        wykluczenia({akcja: 'dodaj', adresy: adresy}, function (d) {
+            $('#evk-nl-wyk-adresy').val('');
+            $('#evk-nl-wyk-msg').text('Dodano: ' + d.dodane + (d.bledne ? ', błędne: ' + d.bledne : '') + '.');
+            loadSubs();
+        });
+    });
+    $(document).on('click', '.evk-nl-wyk-usun', function () {
+        wykluczenia({akcja: 'usun', email: $(this).data('email')});
+    });
+    wykluczenia({akcja: 'lista'});
 
     // ---- Subskrybenci ----
     function updateBulkBar() {
@@ -293,9 +460,10 @@ jQuery(function($) {
                 '</tr></thead><tbody>';
             d.items.forEach(function(s) {
                 var active = parseInt(s.status)===1;
+                var etykieta = active ? '● Aktywny' : (s.wykluczenie === 'odbity' ? '● Odbity' : (s.wykluczenie ? '● Wykluczony' : '● Wypisany'));
                 html += '<tr><td><input type="checkbox" class="evk-nl-sub-cb" data-id="'+s.id+'"></td>' +
                     '<td><strong>'+$('<div>').text(s.email).html()+'</strong></td>' +
-                    '<td class="evk-col-hide"><span class="evo-hint-sm '+(active?'evk-nl-ok':'evk-nl-err')+'">'+(active?'● Aktywny':'● Wypisany')+'</span></td>' +
+                    '<td class="evk-col-hide"><span class="evo-hint-sm '+(active?'evk-nl-ok':'evk-nl-err')+'">'+etykieta+'</span></td>' +
                     '<td class="evk-col-hide evo-faint">'+s.subscribed_at.substring(0,10)+'</td>' +
                     '<td><button class="evk-nl-btn-icon evk-nl-del-sub" data-id="'+s.id+'" title="Usuń"><span class="dashicons dashicons-no-alt evo-ico-sm evo-danger-tx"></span></button></td>' +
                     '</tr>';

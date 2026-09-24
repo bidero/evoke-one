@@ -71,7 +71,7 @@ add_action('template_redirect', function () {
         'meta_input'  => [
             'url'       => sanitize_text_field($_SERVER['REQUEST_URI'] ?? ''),
             'referrer'  => sanitize_text_field($_SERVER['HTTP_REFERER']   ?? ''),
-            'ip'        => sanitize_text_field($_SERVER['REMOTE_ADDR']    ?? ''),
+            'ip'        => evk_ip_klienta(),   // za Cloudflare adres odwiedzającego, nie węzła
             'ua'        => sanitize_text_field($_SERVER['HTTP_USER_AGENT']?? ''),
             'method'    => sanitize_text_field($_SERVER['REQUEST_METHOD'] ?? ''),
             'logged_at' => current_time('mysql'),

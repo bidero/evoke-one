@@ -17,12 +17,41 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * kod produkcyjny, sprawdzalibyśmy wyłącznie, że `hash_hmac` jest deterministyczne;
  * tak sprawdzamy, że formularz i handler mówią o tym samym.
  *
- * CZEGO NIE SPRAWDZA: wysyłki maila potwierdzającego. `evk_nl_smtp_is_configured()`
- * oddaje `false`, więc `evk_nl_send_confirm_email()` kończy się na pierwszej
- * linii. Sygnałem, że poszliśmy ścieżką double opt-in, jest wywołanie
- * `evk_nl_add_pending_subscriber()` i komunikat `form_pending` — nie SMTP.
+ * Mail z potwierdzeniem przechodzi przez atrapę `evk_nl_wyslij()`, która go
+ * zapisuje (albo na życzenie odrzuca) — samą wysyłkę przez wp_mail() i SMTP
+ * sprawdza newsletter-wysylka na prawdziwym WordPressie.
+ *
+ * Od 1.233.0 formularz nie ma nonce (zbuforowane strony: nonce wygasał po
+ * dobie i każdy zapis kończył się „Nieprawidłowy token"). Atrapa
+ * `check_ajax_referer()` jest tu PRAWDZIWA — przepuszcza wyłącznie świeży
+ * nonce — żeby powrót tego sprawdzenia zapalił test, a nie przeszedł obok.
  */
+function check_ajax_referer($action, $field = false, $die = true) {
+    $GLOBALS['nonce_asked'] = $action;
+    return (($_REQUEST[$field] ?? '') === 'swiezy-nonce') ? 1 : false;
+}
 require __DIR__ . '/_wp-stubs.php';
+
+if (!defined('DAY_IN_SECONDS')) define('DAY_IN_SECONDS', 86400);
+if (!class_exists('WP_Error')) {
+    class WP_Error {
+        private $m;
+        public function __construct($c = '', $m = '') { $this->m = $m; }
+        public function get_error_message() { return $this->m; }
+    }
+}
+if (!function_exists('is_wp_error')) { function is_wp_error($x) { return $x instanceof WP_Error; } }
+
+/* Wysyłka — atrapa zapisuje mail; `$GLOBALS['wysylka_ok'] = false` udaje
+   serwer, który odrzucił wiadomość. */
+$GLOBALS['maile'] = [];
+$GLOBALS['wysylka_ok'] = true;
+function evk_nl_wyslij(array $args) {
+    $GLOBALS['maile'][] = $args;
+    return $GLOBALS['wysylka_ok'] ? true : new WP_Error('mail_error', 'atrapa: serwer odrzucił');
+}
+function evk_nl_confirm_url($token) { return 'https://example.test/nl/confirm/' . $token; }
+if (!function_exists('get_bloginfo')) { function get_bloginfo($co = '') { return 'Strona testowa'; } }
 
 if (!defined('HOUR_IN_SECONDS')) define('HOUR_IN_SECONDS', 3600);
 
@@ -44,7 +73,6 @@ function shortcode_atts($pairs, $atts, $shortcode = '') {
     return $out;
 }
 function add_shortcode($tag, $cb) { $GLOBALS['shortcodes'][$tag] = $cb; }
-function evk_nl_smtp_is_configured() { return false; }
 
 /* Transienty — limit 10/godz. stoi na nich i ma dalej działać. */
 $GLOBALS['transients'] = [];
@@ -64,6 +92,7 @@ function evk_nl_add_subscriber($list_id, $email, $consent) {
 }
 
 require_once EVK_TEST_ROOT . '/includes/newsletter/settings.php';
+require_once EVK_TEST_ROOT . '/includes/security/ip-klienta.php';   // adres w zgodzie i w limicie
 require_once EVK_TEST_ROOT . '/includes/newsletter/public.php';
 
 $GLOBALS['options']['evk_newsletter'] = ['enabled' => 1];
@@ -80,7 +109,7 @@ function podpis_z_formularza(array $atts): string {
 /** Jedno zgłoszenie. Zwraca odpowiedź i to, jak subskrybent został dodany. */
 function zapisz(array $post): array {
     $GLOBALS['dodani'] = [];
-    $_POST = $post + ['nonce' => 'testnonce'];
+    $_POST = $_REQUEST = $post;
     $odp = null;
     try {
         evk_nl_handle_public_subscribe();
@@ -167,5 +196,57 @@ $out['po_limicie'] = zapisz([
     'list' => $LISTA, 'email' => 'kto@example.test', 'confirm' => '1',
     'consent' => $ZGODA, 'consent_ok' => '1', 'sig' => $sig_z_potw,
 ]);
+
+// ── Bez nonce (1.233.0) ───────────────────────────────────────────────────
+$html = $GLOBALS['shortcodes']['evk_newsletter_form'](['list' => $LISTA, 'confirm' => '1', 'consent' => $ZGODA]);
+$out['formularz_bez_nonce'] = strpos($html, "fd.append('nonce'") === false;
+$GLOBALS['transients'] = [];
+$out['bez_nonce'] = zapisz([
+    'list' => $LISTA, 'email' => 'nonce1@example.test', 'confirm' => '1',
+    'consent' => $ZGODA, 'consent_ok' => '1', 'sig' => $sig_z_potw,
+]);
+// Strona z cache sprzed doby: stary nonce w żądaniu nie może niczego zepsuć.
+$out['stary_nonce'] = zapisz([
+    'list' => $LISTA, 'email' => 'nonce2@example.test', 'confirm' => '1',
+    'consent' => $ZGODA, 'consent_ok' => '1', 'sig' => $sig_z_potw, 'nonce' => 'wygasly-nonce',
+]);
+
+// ── Mail z potwierdzeniem ─────────────────────────────────────────────────
+$GLOBALS['transients'] = [];
+$GLOBALS['maile'] = [];
+$out['potwierdzenie'] = zapisz([
+    'list' => $LISTA, 'email' => 'potw@example.test', 'confirm' => '1',
+    'consent' => $ZGODA, 'consent_ok' => '1', 'sig' => $sig_z_potw,
+]);
+$mail = $GLOBALS['maile'][0] ?? [];
+$out['mail_potwierdzenia'] = [
+    'ile'       => count($GLOBALS['maile']),
+    'do'        => $mail['to'] ?? '',
+    'link'      => strpos((string) ($mail['body'] ?? ''), 'https://example.test/nl/confirm/tok123') !== false,
+    'kampania'  => !empty($mail['kampania']),
+];
+// Serwer odrzucił wiadomość: osoba ma to usłyszeć, a nie „sprawdź skrzynkę".
+$GLOBALS['transients'] = [];
+$GLOBALS['wysylka_ok'] = false;
+$out['mail_nie_wyszedl'] = zapisz([
+    'list' => $LISTA, 'email' => 'nieposzlo@example.test', 'confirm' => '1',
+    'consent' => $ZGODA, 'consent_ok' => '1', 'sig' => $sig_z_potw,
+]);
+$GLOBALS['wysylka_ok'] = true;
+
+/* Limit maili z potwierdzeniem na JEDEN adres: pięć zapisów tego samego
+   adresu z pięciu różnych IP (limit na IP nie ma tu nic do rzeczy). */
+$GLOBALS['transients'] = [];
+$GLOBALS['maile'] = [];
+$odpowiedzi = [];
+for ($i = 1; $i <= 5; $i++) {
+    $_SERVER['REMOTE_ADDR'] = '198.51.100.' . $i;
+    $odpowiedzi[] = zapisz([
+        'list' => $LISTA, 'email' => 'Ofiara@example.test', 'confirm' => '1',
+        'consent' => $ZGODA, 'consent_ok' => '1', 'sig' => $sig_z_potw,
+    ])['odpowiedz']['success'] ?? null;
+}
+$out['limit_potwierdzen'] = ['maile' => count($GLOBALS['maile']), 'odpowiedzi' => $odpowiedzi];
+unset($_SERVER['REMOTE_ADDR']);
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);

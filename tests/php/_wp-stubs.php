@@ -9,6 +9,15 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * Zarejestrowane callbacki lądują w $GLOBALS['hooks'], żeby test mógł je wywołać.
  */
 define('ABSPATH', 1);
+/* Ścieżki jak w WordPressie. Rozpoznawanie transportu poczty newslettera
+   (evk_nl_transport, zakładka Newsletter) porównuje pliki podpiętych funkcji
+   z katalogiem wtyczek i rdzenia — bez tych stałych i wp_normalize_path()
+   zakładka wywracała się na atrapach. */
+if (!defined('WPINC'))         define('WPINC', 'wp-includes');
+if (!defined('WP_PLUGIN_DIR')) define('WP_PLUGIN_DIR', '/atrapa/wp-content/plugins');
+if (!function_exists('wp_normalize_path')) {
+    function wp_normalize_path($sciezka) { return str_replace('\\', '/', (string) $sciezka); }
+}
 // Stałe formatu wyniku $wpdb — moduły przekazują je do get_results()/get_row().
 if (!defined('ARRAY_A')) define('ARRAY_A', 'ARRAY_A');
 if (!defined('ARRAY_N')) define('ARRAY_N', 'ARRAY_N');

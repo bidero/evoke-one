@@ -378,6 +378,35 @@ function evk_io_zachowaj_hasla(string $opcja, $wartosc) {
     return $wartosc;
 }
 
+/**
+ * Import newslettera z pliku BEZ subskrybentów: listy i szablony dopisywane
+ * po NAZWIE. Istniejąca lista o tej nazwie dostaje konfigurację pól i stan
+ * z pliku (numer zostaje — przypisani do niej subskrybenci dalej są jej),
+ * nowa nazwa to nowa lista. Szablony tak samo. Subskrybentów, kampanii,
+ * kolejki i statystyk strony import nie dotyka.
+ */
+function evk_io_newsletter_dopisz(array $data): void {
+    global $wpdb;
+    $zestawy = [
+        $wpdb->prefix . 'evk_nl_lists'     => [$data['evk_nl_lists'] ?? [], ['fields_config', 'status']],
+        $wpdb->prefix . 'evk_nl_templates' => [$data['evk_nl_templates'] ?? [], ['subject', 'body_html', 'attachments_json']],
+    ];
+    foreach ($zestawy as $tabela => [$wiersze, $kolumny]) {
+        foreach ((array) $wiersze as $wiersz) {
+            if (!is_array($wiersz)) continue;
+            $nazwa = sanitize_text_field((string) ($wiersz['name'] ?? ''));
+            if ($nazwa === '') continue;
+            $wartosci = array_intersect_key($wiersz, array_flip($kolumny));
+            $id = (int) $wpdb->get_var($wpdb->prepare("SELECT id FROM $tabela WHERE name = %s ORDER BY id LIMIT 1", $nazwa));
+            if ($id) {
+                if ($wartosci) $wpdb->update($tabela, $wartosci, ['id' => $id]);
+            } else {
+                $wpdb->insert($tabela, ['name' => $nazwa] + $wartosci);
+            }
+        }
+    }
+}
+
 function evk_io_ograniczenie_modulow(): ?array {
     if (current_user_can('manage_options')) return null;
     if (!current_user_can('evk_access_translations')) return [];
@@ -592,17 +621,28 @@ add_action('wp_ajax_tl_export', function () {
             'evk_elements'                  => get_option('evk_elements', []),
             'evk_cleanup'                   => get_option('evk_cleanup', []),
         ],
+        /* LUDZIE TYLKO NA WYRAŹNE ŻYCZENIE („Dołącz subskrybentów", 1.233.0).
+           Do 1.232.x każdy eksport z modułem Newsletter wynosił całą listę
+           adresów razem z adresami IP zgód i tokenami wypisu — a paczka
+           ustawień wędruje mailem i leży w Pobranych. Bez zaznaczenia plik
+           niesie ustawienia, listy i szablony; subskrybenci, kampanie, kolejka
+           i statystyki (historia wysyłek do konkretnych osób) — tylko z nim. */
         'evk_newsletter'      => function () {
             global $wpdb;
-            return [
+            $dane = [
                 'evk_newsletter'      => get_option('evk_newsletter', []),
                 'evk_nl_lists'        => $wpdb->get_results("SELECT * FROM {$wpdb->prefix}evk_nl_lists", ARRAY_A) ?: [],
-                'evk_nl_subscribers'  => $wpdb->get_results("SELECT * FROM {$wpdb->prefix}evk_nl_subscribers", ARRAY_A) ?: [],
                 'evk_nl_templates'    => $wpdb->get_results("SELECT * FROM {$wpdb->prefix}evk_nl_templates", ARRAY_A) ?: [],
-                'evk_nl_campaigns'    => $wpdb->get_results("SELECT * FROM {$wpdb->prefix}evk_nl_campaigns", ARRAY_A) ?: [],
-                'evk_nl_queue'        => $wpdb->get_results("SELECT * FROM {$wpdb->prefix}evk_nl_queue", ARRAY_A) ?: [],
-                'evk_nl_logs'         => $wpdb->get_results("SELECT * FROM {$wpdb->prefix}evk_nl_logs", ARRAY_A) ?: [],
             ];
+            if (!empty($_POST['subskrybenci'])) {
+                $dane += [
+                    'evk_nl_subscribers'  => $wpdb->get_results("SELECT * FROM {$wpdb->prefix}evk_nl_subscribers", ARRAY_A) ?: [],
+                    'evk_nl_campaigns'    => $wpdb->get_results("SELECT * FROM {$wpdb->prefix}evk_nl_campaigns", ARRAY_A) ?: [],
+                    'evk_nl_queue'        => $wpdb->get_results("SELECT * FROM {$wpdb->prefix}evk_nl_queue", ARRAY_A) ?: [],
+                    'evk_nl_logs'         => $wpdb->get_results("SELECT * FROM {$wpdb->prefix}evk_nl_logs", ARRAY_A) ?: [],
+                ];
+            }
+            return $dane;
         },
     ];
 
@@ -765,29 +805,40 @@ add_action('wp_ajax_tl_import', function () {
         global $wpdb;
 
         update_option('evk_newsletter', $data['evk_newsletter']);
+        // Strona, na której moduł nigdy nie był włączony, nie ma jeszcze tabel.
+        if (function_exists('evk_nl_create_tables')) evk_nl_create_tables();
 
-        $tables = [
-            'evk_nl_lists'       => ['id','name','fields_config','status','created_at'],
-            'evk_nl_subscribers' => ['id','list_id','email','fields_json','status','token','subscribed_at','unsubscribed_at'],
-            'evk_nl_templates'   => ['id','name','subject','body_html','attachments_json','created_at','updated_at'],
-            'evk_nl_campaigns'   => ['id','name','template_id','lists_json','status','scheduled_at','batch_size','batch_interval','tracking_enabled','created_at'],
-            'evk_nl_queue'       => ['id','campaign_id','subscriber_id','status','attempts','sent_at','opened_at','error_message'],
-            'evk_nl_logs'        => ['id','campaign_id','event','subscriber_id','data_json','created_at'],
-        ];
+        /* Plik BEZ subskrybentów (eksport bez „Dołącz subskrybentów") tylko
+           dopisuje listy i szablony. Czyszczenie tabel niżej zostawiłoby
+           subskrybentów strony przypisanych do numerów list, które po imporcie
+           znaczą co innego albo nie istnieją. */
+        if (!array_key_exists('evk_nl_subscribers', $data)) {
+            evk_io_newsletter_dopisz($data);
+        } else {
+            // Plik Z subskrybentami to komplet — zastępuje newsletter na stronie.
+            $tables = [
+                'evk_nl_lists'       => ['id','name','fields_config','status','created_at'],
+                'evk_nl_subscribers' => ['id','list_id','email','fields_json','status','token','subscribed_at','unsubscribed_at'],
+                'evk_nl_templates'   => ['id','name','subject','body_html','attachments_json','created_at','updated_at'],
+                'evk_nl_campaigns'   => ['id','name','template_id','lists_json','status','scheduled_at','batch_size','batch_interval','tracking_enabled','created_at'],
+                'evk_nl_queue'       => ['id','campaign_id','subscriber_id','status','attempts','sent_at','opened_at','error_message'],
+                'evk_nl_logs'        => ['id','campaign_id','event','subscriber_id','data_json','created_at'],
+            ];
 
-        foreach ($tables as $table_key => $columns) {
-            $table = $wpdb->prefix . $table_key;
-            $rows  = $data[$table_key] ?? [];
-            if (empty($rows) || !is_array($rows)) continue;
+            foreach ($tables as $table_key => $columns) {
+                $table = $wpdb->prefix . $table_key;
+                $rows  = $data[$table_key] ?? [];
+                if (empty($rows) || !is_array($rows)) continue;
 
-            // Wyczyść tabelę przed importem
-            $wpdb->query("TRUNCATE TABLE $table");
+                // Wyczyść tabelę przed importem
+                $wpdb->query("TRUNCATE TABLE $table");
 
-            foreach ($rows as $row) {
-                // Filtruj tylko znane kolumny
-                $clean = array_intersect_key($row, array_flip($columns));
-                if (!empty($clean)) {
-                    $wpdb->insert($table, $clean);
+                foreach ($rows as $row) {
+                    // Filtruj tylko znane kolumny
+                    $clean = array_intersect_key($row, array_flip($columns));
+                    if (!empty($clean)) {
+                        $wpdb->insert($table, $clean);
+                    }
                 }
             }
         }

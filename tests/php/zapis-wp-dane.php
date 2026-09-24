@@ -131,6 +131,79 @@ case 'import-hasla':
     $out['obejscie'] = get_option('maintenance_bypass_password');
     break;
 
+// ── Eksport newslettera: subskrybenci tylko na życzenie ─────────────────────
+// `eksport-nl [z]` — jak `eksport`: plik z prawdziwego uchwytu, osobny proces.
+case 'eksport-nl':
+    evk_nl_create_tables();
+    $r = wp_rand();
+    $lista = (int) evk_nl_create_list('IO lista ' . $r, [['key' => 'imie', 'label' => 'Imię']]);
+    evk_nl_add_subscriber($lista, 'io.osoba@example.com', ['imie' => 'Ola', '_consent_ip' => '5.6.7.8']);
+    $szablon = (int) evk_nl_create_template(['name' => 'IO szablon ' . $r, 'subject' => 'Temat z pliku', 'body_html' => '<p>Treść</p>']);
+    $kampania = (int) evk_nl_create_campaign(['name' => 'IO kampania ' . $r, 'template_id' => $szablon, 'lists' => [$lista]]);
+    $sprzatanie[] = static function () use ($lista, $szablon, $kampania) {
+        global $wpdb;
+        $wpdb->delete(evk_nl_table('campaigns'), ['id' => $kampania]);
+        evk_nl_delete_template($szablon);
+        evk_nl_delete_list($lista);
+    };
+    $_POST = $_REQUEST = ['action' => 'tl_export', 'nonce' => wp_create_nonce('tl_ajax_nonce'),
+                          'modules' => wp_slash('["evk_newsletter"]'), 'subskrybenci' => ($argv[2] ?? '') === 'z' ? '1' : ''];
+    do_action('wp_ajax_tl_export');
+    exit;
+
+// `import-nl <plik>`: strona ma WŁASNYCH subskrybentów, listę o nazwie z pliku
+// (inna konfiguracja) i szablon o nazwie z pliku (inny temat). Tabele
+// newslettera wracają po sondzie z kopii.
+case 'import-nl':
+    global $wpdb;
+    evk_nl_create_tables();
+    foreach (['lists', 'subscribers', 'templates', 'campaigns', 'queue', 'logs'] as $t) {
+        $tab   = evk_nl_table($t);
+        $kopia = $wpdb->prefix . 'evk_t_kopia_' . $t;
+        $wpdb->query("DROP TABLE IF EXISTS $kopia");
+        $wpdb->query("CREATE TABLE $kopia LIKE $tab");
+        $wpdb->query("INSERT INTO $kopia SELECT * FROM $tab");
+        $sprzatanie[] = static function () use ($tab, $kopia) {
+            global $wpdb;
+            $wpdb->query("TRUNCATE TABLE $tab");
+            $wpdb->query("INSERT INTO $tab SELECT * FROM $kopia");
+            $wpdb->query("DROP TABLE $kopia");
+        };
+    }
+    $opcja_przed = get_option('evk_newsletter', null);
+    $sprzatanie[] = static function () use ($opcja_przed) {
+        $opcja_przed === null ? delete_option('evk_newsletter') : update_option('evk_newsletter', $opcja_przed);
+    };
+    $plik = json_decode((string) file_get_contents((string) ($argv[2] ?? '')), true) ?: [];
+    $nazwa_listy   = (string) ($plik['evk_nl_lists'][0]['name'] ?? '');
+    $nazwa_szablonu = (string) ($plik['evk_nl_templates'][0]['name'] ?? '');
+
+    $moja_lista = (int) evk_nl_create_list('Klienci strony ' . wp_rand());
+    evk_nl_add_subscriber($moja_lista, 'na.stronie@example.com');
+    $ta_sama = (int) evk_nl_create_list($nazwa_listy, []);
+    evk_nl_update_list($ta_sama, ['status' => 0]);
+    evk_nl_create_template(['name' => $nazwa_szablonu, 'subject' => 'Temat na stronie']);
+    evk_nl_create_campaign(['name' => 'Kampania strony', 'template_id' => 1, 'lists' => [$moja_lista]]);
+    $kampanie_przed = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . evk_nl_table('campaigns'));
+
+    $_POST = $_REQUEST = ['action' => 'tl_import', 'nonce' => wp_create_nonce('tl_ajax_nonce'),
+                          'json' => wp_slash(wp_json_encode($plik)), 'decisions' => '{}'];
+    $wynik = evk_t_ajax('tl_import');
+    $out['sukces'] = $wynik['odpowiedz']['success'] ?? null;
+    $out['blad']   = $wynik['blad'];
+
+    $moj = $wpdb->get_row($wpdb->prepare('SELECT s.list_id, l.name FROM ' . evk_nl_table('subscribers') . ' s LEFT JOIN '
+        . evk_nl_table('lists') . ' l ON l.id = s.list_id WHERE s.email = %s', 'na.stronie@example.com'), ARRAY_A);
+    $out['moj_subskrybent'] = $moj ? ['lista_ta_sama' => (int) $moj['list_id'] === $moja_lista, 'nazwa' => $moj['name']] : null;
+    $listy = $wpdb->get_results($wpdb->prepare('SELECT id, fields_config, status FROM ' . evk_nl_table('lists') . ' WHERE name = %s', $nazwa_listy), ARRAY_A);
+    $out['lista_z_pliku'] = ['ile' => count($listy), 'ten_sam_numer' => (int) ($listy[0]['id'] ?? 0) === $ta_sama,
+                             'pola' => json_decode((string) ($listy[0]['fields_config'] ?? ''), true), 'status' => (int) ($listy[0]['status'] ?? -1)];
+    $szablony = $wpdb->get_col($wpdb->prepare('SELECT subject FROM ' . evk_nl_table('templates') . ' WHERE name = %s', $nazwa_szablonu));
+    $out['szablon_z_pliku'] = $szablony;
+    $out['kampanie'] = ['przed' => $kampanie_przed, 'po' => (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . evk_nl_table('campaigns'))];
+    $out['osoba_z_pliku'] = (bool) $wpdb->get_var($wpdb->prepare('SELECT id FROM ' . evk_nl_table('subscribers') . ' WHERE email = %s', 'io.osoba@example.com'));
+    break;
+
 // ── RODO: eksport i usuwanie danych osoby ───────────────────────────────────
 case 'rodo':
     global $wpdb;

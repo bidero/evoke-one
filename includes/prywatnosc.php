@@ -112,7 +112,7 @@ function evk_rodo_eksport_newsletter(string $email, int $strona = 1): array {
     $kam = evk_nl_table('campaigns');
     $stany  = [0 => 'wypisany', 1 => 'aktywny', 2 => 'czeka na potwierdzenie'];
     $zgoda  = ['_consent_at' => 'Zgoda — kiedy', '_consent_ip' => 'Zgoda — adres IP', '_consent_text' => 'Zgoda — treść',
-               '_confirmed_at' => 'Potwierdzono'];
+               '_consent_source' => 'Zgoda — skąd', '_confirmed_at' => 'Potwierdzono'];
     $dane = [];
 
     $zapisy = $wpdb->get_results($wpdb->prepare(
@@ -143,6 +143,15 @@ function evk_rodo_eksport_newsletter(string $email, int $strona = 1): array {
                                                 'Adres' => is_scalar($d['url'] ?? null) ? $d['url'] : null])];
         }
     }
+    /* Lista wykluczeń (1.233.0) to też dane osoby: adres, powód i data —
+       także gdy na żadnej liście już jej nie ma. */
+    $wyk = evk_nl_wykluczenia()[strtolower($email)] ?? null;
+    if (is_array($wyk)) {
+        $powody = ['odbity' => 'adres odrzucony przez serwer odbiorcy przy wysyłce', 'reczny' => 'dopisany przez administratora'];
+        $dane[] = ['group_id' => 'evk-newsletter-wykluczenia', 'group_label' => 'Newsletter — lista wykluczeń',
+                   'item_id' => 'evk-nl-wykluczenie', 'data' => evk_rodo_pola(['Adres e-mail' => $email,
+                   'Powód' => $powody[$wyk['powod'] ?? ''] ?? (string) ($wyk['powod'] ?? ''), 'Od kiedy' => $wyk['kiedy'] ?? ''])];
+    }
     return ['data' => $dane, 'done' => true];
 }
 
@@ -151,7 +160,16 @@ function evk_rodo_usun_newsletter(string $email, int $strona = 1): array {
     $wynik = evk_rodo_pusty_wynik();
     if (!evk_rodo_tabela_jest('subscribers')) return $wynik;
     $ids = array_map('intval', $wpdb->get_col($wpdb->prepare('SELECT id FROM ' . evk_nl_table('subscribers') . ' WHERE email = %s', $email)) ?: []);
-    if (!$ids) return $wynik;
+    /* Wpis na liście wykluczeń znika razem z resztą — przed ponownym importem
+       chroni dalej skrót adresu (evk_nl_zablokuj niżej), bez samego adresu. */
+    $byl_wykluczony = evk_nl_usun_wykluczenie($email);
+    if (!$ids) {
+        if ($byl_wykluczony) {
+            evk_nl_zablokuj($email);
+            $wynik['items_removed'] = true;
+        }
+        return $wynik;
+    }
     $lista = implode(',', $ids);
     $wpdb->query('DELETE FROM ' . evk_nl_table('queue') . " WHERE subscriber_id IN ($lista)");
     $wpdb->query('DELETE FROM ' . evk_nl_table('logs') . " WHERE subscriber_id IN ($lista)");
@@ -271,8 +289,11 @@ function evk_rodo_tekst_polityki(): string {
         $akapity[] = '<h3>Newsletter</h3><p>Zapisując się do newslettera, podajesz adres e-mail (i dane z formularza zapisu, np. imię). '
             . 'Zapisujemy czas i treść zgody oraz adres IP, z którego ją wyrażono. Wiadomości zawierają znacznik otwarcia i śledzone '
             . 'odnośniki — zapisujemy, czy i kiedy otworzono wiadomość i w które odnośniki kliknięto. Wypisać się można w każdej chwili '
-            . 'odnośnikiem w każdej wiadomości. Po żądaniu usunięcia danych usuwamy adres razem z historią wysyłek; zostaje wyłącznie '
-            . 'jednokierunkowy skrót adresu, z którego nie da się go odtworzyć, a który nie pozwala dopisać go ponownie z pliku.</p>';
+            . 'odnośnikiem w każdej wiadomości. Zapis zgody zawiera też miejsce, z którego przyszedł (formularz na stronie, import z pliku). '
+            . 'Adresy, na które wiadomości nie da się doręczyć (skrzynka nie istnieje), i adresy wyłączone z wysyłki przechowujemy na liście '
+            . 'wykluczeń, żeby nie wysyłać na nie ponownie. Po żądaniu usunięcia danych usuwamy adres razem z historią wysyłek i wpisem na '
+            . 'liście wykluczeń; zostaje wyłącznie jednokierunkowy skrót adresu, z którego nie da się go odtworzyć, a który nie pozwala '
+            . 'dopisać go ponownie z pliku.</p>';
     }
     $smtp = (array) get_option('evk_smtp', []);
     if (!empty($smtp['enabled'])) {

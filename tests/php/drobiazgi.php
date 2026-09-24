@@ -64,6 +64,7 @@ require_once EVK_TEST_ROOT . '/includes/00-context-safety.php';
 // modułu, żeby zapis formularza nie gasił czegoś, czym steruje osobny AJAX.
 require_once EVK_TEST_ROOT . '/includes/30-admin-settings-ajax.php';
 require_once EVK_TEST_ROOT . '/includes/interface/white-label.php';
+require_once EVK_TEST_ROOT . '/includes/security/ip-klienta.php';   // tryby pośrednika w sanityzacji
 require_once EVK_TEST_ROOT . '/includes/security/settings.php';
 
 $out = [];

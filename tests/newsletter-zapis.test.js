@@ -80,6 +80,33 @@ module.exports = async function (t) {
   t.check('nieznana lista odrzucona', !ok('nieznana_lista'), msg('nieznana_lista'));
   t.check('limit 10 zapisów na godzinę działa', !ok('po_limicie'), msg('po_limicie'));
 
+  // ── Bez nonce (1.233.0) ───────────────────────────────────────────────
+  /* Formularz stoi na stronach w pełnym cache HTML: nonce w zbuforowanej
+     stronie wygasał po dobie i od tej chwili każdy zapis kończył się
+     „Nieprawidłowy token". Atrapa check_ajax_referer() w sondzie przepuszcza
+     wyłącznie świeży nonce — powrót sprawdzenia zapala oba punkty niżej. */
+  t.section('formularz bez nonce: zbuforowana strona dalej zapisuje');
+  t.check('formularz nie wysyła nonce', php.formularz_bez_nonce === true, JSON.stringify(php.formularz_bez_nonce));
+  t.check('zapis bez nonce przechodzi (double opt-in)', ok('bez_nonce') && jak('bez_nonce') === 'pending', msg('bez_nonce'));
+  t.check('wygasły nonce ze starej strony nie przeszkadza', ok('stary_nonce') && jak('stary_nonce') === 'pending', msg('stary_nonce'));
+
+  // ── Mail z potwierdzeniem ─────────────────────────────────────────────
+  t.section('mail z potwierdzeniem zapisu');
+  const mp = php.mail_potwierdzenia || {};
+  t.check('wychodzi jeden mail na adres osoby, z linkiem potwierdzającym jej tokenu',
+    mp.ile === 1 && mp.do === 'potw@example.test' && mp.link === true, JSON.stringify(mp));
+  t.check('to nie mail kampanii (trafia do logu SMTP)', mp.kampania === false, JSON.stringify(mp.kampania));
+  /* Do 1.232.0 wynik wysyłki był ignorowany: przy niedziałającej poczcie
+     formularz mówił „sprawdź skrzynkę", a mail nigdy nie wychodził. */
+  t.check('mail nie wyszedł — osoba dostaje błąd, nie „sprawdź skrzynkę"',
+    !ok('mail_nie_wyszedl') && /Nie udało się wysłać wiadomości z potwierdzeniem/.test(msg('mail_nie_wyszedl')), msg('mail_nie_wyszedl'));
+  /* Limit na IP nie chroni cudzej skrzynki — z wielu adresów dało się zasypać
+     kogoś mailami „potwierdź zapis". Odpowiedź po limicie jest ta sama, żeby
+     nie podpowiadać, co się stało. */
+  const lp = php.limit_potwierdzen || {};
+  t.check('ten sam adres z pięciu IP: najwyżej 3 maile na dobę, odpowiedź zawsze ta sama',
+    lp.maile === 3 && JSON.stringify(lp.odpowiedzi) === JSON.stringify([true, true, true, true, true]), JSON.stringify(lp));
+
   // ── Eksport listy adresów ─────────────────────────────────────────────
   //
   // Handler kończy się `exit`, więc każdy scenariusz biegnie osobnym procesem

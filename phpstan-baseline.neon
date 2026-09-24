@@ -277,12 +277,6 @@ parameters:
 			path: includes/newsletter/lists.php
 
 		-
-			message: '#^If condition is always true\.$#'
-			identifier: if.alwaysTrue
-			count: 1
-			path: includes/newsletter/mailer.php
-
-		-
 			message: '#^Strict comparison using \!\=\= between ''campaigns''\|''lists''\|''reports''\|''templates'' and ''settings'' will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1

@@ -44,6 +44,7 @@ return [
         'evk_snippets_migracja_1139',
         // Newsletter
         'evk_newsletter', 'evk_nl_db_version', 'evk_nl_rewrite_version', 'evk_nl_zablokowane', 'evk_nl_skrot_klucz',
+        'evk_nl_wykluczenia',
         // Kopie zapasowe
         'evk_backup', 'evk_backup_alert', 'evk_backup_db_version', 'evk_backup_dir', 'evk_backup_gdrive',
         'evk_backup_key', 'evk_backup_probe', 'evk_backup_sched', 'evk_gdrive_czekanie',
@@ -55,7 +56,10 @@ return [
     'opcje_przedrostki' => ['evk_nl_backoff_'],
     'transienty' => ['evk_301_cache', 'evk_backup_exposed', 'evk_inbox_unread',
                      'tl_compiled_config', 'tl_compiled_slugs', 'tl_inline_phrases'],
-    'transienty_przedrostki' => ['evk_gdrive_msg_', 'evk_gdrive_pkce_', 'evk_wl_font_b64_', 'tl_compiled_tokens_'],
+    /* evk_nl_rl_: limit zapisów na adres IP; evk_nl_pt_: limit maili
+       z potwierdzeniem na adres e-mail (1.233.0). */
+    'transienty_przedrostki' => ['evk_gdrive_msg_', 'evk_gdrive_pkce_', 'evk_wl_font_b64_', 'tl_compiled_tokens_',
+                                 'evk_nl_rl_', 'evk_nl_pt_'],
     'typy_wpisow' => ['evk_code_snippet', 'evk_301_redirect', 'evk_301_log', 'evk_404_log'],
     'meta_wpisow' => ['_evk_og_disable', '_evk_og_url', '_evk_original_post_id',
                       '_evoke_seo_desc', '_evoke_seo_keywords', '_evoke_seo_robots', '_evoke_seo_title',

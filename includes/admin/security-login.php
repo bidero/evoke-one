@@ -38,7 +38,52 @@ $active_blocks = evk_login_active_blocks();
         <div class="evo-field evo-full">
             <label>Własny komunikat blokady IP<span class="evo-tip" tabindex="0" role="note" data-tip="HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: {hours} — liczba godzin, {hours_str} — odmiana słowa. Gdy puste — używany domyślny komunikat." aria-label="HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: {hours} — liczba godzin, {hours_str} — odmiana słowa. Gdy puste — używany domyślny komunikat.">?</span></label>
             <textarea name="evk_security[limit_login_message]" rows="4" placeholder="Pozostaw puste aby użyć domyślnego komunikatu z czasem odblokowania..."><?php echo esc_textarea($evk_sec['limit_login_message'] ?? ''); ?></textarea>
-            
+
+        </div>
+    </div>
+
+    <?php /* Adres odwiedzających (1.233.0, includes/security/ip-klienta.php).
+             W TYM formularzu, nie w osobnym: jeden pasek zapisu na ekranie,
+             a limit logowań to miejsce, gdzie zły adres boli najbardziej —
+             blokada węzła Cloudflare odcina wszystkich naraz. */
+    $evk_ip = evk_ip_diagnoza();
+    $evk_ip_tryby = ['brak' => 'Brak — połączenie wprost', 'cloudflare' => 'Cloudflare', 'inne' => 'Inny pośrednik (np. load balancer)']; ?>
+    <div class="evo-box" data-evk-proxy>
+        <h3>Adres IP odwiedzających</h3>
+        <p class="evo-hint">Z tego adresu korzystają limit logowań, newsletter (zapis zgody i limit zapisów) i logi 404. Za Cloudflare albo innym pośrednikiem serwer widzi adres pośrednika, a nie odwiedzającego.</p>
+        <?php if ($evk_ip['przez_cloudflare'] && $evk_ip['tryb'] !== 'cloudflare'): ?>
+        <div class="evo-info-box is-warn evo-mb" data-evk-proxy-ostrzezenie>
+            <span class="dashicons dashicons-warning evo-warn-tx"></span>
+            <div><strong>Ta strona stoi za Cloudflare.</strong> Twoje żądanie przyszło z węzła Cloudflare (<code><?php echo esc_html($evk_ip['zdalny']); ?></code>), więc bez ustawienia „Cloudflare" wtyczka widzi kilka tych samych adresów dla wszystkich odwiedzających — limit logowań zablokowałby ich naraz.</div>
+        </div>
+        <?php endif; ?>
+        <div class="evo-grid" style="--evo-col:200px;--evo-gap:16px">
+            <div class="evo-field">
+                <label for="evk-proxy-tryb">Pośrednik przed stroną</label>
+                <select id="evk-proxy-tryb" name="evk_security[proxy_tryb]">
+                    <?php foreach ($evk_ip_tryby as $wartosc => $etykieta): ?>
+                    <option value="<?php echo esc_attr($wartosc); ?>" <?php selected($evk_sec['proxy_tryb'] ?? 'brak', $wartosc); ?>><?php echo esc_html($etykieta); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="evo-field evo-full">
+                <label for="evk-proxy-zaufane">Dodatkowe zaufane adresy pośrednika</label>
+                <textarea id="evk-proxy-zaufane" name="evk_security[proxy_zaufane]" rows="3" placeholder="10.0.0.5&#10;192.168.0.0/16"><?php echo esc_textarea($evk_sec['proxy_zaufane'] ?? ''); ?></textarea>
+                <div class="evo-desc">Adres albo sieć (CIDR), po jednym na linię. Przy „Cloudflare" tylko wtedy, gdy między Cloudflare a stroną stoi jeszcze coś (sieci Cloudflare wtyczka zna sama). Przy „Inny pośrednik" — adresy tego pośrednika: nagłówek X-Forwarded-For liczy się tylko od nich, bo od każdego innego mógłby go podrobić sam odwiedzający.</div>
+            </div>
+        </div>
+        <div class="evo-tbl-wrap evo-mt">
+            <table class="evo-tbl" data-evk-proxy-diagnoza>
+                <caption class="evo-hint">Twoje obecne połączenie</caption>
+                <tbody>
+                    <tr><th scope="row">Adres połączenia</th><td><code><?php echo esc_html($evk_ip['zdalny'] ?: '—'); ?></code><?php echo $evk_ip['przez_cloudflare'] ? ' (sieć Cloudflare)' : ''; ?></td></tr>
+                    <tr><th scope="row">Nagłówek CF-Connecting-IP</th><td><code><?php echo esc_html($evk_ip['cf_naglowek'] ?: '—'); ?></code></td></tr>
+                    <tr><th scope="row">Nagłówek X-Forwarded-For</th><td><code><?php echo esc_html($evk_ip['xff'] ?: '—'); ?></code></td></tr>
+                    <?php foreach ($evk_ip_tryby as $wartosc => $etykieta): ?>
+                    <tr<?php echo $wartosc === $evk_ip['tryb'] ? ' class="is-current"' : ''; ?>><th scope="row">Twój adres przy „<?php echo esc_html($etykieta); ?>"</th><td><code><?php echo esc_html($evk_ip['wg_trybu'][$wartosc] ?: '—'); ?></code><?php echo $wartosc === $evk_ip['tryb'] ? ' ← teraz' : ''; ?></td></tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 

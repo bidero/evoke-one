@@ -43,6 +43,22 @@ function evk_security_sanitize($input): array {
         'disabled_rest_endpoints' => isset($input['disabled_rest_endpoints']) && is_array($input['disabled_rest_endpoints'])
             ? array_map('sanitize_text_field', $input['disabled_rest_endpoints'])
             : [],
+    ] + evk_security_sanitize_proxy($input);
+}
+
+/**
+ * Pośrednik przed stroną (includes/security/ip-klienta.php) — wspólne dla obu
+ * dróg zapisu. Ta funkcja stoi W `evk_security_sanitize()` z tego samego
+ * powodu, co komunikat blokady: `register_setting()` przepuszcza przez nią
+ * KAŻDY zapis opcji, także ten z AJAX-a, a klucza, którego tu nie ma, po
+ * cichu nie zapisze. Adresy zostają tekstem administratora — parser przy
+ * użyciu odrzuca to, co nie jest adresem ani siecią.
+ */
+function evk_security_sanitize_proxy(array $input): array {
+    $tryb = (string) ($input['proxy_tryb'] ?? 'brak');
+    return [
+        'proxy_tryb'    => in_array($tryb, EVK_IP_TRYBY, true) ? $tryb : 'brak',
+        'proxy_zaufane' => sanitize_textarea_field((string) ($input['proxy_zaufane'] ?? '')),
     ];
 }
 
@@ -56,6 +72,8 @@ function evk_security_get(): array {
         'disable_bundled_themes'  => 0,
         'rest_block_all'          => 0,
         'disabled_rest_endpoints' => [],
+        'proxy_tryb'              => 'brak',
+        'proxy_zaufane'           => '',
     ]);
 }
 
@@ -84,12 +102,13 @@ add_action('wp_ajax_evk_save_security_section', function () {
 function evk_security_sanitize_section(string $section, array $raw): array {
     switch ($section) {
         case 'login':
+            // Ekran limitu logowań ma też pole pośrednika (adres odwiedzających).
             return [
                 'limit_login_enabled' => !empty($raw['limit_login_enabled']) ? 1 : 0,
                 'max_attempts'        => max(1, min(100, absint($raw['max_attempts'] ?? 5))),
                 'reset_hours'         => max(1, min(720, absint($raw['reset_hours'] ?? 24))),
                 'limit_login_message' => evk_security_sanitize_message($raw['limit_login_message'] ?? ''),
-            ];
+            ] + (isset($raw['proxy_tryb']) ? evk_security_sanitize_proxy(wp_unslash($raw)) : []);
         case 'rest':
             return [
                 'rest_block_all'          => !empty($raw['rest_block_all']) ? 1 : 0,

@@ -50,6 +50,10 @@ module.exports = async function (t) {
     const s = phpOutput('zapis-wp-dane.php', 'eksport' + (wariant ? ' ' + wariant : ''), { dopuscBlad: true });
     try { return { json: JSON.parse(s), surowe: s }; } catch (e) { return { json: null, surowe: s }; }
   };
+  const eksportNl = (wariant) => {
+    const s = phpOutput('zapis-wp-dane.php', 'eksport-nl' + (wariant ? ' ' + wariant : ''), { dopuscBlad: true });
+    try { return { json: JSON.parse(s), surowe: s }; } catch (e) { return { json: null, surowe: s }; }
+  };
   const bez = eksport('');
   const zH = eksport('z');
   const bj = bez.json || {};
@@ -87,6 +91,48 @@ module.exports = async function (t) {
   const adminJs = fs.readFileSync(path.join(__dirname, '..', 'assets/admin/admin.js'), 'utf8');
   t.check('eksport w panelu wysyła stan pola (hasla=1 tylko przy zaznaczeniu)',
     /name:\s*'hasla',\s*value:\s*\$\('#evo-export-hasla'\)\.is\(':checked'\)\s*\?\s*'1'\s*:\s*''/.test(adminJs), 'wzorzec w admin.js');
+
+  // ── Eksport newslettera: ludzie tylko na życzenie ───────────────────────
+  /* Do 1.232.x każdy eksport z modułem Newsletter wynosił całą listę adresów
+     z adresami IP zgód i tokenami wypisu (1.233.0: „Dołącz subskrybentów"). */
+  t.section('eksport newslettera: subskrybenci tylko na wyraźne życzenie');
+  const nlBez = eksportNl('');
+  const nlZ = eksportNl('z');
+  const klucze = (j) => Object.keys(j || {}).filter((k) => /^evk_nl_|^evk_newsletter$/.test(k)).sort();
+  t.check('bez „Dołącz subskrybentów": ustawienia, listy i szablony — bez ludzi, kampanii i statystyk',
+    JSON.stringify(klucze(nlBez.json)) === JSON.stringify(['evk_newsletter', 'evk_nl_lists', 'evk_nl_templates'])
+      && !nlBez.surowe.includes('io.osoba@example.com') && !nlBez.surowe.includes('5.6.7.8'),
+    JSON.stringify(klucze(nlBez.json)));
+  t.check('z „Dołącz subskrybentów": komplet (subskrybenci, kampanie, kolejka, logi)',
+    JSON.stringify(klucze(nlZ.json)) === JSON.stringify(['evk_newsletter', 'evk_nl_campaigns', 'evk_nl_lists', 'evk_nl_logs',
+      'evk_nl_queue', 'evk_nl_subscribers', 'evk_nl_templates']) && nlZ.surowe.includes('io.osoba@example.com'),
+    JSON.stringify(klucze(nlZ.json)));
+  const pNlBez = plik('nl-bez', nlBez.surowe);
+  const pNlZ = plik('nl-z', nlZ.surowe);
+  const iNlBez = sonda('import-nl ' + pNlBez);
+  const iNlZ = sonda('import-nl ' + pNlZ);
+  fs.unlinkSync(pNlBez);
+  fs.unlinkSync(pNlZ);
+  /* Import czyścił tabele newslettera i wstawiał wiersze z pliku z ICH
+     numerami — plik bez subskrybentów zostawiłby subskrybentów strony
+     przypisanych do list, które po imporcie znaczą co innego. */
+  t.check('import pliku bez ludzi: subskrybenci strony zostają na swojej liście',
+    iNlBez.sukces === true && iNlBez.moj_subskrybent && iNlBez.moj_subskrybent.lista_ta_sama === true
+      && /^Klienci strony/.test(iNlBez.moj_subskrybent.nazwa || ''), JSON.stringify(iNlBez.moj_subskrybent));
+  t.check('lista o tej samej nazwie: jedna, ten sam numer, konfiguracja i stan z pliku',
+    iNlBez.lista_z_pliku && iNlBez.lista_z_pliku.ile === 1 && iNlBez.lista_z_pliku.ten_sam_numer === true
+      && JSON.stringify(iNlBez.lista_z_pliku.pola) === JSON.stringify([{ key: 'imie', label: 'Imię' }]) && iNlBez.lista_z_pliku.status === 1,
+    JSON.stringify(iNlBez.lista_z_pliku));
+  t.check('szablon o tej samej nazwie: jeden, z treścią z pliku; kampanie strony nietknięte',
+    JSON.stringify(iNlBez.szablon_z_pliku) === JSON.stringify(['Temat z pliku']) && iNlBez.kampanie && iNlBez.kampanie.po === iNlBez.kampanie.przed,
+    JSON.stringify([iNlBez.szablon_z_pliku, iNlBez.kampanie]));
+  t.check('import pliku z ludźmi: zastępuje newsletter strony (jak dotąd)',
+    iNlZ.sukces === true && iNlZ.moj_subskrybent === null && iNlZ.osoba_z_pliku === true, JSON.stringify([iNlZ.moj_subskrybent, iNlZ.osoba_z_pliku]));
+  const poleSub = (zakladka.match(/<input[^>]*id="evo-export-subskrybenci"[^>]*>/) || [])[0] || '';
+  t.check('w zakładce pole „Dołącz subskrybentów newslettera", domyślnie odznaczone',
+    !!poleSub && !/checked/.test(poleSub) && /Dołącz subskrybentów newslettera/.test(zakladka), poleSub || 'brak pola');
+  t.check('eksport w panelu wysyła stan pola (subskrybenci=1 tylko przy zaznaczeniu)',
+    /name:\s*'subskrybenci',\s*value:\s*\$\('#evo-export-subskrybenci'\)\.is\(':checked'\)\s*\?\s*'1'\s*:\s*''/.test(adminJs), 'wzorzec w admin.js');
 
   // ── RODO ────────────────────────────────────────────────────────────────
   /* Do 1.231.x wtyczka nie zgłaszała WordPressowi żadnych swoich danych:

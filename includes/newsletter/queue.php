@@ -76,6 +76,9 @@ function evk_nl_process_batch(int $campaign_id): void {
     $breaker_tripped      = false;
     $last_index           = count($rows) - 1;
 
+    // Jedno połączenie SMTP na całą paczkę (zamyka je evk_nl_mailer_close() niżej)
+    evk_nl_paczka(true);
+
     foreach ($rows as $i => $queue_row) {
         $subscriber = evk_nl_get_subscriber((int) $queue_row['subscriber_id']);
         if (!$subscriber || (int) $subscriber['status'] !== 1) {
@@ -84,8 +87,12 @@ function evk_nl_process_batch(int $campaign_id): void {
             continue;
         }
 
-        if (evk_nl_send_single($queue_row, $campaign, $template, $subscriber)) {
+        $stan = evk_nl_send_single($queue_row, $campaign, $template, $subscriber);
+        if ($stan === 'wyslano') {
             $consecutive_failures = 0;
+        } elseif ($stan === 'odbity') {
+            /* Odbicie to zły ADRES, nie kłopot z serwerem: nie liczy się do
+               bezpiecznika, który ma łapać limity dostawcy. */
         } else {
             $consecutive_failures++;
             if ($consecutive_failures >= $max_consecutive) {
@@ -162,7 +169,12 @@ function evk_nl_sleep_ms(int $ms): void {
 // WYSYŁKA POJEDYNCZEGO MAILA
 // =========================================================================
 
-function evk_nl_send_single(array $queue_row, array $campaign, array $template, array $subscriber): bool {
+/**
+ * Jeden mail kampanii. Zwraca „wyslano", „blad" (spróbujemy ponownie, do trzech
+ * razy) albo „odbity" (serwer odbiorcy: skrzynka nie istnieje — adres trafia
+ * na listę wykluczeń i znika ze wszystkich list, bez ponawiania).
+ */
+function evk_nl_send_single(array $queue_row, array $campaign, array $template, array $subscriber): string {
     global $wpdb;
     $q = evk_nl_table('queue');
 
@@ -172,6 +184,13 @@ function evk_nl_send_single(array $queue_row, array $campaign, array $template, 
 
     $result = evk_nl_send_mail($subscriber, $campaign, $template, $queue_row);
 
+    if (is_wp_error($result) && $result->get_error_code() === 'odbity') {
+        $wpdb->update($q, ['status' => 'failed', 'error_message' => 'Adres odrzucony: ' . $result->get_error_message()], ['id' => $queue_row['id']]);
+        evk_nl_wyklucz((string) $subscriber['email'], 'odbity', $result->get_error_message());
+        evk_nl_log((int) $campaign['id'], 'error', (int) $subscriber['id'], ['error' => $result->get_error_message(), 'odbity' => 1]);
+        return 'odbity';
+    }
+
     if (is_wp_error($result)) {
         $error_msg = $result->get_error_message();
         $status    = $attempts >= 3 ? 'failed' : 'pending'; // Retry max 3 razy
@@ -180,7 +199,7 @@ function evk_nl_send_single(array $queue_row, array $campaign, array $template, 
             'error_message' => $error_msg,
         ], ['id' => $queue_row['id']]);
         evk_nl_log((int) $campaign['id'], 'error', (int) $subscriber['id'], ['error' => $error_msg]);
-        return false;
+        return 'blad';
     }
 
     $wpdb->update($q, [
@@ -188,7 +207,7 @@ function evk_nl_send_single(array $queue_row, array $campaign, array $template, 
         'sent_at' => current_time('mysql'),
     ], ['id' => $queue_row['id']]);
     evk_nl_log((int) $campaign['id'], 'sent', (int) $subscriber['id']);
-    return true;
+    return 'wyslano';
 }
 
 // =========================================================================

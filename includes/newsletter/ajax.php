@@ -55,26 +55,62 @@ add_action('wp_ajax_evk_nl_toggle_list', function () {
 // IMPORT SUBSKRYBENTÓW
 // =========================================================================
 
-add_action('wp_ajax_evk_nl_import_subscribers', function () {
+/**
+ * Treść do importu z żądania: plik (`csv_file`) albo wklejka (`content`).
+ * Zwraca [treść, komunikat błędu]. Plik przechodzi te same sprawdzenia co
+ * dotąd (evk_nl_sprawdz_csv), bez względu na to, czy to podgląd, czy import.
+ */
+function evk_nl_import_tresc(): array {
+    if (!empty($_FILES['csv_file'])) {
+        $plik = $_FILES['csv_file'];
+        $blad = evk_nl_sprawdz_csv($plik);
+        if ($blad !== '') return ['', $blad];
+        // Czytamy najwyżej tyle, ile wolno — nawet gdyby rozmiar z $_FILES kłamał.
+        return [(string) file_get_contents($plik['tmp_name'], false, null, 0, EVK_NL_CSV_MAX), ''];
+    }
+    $tresc = wp_unslash((string) ($_POST['content'] ?? ''));
+    if (strlen($tresc) > EVK_NL_CSV_MAX) return ['', 'Za dużo tekstu (maksimum 2 MB).'];
+    return [$tresc, ''];
+}
+
+/**
+ * Podgląd i import — jedno przejście (evk_nl_import_przejdz), różni je tylko
+ * `$zapisz`. Mapa kolumn przychodzi z panelu (`mapa`, JSON); bez niej —
+ * proponowana: kolumna z adresami i znaczniki z nagłówków.
+ */
+function evk_nl_import_obsluz(bool $zapisz): void {
     evk_nl_ajax_check();
     $list_id = (int) ($_POST['list_id'] ?? 0);
-    $type    = sanitize_key($_POST['import_type'] ?? 'textarea');
-    $raw     = stripslashes($_POST['content'] ?? '');
+    if (!$list_id || !evk_nl_get_list($list_id)) wp_send_json_error(['msg' => 'Brak listy.']);
 
-    if (!$list_id) wp_send_json_error(['msg' => 'Brak ID listy.']);
+    [$tresc, $blad] = evk_nl_import_tresc();
+    if ($blad !== '') wp_send_json_error(['msg' => $blad]);
+    $tabela = evk_nl_import_tabela($tresc);
+    if (!$tabela['wiersze']) wp_send_json_error(['msg' => 'Nie znaleziono żadnych adresów email.']);
 
-    $emails = [];
-    if ($type === 'csv') {
-        $emails = evk_nl_parse_csv($raw);
-    } else {
-        $emails = evk_nl_parse_textarea($raw);
+    $mapa  = evk_nl_import_mapa_z_zadania(wp_unslash((string) ($_POST['mapa'] ?? '')), $tabela);
+    $wynik = evk_nl_import_przejdz($list_id, $tabela, $mapa, $zapisz);
+
+    if ($zapisz) {
+        unset($wynik['probka']);
+        wp_send_json_success($wynik);
     }
+    $kolumny = [];
+    for ($i = 0; $i < $tabela['kolumny']; $i++) {
+        $kolumny[] = [
+            'nazwa'    => $tabela['naglowek'] !== null ? (string) ($tabela['naglowek'][$i] ?? '') : '',
+            'przyklad' => (string) ($tabela['wiersze'][0][$i] ?? ''),
+            'klucz'    => $tabela['naglowek'] !== null ? evk_nl_import_klucz((string) ($tabela['naglowek'][$i] ?? '')) : '',
+        ];
+    }
+    wp_send_json_success(['kolumny' => $kolumny, 'naglowek' => $tabela['naglowek'] !== null, 'mapa' => $mapa,
+                          'wierszy' => count($tabela['wiersze'])] + $wynik);
+}
 
-    if (empty($emails)) wp_send_json_error(['msg' => 'Nie znaleziono żadnych adresów email.']);
+add_action('wp_ajax_evk_nl_import_podglad', function () { evk_nl_import_obsluz(false); });
 
-    $result = evk_nl_import_emails($list_id, $emails);
-    wp_send_json_success($result);
-});
+/* Import — i z wklejki, i z pliku. Obie akcje zostają pod dawnymi nazwami. */
+add_action('wp_ajax_evk_nl_import_subscribers', function () { evk_nl_import_obsluz(true); });
 
 /**
  * Górna granica wgrywanego pliku z adresami.
@@ -148,21 +184,45 @@ function evk_nl_wyglada_na_tekst(string $sciezka): bool {
 }
 
 add_action('wp_ajax_evk_nl_import_csv_file', function () {
+    if (empty($_FILES['csv_file'])) {
+        evk_nl_ajax_check();
+        wp_send_json_error(['msg' => evk_nl_sprawdz_csv(null)]);
+    }
+    evk_nl_import_obsluz(true);
+});
+
+// =========================================================================
+// LISTA WYKLUCZEŃ
+// =========================================================================
+
+/** Wykluczenia do panelu: ręczne i odbite (wypisanych pokazuje lista subskrybentów). */
+function evk_nl_wykluczenia_do_panelu(): array {
+    $out = [];
+    foreach (evk_nl_wykluczenia() as $email => $w) {
+        $out[] = ['email' => (string) $email, 'powod' => (string) ($w['powod'] ?? ''), 'kiedy' => (string) ($w['kiedy'] ?? ''),
+                  'szczegol' => (string) ($w['szczegol'] ?? '')];
+    }
+    usort($out, static fn($a, $b) => strcmp($b['kiedy'], $a['kiedy']));
+    return $out;
+}
+
+add_action('wp_ajax_evk_nl_wykluczenia', function () {
     evk_nl_ajax_check();
-    $list_id = (int) ($_POST['list_id'] ?? 0);
-    if (!$list_id) wp_send_json_error(['msg' => 'Brak ID listy.']);
-
-    $plik = $_FILES['csv_file'] ?? null;
-    $blad = evk_nl_sprawdz_csv($plik);
-    if ($blad !== '') wp_send_json_error(['msg' => $blad]);
-
-    // Czytamy najwyżej tyle, ile wolno — nawet gdyby rozmiar z $_FILES kłamał.
-    $content = (string) file_get_contents($plik['tmp_name'], false, null, 0, EVK_NL_CSV_MAX);
-    $emails  = evk_nl_parse_csv($content);
-    if (empty($emails)) wp_send_json_error(['msg' => 'Nie znaleziono emaili w pliku.']);
-
-    $result = evk_nl_import_emails($list_id, $emails);
-    wp_send_json_success($result);
+    $akcja = sanitize_key($_POST['akcja'] ?? 'lista');
+    if ($akcja === 'dodaj') {
+        $dodane = 0;
+        $bledne = 0;
+        foreach (preg_split('/[\s,;]+/', wp_unslash((string) ($_POST['adresy'] ?? ''))) ?: [] as $kandydat) {
+            if (trim($kandydat) === '') continue;
+            $adres = evk_nl_import_adres($kandydat);
+            if ($adres !== '' && evk_nl_wyklucz($adres, 'reczny')) $dodane++; else $bledne++;
+        }
+        wp_send_json_success(['dodane' => $dodane, 'bledne' => $bledne, 'lista' => evk_nl_wykluczenia_do_panelu()]);
+    }
+    if ($akcja === 'usun') {
+        evk_nl_usun_wykluczenie(sanitize_email(wp_unslash((string) ($_POST['email'] ?? ''))));
+    }
+    wp_send_json_success(['lista' => evk_nl_wykluczenia_do_panelu()]);
 });
 
 // =========================================================================
@@ -187,6 +247,12 @@ add_action('wp_ajax_evk_nl_get_subscribers', function () {
     $args  = ['limit' => $limit, 'offset' => $offset, 'search' => $search, 'status' => $status];
     $items = evk_nl_get_subscribers($list_id, $args);
     $total = evk_nl_count_subscribers($list_id, $args);
+    // Wypisany przez listę wykluczeń (odbity, dopisany ręcznie) — panel mówi, dlaczego.
+    $wykluczenia = evk_nl_wykluczenia();
+    foreach ($items as &$item) {
+        $item['wykluczenie'] = (string) ($wykluczenia[strtolower((string) $item['email'])]['powod'] ?? '');
+    }
+    unset($item);
 
     wp_send_json_success([
         'items' => $items,

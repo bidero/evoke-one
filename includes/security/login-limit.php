@@ -11,8 +11,9 @@ if (!defined('ABSPATH')) exit;
 // HELPERY
 // =========================================================================
 
+/* Adres odwiedzającego, a nie węzła Cloudflare — patrz includes/security/ip-klienta.php. */
 function evk_login_get_ip(): string {
-    return sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? '');
+    return evk_ip_klienta();
 }
 
 function evk_login_is_enabled(): bool {

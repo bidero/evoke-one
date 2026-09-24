@@ -72,27 +72,31 @@ add_action('phpmailer_init', function ($phpmailer) {
 });
 
 // =========================================================================
-// LOG MAILI — przechwytuj każdą wysyłkę
+// LOG MAILI — jeden wpis na każdą wysyłkę
 // =========================================================================
 
-add_action('wp_mail', function (array $args): array {
-    $s = evk_smtp_get();
-    if (empty($s['log_enabled'])) return $args;
-
-    // Zapisz dane maila do przetworzenia po wysyłce
-    add_filter('wp_mail_succeeded', function ($mail_data) use ($args) {
-        evk_smtp_log_mail($args, true);
-        return $mail_data;
-    });
-    add_action('wp_mail_failed', function ($error) use ($args) {
-        evk_smtp_log_mail($args, false, $error->get_error_message());
-    });
-
-    return $args;
-}, 10, 1);
+/* Oba zdarzenia niosą dane maila same: `wp_mail_succeeded` jako argument,
+   `wp_mail_failed` w danych błędu (WP_Error). Do 1.232.0 filtr `wp_mail`
+   dokładał przy KAŻDYM mailu nowe domknięcie do obu zdarzeń i nigdy go nie
+   zdejmował, więc w żądaniu z kilkoma mailami każdy kolejny zapisywał
+   wszystkie poprzednie jeszcze raz (N maili → N·(N+1)/2 wpisów), a porażka
+   jednego trafiała do logu także jako porażka maili, które doszły. */
+add_action('wp_mail_succeeded', function ($mail_data) {
+    evk_smtp_log_mail(is_array($mail_data) ? $mail_data : [], true);
+});
+add_action('wp_mail_failed', function ($error) {
+    if (!is_wp_error($error)) return;
+    $dane = $error->get_error_data();
+    evk_smtp_log_mail(is_array($dane) ? $dane : [], false, $error->get_error_message());
+});
 
 function evk_smtp_log_mail(array $args, bool $success, string $error = ''): void {
     $s   = evk_smtp_get();
+    if (empty($s['log_enabled'])) return;
+    /* Kampanie newslettera mają własny dziennik (Raporty) — w logu SMTP
+       wypchnęłyby w kilka minut wszystkie maile ze strony (formularze,
+       hasła), dla których ten log istnieje. */
+    if (apply_filters('evk_smtp_log_pomin', false, $args)) return;
     $max = (int) ($s['log_max'] ?? 100);
     $log = (array) get_option('evk_smtp_log', []);
 

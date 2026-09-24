@@ -66,7 +66,6 @@ function evk_nl_subscribe_shortcode($atts): string {
     if (empty($opts['enabled'])) return '';
 
     $uid     = 'evknl' . wp_rand(1000, 9999);
-    $nonce   = wp_create_nonce('evk_nl_public');
     $ajax    = esc_url(admin_url('admin-ajax.php'));
     $consent = trim($a['consent']);
     $confirm = ($a['confirm'] === '1') ? '1' : '0';
@@ -129,7 +128,6 @@ function evk_nl_subscribe_shortcode($atts): string {
         show('','');
         var fd=new FormData();
         fd.append('action','evk_nl_subscribe');
-        fd.append('nonce',<?php echo wp_json_encode($nonce); ?>);
         fd.append('list',<?php echo (int) $list_id; ?>);
         fd.append('confirm',<?php echo wp_json_encode($confirm); ?>);
         fd.append('consent',<?php echo wp_json_encode($consent); ?>);
@@ -162,10 +160,17 @@ function evk_nl_subscribe_shortcode($atts): string {
 add_action('wp_ajax_evk_nl_subscribe', 'evk_nl_handle_public_subscribe');
 add_action('wp_ajax_nopriv_evk_nl_subscribe', 'evk_nl_handle_public_subscribe');
 
+/**
+ * BEZ NONCE (1.233.0). Formularz stoi na publicznych stronach, a te siedzą
+ * w pełnym cache HTML: nonce w zbuforowanej stronie wygasa po 12–24 godzinach
+ * i od tej chwili KAŻDY zapis kończył się „Nieprawidłowy token" — do
+ * wyczyszczenia pamięci podręcznej. Dla niezalogowanych nonce niczego nie
+ * chroni (każdy dostaje ważny, otwierając stronę), a zapis nie działa w imieniu
+ * zalogowanego: adres przychodzi w żądaniu. Zostaje to, co naprawdę pilnuje:
+ * podpis parametrów shortcode'u, honeypot, limit na adres IP i limit maili
+ * z potwierdzeniem na jeden adres e-mail.
+ */
 function evk_nl_handle_public_subscribe(): void {
-    if (!check_ajax_referer('evk_nl_public', 'nonce', false)) {
-        wp_send_json_error(['msg' => 'Nieprawidłowy token. Odśwież stronę i spróbuj ponownie.']);
-    }
     $opts = get_option('evk_newsletter', []);
     if (empty($opts['enabled'])) wp_send_json_error(['msg' => 'Zapisy są wyłączone.']);
 
@@ -197,55 +202,96 @@ function evk_nl_handle_public_subscribe(): void {
         wp_send_json_error(['msg' => 'Formularz wygasł. Odśwież stronę i spróbuj ponownie.']);
     }
 
-    if (!$list_id || !evk_nl_get_list($list_id)) wp_send_json_error(['msg' => 'Nieprawidłowa lista.']);
-    if (!is_email($email))                        wp_send_json_error(['msg' => 'Podaj poprawny adres e-mail.']);
     if ($consent_text !== '' && !$consent_checked) wp_send_json_error(['msg' => 'Zaznacz wymaganą zgodę.']);
 
-    // Rate limit per IP — max 10/godz.
+    $wynik = evk_nl_zapisz_z_formularza($list_id, $email, [], $consent_text, $confirm, 'formularz na stronie');
+    $wynik['ok'] ? wp_send_json_success(['msg' => $wynik['msg']]) : wp_send_json_error(['msg' => $wynik['msg']]);
+}
+
+/** Ile maili z potwierdzeniem dostaje jeden adres na dobę. */
+const EVK_NL_POTWIERDZEN_NA_DOBE = 3;
+
+/**
+ * Zapis osoby z formularza na stronie — wspólny dla shortcode'u i akcji
+ * formularza Bricksa (includes/newsletter/bricks.php), żeby obie drogi miały
+ * te same bezpieczniki i ten sam zapis zgody.
+ *
+ * `$pola`: pola do znaczników ({imie}); `$zgoda`: treść zgody, którą osoba
+ * widziała; `$zrodlo`: skąd przyszedł zapis — idzie do zapisu zgody obok daty
+ * i adresu IP. Zwraca ['ok' => bool, 'stan' => oczekuje|zapisany|juz_jest|blad,
+ * 'msg' => komunikat dla osoby].
+ */
+function evk_nl_zapisz_z_formularza(int $list_id, string $email, array $pola, string $zgoda, bool $potwierdzenie, string $zrodlo): array {
+    $blad = static function (string $msg): array { return ['ok' => false, 'stan' => 'blad', 'msg' => $msg]; };
+    $lista = $list_id ? evk_nl_get_list($list_id) : null;
+    if (!$lista)           return $blad('Nieprawidłowa lista.');
+    if (!is_email($email)) return $blad('Podaj poprawny adres e-mail.');
+
+    // Limit na adres IP — max 10/godz.
     $ip  = evk_nl_client_ip();
     $key = 'evk_nl_rl_' . md5($ip);
     $cnt = (int) get_transient($key);
-    if ($cnt >= 10) wp_send_json_error(['msg' => 'Zbyt wiele prób. Spróbuj ponownie później.']);
+    if ($cnt >= 10) return $blad('Zbyt wiele prób. Spróbuj ponownie później.');
     set_transient($key, $cnt + 1, HOUR_IN_SECONDS);
 
-    $consent = [
+    $dane = $pola + [
         '_consent_at'   => current_time('mysql'),
         '_consent_ip'   => $ip,
-        '_consent_text' => $consent_text,
+        '_consent_text' => $zgoda,
     ];
+    if ($zrodlo !== '') $dane['_consent_source'] = $zrodlo;
 
-    if ($confirm) {
-        $res = evk_nl_add_pending_subscriber($list_id, $email, $consent);
-        if (empty($res['ok'])) wp_send_json_error(['msg' => 'Nie udało się zapisać. Spróbuj ponownie.']);
-        // Wyślij mail potwierdzający tylko gdy faktycznie oczekuje na potwierdzenie
-        if ((int) ($res['status'] ?? 0) === 2 && !empty($res['token'])) {
-            $list = evk_nl_get_list($list_id);
-            evk_nl_send_confirm_email($email, $res['token'], $list['name'] ?? '');
-            wp_send_json_success(['msg' => evk_nl_text('form_pending')]);
+    if ($potwierdzenie) {
+        $res = evk_nl_add_pending_subscriber($list_id, $email, $dane);
+        if (empty($res['ok'])) return $blad('Nie udało się zapisać. Spróbuj ponownie.');
+        if ((int) ($res['status'] ?? 0) !== 2 || empty($res['token'])) {
+            return ['ok' => true, 'stan' => 'juz_jest', 'msg' => evk_nl_text('form_already')];
         }
-        // Już aktywny
-        wp_send_json_success(['msg' => evk_nl_text('form_already')]);
+        /* Limit maili z potwierdzeniem na JEDEN ADRES. Limit na IP nie chroni
+           cudzej skrzynki: z wielu adresów IP dałoby się zasypać kogoś mailami
+           „potwierdź zapis" — a każdy taki mail psuje reputację nadawcy tej
+           strony. Po limicie odpowiedź jest ta sama, co po wysłaniu, żeby nie
+           podpowiadać, co się stało. */
+        $klucz_potw = 'evk_nl_pt_' . md5(strtolower($email));
+        $wyslane    = (int) get_transient($klucz_potw);
+        if ($wyslane >= EVK_NL_POTWIERDZEN_NA_DOBE) {
+            return ['ok' => true, 'stan' => 'oczekuje', 'msg' => evk_nl_text('form_pending')];
+        }
+        /* Porażka wysyłki to BŁĄD dla osoby, nie „sprawdź skrzynkę". Do 1.232.0
+           wynik wysyłki był ignorowany: przy niedziałającej poczcie formularz
+           mówił „sprawdź skrzynkę", a mail nigdy nie wychodził. */
+        if (evk_nl_send_confirm_email($email, (string) $res['token'], (string) ($lista['name'] ?? '')) !== true) {
+            return $blad('Nie udało się wysłać wiadomości z potwierdzeniem. Spróbuj ponownie później.');
+        }
+        set_transient($klucz_potw, $wyslane + 1, DAY_IN_SECONDS);
+        return ['ok' => true, 'stan' => 'oczekuje', 'msg' => evk_nl_text('form_pending')];
     }
 
     // Bez double opt-in — zapis natychmiastowy
-    $consent['_confirmed_at'] = current_time('mysql');
-    $id = evk_nl_add_subscriber($list_id, $email, $consent);
-    $id ? wp_send_json_success(['msg' => evk_nl_text('form_success')])
-        : wp_send_json_error(['msg' => 'Nie udało się zapisać.']);
+    $dane['_confirmed_at'] = current_time('mysql');
+    $id = evk_nl_add_subscriber($list_id, $email, $dane);
+    return $id ? ['ok' => true, 'stan' => 'zapisany', 'msg' => evk_nl_text('form_success')]
+               : $blad('Nie udało się zapisać.');
 }
 
+/* Adres z zapisu zgody i klucz limitu — za Cloudflare adres osoby, nie węzła
+   (includes/security/ip-klienta.php). */
 function evk_nl_client_ip(): string {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
-    return filter_var($ip, FILTER_VALIDATE_IP) ?: '0.0.0.0';
+    return evk_ip_klienta() ?: '0.0.0.0';
 }
 
 // =========================================================================
 // MAIL POTWIERDZAJĄCY (double opt-in)
 // =========================================================================
 
+/**
+ * Mail z linkiem potwierdzającym. Zwraca true albo WP_Error — wynik czyta
+ * evk_nl_zapisz_z_formularza(). Idzie przez wp_mail() (includes/newsletter/
+ * mailer.php), więc nie wymaga już SMTP Evoke. Do 1.232.0 bez niego funkcja
+ * kończyła się na pierwszej linii, a formularz i tak odpowiadał „sprawdź
+ * skrzynkę".
+ */
 function evk_nl_send_confirm_email(string $email, string $token, string $list_name) {
-    if (!evk_nl_smtp_is_configured()) return false;
-
     $url   = evk_nl_confirm_url($token);
     $site  = get_bloginfo('name');
     $listr = $list_name ? ' do listy „' . esc_html($list_name) . '"' : '';
@@ -262,10 +308,9 @@ function evk_nl_send_confirm_email(string $email, string $token, string $list_na
           . '<p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0;">Jeśli to nie Ty zapisywałeś się do newslettera, zignoruj tę wiadomość — nic się nie stanie.</p>'
           . '</div>';
 
-    return evk_nl_phpmailer_send([
+    return evk_nl_wyslij([
         'to'      => $email,
         'subject' => $subject,
         'body'    => $body,
-        'smtp'    => evk_smtp_get(),
     ]);
 }

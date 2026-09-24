@@ -39,6 +39,7 @@ function sanitize_email_default($s) { return $s; }
 $GLOBALS['typy'] = [];
 function register_post_type($slug, $args = []) { $GLOBALS['typy'][$slug] = $args; }
 
+require_once EVK_TEST_ROOT . '/includes/security/ip-klienta.php';
 require_once EVK_TEST_ROOT . '/includes/security/settings.php';
 require_once EVK_TEST_ROOT . '/includes/security/login-limit.php';
 require_once EVK_TEST_ROOT . '/includes/newsletter/ajax.php';

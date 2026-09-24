@@ -12,7 +12,7 @@ $nl_active = !empty($nl_opts['enabled']);
 $nl_url    = function_exists('evk_nl_base_url')
     ? evk_nl_base_url()
     : admin_url('admin.php?page=evoke-newsletter');
-$smtp_ok   = function_exists('evk_nl_smtp_is_configured') ? evk_nl_smtp_is_configured() : true;
+$transport = function_exists('evk_nl_ostrzezenie_transportu') ? evk_nl_ostrzezenie_transportu() : '';
 ?>
 
 <div class="evk-nl-wrap">
@@ -41,15 +41,7 @@ $smtp_ok   = function_exists('evk_nl_smtp_is_configured') ? evk_nl_smtp_is_confi
     </div>
     <?php else: ?>
 
-    <?php if (!$smtp_ok): ?>
-    <div class="evo-info-box is-warn evo-mt">
-        <span class="dashicons dashicons-warning evo-warn-tx"></span>
-        <div>
-            <strong>SMTP nie jest skonfigurowany</strong> — wysyłka maili nie będzie działać.
-            <a href="<?php echo esc_url(admin_url('options-general.php?page=evoke-one&tab=narzedzia&sub=smtp')); ?>">Przejdź do konfiguracji SMTP →</a>
-        </div>
-    </div>
-    <?php endif; ?>
+    <?php if ($transport !== ''): ?><div class="evo-mt"><?php echo $transport; ?></div><?php endif; ?>
 
     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
             Pełny panel Newslettera — <strong>Listy, Szablony, Kampanie, Raporty, Ustawienia</strong> —

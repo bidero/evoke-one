@@ -742,7 +742,7 @@ $TABS = [
        więc renderujemy je tak jak zakładka: plik po pliku, ze zmiennymi,
        które ta zakładka im podaje ($evk_sec, $sec_nonce). */
     'sec-login' => [
-        'module' => ['includes/security/settings.php', 'includes/security/login-limit.php'],
+        'module' => ['includes/security/ip-klienta.php', 'includes/security/settings.php', 'includes/security/login-limit.php'],
         'file'   => 'includes/admin/security-login.php',
         'seed'   => function () {
             $GLOBALS['options']['evk_security'] = ['limit_login_enabled' => 1];
@@ -755,12 +755,12 @@ $TABS = [
         },
     ],
     'sec-rest' => [
-        'module' => ['includes/security/settings.php', 'includes/security/rest-api.php'],
+        'module' => ['includes/security/ip-klienta.php', 'includes/security/settings.php', 'includes/security/rest-api.php'],
         'file'   => 'includes/admin/security-rest.php',
         'seed'   => function () { $GLOBALS['options']['evk_security'] = ['rest_block_all' => 1]; },
     ],
     'sec-hardening' => [
-        'module' => 'includes/security/settings.php',
+        'module' => ['includes/security/ip-klienta.php', 'includes/security/settings.php'],
         'file'   => 'includes/admin/security-hardening.php',
         'seed'   => function () { $GLOBALS['options']['evk_security'] = ['hide_wp_version' => 1]; },
     ],

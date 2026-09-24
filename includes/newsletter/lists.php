@@ -232,62 +232,25 @@ function evk_nl_status_na_liscie(int $list_id, string $email): ?int {
 }
 
 /**
- * Importuje listę emaili (tablica) do listy.
+ * Importuje listę adresów (tablica) do listy.
  * Zwraca ['added' => N, 'skipped' => N, 'unsubscribed' => N, 'invalid' => N]:
  * added = faktycznie NOWE wpisy w bazie; skipped = duplikaty (w pliku lub już
- * na liście); unsubscribed = osoby WYPISANE, których import nie rusza;
+ * na liście); unsubscribed = adresy WYKLUCZONE, których import nie rusza;
  * invalid = nieprawidłowe adresy.
  *
  * WYPISANI ZOSTAJĄ WYPISANI. Do 1.229.6 import przywracał ich na listę jako
  * aktywnych, kasował zapis zgody i wypisu, a w wyniku pokazywał ich jako
  * „pominiętych" (audyt 1.229.6, tools/audyt/sondy/nl-wypisani.php). Wypisanie
  * to decyzja tej osoby — wraca wyłącznie sama, przez formularz zapisu.
+ *
+ * Od 1.233.0 to ta sama droga co import z podglądem (includes/newsletter/
+ * import.php): wykluczony jest także adres wypisany z INNEJ listy, odbity przy
+ * wysyłce, usunięty na żądanie RODO albo wpisany na listę wykluczeń.
  */
 function evk_nl_import_emails(int $list_id, array $emails): array {
-    $added        = 0;
-    $skipped      = 0;
-    $unsubscribed = 0;
-    $invalid      = 0;
-    $seen         = [];
-
-    foreach ($emails as $raw) {
-        $email = evk_nl_czysty_email((string) $raw);
-        if ($email === '') {
-            $invalid++;
-            continue;
-        }
-        // Duplikat w obrębie importowanego pliku — bez odpytywania bazy
-        $key = strtolower($email);
-        if (isset($seen[$key])) {
-            $skipped++;
-            continue;
-        }
-        $seen[$key] = true;
-
-        if (evk_nl_status_na_liscie($list_id, $email) === 0) {
-            $unsubscribed++;
-            continue;
-        }
-        /* Adres usunięty na żądanie RODO (skrót na liście blokady,
-           includes/prywatnosc.php) — liczy się jak wypisany: import go nie
-           dopisze z pliku ani z wklejki (1.232.0). */
-        if (evk_nl_zablokowany($email)) {
-            $unsubscribed++;
-            continue;
-        }
-
-        $created = false;
-        $result  = evk_nl_add_subscriber($list_id, $email, [], $created);
-        if ($result && $created) {
-            $added++;
-        } elseif ($result) {
-            $skipped++; // już na liście (duplikat w bazie)
-        } else {
-            $invalid++;
-        }
-    }
-
-    return compact('added', 'skipped', 'unsubscribed', 'invalid');
+    $tabela = ['naglowek' => null, 'wiersze' => array_map(static fn($e) => [(string) $e], array_values($emails)), 'kolumny' => 1];
+    $w = evk_nl_import_przejdz($list_id, $tabela, ['email' => 0, 'pola' => []], true, 0);
+    return ['added' => $w['added'], 'skipped' => $w['skipped'], 'unsubscribed' => $w['unsubscribed'], 'invalid' => $w['invalid']];
 }
 
 /**

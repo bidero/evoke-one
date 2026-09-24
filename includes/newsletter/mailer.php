@@ -2,16 +2,20 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Evoke ONE Newsletter — Mailer
- * Wysyłanie maili przez konfigurację evk_smtp (PHPMailer).
+ * Evoke ONE Newsletter — wysyłka przez wp_mail() (1.233.0)
+ *
+ * Transport wybiera WordPress. Przy włączonym SMTP Evoke konfiguruje go
+ * `phpmailer_init` z includes/tools/smtp.php — to jest transport domyślny.
+ * Bez niego mail idzie tym, czym strona wysyła resztę poczty: inną wtyczką
+ * SMTP, API dostawcy albo funkcją mail() serwera.
+ *
+ * Do 1.232.0 newsletter miał własnego PHPMailera spiętego na sztywno
+ * z ustawieniami SMTP Evoke: przy wyłączonym SMTP Evoke kampania kończyła się
+ * błędem „SMTP Evoke ONE jest wyłączony", a mail z potwierdzeniem zapisu
+ * nie wychodził wcale — nawet gdy strona wysyłała pocztę inną wtyczką.
  */
 
 function evk_nl_send_mail(array $subscriber, array $campaign, array $template, array $queue_row) {
-    $smtp = evk_smtp_get();
-    if (empty($smtp['enabled'])) {
-        return new WP_Error('smtp_disabled', 'SMTP Evoke ONE jest wyłączony.');
-    }
-
     $fields    = json_decode($subscriber['fields_json'] ?? '{}', true) ?: [];
     $unsub_url = evk_nl_unsubscribe_url($subscriber['token']);
 
@@ -42,142 +46,140 @@ function evk_nl_send_mail(array $subscriber, array $campaign, array $template, a
         $body = evk_nl_inject_tracking($body, $subscriber['token'], (int) $campaign['id']);
     }
 
-    return evk_nl_phpmailer_send([
+    return evk_nl_wyslij([
         'to'          => $subscriber['email'],
         'subject'     => $subject,
         'body'        => $body,
-        'smtp'        => $smtp,
         'attachments' => $attachment_ids,
         'unsub_url'   => $unsub_url,
+        'kampania'    => true,
     ]);
 }
 
 /**
- * Współdzielona instancja PHPMailer z SMTPKeepAlive — jedno połączenie SMTP
- * na całą paczkę zamiast osobnego na każdy mail (mniejsze ryzyko limitów
- * połączeń u dostawcy). Zamykana przez evk_nl_mailer_close() po paczce;
- * przy pojedynczych mailach (np. potwierdzenie zapisu) zamyka ją destruktor.
+ * Czy trwa paczka kampanii. Przez ten czas połączenie SMTP zostaje otwarte
+ * między mailami (SMTPKeepAlive) — jedno połączenie na paczkę zamiast osobnego
+ * na każdy mail, jak przy własnym PHPMailerze do 1.232.0: dostawcy liczą
+ * i ograniczają także połączenia, nie tylko maile. Zamyka evk_nl_mailer_close().
  */
-function evk_nl_mailer_instance(?array $smtp, bool $close = false): ?PHPMailer\PHPMailer\PHPMailer {
-    static $mailer = null;
-    static $sig    = '';
-
-    if ($close) {
-        if ($mailer instanceof PHPMailer\PHPMailer\PHPMailer) {
-            $mailer->smtpClose();
-            $mailer = null;
-            $sig    = '';
-        }
-        return null;
-    }
-
-    $new_sig = md5(wp_json_encode([$smtp['host'], $smtp['port'], $smtp['username'], $smtp['encryption']]));
-    if ($mailer instanceof PHPMailer\PHPMailer\PHPMailer && $sig === $new_sig) {
-        return $mailer;
-    }
-    if ($mailer instanceof PHPMailer\PHPMailer\PHPMailer) {
-        $mailer->smtpClose();
-    }
-
-    require_once ABSPATH . WPINC . '/PHPMailer/PHPMailer.php';
-    require_once ABSPATH . WPINC . '/PHPMailer/SMTP.php';
-    require_once ABSPATH . WPINC . '/PHPMailer/Exception.php';
-
-    $mailer = new PHPMailer\PHPMailer\PHPMailer(true);
-    $mailer->isSMTP();
-    $mailer->SMTPKeepAlive = true;
-    $mailer->XMailer    = ' '; // nie ujawniaj biblioteki (jak Gmail)
-    $mailer->Host       = $smtp['host'];
-    $mailer->SMTPAuth   = true;
-    $mailer->Port       = (int) $smtp['port'];
-    $mailer->Username   = $smtp['username'];
-    $mailer->Password   = $smtp['password'];
-    $mailer->SMTPSecure = ($smtp['encryption'] !== 'none') ? $smtp['encryption'] : '';
-    $mailer->Timeout    = 15;
-    $mailer->CharSet    = PHPMailer\PHPMailer\PHPMailer::CHARSET_UTF8;
-    $mailer->Encoding   = PHPMailer\PHPMailer\PHPMailer::ENCODING_BASE64;
-
-    $sig = $new_sig;
-    return $mailer;
+function evk_nl_paczka(?bool $trwa = null): bool {
+    static $stan = false;
+    if ($trwa !== null) $stan = $trwa;
+    return $stan;
 }
 
+/** Koniec paczki: zamyka połączenie SMTP, które paczka trzymała otwarte. */
 function evk_nl_mailer_close(): void {
-    evk_nl_mailer_instance(null, true);
+    global $phpmailer;
+    evk_nl_paczka(false);
+    if ($phpmailer instanceof PHPMailer\PHPMailer\PHPMailer) {
+        $phpmailer->SMTPKeepAlive = false;
+        $phpmailer->smtpClose();
+    }
 }
 
-function evk_nl_phpmailer_send(array $args) {
-    $smtp   = $args['smtp'];
-    $mailer = evk_nl_mailer_instance($smtp);
+/** Wersja tekstowa maila HTML (część „text/plain" wiadomości). */
+function evk_nl_tekst_z_html(string $html): string {
+    $alt = preg_replace('/<br\s*\/?>\s*/i', "\n", $html);
+    $alt = preg_replace('/<\/p>\s*/i', "\n\n", (string) $alt);
+    $alt = preg_replace('/<\/tr>\s*/i', "\n", (string) $alt);
+    $alt = preg_replace('/<\/td>\s*/i', "\t", (string) $alt);
+    $alt = html_entity_decode(wp_strip_all_tags((string) $alt), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    return (string) preg_replace("/\n{3,}/", "\n\n", trim($alt));
+}
 
-    try {
-        // Wyczyść stan po poprzednim mailu z tej samej paczki
-        $mailer->clearAllRecipients();
-        $mailer->clearAttachments();
-        $mailer->clearCustomHeaders();
-        $mailer->clearReplyTos();
+/**
+ * Jeden mail newslettera przez wp_mail(). Zwraca true albo WP_Error
+ * z komunikatem PHPMailera i — przy SMTP — faktyczną odpowiedzią serwera
+ * (np. limit wysyłki), jak przy własnym PHPMailerze do 1.232.0.
+ *
+ * $args: to, subject, body (HTML), attachments (ID załączników),
+ * unsub_url (nagłówki List-Unsubscribe), kampania (bool — maile kampanii nie
+ * idą do logu SMTP, mają własny dziennik w Raportach).
+ */
+function evk_nl_wyslij(array $args) {
+    $naglowki = ['Content-Type: text/html; charset=UTF-8'];
 
-        $from_email = !empty($smtp['from_email']) ? $smtp['from_email']
-            : (filter_var($smtp['username'], FILTER_VALIDATE_EMAIL) ? $smtp['username'] : get_option('admin_email'));
-        $from_name  = !empty($smtp['from_name']) ? $smtp['from_name'] : get_bloginfo('name');
-
-        $mailer->setFrom($from_email, $from_name);
-        $mailer->addReplyTo($from_email, $from_name);
-        $mailer->addAddress($args['to']);
-
-        // List-Unsubscribe + one-click (wymogi Gmail/Yahoo dla masowej wysylki)
-        if (!empty($args['unsub_url'])) {
-            $nl_opts = get_option('evk_newsletter', []);
-            $mailto  = trim((string) ($nl_opts['unsub_mailto'] ?? ''));
-            $lu = ($mailto !== '' && is_email($mailto))
-                ? '<mailto:' . $mailto . '?subject=unsubscribe>, <' . $args['unsub_url'] . '>'
-                : '<' . $args['unsub_url'] . '>';
-            $mailer->addCustomHeader('List-Unsubscribe', $lu);
-            $mailer->addCustomHeader('List-Unsubscribe-Post', 'List-Unsubscribe=One-Click');
-        }
-
-        $mailer->isHTML(true);
-        $mailer->Subject = $args['subject'];
-        $mailer->Body    = $args['body'];
-
-        // HTML → plain text
-        $alt = $args['body'];
-        $alt = preg_replace('/<br\s*\/?>\s*/i', "\n", $alt);
-        $alt = preg_replace('/<\/p>\s*/i', "\n\n", $alt);
-        $alt = preg_replace('/<\/tr>\s*/i', "\n", $alt);
-        $alt = preg_replace('/<\/td>\s*/i', "\t", $alt);
-        $alt = html_entity_decode(wp_strip_all_tags($alt), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $alt = preg_replace("/\n{3,}/", "\n\n", trim($alt));
-        $mailer->AltBody = $alt;
-
-        foreach ((array) ($args['attachments'] ?? []) as $attachment_id) {
-            $file_path = get_attached_file((int) $attachment_id);
-            if ($file_path && file_exists($file_path)) {
-                $mailer->addAttachment($file_path, basename($file_path));
-            }
-        }
-
-        $mailer->send();
-        return true;
-
-    } catch (\Throwable $e) {
-        // "data not accepted" itp. to ogólne komunikaty PHPMailera — dopisz
-        // faktyczną odpowiedź serwera SMTP (kod + powód, np. limit wysyłki)
-        $msg  = trim($e->getMessage());
-        $conn = $mailer->getSMTPInstance();
-        if ($conn) {
-            $err   = $conn->getError();
-            $extra = trim((string) ($err['detail'] ?? ''));
-            if ($extra === '') $extra = trim((string) ($err['error'] ?? ''));
-            if ($extra === '') $extra = trim((string) $conn->getLastReply());
-            if ($extra !== '' && stripos($msg, $extra) === false) {
-                $msg .= ' | Odpowiedź serwera: ' . $extra;
-            }
-        }
-        // Po błędzie połączenie może być w złym stanie — zamknij,
-        // kolejny mail otworzy świeże
-        $mailer->smtpClose();
-        return new WP_Error('mail_error', $msg);
+    // List-Unsubscribe + one-click (wymogi Gmail/Yahoo dla masowej wysyłki)
+    if (!empty($args['unsub_url'])) {
+        $nl_opts = get_option('evk_newsletter', []);
+        $mailto  = trim((string) ($nl_opts['unsub_mailto'] ?? ''));
+        $naglowki[] = 'List-Unsubscribe: ' . (($mailto !== '' && is_email($mailto))
+            ? '<mailto:' . $mailto . '?subject=unsubscribe>, <' . $args['unsub_url'] . '>'
+            : '<' . $args['unsub_url'] . '>');
+        $naglowki[] = 'List-Unsubscribe-Post: List-Unsubscribe=One-Click';
     }
+
+    $zalaczniki = [];
+    foreach ((array) ($args['attachments'] ?? []) as $attachment_id) {
+        $plik = get_attached_file((int) $attachment_id);
+        if ($plik && file_exists($plik)) $zalaczniki[] = $plik;
+    }
+
+    /* Na czas jednego maila: wersja tekstowa, ukryta nazwa biblioteki
+       i połączenie otwarte do końca paczki. PHPMailer w WordPressie jest
+       WSPÓLNY dla całego żądania — to, co tu ustawiamy, wraca potem do stanu
+       sprzed maila, żeby nie wyciekło do poczty innych wtyczek. */
+    $tekst = evk_nl_tekst_z_html((string) $args['body']);
+    $przed = null;
+    $przygotuj = static function ($pm) use ($tekst, &$przed) {
+        $przed = ['XMailer' => $pm->XMailer, 'SMTPKeepAlive' => $pm->SMTPKeepAlive];
+        $pm->AltBody = $tekst;
+        $pm->XMailer = ' ';   // nie ujawniaj biblioteki (jak Gmail)
+        if (evk_nl_paczka()) $pm->SMTPKeepAlive = true;
+    };
+    /* Nadawca „WordPress" (domyślna nazwa z wp_mail) w skrzynce subskrybenta
+       wygląda jak spam — w jej miejsce nazwa strony. Nazwę ustawioną przez
+       SMTP Evoke albo inną wtyczkę pocztową zostawiamy. */
+    $nazwa = static function ($n) { return $n === 'WordPress' ? get_bloginfo('name') : $n; };
+    $blad = null;
+    $przechwyc = static function ($e) use (&$blad) { $blad = $e; };
+    $pomin_log = !empty($args['kampania']);
+
+    add_action('phpmailer_init', $przygotuj, 99);
+    add_filter('wp_mail_from_name', $nazwa);
+    add_action('wp_mail_failed', $przechwyc);
+    if ($pomin_log) add_filter('evk_smtp_log_pomin', '__return_true');
+    try {
+        $wyslano = wp_mail($args['to'], (string) $args['subject'], (string) $args['body'], $naglowki, $zalaczniki);
+    } finally {
+        remove_action('phpmailer_init', $przygotuj, 99);
+        remove_filter('wp_mail_from_name', $nazwa);
+        remove_action('wp_mail_failed', $przechwyc);
+        if ($pomin_log) remove_filter('evk_smtp_log_pomin', '__return_true');
+    }
+
+    global $phpmailer;
+    $pm = $phpmailer instanceof PHPMailer\PHPMailer\PHPMailer ? $phpmailer : null;
+    if ($pm && $przed !== null) {
+        $pm->XMailer = $przed['XMailer'];
+        if (!evk_nl_paczka()) $pm->SMTPKeepAlive = $przed['SMTPKeepAlive'];
+    }
+    if ($wyslano) return true;
+
+    // "data not accepted" itp. to ogólne komunikaty PHPMailera — dopisz
+    // faktyczną odpowiedź serwera SMTP (kod + powód, np. limit wysyłki)
+    $msg  = is_wp_error($blad) ? trim($blad->get_error_message()) : 'Nie udało się wysłać wiadomości.';
+    $kod  = 'mail_error';
+    $conn = $pm ? $pm->getSMTPInstance() : null;
+    if ($conn) {
+        $err   = $conn->getError();
+        /* Odbicie („skrzynka nie istnieje", 5.1.x) — widać je tylko w paczce:
+           przy otwartym połączeniu PHPMailer po odmowie RCPT wysyła RSET, który
+           błędu nie czyści; bez paczki QUIT go czyści. Pojedyncze maile
+           (potwierdzenie zapisu) i tak nie mają kogo wyłączać. */
+        if (evk_nl_to_odbicie((string) ($err['smtp_code_ex'] ?? ''))) $kod = 'odbity';
+        $extra = trim((string) ($err['detail'] ?? ''));
+        if ($extra === '') $extra = trim((string) ($err['error'] ?? ''));
+        if ($extra === '') $extra = trim((string) $conn->getLastReply());
+        if ($extra !== '' && stripos($msg, $extra) === false) {
+            $msg .= ' | Odpowiedź serwera: ' . $extra;
+        }
+    }
+    // Po błędzie połączenie może być w złym stanie — zamknij,
+    // kolejny mail otworzy świeże
+    if ($pm) $pm->smtpClose();
+    return new WP_Error($kod, $msg);
 }
 
 // =========================================================================
@@ -303,10 +305,95 @@ function evk_nl_inject_tracking(string $body, string $token, int $campaign_id): 
 }
 
 // =========================================================================
-// SPRAWDZENIE SMTP
+// TRANSPORT — czym strona wyśle newsletter
 // =========================================================================
 
 function evk_nl_smtp_is_configured(): bool {
     $s = evk_smtp_get();
     return !empty($s['enabled']) && !empty($s['host']) && !empty($s['username']);
+}
+
+/**
+ * Czym WordPress wyśle pocztę — do komunikatu w panelu newslettera.
+ *
+ * `evoke`: SMTP Evoke (transport domyślny). `inny`: inna wtyczka pocztowa —
+ * rozpoznana po tym, że podpina się pod `phpmailer_init` albo `pre_wp_mail`
+ * albo podmienia samo `wp_mail()`. `mail`: nic z tego, czyli funkcja mail()
+ * serwera — przy wysyłce masowej zwykle prosto do spamu.
+ *
+ * `inne` to nazwy katalogów wtyczek (albo plików), które podpinają pocztę;
+ * przy `evoke` niepusta lista znaczy, że pocztę ustawiają DWIE wtyczki naraz.
+ */
+function evk_nl_transport(): array {
+    global $wp_filter;
+    $wlasny = wp_normalize_path(dirname(__DIR__, 2));
+    $inne   = [];
+    $kto = static function ($cb) use ($wlasny): string {
+        try {
+            if (is_array($cb)) {
+                $r = new ReflectionMethod(is_object($cb[0]) ? get_class($cb[0]) : (string) $cb[0], (string) $cb[1]);
+            } elseif (is_string($cb) && strpos($cb, '::') !== false) {
+                $r = new ReflectionMethod($cb);
+            } elseif (is_string($cb) || $cb instanceof Closure) {
+                $r = new ReflectionFunction($cb);
+            } elseif (is_object($cb) && method_exists($cb, '__invoke')) {
+                $r = new ReflectionMethod($cb, '__invoke');
+            } else {
+                return '';
+            }
+        } catch (ReflectionException $e) {
+            return '';
+        }
+        $plik = wp_normalize_path((string) $r->getFileName());
+        if ($plik === '' || strpos($plik, $wlasny . '/') === 0) return '';     // nasze
+        if (strpos($plik, wp_normalize_path(ABSPATH . WPINC) . '/') === 0) return '';   // rdzeń WP
+        $wtyczki = wp_normalize_path(WP_PLUGIN_DIR) . '/';
+        if (strpos($plik, $wtyczki) === 0) {
+            $katalog = (string) strtok(substr($plik, strlen($wtyczki)), '/');
+            // Nasza wtyczka ładowana spod dowiązania — ta sama nazwa katalogu.
+            return $katalog === basename($wlasny) ? '' : $katalog;
+        }
+        return basename($plik);
+    };
+    foreach (['phpmailer_init', 'pre_wp_mail'] as $hak) {
+        foreach ((array) ($wp_filter[$hak]->callbacks ?? []) as $funkcje) {
+            foreach ($funkcje as $f) {
+                $n = $kto($f['function']);
+                if ($n !== '') $inne[$n] = true;
+            }
+        }
+    }
+    try {
+        $n = $kto('wp_mail');
+        if ($n !== '') $inne[$n] = true;   // podmienione wp_mail() (funkcja „pluggable")
+    } catch (Throwable $e) {}
+    $inne = array_keys($inne);
+
+    if (evk_nl_smtp_is_configured()) return ['rodzaj' => 'evoke', 'inne' => $inne];
+    return ['rodzaj' => $inne ? 'inny' : 'mail', 'inne' => $inne];
+}
+
+/**
+ * Ostrzeżenie o transporcie do panelu — pusty łańcuch, gdy nie ma o czym
+ * mówić (SMTP Evoke albo inna wtyczka pocztowa, bez zderzenia).
+ *
+ * Do 1.232.0 panel ostrzegał „SMTP nie jest skonfigurowany — wysyłka nie
+ * będzie działać" także na stronach, które wysyłały pocztę inną wtyczką —
+ * i wtedy było to prawdą tylko dlatego, że newsletter umiał wyłącznie SMTP
+ * Evoke.
+ */
+function evk_nl_ostrzezenie_transportu(): string {
+    $t   = evk_nl_transport();
+    $smtp = esc_url(admin_url('options-general.php?page=evoke-one&tab=narzedzia&sub=smtp'));
+    if ($t['rodzaj'] === 'mail') {
+        return '<div class="evo-info-box is-warn evo-mb" data-evk-nl-transport="mail"><span class="dashicons dashicons-warning evo-warn-tx"></span><div>'
+             . '<strong>Newsletter wyśle maile funkcją mail() serwera.</strong> Bez SMTP wysyłka masowa zwykle ląduje w spamie albo zatrzymuje się na limicie hostingu. '
+             . '<a href="' . $smtp . '">Skonfiguruj SMTP →</a></div></div>';
+    }
+    if ($t['rodzaj'] === 'evoke' && $t['inne']) {
+        return '<div class="evo-info-box is-warn evo-mb" data-evk-nl-transport="dwa"><span class="dashicons dashicons-warning evo-warn-tx"></span><div>'
+             . '<strong>Pocztę ustawiają dwie wtyczki:</strong> SMTP Evoke i ' . esc_html(implode(', ', $t['inne'])) . '. '
+             . 'Wysyła ta, która podpina się później — zostaw jedną.</div></div>';
+    }
+    return '';
 }

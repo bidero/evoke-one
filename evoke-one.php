@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.232.0
+ * Version: 1.233.0
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
@@ -22,7 +22,7 @@ define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
    przeglądarkom podawać stare pliki z pamięci mimo aktualizacji wtyczki.
    Zgodności trzech miejsc (nagłówek, stała, changelog) pilnuje sekcja
    „numer wersji w trzech miejscach" w tests/drobiazgi.test.js. */
-define('EVOKE_ONE_VERSION', '1.232.0');
+define('EVOKE_ONE_VERSION', '1.233.0');
 
 /* DEAKTYWACJA: bez zadań w cronie i bez naszych reguł adresów. Do 1.231.x
    wyłączona wtyczka zostawiała zaplanowane kroki kopii i wysyłki newslettera,
@@ -156,6 +156,7 @@ require_once EVOKE_ONE_DIR . 'includes/admin/page.php';
 
 // ── Security (podfolder) ──────────────────────────────────────────────────
 $evoke_security_modules = [
+    'security/ip-klienta.php',   // adres odwiedzającego: limit logowań, newsletter, logi 404
     'security/settings.php',
     'security/login-limit.php',
     'security/hide-version.php',
@@ -216,6 +217,7 @@ require_once EVOKE_ONE_DIR . 'includes/admin/role-manager-logic.php';
 require_once EVOKE_ONE_DIR . 'includes/newsletter/tables.php';
 require_once EVOKE_ONE_DIR . 'includes/newsletter/mailer.php';
 require_once EVOKE_ONE_DIR . 'includes/newsletter/lists.php';
+require_once EVOKE_ONE_DIR . 'includes/newsletter/import.php';   // podgląd, mapowanie, wykluczenia (1.233.0)
 require_once EVOKE_ONE_DIR . 'includes/newsletter/campaigns.php';
 require_once EVOKE_ONE_DIR . 'includes/newsletter/tracking.php';
 require_once EVOKE_ONE_DIR . 'includes/newsletter/menu.php';
@@ -227,6 +229,7 @@ if (!empty($evk_nl_opts['enabled'])) {
 
 require_once EVOKE_ONE_DIR . 'includes/newsletter/ajax.php';
 require_once EVOKE_ONE_DIR . 'includes/newsletter/public.php';
+require_once EVOKE_ONE_DIR . 'includes/newsletter/bricks.php';   // akcja formularza Bricksa (1.233.0)
 require_once EVOKE_ONE_DIR . 'includes/newsletter/settings.php';
 
 // ── RODO: eksport i usuwanie danych osoby, tekst polityki (zawsze) ────────

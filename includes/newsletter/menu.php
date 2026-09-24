@@ -94,14 +94,8 @@ function evk_nl_render_page(): void {
 
         <div class="evo-panel">
             <?php
-            // Ostrzeżenie SMTP
-            if (!evk_nl_smtp_is_configured()) {
-                echo '<div class="notice notice-warning inline" style="margin:0 0 16px;"><p>';
-                echo '<span class="dashicons dashicons-warning" style="color:#f59e0b;"></span> ';
-                echo '<strong>Newsletter:</strong> SMTP nie jest skonfigurowany. ';
-                echo '<a href="' . esc_url(admin_url('options-general.php?page=evoke-one&tab=narzedzia')) . '">Konfiguruj SMTP →</a>';
-                echo '</p></div>';
-            }
+            // Czym pójdzie poczta (wp_mail od 1.233.0) — tylko gdy jest o czym mówić
+            echo evk_nl_ostrzezenie_transportu();
 
             if ($subtab === 'settings') {
                 evk_nl_render_settings_subtab();

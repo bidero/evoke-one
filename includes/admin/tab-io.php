@@ -29,6 +29,13 @@ if (!defined('ABSPATH')) exit;
                         <div class="evo-desc evo-m0">Hasło SMTP i hasło obejścia konserwacji. Bez zaznaczenia plik ich nie ma, a import takiego pliku zostawia hasła, które są na stronie.</div>
                     </div>
                 </label>
+                <label class="evo-check evo-mb">
+                    <input type="checkbox" id="evo-export-subskrybenci" value="1">
+                    <div>
+                        <span class="evo-strong-500">Dołącz subskrybentów newslettera</span>
+                        <div class="evo-desc evo-m0">Adresy, zapisy zgód (z adresami IP), kampanie i ich statystyki. Bez zaznaczenia plik niesie ustawienia, listy i szablony newslettera, a import takiego pliku dopisuje listy i szablony, nie ruszając subskrybentów na stronie.</div>
+                    </div>
+                </label>
                 <button type="button" class="button button-primary" onclick="evoExportSelected()">
                     <span class="dashicons dashicons-download"></span> Eksportuj zaznaczone
                 </button>

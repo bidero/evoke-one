@@ -2,6 +2,108 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.233.0] — 2026-09-24
+
+Czwarte wydanie po audycie 1.229.6: newsletter.
+
+### Dodane
+
+- **Akcja „Newsletter (Evoke ONE)" w formularzach Bricksa** (Bricks 1.12.2+).
+  W ustawieniach formularza wybierasz akcję, a pod nią:
+  - listę,
+  - pole e-mail (puste: pierwsze pole typu e-mail),
+  - pole zgody,
+  - pola, które mają trafić do znaczników („Imię" → `{imie}`),
+  - przełącznik „bez potwierdzenia mailem".
+
+  Domyślnie zapis idzie z potwierdzeniem mailem, tak jak w shortcodzie.
+  Wskazane pole zgody działa jak „Zapisz mnie do newslettera" w formularzu
+  kontaktowym albo rejestracji: bez zaznaczenia akcja nic nie robi, a wiadomość
+  idzie dalej. Treść zgody zapisuje się tak, jak osoba ją widziała (etykieta
+  opcji, nie jej wartość), razem z formularzem i wpisem, z którego przyszła.
+  Błąd, np. brak adresu, pokazuje się w formularzu. Komunikat sukcesu to ten
+  z ustawień formularza. **Bricksa nie ma na maszynie testowej**: test
+  sprawdza kształt kontrolek z dokumentacji Bricksa i obsługę zapisu, a to,
+  jak wygląda to w builderze, trzeba sprawdzić na stronie.
+- **Import subskrybentów z podglądem.** „Podgląd" pokazuje przed zapisem:
+  - kolumny pliku z przykładami,
+  - liczby: nowe, już na liście, wykluczone (z powodem), błędne,
+  - pierwsze wiersze z tym, co się z każdym stanie.
+
+  Import idzie tym samym przejściem co podgląd, więc robi dokładnie to,
+  co pokazał.
+- **Mapowanie kolumn.** Kolumnę z adresem wtyczka znajduje sama. Pozostałe
+  kolumny z nagłówkiem trafiają do subskrybenta jako znaczniki, np. „Imię" →
+  `{imie}`. Każdą można pominąć albo nazwać inaczej. Adres w postaci
+  „Jan Kowalski <jan@firma.pl>" jest rozpoznawany, a sklejone pola
+  („jan@firma.pl;Jan") dalej lądują w błędnych.
+- **Lista wykluczeń** (Newsletter → Listy). Import nigdy nie dopisuje:
+  - adresu wypisanego z *dowolnej* listy,
+  - adresu odbitego przy wysyłce,
+  - adresu usuniętego na żądanie RODO,
+  - adresu dopisanego ręcznie do wykluczeń.
+
+  Adres dopisany ręcznie przestaje dostawać maile ze wszystkich list.
+  Usunięcie go z wykluczeń nie zapisuje go z powrotem. Tabela subskrybentów
+  pokazuje „Odbity" i „Wykluczony" zamiast samego „Wypisany".
+- **Odbicia.** Adres, którego skrzynki serwer odbiorcy nie zna (kod 5.1.x,
+  np. 5.1.1), trafia przy wysyłce kampanii na listę wykluczeń i wypada ze
+  wszystkich list, bez ponawiania. Odbicie nie liczy się do bezpiecznika
+  paczki. Odmowa przekazania poczty (5.7.x, „Relaying denied") odbiciem nie
+  jest: tak źle ustawiony serwer odpowiada na każdego odbiorcę.
+- **Zaufane pośrednictwo (Cloudflare)** — Bezpieczeństwo → Limit logowań →
+  „Adres IP odwiedzających". Z adresu IP korzystają limit logowań, newsletter
+  (zapis zgody, limit zapisów) i logi 404. Za Cloudflare do 1.232.0 był to
+  adres węzła Cloudflare, więc limit logowań blokował naraz wszystkich
+  odwiedzających.
+  - Tryb „Cloudflare" bierze `CF-Connecting-IP`, ale tylko z sieci Cloudflare
+    (lista w kodzie). Podrobiony nagłówek od kogokolwiek innego nie ma
+    znaczenia.
+  - Tryb „Inny pośrednik" czyta `X-Forwarded-For` od prawej, tylko od
+    wpisanych adresów pośrednika.
+  - Ekran pokazuje, jaki adres wtyczka widzi w każdym trybie. Ostrzega, gdy
+    strona stoi za Cloudflare, a tryb jest wyłączony.
+- **Pole „Dołącz subskrybentów newslettera" przy eksporcie ustawień**,
+  domyślnie odznaczone. Bez niego plik niesie ustawienia, listy i szablony,
+  bez adresów, zgód z adresami IP, kampanii i statystyk. Import takiego pliku
+  dopisuje listy i szablony po nazwie, a subskrybenci strony zostają na swoich
+  listach. Plik z subskrybentami dalej zastępuje newsletter na stronie.
+
+### Zmienione
+
+- **Newsletter wysyła przez `wp_mail()`.** SMTP Evoke zostaje transportem
+  domyślnym, ale kampania i mail z potwierdzeniem działają też z inną
+  wtyczką pocztową. Do 1.232.0 przy wyłączonym SMTP Evoke kampania kończyła
+  się błędem, a potwierdzenie zapisu nie wychodziło wcale. Bez zmian zostają:
+  - nagłówki wypisu (List-Unsubscribe, one-click),
+  - wersja tekstowa,
+  - jedno połączenie SMTP na paczkę,
+  - odpowiedź serwera w błędzie.
+
+  Nadawca „WordPress" (domyślny przy braku SMTP) zamienia się na nazwę
+  strony. Maile kampanii nie trafiają do logu SMTP, bo mają własny dziennik
+  w Raportach.
+- Panel newslettera ostrzega o transporcie tylko wtedy, gdy jest powód: przy
+  wysyłce funkcją mail() serwera albo gdy pocztę ustawiają dwie wtyczki
+  naraz. Wcześniej ostrzegał „SMTP nie jest skonfigurowany" także na
+  stronach z inną wtyczką pocztową.
+- **Formularz zapisu (shortcode) bez nonce.** Na stronach w pełnym cache HTML
+  nonce wygasał po dobie i każdy zapis kończył się komunikatem
+  „Nieprawidłowy token". Zostają podpis parametrów, honeypot i limit na
+  adres IP. Doszedł limit maili z potwierdzeniem: najwyżej 3 na dobę na
+  jeden adres, żeby formularzem nie dało się zasypać cudzej skrzynki.
+
+### Naprawione
+
+- **Log SMTP mnożył wpisy.** Każdy mail w żądaniu dokładał do WordPressa
+  nowe nasłuchiwanie, którego nikt nie zdejmował. N maili dawało
+  N·(N+1)/2 wpisów, a porażka jednego trafiała do logu także jako porażka
+  maili, które doszły. Teraz jeden mail to jeden wpis z jego własnym wynikiem.
+- Formularz zapisu mówił „sprawdź skrzynkę" także wtedy, gdy mail
+  z potwierdzeniem nie wyszedł. Teraz mówi, że wysłanie się nie udało.
+- Import ustawień newslettera na stronie, na której moduł nigdy nie był
+  włączony, nie miał gdzie zapisać list i szablonów, bo nie było tabel.
+
 ## [1.232.0] — 2026-09-24
 
 Trzecie wydanie po audycie 1.229.6: dane i prywatność.

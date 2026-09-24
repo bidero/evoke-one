@@ -46,6 +46,7 @@ require EVK_TEST_ROOT . '/includes/opengraph/settings.php';
 /* PRAWDZIWE moduły, z których pulpit czyta stan. Atrapa tych funkcji
    przepuściłaby literówkę w nazwie opcji — czyli dokładnie tę klasę błędu,
    dla której ten plik powstał. */
+require EVK_TEST_ROOT . '/includes/security/ip-klienta.php';
 require EVK_TEST_ROOT . '/includes/security/settings.php';
 require EVK_TEST_ROOT . '/includes/30-admin-settings-ajax.php';
 /* Moduł mapy — ekran startowy pyta go, czy WordPress wystawia mapę. Bez tego

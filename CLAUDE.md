@@ -90,14 +90,14 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (82 pliki, sześć partii; testy kopii trwają
+Podział, który się mieści (87 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
 node tests/run.js backup-panel
 node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp
 node tests/run.js admin- anim animator aria bg-shift bricks-required builder-context burger circular-menu controls
-node tests/run.js darkmode drobiazgi grain hscroll inbox konserwacja kursor loop marquee motion
+node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee motion
 node tests/run.js newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
 ```
@@ -111,7 +111,7 @@ lista filtrów co wyżej:
 FILTRY="admin- anim animator aria backup-panel backup-baza backup-czytnik backup-drive
 backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize
 backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-required builder-context
-burger circular-menu controls darkmode drobiazgi grain hscroll inbox
+burger circular-menu controls darkmode drobiazgi grain hscroll inbox ip-klienta
 konserwacja kursor loop marquee motion newsletter odpornosc odswiezanie
 offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji
 przelaczniki rewizje schema-graf scroll-lock seo-meta settings-save sierotki
@@ -190,6 +190,15 @@ sprawdza się na evoke.pl. Atrapa podaje PRAWDZIWĄ stronę przekierowującą
 z `tools/oauth-relay/index.html`, a tokeny idą przez PRAWDZIWEGO pośrednika
 `tools/oauth-relay/token.php` (drugi `php -S`, konfiguracja testowa), więc test
 panelu przechodzi całą drogę.
+
+Poczta (`newsletter-wysylka`) idzie przez **atrapę serwera SMTP** —
+`tests/lib/smtp-atrapa.js` stawia osobny proces Node (sondy PHP idą przez
+`execSync`, więc serwer w procesie testu stałby razem z nimi), a sonda kieruje
+na niego SMTP Evoke. Atrapa zapisuje każdą wiadomość z numerem połączenia
+i umie odmówić: `ster({ limit: N })` (451 po N mailach), `odrzuc_rcpt`
+(550 5.1.1), `odpowiedz_rcpt` (dowolna odpowiedź na RCPT). Dzięki temu test
+widzi PRAWDZIWE `wp_mail()` i PHPMailera: nagłówki, jedno połączenie na
+paczkę, odpowiedź serwera w błędzie.
 
 Brak środowiska **zapala test na czerwono** z instrukcją, a nie pomija go po
 cichu — ta sama umowa co przy PHPStanie w `drobiazgi`.

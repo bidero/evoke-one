@@ -25,7 +25,6 @@ function wp_specialchars_decode($s, $q = null) { return html_entity_decode((stri
 function set_transient($k, $v, $t = 0) { $GLOBALS['transients'][$k] = $v; return true; }
 function get_transient($k) { return $GLOBALS['transients'][$k] ?? false; }
 function delete_transient($k) { unset($GLOBALS['transients'][$k]); return true; }
-function wp_normalize_path($s) { return str_replace('\\', '/', (string) $s); }
 function wp_strip_all_tags($s, $br = false) { return strip_tags((string) $s); }
 function wp_create_nonce($akcja = -1) { return 'nonce'; }
 
