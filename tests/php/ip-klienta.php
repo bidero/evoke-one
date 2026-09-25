@@ -155,10 +155,15 @@ $_SERVER['REQUEST_URI'] = '/evk-t-nie-ma-' . wp_rand();
 $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (test)';
 global $wp_query;
 $wp_query->set_404();
-$przed_404 = get_posts(['post_type' => 'evk_404_log', 'posts_per_page' => -1, 'fields' => 'ids', 'post_status' => 'any']);
+/* Od 1.234.0 log 404 to tabela evk_404 (jeden wiersz na adres). Adres
+   sondy jest za każdym razem inny, więc wiersz jest nowy i to jego IP czytamy. */
+$sciezka_404 = '/sonda-ip-' . wp_rand() . '/';
+$_SERVER['REQUEST_URI'] = $sciezka_404;
 $out['hak_404'] = evk_t_hak_z_pliku('template_redirect', 'logs-404.php');
-$nowe = array_diff(get_posts(['post_type' => 'evk_404_log', 'posts_per_page' => -1, 'fields' => 'ids', 'post_status' => 'any']), $przed_404);
-$out['log_404_ip'] = $nowe ? (string) get_post_meta((int) reset($nowe), 'ip', true) : '(brak wpisu)';
+global $wpdb;
+$ip_404 = evk_404_tabela_gotowa() ? $wpdb->get_var($wpdb->prepare('SELECT ip FROM ' . evk_404_table() . ' WHERE url = %s', $sciezka_404)) : null;
+$out['log_404_ip'] = $ip_404 !== null ? (string) $ip_404 : '(brak wpisu)';
+if (evk_404_tabela_gotowa()) $wpdb->delete(evk_404_table(), ['url' => $sciezka_404]);
 foreach ($nowe as $id) wp_delete_post((int) $id, true);
 
 // ── Zapis ustawień przez AJAX (jak z panelu) ────────────────────────────────

@@ -26,6 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['evk_404_save'])
 }
 
 $enabled   = evk_404_is_enabled();
+/* Tabela i przeniesienie wpisów sprzed 1.234.0 przy pierwszym otwarciu
+   (albo pierwszym trafieniu 404) po aktualizacji — przy włączonym module. */
+if ($enabled) evk_404_maybe_upgrade();
 $max_logs  = evk_404_max_logs();
 $skip_bots = evk_404_skip_bots();
 $bot_list  = implode("\n", evk_404_bot_list());
@@ -39,7 +42,7 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
     </div>
     <div class="evo-status-text">
         <h3>Logi 404: <?php echo $enabled ? 'WŁĄCZONE' : 'WYŁĄCZONE'; ?></h3>
-        <p>Rejestruje nieistniejące adresy URL z datą, IP i referrerem.</p>
+        <p>Zapisuje nieistniejące adresy: ile razy ktoś w nie wszedł, kiedy ostatnio i skąd. Jeden adres to jeden wiersz, a z jednego IP najwyżej <?php echo (int) EVK_404_LIMIT_NA_MINUTE; ?> adresów na minutę — skaner nie zaleje bazy.</p>
     </div>
     <?php /* Bez formularza i bez ukrytych kopii pozostałych ustawień. Włącznik
              przełączał się przeładowaniem, więc musiał wieźć ze sobą wszystkie
@@ -76,8 +79,8 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
         <h3>Ustawienia rejestrowania</h3>
     <div class="evo-toolbar evo-mb" style="--evo-gap:24px">
         <div class="evo-field evo-inline evo-m0" style="--evo-gap:8px">
-            <label class="evo-nowrap evo-m0">Maks. logów:</label>
-            <input type="number" name="evk_404_max_logs" value="<?php echo esc_attr($max_logs); ?>" min="10" max="5000" class="evo-w" style="--evo-w:90px">
+            <label class="evo-nowrap evo-m0" for="evk-404-max">Maks. adresów:</label>
+            <input type="number" id="evk-404-max" name="evk_404_max_logs" value="<?php echo esc_attr($max_logs); ?>" min="10" max="5000" class="evo-w" style="--evo-w:90px">
         </div>
         <label class="evo-check">
             <input type="checkbox" name="evk_404_skip_bots" value="1" <?php checked($skip_bots); ?>>
@@ -106,42 +109,54 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
 </form>
 
 <?php
-$logs = get_posts([
-    'post_type'      => 'evk_404_log',
-    'posts_per_page' => $max_logs,
-    'orderby'        => 'date',
-    'order'          => 'DESC',
-    'post_status'    => 'publish',
-]);
-if (!empty($logs)):
+$wiersze = evk_404_tabela_gotowa()
+    ? ($GLOBALS['wpdb']->get_results('SELECT id, url, hits, first_seen, last_seen, referrer, ip, ua FROM ' . evk_404_table()
+        . ' ORDER BY hits DESC, last_seen DESC LIMIT ' . (int) $max_logs, ARRAY_A) ?: [])
+    : [];
+if (!empty($wiersze)):
 ?>
 <div class="evo-box">
-    <h3>Zarejestrowane błędy 404 <span class="evo-hint">(<?php echo count($logs); ?>)</span></h3>
+    <h3>Nieistniejące adresy <span class="evo-hint">(<?php echo count($wiersze); ?>)</span></h3>
+    <?php if (!evk_301_is_enabled()): ?>
+    <div class="evo-info-box is-warn evo-mb" data-evk-404-301-wylaczone>
+        <span class="dashicons dashicons-warning evo-warn-tx"></span>
+        <div>Przekierowania 301 są wyłączone. Utworzone tu przekierowania zaczną działać po włączeniu modułu
+            <a href="<?php echo esc_url(add_query_arg(['tab' => 'narzedzia', 'sub' => 'redirect'], admin_url('options-general.php?page=evoke-one'))); ?>">Przekierowania 301</a>.</div>
+    </div>
+    <?php endif; ?>
     <div class="evo-tbl-wrap">
     <table class="evo-tbl evo-tbl-sm">
         <thead><tr>
-            <th class="evo-w" style="--evo-w:140px">Czas</th>
-            <th>URL</th>
-            <th>Referrer</th>
+            <th>Adres</th>
+            <th class="evo-w evo-center" style="--evo-w:80px">Wejścia</th>
+            <th class="evo-w" style="--evo-w:140px">Ostatnio</th>
+            <th>Skąd</th>
             <th class="evo-w" style="--evo-w:110px">IP</th>
-            <th>User Agent</th>
+            <th>Przeglądarka</th>
+            <th class="evo-w" style="--evo-w:220px">Akcja</th>
         </tr></thead>
         <tbody>
-        <?php foreach ($logs as $log):
-            $m = get_post_meta($log->ID);
-        ?>
-        <tr>
-            <td class="evo-nowrap"><?php echo esc_html($m['logged_at'][0] ?? ''); ?></td>
-            <td><code class="evo-mono-xs evo-break"><?php echo esc_html($m['url'][0] ?? ''); ?></code></td>
-            <td class="evo-hint-sm"><?php echo esc_html($m['referrer'][0] ?? '—'); ?></td>
+        <?php foreach ($wiersze as $w): ?>
+        <tr data-evk-404-wiersz="<?php echo (int) $w['id']; ?>">
+            <td><code class="evo-mono-xs evo-break"><?php echo esc_html($w['url']); ?></code></td>
+            <td class="evo-center evo-strong"><?php echo (int) $w['hits']; ?></td>
+            <td class="evo-nowrap" title="<?php echo esc_attr('Pierwszy raz: ' . wp_date('Y-m-d H:i', (int) $w['first_seen'])); ?>"><?php echo esc_html(wp_date('Y-m-d H:i', (int) $w['last_seen'])); ?></td>
+            <td class="evo-hint-sm evo-break"><?php echo esc_html($w['referrer'] !== '' ? $w['referrer'] : '—'); ?></td>
             <td>
-                <a href="https://radar.cloudflare.com/ip/<?php echo esc_attr($m['ip'][0] ?? ''); ?>" target="_blank" class="evo-hint-sm">
-                    <?php echo esc_html($m['ip'][0] ?? '—'); ?>
-                </a>
+                <?php if ($w['ip'] !== ''): ?>
+                <a href="https://radar.cloudflare.com/ip/<?php echo esc_attr($w['ip']); ?>" target="_blank" rel="noopener" class="evo-hint-sm"><?php echo esc_html($w['ip']); ?></a>
+                <?php else: ?>—<?php endif; ?>
             </td>
-            <td class="evo-hint-sm evo-ellipsis evo-w" style="--evo-w:280px"
-                title="<?php echo esc_attr($m['ua'][0] ?? ''); ?>">
-                <?php echo esc_html($m['ua'][0] ?? '—'); ?>
+            <td class="evo-hint-sm evo-ellipsis evo-w" style="--evo-w:200px" title="<?php echo esc_attr($w['ua']); ?>"><?php echo esc_html($w['ua'] !== '' ? $w['ua'] : '—'); ?></td>
+            <td class="evk-404-akcja">
+                <button type="button" class="button button-small" data-evk-404-przekieruj>Przekieruj</button>
+                <div class="evo-inline" data-evk-404-cel hidden style="--evo-gap:6px">
+                    <input type="text" class="evo-w" style="--evo-w:130px" placeholder="/nowy-adres"
+                           aria-label="<?php echo esc_attr('Przekieruj ' . $w['url'] . ' na adres'); ?>">
+                    <button type="button" class="button button-small button-primary" data-evk-404-zapisz>Zapisz</button>
+                    <button type="button" class="button button-small" data-evk-404-anuluj>Anuluj</button>
+                </div>
+                <span class="evo-hint-sm evo-danger-tx" data-evk-404-blad role="alert"></span>
             </td>
         </tr>
         <?php endforeach; ?>
@@ -158,6 +173,40 @@ if (!empty($logs)):
 
 <script>
 (function($){
+    /* „Przekieruj" w wierszu: pole celu, zapis przez evk_404_przekieruj
+       (przekierowanie 301 + usunięcie wiersza z logu). */
+    var nonce404 = <?php echo wp_json_encode($nonce_ajax); ?>;
+    function wiersz(el){ return $(el).closest('tr'); }
+    $(document).on('click', '[data-evk-404-przekieruj]', function(){
+        var tr = wiersz(this);
+        $(this).hide();
+        tr.find('[data-evk-404-cel]').prop('hidden', false).find('input').trigger('focus');
+    });
+    $(document).on('click', '[data-evk-404-anuluj]', function(){
+        var tr = wiersz(this);
+        tr.find('[data-evk-404-cel]').prop('hidden', true);
+        tr.find('[data-evk-404-blad]').text('');
+        tr.find('[data-evk-404-przekieruj]').show();
+    });
+    $(document).on('keydown', '[data-evk-404-cel] input', function(e){
+        if (e.key === 'Enter') { e.preventDefault(); wiersz(this).find('[data-evk-404-zapisz]').trigger('click'); }
+    });
+    $(document).on('click', '[data-evk-404-zapisz]', function(){
+        var tr = wiersz(this), btn = $(this), cel = $.trim(tr.find('[data-evk-404-cel] input').val());
+        if (!cel) { tr.find('[data-evk-404-blad]').text('Podaj adres docelowy.'); return; }
+        btn.prop('disabled', true);
+        $.post(ajaxurl, {action: 'evk_404_przekieruj', nonce: nonce404, id: tr.data('evk-404-wiersz'), to: cel}, function(r){
+            if (r && r.success) {
+                tr.addClass('evo-faint').find('.evk-404-akcja').empty()
+                  .append($('<span class="evo-hint-sm" data-evk-404-przekierowano></span>').text('Przekierowano → ' + r.data.na));
+            } else {
+                tr.find('[data-evk-404-blad]').text((r && r.data) ? r.data : 'Nie udało się zapisać.');
+            }
+        }).fail(function(){
+            tr.find('[data-evk-404-blad]').text('Błąd połączenia — spróbuj jeszcze raz.');
+        }).always(function(){ btn.prop('disabled', false); });
+    });
+
     $('#evk-clear-404').on('click', function(){
         if (!confirm('Wyczyścić wszystkie logi 404?')) return;
         var btn = $(this).prop('disabled', true).text('...');

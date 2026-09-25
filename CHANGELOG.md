@@ -2,6 +2,99 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.234.0] — 2026-09-25
+
+Piąte wydanie po audycie 1.229.6: ryzyka na żywych stronach.
+
+### Zmienione
+
+- **Logi 404: jeden wiersz na adres.** Log to teraz tabela `evk_404`:
+  adres, liczba wejść, pierwsze i ostatnie wejście oraz skąd, z jakiego IP
+  i jaką przeglądarką było ostatnie. Do 1.233.5 każde trafienie było nowym
+  wpisem. Zmierzone na testowym WordPressie: 26–32 zapytania na trafienie
+  i przy każdym `save_post`, na który reagują inne wtyczki, np. czyszczeniem
+  pamięci stron. Skaner podatności sprawdzający setki adresów robił z tego
+  lawinę zapisów. Teraz nowy adres kosztuje 4 zapytania, kolejne wejście 2,
+  a `save_post` nie odpala się wcale. `/Oferta/`, `/oferta`
+  i `/oferta?utm=…` to jeden wiersz.
+- **Limit logu 404:** z jednego IP najwyżej 20 adresów na minutę, ponad to
+  trafienia nie są zapisywane. Człowiek odświeżający jeden zły adres
+  limitu nie dotknie, skaner dobija do niego w kilka sekund.
+- **„Przekieruj" w logu 404.** Przycisk w wierszu otwiera pole celu.
+  Zapis tworzy przekierowanie 301 z tego adresu i zdejmuje go z logu.
+  Kolejne wejścia i tak nie trafią już do logu. Gdy moduł przekierowań
+  jest wyłączony, ekran o tym ostrzega.
+- **Wpisy logu sprzed 1.234.0 przenoszą się same** przy pierwszym
+  trafieniu 404 albo otwarciu ekranu po aktualizacji. Wpisy jednego adresu
+  łączą się w jeden wiersz z liczbą wejść. „Maks. logów" nazywa się teraz
+  „Maks. adresów".
+- **Konserwacja: 503 na każdym adresie.** Do 1.233.5 zasłonę z 503
+  dostawała tylko strona główna, a każda podstrona odpowiadała 302 na `/`.
+  Dla wyszukiwarki było to przekierowanie wszystkich podstron na stronę
+  główną. Teraz każdy adres pokazuje zasłonę z 503 i `Retry-After`.
+- **Konserwacja: robots.txt bez zmian.** Do 1.233.5 robots.txt w konserwacji
+  był podmieniany na `Disallow: /`, a Google pamięta go do doby po
+  wyłączeniu konserwacji. Teraz jest podawany zwyczajnie, bez zasłony.
+
+### Naprawione
+
+- **Link wypisu wstawiony oknem linku nie działał.** Zmierzone na
+  prawdziwej wysyłce: `{unsubscribe_url}` z okna linku dawał
+  „http://http(s)://…". Do odbiorcy szedł niedziałający wypis, przy ładnych
+  adresach zawsze, a bez nich przy wyłączonym śledzeniu. Tagi wypisu
+  i podglądu (`{unsubscribe_url}`, `{view_url}` i ich wersje `_plain`)
+  w adresie linku działają teraz tak jak `{site_url}` od 1.233.2.
+- **Wypis nie liczy się jako kliknięcie.** Na stronie bez ładnych adresów
+  każdy link wypisu szedł przez śledzenie. Wypis był więc w raporcie
+  kliknięciem, a od 1.233.4 także otwarciem. Teraz tracker go nie opakowuje.
+  Opakowane linki ze starszych maili dalej przekierowują na stronę wypisu,
+  tylko bez wpisów w statystykach.
+- **Podgląd w przeglądarce zna `{view_url}`.** Dotąd link z tym tagiem
+  prowadził w podglądzie do dosłownego „{view_url}".
+- **Eksport CSV skrzynki formularzy:**
+  - komórka dostaje samą wartość pola, jak w panelu skrzynki: „Rezerwacja
+    noclegu", a nie „select, Rezerwacja noclegu, Temat";
+  - treść zaczynająca się od `=`, `+`, `-` lub `@` dostaje apostrof.
+    Dotąd Excel i LibreOffice otwierały ją jako formułę, a piszą ją obcy
+    ludzie: pola formularza, przeglądarka, referer. Same liczby („-5")
+    zostają liczbami.
+- **Przekierowania: cel bez ukośnika.** Cel wpisany jako „nowa-strona" to
+  ścieżka w serwisie. Dotąd stawał się adresem „http://nowa-strona", czyli
+  nieistniejącym hostem. Dodanie reguły dla adresu, który już ma regułę,
+  zmienia jej cel zamiast tworzyć duplikat. Przekierowanie adresu na samego
+  siebie jest odrzucane.
+
+### Testy
+
+- `zapis-wp-logi404` (nowy, prawdziwy WordPress, panel przez `php -S`
+  i Chromium):
+  - koszt trafienia i brak `save_post`;
+  - jeden wiersz na adres, roboty;
+  - limit na IP (także po minucie i dla innego IP);
+  - „Maks. adresów";
+  - pomijanie adresów z przekierowaniem;
+  - przeniesienie starych wpisów;
+  - „Przekieruj" w panelu: pole, pusty cel, zapis, wiersz znika z logu.
+- `konserwacja-http` (nowy, przez `php -S`): 503 z `Retry-After` na stronie
+  głównej, podstronie spod ścieżki i z zapytania oraz nieistniejącym
+  adresie; robots.txt 200 bez `Disallow: /`; logowanie działa.
+  `konserwacja` na atrapach: odrzucone wejście pokazuje zasłonę pod tym
+  samym adresem zamiast przekierowania.
+- `inbox-csv` (nowy): wartości pól Bricksa w nowym i starym formacie,
+  apostrof przed formułą w polu, przeglądarce i refererze, liczby bez
+  zmian.
+- `newsletter-sledzenie`: wypis z okna linku, w wersji `_plain`
+  i z zakładki „Tekst" (działa, bez śledzenia), podgląd z okna linku; link
+  wypisu ze starego maila przekierowuje bez kliknięcia i otwarcia.
+- `ip-klienta` i `admin-tabs` czytają log 404 z nowej tabeli.
+- Mutacje (16), każda zapala własny podzbiór: tagi wypisu w adresie linku,
+  postać `?evk_nl=`, kliknięcie w stary wypis, stary kod konserwacji
+  (7 sprawdzeń), robots.txt pod zasłoną, 302 na stronę główną, CSV bez
+  osłony formuł, sklejona tablica Bricksa, liczby z apostrofem, log 404 bez
+  limitu, bez normalizacji adresu, bez sprzątania, z logowaniem adresów
+  z przekierowaniem, cel bez ukośnika, przeniesienie z danymi
+  z niewłaściwego wpisu, „Przekieruj" bez zdjęcia wiersza.
+
 ## [1.233.5] — 2026-09-25
 
 Poprawka po zgłoszeniu: fałszywe ostrzeżenie o dwóch wtyczkach pocztowych.

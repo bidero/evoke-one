@@ -219,11 +219,26 @@ function evk_nl_replace_merge_tags(string $text, array $merge): string {
  * Tag w tekście, poza istniejącym linkiem, staje się linkiem z TYM SAMYM
  * napisem co dotąd. Ścieżka wpisana zaraz po tagu („{site_url}/kontakt/")
  * wchodzi do linku, kropka kończąca zdanie — nie.
+ *
+ * Od 1.234.0 pierwszy krok obejmuje też tagi wypisu i podglądu. Zmierzone na
+ * prawdziwej wysyłce: {unsubscribe_url} z okna linku dawał
+ * „http://http(s)://…/nl/unsub/…" — tracker wypisu nie opakowuje, więc taki
+ * NIEDZIAŁAJĄCY link wypisu szedł do odbiorcy, przy ładnych adresach zawsze,
+ * bez nich przy wyłączonym śledzeniu. Wersje `_plain` (dla okna linku) też
+ * wracają do pełnego adresu, więc działa każdy sposób wstawienia.
  */
 function evk_nl_linki_adresu_strony(string $html): string {
-    if (strpos($html, '{site_url') === false) return $html;
+    if (strpos($html, '{') === false) return $html;
 
-    $html = (string) preg_replace('/(\bhref\s*=\s*["\']\s*)(?:https?:\/\/)?\{site_url(?:_full)?\}/i', '$1{site_url_full}', $html);
+    $html = (string) preg_replace_callback(
+        '/(\bhref\s*=\s*["\']\s*)(?:https?:\/\/)?\{(site_url|unsubscribe_url|view_url)(?:_full|_plain)?\}/i',
+        static function ($m) {
+            $tag = strtolower($m[2]);
+            return $m[1] . '{' . ($tag === 'site_url' ? 'site_url_full' : $tag) . '}';
+        },
+        $html
+    );
+    if (strpos($html, '{site_url') === false) return $html;
 
     /* Tylko tekst między znacznikami. W środku linku (link w linku to
        zepsuty HTML), stylu, skryptu i nagłówka dokumentu tag zostaje
@@ -332,9 +347,7 @@ function evk_nl_inject_tracking(string $body, string $token, int $campaign_id): 
             if (
                 strpos($url, '#') === 0 ||
                 strpos($url, 'mailto:') === 0 ||
-                strpos($url, '/nl/click/') !== false ||
-                strpos($url, '/nl/unsub/') !== false ||
-                strpos($url, '/nl/open/') !== false ||
+                evk_nl_adres_bez_sledzenia($url) ||
                 !wp_http_validate_url($url)
             ) {
                 return $m[0];

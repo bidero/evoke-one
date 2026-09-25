@@ -202,12 +202,19 @@ function evoke_one_wpm_cookie_ok(string $wartosc, string $klucz): bool {
     return hash_equals(evoke_one_wpm_sign((int) $termin, $klucz), $wartosc);
 }
 
-add_action('parse_request', function () {
+add_action('parse_request', function ($wp = null) {
     global $wpm_show_maintenance;
     $wpm_show_maintenance = false;
 
     if ((int) get_option('maintenance_mode', 0) !== 1) return;
     if (is_user_logged_in()) return;
+
+    /* robots.txt (i favicon) idą zwyczajnie, bez zasłony. Wyszukiwarka, która
+       dostanie 5xx albo przekierowanie zamiast robots.txt, przestaje
+       indeksować całą stronę na czas, który sama wybiera; do 1.233.5 robots.txt
+       w konserwacji był wręcz podmieniany na `Disallow: /`, a Google
+       pamięta go do doby po wyłączeniu konserwacji. */
+    if (is_object($wp) && (!empty($wp->query_vars['robots']) || !empty($wp->query_vars['favicon']))) return;
 
     // `strtok` na pustym łańcuchu oddaje `false` — rzutowanie trzyma typ.
     $request_uri = (string) strtok($_SERVER['REQUEST_URI'] ?? '/', '?');
@@ -238,11 +245,10 @@ add_action('parse_request', function () {
         return;
     }
 
-    if ($request_uri !== '/' && $request_uri !== '') {
-        wp_safe_redirect(home_url('/'), 302);
-        exit;
-    }
-
+    /* Zasłona na KAŻDYM adresie, z 503 i Retry-After (template_include niżej).
+       Do 1.233.5 każdy adres poza stroną główną dostawał 302 na `/` — dla
+       wyszukiwarki to przekierowanie wszystkich podstron na stronę główną,
+       a nie „wrócimy za chwilę". */
     $wpm_show_maintenance = true;
 });
 
@@ -295,9 +301,7 @@ add_filter('template_include', function ($template) {
     exit;
 }, 999);
 
-add_filter('robots_txt', function ($output, $public) {
-    if ((int) get_option('maintenance_mode', 0) === 1) {
-        return "User-agent: *\nDisallow: /\n";
-    }
-    return $output;
-}, 10, 2);
+/* robots.txt zostaje bez zmian także w konserwacji (1.234.0). Do 1.233.5 filtr
+   `robots_txt` podmieniał go na `Disallow: /`, a Google trzyma robots.txt do
+   doby — strona wypadała z wyników jeszcze po wyłączeniu konserwacji. Zasłona
+   z 503 wystarcza: wyszukiwarka wraca po Retry-After i niczego nie wyrzuca. */

@@ -62,6 +62,11 @@ case 'przygotuj':
     $sid2 = (int) evk_nl_add_subscriber($lista, 'bez-obrazkow' . wp_rand() . '@example.com');
     $wpdb->update(evk_nl_table('subscribers'), ['status' => 1], ['id' => $sid2]);
     $sub2 = evk_nl_get_subscriber($sid2);
+    /* Trzeci klika link wypisu ze STAREGO maila — opakowany w śledzenie, jak
+       szło do 1.233.5 na stronie bez ładnych adresów. */
+    $sid3 = (int) evk_nl_add_subscriber($lista, 'stary-wypis' . wp_rand() . '@example.com');
+    $wpdb->update(evk_nl_table('subscribers'), ['status' => 1], ['id' => $sid3]);
+    $sub3 = evk_nl_get_subscriber($sid3);
 
     /* Każdy wariant w osobnym akapicie z identyfikatorem: sprawdzenia patrzą
        na akapit, nie na pozycję linku w mailu — brak jednego linku nie
@@ -75,11 +80,16 @@ case 'przygotuj':
         . '<p id="o-pelny"><a href="http://{site_url_full}" data-wplink-url-error="true">okno-pelny</a></p>'
         . '<p id="h-krotki"><a href="{site_url}">tekst-krotki</a></p>'
         . '<p id="h-pelny"><a href="{site_url_full}/kontakt/">tekst-pelny</a></p>'
-        . '<p id="w-linku"><a href="https://example.com/">{site_url}</a> <span title="{site_url}">t</span></p>']);
+        . '<p id="w-linku"><a href="https://example.com/">{site_url}</a> <span title="{site_url}">t</span></p>'
+        // Wypis i podgląd tak, jak zapisuje je edytor (1.234.0).
+        . '<p id="u-okno"><a href="http://{unsubscribe_url}" data-wplink-url-error="true">wypis-okno</a></p>'
+        . '<p id="u-plain"><a href="http://{unsubscribe_url_plain}">wypis-plain</a></p>'
+        . '<p id="u-tekst"><a href="{unsubscribe_url}">wypis-tekst</a></p>'
+        . '<p id="v-okno"><a href="http://{view_url}" data-wplink-url-error="true">podglad-okno</a></p>']);
     $wpdb->insert(evk_nl_table('campaigns'), ['name' => 'Śledzenie', 'template_id' => $szablon,
         'lists_json' => '[' . $lista . ']', 'status' => 'sent', 'tracking_enabled' => 1]);
     $kampania = (int) $wpdb->insert_id;
-    foreach ([$sid, $sid2] as $s) {
+    foreach ([$sid, $sid2, $sid3] as $s) {
         $wpdb->insert(evk_nl_table('queue'), ['campaign_id' => $kampania, 'subscriber_id' => $s,
             'status' => 'sent', 'sent_at' => current_time('mysql')]);
     }
@@ -118,6 +128,10 @@ case 'przygotuj':
         'sid1'      => $sid,
         'sid2'      => $sid2,
         'klik2'     => evk_nl_click_url($sub2['token'], home_url(), $kampania),
+        'sid3'      => $sid3,
+        'wypis'     => evk_nl_unsubscribe_url($sub['token']),
+        'wypis3'    => evk_nl_unsubscribe_url($sub3['token']),
+        'klik_wypis3' => evk_nl_click_url($sub3['token'], evk_nl_unsubscribe_url($sub3['token']), $kampania),
         'piksel'    => html_entity_decode((string) (preg_match('#<img\s[^>]*src="([^"]*(?:evk_nl=open|/nl/open/)[^"]*)"#', (string) $mail, $p) ? $p[1] : ''), ENT_QUOTES),
         'pikseli'   => preg_match_all('#evk_nl=open|/nl/open/#', (string) $mail),
         'linki'     => $linki,

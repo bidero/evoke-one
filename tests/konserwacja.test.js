@@ -31,9 +31,11 @@ module.exports = async function (t) {
   t.check('poprawny klucz przekierowuje na czysty adres',
     php.dobry_klucz.co === 'przekierowanie' && php.dobry_klucz.cel === '/home-alt/',
     JSON.stringify(php.dobry_klucz));
-  t.check('błędny klucz nie wpuszcza',
-    php.zly_klucz.co === 'przekierowanie' && php.zly_klucz.cel.endsWith('example.test/'),
-    JSON.stringify(php.zly_klucz));
+  /* Od 1.234.0 zasłona stoi na KAŻDYM adresie (503). Do 1.233.5 adres inny
+     niż strona główna dostawał 302 na `/`, czyli dla wyszukiwarki
+     przekierowanie wszystkich podstron na stronę główną. */
+  t.check('błędny klucz nie wpuszcza: zasłona pod tym samym adresem, bez przekierowania',
+    php.zly_klucz.co === 'zaslona', JSON.stringify(php.zly_klucz));
 
   // `wp_redirect` puszcza adres protokołowo-względny poza serwis — dlatego
   // obie atrapy są osobne i test pyta, która została użyta.
@@ -51,16 +53,16 @@ module.exports = async function (t) {
   // To jest ten warunek, dla którego wydanie powstało: stary format ciasteczka
   // to sam klucz dostępu i ma przestać działać.
   t.check('ciasteczko w starym formacie (sam klucz) odrzucone',
-    php.ciastko_stare.co === 'przekierowanie', JSON.stringify(php.ciastko_stare));
+    php.ciastko_stare.co === 'zaslona', JSON.stringify(php.ciastko_stare));
   t.check('podpis nie zawiera klucza', php.podpis.zawiera_klucz === false, php.podpis.wartosc);
 
   t.check('ciasteczko po terminie odrzucone',
-    php.ciastko_po_czasie.co === 'przekierowanie', JSON.stringify(php.ciastko_po_czasie));
+    php.ciastko_po_czasie.co === 'zaslona', JSON.stringify(php.ciastko_po_czasie));
   t.check('ciasteczko podpisane innym kluczem odrzucone',
-    php.ciastko_obcy_klucz.co === 'przekierowanie', JSON.stringify(php.ciastko_obcy_klucz));
+    php.ciastko_obcy_klucz.co === 'zaslona', JSON.stringify(php.ciastko_obcy_klucz));
   // Termin jest częścią podpisywanej treści — przesunięcie go unieważnia podpis.
   t.check('przesunięty termin unieważnia podpis',
-    php.ciastko_podrobiony_termin.co === 'przekierowanie',
+    php.ciastko_podrobiony_termin.co === 'zaslona',
     JSON.stringify(php.ciastko_podrobiony_termin));
 
   // Atrybutów samego wywołania `setcookie()` test nie widzi (funkcja wbudowana,

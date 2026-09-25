@@ -246,8 +246,12 @@ function evk_nl_handle_click(string $token, int $campaign_id = 0): void {
        Uszkodzony token (obcięty przez klienta pocztowego, przepisany ręcznie)
        nie ma powodu zostawiać czytającego na stronie głównej; kliknięcie po
        prostu nie trafia wtedy do statystyk. */
+    /* Wypis (i inne własne adresy) nie jest kliknięciem. Maile wysłane przed
+       1.234.0 ze strony bez ładnych adresów niosą link wypisu opakowany
+       w śledzenie — przekierowanie działa jak dotąd, tylko bez wpisów
+       „click" i „open". */
     $sub = evk_nl_get_subscriber_by_token($token);
-    if ($sub && $valid) {
+    if ($sub && $valid && !evk_nl_adres_bez_sledzenia($cel)) {
         global $wpdb;
         $q   = evk_nl_table('queue');
         $sid = (int) $sub['id'];
@@ -422,6 +426,9 @@ function evk_nl_handle_view(int $campaign_id, string $token = ''): void {
         '{site_url_full}'     => home_url(),
         '{unsubscribe_url_plain}' => preg_replace('#^https?://#', '', $unsub_url),
         '{view_in_browser}'  => '', // Wyczyść w podglądzie
+        // Do 1.233.5 brakowało ich tutaj: link z {view_url} w podglądzie był dosłownym „{view_url}".
+        '{view_url}'         => evk_nl_view_url($campaign_id, $token),
+        '{view_url_plain}'   => preg_replace('#^https?://#', '', evk_nl_view_url($campaign_id, $token)),
     ], evk_nl_fields_to_merge_tags($fields));
 
     $subject = evk_nl_replace_merge_tags($template['subject'], $merge);
@@ -513,6 +520,24 @@ function evk_nl_unsubscribe_url(string $token): string {
         return home_url('/nl/unsub/' . $token . '/');
     }
     return add_query_arg(['evk_nl' => 'unsub', 'evk_nl_token' => $token], home_url('/'));
+}
+
+/**
+ * Własne adresy newslettera, których tracker nie opakowuje i których
+ * kliknięcia nie liczymy: wypis, piksel, samo kliknięcie, potwierdzenie
+ * zapisu. W OBU postaciach — ścieżki (/nl/unsub/…) i zapytania
+ * (?evk_nl=unsub…), czyli także na stronie bez ładnych adresów. Do 1.233.5
+ * łapała się tylko ścieżka, więc tam każdy link wypisu szedł przez
+ * śledzenie: wypis liczył się jako kliknięcie, a od 1.233.4 także jako
+ * otwarcie.
+ *
+ * Stoi przy funkcjach, które te adresy budują: pytają o nią tracker
+ * (mailer.php) i obsługa kliknięcia.
+ */
+function evk_nl_adres_bez_sledzenia(string $url): bool {
+    if (preg_match('#/nl/(click|unsub|open|confirm)/#', $url)) return true;
+    parse_str((string) parse_url($url, PHP_URL_QUERY), $zap);
+    return in_array($zap['evk_nl'] ?? '', ['click', 'unsub', 'open', 'confirm'], true);
 }
 
 // =========================================================================

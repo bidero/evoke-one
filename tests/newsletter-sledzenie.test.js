@@ -96,12 +96,21 @@ module.exports = async function (t) {
       ['h-pelny', 'zakładka Tekst: href="{site_url_full}/kontakt/"', [{ tekst: 'tekst-pelny', cel: home + '/kontakt/' }], ['tekst', 'cel']],
       ['w-linku', 'tag w tekście linku do innej strony: napis bez nowego linku',
         [{ tekst: host, cel: 'https://example.com/' }], ['tekst', 'cel']],
+      // Wypis bez śledzenia i działający (1.234.0): okno linku dawało „http://http(s)://…".
+      ['u-okno', 'wypis z okna linku: działający adres, bez śledzenia',
+        [{ tekst: 'wypis-okno', cel: '(bez śledzenia: ' + prep.wypis + ')' }], ['tekst', 'cel']],
+      ['u-plain', 'wypis {unsubscribe_url_plain} z okna linku: działający adres',
+        [{ tekst: 'wypis-plain', cel: '(bez śledzenia: ' + prep.wypis + ')' }], ['tekst', 'cel']],
+      ['u-tekst', 'wypis z zakładki Tekst: bez śledzenia także bez ładnych adresów',
+        [{ tekst: 'wypis-tekst', cel: '(bez śledzenia: ' + prep.wypis + ')' }], ['tekst', 'cel']],
+      ['v-okno', 'podgląd z okna linku: działający adres, przez śledzenie',
+        [{ tekst: 'podglad-okno', cel: prep.podglad }], ['tekst', 'cel']],
     ];
     for (const [id, opis, oczekiwane, pola] of przypadki) {
       const jest = w(id, pola);
       t.check(opis, jak(jest, oczekiwane), JSON.stringify(jest).split(home).join('{adres strony}'));
     }
-    t.check('żadnych innych linków w mailu', prep.wszystkich_w_mailu === 9, String(prep.wszystkich_w_mailu));
+    t.check('żadnych innych linków w mailu', prep.wszystkich_w_mailu === 13, String(prep.wszystkich_w_mailu));
     t.check('link w linku nie powstaje', prep.zagniezdzony === false, String(prep.zagniezdzony));
     t.check('tag w atrybucie (title) zostaje adresem bez linku', prep.title === host, String(prep.title));
     t.check('jeden piksel otwarcia w mailu', prep.pikseli === 1 && !!prep.piksel, String(prep.pikseli));
@@ -183,6 +192,18 @@ module.exports = async function (t) {
       JSON.stringify((k2.zdarzenia || {})[prep.sid2]));
     t.check('Raporty: „Otwarte" 2, „Kliknięte" 2 (kliknięcie nie przegania otwarć)',
       jak(k2.statystyki, { otwarte: 2, klikniete: 2 }), JSON.stringify(k2.statystyki));
+
+    // ── Wypis ze starego maila: opakowany w śledzenie ────────────────────
+    /* Do 1.233.5 na stronie bez ładnych adresów link wypisu szedł przez
+       śledzenie, więc wypis liczył się jako kliknięcie i otwarcie. Stare maile
+       takie linki mają — przekierowanie ma działać, statystyki ich nie liczą. */
+    t.section('wypis ze starego maila (opakowany w śledzenie): działa, nie liczy się');
+    const kw = await pobierz(prep.klik_wypis3 || '');
+    t.check('przekierowanie na stronę wypisu', kw.status === 302 && (kw.naglowki || {}).location === prep.wypis3,
+      JSON.stringify([kw.status, (kw.naglowki || {}).location]));
+    const k3 = sonda('stan ' + prep.kampania);
+    t.check('ani kliknięcia, ani otwarcia', jak((k3.zdarzenia || {})[prep.sid3], []) && !((k3.kolejka || {})[prep.sid3] || {}).opened_at,
+      JSON.stringify([(k3.zdarzenia || {})[prep.sid3], (k3.kolejka || {})[prep.sid3]]));
 
     // ── Podgląd w przeglądarce: te same linki, bez śledzenia ─────────────
     t.section('podgląd w przeglądarce: tag w tekście i w href to działający link');

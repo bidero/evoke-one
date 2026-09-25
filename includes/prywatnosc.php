@@ -307,9 +307,9 @@ function evk_rodo_tekst_polityki(): string {
             . 'przy logowaniu.</p>';
     }
     if (get_option('evk_404_enabled')) {
-        $akapity[] = '<h3>Nieistniejące strony</h3><p>Przy wejściu na nieistniejącą stronę zapisujemy jej adres, adres IP, przeglądarkę '
-            . 'i stronę, z której nastąpiło przejście (ostatnie ' . (int) get_option('evk_404_max_logs', 200) . ' wpisów). Te zapisy nie są '
-            . 'powiązane z adresem e-mail.</p>';
+        $akapity[] = '<h3>Nieistniejące strony</h3><p>Przy wejściu na nieistniejącą stronę zapisujemy jej adres, liczbę wejść i czas '
+            . 'pierwszego oraz ostatniego z nich, a przy ostatnim wejściu także adres IP, przeglądarkę i stronę, z której nastąpiło przejście '
+            . '(ostatnie ' . (int) get_option('evk_404_max_logs', 200) . ' adresów). Te zapisy nie są powiązane z adresem e-mail.</p>';
     }
     $kopie = (array) get_option('evk_backup', []);
     if (!empty($kopie['enabled'])) {

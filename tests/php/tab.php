@@ -800,25 +800,25 @@ $TABS = [
         },
     ],
     'tools-logs404' => [
-        'module' => 'includes/tools/logs-404.php',
+        // Ekran pyta moduł przekierowań, czy działa (ostrzeżenie przy „Przekieruj").
+        'module' => ['includes/tools/redirect-301.php', 'includes/tools/logs-404.php'],
         'file'   => 'includes/admin/tools-logs404.php',
         'seed'   => function () {
             $GLOBALS['options']['evk_404_enabled']   = 1;
             $GLOBALS['options']['evk_404_skip_bots'] = 1;
-            /* WŁASNE wpisy logu, nie podstawione strony.
+            /* WŁASNE wiersze logu, nie podstawione strony.
                Do 1.139.0 atrapa `get_posts()` zwracała dwie strony niezależnie
                od `post_type`, więc ten ekran mierzył się na wierszach, które
                nie miały nic wspólnego z jego danymi — a tabela i tak się
-               rysowała, bo liczyła tylko sztuki. */
-            foreach ([['/stara-oferta', 12], ['/kontakt-old', 3]] as $i => $wiersz) {
-                $id = wp_insert_post([
-                    'post_title'  => $wiersz[0],
-                    'post_type'   => 'evk_404_log',
-                    'post_status' => 'publish',
-                ]);
-                update_post_meta($id, 'evk_404_hits', $wiersz[1]);
-                update_post_meta($id, 'evk_404_referer', 'https://example.test/');
-            }
+               rysowała, bo liczyła tylko sztuki. Od 1.234.0 log to tabela
+               evk_404 (jeden wiersz na adres), więc wiersze idą do atrapy bazy. */
+            $GLOBALS['options']['evk_404_db_version'] = '2';
+            $GLOBALS['wpdb']->seed['evk_404'] = [
+                ['id' => 1, 'url' => '/stara-oferta', 'hits' => 12, 'first_seen' => 1758000000, 'last_seen' => 1758800000,
+                 'referrer' => 'https://example.test/', 'ip' => '203.0.113.7', 'ua' => 'Mozilla/5.0'],
+                ['id' => 2, 'url' => '/kontakt-old', 'hits' => 3, 'first_seen' => 1758100000, 'last_seen' => 1758700000,
+                 'referrer' => '', 'ip' => '', 'ua' => ''],
+            ];
         },
     ],
     /* Snippety renderują się przez własną funkcję, nie przez plik zakładki:

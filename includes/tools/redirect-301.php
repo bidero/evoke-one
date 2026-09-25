@@ -229,35 +229,72 @@ function evk_301_log(string $from, string $to): void {
 // AJAX — zarządzanie regułami
 // =========================================================================
 
+/**
+ * Cel przekierowania z pola formularza: adres bez protokołu i bez ukośnika
+ * („nowa-strona") to ścieżka w serwisie. Do 1.233.5 szedł prosto do
+ * sanitize_url(), który dokleja „http://" — i przekierowanie prowadziło na
+ * nieistniejący host „http://nowa-strona".
+ */
+function evk_301_cel(string $to): string {
+    $to = trim($to);
+    if ($to !== '' && $to[0] !== '/' && !preg_match('#^[a-z][a-z0-9+.-]*:#i', $to)) $to = '/' . $to;
+    return (string) sanitize_url($to);
+}
+
+/**
+ * Nowe przekierowanie albo nowy cel istniejącego z tym samym „Z" (bez
+ * duplikatów). Zwraca ID reguły albo WP_Error. Wspólne dla ekranu
+ * przekierowań i przycisku „Przekieruj" w logach 404 (1.234.0).
+ *
+ * @return int|WP_Error
+ */
+function evk_301_dodaj(string $from, string $to) {
+    $from = evk_301_normalize(sanitize_text_field($from));
+    $to   = evk_301_cel($to);
+    if ($from === '' || $to === '') return new WP_Error('evk_301_puste', 'Podaj oba pola.');
+    if ($to[0] === '/' && strpos($to, '//') !== 0 && evk_301_normalize(rawurldecode((string) strtok($to, '?'))) === $from) {
+        return new WP_Error('evk_301_petla', 'Adres docelowy to ten sam adres — przekierowanie kręciłoby się w kółko.');
+    }
+    foreach (evk_301_get_all() as $r) {
+        if (($r['from'] ?? '') === $from) {
+            update_post_meta((int) $r['ID'], 'redirect_to', $to);
+            evk_301_clear_cache();
+            return (int) $r['ID'];
+        }
+    }
+    $pid = wp_insert_post([
+        'post_type'   => 'evk_301_redirect',
+        'post_status' => 'publish',
+        'post_title'  => $from,
+        'meta_input'  => [
+            'redirect_from'   => $from,
+            'redirect_to'     => $to,
+            'redirect_clicks' => 0,
+            'created_date'    => current_time('mysql'),
+        ],
+    ], true);
+    if (is_wp_error($pid)) return $pid;
+    evk_301_clear_cache();
+    return (int) $pid;
+}
+
 add_action('wp_ajax_evk_301_save', function () {
     check_ajax_referer('evk_tools_nonce', 'nonce');
     if (!current_user_can('manage_options')) wp_send_json_error();
 
-    $from = evk_301_normalize(sanitize_text_field(wp_unslash($_POST['from'] ?? '')));
-    $to   = sanitize_url(wp_unslash($_POST['to'] ?? ''));
-    $id   = absint($_POST['id'] ?? 0);
-
-    if (empty($from) || empty($to)) wp_send_json_error('Podaj oba pola.');
-
+    $id = absint($_POST['id'] ?? 0);
     if ($id) {
+        $from = evk_301_normalize(sanitize_text_field(wp_unslash($_POST['from'] ?? '')));
+        $to   = evk_301_cel((string) wp_unslash($_POST['to'] ?? ''));
+        if (empty($from) || empty($to)) wp_send_json_error('Podaj oba pola.');
         update_post_meta($id, 'redirect_from', $from);
         update_post_meta($id, 'redirect_to',   $to);
-    } else {
-        $pid = wp_insert_post([
-            'post_type'   => 'evk_301_redirect',
-            'post_status' => 'publish',
-            'post_title'  => $from,
-            'meta_input'  => [
-                'redirect_from'   => $from,
-                'redirect_to'     => $to,
-                'redirect_clicks' => 0,
-                'created_date'    => current_time('mysql'),
-            ],
-        ]);
-        if (is_wp_error($pid)) wp_send_json_error($pid->get_error_message());
+        evk_301_clear_cache();
+        wp_send_json_success();
     }
 
-    evk_301_clear_cache();
+    $wynik = evk_301_dodaj((string) wp_unslash($_POST['from'] ?? ''), (string) wp_unslash($_POST['to'] ?? ''));
+    if (is_wp_error($wynik)) wp_send_json_error($wynik->get_error_message());
     wp_send_json_success();
 });
 

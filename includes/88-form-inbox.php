@@ -727,45 +727,75 @@ add_action('admin_init', function () {
         ? $wpdb->get_results($wpdb->prepare("SELECT * FROM {$table} {$where} ORDER BY created_at DESC", $params))
         : $wpdb->get_results("SELECT * FROM {$table} ORDER BY created_at DESC");
 
-    $all_keys = [];
-    foreach ($rows as $row) {
-        $fields = json_decode($row->form_data, true) ?: [];
-        foreach (array_keys($fields) as $k) {
-            if (!in_array($k, $s['hidden_fields'], true)) $all_keys[$k] = true;
-        }
-    }
-    $all_keys = array_keys($all_keys);
-
     $fn = 'submissions-' . sanitize_file_name($form_id ?: 'all') . '-' . date('Y-m-d') . '.csv';
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $fn . '"');
     header('Pragma: no-cache');
 
     $out = fopen('php://output', 'w');
+    evk_inbox_csv_zapisz($out, (array) $rows, $s);
+    fclose($out);
+    exit;
+});
+
+/**
+ * Plik CSV skrzynki: BOM, nagłówek i wiersze zgłoszeń — osobno od
+ * pobierania, żeby dało się go sprawdzić bez `exit` (tests/inbox-csv).
+ *
+ * Wartość pola idzie przez evk_inbox_extract_value(), jak w panelu skrzynki.
+ * Do 1.233.5 eksport sklejał całą tablicę Bricksa, więc komórka dostawała
+ * „select, Rezerwacja noclegu, Temat" zamiast „Rezerwacja noclegu".
+ *
+ * @param resource $out
+ * @param object[] $rows wiersze tabeli zgłoszeń Bricksa
+ */
+function evk_inbox_csv_zapisz($out, array $rows, array $s): void {
+    $all_keys = [];
+    foreach ($rows as $row) {
+        $fields = json_decode((string) $row->form_data, true) ?: [];
+        foreach (array_keys($fields) as $k) {
+            if (!in_array($k, $s['hidden_fields'], true)) $all_keys[$k] = true;
+        }
+    }
+    $all_keys = array_keys($all_keys);
+
     fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF)); // UTF-8 BOM
 
     $hdr = ['ID', 'Formularz', 'Data'];
-    foreach ($all_keys as $k) $hdr[] = evk_inbox_field_label($k, $s);
+    foreach ($all_keys as $k) $hdr[] = evk_inbox_field_label((string) $k, $s);
     $hdr = array_merge($hdr, ['IP', 'Przeglądarka', 'OS', 'Referer', 'Użytkownik']);
     /* Pusty parametr escape jest wymagany od PHP 8.4: domyślny backslash
        jest wycofywany, a bez jawnej wartości interpreter dokłada do wyjścia
        komunikat deprecacyjny — czyli wprost do pobieranego pliku, jeśli
        serwer ma włączone `display_errors`. RFC 4180 zna tylko podwojony
        cudzysłów i to jest zachowanie, które chcemy. */
-    fputcsv($out, $hdr, ';', '"', '');
+    fputcsv($out, array_map('evk_inbox_csv_komorka', $hdr), ';', '"', '');
 
     foreach ($rows as $row) {
-        $fields = json_decode($row->form_data, true) ?: [];
+        $fields = json_decode((string) $row->form_data, true) ?: [];
         $line   = [$row->id, $row->form_id, $row->created_at];
         foreach ($all_keys as $k) {
-            $v = $fields[$k] ?? '';
-            $line[] = is_array($v) ? implode(', ', $v) : (string) $v;
+            $line[] = evk_inbox_extract_value($fields[$k] ?? '');
         }
         $user_name = '';
-        if (!empty($row->user_id) && ($u = get_userdata((int)$row->user_id))) $user_name = $u->display_name;
+        if (!empty($row->user_id) && ($u = get_userdata((int) $row->user_id))) $user_name = $u->display_name;
         $line = array_merge($line, [$row->ip ?? '', $row->browser ?? '', $row->os ?? '', $row->referrer ?? '', $user_name]);
-        fputcsv($out, $line, ';', '"', '');
+        fputcsv($out, array_map('evk_inbox_csv_komorka', $line), ';', '"', '');
     }
-    fclose($out);
-    exit;
-});
+}
+
+/**
+ * Komórka CSV bez formuły. Treść zaczynająca się od = + - @ (albo tabulatora
+ * czy powrotu karetki) otwiera się w Excelu i LibreOffice jako FORMUŁA —
+ * a tu piszą obcy ludzie: pola formularza, przeglądarka, referer
+ * (CSV injection, OWASP). Apostrof na początku zamienia ją w zwykły tekst.
+ * Same liczby („-5", „+48") zostają liczbami — formułą nie są.
+ *
+ * @param mixed $v
+ */
+function evk_inbox_csv_komorka($v): string {
+    $v = (string) $v;
+    if ($v === '' || strpbrk($v[0], "=+-@\t\r") === false) return $v;
+    if (preg_match('/^[+-]?\d+(?:[.,]\d+)?$/', $v)) return $v;
+    return "'" . $v;
+}

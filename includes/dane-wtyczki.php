@@ -30,7 +30,7 @@ return [
         'evoke_dashboard_scrolling', 'evoke_dashboard_shadow', 'evoke_dashboard_width',
         'evoke_disable_global_comments', 'evoke_move_bricks_bottom', 'evoke_require_reg_to_comment', 'favicon_url',
         // Przekierowania, 404, SMTP, bezpieczeństwo
-        'evk_301_enabled', 'evk_404_bot_list', 'evk_404_enabled', 'evk_404_max_logs', 'evk_404_skip_bots',
+        'evk_301_enabled', 'evk_404_bot_list', 'evk_404_db_version', 'evk_404_enabled', 'evk_404_max_logs', 'evk_404_skip_bots',
         'evk_smtp', 'evk_smtp_log', 'evk_blocked_ips', 'evk_failed_logins',
         // Konserwacja
         'maintenance_bypass_hours', 'maintenance_bypass_password', 'maintenance_excluded_paths',
@@ -67,7 +67,7 @@ return [
                       '_evk_snippet_awaria', '_evk_snippet_ukosniki_ok'],
     'meta_uzytkownikow' => ['evk_avatar_id'],
     'tabele' => ['evk_nl_lists', 'evk_nl_subscribers', 'evk_nl_templates', 'evk_nl_campaigns',
-                 'evk_nl_queue', 'evk_nl_logs', 'evk_backup_jobs'],
+                 'evk_nl_queue', 'evk_nl_logs', 'evk_backup_jobs', 'evk_404'],
     /* `evk_access_fields` NIE — to wejście do Evoke Fields, które nadaje się
        w Role Managerze, ale sprawdza je tamta wtyczka. */
     'uprawnienia' => ['manage_evk_roles', 'evk_access_translations', 'evk_access_newsletter',
