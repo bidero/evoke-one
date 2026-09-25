@@ -18,7 +18,13 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *               i odpowiedź serwera w błędzie.
  *   inny      — SMTP Evoke wyłączony, pocztę ustawia „inna wtyczka": kampania
  *               i potwierdzenie zapisu wychodzą nią.
- *   transport — co panel mówi o transporcie w trzech układach.
+ *   transport — co panel mówi o transporcie w trzech układach, plus
+ *               mu-plugin podpinający pocztę (ścieżka zamiast samej nazwy).
+ *   transport-dowiazanie — to samo, gdy WordPress stoi pod ścieżką PRZEZ
+ *               dowiązanie symboliczne (ABSPATH ustawione przed wp-load.php,
+ *               jak w wp-config.php z twardą ścieżką). Zgłoszenie po 1.233.4:
+ *               „Pocztę ustawiają dwie wtyczki: SMTP Evoke i pluggable.php"
+ *               — rdzeniowe wp_mail() brane za obcą wtyczkę.
  *   odbicia   — skrzynka nie istnieje (5.1.1): wykluczenie i wypisanie ze
  *               wszystkich list, bez bezpiecznika; odmowa przekazania (5.7.1)
  *               to NIE odbicie.
@@ -26,6 +32,19 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * Ustawienia SMTP, newslettera i log wracają do stanu sprzed sondy; listy,
  * szablony i kampanie sondy znikają.
  */
+
+/* Scenariusz z dowiązaniem: ABSPATH musi stać, ZANIM wp-load.php je ustawi
+   z własnego __DIR__ (rozwiniętego). Dowiązanie znika przy sprzątaniu. */
+$evk_dowiazanie = '';
+if (($argv[1] ?? '') === 'transport-dowiazanie') {
+    $evk_cel = getenv('EVK_WP_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp');
+    $evk_dowiazanie = sys_get_temp_dir() . '/evk-t-wp-dowiazanie';
+    if (is_link($evk_dowiazanie)) unlink($evk_dowiazanie);
+    if (is_dir($evk_cel)) {
+        symlink($evk_cel, $evk_dowiazanie);
+        define('ABSPATH', $evk_dowiazanie . '/');
+    }
+}
 
 require __DIR__ . '/_testowy-wp.php';
 
@@ -198,6 +217,39 @@ case 'transport':
     evk_t_smtp_na_atrape($port, ['enabled' => 0]);
     $out['bez_niczego'] = [evk_nl_transport(), evk_nl_ostrzezenie_transportu()];
     update_option('evk_smtp', array_merge(get_option('evk_smtp'), ['enabled' => 1]));
+    $out['sam_evoke'] = [evk_nl_transport(), evk_nl_ostrzezenie_transportu()];
+    evk_t_inna_wtyczka($port);
+    $out['evoke_i_inna'] = [evk_nl_transport(), evk_nl_ostrzezenie_transportu()];
+    /* mu-plugin ustawiający SMTP (tak robią mu-pluginy hostingu): leży poza
+       katalogiem wtyczek, więc nazwą jest ścieżka od katalogu WordPressa —
+       do 1.233.4 sama nazwa pliku, z której nie wynikało, gdzie go szukać. */
+    $mu = rtrim(wp_normalize_path(WPMU_PLUGIN_DIR), '/');
+    $mu_bylo = is_dir($mu);
+    if (!$mu_bylo) mkdir($mu, 0755, true);
+    file_put_contents($mu . '/evk-t-mu-poczta.php', "<?php\nfunction evk_t_mu_poczta(\$pm) { \$pm->isSMTP(); \$pm->Host = '127.0.0.1'; }\n"
+        . "add_action('phpmailer_init', 'evk_t_mu_poczta');\n");
+    $sprzatanie[] = static function () use ($mu, $mu_bylo) {
+        @unlink($mu . '/evk-t-mu-poczta.php');
+        if (!$mu_bylo) @rmdir($mu);
+    };
+    require_once $mu . '/evk-t-mu-poczta.php';
+    $out['z_mu_plugin'] = evk_nl_transport();
+    /* Funkcja wbudowana PHP jako wywołanie zwrotne: nie ma pliku
+       (getFileName() === false), a realpath('') oddałby bieżący katalog. */
+    add_filter('pre_wp_mail', 'is_null');
+    $out['z_wbudowana'] = evk_nl_transport();
+    remove_filter('pre_wp_mail', 'is_null');
+    break;
+
+// ── Transport, gdy WordPress stoi pod ścieżką przez dowiązanie ──────────────
+case 'transport-dowiazanie':
+    $sprzatanie[] = static function () use ($evk_dowiazanie) { if (is_link($evk_dowiazanie)) unlink($evk_dowiazanie); };
+    $out['warunek'] = [
+        'abspath_przez_dowiazanie' => $evk_dowiazanie !== '' && strpos(ABSPATH, $evk_dowiazanie) === 0,
+        // Tak PHP widzi plik rdzeniowego wp_mail(): po rozwinięciu dowiązania.
+        'wp_mail_poza_abspath'     => strpos(wp_normalize_path((string) (new ReflectionFunction('wp_mail'))->getFileName()), wp_normalize_path(ABSPATH)) !== 0,
+    ];
+    evk_t_smtp_na_atrape($port);
     $out['sam_evoke'] = [evk_nl_transport(), evk_nl_ostrzezenie_transportu()];
     evk_t_inna_wtyczka($port);
     $out['evoke_i_inna'] = [evk_nl_transport(), evk_nl_ostrzezenie_transportu()];

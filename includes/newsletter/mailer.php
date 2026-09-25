@@ -378,14 +378,31 @@ function evk_nl_smtp_is_configured(): bool {
  * albo podmienia samo `wp_mail()`. `mail`: nic z tego, czyli funkcja mail()
  * serwera — przy wysyłce masowej zwykle prosto do spamu.
  *
- * `inne` to nazwy katalogów wtyczek (albo plików), które podpinają pocztę;
- * przy `evoke` niepusta lista znaczy, że pocztę ustawiają DWIE wtyczki naraz.
+ * `inne` to nazwy katalogów wtyczek, które podpinają pocztę — a dla plików
+ * spoza katalogu wtyczek (mu-plugins, motyw) ścieżka od katalogu WordPressa;
+ * przy `evoke` niepusta lista znaczy, że pocztę ustawia coś jeszcze.
+ *
+ * Ścieżki porównujemy po realpath(). PHP podaje plik funkcji
+ * (Reflection…::getFileName()) PO rozwinięciu dowiązań symbolicznych,
+ * a ABSPATH i WP_PLUGIN_DIR bywają ścieżką PRZEZ dowiązanie (wp-config.php
+ * z twardą ścieżką, katalog domowy na hostingu jako dowiązanie). Do 1.233.4
+ * porównanie prefiksów wtedy zawodziło i rdzeniowe wp_mail()
+ * z wp-includes/pluggable.php wyglądało jak obca wtyczka — zgłoszone:
+ * „Pocztę ustawiają dwie wtyczki: SMTP Evoke i pluggable.php", przy SMTP
+ * Evoke jako jedynej poczcie na stronie.
  */
 function evk_nl_transport(): array {
     global $wp_filter;
-    $wlasny = wp_normalize_path(dirname(__DIR__, 2));
-    $inne   = [];
-    $kto = static function ($cb) use ($wlasny): string {
+    $prawdziwa = static function (string $p): string {
+        $r = realpath($p);
+        return wp_normalize_path($r !== false ? $r : $p);
+    };
+    $wlasny  = $prawdziwa(dirname(__DIR__, 2));
+    $rdzen   = $prawdziwa(ABSPATH . WPINC) . '/';
+    $wtyczki = $prawdziwa(WP_PLUGIN_DIR) . '/';
+    $korzen  = $prawdziwa(ABSPATH) . '/';
+    $inne    = [];
+    $kto = static function ($cb) use ($prawdziwa, $wlasny, $rdzen, $wtyczki, $korzen): string {
         try {
             if (is_array($cb)) {
                 $r = new ReflectionMethod(is_object($cb[0]) ? get_class($cb[0]) : (string) $cb[0], (string) $cb[1]);
@@ -401,16 +418,19 @@ function evk_nl_transport(): array {
         } catch (ReflectionException $e) {
             return '';
         }
-        $plik = wp_normalize_path((string) $r->getFileName());
-        if ($plik === '' || strpos($plik, $wlasny . '/') === 0) return '';     // nasze
-        if (strpos($plik, wp_normalize_path(ABSPATH . WPINC) . '/') === 0) return '';   // rdzeń WP
-        $wtyczki = wp_normalize_path(WP_PLUGIN_DIR) . '/';
+        $zrodlo = $r->getFileName();
+        if (!$zrodlo) return '';                                  // funkcja wbudowana PHP
+        $plik = $prawdziwa($zrodlo);
+        if (strpos($plik, $wlasny . '/') === 0) return '';       // nasze
+        if (strpos($plik, $rdzen) === 0) return '';              // rdzeń WP
         if (strpos($plik, $wtyczki) === 0) {
             $katalog = (string) strtok(substr($plik, strlen($wtyczki)), '/');
             // Nasza wtyczka ładowana spod dowiązania — ta sama nazwa katalogu.
             return $katalog === basename($wlasny) ? '' : $katalog;
         }
-        return basename($plik);
+        /* Poza katalogiem wtyczek (mu-plugins, motyw): ścieżka, nie sama
+           nazwa pliku — z „pluggable.php" nie wynikało, gdzie tego szukać. */
+        return strpos($plik, $korzen) === 0 ? substr($plik, strlen($korzen)) : $plik;
     };
     foreach (['phpmailer_init', 'pre_wp_mail'] as $hak) {
         foreach ((array) ($wp_filter[$hak]->callbacks ?? []) as $funkcje) {

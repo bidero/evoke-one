@@ -2,6 +2,40 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.233.5] — 2026-09-25
+
+Poprawka po zgłoszeniu: fałszywe ostrzeżenie o dwóch wtyczkach pocztowych.
+
+### Naprawione
+
+- **„Pocztę ustawiają dwie wtyczki: SMTP Evoke i pluggable.php" przy SMTP
+  Evoke jako jedynej poczcie.** `pluggable.php` to plik samego WordPressa,
+  w którym stoi `wp_mail()`, a nie wtyczka. Panel newslettera rozpoznaje
+  pliki rdzenia i wtyczek po ścieżce. Gdy ścieżka WordPressa prowadzi przez
+  dowiązanie symboliczne (np. `wp-config.php` z wpisaną ścieżką, katalog
+  domowy na hostingu jako dowiązanie), PHP podaje plik funkcji już po
+  rozwinięciu dowiązania i porównanie zawodziło. Zmierzone na testowym
+  WordPressie postawionym pod taką ścieżką: dokładnie ten komunikat. Ścieżki
+  porównują się teraz po rozwinięciu z obu stron. Prawdziwa druga wtyczka
+  pocztowa jest dalej wykrywana i podawana nazwą katalogu (przy dowiązaniu
+  była podawana nazwą pliku).
+- **Plik spoza katalogu wtyczek podany ścieżką.** Gdy pocztę ustawia
+  mu-plugin albo motyw, komunikat podaje ścieżkę od katalogu WordPressa
+  (np. `wp-content/mu-plugins/…`), a nie samą nazwę pliku, z której nie
+  wynikało, gdzie go szukać.
+
+### Testy
+
+- `newsletter-wysylka`: nowy scenariusz — WordPress wczytany pod ścieżką
+  przez dowiązanie symboliczne (warunek testu sprawdza, że PHP podaje plik
+  `wp_mail()` po rozwinięciu). Sam SMTP Evoke bez ostrzeżenia, druga wtyczka
+  wykryta pod nazwą katalogu. W zwykłym układzie: mu-plugin ustawiający SMTP
+  podany ścieżką, funkcja wbudowana PHP pod `pre_wp_mail` to nie wtyczka.
+- Stary kod 1.233.4 zapala cztery sprawdzenia, w tym dokładnie zgłoszony
+  komunikat. Mutacje (rdzeń bez rozwinięcia ścieżki, katalog wtyczek bez
+  rozwinięcia, sama nazwa pliku, bez osłony na funkcje wbudowane) zapalają
+  każda własny podzbiór.
+
 ## [1.233.4] — 2026-09-25
 
 Decyzja zgłaszającego po 1.233.2: kliknięcie w link liczy się jako otwarcie.

@@ -137,6 +137,30 @@ module.exports = async function (t) {
       se && se.rodzaj === 'evoke' && jak(se.inne, []) && seTekst === '', JSON.stringify(se));
     t.check('SMTP Evoke i inna wtyczka naraz: ostrzeżenie z nazwą tamtej',
       ei && ei.rodzaj === 'evoke' && /data-evk-nl-transport="dwa"/.test(eiTekst || '') && /evk-t-inny-smtp/.test(eiTekst || ''), JSON.stringify(ei));
+    t.check('mu-plugin ustawiający SMTP: ścieżka od katalogu WordPressa, nie sama nazwa pliku',
+      !!tr.z_mu_plugin && jak(tr.z_mu_plugin.inne, ['evk-t-inny-smtp', 'wp-content/mu-plugins/evk-t-mu-poczta.php']),
+      JSON.stringify(tr.z_mu_plugin));
+    t.check('funkcja wbudowana PHP pod pre_wp_mail to nie wtyczka',
+      !!tr.z_wbudowana && jak(tr.z_wbudowana.inne, ['evk-t-inny-smtp', 'wp-content/mu-plugins/evk-t-mu-poczta.php']),
+      JSON.stringify(tr.z_wbudowana));
+
+    /* Zgłoszenie po 1.233.4: „Pocztę ustawiają dwie wtyczki: SMTP Evoke
+       i pluggable.php" przy SMTP Evoke jako JEDYNEJ poczcie. Gdy ABSPATH
+       prowadzi przez dowiązanie symboliczne, PHP podaje plik funkcji już po
+       rozwinięciu dowiązania, więc porównanie prefiksów brało rdzeniowe
+       wp_mail() (wp-includes/pluggable.php) za obcą wtyczkę. */
+    t.section('panel: WordPress pod ścieżką przez dowiązanie (zgłoszenie „pluggable.php")');
+    const trd = sonda('transport-dowiazanie');
+    const w = trd.warunek || {};
+    t.check('warunek testu: ABSPATH przez dowiązanie, PHP podaje plik wp_mail() po rozwinięciu',
+      w.abspath_przez_dowiazanie === true && w.wp_mail_poza_abspath === true, JSON.stringify(w));
+    const [sd, sdTekst] = trd.sam_evoke || [];
+    t.check('sam SMTP Evoke: bez ostrzeżenia (rdzeniowe wp_mail() to nie wtyczka)',
+      !!sd && sd.rodzaj === 'evoke' && jak(sd.inne, []) && sdTekst === '', JSON.stringify(sd) + ' ' + String(sdTekst).replace(/<[^>]+>/g, ''));
+    const [di, diTekst] = trd.evoke_i_inna || [];
+    t.check('prawdziwa druga wtyczka dalej wykryta, pod nazwą katalogu',
+      !!di && jak(di.inne, ['evk-t-inny-smtp']) && /data-evk-nl-transport="dwa"/.test(diTekst || '') && /evk-t-inny-smtp/.test(diTekst || ''),
+      JSON.stringify(di));
 
     // ── Odbicia ─────────────────────────────────────────────────────────────
     /* Lista wykluczeń (1.233.0): adres, którego skrzynki nie ma (5.1.x), nie
