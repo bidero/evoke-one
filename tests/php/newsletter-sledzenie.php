@@ -7,7 +7,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *
  *   php tests/php/newsletter-sledzenie.php sciezka
  *   php tests/php/newsletter-sledzenie.php przygotuj <adres serwera>
- *   php tests/php/newsletter-sledzenie.php stan <kampania>
+ *   php tests/php/newsletter-sledzenie.php stan <kampania>        (osobno dla każdego odbiorcy)
  *   php tests/php/newsletter-sledzenie.php cofnij <kampania>
  *   php tests/php/newsletter-sledzenie.php sprzataj <kampania> <lista> <szablon>
  *
@@ -57,6 +57,11 @@ case 'przygotuj':
     $sid   = (int) evk_nl_add_subscriber($lista, 'sledzenie' . wp_rand() . '@example.com');
     $wpdb->update(evk_nl_table('subscribers'), ['status' => 1], ['id' => $sid]);
     $sub = evk_nl_get_subscriber($sid);
+    /* Drugi odbiorca nie pobiera piksela (obrazki zablokowane) — tylko klika.
+       Od 1.233.4 takie kliknięcie jest jego otwarciem. */
+    $sid2 = (int) evk_nl_add_subscriber($lista, 'bez-obrazkow' . wp_rand() . '@example.com');
+    $wpdb->update(evk_nl_table('subscribers'), ['status' => 1], ['id' => $sid2]);
+    $sub2 = evk_nl_get_subscriber($sid2);
 
     /* Każdy wariant w osobnym akapicie z identyfikatorem: sprawdzenia patrzą
        na akapit, nie na pozycję linku w mailu — brak jednego linku nie
@@ -74,8 +79,10 @@ case 'przygotuj':
     $wpdb->insert(evk_nl_table('campaigns'), ['name' => 'Śledzenie', 'template_id' => $szablon,
         'lists_json' => '[' . $lista . ']', 'status' => 'sent', 'tracking_enabled' => 1]);
     $kampania = (int) $wpdb->insert_id;
-    $wpdb->insert(evk_nl_table('queue'), ['campaign_id' => $kampania, 'subscriber_id' => $sid,
-        'status' => 'sent', 'sent_at' => current_time('mysql')]);
+    foreach ([$sid, $sid2] as $s) {
+        $wpdb->insert(evk_nl_table('queue'), ['campaign_id' => $kampania, 'subscriber_id' => $s,
+            'status' => 'sent', 'sent_at' => current_time('mysql')]);
+    }
 
     $mail = null;
     $lap = static function ($r, $atts) use (&$mail) { $mail = (string) $atts['message']; return true; };
@@ -108,6 +115,9 @@ case 'przygotuj':
         'szablon'   => $szablon,
         'kampania'  => $kampania,
         'token'     => $sub['token'],
+        'sid1'      => $sid,
+        'sid2'      => $sid2,
+        'klik2'     => evk_nl_click_url($sub2['token'], home_url(), $kampania),
         'piksel'    => html_entity_decode((string) (preg_match('#<img\s[^>]*src="([^"]*(?:evk_nl=open|/nl/open/)[^"]*)"#', (string) $mail, $p) ? $p[1] : ''), ENT_QUOTES),
         'pikseli'   => preg_match_all('#evk_nl=open|/nl/open/#', (string) $mail),
         'linki'     => $linki,
@@ -119,16 +129,26 @@ case 'przygotuj':
     break;
 
 case 'stan':
-    $out['otwarcia'] = array_map(static function ($r) {
-        return json_decode((string) $r['data_json'], true);
-    }, $wpdb->get_results($wpdb->prepare('SELECT data_json FROM ' . evk_nl_table('logs')
-        . " WHERE campaign_id=%d AND event='open' ORDER BY id", $kampania), ARRAY_A) ?: []);
-    $out['klikniecia'] = array_map(static function ($r) {
-        return (json_decode((string) $r['data_json'], true) ?: [])['url'] ?? '';
-    }, $wpdb->get_results($wpdb->prepare('SELECT data_json FROM ' . evk_nl_table('logs')
-        . " WHERE campaign_id=%d AND event='click' ORDER BY id", $kampania), ARRAY_A) ?: []);
-    $out['kolejka'] = $wpdb->get_row($wpdb->prepare('SELECT status, opened_at FROM ' . evk_nl_table('queue')
-        . ' WHERE campaign_id=%d', $kampania), ARRAY_A);
+    /* Każdy odbiorca osobno: zdarzenia w kolejności zapisu, dane otwarć,
+       cele kliknięć i wiersz kolejki. */
+    $out += ['zdarzenia' => [], 'otwarcia' => [], 'klikniecia' => [], 'kolejka' => []];
+    foreach ($wpdb->get_results($wpdb->prepare('SELECT subscriber_id FROM ' . evk_nl_table('queue')
+        . ' WHERE campaign_id=%d ORDER BY id', $kampania), ARRAY_A) ?: [] as $r) {
+        $s = (int) $r['subscriber_id'];
+        $out['zdarzenia'][$s] = $out['otwarcia'][$s] = $out['klikniecia'][$s] = [];
+        $out['kolejka'][$s] = $wpdb->get_row($wpdb->prepare('SELECT status, opened_at FROM ' . evk_nl_table('queue')
+            . ' WHERE campaign_id=%d AND subscriber_id=%d', $kampania, $s), ARRAY_A);
+    }
+    foreach ($wpdb->get_results($wpdb->prepare('SELECT subscriber_id, event, data_json FROM ' . evk_nl_table('logs')
+        . " WHERE campaign_id=%d AND event IN ('open','click') ORDER BY id", $kampania), ARRAY_A) ?: [] as $r) {
+        $s    = (int) $r['subscriber_id'];
+        $dane = json_decode((string) $r['data_json'], true) ?: [];
+        $out['zdarzenia'][$s][] = $r['event'];
+        if ($r['event'] === 'open') $out['otwarcia'][$s][] = $dane;
+        else $out['klikniecia'][$s][] = $dane['url'] ?? '';
+    }
+    $st = evk_nl_campaign_stats($kampania);   // kafelki Raportów
+    $out['statystyki'] = ['otwarte' => (int) $st['opened'], 'klikniete' => (int) $st['clicked']];
     break;
 
 case 'cofnij':

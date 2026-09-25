@@ -133,18 +133,21 @@ module.exports = async function (t) {
     // ── Jedno otwarcie = jeden wpis ───────────────────────────────────────
     t.section('otwarcie: kolejne pobrania w oknie to jeden wpis');
     await pobierz(piksel);   // trzecie pobranie tego samego otwarcia
+    // Stan sondy jest osobno dla każdego odbiorcy; sid1 pobiera piksel, sid2 nie (sekcja niżej).
+    const o1 = (s) => ((s.otwarcia || {})[prep.sid1]);
     const s1 = sonda('stan ' + prep.kampania);
-    t.check('trzy pobrania w oknie → jeden wpis, first:true', jak(s1.otwarcia, [{ first: true }]), JSON.stringify(s1.otwarcia));
+    t.check('trzy pobrania w oknie → jeden wpis, first:true', jak(o1(s1), [{ first: true }]), JSON.stringify(o1(s1)));
     t.check('kolejka: status opened, opened_at ustawione',
-      !!s1.kolejka && s1.kolejka.status === 'opened' && !!s1.kolejka.opened_at, JSON.stringify(s1.kolejka));
+      !!(s1.kolejka || {})[prep.sid1] && s1.kolejka[prep.sid1].status === 'opened' && !!s1.kolejka[prep.sid1].opened_at,
+      JSON.stringify((s1.kolejka || {})[prep.sid1]));
 
     const cof = sonda('cofnij ' + prep.kampania);
     await pobierz(piksel);
     await pobierz(piksel);
     const s2 = sonda('stan ' + prep.kampania);
     t.check('otwarcie po oknie → drugi wpis, first:false; powtórka w nowym oknie → bez wpisu',
-      cof.przesuniete === 1 && jak(s2.otwarcia, [{ first: true }, { first: false }]),
-      JSON.stringify([cof.przesuniete, s2.otwarcia]));
+      cof.przesuniete === 1 && jak(o1(s2), [{ first: true }, { first: false }]),
+      JSON.stringify([cof.przesuniete, o1(s2)]));
 
     // ── Kliknięcie: link z tagu działa i się liczy ───────────────────────
     t.section('kliknięcie w adres strony z tagu');
@@ -152,7 +155,34 @@ module.exports = async function (t) {
     t.check('przekierowanie na adres strony', klik.status === 302 && (klik.naglowki || {}).location === home,
       JSON.stringify([klik.status, (klik.naglowki || {}).location]));
     const s3 = sonda('stan ' + prep.kampania);
-    t.check('kliknięcie w statystykach', jak(s3.klikniecia, [home]), JSON.stringify(s3.klikniecia));
+    t.check('kliknięcie w statystykach', jak((s3.klikniecia || {})[prep.sid1], [home]), JSON.stringify((s3.klikniecia || {})[prep.sid1]));
+    t.check('kliknięcie PO otwarciu nie dokłada otwarcia', jak(o1(s3), [{ first: true }, { first: false }]), JSON.stringify(o1(s3)));
+
+    // ── Kliknięcie bez otwarcia: obrazki zablokowane ─────────────────────
+    /* Decyzja zgłaszającego (1.233.4): kto kliknął link, ten mail otworzył —
+       także wtedy, gdy program nie pobrał piksela. */
+    t.section('kliknięcie bez otwarcia (obrazki zablokowane) to otwarcie');
+    const o2 = (s) => ((s.otwarcia || {})[prep.sid2]);
+    const przed2 = sonda('stan ' + prep.kampania);
+    t.check('warunek testu: drugi odbiorca nie ma otwarcia', jak(o2(przed2), []) && !(przed2.kolejka || {})[prep.sid2].opened_at,
+      JSON.stringify([o2(przed2), (przed2.kolejka || {})[prep.sid2]]));
+    const klik2 = await pobierz(prep.klik2 || '');
+    t.check('link działa: przekierowanie na stronę', klik2.status === 302 && (klik2.naglowki || {}).location === home,
+      JSON.stringify([klik2.status, (klik2.naglowki || {}).location]));
+    const k1 = sonda('stan ' + prep.kampania);
+    t.check('otwarcie z kliknięcia: jeden wpis first:true, z_klikniecia', jak(o2(k1), [{ first: true, z_klikniecia: true }]),
+      JSON.stringify(o2(k1)));
+    t.check('w logu otwarcie przed kliknięciem', jak((k1.zdarzenia || {})[prep.sid2], ['open', 'click']),
+      JSON.stringify((k1.zdarzenia || {})[prep.sid2]));
+    const kol2 = (k1.kolejka || {})[prep.sid2] || {};
+    t.check('kolejka: opened_at ustawione, status clicked (liczy się w „Otwarte" i „Kliknięte")',
+      !!kol2.opened_at && kol2.status === 'clicked', JSON.stringify(kol2));
+    await pobierz(prep.klik2 || '');
+    const k2 = sonda('stan ' + prep.kampania);
+    t.check('drugie kliknięcie: nowe kliknięcie, bez nowego otwarcia', jak((k2.zdarzenia || {})[prep.sid2], ['open', 'click', 'click']),
+      JSON.stringify((k2.zdarzenia || {})[prep.sid2]));
+    t.check('Raporty: „Otwarte" 2, „Kliknięte" 2 (kliknięcie nie przegania otwarć)',
+      jak(k2.statystyki, { otwarte: 2, klikniete: 2 }), JSON.stringify(k2.statystyki));
 
     // ── Podgląd w przeglądarce: te same linki, bez śledzenia ─────────────
     t.section('podgląd w przeglądarce: tag w tekście i w href to działający link');

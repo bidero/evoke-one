@@ -2,6 +2,38 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.233.4] — 2026-09-25
+
+Decyzja zgłaszającego po 1.233.2: kliknięcie w link liczy się jako otwarcie.
+
+### Zmienione
+
+- **Kliknięcie bez zapisanego otwarcia to otwarcie.** Program pocztowy
+  z zablokowanymi obrazkami nie pobiera piksela. Do 1.233.3 osoba, która
+  kliknęła link, miała więc w Raportach kliknięcie bez otwarcia, a
+  „Kliknięte" potrafiło przegonić „Otwarte". Teraz pierwsze kliknięcie takiej
+  osoby zapisuje też otwarcie. W logu stoi ono przed kliknięciem, jako
+  `{"first":true,"z_klikniecia":true}`. Gdy otwarcie już było, kliknięcie
+  niczego do otwarć nie dokłada. Działa przy kliknięciu, więc obejmuje też
+  maile wysłane wcześniej (linki, które szły przez śledzenie). Skanery linków
+  w poczcie firmowej, które „klikają" za odbiorcę, liczyły się dotąd jako
+  kliknięcie, a teraz liczą się też jako otwarcie.
+
+### Testy
+
+- `newsletter-sledzenie`: drugi odbiorca, który nie pobiera piksela.
+  Kliknięcie zapisuje jedno otwarcie z `z_klikniecia` (przed kliknięciem),
+  `opened_at` i status `clicked`. Drugie kliknięcie nie dokłada otwarcia,
+  kliknięcie po otwarciu z piksela też nie. Raporty: „Otwarte" 2,
+  „Kliknięte" 2.
+- `newsletter-klik`: sonda liczy same kliknięcia — atrapa bazy odpowiada
+  „pierwsze otwarcie" na każde kliknięcie, a to sprawdza już
+  `newsletter-sledzenie` na prawdziwej bazie.
+- Stary kod 1.233.3 zapala pięć sprawdzeń kliknięcia bez otwarcia (w tym
+  Raporty: „Otwarte" 1, „Kliknięte" 2). Mutacje „każde kliknięcie dopisuje
+  otwarcie" i „kliknięcie w logu przed otwarciem" zapalają własne pary
+  sprawdzeń; wcześniejsze mutacje piksela i linków dalej zapalają swoje.
+
 ## [1.233.3] — 2026-09-25
 
 Poprawka po zgłoszeniu: podwójne komunikaty w Role Managerze.

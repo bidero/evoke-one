@@ -131,11 +131,7 @@ function evk_nl_handle_open(string $token, int $campaign_id = 0): void {
         }
 
         if ($campaign_id) {
-            $now   = current_time('mysql');
-            $first = (bool) $wpdb->query($wpdb->prepare(
-                "UPDATE $q SET opened_at=%s WHERE campaign_id=%d AND subscriber_id=%d AND opened_at IS NULL",
-                $now, $campaign_id, $sid
-            ));
+            $first = evk_nl_pierwsze_otwarcie($campaign_id, $sid);
             // Status: WYŁĄCZNIE sent -> opened (nigdy pending ani clicked)
             $wpdb->query($wpdb->prepare(
                 "UPDATE $q SET status='opened' WHERE campaign_id=%d AND subscriber_id=%d AND status='sent'",
@@ -158,6 +154,19 @@ function evk_nl_handle_open(string $token, int $campaign_id = 0): void {
     header('Content-Length: ' . strlen($gif));
     echo $gif;
     exit;
+}
+
+/**
+ * Pierwsze otwarcie tej kampanii przez tego odbiorcę: zapisuje `opened_at`
+ * i mówi, czy to było TO żądanie. Atomowo (UPDATE … IS NULL) — gdy piksel
+ * i kliknięcie przyjdą naraz, prawdę dostaje dokładnie jedno z nich.
+ */
+function evk_nl_pierwsze_otwarcie(int $campaign_id, int $subscriber_id): bool {
+    global $wpdb;
+    return (bool) $wpdb->query($wpdb->prepare(
+        'UPDATE ' . evk_nl_table('queue') . ' SET opened_at=%s WHERE campaign_id=%d AND subscriber_id=%d AND opened_at IS NULL',
+        current_time('mysql'), $campaign_id, $subscriber_id
+    ));
 }
 
 /**
@@ -248,6 +257,16 @@ function evk_nl_handle_click(string $token, int $campaign_id = 0): void {
             ));
         }
         if ($campaign_id) {
+            /* Kliknięcie bez zapisanego otwarcia TO otwarcie (1.233.4, decyzja
+               zgłaszającego). Program z zablokowanymi obrazkami nie pobiera
+               piksela, a kto kliknął link w mailu, ten mail otworzył — do
+               1.233.3 miał kliknięcie bez otwarcia i „Kliknięte" potrafiło
+               przegonić „Otwarte". Tylko pierwsze: gdy otwarcie już jest,
+               kliknięcie niczego do otwarć nie dokłada. W logu otwarcie stoi
+               przed kliknięciem, z `z_klikniecia`. */
+            if (evk_nl_pierwsze_otwarcie($campaign_id, $sid)) {
+                evk_nl_log($campaign_id, 'open', $sid, ['first' => true, 'z_klikniecia' => true]);
+            }
             evk_nl_log($campaign_id, 'click', $sid, ['url' => $cel]);
             $wpdb->query($wpdb->prepare(
                 "UPDATE $q SET status='clicked' WHERE campaign_id=%d AND subscriber_id=%d AND status IN ('sent','opened')",

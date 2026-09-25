@@ -108,12 +108,18 @@ function podpis(string $cel, int $kampania): string {
 function klik(string $token, string $url, string $sig = '', int $kampania = 3): array {
     $GLOBALS['log'] = [];
     $_GET = ['url' => $url, 'sig' => $sig];
+    /* Same kliknięcia. Od 1.233.4 pierwsze kliknięcie dopisuje też otwarcie,
+       a atrapa $wpdb->query() oddaje 1, czyli „pierwsze" za każdym razem —
+       to sprawdza newsletter-sledzenie na prawdziwej bazie. */
+    $klikniecia = static function (): array {
+        return array_values(array_filter($GLOBALS['log'], static function ($w) { return $w['zdarzenie'] === 'click'; }));
+    };
     try {
         evk_nl_handle_click($token, $kampania);
     } catch (EVK_Test_Redirect $e) {
-        return ['cel' => $e->cel, 'log' => $GLOBALS['log']];
+        return ['cel' => $e->cel, 'log' => $klikniecia()];
     }
-    return ['cel' => null, 'log' => $GLOBALS['log']];
+    return ['cel' => null, 'log' => $klikniecia()];
 }
 
 $scenariusz = $argv[1] ?? '';
