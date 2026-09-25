@@ -102,7 +102,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (88 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (89 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
@@ -220,6 +220,13 @@ z routerem `tests/php/_router-wp.php` (adres strony z portu, baza bez zmian)
 i przeklikuje zakładkę w Chromium. Serwer musi mieć kilka procesów
 (`PHP_CLI_SERVER_WORKERS`) — kopia napędza się żądaniami serwera do samego
 siebie, a jednoprocesowy `php -S` czekałby na samego siebie.
+
+**`stara.test` nie rozwiązuje się na tej maszynie.** Adres zbudowany w sondzie
+(z `home_url()` = `http://stara.test`) i wysłany potem do `php -S` jest dla
+serwera obcym hostem bez adresu IP — `wp_http_validate_url()` go odrzuca,
+a test mierzy środowisko zamiast kodu. Sonda, której adresy idą przez serwer,
+dostaje jego adres i stawia `WP_HOME` przed wczytaniem WordPressa, jak router
+(`newsletter-sledzenie`).
 
 ### Zanim puścisz przeglądarkę
 

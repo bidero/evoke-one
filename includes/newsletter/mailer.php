@@ -34,7 +34,7 @@ function evk_nl_send_mail(array $subscriber, array $campaign, array $template, a
     ], evk_nl_fields_to_merge_tags($fields));
 
     $subject = evk_nl_replace_merge_tags($template['subject'], $merge);
-    $body    = evk_nl_replace_merge_tags($template['body_html'], $merge);
+    $body    = evk_nl_replace_merge_tags(evk_nl_linki_adresu_strony($template['body_html']), $merge);
 
     // Załączniki PDF — dodaj linki w treści maila
     $attachment_ids = json_decode($template['attachments_json'] ?? '[]', true) ?: [];
@@ -196,6 +196,63 @@ function evk_nl_fields_to_merge_tags(array $fields): array {
 
 function evk_nl_replace_merge_tags(string $text, array $merge): string {
     return str_replace(array_keys($merge), array_values($merge), $text);
+}
+
+/**
+ * Adres strony z tagów {site_url} i {site_url_full} jako link, który przejdzie
+ * przez śledzenie kliknięć (1.233.2). Działa na treści szablonu PRZED
+ * podmianą tagów — przy wysyłce i w podglądzie w przeglądarce.
+ *
+ * Zgłoszenie: linki z tymi tagami nie trafiały do statystyk. Zmierzone
+ * w prawdziwym edytorze szablonu (TinyMCE z WordPressa 7.1):
+ *   — przycisk tagu wstawia TEKST. Z „stara.test" czy „https://stara.test"
+ *     link robi dopiero klient poczty, prowadzący wprost na stronę — tracker
+ *     przepisuje wyłącznie <a href>;
+ *   — `href="{site_url}"` wpisany w zakładce „Tekst" to adres bez protokołu,
+ *     czyli link względny: w poczcie nie działa, a tracker go pomija;
+ *   — okno linku dokleja „http://" do wszystkiego bez protokołu: z tagiem
+ *     {site_url_full} wychodziło „http://https://…", a z {site_url} zawsze
+ *     http, także na stronie z https.
+ *
+ * Stąd dwa kroki. W href tag na początku adresu (z protokołem albo bez)
+ * zamienia się w {site_url_full} — adres strony z jej własnym protokołem.
+ * Tag w tekście, poza istniejącym linkiem, staje się linkiem z TYM SAMYM
+ * napisem co dotąd. Ścieżka wpisana zaraz po tagu („{site_url}/kontakt/")
+ * wchodzi do linku, kropka kończąca zdanie — nie.
+ */
+function evk_nl_linki_adresu_strony(string $html): string {
+    if (strpos($html, '{site_url') === false) return $html;
+
+    $html = (string) preg_replace('/(\bhref\s*=\s*["\']\s*)(?:https?:\/\/)?\{site_url(?:_full)?\}/i', '$1{site_url_full}', $html);
+
+    /* Tylko tekst między znacznikami. W środku linku (link w linku to
+       zepsuty HTML), stylu, skryptu i nagłówka dokumentu tag zostaje
+       zwykłym tekstem. */
+    $czesci = preg_split('/(<!--.*?-->|<[^>]*>)/s', $html, -1, PREG_SPLIT_DELIM_CAPTURE);
+    if (!is_array($czesci)) return $html;
+    $wewnatrz = 0;
+    foreach ($czesci as $i => $c) {
+        if ($c === '') continue;
+        if ($c[0] === '<') {
+            if (preg_match('/^<(\/?)(a|head|style|script|title|textarea)\b/i', $c, $m)) {
+                $wewnatrz = $m[1] === '' ? $wewnatrz + 1 : max(0, $wewnatrz - 1);
+            }
+            continue;
+        }
+        if ($wewnatrz > 0 || strpos($c, '{site_url') === false) continue;
+        $nowy = preg_replace_callback(
+            '/\{site_url(_full)?\}((?:[\/?#](?:(?!&nbsp;|&#160;)[^\s<>"\'\x{00A0}])*)?)/u',
+            static function ($m) {
+                $sciezka = $m[2];
+                $ogon    = preg_match('/[.,;:!?)\]]+$/', $sciezka, $k) ? $k[0] : '';
+                if ($ogon !== '') $sciezka = substr($sciezka, 0, -strlen($ogon));
+                return '<a href="{site_url_full}' . $sciezka . '">{site_url' . $m[1] . '}' . $sciezka . '</a>' . $ogon;
+            },
+            $c
+        );
+        if (is_string($nowy)) $czesci[$i] = $nowy;
+    }
+    return implode('', $czesci);
 }
 
 // =========================================================================

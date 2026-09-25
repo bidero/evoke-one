@@ -16,8 +16,8 @@ $merge_tags = [
     '{view_url}'             => 'URL podglądu — z https://',
     '{view_url_plain}'       => 'URL podglądu — bez protokołu',
     '{site_name}'            => 'Nazwa strony',
-    '{site_url}'             => 'URL strony — bez protokołu (bezpieczny w href)',
-    '{site_url_full}'        => 'URL strony — z https://',
+    '{site_url}'             => 'Adres strony bez https:// — w treści staje się linkiem liczonym w statystykach',
+    '{site_url_full}'        => 'Adres strony z https:// — w treści staje się linkiem liczonym w statystykach',
 ];
 $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [];
 ?>

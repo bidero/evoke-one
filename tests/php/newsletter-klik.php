@@ -76,6 +76,10 @@ function evk_nl_get_template($id) {
 }
 function evk_nl_fields_to_merge_tags($fields) { return []; }
 function evk_nl_replace_merge_tags($text, $merge) { return strtr((string) $text, $merge); }
+/* Z mailer.php (1.233.2) — podgląd woła ją przed podmianą tagów. Treść
+   szablonu atrapy nie ma tagów adresu; prawdziwe działanie w podglądzie
+   sprawdza newsletter-sledzenie na prawdziwym WordPressie. */
+function evk_nl_linki_adresu_strony($html) { return (string) $html; }
 function evk_nl_text($key, $repl = []) { return $key; }
 
 class EVK_Test_Wpdb {

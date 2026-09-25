@@ -95,6 +95,27 @@ function evk_nl_dispatcher(\WP $wp): void {
 // OPEN TRACKING — pixel GIF
 // =========================================================================
 
+/**
+ * Przez tyle sekund kolejne pobranie piksela przez tego samego odbiorcę to
+ * wciąż TO SAMO otwarcie — nie trafia do logu drugi raz (1.233.2).
+ */
+define('EVK_NL_OKNO_OTWARCIA', 60);
+
+/**
+ * Otwarcie maila: piksel 1×1.
+ *
+ * Do 1.233.1 odpowiedź zapowiadała `Content-Length: 43`, a GIF ma 42 bajty.
+ * Zmierzone na testowym WordPressie: połączenie kończyło się ECONNRESET,
+ * a Chromium zgłaszał obrazek jako błąd (ERR_CONTENT_LENGTH_MISMATCH). Klient
+ * poczty albo pośrednik obrazków, który ponawia nieudane pobranie, dopisywał
+ * więc kolejne wpisy „open" — to pasuje do zgłoszenia (trzy wpisy na każde
+ * otwarcie, pierwszy z first:true); samego klienta odbiorcy z maszyny
+ * testowej sprawdzić się nie da. Długość liczy się teraz z samego obrazka.
+ *
+ * Niezależnie od tego klienci i pośrednicy potrafią pobrać ten sam obrazek
+ * kilka razy przy jednym otwarciu — stąd okno EVK_NL_OKNO_OTWARCIA. Pierwsze
+ * otwarcie idzie do logu zawsze (tego wyznacza atomowy UPDATE `opened_at`).
+ */
 function evk_nl_handle_open(string $token, int $campaign_id = 0): void {
     $sub = evk_nl_get_subscriber_by_token($token);
 
@@ -111,7 +132,7 @@ function evk_nl_handle_open(string $token, int $campaign_id = 0): void {
 
         if ($campaign_id) {
             $now   = current_time('mysql');
-            $first = $wpdb->query($wpdb->prepare(
+            $first = (bool) $wpdb->query($wpdb->prepare(
                 "UPDATE $q SET opened_at=%s WHERE campaign_id=%d AND subscriber_id=%d AND opened_at IS NULL",
                 $now, $campaign_id, $sid
             ));
@@ -120,20 +141,47 @@ function evk_nl_handle_open(string $token, int $campaign_id = 0): void {
                 "UPDATE $q SET status='opened' WHERE campaign_id=%d AND subscriber_id=%d AND status='sent'",
                 $campaign_id, $sid
             ));
-            evk_nl_log($campaign_id, 'open', $sid, ['first' => (bool) $first]);
+            if ($first || !evk_nl_otwarcie_niedawno($campaign_id, $sid)) {
+                evk_nl_log($campaign_id, 'open', $sid, ['first' => $first]);
+            }
         }
     }
 
     while (ob_get_level()) ob_end_clean();
 
+    $gif = base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
     header('Content-Type: image/gif');
     header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     header('Cache-Control: post-check=0, pre-check=0', false);
     header('Pragma: no-cache');
     header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
-    header('Content-Length: 43');
-    echo base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+    header('Content-Length: ' . strlen($gif));
+    echo $gif;
     exit;
+}
+
+/**
+ * Czy ten odbiorca otworzył tę kampanię w ciągu EVK_NL_OKNO_OTWARCIA sekund.
+ *
+ * Patrzy na OSTATNIE 500 wpisów „open" kampanii, nie na wszystkie. Log nie ma
+ * indeksu po odbiorcy: przejście całości kosztowało 30 ms przy 30 000 otwarć
+ * kampanii (zmierzone), na każde pobranie piksela i rosnąco z kampanią;
+ * ostatnie 500 czyta indeks (campaign_id, event) od końca — 0,8 ms przy tej
+ * samej liczbie. Gdy kampania ma ponad 500 otwarć w ciągu minuty, powtórka
+ * może trafić do logu — cena, nie błąd: statystyki liczą otwarcia
+ * z `opened_at`, nie z logu.
+ *
+ * Czas liczy baza (`created_at` ma domyślne CURRENT_TIMESTAMP bazy), więc
+ * strefa WordPressa nie ma tu znaczenia.
+ */
+function evk_nl_otwarcie_niedawno(int $campaign_id, int $subscriber_id): bool {
+    global $wpdb;
+    return (bool) $wpdb->get_var($wpdb->prepare(
+        'SELECT 1 FROM (SELECT subscriber_id, created_at FROM ' . evk_nl_table('logs')
+        . " WHERE campaign_id=%d AND event='open' ORDER BY id DESC LIMIT 500) ostatnie"
+        . ' WHERE subscriber_id=%d AND created_at > NOW() - INTERVAL %d SECOND LIMIT 1',
+        $campaign_id, $subscriber_id, EVK_NL_OKNO_OTWARCIA
+    ));
 }
 
 // =========================================================================
@@ -358,7 +406,7 @@ function evk_nl_handle_view(int $campaign_id, string $token = ''): void {
     ], evk_nl_fields_to_merge_tags($fields));
 
     $subject = evk_nl_replace_merge_tags($template['subject'], $merge);
-    $body    = evk_nl_replace_merge_tags($template['body_html'], $merge);
+    $body    = evk_nl_replace_merge_tags(evk_nl_linki_adresu_strony($template['body_html']), $merge);
 
     // Tracking — nie przepisuj linków w podglądzie przeglądarkowym
     // (kliknięcie w podglądzie nie powinno liczyć się jako tracking)

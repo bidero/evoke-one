@@ -2,6 +2,69 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.233.2] — 2026-09-25
+
+Poprawka po zgłoszeniu z testowa.evoke.pl: śledzenie otwarć i kliknięć
+w newsletterze. Z tego samego zgłoszenia: akcja „Newsletter (Evoke ONE)"
+w formularzu Bricksa (1.233.0) działa na stronie — tego maszyna testowa
+sprawdzić nie mogła.
+
+### Naprawione
+
+- **Jedno otwarcie maila to jeden wpis w logu.** Do 1.233.1 każde otwarcie
+  dawało w Raportach trzy wpisy „open", a przy pierwszym otwarciu pierwszy
+  z nich miał `first:true`. Piksel otwarcia zapowiadał 43 bajty, a wysyłał
+  42. Zmierzone na testowym WordPressie: połączenie kończyło się zerwaniem,
+  a przeglądarka uznawała obrazek za błąd. Program pocztowy albo pośrednik
+  obrazków, który ponawia nieudane pobranie, dopisywał więc kolejne wpisy —
+  to pasuje do zgłoszonego wzoru; samego programu odbiorcy z maszyny
+  testowej sprawdzić się nie da. Teraz odpowiedź jest poprawna. Dodatkowo
+  kolejne pobranie piksela przez tego samego odbiorcę w ciągu minuty nie
+  tworzy nowego wpisu, bo niektóre programy pobierają obrazek kilka razy
+  przy jednym otwarciu. Liczba otwarć w statystykach (unikalne otwarcia)
+  była dobra także wcześniej.
+- **Linki z `{site_url}` i `{site_url_full}` liczą się w statystykach.**
+  Przycisk tagu wstawia tekst, a link robi z niego dopiero program pocztowy
+  odbiorcy. Taki link prowadził prosto na stronę, więc kliknięcie nie
+  trafiało do statystyk. Teraz tag w treści staje się linkiem z tym samym
+  napisem co dotąd. Ścieżka wpisana zaraz po tagu („{site_url}/kontakt/")
+  należy do linku, a kropka czy przecinek kończące zdanie zostają za nim.
+  Tag w tekście istniejącego linku zostaje tekstem. „Zobacz w przeglądarce"
+  pokazuje ten sam link, tylko bez śledzenia.
+- **Tag adresu strony w adresie linku działa bez względu na sposób
+  wstawienia.** Zmierzone w edytorze szablonu:
+  - `href="{site_url}"` wpisany w zakładce „Tekst" był linkiem względnym:
+    w poczcie nie działał i nie był śledzony;
+  - okno linku dokleja „http://" do adresu bez protokołu, więc z
+    `{site_url_full}` wychodziło „http://https://…" (link działał tylko przy
+    włączonym śledzeniu), a `{site_url}` prowadził zawsze na http.
+
+  Teraz adres linku zaczynający się od tagu, z protokołem albo bez, to adres
+  strony z jej własnym protokołem.
+
+### Zmienione
+
+- Opisy tagów `{site_url}` i `{site_url_full}` przy edytorze szablonu mówią,
+  że w treści stają się linkiem liczonym w statystykach.
+
+### Testy
+
+- `newsletter-sledzenie` (nowy, prawdziwy WordPress przez `php -S`
+  i Chromium):
+  - piksel otwarcia: zapowiedziana długość równa odebranej, połączenie
+    kończy się normalnie, Chromium wczytuje obrazek 1×1;
+  - trzy pobrania w oknie dają jeden wpis `first:true`; po oknie drugi wpis
+    `first:false`;
+  - mail zbudowany prawdziwą wysyłką: każdy sposób wstawienia tagu adresu
+    (tekst, pogrubienie, ścieżka, okno linku, zakładka „Tekst", tag
+    w tekście innego linku) idzie przez śledzenie do właściwego adresu;
+    bez linku w linku, jeden piksel;
+  - kliknięcie w taki link przekierowuje na stronę i trafia do statystyk;
+  - „Zobacz w przeglądarce": te same linki bez śledzenia.
+- Stary kod 1.233.1 zapala w nim 15 z 27 sprawdzeń, w tym dokładnie wzór
+  ze zgłoszenia: trzy pobrania dają `first:true`, `first:false`,
+  `first:false`. Mutacje (7) zapalają każda własny podzbiór.
+
 ## [1.233.1] — 2026-09-25
 
 Poprawka po zgłoszeniu z testowa.evoke.pl: błąd krytyczny po przywróceniu
