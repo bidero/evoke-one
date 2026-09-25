@@ -2,6 +2,89 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.235.0] — 2026-09-25
+
+Szóste wydanie po audycie 1.229.6: strony techniczne i kod QR bez usług
+zewnętrznych.
+
+### Zmienione
+
+- **Kokpit i strona zasłony konserwacji tylko dla zalogowanych.** Obie to
+  zwykłe strony Bricksa. Do 1.234.1 pod własnym adresem widział je każdy:
+  Google je indeksował, były w mapie strony, a zasłona pokazywała „Przerwa
+  techniczna" także przy wyłączonej konserwacji. Teraz niezalogowany dostaje
+  zwykłe 404, nie do odróżnienia od adresu, którego nie ma. Dotyczy to
+  każdej drogi do strony:
+  - ładny adres, adres bez ukośnika i fragment adresu (WordPress nie zgaduje
+    już przekierowania na stronę techniczną);
+  - `?page_id=` i `?p=`;
+  - REST: pojedyncza strona, lista i jej licznik, wyszukiwanie;
+  - wyszukiwarka, lista stron w nagłówku motywu, oEmbed.
+
+  Mapa strony pomija je zawsze, a meta robots to `noindex, nofollow`.
+  Zalogowani widzą obie strony jak dotąd, a Kokpit ładuje się na pulpicie.
+  Zasłona w czasie konserwacji działa bez zmian. Strona ustawiona jako
+  główna albo strona wpisów nigdy nie jest techniczna.
+- **Log 404 pomija strony techniczne.** „Przekieruj" przy adresie Kokpitu
+  założyłoby 301 także dla zalogowanych i wyłączyło Kokpit na pulpicie.
+- **Kod QR w obrazkach OG rysowany na miejscu.** Do 1.234.1 przy każdym
+  generowaniu adres wpisu szedł do api.qrserver.com, a gdy usługa nie
+  odpowiedziała w 5 s, obrazek wychodził bez kodu. Teraz rysuje go w GD
+  koder wtyczki (norma ISO/IEC 18004, wersje 1–40, poziomy L/M/Q/H). Kod ma
+  to samo miejsce, rozmiar i kolory oraz poziom korekcji L jak dotąd.
+  Strefa ciszy to 2 moduły zamiast 2 px. Treść bez zmian: sam adres wpisu.
+- **Panel:** opis konserwacji mówił jeszcze, że inne adresy przekierowują
+  na `/`, co jest nieaktualne od 1.234.0. Przy Kokpicie i stronie
+  konserwacji jest teraz dopisek, kto je widzi.
+
+### Testy
+
+- `zapis-wp-strony-techniczne` (nowy, prawdziwy WordPress przez `php -S`
+  i Chromium):
+  - warunek wstępny na zwykłej stronie: te same drogi pokazują treść albo
+    przekierowują;
+  - dla niezalogowanego 404 na każdej drodze i licznik REST bez ukrytych
+    stron;
+  - log 404 bez stron technicznych;
+  - dla zalogowanego: strony, meta robots, iframe Kokpitu na pulpicie
+    i mapa strony;
+  - konserwacja i bezpiecznik strony głównej.
+- `og-layers-qr` (nowy): niezależny dekoder (jsQR w devDependencies) czyta:
+  - kody wszystkich wersji poziomu L i 13 wersji poziomów M, Q i H;
+  - każdą z ośmiu masek i polskie znaki.
+
+  Poza tym sprawdza wybór wersji na granicach pojemności i położenia
+  wzorców wyrównania z tablic normy, a także warstwę obrazka OG w GD bez
+  żadnego żądania HTTP. jsQR 1.4.0 ma w tablicy wersji 23 środek wzorca
+  wyrównania 74 zamiast 78 z normy i nie czyta żadnego kodu v23 zgodnego
+  z normą. Test poprawia tę jedną liczbę w kopii dekodera.
+- Mutacje (19), każda zapala własny podzbiór:
+  - strony techniczne (10):
+    - bez wykluczenia w zapytaniu (licznik REST);
+    - bez bezpiecznika na wynikach (`?page_id=`);
+    - przekierowanie kanoniczne na stronę techniczną;
+    - REST pojedynczej strony;
+    - oEmbed z `?page_id=`;
+    - mapa strony;
+    - bez bezpiecznika strony głównej;
+    - bez noindex;
+    - ukryte także przed zalogowanymi;
+    - log 404 ze stronami technicznymi.
+  - kod QR (9):
+    - zły wielomian Reeda–Solomona;
+    - przeplot bez pomijania dopełnienia;
+    - zła informacja o wersji;
+    - format bez maski 0x5412;
+    - przesunięte wzorce wyrównania;
+    - długość 8-bitowa od wersji 10;
+    - zła maska 4;
+    - pojemność o bajt mniejsza;
+    - warstwa znowu przez api.qrserver.com.
+  - Dwie mutacje przeszły najpierw na zielono:
+    - filtr `get_pages` okazał się zbędny, bo od WordPressa 6.3
+      `get_pages()` idzie przez WP_Query — usunięty;
+    - oEmbed miał sprawdzenie tylko ładnego adresu — dopisane `?page_id=`.
+
 ## [1.234.1] — 2026-09-25
 
 Poprawki do 1.234.0, zgłoszone z użycia.

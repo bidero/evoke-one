@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.234.1
+ * Version: 1.235.0
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
@@ -46,7 +46,7 @@ define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
    przeglądarkom podawać stare pliki z pamięci mimo aktualizacji wtyczki.
    Zgodności trzech miejsc (nagłówek, stała, changelog) pilnuje sekcja
    „numer wersji w trzech miejscach" w tests/drobiazgi.test.js. */
-define('EVOKE_ONE_VERSION', '1.234.1');
+define('EVOKE_ONE_VERSION', '1.235.0');
 
 /* DEAKTYWACJA: bez zadań w cronie i bez naszych reguł adresów. Do 1.231.x
    wyłączona wtyczka zostawiała zaplanowane kroki kopii i wysyłki newslettera,
@@ -236,6 +236,9 @@ require_once EVOKE_ONE_DIR . 'includes/newsletter/settings.php';
 
 // ── RODO: eksport i usuwanie danych osoby, tekst polityki (zawsze) ────────
 require_once EVOKE_ONE_DIR . 'includes/prywatnosc.php';
+
+// ── Strony techniczne: Kokpit i zasłona konserwacji tylko dla zalogowanych ──
+require_once EVOKE_ONE_DIR . 'includes/strony-techniczne.php';
 
 // (Rejestracja ustawień Schema odbywa się w includes/90-schema.php —
 //  wcześniejsza duplikacja tutaj nadpisywała argumenty rejestracji.)

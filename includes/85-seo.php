@@ -121,6 +121,13 @@ function evk_seo_get_meta(int $pid): array {
         )));
     }
 
+    /* Strona techniczna (Kokpit, zasłona konserwacji): niezalogowany dostaje
+       404 (strony-techniczne.php), więc meta widzi tylko zalogowany — i nic
+       z tej strony nie ma trafić do indeksu. */
+    if (function_exists('evk_strona_techniczna') && evk_strona_techniczna((int) $pid)) {
+        $robots = ['noindex', 'nofollow'];
+    }
+
     // OG — najpierw Media społecznościowe Bricksa, potem łańcuch meta
     $og_title = evk_seo_render_bricks_value($b['sharingTitle'] ?? '', $pid);
     if ($og_title === '') $og_title = $title;

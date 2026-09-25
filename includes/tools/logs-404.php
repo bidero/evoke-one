@@ -284,6 +284,10 @@ add_action('template_redirect', function () {
     if (!is_404() || !evk_404_is_enabled()) return;
     // Pod zasłoną konserwacji odpowiedzią jest 503, nie 404 (95-maintenance.php).
     if (!empty($GLOBALS['wpm_show_maintenance'])) return;
+    /* Strona techniczna (Kokpit, zasłona) dla niezalogowanego to 404 z zamysłu
+       (strony-techniczne.php). W logu byłaby szumem, a „Przekieruj" przy niej
+       założyłoby 301 także dla zalogowanych — i wyłączyło Kokpit na pulpicie. */
+    if (function_exists('evk_strona_techniczna') && evk_strona_techniczna((int) get_queried_object_id())) return;
 
     $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
 

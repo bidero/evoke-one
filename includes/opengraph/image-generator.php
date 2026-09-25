@@ -392,30 +392,22 @@ function evk_og_render_layer($img, array $layer, int $post_id, array $s): void {
             break;
 
         case 'qr':
-            $size         = $layer['size']     ?? 170;
-            $fg_hex       = ltrim($layer['fg_color'] ?? '#ffffff', '#');
-            $bg_hex       = ltrim($layer['bg_color'] ?? '#000000', '#');
-            $qr_x         = $s['width'] - $size - $x;
-
-            $qr_url = add_query_arg([
-                'size'    => "{$size}x{$size}",
-                'data'    => urlencode(get_permalink($post_id)),
-                'margin'  => 2,
-                'color'   => $fg_hex,
-                'bgcolor' => $bg_hex,
-                'format'  => 'png',
-            ], 'https://api.qrserver.com/v1/create-qr-code/');
-
-            $response = wp_remote_get($qr_url, ['timeout' => 5]);
-            if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
-                error_log('Evoke OG: Błąd pobierania kodu QR dla post ID ' . $post_id);
+            /* Kod rysowany na miejscu (qr.php). Do 1.234.1 szedł z api.qrserver.com:
+               adres wpisu trafiał do obcej usługi przy każdym generowaniu, a gdy ta
+               nie odpowiedziała w 5 s, obrazek wychodził bez kodu. Poziom korekcji L
+               jak tam (największe moduły przy tym samym rozmiarze); położenie
+               i kolory bez zmian, strefa ciszy 2 moduły zamiast 2 px. */
+            $size  = (int) ($layer['size'] ?? 170);
+            $qr_x  = $s['width'] - $size - $x;
+            $kod   = evk_qr_koduj((string) get_permalink($post_id), 'L');
+            if ($kod === null) {
+                error_log('Evoke OG: adres za długi na kod QR, post ID ' . $post_id);
                 break;
             }
-
-            $qr_img = @imagecreatefromstring(wp_remote_retrieve_body($response));
-            if ($qr_img) {
-                imagecopy($img, $qr_img, $qr_x, $y, 0, 0, $size, $size);
-            }
+            [$fr, $fg, $fb] = evk_og_hex_to_rgb($layer['fg_color'] ?? '#ffffff');
+            [$br, $bg, $bb] = evk_og_hex_to_rgb($layer['bg_color'] ?? '#000000');
+            evk_qr_rysuj($img, $kod['moduly'], $qr_x, $y, $size,
+                (int) imagecolorallocate($img, $fr, $fg, $fb), (int) imagecolorallocate($img, $br, $bg, $bb));
             break;
 
     endswitch;

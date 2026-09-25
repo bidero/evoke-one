@@ -9,7 +9,7 @@ if (!defined('ABSPATH')) exit;
 
                     <div class="evo-box">
                         <h3>Kokpit Bricks Builder</h3>
-                        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Zastąp domyślny kokpit WordPress stroną Bricks Builder wyświetlaną w iframe.</div></details>
+                        <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Zastąp domyślny kokpit WordPress stroną Bricks Builder wyświetlaną w iframe. Pod własnym adresem strona Kokpitu jest widoczna tylko dla zalogowanych: dla pozostałych to 404, a w mapie strony i wyszukiwarce jej nie ma.</div></details>
                         <div class="evo-status-card">
                             <div class="evo-status-icon <?php echo get_option('evoke_dashboard_active') === '1' ? 'on' : 'off'; ?>">
                                 <span class="dashicons dashicons-dashboard evo-ico-lg"></span>

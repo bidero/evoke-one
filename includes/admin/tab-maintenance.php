@@ -41,7 +41,7 @@ if ($selected_page_id) {
 
                 <div class="evo-box">
                     <h3>Strona konserwacji</h3>
-                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Wybrana strona zostanie wyświetlona pod oryginalnym adresem URL (bez przekierowania). Wejście przez inny podadres przekieruje automatycznie na <code>/</code>.</div></details>
+                    <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">W czasie konserwacji wybrana strona wyświetla się pod każdym adresem, bez przekierowań, z kodem 503 — wyszukiwarka wie, że to przerwa, i wraca później. Poza konserwacją widzą ją tylko zalogowani: dla pozostałych to 404, a w mapie strony jej nie ma.</div></details>
                     <div class="evo-field">
                         <label>Wybierz stronę</label>
                         <select name="maintenance_page_id">

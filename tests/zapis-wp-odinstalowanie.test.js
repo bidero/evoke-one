@@ -110,7 +110,7 @@ module.exports = async function (t) {
       path.join(korzen, 'includes/dane-wtyczki.php')], { encoding: 'utf8' }));
   } catch (e) { dane = null; }
   const NIE_NASZE = ['active_plugins', 'admin_email', 'blog_public', 'bricks_custom_fonts', 'comment_registration',
-    'home', 'page_on_front', 'rewrite_rules', 'siteurl', 'ustawienia'];
+    'home', 'page_for_posts', 'page_on_front', 'rewrite_rules', 'siteurl', 'ustawienia'];
   const pliki = [path.join(korzen, 'evoke-one.php')];
   (function chodz(d) {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
