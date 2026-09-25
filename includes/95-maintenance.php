@@ -250,6 +250,14 @@ add_action('parse_request', function ($wp = null) {
        wyszukiwarki to przekierowanie wszystkich podstron na stronę główną,
        a nie „wrócimy za chwilę". */
     $wpm_show_maintenance = true;
+
+    /* I bez przekierowań po drodze. Zasłona zapada w `template_include`, a rdzeń
+       przekierowuje wcześniej, w `template_redirect`: w 1.234.0 `/home` (adres
+       strony ustawionej jako główna) szło 301 na `/` i dopiero tam było 503 —
+       zgłoszone z evoke.pl. Tak samo stary slug wpisu i adres bez końcowego
+       ukośnika. Moduł 301 i log 404 same patrzą na `$wpm_show_maintenance`. */
+    remove_action('template_redirect', 'redirect_canonical');
+    remove_action('template_redirect', 'wp_old_slug_redirect');
 });
 
 add_action('wp', function () {

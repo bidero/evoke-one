@@ -50,6 +50,16 @@ a ten woła `settings_errors()` dla WSZYSTKICH komunikatów. Własne
 wyglądało „Rola zaktualizowana." ×2 (1.233.3). Pilnuje
 `tests/uprawnienia-panel.test.js` (dokładnie jeden komunikat, w Chromium).
 
+### Atrybut `hidden` przegrywa z klasą układu
+
+`hidden` chowa element tylko przez arkusz przeglądarki (`display: none`),
+a każda reguła autora z `display` wygrywa. Element z `hidden` i klasą
+`.evo-inline`, `.evo-toolbar` albo inną z `display: flex` jest WIDOCZNY.
+Wpadło dwa razy: kopie zapasowe (stąd reguła w `admin.css` przy
+`#evk-backup-teraz`) i pole „Przekieruj" w logach 404, otwarte w każdym
+wierszu (1.234.1). `hidden` daje się na element bez klasy układu, a klasę
+na jego dziecko.
+
 ---
 
 ## Testy: co kosztuje, a co jest darmowe
@@ -236,6 +246,14 @@ serwera obcym hostem bez adresu IP — `wp_http_validate_url()` go odrzuca,
 a test mierzy środowisko zamiast kodu. Sonda, której adresy idą przez serwer,
 dostaje jego adres i stawia `WP_HOME` przed wczytaniem WordPressa, jak router
 (`newsletter-sledzenie`).
+
+**Testowy WordPress ma zwykłe adresy i nie ma strony głównej.** Przekierowania
+rdzenia (kanoniczne, ze starego sluga, `/home` → `/`) nie mają tam jak zajść,
+więc test „bez przekierowań" przechodzi na pusto — tak przeszło 1.234.0,
+a evoke.pl w konserwacji odpowiadało na `/home` 301 na `/`. Sonda, która tego
+potrzebuje, stawia ładne adresy i stronę główną sama i sprząta po sobie
+(`konserwacja-http`), a test najpierw sprawdza, że bez poprawki
+przekierowanie naprawdę jest.
 
 ### Zanim puścisz przeglądarkę
 

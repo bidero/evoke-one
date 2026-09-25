@@ -78,7 +78,8 @@ function evk_301_clear_cache(): void {
 
 function evk_301_has_redirect(string $uri): bool {
     if (!evk_301_is_enabled()) return false;
-    $path = evk_301_normalize(strtok($uri, '?'));
+    // Zdekodowana, jak w wykonaniu przekierowania niżej — reguły leżą zdekodowane.
+    $path = evk_301_normalize(rawurldecode((string) strtok($uri, '?')));
     foreach (evk_301_get_all() as $r) {
         if (($r['from'] ?? '') === $path) return true;
     }
@@ -90,7 +91,8 @@ function evk_301_has_redirect(string $uri): bool {
 // =========================================================================
 
 add_action('template_redirect', function () {
-    if (is_admin() || !evk_301_is_enabled()) return;
+    // W konserwacji zasłona stoi pod adresem, o który pytano (95-maintenance.php).
+    if (is_admin() || !evk_301_is_enabled() || !empty($GLOBALS['wpm_show_maintenance'])) return;
 
     global $wpdb;
     $uri     = $_SERVER['REQUEST_URI'] ?? '/';

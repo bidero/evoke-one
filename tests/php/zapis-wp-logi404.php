@@ -112,6 +112,18 @@ case 'logika':
     $out['oferta'] = evk_t_wiersz('/t404-Oferta/');
     $out['oferta_wierszy'] = (int) $wpdb->get_var("SELECT COUNT(*) FROM " . evk_404_table() . " WHERE url LIKE '/t404-%ferta%'");
 
+    // ── Strona główna z zapytaniem (1.234.1) ───────────────────────────────
+    evk_t_404('/?p=987654&utm_source=x', '198.51.100.6');
+    evk_t_404('/?utm_source=y&p=987654', '198.51.100.7');
+    evk_t_404('/?author=77', '198.51.100.8');
+    $out['zapytania'] = array_map(static function ($r) { return [$r['url'], (int) $r['hits']]; },
+        $wpdb->get_results("SELECT url, hits FROM " . evk_404_table() . " WHERE url LIKE '/?%' OR url = '/' ORDER BY url", ARRAY_A));
+
+    // ── Polskie znaki w adresie (1.234.1: zapis zdekodowany) ───────────────
+    evk_t_404('/t404-us%C5%82ugi/', '198.51.100.9');
+    evk_t_404('/T404-US%C5%81UGI', '198.51.100.9');
+    $out['utf'] = evk_t_wiersz('/t404-usługi/');
+
     // ── Roboty ────────────────────────────────────────────────────────────
     evk_t_404('/t404-robot/', '198.51.100.4', 'Mozilla/5.0 (compatible; Googlebot/2.1)');
     $out['robot'] = evk_t_wiersz('/t404-robot/');
@@ -146,6 +158,9 @@ case 'logika':
         'ten_sam_z' => is_wp_error($regula) ? null : (evk_301_dodaj('/T404-Przekierowany', '/inny-cel') === $regula),
         'petla' => (($p = evk_301_dodaj('/t404-petla', '/t404-petla/')) instanceof WP_Error) ? $p->get_error_code() : 'brak błędu',
     ];
+    evk_301_dodaj('/t404-usługi-stare/', '/cel/');
+    evk_t_404('/t404-us%C5%82ugi-stare/', '198.51.100.5');
+    $out['przekierowany']['utf_w_logu'] = evk_t_wiersz('/t404-usługi-stare/');
     evk_t_usun_reguly();
     update_option('evk_301_enabled', 0);
 
@@ -184,21 +199,32 @@ case 'przygotuj-panel':
     evk_404_maybe_upgrade();
     $wpdb->query('DELETE FROM ' . evk_404_table());
     evk_t_usun_reguly();
-    $t = time() - 600;
-    foreach ([['/t404-stara-oferta/', 3], ['/t404-kontakt-old/', 1]] as [$url, $ile]) {
-        for ($i = 0; $i < $ile; $i++) evk_404_zapisz($url, 'https://google.example/', '198.51.100.' . (10 + $i), 'Mozilla/5.0 panel', $t + $i);
-    }
+    /* Wiersze jak z prawdziwej strony: najczęstszy nie jest najnowszy, długi
+       adres z długim „skąd" i przeglądarką (układ tabeli), polskie znaki,
+       404 ze strony głównej z zapytaniem i wiersz „/" jak sprzed 1.234.1. */
+    $t  = time() - 600;
+    $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+    $skad = 'https://www.google.example/search?q=' . str_repeat('bardzo+dlugie+zapytanie+', 8) . '&source=hp';
+    for ($i = 0; $i < 3; $i++) evk_404_zapisz('/t404-stara-oferta/', 'https://google.example/', '198.51.100.' . (10 + $i), 'Mozilla/5.0 panel', $t + $i);
+    evk_404_zapisz('/t404-kontakt-old/', '', '198.51.100.20', 'Mozilla/5.0 panel', $t + 3);
+    evk_404_zapisz('/t404-us%C5%82ugi-panel/', '', '198.51.100.21', $ua, $t + 4);
+    evk_404_zapisz('/?p=987654', '', '198.51.100.22', $ua, $t + 5);
+    evk_404_zapisz('/t404-wp-content/uploads/2021/03/Zdjecie-z-realizacji-bardzo-dluga-nazwa-pliku-do-sprawdzenia-lamania-wierszy-1024x768.jpg',
+        $skad, '198.51.100.23', $ua, $t + 6);
+    evk_404_zapisz('/?utm_source=stary-wiersz', '', '198.51.100.24', $ua, $t + 7);   // → „/"
     $out['wp'] = untrailingslashit(ABSPATH);
     break;
 
 case 'stan':
-    $out['wiersze'] = $wpdb->get_col('SELECT url FROM ' . evk_404_table() . ' ORDER BY url');
+    $out['wiersze'] = $wpdb->get_col('SELECT url FROM ' . evk_404_table());
+    sort($out['wiersze'], SORT_STRING);
     $out['reguly'] = array_values(array_map(static function ($r) { return [$r['from'], $r['to']]; },
         array_filter(evk_301_get_all(), static function ($r) { return strpos((string) ($r['from'] ?? ''), '/t404-') === 0; })));
+    sort($out['reguly']);
     break;
 
 case 'sprzataj':
-    if (evk_404_tabela_gotowa()) $wpdb->query("DELETE FROM " . evk_404_table() . " WHERE url LIKE '/t404-%'");
+    if (evk_404_tabela_gotowa()) $wpdb->query('DELETE FROM ' . evk_404_table());   // także „/" i „/?p=…" z panelu
     evk_t_usun_reguly();
     evk_t_przywroc($plik);
     break;

@@ -2,6 +2,63 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.234.1] — 2026-09-25
+
+Poprawki do 1.234.0, zgłoszone z użycia.
+
+### Naprawione
+
+- **Konserwacja przekierowywała przed zasłoną.** Na evoke.pl `/home` (adres
+  strony ustawionej jako główna) odpowiadał 301 na `/` i dopiero tam było
+  503. Przekierowania rdzenia (kanoniczne, ze starego sluga) i reguły modułu
+  301 działają wcześniej niż zasłona. Teraz, gdy zasłona obejmuje żądanie,
+  żadne z nich nie rusza: każdy adres dostaje 503 pod własnym adresem. Log
+  404 takich żądań nie zapisuje, bo odpowiedzią jest 503.
+- **Ekran logów 404 się rozjeżdżał.** Tabela rozpychała się do długości
+  tekstu przeglądarki: przy oknie 1280 miała 1282 px w pudełku na 748. Adres
+  łamał się co kilka znaków, wiersze miały do 513 px, a kolumna z
+  „Przekieruj" wypadała poza pudełko. Teraz kolumny mają stałą szerokość,
+  a adres zabiera resztę. „Skąd" stoi pod adresem, przeglądarka pod IP;
+  obie są ucięte, z pełną treścią w podpowiedzi.
+- **Pole celu „Przekieruj" było otwarte w każdym wierszu:** klasa układu
+  wygrywała z atrybutem `hidden`.
+- **Najnowsze adresy na górze.** Lista szła od najczęstszych, więc świeże
+  404 z jednym wejściem lądowało na samym dole i wyglądało, jakby nic się nie
+  dopisywało. „Najczęstsze" są pod przełącznikiem nad tabelą.
+- **Polskie znaki w adresie 404.** `/usługi/` zapisywało się jako `/usugi/`,
+  a „Przekieruj" zakładało regułę na adres, który nigdy nie przychodzi.
+  Reguła z polskimi znakami łapie też żądanie w postaci zakodowanej.
+- **404 ze strony głównej z zapytaniem** (`/?p=…`, `/?author=…`) zlewały się
+  w jeden wiersz „/", a „Przekieruj" przy nim przekierowałoby stronę główną.
+  Teraz każde ma własny wiersz z parametrami WordPressa (bez utm_*)
+  i nie ma przy nim „Przekieruj", bo przekierowania działają po ścieżce.
+  Serwer też takiego przekierowania odmawia.
+
+### Testy
+
+- `konserwacja-http`: testowy WordPress jak prawdziwa strona, czyli ładne
+  adresy, strona główna o slugu „home", wpis ze starym slugiem, reguła
+  modułu 301 i włączony log 404. Najpierw warunek wstępny: bez konserwacji
+  rdzeń i moduł 301 naprawdę przekierowują. Potem 503 bez `Location` na
+  każdym z tych adresów, ze stroną zasłony i bez niej (jak na evoke.pl).
+  Nieistniejący adres pod zasłoną nie trafia do logu 404.
+- `zapis-wp-logi404`:
+  - kolejność (najnowsze, „najczęstsze");
+  - układ zmierzony przy oknie 1280: tabela w pudełku, najwyższy wiersz
+    135 px (próg 200; w 1.234.0: 513), przyciski w pudełku;
+  - pole celu schowane do kliknięcia;
+  - „/" i „/?p=…" bez „Przekieruj", odmowa serwera;
+  - polskie znaki: zapis, reguła, żądanie zakodowane;
+  - telefon 360 px bez przewijania strony w poziomie.
+- Atrapa WordPressa zna `remove_action()` (`tests/php/_wp-stubs.php`).
+- Mutacje (14), każda zapala własny podzbiór:
+  - konserwacja: przekierowanie kanoniczne, stary slug, moduł 301 i log 404
+    pod zasłoną;
+  - logi 404: lista od najczęstszych, układ automatyczny, pole celu
+    z `display: flex`, „Przekieruj" przy każdym wierszu, serwer bez odmowy,
+    „/" bez zapytania, zapytanie z utm, adres bez dekodowania, reguła bez
+    dekodowania żądania, tabela bez pudełka z przewijaniem.
+
 ## [1.234.0] — 2026-09-25
 
 Piąte wydanie po audycie 1.229.6: ryzyka na żywych stronach.

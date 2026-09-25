@@ -176,17 +176,58 @@ function evk_404_usun_stare_wpisy(): void {
  * Kluczem jest ścieżka po tej samej normalizacji co w przekierowaniach 301
  * (małe litery, bez końcowego ukośnika), więc `/Oferta/` i `/oferta` to
  * jeden wiersz, a „Przekieruj" trafia w dokładnie ten adres.
+ *
+ * Adres leży ZDEKODOWANY, jak reguły przekierowań. W 1.234.0 szedł przez
+ * `sanitize_text_field()`, a ta wycina sekwencje `%XX`: `/us%C5%82ugi/`
+ * zapisywało się jako `/usugi/` i „Przekieruj" zakładało regułę na adres,
+ * który nigdy nie przychodzi. Śmieci skanerów, które po zdekodowaniu nie są
+ * poprawnym UTF-8 (`/%FF%FE`), zostają zakodowane. Na ekran adres idzie przez
+ * `esc_html()`, do bazy przez `prepare()`.
+ *
+ * Wyjątek od „bez zapytania": sama strona główna. „/" nie bywa 404 przez
+ * ścieżkę — robi je zapytanie (`/?p=…`, `/?author=…`, a na stronie bez ładnych
+ * adresów każde 404). W 1.234.0 wszystkie takie trafienia zlewały się
+ * w jeden wiersz „/".
  */
 function evk_404_wiersz(string $uri, string $skad, string $ip, string $ua): array {
     $sciezka = (string) strtok($uri, '?');
     if ($sciezka === '' || $sciezka[0] !== '/') $sciezka = '/' . $sciezka;
+    $dek     = rawurldecode($sciezka);
+    $sciezka = wp_check_invalid_utf8($dek) === $dek ? $dek : $sciezka;
+    if ($sciezka === '/') $sciezka .= evk_404_zapytanie_wp($uri);
+    $sciezka = (string) preg_replace('/[\x00-\x1F\x7F]+/', '', $sciezka);
     return [
-        'url_hash' => md5(evk_301_normalize(rawurldecode($sciezka))),
-        'url'      => mb_substr(sanitize_text_field($sciezka), 0, 2000),
+        'url_hash' => md5(evk_301_normalize($sciezka)),
+        'url'      => mb_substr($sciezka, 0, 2000),
         'referrer' => mb_substr(sanitize_text_field($skad), 0, 2000),
         'ip'       => mb_substr(sanitize_text_field($ip), 0, 45),
         'ua'       => mb_substr(sanitize_text_field($ua), 0, 500),
     ];
+}
+
+/**
+ * `?…` z samych parametrów, o które pyta WordPress (public query vars),
+ * w stałej kolejności — bez utm_*, fbclid i podobnych. Pusty, gdy żadnego.
+ */
+function evk_404_zapytanie_wp(string $uri): string {
+    parse_str((string) parse_url($uri, PHP_URL_QUERY), $pola);
+    $wp    = $GLOBALS['wp'] ?? null;
+    $pola  = array_filter(array_intersect_key($pola, array_flip($wp instanceof WP ? $wp->public_query_vars : [])), 'is_scalar');
+    if (!$pola) return '';
+    ksort($pola);
+    $q   = http_build_query($pola);
+    $dek = rawurldecode($q);
+    return '?' . (wp_check_invalid_utf8($dek) === $dek ? $dek : $q);
+}
+
+/**
+ * Czy z wiersza da się zrobić przekierowanie 301. Moduł przekierowań
+ * dopasowuje samą ścieżkę, więc reguła z wiersza z zapytaniem (`/?p=…`)
+ * albo z „/" (tak w 1.234.0 zapisywały się wszystkie takie trafienia)
+ * przekierowałaby stronę główną.
+ */
+function evk_404_da_sie_przekierowac(string $url): bool {
+    return $url !== '/' && strpos($url, '?') === false;
 }
 
 /**
@@ -241,6 +282,8 @@ function evk_404_sprzatnij(): void {
 
 add_action('template_redirect', function () {
     if (!is_404() || !evk_404_is_enabled()) return;
+    // Pod zasłoną konserwacji odpowiedzią jest 503, nie 404 (95-maintenance.php).
+    if (!empty($GLOBALS['wpm_show_maintenance'])) return;
 
     $uri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
 
@@ -291,7 +334,11 @@ add_action('wp_ajax_evk_404_przekieruj', function () {
         : '';
     if ($url === '') wp_send_json_error('Tego adresu nie ma już w logu — odśwież stronę.');
 
-    $regula = evk_301_dodaj(rawurldecode($url), (string) wp_unslash($_POST['to'] ?? ''));
+    if (!evk_404_da_sie_przekierowac($url)) {
+        wp_send_json_error('Tego adresu nie da się przekierować: przekierowania działają po ścieżce, a tutaj 404 robi zapytanie (?…) — reguła przekierowałaby stronę główną.');
+    }
+
+    $regula = evk_301_dodaj($url, (string) wp_unslash($_POST['to'] ?? ''));
     if (is_wp_error($regula)) wp_send_json_error($regula->get_error_message());
 
     $wpdb->delete(evk_404_table(), ['id' => $id]);

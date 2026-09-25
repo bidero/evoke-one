@@ -50,6 +50,11 @@ if (!function_exists('remove_filter')) {
         return true;
     }
 }
+/* Jak w rdzeniu: remove_action() to remove_filter(). Konserwacja zdejmuje nim
+   przekierowania rdzenia pod zasłoną (1.234.1). */
+if (!function_exists('remove_action')) {
+    function remove_action($hook, $cb, $prio = 10) { return remove_filter($hook, $cb, $prio); }
+}
 
 function get_option($key, $default = false) {
     return array_key_exists($key, $GLOBALS['options']) ? $GLOBALS['options'][$key] : $default;

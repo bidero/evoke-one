@@ -109,14 +109,31 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
 </form>
 
 <?php
+/* Najnowsze na górze, jak w każdym logu. W 1.234.0 lista szła od
+   najczęstszych, więc świeże 404 z jednym wejściem lądowało na samym dole
+   i wyglądało, jakby nic się nie dopisywało. „Najczęstsze" zostają pod
+   przełącznikiem — do wybierania, co przekierować. */
+$sort    = (isset($_GET['sort']) && $_GET['sort'] === 'wejscia') ? 'wejscia' : 'najnowsze';
 $wiersze = evk_404_tabela_gotowa()
     ? ($GLOBALS['wpdb']->get_results('SELECT id, url, hits, first_seen, last_seen, referrer, ip, ua FROM ' . evk_404_table()
-        . ' ORDER BY hits DESC, last_seen DESC LIMIT ' . (int) $max_logs, ARRAY_A) ?: [])
+        . ($sort === 'wejscia' ? ' ORDER BY hits DESC, last_seen DESC' : ' ORDER BY last_seen DESC, id DESC')
+        . ' LIMIT ' . (int) $max_logs, ARRAY_A) ?: [])
     : [];
 if (!empty($wiersze)):
 ?>
 <div class="evo-box">
-    <h3>Nieistniejące adresy <span class="evo-hint">(<?php echo count($wiersze); ?>)</span></h3>
+    <?php /* Nagłówek zostaje `h3` wprost w boksie (wzorzec panelu, pilnuje
+             admin-tabs); przełącznik kolejności to dopisek w nim. */ ?>
+    <h3 class="evo-row-between">
+        <span>Nieistniejące adresy <span class="evo-hint">(<?php echo count($wiersze); ?>)</span></span>
+        <span class="evo-box-note" data-evk-404-sortowanie>Kolejność:
+            <?php if ($sort === 'najnowsze'): ?>
+            <strong>najnowsze</strong> · <a href="<?php echo esc_url(add_query_arg('sort', 'wejscia')); ?>">najczęstsze</a>
+            <?php else: ?>
+            <a href="<?php echo esc_url(remove_query_arg('sort')); ?>">najnowsze</a> · <strong>najczęstsze</strong>
+            <?php endif; ?>
+        </span>
+    </h3>
     <?php if (!evk_301_is_enabled()): ?>
     <div class="evo-info-box is-warn evo-mb" data-evk-404-301-wylaczone>
         <span class="dashicons dashicons-warning evo-warn-tx"></span>
@@ -124,39 +141,69 @@ if (!empty($wiersze)):
             <a href="<?php echo esc_url(add_query_arg(['tab' => 'narzedzia', 'sub' => 'redirect'], admin_url('options-general.php?page=evoke-one'))); ?>">Przekierowania 301</a>.</div>
     </div>
     <?php endif; ?>
+    <?php /* Kolumny o stałej szerokości, adres zabiera resztę (`evo-tbl-fixed`
+             + `<colgroup>`). W 1.234.0 układ był automatyczny, a przeglądarka
+             w `nowrap` rozpychała tabelę do szerokości całego tekstu: przy
+             oknie 1280 tabela miała 1282 px w pudełku na 748, adres łamał się
+             co cztery znaki (wiersze do 513 px), a kolumna z „Przekieruj"
+             wypadała poza pudełko. „Skąd" siedzi pod adresem, przeglądarka pod
+             IP — obie ucięte, pełna treść w podpowiedzi. `min-width`: na
+             telefonie tabela przewija się w `.evo-tbl-wrap`, zamiast ściskać
+             adres do zera. */ ?>
     <div class="evo-tbl-wrap">
-    <table class="evo-tbl evo-tbl-sm">
+    <table class="evo-tbl evo-tbl-sm evo-tbl-fixed" style="min-width:640px" data-evk-404-tabela>
+        <colgroup>
+            <col>
+            <col style="width:76px">
+            <col style="width:140px">
+            <col style="width:170px">
+            <col style="width:146px">
+        </colgroup>
         <thead><tr>
             <th>Adres</th>
-            <th class="evo-w evo-center" style="--evo-w:80px">Wejścia</th>
-            <th class="evo-w" style="--evo-w:140px">Ostatnio</th>
-            <th>Skąd</th>
-            <th class="evo-w" style="--evo-w:110px">IP</th>
-            <th>Przeglądarka</th>
-            <th class="evo-w" style="--evo-w:220px">Akcja</th>
+            <th class="evo-center">Wejścia</th>
+            <th>Ostatnio</th>
+            <th>IP i przeglądarka</th>
+            <th>Akcja</th>
         </tr></thead>
         <tbody>
         <?php foreach ($wiersze as $w): ?>
         <tr data-evk-404-wiersz="<?php echo (int) $w['id']; ?>">
-            <td><code class="evo-mono-xs evo-break"><?php echo esc_html($w['url']); ?></code></td>
+            <td>
+                <code class="evo-mono-xs evo-break" data-evk-404-adres><?php echo esc_html($w['url']); ?></code>
+                <?php if ($w['referrer'] !== ''): ?>
+                <div class="evo-hint-sm evo-ellipsis" title="<?php echo esc_attr($w['referrer']); ?>">z: <?php echo esc_html($w['referrer']); ?></div>
+                <?php endif; ?>
+            </td>
             <td class="evo-center evo-strong"><?php echo (int) $w['hits']; ?></td>
             <td class="evo-nowrap" title="<?php echo esc_attr('Pierwszy raz: ' . wp_date('Y-m-d H:i', (int) $w['first_seen'])); ?>"><?php echo esc_html(wp_date('Y-m-d H:i', (int) $w['last_seen'])); ?></td>
-            <td class="evo-hint-sm evo-break"><?php echo esc_html($w['referrer'] !== '' ? $w['referrer'] : '—'); ?></td>
             <td>
+                <div class="evo-ellipsis">
                 <?php if ($w['ip'] !== ''): ?>
                 <a href="https://radar.cloudflare.com/ip/<?php echo esc_attr($w['ip']); ?>" target="_blank" rel="noopener" class="evo-hint-sm"><?php echo esc_html($w['ip']); ?></a>
                 <?php else: ?>—<?php endif; ?>
+                </div>
+                <div class="evo-hint-sm evo-ellipsis" title="<?php echo esc_attr($w['ua']); ?>"><?php echo esc_html($w['ua'] !== '' ? $w['ua'] : '—'); ?></div>
             </td>
-            <td class="evo-hint-sm evo-ellipsis evo-w" style="--evo-w:200px" title="<?php echo esc_attr($w['ua']); ?>"><?php echo esc_html($w['ua'] !== '' ? $w['ua'] : '—'); ?></td>
             <td class="evk-404-akcja">
+                <?php if (evk_404_da_sie_przekierowac($w['url'])): ?>
                 <button type="button" class="button button-small" data-evk-404-przekieruj>Przekieruj</button>
-                <div class="evo-inline" data-evk-404-cel hidden style="--evo-gap:6px">
-                    <input type="text" class="evo-w" style="--evo-w:130px" placeholder="/nowy-adres"
+                <?php /* Samo `hidden`, bez klasy układu: `.evo-inline` ma
+                         `display: flex`, a to wygrywa z atrybutem `hidden` —
+                         w 1.234.0 pole celu stało otwarte w każdym wierszu. */ ?>
+                <div data-evk-404-cel hidden>
+                    <input type="text" class="evo-w-full" placeholder="/nowy-adres"
                            aria-label="<?php echo esc_attr('Przekieruj ' . $w['url'] . ' na adres'); ?>">
-                    <button type="button" class="button button-small button-primary" data-evk-404-zapisz>Zapisz</button>
-                    <button type="button" class="button button-small" data-evk-404-anuluj>Anuluj</button>
+                    <div class="evo-inline" style="--evo-gap:6px;margin-top:6px">
+                        <button type="button" class="button button-small button-primary" data-evk-404-zapisz>Zapisz</button>
+                        <button type="button" class="button button-small" data-evk-404-anuluj>Anuluj</button>
+                    </div>
                 </div>
                 <span class="evo-hint-sm evo-danger-tx" data-evk-404-blad role="alert"></span>
+                <?php else: ?>
+                <span class="evo-hint-sm evo-faint" data-evk-404-bez-przekierowania
+                      title="Przekierowania działają po ścieżce, a tutaj 404 robi zapytanie (?…) — reguła przekierowałaby stronę główną.">bez przekierowania</span>
+                <?php endif; ?>
             </td>
         </tr>
         <?php endforeach; ?>
