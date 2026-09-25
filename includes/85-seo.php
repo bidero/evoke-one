@@ -234,12 +234,110 @@ add_action('wp_head', function () {
     if ($poza) echo '<meta name="robots" content="noindex, follow">' . "\n";
 }, 5);
 
-// 2. Meta tagi w <head>
+// =========================================================================
+// OG: JĘZYK, OBRAZEK, KARTA X — wspólne dla stron i archiwów (1.236.0)
+// =========================================================================
+
+/**
+ * Kod w postaci, której chce og:locale: „język_REGION" („pl_PL"). Przyjmuje
+ * locale WordPressa („pl_PL", „de_DE_formal") i kody HTML z Tłumaczeń
+ * („en-US"). Sam język („pl") daje pusty wynik — lepiej nie wypisać nic, niż
+ * zgadywać region; bez og:locale Facebook przyjmuje en_US.
+ */
+function evk_seo_og_locale(string $kod): string {
+    return preg_match('/^([a-z]{2,3})[-_]([A-Za-z]{2})(?![A-Za-z])/', $kod, $m) ? strtolower($m[1]) . '_' . strtoupper($m[2]) : '';
+}
+
+/**
+ * og:locale strony i og:locale:alternate. Bez Tłumaczeń: język witryny.
+ * Z Tłumaczeniami: język bieżącej wersji (polska = język witryny, pozostałe
+ * z kodów HTML w ustawieniach Tłumaczeń), a reszta jako alternatywy.
+ *
+ * @return array{0: string, 1: list<string>}
+ */
+function evk_seo_og_locale_strony(): array {
+    $witryna = evk_seo_og_locale((string) get_locale());
+    if (!function_exists('tl_get_languages') || !function_exists('get_current_lang')) return [$witryna, []];
+    $wszystkie = ['pl' => $witryna];
+    foreach (tl_get_languages() as $kod => $jezyk) $wszystkie[$kod] = evk_seo_og_locale((string) ($jezyk['html'] ?? ''));
+    $biezacy = get_current_lang();
+    $glowny  = $wszystkie[$biezacy] ?? $witryna;
+    $inne    = array_diff(array_unique(array_filter($wszystkie)), [$glowny]);
+    return [$glowny, array_values($inne)];
+}
+
+/**
+ * Wymiary i tekst alternatywny obrazka OG. Bez og:image:width/height Facebook
+ * przy pierwszym udostępnieniu często pokazuje link bez obrazka (przetwarza go
+ * dopiero w tle); alt czytają czytniki ekranu w serwisach społecznościowych.
+ *
+ * Najpierw biblioteka mediów (wymiary i alt z załącznika), potem plik
+ * w katalogu uploads (wymiary z pliku: obrazki generatora OG z dopiskiem
+ * `?v=`, og-fallback.jpg). Obcy adres zostaje bez wymiarów.
+ *
+ * @return array{w: int, h: int, alt: string}
+ */
+function evk_seo_obrazek_info(string $url): array {
+    static $cache = [];
+    if (isset($cache[$url])) return $cache[$url];
+    $info = ['w' => 0, 'h' => 0, 'alt' => ''];
+    $czysty = (string) strtok($url, '?');
+    $id = $czysty !== '' ? attachment_url_to_postid($czysty) : 0;
+    if ($id) {
+        $meta = wp_get_attachment_metadata($id);
+        $info['w']   = (int) ($meta['width'] ?? 0);
+        $info['h']   = (int) ($meta['height'] ?? 0);
+        $info['alt'] = trim((string) get_post_meta($id, '_wp_attachment_image_alt', true));
+        return $cache[$url] = $info;
+    }
+    $uploads = wp_upload_dir(null, false);
+    if ($czysty !== '' && strpos($czysty, $uploads['baseurl'] . '/') === 0) {
+        $plik = $uploads['basedir'] . substr($czysty, strlen($uploads['baseurl']));
+        $rozmiar = is_file($plik) ? @getimagesize($plik) : false;
+        if ($rozmiar) {
+            $info['w'] = (int) $rozmiar[0];
+            $info['h'] = (int) $rozmiar[1];
+        }
+    }
+    return $cache[$url] = $info;
+}
+
+/**
+ * Tagi OG i karta X — jedno miejsce dla stron i archiwów.
+ *
+ * @param array{title: string, type: string, url: string, desc: string, image: string} $d
+ */
+function evk_seo_wypisz_og(array $d): void {
+    [$locale, $inne] = evk_seo_og_locale_strony();
+    echo '<meta property="og:title" content="' . esc_attr($d['title']) . '">' . "\n";
+    echo '<meta property="og:type" content="' . esc_attr($d['type']) . '">' . "\n";
+    echo '<meta property="og:url" content="' . esc_url($d['url']) . '">' . "\n";
+    echo '<meta property="og:site_name" content="' . esc_attr(get_bloginfo('name')) . '">' . "\n";
+    if ($locale !== '') {
+        echo '<meta property="og:locale" content="' . esc_attr($locale) . '">' . "\n";
+        foreach ($inne as $l) echo '<meta property="og:locale:alternate" content="' . esc_attr($l) . '">' . "\n";
+    }
+    if ($d['desc'] !== '') echo '<meta property="og:description" content="' . esc_attr($d['desc']) . '">' . "\n";
+    if ($d['image'] !== '') {
+        $info = evk_seo_obrazek_info($d['image']);
+        echo '<meta property="og:image" content="' . esc_url($d['image']) . '">' . "\n";
+        if ($info['w'] > 0 && $info['h'] > 0) {
+            echo '<meta property="og:image:width" content="' . $info['w'] . '">' . "\n";
+            echo '<meta property="og:image:height" content="' . $info['h'] . '">' . "\n";
+        }
+        echo '<meta property="og:image:alt" content="' . esc_attr($info['alt'] !== '' ? $info['alt'] : $d['title']) . '">' . "\n";
+    }
+    /* Duża karta tylko z obrazkiem — bez niego X rysuje pustą ramkę. Tytuł,
+       opis i obrazek X bierze z og:*, więc nic więcej nie trzeba. */
+    echo '<meta name="twitter:card" content="' . ($d['image'] !== '' ? 'summary_large_image' : 'summary') . '">' . "\n";
+}
+
+// 2. Meta tagi w <head> — wpisy, strony i strona wpisów
 add_action('wp_head', function () {
     if (!is_singular() && !is_home()) return;
 
     $pid = get_queried_object_id();
-    if (!$pid) return;
+    if (!$pid) return;   // strona główna z ostatnimi wpisami — hak archiwów niżej
 
     $m = evk_seo_get_meta($pid);
 
@@ -256,10 +354,56 @@ add_action('wp_head', function () {
         $og_type = 'website';
     }
 
-    echo '<meta property="og:title" content="' . esc_attr($m['og_title']) . '">' . "\n";
-    echo '<meta property="og:type" content="' . esc_attr($og_type) . '">' . "\n";
-    echo '<meta property="og:url" content="' . esc_url(get_permalink($pid)) . '">' . "\n";
-    echo '<meta property="og:site_name" content="' . esc_attr(get_bloginfo('name')) . '">' . "\n";
-    if ($m['og_desc'])  echo '<meta property="og:description" content="' . esc_attr($m['og_desc']) . '">' . "\n";
-    if ($m['og_image']) echo '<meta property="og:image" content="' . esc_url($m['og_image']) . '">' . "\n";
+    evk_seo_wypisz_og([
+        'title' => (string) $m['og_title'],
+        'type'  => $og_type,
+        'url'   => (string) get_permalink($pid),
+        'desc'  => (string) $m['og_desc'],
+        'image' => (string) $m['og_image'],
+    ]);
+}, 5);
+
+/**
+ * Archiwa: kategorie, tagi i inne taksonomie, archiwa typów treści oraz strona
+ * główna z ostatnimi wpisami (1.236.0). Do 1.235.0 nie dostawały ani opisu,
+ * ani OG — strona główna bloga też nie, bo resolver pracuje na ID wpisu,
+ * a tam go nie ma. Opis: opis kategorii/tagu, opis typu treści, slogan
+ * witryny. Obrazek: domyślny obrazek OG (ustawienia generatora albo
+ * og-fallback.jpg). Archiwa dat i autorów zostają bez zmian.
+ *
+ * @return array{title: string, type: string, url: string, desc: string, image: string}|null
+ */
+function evk_seo_archiwum(): ?array {
+    if (is_home() && is_front_page()) {
+        $d = ['title' => (string) get_bloginfo('name'), 'desc' => (string) get_bloginfo('description'), 'url' => home_url('/')];
+    } elseif (is_category() || is_tag() || is_tax()) {
+        $term = get_queried_object();
+        if (!($term instanceof WP_Term)) return null;
+        $link = get_term_link($term);
+        $d = ['title' => $term->name, 'desc' => $term->description, 'url' => is_wp_error($link) ? '' : $link];
+    } elseif (is_post_type_archive()) {
+        $typ = get_query_var('post_type');
+        $typ = is_array($typ) ? (string) reset($typ) : (string) $typ;
+        $obiekt = get_post_type_object($typ);
+        if (!$obiekt) return null;
+        $d = ['title' => (string) post_type_archive_title('', false), 'desc' => (string) $obiekt->description,
+              'url' => (string) get_post_type_archive_link($typ)];
+    } else {
+        return null;
+    }
+    $strona = (int) get_query_var('paged');
+    if ($strona > 1) $d['url'] = get_pagenum_link($strona, false);
+    // Opis bywa długim wstępem z HTML-em — do meta idzie tekst, najwyżej 50 słów.
+    $d['desc']  = wp_trim_words($d['desc'], 50, '…');
+    $d['type']  = 'website';
+    $d['image'] = function_exists('evk_og_obrazek_zastepczy') ? evk_og_obrazek_zastepczy(0) : '';
+    return $d;
+}
+
+add_action('wp_head', function () {
+    if (is_singular()) return;
+    $d = evk_seo_archiwum();
+    if ($d === null) return;
+    if ($d['desc'] !== '') echo '<meta name="description" content="' . esc_attr($d['desc']) . '">' . "\n";
+    evk_seo_wypisz_og($d);
 }, 5);

@@ -2,6 +2,64 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.236.0] — 2026-09-25
+
+Siódme wydanie po audycie 1.229.6: meta w `<head>` — karty, język,
+obrazki i archiwa.
+
+### Zmienione
+
+- **Karta X (Twitter): duży obrazek.** `twitter:card` to
+  `summary_large_image`, a bez obrazka `summary`. Do 1.235.0 tagu nie było,
+  więc X pokazywał link bez dużego obrazka. Tytuł, opis i obrazek X bierze
+  z tagów `og:*`, więc nie ma nowych ustawień.
+- **`og:locale`.** Język witryny w postaci `pl_PL`. Do 1.235.0 tagu nie
+  było, a Facebook przyjmował wtedy `en_US`. Przy włączonych Tłumaczeniach
+  tag podaje język bieżącej wersji (`/en/…` → `en_US`), a pozostałe języki
+  idą jako `og:locale:alternate`. Język bez regionu w ustawieniach
+  Tłumaczeń (samo „fr") jest pomijany, bo lepiej nic niż zgadywany region.
+- **Obrazek OG z wymiarami i opisem.** Dochodzą `og:image:width`,
+  `og:image:height` i `og:image:alt`. Bez wymiarów Facebook przy pierwszym
+  udostępnieniu często pokazuje link bez obrazka, bo przetwarza go dopiero
+  w tle. Wymiary i alt pochodzą z biblioteki mediów, a dla obrazków
+  generatora OG i `og-fallback.jpg` wymiary są z pliku. Obrazek bez tekstu
+  alternatywnego dostaje w alt tytuł strony.
+- **Opis i OG na archiwach.** Do 1.235.0 nie miały ich kategorie, tagi,
+  inne taksonomie ani archiwa typów treści. Nie miała ich też strona główna
+  z ostatnimi wpisami: resolver pracuje na ID wpisu, a tam go nie ma.
+  - Opis pochodzi z opisu kategorii lub tagu (bez HTML-a, najwyżej
+    50 słów), z opisu typu treści albo, na stronie głównej, ze sloganu
+    witryny.
+  - Obrazkiem jest domyślny obrazek OG.
+  - Na kolejnych stronach archiwum `og:url` wskazuje tę stronę.
+  - Archiwa dat i autorów zostają bez zmian.
+
+### Testy
+
+- `seo-meta-glowa` (nowy, prawdziwy WordPress przez `php -S`). Strona jest
+  przygotowana jak prawdziwa: ładne adresy, `pl_PL`, slogan, kategoria
+  z opisem w HTML-u, tag bez opisu, typ treści z archiwum (mu-plugin),
+  obrazki z biblioteki mediów z tekstem alternatywnym, obrazek generatora
+  OG i obrazek domyślny. Test sprawdza:
+  - język i jego wersje, także z Tłumaczeniami (`/en/…`);
+  - kartę X z obrazkiem i bez;
+  - wymiary i alt obrazka z załącznika i z pliku;
+  - archiwa, stronę 2 kategorii i stronę główną z wpisami;
+  - że archiwa autora i dat zostały bez OG.
+- Mutacje (12), każda zapala własny podzbiór:
+  - `og:locale` z myślnikiem;
+  - język bieżącej wersji pominięty;
+  - bez `og:locale:alternate`;
+  - bez wymiarów i altu z biblioteki mediów;
+  - bez wymiarów z pliku;
+  - alt bez tytułu zastępczego;
+  - duża karta także bez obrazka;
+  - archiwa bez meta;
+  - opis archiwum z HTML-em;
+  - `og:url` bez numeru strony;
+  - strona główna bloga bez meta;
+  - archiwum typu bez meta.
+
 ## [1.235.0] — 2026-09-25
 
 Szóste wydanie po audycie 1.229.6: strony techniczne i kod QR bez usług

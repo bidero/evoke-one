@@ -121,7 +121,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (95 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (96 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
@@ -254,6 +254,16 @@ a evoke.pl w konserwacji odpowiadało na `/home` 301 na `/`. Sonda, która tego
 potrzebuje, stawia ładne adresy i stronę główną sama i sprząta po sobie
 (`konserwacja-http`), a test najpierw sprawdza, że bez poprawki
 przekierowanie naprawdę jest.
+
+Dwie pułapki przy takim stawianiu (`seo-meta-glowa`):
+- **Reguły kategorii, tagów i typów treści** WordPress rejestruje na `init`
+  tylko przy JUŻ włączonych ładnych adresach. Proces, który je dopiero
+  włącza, ma `init` za sobą, więc `flush_rewrite_rules()` zapisze reguły bez
+  archiwów: `/category/…` odpowiada wtedy 301 na `?cat=`, a archiwum typu
+  daje 404. Przepłukuj w NOWYM procesie (osobny krok sondy).
+- **`update_option('WPLANG', 'pl_PL')`** nic nie zmienia bez zainstalowanej
+  paczki językowej — sanityzacja zostawia starą wartość, a testowy WordPress
+  ma sam angielski. Sonda zapisuje język wprost do bazy.
 
 ### Zanim puścisz przeglądarkę
 
