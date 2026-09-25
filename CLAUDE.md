@@ -41,6 +41,15 @@ na górze pliku głównego, a funkcje idą do `includes/`. Pilnuje tego
 `tests/zapis-wp-dwie-kopie.test.js`: wczytuje stronę z dwiema kopiami,
 także ze starą wersją z gita, w osobnym procesie.
 
+### Komunikaty `add_settings_error()` wyświetla WordPress, nie zakładka
+
+Strona Evoke ONE to `add_options_page`, czyli pozycja w „Ustawieniach". Dla
+takich stron `wp-admin/admin-header.php` sam dołącza `options-head.php`,
+a ten woła `settings_errors()` dla WSZYSTKICH komunikatów. Własne
+`settings_errors('…')` w zakładce pokazuje każdy z nich drugi raz — tak
+wyglądało „Rola zaktualizowana." ×2 (1.233.3). Pilnuje
+`tests/uprawnienia-panel.test.js` (dokładnie jeden komunikat, w Chromium).
+
 ---
 
 ## Testy: co kosztuje, a co jest darmowe
@@ -102,7 +111,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (89 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (90 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```

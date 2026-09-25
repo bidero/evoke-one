@@ -7,7 +7,13 @@ if (!current_user_can('manage_evk_roles')) {
     return;
 }
 
-settings_errors('evk_role_manager');
+/* Komunikatów zapisu („Rola zaktualizowana." itd. — add_settings_error
+   w role-manager-logic.php) NIE wyświetlamy tutaj. Strona Evoke ONE wisi pod
+   „Ustawieniami" (add_options_page), a dla takich stron WordPress sam
+   dołącza wp-admin/options-head.php, który woła settings_errors() dla
+   WSZYSTKICH komunikatów. Do 1.233.2 stało tu drugie wywołanie i każdy
+   komunikat pokazywał się dwa razy (zgłoszone, zmierzone w Chromium na
+   testowym WordPressie: dwa div#setting-error-saved). */
 
 global $wp_roles;
 if (!isset($wp_roles)) $wp_roles = new WP_Roles();

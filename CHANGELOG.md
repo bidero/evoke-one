@@ -2,6 +2,28 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.233.3] — 2026-09-25
+
+Poprawka po zgłoszeniu: podwójne komunikaty w Role Managerze.
+
+### Naprawione
+
+- **Jeden komunikat po zapisie roli.** „Rola zaktualizowana." pokazywała
+  się dwa razy, tak samo „Rola dodana.", „Rola usunięta." i błąd „Rola
+  o identyfikatorze … już istnieje". Strona Evoke ONE jest w menu
+  „Ustawienia", a na takich stronach WordPress sam wyświetla komunikaty
+  zapisu. Zakładka Role wyświetlała je drugi raz. Zostało wyświetlanie
+  WordPressa.
+
+### Testy
+
+- `uprawnienia-panel` (nowy, prawdziwy WordPress przez `php -S`
+  i Chromium): edycja, dodanie, dodanie istniejącej i usunięcie roli. Każda
+  akcja daje dokładnie jeden komunikat, a zmiana naprawdę się zapisuje.
+- Stary kod zapala cztery sprawdzenia komunikatów (po dwa komunikaty
+  z tym samym `id`). Mutacje „komunikat zgubiony" i „zapis uprawnień
+  zepsuty" zapalają po jednym, własnym sprawdzeniu.
+
 ## [1.233.2] — 2026-09-25
 
 Poprawka po zgłoszeniu z testowa.evoke.pl: śledzenie otwarć i kliknięć
