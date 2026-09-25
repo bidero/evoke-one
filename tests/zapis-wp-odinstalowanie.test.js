@@ -53,6 +53,23 @@ module.exports = async function (t) {
     JSON.stringify({ meta: n0.meta, rola: n0.rola, uprawnienie: n0.uprawnienie, katalogi: n0.katalogi }));
   sonda('przywroc');
 
+  // ── Z „Usuń dane", ale na stronie zostaje druga kopia ───────────────────
+  /* 1.233.1: na stronie bywają dwa katalogi z Evoke ONE (ręcznie wgrana kopia
+     z gałęzi obok „evoke-one-main"). Usunięcie jednej to sprzątanie plików —
+     dane należą dalej do kopii, która zostaje, także przy „Usuń dane". */
+  t.section('odinstalowanie Z „Usuń dane", gdy zostaje druga kopia: nic nie znika');
+  sonda('przygotuj 1 druga');
+  const wd = sonda('wykonaj');
+  const nd = wd.nasze || {};
+  t.check('warunek testu: w katalogu wtyczek jest druga kopia Evoke ONE',
+    JSON.stringify(wd.inne_kopie) === JSON.stringify(['evk-t-druga-kopia/evoke-one.php']), JSON.stringify(wd.inne_kopie));
+  t.check('ustawienia, tabele, wpisy, katalogi i rola zostają mimo „Usuń dane"',
+    Object.keys(nd.opcje || {}).length === 10 && Object.keys(nd.tabele || {}).length === 2 && Object.keys(nd.wpisy || {}).length === 4
+      && Object.keys(nd.katalogi || {}).length === 3 && nd.rola === true,
+    JSON.stringify({ opcje: Object.keys(nd.opcje || {}).length, tabele: nd.tabele, wpisy: Object.keys(nd.wpisy || {}).length,
+      katalogi: nd.katalogi, rola: nd.rola }));
+  sonda('przywroc');
+
   // ── Z „Usuń dane" ───────────────────────────────────────────────────────
   t.section('odinstalowanie Z „Usuń dane": znika wszystko nasze');
   sonda('przygotuj 1');

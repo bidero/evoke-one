@@ -29,6 +29,18 @@ nie czekaj z tym na pełny przebieg.
 Do cytowania nazw w komentarzach używaj polskich cudzysłowów „…" — są bezpieczne
 w obu kontekstach.
 
+### `evoke-one.php` nie deklaruje funkcji ani klas
+
+PHP wiąże funkcje i klasy z najwyższego poziomu pliku **przy kompilacji**,
+zanim wykona się pierwsza instrukcja. Gdy na stronie są aktywne dwie kopie
+wtyczki (dwa katalogi, np. `evoke-one-main` i ręcznie wgrana kopia z gałęzi),
+druga kopia padała błędem „Cannot redeclare function" i żaden `if` ani
+`return` nad deklaracją tego nie zatrzymał. Tak skończyło się przywrócenie
+kopii zapasowej na testowa.evoke.pl (1.233.1). Strażnik drugiej kopii stoi
+na górze pliku głównego, a funkcje idą do `includes/`. Pilnuje tego
+`tests/zapis-wp-dwie-kopie.test.js`: wczytuje stronę z dwiema kopiami,
+także ze starą wersją z gita, w osobnym procesie.
+
 ---
 
 ## Testy: co kosztuje, a co jest darmowe
@@ -90,7 +102,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (87 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (88 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```

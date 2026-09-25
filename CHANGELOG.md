@@ -2,6 +2,33 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.233.1] — 2026-09-25
+
+Poprawka po zgłoszeniu z testowa.evoke.pl: błąd krytyczny po przywróceniu
+kopii zapasowej na stronie, na której leżały dwie kopie wtyczki.
+
+### Naprawione
+
+- **Przywrócenie kopii zapasowej nie włącza dwóch kopii Evoke ONE.** Po
+  podmianie bazy lista aktywnych wtyczek pochodzi z kopii zapasowej. Do
+  1.233.0 zostawała w niej każda kopia Evoke ONE, której plik istniał. Na
+  stronie z dwoma katalogami (`evoke-one-main` z kopii i ręcznie wgrana
+  kopia z gałęzi roboczej) aktywne były więc obie, a następne żądanie
+  kończyło się błędem „Cannot redeclare function
+  evoke_one_check_conflicts()". Teraz aktywna zostaje tylko kopia, która
+  przywracała, a log przywracania mówi, którą wyłączył.
+- **Dwie aktywne kopie nie wywracają strony.** Działa kopia wczytana
+  pierwsza. Druga (od 1.233.1) kończy, zanim cokolwiek zdefiniuje, a w panelu
+  pojawia się komunikat, którą kopię wyłączyć. Plik główny nie deklaruje już
+  żadnej funkcji, bo PHP wiąże je przy kompilacji, przed jakimkolwiek
+  sprawdzeniem. Funkcja kolizji ma też nową nazwę, więc starsza kopia
+  wczytana jako druga nie zderza się z bieżącą.
+- **Usunięcie jednej z dwóch kopii nie kasuje danych.** Przy włączonym
+  „Usuń wszystkie dane przy odinstalowaniu" usunięcie kopii niczego nie
+  kasuje, jeśli na stronie zostaje inna kopia Evoke ONE. Kopie sprzed
+  1.233.1 tego sprawdzenia nie mają, dlatego przy włączonej opcji komunikat
+  o drugiej kopii ostrzega przed jej usuwaniem.
+
 ## [1.233.0] — 2026-09-24
 
 Czwarte wydanie po audycie 1.229.6: newsletter.

@@ -8,9 +8,12 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * wtyczki nikomu nie przeszkadza.
  *
  * Trzy kroki, każdy w osobnym procesie, jak w prawdziwym życiu:
- *   przygotuj <0|1>  wtyczka WŁĄCZONA: zasiew danych (naszych i cudzych
+ *   przygotuj <0|1> [druga]
+ *                    wtyczka WŁĄCZONA: zasiew danych (naszych i cudzych
  *                    w kształcie Evoke Fields), przełącznik „Usuń dane",
- *                    zaplanowany cron — potem deaktywacja przez WordPressa,
+ *                    zaplanowany cron — potem deaktywacja przez WordPressa;
+ *                    „druga": w katalogu wtyczek leży jeszcze jedna kopia
+ *                    Evoke ONE (1.233.1: jej obecność wstrzymuje kasowanie),
  *   wykonaj          wtyczka WYŁĄCZONA (jej kod się nie ładuje): WordPress
  *                    woła uninstall.php przez uninstall_plugin(), potem spis,
  *   przywroc         aktywacja z powrotem i sprzątanie cudzych danych.
@@ -98,8 +101,17 @@ case 'przygotuj':
     $out['cron_przed'] = (bool) wp_next_scheduled('evk_backup_tick', [5]) && (bool) wp_next_scheduled('evk_backup_nightly')
                          && (bool) wp_next_scheduled('evk_nl_process_batch');
 
+    // Druga kopia wtyczki w innym katalogu — sam nagłówek wystarcza WordPressowi.
+    $druga = '';
+    if (($argv[3] ?? '') === 'druga') {
+        $druga = WP_PLUGIN_DIR . '/evk-t-druga-kopia';
+        wp_mkdir_p($druga);
+        file_put_contents($druga . '/evoke-one.php', "<?php\n/**\n * Plugin Name: Evoke ONE\n * Version: 1.0.0\n */\n");
+        wp_clean_plugins_cache(false);
+    }
+
     file_put_contents($stan_plik, wp_json_encode(['strona' => $strona, 'wpisy' => $wpisy, 'uzytkownik' => $uzytkownik,
-        'kopie' => $kopie, 'import' => $import, 'og' => $uploads['basedir'] . '/og-images', 'obcy' => $obcy]));
+        'kopie' => $kopie, 'import' => $import, 'og' => $uploads['basedir'] . '/og-images', 'obcy' => $obcy, 'druga' => $druga]));
 
     // Deaktywacja tak, jak robi ją WordPress.
     deactivate_plugins(EVK_T_WTYCZKA);
@@ -116,6 +128,7 @@ case 'wykonaj':
     $s = json_decode((string) @file_get_contents($stan_plik), true) ?: [];
     // Warunek testu: kod wtyczki NIE jest załadowany — jak przy prawdziwym usuwaniu.
     $out['wtyczka_zaladowana'] = function_exists('evk_nl_create_tables') || function_exists('evk_backup_dir');
+    $out['inne_kopie'] = array_values(array_filter(array_keys(get_plugins()), static fn($p) => $p !== EVK_T_WTYCZKA && str_ends_with($p, '/evoke-one.php')));
     uninstall_plugin(EVK_T_WTYCZKA);
 
     $opcja = static function (string $n): bool { return get_option($n, null) !== null; };
@@ -181,7 +194,8 @@ case 'przywroc':
         }
         @rmdir($dir);
     };
-    foreach (['obcy', 'kopie', 'import', 'og'] as $k) $rm((string) ($s['' . $k] ?? ''));
+    foreach (['obcy', 'kopie', 'import', 'og', 'druga'] as $k) $rm((string) ($s['' . $k] ?? ''));
+    wp_clean_plugins_cache(false);
     @unlink($stan_plik);
     break;
 

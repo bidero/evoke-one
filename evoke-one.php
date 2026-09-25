@@ -2,12 +2,36 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.233.0
+ * Version: 1.233.1
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
 
 if (!defined('ABSPATH')) exit;
+
+/* DRUGA KOPIA WTYCZKI (1.233.1). Gdy na stronie aktywne są dwa katalogi
+   z Evoke ONE naraz — np. „evoke-one-main" i kopia z gałęzi roboczej obok,
+   a przywrócenie kopii zapasowej do 1.233.0 umiało zostawić aktywne obie —
+   druga wywracała stronę błędem „Cannot redeclare function". Działa kopia,
+   która wczytała się pierwsza; ta kończy tutaj, zanim cokolwiek zdefiniuje,
+   i mówi o tym w panelu.
+
+   Dlatego w TYM pliku nie ma żadnej deklaracji funkcji ani klasy: PHP wiąże
+   je przy kompilacji pliku, czyli PRZED tym warunkiem, i wczesny `return`
+   by ich nie zatrzymał (tests/zapis-wp-dwie-kopie.test.js). */
+if (defined('EVOKE_ONE_FILE')) {
+    $evoke_one_druga_kopia = __FILE__;
+    add_action('admin_notices', static function () use ($evoke_one_druga_kopia) {
+        if (!current_user_can('activate_plugins') || !empty($GLOBALS['evoke_one_kopie_zgloszone'])) return;
+        $GLOBALS['evoke_one_kopie_zgloszone'] = true;
+        printf(
+            '<div class="notice notice-error" data-evk-druga-kopia><p><strong>Evoke ONE jest włączony więcej niż raz.</strong> Działa kopia %1$s, a kopia %2$s się nie uruchomiła — wyłącz ją w Wtyczkach.</p></div>',
+            '<code>' . esc_html(plugin_basename(EVOKE_ONE_FILE)) . '</code>',
+            '<code>' . esc_html(plugin_basename($evoke_one_druga_kopia)) . '</code>'
+        );
+    });
+    return;
+}
 
 // =========================================================================
 // STAŁE GLOBALNE
@@ -22,7 +46,7 @@ define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
    przeglądarkom podawać stare pliki z pamięci mimo aktualizacji wtyczki.
    Zgodności trzech miejsc (nagłówek, stała, changelog) pilnuje sekcja
    „numer wersji w trzech miejscach" w tests/drobiazgi.test.js. */
-define('EVOKE_ONE_VERSION', '1.233.0');
+define('EVOKE_ONE_VERSION', '1.233.1');
 
 /* DEAKTYWACJA: bez zadań w cronie i bez naszych reguł adresów. Do 1.231.x
    wyłączona wtyczka zostawiała zaplanowane kroki kopii i wysyłki newslettera,
@@ -55,32 +79,10 @@ define('EVOKE_TL_URL',  EVOKE_ONE_URL);
 // SPRAWDZENIE KOLIZJI
 // =========================================================================
 
-function evoke_one_check_conflicts(): bool {
-    $active = (array) get_option('active_plugins', []);
-    if (is_multisite()) {
-        $active = array_merge($active, array_keys((array) get_site_option('active_sitewide_plugins', [])));
-    }
-    /* Tylko znane kolizje: stare Tłumaczenia, Parallax i WP Maintenance Mode.
-       Do 1.231.x stał tu też `/^system.*\.php$/i` — bez śladu, skąd się wziął
-       (był już w pierwszym wgraniu evoke-one-old). Każda aktywna wtyczka
-       o pliku zaczynającym się od „system" wyłączała CAŁE Evoke ONE,
-       zostawiając sam komunikat o konflikcie. */
-    $conflict_patterns = [
-        '/^evoke-tlumaczenia.*\.php$/i',
-        '/^evk-parallax.*\.php$/i',
-        '/^wp-maintenance-mode.*\.php$/i',
-    ];
-    foreach ($active as $plugin_file) {
-        if ($plugin_file === plugin_basename(__FILE__)) continue;
-        $base = basename((string) $plugin_file);
-        foreach ($conflict_patterns as $pattern) {
-            if (preg_match($pattern, $base)) return true;
-        }
-    }
-    return false;
-}
+// Funkcja w osobnym pliku — patrz strażnik drugiej kopii na górze.
+require_once EVOKE_ONE_DIR . 'includes/00-kolizje.php';
 
-if (function_exists('tl_get_languages') || evoke_one_check_conflicts()) {
+if (function_exists('tl_get_languages') || evoke_one_kolizje()) {
     add_action('admin_notices', function () {
         echo '<div class="notice notice-error"><p><strong>Evoke One:</strong> Wykryto konflikt z inną wtyczką Evoke. Wyłącz poprzednie wersje (Tłumaczenia, Parallax, Konserwacja) przed uruchomieniem Evoke One.</p></div>';
     });

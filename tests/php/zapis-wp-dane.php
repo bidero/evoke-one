@@ -59,7 +59,7 @@ case 'konflikty':
     $przy = static function (array $wtyczki): bool {
         $f = static function () use ($wtyczki) { return array_merge(['evoke-one/evoke-one.php'], $wtyczki); };
         add_filter('pre_option_active_plugins', $f);
-        $jest = evoke_one_check_conflicts();
+        $jest = evoke_one_kolizje();
         remove_filter('pre_option_active_plugins', $f);
         return $jest;
     };

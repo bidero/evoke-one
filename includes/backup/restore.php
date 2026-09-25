@@ -768,6 +768,31 @@ function evk_restore_phase_sweep(array $job, float $deadline): array {
 // =========================================================================
 
 /**
+ * Aktywne wtyczki po podmianie bazy: lista z KOPII, ale Evoke ONE dokładnie
+ * raz — pod ścieżką kopii, która przywraca. Zwraca [lista, wyłączone kopie].
+ *
+ * Do 1.233.0 z listy wypadały tylko wpisy „…/evoke-one.php" wskazujące plik,
+ * którego nie ma. Na stronie z DWOMA katalogami wtyczki (ręcznie wgrana kopia
+ * z gałęzi obok „evoke-one-main" z kopii) zostawały aktywne obie, a następne
+ * żądanie kończyło się błędem krytycznym „Cannot redeclare function"
+ * (zgłoszone z testowa.evoke.pl po przywróceniu kopii).
+ */
+function evk_restore_aktywne_wtyczki(array $aktywne, string $wtyczka): array {
+    $lista = [];
+    $wylaczone = [];
+    foreach ($aktywne as $p) {
+        $p = (string) $p;
+        if ($p !== $wtyczka && preg_match('#(^|/)evoke-one\.php$#', $p)) {
+            $wylaczone[] = $p;
+            continue;
+        }
+        $lista[] = $p;
+    }
+    if (!in_array($wtyczka, $lista, true)) $lista[] = $wtyczka;
+    return [array_values(array_unique($lista)), $wylaczone];
+}
+
+/**
  * Jeden krok: RENAME TABLE (atomowo: wszystkie tabele naraz albo żadna),
  * poprawki po nim, sprzątanie. Stare tabele idą pod nazwy `evko<id>_<n>`
  * i znikają dopiero po udanych poprawkach — gdyby poprawki się wyłożyły,
@@ -818,13 +843,12 @@ function evk_restore_phase_swap(array $job): array {
         $ust = is_array($ust) ? $ust : [];
         if (empty($ust['enabled'])) { $ust['enabled'] = 1; update_option(EVK_BACKUP_OPTION, $ust); }
 
-        /* Wtyczka aktywna pod swoją ścieżką. Kopia mogła mieć ją w katalogu
-           o innej nazwie — wpis wskazujący plik, którego tu nie ma, znika. */
-        $aktywne = array_values(array_filter((array) get_option('active_plugins', []), static function ($p) {
-            return !preg_match('#/evoke-one\.php$#', (string) $p) || is_file(WP_PLUGIN_DIR . '/' . $p);
-        }));
-        if (!in_array($wtyczka, $aktywne, true)) $aktywne[] = $wtyczka;
+        [$aktywne, $wylaczone] = evk_restore_aktywne_wtyczki((array) get_option('active_plugins', []), $wtyczka);
         update_option('active_plugins', $aktywne);
+        if ($wylaczone) {
+            evk_backup_job_log($id, 'Kopia miała włączoną inną kopię Evoke ONE (' . implode(', ', $wylaczone)
+                . ') — wyłączona; działa ta, która przywracała (' . $wtyczka . ').');
+        }
 
         // Tryb konserwacji włączony przez KOPIĘ na czas zrzutu siedzi w zrzucie.
         $przed = $job['state']['manifest']['maintenance_before'];

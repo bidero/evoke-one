@@ -102,6 +102,18 @@ if (!function_exists('evk_odinstaluj_strone')) {
     }
 }
 
+/* DRUGA KOPIA ZOSTAJE — danych nie ruszamy (1.233.1). Na stronie bywają dwa
+   katalogi z Evoke ONE naraz (ręcznie wgrana kopia z gałęzi obok
+   „evoke-one-main"). Usunięcie jednej z nich to sprzątanie plików, nie
+   rezygnacja z wtyczki: ustawienia, subskrybenci i kopie należą dalej do
+   kopii, która zostaje — także przy włączonym „Usuń dane". get_plugins()
+   jest na pewno: ten plik woła uninstall_plugin() z tego samego pliku
+   rdzenia (wp-admin/includes/plugin.php). */
+$evk_inne_kopie = array_filter(array_keys(get_plugins()), static function ($p) {
+    return $p !== WP_UNINSTALL_PLUGIN && preg_match('#(^|/)evoke-one\.php$#', (string) $p);
+});
+if ($evk_inne_kopie) return;
+
 $evk_dane = require __DIR__ . '/includes/dane-wtyczki.php';
 if (is_multisite()) {
     foreach (get_sites(['fields' => 'ids', 'number' => 0]) as $evk_strona) {
