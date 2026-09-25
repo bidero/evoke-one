@@ -26,7 +26,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-status-actions">
                         <span class="evo-toggle-label"><?php echo !empty($cursor_settings['enabled']) ? 'Włączony' : 'Wyłączony'; ?></span>
                         <label class="evo-toggle">
-                            <input type="checkbox" data-option="evk_cursor" data-field="enabled" value="1" <?php checked(!empty($cursor_settings['enabled'])); ?>>
+                            <input aria-label="Moduł Kursora" type="checkbox" data-option="evk_cursor" data-field="enabled" value="1" <?php checked(!empty($cursor_settings['enabled'])); ?>>
                             <span class="evo-slider"></span>
                         </label>
                     </div>
@@ -40,37 +40,37 @@ if (!defined('ABSPATH')) exit;
                         <div class="evo-grid" style="--evo-col:220px;--evo-gap:16px">
 
                             <div class="evo-field evo-mb-0">
-                                <label>Rozmiar (px)</label>
-                                <input type="number" name="evk_cursor[cursor_default][size]" value="<?php echo esc_attr($cd['size'] ?? 16); ?>" min="4" max="200">
+                                <label for="evo-f-evk_cursor-cursor_default-size">Rozmiar (px)</label>
+                                <input id="evo-f-evk_cursor-cursor_default-size" type="number" name="evk_cursor[cursor_default][size]" value="<?php echo esc_attr($cd['size'] ?? 16); ?>" min="4" max="200">
                             </div>
                             <div class="evo-field evo-mb-0">
-                                <label>Kolor tła (CSS)</label>
-                                <input type="text" name="evk_cursor[cursor_default][background_color]" value="<?php echo esc_attr($cd['background_color'] ?? 'white'); ?>" placeholder="white, rgba(255,255,255,1), #fff">
+                                <label for="evo-f-evk_cursor-cursor_default-background_color">Kolor tła (CSS)</label>
+                                <input id="evo-f-evk_cursor-cursor_default-background_color" type="text" name="evk_cursor[cursor_default][background_color]" value="<?php echo esc_attr($cd['background_color'] ?? 'white'); ?>" placeholder="white, rgba(255,255,255,1), #fff">
                             </div>
                             <div class="evo-field evo-mb-0">
-                                <label>Blend Mode</label>
-                                <select name="evk_cursor[cursor_default][blend_mode]" class="evo-w-full">
+                                <label for="evo-f-evk_cursor-cursor_default-blend_mode">Blend Mode</label>
+                                <select id="evo-f-evk_cursor-cursor_default-blend_mode" name="evk_cursor[cursor_default][blend_mode]" class="evo-w-full">
                                     <?php foreach ($blend_modes as $mode): ?>
                                     <option value="<?php echo $mode; ?>" <?php selected($cd['blend_mode'] ?? 'exclusion', $mode); ?>><?php echo $mode; ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                             <div class="evo-field evo-mb-0">
-                                <label>Backdrop Filter</label>
-                                <input type="text" name="evk_cursor[cursor_default][backdrop_filter]" value="<?php echo esc_attr($cd['backdrop_filter'] ?? 'blur(0px)'); ?>" placeholder="blur(0px)">
+                                <label for="evo-f-evk_cursor-cursor_default-backdrop_filter">Backdrop Filter</label>
+                                <input id="evo-f-evk_cursor-cursor_default-backdrop_filter" type="text" name="evk_cursor[cursor_default][backdrop_filter]" value="<?php echo esc_attr($cd['backdrop_filter'] ?? 'blur(0px)'); ?>" placeholder="blur(0px)">
                             </div>
                             <div class="evo-field evo-mb-0">
-                                <label>Szybkość animacji wejścia (s)</label>
-                                <input type="number" name="evk_cursor[cursor_default][enter_duration]" value="<?php echo esc_attr($cd['enter_duration'] ?? 0.6); ?>" min="0.1" max="5" step="0.1">
+                                <label for="evo-f-evk_cursor-cursor_default-enter_duration">Szybkość animacji wejścia (s)</label>
+                                <input id="evo-f-evk_cursor-cursor_default-enter_duration" type="number" name="evk_cursor[cursor_default][enter_duration]" value="<?php echo esc_attr($cd['enter_duration'] ?? 0.6); ?>" min="0.1" max="5" step="0.1">
                                 <div class="evo-desc">Czas powiększania się kursora po najechaniu na element.</div>
                             </div>
                             <div class="evo-field evo-mb-0">
-                                <label>Szybkość powrotu do domyślnego (s)</label>
-                                <input type="number" name="evk_cursor[cursor_default][leave_duration]" value="<?php echo esc_attr($cd['leave_duration'] ?? 0.3); ?>" min="0.1" max="5" step="0.1">
+                                <label for="evo-f-evk_cursor-cursor_default-leave_duration">Szybkość powrotu do domyślnego (s)</label>
+                                <input id="evo-f-evk_cursor-cursor_default-leave_duration" type="number" name="evk_cursor[cursor_default][leave_duration]" value="<?php echo esc_attr($cd['leave_duration'] ?? 0.3); ?>" min="0.1" max="5" step="0.1">
                                 <div class="evo-desc">Czas animacji po opuszczeniu selektora.</div>
                             </div>
                             <div class="evo-field evo-mb-0">
-                                <label>Inercja (lerp)</label>
+                                <label for="cursor_inertia_range">Inercja (lerp)</label>
                                 <div class="evo-slider-wrap">
                                     <div class="evo-slider-track">
                                         <div class="evo-slider-fill" id="fill-inertia"></div>
@@ -85,8 +85,8 @@ if (!defined('ABSPATH')) exit;
                                 <div class="evo-desc">0.1 = bardzo leniwy, 1.0 = natychmiastowy</div>
                             </div>
                             <div class="evo-field evo-mb-0">
-                                <label>Wyłącz na ekranach ≤ (px)</label>
-                                <input type="number" name="evk_cursor[cursor_default][mobile_breakpoint]" value="<?php echo esc_attr($cd['mobile_breakpoint'] ?? 1024); ?>" min="0" max="2560">
+                                <label for="evo-f-evk_cursor-cursor_default-mobile_breakpoint">Wyłącz na ekranach ≤ (px)</label>
+                                <input id="evo-f-evk_cursor-cursor_default-mobile_breakpoint" type="number" name="evk_cursor[cursor_default][mobile_breakpoint]" value="<?php echo esc_attr($cd['mobile_breakpoint'] ?? 1024); ?>" min="0" max="2560">
                                 <div class="evo-desc">Kursor nie ładuje się na wąskich ekranach.</div>
                             </div>
 
@@ -146,23 +146,23 @@ if (!defined('ABSPATH')) exit;
                                 </button>
                             </div>
                             <div class="evo-cursor-grid">
-                                <div><label>Selektor CSS</label><input type="text" name="evk_cursor[elements][<?php echo $index; ?>][selector]" value="<?php echo esc_attr($el['selector']); ?>" placeholder="np. .btn, a, select"></div>
-                                <div><label>Rozmiar (px)</label><input type="number" name="evk_cursor[elements][<?php echo $index; ?>][size]" value="<?php echo esc_attr($el['size']); ?>"></div>
-                                <div><label>Tekst (HTML dozwolony)</label><input type="text" name="evk_cursor[elements][<?php echo $index; ?>][text]" value="<?php echo esc_attr($el['text']); ?>"></div>
-                                <div><label>Kolor tła (CSS)</label><input type="text" name="evk_cursor[elements][<?php echo $index; ?>][backgroundColor]" value="<?php echo esc_attr($el['backgroundColor']); ?>" placeholder="rgba(255,255,255,1)"></div>
-                                <div><label>Kolor tekstu (CSS)</label><input type="text" name="evk_cursor[elements][<?php echo $index; ?>][textColor]" value="<?php echo esc_attr($el['textColor']); ?>"></div>
-                                <div><label>Backdrop Filter</label><input type="text" name="evk_cursor[elements][<?php echo $index; ?>][cursorBackdropFilter]" value="<?php echo esc_attr($el['cursorBackdropFilter']); ?>" placeholder="blur(10px)"></div>
+                                <div><label for="evo-f-evk_cursor-elements-<?php echo $index; ?>-selector">Selektor CSS</label><input id="evo-f-evk_cursor-elements-<?php echo $index; ?>-selector" type="text" name="evk_cursor[elements][<?php echo $index; ?>][selector]" value="<?php echo esc_attr($el['selector']); ?>" placeholder="np. .btn, a, select"></div>
+                                <div><label for="evo-f-evk_cursor-elements-<?php echo $index; ?>-size">Rozmiar (px)</label><input id="evo-f-evk_cursor-elements-<?php echo $index; ?>-size" type="number" name="evk_cursor[elements][<?php echo $index; ?>][size]" value="<?php echo esc_attr($el['size']); ?>"></div>
+                                <div><label for="evo-f-evk_cursor-elements-<?php echo $index; ?>-text">Tekst (HTML dozwolony)</label><input id="evo-f-evk_cursor-elements-<?php echo $index; ?>-text" type="text" name="evk_cursor[elements][<?php echo $index; ?>][text]" value="<?php echo esc_attr($el['text']); ?>"></div>
+                                <div><label for="evo-f-evk_cursor-elements-<?php echo $index; ?>-backgroundColor">Kolor tła (CSS)</label><input id="evo-f-evk_cursor-elements-<?php echo $index; ?>-backgroundColor" type="text" name="evk_cursor[elements][<?php echo $index; ?>][backgroundColor]" value="<?php echo esc_attr($el['backgroundColor']); ?>" placeholder="rgba(255,255,255,1)"></div>
+                                <div><label for="evo-f-evk_cursor-elements-<?php echo $index; ?>-textColor">Kolor tekstu (CSS)</label><input id="evo-f-evk_cursor-elements-<?php echo $index; ?>-textColor" type="text" name="evk_cursor[elements][<?php echo $index; ?>][textColor]" value="<?php echo esc_attr($el['textColor']); ?>"></div>
+                                <div><label for="evo-f-evk_cursor-elements-<?php echo $index; ?>-cursorBackdropFilter">Backdrop Filter</label><input id="evo-f-evk_cursor-elements-<?php echo $index; ?>-cursorBackdropFilter" type="text" name="evk_cursor[elements][<?php echo $index; ?>][cursorBackdropFilter]" value="<?php echo esc_attr($el['cursorBackdropFilter']); ?>" placeholder="blur(10px)"></div>
                                 <div>
-                                    <label>Blend Mode Kursora</label>
-                                    <select name="evk_cursor[elements][<?php echo $index; ?>][cursorBlendMode]">
+                                    <label for="evo-f-evk_cursor-elements-<?php echo $index; ?>-cursorBlendMode">Blend Mode Kursora</label>
+                                    <select id="evo-f-evk_cursor-elements-<?php echo $index; ?>-cursorBlendMode" name="evk_cursor[elements][<?php echo $index; ?>][cursorBlendMode]">
                                         <?php foreach ($blend_modes as $mode): ?>
                                         <option value="<?php echo $mode; ?>" <?php selected($el['cursorBlendMode'], $mode); ?>><?php echo $mode; ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <div>
-                                    <label>Blend Mode Tekstu</label>
-                                    <select name="evk_cursor[elements][<?php echo $index; ?>][textBlendMode]">
+                                    <label for="evo-f-evk_cursor-elements-<?php echo $index; ?>-textBlendMode">Blend Mode Tekstu</label>
+                                    <select id="evo-f-evk_cursor-elements-<?php echo $index; ?>-textBlendMode" name="evk_cursor[elements][<?php echo $index; ?>][textBlendMode]">
                                         <?php foreach ($blend_modes as $mode): ?>
                                         <option value="<?php echo $mode; ?>" <?php selected($el['textBlendMode'], $mode); ?>><?php echo $mode; ?></option>
                                         <?php endforeach; ?>
@@ -195,23 +195,23 @@ if (!defined('ABSPATH')) exit;
                         </button>
                     </div>
                     <div class="evo-cursor-grid">
-                        <div><label>Selektor CSS</label><input type="text" name="evk_cursor[elements][{INDEX}][selector]" value="" placeholder="np. .btn, a, select"></div>
-                        <div><label>Rozmiar (px)</label><input type="number" name="evk_cursor[elements][{INDEX}][size]" value="64"></div>
-                        <div><label>Tekst (HTML dozwolony)</label><input type="text" name="evk_cursor[elements][{INDEX}][text]" value=""></div>
-                        <div><label>Kolor tła (CSS)</label><input type="text" name="evk_cursor[elements][{INDEX}][backgroundColor]" value="rgba(255,255,255,1)"></div>
-                        <div><label>Kolor tekstu (CSS)</label><input type="text" name="evk_cursor[elements][{INDEX}][textColor]" value="white"></div>
-                        <div><label>Backdrop Filter</label><input type="text" name="evk_cursor[elements][{INDEX}][cursorBackdropFilter]" value="blur(0px)"></div>
+                        <div><label for="evo-f-evk_cursor-elements-{INDEX}-selector">Selektor CSS</label><input id="evo-f-evk_cursor-elements-{INDEX}-selector" type="text" name="evk_cursor[elements][{INDEX}][selector]" value="" placeholder="np. .btn, a, select"></div>
+                        <div><label for="evo-f-evk_cursor-elements-{INDEX}-size">Rozmiar (px)</label><input id="evo-f-evk_cursor-elements-{INDEX}-size" type="number" name="evk_cursor[elements][{INDEX}][size]" value="64"></div>
+                        <div><label for="evo-f-evk_cursor-elements-{INDEX}-text">Tekst (HTML dozwolony)</label><input id="evo-f-evk_cursor-elements-{INDEX}-text" type="text" name="evk_cursor[elements][{INDEX}][text]" value=""></div>
+                        <div><label for="evo-f-evk_cursor-elements-{INDEX}-backgroundColor">Kolor tła (CSS)</label><input id="evo-f-evk_cursor-elements-{INDEX}-backgroundColor" type="text" name="evk_cursor[elements][{INDEX}][backgroundColor]" value="rgba(255,255,255,1)"></div>
+                        <div><label for="evo-f-evk_cursor-elements-{INDEX}-textColor">Kolor tekstu (CSS)</label><input id="evo-f-evk_cursor-elements-{INDEX}-textColor" type="text" name="evk_cursor[elements][{INDEX}][textColor]" value="white"></div>
+                        <div><label for="evo-f-evk_cursor-elements-{INDEX}-cursorBackdropFilter">Backdrop Filter</label><input id="evo-f-evk_cursor-elements-{INDEX}-cursorBackdropFilter" type="text" name="evk_cursor[elements][{INDEX}][cursorBackdropFilter]" value="blur(0px)"></div>
                         <div>
-                            <label>Blend Mode Kursora</label>
-                            <select name="evk_cursor[elements][{INDEX}][cursorBlendMode]">
+                            <label for="evo-f-evk_cursor-elements-{INDEX}-cursorBlendMode">Blend Mode Kursora</label>
+                            <select id="evo-f-evk_cursor-elements-{INDEX}-cursorBlendMode" name="evk_cursor[elements][{INDEX}][cursorBlendMode]">
                                 <?php foreach ($blend_modes as $mode): ?>
                                 <option value="<?php echo $mode; ?>" <?php selected('difference', $mode); ?>><?php echo $mode; ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div>
-                            <label>Blend Mode Tekstu</label>
-                            <select name="evk_cursor[elements][{INDEX}][textBlendMode]">
+                            <label for="evo-f-evk_cursor-elements-{INDEX}-textBlendMode">Blend Mode Tekstu</label>
+                            <select id="evo-f-evk_cursor-elements-{INDEX}-textBlendMode" name="evk_cursor[elements][{INDEX}][textBlendMode]">
                                 <?php foreach ($blend_modes as $mode): ?>
                                 <option value="<?php echo $mode; ?>" <?php selected('exclusion', $mode); ?>><?php echo $mode; ?></option>
                                 <?php endforeach; ?>

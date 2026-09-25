@@ -22,7 +22,7 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
     <div class="evo-status-actions">
         <span class="evo-toggle-label"><?php echo !empty($fi['enabled']) ? 'Włączona' : 'Wyłączona'; ?></span>
         <label class="evo-toggle">
-            <input type="checkbox"
+            <input aria-label="Skrzynka wiadomości" type="checkbox"
                    data-option="evk_forminbox"
                    data-field="enabled"
                    value="1"
@@ -59,21 +59,21 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
         <h3>Konfiguracja menu</h3>
         <div class="evo-grid evo-mb-lg" style="--evo-col:190px">
             <div class="evo-field">
-                <label>Nazwa menu</label>
-                <input type="text" name="evk_forminbox[menu_label]" value="<?php echo esc_attr($fi['menu_label']); ?>" placeholder="Wiadomości">
+                <label for="evo-f-evk_forminbox-menu_label">Nazwa menu</label>
+                <input id="evo-f-evk_forminbox-menu_label" type="text" name="evk_forminbox[menu_label]" value="<?php echo esc_attr($fi['menu_label']); ?>" placeholder="Wiadomości">
             </div>
             <div class="evo-field">
-                <label>Ikona (Dashicons)</label>
-                <input type="text" name="evk_forminbox[menu_icon]" value="<?php echo esc_attr($fi['menu_icon']); ?>" placeholder="dashicons-email-alt">
+                <label for="evo-f-evk_forminbox-menu_icon">Ikona (Dashicons)</label>
+                <input id="evo-f-evk_forminbox-menu_icon" type="text" name="evk_forminbox[menu_icon]" value="<?php echo esc_attr($fi['menu_icon']); ?>" placeholder="dashicons-email-alt">
                 <div class="evo-desc"><a href="https://developer.wordpress.org/resource/dashicons/" target="_blank">Lista ↗</a></div>
             </div>
             <div class="evo-field">
-                <label>Pozycja w menu</label>
-                <input type="number" name="evk_forminbox[menu_position]" value="<?php echo esc_attr($fi['menu_position']); ?>" min="1" max="100" class="evo-w-xs">
+                <label for="evo-f-evk_forminbox-menu_position">Pozycja w menu</label>
+                <input id="evo-f-evk_forminbox-menu_position" type="number" name="evk_forminbox[menu_position]" value="<?php echo esc_attr($fi['menu_position']); ?>" min="1" max="100" class="evo-w-xs">
             </div>
             <div class="evo-field">
-                <label>Wiadomości na stronę</label>
-                <input type="number" name="evk_forminbox[per_page]" value="<?php echo esc_attr($fi['per_page']); ?>" min="5" max="100" class="evo-w-xs">
+                <label for="evo-f-evk_forminbox-per_page">Wiadomości na stronę</label>
+                <input id="evo-f-evk_forminbox-per_page" type="number" name="evk_forminbox[per_page]" value="<?php echo esc_attr($fi['per_page']); ?>" min="5" max="100" class="evo-w-xs">
             </div>
             <div class="evo-field">
                 <label>Plakietka w menu</label>
@@ -83,23 +83,23 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
                 </label>
             </div>
             <div class="evo-field">
-                <label>Klucz pola e-mail</label>
-                <input type="text" name="evk_forminbox[email_field]" value="<?php echo esc_attr($fi['email_field']); ?>" placeholder="np. 436dec" class="evo-w-sm">
+                <label for="evo-f-evk_forminbox-email_field">Klucz pola e-mail</label>
+                <input id="evo-f-evk_forminbox-email_field" type="text" name="evk_forminbox[email_field]" value="<?php echo esc_attr($fi['email_field']); ?>" placeholder="np. 436dec" class="evo-w-sm">
                 <div class="evo-desc">Auto-detect jeśli puste.</div>
             </div>
             <div class="evo-field">
-                <label>Szablon nazwy w sidebarze</label>
-                <input type="text" name="evk_forminbox[name_template]" value="<?php echo esc_attr($fi['name_template'] ?? ''); ?>" placeholder="np. {{nazwisko}} {{imie}}" class="evo-w-lg">
+                <label for="evo-f-evk_forminbox-name_template">Szablon nazwy w sidebarze</label>
+                <input id="evo-f-evk_forminbox-name_template" type="text" name="evk_forminbox[name_template]" value="<?php echo esc_attr($fi['name_template'] ?? ''); ?>" placeholder="np. {{nazwisko}} {{imie}}" class="evo-w-lg">
                 <div class="evo-desc">Używa {{klucz}} — te same co mapowanie pól. Jeśli puste — auto-detect.</div>
             </div>
             <div class="evo-field">
-                <label>Klucz pola podglądu (sidebar)</label>
-                <input type="text" name="evk_forminbox[preview_field]" value="<?php echo esc_attr($fi['preview_field'] ?? ''); ?>" placeholder="np. fonlfr (Temat)" class="evo-w-md">
+                <label for="evo-f-evk_forminbox-preview_field">Klucz pola podglądu (sidebar)</label>
+                <input id="evo-f-evk_forminbox-preview_field" type="text" name="evk_forminbox[preview_field]" value="<?php echo esc_attr($fi['preview_field'] ?? ''); ?>" placeholder="np. fonlfr (Temat)" class="evo-w-md">
                 <div class="evo-desc">Treść tego pola pojawia się pod nazwą w liście. Jeśli puste — pierwsze pole.</div>
             </div>
             <div class="evo-field">
-                <label>Klucz pola tematu (nagłówek)</label>
-                <input type="text" name="evk_forminbox[subject_field]" value="<?php echo esc_attr($fi['subject_field'] ?? ''); ?>" placeholder="np. fonlfr" class="evo-w-md">
+                <label for="evo-f-evk_forminbox-subject_field">Klucz pola tematu (nagłówek)</label>
+                <input id="evo-f-evk_forminbox-subject_field" type="text" name="evk_forminbox[subject_field]" value="<?php echo esc_attr($fi['subject_field'] ?? ''); ?>" placeholder="np. fonlfr" class="evo-w-md">
                 <div class="evo-desc">Temat pokazany pod nazwą w nagłówku wiadomości. Jeśli puste — auto-detekcja (pole „Temat").</div>
             </div>
         </div>
@@ -151,20 +151,20 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
                         <td>
                             <input type="text" name="evk_forminbox[field_labels_keys][]"
                                    value="<?php echo esc_attr($fk); ?>"
-                                   placeholder="klucz" class="evo-w-full evo-mono">
+                                   aria-label="Klucz Bricks" placeholder="klucz" class="evo-w-full evo-mono">
                         </td>
                         <td>
                             <input type="text" name="evk_forminbox[field_labels_vals][]"
                                    value="<?php echo esc_attr($fl); ?>"
-                                   placeholder="Twoja nazwa" class="evo-w-full">
+                                   aria-label="Twoja nazwa pola" placeholder="Twoja nazwa" class="evo-w-full">
                         </td>
                         <td class="is-center">
                             <input type="checkbox" name="evk_forminbox[hidden_fields][]"
                                    value="<?php echo esc_attr($fk); ?>" <?php checked($is_hidden); ?>
-                                   class="evk-hidden-cb">
+                                   class="evk-hidden-cb" aria-label="Ukryj pole">
                         </td>
                         <td class="is-center is-tight">
-                            <button type="button" class="evk-remove-row evo-btn-plain is-danger" title="Usuń wiersz">
+                            <button type="button" class="evk-remove-row evo-btn-plain is-danger" title="Usuń wiersz" aria-label="Usuń wiersz">
                                 <span class="dashicons dashicons-no-alt evo-ico"></span>
                             </button>
                         </td>
@@ -208,14 +208,14 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
                 }
                 echo '<tr class="evk-layout-row" data-group="' . esc_attr($group) . '">'
                     . '<td><div class="evo-inline">'
-                        . '<input type="text" class="evk-layout-tpl evo-mono" name="evk_forminbox[' . esc_attr($group) . '_layout_keys][]" value="' . esc_attr($r['key']) . '" placeholder="{{nazwisko}} {{imie}}">'
-                        . '<select class="evk-key-insert evo-select-thin" title="Wstaw pole"></select>'
+                        . '<input type="text" class="evk-layout-tpl evo-mono" name="evk_forminbox[' . esc_attr($group) . '_layout_keys][]" value="' . esc_attr($r['key']) . '" aria-label="Szablon linii" placeholder="{{nazwisko}} {{imie}}">'
+                        . '<select class="evk-key-insert evo-select-thin" title="Wstaw pole" aria-label="Wstaw pole"></select>'
                         . '</div></td>'
-                    . '<td class="evo-w" style="--evo-w:150px"><select name="evk_forminbox[' . esc_attr($group) . '_layout_types][]" class="evo-w-full">' . $opts . '</select></td>'
+                    . '<td class="evo-w" style="--evo-w:150px"><select name="evk_forminbox[' . esc_attr($group) . '_layout_types][]" class="evo-w-full" aria-label="Rodzaj linii">' . $opts . '</select></td>'
                     . '<td class="is-right is-tight evo-w" style="--evo-w:78px">'
-                        . '<button type="button" class="evk-row-up evo-btn-plain" title="W górę"><span class="dashicons dashicons-arrow-up-alt2 evo-ico-sm"></span></button>'
-                        . '<button type="button" class="evk-row-down evo-btn-plain" title="W dół"><span class="dashicons dashicons-arrow-down-alt2 evo-ico-sm"></span></button>'
-                        . '<button type="button" class="evk-layout-remove evo-btn-plain is-danger" title="Usuń"><span class="dashicons dashicons-no-alt evo-ico"></span></button>'
+                        . '<button type="button" class="evk-row-up evo-btn-plain" title="W górę" aria-label="W górę"><span class="dashicons dashicons-arrow-up-alt2 evo-ico-sm"></span></button>'
+                        . '<button type="button" class="evk-row-down evo-btn-plain" title="W dół" aria-label="W dół"><span class="dashicons dashicons-arrow-down-alt2 evo-ico-sm"></span></button>'
+                        . '<button type="button" class="evk-layout-remove evo-btn-plain is-danger" title="Usuń linię" aria-label="Usuń linię"><span class="dashicons dashicons-no-alt evo-ico"></span></button>'
                     . '</td></tr>';
             }
         };
@@ -282,13 +282,13 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
                     foreach ($saved_form_names as $fid => $fname): ?>
                 <tr class="evk-form-row">
                     <td>
-                        <input type="text" name="evk_forminbox[form_names_keys][]" value="<?php echo esc_attr($fid); ?>" placeholder="ID formularza" class="evo-w-full evo-mono">
+                        <input type="text" name="evk_forminbox[form_names_keys][]" value="<?php echo esc_attr($fid); ?>" aria-label="ID formularza Bricks" placeholder="ID formularza" class="evo-w-full evo-mono">
                     </td>
                     <td>
-                        <input type="text" name="evk_forminbox[form_names_vals][]" value="<?php echo esc_attr($fname); ?>" placeholder="Czytelna nazwa" class="evo-w-full">
+                        <input type="text" name="evk_forminbox[form_names_vals][]" value="<?php echo esc_attr($fname); ?>" aria-label="Twoja nazwa formularza" placeholder="Czytelna nazwa" class="evo-w-full">
                     </td>
                     <td class="is-center is-tight">
-                        <button type="button" class="evk-remove-form-row evo-btn-plain is-danger" title="Usuń">
+                        <button type="button" class="evk-remove-form-row evo-btn-plain is-danger" title="Usuń formularz" aria-label="Usuń formularz">
                             <span class="dashicons dashicons-no-alt evo-ico"></span>
                         </button>
                     </td>
@@ -312,7 +312,7 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
 
         <div class="evo-grid-2 evo-mb-lg">
             <div class="evo-field">
-                <label>Szablon</label>
+                <label for="evk-template-editor">Szablon</label>
                 <textarea id="evk-template-editor" name="evk_forminbox[message_template]"
                           rows="14"
                           class="evo-w-full evo-mono evo-code-area"
@@ -410,11 +410,11 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
         var hidCk = hidden ? 'checked' : '';
         // Aktualizuj hidden checkbox name przy ukrywaniu
         var row = $('<tr class="evk-field-row">' +
-            '<td><input type="text" name="evk_forminbox[field_labels_keys][]" value="' + esc(key) + '" placeholder="klucz" class="evo-w-full evo-mono"></td>' +
-            '<td><input type="text" name="evk_forminbox[field_labels_vals][]" value="' + esc(label) + '" placeholder="Twoja nazwa" class="evo-w-full"></td>' +
-            '<td class="is-center"><input type="checkbox" name="evk_forminbox[hidden_fields][]" value="" class="evk-hidden-cb" ' + hidCk + '></td>' +
+            '<td><input type="text" name="evk_forminbox[field_labels_keys][]" value="' + esc(key) + '" aria-label="Klucz Bricks" placeholder="klucz" class="evo-w-full evo-mono"></td>' +
+            '<td><input type="text" name="evk_forminbox[field_labels_vals][]" value="' + esc(label) + '" aria-label="Twoja nazwa pola" placeholder="Twoja nazwa" class="evo-w-full"></td>' +
+            '<td class="is-center"><input type="checkbox" name="evk_forminbox[hidden_fields][]" value="" class="evk-hidden-cb" aria-label="Ukryj pole" ' + hidCk + '></td>' +
             '<td class="is-center is-tight">' +
-                '<button type="button" class="evk-remove-row evo-btn-plain is-danger" title="Usuń wiersz">' +
+                '<button type="button" class="evk-remove-row evo-btn-plain is-danger" title="Usuń wiersz" aria-label="Usuń wiersz">' +
                     '<span class="dashicons dashicons-no-alt evo-ico"></span>' +
                 '</button>' +
             '</td>' +
@@ -488,9 +488,9 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
     function addFormRow(id, name) {
         $('#evk-no-form-rows').remove();
         var row = $('<tr class="evk-form-row">' +
-            '<td><input type="text" name="evk_forminbox[form_names_keys][]" value="' + esc(id||'') + '" placeholder="ID formularza" class="evo-w-full evo-mono"></td>' +
-            '<td><input type="text" name="evk_forminbox[form_names_vals][]" value="' + esc(name||'') + '" placeholder="Czytelna nazwa" class="evo-w-full"></td>' +
-            '<td class="is-center is-tight"><button type="button" class="evk-remove-form-row evo-btn-plain is-danger" title="Usuń"><span class="dashicons dashicons-no-alt evo-ico"></span></button></td>' +
+            '<td><input type="text" name="evk_forminbox[form_names_keys][]" value="' + esc(id||'') + '" aria-label="ID formularza Bricks" placeholder="ID formularza" class="evo-w-full evo-mono"></td>' +
+            '<td><input type="text" name="evk_forminbox[form_names_vals][]" value="' + esc(name||'') + '" aria-label="Twoja nazwa formularza" placeholder="Czytelna nazwa" class="evo-w-full"></td>' +
+            '<td class="is-center is-tight"><button type="button" class="evk-remove-form-row evo-btn-plain is-danger" title="Usuń formularz" aria-label="Usuń formularz"><span class="dashicons dashicons-no-alt evo-ico"></span></button></td>' +
         '</tr>');
         $('#evk-forms-tbody').append(row);
     }
@@ -549,14 +549,14 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
         }).join('');
         return $('<tr class="evk-layout-row" data-group="' + group + '">' +
             '<td><div class="evo-inline">' +
-                '<input type="text" class="evk-layout-tpl evo-mono" name="evk_forminbox[' + group + '_layout_keys][]" value="' + esc(tpl || '') + '" placeholder="{{nazwisko}} {{imie}}">' +
-                '<select class="evk-key-insert evo-select-thin" title="Wstaw pole"></select>' +
+                '<input type="text" class="evk-layout-tpl evo-mono" name="evk_forminbox[' + group + '_layout_keys][]" value="' + esc(tpl || '') + '" aria-label="Szablon linii" placeholder="{{nazwisko}} {{imie}}">' +
+                '<select class="evk-key-insert evo-select-thin" title="Wstaw pole" aria-label="Wstaw pole"></select>' +
             '</div></td>' +
-            '<td class="evo-w" style="--evo-w:150px"><select name="evk_forminbox[' + group + '_layout_types][]" class="evo-w-full">' + topts + '</select></td>' +
+            '<td class="evo-w" style="--evo-w:150px"><select name="evk_forminbox[' + group + '_layout_types][]" class="evo-w-full" aria-label="Rodzaj linii">' + topts + '</select></td>' +
             '<td class="is-right is-tight evo-w" style="--evo-w:78px">' +
-                '<button type="button" class="evk-row-up evo-btn-plain" title="W górę"><span class="dashicons dashicons-arrow-up-alt2 evo-ico-sm"></span></button>' +
-                '<button type="button" class="evk-row-down evo-btn-plain" title="W dół"><span class="dashicons dashicons-arrow-down-alt2 evo-ico-sm"></span></button>' +
-                '<button type="button" class="evk-layout-remove evo-btn-plain is-danger" title="Usuń"><span class="dashicons dashicons-no-alt evo-ico"></span></button>' +
+                '<button type="button" class="evk-row-up evo-btn-plain" title="W górę" aria-label="W górę"><span class="dashicons dashicons-arrow-up-alt2 evo-ico-sm"></span></button>' +
+                '<button type="button" class="evk-row-down evo-btn-plain" title="W dół" aria-label="W dół"><span class="dashicons dashicons-arrow-down-alt2 evo-ico-sm"></span></button>' +
+                '<button type="button" class="evk-layout-remove evo-btn-plain is-danger" title="Usuń linię" aria-label="Usuń linię"><span class="dashicons dashicons-no-alt evo-ico"></span></button>' +
             '</td></tr>');
     }
 

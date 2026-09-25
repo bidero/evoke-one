@@ -19,7 +19,7 @@ $nonce = wp_create_nonce('evk_tools_nonce');
     </div>
     <div class="evo-status-actions">
         <label class="evo-toggle">
-            <input type="checkbox" data-option="evk_smtp" data-field="enabled" value="1" <?php checked(1, $s['enabled']); ?>>
+            <input aria-label="SMTP" type="checkbox" data-option="evk_smtp" data-field="enabled" value="1" <?php checked(1, $s['enabled']); ?>>
             <span class="evo-slider"></span>
         </label>
     </div>
@@ -27,37 +27,37 @@ $nonce = wp_create_nonce('evk_tools_nonce');
 
 <div class="evo-grid-2 evo-mt-lg evo-mb-lg" style="--evo-gap:16px">
     <div class="evo-field">
-        <label>Host SMTP</label>
-        <input type="text" name="evk_smtp[host]" value="<?php echo esc_attr($s['host']); ?>" placeholder="smtp.gmail.com">
+        <label for="evo-f-evk_smtp-host">Host SMTP</label>
+        <input id="evo-f-evk_smtp-host" type="text" name="evk_smtp[host]" value="<?php echo esc_attr($s['host']); ?>" placeholder="smtp.gmail.com">
     </div>
     <div class="evo-field">
-        <label>Port</label>
-        <input type="number" name="evk_smtp[port]" value="<?php echo esc_attr($s['port']); ?>" min="1" max="65535">
+        <label for="evo-f-evk_smtp-port">Port</label>
+        <input id="evo-f-evk_smtp-port" type="number" name="evk_smtp[port]" value="<?php echo esc_attr($s['port']); ?>" min="1" max="65535">
     </div>
     <div class="evo-field">
-        <label>Szyfrowanie</label>
-        <select name="evk_smtp[encryption]">
+        <label for="evo-f-evk_smtp-encryption">Szyfrowanie</label>
+        <select id="evo-f-evk_smtp-encryption" name="evk_smtp[encryption]">
             <?php foreach (['tls' => 'TLS (zalecane)', 'ssl' => 'SSL', 'none' => 'Brak'] as $val => $label): ?>
             <option value="<?php echo $val; ?>" <?php selected($s['encryption'], $val); ?>><?php echo $label; ?></option>
             <?php endforeach; ?>
         </select>
     </div>
     <div class="evo-field">
-        <label>Nazwa nadawcy</label>
-        <input type="text" name="evk_smtp[from_name]" value="<?php echo esc_attr($s['from_name']); ?>" placeholder="<?php echo esc_attr(get_bloginfo('name')); ?>">
+        <label for="evo-f-evk_smtp-from_name">Nazwa nadawcy</label>
+        <input id="evo-f-evk_smtp-from_name" type="text" name="evk_smtp[from_name]" value="<?php echo esc_attr($s['from_name']); ?>" placeholder="<?php echo esc_attr(get_bloginfo('name')); ?>">
     </div>
     <div class="evo-field">
-        <label>Użytkownik SMTP</label>
-        <input type="text" name="evk_smtp[username]" value="<?php echo esc_attr($s['username']); ?>" autocomplete="off">
+        <label for="evo-f-evk_smtp-username">Użytkownik SMTP</label>
+        <input id="evo-f-evk_smtp-username" type="text" name="evk_smtp[username]" value="<?php echo esc_attr($s['username']); ?>" autocomplete="off">
     </div>
     <div class="evo-field">
-        <label>Hasło / API Key</label>
-        <input type="password" name="evk_smtp[password]" value="" placeholder="<?php echo !empty($s['password']) ? '••••••••' : 'Wpisz hasło'; ?>" autocomplete="new-password">
+        <label for="evo-f-evk_smtp-password">Hasło / API Key</label>
+        <input id="evo-f-evk_smtp-password" type="password" name="evk_smtp[password]" value="" placeholder="<?php echo !empty($s['password']) ? '••••••••' : 'Wpisz hasło'; ?>" autocomplete="new-password">
         <div class="evo-desc">Zostaw puste aby zachować aktualne hasło.</div>
     </div>
     <div class="evo-field">
-        <label>Email nadawcy (From)</label>
-        <input type="email" name="evk_smtp[from_email]" value="<?php echo esc_attr($s['from_email']); ?>" placeholder="noreply@twojadomena.pl">
+        <label for="evo-f-evk_smtp-from_email">Email nadawcy (From)</label>
+        <input id="evo-f-evk_smtp-from_email" type="email" name="evk_smtp[from_email]" value="<?php echo esc_attr($s['from_email']); ?>" placeholder="noreply@twojadomena.pl">
     </div>
 </div>
 
@@ -69,8 +69,8 @@ $nonce = wp_create_nonce('evk_tools_nonce');
             Włącz logowanie wysłanych maili
         </label>
         <div class="evo-field evo-inline evo-m0" style="--evo-gap:8px">
-            <label class="evo-nowrap evo-m0">Maks. logów:</label>
-            <input type="number" name="evk_smtp[log_max]" value="<?php echo esc_attr($s['log_max']); ?>" min="10" max="1000" class="evo-w" style="--evo-w:80px">
+            <label for="evo-f-evk_smtp-log_max" class="evo-nowrap evo-m0">Maks. logów:</label>
+            <input id="evo-f-evk_smtp-log_max" type="number" name="evk_smtp[log_max]" value="<?php echo esc_attr($s['log_max']); ?>" min="10" max="1000" class="evo-w" style="--evo-w:80px">
         </div>
     </div>
 

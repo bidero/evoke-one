@@ -57,7 +57,7 @@ function evk_snippets_render_tab(): void {
         <div class="evo-status-actions">
             <span class="evo-toggle-label"><?php echo $wlaczone ? 'Włączone' : 'Wyłączone'; ?></span>
             <label class="evo-toggle">
-                <input type="checkbox" data-option="evk_snippets_enabled" data-field="_scalar"
+                <input type="checkbox" aria-label="Snippety" data-option="evk_snippets_enabled" data-field="_scalar"
                        value="1" <?php checked(1, $wlaczone); ?>>
                 <span class="evo-slider"></span>
             </label>
@@ -531,7 +531,7 @@ function evk_snippety_advanced(int $wlaczony): void { ?>
         <div class="evo-status-actions">
             <span class="evo-toggle-label"><?php echo $wlaczony ? 'Włączony' : 'Wyłączony'; ?></span>
             <label class="evo-toggle">
-                <input type="checkbox" data-option="evk_snippets_advanced_enabled" data-field="_scalar"
+                <input type="checkbox" aria-label="Tryb zaawansowany" data-option="evk_snippets_advanced_enabled" data-field="_scalar"
                        value="1" <?php checked(1, $wlaczony); ?>>
                 <span class="evo-slider"></span>
             </label>

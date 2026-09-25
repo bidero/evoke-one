@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-status-actions">
                         <span class="evo-toggle-label"><?php echo !empty($dm['enabled']) ? 'Włączony' : 'Wyłączony'; ?></span>
                         <label class="evo-toggle">
-                            <input type="checkbox" data-option="evk_darkmode" data-field="enabled" value="1" <?php checked(!empty($dm['enabled'])); ?>>
+                            <input aria-label="Moduł Dark Mode" type="checkbox" data-option="evk_darkmode" data-field="enabled" value="1" <?php checked(!empty($dm['enabled'])); ?>>
                             <span class="evo-slider"></span>
                         </label>
                     </div>
@@ -28,8 +28,8 @@ if (!defined('ABSPATH')) exit;
                 <div class="evo-box">
                     <h3>Przełącznik motywu</h3>
                     <div class="evo-field">
-                        <label>Selektor CSS przycisku przełączającego</label>
-                        <input type="text" name="evk_darkmode[toggle_selector]" value="<?php echo esc_attr($dm['toggle_selector']); ?>" placeholder=".brxe-toggle-mode" class="evo-w-xl">
+                        <label for="evo-f-evk_darkmode-toggle_selector">Selektor CSS przycisku przełączającego</label>
+                        <input id="evo-f-evk_darkmode-toggle_selector" type="text" name="evk_darkmode[toggle_selector]" value="<?php echo esc_attr($dm['toggle_selector']); ?>" placeholder=".brxe-toggle-mode" class="evo-w-xl">
                         <div class="evo-desc">Dowolny selektor CSS — klasa, ID lub atrybut. Domyślnie: <code>.brxe-toggle-mode</code></div>
                     </div>
 
@@ -75,12 +75,12 @@ if (!defined('ABSPATH')) exit;
 
                     <div class="evo-grid" style="--evo-col:160px;--evo-gap:16px;margin-top:8px">
                         <div class="evo-field">
-                            <label>Czas trwania (s)</label>
-                            <input type="number" name="evk_darkmode[wipe_duration]" value="<?php echo esc_attr($dm['wipe_duration']); ?>" min="0.3" max="5" step="0.1" class="evo-w-xs">
+                            <label for="evo-f-evk_darkmode-wipe_duration">Czas trwania (s)</label>
+                            <input id="evo-f-evk_darkmode-wipe_duration" type="number" name="evk_darkmode[wipe_duration]" value="<?php echo esc_attr($dm['wipe_duration']); ?>" min="0.3" max="5" step="0.1" class="evo-w-xs">
                         </div>
                         <div class="evo-field">
-                            <label>Easing</label>
-                            <input type="text" name="evk_darkmode[wipe_easing]" value="<?php echo esc_attr($dm['wipe_easing']); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
+                            <label for="evo-f-evk_darkmode-wipe_easing">Easing</label>
+                            <input id="evo-f-evk_darkmode-wipe_easing" type="text" name="evk_darkmode[wipe_easing]" value="<?php echo esc_attr($dm['wipe_easing']); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
                         </div>
                     </div>
 
@@ -88,13 +88,13 @@ if (!defined('ABSPATH')) exit;
                         <summary>Opcje szczegółowe (Zasłona / Ripple)</summary>
                         <div class="evo-fold-body evo-grid" style="--evo-col:200px;--evo-gap:16px">
                             <div class="evo-field">
-                                <label>Kolor zasłony</label>
+                                <label for="wipe-color-text">Kolor zasłony</label>
                                 <div class="evo-color-row">
-                                    <button type="button" class="evo-color-swatch" id="wipe-color-swatch"
+                                    <button type="button" class="evo-color-swatch" id="wipe-color-swatch" aria-label="Kolor zasłony — próbnik"
                                         style="--evo-swatch:<?php echo esc_attr($dm['wipe_color']); ?>"
                                         onclick="document.getElementById('wipe_color_input').click();">
                                     </button>
-                                    <input type="color" id="wipe_color_input" name="evk_darkmode[wipe_color]"
+                                    <input type="color" id="wipe_color_input" name="evk_darkmode[wipe_color]" aria-label="Kolor zasłony"
                                         value="<?php echo esc_attr($dm['wipe_color']); ?>"
                                         class="evo-hidden"
                                         oninput="document.getElementById('wipe-color-swatch').style.setProperty('--evo-swatch',this.value);document.getElementById('wipe-color-text').value=this.value;">
@@ -104,26 +104,26 @@ if (!defined('ABSPATH')) exit;
                                 </div>
                             </div>
                             <div class="evo-field">
-                                <label>Kierunek zasłony</label>
-                                <select name="evk_darkmode[wipe_direction]">
+                                <label for="evo-f-evk_darkmode-wipe_direction">Kierunek zasłony</label>
+                                <select id="evo-f-evk_darkmode-wipe_direction" name="evk_darkmode[wipe_direction]">
                                     <?php foreach (['to bottom' => 'Z góry na dół ↓', 'to top' => 'Z dołu do góry ↑', 'to right' => 'Od lewej do prawej →', 'to left' => 'Od prawej do lewej ←'] as $val => $label): ?>
                                     <option value="<?php echo esc_attr($val); ?>" <?php selected($dm['wipe_direction'], $val); ?>><?php echo esc_html($label); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
                             <div class="evo-field">
-                                <label>Rozmycie krawędzi zasłony</label>
-                                <input type="number" name="evk_darkmode[wipe_blur]" value="<?php echo esc_attr($dm['wipe_blur']); ?>" min="0" max="50" step="5" class="evo-w-xs">
+                                <label for="evo-f-evk_darkmode-wipe_blur">Rozmycie krawędzi zasłony</label>
+                                <input id="evo-f-evk_darkmode-wipe_blur" type="number" name="evk_darkmode[wipe_blur]" value="<?php echo esc_attr($dm['wipe_blur']); ?>" min="0" max="50" step="5" class="evo-w-xs">
                                 <div class="evo-desc">0 = ostra, 50 = miękka</div>
                             </div>
                             <div class="evo-field">
-                                <label>Kolor Ripple</label>
+                                <label for="nav-ripple-color-text">Kolor Ripple</label>
                                 <div class="evo-color-row">
-                                    <button type="button" class="evo-color-swatch" id="nav-ripple-color-swatch"
+                                    <button type="button" class="evo-color-swatch" id="nav-ripple-color-swatch" aria-label="Kolor Ripple — próbnik"
                                         style="--evo-swatch:<?php echo esc_attr($dm['nav_ripple_color'] ?? '#ffffff'); ?>"
                                         onclick="document.getElementById('nav_ripple_color_input').click();">
                                     </button>
-                                    <input type="color" id="nav_ripple_color_input" name="evk_darkmode[nav_ripple_color]"
+                                    <input type="color" id="nav_ripple_color_input" name="evk_darkmode[nav_ripple_color]" aria-label="Kolor Ripple"
                                         value="<?php echo esc_attr($dm['nav_ripple_color'] ?? '#ffffff'); ?>"
                                         class="evo-hidden"
                                         oninput="document.getElementById('nav-ripple-color-swatch').style.setProperty('--evo-swatch',this.value);document.getElementById('nav-ripple-color-text').value=this.value;">
@@ -133,8 +133,8 @@ if (!defined('ABSPATH')) exit;
                                 </div>
                             </div>
                             <div class="evo-field">
-                                <label>Rozmycie Ripple (px)</label>
-                                <input type="number" name="evk_darkmode[nav_ripple_blur]" value="<?php echo esc_attr($dm['nav_ripple_blur'] ?? 20); ?>" min="0" max="100" step="5" class="evo-w-xs">
+                                <label for="evo-f-evk_darkmode-nav_ripple_blur">Rozmycie Ripple (px)</label>
+                                <input id="evo-f-evk_darkmode-nav_ripple_blur" type="number" name="evk_darkmode[nav_ripple_blur]" value="<?php echo esc_attr($dm['nav_ripple_blur'] ?? 20); ?>" min="0" max="100" step="5" class="evo-w-xs">
                             </div>
                         </div>
                     </details>
@@ -144,8 +144,8 @@ if (!defined('ABSPATH')) exit;
                 <div class="evo-box">
                     <h3>Zmienne kolorów w gradientach</h3>
                     <div class="evo-field">
-                        <label>Zmienne kolorów do animowania (jedna na linię)</label>
-                        <textarea name="evk_darkmode[color_vars]" rows="3" placeholder="--kolor-glowny-d-2"><?php echo esc_textarea($dm['color_vars']); ?></textarea>
+                        <label for="evo-f-evk_darkmode-color_vars">Zmienne kolorów do animowania (jedna na linię)</label>
+                        <textarea id="evo-f-evk_darkmode-color_vars" name="evk_darkmode[color_vars]" rows="3" placeholder="--kolor-glowny-d-2"><?php echo esc_textarea($dm['color_vars']); ?></textarea>
                         <details class="evo-note"><summary>Po co to jest</summary><div class="evo-note-body">
                             <p><strong>Przy włączonej fali to pole nie jest potrzebne.</strong> Zmierzone:
                             gradient z zarejestrowaną zmienną i bez niej zachowują się pod falą tak samo —
@@ -172,20 +172,20 @@ if (!defined('ABSPATH')) exit;
                     </div>
                     <div class="evo-inline-fields">
                         <div class="evo-field">
-                            <label>Klasa logo jasnego</label>
-                            <input type="text" name="evk_darkmode[logo_light_class]" value="<?php echo esc_attr($dm['logo_light_class']); ?>" class="evo-w-sm">
+                            <label for="evo-f-evk_darkmode-logo_light_class">Klasa logo jasnego</label>
+                            <input id="evo-f-evk_darkmode-logo_light_class" type="text" name="evk_darkmode[logo_light_class]" value="<?php echo esc_attr($dm['logo_light_class']); ?>" class="evo-w-sm">
                         </div>
                         <div class="evo-field">
-                            <label>Klasa logo ciemnego</label>
-                            <input type="text" name="evk_darkmode[logo_dark_class]" value="<?php echo esc_attr($dm['logo_dark_class']); ?>" class="evo-w-sm">
+                            <label for="evo-f-evk_darkmode-logo_dark_class">Klasa logo ciemnego</label>
+                            <input id="evo-f-evk_darkmode-logo_dark_class" type="text" name="evk_darkmode[logo_dark_class]" value="<?php echo esc_attr($dm['logo_dark_class']); ?>" class="evo-w-sm">
                         </div>
                         <div class="evo-field">
-                            <label>Czas animacji (s)</label>
-                            <input type="number" name="evk_darkmode[logo_duration]" value="<?php echo esc_attr($dm['logo_duration']); ?>" min="0.1" max="5" step="0.1" class="evo-w-xs">
+                            <label for="evo-f-evk_darkmode-logo_duration">Czas animacji (s)</label>
+                            <input id="evo-f-evk_darkmode-logo_duration" type="number" name="evk_darkmode[logo_duration]" value="<?php echo esc_attr($dm['logo_duration']); ?>" min="0.1" max="5" step="0.1" class="evo-w-xs">
                         </div>
                         <div class="evo-field">
-                            <label>Easing</label>
-                            <input type="text" name="evk_darkmode[logo_easing]" value="<?php echo esc_attr($dm['logo_easing']); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
+                            <label for="evo-f-evk_darkmode-logo_easing">Easing</label>
+                            <input id="evo-f-evk_darkmode-logo_easing" type="text" name="evk_darkmode[logo_easing]" value="<?php echo esc_attr($dm['logo_easing']); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
                         </div>
                     </div>
 
@@ -230,17 +230,17 @@ if (!defined('ABSPATH')) exit;
 
                     <div class="evo-inline-fields">
                         <div class="evo-field">
-                            <label>Czas trwania (ms)</label>
-                            <input type="number" name="evk_darkmode[ripple_duration]" value="<?php echo esc_attr($dm['ripple_duration']); ?>" min="200" max="5000" step="100" class="evo-w-xs">
+                            <label for="evo-f-evk_darkmode-ripple_duration">Czas trwania (ms)</label>
+                            <input id="evo-f-evk_darkmode-ripple_duration" type="number" name="evk_darkmode[ripple_duration]" value="<?php echo esc_attr($dm['ripple_duration']); ?>" min="200" max="5000" step="100" class="evo-w-xs">
                         </div>
                         <div class="evo-field">
-                            <label>Rozmycie krawędzi (px)</label>
-                            <input type="number" name="evk_darkmode[ripple_blur]" value="<?php echo esc_attr($dm['ripple_blur']); ?>" min="0" max="100" step="5" class="evo-w-xs">
+                            <label for="evo-f-evk_darkmode-ripple_blur">Rozmycie krawędzi (px)</label>
+                            <input id="evo-f-evk_darkmode-ripple_blur" type="number" name="evk_darkmode[ripple_blur]" value="<?php echo esc_attr($dm['ripple_blur']); ?>" min="0" max="100" step="5" class="evo-w-xs">
                             <span class="evo-hint-sm">Dotyczy krawędzi fali i zasłony. Przy przenikaniu nie ma znaczenia — fade nie ma krawędzi.</span>
                         </div>
                         <div class="evo-field">
-                            <label>Easing</label>
-                            <input type="text" name="evk_darkmode[ripple_easing]" value="<?php echo esc_attr($dm['ripple_easing']); ?>" class="evo-w-xl">
+                            <label for="evo-f-evk_darkmode-ripple_easing">Easing</label>
+                            <input id="evo-f-evk_darkmode-ripple_easing" type="text" name="evk_darkmode[ripple_easing]" value="<?php echo esc_attr($dm['ripple_easing']); ?>" class="evo-w-xl">
                         </div>
                     </div>
 
@@ -259,33 +259,33 @@ if (!defined('ABSPATH')) exit;
 
                     <div class="evo-grid-2" style="--evo-gap:16px;margin-top:8px">
                         <div class="evo-field">
-                            <label>Klasa tytułu <span class="evo-label-note">na liście (bez kropki)</span></label>
-                            <input type="text" name="evk_darkmode[post_trans_title_class]" value="<?php echo esc_attr($dm['post_trans_title_class']); ?>" placeholder="post-card-title" class="evo-w-full">
+                            <label for="evo-f-evk_darkmode-post_trans_title_class">Klasa tytułu <span class="evo-label-note">na liście (bez kropki)</span></label>
+                            <input id="evo-f-evk_darkmode-post_trans_title_class" type="text" name="evk_darkmode[post_trans_title_class]" value="<?php echo esc_attr($dm['post_trans_title_class']); ?>" placeholder="post-card-title" class="evo-w-full">
                             <div class="evo-desc">Klasa elementu Bricks z tytułem w query loop. Kilka — oddziel przecinkami.</div>
                         </div>
                         <div class="evo-field">
-                            <label>Klasa obrazka <span class="evo-label-note">na liście (bez kropki)</span></label>
-                            <input type="text" name="evk_darkmode[post_trans_image_class]" value="<?php echo esc_attr($dm['post_trans_image_class']); ?>" placeholder="post-card-image" class="evo-w-full">
+                            <label for="evo-f-evk_darkmode-post_trans_image_class">Klasa obrazka <span class="evo-label-note">na liście (bez kropki)</span></label>
+                            <input id="evo-f-evk_darkmode-post_trans_image_class" type="text" name="evk_darkmode[post_trans_image_class]" value="<?php echo esc_attr($dm['post_trans_image_class']); ?>" placeholder="post-card-image" class="evo-w-full">
                             <div class="evo-desc">Klasa elementu Bricks z obrazkiem w query loop. Kilka — oddziel przecinkami.</div>
                         </div>
                         <div class="evo-field">
-                            <label>Selektor tytułu <span class="evo-label-note">na singlu (CSS)</span></label>
-                            <input type="text" name="evk_darkmode[post_trans_title_single]" value="<?php echo esc_attr($dm['post_trans_title_single']); ?>" placeholder=".single-post .brxe-post-title h1" class="evo-w-full">
+                            <label for="evo-f-evk_darkmode-post_trans_title_single">Selektor tytułu <span class="evo-label-note">na singlu (CSS)</span></label>
+                            <input id="evo-f-evk_darkmode-post_trans_title_single" type="text" name="evk_darkmode[post_trans_title_single]" value="<?php echo esc_attr($dm['post_trans_title_single']); ?>" placeholder=".single-post .brxe-post-title h1" class="evo-w-full">
                         </div>
                         <div class="evo-field">
-                            <label>Selektor obrazka <span class="evo-label-note">na singlu (CSS)</span></label>
-                            <input type="text" name="evk_darkmode[post_trans_image_single]" value="<?php echo esc_attr($dm['post_trans_image_single']); ?>" placeholder=".single-post .brxe-post-image img" class="evo-w-full">
+                            <label for="evo-f-evk_darkmode-post_trans_image_single">Selektor obrazka <span class="evo-label-note">na singlu (CSS)</span></label>
+                            <input id="evo-f-evk_darkmode-post_trans_image_single" type="text" name="evk_darkmode[post_trans_image_single]" value="<?php echo esc_attr($dm['post_trans_image_single']); ?>" placeholder=".single-post .brxe-post-image img" class="evo-w-full">
                         </div>
                     </div>
 
                     <div class="evo-grid" style="--evo-col:160px;--evo-gap:16px;margin-top:8px">
                         <div class="evo-field">
-                            <label>Czas animacji (s)</label>
-                            <input type="number" name="evk_darkmode[post_trans_duration]" value="<?php echo esc_attr($dm['post_trans_duration']); ?>" min="0.1" max="3.0" step="0.1" class="evo-w-xs">
+                            <label for="evo-f-evk_darkmode-post_trans_duration">Czas animacji (s)</label>
+                            <input id="evo-f-evk_darkmode-post_trans_duration" type="number" name="evk_darkmode[post_trans_duration]" value="<?php echo esc_attr($dm['post_trans_duration']); ?>" min="0.1" max="3.0" step="0.1" class="evo-w-xs">
                         </div>
                         <div class="evo-field">
-                            <label>Easing</label>
-                            <input type="text" name="evk_darkmode[post_trans_easing]" value="<?php echo esc_attr($dm['post_trans_easing'] ?? 'ease-in-out'); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
+                            <label for="evo-f-evk_darkmode-post_trans_easing">Easing</label>
+                            <input id="evo-f-evk_darkmode-post_trans_easing" type="text" name="evk_darkmode[post_trans_easing]" value="<?php echo esc_attr($dm['post_trans_easing'] ?? 'ease-in-out'); ?>" class="evo-w-xl" placeholder="np. cubic-bezier(0.33, 1, 0.68, 1)">
                         </div>
                     </div>
 

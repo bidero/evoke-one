@@ -18,7 +18,7 @@ $active_blocks = evk_login_active_blocks();
         </div>
         <div class="evo-status-actions">
             <label class="evo-toggle">
-                <input type="checkbox" name="evk_security[limit_login_enabled]" data-option="evk_security" data-field="limit_login_enabled" value="1" <?php checked(1, $evk_sec['limit_login_enabled']); ?>>
+                <input aria-label="Limit prób logowania" type="checkbox" name="evk_security[limit_login_enabled]" data-option="evk_security" data-field="limit_login_enabled" value="1" <?php checked(1, $evk_sec['limit_login_enabled']); ?>>
                 <span class="evo-slider"></span>
             </label>
         </div>
@@ -26,18 +26,18 @@ $active_blocks = evk_login_active_blocks();
 
     <div class="evo-grid" style="--evo-col:200px;--evo-gap:16px">
         <div class="evo-field">
-            <label>Maks. prób logowania</label>
-            <input type="number" name="evk_security[max_attempts]" value="<?php echo esc_attr($evk_sec['max_attempts']); ?>" min="1" max="100">
+            <label for="evo-f-evk_security-max_attempts">Maks. prób logowania</label>
+            <input id="evo-f-evk_security-max_attempts" type="number" name="evk_security[max_attempts]" value="<?php echo esc_attr($evk_sec['max_attempts']); ?>" min="1" max="100">
             <div class="evo-desc">Domyślnie: 5</div>
         </div>
         <div class="evo-field">
-            <label>Resetuj po (godzinach)</label>
-            <input type="number" name="evk_security[reset_hours]" value="<?php echo esc_attr($evk_sec['reset_hours']); ?>" min="1" max="720">
+            <label for="evo-f-evk_security-reset_hours">Resetuj po (godzinach)</label>
+            <input id="evo-f-evk_security-reset_hours" type="number" name="evk_security[reset_hours]" value="<?php echo esc_attr($evk_sec['reset_hours']); ?>" min="1" max="720">
             <div class="evo-desc">Domyślnie: 24</div>
         </div>
         <div class="evo-field evo-full">
-            <label>Własny komunikat blokady IP<span class="evo-tip" tabindex="0" role="note" data-tip="HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: {hours} — liczba godzin, {hours_str} — odmiana słowa. Gdy puste — używany domyślny komunikat." aria-label="HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: {hours} — liczba godzin, {hours_str} — odmiana słowa. Gdy puste — używany domyślny komunikat.">?</span></label>
-            <textarea name="evk_security[limit_login_message]" rows="4" placeholder="Pozostaw puste aby użyć domyślnego komunikatu z czasem odblokowania..."><?php echo esc_textarea($evk_sec['limit_login_message'] ?? ''); ?></textarea>
+            <label for="evo-f-evk_security-limit_login_message">Własny komunikat blokady IP<span class="evo-tip" tabindex="0" role="note" data-tip="HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: {hours} — liczba godzin, {hours_str} — odmiana słowa. Gdy puste — używany domyślny komunikat." aria-label="HTML dozwolony: &lt;strong&gt; &lt;em&gt; &lt;a&gt; &lt;p&gt;. Zmienne: {hours} — liczba godzin, {hours_str} — odmiana słowa. Gdy puste — używany domyślny komunikat.">?</span></label>
+            <textarea id="evo-f-evk_security-limit_login_message" name="evk_security[limit_login_message]" rows="4" placeholder="Pozostaw puste aby użyć domyślnego komunikatu z czasem odblokowania..."><?php echo esc_textarea($evk_sec['limit_login_message'] ?? ''); ?></textarea>
 
         </div>
     </div>

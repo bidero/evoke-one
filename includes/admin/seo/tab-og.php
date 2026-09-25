@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) exit;
                 <div class="evo-status-actions">
                     <span class="evo-toggle-label"><?php echo !empty($og['enabled']) ? 'Włączony' : 'Wyłączony'; ?></span>
                     <label class="evo-toggle">
-                        <input type="checkbox"
+                        <input aria-label="Generator OG" type="checkbox"
                                data-option="evk_og"
                                data-field="enabled"
                                value="1"
@@ -55,24 +55,24 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-grid evo-mb" style="--evo-col:180px">
 
                         <div class="evo-field">
-                            <label>Szerokość (px)</label>
-                            <input type="number" name="evk_og[width]" value="<?php echo esc_attr($og['width']); ?>" min="400" max="2400">
+                            <label for="evo-f-evk_og-width">Szerokość (px)</label>
+                            <input id="evo-f-evk_og-width" type="number" name="evk_og[width]" value="<?php echo esc_attr($og['width']); ?>" min="400" max="2400">
                         </div>
                         <div class="evo-field">
-                            <label>Wysokość (px)</label>
-                            <input type="number" name="evk_og[height]" value="<?php echo esc_attr($og['height']); ?>" min="200" max="1400">
+                            <label for="evo-f-evk_og-height">Wysokość (px)</label>
+                            <input id="evo-f-evk_og-height" type="number" name="evk_og[height]" value="<?php echo esc_attr($og['height']); ?>" min="200" max="1400">
                         </div>
                         <div class="evo-field">
-                            <label>Format</label>
-                            <select name="evk_og[format]">
+                            <label for="evo-f-evk_og-format">Format</label>
+                            <select id="evo-f-evk_og-format" name="evk_og[format]">
                                 <?php foreach (['jpg' => 'JPG', 'png' => 'PNG', 'webp' => 'WebP'] as $val => $lbl): ?>
                                 <option value="<?php echo $val; ?>" <?php selected($og['format'], $val); ?>><?php echo $lbl; ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="evo-field">
-                            <label>Jakość (JPG/WebP)</label>
-                            <input type="number" name="evk_og[quality]" value="<?php echo esc_attr($og['quality']); ?>" min="10" max="100">
+                            <label for="evo-f-evk_og-quality">Jakość (JPG/WebP)</label>
+                            <input id="evo-f-evk_og-quality" type="number" name="evk_og[quality]" value="<?php echo esc_attr($og['quality']); ?>" min="10" max="100">
                         </div>
                     </div>
 
@@ -98,8 +98,8 @@ if (!defined('ABSPATH')) exit;
                     </div>
 
                     <div class="evo-field">
-                        <label>URL fallback (gdy brak miniatury)</label>
-                        <input type="text" name="evk_og[fallback_url]" value="<?php echo esc_attr($og['fallback_url']); ?>" placeholder="https://twoja-domena.pl/wp-content/uploads/og-fallback.jpg" class="evo-w-full">
+                        <label for="evo-f-evk_og-fallback_url">URL fallback (gdy brak miniatury)</label>
+                        <input id="evo-f-evk_og-fallback_url" type="text" name="evk_og[fallback_url]" value="<?php echo esc_attr($og['fallback_url']); ?>" placeholder="https://twoja-domena.pl/wp-content/uploads/og-fallback.jpg" class="evo-w-full">
                         <div class="evo-desc">Dla stron bez wygenerowanego obrazka i bez miniatury. Puste pole: bez obrazka (albo <code>og-fallback.jpg</code> z katalogu uploads, jeśli taki plik istnieje).</div>
                     </div>
                 </div>
@@ -130,12 +130,12 @@ if (!defined('ABSPATH')) exit;
                             <div class="evo-og-layer-header">
                                 <span class="drag-handle dashicons dashicons-menu"></span>
                                 <label class="layer-toggle evo-toggle">
-                                    <input type="checkbox" name="evk_og[layers][<?php echo $li; ?>][enabled]" value="1" <?php checked(!empty($layer['enabled'])); ?>>
+                                    <input type="checkbox" aria-label="<?php echo esc_attr('Włącz warstwę: ' . ($layer['label'] ?? $type)); ?>" name="evk_og[layers][<?php echo $li; ?>][enabled]" value="1" <?php checked(!empty($layer['enabled'])); ?>>
                                     <span class="evo-slider"></span>
                                 </label>
                                 <span class="evo-og-layer-title"><?php echo esc_html($layer['label'] ?? $type); ?></span>
                                 <span class="evo-og-layer-type-badge"><?php echo esc_html($layer_types[$type] ?? $type); ?></span>
-                                <button type="button" class="evo-og-btn-remove" onclick="this.closest('.evo-og-layer').remove()">
+                                <button type="button" class="evo-og-btn-remove" title="Usuń warstwę" aria-label="<?php echo esc_attr('Usuń warstwę: ' . ($layer['label'] ?? $type)); ?>" onclick="this.closest('.evo-og-layer').remove()">
                                     <span class="dashicons dashicons-trash evo-ico-sm"></span>
                                 </button>
                             </div>
@@ -146,44 +146,47 @@ if (!defined('ABSPATH')) exit;
                             <div class="evo-og-layer-fields">
                                 <!-- Wspólne: label -->
                                 <div>
-                                    <label>Etykieta</label>
-                                    <input type="text" name="evk_og[layers][<?php echo $li; ?>][label]" value="<?php echo esc_attr($layer['label'] ?? ''); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-label">Etykieta</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-label" type="text" name="evk_og[layers][<?php echo $li; ?>][label]" value="<?php echo esc_attr($layer['label'] ?? ''); ?>">
                                 </div>
 
-                                <!-- Pozycja X/Y (nie dla text bo ma y_from_bottom) -->
-                                <?php if ($type !== 'text'): ?>
+                                <!-- Pozycja X/Y (nie dla text bo ma y_from_bottom, nie dla qr bo ma
+                                     własne „Margin prawy" i „Y od góry" pod TYMI SAMYMI kluczami x i y.
+                                     Do 1.236.0 warstwa QR miała obie pary, a zapis brał drugą:
+                                     pierwsza para przepadała bez słowa) -->
+                                <?php if (!in_array($type, ['text', 'qr'], true)): ?>
                                 <div>
-                                    <label>X (px)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][x]" value="<?php echo esc_attr($layer['x'] ?? 0); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-x">X (px)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-x" type="number" name="evk_og[layers][<?php echo $li; ?>][x]" value="<?php echo esc_attr($layer['x'] ?? 0); ?>">
                                 </div>
                                 <div>
-                                    <label>Y (px)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][y]" value="<?php echo esc_attr($layer['y'] ?? 0); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-y">Y (px)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-y" type="number" name="evk_og[layers][<?php echo $li; ?>][y]" value="<?php echo esc_attr($layer['y'] ?? 0); ?>">
                                 </div>
                                 <?php endif; ?>
 
                                 <!-- Rozmiar W/H (nie dla photo jeśli 0) -->
                                 <?php if (!in_array($type, ['text', 'qr'], true)): ?>
                                 <div>
-                                    <label>Szerokość (px, 0=auto)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][width]" value="<?php echo esc_attr($layer['width'] ?? 0); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-width">Szerokość (px, 0=auto)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-width" type="number" name="evk_og[layers][<?php echo $li; ?>][width]" value="<?php echo esc_attr($layer['width'] ?? 0); ?>">
                                 </div>
                                 <div>
-                                    <label>Wysokość (px, 0=auto)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][height]" value="<?php echo esc_attr($layer['height'] ?? 0); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-height">Wysokość (px, 0=auto)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-height" type="number" name="evk_og[layers][<?php echo $li; ?>][height]" value="<?php echo esc_attr($layer['height'] ?? 0); ?>">
                                 </div>
                                 <?php endif; ?>
 
                                 <!-- Opacity -->
                                 <div>
-                                    <label>Krycie (%)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][opacity]" value="<?php echo esc_attr($layer['opacity'] ?? 100); ?>" min="0" max="100">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-opacity">Krycie (%)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-opacity" type="number" name="evk_og[layers][<?php echo $li; ?>][opacity]" value="<?php echo esc_attr($layer['opacity'] ?? 100); ?>" min="0" max="100">
                                 </div>
 
                                 <!-- Blend mode -->
                                 <div>
-                                    <label>Blend Mode</label>
-                                    <select name="evk_og[layers][<?php echo $li; ?>][blend]">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-blend">Blend Mode</label>
+                                    <select id="evo-f-evk_og-layers-<?php echo $li; ?>-blend" name="evk_og[layers][<?php echo $li; ?>][blend]">
                                         <?php foreach ($blend_modes as $bm): ?>
                                         <option value="<?php echo $bm; ?>" <?php selected($layer['blend'] ?? 'normal', $bm); ?>><?php echo $bm; ?></option>
                                         <?php endforeach; ?>
@@ -192,11 +195,11 @@ if (!defined('ABSPATH')) exit;
 
                                 <?php if ($type === 'rect'): ?>
                                 <div>
-                                    <label>Kolor</label>
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-color">Kolor</label>
                                     <div class="evo-og-color-pair">
-                                        <input type="color" value="<?php echo esc_attr($layer['color'] ?? '#000000'); ?>"
+                                        <input type="color" aria-label="Kolor — próbnik" value="<?php echo esc_attr($layer['color'] ?? '#000000'); ?>"
                                             oninput="this.nextElementSibling.value=this.value">
-                                        <input type="text" name="evk_og[layers][<?php echo $li; ?>][color]"
+                                        <input type="text" id="evo-f-evk_og-layers-<?php echo $li; ?>-color" name="evk_og[layers][<?php echo $li; ?>][color]"
                                             value="<?php echo esc_attr($layer['color'] ?? '#000000'); ?>"
                                             oninput="this.previousElementSibling.value=this.value"
                                             class="evo-mono evo-w-hex">
@@ -205,42 +208,42 @@ if (!defined('ABSPATH')) exit;
 
                                 <?php elseif ($type === 'photo'): ?>
                                 <div>
-                                    <label>Przesunięcie X zdjęcia (px)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][offset_x]" value="<?php echo esc_attr($layer['offset_x'] ?? 0); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-offset_x">Przesunięcie X zdjęcia (px)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-offset_x" type="number" name="evk_og[layers][<?php echo $li; ?>][offset_x]" value="<?php echo esc_attr($layer['offset_x'] ?? 0); ?>">
                                     <div class="evo-hint-sm evo-muted" style="margin-top:3px">Przesuwa kadrowanie w lewo/prawo.</div>
                                 </div>
 
                                 <?php elseif ($type === 'gradient'): ?>
                                 <div>
-                                    <label>Kolor</label>
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-color">Kolor</label>
                                     <div class="evo-og-color-pair">
-                                        <input type="color" value="<?php echo esc_attr($layer['color'] ?? '#000000'); ?>"
+                                        <input type="color" aria-label="Kolor — próbnik" value="<?php echo esc_attr($layer['color'] ?? '#000000'); ?>"
                                             oninput="this.nextElementSibling.value=this.value">
-                                        <input type="text" name="evk_og[layers][<?php echo $li; ?>][color]"
+                                        <input type="text" id="evo-f-evk_og-layers-<?php echo $li; ?>-color" name="evk_og[layers][<?php echo $li; ?>][color]"
                                             value="<?php echo esc_attr($layer['color'] ?? '#000000'); ?>"
                                             oninput="this.previousElementSibling.value=this.value"
                                             class="evo-mono evo-w-hex">
                                     </div>
                                 </div>
                                 <div>
-                                    <label>Kierunek</label>
-                                    <select name="evk_og[layers][<?php echo $li; ?>][direction]">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-direction">Kierunek</label>
+                                    <select id="evo-f-evk_og-layers-<?php echo $li; ?>-direction" name="evk_og[layers][<?php echo $li; ?>][direction]">
                                         <?php foreach (['top' => '↑ Górny', 'bottom' => '↓ Dolny', 'left' => '← Lewy', 'right' => '→ Prawy'] as $dv => $dl): ?>
                                         <option value="<?php echo $dv; ?>" <?php selected($layer['direction'] ?? 'bottom', $dv); ?>><?php echo $dl; ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <div>
-                                    <label>Alpha start (%)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][alpha_start]" value="<?php echo esc_attr($layer['alpha_start'] ?? 0); ?>" min="0" max="100">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-alpha_start">Alpha start (%)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-alpha_start" type="number" name="evk_og[layers][<?php echo $li; ?>][alpha_start]" value="<?php echo esc_attr($layer['alpha_start'] ?? 0); ?>" min="0" max="100">
                                 </div>
                                 <div>
-                                    <label>Alpha end (%)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][alpha_end]" value="<?php echo esc_attr($layer['alpha_end'] ?? 100); ?>" min="0" max="100">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-alpha_end">Alpha end (%)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-alpha_end" type="number" name="evk_og[layers][<?php echo $li; ?>][alpha_end]" value="<?php echo esc_attr($layer['alpha_end'] ?? 100); ?>" min="0" max="100">
                                 </div>
                                 <div>
-                                    <label>Pozycja startu (%)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][pos_pct]" value="<?php echo esc_attr($layer['pos_pct'] ?? 50); ?>" min="0" max="100">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-pos_pct">Pozycja startu (%)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-pos_pct" type="number" name="evk_og[layers][<?php echo $li; ?>][pos_pct]" value="<?php echo esc_attr($layer['pos_pct'] ?? 50); ?>" min="0" max="100">
                                     <div class="evo-hint-sm evo-muted" style="margin-top:3px">Gdzie gradient zaczyna się zanikać.</div>
                                 </div>
 
@@ -265,27 +268,27 @@ if (!defined('ABSPATH')) exit;
 
                                 <?php elseif ($type === 'text'): ?>
                                 <div>
-                                    <label>X (od lewej, px)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][x]" value="<?php echo esc_attr($layer['x'] ?? 275); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-x">X (od lewej, px)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-x" type="number" name="evk_og[layers][<?php echo $li; ?>][x]" value="<?php echo esc_attr($layer['x'] ?? 275); ?>">
                                 </div>
                                 <div>
-                                    <label>Y od dołu (px)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][y_from_bottom]" value="<?php echo esc_attr($layer['y_from_bottom'] ?? 120); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-y_from_bottom">Y od dołu (px)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-y_from_bottom" type="number" name="evk_og[layers][<?php echo $li; ?>][y_from_bottom]" value="<?php echo esc_attr($layer['y_from_bottom'] ?? 120); ?>">
                                 </div>
                                 <div>
-                                    <label>Maks. szerokość (px)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][max_width]" value="<?php echo esc_attr($layer['max_width'] ?? 900); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-max_width">Maks. szerokość (px)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-max_width" type="number" name="evk_og[layers][<?php echo $li; ?>][max_width]" value="<?php echo esc_attr($layer['max_width'] ?? 900); ?>">
                                 </div>
                                 <div>
-                                    <label>Rozmiar fontu (px)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][font_size]" value="<?php echo esc_attr($layer['font_size'] ?? 80); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-font_size">Rozmiar fontu (px)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-font_size" type="number" name="evk_og[layers][<?php echo $li; ?>][font_size]" value="<?php echo esc_attr($layer['font_size'] ?? 80); ?>">
                                 </div>
                                 <div>
-                                    <label>Kolor tekstu</label>
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-color">Kolor tekstu</label>
                                     <div class="evo-og-color-pair">
-                                        <input type="color" value="<?php echo esc_attr($layer['color'] ?? '#ffffff'); ?>"
+                                        <input type="color" aria-label="Kolor tekstu — próbnik" value="<?php echo esc_attr($layer['color'] ?? '#ffffff'); ?>"
                                             oninput="this.nextElementSibling.value=this.value">
-                                        <input type="text" name="evk_og[layers][<?php echo $li; ?>][color]"
+                                        <input type="text" id="evo-f-evk_og-layers-<?php echo $li; ?>-color" name="evk_og[layers][<?php echo $li; ?>][color]"
                                             value="<?php echo esc_attr($layer['color'] ?? '#ffffff'); ?>"
                                             oninput="this.previousElementSibling.value=this.value"
                                             class="evo-mono evo-w-hex">
@@ -298,54 +301,54 @@ if (!defined('ABSPATH')) exit;
                                     </label>
                                     <div class="evo-grid" style="--evo-col:140px;--evo-gap:10px">
                                         <div>
-                                            <label>Kolor cienia</label>
+                                            <label for="evo-f-evk_og-layers-<?php echo $li; ?>-shadow_color">Kolor cienia</label>
                                             <div class="evo-og-color-pair">
-                                                <input type="color" value="<?php echo esc_attr($layer['shadow_color'] ?? '#000000'); ?>"
+                                                <input type="color" aria-label="Kolor cienia — próbnik" value="<?php echo esc_attr($layer['shadow_color'] ?? '#000000'); ?>"
                                                     oninput="this.nextElementSibling.value=this.value">
-                                                <input type="text" name="evk_og[layers][<?php echo $li; ?>][shadow_color]"
+                                                <input type="text" id="evo-f-evk_og-layers-<?php echo $li; ?>-shadow_color" name="evk_og[layers][<?php echo $li; ?>][shadow_color]"
                                                     value="<?php echo esc_attr($layer['shadow_color'] ?? '#000000'); ?>"
                                                     oninput="this.previousElementSibling.value=this.value"
                                                     class="evo-mono evo-w-hex">
                                             </div>
                                         </div>
-                                        <div><label>Offset X (px)</label><input type="number" name="evk_og[layers][<?php echo $li; ?>][shadow_offset_x]" value="<?php echo esc_attr($layer['shadow_offset_x'] ?? 3); ?>"></div>
-                                        <div><label>Offset Y (px)</label><input type="number" name="evk_og[layers][<?php echo $li; ?>][shadow_offset_y]" value="<?php echo esc_attr($layer['shadow_offset_y'] ?? 5); ?>"></div>
-                                        <div><label>Alpha (%)</label><input type="number" name="evk_og[layers][<?php echo $li; ?>][shadow_alpha]" value="<?php echo esc_attr($layer['shadow_alpha'] ?? 50); ?>" min="0" max="100"></div>
-                                        <div><label>Blur (px)</label><input type="number" name="evk_og[layers][<?php echo $li; ?>][shadow_blur]" value="<?php echo esc_attr($layer['shadow_blur'] ?? 2); ?>" min="0" max="20"></div>
+                                        <div><label for="evo-f-evk_og-layers-<?php echo $li; ?>-shadow_offset_x">Offset X (px)</label><input id="evo-f-evk_og-layers-<?php echo $li; ?>-shadow_offset_x" type="number" name="evk_og[layers][<?php echo $li; ?>][shadow_offset_x]" value="<?php echo esc_attr($layer['shadow_offset_x'] ?? 3); ?>"></div>
+                                        <div><label for="evo-f-evk_og-layers-<?php echo $li; ?>-shadow_offset_y">Offset Y (px)</label><input id="evo-f-evk_og-layers-<?php echo $li; ?>-shadow_offset_y" type="number" name="evk_og[layers][<?php echo $li; ?>][shadow_offset_y]" value="<?php echo esc_attr($layer['shadow_offset_y'] ?? 5); ?>"></div>
+                                        <div><label for="evo-f-evk_og-layers-<?php echo $li; ?>-shadow_alpha">Alpha (%)</label><input id="evo-f-evk_og-layers-<?php echo $li; ?>-shadow_alpha" type="number" name="evk_og[layers][<?php echo $li; ?>][shadow_alpha]" value="<?php echo esc_attr($layer['shadow_alpha'] ?? 50); ?>" min="0" max="100"></div>
+                                        <div><label for="evo-f-evk_og-layers-<?php echo $li; ?>-shadow_blur">Blur (px)</label><input id="evo-f-evk_og-layers-<?php echo $li; ?>-shadow_blur" type="number" name="evk_og[layers][<?php echo $li; ?>][shadow_blur]" value="<?php echo esc_attr($layer['shadow_blur'] ?? 2); ?>" min="0" max="20"></div>
                                     </div>
                                 </div>
 
                                 <?php elseif ($type === 'qr'): ?>
                                 <div>
-                                    <label>Margin prawy (px)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][x]" value="<?php echo esc_attr($layer['x'] ?? 25); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-x">Margin prawy (px)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-x" type="number" name="evk_og[layers][<?php echo $li; ?>][x]" value="<?php echo esc_attr($layer['x'] ?? 25); ?>">
                                     <div class="evo-hint-sm evo-muted" style="margin-top:3px">X = odległość od prawej krawędzi.</div>
                                 </div>
                                 <div>
-                                    <label>Y (od góry, px)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][y]" value="<?php echo esc_attr($layer['y'] ?? 426); ?>">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-y">Y (od góry, px)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-y" type="number" name="evk_og[layers][<?php echo $li; ?>][y]" value="<?php echo esc_attr($layer['y'] ?? 426); ?>">
                                 </div>
                                 <div>
-                                    <label>Rozmiar (px)</label>
-                                    <input type="number" name="evk_og[layers][<?php echo $li; ?>][size]" value="<?php echo esc_attr($layer['size'] ?? 170); ?>" min="50" max="500">
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-size">Rozmiar (px)</label>
+                                    <input id="evo-f-evk_og-layers-<?php echo $li; ?>-size" type="number" name="evk_og[layers][<?php echo $li; ?>][size]" value="<?php echo esc_attr($layer['size'] ?? 170); ?>" min="50" max="500">
                                 </div>
                                 <div>
-                                    <label>Kolor kodu (fg)</label>
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-fg_color">Kolor kodu (fg)</label>
                                     <div class="evo-og-color-pair">
-                                        <input type="color" value="<?php echo esc_attr($layer['fg_color'] ?? '#ffffff'); ?>"
+                                        <input type="color" aria-label="Kolor kodu (fg) — próbnik" value="<?php echo esc_attr($layer['fg_color'] ?? '#ffffff'); ?>"
                                             oninput="this.nextElementSibling.value=this.value">
-                                        <input type="text" name="evk_og[layers][<?php echo $li; ?>][fg_color]"
+                                        <input type="text" id="evo-f-evk_og-layers-<?php echo $li; ?>-fg_color" name="evk_og[layers][<?php echo $li; ?>][fg_color]"
                                             value="<?php echo esc_attr($layer['fg_color'] ?? '#ffffff'); ?>"
                                             oninput="this.previousElementSibling.value=this.value"
                                             class="evo-mono evo-w-hex">
                                     </div>
                                 </div>
                                 <div>
-                                    <label>Kolor tła (bg)</label>
+                                    <label for="evo-f-evk_og-layers-<?php echo $li; ?>-bg_color">Kolor tła (bg)</label>
                                     <div class="evo-og-color-pair">
-                                        <input type="color" value="<?php echo esc_attr($layer['bg_color'] ?? '#000000'); ?>"
+                                        <input type="color" aria-label="Kolor tła (bg) — próbnik" value="<?php echo esc_attr($layer['bg_color'] ?? '#000000'); ?>"
                                             oninput="this.nextElementSibling.value=this.value">
-                                        <input type="text" name="evk_og[layers][<?php echo $li; ?>][bg_color]"
+                                        <input type="text" id="evo-f-evk_og-layers-<?php echo $li; ?>-bg_color" name="evk_og[layers][<?php echo $li; ?>][bg_color]"
                                             value="<?php echo esc_attr($layer['bg_color'] ?? '#000000'); ?>"
                                             oninput="this.previousElementSibling.value=this.value"
                                             class="evo-mono evo-w-hex">
@@ -360,7 +363,7 @@ if (!defined('ABSPATH')) exit;
 
                     <!-- Dodaj warstwę -->
                     <div class="evo-toolbar" style="margin:14px 0 0">
-                        <select id="evk-og-new-layer-type" class="evo-w-md">
+                        <select id="evk-og-new-layer-type" class="evo-w-md" aria-label="Typ nowej warstwy">
                             <?php foreach ($layer_types as $tv => $tl): ?>
                             <option value="<?php echo esc_attr($tv); ?>"><?php echo esc_html($tl); ?></option>
                             <?php endforeach; ?>

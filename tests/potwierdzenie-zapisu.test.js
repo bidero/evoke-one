@@ -21,11 +21,11 @@ const fs   = require('fs');
 const path = require('path');
 const { phpOutput, rgb } = require('./lib/harness');
 
-/* Ekrany brane z listy, którą i tak utrzymuje `admin-tabs` — nie z własnego
-   spisu, bo drugi spis rozjeżdża się z pierwszym przy pierwszym nowym ekranie. */
-const TABS = require('fs').readFileSync(path.join(__dirname, 'admin-tabs.test.js'), 'utf8')
-  .match(/const TABS = \[([\s\S]*?)\];/)[1]
-  .match(/'[^']+'/g).map((s) => s.replace(/'/g, ''));
+/* Ekrany z tej samej listy, co `admin-tabs` i `admin-etykiety` — nie z własnego
+   spisu, bo drugi spis rozjeżdża się z pierwszym przy pierwszym nowym ekranie.
+   Do 1.236.0 lista była wycinana wyrażeniem z admin-tabs.test.js; od 1.237.0
+   jest modułem, który wszystkie trzy wczytują. */
+const { TABS } = require('./lib/zakladki-panelu');
 
 /* OTOCZKA JAK NA ŻYWO, i to nie jest ozdoba pomiaru.
    `.wrap` niesie zmienne kolorów panelu (są zadeklarowane właśnie tam, nie na

@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-status-actions">
                         <span class="evo-toggle-label"><?php echo !empty($sierotki['enabled']) ? 'Włączone' : 'Wyłączone'; ?></span>
                         <label class="evo-toggle">
-                            <input type="checkbox" data-option="evk_sierotki" data-field="enabled" value="1" <?php checked(!empty($sierotki['enabled'])); ?>>
+                            <input aria-label="Sierotki" type="checkbox" data-option="evk_sierotki" data-field="enabled" value="1" <?php checked(!empty($sierotki['enabled'])); ?>>
                             <span class="evo-slider"></span>
                         </label>
                     </div>
@@ -39,8 +39,8 @@ if (!defined('ABSPATH')) exit;
                     </div>
 
                     <div class="evo-field">
-                        <label>Pomijane klasy i identyfikatory</label>
-                        <input type="text" name="evk_sierotki[wyjatki]"
+                        <label for="evo-f-evk_sierotki-wyjatki">Pomijane klasy i identyfikatory</label>
+                        <input id="evo-f-evk_sierotki-wyjatki" type="text" name="evk_sierotki[wyjatki]"
                                value="<?php echo esc_attr($sierotki['wyjatki']); ?>"
                                placeholder=".kod, #stopka, cytat">
                         <div class="evo-desc">

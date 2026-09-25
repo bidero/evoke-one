@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) exit;
             <div class="tl-menu-settings">
                 <h3>Lokalizacja menu</h3>
                 <p>Wybierz miejsce wyświetlania wtyczki w panelu bocznym:</p>
-                <select id="tl-menu-location">
+                <select id="tl-menu-location" aria-label="Lokalizacja menu">
                     <option value="options-general.php" <?php selected($menu_location,'options-general.php'); ?>>Ustawienia</option>
                     <option value="index.php" <?php selected($menu_location,'index.php'); ?>>Kokpit</option>
                     <option value="tools.php" <?php selected($menu_location,'tools.php'); ?>>Narzędzia</option>
@@ -45,9 +45,9 @@ if (!defined('ABSPATH')) exit;
                     ?>
                     <tr>
                         <td><span class="drag-handle" title="Przeciągnij">☰</span></td>
-                        <td><input type="text" class="lang-code" value="<?php echo esc_attr($lang['code']); ?>" placeholder="en"></td>
-                        <td><input type="text" class="lang-name" value="<?php echo esc_attr($lang['name']); ?>" placeholder="Angielski"></td>
-                        <td><input type="text" class="lang-html" value="<?php echo esc_attr($lang['html']); ?>" placeholder="en-GB"></td>
+                        <td><input type="text" class="lang-code" aria-label="Kod języka" value="<?php echo esc_attr($lang['code']); ?>" placeholder="en"></td>
+                        <td><input type="text" class="lang-name" aria-label="Nazwa języka" value="<?php echo esc_attr($lang['name']); ?>" placeholder="Angielski"></td>
+                        <td><input type="text" class="lang-html" aria-label="Kod HTML (hreflang)" value="<?php echo esc_attr($lang['html']); ?>" placeholder="en-GB"></td>
                         <td>
                             <?php if ($flag_url): ?>
                             <img src="<?php echo esc_url($flag_url); ?>" class="tl-lang-flag-preview evo-flag" data-att="<?php echo esc_attr((string) $flag_id); ?>" onclick="tlOpenLangFlag(this)">
@@ -55,7 +55,7 @@ if (!defined('ABSPATH')) exit;
                             <div class="tl-lang-flag-empty evo-flag is-empty" data-att="0" onclick="tlOpenLangFlag(this)">+</div>
                             <?php endif; ?>
                         </td>
-                        <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń język" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>
+                        <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń język" aria-label="Usuń język" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

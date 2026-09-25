@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) exit;
             <div class="tl-toolbar">
                 <div class="tl-search-wrap">
                     <span class="dashicons dashicons-search evo-faint"></span>
-                    <input type="text" id="tl-search" placeholder="Szukaj frazy..." autocomplete="off">
+                    <input type="text" id="tl-search" aria-label="Szukaj frazy" placeholder="Szukaj frazy..." autocomplete="off">
                     <span id="tl-search-count"></span>
                 </div>
                 <button type="button" class="button" id="btn-expand-all"><span class="dashicons dashicons-arrow-down-alt2"></span> Rozwiń wszystko</button>
@@ -31,13 +31,13 @@ if (!defined('ABSPATH')) exit;
                         <span class="drag-handle dashicons dashicons-move" title="Przeciągnij"></span>
                         <div class="tl-group-toggle">
                             <span class="tl-group-toggle-icon">▶</span>
-                            <input type="text" class="tl-group-name-input" data-gid="<?php echo esc_attr($group_id); ?>" value="<?php echo esc_attr($group['name'] ?? ''); ?>" placeholder="Nazwa grupy...">
+                            <input type="text" class="tl-group-name-input" aria-label="Nazwa grupy" data-gid="<?php echo esc_attr($group_id); ?>" value="<?php echo esc_attr($group['name'] ?? ''); ?>" placeholder="Nazwa grupy...">
                             <span class="badge-count"><?php echo esc_html($row_count); ?></span>
                         </div>
                         <div class="tl-group-actions">
-                            <button type="button" class="button button-icon dashicons dashicons-download" title="Eksportuj" onclick="tlExportGroup('<?php echo esc_js($group_id); ?>');event.stopPropagation();"></button>
-                            <button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj" onclick="tlDuplicateGroup(this);event.stopPropagation();"></button>
-                            <button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="if(confirm('Usunąć całą grupę?')){jQuery(this).closest('.tl-group').remove();tlMarkDirty();}event.stopPropagation();"></button>
+                            <button type="button" class="button button-icon dashicons dashicons-download" title="Eksportuj grupę" aria-label="Eksportuj grupę" onclick="tlExportGroup('<?php echo esc_js($group_id); ?>');event.stopPropagation();"></button>
+                            <button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj grupę" aria-label="Duplikuj grupę" onclick="tlDuplicateGroup(this);event.stopPropagation();"></button>
+                            <button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń grupę" aria-label="Usuń grupę" onclick="if(confirm('Usunąć całą grupę?')){jQuery(this).closest('.tl-group').remove();tlMarkDirty();}event.stopPropagation();"></button>
                         </div>
                     </div>
                     <div class="tl-group-body">
@@ -63,23 +63,23 @@ if (!defined('ABSPATH')) exit;
                                         <label>Klucz Dynamic Data</label>
                                         <div class="tl-dd-field-row">
                                             <span class="tl-dd-prefix">{tl_</span>
-                                            <input type="text" class="tl-dd-key-input" data-field="dd_key" data-gid="<?php echo esc_attr($group_id); ?>" data-rid="<?php echo esc_attr($row_id); ?>" value="<?php echo esc_attr($row_dd_key); ?>" placeholder="opcjonalny_klucz" oninput="tlMarkDirty();">
+                                            <input type="text" class="tl-dd-key-input" aria-label="Klucz Dynamic Data" data-field="dd_key" data-gid="<?php echo esc_attr($group_id); ?>" data-rid="<?php echo esc_attr($row_id); ?>" value="<?php echo esc_attr($row_dd_key); ?>" placeholder="opcjonalny_klucz" oninput="tlMarkDirty();">
                                             <span class="tl-dd-prefix">}</span>
                                         </div>
                                     </div>
                                     <div class="tl-field">
                                         <label>Polski</label>
-                                        <textarea data-field="pl" data-gid="<?php echo esc_attr($group_id); ?>" data-rid="<?php echo esc_attr($row_id); ?>" oninput="tlUpdatePreview(this);tlMarkDirty();"><?php echo esc_textarea($row['pl'] ?? ''); ?></textarea>
+                                        <textarea aria-label="Polski" data-field="pl" data-gid="<?php echo esc_attr($group_id); ?>" data-rid="<?php echo esc_attr($row_id); ?>" oninput="tlUpdatePreview(this);tlMarkDirty();"><?php echo esc_textarea($row['pl'] ?? ''); ?></textarea>
                                     </div>
                                     <?php foreach ($langs as $code => $lang): ?>
                                     <div class="tl-field">
                                         <label><?php echo esc_html($lang['name']); ?></label>
-                                        <textarea data-field="<?php echo esc_attr($code); ?>" data-gid="<?php echo esc_attr($group_id); ?>" data-rid="<?php echo esc_attr($row_id); ?>" oninput="tlUpdatePill(this);tlMarkDirty();"><?php echo esc_textarea($row[$code] ?? ''); ?></textarea>
+                                        <textarea aria-label="<?php echo esc_attr($lang['name']); ?>" data-field="<?php echo esc_attr($code); ?>" data-gid="<?php echo esc_attr($group_id); ?>" data-rid="<?php echo esc_attr($row_id); ?>" oninput="tlUpdatePill(this);tlMarkDirty();"><?php echo esc_textarea($row[$code] ?? ''); ?></textarea>
                                     </div>
                                     <?php endforeach; ?>
                                     <div class="tl-row-footer">
-                                        <button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj frazę" onclick="tlDuplicateRow(this)"></button>
-                                        <button type="button" class="button button-icon dashicons dashicons-trash button-link-delete evo-ml-auto" title="Usuń frazę" onclick="jQuery(this).closest('.tl-row').remove();tlMarkDirty();"></button>
+                                        <button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj frazę" aria-label="Duplikuj frazę" onclick="tlDuplicateRow(this)"></button>
+                                        <button type="button" class="button button-icon dashicons dashicons-trash button-link-delete evo-ml-auto" title="Usuń frazę" aria-label="Usuń frazę" onclick="jQuery(this).closest('.tl-row').remove();tlMarkDirty();"></button>
                                     </div>
                                 </div>
                             </div>

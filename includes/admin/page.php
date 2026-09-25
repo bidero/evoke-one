@@ -432,7 +432,7 @@ function evoke_one_render_command_palette(string $base): void {
     ?>
     <div class="evo-command-palette" id="evo-command-palette" aria-hidden="true">
         <div class="evo-command-dialog" role="dialog" aria-modal="true" aria-label="Szukaj ustawień">
-            <label><span class="dashicons dashicons-search"></span><input type="search" id="evo-command-input" placeholder="Szukaj ustawień…" autocomplete="off"></label>
+            <label><span class="dashicons dashicons-search"></span><input type="search" id="evo-command-input" aria-label="Szukaj ustawień" placeholder="Szukaj ustawień…" autocomplete="off"></label>
             <div class="evo-command-results">
                 <?php foreach ($items as $item): ?>
                 <a href="<?php echo esc_url(add_query_arg(array_filter(['tab' => $item[1], 'sub' => $item[2]]), $base)); ?>" data-evo-search-item><?php echo esc_html($item[0]); ?><?php if ($item[3] !== ''): ?><i class="evo-command-terms"><?php echo esc_html($item[3]); ?></i><?php endif; ?><span>→</span></a>

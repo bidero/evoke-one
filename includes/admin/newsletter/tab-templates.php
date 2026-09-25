@@ -77,18 +77,18 @@ $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [
 
             <div class="evk-nl-grid2 evo-mb-sm" style="--evo-gap:12px">
                 <div>
-                    <label class="evk-nl-label">Nazwa szablonu</label>
+                    <label class="evk-nl-label" for="evk-nl-tpl-name">Nazwa szablonu</label>
                     <input type="text" id="evk-nl-tpl-name" class="evo-w-full"
                            value="<?php echo esc_attr($edit_tpl['name'] ?? ''); ?>" placeholder="Wewnętrzna nazwa">
                 </div>
                 <div>
-                    <label class="evk-nl-label">Temat maila</label>
+                    <label class="evk-nl-label" for="evk-nl-tpl-subject">Temat maila</label>
                     <input type="text" id="evk-nl-tpl-subject" class="evo-w-full"
                            value="<?php echo esc_attr($edit_tpl['subject'] ?? ''); ?>" placeholder="Temat wiadomości">
                 </div>
             </div>
 
-            <label class="evk-nl-label">Treść</label>
+            <label class="evk-nl-label" for="evk_nl_tpl_body">Treść</label>
             <?php
             wp_editor($edit_tpl['body_html'] ?? '', 'evk_nl_tpl_body', [
                 'textarea_name' => 'evk_nl_tpl_body',
@@ -108,7 +108,7 @@ $attachments     = json_decode($edit_tpl['attachments_json'] ?? '[]', true) ?: [
                     >
                     <span class="dashicons dashicons-paperclip evo-ico-xs"></span>
                     <?php echo esc_html($att_name); ?>
-                    <button class="evk-nl-remove-att evk-nl-chip-x">✕</button>
+                    <button class="evk-nl-remove-att evk-nl-chip-x" aria-label="<?php echo esc_attr('Usuń załącznik ' . $att_name); ?>">✕</button>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -158,7 +158,7 @@ jQuery(function($) {
                 var id=att.id, name=att.get('filename')||att.get('url').split('/').pop();
                 if (attachments.indexOf(id)===-1) {
                     attachments.push(id);
-                    $('#evk-nl-attachments-list').append('<div class="evk-nl-att-item evk-nl-chip" data-id="'+id+'"><span class="dashicons dashicons-paperclip evo-ico-xs"></span>'+$('<div>').text(name).html()+'<button class="evk-nl-remove-att evk-nl-chip-x">✕</button></div>');
+                    $('#evk-nl-attachments-list').append('<div class="evk-nl-att-item evk-nl-chip" data-id="'+id+'"><span class="dashicons dashicons-paperclip evo-ico-xs"></span>'+$('<div>').text(name).html()+'<button class="evk-nl-remove-att evk-nl-chip-x" aria-label="Usuń załącznik '+$('<div>').text(name).html().replace(/"/g, '&quot;')+'">✕</button></div>');
                     syncAtt();
                 }
             });

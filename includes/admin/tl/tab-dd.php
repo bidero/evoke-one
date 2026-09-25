@@ -17,16 +17,16 @@ if (!defined('ABSPATH')) exit;
                 sort($all_pl_phrases);
                 foreach ($dd_keys as $key => $phrase): ?>
                 <tr class="dd-key-row">
-                    <td><input type="text" class="dd-key-input evo-w-full evo-mono" value="<?php echo esc_attr($key); ?>" placeholder="np. cennik"></td>
+                    <td><input type="text" class="dd-key-input evo-w-full evo-mono" aria-label="Klucz DD" value="<?php echo esc_attr($key); ?>" placeholder="np. cennik"></td>
                     <td>
-                        <select class="dd-phrase-select evo-w-full">
+                        <select class="dd-phrase-select evo-w-full" aria-label="Fraza">
                             <option value="">- wybierz fraze -</option>
                             <?php foreach ($all_pl_phrases as $phrase_option): ?>
                             <option value="<?php echo esc_attr($phrase_option); ?>" <?php selected($phrase,$phrase_option); ?>><?php echo esc_html(mb_strlen($phrase_option)>80?mb_substr($phrase_option,0,77).'...':$phrase_option); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </td>
-                    <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>
+                    <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń klucz" aria-label="Usuń klucz" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>
                 </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -41,7 +41,7 @@ if (!defined('ABSPATH')) exit;
                 const ALL_PL_PHRASES = <?php echo wp_json_encode($all_pl_phrases, JSON_UNESCAPED_UNICODE); ?>;
                 window.tlDDAddRow = function() {
                     const opts = ALL_PL_PHRASES.map(function(p){ const safe=String(p).replace(/"/g,'&quot;'); const label=p.length>80?p.slice(0,77)+'...':p; return `<option value="${safe}">${label}</option>`; }).join('');
-                    $('#dd-keys-body').append(`<tr class="dd-key-row"><td><input type="text" class="dd-key-input evo-w-full evo-mono" placeholder="np. btn_kontakt"></td><td><select class="dd-phrase-select evo-w-full"><option value="">- wybierz fraze -</option>${opts}</select></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td></tr>`);
+                    $('#dd-keys-body').append(`<tr class="dd-key-row"><td><input type="text" class="dd-key-input evo-w-full evo-mono" aria-label="Klucz DD" placeholder="np. btn_kontakt"></td><td><select class="dd-phrase-select evo-w-full" aria-label="Fraza"><option value="">- wybierz fraze -</option>${opts}</select></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń klucz" aria-label="Usuń klucz" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td></tr>`);
                     tlMarkDirty();
                 };
                 window.tlSaveDDKeys = function() {

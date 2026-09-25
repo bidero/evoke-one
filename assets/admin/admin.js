@@ -1172,22 +1172,22 @@
         /* ── Pola specyficzne dla typu warstwy ──────────────────────── */
         var ogFields = {
             rect: function (i) {
-                return '<div><label>Kolor</label>' + ogColorPair(i, 'color', '#000000') + '</div>';
+                return ogPole(i, 'color', 'Kolor', ogColorPair(i, 'color', '#000000', 'Kolor'));
             },
             photo: function (i) {
-                return '<div><label>Przesunięcie X (px)</label>' + ogNum(i, 'offset_x', 0) + '</div>';
+                return ogPole(i, 'offset_x', 'Przesunięcie X (px)', ogNum(i, 'offset_x', 0));
             },
             gradient: function (i) {
-                return '<div><label>Kolor</label>' + ogColorPair(i, 'color', '#000000') + '</div>' +
-                    '<div><label>Kierunek</label><select name="' + ogName(i, 'direction') + '">' +
+                return ogPole(i, 'color', 'Kolor', ogColorPair(i, 'color', '#000000', 'Kolor')) +
+                    ogPole(i, 'direction', 'Kierunek', '<select id="' + ogId(i, 'direction') + '" name="' + ogName(i, 'direction') + '">' +
                         '<option value="top">↑ Górny</option>' +
                         '<option value="bottom" selected>↓ Dolny</option>' +
                         '<option value="left">← Lewy</option>' +
                         '<option value="right">→ Prawy</option>' +
-                    '</select></div>' +
-                    '<div><label>Alpha start (%)</label>' + ogNum(i, 'alpha_start', 0, 0, 100) + '</div>' +
-                    '<div><label>Alpha end (%)</label>'   + ogNum(i, 'alpha_end', 100, 0, 100) + '</div>' +
-                    '<div><label>Pozycja startu (%)</label>' + ogNum(i, 'pos_pct', 50, 0, 100) + '</div>';
+                    '</select>') +
+                    ogPole(i, 'alpha_start', 'Alpha start (%)', ogNum(i, 'alpha_start', 0, 0, 100)) +
+                    ogPole(i, 'alpha_end', 'Alpha end (%)', ogNum(i, 'alpha_end', 100, 0, 100)) +
+                    ogPole(i, 'pos_pct', 'Pozycja startu (%)', ogNum(i, 'pos_pct', 50, 0, 100));
             },
             image: function (i) {
                 return '<div class="evo-og-full"><label>Obraz</label>' +
@@ -1198,35 +1198,48 @@
                         'onclick="evkOgPickMedia(\'image\',' + i + ')">Wybierz obraz</button></div>';
             },
             text: function (i) {
-                return '<div><label>X od lewej (px)</label>' + ogNum(i, 'x', 275) + '</div>' +
-                    '<div><label>Y od dołu (px)</label>'   + ogNum(i, 'y_from_bottom', 120) + '</div>' +
-                    '<div><label>Maks. szerokość</label>'  + ogNum(i, 'max_width', 900) + '</div>' +
-                    '<div><label>Rozmiar fontu</label>'    + ogNum(i, 'font_size', 80) + '</div>' +
-                    '<div><label>Kolor</label>' + ogColorPair(i, 'color', '#ffffff') + '</div>';
+                return ogPole(i, 'x', 'X od lewej (px)', ogNum(i, 'x', 275)) +
+                    ogPole(i, 'y_from_bottom', 'Y od dołu (px)', ogNum(i, 'y_from_bottom', 120)) +
+                    ogPole(i, 'max_width', 'Maks. szerokość', ogNum(i, 'max_width', 900)) +
+                    ogPole(i, 'font_size', 'Rozmiar fontu', ogNum(i, 'font_size', 80)) +
+                    ogPole(i, 'color', 'Kolor', ogColorPair(i, 'color', '#ffffff', 'Kolor'));
             },
             qr: function (i) {
-                return '<div><label>Margin prawy (px)</label>' + ogNum(i, 'x', 25) + '</div>' +
-                    '<div><label>Y od góry (px)</label>' + ogNum(i, 'y', 426) + '</div>' +
-                    '<div><label>Rozmiar (px)</label>'   + ogNum(i, 'size', 170, 50, 500) + '</div>' +
-                    '<div><label>Kolor kodu (fg)</label>' + ogColorPair(i, 'fg_color', '#ffffff') + '</div>' +
-                    '<div><label>Kolor tła (bg)</label>'  + ogColorPair(i, 'bg_color', '#000000') + '</div>';
+                return ogPole(i, 'x', 'Margin prawy (px)', ogNum(i, 'x', 25)) +
+                    ogPole(i, 'y', 'Y od góry (px)', ogNum(i, 'y', 426)) +
+                    ogPole(i, 'size', 'Rozmiar (px)', ogNum(i, 'size', 170, 50, 500)) +
+                    ogPole(i, 'fg_color', 'Kolor kodu (fg)', ogColorPair(i, 'fg_color', '#ffffff', 'Kolor kodu (fg)')) +
+                    ogPole(i, 'bg_color', 'Kolor tła (bg)', ogColorPair(i, 'bg_color', '#000000', 'Kolor tła (bg)'));
             },
         };
 
         function ogName(i, field) { return 'evk_og[layers][' + i + '][' + field + ']'; }
 
+        /* Etykieta powiązana z polem przez for/id — te same `id` co w warstwach
+           z serwera (`tab-og.php`). Numer nowej warstwy bierze się z `ogCount`,
+           który startuje od liczby zapisanych (zapis numeruje je od zera), więc
+           `id` się nie powtarza. Przenumerowanie po przeciągnięciu zmienia same
+           nazwy pól: `id` zostaje, a etykieta dalej wskazuje swoje pole. */
+        function ogId(i, field) { return 'evo-f-evk_og-layers-' + i + '-' + field; }
+
+        function ogPole(i, field, tekst, pole) {
+            return '<div><label for="' + ogId(i, field) + '">' + tekst + '</label>' + pole + '</div>';
+        }
+
         function ogNum(i, field, val, min, max) {
-            return '<input type="number" name="' + ogName(i, field) + '" value="' + val + '"' +
+            return '<input type="number" id="' + ogId(i, field) + '" name="' + ogName(i, field) + '" value="' + val + '"' +
                    (min === undefined ? '' : ' min="' + min + '" max="' + max + '"') + '>';
         }
 
         /* Pole koloru i pole tekstowe trzymają tę samą wartość i pilnują
            się nawzajem — natywny picker nie przyjmuje wpisanego heksa,
-           a samo pole tekstowe nie daje wyboru z palety. */
-        function ogColorPair(i, field, val) {
+           a samo pole tekstowe nie daje wyboru z palety. Etykieta wskazuje
+           pole tekstowe (ono niesie zapisywaną wartość), próbnik ma własną
+           nazwę. */
+        function ogColorPair(i, field, val, tekst) {
             return '<div class="evo-og-color-pair">' +
-                '<input type="color" value="' + val + '" oninput="this.nextElementSibling.value=this.value">' +
-                '<input type="text" name="' + ogName(i, field) + '" value="' + val + '" ' +
+                '<input type="color" aria-label="' + tekst + ' — próbnik" value="' + val + '" oninput="this.nextElementSibling.value=this.value">' +
+                '<input type="text" id="' + ogId(i, field) + '" name="' + ogName(i, field) + '" value="' + val + '" ' +
                     'oninput="this.previousElementSibling.value=this.value" class="evo-mono evo-w-hex">' +
                 '</div>';
         }
@@ -1236,19 +1249,20 @@
             var i    = ogCount++;
             var label = ogTypes[type] || type;
 
-            var hasXY = type !== 'text';
+            // QR ma własne „Margin prawy" i „Y od góry" pod kluczami x i y.
+            var hasXY = type !== 'text' && type !== 'qr';
             var hasWH = type !== 'text' && type !== 'qr';
 
             var html = '<div class="evo-og-layer" data-index="' + i + '">' +
                 '<div class="evo-og-layer-header">' +
                     '<span class="drag-handle dashicons dashicons-menu"></span>' +
                     '<label class="layer-toggle evo-toggle">' +
-                        '<input type="checkbox" name="' + ogName(i, 'enabled') + '" value="1" checked>' +
+                        '<input type="checkbox" aria-label="Włącz warstwę: ' + label + '" name="' + ogName(i, 'enabled') + '" value="1" checked>' +
                         '<span class="evo-slider"></span>' +
                     '</label>' +
                     '<span class="evo-og-layer-title">' + label + '</span>' +
                     '<span class="evo-og-layer-type-badge">' + label + '</span>' +
-                    '<button type="button" class="evo-og-btn-remove" ' +
+                    '<button type="button" class="evo-og-btn-remove" title="Usuń warstwę" aria-label="Usuń warstwę: ' + label + '" ' +
                         'onclick="this.closest(\'.evo-og-layer\').remove()">' +
                         '<span class="dashicons dashicons-trash evo-ico-sm"></span>' +
                     '</button>' +
@@ -1256,15 +1270,15 @@
                 '<input type="hidden" name="' + ogName(i, 'id') + '" value="layer_' + i + '">' +
                 '<input type="hidden" name="' + ogName(i, 'type') + '" value="' + type + '">' +
                 '<div class="evo-og-layer-fields">' +
-                    '<div><label>Etykieta</label><input type="text" name="' + ogName(i, 'label') + '" value="' + label + '"></div>' +
-                    (hasXY ? '<div><label>X (px)</label>' + ogNum(i, 'x', 0) + '</div>' +
-                             '<div><label>Y (px)</label>' + ogNum(i, 'y', 0) + '</div>' : '') +
-                    (hasWH ? '<div><label>Szerokość (px, 0=auto)</label>' + ogNum(i, 'width', 0) + '</div>' +
-                             '<div><label>Wysokość (px, 0=auto)</label>' + ogNum(i, 'height', 0) + '</div>' : '') +
-                    '<div><label>Krycie (%)</label>' + ogNum(i, 'opacity', 100, 0, 100) + '</div>' +
-                    '<div><label>Blend Mode</label><select name="' + ogName(i, 'blend') + '">' +
+                    ogPole(i, 'label', 'Etykieta', '<input type="text" id="' + ogId(i, 'label') + '" name="' + ogName(i, 'label') + '" value="' + label + '">') +
+                    (hasXY ? ogPole(i, 'x', 'X (px)', ogNum(i, 'x', 0)) +
+                             ogPole(i, 'y', 'Y (px)', ogNum(i, 'y', 0)) : '') +
+                    (hasWH ? ogPole(i, 'width', 'Szerokość (px, 0=auto)', ogNum(i, 'width', 0)) +
+                             ogPole(i, 'height', 'Wysokość (px, 0=auto)', ogNum(i, 'height', 0)) : '') +
+                    ogPole(i, 'opacity', 'Krycie (%)', ogNum(i, 'opacity', 100, 0, 100)) +
+                    ogPole(i, 'blend', 'Blend Mode', '<select id="' + ogId(i, 'blend') + '" name="' + ogName(i, 'blend') + '">' +
                         '<option>normal</option><option>multiply</option>' +
-                        '<option>screen</option><option>overlay</option></select></div>' +
+                        '<option>screen</option><option>overlay</option></select>') +
                     (ogFields[type] ? ogFields[type](i) : '') +
                 '</div>' +
             '</div>';

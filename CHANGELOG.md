@@ -2,6 +2,94 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.237.0] — 2026-09-25
+
+Ósme wydanie po audycie 1.229.6: panel — nazwy dostępne kontrolek.
+
+### Zmienione
+
+- **Każda kontrolka panelu ma nazwę dostępną.** Przy 726 kontrolkach czytnik
+  ekranu mówił tylko „pole edycji", „pole wyboru" albo „przycisk", bez
+  słowa, czego dotyczą. Pomiar objął 47 zakładek, 9 innych ekranów panelu
+  i wiersze dodawane przyciskiem. Wygląd się nie zmienia, placeholdery
+  zostają. Najczęstsze przypadki:
+  - włącznik modułu w nagłówku zakładki, czyli sam suwak bez tekstu, ma
+    teraz nazwę z tytułu karty („Parallax", „Logi 404");
+  - etykieta widoczna nad polem, ale niepowiązana z nim, jest teraz
+    powiązana przez `for`/`id`;
+  - pola z samym placeholderem w wierszach powtarzalnych (Schema, skrzynka
+    formularzy, White Label, Tłumaczenia) mają ukrytą etykietę. W tabeli
+    meta SEO etykieta zawiera tytuł wpisu („Tytuł SEO: O nas"), bo pól
+    „Tytuł SEO" jest tyle, ile wierszy;
+  - przyciski z samą ikoną i dymkiem mają nazwę jak dymek. Gdzie dymek
+    mówił samo „Usuń", nazwa mówi co: „Usuń kontakt", „Usuń warstwę: Kod QR";
+  - para „próbnik koloru + pole HEX": etykieta wskazuje pole z wartością,
+    a próbnik ma własną nazwę („Tło opcji — próbnik").
+
+  To samo dotyczy wierszy budowanych w JS:
+  - szablony wierszy (Kursor, Animator, Schema, mapa strony) i warstwy OG;
+  - White Label: menu boczne (nazwa oka mówi, którą pozycję ukrywa, i zmienia
+    się po kliknięciu), pola HEX i własne pozycje paska;
+  - newsletter: tabela subskrybentów i stronicowanie;
+  - Tłumaczenia i lista wiadomości w Skrzynce.
+- **Import pliku z samej klawiatury.** Dotyczy importu ustawień (Narzędzia →
+  Import/Eksport) i importu Tłumaczeń. Pole pliku miało `display:none`,
+  a strefa „przeciągnij lub kliknij" to `div` z `onclick`. Tab nie miał
+  dokąd pójść, więc importu nie dało się zacząć bez myszy. Teraz pole jest
+  w kolejności Tab i spacja otwiera wybór pliku. Strefa pokazuje obwódkę,
+  gdy pole ma fokus.
+
+### Naprawione
+
+- **Warstwa QR w generatorze OG miała dwie pary X/Y.** Pierwsza to ogólne
+  „X (px)/Y (px)", druga to własne „Margin prawy/Y od góry" warstwy, obie
+  pod tymi samymi nazwami pól. Zapis brał drugą parę, a pierwsza przepadała
+  bez słowa. Została para QR, więc zapisana wartość się nie zmienia.
+  Dotyczy też warstwy dodanej przyciskiem.
+
+### Testy
+
+- `admin-etykiety` (nowy).
+  - Każda kontrolka (pole, lista, przycisk, odnośnik) ma nazwę:
+    z `aria-labelledby`, `aria-label` albo powiązanej etykiety, a przycisk
+    i odnośnik także z własnego tekstu. Sam placeholder ani sam `title` się
+    nie liczą. Każde `for` wskazuje pole, `id` się nie powtarzają.
+  - Zakres: 47 zakładek z `tab.php` i 9 ekranów z własnymi sondami. Lista
+    zakładek jest ta sama co w `admin-tabs`, teraz w
+    `tests/lib/zakladki-panelu.js`. Ekrany to:
+    - pulpit z powłoką panelu;
+    - Animator;
+    - Snippety: lista, edytor, logi i tryb zaawansowany;
+    - OG z warstwą każdego typu;
+    - Rewizje;
+    - Skrzynka.
+  - Szablony wierszy (`text/template` z `{INDEX}` i `<template>`) test
+    wstawia dwa razy, jak dwa kliknięcia „Dodaj".
+  - Import z klawiatury: Tab dochodzi do pola pliku, a strefa ma obwódkę.
+  - Wynik: 1413 kontrolek, żadna bez nazwy (przed wydaniem 726).
+- `og-layers`: warstwa dodana przyciskiem. Buduje ją `admin.js`, więc
+  strażnik jej nie widzi. Test sprawdza, że każda kontrolka ma nazwę, `id`
+  się nie powtarzają, a każde pole jest raz.
+- Atrapy w `tests/php/tab.php`, bliżej rdzenia:
+  - `wp_dropdown_pages()` wypisuje `id`;
+  - `$wpdb` ma nazwę tabeli opcji;
+  - doszło `wp_strip_all_tags()`.
+- Mutacje (12). Zbiorcza: dziesięć zepsuć w dziesięciu ekranach naraz, każde
+  zapaliło sprawdzenie swojego ekranu i tylko je:
+  - włącznik modułu bez nazwy;
+  - szablon wiersza z `-INDEX-` zamiast `{INDEX}`;
+  - pole pliku znowu `display:none`;
+  - `for` wskazujący pole, którego nie ma;
+  - QR znowu z drugą parą X/Y;
+  - włącznik trybu zaawansowanego bez nazwy;
+  - kotwica bez nazwy tylko w `<template>`;
+  - odnośnik „Raport" z samą ikoną;
+  - etykieta nad polem bez `for`;
+  - tytuł SEO bez nazwy.
+
+  Dwie osobne na warstwie z przycisku (pole bez `id`, QR z drugą parą X/Y)
+  zapalają różne podzbiory.
+
 ## [1.236.0] — 2026-09-25
 
 Siódme wydanie po audycie 1.229.6: meta w `<head>` — karty, język,

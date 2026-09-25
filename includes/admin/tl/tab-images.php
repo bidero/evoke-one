@@ -8,7 +8,7 @@ if (!defined('ABSPATH')) exit;
                 <div class="tl-img-card" data-key="<?php echo esc_attr($key); ?>">
                     <div class="tl-img-card-header">
                         <strong class="evo-grow">Tłumaczenie obrazka</strong>
-                        <button type="button" class="button-link-delete evo-close-x" onclick="jQuery(this).closest('.tl-img-card').remove();tlMarkDirtyImages();">✕</button>
+                        <button type="button" class="button-link-delete evo-close-x" aria-label="Usuń tłumaczenie obrazka" onclick="jQuery(this).closest('.tl-img-card').remove();tlMarkDirtyImages();">✕</button>
                     </div>
                     <?php foreach (array_merge(['pl' => ['name' => 'Polski']], $langs) as $code => $lang): ?>
                     <?php $att_id = absint($entry[$code] ?? 0); $img_url = $att_id ? wp_get_attachment_image_url($att_id, 'thumbnail') : ''; ?>
@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) exit;
                         <div class="tl-img-preview-empty" data-lang="<?php echo esc_attr($code); ?>" data-att="0" onclick="tlOpenMedia(this,'<?php echo esc_js($code); ?>')">+</div>
                         <?php endif; ?>
                         <button type="button" class="button" onclick="tlOpenMedia(this.previousElementSibling,'<?php echo esc_js($code); ?>')"><span class="dashicons dashicons-format-image"></span> <?php echo $att_id?'Zmień':'Wybierz'; ?></button>
-                        <?php if ($att_id): ?><button type="button" class="button button-icon dashicons dashicons-no-alt button-link-delete" title="Usuń obrazek" onclick="tlRemoveImage(this,'<?php echo esc_js($code); ?>')"></button><?php endif; ?>
+                        <?php if ($att_id): ?><button type="button" class="button button-icon dashicons dashicons-no-alt button-link-delete" title="Usuń obrazek" aria-label="<?php echo esc_attr('Usuń obrazek ' . ($code === 'pl' ? 'PL' : strtoupper($code))); ?>" onclick="tlRemoveImage(this,'<?php echo esc_js($code); ?>')"></button><?php endif; ?>
                     </div>
                     <?php endforeach; ?>
                 </div>

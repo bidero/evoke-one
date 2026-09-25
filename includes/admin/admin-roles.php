@@ -158,17 +158,17 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
         <?php wp_nonce_field('evk_add_role', 'evk_role_nonce'); ?>
         <input type="hidden" name="evk_role_action" value="add_role">
         <div class="evo-field">
-            <label>Nazwa roli</label>
-            <input type="text" name="role_name" placeholder="np. Menedżer" required>
+            <label for="evo-f-role_name">Nazwa roli</label>
+            <input id="evo-f-role_name" type="text" name="role_name" placeholder="np. Menedżer" required>
         </div>
         <div class="evo-field">
-            <label>Identyfikator (slug)</label>
-            <input type="text" name="role_slug" placeholder="np. manager" pattern="[a-z0-9_-]+" required>
+            <label for="evo-f-role_slug">Identyfikator (slug)</label>
+            <input id="evo-f-role_slug" type="text" name="role_slug" placeholder="np. manager" pattern="[a-z0-9_-]+" required>
             <div class="evo-desc">Tylko małe litery, cyfry, myślniki i podkreślenia.</div>
         </div>
         <div class="evo-field">
-            <label>Skopiuj uprawnienia z roli</label>
-            <select name="copy_from">
+            <label for="evo-f-copy_from">Skopiuj uprawnienia z roli</label>
+            <select id="evo-f-copy_from" name="copy_from">
                 <option value="">— brak (pusta rola) —</option>
                 <?php foreach ($wp_roles->get_names() as $slug => $name): ?>
                 <option value="<?php echo esc_attr($slug); ?>"><?php echo esc_html(translate_user_role($name)); ?></option>

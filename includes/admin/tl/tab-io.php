@@ -13,7 +13,7 @@ if (!defined('ABSPATH')) exit;
 
                 <div class="evo-mt">
                     <p class="evo-muted-soft evo-note-tx evo-mb-xs">Lub eksportuj pojedynczą grupę tłumaczeń:</p>
-                    <select id="tl-export-group" class="evo-w" style="--evo-w:200px">
+                    <select id="tl-export-group" aria-label="Grupa do eksportu" class="evo-w" style="--evo-w:200px">
                         <option value="">-- Wszystkie grupy --</option>
                         <?php foreach (($data['groups'] ?? []) as $group_id => $group): ?>
                         <option value="<?php echo esc_attr($group_id); ?>"><?php echo esc_html($group['name'] ?: $group_id); ?></option>
@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) exit;
                 <div class="tl-drop-zone" id="tl-drop-zone" onclick="document.getElementById('tl-file-input').click();">
                     <span class="dashicons dashicons-upload evo-ico-xl evo-drop-ico"></span>
                     Przeciągnij plik JSON tutaj lub kliknij aby wybrać
-                    <input type="file" id="tl-file-input" accept=".json">
+                    <input type="file" id="tl-file-input" accept=".json" aria-label="Plik JSON z eksportu do importu">
                 </div>
 
                 <div class="tl-import-status" id="tl-import-status"></div>

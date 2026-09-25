@@ -24,12 +24,12 @@ $table_ok   = evk_inbox_table_exists();
 <!-- TOPBAR -->
 <div class="evk-inbox-topbar">
     <div class="evk-inbox-topbar-left">
-        <select id="evk-form-filter" class="evk-inbox-select" <?php echo !$table_ok ? 'disabled' : ''; ?>>
+        <select id="evk-form-filter" class="evk-inbox-select" aria-label="Formularz" <?php echo !$table_ok ? 'disabled' : ''; ?>>
             <option value="all">Wszystkie formularze</option>
         </select>
         <div class="evk-inbox-search-wrap">
             <span class="dashicons dashicons-search"></span>
-            <input type="search" id="evk-inbox-search" placeholder="Szukaj w wiadomościach…" autocomplete="off" <?php echo !$table_ok ? 'disabled' : ''; ?>>
+            <input type="search" id="evk-inbox-search" aria-label="Szukaj w wiadomościach" placeholder="Szukaj w wiadomościach…" autocomplete="off" <?php echo !$table_ok ? 'disabled' : ''; ?>>
         </div>
     </div>
     <div class="evk-inbox-topbar-right">
@@ -39,8 +39,8 @@ $table_ok   = evk_inbox_table_exists();
         <button id="evk-bulk-delete-btn" class="evk-inbox-btn evk-inbox-btn-danger" style="display:none;">
             <span class="dashicons dashicons-trash"></span> Usuń zaznaczone
         </button>
-        <input type="date" id="evk-export-from" title="Eksport od" style="height:32px;border:1px solid #cbd5e1;border-radius:6px;padding:0 6px;font-size:12px;color:#475569;">
-        <input type="date" id="evk-export-to" title="Eksport do" style="height:32px;border:1px solid #cbd5e1;border-radius:6px;padding:0 6px;font-size:12px;color:#475569;">
+        <input type="date" id="evk-export-from" title="Eksport od" aria-label="Eksport od" style="height:32px;border:1px solid #cbd5e1;border-radius:6px;padding:0 6px;font-size:12px;color:#475569;">
+        <input type="date" id="evk-export-to" title="Eksport do" aria-label="Eksport do" style="height:32px;border:1px solid #cbd5e1;border-radius:6px;padding:0 6px;font-size:12px;color:#475569;">
         <button id="evk-export-btn" class="evk-inbox-btn evk-inbox-btn-ghost" <?php echo !$table_ok ? 'disabled' : ''; ?>>
             <span class="dashicons dashicons-download"></span> CSV
         </button>
@@ -445,7 +445,7 @@ $table_ok   = evk_inbox_table_exists();
                 const readCls  = item.is_read ? 'is-read' : '';
                 const activeCls = item.id === state.active_id ? 'active' : '';
                 html += `<div class="evk-inbox-item ${readCls} ${activeCls}" data-id="${item.id}">
-                    <input type="checkbox" class="evk-inbox-item-check" data-id="${item.id}">
+                    <input type="checkbox" class="evk-inbox-item-check" data-id="${item.id}" aria-label="Zaznacz: ${esc(item.name)}">
                     <div class="evk-inbox-dot"></div>
                     <div class="evk-inbox-item-inner">
                         <div class="evk-inbox-item-header">
@@ -462,14 +462,14 @@ $table_ok   = evk_inbox_table_exists();
             // Pagination
             if (d.pages > 1) {
                 let pgHtml = `<span>${d.page} / ${d.pages} (${d.total})</span><div class="evk-inbox-pagination-btns">`;
-                pgHtml += `<button class="evk-inbox-page-btn" data-page="${d.page - 1}" ${d.page <= 1 ? 'disabled' : ''}>&lsaquo;</button>`;
+                pgHtml += `<button class="evk-inbox-page-btn" data-page="${d.page - 1}" aria-label="Poprzednia strona" ${d.page <= 1 ? 'disabled' : ''}>&lsaquo;</button>`;
                 // max 5 page buttons
                 const start = Math.max(1, d.page - 2);
                 const end   = Math.min(d.pages, start + 4);
                 for (let i = start; i <= end; i++) {
-                    pgHtml += `<button class="evk-inbox-page-btn ${i === d.page ? 'active' : ''}" data-page="${i}">${i}</button>`;
+                    pgHtml += `<button class="evk-inbox-page-btn ${i === d.page ? 'active' : ''}" data-page="${i}" aria-label="Strona ${i}"${i === d.page ? ' aria-current="page"' : ''}>${i}</button>`;
                 }
-                pgHtml += `<button class="evk-inbox-page-btn" data-page="${d.page + 1}" ${d.page >= d.pages ? 'disabled' : ''}>&rsaquo;</button>`;
+                pgHtml += `<button class="evk-inbox-page-btn" data-page="${d.page + 1}" aria-label="Następna strona" ${d.page >= d.pages ? 'disabled' : ''}>&rsaquo;</button>`;
                 pgHtml += '</div>';
                 $('#evk-inbox-pagination').html(pgHtml);
             } else {
@@ -572,7 +572,7 @@ $table_ok   = evk_inbox_table_exists();
                         <button class="evk-inbox-btn evk-inbox-btn-ghost evk-mark-btn" data-id="${d.id}" data-state="unread">
                             <span class="dashicons dashicons-marker"></span> Nieprzeczytane
                         </button>
-                        <button class="evk-inbox-btn evk-inbox-btn-ghost evk-delete-single-btn" data-id="${d.id}">
+                        <button class="evk-inbox-btn evk-inbox-btn-ghost evk-delete-single-btn" data-id="${d.id}" title="Usuń wiadomość" aria-label="Usuń wiadomość">
                             <span class="dashicons dashicons-trash"></span>
                         </button>
                     </div>

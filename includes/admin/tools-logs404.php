@@ -51,7 +51,7 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
     <div class="evo-status-actions">
         <span class="evo-toggle-label"><?php echo $enabled ? 'Włączone' : 'Wyłączone'; ?></span>
         <label class="evo-toggle">
-            <input type="checkbox"
+            <input aria-label="Logi 404" type="checkbox"
                    data-option="evk_404_enabled"
                    data-field="_scalar"
                    value="1"
@@ -90,8 +90,8 @@ $nonce_ajax = wp_create_nonce('evk_tools_nonce');
 
     <?php if ($skip_bots): ?>
     <div class="evo-field">
-        <label>Lista botów (jeden per linia)</label>
-        <textarea name="evk_404_bot_list" rows="4" class="evo-w-full evo-mono evo-tbl-sm"><?php echo esc_textarea($bot_list); ?></textarea>
+        <label for="evo-f-evk_404_bot_list">Lista botów (jeden per linia)</label>
+        <textarea id="evo-f-evk_404_bot_list" name="evk_404_bot_list" rows="4" class="evo-w-full evo-mono evo-tbl-sm"><?php echo esc_textarea($bot_list); ?></textarea>
     </div>
     <?php endif; ?>
 

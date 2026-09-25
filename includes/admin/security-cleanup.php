@@ -20,7 +20,7 @@ $items = [
         <div class="evo-status-actions">
             <span class="evo-toggle-label"><?php echo $on ? 'Włączone' : 'Wyłączone'; ?></span>
             <label class="evo-toggle">
-                <input type="checkbox" data-option="evk_cleanup" data-field="<?php echo esc_attr($key); ?>" value="1" <?php checked($on); ?>>
+                <input type="checkbox" aria-label="<?php echo esc_attr($it['label']); ?>" data-option="evk_cleanup" data-field="<?php echo esc_attr($key); ?>" value="1" <?php checked($on); ?>>
                 <span class="evo-slider"></span>
             </label>
         </div>

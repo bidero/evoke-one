@@ -46,21 +46,8 @@ const BOX = {
    wygrywała druga i taki kształt zostaje. */
 const BOX_TITLE = { size: '11px', weight: '700', transform: 'uppercase' };
 
-/** Zakładki objęte przemieceniem. Kolejne dopisujemy tu, gdy przejdą sweep. */
-const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
-              'schema', 'sitemap', 'seo-meta',
-              'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings',
-              'sec-login', 'sec-rest', 'sec-hardening', 'sec-cleanup',
-              'tools-smtp', 'tools-redirect', 'tools-logs404', 'tools-io', 'tools-maintenance',
-              'adm-interface', 'adm-dashboard', 'adm-avatar', 'adm-content',
-              'adm-roles', 'adm-tlumaczenia',
-              'fe-cursor', 'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-sierotki',
-              'fe-themecolor', 'fe-parallax', 'fe-elementy', 'fe-newsletter', 'fe-newsletter-on',
-              'backup', 'backup-on',
-              /* Tłumaczenia to osobny ekran, ale ładuje ten sam `admin.css`
-                 (patrz `tl/bootstrap.php`), więc obowiązuje go ta sama skóra. */
-              'tl-translations', 'tl-images', 'tl-slugs', 'tl-dd',
-              'tl-languages', 'tl-sitemap', 'tl-io'];
+/** Zakładki objęte przemieceniem — wspólna lista z admin-etykiety (tests/lib/zakladki-panelu.js). */
+const { TABS } = require('./lib/zakladki-panelu');
 
 /** Zakładki mierzone też na wąskim ekranie. */
 const MOBILE = ['schema', 'sitemap', 'seo-meta',

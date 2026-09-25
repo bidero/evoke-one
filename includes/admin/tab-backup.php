@@ -42,7 +42,7 @@ $bk_ikony  = [
         <label class="evo-toggle">
             <?php /* Przy błędzie środowiska włącznik jest nieaktywny — ale tylko
                      do WŁĄCZENIA. Moduł już włączony trzeba móc wyłączyć. */ ?>
-            <input type="checkbox"
+            <input aria-label="Kopie zapasowe" type="checkbox"
                    data-option="evk_backup"
                    data-field="enabled"
                    value="1"
@@ -111,7 +111,7 @@ $bk_ikony  = [
 
     <?php /* Wgrywanie z przeglądarki (upload.php) — kawałkami, wznawialne. */ ?>
     <div class="evk-backup-wgraj evo-mt" data-evk-upload>
-        <input type="file" accept=".zip,application/zip" data-evk-upload-file hidden>
+        <input type="file" accept=".zip,application/zip" data-evk-upload-file hidden aria-label="Plik kopii (.zip)">
         <button type="button" class="button" data-evk-upload-pick>
             <span class="dashicons dashicons-upload evo-ico" aria-hidden="true"></span> Wgraj kopię z komputera
         </button>

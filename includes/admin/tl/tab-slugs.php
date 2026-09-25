@@ -23,11 +23,11 @@ if (!defined('ABSPATH')) exit;
                 <tbody id="slug-body">
                 <?php foreach ($url_slugs as $index => $slug_entry): ?>
                 <tr class="slug-row">
-                    <td><input type="text" class="slug-input slug-pl" value="<?php echo esc_attr($slug_entry['pl'] ?? ''); ?>" placeholder="np. o-nas"></td>
+                    <td><input type="text" class="slug-input slug-pl" aria-label="Slug PL" value="<?php echo esc_attr($slug_entry['pl'] ?? ''); ?>" placeholder="np. o-nas"></td>
                     <?php foreach ($codes as $code): ?>
-                    <td><input type="text" class="slug-input slug-<?php echo esc_attr($code); ?>" value="<?php echo esc_attr($slug_entry[$code] ?? ''); ?>" placeholder="np. about-us"></td>
+                    <td><input type="text" class="slug-input slug-<?php echo esc_attr($code); ?>" aria-label="<?php echo esc_attr('Slug ' . strtoupper($code)); ?>" value="<?php echo esc_attr($slug_entry[$code] ?? ''); ?>" placeholder="np. about-us"></td>
                     <?php endforeach; ?>
-                    <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń slug" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>
+                    <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń slug" aria-label="Usuń slug" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>
                 </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -49,11 +49,11 @@ if (!defined('ABSPATH')) exit;
                 const CODES = <?php echo wp_json_encode($codes); ?>;
 
                 window.tlAddSlugRow = function() {
-                    let cells = '<td><input type="text" class="slug-input slug-pl" placeholder="np. kontakt"></td>';
+                    let cells = '<td><input type="text" class="slug-input slug-pl" aria-label="Slug PL" placeholder="np. kontakt"></td>';
                     CODES.forEach(function(code) {
-                        cells += '<td><input type="text" class="slug-input slug-' + code + '" placeholder=""></td>';
+                        cells += '<td><input type="text" class="slug-input slug-' + code + '" aria-label="Slug ' + code.toUpperCase() + '" placeholder=""></td>';
                     });
-                    cells += '<td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń slug" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();"></button></td>';
+                    cells += '<td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń slug" aria-label="Usuń slug" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();"></button></td>';
                     $('#slug-body').append('<tr class="slug-row">' + cells + '</tr>');
                     tlMarkDirty();
                 };

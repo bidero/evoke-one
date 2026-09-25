@@ -149,7 +149,7 @@ if ($campaign_id) {
             <div class="evk-nl-row-between evk-nl-row-flush evo-mb-sm">
                 <h4 class="evk-nl-h">Logi zdarzeń</h4>
                 <div class="evo-inline" style="--evo-gap:8px">
-                    <select id="evk-nl-event-filter" onchange="window.location='<?php echo esc_url_raw(add_query_arg(['subtab' => 'reports', 'campaign_id' => $campaign_id], evk_nl_base_url())); ?>&event_filter='+this.value" class="evo-hint">
+                    <select id="evk-nl-event-filter" aria-label="Filtr zdarzeń" onchange="window.location='<?php echo esc_url_raw(add_query_arg(['subtab' => 'reports', 'campaign_id' => $campaign_id], evk_nl_base_url())); ?>&event_filter='+this.value" class="evo-hint">
                         <option value="" <?php selected('', $filter_ev); ?>>Wszystkie</option>
                         <?php foreach (['sent','open','click','unsubscribe','error','bounce'] as $ev): ?>
                         <option value="<?php echo esc_attr($ev); ?>" <?php selected($ev, $filter_ev); ?>><?php echo esc_html($ev); ?></option>

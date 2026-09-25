@@ -73,7 +73,7 @@ $seo_max = $seo_query ? max(1, (int) $seo_query->max_num_pages) : 1;
                         <?php foreach (['page' => $_GET['page'] ?? '', 'tab' => 'strona', 'sub' => 'meta', 'seo_pt' => $seo_pt] as $seo_hk => $seo_hv): ?>
                         <input type="hidden" name="<?php echo esc_attr($seo_hk); ?>" value="<?php echo esc_attr($seo_hv); ?>">
                         <?php endforeach; ?>
-                        <input type="search" name="seo_s" id="evoke-seo-search" value="<?php echo esc_attr($seo_s); ?>"
+                        <input type="search" name="seo_s" id="evoke-seo-search" aria-label="Szukaj po tytule" value="<?php echo esc_attr($seo_s); ?>"
                                placeholder="Szukaj po tytule..." class="evk-seo-search-input">
                         <button type="submit" class="button">Szukaj</button>
                         <?php if ($seo_s !== ''): ?>
@@ -114,6 +114,11 @@ $seo_max = $seo_query ? max(1, (int) $seo_query->max_num_pages) : 1;
                     <tbody>
                     <?php while ($seo_query->have_posts()): $seo_query->the_post(); $pid = get_the_ID();
                         $saved_robots = (array)(get_post_meta($pid, '_evoke_seo_robots', true) ?: []);
+                        /* Nazwa dostępna pól wiersza niesie tytuł wpisu: pól „Tytuł SEO"
+                           jest na ekranie tyle, ile wierszy, a czytnik bez tego mówił przy
+                           każdym to samo. Tytuł bez znaczników i encji z wptexturize —
+                           esc_attr() niżej zakodowałby je drugi raz. */
+                        $seo_wpis = trim(wp_strip_all_tags(html_entity_decode(get_the_title($pid), ENT_QUOTES, 'UTF-8'))) ?: 'ID ' . $pid;
                     ?>
                     <tr class="evoke-seo-row" data-id="<?php echo esc_attr($pid); ?>">
                         <td>
@@ -123,9 +128,9 @@ $seo_max = $seo_query ? max(1, (int) $seo_query->max_num_pages) : 1;
                         </td>
                         <td>
                             <div class="evoke-seo-fields">
-                                <input type="text" class="evoke-seo-title"    value="<?php echo esc_attr(get_post_meta($pid,'_evoke_seo_title',true)); ?>" placeholder="Tytuł SEO...">
-                                <textarea class="evoke-seo-desc" rows="2" placeholder="Opis SEO..."><?php echo esc_textarea(get_post_meta($pid,'_evoke_seo_desc',true)); ?></textarea>
-                                <input type="text" class="evoke-seo-keywords" value="<?php echo esc_attr(get_post_meta($pid,'_evoke_seo_keywords',true)); ?>" placeholder="Słowa kluczowe...">
+                                <input type="text" class="evoke-seo-title"    aria-label="<?php echo esc_attr('Tytuł SEO: ' . $seo_wpis); ?>" value="<?php echo esc_attr(get_post_meta($pid,'_evoke_seo_title',true)); ?>" placeholder="Tytuł SEO...">
+                                <textarea class="evoke-seo-desc" rows="2" aria-label="<?php echo esc_attr('Opis SEO: ' . $seo_wpis); ?>" placeholder="Opis SEO..."><?php echo esc_textarea(get_post_meta($pid,'_evoke_seo_desc',true)); ?></textarea>
+                                <input type="text" class="evoke-seo-keywords" aria-label="<?php echo esc_attr('Słowa kluczowe: ' . $seo_wpis); ?>" value="<?php echo esc_attr(get_post_meta($pid,'_evoke_seo_keywords',true)); ?>" placeholder="Słowa kluczowe...">
                                 <button type="button" class="button button-primary evoke-save-seo evk-seo-save-inline evo-mt-xs">Zapisz</button>
                             </div>
                         </td>

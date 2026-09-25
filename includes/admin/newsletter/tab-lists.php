@@ -58,7 +58,7 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
             <div class="evk-nl-card-body">
                 <input type="hidden" id="evk-nl-list-id" value="0">
                 <p class="evk-nl-h-sm" id="evk-nl-list-form-title">Nowa lista</p>
-                <label class="evk-nl-label">Nazwa listy</label>
+                <label class="evk-nl-label" for="evk-nl-list-name">Nazwa listy</label>
                 <input type="text" id="evk-nl-list-name" class="evo-w-full" placeholder="np. Klienci 2025">
 
                 <div class="evo-inline" style="--evo-gap:6px">
@@ -94,7 +94,7 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
                 <div class="evk-nl-card-body">
                     <p class="evk-nl-h-sm">Edytuj listę</p>
                     <input type="hidden" id="evk-nl-edit-id" value="">
-                    <label class="evk-nl-label">Nazwa listy</label>
+                    <label class="evk-nl-label" for="evk-nl-edit-name">Nazwa listy</label>
                     <input type="text" id="evk-nl-edit-name" class="evo-w-full" style="margin-bottom:10px;">
 
                     <div class="evo-inline" style="--evo-gap:6px">
@@ -158,9 +158,9 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
             <!-- Toolbar subskrybentów -->
             <div class="evk-nl-card-body evk-nl-hr" style="padding-bottom:10px">
                 <div class="evo-inline" style="--evo-gap:8px;flex-wrap:wrap">
-                    <input type="text" id="evk-nl-sub-search" placeholder="Szukaj email..."
+                    <input type="text" id="evk-nl-sub-search" aria-label="Szukaj subskrybenta po e-mailu" placeholder="Szukaj email..."
                            class="evo-grow regular-text" style="min-width:140px">
-                    <select id="evk-nl-sub-status-filter" class="evo-hint">
+                    <select id="evk-nl-sub-status-filter" class="evo-hint" aria-label="Filtr statusu subskrybentów">
                         <option value="">Wszyscy</option>
                         <option value="1">Aktywni</option>
                         <option value="0">Wypisani</option>
@@ -186,7 +186,7 @@ $base_url    = add_query_arg('subtab', 'lists', evk_nl_base_url());
             <!-- Bulk bar -->
             <div class="evk-nl-bulk-bar evk-nl-card-body evk-nl-hr" id="evk-nl-bulk-bar">
                 <span id="evk-nl-bulk-count" class="evo-hint evo-accent-tx" style="font-weight:600"></span>
-                <select id="evk-nl-bulk-action" class="evo-hint">
+                <select id="evk-nl-bulk-action" class="evo-hint" aria-label="Akcja dla zaznaczonych">
                     <option value="">— akcja —</option>
                     <option value="unsubscribe">Wypisz</option>
                     <option value="reactivate">Reaktywuj</option>
@@ -452,29 +452,31 @@ jQuery(function($) {
             $('#evk-nl-sub-count').text(d.total+' subskrybentów');
             if (!d.items.length) { $('#evk-nl-subscribers-table').html('<p class="evo-faint" style="padding:12px 0">Brak subskrybentów.</p>'); $('#evk-nl-sub-pagination').empty(); return; }
             var html = '<table class="evk-nl-tbl"><thead><tr>' +
-                '<th style="width:28px;"><input type="checkbox" id="evk-nl-check-all"></th>' +
+                '<th style="width:28px;"><input type="checkbox" id="evk-nl-check-all" aria-label="Zaznacz wszystkich na tej stronie"></th>' +
                 '<th>Email</th>' +
                 '<th style="width:80px;" class="evk-col-hide">Status</th>' +
                 '<th style="width:80px;" class="evk-col-hide">Data</th>' +
                 '<th style="width:36px;"></th>' +
                 '</tr></thead><tbody>';
+            // Adres w atrybucie: esc() nie koduje cudzysłowu.
+            var escA = function (t) { return esc(t).replace(/"/g, '&quot;'); };
             d.items.forEach(function(s) {
                 var active = parseInt(s.status)===1;
                 var etykieta = active ? '● Aktywny' : (s.wykluczenie === 'odbity' ? '● Odbity' : (s.wykluczenie ? '● Wykluczony' : '● Wypisany'));
-                html += '<tr><td><input type="checkbox" class="evk-nl-sub-cb" data-id="'+s.id+'"></td>' +
+                html += '<tr><td><input type="checkbox" class="evk-nl-sub-cb" data-id="'+s.id+'" aria-label="Zaznacz '+escA(s.email)+'"></td>' +
                     '<td><strong>'+$('<div>').text(s.email).html()+'</strong></td>' +
                     '<td class="evk-col-hide"><span class="evo-hint-sm '+(active?'evk-nl-ok':'evk-nl-err')+'">'+etykieta+'</span></td>' +
                     '<td class="evk-col-hide evo-faint">'+s.subscribed_at.substring(0,10)+'</td>' +
-                    '<td><button class="evk-nl-btn-icon evk-nl-del-sub" data-id="'+s.id+'" title="Usuń"><span class="dashicons dashicons-no-alt evo-ico-sm evo-danger-tx"></span></button></td>' +
+                    '<td><button class="evk-nl-btn-icon evk-nl-del-sub" data-id="'+s.id+'" title="Usuń subskrybenta" aria-label="Usuń '+escA(s.email)+'"><span class="dashicons dashicons-no-alt evo-ico-sm evo-danger-tx"></span></button></td>' +
                     '</tr>';
             });
             html += '</tbody></table>';
             $('#evk-nl-subscribers-table').html(html);
             var pag = '';
             if (d.pages>1) {
-                if (subPage>1) pag += '<button class="button button-small evk-nl-sub-page" data-page="'+(subPage-1)+'">‹</button> ';
-                for (var i=Math.max(1,subPage-2); i<=Math.min(d.pages,subPage+2); i++) pag += '<button class="button button-small evk-nl-sub-page'+(i===d.page?' button-primary':'')+'" data-page="'+i+'">'+i+'</button> ';
-                if (subPage<d.pages) pag += '<button class="button button-small evk-nl-sub-page" data-page="'+(subPage+1)+'">›</button>';
+                if (subPage>1) pag += '<button class="button button-small evk-nl-sub-page" data-page="'+(subPage-1)+'" aria-label="Poprzednia strona">‹</button> ';
+                for (var i=Math.max(1,subPage-2); i<=Math.min(d.pages,subPage+2); i++) pag += '<button class="button button-small evk-nl-sub-page'+(i===d.page?' button-primary':'')+'" data-page="'+i+'" aria-label="Strona '+i+'"'+(i===d.page?' aria-current="page"':'')+'>'+i+'</button> ';
+                if (subPage<d.pages) pag += '<button class="button button-small evk-nl-sub-page" data-page="'+(subPage+1)+'" aria-label="Następna strona">›</button>';
             }
             $('#evk-nl-sub-pagination').html(pag);
         });

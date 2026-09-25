@@ -30,7 +30,7 @@ $nonce     = wp_create_nonce('evk_tools_nonce');
     <div class="evo-status-actions">
         <span class="evo-toggle-label"><?php echo $enabled ? 'Włączone' : 'Wyłączone'; ?></span>
         <label class="evo-toggle">
-            <input type="checkbox"
+            <input aria-label="Przekierowania 301" type="checkbox"
                    data-option="evk_301_enabled"
                    data-field="_scalar"
                    value="1"
@@ -45,12 +45,12 @@ $nonce     = wp_create_nonce('evk_tools_nonce');
     <h3>Dodaj regułę</h3>
     <div class="evo-toolbar evo-toolbar-top evo-mb-lg">
         <div class="evo-field evo-grow evo-m0" style="--evo-min:200px">
-            <label>Z (From)</label>
+            <label for="evk-301-from">Z (From)</label>
             <input type="text" id="evk-301-from" placeholder="/stara-strona" class="evo-w-full">
             <div class="evo-desc">Relatywna ścieżka. Wildcard: <code>/stara/*</code></div>
         </div>
         <div class="evo-field evo-grow evo-m0" style="--evo-min:200px">
-            <label>Na (To)</label>
+            <label for="evk-301-to">Na (To)</label>
             <input type="text" id="evk-301-to" placeholder="/nowa-strona lub https://..." class="evo-w-full">
         </div>
         <button type="button" class="button button-primary" id="evk-301-add" data-nonce="<?php echo esc_attr($nonce); ?>">Dodaj</button>

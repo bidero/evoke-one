@@ -20,7 +20,7 @@ $detected = EVK_Fonts::detect_local_fonts();
                     <div class="evo-status-actions">
                         <span class="evo-toggle-label"><?php echo !empty($f['enabled']) ? 'Włączona' : 'Wyłączona'; ?></span>
                         <label class="evo-toggle">
-                            <input type="checkbox" data-option="evk_fonts" data-field="enabled" value="1" <?php checked(!empty($f['enabled'])); ?>>
+                            <input aria-label="Optymalizacja czcionek" type="checkbox" data-option="evk_fonts" data-field="enabled" value="1" <?php checked(!empty($f['enabled'])); ?>>
                             <span class="evo-slider"></span>
                         </label>
                     </div>
@@ -38,8 +38,8 @@ $detected = EVK_Fonts::detect_local_fonts();
                 <div class="evo-box">
                     <h3>Pliki czcionek do preload</h3>
                     <div class="evo-field">
-                        <label>URL-e plików .woff2 / .woff (jeden na linię)<span class="evo-tip" tabindex="0" role="note" data-tip="Ścieżka względna (od „/&quot;) lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy crossorigin i właściwy typ MIME automatycznie." aria-label="Ścieżka względna (od „/&quot;) lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy crossorigin i właściwy typ MIME automatycznie.">?</span></label>
-                        <textarea name="evk_fonts[preload]" rows="5" class="evo-mono evo-tbl-sm evo-w" style="--evo-w:640px" placeholder="/wp-content/uploads/fonts/inter-regular.woff2&#10;/wp-content/uploads/fonts/inter-600.woff2"><?php echo esc_textarea($f['preload']); ?></textarea>
+                        <label for="evo-f-evk_fonts-preload">URL-e plików .woff2 / .woff (jeden na linię)<span class="evo-tip" tabindex="0" role="note" data-tip="Ścieżka względna (od „/&quot;) lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy crossorigin i właściwy typ MIME automatycznie." aria-label="Ścieżka względna (od „/&quot;) lub pełny URL. Obsługiwane: woff2, woff, ttf, otf — najlepiej woff2. Dokleimy crossorigin i właściwy typ MIME automatycznie.">?</span></label>
+                        <textarea id="evo-f-evk_fonts-preload" name="evk_fonts[preload]" rows="5" class="evo-mono evo-tbl-sm evo-w" style="--evo-w:640px" placeholder="/wp-content/uploads/fonts/inter-regular.woff2&#10;/wp-content/uploads/fonts/inter-600.woff2"><?php echo esc_textarea($f['preload']); ?></textarea>
                         
                     </div>
 
@@ -80,8 +80,8 @@ $detected = EVK_Fonts::detect_local_fonts();
                     <h3>Preconnect (opcjonalnie)</h3>
                     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Tylko jeśli czcionki są serwowane z <strong>zewnętrznego</strong> hosta/CDN (nie z Twojej domeny). Dla w pełni lokalnych czcionek zostaw puste.</div></details>
                     <div class="evo-field">
-                        <label>Hosty do preconnect (jeden na linię)</label>
-                        <textarea name="evk_fonts[preconnect]" rows="2" class="evo-mono evo-tbl-sm evo-w" style="--evo-w:480px" placeholder="https://fonts.gstatic.com"><?php echo esc_textarea($f['preconnect']); ?></textarea>
+                        <label for="evo-f-evk_fonts-preconnect">Hosty do preconnect (jeden na linię)</label>
+                        <textarea id="evo-f-evk_fonts-preconnect" name="evk_fonts[preconnect]" rows="2" class="evo-mono evo-tbl-sm evo-w" style="--evo-w:480px" placeholder="https://fonts.gstatic.com"><?php echo esc_textarea($f['preconnect']); ?></textarea>
                     </div>
 
                 

@@ -201,7 +201,7 @@ if (!defined('ABSPATH')) exit;
                                 <?php foreach ($sm_kotwice as $sm_kotwica): ?>
                                 <div class="evk-map-anchor">
                                     <span class="evk-map-hash">#</span>
-                                    <input type="text" class="tl-sm-anchor" value="<?php echo esc_attr($sm_kotwica); ?>" placeholder="desery">
+                                    <input type="text" class="tl-sm-anchor" aria-label="Kotwica" value="<?php echo esc_attr($sm_kotwica); ?>" placeholder="desery">
                                     <button type="button" class="button evk-map-anchor-remove" title="Usuń kotwicę" aria-label="Usuń kotwicę"><span class="dashicons dashicons-no-alt"></span></button>
                                 </div>
                                 <?php endforeach; ?>
@@ -238,7 +238,7 @@ if (!defined('ABSPATH')) exit;
                             <div class="evk-map-anchors">
                                 <div class="evk-map-anchor">
                                     <span class="evk-map-hash">#</span>
-                                    <input type="text" class="tl-sm-anchor" value="" placeholder="desery">
+                                    <input type="text" class="tl-sm-anchor" aria-label="Kotwica" value="" placeholder="desery">
                                     <button type="button" class="button evk-map-anchor-remove" title="Usuń kotwicę" aria-label="Usuń kotwicę"><span class="dashicons dashicons-no-alt"></span></button>
                                 </div>
                             </div>
@@ -249,7 +249,7 @@ if (!defined('ABSPATH')) exit;
                     <template id="tl-sm-anchor-tpl">
                         <div class="evk-map-anchor">
                             <span class="evk-map-hash">#</span>
-                            <input type="text" class="tl-sm-anchor" value="" placeholder="napoje">
+                            <input type="text" class="tl-sm-anchor" aria-label="Kotwica" value="" placeholder="napoje">
                             <button type="button" class="button evk-map-anchor-remove" title="Usuń kotwicę" aria-label="Usuń kotwicę"><span class="dashicons dashicons-no-alt"></span></button>
                         </div>
                     </template>

@@ -19,7 +19,7 @@ $tc = EVK_Theme_Color::get_instance()->get_settings();
                     <div class="evo-status-actions">
                         <span class="evo-toggle-label"><?php echo !empty($tc['enabled']) ? 'Włączone' : 'Wyłączone'; ?></span>
                         <label class="evo-toggle">
-                            <input type="checkbox" data-option="evk_theme_color" data-field="enabled" value="1" <?php checked(!empty($tc['enabled'])); ?>>
+                            <input aria-label="Kolor pasków przeglądarki" type="checkbox" data-option="evk_theme_color" data-field="enabled" value="1" <?php checked(!empty($tc['enabled'])); ?>>
                             <span class="evo-slider"></span>
                         </label>
                     </div>
@@ -51,11 +51,11 @@ $tc = EVK_Theme_Color::get_instance()->get_settings();
                         ];
                         foreach ($pola as $key => $label): ?>
                         <div class="evo-field">
-                            <label><?php echo esc_html($label); ?></label>
+                            <label for="evo-f-evk_theme_color-<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></label>
                             <div class="evo-color-row">
-                                <input type="color" value="<?php echo esc_attr($tc[$key] ?: '#ffffff'); ?>"
+                                <input type="color" aria-label="<?php echo esc_attr($label . ' — próbnik'); ?>" value="<?php echo esc_attr($tc[$key] ?: '#ffffff'); ?>"
                                     oninput="this.nextElementSibling.value=this.value">
-                                <input type="text" name="evk_theme_color[<?php echo $key; ?>]"
+                                <input type="text" id="evo-f-evk_theme_color-<?php echo esc_attr($key); ?>" name="evk_theme_color[<?php echo $key; ?>]"
                                     value="<?php echo esc_attr($tc[$key]); ?>"
                                     oninput="var v=this.value;if(/^#[0-9a-fA-F]{3,6}$/.test(v))this.previousElementSibling.value=v;"
                                     class="evo-mono evo-w-hex">

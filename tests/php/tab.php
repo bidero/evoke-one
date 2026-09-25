@@ -231,6 +231,10 @@ function get_the_title($p = 0) {
     return $GLOBALS['posts'][$id]['title'] ?? 'Bez tytułu';
 }
 function get_the_ID() { return $GLOBALS['cur_post'] ?? 0; }
+// Tabela meta SEO składa z tytułu wpisu nazwy dostępne pól wiersza (1.237.0).
+if (!function_exists('wp_strip_all_tags')) {
+    function wp_strip_all_tags($s, $br = false) { return trim(strip_tags((string) $s)); }
+}
 function the_title() { echo esc_html(get_the_title()); }
 function the_permalink() { echo 'https://example.test/wpis'; }
 function get_permalink($p = 0) { return 'https://example.test/wpis'; }
@@ -304,6 +308,8 @@ function wp_editor($content, $id, $settings = []) {
  * zakładek są ekranami listowymi. */
 $GLOBALS['wpdb'] = new class {
     public $prefix = 'wp_';
+    // Snippety → tryb zaawansowany czytają swój kod wprost z tabeli opcji.
+    public $options = 'wp_options';
     /** @var array<string, array<int, array<string, mixed>>> */
     public $seed = [];
 
@@ -383,7 +389,9 @@ if (!function_exists('trailingslashit'))     { function trailingslashit($s) { re
 if (!function_exists('wp_dropdown_pages')) {
     function wp_dropdown_pages($args = []) {
         $name = is_array($args) ? ($args['name'] ?? 'page_id') : $args;
-        echo '<select name="' . $name . '"><option value="0">— wybierz —</option>'
+        // Jak rdzeń: `id` z argumentu, a bez niego — nazwa pola.
+        $id = is_array($args) && !empty($args['id']) ? $args['id'] : $name;
+        echo '<select name="' . $name . '" id="' . $id . '"><option value="0">— wybierz —</option>'
            . '<option value="11">Strona główna</option></select>';
     }
 }

@@ -18,7 +18,7 @@ $tl_url         = function_exists('tl_base_url') ? tl_base_url() : admin_url('op
     </div>
     <div class="evo-status-actions">
         <label class="evo-toggle">
-            <input type="checkbox"
+            <input aria-label="Moduł tłumaczeń" type="checkbox"
                    data-option="evk_tl_module_enabled"
                    data-field="_scalar"
                    value="1"
@@ -38,7 +38,7 @@ $tl_url         = function_exists('tl_base_url') ? tl_base_url() : admin_url('op
     </div>
     <div class="evo-status-actions">
         <label class="evo-toggle">
-            <input type="checkbox"
+            <input aria-label="Edytor inline (FAB)" type="checkbox"
                    data-option="evk_tl_fab_enabled"
                    data-field="_scalar"
                    value="1"

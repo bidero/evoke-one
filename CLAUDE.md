@@ -60,6 +60,27 @@ Wpadło dwa razy: kopie zapasowe (stąd reguła w `admin.css` przy
 wierszu (1.234.1). `hidden` daje się na element bez klasy układu, a klasę
 na jego dziecko.
 
+### Nowa kontrolka w panelu musi mieć nazwę
+
+Od 1.237.0 `tests/admin-etykiety.test.js` sprawdza, czy każda kontrolka
+panelu ma nazwę dostępną: widoczną etykietę z `for`/`id`, `aria-label`
+albo, przy przycisku i odnośniku, własny tekst. Sam placeholder i sam
+`title` się nie liczą. Trzy rzeczy, które test widzi tylko częściowo:
+
+- **Szablon wiersza z `{INDEX}`** (`<script type="text/template">`,
+  Kursor i Animator). Każde `id` i `for` w szablonie MUSI zawierać
+  `{INDEX}`. `-INDEX-` wygląda poprawnie, ale każdy dodany wiersz dostaje
+  to samo `id`, a etykieta wskazuje tylko pierwszy. Tak zrobił skrypt
+  dopinający etykiety w trakcie prac nad 1.237.0. Strażnik wstawia każdy
+  szablon dwa razy, więc to złapie.
+- **Wiersz składany w JS z łańcuchów** (`'<input …>' + …`, warstwy OG,
+  White Label, Tłumaczenia). Strażnik widzi tylko render z PHP i szablony.
+  W takim wierszu daj `aria-label` albo `for`/`id`, a sprawdzenie dopisz
+  w teście modułu, jak warstwa z przycisku w `og-layers`.
+- **Nowy ekran z własną sondą.** Dopisz go do `EKRANY` w teście. Lista
+  zakładek w `tests/lib/zakladki-panelu.js` obejmuje tylko to, co
+  renderuje `tests/php/tab.php`.
+
 ---
 
 ## Testy: co kosztuje, a co jest darmowe
@@ -121,7 +142,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (96 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (97 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```

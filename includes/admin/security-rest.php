@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) exit;
         </div>
         <div class="evo-status-actions">
             <label class="evo-toggle">
-                <input type="checkbox" name="evk_security[rest_block_all]" data-option="evk_security" data-field="rest_block_all" value="1" <?php checked(1, $evk_sec['rest_block_all'] ?? 0); ?>>
+                <input aria-label="Zablokuj cały REST API dla gości" type="checkbox" name="evk_security[rest_block_all]" data-option="evk_security" data-field="rest_block_all" value="1" <?php checked(1, $evk_sec['rest_block_all'] ?? 0); ?>>
                 <span class="evo-slider"></span>
             </label>
         </div>

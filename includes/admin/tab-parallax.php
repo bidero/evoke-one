@@ -18,7 +18,7 @@ $par_enabled  = !empty($parallax_opt['enabled']);
     <div class="evo-status-actions">
         <span class="evo-toggle-label"><?php echo $par_enabled ? 'Włączony' : 'Wyłączony'; ?></span>
         <label class="evo-toggle">
-            <input type="checkbox"
+            <input aria-label="Parallax" type="checkbox"
                    data-option="evk_parallax"
                    data-field="enabled"
                    value="1"
@@ -36,7 +36,7 @@ $par_enabled  = !empty($parallax_opt['enabled']);
                     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Użyj <code>{evk_parallax}</code> i <code>{evk_parallax_scale}</code> w atrybutach elementów Bricks Builder lub jako <code>data-parallax</code> / <code>data-skala</code> na dowolnym elemencie HTML.</div></details>
 
                     <div class="evo-field">
-                        <label>Intensywność parallax</label>
+                        <label for="evk_parallax_value">Intensywność parallax</label>
                         <div class="evo-slider-wrap">
                             <div class="evo-slider-track">
                                 <div class="evo-slider-fill" id="fill-parallax"></div>
@@ -49,7 +49,7 @@ $par_enabled  = !empty($parallax_opt['enabled']);
                     </div>
 
                     <div class="evo-field">
-                        <label>Skalowanie obrazu</label>
+                        <label for="evk_parallax_scale">Skalowanie obrazu</label>
                         <div class="evo-slider-wrap">
                             <div class="evo-slider-track">
                                 <div class="evo-slider-fill" id="fill-scale"></div>

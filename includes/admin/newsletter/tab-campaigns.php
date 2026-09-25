@@ -38,12 +38,12 @@ $status_labels = [
 
     <div class="evk-nl-grid2">
         <div>
-            <label class="evk-nl-label">Nazwa kampanii</label>
+            <label class="evk-nl-label" for="evk-nl-camp-name">Nazwa kampanii</label>
             <input type="text" id="evk-nl-camp-name" class="evo-w-full"
                    value="<?php echo esc_attr($edit_camp['name'] ?? ''); ?>"
                    placeholder="np. Newsletter Czerwiec 2025">
 
-            <label class="evk-nl-label evk-nl-label-mt">Szablon</label>
+            <label class="evk-nl-label evk-nl-label-mt" for="evk-nl-camp-template">Szablon</label>
             <select id="evk-nl-camp-template" class="evo-w-full">
                 <option value="">— wybierz szablon —</option>
                 <?php foreach ($templates as $t): ?>
@@ -53,7 +53,7 @@ $status_labels = [
                 <?php endforeach; ?>
             </select>
 
-            <label class="evk-nl-label evk-nl-label-mt">Data wysyłki (opcjonalnie)</label>
+            <label class="evk-nl-label evk-nl-label-mt" for="evk-nl-camp-scheduled">Data wysyłki (opcjonalnie)</label>
             <input type="datetime-local" id="evk-nl-camp-scheduled" class="evo-w-full"
                    value="<?php echo esc_attr($camp_scheduled ? date('Y-m-d\TH:i', strtotime($camp_scheduled)) : ''); ?>">
         </div>
@@ -76,12 +76,12 @@ $status_labels = [
 
             <div class="evk-nl-grid2" style="--evo-gap:10px;margin-top:12px">
                 <div>
-                    <label class="evk-nl-label">Batch: <span id="evk-nl-batch-val"><?php echo $camp_batch; ?></span></label>
+                    <label class="evk-nl-label" for="evk-nl-batch-size">Batch: <span id="evk-nl-batch-val"><?php echo $camp_batch; ?></span></label>
                     <input type="range" id="evk-nl-batch-size" min="5" max="500" step="5"
                            value="<?php echo $camp_batch; ?>" style="width:100%;">
                 </div>
                 <div>
-                    <label class="evk-nl-label">Przerwa (min): <span id="evk-nl-interval-val"><?php echo $camp_interval; ?></span></label>
+                    <label class="evk-nl-label" for="evk-nl-batch-interval">Przerwa (min): <span id="evk-nl-interval-val"><?php echo $camp_interval; ?></span></label>
                     <input type="range" id="evk-nl-batch-interval" min="1" max="60"
                            value="<?php echo $camp_interval; ?>" style="width:100%;">
                 </div>
@@ -123,7 +123,7 @@ $status_labels = [
 <div class="evk-nl-card is-padded">
     <div class="evk-nl-row-between evk-nl-row-flush evo-mb-sm">
         <h3 class="evk-nl-h-lg">Wszystkie kampanie</h3>
-        <select id="evk-nl-camp-status-filter" class="evo-hint">
+        <select id="evk-nl-camp-status-filter" class="evo-hint" aria-label="Filtr statusu kampanii">
             <option value="">Wszystkie statusy</option>
             <option value="draft">Szkice</option>
             <option value="scheduled">Zaplanowane</option>
@@ -135,7 +135,7 @@ $status_labels = [
 
     <div class="evk-nl-bulk-bar" id="evk-nl-camp-bulk-bar">
         <span id="evk-nl-camp-bulk-count" class="evo-hint evo-accent-tx" style="font-weight:600"></span>
-        <select id="evk-nl-camp-bulk-action" class="evo-hint">
+        <select id="evk-nl-camp-bulk-action" class="evo-hint" aria-label="Akcja dla zaznaczonych">
             <option value="">— akcja —</option>
             <option value="delete">Usuń zaznaczone</option>
             <option value="clear_logs">Wyczyść logi</option>
@@ -151,7 +151,7 @@ $status_labels = [
         <table class="evk-nl-tbl" id="evk-nl-camp-table">
             <thead>
                 <tr>
-                    <th style="width:28px;"><input type="checkbox" id="evk-nl-camp-check-all"></th>
+                    <th style="width:28px;"><input type="checkbox" id="evk-nl-camp-check-all" aria-label="Zaznacz wszystkie kampanie"></th>
                     <th>Nazwa</th>
                     <th style="width:95px;">Status</th>
                     <th style="width:80px;" class="evk-col-hide">Postęp</th>
@@ -169,7 +169,7 @@ $status_labels = [
                     $view_url = add_query_arg(['evk_nl' => 'view', 'evk_nl_campaign' => (int) $c['id']], home_url('/'));
                 ?>
                 <tr data-id="<?php echo (int) $c['id']; ?>" data-status="<?php echo esc_attr($c['status']); ?>">
-                    <td><input type="checkbox" class="evk-nl-camp-cb" data-id="<?php echo (int) $c['id']; ?>"></td>
+                    <td><input type="checkbox" class="evk-nl-camp-cb" data-id="<?php echo (int) $c['id']; ?>" aria-label="<?php echo esc_attr('Zaznacz: ' . $c['name']); ?>"></td>
                     <td>
                         <a href="<?php echo esc_url($edit_url); ?>"
                            class="evk-nl-name"
@@ -195,19 +195,19 @@ $status_labels = [
                     </td>
                     <td>
                         <div class="evo-inline" style="--evo-gap:3px">
-                            <a href="<?php echo esc_url($rep_url); ?>" class="evk-nl-btn-icon" title="Raport">
+                            <a href="<?php echo esc_url($rep_url); ?>" class="evk-nl-btn-icon" title="Raport" aria-label="<?php echo esc_attr('Raport: ' . $c['name']); ?>">
                                 <span class="dashicons dashicons-chart-bar"></span>
                             </a>
-                            <button class="evk-nl-btn-icon evk-nl-preview" data-url="<?php echo esc_url($view_url); ?>" title="Podgląd">
+                            <button class="evk-nl-btn-icon evk-nl-preview" data-url="<?php echo esc_url($view_url); ?>" title="Podgląd" aria-label="<?php echo esc_attr('Podgląd: ' . $c['name']); ?>">
                                 <span class="dashicons dashicons-visibility"></span>
                             </button>
-                            <button class="evk-nl-btn-icon evk-nl-recipients" data-id="<?php echo (int) $c['id']; ?>" data-name="<?php echo esc_attr($c['name']); ?>" title="Odbiorcy">
+                            <button class="evk-nl-btn-icon evk-nl-recipients" data-id="<?php echo (int) $c['id']; ?>" data-name="<?php echo esc_attr($c['name']); ?>" title="Odbiorcy" aria-label="<?php echo esc_attr('Odbiorcy: ' . $c['name']); ?>">
                                 <span class="dashicons dashicons-groups"></span>
                             </button>
-                            <button class="evk-nl-btn-icon evk-nl-clear-logs" data-id="<?php echo (int) $c['id']; ?>" title="Wyczyść logi">
+                            <button class="evk-nl-btn-icon evk-nl-clear-logs" data-id="<?php echo (int) $c['id']; ?>" title="Wyczyść logi" aria-label="<?php echo esc_attr('Wyczyść logi: ' . $c['name']); ?>">
                                 <span class="dashicons dashicons-trash evk-nl-warn"></span>
                             </button>
-                            <button class="evk-nl-btn-icon evk-nl-del-camp" data-id="<?php echo (int) $c['id']; ?>" title="Usuń">
+                            <button class="evk-nl-btn-icon evk-nl-del-camp" data-id="<?php echo (int) $c['id']; ?>" title="Usuń" aria-label="<?php echo esc_attr('Usuń kampanię: ' . $c['name']); ?>">
                                 <span class="dashicons dashicons-no-alt evo-danger-tx"></span>
                             </button>
                         </div>

@@ -27,7 +27,7 @@ if ($selected_page_id) {
                 <div class="evo-status-actions">
                     <span class="evo-toggle-label"><?php echo $status ? 'Włączony' : 'Wyłączony'; ?></span>
                     <label class="evo-toggle">
-                        <input type="checkbox" data-option="maintenance_mode" data-field="_scalar" value="1" <?php checked(1, $status); ?>>
+                        <input type="checkbox" aria-label="Tryb konserwacji" data-option="maintenance_mode" data-field="_scalar" value="1" <?php checked(1, $status); ?>>
                         <span class="evo-slider"></span>
                     </label>
                 </div>
@@ -43,8 +43,8 @@ if ($selected_page_id) {
                     <h3>Strona konserwacji</h3>
                     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">W czasie konserwacji wybrana strona wyświetla się pod każdym adresem, bez przekierowań, z kodem 503 — wyszukiwarka wie, że to przerwa, i wraca później. Poza konserwacją widzą ją tylko zalogowani: dla pozostałych to 404, a w mapie strony jej nie ma.</div></details>
                     <div class="evo-field">
-                        <label>Wybierz stronę</label>
-                        <select name="maintenance_page_id">
+                        <label for="evo-f-maintenance_page_id">Wybierz stronę</label>
+                        <select id="evo-f-maintenance_page_id" name="maintenance_page_id">
                             <option value="0">— wybierz stronę —</option>
                             <?php foreach ($pages as $page): ?>
                             <option value="<?php echo $page->ID; ?>" <?php selected($selected_page_id, $page->ID); ?>><?php echo esc_html($page->post_title); ?> (ID: <?php echo $page->ID; ?>)</option>
@@ -60,7 +60,7 @@ if ($selected_page_id) {
                 <div class="evo-box">
                     <h3>Bypass przez URL</h3>
                     <div class="evo-field">
-                        <label>Klucz dostępu (hasło bypass)</label>
+                        <label for="evk-wpm-klucz">Klucz dostępu (hasło bypass)</label>
                         <div class="evo-inline" style="--evo-gap:8px">
                             <input type="text" id="evk-wpm-klucz" name="maintenance_bypass_password" value="<?php echo esc_attr($bypass_pass); ?>" placeholder="np. podglad2025" autocomplete="off">
                             <?php /* Kandydat losowany przy renderowaniu strony — przycisk tylko go
@@ -87,9 +87,9 @@ if ($selected_page_id) {
                         </div></details>
                     </div>
                     <div class="evo-field">
-                        <label>Czas trwania sesji bypass</label>
+                        <label for="evo-f-maintenance_bypass_hours">Czas trwania sesji bypass</label>
                         <div class="evo-inline" style="--evo-gap:10px">
-                            <input type="number" name="maintenance_bypass_hours" value="<?php echo esc_attr($bypass_hours); ?>" min="1" max="8760">
+                            <input id="evo-f-maintenance_bypass_hours" type="number" name="maintenance_bypass_hours" value="<?php echo esc_attr($bypass_hours); ?>" min="1" max="8760">
                             <span class="evo-note-tx">godzin(y)</span>
                         </div>
                         <div class="evo-desc">Maksimum: 8760 (1 rok).</div>
@@ -101,8 +101,8 @@ if ($selected_page_id) {
                     <h3>Wyjątki — ścieżki URL</h3>
                     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Jeśli używasz niestandardowej strony logowania, dodaj jej slug do listy.</div></details>
                     <div class="evo-field">
-                        <label>Ścieżki pominięte przez konserwację</label>
-                        <textarea name="maintenance_excluded_paths"><?php echo esc_textarea($excluded_paths); ?></textarea>
+                        <label for="evo-f-maintenance_excluded_paths">Ścieżki pominięte przez konserwację</label>
+                        <textarea id="evo-f-maintenance_excluded_paths" name="maintenance_excluded_paths"><?php echo esc_textarea($excluded_paths); ?></textarea>
                         <div class="evo-desc">Jedna ścieżka na linię, zaczynająca się od <code>/</code>. Dopasowanie <strong>do całego segmentu, od początku adresu</strong>: <code>/podglad</code> przepuszcza <code>/podglad</code> i <code>/podglad/cokolwiek</code>, ale nie <code>/podglad-produktu</code> ani <code>/sklep/podglad</code>.</div>
                         <div class="evo-paths-preview">
                             <span class="evo-path-hardcoded">/wp-login.php ← zawsze</span><br>

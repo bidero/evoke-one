@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="evo-status-actions">
                         <span class="evo-toggle-label"><?php echo !empty($bg['enabled']) ? 'Włączone' : 'Wyłączone'; ?></span>
                         <label class="evo-toggle">
-                            <input type="checkbox" data-option="evk_bgshift" data-field="enabled" value="1" <?php checked(!empty($bg['enabled'])); ?>>
+                            <input aria-label="Tło przy scrollu" type="checkbox" data-option="evk_bgshift" data-field="enabled" value="1" <?php checked(!empty($bg['enabled'])); ?>>
                             <span class="evo-slider"></span>
                         </label>
                     </div>
@@ -49,18 +49,18 @@ if (!defined('ABSPATH')) exit;
                     <h3>Przejście</h3>
                     <div class="evo-grid evo-mb-lg" style="--evo-col:220px;--evo-gap:16px">
                         <div class="evo-field evo-mb-0">
-                            <label>Długość przejścia</label>
-                            <input type="number" name="evk_bgshift[length]" value="<?php echo esc_attr($bg['length']); ?>" min="0.1" max="1" step="0.05">
+                            <label for="evo-f-evk_bgshift-length">Długość przejścia</label>
+                            <input id="evo-f-evk_bgshift-length" type="number" name="evk_bgshift[length]" value="<?php echo esc_attr($bg['length']); ?>" min="0.1" max="1" step="0.05">
                             <div class="evo-desc">Jaką część wysokości ekranu zajmuje zmiana koloru. 1.0 = pełny widok, 0.3 = szybka zmiana tuż przy granicy sekcji.</div>
                         </div>
                         <div class="evo-field evo-mb-0">
-                            <label>Początek przejścia (%)<span class="evo-tip" tabindex="0" role="note" data-tip="Na jakiej wysokości ekranu nadchodząca sekcja przejmuje tło. 100 = w chwili, gdy jej górna krawędź wjeżdża od dołu. Mniej = zmiana następuje później, gdy sekcja jest już wyżej. Pojedynczą sekcję można nadpisać, wpisując liczbę w polu „Przenikaj tło przy scrollu&quot; w Bricks." aria-label="Na jakiej wysokości ekranu nadchodząca sekcja przejmuje tło. 100 = w chwili, gdy jej górna krawędź wjeżdża od dołu. Mniej = zmiana następuje później, gdy sekcja jest już wyżej. Pojedynczą sekcję można nadpisać, wpisując liczbę w polu „Przenikaj tło przy scrollu&quot; w Bricks.">?</span></label>
-                            <input type="number" name="evk_bgshift[start]" value="<?php echo esc_attr($bg['start']); ?>" min="0" max="200" step="5">
+                            <label for="evo-f-evk_bgshift-start">Początek przejścia (%)<span class="evo-tip" tabindex="0" role="note" data-tip="Na jakiej wysokości ekranu nadchodząca sekcja przejmuje tło. 100 = w chwili, gdy jej górna krawędź wjeżdża od dołu. Mniej = zmiana następuje później, gdy sekcja jest już wyżej. Pojedynczą sekcję można nadpisać, wpisując liczbę w polu „Przenikaj tło przy scrollu&quot; w Bricks." aria-label="Na jakiej wysokości ekranu nadchodząca sekcja przejmuje tło. 100 = w chwili, gdy jej górna krawędź wjeżdża od dołu. Mniej = zmiana następuje później, gdy sekcja jest już wyżej. Pojedynczą sekcję można nadpisać, wpisując liczbę w polu „Przenikaj tło przy scrollu&quot; w Bricks.">?</span></label>
+                            <input id="evo-f-evk_bgshift-start" type="number" name="evk_bgshift[start]" value="<?php echo esc_attr($bg['start']); ?>" min="0" max="200" step="5">
                             
                         </div>
                         <div class="evo-field evo-mb-0">
-                            <label>Wygładzanie (s)</label>
-                            <input type="number" name="evk_bgshift[smooth]" value="<?php echo esc_attr($bg['smooth']); ?>" min="0" max="2" step="0.1">
+                            <label for="evo-f-evk_bgshift-smooth">Wygładzanie (s)</label>
+                            <input id="evo-f-evk_bgshift-smooth" type="number" name="evk_bgshift[smooth]" value="<?php echo esc_attr($bg['smooth']); ?>" min="0" max="2" step="0.1">
                             <div class="evo-desc">Opóźnienie, z jakim kolor dogania scroll. 0 = przykleja się do przewijania klatka w klatkę.</div>
                         </div>
                     </div>
@@ -84,17 +84,17 @@ if (!defined('ABSPATH')) exit;
                     </p>
                     <div class="evo-grid" style="--evo-col:220px;--evo-gap:16px">
                         <div class="evo-field evo-mb-0">
-                            <label>Litery na ciemnym tle</label>
-                            <input type="text" name="evk_bgshift[text_light]" value="<?php echo esc_attr($bg['text_light']); ?>" placeholder="#ffffff" class="evo-mono evo-w-hex">
+                            <label for="evo-f-evk_bgshift-text_light">Litery na ciemnym tle</label>
+                            <input id="evo-f-evk_bgshift-text_light" type="text" name="evk_bgshift[text_light]" value="<?php echo esc_attr($bg['text_light']); ?>" placeholder="#ffffff" class="evo-mono evo-w-hex">
                         </div>
                         <div class="evo-field evo-mb-0">
-                            <label>Litery na jasnym tle</label>
-                            <input type="text" name="evk_bgshift[text_dark]" value="<?php echo esc_attr($bg['text_dark']); ?>" placeholder="#111111" class="evo-mono evo-w-hex">
+                            <label for="evo-f-evk_bgshift-text_dark">Litery na jasnym tle</label>
+                            <input id="evo-f-evk_bgshift-text_dark" type="text" name="evk_bgshift[text_dark]" value="<?php echo esc_attr($bg['text_dark']); ?>" placeholder="#111111" class="evo-mono evo-w-hex">
                         </div>
                     </div>
                     <div class="evo-field evo-mt">
-                        <label>Zasięg koloru liter</label>
-                        <select name="evk_bgshift[text_scope]">
+                        <label for="evo-f-evk_bgshift-text_scope">Zasięg koloru liter</label>
+                        <select id="evo-f-evk_bgshift-text_scope" name="evk_bgshift[text_scope]">
                             <option value="wszystko" <?php selected(($bg['text_scope'] ?? 'wszystko'), 'wszystko'); ?>>
                                 Wszystkie teksty w sekcji — także te z własnym kolorem (domyślnie)
                             </option>

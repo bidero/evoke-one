@@ -28,7 +28,7 @@ $transport = function_exists('evk_nl_ostrzezenie_transportu') ? evk_nl_ostrzezen
         </div>
         <div class="evo-status-actions">
             <label class="evo-toggle">
-                <input type="checkbox" id="evk-nl-toggle" data-option="evk_newsletter" data-field="enabled" value="1" <?php checked($nl_active); ?>>
+                <input aria-label="Newsletter" type="checkbox" id="evk-nl-toggle" data-option="evk_newsletter" data-field="enabled" value="1" <?php checked($nl_active); ?>>
                 <span class="evo-slider"></span>
             </label>
         </div>

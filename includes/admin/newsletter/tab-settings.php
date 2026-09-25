@@ -41,20 +41,20 @@ $example_id = $first_list['id'] ?? 1;
 
         <div class="evk-nl-grid2 evo-mb-xs" style="--evo-gap:14px">
             <div class="evo-field" style="margin:0;">
-                <label>Klasy kontenera</label>
-                <input type="text" name="form_wrap_class" value="<?php echo esc_attr($ap['wrap']); ?>" placeholder="np. my-form">
+                <label for="evo-f-form_wrap_class">Klasy kontenera</label>
+                <input id="evo-f-form_wrap_class" type="text" name="form_wrap_class" value="<?php echo esc_attr($ap['wrap']); ?>" placeholder="np. my-form">
             </div>
             <div class="evo-field" style="margin:0;">
-                <label>Klasy pola e-mail</label>
-                <input type="text" name="form_input_class" value="<?php echo esc_attr($ap['input']); ?>" placeholder="np. form-control">
+                <label for="evo-f-form_input_class">Klasy pola e-mail</label>
+                <input id="evo-f-form_input_class" type="text" name="form_input_class" value="<?php echo esc_attr($ap['input']); ?>" placeholder="np. form-control">
             </div>
             <div class="evo-field" style="margin:0;">
-                <label>Klasy przycisku</label>
-                <input type="text" name="form_button_class" value="<?php echo esc_attr($ap['button']); ?>" placeholder="np. btn btn-primary">
+                <label for="evo-f-form_button_class">Klasy przycisku</label>
+                <input id="evo-f-form_button_class" type="text" name="form_button_class" value="<?php echo esc_attr($ap['button']); ?>" placeholder="np. btn btn-primary">
             </div>
             <div class="evo-field" style="margin:0;">
-                <label>Klasy zgody (checkbox)</label>
-                <input type="text" name="form_consent_class" value="<?php echo esc_attr($ap['consent']); ?>" placeholder="np. form-check">
+                <label for="evo-f-form_consent_class">Klasy zgody (checkbox)</label>
+                <input id="evo-f-form_consent_class" type="text" name="form_consent_class" value="<?php echo esc_attr($ap['consent']); ?>" placeholder="np. form-check">
             </div>
         </div>
 
@@ -68,8 +68,8 @@ $example_id = $first_list['id'] ?? 1;
                 <strong>wymaga skrzynki, którą monitorujesz</strong> i ręcznie/automatycznie obsługujesz prośby o wypis. Puste = tylko https (zalecane, jeśli nie masz takiej skrzynki).
             </div></details>
         <div class="evo-field" style="margin-bottom:8px;">
-            <label>Adres mailto do wypisu (opcjonalnie)</label>
-            <input type="email" name="unsub_mailto" value="<?php echo esc_attr($o['unsub_mailto'] ?? ''); ?>" placeholder="np. newsletter@twojadomena.pl" class="evo-w-xl">
+            <label for="evo-f-unsub_mailto">Adres mailto do wypisu (opcjonalnie)</label>
+            <input id="evo-f-unsub_mailto" type="email" name="unsub_mailto" value="<?php echo esc_attr($o['unsub_mailto'] ?? ''); ?>" placeholder="np. newsletter@twojadomena.pl" class="evo-w-xl">
         </div>
 
     </div>
@@ -80,45 +80,45 @@ $example_id = $first_list['id'] ?? 1;
         <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">W tekstach możesz użyć <code>{email}</code> — zostanie podmieniony na adres subskrybenta. W opisach (nie tytułach) dozwolone proste tagi: <code>&lt;strong&gt; &lt;em&gt; &lt;br&gt; &lt;a&gt;</code>.</div></details>
 
         <p class="evk-nl-sub">Formularz zapisu (komunikaty pod formularzem)</p>
-        <div class="evo-field"><label>Sukces (zapis natychmiastowy)</label>
-            <input type="text" name="form_success" value="<?php echo esc_attr($val('form_success')); ?>"></div>
-        <div class="evo-field"><label>Oczekuje na potwierdzenie (double opt-in)</label>
-            <input type="text" name="form_pending" value="<?php echo esc_attr($val('form_pending')); ?>"></div>
-        <div class="evo-field"><label>Adres już zapisany</label>
-            <input type="text" name="form_already" value="<?php echo esc_attr($val('form_already')); ?>"></div>
+        <div class="evo-field"><label for="evo-f-form_success">Sukces (zapis natychmiastowy)</label>
+            <input id="evo-f-form_success" type="text" name="form_success" value="<?php echo esc_attr($val('form_success')); ?>"></div>
+        <div class="evo-field"><label for="evo-f-form_pending">Oczekuje na potwierdzenie (double opt-in)</label>
+            <input id="evo-f-form_pending" type="text" name="form_pending" value="<?php echo esc_attr($val('form_pending')); ?>"></div>
+        <div class="evo-field"><label for="evo-f-form_already">Adres już zapisany</label>
+            <input id="evo-f-form_already" type="text" name="form_already" value="<?php echo esc_attr($val('form_already')); ?>"></div>
 
         <p class="evk-nl-sub">Strona potwierdzenia zapisu</p>
         <div class="evk-nl-pair">
-            <div class="evo-field" style="margin:0;"><label>Tytuł (OK)</label>
-                <input type="text" name="confirm_ok_title" value="<?php echo esc_attr($val('confirm_ok_title')); ?>"></div>
-            <div class="evo-field" style="margin:0;"><label>Treść (OK)</label>
-                <input type="text" name="confirm_ok_msg" value="<?php echo esc_attr($val('confirm_ok_msg')); ?>"></div>
-            <div class="evo-field" style="margin:0;"><label>Tytuł (błąd)</label>
-                <input type="text" name="confirm_bad_title" value="<?php echo esc_attr($val('confirm_bad_title')); ?>"></div>
-            <div class="evo-field" style="margin:0;"><label>Treść (błąd)</label>
-                <input type="text" name="confirm_bad_msg" value="<?php echo esc_attr($val('confirm_bad_msg')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-confirm_ok_title">Tytuł (OK)</label>
+                <input id="evo-f-confirm_ok_title" type="text" name="confirm_ok_title" value="<?php echo esc_attr($val('confirm_ok_title')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-confirm_ok_msg">Treść (OK)</label>
+                <input id="evo-f-confirm_ok_msg" type="text" name="confirm_ok_msg" value="<?php echo esc_attr($val('confirm_ok_msg')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-confirm_bad_title">Tytuł (błąd)</label>
+                <input id="evo-f-confirm_bad_title" type="text" name="confirm_bad_title" value="<?php echo esc_attr($val('confirm_bad_title')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-confirm_bad_msg">Treść (błąd)</label>
+                <input id="evo-f-confirm_bad_msg" type="text" name="confirm_bad_msg" value="<?php echo esc_attr($val('confirm_bad_msg')); ?>"></div>
         </div>
 
         <p class="evk-nl-sub">Wypisanie — pytanie potwierdzające</p>
         <div class="evk-nl-pair">
-            <div class="evo-field" style="margin:0;"><label>Tytuł</label>
-                <input type="text" name="unsub_confirm_title" value="<?php echo esc_attr($val('unsub_confirm_title')); ?>"></div>
-            <div class="evo-field" style="margin:0;"><label>Treść</label>
-                <input type="text" name="unsub_confirm_msg" value="<?php echo esc_attr($val('unsub_confirm_msg')); ?>"></div>
-            <div class="evo-field" style="margin:0;"><label>Tekst przycisku</label>
-                <input type="text" name="unsub_confirm_btn" value="<?php echo esc_attr($val('unsub_confirm_btn')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-unsub_confirm_title">Tytuł</label>
+                <input id="evo-f-unsub_confirm_title" type="text" name="unsub_confirm_title" value="<?php echo esc_attr($val('unsub_confirm_title')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-unsub_confirm_msg">Treść</label>
+                <input id="evo-f-unsub_confirm_msg" type="text" name="unsub_confirm_msg" value="<?php echo esc_attr($val('unsub_confirm_msg')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-unsub_confirm_btn">Tekst przycisku</label>
+                <input id="evo-f-unsub_confirm_btn" type="text" name="unsub_confirm_btn" value="<?php echo esc_attr($val('unsub_confirm_btn')); ?>"></div>
         </div>
 
         <p class="evk-nl-sub">Wypisanie — wynik</p>
         <div class="evk-nl-pair">
-            <div class="evo-field" style="margin:0;"><label>Tytuł (OK)</label>
-                <input type="text" name="unsub_ok_title" value="<?php echo esc_attr($val('unsub_ok_title')); ?>"></div>
-            <div class="evo-field" style="margin:0;"><label>Treść (OK)</label>
-                <input type="text" name="unsub_ok_msg" value="<?php echo esc_attr($val('unsub_ok_msg')); ?>"></div>
-            <div class="evo-field" style="margin:0;"><label>Tytuł (błąd)</label>
-                <input type="text" name="unsub_bad_title" value="<?php echo esc_attr($val('unsub_bad_title')); ?>"></div>
-            <div class="evo-field" style="margin:0;"><label>Treść (błąd)</label>
-                <input type="text" name="unsub_bad_msg" value="<?php echo esc_attr($val('unsub_bad_msg')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-unsub_ok_title">Tytuł (OK)</label>
+                <input id="evo-f-unsub_ok_title" type="text" name="unsub_ok_title" value="<?php echo esc_attr($val('unsub_ok_title')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-unsub_ok_msg">Treść (OK)</label>
+                <input id="evo-f-unsub_ok_msg" type="text" name="unsub_ok_msg" value="<?php echo esc_attr($val('unsub_ok_msg')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-unsub_bad_title">Tytuł (błąd)</label>
+                <input id="evo-f-unsub_bad_title" type="text" name="unsub_bad_title" value="<?php echo esc_attr($val('unsub_bad_title')); ?>"></div>
+            <div class="evo-field" style="margin:0;"><label for="evo-f-unsub_bad_msg">Treść (błąd)</label>
+                <input id="evo-f-unsub_bad_msg" type="text" name="unsub_bad_msg" value="<?php echo esc_attr($val('unsub_bad_msg')); ?>"></div>
         </div>
 
     </div>
@@ -126,14 +126,14 @@ $example_id = $first_list['id'] ?? 1;
     <div class="evo-box">
         <h3>E-mail potwierdzający zapis (double opt-in)</h3>
         <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Placeholdery: <code>{site}</code> (nazwa witryny), <code>{list}</code> (np. „ do listy „Aktualności""). W treści dozwolone proste tagi.</div></details>
-        <div class="evo-field"><label>Temat wiadomości</label>
-            <input type="text" name="confirm_subject" value="<?php echo esc_attr($val('confirm_subject')); ?>"></div>
-        <div class="evo-field"><label>Nagłówek</label>
-            <input type="text" name="confirm_email_heading" value="<?php echo esc_attr($val('confirm_email_heading')); ?>"></div>
-        <div class="evo-field"><label>Treść</label>
-            <input type="text" name="confirm_email_text" value="<?php echo esc_attr($val('confirm_email_text')); ?>"></div>
-        <div class="evo-field"><label>Tekst przycisku</label>
-            <input type="text" name="confirm_email_button" value="<?php echo esc_attr($val('confirm_email_button')); ?>"></div>
+        <div class="evo-field"><label for="evo-f-confirm_subject">Temat wiadomości</label>
+            <input id="evo-f-confirm_subject" type="text" name="confirm_subject" value="<?php echo esc_attr($val('confirm_subject')); ?>"></div>
+        <div class="evo-field"><label for="evo-f-confirm_email_heading">Nagłówek</label>
+            <input id="evo-f-confirm_email_heading" type="text" name="confirm_email_heading" value="<?php echo esc_attr($val('confirm_email_heading')); ?>"></div>
+        <div class="evo-field"><label for="evo-f-confirm_email_text">Treść</label>
+            <input id="evo-f-confirm_email_text" type="text" name="confirm_email_text" value="<?php echo esc_attr($val('confirm_email_text')); ?>"></div>
+        <div class="evo-field"><label for="evo-f-confirm_email_button">Tekst przycisku</label>
+            <input id="evo-f-confirm_email_button" type="text" name="confirm_email_button" value="<?php echo esc_attr($val('confirm_email_button')); ?>"></div>
 
     </div>
 

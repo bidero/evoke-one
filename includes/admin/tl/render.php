@@ -125,9 +125,11 @@ function tl_render_page() {
 
         /* Import / Export */
         .tl-io-section { margin-bottom:28px; }
-        .tl-drop-zone { border:2px dashed var(--evo-border-dash); border-radius:10px; padding:32px; text-align:center; color:var(--evo-text-dim); font-size:14px; cursor:pointer; transition:all .2s; background:#fafafa; }
+        .tl-drop-zone { position:relative; border:2px dashed var(--evo-border-dash); border-radius:10px; padding:32px; text-align:center; color:var(--evo-text-dim); font-size:14px; cursor:pointer; transition:all .2s; background:#fafafa; }
         .tl-drop-zone.drag-over { border-color:var(--evo-accent); background:var(--evo-accent-soft); color:var(--evo-accent); }
-        .tl-drop-zone input[type=file] { display:none; }
+        /* Jak .evo-drop-zone w admin.css: pole pliku osiągalne z klawiatury (1.237.0). */
+        .tl-drop-zone input[type=file] { position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; clip:rect(0 0 0 0); }
+        .tl-drop-zone:focus-within { outline:2px solid var(--evo-accent); outline-offset:2px; }
         .tl-import-status { margin-top:10px; padding:8px 14px; border-radius:6px; display:none; font-size:13px; }
         .tl-import-status.ok { background:var(--evo-on-soft); color:var(--evo-on-dark); border:1px solid var(--evo-on-line); display:block; }
         .tl-import-status.err { background:var(--evo-danger-soft); color:#b42318; border:1px solid #fecaca; display:block; }

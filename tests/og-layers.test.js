@@ -105,6 +105,31 @@ module.exports = async function (t) {
   t.check('warstwa ma czytelną nazwę typu', added.title === 'Kod QR', added.title);
   t.check('warstwa dostaje wolny indeks', added.index === '3', added.index);
 
+  /* Warstwa z przycisku buduje się w admin.js, nie w PHP — strażnik etykiet
+     (admin-etykiety) widzi wyłącznie render z serwera. Tu ta sama miara dla
+     warstwy dodanej: etykieta powiązana z polem, `id` bez powtórzeń. QR, bo
+     do 1.236.0 dostawał drugą parę X/Y pod tymi samymi nazwami pól. */
+  const nazwy = await page.evaluate(() => {
+    const rows = document.querySelectorAll('#evk-og-layers-container > .evo-og-layer');
+    const last = rows[rows.length - 1];
+    const tekst = (el) => (el.textContent || '').trim();
+    const bez = [...last.querySelectorAll('input:not([type=hidden]), select, textarea, button')]
+      .filter((el) => !((el.getAttribute('aria-label') || '').trim()
+        || [...(el.labels || [])].some(tekst) || (el.tagName === 'BUTTON' && tekst(el))))
+      .map((el) => el.name || el.className);
+    const ids = [...document.querySelectorAll('[id]')].map((e) => e.id);
+    const pola = [...last.querySelectorAll('[name]')].map((e) => e.name);
+    return {
+      kontrolek: last.querySelectorAll('input:not([type=hidden]), select, button').length,
+      bez, dubel: ids.filter((id, i) => ids.indexOf(id) !== i),
+      pola_dwa_razy: pola.filter((n, i) => pola.indexOf(n) !== i),
+    };
+  });
+  t.check('dodana warstwa: każda kontrolka ma nazwę dostępną, „id" bez powtórzeń',
+    nazwy.kontrolek > 8 && !nazwy.bez.length && !nazwy.dubel.length, JSON.stringify(nazwy));
+  t.check('dodana warstwa QR: każde pole raz (do 1.236.0 X i Y dwa razy)', !nazwy.pola_dwa_razy.length,
+    JSON.stringify(nazwy.pola_dwa_razy));
+
   // ── Regeneracja masowa ─────────────────────────────────────────────────
   t.section('warstwy OG — regeneracja masowa');
 

@@ -22,6 +22,8 @@ add_action('admin_footer', function () {
     const NONCE      = <?php echo wp_json_encode($nonce); ?>;
     const CODES      = <?php echo wp_json_encode($codes); ?>;
     const LANG_NAMES = <?php echo wp_json_encode(array_column($langs,'name'), JSON_UNESCAPED_UNICODE); ?>;
+    // Wartość do atrybutu (aria-label z nazwy języka wpisanej w panelu).
+    const tlAttr = function(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); };
     let _dirty = false;
 
     window.tlMarkDirty       = function() { _dirty = true; };
@@ -187,19 +189,19 @@ add_action('admin_footer', function () {
     };
 
     function ddFieldHtml(gid, rid) {
-        return `<div class="tl-dd-field"><label>Klucz Dynamic Data</label><div class="tl-dd-field-row"><span class="tl-dd-prefix">{tl_</span><input type="text" class="tl-dd-key-input" data-field="dd_key" data-gid="${gid}" data-rid="${rid}" placeholder="opcjonalny_klucz" oninput="tlMarkDirty();"><span class="tl-dd-prefix">}</span></div></div>`;
+        return `<div class="tl-dd-field"><label>Klucz Dynamic Data</label><div class="tl-dd-field-row"><span class="tl-dd-prefix">{tl_</span><input type="text" class="tl-dd-key-input" aria-label="Klucz Dynamic Data" data-field="dd_key" data-gid="${gid}" data-rid="${rid}" placeholder="opcjonalny_klucz" oninput="tlMarkDirty();"><span class="tl-dd-prefix">}</span></div></div>`;
     }
 
     window.tlAddRow = function(btn, gid) {
         const $rows = $(btn).closest('.tl-group').find('.tl-rows');
         const rid   = 'row_' + Date.now();
         let fields  = ddFieldHtml(gid, rid);
-        fields += `<div class="tl-field"><label>Polski</label><textarea data-field="pl" data-gid="${gid}" data-rid="${rid}" oninput="tlUpdatePreview(this);tlMarkDirty();"></textarea></div>`;
+        fields += `<div class="tl-field"><label>Polski</label><textarea aria-label="Polski" data-field="pl" data-gid="${gid}" data-rid="${rid}" oninput="tlUpdatePreview(this);tlMarkDirty();"></textarea></div>`;
         CODES.forEach(function(code, i) {
-            fields += `<div class="tl-field"><label>${LANG_NAMES[i]}</label><textarea data-field="${code}" data-gid="${gid}" data-rid="${rid}" oninput="tlUpdatePill(this);tlMarkDirty();"></textarea></div>`;
+            fields += `<div class="tl-field"><label>${LANG_NAMES[i]}</label><textarea aria-label="${tlAttr(LANG_NAMES[i])}" data-field="${code}" data-gid="${gid}" data-rid="${rid}" oninput="tlUpdatePill(this);tlMarkDirty();"></textarea></div>`;
         });
         const pills = CODES.map(function(c) { return `<span class="tl-pill">${c.toUpperCase()}</span>`; }).join('');
-        $rows.append(`<div class="tl-row" data-rid="${rid}"><div class="tl-row-header open"><span class="drag-handle">⠿</span><span class="tl-row-pl-preview tl-row-toggle-trigger">- nowa fraza -</span><div class="tl-lang-pills tl-row-toggle-trigger">${pills}</div><span class="tl-chevron tl-row-toggle-trigger">▶</span></div><div class="tl-row-body open">${fields}<div class="tl-row-footer"><button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj frazę" onclick="tlDuplicateRow(this)"></button><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete evo-ml-auto" title="Usuń frazę" onclick="jQuery(this).closest('.tl-row').remove();tlMarkDirty();"></button></div></div></div>`);
+        $rows.append(`<div class="tl-row" data-rid="${rid}"><div class="tl-row-header open"><span class="drag-handle">⠿</span><span class="tl-row-pl-preview tl-row-toggle-trigger">- nowa fraza -</span><div class="tl-lang-pills tl-row-toggle-trigger">${pills}</div><span class="tl-chevron tl-row-toggle-trigger">▶</span></div><div class="tl-row-body open">${fields}<div class="tl-row-footer"><button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj frazę" aria-label="Duplikuj frazę" onclick="tlDuplicateRow(this)"></button><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete evo-ml-auto" title="Usuń frazę" aria-label="Usuń frazę" onclick="jQuery(this).closest('.tl-row').remove();tlMarkDirty();"></button></div></div></div>`);
         reinitRowSortable($rows);
         tlMarkDirty();
     };
@@ -223,7 +225,7 @@ add_action('admin_footer', function () {
 
     window.tlAddGroup = function() {
         const gid = 'group_' + Date.now();
-        $('#groups-wrapper').append(`<div class="tl-group" data-gid="${gid}"><div class="tl-group-header collapsed"><span class="drag-handle dashicons dashicons-move"></span><div class="tl-group-toggle"><span class="tl-group-toggle-icon">▶</span><input type="text" class="tl-group-name-input" data-gid="${gid}" placeholder="Nazwa nowej grupy..."><span class="badge-count">0</span></div><div class="tl-group-actions"><button type="button" class="button button-icon dashicons dashicons-download" onclick="tlExportGroup('${gid}');event.stopPropagation();"></button><button type="button" class="button button-icon dashicons dashicons-admin-page" onclick="tlDuplicateGroup(this);event.stopPropagation();"></button><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" onclick="if(confirm('Usunąć całą grupę?')){jQuery(this).closest('.tl-group').remove();tlMarkDirty();}event.stopPropagation();"></button></div></div><div class="tl-group-body"><div class="tl-rows row-sortable"></div><div class="evo-row-footer"><button type="button" class="button" onclick="tlAddRow(this,'${gid}')"><span class="dashicons dashicons-plus-alt2"></span> Dodaj frazę</button></div></div></div>`);
+        $('#groups-wrapper').append(`<div class="tl-group" data-gid="${gid}"><div class="tl-group-header collapsed"><span class="drag-handle dashicons dashicons-move"></span><div class="tl-group-toggle"><span class="tl-group-toggle-icon">▶</span><input type="text" class="tl-group-name-input" aria-label="Nazwa grupy" data-gid="${gid}" placeholder="Nazwa nowej grupy..."><span class="badge-count">0</span></div><div class="tl-group-actions"><button type="button" class="button button-icon dashicons dashicons-download" title="Eksportuj grupę" aria-label="Eksportuj grupę" onclick="tlExportGroup('${gid}');event.stopPropagation();"></button><button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj grupę" aria-label="Duplikuj grupę" onclick="tlDuplicateGroup(this);event.stopPropagation();"></button><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń grupę" aria-label="Usuń grupę" onclick="if(confirm('Usunąć całą grupę?')){jQuery(this).closest('.tl-group').remove();tlMarkDirty();}event.stopPropagation();"></button></div></div><div class="tl-group-body"><div class="tl-rows row-sortable"></div><div class="evo-row-footer"><button type="button" class="button" onclick="tlAddRow(this,'${gid}')"><span class="dashicons dashicons-plus-alt2"></span> Dodaj frazę</button></div></div></div>`);
         // Niszcz stary sortable grup i reinicjuj
         if ($('#groups-wrapper').hasClass('ui-sortable')) $('#groups-wrapper').sortable('destroy');
         initSortable();
@@ -322,7 +324,7 @@ add_action('admin_footer', function () {
 
     // Languages
     window.tlAddLang = function() {
-        $('#lang-body').append('<tr><td><span class="drag-handle" title="Przeciągnij">☰</span></td><td><input type="text" class="lang-code" placeholder="np. en"></td><td><input type="text" class="lang-name" placeholder="np. Angielski"></td><td><input type="text" class="lang-html" placeholder="np. en-GB"></td><td><div class="tl-lang-flag-empty evo-flag is-empty" data-att="0"  onclick="tlOpenLangFlag(this)">+</div></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();"></button></td></tr>');
+        $('#lang-body').append('<tr><td><span class="drag-handle" title="Przeciągnij">☰</span></td><td><input type="text" class="lang-code" aria-label="Kod języka" placeholder="np. en"></td><td><input type="text" class="lang-name" aria-label="Nazwa języka" placeholder="np. Angielski"></td><td><input type="text" class="lang-html" aria-label="Kod HTML (hreflang)" placeholder="np. en-GB"></td><td><div class="tl-lang-flag-empty evo-flag is-empty" data-att="0"  onclick="tlOpenLangFlag(this)">+</div></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń język" aria-label="Usuń język" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();"></button></td></tr>');
         if ($('#lang-body').hasClass('ui-sortable')) $('#lang-body').sortable('refresh');
         else initSortable();
         tlMarkDirty();
@@ -397,7 +399,7 @@ add_action('admin_footer', function () {
             const label = code === 'pl' ? 'PL' : code.toUpperCase();
             return `<div class="tl-img-lang-row"><span class="tl-img-lang-label">${label}</span><div class="tl-img-preview-empty" data-lang="${code}" data-att="0" onclick="tlOpenMedia(this,'${code}')">+</div><button type="button" class="button" onclick="tlOpenMedia(this.previousElementSibling,'${code}')"><span class="dashicons dashicons-format-image"></span> Wybierz</button></div>`;
         }).join('');
-        $('#img-grid').append(`<div class="tl-img-card" data-key="${key}"><div class="tl-img-card-header"><strong class="evo-grow">Tłumaczenie obrazka</strong><button type="button" class="button-link-delete evo-close-x" onclick="jQuery(this).closest('.tl-img-card').remove();tlMarkDirtyImages();">✕</button></div>${rows}</div>`);
+        $('#img-grid').append(`<div class="tl-img-card" data-key="${key}"><div class="tl-img-card-header"><strong class="evo-grow">Tłumaczenie obrazka</strong><button type="button" class="button-link-delete evo-close-x" aria-label="Usuń tłumaczenie obrazka" onclick="jQuery(this).closest('.tl-img-card').remove();tlMarkDirtyImages();">✕</button></div>${rows}</div>`);
         tlMarkDirtyImages();
     };
     window.tlSaveImages = function() {

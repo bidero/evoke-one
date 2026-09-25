@@ -48,7 +48,7 @@ if (!defined('ABSPATH')) exit;
                 <div class="evo-drop-zone" id="evo-drop-zone" onclick="document.getElementById('evo-file-input').click();">
                     <span class="dashicons dashicons-upload evo-ico-xl evo-drop-ico"></span>
                     <span class="evo-block evo-center">Przeciągnij plik JSON tutaj lub kliknij, aby wybrać</span>
-                    <input type="file" id="evo-file-input" accept=".json">
+                    <input type="file" id="evo-file-input" accept=".json" aria-label="Plik JSON z eksportu do importu">
                 </div>
                 <div class="evo-import-status" id="evo-import-status"></div>
             </div>

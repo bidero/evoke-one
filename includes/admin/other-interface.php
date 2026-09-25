@@ -19,8 +19,8 @@ if (!defined('ABSPATH')) exit;
                         </div>
                         <div class="evo-grid-2 evo-w" style="--evo-gap:16px;--evo-w:500px">
                             <div class="evo-field evo-mb-0">
-                                <label>Położenie kolumny</label>
-                                <select name="evk_interface[post_thumbnails_position]">
+                                <label for="evo-f-evk_interface-post_thumbnails_position">Położenie kolumny</label>
+                                <select id="evo-f-evk_interface-post_thumbnails_position" name="evk_interface[post_thumbnails_position]">
                                     <option value="after_cb"     <?php selected($evk_iface['post_thumbnails_position'], 'after_cb'); ?>>Po checkboxie</option>
                                     <option value="before_title" <?php selected($evk_iface['post_thumbnails_position'], 'before_title'); ?>>Przed tytułem</option>
                                     <option value="after_title"  <?php selected($evk_iface['post_thumbnails_position'], 'after_title'); ?>>Po tytule</option>
@@ -28,8 +28,8 @@ if (!defined('ABSPATH')) exit;
                                 </select>
                             </div>
                             <div class="evo-field evo-mb-0">
-                                <label>Rozmiar miniatury (px)</label>
-                                <input type="number" name="evk_interface[post_thumbnails_size]"
+                                <label for="evo-f-evk_interface-post_thumbnails_size">Rozmiar miniatury (px)</label>
+                                <input id="evo-f-evk_interface-post_thumbnails_size" type="number" name="evk_interface[post_thumbnails_size]"
                                        value="<?php echo esc_attr($evk_iface['post_thumbnails_size'] ?? 48); ?>"
                                        min="20" max="300" class="evo-w" style="--evo-w:100px">
                                 <div class="evo-desc">Domyślnie: 48</div>
