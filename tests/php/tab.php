@@ -592,6 +592,7 @@ $TABS = [
        Podstrony dostają komplet zmiennych od `tl_render_page()` — harness
        podaje je niżej, tak jak zakładka. */
     'tl-translations' => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-translations.php'],
+    'tl-elementy'     => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-elementy.php'],
     'tl-images'       => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-images.php'],
     'tl-slugs'        => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-slugs.php'],
     'tl-dd'           => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-dd.php'],

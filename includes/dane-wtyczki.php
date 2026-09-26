@@ -36,7 +36,7 @@ return [
         'maintenance_bypass_hours', 'maintenance_bypass_password', 'maintenance_excluded_paths',
         'maintenance_mode', 'maintenance_page_id',
         // Tłumaczenia
-        'evk_tl_module_enabled', 'tl_dd_keys', 'tl_images', 'tl_languages',
+        'evk_tl_el_pola', 'evk_tl_module_enabled', 'tl_dd_keys', 'tl_images', 'tl_languages',
         'tl_menu_location', 'tl_pl_flag', 'tl_sitemap_settings', 'tl_translations', 'tl_url_slugs',
         // Snippety
         'evk_snippets_advanced_content', 'evk_snippets_advanced_enabled', 'evk_snippets_enabled',

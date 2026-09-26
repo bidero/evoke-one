@@ -2,6 +2,66 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.244.0] — 2026-09-26
+
+Piętnaste wydanie po audycie 1.229.6: tłumaczenia ze słownika w polach
+języków elementów.
+
+### Dodane (decyzja zgłaszającego)
+
+- **Tłumaczenia: pole w elemencie pokazuje to, co widać na stronie.**
+  Zgłoszone: „Jeśli tekst już jest w zakładce tłumaczenia, to się tu nie
+  wyświetla". Pole języka było puste, a stronę tłumaczył słownik.
+  - Przy każdym zapisie strony w Bricksie (treść, nagłówek, stopka) puste
+    pole języka dostaje tłumaczenie ze słownika, gdy cały polski tekst jest
+    frazą słownika. Jeden akapit edytora (`<p>…</p>`) też. Tekst ze
+    znacznikami w środku albo z kilku fraz zostaje słownikowi.
+  - Wpisanych tłumaczeń nie nadpisuje. Język bez tłumaczenia w słowniku
+    pomija.
+  - Od tej chwili tłumaczenie należy do elementu: zmiana polskiego tekstu go
+    nie usunie („Do sprawdzenia" pokaże miejsce), a poprawka frazy
+    w słowniku już do niego nie dojdzie.
+- **Zapis buildera, który nie zna pól dopisanych przez serwer.** Builder
+  wysyła stan z chwili otwarcia. Pole języka, którego nowy zapis nie ma
+  wcale, a stary miał (ten sam element, ta sama pozycja listy), zostaje.
+  Inaczej zmiana polskiego tekstu w tej samej sesji skasowałaby
+  tłumaczenie. Pole jawnie puste zostaje puste.
+  - Granica: jeśli Bricks przy czyszczeniu pola usuwa klucz, wyczyszczone
+    tłumaczenie wróci. Rozstrzygnie to próba z 1.243.0 (krok z polem
+    tekstowym).
+- **Zakładka „Teksty w elementach"** w Tłumaczeniach, z przyciskiem
+  „Przenieś" dla stron zapisanych wcześniej. Najpierw podgląd: strony,
+  część (treść, nagłówek, stopka), liczba pól i pominięte typy elementów.
+  Potem przeniesienie. Nonce i uprawnienia do tłumaczeń.
+- **Mapa pól tłumaczalnych** (`evk_tl_el_pola`). Zapisuje ją filtr, który
+  dokłada pola języków do panelu Bricksa, więc zawiera dokładnie pola
+  widoczne w builderze. Typ elementu, którego mapa jeszcze nie zna,
+  przeniesienie pomija i wymienia z nazwy.
+
+**Do sprawdzenia na stronie:** że builder zapisuje treść przez
+`update_post_meta` (to samo co przy „Do sprawdzenia") i że po otwarciu
+buildera podgląd nie wymienia pominiętych typów.
+
+### Testy
+
+- `tl-przeniesienie` (nowy). Prawdziwe `update_post_meta()` w testowym
+  WordPressie, kolejne zapisy i pola po każdym:
+  - uzupełnienie ze słownika, wpisane tłumaczenie nietknięte, akapit,
+    tekst złożony, typ spoza mapy;
+  - zapis bez pól dopisanych przez serwer ze zmianą polskiego: tłumaczenia
+    zostają i trafiają do „Do sprawdzenia";
+  - pole jawnie puste; obca metadana; szablon nagłówka;
+  - przycisk: podgląd bez zapisu, zapis, drugi podgląd pusty;
+  - zakładka w Chromium: podgląd, przeniesienie, odmowa przy złym nonce.
+- Zakładka dopisana do wspólnej listy zakładek, więc przechodzą ją
+  strażnicy panelu (nazwy dostępne, telefon, klawiatura, wygląd).
+- PHPStan zgłosił trzy rzeczy w nowym kodzie. Poprawione w kodzie, bez
+  dopisywania do pliku bazowego.
+- Mutacje (11). Każda zapala własne sprawdzenie, np. brak przeniesienia ze
+  starego zapisu gasi trzy (w tym „Do sprawdzenia"), a przeniesienie przy
+  jawnie pustym polu jedno.
+- Pełny przebieg: 5217 sprawdzeń w 105 plikach.
+
 ## [1.243.0] — 2026-09-26
 
 Czternaste wydanie po audycie 1.229.6: etykiety pól tłumaczeń, bez edytora

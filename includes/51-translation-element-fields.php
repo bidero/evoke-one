@@ -160,6 +160,7 @@ function evk_tl_el_kontrolki($kontrolki, string $element = '') {
     if (!$jezyki) return $kontrolki;
 
     $pola = [];
+    $listy = [];
     foreach ($kontrolki as $klucz => $def) {
         $klucz = (string) $klucz;
         if (is_array($def) && ($def['type'] ?? '') === 'repeater' && is_array($def['fields'] ?? null)) {
@@ -167,12 +168,60 @@ function evk_tl_el_kontrolki($kontrolki, string $element = '') {
             foreach ($def['fields'] as $pk => $pdef) {
                 if (evk_tl_el_tlumaczalna((string) $pk, $pdef, $element)) $w_pozycji[(string) $pk] = $pdef;
             }
-            if ($w_pozycji) $kontrolki[$klucz]['fields'] = $def['fields'] + evk_tl_el_pola_jezykow($w_pozycji, $jezyki, false);
+            if ($w_pozycji) {
+                $kontrolki[$klucz]['fields'] = $def['fields'] + evk_tl_el_pola_jezykow($w_pozycji, $jezyki, false);
+                $listy[$klucz] = array_keys($w_pozycji);
+            }
             continue;
         }
         if (evk_tl_el_tlumaczalna($klucz, $def, $element)) $pola[$klucz] = $def;
     }
+    if ($element !== '') evk_tl_el_zapamietaj_pola($element, array_keys($pola), $listy);
     return $pola ? $kontrolki + evk_tl_el_pola_jezykow($pola, $jezyki, true) : $kontrolki;
+}
+
+// =========================================================================
+// MAPA PÓL TŁUMACZALNYCH — dla przeniesienia ze słownika (1.244.0)
+// =========================================================================
+
+/**
+ * Opcja z mapą: nazwa elementu → pola tłumaczalne (i pola pozycji list).
+ *
+ * PO CO. Uzupełnianie pól języków ze słownika (53-translation-element-
+ * transfer.php) działa przy zapisie danych Bricksa i z przycisku w panelu —
+ * tam kontrolek elementów nie ma pod ręką. Mapę zapisuje ten sam filtr,
+ * który dokłada pola języków do panelu, więc zawiera dokładnie te pola,
+ * które użytkownik widzi w builderze. Typ elementu, którego mapa jeszcze nie
+ * zna (builder nie był otwarty po aktualizacji), przeniesienie pomija
+ * i wymienia z nazwy.
+ */
+const EVK_TL_EL_MAPA = 'evk_tl_el_pola';
+
+/** @return array<string,array{pola:string[],listy:array<string,string[]>}> */
+function evk_tl_el_mapa(): array {
+    $m = get_option(EVK_TL_EL_MAPA, []);
+    return is_array($m) ? $m : [];
+}
+
+/**
+ * Zapamiętuje pola elementu w bieżącym żądaniu; zapis do bazy raz, na końcu
+ * żądania i tylko przy zmianie — builder przepuszcza tu kilkadziesiąt typów.
+ *
+ * @param string[]                $pola
+ * @param array<string,string[]>  $listy
+ */
+function evk_tl_el_zapamietaj_pola(string $element, array $pola, array $listy): void {
+    if (empty($GLOBALS['evk_tl_el_mapa_nowa'])) add_action('shutdown', 'evk_tl_el_zapisz_mape');
+    $GLOBALS['evk_tl_el_mapa_nowa'][$element] = ['pola' => array_values($pola), 'listy' => $listy];
+}
+
+function evk_tl_el_zapisz_mape(): void {
+    $nowe = $GLOBALS['evk_tl_el_mapa_nowa'] ?? [];
+    if (!is_array($nowe) || !$nowe) return;
+    $mapa = evk_tl_el_mapa();
+    $po = array_merge($mapa, $nowe);
+    if ($po !== $mapa) update_option(EVK_TL_EL_MAPA, $po, false);
+    $GLOBALS['evk_tl_el_mapa_nowa'] = [];
 }
 
 /**
