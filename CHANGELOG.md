@@ -2,6 +2,75 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.241.0] — 2026-09-26
+
+Dwunaste wydanie po audycie 1.229.6: pola tłumaczeń w elementach Bricksa,
+etap 1.
+
+### Dodane
+
+- **Tłumaczenia: pola języków w każdym elemencie Bricksa.** Zgłoszone
+  z użycia: tłumaczenie było przypięte do tekstu oryginału (słownik
+  „fraza PL → EN/DE"), więc ginęło przy każdej zmianie polskiego tekstu.
+  Decyzje zgłaszającego wprowadzone w tym etapie:
+  - W elemencie jest zwinięta grupa „Tłumaczenia" na końcu treści.
+    Każdy tekst ma w niej pole na każdy aktywny język, np. „Tekst — EN",
+    „Tekst — DE".
+  - Pola dostają wszystkie teksty (tekst, akapit, edytor) wszystkich
+    elementów: Bricksa, Evoke i innych wtyczek. Pomijane są pola
+    techniczne: tag, CSS i styl, selektory, adresy, kod i skrótkody,
+    liczby, wartości i opcje pól formularza oraz temat i treść maila do
+    administratora.
+  - Pozycje list (akordeon, zakładki, lista, pola formularza) mają pola
+    języków wewnątrz pozycji, pod jej polami. Tylko tam da się je dołożyć,
+    bo grupa należy do elementu.
+  - Kolejność: pole w elemencie, potem słownik, potem oryginał. Puste pole
+    zostawia polski tekst, a ten tłumaczy słownik jak dotąd. Za puste
+    uchodzi też edytor po wyczyszczeniu (`<p></p>`). W builderze i w
+    wp-admin nic nie jest podmieniane, bo tam edytuje się oryginał.
+  - Zmiana polskiego tekstu nie usuwa tłumaczenia z pola, zostaje stare.
+    Znacznik „Do sprawdzenia" dla takich miejsc przyjdzie w następnym
+    etapie.
+
+  Pola językowe nie mają wartości domyślnej, bo inaczej każdy nowy element
+  pokazywałby w builderze kropkę „ta grupa ma ustawienia". Nie mają też
+  edycji na kanwie, bo kanwa pokazuje polski. Filtr `evk_tl_el_tlumaczalna`
+  pozwala poprawić werdykt dla konkretnego pola.
+
+  **Do sprawdzenia na stronie**, bo Bricksa na tej maszynie nie ma:
+  - czy grupa i pola pokazują się w panelu elementu i w pozycjach list;
+  - czy dostęp „Edytuj treść" je widzi i zapisuje;
+  - czy tekst z pola wychodzi na stronie w innym języku także
+    w szablonach nagłówka i stopki, w komponentach i w pętlach zapytań.
+
+  Ten sam filtr kontrolek od dawna działa na stronie zgłaszającego
+  w Animatorze, a filtr ustawień w przełączniku języków (flagi).
+
+### Testy
+
+- `tl-pola-elementow` (nowy). Prawdziwe funkcje modułu na tablicach
+  w kształcie Bricksa, z kontrolkami z nagłówka, obrazka, formularza,
+  akordeonu, licznika i skrótkodu oraz z elementu Evoke z selektorem.
+  Sprawdza rejestrację dla każdego elementu, grupę, werdykt „tekst /
+  techniczne", definicję pola (typ, etykieta, bez wartości domyślnej),
+  pozycje list i podmianę dla PL, EN, DE, `pt-br`, w builderze i w
+  wp-admin. Na końcu przepuszcza wynik przez prawdziwy tokenizer słownika:
+  - pole w elemencie wygrywa ze słownikiem;
+  - puste pole oddaje głos słownikowi;
+  - po zmianie polskiego tekstu pole dalej tłumaczy, a sam słownik już
+    nie, co jest zgłoszoną usterką.
+- Mutacje (10). Każda zapala własny podzbiór. Brak podmiany gasi pięć
+  sprawdzeń, w tym to sedno. Brak odsiewu nazw technicznych gasi siedem,
+  pole z `default` jedno, a podmiana w builderze jedno.
+- `builder-context`: nowy moduł dopisany do zamkniętej listy modułów, które
+  wołają wspólny warunek „w builderze" (`evk_w_builderze()`, oba okna).
+  Strażnik to kontrola pozytywna z dokładną liczbą, więc pełny przebieg
+  zgłosił moduł jako siódmego, niezapowiedzianego. To prawidłowe użycie:
+  w builderze tekstu się nie podmienia.
+- Pełny przebieg: 5138 sprawdzeń w 103 plikach. Jedyne czerwone było
+  zgłoszenie `builder-context` opisane wyżej; po dopisaniu plik przechodzi
+  (7/7).
+
 ## [1.240.0] — 2026-09-26
 
 Jedenaste wydanie po audycie 1.229.6: panel na telefonie.

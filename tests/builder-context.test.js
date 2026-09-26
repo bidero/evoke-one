@@ -90,7 +90,10 @@ module.exports = async function (t) {
     .filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n');
 
   const OCZEKIWANE = ['animator.php', 'bgshift.php', 'motion.php',
-    '96-lenis.php', '96-scroll-lock.php', '98-accessibility.php'];
+    '96-lenis.php', '96-scroll-lock.php', '98-accessibility.php',
+    // 1.241.0: pola języków w elementach — w builderze tekstu się nie podmienia,
+    // bo tam edytuje się oryginał (w obu oknach, jak tu wszędzie).
+    '51-translation-element-fields.php'];
 
   const wola = plikiPhp(path.join(ROOT, 'includes'))
     .filter((p) => /evk_w_builderze\(\)/.test(bezKomentarzy(fs.readFileSync(p, 'utf8'))))
@@ -98,7 +101,7 @@ module.exports = async function (t) {
     .filter((n) => n !== '00-context-safety.php');
 
   const brakujace = OCZEKIWANE.filter((n) => !wola.includes(n));
-  t.check('a wspólny warunek jest wołany we wszystkich sześciu modułach',
+  t.check('a wspólny warunek jest wołany we wszystkich siedmiu modułach',
     brakujace.length === 0 && wola.length === OCZEKIWANE.length,
     brakujace.length ? 'brakuje: ' + brakujace.join(', ') : wola.join(', '));
 };
