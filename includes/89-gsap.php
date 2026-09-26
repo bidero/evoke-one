@@ -49,7 +49,7 @@ function evk_register_warstwy(): void {
 
     wp_register_script(
         'evk-warstwy',
-        EVOKE_ONE_URL . 'assets/js/warstwy.js',
+        evk_zasob_url(EVOKE_ONE_URL . 'assets/js/warstwy.js'),
         [],
         EVK_WARSTWY_VERSION,
         true

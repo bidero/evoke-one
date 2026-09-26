@@ -262,13 +262,13 @@ class Evk_Circular_Title extends \Bricks\Element {
     public function enqueue_scripts() {
         wp_enqueue_style(
             'evk-circular-title',
-            EVK_CIRCULAR_URL . 'assets/circular-title.css',
+            evk_zasob_url( EVK_CIRCULAR_URL . 'assets/circular-title.css' ),
             [],
             EVK_CIRCULAR_VERSION
         );
         wp_enqueue_script(
             'evk-circular-title-js',
-            EVK_CIRCULAR_URL . 'assets/circular-title.js',
+            evk_zasob_url( EVK_CIRCULAR_URL . 'assets/circular-title.js' ),
             [ 'bricks-scripts' ],
             EVK_CIRCULAR_VERSION,
             true

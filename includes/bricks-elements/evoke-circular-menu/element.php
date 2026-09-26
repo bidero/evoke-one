@@ -513,7 +513,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 		wp_enqueue_script( 'evk-gsap' ); // wspólny handle Evoke ONE (dedup)
 		wp_enqueue_style(
 			'evk-circular-menu',
-			EVK_CIRCULAR_MENU_URL . 'assets/circular-menu.css',
+			evk_zasob_url( EVK_CIRCULAR_MENU_URL . 'assets/circular-menu.css' ),
 			[],
 			EVK_CIRCULAR_MENU_VERSION
 		);
@@ -528,7 +528,7 @@ class Evk_Circular_Menu extends \Bricks\Element {
 
 		wp_enqueue_script(
 			'evk-circular-menu-js',
-			EVK_CIRCULAR_MENU_URL . 'assets/circular-menu.js',
+			evk_zasob_url( EVK_CIRCULAR_MENU_URL . 'assets/circular-menu.js' ),
 			$deps,
 			EVK_CIRCULAR_MENU_VERSION,
 			true

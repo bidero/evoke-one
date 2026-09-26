@@ -236,7 +236,7 @@ class EVK_Parallax {
     public function enqueue_scripts(): void {
         wp_enqueue_script(
             'evk-parallax',
-            EVOKE_ONE_URL . 'assets/js/parallax.js',
+            evk_zasob_url(EVOKE_ONE_URL . 'assets/js/parallax.js'),
             [],
             EVOKE_ONE_VERSION,
             true

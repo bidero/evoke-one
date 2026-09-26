@@ -267,10 +267,10 @@ add_action('wp_enqueue_scripts', function (): void {
     foreach ($reg as $key => $el) {
         if (empty($loaded[$key])) continue;
         if (!empty($el['script'])) {
-            wp_register_script($el['script'][0], $el['script'][1], $el['script'][2], $el['script'][3], true);
+            wp_register_script($el['script'][0], evk_zasob_url($el['script'][1]), $el['script'][2], $el['script'][3], true);
         }
         if (!empty($el['style'])) {
-            wp_register_style($el['style'][0], $el['style'][1], [], $el['style'][2]);
+            wp_register_style($el['style'][0], evk_zasob_url($el['style'][1]), [], $el['style'][2]);
         }
     }
 }, 5);

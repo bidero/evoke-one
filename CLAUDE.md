@@ -173,14 +173,14 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (105 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (106 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
 node tests/run.js backup-panel
 node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp
 node tests/run.js admin- anim animator aria bg-shift bricks-required builder-context burger circular-menu controls
-node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee motion
+node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee minifikacja motion
 node tests/run.js newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
 ```
@@ -195,7 +195,7 @@ FILTRY="admin- anim animator aria backup-panel backup-baza backup-czytnik backup
 backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize
 backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-required builder-context
 burger circular-menu controls darkmode drobiazgi grain hscroll inbox ip-klienta
-konserwacja kursor loop marquee motion newsletter odpornosc odswiezanie
+konserwacja kursor loop marquee minifikacja motion newsletter odpornosc odswiezanie
 offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji
 przelaczniki rewizje schema-graf scroll-lock seo-meta settings-save sierotki
 sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs
@@ -436,6 +436,14 @@ push z sekretem, NIE jest do odblokowywania „bo tak ustaliliśmy" — to sygna
 | Wytwór | Buduje | Pilnuje |
 |---|---|---|
 | `assets/js/animator.min.js` | `node tools/minifikuj.js` | `animator.test.js` |
+| pozostałe `*.min.js` / `*.min.css` frontu (lista w `tools/minifikuj.js`) | `node tools/minifikuj.js` | `minifikacja.test.js` |
+
+Od 1.248.0 strona dostaje pliki `.min` (`evk_zasob_url()`, źródła przy
+`SCRIPT_DEBUG`), a testy zachowania chodzą na ŹRÓDŁACH. Nowy plik JS/CSS
+frontu: dopisz go do listy w `tools/minifikuj.js` i kolejkuj przez
+`evk_zasob_url()`, bo inaczej zapali się strażnik pokrycia. Mutacja w pliku
+frontu zapala strażnika aktualności, więc skrypt mutacyjny przebudowuje po
+wprowadzeniu mutacji i przywraca oba pliki.
 
 Cichy rozjazd wytworu ze źródłem wygląda zupełnie normalnie — stąd strażnicy.
 

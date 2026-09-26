@@ -97,7 +97,7 @@ module.exports = async function (t) {
   t.check('w rejestrze nie ma numerów wpisanych z ręki', !reczne.length, reczne.join(', ') || 'brak');
   const bgshift = fs.readFileSync(path.join(korzen, 'includes/anim/bgshift.php'), 'utf8');
   t.check('bg-shift.js jedzie z wersją wtyczki',
-    /assets\/js\/bg-shift\.js',\s*\[[^\]]*\],\s*EVOKE_ONE_VERSION/.test(bgshift), 'wzorzec enqueue');
+    /assets\/js\/bg-shift\.js'\)?,\s*\[[^\]]*\],\s*EVOKE_ONE_VERSION/.test(bgshift), 'wzorzec enqueue');   // `)` od evk_zasob_url() (1.248.0)
 
   /* PACZKA AKTUALIZACJI. Aktualizator pobiera zipball GitHuba, a ten
      respektuje `export-ignore` z .gitattributes — więc paczkę da się

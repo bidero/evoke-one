@@ -235,7 +235,7 @@ html.evk-bg-scrub .evk-bg-handoff * {
         evk_register_gsap_libs();
         wp_enqueue_script(
             'evk-bgshift',
-            EVOKE_ONE_URL . 'assets/js/bg-shift.js',
+            evk_zasob_url(EVOKE_ONE_URL . 'assets/js/bg-shift.js'),
             ['evk-gsap', 'evk-scrolltrigger'],
             EVOKE_ONE_VERSION,   // wersja wtyczki, nie ręczna — patrz evk_elements_registry()
             true

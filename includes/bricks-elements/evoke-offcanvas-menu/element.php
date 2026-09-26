@@ -607,7 +607,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 	public function enqueue_scripts() {
 		wp_enqueue_style(
 			'evk-offcanvas-menu',
-			EVK_OFFCANVAS_MENU_URL . 'assets/offcanvas-menu.css',
+			evk_zasob_url( EVK_OFFCANVAS_MENU_URL . 'assets/offcanvas-menu.css' ),
 			[],
 			EVK_OFFCANVAS_MENU_VERSION
 		);
@@ -645,7 +645,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 
 		wp_enqueue_script(
 			'evk-offcanvas-menu-js',
-			EVK_OFFCANVAS_MENU_URL . 'assets/offcanvas-menu.js',
+			evk_zasob_url( EVK_OFFCANVAS_MENU_URL . 'assets/offcanvas-menu.js' ),
 			$deps,
 			EVK_OFFCANVAS_MENU_VERSION,
 			true

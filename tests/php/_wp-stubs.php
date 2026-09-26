@@ -485,3 +485,9 @@ function evk_test_filter($hook) {
 }
 
 const EVK_TEST_ROOT = __DIR__ . '/../..';
+
+/* Wybór pliku `.min` przy kolejkowaniu (includes/02-zasoby-frontu.php, 1.248.0).
+   Moduły i elementy wołają evk_zasob_url() wprost, jak na stronie. Bez
+   EVOKE_ONE_URL oddaje adres bez zmian, więc sondy, które go nie definiują,
+   widzą źródła jak dotąd. */
+require_once EVK_TEST_ROOT . '/includes/02-zasoby-frontu.php';

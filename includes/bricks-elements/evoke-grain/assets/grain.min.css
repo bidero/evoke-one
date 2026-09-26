@@ -1,0 +1,2 @@
+/* Evoke ONE — wytwór tools/minifikuj.js. Nie edytuj — źródłem jest includes/bricks-elements/evoke-grain/assets/grain.css. */
+.evk-grain{display:block;width:0;height:0;overflow:hidden}.evk-grain__plotno{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}@media print{.evk-grain__plotno{display:none}}

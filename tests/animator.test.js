@@ -34,7 +34,10 @@ module.exports = async function (t) {
   const KORZEN = path.join(__dirname, '..');
   let swiezy = true, powod = 'aktualny';
   try {
-    execFileSync('node', [path.join(KORZEN, 'tools', 'minifikuj.js'), '--sprawdz'],
+    /* Tylko animator: od 1.248.0 narzędzie buduje wszystkie pliki frontu,
+       a zmiana cudzego pliku nie ma zapalać tego sprawdzenia (całość:
+       tests/minifikacja.test.js). */
+    execFileSync('node', [path.join(KORZEN, 'tools', 'minifikuj.js'), '--sprawdz', 'assets/js/animator.js'],
       { stdio: 'pipe' });
   } catch (e) {
     swiezy = false;

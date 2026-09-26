@@ -259,7 +259,7 @@ add_action('wp_enqueue_scripts', function () {
     // Enqueue JS widgetu
     wp_enqueue_script(
         'evk-accessibility',
-        EVOKE_ONE_URL . 'assets/js/accessibility.js',
+        evk_zasob_url(EVOKE_ONE_URL . 'assets/js/accessibility.js'),
         [],
         EVOKE_ONE_VERSION,
         true

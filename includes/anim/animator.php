@@ -599,15 +599,10 @@ class EVK_Animator {
            na lustrze przy dławieniu 6× silnik zaczynał działać dopiero o
            1757 ms, bo wcześniej trzeba pobrać i wykonać ~200 KiB JS-a.
 
-           Gdyby skróconego pliku nie było — ktoś skopiował wtyczkę bez kroku
-           budowania — bierzemy źródło: lepiej wolniej niż wcale. `SCRIPT_DEBUG`
-           wymusza źródło świadomie, zgodnie ze zwyczajem WordPressa. */
-        $skrocony = dirname(__DIR__, 2) . '/assets/js/animator.min.js';
-        $plik = (!defined('SCRIPT_DEBUG') || !SCRIPT_DEBUG) && file_exists($skrocony)
-            ? 'assets/js/animator.min.js'
-            : 'assets/js/animator.js';
-
-        wp_enqueue_script('evk-animator', EVOKE_ONE_URL . $plik,
+           Wybór pliku jest wspólny dla całego frontu od 1.248.0:
+           evk_zasob_url() (includes/02-zasoby-frontu.php) — źródło przy
+           `SCRIPT_DEBUG` albo gdy skróconego pliku nie ma. */
+        wp_enqueue_script('evk-animator', evk_zasob_url(EVOKE_ONE_URL . 'assets/js/animator.js'),
             $deps, EVOKE_ONE_VERSION, true);
 
         wp_add_inline_script('evk-animator', 'window.evkAnimator = ' . wp_json_encode([

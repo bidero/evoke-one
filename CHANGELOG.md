@@ -2,6 +2,51 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.248.0] — 2026-09-26
+
+Dziewiętnaste wydanie po audycie 1.229.6: pliki frontu bez komentarzy.
+
+### Zmienione (decyzja zgłaszającego)
+
+- **Na stronę jadą skrócone pliki JS i CSS (`.min`).** Zgłoszone: „w kodzie
+  strony jest mnóstwo poprawek, opisów w skryptach, które wcale nie są tam
+  potrzebne". Tak robił dotąd tylko Animator (od 1.159.0). Teraz dotyczy to
+  wszystkich 23 plików frontu wtyczki: modułów (Parallax, Dostępność, Tło
+  przy scrollu, pomocnik warstw) i elementów Bricksa.
+  - Razem 467 → 156 KiB (67% mniej), np. Offcanvas Menu JS 64,6 → 14,1 KiB,
+    Burger CSS 32,8 → 12,1 KiB.
+  - Źródła z komentarzami zostają w repozytorium jako dokumentacja. Pliki
+    `.min` buduje `node tools/minifikuj.js` przed wydaniem: JS przez terser,
+    CSS przez esbuild.
+  - Przy `define('SCRIPT_DEBUG', true);` strona dostaje pełne źródła, jak
+    w WordPressie. Gdy pliku `.min` nie ma (wtyczka skopiowana bez budowania),
+    też źródło.
+  - Kod drukowany wprost w HTML (skrypty i style w `<head>`) to następne
+    wydanie.
+
+### Testy
+
+- `minifikacja` (nowy):
+  - pliki `.min` aktualne, parsują się, jedyny komentarz to nagłówek
+    „wytwór tools/minifikuj.js";
+  - pokrycie: każdy plik JS/CSS kolejkowany w PHP frontu jest na liście
+    i idzie przez `evk_zasob_url()` (rejestr elementów — przy rejestracji);
+  - wybór w PHP: `.min`, a źródło przy `SCRIPT_DEBUG`, bez pliku `.min`,
+    dla adresów obcych i już skróconych;
+  - prawdziwa strona w testowym WordPressie: pliki modułów przychodzą jako
+    `.min`, żaden jako źródło;
+  - 34 fixtury wczytane z `.min`: żadna nie ma więcej błędów JS niż ze
+    źródłami. Style porównane na 14 fixturach z CSS z listy. Porównanie
+    obejmuje tylko fixtury, w których dwa przebiegi na źródłach dają to
+    samo. Zmierzone wcześniej: pętle animacji mają przy `.min` inną fazę, bo
+    plik wczytuje się szybciej.
+- `animator`: aktualność tylko własnego pliku. Zmiana cudzego pliku frontu
+  nie zapala już tego sprawdzenia.
+- Mutacje (8). Każda zapala własny zestaw sprawdzeń, m.in. ręcznie
+  zepsuty CSS `.min` (style w fixturze burgera) i JS `.min` (błąd
+  w fixturach offcanvasu).
+- Pełny przebieg: 5277 sprawdzeń w 106 plikach.
+
 ## [1.247.0] — 2026-09-26
 
 Osiemnaste wydanie po audycie 1.229.6: zwykłe przełączniki „Włącz…"
