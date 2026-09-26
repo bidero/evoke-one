@@ -20,18 +20,29 @@ if (!defined('ABSPATH')) exit;
  * dopisał po jego otwarciu, i następnym zapisem wysyła stan bez nich. Bez
  * tej reguły zmiana polskiego tekstu w tej samej sesji skasowałaby
  * tłumaczenie — dokładnie to, przed czym pola w elementach mają chronić.
- * Pole języka, którego nowy zapis NIE MA wcale, a stary miał (ten sam
- * element, ta sama pozycja listy), zostaje. „Do sprawdzenia" (52) oznaczy
- * je, gdy oryginał się zmienił.
  *
- * GRANICA. Jeśli Bricks przy czyszczeniu pola usuwa klucz, wyczyszczenie
- * tłumaczenia w builderze wygląda tak samo jak pole nieznane builderowi —
- * stare tłumaczenie wróci (z „Do sprawdzenia", gdy zmienił się oryginał).
- * Co Bricks robi przy czyszczeniu pola tekstowego, sprawdza próba 1.243.0.
+ * WYKAZ DOPISANYCH (1.246.0). Próba z 1.243.0 pokazała, że Bricks przy
+ * czyszczeniu pola USUWA klucz — wyczyszczone tłumaczenie wygląda więc tak
+ * samo jak pole nieznane builderowi. Do 1.245.0 wracało. Teraz wraca tylko
+ * pole z wykazu `_evk_tl_el_dopisane`: dopisane przez serwer (słownik,
+ * przycisk, poprzednie przeniesienie) i jeszcze nieprzysłane przez builder.
+ * Pole przysłane przez builder wypada z wykazu, a otwarcie wpisu w builderze
+ * (przez kogoś, kto może go edytować) czyści wykaz — od tej chwili brak pola
+ * znaczy „wyczyszczone". „Do sprawdzenia" (52) oznacza przeniesione pole,
+ * gdy oryginał się zmienił. Granica: dwie karty buildera z tym samym wpisem.
+ * Otwarcie drugiej czyści wykaz, więc zapis z pierwszej, otwartej przed
+ * przeniesieniem, zgubi przeniesione pola — jak każdy zapis ze starej karty
+ * gubi zmiany z nowej.
  *
- * CZEGO TU NIE SPRAWDZIMY: że builder zapisuje treść przez update_post_meta
- * (jak przy „Do sprawdzenia" — do potwierdzenia na stronie). Przycisk od
- * tego nie zależy: zapisuje sam.
+ * REWIZJE pomijamy. update_post_meta() i delete_post_meta() z identyfikatorem
+ * rewizji WordPress przekierowuje na rodzica, więc wykaz policzony z kopii
+ * w rewizji nadpisałby wykaz strony. Rewizja zostaje, jak przyszła; przy
+ * przywróceniu dane idą na stronę i przechodzą przez ten sam filtr.
+ *
+ * ZAPIS BUILDERA idzie przez update_post_meta — potwierdzone na stronie
+ * testowej (1.244.0: „Do sprawdzenia" z 52 działa, a stoi na tym samym haku).
+ * Tu tego nie sprawdzimy, bo Bricksa tu nie ma. Przycisk od tego nie zależy:
+ * zapisuje sam.
  */
 
 /**
@@ -66,13 +77,17 @@ function evk_tl_el_klucz_slownika(string $pl): ?array {
  * @param array<string,mixed>|null $stare   Te same ustawienia ze starego zapisu.
  * @param string[]                 $pola    Pola tłumaczalne tego poziomu (z mapy).
  * @param array<string,array<string,array<string,mixed>>> $slownik Język → indeks tl_get_match_index().
+ * @param string                   $miejsce Przedrostek klucza w wykazie: „id|" albo „id|lista.pozycja.".
+ * @param array{przed:array<string,bool>,po:array<string,bool>} $dopisane Wykaz przed zapisem i po nim.
  */
-function evk_tl_el_uzupelnij_poziom(array &$ust, ?array $stare, array $pola, array $slownik): int {
+function evk_tl_el_uzupelnij_poziom(array &$ust, ?array $stare, array $pola, array $slownik, string $miejsce, array &$dopisane): int {
     $zmiany = 0;
     foreach ($stare ?? [] as $k => $v) {
         $k = (string) $k;
-        if (array_key_exists($k, $ust) || !preg_match('/^evk_tl_[a-z0-9_]+?__.+$/', $k) || !evk_tl_el_niepuste($v)) continue;
+        if (array_key_exists($k, $ust) || !isset($dopisane['przed'][$miejsce . $k])) continue;
+        if (!preg_match('/^evk_tl_[a-z0-9_]+?__.+$/', $k) || !evk_tl_el_niepuste($v)) continue;
         $ust[$k] = $v;
+        $dopisane['po'][$miejsce . $k] = true;
         $zmiany++;
     }
     foreach ($pola as $pole) {
@@ -87,6 +102,7 @@ function evk_tl_el_uzupelnij_poziom(array &$ust, ?array $stare, array $pola, arr
             $tlum = $indeks[$klucz[0]]['tlum'] ?? '';
             if (!is_string($tlum) || trim($tlum) === '') continue;
             $ust[$bliz] = $klucz[1] . $tlum . $klucz[2];
+            $dopisane['po'][$miejsce . $bliz] = true;
             $zmiany++;
         }
     }
@@ -101,11 +117,13 @@ function evk_tl_el_uzupelnij_poziom(array &$ust, ?array $stare, array $pola, arr
  * @param mixed $stare  Dane zapisane dotąd (null: bez przenoszenia ze starego).
  * @param array<string,array<string,mixed>> $mapa     Z evk_tl_el_mapa().
  * @param array<string,array<string,array<string,mixed>>> $slownik Z evk_tl_el_slownik().
- * @return array{elementy:mixed,zmiany:int,nieznane:array<string,int>}
+ * @param array<string,bool> $wykaz Pola dopisane przez serwer i nieznane builderowi (przed zapisem).
+ * @return array{elementy:mixed,zmiany:int,nieznane:array<string,int>,dopisane:array<string,bool>}
  */
-function evk_tl_el_uzupelnij($nowe, $stare, array $mapa, array $slownik): array {
-    $wynik = ['elementy' => $nowe, 'zmiany' => 0, 'nieznane' => []];
+function evk_tl_el_uzupelnij($nowe, $stare, array $mapa, array $slownik, array $wykaz = []): array {
+    $wynik = ['elementy' => $nowe, 'zmiany' => 0, 'nieznane' => [], 'dopisane' => []];
     if (!is_array($nowe)) return $wynik;
+    $dopisane = ['przed' => $wykaz, 'po' => []];
     $po_id = [];
     foreach (is_array($stare) ? $stare : [] as $el) {
         if (is_array($el) && isset($el['id']) && is_scalar($el['id']) && is_array($el['settings'] ?? null)) $po_id[(string) $el['id']] = $el;
@@ -119,7 +137,8 @@ function evk_tl_el_uzupelnij($nowe, $stare, array $mapa, array $slownik): array 
         if (!is_array($def) && $nazwa !== '') $wynik['nieznane'][$nazwa] = ($wynik['nieznane'][$nazwa] ?? 0) + 1;
 
         $ust = $el['settings'];
-        $zmiany = evk_tl_el_uzupelnij_poziom($ust, $stary['settings'] ?? null, (array) ($def['pola'] ?? []), $slownik);
+        $id = isset($el['id']) && is_scalar($el['id']) ? (string) $el['id'] : '';
+        $zmiany = evk_tl_el_uzupelnij_poziom($ust, $stary['settings'] ?? null, (array) ($def['pola'] ?? []), $slownik, $id . '|', $dopisane);
         // Pozycje list po identyfikatorze pozycji — kolejność w builderze się zmienia.
         $listy = (array) ($def['listy'] ?? []);
         foreach ($ust as $k => $v) {
@@ -130,8 +149,10 @@ function evk_tl_el_uzupelnij($nowe, $stare, array $mapa, array $slownik): array 
             }
             foreach ($v as $j => $poz) {
                 if (!is_array($poz)) continue;
-                $sp = isset($poz['id']) && is_scalar($poz['id']) ? ($stare_poz[(string) $poz['id']] ?? null) : null;
-                $zm = evk_tl_el_uzupelnij_poziom($poz, $sp, (array) ($listy[$k] ?? []), $slownik);
+                $pid = isset($poz['id']) && is_scalar($poz['id']) ? (string) $poz['id'] : null;
+                $sp = $pid !== null ? ($stare_poz[$pid] ?? null) : null;
+                $zm = evk_tl_el_uzupelnij_poziom($poz, $sp, (array) ($listy[$k] ?? []), $slownik,
+                    $id . '|' . $k . '.' . ($pid ?? (string) $j) . '.', $dopisane);
                 if ($zm) {
                     $ust[$k][$j] = $poz;
                     $zmiany += $zm;
@@ -143,6 +164,8 @@ function evk_tl_el_uzupelnij($nowe, $stare, array $mapa, array $slownik): array 
             $wynik['zmiany'] += $zmiany;
         }
     }
+    ksort($dopisane['po']);
+    $wynik['dopisane'] = $dopisane['po'];
     return $wynik;
 }
 
@@ -178,10 +201,13 @@ function evk_tl_el_slownik(): array {
  */
 function evk_tl_el_przed_zapisem($sprawdz, $post_id, $meta_key, $wartosc, $piaty = '') {
     static $w_trakcie = false;
-    if ($sprawdz !== null || $w_trakcie || !is_array($wartosc)) return $sprawdz;
+    if ($sprawdz !== null || $w_trakcie || !empty($GLOBALS['evk_tl_el_zapis_przycisku']) || !is_array($wartosc)) return $sprawdz;
     if (!in_array((string) $meta_key, evk_tl_el_klucze_meta(), true)) return $sprawdz;
+    if (wp_is_post_revision((int) $post_id)) return $sprawdz;
+    $przed = evk_tl_el_dopisane((int) $post_id, (string) $meta_key);
     $stare = get_post_meta((int) $post_id, (string) $meta_key, true);
-    $wynik = evk_tl_el_uzupelnij($wartosc, $stare, evk_tl_el_mapa(), evk_tl_el_slownik());
+    $wynik = evk_tl_el_uzupelnij($wartosc, $stare, evk_tl_el_mapa(), evk_tl_el_slownik(), $przed);
+    if ($wynik['dopisane'] !== $przed) evk_tl_el_zapisz_dopisane((int) $post_id, (string) $meta_key, $wynik['dopisane']);
     if (!$wynik['zmiany']) return $sprawdz;
     $w_trakcie = true;
     try {
@@ -194,6 +220,43 @@ function evk_tl_el_przed_zapisem($sprawdz, $post_id, $meta_key, $wartosc, $piaty
 }
 add_filter('update_post_metadata', 'evk_tl_el_przed_zapisem', 10, 5);
 add_filter('add_post_metadata', 'evk_tl_el_przed_zapisem', 10, 5);
+
+/** Metadane wpisu: pola języków dopisane przez serwer, których builder jeszcze nie przysłał. */
+const EVK_TL_EL_DOPISANE = '_evk_tl_el_dopisane';
+
+/** @return array<string,bool> Wykaz dla jednego klucza metadanych (treść, nagłówek, stopka). */
+function evk_tl_el_dopisane(int $post_id, string $meta_key): array {
+    $wykaz = get_post_meta($post_id, EVK_TL_EL_DOPISANE, true);
+    return is_array($wykaz) && is_array($wykaz[$meta_key] ?? null) ? $wykaz[$meta_key] : [];
+}
+
+/** @param array<string,bool> $dopisane */
+function evk_tl_el_zapisz_dopisane(int $post_id, string $meta_key, array $dopisane): void {
+    $wykaz = get_post_meta($post_id, EVK_TL_EL_DOPISANE, true);
+    $wykaz = is_array($wykaz) ? $wykaz : [];
+    if ($dopisane) $wykaz[$meta_key] = $dopisane; else unset($wykaz[$meta_key]);
+    if ($wykaz) update_post_meta($post_id, EVK_TL_EL_DOPISANE, $wykaz);
+    else delete_post_meta($post_id, EVK_TL_EL_DOPISANE);
+}
+
+/**
+ * Otwarcie wpisu w builderze: builder wczytuje dane razem z polami
+ * dopisanymi przez serwer, więc od tej chwili je zna — wykaz znika.
+ */
+function evk_tl_el_builder_otwarty(int $post_id): void {
+    if ($post_id > 0) delete_post_meta($post_id, EVK_TL_EL_DOPISANE);
+}
+
+/**
+ * Tylko u kogoś, kto może wpis edytować: evk_w_builderze() patrzy na sam
+ * adres, a „?bricks=run" dopisze do adresu każdy gość.
+ */
+function evk_tl_el_otwarcie_buildera(): void {
+    if (!evk_w_builderze() || !is_singular()) return;
+    $post_id = (int) get_queried_object_id();
+    if ($post_id > 0 && current_user_can('edit_post', $post_id)) evk_tl_el_builder_otwarty($post_id);
+}
+add_action('template_redirect', 'evk_tl_el_otwarcie_buildera', 1);
 
 // =========================================================================
 // PRZYCISK „PRZENIEŚ" — wszystkie strony naraz
@@ -236,7 +299,20 @@ function evk_tl_el_przenies(bool $zapisz): array {
         $u = evk_tl_el_uzupelnij($dane, null, $mapa, $slownik);
         foreach ($u['nieznane'] as $n => $ile) $wynik['nieznane'][$n] = ($wynik['nieznane'][$n] ?? 0) + $ile;
         if (!$u['zmiany']) continue;
-        if ($zapisz) update_post_meta($post_id, $meta_key, wp_slash($u['elementy']));
+        if ($zapisz) {
+            /* Otwarty builder nie zna tych pól — do wykazu, żeby jego następny
+               zapis ich nie zgubił. Zapis bez haka: ten wziąłby pola przysłane
+               tutaj za „znane builderowi" i wyczyścił wykaz. */
+            $wykaz = evk_tl_el_dopisane($post_id, $meta_key) + $u['dopisane'];
+            ksort($wykaz);
+            evk_tl_el_zapisz_dopisane($post_id, $meta_key, $wykaz);
+            $GLOBALS['evk_tl_el_zapis_przycisku'] = true;
+            try {
+                update_post_meta($post_id, $meta_key, wp_slash($u['elementy']));
+            } finally {
+                $GLOBALS['evk_tl_el_zapis_przycisku'] = false;
+            }
+        }
         $wynik['strony'][] = ['post_id' => $post_id, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
             'czesc' => evk_tl_el_czesc($meta_key), 'zmiany' => $u['zmiany'], 'adres' => evk_tl_el_adres_edycji($post_id)];
         $wynik['razem'] += $u['zmiany'];

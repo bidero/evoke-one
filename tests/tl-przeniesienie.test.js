@@ -45,17 +45,42 @@ module.exports = async function (t) {
   t.check('tekst ze znacznikiem w środku i dwa akapity: zostają słownikowi', !Object.keys(p1).some((k) => k.includes('.p2.')), JSON.stringify(p1));
   t.check('typ spoza mapy i element bez pól: nietknięte', !Object.keys(p1).some((k) => /^(x1abcd|c1abcd)\|/.test(k)), JSON.stringify(p1));
 
+  t.section('wykaz pól dopisanych przez serwer (1.246.0)');
+  t.check('po pierwszym zapisie: w wykazie dokładnie pola uzupełnione ze słownika (wpisane „Get in touch" nie)',
+    JSON.stringify(s['1 wykaz']) === '["a1abcd|accordions.p1.evk_tl_en__content","a1abcd|accordions.p1.evk_tl_en__title","h1abcd|evk_tl_de__text","h1abcd|evk_tl_en__text","h2abcd|evk_tl_de__text"]',
+    JSON.stringify(s['1 wykaz']));
+
   t.section('zapis buildera bez pól dopisanych przez serwer');
   const p2 = s['2 zapis bez pól, zmiana PL'] || {};
   t.check('SEDNO: polski zmieniony, a tłumaczenia zostały (przeniesione ze starego zapisu)',
     (p2.pola || {})['h1abcd|evk_tl_en__text'] === 'Contact' && (p2.pola || {})['h1abcd|evk_tl_de__text'] === 'Kontakt (DE)'
       && (p2.pola || {})['h2abcd|evk_tl_en__text'] === 'Get in touch', JSON.stringify(p2.pola));
   t.check('i miejsce jest na liście „Do sprawdzenia" (EN i DE)', JSON.stringify(p2.do_sprawdzenia) === '["text:en","text:de"]', JSON.stringify(p2.do_sprawdzenia));
+  const r = s['2r rewizja'] || {};
+  t.check('kopia w rewizji zapisana, jak przyszła (bez uzupełniania)', r.rewizja === true
+    && JSON.stringify(r.w_rewizji) === '{"h2abcd|evk_tl_en__text":"Get in touch"}', JSON.stringify(r));
+  t.check('kopia w rewizji nie rusza wykazu strony (update_post_meta rewizji idzie na rodzica)', r.wykaz === 'bez zmian', JSON.stringify(r.wykaz));
+  t.check('kopia w rewizji nie czyści „Do sprawdzenia" strony', r.stan === 'bez zmian', JSON.stringify(r.stan));
+  t.check('drugi zapis tej samej sesji (polski już bez zmian): tłumaczenia dalej są',
+    JSON.stringify(s['2b drugi zapis tej samej sesji']) === JSON.stringify(p2.pola), JSON.stringify(s['2b drugi zapis tej samej sesji']));
   const p3 = s['3 jawnie puste EN'] || {};
   t.check('pole jawnie puste (klucz jest) przy polskim spoza słownika: zostaje puste, DE przeniesione',
     p3['h1abcd|evk_tl_en__text'] === '' && p3['h1abcd|evk_tl_de__text'] === 'Kontakt (DE)', JSON.stringify(p3));
   const p4 = s['4 puste EN, PL ze słownika'] || {};
   t.check('pole puste, a polski znów jest frazą słownika: dostaje tłumaczenie', p4['h1abcd|evk_tl_en__text'] === 'Contact', JSON.stringify(p4));
+
+  t.section('po otwarciu w builderze wyczyszczone pole zostaje puste');
+  t.check('hak otwarcia na template_redirect, priorytet 1', s['4 hak'] === 1, JSON.stringify(s['4 hak']));
+  t.check('gość z „?bricks=run" w adresie: wykaz zostaje', (s['4 wykaz'] || []).length > 0
+    && JSON.stringify(s['4a gosc z ?bricks=run']) === JSON.stringify(s['4 wykaz']), JSON.stringify(s['4a gosc z ?bricks=run']));
+  t.check('otwarcie wpisu w builderze przez administratora czyści wykaz', JSON.stringify(s['4b wykaz po otwarciu buildera']) === '[]', JSON.stringify(s['4b wykaz po otwarciu buildera']));
+  const p4c = s['4c wyczyszczone po otwarciu'] || {};
+  t.check('wyczyszczone EN i DE nagłówka (polski spoza słownika): nie wracają',
+    !('h1abcd|evk_tl_en__text' in p4c) && !('h1abcd|evk_tl_de__text' in p4c), JSON.stringify(p4c));
+  t.check('wyczyszczone pola z polskim ze słownika: słownik uzupełnia je znowu (i wracają do wykazu)',
+    p4c['h2abcd|evk_tl_de__text'] === 'Kontakt (DE)' && p4c['a1abcd|accordions.p1.evk_tl_en__title'] === 'One'
+      && JSON.stringify(s['4c wykaz']) === '["a1abcd|accordions.p1.evk_tl_en__content","a1abcd|accordions.p1.evk_tl_en__title","h2abcd|evk_tl_de__text"]',
+    JSON.stringify(s['4c wykaz']));
 
   t.section('zakres: nagłówek szablonu tak, obce metadane nie');
   t.check('obca metadana w tym samym kształcie: bez zmian', JSON.stringify(s['5 obca meta']) === '{"h2abcd|evk_tl_en__text":"Get in touch"}',
@@ -72,6 +97,11 @@ module.exports = async function (t) {
     JSON.stringify(s['7c po podglądzie nic nie zapisane']));
   const pe = s['7e po zapisie'] || {};
   t.check('„Przenieś" zapisuje to samo, co zapis strony', JSON.stringify(pe) === JSON.stringify(p1), JSON.stringify(pe));
+  const w7 = s['7e wykaz'] || [];
+  t.check('„Przenieś" wpisuje przeniesione pola do wykazu (otwarty builder ich nie zna)',
+    JSON.stringify(w7.filter((k) => !(s['7 wykaz przed'] || []).includes(k))) === JSON.stringify(s['1 wykaz']), JSON.stringify(w7));
+  t.check('„Przenieś" zostawia wcześniejsze wpisy wykazu (zapis z pominięciem haka)',
+    JSON.stringify(s['7 wykaz przed']) === '["h2abcd|evk_tl_en__text"]' && w7.includes('h2abcd|evk_tl_en__text'), JSON.stringify(w7));
   t.check('drugi podgląd: tej strony już nie ma (nic do przeniesienia)', (s['7f drugi podgląd'] || {}).strona === null, JSON.stringify(s['7f drugi podgląd']));
 
   // ── Zakładka w przeglądarce ─────────────────────────────────────────────

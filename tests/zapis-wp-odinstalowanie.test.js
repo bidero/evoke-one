@@ -49,7 +49,7 @@ module.exports = async function (t) {
     JSON.stringify({ opcje: Object.keys(n0.opcje || {}).length, transienty: Object.keys(n0.transienty || {}).length,
       tabele: Object.keys(n0.tabele || {}).length, wpisy: Object.keys(n0.wpisy || {}).length }));
   t.check('meta, rola z Role Managera, uprawnienia i katalogi (kopie, import, OG) zostają',
-    Object.keys(n0.meta || {}).length === 3 && n0.rola === true && n0.uprawnienie === true && Object.keys(n0.katalogi || {}).length === 3,
+    Object.keys(n0.meta || {}).length === 5 && n0.rola === true && n0.uprawnienie === true && Object.keys(n0.katalogi || {}).length === 3,
     JSON.stringify({ meta: n0.meta, rola: n0.rola, uprawnienie: n0.uprawnienie, katalogi: n0.katalogi }));
   sonda('przywroc');
 
@@ -63,11 +63,11 @@ module.exports = async function (t) {
   const nd = wd.nasze || {};
   t.check('warunek testu: w katalogu wtyczek jest druga kopia Evoke ONE',
     JSON.stringify(wd.inne_kopie) === JSON.stringify(['evk-t-druga-kopia/evoke-one.php']), JSON.stringify(wd.inne_kopie));
-  t.check('ustawienia, tabele, wpisy, katalogi i rola zostają mimo „Usuń dane"',
+  t.check('ustawienia, tabele, wpisy, meta, katalogi i rola zostają mimo „Usuń dane"',
     Object.keys(nd.opcje || {}).length === 11 && Object.keys(nd.tabele || {}).length === 2 && Object.keys(nd.wpisy || {}).length === 4
-      && Object.keys(nd.katalogi || {}).length === 3 && nd.rola === true,
+      && Object.keys(nd.meta || {}).length === 5 && Object.keys(nd.katalogi || {}).length === 3 && nd.rola === true,
     JSON.stringify({ opcje: Object.keys(nd.opcje || {}).length, tabele: nd.tabele, wpisy: Object.keys(nd.wpisy || {}).length,
-      katalogi: nd.katalogi, rola: nd.rola }));
+      meta: Object.keys(nd.meta || {}), katalogi: nd.katalogi, rola: nd.rola }));
   sonda('przywroc');
 
   // ── Z „Usuń dane" ───────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ module.exports = async function (t) {
     puste(n1.opcje) && puste(n1.transienty), JSON.stringify({ opcje: n1.opcje, transienty: n1.transienty }));
   t.check('tabele newslettera i kopii, snippety, przekierowania, logi — nic nie zostaje',
     puste(n1.tabele) && puste(n1.wpisy), JSON.stringify({ tabele: n1.tabele, wpisy: n1.wpisy }));
-  t.check('meta stron (OG, SEO) i użytkowników — nic nie zostaje', puste(n1.meta), JSON.stringify(n1.meta));
+  t.check('meta stron (OG, SEO, tłumaczenia w elementach) i użytkowników — nic nie zostaje', puste(n1.meta), JSON.stringify(n1.meta));
   t.check('kopie z serwera, katalog importu, obrazki OG — usunięte', puste(n1.katalogi), JSON.stringify(n1.katalogi));
   t.check('rola z Role Managera usunięta, jej użytkownik z rolą domyślną strony',
     n1.rola === false && JSON.stringify(w1.uzytkownik_role) === JSON.stringify([w1.domyslna_rola]),
@@ -145,4 +145,27 @@ module.exports = async function (t) {
   const wrocily = (dane.opcje_dawne || []).filter((n) => caly.includes("'" + n + "'"));
   t.check('dawne opcje ze spisu nie występują w kodzie (inaczej należą do `opcje`)',
     Array.isArray(dane.opcje_dawne) && dane.opcje_dawne.length > 0 && !wrocily.length, wrocily.join(', ') || (dane.opcje_dawne || []).join(', '));
+
+  /* To samo dla metadanych wpisów. Strażnik patrzył tylko na opcje, więc
+     `_evk_tl_el_stan` (1.242.0) nie trafił do spisu i „Usuń dane" go nie
+     kasowało. Klucz podany literałem albo stałą; stała nieznana strażnikowi
+     (np. stała klasy) też się zgłasza, zamiast przepaść. Poza spisem wolno
+     klucze Bricksa i WordPressa oraz metadane reguł przekierowań — leżą na
+     wpisach `evk_301_redirect`, które odinstalowanie kasuje w całości. */
+  t.section('spis danych: każdy klucz metadanych wpisu z kodu jest w includes/dane-wtyczki.php');
+  const NA_WPISACH_PRZEKIEROWAN = ['created_date', 'redirect_clicks', 'redirect_from', 'redirect_to'];
+  const WYWOLANIE = String.raw`\b(?:get|update|add|delete)_post_meta\(\s*[^,()]+(?:\([^()]*\))?[^,()]*,\s*`;
+  const klucze = new Set();
+  for (const tx of teksty) {
+    for (const m of tx.matchAll(new RegExp(WYWOLANIE + "'([^']+)'", 'g'))) klucze.add(m[1]);
+    for (const m of tx.matchAll(new RegExp(WYWOLANIE + String.raw`([A-Z][A-Z0-9_]*)\s*[,)]`, 'g'))) klucze.add(stale[m[1]] || 'stała ' + m[1] + '?');
+  }
+  const obcy = (k) => /^_(bricks|wp)_/.test(k);
+  const metaBezSpisu = [...klucze].filter((k) => !(dane.meta_wpisow || []).includes(k) && !obcy(k) && !NA_WPISACH_PRZEKIEROWAN.includes(k)).sort();
+  t.check('każdy klucz metadanych wpisu z kodu jest w spisie (albo nie jest nasz)', klucze.size > 20 && !metaBezSpisu.length,
+    metaBezSpisu.join(', ') || klucze.size + ' kluczy');
+  const metaMartwe = (dane.meta_wpisow || []).filter((k) => !klucze.has(k));
+  t.check('każdy klucz metadanych ze spisu występuje w kodzie (bez literówek)', !metaMartwe.length, metaMartwe.join(', ') || 'komplet');
+  t.check('metadane przekierowań: typ ich wpisów jest w spisie (kasowany w całości)', (dane.typy_wpisow || []).includes('evk_301_redirect'),
+    JSON.stringify(dane.typy_wpisow));
 };

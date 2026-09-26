@@ -123,15 +123,40 @@ switch ($tryb) {
         $K = '_bricks_page_content_2';
         $id = evk_test_wpis();
 
+        $wykaz = static function () use ($id, $K) { return array_keys(evk_tl_el_dopisane($id, $K)); };
+
         // 1. Pierwszy zapis (add_post_meta pod spodem update_post_meta).
         update_post_meta($id, $K, evk_test_tresc('Kontakt'));
         $wynik['1 pierwszy zapis'] = evk_test_pola($id);
+        $wynik['1 wykaz'] = $wykaz();
 
-        // 2. Builder sprzed uzupełnienia: wysyła stan BEZ pól języków i zmienia polski nagłówek.
-        update_post_meta($id, $K, evk_test_tresc('Kontakt z nami', ['h2abcd' => ['evk_tl_en__text' => null]]));
+        /* 2. Builder otwarty przed uzupełnieniem: wysyła stan BEZ pól dopisanych
+           przez serwer (wpisane przez użytkownika „Get in touch" zna) i zmienia
+           polski nagłówek. */
+        update_post_meta($id, $K, evk_test_tresc('Kontakt z nami'));
         $wynik['2 zapis bez pól, zmiana PL'] = ['pola' => evk_test_pola($id),
             'do_sprawdzenia' => array_values(array_map(static function ($m) { return $m['pole'] . ':' . $m['jezyk']; },
                 array_filter(evk_tl_el_do_sprawdzenia(), static function ($m) use ($id) { return $m['post_id'] === $id; })))];
+
+        /* 2r. Kopia w rewizji: dane pod identyfikatorem rewizji (add_metadata, jak
+           przy kopiowaniu metadanych do rewizji), tu surowy stan z buildera.
+           update_post_meta() i delete_post_meta() rewizji WordPress
+           przekierowuje na rodzica — wykaz i stan „Do sprawdzenia" strony
+           nie mogą się od tego zmienić, a rewizja zostaje, jak przyszła. */
+        $stan_przed = get_post_meta($id, EVK_TL_EL_STAN, true);
+        $wykaz_przed = $wykaz();
+        $rew = (int) _wp_put_post_revision(get_post($id));
+        add_metadata('post', $rew, $K, wp_slash(evk_test_tresc('Kontakt z nami')));
+        $wynik['2r rewizja'] = [
+            'rewizja'   => $rew > 0 && (int) wp_is_post_revision($rew) === $id,
+            'w_rewizji' => evk_test_pola($rew),
+            'wykaz'     => $wykaz() === $wykaz_przed && $wykaz_przed ? 'bez zmian' : $wykaz(),
+            'stan'      => get_post_meta($id, EVK_TL_EL_STAN, true) === $stan_przed && $stan_przed ? 'bez zmian' : 'zmieniony',
+        ];
+
+        // 2b. Kolejny zapis z tej samej sesji buildera, polski już bez zmian — pola dalej nieznane builderowi.
+        update_post_meta($id, $K, evk_test_tresc('Kontakt z nami'));
+        $wynik['2b drugi zapis tej samej sesji'] = evk_test_pola($id);
 
         // 3. Pole EN jawnie puste (klucz jest) przy polskim spoza słownika — zostaje puste; DE (brak klucza) przeniesione.
         update_post_meta($id, $K, evk_test_tresc('Kontakt z nami', ['h1abcd' => ['evk_tl_en__text' => '']]));
@@ -140,6 +165,32 @@ switch ($tryb) {
         // 4. To samo pole puste, a polski wraca do frazy ze słownika — pole dostaje tłumaczenie.
         update_post_meta($id, $K, evk_test_tresc('Kontakt', ['h1abcd' => ['evk_tl_en__text' => '']]));
         $wynik['4 puste EN, PL ze słownika'] = evk_test_pola($id);
+
+        /* 4a. Adres buildera („?bricks=run") otwarty przez gościa — dopisać go
+           może każdy, więc wykaz zostaje. Zapytanie główne o tę stronę, jak
+           przy żądaniu jej adresu; hak woła się wprost, bez reszty
+           template_redirect (przekierowania rdzenia kończą żądanie). */
+        $wynik['4 wykaz'] = $wykaz();
+        $wynik['4 hak'] = has_action('template_redirect', 'evk_tl_el_otwarcie_buildera');
+        $_GET['bricks'] = 'run';
+        $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'] = new WP_Query(['page_id' => $id]);
+        wp_set_current_user(0);
+        evk_tl_el_otwarcie_buildera();
+        $wynik['4a gosc z ?bricks=run'] = $wykaz();
+
+        // 4b. Otwarcie wpisu w builderze przez administratora — builder zna już wszystko, wykaz znika.
+        wp_set_current_user(1);
+        evk_tl_el_otwarcie_buildera();
+        $wynik['4b wykaz po otwarciu buildera'] = $wykaz();
+        unset($_GET['bricks']);
+        wp_set_current_user(0);
+
+        /* 4c. Po otwarciu użytkownik czyści pola: nagłówek EN i DE (polski spoza
+           słownika), DE drugiego nagłówka i pozycję akordeonu (polski ze
+           słownika). Bricks usuwa klucz wyczyszczonego pola (próba 1.243.0). */
+        update_post_meta($id, $K, evk_test_tresc('Kontakt z nami'));
+        $wynik['4c wyczyszczone po otwarciu'] = evk_test_pola($id);
+        $wynik['4c wykaz'] = $wykaz();
 
         // 5. Obca metadana w tym samym kształcie — nietknięta.
         $obcy = evk_test_wpis();
@@ -158,6 +209,12 @@ switch ($tryb) {
         update_post_meta($stara, $K, evk_test_tresc('Kontakt'));
         add_filter('update_post_metadata', 'evk_tl_el_przed_zapisem', 10, 5);
         add_filter('add_post_metadata', 'evk_tl_el_przed_zapisem', 10, 5);
+        /* Wcześniejszy wpis wykazu: pole dopisane przez serwer przed
+           przyciskiem, którego otwarty builder też nie zna. Przycisk ma go
+           zostawić — zapis przez hak wziąłby wszystkie pola z danych za
+           przysłane przez builder i wyczyścił wykaz. */
+        evk_tl_el_zapisz_dopisane($stara, $K, ['h2abcd|evk_tl_en__text' => true]);
+        $wynik['7 wykaz przed'] = array_keys(evk_tl_el_dopisane($stara, $K));
         $moja = static function (array $p) use ($stara) {
             $s = array_values(array_filter($p['strony'], static function ($x) use ($stara) { return $x['post_id'] === $stara; }));
             return ['strona' => $s[0] ?? null, 'nieznane' => $p['nieznane'], 'znane' => $p['znane']];
@@ -167,6 +224,7 @@ switch ($tryb) {
         $wynik['7c po podglądzie nic nie zapisane'] = evk_test_pola($stara);
         $wynik['7d zapis'] = $moja(evk_tl_el_przenies(true));
         $wynik['7e po zapisie'] = evk_test_pola($stara);
+        $wynik['7e wykaz'] = array_keys(evk_tl_el_dopisane($stara, $K));
         $wynik['7f drugi podgląd'] = $moja(evk_tl_el_przenies(false));
         evk_test_sprzataj();
         break;

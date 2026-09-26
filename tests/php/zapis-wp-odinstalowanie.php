@@ -66,6 +66,9 @@ case 'przygotuj':
     $strona = (int) wp_insert_post(['post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Zwykła strona']);
     update_post_meta($strona, '_evk_og_url', 'https://usun.test/og.jpg');
     update_post_meta($strona, '_evoke_seo_title', 'Tytuł SEO');
+    // Tłumaczenia w elementach: stan „Do sprawdzenia" (1.242.0) i wykaz dopisanych (1.246.0).
+    update_post_meta($strona, '_evk_tl_el_stan', ['_bricks_page_content_2' => ['h1abcd|text|en' => ['src' => 'Kontakt', 'tl' => 'Contact']]]);
+    update_post_meta($strona, '_evk_tl_el_dopisane', ['_bricks_page_content_2' => ['h1abcd|evk_tl_en__text' => true]]);
     update_post_meta($strona, '_evk_access_key', 'klucz-evoke-fields');   // CUDZE: Evoke Fields
     update_user_meta(1, 'evk_avatar_id', 123);
 
@@ -152,6 +155,8 @@ case 'wykonaj':
         'wpisy'      => array_filter($wpisy),
         'meta'       => array_filter(['_evk_og_url' => get_post_meta((int) ($s['strona'] ?? 0), '_evk_og_url', true) !== '',
                          '_evoke_seo_title' => get_post_meta((int) ($s['strona'] ?? 0), '_evoke_seo_title', true) !== '',
+                         '_evk_tl_el_stan' => get_post_meta((int) ($s['strona'] ?? 0), '_evk_tl_el_stan', true) !== '',
+                         '_evk_tl_el_dopisane' => get_post_meta((int) ($s['strona'] ?? 0), '_evk_tl_el_dopisane', true) !== '',
                          'evk_avatar_id' => get_user_meta(1, 'evk_avatar_id', true) !== '']),
         'rola'       => get_role('evk_t_odinst') !== null,
         'uprawnienie'=> get_role('editor')->has_cap('evk_access_newsletter'),

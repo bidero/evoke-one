@@ -2,6 +2,86 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.246.0] — 2026-09-26
+
+Siedemnaste wydanie po audycie 1.229.6: wyczyszczone tłumaczenie
+w elemencie zostaje puste.
+
+### Naprawione
+
+- **Wyczyszczone pole „Tłumaczenie EN" wracało po zapisie strony.** Próba
+  z 1.243.0 pokazała, że Bricks przy czyszczeniu pola usuwa klucz
+  z ustawień elementu. Wtyczka nie odróżniała tego od pola, którego otwarty
+  builder nie zna, i przywracała tłumaczenie z poprzedniego zapisu.
+  - Teraz wraca tylko pole dopisane przez serwer (słownik przy zapisie,
+    przycisk „Przenieś"), którego builder jeszcze nie widział. Ich wykaz
+    leży przy wpisie (`_evk_tl_el_dopisane`).
+  - Pole przysłane przez builder wypada z wykazu. Otwarcie strony
+    w builderze czyści wykaz, bo od tej chwili builder zna wszystkie pola.
+  - Ochrona z 1.244.0 zostaje: builder otwarty przed „Przenieś" nie gubi
+    przeniesionych tłumaczeń, także przy kilku zapisach w jednej sesji
+    i przy zmianie polskiego tekstu.
+  - Bez zmian: gdy polski tekst jest frazą słownika, wyczyszczone pole
+    znowu dostaje tłumaczenie („pola pokazują wszystko").
+  - Granica: dwie karty buildera z tą samą stroną. Otwarcie drugiej czyści
+    wykaz, więc zapis z pierwszej, otwartej przed „Przenieś", zgubi
+    przeniesione pola. Tak samo zapis ze starej karty gubi każdą zmianę
+    z nowej.
+- **Wykaz czyści tylko ktoś, kto może edytować stronę.** `?bricks=run`
+  dopisze do adresu każdy gość, a wykrywanie buildera patrzy na sam adres.
+- **Kopie danych w rewizjach nie ruszają strony.** WordPress przekierowuje
+  `update_post_meta()` i `delete_post_meta()` z identyfikatorem rewizji na
+  stronę. Gdyby Bricks kopiował dane do rewizji po zapisie strony, stan „Do
+  sprawdzenia" liczony od zera z kopii wyczyściłby oznaczenia, a wykaz
+  z kopii nadpisałby wykaz strony. Na testowej „Do sprawdzenia" działa,
+  więc Bricks 2.4.1 najpewniej tego nie robi, ale tu się tego nie sprawdzi.
+  Oba haki pomijają więc rewizje. Przywrócenie rewizji zapisuje dane na
+  stronie i przechodzi przez te same haki.
+- **„Usuń dane" przy odinstalowaniu nie kasowało stanu „Do sprawdzenia".**
+  `_evk_tl_el_stan` (od 1.242.0) nie trafił do spisu danych, bo strażnik
+  spisu sprawdzał tylko opcje. Stan i nowy wykaz są w spisie, a strażnik
+  sprawdza teraz także metadane wpisów.
+
+### Ustalone (próba przełączników z 1.243.0)
+
+Wyniki ze strony testowej, Bricks 2.4.1:
+
+- Ukryte pole z wartością domyślną zapisuje się w nowym elemencie
+  (`proba_znacznik: 2`).
+- Odznaczenie pola domyślnie zaznaczonego usuwa klucz, nie zostawia
+  `false`. Wyczyszczone pole tekstowe też traci klucz.
+- „Stary" element, wklejony bez znacznika, zostaje bez znacznika i bez
+  wartości domyślnych: po wklejeniu, po zapisie i po odświeżeniu buildera.
+  Warunek `required` przy braku klucza pokazuje przełącznik starego
+  elementu („Wyłącz B"), a „Włącz A" jest odznaczone.
+
+Znacznik „nowy element" jest więc wykonalny. Nowe elementy dostaną zwykłe
+„Włącz…", a stare na stronach zachowają dotychczasowe ustawienia. To
+następny etap, a element próbny zniknie razem z nim.
+
+### Testy
+
+- `tl-przeniesienie`:
+  - wykaz po pierwszym zapisie i po „Przenieś", drugi zapis tej samej
+    sesji;
+  - po otwarciu w builderze wyczyszczone pola nie wracają, a pola
+    z polskim ze słownika znowu dostają tłumaczenie;
+  - gość z `?bricks=run` nie czyści wykazu, administrator czyści (hak
+    `template_redirect` przy prawdziwym zapytaniu o stronę);
+  - kopia w rewizji (`add_metadata` z identyfikatorem rewizji) nie rusza
+    wykazu ani „Do sprawdzenia" strony i zostaje taka, jak przyszła;
+  - „Przenieś" zostawia wcześniejsze wpisy wykazu.
+- `zapis-wp-odinstalowanie`: strażnik spisu metadanych wpisów w obie
+  strony (klucz z kodu jest w spisie, klucz ze spisu jest w kodzie).
+  Stan i wykaz tłumaczeń są zasiane, a „Usuń dane" je kasuje.
+- `builder-context`: moduł przeniesienia na zamkniętej liście użytkowników
+  `evk_w_builderze()`.
+- Mutacje (12). Każda zapala własny zestaw sprawdzeń. Dwie pierwsze wersje
+  mutacji przycisku (bez dopisania do wykazu, zapis przez hak) gasły na
+  tym samym sprawdzeniu, więc doszło sprawdzenie wcześniejszych wpisów
+  wykazu, które zapala tylko druga.
+- Pełny przebieg: 5259 sprawdzeń w 106 plikach.
+
 ## [1.245.0] — 2026-09-26
 
 Szesnaste wydanie po audycie 1.229.6: lista „Teksty w elementach".

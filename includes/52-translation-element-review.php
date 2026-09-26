@@ -23,9 +23,10 @@ if (!defined('ABSPATH')) exit;
  * (CLAUDE.md). Tłumaczenia sprzed tej wersji dostają stan przy pierwszym
  * zapisie strony — od tej chwili uchodzą za aktualne.
  *
- * CZEGO TU NIE SPRAWDZIMY: że Bricks zapisuje treść przez update_post_meta
- * (standard WordPressa; komponenty i elementy globalne w opcjach — ten etap
- * ich nie obejmuje). Do potwierdzenia na stronie.
+ * ZAPIS BRICKSA idzie przez update_post_meta (standard WordPressa) —
+ * potwierdzone na stronie testowej przy 1.244.0: ramka „Do sprawdzenia"
+ * pojawia się po zmianie polskiego tekstu. Komponenty i elementy globalne
+ * leżą w opcjach — ten etap ich nie obejmuje.
  */
 
 const EVK_TL_EL_STAN = '_evk_tl_el_stan';
@@ -115,6 +116,10 @@ function evk_tl_el_nowy_stan(array $stary, array $miejsca): array {
 function evk_tl_el_meta_zmieniona($meta_id, $post_id, $meta_key, $wartosc): void {
     if (!in_array((string) $meta_key, evk_tl_el_klucze_meta(), true)) return;
     $post_id = (int) $post_id;
+    /* Kopia danych w rewizji — pomijamy. update_post_meta() rewizji WordPress
+       przekierowuje na rodzica, więc stan policzony od zera z kopii
+       nadpisałby stan strony i wyczyścił „Do sprawdzenia" (1.246.0). */
+    if (wp_is_post_revision($post_id)) return;
     $stan = get_post_meta($post_id, EVK_TL_EL_STAN, true);
     if (!is_array($stan)) $stan = [];
     $czesc = evk_tl_el_nowy_stan(is_array($stan[$meta_key] ?? null) ? $stan[$meta_key] : [], evk_tl_el_miejsca(maybe_unserialize($wartosc)));

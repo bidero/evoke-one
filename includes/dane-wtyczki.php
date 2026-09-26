@@ -71,7 +71,9 @@ return [
     'meta_wpisow' => ['_evk_og_disable', '_evk_og_url', '_evk_original_post_id',
                       '_evoke_seo_desc', '_evoke_seo_keywords', '_evoke_seo_robots', '_evoke_seo_title',
                       '_evk_snippet_rodzaj', '_evk_snippet_miejsce', '_evk_snippet_grupa', '_evk_snippet_wlaczony',
-                      '_evk_snippet_awaria', '_evk_snippet_ukosniki_ok'],
+                      '_evk_snippet_awaria', '_evk_snippet_ukosniki_ok',
+                      // Tłumaczenia w elementach: stan „Do sprawdzenia" (1.242.0) i wykaz dopisanych (1.246.0).
+                      '_evk_tl_el_stan', '_evk_tl_el_dopisane'],
     'meta_uzytkownikow' => ['evk_avatar_id'],
     'tabele' => ['evk_nl_lists', 'evk_nl_subscribers', 'evk_nl_templates', 'evk_nl_campaigns',
                  'evk_nl_queue', 'evk_nl_logs', 'evk_backup_jobs', 'evk_404'],
