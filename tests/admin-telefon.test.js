@@ -80,8 +80,15 @@ function pomiar() {
   const cele = [];
   for (const el of tresc.querySelectorAll('a[href], button, input, select, textarea, summary, [role=button]')) {
     if (poza(el) || !widoczny(el) || (el.tagName === 'INPUT' && el.type === 'hidden')) continue;
-    // Odnośnik w zdaniu — wyjątek WCAG 2.5.8 („inline").
-    if (el.tagName === 'A' && el.parentElement && el.parentElement.textContent.trim().length > el.textContent.trim().length + 2) continue;
+    /* Odnośnik w zdaniu — wyjątek WCAG 2.5.8 („inline"). Liczy się tekst
+       rodzica POZA odnośnikami i przyciskami: do 1.244.0 wystarczał tekst
+       sąsiednich odnośników, więc pasek samych odnośników (filtry, strony
+       listy) uchodził za zdanie i każdy jego cel był zwolniony. */
+    if (el.tagName === 'A' && el.parentElement) {
+      const zdanie = el.parentElement.cloneNode(true);
+      zdanie.querySelectorAll('a, button').forEach((x) => x.remove());
+      if (zdanie.textContent.trim().length > 2) continue;
+    }
     // Pole pliku ukryte w strefie upuszczania i pole przełącznika: celem jest strefa / suwak.
     if (el.tagName === 'INPUT' && (el.type === 'file' || el.closest('.evo-toggle')) && parseFloat(getComputedStyle(el).opacity) === 0) continue;
     let r = el.getBoundingClientRect();
@@ -120,7 +127,7 @@ module.exports = async function (t) {
       await d.goto(u);
       for (const s of await d.$$eval('.evo-sidebar-sublink', (a) => a.map((x) => x.href))) adresy.add(s);
     }
-    for (const tab of ['translations', 'images', 'slugs', 'dd', 'languages', 'sitemap', 'io']) adresy.add(A + 'options-general.php?page=evoke-tlumaczenia&tab=' + tab);
+    for (const tab of ['translations', 'elementy', 'images', 'slugs', 'dd', 'languages', 'sitemap', 'io']) adresy.add(A + 'options-general.php?page=evoke-tlumaczenia&tab=' + tab);
     for (const tab of ['lists', 'templates', 'campaigns', 'reports', 'settings']) adresy.add(A + 'admin.php?page=evoke-newsletter&subtab=' + tab);
     adresy.add(A + 'admin.php?page=evk-form-inbox');
 

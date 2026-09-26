@@ -36,6 +36,7 @@ function tl_render_page() {
         .tl-tab { border:0; margin:0; border-radius:7px; padding:9px 13px; font-size:13px; font-weight:500; color:#4b5563; text-decoration:none; background:transparent; display:flex; align-items:center; gap:6px; transition:background .15s,color .15s,box-shadow .15s; }
         .tl-tab:hover { color:var(--evo-accent-dark); background:var(--evo-bg); }
         .tl-tab.active { background:var(--evo-bg); color:var(--evo-text); font-weight:600; box-shadow:0 1px 3px rgba(15,23,42,.12); }
+        .tl-teksty-filtry, .tl-teksty-strony { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:8px 0 12px; }
         .tl-badge-pct { font-size:10px; font-weight:700; padding:1px 6px; border-radius:999px; background:#dbeafe; color:var(--evo-accent-dark); }
         .tl-panel { background:var(--evo-bg); border:1px solid var(--evo-border); border-top:0; border-radius:0 0 10px 10px; padding:24px; box-shadow:0 12px 30px rgba(15,23,42,.06); }
 

@@ -102,7 +102,10 @@ czterech rzeczy:
   tylko kontener przewijany w poziomie; `overflow: hidden` to ucięta treść;
 - pole ma co najmniej 16 px pisma (inaczej Safari na iPhonie powiększa
   stronę);
-- cel dotyku ma co najmniej 24×24 px.
+- cel dotyku ma co najmniej 24×24 px. Zwolniony jest tylko odnośnik
+  w zdaniu, czyli rodzic ma tekst poza odnośnikami i przyciskami. Pasek
+  samych odnośników (filtry, strony listy) zdaniem nie jest: daj im klasę
+  `button`.
 
 Reguły są w `admin.css` w bloku „TELEFON" (do 782 px). Wiersz pola
 zaznaczenia z nową klasą etykiety trzeba tam dopisać, bo inaczej ma
@@ -170,7 +173,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (105 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (106 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```

@@ -190,6 +190,8 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
     $lista = evk_tl_el_do_sprawdzenia();
     if (!$lista) return;
     $skrot = static function (string $t): string {
+        // Ta sama funkcja co lista tekstów (53): akapity nie sklejają się w jeden wyraz.
+        if (function_exists('evk_tl_el_skrot_tekstu')) return evk_tl_el_skrot_tekstu($t);
         $t = trim(wp_strip_all_tags($t));
         return mb_strlen($t) > 80 ? mb_substr($t, 0, 79) . '…' : $t;
     };

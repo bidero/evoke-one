@@ -50,6 +50,10 @@ const EKRANY = [
   })))],
   ['Rewizje', () => phpOutput('rewizje.php', 'ekran')],
   ['Skrzynka wiadomości', () => phpOutput('inbox-page.php')],
+  /* Lista czyta prawdziwe strony z bazy, więc `tab.php` na atrapach widzi
+     w tej zakładce tylko przycisk przeniesienia. Sonda zasiewa testowy
+     WordPress, drukuje zakładkę i sprząta. */
+  ['Tłumaczenia → Teksty w elementach (z danymi)', () => phpOutput('tl-teksty.php', 'ekran')],
 ];
 
 module.exports = async function (t) {

@@ -2,6 +2,63 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.245.0] — 2026-09-26
+
+Szesnaste wydanie po audycie 1.229.6: lista „Teksty w elementach".
+
+### Dodane (decyzja zgłaszającego)
+
+- **Tłumaczenia → Teksty w elementach: lista wszystkich tekstów, tylko do
+  odczytu.** Zgłoszone: „dodanie nowego tekstu nie dodaje go do zakładek
+  w Tłumaczeniach". Pod przyciskiem „Przenieś" jest teraz lista tekstów
+  elementów Bricksa ze wszystkich stron i szablonów (nagłówek, stopka),
+  także z pozycji list („pozycja 2 · Tytuł").
+  - Kolumny: strona z odnośnikiem do buildera, element, polski tekst i po
+    jednej kolumnie na język.
+  - Przy każdym języku widać tłumaczenie i jego pochodzenie: „w elemencie",
+    „ze słownika", „słownik: część tekstu" albo „brak tłumaczenia". Do tego
+    znacznik „do sprawdzenia" z listy z 1.242.0.
+  - Pochodzenie ze słownika liczone jest węzeł po węźle, tak jak słownik
+    tłumaczy stronę. Tekst z dwoma akapitami, z których słownik zna jeden,
+    to „część tekstu".
+  - Filtry z liczbami: wszystkie, bez tłumaczenia (brak albo część), do
+    sprawdzenia. Po 50 wierszy na stronę listy.
+  - Tłumaczenia poprawia się w Bricksie; lista niczego nie zapisuje.
+
+### Naprawione
+
+- **Akapity sklejone w jeden wyraz w liście „Do sprawdzenia".**
+  `wp_strip_all_tags()` nie wstawia odstępu między blokami, więc dwa
+  akapity dawały „świecieNieznany". Lista tekstów i „Do sprawdzenia"
+  skracają tekst tą samą funkcją, a koniec bloku i `<br>` dają odstęp.
+  Złapał to test nowej listy.
+
+### Testy
+
+- `tl-teksty` (nowy). Prawdziwe dane w testowym WordPressie:
+  - pochodzenie w każdym języku, pozycje list, szablon nagłówka, typ spoza
+    mapy, „do sprawdzenia", liczby;
+  - HTML listy: filtry (bieżący z `aria-current`, nieznana wartość z adresu
+    nigdzie niewypisana), stronicowanie z przycięciem strony spoza zakresu,
+    komunikat przy pustej mapie;
+  - zakładka w Chromium: filtr z adresu, odnośnik do buildera.
+- **Strażnik telefonu nie widział nowej zakładki.** Ma zamkniętą listę
+  zakładek Tłumaczeń, a 1.244.0 jej nie dopisało. Dopisana, a sonda zasiewa
+  stronę z treścią Bricksa, żeby tabela miała wiersz przy 360 px. Ekranów
+  jest teraz 57.
+- **Strażnik telefonu zwalniał paski samych odnośników.** Wyjątek WCAG
+  „odnośnik w zdaniu" liczył jako zdanie tekst sąsiednich odnośników, więc
+  filtry bez klasy przycisku (cel 18 px) przechodziły. Teraz liczy się
+  tylko tekst poza odnośnikami i przyciskami. Na 57 ekranach nic więcej się
+  nie zapaliło, a mutacja z filtrami bez klasy przycisku zapala.
+- `admin-etykiety`: zakładka z danymi przez sondę na testowym WordPressie.
+  `tab.php` na atrapach widzi w niej tylko przycisk przeniesienia.
+- Mutacje (8). Każda zapala własne sprawdzenie. Tabela bez przewijanego
+  opakowania to mutacja równoważna dla telefonu (`.evo-table` ma szerokość
+  100% i zawija tekst), więc łapie ją sprawdzenie HTML. Obecność zakładki
+  pod strażą telefonu potwierdza mutacja z filtrami bez klasy przycisku.
+- Pełny przebieg: 5244 sprawdzeń w 106 plikach.
+
 ## [1.244.0] — 2026-09-26
 
 Piętnaste wydanie po audycie 1.229.6: tłumaczenia ze słownika w polach

@@ -98,3 +98,10 @@ if (!defined('ABSPATH')) exit;
     });
 })();
 </script>
+<?php
+/* Lista tekstów (1.245.0) — tylko do odczytu, dane z 53-translation-element-transfer.php. */
+if (function_exists('evk_tl_el_widok_tekstow')) {
+    $evk_pokaz = isset($_GET['pokaz']) && is_string($_GET['pokaz']) ? sanitize_key(wp_unslash($_GET['pokaz'])) : 'wszystko';
+    evk_tl_el_widok_tekstow($evk_pokaz, isset($_GET['str']) ? absint($_GET['str']) : 1,
+        function_exists('tl_base_url') ? tl_base_url() : admin_url('options-general.php?page=evoke-tlumaczenia'));
+}

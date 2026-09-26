@@ -359,3 +359,88 @@ function evk_tl_el_teksty(): array {
     ksort($wynik['nieznane']);
     return $wynik;
 }
+
+/**
+ * Tekst do komórki tabeli: bez znaczników, najwyżej 80 znaków. Koniec bloku
+ * i `<br>` dają odstęp — samo wp_strip_all_tags() skleja dwa akapity
+ * w „…świecieNieznany…".
+ */
+function evk_tl_el_skrot_tekstu(string $t): string {
+    $t = (string) preg_replace('~</(p|div|li|h[1-6]|blockquote)>|<br\s*/?>~i', '$0 ', $t);
+    $t = trim((string) preg_replace('/\s+/u', ' ', wp_strip_all_tags($t)));
+    return mb_strlen($t) > 80 ? mb_substr($t, 0, 79) . '…' : $t;
+}
+
+/**
+ * Lista „Teksty w elementach": filtr (wszystko / braki / sprawdz), strona
+ * listy i adres zakładki, do którego doklejane są parametry.
+ */
+function evk_tl_el_widok_tekstow(string $pokaz, int $str, string $baza, int $na_strone = 50): void {
+    $d = evk_tl_el_teksty();
+    $filtry = ['wszystko' => 'Wszystkie', 'braki' => 'Bez tłumaczenia', 'sprawdz' => 'Do sprawdzenia'];
+    if (!isset($filtry[$pokaz])) $pokaz = 'wszystko';
+    $wiersze = array_values(array_filter($d['wiersze'], static function ($w) use ($pokaz) {
+        return $pokaz === 'wszystko' || ($pokaz === 'braki' ? $w['braki'] : $w['sprawdz']);
+    }));
+    $stron = max(1, (int) ceil(count($wiersze) / max(1, $na_strone)));
+    $str = min(max(1, $str), $stron);
+    $jezyki = array_map('strval', evk_tl_kody_jezykow());
+    $adres = static function (array $q) use ($baza): string {
+        return (string) add_query_arg($q + ['tab' => 'elementy'], $baza);
+    };
+    $pochodzenie = ['pole' => 'w elemencie', 'slownik' => 'ze słownika', 'czesc' => 'słownik: część tekstu', 'brak' => 'brak tłumaczenia'];
+    ?>
+    <div class="evo-box tl-teksty">
+        <h3>Teksty w elementach</h3>
+        <p class="evo-desc">Teksty elementów Bricksa ze wszystkich stron i szablonów, z tłumaczeniem w każdym języku.
+        „W elemencie" to pole „Tłumaczenie" w builderze. „Ze słownika" pochodzi z zakładki EVOKE Tłumaczenia —
+        przycisk „Przenieś" wyżej przepisze je do elementów. Tłumaczenia poprawiasz w Bricksie.</p>
+        <?php if (!$d['znane']): ?>
+            <p class="evo-desc">Wtyczka nie zna jeszcze pól elementów Bricksa. Otwórz dowolną stronę w builderze i wróć tutaj.</p>
+        <?php else: ?>
+            <nav class="tl-teksty-filtry" aria-label="Filtr tekstów">
+                <?php foreach ($filtry as $klucz => $nazwa): ?>
+                    <a class="button<?php echo $klucz === $pokaz ? ' button-primary' : ''; ?>"
+                       href="<?php echo esc_url($adres(['pokaz' => $klucz])); ?>"<?php echo $klucz === $pokaz ? ' aria-current="page"' : ''; ?>>
+                        <?php echo esc_html($nazwa . ' (' . (int) $d['liczby'][$klucz] . ')'); ?></a>
+                <?php endforeach; ?>
+            </nav>
+            <?php if (!$wiersze): ?>
+                <p class="evo-desc">Brak tekstów w tym widoku.</p>
+            <?php else: ?>
+                <div class="evo-tbl-wrap"><table class="evo-table">
+                    <thead><tr><th scope="col">Strona</th><th scope="col">Element</th><th scope="col">Polski</th>
+                        <?php foreach ($jezyki as $j): ?><th scope="col"><?php echo esc_html(strtoupper($j)); ?></th><?php endforeach; ?></tr></thead>
+                    <tbody>
+                    <?php foreach (array_slice($wiersze, ($str - 1) * $na_strone, $na_strone) as $w): ?>
+                        <tr>
+                            <td><a href="<?php echo esc_url($w['adres']); ?>"><?php echo esc_html($w['tytul']); ?></a>
+                                <?php if ($w['czesc'] !== 'Treść'): ?><br><span class="evo-faint"><?php echo esc_html($w['czesc']); ?></span><?php endif; ?></td>
+                            <td><?php echo esc_html($w['element']); ?><br><span class="evo-faint"><?php echo esc_html($w['opis']); ?></span></td>
+                            <td><?php echo esc_html(evk_tl_el_skrot_tekstu($w['pl'])); ?></td>
+                            <?php foreach ($jezyki as $j): $l = $w['jezyki'][$j] ?? ['tekst' => '', 'zrodlo' => 'brak', 'sprawdz' => false]; ?>
+                                <td><?php if ($l['tekst'] !== ''): ?><?php echo esc_html(evk_tl_el_skrot_tekstu($l['tekst'])); ?><br><?php endif; ?>
+                                    <span class="<?php echo $l['zrodlo'] === 'brak' || $l['zrodlo'] === 'czesc' ? 'evo-danger-tx' : 'evo-faint'; ?>"><?php echo esc_html($pochodzenie[$l['zrodlo']] ?? $l['zrodlo']); ?></span>
+                                    <?php if (!empty($l['sprawdz'])): ?><br><span class="evo-accent-tx">do sprawdzenia</span><?php endif; ?></td>
+                            <?php endforeach; ?>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table></div>
+                <?php if ($stron > 1): ?>
+                    <nav class="tl-teksty-strony" aria-label="Strony listy tekstów">
+                        <?php if ($str > 1): ?><a class="button" href="<?php echo esc_url($adres(['pokaz' => $pokaz, 'str' => $str - 1])); ?>">Poprzednie</a><?php endif; ?>
+                        <span>Strona <?php echo (int) $str; ?> z <?php echo (int) $stron; ?></span>
+                        <?php if ($str < $stron): ?><a class="button" href="<?php echo esc_url($adres(['pokaz' => $pokaz, 'str' => $str + 1])); ?>">Następne</a><?php endif; ?>
+                    </nav>
+                <?php endif; ?>
+            <?php endif; ?>
+            <?php if ($d['nieznane']): ?>
+                <p class="evo-desc">Pominięte typy elementów — wtyczka nie zna jeszcze ich pól:
+                    <?php echo esc_html(implode(', ', array_map(static function ($n, $ile) { return $n . ': ' . $ile; }, array_keys($d['nieznane']), $d['nieznane']))); ?>.
+                    Otwórz w builderze stronę z takim elementem.</p>
+            <?php endif; ?>
+        <?php endif; ?>
+    </div>
+    <?php
+}
