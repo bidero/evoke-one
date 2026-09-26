@@ -715,6 +715,10 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			esc_attr( $uid ),
 			esc_attr( $style )
 		);
+		/* Moduł idzie na stronę bez komentarzy (1.249.0) — cała dokumentacja
+		   niżej zostaje w źródle. Przy SCRIPT_DEBUG bez zmian. Lekser:
+		   evk_js_bez_komentarzy() w includes/02-zasoby-frontu.php. */
+		ob_start();
 		?>
 <script type="module">
 /* BIBLIOTEKI ŁADOWANE WARUNKOWO, nie statycznym `import`.
@@ -1696,5 +1700,6 @@ async function evkWbBoot(tries = 0) {
 evkWbBoot();
 </script>
 <?php
+		echo evk_wstawki_bez_komentarzy( (string) ob_get_clean() );
 	}
 }

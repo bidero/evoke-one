@@ -14,4 +14,8 @@ if (PHP_SAPI !== 'cli-server') { http_response_code(403); exit; }
 $evk_adres = 'http://127.0.0.1:' . $_SERVER['SERVER_PORT'];
 define('WP_HOME', $evk_adres);
 define('WP_SITEURL', $evk_adres);
+/* Strona z pełnymi źródłami (minifikacja: wstawki z komentarzami i bez nich
+   porównywane token po tokenie). Przed WordPressem, który inaczej ustawi
+   SCRIPT_DEBUG na false. */
+if (getenv('EVK_SCRIPT_DEBUG') === '1') define('SCRIPT_DEBUG', true);
 return false;

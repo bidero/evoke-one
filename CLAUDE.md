@@ -445,6 +445,17 @@ frontu: dopisz go do listy w `tools/minifikuj.js` i kolejkuj przez
 frontu zapala strażnika aktualności, więc skrypt mutacyjny przebudowuje po
 wprowadzeniu mutacji i przywraca oba pliki.
 
+Od 1.249.0 kod drukowany wprost w HTML też traci komentarze przy druku
+(lekser w `includes/02-zasoby-frontu.php`, przy `SCRIPT_DEBUG` bez zmian):
+- wstawki `<script>`/`<style>` z `id="evk-…"` w `wp_head` i `wp_footer` —
+  bufor całych haków, cudzy kod nietknięty;
+- moduł Wave BG — owinięty w `render()`.
+
+Nowa wstawka w <head> albo stopce potrzebuje `id="evk-…"`, inaczej zostaje
+z komentarzami. Sondy na atrapach widzą kod Z komentarzami: atrapa
+`add_action` nie zna priorytetów, więc bufor otwiera się i zamyka, zanim
+ruszą moduły.
+
 Cichy rozjazd wytworu ze źródłem wygląda zupełnie normalnie — stąd strażnicy.
 
 ---

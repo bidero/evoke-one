@@ -15,6 +15,10 @@
  *   · prawdziwa strona w testowym WordPressie dostaje `.min`;
  *   · fixtury wczytane z `.min`: bez błędów, a gdzie wolno porównać — te same
  *     style co na źródłach.
+ *
+ * Od 1.249.0 także kod drukowany wprost w HTML (wstawki `evk-*` w <head>
+ * i stopce, moduł Wave BG): bez komentarzy, a ciąg tokenów taki sam jak
+ * przy SCRIPT_DEBUG — więc lekser nie zmienił niczego poza komentarzami.
  */
 
 const fs = require('fs');
@@ -31,6 +35,30 @@ const acorn = require(require.resolve('acorn', { paths: [path.dirname(require.re
 
 const MINIFIKUJ = path.join(ROOT, 'tools', 'minifikuj.js');
 const doMin = (p) => p.replace(/\.(js|css)$/, '.min.$1');
+
+/** Ciąg tokenów (typ i wartość) — komentarze i odstępy nie są tokenami. */
+const tokeny = (kod, modul) => {
+  const t = [];
+  for (const x of acorn.tokenizer(kod, { ecmaVersion: 'latest', sourceType: modul ? 'module' : 'script' })) {
+    t.push(x.type.label + ':' + (x.value === undefined ? '' : JSON.stringify(x.value)));
+  }
+  return t.join('\n');
+};
+const komentarzeJs = (kod, modul) => {
+  const k = [];
+  acorn.parse(kod, { ecmaVersion: 'latest', sourceType: modul ? 'module' : 'script', onComment: k });
+  return k.length;
+};
+const cssMin = (kod) => esbuild.transformSync(kod, { loader: 'css', minify: true }).code;
+/** Wstawki z `id="evk-…"`: id → { tag, modul, kod }. */
+const wstawkiEvk = (html) => {
+  const w = {};
+  for (const m of html.matchAll(/<(script|style)\b([^>]*\bid=["'](evk-[^"']+)["'][^>]*)>([\s\S]*?)<\/\1>/gi)) {
+    if (/\bsrc=/i.test(m[2])) continue;   // plik, nie wstawka
+    w[m[3]] = { tag: m[1].toLowerCase(), modul: /\btype=["']?module/i.test(m[2]), dane: /\btype=["']?application\/(?:ld\+)?json/i.test(m[2]), kod: m[4] };
+  }
+  return w;
+};
 
 module.exports = async function (t) {
   const lista = JSON.parse(execFileSync('node', [MINIFIKUJ, '--lista'], { encoding: 'utf8' }));
@@ -130,22 +158,98 @@ module.exports = async function (t) {
   t.section('strona w testowym WordPressie dostaje pliki .min');
   const u = JSON.parse(phpOutput('minifikacja.php', 'strona-ustaw'));
   t.check('testowy WordPress jest (tools/testowy-wp.sh)', !u.brak && !!u.wp, u.brak || u.wp);
+  let html = '', htmlDbg = '';
   if (u.wp) {
-    let serwer = null;
+    let serwer = null, serwerDbg = null;
     try {
       serwer = await serwerWp.start(u.wp);
-      const html = await (await fetch(serwer.baza + '/')).text();
-      const nasze = [...html.matchAll(/<(?:script|link)\b[^>]*(?:src|href)=["']([^"']*\/plugins\/[^"'/]+\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)]
+      serwerDbg = await serwerWp.start(u.wp, { env: { EVK_SCRIPT_DEBUG: '1' } });
+      /* Adres strony zależy od portu serwera — w obu wersjach zastąpiony tym
+         samym, żeby porównanie wstawek mówiło o kodzie, nie o porcie. */
+      const bezBazy = (h, baza) => h.split(baza).join('BAZA').split(baza.replace(/\//g, '\\/')).join('BAZA');
+      html = bezBazy(await (await fetch(serwer.baza + '/')).text(), serwer.baza);
+      htmlDbg = bezBazy(await (await fetch(serwerDbg.baza + '/')).text(), serwerDbg.baza);
+      const pliki = (h) => [...h.matchAll(/<(?:script|link)\b[^>]*(?:src|href)=["']([^"']*\/plugins\/[^"'/]+\/[^"']+\.(?:js|css))(?:\?[^"']*)?["']/g)]
         .map((m) => m[1].replace(/^.*?\/plugins\/[^/]+\//, '')).filter((p) => !/\/vendor\//.test(p));
+      const nasze = pliki(html);
       const zrodlowe = nasze.filter((p) => !/\.min\.(js|css)$/.test(p));
       t.check('moduły frontu wysłały własne pliki (kontrola)', ['assets/js/parallax.min.js', 'assets/js/accessibility.min.js', 'assets/js/bg-shift.min.js']
         .every((p) => nasze.includes(p)), nasze.join(', '));
       t.check('żaden plik wtyczki nie jedzie jako źródło', zrodlowe.length === 0, zrodlowe.join(', ') || nasze.length + ' plików, wszystkie .min');
+      const debugPliki = pliki(htmlDbg);
+      t.check('przy SCRIPT_DEBUG te same pliki jako źródła', debugPliki.length === nasze.length
+        && debugPliki.every((p) => !/\.min\.(js|css)$/.test(p) && nasze.includes(doMin(p))), debugPliki.join(', '));
     } finally {
       if (serwer) await serwer.zatrzymaj();
+      if (serwerDbg) await serwerDbg.zatrzymaj();
       phpOutput('minifikacja.php', 'strona-przywroc');
     }
   }
+
+  // ── Kod drukowany wprost w HTML (1.249.0) ───────────────────────────────
+  t.section('wstawki bez komentarzy: lekser na trudnych przypadkach');
+  const lx = JSON.parse(phpOutput('minifikacja.php', 'lekser'));
+  /* Osobne sprawdzenie na każdy przypadek: każdy łapie inną pomyłkę leksera
+     (łańcuch, `${}`, wyrażenie regularne, nowa linia w komentarzu…). */
+  t.check('przypadków JS siedem (kontrola)', Object.keys(lx.js).length === 7, Object.keys(lx.js).join(', '));
+  for (const [k, [a, b]] of Object.entries(lx.js)) {
+    let powod = 'te same tokeny, zero komentarzy';
+    try {
+      if (tokeny(a) !== tokeny(b)) powod = 'inne tokeny';
+      else if (komentarzeJs(b)) powod = 'zostały komentarze';
+    } catch (e) { powod = e.message; }
+    t.check('JS, ' + k + ': te same tokeny, zero komentarzy', powod === 'te same tokeny, zero komentarzy', powod + ' | ' + JSON.stringify(b));
+  }
+  t.check('niedomknięty komentarz: kod wraca bez zmian', lx.niedomkniety === true);
+  const [cssPrzed, cssPo] = lx.css['łańcuchy i adresy'];
+  t.check('CSS: to samo po esbuild; znika komentarz, zostaje „/* nie */" w łańcuchu i //x.pl w url()',
+    cssMin(cssPrzed) === cssMin(cssPo) && (cssPo.match(/\/\*/g) || []).length === 1 && cssPo.includes("url('//x.pl/a.png')"), cssPo);
+  t.check('HTML: skrypt, moduł i styl bez komentarzy; src, JSON-LD bez zmian',
+    lx.html === '<script>x();</script><script src="a.js">/* zostaje */</script><script type="application/ld+json">{"a":"/* zostaje */"}</script>'
+      + '<style>.x{}</style><script type="module">y();</script>', lx.html);
+  t.check('bufor <head>: tylko znaczniki z id="evk-…", cudze bajt w bajt',
+    lx.html_nasze === '<script id="evk-a">x();</script><script id="cudzy">/* b */ y();</script><style id="evk-b">.x{}</style><style>/* d */ .y{}</style>',
+    lx.html_nasze);
+
+  t.section('moduł Wave BG z render(): bez komentarzy, te same tokeny');
+  const fala = (arg) => (phpOutput('minifikacja.php', 'fala' + (arg ? ' ' + arg : '')).match(/<script type="module">([\s\S]*?)<\/script>/) || [])[1] || '';
+  const falaMin = fala(), falaDbg = fala('debug');
+  t.check('moduł w obu wersjach, przy SCRIPT_DEBUG pełny (kontrola)', falaMin.length > 10000 && falaDbg.length > falaMin.length * 1.5,
+    Math.round(falaDbg.length / 1024) + ' → ' + Math.round(falaMin.length / 1024) + ' KiB');
+  let falaOk = false, falaPowod = '';
+  try {
+    falaOk = tokeny(falaDbg, true) === tokeny(falaMin, true) && komentarzeJs(falaMin, true) === 0;
+    falaPowod = komentarzeJs(falaMin, true) + ' komentarzy';
+  } catch (e) { falaPowod = e.message; }
+  t.check('te same tokeny co przy SCRIPT_DEBUG, zero komentarzy', falaOk, falaPowod);
+
+  t.section('strona: wstawki evk-* bez komentarzy, przy SCRIPT_DEBUG pełne');
+  const W = wstawkiEvk(html), D = wstawkiEvk(htmlDbg);
+  const idy = Object.keys(W).sort();
+  t.check('wstawki evk-* na stronie, te same przy SCRIPT_DEBUG (kontrola)', idy.length >= 12 && JSON.stringify(idy) === JSON.stringify(Object.keys(D).sort()),
+    idy.join(', '));
+  const zleW = [];
+  let bajtyD = 0, bajtyW = 0, komentarzyD = 0;
+  for (const id of idy) {
+    const w = W[id], d = D[id];
+    if (!d || w.dane) continue;
+    bajtyD += Buffer.byteLength(d.kod);
+    bajtyW += Buffer.byteLength(w.kod);
+    try {
+      if (w.tag === 'script') {
+        komentarzyD += komentarzeJs(d.kod, d.modul);
+        if (tokeny(d.kod, d.modul) !== tokeny(w.kod, w.modul)) zleW.push(id + ': inne tokeny');
+        else if (komentarzeJs(w.kod, w.modul)) zleW.push(id + ': zostały komentarze');
+      } else {
+        komentarzyD += (d.kod.match(/\/\*/g) || []).length;
+        if (cssMin(d.kod) !== cssMin(w.kod)) zleW.push(id + ': inny CSS');
+        else if (/\/\*/.test(w.kod)) zleW.push(id + ': zostały komentarze');
+      }
+    } catch (e) { zleW.push(id + ': ' + e.message.split('\n')[0]); }
+  }
+  t.check('każda: te same tokeny / ten sam CSS co przy SCRIPT_DEBUG, zero komentarzy', zleW.length === 0, zleW.join(', ') || idy.length + ' wstawek');
+  t.check('przy SCRIPT_DEBUG komentarze są (kontrola: było co zdejmować), razem mniej', komentarzyD >= 20 && bajtyW < bajtyD * 0.8,
+    komentarzyD + ' komentarzy; ' + Math.round(bajtyD / 1024) + ' → ' + Math.round(bajtyW / 1024) + ' KiB');
 
   // ── Fixtury z plikami .min ──────────────────────────────────────────────
   /* Każda fixtura, która wczytuje plik z listy, raz ze źródłami, raz z .min
@@ -154,7 +258,9 @@ module.exports = async function (t) {
      tam, gdzie dwa przebiegi na ŹRÓDŁACH dają to samo i fixtura wczytuje CSS
      z listy. Zmierzone przed ustawieniem reguły: pętle animacji (loop,
      marquee) mają przy .min inną fazę, bo plik wczytuje się szybciej —
-     to nie jest różnica w działaniu. */
+     to nie jest różnica w działaniu. Dlatego podpis NIE obejmuje `transform`
+     ani `opacity` (to animują pętle): marquee potrafiło przejść próbę
+     stabilności na źródłach, a potem różnić się fazą przy .min. */
   t.section('fixtury wczytane z plików .min');
   const fixtury = fs.readdirSync(FIXTURES).filter((f) => f.endsWith('.html')
     && nazwyListy.some((n) => fs.readFileSync(path.join(FIXTURES, f), 'utf8').includes('/' + n + '"')));
@@ -167,7 +273,7 @@ module.exports = async function (t) {
   const podpis = () => [...document.querySelectorAll('body *')].slice(0, 400).map((e) => {
     const c = getComputedStyle(e);
     return e.tagName + '.' + (typeof e.className === 'string' ? e.className : '') + '|'
-      + ['display', 'position', 'width', 'height', 'opacity', 'transform', 'color', 'background-color', 'visibility',
+      + ['display', 'position', 'width', 'height', 'color', 'background-color', 'visibility',
         'z-index', 'overflow', 'box-shadow', 'border-radius', 'font-size', 'margin-top', 'padding-top'].map((k) => c.getPropertyValue(k)).join(',');
   }).join('\n');
   const browser = await chromium.launch({ executablePath: chromiumPath() });

@@ -9,13 +9,58 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/minifikacja.php debug             to samo przy SCRIPT_DEBUG
  *   php tests/php/minifikacja.php strona-ustaw      testowy WordPress: moduły frontu włączone
  *   php tests/php/minifikacja.php strona-przywroc   opcje z powrotem
+ *   php tests/php/minifikacja.php lekser            wstawki bez komentarzy: trudne przypadki (1.249.0)
+ *   php tests/php/minifikacja.php fala [debug]      moduł Wave BG z render(), bez komentarzy / przy SCRIPT_DEBUG
  */
 $tryb = $argv[1] ?? '';
+
+if ($tryb === 'fala') {
+    if (($argv[2] ?? '') === 'debug') define('SCRIPT_DEBUG', true);
+    $argv = [$argv[0], '{}', 'html'];
+    $argc = 3;
+    require __DIR__ . '/wave-bg-colors.php';
+    exit;
+}
+
+if ($tryb === 'lekser') {
+    define('ABSPATH', '/');
+    function add_action(...$a): void {}
+    require __DIR__ . '/../../includes/02-zasoby-frontu.php';
+    /* Każdy przypadek to coś, co wyrażenie regularne zamiast leksera psuje:
+       `//` w adresie, `/*` w łańcuchu i w wyrażeniu regularnym, komentarz
+       w `${…}` literału szablonowego (także zagnieżdżonego), `{}` w środku
+       `${…}`, nowa linia w miejscu komentarza (średniki wstawiane
+       automatycznie), słowo kluczowe przed wyrażeniem regularnym. */
+    $js = [
+        'łańcuchy'       => "var a = 'http://x.pl'; // k\nvar b = \"/* nie komentarz */\"; /* k */ var c = 'a\\'b//c';",
+        'szablon'        => "var s = `a \${ b /* k */ + `c \${ d } // e` } /* f */ g`; // koniec\nx();",
+        'regex'          => "var r = /\\/\\/[a-z]*\\/*/g; // k\nvar t = x.replace(/[/*]/, ''); if (a) { y = 1 / 2 / 3; }",
+        'nowe linie'     => "a = b\n/* k\nk */\n(c)\nx = 1 // k\n-2",
+        'słowa kluczowe' => "function f(){ return /a\\/b/.test(s) } typeof /x/ === 'object'; var q = a++ / 2; var w = (a) / 2 / 3;",
+        'nawiasy'        => "var o = { a: `\${ { b: 1 }.b } // nie` }; /* k */ o.a;",
+        // Jedyna nowa linia leży w komentarzu — bez niej „x = 1 y = 2" to błąd składni.
+        'linia w komentarzu' => "x = 1/* k\n*/y = 2",
+    ];
+    $wynik = ['js' => [], 'css' => []];
+    foreach ($js as $k => $v) $wynik['js'][$k] = [$v, evk_js_bez_komentarzy($v)];
+    $wynik['niedomkniety'] = evk_js_bez_komentarzy('var a = 1; /* bez końca') === 'var a = 1; /* bez końca';
+    $css = ".a{ color : red; /* k */ background:url('//x.pl/a.png') } /* k */ .b::after{ content:\"/* nie */\" }\n\n.c  .d { margin:0 }";
+    $wynik['css']['łańcuchy i adresy'] = [$css, evk_css_bez_komentarzy($css)];
+    $html = '<script>/* a */ x();</script><script src="a.js">/* zostaje */</script>'
+        . '<script type="application/ld+json">{"a":"/* zostaje */"}</script><style>/* b */ .x{}</style>'
+        . '<script type="module">// c' . "\n" . 'y();</script>';
+    $wynik['html'] = evk_wstawki_bez_komentarzy($html);
+    $wynik['html_nasze'] = evk_wstawki_bez_komentarzy('<script id="evk-a">/* a */ x();</script><script id="cudzy">/* b */ y();</script>'
+        . '<style id="evk-b">/* c */ .x{}</style><style>/* d */ .y{}</style>', true);
+    echo json_encode($wynik, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
 
 if ($tryb === 'pomocnik' || $tryb === 'debug') {
     define('ABSPATH', '/');
     define('EVOKE_ONE_URL', 'https://example.test/wp-content/plugins/evoke-one/');
     if ($tryb === 'debug') define('SCRIPT_DEBUG', true);
+    function add_action(...$a): void {}   // 02 wiesza bufor <head> przy wczytaniu
     require __DIR__ . '/../../includes/02-zasoby-frontu.php';
     $u = EVOKE_ONE_URL;
     $przypadki = [

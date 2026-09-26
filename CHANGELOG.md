@@ -2,6 +2,62 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.249.0] — 2026-09-26
+
+Dwudzieste wydanie po audycie 1.229.6: kod drukowany w HTML bez
+komentarzy.
+
+### Zmienione (decyzja zgłaszającego)
+
+- **Skrypty i style drukowane wprost w stronie idą bez komentarzy.** Po
+  plikach (1.248.0) to druga połowa zgłoszenia o opisach w kodzie strony.
+  Obejmuje wstawki modułów w `<head>` i stopce: Tryb ciemny, Scroll lock,
+  Parallax, Lenis, GSAP i ScrollTrigger, Kursor, Tło przy scrollu,
+  Dostępność, Animator. Do tego moduł elementu Wave BG.
+  - Na stronie testowej z włączonymi modułami: 18 wstawek, 90 komentarzy,
+    53 → 26 KiB. Moduł Wave BG: 46 → 23 KiB.
+  - Znikają tylko komentarze i nadmiar odstępów. Nazwy i składnia zostają,
+    więc kod czyta się jak źródło bez objaśnień.
+  - Robi to lekser w PHP, nie wyrażenie regularne. `//` bywa w adresach
+    w łańcuchach, `/*` w wyrażeniach regularnych, a shadery fali siedzą
+    w literałach szablonowych z `${…}`. Nowa linia w miejscu komentarza
+    zostaje, bo od niej zależy wstawianie średników. Kod, którego lekser
+    nie domyka, wychodzi bez zmian.
+  - `<head>` i stopka przechodzą przez bufor, a czyszczone są w nim tylko
+    znaczniki z `id="evk-…"`. Cudzy kod zostaje bajt w bajt. Gdy inna
+    wtyczka po drodze ruszy bufory wyjścia, nic nie jest przetwarzane.
+  - Przy `SCRIPT_DEBUG` wszystko zostaje z komentarzami.
+  - Koszt zmierzony: 2,2 ms na moduł fali (49 KB), około 1 ms na 19 KB CSS.
+    Przy stronach z pamięcią podręczną zero.
+  - Bez zmian zostają: snippety (to kod użytkownika), panel, strona
+    logowania oraz drobne wstawki bez komentarzy (pasek konserwacji,
+    formularz newslettera, podgląd w builderze).
+
+### Testy
+
+- `minifikacja`, trzy nowe sekcje:
+  - lekser na trudnych przypadkach: łańcuchy z `//`, `${}` z komentarzem
+    i zagnieżdżonym szablonem, `{}` w `${}`, wyrażenia regularne
+    z `//` i `/*`, słowa kluczowe przed wyrażeniem, nowa linia tylko
+    w komentarzu. Każdy przypadek sprawdzany osobno: te same tokeny co
+    przed zdjęciem, zero komentarzy;
+  - moduł Wave BG z `render()`: 4185 tokenów, te same co przy
+    `SCRIPT_DEBUG`;
+  - prawdziwa strona w testowym WordPressie, dwa serwery (drugi z
+    `SCRIPT_DEBUG`): każda wstawka `evk-*` ma te same tokeny (CSS: to samo
+    po esbuild) i zero komentarzy.
+- Harness: `wp-serwer.start(wp, { env })`, router definiuje `SCRIPT_DEBUG`
+  przy `EVK_SCRIPT_DEBUG=1`.
+- Porównanie stylów fixtur (1.248.0) nie obejmuje już `transform`
+  i `opacity`. Marquee przeszło raz próbę stabilności na źródłach, a potem
+  różniło się fazą pętli przy `.min`. To nie była różnica w CSS.
+- Mutacje (10). Każda zapala własny zestaw sprawdzeń, m.in. łańcuch
+  czytany jak kod, `${}` nieobsłużone, nowa linia komentarza zamieniona na
+  spację, bufor ruszający cudze znaczniki, `SCRIPT_DEBUG` ignorowany.
+  Zbiorcze sprawdzenie leksera rozbite na przypadki, bo dwie mutacje gasły
+  na nim razem.
+- Pełny przebieg: 5295 sprawdzeń w 106 plikach.
+
 ## [1.248.0] — 2026-09-26
 
 Dziewiętnaste wydanie po audycie 1.229.6: pliki frontu bez komentarzy.

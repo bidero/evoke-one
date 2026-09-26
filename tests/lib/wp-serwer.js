@@ -36,11 +36,15 @@ function czekajNaSerwer(port) {
   });
 }
 
-/** Serwer dla katalogu WordPressa $wp. Oddaje { baza, zatrzymaj() }. */
-async function start(wp) {
+/**
+ * Serwer dla katalogu WordPressa $wp. Oddaje { baza, zatrzymaj() }.
+ * `opcje.env` — dodatkowe zmienne środowiska dla `php -S`, np.
+ * `{ EVK_SCRIPT_DEBUG: '1' }` (router definiuje wtedy SCRIPT_DEBUG).
+ */
+async function start(wp, opcje) {
   const port = await wolnyPort();
   const serwer = spawn('php', ['-S', '127.0.0.1:' + port, path.join(__dirname, '..', 'php', '_router-wp.php')],
-    { cwd: wp, env: Object.assign({}, process.env, { PHP_CLI_SERVER_WORKERS: '6' }), stdio: 'ignore', detached: true });
+    { cwd: wp, env: Object.assign({}, process.env, { PHP_CLI_SERVER_WORKERS: '6' }, (opcje && opcje.env) || {}), stdio: 'ignore', detached: true });
   await czekajNaSerwer(port);
   return {
     baza: 'http://127.0.0.1:' + port,
