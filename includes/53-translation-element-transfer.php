@@ -255,3 +255,107 @@ add_action('wp_ajax_evk_tl_el_przenies', function (): void {
     evk_tl_ajax_check();
     wp_send_json_success(evk_tl_el_przenies(($_POST['tryb'] ?? '') === 'zapisz'));
 });
+
+// =========================================================================
+// WIDOK „TEKSTY W ELEMENTACH" (1.245.0) — tylko do odczytu
+// =========================================================================
+
+/**
+ * Tekst przetłumaczony tak, jak zrobi to słownik na stronie: węzeł tekstu po
+ * węźle, dokładna równość po normalizacji (jak tl_tokenize_content()).
+ * Zwraca [tekst, pochodzenie]: 'slownik' (każdy węzeł), 'czesc' (niektóre),
+ * 'brak' (żaden).
+ *
+ * @param array<string,array<string,mixed>> $indeks Z tl_get_match_index().
+ * @return array{0:string,1:string}
+ */
+function evk_tl_el_ze_slownika(string $pl, array $indeks): array {
+    $wezly = 0;
+    $trafione = 0;
+    $wynik = (string) preg_replace_callback('/>([^<]+)</u', static function ($m) use ($indeks, &$wezly, &$trafione) {
+        $k = mb_strtolower(tl_normalize_text_for_match($m[1]));
+        if ($k === '') return $m[0];
+        $wezly++;
+        $tlum = $indeks[$k]['tlum'] ?? null;
+        if (!is_string($tlum) || $tlum === '') return $m[0];
+        $trafione++;
+        return '>' . $tlum . '<';
+    }, '>' . $pl . '<');
+    if (!$trafione) return ['', 'brak'];
+    return [substr($wynik, 1, -1), $trafione === $wezly ? 'slownik' : 'czesc'];
+}
+
+/**
+ * Wszystkie teksty elementów Bricksa: pola z mapy (z polskim tekstem), dla
+ * każdego języka tekst i pochodzenie — pole w elemencie, słownik, część
+ * słownikiem albo brak — oraz „do sprawdzenia" (52).
+ *
+ * @return array{wiersze:list<array<string,mixed>>,liczby:array<string,int>,nieznane:array<string,int>,znane:int}
+ */
+function evk_tl_el_teksty(): array {
+    $mapa = evk_tl_el_mapa();
+    $jezyki = array_map('strval', evk_tl_kody_jezykow());
+    $indeksy = [];
+    foreach ($jezyki as $j) $indeksy[$j] = tl_get_match_index($j);
+    $sprawdz = [];
+    foreach (evk_tl_el_do_sprawdzenia(1000) as $m) $sprawdz[$m['post_id'] . '|' . $m['meta_key'] . '|' . $m['klucz']] = true;
+
+    $wynik = ['wiersze' => [], 'liczby' => ['wszystko' => 0, 'braki' => 0, 'sprawdz' => 0], 'nieznane' => [], 'znane' => count($mapa)];
+    $dodaj = static function (array $ust, string $pole, array $baza) use ($jezyki, $indeksy, $sprawdz, &$wynik): void {
+        $pl = $ust[$pole] ?? null;
+        if (!is_string($pl) || trim(wp_strip_all_tags($pl)) === '') return;
+        $w = $baza + ['pl' => $pl, 'jezyki' => [], 'braki' => false, 'sprawdz' => false];
+        foreach ($jezyki as $j) {
+            $bliz = $ust[evk_tl_el_klucz($j, $pole)] ?? null;
+            if (evk_tl_el_niepuste($bliz)) {
+                $l = ['tekst' => (string) $bliz, 'zrodlo' => 'pole'];
+            } else {
+                [$tekst, $zrodlo] = evk_tl_el_ze_slownika($pl, $indeksy[$j]);
+                $l = ['tekst' => $tekst, 'zrodlo' => $zrodlo];
+            }
+            $l['sprawdz'] = isset($sprawdz[$w['post_id'] . '|' . $w['meta_key'] . '|' . $w['id'] . '|' . $w['sciezka'] . '|' . preg_replace('/[^a-z0-9_]/', '_', strtolower($j))]);
+            if ($l['zrodlo'] === 'brak' || $l['zrodlo'] === 'czesc') $w['braki'] = true;
+            if ($l['sprawdz']) $w['sprawdz'] = true;
+            $w['jezyki'][$j] = $l;
+        }
+        $wynik['wiersze'][] = $w;
+        $wynik['liczby']['wszystko']++;
+        if ($w['braki']) $wynik['liczby']['braki']++;
+        if ($w['sprawdz']) $wynik['liczby']['sprawdz']++;
+    };
+
+    foreach (evk_tl_el_wpisy_bricksa() as [$post_id, $meta_key]) {
+        $dane = get_post_meta($post_id, $meta_key, true);
+        if (!is_array($dane)) continue;
+        $strona = ['post_id' => $post_id, 'meta_key' => $meta_key, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
+            'czesc' => evk_tl_el_czesc($meta_key), 'adres' => evk_tl_el_adres_edycji($post_id)];
+        foreach ($dane as $el) {
+            if (!is_array($el) || !is_array($el['settings'] ?? null)) continue;
+            $nazwa = (string) ($el['name'] ?? '');
+            $def = $mapa[$nazwa] ?? null;
+            if (!is_array($def)) {
+                if ($nazwa !== '') $wynik['nieznane'][$nazwa] = ($wynik['nieznane'][$nazwa] ?? 0) + 1;
+                continue;
+            }
+            $id = (string) ($el['id'] ?? '');
+            foreach ((array) ($def['pola'] ?? []) as $pole) {
+                $dodaj($el['settings'], (string) $pole, $strona + ['element' => $nazwa, 'id' => $id, 'sciezka' => (string) $pole,
+                    'opis' => evk_tl_el_nazwa_pola((string) $pole)]);
+            }
+            foreach ((array) ($def['listy'] ?? []) as $lista => $pola) {
+                $pozycje = $el['settings'][$lista] ?? null;
+                if (!is_array($pozycje) || !$pozycje || array_keys($pozycje) !== range(0, count($pozycje) - 1)) continue;
+                foreach ($pozycje as $i => $poz) {
+                    if (!is_array($poz)) continue;
+                    $pid = isset($poz['id']) && is_scalar($poz['id']) && (string) $poz['id'] !== '' ? (string) $poz['id'] : (string) $i;
+                    foreach ((array) $pola as $pole) {
+                        $dodaj($poz, (string) $pole, $strona + ['element' => $nazwa, 'id' => $id,
+                            'sciezka' => $lista . '.' . $pid . '.' . $pole, 'opis' => 'pozycja ' . ($i + 1) . ' · ' . evk_tl_el_nazwa_pola((string) $pole)]);
+                    }
+                }
+            }
+        }
+    }
+    ksort($wynik['nieznane']);
+    return $wynik;
+}

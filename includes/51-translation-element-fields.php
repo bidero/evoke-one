@@ -197,7 +197,12 @@ function evk_tl_el_kontrolki($kontrolki, string $element = '') {
  */
 const EVK_TL_EL_MAPA = 'evk_tl_el_pola';
 
-/** @return array<string,array{pola:string[],listy:array<string,string[]>}> */
+/**
+ * Kształt wpisu: ['pola' => string[], 'listy' => [lista => string[]]]. Typ luźny,
+ * bo opcja idzie z bazy bez sprawdzania — czytający biorą klucze przez `??`.
+ *
+ * @return array<string,array<string,mixed>>
+ */
 function evk_tl_el_mapa(): array {
     $m = get_option(EVK_TL_EL_MAPA, []);
     return is_array($m) ? $m : [];
