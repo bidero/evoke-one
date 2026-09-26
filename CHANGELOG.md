@@ -2,6 +2,55 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.242.0] — 2026-09-26
+
+Trzynaste wydanie po audycie 1.229.6: Tłumaczenia — „Do sprawdzenia",
+etap 2 pól języków w elementach.
+
+### Dodane
+
+- **Tłumaczenia: lista „Do sprawdzenia".** Decyzja zgłaszającego: gdy
+  polski tekst zmieni się po przetłumaczeniu, stare tłumaczenie w polu
+  elementu zostaje (1.241.0), ale wtyczka ma je oznaczyć. Strona dalej
+  pokazuje stare tłumaczenie, a miejsce trafia na listę nad frazami
+  w zakładce Tłumaczenia. Lista pokazuje stronę z odnośnikiem do edycji
+  w Bricksie, pole, język, bieżący oryginał i tłumaczenie. Przycisk
+  „Sprawdzone" przyjmuje bieżący oryginał bez zmiany tłumaczenia.
+  Sekcja rysuje się tylko wtedy, gdy jest co pokazać.
+  - Przy każdym zapisie danych Bricksa (treść strony, nagłówek, stopka)
+    wtyczka zapamiętuje skrót tłumaczenia i oryginału, z którego powstało.
+    Nowe tłumaczenie bierze skrót bieżącego oryginału. Tłumaczenie bez
+    zmian, a oryginał inny niż zapamiętany: miejsce jest do sprawdzenia.
+    Oryginał cofnięty do dawnej postaci schodzi z listy sam.
+  - Stan leży we własnych metadanych wpisu, nie w danych Bricksa. Pozycje
+    list (akordeon itd.) są liczone osobno, po identyfikatorze pozycji.
+  - Tłumaczenia sprzed tej wersji dostają stan przy pierwszym zapisie
+    strony i od tej chwili uchodzą za aktualne.
+  - Przycisk ma nazwę z kontekstem (strona, pole, język), a „Sprawdzone"
+    wymaga nonce i uprawnień do tłumaczeń.
+
+  **Do sprawdzenia na stronie:** że Bricks zapisuje treść przez
+  `update_post_meta` (standard WordPressa). Komponenty i elementy globalne
+  (opcje Bricksa) ten etap pomija.
+
+### Testy
+
+- `tl-do-sprawdzenia` (nowy). Prawdziwe `update_post_meta()` w testowym
+  WordPressie, kolejne zapisy i lista po każdym: zmiana oryginału, nowe
+  tłumaczenie, powrót oryginału, „Sprawdzone", wyczyszczone tłumaczenie,
+  pozycja akordeonu, szablon nagłówka (typ spoza wyszukiwania), obca
+  metadana w tym samym kształcie. Do tego sekcja w panelu Tłumaczeń
+  w Chromium: odnośnik do buildera, nazwa przycisku, „Sprawdzone" przez
+  AJAX, odmowa przy złym nonce, stan po odświeżeniu.
+- Mutacje (9). Każda zapala własne sprawdzenie, np. brak pierwszego zapisu
+  (`added_post_meta`) gasi dziesięć, a oryginał ze znacznikami w liście
+  jedno.
+- Pełny przebieg: 5167 sprawdzeń w 104 plikach. Po drodze strażnik
+  `panel-start` („żadna tabela w panelu nie nosi klas rdzenia") złapał
+  nową tabelę z klasami `widefat striped`. Rdzeń rysuje kwadratową ramkę,
+  co było już zgłaszane z użycia. Tabela ma teraz klasę panelu
+  (`evo-table`), a partia z tym testem przeszła po poprawce w całości.
+
 ## [1.241.0] — 2026-09-26
 
 Dwunaste wydanie po audycie 1.229.6: pola tłumaczeń w elementach Bricksa,

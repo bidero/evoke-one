@@ -2,6 +2,10 @@
 if (!defined('ABSPATH')) exit;
 // Evoke ONE — TL tab content. Zmienne z tl_render_page(): $data $langs $codes $tab $base $nonce $ajax_url $stats
 ?>
+<?php /* Pola języków w elementach, których oryginał zmienił się po przetłumaczeniu
+         (1.242.0, 52-translation-element-review.php) — nad frazami, bo tu pracuje
+         tłumacz. Sekcja rysuje się tylko wtedy, gdy jest co pokazać. */
+      if (function_exists('evk_tl_el_sekcja_do_sprawdzenia')) evk_tl_el_sekcja_do_sprawdzenia(); ?>
 <?php if (!empty($codes)): ?>
             <div class="tl-coverage">
                 <?php foreach ($stats['by_lang'] as $code => $pct): $cls = $pct>=80?'good':($pct>=40?'mid':''); ?>
