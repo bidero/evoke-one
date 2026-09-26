@@ -365,7 +365,10 @@ $inbox_url = admin_url('admin.php?page=evk-form-inbox');
         var chipsHtml = keys.length
             ? keys.map(function(k) {
                 var lbl = map[k] !== ('{{' + k + '}}') ? map[k] : k;
-                return '<span class="evo-chip evk-var-chip" data-var="{{' + k + '}}" title="' + lbl + '">{{' + k + '}}</span>';
+                /* Przycisk (1.238.0): span z kliknięciem był poza zasięgiem Tab.
+                   Etykieta pola przez esc() — trafia do atrybutów. */
+                return '<button type="button" class="evo-chip evk-var-chip" data-var="{{' + esc(k) + '}}" title="' + esc(lbl) + '"'
+                    + ' aria-label="Wstaw pole ' + esc(lbl) + '">{{' + esc(k) + '}}</button>';
               }).join('')
             : '<span class="evo-hint evo-faint">Dodaj mapowania pól aby zobaczyć dostępne zmienne.</span>';
         $('#evk-vars-palette').html(chipsHtml);

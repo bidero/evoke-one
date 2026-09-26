@@ -52,6 +52,7 @@ add_action('admin_footer', function () {
         $body.toggleClass('open');
         $icon.toggleClass('open');
         $header.toggleClass('collapsed', !$body.hasClass('open'));
+        $icon.attr('aria-expanded', $body.hasClass('open') ? 'true' : 'false');
 
         try {
             const s = JSON.parse(localStorage.getItem('tl_group_states') || '{}');
@@ -66,27 +67,39 @@ add_action('admin_footer', function () {
         if ($(e.target).closest('input, button, .drag-handle').length) return;
         tlToggleGroup($(this));
     });
+    // Strzałka grupy to przycisk (1.238.0) — nagłówek wyżej pomija przyciski.
+    $(document).on('click', '.tl-group-toggle-icon', function(e) {
+        e.stopPropagation();
+        tlToggleGroup($(this).closest('.tl-group-header'));
+    });
 
     // ROW TOGGLE
+    // Stan strzałki frazy dla czytnika — po każdym przełączeniu wiersza.
+    function tlSyncRow($header) {
+        $header.find('.tl-chevron').attr('aria-expanded', $header.hasClass('open') ? 'true' : 'false');
+    }
     $(document).on('click', '.tl-row-toggle-trigger', function(e) {
         e.stopPropagation();
-        $(this).closest('.tl-row-header').toggleClass('open').next('.tl-row-body').toggleClass('open');
+        const $h = $(this).closest('.tl-row-header');
+        $h.toggleClass('open').next('.tl-row-body').toggleClass('open');
+        tlSyncRow($h);
     });
     $(document).on('click', '.tl-row-header', function(e) {
         if ($(e.target).hasClass('drag-handle')) return;
         if ($(e.target).closest('.tl-row-toggle-trigger').length) return;
         $(this).toggleClass('open').next('.tl-row-body').toggleClass('open');
+        tlSyncRow($(this));
     });
 
     // Expand / Collapse all
     $('#btn-expand-all').on('click', function() {
         $('.tl-group-body').addClass('open');
-        $('.tl-group-toggle-icon').addClass('open');
+        $('.tl-group-toggle-icon').addClass('open').attr('aria-expanded', 'true');
         $('.tl-group-header').removeClass('collapsed');
     });
     $('#btn-collapse-all').on('click', function() {
         $('.tl-group-body').removeClass('open');
-        $('.tl-group-toggle-icon').removeClass('open');
+        $('.tl-group-toggle-icon').removeClass('open').attr('aria-expanded', 'false');
         $('.tl-group-header').addClass('collapsed');
     });
 
@@ -97,7 +110,7 @@ add_action('admin_footer', function () {
             $('.tl-group').each(function() {
                 if (s[$(this).data('gid')] === true) {
                     $(this).find('.tl-group-body').first().addClass('open');
-                    $(this).find('.tl-group-toggle-icon').first().addClass('open');
+                    $(this).find('.tl-group-toggle-icon').first().addClass('open').attr('aria-expanded', 'true');
                     $(this).find('.tl-group-header').first().removeClass('collapsed');
                 }
             });
@@ -181,7 +194,10 @@ add_action('admin_footer', function () {
     // HELPERS
     // ----------------------------------------------------------------
     window.tlUpdatePreview = function(ta) {
-        $(ta).closest('.tl-row').find('.tl-row-pl-preview').text(ta.value.trim() || '- pusta -');
+        const tekst = ta.value.trim();
+        const $row  = $(ta).closest('.tl-row');
+        $row.find('.tl-row-pl-preview').text(tekst || '- pusta -');
+        $row.find('.tl-chevron').attr('aria-label', 'Fraza: ' + (tekst ? (tekst.length > 80 ? tekst.slice(0, 79) + '…' : tekst) : 'pusta'));
     };
     window.tlUpdatePill = function(ta) {
         const code = $(ta).data('field');
@@ -201,7 +217,7 @@ add_action('admin_footer', function () {
             fields += `<div class="tl-field"><label>${LANG_NAMES[i]}</label><textarea aria-label="${tlAttr(LANG_NAMES[i])}" data-field="${code}" data-gid="${gid}" data-rid="${rid}" oninput="tlUpdatePill(this);tlMarkDirty();"></textarea></div>`;
         });
         const pills = CODES.map(function(c) { return `<span class="tl-pill">${c.toUpperCase()}</span>`; }).join('');
-        $rows.append(`<div class="tl-row" data-rid="${rid}"><div class="tl-row-header open"><span class="drag-handle">⠿</span><span class="tl-row-pl-preview tl-row-toggle-trigger">- nowa fraza -</span><div class="tl-lang-pills tl-row-toggle-trigger">${pills}</div><span class="tl-chevron tl-row-toggle-trigger">▶</span></div><div class="tl-row-body open">${fields}<div class="tl-row-footer"><button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj frazę" aria-label="Duplikuj frazę" onclick="tlDuplicateRow(this)"></button><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete evo-ml-auto" title="Usuń frazę" aria-label="Usuń frazę" onclick="jQuery(this).closest('.tl-row').remove();tlMarkDirty();"></button></div></div></div>`);
+        $rows.append(`<div class="tl-row" data-rid="${rid}"><div class="tl-row-header open"><span class="drag-handle">⠿</span><span class="tl-row-pl-preview tl-row-toggle-trigger">- nowa fraza -</span><div class="tl-lang-pills tl-row-toggle-trigger">${pills}</div><button type="button" class="tl-chevron tl-row-toggle-trigger" aria-expanded="true" aria-label="Fraza: nowa">▶</button></div><div class="tl-row-body open">${fields}<div class="tl-row-footer"><button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj frazę" aria-label="Duplikuj frazę" onclick="tlDuplicateRow(this)"></button><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete evo-ml-auto" title="Usuń frazę" aria-label="Usuń frazę" onclick="jQuery(this).closest('.tl-row').remove();tlMarkDirty();"></button></div></div></div>`);
         reinitRowSortable($rows);
         tlMarkDirty();
     };
@@ -219,13 +235,14 @@ add_action('admin_footer', function () {
         $clone.find('input.tl-dd-key-input').attr('data-rid', rid).val('');
         $clone.find('.tl-row-header').addClass('open');
         $clone.find('.tl-row-body').addClass('open');
+        $clone.find('.tl-chevron').attr('aria-expanded', 'true');
         $row.after($clone);
         tlMarkDirty();
     };
 
     window.tlAddGroup = function() {
         const gid = 'group_' + Date.now();
-        $('#groups-wrapper').append(`<div class="tl-group" data-gid="${gid}"><div class="tl-group-header collapsed"><span class="drag-handle dashicons dashicons-move"></span><div class="tl-group-toggle"><span class="tl-group-toggle-icon">▶</span><input type="text" class="tl-group-name-input" aria-label="Nazwa grupy" data-gid="${gid}" placeholder="Nazwa nowej grupy..."><span class="badge-count">0</span></div><div class="tl-group-actions"><button type="button" class="button button-icon dashicons dashicons-download" title="Eksportuj grupę" aria-label="Eksportuj grupę" onclick="tlExportGroup('${gid}');event.stopPropagation();"></button><button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj grupę" aria-label="Duplikuj grupę" onclick="tlDuplicateGroup(this);event.stopPropagation();"></button><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń grupę" aria-label="Usuń grupę" onclick="if(confirm('Usunąć całą grupę?')){jQuery(this).closest('.tl-group').remove();tlMarkDirty();}event.stopPropagation();"></button></div></div><div class="tl-group-body"><div class="tl-rows row-sortable"></div><div class="evo-row-footer"><button type="button" class="button" onclick="tlAddRow(this,'${gid}')"><span class="dashicons dashicons-plus-alt2"></span> Dodaj frazę</button></div></div></div>`);
+        $('#groups-wrapper').append(`<div class="tl-group" data-gid="${gid}"><div class="tl-group-header collapsed"><span class="drag-handle dashicons dashicons-move"></span><div class="tl-group-toggle"><button type="button" class="tl-group-toggle-icon" aria-expanded="false" aria-label="Frazy grupy">▶</button><input type="text" class="tl-group-name-input" aria-label="Nazwa grupy" data-gid="${gid}" placeholder="Nazwa nowej grupy..."><span class="badge-count">0</span></div><div class="tl-group-actions"><button type="button" class="button button-icon dashicons dashicons-download" title="Eksportuj grupę" aria-label="Eksportuj grupę" onclick="tlExportGroup('${gid}');event.stopPropagation();"></button><button type="button" class="button button-icon dashicons dashicons-admin-page" title="Duplikuj grupę" aria-label="Duplikuj grupę" onclick="tlDuplicateGroup(this);event.stopPropagation();"></button><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń grupę" aria-label="Usuń grupę" onclick="if(confirm('Usunąć całą grupę?')){jQuery(this).closest('.tl-group').remove();tlMarkDirty();}event.stopPropagation();"></button></div></div><div class="tl-group-body"><div class="tl-rows row-sortable"></div><div class="evo-row-footer"><button type="button" class="button" onclick="tlAddRow(this,'${gid}')"><span class="dashicons dashicons-plus-alt2"></span> Dodaj frazę</button></div></div></div>`);
         // Niszcz stary sortable grup i reinicjuj
         if ($('#groups-wrapper').hasClass('ui-sortable')) $('#groups-wrapper').sortable('destroy');
         initSortable();
@@ -324,7 +341,7 @@ add_action('admin_footer', function () {
 
     // Languages
     window.tlAddLang = function() {
-        $('#lang-body').append('<tr><td><span class="drag-handle" title="Przeciągnij">☰</span></td><td><input type="text" class="lang-code" aria-label="Kod języka" placeholder="np. en"></td><td><input type="text" class="lang-name" aria-label="Nazwa języka" placeholder="np. Angielski"></td><td><input type="text" class="lang-html" aria-label="Kod HTML (hreflang)" placeholder="np. en-GB"></td><td><div class="tl-lang-flag-empty evo-flag is-empty" data-att="0"  onclick="tlOpenLangFlag(this)">+</div></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń język" aria-label="Usuń język" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();"></button></td></tr>');
+        $('#lang-body').append('<tr><td><span class="drag-handle" title="Przeciągnij">☰</span></td><td><input type="text" class="lang-code" aria-label="Kod języka" placeholder="np. en"></td><td><input type="text" class="lang-name" aria-label="Nazwa języka" placeholder="np. Angielski"></td><td><input type="text" class="lang-html" aria-label="Kod HTML (hreflang)" placeholder="np. en-GB"></td><td><div class="tl-lang-flag-empty evo-flag is-empty" data-att="0" role="button" tabindex="0" aria-label="Wybierz flagę nowego języka" onclick="tlOpenLangFlag(this)">+</div></td><td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń język" aria-label="Usuń język" onclick="jQuery(this).closest(\'tr\').remove();tlMarkDirty();"></button></td></tr>');
         if ($('#lang-body').hasClass('ui-sortable')) $('#lang-body').sortable('refresh');
         else initSortable();
         tlMarkDirty();
@@ -349,6 +366,12 @@ add_action('admin_footer', function () {
     };
 
     // Flag media picker for languages
+    /* Flaga to div albo img z kliknięciem (zapis czyta z nich data-att), więc
+       z klawiatury: role="button" + tabindex w znaczniku i Enter/spacja tutaj
+       (1.238.0). Do 1.237.0 flagi nie dało się wybrać bez myszy. */
+    $(document).on('keydown', '.tl-lang-flag-preview, .tl-lang-flag-empty', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); }
+    });
     let langFlagFrame = null, langFlagTarget = null, langFlagCode = null;
     window.tlOpenLangFlag = function(el, code) {
         langFlagTarget = el;
@@ -362,7 +385,7 @@ add_action('admin_footer', function () {
             if ($el.is('img')) {
                 $el.attr('src', url).data('att', att.id);
             } else {
-                const $img = $('<img>').addClass('tl-lang-flag-preview').attr('src', url).data('att', att.id).css({width:'32px',height:'20px',objectFit:'cover',borderRadius:'2px',border:'1px solid #d1d5db',cursor:'pointer'}).on('click', function() { tlOpenLangFlag(this, langFlagCode); });
+                const $img = $('<img>').addClass('tl-lang-flag-preview evo-flag').attr({ src: url, role: 'button', tabindex: '0', alt: 'Flaga', 'aria-label': 'Zmień flagę' }).data('att', att.id).css({width:'32px',height:'20px',objectFit:'cover',borderRadius:'2px',border:'1px solid #d1d5db',cursor:'pointer'}).on('click', function() { tlOpenLangFlag(this, langFlagCode); });
                 $el.replaceWith($img);
             }
             tlMarkDirty();
@@ -372,6 +395,9 @@ add_action('admin_footer', function () {
 
 
     // Media
+    /* Podgląd obrazka (img albo „+") klika się myszą, ale obok stoi przycisk
+       „Wybierz/Zmień" robiący to samo — podgląd jest więc aria-hidden, a nie
+       drugim przystankiem Tab w każdym wierszu (1.238.0). */
     let mediaFrame = null, mediaTarget = null, mediaLang = null;
     window.tlOpenMedia = function(el, lang) {
         mediaTarget = el; mediaLang = lang;
@@ -382,14 +408,14 @@ add_action('admin_footer', function () {
             const url = att.sizes?.thumbnail?.url || att.url;
             const $el = $(mediaTarget);
             if ($el.is('img')) { $el.attr('src', url).attr('data-att', att.id); }
-            else { const $img = $('<img>').addClass('tl-img-preview').attr({ src: url, 'data-lang': mediaLang, 'data-att': att.id }).on('click', function() { tlOpenMedia(this, mediaLang); }); $el.replaceWith($img); }
+            else { const $img = $('<img>').addClass('tl-img-preview').attr({ src: url, alt: '', 'aria-hidden': 'true', 'data-lang': mediaLang, 'data-att': att.id }).on('click', function() { tlOpenMedia(this, mediaLang); }); $el.replaceWith($img); }
             tlMarkDirtyImages();
         });
         mediaFrame.open();
     };
     window.tlRemoveImage = function(btn, lang) {
         const $row = $(btn).closest('.tl-img-lang-row');
-        $row.find('.tl-img-preview').replaceWith($('<div>').addClass('tl-img-preview-empty').attr({'data-lang':lang,'data-att':0}).text('+').on('click', function() { tlOpenMedia(this, lang); }));
+        $row.find('.tl-img-preview').replaceWith($('<div>').addClass('tl-img-preview-empty').attr({'aria-hidden':'true','data-lang':lang,'data-att':0}).text('+').on('click', function() { tlOpenMedia(this, lang); }));
         $(btn).remove(); tlMarkDirtyImages();
     };
     window.tlAddImageCard = function() {
@@ -397,7 +423,7 @@ add_action('admin_footer', function () {
         const CODES_ALL = ['pl'].concat(CODES);
         const rows = CODES_ALL.map(function(code) {
             const label = code === 'pl' ? 'PL' : code.toUpperCase();
-            return `<div class="tl-img-lang-row"><span class="tl-img-lang-label">${label}</span><div class="tl-img-preview-empty" data-lang="${code}" data-att="0" onclick="tlOpenMedia(this,'${code}')">+</div><button type="button" class="button" onclick="tlOpenMedia(this.previousElementSibling,'${code}')"><span class="dashicons dashicons-format-image"></span> Wybierz</button></div>`;
+            return `<div class="tl-img-lang-row"><span class="tl-img-lang-label">${label}</span><div class="tl-img-preview-empty" aria-hidden="true" data-lang="${code}" data-att="0" onclick="tlOpenMedia(this,'${code}')">+</div><button type="button" class="button" onclick="tlOpenMedia(this.previousElementSibling,'${code}')"><span class="dashicons dashicons-format-image"></span> Wybierz</button></div>`;
         }).join('');
         $('#img-grid').append(`<div class="tl-img-card" data-key="${key}"><div class="tl-img-card-header"><strong class="evo-grow">Tłumaczenie obrazka</strong><button type="button" class="button-link-delete evo-close-x" aria-label="Usuń tłumaczenie obrazka" onclick="jQuery(this).closest('.tl-img-card').remove();tlMarkDirtyImages();">✕</button></div>${rows}</div>`);
         tlMarkDirtyImages();

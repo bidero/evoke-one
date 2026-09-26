@@ -89,9 +89,22 @@ case 'warstwa':
     $warstwy = [
         'domyslne' => ['enabled' => 1, 'type' => 'qr', 'x' => 40, 'y' => 40, 'size' => 170, 'fg_color' => '#ffffff', 'bg_color' => '#000000'],
         'ciemne'   => ['enabled' => 1, 'type' => 'qr', 'x' => 300, 'y' => 300, 'size' => 170, 'fg_color' => '#111111', 'bg_color' => '#ffffff'],
+        /* 1.238.0: przezroczyste tło. Pod kodem PRAWDZIWA warstwa prostokąta
+           w kolorze innym niż tło kodu i niż tło obrazka — tylko wtedy widać,
+           czy kwadrat się narysował (#000000), czy prześwituje warstwa (#1e3a5f). */
+        'przezroczyste' => ['enabled' => 1, 'type' => 'qr', 'x' => 700, 'y' => 40, 'size' => 170, 'fg_color' => '#ffffff', 'bg_color' => '#000000', 'bg_transparent' => 1],
+        /* Do odczytu: ciemne moduły na JASNEJ warstwie, a tło kodu w KOLORZE
+           MODUŁÓW. Nieprzezroczysty kwadrat byłby jednolicie ciemny i zakryłby
+           kod — dekoder czyta go więc wyłącznie wtedy, gdy tła naprawdę nie ma. */
+        'przezroczyste_jasne' => ['enabled' => 1, 'type' => 'qr', 'x' => 40, 'y' => 400, 'size' => 170, 'fg_color' => '#111111', 'bg_color' => '#111111', 'bg_transparent' => 1],
+    ];
+    $pod = [
+        'przezroczyste'       => ['enabled' => 1, 'type' => 'rect', 'x' => 310, 'y' => 20, 'width' => 210, 'height' => 210, 'color' => '#1e3a5f'],
+        'przezroczyste_jasne' => ['enabled' => 1, 'type' => 'rect', 'x' => 970, 'y' => 380, 'width' => 210, 'height' => 210, 'color' => '#f4efe6'],
     ];
     $out = ['adres' => get_permalink($post), 'warstwy' => []];
     foreach ($warstwy as $nazwa => $w) {
+        if (isset($pod[$nazwa])) evk_og_render_layer($img, $pod[$nazwa], $post, $s);
         evk_og_render_layer($img, $w, $post, $s);
         $x0 = $s['width'] - $w['size'] - $w['x'];
         $y0 = $w['y'];
@@ -105,8 +118,16 @@ case 'warstwa':
             }
         }
         $piksel = static function (int $x, int $y) use ($img): string { return sprintf('#%06x', imagecolorat($img, $x, $y) & 0xFFFFFF); };
+        // Ile pikseli kwadratu ma kolor tła kodu — przy przezroczystym ani jeden.
+        $w_kolorze_tla = 0;
+        for ($y = $y0; $y < $y0 + $w['size']; $y++) {
+            for ($x = $x0; $x < $x0 + $w['size']; $x++) {
+                if ($piksel($x, $y) === strtolower($w['bg_color'])) $w_kolorze_tla++;
+            }
+        }
         $out['warstwy'][$nazwa] = [
-            'bok' => $bok, 'szare' => base64_encode($szare),
+            'bok' => $bok, 'szare' => base64_encode($szare), 'w_kolorze_tla' => $w_kolorze_tla,
+            'pod' => isset($pod[$nazwa]) ? $pod[$nazwa]['color'] : null,
             // Rogi kwadratu w kolorze tła kodu, piksel obok — już tło obrazka.
             'rogi'  => [$piksel($x0, $y0), $piksel($x0 + $w['size'] - 1, $y0), $piksel($x0, $y0 + $w['size'] - 1), $piksel($x0 + $w['size'] - 1, $y0 + $w['size'] - 1)],
             'obok'  => [$piksel($x0 - 1, $y0), $piksel($x0 + $w['size'], $y0 + $w['size'] - 1)],
@@ -116,6 +137,12 @@ case 'warstwa':
     imagedestroy($img);
     wp_delete_post($post, true);
     $out['http'] = $http;
+    // Zapis ustawień przepuszcza pole (sanityzacja zna klucze każdego typu warstwy).
+    $czyste = evk_og_sanitize_settings(['layers' => [
+        ['type' => 'qr', 'bg_transparent' => '1', 'bg_color' => '#123456'],
+        ['type' => 'qr', 'bg_color' => '#123456'],
+    ]]);
+    $out['zapis'] = array_map(static function ($l) { return [$l['bg_transparent'] ?? 'brak klucza', $l['bg_color']]; }, $czyste['layers']);
     echo wp_json_encode($out);
     break;
 }

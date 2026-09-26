@@ -424,7 +424,9 @@
 .evo-io-module.selected { background: var(--evo-accent-soft); border-color: var(--evo-accent); }
 .evo-io-box { background: var(--evo-surface); border: 1px solid var(--evo-border); border-radius: 8px; padding: 20px 22px; margin-bottom: 16px; }
 .evo-io-box h3 { margin: 0 0 10px; font-size: 15px; color: var(--evo-text); }
-.evo-io-select-all { font-size: 12px; color: var(--evo-accent); cursor: pointer; text-decoration: underline; margin-left: 6px; }
+/* Przycisk od 1.238.0 (wcześniej span z onclick, poza zasięgiem Tab) — wygląd odnośnika. */
+.evo-io-select-all { font-size: 12px; color: var(--evo-accent); cursor: pointer; text-decoration: underline; margin-left: 6px;
+    background: none; border: 0; padding: 0; font-family: inherit; }
 
 /* Drop zone */
 .evo-drop-zone { position: relative; border: 2px dashed var(--evo-border); border-radius: 8px; padding: 32px; text-align: center; color: var(--evo-text-dim); font-size: 14px; cursor: pointer; background: #fafafa; transition: all .2s; }
@@ -1085,6 +1087,9 @@
 /* Podgląd jest częścią rozwiniętej treści, a nie paska — od 1.50.0 stoi obok
    siatki, więc reguła zwijania musi wymienić go osobno. */
 .evo-anim-row.is-collapsed .evo-anim-preview { display: none; }
+/* Przycisk zwijania wiersza (1.238.0): sama strzałka, bez wyglądu przycisku. */
+.evo-anim-toggle { appearance: none; background: none; border: 0; padding: 0; margin: 0; color: inherit; line-height: 1; cursor: pointer; border-radius: 3px; }
+.evo-anim-toggle:focus-visible { outline: 2px solid var(--evo-accent); outline-offset: 1px; }
 .evo-anim-caret { transition: transform .15s; color: var(--evo-text-dim); }
 .evo-anim-row.is-collapsed .evo-anim-caret { transform: rotate(-90deg); }
 
@@ -1855,6 +1860,9 @@ img.evo-flag { object-fit: cover; border: 1px solid var(--evo-border-field); }
     transition: background .12s;
 }
 .evo-chip:hover { background: var(--evo-accent-on); }
+/* Czip bywa przyciskiem (zmienne skrzynki formularzy, 1.238.0) — bez marginesu
+   i kroju przycisku, ten sam wygląd co span. */
+button.evo-chip { margin: 0; font-weight: inherit; line-height: inherit; }
 .evo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
 
 /* ── Podgląd (monospace, tło jak karta) ── */

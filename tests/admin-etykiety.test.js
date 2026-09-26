@@ -19,6 +19,9 @@
  * w zakładce się nie powtarzają (zdublowane `id` wiąże etykietę z pierwszym
  * polem, drugie zostaje bez nazwy).
  *
+ * Od 1.238.0 także: element z kliknięciem nie może być poza zasięgiem Tab
+ * (czy to naprawdę DZIAŁA z klawiatury — admin-klawiatura).
+ *
  * Zakładki: tests/lib/zakladki-panelu.js (ta sama lista co admin-tabs),
  * renderowane PRAWDZIWYM plikiem przez tests/php/tab.php. Do tego ekrany,
  * których tamta lista nie obejmuje, bo mają własne sondy — każdy z nich jest
@@ -89,9 +92,22 @@ module.exports = async function (t) {
         .filter((el) => !(el.tagName === 'INPUT' && el.type === 'hidden'));
       const zle = kontrolki.map((el) => [opis(el), nazwa(el)]).filter(([, n]) => !['aria-labelledby', 'aria-label', 'etykieta', 'tekst'].includes(n));
       const dla = [...panel.querySelectorAll('label[for]')].map((l) => l.getAttribute('for')).filter((id) => !document.getElementById(id));
+      /* Kliknięcie tylko dla myszy (1.238.0). Element z onclick musi być
+         kontrolką, mieć tabindex, zawierać kontrolkę (etykieta z polem, strefa
+         z polem pliku) albo być jawnym skrótem myszy obok przycisku, który robi
+         to samo (aria-hidden="true", podgląd obrazka w Tłumaczeniach). Nagłówki
+         z kliknięciem podpinanym w JS muszą mieć w sobie swój przycisk. */
+      const FOKUS = 'a[href], button, input:not([type=hidden]), select, textarea, summary, [tabindex]:not([tabindex="-1"])';
+      const KLIK_JS = [['.tl-group-header', 'button.tl-group-toggle-icon'], ['.tl-row-header', 'button.tl-chevron'],
+        ['.evo-anim-row-header', 'button.evo-anim-toggle']];
+      const mysz = [...panel.querySelectorAll('[onclick]')]
+        .filter((el) => !el.matches(FOKUS) && el.getAttribute('aria-hidden') !== 'true' && !el.querySelector(FOKUS))
+        .map((el) => opis(el) + ' onclick=' + el.getAttribute('onclick').slice(0, 40))
+        .concat(KLIK_JS.flatMap(([sel, przycisk]) => [...panel.querySelectorAll(sel)]
+          .filter((el) => !el.querySelector(przycisk)).map(() => sel + ' bez ' + przycisk)));
       const ids = [...panel.querySelectorAll('[id]')].map((el) => el.id);
       const dubel = [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))];
-      return { razem: kontrolki.length, szablony: szablony.length, zle: zle.map(([o, n]) => o + ' (' + n + ')'), dla, dubel };
+      return { razem: kontrolki.length, szablony: szablony.length, zle: zle.map(([o, n]) => o + ' (' + n + ')'), dla, dubel, mysz };
     });
     razem += w.razem;
     bezNazwy += w.zle.length;
@@ -100,6 +116,8 @@ module.exports = async function (t) {
         : w.razem + ' kontrolek' + (w.szablony ? ', w tym ' + w.szablony + ' szablon(y) wierszy wstawione dwa razy' : ''));
     t.check('każde „for" wskazuje pole, „id" bez powtórzeń', !w.dla.length && !w.dubel.length,
       JSON.stringify({ for_bez_pola: w.dla.slice(0, 4), zdublowane_id: w.dubel.slice(0, 4) }));
+    t.check('każdy element z kliknięciem osiągalny z klawiatury', !w.mysz.length,
+      w.mysz.length ? w.mysz.length + ' tylko dla myszy: ' + w.mysz.slice(0, 4).join(' | ') : 'brak');
   }
   /* Import pliku z samej klawiatury (1.237.0). Strefa upuszczania to div
      z onclick, a pole pliku miało display:none — Tab nie miał dokąd pójść

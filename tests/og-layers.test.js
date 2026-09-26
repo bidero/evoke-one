@@ -130,6 +130,23 @@ module.exports = async function (t) {
   t.check('dodana warstwa QR: każde pole raz (do 1.236.0 X i Y dwa razy)', !nazwy.pola_dwa_razy.length,
     JSON.stringify(nazwy.pola_dwa_razy));
 
+  /* Przezroczyste tło QR (1.238.0): pole w warstwie z przycisku i w warstwie
+     z PHP, pod nazwą, którą czyta sanityzacja (og-layers-qr sprawdza zapis
+     i rysowanie). */
+  const poleJs = await page.evaluate(() => {
+    const rows = document.querySelectorAll('#evk-og-layers-container > .evo-og-layer');
+    const cb = rows[rows.length - 1].querySelector('input[type=checkbox][name$="[bg_transparent]"]');
+    return cb ? cb.name + (cb.checked ? ' (zaznaczone)' : '') : null;
+  });
+  t.check('dodana warstwa QR: pole „Przezroczyste tło", domyślnie puste',
+    poleJs === 'evk_og[layers][3][bg_transparent]', String(poleJs));
+  const zPhp = phpOutput('tab.php', 'og "" "" ' + JSON.stringify(JSON.stringify({ evk_og: { enabled: 1, layers: [
+    { type: 'qr', enabled: 1 }, { type: 'qr', enabled: 1, bg_transparent: true }] } })));
+  const pola = [...zPhp.matchAll(/<input type="checkbox" name="evk_og\[layers\]\[(\d)\]\[bg_transparent\]" value="1"\s*(checked)?/g)]
+    .map((m) => m[1] + (m[2] ? ':zaznaczone' : ':puste'));
+  t.check('warstwa QR z PHP: pole w każdej warstwie, zaznaczone według zapisu', JSON.stringify(pola) === '["0:puste","1:zaznaczone"]',
+    JSON.stringify(pola));
+
   // ── Regeneracja masowa ─────────────────────────────────────────────────
   t.section('warstwy OG — regeneracja masowa');
 

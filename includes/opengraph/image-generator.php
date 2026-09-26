@@ -406,8 +406,10 @@ function evk_og_render_layer($img, array $layer, int $post_id, array $s): void {
             }
             [$fr, $fg, $fb] = evk_og_hex_to_rgb($layer['fg_color'] ?? '#ffffff');
             [$br, $bg, $bb] = evk_og_hex_to_rgb($layer['bg_color'] ?? '#000000');
+            // Przezroczyste tło (1.238.0): bez kwadratu, moduły na warstwach pod spodem.
             evk_qr_rysuj($img, $kod['moduly'], $qr_x, $y, $size,
-                (int) imagecolorallocate($img, $fr, $fg, $fb), (int) imagecolorallocate($img, $br, $bg, $bb));
+                (int) imagecolorallocate($img, $fr, $fg, $fb),
+                !empty($layer['bg_transparent']) ? null : (int) imagecolorallocate($img, $br, $bg, $bb));
             break;
 
     endswitch;

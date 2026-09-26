@@ -15,9 +15,9 @@ if (!defined('ABSPATH')) exit;
                     <div class="tl-img-lang-row">
                         <span class="tl-img-lang-label"><?php echo esc_html($code==='pl'?'PL':strtoupper($code)); ?></span>
                         <?php if ($img_url): ?>
-                        <img src="<?php echo esc_url($img_url); ?>" class="tl-img-preview" data-lang="<?php echo esc_attr($code); ?>" data-att="<?php echo esc_attr((string) $att_id); ?>" onclick="tlOpenMedia(this,'<?php echo esc_js($code); ?>')">
+                        <img src="<?php echo esc_url($img_url); ?>" class="tl-img-preview" alt="" aria-hidden="true" data-lang="<?php echo esc_attr($code); ?>" data-att="<?php echo esc_attr((string) $att_id); ?>" onclick="tlOpenMedia(this,'<?php echo esc_js($code); ?>')">
                         <?php else: ?>
-                        <div class="tl-img-preview-empty" data-lang="<?php echo esc_attr($code); ?>" data-att="0" onclick="tlOpenMedia(this,'<?php echo esc_js($code); ?>')">+</div>
+                        <div class="tl-img-preview-empty" aria-hidden="true" data-lang="<?php echo esc_attr($code); ?>" data-att="0" onclick="tlOpenMedia(this,'<?php echo esc_js($code); ?>')">+</div>
                         <?php endif; ?>
                         <button type="button" class="button" onclick="tlOpenMedia(this.previousElementSibling,'<?php echo esc_js($code); ?>')"><span class="dashicons dashicons-format-image"></span> <?php echo $att_id?'Zmień':'Wybierz'; ?></button>
                         <?php if ($att_id): ?><button type="button" class="button button-icon dashicons dashicons-no-alt button-link-delete" title="Usuń obrazek" aria-label="<?php echo esc_attr('Usuń obrazek ' . ($code === 'pl' ? 'PL' : strtoupper($code))); ?>" onclick="tlRemoveImage(this,'<?php echo esc_js($code); ?>')"></button><?php endif; ?>

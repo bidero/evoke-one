@@ -59,6 +59,10 @@ function tl_render_page() {
         .tl-group-header { background:var(--evo-surface); padding:10px 14px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; gap:8px; user-select:none; cursor:pointer; }
         .tl-group-header.collapsed { border-bottom:none; border-radius:10px; }
         .tl-group-toggle { flex:1; display:flex; align-items:center; gap:8px; min-width:0; pointer-events:none; }
+        /* Strzałki grup i fraz to przyciski (1.238.0) — do 1.237.0 spany, a nagłówek
+           div z kliknięciem: frazy nie dało się otworzyć z klawiatury. */
+        .tl-group-toggle-icon, .tl-chevron { appearance:none; background:none; border:0; margin:0; padding:2px 4px; font-family:inherit; line-height:1; cursor:pointer; border-radius:3px; }
+        .tl-group-toggle-icon:focus-visible, .tl-chevron:focus-visible { outline:2px solid var(--evo-accent); outline-offset:1px; }
         .tl-group-toggle-icon { color:var(--evo-text-faint); transition:transform .2s; flex-shrink:0; font-size:12px; }
         .tl-group-toggle-icon.open { transform:rotate(90deg); }
         .tl-group-name-input { font-weight:600; font-size:14px; flex:0 1 800px; max-width:800px; border:1px solid transparent; background:transparent; padding:3px 7px; min-width:0; border-radius:6px; pointer-events:auto; cursor:text; }

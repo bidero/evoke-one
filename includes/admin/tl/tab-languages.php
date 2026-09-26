@@ -32,9 +32,9 @@ if (!defined('ABSPATH')) exit;
                         <td>pl-PL</td>
                         <td>
                             <?php if ($pl_flag_url): ?>
-                            <img src="<?php echo esc_url($pl_flag_url); ?>" class="tl-lang-flag-preview evo-flag" data-att="<?php echo esc_attr($pl_flag_id); ?>" onclick="tlOpenLangFlag(this,'pl')">
+                            <img src="<?php echo esc_url($pl_flag_url); ?>" class="tl-lang-flag-preview evo-flag" data-att="<?php echo esc_attr($pl_flag_id); ?>" role="button" tabindex="0" alt="Flaga" aria-label="Zmień flagę: Polski" onclick="tlOpenLangFlag(this,'pl')">
                             <?php else: ?>
-                            <div class="tl-lang-flag-empty evo-flag is-empty" data-att="0" onclick="tlOpenLangFlag(this,'pl')">+</div>
+                            <div class="tl-lang-flag-empty evo-flag is-empty" data-att="0" role="button" tabindex="0" aria-label="Wybierz flagę: Polski" onclick="tlOpenLangFlag(this,'pl')">+</div>
                             <?php endif; ?>
                         </td>
                         <td></td>
@@ -50,9 +50,9 @@ if (!defined('ABSPATH')) exit;
                         <td><input type="text" class="lang-html" aria-label="Kod HTML (hreflang)" value="<?php echo esc_attr($lang['html']); ?>" placeholder="en-GB"></td>
                         <td>
                             <?php if ($flag_url): ?>
-                            <img src="<?php echo esc_url($flag_url); ?>" class="tl-lang-flag-preview evo-flag" data-att="<?php echo esc_attr((string) $flag_id); ?>" onclick="tlOpenLangFlag(this)">
+                            <img src="<?php echo esc_url($flag_url); ?>" class="tl-lang-flag-preview evo-flag" data-att="<?php echo esc_attr((string) $flag_id); ?>" role="button" tabindex="0" alt="Flaga" aria-label="<?php echo esc_attr('Zmień flagę: ' . ($lang['name'] ?? $lang['code'])); ?>" onclick="tlOpenLangFlag(this)">
                             <?php else: ?>
-                            <div class="tl-lang-flag-empty evo-flag is-empty" data-att="0" onclick="tlOpenLangFlag(this)">+</div>
+                            <div class="tl-lang-flag-empty evo-flag is-empty" data-att="0" role="button" tabindex="0" aria-label="<?php echo esc_attr('Wybierz flagę: ' . ($lang['name'] ?? $lang['code'])); ?>" onclick="tlOpenLangFlag(this)">+</div>
                             <?php endif; ?>
                         </td>
                         <td><button type="button" class="button button-icon dashicons dashicons-trash button-link-delete" title="Usuń język" aria-label="Usuń język" onclick="jQuery(this).closest('tr').remove();tlMarkDirty();"></button></td>

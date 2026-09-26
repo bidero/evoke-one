@@ -1028,3 +1028,16 @@ if (!empty($tab['funkcja'])) {
 } else {
     require EVK_TEST_ROOT . '/' . $tab['file'];
 }
+
+/* Argument 5 (opcjonalny): „stopka" — dopisuje skrypt, który Tłumaczenia
+   drukują w admin_footer (tl/js-admin.php), a nie w pliku zakładki. Test
+   klawiatury (admin-klawiatura) uruchamia go w przeglądarce; testom wyglądu
+   niepotrzebny. Tylko wywołania dopięte przez ten plik — nie cudze. */
+if (($argv[5] ?? '') === 'stopka' && ($tab['module'] ?? null) === 'TL') {
+    if (!function_exists('get_current_screen')) {
+        function get_current_screen() { return (object) ['id' => 'settings_page_' . TL_MENU_SLUG]; }
+    }
+    $evk_przed = count($GLOBALS['hooks']['admin_footer'] ?? []);
+    require EVK_TEST_ROOT . '/includes/admin/tl/js-admin.php';
+    foreach (array_slice($GLOBALS['hooks']['admin_footer'] ?? [], $evk_przed) as $cb) { $cb(); }
+}

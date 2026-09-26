@@ -330,6 +330,8 @@ function evk_og_sanitize_settings($input): array {
                     $l['size']     = max(50, min(500, intval($layer['size'] ?? 170)));
                     $l['bg_color'] = evk_og_sanitize_color($layer['bg_color'] ?? '#ffffff');
                     $l['fg_color'] = evk_og_sanitize_color($layer['fg_color'] ?? '#000000');
+                    // Przezroczyste tło (1.238.0). Kolor tła zostaje zapisany — wraca po odznaczeniu.
+                    $l['bg_transparent'] = !empty($layer['bg_transparent']);
                     // x = margin-right dla QR
                     break;
             }

@@ -2,6 +2,93 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.238.0] — 2026-09-26
+
+Dziewiąte wydanie po audycie 1.229.6: panel z klawiatury, przezroczyste tło
+kodu QR i poprawka White Label.
+
+### Dodane
+
+- **Kod QR w obrazku OG z przezroczystym tłem.** Warstwa QR ma pole
+  „Przezroczyste tło": zamiast jasnego kwadratu pod kodem moduły leżą
+  wprost na warstwach pod spodem. Kolor tła zostaje zapisany i wraca po
+  odznaczeniu. Najpewniej czytają się ciemne moduły na jasnym tle.
+  Jasnych modułów na ciemnym (kod odwrócony) nie czyta każdy skaner. Sprawdzone
+  dekoderem: progowanie przejęte z ZXing, na którym stoi część skanerów na
+  Androidzie, bierze jednolity nieczarny obszar za jasny, więc białe moduły
+  na ciemnoszarym tle giną. Podpowiedź w panelu mówi o tym wprost.
+
+### Zmienione
+
+- **Panel z samej klawiatury.** Do 1.237.0 kilka rzeczy dało się zrobić
+  wyłącznie myszą:
+  - **Skrzynka wiadomości:** wiadomość otwierało tylko kliknięcie wiersza.
+    Treść wiersza jest teraz przyciskiem (wygląd bez zmian), a Enter
+    otwiera wiadomość. Fokus przechodzi na nagłówek wiadomości. Na wąskim
+    ekranie „Wszystkie wiadomości" oddaje fokus wierszowi, z którego się
+    przyszło; dotąd fokus zostawał na schowanej liście.
+  - **Tłumaczenia:** frazy i grupy rozwijało tylko kliknięcie nagłówka,
+    więc tłumacz bez myszy nie mógł edytować żadnej frazy. Strzałki są
+    teraz przyciskami ze stanem rozwinięcia dla czytnika. Strzałka frazy
+    nazywa się jej tekstem i zmienia nazwę przy edycji.
+  - **Tłumaczenia, flagi języków:** do wyboru flagi dochodzi się Tabem,
+    a otwiera ją Enter lub spacja. Podgląd obrazka jest skrótem myszy obok
+    przycisku „Wybierz/Zmień", więc czytnik go pomija.
+  - **Animator:** zwinięty wiersz otwierało tylko kliknięcie nagłówka.
+    Strzałka jest teraz przyciskiem.
+  - **Import/Eksport:** „zaznacz wszystkie" i „odznacz wszystkie" są
+    przyciskami.
+  - **Skrzynka formularzy:** czipy zmiennych szablonu są przyciskami.
+    Przy okazji etykieta pola w ich podpowiedzi przechodzi przez kodowanie,
+    bo trafia do atrybutu.
+
+### Naprawione
+
+- **White Label, własne pozycje paska admina.** Zmiana etykiety zapisanej
+  pozycji przepadała przy zapisie, a wyczyszczenie etykiety (sposób na
+  usunięcie pozycji) nic nie usuwało. W formularzu za polem tekstowym stało
+  ukryte pole o tej samej nazwie ze starą etykietą, a PHP z dwóch pól
+  o jednej nazwie bierze ostatnie. Ukryte pole zniknęło.
+
+### Testy
+
+- `admin-klawiatura` (nowy). Każda z poprawek wyżej sprawdzana samą
+  klawiaturą (Tab, Enter, spacja) na prawdziwym znaczniku i prawdziwych
+  skryptach. Fixture `panel-klawiatura.html` ładuje je w kolejności jak
+  w wp-admin, z atrapami tylko AJAX-u, `wp.media` i sortowania. Skrzynka
+  jest sprawdzana także na 360 px. `tab.php` dostał opcję „stopka": skrypt
+  Tłumaczeń idzie przez `admin_footer`, a nie z pliku zakładki.
+- `admin-etykiety`: na każdym ekranie element z kliknięciem musi spełnić
+  jeden z warunków:
+  - jest kontrolką albo ma `tabindex`;
+  - zawiera kontrolkę;
+  - jest jawnym skrótem myszy obok przycisku (`aria-hidden`).
+
+  Nagłówki z kliknięciem z JS muszą mieć swój przycisk.
+- `admin-whitelabel` (nowy). Prawdziwy formularz zakładki w przeglądarce:
+  edycja pól, serializacja jak przy wysłaniu, rozbiór `parse_str()`
+  z semantyką `$_POST` i prawdziwy sanityzator z `register_setting()`.
+- `og-layers-qr`: przezroczyste tło na prawdziwych warstwach pod spodem.
+  - W kwadracie ani jednego piksela w kolorze tła kodu, a z tłem ~20 500.
+  - Strefa ciszy ma kolor warstwy pod spodem.
+  - Odczyt dekoderem ciemnych modułów na jasnej warstwie, z kolorem tła
+    równym kolorowi modułów. Kod da się odczytać tylko wtedy, gdy tła
+    naprawdę nie ma.
+  - Zapis ustawień przepuszcza pole.
+- `og-layers`: pole „Przezroczyste tło" w warstwie z PHP i w warstwie
+  z przycisku.
+- Panel kopii: dwa sprawdzenia paska postępu zależały od szybkości maszyny.
+  W nowym kontenerze kopia trwa 3,9–4,9 s zamiast ~7 s, więc pasek pokazuje
+  mniej wartości (0 → 26 → 51 → 100). Próg „≥ 5" padał tu także na kodzie
+  1.237.0. Nowe progi stoją między usterką (0 → 100) a tym, co widać:
+  co najmniej jedna wartość pośrednia. Mutacje obu usterek nadal świecą
+  (postęp zapisywany dopiero na końcu kroku, krok robiony w pytaniu o stan).
+- Przywracanie z panelu: po pętli etykieta jest odczytywana jeszcze raz.
+  „Gotowe" i komunikat końca przychodzą w jednej odpowiedzi, więc pętla
+  potrafiła skończyć się przed etykietą (raz na dwa przebiegi).
+- Mutacje (18): pięć dla QR, jedna dla White Label, dwanaście dla
+  klawiatury. Każda zapala własny podzbiór.
+
 ## [1.237.0] — 2026-09-25
 
 Ósme wydanie po audycie 1.229.6: panel — nazwy dostępne kontrolek.

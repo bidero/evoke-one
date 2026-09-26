@@ -60,7 +60,7 @@ Wpadło dwa razy: kopie zapasowe (stąd reguła w `admin.css` przy
 wierszu (1.234.1). `hidden` daje się na element bez klasy układu, a klasę
 na jego dziecko.
 
-### Nowa kontrolka w panelu musi mieć nazwę
+### Nowa kontrolka w panelu musi mieć nazwę i działać z klawiatury
 
 Od 1.237.0 `tests/admin-etykiety.test.js` sprawdza, czy każda kontrolka
 panelu ma nazwę dostępną: widoczną etykietę z `for`/`id`, `aria-label`
@@ -80,6 +80,19 @@ albo, przy przycisku i odnośniku, własny tekst. Sam placeholder i sam
 - **Nowy ekran z własną sondą.** Dopisz go do `EKRANY` w teście. Lista
   zakładek w `tests/lib/zakladki-panelu.js` obejmuje tylko to, co
   renderuje `tests/php/tab.php`.
+
+Od 1.238.0 ten sam test pilnuje też kliknięć. Element z `onclick`, który
+nie jest kontrolką, musi spełnić jeden z warunków:
+- ma `tabindex` i obsługę Enter/spacji w JS;
+- zawiera kontrolkę, jak etykieta z polem;
+- jest jawnym skrótem myszy obok przycisku robiącego to samo
+  (`aria-hidden="true"`).
+
+Zwijanie i rozwijanie robi przycisk ze stanem `aria-expanded`, a nie
+kliknięcie w nagłówek (div). Tak było w Tłumaczeniach i Animatorze, więc
+tłumacz bez myszy nie otwierał żadnej frazy. Czy to naprawdę DZIAŁA
+z klawiatury, sprawdza `admin-klawiatura`: prawdziwe skrypty w fixturze
+`panel-klawiatura.html`, sam Tab i Enter.
 
 ---
 
@@ -142,7 +155,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (97 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (99 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```

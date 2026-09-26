@@ -338,14 +338,18 @@ function evk_qr_koduj(string $dane, string $poziom = 'M', ?int $maska = null): ?
  * o całkowitej liczbie pikseli (ostre krawędzie), wyśrodkowane, ze strefą
  * ciszy $cisza modułów. Gdy kwadrat jest mniejszy niż liczba modułów,
  * rośnie do niej (moduł nie bywa mniejszy niż 1 px).
+ *
+ * $jasny = null: przezroczyste tło (1.238.0) — kwadratu nie ma, same moduły
+ * na tym, co już leży na obrazku. Strefa ciszy i jasne moduły to wtedy tło
+ * pod spodem, więc kod czyta się tylko tam, gdzie moduły się od niego odcinają.
  */
-function evk_qr_rysuj($img, array $moduly, int $x, int $y, int $rozmiar, int $ciemny, int $jasny, int $cisza = 2): void {
+function evk_qr_rysuj($img, array $moduly, int $x, int $y, int $rozmiar, int $ciemny, ?int $jasny, int $cisza = 2): void {
     $n       = count($moduly);
     $ile     = $n + 2 * $cisza;
     $rozmiar = max($rozmiar, $ile);
     $px      = intdiv($rozmiar, $ile);
     $start   = intdiv($rozmiar - $px * $ile, 2) + $cisza * $px;
-    imagefilledrectangle($img, $x, $y, $x + $rozmiar - 1, $y + $rozmiar - 1, $jasny);
+    if ($jasny !== null) imagefilledrectangle($img, $x, $y, $x + $rozmiar - 1, $y + $rozmiar - 1, $jasny);
     foreach ($moduly as $r => $wiersz) {
         foreach ($wiersz as $c => $v) {
             if (!$v) continue;

@@ -197,7 +197,13 @@ $table_ok   = evk_inbox_table_exists();
 }
 .evk-inbox-item.is-read .evk-inbox-dot { background: transparent; }
 
-.evk-inbox-item-inner { flex: 1; min-width: 0; }
+.evk-inbox-item-inner {
+    flex: 1; min-width: 0; display: block;
+    /* To przycisk (1.238.0) — bez wyglądu przycisku, tylko fokus. */
+    appearance: none; background: none; border: 0; padding: 0; margin: 0;
+    font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.evk-inbox-item-inner:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; border-radius: 4px; }
 .evk-inbox-item-header {
     display: flex; justify-content: space-between; align-items: baseline; gap: 4px; margin-bottom: 2px;
 }
@@ -212,10 +218,10 @@ $table_ok   = evk_inbox_table_exists();
     border-radius: 4px; padding: 1px 6px; display: inline-block; margin-bottom: 3px;
 }
 .evk-inbox-item-preview {
-    font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: block; font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .evk-inbox-item-meta {
-    font-size: 11px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;
+    display: block; font-size: 11px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px;
 }
 
 /* PAGINATION */
@@ -444,17 +450,22 @@ $table_ok   = evk_inbox_table_exists();
             d.items.forEach(function(item) {
                 const readCls  = item.is_read ? 'is-read' : '';
                 const activeCls = item.id === state.active_id ? 'active' : '';
+                /* Treść wiersza to PRZYCISK (1.238.0): do 1.237.0 cały wiersz był
+                   divem z kliknięciem, więc wiadomości nie dało się otworzyć
+                   z klawiatury. W przycisku same spany — blok w nim jest
+                   niedozwolony; wygląd trzymają klasy. Kliknięcie idzie dalej
+                   do handlera wiersza, jak wcześniej. */
                 html += `<div class="evk-inbox-item ${readCls} ${activeCls}" data-id="${item.id}">
                     <input type="checkbox" class="evk-inbox-item-check" data-id="${item.id}" aria-label="Zaznacz: ${esc(item.name)}">
                     <div class="evk-inbox-dot"></div>
-                    <div class="evk-inbox-item-inner">
-                        <div class="evk-inbox-item-header">
+                    <button type="button" class="evk-inbox-item-inner">
+                        <span class="evk-inbox-item-header">
                             <span class="evk-inbox-item-name">${esc(item.name)}</span>
                             <span class="evk-inbox-item-date">${esc(item.date)}</span>
-                        </div>
-                        <div class="evk-inbox-item-form">${esc(item.form_label || item.form_id)}</div>
-                        ${(item.lines || []).map(function(l){ return '<div class="evk-inbox-item-' + (l.type === 'meta' ? 'meta' : 'preview') + '">' + esc(l.text) + '</div>'; }).join('')}
-                    </div>
+                        </span>
+                        <span class="evk-inbox-item-form">${esc(item.form_label || item.form_id)}</span>
+                        ${(item.lines || []).map(function(l){ return '<span class="evk-inbox-item-' + (l.type === 'meta' ? 'meta' : 'preview') + '">' + esc(l.text) + '</span>'; }).join('')}
+                    </button>
                 </div>`;
             });
             $('#evk-inbox-list').html(html);
@@ -580,6 +591,11 @@ $table_ok   = evk_inbox_table_exists();
                 ${metaHtml ? `<div class="evk-inbox-meta-bar">${metaHtml}</div>` : ''}
                 ${fieldsHtml}
             `;
+            /* Fokus na nagłówek wiadomości (1.238.0). Na wąskim ekranie lista
+               właśnie się schowała, a z nią przycisk, który miał fokus — bez tego
+               klawiatura lądowała na początku strony. */
+            const naglowek = detail.querySelector('h2');
+            if (naglowek) { naglowek.setAttribute('tabindex', '-1'); naglowek.focus({ preventScroll: true }); }
         });
     }
 
@@ -588,6 +604,9 @@ $table_ok   = evk_inbox_table_exists();
     // więc widać, gdzie się było. Wracamy tylko widokiem.
     $(document).on('click', '.evk-inbox-back', function() {
         APP.classList.remove('is-detail');
+        // Fokus wraca na wiersz, z którego się przyszło (schowany przy szczegółach).
+        const wiersz = document.querySelector('.evk-inbox-item.active .evk-inbox-item-inner');
+        if (wiersz) wiersz.focus();
     });
 
     // ── Delete ───────────────────────────────────────────────

@@ -354,6 +354,13 @@ if (!defined('ABSPATH')) exit;
                                             class="evo-mono evo-w-hex">
                                     </div>
                                 </div>
+                                <div class="evo-og-full">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="evk_og[layers][<?php echo $li; ?>][bg_transparent]" value="1" <?php checked(!empty($layer['bg_transparent'])); ?>>
+                                        Przezroczyste tło
+                                    </label>
+                                    <div class="evo-hint-sm evo-muted" style="margin-top:3px">Bez kwadratu pod kodem — moduły leżą na warstwach pod spodem. Najpewniej czytają się ciemne moduły na jasnym tle. Jasnych modułów na ciemnym (kod odwrócony) nie odczyta każdy skaner, a na jasnym zdjęciu znikną zupełnie.</div>
+                                </div>
                                 <?php endif; ?>
 
                             </div><!-- .evo-og-layer-fields -->

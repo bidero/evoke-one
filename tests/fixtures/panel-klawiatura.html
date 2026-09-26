@@ -1,0 +1,87 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../assets/admin/admin.css">
+<style>
+  body { margin: 0; background: #f0f0f1; font: 13px -apple-system, system-ui, sans-serif; }
+  .button { display: inline-block; border: 1px solid #2271b1; border-radius: 3px;
+    background: #f6f7f7; color: #2271b1; padding: 0 10px; line-height: 2.15384615;
+    min-height: 30px; font-size: 13px; cursor: pointer; }
+</style>
+
+<div class="wrap">
+  <h1>Evoke ONE</h1>
+  <div class="evo-panel" id="panel"></div>
+</div>
+
+<!--
+  Klawiatura w panelu (1.238.0): zakładka z PRAWDZIWYM markupem i PRAWDZIWYMI
+  skryptami, w kolejności jak w wp-admin:
+
+    <head>   jquery
+    <body>   markup zakładki + jej skrypty inline (tu też stopka Tłumaczeń,
+             bo tab.php … stopka dopisuje ją za treścią)
+    stopka   sortablejs, admin.js
+
+  Atrapy wyłącznie tego, czego w przeglądarce testu nie ma: AJAX (odpowiedzi
+  podaje test w window.__odpowiedzi), wp.media (zapisuje, że okno się
+  otworzyło) i jQuery UI sortable (Tłumaczenia go wołają; przeciąganie nie
+  jest tu mierzone).
+-->
+<script src="../../node_modules/jquery/dist/jquery.min.js"></script>
+<script>
+window.ajaxurl = '/fake-ajax';
+window.__zadania = [];
+window.__odpowiedzi = window.__odpowiedzi || {};
+jQuery.ajax = function (opts) {
+  var akcja = (opts.data && opts.data.action) || '';
+  window.__zadania.push({ akcja: akcja, dane: opts.data });
+  var odp = window.__odpowiedzi[akcja] || { success: true, data: {} };
+  var d = jQuery.Deferred().resolve(odp);
+  var p = d.promise();
+  p.fail = function () { return p; };
+  p.always = function (f) { f(); return p; };
+  return p;
+};
+jQuery.post = function (url, data, cb) {
+  var p = jQuery.ajax({ url: url, data: data });
+  if (typeof cb === 'function') p.done(cb);
+  return p;
+};
+jQuery.fn.sortable = function () { return this; };
+
+window.__media = [];
+window.wp = { media: function (o) {
+  var ramka = {
+    on: function () { return ramka; },
+    open: function () { window.__media.push((o && o.title) || '?'); },
+  };
+  return ramka;
+} };
+
+document.getElementById('panel').innerHTML = window.__tab;
+
+/* Style z treści (Skrzynka niesie własny <style>) — do <head>, jak w inbox.html. */
+Array.prototype.forEach.call(document.querySelectorAll('#panel style'), function (s) {
+  var n = document.createElement('style');
+  n.textContent = s.textContent;
+  document.head.appendChild(n);
+  s.remove();
+});
+
+/* innerHTML nie uruchamia skryptów — podmieniamy je na świeże węzły w miejscu.
+   Szablony (<script type="text/template">) zostają, jak są. */
+Array.prototype.forEach.call(document.querySelectorAll('#panel script:not([type="text/template"])'), function (stary) {
+  var s = document.createElement('script');
+  s.textContent = stary.textContent;
+  stary.parentNode.replaceChild(s, stary);
+});
+</script>
+
+<!-- ── STOPKA ── -->
+<script src="../../node_modules/sortablejs/Sortable.min.js"></script>
+<script>
+/* wp_localize_script — tylko to, co test poda (sekcje admin.js startują
+   wyłącznie przy swoich danych). */
+if (window.__animData) window.evoOneAnimData = window.__animData;
+if (window.__ioAjax)   window.evoIoAjax      = window.__ioAjax;
+</script>
+<script src="../../assets/admin/admin.js"></script>

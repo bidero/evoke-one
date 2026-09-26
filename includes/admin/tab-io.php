@@ -11,12 +11,14 @@ if (!defined('ABSPATH')) exit;
                 <p>Wybierz moduły do eksportu i pobierz plik JSON.</p>
                 <div class="evo-inline evo-mb-xs" style="--evo-gap:6px">
                     <span class="evo-eyebrow">Moduły</span>
-                    <span class="evo-io-select-all" onclick="evoIoSelectAll('export')">zaznacz wszystkie</span>
-                    <span class="evo-io-select-all" onclick="evoIoDeselectAll('export')">odznacz wszystkie</span>
+                    <button type="button" class="evo-io-select-all" onclick="evoIoSelectAll('export')">zaznacz wszystkie</button>
+                    <button type="button" class="evo-io-select-all" onclick="evoIoDeselectAll('export')">odznacz wszystkie</button>
                 </div>
                 <div class="evo-io-grid" id="evo-export-modules">
                     <?php foreach ($io_modules as $key => $label): ?>
-                    <label class="evo-io-module" onclick="this.classList.toggle('selected')">
+                    <?php /* Bez onclick na etykiecie (do 1.237.0): klasę „selected" trzyma
+                             zdarzenie change pola (admin.js), także z klawiatury. */ ?>
+                    <label class="evo-io-module">
                         <input type="checkbox" class="evo-export-cb" value="<?php echo esc_attr($key); ?>" checked>
                         <?php echo esc_html($label); ?>
                     </label>

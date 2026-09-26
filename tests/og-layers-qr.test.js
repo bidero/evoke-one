@@ -15,7 +15,8 @@
  *   — każda z ośmiu masek, polskie znaki;
  *   — wybór wersji na granicach pojemności z tablicy normy.
  * Na końcu warstwa obrazka OG: prawdziwe evk_og_render_layer() na GD, kod
- * czytany z pikseli, bez żadnego żądania HTTP.
+ * czytany z pikseli, bez żadnego żądania HTTP — także z przezroczystym tłem
+ * (1.238.0), na prawdziwej warstwie pod spodem.
  *
  * Sonda: tests/php/og-layers-qr.php (warstwa: tools/testowy-wp.sh).
  */
@@ -155,16 +156,43 @@ module.exports = async function (t) {
   const w = sonda('warstwa');
   t.check('testowy WordPress jest (tools/testowy-wp.sh)', !w.brak && !!w.warstwy, w.brak || 'jest');
   if (w.brak || !w.warstwy) return;
-  for (const [nazwa, opisWarstwy] of [['domyslne', 'białe moduły na czarnym (kolory domyślne)'], ['ciemne', 'ciemne moduły na jasnym']]) {
-    const v = w.warstwy[nazwa];
+  const czytajWarstwe = (v) => {
     const szare = Buffer.from(v.szare, 'base64');
     const rgba = new Uint8ClampedArray(v.bok * v.bok * 4);
     for (let i = 0; i < szare.length; i++) { rgba[i * 4] = rgba[i * 4 + 1] = rgba[i * 4 + 2] = szare[i]; rgba[i * 4 + 3] = 255; }
-    const odczyt = jsQR(rgba, v.bok, v.bok, { inversionAttempts: 'attemptBoth' });
+    return jsQR(rgba, v.bok, v.bok, { inversionAttempts: 'attemptBoth' });
+  };
+  for (const [nazwa, opisWarstwy] of [['domyslne', 'białe moduły na czarnym (kolory domyślne)'], ['ciemne', 'ciemne moduły na jasnym']]) {
+    const v = w.warstwy[nazwa];
+    const odczyt = czytajWarstwe(v);
     t.check('warstwa ' + opisWarstwy + ': dekoder czyta adres wpisu', !!odczyt && odczyt.data === w.adres,
       odczyt ? JSON.stringify([odczyt.data, w.adres]) : 'dekoder nie odczytał');
     t.check('warstwa ' + opisWarstwy + ': kwadrat w tym samym miejscu i rozmiarze co dotąd',
       v.rogi.every((c) => c === v.tlo) && v.obok.every((c) => c === '#808080'), JSON.stringify([v.rogi, v.obok]));
   }
   t.check('żadnego żądania HTTP (do 1.234.1: api.qrserver.com przy każdym obrazku)', w.http.length === 0, JSON.stringify(w.http));
+
+  /* Przezroczyste tło (1.238.0). Dwa kody na prawdziwych warstwach prostokąta:
+     — białe moduły na #1e3a5f (tło kodu #000000, obrazek #808080): piksele.
+       Pomiar przed progiem: kwadrat z tłem ma ~20 800 pikseli w kolorze tła
+       kodu, przezroczysty zero, a rogi (strefa ciszy) mają kolor warstwy;
+     — ciemne moduły na jasnym #f4efe6, tło kodu w kolorze modułów: odczyt.
+       Kwadrat z tłem byłby jednolicie ciemny, więc kod czyta się tylko wtedy,
+       gdy tła naprawdę nie ma.
+     Białych modułów na #1e3a5f jsQR NIE czyta, choć piksele są dobre (ręcznie
+     odwrócony obraz czyta): progowanie z ZXing bierze jednolity nieczarny obszar
+     za jasny, zanim cokolwiek odwróci. Część skanerów na Androidzie stoi na
+     ZXing — stąd podpowiedź w panelu, że pewne są ciemne moduły na jasnym. */
+  t.section('warstwa QR z przezroczystym tłem');
+  const pz = w.warstwy.przezroczyste;
+  const pj = w.warstwy.przezroczyste_jasne;
+  const odczytPj = czytajWarstwe(pj);
+  t.check('ciemne moduły na jasnej warstwie, tło kodu w kolorze modułów: dekoder czyta adres',
+    !!odczytPj && odczytPj.data === w.adres, odczytPj ? JSON.stringify([odczytPj.data, w.adres]) : 'dekoder nie odczytał');
+  t.check('w kwadracie ani jednego piksela w kolorze tła kodu (z tłem: tysiące)',
+    pz.w_kolorze_tla === 0 && w.warstwy.domyslne.w_kolorze_tla > 10000,
+    'przezroczyste: ' + pz.w_kolorze_tla + ', z tłem: ' + w.warstwy.domyslne.w_kolorze_tla);
+  t.check('strefa ciszy to warstwa pod spodem, nie kwadrat', pz.rogi.every((c) => c === pz.pod), JSON.stringify([pz.rogi, pz.pod]));
+  t.check('zapis ustawień przepuszcza pole, kolor tła zostaje na później',
+    JSON.stringify(w.zapis) === JSON.stringify([[true, '#123456'], [false, '#123456']]), JSON.stringify(w.zapis));
 };

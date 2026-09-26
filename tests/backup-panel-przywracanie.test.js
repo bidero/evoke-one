@@ -280,6 +280,12 @@ module.exports = async function (t) {
       if (await widac(p, '[data-evk-backup-msg]')) break;
       await p.waitForTimeout(300);
     }
+    /* Ostatni odczyt po pętli. Etykieta końca („gotowe") i komunikat przychodzą
+       w jednej odpowiedzi: pętla mogła odczytać etykietę tuż przed nią,
+       a komunikat tuż po — i skończyć bez „gotowe". Na szybszej maszynie całe
+       przywracanie mieści się w jednej próbce (1.238.0: raz na dwa przebiegi). */
+    const etapKonca = await p.locator('[data-evk-backup-label]').innerText().catch(() => '');
+    if (etapKonca) etapy.add(etapKonca.toLowerCase());
     const koniec = await p.locator('[data-evk-backup-msg]').innerText();
     t.check('koniec: „Kopia przywrócona" z odnośnikiem do logowania',
       /Kopia przywrócona/.test(koniec) && (await widac(p, '[data-evk-backup-login]')), koniec.trim());

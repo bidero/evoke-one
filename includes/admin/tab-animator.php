@@ -94,7 +94,9 @@ $row_def    = $anim->row_defaults();
             <div class="evo-anim-row">
                 <div class="evo-anim-row-header">
                     <div class="evo-anim-row-title">
-                        <span class="dashicons dashicons-arrow-down-alt2 evo-anim-caret" aria-hidden="true"></span><span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
+                        <?php /* Zwijanie to przycisk (1.238.0) — nagłówek zwija się też kliknięciem myszą,
+                                 ale do 1.237.0 wyłącznie nim, więc zwiniętego wiersza klawiatura nie otwierała. */ ?>
+                        <button type="button" class="evo-anim-toggle" aria-expanded="true" aria-label="<?php echo esc_attr('Animacja: ' . ($r['label'] !== '' ? $r['label'] : '#' . ($index + 1))); ?>"><span class="dashicons dashicons-arrow-down-alt2 evo-anim-caret" aria-hidden="true"></span></button><span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
                         <?php echo $r['label'] !== '' ? esc_html($r['label']) : 'Animacja #' . ($index + 1); ?>
                         <?php if ($r['slug'] !== ''): ?>
                             <span class="evo-anim-class">.evk-anim-<?php echo esc_html($r['slug']); ?></span>
@@ -204,7 +206,7 @@ $row_def    = $anim->row_defaults();
     <div class="evo-anim-row">
         <div class="evo-anim-row-header">
             <div class="evo-anim-row-title">
-                <span class="dashicons dashicons-arrow-down-alt2 evo-anim-caret" aria-hidden="true"></span><span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
+                <button type="button" class="evo-anim-toggle" aria-expanded="true" aria-label="Animacja: nowa"><span class="dashicons dashicons-arrow-down-alt2 evo-anim-caret" aria-hidden="true"></span></button><span class="dashicons dashicons-menu evo-anim-grip" title="Przeciągnij, aby zmienić kolejność"></span>
                 Nowa animacja
             </div>
             <button type="button" class="evo-btn-remove" onclick="this.closest('.evo-anim-row').remove()">

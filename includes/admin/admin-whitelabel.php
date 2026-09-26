@@ -342,7 +342,8 @@ $bar_order = $wl['bar_nodes_order'] ?? [];
                        value="<?php echo esc_attr($nlbl); ?>"
                        aria-label="<?php echo esc_attr('Etykieta węzła ' . $nid); ?>" placeholder="Etykieta" class="evo-grow">
                 <code class="evo-code-tag"><?php echo esc_html($nid); ?></code>
-                <input type="hidden" name="evk_white_label[bar_nodes_extra][<?php echo esc_attr($nid); ?>]" value="<?php echo esc_attr($nlbl); ?>">
+                <?php /* Bez ukrytego pola o tej samej nazwie (do 1.237.0): PHP bierze
+                         ostatnie z dwóch, więc zmiana i wyczyszczenie etykiety przepadały. */ ?>
                 <button type="button" class="button evk-remove-extra-node evo-btn-danger" aria-label="<?php echo esc_attr('Usuń węzeł ' . $nid); ?>">✕</button>
             </div>
         <?php endforeach; ?>

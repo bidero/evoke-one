@@ -151,8 +151,14 @@ module.exports = async function (t) {
     /* ZGŁOSZONE Z UŻYCIA: „pasek postępu musi się odświeżać znacznie
        częściej". Zmierzone na tej samej kopii (próbki co 250 ms): przed
        poprawką 3 zmiany w 10,7 s — pakowanie stało na 0% do końca; po niej
-       8 zmian w 7 s (0 → 16 → 32 → 48 → 63 → 80 → 100%). Próg: co najmniej
-       5 różnych wartości procentu. */
+       8 zmian w 7 s (0 → 16 → 32 → 48 → 63 → 80 → 100%).
+       Liczba wartości rośnie z czasem kopii (porcja ~1 s = jedna wartość),
+       a czas zależy od maszyny: w kontenerze z 1.238.0 ta sama kopia trwa
+       3,9–4,9 s i daje 0 → 28 → 55 → 100 albo 0 → 23 → 51 → 74 → 100 —
+       próg 5 stał na krawędzi. Usterka (postęp zapisywany dopiero na końcu
+       kroku) daje tu 0 → 100, bez niczego pomiędzy. Próg: co najmniej
+       3 wartości, czyli choć jedna pośrednia; szczegół „MB z MB" niżej
+       pilnuje tej samej usterki niezależnie od szybkości maszyny. */
     await p.click('[data-evk-backup-start]');
     const procenty = new Set();
     const szczegoly = [];
@@ -165,7 +171,7 @@ module.exports = async function (t) {
       if (await widac(p, '[data-evk-backup-msg]')) break;
       await p.waitForTimeout(250);
     }
-    t.check('co najmniej 5 różnych wartości paska w trakcie kopii', procenty.size >= 5,
+    t.check('co najmniej 3 różne wartości paska w trakcie kopii (usterka: 0 → 100)', procenty.size >= 3,
       [...procenty].join(' → ') + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + ' s)');
     t.check('w trakcie pakowania szczegół w liczbach („MB z MB")', szczegoly.length > 0,
       szczegoly.slice(0, 3).join(' | ') || 'ani razu');
@@ -202,8 +208,12 @@ module.exports = async function (t) {
     /* Krok z panelu idzie osobnym żądaniem (ajax.php, evk_backup_nudge) —
        pytanie o stan odpowiada od razu. Zmierzone przed poprawką: 0 → 100
        w 6,4 s (pytanie o stan robiło krok i odpowiadało po nim); po niej
-       0 → 17 → 35 → 52 → 69 → 100. Próg: co najmniej 5 wartości. */
-    t.check('bez pracy w tle pasek i tak rusza się w trakcie kroku (≥ 5 wartości)', new Set(procenty4).size >= 5,
+       0 → 17 → 35 → 52 → 69 → 100. W kontenerze z 1.238.0 kopia trwa 4,9 s:
+       0 → 26 → 51 → 100 — także na kodzie 1.237.0, który próg 5 przeszedł
+       w poprzednim kontenerze. Usterkę wyróżnia brak JAKIEJKOLWIEK wartości
+       pośredniej (cała kopia mieści się w jednym 8-sekundowym kroku), więc
+       próg: co najmniej 3 wartości, czyli choć jedna pośrednia. */
+    t.check('bez pracy w tle pasek i tak rusza się w trakcie kroku (≥ 3 wartości, usterka: 0 → 100)', new Set(procenty4).size >= 3,
       procenty4.join(' → ') + ' (' + ((Date.now() - t4) / 1000).toFixed(1) + ' s)');
     const fakty4 = sonda('fakty');
     const ost = fakty4.zadania[fakty4.zadania.length - 1];

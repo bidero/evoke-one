@@ -641,8 +641,12 @@
             if (!saved.length) return;
             $box.children('.evo-anim-row').each(function () {
                 var slug = $(this).find('input[name*="[slug]"]').val();
-                if (slug && saved.indexOf(slug) !== -1) $(this).addClass('is-collapsed');
+                if (slug && saved.indexOf(slug) !== -1) syncToggle($(this).addClass('is-collapsed'));
             });
+        }
+
+        function syncToggle($row) {
+            $row.find('.evo-anim-toggle').first().attr('aria-expanded', $row.hasClass('is-collapsed') ? 'false' : 'true');
         }
 
         var pressX = 0, pressY = 0;
@@ -658,6 +662,15 @@
                 || Math.abs(e.clientY - pressY) > DRAG_SLOP) return;   // to było przeciągnięcie
 
             $(this).closest('.evo-anim-row').toggleClass('is-collapsed');
+            syncToggle($(this).closest('.evo-anim-row'));
+            rememberCollapsed();
+        });
+
+        /* Przycisk zwijania (1.238.0). Handler nagłówka wyżej pomija przyciski,
+           więc własny — ta sama zmiana, plus stan dla czytnika. */
+        $box.on('click', '.evo-anim-toggle', function () {
+            var $row = $(this).closest('.evo-anim-row').toggleClass('is-collapsed');
+            syncToggle($row);
             rememberCollapsed();
         });
 
@@ -1209,7 +1222,12 @@
                     ogPole(i, 'y', 'Y od góry (px)', ogNum(i, 'y', 426)) +
                     ogPole(i, 'size', 'Rozmiar (px)', ogNum(i, 'size', 170, 50, 500)) +
                     ogPole(i, 'fg_color', 'Kolor kodu (fg)', ogColorPair(i, 'fg_color', '#ffffff', 'Kolor kodu (fg)')) +
-                    ogPole(i, 'bg_color', 'Kolor tła (bg)', ogColorPair(i, 'bg_color', '#000000', 'Kolor tła (bg)'));
+                    ogPole(i, 'bg_color', 'Kolor tła (bg)', ogColorPair(i, 'bg_color', '#000000', 'Kolor tła (bg)')) +
+                    '<div class="evo-og-full"><label class="checkbox-label">' +
+                        '<input type="checkbox" name="' + ogName(i, 'bg_transparent') + '" value="1"> Przezroczyste tło</label>' +
+                        '<div class="evo-hint-sm evo-muted" style="margin-top:3px">Bez kwadratu pod kodem — moduły leżą na warstwach pod spodem. ' +
+                        'Najpewniej czytają się ciemne moduły na jasnym tle. Jasnych modułów na ciemnym (kod odwrócony) nie odczyta każdy skaner, ' +
+                        'a na jasnym zdjęciu znikną zupełnie.</div></div>';
             },
         };
 

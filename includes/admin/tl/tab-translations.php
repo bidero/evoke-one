@@ -30,7 +30,7 @@ if (!defined('ABSPATH')) exit;
                     <div class="tl-group-header collapsed">
                         <span class="drag-handle dashicons dashicons-move" title="Przeciągnij"></span>
                         <div class="tl-group-toggle">
-                            <span class="tl-group-toggle-icon">▶</span>
+                            <button type="button" class="tl-group-toggle-icon" aria-expanded="false" aria-label="Frazy grupy">▶</button>
                             <input type="text" class="tl-group-name-input" aria-label="Nazwa grupy" data-gid="<?php echo esc_attr($group_id); ?>" value="<?php echo esc_attr($group['name'] ?? ''); ?>" placeholder="Nazwa grupy...">
                             <span class="badge-count"><?php echo esc_html($row_count); ?></span>
                         </div>
@@ -56,7 +56,7 @@ if (!defined('ABSPATH')) exit;
                                         <span class="tl-pill <?php echo !empty($row[$code])?'filled':''; ?>"><?php echo esc_html(strtoupper($code)); ?></span>
                                         <?php endforeach; ?>
                                     </div>
-                                    <span class="tl-chevron tl-row-toggle-trigger">▶</span>
+                                    <button type="button" class="tl-chevron tl-row-toggle-trigger" aria-expanded="false" aria-label="<?php echo esc_attr('Fraza: ' . ($row_pl !== '' ? mb_strimwidth($row_pl, 0, 80, '…') : 'pusta')); ?>">▶</button>
                                 </div>
                                 <div class="tl-row-body">
                                     <div class="tl-dd-field">
