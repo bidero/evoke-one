@@ -596,10 +596,21 @@
         max-width: 100%;
     }
 
-    /* Order grid — 1 kolumna */
+    /* Order grid — 1 kolumna. Wiersz w jednej linii miał 316 px, a komórka
+       przy 360 px ekranu 198 px (dwie zagnieżdżone ramki po 20 px): wiersz
+       wystawał do 402 px i „R ▶" z polem kolejności ucinała zwinięta sekcja
+       (zmierzone w 1.240.0, strażnik admin-telefon). Tor `1fr` rośnie do
+       najwęższej szerokości treści, więc wystarcza złamanie wiersza: nazwa
+       w pierwszej linii, strefa i kolejność pod nią. */
     .evk-order-grid {
         grid-template-columns: 1fr !important;
     }
+    .evk-order-row { flex-wrap: wrap; }
+    .evk-order-row > .evo-grow { flex-basis: 100%; }
+    /* Wiersz menu bocznego White Label tak samo: uchwyt i nazwa w pierwszej
+       linii, pole własnej nazwy i oko pod nią — oko wystawało o 6 px. */
+    .evk-sm-row { flex-wrap: wrap; }
+    .evk-sm-row > .evk-sm-label { flex: 1 1 calc(100% - 40px); }
 
     /* Inline 1fr 1fr 1fr z tab-seo */
     [style*="grid-template-columns:1fr 1fr 1fr"],
@@ -993,6 +1004,57 @@
    ========================================================================= */
 
 @media screen and (max-width: 782px) {
+    /* TELEFON: POLA 16 PX I CELE DOTYKU CO NAJMNIEJ 24×24 (1.240.0).
+       Zmierzone przy 360 px na 56 ekranach wtyczki (tests/admin-telefon.test.js):
+       pola 13 px (miejscami 12) na 30 ekranach. Safari na iPhonie powiększa
+       stronę przy polu z pismem poniżej 16 px i nie cofa tego po wyjściu z pola.
+       WordPress sam daje swoim polom 16 px przy tej szerokości, a panel
+       nadpisywał to swoim 13 px. !important, bo pola mają reguły mocniejsze niż
+       `.wrap` (np. `.evo-panel .evo-og-color-pair input`) — ta jedna reguła ma
+       wygrać z każdą z nich, i tylko na wąskim ekranie. */
+    .wrap input[type=text],
+    .wrap input[type=search],
+    .wrap input[type=url],
+    .wrap input[type=email],
+    .wrap input[type=number],
+    .wrap input[type=password],
+    .wrap input[type=tel],
+    .wrap input[type=date],
+    .wrap input[type=time],
+    .wrap input[type=datetime-local],
+    .wrap input:not([type]),
+    .wrap select,
+    .wrap textarea { font-size: 16px !important; }
+
+    /* Cele dotyku (WCAG 2.5.8: co najmniej 24×24). Wiersz pola zaznaczenia
+       jest celem w całości — miał 21 px wysokości, w White Label 15 px.
+       Odstęp w pionie zamiast min-height, bo część tych etykiet stoi w linii
+       (typy treści w OpenGraph), a dopełnienie powiększa pole trafienia
+       także elementom liniowym. */
+    .wrap label.checkbox-label,
+    .wrap label.evo-check-row,
+    .wrap label.evk-nl-check-row,
+    .wrap .evk-map-checks > label,
+    .wrap .evk-map-cell { padding-top: 5px; padding-bottom: 5px; }
+    /* Suwak Newslettera (partia, odstęp) miał 16 px wysokości — pas przesuwu
+       zostaje na środku, rośnie pole trafienia. */
+    .wrap input[type=range] { min-height: 32px; }
+    /* Odnośnik stojący sam (adres IP w logach 404, „Lista ↗" przy ikonach):
+       dopełnienie w pionie powiększa pole trafienia elementu liniowego bez
+       ruszania układu i bez psucia wielokropka w wąskiej komórce. */
+    .wrap a.evo-hint-sm { padding-top: 6px; padding-bottom: 6px; }
+    .wrap .evo-desc > a:only-child { padding-top: 5px; padding-bottom: 5px; }
+    .wrap .evo-info-box > summary { padding-top: 4px; padding-bottom: 4px; }
+    /* Przyciski-ikony: „usuń warstwę" OG miał 14 px szerokości, oko i „usuń"
+       w menu White Label 20 i 9 px, „przywróć kolor" ~23 px. */
+    .wrap .evo-og-btn-remove,
+    .wrap .evk-sm-eye,
+    .wrap .evk-sm-remove { min-width: 32px; min-height: 32px; justify-content: center; }
+    .wrap .evk-sm-eye,
+    .wrap .evk-sm-remove { display: inline-flex; align-items: center; }
+    .wrap .evk-color-reset { min-width: 28px; }
+    .wrap .evo-flag.is-empty { min-height: 26px; }
+
     /* Zakładki przewijają się w poziomie zamiast łamać w cztery rzędy,
        które zjadały pół ekranu, zanim cokolwiek było widać. */
     .evo-tabs {

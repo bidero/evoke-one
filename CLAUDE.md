@@ -94,6 +94,21 @@ tłumacz bez myszy nie otwierał żadnej frazy. Czy to naprawdę DZIAŁA
 z klawiatury, sprawdza `admin-klawiatura`: prawdziwe skrypty w fixturze
 `panel-klawiatura.html`, sam Tab i Enter.
 
+Od 1.240.0 kontrolka musi też **mieścić się na telefonie**.
+`admin-telefon` przechodzi każdy ekran wtyczki przy 360 px i pilnuje
+czterech rzeczy:
+- nic nie przewija się w poziomie;
+- nic nie wystaje poza ekran ani nie jest przy nim ucięte. Ratunkiem jest
+  tylko kontener przewijany w poziomie; `overflow: hidden` to ucięta treść;
+- pole ma co najmniej 16 px pisma (inaczej Safari na iPhonie powiększa
+  stronę);
+- cel dotyku ma co najmniej 24×24 px.
+
+Reguły są w `admin.css` w bloku „TELEFON" (do 782 px). Wiersz pola
+zaznaczenia z nową klasą etykiety trzeba tam dopisać, bo inaczej ma
+21 px wysokości. Skrzynka nie ładuje `admin.css` i ma własną regułę
+w `forminbox-page.php`.
+
 ---
 
 ## Testy: co kosztuje, a co jest darmowe
@@ -155,7 +170,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (101 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (102 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```

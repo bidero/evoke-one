@@ -2,6 +2,84 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.240.0] — 2026-09-26
+
+Jedenaste wydanie po audycie 1.229.6: panel na telefonie.
+
+### Zmienione
+
+- **Panel na telefonie: pola 16 px i cele dotyku co najmniej 24×24.**
+  Zakres analizy wybrany przez zgłaszającego: każda zakładka panelu przy
+  360 px. Zmierzone na 1.239.0, na 56 ekranach wtyczki (menu panelu,
+  Tłumaczenia, Newsletter, Skrzynka).
+  - Strona nigdzie nie przewija się w poziomie, a menu otwiera się
+    przyciskiem. To zostaje, teraz pod strażą testu.
+  - Pola miały 13 px (miejscami 12 px) na 30 ekranach, łącznie 350 pól.
+    Safari na iPhonie powiększa wtedy stronę przy wejściu w pole i nie
+    cofa tego po wyjściu. WordPress daje swoim polom 16 px przy tej
+    szerokości, a panel nadpisywał to swoim 13 px. Poniżej 782 px pola
+    wtyczki mają 16 px, także w Skrzynce, która ma własny arkusz.
+  - 64 cele dotyku miały poniżej 24 px. Wiersze pól zaznaczenia miały
+    21 px wysokości, w White Label 15 px. Ikona „usuń warstwę" w OG miała
+    14 px szerokości, oko i „usuń" w menu White Label 20 i 9 px. Do tego
+    „Jak to działa" w Dostępności (18 px), suwaki Newslettera (16 px)
+    i samodzielne odnośniki (adres IP w logach 404, „Lista ↗").
+    Dopełnienia i minimalne rozmiary obowiązują tylko na wąskim ekranie,
+    więc na komputerze układ się nie zmienia.
+
+  Safari na iPhonie nie ma na tej maszynie. Powiększanie przy polu
+  sprawdzamy rozmiarem pisma, a nie zachowaniem przeglądarki.
+
+### Naprawione
+
+- **White Label na telefonie: ucięte wiersze kolejności pozycji paska.**
+  Wiersz „nazwa, strefa, kolejność" miał w jednej linii 316 px, a jego
+  komórka przy ekranie 360 px tylko 198 px, bo dwie zagnieżdżone ramki
+  zabierają po 20 px z każdej strony. Wiersz sięgał do 402 px, a „R ▶"
+  z polem kolejności ucinała zwinięta sekcja. Strona się przy tym nie
+  przewijała, więc tych pól nie dało się dosięgnąć. Usterka jest starsza
+  niż to wydanie, sprawdzone przy piśmie 13 i 16 px. Na telefonie nazwa
+  idzie teraz w pierwszej linii, a strefa i kolejność pod nią. Tak samo
+  wiersz menu bocznego: oko po powiększeniu do 32 px wystawało o 6 px.
+
+### Testy
+
+- `admin-telefon` (nowy). Testowy WordPress przez `php -S`, emulacja
+  telefonu 360×740 z dotykiem w Chromium. Ekrany zbiera z prawdziwego
+  menu panelu (sekcje i ich ekrany) plus strony modułów, które sonda
+  włącza na czas testu. Na każdym ekranie sprawdza: brak przewijania
+  w poziomie, nic nie wystaje poza ekran ani nie jest przy nim ucięte,
+  pola co najmniej 16 px, cele dotyku co najmniej 24×24. Wyjątki są te
+  z WCAG, nie wygodne: odnośnik w zdaniu, pole pliku ukryte w strefie
+  upuszczania, ukryte pole przełącznika. Osobno sprawdza, że przycisk
+  otwiera menu panelu.
+
+  Wystawać wolno tylko wewnątrz kontenera przewijanego w poziomie, bo
+  tam treść da się przesunąć palcem. Pierwsza wersja strażnika brała
+  każde przycięcie (`overflow: hidden`) za „w porządku". Mutacja
+  z suwakiem szerszym niż telefon przeszła wtedy na zielono, choć karta
+  Newslettera ucinała go w połowie. Po poprawce strażnik znalazł ucięte
+  wiersze White Label opisane wyżej.
+- Mutacje (9). Każda zapala własne sprawdzenie: pola panelu i pola Skrzynki
+  (16 px), wiersze pól zaznaczenia i przyciski-ikony (cele dotyku), pole
+  szersze niż telefon i oba wiersze White Label w jednej linii (wystawanie),
+  przycisk menu bez obsługi (menu). Układ z komputera na telefonie zapala
+  cele dotyku: panel się wtedy ściska, a nie rozpycha. Dwie wcześniejsze
+  mutacje przeszły na zielono. Tor `minmax(0, 1fr)` i poszerzenie pola nazwy
+  okazały się zbędne przy złamanym wierszu, więc zniknęły z kodu, a mutacje
+  przestawiono na samo łamanie.
+- Pełny przebieg: 5092 sprawdzeń w 102 plikach. Dwa były czerwone, oba bez
+  związku z tym wydaniem:
+  - `zapis-wp-logi404`: zawieszenie logowania w harnessie („nawigacja nie
+    skończyła się w 30 s", baza bezczynna, żadne żądanie nie wisi). To
+    trzecie takie od 1.227.0. Plik puszczony ponownie przeszedł (38/38).
+  - `grain-koszt`: mediana klatki z ziarnem 33,3 ms przy progu 25 ms,
+    a bez ziarna w tych samych przebiegach 16,7 ms. Na czystym 1.239.0,
+    w osobnym drzewie roboczym, to samo w jednym z trzech powtórzeń,
+    tutaj w czterech z sześciu. Ziarno nie było ruszane, a fixtura nie
+    ładuje panelu. Pomiar z dławieniem CPU ×4 jest wrażliwy na obciążenie
+    maszyny; do osobnego zbadania.
+
 ## [1.239.0] — 2026-09-26
 
 Dziesiąte wydanie po audycie 1.229.6: kolory White Label na pasku górnym

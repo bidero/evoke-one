@@ -329,6 +329,15 @@ $table_ok   = evk_inbox_table_exists();
 @media screen and (max-width: 782px) {
     .evk-inbox-app { height: calc(100vh - 46px); }   /* wyższy pasek admina */
 
+    /* Pola 16 px (1.240.0): Safari na iPhonie powiększa stronę przy polu
+       z mniejszym pismem. Skrzynka nie ładuje admin.css, więc reguła panelu
+       jej nie obejmuje; !important wygrywa ze stylem w atrybucie pól dat. */
+    .evk-inbox-app input,
+    .evk-inbox-app select,
+    .evk-inbox-app textarea,
+    .wrap input[type=date],
+    .wrap input[type=search] { font-size: 16px !important; }
+
     .evk-inbox-body { display: block; position: relative; height: 100%; }
 
     .evk-inbox-sidebar,
