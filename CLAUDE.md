@@ -176,7 +176,7 @@ razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osob
 ```
 node tests/run.js backup-panel
 node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp
-node tests/run.js admin- anim animator aria bg-shift bricks-required builder-context burger circular-menu controls
+node tests/run.js admin- anim animator aria bg-shift bricks-proba bricks-required builder-context burger circular-menu controls
 node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee motion
 node tests/run.js newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
@@ -190,7 +190,7 @@ lista filtrów co wyżej:
 ```
 FILTRY="admin- anim animator aria backup-panel backup-baza backup-czytnik backup-drive
 backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize
-backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-required builder-context
+backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-proba bricks-required builder-context
 burger circular-menu controls darkmode drobiazgi grain hscroll inbox ip-klienta
 konserwacja kursor loop marquee motion newsletter odpornosc odswiezanie
 offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji

@@ -2,6 +2,87 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.243.0] — 2026-09-26
+
+Czternaste wydanie po audycie 1.229.6: etykiety pól tłumaczeń, bez edytora
+tłumaczeń na froncie, czas TLS w dzienniku Dysku, próba przełączników.
+
+### Zmienione (zgłoszone z użycia)
+
+- **Tłumaczenia: etykiety pól języków „Tłumaczenie EN".** Nagłówek w Bricksie
+  pokazywał „text — EN", bo pole tekstu nie ma etykiety i panel dostawał
+  sam klucz. Decyzja zgłaszającego: „Tłumaczenie EN", „Tłumaczenie DE".
+  - Jedno pole tekstowe w elemencie: sama „Tłumaczenie EN".
+  - Kilka pól (przycisk, pozycja akordeonu): „Tłumaczenie EN · Tytuł".
+  - Pole bez etykiety w Bricksie dostaje polską nazwę (Tekst, Tytuł, Treść,
+    Etykieta, Tekst zastępczy, Opis, Podtytuł, Podpis). Nieznany klucz
+    zostaje kluczem.
+  - Kolejność: najpierw wszystkie pola EN, potem DE — tłumacz jednego
+    języka ma je obok siebie.
+  - Klucze pól bez zmian, więc tłumaczenia wpisane w 1.241.0–1.242.0 zostają.
+
+### Usunięte
+
+- **Edytor tłumaczeń na froncie (przycisk 🌐).** Decyzja zgłaszającego.
+  Tłumaczeń wpisanych w polach elementów nie widział (rozpoznawał tekst po
+  frazach słownika), a tłumaczenia są teraz w Bricksie i w zakładce
+  Tłumaczenia.
+  - Usunięte: `41-frontend-inline-editor.php`, punkty AJAX `tl_inline_get`
+    i `tl_inline_save_full`, `tl_get_inline_phrases()`, przełącznik
+    „Edytor inline (FAB)" w ustawieniach.
+  - Znaczniki `{tl:pl=…|en=…}` w treści działają dalej.
+  - Opcja `evk_tl_fab_enabled` przeszła do nowej listy dawnych opcji
+    w spisie danych (`opcje_dawne`): kod jej już nie używa, a odinstalowanie
+    z „Usuń dane" dalej ją kasuje ze starszych stron. Transient
+    `tl_inline_phrases` zostaje w spisie transientów.
+
+### Naprawione
+
+- **Kopie: „TLS 0,00 s" w dzienniku Dysku przy każdym żądaniu.** Pomiar
+  czytał `appconnect_time`, a tablica z `curl_getinfo()` w PHP ma tylko
+  `appconnect_time_us`. Dziennik z evoke.pl (29,1 s do pierwszego bajtu)
+  nie mówił więc, ile z tego to TLS. Teraz TLS idzie z właściwego klucza,
+  a przy pierwszym bajcie stoi samo czekanie na odpowiedź, liczone od
+  wysłania żądania: „pierwszy bajt 29,1 s (czekanie na odpowiedź 28,6 s)".
+  To samo w podsumowaniu pomiaru. Pasek bez zmian (decyzja zgłaszającego).
+
+### Dodane
+
+- **Próba przełączników — tylko na stronie testowej.** Element „Evoke —
+  próba przełączników" rejestruje się wyłącznie po
+  `define('EVK_BRICKS_PROBA', true);` w wp-config.php. Na pozostałych
+  stronach go nie ma: ani w builderze, ani w panelu.
+  - Po co: przełączniki elementów są „na odwrót" („Bez cienia kart"), bo
+    pole domyślnie zaznaczone nie dawało się wyłączyć. JSON świeżego
+    Stacking Cards pokazał, że Bricks 2.4.1 zapisuje niepuste wartości
+    domyślne w nowym elemencie. Zwykłe „Włącz…" zadziała, jeśli da się
+    odróżnić nowe elementy od starych — ukrytym znacznikiem.
+  - Element wypisuje surowy stan swoich kluczy: brak klucza, `null`,
+    `false`, pusty napis.
+  - **Do zrobienia na testowej:** wstaw element i skopiuj JSON; odznacz
+    „Włącz A" i skopiuj JSON; wpisz tekst, zapisz, wyczyść i skopiuj JSON;
+    wklej element „stary" (bez znacznika) i sprawdź, który przełącznik B
+    widać.
+
+### Testy
+
+- `bricks-proba` (nowy): rejestracja tylko przy stałej ściśle `true`
+  (bez stałej, `false` i `'1'` — nie), kształt kontrolek, render
+  odróżnia brak klucza od `null` i pustego napisu.
+- `tl-pola-elementow`: kolejność i etykiety sprawdzane osobno (mutacja
+  jednego zapala tylko swoje sprawdzenie), pola bez etykiet.
+- `backup-drive`: każdy klucz czytany przez pomiar musi być w PRAWDZIWYM
+  `curl_getinfo()` (ten błąd by złapał); rozbicie na liczbach z evoke.pl;
+  czekanie na odpowiedź w dzienniku z atrapy (1,5 s).
+- `uprawnienia`: punktów edytora na froncie nie ma. `tl-edytor-frontu`
+  usunięty razem z edytorem.
+- `zapis-wp-odinstalowanie`: dawna opcja zasiana i skasowana przy „Usuń
+  dane"; nazwa z `opcje_dawne` nie może wrócić do kodu. Strażnik spisu
+  złapał to w pełnym przebiegu: opcja zostawiona w zwykłej liście nie
+  występowała już w kodzie, a to wygląda jak literówka.
+- Mutacje (9). Każda zapala własne sprawdzenie.
+- Pełny przebieg: 5171 sprawdzeń w 104 plikach.
+
 ## [1.242.0] — 2026-09-26
 
 Trzynaste wydanie po audycie 1.229.6: Tłumaczenia — „Do sprawdzenia",

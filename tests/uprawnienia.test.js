@@ -40,7 +40,7 @@ module.exports = async function (t) {
   t.section('bramka punktów AJAX Tłumaczeń');
 
   const akcje = Object.keys(php.bramka.tlumacz);
-  t.check('sprawdzono wszystkie zapisy TL', akcje.length === 8, akcje.length + ' punktów');
+  t.check('sprawdzono wszystkie zapisy TL', akcje.length === 6, akcje.length + ' punktów');
 
   const wpuszcza = (kto) => akcje.filter((a) => php.bramka[kto][a] === 'wpuszczony');
   const odmawia  = (kto) => akcje.filter((a) => php.bramka[kto][a] === 'odmowa');
@@ -56,7 +56,9 @@ module.exports = async function (t) {
   // oznaczałaby, że każdy zapis pada w produkcji, a test świeciłby na zielono,
   // bo atrapa nonce'a niczego nie weryfikuje.
   t.check('zapisy proszą o tl_ajax_nonce', php.nonce_zapisu === 'tl_ajax_nonce', String(php.nonce_zapisu));
-  t.check('edytor inline prosi o tl_inline_nonce', php.nonce_inline === 'tl_inline_nonce', String(php.nonce_inline));
+  t.check('punktów edytora na froncie nie ma (usunięty w 1.243.0)',
+    JSON.stringify(php.usuniete_punkty) === '[{"brak_handlera":"tl_inline_get"},{"brak_handlera":"tl_inline_save_full"}]',
+    JSON.stringify(php.usuniete_punkty));
 
   // ── Import ────────────────────────────────────────────────────────────
   t.section('import — co wolno wgrać komu');

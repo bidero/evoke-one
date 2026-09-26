@@ -366,6 +366,22 @@ $w['strumien'] = [
     'log_wysylka' => array_values(preg_grep('/Pomiar:/', explode("\n", (string) $jobT['log']))),
 ];
 
+/* Klucze pomiaru na PRAWDZIWYM curl_getinfo() (1.243.0). Do 1.242.0 TLS szedł
+   z `appconnect_time`, którego ta tablica nie ma — dziennik z evoke.pl mówił
+   „TLS 0,00 s" przy każdym żądaniu. Atrapa idzie po HTTP, więc samego czasu
+   TLS tu nie zobaczymy — dlatego sprawdzamy NAZWY na prawdziwej tablicy,
+   a rachunek na tablicy w jej kształcie (liczby z dziennika z evoke.pl). */
+$ch = curl_init($atrapa . '/_atrapa/stan');
+curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 10]);
+curl_exec($ch);
+$w['pomiar_klucze'] = ['brak' => array_values(array_diff(evk_gdrive_pomiar_klucze(), array_keys(curl_getinfo($ch)))),
+    'kod' => (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE)];
+unset($ch);
+$GLOBALS['evk_gdrive_curl'] = ['namelookup_time' => 0.0, 'connect_time' => 0.21, 'appconnect_time_us' => 450000,
+    'pretransfer_time' => 0.47, 'starttransfer_time' => 29.1, 'total_time' => 30.1, 'size_download' => 84305920,
+    'size_upload' => 0, 'redirect_count' => 0, 'primary_ip' => '172.217.118.4'];
+$w['pomiar_opis'] = evk_gdrive_pomiar_opis(evk_gdrive_pomiar(microtime(true) - 30.1));
+
 // Błąd od Google w strumieniu (403 z treścią JSON) — do części nie trafia ani bajt.
 $pobranaT && evk_backup_delete_archive((string) $jobP['archive']);
 atrapa('/_atrapa/ster', ['media_403' => 1]);

@@ -314,9 +314,9 @@ function tl_rebuild_dd_keys_from_rows(array $payload, array $previous_keys = [])
  * Handler pyta teraz sam o to, czego naprawdę potrzebuje — dokładnie tak, jak
  * robi to od początku `evk_nl_ajax_check()` w newsletterze.
  *
- * Nonce jest parametrem, bo edytor inline na froncie drukuje własny
- * (`tl_inline_nonce`) i nie da się go podmienić bez zerwania zgodności
- * z zapisanymi stronami.
+ * Nonce jest parametrem, bo do 1.242.0 edytor inline na froncie drukował
+ * własny (`tl_inline_nonce`). Edytor usunięto w 1.243.0 i dziś wszyscy
+ * wołają domyślny.
  */
 function evk_tl_ajax_check(string $nonce = 'tl_ajax_nonce'): void {
     check_ajax_referer($nonce, 'nonce');
@@ -859,88 +859,6 @@ add_action('wp_ajax_tl_import', function () {
     wp_send_json_success($komunikat);
 });
 
-add_action('wp_ajax_tl_inline_get', function () {
-    evk_tl_ajax_check('tl_inline_nonce');
-    /* Ta sama sanityzacja co przy zapisie — fraza jest tu KLUCZEM wyszukiwania
-       w `tl_dd_keys` i `strings`. Gdyby czyściła inaczej niż zapis, fraza ze
-       znacznikiem nie odnalazłaby własnego wiersza i edytor inline zakładałby
-       przy każdym otwarciu nowy. */
-    $pl = tl_sanitize_phrase(wp_unslash($_POST['pl'] ?? ''));
-    if (!$pl) wp_send_json_error('Brak frazy.');
-    $dd_keys = get_option('tl_dd_keys', []);
-    $existing_key = '';
-    foreach ($dd_keys as $key => $phrase) {
-        if ($phrase === $pl) { $existing_key = $key; break; }
-    }
-    $config = get_translation_config();
-    if (isset($config['strings'][$pl])) {
-        $meta      = $config['meta'][$pl] ?? [];
-        $parent_pl = $meta['parent_pl'] ?? $pl;
-        if ($parent_pl !== $pl && isset($config['strings'][$parent_pl])) {
-            wp_send_json_success(['pl' => $parent_pl, 'translations' => $config['strings'][$parent_pl], 'type' => 'database', 'dd_key' => $existing_key]);
-        }
-        wp_send_json_success(['pl' => $pl, 'translations' => $config['strings'][$pl], 'type' => 'database', 'dd_key' => $existing_key]);
-    }
-    $inline = tl_get_inline_phrases();
-    if (isset($inline[$pl])) {
-        wp_send_json_success(['pl' => $pl, 'translations' => $inline[$pl]['translations'], 'type' => 'inline', 'raw' => $inline[$pl]['raw'] ?? '', 'dd_key' => $existing_key]);
-    }
-    wp_send_json_success(['pl' => $pl, 'translations' => [], 'type' => 'new', 'dd_key' => $existing_key]);
-});
-
-add_action('wp_ajax_tl_inline_save_full', function () {
-    evk_tl_ajax_check('tl_inline_nonce');
-    $old_pl           = tl_sanitize_phrase(wp_unslash($_POST['old_pl'] ?? ''));
-    $pl               = tl_sanitize_phrase(wp_unslash($_POST['pl'] ?? ''));
-    $translations_raw = isset($_POST['translations']) ? wp_unslash($_POST['translations']) : '';
-    $translations     = json_decode($translations_raw, true);
-    $dd_key           = sanitize_key(wp_unslash($_POST['dd_key'] ?? ''));
-    $group_id         = sanitize_key(wp_unslash($_POST['group_id'] ?? ''));
-    if (!$pl) wp_send_json_error('Brak frazy PL.');
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($translations)) wp_send_json_error('Nieprawidlowy JSON tlumaczen.');
-    /* Fraza polska to KLUCZ słownika i edytor na froncie jej nie zmienia
-       (1.239.0). Zmiana klucza zostawiała na stronie stary tekst, do którego
-       tłumaczenie od tej chwili nie pasowało (zgłoszone z użycia). Pole jest
-       tylko do odczytu, a to tu zamyka drogę z pominięciem pola. Nowa fraza
-       (bez old_pl) i „Dodaj do bazy" (old_pl = pl) przechodzą. */
-    if ($old_pl !== '' && $old_pl !== $pl) {
-        wp_send_json_error('Frazy polskiej nie zmienia się w edytorze na froncie. Oryginał zmieniasz w Bricksie, a frazę {tl_…} w panelu Tłumaczeń.');
-    }
-    $lookup_pl = $old_pl ?: $pl;
-    $codes     = evk_tl_kody_jezykow();
-    $data      = get_option('tl_translations', ['groups' => []]);
-    $found     = false;
-    foreach ($data['groups'] as &$group) {
-        foreach ($group['rows'] as &$row) {
-            if (trim($row['pl'] ?? '') === $lookup_pl) {
-                $row['pl'] = $pl; $row['dd_key'] = $dd_key;
-                foreach ($codes as $code) { if (isset($translations[$code])) $row[$code] = tl_sanitize_phrase($translations[$code]); }
-                $found = true; break 2;
-            }
-        }
-    }
-    unset($group, $row);
-    if (!$found) {
-        if (empty($data['groups'])) $data['groups']['group_inline'] = ['name' => 'Inline Editor', 'rows' => []];
-        $row_id = 'row_' . time() . '_' . wp_rand(1000, 9999);
-        $new_row = ['pl' => $pl, 'dd_key' => $dd_key];
-        foreach ($codes as $code) { $new_row[$code] = tl_sanitize_phrase($translations[$code] ?? ''); }
-        $target_group = ($group_id && isset($data['groups'][$group_id])) ? $group_id : array_key_first($data['groups']);
-        $data['groups'][$target_group]['rows'][$row_id] = $new_row;
-    }
-    update_option('tl_translations', $data);
-    $keys = get_option('tl_dd_keys', []);
-    foreach ($keys as $existing_key_loop => $phrase) {
-        if ($phrase === $lookup_pl && (!$dd_key || $existing_key_loop !== $dd_key)) unset($keys[$existing_key_loop]);
-    }
-    if ($dd_key) $keys[$dd_key] = $pl;
-    update_option('tl_dd_keys', $keys);
-    tl_invalidate_cache();
-    wp_send_json_success(['pl' => $pl, 'old_pl' => $lookup_pl, 'created' => !$found, 'updated' => $found, 'dd_key' => $dd_key]);
-});
-
-
-
 // =========================================================================
 // HELPER — zachowanie pól przełączników przy zapisie formularza
 // =========================================================================
@@ -1016,7 +934,6 @@ function evk_toggle_allowlist(): array {
         'evoke_dashboard_fit_content'   => ['_scalar'],
         'evoke_dashboard_shadow'        => ['_scalar'],
         'evk_tl_module_enabled'         => ['_scalar'],
-        'evk_tl_fab_enabled'             => ['_scalar'],
         'evk_forminbox'                  => ['enabled'],
         'evk_backup'                     => ['enabled'],
         'evk_snippets_enabled'          => ['_scalar'],
@@ -1074,7 +991,6 @@ add_action('wp_ajax_evk_save_option', function () {
 
     $allowed = [
         'evk_tl_module_enabled',
-        'evk_tl_fab_enabled',
     ];
 
     $option = sanitize_key(wp_unslash($_POST['option'] ?? ''));

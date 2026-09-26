@@ -281,7 +281,28 @@ add_action('requests-curl.after_request', static function ($naglowki, $info = nu
     if (is_array($info)) $GLOBALS['evk_gdrive_curl'] = $info;
 }, 10, 2);
 
-/** Pomiar żądania, które trwało od $t0: czas całkowity i — z curl — rozbicie. */
+/**
+ * Klucze `curl_getinfo()`, z których pomiar składa rozbicie czasu.
+ *
+ * NAZWY, KTÓRE PHP NAPRAWDĘ ODDAJE. Do 1.242.0 TLS szedł z `appconnect_time`,
+ * a tablica z `curl_getinfo()` ma wyłącznie `appconnect_time_us`
+ * (mikrosekundy) — dziennik pokazywał „TLS 0,00 s" przy każdym żądaniu, także
+ * z evoke.pl. Sonda backup-drive sprawdza każdy klucz z tej listy na
+ * prawdziwym `curl_getinfo()`.
+ *
+ * @return string[]
+ */
+function evk_gdrive_pomiar_klucze(): array {
+    return ['namelookup_time', 'connect_time', 'appconnect_time_us', 'pretransfer_time', 'starttransfer_time',
+        'total_time', 'size_download', 'size_upload', 'redirect_count', 'primary_ip'];
+}
+
+/**
+ * Pomiar żądania, które trwało od $t0: czas całkowity i — z curl — rozbicie.
+ * Czasy curl liczą się od startu żądania; `wyslanie` to chwila, w której
+ * żądanie poszło do serwera, więc „pierwszy − wyslanie" to samo czekanie
+ * na odpowiedź, bez DNS, połączenia i TLS.
+ */
 function evk_gdrive_pomiar(float $t0): array {
     $m = ['czas' => microtime(true) - $t0];
     $i = $GLOBALS['evk_gdrive_curl'] ?? null;
@@ -289,7 +310,8 @@ function evk_gdrive_pomiar(float $t0): array {
     if (!is_array($i)) return $m;
     return $m + [
         'dns' => (float) ($i['namelookup_time'] ?? 0), 'tcp' => (float) ($i['connect_time'] ?? 0),
-        'tls' => (float) ($i['appconnect_time'] ?? 0), 'pierwszy' => (float) ($i['starttransfer_time'] ?? 0),
+        'tls' => (float) ($i['appconnect_time_us'] ?? 0) / 1e6, 'wyslanie' => (float) ($i['pretransfer_time'] ?? 0),
+        'pierwszy' => (float) ($i['starttransfer_time'] ?? 0),
         'curl' => (float) ($i['total_time'] ?? 0), 'pobrane' => (int) ($i['size_download'] ?? 0),
         'wyslane' => (int) ($i['size_upload'] ?? 0), 'przekierowania' => (int) ($i['redirect_count'] ?? 0),
         'ip' => (string) ($i['primary_ip'] ?? ''),
@@ -311,7 +333,8 @@ function evk_gdrive_pomiar_opis(array $m): string {
     }
     if (!isset($m['dns'])) return $opis . ' · bez rozbicia (transport HTTP inny niż curl)';
     $opis .= ' · od startu: DNS ' . evk_gdrive_s($m['dns']) . ', połączenie ' . evk_gdrive_s($m['tcp'])
-        . ', TLS ' . evk_gdrive_s($m['tls']) . ', pierwszy bajt ' . evk_gdrive_s($m['pierwszy']);
+        . ', TLS ' . evk_gdrive_s($m['tls']) . ', pierwszy bajt ' . evk_gdrive_s($m['pierwszy'])
+        . ' (czekanie na odpowiedź ' . evk_gdrive_s(max(0.0, $m['pierwszy'] - ($m['wyslanie'] ?? 0.0))) . ')';
     if ($m['przekierowania'] > 0) $opis .= ' · przekierowań: ' . $m['przekierowania'];
     if ($m['ip'] !== '') $opis .= ' · ' . $m['ip'] . (strpos($m['ip'], ':') !== false ? ' (IPv6)' : ' (IPv4)');
     return $opis;
@@ -335,13 +358,14 @@ function evk_gdrive_notuj(string $co, array $m): void {
  * na krok (evk_gdrive_stream), a wysyłka stałymi 8 MB jak w 1.229.1.
  */
 function evk_gdrive_zapisz_pomiar(array $job, int $bajty, array $m, string $dopisek = ''): array {
-    $p = $job['state']['pomiar'] ?? ['n' => 0, 'bajty' => 0, 'czas' => 0.0, 'dns' => 0.0, 'tcp' => 0.0, 'tls' => 0.0, 'pierwszy' => 0.0, 'z_curl' => 0, 'ip' => []];
+    $p = $job['state']['pomiar'] ?? ['n' => 0, 'bajty' => 0, 'czas' => 0.0, 'dns' => 0.0, 'tcp' => 0.0, 'tls' => 0.0, 'wyslanie' => 0.0, 'pierwszy' => 0.0, 'z_curl' => 0, 'ip' => []];
     $p['n']++;
     $p['bajty'] += $bajty;
     $p['czas'] += (float) $m['czas'];
     if (isset($m['dns'])) {
         $p['z_curl']++;
-        foreach (['dns', 'tcp', 'tls', 'pierwszy'] as $k) $p[$k] += (float) $m[$k];
+        // `?? 0.0`: zadanie zaczęte przed 1.243.0 nie ma w stanie sumy `wyslanie`.
+        foreach (['dns', 'tcp', 'tls', 'wyslanie', 'pierwszy'] as $k) $p[$k] = (float) ($p[$k] ?? 0.0) + (float) $m[$k];
         if ($m['ip'] !== '' && !in_array($m['ip'], $p['ip'], true) && count($p['ip']) < 5) $p['ip'][] = $m['ip'];
     }
     $job['state']['pomiar'] = $p;
@@ -360,7 +384,9 @@ function evk_gdrive_pomiar_podsumowanie(array $job): void {
     if ($p['z_curl']) {
         $sr = static function ($k) use ($p) { return evk_gdrive_s($p[$k] / $p['z_curl']); };
         $opis .= '; na żądanie średnio od startu: DNS ' . $sr('dns') . ', połączenie ' . $sr('tcp') . ', TLS ' . $sr('tls')
-            . ', pierwszy bajt ' . $sr('pierwszy') . '; adresy: ' . implode(', ', array_map(static function ($ip) {
+            . ', pierwszy bajt ' . $sr('pierwszy') . ' (czekanie na odpowiedź '
+            . evk_gdrive_s(max(0.0, ($p['pierwszy'] - (float) ($p['wyslanie'] ?? 0.0)) / $p['z_curl'])) . ')'
+            . '; adresy: ' . implode(', ', array_map(static function ($ip) {
                 return $ip . (strpos($ip, ':') !== false ? ' (IPv6)' : ' (IPv4)');
             }, $p['ip']));
     }

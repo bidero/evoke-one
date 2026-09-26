@@ -50,13 +50,39 @@ module.exports = async function (t) {
 
   t.section('definicja pola języka');
   const def = k.heading.definicje.evk_tl_en__text || {};
-  t.check('typ pola źródłowego, etykieta „Tekst — EN", grupa „Tłumaczenia"',
-    def.type === 'text' && def.label === 'Tekst — EN' && def.group === 'evk_tl' && def.tab === 'content', JSON.stringify(def));
+  t.check('typ pola źródłowego, etykieta „Tłumaczenie EN" (jedno pole w elemencie), grupa „Tłumaczenia"',
+    def.type === 'text' && def.label === 'Tłumaczenie EN' && def.group === 'evk_tl' && def.tab === 'content', JSON.stringify(def));
   t.check('bez `default` (kropka „ma ustawienia" w builderze) i bez edycji na kanwie',
     !('default' in def) && !('inlineEditing' in def), JSON.stringify(def));
   t.check('dane dynamiczne zostają, jak w polu źródłowym', def.hasDynamicData === 'text', JSON.stringify(def));
   t.check('typ edytora i akapitu zachowany', (k.image.definicje.evk_tl_en__captionCustom || {}).type === 'textarea'
     && ((k.accordion.defs_listy.accordions || {}).evk_tl_en__content || {}).type === 'editor');
+
+  t.section('etykiety i kolejność (1.243.0): „Tłumaczenie EN", przy kilku polach z nazwą pola');
+  /* Kolejność i etykiety sprawdzane OSOBNO — mutacja jednego ma zapalać tylko
+     swoje sprawdzenie. Etykiety porównywane bez względu na kolejność. */
+  const kolej = (defs) => Object.keys(defs || {}).join(',');
+  const etykiety = (defs) => Object.entries(defs || {}).map(([kl, d]) => kl + '=' + d.label).sort().join(' | ');
+  t.check('kolejność: najpierw wszystkie EN, potem wszystkie DE (element i pozycja listy)',
+    kolej(k.form.definicje) === 'evk_tl_en__submitButtonText,evk_tl_en__successMessage,evk_tl_de__submitButtonText,evk_tl_de__successMessage'
+      && kolej(k.accordion.defs_listy.accordions) === 'evk_tl_en__title,evk_tl_en__content,evk_tl_de__title,evk_tl_de__content',
+    kolej(k.form.definicje) + ' / ' + kolej(k.accordion.defs_listy.accordions));
+  t.check('kilka pól elementu: „Tłumaczenie EN · {etykieta pola}"',
+    etykiety(k.form.definicje) === 'evk_tl_de__submitButtonText=Tłumaczenie DE · Tekst przycisku | evk_tl_de__successMessage=Tłumaczenie DE · Komunikat sukcesu'
+      + ' | evk_tl_en__submitButtonText=Tłumaczenie EN · Tekst przycisku | evk_tl_en__successMessage=Tłumaczenie EN · Komunikat sukcesu',
+    etykiety(k.form.definicje));
+  t.check('pozycja listy z kilkoma polami: to samo wewnątrz pozycji',
+    etykiety(k.accordion.defs_listy.accordions) === 'evk_tl_de__content=Tłumaczenie DE · Treść | evk_tl_de__title=Tłumaczenie DE · Tytuł'
+      + ' | evk_tl_en__content=Tłumaczenie EN · Treść | evk_tl_en__title=Tłumaczenie EN · Tytuł',
+    etykiety(k.accordion.defs_listy.accordions));
+  t.check('jedno pole bez etykiety (tekst nagłówka w Bricksie): samo „Tłumaczenie EN", bez klucza',
+    etykiety(k['bez-etykiety'].definicje) === 'evk_tl_de__text=Tłumaczenie DE | evk_tl_en__text=Tłumaczenie EN',
+    etykiety(k['bez-etykiety'].definicje));
+  const be = k['bez-etykiet-kilka'].definicje || {};
+  const etk = (kl) => (be[kl] || {}).label;
+  t.check('kilka pól bez etykiet: polska nazwa znanego klucza, nieznany zostaje kluczem',
+    etk('evk_tl_en__text') === 'Tłumaczenie EN · Tekst' && etk('evk_tl_en__title') === 'Tłumaczenie EN · Tytuł'
+      && etk('evk_tl_en__heroLine') === 'Tłumaczenie EN · heroLine', etykiety(be));
 
   t.section('pozycje list: pola języków wewnątrz pozycji');
   const akordeon = k.accordion.pola_listy.accordions || [];

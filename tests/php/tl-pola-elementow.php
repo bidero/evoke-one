@@ -131,6 +131,16 @@ $probki = [
     'bez-tekstu' => [
         'tag' => ['tab' => 'content', 'label' => 'Tag', 'type' => 'select'],
     ],
+    /* Pola bez etykiety — tak wygląda tekst nagłówka w Bricksie (tylko edycja
+       na kanwie). Do 1.242.0 panel pokazywał wtedy klucz: „text — EN". */
+    'bez-etykiety' => [
+        'text' => ['tab' => 'content', 'type' => 'text'],
+    ],
+    'bez-etykiet-kilka' => [
+        'text'     => ['tab' => 'content', 'type' => 'text'],
+        'title'    => ['tab' => 'content', 'type' => 'text'],
+        'heroLine' => ['tab' => 'content', 'type' => 'text'],
+    ],
 ];
 $wynik['kontrolki'] = [];
 foreach ($probki as $el => $k) {

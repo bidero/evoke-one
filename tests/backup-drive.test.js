@@ -144,6 +144,13 @@ module.exports = async function (t) {
     t.check('dziennik: żądanie z czasem do pierwszego bajtu, prędkością po nim, kompresją, adresem i przerwaniem na końcu kroku',
       /pierwszy bajt 1,[5-9]\d s/.test(z1) && /po pierwszym bajcie 0,9\d MB\/s|po pierwszym bajcie 1,0\d MB\/s/.test(z1)
         && /kompresja: brak/.test(z1) && /127\.0\.0\.1 \(IPv4\)/.test(z1) && /przerwane na końcu kroku/.test(z1), z1);
+    t.check('dziennik: samo czekanie na odpowiedź (od wysłania żądania do pierwszego bajtu, atrapa czeka 1,5 s)',
+      /\(czekanie na odpowiedź 1,[4-9]\d s\)/.test(z1), z1);
+    const pk = w.pomiar_klucze || {};
+    t.check('pomiar czyta tylko klucze, które ma prawdziwe curl_getinfo() (TLS z appconnect_time_us)',
+      pk.kod === 200 && Array.isArray(pk.brak) && pk.brak.length === 0, JSON.stringify(pk));
+    t.check('rozbicie z liczb evoke.pl: TLS 0,45 s zamiast 0,00, czekanie na odpowiedź 28,6 s',
+      /TLS 0,45 s, pierwszy bajt 29,1 s \(czekanie na odpowiedź 28,6 s\)/.test(w.pomiar_opis || ''), w.pomiar_opis);
     t.check('dziennik: podsumowanie pobierania i wysyłki',
       /Pomiar: 2 żądań, 8,0 MB .+ średnio .+ MB\/s; .+ adresy: 127\.0\.0\.1 \(IPv4\)/.test(sm.log_pomiar[0] || '') && sm.log_wysylka.length === 1,
       (sm.log_pomiar[0] || '') + ' | ' + (sm.log_wysylka[0] || ''));

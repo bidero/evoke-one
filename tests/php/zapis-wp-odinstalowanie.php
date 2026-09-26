@@ -53,6 +53,7 @@ case 'przygotuj':
     update_option('favicon_url', 'https://usun.test/favicon.png');
     update_option('evk_nl_backoff_7', 3);
     update_option('evoke_dashboard_active', 1);
+    update_option('evk_tl_fab_enabled', 1);   // dawna opcja (edytor na froncie do 1.242.0)
     set_transient('evk_301_cache', [1], 3600);
     set_transient('evk_gdrive_msg_abc', 'x', 3600);
     set_transient('tl_compiled_config', [1], 3600);
@@ -143,7 +144,7 @@ case 'wykonaj':
                          'maintenance_bypass_password' => $opcja('maintenance_bypass_password'), 'favicon_url' => $opcja('favicon_url'),
                          'evk_nl_backoff_7' => $opcja('evk_nl_backoff_7'), 'evoke_dashboard_active' => $opcja('evoke_dashboard_active'),
                          'evk_usun_dane' => $opcja('evk_usun_dane'), 'evk_role_utworzone' => $opcja('evk_role_utworzone'),
-                         'evk_backup_dir' => $opcja('evk_backup_dir')]),
+                         'evk_backup_dir' => $opcja('evk_backup_dir'), 'evk_tl_fab_enabled' => $opcja('evk_tl_fab_enabled')]),
         'transienty' => array_filter(['evk_301_cache' => get_transient('evk_301_cache') !== false,
                          'evk_gdrive_msg_abc' => get_transient('evk_gdrive_msg_abc') !== false,
                          'tl_compiled_config' => get_transient('tl_compiled_config') !== false]),

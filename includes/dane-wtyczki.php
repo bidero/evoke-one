@@ -36,7 +36,7 @@ return [
         'maintenance_bypass_hours', 'maintenance_bypass_password', 'maintenance_excluded_paths',
         'maintenance_mode', 'maintenance_page_id',
         // Tłumaczenia
-        'evk_tl_fab_enabled', 'evk_tl_module_enabled', 'tl_dd_keys', 'tl_images', 'tl_languages',
+        'evk_tl_module_enabled', 'tl_dd_keys', 'tl_images', 'tl_languages',
         'tl_menu_location', 'tl_pl_flag', 'tl_sitemap_settings', 'tl_translations', 'tl_url_slugs',
         // Snippety
         'evk_snippets_advanced_content', 'evk_snippets_advanced_enabled', 'evk_snippets_enabled',
@@ -53,6 +53,13 @@ return [
         // Aktualizator i instalacja
         'evk_one_gh_release', 'evk_one_github_token', 'evk_one_install_state', 'evk_usun_dane',
     ],
+    /* Opcje, których kod już nie używa, a które mogły zostać na starszych
+       stronach — odinstalowanie kasuje je jak zwykłe. Osobno, bo strażnik
+       spisu (zapis-wp-odinstalowanie) wymaga, żeby każda nazwa z `opcje`
+       występowała w kodzie. `evk_tl_fab_enabled`: edytor tłumaczeń na
+       froncie, usunięty w 1.243.0 (jego transient `tl_inline_phrases` zostaje
+       w `transienty` — nazwę trzyma stała TL_TRANSIENT_INLINE). */
+    'opcje_dawne' => ['evk_tl_fab_enabled'],
     'opcje_przedrostki' => ['evk_nl_backoff_'],
     'transienty' => ['evk_301_cache', 'evk_backup_exposed', 'evk_inbox_unread',
                      'tl_compiled_config', 'tl_compiled_slugs', 'tl_inline_phrases'],

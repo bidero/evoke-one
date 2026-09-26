@@ -259,13 +259,10 @@ module.exports = async function (t) {
   /* Liczy się TO, CO TRAFIA NA EKRAN PANELU. Poza zakresem zostają:
      — `wp_send_json_success('Zapisano.')`, czyli ładunek odpowiedzi AJAX-a,
        którego żaden ekran nie wypisuje (JS podaje własny napis);
-     — edytor frontowy (`41-frontend-inline-editor.php`) — inna powierzchnia,
-       nie panel;
      — komunikaty niosące LICZBĘ zapisanych rzeczy („Zapisano 3 z 5") i te
        z dodatkową instrukcją („— odśwież stronę"): to inna treść, nie inny
        wariant tego samego napisu. Zaczynają się tak samo i o to chodzi. */
-  const doEkranu = (p) => (p.includes('/admin/') || p.includes('/snippets/'))
-    && !p.includes('41-frontend-inline-editor');
+  const doEkranu = (p) => p.includes('/admin/') || p.includes('/snippets/');
 
   const warianty = new Set();
   const zbierz = (tresc) => {

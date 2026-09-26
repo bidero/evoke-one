@@ -101,6 +101,31 @@ function evk_tl_el_grupy($grupy) {
 }
 
 /**
+ * Polska nazwa pola, które w Bricksie nie ma etykiety — tekst nagłówka ma
+ * tylko edycję na kanwie, więc do 1.242.0 panel pokazywał sam klucz
+ * („text — EN"). Klucza spoza listy nie zgadujemy: zostaje, jak był.
+ */
+function evk_tl_el_nazwa_pola(string $klucz): string {
+    $nazwy = ['text' => 'Tekst', 'title' => 'Tytuł', 'subtitle' => 'Podtytuł', 'content' => 'Treść',
+        'description' => 'Opis', 'label' => 'Etykieta', 'placeholder' => 'Tekst zastępczy', 'caption' => 'Podpis'];
+    return $nazwy[$klucz] ?? $klucz;
+}
+
+/**
+ * Etykieta pola języka (1.243.0, decyzja zgłaszającego): „Tłumaczenie EN".
+ * Gdy element albo pozycja listy ma kilka pól tekstowych, sama
+ * „Tłumaczenie EN" nie mówi, którego dotyczy — wtedy „Tłumaczenie EN · Tytuł".
+ *
+ * @param array<string,mixed> $def
+ */
+function evk_tl_el_etykieta(array $def, string $klucz, string $jezyk, bool $wiele): string {
+    $etykieta = 'Tłumaczenie ' . strtoupper($jezyk);
+    if (!$wiele) return $etykieta;
+    $nazwa = !empty($def['label']) ? wp_strip_all_tags((string) $def['label']) : evk_tl_el_nazwa_pola($klucz);
+    return $etykieta . ' · ' . $nazwa;
+}
+
+/**
  * Pole języka na wzór pola źródłowego — tylko to, czego pole tekstowe
  * potrzebuje. Bez `default`: kontrolka z domyślną raportuje wartość także
  * w nietkniętym elemencie i zapala w builderze kropkę „grupa ma ustawienia"
@@ -110,9 +135,8 @@ function evk_tl_el_grupy($grupy) {
  * @param array<string,mixed> $def
  * @return array<string,mixed>
  */
-function evk_tl_el_pole(array $def, string $klucz, string $jezyk, bool $w_grupie): array {
-    $etykieta = !empty($def['label']) ? wp_strip_all_tags((string) $def['label']) : $klucz;
-    $pole = ['type' => $def['type'], 'label' => $etykieta . ' — ' . strtoupper($jezyk)];
+function evk_tl_el_pole(array $def, string $klucz, string $jezyk, bool $w_grupie, bool $wiele = false): array {
+    $pole = ['type' => $def['type'], 'label' => evk_tl_el_etykieta($def, $klucz, $jezyk, $wiele)];
     if ($w_grupie) {
         $pole['tab']   = 'content';
         $pole['group'] = EVK_TL_EL_GRUPA;
@@ -124,7 +148,7 @@ function evk_tl_el_pole(array $def, string $klucz, string $jezyk, bool $w_grupie
 }
 
 /**
- * Dokłada pola języków: po każdym polu tekstowym elementu (na końcu tablicy,
+ * Dokłada pola języków: po polach tekstowych elementu (na końcu tablicy,
  * w grupie „Tłumaczenia") i wewnątrz pozycji list.
  *
  * @param mixed $kontrolki
@@ -135,22 +159,40 @@ function evk_tl_el_kontrolki($kontrolki, string $element = '') {
     $jezyki = evk_tl_kody_jezykow();
     if (!$jezyki) return $kontrolki;
 
-    $nowe = [];
+    $pola = [];
     foreach ($kontrolki as $klucz => $def) {
         $klucz = (string) $klucz;
         if (is_array($def) && ($def['type'] ?? '') === 'repeater' && is_array($def['fields'] ?? null)) {
-            $dodane = [];
+            $w_pozycji = [];
             foreach ($def['fields'] as $pk => $pdef) {
-                if (!evk_tl_el_tlumaczalna((string) $pk, $pdef, $element)) continue;
-                foreach ($jezyki as $j) $dodane[evk_tl_el_klucz($j, (string) $pk)] = evk_tl_el_pole($pdef, (string) $pk, $j, false);
+                if (evk_tl_el_tlumaczalna((string) $pk, $pdef, $element)) $w_pozycji[(string) $pk] = $pdef;
             }
-            if ($dodane) $kontrolki[$klucz]['fields'] = $def['fields'] + $dodane;
+            if ($w_pozycji) $kontrolki[$klucz]['fields'] = $def['fields'] + evk_tl_el_pola_jezykow($w_pozycji, $jezyki, false);
             continue;
         }
-        if (!evk_tl_el_tlumaczalna($klucz, $def, $element)) continue;
-        foreach ($jezyki as $j) $nowe[evk_tl_el_klucz($j, $klucz)] = evk_tl_el_pole($def, $klucz, $j, true);
+        if (evk_tl_el_tlumaczalna($klucz, $def, $element)) $pola[$klucz] = $def;
     }
-    return $nowe ? $kontrolki + $nowe : $kontrolki;
+    return $pola ? $kontrolki + evk_tl_el_pola_jezykow($pola, $jezyki, true) : $kontrolki;
+}
+
+/**
+ * Pola języków dla pól tłumaczalnych jednego poziomu (element albo pozycja
+ * listy): najpierw wszystkie EN, potem wszystkie DE — tłumacz jednego języka
+ * ma swoje pola obok siebie.
+ *
+ * @param array<string,mixed> $pola   Klucz => definicja pola tłumaczalnego.
+ * @param string[]            $jezyki
+ * @return array<string,array<string,mixed>>
+ */
+function evk_tl_el_pola_jezykow(array $pola, array $jezyki, bool $w_grupie): array {
+    $wiele = count($pola) > 1;
+    $nowe = [];
+    foreach ($jezyki as $j) {
+        foreach ($pola as $klucz => $def) {
+            $nowe[evk_tl_el_klucz($j, (string) $klucz)] = evk_tl_el_pole($def, (string) $klucz, $j, $w_grupie, $wiele);
+        }
+    }
+    return $nowe;
 }
 
 // =========================================================================

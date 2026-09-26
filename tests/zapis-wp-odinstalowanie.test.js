@@ -44,7 +44,7 @@ module.exports = async function (t) {
   const n0 = w0.nasze || {};
   t.check('warunek testu: kod wtyczki przy odinstalowaniu nie jest załadowany', w0.wtyczka_zaladowana === false, JSON.stringify(w0.wtyczka_zaladowana));
   t.check('ustawienia, transienty, tabele i wpisy zostają',
-    Object.keys(n0.opcje || {}).length === 10 && Object.keys(n0.transienty || {}).length === 3
+    Object.keys(n0.opcje || {}).length === 11 && Object.keys(n0.transienty || {}).length === 3
       && Object.keys(n0.tabele || {}).length === 2 && Object.keys(n0.wpisy || {}).length === 4,
     JSON.stringify({ opcje: Object.keys(n0.opcje || {}).length, transienty: Object.keys(n0.transienty || {}).length,
       tabele: Object.keys(n0.tabele || {}).length, wpisy: Object.keys(n0.wpisy || {}).length }));
@@ -64,7 +64,7 @@ module.exports = async function (t) {
   t.check('warunek testu: w katalogu wtyczek jest druga kopia Evoke ONE',
     JSON.stringify(wd.inne_kopie) === JSON.stringify(['evk-t-druga-kopia/evoke-one.php']), JSON.stringify(wd.inne_kopie));
   t.check('ustawienia, tabele, wpisy, katalogi i rola zostają mimo „Usuń dane"',
-    Object.keys(nd.opcje || {}).length === 10 && Object.keys(nd.tabele || {}).length === 2 && Object.keys(nd.wpisy || {}).length === 4
+    Object.keys(nd.opcje || {}).length === 11 && Object.keys(nd.tabele || {}).length === 2 && Object.keys(nd.wpisy || {}).length === 4
       && Object.keys(nd.katalogi || {}).length === 3 && nd.rola === true,
     JSON.stringify({ opcje: Object.keys(nd.opcje || {}).length, tabele: nd.tabele, wpisy: Object.keys(nd.wpisy || {}).length,
       katalogi: nd.katalogi, rola: nd.rola }));
@@ -139,4 +139,10 @@ module.exports = async function (t) {
   const caly = teksty.join('\n');
   const martwe = dane.opcje.filter((n) => !caly.includes("'" + n + "'") && !Object.values(stale).includes(n));
   t.check('każda opcja ze spisu występuje w kodzie (bez literówek)', !martwe.length, martwe.join(', ') || 'komplet');
+  /* Dawne opcje (kod ich już nie używa, odinstalowanie je kasuje) — gdyby
+     któraś wróciła do kodu, ma wrócić do `opcje`. Że odinstalowanie ją
+     naprawdę kasuje, widać wyżej: `evk_tl_fab_enabled` jest wśród zasianych. */
+  const wrocily = (dane.opcje_dawne || []).filter((n) => caly.includes("'" + n + "'"));
+  t.check('dawne opcje ze spisu nie występują w kodzie (inaczej należą do `opcje`)',
+    Array.isArray(dane.opcje_dawne) && dane.opcje_dawne.length > 0 && !wrocily.length, wrocily.join(', ') || (dane.opcje_dawne || []).join(', '));
 };

@@ -120,6 +120,7 @@ function evk_tl_kody_jezykow(): array {
 
 function tl_invalidate_cache(): void {
     delete_transient(TL_TRANSIENT_CONFIG);
+    // Frazy edytora na froncie (usunięty w 1.243.0) — sprząta stary transient.
     delete_transient(TL_TRANSIENT_INLINE);
     delete_transient(TL_TRANSIENT_SLUGS);
     foreach (evk_tl_kody_jezykow() as $code) {
@@ -241,54 +242,3 @@ add_action('update_option_tl_url_slugs', 'tl_invalidate_cache');
 add_filter('bricks/code/echo_functions', function ($functions) {
     return array_merge($functions, ['lang_switch_url', 'get_current_lang']);
 });
-
-// ====================================================================
-// 2c. INLINE PHRASE DISCOVERY
-// ====================================================================
-function tl_get_inline_phrases(): array {
-    static $mem = null;
-    if ($mem !== null) return $mem;
-    $cached = get_transient(TL_TRANSIENT_INLINE);
-    if ($cached !== false) { $mem = is_array($cached) ? $cached : []; return $mem; }
-    $phrases = [];
-    $posts = get_posts(['post_type' => ['bricks_template','page','post'], 'posts_per_page' => 200, 'post_status' => 'publish', 'fields' => 'ids']);
-    foreach ($posts as $post_id) {
-        $content = get_post_meta($post_id, '_bricks_page_content_2', true);
-        if (empty($content)) continue;
-        $json = is_string($content) ? $content : wp_json_encode($content);
-        preg_match_all('/\{tl:([^}]+)\}/i', $json, $matches);
-        foreach ($matches[0] as $index => $full_match) {
-            $pairs = explode('|', $matches[1][$index]);
-            $translations = [];
-            foreach ($pairs as $pair) {
-                if (strpos($pair, '=') === false) continue;
-                [$code, $text] = explode('=', $pair, 2);
-                $translations[strtolower(trim($code))] = trim($text);
-            }
-            if (!empty($translations)) {
-                $key = $translations['pl'] ?? reset($translations);
-                $phrases[$key] = ['source' => 'inline', 'raw' => $full_match, 'translations' => $translations];
-            }
-        }
-        preg_match_all('/\[tl\s+([^\]]+)\]/i', $json, $shortcode_matches);
-        foreach ($shortcode_matches[0] as $index => $full_match) {
-            $attrs = $shortcode_matches[1][$index];
-            $translations = [];
-            preg_match_all('/(\w+)=["\']([^"\']+)["\']/i', $attrs, $attr_matches);
-            foreach ($attr_matches[1] as $i => $attr_name) {
-                $translations[strtolower($attr_name)] = $attr_matches[2][$i];
-            }
-            if (!empty($translations)) {
-                $key = $translations['pl'] ?? reset($translations);
-                $phrases[$key] = ['source' => 'shortcode', 'raw' => $full_match, 'translations' => $translations];
-            }
-        }
-    }
-    set_transient(TL_TRANSIENT_INLINE, $phrases, TL_CACHE_TTL);
-    $mem = $phrases;
-    return $mem;
-}
-foreach (['bricks_template','page','post'] as $_tl_post_type) {
-    add_action('save_post_' . $_tl_post_type, function () { delete_transient(TL_TRANSIENT_INLINE); });
-}
-

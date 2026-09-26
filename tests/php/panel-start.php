@@ -124,7 +124,7 @@ if (($argv[1] ?? '') === '--mapa') {
 // jest z definicji płaska. Przepisana z ręki rozjeżdżałaby się przy pierwszym
 // dołożonym przełączniku.
 $plaskie = ['evk_301_enabled', 'evk_404_enabled', 'maintenance_mode',
-    'evk_tl_module_enabled', 'evk_tl_fab_enabled'];
+    'evk_tl_module_enabled'];
 
 foreach (evoke_one_ekrany() as $zakladka => $ekrany) {
     foreach (array_keys($ekrany) as $sub) {

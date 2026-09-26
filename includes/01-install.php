@@ -28,7 +28,6 @@ function evk_one_legacy_enabled_modules(): array {
         'evk_og'                => 'array',
         'tl_sitemap_settings'   => 'array',
         'evk_tl_module_enabled' => 'scalar',
-        'evk_tl_fab_enabled'    => 'scalar',
     ];
 }
 

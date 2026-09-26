@@ -86,6 +86,7 @@ if (!function_exists('evk_odinstaluj_strone')) {
 
         // ── Opcje i transienty ────────────────────────────────────────────
         foreach ($dane['opcje'] as $opcja) delete_option($opcja);
+        foreach (($dane['opcje_dawne'] ?? []) as $opcja) delete_option($opcja);
         foreach ($dane['opcje_przedrostki'] as $p) {
             $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like($p) . '%'));
         }

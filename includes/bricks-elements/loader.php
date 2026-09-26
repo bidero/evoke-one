@@ -250,7 +250,20 @@ add_action('init', function (): void {
 
         $GLOBALS['evk_loaded_elements'][$key] = true;
     }
+
+    /* Element próbny przełączników (1.243.0) — poza rejestrem i panelem, tylko
+       ze stałą w wp-config.php strony testowej. Po co: nagłówek pliku. */
+    if (evk_elements_proba_wlaczona()) {
+        $plik = __DIR__ . '/proba/proba-przelacznikow.php';
+        require_once $plik;
+        \Bricks\Elements::register_element($plik, 'evk-proba-przelacznikow', 'Evk_Proba_Przelacznikow_Element');
+    }
 }, 11);
+
+/** Element próbny tylko po `define('EVK_BRICKS_PROBA', true);` — ściśle `true`, nie „coś niepustego". */
+function evk_elements_proba_wlaczona(): bool {
+    return defined('EVK_BRICKS_PROBA') && EVK_BRICKS_PROBA === true;
+}
 
 // ── Wspólne biblioteki + skrypty/style elementów ─────────────────────────
 add_action('wp_enqueue_scripts', function (): void {

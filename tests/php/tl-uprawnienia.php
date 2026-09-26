@@ -134,7 +134,7 @@ function zawolaj(string $akcja, array $post) {
 
 $bramka = [];
 $akcje  = ['tl_save_translations', 'tl_save_images', 'tl_save_settings', 'tl_save_dd_keys',
-           'tl_save_slugs', 'tl_save_sitemap_settings', 'tl_inline_get', 'tl_inline_save_full'];
+           'tl_save_slugs', 'tl_save_sitemap_settings'];
 foreach (['tlumacz'    => ['evk_access_translations' => true],
           'admin'      => ['manage_options' => true],
           'redaktor'   => ['edit_posts' => true]] as $kto => $caps) {
@@ -155,8 +155,10 @@ $out['bramka'] = $bramka;
 $GLOBALS['caps'] = ['manage_options' => true];
 zawolaj('tl_save_translations', ['nonce' => 'testnonce']);
 $out['nonce_zapisu'] = $GLOBALS['nonce_asked'];
-zawolaj('tl_inline_save_full', ['nonce' => 'testnonce']);
-$out['nonce_inline'] = $GLOBALS['nonce_asked'];
+// Edytor na froncie usunięty w 1.243.0 — jego punkty nie mają prawa zostać
+// (osierocony punkt zapisu słownika, którego nic już nie woła).
+$out['usuniete_punkty'] = [zawolaj('tl_inline_get', ['nonce' => 'testnonce']),
+                           zawolaj('tl_inline_save_full', ['nonce' => 'testnonce'])];
 
 // ── 3. Import: co wolno wgrać komu ────────────────────────────────────────
 // Ładunek niesie i tłumaczenia, i wszystko, czego tłumacz tknąć nie może.

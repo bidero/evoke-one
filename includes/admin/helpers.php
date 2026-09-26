@@ -97,8 +97,8 @@ function evoke_one_ekrany(): array {
                               'opis' => 'Elementy dokładane do edytora Bricks.',
                               'przelaczniki' => 'rejestr-elementow'],
             'tlumaczenia' => ['label' => 'Tłumaczenia',        'icon' => 'dashicons-translation',         'szukaj' => 'języki wielojęzyczność i18n',
-                              'opis' => 'Silnik wielojęzyczności i pływający przycisk edycji.',
-                              'przelaczniki' => [['evk_tl_module_enabled', '_scalar'], ['evk_tl_fab_enabled', '_scalar']]],
+                              'opis' => 'Silnik wielojęzyczności: frazy, pola języków w elementach Bricks.',
+                              'przelaczniki' => [['evk_tl_module_enabled', '_scalar']]],
         ],
         'strona' => [
             'meta'    => ['label' => 'Meta SEO',    'icon' => 'dashicons-edit',         'szukaj' => 'tytuł opis description',

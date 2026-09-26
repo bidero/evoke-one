@@ -4,7 +4,6 @@ if (!defined('ABSPATH')) exit;
  * Evoke ONE — Admin subtab: Tłumaczenia (włącznik modułu)
  */
 $tl_enabled     = !empty(get_option('evk_tl_module_enabled', 0));
-$tl_fab_enabled = !empty(get_option('evk_tl_fab_enabled', 0));
 $tl_url         = function_exists('tl_base_url') ? tl_base_url() : admin_url('options-general.php?page=evoke-tlumaczenia');
 ?>
 
@@ -23,26 +22,6 @@ $tl_url         = function_exists('tl_base_url') ? tl_base_url() : admin_url('op
                    data-field="_scalar"
                    value="1"
                    <?php checked($tl_enabled); ?>>
-            <span class="evo-slider"></span>
-        </label>
-    </div>
-</div>
-
-<div class="evo-status-card evo-mt">
-    <div class="evo-status-icon <?php echo $tl_fab_enabled ? 'on' : 'off'; ?>">
-        <span class="dashicons dashicons-edit evo-ico-lg"></span>
-    </div>
-    <div class="evo-status-text">
-        <h3>Edytor inline (FAB): <?php echo $tl_fab_enabled ? 'WŁĄCZONY' : 'WYŁĄCZONY'; ?></h3>
-        <p>Pływający przycisk edycji tłumaczeń na frontendzie (widoczny tylko dla administratora).</p>
-    </div>
-    <div class="evo-status-actions">
-        <label class="evo-toggle">
-            <input aria-label="Edytor inline (FAB)" type="checkbox"
-                   data-option="evk_tl_fab_enabled"
-                   data-field="_scalar"
-                   value="1"
-                   <?php checked($tl_fab_enabled); ?>>
             <span class="evo-slider"></span>
         </label>
     </div>
