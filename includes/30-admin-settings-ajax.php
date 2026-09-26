@@ -898,6 +898,14 @@ add_action('wp_ajax_tl_inline_save_full', function () {
     $group_id         = sanitize_key(wp_unslash($_POST['group_id'] ?? ''));
     if (!$pl) wp_send_json_error('Brak frazy PL.');
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($translations)) wp_send_json_error('Nieprawidlowy JSON tlumaczen.');
+    /* Fraza polska to KLUCZ słownika i edytor na froncie jej nie zmienia
+       (1.239.0). Zmiana klucza zostawiała na stronie stary tekst, do którego
+       tłumaczenie od tej chwili nie pasowało (zgłoszone z użycia). Pole jest
+       tylko do odczytu, a to tu zamyka drogę z pominięciem pola. Nowa fraza
+       (bez old_pl) i „Dodaj do bazy" (old_pl = pl) przechodzą. */
+    if ($old_pl !== '' && $old_pl !== $pl) {
+        wp_send_json_error('Frazy polskiej nie zmienia się w edytorze na froncie. Oryginał zmieniasz w Bricksie, a frazę {tl_…} w panelu Tłumaczeń.');
+    }
     $lookup_pl = $old_pl ?: $pl;
     $codes     = evk_tl_kody_jezykow();
     $data      = get_option('tl_translations', ['groups' => []]);

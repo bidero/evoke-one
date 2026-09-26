@@ -72,11 +72,11 @@ add_action('wp_footer', function () {
         body.tl-edit-mode [data-tl-phrase] { outline:2px dashed #2563eb !important; outline-offset:2px; cursor:pointer !important; }
         body.tl-edit-mode [data-tl-phrase]:hover { background:rgba(37,99,235,.08) !important; outline-style:solid !important; }
         body.tl-edit-mode [data-tl-phrase].tl-inline { outline-color:#dba617; }
-        #tl-side-panel { position:fixed; top:0; right:-420px; width:400px; height:100vh; background:#fff; z-index:99999; box-shadow:-4px 0 24px rgba(0,0,0,.15); display:flex; flex-direction:column; transition:right .3s cubic-bezier(.4,0,.2,1); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+        #tl-side-panel { position:fixed; top:0; right:-420px; width:min(400px,100vw); height:100vh; height:100dvh; background:#fff; z-index:99999; box-shadow:-4px 0 24px rgba(0,0,0,.15); display:flex; flex-direction:column; transition:right .3s cubic-bezier(.4,0,.2,1); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
         #tl-side-panel.open { right:0; }
         #tl-panel-header { background:#2563eb; color:#fff; padding:14px 16px; display:flex; align-items:center; gap:10px; flex-shrink:0; }
         #tl-panel-header h3 { margin:0; font-size:14px; font-weight:600; flex:1; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-        #tl-panel-close { background:none; border:none; color:#fff; font-size:20px; cursor:pointer; padding:0; line-height:1; opacity:.8; }
+        #tl-panel-close { background:none; border:none; color:#fff; font-size:20px; cursor:pointer; padding:0; line-height:1; opacity:.8; width:40px; height:40px; margin:-8px -10px -8px 0; display:flex; align-items:center; justify-content:center; border-radius:6px; }
         #tl-panel-close:hover { opacity:1; }
         #tl-panel-phrase { padding:10px 16px 12px; background:#eff6ff; border-bottom:1px solid #cbd5e1; flex-shrink:0; }
         #tl-panel-phrase-meta { font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:#8cc4f0; margin-bottom:3px; }
@@ -102,6 +102,7 @@ add_action('wp_footer', function () {
         .tl-panel-field textarea:focus { border-color:#2563eb; outline:none; box-shadow:0 0 0 1px #2563eb; }
         .tl-panel-field textarea[data-lang="pl"] { background:#f9f9f9; }
         .tl-panel-field textarea.readonly { background:#f0f0f0; cursor:not-allowed; }
+        .tl-panel-hint { margin:6px 0 0; font-size:12px; line-height:1.45; color:#64748b; }
         .tl-panel-info, .tl-panel-info-new { border-radius:4px; padding:10px 12px; font-size:12px; margin-bottom:14px; }
         .tl-panel-info { background:#fff3cd; border:1px solid #ffc107; color:#856404; }
         .tl-panel-info-new { background:#cce5ff; border:1px solid #b8daff; color:#004085; }
@@ -119,6 +120,11 @@ add_action('wp_footer', function () {
         #tl-overlay.active { display:block; }
         #tl-add-new-btn { position:fixed; bottom:24px; right:80px; z-index:99998; height:36px; padding:0 14px; border-radius:18px; background:#16a34a; color:#fff; border:none; cursor:pointer; font-size:12px; font-weight:600; box-shadow:0 2px 8px rgba(0,163,42,.35); display:none; align-items:center; gap:6px; transition:transform .2s; }
         body.tl-edit-mode #tl-add-new-btn { display:flex; }
+        /* Telefon (1.239.0): panel ma szerokość ekranu (min(400px,100vw) wyżej),
+           a pola 16 px — Safari na iPhonie powiększa stronę przy polu poniżej 16 px. */
+        @media (max-width:600px) {
+            .tl-panel-field textarea, #tl-panel-dd-key, #tl-panel-group-select { font-size:16px; }
+        }
     </style>
 
     <button id="tl-fab" title="Inline editor tlumaczen (Alt+T)">🌐</button>
@@ -346,6 +352,10 @@ add_action('wp_footer', function () {
                     }
 
                     currentType = response.data.type || type;
+                    /* Serwer może oddać frazę nadrzędną (część dłuższej frazy) — zapis
+                       idzie do tej, którą panel pokazuje, bo polskiego już się tu nie
+                       zmienia (1.239.0). */
+                    if (response.data.pl) currentPhrase = response.data.pl;
                     if (response.data.dd_key) $ddKeyInput.value = response.data.dd_key;
                     renderFields(response.data.pl || pl, response.data.translations || {}, currentType, response.data.raw, false);
                 })
@@ -359,11 +369,18 @@ add_action('wp_footer', function () {
             if (type === 'inline' && rawCode && !isNew) html += `<div class="tl-panel-info"><strong>Fraza inline</strong><br>Zdefiniowana w szablonie: <code>${esc(rawCode)}</code><br>Kliknij "Dodaj do bazy" aby zarzadzac centralnie.</div>`;
 
             const readonly = (type === 'inline' && !isNew) ? 'readonly class="readonly"' : '';
-            html += `<div class="tl-panel-field"><label>Polski <span style="font-size:9px;background:#475569;color:#fff;padding:1px 5px;border-radius:3px;">bazowy</span></label><textarea data-lang="pl" id="tl-pl-input" ${readonly}>${esc(isNew ? '' : pl)}</textarea></div>`;
+            /* ORYGINAŁ TYLKO DO ODCZYTU (1.239.0), edytowalny wyłącznie w nowej
+               frazie. Fraza polska jest KLUCZEM słownika: zmiana tutaj zmieniała
+               klucz, a tekst strony zostawał stary, więc tłumaczenie przestawało
+               do niego pasować (zgłoszone z użycia). Serwer odrzuca taką zmianę
+               także z pominięciem pola — tl_inline_save_full. */
+            const plReadonly = isNew ? '' : 'readonly class="readonly" aria-describedby="tl-pl-hint"';
+            const plHint = isNew ? '' : '<p class="tl-panel-hint" id="tl-pl-hint">Oryginał zmieniasz w Bricksie, a frazę {tl_…} w panelu Tłumaczeń. Tu tylko tłumaczenia: zmiana polskiej frazy odcięłaby je od strony.</p>';
+            html += `<div class="tl-panel-field"><label for="tl-pl-input">Polski <span style="font-size:9px;background:#475569;color:#fff;padding:1px 5px;border-radius:3px;">bazowy</span></label><textarea data-lang="pl" id="tl-pl-input" ${plReadonly}>${esc(isNew ? '' : pl)}</textarea>${plHint}</div>`;
 
             CODES.forEach(function(code) {
                 const current = code === CURRENT_LANG ? '<span class="tl-lang-current">aktualny</span>' : '';
-                html += `<div class="tl-panel-field"><label>${esc(LANG_LABELS[code] || code.toUpperCase())}${current}</label><textarea data-lang="${esc(code)}" placeholder="Wpisz tlumaczenie..." ${readonly}>${esc(translations[code] || '')}</textarea></div>`;
+                html += `<div class="tl-panel-field"><label for="tl-f-${esc(code)}">${esc(LANG_LABELS[code] || code.toUpperCase())}${current}</label><textarea data-lang="${esc(code)}" id="tl-f-${esc(code)}" placeholder="Wpisz tlumaczenie..." ${readonly}>${esc(translations[code] || '')}</textarea></div>`;
             });
 
             $fields.innerHTML = html;
@@ -460,14 +477,8 @@ add_action('wp_footer', function () {
 
         $save.addEventListener('click', function() {
             if (!currentPhrase || currentType === 'inline') return;
-            const plInput = document.getElementById('tl-pl-input');
-            const newPl = plInput ? plInput.value.trim() : currentPhrase;
-            if (!newPl) {
-                $status.textContent = 'Wpisz fraze PL';
-                $status.className = 'err';
-                return;
-            }
-            saveAll($save, 'Zapisz', currentPhrase, newPl, collectTranslations());
+            // Fraza polska zawsze ta, którą otwarto — pole jest tylko do odczytu (1.239.0).
+            saveAll($save, 'Zapisz', currentPhrase, currentPhrase, collectTranslations());
         });
 
         $addToDb.addEventListener('click', function() {

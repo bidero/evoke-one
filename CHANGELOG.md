@@ -2,6 +2,81 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.239.0] — 2026-09-26
+
+Dziesiąte wydanie po audycie 1.229.6: kolory White Label na pasku górnym
+i na ekranach wtyczki oraz edytor tłumaczeń na froncie.
+
+### Naprawione
+
+- **White Label: własne pozycje paska górnego w kolorach paska.** Zgłoszone
+  z użycia: „kolory inne niż ustawione w White Label". Kolory treści szły po
+  `#wpcontent`, a w wp-admin pasek górny leży wewnątrz `#wpcontent`.
+  „Kolor linków" ma `!important` i stał w arkuszu po regułach paska. Każda
+  pozycja paska z adresem, także własna i także „+ Nowy" z rdzenia,
+  dostawała więc kolor linków treści, a lista bez adresu zostawała w kolorze
+  paska. Na froncie ta sama pozycja miała kolor paska, więc w adminie
+  i na stronie wyglądała inaczej. Zmierzone w Chromium na prawdziwym
+  wp-admin: własny odnośnik #dc2626 (kolor linków), własna lista #eee.
+  Sam „Kolor główny" robił to samo przy pasku rdzenia, choć bez
+  `!important`, bo `#wpcontent a…` ma wyższą specyficzność. Kolory treści
+  obejmują teraz tylko treść ekranu (`#wpbody`). Zniknęła też łatka, która
+  przywracała kolor jednej pozycji („site-name"), bo przyczyny już nie ma.
+- **Ikony w rozwiniętej liście własnej pozycji paska w kolorze tekstu.**
+  Reguły najechania kolorowały wszystkie ikony wewnątrz najechanej pozycji:
+  po otwarciu listy ikony jej pozycji brały kolor linku paska, a tekst obok
+  zostawał szary. Ikona pozycji podmenu bierze teraz kolor jej tekstu,
+  w wp-admin i na froncie.
+- **White Label nie przebarwia ekranów Evoke ONE.** Zgłoszone z użycia:
+  „zmiana kolorów tekstu i linków zmienia kolor napisów w panelu lewym".
+  Ta sama reguła dostawała się do bocznego menu panelu. Wszystkie pozycje,
+  także aktywna, były w kolorze linków, więc aktywna przestawała się
+  wyróżniać. „Kolor główny" (domyślnie #2563eb) niebieszczył menu przy
+  każdym włączonym White Label. Decyzja zgłaszającego: ekrany wtyczki mają
+  własne kolory. Na panelu, w Tłumaczeniach, Newsletterze i Skrzynce kolory
+  główny, tekstu i linków z White Label nie działają. Pasek górny, menu
+  WordPressa i reszta wp-admin biorą je jak dotąd. Ekrany wtyczki poznaje
+  się po slugu strony z przedrostkiem `evoke-` albo `evk-`.
+- **Tłumaczenia: edytor na froncie nie zmienia już frazy polskiej.**
+  Zgłoszone z użycia: po poprawce polskiej frazy tłumaczenie przestawało
+  działać. Pole „Polski (bazowy)" zmieniało klucz w słowniku, a nie tekst
+  strony. Strona dalej miała stary tekst, który od tej chwili nie pasował do
+  żadnej frazy, a edytor podmieniał go tylko w przeglądarce, więc do
+  odświeżenia wyglądało, że się udało. Decyzja zgłaszającego: pole polskie
+  jest tylko do odczytu, z podpowiedzią, że oryginał zmienia się w Bricksie,
+  a frazę `{tl_…}` w panelu Tłumaczeń. Serwer odrzuca zmianę frazy także
+  z pominięciem pola. Nowa fraza („+ Nowa fraza") i „Dodaj do bazy" działają
+  jak dotąd. Etykiety pól edytora wskazują teraz swoje pola.
+- **Tłumaczenia: edytor na froncie na telefonie.** Panel miał na sztywno
+  400 px szerokości, więc na ekranie 360 px lewy brzeg z etykietami i polami
+  był poza ekranem. Teraz ma szerokość ekranu, a wysokość liczy się bez
+  paska adresu (`100dvh`). Przycisk zamknięcia ma 40×40 px zamiast 16×16.
+  Pola na wąskim ekranie mają 16 px, bo Safari na iPhonie powiększa stronę
+  przy polu z mniejszym pismem. Tego zachowania nie da się sprawdzić bez
+  iPhone'a; sprawdzamy sam rozmiar. Na komputerze układ bez zmian.
+
+### Testy
+
+- `admin-whitelabel-kolory` (nowy). Testowy WordPress przez `php -S`,
+  prawdziwe arkusze rdzenia, Chromium. Kolory panelu na dwóch ekranach
+  z White Label i bez muszą być identyczne. Na Kokpicie kolory tekstu
+  i linków dalej działają. Własny odnośnik paska ma kolor paska: taki sam
+  jak lista, „+ Nowy" i ten sam odnośnik na froncie. Ikona podmenu ma
+  kolor tekstu. Osobno White Label zaraz po włączeniu, z samym kolorem
+  głównym. Sonda wyciąga tokenizerem PHP wszystkie wywołania `add_*_page()`
+  z `includes/` i sprawdza, że każdą stronę wtyczki rozpoznaje wyjątek,
+  a obcych nie. Nowa strona bez przedrostka zapali test.
+- `tl-edytor-frontu` (nowy). Testowy WordPress, prawdziwe żądania AJAX
+  edytora. Pole polskie tylko do odczytu, zapis tłumaczenia bez zmiany frazy.
+  Serwer odrzuca zmianę frazy wysłaną wprost, a nową frazę przyjmuje. Na
+  telefonie 360 px: panel w całości na ekranie, przycisk zamknięcia
+  40×40 px, pola 16 px, zamknięcie stuknięciem. Na komputerze: 400 px
+  i 13 px jak dotąd.
+- Mutacje (14): sześć dla White Label, osiem dla edytora na froncie. Każda
+  zapala własny podzbiór, np. wyjątek dla ekranów wtyczki wycięty → dziewięć
+  sprawdzeń panelu, wyjątek na każdym ekranie → trzy sprawdzenia Kokpitu.
+- Pełny przebieg: 5098 sprawdzeń w 101 plikach.
+
 ## [1.238.0] — 2026-09-26
 
 Dziewiąte wydanie po audycie 1.229.6: panel z klawiatury, przezroczyste tło

@@ -798,9 +798,50 @@ add_action('admin_head', function () {
 // -------------------------------------------------------------------------
 // Custom CSS + kolory (admin_head)
 // -------------------------------------------------------------------------
+/**
+ * Ekran samej wtyczki (panel, Tłumaczenia, Newsletter, Skrzynka) — po slugu
+ * strony z `?page=`. Wszystkie strony wtyczki mają przedrostek „evoke-" albo
+ * „evk-", a tests/php/white-label-kolory.php (polecenie „ekrany") wyciąga je
+ * ze źródła i sprawdza, że każda jest tu rozpoznana.
+ */
+function evk_wl_ekran_wtyczki(string $strona): bool {
+    return (bool) preg_match('/^(evoke|evk)-[a-z0-9-]+$/', $strona);
+}
+
+/**
+ * Ikona pozycji podmenu w kolorze jej tekstu — w wp-admin i na froncie.
+ *
+ * Własne pozycje „Paska górnego" mogą mieć ikonę także w podmenu (rdzeń jej
+ * tam nie daje), a reguły najechania, i rdzenia, i White Label, kolorują
+ * WSZYSTKIE ikony wewnątrz najechanej pozycji. Po otwarciu listy jej ikony
+ * brały więc kolor linku paska, a tekst obok zostawał szary (zmierzone przy
+ * 1.238.0: tekst #ddd, ikona #fde047). `#wp-toolbar` podnosi specyficzność do
+ * dwóch identyfikatorów — reguły najechania mają jeden, choć bywają długie
+ * (`#wpadminbar .ab-top-menu>li.hover .ab-icon`).
+ */
+function evk_wl_css_ikony_podmenu(): string {
+    return '#wpadminbar #wp-toolbar .ab-submenu .ab-item .ab-icon,'
+         . '#wpadminbar #wp-toolbar .ab-submenu .ab-item .ab-icon:before{color:inherit!important;}';
+}
+
 add_action('admin_head', function () {
     $wl = evk_wl_get();
     if (empty($wl['enabled'])) return;
+
+    /* KOLORY TREŚCI (główny, tekst, linki) — tylko w treści ekranu, nigdy na
+       pasku górnym i nigdy na ekranach Evoke ONE.
+
+       Do 1.238.0 szły po `#wpcontent`, a w wp-admin pasek górny leży WEWNĄTRZ
+       #wpcontent. „Kolor linków" ma !important i stoi w arkuszu po regułach
+       paska, więc każda pozycja paska będąca odnośnikiem (także własna z „Paska
+       górnego") dostawała kolor linków treści, a lista bez adresu — kolor
+       paska. Zgłoszone z użycia: „własna pozycja — kolory inne niż ustawione".
+       Ta sama reguła przebarwiała boczne menu panelu Evoke ONE, a „Kolor
+       główny" (domyślnie #2563eb, czyli przy każdym włączonym White Label)
+       robił to nawet bez !important. Decyzja zgłaszającego: ekrany wtyczki
+       mają własne kolory. Pilnuje tests/admin-whitelabel-kolory.test.js. */
+    $strona = isset($_GET['page']) && is_string($_GET['page']) ? sanitize_key(wp_unslash($_GET['page'])) : '';
+    $wlasne_kolory = evk_wl_ekran_wtyczki($strona);
 
     $css = '#adminmenu,#adminmenu *{transition:none!important;animation:none!important;}';
 
@@ -815,10 +856,12 @@ add_action('admin_head', function () {
         $c   = esc_attr($wl['color_primary']);
         $rgb = evk_hex_to_rgb($wl['color_primary']);
         $css .= ":root{--wp-admin-theme-color:{$c}!important;--wp-admin-theme-color--rgb:{$rgb}!important;--wp-admin-theme-color-darker-10:color-mix(in srgb,{$c} 90%,#000 10%)!important;--wp-admin-theme-color-darker-20:color-mix(in srgb,{$c} 80%,#000 20%)!important;}";
-        $css .= ".wp-core-ui .button-primary{background:{$c}!important;border-color:{$c}!important;box-shadow:none!important;}";
-        $css .= ".wp-core-ui .button-primary:hover,.wp-core-ui .button-primary:focus{background:color-mix(in srgb,{$c} 85%,#000)!important;border-color:color-mix(in srgb,{$c} 85%,#000)!important;}";
-        $css .= "#wpcontent a:not(.button):not(.wp-block-button__link){color:{$c};}";
-        $css .= "input[type=checkbox]:checked,input[type=radio]:checked{border-color:{$c}!important;background:{$c}!important;}";
+        if (!$wlasne_kolory) {
+            $css .= ".wp-core-ui .button-primary{background:{$c}!important;border-color:{$c}!important;box-shadow:none!important;}";
+            $css .= ".wp-core-ui .button-primary:hover,.wp-core-ui .button-primary:focus{background:color-mix(in srgb,{$c} 85%,#000)!important;border-color:color-mix(in srgb,{$c} 85%,#000)!important;}";
+            $css .= "#wpbody-content a:not(.button):not(.wp-block-button__link){color:{$c};}";
+            $css .= "input[type=checkbox]:checked,input[type=radio]:checked{border-color:{$c}!important;background:{$c}!important;}";
+        }
     }
 
     if (!empty($wl['color_menu_bg'])) {
@@ -890,18 +933,21 @@ add_action('admin_head', function () {
         $css .= "#adminmenu li.wp-has-submenu.wp-not-current-submenu.opensub:hover:after,#adminmenu li.wp-has-submenu.wp-not-current-submenu:focus-within:after{border-right-color:{$bg}!important;}";
     }
 
-    if (!empty($wl['color_content_text'])) {
+    if (!empty($wl['color_content_text']) && !$wlasne_kolory) {
         $fg   = esc_attr($wl['color_content_text']);
-        $css .= "#wpcontent,#wpbody{color:{$fg}!important;}";
-        $css .= "#wpcontent h1,#wpcontent h2,#wpcontent h3,#wpcontent h4{color:{$fg}!important;}";
+        $css .= "#wpbody{color:{$fg}!important;}";
+        $css .= "#wpbody h1,#wpbody h2,#wpbody h3,#wpbody h4{color:{$fg}!important;}";
     }
 
-    if (!empty($wl['color_link'])) {
+    /* Bez dawnej łatki na „site-name" (#eee): była obejściem tego samego
+       przecieku dla jednej pozycji paska, a przyczyny już nie ma. */
+    if (!empty($wl['color_link']) && !$wlasne_kolory) {
         $lc   = esc_attr($wl['color_link']);
-        $css .= "#wpcontent a:not(.button){color:{$lc}!important;}";
-        $css .= "#wpcontent a:not(.button):hover{opacity:.8;}";
-        $css .= "#wpadminbar #wp-admin-bar-site-name a,#wpadminbar #wp-admin-bar-site-name a.ab-item{color:#eee!important;}";
+        $css .= "#wpbody-content a:not(.button){color:{$lc}!important;}";
+        $css .= "#wpbody-content a:not(.button):hover{opacity:.8;}";
     }
+
+    $css .= evk_wl_css_ikony_podmenu();
 
     if (!empty($wl['color_notice_bg'])) {
         $nb   = esc_attr($wl['color_notice_bg']);
@@ -1082,7 +1128,12 @@ add_action('wp_head', function () {
 // -------------------------------------------------------------------------
 add_action('wp_head', function () {
     $wl = evk_wl_get();
-    if (empty($wl['enabled']) || empty($wl['admin_bar_color'])) return;
+    if (empty($wl['enabled'])) return;
+    if (empty($wl['admin_bar_color'])) {
+        // Własne pozycje paska są też na froncie — ikony podmenu jak w wp-admin.
+        if (is_admin_bar_showing()) echo '<style id="evk-wl-frontend">' . evk_wl_css_ikony_podmenu() . '</style>';
+        return;
+    }
 
     $bar = esc_attr($wl['admin_bar_color']);
     $hbg = !empty($wl['admin_bar_hover_color']) ? esc_attr($wl['admin_bar_hover_color']) : "color-mix(in srgb,{$bar} 80%,#000 20%)";
@@ -1108,5 +1159,6 @@ add_action('wp_head', function () {
               . "{color:{$abl}!important;}";
     }
 
+    $css .= evk_wl_css_ikony_podmenu();
     echo '<style id="evk-wl-frontend">'.$css.'</style>';
 }, 9999);
