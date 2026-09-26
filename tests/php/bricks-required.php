@@ -99,6 +99,17 @@ $lancuchy = array_values(array_filter($wszystkie, fn($w) => $w['czlonow'] > 3));
 // kontrolka też się wtedy nie pokaże, a w źródle wygląda poprawnie.
 $wiszace = array_values(array_filter($wszystkie, fn($w) => !$w['istnieje']));
 
+/* WYJĄTEK OD 1.247.0: ukryty znacznik przy przełączniku „Włącz…"
+ * (evk_przelacznik_nowy() w flaga.php) chowa się warunkiem na pole, którego
+ * nie ma — `[ 'evk_nigdy', '=', 'tak' ]`, dokładnie tak jak w próbie
+ * z 1.243.0, gdzie Bricks nie pokazał pola i mimo to zapisał jego domyślną.
+ * Wyjątek jest wąski: tylko pole `…_nowy`, tylko ten jeden warunek — i tylko
+ * dopóki `evk_nigdy` naprawdę nie istnieje (wtedy nie byłby wiszący, a liczba
+ * znaczników w teście spadłaby do zera). */
+$znaczniki = array_values(array_filter($wiszace, fn($w) =>
+    substr($w['pole'], -5) === '_nowy' && $w['wskazuje'] === 'evk_nigdy' && $w['oczekuje'] === 'tak'));
+$wiszace = array_values(array_filter($wiszace, fn($w) => !in_array($w, $znaczniki, true)));
+
 /* TRZECIA KLASA CICHEJ USTERKI, znaleziona przy zamianie list wyboru na
  * przełączniki (1.201.0). Warunek może wskazywać pole, które ISTNIEJE, i mimo
  * to nigdy się nie spełnić — bo pyta o wartość, której to pole nie zapisuje.
@@ -121,6 +132,7 @@ echo json_encode([
     'elementow'   => count(array_unique(array_column($wszystkie, 'element'))),
     'warunkow'    => count($wszystkie),
     'wiszace'     => array_map(fn($w) => $w['element'] . '/' . $w['pole'] . ' → ' . $w['wskazuje'], $wiszace),
+    'znaczniki'   => array_map(fn($w) => $w['element'] . '/' . $w['pole'], $znaczniki),
     'zleTypy'     => array_map(
         fn($w) => $w['element'] . '/' . $w['pole'] . ' → ' . $w['wskazuje']
             . ' = ' . json_encode($w['oczekuje'], JSON_UNESCAPED_UNICODE),

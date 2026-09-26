@@ -169,12 +169,13 @@ class Evk_Grain_Element extends \Bricks\Element {
 			'label'       => 'Bez przewijania z treścią',
 			'type'        => 'checkbox',
 			'default'     => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
 			'description' => 'Ziarno wędruje razem z treścią zamiast stać w miejscu na ekranie.',
+			'required'    => [ 'przewijaj_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'przewijaj', 'Przewijaj z treścią', $this->controls['przewijaj_off'] );
 
 		$this->controls['mnoznik_scrolla'] = [
 			'group'       => 'evk_ruch',
@@ -206,14 +207,15 @@ class Evk_Grain_Element extends \Bricks\Element {
 			'label'       => 'Wyłącz automat jakości',
 			'type'        => 'checkbox',
 			'default'     => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
 			'description' => 'Gdy klatki zaczynają wypadać z budżetu, ziarno samo przechodzi '
 				. 'na nieruchome zamiast dokładać się do zacinania. Wyłącz tylko wtedy, '
 				. 'gdy mierzysz.',
+			'required'    => [ 'auto_jakosc_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'auto_jakosc', 'Automat jakości', $this->controls['auto_jakosc_off'] );
 	}
 
 	public function render() {

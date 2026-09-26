@@ -52,6 +52,12 @@ module.exports = async function (t) {
   t.check('brak wiszących odwołań', d.wiszace.length === 0,
     d.wiszace.join(', ') || 'wszystkie trafiają');
 
+  /* Wyjątek od 1.247.0: ukryte znaczniki przełączników „Włącz…" chowają się
+     warunkiem na nieistniejące `evk_nigdy` (jak w próbie z 1.243.0). Liczba
+     wpisana ręcznie: jeden znacznik na każdy przełącznik „Włącz…". */
+  t.check('wiszące celowo: tylko ukryte znaczniki „…_nowy", piętnaście', (d.znaczniki || []).length === 15,
+    (d.znaczniki || []).join(', ') || 'brak');
+
   // ── Warunek pytający o wartość, której pole nie zapisuje ─────────────────
   /* TRZECIA klasa cichej usterki, znaleziona przy zamianie list wyboru na
      przełączniki (1.201.0) — i przeoczona przez oba sprawdzenia wyżej.

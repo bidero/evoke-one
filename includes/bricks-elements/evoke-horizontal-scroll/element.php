@@ -226,12 +226,13 @@ class Evk_Horizontal_Scroll_Element extends \Bricks\Element {
 			'label'       => esc_html__( 'Nie przyciągaj do paneli', 'evk-horizontal-scroll' ),
 			'type'        => 'checkbox',
 			'default'     => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
 			'description' => esc_html__( 'Po zatrzymaniu scrolla widok dociąga się do najbliższego panelu.', 'evk-horizontal-scroll' ),
+			'required'    => [ 'snap_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'snap', esc_html__( 'Przyciągaj do paneli', 'evk-horizontal-scroll' ), $this->controls['snap_off'] );
 
 		$this->controls['snap_duration'] = [
 			'group'       => 'evk_anim',

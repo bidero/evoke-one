@@ -244,12 +244,13 @@ class Evk_Marquee_Element extends \Bricks\Element {
 			'label'       => 'Nie pauzuj poza ekranem',
 			'type'        => 'checkbox',
 			'default'     => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
 			'description' => 'Wstrzymuje pętlę i przestaje reagować na przewijanie, gdy marquee jest poza kadrem.',
+			'required'    => [ 'pause_offscreen_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'pause_offscreen', 'Pauzuj poza ekranem', $this->controls['pause_offscreen_off'] );
 
 		/*
 		 * Zapas przed wejściem w kadr.

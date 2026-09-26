@@ -363,6 +363,20 @@ module.exports = async function (t) {
     w['Bricks zapisuje jedynkę'] === true && w['Bricks zapisuje zero'] === false);
   t.check('obcy klucz nie podszywa się pod pytany', w['klucz obok nie ma wpływu'] === true);
 
+  /* evk_wlaczone(): stary element czyta „…_off" jak dotąd, nowy (ukryty
+     znacznik „…_nowy" = 2, zapisany przy wstawieniu) — zwykłe „Włącz…",
+     w którym brak klucza znaczy odznaczone (1.247.0). */
+  const wl = f.wlaczone || {};
+  t.check('stary element: nietknięty włączony, „_off" wyłącza, zapis „nie" wyłącza',
+    wl['stary: nietknięty'] === true && wl['stary: „_off" zaznaczone'] === false && wl['stary: zapis sprzed odwrócenia „nie"'] === false,
+    JSON.stringify(wl));
+  t.check('nowy element: po wstawieniu włączony, odznaczony (brak klucza albo false) wyłączony',
+    wl['nowy: po wstawieniu'] === true && wl['nowy: odznaczone (brak klucza)'] === false && wl['nowy: odznaczone (false)'] === false
+      && wl['nowy: znacznik napisem „2"'] === false, JSON.stringify(wl));
+  t.check('nowy element nie patrzy na „_off"; znacznik 1 albo cudzy to element stary',
+    wl['nowy: „_off" nie gra roli'] === true && wl['znacznik 1 to nie nasz'] === true && wl['znacznik innego przełącznika'] === true,
+    JSON.stringify(wl));
+
   /* Sonda ładuje flaga.php wprost, więc sama nie dowodzi, że plik dociera do
      produkcji. Elementy widzą tę funkcję WYŁĄCZNIE przez loader.php. */
   t.check('loader.php dociąga flaga.php', f.loader_dociaga === true,
@@ -515,9 +529,26 @@ module.exports = async function (t) {
 
      ZGŁOSZONE Z UŻYCIA: „szum w WaveBG nie działa (zawsze widoczny)",
      „Przyciągaj do paneli w HS nie działa", „nie działa wyłączanie cienia". */
-  t.check('żaden przełącznik nie ma domyślnej WŁĄCZONEJ',
+  t.check('żaden przełącznik nie ma domyślnej WŁĄCZONEJ (poza parą ze znacznikiem)',
     dw.zDomyslnaWlaczona.length === 0,
     dw.zDomyslnaWlaczona.join(', ') || 'wszystkie domyślnie wyłączone');
+
+  /* WYJĄTEK OD 1.247.0: „Włącz…" w parze z ukrytym znacznikiem (próba
+     z 1.243.0 na Bricksie 2.4.1: znacznik zapisuje się w nowym elemencie,
+     a stary zostaje bez niego). Para w całości — trzy kontrolki w jednej
+     grupie — i jej działanie na renderze: N1 świeżo wstawiony nowy działa
+     jak stary nietknięty, N2 odznaczenie wyłącza (brak klucza, false, null),
+     N3 wyłączone w nowym = „…_off" zaznaczone w starym. */
+  t.check('pary „Włącz…" ze znacznikiem: piętnaście, każda w całości', (dw.sparowane || []).length === 15,
+    (dw.sparowane || []).join(', '));
+  t.check('odwrócony bez pary tylko jeden: „Esc nie cofa o poziom" (ma już warunek trybu)',
+    JSON.stringify(dw.nieparowaneOff) === '["evoke-offcanvas-menu/escGoesBack_off"]', JSON.stringify(dw.nieparowaneOff));
+  t.check('N1: nowy element po wstawieniu działa jak stary nietknięty', (dw.nowyInaczej || ['?']).length === 0,
+    (dw.nowyInaczej || []).join(', ') || 'wszystkie tak samo');
+  t.check('N2: w nowym elemencie odznaczenie wyłącza', (dw.nowyNieDoWylaczenia || ['?']).length === 0,
+    (dw.nowyNieDoWylaczenia || []).join(', ') || 'wszystkie się wyłączają');
+  t.check('N3: wyłączone w nowym = „…_off" zaznaczone w starym', (dw.nowyRozjazd || ['?']).length === 0,
+    (dw.nowyRozjazd || []).join(', ') || 'wszystkie zgodne');
 
   t.check('weszło dziesięć elementów', dw.elementow === 10, dw.elementow + ' elementów');
   t.check('żaden nie wypadł z badania', dw.pominiete.length === 0,

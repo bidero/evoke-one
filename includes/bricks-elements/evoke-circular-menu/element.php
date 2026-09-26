@@ -118,12 +118,13 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'inline'  => true,
 			'small'   => true,
 			'default' => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
 			'description' => esc_html__( 'Panel nie jest wtedy ograniczany przez overflow:hidden ani position rodziców.', 'evk-circular-menu' ),
+			'required'    => [ 'portalToBody_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'portalToBody', esc_html__( 'Przenieś do &lt;body&gt;', 'evk-circular-menu' ), $this->controls['portalToBody_off'] );
 
 		/* Punkt, z którego kadr się rozwija. Zmienne siedzą na `.evk-cm-content`,
 		   bo panel jedzie portalem do <body> razem z nimi — reguła Bricksa
@@ -378,11 +379,12 @@ class Evk_Circular_Menu extends \Bricks\Element {
 			'inline'  => true,
 			'small'   => true,
 			'default' => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
+			'required'    => [ 'closeOnEsc_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'closeOnEsc', esc_html__( 'Zamykaj klawiszem ESC', 'evk-circular-menu' ), $this->controls['closeOnEsc_off'] );
 
 		/* DOMYŚLNIE WYŁĄCZONE, w odróżnieniu od „Blokuj przewijanie strony"
 		   w Offcanvas Menu, gdzie jest włączone. Ta różnica jest zastana i tu

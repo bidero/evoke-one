@@ -218,11 +218,12 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'label'   => 'Wyłącz szum',
 			'type'    => 'checkbox',
 			'default' => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
+			'required'    => [ 'noise_enabled_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'noise_enabled', 'Szum', $this->controls['noise_enabled_off'] );
 
 		$this->controls['noise_intensity'] = [
 			'group'       => 'evk_szum',
@@ -275,11 +276,12 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'label'   => 'Wyłącz maskę dolną',
 			'type'    => 'checkbox',
 			'default' => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
+			'required'    => [ 'mask_enabled_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'mask_enabled', 'Maska dolna', $this->controls['mask_enabled_off'] );
 
 		$this->controls['mask_start'] = [
 			'group'       => 'evk_maski',
@@ -411,7 +413,9 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'type'        => 'checkbox',
 			'default'     => false,
 			'description' => 'Wstrzymuje pętlę po wyjściu elementu z widoku. Bez tego chodzi z pełną prędkością także po przewinięciu daleko poza niego.',
+			'required'    => [ 'pause_offscreen_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'pause_offscreen', 'Zatrzymuj poza ekranem', $this->controls['pause_offscreen_off'] );
 
 		/* Bufor rysowania. Zmierzone: 133,3 ms wobec 133,4 ms bez niego, czyli
 		 * różnica w szumie pomiaru — to NIE jest ustawienie wydajności, mimo że
@@ -444,7 +448,9 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'type'        => 'checkbox',
 			'default'     => false,
 			'description' => 'Na sprzęcie z GPU nie zmienia nic. Bez GPU zdejmuje kolejno post-processing i rozdzielczość, a w ostateczności zatrzymuje animację na nieruchomym kadrze.',
+			'required'    => [ 'auto_jakosc_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'auto_jakosc', 'Dopasowuj jakość', $this->controls['auto_jakosc_off'] );
 
 		$this->controls['budzet_klatki'] = [
 			'group'       => 'evk_wydajnosc',

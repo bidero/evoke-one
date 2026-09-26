@@ -102,11 +102,12 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'label'   => esc_html__( 'Nie zmniejszaj kart', 'evk-stacking-cards' ),
 			'type'    => 'checkbox',
 			'default' => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
+			'required'    => [ 'shrink_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'shrink', esc_html__( 'Zmniejszaj karty', 'evk-stacking-cards' ), $this->controls['shrink_off'] );
 
 		$this->controls['min_scale'] = [
 			'group' => 'evk_efekt',
@@ -138,12 +139,13 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 			'label'       => esc_html__( 'Bez cienia kart', 'evk-stacking-cards' ),
 			'type'        => 'checkbox',
 			'default'     => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
 			'description' => esc_html__( 'Oddziela karty od siebie — bez cienia stos bywa płaski.', 'evk-stacking-cards' ),
+			'required'    => [ 'shadow_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'shadow', esc_html__( 'Cień kart', 'evk-stacking-cards' ), $this->controls['shadow_off'] );
 
 		$this->controls['shadow_value'] = [
 			'group' => 'evk_efekt',

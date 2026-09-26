@@ -14,6 +14,12 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *      odczytu tego nie obejdzie. Pola, które mają być domyślnie włączone,
  *      idą przez ODWRÓCONY przełącznik i `evk_wlaczone()` (patrz flaga.php).
  *
+ *      WYJĄTEK OD 1.247.0: „Włącz…" z evk_przelacznik_nowy() — w parze
+ *      z ukrytym znacznikiem `{klucz}_nowy` i z „{klucz}_off" schowanym
+ *      w nowych elementach. Znacznik rozróżnia element nowy od starego, więc
+ *      brak klucza znaczy tam „odznaczone". Para jest sprawdzana w całości
+ *      (kształt trzech kontrolek), a jej działanie regułami N1–N3 niżej.
+ *
  *      To jest reguła, której brak kosztował trzy błędne diagnozy i dwa
  *      wydania. Dowód siedział w jednym elemencie, w dwóch linijkach obok
  *      siebie w evoke-wave-bg/element.php: maska dolna czytana z domyślną
@@ -84,9 +90,36 @@ function wyjscie(string $klasa, array $ustawienia): string {
     return (string) ob_get_clean();
 }
 
+/**
+ * Para z evk_przelacznik_nowy(): „Włącz…" z warunkiem na znacznik, ukryty
+ * znacznik (liczba 2, warunek na pole, którego nie ma) i „…_off" schowany
+ * w nowych elementach. Sprawdzany kształt wszystkich trzech — brak którejś
+ * części to z powrotem pole nie do wyłączenia albo dwa przełączniki naraz.
+ *
+ * @param array<string,mixed> $kontrolki
+ */
+function para_ze_znacznikiem(array $kontrolki, string $klucz): bool {
+    $pole = $kontrolki[$klucz] ?? null;
+    $zn   = $kontrolki[$klucz . '_nowy'] ?? null;
+    $off  = $kontrolki[$klucz . '_off'] ?? null;
+    return is_array($pole) && is_array($zn) && is_array($off)
+        && ($pole['type'] ?? '') === 'checkbox' && ($pole['default'] ?? null) === true
+        && ($pole['required'] ?? null) === [ $klucz . '_nowy', '=', 2 ]
+        && ($zn['type'] ?? '') === 'number' && ($zn['default'] ?? null) === 2
+        && ($zn['required'] ?? null) === [ 'evk_nigdy', '=', 'tak' ]
+        && ($off['type'] ?? '') === 'checkbox' && empty($off['default'])
+        && ($off['required'] ?? null) === [ $klucz . '_nowy', '!=', 2 ]
+        && ($pole['group'] ?? '') === ($zn['group'] ?? '') && ($pole['group'] ?? '') === ($off['group'] ?? '');
+}
+
 $rozjazdy = [];
 $nieDoWylaczenia = [];
 $zDomyslnaWlaczona = [];
+$sparowane = [];
+$nieparowaneOff = [];
+$nowyInaczej = [];
+$nowyNieDoWylaczenia = [];
+$nowyRozjazd = [];
 $bezEfektu = [];
 $bezTresci = [];
 $zbadanych = 0;
@@ -129,8 +162,12 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
            odznaczeniu nie zapisuje nic, co dałoby się odczytać jako
            „wyłączone". Powody i dowód: evk_wlaczone() w flaga.php. */
         if (($def['default'] ?? null) === true) {
-            $zDomyslnaWlaczona[] = $nazwa . '/' . $klucz;
+            if (para_ze_znacznikiem($el->controls, $klucz)) { $sparowane[] = $nazwa . '/' . $klucz; }
+            else { $zDomyslnaWlaczona[] = $nazwa . '/' . $klucz; }
             continue;
+        }
+        if (substr($klucz, -4) === '_off' && !para_ze_znacznikiem($el->controls, substr($klucz, 0, -4))) {
+            $nieparowaneOff[] = $nazwa . '/' . $klucz;
         }
 
         $zbadanych++;
@@ -164,6 +201,37 @@ foreach (glob(EVK_TEST_ROOT . '/includes/bricks-elements/*/element.php') as $pli
             $bezEfektu[] = $nazwa . '/' . $klucz;
         }
     }
+
+    /* NOWE ELEMENTY (1.247.0): „Włącz…" w parze ze znacznikiem. Element
+       świeżo wstawiony ma WSZYSTKIE znaczniki i wszystkie „Włącz…" zapisane
+       (Bricks zapisuje niepuste domyślne przy wstawieniu — próba z 1.243.0),
+       więc to jest punkt wyjścia; wyłączenie jednego przełącznika to brak
+       jego klucza, bo tak Bricks zapisuje odznaczenie. */
+    $pary = [];
+    foreach ($el->controls as $klucz => $def) {
+        if (is_array($def) && ($def['type'] ?? '') === 'checkbox' && ($def['default'] ?? null) === true
+            && para_ze_znacznikiem($el->controls, $klucz)) { $pary[] = $klucz; }
+    }
+    if ($pary) {
+        $nowy = [];
+        foreach ($pary as $k) { $nowy[$k . '_nowy'] = 2; $nowy[$k] = true; }
+        /* N1: świeżo wstawiony nowy element działa jak stary nietknięty —
+           wszystko włączone, tak jak dotąd. */
+        if (wyjscie($klasa, $nowy) !== wyjscie($klasa, [])) { $nowyInaczej[] = $nazwa; }
+        foreach ($pary as $k) {
+            $bez = $nowy;
+            unset($bez[$k]);
+            $wyl = wyjscie($klasa, $bez);
+            /* N2: odznaczenie wyłącza — brak klucza, `false` i `null` to samo,
+               i inne niż włączone (poza elementem z pudełkiem zastępczym). */
+            if (($wyl !== wyjscie($klasa, $bez + [ $k => false ]) || $wyl !== wyjscie($klasa, $bez + [ $k => null ]))
+                || (!$zastepcze && $wyl === wyjscie($klasa, $nowy))) {
+                $nowyNieDoWylaczenia[] = $nazwa . '/' . $k;
+            }
+            /* N3: wyłączone w nowym = wyłączone w starym („…_off" zaznaczone). */
+            if ($wyl !== wyjscie($klasa, [ $k . '_off' => true ])) { $nowyRozjazd[] = $nazwa . '/' . $k; }
+        }
+    }
 }
 
 /* NAZWA NOWEGO KLUCZA MUSI BYĆ STARYM KLUCZEM + „_off".
@@ -191,6 +259,11 @@ echo json_encode([
     'elementow'  => $elementow,
     'zbadanych'  => $zbadanych,
     'zDomyslnaWlaczona' => $zDomyslnaWlaczona,
+    'sparowane'  => $sparowane,
+    'nieparowaneOff' => $nieparowaneOff,
+    'nowyInaczej' => $nowyInaczej,
+    'nowyNieDoWylaczenia' => $nowyNieDoWylaczenia,
+    'nowyRozjazd' => $nowyRozjazd,
     'rozjazdy'   => $rozjazdy,
     'nieDoWylaczenia' => $nieDoWylaczenia,
     'bezEfektu'  => $bezEfektu,

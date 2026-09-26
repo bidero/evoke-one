@@ -2,6 +2,65 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.247.0] — 2026-09-26
+
+Osiemnaste wydanie po audycie 1.229.6: zwykłe przełączniki „Włącz…"
+w nowych elementach Bricksa.
+
+### Zmienione (decyzja zgłaszającego)
+
+- **Nowe elementy mają z powrotem zwykłe przełączniki, domyślnie
+  włączone.** Od 1.214.0 funkcje domyślnie włączone szły przez odwrócone
+  „Bez cienia kart", „Nie przyciągaj do paneli" i podobne. Bricks przy
+  odznaczeniu pola usuwa klucz, więc „wyłączone" nie różniło się od
+  „nietknięte". Próba z 1.243.0 pokazała, że ukryte pole z wartością
+  domyślną zapisuje się przy wstawieniu elementu, a w starym elemencie się
+  nie pojawia. Takie pole („znacznik") odróżnia teraz element nowy od
+  starego.
+  - Nowy element ma zaznaczone po wstawieniu: „Cień kart", „Zmniejszaj
+    karty" (Stacking Cards); „Szum", „Maska dolna", „Zatrzymuj poza
+    ekranem", „Dopasowuj jakość" (Wave BG); „Przewijaj z treścią",
+    „Automat jakości" (Grain); „Przyciągaj do paneli" (Horizontal Scroll);
+    „Pauzuj poza ekranem" (Marquee); „Zamykaj po kliknięciu w odnośnik",
+    „Blokuj przewijanie strony", „Przenieś do <body>" (Offcanvas Menu);
+    „Przenieś do <body>", „Zamykaj klawiszem ESC" (Circular Menu).
+    Odznaczenie wyłącza.
+  - Elementy już wstawione na stronach się nie zmieniają: dalej mają
+    „Bez…" albo „Nie…" i działają jak dotąd. Element wklejony ze starej
+    strony też.
+  - W nowych elementach pola zależne (np. „Cień (CSS)" pod „Cień kart") są
+    widoczne także przy wyłączonym przełączniku. Bricks nie ma warunku
+    „stary element albo przełącznik włączony".
+  - Wyjątek: „Esc nie cofa o poziom" (Offcanvas Menu) zostaje odwrócony
+    także w nowych elementach. Pole pokazuje się tylko w trybie poziomów,
+    a Bricks nie łączy dwóch warunków widoczności.
+  - Każdy przełącznik ma własny ukryty znacznik (`…_nowy`) w swojej grupie
+    kontrolek. Warunek sięgający do innej grupy nie jest na Bricksie
+    sprawdzony.
+
+### Usunięte
+
+- **Element próbny przełączników** (1.243.0) i jego test. Na stronie
+  testowej usuń `define('EVK_BRICKS_PROBA', true);` z `wp-config.php`
+  i elementy „Evoke — próba przełączników" ze stron. Bez rejestracji Bricks
+  pokaże je jako nieznane.
+
+### Testy
+
+- `controls`:
+  - reguła zero dopuszcza domyślnie zaznaczone pole tylko w pełnej parze ze
+    znacznikiem (trzy kontrolki w jednej grupie); jedyny odwrócony bez pary
+    to „Esc nie cofa o poziom";
+  - na renderze każdego elementu: N1 nowy element po wstawieniu działa jak
+    stary nietknięty, N2 odznaczenie wyłącza (brak klucza, `false`,
+    `null`), N3 wyłączone w nowym działa jak zaznaczone „…_off" w starym;
+  - `evk_wlaczone()`: element stary i nowy, znacznik zapisany napisem,
+    cudzy znacznik.
+- `bricks-required`: wiszące odwołanie dozwolone tylko przy ukrytych
+  znacznikach (15).
+- Mutacje (6). Każda zapala własny zestaw sprawdzeń.
+- Pełny przebieg: 5258 sprawdzeń w 105 plikach.
+
 ## [1.246.0] — 2026-09-26
 
 Siedemnaste wydanie po audycie 1.229.6: wyczyszczone tłumaczenie

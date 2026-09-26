@@ -272,10 +272,11 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'label'       => esc_html__( 'Esc nie cofa o poziom', 'evoke-one' ),
 			'type'        => 'checkbox',
 			'default'     => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — także w nowych elementach (1.247.0).
+			   Pole ma już warunek „tryb poziomów", a Bricks nie łączy dwóch
+			   warunków (bricks-required), więc nie da się go schować
+			   znacznikiem i pokazać w zamian „Włącz…". Powody odwrócenia:
+			   evk_wlaczone() w flaga.php. */
 			'required'    => [ 'mode', '=', 'levels' ],
 			'description' => esc_html__( 'Na panelu startowym Esc zamyka. Wyłączone: Esc zawsze zamyka.', 'evoke-one' ),
 		];
@@ -455,11 +456,12 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'label'   => esc_html__( 'Nie zamykaj po kliknięciu w odnośnik', 'evoke-one' ),
 			'type'    => 'checkbox',
 			'default' => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
+			'required'    => [ 'closeOnLinkClick_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'closeOnLinkClick', esc_html__( 'Zamykaj po kliknięciu w odnośnik', 'evoke-one' ), $this->controls['closeOnLinkClick_off'] );
 
 		$this->controls['lockScroll_off'] = [
 			'group'       => 'evk_zamykanie',
@@ -467,11 +469,12 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'label'   => esc_html__( 'Nie blokuj przewijania strony', 'evoke-one' ),
 			'type'    => 'checkbox',
 			'default' => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
+			'required'    => [ 'lockScroll_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'lockScroll', esc_html__( 'Blokuj przewijanie strony', 'evoke-one' ), $this->controls['lockScroll_off'] );
 
 		$this->controls['triggerSelector'] = [
 			'group'       => 'evk_przelacznik',
@@ -506,12 +509,13 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			'label'       => esc_html__( 'Nie przenoś do <body>', 'evoke-one' ),
 			'type'        => 'checkbox',
 			'default'     => false,
-			/* ODWRÓCONY PRZEŁĄCZNIK — domyślna MUSI być wyłączona.
-			   Bricks przy odznaczeniu nie zapisuje nic, co dałoby się odczytać
-			   jako „wyłączone", więc pole z `'default' => true` jest nie do
-			   wyłączenia. Powody i dowód: evk_wlaczone() w flaga.php. */
+			/* ODWRÓCONY PRZEŁĄCZNIK — tylko w elementach sprzed 1.247.0 (bez
+			   znacznika). Nowe mają zwykłe „Włącz…", domyślnie zaznaczone, obok
+			   ukrytego znacznika: evk_przelacznik_nowy() w flaga.php. */
 			'description' => esc_html__( 'Panel nie jest wtedy ograniczany przez overflow:hidden ani position rodziców.', 'evoke-one' ),
+			'required'    => [ 'toBody_nowy', '!=', 2 ],
 		];
+		$this->controls += evk_przelacznik_nowy( 'toBody', esc_html__( 'Przenieś do <body>', 'evoke-one' ), $this->controls['toBody_off'] );
 
 		/*
 		 * Nagłówek NAD otwartym menu.

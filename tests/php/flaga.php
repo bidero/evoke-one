@@ -35,6 +35,25 @@ foreach ($przypadki as $nazwa => [$ust, $klucz, $dom]) {
     $wynik[$nazwa] = evk_flaga($ust, $klucz, $dom);
 }
 
+/* evk_wlaczone() — przełącznik stary („x_off") i nowy („x" ze znacznikiem
+   „x_nowy", 1.247.0). Każdy wiersz: ustawienia elementu. */
+$przelaczniki = [
+    'stary: nietknięty'                    => [],
+    'stary: „_off" zaznaczone'             => [ 'x_off' => true ],
+    'stary: zapis sprzed odwrócenia „nie"' => [ 'x' => 'nie' ],
+    'nowy: po wstawieniu'                  => [ 'x_nowy' => 2, 'x' => true ],
+    'nowy: odznaczone (brak klucza)'       => [ 'x_nowy' => 2 ],
+    'nowy: odznaczone (false)'             => [ 'x_nowy' => 2, 'x' => false ],
+    'nowy: znacznik napisem „2"'           => [ 'x_nowy' => '2' ],
+    'nowy: „_off" nie gra roli'            => [ 'x_nowy' => 2, 'x' => true, 'x_off' => true ],
+    'znacznik 1 to nie nasz'               => [ 'x_nowy' => 1 ],
+    'znacznik innego przełącznika'         => [ 'y_nowy' => 2 ],
+];
+$wlaczone = [];
+foreach ($przelaczniki as $nazwa => $ust) {
+    $wlaczone[$nazwa] = evk_wlaczone($ust, 'x', 'x_off');
+}
+
 /* STRAŻNIK ROZJAZDU. Sonda ładuje flaga.php wprost, więc sama w sobie nie
    dowodzi, że plik dociera do produkcji. Elementy widzą tę funkcję wyłącznie
    dlatego, że dociąga ją loader.php — i to jest jedyne miejsce, gdzie da się
@@ -43,5 +62,6 @@ $loader = (string) @file_get_contents(EVK_TEST_ROOT . '/includes/bricks-elements
 
 echo json_encode([
     'wyniki'         => $wynik,
+    'wlaczone'       => $wlaczone,
     'loader_dociaga' => (bool) preg_match("#require_once\s+__DIR__\s*\.\s*'/flaga\.php'#", $loader),
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), "\n";
