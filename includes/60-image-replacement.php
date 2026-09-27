@@ -130,8 +130,14 @@ add_action('wp', function () {
     ob_start(function ($buffer) use ($lang) {
         if (empty($buffer)) return $buffer;
 
+        /* `{tl:pl=…|en=…}` poza treścią Bricksa (np. opis SEO) — do 1.250.0
+           rozwijany tylko w językach obcych, więc po polsku zostawał dosłownie. */
         if ($lang === 'pl') {
-            return tl_replace_tl_tags_in_html($buffer, 'pl');
+            $buffer = tl_replace_tl_tags_in_html($buffer, 'pl');
+            if (strpos($buffer, '{tl:') !== false) {
+                $buffer = preg_replace_callback('/\{tl:([^}]+)\}/i', fn($match) => tl_parse_inline_tag($match[1]), $buffer);
+            }
+            return $buffer;
         }
 
         $buffer = tl_replace_tl_tags_in_html($buffer, $lang);

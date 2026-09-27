@@ -14,6 +14,10 @@ if (!defined('ABSPATH')) exit;
  *   3. fallback automatyczny (tytuł strony, generator OG, miniatura).
  * Z tego samego resolvera korzysta moduł Schema (evk_seo_get_meta()).
  * Natywne meta tagi SEO/OG Bricksa są wyłączane, żeby nie dublować wpisów.
+ *
+ * Wersje językowe (1.251.0, przy włączonych Tłumaczeniach): tytuł, opis
+ * i słowa kluczowe w każdym języku z zakładki SEO (`_evk_tl_{język}__seo_*`).
+ * Łańcuch w wersji językowej — `evk_seo_w_jezyku()`.
  */
 
 // =========================================================================
@@ -75,6 +79,83 @@ function evk_seo_bricks_sharing_image($img, int $pid): string {
 }
 
 /**
+ * Pola SEO z wersjami językowymi: klucz w danych zakładki => nazwa pola
+ * w metadanych `_evk_tl_{język}__{pole}` (1.251.0). Robots są wspólne.
+ *
+ * @return array<string, string>
+ */
+function evk_seo_pola_jezykowe(): array {
+    return ['title' => 'seo_title', 'desc' => 'seo_desc', 'keywords' => 'seo_keywords'];
+}
+
+/**
+ * Języki wersji SEO: kod => nazwa, z Tłumaczeń (bez polskiego). Pusto, gdy
+ * Tłumaczenia są wyłączone — zakładka SEO wygląda wtedy jak dotąd.
+ *
+ * @return array<string, string>
+ */
+function evk_seo_jezyki(): array {
+    if (!function_exists('tl_get_languages')) return [];
+    $out = [];
+    foreach (tl_get_languages() as $kod => $l) $out[(string) $kod] = (string) ($l['name'] ?? $kod);
+    return $out;
+}
+
+/** Kod wersji językowej, którą składamy — '' dla polskiej (i bez Tłumaczeń). */
+function evk_seo_jezyk_strony(): string {
+    if (!function_exists('get_current_lang')) return '';
+    $lang = (string) get_current_lang();
+    return ($lang !== 'pl' && isset(evk_seo_jezyki()[$lang])) ? $lang : '';
+}
+
+/** Pole SEO wersji językowej z zakładki SEO; '' gdy nie ma. */
+function evk_seo_meta_jezyka(int $pid, string $lang, string $pole): string {
+    return trim((string) get_post_meta($pid, '_evk_tl_' . $lang . '__' . $pole, true));
+}
+
+/**
+ * Czy tekst niesie znacznik tłumaczenia: `{tl_klucz}`, `{tl:pl=…|en=…}` albo
+ * `[tl key=…]`. Taki tekst sam wyrenderuje się w języku strony (Bricks przez
+ * dane dynamiczne, reszta w buforze strony — 60-image-replacement.php).
+ */
+function evk_seo_ma_tl(string $tekst): bool {
+    return stripos($tekst, '{tl_') !== false || stripos($tekst, '{tl:') !== false || stripos($tekst, '[tl ') !== false;
+}
+
+/**
+ * Polska wartość pola SEO: Bricks (dane dynamiczne wyrenderowane) ma
+ * pierwszeństwo przed zakładką SEO. Zwraca [surowa, gotowa] — surowej
+ * potrzeba, żeby poznać znacznik tłumaczenia.
+ *
+ * @param mixed $bricks
+ * @param mixed $zakladka
+ * @return array{0: string, 1: string}
+ */
+function evk_seo_wartosc_pl($bricks, $zakladka, int $pid): array {
+    $gotowa = evk_seo_render_bricks_value($bricks, $pid);
+    if ($gotowa !== '') return [(string) $bricks, $gotowa];
+    $z = trim((string) $zakladka);
+    return [$z, $z];
+}
+
+/**
+ * Pole SEO w wersji językowej $lang:
+ *   1. pole tego języka z zakładki SEO;
+ *   2. wartość polska ze znacznikiem tłumaczenia (`{tl_…}`) — wyrenderuje
+ *      się w tym języku, więc działa jak dotąd;
+ *   3. tytuł: wartość polska (lepszy polski tytuł niż żaden); opis i słowa
+ *      kluczowe: pusto — polski opis na angielskiej stronie myli i ludzi,
+ *      i wyszukiwarkę, która bez opisu weźmie fragment tekstu strony.
+ */
+function evk_seo_w_jezyku(int $pid, string $lang, string $pole, string $surowaPl, string $gotowaPl, bool $polskaGdyBrak): string {
+    // Dane dynamiczne Bricksa ({post_title}…) działają tu jak w polach Bricksa.
+    $wlasna = evk_seo_render_bricks_value(evk_seo_meta_jezyka($pid, $lang, $pole), $pid);
+    if ($wlasna !== '') return $wlasna;
+    if (evk_seo_ma_tl($surowaPl)) return $gotowaPl;
+    return $polskaGdyBrak ? $gotowaPl : '';
+}
+
+/**
  * Komplet meta danych strony.
  *
  * Zwraca: title, title_custom (puste = brak nadpisania, WP dokleja nazwę
@@ -84,20 +165,21 @@ function evk_seo_get_meta(int $pid): array {
     static $cache = [];
     if (isset($cache[$pid])) return $cache[$pid];
 
-    $b = evk_seo_bricks_settings($pid);
+    $b    = evk_seo_bricks_settings($pid);
+    $lang = evk_seo_jezyk_strony();
 
     // Tytuł — title_custom tylko gdy jawnie ustawiony (Bricks lub zakładka SEO)
-    $title_custom = evk_seo_render_bricks_value($b['documentTitle'] ?? '', $pid);
-    if ($title_custom === '') $title_custom = trim((string) get_post_meta($pid, '_evoke_seo_title', true));
+    [$title_zrodlo, $title_custom] = evk_seo_wartosc_pl($b['documentTitle'] ?? '', get_post_meta($pid, '_evoke_seo_title', true), $pid);
+    if ($lang !== '') $title_custom = evk_seo_w_jezyku($pid, $lang, 'seo_title', $title_zrodlo, $title_custom, true);
     $title = $title_custom !== '' ? $title_custom : get_the_title($pid);
 
     // Opis
-    $desc = evk_seo_render_bricks_value($b['metaDescription'] ?? '', $pid);
-    if ($desc === '') $desc = trim((string) get_post_meta($pid, '_evoke_seo_desc', true));
+    [$desc_zrodlo, $desc] = evk_seo_wartosc_pl($b['metaDescription'] ?? '', get_post_meta($pid, '_evoke_seo_desc', true), $pid);
+    if ($lang !== '') $desc = evk_seo_w_jezyku($pid, $lang, 'seo_desc', $desc_zrodlo, $desc, false);
 
     // Słowa kluczowe (Bricks: metaKeywords, inaczej zakładka SEO)
-    $keywords = evk_seo_render_bricks_value($b['metaKeywords'] ?? '', $pid);
-    if ($keywords === '') $keywords = trim((string) get_post_meta($pid, '_evoke_seo_keywords', true));
+    [$keywords_zrodlo, $keywords] = evk_seo_wartosc_pl($b['metaKeywords'] ?? '', get_post_meta($pid, '_evoke_seo_keywords', true), $pid);
+    if ($lang !== '') $keywords = evk_seo_w_jezyku($pid, $lang, 'seo_keywords', $keywords_zrodlo, $keywords, false);
 
     // Robots
     $valid_robots = ['index', 'noindex', 'follow', 'nofollow', 'noarchive', 'nosnippet'];
@@ -128,11 +210,15 @@ function evk_seo_get_meta(int $pid): array {
         $robots = ['noindex', 'nofollow'];
     }
 
-    // OG — najpierw Media społecznościowe Bricksa, potem łańcuch meta
+    /* OG — najpierw Media społecznościowe Bricksa, potem łańcuch meta.
+       W wersji językowej polski tekst z Bricksa przepada (zostaje tylko ze
+       znacznikiem tłumaczenia), a OG idzie za tytułem i opisem tego języka. */
     $og_title = evk_seo_render_bricks_value($b['sharingTitle'] ?? '', $pid);
+    if ($lang !== '' && !evk_seo_ma_tl((string) ($b['sharingTitle'] ?? ''))) $og_title = '';
     if ($og_title === '') $og_title = $title;
 
     $og_desc = evk_seo_render_bricks_value($b['sharingDescription'] ?? '', $pid);
+    if ($lang !== '' && !evk_seo_ma_tl((string) ($b['sharingDescription'] ?? ''))) $og_desc = '';
     if ($og_desc === '') $og_desc = $desc;
 
     // Obrazek OG: Bricks sharingImage → generator OG Evoke → miniatura
@@ -163,16 +249,19 @@ add_filter('bricks/frontend/disable_opengraph', '__return_true');
    sprawdzenia po tej stronie. Do 1.129.0 zalogowany administrator odwiedzający
    cudzą stronę mógł w tle dostać nadpisane tytuły, opisy i `robots`, masowo,
    bo zapis zbiorczy przyjmuje tablicę wierszy z dowolnymi `post_id`. */
+/* Wartości idą do update_post_meta() przez wp_slash(): funkcja zdejmuje
+   ukośniki, więc bez tego „\" z tytułu znikał przy zapisie (do 1.250.0). */
 add_action('wp_ajax_evoke_save_seo_ajax', function () {
     check_ajax_referer('evoke_seo_nonce', 'nonce');
     if (!current_user_can('manage_options') || empty($_POST['post_id'])) wp_send_json_error();
     $pid = absint($_POST['post_id']);
-    update_post_meta($pid, '_evoke_seo_title',    sanitize_text_field(wp_unslash($_POST['seo_title']    ?? '')));
-    update_post_meta($pid, '_evoke_seo_desc',     sanitize_textarea_field(wp_unslash($_POST['seo_desc'] ?? '')));
-    update_post_meta($pid, '_evoke_seo_keywords', sanitize_text_field(wp_unslash($_POST['seo_keywords'] ?? '')));
+    update_post_meta($pid, '_evoke_seo_title',    wp_slash(sanitize_text_field(wp_unslash($_POST['seo_title']    ?? ''))));
+    update_post_meta($pid, '_evoke_seo_desc',     wp_slash(sanitize_textarea_field(wp_unslash($_POST['seo_desc'] ?? ''))));
+    update_post_meta($pid, '_evoke_seo_keywords', wp_slash(sanitize_text_field(wp_unslash($_POST['seo_keywords'] ?? ''))));
     $robots = json_decode(wp_unslash($_POST['seo_robots'] ?? '[]'), true);
     $valid  = array_values(array_intersect((array)$robots, ['index','noindex','follow','nofollow','noarchive','nosnippet']));
     update_post_meta($pid, '_evoke_seo_robots', $valid);
+    evk_seo_zapisz_jezyki($pid, json_decode(wp_unslash((string) ($_POST['seo_jezyki'] ?? '')), true));
     wp_send_json_success();
 });
 
@@ -184,16 +273,42 @@ add_action('wp_ajax_evoke_save_seo_bulk', function () {
     foreach ((array)$rows as $row) {
         $pid = absint($row['post_id'] ?? 0);
         if (!$pid) continue;
-        update_post_meta($pid, '_evoke_seo_title',    sanitize_text_field($row['seo_title']    ?? ''));
-        update_post_meta($pid, '_evoke_seo_desc',     sanitize_textarea_field($row['seo_desc'] ?? ''));
-        update_post_meta($pid, '_evoke_seo_keywords', sanitize_text_field($row['seo_keywords'] ?? ''));
+        update_post_meta($pid, '_evoke_seo_title',    wp_slash(sanitize_text_field($row['seo_title']    ?? '')));
+        update_post_meta($pid, '_evoke_seo_desc',     wp_slash(sanitize_textarea_field($row['seo_desc'] ?? '')));
+        update_post_meta($pid, '_evoke_seo_keywords', wp_slash(sanitize_text_field($row['seo_keywords'] ?? '')));
         $robots = (array)($row['seo_robots'] ?? []);
         $valid  = array_values(array_intersect($robots, ['index','noindex','follow','nofollow','noarchive','nosnippet']));
         update_post_meta($pid, '_evoke_seo_robots', $valid);
+        evk_seo_zapisz_jezyki($pid, $row['seo_jezyki'] ?? null);
         $count++;
     }
     wp_send_json_success(['saved' => $count]);
 });
+
+/**
+ * Pola języków z wiersza zakładki SEO (1.251.0):
+ * {"en": {"title": "…", "desc": "…", "keywords": "…"}, "de": {…}}.
+ * Tylko języki z Tłumaczeń i tylko przysłane pola — wiersz narysowany przed
+ * dodaniem języka nie kasuje jego wartości. Puste pole usuwa metadaną.
+ *
+ * @param mixed $jezyki
+ */
+function evk_seo_zapisz_jezyki(int $pid, $jezyki): void {
+    if (!is_array($jezyki)) return;
+    foreach (array_keys(evk_seo_jezyki()) as $kod) {
+        if (!isset($jezyki[$kod]) || !is_array($jezyki[$kod])) continue;
+        foreach (evk_seo_pola_jezykowe() as $klucz => $pole) {
+            if (!array_key_exists($klucz, $jezyki[$kod]) || !is_scalar($jezyki[$kod][$klucz])) continue;
+            $v = (string) $jezyki[$kod][$klucz];
+            $v = $klucz === 'desc' ? sanitize_textarea_field($v) : sanitize_text_field($v);
+            if ($v === '') {
+                delete_post_meta($pid, '_evk_tl_' . $kod . '__' . $pole);
+            } else {
+                update_post_meta($pid, '_evk_tl_' . $kod . '__' . $pole, wp_slash($v));
+            }
+        }
+    }
+}
 
 // =========================================================================
 // FRONTEND — tytuł dokumentu i meta tagi w <head>

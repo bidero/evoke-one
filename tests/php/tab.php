@@ -310,8 +310,11 @@ $GLOBALS['wpdb'] = new class {
     public $prefix = 'wp_';
     // Snippety → tryb zaawansowany czytają swój kod wprost z tabeli opcji.
     public $options = 'wp_options';
+    public $postmeta = 'wp_postmeta';
     /** @var array<string, array<int, array<string, mixed>>> */
     public $seed = [];
+    /** @var array<string, array<int, mixed>> Wynik get_col() po nazwie tabeli (zakładka SEO: wpisy z {tl_…}). */
+    public $kolumny = [];
 
     private function pick($q) {
         foreach ($this->seed as $table => $rows) {
@@ -322,7 +325,12 @@ $GLOBALS['wpdb'] = new class {
     public function get_var($q)     { return 'wp_bricks_form_submissions'; }
     public function get_results($q, $out = null) { return $this->pick($q); }
     public function get_row($q, $out = null)     { $r = $this->pick($q); return $r[0] ?? null; }
-    public function get_col($q)     { return []; }
+    public function get_col($q) {
+        foreach ($this->kolumny as $table => $vals) {
+            if (strpos($q, $table) !== false) return $vals;
+        }
+        return [];
+    }
     public function prepare($q, ...$a) { return $q; }
 };
 
@@ -447,6 +455,28 @@ $evk_nadpisz_opcje = !empty($argv[4]) ? (array) json_decode($argv[4], true) : []
 // ── Moduł + dane, które sprawiają, że zakładka renderuje PEŁNY markup ──
 // Pusta konfiguracja rysuje zakładkę bez wierszy repeaterów, a to właśnie
 // w wierszach siedzi większość pól, o które w tym teście chodzi.
+/** Zasiew obu widoków zakładki SEO z Tłumaczeniami. */
+function evk_t_seo_jezyki(): void {
+    $GLOBALS['options']['tl_languages'] = [
+        ['code' => 'en', 'name' => 'Angielski', 'html' => 'en-GB'],
+        ['code' => 'de', 'name' => 'Niemiecki', 'html' => 'de-DE'],
+    ];
+    $GLOBALS['posts'] = [];
+    foreach ([301 => 'O firmie', 302 => 'Oferta', 303 => 'Kontakt', 304 => 'Realizacje'] as $id => $tytul) {
+        $GLOBALS['posts'][$id] = ['title' => $tytul, 'name' => sanitize_title($tytul)];
+    }
+    $GLOBALS['post_meta'][301]['_evoke_seo_title'] = 'O firmie — projektowanie wnętrz';
+    $GLOBALS['post_meta'][301]['_evoke_seo_desc']  = 'Pracownia projektowa z dwudziestoletnim doświadczeniem w projektowaniu wnętrz mieszkalnych i biurowych.';
+    $GLOBALS['post_meta'][301]['_evk_tl_en__seo_title'] = 'About us — interior design';
+    /* Bricks ma pierwszeństwo: wartość pod polem polskim i jako oryginał w EN.
+       Długi opis bez spacji łamie się, a nie rozpycha tabeli na telefonie. */
+    $GLOBALS['post_meta'][302]['_bricks_page_settings'] = [
+        'documentTitle'   => '{tl_tytul_oferty}',
+        'metaDescription' => str_repeat('Oferta-pracowni-projektowej-', 6),
+    ];
+    $GLOBALS['wpdb']->kolumny['postmeta'] = [302];
+}
+
 $TABS = [
     'forminbox' => [
         'module' => 'includes/88-form-inbox.php',
@@ -570,6 +600,23 @@ $TABS = [
             }
             // Jeden tytuł do wyszukania — celowo inny niż reszta.
             $GLOBALS['posts'][200] = ['title' => 'Kontakt i dojazd', 'name' => 'kontakt'];
+        },
+    ],
+    /* Zakładka SEO z Tłumaczeniami (1.251.0): przełącznik języka, pola EN/DE
+       w każdym wierszu, wartość z Bricksa pod polem i pudełko przeniesienia
+       {tl_…}. Dwa widoki, bo pola jednego z nich są zawsze `hidden`, a strażnicy
+       mierzą to, co widać: polski (z Bricksem) i angielski (`seo_lang=en`). */
+    'seo-meta-jezyki' => [
+        'module' => ['includes/10-language-system.php', 'includes/85-seo.php', 'includes/85-seo-jezyki.php'],
+        'file'   => 'includes/admin/seo/tab-meta.php',
+        'seed'   => 'evk_t_seo_jezyki',
+    ],
+    'seo-meta-en' => [
+        'module' => ['includes/10-language-system.php', 'includes/85-seo.php', 'includes/85-seo-jezyki.php'],
+        'file'   => 'includes/admin/seo/tab-meta.php',
+        'seed'   => function () {
+            evk_t_seo_jezyki();
+            $_GET['seo_lang'] = 'en';
         },
     ],
     // ── Newsletter ──

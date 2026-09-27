@@ -50,7 +50,7 @@ const BOX_TITLE = { size: '11px', weight: '700', transform: 'uppercase' };
 const { TABS } = require('./lib/zakladki-panelu');
 
 /** Zakładki mierzone też na wąskim ekranie. */
-const MOBILE = ['schema', 'sitemap', 'seo-meta',
+const MOBILE = ['schema', 'sitemap', 'seo-meta', 'seo-meta-jezyki', 'seo-meta-en',
                 'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings',
                 /* Cztery podstrony z tabelami — ten sam kształt, który w 1.48.0
                    rozpychał Raporty do 682 px przy oknie 390 px. */

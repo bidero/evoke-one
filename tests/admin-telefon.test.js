@@ -130,6 +130,8 @@ module.exports = async function (t) {
     for (const tab of ['translations', 'elementy', 'images', 'slugs', 'dd', 'languages', 'sitemap', 'io']) adresy.add(A + 'options-general.php?page=evoke-tlumaczenia&tab=' + tab);
     for (const tab of ['lists', 'templates', 'campaigns', 'reports', 'settings']) adresy.add(A + 'admin.php?page=evoke-newsletter&subtab=' + tab);
     adresy.add(A + 'admin.php?page=evk-form-inbox');
+    // Widok angielski zakładki SEO (1.251.0) — z menu prowadzi tylko polski.
+    adresy.add(A + 'options-general.php?page=evoke-one&tab=strona&sub=meta&seo_lang=en');
 
     t.section('telefon 360 px: każdy ekran wtyczki');
     const km = await browser.newContext({

@@ -2,6 +2,110 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.251.0] — 2026-09-27
+
+SEO w wersjach językowych i adresy kategorii w językach. Pierwsza z trzech
+partii „SEO + tłumaczenia systemowe”; następne to wpisy i strony (tytuł,
+adres, treść, zajawka), potem kategorie, tagi i teksty alternatywne obrazów.
+
+### Naprawione
+
+- **Przetłumaczony człon kategorii, tagu albo typu treści dawał 404.**
+  Sprawdzone na testowym WordPressie: przy wpisie `uslugi → services`
+  w mapie adresów `/en/category/services/` odpowiadało 404, a wejście na
+  `/en/category/uslugi/` przekierowywało (302) właśnie tam. Tak samo człon
+  własnego typu treści (`/en/projects/…`). Wpisy i strony działały, bo
+  z powrotem na polski tłumaczone były tylko ich adresy. Teraz cała ścieżka
+  wraca na polską, zanim WordPress dopasuje reguły — działa każda
+  taksonomia, typ treści, podkategoria i stronicowanie. Oryginalny adres
+  wraca zaraz po dopasowaniu, więc przekierowanie, kanoniczny i hreflang
+  liczą jak dotąd. Obsługuje też serwery, które podają ścieżkę w
+  `PATH_INFO`.
+- **Linki kategorii, tagów i typów treści** mają w wersji językowej człony
+  z mapy adresów, a nie sam prefiks. Do 1.250.0 prowadziły na polski człon
+  i dopiero przekierowanie 302 poprawiało adres.
+- `{tl:pl=…|en=…}` poza treścią Bricksa (np. w opisie SEO) zostawał na
+  polskiej stronie dosłownie — rozwijały go tylko języki obce.
+- Ukośnik wsteczny w tytule, opisie i słowach kluczowych z zakładki SEO
+  znikał przy zapisie.
+
+### Dodane (decyzje zgłaszającego)
+
+- **Zakładka SEO: wersje językowe** (przy włączonych Tłumaczeniach).
+  - Nad tabelą przełącznik `PL | EN n/m | DE n/m`, taki sam jak w Evoke
+    FIELDS. W widoku języka każdy wiersz ma tytuł, opis i słowa kluczowe
+    tego języka, a pod każdym polem polską wartość.
+  - Licznik: wypełnione pola języka z tych, które mają wartość polską.
+  - Robots są wspólne dla języków — w widoku języka zostają na miejscu,
+    przygaszone i nieaktywne.
+  - Wybrany język idzie w adresie (`seo_lang`), więc stronicowanie, typy
+    treści i szukanie go nie gubią.
+  - Pod polem polskim widać teraz wartość z Bricksa (Ustawienia strony →
+    SEO), która ma pierwszeństwo na stronie. Do 1.250.0 nie było jej tu
+    widać.
+  - Zapis wiersza i „Zapisz zmienione” zapisują też pola języków; puste pole
+    kasuje wartość.
+- **Wersja językowa strony:**
+  - tytuł: pole języka → polska wartość ze znacznikiem `{tl_…}` (jak
+    dotąd) → polski tytuł SEO;
+  - opis i słowa kluczowe: pole języka → polska wartość ze znacznikiem →
+    brak. Polski opis na angielskiej stronie myli ludzi i wyszukiwarkę,
+    a bez opisu Google weźmie fragment tekstu strony;
+  - og:title i og:description idą za tym tytułem i opisem. Polski tekst
+    z „Mediów społecznościowych” Bricksa zostaje tylko ze znacznikiem;
+  - pola języka obsługują dane dynamiczne Bricksa (`{post_title}` itp.),
+    jak pola Bricksa.
+  - Tytuł wpisu w języku (gdy pole SEO jest puste) dojdzie w następnej
+    partii, razem z tłumaczeniem tytułów wpisów i stron.
+- **Przycisk „Przenieś {tl_…}”** w zakładce SEO — tylko gdy na stronie są
+  znaczniki. Najpierw podgląd: strona, pole, źródło (Bricks albo zakładka),
+  polski tekst i tłumaczenia. Przeniesienie:
+  - polski tekst wraca tam, gdzie stał znacznik; tekst wokół znacznika
+    zostaje (`{tl_klucz} | Firma` → `Tytuł | Firma`);
+  - tłumaczenia trafiają tylko do PUSTYCH pól języków; brak frazy w danym
+    języku = pole zostaje puste;
+  - znacznik bez frazy w słowniku zostaje, jak jest;
+  - „Media społecznościowe” w Bricksie zostają bez zmian — znacznik działa
+    tam dalej;
+  - drugie użycie niczego nie zmienia.
+
+### Dane
+
+- Pola języków: metadane `_evk_tl_{język}__seo_title`, `…__seo_desc`,
+  `…__seo_keywords`. „Usuń dane” przy odinstalowaniu kasuje je
+  przedrostkiem `_evk_tl_` (nowa pozycja spisu `meta_wpisow_przedrostki`).
+  Tłumaczenia pól Evoke FIELDS (`evk_tl_…`, bez podkreślnika) zostają.
+
+### Testy
+
+- `tl-adresy` (32 sprawdzenia, prawdziwy serwer): kategoria, podkategoria,
+  strona 2, tag i kategoria po niemiecku, wpis i archiwum typu treści —
+  każdy adres osobno „trafia w regułę” i „200 bez przekierowania”;
+  og:url i hreflang z członami z mapy; polska wersja, wpisy i strony bez
+  zmian; stary człon pod `/en/` → 302 na nowy; nieistniejący → 404.
+- `tl-seo` (46 sprawdzeń): łańcuch na stronie w PL, EN i DE (pola języka,
+  znaczniki, OG z Bricksa, strona bez niczego); zapis przez prawdziwy
+  punkt AJAX (ukośniki, czyszczenie, język spoza listy, zły nonce, zapis
+  zbiorczy); zakładka w Chromium (przełącznik, liczniki także dla czytnika
+  ekranu, wartość z Bricksa, `inert`, język w adresach, zapis wiersza
+  i zbiorczy, widok z adresu); przeniesienie (podgląd, zapis w Bricksie
+  i zakładce, nienadpisane pole, znacznik bez frazy, drugie użycie, strona
+  po przeniesieniu).
+- Strażnicy panelu obejmują zakładkę SEO z językami: dwa nowe ekrany
+  w `tests/php/tab.php` (`seo-meta-jezyki`, `seo-meta-en`), a
+  `admin-telefon` otwiera widok EN na prawdziwym WordPressie.
+- `zapis-wp-odinstalowanie`: strażnik spisu zna przedrostki kluczy
+  składanych w locie; „Usuń dane” kasuje `_evk_tl_en__seo_title`, a
+  tłumaczenie pola Evoke FIELDS zostaje.
+- Pełny przebieg: 5525 sprawdzeń w 110 plikach, 12 mutacji (każda zapala inne sprawdzenie).
+
+### Do sprawdzenia na testowej
+
+- Zakładka SEO → przycisk „Pokaż, co się przeniesie” przy stronach
+  z `{tl_…}` w tytule lub opisie, potem „Przenieś”. Wersje EN i DE tych
+  stron mają mieć ten sam `<title>` i opis co przed przeniesieniem.
+- Adres kategorii z członem z mapy adresów, np. `/en/category/services/`.
+
 ## [1.250.0] — 2026-09-27
 
 Tłumaczenia wartości pól Evoke FIELDS — część Evoke ONE. Działa z Evoke

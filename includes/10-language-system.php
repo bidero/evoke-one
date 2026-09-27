@@ -433,6 +433,137 @@ add_filter('request', function($query_vars) {
 }, 999); // priorytet 999 — po init, gdy lang_code jest już ustawiony
 
 /**
+ * Ścieżka wersji językowej → polska, ZANIM WordPress dopasuje reguły (1.251.0).
+ *
+ * WordPress sam odcina `/en` od żądania: filtr `home_url` (12-seo-url-filters.php)
+ * dokleja prefiks, a `WP::parse_request()` zdejmuje z adresu ścieżkę strony
+ * głównej. Wersja językowa idzie więc przez ZWYKŁE reguły — kategorie, tagi,
+ * typy treści, stronicowanie — tylko z członami w swoim języku. Filtr `request`
+ * wyżej tłumaczy wstecz wyłącznie `pagename` i `name`, więc przetłumaczony człon
+ * kategorii (`/en/category/services/`) albo typu treści (`/en/projects/…`) nie
+ * trafiał w żadną regułę: 404. Przekierowanie 302 z polskiego członu (niżej)
+ * prowadziło prosto w ten 404.
+ *
+ * Na czas dopasowania reguł REQUEST_URI dostaje człony polskie (prefiks języka
+ * zostaje — tak WordPress go odcina), a zaraz po dopasowaniu wraca oryginał:
+ * z niego liczą przekierowanie 302, kanoniczny, hreflang i przełącznik języków.
+ * Bez przywrócenia przekierowanie widziałoby polski człon i odsyłało adres sam
+ * do siebie.
+ */
+add_filter('do_parse_request', function ($parsuj) {
+    if (!$parsuj || is_admin()) return $parsuj;
+    $lang = $GLOBALS['lang_code'] ?? '';
+    if ($lang === '' || $lang === 'pl') return $parsuj;
+    /* PATH_INFO też: gdy serwer go ustawia (wbudowany serwer PHP, część
+       konfiguracji FastCGI), WordPress bierze ścieżkę właśnie z niego. */
+    foreach (['REQUEST_URI', 'PATH_INFO'] as $klucz) {
+        if (!isset($_SERVER[$klucz]) || !is_string($_SERVER[$klucz])) continue;
+        $pl = tl_uri_po_polsku($_SERVER[$klucz], $lang);
+        if ($pl === $_SERVER[$klucz]) continue;
+        $GLOBALS['tl_uri_oryginalny'][$klucz] = $_SERVER[$klucz];
+        $_SERVER[$klucz] = $pl;
+    }
+    return $parsuj;
+}, PHP_INT_MAX);
+
+add_action('parse_request', function () {
+    foreach ((array) ($GLOBALS['tl_uri_oryginalny'] ?? []) as $klucz => $oryginal) $_SERVER[$klucz] = $oryginal;
+    unset($GLOBALS['tl_uri_oryginalny']);
+}, PHP_INT_MIN);
+
+/**
+ * REQUEST_URI wersji $lang z członami przetłumaczonymi na polskie według mapy
+ * adresów. Człon spoza mapy zostaje, prefiks języka i zapytanie też. Adres bez
+ * prefiksu $lang (albo spoza katalogu strony) wraca bez zmian.
+ */
+function tl_uri_po_polsku(string $uri, string $lang): string {
+    $q         = strpos($uri, '?');
+    $sciezka   = $q === false ? $uri : substr($uri, 0, $q);
+    $zapytanie = $q === false ? '' : substr($uri, $q);
+    $baza = rtrim((string) (wp_parse_url((string) get_option('home'), PHP_URL_PATH) ?? ''), '/');
+    if ($baza !== '' && strpos($sciezka . '/', $baza . '/') !== 0) return $uri;
+    $wlasna  = (string) substr($sciezka, strlen($baza));
+    $prefiks = '/' . $lang;
+    if ($wlasna !== $prefiks && strpos($wlasna, $prefiks . '/') !== 0) return $uri;
+
+    $czlony = explode('/', (string) substr($wlasna, strlen($prefiks)));
+    $zmiana = false;
+    foreach ($czlony as $i => $czlon) {
+        if ($czlon === '') continue;
+        $pl = tl_get_pl_slug($czlon, $lang);
+        // Przeglądarka wysyła człon zakodowany (%C5%82…), mapa może go trzymać wprost.
+        if ($pl === $czlon && ($dekod = rawurldecode($czlon)) !== $czlon) {
+            $pl = tl_get_pl_slug($dekod, $lang);
+            if ($pl === $dekod) $pl = $czlon;
+        }
+        if ($pl !== $czlon) {
+            $czlony[$i] = $pl;
+            $zmiana = true;
+        }
+    }
+    return $zmiana ? $baza . $prefiks . implode('/', $czlony) . $zapytanie : $uri;
+}
+
+/**
+ * Adres → ten sam adres w języku $lang (1.250.0 dla pól Link w Evoke FIELDS,
+ * od 1.251.0 wspólny — linki termów i typów treści w 12-seo-url-filters.php).
+ *
+ * Wewnętrzny (host strony albo ścieżka od `/`): prefiks języka i przetłumaczone
+ * slugi, jak w permalinkach i menu. Adres z prefiksem innego języka (`/de/…`)
+ * przechodzi przez polski, jak przełącznik języków. Zewnętrzny, `mailto:`,
+ * `tel:`, sama kotwica, pliki i wp-admin/wp-content — bez zmian: Evoke ONE nie
+ * ma ich wersji językowych.
+ */
+function tl_url_jezyka(string $url, string $lang): string {
+    $url   = trim($url);
+    $kody  = tl_get_active_lang_codes();
+    if ($url === '' || $lang === 'pl' || !in_array($lang, $kody, true)) return $url;
+    $p = wp_parse_url($url);
+    if (!is_array($p)) return $url;
+
+    $wzgledny = !isset($p['host']) && !isset($p['scheme']);
+    if ($wzgledny) {
+        if ($url[0] !== '/' || strpos($url, '//') === 0) return $url;   // kotwica, zapytanie, ścieżka względna
+    } else {
+        $home = wp_parse_url((string) get_option('home'));
+        $bezWww = static function ($h) { return preg_replace('/^www\./', '', strtolower((string) $h)); };
+        if (!in_array(strtolower((string) ($p['scheme'] ?? '')), ['http', 'https'], true)) return $url;
+        if (!isset($p['host']) || $bezWww($p['host']) !== $bezWww($home['host'] ?? '')) return $url;
+    }
+
+    $sciezka = (string) ($p['path'] ?? '/');
+    if ($sciezka === '') $sciezka = '/';
+    // WordPress w podkatalogu: prefiks języka stoi za katalogiem strony.
+    $baza = rtrim((string) (wp_parse_url((string) get_option('home'), PHP_URL_PATH) ?? ''), '/');
+    if ($baza !== '') {
+        if (strpos($sciezka . '/', $baza . '/') !== 0) return $url;
+        $sciezka = (string) substr($sciezka, strlen($baza));
+        if ($sciezka === '') $sciezka = '/';
+    }
+    if (preg_match('#^/(wp-admin|wp-content|wp-includes|wp-json)(/|$)#', $sciezka)) return $url;
+    if (preg_match('#\.[a-z0-9]{2,5}$#i', $sciezka)) return $url;   // plik, nie strona
+
+    // Język, w którym adres zapisano: prefiks /en/… — inaczej polski.
+    $z = 'pl';
+    if (preg_match('#^/([a-z0-9_-]+)(/|$)#i', $sciezka, $m) && in_array($m[1], $kody, true)) {
+        $z = $m[1];
+        $sciezka = (string) substr($sciezka, strlen($m[1]) + 1);
+        if ($sciezka === '') $sciezka = '/';
+    }
+    if (trim($sciezka, '/') === '') {
+        $nowa = '/' . $lang . '/';
+    } else {
+        $nowa = '/' . $lang . rtrim(tl_translate_url_path($sciezka, $z, $lang), '/') . (substr($sciezka, -1) === '/' ? '/' : '');
+    }
+
+    $wynik = $wzgledny ? '' : $p['scheme'] . '://' . $p['host'] . (isset($p['port']) ? ':' . $p['port'] : '');
+    $wynik .= $baza . $nowa;
+    if (isset($p['query']))    $wynik .= '?' . $p['query'];
+    if (isset($p['fragment'])) $wynik .= '#' . $p['fragment'];
+    return $wynik;
+}
+
+/**
  * pre_get_posts: dodatkowe zabezpieczenie — tłumaczy pagename/name w WP_Query
  * przed wykonaniem zapytania SQL, gdy filtr 'request' już zadziałał.
  * Obsługuje też przypadek gdy WordPress samodzielnie buduje query z URL

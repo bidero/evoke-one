@@ -69,7 +69,10 @@ case 'przygotuj':
     // Tłumaczenia w elementach: stan „Do sprawdzenia" (1.242.0) i wykaz dopisanych (1.246.0).
     update_post_meta($strona, '_evk_tl_el_stan', ['_bricks_page_content_2' => ['h1abcd|text|en' => ['src' => 'Kontakt', 'tl' => 'Contact']]]);
     update_post_meta($strona, '_evk_tl_el_dopisane', ['_bricks_page_content_2' => ['h1abcd|evk_tl_en__text' => true]]);
+    // Wersje językowe pól wpisu (1.251.0: SEO) — przedrostek `_evk_tl_`, kasowany w SQL.
+    update_post_meta($strona, '_evk_tl_en__seo_title', 'SEO title EN');
     update_post_meta($strona, '_evk_access_key', 'klucz-evoke-fields');   // CUDZE: Evoke Fields
+    update_post_meta($strona, 'evk_tl_en__opis', 'Opis EN z Evoke Fields');   // CUDZE: tłumaczenie pola Evoke Fields
     update_user_meta(1, 'evk_avatar_id', 123);
 
     // Role: utworzona w Role Managerze (z użytkownikiem) i cudza.
@@ -157,6 +160,7 @@ case 'wykonaj':
                          '_evoke_seo_title' => get_post_meta((int) ($s['strona'] ?? 0), '_evoke_seo_title', true) !== '',
                          '_evk_tl_el_stan' => get_post_meta((int) ($s['strona'] ?? 0), '_evk_tl_el_stan', true) !== '',
                          '_evk_tl_el_dopisane' => get_post_meta((int) ($s['strona'] ?? 0), '_evk_tl_el_dopisane', true) !== '',
+                         '_evk_tl_en__seo_title' => get_post_meta((int) ($s['strona'] ?? 0), '_evk_tl_en__seo_title', true) !== '',
                          'evk_avatar_id' => get_user_meta(1, 'evk_avatar_id', true) !== '']),
         'rola'       => get_role('evk_t_odinst') !== null,
         'uprawnienie'=> get_role('editor')->has_cap('evk_access_newsletter'),
@@ -171,6 +175,7 @@ case 'wykonaj':
         'obca_opcja'            => $opcja('obca_opcja'),
         'katalog_evoke_fields'  => is_file((string) ($s['obcy'] ?? '') . '/cudza-kopia.zip'),
         '_evk_access_key'       => get_post_meta((int) ($s['strona'] ?? 0), '_evk_access_key', true) === 'klucz-evoke-fields',
+        'evk_tl_en__opis'       => get_post_meta((int) ($s['strona'] ?? 0), 'evk_tl_en__opis', true) === 'Opis EN z Evoke Fields',
         'evk_access_fields'     => get_role('editor')->has_cap('evk_access_fields'),
         'obca_rola'             => get_role('obca_rola') !== null,
         'strona'                => get_post((int) ($s['strona'] ?? 0)) !== null,

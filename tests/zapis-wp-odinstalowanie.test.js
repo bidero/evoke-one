@@ -49,7 +49,7 @@ module.exports = async function (t) {
     JSON.stringify({ opcje: Object.keys(n0.opcje || {}).length, transienty: Object.keys(n0.transienty || {}).length,
       tabele: Object.keys(n0.tabele || {}).length, wpisy: Object.keys(n0.wpisy || {}).length }));
   t.check('meta, rola z Role Managera, uprawnienia i katalogi (kopie, import, OG) zostają',
-    Object.keys(n0.meta || {}).length === 5 && n0.rola === true && n0.uprawnienie === true && Object.keys(n0.katalogi || {}).length === 3,
+    Object.keys(n0.meta || {}).length === 6 && n0.rola === true && n0.uprawnienie === true && Object.keys(n0.katalogi || {}).length === 3,
     JSON.stringify({ meta: n0.meta, rola: n0.rola, uprawnienie: n0.uprawnienie, katalogi: n0.katalogi }));
   sonda('przywroc');
 
@@ -65,7 +65,7 @@ module.exports = async function (t) {
     JSON.stringify(wd.inne_kopie) === JSON.stringify(['evk-t-druga-kopia/evoke-one.php']), JSON.stringify(wd.inne_kopie));
   t.check('ustawienia, tabele, wpisy, meta, katalogi i rola zostają mimo „Usuń dane"',
     Object.keys(nd.opcje || {}).length === 11 && Object.keys(nd.tabele || {}).length === 2 && Object.keys(nd.wpisy || {}).length === 4
-      && Object.keys(nd.meta || {}).length === 5 && Object.keys(nd.katalogi || {}).length === 3 && nd.rola === true,
+      && Object.keys(nd.meta || {}).length === 6 && Object.keys(nd.katalogi || {}).length === 3 && nd.rola === true,
     JSON.stringify({ opcje: Object.keys(nd.opcje || {}).length, tabele: nd.tabele, wpisy: Object.keys(nd.wpisy || {}).length,
       meta: Object.keys(nd.meta || {}), katalogi: nd.katalogi, rola: nd.rola }));
   sonda('przywroc');
@@ -91,6 +91,10 @@ module.exports = async function (t) {
   t.check('Evoke Fields: typy treści, katalog kopii i jego opcja, meta _evk_access_key, uprawnienie evk_access_fields',
     cz.evk_custom_post_types === true && cz.evk_backups_dir === true && cz.katalog_evoke_fields === true
       && cz._evk_access_key === true && cz.evk_access_fields === true, JSON.stringify(cz));
+  /* Przedrostek `_evk_tl_` (1.251.0) kasuje zapytanie LIKE — tłumaczenia pól
+     Evoke Fields (`evk_tl_…`, bez podkreślnika) mają zostać. W LIKE `_` to
+     „dowolny znak", więc bez esc_like() wzorzec złapałby także je. */
+  t.check('Evoke Fields: tłumaczenia pól (evk_tl_en__…) zostają', cz.evk_tl_en__opis === true, JSON.stringify(cz));
   t.check('cudza rola, cudza opcja, zwykła strona i ustawienia WordPressa zostają',
     cz.obca_rola === true && cz.obca_opcja === true && cz.strona === true && cz.blogname === true, JSON.stringify(cz));
 
@@ -156,14 +160,21 @@ module.exports = async function (t) {
   const NA_WPISACH_PRZEKIEROWAN = ['created_date', 'redirect_clicks', 'redirect_from', 'redirect_to'];
   const WYWOLANIE = String.raw`\b(?:get|update|add|delete)_post_meta\(\s*[^,()]+(?:\([^()]*\))?[^,()]*,\s*`;
   const klucze = new Set();
+  const metaPrzedrostki = new Set();
   for (const tx of teksty) {
-    for (const m of tx.matchAll(new RegExp(WYWOLANIE + "'([^']+)'", 'g'))) klucze.add(m[1]);
+    /* Literał, po którym stoi kropka, to przedrostek klucza składanego w locie
+       (`'_evk_tl_' . $lang . '__seo_title'`, 1.251.0) — ma być w
+       `meta_wpisow_przedrostki`, bo odinstalowanie kasuje go zapytaniem LIKE. */
+    for (const m of tx.matchAll(new RegExp(WYWOLANIE + "'([^']+)'(\\s*\\.)?", 'g'))) (m[2] ? metaPrzedrostki : klucze).add(m[1]);
     for (const m of tx.matchAll(new RegExp(WYWOLANIE + String.raw`([A-Z][A-Z0-9_]*)\s*[,)]`, 'g'))) klucze.add(stale[m[1]] || 'stała ' + m[1] + '?');
   }
   const obcy = (k) => /^_(bricks|wp)_/.test(k);
   const metaBezSpisu = [...klucze].filter((k) => !(dane.meta_wpisow || []).includes(k) && !obcy(k) && !NA_WPISACH_PRZEKIEROWAN.includes(k)).sort();
-  t.check('każdy klucz metadanych wpisu z kodu jest w spisie (albo nie jest nasz)', klucze.size > 20 && !metaBezSpisu.length,
-    metaBezSpisu.join(', ') || klucze.size + ' kluczy');
+  const metaBezPrzedrostka = [...metaPrzedrostki].filter((p) => !(dane.meta_wpisow_przedrostki || []).includes(p)).sort();
+  t.check('każdy klucz metadanych wpisu z kodu jest w spisie (albo nie jest nasz)', klucze.size > 20 && !metaBezSpisu.length && !metaBezPrzedrostka.length,
+    [...metaBezSpisu, ...metaBezPrzedrostka.map((p) => p + '…')].join(', ') || klucze.size + ' kluczy, przedrostki: ' + [...metaPrzedrostki].join(', '));
+  t.check('przedrostki metadanych ze spisu występują w kodzie',
+    (dane.meta_wpisow_przedrostki || []).every((p) => metaPrzedrostki.has(p)), JSON.stringify(dane.meta_wpisow_przedrostki));
   const metaMartwe = (dane.meta_wpisow || []).filter((k) => !klucze.has(k));
   t.check('każdy klucz metadanych ze spisu występuje w kodzie (bez literówek)', !metaMartwe.length, metaMartwe.join(', ') || 'komplet');
   t.check('metadane przekierowań: typ ich wpisów jest w spisie (kasowany w całości)', (dane.typy_wpisow || []).includes('evk_301_redirect'),

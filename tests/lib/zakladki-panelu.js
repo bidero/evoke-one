@@ -11,6 +11,8 @@
  */
 const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               'schema', 'sitemap', 'seo-meta',
+              /* SEO z Tłumaczeniami (1.251.0): widok polski i angielski. */
+              'seo-meta-jezyki', 'seo-meta-en',
               'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings',
               'sec-login', 'sec-rest', 'sec-hardening', 'sec-cleanup',
               'tools-smtp', 'tools-redirect', 'tools-logs404', 'tools-io', 'tools-maintenance',

@@ -67,6 +67,9 @@ if (!function_exists('evk_odinstaluj_strone')) {
             wp_delete_post((int) $id, true);
         }
         foreach ($dane['meta_wpisow'] as $klucz) delete_post_meta_by_key($klucz);
+        foreach (($dane['meta_wpisow_przedrostki'] ?? []) as $p) {
+            $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE %s", $wpdb->esc_like($p) . '%'));
+        }
         foreach ($dane['meta_uzytkownikow'] as $klucz) delete_metadata('user', 0, $klucz, '', true);
 
         // ── Tabele ────────────────────────────────────────────────────────
@@ -100,6 +103,7 @@ if (!function_exists('evk_odinstaluj_strone')) {
         foreach ($dane['haki_crona'] as $hak) wp_unschedule_hook($hak);
         delete_option('rewrite_rules');   // WordPress zbuduje reguły od nowa, już bez naszych
         wp_cache_delete('alloptions', 'options');   // po kasowaniu przedrostkami wprost w SQL
+        wp_cache_flush_group('post_meta');           // metadane skasowane przedrostkiem, też wprost w SQL
     }
 }
 

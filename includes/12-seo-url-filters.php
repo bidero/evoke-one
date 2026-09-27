@@ -114,20 +114,38 @@ add_filter('home_url', function ($url, $path) {
 }, 10, 2);
 
 /**
- * Filtry dla linków do postów i stron
+ * Linki termów i typów treści: prefiks języka i człony z mapy adresów.
+ *
+ * Do 1.250.0 dostawały sam prefiks, więc przetłumaczony człon kategorii albo
+ * typu treści był w linkach polski, a wejście na niego kończyło się
+ * przekierowaniem 302 (niżej w 10-language-system.php). Wpisy i strony mają
+ * własne filtry (`post_link`, `page_link`). WordPress składa te linki przez
+ * `home_url()`, który ma już prefiks — człony są jednak polskie, więc prefiks
+ * zdejmujemy i tłumaczymy ścieżkę od polskiej.
  */
-$tl_link_filters = ['post_type_link', 'term_link', 'post_type_archive_link', 'get_pagenum_link'];
-
-foreach ($tl_link_filters as $_tl_filter) {
+foreach (['post_type_link', 'term_link', 'post_type_archive_link'] as $_tl_filter) {
     add_filter($_tl_filter, function ($url) {
         if (tl_is_bricks_editor() || is_admin()) return $url;
 
         $lang = $GLOBALS['lang_code'] ?? '';
         if (empty($lang) || $lang === 'pl') return $url;
 
-        return tl_add_lang_prefix_to_url($url, $lang);
+        $polski = tl_remove_lang_prefix_from_url($url);
+        $wynik  = tl_url_jezyka($polski, $lang);
+        // Adres, którego tl_url_jezyka() nie rusza (plik, obcy host): sam prefiks, jak dotąd.
+        return $wynik !== $polski ? $wynik : tl_add_lang_prefix_to_url($url, $lang);
     }, 10);
 }
+
+/* Stronicowanie składa się z bieżącego adresu, który ma już człony języka. */
+add_filter('get_pagenum_link', function ($url) {
+    if (tl_is_bricks_editor() || is_admin()) return $url;
+
+    $lang = $GLOBALS['lang_code'] ?? '';
+    if (empty($lang) || $lang === 'pl') return $url;
+
+    return tl_add_lang_prefix_to_url($url, $lang);
+}, 10);
 
 /**
  * Filtr dla nav menu items - z tłumaczeniem slugów

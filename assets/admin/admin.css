@@ -2872,6 +2872,51 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
     cursor: pointer;
 }
 
+/* ── SEO: wersje językowe (1.251.0) ──
+   Przełącznik z tymi samymi klasami i wymiarami co w Evoke FIELDS
+   (assets/translations.css tamtej wtyczki) — kolor wciśnięcia daje
+   `button-primary`, czyli schemat panelu albo kolor z White Label. */
+.evk-tl-przelacznik { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; }
+.wp-core-ui .evk-tl-przelacznik .button.evk-tl-jezyk {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 26px;
+    height: auto;
+    margin: 0;
+    padding: 0 10px;
+    font-size: 12px;
+    line-height: 24px;
+    font-weight: 600;
+}
+.evk-tl-licznik { font-weight: 400; font-size: 11px; opacity: .85; }
+.evk-tl-licznik:empty { display: none; }
+/* Polska wartość pod polem języka i wartość z Bricksa pod polem polskim. */
+.evk-seo-oryginal,
+.evk-seo-bricks {
+    margin: -4px 0 2px;
+    padding: 4px 8px;
+    background: var(--evo-surface);
+    border-left: 3px solid var(--evo-border);
+    border-radius: 0 4px 4px 0;
+    color: var(--evo-text-soft);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+.evk-seo-oryginal-jezyk { font-weight: 600; color: var(--evo-text-dim); }
+/* Robots w widoku języka: zostają na miejscu, przygaszone i nieaktywne (`inert` z admin.js). */
+.evk-seo-tabela.evk-seo-obcy .evk-seo-wspolne { opacity: .45; }
+.evk-seo-wspolne-uwaga { display: none; margin: 6px 0 0; font-size: 11px; color: var(--evo-text-dim); }
+.evk-seo-tabela.evk-seo-obcy .evk-seo-wspolne-uwaga { display: block; }
+/* Przeniesienie {tl_…}: przyciski i podgląd. */
+.evk-seo-tl-akcje { gap: 8px; margin-bottom: 10px; }
+.evk-seo-tl-tabela td { overflow-wrap: anywhere; }
+#evk-seo-tl-stan.is-err { color: var(--evo-danger); }
+@media screen and (max-width: 782px) {
+    .wp-core-ui .evk-tl-przelacznik .button.evk-tl-jezyk { min-height: 32px; line-height: 30px; padding: 0 12px; font-size: 13px; }
+}
+
 /* ── Lista „klucz → wartość" (wykluczone strony, slugi tłumaczeń) ───────── */
 .evo-lead { margin-bottom: 16px; font-size: 13px; color: var(--evo-text-muted); }
 .evo-list-box {

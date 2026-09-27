@@ -74,6 +74,10 @@ return [
                       '_evk_snippet_awaria', '_evk_snippet_ukosniki_ok',
                       // Tłumaczenia w elementach: stan „Do sprawdzenia" (1.242.0) i wykaz dopisanych (1.246.0).
                       '_evk_tl_el_stan', '_evk_tl_el_dopisane'],
+    /* Wersje językowe pól wpisu: `_evk_tl_{język}__{pole}` — kod języka jest
+       dynamiczny, więc przedrostek (1.251.0: pola SEO). Tylko z podkreślnikiem
+       na początku: Evoke Fields trzyma swoje tłumaczenia pod `evk_tl_…`. */
+    'meta_wpisow_przedrostki' => ['_evk_tl_'],
     'meta_uzytkownikow' => ['evk_avatar_id'],
     'tabele' => ['evk_nl_lists', 'evk_nl_subscribers', 'evk_nl_templates', 'evk_nl_campaigns',
                  'evk_nl_queue', 'evk_nl_logs', 'evk_backup_jobs', 'evk_404'],

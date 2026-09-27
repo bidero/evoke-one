@@ -1041,15 +1041,86 @@
         });
 
         function seoRowData($row) {
-            var robots = [];
+            var robots = [], jezyki = {};
             $row.find('.evoke-seo-robots-cb:checked').each(function () { robots.push(this.value); });
+            // Pola wersji językowych (1.251.0): { en: { title, desc, keywords }, … }.
+            $row.find('.evk-seo-wersja').each(function () {
+                var lang = this.getAttribute('data-lang');
+                if (lang === 'pl') return;
+                var pola = {};
+                $(this).find('.evk-seo-pole').each(function () { pola[this.getAttribute('data-pole')] = this.value; });
+                jezyki[lang] = pola;
+            });
             return {
                 post_id:      $row.data('id'),
                 seo_title:    $row.find('.evoke-seo-title').val(),
                 seo_desc:     $row.find('.evoke-seo-desc').val(),
                 seo_keywords: $row.find('.evoke-seo-keywords').val(),
                 seo_robots:   robots,
+                seo_jezyki:   jezyki,
             };
+        }
+
+        /** 1 pole, 2 pola, 5 pól — liczebnik z rzeczownikiem. */
+        function seoOdmiana(n, jedno, kilka, wiele) {
+            var d = n % 10, s = n % 100;
+            if (n === 1) return n + ' ' + jedno;
+            return n + ' ' + ((d >= 2 && d <= 4 && (s < 12 || s > 14)) ? kilka : wiele);
+        }
+
+        /* ── Wersje językowe (1.251.0) ──
+           Przełącznik nad tabelą podmienia pola w każdym wierszu: widok języka
+           pokazuje jego pola, a pod nimi polską wartość. Robots są wspólne dla
+           języków — przygaszone i nieaktywne (`inert`), jak pola bez tłumaczenia
+           w Evoke FIELDS. Licznik: wypełnione pola języka z tych, które mają
+           polską wartość. Widok idzie w adresie (`seo_lang`, pierwszy rysuje
+           go serwer), więc przełączenie poprawia też odnośniki stronicowania,
+           typów treści i formularz szukania — inaczej następna strona tabeli
+           wracałaby do polskiego. */
+        var $seoPrzel = $('.evk-seo-przelacznik');
+
+        function seoLiczniki() {
+            $seoPrzel.find('.evk-tl-jezyk').each(function () {
+                var lang = this.getAttribute('data-lang'), n = 0, m = 0;
+                if (lang === 'pl') return;
+                $('.evk-seo-wersja[data-lang="' + lang + '"] .evk-seo-pole').each(function () {
+                    if (this.getAttribute('data-pl') !== '1') return;
+                    m++;
+                    if ($.trim(this.value) !== '') n++;
+                });
+                $(this).find('.evk-tl-licznik').text(m ? n + '/' + m : '');
+                $(this).find('.evk-tl-licznik-sr').text(m ? ', przetłumaczone ' + n + ' z ' + m : '');
+            });
+        }
+
+        function seoJezyk(lang) {
+            if (!$seoPrzel.find('.evk-tl-jezyk[data-lang="' + lang + '"]').length) lang = 'pl';
+            var obcy = lang !== 'pl';
+            $seoPrzel.find('.evk-tl-jezyk').each(function () {
+                var wcisniety = this.getAttribute('data-lang') === lang;
+                this.setAttribute('aria-pressed', wcisniety ? 'true' : 'false');
+                $(this).toggleClass('button-primary', wcisniety);
+            });
+            $('.evk-seo-wersja').each(function () { this.hidden = this.getAttribute('data-lang') !== lang; });
+            $('.evk-seo-tabela').toggleClass('evk-seo-obcy', obcy);
+            $('.evk-seo-wspolne').each(function () { this.inert = obcy; });
+            // Stan w adresach: odnośniki, formularz szukania i pasek adresu.
+            var zLang = function (href) {
+                var u = new URL(href, window.location.href);
+                if (obcy) { u.searchParams.set('seo_lang', lang); } else { u.searchParams.delete('seo_lang'); }
+                return u.toString();
+            };
+            $('.evk-seo-types a, .evk-seo-pager a, .evk-seo-search-form a').each(function () { this.href = zLang(this.href); });
+            var $form = $('.evk-seo-search-form'), $ukryte = $form.find('input[name="seo_lang"]');
+            if (obcy && !$ukryte.length) $ukryte = $('<input type="hidden" name="seo_lang">').prependTo($form);
+            if (obcy) { $ukryte.val(lang); } else { $ukryte.remove(); }
+            try { window.history.replaceState(null, '', zLang(window.location.href)); } catch (e) { /* bez historii — zostaje sam widok */ }
+        }
+
+        if ($seoPrzel.length) {
+            $seoPrzel.on('click', '.evk-tl-jezyk', function () { seoJezyk(this.getAttribute('data-lang')); });
+            $(document).on('input', '.evk-seo-pole', seoLiczniki);
+            seoLiczniki();
         }
 
         /** Wynik na przycisku: klasa stanu, nie wpisany kolor. */
@@ -1071,6 +1142,7 @@
                 action: 'evoke_save_seo_ajax', nonce: window.evoSeoAjax.nonce,
                 post_id: d.post_id, seo_title: d.seo_title, seo_desc: d.seo_desc,
                 seo_keywords: d.seo_keywords, seo_robots: JSON.stringify(d.seo_robots),
+                seo_jezyki: JSON.stringify(d.seo_jezyki),
             }).done(function (r) {
                 if (r && r.success) $row.removeClass('is-dirty');
                 seoFlash($btn, !!(r && r.success), (r && r.success) ? '✓ Zapisano' : 'Błąd!');
@@ -1116,6 +1188,59 @@
                 $btn.text('Zapisz zmienione').prop('disabled', false);
             });
         });
+
+        /* ── Przeniesienie {tl_…} do pól języków (1.251.0) ──
+           Najpierw podgląd (co, skąd, z jakim tłumaczeniem), dopiero potem
+           zapis. Tabela podglądu składana z tekstu (`.text()`), bez HTML-a
+           z odpowiedzi — w polach SEO może stać cokolwiek. */
+        var $seoTl = $('#evk-seo-tl');
+        if ($seoTl.length) {
+            var $tlStan = $('#evk-seo-tl-stan'), $tlWynik = $('#evk-seo-tl-wynik');
+            var tlPrzenies = document.getElementById('evk-seo-tl-przenies-w');
+
+            $('#evk-seo-tl-podglad').on('click', function () {
+                var $b = $(this).prop('disabled', true);
+                $tlStan.removeClass('is-err').text('Sprawdzam…');
+                $.post(window.evoSeoAjax.url, { action: 'evoke_seo_tl_podglad', nonce: window.evoSeoAjax.nonce }).done(function (r) {
+                    if (!r || !r.success) { $tlStan.addClass('is-err').text('Nie udało się pobrać podglądu.'); return; }
+                    var d = r.data, ile = 0;
+                    var $t = $('<table class="evo-tbl evk-seo-tl-tabela"><thead><tr></tr></thead><tbody></tbody></table>');
+                    var $glowa = $t.find('thead tr'), $cialo = $t.find('tbody');
+                    ['Strona', 'Pole', 'Polski tekst'].forEach(function (x) { $('<th scope="col">').text(x).appendTo($glowa); });
+                    $.each(d.jezyki, function (kod) { $('<th scope="col">').text(kod.toUpperCase()).appendTo($glowa); });
+                    d.wiersze.forEach(function (w) {
+                        var $r = $('<tr>').appendTo($cialo), ok = w.stan === 'ok';
+                        $('<td>').text(w.tytul).appendTo($r);
+                        $('<td>').text(w.pole + (w.zrodlo === 'bricks' ? ' (Bricks)' : '')).appendTo($r);
+                        $('<td>').text(ok ? w.pl : 'Znacznik bez frazy w słowniku — zostaje: ' + w.surowa).appendTo($r);
+                        $.each(d.jezyki, function (kod) {
+                            var j = w.jezyki[kod] || {};
+                            $('<td>').text(!ok ? '—' : (j.obecna ? 'zostaje wpisane: ' + j.obecna : (j.tekst || '— brak tłumaczenia'))).appendTo($r);
+                        });
+                        if (ok) ile++;
+                    });
+                    $tlWynik.empty().append($('<div class="evk-table-wrap">').append($t));
+                    $tlStan.text(ile ? 'Do przeniesienia: ' + seoOdmiana(ile, 'pole', 'pola', 'pól') + '.' : 'Nie ma czego przenieść.');
+                    tlPrzenies.hidden = !ile;
+                }).fail(function () {
+                    $tlStan.addClass('is-err').text('Nie udało się pobrać podglądu.');
+                }).always(function () { $b.prop('disabled', false); });
+            });
+
+            $('#evk-seo-tl-przenies').on('click', function () {
+                if (!window.confirm('Przenieść znaczniki {tl_…} do pól języków? Polski tekst zastąpi znaczniki w polach SEO.')) return;
+                var $b = $(this).prop('disabled', true);
+                $tlStan.removeClass('is-err').text('Przenoszę…');
+                $.post(window.evoSeoAjax.url, { action: 'evoke_seo_tl_przenies', nonce: window.evoSeoAjax.nonce }).done(function (r) {
+                    if (!r || !r.success) { $tlStan.addClass('is-err').text('Przeniesienie się nie udało.'); $b.prop('disabled', false); return; }
+                    $tlStan.text('Przeniesiono ' + seoOdmiana(r.data.pola, 'pole', 'pola', 'pól') + ', tłumaczeń: ' + r.data.jezyki + '. Odświeżam…');
+                    window.location.reload();
+                }).fail(function () {
+                    $tlStan.addClass('is-err').text('Przeniesienie się nie udało.');
+                    $b.prop('disabled', false);
+                });
+            });
+        }
     }
 
     /* =========================================================
