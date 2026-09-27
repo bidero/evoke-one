@@ -170,6 +170,7 @@ function tl_render_page() {
         <div class="tl-tabs">
             <a href="<?php echo esc_url(add_query_arg('tab','translations',$base)); ?>" class="tl-tab <?php echo $tab==='translations'?'active':''; ?>">EVOKE Tłumaczenia <?php echo $pct_html; ?></a>
             <a href="<?php echo esc_url(add_query_arg('tab','elementy',$base)); ?>" class="tl-tab <?php echo $tab==='elementy'?'active':''; ?>">Teksty w elementach</a>
+            <a href="<?php echo esc_url(add_query_arg('tab','wpisy',$base)); ?>" class="tl-tab <?php echo $tab==='wpisy'?'active':''; ?>">Wpisy i strony</a>
             <a href="<?php echo esc_url(add_query_arg('tab','images',$base)); ?>" class="tl-tab <?php echo $tab==='images'?'active':''; ?>">Obrazki</a>
             <a href="<?php echo esc_url(add_query_arg('tab','slugs',$base)); ?>" class="tl-tab <?php echo $tab==='slugs'?'active':''; ?>">Slugi URL</a>
             <a href="<?php echo esc_url(add_query_arg('tab','dd',$base)); ?>" class="tl-tab <?php echo $tab==='dd'?'active':''; ?>">Dane Dynamiczne</a>
@@ -182,6 +183,9 @@ function tl_render_page() {
 
         <?php elseif ($tab === 'elementy'): ?>
             <?php require __DIR__ . '/tab-elementy.php'; ?>
+
+        <?php elseif ($tab === 'wpisy'): ?>
+            <?php require __DIR__ . '/tab-wpisy.php'; ?>
 
         <?php elseif ($tab === 'images'): ?>
             <?php require __DIR__ . '/tab-images.php'; ?>

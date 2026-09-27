@@ -2,6 +2,87 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.252.0] — 2026-09-27
+
+Tłumaczenia wpisów i stron: tytuł, adres, treść i zajawka w każdym języku.
+Druga z trzech partii „SEO + tłumaczenia systemowe” (następna: kategorie,
+tagi, taksonomie i teksty alternatywne obrazów).
+
+### Dodane (decyzje zgłaszającego)
+
+- **Klasyczny edytor: przełącznik `PL | EN n/m | DE n/m` nad tytułem.**
+  W widoku języka w tych samych miejscach stoją:
+  - tytuł (wygląda jak pole tytułu WordPressa);
+  - adres (człon z mapy adresów, na początku adres strony-rodzica w tym
+    języku);
+  - treść w drugim edytorze z tym samym paskiem i „Dodaj medium”,
+    uruchamianym przy pierwszym wejściu w język;
+  - zajawka w pudełku „Zajawka”.
+  Pod polami polski oryginał, „Kopiuj z polskiego”, „Do sprawdzenia” po
+  zmianie polskiego tekstu i „Sprawdzone”. Licznik: przetłumaczone pola
+  z tych, które mają polski tekst (także dla czytnika ekranu). Kategorie,
+  obrazek wyróżniający i publikacja są wspólne dla języków.
+- **Jeden przełącznik dla całego ekranu.** Przełącznik ma tę samą klasę
+  przycisków co Evoke FIELDS, więc kliknięcie przełącza też grupy FIELDS,
+  a przełącznik FIELDS przełącza pola wpisu.
+- **Strona zbudowana w Bricksie:** zamiast drugiego edytora informacja, że
+  treść tłumaczy się w builderze. Tytuł, adres i zajawka zostają.
+- **Adres w języku** trafia do mapy adresów (zakładka „Slugi URL”):
+  - ten sam polski człon ma jedno tłumaczenie w całej stronie — pole mówi,
+    gdy ma go też inna strona albo kategoria;
+  - człon zajęty już w mapie przez inny polski człon albo równy polskiemu
+    adresowi innej strony — nie zapisuje się, a edytor wyjaśnia dlaczego
+    (inaczej dwie strony miałyby jeden adres);
+  - zmiana polskiego adresu przenosi pozycję mapy razem z wpisem, o ile
+    członu nie używa nic innego;
+  - szkic bez polskiego adresu trzyma człon do publikacji.
+- **Na stronie:**
+  - tytuł wszędzie, gdzie WordPress go podaje: nagłówek, `<title>`, pętle,
+    menu (pozycja bez własnej etykiety), wyszukiwarka;
+  - treść, także z `<!--more-->` i `<!--nextpage-->` (strony `/2/` w języku);
+  - zajawka języka; bez niej, a z treścią języka — WordPress robi zajawkę
+    z treści w tym języku, nie bierze polskiej;
+  - brak tłumaczenia albo pusty polski tekst — polski; panel i builder
+    Bricksa — zawsze polski.
+- **SEO:** bez tytułu SEO w języku, a z przetłumaczonym tytułem wpisu,
+  `<title>` składa się z tytułu wpisu w tym języku (przed polskim tytułem
+  SEO).
+- **Kolumna „Języki” na listach wpisów i stron:** przy każdym języku stan —
+  gotowe, częściowo, brak, do sprawdzenia — z opisem dla czytnika ekranu.
+- **Podpowiedź ze słownika:** pusty tytuł albo zajawka w języku pokazuje
+  tłumaczenie ze słownika (gdy zna cały tekst) z przyciskiem „Wstaw”.
+- **Zakładka „Wpisy i strony” w Tłumaczeniach:** tytuły i zajawki, które
+  słownik tłumaczy w całości, trafiają do pustych pól języków jednym
+  przyciskiem, po podglądzie. Tylko wpisy, które użytkownik może edytować.
+
+### Dane
+
+- Metadane `_evk_tl_{język}__post_title`, `…__post_content`,
+  `…__post_excerpt` (i `…__zrodlo`), szkic: `…__post_name`. „Usuń dane”
+  kasuje je przedrostkiem `_evk_tl_` (od 1.251.0).
+
+### Testy
+
+- `tl-wpisy` (42 sprawdzenia): klasyczny edytor w Chromium (przełącznik,
+  pola w miejscu oryginałów, drugi edytor z „Dodaj medium”, liczniki,
+  zapis), strona przez serwer (tytuł i treść EN, strona `/2/`, polska i DE
+  bez zmian), zajawka z treści EN, „Do sprawdzenia” po zmianie polskiego
+  tytułu i po zmianie zajawki w formularzu, „Sprawdzone”, kolumna
+  „Języki”, oba konflikty adresów, zmiana polskiego adresu, adres z
+  rodzicem, strona w Bricksie, podpowiedź i przeniesienie ze słownika,
+  `<title>` z tytułu wpisu, menu.
+- `fields-panel`: przełącznik wpisu Evoke ONE i grupy Evoke FIELDS
+  przełączają się nawzajem (w obie strony).
+- Pełny przebieg: 5585 sprawdzeń w 111 plikach, 12 mutacji (każda zapala inne sprawdzenie).
+
+### Do sprawdzenia na testowej
+
+- Bricks: czy element „Post Title”, `{post_title}`, `{post_excerpt}`
+  i pętle zapytań biorą tytuł i zajawkę w języku strony (przez filtry
+  WordPressa — tu Bricksa nie ma).
+- Wpis z treścią w klasycznym edytorze wyświetlany szablonem Bricksa
+  (element „Post Content”): treść EN na `/en/…`.
+
 ## [1.251.0] — 2026-09-27
 
 SEO w wersjach językowych i adresy kategorii w językach. Pierwsza z trzech

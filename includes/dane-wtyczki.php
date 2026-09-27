@@ -66,7 +66,9 @@ return [
     /* evk_nl_rl_: limit zapisów na adres IP; evk_nl_pt_: limit maili
        z potwierdzeniem na adres e-mail (1.233.0). */
     'transienty_przedrostki' => ['evk_gdrive_msg_', 'evk_gdrive_pkce_', 'evk_wl_font_b64_', 'tl_compiled_tokens_',
-                                 'evk_nl_rl_', 'evk_nl_pt_'],
+                                 'evk_nl_rl_', 'evk_nl_pt_',
+                                 // błędy adresu EN wpisu po zapisie, na użytkownika (1.252.0)
+                                 'evk_tlw_bledy_'],
     'typy_wpisow' => ['evk_code_snippet', 'evk_301_redirect', 'evk_301_log', 'evk_404_log'],
     'meta_wpisow' => ['_evk_og_disable', '_evk_og_url', '_evk_original_post_id',
                       '_evoke_seo_desc', '_evoke_seo_keywords', '_evoke_seo_robots', '_evoke_seo_title',

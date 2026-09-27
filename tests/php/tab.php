@@ -640,6 +640,7 @@ $TABS = [
        podaje je niżej, tak jak zakładka. */
     'tl-translations' => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-translations.php'],
     'tl-elementy'     => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-elementy.php'],
+    'tl-wpisy'        => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-wpisy.php'],
     'tl-images'       => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-images.php'],
     'tl-slugs'        => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-slugs.php'],
     'tl-dd'           => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-dd.php'],

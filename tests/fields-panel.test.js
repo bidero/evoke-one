@@ -50,7 +50,8 @@ module.exports = async function (t) {
     await p.goto(adres, { waitUntil: 'load' });
     const liczniki = () => p.$$eval('.evk-tl-grupa', (gs) => gs.map((g) => [...g.querySelectorAll(':scope > .evk-tl-przelacznik .evk-tl-licznik')].map((s) => s.textContent)));
     t.check('dwie grupy (pojedyncza i repeater), każda z przełącznikiem', await p.locator('.evk-tl-grupa').count() === 2, String(await p.locator('.evk-tl-grupa').count()));
-    await p.waitForFunction(() => document.querySelector('.evk-tl-licznik').textContent !== '');
+    // Licznik grupy FIELDS — nad tytułem stoi też przełącznik wpisu z Evoke ONE (1.252.0), liczony od razu.
+    await p.waitForFunction(() => document.querySelector('.evk-tl-grupa .evk-tl-licznik').textContent !== '');
     t.check('liczniki: przetłumaczone / pola z tekstem oryginału (pusty oryginał się nie liczy)',
       J(await liczniki()) === J([['1/1', '0/1'], ['10/10', '2/10']]), J(await liczniki()));
     t.check('licznik dla czytnika ekranu słowami', (await p.textContent('.evk-tl-grupa >> nth=1 >> .evk-tl-jezyk[data-lang="de"] .evk-tl-licznik-sr')) === ', przetłumaczone 2 z 10',
@@ -93,9 +94,14 @@ module.exports = async function (t) {
     await p.focus('.evk-tl-grupa >> nth=0 >> .evk-tl-jezyk[data-lang="en"]');
     await p.keyboard.press('Enter');
     await p.waitForTimeout(300);
-    const wcisniete = await p.$$eval('.evk-tl-jezyk[aria-pressed="true"]', (b) => b.map((x) => x.dataset.lang));
+    const wcisniete = await p.$$eval('.evk-tl-grupa .evk-tl-jezyk[aria-pressed="true"]', (b) => b.map((x) => x.dataset.lang));
     t.check('Enter na „EN" przełącza WSZYSTKIE grupy na ekranie (aria-pressed)', J(wcisniete) === J(['en', 'en'])
       && await p.locator('.evk-tl-grupa.evk-tl-obcy[data-evk-jezyk="en"]').count() === 2, J(wcisniete));
+    /* Evoke ONE 1.252.0: przełącznik wpisu nad tytułem ma tę samą klasę przycisku,
+       więc idzie za FIELDS — jedno kliknięcie przełącza tytuł, treść i grupy. */
+    const wpisEn = await p.evaluate(() => ({ forma: document.querySelector('#post').getAttribute('data-evk-tlw'),
+      wcisniety: (document.querySelector('.evk-tlw-przelacznik .evk-tl-jezyk[aria-pressed="true"]') || {}).dataset }));
+    t.check('przełącznik wpisu Evoke ONE idzie za FIELDS: EN wciśnięty, tytuł i treść EN', wpisEn.forma === 'en' && (wpisEn.wcisniety || {}).lang === 'en', J(wpisEn));
     const kolorEn = await p.$$eval('.evk-tl-grupa', (gs) => gs.map((g) => [...g.querySelectorAll(':scope > .evk-tl-przelacznik .evk-tl-jezyk')]
       .map((b) => b.dataset.lang + ':' + b.classList.contains('button-primary')).join(',')));
     t.check('kolor wciśnięcia (button-primary) przechodzi na EN w obu grupach', J(kolorEn) === J(['pl:false,en:true,de:false', 'pl:false,en:true,de:false']), J(kolorEn));
@@ -171,9 +177,17 @@ module.exports = async function (t) {
       'zamknięty');
     const poPowrocie = await p.evaluate(() => ({
       inert: document.querySelectorAll('.evk-tl-grupa [inert]').length,
-      primary: [...document.querySelectorAll('.evk-tl-jezyk.button-primary')].map((b) => b.dataset.lang),
+      primary: [...document.querySelectorAll('.evk-tl-grupa .evk-tl-jezyk.button-primary')].map((b) => b.dataset.lang),
     }));
     t.check('…nic nie zostaje nieaktywne, kolor wciśnięcia wraca na PL w obu grupach', poPowrocie.inert === 0 && J(poPowrocie.primary) === J(['pl', 'pl']), J(poPowrocie));
+    // W drugą stronę: przełącznik wpisu Evoke ONE przełącza grupy FIELDS.
+    await p.click('.evk-tlw-przelacznik .evk-tl-jezyk[data-lang="de"]');
+    await p.waitForTimeout(300);
+    const grupyDe = await p.locator('.evk-tl-grupa.evk-tl-obcy[data-evk-jezyk="de"]').count();
+    await p.click('.evk-tlw-przelacznik .evk-tl-jezyk[data-lang="pl"]');
+    await p.waitForTimeout(300);
+    t.check('przełącznik wpisu Evoke ONE przełącza grupy FIELDS (DE i z powrotem PL)',
+      grupyDe === 2 && await p.locator('.evk-tl-grupa.evk-tl-obcy').count() === 0 && !(await p.getAttribute('#post', 'data-evk-tlw')), String(grupyDe));
     await p.fill('[name="evk_single[tytul]"]', 'Tytuł PL nowy');
     await p.click('.evk-tl-grupa >> nth=0 >> .evk-tl-jezyk[data-lang="en"]');
     await p.waitForTimeout(300);

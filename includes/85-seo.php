@@ -170,7 +170,14 @@ function evk_seo_get_meta(int $pid): array {
 
     // Tytuł — title_custom tylko gdy jawnie ustawiony (Bricks lub zakładka SEO)
     [$title_zrodlo, $title_custom] = evk_seo_wartosc_pl($b['documentTitle'] ?? '', get_post_meta($pid, '_evoke_seo_title', true), $pid);
-    if ($lang !== '') $title_custom = evk_seo_w_jezyku($pid, $lang, 'seo_title', $title_zrodlo, $title_custom, true);
+    if ($lang !== '') {
+        /* Bez tytułu SEO w języku, a z przetłumaczonym tytułem wpisu (1.252.0):
+           pusto — WordPress złoży <title> z tytułu wpisu w tym języku i nazwy
+           strony. Polski tytuł SEO dopiero, gdy tytułu wpisu w języku nie ma. */
+        $w_jezyku = evk_seo_w_jezyku($pid, $lang, 'seo_title', $title_zrodlo, $title_custom, false);
+        $tytul_wpisu = function_exists('evk_tlw_tlumaczenie') && evk_tlw_tlumaczenie($pid, $lang, 'post_title') !== '';
+        $title_custom = ($w_jezyku !== '' || $tytul_wpisu) ? $w_jezyku : $title_custom;
+    }
     $title = $title_custom !== '' ? $title_custom : get_the_title($pid);
 
     // Opis

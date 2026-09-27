@@ -23,7 +23,7 @@ const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               'backup', 'backup-on',
               /* Tłumaczenia to osobny ekran, ale ładuje ten sam `admin.css`
                  (patrz `tl/bootstrap.php`), więc obowiązuje go ta sama skóra. */
-              'tl-translations', 'tl-elementy', 'tl-images', 'tl-slugs', 'tl-dd',
+              'tl-translations', 'tl-elementy', 'tl-wpisy', 'tl-images', 'tl-slugs', 'tl-dd',
               'tl-languages', 'tl-sitemap', 'tl-io'];
 
 module.exports = { TABS };
