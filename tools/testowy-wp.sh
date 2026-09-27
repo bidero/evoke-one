@@ -25,11 +25,20 @@
 # (tests/zapis-wp-odinstalowanie.test.js). Odinstalowanie z „Usuń dane"
 # kasuje wszystko po wtyczce, więc na pierwszym zniszczyłoby stan innym
 # testom; sonda sama go zasiewa i po sobie aktywuje wtyczkę z powrotem.
+# Czwarty (1.250.0) ma obok Evoke ONE także Evoke FIELDS — do testów fields-*
+# (tłumaczenia wartości pól):
+#   czwarty   http://pola.test,  prefiks pola_   (EVK_WP4_PATH)
+# Osobny, bo aktywny Fields na pierwszym zmieniałby panel i dane widziane
+# przez pozostałe zestawy. Fields to osobne repozytorium: EVK_FIELDS_REPO,
+# domyślnie katalog evoke-fields obok tego repozytorium. Bez niego testy
+# fields-* zapalają się na czerwono z instrukcją.
 #
 # Gdzie stawia — zmienne, wszystkie z wartościami domyślnymi:
 #   EVK_WP_PATH   katalog WordPressa   (~/.cache/evk-testowy-wp)
 #   EVK_WP2_PATH  katalog drugiego     (~/.cache/evk-testowy-wp2)
 #   EVK_WP3_PATH  katalog trzeciego    (~/.cache/evk-testowy-wp3)
+#   EVK_WP4_PATH  katalog czwartego    (~/.cache/evk-testowy-wp4)
+#   EVK_FIELDS_REPO  repozytorium Evoke FIELDS (../evoke-fields)
 #   EVK_WP_DB     baza                 (evk_test)
 #   EVK_WP_USER   użytkownik bazy      (evk)
 #   EVK_WP_PASS   hasło                (evk)
@@ -44,10 +53,12 @@ WP_WERSJA="7.1.2"
 EVK_WP_PATH="${EVK_WP_PATH:-$HOME/.cache/evk-testowy-wp}"
 EVK_WP2_PATH="${EVK_WP2_PATH:-$HOME/.cache/evk-testowy-wp2}"
 EVK_WP3_PATH="${EVK_WP3_PATH:-$HOME/.cache/evk-testowy-wp3}"
+EVK_WP4_PATH="${EVK_WP4_PATH:-$HOME/.cache/evk-testowy-wp4}"
 EVK_WP_DB="${EVK_WP_DB:-evk_test}"
 EVK_WP_USER="${EVK_WP_USER:-evk}"
 EVK_WP_PASS="${EVK_WP_PASS:-evk}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
+EVK_FIELDS_REPO="${EVK_FIELDS_REPO:-$(dirname "$REPO")/evoke-fields}"
 CLI="$EVK_WP_PATH/../wp-cli.phar"
 
 krok() { printf '── %s\n' "$*"; }
@@ -70,7 +81,7 @@ fi
 if [ "${1:-}" = "--od-nowa" ]; then
     krok "czyszczę poprzednie środowisko"
     mysql -e "DROP DATABASE IF EXISTS \`$EVK_WP_DB\`" || true
-    rm -rf "$EVK_WP_PATH" "$EVK_WP2_PATH" "$EVK_WP3_PATH"
+    rm -rf "$EVK_WP_PATH" "$EVK_WP2_PATH" "$EVK_WP3_PATH" "$EVK_WP4_PATH"
 fi
 
 krok "baza $EVK_WP_DB i użytkownik $EVK_WP_USER"
@@ -148,9 +159,36 @@ fi
 ln -sfn "$REPO" "$EVK_WP3_PATH/wp-content/plugins/evoke-one"
 wp3 plugin activate evoke-one >/dev/null 2>&1 || true
 
+# ── Czwarty WordPress: Evoke ONE + Evoke FIELDS (testy fields-*) ─────────
+wp4() { php "$CLI" --allow-root --path="$EVK_WP4_PATH" "$@"; }
+if [ ! -f "$EVK_WP4_PATH/wp-includes/version.php" ]; then
+    krok "czwarty WordPress (pola.test, prefiks pola_)"
+    mkdir -p "$EVK_WP4_PATH"
+    ( cd "$EVK_WP_PATH" && tar --exclude=./wp-config.php --exclude='./wp-content/plugins/evoke-one' \
+        --exclude='./wp-content/evk-backups-*' --exclude='./wp-content/uploads' -cf - . ) | ( cd "$EVK_WP4_PATH" && tar -xf - )
+fi
+if [ ! -f "$EVK_WP4_PATH/wp-config.php" ]; then
+    wp4 config create --dbname="$EVK_WP_DB" --dbuser="$EVK_WP_USER" --dbpass="$EVK_WP_PASS" \
+        --dbhost=localhost --dbprefix=pola_ --skip-check >/dev/null
+fi
+if ! wp4 core is-installed 2>/dev/null; then
+    wp4 core install --url=http://pola.test --title="Evoke pola" --admin_user=admin \
+        --admin_password=admin --admin_email=admin@pola.test --skip-email >/dev/null
+fi
+ln -sfn "$REPO" "$EVK_WP4_PATH/wp-content/plugins/evoke-one"
+wp4 plugin activate evoke-one >/dev/null 2>&1 || true
+if [ -f "$EVK_FIELDS_REPO/evk-repeater.php" ]; then
+    ln -sfn "$EVK_FIELDS_REPO" "$EVK_WP4_PATH/wp-content/plugins/evoke-fields"
+    wp4 plugin activate evoke-fields >/dev/null 2>&1 || true
+    POLA="$EVK_WP4_PATH ($(wp4 plugin get evoke-fields --field=version 2>/dev/null || echo '?'), dowiązanie do $EVK_FIELDS_REPO)"
+else
+    POLA="$EVK_WP4_PATH — BRAK Evoke FIELDS w $EVK_FIELDS_REPO (ustaw EVK_FIELDS_REPO), testy fields-* będą czerwone"
+fi
+
 krok "gotowe"
 echo "   WordPress: $EVK_WP_PATH ($(wp core version))"
 echo "   drugi:     $EVK_WP2_PATH ($(wp2 option get home))"
 echo "   trzeci:    $EVK_WP3_PATH ($(wp3 option get home))"
+echo "   czwarty:   $POLA"
 echo "   wtyczka:   $(wp plugin get evoke-one --field=version) (dowiązanie do $REPO)"
 echo "   testy:     node tests/run.js backup-baza"

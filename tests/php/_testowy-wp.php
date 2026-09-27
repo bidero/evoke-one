@@ -27,8 +27,12 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 
 /* $evk_drugi = true: DRUGI testowy WordPress (nowa.test, prefiks nowy_) —
    cel przywracania na innej stronie. $evk_trzeci = true: TRZECI,
-   jednorazowy (usun.test, prefiks usun_) — do testu odinstalowania. */
-if (!empty($evk_trzeci)) {
+   jednorazowy (usun.test, prefiks usun_) — do testu odinstalowania.
+   $evk_czwarty = true: CZWARTY (pola.test, prefiks pola_) — Evoke ONE
+   z Evoke FIELDS, do testów fields-* (1.250.0). */
+if (!empty($evk_czwarty)) {
+    $evk_sciezka_wp = getenv('EVK_WP4_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp4');
+} elseif (!empty($evk_trzeci)) {
     $evk_sciezka_wp = getenv('EVK_WP3_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp3');
 } elseif (!empty($evk_drugi)) {
     $evk_sciezka_wp = getenv('EVK_WP2_PATH') ?: (getenv('HOME') . '/.cache/evk-testowy-wp2');
@@ -39,7 +43,7 @@ if (!is_file($evk_sciezka_wp . '/wp-load.php') || !is_file($evk_sciezka_wp . '/w
     echo json_encode(['brak' => 'Brak testowego WordPressa w ' . $evk_sciezka_wp . ' — uruchom tools/testowy-wp.sh']);
     exit;
 }
-$_SERVER['HTTP_HOST']   = !empty($evk_trzeci) ? 'usun.test' : (!empty($evk_drugi) ? 'nowa.test' : 'stara.test');
+$_SERVER['HTTP_HOST']   = !empty($evk_czwarty) ? 'pola.test' : (!empty($evk_trzeci) ? 'usun.test' : (!empty($evk_drugi) ? 'nowa.test' : 'stara.test'));
 $_SERVER['REQUEST_URI'] = '/';
 if (!defined('WP_USE_THEMES')) define('WP_USE_THEMES', false);
 /* Bez tego każde załadowanie WordPressa odpala WP-Cron, a ten żądaniem HTTP

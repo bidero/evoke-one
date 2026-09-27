@@ -2,6 +2,68 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.250.0] — 2026-09-27
+
+Tłumaczenia wartości pól Evoke FIELDS — część Evoke ONE. Działa z Evoke
+FIELDS 1.70.0 (osobne repozytorium, ta sama gałąź robocza).
+
+### Dodane (decyzja zgłaszającego)
+
+- **Języki dla Evoke FIELDS.** Nowy moduł Tłumaczeń
+  `includes/54-translation-fields.php` odpowiada na filtry Fields:
+  - `evk_fields_jezyki` — języki z zakładki Tłumaczeń (bez polskiego);
+  - `evk_fields_biezacy_jezyk` — język strony, którą właśnie składamy;
+  - `evk_fields_url_jezyka` — adres z pola Link → adres wersji językowej.
+  Ładuje się tylko przy włączonych Tłumaczeniach: wyłączone = Fields bez
+  żadnych zmian.
+- Co widać w Fields: pola języków przy polach tekstowych, wielowierszowych,
+  WYSIWYG i etykiecie linku (także w repeaterach), przełącznik
+  `PL | EN n/m | DE n/m` nad grupą, „Kopiuj z polskiego", „Do sprawdzenia"
+  i „Sprawdzone", opcja „Nie tłumacz". Wpisy, termy i strony ustawień.
+  Szczegóły w CHANGELOG-u Fields 1.70.0.
+- **Adres z pola Link.** Surowy adres zapisany w polu nie przechodzi przez
+  filtry permalinków, więc bez tego link na stronie EN prowadziłby na
+  polską wersję. Teraz:
+  - adres wewnętrzny (host strony albo ścieżka od `/`) dostaje prefiks
+    języka i przetłumaczone slugi, jak permalinki i menu;
+  - adres z prefiksem innego języka (`/de/…`) przechodzi przez polski, jak
+    przełącznik języków;
+  - bez zmian zostają adresy zewnętrzne, `mailto:`, `tel:`, same kotwice,
+    pliki oraz `wp-admin`, `wp-content`, `wp-json`;
+  - zapytanie i kotwica zostają, `www.` nie robi z adresu zewnętrznego,
+    WordPress w podkatalogu dostaje prefiks za katalogiem.
+
+### Testy
+
+- **Czwarty testowy WordPress** (`tools/testowy-wp.sh`): `pola.test`,
+  prefiks `pola_`, z Evoke ONE i Evoke FIELDS. Fields to osobne
+  repozytorium: `EVK_FIELDS_REPO`, domyślnie `../evoke-fields`. Bez niego
+  testy `fields-*` zapalają się na czerwono z instrukcją. Osobna instancja,
+  bo aktywny Fields na pierwszej zmieniałby panel i dane innych zestawów.
+- `fields-tlumaczenia` (55 sprawdzeń). Formularz składa sonda jak
+  przeglądarka: z wyrenderowanego metaboksu, wiersze z szablonu
+  z podmienionym znacznikiem. Zapis idzie przez prawdziwe `save_post`,
+  `edited_category` i handler strony ustawień Fields. Obejmuje:
+  - „Do sprawdzenia" w siedmiu scenariuszach;
+  - przenoszenie tłumaczeń przy wyłączonym języku i „Nie tłumacz";
+  - odczyt w PL, EN, DE, języku spoza listy i w builderze;
+  - 20 przypadków adresów;
+  - Tłumaczenia wyłączone.
+- `fields-panel` (36 sprawdzeń, Chromium): klasyczny edytor, dodawanie
+  i edycja termu, strona ustawień i edytor blokowy (panel metaboksów
+  WordPressa 7.1 jest zwinięty — test go rozwija). Sprawdza przełącznik
+  jednym Enterem dla wszystkich grup, liczniki, kopiowanie z pytaniem przy
+  nadpisaniu, „Do sprawdzenia" na żywo i po zapisie, leniwy edytor WYSIWYG
+  i jego treść w zapisie z edytora bloków, nowe wiersze z własnymi
+  identyfikatorami, czysty formularz po dodaniu termu oraz telefon 360 px.
+- Test wyłapał stary błąd Fields: `wp.editor.save is not a function` przy
+  każdym zapisie w klasycznym edytorze — poprawiony w Fields 1.70.0.
+- Mutacje (13, w Fields i w module): zapis w wierszach, „Sprawdzone",
+  pola ukryte w wierszach, pusty oryginał, slug w adresie, builder, skrót
+  bez znaczników, identyfikator bez znacznika wiersza, pole pod edytorem,
+  przełącznik jednej grupy, zakładka bez pól, pytanie przy nadpisaniu,
+  czyszczenie po dodaniu termu — każda zapala inny zestaw sprawdzeń.
+
 ## [1.249.1] — 2026-09-27
 
 Poprawka do 1.249.0: builder Bricksa się nie ładował.

@@ -173,7 +173,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (106 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (108 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
@@ -181,7 +181,7 @@ node tests/run.js backup-panel
 node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp
 node tests/run.js admin- anim animator aria bg-shift bricks-required builder-context burger circular-menu controls
 node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee minifikacja motion
-node tests/run.js newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
+node tests/run.js fields- newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
 ```
 
@@ -194,7 +194,7 @@ lista filtrów co wyżej:
 FILTRY="admin- anim animator aria backup-panel backup-baza backup-czytnik backup-drive
 backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize
 backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-required builder-context
-burger circular-menu controls darkmode drobiazgi grain hscroll inbox ip-klienta
+burger circular-menu controls darkmode drobiazgi fields- grain hscroll inbox ip-klienta
 konserwacja kursor loop marquee minifikacja motion newsletter odpornosc odswiezanie
 offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji
 przelaczniki rewizje schema-graf scroll-lock seo-meta settings-save sierotki
@@ -248,7 +248,7 @@ W kontenerze sesji zdalnej serwera bazy nie ma — raz na sesję
 ląduje w `~/.cache/evk-testowy-wp` (zmienna `EVK_WP_PATH`), wtyczka jest do
 niego DOWIĄZANA, więc testy widzą bieżący kod.
 
-Skrypt stawia (od 1.232.0 trzy, patrz niżej) WordPressy w jednej bazie: `stara.test` (prefiks `wp_`)
+Skrypt stawia (od 1.232.0 trzy, od 1.250.0 cztery, patrz niżej) WordPressy w jednej bazie: `stara.test` (prefiks `wp_`)
 i `nowa.test` (prefiks `nowy_`, katalog `EVK_WP2_PATH`) — drugi jest celem
 `backup-przywracanie` (przenosiny: inny adres, prefiks, ścieżka). Wspólna baza
 jest celowa: test sprawdza sumami kontrolnymi, że przywracanie na drugiej
@@ -264,6 +264,22 @@ wtyczce, więc na pierwszej stronie zniszczyłoby stan innym testom. Sonda
 zasiewa go sama i na końcu aktywuje wtyczkę z powrotem. **Nie usuwaj
 wtyczki przez `wp plugin uninstall` bez `--skip-delete`** — katalog wtyczki
 to dowiązanie do repozytorium, a zwykłe usunięcie skasowałoby repozytorium.
+
+Od 1.250.0 jest CZWARTY: `pola.test` (prefiks `pola_`, katalog `EVK_WP4_PATH`,
+w sondzie `$evk_czwarty = true`) z Evoke ONE i **Evoke FIELDS** — dla
+`fields-*` (tłumaczenia wartości pól). Fields to osobne repozytorium
+(`bidero/evoke-fields`, ta sama gałąź robocza): skrypt dowiązuje je z
+`EVK_FIELDS_REPO`, domyślnie `../evoke-fields` obok tego repozytorium —
+w sesji zdalnej trzeba je najpierw sklonować. Bez niego testy `fields-*`
+świecą na czerwono z instrukcją. Osobna instancja, bo aktywny Fields na
+pierwszej zmieniałby panel i dane innych zestawów. Dwie rzeczy z testu:
+- formularz składa sonda jak przeglądarka — z WYRENDEROWANEGO metaboksu,
+  bez zawartości `<template>`, wiersz z szablonu z podmienionym znacznikiem.
+  Nazwy pól wpisane w sondzie ręcznie przeszłyby także przy zepsutym
+  szablonie;
+- w WordPressie 7.1 edytor blokowy ma panel metaboksów ZWINIĘTY, a jego
+  przycisk „Meta Boxes" przykrywa uchwyt zmiany rozmiaru — klik myszą
+  trafia w uchwyt, więc test klika z poziomu strony.
 
 Dysk Google (`backup-drive`, `backup-panel-drive`) idzie przez **atrapę
 Google** — `tests/php/_google-atrapa.php` na `php -S` (`tests/lib/google-atrapa.js`),
