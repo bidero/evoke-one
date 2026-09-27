@@ -17,6 +17,8 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/fields-tlumaczenia.php adresy     evk_tl_fields_url() na przypadkach
  *   php tests/php/fields-tlumaczenia.php wylaczone  bez języków: panel bez zmian, odczyt po polsku, wiersze bez strat
  *   php tests/php/fields-tlumaczenia.php stan       identyfikatory i stan do testu w przeglądarce
+ *   php tests/php/fields-tlumaczenia.php wl [kolor] White Label włączony z kolorem głównym (test koloru przełącznika)
+ *   php tests/php/fields-tlumaczenia.php wl-przywroc White Label jak przed testem
  *
  * Formularz składa sonda tak jak przeglądarka: bierze WYRENDEROWANY metabox,
  * zbiera pola (bez zawartości <template>), a wiersz dodaje z szablonu
@@ -659,6 +661,24 @@ case 'stan':
         $wynik['nowe_termy'][$slug] = $nt ? ['podpis' => get_term_meta((int) $nt->term_id, 'podpis', true),
             'evk_tl_en__podpis' => get_term_meta((int) $nt->term_id, 'evk_tl_en__podpis', true)] : null;
     }
+    break;
+
+case 'wl':
+    // Kopia raz, przed pierwszą zmianą — przywraca ją „wl-przywroc".
+    if (get_option('evk_test_pola_wl_kopia', null) === null) update_option('evk_test_pola_wl_kopia', ['v' => get_option('evk_white_label', null)], false);
+    $wl = get_option('evk_white_label', []);
+    $wl = array_merge(is_array($wl) ? $wl : [], ['enabled' => 1, 'color_primary' => (string) ($argv[2] ?? '#d63638')]);
+    update_option('evk_white_label', $wl);
+    $wynik = ['ok' => true, 'kolor' => $wl['color_primary']];
+    break;
+
+case 'wl-przywroc':
+    $k = get_option('evk_test_pola_wl_kopia', null);
+    if (is_array($k)) {
+        if ($k['v'] === null) delete_option('evk_white_label'); else update_option('evk_white_label', $k['v']);
+        delete_option('evk_test_pola_wl_kopia');
+    }
+    $wynik = ['ok' => true];
     break;
 
 default:

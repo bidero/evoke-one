@@ -56,6 +56,39 @@ module.exports = async function (t) {
     t.check('licznik dla czytnika ekranu słowami', (await p.textContent('.evk-tl-grupa >> nth=1 >> .evk-tl-jezyk[data-lang="de"] .evk-tl-licznik-sr')) === ', przetłumaczone 2 z 10',
       await p.textContent('.evk-tl-grupa >> nth=1 >> .evk-tl-jezyk[data-lang="de"] .evk-tl-licznik-sr'));
 
+    /* Zgłoszone ze strony (1.70.0): przełącznik bez marginesów, za duży. Metabox
+       Fields zdejmuje boczny padding z .inside, a pola mają własny — przełącznik
+       ma stać w tej samej linii co pola. Zmierzone przed progiem: 14 = 14 px,
+       przyciski 37×26 px, kolor = --wp-admin-theme-color (WP 7.1: #3858e9). */
+    const przel = await p.evaluate(() => {
+      const b = document.querySelector('#evk_rep_grupa_wpis');
+      const inside = b.querySelector('.inside').getBoundingClientRect().left;
+      const przycisk = b.querySelector('.evk-tl-jezyk').getBoundingClientRect();
+      const pole = b.querySelector('.evk-s-field[data-key="tytul"]');
+      const akt = b.querySelector('.evk-tl-jezyk[aria-pressed="true"]');
+      return {
+        przelacznik: Math.round(przycisk.left - inside), pole: Math.round(pole.getBoundingClientRect().left + parseFloat(getComputedStyle(pole).paddingLeft) - inside),
+        wysokosc: Math.round(przycisk.height), kolor: getComputedStyle(akt).backgroundColor,
+        motyw: getComputedStyle(akt).getPropertyValue('--wp-admin-theme-color').trim(),
+        klasy: [...b.querySelectorAll('.evk-tl-jezyk')].map((x) => x.dataset.lang + ':' + x.classList.contains('button-primary')),
+      };
+    });
+    const rgb = (hex) => { const n = parseInt(hex.replace('#', ''), 16); return 'rgb(' + (n >> 16) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ')'; };
+    t.check('przełącznik w linii z polami (ten sam odstęp od krawędzi metaboksu)', przel.przelacznik === przel.pole && przel.przelacznik >= 12, J(przel));
+    t.check('przyciski języków małe: 24–28 px wysokości', przel.wysokosc >= 24 && przel.wysokosc <= 28, przel.wysokosc + ' px');
+    t.check('wciśnięty język w kolorze schematu panelu (button-primary), tylko on',
+      /^#[0-9a-f]{6}$/i.test(przel.motyw) && przel.kolor === rgb(przel.motyw) && J(przel.klasy) === J(['pl:true', 'en:false', 'de:false']), J(przel));
+
+    // Układ w PL — do porównania z widokiem EN (zgłoszenie: wiersze repeatera zmieniały wysokość).
+    const uklad = () => p.evaluate(() => {
+      const w = document.querySelector('#evk_rep_grupa_wpis .evk-rep-row');
+      return {
+        pola: [...w.querySelectorAll(':scope > .evk-rep-row-body .evk-s-field')].map((f) => { const r = f.getBoundingClientRect(); return f.dataset.key + ':' + Math.round(r.left) + '/' + Math.round(r.width); }),
+        naglowki: [...document.querySelectorAll('#evk_rep_grupa_wpis .evk-rep-row-head, #evk_rep_grupa_wiersze .evk-rep-row-head')].map((h) => Math.round(h.getBoundingClientRect().height)),
+      };
+    });
+    const ukladPl = await uklad();
+
     // Klawiatura: fokus na EN w pierwszej grupie, Enter.
     await p.focus('.evk-tl-grupa >> nth=0 >> .evk-tl-jezyk[data-lang="en"]');
     await p.keyboard.press('Enter');
@@ -63,6 +96,9 @@ module.exports = async function (t) {
     const wcisniete = await p.$$eval('.evk-tl-jezyk[aria-pressed="true"]', (b) => b.map((x) => x.dataset.lang));
     t.check('Enter na „EN" przełącza WSZYSTKIE grupy na ekranie (aria-pressed)', J(wcisniete) === J(['en', 'en'])
       && await p.locator('.evk-tl-grupa.evk-tl-obcy[data-evk-jezyk="en"]').count() === 2, J(wcisniete));
+    const kolorEn = await p.$$eval('.evk-tl-grupa', (gs) => gs.map((g) => [...g.querySelectorAll(':scope > .evk-tl-przelacznik .evk-tl-jezyk')]
+      .map((b) => b.dataset.lang + ':' + b.classList.contains('button-primary')).join(',')));
+    t.check('kolor wciśnięcia (button-primary) przechodzi na EN w obu grupach', J(kolorEn) === J(['pl:false,en:true,de:false', 'pl:false,en:true,de:false']), J(kolorEn));
 
     t.section('widok EN: zostaje tylko to, co tłumacz ma przejść');
     const widac = async (s) => p.isVisible(s);
@@ -76,8 +112,34 @@ module.exports = async function (t) {
       usun: await widac('.evk-rep-remove'), uchwyt: await widac('.evk-rep-handle'),
     };
     t.check('pole EN widać, oryginału (pola i etykiety) i DE nie', widok.en_tytul && !widok.pl_tytul && !widok.de_tytul && !widok.etykieta_pl, J(widok));
-    t.check('„Nie tłumacz", liczba i zakładka bez pól do tłumaczenia znikają', !widok.liczba && !widok.kod && !widok.ikona && !widok.zakladka_tech, J(widok));
-    t.check('repeater zostaje z polami EN; dodawanie, usuwanie i przeciąganie wierszy znika', widok.lista && widok.en_naglowek && !widok.dodaj && !widok.usun && !widok.uchwyt, J(widok));
+    /* Decyzja zgłaszającego (po 1.70.0): pola bez tłumaczenia wyszarzone, nie
+       ukryte — układ ma się nie zmieniać. Nieaktywne przez `inert`. */
+    const szare = (s) => p.evaluate((s) => [...document.querySelectorAll(s)].filter((e) => e.getClientRects().length)
+      .map((e) => ({ inert: e.inert, przezrocz: parseFloat(getComputedStyle(e).opacity) })), s);
+    const ikony = await szare('#evk_rep_grupa_wpis .evk-rep-row .evk-s-field[data-key="ikona"]');
+    t.check('„Nie tłumacz" w wierszu: na swoim miejscu, wyszarzone, nieaktywne (inert)', ikony.length === 2 && ikony.every((x) => x.inert && x.przezrocz < 0.6), J(ikony));
+    const struktura = await szare('#evk_rep_grupa_wpis .evk-rep-handle, #evk_rep_grupa_wpis .evk-rep-remove, #evk_rep_grupa_wpis .evk-rep-add-wrap');
+    t.check('uchwyty przeciągania, kosze i „Dodaj wiersz": zostają, przygaszone i nieaktywne', struktura.length === 5 && struktura.every((x) => x.inert && x.przezrocz < 0.6),
+      J(struktura));
+    const ukladEn = await uklad();
+    t.check('SEDNO zgłoszenia: nagłówki wierszy repeatera tej samej wysokości w PL i EN', J(ukladEn.naglowki) === J(ukladPl.naglowki) && ukladPl.naglowki.length === 3,
+      J([ukladPl.naglowki, ukladEn.naglowki]));
+    t.check('i pola wiersza w tych samych kolumnach (pozycja i szerokość)', J(ukladEn.pola) === J(ukladPl.pola), J([ukladPl.pola, ukladEn.pola]));
+    const fokus = await p.evaluate(() => {
+      const w = document.querySelector('#evk_rep_grupa_wpis .evk-rep-row .evk-s-field[data-key="ikona"] input');
+      w.focus();
+      return document.activeElement === w;
+    });
+    t.check('wyszarzone pole nie łapie fokusu', !fokus, fokus ? 'łapie' : 'nie łapie');
+    t.check('zakładka bez pól do tłumaczenia zostaje, przygaszona', widok.zakladka_tech
+      && parseFloat(await p.evaluate(() => getComputedStyle([...document.querySelectorAll('.evk-s-tab')].find((b) => b.textContent === 'Techniczne')).opacity)) < 1, J(widok));
+    t.check('repeater z polami EN widoczny', widok.lista && widok.en_naglowek, J(widok));
+    await p.click('.evk-s-tab:has-text("Techniczne")');
+    const tech = await szare('.evk-s-field[data-key="kod"], .evk-s-field[data-key="liczba"]');
+    const dopisek = await p.evaluate(() => getComputedStyle(document.querySelector('.evk-s-field[data-key="kod"] > .evk-s-label'), '::after').content);
+    t.check('w niej „Nie tłumacz" i liczba: widoczne, wyszarzone, z dopiskiem „wspólne dla języków"', tech.length === 2 && tech.every((x) => x.inert && x.przezrocz < 0.6)
+      && dopisek.includes('wspólne dla języków'), J([tech, dopisek]));
+    await p.click('.evk-s-tab:has-text("Treść")');
     t.check('nad polem oryginał (podgląd)', (await p.textContent(pole('evk_single[evk_tl_en__tytul]') + ' .evk-tl-oryginal-tekst')) === 'Tytuł PL',
       await p.textContent(pole('evk_single[evk_tl_en__tytul]') + ' .evk-tl-oryginal-tekst'));
     const idTresc = await p.getAttribute('.evk-tl-wysiwyg[name="evk_single[evk_tl_en__tresc]"]', 'id');
@@ -107,6 +169,11 @@ module.exports = async function (t) {
     await p.waitForTimeout(300);
     t.check('powrót do PL: edytor EN zamknięty, treść została w polu', await p.evaluate((id) => !tinymce.get(id) && document.getElementById(id).value.includes('Content'), idTresc),
       'zamknięty');
+    const poPowrocie = await p.evaluate(() => ({
+      inert: document.querySelectorAll('.evk-tl-grupa [inert]').length,
+      primary: [...document.querySelectorAll('.evk-tl-jezyk.button-primary')].map((b) => b.dataset.lang),
+    }));
+    t.check('…nic nie zostaje nieaktywne, kolor wciśnięcia wraca na PL w obu grupach', poPowrocie.inert === 0 && J(poPowrocie.primary) === J(['pl', 'pl']), J(poPowrocie));
     await p.fill('[name="evk_single[tytul]"]', 'Tytuł PL nowy');
     await p.click('.evk-tl-grupa >> nth=0 >> .evk-tl-jezyk[data-lang="en"]');
     await p.waitForTimeout(300);
@@ -162,6 +229,17 @@ module.exports = async function (t) {
     await p.click('.evk-tl-grupa >> nth=0 >> .evk-tl-jezyk[data-lang="en"]');
     await p.waitForTimeout(300);
     t.check('licznik liczy tylko wiersze z oryginałem (puste nowe nie)', J(await liczniki()) === J([['1/1', '0/1'], ['10/10', '2/10']]), J(await liczniki()));
+
+    // ── White Label ────────────────────────────────────────────────────────
+    t.section('kolor przełącznika z White Label (Evoke ONE)');
+    const wl = sonda('wl');   // #d63638 — domyślny w sondzie (znak # w powłoce zaczyna komentarz)
+    try {
+      await p.goto(adres, { waitUntil: 'load' });
+      const kolorWl = await p.evaluate(() => getComputedStyle(document.querySelector('#evk_rep_grupa_wpis .evk-tl-jezyk[aria-pressed="true"]')).backgroundColor);
+      t.check('White Label z kolorem głównym: wciśnięty język w tym kolorze', wl.ok && kolorWl === 'rgb(214, 54, 56)', kolorWl);
+    } finally {
+      sonda('wl-przywroc');
+    }
 
     // ── Telefon ────────────────────────────────────────────────────────────
     t.section('telefon 360 px: widok EN');
