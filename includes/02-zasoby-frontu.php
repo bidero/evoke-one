@@ -244,23 +244,57 @@ function evk_css_bez_komentarzy(string $css): string {
  * i każdy `<style>` przechodzi przez funkcje wyżej. JSON-LD i inne typy
  * danych zostają bez zmian.
  *
+ * SKANER, NIE WYRAŻENIE REGULARNE (1.249.1). W 1.249.0 szło tu
+ * `(.*?)</script>` po całym buforze stopki. Na wstawce od ~1 MB wzwyż PCRE
+ * przekraczało limit kroków (pcre.backtrack_limit, milion) i
+ * preg_replace_callback() oddawało null. `(string) null` to pusty tekst, więc
+ * znikała CAŁA stopka. Builder Bricksa drukuje w niej właśnie tyle danych
+ * i przestał się ładować: nie dostawał swoich skryptów. Teraz treść
+ * wstawki jest tylko wycinana (strpos), a wyrażenia regularne chodzą
+ * wyłącznie po atrybutach jednego znacznika.
+ *
  * @param bool $tylkoNasze Tylko znaczniki z `id="evk-…"` — przy buforze całego
  *                         <head>, w którym jest też cudzy kod.
  */
 function evk_wstawki_bez_komentarzy(string $html, bool $tylkoNasze = false): string {
     if (!evk_wstawki_skracaj() || $html === '') return $html;
-    $nasz = static function (string $atrybuty) use ($tylkoNasze): bool {
-        return !$tylkoNasze || (bool) preg_match('#\bid=["\']evk-#i', $atrybuty);
-    };
-    $html = (string) preg_replace_callback('#(<script\b(?![^>]*\bsrc=)([^>]*)>)(.*?)(</script>)#is', static function (array $m) use ($nasz): string {
-        if (!$nasz($m[2])) return $m[0];
-        if (preg_match('#\btype=["\']?([^"\'\s>]+)#i', $m[2], $typ)
-            && !in_array(strtolower($typ[1]), ['text/javascript', 'module', 'application/javascript'], true)) return $m[0];
-        return $m[1] . evk_js_bez_komentarzy($m[3]) . $m[4];
-    }, $html);
-    return (string) preg_replace_callback('#(<style\b([^>]*)>)(.*?)(</style>)#is', static function (array $m) use ($nasz): string {
-        return $nasz($m[2]) ? $m[1] . evk_css_bez_komentarzy($m[3]) . $m[4] : $m[0];
-    }, $html);
+    $n   = strlen($html);
+    $out = '';
+    $poz = 0;
+    while ($poz < $n) {
+        $s = stripos($html, '<script', $poz);
+        $t = stripos($html, '<style', $poz);
+        if ($s === false && $t === false) break;
+        if ($s !== false && ($t === false || $s < $t)) { $start = $s; $tag = 'script'; }
+        else { $start = (int) $t; $tag = 'style'; }
+        $poNazwie = $start + 1 + strlen($tag);
+        $z = $html[$poNazwie] ?? '';
+        if ($z !== '>' && $z !== '/' && !ctype_space($z)) {   // `<scripts…`, `<styled…` — inny znacznik
+            $out .= substr($html, $poz, $poNazwie - $poz);
+            $poz  = $poNazwie;
+            continue;
+        }
+        $gt = strpos($html, '>', $poNazwie);
+        if ($gt === false) break;
+        /* Wstawkę kończy pierwsze `</script` (`</style`) — tak samo czyta ją
+           przeglądarka, łańcuch w środku skryptu też. */
+        $koniec = stripos($html, '</' . $tag, $gt + 1);
+        if ($koniec === false) break;
+        $out .= substr($html, $poz, $gt + 1 - $poz)
+            . evk_wstawka_bez_komentarzy($tag, substr($html, $poNazwie, $gt - $poNazwie), substr($html, $gt + 1, $koniec - $gt - 1), $tylkoNasze);
+        $poz = $koniec;
+    }
+    return $out . substr($html, $poz);
+}
+
+/** Treść jednej wstawki: bez komentarzy, gdy to (nasz) JS albo CSS; inaczej bajt w bajt. */
+function evk_wstawka_bez_komentarzy(string $tag, string $atrybuty, string $tresc, bool $tylkoNasze): string {
+    if ($tylkoNasze && !preg_match('#(?:^|\s)id\s*=\s*["\']?evk-#i', $atrybuty)) return $tresc;
+    if ($tag === 'style') return evk_css_bez_komentarzy($tresc);
+    if (preg_match('#(?:^|\s)src\s*=#i', $atrybuty)) return $tresc;
+    if (preg_match('#(?:^|\s)type\s*=\s*["\']?([^"\'\s>]+)#i', $atrybuty, $typ)
+        && !in_array(strtolower($typ[1]), ['text/javascript', 'module', 'application/javascript'], true)) return $tresc;
+    return evk_js_bez_komentarzy($tresc);
 }
 
 /*
@@ -273,9 +307,14 @@ function evk_wstawki_bez_komentarzy(string $html, bool $tylkoNasze = false): str
  *
  * Gdy ktoś po drodze zamknie albo zostawi otwarty bufor, poziom się nie
  * zgadza i nie ruszamy niczego: wszystko wychodzi tak, jak zostało wypisane.
+ *
+ * BUILDER BRICKSA (oba okna) — bez bufora (1.249.1). Tam nie ma czego
+ * skracać dla gościa, a stopka niesie megabajty danych buildera: każda
+ * pomyłka w obróbce zatrzymuje całą pracę na stronie.
  */
 function evk_wstawki_bufor_start(): void {
     if (!evk_wstawki_skracaj()) return;
+    if (function_exists('evk_w_builderze') && evk_w_builderze()) return;
     ob_start();
     $GLOBALS['evk_wstawki_bufory'][] = ob_get_level();
 }

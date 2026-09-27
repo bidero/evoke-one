@@ -95,7 +95,10 @@ module.exports = async function (t) {
     // bo tam edytuje się oryginał (w obu oknach, jak tu wszędzie).
     '51-translation-element-fields.php',
     // 1.246.0: otwarcie wpisu w builderze czyści wykaz pól dopisanych przez serwer.
-    '53-translation-element-transfer.php'];
+    '53-translation-element-transfer.php',
+    // 1.249.1: bufor <head> i stopki nie otwiera się w builderze — jego stopka
+    // niesie megabajty danych, a 1.249.0 gubiło ją całą (builder nie wstawał).
+    '02-zasoby-frontu.php'];
 
   const wola = plikiPhp(path.join(ROOT, 'includes'))
     .filter((p) => /evk_w_builderze\(\)/.test(bezKomentarzy(fs.readFileSync(p, 'utf8'))))
@@ -103,7 +106,7 @@ module.exports = async function (t) {
     .filter((n) => n !== '00-context-safety.php');
 
   const brakujace = OCZEKIWANE.filter((n) => !wola.includes(n));
-  t.check('a wspólny warunek jest wołany we wszystkich ośmiu modułach',
+  t.check('a wspólny warunek jest wołany we wszystkich dziewięciu modułach',
     brakujace.length === 0 && wola.length === OCZEKIWANE.length,
     brakujace.length ? 'brakuje: ' + brakujace.join(', ') : wola.join(', '));
 };

@@ -211,6 +211,19 @@ module.exports = async function (t) {
     lx.html_nasze === '<script id="evk-a">x();</script><script id="cudzy">/* b */ y();</script><style id="evk-b">.x{}</style><style>/* d */ .y{}</style>',
     lx.html_nasze);
 
+  /* 1.249.1: w 1.249.0 wstawka od ~1 MB wzwyż przekraczała limit PCRE, a pusty
+     wynik wyrażenia regularnego zastępował CAŁĄ stopkę — builder Bricksa (ok.
+     1–3 MB danych w stopce) przestał się ładować. Zmierzone po poprawce:
+     3,3 MB w ~25 ms. */
+  t.section('duża stopka (dane buildera Bricksa): nic nie znika');
+  const bf = JSON.parse(phpOutput('minifikacja.php', 'bufor'));
+  t.check('bufor wp_footer z 3 MB danych: wychodzi cały, cudzy kod bajt w bajt, nasza wstawka bez komentarza',
+    bf.otwarty && bf.zgodne, JSON.stringify(bf));
+  t.check('3 MB w mniej niż sekundę', bf.ms < 1000, bf.ms + ' ms');
+  const bb = JSON.parse(phpOutput('minifikacja.php', 'bufor builder'));
+  t.check('w builderze (?bricks=run) bufor się nie otwiera, stopka bez żadnej zmiany',
+    !bb.otwarty && bb.bez_zmian, JSON.stringify(bb));
+
   t.section('moduł Wave BG z render(): bez komentarzy, te same tokeny');
   const fala = (arg) => (phpOutput('minifikacja.php', 'fala' + (arg ? ' ' + arg : '')).match(/<script type="module">([\s\S]*?)<\/script>/) || [])[1] || '';
   const falaMin = fala(), falaDbg = fala('debug');

@@ -11,8 +11,44 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/minifikacja.php strona-przywroc   opcje z powrotem
  *   php tests/php/minifikacja.php lekser            wstawki bez komentarzy: trudne przypadki (1.249.0)
  *   php tests/php/minifikacja.php fala [debug]      moduł Wave BG z render(), bez komentarzy / przy SCRIPT_DEBUG
+ *   php tests/php/minifikacja.php bufor [builder]   stopka z 3 MB danych przez bufor wp_footer (1.249.1)
  */
 $tryb = $argv[1] ?? '';
+
+if ($tryb === 'bufor') {
+    /* 1.249.0 gubiło CAŁĄ stopkę, gdy jedna wstawka miała od ~1 MB wzwyż:
+       wyrażenie regularne przekraczało limit PCRE i dawało pusty tekst.
+       Builder Bricksa drukuje w stopce tyle danych — przestał się ładować.
+       Tu prawdziwa droga: bufor otwarty i zamknięty tymi funkcjami, które
+       wiszą na wp_footer, a w nim 3 MB cudzych danych obok naszej wstawki. */
+    define('ABSPATH', '/');
+    function add_action(...$a): void {}
+    require __DIR__ . '/../../includes/00-context-safety.php';
+    require __DIR__ . '/../../includes/02-zasoby-frontu.php';
+    if (($argv[2] ?? '') === 'builder') $_GET['bricks'] = 'run';
+    $dane    = str_repeat('{"k":"wartość \\/ <b>x</b>"},', 110000);   // ~3 MB jak bricksData
+    $cudze   = '<script id="bricks-builder-js-extra">var bricksData = [' . $dane . '0];</script>'
+        . "\n<style id=\"cudzy-css\">/* cudzy */ .c{}</style>\n"
+        . '<script src="https://example.test/builder.js?ver=1" id="bricks-builder-js"></script>';
+    $stopka  = '<script id="evk-a">/* nasz */ a();</script>' . "\n" . $cudze;
+    $poziom  = ob_get_level();
+    $t0      = microtime(true);
+    ob_start();
+    evk_wstawki_bufor_start();
+    $otwarty = ob_get_level() > $poziom + 1;
+    echo $stopka;
+    evk_wstawki_bufor_koniec();
+    $wynik = (string) ob_get_clean();
+    echo json_encode([
+        'wej'       => strlen($stopka),
+        'wyj'       => strlen($wynik),
+        'ms'        => (int) round((microtime(true) - $t0) * 1000),
+        'otwarty'   => $otwarty,
+        'bez_zmian' => $wynik === $stopka,
+        'zgodne'    => $wynik === '<script id="evk-a">a();</script>' . "\n" . $cudze,
+    ]);
+    exit;
+}
 
 if ($tryb === 'fala') {
     if (($argv[2] ?? '') === 'debug') define('SCRIPT_DEBUG', true);

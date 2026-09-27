@@ -2,6 +2,41 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.249.1] — 2026-09-27
+
+Poprawka do 1.249.0: builder Bricksa się nie ładował.
+
+### Naprawione
+
+- **Po aktualizacji do 1.249.0 builder się nie ładował** (zgłoszone ze
+  strony). Winny był bufor stopki z 1.249.0, który szukał wstawek
+  wyrażeniem regularnym `(.*?)</script>` w całej stopce.
+  - Wstawka od ~1 MB wzwyż przekraczała limit PCRE
+    (`pcre.backtrack_limit`, milion kroków). `preg_replace_callback()`
+    oddawało wtedy `null`, a `(string) null` to pusty tekst: znikała CAŁA
+    stopka.
+  - Builder drukuje w stopce 1–3 MB danych (`bricksData`), więc tracił
+    własne skrypty. Odtworzone: 1 MB danych → 0 B na wyjściu.
+  - Na zwykłych stronach groziło to samo, gdyby jakaś wtyczka wydrukowała
+    w `<head>` albo stopce wstawkę takiej wielkości.
+- Wstawki wycina teraz skaner (`strpos`). Wyrażenia regularne sprawdzają
+  już tylko atrybuty jednego znacznika. 3,3 MB stopki: ~25 ms, cudzy kod
+  bajt w bajt. (`includes/02-zasoby-frontu.php`)
+- **W builderze (oba okna) bufor się w ogóle nie otwiera.** Tam nie ma
+  czego skracać, a każda pomyłka w obróbce stopki zatrzymuje pracę nad
+  stroną.
+- Obejście dla stron na 1.249.0 do czasu aktualizacji:
+  `define('SCRIPT_DEBUG', true);` w `wp-config.php` wyłącza bufor.
+
+### Testy
+
+- `minifikacja`: nowa sekcja „duża stopka”. Prawdziwa droga bufora
+  `wp_footer` z 3 MB danych: stopka wychodzi cała, cudzy kod bajt w bajt,
+  nasza wstawka bez komentarza, poniżej sekundy. Ta sama stopka przy
+  `?bricks=run`: bufor się nie otwiera, zero zmian.
+- `builder-context`: `02-zasoby-frontu.php` na liście modułów, które pytają
+  o builder wspólnym `evk_w_builderze()` (dziewięć zamiast ośmiu).
+
 ## [1.249.0] — 2026-09-26
 
 Dwudzieste wydanie po audycie 1.229.6: kod drukowany w HTML bez
