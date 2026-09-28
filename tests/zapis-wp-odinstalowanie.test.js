@@ -49,7 +49,7 @@ module.exports = async function (t) {
     JSON.stringify({ opcje: Object.keys(n0.opcje || {}).length, transienty: Object.keys(n0.transienty || {}).length,
       tabele: Object.keys(n0.tabele || {}).length, wpisy: Object.keys(n0.wpisy || {}).length }));
   t.check('meta, rola z Role Managera, uprawnienia i katalogi (kopie, import, OG) zostają',
-    Object.keys(n0.meta || {}).length === 6 && n0.rola === true && n0.uprawnienie === true && Object.keys(n0.katalogi || {}).length === 3,
+    Object.keys(n0.meta || {}).length === 7 && n0.rola === true && n0.uprawnienie === true && Object.keys(n0.katalogi || {}).length === 3,
     JSON.stringify({ meta: n0.meta, rola: n0.rola, uprawnienie: n0.uprawnienie, katalogi: n0.katalogi }));
   sonda('przywroc');
 
@@ -65,7 +65,7 @@ module.exports = async function (t) {
     JSON.stringify(wd.inne_kopie) === JSON.stringify(['evk-t-druga-kopia/evoke-one.php']), JSON.stringify(wd.inne_kopie));
   t.check('ustawienia, tabele, wpisy, meta, katalogi i rola zostają mimo „Usuń dane"',
     Object.keys(nd.opcje || {}).length === 11 && Object.keys(nd.tabele || {}).length === 2 && Object.keys(nd.wpisy || {}).length === 4
-      && Object.keys(nd.meta || {}).length === 6 && Object.keys(nd.katalogi || {}).length === 3 && nd.rola === true,
+      && Object.keys(nd.meta || {}).length === 7 && Object.keys(nd.katalogi || {}).length === 3 && nd.rola === true,
     JSON.stringify({ opcje: Object.keys(nd.opcje || {}).length, tabele: nd.tabele, wpisy: Object.keys(nd.wpisy || {}).length,
       meta: Object.keys(nd.meta || {}), katalogi: nd.katalogi, rola: nd.rola }));
   sonda('przywroc');
@@ -94,7 +94,8 @@ module.exports = async function (t) {
   /* Przedrostek `_evk_tl_` (1.251.0) kasuje zapytanie LIKE — tłumaczenia pól
      Evoke Fields (`evk_tl_…`, bez podkreślnika) mają zostać. W LIKE `_` to
      „dowolny znak", więc bez esc_like() wzorzec złapałby także je. */
-  t.check('Evoke Fields: tłumaczenia pól (evk_tl_en__…) zostają', cz.evk_tl_en__opis === true, JSON.stringify(cz));
+  t.check('Evoke Fields: tłumaczenia pól (evk_tl_en__…) zostają — w wpisie i w termie', cz.evk_tl_en__opis === true && cz['term:evk_tl_en__opis'] === true,
+    JSON.stringify(cz));
   t.check('cudza rola, cudza opcja, zwykła strona i ustawienia WordPressa zostają',
     cz.obca_rola === true && cz.obca_opcja === true && cz.strona === true && cz.blogname === true, JSON.stringify(cz));
 
@@ -175,6 +176,18 @@ module.exports = async function (t) {
     [...metaBezSpisu, ...metaBezPrzedrostka.map((p) => p + '…')].join(', ') || klucze.size + ' kluczy, przedrostki: ' + [...metaPrzedrostki].join(', '));
   t.check('przedrostki metadanych ze spisu występują w kodzie',
     (dane.meta_wpisow_przedrostki || []).every((p) => metaPrzedrostki.has(p)), JSON.stringify(dane.meta_wpisow_przedrostki));
+  /* Metadane termów (1.253.0: wersje językowe nazw i opisów) — ta sama zasada:
+     klucz z kodu ma być w spisie, bo inaczej „Usuń dane" go nie skasuje. */
+  const WYWOLANIE_T = String.raw`\b(?:get|update|add|delete)_term_meta\(\s*[^,()]+(?:\([^()]*\))?[^,()]*,\s*`;
+  const kluczeT = new Set();
+  const przedrostkiT = new Set();
+  for (const tx of teksty) {
+    for (const m of tx.matchAll(new RegExp(WYWOLANIE_T + "'([^']+)'(\\s*\\.)?", 'g'))) (m[2] ? przedrostkiT : kluczeT).add(m[1]);
+  }
+  const bezSpisuT = [...kluczeT].filter((k) => !(dane.meta_termow || []).includes(k)).concat(
+    [...przedrostkiT].filter((p) => !(dane.meta_termow_przedrostki || []).includes(p)).map((p) => p + '…'));
+  t.check('każdy klucz metadanych termu z kodu jest w spisie', przedrostkiT.size > 0 && !bezSpisuT.length,
+    bezSpisuT.join(', ') || 'przedrostki: ' + [...przedrostkiT].join(', ') + (kluczeT.size ? ', klucze: ' + [...kluczeT].join(', ') : ''));
   const metaMartwe = (dane.meta_wpisow || []).filter((k) => !klucze.has(k));
   t.check('każdy klucz metadanych ze spisu występuje w kodzie (bez literówek)', !metaMartwe.length, metaMartwe.join(', ') || 'komplet');
   t.check('metadane przekierowań: typ ich wpisów jest w spisie (kasowany w całości)', (dane.typy_wpisow || []).includes('evk_301_redirect'),

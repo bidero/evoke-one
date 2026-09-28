@@ -80,6 +80,9 @@ return [
        dynamiczny, więc przedrostek (1.251.0: pola SEO). Tylko z podkreślnikiem
        na początku: Evoke Fields trzyma swoje tłumaczenia pod `evk_tl_…`. */
     'meta_wpisow_przedrostki' => ['_evk_tl_'],
+    /* Wersje językowe nazw i opisów termów (1.253.0): `_evk_tl_{język}__name`,
+       `…__description` — ten sam przedrostek, w metadanych termów. */
+    'meta_termow_przedrostki' => ['_evk_tl_'],
     'meta_uzytkownikow' => ['evk_avatar_id'],
     'tabele' => ['evk_nl_lists', 'evk_nl_subscribers', 'evk_nl_templates', 'evk_nl_campaigns',
                  'evk_nl_queue', 'evk_nl_logs', 'evk_backup_jobs', 'evk_404'],

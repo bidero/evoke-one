@@ -2,6 +2,88 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.253.0] — 2026-09-28
+
+Tłumaczenia kategorii, tagów i taksonomii (nazwa, adres, opis) oraz tekstów
+alternatywnych obrazów. Ostatnia z trzech partii „SEO + tłumaczenia
+systemowe”. Do tego poprawka edytora wpisu po przełączaniu języków.
+
+### Naprawione
+
+- **Edytor wpisu po powrocie do polskiego: ikony paska na tekście**
+  (zgłoszenie ze strony). Pasek edytora głównego WordPress przykleja
+  i przelicza przy przewijaniu. Liczony w widoku języka, gdy edytor był
+  schowany, dostawał zerową szerokość. Ok. 1–2 s po uruchomieniu drugiego
+  edytora tak właśnie się działo, a po powrocie do PL ikony stały w kolumnie
+  na treści. Przełącznik przelicza teraz pasek przy powrocie.
+
+### Dodane
+
+- **Kategorie, tagi i publiczne taksonomie: ten sam przełącznik
+  `PL | EN n/m | DE n/m`** na ekranie edycji i nad formularzem dodawania.
+  - W widoku języka nazwa, adres i opis stoją w miejscu polskich, pod nimi
+    polski oryginał, „Kopiuj z polskiego”, „Do sprawdzenia” i „Sprawdzone”.
+  - Nazwa ma podpowiedź ze słownika.
+  - Dodawanie idzie AJAX-em, a WordPress czyści potem tylko widoczne pola.
+    Pola języków czyści skrypt, więc tłumaczenie nie przechodzi do
+    następnego termu, także gdy przed „Dodaj” wrócisz do polskiego.
+- **Adres termu w mapie adresów:** te same zasady co przy wpisach.
+  - Człon zajęty przez inny polski człon albo równy polskiemu adresowi
+    innej strony się nie zapisuje, a ekran wyjaśnia dlaczego.
+  - Zmiana polskiego adresu termu przenosi pozycję mapy razem z nim.
+  - `/en/category/services/` działa od 1.251.0.
+- **Kolumna „Języki”** na listach kategorii, tagów i taksonomii.
+- **Przeniesienie ze słownika** (zakładka „Wpisy i kategorie”) obejmuje
+  też nazwy termów, z odnośnikiem do edycji termu.
+- **Na stronie** nazwa i opis wszędzie, gdzie WordPress bierze term przez
+  `get_term()`: listy kategorii i tagów, tytuł i opis archiwum, menu, SEO
+  archiwum (opis meta, `og:title`). Brak tłumaczenia albo pusty polski
+  tekst daje polski, a panel i builder zawsze polski.
+- **Tekst alternatywny obrazu w każdym języku:** pola „Tekst alternatywny
+  EN/DE” na ekranie obrazu i w oknie mediów, z polskim alt-em
+  w podpowiedzi.
+  - Na stronie alt z biblioteki jest w języku strony:
+    `wp_get_attachment_image()`, obrazki wyróżniające i elementy, które
+    biorą alt z załącznika.
+  - Obrazek wstawiony w treść ma alt w samym HTML-u. W treści języka
+    poprawia się go w drugim edytorze.
+
+### Dane
+
+- Metadane termów `_evk_tl_{język}__name`, `…__description` (i `…__zrodlo`).
+- Metadane obrazów `_evk_tl_{język}__alt`.
+- „Usuń dane” kasuje metadane termów przedrostkiem `_evk_tl_`. Spis danych
+  wtyczki ma nową listę `meta_termow_przedrostki`.
+
+### Testy
+
+- `tl-termy` (39 sprawdzeń) na prawdziwym WordPressie:
+  - edycja kategorii w Chromium: przełącznik, wiersze pod oryginałami,
+    liczniki, zapis ze źródłem, adres w mapie;
+  - dodawanie AJAX-em bez przecieku do następnego termu;
+  - kolumna, „Do sprawdzenia”, konflikt adresu, zmiana polskiego adresu;
+  - podpowiedź i przeniesienie nazw ze słownika;
+  - alt na ekranie obrazu i w oknie mediów;
+  - strona: `get_term`, listy, menu, alt, archiwum
+    `/en/category/services-t/` z `<title>`, opisem meta i `og:title`.
+- `tl-wpisy` (43): po powrocie do polskiego pasek edytora głównego ma pełną
+  szerokość i stoi nad treścią. Test czeka na przeliczenie po uruchomieniu
+  drugiego edytora, bo bez tego przechodził także bez poprawki.
+- `zapis-wp-odinstalowanie`: metadane termów po „Usuń dane”.
+- Pełny przebieg: 5618 sprawdzeń w 112 plikach, 12 mutacji (każda zapala
+  inne sprawdzenie). Jedno czerwone bez związku z wydaniem:
+  `tl-do-sprawdzenia` zawiesił się przy logowaniu w harnessie („nawigacja
+  nie skończyła się w 30 s”, baza bezczynna, żadne żądanie nie wisi). To
+  czwarte takie od 1.227.0. Plik puszczony osobno przeszedł dwa razy
+  (29/29).
+
+### Do sprawdzenia na testowej
+
+- Bricks: czy elementy i tagi dynamiczne z nazwą termu
+  (`{term_name}`, lista kategorii wpisu, „Post Taxonomy”) biorą nazwę
+  w języku strony. Idą przez `get_term()`, ale Bricksa tu nie ma.
+- Czy obrazy w elementach Bricksa (Image z biblioteki) dostają alt EN.
+
 ## [1.252.0] — 2026-09-27
 
 Tłumaczenia wpisów i stron: tytuł, adres, treść i zajawka w każdym języku.

@@ -1,18 +1,20 @@
 <?php
 if (!defined('ABSPATH')) exit;
 /**
- * Zakładka „Wpisy i strony" (1.252.0) — przeniesienie tytułów i zajawek ze
- * słownika do pól języków wpisów (55-translation-posts.php). Nonce i adres
- * liczy sama, bez zmiennych z tl_render_page().
+ * Zakładka „Wpisy i kategorie" (1.252.0, termy od 1.253.0) — przeniesienie
+ * tytułów, zajawek i nazw termów ze słownika do pól języków
+ * (55-translation-posts.php). Nonce i adres liczy sama, bez zmiennych
+ * z tl_render_page().
  */
 ?>
 <div class="evo-box tlw-slownik" data-nonce="<?php echo esc_attr(wp_create_nonce('tl_ajax_nonce')); ?>">
-    <h3>Tytuły i zajawki ze słownika</h3>
+    <h3>Tytuły, zajawki i nazwy ze słownika</h3>
     <p class="evo-desc">Tytuł, adres, treść i zajawkę wpisu albo strony tłumaczysz w edytorze wpisu — przełącznikiem
-    <strong>PL | EN | DE</strong> nad tytułem. Stan tłumaczeń widać w kolumnie „Języki” na liście wpisów.</p>
-    <p class="evo-desc">Tytuły i zajawki, które słownik już tłumaczy w całości (np. nazwy stron w menu), mogą trafić do
-    pól języków jednym przyciskiem — tylko tam, gdzie pole jest puste. Od tej chwili tłumaczenie należy do wpisu:
-    zmiana polskiego tytułu oznaczy je „Do sprawdzenia”, a poprawka frazy w słowniku do wpisu już nie dojdzie.</p>
+    <strong>PL | EN | DE</strong> nad tytułem. Nazwę, adres i opis kategorii, tagu albo innej taksonomii — tak samo, na
+    ekranie edycji i przy dodawaniu. Stan tłumaczeń widać w kolumnie „Języki” na listach.</p>
+    <p class="evo-desc">Tytuły, zajawki i nazwy, które słownik już tłumaczy w całości (np. nazwy stron i kategorii w menu),
+    mogą trafić do pól języków jednym przyciskiem — tylko tam, gdzie pole jest puste. Od tej chwili tłumaczenie należy do
+    wpisu albo kategorii: zmiana polskiego tekstu oznaczy je „Do sprawdzenia”, a poprawka frazy w słowniku już tam nie dojdzie.</p>
     <p class="tlw-slownik-akcje">
         <button type="button" class="button" data-tlw-tryb="podglad">Podgląd</button>
         <button type="button" class="button button-primary" data-tlw-tryb="zapisz" disabled>Przenieś</button>
@@ -44,7 +46,7 @@ if (!defined('ABSPATH')) exit;
             var wrap = el('div', null, 'evo-tbl-wrap');
             var t = el('table', null, 'evo-table');
             var tr = el('tr');
-            ['Wpis', 'Pole', 'Język', 'Polski tekst', 'Tłumaczenie ze słownika'].forEach(function (n) {
+            ['Wpis / kategoria', 'Pole', 'Język', 'Polski tekst', 'Tłumaczenie ze słownika'].forEach(function (n) {
                 var th = el('th', n); th.setAttribute('scope', 'col'); tr.appendChild(th);
             });
             var thead = el('thead'); thead.appendChild(tr); t.appendChild(thead);
@@ -80,7 +82,7 @@ if (!defined('ABSPATH')) exit;
                 if (!r || !r.success) { b.disabled = false; stan.textContent = (r && r.data) || 'Błąd — spróbuj jeszcze raz.'; return; }
                 if (tryb === 'podglad') { b.disabled = false; pokaz(r.data); return; }
                 wynik.textContent = '';
-                stan.textContent = 'Przeniesiono: ' + r.data.zapisane + (r.data.pominiete ? ', pominięte (brak uprawnień do wpisu): ' + r.data.pominiete : '') + '.';
+                stan.textContent = 'Przeniesiono: ' + r.data.zapisane + (r.data.pominiete ? ', pominięte (brak uprawnień): ' + r.data.pominiete : '') + '.';
             })
             .catch(function () { b.disabled = false; stan.textContent = 'Błąd połączenia — spróbuj jeszcze raz.'; });
     });

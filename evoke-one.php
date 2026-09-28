@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.252.0
+ * Version: 1.253.0
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
@@ -46,7 +46,7 @@ define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
    przeglądarkom podawać stare pliki z pamięci mimo aktualizacji wtyczki.
    Zgodności trzech miejsc (nagłówek, stała, changelog) pilnuje sekcja
    „numer wersji w trzech miejscach" w tests/drobiazgi.test.js. */
-define('EVOKE_ONE_VERSION', '1.252.0');
+define('EVOKE_ONE_VERSION', '1.253.0');
 
 /* DEAKTYWACJA: bez zadań w cronie i bez naszych reguł adresów. Do 1.231.x
    wyłączona wtyczka zostawiała zaplanowane kroki kopii i wysyłki newslettera,
@@ -147,6 +147,8 @@ if ($evk_tl_enabled) {
         '53-translation-element-transfer.php',
         '54-translation-fields.php',   // języki dla Evoke FIELDS (1.250.0)
         '55-translation-posts.php',    // wpisy i strony: tytuł, adres, treść, zajawka (1.252.0)
+        '56-translation-terms.php',    // kategorie, tagi, taksonomie: nazwa, adres, opis (1.253.0)
+        '57-translation-alt.php',      // tekst alternatywny obrazów z biblioteki (1.253.0)
         '60-image-replacement.php',
         '70-bricks-language-switcher.php',
     ];

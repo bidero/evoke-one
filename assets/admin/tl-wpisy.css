@@ -14,13 +14,9 @@
 
 /* ── Pola języka ── */
 .evk-tlw-pole { display: none; }
-/* Widok języka: oryginały chowają się w tych samych miejscach. */
-#post[data-evk-tlw] #titlewrap,
-#post[data-evk-tlw] #edit-slug-box,
-#post[data-evk-tlw] #postdivrich,
-#post[data-evk-tlw] #excerpt,
-#post[data-evk-tlw] #postexcerpt .inside > p:not(.evk-tlw-oryginal),
-#post[data-evk-tlw] #postexcerpt .inside > label[for="excerpt"] { display: none; }
+/* Widok języka: oryginały chowają się w tych samych miejscach — to, co wskazuje
+   `data-ukryj` pola języka, dostaje w skrypcie tę klasę. */
+[data-evk-tlw] .evk-tlw-ukryty-w-jezyku { display: none !important; }
 
 /* Tytuł języka wygląda jak pole tytułu WordPressa. */
 .evk-tlw-tytul .evk-tlw-wejscie {

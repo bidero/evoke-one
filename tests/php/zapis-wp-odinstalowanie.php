@@ -73,6 +73,14 @@ case 'przygotuj':
     update_post_meta($strona, '_evk_tl_en__seo_title', 'SEO title EN');
     update_post_meta($strona, '_evk_access_key', 'klucz-evoke-fields');   // CUDZE: Evoke Fields
     update_post_meta($strona, 'evk_tl_en__opis', 'Opis EN z Evoke Fields');   // CUDZE: tłumaczenie pola Evoke Fields
+    // Wersje językowe termów (1.253.0) — ten sam przedrostek w metadanych termów.
+    // Instancja jest jednorazowa, ale sonda bywa puszczana ponownie — kategoria może już być.
+    $kat = term_exists('Kategoria do odinstalowania', 'category') ?: wp_insert_term('Kategoria do odinstalowania', 'category');
+    $katId = is_array($kat) ? (int) $kat['term_id'] : 0;
+    if ($katId) {
+        update_term_meta($katId, '_evk_tl_en__name', 'Category EN');
+        update_term_meta($katId, 'evk_tl_en__opis', 'Opis EN termu z Evoke Fields');   // CUDZE
+    }
     update_user_meta(1, 'evk_avatar_id', 123);
 
     // Role: utworzona w Role Managerze (z użytkownikiem) i cudza.
@@ -117,7 +125,7 @@ case 'przygotuj':
         wp_clean_plugins_cache(false);
     }
 
-    file_put_contents($stan_plik, wp_json_encode(['strona' => $strona, 'wpisy' => $wpisy, 'uzytkownik' => $uzytkownik,
+    file_put_contents($stan_plik, wp_json_encode(['strona' => $strona, 'kategoria' => $katId, 'wpisy' => $wpisy, 'uzytkownik' => $uzytkownik,
         'kopie' => $kopie, 'import' => $import, 'og' => $uploads['basedir'] . '/og-images', 'obcy' => $obcy, 'druga' => $druga]));
 
     // Deaktywacja tak, jak robi ją WordPress.
@@ -161,6 +169,7 @@ case 'wykonaj':
                          '_evk_tl_el_stan' => get_post_meta((int) ($s['strona'] ?? 0), '_evk_tl_el_stan', true) !== '',
                          '_evk_tl_el_dopisane' => get_post_meta((int) ($s['strona'] ?? 0), '_evk_tl_el_dopisane', true) !== '',
                          '_evk_tl_en__seo_title' => get_post_meta((int) ($s['strona'] ?? 0), '_evk_tl_en__seo_title', true) !== '',
+                         'term:_evk_tl_en__name' => get_term_meta((int) ($s['kategoria'] ?? 0), '_evk_tl_en__name', true) !== '',
                          'evk_avatar_id' => get_user_meta(1, 'evk_avatar_id', true) !== '']),
         'rola'       => get_role('evk_t_odinst') !== null,
         'uprawnienie'=> get_role('editor')->has_cap('evk_access_newsletter'),
@@ -176,6 +185,7 @@ case 'wykonaj':
         'katalog_evoke_fields'  => is_file((string) ($s['obcy'] ?? '') . '/cudza-kopia.zip'),
         '_evk_access_key'       => get_post_meta((int) ($s['strona'] ?? 0), '_evk_access_key', true) === 'klucz-evoke-fields',
         'evk_tl_en__opis'       => get_post_meta((int) ($s['strona'] ?? 0), 'evk_tl_en__opis', true) === 'Opis EN z Evoke Fields',
+        'term:evk_tl_en__opis'  => get_term_meta((int) ($s['kategoria'] ?? 0), 'evk_tl_en__opis', true) === 'Opis EN termu z Evoke Fields',
         'evk_access_fields'     => get_role('editor')->has_cap('evk_access_fields'),
         'obca_rola'             => get_role('obca_rola') !== null,
         'strona'                => get_post((int) ($s['strona'] ?? 0)) !== null,

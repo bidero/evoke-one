@@ -215,12 +215,13 @@ function evk_tlw_slug(string $pl, string $lang): string {
 }
 
 /**
- * Inne miejsca z tym samym polskim członem: wpisy (bez tego) i termy. Mapa
- * jest wspólna, więc tłumaczenie członu dotyczy ich wszystkich.
+ * Inne miejsca z tym samym polskim członem: wpisy i termy (bez wpisu $pomin
+ * i termu $pominTerm). Mapa jest wspólna, więc tłumaczenie członu dotyczy ich
+ * wszystkich.
  *
  * @return list<string> Opisy dla ludzi.
  */
-function evk_tlw_inne_z_czlonem(string $slug, int $pomin = 0): array {
+function evk_tlw_inne_z_czlonem(string $slug, int $pomin = 0, int $pominTerm = 0): array {
     global $wpdb;
     if ($slug === '') return [];
     $out = [];
@@ -234,6 +235,7 @@ function evk_tlw_inne_z_czlonem(string $slug, int $pomin = 0): array {
     }
     $terminy = get_terms(['slug' => $slug, 'hide_empty' => false, 'number' => 5]);
     foreach (is_array($terminy) ? $terminy : [] as $term) {
+        if ((int) $term->term_id === $pominTerm) continue;
         $tax = get_taxonomy($term->taxonomy);
         $out[] = ($tax ? $tax->labels->singular_name : $term->taxonomy) . ' „' . $term->name . '”';
     }
@@ -248,7 +250,7 @@ function evk_tlw_inne_z_czlonem(string $slug, int $pomin = 0): array {
  * $stary: poprzedni polski człon tego wpisu (zmiana adresu w tym zapisie) — jego
  * pozycja w mapie należy do tego wpisu.
  */
-function evk_tlw_slug_konflikt(string $pl, string $lang, string $czlon, int $pid, string $stary = ''): string {
+function evk_tlw_slug_konflikt(string $pl, string $lang, string $czlon, int $pid, string $stary = '', int $termId = 0): string {
     foreach (evk_tlw_mapa() as $w) {
         $wpl = (string) ($w['pl'] ?? '');
         if ($wpl === $pl || ($stary !== '' && $wpl === $stary)) continue;
@@ -256,7 +258,7 @@ function evk_tlw_slug_konflikt(string $pl, string $lang, string $czlon, int $pid
             return 'Adres „' . $czlon . '” ma już w mapie adresów inny człon („' . $wpl . '”).';
         }
     }
-    $inne = evk_tlw_inne_z_czlonem($czlon, $pid);
+    $inne = evk_tlw_inne_z_czlonem($czlon, $pid, $termId);
     if ($inne) {
         return '„' . $czlon . '” to polski adres: ' . $inne[0] . ' — wersja językowa zasłoniłaby tamten adres.';
     }
@@ -301,22 +303,27 @@ add_action('post_updated', function ($pid, $po, $przed) {
     if ($po->post_name === $przed->post_name || $przed->post_name === '' || $po->post_name === '') return;
     if (!in_array($po->post_type, evk_tlw_typy(), true)) return;
     $GLOBALS['evk_tlw_stary_slug'][(int) $pid] = $przed->post_name;
-    if (evk_tlw_inne_z_czlonem($przed->post_name, (int) $pid) || in_array($przed->post_name, evk_tlw_czlony_rewrite(), true)) return;
+    evk_tlw_mapa_za_obiektem($przed->post_name, $po->post_name, (int) $pid, 0);
+}, 10, 3);
+
+/** Pozycja mapy idzie ze starego polskiego członu na nowy (wpis $pid albo term $termId zmienił adres). */
+function evk_tlw_mapa_za_obiektem(string $stary, string $nowy, int $pid, int $termId): void {
+    if (evk_tlw_inne_z_czlonem($stary, $pid, $termId) || in_array($stary, evk_tlw_czlony_rewrite(), true)) return;
     $mapa = evk_tlw_mapa();
-    $stary = -1;
-    $nowy = -1;
+    $iStary = -1;
+    $iNowy = -1;
     foreach ($mapa as $k => $w) {
-        if (($w['pl'] ?? '') === $przed->post_name) $stary = $k;
-        if (($w['pl'] ?? '') === $po->post_name) $nowy = $k;
+        if (($w['pl'] ?? '') === $stary) $iStary = $k;
+        if (($w['pl'] ?? '') === $nowy) $iNowy = $k;
     }
-    if ($stary < 0) return;
-    if ($nowy < 0) {
-        $mapa[$stary]['pl'] = $po->post_name;
+    if ($iStary < 0) return;
+    if ($iNowy < 0) {
+        $mapa[$iStary]['pl'] = $nowy;
     } else {
-        unset($mapa[$stary]);   // nowy człon ma już swoją pozycję — ta by jej przeszkadzała
+        unset($mapa[$iStary]);   // nowy człon ma już swoją pozycję — ta by jej przeszkadzała
     }
     update_option('tl_url_slugs', array_values($mapa));
-}, 10, 3);
+}
 
 /**
  * Człony z reguł adresów: typy treści, ich archiwa i taksonomie. Taki człon
@@ -360,13 +367,19 @@ add_action('admin_enqueue_scripts', function ($hook) {
     wp_enqueue_editor();
     /* Widok języka: pola języka zamiast oryginałów. Reguła na język — języki
        zna dopiero serwer. */
+    wp_add_inline_style('evk-tl-wpisy', evk_tlw_css_jezykow());
+});
+
+/** Widok języka: pola tego języka widoczne (wiersz tabeli jako wiersz). Reguła na język — języki zna dopiero serwer. */
+function evk_tlw_css_jezykow(): string {
     $css = '';
     foreach (array_keys(evk_tlw_jezyki()) as $kod) {
         $k = esc_attr($kod);
-        $css .= '#post[data-evk-tlw="' . $k . '"] .evk-tlw-pole[data-lang="' . $k . '"]{display:block;}';
+        $css .= '[data-evk-tlw="' . $k . '"] .evk-tlw-pole[data-lang="' . $k . '"]{display:block;}'
+              . '[data-evk-tlw="' . $k . '"] tr.evk-tlw-pole[data-lang="' . $k . '"]{display:table-row;}';
     }
-    wp_add_inline_style('evk-tl-wpisy', $css);
-});
+    return $css;
+}
 
 /** Pola ukryte przy polu języka: skrót przy renderze i źródło („Do sprawdzenia"). */
 function evk_tlw_ukryte(string $lang, string $pole, string $wartosc, string $zrodlo): void {
@@ -375,8 +388,11 @@ function evk_tlw_ukryte(string $lang, string $pole, string $wartosc, string $zro
     echo '<input type="hidden" class="evk-tlw-zrodlo" name="' . esc_attr($n . '[zrodlo]') . '" value="' . esc_attr($zrodlo) . '">';
 }
 
-/** Oryginał pod polem, narzędzia i podpowiedź słownika. */
-function evk_tlw_narzedzia(string $lang, string $pole, string $pl, string $wartosc, string $zrodlo, bool $kopiuj = true): void {
+/**
+ * Oryginał pod polem, narzędzia i podpowiedź słownika ($slownik: null = dla
+ * tytułu i zajawki — teksty krótkie, które słownik zna w całości).
+ */
+function evk_tlw_narzedzia(string $lang, string $pole, string $pl, string $wartosc, string $zrodlo, bool $kopiuj = true, ?bool $slownik = null): void {
     $podglad = html_entity_decode(wp_strip_all_tags($pl), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     $podglad = trim((string) preg_replace('/[\s\x{00A0}]+/u', ' ', $podglad));
     if (mb_strlen($podglad) > 160) $podglad = mb_substr($podglad, 0, 159) . '…';
@@ -386,7 +402,8 @@ function evk_tlw_narzedzia(string $lang, string $pole, string $pl, string $warto
     if ($kopiuj) echo '<button type="button" class="button button-small evk-tlw-kopiuj">Kopiuj z polskiego</button>';
     echo '<span class="evk-tlw-do-sprawdzenia"' . (evk_tlw_nieaktualne($wartosc, $zrodlo, $pl) ? '' : ' hidden') . '>Do sprawdzenia: polski tekst się zmienił</span>';
     echo '<button type="button" class="button button-small evk-tlw-sprawdzone"' . (evk_tlw_nieaktualne($wartosc, $zrodlo, $pl) ? '' : ' hidden') . '>Sprawdzone</button>';
-    if (in_array($pole, ['post_title', 'post_excerpt'], true) && evk_tlw_pusty($wartosc)) {
+    if ($slownik === null) $slownik = in_array($pole, ['post_title', 'post_excerpt'], true);
+    if ($slownik && evk_tlw_pusty($wartosc)) {
         $slownik = evk_tlw_ze_slownika($pl, $lang);
         if ($slownik !== '') {
             echo '<span class="evk-tlw-slownik">Ze słownika: <q class="evk-tlw-slownik-tekst">' . esc_html($slownik) . '</q> '
@@ -400,7 +417,7 @@ function evk_tlw_narzedzia(string $lang, string $pole, string $pl, string $warto
 add_action('edit_form_top', function ($post) {
     if (!($post instanceof WP_Post) || !evk_tlw_ekran() || !($jezyki = evk_tlw_jezyki())) return;
     wp_nonce_field('evk_tlw_zapis', 'evk_tlw_nonce');
-    echo '<div class="evk-tl-przelacznik evk-tlw-przelacznik" role="group" aria-label="Wersja językowa wpisu">';
+    echo '<div class="evk-tl-przelacznik evk-tlw-przelacznik" role="group" aria-label="Wersja językowa wpisu" data-forma="#post">';
     foreach (array_merge(['pl' => 'Polski'], $jezyki) as $kod => $nazwa) {
         $pl = $kod === 'pl';
         echo '<button type="button" class="button' . ($pl ? ' button-primary' : '') . ' evk-tl-jezyk" data-lang="' . esc_attr($kod) . '"'
@@ -419,7 +436,7 @@ add_action('edit_form_before_permalink', function ($post) {
         $wartosc = evk_tlw_meta($post->ID, $kod, 'post_title');
         $zrodlo  = (string) get_post_meta($post->ID, '_evk_tl_' . $kod . '__post_title__zrodlo', true);
         $id = 'evk-tlw-' . $kod . '-post_title';
-        echo '<div class="evk-tlw-pole evk-tlw-tytul" data-lang="' . esc_attr($kod) . '" data-pole="post_title">';
+        echo '<div class="evk-tlw-pole evk-tlw-tytul" data-lang="' . esc_attr($kod) . '" data-pole="post_title" data-oryginal="#title" data-ukryj="#titlewrap">';
         echo '<label class="screen-reader-text" for="' . esc_attr($id) . '">Tytuł ' . esc_html($K) . '</label>';
         echo '<input type="text" id="' . esc_attr($id) . '" class="evk-tlw-wejscie" name="evk_tlw[' . esc_attr($kod) . '][post_title][wartosc]"'
             . ' value="' . esc_attr($wartosc) . '" placeholder="' . esc_attr('Tytuł ' . $K) . '" autocomplete="off" spellcheck="true"'
@@ -444,7 +461,7 @@ function evk_tlw_pole_adresu(WP_Post $post, string $kod): void {
         $rodzice[] = evk_tlw_slug($s, $kod) ?: $s;
     }
     $baza = untrailingslashit((string) get_option('home')) . '/' . $kod . '/' . ($rodzice ? implode('/', $rodzice) . '/' : '');
-    echo '<div class="evk-tlw-pole evk-tlw-adres" data-lang="' . esc_attr($kod) . '" data-pole="post_name">';
+    echo '<div class="evk-tlw-pole evk-tlw-adres" data-lang="' . esc_attr($kod) . '" data-pole="post_name" data-ukryj="#edit-slug-box">';
     echo '<label for="' . esc_attr($id) . '" class="evk-tlw-adres-etykieta">Adres ' . esc_html($K) . ':</label> ';
     echo '<span class="evk-tlw-adres-baza">' . esc_html($baza) . '</span>';
     echo '<input type="text" id="' . esc_attr($id) . '" class="evk-tlw-slug" name="evk_tlw[' . esc_attr($kod) . '][post_name][wartosc]"'
@@ -464,7 +481,7 @@ add_action('edit_form_after_editor', function ($post) {
     foreach ($jezyki as $kod => $nazwa) {
         $K = strtoupper($kod);
         if (isset($pola['post_content'])) {
-            echo '<div class="evk-tlw-pole evk-tlw-tresc" data-lang="' . esc_attr($kod) . '" data-pole="post_content">';
+            echo '<div class="evk-tlw-pole evk-tlw-tresc" data-lang="' . esc_attr($kod) . '" data-pole="post_content" data-oryginal="#content" data-ukryj="#postdivrich">';
             if (evk_tlw_z_bricksa($post->ID)) {
                 echo '<p class="evk-tlw-bricks">Treść tej strony jest w Bricksie — teksty tłumaczysz w builderze (pola „Tłumaczenie '
                     . esc_html($K) . '” w elementach) albo w słowniku.</p>';
@@ -484,7 +501,8 @@ add_action('edit_form_after_editor', function ($post) {
             $wartosc = evk_tlw_meta($post->ID, $kod, 'post_excerpt');
             $zrodlo  = (string) get_post_meta($post->ID, '_evk_tl_' . $kod . '__post_excerpt__zrodlo', true);
             $id = 'evk-tlw-' . $kod . '-post_excerpt';
-            echo '<div class="evk-tlw-pole evk-tlw-zajawka" data-lang="' . esc_attr($kod) . '" data-pole="post_excerpt">';
+            echo '<div class="evk-tlw-pole evk-tlw-zajawka" data-lang="' . esc_attr($kod) . '" data-pole="post_excerpt" data-oryginal="#excerpt"'
+                . ' data-do="#postexcerpt .inside" data-ukryj="#excerpt, #postexcerpt .inside > p, #postexcerpt .inside > label[for=excerpt]">';
             echo '<label class="evk-tlw-etykieta" for="' . esc_attr($id) . '">Zajawka ' . esc_html($K) . '</label>';
             echo '<textarea id="' . esc_attr($id) . '" class="evk-tlw-wejscie" rows="3" name="evk_tlw[' . esc_attr($kod) . '][post_excerpt][wartosc]"'
                 . ' data-pl="' . (evk_tlw_pusty($post->post_excerpt) ? '0' : '1') . '">' . esc_textarea($wartosc) . '</textarea>';
@@ -610,24 +628,38 @@ add_action('admin_init', function () {
             if ($kolumna !== 'evk_tlw') return;
             $post = get_post((int) $pid);
             if (!$post) return;
-            echo '<span class="evk-tlw-kolumna">';
-            foreach (evk_tlw_jezyki() as $kod => $nazwa) {
-                $s = evk_tlw_stan($post, $kod);
-                if ($s['m'] === 0)            { $klasa = 'is-brak-tekstu'; $opis = 'nie ma czego tłumaczyć'; }
-                elseif ($s['sprawdz'])        { $klasa = 'is-sprawdz';     $opis = 'do sprawdzenia, przetłumaczone ' . $s['n'] . ' z ' . $s['m']; }
-                elseif ($s['n'] === $s['m'])  { $klasa = 'is-gotowe';      $opis = 'przetłumaczone ' . $s['n'] . ' z ' . $s['m']; }
-                elseif ($s['n'] > 0)          { $klasa = 'is-czesc';       $opis = 'przetłumaczone ' . $s['n'] . ' z ' . $s['m']; }
-                else                          { $klasa = 'is-brak';        $opis = 'brak tłumaczenia'; }
-                echo '<span class="evk-tlw-stan ' . $klasa . '" title="' . esc_attr($nazwa . ': ' . $opis) . '">'
-                    . '<span aria-hidden="true">' . esc_html(strtoupper($kod)) . '</span>'
-                    . '<span class="screen-reader-text">' . esc_html($nazwa . ': ' . $opis) . '</span></span>';
-            }
-            echo '</span>';
+            $stany = [];
+            foreach (array_keys(evk_tlw_jezyki()) as $kod) $stany[$kod] = evk_tlw_stan($post, $kod);
+            echo evk_tlw_kolumna_html($stany);   // gotowy HTML z esc_* w środku
         }, 10, 2);
     }
 });
 
-add_action('admin_head-edit.php', function () {
+/**
+ * Kolumna „Języki": przy każdym języku stan — gotowe, częściowo, brak, do
+ * sprawdzenia, nie ma czego tłumaczyć — z opisem dla czytnika ekranu.
+ *
+ * @param array<string, array{n: int, m: int, sprawdz: bool}> $stany
+ */
+function evk_tlw_kolumna_html(array $stany): string {
+    $jezyki = evk_tlw_jezyki();
+    $out = '<span class="evk-tlw-kolumna">';
+    foreach ($stany as $kod => $s) {
+        $nazwa = $jezyki[$kod] ?? $kod;
+        if ($s['m'] === 0)            { $klasa = 'is-brak-tekstu'; $opis = 'nie ma czego tłumaczyć'; }
+        elseif ($s['sprawdz'])        { $klasa = 'is-sprawdz';     $opis = 'do sprawdzenia, przetłumaczone ' . $s['n'] . ' z ' . $s['m']; }
+        elseif ($s['n'] === $s['m'])  { $klasa = 'is-gotowe';      $opis = 'przetłumaczone ' . $s['n'] . ' z ' . $s['m']; }
+        elseif ($s['n'] > 0)          { $klasa = 'is-czesc';       $opis = 'przetłumaczone ' . $s['n'] . ' z ' . $s['m']; }
+        else                          { $klasa = 'is-brak';        $opis = 'brak tłumaczenia'; }
+        $out .= '<span class="evk-tlw-stan ' . $klasa . '" title="' . esc_attr($nazwa . ': ' . $opis) . '">'
+            . '<span aria-hidden="true">' . esc_html(strtoupper((string) $kod)) . '</span>'
+            . '<span class="screen-reader-text">' . esc_html($nazwa . ': ' . $opis) . '</span></span>';
+    }
+    return $out . '</span>';
+}
+
+/** Wygląd kolumny „Języki" — lista wpisów i lista termów. */
+function evk_tlw_styl_kolumny(): void {
     if (!evk_tlw_jezyki()) return;
     echo '<style id="evk-tlw-kolumna">'
         . '.column-evk_tlw{width:110px;}'
@@ -639,28 +671,30 @@ add_action('admin_head-edit.php', function () {
         . '.evk-tlw-stan.is-brak{background:#fff;border-color:#c3c4c7;color:#646970;}'
         . '.evk-tlw-stan.is-brak-tekstu{background:#f6f7f7;border-color:#dcdcde;color:#a7aaad;}'
         . '</style>';
-});
+}
+add_action('admin_head-edit.php', 'evk_tlw_styl_kolumny');
 
 // =========================================================================
-// PRZENIESIENIE ZE SŁOWNIKA (zakładka „Wpisy i strony")
+// PRZENIESIENIE ZE SŁOWNIKA (zakładka „Wpisy i kategorie")
 // =========================================================================
 
 /**
- * Tytuły i zajawki, które słownik tłumaczy w całości, a pole języka jest
- * puste. Słownik tłumaczy je dziś na stronie (menu, nagłówki), więc pole
+ * Teksty, które słownik tłumaczy w całości, a pole języka jest puste: tytuły
+ * i zajawki wpisów (1.252.0) oraz nazwy termów (1.253.0, gdy moduł termów
+ * jest). Słownik tłumaczy je dziś na stronie (menu, nagłówki), więc pole
  * języka dostaje to samo. Wpisy we wszystkich stanach poza koszem.
  *
- * @return list<array{post: int, tytul: string, typ: string, pole: string, jezyk: string, pl: string, tekst: string}>
+ * @return list<array{rodzaj: string, id: int, tytul: string, typ: string, pole: string, nazwa: string, jezyk: string, pl: string, tekst: string}>
  */
 function evk_tlw_slownik_kandydaci(): array {
     $jezyki = evk_tlw_jezyki();
     if (!$jezyki) return [];
+    $out = [];
     $q = new WP_Query([
         'post_type' => evk_tlw_typy(), 'post_status' => ['publish', 'future', 'draft', 'pending', 'private'],
         'posts_per_page' => -1, 'no_found_rows' => true, 'orderby' => 'title', 'order' => 'ASC',
         'update_post_term_cache' => false, 'suppress_filters' => true,
     ]);
-    $out = [];
     foreach ($q->posts as $post) {
         if (!($post instanceof WP_Post)) continue;
         $typ = get_post_type_object($post->post_type);
@@ -672,9 +706,23 @@ function evk_tlw_slownik_kandydaci(): array {
                 if (!evk_tlw_pusty(evk_tlw_meta($post->ID, $kod, $pole))) continue;
                 $tekst = evk_tlw_ze_slownika($pl, $kod);
                 if ($tekst === '') continue;
-                $out[] = ['post' => $post->ID, 'tytul' => $post->post_title !== '' ? $post->post_title : 'ID ' . $post->ID,
+                $out[] = ['rodzaj' => 'post', 'id' => $post->ID, 'tytul' => $post->post_title !== '' ? $post->post_title : 'ID ' . $post->ID,
                           'typ' => $typ ? (string) $typ->labels->singular_name : $post->post_type,
                           'pole' => $pole, 'nazwa' => $nazwa, 'jezyk' => $kod, 'pl' => $pl, 'tekst' => $tekst];
+            }
+        }
+    }
+    if (function_exists('evk_tlt_taksonomie')) {
+        $terminy = get_terms(['taxonomy' => evk_tlt_taksonomie(), 'hide_empty' => false, 'orderby' => 'name']);
+        foreach (is_array($terminy) ? $terminy : [] as $term) {
+            $tax = get_taxonomy($term->taxonomy);
+            foreach (array_keys($jezyki) as $kod) {
+                if (!evk_tlw_pusty(evk_tlt_meta((int) $term->term_id, $kod, 'name'))) continue;
+                $tekst = evk_tlw_ze_slownika($term->name, $kod);
+                if ($tekst === '') continue;
+                $out[] = ['rodzaj' => 'term', 'id' => (int) $term->term_id, 'tytul' => $term->name,
+                          'typ' => $tax ? (string) $tax->labels->singular_name : $term->taxonomy,
+                          'pole' => 'name', 'nazwa' => 'Nazwa', 'jezyk' => $kod, 'pl' => $term->name, 'tekst' => $tekst];
             }
         }
     }
@@ -683,16 +731,22 @@ function evk_tlw_slownik_kandydaci(): array {
 
 /**
  * Zapis przeniesienia: pole języka + źródło = bieżący polski tekst. Tylko
- * wpisy, które użytkownik może edytować; drugi raz nie ma już czego przenieść.
+ * to, co użytkownik może edytować; drugi raz nie ma już czego przenieść.
  *
  * @return array{zapisane: int, pominiete: int}
  */
 function evk_tlw_slownik_przenies(): array {
     $wynik = ['zapisane' => 0, 'pominiete' => 0];
     foreach (evk_tlw_slownik_kandydaci() as $k) {
-        if (!current_user_can('edit_post', $k['post'])) { $wynik['pominiete']++; continue; }
-        update_post_meta($k['post'], '_evk_tl_' . $k['jezyk'] . '__' . $k['pole'], wp_slash($k['tekst']));
-        update_post_meta($k['post'], '_evk_tl_' . $k['jezyk'] . '__' . $k['pole'] . '__zrodlo', evk_tlw_zrodlo($k['pl']));
+        $wolno = $k['rodzaj'] === 'term' ? current_user_can('edit_term', $k['id']) : current_user_can('edit_post', $k['id']);
+        if (!$wolno) { $wynik['pominiete']++; continue; }
+        if ($k['rodzaj'] === 'term') {
+            update_term_meta($k['id'], '_evk_tl_' . $k['jezyk'] . '__name', wp_slash($k['tekst']));
+            update_term_meta($k['id'], '_evk_tl_' . $k['jezyk'] . '__name__zrodlo', evk_tlw_zrodlo($k['pl']));
+        } else {
+            update_post_meta($k['id'], '_evk_tl_' . $k['jezyk'] . '__' . $k['pole'], wp_slash($k['tekst']));
+            update_post_meta($k['id'], '_evk_tl_' . $k['jezyk'] . '__' . $k['pole'] . '__zrodlo', evk_tlw_zrodlo($k['pl']));
+        }
         $wynik['zapisane']++;
     }
     return $wynik;
@@ -704,7 +758,9 @@ add_action('wp_ajax_evk_tlw_slownik', function (): void {
         wp_send_json_success(evk_tlw_slownik_przenies());
     }
     $wiersze = evk_tlw_slownik_kandydaci();
-    foreach ($wiersze as &$w) $w['adres'] = (string) get_edit_post_link($w['post'], 'raw');
+    foreach ($wiersze as &$w) {
+        $w['adres'] = $w['rodzaj'] === 'term' ? (string) get_edit_term_link($w['id']) : (string) get_edit_post_link($w['id'], 'raw');
+    }
     unset($w);
     wp_send_json_success(['wiersze' => $wiersze]);
 });

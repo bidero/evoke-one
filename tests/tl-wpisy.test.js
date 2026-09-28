@@ -106,6 +106,24 @@ module.exports = async function (t) {
     t.check('EN: pod tytułem polski oryginał', (await p.textContent('.evk-tlw-tytul[data-lang="en"] .evk-tlw-oryginal')).replace(/\s+/g, ' ').trim() === 'PL: Wpis W1',
       await p.textContent('.evk-tlw-tytul[data-lang="en"] .evk-tlw-oryginal'));
 
+    /* Pasek edytora głównego liczy WordPress (editor-expand.js) także wtedy,
+       gdy edytor jest schowany w widoku języka — do 1.253.0 po powrocie do
+       polskiego ikony leżały w kolumnie na tekście (zgłoszenie ze strony).
+       Psuje go przeliczenie ok. 1–2 s po uruchomieniu drugiego edytora:
+       bez odczekania powrót był za szybki i test przechodził także bez
+       poprawki. */
+    await p.waitForTimeout(2500);
+    await p.click('.evk-tlw-przelacznik [data-lang="pl"]');
+    await p.waitForTimeout(400);
+    const pasek = await p.evaluate(() => {
+      const r = (s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect() : null; };
+      const tb = r('#wp-content-editor-container .mce-toolbar-grp'), ifr = r('#content_ifr'), kont = r('#wp-content-editor-container');
+      return tb && ifr && kont ? { szerPaska: Math.round(tb.width), szerEdytora: Math.round(kont.width), dolPaska: Math.round(tb.bottom), goraTresci: Math.round(ifr.top) } : null;
+    });
+    t.check('powrót do polskiego: pasek edytora głównego na całą szerokość, nad treścią',
+      !!pasek && pasek.szerPaska >= pasek.szerEdytora - 4 && pasek.dolPaska <= pasek.goraTresci + 1, J(pasek));
+    await p.click('.evk-tlw-przelacznik [data-lang="en"]');
+
     await p.fill('#evk-tlw-en-post_title', 'Post W1 EN');
     await p.fill('#evk-tlw-en-post_name', 'Post W1 EN');   // sanitize_title zrobi z tego post-w1-en
     await p.evaluate(() => window.tinymce.get('evk-tlw-en-post_content').setContent('<p>First page W1.</p><!--nextpage--><p>Second page W1.</p>'));
