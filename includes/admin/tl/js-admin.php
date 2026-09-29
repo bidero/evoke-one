@@ -365,6 +365,19 @@ add_action('admin_footer', function () {
             .fail(function() { $st.addClass('err').text('Błąd połączenia').show(); });
     };
 
+    /* Paczka językowa WordPressa dla wersji językowej (1.258.0). */
+    window.tlPobierzPaczke = function(btn) {
+        const $b = $(btn), $st = $b.next('.evo-save-msg');
+        $st.removeClass('ok err').hide();
+        $b.prop('disabled', true);
+        $.post(AJAX, { action: 'tl_pobierz_paczke', nonce: NONCE, locale: $b.data('locale') })
+            .done(function(r) {
+                if (r.success) { $st.addClass('ok').text('✓ ' + r.data + ' Odśwież stronę.').show(); }
+                else { $b.prop('disabled', false); $st.addClass('err').text(r.data || 'Błąd').show(); }
+            })
+            .fail(function() { $b.prop('disabled', false); $st.addClass('err').text('Błąd połączenia').show(); });
+    };
+
     // Flag media picker for languages
     /* Flaga to div albo img z kliknięciem (zapis czyta z nich data-att), więc
        z klawiatury: role="button" + tabindex w znaczniku i Enter/spacja tutaj

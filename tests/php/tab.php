@@ -1005,7 +1005,11 @@ require EVK_TEST_ROOT . '/includes/newsletter/' . $m;
 } elseif (($tab['module'] ?? null) === 'TL') {
     /* Siedem zakładek Tłumaczeń czyta te same opcje i te same helpery, więc
        moduły i dane stoją w jednym miejscu zamiast w siedmiu wpisach. */
-    foreach (['includes/10-language-system.php', 'includes/30-admin-settings-ajax.php',
+    /* 13-jezyk-wordpressa.php (1.258.0): zakładka Języki pokazuje stan paczek
+       WordPressa z przyciskiem „Pobierz” — strażnicy panelu mają go widzieć.
+       Atrapa: na serwerze nie ma żadnej paczki, więc oba języki mają przycisk. */
+    if (!function_exists('get_available_languages')) { function get_available_languages($dir = null) { return []; } }
+    foreach (['includes/10-language-system.php', 'includes/13-jezyk-wordpressa.php', 'includes/30-admin-settings-ajax.php',
               'includes/admin/tl/bootstrap.php'] as $m) {
         require EVK_TEST_ROOT . '/' . $m;
     }

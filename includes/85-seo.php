@@ -378,7 +378,9 @@ function evk_seo_og_locale(string $kod): string {
  * @return array{0: string, 1: list<string>}
  */
 function evk_seo_og_locale_strony(): array {
-    $witryna = evk_seo_og_locale((string) get_locale());
+    /* Język witryny bez filtra z 1.258.0 — na /en/ samo get_locale() daje
+       już en_US i polska wersja zniknęłaby z og:locale:alternate. */
+    $witryna = evk_seo_og_locale(function_exists('tl_locale_witryny') ? tl_locale_witryny() : (string) get_locale());
     if (!function_exists('tl_get_languages') || !function_exists('get_current_lang')) return [$witryna, []];
     $wszystkie = ['pl' => $witryna];
     foreach (tl_get_languages() as $kod => $jezyk) $wszystkie[$kod] = evk_seo_og_locale((string) ($jezyk['html'] ?? ''));

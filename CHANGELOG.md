@@ -2,6 +2,85 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.258.0] — 2026-09-29
+
+Tłumaczenia: WordPress mówi językiem wersji — daty oraz teksty rdzenia,
+Bricksa i wtyczek na /en/ i /de/.
+
+### Poprawione
+
+- **Na /en/ daty i teksty WordPressa i Bricksa były po polsku** (potwierdzone
+  przez zgłaszającego 29.09: „29 września” w dacie wpisu, polskie komunikaty
+  formularzy, stronicowanie).
+  - Przyczyna: wtyczka rozpoznawała język z adresu, ale WordPress pracował
+    dalej w języku witryny. `wp_date()` i każde `__()` brały polskie
+    tłumaczenia. Słownikiem się tego nie naprawi, bo data nie jest frazą.
+  - Teraz filtr `locale` podaje WordPressowi język wersji: `/en/` → en_US,
+    `/de/` → de_DE (z kodu HTML języka w zakładce Języki). Działa, zanim
+    WordPress wczyta tłumaczenia, więc daty i teksty rdzenia, Bricksa
+    i wtyczek od razu idą w języku strony.
+  - Filtr i stronicowanie Bricksa (REST) dostają język strony, z której
+    przyszły — jak ich HTML od 1.253.1.
+  - Bez zmian: panel (język użytkownika), builder i jego kanwa (polski
+    oryginał), podgląd szablonu, polska wersja. `switch_to_locale()` (np. mail
+    w języku odbiorcy) dalej wygrywa.
+- Przy okazji: `inLanguage` w danych strukturalnych wpisu na /en/ było
+  `pl-PL`, teraz jest `en-US`.
+
+### Dodane
+
+- **Zakładka Języki: „Język WordPressa na wersjach językowych”.** Przy każdym
+  języku locale WordPressa i stan paczki: wbudowany (angielski),
+  zainstalowana albo brak. Bez paczki WordPress pokazuje teksty i daty po
+  angielsku, a nie po polsku.
+  - Przycisk „Pobierz paczkę” instaluje paczkę rdzenia z WordPress.org bez
+    zmiany języka witryny. Tylko dla kogoś, kto może instalować języki.
+- Kod locale: `en-US` → `en_US`, `de-DE-formal` → `de_DE_formal`. Sam kod
+  (`de`) → zainstalowana paczka tego języka, a bez niej `de_DE`. Filtr
+  `evk_tl_locale_wp` pozwala wskazać inne.
+
+### Zmienione
+
+- og:locale:alternate bierze język witryny z ustawień
+  (`tl_locale_witryny()`). Na /en/ samo `get_locale()` odpowiada teraz en_US,
+  więc polska wersja zniknęłaby z alternatyw.
+- Wykrywanie języka z adresu wydzielone do `tl_jezyk_z_adresu()`, bez
+  przekierowań i ciasteczek. Woła je `init` i nowy filtr, więc język strony
+  i język WordPressa nie mogą się rozjechać.
+
+### Testy
+
+- `tests/tl-locale.test.js` + sonda: 40 sprawdzeń na prawdziwym WordPressie.
+  Testowy WordPress ma sam angielski, więc sonda stawia minimalne paczki
+  `.l10n.php`: pl_PL rdzenia i dziedzinę wtyczki w languages/plugins (tak
+  leży paczka Bricksa). Paczkę de_DE test pobiera przyciskiem (atrapa wpisu
+  WordPress.org, zip z serwera testowego). Sprawdzane:
+  - `get_locale()` dla adresów: PL, /en/, /de/, builder, kanwa, podgląd,
+    REST z Refererem i bez, obcy prefiks, panel;
+  - kod locale z kodu HTML;
+  - strony przez HTTP: miesiąc, tekst rdzenia, dziedzina wtyczki, `lang`,
+    og:locale z alternatywami, `switch_to_locale()`;
+  - pobranie paczki: obcy język, tłumacz bez prawa instalowania, administrator.
+- Mutacje: 8, każda zapala swoje sprawdzenia (11/1/5/1/1/1/2/1): bez
+  filtra; filtr także w panelu; także w builderze; og:locale z
+  `get_locale()`; region bez wielkich liter; tłumacz instaluje paczkę; REST
+  bez Referera; sam kod bez zainstalowanych paczek.
+- `builder-context`: nowy moduł na liście wołających wspólny warunek
+  buildera. `tests/php/tab.php`: zakładka Języki z nowym modułem, więc
+  strażnicy panelu (etykiety, klawiatura, telefon) widzą przyciski
+  „Pobierz paczkę”.
+- Pełny przebieg: 5851 sprawdzeń w 119 plikach. Jedno czerwone: strażnik
+  spisu opcji (`zapis-wp-odinstalowanie`) zauważył `WPLANG`, opcję rdzenia,
+  którą nowy moduł tylko czyta. Dopisana do opcji cudzych, plik powtórzony
+  osobno: 28/28.
+
+### Do sprawdzenia na testowej
+
+- Wpis na /en/: data po angielsku. Formularz Bricksa: komunikaty po
+  angielsku. Stronicowanie i filtr na /en/.
+- Zakładka Języki: stan paczek. Przy DE „Pobierz paczkę de_DE”, potem /de/.
+- Builder otwarty na stronie: interfejs i kanwa bez zmian.
+
 ## [1.257.2] — 2026-09-29
 
 Podgląd w builderze: napis „brak EN” nad ramką, przy prawym rogu.

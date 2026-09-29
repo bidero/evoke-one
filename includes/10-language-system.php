@@ -110,29 +110,12 @@ add_action('init', function () {
     }
 
     $allowed = tl_get_active_lang_codes();
-    $lang    = '';
     /* Żądanie REST (1.253.1): bez przekierowań — 301 na POST gubi ciało
        żądania — i bez ciasteczka, bo to nie jest wejście na stronę. */
     $trasa_rest = tl_trasa_rest();
 
-    // 1. Sprawdź prefix w URL (parsowanie REQUEST_URI)
-    $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-    $path = parse_url($request_uri, PHP_URL_PATH);
-    $path = trim($path, '/');
-    $segments = explode('/', $path);
-
-    if (!empty($segments[0]) && in_array($segments[0], $allowed, true)) {
-        $lang = $segments[0];
-    }
-
-    /* 1b. Filtr, stronicowanie i popup Bricksa idą AJAX-em na adres REST.
-       Strona w języku przestawia go na `/en/wp-json/…` (59-translation-bricks-ajax.php),
-       więc wyżej wystarcza prefiks. Adres bez prefiksu (strona z pamięci
-       podręcznej sprzed 1.253.1) dostaje język strony, z której przyszło
-       żądanie. */
-    if (!$lang && tl_trasa_bricksa_z_jezykiem($trasa_rest)) {
-        $lang = tl_jezyk_z_referera($allowed);
-    }
+    // 1. Prefiks w adresie; filtr, stronicowanie i popup Bricksa — język strony, z której przyszły
+    $lang = tl_jezyk_z_adresu();
 
     // 2. Fallback: sprawdź parametr ?lang= (dla kompatybilności wstecznej i buildera)
     if (!$lang && isset($_GET['lang']) && in_array($_GET['lang'], $allowed, true)) {
@@ -241,6 +224,26 @@ function tl_jezyk_z_referera(array $dozwolone): string {
     }
     $czlon = explode('/', trim($sciezka, '/'))[0];
     return in_array($czlon, $dozwolone, true) ? $czlon : '';
+}
+
+/**
+ * Język żądania z samego adresu (1.258.0): prefiks, a dla filtra,
+ * stronicowania i popupu Bricksa — język strony, z której przyszły. Te idą
+ * AJAX-em na adres REST, który strona w języku przestawia na `/en/wp-json/…`
+ * (59-translation-bricks-ajax.php), więc zwykle wystarcza prefiks. Adres bez
+ * prefiksu (strona z pamięci podręcznej sprzed 1.253.1) bierze język z Referera.
+ *
+ * BEZ SKUTKÓW UBOCZNYCH — bez przekierowań i ciasteczek. Woła ją wykrywanie
+ * na `init` i filtr `locale` (13-jezyk-wordpressa.php), który działa wcześniej,
+ * zanim WordPress wczyta tłumaczenia. Jedno źródło, więc język strony i język
+ * WordPressa nie mogą się rozjechać.
+ */
+function tl_jezyk_z_adresu(): string {
+    $dozwolone = tl_get_active_lang_codes();
+    $sciezka   = trim((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH), '/');
+    $pierwszy  = explode('/', $sciezka)[0];
+    if ($pierwszy !== '' && in_array($pierwszy, $dozwolone, true)) return $pierwszy;
+    return tl_trasa_bricksa_z_jezykiem(tl_trasa_rest()) ? tl_jezyk_z_referera($dozwolone) : '';
 }
 
 /**

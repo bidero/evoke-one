@@ -114,8 +114,9 @@ module.exports = async function (t) {
     dane = JSON.parse(execFileSync('php', ['-r', 'define("ABSPATH", "/"); echo json_encode(require $argv[1]);',
       path.join(korzen, 'includes/dane-wtyczki.php')], { encoding: 'utf8' }));
   } catch (e) { dane = null; }
+  /* WPLANG (1.258.0): język witryny — 13-jezyk-wordpressa.php tylko go czyta. */
   const NIE_NASZE = ['active_plugins', 'admin_email', 'blog_public', 'bricks_custom_fonts', 'comment_registration',
-    'home', 'page_for_posts', 'page_on_front', 'rewrite_rules', 'siteurl', 'ustawienia'];
+    'home', 'page_for_posts', 'page_on_front', 'rewrite_rules', 'siteurl', 'ustawienia', 'WPLANG'];
   const pliki = [path.join(korzen, 'evoke-one.php')];
   (function chodz(d) {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {

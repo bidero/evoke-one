@@ -66,3 +66,29 @@ if (!defined('ABSPATH')) exit;
                 <button type="button" class="button button-primary" onclick="tlSaveSettings()"><span class="dashicons dashicons-saved"></span> Zapisz ustawienia</button>
                 <span class="evo-save-msg" role="status" id="save-status-settings"></span>
             </div>
+            <?php
+            /* Język WordPressa na wersjach językowych (1.258.0,
+               13-jezyk-wordpressa.php): który język dostaje WordPress i czy
+               ma paczkę. Bez paczki daty i teksty są po angielsku. */
+            $paczki = function_exists('tl_paczki_jezykow') ? tl_paczki_jezykow() : [];
+            if ($paczki): ?>
+            <div class="tl-io-section" id="tl-jezyk-wp">
+                <h3>Język WordPressa na wersjach językowych</h3>
+                <p class="evo-muted-soft evo-mb-sm">Na wersji językowej daty oraz teksty WordPressa, Bricksa i wtyczek są w języku strony. WordPress potrzebuje do tego paczki językowej; angielski jest wbudowany. Bez paczki teksty i daty są po angielsku.</p>
+                <ul class="evo-list-plain">
+                    <?php foreach ($paczki as $p): ?>
+                    <li data-locale="<?php echo esc_attr($p['locale']); ?>" data-stan="<?php echo esc_attr($p['stan']); ?>">
+                        <strong><?php echo esc_html(strtoupper($p['kod'])); ?></strong> (<?php echo esc_html($p['nazwa']); ?>) → <code><?php echo esc_html($p['locale']); ?></code>:
+                        <?php if ($p['stan'] === 'wbudowany'): ?>wbudowany
+                        <?php elseif ($p['stan'] === 'jest'): ?>paczka zainstalowana
+                        <?php else: ?>brak paczki
+                            <?php if (current_user_can('install_languages')): ?>
+                            <button type="button" class="button tl-pobierz-paczke" data-locale="<?php echo esc_attr($p['locale']); ?>" onclick="tlPobierzPaczke(this)">Pobierz paczkę <?php echo esc_html($p['locale']); ?></button>
+                            <span class="evo-save-msg" role="status"></span>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php endif; ?>
