@@ -2,6 +2,52 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.259.0] — 2026-09-29
+
+Tłumaczenia: wyszukiwarka na wersji językowej szuka też w tłumaczeniach
+wpisów.
+
+### Poprawione
+
+- **Na /en/ wyszukiwarka dopasowywała wyłącznie polski tekst** (znalezione
+  przy analizie 29.09). „contact” nie znajdowało strony „Kontakt”, choć jej
+  angielski tytuł to „Contact”. Wyniki pokazywały tłumaczenia, ale wybierało
+  je polskie dopasowanie.
+  - Teraz każde słowo pasuje także do tłumaczenia tytułu, zajawki i treści
+    w języku strony (`_evk_tl_en__…`). Każdy język szuka w swoim
+    tłumaczeniu: DE nie znajduje po angielskim i odwrotnie.
+  - Polski tekst dalej się liczy: wpis bez tłumaczenia pokazuje się po
+    polsku, więc po polsku też się znajduje.
+  - Kilka słów — każde musi pasować, jak w WordPressie. Wykluczenie
+    (`-słowo`) wyklucza także po tłumaczeniu. Wpis z hasłem dalej jest
+    ukryty przed gośćmi.
+  - Kolejność przy jednym słowie: najpierw trafienia w tytule, także
+    w tytule języka, potem w treści.
+  - Bez zmian: polska wersja i wyszukiwanie w panelu.
+- Granica: treść zbudowaną w Bricksie i wartości pól FIELDS wyszukiwarka
+  WordPressa pomija także po polsku — do niej nie zagląda.
+
+### Jak to działa
+
+- `posts_search` składa SQL od nowa tą samą drogą co
+  `WP_Query::parse_search()` (słowa, `exact`, prefiks wykluczenia, kolumny,
+  szukanie po nazwie pliku załącznika, warunek hasła dla gości) i do każdego
+  słowa dokłada warunek na metadane tłumaczenia.
+
+### Testy
+
+- `tests/tl-szukaj.test.js` + sonda: 16 sprawdzeń na pięciu wpisach
+  (tytuł EN, treść EN, treść DE, wpis z hasłem, wpis bez tłumaczeń),
+  w procesie i przez HTTP (główne zapytanie strony wyników).
+- Mutacje: 6, każda zapala swoje sprawdzenia (6/2/1/3/4/1): bez tłumaczeń;
+  zawsze klucze EN; wykluczenie bez NOT; bez kolejności; bez warunku hasła;
+  także w panelu.
+- Pełny przebieg: 5867 sprawdzeń w 120 plikach, wszystkie zielone.
+
+### Do sprawdzenia na testowej
+
+- Wyszukiwarka na /en/: słowo z angielskiego tytułu strony znajduje ją.
+
 ## [1.258.0] — 2026-09-29
 
 Tłumaczenia: WordPress mówi językiem wersji — daty oraz teksty rdzenia,

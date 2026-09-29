@@ -196,6 +196,80 @@ add_filter('get_the_excerpt', function ($zajawka, $post = null) {
     return evk_tlw_tlumaczenie($post->ID, $lang, 'post_content') !== '' ? '' : $zajawka;
 }, 1, 2);
 
+/*
+ * WYSZUKIWARKA NA WERSJI JĘZYKOWEJ (1.259.0).
+ *
+ * ZNALEZIONE PRZY ANALIZIE 29.09: na /en/ WordPress dopasowywał wyłącznie
+ * polski tytuł, zajawkę i treść — „contact” nie znajdowało strony „Kontakt”,
+ * choć jej angielski tytuł to „Contact”. Wyniki pokazywały tłumaczenia (filtry
+ * wyżej), ale wybierało je polskie dopasowanie.
+ *
+ * JAK. `posts_search` dostaje SQL złożony przez WP_Query::parse_search().
+ * Składamy go od nowa tą samą drogą: te same słowa (`search_terms`), `exact`,
+ * prefiks wykluczenia, kolumny, warunek hasła dla gości. Każde słowo dostaje
+ * dodatkowo warunek na tłumaczenie tego języka (`_evk_tl_en__post_title` itd.).
+ * Polski tekst dalej się liczy: wpis bez tłumaczenia pokazuje się po polsku,
+ * więc po polsku też się znajduje. Wykluczenie (`-słowo`) wyklucza po obu.
+ * Przy jednym słowie kolejność (tytuł przed treścią) patrzy też na tytuł języka.
+ *
+ * GRANICE: treść zbudowaną w Bricksie i wartości pól FIELDS WordPress pomija
+ * także po polsku — wyszukiwarka rdzenia nie zagląda do metadanych.
+ */
+
+/** Kolumny przeszukiwane przez WP_Query — to samo, co liczy parse_search(). */
+function evk_tlw_szukaj_kolumny(WP_Query $query): array {
+    $domyslne = ['post_title', 'post_excerpt', 'post_content'];
+    $kolumny  = $query->get('search_columns') ?: $domyslne;
+    $kolumny  = (array) apply_filters('post_search_columns', (array) $kolumny, (string) $query->get('s'), $query);
+    $kolumny  = array_values(array_intersect($kolumny, $domyslne));
+    return $kolumny ?: $domyslne;
+}
+
+add_filter('posts_search', function ($search, $query) {
+    if (!is_string($search) || $search === '' || !($query instanceof WP_Query) || !$query->is_search()) return $search;
+    $lang = evk_tlw_jezyk();
+    $terminy = (array) $query->get('search_terms');
+    if ($lang === '' || !$terminy) return $search;
+    global $wpdb;
+    $n        = $query->get('exact') ? '' : '%';
+    $kolumny  = evk_tlw_szukaj_kolumny($query);
+    $klucze   = implode(', ', array_map(static function ($k) use ($wpdb, $lang) {
+        return $wpdb->prepare('%s', '_evk_tl_' . $lang . '__' . $k);
+    }, $kolumny));
+    $wyklucz  = (string) apply_filters('wp_query_search_exclusion_prefix', '-');
+    /* Szukanie po nazwie pliku załącznika (sq1) — rdzeń dołącza je sam, gdy
+       zapytanie na to pozwala; wtedy musi zostać w każdym słowie. */
+    $pliki    = strpos($search, 'sq1.meta_value') !== false;
+    $sql = '';
+    foreach ($terminy as $termin) {
+        $termin = (string) $termin;
+        $bez    = $wyklucz !== '' && strpos($termin, $wyklucz) === 0;
+        if ($bez) $termin = (string) substr($termin, strlen($wyklucz));
+        $op   = $bez ? 'NOT LIKE' : 'LIKE';
+        $like = $n . $wpdb->esc_like($termin) . $n;
+        $czesci = [];
+        foreach ($kolumny as $k) $czesci[] = $wpdb->prepare("({$wpdb->posts}.$k $op %s)", $like);
+        if ($pliki) $czesci[] = $wpdb->prepare("(sq1.meta_value $op %s)", $like);
+        $czesci[] = ($bez ? 'NOT ' : '') . $wpdb->prepare("EXISTS (SELECT 1 FROM {$wpdb->postmeta} evk_tls WHERE evk_tls.post_id = {$wpdb->posts}.ID"
+            . " AND evk_tls.meta_key IN ($klucze) AND evk_tls.meta_value LIKE %s)", $like);
+        $sql .= ($sql === '' ? '' : ' AND ') . '(' . implode($bez ? ' AND ' : ' OR ', $czesci) . ')';
+    }
+    $sql = " AND ({$sql}) ";
+    if (!is_user_logged_in()) $sql .= " AND ({$wpdb->posts}.post_password = '') ";
+    return $sql;
+}, 10, 2);
+
+add_filter('posts_search_orderby', function ($orderby, $query) {
+    if (!is_string($orderby) || $orderby === '' || !($query instanceof WP_Query) || !$query->is_search()) return $orderby;
+    $lang = evk_tlw_jezyk();
+    $terminy = (array) $query->get('search_terms');
+    if ($lang === '' || count($terminy) !== 1 || (int) $query->get('search_terms_count') > 1 || $query->get('exact')) return $orderby;
+    global $wpdb;
+    $like = '%' . $wpdb->esc_like((string) $terminy[0]) . '%';
+    return $wpdb->prepare("({$wpdb->posts}.post_title LIKE %s OR EXISTS (SELECT 1 FROM {$wpdb->postmeta} evk_tlo WHERE evk_tlo.post_id = {$wpdb->posts}.ID"
+        . ' AND evk_tlo.meta_key = %s AND evk_tlo.meta_value LIKE %s)) DESC', $like, '_evk_tl_' . $lang . '__post_title', $like);
+}, 10, 2);
+
 // =========================================================================
 // ADRES: MAPA ADRESÓW
 // =========================================================================
