@@ -121,6 +121,48 @@ add_filter('wp_calculate_image_srcset', function ($sources, $size_array, $src, $
     return $sources;
 }, 10, 5);
 
+/**
+ * Końcowa obróbka HTML-u w języku $lang: tagi `{tl_…}`/`[tl …]`, słownik
+ * (tokeny z `bricks/frontend/render_data` i ich rozwinięcie), `{tl:…}` i mapa
+ * obrazów. Bufor strony niżej robi to z całą stroną. Od 1.253.1 to samo
+ * dostają odpowiedzi AJAX Bricksa (filtr, stronicowanie, popup —
+ * 59-translation-bricks-ajax.php), których bufor strony nie widzi: bez tego
+ * tokeny `##TL_…##` wyciekały na stronę.
+ */
+function tl_przetworz_html(string $html, string $lang): string {
+    if ($html === '') return $html;
+
+    /* `{tl:pl=…|en=…}` poza treścią Bricksa (np. opis SEO) — do 1.250.0
+       rozwijany tylko w językach obcych, więc po polsku zostawał dosłownie. */
+    if ($lang === 'pl') {
+        $html = tl_replace_tl_tags_in_html($html, 'pl');
+        return tl_rozwin_tl_inline($html);
+    }
+
+    $html = tl_replace_tl_tags_in_html($html, $lang);
+    $html = tl_detokenize_content(tl_tokenize_content($html, $lang), $lang);
+    $html = tl_rozwin_tl_inline($html);
+
+    static $mapy = [];   // posortowana raz na żądanie, a odpowiedź AJAX ma wiele kawałków HTML-u
+    if (!isset($mapy[$lang])) {
+        $map = tl_get_image_url_map($lang);
+        uksort($map, fn($a, $b) => strlen($b) - strlen($a));
+        $mapy[$lang] = $map;
+    }
+    if ($mapy[$lang]) {
+        $html = str_replace(array_keys($mapy[$lang]), array_values($mapy[$lang]), $html);
+    }
+
+    return $html;
+}
+
+/** `{tl:pl=…|en=…}` → tekst w bieżącym języku. */
+function tl_rozwin_tl_inline(string $html): string {
+    if (strpos($html, '{tl:') === false) return $html;
+    $wynik = preg_replace_callback('/\{tl:([^}]+)\}/i', fn($match) => tl_parse_inline_tag($match[1]), $html);
+    return is_string($wynik) ? $wynik : $html;
+}
+
 // Final frontend fallback. Do not run in Bricks Builder, as Builder canvas is handled by the preview DOM script.
 add_action('wp', function () {
     if (is_admin() || wp_doing_ajax() || tl_is_bricks_editor() || tl_is_bricks_preview()) return;
@@ -129,31 +171,7 @@ add_action('wp', function () {
 
     ob_start(function ($buffer) use ($lang) {
         if (empty($buffer)) return $buffer;
-
-        /* `{tl:pl=…|en=…}` poza treścią Bricksa (np. opis SEO) — do 1.250.0
-           rozwijany tylko w językach obcych, więc po polsku zostawał dosłownie. */
-        if ($lang === 'pl') {
-            $buffer = tl_replace_tl_tags_in_html($buffer, 'pl');
-            if (strpos($buffer, '{tl:') !== false) {
-                $buffer = preg_replace_callback('/\{tl:([^}]+)\}/i', fn($match) => tl_parse_inline_tag($match[1]), $buffer);
-            }
-            return $buffer;
-        }
-
-        $buffer = tl_replace_tl_tags_in_html($buffer, $lang);
-        $buffer = tl_detokenize_content(tl_tokenize_content($buffer, $lang), $lang);
-
-        if (strpos($buffer, '{tl:') !== false) {
-            $buffer = preg_replace_callback('/\{tl:([^}]+)\}/i', fn($match) => tl_parse_inline_tag($match[1]), $buffer);
-        }
-
-        $map = tl_get_image_url_map($lang);
-        if (!empty($map)) {
-            uksort($map, fn($a, $b) => strlen($b) - strlen($a));
-            $buffer = str_replace(array_keys($map), array_values($map), $buffer);
-        }
-
-        return $buffer;
+        return tl_przetworz_html($buffer, $lang);
     });
 }, 0);
 

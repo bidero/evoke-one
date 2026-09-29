@@ -111,6 +111,9 @@ add_action('init', function () {
 
     $allowed = tl_get_active_lang_codes();
     $lang    = '';
+    /* Żądanie REST (1.253.1): bez przekierowań — 301 na POST gubi ciało
+       żądania — i bez ciasteczka, bo to nie jest wejście na stronę. */
+    $trasa_rest = tl_trasa_rest();
 
     // 1. Sprawdź prefix w URL (parsowanie REQUEST_URI)
     $request_uri = $_SERVER['REQUEST_URI'] ?? '';
@@ -122,12 +125,21 @@ add_action('init', function () {
         $lang = $segments[0];
     }
 
+    /* 1b. Filtr, stronicowanie i popup Bricksa idą AJAX-em na adres REST.
+       Strona w języku przestawia go na `/en/wp-json/…` (59-translation-bricks-ajax.php),
+       więc wyżej wystarcza prefiks. Adres bez prefiksu (strona z pamięci
+       podręcznej sprzed 1.253.1) dostaje język strony, z której przyszło
+       żądanie. */
+    if (!$lang && tl_trasa_bricksa_z_jezykiem($trasa_rest)) {
+        $lang = tl_jezyk_z_referera($allowed);
+    }
+
     // 2. Fallback: sprawdź parametr ?lang= (dla kompatybilności wstecznej i buildera)
     if (!$lang && isset($_GET['lang']) && in_array($_GET['lang'], $allowed, true)) {
         $lang = sanitize_key($_GET['lang']);
 
         // Przekierowanie ze starego formatu ?lang= na nowy z prefiksem (tylko na froncie)
-        if (!tl_is_bricks_editor() && !tl_is_bricks_preview() && !is_admin()) {
+        if (!tl_is_bricks_editor() && !tl_is_bricks_preview() && !is_admin() && $trasa_rest === '') {
             $clean_url = remove_query_arg(['lang', 'clear_lang']);
             $new_url = tl_add_lang_prefix_to_url($clean_url, $lang);
             if ($new_url !== $clean_url) {
@@ -139,7 +151,7 @@ add_action('init', function () {
     }
 
     // 3. Obsługa clear_lang - przejście na PL (usunięcie prefiksu)
-    if (isset($_GET['clear_lang'])) {
+    if (isset($_GET['clear_lang']) && $trasa_rest === '') {
         setcookie('site_lang', '', time() - 3600, '/');
         $clean_url = remove_query_arg(['clear_lang', 'lang']);
         $clean_url = tl_remove_lang_prefix_from_url($clean_url);
@@ -154,7 +166,7 @@ add_action('init', function () {
     }
 
     // 5. Ustaw cookie jeśli język wykryty z URL
-    if ($lang) {
+    if ($lang && $trasa_rest === '') {
         if (!isset($_COOKIE['site_lang']) || $_COOKIE['site_lang'] !== $lang) {
             setcookie('site_lang', $lang, time() + (86400 * 30), '/');
         }
@@ -174,6 +186,62 @@ add_action('init', function() {
         }
     }
 }, 5);
+
+/**
+ * Trasa REST bieżącego żądania (`/bricks/v1/query_result`) albo '' (1.253.1).
+ * Liczona z adresu, bo na `init` stała REST_REQUEST jeszcze nie istnieje.
+ * Przed prefiksem REST może stać katalog strony i prefiks języka (adres REST
+ * Bricksa na stronach w języku, 59-translation-bricks-ajax.php).
+ */
+function tl_trasa_rest(): string {
+    if (isset($_GET['rest_route']) && is_string($_GET['rest_route'])) {
+        return '/' . ltrim($_GET['rest_route'], '/');
+    }
+    $sciezka = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
+    $baza    = rtrim((string) (wp_parse_url((string) get_option('home'), PHP_URL_PATH) ?? ''), '/');
+    if ($baza !== '') {
+        if (strpos($sciezka . '/', $baza . '/') !== 0) return '';
+        $sciezka = (string) substr($sciezka, strlen($baza));
+    }
+    $czlony = explode('/', ltrim($sciezka, '/'));
+    if (in_array($czlony[0], tl_get_active_lang_codes(), true)) array_shift($czlony);
+    if (($czlony[0] ?? '') !== trim(rest_get_url_prefix(), '/')) return '';
+    return '/' . implode('/', array_slice($czlony, 1));
+}
+
+/** Żądania Bricksa ze strony, które mają oddać HTML w języku strony: filtr, stronicowanie, popup. */
+function tl_trasa_bricksa_z_jezykiem(string $trasa): bool {
+    return (bool) preg_match('#^/bricks/v1/(query_result|load_query_page|load_popup_content)/?$#', $trasa);
+}
+
+/**
+ * Język strony, z której przyszło żądanie (nagłówek Referer): pierwszy człon
+ * ścieżki, tylko z tego samego hosta i nie z buildera (builder jest po
+ * polsku). '' gdy nie da się ustalić.
+ *
+ * @param list<string> $dozwolone
+ */
+function tl_jezyk_z_referera(array $dozwolone): string {
+    $ref = isset($_SERVER['HTTP_REFERER']) && is_string($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';
+    if ($ref === '') return '';
+    $r   = wp_parse_url($ref);
+    $dom = wp_parse_url((string) get_option('home'));
+    if (!is_array($r) || !is_array($dom)) return '';
+    if (strtolower((string) ($r['host'] ?? '')) !== strtolower((string) ($dom['host'] ?? ''))
+        || (string) ($r['port'] ?? '') !== (string) ($dom['port'] ?? '')) return '';
+    parse_str((string) ($r['query'] ?? ''), $zapytanie);
+    foreach (['bricks', 'brickspreview', 'bricks_preview'] as $parametr) {
+        if (isset($zapytanie[$parametr])) return '';
+    }
+    $sciezka = (string) ($r['path'] ?? '/');
+    $baza    = rtrim((string) ($dom['path'] ?? ''), '/');
+    if ($baza !== '') {
+        if (strpos($sciezka . '/', $baza . '/') !== 0) return '';
+        $sciezka = (string) substr($sciezka, strlen($baza));
+    }
+    $czlon = explode('/', trim($sciezka, '/'))[0];
+    return in_array($czlon, $dozwolone, true) ? $czlon : '';
+}
 
 /**
  * Pomocnicze funkcje URL

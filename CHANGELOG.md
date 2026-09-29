@@ -2,6 +2,69 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.253.1] — 2026-09-29
+
+Filtr, stronicowanie AJAX, nieskończone przewijanie i popup Bricksa na stronach
+w języku.
+
+### Naprawione
+
+- **Po kliknięciu filtra Bricksa na `/en/…` treść wracała po polsku**
+  (zgłoszenie ze strony). Nazwy kategorii, tytuły, pola języków w elementach,
+  linki i obrazki były polskie, choć adres zostawał `/en/…?_kategoria=…`.
+  - Przyczyna: Bricks wysyła te żądania POST-em na `bricksData.restApiUrl`
+    (`/wp-json/bricks/v1/query_result`, `load_query_page`,
+    `load_popup_content`), a ten adres nie ma prefiksu języka. Język wtyczka
+    bierze z pierwszego członu adresu, więc żądanie szło po polsku.
+    Potwierdzone w `bricks.min.js` z żywej strony.
+  - Druga pułapka: słownik zamienia frazy na tokeny `##TL_…##`, a rozwija je
+    dopiero bufor całej strony, którego w żądaniu REST nie ma. Po samym
+    ustaleniu języka tokeny wyciekłyby na stronę.
+- **Poprawka:**
+  - strona w języku przestawia `bricksData.restApiUrl` na
+    `/en/wp-json/bricks/v1/`, więc język bierze się z prefiksu, jak na każdej
+    stronie;
+  - adres bez prefiksu (np. strona z pamięci podręcznej sprzed tej wersji)
+    dostaje język ze strony, z której przyszło żądanie (nagłówek Referer,
+    tylko ten sam host, nigdy z buildera);
+  - odpowiedź przechodzi tę samą obróbkę co cała strona: słownik, `{tl:…}`,
+    tagi `{tl_…}` i mapa obrazów z zakładki „Obrazki” (także adres tła
+    w stylach). Działa, czy Bricks oddaje odpowiedź przez serwer REST, czy
+    wysyła ją sam;
+  - `?lang=` i `?clear_lang` na adresie REST nie przekierowują już 301 —
+    przekierowanie POST-a gubi treść żądania.
+
+### Testy
+
+- `tl-filtry-bricksa` (20 sprawdzeń) na prawdziwym WordPressie przez `php -S`.
+  Atrapy Bricksa stawia mu-plugin: skrypt z `bricksData` i dwie trasy, jedna
+  oddaje wynik przez serwer REST, druga sama (`wp_send_json`).
+  - Na `/en/…` adres REST przestawiony, a filtr wysłany ze strony (jak
+    w Bricksie) oddaje nazwę kategorii, tytuł, link, frazę słownika, `{tl:…}`
+    i obrazek z mapy po angielsku.
+  - Strona polska bez zmian.
+  - Referer `/en/…` na adres bez prefiksu i w postaci `?rest_route=` → EN;
+    obcy host, builder, brak nagłówka → PL.
+  - Popup wysłany z pominięciem serwera REST → EN, a pusty obiekt `popups`
+    zostaje `{}`.
+  - `?lang=en` bez 301.
+- Mutacje: 11, każda zapala inny zestaw sprawdzeń.
+- Pełny przebieg: 5646 sprawdzeń w 113 plikach. Jedno czerwone, bez związku
+  z wydaniem: `grain-koszt` (mediana klatki z ziarnem 33,3 ms przy progu,
+  bez ziarna 16,7 ms). Ten sam pomiar na czystym 1.253.0, w osobnym drzewie
+  roboczym, raz przeszedł (16,8 ms), raz nie (33,3 ms). Fixtura ziarna to
+  statyczny HTML z JS-em frontu, bez PHP; wydanie jej nie dotyka. Wrażliwość
+  pomiaru na obciążenie maszyny opisuje już 1.240.0.
+
+### Do sprawdzenia na testowej
+
+- Filtr kategorii na `/en/…`: po kliknięciu nazwy, tytuły i linki zostają po
+  angielsku. Jeśli nie, potrzebny adres i ładunek żądania `query_result`
+  z DevTools (Sieć).
+- Popup i „Wczytaj więcej” na stronie EN.
+- Znane, osobno: przełącznik języka wewnątrz popupu AJAX buduje adresy
+  z adresu żądania — do poprawki, jeśli go tam używasz.
+
 ## [1.253.0] — 2026-09-28
 
 Tłumaczenia kategorii, tagów i taksonomii (nazwa, adres, opis) oraz tekstów
