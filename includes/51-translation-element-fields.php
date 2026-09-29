@@ -62,15 +62,16 @@ function evk_tl_el_tlumaczalna(string $klucz, $def, string $element = ''): bool 
 }
 
 /**
- * Czy kontrolka to obraz w treści elementu (1.254.0): typ `image`, zakładka treści,
- * bez CSS (tło i inne obrazy stylu idą przez CSS Bricksa, nie przez ustawienia),
- * klucz nie techniczny. Filtr `evk_tl_el_obraz` poprawia werdykt.
+ * Czy kontrolka to obraz w treści elementu (1.254.0): typ `image` albo `svg` (plik
+ * elementu SVG, 1.256.0), zakładka treści, bez CSS (tło i inne obrazy stylu idą
+ * przez CSS Bricksa, nie przez ustawienia), klucz nie techniczny. Filtr
+ * `evk_tl_el_obraz` poprawia werdykt.
  *
  * @param mixed $def
  */
 function evk_tl_el_obraz(string $klucz, $def, string $element = ''): bool {
     $tak = is_array($def)
-        && ($def['type'] ?? '') === 'image'
+        && in_array($def['type'] ?? '', ['image', 'svg'], true)
         && ($def['tab'] ?? 'content') !== 'style'
         && empty($def['css'])
         && $klucz !== '' && $klucz[0] !== '_' && strncmp($klucz, 'evk', 3) !== 0;
@@ -129,7 +130,8 @@ function evk_tl_el_grupy($grupy) {
  */
 function evk_tl_el_nazwa_pola(string $klucz): string {
     $nazwy = ['text' => 'Tekst', 'title' => 'Tytuł', 'subtitle' => 'Podtytuł', 'content' => 'Treść',
-        'description' => 'Opis', 'label' => 'Etykieta', 'placeholder' => 'Tekst zastępczy', 'caption' => 'Podpis'];
+        'description' => 'Opis', 'label' => 'Etykieta', 'placeholder' => 'Tekst zastępczy', 'caption' => 'Podpis',
+        'file' => 'Plik'];
     return $nazwy[$klucz] ?? $klucz;
 }
 
@@ -137,12 +139,14 @@ function evk_tl_el_nazwa_pola(string $klucz): string {
  * Etykieta pola języka (1.243.0, decyzja zgłaszającego): „Tłumaczenie EN".
  * Gdy element albo pozycja listy ma kilka pól tekstowych, sama
  * „Tłumaczenie EN" nie mówi, którego dotyczy — wtedy „Tłumaczenie EN · Tytuł".
- * Obraz (1.254.0): „Obraz EN", przy kilku obrazach „Obraz EN · Logo".
+ * Obraz (1.254.0): „Obraz EN", przy kilku obrazach „Obraz EN · Logo". Plik elementu
+ * SVG (1.256.0): „SVG EN".
  *
  * @param array<string,mixed> $def
  */
 function evk_tl_el_etykieta(array $def, string $klucz, string $jezyk, bool $wiele): string {
-    $etykieta = (($def['type'] ?? '') === 'image' ? 'Obraz ' : 'Tłumaczenie ') . strtoupper($jezyk);
+    $typ = (string) ($def['type'] ?? '');
+    $etykieta = ($typ === 'image' ? 'Obraz ' : ($typ === 'svg' ? 'SVG ' : 'Tłumaczenie ')) . strtoupper($jezyk);
     if (!$wiele) return $etykieta;
     $nazwa = !empty($def['label']) ? wp_strip_all_tags((string) $def['label']) : evk_tl_el_nazwa_pola($klucz);
     return $etykieta . ' · ' . $nazwa;

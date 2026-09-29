@@ -2,6 +2,43 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.256.0] — 2026-09-29
+
+„SVG EN" — inny plik SVG dla języka, ustawiany w builderze.
+
+Numer 1.255.0 zajęła równoległa gałąź naprawy fali
+(`claude/compassionate-albattani-semzu1`, tam też 1.254.0). Aktualizator
+porównuje wersje, więc wydanie tej gałęzi musi mieć numer wyższy niż
+wydania obu gałęzi.
+
+### Dodane
+
+- **„SVG EN"** przy pliku elementu SVG. Zgłoszenie po 1.254.0: „Obraz EN
+  działa. Brakuje w SVG".
+  - Przyczyna: plik SVG to w Bricksie kontrolka typu `svg`, a pola języka
+    dostawały dotąd tylko kontrolki `image`.
+  - Pole jest w grupie „Tłumaczenia", z tym samym warunkiem co plik
+    (widać je przy źródle „Plik"). Obok innego obrazu: „SVG EN · Plik".
+  - Na stronie w danym języku element dostaje plik z pola języka.
+    Puste pole zostawia polski; builder i polska strona bez zmian.
+  - Kod SVG, ikona i źródło zostają bez pola języka.
+
+### Testy
+
+- `tl-pola-elementow`: 6 sprawdzeń SVG — kontrolka i jej grupa, warunek
+  źródła, kod i ikona bez pola, etykieta przy kilku obrazach, poza mapą
+  tekstów, podmiana na stronie.
+- Mutacje: 4, każda zapala inny zestaw:
+  - predykat bez `svg`;
+  - etykieta „Obraz" dla SVG;
+  - bez nazwy „Plik";
+  - bez warunku `required` (zapala też obraz w pozycji listy).
+
+### Do sprawdzenia na testowej
+
+- Element SVG ze źródłem „Plik": pole „SVG EN" w grupie „Tłumaczenia",
+  a na `/en/` SVG z tego pola.
+
 ## [1.254.0] — 2026-09-29
 
 Inny obraz dla języka, ustawiany w builderze (#73).

@@ -125,6 +125,23 @@ module.exports = async function (t) {
   t.check('strona polska i builder: obraz polski', ob.pl && ob.pl.image.id === 10 && ob.builder_en && ob.builder_en.image.id === 10
     && ob.builder_en.items[0].image.id === 11, JSON.stringify([ob.pl && ob.pl.image, ob.builder_en && ob.builder_en.image]));
 
+  t.section('SVG języka (1.256.0): „SVG EN" przy pliku elementu SVG');
+  const sv = k.svg.definicje || {};
+  t.check('plik SVG: pole „SVG EN" typu svg w grupie „Tłumaczenia"',
+    (sv.evk_tl_en__file || {}).type === 'svg' && (sv.evk_tl_en__file || {}).label === 'SVG EN' && (sv.evk_tl_en__file || {}).group === 'evk_tl'
+      && (sv.evk_tl_de__file || {}).label === 'SVG DE', JSON.stringify(sv));
+  t.check('pole „SVG EN" z warunkiem źródła („Plik"), jak pole oryginału',
+    JSON.stringify((sv.evk_tl_en__file || {}).required) === JSON.stringify(['source', '=', ['', 'file']]), JSON.stringify((sv.evk_tl_en__file || {}).required));
+  t.check('kod SVG, ikona i źródło — bez pola języka', JSON.stringify(k.svg.nowe) === JSON.stringify(['evk_tl_en__file', 'evk_tl_de__file']), JSON.stringify(k.svg.nowe));
+  const sz = k['svg-z-obrazem'].definicje || {};
+  t.check('SVG obok obrazu: „SVG EN · Plik" i „Obraz EN · Plakat"',
+    (sz.evk_tl_en__file || {}).label === 'SVG EN · Plik' && (sz.evk_tl_en__poster || {}).label === 'Obraz EN · Plakat', JSON.stringify(sz));
+  t.check('SVG poza mapą tekstów', JSON.stringify((mp.svg || {}).pola) === '[]', JSON.stringify(mp.svg));
+  const sw = d.svg || {};
+  t.check('strona EN: plik SVG z pola EN; PL, DE (puste) i builder — polski',
+    sw.en && sw.en.file.id === 41 && sw.en.file.filename === 'znak-en.svg' && sw.pl.file.id === 40 && sw.de.file.id === 40 && sw.builder_en.file.id === 40,
+    JSON.stringify([sw.en && sw.en.file, sw.pl && sw.pl.file, sw.builder_en && sw.builder_en.file]));
+
   t.section('podmiana przed renderem');
   const p = d.podmiana;
   t.check('strona polska: bez zmian', p.pl && p.pl.text === 'Zapytaj o wycenę' && p.pl.accordions[0].title === 'Jeden', JSON.stringify(p.pl));

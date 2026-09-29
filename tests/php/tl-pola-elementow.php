@@ -148,6 +148,18 @@ $probki = [
         'cssImage' => ['tab' => 'content', 'label' => 'Obraz CSS', 'type' => 'image', 'css' => [['property' => 'background-image']]],
         '_image'   => ['tab' => 'content', 'label' => 'Techniczny', 'type' => 'image'],
     ],
+    /* SVG (1.256.0): plik to kontrolka typu `svg` bez etykiety, widoczna przy źródle
+       „Plik". Kod SVG i ikona — bez pola języka. Z drugim obrazem: „SVG EN · Plik". */
+    'svg' => [
+        'source'  => ['tab' => 'content', 'label' => 'Źródło', 'type' => 'select'],
+        'file'    => ['tab' => 'content', 'type' => 'svg', 'required' => ['source', '=', ['', 'file']]],
+        'code'    => ['tab' => 'content', 'label' => 'Kod', 'type' => 'code'],
+        'iconSet' => ['tab' => 'content', 'label' => 'Ikona', 'type' => 'icon'],
+    ],
+    'svg-z-obrazem' => [
+        'file'   => ['tab' => 'content', 'type' => 'svg'],
+        'poster' => ['tab' => 'content', 'label' => 'Plakat', 'type' => 'image'],
+    ],
     /* Pola bez etykiety — tak wygląda tekst nagłówka w Bricksie (tylko edycja
        na kanwie). Do 1.242.0 panel pokazywał wtedy klucz: „text — EN". */
     'bez-etykiety' => [
@@ -228,6 +240,23 @@ foreach (['pl', 'en', 'de'] as $j) {
 $GLOBALS['jezyk'] = 'en';
 $_GET['bricks'] = 'run';
 $wynik['obrazy']['builder_en'] = $filtr ? $filtr($obrazy, null) : null;
+unset($_GET['bricks']);
+$GLOBALS['jezyk'] = 'pl';
+
+// ── SVG języka (1.256.0): plik SVG jak obraz ────────────────────────────
+$svg = [
+    'source'          => 'file',
+    'file'            => ['id' => 40, 'filename' => 'znak-pl.svg', 'url' => 'https://example.test/znak-pl.svg'],
+    'evk_tl_en__file' => ['id' => 41, 'filename' => 'znak-en.svg', 'url' => 'https://example.test/znak-en.svg'],
+];
+$wynik['svg'] = [];
+foreach (['pl', 'en', 'de'] as $j) {
+    $GLOBALS['jezyk'] = $j;
+    $wynik['svg'][$j] = $filtr ? $filtr($svg, null) : null;
+}
+$GLOBALS['jezyk'] = 'en';
+$_GET['bricks'] = 'run';
+$wynik['svg']['builder_en'] = $filtr ? $filtr($svg, null) : null;
 unset($_GET['bricks']);
 $GLOBALS['jezyk'] = 'pl';
 
