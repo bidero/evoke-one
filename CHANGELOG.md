@@ -2,6 +2,103 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.257.0] — 2026-09-29
+
+Podgląd tłumaczeń w builderze Bricksa: przełącznik PL | EN | DE (#82).
+
+### Dodane
+
+- **Przełącznik PL | EN | DE w pasku buildera**, obok breakpointów (decyzja
+  zgłaszającego). Kanwa pokazuje wybrany język na żywo z pól „Tłumaczenie EN”,
+  „Obraz EN” i „SVG EN”. Pisanie w polu panelu od razu widać na kanwie.
+  - Tekst bez tłumaczenia zostaje polski, z obrysem i znaczkiem „brak EN”.
+    Łatwo zobaczyć, co się przeoczyło.
+  - Obrazy i SVG bez wersji EN zostają bez obrysu (decyzja: obraz bywa
+    wspólny dla języków).
+  - `{tl_…}` pokazuje tłumaczenie ze słownika, bez obrysu.
+  - Tekst z danymi dynamicznymi (`{post_title}` itd.) zostaje bez zmian.
+  - Każdy element tłumaczy tylko swoje teksty. Nagłówek w icon-boksie
+    o tym samym tekście ma swoje tłumaczenie, a icon-box swoje.
+  - Po przeładowaniu buildera start zawsze z PL. Przeładowanie samej kanwy
+    wybór zachowuje.
+- **Klik w tekst w trybie EN: na czas edycji polski.** Druga próba na
+  testowej pokazała, że Bricks zapisuje tekst z kanwy do ustawień przy
+  każdym znaku (48 ms po literze). Kanwa w trakcie edycji musi więc mieć
+  polski, inaczej tłumaczenie trafiłoby do polskiego pola.
+  - Kliknięty element wraca do polskiego, zanim Bricks go zobaczy, i ma
+    znaczek „edycja PL”. Po wyjściu z tekstu znów pokazuje tłumaczenie.
+  - Drugie zabezpieczenie: znak wpisany w element, który wciąż pokazuje
+    tłumaczenie, jest zablokowany, a element najpierw wraca do polskiego.
+
+### Zmienione
+
+- **`{tl_…}` w kanwie rozwija podgląd** (w wybranym języku). Stary skrypt
+  z 40-dynamic-data-shortcode.php działa już tylko w powłoce i w podglądzie
+  szablonu. Dwa obserwatory na tych samych węzłach budziłyby się nawzajem.
+  - Tekst w trakcie edycji nie jest ruszany: tag wpisany ręcznie zostaje
+    tagiem.
+
+### Jak to działa
+
+- Skrypt `assets/admin/tl-builder-podglad.js` ładuje się tylko w kanwie
+  buildera i tylko dla osób z prawem edycji (`evk_tl_kanwa_buildera()`).
+  Przełącznik wstawia do paska powłoki przez `window.parent`, bo ramka ma
+  to samo pochodzenie. Dzięki temu nie ma skryptu w powłoce ani wąskiego
+  `bricks_is_builder_main()`.
+- Ustawienia czyta ze stanu Vue powłoki (`$_state`), bo tam najpierw
+  trafia pisanie w panelu. Stan kanwy służy jako zapas.
+- Dane skryptu (języki, mapa pól tłumaczalnych, słownik `{tl_…}`) idą jako
+  JSON w `<script type="application/json">`. `JSON_HEX_TAG` nie wypuści
+  `</script>` z frazy słownika.
+
+### Testy
+
+- `tests/tl-podglad-buildera.test.js` + sonda PHP. Fixtura odtwarza
+  Bricksa 2.4.2 z dwóch prób: stan Vue powłoki i osobny stan kanwy, pasek
+  z trzema grupami, korzenie `#brxe-{id}`, edycję w miejscu zapisującą
+  każdy znak, przerysowanie przez Vue. Dane skryptu idą z prawdziwego PHP.
+  Sprawdzane:
+  - PHP: co trafia do kanwy, powłoki, na stronę i do kanwy bez uprawnień;
+  - przełącznik obsługiwany klawiaturą;
+  - teksty, listy, element w elemencie, braki z obrysem, słownik, dane
+    dynamiczne;
+  - obraz (także w pozycji listy), SVG oczyszczone ze skryptów;
+  - edycja w EN zmienia tylko polski; zabezpieczenie znaku;
+  - pisanie w panelu na żywo, przerysowanie przez Vue, spokój obserwatora;
+  - DE, powrót do PL, przeładowanie kanwy i buildera, konsola bez błędów.
+- Mutacje: 13, każda zapala swoje sprawdzenia:
+  - bez polskiego przy edycji (klik i pisanie);
+  - bez zabezpieczenia znaku;
+  - obserwator nie wraca po przerwie, więc przerysowanie przez Vue gubi
+    tłumaczenie;
+  - obrys zawsze (6 sprawdzeń);
+  - wejście w korzenie potomne;
+  - pętla obserwatora (35 przebiegów w 1,5 s);
+  - słownik zawsze po polsku;
+  - SVG bez czyszczenia;
+  - przełącznik na końcu paska (14 sprawdzeń);
+  - stary skrypt `{tl_…}` w kanwie;
+  - JSON bez `JSON_HEX_TAG`;
+  - bez sprawdzenia uprawnień;
+  - bez podglądu pól panelu.
+- Pełny przebieg: 5802 sprawdzenia w 118 plikach.
+  - Jeden czerwony: zawis logowania w harnessie w `tl-teksty`. Plik
+    osobno: 24/24.
+  - Ten zawis wrócił dziś trzeci raz. Kliknięcie „Zaloguj” nie wysyła
+    formularza (brak żądań, strona zostaje na `wp-login.php`). Do osobnej
+    naprawy w `tests/lib/wp-serwer.js`.
+
+### Do sprawdzenia na testowej
+
+- Przełącznik w pasku obok breakpointów. EN i DE na kanwie; obrysy przy
+  tekstach bez tłumaczenia.
+- Klik w nagłówek w EN: polski ze znaczkiem „edycja PL”. Dopisz literę
+  i kliknij obok: zapisze się polski, a tłumaczenie zostanie nietknięte.
+- Pisanie w polu „Tłumaczenie EN” w panelu od razu zmienia kanwę.
+- Jeśli czegoś nie ma na kanwie (np. element w komponencie albo szablonie
+  globalnym), napisz który — fixtura zna tylko treść strony, nagłówek
+  i stopkę.
+
 ## [1.256.0] — 2026-09-29
 
 „SVG EN" — inny plik SVG dla języka, ustawiany w builderze. Do tego scalone zmiany WaveBG z gałęzi fali.

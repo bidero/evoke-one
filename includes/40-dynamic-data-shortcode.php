@@ -189,6 +189,9 @@ foreach (['the_content', 'widget_text'] as $_tl_filter) {
 add_action('wp_footer', function () {
     if (!(tl_is_bricks_editor() || tl_is_bricks_preview())) return;
     if (is_admin()) return;
+    /* W kanwie buildera `{tl_…}` rozwija podgląd tłumaczeń (58-translation-builder-preview.php,
+       1.257.0) — w wybranym języku. Dwa obserwatory na tych samych węzłach budziłyby się nawzajem. */
+    if (evk_tl_kanwa_buildera()) return;
 
     $keys = get_option('tl_dd_keys', []);
     if (empty($keys)) return;

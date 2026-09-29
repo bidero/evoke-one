@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<title>Kanwa buildera — atrapa (podgląd tłumaczeń)</title>
+<style>
+  body { margin: 0; padding: 30px 20px; font: 16px system-ui, sans-serif; color: #111; }
+  [data-id] { margin: 0 0 18px; }
+  .brxe-button { display: inline-flex; gap: 6px; padding: 6px 12px; border: 1px solid #999; color: inherit; text-decoration: none; }
+  .brxe-image img, .slajd img { display: block; width: 120px; height: 80px; }
+</style>
+</head>
+<body>
+<!--
+  Elementy jak w kanwie Bricksa: korzeń `#brxe-{id}` z `data-id`, tekst nagłówka
+  = `settings.text` jako HTML (próba: `rownyHtml: true`), przycisk z ikoną
+  i tekstem w <span>, element w elemencie (sekcja, icon-box), pozycje listy
+  (accordion, slider), obraz w wariancie rozmiaru, SVG wstawione w treść.
+-->
+<div class="brx-body iframe mounted">
+  <main id="brx-content">
+    <h4 id="brxe-h1" data-id="h1" class="brxe-heading edytowalny" contenteditable="false">Grafika<br>użytkowa</h4>
+    <div id="brxe-t1" data-id="t1" class="brxe-text-basic edytowalny" contenteditable="false">Zapytaj o wycenę</div>
+    <a id="brxe-b1" data-id="b1" class="brxe-button" href="#b1"><i class="ikona">★</i><span class="tekst">Kontakt</span></a>
+    <h3 id="brxe-d1" data-id="d1" class="brxe-heading">{tl_zobacz}</h3>
+    <h3 id="brxe-p1" data-id="p1" class="brxe-heading">Mój wpis</h3>
+    <figure id="brxe-i1" data-id="i1" class="brxe-image"><img src="podglad-pl-300x200.svg" srcset="podglad-pl-300x200.svg 300w" sizes="300px" alt=""></figure>
+    <section id="brxe-s1" data-id="s1" class="brxe-section"><h2 id="brxe-h2" data-id="h2" class="brxe-heading edytowalny" contenteditable="false">Oferta</h2></section>
+    <div id="brxe-k1" data-id="k1" class="brxe-icon-box"><div id="brxe-h3" data-id="h3" class="brxe-heading">Oferta</div><p class="opis">Oferta</p></div>
+    <div id="brxe-a1" data-id="a1" class="brxe-accordion"><div class="title">Jeden</div><div class="title">Dwa</div></div>
+    <div id="brxe-sl1" data-id="sl1" class="brxe-slider"><div class="slajd"><h5 class="tytul">Slajd</h5><img src="slajd-pl.svg" alt=""></div></div>
+    <svg id="brxe-sv1" data-id="sv1" class="brxe-svg" viewBox="0 0 10 10" width="40" height="40"><circle cx="5" cy="5" r="4" fill="#c00"></circle></svg>
+  </main>
+</div>
+<script>
+(function () {
+  var p = parent.__stan;
+  /* Stan kanwy: osobny obiekt, jak w próbie (`stanWspolny: false`). */
+  var st = JSON.parse(JSON.stringify(p));
+  window.__stanKanwy = st;
+  document.querySelector('.brx-body.iframe').__vue_app__ = { config: { globalProperties: { $_state: st } } };
+  function el(stan, id) { return stan.content.filter(function (e) { return e.id === id; })[0]; }
+
+  /* Edycja w miejscu jak w Bricksie 2.4 (druga próba): kliknięcie włącza
+     `contenteditable` i daje fokus, każdy znak trafia do stanu po kilku ms,
+     wyjście z pola zdejmuje `contenteditable`. */
+  document.addEventListener('mousedown', function (e) {
+    var r = e.target.closest && e.target.closest('.edytowalny');
+    if (r) r.setAttribute('contenteditable', 'true');
+  });
+  document.addEventListener('input', function (e) {
+    var r = e.target.closest && e.target.closest('.edytowalny');
+    if (!r) return;
+    setTimeout(function () { [p, st].forEach(function (s) { el(s, r.getAttribute('data-id')).settings.text = r.innerHTML; }); }, 10);
+  });
+  document.addEventListener('focusout', function (e) {
+    var r = e.target.closest && e.target.closest('.edytowalny');
+    if (r) r.setAttribute('contenteditable', 'false');
+  });
+
+  /* Przerysowanie elementu przez Vue: treść prosto z ustawień (polski). */
+  window.__przerysuj = function (id) {
+    document.querySelector('[data-id="' + id + '"]').innerHTML = el(p, id).settings.text;
+  };
+
+  /* Dane z sondy PHP (tests/php/tl-podglad-buildera.php dane), wstrzyknięte przez test. */
+  var d = document.createElement('script');
+  d.type = 'application/json';
+  d.id = 'evk-tl-podglad-dane';
+  d.textContent = JSON.stringify(window.__EVK_TL_DANE || {});
+  document.body.appendChild(d);
+})();
+</script>
+<script src="../../assets/admin/tl-builder-podglad.js"></script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<title>Powłoka buildera — atrapa (podgląd tłumaczeń)</title>
+<style>
+  body { margin: 0; font: 14px system-ui, sans-serif; background: #1f2229; }
+  #bricks-toolbar-top { display: flex; justify-content: space-between; align-items: center; height: 48px; background: #23282d; color: #fff; }
+  .group-wrapper { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0 8px; }
+  .group-wrapper button { background: none; border: 0; color: inherit; font: inherit; }
+  #bricks-builder-iframe { display: block; width: 1000px; height: 700px; border: 0; background: #fff; }
+</style>
+</head>
+<body>
+<!--
+  Kształt z dwóch prób na testowej (Bricks 2.4.2): aplikacja Vue powłoki na
+  `div.brx-body.main`, stan w `__vue_app__.config.globalProperties.$_state`,
+  pasek `#bricks-toolbar-top` z trzema grupami, kanwa w
+  `iframe#bricks-builder-iframe`. Stan kanwy to OSOBNY obiekt (w próbie
+  `stanWspolny: false`) — atrapa kanwy robi sobie kopię.
+-->
+<div class="brx-body main">
+  <div id="bricks-toolbar-top" class="bricks-toolbar toolbar-top">
+    <ul class="group-wrapper start"><li><button type="button">Elementy</button></li></ul>
+    <ul class="group-wrapper center breakpoints"><li><button type="button">Komputer</button></li><li><button type="button">Telefon</button></li></ul>
+    <ul class="group-wrapper end"><li><button type="button" id="zapisz">Zapisz</button></li></ul>
+  </div>
+  <script>
+    window.__stan = {
+      activeId: null,
+      header: [],
+      footer: [],
+      content: [
+        { id: 'h1', name: 'heading', settings: { text: 'Grafika<br>użytkowa', evk_tl_en__text: 'Graphic<br>design' } },
+        { id: 't1', name: 'text-basic', settings: { text: 'Zapytaj o wycenę' } },
+        { id: 'b1', name: 'button', settings: { text: 'Kontakt', evk_tl_en__text: 'Contact', evk_tl_de__text: 'Kontakt DE' } },
+        { id: 'd1', name: 'heading', settings: { text: '{tl_zobacz}' } },
+        { id: 'p1', name: 'heading', settings: { text: '{post_title}' } },
+        { id: 'i1', name: 'image', settings: {
+          /* Inny host (jak CDN), ta sama ścieżka; w kanwie wariant rozmiaru. */
+          image: { id: 10, url: 'http://przyklad.test/tests/fixtures/podglad-pl.svg', size: 'medium' },
+          evk_tl_en__image: { id: 20, url: 'podglad-en.svg' } } },
+        { id: 's1', name: 'section', settings: {} },
+        { id: 'h2', name: 'heading', settings: { text: 'Oferta', evk_tl_en__text: 'Offer' } },
+        { id: 'k1', name: 'icon-box', settings: { text: 'Oferta', evk_tl_en__text: 'Offer K' } },
+        { id: 'h3', name: 'heading', settings: { text: 'Oferta', evk_tl_en__text: 'Offer H' } },
+        { id: 'a1', name: 'accordion', settings: { accordions: [
+          { title: 'Jeden', evk_tl_en__title: 'One' },
+          { title: 'Dwa' } ] } },
+        { id: 'sl1', name: 'slider', settings: { items: [
+          { title: 'Slajd', evk_tl_en__title: 'Slide', image: { url: 'slajd-pl.svg' }, evk_tl_en__image: { url: 'slajd-en.svg' } } ] } },
+        { id: 'sv1', name: 'svg', settings: {
+          file: { id: 30, url: 'znak-pl.svg' }, evk_tl_en__file: { id: 31, url: 'znak-en.svg' } } },
+      ],
+    };
+    document.querySelector('.brx-body.main').__vue_app__ = { config: { globalProperties: { $_state: window.__stan } } };
+  </script>
+  <iframe id="bricks-builder-iframe" title="Kanwa" src="builder-podglad-kanwa.html"></iframe>
+</div>
+</body>
+</html>

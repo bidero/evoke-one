@@ -35,6 +35,18 @@ function tl_is_wp_admin(): bool { return is_admin(); }
  * pokazywać stronę taką, jaka będzie — z animacjami. Elementy robią tak samo,
  * pytają o `bricks=run`, nie o podgląd.
  */
+/**
+ * Kanwa buildera (ramka `?bricks=run&brickspreview=true`) — okno, w którym Bricks
+ * rysuje treść. W powłoce buildera (`?bricks=run` bez `brickspreview`) i na
+ * stronie — fałsz. Podgląd tłumaczeń (1.257.0) ładuje się tylko tu, a przełącznik
+ * wstawia do paska powłoki z kanwy (`window.parent`).
+ */
+function evk_tl_kanwa_buildera(): bool {
+    if (defined('BRICKS_IS_BUILDER_IFRAME') && BRICKS_IS_BUILDER_IFRAME) return true;
+    if (function_exists('bricks_is_builder_iframe') && bricks_is_builder_iframe()) return true;
+    return isset($_GET['bricks'], $_GET['brickspreview']) && $_GET['bricks'] === 'run';
+}
+
 function evk_w_builderze(): bool {
     if (defined('BRICKS_IS_BUILDER') && BRICKS_IS_BUILDER) return true;
     if (defined('BRICKS_IS_BUILDER_IFRAME') && BRICKS_IS_BUILDER_IFRAME) return true;
