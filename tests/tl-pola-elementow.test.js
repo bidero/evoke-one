@@ -96,6 +96,35 @@ module.exports = async function (t) {
   const wPozycji = (k.accordion.defs_listy.accordions || {}).evk_tl_en__title || {};
   t.check('pole w pozycji bez grupy (grupa należy do elementu)', !('group' in wPozycji), JSON.stringify(wPozycji));
 
+  t.section('obrazy języka (1.254.0): „Obraz EN" przy obrazie w treści');
+  const kolejO = (defs) => Object.keys(defs || {}).join(',');
+  const im = k.image.definicje || {};
+  t.check('obrazek: pole „Obraz EN" typu obraz w grupie „Tłumaczenia", po tekstach tego języka',
+    (im.evk_tl_en__image || {}).type === 'image' && (im.evk_tl_en__image || {}).label === 'Obraz EN' && (im.evk_tl_en__image || {}).group === 'evk_tl'
+      && kolejO(im) === 'evk_tl_en__altText,evk_tl_en__captionCustom,evk_tl_en__image,evk_tl_de__altText,evk_tl_de__captionCustom,evk_tl_de__image',
+    kolejO(im) + ' ' + JSON.stringify(im.evk_tl_en__image));
+  const lg = k.logo.definicje || {};
+  t.check('dwa obrazy (Logo): „Obraz EN · {etykieta}"', (lg.evk_tl_en__logo || {}).label === 'Obraz EN · Logo'
+    && (lg.evk_tl_de__logoInverse || {}).label === 'Obraz DE · Logo odwrócone', JSON.stringify(lg));
+  const sl = (k.slider.defs_listy || {}).items || {};
+  t.check('obraz w pozycji listy: pole w pozycji, z warunkiem pola źródłowego, bez grupy',
+    (sl.evk_tl_en__image || {}).type === 'image' && JSON.stringify((sl.evk_tl_en__image || {}).required) === JSON.stringify(['type', '=', 'image'])
+      && !('group' in (sl.evk_tl_en__image || {})), JSON.stringify(sl));
+  t.check('obrazy stylu (tło, CSS) i techniczne — bez pola języka', k['obrazy-stylu'].bez_zmian, JSON.stringify(k['obrazy-stylu'].nowe));
+  const mp = d.mapa || {};
+  t.check('mapa pól tłumaczalnych bez obrazów (słownik i „Teksty w elementach" dotyczą tekstu)',
+    JSON.stringify((mp.image || {}).pola) === JSON.stringify(['altText', 'captionCustom']) && JSON.stringify((mp.logo || {}).pola) === '[]'
+      && JSON.stringify(((mp.slider || {}).listy || {}).items) === JSON.stringify(['title']), JSON.stringify(mp));
+  const ob = d.obrazy || {};
+  t.check('strona EN: obraz z pola EN, bez rozmiaru — rozmiar oryginału',
+    ob.en && ob.en.image.id === 20 && ob.en.image.url === 'https://example.test/en.jpg' && ob.en.image.size === 'large', JSON.stringify(ob.en && ob.en.image));
+  t.check('strona DE: puste pole obrazu zostawia polski', ob.de && ob.de.image.id === 10, JSON.stringify(ob.de && ob.de.image));
+  t.check('pozycje listy: obraz EN z własnym rozmiarem, pozycja bez EN zostaje',
+    ob.en && ob.en.items[0].image.id === 21 && ob.en.items[0].image.size === 'thumbnail' && ob.en.items[1].image.id === 12, JSON.stringify(ob.en && ob.en.items));
+  t.check('tekst nigdy nie zostaje podmieniony obrazem', ob.en && ob.en.altText === 'Alt PL', JSON.stringify(ob.en && ob.en.altText));
+  t.check('strona polska i builder: obraz polski', ob.pl && ob.pl.image.id === 10 && ob.builder_en && ob.builder_en.image.id === 10
+    && ob.builder_en.items[0].image.id === 11, JSON.stringify([ob.pl && ob.pl.image, ob.builder_en && ob.builder_en.image]));
+
   t.section('podmiana przed renderem');
   const p = d.podmiana;
   t.check('strona polska: bez zmian', p.pl && p.pl.text === 'Zapytaj o wycenę' && p.pl.accordions[0].title === 'Jeden', JSON.stringify(p.pl));

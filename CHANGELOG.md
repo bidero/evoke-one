@@ -2,6 +2,58 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.254.0] — 2026-09-29
+
+Inny obraz dla języka, ustawiany w builderze (#73).
+
+### Dodane (decyzje zgłaszającego)
+
+- **„Obraz EN" / „Obraz DE" w grupie „Tłumaczenia" elementu**:
+  - przy każdym obrazie w treści elementu (Image, Logo, obraz w Icon Box
+    i podobne);
+  - w każdej pozycji listy z obrazem (slider, karuzela, opinie, zespół),
+    z tym samym warunkiem widoczności co obraz oryginału;
+  - przy kilku obrazach etykieta „Obraz EN · Logo", „Obraz EN · Logo
+    odwrócone".
+- **Na stronie w języku** element pokazuje obraz z pola języka.
+  - Pusty — polski, jak dotąd.
+  - Bez wybranego rozmiaru w polu języka bierze rozmiar oryginału, żeby nie
+    skakał układ.
+  - Alt: z obrazu EN (także z jego tekstu alternatywnego EN z 1.253.0).
+    Własny tekst alternatywny elementu z tłumaczeniem ma pierwszeństwo.
+  - Działa także w wynikach filtrów Bricksa (1.253.1).
+- **Tekst nigdy nie zostaje podmieniony obrazem:** tablica obrazu wchodzi
+  tylko w miejsce obrazu.
+- **Czego nie ma:**
+  - tła sekcji i kontenera (to CSS Bricksa, nie ustawienie elementu) ani
+    galerii — decyzja: nie teraz;
+  - obrazów stylu i pól technicznych.
+  - Obrazy nie trafiają też do słownika, „Teksty w elementach"
+    i „Do sprawdzenia" — tam jest tylko tekst.
+- Flaga w przełączniku języków (obrazek z `{tl_lang_flag_id}`) działa jak
+  dotąd. Pole „Obraz EN" przy fladze zostaw puste — wypełnione pokaże ten
+  obraz zamiast flagi.
+
+### Testy
+
+- `tl-pola-elementow` (46 sprawdzeń):
+  - pole obrazu przy Image, dwa obrazy w Logo, obraz w pozycji listy
+    z warunkiem;
+  - bez pól przy obrazach stylu, CSS i technicznych;
+  - mapa tekstów bez obrazów;
+  - podmiana na stronie EN z rozmiarem oryginału, pozycje list, DE bez
+    obrazu;
+  - tekst nietknięty, builder bez podmiany.
+- Mutacje: 7, każda zapala inne sprawdzenie.
+- Pełny przebieg: 5716 sprawdzeń w 115 plikach, wszystkie zielone.
+
+### Do sprawdzenia na testowej
+
+- W builderze: pole „Obraz EN" w grupie „Tłumaczenia" elementu Image
+  i w pozycjach slidera/karuzeli.
+- Na `/en/…`: Image i Logo pokazują obraz EN, pozycje list też; alt
+  z obrazu EN.
+
 ## [1.253.1] — 2026-09-29
 
 Filtr, stronicowanie AJAX, nieskończone przewijanie i popup Bricksa na stronach

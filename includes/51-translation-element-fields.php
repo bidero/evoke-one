@@ -18,6 +18,12 @@ if (!defined('ABSPATH')) exit;
  * dopasuje go do żadnej frazy polskiej. Puste pole zostawia polski tekst,
  * a ten słownik tłumaczy jak dotąd.
  *
+ * OBRAZY (1.254.0, decyzja zgłaszającego): kontrolka obrazu w treści elementu
+ * (Image, Logo, obraz w pozycji listy: slider, karuzela, opinie) dostaje pole
+ * „Obraz EN" — inny obraz dla języka. Obrazy nie idą do mapy tekstów: słownik,
+ * „Teksty w elementach" i „Do sprawdzenia" dotyczą tylko tekstu. Tło (styl,
+ * CSS) i galeria — nie teraz.
+ *
  * POZYCJE LIST (repeater: akordeon, zakładki, lista, pola formularza) — pola
  * języków stoją wewnątrz pozycji, pod jej polami. Grupa elementu obejmuje
  * tylko pola elementu; pozycja listy ma własny zestaw pól i tylko tam da się
@@ -53,6 +59,22 @@ function evk_tl_el_tlumaczalna(string $klucz, $def, string $element = ''): bool 
         && $klucz !== '' && $klucz[0] !== '_' && strncmp($klucz, 'evk', 3) !== 0
         && !evk_tl_el_techniczna_nazwa($klucz, (string) ($def['label'] ?? ''));
     return (bool) apply_filters('evk_tl_el_tlumaczalna', $tak, $klucz, $def, $element);
+}
+
+/**
+ * Czy kontrolka to obraz w treści elementu (1.254.0): typ `image`, zakładka treści,
+ * bez CSS (tło i inne obrazy stylu idą przez CSS Bricksa, nie przez ustawienia),
+ * klucz nie techniczny. Filtr `evk_tl_el_obraz` poprawia werdykt.
+ *
+ * @param mixed $def
+ */
+function evk_tl_el_obraz(string $klucz, $def, string $element = ''): bool {
+    $tak = is_array($def)
+        && ($def['type'] ?? '') === 'image'
+        && ($def['tab'] ?? 'content') !== 'style'
+        && empty($def['css'])
+        && $klucz !== '' && $klucz[0] !== '_' && strncmp($klucz, 'evk', 3) !== 0;
+    return (bool) apply_filters('evk_tl_el_obraz', $tak, $klucz, $def, $element);
 }
 
 /**
@@ -115,11 +137,12 @@ function evk_tl_el_nazwa_pola(string $klucz): string {
  * Etykieta pola języka (1.243.0, decyzja zgłaszającego): „Tłumaczenie EN".
  * Gdy element albo pozycja listy ma kilka pól tekstowych, sama
  * „Tłumaczenie EN" nie mówi, którego dotyczy — wtedy „Tłumaczenie EN · Tytuł".
+ * Obraz (1.254.0): „Obraz EN", przy kilku obrazach „Obraz EN · Logo".
  *
  * @param array<string,mixed> $def
  */
 function evk_tl_el_etykieta(array $def, string $klucz, string $jezyk, bool $wiele): string {
-    $etykieta = 'Tłumaczenie ' . strtoupper($jezyk);
+    $etykieta = (($def['type'] ?? '') === 'image' ? 'Obraz ' : 'Tłumaczenie ') . strtoupper($jezyk);
     if (!$wiele) return $etykieta;
     $nazwa = !empty($def['label']) ? wp_strip_all_tags((string) $def['label']) : evk_tl_el_nazwa_pola($klucz);
     return $etykieta . ' · ' . $nazwa;
@@ -160,24 +183,29 @@ function evk_tl_el_kontrolki($kontrolki, string $element = '') {
     if (!$jezyki) return $kontrolki;
 
     $pola = [];
+    $obrazy = [];
     $listy = [];
     foreach ($kontrolki as $klucz => $def) {
         $klucz = (string) $klucz;
         if (is_array($def) && ($def['type'] ?? '') === 'repeater' && is_array($def['fields'] ?? null)) {
             $w_pozycji = [];
+            $obrazy_pozycji = [];
             foreach ($def['fields'] as $pk => $pdef) {
                 if (evk_tl_el_tlumaczalna((string) $pk, $pdef, $element)) $w_pozycji[(string) $pk] = $pdef;
+                elseif (evk_tl_el_obraz((string) $pk, $pdef, $element)) $obrazy_pozycji[(string) $pk] = $pdef;
             }
-            if ($w_pozycji) {
-                $kontrolki[$klucz]['fields'] = $def['fields'] + evk_tl_el_pola_jezykow($w_pozycji, $jezyki, false);
-                $listy[$klucz] = array_keys($w_pozycji);
+            if ($w_pozycji || $obrazy_pozycji) {
+                $kontrolki[$klucz]['fields'] = $def['fields'] + evk_tl_el_pola_jezykow($w_pozycji, $jezyki, false, $obrazy_pozycji);
             }
+            if ($w_pozycji) $listy[$klucz] = array_keys($w_pozycji);
             continue;
         }
         if (evk_tl_el_tlumaczalna($klucz, $def, $element)) $pola[$klucz] = $def;
+        elseif (evk_tl_el_obraz($klucz, $def, $element)) $obrazy[$klucz] = $def;
     }
+    // Mapa tylko z tekstami: przeniesienie ze słownika i „Teksty w elementach" nie dotyczą obrazów.
     if ($element !== '') evk_tl_el_zapamietaj_pola($element, array_keys($pola), $listy);
-    return $pola ? $kontrolki + evk_tl_el_pola_jezykow($pola, $jezyki, true) : $kontrolki;
+    return ($pola || $obrazy) ? $kontrolki + evk_tl_el_pola_jezykow($pola, $jezyki, true, $obrazy) : $kontrolki;
 }
 
 // =========================================================================
@@ -238,12 +266,17 @@ function evk_tl_el_zapisz_mape(): void {
  * @param string[]            $jezyki
  * @return array<string,array<string,mixed>>
  */
-function evk_tl_el_pola_jezykow(array $pola, array $jezyki, bool $w_grupie): array {
+function evk_tl_el_pola_jezykow(array $pola, array $jezyki, bool $w_grupie, array $obrazy = []): array {
     $wiele = count($pola) > 1;
+    $wiele_obrazow = count($obrazy) > 1;
     $nowe = [];
     foreach ($jezyki as $j) {
         foreach ($pola as $klucz => $def) {
             $nowe[evk_tl_el_klucz($j, (string) $klucz)] = evk_tl_el_pole($def, (string) $klucz, $j, $w_grupie, $wiele);
+        }
+        // Obraz języka za tekstami tego języka (1.254.0).
+        foreach ($obrazy as $klucz => $def) {
+            $nowe[evk_tl_el_klucz($j, (string) $klucz)] = evk_tl_el_pole($def, (string) $klucz, $j, $w_grupie, $wiele_obrazow);
         }
     }
     return $nowe;
@@ -264,6 +297,20 @@ function evk_tl_el_niepuste($v): bool {
 }
 
 /**
+ * Czy pole języka niesie obraz (1.254.0): tablica kontrolki obrazu Bricksa z ID
+ * załącznika, adresem albo tagiem danych dynamicznych. Lista (np. `['a', 'b']`) —
+ * nie: to nie jest wartość kontrolki obrazu.
+ *
+ * @param mixed $v
+ */
+function evk_tl_el_obraz_niepusty($v): bool {
+    if (!is_array($v) || !$v || array_keys($v) === range(0, count($v) - 1)) return false;
+    return (int) ($v['id'] ?? 0) > 0
+        || trim((string) (is_scalar($v['url'] ?? null) ? $v['url'] : '')) !== ''
+        || trim((string) (is_scalar($v['useDynamicData'] ?? null) ? $v['useDynamicData'] : '')) !== '';
+}
+
+/**
  * Jeden poziom ustawień: K ← evk_tl_{L}__K, gdy pole języka niepuste; w listach
  * (repeater) to samo w każdej pozycji. Lista rozpoznawana ręcznie, nie
  * `array_is_list()` (PHP 8.1) — wtyczka nie deklaruje minimalnego PHP,
@@ -279,7 +326,16 @@ function evk_tl_el_podmien(array $ustawienia, string $jezyk): array {
         $k = (string) $k;
         if (strncmp($k, $przedrostek, $dl) === 0) {
             $zrodlo = substr($k, $dl);
-            if ($zrodlo !== '' && evk_tl_el_niepuste($v)) $ustawienia[$zrodlo] = $v;
+            if ($zrodlo === '') continue;
+            if (evk_tl_el_niepuste($v)) {
+                $ustawienia[$zrodlo] = $v;
+            } elseif (evk_tl_el_obraz_niepusty($v) && !is_string($ustawienia[$zrodlo] ?? null)) {
+                /* Obraz języka (1.254.0). Tylko w miejsce obrazu — nigdy w miejsce tekstu.
+                   Bez rozmiaru w polu języka — rozmiar oryginału, żeby nie skakał układ. */
+                $pl = $ustawienia[$zrodlo] ?? null;
+                if (empty($v['size']) && is_array($pl) && !empty($pl['size'])) $v['size'] = $pl['size'];
+                $ustawienia[$zrodlo] = $v;
+            }
         } elseif (is_array($v) && $v && array_keys($v) === range(0, count($v) - 1)) {
             foreach ($v as $i => $pozycja) {
                 if (is_array($pozycja)) $ustawienia[$k][$i] = evk_tl_el_podmien($pozycja, $jezyk);

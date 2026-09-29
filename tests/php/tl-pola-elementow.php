@@ -131,6 +131,23 @@ $probki = [
     'bez-tekstu' => [
         'tag' => ['tab' => 'content', 'label' => 'Tag', 'type' => 'select'],
     ],
+    /* Obrazy (1.254.0): dwa obrazy w treści (Logo), obraz w pozycji listy z warunkiem
+       (slider), obrazy stylu (tło, CSS) — te bez pola języka. */
+    'logo' => [
+        'logo'        => ['tab' => 'content', 'label' => 'Logo', 'type' => 'image'],
+        'logoInverse' => ['tab' => 'content', 'label' => 'Logo odwrócone', 'type' => 'image'],
+    ],
+    'slider' => [
+        'items' => ['tab' => 'content', 'label' => 'Slajdy', 'type' => 'repeater', 'fields' => [
+            'title' => ['label' => 'Tytuł', 'type' => 'text'],
+            'image' => ['label' => 'Obraz', 'type' => 'image', 'required' => ['type', '=', 'image']],
+        ]],
+    ],
+    'obrazy-stylu' => [
+        'bgImage'  => ['tab' => 'style', 'label' => 'Tło', 'type' => 'image'],
+        'cssImage' => ['tab' => 'content', 'label' => 'Obraz CSS', 'type' => 'image', 'css' => [['property' => 'background-image']]],
+        '_image'   => ['tab' => 'content', 'label' => 'Techniczny', 'type' => 'image'],
+    ],
     /* Pola bez etykiety — tak wygląda tekst nagłówka w Bricksie (tylko edycja
        na kanwie). Do 1.242.0 panel pokazywał wtedy klucz: „text — EN". */
     'bez-etykiety' => [
@@ -154,6 +171,8 @@ foreach ($probki as $el => $k) {
         'defs_listy'   => array_map(fn($d) => is_array($d) && isset($d['fields']) ? array_intersect_key($d['fields'], array_flip(array_filter(array_keys($d['fields']), fn($x) => strncmp($x, 'evk_tl_', 7) === 0))) : null, $po),
     ];
 }
+
+$wynik['mapa'] = $GLOBALS['evk_tl_el_mapa_nowa'] ?? [];
 
 // ── Podmiana przed renderem ──────────────────────────────────────────────
 $filtr = $GLOBALS['hooks']['bricks/element/settings'][0] ?? null;
@@ -187,6 +206,30 @@ $GLOBALS['jezyk']  = 'pt-br';
 $wynik['podmiana']['pt_br'] = $filtr ? $filtr(['text' => 'Oryginał', 'evk_tl_pt_br__text' => 'Original'], null) : null;
 $wynik['klucz_pt_br'] = evk_tl_el_klucz('pt-br', 'text');
 $GLOBALS['jezyki'] = ['en', 'de'];
+
+// ── Obrazy języka (1.254.0) ──────────────────────────────────────────────
+$obrazy = [
+    'image'              => ['id' => 10, 'url' => 'https://example.test/pl.jpg', 'size' => 'large'],
+    'evk_tl_en__image'   => ['id' => 20, 'url' => 'https://example.test/en.jpg'],
+    'evk_tl_de__image'   => ['id' => 0, 'url' => ''],
+    'altText'            => 'Alt PL',
+    'evk_tl_en__altText' => ['id' => 30, 'url' => 'https://example.test/zle.jpg'],
+    'items' => [
+        ['title' => 'Slajd', 'image' => ['id' => 11, 'url' => 'https://example.test/a.jpg', 'size' => 'full'],
+         'evk_tl_en__image' => ['id' => 21, 'url' => 'https://example.test/a-en.jpg', 'size' => 'thumbnail']],
+        ['title' => 'Bez EN', 'image' => ['id' => 12, 'url' => 'https://example.test/b.jpg']],
+    ],
+];
+$wynik['obrazy'] = [];
+foreach (['pl', 'en', 'de'] as $j) {
+    $GLOBALS['jezyk'] = $j;
+    $wynik['obrazy'][$j] = $filtr ? $filtr($obrazy, null) : null;
+}
+$GLOBALS['jezyk'] = 'en';
+$_GET['bricks'] = 'run';
+$wynik['obrazy']['builder_en'] = $filtr ? $filtr($obrazy, null) : null;
+unset($_GET['bricks']);
+$GLOBALS['jezyk'] = 'pl';
 
 // ── Kolejność: pole w elemencie → słownik → oryginał ─────────────────────
 $GLOBALS['options']['tl_translations'] = ['groups' => ['g' => ['name' => 'G', 'rows' => [
