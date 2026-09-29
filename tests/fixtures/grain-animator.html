@@ -37,6 +37,25 @@
       };
     });
   }
+
+  /* PIKSELE NA KLATKĘ — koszt ziarna policzony, nie zmierzony zegarem.
+     Każde `drawArrays` dopisuje do bieżącej klatki powierzchnię bufora, na
+     który rysuje. Czas klatki na tej maszynie zależy od tego, ile procesora
+     zostawia reszta systemu (rysowanie idzie programowo, w procesie GPU, którego
+     dławienie CPU nie obejmuje); liczba pikseli nie zależy od niczego poza
+     kodem. Patrz nagłówek tests/grain-koszt.test.js. */
+  window.__klatka = 0;
+  window.__piksele = {};
+  [window.WebGLRenderingContext, window.WebGL2RenderingContext].forEach(function (K) {
+    if (!K) return;
+    var o = K.prototype.drawArrays;
+    K.prototype.drawArrays = function () {
+      var n = window.__klatka;
+      window.__piksele[n] = (window.__piksele[n] || 0)
+        + this.drawingBufferWidth * this.drawingBufferHeight;
+      return o.apply(this, arguments);
+    };
+  });
 </script>
 
 <script src="../../assets/vendor/gsap/gsap.min.js"></script>
@@ -109,6 +128,7 @@
     (function k(t) {
       if (ost) window.__odstepy.push(t - ost);
       ost = t;
+      window.__klatka++;
       requestAnimationFrame(k);
     })(performance.now());
   })();
@@ -117,6 +137,18 @@
     var p = window.__odstepy.slice().sort(function (a, b) { return a - b; });
     return p.length ? p[Math.floor(p.length / 2)] : null;
   };
-  window.__wyczysc = function () { window.__odstepy.length = 0; };
+  window.__srednia = function () {
+    var o = window.__odstepy;
+    return o.length ? o.reduce(function (a, b) { return a + b; }, 0) / o.length : null;
+  };
+  /* Mediana po klatkach, W KTÓRYCH COŚ RYSOWANO — przy przesiewie „stop”
+     rysują tylko klatki przewinięcia. Mediana, nie maksimum: zmiana rozmiaru
+     okna rysuje raz dodatkowo (`przelicz()`), a to nie jest koszt klatki. */
+  window.__pikseliNaKlatke = function () {
+    var p = Object.keys(window.__piksele).map(function (k) { return window.__piksele[k]; })
+      .sort(function (a, b) { return a - b; });
+    return { klatek: p.length, mediana: p.length ? p[Math.floor(p.length / 2)] : 0 };
+  };
+  window.__wyczysc = function () { window.__odstepy.length = 0; window.__piksele = {}; };
   window.__przewin = function (px) { window.scrollTo(0, px); };
 </script>
