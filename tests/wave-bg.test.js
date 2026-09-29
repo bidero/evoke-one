@@ -122,6 +122,20 @@ module.exports = async function (t) {
   t.check('i daje się wyłączyć wprost',
     cfg({ auto_jakosc: 'nie' }).autoJakosc === false,
     String(cfg({ auto_jakosc: 'nie' }).autoJakosc));
+  /* Czekanie na wejście Animatora (1.254.0): domyślnie włączone, jak dotąd.
+     Dwie drogi wyłączenia, bo element sprzed znacznika ma odwrócone „Nie
+     czekaj…", a nowy zwykłe „Czekaj…", którego odznaczenie usuwa klucz. */
+  t.check('czekanie na Animatora domyślnie włączone',
+    domyslne.czekajNaAnimator === true, String(domyslne.czekajNaAnimator));
+  t.check('stary element: „Nie czekaj" je wyłącza',
+    cfg({ czekaj_na_animator_off: true }).czekajNaAnimator === false,
+    String(cfg({ czekaj_na_animator_off: true }).czekajNaAnimator));
+  t.check('nowy element: zaznaczone czeka, odznaczone nie',
+    cfg({ czekaj_na_animator_nowy: 2, czekaj_na_animator: true }).czekajNaAnimator === true
+      && cfg({ czekaj_na_animator_nowy: 2 }).czekajNaAnimator === false,
+    cfg({ czekaj_na_animator_nowy: 2, czekaj_na_animator: true }).czekajNaAnimator + ' / '
+      + cfg({ czekaj_na_animator_nowy: 2 }).czekajNaAnimator);
+
   t.check('budżet klatki domyślnie 40 ms — pod progiem długiego zadania',
     domyslne.budzetKlatki === 40 && domyslne.budzetKlatki < 50,
     domyslne.budzetKlatki + ' ms');
@@ -917,7 +931,8 @@ module.exports = async function (t) {
    * wejścia po tylu ms od startu.
    */
   const koordynacja = async (opcje) => {
-    const html = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify({})) + ' html');
+    const html = phpOutput('wave-bg-colors.php',
+      JSON.stringify(JSON.stringify(opcje.ust || {})) + ' html');
     const str = await t.open('wave-bg-pomiar.html', {
       przezHttp: true,
       viewport: { width: 900, height: 600 },
@@ -982,9 +997,31 @@ module.exports = async function (t) {
     poWejsciu.czas !== null && poWejsciu.czas < 1200,
     poWejsciu.czas + ' ms od startu');
 
+  /* PRZEŁĄCZNIK (1.254.0). Ten sam najgorszy przypadek co „bez sygnału”:
+     Animator jest, sygnału nie ma. Wyłączone czekanie ma dać płótno w czasie
+     strony bez Animatora, a nie po limicie. Obie drogi zapisu: odwrócone
+     „Nie czekaj” starego elementu i odznaczone „Czekaj” nowego. */
+  const nieCzekaStary = await koordynacja({ animator: true, ust: { czekaj_na_animator_off: true } });
+  t.check('wyłączone czekanie: scena od razu mimo Animatora (stary element)',
+    nieCzekaStary.czas !== null && nieCzekaStary.czas < 1200,
+    nieCzekaStary.czas + ' ms od startu');
+  const nieCzekaNowy = await koordynacja({ animator: true, ust: { czekaj_na_animator_nowy: 2 } });
+  t.check('wyłączone czekanie: scena od razu mimo Animatora (nowy element)',
+    nieCzekaNowy.czas !== null && nieCzekaNowy.czas < 1200,
+    nieCzekaNowy.czas + ' ms od startu');
+  /* Kontrola z drugiej strony: nowy element z zaznaczonym „Czekaj” czeka.
+     Bez tego oba sprawdzenia wyżej przeszłyby też przy kodzie, który
+     w nowym elemencie nie czeka nigdy. */
+  const czekaNowy = await koordynacja({ animator: true,
+    ust: { czekaj_na_animator_nowy: 2, czekaj_na_animator: true } });
+  t.check('nowy element z „Czekaj” czeka do limitu',
+    czekaNowy.czas !== null && czekaNowy.czas >= 1200,
+    czekaNowy.czas + ' ms (limit 1200)');
+
+  const wszystkie = [bezSygnalu, zeSygnalem, poWejsciu, nieCzekaStary, nieCzekaNowy, czekaNowy];
   t.check('bez błędów JS przy koordynacji',
-    !bezSygnalu.bledy.length && !zeSygnalem.bledy.length && !poWejsciu.bledy.length,
-    [...bezSygnalu.bledy, ...zeSygnalem.bledy, ...poWejsciu.bledy].join(' | ') || 'brak');
+    wszystkie.every((w) => !w.bledy.length),
+    wszystkie.flatMap((w) => w.bledy).join(' | ') || 'brak');
 
   t.section('maska zanika po krzywej, a nie po prostej');
 

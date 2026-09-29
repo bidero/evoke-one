@@ -463,6 +463,32 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'description' => 'Powyżej tej wartości element schodzi o szczebel. Domyślne 40 ms mieści się pod progiem 50 ms, od którego przeglądarka liczy „długie zadanie".',
 		];
 
+		/* CZEKANIE NA WEJŚCIE ANIMATORA — da się wyłączyć (1.254.0).
+		 *
+		 * Czekanie weszło po zgłoszeniu „przeskok animacji Animatora przy
+		 * starcie fali" (patrz evkWbPoczekajNaWejscie() w module niżej). Później
+		 * okazało się, że na zgłaszającej stronie przeskok robił własny CSS
+		 * z selektorem „:not(…)", obejmujący wszystkie elementy strony. Stąd
+		 * przełącznik: kto przeskoku nie ma, dostaje falę od razu.
+		 *
+		 * DOMYŚLNIE WŁĄCZONE, czyli tak jak dotąd na każdej stronie. Wyłączenie
+		 * ma też koszt po stronie jakości: automat mierzy wtedy klatki w trakcie
+		 * wejścia strony, a schodzi wyłącznie w dół — opis kontrolki to mówi.
+		 *
+		 * ODWRÓCONY PRZEŁĄCZNIK w elementach sprzed znacznika, zwykłe „Włącz…"
+		 * w nowych: evk_przelacznik_nowy() w flaga.php. */
+		$this->controls['czekaj_na_animator_off'] = [
+			'group'       => 'evk_wydajnosc',
+			'tab'         => 'content',
+			'label'       => 'Nie czekaj na wejście Animatora',
+			'type'        => 'checkbox',
+			'default'     => false,
+			'description' => 'Fala buduje scenę dopiero po animacjach wejścia Animatora (najwyżej 1,2 s), żeby ich nie przycinać. '
+				. 'Wyłączone: fala startuje od razu. Automat jakości może wtedy zejść o szczebel przez obciążenie z wejścia strony.',
+			'required'    => [ 'czekaj_na_animator_nowy', '!=', 2 ],
+		];
+		$this->controls += evk_przelacznik_nowy( 'czekaj_na_animator', 'Czekaj na wejście Animatora', $this->controls['czekaj_na_animator_off'] );
+
 		/* ZASTĘPNIK NA MASZYNĘ BEZ AKCELERACJI.
 		 *
 		 * Gdy przeglądarka rasteryzuje programowo, element nie pobiera three.js
@@ -680,6 +706,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'preserveBuffer'       => ! empty( $s['preserve_buffer'] ),
 			'autoJakosc'           => evk_wlaczone( $s, 'auto_jakosc', 'auto_jakosc_off' ),
 			'budzetKlatki'         => max( 20, min( 200, (int) ( $s['budzet_klatki'] ?? 40 ) ) ),
+			'czekajNaAnimator'     => evk_wlaczone( $s, 'czekaj_na_animator', 'czekaj_na_animator_off' ),
 			'zastepnikObraz'       => $this->zastepnik_obraz_url( $s ),
 			/* three.js JEDZIE Z WŁASNEGO SERWERA, nie z esm.sh — z tych samych
 			   powodów co GSAP i Lenis (patrz assets/vendor/README.md): cudzy host
@@ -781,7 +808,9 @@ async function evkWbZaladujBiblioteki() {
  * i nigdy nie wraca, więc pomiar na starcie potrafił trwale zepchnąć falę na pół
  * rozdzielczości albo na nieruchomy kadr — z powodu, który minął po sekundzie.
  *
- * TRZY DROGI WYJŚCIA, każda na inny przypadek:
+ * CZTERY DROGI WYJŚCIA, każda na inny przypadek:
+ * — czekanie wyłączone w elemencie (CONFIG.czekajNaAnimator, 1.254.0) →
+ *   nie czekamy wcale; przeskok bywa winą CSS strony, nie fali;
  * — Animatora na stronie nie ma (`window.evkAnimator`) → nie czekamy wcale;
  * — wejście już się odegrało → flaga, bo zdarzenie dawno przepadło;
  * — wejście trwa i trwa (długa sekwencja, awaria GSAP-a) → limit czasu.
@@ -790,6 +819,7 @@ async function evkWbZaladujBiblioteki() {
 const LIMIT_WEJSCIA = 1200;
 
 function evkWbPoczekajNaWejscie() {
+    if (!CONFIG.czekajNaAnimator)        return Promise.resolve('czekanie wyłączone');
     if (!window.evkAnimator)             return Promise.resolve('bez animatora');
     if (window.evkAnimatorWejscieKoniec) return Promise.resolve('wejście już było');
 

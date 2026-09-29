@@ -55,7 +55,7 @@ module.exports = async function (t) {
   /* Wyjątek od 1.247.0: ukryte znaczniki przełączników „Włącz…" chowają się
      warunkiem na nieistniejące `evk_nigdy` (jak w próbie z 1.243.0). Liczba
      wpisana ręcznie: jeden znacznik na każdy przełącznik „Włącz…". */
-  t.check('wiszące celowo: tylko ukryte znaczniki „…_nowy", piętnaście', (d.znaczniki || []).length === 15,
+  t.check('wiszące celowo: tylko ukryte znaczniki „…_nowy", szesnaście (od 1.254.0)', (d.znaczniki || []).length === 16,
     (d.znaczniki || []).join(', ') || 'brak');
 
   // ── Warunek pytający o wartość, której pole nie zapisuje ─────────────────
