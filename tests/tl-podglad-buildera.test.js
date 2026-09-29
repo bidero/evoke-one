@@ -58,17 +58,21 @@ module.exports = async function (t) {
   const tekst = (sel) => K((s) => Array.from(document.querySelectorAll(s)).map((e) => e.textContent), sel);
   const obrys = (id) => K((i) => document.getElementById('brxe-' + i).classList.contains('evk-tl-brak'), id);
   /* Napis „brak EN" (jeden, po najechaniu): tekst, dla którego elementu i o ile
-     odstaje od zewnętrznej krawędzi ramki (lewy dolny róg; obrys 2 px + odsunięcie 2 px). */
+     odstaje od prawego górnego rogu ramki (obrys 2 px + odsunięcie 2 px). Nad
+     ramką, bo na dole po lewej Bricks pisze nazwę elementu (zgłoszenie po
+     1.257.1); bez miejsca nad ramką — w ramce, u góry (`wewnatrz`). */
   const napisPod = () => K(() => {
     const z = document.querySelector('#evk-tl-nakladka .evk-tl-znacznik');
     if (!z || z.hidden) return { widoczny: false };
     const dla = z.getAttribute('data-dla');
     const el = document.querySelector('[data-id="' + dla + '"]');
     const a = z.getBoundingClientRect(), b = el ? el.getBoundingClientRect() : null;
-    return { widoczny: true, tekst: z.textContent, dla,
-      dx: b ? Math.round((a.left - (b.left - 4)) * 10) / 10 : null, dy: b ? Math.round((a.top - (b.bottom + 4)) * 10) / 10 : null };
+    const z1 = (v) => Math.round(v * 10) / 10;
+    return { widoczny: true, tekst: z.textContent, dla, wewnatrz: z.classList.contains('wewnatrz'),
+      dx: b ? z1(a.right - (b.right + 4)) : null, dy: b ? z1(a.bottom - (b.top - 4)) : null,
+      dxW: b ? z1(a.right - b.right) : null, dyW: b ? z1(a.top - b.top) : null };
   });
-  const przyRamce = (n) => n.widoczny && Math.abs(n.dx) <= 1 && Math.abs(n.dy) <= 1;
+  const przyRamce = (n) => n.widoczny && !n.wewnatrz && Math.abs(n.dx) <= 1 && Math.abs(n.dy) <= 1;
   const edycjaRamka = (id) => K((i) => document.getElementById('brxe-' + i).classList.contains('evk-tl-edycja'), id);
   const wcisniety = () => page.evaluate(() => Array.from(document.querySelectorAll('#evk-tl-podglad button[aria-pressed="true"]')).map((b) => b.textContent));
 
@@ -104,7 +108,7 @@ module.exports = async function (t) {
   await kanwa.hover('#brxe-t1');
   await page.waitForTimeout(100);
   const nT1 = await napisPod();
-  t.check('tekst bez tłumaczenia: polski z obrysem, po najechaniu napis „brak EN" przy ramce (dół, lewo)',
+  t.check('tekst bez tłumaczenia: polski z obrysem, po najechaniu napis „brak EN" nad ramką, przy prawym rogu',
     J(await tekst('#brxe-t1')) === J(['Zapytaj o wycenę']) && await obrys('t1') && nT1.tekst === 'brak EN' && nT1.dla === 't1' && przyRamce(nT1),
     J([await tekst('#brxe-t1'), nT1]));
   await kanwa.hover('#brxe-b1');
@@ -146,8 +150,19 @@ module.exports = async function (t) {
   /* Obrys też się skaluje: 4 px ramki to na ekranie 3,2 px, więc względem
      „element − 4 px" napis leży o 0,8 px bliżej. */
   const e = 4 - 4 * 0.8;
-  const przyRamceSkala = (n) => n.widoczny && Math.abs(n.dx - e) <= 1 && Math.abs(n.dy + e) <= 1;
+  const przyRamceSkala = (n) => n.widoczny && !n.wewnatrz && Math.abs(n.dx + e) <= 1 && Math.abs(n.dy - e) <= 1;
   t.check('kanwa pomniejszona (przekształcenie): napis dalej przy ramce', nSkala.dla === 't1' && przyRamceSkala(nSkala), J(nSkala));
+  /* Element przy górnej krawędzi kanwy: nad ramką nie ma miejsca, napis idzie
+     do ramki, u góry po prawej. */
+  await K(() => window.scrollTo(0, document.getElementById('brxe-t1').getBoundingClientRect().top + window.scrollY - 6));
+  await page.waitForTimeout(300);
+  await kanwa.hover('#brxe-t1');
+  await page.waitForTimeout(400);
+  const nGora = await napisPod();
+  await K(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  t.check('element przy górnej krawędzi kanwy: napis w ramce, u góry po prawej',
+    nGora.dla === 't1' && nGora.wewnatrz && Math.abs(nGora.dxW) <= 1 && Math.abs(nGora.dyW) <= 1, J(nGora));
   t.check('{tl_…}: EN ze słownika, bez obrysu', J(await tekst('#brxe-d1')) === J(['See more']) && !(await obrys('d1')), J(await tekst('#brxe-d1')));
   t.check('dane dynamiczne: bez zmian i bez obrysu', J(await tekst('#brxe-p1')) === J(['Mój wpis']) && !(await obrys('p1')), J(await tekst('#brxe-p1')));
   const img = await K(() => ['#brxe-i1 img', '#brxe-sl1 img'].map((s) => { const i = document.querySelector(s); return [i.getAttribute('src'), i.getAttribute('srcset')]; }));

@@ -2,6 +2,51 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.257.2] — 2026-09-29
+
+Podgląd w builderze: napis „brak EN” nad ramką, przy prawym rogu.
+
+### Poprawione
+
+- **Napis „brak EN” nachodził na nazwę elementu Bricksa** (zgłoszenie po
+  teście 1.257.1).
+  - Przyczyna: Bricks pisze nazwę elementu po najechaniu na dole po lewej,
+    czyli dokładnie tam, gdzie stał nasz napis.
+  - Teraz napis stoi nad ramką, przy prawym rogu. Wariant z prawym dołem też
+    byłby możliwy, ale przy wąskich elementach (np. krótki przycisk) oba
+    napisy dalej stałyby na tej samej krawędzi i by się zderzały.
+  - Gdy nad ramką nie ma miejsca (element przy górnej krawędzi kanwy), napis
+    wchodzi do ramki, u góry po prawej.
+
+### Testy
+
+- `tl-podglad-buildera`: 36 sprawdzeń (było 35). Położenie liczone
+  względem prawego górnego rogu ramki; nowy przypadek elementu przy górnej
+  krawędzi kanwy.
+- Mutacje: 3 nowe, każda zapala swoje sprawdzenia:
+  - napis przy lewym rogu (3 sprawdzenia położenia);
+  - zawsze nad ramką, także bez miejsca;
+  - położenie względem okna (tylko kanwa pomniejszona).
+- Do tego 4 powtórzone z 1.257.1: bez chowania przy przewijaniu, napis po
+  kliknięciu, napis na każdym elemencie, bez powrotu po przewinięciu.
+- Pełny przebieg: 5811 sprawdzeń w 118 plikach. Jedno czerwone, bez związku
+  z wydaniem: `backup-silnik`, „krok w połowie dużego pliku wlicza do
+  postępu jego przeczytane bajty” (2 MiB przyrostu, 3 MiB pozycji w pliku).
+  Powtórzyło się w osobnym przebiegu, więc to nie obciążenie.
+  - Przyczyna w sondzie, nie w silniku kopii. Krok, który kończy pakowanie
+    bazy, zaczyna duży plik, jeśli zostaje mu czasu. Postęp sprzed
+    mierzonego kroku miał już 1 MiB tego pliku, a sonda porównywała
+    przyrost z całą pozycją w pliku.
+  - Poprawka: sonda odejmuje pozycję sprzed kroku (i ją wypisuje). Po niej
+    41/41. Mutacja „silnik bez bajtów pliku w połowie” dalej zapala to
+    sprawdzenie (+0 B przy 2 MiB przeczytanych w kroku).
+
+### Do sprawdzenia na testowej
+
+- Najechanie na element z ramką: „brak EN” nad ramką po prawej, bez kolizji
+  z nazwą elementu Bricksa.
+- Element przy samej górze kanwy: napis w ramce, u góry po prawej.
+
 ## [1.257.1] — 2026-09-29
 
 Podgląd w builderze: napis „brak EN” jak nazwa elementu w Bricksie.

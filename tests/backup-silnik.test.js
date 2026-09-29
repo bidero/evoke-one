@@ -92,7 +92,8 @@ module.exports = async function (t) {
      znacznie częściej"): dwie osobne przyczyny, dwa osobne sprawdzenia. */
   t.check('krok w połowie dużego pliku wlicza do postępu jego przeczytane bajty',
     k.wisi_duzy === true && k.wisi_bajtow > 0 && k.postep_z_polowy === k.wisi_bajtow,
-    '+' + k.postep_z_polowy + ' B postępu, ' + k.wisi_bajtow + ' B pliku w połowie');
+    '+' + k.postep_z_polowy + ' B postępu, ' + k.wisi_bajtow + ' B pliku przeczytane w kroku ('
+      + k.wisi_przed + ' B przed krokiem)');
   t.check('krok zabity po 1,5 s zdążył zapisać postęp (zapis po każdej porcji ≤ 1 s)',
     k.postep_w_zabitym === true);
   t.check('plik przerwany w połowie ma w archiwum dobry rozmiar i CRC',

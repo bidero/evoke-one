@@ -444,10 +444,11 @@
   }, true);
 
   // ── Napis „brak EN" po najechaniu, jak nazwa elementu w Bricksie ────────
-  /* Pod ramką na dole po lewej, jak zakładka; znika po kliknięciu w element
-     i na czas przewijania (decyzja zgłaszającego). Jeden napis, liczony przy
-     najechaniu: w 1.257.0 znaczki wisiały nad każdym elementem i przy
-     przewijaniu zostawały w tyle za ramką. */
+  /* Nad ramką przy prawym rogu, jak zakładka; znika po kliknięciu w element
+     i na czas przewijania (decyzja zgłaszającego). Na dole po lewej Bricks pisze
+     nazwę elementu — w 1.257.1 napisy tam na siebie nachodziły. Jeden napis,
+     liczony przy najechaniu: w 1.257.0 znaczki wisiały nad każdym elementem
+     i przy przewijaniu zostawały w tyle za ramką. */
   let nakladka = null, napis = null, pod = null, poKliknieciu = null, przewija = false, zegarPrzewijania = 0;
   function etykieta() {
     if (!nakladka) {
@@ -473,8 +474,19 @@
       const skala = nakladka.offsetWidth ? n.width / nakladka.offsetWidth : 1;
       napis.textContent = NAPISY.brak.replace('%s', tryb.toUpperCase());
       napis.setAttribute('data-dla', r.getAttribute('data-id') || '');
-      napis.style.left = ((b.left - n.left) / skala - 4) + 'px';
-      napis.style.top = ((b.bottom - n.top) / skala + 4) + 'px';
+      napis.style.left = '';
+      /* Bez miejsca nad ramką (element przy górnej krawędzi kanwy) — w ramce, u góry. */
+      const nadRamka = (b.top - n.top) / skala - 4 >= 16;
+      napis.classList.toggle('wewnatrz', !nadRamka);
+      if (nadRamka) {
+        napis.style.top = '';
+        napis.style.right = ((n.right - b.right) / skala - 4) + 'px';
+        napis.style.bottom = ((n.bottom - b.top) / skala + 4) + 'px';
+      } else {
+        napis.style.bottom = '';
+        napis.style.right = ((n.right - b.right) / skala) + 'px';
+        napis.style.top = ((b.top - n.top) / skala) + 'px';
+      }
       napis.hidden = false;
     });
   }
@@ -513,7 +525,8 @@
   styl.textContent = '.evk-tl-brak{outline:2px dashed #f59e0b !important;outline-offset:2px}'
     + '.evk-tl-edycja{outline:2px solid #3b82f6 !important;outline-offset:2px}'
     + '#evk-tl-nakladka{position:fixed;inset:0;pointer-events:none;z-index:2147483000}'
-    + '#evk-tl-nakladka .evk-tl-znacznik{position:absolute;font:600 10px/1.5 system-ui,sans-serif;padding:0 5px;border-radius:0 0 3px 3px;background:#f59e0b;color:#1f2937;white-space:nowrap}'
+    + '#evk-tl-nakladka .evk-tl-znacznik{position:absolute;font:600 10px/1.5 system-ui,sans-serif;padding:0 5px;border-radius:3px 3px 0 0;background:#f59e0b;color:#1f2937;white-space:nowrap}'
+    + '#evk-tl-nakladka .evk-tl-znacznik.wewnatrz{border-radius:0 0 0 3px}'
     + '#evk-tl-nakladka .evk-tl-znacznik[hidden]{display:none}';
   document.head.appendChild(styl);
 
