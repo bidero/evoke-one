@@ -539,7 +539,7 @@ module.exports = async function (t) {
      grupie — i jej działanie na renderze: N1 świeżo wstawiony nowy działa
      jak stary nietknięty, N2 odznaczenie wyłącza (brak klucza, false, null),
      N3 wyłączone w nowym = „…_off" zaznaczone w starym. */
-  t.check('pary „Włącz…" ze znacznikiem: piętnaście, każda w całości', (dw.sparowane || []).length === 15,
+  t.check('pary „Włącz…" ze znacznikiem: szesnaście (od 1.254.0), każda w całości', (dw.sparowane || []).length === 16,
     (dw.sparowane || []).join(', '));
   t.check('odwrócony bez pary tylko jeden: „Esc nie cofa o poziom" (ma już warunek trybu)',
     JSON.stringify(dw.nieparowaneOff) === '["evoke-offcanvas-menu/escGoesBack_off"]', JSON.stringify(dw.nieparowaneOff));

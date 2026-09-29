@@ -268,6 +268,32 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 				. 'Maska górna i dolna nadal wygasza wszystko naraz.',
 		];
 
+		/* ZIARNO GAŚNIE RAZEM Z FALĄ (1.255.0).
+		 *
+		 * Zgłoszone z użycia: na stronie bez ziarna ziarno fali nie przechodzi
+		 * płynnie w tło przy jej końcu — widać „piasek" na brzegu i ostre
+		 * cięcie. Oba biorą się z tego, że ziarno jest dosypywane do barwy ze
+		 * STAŁĄ siłą, a fala gaśnie przezroczystością: na brzegu ziarno
+		 * przeważa nad falą, a przy alfie bliskiej zeru jasna połowa ziarna
+		 * trafia do premnożonego bufora wprost i ciągnie się aż do krawędzi
+		 * płótna (opis w tests/wave-bg.test.js, sekcja o ziarnie poza falą).
+		 *
+		 * Suwak waży siłę ziarna przezroczystością fali. ZERO ZNACZY DOKŁADNIE
+		 * DOTYCHCZASOWE ZACHOWANIE — ten sam warunek co przy „Ziarnie poza
+		 * falą": nikomu nie wolno zmienić wyglądu po aktualizacji. */
+		$this->controls['noise_fade'] = [
+			'group'       => 'evk_szum',
+			'tab'         => 'content',
+			'label'       => 'Wygaszanie ziarna z falą',
+			'type'        => 'number',
+			'min'         => 0, 'max' => 1, 'step' => 0.05,
+			'default'     => 0,
+			'required'    => [ 'noise_enabled_off', '=', false ],
+			'description' => 'Ile ziarna gaśnie razem z falą na jej brzegu. '
+				. 'Zero to zachowanie dotychczasowe: ziarno ma stałą siłę aż do końca fali. '
+				. 'Jeden: ziarno słabnie dokładnie tak jak fala i nie zostaje za nią.',
+		];
+
 		// ── MASKA DOLNA ────────────────────────────────────────────────────────
 
 		$this->controls['mask_enabled_off'] = [
@@ -462,6 +488,32 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'required'    => [ 'auto_jakosc_off', '=', false ],
 			'description' => 'Powyżej tej wartości element schodzi o szczebel. Domyślne 40 ms mieści się pod progiem 50 ms, od którego przeglądarka liczy „długie zadanie".',
 		];
+
+		/* CZEKANIE NA WEJŚCIE ANIMATORA — da się wyłączyć (1.254.0).
+		 *
+		 * Czekanie weszło po zgłoszeniu „przeskok animacji Animatora przy
+		 * starcie fali" (patrz evkWbPoczekajNaWejscie() w module niżej). Później
+		 * okazało się, że na zgłaszającej stronie przeskok robił własny CSS
+		 * z selektorem „:not(…)", obejmujący wszystkie elementy strony. Stąd
+		 * przełącznik: kto przeskoku nie ma, dostaje falę od razu.
+		 *
+		 * DOMYŚLNIE WŁĄCZONE, czyli tak jak dotąd na każdej stronie. Wyłączenie
+		 * ma też koszt po stronie jakości: automat mierzy wtedy klatki w trakcie
+		 * wejścia strony, a schodzi wyłącznie w dół — opis kontrolki to mówi.
+		 *
+		 * ODWRÓCONY PRZEŁĄCZNIK w elementach sprzed znacznika, zwykłe „Włącz…"
+		 * w nowych: evk_przelacznik_nowy() w flaga.php. */
+		$this->controls['czekaj_na_animator_off'] = [
+			'group'       => 'evk_wydajnosc',
+			'tab'         => 'content',
+			'label'       => 'Nie czekaj na wejście Animatora',
+			'type'        => 'checkbox',
+			'default'     => false,
+			'description' => 'Fala buduje scenę dopiero po animacjach wejścia Animatora (najwyżej 1,2 s), żeby ich nie przycinać. '
+				. 'Wyłączone: fala startuje od razu. Automat jakości może wtedy zejść o szczebel przez obciążenie z wejścia strony.',
+			'required'    => [ 'czekaj_na_animator_nowy', '!=', 2 ],
+		];
+		$this->controls += evk_przelacznik_nowy( 'czekaj_na_animator', 'Czekaj na wejście Animatora', $this->controls['czekaj_na_animator_off'] );
 
 		/* ZASTĘPNIK NA MASZYNĘ BEZ AKCELERACJI.
 		 *
@@ -664,6 +716,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'noiseEnabled'         => evk_wlaczone( $s, 'noise_enabled', 'noise_enabled_off' ),
 			'noiseIntensity'       => (float) ( $s['noise_intensity'] ?? 0.08 ),
 			'noiseSpread'          => (float) ( $s['noise_spread']    ?? 0    ),
+			'noiseFade'            => max( 0.0, min( 1.0, (float) ( $s['noise_fade'] ?? 0 ) ) ),
 			'colors'               => $colors,
 			'mouseEffect'          => (float) ( $s['mouse_effect']          ?? 1.0  ),
 			'scrollFadeEnabled'    => ! empty( $s['scroll_fade_enabled'] ),
@@ -680,6 +733,7 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'preserveBuffer'       => ! empty( $s['preserve_buffer'] ),
 			'autoJakosc'           => evk_wlaczone( $s, 'auto_jakosc', 'auto_jakosc_off' ),
 			'budzetKlatki'         => max( 20, min( 200, (int) ( $s['budzet_klatki'] ?? 40 ) ) ),
+			'czekajNaAnimator'     => evk_wlaczone( $s, 'czekaj_na_animator', 'czekaj_na_animator_off' ),
 			'zastepnikObraz'       => $this->zastepnik_obraz_url( $s ),
 			/* three.js JEDZIE Z WŁASNEGO SERWERA, nie z esm.sh — z tych samych
 			   powodów co GSAP i Lenis (patrz assets/vendor/README.md): cudzy host
@@ -781,7 +835,9 @@ async function evkWbZaladujBiblioteki() {
  * i nigdy nie wraca, więc pomiar na starcie potrafił trwale zepchnąć falę na pół
  * rozdzielczości albo na nieruchomy kadr — z powodu, który minął po sekundzie.
  *
- * TRZY DROGI WYJŚCIA, każda na inny przypadek:
+ * CZTERY DROGI WYJŚCIA, każda na inny przypadek:
+ * — czekanie wyłączone w elemencie (CONFIG.czekajNaAnimator, 1.254.0) →
+ *   nie czekamy wcale; przeskok bywa winą CSS strony, nie fali;
  * — Animatora na stronie nie ma (`window.evkAnimator`) → nie czekamy wcale;
  * — wejście już się odegrało → flaga, bo zdarzenie dawno przepadło;
  * — wejście trwa i trwa (długa sekwencja, awaria GSAP-a) → limit czasu.
@@ -790,6 +846,7 @@ async function evkWbZaladujBiblioteki() {
 const LIMIT_WEJSCIA = 1200;
 
 function evkWbPoczekajNaWejscie() {
+    if (!CONFIG.czekajNaAnimator)        return Promise.resolve('czekanie wyłączone');
     if (!window.evkAnimator)             return Promise.resolve('bez animatora');
     if (window.evkAnimatorWejscieKoniec) return Promise.resolve('wejście już było');
 
@@ -960,6 +1017,7 @@ function dotScreenShader() { return {
         uNoiseIntensity:{ value: 0.0 },
         uNoiseSeed:     { value: 0.0 },
         uNoiseSpread:   { value: 0.0 },
+        uNoiseFade:     { value: 0.0 },
     },
     vertexShader: `
         varying vec2 vUv;
@@ -982,6 +1040,7 @@ function dotScreenShader() { return {
         uniform float uNoiseIntensity;
         uniform float uNoiseSeed;
         uniform float uNoiseSpread;
+        uniform float uNoiseFade;
         float PI = ${Math.PI};
         float uRandom = ${Math.random()};
         varying vec3 vPosition;
@@ -1003,7 +1062,22 @@ function dotScreenShader() { return {
             if (uNoiseEnabled > 0.5) {
                 float grain = fract(sin(dot(newUv + uNoiseSeed, vec2(12.9898,78.233))) * 43758.5453123);
                 float g = (grain - 0.5) * uNoiseIntensity;
-                color.rgb += g;
+                /* WYGASZANIE Z FALĄ (1.255.0). Przy zerze mnożnik wynosi jeden,
+                   czyli dokładnie jak dotąd.
+
+                   KRZYWA, NIE SAMA ALFA. Zmierzone (szorstkość zrzutu według
+                   siły fali, od tła do środka; dziś: 2,97 · 3,70 · 5,36 · 6,15 ·
+                   6,58 · 6,79):
+                     alfa wprost          0,00 · 0,13 · 0,31 · 0,65 · 1,25 · 4,04
+                     smoothstep do 0,15   0,01 · 0,35 · 1,50 · 4,33 · 6,40 · 6,79
+                     smoothstep do 0,3    0,00 · 0,15 · 0,52 · 1,75 · 4,41 · 6,73
+                     smoothstep do 0,5    0,00 · 0,11 · 0,25 · 0,76 · 2,21 · 6,19
+                   Alfa wprost zabierała 40 procent ziarna w ŚRODKU fali, bo fala
+                   ma alfę poniżej jedności prawie wszędzie. Próg 0,3 zostawia
+                   środek jak dotąd, a brzeg gasi stopniowo. Poza falą zero,
+                   czyli koniec jasnej połowy ziarna ciągnącej się do krawędzi
+                   płótna. */
+                color.rgb += g * mix(1.0, smoothstep(0.0, 0.3, color.a), uNoiseFade);
                 /* ZIARNO POZA FALĄ.
 
                    UWAGA NA ODWROTNY APOSTROF: ten komentarz siedzi w literale
@@ -1217,6 +1291,7 @@ class EvkWaveBackground {
         this.effect1.uniforms.uNoiseEnabled.value  = CONFIG.noiseEnabled ? 1.0 : 0.0;
         this.effect1.uniforms.uNoiseIntensity.value = CONFIG.noiseIntensity;
         this.effect1.uniforms.uNoiseSpread.value    = CONFIG.noiseSpread || 0;
+        this.effect1.uniforms.uNoiseFade.value      = CONFIG.noiseFade || 0;
         this.composer.addPass(this.effect1);
     }
 

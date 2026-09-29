@@ -4,12 +4,23 @@ Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer
 
 ## [1.256.0] — 2026-09-29
 
-„SVG EN" — inny plik SVG dla języka, ustawiany w builderze.
+„SVG EN" — inny plik SVG dla języka, ustawiany w builderze. Do tego scalone zmiany WaveBG z gałęzi fali.
 
 Numer 1.255.0 zajęła równoległa gałąź naprawy fali
 (`claude/compassionate-albattani-semzu1`, tam też 1.254.0). Aktualizator
 porównuje wersje, więc wydanie tej gałęzi musi mieć numer wyższy niż
 wydania obu gałęzi.
+
+### Scalone z gałęzi fali
+
+- Z gałęzi `claude/compassionate-albattani-semzu1` (na prośbę zgłaszającego)
+  dwie zmiany WaveBG, opisane niżej w jej wpisach 1.255.0 i 1.254.0:
+  - suwak „Wygaszanie ziarna z falą” w grupie „Szum” (domyślnie 0, wygląd
+    bez zmian);
+  - czekanie na wejście Animatora da się wyłączyć.
+- Obie przeszły pełny przebieg na tamtej gałęzi. Tu obejmuje je pełny
+  przebieg 1.256.0. Pomiar `grain-koszt` w pikselach (32964d0) był już
+  scalony wcześniej.
 
 ### Dodane
 
@@ -39,6 +50,75 @@ wydania obu gałęzi.
 - Element SVG ze źródłem „Plik": pole „SVG EN" w grupie „Tłumaczenia",
   a na `/en/` SVG z tego pola.
 
+## [1.255.0] — 2026-09-29
+
+*Gałąź naprawy fali (`claude/compassionate-albattani-semzu1`), scalona do tej gałęzi w 1.256.0.*
+
+WaveBG: ziarno może gasnąć razem z falą.
+
+### Dodane
+
+- **Suwak „Wygaszanie ziarna z falą”** w grupie „Szum” (0–1, domyślnie 0,
+  czyli wygląd bez zmian). Zgłoszenie: na stronie bez ziarna ziarno fali nie
+  przechodziło płynnie w tło: „piasek” na brzegu fali i ostre cięcie.
+  - Przyczyna: ziarno było dosypywane do barwy ze stałą siłą, a fala gaśnie
+    przezroczystością. Na brzegu ziarno przeważało nad falą, a przy alfie
+    bliskiej zeru jasna połowa ziarna szła do premnożonego bufora wprost
+    i ciągnęła się aż do krawędzi płótna.
+  - Suwak waży ziarno krzywą `smoothstep(0, 0,3, alfa fali)`: w środku fali
+    ziarno zostaje jak dotąd, na brzegu gaśnie stopniowo, poza falą znika.
+    Krzywą wybrał pomiar. Alfa wprost zabierała 40% ziarna także w środku
+    fali (fala ma alfę poniżej jedności prawie wszędzie).
+
+### Testy
+
+- `wave-bg`: profil szorstkości zrzutu według siły fali (od tła do środka).
+  Zmierzone, dziś → suwak 1: poza falą 2,97 → 0,00; brzeg 3,70 · 5,36 →
+  0,15 · 0,52; środek 6,79 → 6,73. Sprawdzenia: poza falą gładko, brzeg bez
+  „piasku”, środek jak dotąd, 0,5 daje wartość pośrednią, jasność fali bez
+  zmian, konfiguracja (domyślnie 0, zakres 0–1), moduł parsuje się
+  z wygaszaniem.
+- Mutacje: 5 (shader ignoruje suwak, alfa wprost zamiast krzywej, uniform
+  zawsze zero, domyślna 1, suwak jako przełącznik). Każda zapala; alfa wprost,
+  domyślna 1 i przełącznik każda inny zestaw.
+- Pełny przebieg: 5666 sprawdzeń w 113 plikach, wszystkie zielone.
+
+## [1.254.0] — 2026-09-29
+
+*Gałąź naprawy fali (`claude/compassionate-albattani-semzu1`), scalona do tej gałęzi w 1.256.0.*
+
+WaveBG: czekanie na wejście Animatora da się wyłączyć.
+
+### Dodane
+
+- **Przełącznik „Czekaj na wejście Animatora”** w elemencie WaveBG (grupa
+  „Wydajność”). Domyślnie włączony, czyli bez zmian na istniejących stronach.
+  - Czekanie weszło po zgłoszeniu przeskoku animacji Animatora przy starcie
+    fali. Na zgłaszającej stronie przeskok okazał się winą własnego CSS
+    z selektorem `:not(…)`, obejmującego wszystkie elementy strony. Kto
+    przeskoku nie ma, może teraz dostać falę od razu (ok. 0,3 s zamiast do
+    1,2 s przy stronie z Animatorem).
+  - Wyłączenie ma koszt opisany przy kontrolce: automat jakości mierzy wtedy
+    klatki także w trakcie wejścia strony, a schodzi wyłącznie w dół.
+  - Ten sam wzorzec co pozostałe przełączniki od 1.247.0: w elementach
+    sprzed tej wersji odwrócone „Nie czekaj na wejście Animatora”, w nowych
+    zwykłe „Czekaj…” z ukrytym znacznikiem (`evk_przelacznik_nowy()`).
+
+### Testy
+
+- `wave-bg`: konfiguracja (domyślnie włączone, wyłączenie w starym i nowym
+  zapisie) oraz w przeglądarce: przy Animatorze bez sygnału końca wejścia
+  wyłączone czekanie daje płótno od razu w obu zapisach, a nowy element
+  z zaznaczonym „Czekaj” dalej czeka do limitu.
+- `controls`, `bricks-required`: liczba par „Włącz…” ze znacznikiem 15 → 16.
+- `grain-koszt` (commit bez wydania przed tym wydaniem): koszt ziarna
+  liczony w pikselach na klatkę zamiast mediany odstępu klatek, która na
+  obciążonej maszynie skakała między 16,7 a 33,3 ms.
+- Mutacje: 3 (czekanie zawsze w JS, CONFIG zawsze czeka, warunek odwrócony),
+  każda zapala inny zestaw sprawdzeń.
+- Pełny przebieg: 5657 sprawdzeń w 113 plikach, wszystkie zielone. `fields-*`
+  wymagają Evoke FIELDS z tej samej gałęzi roboczej (1.72.0); z `main` (1.69.0)
+  świecą na czerwono na samym sprawdzeniu środowiska.
 ## [1.254.0] — 2026-09-29
 
 Inny obraz dla języka, ustawiany w builderze (#73).

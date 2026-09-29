@@ -122,6 +122,29 @@ module.exports = async function (t) {
   t.check('i daje się wyłączyć wprost',
     cfg({ auto_jakosc: 'nie' }).autoJakosc === false,
     String(cfg({ auto_jakosc: 'nie' }).autoJakosc));
+  /* Czekanie na wejście Animatora (1.254.0): domyślnie włączone, jak dotąd.
+     Dwie drogi wyłączenia, bo element sprzed znacznika ma odwrócone „Nie
+     czekaj…", a nowy zwykłe „Czekaj…", którego odznaczenie usuwa klucz. */
+  t.check('czekanie na Animatora domyślnie włączone',
+    domyslne.czekajNaAnimator === true, String(domyslne.czekajNaAnimator));
+  t.check('stary element: „Nie czekaj" je wyłącza',
+    cfg({ czekaj_na_animator_off: true }).czekajNaAnimator === false,
+    String(cfg({ czekaj_na_animator_off: true }).czekajNaAnimator));
+  t.check('nowy element: zaznaczone czeka, odznaczone nie',
+    cfg({ czekaj_na_animator_nowy: 2, czekaj_na_animator: true }).czekajNaAnimator === true
+      && cfg({ czekaj_na_animator_nowy: 2 }).czekajNaAnimator === false,
+    cfg({ czekaj_na_animator_nowy: 2, czekaj_na_animator: true }).czekajNaAnimator + ' / '
+      + cfg({ czekaj_na_animator_nowy: 2 }).czekajNaAnimator);
+
+  /* Wygaszanie ziarna z falą (1.255.0): zero znaczy wygląd jak dotąd. */
+  t.check('wygaszanie ziarna domyślnie zero',
+    domyslne.noiseFade === 0, String(domyslne.noiseFade));
+  t.check('i jest ograniczone do 0–1, a wartość z panelu przechodzi',
+    cfg({ noise_fade: -2 }).noiseFade === 0 && cfg({ noise_fade: 7 }).noiseFade === 1
+      && cfg({ noise_fade: 0.5 }).noiseFade === 0.5,
+    cfg({ noise_fade: -2 }).noiseFade + ' … ' + cfg({ noise_fade: 7 }).noiseFade
+      + ', ' + cfg({ noise_fade: 0.5 }).noiseFade);
+
   t.check('budżet klatki domyślnie 40 ms — pod progiem długiego zadania',
     domyslne.budzetKlatki === 40 && domyslne.budzetKlatki < 50,
     domyslne.budzetKlatki + ' ms');
@@ -578,6 +601,8 @@ module.exports = async function (t) {
 
   t.check('przy ziarnie bez rozlania', mBez.ok === true, mBez.blad || mBez.znakow + ' znaków');
   t.check('i z rozlaniem', mZ.ok === true, mZ.blad || mZ.znakow + ' znaków');
+  const mW = modul({ noise_enabled: true, noise_fade: 1 });
+  t.check('i z wygaszaniem z falą (1.255.0)', mW.ok === true, mW.blad || mW.znakow + ' znaków');
 
   // ── Ziarno poza falą ───────────────────────────────────────────────────
   /* ZGŁOSZONE Z UŻYCIA: „może dodać opcję, żeby rozszerzyć ziarno na całą
@@ -766,6 +791,84 @@ module.exports = async function (t) {
   t.check('rozlanie nie przygasza fali',
     jJeden >= jZero - 0.5, 'jasność ' + jZero + ' → ' + jJeden);
 
+  /* ── Ziarno gaśnie razem z falą (1.255.0) ─────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: na stronie bez ziarna ziarno fali nie przechodzi
+   * płynnie w tło przy jej końcu — „piasek" na brzegu i ostre cięcie.
+   *
+   * PROFIL, NIE JEDNA LICZBA. Siła fali w pikselu to odchylenie zrzutu BEZ
+   * szumu od tła strony; piksele dzielimy na przedziały tej siły i w każdym
+   * liczymy szorstkość. Zmierzone (poza falą · 1–3 · 4–8 · 9–20 · 21–40 · >40):
+   *
+   *     bez szumu      0,00 · 0,08 · 0,14 · 0,20 · 0,26 · 0,24
+   *     dziś (0)       2,97 · 3,70 · 5,36 · 6,15 · 6,58 · 6,79
+   *     suwak 0,5      1,47 · 2,28 · 3,07 · 3,94 · 5,50 · 6,75
+   *     suwak 1        0,00 · 0,15 · 0,52 · 1,75 · 4,41 · 6,73
+   *
+   * Powtórzenie tego samego ustawienia różniło się o 0,01. Krzywą (próg 0,3)
+   * wybrał pomiar opisany w shaderze. */
+  const PRZEDZIALY = [[0, 0], [1, 3], [4, 8], [9, 20], [21, 40], [41, 999]];
+  const silaFali = (buf) => {
+    const { szer, wys, kanaly, dane } = pikseleZPng(buf);
+    const w = new Int16Array(szer * wys);
+    for (let i = 0; i < szer * wys; i++) {
+      const p = i * kanaly;
+      w[i] = Math.round((Math.abs(dane[p] - TLO_STRONY) + Math.abs(dane[p + 1] - TLO_STRONY)
+        + Math.abs(dane[p + 2] - TLO_STRONY)) / 3);
+    }
+    return w;
+  };
+  const profil = (buf, sila) => {
+    const { szer, wys, kanaly, dane } = pikseleZPng(buf);
+    return PRZEDZIALY.map(([od, doo]) => {
+      let suma = 0, n = 0;
+      for (let y = 0; y < wys; y++) {
+        for (let x = 0; x < szer - 1; x++) {
+          const i = y * szer + x;
+          if (sila[i] < od || sila[i] > doo || sila[i + 1] < od || sila[i + 1] > doo) continue;
+          const p = i * kanaly;
+          suma += Math.abs(dane[p] - dane[p + kanaly]);
+          n++;
+        }
+      }
+      return n > 5000 ? Math.round((suma / n) * 100) / 100 : null;
+    });
+  };
+  const sila   = silaFali(zBezSzumu.zrzut);
+  const zPol   = await zrzutZiarna({ noise_enabled: true, noise_fade: 0.5 });
+  const zCale  = await zrzutZiarna({ noise_enabled: true, noise_fade: 1 });
+  const pDzis  = profil(zZero.zrzut, sila);
+  const pPol   = profil(zPol.zrzut, sila);
+  const pCale  = profil(zCale.zrzut, sila);
+  const opis   = (pr) => pr.join(' · ');
+
+  t.check('w każdym przedziale siły fali jest co mierzyć',
+    [...pDzis, ...pCale].every((v) => v !== null), opis(pDzis) + ' / ' + opis(pCale));
+
+  /* KONIEC CIĘCIA: poza falą nie zostaje nic z jasnej połowy ziarna. */
+  t.check('suwak 1: poza falą gładko, jak bez szumu',
+    pCale[0] < 0.5, 'szorstkość ' + pCale[0] + ' (dziś ' + pDzis[0] + ')');
+
+  /* KONIEC „PIASKU": najsłabsze przedziały fali (siła 1–8) tracą ziarno
+     z nią, zamiast mieć je w pełnej sile. */
+  t.check('suwak 1: brzeg fali bez „piasku"',
+    pCale[1] < pDzis[1] / 4 && pCale[2] < pDzis[2] / 4,
+    opis(pCale.slice(1, 3)) + ' wobec dziś ' + opis(pDzis.slice(1, 3)));
+
+  /* Wygaszanie jest na BRZEGU, nie na całej fali. Alfa wprost zabierała tu
+     40 procent (6,79 → 4,04). */
+  t.check('suwak 1: w środku fali ziarno jak dotąd',
+    Math.abs(pCale[5] - pDzis[5]) < 0.5, pCale[5] + ' wobec ' + pDzis[5]);
+
+  /* Suwak, nie przełącznik: połowa daje połowę. */
+  t.check('suwak 0,5: pośrodku między zerem a jedynką',
+    pPol[0] > pDzis[0] * 0.3 && pPol[0] < pDzis[0] * 0.7,
+    'poza falą ' + pPol[0] + ' (0: ' + pDzis[0] + ', 1: ' + pCale[0] + ')');
+
+  t.check('wygaszanie nie przygasza fali',
+    jasnosc(zCale.zrzut) >= jasnosc(zBezSzumu.zrzut) - 0.5,
+    'jasność ' + jasnosc(zBezSzumu.zrzut) + ' → ' + jasnosc(zCale.zrzut));
+
   t.check('fala rusza w każdym z czterech przypadków',
     zBezSzumu.plotno === true && zBrak.plotno === true
     && zZero.plotno === true && zJeden.plotno === true,
@@ -917,7 +1020,8 @@ module.exports = async function (t) {
    * wejścia po tylu ms od startu.
    */
   const koordynacja = async (opcje) => {
-    const html = phpOutput('wave-bg-colors.php', JSON.stringify(JSON.stringify({})) + ' html');
+    const html = phpOutput('wave-bg-colors.php',
+      JSON.stringify(JSON.stringify(opcje.ust || {})) + ' html');
     const str = await t.open('wave-bg-pomiar.html', {
       przezHttp: true,
       viewport: { width: 900, height: 600 },
@@ -982,9 +1086,31 @@ module.exports = async function (t) {
     poWejsciu.czas !== null && poWejsciu.czas < 1200,
     poWejsciu.czas + ' ms od startu');
 
+  /* PRZEŁĄCZNIK (1.254.0). Ten sam najgorszy przypadek co „bez sygnału”:
+     Animator jest, sygnału nie ma. Wyłączone czekanie ma dać płótno w czasie
+     strony bez Animatora, a nie po limicie. Obie drogi zapisu: odwrócone
+     „Nie czekaj” starego elementu i odznaczone „Czekaj” nowego. */
+  const nieCzekaStary = await koordynacja({ animator: true, ust: { czekaj_na_animator_off: true } });
+  t.check('wyłączone czekanie: scena od razu mimo Animatora (stary element)',
+    nieCzekaStary.czas !== null && nieCzekaStary.czas < 1200,
+    nieCzekaStary.czas + ' ms od startu');
+  const nieCzekaNowy = await koordynacja({ animator: true, ust: { czekaj_na_animator_nowy: 2 } });
+  t.check('wyłączone czekanie: scena od razu mimo Animatora (nowy element)',
+    nieCzekaNowy.czas !== null && nieCzekaNowy.czas < 1200,
+    nieCzekaNowy.czas + ' ms od startu');
+  /* Kontrola z drugiej strony: nowy element z zaznaczonym „Czekaj” czeka.
+     Bez tego oba sprawdzenia wyżej przeszłyby też przy kodzie, który
+     w nowym elemencie nie czeka nigdy. */
+  const czekaNowy = await koordynacja({ animator: true,
+    ust: { czekaj_na_animator_nowy: 2, czekaj_na_animator: true } });
+  t.check('nowy element z „Czekaj” czeka do limitu',
+    czekaNowy.czas !== null && czekaNowy.czas >= 1200,
+    czekaNowy.czas + ' ms (limit 1200)');
+
+  const wszystkie = [bezSygnalu, zeSygnalem, poWejsciu, nieCzekaStary, nieCzekaNowy, czekaNowy];
   t.check('bez błędów JS przy koordynacji',
-    !bezSygnalu.bledy.length && !zeSygnalem.bledy.length && !poWejsciu.bledy.length,
-    [...bezSygnalu.bledy, ...zeSygnalem.bledy, ...poWejsciu.bledy].join(' | ') || 'brak');
+    wszystkie.every((w) => !w.bledy.length),
+    wszystkie.flatMap((w) => w.bledy).join(' | ') || 'brak');
 
   t.section('maska zanika po krzywej, a nie po prostej');
 
