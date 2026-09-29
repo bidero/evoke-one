@@ -44,6 +44,10 @@ wydania obu gałęzi.
   - etykieta „Obraz" dla SVG;
   - bez nazwy „Plik";
   - bez warunku `required` (zapala też obraz w pozycji listy).
+- Pełny przebieg (ze scalonymi zmianami fali): 5742 sprawdzenia w 117 plikach.
+  - Dwa czerwone od obciążenia maszyny, oba zielone przy osobnym powtórzeniu:
+    `backup-panel-drive` (zawis logowania w harnessie, znany od 1.253.0)
+    i pomiar czasu w `tl-silnik` (obok szedł PHPStan).
 
 ### Do sprawdzenia na testowej
 
