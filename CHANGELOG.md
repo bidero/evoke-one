@@ -2,6 +2,37 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.255.0] — 2026-09-29
+
+WaveBG: ziarno może gasnąć razem z falą.
+
+### Dodane
+
+- **Suwak „Wygaszanie ziarna z falą”** w grupie „Szum” (0–1, domyślnie 0,
+  czyli wygląd bez zmian). Zgłoszenie: na stronie bez ziarna ziarno fali nie
+  przechodziło płynnie w tło: „piasek” na brzegu fali i ostre cięcie.
+  - Przyczyna: ziarno było dosypywane do barwy ze stałą siłą, a fala gaśnie
+    przezroczystością. Na brzegu ziarno przeważało nad falą, a przy alfie
+    bliskiej zeru jasna połowa ziarna szła do premnożonego bufora wprost
+    i ciągnęła się aż do krawędzi płótna.
+  - Suwak waży ziarno krzywą `smoothstep(0, 0,3, alfa fali)`: w środku fali
+    ziarno zostaje jak dotąd, na brzegu gaśnie stopniowo, poza falą znika.
+    Krzywą wybrał pomiar. Alfa wprost zabierała 40% ziarna także w środku
+    fali (fala ma alfę poniżej jedności prawie wszędzie).
+
+### Testy
+
+- `wave-bg`: profil szorstkości zrzutu według siły fali (od tła do środka).
+  Zmierzone, dziś → suwak 1: poza falą 2,97 → 0,00; brzeg 3,70 · 5,36 →
+  0,15 · 0,52; środek 6,79 → 6,73. Sprawdzenia: poza falą gładko, brzeg bez
+  „piasku”, środek jak dotąd, 0,5 daje wartość pośrednią, jasność fali bez
+  zmian, konfiguracja (domyślnie 0, zakres 0–1), moduł parsuje się
+  z wygaszaniem.
+- Mutacje: 5 (shader ignoruje suwak, alfa wprost zamiast krzywej, uniform
+  zawsze zero, domyślna 1, suwak jako przełącznik). Każda zapala; alfa wprost,
+  domyślna 1 i przełącznik każda inny zestaw.
+- Pełny przebieg: 5666 sprawdzeń w 113 plikach, wszystkie zielone.
+
 ## [1.254.0] — 2026-09-29
 
 WaveBG: czekanie na wejście Animatora da się wyłączyć.

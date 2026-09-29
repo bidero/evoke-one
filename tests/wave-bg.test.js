@@ -136,6 +136,15 @@ module.exports = async function (t) {
     cfg({ czekaj_na_animator_nowy: 2, czekaj_na_animator: true }).czekajNaAnimator + ' / '
       + cfg({ czekaj_na_animator_nowy: 2 }).czekajNaAnimator);
 
+  /* Wygaszanie ziarna z falą (1.255.0): zero znaczy wygląd jak dotąd. */
+  t.check('wygaszanie ziarna domyślnie zero',
+    domyslne.noiseFade === 0, String(domyslne.noiseFade));
+  t.check('i jest ograniczone do 0–1, a wartość z panelu przechodzi',
+    cfg({ noise_fade: -2 }).noiseFade === 0 && cfg({ noise_fade: 7 }).noiseFade === 1
+      && cfg({ noise_fade: 0.5 }).noiseFade === 0.5,
+    cfg({ noise_fade: -2 }).noiseFade + ' … ' + cfg({ noise_fade: 7 }).noiseFade
+      + ', ' + cfg({ noise_fade: 0.5 }).noiseFade);
+
   t.check('budżet klatki domyślnie 40 ms — pod progiem długiego zadania',
     domyslne.budzetKlatki === 40 && domyslne.budzetKlatki < 50,
     domyslne.budzetKlatki + ' ms');
@@ -592,6 +601,8 @@ module.exports = async function (t) {
 
   t.check('przy ziarnie bez rozlania', mBez.ok === true, mBez.blad || mBez.znakow + ' znaków');
   t.check('i z rozlaniem', mZ.ok === true, mZ.blad || mZ.znakow + ' znaków');
+  const mW = modul({ noise_enabled: true, noise_fade: 1 });
+  t.check('i z wygaszaniem z falą (1.255.0)', mW.ok === true, mW.blad || mW.znakow + ' znaków');
 
   // ── Ziarno poza falą ───────────────────────────────────────────────────
   /* ZGŁOSZONE Z UŻYCIA: „może dodać opcję, żeby rozszerzyć ziarno na całą
@@ -779,6 +790,84 @@ module.exports = async function (t) {
   const jJeden = jasnosc(zJeden.zrzut);
   t.check('rozlanie nie przygasza fali',
     jJeden >= jZero - 0.5, 'jasność ' + jZero + ' → ' + jJeden);
+
+  /* ── Ziarno gaśnie razem z falą (1.255.0) ─────────────────────────────
+   *
+   * ZGŁOSZONE Z UŻYCIA: na stronie bez ziarna ziarno fali nie przechodzi
+   * płynnie w tło przy jej końcu — „piasek" na brzegu i ostre cięcie.
+   *
+   * PROFIL, NIE JEDNA LICZBA. Siła fali w pikselu to odchylenie zrzutu BEZ
+   * szumu od tła strony; piksele dzielimy na przedziały tej siły i w każdym
+   * liczymy szorstkość. Zmierzone (poza falą · 1–3 · 4–8 · 9–20 · 21–40 · >40):
+   *
+   *     bez szumu      0,00 · 0,08 · 0,14 · 0,20 · 0,26 · 0,24
+   *     dziś (0)       2,97 · 3,70 · 5,36 · 6,15 · 6,58 · 6,79
+   *     suwak 0,5      1,47 · 2,28 · 3,07 · 3,94 · 5,50 · 6,75
+   *     suwak 1        0,00 · 0,15 · 0,52 · 1,75 · 4,41 · 6,73
+   *
+   * Powtórzenie tego samego ustawienia różniło się o 0,01. Krzywą (próg 0,3)
+   * wybrał pomiar opisany w shaderze. */
+  const PRZEDZIALY = [[0, 0], [1, 3], [4, 8], [9, 20], [21, 40], [41, 999]];
+  const silaFali = (buf) => {
+    const { szer, wys, kanaly, dane } = pikseleZPng(buf);
+    const w = new Int16Array(szer * wys);
+    for (let i = 0; i < szer * wys; i++) {
+      const p = i * kanaly;
+      w[i] = Math.round((Math.abs(dane[p] - TLO_STRONY) + Math.abs(dane[p + 1] - TLO_STRONY)
+        + Math.abs(dane[p + 2] - TLO_STRONY)) / 3);
+    }
+    return w;
+  };
+  const profil = (buf, sila) => {
+    const { szer, wys, kanaly, dane } = pikseleZPng(buf);
+    return PRZEDZIALY.map(([od, doo]) => {
+      let suma = 0, n = 0;
+      for (let y = 0; y < wys; y++) {
+        for (let x = 0; x < szer - 1; x++) {
+          const i = y * szer + x;
+          if (sila[i] < od || sila[i] > doo || sila[i + 1] < od || sila[i + 1] > doo) continue;
+          const p = i * kanaly;
+          suma += Math.abs(dane[p] - dane[p + kanaly]);
+          n++;
+        }
+      }
+      return n > 5000 ? Math.round((suma / n) * 100) / 100 : null;
+    });
+  };
+  const sila   = silaFali(zBezSzumu.zrzut);
+  const zPol   = await zrzutZiarna({ noise_enabled: true, noise_fade: 0.5 });
+  const zCale  = await zrzutZiarna({ noise_enabled: true, noise_fade: 1 });
+  const pDzis  = profil(zZero.zrzut, sila);
+  const pPol   = profil(zPol.zrzut, sila);
+  const pCale  = profil(zCale.zrzut, sila);
+  const opis   = (pr) => pr.join(' · ');
+
+  t.check('w każdym przedziale siły fali jest co mierzyć',
+    [...pDzis, ...pCale].every((v) => v !== null), opis(pDzis) + ' / ' + opis(pCale));
+
+  /* KONIEC CIĘCIA: poza falą nie zostaje nic z jasnej połowy ziarna. */
+  t.check('suwak 1: poza falą gładko, jak bez szumu',
+    pCale[0] < 0.5, 'szorstkość ' + pCale[0] + ' (dziś ' + pDzis[0] + ')');
+
+  /* KONIEC „PIASKU": najsłabsze przedziały fali (siła 1–8) tracą ziarno
+     z nią, zamiast mieć je w pełnej sile. */
+  t.check('suwak 1: brzeg fali bez „piasku"',
+    pCale[1] < pDzis[1] / 4 && pCale[2] < pDzis[2] / 4,
+    opis(pCale.slice(1, 3)) + ' wobec dziś ' + opis(pDzis.slice(1, 3)));
+
+  /* Wygaszanie jest na BRZEGU, nie na całej fali. Alfa wprost zabierała tu
+     40 procent (6,79 → 4,04). */
+  t.check('suwak 1: w środku fali ziarno jak dotąd',
+    Math.abs(pCale[5] - pDzis[5]) < 0.5, pCale[5] + ' wobec ' + pDzis[5]);
+
+  /* Suwak, nie przełącznik: połowa daje połowę. */
+  t.check('suwak 0,5: pośrodku między zerem a jedynką',
+    pPol[0] > pDzis[0] * 0.3 && pPol[0] < pDzis[0] * 0.7,
+    'poza falą ' + pPol[0] + ' (0: ' + pDzis[0] + ', 1: ' + pCale[0] + ')');
+
+  t.check('wygaszanie nie przygasza fali',
+    jasnosc(zCale.zrzut) >= jasnosc(zBezSzumu.zrzut) - 0.5,
+    'jasność ' + jasnosc(zBezSzumu.zrzut) + ' → ' + jasnosc(zCale.zrzut));
 
   t.check('fala rusza w każdym z czterech przypadków',
     zBezSzumu.plotno === true && zBrak.plotno === true
