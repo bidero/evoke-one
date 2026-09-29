@@ -640,6 +640,7 @@ $TABS = [
        podaje je niżej, tak jak zakładka. */
     'tl-translations' => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-translations.php'],
     'tl-elementy'     => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-elementy.php'],
+    'tl-ai'           => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-ai.php'],
     'tl-wpisy'        => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-wpisy.php'],
     'tl-images'       => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-images.php'],
     'tl-slugs'        => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-slugs.php'],
@@ -1010,7 +1011,7 @@ require EVK_TEST_ROOT . '/includes/newsletter/' . $m;
        Atrapa: na serwerze nie ma żadnej paczki, więc oba języki mają przycisk. */
     if (!function_exists('get_available_languages')) { function get_available_languages($dir = null) { return []; } }
     foreach (['includes/10-language-system.php', 'includes/13-jezyk-wordpressa.php', 'includes/30-admin-settings-ajax.php',
-              'includes/admin/tl/bootstrap.php'] as $m) {
+              'includes/61-translation-ai.php', 'includes/admin/tl/bootstrap.php'] as $m) {
         require EVK_TEST_ROOT . '/' . $m;
     }
     $GLOBALS['options']['tl_languages'] = [

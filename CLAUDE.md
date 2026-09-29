@@ -173,7 +173,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (120 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (122 pliki, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
@@ -307,6 +307,15 @@ z routerem `tests/php/_router-wp.php` (adres strony z portu, baza bez zmian)
 i przeklikuje zakładkę w Chromium. Serwer musi mieć kilka procesów
 (`PHP_CLI_SERVER_WORKERS`) — kopia napędza się żądaniami serwera do samego
 siebie, a jednoprocesowy `php -S` czekałby na samego siebie.
+
+**Logowanie w przeglądarce tylko przez `serwerWp.zaloguj()`.** Strona
+logowania WordPressa 200 ms po wczytaniu przestawia fokus na pole loginu
+i zaznacza jego tekst, a `fill()` to osobno fokus i wpisanie. Zegar pomiędzy
+wpisuje hasło w pole loginu; puste hasło ma `required`, więc klik nie wysyła
+formularza, a test stoi 30 s na „nawigacji”. Tak wyglądało zawieszenie
+logowania od 1.227.0 do 1.260.0, raz na kilkanaście przebiegów. Pomocnik
+sprawdza oba pola przed kliknięciem (`zapis-wp-logowanie` wymusza najgorszy
+moment) — własne logowanie w teście wpadnie w to samo.
 
 **`stara.test` nie rozwiązuje się na tej maszynie.** Adres zbudowany w sondzie
 (z `home_url()` = `http://stara.test`) i wysłany potem do `php -S` jest dla

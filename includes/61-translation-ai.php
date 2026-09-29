@@ -1,0 +1,736 @@
+<?php
+if (!defined('ABSPATH')) exit;
+
+/**
+ * EVOKE Tłumaczenia — tłumaczenie AI tekstów w elementach Bricksa (1.260.0).
+ *
+ * DECYZJE ZGŁASZAJĄCEGO (29.09):
+ *   - dostawca do wyboru: Gemini (domyślnie — jedyny z darmowym poziomem
+ *     API), Claude albo OpenAI z płatnym kluczem;
+ *   - na początek elementy Bricksa hurtem, z panelu Tłumaczeń;
+ *   - AI wypełnia tylko puste pola języków, a wynik ma znacznik
+ *     „Do sprawdzenia” (zdejmuje go „Sprawdzone” albo poprawka);
+ *   - tłumaczenie z kontekstem i powtarzalne.
+ *
+ * KONTEKST. Jedno zapytanie obejmuje teksty jednej części strony (treść,
+ * nagłówek albo stopka): model widzi wszystkie w kolejności, z typem
+ * elementu i nazwą pola, a tłumaczy tylko brakujące. Do tego opis strony
+ * i wskazówki dla języka (np. forma „Sie”) z ustawień.
+ *
+ * POWTARZALNOŚĆ — nie parametrami modelu: Claude Opus 5.5 odrzuca
+ * `temperature`, a Google zaleca dla Gemini 3 wartość domyślną. Zamiast tego:
+ *   - słowniczek: pary PL → język i nazwy „nie tłumacz”, w każdym zapytaniu;
+ *   - pamięć tłumaczeń: ten sam polski tekst ze sprawdzonym tłumaczeniem
+ *     (pole w innym elemencie albo cała fraza słownika) dostaje je bez
+ *     pytania AI — oszczędza też darmowy limit;
+ *   - pamięć wyników: ten sam tekst przy tych samych ustawieniach (dostawca,
+ *     model, wersja zapytania, słowniczek, opis, wskazówki) daje ten sam
+ *     wynik, także na innej stronie.
+ *
+ * STRAŻNICY. Tłumaczenie musi mieć te same znaczniki HTML (w tej samej
+ * kolejności), te same tagi `{…}` i te same zarejestrowane shortcody co
+ * oryginał — inaczej odrzut. Tekst bez liter (sam tag danych dynamicznych,
+ * liczba) do AI nie idzie.
+ *
+ * ZAPIS jak przycisk „Przenieś” (53): tylko puste pola, wykaz pól dopisanych
+ * (otwarty builder ich nie zgubi), a stan „Do sprawdzenia” (52) dostaje
+ * skrót źródła `ai`. Lista pokazuje takie miejsca z powodem „AI”,
+ * a „Sprawdzone” przyjmuje bieżący oryginał jak zwykle.
+ *
+ * KLUCZ API tylko w opcji: nigdy w HTML ani JS, poza paczką ustawień.
+ * HTTP przez wp_remote_post — wtyczka nie ma Composera, a trzech dostawców
+ * obsługuje jeden kod. Adresy da się podmienić filtrem `evk_tl_ai_adresy`
+ * (testy stawiają atrapę).
+ */
+
+const EVK_TL_AI_OPCJA  = 'evk_tl_ai';
+const EVK_TL_AI_PAMIEC = 'evk_tl_ai_pamiec';
+/** Wersja zapytania: zmiana treści zapytania unieważnia pamięć wyników. */
+const EVK_TL_AI_WERSJA = 1;
+/** Najwięcej tekstów i znaków w jednym zapytaniu: odpowiedź ok. 2 tys. tokenów,
+    czyli kilkadziesiąt sekund nawet u wolniejszego modelu — mieści się w limicie
+    czasu hostingu i serwera pośredniczącego (Cloudflare: 100 s). */
+const EVK_TL_AI_PORCJA = 25;
+const EVK_TL_AI_ZNAKI  = 6000;
+/** Kontekst: tyle tekstów wokół porcji (długie strony nie rosną bez końca). */
+const EVK_TL_AI_KONTEKST = 200;
+/** Pamięć wyników: tyle ostatnich tłumaczeń. */
+const EVK_TL_AI_PAMIEC_MAX = 5000;
+
+// =========================================================================
+// USTAWIENIA
+// =========================================================================
+
+/** Dostawcy: nazwa i model domyślny (z dokumentacji dostawców, 29.09.2026). */
+function evk_tl_ai_dostawcy(): array {
+    return [
+        'gemini' => ['nazwa' => 'Gemini (Google) — darmowy poziom', 'model' => 'gemini-3.8-flash'],
+        'claude' => ['nazwa' => 'Claude (Anthropic) — płatny klucz', 'model' => 'claude-opus-5-5'],
+        'openai' => ['nazwa' => 'OpenAI — płatny klucz', 'model' => 'gpt-6-astra'],
+    ];
+}
+
+/**
+ * @return array{dostawca:string,klucze:array<string,string>,modele:array<string,string>,opis:string,wskazowki:array<string,string>,slowniczek:string}
+ */
+function evk_tl_ai_ustawienia(): array {
+    $u = get_option(EVK_TL_AI_OPCJA, []);
+    $u = is_array($u) ? $u : [];
+    $d = evk_tl_ai_dostawcy();
+    $napisy = static function ($v) use ($d): array {
+        return array_map('strval', array_intersect_key(is_array($v) ? $v : [], $d));
+    };
+    return [
+        'dostawca'   => isset($d[$u['dostawca'] ?? '']) ? (string) $u['dostawca'] : 'gemini',
+        'klucze'     => $napisy($u['klucze'] ?? []),
+        'modele'     => $napisy($u['modele'] ?? []),
+        'opis'       => (string) ($u['opis'] ?? ''),
+        'wskazowki'  => array_map('strval', is_array($u['wskazowki'] ?? null) ? $u['wskazowki'] : []),
+        'slowniczek' => (string) ($u['slowniczek'] ?? ''),
+    ];
+}
+
+function evk_tl_ai_model(array $u): string {
+    $m = trim((string) ($u['modele'][$u['dostawca']] ?? ''));
+    return $m !== '' ? $m : evk_tl_ai_dostawcy()[$u['dostawca']]['model'];
+}
+
+function evk_tl_ai_klucz(array $u): string {
+    return trim((string) ($u['klucze'][$u['dostawca']] ?? ''));
+}
+
+/**
+ * Słowniczek z ustawień: linia `polski | EN | DE` (kolumny w kolejności
+ * języków), linia `!Nazwa` — nie tłumaczyć, `#` — komentarz.
+ *
+ * @param list<string> $kody Języki w kolejności kolumn.
+ * @return array{stale:list<string>,pary:array<string,string>}
+ */
+function evk_tl_ai_slowniczek(string $tekst, string $lang, array $kody): array {
+    $out = ['stale' => [], 'pary' => []];
+    $kol = array_search($lang, $kody, true);
+    foreach ((array) preg_split('/\R/u', $tekst) as $linia) {
+        $linia = trim((string) $linia);
+        if ($linia === '' || $linia[0] === '#') continue;
+        if ($linia[0] === '!') {
+            $t = trim(substr($linia, 1));
+            if ($t !== '') $out['stale'][] = $t;
+            continue;
+        }
+        $cz = array_map('trim', explode('|', $linia));
+        $t = $kol === false ? '' : (string) ($cz[$kol + 1] ?? '');
+        if ($cz[0] !== '' && $t !== '') $out['pary'][$cz[0]] = $t;
+    }
+    return $out;
+}
+
+// =========================================================================
+// TEKSTY DO TŁUMACZENIA
+// =========================================================================
+
+/** Czy tekst ma co tłumaczyć: litery poza znacznikami, tagami `{…}` i shortcodami. */
+function evk_tl_ai_do_tlumaczenia(string $pl): bool {
+    $t = html_entity_decode(wp_strip_all_tags($pl), ENT_QUOTES, 'UTF-8');
+    $t = (string) preg_replace('/\{[^{}]*\}|\[[^\[\]]*\]/u', ' ', $t);
+    return (bool) preg_match('/\p{L}/u', $t);
+}
+
+/**
+ * Nazwa języka w zapytaniu: po angielsku, z kodem z ustawień („English
+ * (en-US)”). Nazwa z ustawień jest polska („Angielski”), a zapytanie idzie
+ * po angielsku. Bez rozszerzenia intl — hosting nie zawsze je ma.
+ */
+function evk_tl_ai_jezyk(string $lang): string {
+    $nazwy = ['en' => 'English', 'de' => 'German', 'fr' => 'French', 'es' => 'Spanish', 'it' => 'Italian',
+        'pt' => 'Portuguese', 'nl' => 'Dutch', 'cs' => 'Czech', 'sk' => 'Slovak', 'uk' => 'Ukrainian', 'ru' => 'Russian',
+        'sv' => 'Swedish', 'da' => 'Danish', 'no' => 'Norwegian', 'nb' => 'Norwegian', 'fi' => 'Finnish', 'hu' => 'Hungarian',
+        'ro' => 'Romanian', 'lt' => 'Lithuanian', 'lv' => 'Latvian', 'et' => 'Estonian', 'hr' => 'Croatian', 'sl' => 'Slovenian',
+        'sr' => 'Serbian', 'bg' => 'Bulgarian', 'el' => 'Greek', 'tr' => 'Turkish', 'he' => 'Hebrew', 'ar' => 'Arabic',
+        'ja' => 'Japanese', 'zh' => 'Chinese', 'ko' => 'Korean', 'vi' => 'Vietnamese'];
+    $j = tl_get_languages()[$lang] ?? [];
+    $html = (string) ($j['html'] ?? $lang);
+    $baza = strtolower((string) (preg_split('/[-_]/', $html)[0] ?? ''));
+    $nazwa = $nazwy[$baza] ?? $nazwy[strtolower($lang)] ?? (string) ($j['name'] ?? $lang);
+    return $nazwa . ' (' . $html . ')';
+}
+
+/** Kod języka w kluczu miejsca — jak w stanie „Do sprawdzenia” (52). */
+function evk_tl_ai_kod(string $lang): string {
+    return (string) preg_replace('/[^a-z0-9_]/', '_', strtolower($lang));
+}
+
+/**
+ * Teksty jednej części strony: wszystkie (kontekst, w kolejności, z już
+ * istniejącym tłumaczeniem — model trzyma się jego słownictwa) i te bez
+ * tłumaczenia w języku, z numerem w kontekście. Klucz miejsca jak w stanie
+ * (52): „id|ścieżka|język”.
+ *
+ * @param mixed $dane Dane Bricksa (lista elementów).
+ * @return array{kontekst:list<array{element:string,opis:string,pl:string,tl:string}>,braki:array<string,array<string,mixed>>}
+ */
+function evk_tl_ai_teksty($dane, string $lang): array {
+    $out = ['kontekst' => [], 'braki' => []];
+    if (!is_array($dane)) return $out;
+    $mapa = evk_tl_el_mapa();
+    $kod = evk_tl_ai_kod($lang);
+    $dodaj = static function (array $ust, string $pole, string $id, string $element, string $sciezka, string $opis) use ($lang, $kod, &$out): void {
+        $pl = $ust[$pole] ?? null;
+        if (!is_string($pl) || !evk_tl_ai_do_tlumaczenia($pl)) return;
+        $tl = $ust[evk_tl_el_klucz($lang, $pole)] ?? null;
+        $jest = evk_tl_el_niepuste($tl);
+        $out['kontekst'][] = ['element' => $element, 'opis' => $opis, 'pl' => $pl, 'tl' => $jest && is_string($tl) ? $tl : ''];
+        if ($jest) return;
+        $out['braki'][$id . '|' . $sciezka . '|' . $kod] = ['pl' => $pl, 'element' => $element, 'opis' => $opis,
+            'id' => $id, 'sciezka' => $sciezka, 'pole' => $pole, 'n' => count($out['kontekst'])];
+    };
+    foreach ($dane as $el) {
+        if (!is_array($el) || !is_array($el['settings'] ?? null)) continue;
+        $nazwa = (string) ($el['name'] ?? '');
+        $def = $mapa[$nazwa] ?? null;
+        if (!is_array($def)) continue;
+        $id = (string) ($el['id'] ?? '');
+        foreach ((array) ($def['pola'] ?? []) as $pole) {
+            $dodaj($el['settings'], (string) $pole, $id, $nazwa, (string) $pole, evk_tl_el_nazwa_pola((string) $pole));
+        }
+        foreach ((array) ($def['listy'] ?? []) as $lista => $pola) {
+            $pozycje = $el['settings'][$lista] ?? null;
+            if (!is_array($pozycje) || !$pozycje || array_keys($pozycje) !== range(0, count($pozycje) - 1)) continue;
+            foreach ($pozycje as $i => $poz) {
+                if (!is_array($poz)) continue;
+                $pid = isset($poz['id']) && is_scalar($poz['id']) && (string) $poz['id'] !== '' ? (string) $poz['id'] : (string) $i;
+                foreach ((array) $pola as $pole) {
+                    $dodaj($poz, (string) $pole, $id, $nazwa, $lista . '.' . $pid . '.' . $pole,
+                        'pozycja ' . ($i + 1) . ' · ' . evk_tl_el_nazwa_pola((string) $pole));
+                }
+            }
+        }
+    }
+    return $out;
+}
+
+/**
+ * Pamięć tłumaczeń języka: polski tekst → sprawdzone tłumaczenie. Pola
+ * języków w elementach całej strony (bez tych „Do sprawdzenia”), a dla
+ * tekstów bez znaczników w środku — cała fraza słownika.
+ *
+ * @return array{pola:array<string,string>,slownik:array<string,array<string,mixed>>}
+ */
+function evk_tl_ai_pamiec_tlumaczen(string $lang): array {
+    static $pamiec = [];
+    if (isset($pamiec[$lang])) return $pamiec[$lang];
+    $kod = evk_tl_ai_kod($lang);
+    $sprawdz = [];
+    foreach (evk_tl_el_do_sprawdzenia(1000) as $m) $sprawdz[$m['post_id'] . '|' . $m['meta_key'] . '|' . $m['klucz']] = true;
+    $pola = [];
+    foreach (evk_tl_el_wpisy_bricksa() as [$post_id, $meta_key]) {
+        foreach (evk_tl_el_miejsca(get_post_meta($post_id, $meta_key, true)) as $klucz => $m) {
+            if ($m['jezyk'] !== $kod || $m['oryginal'] === '' || !evk_tl_el_niepuste($m['tlumaczenie'])) continue;
+            if (isset($sprawdz[$post_id . '|' . $meta_key . '|' . $klucz]) || isset($pola[$m['oryginal']])) continue;
+            $pola[$m['oryginal']] = $m['tlumaczenie'];
+        }
+    }
+    return $pamiec[$lang] = ['pola' => $pola, 'slownik' => function_exists('tl_get_match_index') ? (array) tl_get_match_index($lang) : []];
+}
+
+/** Sprawdzone tłumaczenie z pamięci; null gdy go nie ma. */
+function evk_tl_ai_z_pamieci(string $pl, string $lang): ?string {
+    $p = evk_tl_ai_pamiec_tlumaczen($lang);
+    if (isset($p['pola'][$pl])) return $p['pola'][$pl];
+    $k = evk_tl_el_klucz_slownika($pl);
+    $t = $k ? ($p['slownik'][$k[0]]['tlum'] ?? '') : '';
+    return is_string($t) && trim($t) !== '' ? $k[1] . $t . $k[2] : null;
+}
+
+/** Klucz pamięci wyników: ten sam tekst przy tych samych ustawieniach. */
+function evk_tl_ai_klucz_wyniku(array $u, string $lang, string $pl): string {
+    return md5((string) wp_json_encode([EVK_TL_AI_WERSJA, $u['dostawca'], evk_tl_ai_model($u), $lang,
+        $u['opis'], $u['wskazowki'][$lang] ?? '', $u['slowniczek'], $pl]));
+}
+
+function evk_tl_ai_wynik(array $u, string $lang, string $pl): ?string {
+    $p = get_option(EVK_TL_AI_PAMIEC, []);
+    $t = is_array($p) ? ($p[evk_tl_ai_klucz_wyniku($u, $lang, $pl)] ?? null) : null;
+    return is_string($t) ? $t : null;
+}
+
+/** @param array<string,string> $nowe klucz wyniku → tłumaczenie */
+function evk_tl_ai_zapamietaj(array $nowe): void {
+    if (!$nowe) return;
+    $p = get_option(EVK_TL_AI_PAMIEC, []);
+    $p = is_array($p) ? $p : [];
+    foreach ($nowe as $k => $t) {
+        unset($p[$k]);
+        $p[$k] = $t;
+    }
+    if (count($p) > EVK_TL_AI_PAMIEC_MAX) $p = array_slice($p, -EVK_TL_AI_PAMIEC_MAX, null, true);
+    update_option(EVK_TL_AI_PAMIEC, $p, false);
+}
+
+// =========================================================================
+// STRAŻNIK TŁUMACZENIA
+// =========================================================================
+
+/**
+ * To, czego tłumaczenie nie może zmienić: znaczniki HTML po kolei, tagi `{…}`
+ * i zarejestrowane shortcody (bez kolejności — szyk zdania bywa inny).
+ *
+ * @return array{0:list<string>,1:list<string>,2:list<string>}
+ */
+function evk_tl_ai_szkielet(string $t): array {
+    preg_match_all('~<\s*(/?)\s*([a-z][a-z0-9-]*)~i', $t, $m, PREG_SET_ORDER);
+    $tagi = array_map(static function ($x) { return $x[1] . strtolower($x[2]); }, $m);
+    preg_match_all('/\{[^{}]*\}/u', $t, $k);
+    $klamry = $k[0];
+    sort($klamry);
+    preg_match_all('~\[/?([a-z_][a-z0-9_-]*)[^\]]*\]~i', $t, $s, PREG_SET_ORDER);
+    $kody = [];
+    foreach ($s as $x) {
+        if (function_exists('shortcode_exists') && shortcode_exists(strtolower($x[1]))) $kody[] = $x[0];
+    }
+    sort($kody);
+    return [$tagi, $klamry, $kody];
+}
+
+function evk_tl_ai_zgodne(string $pl, string $t): bool {
+    return trim(wp_strip_all_tags($t)) !== '' && evk_tl_ai_szkielet($pl) === evk_tl_ai_szkielet($t);
+}
+
+// =========================================================================
+// ZAPYTANIE I DOSTAWCY
+// =========================================================================
+
+/** Schemat odpowiedzi — ten sam u trzech dostawców. */
+function evk_tl_ai_schemat(): array {
+    return [
+        'type' => 'object',
+        'properties' => ['translations' => ['type' => 'array', 'items' => [
+            'type' => 'object',
+            'properties' => ['key' => ['type' => 'string'], 'text' => ['type' => 'string']],
+            'required' => ['key', 'text'],
+            'additionalProperties' => false,
+        ]]],
+        'required' => ['translations'],
+        'additionalProperties' => false,
+    ];
+}
+
+/**
+ * Treść zapytania: instrukcje (stałe dla języka i ustawień) i wiadomość
+ * z kontekstem strony oraz tekstami do tłumaczenia pod kluczami t1, t2…
+ * Teksty jako napisy JSON — wieloliniowy akapit nie rozbija listy.
+ *
+ * @param list<array<string,string>>       $kontekst
+ * @param array<string,array<string,mixed>> $porcja  klucz krótki → tekst
+ * @return array{0:string,1:string}
+ */
+function evk_tl_ai_tresc(array $u, string $lang, string $tytul, array $kontekst, array $porcja): array {
+    $jezyk = evk_tl_ai_jezyk($lang);
+    $sl = evk_tl_ai_slowniczek($u['slowniczek'], $lang, array_keys(tl_get_languages()));
+    $s = "You translate website copy from Polish into {$jezyk}.\n\nRules:\n"
+       . "- Translate naturally for native readers, in the tone of the website. Keep the meaning; do not add or leave out content.\n"
+       . "- Keep unchanged: HTML tags and their order, placeholders in curly braces {…}, shortcodes in square brackets […], URLs, e-mail addresses, numbers.\n"
+       . "- Keep each text's form: a heading stays a heading, a button label stays short, line breaks stay.\n"
+       . "- Translate only the items under TO TRANSLATE. The CONTEXT lists the texts of this part of the page in order, so that the translations fit together; "
+       . "a text that already has a translation shows it after the arrow — keep the terminology consistent with it.\n"
+       . "- Return JSON: {\"translations\":[{\"key\":\"t1\",\"text\":\"…\"}]}, exactly one entry per key.\n";
+    if (trim($u['opis']) !== '') $s .= "\nAbout the website:\n" . trim($u['opis']) . "\n";
+    $wsk = trim((string) ($u['wskazowki'][$lang] ?? ''));
+    if ($wsk !== '') $s .= "\nGuidance for {$jezyk}:\n" . $wsk . "\n";
+    if ($sl['stale']) $s .= "\nNever translate these names; keep them exactly as written:\n- " . implode("\n- ", $sl['stale']) . "\n";
+    if ($sl['pary']) {
+        $s .= "\nGlossary (always use these translations):\n";
+        foreach ($sl['pary'] as $pl => $t) $s .= "- {$pl} → {$t}\n";
+    }
+    $j = static function (string $t): string {
+        return (string) wp_json_encode($t, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    };
+    $od = max(0, min(array_map(static function ($w) { return (int) ($w['n'] ?? 1); }, $porcja ?: [['n' => 1]])) - 1 - intdiv(EVK_TL_AI_KONTEKST, 4));
+    $ctx = [];
+    foreach (array_slice($kontekst, $od, EVK_TL_AI_KONTEKST, true) as $i => $k) {
+        $ctx[] = ($i + 1) . '. [' . $k['element'] . ' · ' . $k['opis'] . '] ' . $j($k['pl']) . (($k['tl'] ?? '') !== '' ? ' → ' . $j($k['tl']) : '');
+    }
+    $do = [];
+    foreach ($porcja as $klucz => $w) {
+        $do[] = ['key' => $klucz, 'n' => (int) ($w['n'] ?? 0), 'element' => $w['element'] . ' · ' . $w['opis'], 'text' => $w['pl']];
+    }
+    $m = 'Page: ' . $tytul . "\n\nCONTEXT:\n" . implode("\n", $ctx) . "\n\nTO TRANSLATE (n = number in CONTEXT):\n"
+       . wp_json_encode($do, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    return [$s, $m];
+}
+
+/** Adresy dostawców; filtr podmienia je w testach. */
+function evk_tl_ai_adresy(): array {
+    return (array) apply_filters('evk_tl_ai_adresy', [
+        'gemini' => 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent',
+        'claude' => 'https://api.anthropic.com/v1/messages',
+        'openai' => 'https://api.openai.com/v1/responses',
+    ]);
+}
+
+/**
+ * Żądanie do dostawcy: [adres, nagłówki, ciało].
+ *
+ * Claude: odpowiedź w schemacie przez `output_config.format`; dla modeli,
+ * które je znają, `fallbacks: "default"` (odmowa klasyfikatora przechodzi
+ * na model zapasowy po stronie serwera) i jawny `effort` (Opus 5.5 domyślnie
+ * `medium`). Bez `temperature` — Opus 5.5 zwraca na nią 400.
+ *
+ * @return array{0:string,1:array<string,string>,2:array<string,mixed>}
+ */
+function evk_tl_ai_zadanie(array $u, string $system, string $wiadomosc): array {
+    $model = evk_tl_ai_model($u);
+    $klucz = evk_tl_ai_klucz($u);
+    $adres = (string) (evk_tl_ai_adresy()[$u['dostawca']] ?? '');
+    $schemat = evk_tl_ai_schemat();
+    if ($u['dostawca'] === 'claude') {
+        $naglowki = ['Content-Type' => 'application/json', 'x-api-key' => $klucz, 'anthropic-version' => '2023-06-01'];
+        $cialo = ['model' => $model, 'max_tokens' => 16000, 'system' => $system,
+            'messages' => [['role' => 'user', 'content' => $wiadomosc]],
+            'output_config' => ['format' => ['type' => 'json_schema', 'schema' => $schemat]]];
+        if (in_array($model, ['claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5', 'claude-fable-5-1'], true)) {
+            $naglowki['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+            $cialo['fallbacks'] = 'default';
+        }
+        if ($model === 'claude-opus-5-5') $cialo['output_config']['effort'] = 'medium';
+        return [$adres, $naglowki, $cialo];
+    }
+    if ($u['dostawca'] === 'openai') {
+        return [$adres, ['Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $klucz], [
+            'model' => $model, 'instructions' => $system, 'input' => $wiadomosc,
+            'text' => ['format' => ['type' => 'json_schema', 'name' => 'translations', 'strict' => true, 'schema' => $schemat]],
+        ]];
+    }
+    return [sprintf($adres, rawurlencode($model)), ['Content-Type' => 'application/json', 'x-goog-api-key' => $klucz], [
+        'systemInstruction' => ['parts' => [['text' => $system]]],
+        'contents' => [['role' => 'user', 'parts' => [['text' => $wiadomosc]]]],
+        'generationConfig' => ['responseMimeType' => 'application/json', 'responseJsonSchema' => $schemat],
+    ]];
+}
+
+/**
+ * Tekst odpowiedzi (JSON jako napis) albo błąd bez ponawiania.
+ *
+ * @param array<string,mixed> $o
+ * @return array{tekst?:string,blad?:string}
+ */
+function evk_tl_ai_tekst_odpowiedzi(string $dostawca, array $o): array {
+    if ($dostawca === 'claude') {
+        $powod = (string) ($o['stop_reason'] ?? '');
+        if ($powod === 'refusal') return ['blad' => 'Model odmówił tłumaczenia tej porcji (' . (string) ($o['stop_details']['category'] ?? 'bez kategorii') . ').'];
+        if ($powod === 'max_tokens') return ['blad' => 'Odpowiedź ucięta limitem długości.'];
+        foreach ((array) ($o['content'] ?? []) as $b) {
+            if (is_array($b) && ($b['type'] ?? '') === 'text') return ['tekst' => (string) ($b['text'] ?? '')];
+        }
+        return ['blad' => 'Odpowiedź bez tekstu.'];
+    }
+    if ($dostawca === 'openai') {
+        if (($o['status'] ?? 'completed') !== 'completed') return ['blad' => 'Odpowiedź niepełna (' . (string) ($o['status'] ?? '') . ').'];
+        foreach ((array) ($o['output'] ?? []) as $w) {
+            foreach ((array) ($w['content'] ?? []) as $c) {
+                if (!is_array($c)) continue;
+                if (($c['type'] ?? '') === 'refusal') return ['blad' => 'Model odmówił tłumaczenia tej porcji.'];
+                if (($c['type'] ?? '') === 'output_text') return ['tekst' => (string) ($c['text'] ?? '')];
+            }
+        }
+        return ['blad' => 'Odpowiedź bez tekstu.'];
+    }
+    if (!empty($o['promptFeedback']['blockReason'])) return ['blad' => 'Zapytanie zablokowane (' . (string) $o['promptFeedback']['blockReason'] . ').'];
+    $k = $o['candidates'][0] ?? null;
+    if (!is_array($k)) return ['blad' => 'Odpowiedź bez tekstu.'];
+    $tekst = '';
+    foreach ((array) ($k['content']['parts'] ?? []) as $p) {
+        if (is_array($p) && empty($p['thought'])) $tekst .= (string) ($p['text'] ?? '');
+    }
+    if ($tekst === '') return ['blad' => 'Odpowiedź bez tekstu (' . (string) ($k['finishReason'] ?? '') . ').'];
+    return ['tekst' => $tekst];
+}
+
+/**
+ * Błąd HTTP dostawcy: komunikat, ile sekund czekać (ponowienie) albo stop.
+ *   - 429 z czasem (retry-after, RetryInfo Gemini) → czekaj;
+ *   - limit dzienny darmowego poziomu Gemini, limit wydatków Claude,
+ *     brak środków OpenAI → stop (ponawianie nic nie da);
+ *   - 529 / 5xx → czekaj chwilę; 401/403 → stop (klucz); reszta → stop.
+ *
+ * @param mixed $o Zdekodowane ciało.
+ * @return array{blad:string,czekaj:int,stop:bool}
+ */
+function evk_tl_ai_blad_http(string $dostawca, int $kod, array $naglowki, $o): array {
+    $opis = is_array($o) ? (string) ($o['error']['message'] ?? '') : '';
+    $opis = $opis !== '' ? ' ' . mb_substr($opis, 0, 300) : '';
+    $za = (int) ($naglowki['retry-after'] ?? 0);
+    if ($kod === 429) {
+        if ($dostawca === 'gemini' && is_array($o)) {
+            foreach ((array) ($o['error']['details'] ?? []) as $d) {
+                if (!is_array($d)) continue;
+                if (isset($d['retryDelay'])) $za = max($za, (int) ceil((float) $d['retryDelay']));
+                foreach ((array) ($d['violations'] ?? []) as $v) {
+                    if (is_array($v) && stripos((string) ($v['quotaId'] ?? ''), 'PerDay') !== false) {
+                        return ['blad' => 'Dzienny limit darmowego poziomu Gemini wyczerpany — spróbuj jutro.', 'czekaj' => 0, 'stop' => true];
+                    }
+                }
+            }
+        }
+        if ($dostawca === 'claude' && is_array($o) && ($o['error']['details']['error_code'] ?? '') === 'enforced_spend_limit_reached') {
+            return ['blad' => 'Osiągnięty miesięczny limit wydatków konta Claude.' . $opis, 'czekaj' => 0, 'stop' => true];
+        }
+        if ($dostawca === 'openai' && is_array($o) && ($o['error']['code'] ?? '') === 'insufficient_quota') {
+            return ['blad' => 'Brak środków na koncie OpenAI.' . $opis, 'czekaj' => 0, 'stop' => true];
+        }
+        return ['blad' => 'Limit zapytań dostawcy — czekam.', 'czekaj' => max(5, min(300, $za ?: 30)), 'stop' => false];
+    }
+    if ($kod === 529 || $kod >= 500) return ['blad' => 'Dostawca przeciążony (' . $kod . ') — czekam.', 'czekaj' => max(5, min(300, $za ?: 20)), 'stop' => false];
+    if ($kod === 401 || $kod === 403) return ['blad' => 'Dostawca odrzucił klucz API (' . $kod . ').' . $opis, 'czekaj' => 0, 'stop' => true];
+    return ['blad' => 'Błąd dostawcy (' . $kod . ').' . $opis, 'czekaj' => 0, 'stop' => true];
+}
+
+/**
+ * Jedno zapytanie. Wynik: tłumaczenia pod kluczami krótkimi albo błąd
+ * (z czasem czekania albo stopem).
+ *
+ * @return array{ok:bool,tlumaczenia?:array<string,string>,blad?:string,czekaj?:int,stop?:bool}
+ */
+function evk_tl_ai_wyslij(array $u, string $system, string $wiadomosc): array {
+    if (evk_tl_ai_klucz($u) === '') return ['ok' => false, 'blad' => 'Brak klucza API tego dostawcy — wpisz go w ustawieniach Tłumaczenia AI.', 'czekaj' => 0, 'stop' => true];
+    [$adres, $naglowki, $cialo] = evk_tl_ai_zadanie($u, $system, $wiadomosc);
+    $odp = wp_remote_post($adres, ['headers' => $naglowki, 'body' => (string) wp_json_encode($cialo), 'timeout' => 120]);
+    if (is_wp_error($odp)) return ['ok' => false, 'blad' => 'Brak połączenia z dostawcą: ' . $odp->get_error_message(), 'czekaj' => 15, 'stop' => false];
+    $kod = (int) wp_remote_retrieve_response_code($odp);
+    $o = json_decode((string) wp_remote_retrieve_body($odp), true);
+    if ($kod !== 200) {
+        $retry = wp_remote_retrieve_header($odp, 'retry-after');
+        return ['ok' => false] + evk_tl_ai_blad_http($u['dostawca'], $kod, ['retry-after' => is_string($retry) ? $retry : ''], $o);
+    }
+    if (!is_array($o)) return ['ok' => false, 'blad' => 'Odpowiedź dostawcy nie jest JSON-em.', 'czekaj' => 0, 'stop' => true];
+    $t = evk_tl_ai_tekst_odpowiedzi($u['dostawca'], $o);
+    if (isset($t['blad'])) return ['ok' => false, 'blad' => $t['blad'], 'czekaj' => 0, 'stop' => false];
+    $j = json_decode((string) $t['tekst'], true);
+    if (!is_array($j) || !is_array($j['translations'] ?? null)) return ['ok' => false, 'blad' => 'Odpowiedź nie pasuje do schematu.', 'czekaj' => 0, 'stop' => false];
+    $out = [];
+    foreach ($j['translations'] as $w) {
+        if (is_array($w) && is_string($w['key'] ?? null) && is_string($w['text'] ?? null)) $out[$w['key']] = $w['text'];
+    }
+    return ['ok' => true, 'tlumaczenia' => $out];
+}
+
+// =========================================================================
+// ZAPIS
+// =========================================================================
+
+/**
+ * Wpisuje tłumaczenia w puste pola języka i oznacza tłumaczenia AI
+ * w stanie „Do sprawdzenia”. Zwraca liczbę zapisanych pól.
+ *
+ * @param array<string,string> $gotowe klucz miejsca → tłumaczenie
+ * @param array<string,bool>   $ai     klucze z AI (znacznik „Do sprawdzenia”)
+ */
+function evk_tl_ai_zapisz(int $post_id, string $meta_key, string $lang, array $gotowe, array $ai): int {
+    $dane = get_post_meta($post_id, $meta_key, true);
+    if (!is_array($dane) || !$gotowe) return 0;
+    $braki = evk_tl_ai_teksty($dane, $lang)['braki'];
+    $wykaz = evk_tl_el_dopisane($post_id, $meta_key);
+    $zapisane = [];
+    foreach ($dane as $i => $el) {
+        if (!is_array($el) || !is_array($el['settings'] ?? null)) continue;
+        $id = (string) ($el['id'] ?? '');
+        foreach ($gotowe as $klucz => $tekst) {
+            $b = $braki[$klucz] ?? null;
+            if (!$b || $b['id'] !== $id) continue;
+            $bliz = evk_tl_el_klucz($lang, $b['pole']);
+            $cz = explode('.', $b['sciezka']);
+            if (count($cz) === 1) {
+                $dane[$i]['settings'][$bliz] = $tekst;
+                $wykaz[$id . '|' . $bliz] = true;
+            } else {
+                foreach ((array) ($el['settings'][$cz[0]] ?? []) as $j => $poz) {
+                    $pid = is_array($poz) && isset($poz['id']) && is_scalar($poz['id']) && (string) $poz['id'] !== '' ? (string) $poz['id'] : (string) $j;
+                    if ($pid !== $cz[1] || !is_array($poz)) continue;
+                    $dane[$i]['settings'][$cz[0]][$j][$bliz] = $tekst;
+                    $wykaz[$id . '|' . $cz[0] . '.' . $pid . '.' . $bliz] = true;
+                }
+            }
+            $zapisane[$klucz] = true;
+        }
+    }
+    if (!$zapisane) return 0;
+    ksort($wykaz);
+    /* Jak przycisk „Przenieś” (53): wykaz przed zapisem, zapis bez haka,
+       który wziąłby dopisane pola za przysłane przez builder. */
+    evk_tl_el_zapisz_dopisane($post_id, $meta_key, $wykaz);
+    $GLOBALS['evk_tl_el_zapis_przycisku'] = true;
+    try {
+        update_post_meta($post_id, $meta_key, wp_slash($dane));
+    } finally {
+        $GLOBALS['evk_tl_el_zapis_przycisku'] = false;
+    }
+    /* Stan (52) policzył się przy zapisie ze skrótem bieżącego oryginału.
+       Tłumaczenia AI dostają źródło `ai`: różne od każdego skrótu, więc
+       miejsce jest „Do sprawdzenia”, dopóki ktoś go nie przyjmie. */
+    $stan = get_post_meta($post_id, EVK_TL_EL_STAN, true);
+    if (is_array($stan)) {
+        foreach (array_keys($ai) as $klucz) {
+            if (isset($zapisane[$klucz], $stan[$meta_key][$klucz])) $stan[$meta_key][$klucz]['src'] = 'ai';
+        }
+        update_post_meta($post_id, EVK_TL_EL_STAN, $stan);
+    }
+    return count($zapisane);
+}
+
+// =========================================================================
+// KROK
+// =========================================================================
+
+/**
+ * Jeden krok dla jednej części strony w jednym języku: pamięć tłumaczeń
+ * i pamięć wyników od razu, reszta — jedna porcja do AI. Klucze z `$pomin`
+ * (odrzucone wcześniej w tym przebiegu) nie idą drugi raz.
+ *
+ * @param list<string> $pomin
+ * @return array<string,mixed>
+ */
+function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pomin = []): array {
+    $u = evk_tl_ai_ustawienia();
+    $dane = get_post_meta($post_id, $meta_key, true);
+    $t = evk_tl_ai_teksty($dane, $lang);
+    $braki = array_diff_key($t['braki'], array_flip($pomin));
+    $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'odrzucone' => [], 'zostalo' => 0];
+    if (!$braki) return $wynik;
+
+    $gotowe = [];
+    $ai = [];
+    foreach ($braki as $k => $b) {
+        $z = evk_tl_ai_z_pamieci($b['pl'], $lang);
+        if ($z !== null) {
+            $gotowe[$k] = $z;
+            $wynik['z_pamieci']++;
+            continue;
+        }
+        $w = evk_tl_ai_wynik($u, $lang, $b['pl']);
+        if ($w !== null) {
+            $gotowe[$k] = $w;
+            $ai[$k] = true;
+            $wynik['z_pamieci']++;
+        }
+    }
+
+    /* To, co przyszło z pamięci, model widzi w kontekście jak każde inne
+       tłumaczenie — reszta strony trzyma się tego samego słownictwa. */
+    foreach ($gotowe as $k => $z) $t['kontekst'][$braki[$k]['n'] - 1]['tl'] = $z;
+
+    $reszta = array_diff_key($braki, $gotowe);
+    $porcja = [];
+    $znaki = 0;
+    foreach ($reszta as $k => $b) {
+        if ($porcja && (count($porcja) >= EVK_TL_AI_PORCJA || $znaki + strlen($b['pl']) > EVK_TL_AI_ZNAKI)) break;
+        $porcja[$k] = $b;
+        $znaki += strlen($b['pl']);
+    }
+    if ($porcja) {
+        $krotkie = [];
+        $n = 0;
+        foreach ($porcja as $k => $b) $krotkie['t' . (++$n)] = $k;
+        $tresc = [];
+        foreach ($krotkie as $kr => $k) $tresc[$kr] = $porcja[$k];
+        [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, (string) (get_the_title($post_id) ?: ('#' . $post_id)), $t['kontekst'], $tresc);
+        $r = evk_tl_ai_wyslij($u, $system, $wiadomosc);
+        if (!$r['ok'] && (!empty($r['stop']) || !empty($r['czekaj']))) {
+            /* Przejściowe (limit, przeciążenie) albo końcowe (klucz, limit
+               dzienny): ta sama porcja wraca w następnym kroku. */
+            $wynik['zapisane'] = evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai);
+            $wynik['zostalo'] = count($reszta);
+            return $wynik + ['blad' => (string) $r['blad'], 'czekaj' => (int) ($r['czekaj'] ?? 0), 'stop' => !empty($r['stop'])];
+        }
+        /* Błąd porcji (odmowa modelu, odpowiedź poza schematem): ponowienie
+           nic nie da — jej teksty idą do odrzuconych, reszta leci dalej. */
+        if (!$r['ok']) {
+            $wynik['blad'] = (string) $r['blad'];
+            $r['tlumaczenia'] = [];
+        }
+        $pamiec = [];
+        foreach ($krotkie as $kr => $k) {
+            $tl = $r['tlumaczenia'][$kr] ?? null;
+            if (!is_string($tl) || !evk_tl_ai_zgodne($porcja[$k]['pl'], $tl)) {
+                $wynik['odrzucone'][] = $k;
+                continue;
+            }
+            $gotowe[$k] = $tl;
+            $ai[$k] = true;
+            $pamiec[evk_tl_ai_klucz_wyniku($u, $lang, $porcja[$k]['pl'])] = $tl;
+            $wynik['z_ai']++;
+        }
+        evk_tl_ai_zapamietaj($pamiec);
+    }
+    $wynik['zapisane'] = evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai);
+    $wynik['zostalo'] = count($reszta) - count($porcja);
+    return $wynik;
+}
+
+/**
+ * Części stron z tekstami bez tłumaczenia: liczba braków w każdym języku.
+ *
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_jednostki(): array {
+    $jezyki = array_map('strval', evk_tl_kody_jezykow());
+    $out = [];
+    foreach (evk_tl_el_wpisy_bricksa() as [$post_id, $meta_key]) {
+        $dane = get_post_meta($post_id, $meta_key, true);
+        if (!is_array($dane)) continue;
+        $braki = [];
+        foreach ($jezyki as $j) {
+            $n = count(evk_tl_ai_teksty($dane, $j)['braki']);
+            if ($n) $braki[$j] = $n;
+        }
+        if (!$braki) continue;
+        $out[] = ['post_id' => $post_id, 'meta_key' => $meta_key, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
+            'czesc' => evk_tl_el_czesc($meta_key), 'adres' => evk_tl_el_adres_edycji($post_id), 'braki' => $braki];
+    }
+    return $out;
+}
+
+// =========================================================================
+// AJAX
+// =========================================================================
+
+/** Ustawienia (z kluczem API) — tylko administrator. */
+add_action('wp_ajax_evk_tl_ai_ustawienia', function (): void {
+    check_ajax_referer('evk_tl_ai', 'nonce');
+    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnień.', 403);
+    $u = evk_tl_ai_ustawienia();
+    $p = wp_unslash($_POST);
+    $d = evk_tl_ai_dostawcy();
+    if (isset($d[$p['dostawca'] ?? ''])) $u['dostawca'] = (string) $p['dostawca'];
+    $klucz = trim(sanitize_text_field((string) ($p['klucz'] ?? '')));
+    if (!empty($p['usun_klucz'])) unset($u['klucze'][$u['dostawca']]);
+    elseif ($klucz !== '') $u['klucze'][$u['dostawca']] = $klucz;
+    $u['modele'][$u['dostawca']] = trim(sanitize_text_field((string) ($p['model'] ?? '')));
+    $u['opis'] = sanitize_textarea_field((string) ($p['opis'] ?? ''));
+    $u['slowniczek'] = sanitize_textarea_field((string) ($p['slowniczek'] ?? ''));
+    $u['wskazowki'] = [];
+    foreach (array_keys(tl_get_languages()) as $j) {
+        $u['wskazowki'][(string) $j] = sanitize_textarea_field((string) ($p['wskazowki'][$j] ?? ''));
+    }
+    update_option(EVK_TL_AI_OPCJA, $u, false);
+    wp_send_json_success(['komunikat' => 'Zapisano.', 'klucz' => evk_tl_ai_klucz($u) !== '']);
+});
+
+/** Lista części stron z brakami. */
+add_action('wp_ajax_evk_tl_ai_lista', function (): void {
+    evk_tl_ajax_check('evk_tl_ai');
+    wp_send_json_success(evk_tl_ai_jednostki());
+});
+
+/** Jeden krok tłumaczenia. */
+add_action('wp_ajax_evk_tl_ai_krok', function (): void {
+    evk_tl_ajax_check('evk_tl_ai');
+    $post_id = absint($_POST['post_id'] ?? 0);
+    $meta_key = sanitize_text_field(wp_unslash((string) ($_POST['meta_key'] ?? '')));
+    $lang = sanitize_key((string) ($_POST['lang'] ?? ''));
+    if (!$post_id || !in_array($meta_key, evk_tl_el_klucze_meta(), true) || !isset(tl_get_languages()[$lang])) {
+        wp_send_json_error('Nieznana strona albo język.');
+    }
+    if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
+    $pomin = array_values(array_filter(array_map('strval', (array) wp_unslash($_POST['pomin'] ?? []))));
+    if (function_exists('set_time_limit')) @set_time_limit(180);
+    wp_send_json_success(evk_tl_ai_krok($post_id, $meta_key, $lang, $pomin));
+});

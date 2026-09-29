@@ -2,6 +2,150 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.260.0] — 2026-09-29
+
+Tłumaczenia: tłumaczenie AI tekstów w elementach Bricksa — hurtem, z kontekstem,
+powtarzalne, zawsze „Do sprawdzenia”.
+
+### Dodane
+
+- **Zakładka „Tłumaczenie AI”** (Tłumaczenia). Decyzje zgłaszającego z 29.09:
+  dostawca do wyboru, Gemini domyślnie; na początek elementy Bricksa hurtem
+  z panelu; AI wypełnia tylko puste pola, a każdy wynik trafia na listę
+  „Do sprawdzenia”.
+  - Dostawcy: Gemini (Google, jedyny z darmowym poziomem API), Claude
+    (Anthropic) i OpenAI — oba z płatnym kluczem. Klucz i model osobno dla
+    każdego; puste pole modelu to model domyślny: `gemini-3.8-flash`,
+    `claude-opus-5-5`, `gpt-6-astra`.
+  - „Pokaż strony z brakami”: części stron (treść, nagłówek, stopka) z liczbą
+    pustych pól w każdym języku. Zaznaczasz strony i języki, „Przetłumacz
+    zaznaczone” idzie krok po kroku z dziennikiem, „Zatrzymaj” kończy po
+    bieżącym kroku.
+  - Wynik trafia tylko do pustych pól „Tłumaczenie EN/DE”, wypełnione zostają
+    nietknięte. Tłumaczenie AI ma w stanie „Do sprawdzenia” źródło „AI”.
+    Zdejmuje je „Sprawdzone” albo poprawka.
+- **Kontekst.** Jedno zapytanie obejmuje teksty jednej części strony. Model
+  widzi wszystkie po kolei (typ elementu, pole, pozycja listy) razem z już
+  istniejącymi tłumaczeniami, więc trzyma się ich słownictwa. Tłumaczy tylko
+  brakujące. Do tego z ustawień:
+  - opis strony (branża, odbiorcy, ton);
+  - wskazówki dla każdego języka (np. forma „Sie”);
+  - słowniczek: `polski | EN | DE` oraz `!Nazwa` (nie tłumaczyć).
+- **Powtarzalność** — nie przez parametry modelu (Claude Opus 5.5 odrzuca
+  `temperature`, a Google zaleca dla Gemini 3 wartość domyślną). Zamiast
+  tego dwie pamięci:
+  - Pamięć tłumaczeń. Jeśli ten sam polski tekst ma sprawdzone tłumaczenie
+    w innym elemencie albo całą frazę w słowniku Tłumaczeń, dostaje je bez
+    pytania AI. Oszczędza to też darmowy limit. Tłumaczenia AI
+    „Do sprawdzenia” się tu nie liczą.
+  - Pamięć wyników. Ten sam tekst przy tych samych ustawieniach (dostawca,
+    model, opis, wskazówki, słowniczek) daje ten sam wynik bez zapytania,
+    także na innej stronie. Trzyma 5000 ostatnich.
+- **Strażnik.** Tłumaczenie musi mieć to samo co oryginał:
+  - te same znaczniki HTML w tej samej kolejności;
+  - te same tagi `{…}`;
+  - te same zarejestrowane shortcody.
+
+  Inaczej jest odrzucane: widać to w dzienniku, a pole zostaje puste. Tekst
+  bez liter (sam `{post_title}`, liczba) w ogóle nie idzie do AI.
+- **Limity i błędy.** Jedno zapytanie ma najwyżej 25 tekstów i 6000 znaków,
+  żeby odpowiedź zmieściła się w limicie czasu hostingu i Cloudflare'a.
+  - Czekanie i ponowienie: 429 z podanym czasem (retry-after, RetryInfo
+    Gemini) i przeciążenie dostawcy.
+  - Stop z komunikatem: dzienny limit darmowego Gemini, limit wydatków
+    Claude, brak środków na OpenAI, odrzucony klucz.
+  - Odmowa modelu albo odpowiedź poza schematem: teksty tej porcji idą do
+    odrzuconych, reszta leci dalej.
+- **Uprawnienia.** Ustawienia (z kluczem) zmienia tylko administrator.
+  Tłumacz z dostępem do Tłumaczeń widzi je i tłumaczy strony, które może
+  edytować.
+- **Klucz API** leży wyłącznie w opcji `evk_tl_ai`. Pole w zakładce jest
+  zawsze puste, a strona i odpowiedzi AJAX mówią tylko „zapisany”. Eksport
+  ustawień nie obejmuje ustawień AI w ogóle, więc klucza też nie. Obie nowe
+  opcje (`evk_tl_ai`, `evk_tl_ai_pamiec`) są w spisie danych i „Usuń dane”
+  je kasuje.
+- **Prywatność** (napisane w zakładce). Teksty stron idą do wybranego
+  dostawcy. Na darmowym poziomie Gemini Google wykorzystuje je do
+  ulepszania swoich usług, na płatnych poziomach — nie.
+
+### Jak to działa
+
+- HTTP idzie przez `wp_remote_post`, bez SDK: wtyczka nie ma Composera,
+  a trzech dostawców obsługuje jeden kod. Adresy da się podmienić filtrem
+  `evk_tl_ai_adresy`.
+- Claude: Messages API.
+  - Odpowiedź w schemacie JSON (`output_config.format`) i `effort: medium`.
+  - Zapasowy model po stronie serwera (`fallbacks: "default"`, nagłówek
+    `server-side-fallback-2026-07-01`). Odmowa klasyfikatora przechodzi
+    wtedy na model zapasowy, zamiast kończyć porcję.
+- Gemini: `generateContent`, klucz w nagłówku `x-goog-api-key` (nie
+  w adresie), `responseJsonSchema`.
+- OpenAI: Responses API, `text.format` ze ścisłym schematem.
+- Zapis działa jak przycisk „Przenieś” (53):
+  - wykaz pól dopisanych, żeby otwarty builder ich nie zgubił;
+  - zapis z pominięciem haka, który wziąłby dopisane pola za przysłane
+    przez builder.
+
+### Poprawione (testy)
+
+- **Zawieszenie logowania w harnessie** („nawigacja nie skończyła się
+  w 30 s”) — znaleziona przyczyna. Wracało od 1.227.0, raz na kilkanaście
+  przebiegów.
+  - Zapis zdarzeń dopisany do wyjątku pokazał już przy pierwszym
+    wystąpieniu: GET wp-login.php, 200, klik — i żadnego POST.
+  - Strona logowania 200 ms po wczytaniu robi `user_login.focus(); select()`,
+    a `fill()` hasła to osobno fokus i wpisanie. Gdy zegar trafi pomiędzy,
+    hasło ląduje w polu loginu. Puste hasło ma `required`, więc przeglądarka
+    zatrzymuje formularz na walidacji. Odtworzone deterministycznie.
+  - Poprawka: pomocnik sprawdza oba pola przed kliknięciem i w razie
+    rozjazdu wpisuje je jeszcze raz. Zapis zdarzeń zostaje w wyjątku.
+  - Pomiar z losowym momentem zegara: dawna kolejność zostawiła puste hasło
+    w 1 próbie na 80, pomocnik nie zawiódł ani razu na 40.
+
+### Testy
+
+- `tests/tl-ai.test.js` + sonda + atrapa dostawców
+  (`tests/php/_ai-atrapa.php`, filtr `pre_http_request` na prawdziwych
+  adresach API). 76 sprawdzeń:
+  - zapytania trzech dostawców (adres, nagłówki, ciało), kontekst,
+    słowniczek;
+  - zapis tylko w puste pola, znacznik AI, pamięć tłumaczeń i wyników,
+    strażnik, porcje;
+  - błędy (429, limity, klucz, odmowa, zły JSON), AJAX z uprawnieniami,
+    klucz poza HTML-em;
+  - w Chromium: pętla panelu z 429 po drodze, dzienny limit, ustawienia,
+    telefon 360 px.
+- `tests/zapis-wp-logowanie.test.js`: wymusza najgorszy moment zegara
+  autofokusu. Kontrola (zwykłe `fill()`) daje klik bez POST, a pomocnik
+  loguje się bez czekania na przekroczenie czasu.
+- Mutacje: 26 w module AI, każda zapala własne sprawdzenia
+  (8/6/8/2/3/11/1/2/1/1/2/9/3/1/2/3/4/1/4/2/1/1/3/10/1/1). Po kolei:
+  - zapis w wypełnione pola; bez znacznika AI; bez pamięci tłumaczeń;
+    tłumaczenia AI w pamięci tłumaczeń; bez pamięci wyników; bez strażnika;
+    kontekst bez tłumaczeń; zła kolumna słowniczka;
+  - `temperature` u Claude; bez `fallbacks`; klucz Gemini w adresie;
+    429 jako stop; limit dzienny jako czekanie;
+  - ustawienia bez `manage_options`; krok bez `edit_post`; klucz w polu
+    zakładki; pętla bez ponowienia; stop tylko dla jednej strony;
+  - bez limitu liczby; bez limitu znaków; bez wykazu dopisanych; zapis
+    przez hak 53; polska nazwa języka; dane dynamiczne do AI; klucz
+    w odpowiedzi AJAX; odmowa Claude bez rozpoznania.
+  Dwie z nich (bez wykazu dopisanych, zapis przez hak 53) zapalają to samo
+  sprawdzenie: obie psują wykaz dopisanych, każda inną drogą.
+  Do tego 1 mutacja w pomocniku logowania (bez sprawdzenia pól): zapala
+  oba jego sprawdzenia z tym samym podpisem co zawieszenia w pełnych
+  przebiegach.
+- Pełny przebieg: 5964 sprawdzeń w 122 plikach, wszystkie zielone
+  (`zapis-wp-newsletter` pasuje do dwóch partii i idzie dwa razy).
+
+### Do sprawdzenia na testowej
+
+- Klucz Gemini z AI Studio i strona z kilkoma elementami: „Przetłumacz
+  braki”, potem lista „Do sprawdzenia”.
+- Builder otwarty w trakcie tłumaczenia: zapis w builderze nie gubi pól
+  wpisanych przez AI.
+- Claude albo OpenAI, jeśli jest płatny klucz.
+
 ## [1.259.0] — 2026-09-29
 
 Tłumaczenia: wyszukiwarka na wersji językowej szuka też w tłumaczeniach

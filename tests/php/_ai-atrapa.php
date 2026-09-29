@@ -1,0 +1,89 @@
+<?php
+// Tylko z wiersza poleceń. Pliki jadą do repozytorium, a stamtąd aktualizatorem
+// na żywe strony — bez tej bramki byłyby osiągalne przez HTTP.
+if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
+/**
+ * Atrapa dostawców AI (Gemini, Claude, OpenAI) dla testów tłumaczenia AI
+ * (1.260.0). Filtr `pre_http_request` przechwytuje żądania na PRAWDZIWE
+ * adresy dostawców — test sprawdza więc adres, nagłówki i ciało, które
+ * wtyczka naprawdę by wysłała — zapisuje je i odpowiada w kształcie danego
+ * dostawcy.
+ *
+ * Tłumaczenie atrapy: każdy węzeł tekstu dostaje przedrostek „EN:” (kod
+ * z $GLOBALS['evk_t_ai_kod']); znaczniki i tagi `{…}` zostają, więc strażnik
+ * przepuszcza. Tekst z „ZEPSUJ” wraca bez znaczników — strażnik odrzuca.
+ *
+ * $GLOBALS['evk_t_ai_scenariusz']: ok | 429 | 429-raz | limit-wydatkow |
+ * dzienny | retry-gemini | 401 | odmowa | zly-json. `429-raz`: pierwsze
+ * żądanie (znacznik w pliku — działa też między żądaniami serwera) dostaje
+ * 429, kolejne idą jak `ok`.
+ * $GLOBALS['evk_t_ai_zadania']: lista {url, headers, body} przechwyconych żądań.
+ *
+ * Panel w przeglądarce (serwer `php -S`) dostaje tę atrapę jako mu-plugin
+ * składany przez sondę z tego pliku — bramka CLI wyżej zatrzymałaby `require`.
+ */
+
+$GLOBALS['evk_t_ai_zadania'] = [];
+
+function evk_t_ai_tlumacz(string $pl): string {
+    $kod = strtoupper((string) ($GLOBALS['evk_t_ai_kod'] ?? 'en'));
+    if (strpos($pl, 'ZEPSUJ') !== false) return wp_strip_all_tags($pl);
+    return substr((string) preg_replace('/>([^<]+)</u', '>' . $kod . ':$1<', '>' . $pl . '<'), 1, -1);
+}
+
+/** Teksty z sekcji TO TRANSLATE wiadomości. */
+function evk_t_ai_do_tlumaczenia(string $wiadomosc): array {
+    $p = strpos($wiadomosc, "\nTO TRANSLATE");
+    $n = $p === false ? false : strpos($wiadomosc, "\n", $p + 1);
+    $lista = $n === false ? null : json_decode(substr($wiadomosc, $n + 1), true);
+    return is_array($lista) ? $lista : [];
+}
+
+function evk_t_ai_odpowiedz(int $kod, $cialo, array $naglowki = []): array {
+    return ['headers' => $naglowki, 'body' => is_string($cialo) ? $cialo : (string) wp_json_encode($cialo),
+        'response' => ['code' => $kod, 'message' => $kod === 200 ? 'OK' : 'Error'], 'cookies' => [], 'filename' => null];
+}
+
+add_filter('pre_http_request', function ($pre, $args, $url) {
+    $dostawca = strpos($url, 'api.anthropic.com') !== false ? 'claude'
+        : (strpos($url, 'generativelanguage.googleapis.com') !== false ? 'gemini'
+        : (strpos($url, 'api.openai.com') !== false ? 'openai' : ''));
+    if ($dostawca === '') return $pre;
+    $cialo = json_decode((string) ($args['body'] ?? ''), true);
+    $GLOBALS['evk_t_ai_zadania'][] = ['url' => $url, 'headers' => (array) ($args['headers'] ?? []), 'body' => $cialo];
+    $s = (string) ($GLOBALS['evk_t_ai_scenariusz'] ?? 'ok');
+
+    if ($s === '401') return evk_t_ai_odpowiedz(401, ['error' => ['message' => 'invalid x-api-key']]);
+    if ($s === '429') return evk_t_ai_odpowiedz(429, ['type' => 'error', 'error' => ['type' => 'rate_limit_error', 'message' => 'Rate limited']], ['retry-after' => '7']);
+    $raz = sys_get_temp_dir() . '/evk-t-tl-ai-429-raz';
+    if ($s === '429-raz' && !is_file($raz)) {
+        touch($raz);
+        return evk_t_ai_odpowiedz(429, ['error' => ['code' => 429, 'status' => 'RESOURCE_EXHAUSTED', 'message' => 'Quota exceeded']], ['retry-after' => '1']);
+    }
+    if ($s === 'limit-wydatkow') return evk_t_ai_odpowiedz(429, ['type' => 'error', 'error' => ['type' => 'rate_limit_error',
+        'message' => 'You have reached your API usage limits', 'details' => ['error_code' => 'enforced_spend_limit_reached']]]);
+    if ($s === 'dzienny') return evk_t_ai_odpowiedz(429, ['error' => ['code' => 429, 'status' => 'RESOURCE_EXHAUSTED', 'message' => 'Quota exceeded',
+        'details' => [['@type' => 'type.googleapis.com/google.rpc.QuotaFailure',
+            'violations' => [['quotaId' => 'GenerateRequestsPerDayPerProjectPerModel-FreeTier']]]]]]);
+    if ($s === 'retry-gemini') return evk_t_ai_odpowiedz(429, ['error' => ['code' => 429, 'status' => 'RESOURCE_EXHAUSTED', 'message' => 'Quota exceeded',
+        'details' => [['@type' => 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay' => '12s']]]]);
+    if ($s === 'odmowa') return evk_t_ai_odpowiedz(200, ['type' => 'message', 'content' => [], 'stop_reason' => 'refusal',
+        'stop_details' => ['type' => 'refusal', 'category' => 'cyber']]);
+
+    $wiadomosc = $dostawca === 'claude' ? (string) ($cialo['messages'][0]['content'] ?? '')
+        : ($dostawca === 'gemini' ? (string) ($cialo['contents'][0]['parts'][0]['text'] ?? '') : (string) ($cialo['input'] ?? ''));
+    $tl = [];
+    foreach (evk_t_ai_do_tlumaczenia($wiadomosc) as $w) {
+        $tl[] = ['key' => (string) ($w['key'] ?? ''), 'text' => evk_t_ai_tlumacz((string) ($w['text'] ?? ''))];
+    }
+    $json = $s === 'zly-json' ? 'to nie jest JSON' : (string) wp_json_encode(['translations' => $tl], JSON_UNESCAPED_UNICODE);
+    if ($dostawca === 'claude') {
+        return evk_t_ai_odpowiedz(200, ['id' => 'msg_test', 'type' => 'message', 'role' => 'assistant', 'model' => $cialo['model'] ?? '',
+            'content' => [['type' => 'text', 'text' => $json]], 'stop_reason' => 'end_turn']);
+    }
+    if ($dostawca === 'gemini') {
+        return evk_t_ai_odpowiedz(200, ['candidates' => [['content' => ['role' => 'model', 'parts' => [['text' => $json]]], 'finishReason' => 'STOP']]]);
+    }
+    return evk_t_ai_odpowiedz(200, ['id' => 'resp_test', 'status' => 'completed',
+        'output' => [['type' => 'message', 'role' => 'assistant', 'content' => [['type' => 'output_text', 'text' => $json]]]]]);
+}, 10, 3);

@@ -15,6 +15,19 @@
  * dotarła do „load" w 30 s, a nie dało się tego odtworzyć. Przy przekroczeniu
  * czasu wyjątek niesie listę żądań, które wiszą, i to, co akurat robi baza
  * — zamiast gołego „Timeout".
+ *
+ * PRZYCZYNA (1.260.0). Zapis zdarzeń w wyjątku pokazał: GET wp-login.php,
+ * 200, klik — i żadnego POST. Strona logowania po 200 ms robi
+ * `user_login.focus(); select()` (wp_attempt_focus), a `fill()` to osobno
+ * fokus i wpisanie. Gdy zegar trafi pomiędzy, „admin” idzie do zaznaczonego
+ * pola loginu, hasło zostaje puste, a że ma `required`, przeglądarka
+ * zatrzymuje wysłanie na walidacji. Odtworzone deterministycznie (zegar
+ * wywołany ręcznie między fokusem a wpisaniem: puste hasło, klik bez POST).
+ * Stąd przed kliknięciem sprawdzamy oba pola i w razie rozjazdu wpisujemy
+ * jeszcze raz (tests/zapis-wp-logowanie.test.js wymusza najgorszy moment).
+ *
+ * Zapis zdarzeń strony (żądania, odpowiedzi, odrzucone, nawigacje) zostaje
+ * w wyjątku — gdyby logowanie stanęło z innego powodu.
  */
 
 const { spawn, execSync } = require('child_process');
@@ -71,25 +84,47 @@ function stanBazy() {
 
 /** Logowanie admin/admin; przy przekroczeniu czasu wyjątek z diagnozą. */
 async function zaloguj(p, baza, login = 'admin', haslo = 'admin') {
-  await p.goto(baza + '/wp-login.php');
-  await p.fill('#user_login', login);
-  await p.fill('#user_pass', haslo);
+  const t0 = Date.now();
+  const zdarzenia = [];
+  const zapisz = (s) => zdarzenia.push((Date.now() - t0) + ' ms ' + s.replace(baza, ''));
   const wisza = new Map();
-  const naStart = (r) => wisza.set(r, Date.now());
+  // Skrypty, arkusze, obrazy i pisma tylko przy błędzie — inaczej zasypują zapis.
+  const wazne = (r) => !['script', 'stylesheet', 'image', 'font'].includes(r.resourceType());
+  const naStart = (r) => { if (wazne(r)) zapisz(r.method() + ' ' + r.url()); wisza.set(r, Date.now()); };
   const naKoniec = (r) => wisza.delete(r);
+  const naOdpowiedz = (r) => { if (wazne(r.request())) zapisz(r.status() + ' ' + r.url()); };
+  const naBlad = (r) => { zapisz('odrzucone ' + r.url() + ' ' + ((r.failure() || {}).errorText || '')); wisza.delete(r); };
+  const naNawigacje = (f) => { if (f === p.mainFrame()) zapisz('nawigacja ' + f.url()); };
   p.on('request', naStart);
+  p.on('response', naOdpowiedz);
   p.on('requestfinished', naKoniec);
-  p.on('requestfailed', naKoniec);
+  p.on('requestfailed', naBlad);
+  p.on('framenavigated', naNawigacje);
   try {
+    await p.goto(baza + '/wp-login.php');
+    /* Wartości sprawdzone tuż przed kliknięciem. Zegar autofokusu, który
+       przyjdzie PO sprawdzeniu, przestawia już tylko fokus — pól nie rusza. */
+    for (let proba = 0; ; proba++) {
+      await p.fill('#user_login', login);
+      await p.fill('#user_pass', haslo);
+      const w = await p.evaluate(() => [document.getElementById('user_login').value, document.getElementById('user_pass').value]);
+      if (w[0] === login && w[1] === haslo) break;
+      zapisz('pola po wpisaniu: login ' + w[0].length + ' zn., hasło ' + w[1].length + ' zn.');
+      if (proba >= 2) throw new Error('pola logowania nie przyjęły wartości');
+    }
+    wisza.clear();   // „wiszą" liczy się od kliknięcia, jak dotąd
+    zapisz('klik #wp-submit');
     await Promise.all([p.waitForNavigation({ timeout: 30000 }), p.click('#wp-submit')]);
   } catch (e) {
     const lista = [...wisza].map(([r, t]) => r.url().replace(baza, '') + ' (' + (Date.now() - t) + ' ms)').join(', ');
-    throw new Error('logowanie: nawigacja nie skończyła się w 30 s; wiszą żądania: ' + (lista || 'żadne')
-      + '; baza: ' + stanBazy() + '; adres: ' + p.url());
+    throw new Error('logowanie nie doszło do końca (' + String(e.message).split('\n')[0] + '); wiszą żądania: ' + (lista || 'żadne')
+      + '; baza: ' + stanBazy() + '; adres: ' + p.url() + '; zdarzenia: ' + zdarzenia.slice(-25).join(' | '));
   } finally {
     p.off('request', naStart);
+    p.off('response', naOdpowiedz);
     p.off('requestfinished', naKoniec);
-    p.off('requestfailed', naKoniec);
+    p.off('requestfailed', naBlad);
+    p.off('framenavigated', naNawigacje);
   }
 }
 
