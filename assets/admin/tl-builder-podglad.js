@@ -38,7 +38,7 @@
   const JEZYKI = Array.isArray(DANE.jezyki) && DANE.jezyki.length ? DANE.jezyki : ['pl'];
   const MAPA = DANE.mapa || {};
   const SLOWNIK = DANE.slownik || {};
-  const NAPISY = Object.assign({ brak: 'brak %s', edycja: 'edycja PL', grupa: 'Podgląd języka', przycisk: 'Podgląd: %s' }, DANE.napisy || {});
+  const NAPISY = Object.assign({ brak: 'brak %s', grupa: 'Podgląd języka', przycisk: 'Podgląd: %s' }, DANE.napisy || {});
 
   let powloka = null;
   try { powloka = window.parent && window.parent !== window && window.parent.document ? window.parent : null; } catch (e) { powloka = null; }
@@ -341,7 +341,7 @@
       document.querySelectorAll('.evk-tl-brak').forEach((r) => { if (!braki.has(r)) r.classList.remove('evk-tl-brak'); });
       braki.forEach((r) => { if (r.isConnected) r.classList.add('evk-tl-brak'); else braki.delete(r); });
     });
-    znaczniki();
+    etykieta();
   }
 
   // ── Obserwator: przerysowania Vue budzą przebieg, własne zmiany nie ─────
@@ -407,7 +407,7 @@
       root.classList.remove('evk-tl-brak');
       braki.delete(root);
     });
-    znaczniki();
+    etykieta();
   }
 
   function zwolnij(wymus) {
@@ -424,7 +424,12 @@
   }
 
   const rootZ = (e) => (e.target && e.target.closest ? e.target.closest('[data-id]') : null);
-  document.addEventListener('pointerdown', (e) => { const r = rootZ(e); if (r) edycja(r); else if (edytowany) zwolnij(true); }, true);
+  document.addEventListener('pointerdown', (e) => {
+    const r = rootZ(e);
+    poKliknieciu = r;
+    if (r) edycja(r); else if (edytowany) zwolnij(true);
+    etykieta();
+  }, true);
   document.addEventListener('focusin', (e) => { const r = rootZ(e); if (r) edycja(r); }, true);
   document.addEventListener('focusout', () => setTimeout(() => zwolnij(false), 60), true);
   document.addEventListener('pointerup', () => setTimeout(() => {
@@ -438,45 +443,78 @@
     if (r && r !== edytowany && zmiany.some((z) => z.root === r)) { e.preventDefault(); edycja(r); }
   }, true);
 
-  // ── Znaczniki na nakładce (bez zmiany układu strony) ────────────────────
-  let nakladka = null, klatka = 0;
-  function znaczniki() {
+  // ── Napis „brak EN" po najechaniu, jak nazwa elementu w Bricksie ────────
+  /* Pod ramką na dole po lewej, jak zakładka; znika po kliknięciu w element
+     i na czas przewijania (decyzja zgłaszającego). Jeden napis, liczony przy
+     najechaniu: w 1.257.0 znaczki wisiały nad każdym elementem i przy
+     przewijaniu zostawały w tyle za ramką. */
+  let nakladka = null, napis = null, pod = null, poKliknieciu = null, przewija = false, zegarPrzewijania = 0;
+  function etykieta() {
     if (!nakladka) {
       nakladka = document.createElement('div');
       nakladka.id = 'evk-tl-nakladka';
       nakladka.setAttribute('aria-hidden', 'true');
-      document.body.appendChild(nakladka);
+      napis = document.createElement('span');
+      napis.className = 'evk-tl-znacznik';
+      napis.hidden = true;
+      nakladka.appendChild(napis);
+      wstrzymaj(() => document.body.appendChild(nakladka));
     }
-    const lista = [];
-    if (tryb !== 'pl') {
-      braki.forEach((r) => { if (r.isConnected && r !== edytowany) lista.push([r, NAPISY.brak.replace('%s', tryb.toUpperCase()), 'brak']); });
-      if (edytowany && edytowany.isConnected) lista.push([edytowany, NAPISY.edycja, 'edycja']);
-    }
+    const r = pod;
+    const pokaz = tryb !== 'pl' && !przewija && !!r && r.isConnected && r !== poKliknieciu && r !== edytowany
+      && r.classList.contains('evk-tl-brak');
     wstrzymaj(() => {
-      nakladka.textContent = '';
-      lista.forEach(([r, napis, rodzaj]) => {
-        const b = r.getBoundingClientRect();
-        if (!b.width && !b.height) return;
-        const z = document.createElement('span');
-        z.className = 'evk-tl-znacznik ' + rodzaj;
-        z.textContent = napis;
-        z.style.left = Math.max(0, b.left) + 'px';
-        z.style.top = Math.max(0, b.top) + 'px';
-        nakladka.appendChild(z);
-      });
+      if (!pokaz) { napis.hidden = true; napis.removeAttribute('data-dla'); return; }
+      const b = r.getBoundingClientRect();
+      const n = nakladka.getBoundingClientRect();
+      /* Względem nakładki, nie okna: przy przekształconym przodku `fixed` liczy się
+         od niego. Skala z szerokości — kanwę da się pomniejszyć. 4 px = obrys
+         i jego odsunięcie, więc napis przylega do zewnętrznej krawędzi ramki. */
+      const skala = nakladka.offsetWidth ? n.width / nakladka.offsetWidth : 1;
+      napis.textContent = NAPISY.brak.replace('%s', tryb.toUpperCase());
+      napis.setAttribute('data-dla', r.getAttribute('data-id') || '');
+      napis.style.left = ((b.left - n.left) / skala - 4) + 'px';
+      napis.style.top = ((b.bottom - n.top) / skala + 4) + 'px';
+      napis.hidden = false;
     });
   }
-  const przeliczZnaczniki = () => { if (!klatka) klatka = requestAnimationFrame(() => { klatka = 0; znaczniki(); }); };
-  window.addEventListener('scroll', przeliczZnaczniki, true);
-  window.addEventListener('resize', przeliczZnaczniki);
+
+  document.addEventListener('pointerover', (e) => {
+    const r = rootZ(e);
+    if (r === pod) return;
+    pod = r;
+    if (poKliknieciu && poKliknieciu !== r) poKliknieciu = null;
+    etykieta();
+  }, true);
+  document.addEventListener('pointerout', (e) => {
+    if (e.relatedTarget) return;
+    pod = null;
+    poKliknieciu = null;
+    etykieta();
+  }, true);
+  /* Przewijanie: napis znika od razu, a po zatrzymaniu wraca dla elementu,
+     który jest wtedy pod nieruchomym wskaźnikiem. */
+  window.addEventListener('scroll', () => {
+    if (!przewija) { przewija = true; etykieta(); }
+    clearTimeout(zegarPrzewijania);
+    zegarPrzewijania = setTimeout(() => {
+      przewija = false;
+      const nad = document.querySelectorAll(':hover');
+      const ostatni = nad.length ? nad[nad.length - 1] : null;
+      const r = ostatni && ostatni.closest ? ostatni.closest('[data-id]') : null;
+      if (r !== pod) { pod = r; poKliknieciu = null; }
+      etykieta();
+    }, 150);
+  }, true);
+  window.addEventListener('resize', () => etykieta());
 
   const styl = document.createElement('style');
   styl.id = 'evk-tl-podglad-kanwa';
   styl.textContent = '.evk-tl-brak{outline:2px dashed #f59e0b !important;outline-offset:2px}'
     + '.evk-tl-edycja{outline:2px solid #3b82f6 !important;outline-offset:2px}'
     + '#evk-tl-nakladka{position:fixed;inset:0;pointer-events:none;z-index:2147483000}'
-    + '#evk-tl-nakladka .evk-tl-znacznik{position:absolute;transform:translateY(-100%);font:600 10px/1.5 system-ui,sans-serif;padding:0 5px;border-radius:3px;background:#f59e0b;color:#1f2937;white-space:nowrap}'
-    + '#evk-tl-nakladka .evk-tl-znacznik.edycja{background:#3b82f6;color:#fff}';
+    + '#evk-tl-nakladka .evk-tl-znacznik{position:absolute;font:600 10px/1.5 system-ui,sans-serif;padding:0 5px;border-radius:0 0 3px 3px;background:#f59e0b;color:#1f2937;white-space:nowrap}'
+    + '#evk-tl-nakladka .evk-tl-znacznik[hidden]{display:none}';
   document.head.appendChild(styl);
 
   // ── Przełącznik w pasku powłoki ─────────────────────────────────────────
@@ -514,7 +552,7 @@
       s.id = 'evk-tl-podglad-styl';
       s.textContent = '#evk-tl-podglad{display:flex;align-items:center;gap:2px;margin:0 8px;padding:0;list-style:none}'
         + '#evk-tl-podglad li{margin:0;padding:0;list-style:none}'
-        + '#evk-tl-podglad button{min-width:32px;height:28px;padding:0 8px;border:0;border-radius:4px;background:transparent;color:inherit;font:600 12px/1 inherit;letter-spacing:.02em;cursor:pointer;opacity:.75}'
+        + '#evk-tl-podglad button{min-width:32px;border:0;border-radius:4px;background:transparent;color:inherit;font:600 12px/1 inherit;letter-spacing:.02em;cursor:pointer;opacity:.75}'
         + '#evk-tl-podglad button:hover{opacity:1}'
         + '#evk-tl-podglad button[aria-pressed="true"]{background:var(--builder-color-accent,#ffd64f);color:#1f2937;opacity:1}'
         + '#evk-tl-podglad button:focus-visible{outline:2px solid currentColor;outline-offset:1px}';

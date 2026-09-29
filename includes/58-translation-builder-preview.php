@@ -58,7 +58,6 @@ function evk_tl_podglad_dane(): array {
         'slownik' => (object) evk_tl_podglad_slownik($jezyki),
         'napisy'  => [
             'brak'     => 'brak %s',
-            'edycja'   => 'edycja PL',
             'grupa'    => 'Podgląd języka',
             'przycisk' => 'Podgląd: %s',
         ],

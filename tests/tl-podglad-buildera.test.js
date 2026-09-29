@@ -57,7 +57,19 @@ module.exports = async function (t) {
   const html = (sel) => K((s) => { const e = document.querySelector(s); return e ? e.innerHTML : null; }, sel);
   const tekst = (sel) => K((s) => Array.from(document.querySelectorAll(s)).map((e) => e.textContent), sel);
   const obrys = (id) => K((i) => document.getElementById('brxe-' + i).classList.contains('evk-tl-brak'), id);
-  const znaczki = () => K(() => Array.from(document.querySelectorAll('#evk-tl-nakladka .evk-tl-znacznik')).map((z) => z.textContent));
+  /* Napis „brak EN" (jeden, po najechaniu): tekst, dla którego elementu i o ile
+     odstaje od zewnętrznej krawędzi ramki (lewy dolny róg; obrys 2 px + odsunięcie 2 px). */
+  const napisPod = () => K(() => {
+    const z = document.querySelector('#evk-tl-nakladka .evk-tl-znacznik');
+    if (!z || z.hidden) return { widoczny: false };
+    const dla = z.getAttribute('data-dla');
+    const el = document.querySelector('[data-id="' + dla + '"]');
+    const a = z.getBoundingClientRect(), b = el ? el.getBoundingClientRect() : null;
+    return { widoczny: true, tekst: z.textContent, dla,
+      dx: b ? Math.round((a.left - (b.left - 4)) * 10) / 10 : null, dy: b ? Math.round((a.top - (b.bottom + 4)) * 10) / 10 : null };
+  });
+  const przyRamce = (n) => n.widoczny && Math.abs(n.dx) <= 1 && Math.abs(n.dy) <= 1;
+  const edycjaRamka = (id) => K((i) => document.getElementById('brxe-' + i).classList.contains('evk-tl-edycja'), id);
   const wcisniety = () => page.evaluate(() => Array.from(document.querySelectorAll('#evk-tl-podglad button[aria-pressed="true"]')).map((b) => b.textContent));
 
   t.section('przełącznik w pasku buildera');
@@ -89,9 +101,53 @@ module.exports = async function (t) {
   t.check('pozycje listy: przetłumaczona po angielsku; bez tłumaczenia polska, a element z obrysem',
     J(await tekst('#brxe-a1 .title')) === J(['One', 'Dwa']) && await obrys('a1') && J(await tekst('#brxe-sl1 .tytul')) === J(['Slide']),
     J([await tekst('#brxe-a1 .title'), await tekst('#brxe-sl1 .tytul')]));
-  t.check('tekst bez tłumaczenia: polski z obrysem i znaczkiem „brak EN"',
-    J(await tekst('#brxe-t1')) === J(['Zapytaj o wycenę']) && await obrys('t1') && (await znaczki()).filter((z) => z === 'brak EN').length === 2,
-    J([await tekst('#brxe-t1'), await znaczki()]));
+  await kanwa.hover('#brxe-t1');
+  await page.waitForTimeout(100);
+  const nT1 = await napisPod();
+  t.check('tekst bez tłumaczenia: polski z obrysem, po najechaniu napis „brak EN" przy ramce (dół, lewo)',
+    J(await tekst('#brxe-t1')) === J(['Zapytaj o wycenę']) && await obrys('t1') && nT1.tekst === 'brak EN' && nT1.dla === 't1' && przyRamce(nT1),
+    J([await tekst('#brxe-t1'), nT1]));
+  await kanwa.hover('#brxe-b1');
+  await page.waitForTimeout(100);
+  t.check('najechanie na przetłumaczony element: bez napisu', !(await napisPod()).widoczny, J(await napisPod()));
+  await kanwa.hover('#brxe-a1');
+  await page.waitForTimeout(100);
+  const nA1 = await napisPod();
+  await kanwa.click('#brxe-a1');
+  await page.waitForTimeout(400);
+  const poKlik = await napisPod();
+  await kanwa.hover('#brxe-t1');
+  await page.waitForTimeout(100);
+  const naInnym = await napisPod();
+  t.check('kliknięcie w element chowa napis (jak w Bricksie); przy następnym elemencie wraca',
+    nA1.dla === 'a1' && !poKlik.widoczny && naInnym.dla === 't1', J([nA1, poKlik, naInnym]));
+  await K(() => window.scrollBy(0, 5));
+  await page.waitForTimeout(50);
+  const wTrakcie = await napisPod();
+  await page.waitForTimeout(400);
+  const poPrzewinieciu = await napisPod();
+  t.check('przewijanie: napis znika od razu', !wTrakcie.widoczny, J(wTrakcie));
+  t.check('po zatrzymaniu przewijania napis wraca przy ramce (nie zostaje w tyle)',
+    poPrzewinieciu.dla === 't1' && przyRamce(poPrzewinieciu), J(poPrzewinieciu));
+  await K(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  /* Kanwa pomniejszona przekształceniem przodka: `fixed` liczy się wtedy od
+     niego, nie od okna. Napis ma dalej przylegać do ramki. */
+  await K(() => { document.body.style.transformOrigin = '0 0'; document.body.style.transform = 'scale(0.8)'; });
+  await kanwa.hover('#brxe-t1');
+  await page.waitForTimeout(100);
+  await kanwa.hover('#brxe-h1');
+  await page.waitForTimeout(100);
+  await kanwa.hover('#brxe-t1');
+  await page.waitForTimeout(100);
+  const nSkala = await napisPod();
+  await K(() => { document.body.style.transform = ''; document.body.style.transformOrigin = ''; });
+  await page.waitForTimeout(100);
+  /* Obrys też się skaluje: 4 px ramki to na ekranie 3,2 px, więc względem
+     „element − 4 px" napis leży o 0,8 px bliżej. */
+  const e = 4 - 4 * 0.8;
+  const przyRamceSkala = (n) => n.widoczny && Math.abs(n.dx - e) <= 1 && Math.abs(n.dy + e) <= 1;
+  t.check('kanwa pomniejszona (przekształcenie): napis dalej przy ramce', nSkala.dla === 't1' && przyRamceSkala(nSkala), J(nSkala));
   t.check('{tl_…}: EN ze słownika, bez obrysu', J(await tekst('#brxe-d1')) === J(['See more']) && !(await obrys('d1')), J(await tekst('#brxe-d1')));
   t.check('dane dynamiczne: bez zmian i bez obrysu', J(await tekst('#brxe-p1')) === J(['Mój wpis']) && !(await obrys('p1')), J(await tekst('#brxe-p1')));
   const img = await K(() => ['#brxe-i1 img', '#brxe-sl1 img'].map((s) => { const i = document.querySelector(s); return [i.getAttribute('src'), i.getAttribute('srcset')]; }));
@@ -109,8 +165,8 @@ module.exports = async function (t) {
   t.section('edycja w kanwie w trybie EN: na czas edycji polski');
   await kanwa.click('#brxe-h1', { position: { x: 30, y: 10 } });
   await page.waitForTimeout(150);
-  t.check('kliknięty nagłówek pokazuje polski i znaczek „edycja PL"',
-    await html('#brxe-h1') === 'Grafika<br>użytkowa' && (await znaczki()).includes('edycja PL'), J([await html('#brxe-h1'), await znaczki()]));
+  t.check('kliknięty nagłówek pokazuje polski i niebieską ramkę edycji',
+    await html('#brxe-h1') === 'Grafika<br>użytkowa' && await edycjaRamka('h1'), J([await html('#brxe-h1'), await edycjaRamka('h1')]));
   await page.keyboard.type('X');
   await page.waitForTimeout(150);
   const stanH1 = await page.evaluate(() => window.__stan.content.find((e) => e.id === 'h1').settings);
@@ -118,8 +174,8 @@ module.exports = async function (t) {
     /X/.test(stanH1.text) && stanH1.text.replace('X', '') === 'Grafika<br>użytkowa' && stanH1.evk_tl_en__text === 'Graphic<br>design', J(stanH1));
   await page.click('#zapisz');
   await page.waitForTimeout(400);
-  t.check('po wyjściu z tekstu znów EN, bez znaczka edycji',
-    await html('#brxe-h1') === 'Graphic<br>design' && !(await znaczki()).includes('edycja PL'), J([await html('#brxe-h1'), await znaczki()]));
+  t.check('po wyjściu z tekstu znów EN, bez ramki edycji',
+    await html('#brxe-h1') === 'Graphic<br>design' && !(await edycjaRamka('h1')), J([await html('#brxe-h1'), await edycjaRamka('h1')]));
 
   /* Zabezpieczenie drugiej warstwy: znak w elemencie, który wciąż pokazuje
      tłumaczenie (inna droga Bricksa do edycji niż kliknięcie i fokus). */
@@ -131,7 +187,7 @@ module.exports = async function (t) {
   });
   await page.waitForTimeout(100);
   t.check('znak bez kliknięcia i fokusu: zablokowany, a element najpierw wraca do polskiego',
-    zabezp.zablokowany && zabezp.html === 'Oferta' && (await znaczki()).includes('edycja PL'), J([zabezp, await znaczki()]));
+    zabezp.zablokowany && zabezp.html === 'Oferta' && await edycjaRamka('h2'), J([zabezp, await edycjaRamka('h2')]));
   await kanwa.click('body', { position: { x: 5, y: 5 } });
   await page.waitForTimeout(300);
 
@@ -151,9 +207,12 @@ module.exports = async function (t) {
   await page.click('#evk-tl-podglad button[data-jezyk="de"]');
   await page.waitForTimeout(400);
   const plTeraz = await page.evaluate(() => window.__stan.content.find((e) => e.id === 'h1').settings.text);
-  t.check('DE: przycisk z pola DE; nagłówek bez DE — polski z obrysem „brak DE"',
-    J(await tekst('#brxe-b1 .tekst')) === J(['Kontakt DE']) && await html('#brxe-h1') === plTeraz && await obrys('h1') && (await znaczki()).includes('brak DE'),
-    J([await tekst('#brxe-b1 .tekst'), await html('#brxe-h1'), await znaczki()]));
+  await kanwa.hover('#brxe-h1');
+  await page.waitForTimeout(100);
+  const nDe = await napisPod();
+  t.check('DE: przycisk z pola DE; nagłówek bez DE — polski z obrysem i napisem „brak DE"',
+    J(await tekst('#brxe-b1 .tekst')) === J(['Kontakt DE']) && await html('#brxe-h1') === plTeraz && await obrys('h1') && nDe.tekst === 'brak DE' && nDe.dla === 'h1',
+    J([await tekst('#brxe-b1 .tekst'), await html('#brxe-h1'), nDe]));
 
   t.section('powrót do PL');
   await page.click('#evk-tl-podglad button[data-jezyk="pl"]');
@@ -162,11 +221,12 @@ module.exports = async function (t) {
     h1: document.getElementById('brxe-h1').innerHTML, b1: document.querySelector('#brxe-b1 .tekst').textContent,
     img: [document.querySelector('#brxe-i1 img').getAttribute('src'), document.querySelector('#brxe-i1 img').getAttribute('srcset')],
     svg: !!document.querySelector('#brxe-sv1 circle'), d1: document.getElementById('brxe-d1').textContent,
-    obrysy: document.querySelectorAll('.evk-tl-brak, .evk-tl-edycja').length, znaczki: document.querySelectorAll('#evk-tl-nakladka .evk-tl-znacznik').length }));
+    obrysy: document.querySelectorAll('.evk-tl-brak, .evk-tl-edycja').length,
+    napis: !!document.querySelector('#evk-tl-nakladka .evk-tl-znacznik:not([hidden])') }));
   const plH1 = await page.evaluate(() => window.__stan.content.find((e) => e.id === 'h1').settings.text);
   t.check('PL: kanwa jak przed podglądem (tekst, obraz z srcset, SVG, {tl_…}), bez obrysów',
     po.h1 === plH1 && po.b1 === 'Kontakt' && J(po.img) === J(['podglad-pl-300x200.svg', 'podglad-pl-300x200.svg 300w']) && po.svg
-      && po.d1 === 'Zobacz więcej' && po.obrysy === 0 && po.znaczki === 0, J(po));
+      && po.d1 === 'Zobacz więcej' && po.obrysy === 0 && !po.napis, J(po));
 
   t.section('przeładowania');
   await page.click('#evk-tl-podglad button[data-jezyk="en"]');

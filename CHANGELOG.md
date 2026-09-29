@@ -2,6 +2,50 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.257.1] — 2026-09-29
+
+Podgląd w builderze: napis „brak EN” jak nazwa elementu w Bricksie.
+
+### Poprawione
+
+- **Napis „brak EN” nie nadążał za ramką przy przewijaniu kanwy**
+  (zgłoszenie po teście 1.257.0).
+  - Przyczyna: znaczki wisiały na osobnej warstwie nad każdym elementem
+    i były przeliczane dopiero po przewinięciu.
+  - Teraz jak w Bricksie (decyzja zgłaszającego): ramka zawsze, a napis
+    „brak EN” pojawia się po najechaniu, pod ramką na dole po lewej.
+  - Znika po kliknięciu w element i na czas przewijania; po zatrzymaniu
+    wraca przy ramce.
+  - Pozycja liczona względem warstwy, nie okna, więc zgadza się także przy
+    pomniejszonej kanwie.
+- Napis „edycja PL” usunięty. Tekst w edycji ma niebieską ramkę.
+- Przyciski PL | EN | DE w pasku bez własnej wysokości i odstępów
+  (decyzja zgłaszającego).
+
+### Testy
+
+- `tl-podglad-buildera`: 35 sprawdzeń (było 30). Nowe przypadki:
+  - napis przy ramce; przy przetłumaczonym elemencie bez napisu;
+  - po kliknięciu napis znika;
+  - przy przewijaniu znika od razu i wraca przy ramce;
+  - kanwa pomniejszona.
+- Mutacje: 6 nowych, każda zapala swoje sprawdzenia:
+  - napis u góry zamiast na dole (3 sprawdzenia położenia);
+  - bez chowania przy przewijaniu;
+  - napis zostaje po kliknięciu;
+  - napis na każdym elemencie;
+  - bez powrotu po przewinięciu;
+  - położenie względem okna zamiast warstwy (tylko kanwa pomniejszona).
+- Do tego 3 mutacje z 1.257.0, bo zmieniły się ich sprawdzenia: bez polskiego
+  przy edycji (2 sprawdzenia), obrys zawsze (6), bez zabezpieczenia znaku (1).
+- Pełny przebieg: 5810 sprawdzeń w 118 plikach, wszystkie zielone.
+
+### Do sprawdzenia na testowej
+
+- Najechanie na element z ramką: „brak EN” pod ramką, na dole po lewej.
+- Kliknięcie chowa napis; przy przewijaniu napis nie zostaje w tyle.
+- Przyciski języków w pasku.
+
 ## [1.257.0] — 2026-09-29
 
 Podgląd tłumaczeń w builderze Bricksa: przełącznik PL | EN | DE (#82).
