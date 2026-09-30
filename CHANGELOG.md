@@ -2,6 +2,130 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.265.0] — 2026-09-30
+
+Tłumaczenie AI w builderze: „Przetłumacz (AI)” przy przełączniku PL | EN | DE
+i pod polem „Tłumaczenie EN”.
+
+### Dodane
+
+- **„Przetłumacz (AI)” przy przełączniku PL | EN | DE** w pasku buildera:
+  zaznaczony element razem z dziećmi (także pozycje list — akordeon, slider)
+  na język przełącznika. Decyzje zgłaszającego (30.09):
+  - przy PL przycisk jest nieaktywny z podpowiedzią „Wybierz EN albo DE”
+    (dymek i opis przycisku, kliknięcie pokazuje komunikat); bez zaznaczenia —
+    „Zaznacz element”;
+  - model z ustawień Tłumaczenia AI, w builderze bez wyboru;
+  - puste pola bez pytania, wypełnione po potwierdzeniu — jedno pytanie
+    z liczbami: „OK” tłumaczy je od nowa razem z pustymi, „Anuluj” tylko
+    puste;
+  - wynik trafia do stanu buildera, zapis zostaje ręczny, w Bricksie.
+
+  Komunikat pod paskiem (`role="status"`, „Zamknij” i Esc): postęp porcji,
+  potem „EN: wpisane N (z pamięci M), bez zmian…, odrzucone…. Zapisz stronę
+  w Bricksie.”
+- **„Przetłumacz (AI)” pod polem „Tłumaczenie EN”** (i DE) zaznaczonego
+  elementu — mały przycisk, działa w każdym trybie podglądu (pole mówi,
+  w jakim języku). Przy wypełnionym polu pyta „Zastąpić obecne tłumaczenie
+  EN?” z obecnym tekstem. Tylko pola samego elementu — pola pozycji list
+  tłumaczy przycisk przy przełączniku.
+- Pole z edytorem TinyMCE dostaje tekst także w edytorze: edytor, który nie
+  śledzi stanu, przy zmianie zapisałby stary tekst z powrotem.
+- `docs/proby-komponenty.md`: fragment do konsoli buildera — budowa
+  komponentów i instancji w stanie (przed pełną obsługą komponentów).
+
+### Jak to działa
+
+- Serwer (61, AJAX `evk_tl_ai_builder`) tylko tłumaczy, bez zapisu. Teksty
+  i kontekst idą ze stanu buildera, więc liczą się niezapisane zmiany.
+  Kontekst jak w hurcie: wszystkie teksty części strony (treść, nagłówek
+  albo stopka) w kolejności stanu, z obecnymi tłumaczeniami — poza
+  tłumaczonymi teraz, żeby model przetłumaczył je po swojemu.
+- Kolejno jak w kroku hurtu: pamięć tłumaczeń (sprawdzone tłumaczenie tego
+  samego tekstu), pamięć wyników, jedna porcja do AI i strażnik znaczników,
+  tagów `{…}` i shortcodów. Porcje jak w hurcie: 25 tekstów i 6000 bajtów,
+  jeden dłuższy tekst idzie sam; następna porcja widzi tłumaczenia
+  poprzedniej.
+- Pole wypełnione ma dostać coś innego niż obecny tekst: pamięć równa
+  obecnemu tekstowi nie wystarcza, więc pytamy AI, a nowy wynik zastępuje
+  zapamiętany. Wynik równy obecnemu to „bez zmian”.
+- Wynik trafia do pola tylko wtedy, gdy polski tekst i pole są takie jak
+  przed zapytaniem — pisanie w trakcie wygrywa („zmienione w trakcie”).
+- Po zapisie w Bricksie stan „Do sprawdzenia” liczy się jak przy każdej
+  zmianie tłumaczenia, bez znacznika AI: tłumacz widział tekst w builderze
+  przed zapisem (jak przy przyciskach przy polach z planu z 29.09).
+- Przyciski tylko dla kogoś z dostępem do Tłumaczeń i z kluczem API
+  dostawcy z ustawień. AJAX: nonce, dostęp do Tłumaczeń i `edit_post`
+  strony z buildera (szablonu też). Klucz API nie wychodzi do przeglądarki.
+- Instancje komponentów (`cid`) pominięte, także w kontekście — ich teksty
+  żyją w komponencie, nie w stanie strony.
+- Przyciski stawia skrypt kanwy (`assets/admin/tl-builder-podglad.js`) w
+  powłoce, jak przełącznik: przy `pagehide` kanwy znikają, a przyciski
+  z obcego okna (kanwa podmieniona bez `pagehide`) straż podmienia.
+
+### Testy
+
+- `tests/tl-ai-builder.test.js` (nowy, 71 sprawdzeń, sonda
+  `tests/php/tl-ai.php`):
+  - dane kanwy: administrator z kluczem, bez klucza, tłumacz, redaktor bez
+    dostępu do Tłumaczeń; klucza API w danych nie ma;
+  - AJAX wprost: pamięć tłumaczeń i wyników, sam tag, strażnik, kontekst
+    i numery w zapytaniu, pole wypełnione tekstem z pamięci, siedem odmów
+    (limity, klucz, numer, język, JSON), uprawnienia, błędy dostawcy (401,
+    429, zły JSON), bez zapisu w treści i stanie stron;
+  - builder w Chromium na atrapie powłoki i panelu w kształcie z próby A4
+    (`tests/fixtures/builder-ai.html`); żądania przeglądarki idą ciałem do
+    sondy i wracają odpowiedzią PRAWDZIWEGO AJAX-a: podpowiedzi przy PL
+    i bez zaznaczenia, przyciski pól (także przy polu elementu i pozycji
+    listy o tym samym kluczu), pytania, kontekst z tłumaczeniami, porcje
+    liczone w bajtach, element nagłówka strony, pamięć, instancja
+    komponentu, „w trakcie”, błąd dostawcy, DE z klawiatury, edytor
+    TinyMCE, `pagehide`, przyciski z obcego okna, przeładowanie kanwy.
+- `tl-podglad-buildera`: bez danych AI nie ma przycisku.
+- Sonda `tl-ai`: kroki `builder-dane` i `ajax-builder`, wspólny pomocnik
+  użytkownika testu, w mapie pól `slider` i `rich-text`.
+- Mutacje: 36, każda zapala własne sprawdzenia (serwer
+  1/1/2/1/2/6/4/2/3/2/2/1/1/3, skrypt 1/4/1/2/1/2/10/1/1/3/1/3/2/1/1/1/5/1/1/1/2/1).
+  Po kolei:
+  - serwer: dane bez sprawdzenia dostępu; bez sprawdzenia klucza; AJAX bez
+    `edit_post`; pamięć tłumaczeń równa obecnemu tekstowi oddana; to samo
+    z pamięcią wyników; bez pamięci tłumaczeń; bez strażnika; bez limitu
+    liczby tekstów; bez limitu bajtów; limit bajtów także dla jednego
+    tekstu; wynik niezapamiętany; wynik z pamięci poza kontekstem; opis
+    pola bez pozycji listy; limit i odrzucony klucz jako „odrzucone”;
+  - skrypt: przycisk także przy polu pozycji listy; bez pytania przy
+    wypełnionym polu; tłumaczony tekst z obecnym tłumaczeniem w kontekście;
+    porcje po znakach zamiast bajtów; przycisk przy PL tłumaczy; wpis mimo
+    zmiany w trakcie; bez dzieci; kontekst zawsze z treści; kanwa nie
+    odświeża dzieci; instancja komponentu tłumaczona; `pagehide` nie
+    sprząta przycisku i komunikatu; bez `aria-disabled`; przycisk pola
+    w trakcie; bez edytora TinyMCE; bez Esc; komunikat zostaje po zmianie
+    zaznaczenia; bez pytania przy elemencie; następne porcje bez
+    wcześniejszych tłumaczeń; drugie kliknięcie w trakcie; instancja
+    komponentu w kontekście; bez przycisków pól (test kończy się wyjątkiem);
+    przyciski pól z obcego okna zostają.
+
+  Dwie (porcje po znakach, instancja komponentu tłumaczona) zapalały
+  najpierw te same dwa sprawdzenia — stąd osobne sprawdzenie zaznaczonej
+  instancji komponentu. Sprawdzenie przycisków z obcego okna dopisane, bo
+  mutacja bez niego przeszłaby na zielono (sprząta `pagehide`).
+- Pełny przebieg częściowy: partie 6, 3 i 1 zielone (1768, 1959 i 119 sprawdzeń),
+  `drobiazgi` osobno (38); partie 2, 4 i 5 niepuszczone — push na prośbę
+  zgłaszającego po przerwie w działaniu poleceń.
+
+### Do sprawdzenia na testowej
+
+- Przycisk przy przełączniku: sekcja z nagłówkiem i akordeonem, EN,
+  „Przetłumacz (AI)” — pola w panelu, kanwa w podglądzie EN, kropka przy
+  zapisie, Ctrl+Z, zapis i przeładowanie.
+- Przycisk pod polem „Tłumaczenie EN” nagłówka i elementu z edytorem
+  (Rich Text) — czy edytor pokazuje wpisany tekst i czy po kliknięciu w nim
+  nie wraca stary.
+- Pozycje list w panelu po tłumaczeniu elementu (akordeon, slider): czy
+  pola pozycji pokazują tekst bez przeładowania.
+- Szablon nagłówka albo stopki otwarty w builderze.
+- Element globalny i komponent: `docs/proby-komponenty.md`.
+
 ## [1.264.0] — 2026-09-30
 
 Tłumaczenie AI: czyszczenie tłumaczeń strony i „Pytaj AI od nowa” — ponowne

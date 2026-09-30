@@ -15,6 +15,11 @@ if (!defined('ABSPATH')) exit;
  * Ładowane WYŁĄCZNIE w kanwie. Przełącznik trafia do paska powłoki z kanwy
  * (`window.parent`, to samo pochodzenie), więc nie trzeba skryptu w powłoce
  * ani wąskiego `bricks_is_builder_main()` (tests/builder-context.test.js).
+ *
+ * Ten sam skrypt stawia przyciski „Przetłumacz (AI)” (1.265.0): przy
+ * przełączniku i pod polami „Tłumaczenie EN” w panelu powłoki. Dane `ai`
+ * (adres AJAX, nonce, wpis, model) daje 61 — bez dostępu do Tłumaczeń albo
+ * bez klucza API są puste i przycisków nie ma.
  */
 
 /** Słownik `{tl_klucz}` → fraza PL i jej tłumaczenia, tą samą drogą co tl_get_dd_value(). */
@@ -56,6 +61,8 @@ function evk_tl_podglad_dane(): array {
         'jezyki'  => $jezyki,
         'mapa'    => (object) $mapa,
         'slownik' => (object) evk_tl_podglad_slownik($jezyki),
+        /* Przyciski AI (1.265.0): null bez dostępu do Tłumaczeń albo bez klucza API. */
+        'ai'      => function_exists('evk_tl_ai_builder_dane') ? evk_tl_ai_builder_dane() : null,
         'napisy'  => [
             'brak'     => 'brak %s',
             'grupa'    => 'Podgląd języka',

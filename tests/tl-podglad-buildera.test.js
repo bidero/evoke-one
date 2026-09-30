@@ -85,6 +85,10 @@ module.exports = async function (t) {
   });
   t.check('grupa PL | EN | DE zaraz za breakpointami, PL wciśnięty',
     !!grupa && /center/.test(grupa.przed) && grupa.rola === 'group' && !!grupa.etykieta && J(grupa.przyciski) === J(['PL:true', 'EN:false', 'DE:false']), J(grupa));
+  /* Sonda „dane” działa bez zalogowanego użytkownika — bez dostępu do
+     Tłumaczeń, więc bez przycisków AI (1.265.0, tl-ai-builder). */
+  t.check('bez danych AI: bez przycisku „Przetłumacz (AI)” w pasku', dane.ai === null
+    && await page.evaluate(() => !document.getElementById('evk-tl-ai') && !document.getElementById('evk-tl-ai-dymek')), J(dane.ai));
   t.check('start z PL: kanwa bez zmian, {tl_…} po polsku jak dotąd',
     await html('#brxe-h1') === 'Grafika<br>użytkowa' && J(await tekst('#brxe-d1')) === J(['Zobacz więcej'])
     && !(await K(() => document.querySelector('.evk-tl-brak'))), J([await html('#brxe-h1'), await tekst('#brxe-d1')]));

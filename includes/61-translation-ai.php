@@ -61,6 +61,13 @@ if (!defined('ABSPATH')) exit;
  * sam tekst w języku, więc wyniki wszystkich modeli dla tekstu da się
  * znaleźć bez znajomości modelu.
  *
+ * BUILDER (1.265.0, decyzje zgłaszającego z 30.09): „Przetłumacz (AI)” pod
+ * polem „Tłumaczenie EN” i przy przełączniku PL | EN | DE (zaznaczony
+ * element z dziećmi, język przełącznika; przy PL nieaktywny z podpowiedzią),
+ * model z ustawień. Skrypt kanwy (assets/admin/tl-builder-podglad.js) wpisuje
+ * wynik do stanu buildera — puste pola bez pytania, wypełnione po
+ * potwierdzeniu — a zapis zostaje ręczny, w Bricksie. Serwer tylko tłumaczy.
+ *
  * KLUCZ API tylko w opcji: nigdy w HTML ani JS, poza paczką ustawień.
  * HTTP przez wp_remote_post — wtyczka nie ma Composera, a trzech dostawców
  * obsługuje jeden kod. Adresy da się podmienić filtrem `evk_tl_ai_adresy`
@@ -1057,6 +1064,154 @@ function evk_tl_ai_strony_do_czyszczenia(): array {
 }
 
 // =========================================================================
+// BUILDER (1.265.0)
+// =========================================================================
+
+/** Kontekst z buildera: najwięcej tekstów i bajtów (cała część strony, jak w hurcie). */
+const EVK_TL_AI_BUILDER_TEKSTY = 2000;
+const EVK_TL_AI_BUILDER_ZNAKI  = 400000;
+
+/**
+ * Dane przycisków AI w builderze (dane kanwy, 58): tylko dla kogoś z dostępem
+ * do Tłumaczeń i tylko z kluczem API dostawcy z ustawień — inaczej przycisków
+ * nie ma wcale. Klucz nie wychodzi do przeglądarki. Porcja i limit znaków —
+ * żeby skrypt dzielił teksty tak jak serwer je przyjmuje.
+ *
+ * @return array{ajax:string,nonce:string,post:int,model:string,porcja:int,znaki:int}|null
+ */
+function evk_tl_ai_builder_dane(): ?array {
+    if (!current_user_can('manage_options') && !current_user_can('evk_access_translations')) return null;
+    $u = evk_tl_ai_ustawienia();
+    if (evk_tl_ai_klucz($u) === '') return null;
+    return ['ajax' => admin_url('admin-ajax.php'), 'nonce' => wp_create_nonce('evk_tl_ai_builder'),
+        'post' => (int) get_queried_object_id(), 'model' => evk_tl_ai_podpis($u),
+        'porcja' => EVK_TL_AI_PORCJA, 'znaki' => EVK_TL_AI_ZNAKI];
+}
+
+/**
+ * Wejście tłumaczenia z buildera: kontekst i teksty z JSON-a, w granicach.
+ * Kontekst: lista {el, pole, poz, pl, tl} — wszystkie teksty części strony
+ * w kolejności stanu buildera, `poz` — numer pozycji listy (0 poza listą).
+ * Teksty: klucz przeglądarki → {n, bylo} — numer w kontekście (od 1)
+ * i obecne tłumaczenie pola (puste przy pustym polu). Opis pola jak w hurcie:
+ * „Tytuł”, „pozycja 2 · Tytuł”.
+ *
+ * @param mixed $kontekst
+ * @param mixed $teksty
+ * @return array{0:list<array{element:string,opis:string,pl:string,tl:string}>,1:array<string,array{n:int,bylo:string}>}|string Błąd jako napis.
+ */
+function evk_tl_ai_builder_wejscie($kontekst, $teksty) {
+    if (!is_array($kontekst) || !is_array($teksty) || !$teksty) return 'Brak tekstów do tłumaczenia.';
+    if (count($kontekst) > EVK_TL_AI_BUILDER_TEKSTY) return 'Za dużo tekstów w tej części strony — przetłumacz ją w panelu Tłumaczeń.';
+    $k = [];
+    $bajty = 0;
+    foreach (array_values($kontekst) as $w) {
+        if (!is_array($w) || !is_string($w['pl'] ?? null)) return 'Zły kontekst.';
+        $tl = is_string($w['tl'] ?? null) ? $w['tl'] : '';
+        $pole = (string) preg_replace('/[^A-Za-z0-9_-]/', '', is_string($w['pole'] ?? null) ? $w['pole'] : '');
+        $poz = is_numeric($w['poz'] ?? null) ? max(0, (int) $w['poz']) : 0;
+        $bajty += strlen($w['pl']) + strlen($tl);
+        $k[] = ['element' => (string) preg_replace('/[^A-Za-z0-9_-]/', '', is_string($w['el'] ?? null) ? $w['el'] : ''),
+            'opis' => ($poz ? 'pozycja ' . $poz . ' · ' : '') . evk_tl_el_nazwa_pola($pole), 'pl' => $w['pl'], 'tl' => $tl];
+    }
+    if ($bajty > EVK_TL_AI_BUILDER_ZNAKI) return 'Za dużo tekstu w tej części strony — przetłumacz ją w panelu Tłumaczeń.';
+    if (count($teksty) > EVK_TL_AI_PORCJA) return 'Za dużo tekstów naraz (najwięcej ' . EVK_TL_AI_PORCJA . ').';
+    $t = [];
+    $bajty = 0;
+    foreach ($teksty as $klucz => $w) {
+        $n = is_array($w) && is_numeric($w['n'] ?? null) ? (int) $w['n'] : 0;
+        if (!preg_match('/^[A-Za-z][A-Za-z0-9_]{0,39}$/', (string) $klucz) || $n < 1 || $n > count($k)) return 'Zły tekst do tłumaczenia.';
+        $t[(string) $klucz] = ['n' => $n, 'bylo' => is_string($w['bylo'] ?? null) ? $w['bylo'] : ''];
+        $bajty += strlen($k[$n - 1]['pl']);
+    }
+    /* Jak porcja hurtu: jeden długi tekst przechodzi, kilka — w limicie. */
+    if (count($t) > 1 && $bajty > EVK_TL_AI_ZNAKI) return 'Za długie teksty naraz (najwięcej ' . EVK_TL_AI_ZNAKI . ' znaków).';
+    return [$k, $t];
+}
+
+/**
+ * Tłumaczenie tekstów z buildera (1.265.0), BEZ zapisu — wynik wpisuje do
+ * stanu buildera skrypt kanwy, a zapisuje Bricks. Teksty i kontekst idą ze
+ * stanu, więc liczą się też niezapisane zmiany.
+ *
+ * Kolejno jak w kroku hurtu: pamięć tłumaczeń, pamięć wyników, jedna porcja
+ * do AI i strażnik. Pole wypełnione (przycisk przy wypełnionym polu, po
+ * potwierdzeniu) ma dostać coś innego niż obecny tekst: pamięć równa
+ * obecnemu tekstowi nie wystarcza — pytamy AI, a nowy wynik zastępuje
+ * zapamiętany. Wynik AI równy obecnemu tekstowi to `bez_zmian`.
+ *
+ * Po zapisie w Bricksie stan „Do sprawdzenia” (52) liczy się jak przy każdej
+ * zmianie tłumaczenia, czyli bez znacznika AI: tłumacz widział tekst
+ * w builderze przed zapisem (jak przy przyciskach przy polach, plan 29.09).
+ *
+ * @param list<array{element:string,opis:string,pl:string,tl:string}> $kontekst
+ * @param array<string,array{n:int,bylo:string}>                       $teksty
+ * @return array<string,mixed>
+ */
+function evk_tl_ai_builder(int $post_id, string $lang, array $kontekst, array $teksty): array {
+    $u = evk_tl_ai_ustawienia();
+    $wynik = ['tlumaczenia' => [], 'zrodla' => [], 'bez_zmian' => [], 'odrzucone' => [], 'pominiete' => [], 'model' => evk_tl_ai_podpis($u)];
+    $braki = [];
+    foreach ($teksty as $klucz => $t) {
+        $k = $kontekst[$t['n'] - 1];
+        if (!evk_tl_ai_do_tlumaczenia($k['pl'])) {
+            $wynik['pominiete'][] = $klucz;
+            continue;
+        }
+        $braki[$klucz] = ['pl' => $k['pl'], 'element' => $k['element'], 'opis' => $k['opis'], 'n' => $t['n'], 'bylo' => $t['bylo']];
+    }
+    foreach ($braki as $klucz => $b) {
+        $z = evk_tl_ai_z_pamieci($b['pl'], $lang);
+        if ($z === $b['bylo']) $z = null;
+        $w = $z === null ? evk_tl_ai_wynik($u, $lang, $b['pl']) : null;
+        if ($w === $b['bylo']) $w = null;
+        if ($z === null && $w === null) continue;
+        $wynik['tlumaczenia'][$klucz] = $z ?? $w;
+        $wynik['zrodla'][$klucz] = $z !== null ? 'pamiec' : 'wynik';
+        /* Model widzi to w kontekście jak każde inne tłumaczenie. */
+        $kontekst[$b['n'] - 1]['tl'] = $z ?? $w;
+    }
+    $reszta = array_diff_key($braki, $wynik['tlumaczenia']);
+    if (!$reszta) return $wynik;
+
+    $krotkie = [];
+    $porcja = [];
+    foreach ($reszta as $klucz => $b) {
+        $kr = 't' . (count($krotkie) + 1);
+        $krotkie[$kr] = $klucz;
+        $porcja[$kr] = $b;
+    }
+    [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, (string) (get_the_title($post_id) ?: ('#' . $post_id)), $kontekst, $porcja);
+    $r = evk_tl_ai_wyslij($u, $system, $wiadomosc);
+    if (!$r['ok']) {
+        $wynik['blad'] = (string) $r['blad'];
+        $wynik['czekaj'] = (int) ($r['czekaj'] ?? 0);
+        $wynik['stop'] = !empty($r['stop']);
+        /* Błąd porcji (odmowa modelu, odpowiedź poza schematem): ponowienie nic
+           nie da — jej teksty jako odrzucone. Limit i przeciążenie — do ponowienia. */
+        if (!$wynik['stop'] && !$wynik['czekaj']) $wynik['odrzucone'] = array_values($krotkie);
+        return $wynik;
+    }
+    $pamiec = [];
+    foreach ($krotkie as $kr => $klucz) {
+        $tl = $r['tlumaczenia'][$kr] ?? null;
+        if (!is_string($tl) || !evk_tl_ai_zgodne($reszta[$klucz]['pl'], $tl)) {
+            $wynik['odrzucone'][] = $klucz;
+            continue;
+        }
+        $pamiec[evk_tl_ai_klucz_wyniku($u, $lang, $reszta[$klucz]['pl'])] = $tl;
+        if ($tl === $reszta[$klucz]['bylo']) {
+            $wynik['bez_zmian'][] = $klucz;
+            continue;
+        }
+        $wynik['tlumaczenia'][$klucz] = $tl;
+        $wynik['zrodla'][$klucz] = 'ai';
+    }
+    evk_tl_ai_zapamietaj($pamiec);
+    return $wynik;
+}
+
+// =========================================================================
 // AJAX
 // =========================================================================
 
@@ -1139,4 +1294,30 @@ add_action('wp_ajax_evk_tl_ai_przywroc', function (): void {
     evk_tl_ajax_check('evk_tl_ai');
     [$post_id, $meta_key] = evk_tl_ai_czesc_z_zadania();
     wp_send_json_success(evk_tl_ai_przywroc($post_id, $meta_key));
+});
+
+/**
+ * Tłumaczenie z buildera (1.265.0): teksty ze stanu buildera, bez zapisu.
+ * Dostęp do Tłumaczeń i prawo edycji strony z buildera (szablonu też); bez
+ * strony — prawo edycji w ogóle.
+ */
+add_action('wp_ajax_evk_tl_ai_builder', function (): void {
+    evk_tl_ajax_check('evk_tl_ai_builder');
+    $post_id = absint($_POST['post_id'] ?? 0);
+    if (!($post_id ? current_user_can('edit_post', $post_id) : current_user_can('edit_posts'))) {
+        wp_send_json_error('Brak uprawnień do tej strony.', 403);
+    }
+    $lang = sanitize_key((string) ($_POST['lang'] ?? ''));
+    if (!isset(tl_get_languages()[$lang])) wp_send_json_error('Nieznany język.');
+    $json = static function (string $pole) {
+        $v = $_POST[$pole] ?? null;
+        return is_string($v) ? json_decode(wp_unslash($v), true) : null;
+    };
+    $we = evk_tl_ai_builder_wejscie($json('kontekst'), $json('teksty'));
+    if (is_string($we)) wp_send_json_error($we);
+    if (function_exists('set_time_limit')) @set_time_limit(180);
+    $w = evk_tl_ai_builder($post_id, $lang, $we[0], $we[1]);
+    $w['tlumaczenia'] = (object) $w['tlumaczenia'];
+    $w['zrodla'] = (object) $w['zrodla'];
+    wp_send_json_success($w);
 });

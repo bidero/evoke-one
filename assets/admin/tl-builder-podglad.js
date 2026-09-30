@@ -537,6 +537,10 @@
     tryb = j;
     if (powloka) powloka.__evkTlTryb = j;
     odswiezPrzelacznik();
+    if (AI) {
+      if (!trwa) pokazStan('');
+      odswiezAi();
+    }
     wstrzymaj(() => {
       cofnij(null);
       braki.forEach((r) => r.classList.remove('evk-tl-brak'));
@@ -594,15 +598,507 @@
     else pasek.appendChild(ul);
   }
 
+  // ── Przyciski AI (1.265.0) ──────────────────────────────────────────────
+  /* „Przetłumacz (AI)” przy przełączniku — zaznaczony element z dziećmi,
+     w języku przełącznika — i pod polem „Tłumaczenie EN” zaznaczonego
+     elementu. Decyzje zgłaszającego (30.09): przy PL przycisk nieaktywny
+     z podpowiedzią „Wybierz EN albo DE”, model z ustawień, wynik do stanu
+     buildera — puste pola bez pytania, wypełnione po potwierdzeniu — i zapis
+     ręczny w Bricksie.
+
+     Próba na testowej (docs/proby-builder-ai.md): wpis wprost do `settings`
+     elementu w stanie POWŁOKI pokazuje się w polu panelu, Bricks widzi
+     zmianę (kropka przy zapisie), cofnij/ponów działa, a pole się zapisuje.
+
+     Serwer (61) tylko tłumaczy. Teksty i kontekst idą ze stanu, z
+     niezapisanymi zmianami. Wynik trafia do pola tylko wtedy, gdy polski
+     tekst i pole są takie jak przed zapytaniem — pisanie w trakcie wygrywa. */
+  const AI = DANE.ai && typeof DANE.ai === 'object' && typeof DANE.ai.ajax === 'string' ? DANE.ai : null;
+  const OBSZARY = ['content', 'header', 'footer'];
+  const OBCE = JEZYKI.filter((j) => j !== 'pl');
+  const KODY = OBCE.map((j) => j.toUpperCase());
+  const WYBIERZ = 'Wybierz ' + (KODY.length > 1 ? KODY.slice(0, -1).join(', ') + ' albo ' + KODY[KODY.length - 1] : (KODY[0] || ''));
+  let trwa = false;
+  let ostatniAktywny = null;
+
+  function stanPowloki() { return powloka ? stanZ(powloka.document, '.brx-body.main') : null; }
+
+  /** Zaznaczony element w stanie powłoki: element, jego obszar i stan. */
+  function aktywny() {
+    const st = stanPowloki();
+    const id = st && (st.activeId || (st.activeElement && st.activeElement.id));
+    if (!id) return null;
+    for (const o of OBSZARY) {
+      const el = Array.isArray(st[o]) ? st[o].find((e) => e && String(e.id) === String(id)) : null;
+      if (el) return { st, el, obszar: o };
+    }
+    return null;
+  }
+
+  /* Jak evk_tl_ai_do_tlumaczenia(): litery poza znacznikami, tagami {…} i shortcodami. */
+  const doTlumaczenia = (v) => typeof v === 'string' && /\p{L}/u.test(tekstZHtml(v).replace(/\{[^{}]*\}|\[[^\[\]]*\]/g, ' '));
+
+  /** Teksty elementu z mapy pól — pola, potem pozycje list, jak w hurcie. Obiekt
+      w stanie szukamy przy wpisie od nowa (`obiekt()`): cofnięcie w Bricksie
+      mogło go w międzyczasie podmienić. */
+  function tekstyElementu(el) {
+    const def = MAPA[el.name];
+    const s = el.settings;
+    const w = [];
+    if (!def || !s || typeof s !== 'object') return w;
+    const baza = { id: String(el.id), nazwa: String(el.name) };
+    (def.pola || []).forEach((pole) => {
+      if (typeof s[pole] === 'string') w.push(Object.assign({ pole, lista: '', indeks: -1, idPoz: '', poz: 0, obj: s }, baza));
+    });
+    Object.keys(def.listy || {}).forEach((lista) => {
+      const pozycje = s[lista];
+      if (!Array.isArray(pozycje)) return;
+      pozycje.forEach((p, i) => {
+        if (!p || typeof p !== 'object') return;
+        (def.listy[lista] || []).forEach((pole) => {
+          if (typeof p[pole] !== 'string') return;
+          w.push(Object.assign({ pole, lista, indeks: i, idPoz: p.id !== undefined && p.id !== null ? String(p.id) : '', poz: i + 1, obj: p }, baza));
+        });
+      });
+    });
+    return w;
+  }
+  const kluczMiejsca = (x) => x.id + '|' + (x.lista ? x.lista + '.' + (x.idPoz || x.indeks) + '.' : '') + x.pole;
+
+  function obiekt(x) {
+    const st = stanPowloki();
+    if (!st) return null;
+    let el = null;
+    for (const o of OBSZARY) {
+      el = Array.isArray(st[o]) ? st[o].find((e) => e && String(e.id) === x.id) : null;
+      if (el) break;
+    }
+    const s = el && el.settings;
+    if (!s || typeof s !== 'object') return null;
+    if (!x.lista) return s;
+    const pozycje = s[x.lista];
+    if (!Array.isArray(pozycje)) return null;
+    if (x.idPoz) return pozycje.find((p) => p && String(p.id) === x.idPoz) || null;
+    return pozycje[x.indeks] && typeof pozycje[x.indeks] === 'object' ? pozycje[x.indeks] : null;
+  }
+
+  /** Element z dziećmi: id z `children` i z `parent` (Bricks trzyma oba). */
+  function potomkowie(st, obszar, el) {
+    const dzieci = new Map();
+    const dodaj = (r, d) => { if (!dzieci.has(r)) dzieci.set(r, new Set()); dzieci.get(r).add(d); };
+    (Array.isArray(st[obszar]) ? st[obszar] : []).forEach((e) => {
+      if (!e || e.id === undefined) return;
+      (Array.isArray(e.children) ? e.children : []).forEach((c) => dodaj(String(e.id), String(c)));
+      if (e.parent !== undefined && e.parent !== null && String(e.parent) !== '0' && e.parent !== '') dodaj(String(e.parent), String(e.id));
+    });
+    const wynik = new Set([String(el.id)]);
+    const kolejka = [String(el.id)];
+    while (kolejka.length) {
+      (dzieci.get(kolejka.shift()) || []).forEach((d) => { if (!wynik.has(d)) { wynik.add(d); kolejka.push(d); } });
+    }
+    return wynik;
+  }
+
+  /** Kontekst jak w hurcie: teksty obszaru w kolejności stanu, z obecnym
+      tłumaczeniem — poza tłumaczonymi teraz (model ma przetłumaczyć po swojemu). */
+  function kontekstObszaru(st, obszar, lang, tlumaczone) {
+    const pre = przedrostek(lang);
+    const kontekst = [];
+    const numer = new Map();
+    (Array.isArray(st[obszar]) ? st[obszar] : []).forEach((e) => {
+      if (!e || e.id === undefined || e.cid) return;
+      tekstyElementu(e).forEach((x) => {
+        const pl = x.obj[x.pole];
+        if (!doTlumaczenia(pl)) return;
+        const k = kluczMiejsca(x);
+        const tl = x.obj[pre + x.pole];
+        kontekst.push({ el: x.nazwa, pole: x.pole, poz: x.poz, pl, tl: !tlumaczone.has(k) && niepusty(tl) ? tl : '' });
+        numer.set(k, kontekst.length);
+      });
+    });
+    return { kontekst, numer };
+  }
+
+  /* Porcje jak w hurcie (61): liczba tekstów i bajty (strlen) — jeden długi tekst przechodzi sam. */
+  const koder = new TextEncoder();
+  function porcje(lista) {
+    const max = Math.max(1, parseInt(AI.porcja, 10) || 25);
+    const limit = Math.max(1, parseInt(AI.znaki, 10) || 6000);
+    const out = [];
+    let biezaca = [];
+    let suma = 0;
+    lista.forEach((x) => {
+      const b = koder.encode(x.pl).length;
+      if (biezaca.length && (biezaca.length >= max || suma + b > limit)) { out.push(biezaca); biezaca = []; suma = 0; }
+      biezaca.push(x);
+      suma += b;
+    });
+    if (biezaca.length) out.push(biezaca);
+    return out;
+  }
+
+  async function zapytaj(lang, kontekst, teksty) {
+    const cialo = new URLSearchParams({ action: 'evk_tl_ai_builder', nonce: String(AI.nonce || ''), post_id: String(AI.post || 0), lang,
+      kontekst: JSON.stringify(kontekst), teksty: JSON.stringify(teksty) });
+    let odp;
+    try {
+      odp = await fetch(AI.ajax, { method: 'POST', credentials: 'same-origin', body: cialo });
+    } catch (e) {
+      return { blad: 'Brak połączenia z serwerem.', stop: true };
+    }
+    let j = null;
+    try { j = await odp.json(); } catch (e) { j = null; }
+    if (j === -1 || j === 0) return { blad: 'Sesja wygasła albo brak uprawnień — przeładuj builder.', stop: true };
+    if (!j || typeof j !== 'object') return { blad: 'Serwer odpowiedział błędem (' + odp.status + ').', stop: true };
+    if (!j.success) return { blad: typeof j.data === 'string' && j.data ? j.data : 'Serwer odmówił (' + odp.status + ').', stop: true };
+    return j.data && typeof j.data === 'object' ? j.data : {};
+  }
+
+  /** Pole zaznaczonego elementu w panelu (poza kontrolkami list) — edytor
+      TinyMCE w nim może nie śledzić stanu; bez tego zmiana w edytorze
+      zapisałaby stary tekst z powrotem. */
+  function edytorPola(x, klucz, tekst) {
+    const a = aktywny();
+    const tm = powloka && powloka.tinymce;
+    if (!a || String(a.el.id) !== x.id || x.lista || !tm || typeof tm.get !== 'function') return;
+    const ctrl = Array.from(powloka.document.querySelectorAll('[data-controlkey="' + klucz + '"]'))
+      .find((c) => !(c.parentElement && c.parentElement.closest('[data-controlkey]')));
+    if (!ctrl) return;
+    const ramka = ctrl.querySelector('iframe[id$="_ifr"]');
+    const pole = ctrl.querySelector('textarea[id]');
+    const ed = (ramka && tm.get(ramka.id.slice(0, -4))) || (pole && tm.get(pole.id));
+    if (ed && typeof ed.getContent === 'function' && ed.getContent() !== tekst) ed.setContent(tekst);
+  }
+
+  /**
+   * Tłumaczy teksty jednego obszaru porcjami i wpisuje wyniki do stanu
+   * powłoki. `postep(zrobione, razem)` — do komunikatu.
+   */
+  async function przetlumacz(obszar, lang, lista, postep) {
+    const pre = przedrostek(lang);
+    const w = { wpisane: 0, pamiec: 0, bezZmian: 0, odrzucone: 0, pominiete: 0, zmienione: 0, blad: '', zrodlo: '' };
+    const st = stanPowloki();
+    if (!st) { w.blad = 'Nie widzę stanu buildera — przeładuj builder.'; return w; }
+    const { kontekst, numer } = kontekstObszaru(st, obszar, lang, new Set(lista.map(kluczMiejsca)));
+    const ids = new Set();
+    let zrobione = 0;
+    for (const partia of porcje(lista)) {
+      postep(zrobione, lista.length);
+      const teksty = {};
+      const miejsca = {};
+      partia.forEach((x, i) => {
+        const k = 'k' + (i + 1);
+        miejsca[k] = x;
+        teksty[k] = { n: numer.get(kluczMiejsca(x)) || 0, bylo: niepusty(x.surowe) ? x.surowe : '' };
+      });
+      const odp = await zapytaj(lang, kontekst, teksty);
+      const tl = odp.tlumaczenia && typeof odp.tlumaczenia === 'object' ? odp.tlumaczenia : {};
+      const zr = odp.zrodla && typeof odp.zrodla === 'object' ? odp.zrodla : {};
+      Object.keys(tl).forEach((k) => {
+        const x = miejsca[k];
+        if (!x || typeof tl[k] !== 'string') return;
+        const obj = obiekt(x);
+        if (!obj || obj[x.pole] !== x.pl || String(obj[pre + x.pole] ?? '') !== String(x.surowe ?? '')) { w.zmienione++; return; }
+        obj[pre + x.pole] = tl[k];
+        edytorPola(x, pre + x.pole, tl[k]);
+        ids.add(x.id);
+        w.wpisane++;
+        w.zrodlo = zr[k] || 'ai';
+        if (zr[k] === 'pamiec' || zr[k] === 'wynik') w.pamiec++;
+        /* Następne porcje widzą to w kontekście, jak w hurcie. */
+        if (teksty[k].n) kontekst[teksty[k].n - 1].tl = tl[k];
+      });
+      w.bezZmian += Array.isArray(odp.bez_zmian) ? odp.bez_zmian.length : 0;
+      w.odrzucone += Array.isArray(odp.odrzucone) ? odp.odrzucone.length : 0;
+      w.pominiete += Array.isArray(odp.pominiete) ? odp.pominiete.length : 0;
+      zrobione += partia.length;
+      if (odp.blad) {
+        w.blad = odp.czekaj ? 'Dostawca prosi o przerwę — spróbuj za ' + odp.czekaj + ' s.' : String(odp.blad);
+        if (odp.stop || odp.czekaj) break;
+      }
+    }
+    if (ids.size) {
+      const roots = new Set();
+      ids.forEach((id) => document.querySelectorAll('[data-id="' + id.replace(/["\\]/g, '') + '"]').forEach((r) => roots.add(r)));
+      if (roots.size) zaplanuj(roots);
+    }
+    return w;
+  }
+
+  function opisPola(w) {
+    if (w.wpisane) {
+      const skad = w.zrodlo === 'pamiec' ? 'z pamięci tłumaczeń — sprawdzone tłumaczenie tego tekstu'
+        : (w.zrodlo === 'wynik' ? 'z pamięci wyników AI · ' + AI.model : 'AI · ' + AI.model);
+      return 'Wpisane (' + skad + '). Zapisz stronę w Bricksie.';
+    }
+    if (w.blad) return w.blad;
+    if (w.zmienione) return 'Tekst albo pole zmieniły się w trakcie — nic nie wpisuję.';
+    if (w.bezZmian) return 'AI zwróciło ten sam tekst — bez zmian.';
+    if (w.odrzucone) return 'Tłumaczenie odrzucone: znaczniki HTML, tagi {…} albo shortcody nie zgadzają się z oryginałem.';
+    if (w.pominiete) return 'Tego tekstu AI nie tłumaczy (sam tag danych dynamicznych albo bez liter).';
+    return 'Brak tłumaczenia.';
+  }
+
+  function opisElementu(w, L, komponenty) {
+    const cz = [];
+    if (w.wpisane) cz.push('wpisane ' + w.wpisane + (w.pamiec ? ' (z pamięci ' + w.pamiec + ')' : ''));
+    if (w.bezZmian) cz.push('bez zmian ' + w.bezZmian);
+    if (w.odrzucone) cz.push('odrzucone ' + w.odrzucone + ' (znaczniki, tagi {…} albo shortcody)');
+    if (w.zmienione) cz.push('zmienione w trakcie ' + w.zmienione);
+    if (w.pominiete) cz.push('pominięte ' + w.pominiete);
+    if (komponenty) cz.push('komponenty pominięte ' + komponenty);
+    let t = L + ': ' + (cz.length ? cz.join(', ') : 'nic nie wpisane') + '.';
+    if (w.blad) t += ' ' + w.blad;
+    if (w.wpisane) t += ' Zapisz stronę w Bricksie.';
+    return t;
+  }
+
+  function zajety(tak, przycisk) {
+    trwa = tak;
+    if (przycisk) przycisk.setAttribute('aria-busy', tak ? 'true' : 'false');
+    odswiezAi();
+  }
+
+  async function tlumaczPole(przycisk, stanPola, lang, pole) {
+    if (trwa) { stanPola.textContent = 'Trwa tłumaczenie — poczekaj na koniec.'; return; }
+    const a = aktywny();
+    const s = a && a.el.settings;
+    const pl = s ? s[pole] : null;
+    if (!a || typeof pl !== 'string' || !niepusty(pl)) { stanPola.textContent = 'Brak polskiego tekstu w tym polu elementu.'; return; }
+    if (!doTlumaczenia(pl)) { stanPola.textContent = 'Tego tekstu AI nie tłumaczy (sam tag danych dynamicznych albo bez liter).'; return; }
+    const surowe = s[przedrostek(lang) + pole];
+    if (niepusty(surowe) && !powloka.confirm('Zastąpić obecne tłumaczenie ' + lang.toUpperCase() + '?\n\n„'
+      + tekstZHtml(surowe).trim().slice(0, 200) + '”')) return;
+    const x = { id: String(a.el.id), nazwa: String(a.el.name), pole, lista: '', indeks: -1, idPoz: '', poz: 0, obj: s, pl, surowe };
+    zajety(true, przycisk);
+    stanPola.textContent = 'Tłumaczę na ' + lang.toUpperCase() + '…';
+    try {
+      stanPola.textContent = opisPola(await przetlumacz(a.obszar, lang, [x], () => {}));
+    } finally {
+      zajety(false, przycisk);
+    }
+  }
+
+  async function tlumaczElement() {
+    if (trwa) return;
+    if (tryb === 'pl') { pokazStan(WYBIERZ + ' w przełączniku obok — przycisk tłumaczy na język podglądu.'); return; }
+    const a = aktywny();
+    if (!a) { pokazStan('Zaznacz element na kanwie albo w strukturze — przetłumaczę go razem z dziećmi.'); return; }
+    const lang = tryb;
+    const L = lang.toUpperCase();
+    const pre = przedrostek(lang);
+    const ids = potomkowie(a.st, a.obszar, a.el);
+    const lista = [];
+    let komponenty = 0;
+    a.st[a.obszar].forEach((e) => {
+      if (!e || !ids.has(String(e.id))) return;
+      /* Instancja komponentu: jej teksty żyją w komponencie, nie w stanie strony. */
+      if (e.cid) { komponenty++; return; }
+      tekstyElementu(e).forEach((x) => {
+        x.pl = x.obj[x.pole];
+        x.surowe = x.obj[pre + x.pole];
+        if (doTlumaczenia(x.pl)) lista.push(x);
+      });
+    });
+    if (!lista.length) {
+      pokazStan('W zaznaczonym elemencie nie ma tekstów do tłumaczenia' + (komponenty ? ' (komponenty pomijam)' : '') + '.');
+      return;
+    }
+    const pelne = lista.filter((x) => niepusty(x.surowe));
+    let doTl = lista.filter((x) => !niepusty(x.surowe));
+    if (pelne.length) {
+      const pytanie = doTl.length
+        ? 'Zaznaczony element ma już tłumaczenia ' + L + ': ' + pelne.length + '.\n\nOK — przetłumacz je od nowa razem z pustymi polami (' + doTl.length + ').\nAnuluj — tylko puste pola.'
+        : 'Zastąpić istniejące tłumaczenia ' + L + ' (' + pelne.length + ')?';
+      if (powloka.confirm(pytanie)) doTl = lista;
+    }
+    if (!doTl.length) { pokazStan(L + ': bez zmian — wszystkie pola są już wypełnione.'); return; }
+    zajety(true);
+    try {
+      const w = await przetlumacz(a.obszar, lang, doTl, (z, r) => pokazStan('Tłumaczę na ' + L + '… ' + z + '/' + r));
+      pokazStan(opisElementu(w, L, komponenty));
+    } finally {
+      zajety(false);
+    }
+  }
+
+  /** Komunikat przycisku przy przełączniku: dymek pod paskiem, `role="status"`.
+      Pusty — schowany wzrokowo, ale w drzewie dostępności (region stoi przed zmianą). */
+  function pokazStan(tekst) {
+    if (!powloka) return;
+    const pd = powloka.document;
+    const d = pd.getElementById('evk-tl-ai-dymek');
+    const s = pd.getElementById('evk-tl-ai-stan');
+    const z = pd.getElementById('evk-tl-ai-zamknij');
+    if (!d || !s) return;
+    if (s.textContent !== tekst) s.textContent = tekst;
+    d.classList.toggle('widoczny', !!tekst);
+    if (z) z.hidden = !tekst;
+    if (!tekst) return;
+    const b = pd.getElementById('evk-tl-ai-element');
+    const r = b ? b.getBoundingClientRect() : { left: 8, bottom: 48 };
+    d.style.top = Math.round(r.bottom + 6) + 'px';
+    d.style.left = Math.round(Math.max(8, Math.min(r.left, pd.documentElement.clientWidth - d.offsetWidth - 8))) + 'px';
+  }
+
+  function odswiezAi() {
+    if (!AI || !powloka) return;
+    const pd = powloka.document;
+    const b = pd.getElementById('evk-tl-ai-element');
+    if (!b) return;
+    const a = aktywny();
+    const id = a ? String(a.el.id) : '';
+    /* Inny element: stary komunikat już go nie dotyczy. */
+    if (id !== ostatniAktywny) {
+      if (ostatniAktywny !== null && !trwa) pokazStan('');
+      ostatniAktywny = id;
+    }
+    const powod = trwa ? 'Tłumaczę…' : (tryb === 'pl' ? WYBIERZ : (!a ? 'Zaznacz element' : ''));
+    const opis = powod || ('Zaznaczony element z dziećmi → ' + tryb.toUpperCase() + ' (' + AI.model + ')');
+    if (b.getAttribute('aria-disabled') !== (powod ? 'true' : 'false')) b.setAttribute('aria-disabled', powod ? 'true' : 'false');
+    if (b.getAttribute('aria-busy') !== (trwa ? 'true' : 'false')) b.setAttribute('aria-busy', trwa ? 'true' : 'false');
+    if (b.title !== opis) b.title = opis;
+    const p = pd.getElementById('evk-tl-ai-podpowiedz');
+    if (p && p.textContent !== opis) p.textContent = opis;
+  }
+
+  function wstawAi() {
+    if (!AI || !powloka || !OBCE.length) return;
+    const pd = powloka.document;
+    const przel = pd.getElementById('evk-tl-podglad');
+    if (!przel) return;
+    if (!pd.getElementById('evk-tl-ai-styl')) {
+      const s = pd.createElement('style');
+      s.id = 'evk-tl-ai-styl';
+      s.textContent = '#evk-tl-ai{display:flex;align-items:center;margin:0 8px 0 0;padding:0;list-style:none}'
+        + '#evk-tl-ai li{margin:0;padding:0;list-style:none}'
+        + '#evk-tl-ai button{min-height:24px;padding:0 8px;border:0;border-radius:4px;background:transparent;color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;opacity:.85}'
+        + '#evk-tl-ai button:hover{opacity:1}'
+        + '#evk-tl-ai button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}'
+        + '#evk-tl-ai button[aria-busy="true"]{cursor:progress}'
+        + '#evk-tl-ai button:focus-visible,#evk-tl-ai-dymek button:focus-visible,.evk-tl-ai-pole button:focus-visible{outline:2px solid currentColor;outline-offset:1px}'
+        + '#evk-tl-ai-dymek{position:fixed;z-index:100000;display:flex;align-items:flex-start;gap:8px;max-width:360px;padding:8px 8px 8px 12px;border-radius:6px;background:#fff;color:#1f2937;box-shadow:0 4px 16px rgba(0,0,0,.35);font:13px/1.45 system-ui,sans-serif}'
+        + '#evk-tl-ai-dymek:not(.widoczny){width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;box-shadow:none}'
+        + '#evk-tl-ai-dymek [hidden]{display:none!important}'
+        + '#evk-tl-ai-dymek button{flex:none;min-width:24px;min-height:24px;border:0;border-radius:4px;background:transparent;color:inherit;font:600 16px/1 system-ui,sans-serif;cursor:pointer}'
+        + '.evk-tl-ai-pole{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:6px 0 4px}'
+        + '.evk-tl-ai-pole button{min-height:24px;padding:2px 8px;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;font-family:inherit;font-size:11px;font-weight:600;line-height:1.2;cursor:pointer;opacity:.8}'
+        + '.evk-tl-ai-pole button:hover{opacity:1}'
+        + '.evk-tl-ai-pole button[aria-busy="true"]{opacity:.5;cursor:progress}'
+        + '.evk-tl-ai-pole-stan{font-size:11px;line-height:1.35;opacity:.85}';
+      pd.head.appendChild(s);
+    }
+    let d = pd.getElementById('evk-tl-ai-dymek');
+    if (d && d.__evkWlasciciel !== window) { d.remove(); d = null; }
+    if (!d) {
+      d = pd.createElement('div');
+      d.id = 'evk-tl-ai-dymek';
+      const s = pd.createElement('div');
+      s.id = 'evk-tl-ai-stan';
+      s.setAttribute('role', 'status');
+      const z = pd.createElement('button');
+      z.type = 'button';
+      z.id = 'evk-tl-ai-zamknij';
+      z.setAttribute('aria-label', 'Zamknij komunikat');
+      z.textContent = '×';
+      z.hidden = true;
+      const zamknij = () => {
+        pokazStan('');
+        const b = pd.getElementById('evk-tl-ai-element');
+        if (b) b.focus();
+      };
+      z.addEventListener('click', zamknij);
+      d.addEventListener('keydown', (e) => { if (e.key === 'Escape') zamknij(); });
+      d.append(s, z);
+      d.__evkWlasciciel = window;
+      pd.body.appendChild(d);
+    }
+    const stary = pd.getElementById('evk-tl-ai');
+    if (stary && stary.__evkWlasciciel === window && stary.previousElementSibling === przel) return;
+    if (stary) stary.remove();
+    const ul = pd.createElement('ul');
+    ul.id = 'evk-tl-ai';
+    ul.className = 'group-wrapper evk-tl-ai';
+    ul.setAttribute('role', 'group');
+    ul.setAttribute('aria-label', 'Tłumaczenie AI');
+    const li = pd.createElement('li');
+    const b = pd.createElement('button');
+    b.type = 'button';
+    b.id = 'evk-tl-ai-element';
+    b.textContent = 'Przetłumacz (AI)';
+    b.setAttribute('aria-describedby', 'evk-tl-ai-podpowiedz');
+    b.addEventListener('click', () => { tlumaczElement(); });
+    const p = pd.createElement('span');
+    p.id = 'evk-tl-ai-podpowiedz';
+    p.hidden = true;
+    li.append(b, p);
+    ul.appendChild(li);
+    ul.__evkWlasciciel = window;
+    przel.insertAdjacentElement('afterend', ul);
+    odswiezAi();
+  }
+
+  /** Pole języka w panelu → [język, pole] dla przycisku; null — bez przycisku. */
+  function celPola(ctrl, a) {
+    const klucz = ctrl.getAttribute('data-controlkey') || '';
+    const lang = OBCE.find((j) => klucz.indexOf(przedrostek(j)) === 0);
+    const def = a && MAPA[a.el.name];
+    if (!lang || !def) return null;
+    const pole = klucz.slice(przedrostek(lang).length);
+    /* Tylko pola samego elementu: pole pozycji listy siedzi w kontrolce listy. */
+    if ((def.pola || []).indexOf(pole) === -1 || (ctrl.parentElement && ctrl.parentElement.closest('[data-controlkey]'))) return null;
+    return [lang, pole];
+  }
+
+  /* Panel rysuje Vue powłoki od nowa przy każdym zaznaczeniu — przyciski
+     dokładamy co 300 ms, jak podgląd aktywnego elementu. */
+  function wstawPrzyciskiPol() {
+    if (!AI || !powloka) return;
+    const pd = powloka.document;
+    const a = aktywny();
+    pd.querySelectorAll('[data-controlkey^="evk_tl_"]').forEach((ctrl) => {
+      const cel = celPola(ctrl, a);
+      const dla = cel ? a.el.id + '|' + cel.join('|') : '';
+      const jest = Array.from(ctrl.children).find((c) => c.classList.contains('evk-tl-ai-pole'));
+      if (jest && cel && jest.__evkWlasciciel === window && jest.getAttribute('data-dla') === dla) return;
+      if (jest) jest.remove();
+      if (!cel) return;
+      const box = pd.createElement('div');
+      box.className = 'evk-tl-ai-pole';
+      box.setAttribute('data-dla', dla);
+      const b = pd.createElement('button');
+      b.type = 'button';
+      b.textContent = 'Przetłumacz (AI)';
+      const etykieta = ctrl.querySelector('label');
+      b.setAttribute('aria-label', 'Przetłumacz (AI) — ' + ((etykieta && etykieta.textContent.trim()) || 'Tłumaczenie ' + cel[0].toUpperCase()));
+      b.title = 'Z polskiego tekstu tego pola (' + AI.model + ')';
+      const s = pd.createElement('span');
+      s.className = 'evk-tl-ai-pole-stan';
+      s.setAttribute('role', 'status');
+      b.addEventListener('click', () => { tlumaczPole(b, s, cel[0], cel[1]); });
+      box.append(b, s);
+      box.__evkWlasciciel = window;
+      ctrl.appendChild(box);
+    });
+  }
+
   /* Pasek rysuje Vue powłoki — po przerysowaniu grupy może nie być. Sprawdzenie
      co sekundę kosztuje mniej niż obserwowanie całej powłoki. */
   wstawPrzelacznik();
-  const straz = setInterval(wstawPrzelacznik, 1000);
+  wstawAi();
+  const straz = setInterval(() => { wstawPrzelacznik(); wstawAi(); }, 1000);
+  const strazPol = AI ? setInterval(() => { wstawPrzyciskiPol(); odswiezAi(); }, 300) : 0;
   window.addEventListener('pagehide', () => {
     clearInterval(straz);
+    if (strazPol) clearInterval(strazPol);
     try {
-      const u = powloka && powloka.document.getElementById('evk-tl-podglad');
-      if (u && u.__evkWlasciciel === window) u.remove();
+      const pd = powloka && powloka.document;
+      if (!pd) return;
+      ['evk-tl-podglad', 'evk-tl-ai', 'evk-tl-ai-dymek'].forEach((id) => {
+        const u = pd.getElementById(id);
+        if (u && u.__evkWlasciciel === window) u.remove();
+      });
+      pd.querySelectorAll('.evk-tl-ai-pole').forEach((u) => { if (u.__evkWlasciciel === window) u.remove(); });
     } catch (e) { /* powłoka już zamknięta */ }
   });
 

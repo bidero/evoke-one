@@ -116,3 +116,18 @@ Po próbie możesz po prostu wyczyścić pole „Tłumaczenie EN” w panelu.
   console.log('C nie znalazłem pola — wklej mi wynik kroku A');
 })();
 ```
+
+## Wdrożone w 1.265.0
+
+Przyciski stoją na wyniku prób: wpis wprost do `settings` elementu w stanie
+powłoki (`$_state`), zapis ręczny w Bricksie.
+
+- „Przetłumacz (AI)” przy przełączniku PL | EN | DE — zaznaczony element
+  z dziećmi, w języku przełącznika; przy PL nieaktywny z podpowiedzią.
+- „Przetłumacz (AI)” pod polem `[data-controlkey="evk_tl_en__…"]` (kształt
+  z A4) — tylko pola samego elementu, nie pozycji list.
+
+Do sprawdzenia na testowej (lista także w CHANGELOG przy 1.265.0): kanwa
+i pola panelu po wpisie, Ctrl+Z, zapis, pole z edytorem (Rich Text), pozycje
+list w panelu, szablon nagłówka albo stopki. Komponenty — osobna próba:
+`docs/proby-komponenty.md`.

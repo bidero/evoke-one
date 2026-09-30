@@ -39,6 +39,10 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/tl-ai.php ajax-czysc <admin|tlumacz|czytelnik> <strona> <podglad|wykonaj|przywroc>
  *   php tests/php/tl-ai.php ajax-sprawdz <strona> <element> <tekst> [jezyk]
  *                                                        zapis z okienka sprawdzania (62) jako administrator
+ *   php tests/php/tl-ai.php builder-dane <admin|tlumacz|redaktor> [bez-klucza]
+ *                                                        dane kanwy z przyciskami AI (1.265.0); wpis kanwy — strona F
+ *   php tests/php/tl-ai.php ajax-builder <kto> <plik z ciałem POST> [scenariusz]
+ *                                                        tłumaczenie z buildera, bez zapisu
  *   php tests/php/tl-ai.php sprzataj
  *
  * Strona A: nagłówek, tekst z <strong>, przycisk „Kontakt ai-test” (pamięć
@@ -117,6 +121,25 @@ function evk_t_ai_ajax(array $post) {
     return json_decode($wyjscie, true) ?? $wyjscie;
 }
 
+/**
+ * Użytkownik kroku: admin albo konto testowe (usuwane przy sprzątaniu).
+ * tlumacz — redaktor z dostępem do Tłumaczeń; czytelnik — dostęp do Tłumaczeń
+ * bez prawa edycji stron; redaktor — bez dostępu do Tłumaczeń.
+ */
+function evk_t_ai_kto(string $kto): int {
+    global $plik;
+    if ($kto === 'admin') return (int) get_user_by('login', 'admin')->ID;
+    $login = 'evk-t-ai-' . $kto;
+    $u = get_user_by('login', $login);
+    $uid = $u ? (int) $u->ID : (int) wp_insert_user(['user_login' => $login, 'user_pass' => wp_generate_password(),
+        'user_email' => $login . '@example.test', 'role' => in_array($kto, ['tlumacz', 'redaktor'], true) ? 'editor' : 'subscriber']);
+    if ($kto !== 'redaktor') get_user_by('id', $uid)->add_cap('evk_access_translations');
+    $zapis = evk_t_ai_zapis();
+    $zapis['uzytkownicy'] = array_values(array_unique(array_merge($zapis['uzytkownicy'] ?? [], [$uid])));
+    file_put_contents($plik, wp_json_encode($zapis));
+    return $uid;
+}
+
 /** Ustawienia AI testu: dostawca z kluczem testowym, opis, wskazówki, słowniczek. */
 function evk_t_ai_ustaw(string $dostawca, bool $klucz = true): void {
     update_option('evk_tl_ai', [
@@ -151,6 +174,11 @@ case 'przygotuj':
         'text-basic' => ['pola' => ['text'], 'listy' => []],
         'button' => ['pola' => ['text'], 'listy' => []],
         'accordion' => ['pola' => [], 'listy' => ['items' => ['title', 'content']]],
+        /* Pole elementu i pole pozycji listy o tym samym kluczu — przycisk AI
+           w builderze tylko przy polu elementu (tl-ai-builder, 1.265.0). */
+        'slider' => ['pola' => ['title'], 'listy' => ['items' => ['title']]],
+        /* Pole z edytorem TinyMCE w panelu buildera (tl-ai-builder). */
+        'rich-text' => ['pola' => ['text'], 'listy' => []],
     ], false);
     delete_option('evk_tl_ai_pamiec');
     evk_t_ai_ustaw('claude');
@@ -526,6 +554,48 @@ case 'ajax-sprawdz':
     $out['pola'] = evk_t_ai_pola($id);
     $stan = get_post_meta($id, EVK_TL_EL_STAN, true);
     $out['stan'] = is_array($stan) ? ($stan[$tresc] ?? []) : [];
+    break;
+
+case 'builder-dane':
+    /* Dane kanwy (58) z przyciskami AI (1.265.0) dla użytkownika, ustawienia
+       z Gemini; wpis kanwy — strona F (bez treści: teksty idą ze stanu buildera). */
+    $zapis = evk_t_ai_zapis();
+    if (empty($zapis['strony']['F'])) {
+        $zapis['strony']['F'] = (int) wp_insert_post(['post_type' => 'page', 'post_title' => 'Strona AI F', 'post_status' => 'publish']);
+        file_put_contents($plik, wp_json_encode($zapis));
+    }
+    wp_set_current_user(evk_t_ai_kto((string) ($argv[2] ?? 'admin')));
+    evk_t_ai_ustaw('gemini', ($argv[3] ?? '') !== 'bez-klucza');
+    $GLOBALS['wp_the_query'] = $GLOBALS['wp_query'] = new WP_Query(['page_id' => (int) $zapis['strony']['F']]);
+    $out['F'] = (int) $zapis['strony']['F'];
+    $out['dane'] = evk_tl_podglad_dane();
+    $out['z_kluczem'] = strpos((string) wp_json_encode($out['dane']), EVK_T_AI_KLUCZ) !== false;
+    break;
+
+case 'ajax-builder':
+    /* Żądanie tłumaczenia z buildera: ciało POST z pliku, tak jak wysłała je
+       przeglądarka (nonce „auto” — świeży, post_id literą strony — jej id).
+       Odpowiedź prawdziwego AJAX-a, zapytania do AI i czy treść lub stan
+       którejś strony się zmieniły (nie mogą — zapisuje Bricks). */
+    wp_set_current_user(evk_t_ai_kto((string) ($argv[2] ?? 'admin')));
+    parse_str((string) @file_get_contents((string) ($argv[3] ?? '')), $post);
+    if (($post['nonce'] ?? '') === 'auto') $post['nonce'] = wp_create_nonce('evk_tl_ai_builder');
+    $strony = (array) (evk_t_ai_zapis()['strony'] ?? []);
+    if (isset($post['post_id'], $strony[$post['post_id']])) $post['post_id'] = (string) $strony[$post['post_id']];
+    $GLOBALS['evk_t_ai_scenariusz'] = (string) ($argv[4] ?? 'ok');
+    $GLOBALS['evk_t_ai_kod'] = is_string($post['lang'] ?? null) ? $post['lang'] : 'en';
+    $migawka = static function () use ($strony, $tresc): array {
+        $m = [];
+        foreach ($strony as $l => $sid) $m[$l] = [get_post_meta((int) $sid, $tresc, true), get_post_meta((int) $sid, EVK_TL_EL_STAN, true)];
+        return $m;
+    };
+    $przed = $migawka();
+    $out['odp'] = evk_t_ai_ajax($post);
+    $out['bez_zapisu'] = $przed === $migawka();
+    $out['zadania'] = count($GLOBALS['evk_t_ai_zadania']);
+    $z = end($GLOBALS['evk_t_ai_zadania']);
+    $out['wiadomosc'] = $z ? (string) ($z['body']['contents'][0]['parts'][0]['text'] ?? $z['body']['messages'][0]['content'] ?? $z['body']['input'] ?? '') : '';
+    $out['system'] = $z ? (string) ($z['body']['systemInstruction']['parts'][0]['text'] ?? $z['body']['system'] ?? $z['body']['instructions'] ?? '') : '';
     break;
 
 case 'sprzataj':
