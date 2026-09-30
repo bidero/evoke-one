@@ -92,6 +92,34 @@ module.exports = async function (t) {
   t.check('eksport w panelu wysyła stan pola (hasla=1 tylko przy zaznaczeniu)',
     /name:\s*'hasla',\s*value:\s*\$\('#evo-export-hasla'\)\.is\(':checked'\)\s*\?\s*'1'\s*:\s*''/.test(adminJs), 'wzorzec w admin.js');
 
+  // ── Ustawienia AI: bez kluczy API ───────────────────────────────────────
+  /* 1.262.0: opis, wskazówki i słowniczek AI jadą w paczce ustawień, klucz
+     API nigdy — także z „Dołącz hasła". Klucz to pieniądze właściciela konta
+     u dostawcy, a paczka wędruje mailem. */
+  t.section('eksport ustawień AI: bez kluczy API, także z „Dołącz hasła"');
+  const eksportAi = (wariant) => {
+    const s = phpOutput('zapis-wp-dane.php', 'eksport-ai' + (wariant ? ' ' + wariant : ''), { dopuscBlad: true });
+    try { return { json: JSON.parse(s), surowe: s }; } catch (e) { return { json: null, surowe: s }; }
+  };
+  const aiBez = eksportAi('');
+  const aiZ = eksportAi('z');
+  const aj = (aiBez.json || {}).evk_tl_ai || {};
+  t.check('w pliku: dostawca, model, opis, wskazówki, słowniczek', aj.dostawca === 'claude' && (aj.modele || {}).claude === 'claude-test'
+    && aj.opis === 'Opis strony z eksportu' && (aj.wskazowki || {}).en === 'British English' && aj.slowniczek === 'sklepy | shops', JSON.stringify(aj));
+  t.check('bez kluczy API — ani w „bez haseł", ani z „Dołącz hasła"', !('klucze' in aj) && !aiBez.surowe.includes('test-klucz-ai-eksport')
+    && !!aiZ.json && !aiZ.surowe.includes('test-klucz-ai-eksport'), aiZ.surowe.slice(0, 200));
+  const zKluczem = JSON.parse(aiBez.surowe || '{}');
+  if (zKluczem.evk_tl_ai) zKluczem.evk_tl_ai.klucze = { gemini: 'klucz-z-pliku' };
+  const pAi = plik('ai', JSON.stringify(zKluczem));
+  const iAi = sonda('import-ai ' + pAi);
+  fs.unlinkSync(pAi);
+  const ia = iAi.ai || {};
+  t.check('import: ustawienia z pliku, klucz API ten ze strony (dopisany do pliku się nie liczy)', iAi.sukces === true
+    && ia.dostawca === 'claude' && ia.opis === 'Opis strony z eksportu' && JSON.stringify(ia.klucze) === '{"gemini":"klucz-na-stronie"}',
+    JSON.stringify(iAi));
+  t.check('w zakładce Import/Eksport moduł „Tłumaczenie AI (bez kluczy API)"', zakladka.includes('Tłumaczenie AI (bez kluczy API)'),
+    'brak modułu w zakładce');
+
   // ── Eksport newslettera: ludzie tylko na życzenie ───────────────────────
   /* Do 1.232.x każdy eksport z modułem Newsletter wynosił całą listę adresów
      z adresami IP zgód i tokenami wypisu (1.233.0: „Dołącz subskrybentów"). */

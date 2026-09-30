@@ -21,7 +21,8 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *       z EN od AI, pozycja 2 bez EN), d1 (sam {post_title}), lp1 (w pętli —
  *       dwa razy na stronie), cs1 (własne CSS ID, bez EN), x1 → szablon S,
  *       x2 → szablon K1, c1 (kontener, bez tekstu);
- *   B — strona z tłumaczeniem AI (do „Następna strona”);
+ *   B — strona z tłumaczeniem AI (do „Następna strona”); w stanie model Gemini
+ *       i poprzednia wersja z OpenAI (1.262.0: znaczek modelu, „Przywróć”);
  *   C — skopiowana strona z elementem h1 strony A (ten sam identyfikator): na A
  *       element należy do A, bo kandydaci idą przed wyszukiwaniem;
  *   H, F — szablony nagłówka i stopki; S — szablon sekcji (element sx1 poza
@@ -41,7 +42,7 @@ $tresc = '_bricks_page_content_2';
 $mu    = rtrim(wp_normalize_path(WPMU_PLUGIN_DIR), '/');
 $muPlik = $mu . '/evk-t-tl-sprawdz.php';
 $muDir = $mu . '/evk-t-tl-sprawdz';
-$opcje = ['tl_languages', 'evk_tl_module_enabled', 'tl_translations', 'evk_tl_el_pola', 'evk_t_tls_h', 'evk_t_tls_f'];
+$opcje = ['tl_languages', 'evk_tl_module_enabled', 'tl_translations', 'evk_tl_el_pola', 'evk_t_tls_h', 'evk_t_tls_f', 'evk_tl_ai', 'evk_tl_ai_pamiec'];
 $out   = ['krok' => $krok];
 
 function evk_t_tls_zapis(): array {
@@ -141,6 +142,15 @@ case 'przygotuj':
     evk_t_tls_ai($w['B'], $tresc, ['hb|text|en']);
     // Szablon sekcji z tłumaczeniem AI: w liście bez „Na stronie”, nigdy jako „Następna strona”.
     evk_t_tls_ai($w['K1'], $tresc, ['dup1|text|en']);
+    // B: model tłumaczenia AI i poprzednia wersja — jak po przebiegu „od nowa” (61).
+    $stanB = get_post_meta($w['B'], EVK_TL_EL_STAN, true);
+    $stanB[$tresc]['hb|text|en']['model'] = 'gemini/gemini-3.8-flash';
+    $stanB[$tresc]['hb|text|en']['poprz'] = ['t' => 'Old page B', 'm' => 'openai/gpt-6-astra'];
+    update_post_meta($w['B'], EVK_TL_EL_STAN, $stanB);
+    // Ustawienia AI: klucze testowe Gemini i OpenAI (Claude bez klucza — poza wyborem w okienku).
+    update_option('evk_tl_ai', ['dostawca' => 'gemini', 'klucze' => ['gemini' => 'test-klucz-ai-123', 'openai' => 'test-klucz-ai-123'],
+        'modele' => [], 'opis' => '', 'wskazowki' => [], 'slowniczek' => ''], false);
+    delete_option('evk_tl_ai_pamiec');
     $a[1]['settings']['text'] = '<p>Projektujemy strony i sklepy.</p>';
     update_post_meta($w['A'], $tresc, wp_slash($a));
     delete_post_meta($w['A'], EVK_TL_EL_DOPISANE);
@@ -250,9 +260,17 @@ $evk_f = (int) get_option('evk_t_tls_f');
 </html>
 PHP
     );
+    /* Atrapa dostawców AI (1.262.0, „Przetłumacz ponownie”) — ta sama co w tl-ai,
+       bramka CLI zamieniona na ABSPATH (inaczej `require` pod serwerem by stanął). */
+    $bramka = "if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }";
+    $atrapa = (string) file_get_contents(__DIR__ . '/_ai-atrapa.php');
+    if (strpos($atrapa, $bramka) === false || strpos($atrapa, '<?php') !== 0) { $out['brak'] = 'atrapa AI bez bramki CLI w pierwszych liniach'; break; }
+    file_put_contents($muDir . '/atrapa.php', str_replace($bramka, "if (!defined('ABSPATH')) exit;", $atrapa));
     file_put_contents($muPlik, "<?php\n// Wyłącznie test tl-sprawdz (tests/php/tl-sprawdz.php) — usuwany po teście.\n"
         . "if (PHP_SAPI !== 'cli-server') return;\n"
-        . "require __DIR__ . '/evk-t-tl-sprawdz/bricks.php';\n");
+        . "require __DIR__ . '/evk-t-tl-sprawdz/bricks.php';\n"
+        . '$GLOBALS[\'evk_t_ai_kod\'] = isset($_POST[\'lang\']) && is_string($_POST[\'lang\']) ? $_POST[\'lang\'] : \'en\';' . "\n"
+        . "require __DIR__ . '/evk-t-tl-sprawdz/atrapa.php';\n");
     $out['mu'] = is_file($muPlik);
     break;
 
@@ -265,9 +283,11 @@ case 'stan':
     $stan = get_post_meta($id, EVK_TL_EL_STAN, true);
     $out['pola'] = [];
     $out['sprawdzone'] = [];
+    $out['poprz'] = [];
     foreach ($miejsca as $k => $m) {
         if (strpos($k, $el . '|') !== 0 || $m['jezyk'] !== 'en') continue;
         $out['pola'][$m['pole']] = $m['tlumaczenie'];
+        if (isset($stan[$meta][$k]['poprz'])) $out['poprz'][$m['pole']] = $stan[$meta][$k]['poprz'];
         $src = (string) ($stan[$meta][$k]['src'] ?? '');
         $out['sprawdzone'][$m['pole']] = $src === evk_tl_el_skrot($m['oryginal']) ? 'tak' : ($src === '' ? 'brak stanu' : $src);
     }
@@ -303,7 +323,7 @@ case 'sprzataj':
         foreach ($zapis['uzytkownicy'] as $uid) wp_delete_user((int) $uid);
     }
     @unlink($muPlik);
-    foreach (['bricks.php', 'szablon.php'] as $f) @unlink($muDir . '/' . $f);
+    foreach (['bricks.php', 'szablon.php', 'atrapa.php'] as $f) @unlink($muDir . '/' . $f);
     @rmdir($muDir);
     if (array_key_exists('mu_bylo', $zapis) && !$zapis['mu_bylo'] && is_dir($mu) && count((array) scandir($mu)) === 2) @rmdir($mu);
     @unlink($plik);

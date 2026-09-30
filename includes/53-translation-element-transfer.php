@@ -335,10 +335,15 @@ function evk_tl_el_przenies(bool $zapisz): array {
  * które builder już zna, do wykazu nie idzie — builder otwarty sprzed
  * poprawki i tak nadpisze je swoją wartością przy zapisie.
  *
+ * `$nadpisz` (1.262.0): klucze, które wolno nadpisać mimo `$tylko_puste` —
+ * ponowne tłumaczenie AI. Że to wciąż niesprawdzone tłumaczenie AI, pilnuje
+ * wołający (61) po stanie „Do sprawdzenia” tuż przed zapisem.
+ *
  * @param array<string,string> $zmiany
+ * @param array<string,mixed>  $nadpisz
  * @return list<string> Klucze, które naprawdę się zmieniły.
  */
-function evk_tl_el_zapisz_pola(int $post_id, string $meta_key, string $lang, array $zmiany, bool $tylko_puste): array {
+function evk_tl_el_zapisz_pola(int $post_id, string $meta_key, string $lang, array $zmiany, bool $tylko_puste, array $nadpisz = []): array {
     $dane = get_post_meta($post_id, $meta_key, true);
     if (!is_array($dane) || !$zmiany) return [];
     $kod = (string) preg_replace('/[^a-z0-9_]/', '_', strtolower($lang));
@@ -369,7 +374,7 @@ function evk_tl_el_zapisz_pola(int $post_id, string $meta_key, string $lang, arr
                 $miejsce = $cz[0] . '|' . $sciezka[0] . '.' . $sciezka[1] . '.';
             }
             $bylo = $ust[$bliz] ?? null;
-            if ($tylko_puste && evk_tl_el_niepuste($bylo)) { unset($ust); break; }
+            if ($tylko_puste && !isset($nadpisz[$klucz]) && evk_tl_el_niepuste($bylo)) { unset($ust); break; }
             if ($tekst === '') {
                 if (array_key_exists($bliz, $ust)) {
                     unset($ust[$bliz], $wykaz[$miejsce . $bliz]);

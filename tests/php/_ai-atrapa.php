@@ -19,6 +19,11 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * 429, kolejne idą jak `ok`.
  * $GLOBALS['evk_t_ai_zadania']: lista {url, headers, body} przechwyconych żądań.
  *
+ * Model inny niż domyślny dostawcy (1.262.0) dopisuje się do przedrostka:
+ * „EN[gpt-test-c]:” — ponowne tłumaczenie innym modelem daje inny tekst.
+ * $GLOBALS['evk_t_ai_w_trakcie']: funkcja wołana w środku zapytania, przed
+ * odpowiedzią (np. „Sprawdzone” klikane w trakcie przebiegu).
+ *
  * Panel w przeglądarce (serwer `php -S`) dostaje tę atrapę jako mu-plugin
  * składany przez sondę z tego pliku — bramka CLI wyżej zatrzymałaby `require`.
  */
@@ -26,7 +31,9 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
 $GLOBALS['evk_t_ai_zadania'] = [];
 
 function evk_t_ai_tlumacz(string $pl): string {
-    $kod = strtoupper((string) ($GLOBALS['evk_t_ai_kod'] ?? 'en'));
+    $model = (string) ($GLOBALS['evk_t_ai_model'] ?? '');
+    $kod = strtoupper((string) ($GLOBALS['evk_t_ai_kod'] ?? 'en'))
+        . ($model !== '' && !in_array($model, ['gemini-3.8-flash', 'claude-opus-5-5', 'gpt-6-astra'], true) ? '[' . $model . ']' : '');
     if (strpos($pl, 'ZEPSUJ') !== false) return wp_strip_all_tags($pl);
     return substr((string) preg_replace('/>([^<]+)</u', '>' . $kod . ':$1<', '>' . $pl . '<'), 1, -1);
 }
@@ -51,6 +58,9 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
     if ($dostawca === '') return $pre;
     $cialo = json_decode((string) ($args['body'] ?? ''), true);
     $GLOBALS['evk_t_ai_zadania'][] = ['url' => $url, 'headers' => (array) ($args['headers'] ?? []), 'body' => $cialo];
+    $GLOBALS['evk_t_ai_model'] = $dostawca === 'gemini'
+        ? (preg_match('~/models/([^/:]+):~', $url, $m) ? rawurldecode($m[1]) : '') : (string) ($cialo['model'] ?? '');
+    if (is_callable($GLOBALS['evk_t_ai_w_trakcie'] ?? null)) ($GLOBALS['evk_t_ai_w_trakcie'])();
     $s = (string) ($GLOBALS['evk_t_ai_scenariusz'] ?? 'ok');
 
     if ($s === '401') return evk_t_ai_odpowiedz(401, ['error' => ['message' => 'invalid x-api-key']]);

@@ -533,6 +533,10 @@ add_action('wp_ajax_tl_export', function () {
         'tl_url_slugs'        => fn() => ['tl_url_slugs'        => get_option('tl_url_slugs', [])],
         'tl_sitemap_settings' => fn() => ['tl_sitemap_settings' => get_option('tl_sitemap_settings', [])],
         'tl_dd_keys'          => fn() => ['tl_dd_keys'          => get_option('tl_dd_keys', [])],
+        /* 1.262.0: ustawienia AI bez kluczy API — także z „Dołącz hasła”.
+           Klucz to pieniądze właściciela konta u dostawcy, a paczka wędruje
+           mailem; nowa strona dostaje swój klucz w swoich ustawieniach. */
+        'evk_tl_ai'           => fn() => ['evk_tl_ai' => array_diff_key((array) get_option('evk_tl_ai', []), ['klucze' => true])],
         'evk_darkmode'        => fn() => ['evk_darkmode'        => get_option('evk_darkmode', [])],
         'evk_cursor'          => fn() => ['evk_cursor'          => get_option('evk_cursor', [])],
         'evk_lenis'           => fn() => ['evk_lenis'           => get_option('evk_lenis', [])],
@@ -704,6 +708,22 @@ add_action('wp_ajax_tl_import', function () {
     if ($should('tl_url_slugs')        && isset($data['tl_url_slugs']))        { update_option('tl_url_slugs',        $data['tl_url_slugs']); $imported++; }
     if ($should('tl_sitemap_settings') && isset($data['tl_sitemap_settings'])) { update_option('tl_sitemap_settings', tl_sanitize_sitemap_settings($data['tl_sitemap_settings'])); $imported++; }
     if ($should('tl_dd_keys')          && isset($data['tl_dd_keys']))          { update_option('tl_dd_keys',          $data['tl_dd_keys']); $imported++; }
+    /* Ustawienia AI (1.262.0): klucze API zostają te ze strony — z pliku ich
+       się nie bierze, nawet gdyby ktoś je tam dopisał. */
+    if ($should('evk_tl_ai') && isset($data['evk_tl_ai']) && is_array($data['evk_tl_ai'])) {
+        $ai = $data['evk_tl_ai'];
+        $obecne = get_option('evk_tl_ai', []);
+        $klucze = is_array($obecne) && is_array($obecne['klucze'] ?? null) ? $obecne['klucze'] : [];
+        update_option('evk_tl_ai', [
+            'dostawca'   => sanitize_key((string) ($ai['dostawca'] ?? '')),
+            'klucze'     => $klucze,
+            'modele'     => array_map('sanitize_text_field', array_map('strval', array_filter((array) ($ai['modele'] ?? []), 'is_scalar'))),
+            'opis'       => sanitize_textarea_field((string) ($ai['opis'] ?? '')),
+            'wskazowki'  => array_map('sanitize_textarea_field', array_map('strval', array_filter((array) ($ai['wskazowki'] ?? []), 'is_scalar'))),
+            'slowniczek' => sanitize_textarea_field((string) ($ai['slowniczek'] ?? '')),
+        ], false);
+        $imported++;
+    }
 
     // Frontend modules
     foreach (['evk_darkmode','evk_cursor','evk_lenis','evk_animator','evk_bgshift','evk_a11y','evk_schema','evk_og','evk_security','evk_smtp'] as $opt) {

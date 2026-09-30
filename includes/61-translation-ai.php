@@ -37,6 +37,13 @@ if (!defined('ABSPATH')) exit;
  * skrót źródła `ai`. Lista pokazuje takie miejsca z powodem „AI”,
  * a „Sprawdzone” przyjmuje bieżący oryginał jak zwykle.
  *
+ * PONOWNIE (1.262.0, decyzje zgłaszającego z 29.09): przebieg „puste i AI do
+ * sprawdzenia” tłumaczy od nowa wyłącznie niesprawdzone tłumaczenia AI —
+ * sprawdzone i wpisane ręcznie nigdy. Dostawcę i model wybiera się przy
+ * przebiegu, ustawienia zostają. Stan miejsca (52) dostaje `model`
+ * („dostawca/model”) i `poprz` (poprzedni tekst z jego modelem) — okienko
+ * sprawdzania na stronie (62) pokazuje je i przywraca.
+ *
  * KLUCZ API tylko w opcji: nigdy w HTML ani JS, poza paczką ustawień.
  * HTTP przez wp_remote_post — wtyczka nie ma Composera, a trzech dostawców
  * obsługuje jeden kod. Adresy da się podmienić filtrem `evk_tl_ai_adresy`
@@ -97,6 +104,42 @@ function evk_tl_ai_model(array $u): string {
 
 function evk_tl_ai_klucz(array $u): string {
     return trim((string) ($u['klucze'][$u['dostawca']] ?? ''));
+}
+
+/** Nazwa modelu z formularza: znaki spotykane w nazwach modeli trzech dostawców. */
+function evk_tl_ai_czysty_model(string $m): string {
+    return substr((string) preg_replace('/[^A-Za-z0-9._:-]/', '', trim($m)), 0, 100);
+}
+
+/**
+ * Ustawienia z dostawcą i modelem wybranymi na jeden przebieg (1.262.0).
+ * Zapisane ustawienia zostają bez zmian; pusty model — ten z ustawień.
+ */
+function evk_tl_ai_na_przebieg(array $u, string $dostawca, string $model): array {
+    if (isset(evk_tl_ai_dostawcy()[$dostawca])) $u['dostawca'] = $dostawca;
+    $model = evk_tl_ai_czysty_model($model);
+    if ($model !== '') $u['modele'][$u['dostawca']] = $model;
+    return $u;
+}
+
+/** Model w stanie „Do sprawdzenia”: „dostawca/model”. */
+function evk_tl_ai_podpis(array $u): string {
+    return $u['dostawca'] . '/' . evk_tl_ai_model($u);
+}
+
+/**
+ * Dostawcy z zapisanym kluczem — do wyboru przy przebiegu i w okienku
+ * sprawdzania: nazwa i model z ustawień (albo domyślny).
+ *
+ * @return array<string,array{nazwa:string,model:string}>
+ */
+function evk_tl_ai_dostepni(array $u): array {
+    $out = [];
+    foreach (evk_tl_ai_dostawcy() as $k => $d) {
+        if (trim((string) ($u['klucze'][$k] ?? '')) === '') continue;
+        $out[$k] = ['nazwa' => $d['nazwa'], 'model' => evk_tl_ai_model(['dostawca' => $k] + $u)];
+    }
+    return $out;
 }
 
 /**
@@ -165,23 +208,34 @@ function evk_tl_ai_kod(string $lang): string {
  * tłumaczenia w języku, z numerem w kontekście. Klucz miejsca jak w stanie
  * (52): „id|ścieżka|język”.
  *
- * @param mixed $dane Dane Bricksa (lista elementów).
+ * Tryb ponowny (1.262.0): `$stan` — stan „Do sprawdzenia” tej części (52).
+ * Niesprawdzone tłumaczenie AI idzie do tłumaczenia jak brak, z obecnym
+ * tekstem w `bylo`. `$wymus` — klucze tłumaczone od nowa niezależnie od
+ * stanu (okienko sprawdzania, 62). Kontekst pokazuje takie teksty bez
+ * obecnego tłumaczenia: inny model ma przetłumaczyć po swojemu, a nie
+ * powtórzyć tamto.
+ *
+ * @param mixed                     $dane  Dane Bricksa (lista elementów).
+ * @param array<string,mixed>|null $stan
+ * @param array<string,bool>        $wymus
  * @return array{kontekst:list<array{element:string,opis:string,pl:string,tl:string}>,braki:array<string,array<string,mixed>>}
  */
-function evk_tl_ai_teksty($dane, string $lang): array {
+function evk_tl_ai_teksty($dane, string $lang, ?array $stan = null, array $wymus = []): array {
     $out = ['kontekst' => [], 'braki' => []];
     if (!is_array($dane)) return $out;
     $mapa = evk_tl_el_mapa();
     $kod = evk_tl_ai_kod($lang);
-    $dodaj = static function (array $ust, string $pole, string $id, string $element, string $sciezka, string $opis) use ($lang, $kod, &$out): void {
+    $dodaj = static function (array $ust, string $pole, string $id, string $element, string $sciezka, string $opis) use ($lang, $kod, $stan, $wymus, &$out): void {
         $pl = $ust[$pole] ?? null;
         if (!is_string($pl) || !evk_tl_ai_do_tlumaczenia($pl)) return;
         $tl = $ust[evk_tl_el_klucz($lang, $pole)] ?? null;
         $jest = evk_tl_el_niepuste($tl);
-        $out['kontekst'][] = ['element' => $element, 'opis' => $opis, 'pl' => $pl, 'tl' => $jest && is_string($tl) ? $tl : ''];
-        if ($jest) return;
-        $out['braki'][$id . '|' . $sciezka . '|' . $kod] = ['pl' => $pl, 'element' => $element, 'opis' => $opis,
-            'id' => $id, 'sciezka' => $sciezka, 'pole' => $pole, 'n' => count($out['kontekst'])];
+        $klucz = $id . '|' . $sciezka . '|' . $kod;
+        $ponownie = $jest && is_string($tl) && (isset($wymus[$klucz]) || ($stan !== null && evk_tl_ai_niesprawdzone($stan[$klucz] ?? null)));
+        $out['kontekst'][] = ['element' => $element, 'opis' => $opis, 'pl' => $pl, 'tl' => $jest && is_string($tl) && !$ponownie ? $tl : ''];
+        if ($jest && !$ponownie) return;
+        $out['braki'][$klucz] = ['pl' => $pl, 'element' => $element, 'opis' => $opis,
+            'id' => $id, 'sciezka' => $sciezka, 'pole' => $pole, 'n' => count($out['kontekst']), 'bylo' => $ponownie ? (string) $tl : ''];
     };
     foreach ($dane as $el) {
         if (!is_array($el) || !is_array($el['settings'] ?? null)) continue;
@@ -206,6 +260,23 @@ function evk_tl_ai_teksty($dane, string $lang): array {
         }
     }
     return $out;
+}
+
+/**
+ * Niesprawdzone tłumaczenie AI: źródło `ai`. Każda zmiana tekstu liczy stan
+ * od nowa (52, poprawka w builderze albo w okienku), a „Sprawdzone” wpisuje
+ * skrót oryginału — w obu przypadkach to już nie AI.
+ *
+ * @param mixed $s Wpis stanu miejsca (52).
+ */
+function evk_tl_ai_niesprawdzone($s): bool {
+    return is_array($s) && ($s['src'] ?? '') === 'ai';
+}
+
+/** Stan „Do sprawdzenia” jednej części wpisu (52): klucz miejsca → wpis. */
+function evk_tl_ai_stan_czesci(int $post_id, string $meta_key): array {
+    $stan = get_post_meta($post_id, EVK_TL_EL_STAN, true);
+    return is_array($stan) && is_array($stan[$meta_key] ?? null) ? $stan[$meta_key] : [];
 }
 
 /**
@@ -522,23 +593,40 @@ function evk_tl_ai_wyslij(array $u, string $system, string $wiadomosc): array {
  * dopisanych, zapis bez haka) i oznacza tłumaczenia AI w stanie
  * „Do sprawdzenia”. Zwraca liczbę zapisanych pól.
  *
+ * Tryb ponowny (1.262.0): `$bylo` — klucz → obecne tłumaczenie AI, które
+ * nowe ma zastąpić. Zastępuje tylko wtedy, gdy tuż przed zapisem wciąż jest
+ * niesprawdzone: „Sprawdzone” albo poprawka w trakcie zapytania do AI
+ * wygrywa (poprawka liczy stan od nowa). Stary tekst trafia do `poprz`
+ * razem ze swoim modelem.
+ *
  * @param array<string,string> $gotowe klucz miejsca → tłumaczenie
  * @param array<string,bool>   $ai     klucze z AI (znacznik „Do sprawdzenia”)
+ * @param array<string,string> $bylo   klucz miejsca → zastępowane tłumaczenie AI
+ * @return list<string> Zapisane klucze.
  */
-function evk_tl_ai_zapisz(int $post_id, string $meta_key, string $lang, array $gotowe, array $ai): int {
-    $zapisane = array_flip(evk_tl_el_zapisz_pola($post_id, $meta_key, $lang, $gotowe, true));
-    if (!$zapisane) return 0;
+function evk_tl_ai_zapisz(int $post_id, string $meta_key, string $lang, array $gotowe, array $ai, string $model = '', array $bylo = []): array {
+    $przed = evk_tl_ai_stan_czesci($post_id, $meta_key);
+    foreach (array_keys($bylo) as $klucz) {
+        if (!evk_tl_ai_niesprawdzone($przed[$klucz] ?? null)) unset($gotowe[$klucz], $bylo[$klucz]);
+    }
+    $zapisane = array_flip(evk_tl_el_zapisz_pola($post_id, $meta_key, $lang, $gotowe, true, $bylo));
+    if (!$zapisane) return [];
     /* Stan (52) policzył się przy zapisie ze skrótem bieżącego oryginału.
        Tłumaczenia AI dostają źródło `ai`: różne od każdego skrótu, więc
        miejsce jest „Do sprawdzenia”, dopóki ktoś go nie przyjmie. */
     $stan = get_post_meta($post_id, EVK_TL_EL_STAN, true);
     if (is_array($stan)) {
-        foreach (array_keys($ai) as $klucz) {
-            if (isset($zapisane[$klucz], $stan[$meta_key][$klucz])) $stan[$meta_key][$klucz]['src'] = 'ai';
+        foreach (array_keys($zapisane) as $klucz) {
+            if (!isset($stan[$meta_key][$klucz])) continue;
+            if (isset($ai[$klucz])) {
+                $stan[$meta_key][$klucz]['src'] = 'ai';
+                if ($model !== '') $stan[$meta_key][$klucz]['model'] = $model;
+            }
+            if (isset($bylo[$klucz])) $stan[$meta_key][$klucz]['poprz'] = ['t' => $bylo[$klucz], 'm' => (string) ($przed[$klucz]['model'] ?? '')];
         }
         update_post_meta($post_id, EVK_TL_EL_STAN, $stan);
     }
-    return count($zapisane);
+    return array_map('strval', array_keys($zapisane));
 }
 
 // =========================================================================
@@ -548,34 +636,38 @@ function evk_tl_ai_zapisz(int $post_id, string $meta_key, string $lang, array $g
 /**
  * Jeden krok dla jednej części strony w jednym języku: pamięć tłumaczeń
  * i pamięć wyników od razu, reszta — jedna porcja do AI. Klucze z `$pomin`
- * (odrzucone wcześniej w tym przebiegu) nie idą drugi raz.
+ * (odrzucone albo bez zmian wcześniej w tym przebiegu) nie idą drugi raz.
  *
- * @param list<string> $pomin
+ * `$opcje` (1.262.0): `ponownie` — także niesprawdzone tłumaczenia AI;
+ * `dostawca` i `model` — na ten przebieg, ustawienia bez zmian. Wynik równy
+ * obecnemu tekstowi (ten sam model przy tych samych ustawieniach) liczy się
+ * jako „bez zmian” i trafia do `pominiete`. `zapisane_klucze` — do `$pomin`
+ * w następnych krokach: w trybie ponownym świeże tłumaczenie AI jest znów
+ * niesprawdzone i wracałoby jako „bez zmian”.
+ *
+ * @param list<string>        $pomin
+ * @param array<string,mixed> $opcje
  * @return array<string,mixed>
  */
-function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pomin = []): array {
-    $u = evk_tl_ai_ustawienia();
+function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pomin = [], array $opcje = []): array {
+    $u = evk_tl_ai_na_przebieg(evk_tl_ai_ustawienia(), (string) ($opcje['dostawca'] ?? ''), (string) ($opcje['model'] ?? ''));
     $dane = get_post_meta($post_id, $meta_key, true);
-    $t = evk_tl_ai_teksty($dane, $lang);
+    $t = evk_tl_ai_teksty($dane, $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key));
     $braki = array_diff_key($t['braki'], array_flip($pomin));
-    $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'odrzucone' => [], 'zostalo' => 0];
+    $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'bez_zmian' => 0, 'odrzucone' => [], 'pominiete' => [], 'zapisane_klucze' => [], 'zostalo' => 0];
     if (!$braki) return $wynik;
 
     $gotowe = [];
     $ai = [];
+    $rowne = [];
     foreach ($braki as $k => $b) {
         $z = evk_tl_ai_z_pamieci($b['pl'], $lang);
-        if ($z !== null) {
-            $gotowe[$k] = $z;
-            $wynik['z_pamieci']++;
-            continue;
-        }
-        $w = evk_tl_ai_wynik($u, $lang, $b['pl']);
-        if ($w !== null) {
-            $gotowe[$k] = $w;
-            $ai[$k] = true;
-            $wynik['z_pamieci']++;
-        }
+        $w = $z === null ? evk_tl_ai_wynik($u, $lang, $b['pl']) : null;
+        if ($z === null && $w === null) continue;
+        $gotowe[$k] = $z ?? $w;
+        if ($gotowe[$k] === $b['bylo']) { $rowne[$k] = true; continue; }
+        if ($z === null) $ai[$k] = true;
+        $wynik['z_pamieci']++;
     }
 
     /* To, co przyszło z pamięci, model widzi w kontekście jak każde inne
@@ -584,6 +676,7 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
 
     $reszta = array_diff_key($braki, $gotowe);
     $porcja = [];
+    $przerwa = null;
     $znaki = 0;
     foreach ($reszta as $k => $b) {
         if ($porcja && (count($porcja) >= EVK_TL_AI_PORCJA || $znaki + strlen($b['pl']) > EVK_TL_AI_ZNAKI)) break;
@@ -601,56 +694,102 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         if (!$r['ok'] && (!empty($r['stop']) || !empty($r['czekaj']))) {
             /* Przejściowe (limit, przeciążenie) albo końcowe (klucz, limit
                dzienny): ta sama porcja wraca w następnym kroku. */
-            $wynik['zapisane'] = evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai);
-            $wynik['zostalo'] = count($reszta);
-            return $wynik + ['blad' => (string) $r['blad'], 'czekaj' => (int) ($r['czekaj'] ?? 0), 'stop' => !empty($r['stop'])];
-        }
-        /* Błąd porcji (odmowa modelu, odpowiedź poza schematem): ponowienie
-           nic nie da — jej teksty idą do odrzuconych, reszta leci dalej. */
-        if (!$r['ok']) {
-            $wynik['blad'] = (string) $r['blad'];
-            $r['tlumaczenia'] = [];
-        }
-        $pamiec = [];
-        foreach ($krotkie as $kr => $k) {
-            $tl = $r['tlumaczenia'][$kr] ?? null;
-            if (!is_string($tl) || !evk_tl_ai_zgodne($porcja[$k]['pl'], $tl)) {
-                $wynik['odrzucone'][] = $k;
-                continue;
+            $przerwa = ['blad' => (string) $r['blad'], 'czekaj' => (int) ($r['czekaj'] ?? 0), 'stop' => !empty($r['stop'])];
+            $porcja = [];
+        } else {
+            /* Błąd porcji (odmowa modelu, odpowiedź poza schematem): ponowienie
+               nic nie da — jej teksty idą do odrzuconych, reszta leci dalej. */
+            if (!$r['ok']) {
+                $wynik['blad'] = (string) $r['blad'];
+                $r['tlumaczenia'] = [];
             }
-            $gotowe[$k] = $tl;
-            $ai[$k] = true;
-            $pamiec[evk_tl_ai_klucz_wyniku($u, $lang, $porcja[$k]['pl'])] = $tl;
-            $wynik['z_ai']++;
+            $pamiec = [];
+            foreach ($krotkie as $kr => $k) {
+                $tl = $r['tlumaczenia'][$kr] ?? null;
+                if (!is_string($tl) || !evk_tl_ai_zgodne($porcja[$k]['pl'], $tl)) {
+                    $wynik['odrzucone'][] = $k;
+                    continue;
+                }
+                $gotowe[$k] = $tl;
+                $pamiec[evk_tl_ai_klucz_wyniku($u, $lang, $porcja[$k]['pl'])] = $tl;
+                if ($tl === $porcja[$k]['bylo']) { $rowne[$k] = true; continue; }
+                $ai[$k] = true;
+                $wynik['z_ai']++;
+            }
+            evk_tl_ai_zapamietaj($pamiec);
         }
-        evk_tl_ai_zapamietaj($pamiec);
     }
-    $wynik['zapisane'] = evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai);
+    /* Wynik równy obecnemu tekstowi nie ma czego zapisać. Zastępowane
+       tłumaczenia AI idą do zapisu jako oczekiwany stan pola (i do `poprz`). */
+    $gotowe = array_diff_key($gotowe, $rowne);
+    $bylo = [];
+    foreach (array_keys($gotowe) as $k) {
+        if ($braki[$k]['bylo'] !== '') $bylo[$k] = $braki[$k]['bylo'];
+    }
+    $wynik['zapisane_klucze'] = evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo);
+    $wynik['zapisane'] = count($wynik['zapisane_klucze']);
+    $wynik['bez_zmian'] = count($rowne);
+    $wynik['pominiete'] = array_keys($rowne);
     $wynik['zostalo'] = count($reszta) - count($porcja);
-    return $wynik;
+    return $przerwa ? $wynik + $przerwa : $wynik;
 }
 
 /**
  * Części stron z tekstami bez tłumaczenia: liczba braków w każdym języku.
+ * W trybie ponownym (1.262.0) liczą się też niesprawdzone tłumaczenia AI —
+ * `ai` mówi, ile ich jest wśród braków.
  *
  * @return list<array<string,mixed>>
  */
-function evk_tl_ai_jednostki(): array {
+function evk_tl_ai_jednostki(bool $ponownie = false): array {
     $jezyki = array_map('strval', evk_tl_kody_jezykow());
     $out = [];
     foreach (evk_tl_el_wpisy_bricksa() as [$post_id, $meta_key]) {
         $dane = get_post_meta($post_id, $meta_key, true);
         if (!is_array($dane)) continue;
+        $stan = $ponownie ? evk_tl_ai_stan_czesci($post_id, $meta_key) : null;
         $braki = [];
+        $ai = [];
         foreach ($jezyki as $j) {
-            $n = count(evk_tl_ai_teksty($dane, $j)['braki']);
-            if ($n) $braki[$j] = $n;
+            $b = evk_tl_ai_teksty($dane, $j, $stan)['braki'];
+            if ($b) $braki[$j] = count($b);
+            $n = count(array_filter($b, static function ($x) { return $x['bylo'] !== ''; }));
+            if ($n) $ai[$j] = $n;
         }
         if (!$braki) continue;
         $out[] = ['post_id' => $post_id, 'meta_key' => $meta_key, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
-            'czesc' => evk_tl_el_czesc($meta_key), 'adres' => evk_tl_el_adres_edycji($post_id), 'braki' => $braki];
+            'czesc' => evk_tl_el_czesc($meta_key), 'adres' => evk_tl_el_adres_edycji($post_id), 'braki' => $braki, 'ai' => (object) $ai];
     }
     return $out;
+}
+
+/**
+ * Jeden tekst od nowa, bez zapisu — „Przetłumacz ponownie” w okienku
+ * sprawdzania na stronie (62, 1.262.0). Kontekst jak w hurcie, bez obecnego
+ * tłumaczenia tego tekstu. Pamięć wyników też jak w hurcie: ten sam model
+ * przy tych samych ustawieniach daje ten sam tekst bez zapytania. Pamięci
+ * tłumaczeń tu nie ma — ktoś prosi o wynik konkretnego modelu.
+ *
+ * @return array{ok:bool,tekst?:string,model?:string,z_pamieci?:bool,blad?:string}
+ */
+function evk_tl_ai_jeden(int $post_id, string $meta_key, string $lang, string $klucz, array $u): array {
+    $t = evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, null, [$klucz => true]);
+    $b = $t['braki'][$klucz] ?? null;
+    if (!$b) return ['ok' => false, 'blad' => 'Tego tekstu AI nie tłumaczy (sam tag danych dynamicznych albo bez liter).'];
+    $model = evk_tl_ai_podpis($u);
+    $w = evk_tl_ai_wynik($u, $lang, $b['pl']);
+    if ($w !== null) return ['ok' => true, 'tekst' => $w, 'model' => $model, 'z_pamieci' => true];
+    [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, (string) (get_the_title($post_id) ?: ('#' . $post_id)), $t['kontekst'], ['t1' => $b]);
+    $r = evk_tl_ai_wyslij($u, $system, $wiadomosc);
+    if (!$r['ok']) {
+        return ['ok' => false, 'blad' => !empty($r['czekaj']) ? 'Dostawca prosi o przerwę — spróbuj za ' . (int) $r['czekaj'] . ' s.' : (string) $r['blad']];
+    }
+    $tl = $r['tlumaczenia']['t1'] ?? null;
+    if (!is_string($tl) || !evk_tl_ai_zgodne($b['pl'], $tl)) {
+        return ['ok' => false, 'blad' => 'Tłumaczenie odrzucone: znaczniki HTML, tagi {…} albo shortcody nie zgadzają się z oryginałem.'];
+    }
+    evk_tl_ai_zapamietaj([evk_tl_ai_klucz_wyniku($u, $lang, $b['pl']) => $tl]);
+    return ['ok' => true, 'tekst' => $tl, 'model' => $model, 'z_pamieci' => false];
 }
 
 // =========================================================================
@@ -679,10 +818,10 @@ add_action('wp_ajax_evk_tl_ai_ustawienia', function (): void {
     wp_send_json_success(['komunikat' => 'Zapisano.', 'klucz' => evk_tl_ai_klucz($u) !== '']);
 });
 
-/** Lista części stron z brakami. */
+/** Lista części stron z brakami (w trybie ponownym — także z niesprawdzonymi tłumaczeniami AI). */
 add_action('wp_ajax_evk_tl_ai_lista', function (): void {
     evk_tl_ajax_check('evk_tl_ai');
-    wp_send_json_success(evk_tl_ai_jednostki());
+    wp_send_json_success(evk_tl_ai_jednostki(($_POST['tryb'] ?? '') === 'ponownie'));
 });
 
 /** Jeden krok tłumaczenia. */
@@ -696,6 +835,10 @@ add_action('wp_ajax_evk_tl_ai_krok', function (): void {
     }
     if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
     $pomin = array_values(array_filter(array_map('strval', (array) wp_unslash($_POST['pomin'] ?? []))));
+    /* Dostawca i model przebiegu (1.262.0): tylko na to żądanie, ustawienia
+       bez zmian. Dostawca bez klucza kończy się stopem „Brak klucza API”. */
+    $opcje = ['ponownie' => ($_POST['tryb'] ?? '') === 'ponownie', 'dostawca' => sanitize_key((string) ($_POST['dostawca'] ?? '')),
+        'model' => (string) wp_unslash($_POST['model'] ?? '')];
     if (function_exists('set_time_limit')) @set_time_limit(180);
-    wp_send_json_success(evk_tl_ai_krok($post_id, $meta_key, $lang, $pomin));
+    wp_send_json_success(evk_tl_ai_krok($post_id, $meta_key, $lang, $pomin, $opcje));
 });

@@ -172,6 +172,9 @@ function evoke_one_get_io_modules(): array {
         'tl_url_slugs'        => 'Slugi URL',
         'tl_sitemap_settings' => 'Mapa strony TL',
         'tl_dd_keys'          => 'Klucze Dynamic Data',
+        // 1.262.0: opis, wskazówki i słowniczek AI — nigdy klucze API. Bez
+        // przedrostka `tl_`, bo ustawienia AI zmienia tylko administrator.
+        'evk_tl_ai'           => 'Tłumaczenie AI (bez kluczy API)',
         // Frontend
         'evk_darkmode'        => 'Dark Mode',
         'evk_cursor'          => 'Kursor',

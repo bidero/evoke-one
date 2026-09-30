@@ -36,6 +36,11 @@ if (!defined('ABSPATH')) exit;
  * wpis — także szablon nagłówka czy stopki. Bez `unfiltered_html` wartość
  * idzie przez wp_kses_post().
  *
+ * PONOWNE TŁUMACZENIE (1.262.0): przy tekście przycisk „Przetłumacz
+ * ponownie” (dostawca i model do wyboru, bez zapisu — wynik trafia do pola),
+ * znaczek modelu przy tłumaczeniu AI i „Poprzednio” z przyciskiem
+ * „Przywróć”. Zapis zmienionego pola odkłada stary tekst do `poprz`.
+ *
  * CZEGO TU NIE SPRAWDZIMY (Bricksa na tej maszynie nie ma — CLAUDE.md):
  * identyfikatory elementów w HTML-u (`brxe-…`, własne CSS ID, pętle),
  * `$active_templates` nagłówka i stopki, obiekt elementu w filtrze ustawień
@@ -201,9 +206,9 @@ function evk_tl_sprawdz_tekst(string $pl): bool {
  *   brak    — na stronie idzie po polsku.
  *
  * @param array<string,mixed>                $el     Element z danych Bricksa.
- * @param array<string,array<string,string>> $stan   Stan części wpisu (52) — klucz miejsca → {src, tl}.
+ * @param array<string,array<string,mixed>>  $stan   Stan części wpisu (52) — klucz miejsca → {src, tl, model?, poprz?}.
  * @param array<string,array<string,mixed>>  $indeks Z tl_get_match_index().
- * @return list<array<string,string>>
+ * @return list<array<string,mixed>>
  */
 function evk_tl_sprawdz_pola(array $el, string $lang, array $stan, array $indeks): array {
     $def = evk_tl_el_mapa()[(string) ($el['name'] ?? '')] ?? null;
@@ -225,8 +230,13 @@ function evk_tl_sprawdz_pola(array $el, string $lang, array $stan, array $indeks
             [$slownik, $zrodlo] = $indeks ? evk_tl_el_ze_slownika($pl, $indeks) : ['', 'brak'];
             $s = $zrodlo === 'slownik' ? 'slownik' : ($zrodlo === 'czesc' ? 'czesc' : 'brak');
         }
+        /* 1.262.0: model tłumaczenia AI i poprzednia wersja (hurt ponowny albo
+           zapis z okienka) — do znaczka i „Przywróć”. */
+        $wpis = is_array($stan[$klucz] ?? null) ? $stan[$klucz] : [];
+        $poprz = is_array($wpis['poprz'] ?? null) && is_string($wpis['poprz']['t'] ?? null) && $wpis['poprz']['t'] !== ''
+            ? ['t' => $wpis['poprz']['t'], 'm' => (string) ($wpis['poprz']['m'] ?? '')] : null;
         $out[] = ['klucz' => $klucz, 'sciezka' => $sciezka, 'etykieta' => $etykieta, 'pl' => $pl, 'tl' => (string) $tl,
-            'stan' => $s, 'slownik' => (string) $slownik];
+            'stan' => $s, 'slownik' => (string) $slownik, 'model' => $s === 'ai' ? (string) ($wpis['model'] ?? '') : '', 'poprz' => $poprz];
     };
     foreach ((array) ($def['pola'] ?? []) as $pole) {
         $dodaj($el['settings'], (string) $pole, (string) $pole, evk_tl_el_nazwa_pola((string) $pole));
@@ -326,8 +336,20 @@ function evk_tl_sprawdz_dane(): array {
         'koniec'   => remove_query_arg(EVK_TL_SPRAWDZ_PARAM),
         'nastepna' => evk_tl_sprawdz_nastepna(is_singular() ? (int) get_queried_object_id() : 0, $lang),
         'unfiltered' => current_user_can('unfiltered_html'),
+        'ai'       => evk_tl_sprawdz_ai_dane(),
         'elementy' => (object) $elementy,
     ];
+}
+
+/**
+ * „Przetłumacz ponownie” w okienku (1.262.0): dostawcy z zapisanym kluczem
+ * i dostawca z ustawień. Bez klucza w ustawieniach — null (przycisków nie ma).
+ */
+function evk_tl_sprawdz_ai_dane(): ?array {
+    if (!function_exists('evk_tl_ai_dostepni')) return null;
+    $u = evk_tl_ai_ustawienia();
+    $d = evk_tl_ai_dostepni($u);
+    return $d ? ['dostawcy' => $d, 'domyslny' => isset($d[$u['dostawca']]) ? $u['dostawca'] : (string) array_key_first($d)] : null;
 }
 
 // =========================================================================
@@ -393,7 +415,8 @@ add_action('wp_ajax_evk_tl_sprawdz_zapisz', function (): void {
     $el = evk_tl_sprawdz_elementy_wpisu($post_id, $meta_key)[$id] ?? null;
     if (!$el) wp_send_json_error('Nie ma już tego elementu — odśwież stronę.');
 
-    $pola = evk_tl_sprawdz_pola($el, $lang, [], []);
+    $przed = evk_tl_sprawdz_stan($post_id, $meta_key);
+    $pola = evk_tl_sprawdz_pola($el, $lang, $przed, []);
     $wgSciezki = [];
     foreach ($pola as $p) $wgSciezki[$p['sciezka']] = $p['klucz'];
     $zmiany = [];
@@ -406,10 +429,56 @@ add_action('wp_ajax_evk_tl_sprawdz_zapisz', function (): void {
     $zmienione = $zmiany ? evk_tl_el_zapisz_pola($post_id, $meta_key, $lang, $zmiany, false) : [];
 
     foreach ($pola as $p) evk_tl_el_oznacz_sprawdzone($post_id, $meta_key, $p['klucz']);
+    /* 1.262.0: zmienione tłumaczenie odkłada poprzednie (z jego modelem) —
+       „Przywróć” w okienku wraca do niego. Stan (52) policzył wpis od nowa
+       przy zapisie, więc `poprz` dopisuje się po nim. */
+    $stare = [];
+    foreach ($pola as $p) $stare[$p['klucz']] = $p;
+    $stan = get_post_meta($post_id, EVK_TL_EL_STAN, true);
+    if ($zmienione && is_array($stan)) {
+        foreach ($zmienione as $k) {
+            $bylo = (string) ($stare[$k]['tl'] ?? '');
+            if ($bylo === '' || !isset($stan[$meta_key][$k])) continue;
+            $stan[$meta_key][$k]['poprz'] = ['t' => $bylo, 'm' => (string) ($przed[$k]['model'] ?? '')];
+        }
+        update_post_meta($post_id, EVK_TL_EL_STAN, $stan);
+    }
     $el = evk_tl_sprawdz_elementy_wpisu($post_id, $meta_key)[$id] ?? $el;
     wp_send_json_success([
         'zmienione' => count($zmienione),
         'pola' => evk_tl_sprawdz_pola($el, $lang, evk_tl_sprawdz_stan($post_id, $meta_key),
             function_exists('tl_get_match_index') ? (array) tl_get_match_index($lang) : []),
     ]);
+});
+
+/**
+ * „Przetłumacz ponownie” (1.262.0): jeden tekst elementu od nowa, wybranym
+ * dostawcą i modelem, BEZ zapisu — wynik wraca do pola w okienku, a zapisuje
+ * go „Zapisz”. Warunki jak przy zapisie (to ta sama poprawka, tylko jej
+ * pierwszy krok): nonce, dostęp do Tłumaczeń, `edit_post` wpisu. Zapytanie
+ * kosztuje — kto nie może poprawić strony, nie może go wysłać.
+ */
+add_action('wp_ajax_evk_tl_sprawdz_ai', function (): void {
+    check_ajax_referer('evk_tl_sprawdz', 'nonce');
+    if (!evk_tl_sprawdz_dostep() || !function_exists('evk_tl_ai_jeden')) wp_send_json_error('Brak uprawnień.', 403);
+    $post_id = absint($_POST['post_id'] ?? 0);
+    $meta_key = sanitize_text_field(wp_unslash((string) ($_POST['meta_key'] ?? '')));
+    $lang = sanitize_key((string) ($_POST['lang'] ?? ''));
+    $id = sanitize_text_field(wp_unslash((string) ($_POST['element'] ?? '')));
+    $sciezka = sanitize_text_field(wp_unslash((string) ($_POST['sciezka'] ?? '')));
+    if (!$post_id || $id === '' || !in_array($meta_key, evk_tl_el_klucze_meta(), true) || !isset(tl_get_languages()[$lang])) {
+        wp_send_json_error('Nieznany element albo język.');
+    }
+    if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
+    $el = evk_tl_sprawdz_elementy_wpisu($post_id, $meta_key)[$id] ?? null;
+    if (!$el) wp_send_json_error('Nie ma już tego elementu — odśwież stronę.');
+    $klucz = '';
+    foreach (evk_tl_sprawdz_pola($el, $lang, [], []) as $p) {
+        if ($p['sciezka'] === $sciezka) $klucz = $p['klucz'];
+    }
+    if ($klucz === '') wp_send_json_error('Nieznane pole elementu.');
+    $u = evk_tl_ai_na_przebieg(evk_tl_ai_ustawienia(), sanitize_key((string) ($_POST['dostawca'] ?? '')), (string) wp_unslash($_POST['model'] ?? ''));
+    if (function_exists('set_time_limit')) @set_time_limit(180);
+    $r = evk_tl_ai_jeden($post_id, $meta_key, $lang, $klucz, $u);
+    $r['ok'] ? wp_send_json_success($r) : wp_send_json_error((string) ($r['blad'] ?? 'Błąd tłumaczenia.'));
 });

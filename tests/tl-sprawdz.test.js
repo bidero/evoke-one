@@ -289,6 +289,43 @@ module.exports = async function (t) {
       /* A już sprawdzona, a szablon sekcji z AI to nie strona — dalej nie ma dokąd. */
       t.check('„Następna strona” ukryta: innych stron do sprawdzenia brak (szablon się nie liczy)',
         await p.locator('.evk-tls-strona').isHidden(), await p.getAttribute('.evk-tls-strona', 'href'));
+
+      // ── 1.262.0: model, „Przywróć”, „Przetłumacz ponownie” ─────────────
+      t.section('ponowne tłumaczenie w okienku: model, poprzednia wersja, inny model');
+      const poprzTekst = () => okno.locator('.evk-tls-poprz p').first().textContent();
+      const poleB = okno.locator('textarea').first();
+      t.check('znaczek tłumaczenia AI z modelem', (await okno.locator('.evk-tls-znak').first().textContent()) === 'AI — do sprawdzenia · gemini-3.8-flash',
+        await okno.locator('.evk-tls-znak').first().textContent());
+      t.check('„Poprzednio” z modelem poprzedniej wersji', (await poprzTekst()) === 'Poprzednio (gpt-6-astra): Old page B', await poprzTekst());
+      await okno.locator('.evk-tls-przywroc').first().click();
+      const poPrzywroceniu = [await poleB.inputValue(), await poprzTekst()];
+      await okno.locator('.evk-tls-przywroc').first().click();
+      t.check('„Przywróć” zamienia tekst w polu z poprzednim (z modelami), drugi klik wraca',
+        json(poPrzywroceniu) === json(['Old page B', 'Poprzednio (gemini-3.8-flash): Page B']) && (await poleB.inputValue()) === 'Page B',
+        json([poPrzywroceniu, await poleB.inputValue()]));
+      const wybory = await okno.locator('#evk-tls-ai-dostawca option').allTextContents();
+      t.check('wybór modelu: tylko dostawcy z kluczem, z modelem z ustawień', json(wybory) === json(['Gemini · gemini-3.8-flash', 'OpenAI · gpt-6-astra']),
+        json(wybory));
+      await p.selectOption('#evk-tls-ai-dostawca', 'openai');
+      await p.fill('#evk-tls-ai-model', 'gpt-test-c');
+      await okno.locator('.evk-tls-ponownie').first().click();
+      await p.waitForFunction(() => /Nowe tłumaczenie|Błąd|błąd/.test((document.querySelector('.evk-tls-okno .evk-tls-stan') || {}).textContent || ''),
+        null, { timeout: 15000 }).catch(() => {});
+      const poAi = { pole: await poleB.inputValue(), poprz: await poprzTekst(), stan: await okno.locator('.evk-tls-stan').textContent() };
+      t.check('„Przetłumacz ponownie”: wynik wybranego modelu w polu, obecny tekst jako poprzedni, bez zapisu',
+        poAi.pole === 'EN[gpt-test-c]:Strona B' && poAi.poprz === 'Poprzednio (gemini-3.8-flash): Page B'
+        && poAi.stan === 'Nowe tłumaczenie (gpt-test-c) — sprawdź i zapisz.' && (sonda('stan', 'B', 'hb').pola || {}).text === 'Page B', json(poAi));
+      await okno.locator('.evk-tls-zapisz').click();
+      await poZapisie(p);
+      const hb = sonda('stan', 'B', 'hb');
+      t.check('zapis: nowy tekst, element sprawdzony, poprzednia wersja z jej modelem w stanie', (hb.pola || {}).text === 'EN[gpt-test-c]:Strona B'
+        && (hb.sprawdzone || {}).text === 'tak' && json((hb.poprz || {}).text) === json({ t: 'Page B', m: 'gemini/gemini-3.8-flash' }), json(hb));
+      await okno.locator('.evk-tls-ponownie').first().click();
+      await p.waitForFunction(() => /Ten sam wynik|Błąd|błąd/.test((document.querySelector('.evk-tls-okno .evk-tls-stan') || {}).textContent || ''),
+        null, { timeout: 15000 }).catch(() => {});
+      t.check('ten sam model drugi raz: „Ten sam wynik”, pole bez zmian', (await okno.locator('.evk-tls-stan').textContent())
+        === 'Ten sam wynik — gpt-test-c przy tych ustawieniach tłumaczy tak samo.' && (await poleB.inputValue()) === 'EN[gpt-test-c]:Strona B',
+        await okno.locator('.evk-tls-stan').textContent());
     }
     t.check('bez błędów JS (administrator)', bledy.length === 0, bledy.slice(0, 3).join(' | '));
 
@@ -306,11 +343,12 @@ module.exports = async function (t) {
       const cele = Array.from(document.querySelectorAll('.evk-tls-ui button, .evk-tls-ui a, .evk-tls-ui label.evk-tls-wybor'))
         .filter((x) => x.offsetParent !== null).map((x) => x.getBoundingClientRect());
       return { arkusz: o.classList.contains('evk-tls-arkusz'), szer: document.documentElement.scrollWidth, okno: innerWidth,
-        font: parseFloat(getComputedStyle(o.querySelector('textarea')).fontSize), male: cele.filter((r) => r.width < 24 || r.height < 24).length,
+        font: Math.min(...Array.from(o.querySelectorAll('textarea, select, input')).map((x) => parseFloat(getComputedStyle(x).fontSize))),
+        ai: !!o.querySelector('#evk-tls-ai-dostawca'), male: cele.filter((r) => r.width < 24 || r.height < 24).length,
         dol: Math.round(o.getBoundingClientRect().bottom), wys: innerHeight };
     });
     t.check('okienko jako arkusz od dołu, bez przewijania strony w poziomie', tel.arkusz && tel.szer <= tel.okno && tel.dol === tel.wys, json(tel));
-    t.check('pole co najmniej 16 px, cele dotyku co najmniej 24×24', tel.font >= 16 && tel.male === 0, json(tel));
+    t.check('pola (tekst, wybór modelu) co najmniej 16 px, cele dotyku co najmniej 24×24', tel.ai && tel.font >= 16 && tel.male === 0, json(tel));
     await km.close();
 
     // ── Uprawnienia i bezpieczeństwo ─────────────────────────────────────
@@ -336,6 +374,17 @@ module.exports = async function (t) {
     });
     t.check('zapis wprost przez AJAX: 403 „Brak uprawnień do tej strony”, pole bez zmian', odmowa.status === 403
       && odmowa.tekst.includes('Brak uprawnie') && (sonda('stan', 'A', 'h1').pola || {}).text === 'Our services', json(odmowa));
+    const odmowaAi = await pb.evaluate(async () => {
+      const d = JSON.parse(document.getElementById('evk-tl-sprawdz-dane').textContent);
+      const e = d.elementy.h1;
+      const fd = new FormData();
+      [['action', 'evk_tl_sprawdz_ai'], ['nonce', d.nonce], ['post_id', e.post], ['meta_key', e.meta], ['lang', 'en'], ['element', 'h1'], ['sciezka', 'text'],
+        ['dostawca', 'openai'], ['model', 'gpt-test-c']].forEach(([x, y]) => fd.append(x, y));
+      const r = await fetch(d.ajax, { method: 'POST', body: fd, credentials: 'same-origin' });
+      return { status: r.status, tekst: await r.text() };
+    });
+    t.check('„Przetłumacz ponownie” bez prawa edycji: brak przycisków i 403 (zapytanie kosztuje)',
+      await pb.locator('.evk-tls-ponownie').count() === 0 && odmowaAi.status === 403 && odmowaAi.tekst.includes('Brak uprawnie'), json(odmowaAi));
     t.check('bez błędów JS (podgląd)', bledyB.length === 0, bledyB.slice(0, 3).join(' | '));
     await kb.close();
 

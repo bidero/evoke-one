@@ -131,6 +131,38 @@ case 'import-hasla':
     $out['obejscie'] = get_option('maintenance_bypass_password');
     break;
 
+// ── Ustawienia AI (1.262.0): w paczce, ale nigdy z kluczem API ─────────────
+// `eksport-ai [z]` — plik z prawdziwego uchwytu, osobny proces jak `eksport`.
+case 'eksport-ai':
+    $ai_przed = get_option('evk_tl_ai', null);
+    $sprzatanie[] = static function () use ($ai_przed) {
+        $ai_przed === null ? delete_option('evk_tl_ai') : update_option('evk_tl_ai', $ai_przed, false);
+    };
+    update_option('evk_tl_ai', ['dostawca' => 'claude', 'klucze' => ['claude' => 'test-klucz-ai-eksport', 'gemini' => 'test-klucz-ai-eksport-2'],
+        'modele' => ['claude' => 'claude-test'], 'opis' => 'Opis strony z eksportu', 'wskazowki' => ['en' => 'British English'],
+        'slowniczek' => 'sklepy | shops'], false);
+    $_POST = $_REQUEST = ['action' => 'tl_export', 'nonce' => wp_create_nonce('tl_ajax_nonce'),
+                          'modules' => wp_slash('["evk_tl_ai"]'), 'hasla' => ($argv[2] ?? '') === 'z' ? '1' : ''];
+    do_action('wp_ajax_tl_export');
+    exit;
+
+// `import-ai <plik>`: strona ma własny klucz i opis; plik (z dopisanym kluczem)
+// niesie inne ustawienia. Klucz zostaje ten ze strony.
+case 'import-ai':
+    $ai_przed = get_option('evk_tl_ai', null);
+    $sprzatanie[] = static function () use ($ai_przed) {
+        $ai_przed === null ? delete_option('evk_tl_ai') : update_option('evk_tl_ai', $ai_przed, false);
+    };
+    update_option('evk_tl_ai', ['dostawca' => 'gemini', 'klucze' => ['gemini' => 'klucz-na-stronie'], 'modele' => [],
+        'opis' => 'Opis na stronie', 'wskazowki' => [], 'slowniczek' => ''], false);
+    $_POST = $_REQUEST = ['action' => 'tl_import', 'nonce' => wp_create_nonce('tl_ajax_nonce'),
+                          'json' => wp_slash((string) file_get_contents((string) ($argv[2] ?? ''))), 'decisions' => '{}'];
+    $wynik = evk_t_ajax('tl_import');
+    $out['sukces'] = $wynik['odpowiedz']['success'] ?? null;
+    $out['blad']   = $wynik['blad'];
+    $out['ai']     = get_option('evk_tl_ai');
+    break;
+
 // ── Eksport newslettera: subskrybenci tylko na życzenie ─────────────────────
 // `eksport-nl [z]` — jak `eksport`: plik z prawdziwego uchwytu, osobny proces.
 case 'eksport-nl':

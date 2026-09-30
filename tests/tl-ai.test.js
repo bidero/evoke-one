@@ -258,8 +258,8 @@ module.exports = async function (t) {
     await serwerWp.zaloguj(p, serwer.baza);
     await p.goto(serwer.baza + '/wp-admin/options-general.php?page=evoke-tlumaczenia&tab=ai');
     const html = await p.content();
-    t.check('zakładka „Tłumaczenie AI” otwarta, klucza nie ma w stronie', html.includes('Przetłumacz braki') && !html.includes(KLUCZ),
-      html.includes(KLUCZ) ? 'KLUCZ W STRONIE' : (html.includes('Przetłumacz braki') ? '' : 'brak zakładki: ' + p.url()));
+    t.check('zakładka „Tłumaczenie AI” otwarta, klucza nie ma w stronie', html.includes('Przetłumacz strony') && !html.includes(KLUCZ),
+      html.includes(KLUCZ) ? 'KLUCZ W STRONIE' : (html.includes('Przetłumacz strony') ? '' : 'brak zakładki: ' + p.url()));
     t.check('stan klucza wybranego dostawcy: „(zapisany)”', (await p.locator('.tl-ai-klucz-stan').textContent()) === '(zapisany)');
 
     await p.click('.tl-ai-lista');

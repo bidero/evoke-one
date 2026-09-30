@@ -76,8 +76,33 @@ $evk_jezyki = tl_get_languages();
     <?php endif; ?>
 </div>
 
+<?php $evk_dostepni = evk_tl_ai_dostepni($evk_u); ?>
 <div class="evo-box tl-ai-tlumacz">
-    <h3>Przetłumacz braki</h3>
+    <h3>Przetłumacz strony</h3>
+    <div class="tl-ai-tryb" role="radiogroup" aria-labelledby="tl-ai-tryb-tytul">
+        <p id="tl-ai-tryb-tytul"><strong>Co tłumaczyć</strong></p>
+        <label class="evo-check-row"><input type="radio" name="tl-ai-tryb" value="puste" checked> Tylko puste pola</label>
+        <label class="evo-check-row"><input type="radio" name="tl-ai-tryb" value="ponownie"> Puste pola i tłumaczenia AI „Do sprawdzenia” — od nowa</label>
+    </div>
+    <p class="evo-desc">Od nowa AI tłumaczy tylko swoje niesprawdzone tłumaczenia; sprawdzone i wpisane ręcznie zostają.
+    Poprzednią wersję przywrócisz w okienku sprawdzania na stronie. Ten sam model przy tych samych ustawieniach daje ten sam wynik,
+    więc ponowne tłumaczenie ma sens z innym modelem albo po zmianie opisu, wskazówek lub słowniczka.</p>
+    <div class="evo-field">
+        <label for="tl-ai-przebieg-dostawca">Dostawca tego przebiegu</label>
+        <select id="tl-ai-przebieg-dostawca">
+            <?php foreach ($evk_dostepni as $evk_k => $evk_w): ?>
+            <option value="<?php echo esc_attr($evk_k); ?>" data-model="<?php echo esc_attr($evk_w['model']); ?>" <?php selected($evk_u['dostawca'], $evk_k); ?>><?php echo esc_html($evk_w['nazwa']); ?></option>
+            <?php endforeach; ?>
+            <?php if (!$evk_dostepni): ?>
+            <option value="" data-model="">Brak zapisanego klucza API</option>
+            <?php endif; ?>
+        </select>
+    </div>
+    <div class="evo-field">
+        <label for="tl-ai-przebieg-model">Model tego przebiegu</label>
+        <input type="text" id="tl-ai-przebieg-model" spellcheck="false">
+        <p class="evo-desc">Puste — model z ustawień (w podpowiedzi pola). Ustawienia zostają bez zmian.</p>
+    </div>
     <p class="tl-ai-jezyki">
         <?php foreach ($evk_jezyki as $evk_kod => $evk_j): ?>
         <label class="evo-check-row"><input type="checkbox" class="tl-ai-jezyk" value="<?php echo esc_attr((string) $evk_kod); ?>" checked>
@@ -85,7 +110,7 @@ $evk_jezyki = tl_get_languages();
         <?php endforeach; ?>
     </p>
     <p>
-        <button type="button" class="button tl-ai-lista">Pokaż strony z brakami</button>
+        <button type="button" class="button tl-ai-lista">Pokaż strony do tłumaczenia</button>
         <button type="button" class="button button-primary tl-ai-start" disabled>Przetłumacz zaznaczone</button>
         <button type="button" class="button tl-ai-stop" disabled>Zatrzymaj</button>
     </p>
@@ -164,10 +189,32 @@ $evk_jezyki = tl_get_languages();
     var stop = t.querySelector('.tl-ai-stop');
     var jednostki = [];
     var zatrzymaj = false;
+    var przebiegDostawca = document.getElementById('tl-ai-przebieg-dostawca');
+    var przebiegModel = document.getElementById('tl-ai-przebieg-model');
 
     function jezyki() {
         return Array.prototype.map.call(t.querySelectorAll('.tl-ai-jezyk:checked'), function (c) { return c.value; });
     }
+    function tryb() {
+        var r = t.querySelector('input[name="tl-ai-tryb"]:checked');
+        return r ? r.value : 'puste';
+    }
+    /* Model przebiegu: podpowiedź to model z ustawień wybranego dostawcy. */
+    function pokazPrzebieg() {
+        var o = przebiegDostawca.options[przebiegDostawca.selectedIndex];
+        przebiegModel.placeholder = o ? (o.getAttribute('data-model') || '') : '';
+    }
+    przebiegDostawca.addEventListener('change', pokazPrzebieg);
+    pokazPrzebieg();
+    /* Liczby na liście zależą od trybu — po zmianie trzeba ją pokazać od nowa. */
+    t.querySelectorAll('input[name="tl-ai-tryb"]').forEach(function (r) {
+        r.addEventListener('change', function () {
+            jednostki = [];
+            lista.textContent = '';
+            start.disabled = true;
+            stan.textContent = 'Zmieniony tryb — pokaż strony jeszcze raz.';
+        });
+    });
     function wpisz(tekst) { dziennik.appendChild(el('li', tekst)); }
     function czekaj(s) { return new Promise(function (ok) { setTimeout(ok, s * 1000); }); }
 
@@ -175,15 +222,20 @@ $evk_jezyki = tl_get_languages();
         var b = e.currentTarget;
         b.disabled = true;
         stan.textContent = 'Liczę braki…';
-        wyslij({ action: 'evk_tl_ai_lista' }).then(function (r) {
+        var trybListy = tryb();
+        wyslij({ action: 'evk_tl_ai_lista', tryb: trybListy }).then(function (r) {
             b.disabled = false;
             lista.textContent = '';
             if (!r || !r.success) { stan.textContent = (r && r.data) || 'Błąd.'; return; }
             jednostki = r.data;
-            if (!jednostki.length) { stan.textContent = 'Nie ma pustych pól języków w elementach.'; start.disabled = true; return; }
+            if (!jednostki.length) {
+                stan.textContent = trybListy === 'ponownie' ? 'Nie ma pustych pól ani niesprawdzonych tłumaczeń AI.' : 'Nie ma pustych pól języków w elementach.';
+                start.disabled = true;
+                return;
+            }
             stan.textContent = 'Części stron z brakami: ' + jednostki.length + '.';
             var wrap = el('div', null, 'evo-tbl-wrap'), tab = el('table', null, 'evo-table'), tr = el('tr');
-            ['', 'Strona', 'Część', 'Braki'].forEach(function (n) { var th = el('th', n); th.setAttribute('scope', 'col'); tr.appendChild(th); });
+            ['', 'Strona', 'Część', 'Do tłumaczenia'].forEach(function (n) { var th = el('th', n); th.setAttribute('scope', 'col'); tr.appendChild(th); });
             var thead = el('thead'); thead.appendChild(tr); tab.appendChild(thead);
             var tbody = el('tbody');
             jednostki.forEach(function (j, i) {
@@ -193,7 +245,9 @@ $evk_jezyki = tl_get_languages();
                 td0.appendChild(c); w.appendChild(td0);
                 var td = el('td'), a = el('a', j.tytul); a.href = j.adres; td.appendChild(a); w.appendChild(td);
                 w.appendChild(el('td', j.czesc));
-                w.appendChild(el('td', Object.keys(j.braki).map(function (k) { return k.toUpperCase() + ': ' + j.braki[k]; }).join(', ')));
+                w.appendChild(el('td', Object.keys(j.braki).map(function (k) {
+                    return k.toUpperCase() + ': ' + j.braki[k] + (j.ai && j.ai[k] ? ' (w tym AI od nowa: ' + j.ai[k] + ')' : '');
+                }).join(', ')));
                 tbody.appendChild(w);
             });
             tab.appendChild(tbody); wrap.appendChild(tab); lista.appendChild(wrap);
@@ -207,8 +261,10 @@ $evk_jezyki = tl_get_languages();
         var wybrane = Array.prototype.map.call(t.querySelectorAll('.tl-ai-wybor:checked'), function (c) { return jednostki[+c.getAttribute('data-i')]; });
         var jez = jezyki();
         if (!wybrane.length || !jez.length) { stan.textContent = 'Zaznacz strony i języki.'; return; }
+        /* Tryb, dostawca i model na cały przebieg — zmiana w trakcie go nie rusza. */
+        var przebieg = { tryb: tryb(), dostawca: przebiegDostawca.value, model: przebiegModel.value.trim() };
         zatrzymaj = false; start.disabled = true; stop.disabled = false; dziennik.textContent = '';
-        var suma = { zapisane: 0, z_ai: 0, z_pamieci: 0, odrzucone: 0 }, przerwane = '';
+        var suma = { zapisane: 0, z_ai: 0, z_pamieci: 0, odrzucone: 0, bez_zmian: 0 }, przerwane = '';
         petla:
         for (var i = 0; i < wybrane.length; i++) {
             var j = wybrane[i];
@@ -220,14 +276,19 @@ $evk_jezyki = tl_get_languages();
                     stan.textContent = 'Tłumaczę: ' + j.tytul + ' (' + j.czesc + ') — ' + lang.toUpperCase() + '…';
                     var r;
                     try {
-                        r = await wyslij({ action: 'evk_tl_ai_krok', post_id: j.post_id, meta_key: j.meta_key, lang: lang, pomin: pomin });
+                        r = await wyslij({ action: 'evk_tl_ai_krok', post_id: j.post_id, meta_key: j.meta_key, lang: lang, pomin: pomin,
+                            tryb: przebieg.tryb, dostawca: przebieg.dostawca, model: przebieg.model });
                     } catch (e) { r = { success: false, data: 'Błąd połączenia.' }; }
                     if (!r || !r.success) { wpisz(j.tytul + ' ' + lang.toUpperCase() + ': ' + ((r && r.data) || 'błąd')); break; }
                     var d = r.data;
-                    pomin = pomin.concat(d.odrzucone || []);
+                    /* Odrzucone, bez zmian i już zapisane w tym przebiegu nie wracają —
+                       w trybie „od nowa” świeże tłumaczenie AI jest znów niesprawdzone. */
+                    pomin = pomin.concat(d.odrzucone || [], d.pominiete || [], d.zapisane_klucze || []);
                     suma.zapisane += d.zapisane; suma.z_ai += d.z_ai; suma.z_pamieci += d.z_pamieci; suma.odrzucone += (d.odrzucone || []).length;
+                    suma.bez_zmian += d.bez_zmian || 0;
                     wpisz(j.tytul + ' (' + j.czesc + ') ' + lang.toUpperCase() + ': zapisane ' + d.zapisane + ' (AI: ' + d.z_ai
-                        + ', z pamięci: ' + d.z_pamieci + '), odrzucone: ' + (d.odrzucone || []).length + ', zostało: ' + d.zostalo
+                        + ', z pamięci: ' + d.z_pamieci + '), odrzucone: ' + (d.odrzucone || []).length
+                        + (d.bez_zmian ? ', bez zmian: ' + d.bez_zmian : '') + ', zostało: ' + d.zostalo
                         + (d.blad ? ' — ' + d.blad : ''));
                     if (d.blad) {
                         if (d.stop) { przerwane = d.blad; break petla; }
@@ -243,7 +304,11 @@ $evk_jezyki = tl_get_languages();
         }
         start.disabled = false; stop.disabled = true;
         stan.textContent = przerwane || (zatrzymaj ? 'Zatrzymane.' : 'Gotowe.');
-        wpisz('Razem: zapisane ' + suma.zapisane + ' (AI: ' + suma.z_ai + ', z pamięci: ' + suma.z_pamieci + '), odrzucone: ' + suma.odrzucone + '.');
+        wpisz('Razem: zapisane ' + suma.zapisane + ' (AI: ' + suma.z_ai + ', z pamięci: ' + suma.z_pamieci + '), odrzucone: ' + suma.odrzucone
+            + (suma.bez_zmian ? ', bez zmian: ' + suma.bez_zmian : '') + '.');
+        if (suma.bez_zmian) {
+            wpisz('Bez zmian: ten sam model przy tych samych ustawieniach daje ten sam wynik. Wybierz inny model albo zmień opis, wskazówki lub słowniczek.');
+        }
     });
 })();
 </script>

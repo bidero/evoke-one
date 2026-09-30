@@ -15,7 +15,13 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/tl-ai.php wyczysc <A> <jezyk> <id>     usuwa pole języka elementu (jak builder) i jego stan
  *   php tests/php/tl-ai.php sprawdzone <A> <klucz>
  *   php tests/php/tl-ai.php ajax-ustawienia <admin|tlumacz>
- *   php tests/php/tl-ai.php ajax-krok <admin|czytelnik> [meta_key]
+ *   php tests/php/tl-ai.php ajax-krok <admin|czytelnik> [meta_key] [tryb] [dostawca] [model]
+ *   php tests/php/tl-ai.php ponownie <jezyk> <strona> <dostawca> <model> [sprawdzone-w-trakcie] [pomin,…]
+ *                                                        przebieg „od nowa” (1.262.0); ustawienia: Claude
+ *   php tests/php/tl-ai.php lista-ponownie               lista w trybie ponownym: braki i ile z nich to AI
+ *   php tests/php/tl-ai.php bez-pamieci                  czyści pamięć wyników (model odpowie jeszcze raz)
+ *   php tests/php/tl-ai.php jeden <strona> <klucz> <dostawca> <model>
+ *                                                        „Przetłumacz ponownie” jednego tekstu, bez zapisu
  *   php tests/php/tl-ai.php zakladka                     zakładka z zapisanym kluczem
  *   php tests/php/tl-ai.php mu                           atrapa dostawców jako mu-plugin (panel przez php -S), Gemini
  *   php tests/php/tl-ai.php scenariusz <nazwa>           scenariusz atrapy w serwerze; zeruje dziennik żądań
@@ -175,6 +181,59 @@ case 'krok':
         array_filter(evk_tl_el_do_sprawdzenia(1000), static function ($m) use ($id) { return (int) $m['post_id'] === $id; })));
     break;
 
+case 'ponownie':
+    $strony = (array) (evk_t_ai_zapis()['strony'] ?? []);
+    $lang = (string) ($argv[2] ?? 'en');
+    $id = (int) ($strony[$argv[3] ?? 'A'] ?? 0);
+    evk_t_ai_ustaw('claude');
+    $GLOBALS['evk_t_ai_kod'] = $lang;
+    $wTrakcie = (string) ($argv[6] ?? '');
+    if ($wTrakcie !== '') {
+        /* „Sprawdzone” klikane w trakcie zapytania do AI (lista albo okienko). */
+        $GLOBALS['evk_t_ai_w_trakcie'] = static function () use ($id, $tresc, $wTrakcie): void {
+            evk_tl_el_oznacz_sprawdzone($id, $tresc, $wTrakcie);
+        };
+    }
+    $pomin = array_values(array_filter(explode(',', (string) ($argv[7] ?? ''))));
+    $out['wynik'] = evk_tl_ai_krok($id, $tresc, $lang, $pomin,
+        ['ponownie' => true, 'dostawca' => (string) ($argv[4] ?? ''), 'model' => (string) ($argv[5] ?? '')]);
+    $out['zadania'] = $GLOBALS['evk_t_ai_zadania'];
+    $out['pola'] = evk_t_ai_pola($id);
+    $stan = get_post_meta($id, EVK_TL_EL_STAN, true);
+    $out['stan'] = is_array($stan) ? ($stan[$tresc] ?? []) : [];
+    $u = get_option('evk_tl_ai');
+    $out['ustawienia'] = ['dostawca' => $u['dostawca'] ?? '', 'modele' => $u['modele'] ?? null];
+    $out['do_sprawdzenia'] = array_values(array_map(static function ($m) { return $m['klucz']; },
+        array_filter(evk_tl_el_do_sprawdzenia(1000), static function ($m) use ($id) { return (int) $m['post_id'] === $id; })));
+    break;
+
+case 'bez-pamieci':
+    delete_option('evk_tl_ai_pamiec');
+    $out['pamiec'] = get_option('evk_tl_ai_pamiec', null);
+    break;
+
+case 'lista-ponownie':
+    $ids = array_flip(array_map('intval', (array) (evk_t_ai_zapis()['strony'] ?? [])));
+    $out['lista'] = [];
+    foreach (evk_tl_ai_jednostki(true) as $j) {
+        if (isset($ids[$j['post_id']])) $out['lista'][$ids[$j['post_id']]] = ['braki' => $j['braki'], 'ai' => $j['ai']];
+    }
+    ksort($out['lista']);
+    break;
+
+case 'jeden':
+    $id = (int) ((array) (evk_t_ai_zapis()['strony'] ?? []))[$argv[2] ?? 'A'];
+    $klucz = (string) ($argv[3] ?? '');
+    evk_t_ai_ustaw('claude');
+    $lang = (string) (explode('|', $klucz)[2] ?? 'en');
+    $GLOBALS['evk_t_ai_kod'] = $lang;
+    $przed = evk_t_ai_pola($id);
+    $out['wynik'] = evk_tl_ai_jeden($id, $tresc, $lang, $klucz,
+        evk_tl_ai_na_przebieg(evk_tl_ai_ustawienia(), (string) ($argv[4] ?? ''), (string) ($argv[5] ?? '')));
+    $out['zadania'] = $GLOBALS['evk_t_ai_zadania'];
+    $out['bez_zapisu'] = $przed === evk_t_ai_pola($id);
+    break;
+
 case 'wyczysc':
     $id = (int) ((array) (evk_t_ai_zapis()['strony'] ?? []))[$argv[2] ?? 'A'];
     $lang = (string) ($argv[3] ?? 'en');
@@ -220,6 +279,9 @@ case 'ajax-krok':
         ? ['action' => 'evk_tl_ai_ustawienia', 'dostawca' => 'gemini', 'klucz' => 'nowy-klucz-AJAX-456', 'model' => '',
            'opis' => 'Opis AJAX', 'slowniczek' => '', 'wskazowki' => ['en' => 'EN AJAX']]
         : ['action' => 'evk_tl_ai_krok', 'post_id' => (string) ($strony['C'] ?? 0), 'meta_key' => (string) ($argv[3] ?? $tresc), 'lang' => 'de'];
+    if ($krok === 'ajax-krok' && isset($argv[4])) {
+        $post += ['tryb' => (string) $argv[4], 'dostawca' => (string) ($argv[5] ?? ''), 'model' => (string) ($argv[6] ?? '')];
+    }
     $post['nonce'] = wp_create_nonce('evk_tl_ai');
     $_POST = $_REQUEST = wp_slash($post);
     if (!defined('DOING_AJAX')) define('DOING_AJAX', true);
@@ -240,6 +302,7 @@ case 'ajax-krok':
     $out['odp'] = json_decode($wyjscie, true) ?? $wyjscie;
     $out['surowe'] = $wyjscie;
     $out['zapisane'] = get_option('evk_tl_ai');
+    $out['modele'] = array_map(static function ($z) { return $z['url'] . ' ' . (string) ($z['body']['model'] ?? ''); }, $GLOBALS['evk_t_ai_zadania']);
     break;
 
 case 'zakladka':

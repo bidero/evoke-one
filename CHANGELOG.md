@@ -2,6 +2,115 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.262.0] — 2026-09-30
+
+Tłumaczenia: ponowne tłumaczenie AI innym modelem, poprzednia wersja do
+przywrócenia, ustawienia AI w eksporcie.
+
+### Dodane
+
+- **Przebieg „od nowa”** w zakładce Tłumaczenie AI. Zgłoszone 29.09:
+  „przydałaby się opcja hurtowego tłumaczenia już przetłumaczonego tekstu,
+  np. używając innego modelu”. Decyzje zgłaszającego:
+  - od nowa idą wyłącznie tłumaczenia AI „Do sprawdzenia” — sprawdzone
+    i wpisane ręcznie nigdy;
+  - poprzednia wersja zostaje do przywrócenia;
+  - dostawca i model wybierane przy przebiegu.
+- **„Co tłumaczyć”:** „Tylko puste pola” albo „Puste pola i tłumaczenia AI
+  „Do sprawdzenia” — od nowa”. Lista stron pokazuje, ile tekstów to
+  tłumaczenia AI („w tym AI od nowa: 7”). Zmiana trybu czyści listę, bo
+  liczby od niego zależą.
+- **Dostawca i model tego przebiegu:** lista tylko dostawców z zapisanym
+  kluczem, pole modelu z podpowiedzią z ustawień. Ustawienia zostają bez
+  zmian.
+- **Ten sam model przy tych samych ustawieniach daje ten sam wynik**, bez
+  zapytania (pamięć wyników). Dziennik mówi to wprost: „bez zmian: 7” i
+  wyjaśnienie, że trzeba wybrać inny model albo zmienić opis, wskazówki lub
+  słowniczek. Powrót do modelu, który już tłumaczył, też idzie z pamięci —
+  między dwoma modelami przełącza się bez kosztów.
+- **Okienko sprawdzania na stronie (1.261.0):**
+  - przy tłumaczeniu AI znaczek z modelem („AI — do sprawdzenia ·
+    gemini-3.8-flash”);
+  - „Poprzednio (model): …” z przyciskiem „Przywróć”, który zamienia tekst
+    w polu z poprzednim; drugi klik wraca, zapis dopiero „Zapisz”;
+  - „Przetłumacz ponownie” przy każdym tekście, z wyborem dostawcy i modelu
+    („Model AI” pod polami). Wynik trafia do pola bez zapisu, obecny tekst
+    staje się „poprzednim”. Działa też dla tekstów sprawdzonych i wpisanych
+    ręcznie — to decyzja człowieka, który patrzy na wynik;
+  - zapis zmienionego pola odkłada stary tekst jako poprzedni.
+- **Eksport ustawień:** moduł „Tłumaczenie AI (bez kluczy API)” — dostawca,
+  modele, opis strony, wskazówki i słowniczek. Kluczy nie ma w pliku nigdy,
+  także z „Dołącz hasła”; import zostawia klucze strony (klucz dopisany
+  ręcznie do pliku też się nie liczy). Moduł tylko dla administratora, jak
+  same ustawienia AI.
+
+### Jak to działa
+
+- Stan „Do sprawdzenia” (52) dostaje przy tłumaczeniu AI `model`
+  („dostawca/model”), a przy nadpisaniu `poprz` (poprzedni tekst z jego
+  modelem). Zmiana tekstu w builderze liczy stan od nowa, więc tamto
+  tłumaczenie przestaje być AI.
+- Teksty tłumaczone od nowa model widzi w kontekście BEZ dotychczasowego
+  tłumaczenia — ma przetłumaczyć po swojemu, a nie powtórzyć tamto.
+  Sprawdzone i ręczne tłumaczenia dalej są w kontekście.
+- Zapis sprawdza stan tuż przed zapisem: „Sprawdzone” kliknięte w trakcie
+  zapytania do AI (lista albo okienko) wygrywa.
+- Krok zwraca zapisane klucze, a pętla panelu pomija je do końca przebiegu:
+  w trybie „od nowa” świeże tłumaczenie AI jest znów niesprawdzone i bez
+  tego wracałoby w następnym kroku jako „bez zmian” (znalezione w teście:
+  „bez zmian: 25” na długiej stronie).
+- „Przetłumacz ponownie” w okienku: AJAX `evk_tl_sprawdz_ai` z tymi samymi
+  warunkami co zapis (nonce, dostęp do Tłumaczeń, `edit_post`) — zapytanie
+  kosztuje, więc kto nie może poprawić strony, nie może go wysłać.
+- Nazwa modelu z formularza przechodzi tylko ze znakami spotykanymi
+  w nazwach modeli (litery, cyfry, `.`, `_`, `:`, `-`).
+
+### Testy
+
+- `tests/tl-ai-ponownie.test.js` (nowy, sonda `tests/php/tl-ai.php`):
+  39 sprawdzeń. Atrapa dostawców dopisuje do tłumaczenia model inny niż
+  domyślny („EN[gpt-test-c]:”), więc tekst mówi, który model go dał.
+  - lista w trybie ponownym, przebieg innym dostawcą i modelem, ustawienia
+    bez zmian, kontekst bez starych tłumaczeń AI, `model` i `poprz` w stanie;
+  - ten sam model (z pamięci i bez niej) → „bez zmian”, powrót do modelu
+    z ustawień z pamięci;
+  - „Sprawdzone” w trakcie zapytania, jeden tekst bez zapisu, AJAX z trybem,
+    dostawcą i modelem;
+  - w Chromium: zakładka, trzy kroki na długiej stronie bez powrotów, drugi
+    przebieg „bez zmian”, zmiana trybu, ustawienia po przebiegach.
+- `tests/tl-sprawdz.test.js`: +8 sprawdzeń (60) — znaczek modelu,
+  „Przywróć”, wybór modelu, „Przetłumacz ponownie”, zapis z poprzednią
+  wersją, „Ten sam wynik”, 403 bez prawa edycji, pola wyboru modelu na
+  telefonie.
+- `tests/zapis-wp-dane.test.js`: +4 — eksport bez kluczy (także z „Dołącz
+  hasła”), import z kluczem strony, moduł w zakładce Import/Eksport.
+- `tests/tl-ai.test.js`: nagłówek zakładki „Przetłumacz strony”.
+- Mutacje: 25, każda zapala własne sprawdzenia
+  (17/2/2/11/3/2/2/1/2/5/1/3/1/1/1/2/1/3/2/1/1/2/3/1/1). Po kolei:
+  - bez wyboru tłumaczeń AI; kontekst ze starym tłumaczeniem; zapis bez
+    sprawdzenia stanu; zapis bez prawa nadpisania; bez modelu w stanie;
+    bez poprzedniej wersji; „bez zmian” z pamięci i z odpowiedzi AI; lista
+    bez liczby AI; dostawca przebiegu pominięty; model bez oczyszczania;
+    jeden tekst bez wymuszenia i bez pamięci wyników; dostawcy bez klucza
+    w okienku;
+  - zakładka: zapisane wracają w przebiegu; żądanie bez dostawcy i modelu;
+    zmiana trybu bez czyszczenia listy;
+  - okienko: bez modelu i bez poprzedniej wersji w danych; zapis bez
+    poprzedniej wersji; „Przetłumacz ponownie” bez `edit_post`;
+    „Przywróć” bez zamiany; żądanie bez dostawcy i modelu;
+  - eksport z kluczem; import klucza z pliku.
+
+  Jedna (bez poprzedniej wersji w danych) po swoim sprawdzeniu kończy test
+  wyjątkiem — bez „Poprzednio” nie ma czego przywrócić.
+- Pełny przebieg: 6067 sprawdzeń w 124 plikach, wszystkie zielone
+  (`zapis-wp-newsletter` pasuje do dwóch partii i idzie dwa razy).
+
+### Do sprawdzenia na testowej
+
+- Przebieg „od nowa” innym modelem na stronie po pierwszym tłumaczeniu AI,
+  potem okienko: znaczek modelu, „Poprzednio”, „Przywróć”.
+- „Przetłumacz ponownie” w okienku z prawdziwym kluczem (Gemini).
+
 ## [1.261.0] — 2026-09-30
 
 Tłumaczenia: sprawdzanie i poprawianie tłumaczeń wprost na stronie.

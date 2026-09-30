@@ -13,6 +13,11 @@
  *    wszystkie jego teksty;
  *  - po zapisie okienko zostaje przy elemencie, a fokus idzie na „Następne".
  *
+ * 1.262.0: „Przetłumacz ponownie” przy każdym tekście (dostawca i model do
+ * wyboru; wynik trafia do pola, zapisuje „Zapisz”), znaczek modelu przy
+ * tłumaczeniu AI, „Poprzednio” z „Przywróć” — zamienia tekst w polu
+ * z poprzednim, więc da się porównać dwa modele przed zapisem.
+ *
  * Po zapisie skrypt pobiera stronę jeszcze raz i podmienia węzeł elementu.
  * Element z własnym skryptem Bricksa (akordeon, zakładki, slider…) straciłby
  * obsługę, więc wtedy — i gdy węzła nie ma — strona przeładowuje się i wraca
@@ -133,6 +138,15 @@
   // ── Okienko ────────────────────────────────────────────────────────────
   const okno = el('div', { class: 'evk-tls-ui evk-tls-okno', role: 'dialog', 'aria-labelledby': 'evk-tls-tytul', hidden: true });
   let oknoStan = null;
+  /* Tekst w polu i poprzedni — każdy ze swoim modelem („dostawca/model”,
+     pusty przy tekście spoza AI). „Przywróć” zamienia je miejscami. */
+  let obecne = [];
+  let poprzednie = [];
+  /* Dostawca i model do „Przetłumacz ponownie” — pamiętane między okienkami. */
+  const wyborAi = { dostawca: DANE.ai ? DANE.ai.domyslny : '', model: '' };
+
+  const krotkiModel = (m) => String(m || '').replace(/^[a-z]+\//, '');
+  const krotkaNazwa = (n) => String(n || '').split(/ [(—]/)[0];
 
   function wiersze(p) {
     return Math.min(8, Math.max(2, Math.ceil(Math.max(String(p.tl || '').length, String(p.pl || '').length) / 55)));
@@ -154,12 +168,19 @@
       if (ile > 1) okno.appendChild(el('p', { class: 'evk-tls-uwaga' }, 'Ten element występuje na stronie ' + ile + ' razy (np. w pętli) — zmiana dotyczy każdego wystąpienia.'));
       if (!e.edycja) okno.appendChild(el('p', { class: 'evk-tls-uwaga evk-tls-uwaga-mocna' }, 'Nie możesz edytować tej strony — tylko podgląd.'));
       const lista = el('div', { class: 'evk-tls-pola' });
+      const ai = !!DANE.ai && !!e.edycja;
+      obecne = [];
+      poprzednie = [];
       (e.pola || []).forEach((p, i) => {
         const idp = 'evk-tls-pole-' + i;
+        obecne[i] = p.model || '';
+        poprzednie[i] = p.poprz && p.poprz.t ? { t: p.poprz.t, m: p.poprz.m || '' } : null;
         const pole = el('div', { class: 'evk-tls-pole', 'data-stan': p.stan });
+        const znak = el('span', { class: 'evk-tls-znak', 'data-stan': p.stan }, OPISY[p.stan] || p.stan);
+        if (p.model) znak.appendChild(el('span', { class: 'evk-tls-znak-model' }, ' · ' + krotkiModel(p.model)));
         pole.appendChild(el('div', { class: 'evk-tls-pole-glowa' }, [
           el('label', { for: idp, class: 'evk-tls-etykieta' }, p.etykieta + ' — ' + JEZYK),
-          el('span', { class: 'evk-tls-znak', 'data-stan': p.stan }, OPISY[p.stan] || p.stan),
+          znak,
         ]));
         pole.appendChild(el('p', { class: 'evk-tls-pl' }, [el('span', { class: 'evk-tls-pl-kod' }, 'PL'), ' ' + tekstZHtml(p.pl)]));
         const t = el('textarea', { id: idp, rows: wiersze(p), 'data-sciezka': p.sciezka, spellcheck: 'true', lang: DANE.jezyk || false });
@@ -171,9 +192,40 @@
           pole.appendChild(el('p', { class: 'evk-tls-uwaga' }, 'Na stronie ze słownika: „' + tekstZHtml(p.slownik) + '”. Tłumaczenie wpisane tutaj ma pierwszeństwo.'));
         }
         if (/<[a-z]/i.test(p.pl || '')) pole.appendChild(el('p', { class: 'evk-tls-uwaga' }, 'Znaczniki HTML zachowaj jak w oryginale.'));
+        const poprz = el('div', { class: 'evk-tls-poprz', 'data-i': i, hidden: true }, [
+          el('p', {}, [el('span', { class: 'evk-tls-poprz-glowa' }, ''), ' ', el('span', { class: 'evk-tls-poprz-tekst' }, '')]),
+          el('button', { type: 'button', class: 'evk-tls-przycisk evk-tls-przywroc', 'data-i': i,
+            'aria-label': 'Przywróć poprzednie: ' + p.etykieta, disabled: !e.edycja }, 'Przywróć'),
+        ]);
+        pole.appendChild(poprz);
+        if (ai) {
+          pole.appendChild(el('div', { class: 'evk-tls-pole-akcje' }, [
+            el('button', { type: 'button', class: 'evk-tls-przycisk evk-tls-ponownie', 'data-i': i,
+              'aria-label': 'Przetłumacz ponownie: ' + p.etykieta }, 'Przetłumacz ponownie'),
+          ]));
+        }
         lista.appendChild(pole);
       });
       okno.appendChild(lista);
+      (e.pola || []).forEach((p, i) => rysujPoprz(i));
+      if (ai) {
+        const wybor = el('select', { id: 'evk-tls-ai-dostawca' });
+        Object.keys(DANE.ai.dostawcy).forEach((k) => {
+          const d = DANE.ai.dostawcy[k];
+          const o = el('option', { value: k, 'data-model': d.model }, krotkaNazwa(d.nazwa) + ' · ' + d.model);
+          if (k === wyborAi.dostawca) o.selected = true;
+          wybor.appendChild(o);
+        });
+        const model = el('input', { type: 'text', id: 'evk-tls-ai-model', spellcheck: 'false',
+          'aria-label': 'Model (puste — z ustawień)', placeholder: (DANE.ai.dostawcy[wybor.value] || {}).model || '' });
+        model.value = wyborAi.model;
+        wybor.addEventListener('change', () => {
+          wyborAi.dostawca = wybor.value;
+          model.placeholder = (DANE.ai.dostawcy[wybor.value] || {}).model || '';
+        });
+        model.addEventListener('input', () => { wyborAi.model = model.value.trim(); });
+        okno.appendChild(el('div', { class: 'evk-tls-ai' }, [el('label', { for: 'evk-tls-ai-dostawca' }, 'Model AI'), wybor, model]));
+      }
     }
 
     const stopka = el('div', { class: 'evk-tls-stopka' });
@@ -188,6 +240,58 @@
     if (!e.uwaga && e.edycja) okno.appendChild(el('p', { class: 'evk-tls-podpowiedz' }, 'Zapis oznacza teksty tego elementu jako sprawdzone. Ctrl+Enter — zapisz, Esc — zamknij.'));
     oknoStan = el('p', { class: 'evk-tls-stan', role: 'status' });
     okno.appendChild(oknoStan);
+  }
+
+  /* „Poprzednio” pod polem: tekst i jego model; bez poprzedniego — ukryte. */
+  function rysujPoprz(i) {
+    const w = okno.querySelector('.evk-tls-poprz[data-i="' + i + '"]');
+    if (!w) return;
+    const x = poprzednie[i];
+    w.hidden = !(x && x.t);
+    if (w.hidden) return;
+    w.querySelector('.evk-tls-poprz-glowa').textContent = 'Poprzednio' + (x.m ? ' (' + krotkiModel(x.m) + ')' : '') + ':';
+    w.querySelector('.evk-tls-poprz-tekst').textContent = tekstZHtml(x.t);
+  }
+
+  /* „Przywróć”: tekst w polu i poprzedni zamieniają się miejscami — drugi
+     klik wraca. Zapis dopiero „Zapisz”. */
+  function przywroc(i) {
+    const t = okno.querySelector('#evk-tls-pole-' + i);
+    const x = poprzednie[i];
+    if (!t || !x) return;
+    poprzednie[i] = { t: t.value, m: obecne[i] || '' };
+    obecne[i] = x.m;
+    t.value = x.t;
+    rysujPoprz(i);
+    ustawStan('Przywrócone w polu — zapisz, jeśli ma zostać.');
+  }
+
+  async function ponownie(i, przycisk) {
+    const id = stan.otwarty;
+    const e = id ? stan.elementy[id] : null;
+    const t = okno.querySelector('#evk-tls-pole-' + i);
+    const p = e && e.pola ? e.pola[i] : null;
+    if (!e || !p || !t) return;
+    const fd = new FormData();
+    [['action', 'evk_tl_sprawdz_ai'], ['nonce', DANE.nonce || ''], ['post_id', e.post], ['meta_key', e.meta], ['lang', DANE.jezyk || ''],
+      ['element', id], ['sciezka', p.sciezka], ['dostawca', wyborAi.dostawca], ['model', wyborAi.model]].forEach(([k, v]) => fd.append(k, v));
+    ustawStan('Tłumaczę…');
+    przycisk.disabled = true;
+    let r = null;
+    try { r = await (await fetch(DANE.ajax, { method: 'POST', body: fd, credentials: 'same-origin' })).json(); } catch (err) { r = null; }
+    przycisk.disabled = false;
+    if (stan.otwarty !== id) return;
+    if (!r || !r.success) { ustawStan((r && r.data) || 'Błąd tłumaczenia — spróbuj jeszcze raz.', true); return; }
+    if (r.data.tekst === t.value) {
+      ustawStan('Ten sam wynik — ' + krotkiModel(r.data.model) + ' przy tych ustawieniach tłumaczy tak samo.');
+      return;
+    }
+    poprzednie[i] = t.value ? { t: t.value, m: obecne[i] || '' } : poprzednie[i];
+    obecne[i] = r.data.model;
+    t.value = r.data.tekst;
+    rysujPoprz(i);
+    ustawStan('Nowe tłumaczenie (' + krotkiModel(r.data.model) + ') — sprawdź i zapisz.');
+    t.focus({ preventScroll: true });
   }
 
   function ustawStan(tekst, blad) {
@@ -333,6 +437,8 @@
     const b = ev.target instanceof Element ? ev.target.closest('button') : null;
     if (!b || b.disabled) return;
     if (b.classList.contains('evk-tls-zamknij')) zamknij();
+    else if (b.classList.contains('evk-tls-przywroc')) przywroc(+b.getAttribute('data-i'));
+    else if (b.classList.contains('evk-tls-ponownie')) ponownie(+b.getAttribute('data-i'), b);
     else if (b.classList.contains('evk-tls-zapisz')) zapisz(false);
     else if (b.classList.contains('evk-tls-sprawdzone')) zapisz(true);
     else if (b.classList.contains('evk-tls-nastepne')) nastepny();
