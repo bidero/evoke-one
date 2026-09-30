@@ -1677,8 +1677,15 @@
 
 /* Tabela szersza niż kolumna przewija się SAMA, nie rozpycha strony.
    Bez tego Raporty newslettera rozciągały dokument do 682 px przy oknie
-   390 px (1.48.0) — tu jest ten sam kształt, więc i ta sama obrona. */
-.evo-tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+   390 px (1.48.0) — tu jest ten sam kształt, więc i ta sama obrona.
+   `position: relative` — ramka ma być blokiem zawierającym dla tego, co
+   w tabeli stoi `absolute` bez własnego pozycjonowanego przodka, jak napis
+   `.screen-reader-text` w nagłówku kolumny. Bez tego jego blokiem był
+   `#wpbody`, więc wychodził poza przewijaną ramkę i poszerzał STRONĘ:
+   lista „Do sprawdzenia" (52) przy 360 px miała 603 px, a ukryte „Akcja"
+   stało w x = 602 (zmierzone, 1.263.0). Podpowiedzi `.evo-tip` i karty
+   snippetów mają własnego pozycjonowanego przodka — ich to nie dotyczy. */
+.evo-tbl-wrap { position: relative; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 /* Długa lista do przewinięcia w miejscu — endpointy REST, ścieżki, klucze.
    Ma swoją wysokość, żeby nie wypychała przycisku zapisu poza ekran. */
@@ -3460,3 +3467,75 @@ input[type=color].evk-was-reset { opacity: .45; outline: 2px dashed var(--evo-da
 .evk-map-select { display: flex; flex-direction: column; gap: 4px; max-width: 420px; margin-bottom: 14px; font-size: 13px; }
 .evk-map-select > span:first-child { font-size: 11px; font-weight: 600; color: var(--evo-text-dim); }
 .evk-map-select .evo-muted { font-size: 11px; }
+
+/* ── Tłumaczenia: lista „Do sprawdzenia" (52) — akcje w jednym rzędzie ────
+   Zgłoszone 30.09 zrzutem: „Na stronie" i „Sprawdzone" stały jeden pod
+   drugim, stykały się i miały różną szerokość. Kolumna akcji dostawała to,
+   co zostało po tekstach: zmierzone przy 1280 px 188 px na treść wobec
+   203 px dwóch przycisków, na telefonie (tabela przewijana, kolumny
+   najwęższe) zawsze szerokość jednego przycisku. `nowrap` jak w historii
+   wersji snippetów — komórka zostaje komórką, bez `display: flex`.
+   Przyciski są małe (`button-small`, jak „Edytuj" w „Teksty w elementach"):
+   dwa zwykłe w rzędzie poszerzały tabelę przy 1024 px o 29 px ponad ramkę.
+   Na telefonie WordPress i tak robi z nich 40 px. Do prawej, bo „Na
+   stronie" bywa nie w każdym wierszu (szablon treści nie ma jednej
+   strony), a „Sprawdzone" ma stać w jednej linii w pionie. */
+.tl-do-sprawdzenia-akcje { text-align: right; white-space: nowrap; }
+.tl-do-sprawdzenia-akcje .button + .button { margin-left: 6px; }
+
+/* ── Tłumaczenia: edycja w liście „Teksty w elementach" (1.263.0) ─────────
+   Edytor stoi w wierszu pod wierszem tabeli (assets/admin/tl-teksty.js).
+   Tabela na telefonie przewija się w poziomie, więc edytor jest przyklejony
+   do lewej krawędzi obszaru przewijania, a szerokość ustawia mu skrypt. */
+.tl-teksty .tl-teksty-edytuj { margin-top: 4px; }
+.tl-teksty tr.tl-teksty-edycja > td { background: var(--evo-surface); }
+.tl-teksty-edytor { position: sticky; left: 0; box-sizing: border-box; max-width: 100%; }
+.tl-teksty-edytor > p { margin: 0 0 8px; }
+.tl-teksty-tytul { overflow-wrap: anywhere; }
+.tl-teksty-znak {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--evo-surface-alt);
+    color: var(--evo-text);
+}
+.tl-teksty-znak[data-stan="ai"],
+.tl-teksty-znak[data-stan="zmiana"] { background: var(--evo-warn-soft); color: var(--evo-warn); }
+.tl-teksty-znak[data-stan="brak"],
+.tl-teksty-znak[data-stan="czesc"] { background: var(--evo-danger-soft); color: var(--evo-danger-dark); }
+.tl-teksty-znak[data-stan="ok"] { background: var(--evo-on-soft); color: var(--evo-on-dark); }
+.tl-teksty-znak-model { font-weight: 400; }
+.tl-teksty-pl {
+    padding: 6px 8px;
+    border-radius: var(--evo-radius-sm);
+    background: var(--evo-bg);
+    color: var(--evo-text-soft);
+    overflow-wrap: anywhere;
+}
+.tl-teksty-pl-kod { font-weight: 700; margin-right: 4px; }
+.tl-teksty-etykieta { display: block; margin-bottom: 4px; font-weight: 600; }
+.tl-teksty-edytor textarea { display: block; width: 100%; margin: 0 0 8px; }
+.tl-teksty-uwaga { color: var(--evo-text-muted); font-size: 13px; }
+.tl-teksty-poprz {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    border-radius: var(--evo-radius-sm);
+    background: var(--evo-accent-soft);
+}
+/* `hidden` przegrywa z `display: flex` (CLAUDE.md). */
+.tl-teksty-poprz[hidden] { display: none !important; }
+.tl-teksty-poprz p { flex: 1 1 220px; margin: 0; overflow-wrap: anywhere; }
+.tl-teksty-poprz-glowa { font-weight: 600; }
+.tl-teksty-akcje,
+.tl-teksty-ai-wybor { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.tl-teksty-ai-wybor label { font-weight: 600; }
+.tl-teksty-ai-wybor select { max-width: 100%; }
+.tl-teksty-ai-wybor input { flex: 1 1 160px; min-width: 0; }
+.tl-teksty-stan:empty { display: none; }
+.tl-teksty-stan { font-weight: 600; color: var(--evo-on-dark); }

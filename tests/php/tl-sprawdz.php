@@ -10,15 +10,15 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/tl-sprawdz.php modul          języki i moduł Tłumaczeń (wczyta się w NASTĘPNYM procesie)
  *   php tests/php/tl-sprawdz.php przygotuj      mapa pól, strony, szablony, słownik, użytkownicy
  *   php tests/php/tl-sprawdz.php mu             atrapa renderu Bricksa (mu-plugin, działa tylko pod php -S)
- *   php tests/php/tl-sprawdz.php stan <L> <id>  pola EN elementu, stan „Do sprawdzenia” i wykaz dopisanych
+ *   php tests/php/tl-sprawdz.php stan <L> <id> [jezyk]  pola języka (domyślnie EN), stan „Do sprawdzenia” i wykaz dopisanych
  *   php tests/php/tl-sprawdz.php lista <baza>   sekcja „Do sprawdzenia” z panelu (adresy serwera testowego)
  *   php tests/php/tl-sprawdz.php odbierz <login> odbiera dostęp do Tłumaczeń (prawo edycji stron zostaje)
  *   php tests/php/tl-sprawdz.php sprzataj
  *
  * Wpisy (litery w pliku stanu):
- *   A — strona: h1 (EN od AI), t1 (polski zmieniony po tłumaczeniu), b1 (bez EN),
+ *   A — strona: h1 (EN i DE od AI), t1 (polski zmieniony po tłumaczeniu), b1 (bez EN),
  *       s1 (tekst ze słownika), ok1 (przetłumaczony), a1 (akordeon: pozycja 1
- *       z EN od AI, pozycja 2 bez EN), d1 (sam {post_title}), lp1 (w pętli —
+ *       z EN od AI w tytule i treści, pozycja 2 bez EN), d1 (sam {post_title}), lp1 (w pętli —
  *       dwa razy na stronie), cs1 (własne CSS ID, bez EN), x1 → szablon S,
  *       x2 → szablon K1, c1 (kontener, bez tekstu);
  *   B — strona z tłumaczeniem AI (do „Następna strona”); w stanie model Gemini
@@ -114,13 +114,15 @@ case 'przygotuj':
     $w['F'] = evk_t_tls_wstaw('TLS stopka', 'bricks_template', '_bricks_page_footer_2',
         [['id' => 'fn1', 'name' => 'text-basic', 'parent' => 0, 'settings' => ['text' => 'Stopka firmy', 'evk_tl_en__text' => 'Company footer']]]);
     $a = [
-        ['id' => 'h1', 'name' => 'heading', 'parent' => 0, 'settings' => ['text' => 'Nasze usługi', 'evk_tl_en__text' => 'EN: Our services']],
+        ['id' => 'h1', 'name' => 'heading', 'parent' => 0, 'settings' => ['text' => 'Nasze usługi', 'evk_tl_en__text' => 'EN: Our services',
+            'evk_tl_de__text' => 'DE: Unsere Leistungen']],
         ['id' => 't1', 'name' => 'text-basic', 'parent' => 0, 'settings' => ['text' => '<p>Projektujemy strony.</p>', 'evk_tl_en__text' => '<p>We design websites.</p>']],
         ['id' => 'b1', 'name' => 'button', 'parent' => 0, 'settings' => ['text' => 'Napisz do nas']],
         ['id' => 's1', 'name' => 'heading', 'parent' => 0, 'settings' => ['text' => 'Słownikowy tekst']],
         ['id' => 'ok1', 'name' => 'heading', 'parent' => 0, 'settings' => ['text' => 'Gotowe', 'evk_tl_en__text' => 'Ready']],
         ['id' => 'a1', 'name' => 'accordion', 'parent' => 0, 'settings' => ['accordions' => [
-            ['id' => 'p1', 'title' => 'Pytanie', 'content' => '<p>Odpowiedź</p>', 'evk_tl_en__title' => 'EN Question'],
+            ['id' => 'p1', 'title' => 'Pytanie', 'content' => '<p>Odpowiedź</p>', 'evk_tl_en__title' => 'EN Question',
+                'evk_tl_en__content' => '<p>EN Answer</p>'],
             ['id' => 'p2', 'title' => 'Drugie pytanie', 'content' => '<p>Druga odpowiedź</p>'],
         ]]],
         ['id' => 'd1', 'name' => 'heading', 'parent' => 0, 'settings' => ['text' => '{post_title}']],
@@ -138,7 +140,7 @@ case 'przygotuj':
         [['id' => 'h1', 'name' => 'heading', 'parent' => 0, 'settings' => ['text' => 'Nasze usługi', 'evk_tl_en__text' => 'Our services (copy)']]]);
 
     // Stan jak po hurcie AI i po zmianie polskiego tekstu.
-    evk_t_tls_ai($w['A'], $tresc, ['h1|text|en', 'a1|accordions.p1.title|en']);
+    evk_t_tls_ai($w['A'], $tresc, ['h1|text|en', 'a1|accordions.p1.title|en', 'a1|accordions.p1.content|en', 'h1|text|de']);
     evk_t_tls_ai($w['B'], $tresc, ['hb|text|en']);
     // Szablon sekcji z tłumaczeniem AI: w liście bez „Na stronie”, nigdy jako „Następna strona”.
     evk_t_tls_ai($w['K1'], $tresc, ['dup1|text|en']);
@@ -278,6 +280,7 @@ case 'stan':
     $l = (string) ($argv[2] ?? 'A');
     $id = evk_t_tls_wpis($l);
     $el = (string) ($argv[3] ?? '');
+    $jezyk = (string) ($argv[4] ?? 'en');
     $meta = $l === 'H' ? '_bricks_page_header_2' : ($l === 'F' ? '_bricks_page_footer_2' : $tresc);
     $miejsca = evk_tl_el_miejsca(get_post_meta($id, $meta, true));
     $stan = get_post_meta($id, EVK_TL_EL_STAN, true);
@@ -285,7 +288,7 @@ case 'stan':
     $out['sprawdzone'] = [];
     $out['poprz'] = [];
     foreach ($miejsca as $k => $m) {
-        if (strpos($k, $el . '|') !== 0 || $m['jezyk'] !== 'en') continue;
+        if (strpos($k, $el . '|') !== 0 || $m['jezyk'] !== $jezyk) continue;
         $out['pola'][$m['pole']] = $m['tlumaczenie'];
         if (isset($stan[$meta][$k]['poprz'])) $out['poprz'][$m['pole']] = $stan[$meta][$k]['poprz'];
         $src = (string) ($stan[$meta][$k]['src'] ?? '');

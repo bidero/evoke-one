@@ -400,6 +400,10 @@ add_action('wp_footer', function () {
  * Poprawki z okienka: pola elementu (ścieżka → tekst; pusty usuwa
  * tłumaczenie). Po zapisie wszystkie teksty elementu z tłumaczeniem są
  * sprawdzone — także gdy nic się nie zmieniło („Sprawdzone").
+ *
+ * `sciezki[]` (1.263.0, lista „Teksty w elementach"): sprawdzone są tylko
+ * te pola — wiersz listy to jeden tekst w jednym języku (decyzja
+ * zgłaszającego z 30.09). Okienko na stronie tego nie wysyła.
  */
 add_action('wp_ajax_evk_tl_sprawdz_zapisz', function (): void {
     check_ajax_referer('evk_tl_sprawdz', 'nonce');
@@ -428,7 +432,11 @@ add_action('wp_ajax_evk_tl_sprawdz_zapisz', function (): void {
     }
     $zmienione = $zmiany ? evk_tl_el_zapisz_pola($post_id, $meta_key, $lang, $zmiany, false) : [];
 
-    foreach ($pola as $p) evk_tl_el_oznacz_sprawdzone($post_id, $meta_key, $p['klucz']);
+    $tylko = isset($_POST['sciezki']) && is_array($_POST['sciezki'])
+        ? array_flip(array_filter((array) wp_unslash($_POST['sciezki']), 'is_string')) : null;
+    foreach ($pola as $p) {
+        if ($tylko === null || isset($tylko[$p['sciezka']])) evk_tl_el_oznacz_sprawdzone($post_id, $meta_key, $p['klucz']);
+    }
     /* 1.262.0: zmienione tłumaczenie odkłada poprzednie (z jego modelem) —
        „Przywróć” w okienku wraca do niego. Stan (52) policzył wpis od nowa
        przy zapisie, więc `poprz` dopisuje się po nim. */

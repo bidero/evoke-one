@@ -130,6 +130,66 @@ module.exports = async function (t) {
       (nast || '').includes('page_id=' + W.B) && (nast || '').includes('evk_tl_sprawdz=1') && /\/en\//.test(nast || '')
       && !(koniec || '').includes('evk_tl_sprawdz') && (koniec || '').includes('page_id=' + W.A), json([nast, koniec]));
 
+    /* Zgłoszone 30.09 zrzutem: „Na stronie” i „Sprawdzone” stały jeden pod
+       drugim, stykały się i miały różną szerokość. Kolumna akcji dostaje to,
+       co zostaje po tekstach, a na telefonie (tabela przewijana w ramce)
+       najmniej, ile się da — szerokość jednego przycisku. Tu, zanim cokolwiek
+       zostanie zapisane: lista ma wszystkie siedem wierszy, a z ich dłuższymi
+       słowami kolumna akcji ma najmniej miejsca — zwykłe przyciski poszerzały
+       tabelę przy 1024 px o 29 px ponad ramkę (później, przy trzech krótkich
+       wierszach, mieszczą się i tak). */
+    t.section('lista „Do sprawdzenia”: przyciski w jednym rzędzie');
+    const ukladAkcji = (strona) => strona.evaluate(() => {
+      const box = document.querySelector('.tl-do-sprawdzenia');
+      if (!box) return { brak: true };
+      const wrap = box.querySelector('.evo-tbl-wrap');
+      const wiersze = [...box.querySelectorAll('tbody tr')].map((tr) => {
+        const b = [...tr.querySelectorAll('.tl-do-sprawdzenia-akcje .button')].map((x) => x.getBoundingClientRect());
+        return {
+          n: b.length,
+          rzad: b.length === 2 ? Math.round(Math.abs(b[0].top - b[1].top)) : 0,
+          odstep: b.length === 2 ? Math.round(b[1].left - b[0].right) : null,
+          sprawdzone: Math.round(tr.querySelector('.tl-el-sprawdzone').getBoundingClientRect().right),
+          cel: Math.round(Math.min(...b.map((r) => Math.min(r.width, r.height)))),
+        };
+      });
+      /* Szerokość ekranu z clientWidth, NIE z innerWidth: w emulacji telefonu
+         innerWidth rośnie razem z treścią szerszą niż ekran (zmierzone: blok
+         na 600 px daje innerWidth 600 przy clientWidth 360), więc porównanie
+         z nim nie widzi przewijania strony w poziomie. */
+      return { wiersze, tabela: [wrap.scrollWidth, wrap.clientWidth], strona: [document.documentElement.scrollWidth, document.documentElement.clientWidth] };
+    });
+    /* Jeden rząd: ta sama wysokość i drugi przycisk na prawo od pierwszego.
+       Odstęp między nimi osobno — mutacje mają zapalać różne sprawdzenia. */
+    const wRzedzie = (u) => !u.brak && u.wiersze.some((w) => w.n === 2) && u.wiersze.every((w) => w.n < 2 || (w.rzad <= 1 && w.odstep >= 0));
+    const panelTl = b + '/wp-admin/options-general.php?page=evoke-tlumaczenia&tab=translations';
+    const kd = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const pd = await kd.newPage();
+    await serwerWp.zaloguj(pd, b);
+    await pd.goto(panelTl);
+    const u1280 = await ukladAkcji(pd);
+    const prawe = u1280.brak ? [] : u1280.wiersze.map((w) => w.sprawdzone);
+    t.check('1280 px: „Na stronie” i „Sprawdzone” obok siebie, tabela bez przewijania',
+      wRzedzie(u1280) && u1280.tabela[0] <= u1280.tabela[1], json(u1280));
+    t.check('między przyciskami odstęp co najmniej 8 px (na zrzucie stykały się)',
+      !u1280.brak && u1280.wiersze.every((w) => w.n < 2 || w.odstep >= 8), json(u1280.wiersze && u1280.wiersze.map((w) => w.odstep)));
+    t.check('„Sprawdzone” w jednej linii w pionie także w wierszu bez „Na stronie”',
+      !u1280.brak && u1280.wiersze.some((w) => w.n === 1) && Math.max(...prawe) - Math.min(...prawe) <= 1, json(prawe));
+    await pd.setViewportSize({ width: 1024, height: 800 });
+    await pd.reload();
+    const u1024 = await ukladAkcji(pd);
+    await kd.close();
+    t.check('1024 px: dalej jeden rząd, a tabela mieści się w ramce (bez przewijania w poziomie)',
+      wRzedzie(u1024) && u1024.tabela[0] <= u1024.tabela[1], json(u1024));
+    const kl = await browser.newContext({ viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+    const ml = await kl.newPage();
+    await serwerWp.zaloguj(ml, b);
+    await ml.goto(panelTl);
+    const u360 = await ukladAkcji(ml);
+    await kl.close();
+    t.check('360 px: jeden rząd, cele dotyku co najmniej 24 px, strona bez przewijania w poziomie (przewija się ramka tabeli)',
+      wRzedzie(u360) && u360.wiersze.every((w) => w.cel >= 24) && u360.strona[0] <= u360.strona[1], json(u360));
+
     // ── Okienko i zapis ──────────────────────────────────────────────────
     t.section('okienko: tłumaczenie AI → poprawka → zapis');
     await p.click('#brxe-h1');
@@ -205,6 +265,8 @@ module.exports = async function (t) {
     t.section('brak tłumaczenia: odnośnik przycisku i nowe pole');
     const przed = p.url();
     t.check('klik w odnośnik otwiera okienko zamiast przejść', (await otworzKlikiem(p, '#brxe-b1', 'b1')) === 'b1' && p.url() === przed, p.url());
+    t.check('przy pustym polu przycisk AI mówi „Przetłumacz (AI)”, nie „ponownie”', (await okno.locator('.evk-tls-ponownie').textContent()) === 'Przetłumacz (AI)'
+      && (await okno.locator('.evk-tls-ponownie').getAttribute('aria-label')) === 'Przetłumacz (AI): Tekst', await okno.locator('.evk-tls-ponownie').textContent());
     await okno.locator('textarea').fill('Write to us');
     await okno.locator('.evk-tls-zapisz').click();
     await poZapisie(p);
@@ -276,13 +338,14 @@ module.exports = async function (t) {
     const html = l.html || '';
     t.check('siedem kolumn, w tym „Powód”; strona B z powodem „AI”', (html.match(/<th scope="col">/g) || []).length === 7
       && html.includes('<th scope="col">Powód</th>') && /TLS strona B[\s\S]*?<td>AI<\/td>/.test(html), html.slice(0, 300));
-    const naStronie = (html.match(/<a class="button" href="([^"]+)" aria-label="Na stronie: TLS strona B[^"]*">Na stronie<\/a>/) || [])[1] || '';
+    const naStronie = (html.match(/<a class="button[^"]*" href="([^"]+)" aria-label="Na stronie: TLS strona B[^"]*">Na stronie<\/a>/) || [])[1] || '';
     const hrefNaStronie = naStronie.replace(/&amp;/g, '&').replace(/&#038;/g, '&');
     t.check('„Na stronie” → strona B w języku, w trybie, z kotwicą elementu', hrefNaStronie.includes('page_id=' + W.B)
       && hrefNaStronie.includes('evk_tl_sprawdz=1') && hrefNaStronie.endsWith('#evk-tls=hb') && /\/en\//.test(hrefNaStronie), hrefNaStronie);
     const wierszK1 = (html.match(/<tr>(?:(?!<\/tr>)[\s\S])*TLS kopia 1(?:(?!<\/tr>)[\s\S])*<\/tr>/) || [''])[0];
     t.check('szablon sekcji w liście bez „Na stronie” (nie ma jednej strony), z „Sprawdzone”',
       wierszK1 !== '' && !wierszK1.includes('>Na stronie<') && wierszK1.includes('tl-el-sprawdzone'), wierszK1.slice(0, 300));
+
     if (hrefNaStronie) {
       await p.goto(hrefNaStronie);
       t.check('kotwica z listy otwiera okienko elementu', (await czekajNaOtwarty(p, 'hb')) === 'hb');

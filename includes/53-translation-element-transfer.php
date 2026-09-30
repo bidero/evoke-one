@@ -446,6 +446,10 @@ function evk_tl_el_ze_slownika(string $pl, array $indeks): array {
  * każdego języka tekst i pochodzenie — pole w elemencie, słownik, część
  * słownikiem albo brak — oraz „do sprawdzenia" (52).
  *
+ * 1.263.0 (edycja w liście): przy każdym języku także klucz miejsca i stan
+ * jak w okienku sprawdzania (62) — `ai` (z modelem), `zmiana`, `ok`,
+ * `slownik`, `czesc`, `brak` — oraz poprzednia wersja (`poprz`).
+ *
  * @return array{wiersze:list<array<string,mixed>>,liczby:array<string,int>,nieznane:array<string,int>,znane:int}
  */
 function evk_tl_el_teksty(): array {
@@ -457,19 +461,27 @@ function evk_tl_el_teksty(): array {
     foreach (evk_tl_el_do_sprawdzenia(1000) as $m) $sprawdz[$m['post_id'] . '|' . $m['meta_key'] . '|' . $m['klucz']] = true;
 
     $wynik = ['wiersze' => [], 'liczby' => ['wszystko' => 0, 'braki' => 0, 'sprawdz' => 0], 'nieznane' => [], 'znane' => count($mapa)];
-    $dodaj = static function (array $ust, string $pole, array $baza) use ($jezyki, $indeksy, $sprawdz, &$wynik): void {
+    $dodaj = static function (array $ust, string $pole, array $baza, array $stan) use ($jezyki, $indeksy, $sprawdz, &$wynik): void {
         $pl = $ust[$pole] ?? null;
         if (!is_string($pl) || trim(wp_strip_all_tags($pl)) === '') return;
         $w = $baza + ['pl' => $pl, 'jezyki' => [], 'braki' => false, 'sprawdz' => false];
         foreach ($jezyki as $j) {
             $bliz = $ust[evk_tl_el_klucz($j, $pole)] ?? null;
+            $klucz = $w['id'] . '|' . $w['sciezka'] . '|' . preg_replace('/[^a-z0-9_]/', '_', strtolower($j));
+            $s = is_array($stan[$klucz] ?? null) ? $stan[$klucz] : [];
             if (evk_tl_el_niepuste($bliz)) {
-                $l = ['tekst' => (string) $bliz, 'zrodlo' => 'pole'];
+                $src = (string) ($s['src'] ?? '');
+                $l = ['tekst' => (string) $bliz, 'zrodlo' => 'pole',
+                    'stan' => $src === 'ai' ? 'ai' : ($src !== '' && $src !== evk_tl_el_skrot($pl) ? 'zmiana' : 'ok')];
             } else {
                 [$tekst, $zrodlo] = evk_tl_el_ze_slownika($pl, $indeksy[$j]);
-                $l = ['tekst' => $tekst, 'zrodlo' => $zrodlo];
+                $l = ['tekst' => $tekst, 'zrodlo' => $zrodlo, 'stan' => $zrodlo];
             }
-            $l['sprawdz'] = isset($sprawdz[$w['post_id'] . '|' . $w['meta_key'] . '|' . $w['id'] . '|' . $w['sciezka'] . '|' . preg_replace('/[^a-z0-9_]/', '_', strtolower($j))]);
+            $l['klucz'] = $klucz;
+            $l['model'] = $l['stan'] === 'ai' ? (string) ($s['model'] ?? '') : '';
+            $l['poprz'] = is_array($s['poprz'] ?? null) && is_string($s['poprz']['t'] ?? null) && $s['poprz']['t'] !== ''
+                ? ['t' => $s['poprz']['t'], 'm' => (string) ($s['poprz']['m'] ?? '')] : null;
+            $l['sprawdz'] = isset($sprawdz[$w['post_id'] . '|' . $w['meta_key'] . '|' . $klucz]);
             if ($l['zrodlo'] === 'brak' || $l['zrodlo'] === 'czesc') $w['braki'] = true;
             if ($l['sprawdz']) $w['sprawdz'] = true;
             $w['jezyki'][$j] = $l;
@@ -485,6 +497,8 @@ function evk_tl_el_teksty(): array {
         if (!is_array($dane)) continue;
         $strona = ['post_id' => $post_id, 'meta_key' => $meta_key, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
             'czesc' => evk_tl_el_czesc($meta_key), 'adres' => evk_tl_el_adres_edycji($post_id)];
+        $stanWpisu = get_post_meta($post_id, EVK_TL_EL_STAN, true);
+        $stan = is_array($stanWpisu) && is_array($stanWpisu[$meta_key] ?? null) ? $stanWpisu[$meta_key] : [];
         foreach ($dane as $el) {
             if (!is_array($el) || !is_array($el['settings'] ?? null)) continue;
             $nazwa = (string) ($el['name'] ?? '');
@@ -496,7 +510,7 @@ function evk_tl_el_teksty(): array {
             $id = (string) ($el['id'] ?? '');
             foreach ((array) ($def['pola'] ?? []) as $pole) {
                 $dodaj($el['settings'], (string) $pole, $strona + ['element' => $nazwa, 'id' => $id, 'sciezka' => (string) $pole,
-                    'opis' => evk_tl_el_nazwa_pola((string) $pole)]);
+                    'opis' => evk_tl_el_nazwa_pola((string) $pole)], $stan);
             }
             foreach ((array) ($def['listy'] ?? []) as $lista => $pola) {
                 $pozycje = $el['settings'][$lista] ?? null;
@@ -506,7 +520,7 @@ function evk_tl_el_teksty(): array {
                     $pid = isset($poz['id']) && is_scalar($poz['id']) && (string) $poz['id'] !== '' ? (string) $poz['id'] : (string) $i;
                     foreach ((array) $pola as $pole) {
                         $dodaj($poz, (string) $pole, $strona + ['element' => $nazwa, 'id' => $id,
-                            'sciezka' => $lista . '.' . $pid . '.' . $pole, 'opis' => 'pozycja ' . ($i + 1) . ' · ' . evk_tl_el_nazwa_pola((string) $pole)]);
+                            'sciezka' => $lista . '.' . $pid . '.' . $pole, 'opis' => 'pozycja ' . ($i + 1) . ' · ' . evk_tl_el_nazwa_pola((string) $pole)], $stan);
                     }
                 }
             }
@@ -530,6 +544,12 @@ function evk_tl_el_skrot_tekstu(string $t): string {
 /**
  * Lista „Teksty w elementach": filtr (wszystko / braki / sprawdz), strona
  * listy i adres zakładki, do którego doklejane są parametry.
+ *
+ * 1.263.0: „Edytuj” przy każdym języku otwiera pod wierszem edytor
+ * (assets/admin/tl-teksty.js) — decyzja zgłaszającego z 30.09. Zapis
+ * i „Przetłumacz ponownie” idą przez AJAX trybu sprawdzania (62): te same
+ * warunki i ten sam zapis. Przycisk tylko przy stronach, które użytkownik
+ * może edytować; reszta listy zostaje do odczytu.
  */
 function evk_tl_el_widok_tekstow(string $pokaz, int $str, string $baza, int $na_strone = 50): void {
     $d = evk_tl_el_teksty();
@@ -550,7 +570,8 @@ function evk_tl_el_widok_tekstow(string $pokaz, int $str, string $baza, int $na_
         <h3>Teksty w elementach</h3>
         <p class="evo-desc">Teksty elementów Bricksa ze wszystkich stron i szablonów, z tłumaczeniem w każdym języku.
         „W elemencie" to pole „Tłumaczenie" w builderze. „Ze słownika" pochodzi z zakładki EVOKE Tłumaczenia —
-        przycisk „Przenieś" wyżej przepisze je do elementów. Tłumaczenia poprawiasz w Bricksie.</p>
+        przycisk „Przenieś" wyżej przepisze je do elementów. Tłumaczenie poprawisz tutaj („Edytuj"), wprost na stronie
+        albo w Bricksie. Zapis tutaj oznacza jako sprawdzony tylko ten tekst.</p>
         <?php if (!$d['znane']): ?>
             <p class="evo-desc">Wtyczka nie zna jeszcze pól elementów Bricksa. Otwórz dowolną stronę w builderze i wróć tutaj.</p>
         <?php else: ?>
@@ -568,21 +589,48 @@ function evk_tl_el_widok_tekstow(string $pokaz, int $str, string $baza, int $na_
                     <thead><tr><th scope="col">Strona</th><th scope="col">Element</th><th scope="col">Polski</th>
                         <?php foreach ($jezyki as $j): ?><th scope="col"><?php echo esc_html(strtoupper($j)); ?></th><?php endforeach; ?></tr></thead>
                     <tbody>
-                    <?php foreach (array_slice($wiersze, ($str - 1) * $na_strone, $na_strone) as $w): ?>
-                        <tr>
+                    <?php
+                    $widoczne = array_slice($wiersze, ($str - 1) * $na_strone, $na_strone);
+                    $moze = [];
+                    $dane = [];
+                    foreach ($widoczne as $i => $w):
+                        $pid = (int) $w['post_id'];
+                        if (!isset($moze[$pid])) $moze[$pid] = current_user_can('edit_post', $pid);
+                        $dane[$i] = ['post' => $pid, 'meta' => $w['meta_key'], 'id' => $w['id'], 'sciezka' => $w['sciezka'], 'tytul' => $w['tytul'],
+                            'element' => $w['element'], 'opis' => $w['opis'], 'pl' => $w['pl'], 'edycja' => $moze[$pid], 'jezyki' => []]; ?>
+                        <tr data-w="<?php echo (int) $i; ?>">
                             <td><a href="<?php echo esc_url($w['adres']); ?>"><?php echo esc_html($w['tytul']); ?></a>
                                 <?php if ($w['czesc'] !== 'Treść'): ?><br><span class="evo-faint"><?php echo esc_html($w['czesc']); ?></span><?php endif; ?></td>
                             <td><?php echo esc_html($w['element']); ?><br><span class="evo-faint"><?php echo esc_html($w['opis']); ?></span></td>
                             <td><?php echo esc_html(evk_tl_el_skrot_tekstu($w['pl'])); ?></td>
-                            <?php foreach ($jezyki as $j): $l = $w['jezyki'][$j] ?? ['tekst' => '', 'zrodlo' => 'brak', 'sprawdz' => false]; ?>
-                                <td><?php if ($l['tekst'] !== ''): ?><?php echo esc_html(evk_tl_el_skrot_tekstu($l['tekst'])); ?><br><?php endif; ?>
+                            <?php foreach ($jezyki as $j): $l = $w['jezyki'][$j] ?? ['tekst' => '', 'zrodlo' => 'brak', 'sprawdz' => false];
+                                if (isset($l['klucz'])) {
+                                    $dane[$i]['jezyki'][$j] = ['tl' => $l['zrodlo'] === 'pole' ? $l['tekst'] : '',
+                                        'slownik' => $l['zrodlo'] === 'slownik' || $l['zrodlo'] === 'czesc' ? $l['tekst'] : '',
+                                        'stan' => $l['stan'], 'model' => $l['model'], 'poprz' => $l['poprz'], 'sprawdz' => !empty($l['sprawdz']),
+                                        'adres' => function_exists('evk_tl_el_adres_sprawdzania')
+                                            ? evk_tl_el_adres_sprawdzania($pid, (string) $w['meta_key'], $j, (string) $l['klucz']) : ''];
+                                } ?>
+                                <td data-w="<?php echo (int) $i; ?>" data-j="<?php echo esc_attr($j); ?>"><?php if ($l['tekst'] !== ''): ?><?php echo esc_html(evk_tl_el_skrot_tekstu($l['tekst'])); ?><br><?php endif; ?>
                                     <span class="<?php echo $l['zrodlo'] === 'brak' || $l['zrodlo'] === 'czesc' ? 'evo-danger-tx' : 'evo-faint'; ?>"><?php echo esc_html($pochodzenie[$l['zrodlo']] ?? $l['zrodlo']); ?></span>
-                                    <?php if (!empty($l['sprawdz'])): ?><br><span class="evo-accent-tx">do sprawdzenia</span><?php endif; ?></td>
+                                    <?php if (!empty($l['sprawdz'])): ?><br><span class="evo-accent-tx">do sprawdzenia</span><?php endif; ?>
+                                    <?php if ($moze[$pid] && isset($l['klucz'])): ?><br><button type="button" class="button button-small tl-teksty-edytuj" data-w="<?php echo (int) $i; ?>" data-j="<?php echo esc_attr($j); ?>"
+                                        aria-label="<?php echo esc_attr('Edytuj ' . strtoupper($j) . ': ' . $w['tytul'] . ', ' . $w['element'] . ' (' . $w['opis'] . ')'); ?>">Edytuj</button><?php endif; ?></td>
                             <?php endforeach; ?>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
                 </table></div>
+                <?php
+                /* Dane edytora (1.263.0): tylko wiersze tej strony listy, pełne teksty (w tabeli skrócone). */
+                if (array_filter($moze)) {
+                    wp_enqueue_script('evk-tl-teksty', EVOKE_ONE_URL . 'assets/admin/tl-teksty.js', [], EVOKE_ONE_VERSION, true);
+                    echo '<script type="application/json" id="tl-teksty-dane">' . wp_json_encode([
+                        'ajax' => admin_url('admin-ajax.php'), 'nonce' => wp_create_nonce('evk_tl_sprawdz'),
+                        'ai' => function_exists('evk_tl_sprawdz_ai_dane') ? evk_tl_sprawdz_ai_dane() : null,
+                        'kolumny' => 3 + count($jezyki), 'wiersze' => (object) $dane,
+                    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) . '</script>';
+                } ?>
                 <?php if ($stron > 1): ?>
                     <nav class="tl-teksty-strony" aria-label="Strony listy tekstów">
                         <?php if ($str > 1): ?><a class="button" href="<?php echo esc_url($adres(['pokaz' => $pokaz, 'str' => $str - 1])); ?>">Poprzednie</a><?php endif; ?>

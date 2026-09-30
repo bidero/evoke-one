@@ -245,9 +245,9 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
                           $kontekst = $tytul . ', ' . $m['pole'] . ', ' . $jezyk; ?>
                     <td class="tl-do-sprawdzenia-akcje">
                         <?php if ($naStronie !== ''): ?>
-                        <a class="button" href="<?php echo esc_url($naStronie); ?>" aria-label="<?php echo esc_attr('Na stronie: ' . $kontekst); ?>">Na stronie</a>
+                        <a class="button button-small" href="<?php echo esc_url($naStronie); ?>" aria-label="<?php echo esc_attr('Na stronie: ' . $kontekst); ?>">Na stronie</a>
                         <?php endif; ?>
-                        <button type="button" class="button tl-el-sprawdzone" data-post="<?php echo (int) $m['post_id']; ?>"
+                        <button type="button" class="button button-small tl-el-sprawdzone" data-post="<?php echo (int) $m['post_id']; ?>"
                         data-meta="<?php echo esc_attr($m['meta_key']); ?>" data-klucz="<?php echo esc_attr($m['klucz']); ?>"
                         aria-label="<?php echo esc_attr('Sprawdzone: ' . $kontekst); ?>">Sprawdzone</button></td>
                 </tr>

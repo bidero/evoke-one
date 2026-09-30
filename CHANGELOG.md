@@ -2,6 +2,157 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.263.0] — 2026-09-30
+
+Tłumaczenia: poprawianie tłumaczeń wprost w liście „Teksty w elementach”;
+w liście „Do sprawdzenia” przyciski w jednym rzędzie.
+
+### Dodane
+
+- **„Edytuj” przy każdym języku w liście „Teksty w elementach”**
+  (Tłumaczenia → Teksty w elementach, także z filtrem „Do sprawdzenia”).
+  Zgłoszone 30.09: „tu by się przydała od razu edycja fraz
+  przetłumaczonych”. Decyzje zgłaszającego:
+  - edytor otwiera się pod wierszem: tytuł (język, strona, element),
+    znaczek stanu z modelem AI, cały polski tekst (w tabeli jest skrót),
+    pole „Tłumaczenie EN” z pełnym tekstem;
+  - przyciski: „Zapisz”, „Sprawdzone” (przy AI i zmienionym oryginale),
+    „Przetłumacz ponownie” (przy pustym polu „Przetłumacz (AI)”) z wyborem
+    modelu, „Przywróć” przy poprzedniej wersji, „Następny ›”, „Na stronie”
+    (tryb sprawdzania z kotwicą elementu), „Zamknij”;
+  - **„Zapisz” oznacza jako sprawdzony tylko ten tekst** — wiersz listy to
+    jedno pole w jednym języku. Tłumaczenie DE tego samego nagłówka i inne
+    teksty tego samego elementu zostają „Do sprawdzenia”.
+- Po zapisie komórka w tabeli pokazuje nowy tekst bez znacznika „do
+  sprawdzenia”, edytor zostaje z „Zapisano.”, a fokus przechodzi na
+  „Następny ›” (następny wiersz tej strony listy w tym samym języku).
+- Klawiatura: Ctrl+Enter zapisuje, Esc zamyka i oddaje fokus przyciskowi
+  „Edytuj”. Niezapisana zmiana: pytanie przed przejściem do innego wiersza.
+- Tekst tłumaczony przez słownik: pole zostaje puste, a edytor pokazuje
+  tekst ze słownika („Tłumaczenie wpisane tutaj ma pierwszeństwo”).
+- „Edytuj” jest tylko przy stronach, które użytkownik może edytować; bez
+  tego prawa lista zostaje do odczytu.
+- Okienko sprawdzania na stronie: przy pustym polu przycisk AI mówi
+  „Przetłumacz (AI)” zamiast „Przetłumacz ponownie”.
+
+### Jak to działa
+
+- Zapis i „Przetłumacz ponownie” idą przez AJAX trybu sprawdzania (62):
+  te same warunki (nonce, dostęp do Tłumaczeń, `edit_post`, `wp_kses_post`
+  bez `unfiltered_html`) i ten sam zapis (wykaz dopisanych, poprzednia
+  wersja). Nowy parametr `sciezki[]` ogranicza „sprawdzone” do pól z listy;
+  okienko na stronie dalej oznacza cały element.
+- Dane edytora (pełne teksty, stan, model, poprzednia wersja) tylko dla
+  wierszy bieżącej strony listy, w `<script type="application/json">`.
+  Skrypt `assets/admin/tl-teksty.js`, style w `admin.css`.
+- Tabela na telefonie przewija się w poziomie, więc edytor stoi przyklejony
+  do lewej krawędzi obszaru przewijania i ma jego szerokość.
+
+### Poprawione
+
+- **Lista „Do sprawdzenia” (zakładka Tłumaczenia): „Na stronie”
+  i „Sprawdzone” w jednym rzędzie.** Zgłoszone 30.09 zrzutem: przyciski
+  stały jeden pod drugim, stykały się i miały różną szerokość. Kolumna akcji
+  dostawała to, co zostało po tekstach — zmierzone przy 1280 px 188 px
+  wobec 203 px dwóch przycisków. Teraz:
+  - obok siebie, z odstępem, małe (jak „Edytuj” w „Teksty w elementach”) —
+    dwa zwykłe w rzędzie poszerzały tabelę przy 1024 px o 29 px ponad
+    ramkę;
+  - do prawej, więc „Sprawdzone” stoi w jednej linii także w wierszu bez
+    „Na stronie” (szablon treści nie ma jednej strony);
+  - na telefonie WordPress robi z nich 40 px, a tabela przewija się w swojej
+    ramce jak dotąd.
+- **Ta sama lista na telefonie poszerzała całą stronę do 603 px.** Ukryty
+  napis „Akcja” (dla czytnika ekranu) w nagłówku kolumny akcji stoi
+  `absolute`, a jego blokiem zawierającym był `#wpbody` — wychodził więc
+  poza przewijaną ramkę tabeli. Ramka `.evo-tbl-wrap` jest teraz blokiem
+  zawierającym (`position: relative`), co dotyczy wszystkich tabel panelu
+  w tej ramce. Podpowiedzi `.evo-tip` i karty snippetów mają własnego
+  pozycjonowanego przodka, więc się nie zmieniają.
+
+### Znalezione przy okazji (osobne zadanie)
+
+- Strażnik `admin-telefon` liczy szerokość ekranu z `innerWidth`, a ten
+  w emulacji telefonu rośnie razem z treścią szerszą niż ekran (blok na
+  600 px: `innerWidth` 600, `clientWidth` 360). Przewijania CAŁEJ strony
+  w poziomie więc nie widzi — łapie tylko treść uciętą w ramce. Z
+  `clientWidth` zapalają się dwa ekrany, każdy szerszy o 6 px: SEO → OG
+  (nagłówek warstwy: tytuł i znaczek nie zwężają się poniżej najdłuższego
+  słowa) i Tłumaczenia → Mapa strony (ramka z `.evo-w` przy `content-box`).
+  Listy „Do sprawdzenia” ten strażnik nie widzi wcale — w jego środowisku
+  nie ma nic do sprawdzenia; pilnuje jej `tl-sprawdz`.
+
+### Przycisk AI w builderze: próby zrobione
+
+- `docs/proby-builder-ai.md` — próby w konsoli buildera. Wynik od
+  zgłaszającego (30.09):
+  - stan powłoki to `.brx-body.main` → `__vue_app__.config.globalProperties.$_state`,
+    zaznaczony element `activeId` / `activeElement.id`;
+  - pole „Tłumaczenie EN” w panelu stoi w
+    `div[data-controlkey="evk_tl_en__text"]` (grupa
+    `li.control-group[data-control-group="evk_tl"]`);
+  - wpis wprost do `settings` elementu w stanie powłoki: pole pokazuje
+    tekst, pojawia się kropka niezapisanych zmian, cofnij/ponów działa,
+    tekst zostaje po zapisie.
+
+  Oba przyciski (przy polu i przy elemencie — decyzja 30.09) mają więc
+  drogę zapisu. Powstaną w osobnym wydaniu.
+
+### Testy
+
+- `tests/tl-teksty-edycja.test.js` (nowy, sonda `tests/php/tl-sprawdz.php`):
+  31 sprawdzeń w Chromium — nazwy przycisków „Edytuj”, edytor pod
+  wierszem (pełny tekst, stan, nazwy pola i wyboru modelu, „Na stronie”),
+  zapis tylko tego tekstu (EN przy DE od AI, tytuł przy treści tej samej
+  pozycji), komórka po zapisie, „Następny”, „Sprawdzone”, Esc, pytanie
+  o niezapisaną zmianę, Ctrl+Enter, „Przywróć”, tekst ze słownika,
+  „Przetłumacz (AI)” wybranym modelem, telefon 360 px, lista tylko do
+  odczytu bez prawa edycji.
+- Sonda `tl-sprawdz`: nagłówek h1 z DE od AI, treść pozycji akordeonu z EN
+  od AI, krok `stan` z językiem.
+- `tests/tl-sprawdz.test.js`: +6 — napis „Przetłumacz (AI)” i sekcja
+  „przyciski w jednym rzędzie” (5 sprawdzeń w Chromium, zanim cokolwiek
+  zostanie zapisane, bo wtedy lista ma siedem wierszy z najdłuższymi
+  słowami): obok siebie przy 1280 px, odstęp co najmniej 8 px,
+  „Sprawdzone” w jednej linii, 1024 px bez przewijania tabeli, 360 px jeden
+  rząd i strona bez przewijania (szerokość z `clientWidth`).
+  `tests/tl-do-sprawdzenia.test.js`: przycisk „Sprawdzone” rozpoznawany po
+  swojej klasie, nie po całym atrybucie. `tests/tl-teksty.test.js`:
+  liczenie wierszy z atrybutem `data-w`.
+- Mutacje: 15, każda zapala własne sprawdzenia
+  (3/1/1/2/1/1/1/1/3/1/1/2/1/1/1). Po kolei:
+  - dane: bez stanu AI; „Edytuj” bez sprawdzenia prawa edycji; tekst ze
+    słownika jako pole; bez poprzedniej wersji;
+  - zapis: serwer oznacza cały element; lista nie wysyła swojej ścieżki;
+  - skrypt: komórka bez odświeżenia; edytor bez dopasowania szerokości; bez
+    pytania o niezapisaną zmianę; bez Esc; „Przywróć” bez zamiany; AI bez
+    dostawcy i modelu; „ponownie” przy pustym polu;
+  - arkusz: `hidden` przy „Poprzednio” przegrywa z `display: flex`;
+  - okienko na stronie: „ponownie” przy pustym polu.
+
+  Dwie (serwer oznacza cały element, lista nie wysyła ścieżki) zapalają to
+  samo sprawdzenie — to dwie strony tego samego ograniczenia. Jedna (bez
+  poprzedniej wersji) po swoim sprawdzeniu kończy test wyjątkiem.
+- Mutacje przycisków listy „Do sprawdzenia”: 5, każda zapala inny zestaw:
+  - bez `nowrap` — 4 (1280 px, odstęp, 1024 px, 360 px);
+  - bez wyrównania do prawej — 1 (jedna linia);
+  - bez odstępu — 1 (odstęp; zmierzone 4 px, sama spacja);
+  - zwykłe przyciski zamiast małych — 1 (1024 px). Z pomiarem w dalszej
+    części testu przechodziła na zielono: przy trzech krótkich wierszach
+    zwykłe przyciski też się mieszczą. Stąd pomiar na początku;
+  - bez `position: relative` na ramce tabeli — 1 (360 px, strona 511 px).
+- Pełny przebieg: 6104 sprawdzenia w 125 plikach, wszystkie zielone
+  (`zapis-wp-newsletter` pasuje do dwóch partii i idzie dwa razy). Partia 3
+  poszła drugi raz: pierwsza ruszyła po restarcie kontenera bez bazy danych,
+  więc dwa testy panelu dostały od sondy stronę błędu zamiast JSON-a.
+
+### Do sprawdzenia na testowej
+
+- Tłumaczenia → Teksty w elementach → „Do sprawdzenia”: „Edytuj”, zapis,
+  „Przetłumacz ponownie” z kluczem Gemini, „Na stronie”.
+- Tłumaczenia → lista „Do sprawdzenia” nad frazami: przyciski w jednym
+  rzędzie na komputerze i na telefonie.
+
 ## [1.262.0] — 2026-09-30
 
 Tłumaczenia: ponowne tłumaczenie AI innym modelem, poprzednia wersja do

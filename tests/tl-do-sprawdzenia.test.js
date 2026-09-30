@@ -60,7 +60,7 @@ module.exports = async function (t) {
   // 1.261.0: siódma kolumna „Powód” (AI / zmieniony oryginał), a w akcji
   // obok „Sprawdzone” odnośnik „Na stronie” (tryb sprawdzania, tl-sprawdz).
   t.check('tabela z nagłówkami kolumn i przyciskiem „Sprawdzone" na wiersz',
-    (html.match(/<th scope="col">/g) || []).length === 7 && (html.match(/class="button tl-el-sprawdzone"/g) || []).length === 2,
+    (html.match(/<th scope="col">/g) || []).length === 7 && (html.match(/<button type="button" class="button[^"]*\btl-el-sprawdzone"/g) || []).length === 2,
     (html.match(/<th scope="col">[^<]*/g) || []).join(' | '));
   t.check('tabela w przewijanym opakowaniu (telefon)', html.includes('class="evo-tbl-wrap"'));
   t.check('bez miejsc sekcji nie ma', s['13 bez miejsc sekcji nie ma'] === '', JSON.stringify(s['13 bez miejsc sekcji nie ma']));

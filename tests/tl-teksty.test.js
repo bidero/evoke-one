@@ -45,7 +45,8 @@ module.exports = async function (t) {
 
   t.section('HTML: filtry, tabela, stronicowanie');
   const h = s.html_wszystko || '';
-  const wierszeTabeli = (html) => (html.match(/<tbody>([\s\S]*?)<\/tbody>/) || ['', ''])[1].split('<tr>').length - 1;
+  // 1.263.0: wiersze mają `data-w` (edytor pod wierszem) — liczy się każdy znacznik <tr.
+  const wierszeTabeli = (html) => ((html.match(/<tbody>([\s\S]*?)<\/tbody>/) || ['', ''])[1].match(/<tr[\s>]/g) || []).length;
   t.check('filtry z liczbami, bieżący oznaczony aria-current',
     /aria-current="page">\s*Wszystkie \(5\)<\/a>/.test(h) && /Bez tłumaczenia \(3\)/.test(h) && /Do sprawdzenia \(1\)/.test(h)
       && (h.match(/aria-current="page"/g) || []).length === 1, (h.match(/<nav[\s\S]*?<\/nav>/) || [''])[0]);

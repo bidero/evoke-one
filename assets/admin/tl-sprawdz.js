@@ -201,7 +201,7 @@
         if (ai) {
           pole.appendChild(el('div', { class: 'evk-tls-pole-akcje' }, [
             el('button', { type: 'button', class: 'evk-tls-przycisk evk-tls-ponownie', 'data-i': i,
-              'aria-label': 'Przetłumacz ponownie: ' + p.etykieta }, 'Przetłumacz ponownie'),
+              'aria-label': (p.tl ? 'Przetłumacz ponownie: ' : 'Przetłumacz (AI): ') + p.etykieta }, p.tl ? 'Przetłumacz ponownie' : 'Przetłumacz (AI)'),
           ]));
         }
         lista.appendChild(pole);
