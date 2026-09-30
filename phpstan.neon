@@ -57,3 +57,6 @@ parameters:
         # WooCommerce jest zależnością opcjonalną — kod pyta o nią przez
         # `function_exists()` i bez niej po prostu nic nie robi.
         - '#^Function (get_woocommerce_currency|wc_[a-z_]+) not found\.$#'
+        # Evoke FIELDS (osobna wtyczka) tak samo: API tekstów pól (Fields 1.75.0+)
+        # wołane po `evk_tl_ai_pola_dostepne()` / `function_exists()`.
+        - '#^Function evk_fields_tl_[a-z_]+ not found\.$#'

@@ -107,6 +107,11 @@ $evk_jezyki = tl_get_languages();
         <input type="text" id="tl-ai-przebieg-model" spellcheck="false">
         <p class="evo-desc">Puste — model z ustawień (w podpowiedzi pola). Ustawienia zostają bez zmian.</p>
     </div>
+    <?php if (function_exists('evk_tl_ai_pola_dostepne') && evk_tl_ai_pola_dostepne()): ?>
+    <p><label class="evo-check-row"><input type="checkbox" id="tl-ai-pola"> Także pola Evoke FIELDS (wpisy, strony, typy treści)</label></p>
+    <p class="evo-desc">Wartości pól z grup Evoke FIELDS — osobna pozycja „Pola Evoke FIELDS” przy stronie. Kontekstem są pola i treść tej strony.
+    Tłumaczenia dostają znacznik „AI — do sprawdzenia” w edycji wpisu.</p>
+    <?php endif; ?>
     <p class="tl-ai-jezyki">
         <?php foreach ($evk_jezyki as $evk_kod => $evk_j): ?>
         <label class="evo-check-row"><input type="checkbox" class="tl-ai-jezyk" value="<?php echo esc_attr((string) $evk_kod); ?>" checked>
@@ -253,7 +258,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
     przebiegDostawca.addEventListener('change', pokazPrzebieg);
     pokazPrzebieg();
     /* Liczby na liście zależą od trybu — po zmianie trzeba ją pokazać od nowa. */
-    t.querySelectorAll('input[name="tl-ai-tryb"]').forEach(function (r) {
+    t.querySelectorAll('input[name="tl-ai-tryb"], #tl-ai-pola').forEach(function (r) {
         r.addEventListener('change', function () {
             jednostki = [];
             lista.textContent = '';
@@ -271,7 +276,8 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         przyciskListy.disabled = true;
         stan.textContent = 'Liczę braki…';
         var trybListy = tryb();
-        return wyslij({ action: 'evk_tl_ai_lista', tryb: trybListy }).then(function (r) {
+        var polaFields = document.getElementById('tl-ai-pola');
+        return wyslij({ action: 'evk_tl_ai_lista', tryb: trybListy, pola: polaFields && polaFields.checked ? '1' : '' }).then(function (r) {
             przyciskListy.disabled = false;
             lista.textContent = '';
             if (!r || !r.success) { stan.textContent = (r && r.data) || 'Błąd.'; return; }

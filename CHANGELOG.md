@@ -2,6 +2,84 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.267.0] — 2026-09-30
+
+Tłumaczenie AI pól Evoke FIELDS: hurt z polami (po zaznaczeniu), przyciski
+w metaboksie (Fields 1.75.0), pola w liście „Do sprawdzenia”.
+
+**Wymaga Evoke FIELDS 1.75.0+** do nowych funkcji. Ze starszym Fields nie ma
+pola wyboru ani przycisków, a reszta działa jak w 1.266.0.
+
+### Dodane
+
+- **Hurt AI: „Także pola Evoke FIELDS (wpisy, strony, typy treści)”** w
+  Tłumaczenia → AI, **domyślnie odznaczone** (decyzja zgłaszającego z 30.09).
+  - Zaznaczone dokłada do listy osobną część wpisu „Pola Evoke FIELDS”
+    (`evk_fields`) z brakami w każdym języku.
+  - Krok hurtu czyta teksty przez `evk_fields_tl_teksty()` i zapisuje przez
+    `evk_fields_tl_wpisz()`. Tłumaczenie z AI i z pamięci wyników dostaje
+    znacznik „AI — do sprawdzenia”, a sprawdzone z pamięci tłumaczeń idzie
+    bez niego, jak w elementach.
+  - Kontekst to pola wpisu z opisem z etykiet („Pola oferty · Lista ·
+    pozycja 1 · Tekst”) i obecnymi tłumaczeniami, a za nimi teksty treści
+    Bricksa tej strony: wspólne słownictwo.
+  - Tryb „od nowa” obejmuje także niesprawdzone tłumaczenia AI pól.
+- **Przyciski ✦ w metaboksie Fields**: filtr `evk_fields_tl_ai` daje dane
+  tylko komuś z dostępem do Tłumaczeń i prawem edycji wpisu, tylko z kluczem
+  API. Klucz nie wychodzi do przeglądarki.
+  - Nowy AJAX `evk_tl_ai_pola`: tylko tłumaczy, bez zapisu, tym samym
+    rdzeniem co przyciski w builderze (`evk_tl_ai_builder()`: pamięć,
+    strażnik, porcje).
+  - Wymaga wpisu i `edit_post`.
+  - Wejście przyjmuje gotowy opis pola.
+- **Lista „Do sprawdzenia”** w Tłumaczeniach: wiersze pól Fields z
+  tłumaczeniem AI albo ze zmienionym oryginałem („Evoke FIELDS · {grupa}:
+  {pole}”).
+  - Odnośnik prowadzi do edycji wpisu; „Na stronie” dla pól nie ma.
+  - „Sprawdzone” idzie przez `evk_fields_tl_sprawdzone()` z prawem edycji
+    wpisu.
+
+### Zmienione
+
+- `phpstan.neon`: funkcje `evk_fields_tl_*` jako zależność opcjonalna (jak
+  WooCommerce). Kod woła je dopiero po `evk_tl_ai_pola_dostepne()`.
+
+### Testy
+
+- `tests/fields-ai.test.js` (nowy, 35 sprawdzeń, sonda
+  `tests/php/fields-ai.php`, czwarty testowy WordPress, atrapa AI):
+  - API Fields: miejsca, zapis w wierszu i w mecie, `ai-`, „Do sprawdzenia”
+    po zmianie oryginału, „Sprawdzone”, odmowy;
+  - hurt: pole wyboru odznaczone i zaznaczone, puste pola ze znacznikiem,
+    wypełnione nietknięte, kontekst z polami i treścią Bricksa, treść
+    Bricksa bez zmian;
+  - lista „Do sprawdzenia” i „Sprawdzone” przez AJAX;
+  - dane przycisków i uprawnienia AJAX (bez `edit_post`, zły nonce, bez
+    wpisu);
+  - metaboks w Chromium: przyciski tylko w widoku języka, pytanie przy
+    wypełnionym polu, grupa DE, ręczna poprawka, klawiatura, zapis
+    „Zaktualizuj”, znacznik po przeładowaniu, „Sprawdzone”, 360 px, bez
+    klucza API.
+
+  Żądanie z metaboksu przechwytuje test i puszcza przez prawdziwy AJAX
+  w sondzie.
+- Mutacje (5, w obu wtyczkach): skrót ze znacznikiem w „Do sprawdzenia”,
+  zapis gubi znacznik, hurt bez pola wyboru, filtr bez `edit_post`, zły
+  wiersz. Każda zapala swój zestaw sprawdzeń.
+
+### Do sprawdzenia na testowej
+
+- Evoke FIELDS 1.75.0 razem z tym wydaniem.
+- Wpis z grupą pól Fields:
+  - ✦ przy polach w widoku EN i DE;
+  - „Przetłumacz puste pola (AI)”;
+  - zapis;
+  - „AI — do sprawdzenia”;
+  - „Sprawdzone”.
+- Tłumaczenia → AI: pole wyboru, pozycja „Pola Evoke FIELDS” w liście,
+  przebieg.
+- Tłumaczenia: pola Fields w „Do sprawdzenia”, odnośnik do edycji wpisu.
+
 ## [1.266.0] — 2026-09-30
 
 Poprawki przycisków AI po uwagach zgłaszającego z testowej (30.09): ikonka ✦

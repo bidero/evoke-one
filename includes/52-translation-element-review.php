@@ -185,8 +185,17 @@ add_action('wp_ajax_evk_tl_el_sprawdzone', function (): void {
     if (!current_user_can('manage_options') && !current_user_can('evk_access_translations')) {
         wp_send_json_error('Brak uprawnień.', 403);
     }
-    $ok = evk_tl_el_oznacz_sprawdzone(absint($_POST['post_id'] ?? 0),
-        sanitize_text_field(wp_unslash($_POST['meta_key'] ?? '')), (string) wp_unslash($_POST['klucz'] ?? ''));
+    $post_id = absint($_POST['post_id'] ?? 0);
+    $meta_key = sanitize_text_field(wp_unslash($_POST['meta_key'] ?? ''));
+    $klucz = (string) wp_unslash($_POST['klucz'] ?? '');
+    /* Pole Evoke FIELDS (1.267.0): klucz `{miejsce}|{język}`, zapis przez Fields, z prawem edycji wpisu. */
+    if (defined('EVK_TL_AI_POLA') && $meta_key === EVK_TL_AI_POLA && function_exists('evk_fields_tl_sprawdzone')) {
+        if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
+        $p = strrpos($klucz, '|');
+        $ok = $p !== false && evk_fields_tl_sprawdzone($post_id, substr($klucz, 0, $p), substr($klucz, $p + 1));
+    } else {
+        $ok = evk_tl_el_oznacz_sprawdzone($post_id, $meta_key, $klucz);
+    }
     $ok ? wp_send_json_success() : wp_send_json_error('Nie ma już takiego miejsca — odśwież stronę.');
 });
 
@@ -217,6 +226,8 @@ function evk_tl_el_adres_sprawdzania(int $post_id, string $meta_key, string $jez
 /** Sekcja „Do sprawdzenia" nad frazami w zakładce Tłumaczenia — tylko gdy jest co pokazać. */
 function evk_tl_el_sekcja_do_sprawdzenia(): void {
     $lista = evk_tl_el_do_sprawdzenia();
+    /* Pola Evoke FIELDS (1.267.0) — AI albo zmieniony oryginał, edycja w metaboksie wpisu. */
+    if (function_exists('evk_tl_ai_pola_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_pola_do_sprawdzenia());
     if (!$lista) return;
     $skrot = static function (string $t): string {
         // Ta sama funkcja co lista tekstów (53): akapity nie sklejają się w jeden wyraz.
@@ -228,7 +239,7 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
     <div class="evo-box tl-do-sprawdzenia" data-nonce="<?php echo esc_attr(wp_create_nonce('evk_tl_el_sprawdzone')); ?>">
         <h3>Tłumaczenia w elementach do sprawdzenia (<?php echo (int) count($lista); ?>)</h3>
         <p class="evo-desc">Tłumaczenie zrobiło AI albo oryginał zmienił się po przetłumaczeniu. Strona pokazuje obecne tłumaczenie.
-        Popraw je wprost na stronie („Na stronie”), w Bricksie albo oznacz jako sprawdzone, jeśli pasuje.</p>
+        Popraw je wprost na stronie („Na stronie”), w Bricksie (pola Evoke FIELDS — w edycji wpisu) albo oznacz jako sprawdzone, jeśli pasuje.</p>
         <div class="evo-tbl-wrap"><table class="evo-table">
             <thead><tr><th scope="col">Strona</th><th scope="col">Pole</th><th scope="col">Język</th><th scope="col">Powód</th>
                 <th scope="col">Oryginał teraz</th><th scope="col">Tłumaczenie</th><th scope="col"><span class="screen-reader-text">Akcja</span></th></tr></thead>
@@ -236,9 +247,11 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
             <?php foreach ($lista as $m):
                 $tytul = get_the_title($m['post_id']) ?: ('#' . $m['post_id']);
                 $jezyk = strtoupper(str_replace('_', '-', $m['jezyk']));
-                $naStronie = evk_tl_el_adres_sprawdzania((int) $m['post_id'], (string) $m['meta_key'], (string) $m['jezyk'], (string) $m['klucz']); ?>
+                $pole_fields = defined('EVK_TL_AI_POLA') && $m['meta_key'] === EVK_TL_AI_POLA;
+                $naStronie = $pole_fields ? '' : evk_tl_el_adres_sprawdzania((int) $m['post_id'], (string) $m['meta_key'], (string) $m['jezyk'], (string) $m['klucz']);
+                $edycja = $pole_fields ? (string) get_edit_post_link((int) $m['post_id'], 'raw') : evk_tl_el_adres_edycji($m['post_id']); ?>
                 <tr>
-                    <td><a href="<?php echo esc_url(evk_tl_el_adres_edycji($m['post_id'])); ?>"><?php echo esc_html($tytul); ?></a></td>
+                    <td><a href="<?php echo esc_url($edycja); ?>"><?php echo esc_html($tytul); ?></a></td>
                     <td><?php echo esc_html($m['element'] . ': ' . $m['pole']); ?></td>
                     <td><?php echo esc_html($jezyk); ?></td>
                     <td><?php echo !empty($m['ai']) ? 'AI' : 'Zmienił się oryginał'; ?></td>

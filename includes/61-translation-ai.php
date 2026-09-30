@@ -737,8 +737,9 @@ function evk_tl_ai_zapisz(int $post_id, string $meta_key, string $lang, array $g
  */
 function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pomin = [], array $opcje = []): array {
     $u = evk_tl_ai_na_przebieg(evk_tl_ai_ustawienia(), (string) ($opcje['dostawca'] ?? ''), (string) ($opcje['model'] ?? ''));
-    $dane = get_post_meta($post_id, $meta_key, true);
-    $t = evk_tl_ai_teksty($dane, $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key));
+    $pola = $meta_key === EVK_TL_AI_POLA;
+    $t = $pola ? evk_tl_ai_teksty_pol($post_id, $lang, !empty($opcje['ponownie']))
+        : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key));
     $braki = array_diff_key($t['braki'], array_flip($pomin));
     $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'bez_zmian' => 0, 'odrzucone' => [], 'pominiete' => [], 'zapisane_klucze' => [], 'zostalo' => 0];
     if (!$braki) return $wynik;
@@ -812,7 +813,8 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     foreach (array_keys($gotowe) as $k) {
         if ($braki[$k]['bylo'] !== '') $bylo[$k] = $braki[$k]['bylo'];
     }
-    $wynik['zapisane_klucze'] = evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo);
+    $wynik['zapisane_klucze'] = $pola ? evk_tl_ai_zapisz_pola($post_id, $lang, $gotowe, $ai, $braki)
+        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo);
     $wynik['zapisane'] = count($wynik['zapisane_klucze']);
     $wynik['bez_zmian'] = count($rowne);
     $wynik['pominiete'] = array_keys($rowne);
@@ -827,7 +829,7 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
  *
  * @return list<array<string,mixed>>
  */
-function evk_tl_ai_jednostki(bool $ponownie = false): array {
+function evk_tl_ai_jednostki(bool $ponownie = false, bool $pola = false): array {
     $jezyki = array_map('strval', evk_tl_kody_jezykow());
     $out = [];
     foreach (evk_tl_el_wpisy_bricksa() as [$post_id, $meta_key]) {
@@ -846,7 +848,8 @@ function evk_tl_ai_jednostki(bool $ponownie = false): array {
         $out[] = ['post_id' => $post_id, 'meta_key' => $meta_key, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
             'czesc' => evk_tl_el_czesc($meta_key), 'adres' => evk_tl_el_adres_edycji($post_id), 'braki' => $braki, 'ai' => (object) $ai];
     }
-    return $out;
+    /* Pola Evoke FIELDS (1.267.0) — tylko po zaznaczeniu pola wyboru. */
+    return $pola ? array_merge($out, evk_tl_ai_jednostki_pol($jezyki, $ponownie)) : $out;
 }
 
 /**
@@ -1111,8 +1114,11 @@ function evk_tl_ai_builder_wejscie($kontekst, $teksty) {
         $pole = (string) preg_replace('/[^A-Za-z0-9_-]/', '', is_string($w['pole'] ?? null) ? $w['pole'] : '');
         $poz = is_numeric($w['poz'] ?? null) ? max(0, (int) $w['poz']) : 0;
         $bajty += strlen($w['pl']) + strlen($tl);
+        /* Pola Evoke FIELDS (1.267.0) mają gotowy opis — etykietę pola z grupy. */
+        $opis = is_string($w['opis'] ?? null) && trim($w['opis']) !== '' ? mb_substr(sanitize_text_field($w['opis']), 0, 120)
+            : ($poz ? 'pozycja ' . $poz . ' · ' : '') . evk_tl_el_nazwa_pola($pole);
         $k[] = ['element' => (string) preg_replace('/[^A-Za-z0-9_-]/', '', is_string($w['el'] ?? null) ? $w['el'] : ''),
-            'opis' => ($poz ? 'pozycja ' . $poz . ' · ' : '') . evk_tl_el_nazwa_pola($pole), 'pl' => $w['pl'], 'tl' => $tl];
+            'opis' => $opis, 'pl' => $w['pl'], 'tl' => $tl];
     }
     if ($bajty > EVK_TL_AI_BUILDER_ZNAKI) return 'Za dużo tekstu w tej części strony — przetłumacz ją w panelu Tłumaczeń.';
     if (count($teksty) > EVK_TL_AI_PORCJA) return 'Za dużo tekstów naraz (najwięcej ' . EVK_TL_AI_PORCJA . ').';
@@ -1212,6 +1218,144 @@ function evk_tl_ai_builder(int $post_id, string $lang, array $kontekst, array $t
 }
 
 // =========================================================================
+// POLA EVOKE FIELDS (1.267.0)
+// =========================================================================
+
+/*
+ * Wartości pól Evoke FIELDS (osobna wtyczka, Fields ≥ 1.75.0) — trzecie
+ * źródło tekstów obok treści Bricksa. Fields nie zna AI: podaje teksty
+ * wpisu (`evk_fields_tl_teksty()`), przyjmuje tłumaczenie
+ * (`evk_fields_tl_wpisz()`, ze znacznikiem „AI — do sprawdzenia”) i pyta
+ * filtrem `evk_fields_tl_ai`, dokąd wysłać teksty z przycisków w metaboksie.
+ *
+ * W hurcie pola to osobna część wpisu (`evk_fields`, „Pola Evoke FIELDS”),
+ * tylko po zaznaczeniu pola wyboru (decyzja zgłaszającego z 30.09: domyślnie
+ * bez pól). Kontekst: pola wpisu i teksty treści Bricksa tej strony.
+ */
+const EVK_TL_AI_POLA = 'evk_fields';
+
+/** Fields z API tekstów (1.75.0+) — bez niego ani pola wyboru, ani przycisków. */
+function evk_tl_ai_pola_dostepne(): bool {
+    return function_exists('evk_fields_tl_teksty') && function_exists('evk_fields_tl_wpisz') && function_exists('evk_fields_tl_typy');
+}
+
+/**
+ * Teksty pól wpisu w kształcie evk_tl_ai_teksty(): kontekst (najpierw pola,
+ * potem treść Bricksa tej strony) i braki — klucz `{miejsce Fields}|{język}`.
+ * W trybie ponownym także niesprawdzone tłumaczenia AI (z obecnym tekstem w `bylo`).
+ *
+ * @return array{kontekst:list<array{element:string,opis:string,pl:string,tl:string}>,braki:array<string,array<string,mixed>>}
+ */
+function evk_tl_ai_teksty_pol(int $post_id, string $lang, bool $ponownie = false): array {
+    $out = ['kontekst' => [], 'braki' => []];
+    if (!evk_tl_ai_pola_dostepne()) return $out;
+    foreach (evk_fields_tl_teksty($post_id) as $m) {
+        $pl = (string) ($m['pl'] ?? '');
+        if (!evk_tl_ai_do_tlumaczenia($pl)) continue;
+        $tl = (string) ($m['tl'][$lang] ?? '');
+        $ponow = $ponownie && $tl !== '' && !empty($m['ai'][$lang]);
+        $out['kontekst'][] = ['element' => 'Evoke FIELDS · ' . (string) ($m['grupa'] ?? ''), 'opis' => (string) ($m['opis'] ?? ''),
+            'pl' => $pl, 'tl' => $tl !== '' && !$ponow ? $tl : ''];
+        if ($tl !== '' && !$ponow) continue;
+        $out['braki'][(string) $m['klucz'] . '|' . $lang] = ['pl' => $pl, 'element' => 'Evoke FIELDS', 'opis' => (string) ($m['opis'] ?? ''),
+            'id' => '', 'sciezka' => (string) $m['klucz'], 'pole' => '', 'n' => count($out['kontekst']), 'bylo' => $ponow ? $tl : ''];
+    }
+    if ($out['braki']) {
+        /* Słownictwo reszty strony: teksty treści Bricksa z obecnymi tłumaczeniami. */
+        $tresc = evk_tl_ai_teksty(get_post_meta($post_id, evk_tl_el_klucze_meta()[0], true), $lang)['kontekst'];
+        $out['kontekst'] = array_merge($out['kontekst'], $tresc);
+    }
+    return $out;
+}
+
+/**
+ * Zapis kroku hurtu dla pól: każde tłumaczenie przez Fields. Z pamięci
+ * tłumaczeń (sprawdzone) — bez znacznika AI, z AI i pamięci wyników — ze znacznikiem.
+ *
+ * @param array<string,string>               $gotowe
+ * @param array<string,bool>                 $ai
+ * @param array<string,array<string,mixed>>  $braki
+ * @return list<string> Klucze zapisane.
+ */
+function evk_tl_ai_zapisz_pola(int $post_id, string $lang, array $gotowe, array $ai, array $braki): array {
+    $out = [];
+    foreach ($gotowe as $k => $tl) {
+        $miejsce = (string) ($braki[$k]['sciezka'] ?? '');
+        if ($miejsce !== '' && evk_fields_tl_wpisz($post_id, $miejsce, $lang, (string) $tl, !empty($ai[$k]))) $out[] = (string) $k;
+    }
+    return $out;
+}
+
+/**
+ * Wpisy z polami Fields z brakami (lista hurtu): część `evk_fields`.
+ *
+ * @param list<string> $jezyki
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_jednostki_pol(array $jezyki, bool $ponownie): array {
+    if (!evk_tl_ai_pola_dostepne() || !($typy = evk_fields_tl_typy())) return [];
+    $ids = get_posts(['post_type' => $typy, 'post_status' => ['publish', 'draft', 'pending', 'private', 'future'],
+        'numberposts' => 1000, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'ASC', 'no_found_rows' => true, 'suppress_filters' => true]);
+    $out = [];
+    foreach (array_map('intval', $ids) as $post_id) {
+        $braki = [];
+        $ai = [];
+        foreach ($jezyki as $j) {
+            $b = evk_tl_ai_teksty_pol($post_id, $j, $ponownie)['braki'];
+            if ($b) $braki[$j] = count($b);
+            $n = count(array_filter($b, static function ($x) { return $x['bylo'] !== ''; }));
+            if ($n) $ai[$j] = $n;
+        }
+        if (!$braki) continue;
+        $out[] = ['post_id' => $post_id, 'meta_key' => EVK_TL_AI_POLA, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
+            'czesc' => 'Pola Evoke FIELDS', 'adres' => (string) get_edit_post_link($post_id, 'raw'), 'braki' => $braki, 'ai' => (object) $ai];
+    }
+    return $out;
+}
+
+/*
+ * Przyciski AI w metaboksie Fields: dane tylko dla kogoś z dostępem do
+ * Tłumaczeń i prawem edycji wpisu, tylko z kluczem API. Klucz nie wychodzi
+ * do przeglądarki.
+ */
+add_filter('evk_fields_tl_ai', function ($dane, $post_id = 0) {
+    $post_id = (int) $post_id;
+    if (!$post_id || !current_user_can('edit_post', $post_id)) return null;
+    if (!current_user_can('manage_options') && !current_user_can('evk_access_translations')) return null;
+    $u = evk_tl_ai_ustawienia();
+    if (evk_tl_ai_klucz($u) === '') return null;
+    return ['ajax' => admin_url('admin-ajax.php'), 'nonce' => wp_create_nonce('evk_tl_ai_pola'), 'post' => $post_id,
+        'model' => evk_tl_ai_podpis($u), 'porcja' => EVK_TL_AI_PORCJA, 'znaki' => EVK_TL_AI_ZNAKI];
+}, 10, 2);
+
+/**
+ * Lista „Do sprawdzenia” (52): pola Fields z tłumaczeniem AI albo po zmianie
+ * oryginału — w kształcie wierszy elementów (element, pole, język, oryginał,
+ * tłumaczenie, ai), część `evk_fields`, klucz `{miejsce}|{język}`.
+ *
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_pola_do_sprawdzenia(int $limit = 200): array {
+    if (!evk_tl_ai_pola_dostepne() || !($typy = evk_fields_tl_typy())) return [];
+    $ids = array_map('intval', get_posts(['post_type' => $typy, 'post_status' => ['publish', 'draft', 'pending', 'private', 'future'],
+        'numberposts' => 1000, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'ASC', 'no_found_rows' => true, 'suppress_filters' => true]));
+    if ($ids) update_meta_cache('post', $ids);
+    $out = [];
+    foreach ($ids as $post_id) {
+        foreach (evk_fields_tl_teksty($post_id) as $m) {
+            foreach ((array) ($m['tl'] ?? []) as $j => $tl) {
+                if ((string) $tl === '' || (empty($m['ai'][$j]) && empty($m['stale'][$j]))) continue;
+                $out[] = ['post_id' => $post_id, 'meta_key' => EVK_TL_AI_POLA, 'klucz' => (string) $m['klucz'] . '|' . $j,
+                    'element' => 'Evoke FIELDS · ' . (string) ($m['grupa'] ?? ''), 'pole' => (string) ($m['opis'] ?? ''), 'jezyk' => (string) $j,
+                    'oryginal' => (string) $m['pl'], 'tlumaczenie' => (string) $tl, 'ai' => !empty($m['ai'][$j]) && empty($m['stale'][$j])];
+                if (count($out) >= $limit) return $out;
+            }
+        }
+    }
+    return $out;
+}
+
+// =========================================================================
 // AJAX
 // =========================================================================
 
@@ -1240,7 +1384,7 @@ add_action('wp_ajax_evk_tl_ai_ustawienia', function (): void {
 /** Lista części stron z brakami (w trybie ponownym — także z niesprawdzonymi tłumaczeniami AI). */
 add_action('wp_ajax_evk_tl_ai_lista', function (): void {
     evk_tl_ajax_check('evk_tl_ai');
-    wp_send_json_success(evk_tl_ai_jednostki(($_POST['tryb'] ?? '') === 'ponownie'));
+    wp_send_json_success(evk_tl_ai_jednostki(($_POST['tryb'] ?? '') === 'ponownie', !empty($_POST['pola']) && evk_tl_ai_pola_dostepne()));
 });
 
 /** Jeden krok tłumaczenia. */
@@ -1249,7 +1393,8 @@ add_action('wp_ajax_evk_tl_ai_krok', function (): void {
     $post_id = absint($_POST['post_id'] ?? 0);
     $meta_key = sanitize_text_field(wp_unslash((string) ($_POST['meta_key'] ?? '')));
     $lang = sanitize_key((string) ($_POST['lang'] ?? ''));
-    if (!$post_id || !in_array($meta_key, evk_tl_el_klucze_meta(), true) || !isset(tl_get_languages()[$lang])) {
+    $czesc_ok = in_array($meta_key, evk_tl_el_klucze_meta(), true) || ($meta_key === EVK_TL_AI_POLA && evk_tl_ai_pola_dostepne());
+    if (!$post_id || !$czesc_ok || !isset(tl_get_languages()[$lang])) {
         wp_send_json_error('Nieznana strona albo język.');
     }
     if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
@@ -1302,8 +1447,22 @@ add_action('wp_ajax_evk_tl_ai_przywroc', function (): void {
  * strony — prawo edycji w ogóle.
  */
 add_action('wp_ajax_evk_tl_ai_builder', function (): void {
-    evk_tl_ajax_check('evk_tl_ai_builder');
+    evk_tl_ai_ajax_bez_zapisu('evk_tl_ai_builder', false);
+});
+
+/**
+ * Pola Evoke FIELDS w metaboksie wpisu (1.267.0): to samo co builder — tylko
+ * tłumaczy, zapis zostaje w formularzu wpisu. Wpis obowiązkowy (prawo edycji).
+ */
+add_action('wp_ajax_evk_tl_ai_pola', function (): void {
+    evk_tl_ai_ajax_bez_zapisu('evk_tl_ai_pola', true);
+});
+
+/** Tłumaczenie bez zapisu (builder, pola Fields): nonce, dostęp, prawo edycji wpisu, język, wejście. */
+function evk_tl_ai_ajax_bez_zapisu(string $nonce, bool $wymagaj_wpisu): void {
+    evk_tl_ajax_check($nonce);
     $post_id = absint($_POST['post_id'] ?? 0);
+    if ($wymagaj_wpisu && !$post_id) wp_send_json_error('Brak wpisu.', 400);
     if (!($post_id ? current_user_can('edit_post', $post_id) : current_user_can('edit_posts'))) {
         wp_send_json_error('Brak uprawnień do tej strony.', 403);
     }
@@ -1320,4 +1479,4 @@ add_action('wp_ajax_evk_tl_ai_builder', function (): void {
     $w['tlumaczenia'] = (object) $w['tlumaczenia'];
     $w['zrodla'] = (object) $w['zrodla'];
     wp_send_json_success($w);
-});
+}
