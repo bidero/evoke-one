@@ -2,6 +2,140 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.261.0] — 2026-09-30
+
+Tłumaczenia: sprawdzanie i poprawianie tłumaczeń wprost na stronie.
+
+### Dodane
+
+- **Tryb sprawdzania na stronie** (`?evk_tl_sprawdz=1` na wersji językowej).
+  Zgłoszone 29.09: „Czy jest możliwość edycji tekstów bezpośrednio na stronie
+  do sprawdzenia? Bardzo by to ułatwiło systemowe tłumaczenie hurtowe.”
+  Decyzje zgłaszającego z 29–30.09:
+  - okienko przy klikniętym elemencie, a nie pisanie w tekście strony;
+  - obrys „Do sprawdzenia” (AI, zmieniony oryginał) i „Brak tłumaczenia”,
+    a klikać da się każdy tekst;
+  - zakres: elementy Bricksa w treści, nagłówku i stopce;
+  - „Zapisz” oznacza cały element jako sprawdzony; okienko zostaje przy nim
+    z napisem „Zapisano.”, a fokus przechodzi na „Następne”.
+- **Wejście:**
+  - „Sprawdź tłumaczenia (EN)” na pasku admina. Na polskiej stronie prowadzi
+    do pierwszego języka, pozostałe języki są w podmenu.
+  - „Na stronie” przy każdym wierszu listy „Do sprawdzenia” w panelu.
+    Otwiera stronę z okienkiem tego elementu. Nagłówek i stopka z szablonu
+    otwierają się na stronie głównej. Szablon sekcji nie ma jednej strony,
+    więc jest bez odnośnika.
+  - Tryb widzi zalogowany z dostępem do Tłumaczeń. Poprawiać może ten, kto
+    może edytować wpis, do którego należy element — także szablon nagłówka
+    czy stopki. Pozostali widzą okienko tylko do podglądu.
+- **Pasek na dole ekranu:** liczniki (do sprawdzenia, brak tłumaczenia,
+  tylko w builderze, nie znaleziono na stronie), „Następne”, „Obrys
+  wszystkich tekstów”, „Następna strona do sprawdzenia” i „Zakończ”.
+- **Okienko** pokazuje wszystkie teksty elementu. Przy każdym: polski
+  oryginał do odczytu, pole z tłumaczeniem (HTML jak w builderze) i znaczek
+  stanu — AI do sprawdzenia, zmienił się polski tekst, przetłumaczone, ze
+  słownika, częściowo ze słownika, brak tłumaczenia.
+  - „Zapisz” zapisuje zmienione pola. „Sprawdzone” przyjmuje tłumaczenie bez
+    zmian. „Następne ›” idzie w dół strony do następnego elementu do
+    sprawdzenia, a gdy takich nie ma — do braków.
+  - Pusty tekst usuwa tłumaczenie: strona wraca do polskiego albo do
+    słownika.
+  - Element w pętli ma uwagę, że zmiana dotyczy każdego wystąpienia.
+  - Klawiatura: Tab po elementach, Enter otwiera, Esc zamyka (fokus wraca na
+    element), Ctrl+Enter zapisuje. Na telefonie okienko jest arkuszem od
+    dołu.
+- **Po zapisie** skrypt pobiera stronę jeszcze raz i podmienia sam węzeł
+  elementu, bez przeładowania. Element z własnym skryptem Bricksa (akordeon,
+  zakładki, slider, formularz…) straciłby wtedy obsługę, więc strona się
+  przeładowuje i wraca w to samo miejsce z otwartym okienkiem.
+- **Lista „Do sprawdzenia” w panelu:** kolumna „Powód” (AI albo zmieniony
+  oryginał) i przycisk „Na stronie”.
+
+### Jak to działa
+
+- Przy renderze filtr `bricks/element/settings` zapisuje identyfikator, typ
+  i własne CSS ID każdego elementu. W stopce moduł ustala, do którego wpisu
+  element należy:
+  1. szablon treści albo sama strona;
+  2. szablony nagłówka i stopki (`\Bricks\Database::$active_templates`);
+  3. pozostałe wpisy z danymi Bricksa — jedno zapytanie po identyfikatorze
+     w zapisanej tablicy. Skopiowana strona ma te same identyfikatory, więc
+     przy dwóch trafieniach element jest tylko do podglądu („popraw go
+     w builderze”).
+- Dane dla skryptu idą w `<script type="application/json"
+  id="evk-tl-sprawdz-dane">`. Skrypt i arkusz (`assets/admin/tl-sprawdz.js`,
+  `.css`) wczytują się tylko w trybie. To narzędzie tłumacza, jak podgląd
+  w builderze, więc bez `.min`.
+- Zapis przez AJAX `evk_tl_sprawdz_zapisz`: nonce, dostęp do Tłumaczeń,
+  `edit_post` wpisu. Bez `unfiltered_html` tekst przechodzi przez
+  `wp_kses_post`.
+- Wspólna funkcja zapisu z hurtem AI (`evk_tl_el_zapisz_pola()` w 53).
+  Nowe pole trafia do wykazu dopisanych, żeby otwarty builder go nie zgubił,
+  a zapis omija hak. Hurt AI (61) zapisuje teraz tą samą funkcją, bez
+  zmiany zachowania.
+
+### Ograniczenie
+
+- Builder otwarty PRZED poprawką zapisze przy swoim zapisie starą wartość
+  poprawionego pola. Wykaz dopisanych chroni tylko pola, których builder
+  jeszcze nie znał. Poprawiaj na stronie, gdy nie jest otwarta w builderze.
+
+### Testy
+
+- `tests/tl-sprawdz.test.js` + sonda `tests/php/tl-sprawdz.php`. Bricksa tu
+  nie ma, więc mu-plugin testu rysuje stronę jak Bricks: każdy element przez
+  prawdziwy filtr ustawień, id `brxe-{id}` albo własne CSS ID, szablony
+  nagłówka i stopki w `$active_templates`. 52 sprawdzenia w Chromium przez
+  `php -S`:
+  - kto widzi tryb (gość, polska wersja, pasek admina), liczniki, obrysy,
+    własne CSS ID, pętla;
+  - okienko, zapis z podmianą węzła, „Następne”, „Sprawdzone”, akordeon
+    z przeładowaniem, odnośnik przycisku, szablony nagłówka i sekcji, kopia
+    strony i kopia szablonu, pusty tekst, klawiatura;
+  - zły nonce, konto bez prawa edycji (podgląd i 403), kses bez
+    `unfiltered_html`, odebrany dostęp do Tłumaczeń (bez trybu, 403 ze
+    starym nonce);
+  - lista w panelu (Powód, „Na stronie” z kotwicą, szablon sekcji bez
+    odnośnika), telefon 360 px.
+- Błędy JS test liczy tylko ze strony. Konto bez Kokpitu ląduje po
+  zalogowaniu na `profile.php`, a `user-profile.js` z rdzenia rzuca przy
+  szybkim wyjściu ze strony TypeError: czyta formularz ustawiany dopiero
+  w swoim „ready”.
+- `tests/tl-do-sprawdzenia.test.js`: siedem kolumn listy zamiast sześciu.
+- Mutacje: 26, każda zapala własne sprawdzenia
+  (7/4/1/1/1/1/1/2/2/4/2/2/6/2/3/1/1/2/1/1/1/2/1/4/1/2). Po kolei:
+  - bez kandydatów (od razu wyszukiwanie); bez „w kilku miejscach”;
+  - zapis bez `edit_post`; okienko zawsze do edycji; bez kses; tryb bez
+    dostępu do Tłumaczeń; zapis bez dostępu; bez nonce; tryb na polskiej
+    wersji;
+  - zapis bez oznaczenia elementu jako sprawdzonego; bez wykazu dopisanych;
+    zapis przez hak 53; bez stanu „zmienił się polski tekst”;
+  - kontenery w danych; bez własnego CSS ID; szablon jako „Następna
+    strona”; akordeon bez przeładowania;
+  - lista: bez kotwicy; bez powodu; odnośnik przy szablonie sekcji;
+  - skrypt: przeładowanie zamiast podmiany węzła; klik przechodzi
+    odnośnikiem; „Następne” od góry strony; fokus nie na „Następne”; Esc
+    bez oddania fokusu; bez `tabindex`.
+
+  Dwie (bez wykazu dopisanych, zapis przez hak 53) zapalają te same
+  sprawdzenia: obie psują wykaz dopisanych, każda inną drogą. Trzy (bez
+  kandydatów, klik przechodzi odnośnikiem, fokus nie na „Następne”) po
+  swoich sprawdzeniach kończą test wyjątkiem, bo dalsze kroki nie mają na
+  czym działać.
+- Pełny przebieg: 6016 sprawdzeń w 123 plikach, wszystkie zielone
+  (`zapis-wp-newsletter` pasuje do dwóch partii i idzie dwa razy).
+
+### Do sprawdzenia na testowej
+
+- Identyfikatory elementów w HTML-u prawdziwego Bricksa (`brxe-…`, własne
+  CSS ID) i elementy w pętli (query loop).
+- Nagłówek i stopka z szablonów: okienko mówi „Nagłówek: …”, a zapis trafia
+  do szablonu.
+- Strona wpisu z szablonem treści (single).
+- Akordeon, zakładki, slider: po zapisie przeładowanie i powrót do okienka.
+- Obiekt elementu w filtrze ustawień Bricksa (`->id`, `->name`) — test
+  używa atrapy.
+
 ## [1.260.0] — 2026-09-29
 
 Tłumaczenia: tłumaczenie AI tekstów w elementach Bricksa — hurtem, z kontekstem,

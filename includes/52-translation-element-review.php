@@ -134,6 +134,8 @@ add_action('updated_post_meta', 'evk_tl_el_meta_zmieniona', 10, 4);
  * Lista „Do sprawdzenia": miejsca, w których bieżący oryginał różni się od
  * tego, z którego powstało tłumaczenie. Liczone przy odczycie z bieżących
  * danych — oryginał cofnięty do dawnej postaci przestaje być na liście sam.
+ * Tłumaczenie AI (61) ma źródło `ai` — różne od każdego skrótu, więc jest na
+ * liście, dopóki ktoś go nie przyjmie; `ai` mówi, skąd się tu wzięło.
  *
  * @return list<array<string,mixed>>
  */
@@ -155,7 +157,8 @@ function evk_tl_el_do_sprawdzenia(int $limit = 200): array {
                 $m = $miejsca[$klucz] ?? null;
                 if (!$m || !is_array($s) || evk_tl_el_skrot($m['oryginal']) === ($s['src'] ?? '')) continue;
                 if (!evk_tl_el_niepuste($m['tlumaczenie'])) continue;
-                $out[] = $m + ['post_id' => (int) $post_id, 'meta_key' => (string) $meta_key, 'klucz' => (string) $klucz];
+                $out[] = $m + ['post_id' => (int) $post_id, 'meta_key' => (string) $meta_key, 'klucz' => (string) $klucz,
+                    'ai' => ($s['src'] ?? '') === 'ai'];
             }
         }
     }
@@ -190,6 +193,24 @@ function evk_tl_el_adres_edycji(int $post_id): string {
     return add_query_arg('bricks', 'run', (string) get_permalink($post_id));
 }
 
+/**
+ * Adres miejsca w trybie sprawdzania na stronie (62, 1.261.0): strona w języku
+ * z parametrem trybu i kotwicą elementu, którą skrypt trybu otwiera. Nagłówek
+ * i stopka z szablonu — na stronie głównej (są na każdej). Szablon treści nie
+ * ma jednej strony — bez adresu.
+ */
+function evk_tl_el_adres_sprawdzania(int $post_id, string $meta_key, string $jezyk, string $klucz): string {
+    if (!function_exists('evk_tl_sprawdz_adres')) return '';
+    $k = evk_tl_el_klucze_meta();
+    if (get_post_type($post_id) === 'bricks_template') {
+        if ($meta_key !== $k[1] && $meta_key !== $k[2]) return '';
+        $adres = add_query_arg(EVK_TL_SPRAWDZ_PARAM, '1', function_exists('tl_url_jezyka') ? tl_url_jezyka(home_url('/'), $jezyk) : home_url('/'));
+    } else {
+        $adres = evk_tl_sprawdz_adres($post_id, $jezyk);
+    }
+    return $adres === '' ? '' : $adres . '#evk-tls=' . rawurlencode((string) strtok($klucz, '|'));
+}
+
 /** Sekcja „Do sprawdzenia" nad frazami w zakładce Tłumaczenia — tylko gdy jest co pokazać. */
 function evk_tl_el_sekcja_do_sprawdzenia(): void {
     $lista = evk_tl_el_do_sprawdzenia();
@@ -203,24 +224,32 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
     ?>
     <div class="evo-box tl-do-sprawdzenia" data-nonce="<?php echo esc_attr(wp_create_nonce('evk_tl_el_sprawdzone')); ?>">
         <h3>Tłumaczenia w elementach do sprawdzenia (<?php echo (int) count($lista); ?>)</h3>
-        <p class="evo-desc">Oryginał zmienił się po przetłumaczeniu. Strona dalej pokazuje stare tłumaczenie.
-        Popraw je w Bricksie albo oznacz jako sprawdzone, jeśli nadal pasuje.</p>
+        <p class="evo-desc">Tłumaczenie zrobiło AI albo oryginał zmienił się po przetłumaczeniu. Strona pokazuje obecne tłumaczenie.
+        Popraw je wprost na stronie („Na stronie”), w Bricksie albo oznacz jako sprawdzone, jeśli pasuje.</p>
         <div class="evo-tbl-wrap"><table class="evo-table">
-            <thead><tr><th scope="col">Strona</th><th scope="col">Pole</th><th scope="col">Język</th>
+            <thead><tr><th scope="col">Strona</th><th scope="col">Pole</th><th scope="col">Język</th><th scope="col">Powód</th>
                 <th scope="col">Oryginał teraz</th><th scope="col">Tłumaczenie</th><th scope="col"><span class="screen-reader-text">Akcja</span></th></tr></thead>
             <tbody>
-            <?php foreach ($lista as $m): ?>
+            <?php foreach ($lista as $m):
+                $tytul = get_the_title($m['post_id']) ?: ('#' . $m['post_id']);
+                $jezyk = strtoupper(str_replace('_', '-', $m['jezyk']));
+                $naStronie = evk_tl_el_adres_sprawdzania((int) $m['post_id'], (string) $m['meta_key'], (string) $m['jezyk'], (string) $m['klucz']); ?>
                 <tr>
-                    <td><a href="<?php echo esc_url(evk_tl_el_adres_edycji($m['post_id'])); ?>"><?php echo esc_html(get_the_title($m['post_id']) ?: ('#' . $m['post_id'])); ?></a></td>
+                    <td><a href="<?php echo esc_url(evk_tl_el_adres_edycji($m['post_id'])); ?>"><?php echo esc_html($tytul); ?></a></td>
                     <td><?php echo esc_html($m['element'] . ': ' . $m['pole']); ?></td>
-                    <td><?php echo esc_html(strtoupper(str_replace('_', '-', $m['jezyk']))); ?></td>
+                    <td><?php echo esc_html($jezyk); ?></td>
+                    <td><?php echo !empty($m['ai']) ? 'AI' : 'Zmienił się oryginał'; ?></td>
                     <td><?php echo esc_html($skrot($m['oryginal'])); ?></td>
                     <td><?php echo esc_html($skrot($m['tlumaczenie'])); ?></td>
-                    <?php /* Nazwa z kontekstem: czytnik ekranu słyszałby inaczej rząd identycznych „Sprawdzone". */
-                          $etykieta = 'Sprawdzone: ' . (get_the_title($m['post_id']) ?: ('#' . $m['post_id'])) . ', ' . $m['pole'] . ', ' . strtoupper(str_replace('_', '-', $m['jezyk'])); ?>
-                    <td><button type="button" class="button tl-el-sprawdzone" data-post="<?php echo (int) $m['post_id']; ?>"
+                    <?php /* Nazwy z kontekstem: czytnik ekranu słyszałby inaczej rząd identycznych „Sprawdzone" i „Na stronie". */
+                          $kontekst = $tytul . ', ' . $m['pole'] . ', ' . $jezyk; ?>
+                    <td class="tl-do-sprawdzenia-akcje">
+                        <?php if ($naStronie !== ''): ?>
+                        <a class="button" href="<?php echo esc_url($naStronie); ?>" aria-label="<?php echo esc_attr('Na stronie: ' . $kontekst); ?>">Na stronie</a>
+                        <?php endif; ?>
+                        <button type="button" class="button tl-el-sprawdzone" data-post="<?php echo (int) $m['post_id']; ?>"
                         data-meta="<?php echo esc_attr($m['meta_key']); ?>" data-klucz="<?php echo esc_attr($m['klucz']); ?>"
-                        aria-label="<?php echo esc_attr($etykieta); ?>">Sprawdzone</button></td>
+                        aria-label="<?php echo esc_attr('Sprawdzone: ' . $kontekst); ?>">Sprawdzone</button></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>

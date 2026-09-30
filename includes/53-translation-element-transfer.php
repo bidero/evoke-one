@@ -321,6 +321,81 @@ function evk_tl_el_przenies(bool $zapisz): array {
     return $wynik;
 }
 
+/**
+ * Zapis pól języka w elementach jednej części strony (1.261.0) — wspólny dla
+ * hurtu AI (61) i poprawek z trybu sprawdzania na stronie (62).
+ *
+ * `$zmiany`: klucz miejsca jak w stanie „Do sprawdzenia" („id|ścieżka|język",
+ * ścieżka „pole" albo „lista.pozycja.pole") → tekst; pusty tekst usuwa
+ * tłumaczenie. `$tylko_puste` (hurt AI) nie rusza wypełnionych pól.
+ *
+ * Jak przycisk „Przenieś": pole, którego jeszcze nie było, idzie do wykazu
+ * dopisanych (otwarty builder go nie zgubi), a zapis omija hak z tego pliku,
+ * który wziąłby dopisane pola za przysłane przez builder. Poprawka pola,
+ * które builder już zna, do wykazu nie idzie — builder otwarty sprzed
+ * poprawki i tak nadpisze je swoją wartością przy zapisie.
+ *
+ * @param array<string,string> $zmiany
+ * @return list<string> Klucze, które naprawdę się zmieniły.
+ */
+function evk_tl_el_zapisz_pola(int $post_id, string $meta_key, string $lang, array $zmiany, bool $tylko_puste): array {
+    $dane = get_post_meta($post_id, $meta_key, true);
+    if (!is_array($dane) || !$zmiany) return [];
+    $kod = (string) preg_replace('/[^a-z0-9_]/', '_', strtolower($lang));
+    $wykaz = evk_tl_el_dopisane($post_id, $meta_key);
+    $zmienione = [];
+    foreach ($zmiany as $klucz => $tekst) {
+        $cz = explode('|', (string) $klucz);
+        if (count($cz) !== 3 || $cz[2] !== $kod) continue;
+        $sciezka = explode('.', $cz[1]);
+        if (count($sciezka) !== 1 && count($sciezka) !== 3) continue;
+        $pole = (string) end($sciezka);
+        $bliz = evk_tl_el_klucz($lang, $pole);
+        foreach ($dane as $i => $el) {
+            if (!is_array($el) || (string) ($el['id'] ?? '') !== $cz[0] || !is_array($el['settings'] ?? null)) continue;
+            if (count($sciezka) === 1) {
+                $ust = &$dane[$i]['settings'];
+                $miejsce = $cz[0] . '|';
+            } else {
+                $ust = null;
+                foreach ((array) ($el['settings'][$sciezka[0]] ?? []) as $j => $poz) {
+                    $pid = is_array($poz) && isset($poz['id']) && is_scalar($poz['id']) && (string) $poz['id'] !== '' ? (string) $poz['id'] : (string) $j;
+                    if ($pid === $sciezka[1] && is_array($poz)) {
+                        $ust = &$dane[$i]['settings'][$sciezka[0]][$j];
+                        break;
+                    }
+                }
+                if ($ust === null) break;
+                $miejsce = $cz[0] . '|' . $sciezka[0] . '.' . $sciezka[1] . '.';
+            }
+            $bylo = $ust[$bliz] ?? null;
+            if ($tylko_puste && evk_tl_el_niepuste($bylo)) { unset($ust); break; }
+            if ($tekst === '') {
+                if (array_key_exists($bliz, $ust)) {
+                    unset($ust[$bliz], $wykaz[$miejsce . $bliz]);
+                    $zmienione[] = (string) $klucz;
+                }
+            } elseif ($bylo !== $tekst) {
+                if (!evk_tl_el_niepuste($bylo)) $wykaz[$miejsce . $bliz] = true;
+                $ust[$bliz] = $tekst;
+                $zmienione[] = (string) $klucz;
+            }
+            unset($ust);
+            break;
+        }
+    }
+    if (!$zmienione) return [];
+    ksort($wykaz);
+    evk_tl_el_zapisz_dopisane($post_id, $meta_key, $wykaz);
+    $GLOBALS['evk_tl_el_zapis_przycisku'] = true;
+    try {
+        update_post_meta($post_id, $meta_key, wp_slash($dane));
+    } finally {
+        $GLOBALS['evk_tl_el_zapis_przycisku'] = false;
+    }
+    return $zmienione;
+}
+
 /** Która część strony: treść, nagłówek albo stopka. */
 function evk_tl_el_czesc(string $meta_key): string {
     $k = evk_tl_el_klucze_meta();

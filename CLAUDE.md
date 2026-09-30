@@ -173,7 +173,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (122 pliki, sześć partii; testy kopii trwają
+Podział, który się mieści (123 pliki, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
@@ -316,6 +316,12 @@ formularza, a test stoi 30 s na „nawigacji”. Tak wyglądało zawieszenie
 logowania od 1.227.0 do 1.260.0, raz na kilkanaście przebiegów. Pomocnik
 sprawdza oba pola przed kliknięciem (`zapis-wp-logowanie` wymusza najgorszy
 moment) — własne logowanie w teście wpadnie w to samo.
+
+**Konto bez Kokpitu ląduje po zalogowaniu na `profile.php`.** Tamtejszy
+`user-profile.js` z rdzenia przy wyjściu ze strony czyta formularz, który
+ustawia dopiero w swoim „ready”. `goto` zaraz po wczytaniu daje więc
+TypeError („reading 'serialize'”), raz na kilka przebiegów. Test liczący
+błędy JS strony pomija skrypty z `/wp-admin/` (`lapBledy()` w `tl-sprawdz`).
 
 **`stara.test` nie rozwiązuje się na tej maszynie.** Adres zbudowany w sondzie
 (z `home_url()` = `http://stara.test`) i wysłany potem do `php -S` jest dla

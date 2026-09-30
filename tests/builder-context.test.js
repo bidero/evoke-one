@@ -101,7 +101,10 @@ module.exports = async function (t) {
     '02-zasoby-frontu.php',
     // 1.258.0: język WordPressa wersji językowej — builder i kanwa zostają
     // przy języku witryny (kanwa pokazuje polski oryginał).
-    '13-jezyk-wordpressa.php'];
+    '13-jezyk-wordpressa.php',
+    // 1.261.0: tryb sprawdzania tłumaczeń na stronie — w builderze i kanwie
+    // nie startuje (tam edytuje się oryginał, a podgląd języka ma 58).
+    '62-translation-review-front.php'];
 
   const wola = plikiPhp(path.join(ROOT, 'includes'))
     .filter((p) => /evk_w_builderze\(\)/.test(bezKomentarzy(fs.readFileSync(p, 'utf8'))))
@@ -109,7 +112,7 @@ module.exports = async function (t) {
     .filter((n) => n !== '00-context-safety.php');
 
   const brakujace = OCZEKIWANE.filter((n) => !wola.includes(n));
-  t.check('a wspólny warunek jest wołany we wszystkich dziesięciu modułach',
+  t.check('a wspólny warunek jest wołany we wszystkich jedenastu modułach',
     brakujace.length === 0 && wola.length === OCZEKIWANE.length,
     brakujace.length ? 'brakuje: ' + brakujace.join(', ') : wola.join(', '));
 };

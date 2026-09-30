@@ -518,51 +518,16 @@ function evk_tl_ai_wyslij(array $u, string $system, string $wiadomosc): array {
 // =========================================================================
 
 /**
- * Wpisuje tłumaczenia w puste pola języka i oznacza tłumaczenia AI
- * w stanie „Do sprawdzenia”. Zwraca liczbę zapisanych pól.
+ * Wpisuje tłumaczenia w puste pola języka (wspólny zapis z 53: wykaz
+ * dopisanych, zapis bez haka) i oznacza tłumaczenia AI w stanie
+ * „Do sprawdzenia”. Zwraca liczbę zapisanych pól.
  *
  * @param array<string,string> $gotowe klucz miejsca → tłumaczenie
  * @param array<string,bool>   $ai     klucze z AI (znacznik „Do sprawdzenia”)
  */
 function evk_tl_ai_zapisz(int $post_id, string $meta_key, string $lang, array $gotowe, array $ai): int {
-    $dane = get_post_meta($post_id, $meta_key, true);
-    if (!is_array($dane) || !$gotowe) return 0;
-    $braki = evk_tl_ai_teksty($dane, $lang)['braki'];
-    $wykaz = evk_tl_el_dopisane($post_id, $meta_key);
-    $zapisane = [];
-    foreach ($dane as $i => $el) {
-        if (!is_array($el) || !is_array($el['settings'] ?? null)) continue;
-        $id = (string) ($el['id'] ?? '');
-        foreach ($gotowe as $klucz => $tekst) {
-            $b = $braki[$klucz] ?? null;
-            if (!$b || $b['id'] !== $id) continue;
-            $bliz = evk_tl_el_klucz($lang, $b['pole']);
-            $cz = explode('.', $b['sciezka']);
-            if (count($cz) === 1) {
-                $dane[$i]['settings'][$bliz] = $tekst;
-                $wykaz[$id . '|' . $bliz] = true;
-            } else {
-                foreach ((array) ($el['settings'][$cz[0]] ?? []) as $j => $poz) {
-                    $pid = is_array($poz) && isset($poz['id']) && is_scalar($poz['id']) && (string) $poz['id'] !== '' ? (string) $poz['id'] : (string) $j;
-                    if ($pid !== $cz[1] || !is_array($poz)) continue;
-                    $dane[$i]['settings'][$cz[0]][$j][$bliz] = $tekst;
-                    $wykaz[$id . '|' . $cz[0] . '.' . $pid . '.' . $bliz] = true;
-                }
-            }
-            $zapisane[$klucz] = true;
-        }
-    }
+    $zapisane = array_flip(evk_tl_el_zapisz_pola($post_id, $meta_key, $lang, $gotowe, true));
     if (!$zapisane) return 0;
-    ksort($wykaz);
-    /* Jak przycisk „Przenieś” (53): wykaz przed zapisem, zapis bez haka,
-       który wziąłby dopisane pola za przysłane przez builder. */
-    evk_tl_el_zapisz_dopisane($post_id, $meta_key, $wykaz);
-    $GLOBALS['evk_tl_el_zapis_przycisku'] = true;
-    try {
-        update_post_meta($post_id, $meta_key, wp_slash($dane));
-    } finally {
-        $GLOBALS['evk_tl_el_zapis_przycisku'] = false;
-    }
     /* Stan (52) policzył się przy zapisie ze skrótem bieżącego oryginału.
        Tłumaczenia AI dostają źródło `ai`: różne od każdego skrótu, więc
        miejsce jest „Do sprawdzenia”, dopóki ktoś go nie przyjmie. */
