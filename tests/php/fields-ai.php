@@ -36,7 +36,9 @@ if (!function_exists('evk_fields_tl_teksty') || !function_exists('evk_tl_ai_teks
 const EVK_FA_TYTUL = 'Test pól — AI';
 $plik  = sys_get_temp_dir() . '/evk-t-fields-ai.json';
 $mu    = WP_CONTENT_DIR . '/mu-plugins/evk-pola-ai-test.php';
-$opcje = ['evk_tl_ai', 'evk_tl_ai_pamiec', 'evk_tl_module_enabled', 'tl_languages', 'tl_translations', 'evk_tl_el_pola'];
+$opcje = ['evk_tl_ai', 'evk_tl_ai_pamiec', 'evk_tl_module_enabled', 'tl_languages', 'tl_translations', 'evk_tl_el_pola',
+    'evk_rep_settings_pages', 'evk_rep_opt_ai_opcje'];
+const EVK_FA_STRONA = 'pola-ai-ustawienia';
 
 function evk_fa_zapis(): array {
     global $plik;
@@ -125,6 +127,16 @@ case 'ustaw':
         ]],
     ], false);
     $grupa('ai_wiersze', 'Hasła', ['haslo' => ['type' => 'text', 'label' => 'Hasło']], true);
+    /* Strona ustawień z grupą pojedynczą i repeaterem (1.268.0: ✦ na stronach ustawień). */
+    $go = $grupa('ai_opcje', 'Opcje AI', ['slogan' => ['type' => 'text', 'label' => 'Slogan'],
+        'przyciski' => ['type' => 'repeater', 'label' => 'Przyciski', 'sub_fields' => ['etykieta' => ['type' => 'text', 'label' => 'Etykieta']]]], false);
+    update_post_meta($go, '_evk_object_type', 'options');
+    $strony = get_option('evk_rep_settings_pages', []);
+    $strony = is_array($strony) ? $strony : [];
+    $strony[EVK_FA_STRONA] = ['label' => 'Ustawienia AI', 'slug' => EVK_FA_STRONA, 'icon' => 'dashicons-admin-generic', 'capability' => 'manage_options',
+        'parent' => '', 'hide_title' => 0, 'tabs' => [['label' => 'Ogólne', 'groups' => ['ai_opcje']]]];
+    update_option('evk_rep_settings_pages', $strony);
+    update_option('evk_rep_opt_ai_opcje', ['slogan' => 'Najlepsza oferta', 'przyciski' => [['etykieta' => 'Zadzwoń teraz']]], false);
     evk_groups_cache_clear();
 
     $id = (int) wp_insert_post(['post_title' => EVK_FA_TYTUL, 'post_type' => 'pola_ai', 'post_status' => 'publish']);
@@ -244,6 +256,16 @@ case 'ajax-pola':
     $out['zadania'] = count($GLOBALS['evk_t_ai_zadania']);
     $z = end($GLOBALS['evk_t_ai_zadania']);
     $out['wiadomosc'] = $z ? (string) ($z['body']['contents'][0]['parts'][0]['text'] ?? '') : '';
+    break;
+
+case 'opcje':
+    $out['opcje'] = get_option('evk_rep_opt_ai_opcje');
+    break;
+
+case 'dane-strona':
+    wp_set_current_user(evk_fa_kto((string) ($argv[2] ?? 'admin')));
+    $out['dane'] = apply_filters('evk_fields_tl_ai', null, 0, ['strona' => EVK_FA_STRONA, 'tytul' => 'Ustawienia AI']);
+    $out['strona'] = function_exists('evk_fields_tl_strona') ? evk_fields_tl_strona(EVK_FA_STRONA) : 'brak';
     break;
 
 case 'ai-klucz':

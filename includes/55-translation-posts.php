@@ -80,11 +80,31 @@ function evk_tlw_zrodlo(string $pl): string {
     return $h !== '' ? $h : 'pusty';
 }
 
-/** Czy tłumaczenie powstało z innego polskiego tekstu niż bieżący („Do sprawdzenia"). */
+/**
+ * Tłumaczenie z hurtu AI jeszcze nieprzejrzane (1.268.0): źródło z przedrostkiem
+ * `ai-`, jak w Evoke FIELDS 1.75.0. Zdejmuje go „Sprawdzone" i ręczna zmiana.
+ */
+function evk_tlw_ai(string $zrodlo): bool {
+    return strpos($zrodlo, 'ai-') === 0;
+}
+
+/** Czy tłumaczenie powstało z innego polskiego tekstu niż bieżący („Do sprawdzenia"). Znacznik AI się nie liczy. */
 function evk_tlw_nieaktualne(string $tlumaczenie, string $zrodlo, string $pl): bool {
     if (evk_tlw_pusty($tlumaczenie) || $zrodlo === '') return false;
     $h = evk_tlw_skrot($pl);
-    return $h !== '' && $zrodlo !== $h;
+    return $h !== '' && (evk_tlw_ai($zrodlo) ? substr($zrodlo, 3) : $zrodlo) !== $h;
+}
+
+/**
+ * „Sprawdzone" poza formularzem (lista „Do sprawdzenia", 52): źródło = bieżący
+ * polski tekst, bez znacznika AI. Fałsz — brak tłumaczenia albo polskiego tekstu.
+ */
+function evk_tlw_sprawdzone(int $pid, string $lang, string $pole): bool {
+    if (!in_array($pole, ['post_title', 'post_content', 'post_excerpt'], true) || evk_tlw_pusty(evk_tlw_meta($pid, $lang, $pole))) return false;
+    $pl = (string) get_post_field($pole, $pid, 'raw');
+    if (evk_tlw_pusty($pl)) return false;
+    update_post_meta($pid, '_evk_tl_' . $lang . '__' . $pole . '__zrodlo', evk_tlw_zrodlo($pl));
+    return true;
 }
 
 /** Zapisane tłumaczenie pola (surowo, do panelu). */
@@ -122,7 +142,8 @@ function evk_tlw_stan(WP_Post $post, string $lang): array {
         $t = evk_tlw_meta($post->ID, $lang, $pole);
         if (evk_tlw_pusty($t)) continue;
         $stan['n']++;
-        if (evk_tlw_nieaktualne($t, (string) get_post_meta($post->ID, '_evk_tl_' . $lang . '__' . $pole . '__zrodlo', true), $pl)) $stan['sprawdz'] = true;
+        $z = (string) get_post_meta($post->ID, '_evk_tl_' . $lang . '__' . $pole . '__zrodlo', true);
+        if (evk_tlw_nieaktualne($t, $z, $pl) || evk_tlw_ai($z)) $stan['sprawdz'] = true;
     }
     return $stan;
 }
@@ -474,8 +495,11 @@ function evk_tlw_narzedzia(string $lang, string $pole, string $pl, string $warto
         . ($podglad !== '' ? esc_html($podglad) : '—') . '</span></p>';
     echo '<div class="evk-tlw-narzedzia">';
     if ($kopiuj) echo '<button type="button" class="button button-small evk-tlw-kopiuj">Kopiuj z polskiego</button>';
-    echo '<span class="evk-tlw-do-sprawdzenia"' . (evk_tlw_nieaktualne($wartosc, $zrodlo, $pl) ? '' : ' hidden') . '>Do sprawdzenia: polski tekst się zmienił</span>';
-    echo '<button type="button" class="button button-small evk-tlw-sprawdzone"' . (evk_tlw_nieaktualne($wartosc, $zrodlo, $pl) ? '' : ' hidden') . '>Sprawdzone</button>';
+    $ai = !evk_tlw_pusty($wartosc) && evk_tlw_ai($zrodlo);
+    $stary = evk_tlw_nieaktualne($wartosc, $zrodlo, $pl);
+    echo '<span class="evk-tlw-ai-znak"' . ($ai ? '' : ' hidden') . '>AI — do sprawdzenia</span>';
+    echo '<span class="evk-tlw-do-sprawdzenia"' . ($stary ? '' : ' hidden') . '>Do sprawdzenia: polski tekst się zmienił</span>';
+    echo '<button type="button" class="button button-small evk-tlw-sprawdzone"' . ($stary || $ai ? '' : ' hidden') . '>Sprawdzone</button>';
     if ($slownik === null) $slownik = in_array($pole, ['post_title', 'post_excerpt'], true);
     if ($slownik && evk_tlw_pusty($wartosc)) {
         $slownik = evk_tlw_ze_slownika($pl, $lang);

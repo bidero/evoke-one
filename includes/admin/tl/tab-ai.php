@@ -107,6 +107,16 @@ $evk_jezyki = tl_get_languages();
         <input type="text" id="tl-ai-przebieg-model" spellcheck="false">
         <p class="evo-desc">Puste — model z ustawień (w podpowiedzi pola). Ustawienia zostają bez zmian.</p>
     </div>
+    <fieldset class="tl-ai-wpisy">
+        <legend><strong>Także teksty wpisów (wpisy, strony, typy treści)</strong></legend>
+        <label class="evo-check-row"><input type="checkbox" class="tl-ai-wpis-pole" value="post_title"> Tytuł</label>
+        <label class="evo-check-row"><input type="checkbox" class="tl-ai-wpis-pole" value="post_content"> Treść (edytor WordPressa)</label>
+        <label class="evo-check-row"><input type="checkbox" class="tl-ai-wpis-pole" value="post_excerpt"> Zajawka</label>
+        <label class="evo-check-row"><input type="checkbox" id="tl-ai-adres"> Adres z tytułu</label>
+    </fieldset>
+    <p class="evo-desc">Osobna pozycja „Teksty wpisu” przy stronie. Treść stron zbudowanych w Bricksie jest w elementach — tu jej nie ma.
+    Adres: człon z przetłumaczonego tytułu trafia do Slugów URL, tylko gdy tego członu jeszcze nie przetłumaczono; ten sam adres innej strony — bez zapisu, z powodem w dzienniku.
+    Tłumaczenia dostają znacznik „AI — do sprawdzenia” w edycji wpisu.</p>
     <?php if (function_exists('evk_tl_ai_pola_dostepne') && evk_tl_ai_pola_dostepne()): ?>
     <p><label class="evo-check-row"><input type="checkbox" id="tl-ai-pola"> Także pola Evoke FIELDS (wpisy, strony, typy treści)</label></p>
     <p class="evo-desc">Wartości pól z grup Evoke FIELDS — osobna pozycja „Pola Evoke FIELDS” przy stronie. Kontekstem są pola i treść tej strony.
@@ -246,6 +256,11 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
     function jezyki() {
         return Array.prototype.map.call(t.querySelectorAll('.tl-ai-jezyk:checked'), function (c) { return c.value; });
     }
+    /* Teksty wpisów (1.268.0): pola wybrane osobno, adres z tytułu. */
+    function wpisFlagi() {
+        return { pola: Array.prototype.map.call(t.querySelectorAll('.tl-ai-wpis-pole:checked'), function (c) { return c.value; }),
+            adres: document.getElementById('tl-ai-adres') && document.getElementById('tl-ai-adres').checked ? '1' : '' };
+    }
     function tryb() {
         var r = t.querySelector('input[name="tl-ai-tryb"]:checked');
         return r ? r.value : 'puste';
@@ -258,7 +273,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
     przebiegDostawca.addEventListener('change', pokazPrzebieg);
     pokazPrzebieg();
     /* Liczby na liście zależą od trybu — po zmianie trzeba ją pokazać od nowa. */
-    t.querySelectorAll('input[name="tl-ai-tryb"], #tl-ai-pola').forEach(function (r) {
+    t.querySelectorAll('input[name="tl-ai-tryb"], #tl-ai-pola, .tl-ai-wpis-pole, #tl-ai-adres').forEach(function (r) {
         r.addEventListener('change', function () {
             jednostki = [];
             lista.textContent = '';
@@ -267,6 +282,11 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         });
     });
     function wpisz(tekst) { dziennik.appendChild(el('li', tekst)); }
+    function opisAdresu(a) {
+        return { zapisany: '„' + a.czlon + '” zapisany w Slugach URL', jest: 'już przetłumaczony („' + a.czlon + '”)',
+            bez_tytulu: 'brak tłumaczenia tytułu', bez_adresu: 'wpis bez polskiego adresu', ten_sam: 'taki sam jak polski',
+            konflikt: 'bez zapisu — ' + a.powod }[a.stan] || a.stan;
+    }
     function czekaj(s) { return new Promise(function (ok) { setTimeout(ok, s * 1000); }); }
 
     /* Lista części stron z brakami. `zaznacz` („post_id|meta_key”, po
@@ -277,7 +297,9 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         stan.textContent = 'Liczę braki…';
         var trybListy = tryb();
         var polaFields = document.getElementById('tl-ai-pola');
-        return wyslij({ action: 'evk_tl_ai_lista', tryb: trybListy, pola: polaFields && polaFields.checked ? '1' : '' }).then(function (r) {
+        var wp = wpisFlagi();
+        return wyslij({ action: 'evk_tl_ai_lista', tryb: trybListy, pola: polaFields && polaFields.checked ? '1' : '',
+            wpis_pola: wp.pola, adres: wp.adres }).then(function (r) {
             przyciskListy.disabled = false;
             lista.textContent = '';
             if (!r || !r.success) { stan.textContent = (r && r.data) || 'Błąd.'; return; }
@@ -318,8 +340,9 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         var jez = jezyki();
         if (!wybrane.length || !jez.length) { stan.textContent = 'Zaznacz strony i języki.'; return; }
         /* Tryb, dostawca i model na cały przebieg — zmiana w trakcie go nie rusza. */
+        var flagi = wpisFlagi();
         var przebieg = { tryb: tryb(), dostawca: przebiegDostawca.value, model: przebiegModel.value.trim(),
-            bez_pamieci: document.getElementById('tl-ai-bez-pamieci').checked ? '1' : '' };
+            bez_pamieci: document.getElementById('tl-ai-bez-pamieci').checked ? '1' : '', wpis_pola: flagi.pola, adres: flagi.adres };
         zatrzymaj = false; start.disabled = true; stop.disabled = false; dziennik.textContent = '';
         var suma = { zapisane: 0, z_ai: 0, z_pamieci: 0, odrzucone: 0, bez_zmian: 0 }, przerwane = '';
         petla:
@@ -334,7 +357,8 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
                     var r;
                     try {
                         r = await wyslij({ action: 'evk_tl_ai_krok', post_id: j.post_id, meta_key: j.meta_key, lang: lang, pomin: pomin,
-                            tryb: przebieg.tryb, dostawca: przebieg.dostawca, model: przebieg.model, bez_pamieci: przebieg.bez_pamieci });
+                            tryb: przebieg.tryb, dostawca: przebieg.dostawca, model: przebieg.model, bez_pamieci: przebieg.bez_pamieci,
+                            wpis_pola: przebieg.wpis_pola, adres: przebieg.adres });
                     } catch (e) { r = { success: false, data: 'Błąd połączenia.' }; }
                     if (!r || !r.success) { wpisz(j.tytul + ' ' + lang.toUpperCase() + ': ' + ((r && r.data) || 'błąd')); break; }
                     var d = r.data;
@@ -347,6 +371,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
                         + ', z pamięci: ' + d.z_pamieci + '), odrzucone: ' + (d.odrzucone || []).length
                         + (d.bez_zmian ? ', bez zmian: ' + d.bez_zmian : '') + ', zostało: ' + d.zostalo
                         + (d.blad ? ' — ' + d.blad : ''));
+                    if (d.adres) wpisz(j.tytul + ' ' + lang.toUpperCase() + ', adres: ' + opisAdresu(d.adres));
                     if (d.blad) {
                         if (d.stop) { przerwane = d.blad; break petla; }
                         if (++proby > 5) break;

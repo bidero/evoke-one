@@ -2,6 +2,90 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.268.0] — 2026-09-30
+
+Hurt AI tekstów wpisów (tytuł, treść, zajawka, adres z tytułu) i ✦ na
+stronach ustawień Evoke FIELDS (Fields 1.76.0).
+
+Uwagi zgłaszającego po testowej: 1.266.0 działa; hurt AI nie tłumaczył
+tytułów wpisów (także CPT z Fields), a na stronach ustawień nie było AI.
+
+### Dodane
+
+- **Tłumaczenia → AI: „Także teksty wpisów (wpisy, strony, typy treści)”**.
+  Osobne pola wyboru, wszystkie domyślnie odznaczone (decyzja zgłaszającego):
+  - Tytuł;
+  - Treść (edytor WordPressa);
+  - Zajawka;
+  - Adres z tytułu.
+
+  Zaznaczone dokładają do listy pozycję „Teksty wpisu” (część `evk_wpis`), a
+  sam „Adres” — „Adres wpisu”.
+  - Teksty modułu wpisów (55, `_evk_tl_{język}__{pole}`). Zapis jak z
+    formularza: sanityzacja rdzenia, tytuł bez odstępów na brzegach, źródło
+    `ai-{skrót}`, czyli „AI — do sprawdzenia”.
+  - Treść stron zbudowanych w Bricksie jest pomijana (jej teksty są w
+    elementach); zajawka tylko w typach treści, które ją mają.
+  - Kontekst: tytuł, treść i zajawka wpisu, potem pola Fields i teksty treści
+    Bricksa tej strony.
+  - **Adres z tytułu** działa po ostatnim kroku, także sam, bez AI (z
+    istniejącego tłumaczenia tytułu). Człon z tłumaczenia tytułu trafia do
+    Slugów URL tylko wtedy, gdy tego polskiego członu mapa jeszcze nie
+    tłumaczy. Konflikt (człon to adres innej strony albo już zajęty) zostaje
+    bez zapisu, z powodem w dzienniku hurtu.
+- **Znacznik „AI — do sprawdzenia” w edycji wpisu** (tytuł, treść, zajawka;
+  też termy, bo pomocnicze funkcje są wspólne):
+  - napis i „Sprawdzone” przy polu;
+  - ręczna poprawka zdejmuje znacznik;
+  - „Do sprawdzenia — polski tekst się zmienił” porównuje skrót bez
+    przedrostka;
+  - kolumna „Języki” liczy AI jako „do sprawdzenia”.
+- **Lista „Do sprawdzenia”**: tytuły, treści i zajawki wpisów z tłumaczeniem
+  AI albo po zmianie polskiego tekstu („Wpis: Tytuł”). Odnośnik prowadzi do
+  edycji wpisu, a „Sprawdzone” idzie przez `evk_tlw_sprawdzone()` z prawem
+  edycji.
+- **✦ na stronach ustawień Evoke FIELDS** (Fields 1.76.0):
+  - filtr `evk_fields_tl_ai` i AJAX `evk_tl_ai_pola` przyjmują stronę
+    ustawień;
+  - sprawdzają jej uprawnienie (`evk_fields_tl_strona()`) zamiast prawa
+    edycji wpisu;
+  - w zapytaniu idzie nazwa strony ustawień zamiast tytułu wpisu.
+
+### Testy
+
+- `tests/tl-ai-wpisy.test.js` (nowy, 24 sprawdzenia, sonda
+  `tests/php/tl-ai-wpisy.php`, pierwszy testowy WordPress, atrapa AI):
+  - lista hurtu z flagami;
+  - tytuł, treść i zajawka ze znacznikiem;
+  - strona w Bricksie;
+  - adres: zapisany, sam bez AI, konflikt, „jest”;
+  - lista „Do sprawdzenia” i „Sprawdzone”;
+  - edycja wpisu w Chromium (znacznik, „Sprawdzone”, ręczna poprawka,
+    zapis, kolumna);
+  - pola wyboru w zakładce AI.
+- `tests/fields-ai.test.js`: strona ustawień (+5).
+- Mutacje (5): flagi hurtu ignorowane, treść strony Bricksa tłumaczona, adres
+  mimo konfliktu, skrót z przedrostkiem w „Do sprawdzenia”, AJAX strony
+  ustawień bez uprawnienia. Każda zapala swój zestaw.
+
+### Poza tym wydaniem
+
+- Dymki w builderze zamiast `title`: czekają na wynik próby w konsoli.
+- Przyciski ✦ przy tytule, treści i zajawce w edycji wpisu.
+
+### Do sprawdzenia na testowej
+
+- Evoke FIELDS 1.76.0 razem z tym wydaniem.
+- Tłumaczenia → AI:
+  - pola wyboru tekstów wpisów;
+  - pozycje „Teksty wpisu” i „Adres wpisu”;
+  - przebieg na wpisie, stronie i CPT z Fields;
+  - wpisy o adresie w dzienniku.
+- Strona EN: przetłumaczony tytuł (nagłówek, `<title>`, menu, pętle), treść,
+  zajawka i adres.
+- Edycja wpisu: „AI — do sprawdzenia”, „Sprawdzone”.
+- Strona ustawień Fields z repeaterem: ✦ i zapis.
+
 ## [1.267.0] — 2026-09-30
 
 Tłumaczenie AI pól Evoke FIELDS: hurt z polami (po zaznaczeniu), przyciski

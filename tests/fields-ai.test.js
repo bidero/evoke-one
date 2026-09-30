@@ -249,6 +249,43 @@ module.exports = async function (t) {
     t.check('„Sprawdzone” + zapis: znacznik zdjęty', miejsce(sonda('teksty').teksty, 'opis|').ai.en === false, J(miejsce(sonda('teksty').teksty, 'opis|')));
     t.check('bez błędów JS', bledy.length === 0, bledy.slice(0, 3).join(' | '));
 
+    // ── Strona ustawień (1.268.0, Fields 1.76.0) ─────────────────────────
+    t.section('strona ustawień: ✦ przy polu i dla grupy, także w repeaterze');
+    const dsA = sonda('dane-strona', 'admin');
+    const dsC = sonda('dane-strona', 'czytelnik');
+    t.check('dane dla strony ustawień: administrator (jej uprawnienie) — tak; bez uprawnienia strony — null',
+      !!dsA.dane && /^[0-9a-f]{10}$/.test(dsA.dane.nonce) && J(dsA.strona) === J({ slug: 'pola-ai-ustawienia', nazwa: 'Ustawienia AI' })
+      && dsC.dane === null && dsC.strona === null, J([dsA, dsC]));
+    const cialoS = (pola) => cialo(Object.assign({ post_id: '0', strona: 'pola-ai-ustawienia' }, pola));
+    const sC = sonda('ajax-pola', 'czytelnik', plik(cialoS({})));
+    const sA = sonda('ajax-pola', 'admin', plik(cialoS({ kontekst: J([{ el: 'evk_fields', opis: 'Slogan', pole: '', poz: 0, pl: 'Najlepsza oferta', tl: '' }]) })));
+    t.check('AJAX ze stroną: bez jej uprawnienia — 403, bez pytania AI; administrator — tłumaczenie z nazwą strony w zapytaniu',
+      sC.odp && sC.odp.success === false && /strony ustawień/.test(sC.odp.data) && sC.zadania === 0 && sA.odp && sA.odp.success === true
+      && (sA.odp.data.tlumaczenia || {}).k1 === 'DE:Najlepsza oferta' && /^Page: Ustawienia AI\n/.test(sA.wiadomosc), J([sC.odp, sA.odp, sA.wiadomosc.slice(0, 80)]));
+    sonda('ai-klucz', 'on');
+    const adresS = serwer.baza + '/wp-admin/admin.php?page=pola-ai-ustawienia';
+    await p.goto(adresS, { waitUntil: 'load' });
+    const przedS = zadania.length;
+    await p.click('.evk-tl-grupa .evk-tl-jezyk[data-lang="en"]');
+    await p.waitForTimeout(300);
+    const us = await p.evaluate(() => ({ strona: (window.evkRepTlAi || {}).strona, post: (window.evkRepTlAi || {}).post,
+      pola: Array.from(document.querySelectorAll('.evk-tl-ai')).filter((b) => b.offsetParent !== null).map((b) => b.getAttribute('aria-label')),
+      grupa: Array.from(document.querySelectorAll('.evk-tl-ai-grupa')).filter((b) => b.offsetParent !== null).length }));
+    t.check('ekran ustawień: dane ze stroną, ✦ przy slogan i etykiecie w repeaterze, ✦ dla grupy', us.strona === 'pola-ai-ustawienia' && us.post === 0
+      && J(us.pola) === J(['Przetłumacz (AI) — Slogan — EN', 'Przetłumacz (AI) — Etykieta — EN']) && us.grupa === 1, J(us));
+    await p.click('.evk-tl-ai-grupa');
+    await p.waitForFunction(() => /^EN: /.test((document.querySelector('.evk-tl-ai-grupa-stan') || {}).textContent || ''), null, { timeout: 30000 }).catch(() => {});
+    const zs = zadania[przedS] || {};
+    const stanS = await p.evaluate(() => document.querySelector('.evk-tl-ai-grupa-stan').textContent);
+    t.check('grupa EN: żądanie ze stroną (bez wpisu), oba pola wpisane, „zapisz ustawienia”', zs.strona === 'pola-ai-ustawienia' && zs.post_id === '0'
+      && stanS === 'EN: wpisane 2. Sprawdź i zapisz ustawienia.', J([zs.strona, zs.post_id, stanS]));
+    await Promise.all([p.waitForNavigation({ waitUntil: 'load' }), p.click('.evk-settings-form [type="submit"]')]);
+    const op = sonda('opcje').opcje || {};
+    const wiersz = (op.przyciski || [])[0] || {};
+    t.check('zapis strony ustawień: slogan i etykieta w wierszu repeatera ze znacznikiem „ai-”', op.evk_tl_en__slogan === 'EN:Najlepsza oferta'
+      && /^ai-/.test(op.evk_tl_en__slogan__zrodlo || '') && wiersz.evk_tl_en__etykieta === 'EN:Zadzwoń teraz' && /^ai-/.test(wiersz.evk_tl_en__etykieta__zrodlo || '')
+      && op.slogan === 'Najlepsza oferta', J(op));
+
     t.section('metaboks: telefon 360 px i bez klucza API');
     const km = await browser.newContext({ viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
     const m = await km.newPage();

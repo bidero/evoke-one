@@ -44,6 +44,7 @@
 /* `hidden` na przycisku z klasą `button` przegrywa z jego `display` (CLAUDE.md). */
 .evk-tlw-narzedzia [hidden] { display: none !important; }
 .evk-tlw-do-sprawdzenia { color: #8a4b00; font-size: 12px; font-weight: 600; }
+.evk-tlw-ai-znak { color: #6e00a5; font-size: 12px; font-weight: 600; }
 .evk-tlw-slownik { font-size: 12px; color: #3c434a; }
 .evk-tlw-slownik-tekst { font-style: normal; font-weight: 600; }
 

@@ -134,9 +134,16 @@
         if (!$pole.length) return;
         $pole.find('.evk-tlw-slownik').toggle(pusty(wartosc($pole)));
     }
+    /* Ręczna poprawka tłumaczenia z hurtu AI (1.268.0): tłumacz je przejrzał —
+       przy zapisie źródło i tak będzie bieżące (skrót „przed” się nie zgadza). */
+    function przejrzaneAi($pole) {
+        $pole.find('.evk-tlw-ai-znak').prop('hidden', true);
+        if ($pole.find('.evk-tlw-do-sprawdzenia').prop('hidden')) $pole.find('.evk-tlw-sprawdzone').prop('hidden', true);
+    }
 
     $(document).on('input change', '.evk-tlw-pole .evk-tlw-wejscie', function () {
         oznaczZmiane($(this).closest('.evk-tlw-pole'));
+        przejrzaneAi($(this).closest('.evk-tlw-pole'));
         licz();
     });
 
@@ -176,7 +183,7 @@
     $(document).on('click', '.evk-tlw-sprawdzone', function () {
         var $p = $(this).closest('.evk-tlw-pole');
         $p.find('.evk-tlw-zrodlo').val('teraz');
-        $p.find('.evk-tlw-do-sprawdzenia, .evk-tlw-sprawdzone').prop('hidden', true);
+        $p.find('.evk-tlw-do-sprawdzenia, .evk-tlw-sprawdzone, .evk-tlw-ai-znak').prop('hidden', true);
         $p.find('.evk-tlw-wejscie').trigger('focus');   // przycisk znika — fokus nie może przepaść
     });
 
