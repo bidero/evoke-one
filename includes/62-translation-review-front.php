@@ -449,7 +449,8 @@ add_action('wp_ajax_evk_tl_sprawdz_zapisz', function (): void {
             if ($bylo === '' || !isset($stan[$meta_key][$k])) continue;
             $stan[$meta_key][$k]['poprz'] = ['t' => $bylo, 'm' => (string) ($przed[$k]['model'] ?? '')];
         }
-        update_post_meta($post_id, EVK_TL_EL_STAN, $stan);
+        // wp_slash: `poprz` to tekst, a update_post_meta zdejmuje ukośniki (1.264.0).
+        update_post_meta($post_id, EVK_TL_EL_STAN, wp_slash($stan));
     }
     $el = evk_tl_sprawdz_elementy_wpisu($post_id, $meta_key)[$id] ?? $el;
     wp_send_json_success([

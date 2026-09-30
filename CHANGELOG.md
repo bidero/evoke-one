@@ -2,6 +2,130 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.264.0] — 2026-09-30
+
+Tłumaczenie AI: czyszczenie tłumaczeń strony i „Pytaj AI od nowa” — ponowne
+tłumaczenie tym samym modelem.
+
+### Dodane
+
+- **„Wyczyść tłumaczenia strony”** (Tłumaczenia → Tłumaczenie AI, pod
+  „Przetłumacz strony”). Zgłoszone 30.09: „bez tego tłumaczenie hurtowe nie
+  pozwala na ponowne tłumaczenie tym samym modelem”. Pamięć wyników oddaje
+  temu samemu modelowi przy tych samych ustawieniach zapamiętany tekst bez
+  zapytania, więc samo wyczyszczenie pól by nie wystarczyło — hurt wpisałby
+  to samo. Decyzje zgłaszającego:
+  - strona z listy wszystkich stron z tekstami w elementach, które można
+    edytować — także w pełni przetłumaczonych (lista hurtu pokazuje tylko
+    strony z brakami); nagłówek i stopka to osobne pozycje;
+  - zakres do wyboru: tylko tłumaczenia AI „Do sprawdzenia” (domyślnie)
+    albo wszystkie, także sprawdzone i wpisane ręcznie; do tego języki;
+  - czyszczenie zapomina wyniki AI dla tekstów strony — wszystkich modeli;
+  - liczby przy każdej zmianie wyboru i potwierdzenie z nazwą strony
+    i liczbami;
+  - po czyszczeniu lista „Przetłumacz strony” pokazuje się sama, z tą
+    stroną zaznaczoną (i tylko nią).
+
+  Czyści tylko pola, które hurt tłumaczy (mapa pól): teksty bez liter, same
+  tagi danych i pola elementów spoza mapy zostają.
+- **„Przywróć wyczyszczone”**: wyczyszczone tłumaczenia wracają do PUSTYCH
+  pól razem ze stanem — tłumaczenie AI znów „Do sprawdzenia” ze swoim
+  modelem i poprzednią wersją, sprawdzone sprawdzone. Kopia zostaje do
+  następnego czyszczenia tej strony; kolejne czyszczenie (np. drugi język)
+  dopisuje się do niej.
+- Tekst przetłumaczony od nowa po czyszczeniu dostaje wyczyszczony jako
+  poprzednią wersję (gdy się różnią) — „Przywróć” w liście „Teksty
+  w elementach” i w okienku na stronie wraca do niego pojedynczo.
+- **„Pytaj AI od nowa (bez pamięci wyników)”** w „Przetłumacz strony”:
+  przebieg pyta AI także wtedy, gdy ten sam model ma już wynik; nowy wynik
+  zastępuje zapamiętany. Sprawdzone tłumaczenie tego samego tekstu z innej
+  strony (pamięć tłumaczeń) dalej wraca bez pytania. Dziennik po przebiegu
+  „bez zmian” podpowiada tę opcję, a z opcją mówi, że model odpowiedział
+  tym samym tekstem.
+
+### Zmienione
+
+- Pamięć wyników AI ma klucz „tekst.ustawienia” — wyniki wszystkich modeli
+  dla tekstu da się znaleźć bez znajomości modelu. Wpisy w dawnym kluczu
+  znikają przy pierwszym zapisie wyniku, więc pierwszy przebieg po
+  aktualizacji pyta AI o teksty, które model już tłumaczył.
+
+### Poprawione
+
+- **Ukośniki wsteczne w poprzedniej wersji tłumaczenia** (od 1.262.0).
+  `update_post_meta` zdejmuje ukośniki, a stan „Do sprawdzenia” zapisywał
+  się bez `wp_slash` — poprzednia wersja z `\` traciła go przy każdym
+  zapisie treści, przy „Sprawdzone” i przy poprawce w okienku. Stan
+  zapisuje się teraz z `wp_slash` (52, 61, 62), tak jak kopia czyszczenia.
+
+### Jak to działa
+
+- 61: `evk_tl_ai_czysc()`, `evk_tl_ai_przywroc()`, podgląd, lista stron,
+  AJAX `evk_tl_ai_czysc` (podgląd, a z `wykonaj` — czyszczenie)
+  i `evk_tl_ai_przywroc`: nonce, dostęp do Tłumaczeń i `edit_post` strony.
+  Krok hurtu przyjmuje `bez_pamieci`.
+- Kopia w metadanych wpisu `_evk_tl_ai_wyczyszczone` (w spisie danych —
+  „Usuń dane” ją kasuje), zapisywana PRZED czyszczeniem pól: przerwany zapis
+  zostawia kopię, a nie zgubione tłumaczenia.
+- Pole czyszczenia bierze strony z modułu 53. Na stronie ładuje się zawsze
+  razem z 61; harness zakładek w testach (`tests/php/tab.php`) go nie
+  wczytuje, więc tam pole jest bez listy — jak lista w „Teksty
+  w elementach”. Nazwy dostępne nowych kontrolek sprawdza `tl-ai-czysc`
+  w Chromium.
+
+### Testy
+
+- `tests/tl-ai-czysc.test.js` (nowy, sonda `tests/php/tl-ai.php`, strona E
+  tylko dla niego): 45 sprawdzeń — podgląd w zakresie i językach,
+  czyszczenie tylko AI (pola, lista „Do sprawdzenia”, kopia ze stanem,
+  pamięć: EN strony zapomniane, DE i inna strona zostają), ten sam model po
+  czyszczeniu pyta AI, inny model — wyczyszczony tekst jako poprzednia
+  wersja, ukośniki wsteczne po „Sprawdzone”, po zapisie treści i po
+  poprawce w okienku (62), przywracanie (tylko puste pola, stan w całości,
+  drugi raz nic), wszystkie w DE z kopią łączoną z poprzednią, „Pytaj AI
+  od nowa” w kroku i w panelu, sprzątanie dawnego klucza pamięci, AJAX
+  (odmowa bez prawa edycji strony, obcy język pominięty, czyszczenie,
+  przywracanie), panel (lista wszystkich stron, liczby w kolejności
+  języków, potwierdzenie, lista hurtu z zaznaczoną stroną, „Przywróć
+  wyczyszczone (N)”), nazwy dostępne, telefon 360 px.
+- Sonda `tl-ai`: strona E, kroki `krok-opcje`, `czysc`, `przywroc`,
+  `wpisz`, `pamiec`, `pamiec-stara`, `ajax-czysc`, `ajax-sprawdz`
+  i wspólny pomocnik AJAX.
+- Mutacje: 24, każda zapala własne sprawdzenia
+  (4/16/1/7/10/8/4/1/3/1/1/3/15/4/1/2/3/1/1/1/1/3/1/1). Po kolei:
+  - czyszczenie: bez zapominania pamięci; zakres pominięty; pola spoza
+    mapy też; kopia bez łączenia z poprzednią;
+  - przywracanie: bez stanu; także do wypełnionych pól;
+  - poprzednia wersja z kopii: wcale; także przy tym samym tekście;
+  - „Pytaj AI od nowa”: krok czyta pamięć mimo opcji; AJAX nie przekazuje
+    opcji; dawny klucz pamięci zostaje;
+  - AJAX bez sprawdzenia prawa edycji strony;
+  - `wp_slash`: kopia; stan po kroku AI; stan po przywróceniu; stan w haku
+    zapisu treści (52); „Sprawdzone” (52); poprawka w okienku (62);
+  - panel: lista hurtu zaznacza wszystkie strony; bez potwierdzenia;
+    skrypt nie wysyła „Pytaj AI od nowa”; liczby w odwrotnej kolejności
+    języków; wybór strony bez etykiety;
+  - spis danych bez `_evk_tl_ai_wyczyszczone` — zapala strażnika spisu
+    w `zapis-wp-odinstalowanie`.
+
+  Dwie (AJAX nie przekazuje opcji, skrypt jej nie wysyła) zapalają to samo
+  sprawdzenie — to dwie strony tego samego połączenia. Jedna (przywracanie
+  bez stanu) po swoim sprawdzeniu kończy test wyjątkiem. Etykieta wyboru
+  strony była najpierw mutacją dla strażnika etykiet — ten padł na niej
+  wyjątkiem także bez mutacji (harness bez modułu 53), stąd warunek
+  w zakładce i sprawdzenie nazw w `tl-ai-czysc`.
+- Pełny przebieg: 6149 sprawdzeń w 126 plikach, wszystkie zielone
+  (`zapis-wp-newsletter` pasuje do dwóch partii i idzie dwa razy).
+
+### Do sprawdzenia na testowej
+
+- Tłumaczenie AI → „Wyczyść tłumaczenia strony”: strona przetłumaczona
+  Gemini, wyczyść tłumaczenia AI, „Przetłumacz zaznaczone” tym samym
+  modelem — nowe zapytanie (licznik w Google AI Studio), nowy tekst,
+  wyczyszczony jako „Poprzednio” w liście „Teksty w elementach”.
+- „Pytaj AI od nowa” przy „Puste pola i tłumaczenia AI — od nowa”.
+- „Przywróć wyczyszczone” zaraz po czyszczeniu.
+
 ## [1.263.0] — 2026-09-30
 
 Tłumaczenia: poprawianie tłumaczeń wprost w liście „Teksty w elementach”;

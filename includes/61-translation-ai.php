@@ -44,6 +44,23 @@ if (!defined('ABSPATH')) exit;
  * („dostawca/model”) i `poprz` (poprzedni tekst z jego modelem) — okienko
  * sprawdzania na stronie (62) pokazuje je i przywraca.
  *
+ * CZYSZCZENIE (1.264.0, zgłoszone 30.09: „bez tego tłumaczenie hurtowe nie
+ * pozwala na ponowne tłumaczenie tym samym modelem”). Decyzje zgłaszającego:
+ *   - „Wyczyść tłumaczenia strony” w zakładce Tłumaczenie AI: jedna część
+ *     strony (treść, nagłówek albo stopka), wybrane języki, zakres do wyboru —
+ *     tylko niesprawdzone tłumaczenia AI (domyślnie) albo wszystkie;
+ *   - czyszczenie zapomina też wyniki AI dla tekstów tej strony, wszystkich
+ *     modeli — hurt zapyta od nowa, także tym samym modelem;
+ *   - w hurcie „Pytaj AI od nowa”: przebieg bez odczytu pamięci wyników;
+ *   - „Przywróć wyczyszczone”: wyczyszczone tłumaczenia (ze stanem) wracają
+ *     do pustych pól, dopóki tej strony nie wyczyści się ponownie. Pole
+ *     wypełnione od nowa przez AI dostaje wyczyszczony tekst jako `poprz`,
+ *     więc lista „Teksty w elementach” i okienko na stronie przywracają go
+ *     pojedynczo.
+ * Pamięć wyników ma przez to klucz „tekst.ustawienia”: pierwsza część to
+ * sam tekst w języku, więc wyniki wszystkich modeli dla tekstu da się
+ * znaleźć bez znajomości modelu.
+ *
  * KLUCZ API tylko w opcji: nigdy w HTML ani JS, poza paczką ustawień.
  * HTTP przez wp_remote_post — wtyczka nie ma Composera, a trzech dostawców
  * obsługuje jeden kod. Adresy da się podmienić filtrem `evk_tl_ai_adresy`
@@ -63,6 +80,9 @@ const EVK_TL_AI_ZNAKI  = 6000;
 const EVK_TL_AI_KONTEKST = 200;
 /** Pamięć wyników: tyle ostatnich tłumaczeń. */
 const EVK_TL_AI_PAMIEC_MAX = 5000;
+/** Kopia wyczyszczonych tłumaczeń wpisu (1.264.0): klucz meta części →
+    czas i miejsca (tekst i wpis stanu 52). */
+const EVK_TL_AI_WYCZYSZCZONE = '_evk_tl_ai_wyczyszczone';
 
 // =========================================================================
 // USTAWIENIA
@@ -312,10 +332,19 @@ function evk_tl_ai_z_pamieci(string $pl, string $lang): ?string {
     return is_string($t) && trim($t) !== '' ? $k[1] . $t . $k[2] : null;
 }
 
-/** Klucz pamięci wyników: ten sam tekst przy tych samych ustawieniach. */
+/** Pierwsza część klucza pamięci wyników: sam tekst w języku. */
+function evk_tl_ai_klucz_tekstu(string $lang, string $pl): string {
+    return md5($lang . "\n" . $pl);
+}
+
+/**
+ * Klucz pamięci wyników: ten sam tekst przy tych samych ustawieniach.
+ * „tekst.ustawienia” (1.264.0) — czyszczenie strony zapomina wyniki
+ * wszystkich modeli dla jej tekstów po pierwszej części.
+ */
 function evk_tl_ai_klucz_wyniku(array $u, string $lang, string $pl): string {
-    return md5((string) wp_json_encode([EVK_TL_AI_WERSJA, $u['dostawca'], evk_tl_ai_model($u), $lang,
-        $u['opis'], $u['wskazowki'][$lang] ?? '', $u['slowniczek'], $pl]));
+    return evk_tl_ai_klucz_tekstu($lang, $pl) . '.' . md5((string) wp_json_encode([EVK_TL_AI_WERSJA, $u['dostawca'], evk_tl_ai_model($u),
+        $u['opis'], $u['wskazowki'][$lang] ?? '', $u['slowniczek']]));
 }
 
 function evk_tl_ai_wynik(array $u, string $lang, string $pl): ?string {
@@ -324,17 +353,53 @@ function evk_tl_ai_wynik(array $u, string $lang, string $pl): ?string {
     return is_string($t) ? $t : null;
 }
 
+/**
+ * Pamięć bez wpisów w starym kluczu (sam skrót, sprzed 1.264.0): nowy kod
+ * ich nie odczyta, a zajmowałyby miejsce do wypchnięcia przez limit.
+ *
+ * @param mixed $p
+ * @return array<string,string>
+ */
+function evk_tl_ai_pamiec_biezaca($p): array {
+    if (!is_array($p)) return [];
+    foreach (array_keys($p) as $k) {
+        if (strpos((string) $k, '.') === false) unset($p[$k]);
+    }
+    return $p;
+}
+
 /** @param array<string,string> $nowe klucz wyniku → tłumaczenie */
 function evk_tl_ai_zapamietaj(array $nowe): void {
     if (!$nowe) return;
-    $p = get_option(EVK_TL_AI_PAMIEC, []);
-    $p = is_array($p) ? $p : [];
+    $p = evk_tl_ai_pamiec_biezaca(get_option(EVK_TL_AI_PAMIEC, []));
     foreach ($nowe as $k => $t) {
         unset($p[$k]);
         $p[$k] = $t;
     }
     if (count($p) > EVK_TL_AI_PAMIEC_MAX) $p = array_slice($p, -EVK_TL_AI_PAMIEC_MAX, null, true);
     update_option(EVK_TL_AI_PAMIEC, $p, false);
+}
+
+/**
+ * Zapomina wyniki wszystkich modeli i ustawień dla tekstów (1.264.0).
+ *
+ * @param list<array{0:string,1:string}> $teksty [język, polski tekst]
+ * @return int Ile wyników zapomniano.
+ */
+function evk_tl_ai_zapomnij(array $teksty): int {
+    if (!$teksty) return 0;
+    $szukane = [];
+    foreach ($teksty as [$lang, $pl]) $szukane[evk_tl_ai_klucz_tekstu((string) $lang, (string) $pl)] = true;
+    $p = evk_tl_ai_pamiec_biezaca(get_option(EVK_TL_AI_PAMIEC, []));
+    $ile = 0;
+    foreach (array_keys($p) as $k) {
+        if (isset($szukane[strtok((string) $k, '.')])) {
+            unset($p[$k]);
+            $ile++;
+        }
+    }
+    update_option(EVK_TL_AI_PAMIEC, $p, false);
+    return $ile;
 }
 
 // =========================================================================
@@ -599,6 +664,10 @@ function evk_tl_ai_wyslij(array $u, string $system, string $wiadomosc): array {
  * wygrywa (poprawka liczy stan od nowa). Stary tekst trafia do `poprz`
  * razem ze swoim modelem.
  *
+ * Pole wyczyszczone przez „Wyczyść tłumaczenia strony” (1.264.0) i teraz
+ * wypełnione: `poprz` to wyczyszczony tekst z kopii (gdy się różni) —
+ * „Przywróć” w liście i w okienku na stronie wraca do niego pojedynczo.
+ *
  * @param array<string,string> $gotowe klucz miejsca → tłumaczenie
  * @param array<string,bool>   $ai     klucze z AI (znacznik „Do sprawdzenia”)
  * @param array<string,string> $bylo   klucz miejsca → zastępowane tłumaczenie AI
@@ -616,15 +685,21 @@ function evk_tl_ai_zapisz(int $post_id, string $meta_key, string $lang, array $g
        miejsce jest „Do sprawdzenia”, dopóki ktoś go nie przyjmie. */
     $stan = get_post_meta($post_id, EVK_TL_EL_STAN, true);
     if (is_array($stan)) {
+        $kopia = evk_tl_ai_kopia_czesci($post_id, $meta_key);
         foreach (array_keys($zapisane) as $klucz) {
             if (!isset($stan[$meta_key][$klucz])) continue;
             if (isset($ai[$klucz])) {
                 $stan[$meta_key][$klucz]['src'] = 'ai';
                 if ($model !== '') $stan[$meta_key][$klucz]['model'] = $model;
             }
-            if (isset($bylo[$klucz])) $stan[$meta_key][$klucz]['poprz'] = ['t' => $bylo[$klucz], 'm' => (string) ($przed[$klucz]['model'] ?? '')];
+            if (isset($bylo[$klucz])) {
+                $stan[$meta_key][$klucz]['poprz'] = ['t' => $bylo[$klucz], 'm' => (string) ($przed[$klucz]['model'] ?? '')];
+            } elseif (isset($kopia[$klucz]) && $kopia[$klucz]['t'] !== $gotowe[$klucz]) {
+                $stan[$meta_key][$klucz]['poprz'] = ['t' => $kopia[$klucz]['t'], 'm' => (string) ($kopia[$klucz]['s']['model'] ?? '')];
+            }
         }
-        update_post_meta($post_id, EVK_TL_EL_STAN, $stan);
+        // wp_slash: `poprz` to tekst, a update_post_meta zdejmuje ukośniki (1.264.0).
+        update_post_meta($post_id, EVK_TL_EL_STAN, wp_slash($stan));
     }
     return array_map('strval', array_keys($zapisane));
 }
@@ -645,6 +720,10 @@ function evk_tl_ai_zapisz(int $post_id, string $meta_key, string $lang, array $g
  * w następnych krokach: w trybie ponownym świeże tłumaczenie AI jest znów
  * niesprawdzone i wracałoby jako „bez zmian”.
  *
+ * `bez_pamieci` (1.264.0, „Pytaj AI od nowa”): bez odczytu pamięci wyników —
+ * ten sam model tłumaczy jeszcze raz, a nowy wynik zastępuje zapamiętany.
+ * Pamięć tłumaczeń (sprawdzone tłumaczenie tego samego tekstu) działa dalej.
+ *
  * @param list<string>        $pomin
  * @param array<string,mixed> $opcje
  * @return array<string,mixed>
@@ -662,7 +741,7 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     $rowne = [];
     foreach ($braki as $k => $b) {
         $z = evk_tl_ai_z_pamieci($b['pl'], $lang);
-        $w = $z === null ? evk_tl_ai_wynik($u, $lang, $b['pl']) : null;
+        $w = $z === null && empty($opcje['bez_pamieci']) ? evk_tl_ai_wynik($u, $lang, $b['pl']) : null;
         if ($z === null && $w === null) continue;
         $gotowe[$k] = $z ?? $w;
         if ($gotowe[$k] === $b['bylo']) { $rowne[$k] = true; continue; }
@@ -793,6 +872,191 @@ function evk_tl_ai_jeden(int $post_id, string $meta_key, string $lang, string $k
 }
 
 // =========================================================================
+// CZYSZCZENIE STRONY (1.264.0)
+// =========================================================================
+
+/**
+ * Kopia wyczyszczonych tłumaczeń jednej części wpisu: klucz miejsca →
+ * tekst (`t`) i wpis stanu 52 sprzed czyszczenia (`s`, może go nie być).
+ *
+ * @return array<string,array{t:string,s:array<string,mixed>|null}>
+ */
+function evk_tl_ai_kopia_czesci(int $post_id, string $meta_key): array {
+    $k = get_post_meta($post_id, EVK_TL_AI_WYCZYSZCZONE, true);
+    $m = is_array($k) && is_array($k[$meta_key]['miejsca'] ?? null) ? $k[$meta_key]['miejsca'] : [];
+    $out = [];
+    foreach ($m as $klucz => $w) {
+        if (!is_array($w) || !is_string($w['t'] ?? null)) continue;
+        $out[(string) $klucz] = ['t' => $w['t'], 's' => is_array($w['s'] ?? null) ? $w['s'] : null];
+    }
+    return $out;
+}
+
+/**
+ * Pole, które hurt AI tłumaczy: w mapie pól elementu (51), a tekst ma litery
+ * i nie jest samym tagiem danych dynamicznych. Czyszczenie rusza tylko takie
+ * — inne pole języka (np. wpisane ręcznie przy elemencie spoza mapy) nie
+ * wróciłoby z hurtu.
+ *
+ * @param array<string,mixed> $mapa
+ * @param array<string,string> $m Miejsce z evk_tl_el_miejsca().
+ */
+function evk_tl_ai_do_hurtu(array $mapa, array $m): bool {
+    $def = $mapa[$m['element']] ?? null;
+    if (!is_array($def) || !evk_tl_ai_do_tlumaczenia($m['oryginal'])) return false;
+    $cz = explode('.', $m['pole']);
+    if (count($cz) === 1) return in_array($cz[0], array_map('strval', (array) ($def['pola'] ?? [])), true);
+    return count($cz) === 3 && in_array($cz[2], array_map('strval', (array) ($def['listy'][$cz[0]] ?? [])), true);
+}
+
+/**
+ * Miejsca do wyczyszczenia: niepuste tłumaczenia w wybranych językach —
+ * zakres `ai` tylko niesprawdzone tłumaczenia AI, `wszystkie` każde.
+ *
+ * @param list<string> $jezyki
+ * @return array<string,array{lang:string,t:string,pl:string,s:array<string,mixed>|null}>
+ */
+function evk_tl_ai_do_wyczyszczenia(int $post_id, string $meta_key, array $jezyki, string $zakres): array {
+    $kody = [];
+    foreach ($jezyki as $lang) $kody[evk_tl_ai_kod((string) $lang)] = (string) $lang;
+    $stan = evk_tl_ai_stan_czesci($post_id, $meta_key);
+    $mapa = evk_tl_el_mapa();
+    $out = [];
+    foreach (evk_tl_el_miejsca(get_post_meta($post_id, $meta_key, true)) as $klucz => $m) {
+        if (!isset($kody[$m['jezyk']]) || !evk_tl_el_niepuste($m['tlumaczenie']) || !evk_tl_ai_do_hurtu($mapa, $m)) continue;
+        $s = is_array($stan[$klucz] ?? null) ? $stan[$klucz] : null;
+        if ($zakres !== 'wszystkie' && !evk_tl_ai_niesprawdzone($s)) continue;
+        $out[(string) $klucz] = ['lang' => $kody[$m['jezyk']], 't' => $m['tlumaczenie'], 'pl' => $m['oryginal'], 's' => $s];
+    }
+    return $out;
+}
+
+/**
+ * Czyści tłumaczenia jednej części strony i zapomina wyniki AI dla jej
+ * tekstów (wszystkich modeli). Kopia (tekst i wpis stanu) idzie PRZED
+ * zapisem pól: przerwany zapis zostawia kopię, a nie zgubione tłumaczenia.
+ * Kopia łączy się z poprzednią — to samo miejsce dostaje nową wartość,
+ * inne (np. drugi język wyczyszczony wcześniej) zostają.
+ *
+ * @param list<string> $jezyki
+ * @return array{wyczyszczone:array<string,int>,razem:int,zapomniane:int}
+ */
+function evk_tl_ai_czysc(int $post_id, string $meta_key, array $jezyki, string $zakres): array {
+    $do = evk_tl_ai_do_wyczyszczenia($post_id, $meta_key, $jezyki, $zakres);
+    $wynik = ['wyczyszczone' => [], 'razem' => 0, 'zapomniane' => 0];
+    if (!$do) return $wynik;
+    $kopia = get_post_meta($post_id, EVK_TL_AI_WYCZYSZCZONE, true);
+    $kopia = is_array($kopia) ? $kopia : [];
+    $miejsca = evk_tl_ai_kopia_czesci($post_id, $meta_key);
+    foreach ($do as $klucz => $m) $miejsca[$klucz] = ['t' => $m['t'], 's' => $m['s']];
+    $kopia[$meta_key] = ['czas' => time(), 'miejsca' => $miejsca];
+    // wp_slash: update_post_meta zdejmuje ukośniki, a to są teksty.
+    update_post_meta($post_id, EVK_TL_AI_WYCZYSZCZONE, wp_slash($kopia));
+
+    $zmiany = [];
+    foreach ($do as $klucz => $m) $zmiany[$m['lang']][$klucz] = '';
+    $teksty = [];
+    // Po kolei jak języki w ustawieniach — liczby w panelu w tej samej kolejności.
+    foreach ($jezyki as $lang) {
+        if (!isset($zmiany[$lang])) continue;
+        $zapisane = evk_tl_el_zapisz_pola($post_id, $meta_key, (string) $lang, $zmiany[$lang], false);
+        if ($zapisane) $wynik['wyczyszczone'][evk_tl_ai_kod((string) $lang)] = count($zapisane);
+        foreach ($zapisane as $klucz) $teksty[] = [(string) $lang, $do[$klucz]['pl']];
+    }
+    $wynik['razem'] = array_sum($wynik['wyczyszczone']);
+    $wynik['zapomniane'] = evk_tl_ai_zapomnij($teksty);
+    return $wynik;
+}
+
+/**
+ * „Przywróć wyczyszczone”: tłumaczenia z kopii wracają do PUSTYCH pól
+ * (pole wypełnione od czasu czyszczenia zostaje) razem ze swoim wpisem
+ * stanu — tłumaczenie AI znów „Do sprawdzenia” ze swoim modelem, sprawdzone
+ * sprawdzone. Kopia zostaje do następnego czyszczenia tej strony.
+ *
+ * @return array{przywrocone:int,pominiete:int}
+ */
+function evk_tl_ai_przywroc(int $post_id, string $meta_key): array {
+    $kopia = evk_tl_ai_kopia_czesci($post_id, $meta_key);
+    $wynik = ['przywrocone' => 0, 'pominiete' => 0];
+    if (!$kopia) return $wynik;
+    $jezyki = [];
+    foreach (array_keys(tl_get_languages()) as $lang) $jezyki[evk_tl_ai_kod((string) $lang)] = (string) $lang;
+    $zmiany = [];
+    foreach ($kopia as $klucz => $w) {
+        $kod = substr((string) strrchr($klucz, '|'), 1);
+        if (isset($jezyki[$kod])) $zmiany[$jezyki[$kod]][$klucz] = $w['t'];
+    }
+    $zapisane = [];
+    foreach ($zmiany as $lang => $z) {
+        foreach (evk_tl_el_zapisz_pola($post_id, $meta_key, (string) $lang, $z, true) as $klucz) $zapisane[$klucz] = true;
+    }
+    $wynik['przywrocone'] = count($zapisane);
+    $wynik['pominiete'] = count($kopia) - count($zapisane);
+    if (!$zapisane) return $wynik;
+    /* Zapis policzył świeży stan (52): skrót bieżącego oryginału, czyli
+       „sprawdzone”. Wpis sprzed czyszczenia ma ten sam skrót tłumaczenia,
+       więc wraca w całości (źródło `ai`, model, poprzednia wersja). */
+    $stan = get_post_meta($post_id, EVK_TL_EL_STAN, true);
+    if (is_array($stan)) {
+        foreach (array_keys($zapisane) as $klucz) {
+            $s = $kopia[$klucz]['s'];
+            if (is_array($s) && isset($stan[$meta_key][$klucz]) && ($s['tl'] ?? '') === ($stan[$meta_key][$klucz]['tl'] ?? null)) {
+                $stan[$meta_key][$klucz] = $s;
+            }
+        }
+        update_post_meta($post_id, EVK_TL_EL_STAN, wp_slash($stan));
+    }
+    return $wynik;
+}
+
+/**
+ * Podgląd dla panelu: ile tłumaczeń zniknie (według języka) i ile czeka
+ * w kopii na „Przywróć wyczyszczone” (pola dziś puste).
+ *
+ * @param list<string> $jezyki
+ * @return array{ile:object,razem:int,kopia:int,czas:int}
+ */
+function evk_tl_ai_podglad_czyszczenia(int $post_id, string $meta_key, array $jezyki, string $zakres): array {
+    // Po kolei jak języki w ustawieniach (klucze w danych Bricksa bywają w innej).
+    $ile = array_fill_keys(array_map('evk_tl_ai_kod', array_map('strval', $jezyki)), 0);
+    foreach (evk_tl_ai_do_wyczyszczenia($post_id, $meta_key, $jezyki, $zakres) as $m) $ile[evk_tl_ai_kod($m['lang'])]++;
+    $ile = array_filter($ile);
+    $pelne = [];
+    foreach (evk_tl_el_miejsca(get_post_meta($post_id, $meta_key, true)) as $klucz => $m) {
+        if (evk_tl_el_niepuste($m['tlumaczenie'])) $pelne[$klucz] = true;
+    }
+    $kopia = get_post_meta($post_id, EVK_TL_AI_WYCZYSZCZONE, true);
+    return ['ile' => (object) $ile, 'razem' => array_sum($ile),
+        'kopia' => count(array_diff_key(evk_tl_ai_kopia_czesci($post_id, $meta_key), $pelne)),
+        'czas' => is_array($kopia) ? (int) ($kopia[$meta_key]['czas'] ?? 0) : 0];
+}
+
+/**
+ * Części stron do wyboru w „Wyczyść tłumaczenia strony”: każda z danymi
+ * Bricksa, którą użytkownik może edytować — także w pełni przetłumaczona
+ * (lista hurtu pokazuje tylko strony z brakami).
+ *
+ * @return list<array{post_id:int,meta_key:string,tytul:string,czesc:string}>
+ */
+function evk_tl_ai_strony_do_czyszczenia(): array {
+    $wpisy = evk_tl_el_wpisy_bricksa();
+    if (function_exists('_prime_post_caches')) {
+        _prime_post_caches(array_values(array_unique(array_map(static function (array $w): int { return $w[0]; }, $wpisy))), false, false);
+    }
+    $out = [];
+    foreach ($wpisy as [$post_id, $meta_key]) {
+        if (!current_user_can('edit_post', $post_id)) continue;
+        $out[] = ['post_id' => $post_id, 'meta_key' => $meta_key, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
+            'czesc' => evk_tl_el_czesc($meta_key)];
+    }
+    usort($out, static function (array $a, array $b): int {
+        return strcasecmp($a['tytul'], $b['tytul']) ?: ($a['post_id'] <=> $b['post_id'] ?: strcmp($a['meta_key'], $b['meta_key']));
+    });
+    return $out;
+}
+
+// =========================================================================
 // AJAX
 // =========================================================================
 
@@ -838,7 +1102,41 @@ add_action('wp_ajax_evk_tl_ai_krok', function (): void {
     /* Dostawca i model przebiegu (1.262.0): tylko na to żądanie, ustawienia
        bez zmian. Dostawca bez klucza kończy się stopem „Brak klucza API”. */
     $opcje = ['ponownie' => ($_POST['tryb'] ?? '') === 'ponownie', 'dostawca' => sanitize_key((string) ($_POST['dostawca'] ?? '')),
-        'model' => (string) wp_unslash($_POST['model'] ?? '')];
+        'model' => (string) wp_unslash($_POST['model'] ?? ''), 'bez_pamieci' => !empty($_POST['bez_pamieci'])];
     if (function_exists('set_time_limit')) @set_time_limit(180);
     wp_send_json_success(evk_tl_ai_krok($post_id, $meta_key, $lang, $pomin, $opcje));
+});
+
+/**
+ * Wpis i część strony z żądania czyszczenia — jak w kroku: znany klucz
+ * części i prawo edycji wpisu (także szablonu nagłówka czy stopki).
+ *
+ * @return array{0:int,1:string}
+ */
+function evk_tl_ai_czesc_z_zadania(): array {
+    $post_id = absint($_POST['post_id'] ?? 0);
+    $meta_key = sanitize_text_field(wp_unslash((string) ($_POST['meta_key'] ?? '')));
+    if (!$post_id || !in_array($meta_key, evk_tl_el_klucze_meta(), true)) wp_send_json_error('Nieznana strona.');
+    if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
+    return [$post_id, $meta_key];
+}
+
+/** „Wyczyść tłumaczenia strony” (1.264.0): podgląd, a z `wykonaj` — czyszczenie. */
+add_action('wp_ajax_evk_tl_ai_czysc', function (): void {
+    evk_tl_ajax_check('evk_tl_ai');
+    [$post_id, $meta_key] = evk_tl_ai_czesc_z_zadania();
+    $jezyki = array_values(array_intersect(array_map('strval', array_keys(tl_get_languages())),
+        array_map('strval', (array) wp_unslash($_POST['jezyki'] ?? []))));
+    $zakres = ($_POST['zakres'] ?? '') === 'wszystkie' ? 'wszystkie' : 'ai';
+    if (empty($_POST['wykonaj'])) wp_send_json_success(evk_tl_ai_podglad_czyszczenia($post_id, $meta_key, $jezyki, $zakres));
+    if (!$jezyki) wp_send_json_error('Zaznacz języki.');
+    $w = evk_tl_ai_czysc($post_id, $meta_key, $jezyki, $zakres);
+    wp_send_json_success($w + evk_tl_ai_podglad_czyszczenia($post_id, $meta_key, $jezyki, $zakres));
+});
+
+/** „Przywróć wyczyszczone” (1.264.0). */
+add_action('wp_ajax_evk_tl_ai_przywroc', function (): void {
+    evk_tl_ajax_check('evk_tl_ai');
+    [$post_id, $meta_key] = evk_tl_ai_czesc_z_zadania();
+    wp_send_json_success(evk_tl_ai_przywroc($post_id, $meta_key));
 });

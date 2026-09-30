@@ -27,6 +27,18 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/tl-ai.php scenariusz <nazwa>           scenariusz atrapy w serwerze; zeruje dziennik żądań
  *   php tests/php/tl-ai.php zadania                      żądania do dostawców wysłane przez serwer
  *   php tests/php/tl-ai.php pola <A|B|C>                 pola języków strony i liczba miejsc „Do sprawdzenia”
+ *   php tests/php/tl-ai.php strona-e                     strona E do czyszczenia (1.264.0)
+ *   php tests/php/tl-ai.php krok-opcje <strona> <jezyk> <json opcji>
+ *                                                        krok z opcjami (ponownie, dostawca, model, bez_pamieci)
+ *   php tests/php/tl-ai.php czysc <strona> <jezyki,…> <ai|wszystkie> [podglad]
+ *   php tests/php/tl-ai.php przywroc <strona>
+ *   php tests/php/tl-ai.php wpisz <strona> <klucz> <tekst>   pole języka jak z buildera (wypełnia wyczyszczone)
+ *   php tests/php/tl-ai.php pamiec [json [[jezyk, tekst], …]]
+ *                                                        pamięć wyników: razem, w starym kluczu, wpisy dla tekstów
+ *   php tests/php/tl-ai.php pamiec-stara                 wpis w kluczu sprzed 1.264.0
+ *   php tests/php/tl-ai.php ajax-czysc <admin|tlumacz|czytelnik> <strona> <podglad|wykonaj|przywroc>
+ *   php tests/php/tl-ai.php ajax-sprawdz <strona> <element> <tekst> [jezyk]
+ *                                                        zapis z okienka sprawdzania (62) jako administrator
  *   php tests/php/tl-ai.php sprzataj
  *
  * Strona A: nagłówek, tekst z <strong>, przycisk „Kontakt ai-test” (pamięć
@@ -36,6 +48,9 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * Strona B: przycisk „Kontakt ai-test” ze sprawdzonym EN „Contact us”.
  * Strona C: dwa świeże teksty — do scenariuszy błędów.
  * Strona D: 27 nagłówków i długi tekst (7 tys. znaków) — podział na porcje.
+ * Strona E (1.264.0, osobny krok): czyszczenie — nagłówek, tekst z ukośnikiem
+ * wstecznym, nagłówek do przyjęcia „Sprawdzone”, nagłówek z EN wpisanym
+ * ręcznie, sam {post_title} z EN, element spoza mapy z EN i akordeon.
  */
 require __DIR__ . '/_testowy-wp.php';
 require __DIR__ . '/_ai-atrapa.php';
@@ -74,6 +89,32 @@ function evk_t_ai_pola(int $id): array {
     }
     ksort($out);
     return $out;
+}
+
+/**
+ * Żądanie AJAX jak z przeglądarki: `$_POST`, `DOING_AJAX`, a `wp_send_json()`
+ * kończy się wyjątkiem zamiast `die` — sonda dostaje odpowiedź i biegnie dalej.
+ *
+ * @param array<string,mixed> $post
+ * @return mixed Odpowiedź JSON (albo surowe wyjście, gdy to nie JSON).
+ */
+function evk_t_ai_ajax(array $post) {
+    $_POST = $_REQUEST = wp_slash($post);
+    if (!defined('DOING_AJAX')) define('DOING_AJAX', true);
+    add_filter('wp_die_ajax_handler', static function () {
+        return static function ($komunikat = '') {
+            if (is_scalar($komunikat)) echo $komunikat;
+            throw new RuntimeException('koniec');
+        };
+    });
+    ob_start();
+    try {
+        do_action('wp_ajax_' . $post['action']);
+    } catch (RuntimeException $e) {
+        // wp_send_json() kończy tu.
+    }
+    $wyjscie = (string) ob_get_clean();
+    return json_decode($wyjscie, true) ?? $wyjscie;
 }
 
 /** Ustawienia AI testu: dostawca z kluczem testowym, opis, wskazówki, słowniczek. */
@@ -359,6 +400,132 @@ case 'pola':
     $id = (int) ((array) (evk_t_ai_zapis()['strony'] ?? []))[$argv[2] ?? 'A'];
     $out['pola'] = evk_t_ai_pola($id);
     $out['do_sprawdzenia'] = count(array_filter(evk_tl_el_do_sprawdzenia(1000), static function ($m) use ($id) { return (int) $m['post_id'] === $id; }));
+    break;
+
+case 'strona-e':
+    $zapis = evk_t_ai_zapis();
+    $e = [
+        ['id' => 'e1', 'name' => 'heading', 'parent' => 0, 'settings' => ['text' => 'Czyszczony nagłówek']],
+        ['id' => 'e2', 'name' => 'text-basic', 'parent' => 0, 'settings' => ['text' => 'Ścieżka C:\\Dane\\oferta']],
+        ['id' => 'e3', 'name' => 'heading', 'parent' => 0, 'settings' => ['text' => 'Sprawdzony nagłówek']],
+        ['id' => 'e4', 'name' => 'heading', 'parent' => 0, 'settings' => ['text' => 'Ręczny nagłówek', 'evk_tl_en__text' => 'Manual heading']],
+        ['id' => 'e5', 'name' => 'heading', 'parent' => 0, 'settings' => ['text' => '{post_title}', 'evk_tl_en__text' => '{post_title}']],
+        ['id' => 'e6', 'name' => 'divider', 'parent' => 0, 'settings' => ['text' => 'Poza mapą', 'evk_tl_en__text' => 'Outside the map']],
+        ['id' => 'e7', 'name' => 'accordion', 'parent' => 0, 'settings' => ['items' => [
+            ['id' => 'q1', 'title' => 'Czyste pytanie', 'content' => '<p>Czysta odpowiedź.</p>'],
+        ]]],
+    ];
+    $id = (int) wp_insert_post(['post_type' => 'page', 'post_title' => 'Strona AI E', 'post_status' => 'publish']);
+    update_post_meta($id, $tresc, wp_slash($e));
+    $zapis['strony']['E'] = $id;
+    file_put_contents($plik, wp_json_encode($zapis));
+    $out['E'] = $id;
+    $out['tekst_e2'] = (string) get_post_meta($id, $tresc, true)[1]['settings']['text'];
+    break;
+
+case 'krok-opcje':
+    $id = (int) ((array) (evk_t_ai_zapis()['strony'] ?? []))[$argv[2] ?? 'A'];
+    $lang = (string) ($argv[3] ?? 'en');
+    $o = (array) json_decode((string) ($argv[4] ?? '{}'), true);
+    evk_t_ai_ustaw('claude');
+    $GLOBALS['evk_t_ai_scenariusz'] = 'ok';
+    $GLOBALS['evk_t_ai_kod'] = $lang;
+    $out['wynik'] = evk_tl_ai_krok($id, $tresc, $lang, array_map('strval', (array) ($o['pomin'] ?? [])), $o);
+    $out['zadania'] = count($GLOBALS['evk_t_ai_zadania']);
+    $out['pola'] = evk_t_ai_pola($id);
+    $stan = get_post_meta($id, EVK_TL_EL_STAN, true);
+    $out['stan'] = is_array($stan) ? ($stan[$tresc] ?? []) : [];
+    break;
+
+case 'czysc':
+case 'przywroc':
+    $id = (int) ((array) (evk_t_ai_zapis()['strony'] ?? []))[$argv[2] ?? 'E'];
+    if ($krok === 'czysc') {
+        $jezyki = array_values(array_filter(explode(',', (string) ($argv[3] ?? 'en'))));
+        $zakres = (string) ($argv[4] ?? 'ai');
+        $out['podglad'] = evk_tl_ai_podglad_czyszczenia($id, $tresc, $jezyki, $zakres);
+        if (($argv[5] ?? '') !== 'podglad') $out['wynik'] = evk_tl_ai_czysc($id, $tresc, $jezyki, $zakres);
+    } else {
+        $out['wynik'] = evk_tl_ai_przywroc($id, $tresc);
+    }
+    $out['pola'] = evk_t_ai_pola($id);
+    $stan = get_post_meta($id, EVK_TL_EL_STAN, true);
+    $out['stan'] = is_array($stan) ? ($stan[$tresc] ?? []) : [];
+    $out['kopia'] = evk_tl_ai_kopia_czesci($id, $tresc);
+    $out['po'] = evk_tl_ai_podglad_czyszczenia($id, $tresc, ['en', 'de'], 'wszystkie');
+    $out['do_sprawdzenia'] = array_values(array_map(static function ($m) { return $m['klucz']; },
+        array_filter(evk_tl_el_do_sprawdzenia(1000), static function ($m) use ($id) { return (int) $m['post_id'] === $id; })));
+    sort($out['do_sprawdzenia']);
+    break;
+
+case 'wpisz':
+    $id = (int) ((array) (evk_t_ai_zapis()['strony'] ?? []))[$argv[2] ?? 'E'];
+    $klucz = (string) ($argv[3] ?? '');
+    $lang = (string) (explode('|', $klucz)[2] ?? 'en');
+    $out['zapisane'] = evk_tl_el_zapisz_pola($id, $tresc, $lang, [$klucz => (string) ($argv[4] ?? '')], false);
+    $out['pola'] = evk_t_ai_pola($id);
+    break;
+
+case 'pamiec':
+    $p = get_option('evk_tl_ai_pamiec', []);
+    $p = is_array($p) ? $p : [];
+    $out['razem'] = count($p);
+    $out['stare'] = 0;
+    $prefiksy = [];
+    foreach (array_keys($p) as $k) {
+        if (strpos((string) $k, '.') === false) { $out['stare']++; continue; }
+        $pr = (string) strtok((string) $k, '.');
+        $prefiksy[$pr] = ($prefiksy[$pr] ?? 0) + 1;
+    }
+    $out['teksty'] = [];
+    foreach ((array) json_decode((string) ($argv[2] ?? '[]'), true) as $x) {
+        $out['teksty'][$x[0] . '|' . $x[1]] = $prefiksy[evk_tl_ai_klucz_tekstu((string) $x[0], (string) $x[1])] ?? 0;
+    }
+    break;
+
+case 'pamiec-stara':
+    $p = get_option('evk_tl_ai_pamiec', []);
+    $p = is_array($p) ? $p : [];
+    $p[md5('stary-klucz-ai-test')] = 'STARY';
+    update_option('evk_tl_ai_pamiec', $p, false);
+    $out['razem'] = count($p);
+    break;
+
+case 'ajax-czysc':
+    $kto = (string) ($argv[2] ?? 'admin');
+    if ($kto === 'admin') {
+        $uid = (int) get_user_by('login', 'admin')->ID;
+    } else {
+        /* tlumacz: redaktor z dostępem do Tłumaczeń; czytelnik: dostęp do
+           Tłumaczeń bez prawa edycji stron (Role Manager daje go osobno). */
+        $login = 'evk-t-ai-' . $kto;
+        $u = get_user_by('login', $login);
+        $uid = $u ? (int) $u->ID : (int) wp_insert_user(['user_login' => $login, 'user_pass' => wp_generate_password(),
+            'user_email' => $login . '@example.test', 'role' => $kto === 'tlumacz' ? 'editor' : 'subscriber']);
+        get_user_by('id', $uid)->add_cap('evk_access_translations');
+        $zapis = evk_t_ai_zapis();
+        $zapis['uzytkownicy'] = array_values(array_unique(array_merge($zapis['uzytkownicy'] ?? [], [$uid])));
+        file_put_contents($plik, wp_json_encode($zapis));
+    }
+    wp_set_current_user($uid);
+    $id = (int) ((array) (evk_t_ai_zapis()['strony'] ?? []))[$argv[3] ?? 'E'];
+    $co = (string) ($argv[4] ?? 'podglad');
+    $post = ['action' => $co === 'przywroc' ? 'evk_tl_ai_przywroc' : 'evk_tl_ai_czysc', 'post_id' => (string) $id, 'meta_key' => $tresc,
+        'jezyki' => ['en', 'xx'], 'zakres' => 'ai', 'nonce' => wp_create_nonce('evk_tl_ai')];
+    if ($co === 'wykonaj') $post['wykonaj'] = '1';
+    $out['odp'] = evk_t_ai_ajax($post);
+    $out['pola'] = evk_t_ai_pola($id);
+    break;
+
+case 'ajax-sprawdz':
+    wp_set_current_user((int) get_user_by('login', 'admin')->ID);
+    $id = (int) ((array) (evk_t_ai_zapis()['strony'] ?? []))[$argv[2] ?? 'E'];
+    $out['odp'] = evk_t_ai_ajax(['action' => 'evk_tl_sprawdz_zapisz', 'nonce' => wp_create_nonce('evk_tl_sprawdz'), 'post_id' => (string) $id,
+        'meta_key' => $tresc, 'lang' => (string) ($argv[5] ?? 'en'), 'element' => (string) ($argv[3] ?? ''),
+        'pola' => ['text' => (string) ($argv[4] ?? '')]]);
+    $out['pola'] = evk_t_ai_pola($id);
+    $stan = get_post_meta($id, EVK_TL_EL_STAN, true);
+    $out['stan'] = is_array($stan) ? ($stan[$tresc] ?? []) : [];
     break;
 
 case 'sprzataj':

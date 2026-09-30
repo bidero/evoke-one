@@ -85,8 +85,12 @@ $evk_jezyki = tl_get_languages();
         <label class="evo-check-row"><input type="radio" name="tl-ai-tryb" value="ponownie"> Puste pola i tłumaczenia AI „Do sprawdzenia” — od nowa</label>
     </div>
     <p class="evo-desc">Od nowa AI tłumaczy tylko swoje niesprawdzone tłumaczenia; sprawdzone i wpisane ręcznie zostają.
-    Poprzednią wersję przywrócisz w okienku sprawdzania na stronie. Ten sam model przy tych samych ustawieniach daje ten sam wynik,
-    więc ponowne tłumaczenie ma sens z innym modelem albo po zmianie opisu, wskazówek lub słowniczka.</p>
+    Poprzednią wersję przywrócisz w liście „Teksty w elementach” albo w okienku sprawdzania na stronie. Ten sam model przy tych
+    samych ustawieniach daje ten sam wynik z pamięci — nowe zapytanie wyśle „Pytaj AI od nowa”, inny model albo zmiana opisu,
+    wskazówek lub słowniczka.</p>
+    <p><label class="evo-check-row"><input type="checkbox" id="tl-ai-bez-pamieci"> Pytaj AI od nowa (bez pamięci wyników)</label></p>
+    <p class="evo-desc">Zapytanie idzie do AI także wtedy, gdy ten sam model ma już wynik dla tego tekstu — zużywa limit dostawcy.
+    Sprawdzone tłumaczenie tego samego tekstu z innej strony dalej wraca bez pytania AI.</p>
     <div class="evo-field">
         <label for="tl-ai-przebieg-dostawca">Dostawca tego przebiegu</label>
         <select id="tl-ai-przebieg-dostawca">
@@ -117,6 +121,48 @@ $evk_jezyki = tl_get_languages();
     <p class="tl-ai-stan" role="status"></p>
     <div class="tl-ai-jednostki"></div>
     <ol class="tl-ai-dziennik"></ol>
+</div>
+
+<?php /* Strony z danymi Bricksa daje moduł 53. Na stronie ładuje się zawsze
+         razem z 61; bez niego (harness zakładek w testach) pole czyszczenia
+         zostaje bez listy — jak lista w „Teksty w elementach”. */
+$evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_czyszczenia() : []; ?>
+<div class="evo-box tl-ai-czysc">
+    <h3>Wyczyść tłumaczenia strony</h3>
+    <p class="evo-desc">Usuwa tłumaczenia z pól języków w elementach jednej części strony i zapomina wyniki AI dla jej tekstów
+    (wszystkich modeli), więc „Przetłumacz strony” przetłumaczy ją od nowa — także tym samym modelem. Nagłówek i stopka to osobne
+    pozycje, bo są na każdej stronie. Czyści tylko pola, które tłumaczy AI; teksty bez liter i same tagi danych zostają.</p>
+    <?php if (!$evk_strony): ?>
+    <p class="evo-desc">Nie ma stron z danymi Bricksa, które możesz edytować.</p>
+    <?php else: ?>
+    <div class="evo-field">
+        <label for="tl-ai-czysc-strona">Strona</label>
+        <select id="tl-ai-czysc-strona">
+            <?php foreach ($evk_strony as $evk_s): ?>
+            <option value="<?php echo esc_attr($evk_s['post_id'] . '|' . $evk_s['meta_key']); ?>"><?php echo esc_html($evk_s['tytul'] . ' (' . $evk_s['czesc'] . ')'); ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="tl-ai-czysc-zakres" role="radiogroup" aria-labelledby="tl-ai-czysc-zakres-tytul">
+        <p id="tl-ai-czysc-zakres-tytul"><strong>Co usunąć</strong></p>
+        <label class="evo-check-row"><input type="radio" name="tl-ai-czysc-zakres" value="ai" checked> Tylko tłumaczenia AI „Do sprawdzenia”</label>
+        <label class="evo-check-row"><input type="radio" name="tl-ai-czysc-zakres" value="wszystkie"> Wszystkie tłumaczenia — także sprawdzone i wpisane ręcznie</label>
+    </div>
+    <p class="tl-ai-czysc-jezyki" role="group" aria-label="Języki do wyczyszczenia">
+        <?php foreach ($evk_jezyki as $evk_kod => $evk_j): ?>
+        <label class="evo-check-row"><input type="checkbox" class="tl-ai-czysc-jezyk" value="<?php echo esc_attr((string) $evk_kod); ?>" checked>
+            <?php echo esc_html(strtoupper((string) $evk_kod) . ' — ' . ($evk_j['name'] ?? $evk_kod)); ?></label>
+        <?php endforeach; ?>
+    </p>
+    <p>
+        <button type="button" class="button evo-btn-danger tl-ai-czysc-start">Wyczyść…</button>
+        <button type="button" class="button tl-ai-czysc-przywroc" disabled>Przywróć wyczyszczone</button>
+    </p>
+    <p class="evo-desc">„Przywróć wyczyszczone” wpisuje usunięte tłumaczenia z powrotem do pustych pól, dopóki tej strony nie
+    wyczyścisz ponownie. Tekst przetłumaczony od nowa pokazuje wyczyszczony jako poprzednią wersję — „Przywróć” w liście
+    „Teksty w elementach” wraca do niego pojedynczo.</p>
+    <p class="tl-ai-czysc-stan" role="status"></p>
+    <?php endif; ?>
 </div>
 <script>
 (function () {
@@ -218,13 +264,15 @@ $evk_jezyki = tl_get_languages();
     function wpisz(tekst) { dziennik.appendChild(el('li', tekst)); }
     function czekaj(s) { return new Promise(function (ok) { setTimeout(ok, s * 1000); }); }
 
-    t.querySelector('.tl-ai-lista').addEventListener('click', function (e) {
-        var b = e.currentTarget;
-        b.disabled = true;
+    /* Lista części stron z brakami. `zaznacz` („post_id|meta_key”, po
+       „Wyczyść tłumaczenia strony”): zaznaczona tylko ta część. */
+    var przyciskListy = t.querySelector('.tl-ai-lista');
+    function pokazListe(zaznacz) {
+        przyciskListy.disabled = true;
         stan.textContent = 'Liczę braki…';
         var trybListy = tryb();
-        wyslij({ action: 'evk_tl_ai_lista', tryb: trybListy }).then(function (r) {
-            b.disabled = false;
+        return wyslij({ action: 'evk_tl_ai_lista', tryb: trybListy }).then(function (r) {
+            przyciskListy.disabled = false;
             lista.textContent = '';
             if (!r || !r.success) { stan.textContent = (r && r.data) || 'Błąd.'; return; }
             jednostki = r.data;
@@ -240,7 +288,8 @@ $evk_jezyki = tl_get_languages();
             var tbody = el('tbody');
             jednostki.forEach(function (j, i) {
                 var w = el('tr'), td0 = el('td'), c = el('input');
-                c.type = 'checkbox'; c.checked = true; c.className = 'tl-ai-wybor'; c.setAttribute('data-i', i);
+                c.type = 'checkbox'; c.checked = !zaznacz || zaznacz === j.post_id + '|' + j.meta_key;
+                c.className = 'tl-ai-wybor'; c.setAttribute('data-i', i);
                 c.setAttribute('aria-label', 'Tłumacz: ' + j.tytul + ' (' + j.czesc + ')');
                 td0.appendChild(c); w.appendChild(td0);
                 var td = el('td'), a = el('a', j.tytul); a.href = j.adres; td.appendChild(a); w.appendChild(td);
@@ -252,8 +301,9 @@ $evk_jezyki = tl_get_languages();
             });
             tab.appendChild(tbody); wrap.appendChild(tab); lista.appendChild(wrap);
             start.disabled = false;
-        }).catch(function () { b.disabled = false; stan.textContent = 'Błąd połączenia.'; });
-    });
+        }).catch(function () { przyciskListy.disabled = false; stan.textContent = 'Błąd połączenia.'; });
+    }
+    przyciskListy.addEventListener('click', function () { pokazListe(); });
 
     stop.addEventListener('click', function () { zatrzymaj = true; stop.disabled = true; stan.textContent = 'Zatrzymuję po bieżącym kroku…'; });
 
@@ -262,7 +312,8 @@ $evk_jezyki = tl_get_languages();
         var jez = jezyki();
         if (!wybrane.length || !jez.length) { stan.textContent = 'Zaznacz strony i języki.'; return; }
         /* Tryb, dostawca i model na cały przebieg — zmiana w trakcie go nie rusza. */
-        var przebieg = { tryb: tryb(), dostawca: przebiegDostawca.value, model: przebiegModel.value.trim() };
+        var przebieg = { tryb: tryb(), dostawca: przebiegDostawca.value, model: przebiegModel.value.trim(),
+            bez_pamieci: document.getElementById('tl-ai-bez-pamieci').checked ? '1' : '' };
         zatrzymaj = false; start.disabled = true; stop.disabled = false; dziennik.textContent = '';
         var suma = { zapisane: 0, z_ai: 0, z_pamieci: 0, odrzucone: 0, bez_zmian: 0 }, przerwane = '';
         petla:
@@ -277,7 +328,7 @@ $evk_jezyki = tl_get_languages();
                     var r;
                     try {
                         r = await wyslij({ action: 'evk_tl_ai_krok', post_id: j.post_id, meta_key: j.meta_key, lang: lang, pomin: pomin,
-                            tryb: przebieg.tryb, dostawca: przebieg.dostawca, model: przebieg.model });
+                            tryb: przebieg.tryb, dostawca: przebieg.dostawca, model: przebieg.model, bez_pamieci: przebieg.bez_pamieci });
                     } catch (e) { r = { success: false, data: 'Błąd połączenia.' }; }
                     if (!r || !r.success) { wpisz(j.tytul + ' ' + lang.toUpperCase() + ': ' + ((r && r.data) || 'błąd')); break; }
                     var d = r.data;
@@ -307,8 +358,87 @@ $evk_jezyki = tl_get_languages();
         wpisz('Razem: zapisane ' + suma.zapisane + ' (AI: ' + suma.z_ai + ', z pamięci: ' + suma.z_pamieci + '), odrzucone: ' + suma.odrzucone
             + (suma.bez_zmian ? ', bez zmian: ' + suma.bez_zmian : '') + '.');
         if (suma.bez_zmian) {
-            wpisz('Bez zmian: ten sam model przy tych samych ustawieniach daje ten sam wynik. Wybierz inny model albo zmień opis, wskazówki lub słowniczek.');
+            wpisz(przebieg.bez_pamieci ? 'Bez zmian: model odpowiedział tym samym tekstem co obecny.'
+                : 'Bez zmian: ten sam model przy tych samych ustawieniach daje ten sam wynik z pamięci. Zaznacz „Pytaj AI od nowa”, '
+                + 'wybierz inny model albo zmień opis, wskazówki lub słowniczek.');
         }
+    });
+
+    /* Czyszczenie strony (1.264.0): liczby przy każdej zmianie wyboru,
+       potwierdzenie z liczbami, potem lista hurtu z tą stroną zaznaczoną. */
+    var cz = document.querySelector('.tl-ai-czysc');
+    var czStrona = document.getElementById('tl-ai-czysc-strona');
+    if (!cz || !czStrona) return;
+    var czStan = cz.querySelector('.tl-ai-czysc-stan');
+    var czStart = cz.querySelector('.tl-ai-czysc-start');
+    var czPrzywroc = cz.querySelector('.tl-ai-czysc-przywroc');
+    function czWybor() {
+        var v = czStrona.value.split('|');
+        var z = cz.querySelector('input[name="tl-ai-czysc-zakres"]:checked');
+        return { post_id: v[0], meta_key: v.slice(1).join('|'), zakres: z ? z.value : 'ai',
+            jezyki: Array.prototype.map.call(cz.querySelectorAll('.tl-ai-czysc-jezyk:checked'), function (c) { return c.value; }) };
+    }
+    function liczby(ile) {
+        return Object.keys(ile || {}).map(function (k) { return k.toUpperCase() + ': ' + ile[k]; }).join(', ');
+    }
+    function czNazwa() { return czStrona.options[czStrona.selectedIndex].textContent; }
+    function pokazKopie(d) {
+        czPrzywroc.disabled = !d.kopia;
+        czPrzywroc.textContent = d.kopia ? 'Przywróć wyczyszczone (' + d.kopia + ')' : 'Przywróć wyczyszczone';
+    }
+    function czPodglad(opisz) {
+        var w = czWybor();
+        return wyslij({ action: 'evk_tl_ai_czysc', post_id: w.post_id, meta_key: w.meta_key, zakres: w.zakres, jezyki: w.jezyki })
+            .then(function (r) {
+                if (!r || !r.success) { if (opisz) czStan.textContent = (r && r.data) || 'Błąd.'; return r; }
+                pokazKopie(r.data);
+                if (opisz) czStan.textContent = r.data.razem ? 'Do wyczyszczenia: ' + r.data.razem + ' (' + liczby(r.data.ile) + ').'
+                    : 'Nic do wyczyszczenia w tym zakresie i językach.';
+                return r;
+            });
+    }
+    czStrona.addEventListener('change', function () { czPodglad(true); });
+    cz.querySelectorAll('input[name="tl-ai-czysc-zakres"], .tl-ai-czysc-jezyk').forEach(function (x) {
+        x.addEventListener('change', function () { czPodglad(true); });
+    });
+    czPodglad(false);
+
+    czStart.addEventListener('click', function () {
+        var w = czWybor();
+        if (!w.jezyki.length) { czStan.textContent = 'Zaznacz języki.'; return; }
+        czStart.disabled = true;
+        czStan.textContent = 'Liczę…';
+        czPodglad(false).then(function (r) {
+            if (!r || !r.success) { czStart.disabled = false; czStan.textContent = (r && r.data) || 'Błąd.'; return; }
+            if (!r.data.razem) { czStart.disabled = false; czStan.textContent = 'Nic do wyczyszczenia w tym zakresie i językach.'; return; }
+            var pytanie = 'Wyczyścić ' + (w.zakres === 'ai' ? 'tłumaczenia AI „Do sprawdzenia”' : 'WSZYSTKIE tłumaczenia (także sprawdzone i wpisane ręcznie)')
+                + ' na stronie „' + czNazwa() + '”?\n\nDo usunięcia: ' + r.data.razem + ' (' + liczby(r.data.ile) + ').'
+                + ' Pola zostaną puste, a AI zapomni wyniki dla tych tekstów. „Przywróć wyczyszczone” wpisze je z powrotem do pustych pól.';
+            if (!window.confirm(pytanie)) { czStart.disabled = false; czStan.textContent = 'Anulowane.'; return; }
+            czStan.textContent = 'Czyszczę…';
+            return wyslij({ action: 'evk_tl_ai_czysc', wykonaj: '1', post_id: w.post_id, meta_key: w.meta_key, zakres: w.zakres, jezyki: w.jezyki })
+                .then(function (r2) {
+                    czStart.disabled = false;
+                    if (!r2 || !r2.success) { czStan.textContent = (r2 && r2.data) || 'Błąd.'; return; }
+                    pokazKopie(r2.data);
+                    czStan.textContent = 'Wyczyszczone: ' + r2.data.razem + ' (' + liczby(r2.data.wyczyszczone) + '). Strona jest zaznaczona na liście '
+                        + '„Przetłumacz strony” wyżej — „Przetłumacz zaznaczone” przetłumaczy ją od nowa.';
+                    return pokazListe(w.post_id + '|' + w.meta_key);
+                });
+        }).catch(function () { czStart.disabled = false; czStan.textContent = 'Błąd połączenia.'; });
+    });
+
+    czPrzywroc.addEventListener('click', function () {
+        var w = czWybor();
+        czPrzywroc.disabled = true;
+        czStan.textContent = 'Przywracam…';
+        wyslij({ action: 'evk_tl_ai_przywroc', post_id: w.post_id, meta_key: w.meta_key }).then(function (r) {
+            if (!r || !r.success) { czPrzywroc.disabled = false; czStan.textContent = (r && r.data) || 'Błąd.'; return; }
+            czStan.textContent = 'Przywrócone: ' + r.data.przywrocone + '.'
+                + (r.data.pominiete ? ' Pominięte (pole już wypełnione albo elementu nie ma): ' + r.data.pominiete + '.' : '');
+            czPodglad(false);
+            if (jednostki.length) pokazListe();
+        }).catch(function () { czPrzywroc.disabled = false; czStan.textContent = 'Błąd połączenia.'; });
     });
 })();
 </script>

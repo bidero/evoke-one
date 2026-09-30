@@ -124,7 +124,10 @@ function evk_tl_el_meta_zmieniona($meta_id, $post_id, $meta_key, $wartosc): void
     if (!is_array($stan)) $stan = [];
     $czesc = evk_tl_el_nowy_stan(is_array($stan[$meta_key] ?? null) ? $stan[$meta_key] : [], evk_tl_el_miejsca(maybe_unserialize($wartosc)));
     if ($czesc) $stan[$meta_key] = $czesc; else unset($stan[$meta_key]);
-    if ($stan) update_post_meta($post_id, EVK_TL_EL_STAN, $stan);
+    /* wp_slash: update_post_meta zdejmuje ukośniki, a stan niesie teksty —
+       poprzednią wersję (`poprz`, 1.262.0). Bez tego każdy zapis treści
+       gubił ukośniki wsteczne z poprzedniej wersji (1.264.0). */
+    if ($stan) update_post_meta($post_id, EVK_TL_EL_STAN, wp_slash($stan));
     else delete_post_meta($post_id, EVK_TL_EL_STAN);
 }
 add_action('added_post_meta', 'evk_tl_el_meta_zmieniona', 10, 4);
@@ -173,7 +176,7 @@ function evk_tl_el_oznacz_sprawdzone(int $post_id, string $meta_key, string $klu
     $m = evk_tl_el_miejsca(get_post_meta($post_id, $meta_key, true))[$klucz] ?? null;
     if (!$m) return false;
     $stan[$meta_key][$klucz]['src'] = evk_tl_el_skrot($m['oryginal']);
-    update_post_meta($post_id, EVK_TL_EL_STAN, $stan);
+    update_post_meta($post_id, EVK_TL_EL_STAN, wp_slash($stan));
     return true;
 }
 
