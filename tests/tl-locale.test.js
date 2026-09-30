@@ -16,7 +16,8 @@
  */
 
 const http = require('http');
-const { phpOutput } = require('./lib/harness');
+const { phpOutput, chromiumPath } = require('./lib/harness');
+const { chromium } = require('playwright-core');
 const serwerWp = require('./lib/wp-serwer');
 
 const sonda = (a) => {
@@ -59,6 +60,7 @@ module.exports = async function (t) {
   if (wp.brak || !wp.wp) return;
 
   let serwer = null;
+  let browser = null;
   try {
     serwer = await serwerWp.start(wp.wp);
     const b = serwer.baza;
@@ -137,6 +139,52 @@ module.exports = async function (t) {
     const r3 = json(await pobierz(b + '/en/wp-json/bricks/v1/query_result'));
     t.check('adres REST z prefiksem (/en/wp-json/…): en_US', r3.locale === 'en_US', JSON.stringify(r3));
 
+    /* 1.266.0 (uwagi zgłaszającego, 30.09): nagłówek „Język WordPressa…”
+       przyklejony do „Dodaj język / Zapisz ustawienia”, „Pobierz paczkę” wyższy
+       od linii tekstu, tekst wiersza PL niewyrównany z tekstem w polach. Style
+       z includes/admin/tl/render.php — testy panelu (tests/php/tab.php) ich nie
+       ładują, więc pomiar na prawdziwym ekranie. DE jest tu jeszcze bez paczki. */
+    t.section('zakładka Języki: układ (Chromium)');
+    browser = await chromium.launch({ executablePath: chromiumPath() });
+    const zmierz = async (szer) => {
+      const k = await browser.newContext({ viewport: { width: szer, height: 900 } });
+      const p = await k.newPage();
+      await serwerWp.zaloguj(p, b);
+      await p.goto(b + '/wp-admin/options-general.php?page=evoke-tlumaczenia&tab=languages');
+      const w = await p.evaluate(() => {
+        const r = (e) => { if (!e) return null; const x = e.getBoundingClientRect(); return { l: x.left, r: x.right, t: x.top, b: x.bottom, w: x.width, h: x.height }; };
+        const tekst = (e) => { if (!e) return null; const z = document.createRange(); z.selectNodeContents(e); return r(z); };
+        const stopka = document.querySelector('.tl-footer');
+        const przyciski = stopka ? Array.from(stopka.querySelectorAll('.button')).map(r) : [];
+        const li = document.querySelector('#tl-jezyk-wp li[data-stan="brak"]');
+        const paczka = li && li.querySelector('.tl-pobierz-paczke');
+        const pl = document.querySelector('.lang-table .lang-row-pl td:nth-child(2)');
+        const polaEn = document.querySelector('#lang-body tr:not(.lang-row-pl) .lang-code');
+        const cs = polaEn && getComputedStyle(polaEn);
+        return {
+          odstep: przyciski.length && document.querySelector('#tl-jezyk-wp h3')
+            ? r(document.querySelector('#tl-jezyk-wp h3')).t - Math.max(...przyciski.map((x) => x.b)) : null,
+          paczka: r(paczka), linia: tekst(li && li.querySelector('strong')),
+          pl: tekst(pl), pole: polaEn ? r(polaEn).l + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft) : null,
+          szer: document.documentElement.scrollWidth, okno: innerWidth,
+        };
+      });
+      await k.close();
+      return w;
+    };
+    const u = await zmierz(1280);
+    console.log('      pomiar 1280 px: ' + JSON.stringify(u));
+    t.check('nagłówek „Język WordPressa…” odsunięty od „Dodaj język / Zapisz ustawienia” co najmniej 24 px', u.odstep !== null && u.odstep >= 24,
+      JSON.stringify(u.odstep));
+    t.check('„Pobierz paczkę de_DE” w linii tekstu (środki ±2 px), nie wyższy niż 32 px', !!u.paczka && !!u.linia
+      && Math.abs((u.paczka.t + u.paczka.h / 2) - (u.linia.t + u.linia.h / 2)) <= 2 && u.paczka.h <= 32, JSON.stringify([u.paczka, u.linia]));
+    t.check('tekst wiersza PL na wysokości tekstu w polach (±1 px)', !!u.pl && u.pole !== null && Math.abs(u.pl.l - u.pole) <= 1,
+      JSON.stringify([u.pl && u.pl.l, u.pole]));
+    const m = await zmierz(360);
+    console.log('      pomiar 360 px: ' + JSON.stringify(m));
+    t.check('360 px: bez przewijania w poziomie, „Pobierz paczkę” co najmniej 24×24', m.szer <= m.okno && !!m.paczka && m.paczka.w >= 24 && m.paczka.h >= 24,
+      JSON.stringify([m.szer, m.okno, m.paczka]));
+
     t.section('pobranie paczki DE przyciskiem w zakładce Języki');
     const obca = sonda('pobierz ' + b + ' fr_FR');
     t.check('język spoza ustawień (fr_FR): odmowa', obca.odp && obca.odp.success === false && /Nieznany/.test(obca.odp.data || ''), JSON.stringify(obca));
@@ -150,6 +198,7 @@ module.exports = async function (t) {
     const de2 = strona(await pobierz(b + '/de/wpis-lok/'));
     t.check('DE po instalacji: „März”, „Suchen”', de2.locale === 'de_DE' && de2.miesiac === 'März' && de2.szukaj === 'Suchen', po(de2));
   } finally {
+    if (browser) await browser.close();
     if (serwer) await serwer.zatrzymaj();
     sonda('sprzataj');
   }

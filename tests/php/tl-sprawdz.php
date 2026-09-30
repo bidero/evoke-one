@@ -42,7 +42,8 @@ $tresc = '_bricks_page_content_2';
 $mu    = rtrim(wp_normalize_path(WPMU_PLUGIN_DIR), '/');
 $muPlik = $mu . '/evk-t-tl-sprawdz.php';
 $muDir = $mu . '/evk-t-tl-sprawdz';
-$opcje = ['tl_languages', 'evk_tl_module_enabled', 'tl_translations', 'evk_tl_el_pola', 'evk_t_tls_h', 'evk_t_tls_f', 'evk_tl_ai', 'evk_tl_ai_pamiec'];
+$opcje = ['tl_languages', 'evk_tl_module_enabled', 'tl_translations', 'evk_tl_el_pola', 'evk_t_tls_h', 'evk_t_tls_f', 'evk_tl_ai', 'evk_tl_ai_pamiec',
+    'evk_t_tls_ai_scen'];
 $out   = ['krok' => $krok];
 
 function evk_t_tls_zapis(): array {
@@ -272,6 +273,8 @@ PHP
         . "if (PHP_SAPI !== 'cli-server') return;\n"
         . "require __DIR__ . '/evk-t-tl-sprawdz/bricks.php';\n"
         . '$GLOBALS[\'evk_t_ai_kod\'] = isset($_POST[\'lang\']) && is_string($_POST[\'lang\']) ? $_POST[\'lang\'] : \'en\';' . "\n"
+        /* Scenariusz atrapy z opcji (krok „ai-scen”) — test przeglądarki ustawia go między żądaniami. */
+        . '$GLOBALS[\'evk_t_ai_scenariusz\'] = (string) get_option(\'evk_t_tls_ai_scen\', \'ok\');' . "\n"
         . "require __DIR__ . '/evk-t-tl-sprawdz/atrapa.php';\n");
     $out['mu'] = is_file($muPlik);
     break;
@@ -297,6 +300,30 @@ case 'stan':
     $out['dopisane'] = array_keys(array_filter(evk_tl_el_dopisane($id, $meta), static function ($v, $k) use ($el) {
         return strpos((string) $k, $el . '|') === 0;
     }, ARRAY_FILTER_USE_BOTH));
+    break;
+
+/* „Przetłumacz brakujące (AI)” (1.266.0): klucz API, scenariusz atrapy
+   i braki części liczone tak jak hurt (evk_tl_ai_teksty). */
+case 'ai-klucz':
+    $u = (array) get_option('evk_tl_ai', []);
+    $u['klucze'] = ($argv[2] ?? 'on') === 'off' ? [] : ['gemini' => 'test-klucz-ai-123', 'openai' => 'test-klucz-ai-123'];
+    update_option('evk_tl_ai', $u, false);
+    $out['klucze'] = array_keys($u['klucze']);
+    break;
+
+case 'ai-scen':
+    update_option('evk_t_tls_ai_scen', (string) ($argv[2] ?? 'ok'), false);
+    @unlink(sys_get_temp_dir() . '/evk-t-tl-ai-429-raz');
+    $out['scen'] = get_option('evk_t_tls_ai_scen');
+    break;
+
+case 'braki':
+    $l = (string) ($argv[2] ?? 'A');
+    $meta = $l === 'H' ? '_bricks_page_header_2' : ($l === 'F' ? '_bricks_page_footer_2' : $tresc);
+    $b = evk_tl_ai_teksty(get_post_meta(evk_t_tls_wpis($l), $meta, true), (string) ($argv[3] ?? 'en'))['braki'];
+    $out['post'] = evk_t_tls_wpis($l);
+    $out['ile'] = count($b);
+    $out['klucze'] = array_keys($b);
     break;
 
 case 'lista':

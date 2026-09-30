@@ -972,20 +972,25 @@
       s.id = 'evk-tl-ai-styl';
       s.textContent = '#evk-tl-ai{display:flex;align-items:center;margin:0 8px 0 0;padding:0;list-style:none}'
         + '#evk-tl-ai li{margin:0;padding:0;list-style:none}'
-        + '#evk-tl-ai button{min-height:24px;padding:0 8px;border:0;border-radius:4px;background:transparent;color:inherit;font-family:inherit;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;opacity:.85}'
-        + '#evk-tl-ai button:hover{opacity:1}'
+        + '#evk-tl-ai button{width:28px;height:28px;border-radius:4px;opacity:.85}'
+        + '#evk-tl-ai button:hover,.evk-tl-ai-ikona:hover{opacity:1}'
         + '#evk-tl-ai button[aria-disabled="true"]{opacity:.45;cursor:not-allowed}'
-        + '#evk-tl-ai button[aria-busy="true"]{cursor:progress}'
-        + '#evk-tl-ai button:focus-visible,#evk-tl-ai-dymek button:focus-visible,.evk-tl-ai-pole button:focus-visible{outline:2px solid currentColor;outline-offset:1px}'
+        + '#evk-tl-ai button[aria-busy="true"],.evk-tl-ai-ikona[aria-busy="true"]{cursor:progress}'
+        + '#evk-tl-ai button:focus-visible,#evk-tl-ai-dymek button:focus-visible,.evk-tl-ai-ikona:focus-visible{outline:2px solid currentColor;outline-offset:1px}'
         + '#evk-tl-ai-dymek{position:fixed;z-index:100000;display:flex;align-items:flex-start;gap:8px;max-width:360px;padding:8px 8px 8px 12px;border-radius:6px;background:#fff;color:#1f2937;box-shadow:0 4px 16px rgba(0,0,0,.35);font:13px/1.45 system-ui,sans-serif}'
         + '#evk-tl-ai-dymek:not(.widoczny){width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;box-shadow:none}'
         + '#evk-tl-ai-dymek [hidden]{display:none!important}'
         + '#evk-tl-ai-dymek button{flex:none;min-width:24px;min-height:24px;border:0;border-radius:4px;background:transparent;color:inherit;font:600 16px/1 system-ui,sans-serif;cursor:pointer}'
-        + '.evk-tl-ai-pole{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:6px 0 4px}'
-        + '.evk-tl-ai-pole button{min-height:24px;padding:2px 8px;border:1px solid currentColor;border-radius:4px;background:transparent;color:inherit;font-family:inherit;font-size:11px;font-weight:600;line-height:1.2;cursor:pointer;opacity:.8}'
-        + '.evk-tl-ai-pole button:hover{opacity:1}'
-        + '.evk-tl-ai-pole button[aria-busy="true"]{opacity:.5;cursor:progress}'
-        + '.evk-tl-ai-pole-stan{font-size:11px;line-height:1.35;opacity:.85}';
+        /* Ikonka ✦: panel Bricksa stylizuje przyciski (wielkie litery, marginesy,
+           tło) regułami mocniejszymi niż jedna klasa — zerujemy z `!important`
+           wszystko, co mogłoby ją przesunąć albo rozepchnąć. */
+        + '#evk-tl-ai button,.evk-tl-ai-ikona{display:inline-flex!important;align-items:center;justify-content:center;box-sizing:border-box!important;'
+        + 'margin:0!important;padding:0!important;border:0!important;background:transparent!important;color:inherit!important;min-width:0!important;'
+        + 'min-height:0!important;max-width:none!important;font:inherit;line-height:0!important;text-transform:none!important;letter-spacing:normal;box-shadow:none!important;cursor:pointer}'
+        + '.evk-tl-ai-ikona{flex:none;border-radius:3px;opacity:.75}'
+        + '.evk-tl-ai-ikona svg,#evk-tl-ai button svg{display:block;flex:none;pointer-events:none}'
+        + '.evk-tl-ai-pole-stan{display:block;margin:4px 0 0;font-size:11px;line-height:1.35;opacity:.85;text-transform:none}'
+        + '.evk-tl-ai-pole-stan:empty{display:none}';
       pd.head.appendChild(s);
     }
     let d = pd.getElementById('evk-tl-ai-dymek');
@@ -1025,7 +1030,8 @@
     const b = pd.createElement('button');
     b.type = 'button';
     b.id = 'evk-tl-ai-element';
-    b.textContent = 'Przetłumacz (AI)';
+    b.setAttribute('aria-label', 'Przetłumacz zaznaczony element (AI)');
+    b.appendChild(ikonaAi(pd, 16));
     b.setAttribute('aria-describedby', 'evk-tl-ai-podpowiedz');
     b.addEventListener('click', () => { tlumaczElement(); });
     const p = pd.createElement('span');
@@ -1050,35 +1056,151 @@
     return [lang, pole];
   }
 
+  /* ✦ przy polu (1.266.0). Próba na testowej (30.09, docs/proby-builder-ai.md):
+     ⚡ (dane dynamiczne, `.dynamic-tag-picker-button`) to rodzeństwo pola —
+     przy polu tekstowym w przepływie, 28×32, w wierszu flex; przy textarea
+     absolutny, 20×20, w prawym górnym rogu. ✦ staje zaraz przed ⚡ albo pod
+     nim, z wymiarami ⚡ odczytanymi teraz, a nie wpisanymi na sztywno. Klas ⚡
+     nie kopiujemy — Bricks może łapać kliknięcia po klasie.
+
+     Ukryte pole (warunek `required` przejęty ze źródła) zostawia PUSTĄ obudowę
+     `[data-controlkey]` bez `.control` i bez pola — tam ✦ nie ma (duplikat
+     z 1.265.0 pod Podstawowym tekstem: przycisk pola „Czytaj więcej”). */
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function ikonaAi(pd, rozmiar) {
+    const svg = pd.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('width', String(rozmiar));
+    svg.setAttribute('height', String(rozmiar));
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const p = pd.createElementNS(SVG_NS, 'path');
+    p.setAttribute('d', 'M8 0C8.6 4.6 11.4 7.4 16 8C11.4 8.6 8.6 11.4 8 16C7.4 11.4 4.6 8.6 0 8C4.6 7.4 7.4 4.6 8 0Z');
+    p.setAttribute('fill', 'currentColor');
+    svg.appendChild(p);
+    return svg;
+  }
+
+  /** Pole kontrolki: [węzeł, rodzaj] — edytor, textarea albo pole tekstowe; null — pusta obudowa. */
+  function polePanelu(ctrl) {
+    const c = ctrl.querySelector('.control');
+    if (!c) return null;
+    const ed = c.querySelector('.wp-editor-wrap') || c.querySelector('iframe[id$="_ifr"]');
+    if (ed) return [ed, 'edytor'];
+    const ta = c.querySelector('textarea:not([hidden])');
+    if (ta) return [ta, 'textarea'];
+    const inp = c.querySelector('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
+    return inp ? [inp, 'input'] : null;
+  }
+
+  const px = (v) => Math.round(v) + 'px';
+  function ustaw(w, props) {
+    Object.keys(props).forEach((k) => { if (w.style[k] !== props[k]) w.style[k] = props[k]; });
+  }
+  /** Odstęp z prawej, który pole oddaje ikonkom (textarea: ⚡ i ✦ nad tekstem). */
+  function odsun(pole, ile) {
+    if (!('__evkPadding' in pole)) pole.__evkPadding = pole.style.paddingRight;
+    if ((parseFloat(pole.ownerDocument.defaultView.getComputedStyle(pole).paddingRight) || 0) < ile) pole.style.paddingRight = ile + 'px';
+  }
+  function usunIkone(b) {
+    const pole = b.__evkPole;
+    if (pole && '__evkPadding' in pole) { pole.style.paddingRight = pole.__evkPadding; delete pole.__evkPadding; }
+    const host = b.__evkHost;
+    if (host && '__evkPozycja' in host) { host.style.position = host.__evkPozycja; delete host.__evkPozycja; }
+    b.remove();
+  }
+
+  /** Ustawia ✦ przy ⚡ (albo przy prawej krawędzi pola, gdy ⚡ nie ma). */
+  function ulozIkone(b, pole, rodzaj, bolt) {
+    const okno = pole.ownerDocument.defaultView;
+    b.__evkPole = rodzaj === 'textarea' || rodzaj === 'input' ? pole : null;
+    if (bolt && bolt.parentNode) {
+      const w = bolt.offsetWidth || 28;
+      const h = bolt.offsetHeight || 32;
+      const poz = okno.getComputedStyle(bolt).position;
+      if (poz !== 'absolute' && poz !== 'fixed') {
+        /* [pole][✦][⚡] — pole zwęża się, ⚡ zostaje przy prawej krawędzi. */
+        if (b.parentNode !== bolt.parentNode || b.nextSibling !== bolt) bolt.parentNode.insertBefore(b, bolt);
+        ustaw(b, { position: '', top: '', right: '', width: px(w), height: px(h) });
+        b.__evkPole = null;
+        return;
+      }
+      /* ⚡ absolutny: ✦ pod nim, ta sama odległość od prawej, 4 px przerwy. */
+      if (b.parentNode !== bolt.parentNode) bolt.parentNode.appendChild(b);
+      const op = bolt.offsetParent;
+      ustaw(b, { position: 'absolute', width: px(w), height: px(h), top: px(bolt.offsetTop + bolt.offsetHeight + 4),
+        right: px((op ? op.clientWidth : 0) - bolt.offsetLeft - bolt.offsetWidth) });
+      if (rodzaj === 'textarea') odsun(pole, 28);
+      return;
+    }
+    /* Bez ⚡: tam, gdzie stałby ⚡ — róg textarea i edytora, prawa krawędź pola tekstowego. */
+    const host = pole.parentNode;
+    if (b.parentNode !== host || b.previousSibling !== pole) host.insertBefore(b, pole.nextSibling);
+    if (okno.getComputedStyle(host).position === 'static') {
+      host.__evkPozycja = host.style.position;
+      host.style.position = 'relative';
+      b.__evkHost = host;
+    }
+    const prawa = host.clientWidth - pole.offsetLeft - pole.offsetWidth;
+    if (rodzaj === 'input') {
+      ustaw(b, { position: 'absolute', width: '28px', height: px(pole.offsetHeight || 32), top: px(pole.offsetTop), right: px(prawa) });
+      odsun(pole, 28);
+    } else {
+      ustaw(b, { position: 'absolute', width: '20px', height: '20px', top: px(pole.offsetTop + 4), right: px(prawa + 4) });
+      if (rodzaj === 'textarea') odsun(pole, 28);
+    }
+  }
+
   /* Panel rysuje Vue powłoki od nowa przy każdym zaznaczeniu — przyciski
-     dokładamy co 300 ms, jak podgląd aktywnego elementu. */
+     dokładamy co 300 ms, jak podgląd aktywnego elementu. Nasze węzły szukamy
+     w CAŁEJ kontrolce (✦ siedzi głęboko, przy ⚡), a na koniec w całym panelu
+     zostaje po jednym na pole. */
   function wstawPrzyciskiPol() {
     if (!AI || !powloka) return;
     const pd = powloka.document;
     const a = aktywny();
+    const widziane = new Set();
     pd.querySelectorAll('[data-controlkey^="evk_tl_"]').forEach((ctrl) => {
       const cel = celPola(ctrl, a);
-      const dla = cel ? a.el.id + '|' + cel.join('|') : '';
-      const jest = Array.from(ctrl.children).find((c) => c.classList.contains('evk-tl-ai-pole'));
-      if (jest && cel && jest.__evkWlasciciel === window && jest.getAttribute('data-dla') === dla) return;
-      if (jest) jest.remove();
-      if (!cel) return;
-      const box = pd.createElement('div');
-      box.className = 'evk-tl-ai-pole';
-      box.setAttribute('data-dla', dla);
-      const b = pd.createElement('button');
-      b.type = 'button';
-      b.textContent = 'Przetłumacz (AI)';
-      const etykieta = ctrl.querySelector('label');
-      b.setAttribute('aria-label', 'Przetłumacz (AI) — ' + ((etykieta && etykieta.textContent.trim()) || 'Tłumaczenie ' + cel[0].toUpperCase()));
-      b.title = 'Z polskiego tekstu tego pola (' + AI.model + ')';
-      const s = pd.createElement('span');
-      s.className = 'evk-tl-ai-pole-stan';
-      s.setAttribute('role', 'status');
-      b.addEventListener('click', () => { tlumaczPole(b, s, cel[0], cel[1]); });
-      box.append(b, s);
-      box.__evkWlasciciel = window;
-      ctrl.appendChild(box);
+      const pp = cel ? polePanelu(ctrl) : null;
+      const dla = pp ? a.el.id + '|' + cel.join('|') : '';
+      let b = null;
+      ctrl.querySelectorAll('.evk-tl-ai-ikona').forEach((x) => {
+        if (!b && dla && !widziane.has(dla) && x.__evkWlasciciel === window && x.getAttribute('data-dla') === dla) b = x;
+        else usunIkone(x);
+      });
+      let s = null;
+      ctrl.querySelectorAll('.evk-tl-ai-pole-stan').forEach((x) => {
+        if (!s && b && x.__evkWlasciciel === window) s = x;
+        else x.remove();
+      });
+      if (!dla || widziane.has(dla)) return;
+      widziane.add(dla);
+      const [pole, rodzaj] = pp;
+      if (!b) {
+        b = pd.createElement('button');
+        b.type = 'button';
+        b.className = 'evk-tl-ai-ikona';
+        b.setAttribute('data-dla', dla);
+        const etykieta = ctrl.querySelector('label');
+        b.setAttribute('aria-label', 'Przetłumacz (AI) — ' + ((etykieta && etykieta.textContent.trim()) || 'Tłumaczenie ' + cel[0].toUpperCase()));
+        b.title = 'Przetłumacz (AI) z polskiego tekstu tego pola (' + AI.model + ')';
+        b.appendChild(ikonaAi(pd, rodzaj === 'input' ? 14 : 12));
+        b.addEventListener('click', () => {
+          const st = ctrl.querySelector('.evk-tl-ai-pole-stan');
+          if (st) tlumaczPole(b, st, cel[0], cel[1]);
+        });
+        b.__evkWlasciciel = window;
+      }
+      ulozIkone(b, pole, rodzaj, ctrl.querySelector('.dynamic-tag-picker-button'));
+      if (!s) {
+        s = pd.createElement('div');
+        s.className = 'evk-tl-ai-pole-stan';
+        s.setAttribute('role', 'status');
+        s.__evkWlasciciel = window;
+      }
+      const c = ctrl.querySelector('.control');
+      if (s.parentNode !== c) c.appendChild(s);
     });
   }
 
@@ -1098,7 +1220,8 @@
         const u = pd.getElementById(id);
         if (u && u.__evkWlasciciel === window) u.remove();
       });
-      pd.querySelectorAll('.evk-tl-ai-pole').forEach((u) => { if (u.__evkWlasciciel === window) u.remove(); });
+      pd.querySelectorAll('.evk-tl-ai-ikona').forEach((u) => { if (u.__evkWlasciciel === window) usunIkone(u); });
+      pd.querySelectorAll('.evk-tl-ai-pole-stan').forEach((u) => { if (u.__evkWlasciciel === window) u.remove(); });
     } catch (e) { /* powłoka już zamknięta */ }
   });
 

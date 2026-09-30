@@ -336,9 +336,53 @@ function evk_tl_sprawdz_dane(): array {
         'koniec'   => remove_query_arg(EVK_TL_SPRAWDZ_PARAM),
         'nastepna' => evk_tl_sprawdz_nastepna(is_singular() ? (int) get_queried_object_id() : 0, $lang),
         'unfiltered' => current_user_can('unfiltered_html'),
-        'ai'       => evk_tl_sprawdz_ai_dane(),
+        'ai'       => evk_tl_sprawdz_ai_strony($wlasciciele, $lang),
         'elementy' => (object) $elementy,
     ];
+}
+
+/**
+ * Dane AI trybu sprawdzania (1.266.0): jak w okienku, a do tego części tej
+ * strony do „Przetłumacz brakujące (AI)” na pasku i nonce kroku hurtu
+ * (`evk_tl_ai_krok`, 61). `evk_tl_sprawdz_ai_dane()` zostaje bez części —
+ * woła ją też lista „Teksty w elementach” (53).
+ *
+ * @param array<string,array<string,mixed>> $wlasciciele
+ * @return array<string,mixed>|null
+ */
+function evk_tl_sprawdz_ai_strony(array $wlasciciele, string $lang): ?array {
+    $ai = evk_tl_sprawdz_ai_dane();
+    if ($ai === null) return null;
+    $ai['nonce_krok'] = wp_create_nonce('evk_tl_ai');
+    $ai['czesci'] = evk_tl_sprawdz_czesci($wlasciciele, $lang);
+    return $ai;
+}
+
+/**
+ * Części tej strony (treść, nagłówek, stopka, wstawione szablony) z brakami
+ * tłumaczeń w języku podglądu — tylko te, które wolno edytować. Braki liczy
+ * to samo, co tłumaczy hurt (`evk_tl_ai_teksty()`), więc liczba w pytaniu
+ * zgadza się z tym, co pójdzie do AI.
+ *
+ * @param array<string,array<string,mixed>> $wlasciciele Wynik evk_tl_sprawdz_wlasciciele().
+ * @return list<array{post:int,meta:string,czesc:string,tytul:string,braki:int,szablon:bool}>
+ */
+function evk_tl_sprawdz_czesci(array $wlasciciele, string $lang): array {
+    if (!function_exists('evk_tl_ai_teksty')) return [];
+    $pary = [];
+    foreach ($wlasciciele as $w) {
+        if (isset($w['wiele']) || empty($w['post']) || !isset($w['meta'])) continue;
+        $pary[(int) $w['post'] . '|' . (string) $w['meta']] = [(int) $w['post'], (string) $w['meta']];
+    }
+    $out = [];
+    foreach ($pary as [$post, $meta]) {
+        if (!current_user_can('edit_post', $post)) continue;
+        $braki = count(evk_tl_ai_teksty(get_post_meta($post, $meta, true), $lang)['braki']);
+        if ($braki < 1) continue;
+        $out[] = ['post' => $post, 'meta' => $meta, 'czesc' => evk_tl_el_czesc($meta),
+            'tytul' => get_the_title($post) ?: ('#' . $post), 'braki' => $braki, 'szablon' => get_post_type($post) === 'bricks_template'];
+    }
+    return $out;
 }
 
 /**

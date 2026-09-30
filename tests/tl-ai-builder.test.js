@@ -149,7 +149,10 @@ module.exports = async function (t) {
     t.section('builder: przycisk przy przełączniku');
     /* Kanwa i admin-ajax.php są w builderze na tym samym adresie; fixtura idzie
        z serwera plików testu, więc adres AJAX — ścieżka na tym samym serwerze. */
-    const daneKanwy = Object.assign({}, dane, { ai: Object.assign({}, dane.ai, { ajax: '/wp-admin/admin-ajax.php' }) });
+    /* Podstawowy tekst ma w Bricksie dwa pola: tekst i „Czytaj więcej” (ukryte
+       warunkiem — w panelu zostaje pusta obudowa). Mapa tylko w kanwie. */
+    const daneKanwy = Object.assign({}, dane, { ai: Object.assign({}, dane.ai, { ajax: '/wp-admin/admin-ajax.php' }),
+      mapa: Object.assign({}, dane.mapa, { 'text-basic': { pola: ['text', 'readMore'], listy: [] } }) });
     const page = await t.open('builder-ai.html', { przezHttp: true, settle: 900, viewport: { width: 1300, height: 820 },
       head: 'window.__EVK_TL_DANE = ' + J(daneKanwy) + ';' });
     const zadania = [];
@@ -180,7 +183,7 @@ module.exports = async function (t) {
       if (!b) return null;
       const r = b.getBoundingClientRect();
       const p = document.getElementById(b.getAttribute('aria-describedby') || '-');
-      return { tekst: b.textContent, nieaktywny: b.getAttribute('aria-disabled'), zajety: b.getAttribute('aria-busy'), tytul: b.title,
+      return { tekst: b.textContent.trim(), nazwa: b.getAttribute('aria-label'), svg: !!b.querySelector('svg'), nieaktywny: b.getAttribute('aria-disabled'), zajety: b.getAttribute('aria-busy'), tytul: b.title,
         podpowiedz: p ? p.textContent : null, wys: r.height, szer: r.width };
     });
     const dymek = () => page.evaluate(() => {
@@ -205,9 +208,10 @@ module.exports = async function (t) {
     t.check('grupa „Tłumaczenie AI” zaraz za przełącznikiem PL | EN | DE', !!grupa && grupa.przed === 'evk-tl-podglad' && grupa.rola === 'group'
       && grupa.etykieta === 'Tłumaczenie AI' && grupa.ile === 1, J(grupa));
     const p0 = await przycisk();
-    t.check('PL: „Przetłumacz (AI)” nieaktywny, podpowiedź „Wybierz EN albo DE” (dymek i opis)', !!p0 && p0.tekst === 'Przetłumacz (AI)'
-      && p0.nieaktywny === 'true' && p0.tytul === 'Wybierz EN albo DE' && p0.podpowiedz === 'Wybierz EN albo DE', J(p0));
-    t.check('cel dotyku co najmniej 24 px wysokości', !!p0 && p0.wys >= 24, J(p0 && [p0.szer, p0.wys]));
+    t.check('PL: ikonka ✦ „Przetłumacz zaznaczony element (AI)” nieaktywna, podpowiedź „Wybierz EN albo DE” (dymek i opis)', !!p0
+      && p0.tekst === '' && p0.svg && p0.nazwa === 'Przetłumacz zaznaczony element (AI)' && p0.nieaktywny === 'true' && p0.tytul === 'Wybierz EN albo DE' && p0.podpowiedz === 'Wybierz EN albo DE', J(p0));
+    t.check('sama ikonka: szerokość do 32 px, cel dotyku co najmniej 24 px', !!p0 && p0.szer <= 32 && p0.szer >= 24 && p0.wys >= 24,
+      J(p0 && [p0.szer, p0.wys]));
     /* `force`: Playwright bierze `aria-disabled` za wyłączenie i czekałby na włączenie. */
     await page.click('#evk-tl-ai-element', { force: true });
     await page.waitForTimeout(150);
@@ -230,19 +234,39 @@ module.exports = async function (t) {
     t.check('kliknięcie bez zaznaczenia: komunikat, bez żądania', /^Zaznacz element/.test((await dymek()).tekst) && zadania.length === 0,
       J([await dymek(), zadania.length]));
 
-    t.section('builder: przycisk pod polem „Tłumaczenie EN”');
+    t.section('builder: ✦ przy polu „Tłumaczenie EN”');
     await zaznacz('h1');
     const p2 = await przycisk();
     t.check('zaznaczony element: przycisk aktywny, opis z językiem i modelem; stary komunikat znika',
       p2.nieaktywny === 'false' && p2.tytul === 'Zaznaczony element z dziećmi → EN (' + MODEL + ')' && !(await dymek()).widoczny, J([p2, await dymek()]));
-    const pola = () => page.evaluate(() => Array.from(document.querySelectorAll('.evk-tl-ai-pole')).map((b) => ({
-      klucz: b.parentElement.getAttribute('data-controlkey'), w_liscie: !!b.parentElement.parentElement.closest('[data-controlkey]'),
-      nazwa: b.querySelector('button').getAttribute('aria-label'), wys: b.querySelector('button').getBoundingClientRect().height })));
+    const pola = () => page.evaluate(() => Array.from(document.querySelectorAll('.evk-tl-ai-ikona')).map((b) => {
+      const c = b.closest('[data-controlkey]');
+      return { klucz: c.getAttribute('data-controlkey'), w_liscie: !!c.parentElement.closest('[data-controlkey]'),
+        nazwa: b.getAttribute('aria-label'), wys: b.getBoundingClientRect().height };
+    }));
+    /* Układ kontrolki: ✦, ⚡, pole, obszar pola i komunikat — w pikselach ekranu. */
+    const uklad = (klucz) => page.evaluate((k) => {
+      const c = document.querySelector('[data-controlkey="' + k + '"]');
+      if (!c) return null;
+      const r = (e) => {
+        if (!e) return null;
+        const x = e.getBoundingClientRect();
+        return { l: x.left, r: x.right, t: x.top, b: x.bottom, w: x.width, h: x.height };
+      };
+      const pole = c.querySelector('input, textarea:not([hidden])');
+      const ai = c.querySelectorAll('.evk-tl-ai-ikona');
+      const st = c.querySelector('.evk-tl-ai-pole-stan');
+      return { ile: ai.length, stany: c.querySelectorAll('.evk-tl-ai-pole-stan').length, ai: r(ai[0]), bolt: r(c.querySelector('.dynamic-tag-picker-button')),
+        pole: r(pole), obszar: r(c.querySelector('[data-control]')), pad: pole ? parseFloat(getComputedStyle(pole).paddingRight) : null,
+        tekst: ai[0] ? ai[0].textContent : null, przedBolt: !!ai[0] && ai[0].nextElementSibling === c.querySelector('.dynamic-tag-picker-button'),
+        stan: st ? { wControl: st.parentElement.classList.contains('control'), display: getComputedStyle(st).display, t: st.getBoundingClientRect().top } : null };
+    }, klucz);
+    const blisko = (a, b, tol) => typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) <= tol;
     const ph1 = await pola();
-    t.check('nagłówek: przyciski pod polami EN i DE, z nazwą pola', J(ph1.map((x) => [x.klucz, x.nazwa])) === J([
+    t.check('nagłówek: ✦ przy polach EN i DE, z nazwą pola', J(ph1.map((x) => [x.klucz, x.nazwa])) === J([
       ['evk_tl_en__text', 'Przetłumacz (AI) — Tłumaczenie EN'], ['evk_tl_de__text', 'Przetłumacz (AI) — Tłumaczenie DE']])
       && ph1.every((x) => x.wys >= 24), J(ph1));
-    await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole button');
+    await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
     await koniec('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole-stan');
     await page.waitForTimeout(300);
     const z1 = zadania[zadania.length - 1] || {};
@@ -260,18 +284,48 @@ module.exports = async function (t) {
       stan: document.querySelector('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole-stan').textContent }));
     t.check('wynik w stanie powłoki i w polu panelu; komunikat z modelem i prośbą o zapis', sh1.evk_tl_en__text === 'EN:Grafika<br>EN:użytkowa'
       && pole1.wartosc === 'EN:Grafika<br>EN:użytkowa' && pole1.stan === 'Wpisane (AI · ' + MODEL + '). Zapisz stronę w Bricksie.', J([sh1, pole1]));
+    const u1 = await uklad('evk_tl_en__text');
+    console.log('      pomiar pola tekstowego: ' + J(u1));
+    t.check('pole tekstowe: [pole][✦][⚡] — ✦ zaraz za polem i zaraz przed ⚡, ⚡ przy prawej krawędzi, 28 px',
+      !!u1 && u1.ile === 1 && u1.przedBolt && blisko(u1.ai.l, u1.pole.r, 1) && blisko(u1.ai.r, u1.bolt.l, 1) && blisko(u1.bolt.r, u1.obszar.r, 1)
+      && blisko(u1.bolt.w, 28, 0.5) && blisko(u1.ai.w, 28, 0.5), J(u1));
+    t.check('pole tekstowe: ✦, ⚡ i pole na jednej wysokości (środki ±2 px), ✦ bez tekstu (wielkie litery Bricksa nie mają czego zmienić)',
+      !!u1 && blisko(u1.ai.t + u1.ai.h / 2, u1.bolt.t + u1.bolt.h / 2, 2) && blisko(u1.ai.t + u1.ai.h / 2, u1.pole.t + u1.pole.h / 2, 2)
+      && u1.tekst === '', J(u1));
+    t.check('komunikat pola w `.control`, pod polem', !!u1 && !!u1.stan && u1.stan.wControl && u1.stan.display !== 'none' && u1.stan.t >= u1.obszar.b,
+      J(u1 && u1.stan));
     const kh1 = await kanwa().evaluate(() => document.getElementById('brxe-h1').innerHTML);
     t.check('kanwa w podglądzie EN pokazuje wpisane tłumaczenie', kh1 === 'EN:Grafika<br>EN:użytkowa', kh1);
 
     await zaznacz('t1');
+    const u2 = await uklad('evk_tl_en__text');
+    const pusta = await uklad('evk_tl_en__readMore');
+    console.log('      pomiar textarea: ' + J(u2));
+    t.check('textarea: ✦ pod ⚡ — prawe krawędzie równe, 4 px przerwy, 20×20', !!u2 && u2.ile === 1 && blisko(u2.ai.r, u2.bolt.r, 1)
+      && blisko(u2.ai.t, u2.bolt.b + 4, 1) && blisko(u2.ai.w, 20, 0.5) && blisko(u2.ai.h, 20, 0.5) && blisko(u2.bolt.r, u2.obszar.r - 4, 1), J(u2));
+    t.check('textarea: tekst nie wchodzi pod ikonki (padding-right co najmniej 28 px)', !!u2 && u2.pad >= 28, J(u2 && u2.pad));
+    t.check('pusta obudowa ukrytego pola („Czytaj więcej”): bez ✦ i bez komunikatu', !!pusta && pusta.ile === 0 && pusta.stany === 0, J(pusta));
+    t.check('pusty komunikat schowany (:empty), bez atrybutu hidden', !!u2 && !!u2.stan && u2.stan.display === 'none', J(u2 && u2.stan));
+    const naPole = () => page.evaluate(() => {
+      const m = {};
+      document.querySelectorAll('.evk-tl-ai-ikona').forEach((b) => { const k = b.getAttribute('data-dla'); m[k] = (m[k] || 0) + 1; });
+      return { m, stany: document.querySelectorAll('.evk-tl-ai-pole-stan').length };
+    });
+    await page.waitForTimeout(3000);
+    const po3 = await naPole();
+    await page.evaluate(() => window.__rysuj());
+    await page.waitForTimeout(700);
+    const poRys = await naPole();
+    t.check('po 3 s i po przerysowaniu panelu: jedna ikonka i jeden komunikat na pole (EN i DE tekstu)',
+      J(po3) === J({ m: { 't1|en|text': 1, 't1|de|text': 1 }, stany: 2 }) && J(poRys) === J(po3), J([po3, poRys]));
     decyzja = 'dismiss';
-    await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole button');
+    await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
     await page.waitForTimeout(400);
     t.check('wypełnione pole: pytanie z obecnym tekstem; „Anuluj” — bez żądania i bez zmiany',
       dialogi.length === 1 && dialogi[0] === 'Zastąpić obecne tłumaczenie EN?\n\n„Ask for a quote”' && zadania.length === 1
       && (await stan('t1')).evk_tl_en__text === 'Ask for a quote', J([dialogi, zadania.length]));
     decyzja = 'accept';
-    await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole button');
+    await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
     await koniec('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole-stan');
     await page.waitForTimeout(300);
     const z2 = zadania[zadania.length - 1] || {};
@@ -288,7 +342,7 @@ module.exports = async function (t) {
     await zaznacz('a1');
     t.check('akordeon (same pola pozycji): bez przycisków pod polami', (await pola()).length === 0, J(await pola()));
     await zaznacz('h1');
-    await page.click('[data-controlkey="evk_tl_de__text"] .evk-tl-ai-pole button');
+    await page.click('[data-controlkey="evk_tl_de__text"] .evk-tl-ai-ikona');
     await koniec('[data-controlkey="evk_tl_de__text"] .evk-tl-ai-pole-stan');
     await page.waitForTimeout(300);
     const sh1de = await stan('h1');
@@ -372,7 +426,7 @@ module.exports = async function (t) {
     await page.click('#evk-tl-ai-element', { force: true });
     await page.waitForTimeout(150);
     const polaW = await pola();
-    await page.click('[data-controlkey="evk_tl_de__text"] .evk-tl-ai-pole button');
+    await page.click('[data-controlkey="evk_tl_de__text"] .evk-tl-ai-ikona');
     await page.waitForTimeout(150);
     const stanPolaW = await page.evaluate(() => document.querySelector('[data-controlkey="evk_tl_de__text"] .evk-tl-ai-pole-stan').textContent);
     await page.evaluate(() => { window.__stan.content.find((e) => e.id === 'h3').settings.text = 'Oferta zmieniona'; });
@@ -415,7 +469,7 @@ module.exports = async function (t) {
     await page.click('#evk-tl-podglad button[data-jezyk="en"]');
     await page.waitForTimeout(300);
     await zaznacz('tx1');
-    await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole button');
+    await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
     await koniec('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole-stan');
     await page.waitForTimeout(200);
     const ed = await page.evaluate(() => ({ stan: window.__stan.content.find((e) => e.id === 'tx1').settings.evk_tl_en__text,
@@ -427,25 +481,25 @@ module.exports = async function (t) {
        w powłoce z obsługą z martwego okna), a straż ich nie odtwarza. */
     await kanwa().evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')));
     await page.waitForTimeout(1300);
-    const poZamknieciu = await page.evaluate(() => ['#evk-tl-podglad', '#evk-tl-ai', '#evk-tl-ai-dymek', '.evk-tl-ai-pole']
+    const poZamknieciu = await page.evaluate(() => ['#evk-tl-podglad', '#evk-tl-ai', '#evk-tl-ai-dymek', '.evk-tl-ai-ikona, .evk-tl-ai-pole-stan']
       .map((s) => document.querySelectorAll(s).length));
-    t.check('pagehide kanwy: przełącznik, przycisk, komunikat i przyciski pól znikają i nie wracają', J(poZamknieciu) === J([0, 0, 0, 0]), J(poZamknieciu));
+    t.check('pagehide kanwy: przełącznik, przycisk, komunikat oraz ikonki i komunikaty pól znikają i nie wracają', J(poZamknieciu) === J([0, 0, 0, 0]), J(poZamknieciu));
     await zaznacz('h2');
     await kanwa().evaluate(() => location.reload());
     await page.waitForTimeout(1600);
     const po = await page.evaluate(() => ({ grupy: document.querySelectorAll('#evk-tl-ai').length, dymki: document.querySelectorAll('#evk-tl-ai-dymek').length,
-      pola: Array.from(document.querySelectorAll('.evk-tl-ai-pole')).map((b) => b.parentElement.getAttribute('data-controlkey')) }));
+      pola: Array.from(document.querySelectorAll('.evk-tl-ai-ikona')).map((b) => b.closest('[data-controlkey]').getAttribute('data-controlkey')) }));
     t.check('po przeładowaniu kanwy przyciski raz (stare — z martwego okna — usunięte)', po.grupy === 1 && po.dymki === 1
       && J(po.pola) === J(['evk_tl_en__text', 'evk_tl_de__text']), J(po));
     /* Kanwa podmieniona bez pagehide (np. zerwana): przyciski pól z obcego
        okna mają obsługę z martwego okna — straż stawia własne. */
-    await page.evaluate(() => document.querySelectorAll('.evk-tl-ai-pole').forEach((b) => { b.__evkWlasciciel = null; b.setAttribute('data-obcy', '1'); }));
+    await page.evaluate(() => document.querySelectorAll('.evk-tl-ai-ikona').forEach((b) => { b.__evkWlasciciel = null; b.setAttribute('data-obcy', '1'); }));
     await page.waitForTimeout(500);
-    const obcePola = await page.evaluate(() => [document.querySelectorAll('.evk-tl-ai-pole[data-obcy]').length, document.querySelectorAll('.evk-tl-ai-pole').length]);
+    const obcePola = await page.evaluate(() => [document.querySelectorAll('.evk-tl-ai-ikona[data-obcy]').length, document.querySelectorAll('.evk-tl-ai-ikona').length]);
     t.check('przyciski pól z obcego okna: podmienione na własne', J(obcePola) === J([0, 2]), J(obcePola));
     const przedR = zadania.length;
     dialogi.length = 0;
-    await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole button');
+    await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
     await koniec('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole-stan');
     t.check('przycisk pola po przeładowaniu działa (nowe okno kanwy)', zadania.length === przedR + 1
       && J(dialogi) === J(['Zastąpić obecne tłumaczenie EN?\n\n„EN:Oferta”']), J([zadania.length - przedR, dialogi]));

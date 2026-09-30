@@ -2,6 +2,118 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.266.0] — 2026-09-30
+
+Poprawki przycisków AI po uwagach zgłaszającego z testowej (30.09): ikonka ✦
+przy ⚡ w builderze, „Przetłumacz brakujące (AI)” w trybie sprawdzania na
+stronie i układ ekranu Tłumaczenia → Języki.
+
+### Poprawione
+
+- **Dwa przyciski pod Podstawowym tekstem.** Bricks zostawia po polu ukrytym
+  warunkiem („Czytaj więcej”, `required` przejęty ze źródła w 51) PUSTĄ
+  obudowę `div[data-controlkey="evk_tl_en__readMore"]` — bez `.control`,
+  pola i ⚡. Skrypt dokładał przycisk także do niej. Teraz ✦ dostaje tylko
+  kontrolka z prawdziwym polem (pole tekstowe, textarea, edytor), a stary
+  przycisk z pustej obudowy znika. Nasze węzły szukamy w całej kontrolce,
+  nie tylko wśród jej dzieci, i w całym panelu zostaje po jednym na pole.
+- **Przycisk pod polem** (przyklejony do lewej krawędzi, wielkie litery
+  z CSS Bricksa) → **ikonka ✦ przy ⚡** (dane dynamiczne). Decyzja
+  zgłaszającego. Położenie i wymiary ⚡ skrypt odczytuje przy wstawianiu:
+  - pole tekstowe: ⚡ w przepływie → `[pole][✦][⚡]`, ✦ 28×32, pole zwęża się
+    o 28 px, ⚡ zostaje na miejscu;
+  - textarea: ⚡ absolutny → ✦ pod ⚡, 20×20, ta sama odległość od prawej,
+    4 px przerwy; pole dostaje `padding-right` 28 px, żeby tekst nie wchodził
+    pod ikonki;
+  - bez ⚡: ✦ tam, gdzie stałby ⚡ — róg textarea i edytora, prawa krawędź
+    pola tekstowego.
+
+  Klas ⚡ nie kopiujemy (Bricks może łapać kliknięcia po klasie). Zerowanie
+  stylów przycisku idzie z `!important`: reguła panelu Bricksa jest mocniejsza
+  niż jedna klasa (w atrapie przesuwała ✦ o 4 px). Nazwa: „Przetłumacz (AI) —
+  Tłumaczenie EN”. Komunikat pola (`role="status"`) stoi pod polem, w
+  `.control`, schowany przez `:empty`, a nie atrybutem `hidden`.
+- **Przycisk w pasku** → sama ikonka ✦ (16 px, cel 28×28) zaraz za
+  przełącznikiem języków, nazwa „Przetłumacz zaznaczony element (AI)”; opis
+  po najechaniu, podpowiedź i komunikat pod paskiem bez zmian.
+- **Tryb sprawdzania na stronie: zamykanie okienka** to zwykła ikonka × (SVG
+  14 px, #50575e, 32×32, bez ramki i tła; najechanie — jasne tło,
+  `focus-visible` — obrys), wyrównana do tytułu.
+- **Tłumaczenia → Języki:**
+  - nagłówek „Język WordPressa na wersjach językowych” odsunięty od „Dodaj
+    język / Zapisz ustawienia” (32 px + linia, 24 px nad nagłówkiem);
+  - „Pobierz paczkę …” jako mały przycisk, w linii tekstu;
+  - tekst wiersza PL na wysokości tekstu w polach (17 px: 8 px komórki, 1 px
+    marginesu pola z rdzenia WordPressa, 1 px ramki, 7 px wnętrza — pomiar
+    pokazał 1 px więcej niż suma z opisu).
+
+### Dodane
+
+- **„Przetłumacz brakujące (AI)” na dolnym pasku trybu sprawdzania**
+  (`?evk_tl_sprawdz=1`). Tłumaczy wszystkie brakujące teksty tej strony —
+  treść, nagłówek, stopkę i wstawione szablony — na język podglądu. Decyzje
+  zgłaszającego:
+  - zapis jak w hurcie (ten sam krok `evk_tl_ai_krok`, 61), ze znacznikiem
+    „Do sprawdzenia”; potem strona się odświeża, a pasek pokazuje
+    „Przetłumaczone: N (Do sprawdzenia), odrzucone: M”;
+  - przycisk widać tylko z kluczem API i przy brakach;
+  - potwierdzenie z liczbą tekstów i uwagą o znaczniku; przy nagłówku,
+    stopce albo szablonie sekcji dopisek, że to szablony, więc tłumaczenie
+    trafi na wszystkie strony, na których są;
+  - dostawca i model z wyboru w okienku (domyślnie z ustawień);
+  - limit dostawcy („czekaj”): odliczanie na pasku i ponowienie (najwyżej
+    5 razy); „stop”: koniec z komunikatem (bez przeładowania, gdy nic się
+    nie zapisało).
+
+  Serwer: `evk_tl_sprawdz_ai_strony()` dokłada do danych AI trybu nonce kroku
+  i części strony (`evk_tl_sprawdz_czesci()`): właściciele z tej samej listy
+  co elementy, tylko z prawem edycji, braki liczone jak w hurcie
+  (`evk_tl_ai_teksty()`). `evk_tl_sprawdz_ai_dane()` zostaje bez części —
+  woła ją też lista „Teksty w elementach” (53).
+
+### Testy
+
+- `tests/tl-ai-builder.test.js` (79 sprawdzeń): fixtura odtwarza budowę pól
+  z próby 30.09 (pole tekstowe z ⚡ w przepływie, textarea z ⚡ absolutnym,
+  pusta obudowa „Czytaj więcej”) i CSS panelu z wielkimi literami
+  i marginesami przycisków. Nowe: ikonka w pasku (bez tekstu, do 32 px),
+  `[pole][✦][⚡]` (krawędzie ±1 px, środki ±2 px), ✦ pod ⚡ w textarea
+  (4 px przerwy, `padding-right` ≥ 28), pusta obudowa bez przycisku, jedna
+  ikonka na pole po 3 s i po przerysowaniu panelu, komunikat pod polem.
+- `tests/tl-sprawdz-ai.test.js` (nowy, 23 sprawdzenia, sonda
+  `tests/php/tl-sprawdz.php` z krokami `ai-klucz`, `ai-scen`, `braki`;
+  scenariusz atrapy AI czyta mu-plugin z opcji): przycisk tylko z kluczem
+  i brakami, części w danych (treść, nagłówek, szablon sekcji; stopka bez
+  braków i kopia w dwóch miejscach poza listą), treść potwierdzenia,
+  „Anuluj” bez żądań, przebieg z 429 (odliczanie, ponowienie), puste pola
+  ze stanem AI, wypełnione nietknięte, podsumowanie po przeładowaniu tylko
+  raz, zamykanie ikonką (32×32, bez ramki, klawiatura), 360 px (pasek się
+  zawija, cele ≥ 24, bez przewijania w poziomie).
+- `tests/tl-locale.test.js`: układ zakładki Języki w Chromium na prawdziwym
+  ekranie (style z `render.php` nie trafiają do `tests/php/tab.php`) — odstęp
+  nagłówka (57 px, próg 24), przycisk paczki w linii tekstu (±2 px), tekst PL
+  z tekstem pól (±1 px), 360 px.
+- Mutacje: przycisk w pustej obudowie, ✦ za ⚡, bez `padding-right`, szukanie
+  tylko wśród dzieci kontrolki, tekst w pasku, części bez braków, bez obsługi
+  „czekaj”, zamykanie w ramce, bez odstępu i wcięcia PL w Językach — każda
+  zapala swoje sprawdzenie.
+
+### Do sprawdzenia na testowej
+
+- Builder, nagłówek: ✦ między polem „Tłumaczenie EN” a ⚡, ⚡ na swoim
+  miejscu, oba na jednej wysokości.
+- Builder, Podstawowy tekst: JEDNA ikonka, pod ⚡, tekst pola nie wchodzi pod
+  ikonki; pod „Czytaj więcej” nic.
+- Builder, Rich Text: gdzie stanął ✦ (położenia ⚡ w edytorze nie badała
+  żadna próba — reguła: przed ⚡ w przepływie, pod ⚡ absolutnym, bez ⚡
+  w prawym górnym rogu).
+- Builder, pasek: ikonka ✦ zaraz za przełącznikiem, opis po najechaniu.
+- Strona w trybie sprawdzania z nagłówkiem i stopką z szablonów: przycisk
+  „Przetłumacz brakujące (AI)”, pytanie z dopiskiem o szablonach,
+  podsumowanie po przeładowaniu; zamykanie okienka ikonką.
+- Tłumaczenia → Języki: odstęp nad „Język WordPressa…”, „Pobierz paczkę”
+  w linii, wiersz PL.
+
 ## [1.265.0] — 2026-09-30
 
 Tłumaczenie AI w builderze: „Przetłumacz (AI)” przy przełączniku PL | EN | DE

@@ -14,7 +14,17 @@
   .control-groups { margin: 0; padding: 0; list-style: none; }
   [data-controlkey] { margin: 0 0 10px; }
   .control-inner label { display: block; font-size: 12px; margin: 0 0 3px; }
-  .control-inner input { width: 100%; box-sizing: border-box; }
+  /* Wymiary z próby na testowej (30.09): pole tekstowe 256×32 i ⚡ 28×32 w wierszu
+     flex; textarea 284×130 z ⚡ 20×20 w prawym górnym rogu, 4 px od krawędzi. */
+  .has-dynamic-data[data-control="text"] { display: flex; align-items: center; position: relative; }
+  .input-wrapper { flex: 1 1 auto; min-width: 0; }
+  .control-inner input { display: block; width: 100%; height: 32px; box-sizing: border-box; }
+  [data-control="textarea"] { display: block; position: relative; }
+  [data-control="textarea"] textarea { display: block; width: 100%; height: 130px; box-sizing: border-box; padding: 8px; font: 13px/1.4 sans-serif; }
+  .dynamic-tag-picker-button { flex: none; display: flex; align-items: center; justify-content: center; width: 28px; height: 32px; box-sizing: border-box; cursor: pointer; }
+  [data-control="textarea"] > .dynamic-tag-picker-button { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; }
+  /* Bricks stylizuje przyciski panelu — wielkie litery i marginesy (uwaga zgłaszającego). */
+  .bricks-panel-controls button { text-transform: uppercase; margin: 0 4px; padding: 2px 10px; background: #333; }
   .repeater-item { margin: 6px 0 6px 10px; padding-left: 8px; border-left: 2px solid #555; }
   #bricks-builder-iframe { display: block; width: 900px; height: 700px; border: 0; background: #fff; }
 </style>
@@ -25,8 +35,13 @@
   pasek `#bricks-toolbar-top`, kanwa w ramce) i do tego panel w kształcie z próby
   A4 (docs/proby-builder-ai.md, 30.09): `li.control-group[data-control-group="evk_tl"]
   > div[data-controlkey="evk_tl_en__text"] > div.control.control-text >
-  div.control-inner.has-label > label + input`. Pola pozycji listy siedzą
-  w kontrolce listy (`div[data-controlkey="items"]`).
+  div.control-inner.has-label > label + div.has-dynamic-data > (div.input-wrapper
+  > input) + ⚡`. Pola pozycji listy siedzą w kontrolce listy
+  (`div[data-controlkey="items"]`).
+
+  Podstawowy tekst (1.266.0, próba z 30.09): textarea z ⚡ absolutnym i drugie
+  pole, „Czytaj więcej”, ukryte warunkiem — Bricks zostawia wtedy PUSTĄ
+  obudowę `div[data-controlkey="evk_tl_en__readMore"]`, bez `.control`.
 
   Atrapa panelu robi to, co Vue: przy zmianie zaznaczenia rysuje panel od nowa
   (obce węzły znikają), a pola trzymają się ustawień jak `v-model` — pisanie
@@ -88,16 +103,35 @@
         });
         return w;
       }
+      var BOLT = '<div class="dynamic-tag-picker-button" title="Dane dynamiczne">⚡</div>';
       function pole(klucz, obj, id) {
         var d = document.createElement('div');
         d.setAttribute('data-controlkey', klucz);
-        d.innerHTML = '<div class="control control-text"><div class="control-inner has-label"><label></label><input type="text" class="large"></div></div>';
+        d.innerHTML = '<div class="control control-text"><div class="control-inner has-label"><label></label>'
+          + '<div class="has-dynamic-data" data-control="text"><div class="input-wrapper"><input type="text" class="large"></div>' + BOLT + '</div></div></div>';
         var label = d.querySelector('label'), input = d.querySelector('input');
         input.id = id;
         label.htmlFor = id;
         label.textContent = 'Tłumaczenie ' + klucz.slice(7, 9).toUpperCase();
         input.value = typeof obj[klucz] === 'string' ? obj[klucz] : '';
         input.addEventListener('input', function () { obj[klucz] = input.value; });
+        d.__obj = obj;
+        d.__klucz = klucz;
+        return d;
+      }
+      function obszar(klucz, obj, id) {
+        var d = document.createElement('div');
+        d.setAttribute('data-controlkey', klucz);
+        /* Pole ukryte warunkiem: pusta obudowa. */
+        if (/__readMore$/.test(klucz) && !obj.readMore) return d;
+        d.innerHTML = '<div class="control control-textarea"><div class="control-inner has-label"><label></label>'
+          + '<div data-control="textarea"><textarea rows="6"></textarea>' + BOLT + '</div></div></div>';
+        var label = d.querySelector('label'), ta = d.querySelector('textarea');
+        ta.id = id;
+        label.htmlFor = id;
+        label.textContent = 'Tłumaczenie ' + klucz.slice(7, 9).toUpperCase();
+        ta.value = typeof obj[klucz] === 'string' ? obj[klucz] : '';
+        ta.addEventListener('input', function () { obj[klucz] = ta.value; });
         d.__obj = obj;
         d.__klucz = klucz;
         return d;
@@ -132,7 +166,8 @@
         window.tinymce.edytory = {};
         ['en', 'de'].forEach(function (j) {
           (def.pola || []).forEach(function (p) {
-            li.appendChild((e.name === 'rich-text' ? edytor : pole)('evk_tl_' + j + '__' + p, e.settings, 'evk_tl_' + j + '__' + p));
+            var rodzaj = e.name === 'rich-text' ? edytor : (e.name === 'text-basic' ? obszar : pole);
+            li.appendChild(rodzaj('evk_tl_' + j + '__' + p, e.settings, 'evk_tl_' + j + '__' + p));
           });
         });
         Object.keys(def.listy || {}).forEach(function (lista) {
@@ -151,9 +186,11 @@
         });
         g.appendChild(li);
       }
+      /* Test wymusza przerysowanie panelu (jak Vue po zmianie zakładki). */
+      window.__rysuj = rysuj;
       setInterval(function () {
         if (window.__stan.activeId !== ostatni) { ostatni = window.__stan.activeId; rysuj(); return; }
-        document.querySelectorAll('#grupy input[type="text"]').forEach(function (i) {
+        document.querySelectorAll('#grupy input[type="text"], #grupy textarea:not([hidden])').forEach(function (i) {
           var d = i.closest('[data-controlkey]');
           var v = typeof d.__obj[d.__klucz] === 'string' ? d.__obj[d.__klucz] : '';
           if (document.activeElement !== i && i.value !== v) i.value = v;

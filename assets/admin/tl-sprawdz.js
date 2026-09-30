@@ -37,6 +37,7 @@
     slownik: 'Ze słownika', czesc: 'Częściowo ze słownika', brak: 'Brak tłumaczenia',
   };
   const POWROT = 'evkTlSprawdzPowrot';
+  const WYNIK_AI = 'evkTlSprawdzAi';
 
   /* Stan widoczny także dla testu (tylko do odczytu). */
   const stan = { elementy: DANE.elementy || {}, otwarty: null, wezly: new Map(), liczby: {} };
@@ -53,6 +54,17 @@
       e.appendChild(typeof d === 'string' ? document.createTextNode(d) : d);
     });
     return e;
+  }
+
+  /** × jako SVG (1.266.0): zwykła ikonka zamiast przycisku w ramce. */
+  function ikonaZamknij() {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    [['viewBox', '0 0 14 14'], ['width', '14'], ['height', '14'], ['aria-hidden', 'true'], ['focusable', 'false']].forEach(([k, v]) => svg.setAttribute(k, v));
+    const p = document.createElementNS(ns, 'path');
+    [['d', 'M2 2L12 12M12 2L2 12'], ['stroke', 'currentColor'], ['stroke-width', '2'], ['stroke-linecap', 'round'], ['fill', 'none']].forEach(([k, v]) => p.setAttribute(k, v));
+    svg.appendChild(p);
+    return svg;
   }
 
   /* Tekst z HTML-u bez wykonywania czegokolwiek (DOMParser — dokument obojętny:
@@ -103,6 +115,12 @@
   const nastepnaStrona = el('a', { class: 'evk-tls-przycisk evk-tls-strona', href: DANE.nastepna || '#' }, 'Następna strona do sprawdzenia ›');
   if (!DANE.nastepna) nastepnaStrona.hidden = true;
   pasek.appendChild(nastepnaStrona);
+  /* „Przetłumacz brakujące (AI)” (1.266.0): części tej strony z brakami —
+     treść, nagłówek, stopka, wstawione szablony (62) — tylko z kluczem API. */
+  const CZESCI = DANE.ai && Array.isArray(DANE.ai.czesci) ? DANE.ai.czesci.filter((c) => c && c.braki > 0) : [];
+  const brakiAi = CZESCI.reduce((a, c) => a + c.braki, 0);
+  const pasekAi = el('button', { type: 'button', class: 'evk-tls-przycisk evk-tls-ai-braki' }, 'Przetłumacz brakujące (AI)');
+  if (brakiAi) pasek.appendChild(pasekAi);
   pasek.appendChild(el('a', { class: 'evk-tls-przycisk evk-tls-koniec', href: DANE.koniec || '?' }, 'Zakończ'));
   const pasekStan = el('span', { class: 'evk-tls-pasek-stan', role: 'status' });
   pasek.appendChild(pasekStan);
@@ -156,7 +174,7 @@
     okno.textContent = '';
     const glowa = el('div', { class: 'evk-tls-glowa' });
     glowa.appendChild(el('h2', { id: 'evk-tls-tytul', class: 'evk-tls-tytul' }, e.etykieta + ' · ' + JEZYK));
-    glowa.appendChild(el('button', { type: 'button', class: 'evk-tls-przycisk evk-tls-zamknij', 'aria-label': 'Zamknij' }, '×'));
+    glowa.appendChild(el('button', { type: 'button', class: 'evk-tls-zamknij', 'aria-label': 'Zamknij' }, ikonaZamknij()));
     okno.appendChild(glowa);
     if (e.tytul) okno.appendChild(el('p', { class: 'evk-tls-skad' }, e.czesc + ': ' + e.tytul));
 
@@ -363,6 +381,74 @@
     otworz(cel.getAttribute('data-evk-tls-id'), cel);
   }
 
+  // ── „Przetłumacz brakujące (AI)” ───────────────────────────────────────
+  /* Pętla jak hurt w panelu (includes/admin/tl/tab-ai.php): kroki
+     `evk_tl_ai_krok` po każdej części, aż `zostalo` = 0. Zapis jak w hurcie —
+     tłumaczenia dostają znacznik „Do sprawdzenia”. Dostawca i model z wyboru
+     w okienku (domyślnie z ustawień). Na koniec podsumowanie do sessionStorage
+     i przeładowanie: obrysy i liczniki liczy serwer. */
+  async function krokAi(c, pomin) {
+    const fd = new FormData();
+    [['action', 'evk_tl_ai_krok'], ['nonce', DANE.ai.nonce_krok || ''], ['post_id', c.post], ['meta_key', c.meta], ['lang', DANE.jezyk || ''],
+      ['dostawca', wyborAi.dostawca], ['model', wyborAi.model]].forEach(([k, v]) => fd.append(k, v));
+    pomin.forEach((k) => fd.append('pomin[]', k));
+    try {
+      return await (await fetch(DANE.ajax, { method: 'POST', body: fd, credentials: 'same-origin' })).json();
+    } catch (e) { return null; }
+  }
+
+  async function odliczaj(sekundy) {
+    for (let s = Math.max(1, Math.round(sekundy)); s > 0; s--) {
+      pasekStan.textContent = 'Dostawca prosi o przerwę — ponawiam za ' + s + ' s.';
+      await new Promise((ok) => setTimeout(ok, 1000));
+    }
+  }
+
+  async function przetlumaczBraki() {
+    if (pasekAi.disabled || !CZESCI.length) return;
+    let pytanie = 'Przetłumaczyć brakujące teksty tej strony na ' + JEZYK + ': ' + brakiAi + '?\n\nTłumaczenia dostaną znacznik „Do sprawdzenia”.';
+    const szablony = CZESCI.filter((c) => c.szablon).map((c) => (c.czesc === 'Treść' ? 'szablon „' + c.tytul + '”' : c.czesc.toLowerCase()));
+    if (szablony.length) {
+      const wiele = szablony.length > 1;
+      pytanie += '\n\n' + szablony.join(', ').replace(/, ([^,]*)$/, ' i $1').replace(/^./, (z) => z.toUpperCase()) + ' to ' + (wiele ? 'szablony' : 'szablon')
+        + ' — tłumaczenie trafi na wszystkie strony, na których ' + (wiele ? 'są' : 'jest') + '.';
+    }
+    if (!window.confirm(pytanie)) return;
+    pasekAi.disabled = true;
+    pasekAi.setAttribute('aria-busy', 'true');
+    const suma = { zapisane: 0, odrzucone: 0, blad: '' };
+    petla:
+    for (const c of CZESCI) {
+      let pomin = [];
+      let proby = 0;
+      for (let krok = 0; krok < 500; krok++) {
+        pasekStan.textContent = 'Tłumaczę: ' + c.tytul + ' (' + c.czesc + ') — ' + JEZYK + '… zapisane ' + suma.zapisane + '.';
+        const r = await krokAi(c, pomin);
+        if (!r || !r.success) { suma.blad = (r && typeof r.data === 'string' && r.data) || 'Błąd połączenia z serwerem.'; break petla; }
+        const d = r.data || {};
+        /* Odrzucone, bez zmian i już zapisane nie wracają (jak w hurcie). */
+        pomin = pomin.concat(d.odrzucone || [], d.pominiete || [], d.zapisane_klucze || []);
+        suma.zapisane += d.zapisane || 0;
+        suma.odrzucone += (d.odrzucone || []).length;
+        if (d.blad) {
+          if (d.stop) { suma.blad = String(d.blad); break petla; }
+          if (++proby > 5) { suma.blad = String(d.blad); break; }
+          if (d.czekaj) await odliczaj(d.czekaj);
+          continue;
+        }
+        if (!d.zostalo) break;
+      }
+    }
+    if (suma.zapisane || !suma.blad) {
+      try { sessionStorage.setItem(WYNIK_AI, JSON.stringify(Object.assign({ adres: location.pathname + location.search }, suma))); } catch (e) { /* bez podsumowania */ }
+      location.reload();
+      return;
+    }
+    pasekAi.disabled = false;
+    pasekAi.setAttribute('aria-busy', 'false');
+    pasekStan.textContent = 'Nic nie przetłumaczone. ' + suma.blad;
+  }
+
   // ── Zapis i odświeżenie ────────────────────────────────────────────────
   function zapamietaj(id) {
     try {
@@ -444,6 +530,7 @@
     else if (b.classList.contains('evk-tls-nastepne')) nastepny();
   });
   pasekNastepne.addEventListener('click', nastepny);
+  pasekAi.addEventListener('click', () => { przetlumaczBraki(); });
   wszystkie.addEventListener('change', () => document.body.classList.toggle('evk-tls-wszystkie', wszystkie.checked));
 
   /* Klik w element strony otwiera okienko zamiast odnośnika, przycisku czy
@@ -490,6 +577,14 @@
     document.body.appendChild(pasek);
     document.body.appendChild(okno);
     ozdob();
+    try {
+      const w = JSON.parse(sessionStorage.getItem(WYNIK_AI) || 'null');
+      sessionStorage.removeItem(WYNIK_AI);
+      if (w && w.adres === location.pathname + location.search) {
+        pasekStan.textContent = 'Przetłumaczone: ' + (w.zapisane || 0) + ' (Do sprawdzenia), odrzucone: ' + (w.odrzucone || 0) + '.'
+          + (w.blad ? ' Przerwane: ' + w.blad : '');
+      }
+    } catch (e) { /* bez podsumowania */ }
     let powrot = null;
     try {
       powrot = JSON.parse(sessionStorage.getItem(POWROT) || 'null');

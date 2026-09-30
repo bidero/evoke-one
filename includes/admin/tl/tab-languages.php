@@ -83,7 +83,7 @@ if (!defined('ABSPATH')) exit;
                         <?php elseif ($p['stan'] === 'jest'): ?>paczka zainstalowana
                         <?php else: ?>brak paczki
                             <?php if (current_user_can('install_languages')): ?>
-                            <button type="button" class="button tl-pobierz-paczke" data-locale="<?php echo esc_attr($p['locale']); ?>" onclick="tlPobierzPaczke(this)">Pobierz paczkę <?php echo esc_html($p['locale']); ?></button>
+                            <button type="button" class="button button-small tl-pobierz-paczke" data-locale="<?php echo esc_attr($p['locale']); ?>" onclick="tlPobierzPaczke(this)">Pobierz paczkę <?php echo esc_html($p['locale']); ?></button>
                             <span class="evo-save-msg" role="status"></span>
                             <?php endif; ?>
                         <?php endif; ?>

@@ -131,3 +131,39 @@ Do sprawdzenia na testowej (lista także w CHANGELOG przy 1.265.0): kanwa
 i pola panelu po wpisie, Ctrl+Z, zapis, pole z edytorem (Rich Text), pozycje
 list w panelu, szablon nagłówka albo stopki. Komponenty — osobna próba:
 `docs/proby-komponenty.md`.
+
+## Wynik prób w konsoli (30.09, testowa, od zgłaszającego) — do 1.266.0
+
+**Duplikat pod Podstawowym tekstem.** Element ma dwie kontrolki języka:
+`evk_tl_en__text` i `evk_tl_en__readMore`. Pole „Czytaj więcej” ukrywa
+warunek (`required` przejęty ze źródła w 51). Bricks zostawia wtedy PUSTĄ
+obudowę `div[data-controlkey="evk_tl_en__readMore"]`, bez `.control`, pola
+i ⚡, a skrypt 1.265.0 dołożył przycisk także do niej. Działa w jednej ramce
+(`bricks-builder-iframe`), więc to nie sprawa drugiego okna.
+
+**Budowa pola.** ⚡ to `div.dynamic-tag-picker-button`, rodzeństwo pola.
+Rodzic kontrolki: `li.control-group[data-control-group="evk_tl"]`.
+
+- Nagłówek (pole tekstowe): `div[data-controlkey] > div.control.control-text
+  > div.control-inner.has-label > label + div.has-dynamic-data[data-control="text"]
+  > (div.input-wrapper > input#evk_tl_en__text.large) + ⚡`.
+  `div.has-dynamic-data` to flex w rzędzie, `align-items: center`,
+  `position: relative`. ⚡ w przepływie, 28×32, zaraz za polem (pole x 66–322,
+  ⚡ 322–350, oba po 32 px).
+- Podstawowy tekst (textarea): `… > div.control.control-textarea >
+  div.control-inner.has-label > label + div[data-control="textarea"] >
+  textarea + ⚡`. `div[data-control="textarea"]` to blok z `position:
+  relative`; ⚡ absolutny, 20×20, w prawym górnym rogu, 4 px od krawędzi
+  (pole x 66–350, y 332–462; ⚡ x 326–346, y 336–356). Pole ma z prawej tylko
+  8 px odstępu.
+
+## Wdrożone w 1.266.0
+
+- ✦ tylko w kontrolce z prawdziwym polem; pusta obudowa nic nie dostaje.
+- ✦ przy ⚡ według jego położenia odczytanego przy wstawianiu: przed ⚡
+  w przepływie (`[pole][✦][⚡]`), pod ⚡ absolutnym (+ `padding-right` 28 px
+  textarea), bez ⚡ — tam, gdzie by stał.
+- W pasku sama ikonka ✦ z nazwą „Przetłumacz zaznaczony element (AI)”.
+
+Rich Text: położenia ⚡ w polu z edytorem żadna próba nie zbadała — punkt „Do
+sprawdzenia na testowej” w CHANGELOG przy 1.266.0.

@@ -42,6 +42,7 @@ function tl_render_page() {
 
         /* Toolbar / pasek zapisu */
         .tl-toolbar,.tl-footer,.tl-save-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .tl-footer { margin-top:12px; }
         .tl-toolbar { margin-bottom:16px; padding:12px; border:1px solid #e5e7eb; border-radius:10px; background:var(--evo-surface); }
         .tl-search-wrap { display:flex; align-items:center; gap:6px; background:var(--evo-bg); border:1px solid var(--evo-border); border-radius:8px; padding:7px 12px; flex:1; min-width:200px; max-width:420px; }
         .tl-search-wrap input { flex:1; border:none; background:transparent; font-size:13px; outline:none; }
@@ -146,6 +147,12 @@ function tl_render_page() {
         .lang-table th, .slug-table th { background:var(--evo-surface); padding:8px 10px; font-size:11px; text-align:left; border-bottom:1px solid #e5e7eb; color:#475569; }
         .lang-table td, .slug-table td { padding:7px 8px; border-bottom:1px solid var(--evo-surface-alt); }
         .lang-table input[type=text], .slug-table input[type=text] { width:100%; border:1px solid var(--evo-border-field); border-radius:6px; padding:5px 7px; }
+        /* Wiersz PL bez pól: tekst na wysokości tekstu w polach — 8 px komórki,
+           1 px marginesu pola (forms.css rdzenia), 1 px ramki, 7 px wnętrza. */
+        .lang-table .lang-row-pl td { padding-left:17px; }
+        /* Język WordPressa (1.266.0): oddzielony od przycisków zapisu, przycisk paczki w linii tekstu. */
+        #tl-jezyk-wp { margin-top:32px; padding-top:24px; border-top:1px solid var(--evo-border-soft); }
+        #tl-jezyk-wp li { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; min-height:32px; }
         .lang-table tr.ui-sortable-helper, .slug-table tr.ui-sortable-helper { background:var(--evo-bg); box-shadow:0 4px 12px rgba(0,0,0,.15); display:table; width:100%; }
         .lang-table tr.sortable-placeholder, .slug-table tr.sortable-placeholder { height:42px; }
 
