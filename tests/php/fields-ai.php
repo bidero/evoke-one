@@ -43,7 +43,7 @@ const EVK_FA_TYTUL = 'Test pól — AI';
 $plik  = sys_get_temp_dir() . '/evk-t-fields-ai.json';
 $mu    = WP_CONTENT_DIR . '/mu-plugins/evk-pola-ai-test.php';
 $opcje = ['evk_tl_ai', 'evk_tl_ai_pamiec', 'evk_tl_module_enabled', 'tl_languages', 'tl_translations', 'evk_tl_el_pola',
-    'evk_rep_settings_pages', 'evk_rep_opt_ai_opcje'];
+    'evk_rep_settings_pages', 'evk_rep_opt_ai_opcje', 'evk_rep_opt_ai_opcje_lista'];
 const EVK_FA_STRONA = 'pola-ai-ustawienia';
 
 function evk_fa_zapis(): array {
@@ -144,9 +144,13 @@ case 'ustaw':
     $strony = get_option('evk_rep_settings_pages', []);
     $strony = is_array($strony) ? $strony : [];
     $strony[EVK_FA_STRONA] = ['label' => 'Ustawienia AI', 'slug' => EVK_FA_STRONA, 'icon' => 'dashicons-admin-generic', 'capability' => 'manage_options',
-        'parent' => '', 'hide_title' => 0, 'tabs' => [['label' => 'Ogólne', 'groups' => ['ai_opcje']]]];
+        'parent' => '', 'hide_title' => 0, 'tabs' => [['label' => 'Ogólne', 'groups' => ['ai_opcje']], ['label' => 'Lista', 'groups' => ['ai_opcje_lista']]]];
     update_option('evk_rep_settings_pages', $strony);
     update_option('evk_rep_opt_ai_opcje', ['slogan' => 'Najlepsza oferta', 'przyciski' => [['etykieta' => 'Zadzwoń teraz']]], false);
+    /* Grupa-repeater na drugiej zakładce (1.272.0: hurt stron ustawień) — wiersze pod kluczem grupy. */
+    $gl = $grupa('ai_opcje_lista', 'Lista opcji', ['pozycja' => ['type' => 'text', 'label' => 'Pozycja']], true);
+    update_post_meta($gl, '_evk_object_type', 'options');
+    update_option('evk_rep_opt_ai_opcje_lista', [['pozycja' => 'Pierwsza pozycja'], ['pozycja' => 'Druga pozycja']], false);
     /* Grupa na kategoriach (1.270.0, Fields 1.77.0: teksty pól termów). */
     $gt = $grupa('ai_term', 'Pola kategorii', ['podpis_kat' => ['type' => 'text', 'label' => 'Podpis kategorii']], false);
     update_post_meta($gt, '_evk_object_type', 'term');
@@ -326,6 +330,55 @@ case 'ajax-pola':
 
 case 'opcje':
     $out['opcje'] = get_option('evk_rep_opt_ai_opcje');
+    $out['lista'] = get_option('evk_rep_opt_ai_opcje_lista');
+    break;
+
+/* Strony ustawień w hurcie (1.272.0, Fields 1.78.0). */
+case 'opcje-api':
+    $out['obiekty'] = function_exists('evk_fields_tl_obiekty') ? evk_fields_tl_obiekty() : null;
+    $out['strony'] = function_exists('evk_fields_tl_grupy_stron') ? (evk_fields_tl_grupy_stron()[EVK_FA_STRONA] ?? null) : 'brak';
+    $out['teksty'] = function_exists('evk_fields_tl_teksty_opcji') ? evk_fields_tl_teksty_opcji('ai_opcje') : 'brak';
+    $out['lista'] = function_exists('evk_fields_tl_teksty_opcji') ? evk_fields_tl_teksty_opcji('ai_opcje_lista') : 'brak';
+    $out['spoza'] = function_exists('evk_fields_tl_teksty_opcji') ? evk_fields_tl_teksty_opcji('ai_pola') : 'brak';
+    $out['wpisz_spoza'] = function_exists('evk_fields_tl_wpisz_opcji') ? evk_fields_tl_wpisz_opcji('ai_pola', 'tytul|', 'en', 'X') : 'brak';
+    break;
+
+case 'jednostki-opcje':
+    wp_set_current_user(evk_fa_kto((string) ($argv[2] ?? 'admin')));
+    $out['wiersz'] = evk_tl_ai_wiersze_zakresu()['opcje:' . EVK_FA_STRONA] ?? null;
+    $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, evk_tl_ai_zakres_z(['opcje:' . EVK_FA_STRONA => ['fields']])),
+        static function ($j) { return $j['meta_key'] === EVK_TL_AI_POLA_OPCJI; }));
+    break;
+
+/* Krok przez AJAX, jak przycisk „Przetłumacz zaznaczone” — z prawem strony ustawień. */
+case 'krok-opcje':
+    wp_set_current_user(evk_fa_kto((string) ($argv[2] ?? 'admin')));
+    $lang = (string) ($argv[3] ?? 'de');
+    $GLOBALS['evk_t_ai_kod'] = $lang;
+    $out['odp'] = [];
+    foreach (['ai_opcje', 'ai_opcje_lista'] as $gk) {
+        $out['odp'][$gk] = evk_fa_ajax(['action' => 'evk_tl_ai_krok', 'nonce' => wp_create_nonce('evk_tl_ai'), 'post_id' => '0',
+            'meta_key' => EVK_TL_AI_POLA_OPCJI, 'opcje' => $gk, 'lang' => $lang, 'czesci' => ['fields']]);
+    }
+    $out['zadania'] = count($GLOBALS['evk_t_ai_zadania']);
+    $z = end($GLOBALS['evk_t_ai_zadania']);
+    $out['wiadomosc'] = $z ? (string) ($z['body']['contents'][0]['parts'][0]['text'] ?? '') : '';
+    $out['opcje'] = get_option('evk_rep_opt_ai_opcje');
+    $out['lista'] = get_option('evk_rep_opt_ai_opcje_lista');
+    break;
+
+case 'lista-opcje':
+    $out['wiersze'] = evk_tl_ai_pola_opcji_do_sprawdzenia();
+    ob_start();
+    evk_tl_el_sekcja_do_sprawdzenia();
+    $out['html'] = (string) ob_get_clean();
+    break;
+
+case 'ajax-sprawdzone-opcje':
+    wp_set_current_user(evk_fa_kto((string) ($argv[3] ?? 'admin')));
+    $out['odp'] = evk_fa_ajax(['action' => 'evk_tl_el_sprawdzone', 'nonce' => wp_create_nonce('evk_tl_el_sprawdzone'),
+        'post_id' => '0', 'meta_key' => EVK_TL_AI_POLA_OPCJI, 'klucz' => (string) ($argv[2] ?? '')]);
+    $out['lista'] = get_option('evk_rep_opt_ai_opcje_lista');
     break;
 
 case 'dane-strona':

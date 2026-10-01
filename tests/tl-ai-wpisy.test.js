@@ -294,11 +294,21 @@ module.exports = async function (t) {
     const zt0 = await tabela();
     console.log('      tabela zakresu: ' + J(zt0));
     const wiersz = (z, typ) => z.find((r) => r[0] === typ) || [];
-    t.check('wiersze „Wpisy” i „Strony” z częściami (nazwy z rodzajem), domyślnie tylko treść Bricksa', J(wiersz(zt0, 'page')) === J(['page', 'Pages', false, true,
-      ['*bricks:Pages: Bricks', 'post_title:Pages: Tytuł', 'post_content:Pages: Treść', 'adres:Pages: Adres', 'seo:Pages: SEO']])
+    t.check('wiersze „Wpisy” i „Strony” z częściami (nazwy z rodzajem), domyślnie nic nie zaznaczone (1.272.0)', J(wiersz(zt0, 'page')) === J(['page', 'Pages', false, false,
+      ['bricks:Pages: Bricks', 'post_title:Pages: Tytuł', 'post_content:Pages: Treść', 'adres:Pages: Adres', 'seo:Pages: SEO']])
       && J(wiersz(zt0, 'post')[4]) === J(['post_title:Posts: Tytuł', 'post_content:Posts: Treść', 'post_excerpt:Posts: Zajawka', 'adres:Posts: Adres', 'seo:Posts: SEO']), J(zt0));
     t.check('kategorie i tagi w osobnej tabeli: Nazwa, Opis, Adres', J(wiersz(zt0, 'tax:category')[4]) === J(['name:Categories: Nazwa', 'description:Categories: Opis',
       'adres:Categories: Adres']), J(wiersz(zt0, 'tax:category')));
+    t.check('żadna część nie jest zaznaczona na starcie', zt0.every((r) => !r[2] && !r[3] && r[4].every((x) => x[0] !== '*')), J(zt0));
+    /* Pusta tabela: „Pokaż listę” nie pyta serwera, tylko prosi o zaznaczenie. */
+    let listy = 0;
+    const naListe = (r) => { if (/admin-ajax\.php/.test(r.url()) && /action=evk_tl_ai_lista/.test(r.postData() || '')) listy++; };
+    p.on('request', naListe);
+    await p.click('.tl-ai-lista');
+    await p.waitForTimeout(300);
+    const pustyStan = await p.locator('.tl-ai-stan').textContent();
+    p.off('request', naListe);
+    t.check('pusty zakres: komunikat „Zaznacz, co tłumaczyć.”, zero żądań listy', pustyStan === 'Zaznacz, co tłumaczyć.' && listy === 0, J([pustyStan, listy]));
     await p.click('.tl-ai-typ[data-typ="post"]');
     const zt1 = wiersz(await tabela(), 'post');
     await p.click('.tl-ai-czesc[data-typ="post"][value="post_excerpt"]');

@@ -325,11 +325,65 @@ module.exports = async function (t) {
       && /^ai-/.test(op.evk_tl_en__slogan__zrodlo || '') && wiersz.evk_tl_en__etykieta === 'EN:Zadzwoń teraz' && /^ai-/.test(wiersz.evk_tl_en__etykieta__zrodlo || '')
       && op.slogan === 'Najlepsza oferta', J(op));
 
+    // ── Strony ustawień w hurcie (1.272.0, Fields 1.78.0) ───────────────
+    t.section('strony ustawień w hurcie: API Fields, wiersz tabeli, krok z prawem strony, „Do sprawdzenia”');
+    const usOa = sonda('opcje-api');
+    t.check('Fields: obiekt „opcje”, strona z dwiema grupami (druga na zakładce 2), teksty grupy pojedynczej i repeatera; grupa spoza stron — pusto, bez zapisu',
+      J(usOa.obiekty) === J(['post', 'term', 'opcje']) && J(usOa.strony) === J({ nazwa: 'Ustawienia AI', prawo: 'manage_options',
+        grupy: { ai_opcje: { nazwa: 'Opcje AI', zakladka: 0 }, ai_opcje_lista: { nazwa: 'Lista opcji', zakladka: 1 } } })
+      && J((usOa.teksty || []).map((x) => [x.klucz, x.pl, x.tl.en])) === J([['slogan|', 'Najlepsza oferta', 'EN:Najlepsza oferta'], ['przyciski|0.etykieta', 'Zadzwoń teraz', 'EN:Zadzwoń teraz']])
+      && J((usOa.lista || []).map((x) => [x.klucz, x.pl])) === J([['ai_opcje_lista|0.pozycja', 'Pierwsza pozycja'], ['ai_opcje_lista|1.pozycja', 'Druga pozycja']])
+      && J(usOa.spoza) === '[]' && usOa.wpisz_spoza === false, J(usOa));
+    const usJoA = sonda('jednostki-opcje', 'admin');
+    const usJoC = sonda('jednostki-opcje', 'czytelnik');
+    const usJoL = (usJoA.jednostki || []).map((j) => [j.opcje, j.tytul, j.adres.replace(/^.*\/wp-admin\//, ''), j.braki, j.grupa, j.post_id]);
+    console.log('      jednostki: ' + J(usJoL));
+    t.check('wiersz „Ustawienia AI” (część Pola Fields); pozycja na grupę „Strona › Grupa” z adresem zakładki; bez prawa strony — bez wiersza',
+      J(usJoA.wiersz) === J({ nazwa: 'Ustawienia AI', rodzaj: 'opcje', czesci: ['fields'] }) && J(usJoL) === J([
+        ['ai_opcje', 'Ustawienia AI › Opcje AI', 'admin.php?page=pola-ai-ustawienia', { de: 2 }, 'Ustawienia AI', 0],
+        ['ai_opcje_lista', 'Ustawienia AI › Lista opcji', 'admin.php?page=pola-ai-ustawienia&tab=1', { en: 2, de: 2 }, 'Ustawienia AI', 0]])
+      && usJoC.wiersz === null && J(usJoC.jednostki) === '[]', J([usJoA, usJoC]));
+    const usKoC = sonda('krok-opcje', 'czytelnik', 'de');
+    t.check('krok bez prawa strony ustawień: 403 dla obu grup, bez pytania AI', Object.values(usKoC.odp || {}).every((o) => o && o.success === false
+      && o.data === 'Brak uprawnień do tej strony ustawień.') && usKoC.zadania === 0, J(usKoC));
+    const usKoA = sonda('krok-opcje', 'admin', 'de');
+    const usOl = usKoA.lista || [];
+    t.check('krok DE: grupa pojedyncza i repeater — tłumaczenia w opcji ze znacznikiem „ai-”, oryginały bez zmian; nazwa strony w zapytaniu',
+      (usKoA.opcje || {}).evk_tl_de__slogan === 'DE:Najlepsza oferta' && /^ai-/.test((usKoA.opcje || {}).evk_tl_de__slogan__zrodlo || '')
+      && ((usKoA.opcje || {}).przyciski || [{}])[0].evk_tl_de__etykieta === 'DE:Zadzwoń teraz' && (usKoA.opcje || {}).evk_tl_en__slogan === 'EN:Najlepsza oferta'
+      && usOl.length === 2 && usOl[0].pozycja === 'Pierwsza pozycja' && usOl[0].evk_tl_de__pozycja === 'DE:Pierwsza pozycja' && /^ai-/.test(usOl[1].evk_tl_de__pozycja__zrodlo || '')
+      && usKoA.zadania === 2 && /^Page: Ustawienia AI › Lista opcji\n/.test(usKoA.wiadomosc || ''), J(usKoA));
+    /* Formularz strony ustawień zapisuje opcję w całości — tłumaczenia z hurtu muszą przez niego przejść. */
+    await p.goto(adresS, { waitUntil: 'load' });
+    await Promise.all([p.waitForNavigation({ waitUntil: 'load' }), p.click('.evk-settings-form [type="submit"]')]);
+    await p.goto(adresS + '&tab=1', { waitUntil: 'load' });
+    await Promise.all([p.waitForNavigation({ waitUntil: 'load' }), p.click('.evk-settings-form [type="submit"]')]);
+    const usPo = sonda('opcje');
+    t.check('zapis obu zakładek formularzem: tłumaczenia DE z hurtu zostają, ze znacznikiem', (usPo.opcje || {}).evk_tl_de__slogan === 'DE:Najlepsza oferta'
+      && /^ai-/.test((usPo.opcje || {}).evk_tl_de__slogan__zrodlo || '') && ((usPo.lista || [])[1] || {}).evk_tl_de__pozycja === 'DE:Druga pozycja'
+      && /^ai-/.test(((usPo.lista || [])[1] || {}).evk_tl_de__pozycja__zrodlo || ''), J(usPo));
+    const usLo = sonda('lista-opcje');
+    /* Tylko strona testu — pola.test ma też strony ustawień innych zestawów. */
+    const nasze = (l) => (l.wiersze || []).filter((w) => /^Ustawienia AI › /.test(w.tytul));
+    const usLoW = nasze(usLo).map((w) => [w.klucz, w.tytul, w.ai]);
+    console.log('      do sprawdzenia: ' + J(usLoW));
+    t.check('„Do sprawdzenia”: każde pole AI strony ustawień, tytuł „Strona › Grupa”, odnośnik do zakładki', usLoW.length === 6
+      && usLoW.some((w) => J(w) === J(['ai_opcje_lista#ai_opcje_lista|1.pozycja|de', 'Ustawienia AI › Lista opcji', true]))
+      && usLoW.some((w) => J(w) === J(['ai_opcje#slogan||en', 'Ustawienia AI › Opcje AI', true]))
+      && /admin\.php\?page=pola-ai-ustawienia&(amp;|#038;)tab=1">Ustawienia AI › Lista opcji<\/a>/.test(usLo.html || ''), J([usLoW, (usLo.html || '').length]));
+    const usSo = sonda('ajax-sprawdzone-opcje', 'ai_opcje_lista#ai_opcje_lista|1.pozycja|de', 'czytelnik');
+    const usSa = sonda('ajax-sprawdzone-opcje', 'ai_opcje_lista#ai_opcje_lista|1.pozycja|de', 'admin');
+    const usLo2 = sonda('lista-opcje');
+    t.check('„Sprawdzone”: bez prawa strony — 403; z prawem — znacznik zdjęty, tekst zostaje, wiersz znika', usSo.odp && usSo.odp.success === false
+      && usSo.odp.data === 'Brak uprawnień do tej strony ustawień.' && usSa.odp && usSa.odp.success === true
+      && ((usSa.lista || [])[1] || {}).evk_tl_de__pozycja === 'DE:Druga pozycja' && !/^ai-/.test(((usSa.lista || [])[1] || {}).evk_tl_de__pozycja__zrodlo || 'ai-')
+      && nasze(usLo2).length === 5, J([usSo.odp, usSa.odp, (usSa.lista || [])[1], nasze(usLo2).length]));
+
     // ── Kategorie (1.270.0, Fields 1.77.0) ───────────────────────────────
     t.section('kategoria: pola Fields termu — API, hurt, „Do sprawdzenia”, ✦ w edycji termu');
     const tt = sonda('termy');
     const pt = miejsce(tt.teksty, 'podpis_kat|');
-    t.check('Fields: API zna termy (obiekty, taksonomie), tekst pola kategorii z pustymi tłumaczeniami', J(tt.obiekty) === J(['post', 'term'])
+    t.check('Fields: API zna termy (obiekty, taksonomie), tekst pola kategorii z pustymi tłumaczeniami', J(tt.obiekty) === J(['post', 'term', 'opcje'])
       && J(tt.taksonomie) === J(['category']) && pt.pl === 'Podpis kategorii AI' && J(pt.tl) === J({ en: '', de: '' }), J(tt));
     const jt = (sonda('jednostki-term').jednostki || []).map((j) => [j.tytul, j.czesc, j.braki, /term\.php\?taxonomy=category/.test(j.adres)]);
     t.check('hurt z polem „Pola Evoke FIELDS”: kategoria jako „Pola Evoke FIELDS”, odnośnik do edycji termu',

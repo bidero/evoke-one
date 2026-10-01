@@ -169,6 +169,14 @@ case 'alt-pl':
     $out['ok'] = true;
     break;
 
+/* Jedna metadana obrazu do usunięcia — okno mediów zostawia alt EN, a hurt liczy go od zera. */
+case 'usun-meta':
+    $id = evk_taa_id((string) ($argv[2] ?? ''));
+    delete_post_meta($id, (string) ($argv[3] ?? ''));
+    delete_post_meta($id, (string) ($argv[3] ?? '') . '__zrodlo');
+    $out['ok'] = true;
+    break;
+
 case 'lista':
     $ids = evk_taa_ids();
     $out['wiersze'] = array_values(array_filter(evk_tl_ai_alt_do_sprawdzenia(),

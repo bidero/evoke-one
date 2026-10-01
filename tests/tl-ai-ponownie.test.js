@@ -170,6 +170,8 @@ module.exports = async function (t) {
     p.on('pageerror', (x) => bledy.push(x.message));
     await serwerWp.zaloguj(p, serwer.baza);
     await p.goto(serwer.baza + '/wp-admin/options-general.php?page=evoke-tlumaczenia&tab=ai');
+    /* Tabela zakresu startuje pusta (1.272.0) — treść Bricksa stron zaznacza test. */
+    await p.check('.tl-ai-czesc[data-typ="page"][value="bricks"]');
     const dostawcy = await p.$$eval('#tl-ai-przebieg-dostawca option', (o) => o.map((x) => x.value + (x.selected ? '*' : '')));
     t.check('dostawca przebiegu: trzej z kluczem, wybrany ten z ustawień', json(dostawcy) === json(['gemini*', 'claude', 'openai']), json(dostawcy));
     await p.check('input[name="tl-ai-tryb"][value="ponownie"]');

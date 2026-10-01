@@ -191,6 +191,8 @@ module.exports = async function (t) {
     p.on('dialog', (d) => { dialogi.push(d.message()); d.accept(); });
     await serwerWp.zaloguj(p, serwer.baza);
     await p.goto(serwer.baza + '/wp-admin/options-general.php?page=evoke-tlumaczenia&tab=ai');
+    /* Tabela zakresu startuje pusta (1.272.0) — treść Bricksa stron zaznacza test. */
+    await p.check('.tl-ai-czesc[data-typ="page"][value="bricks"]');
     const opcje = await p.$$eval('#tl-ai-czysc-strona option', (o) => o.map((x) => x.textContent));
     t.check('lista stron: każda z danymi Bricksa, także w pełni przetłumaczona B', ['Strona AI A (Treść)', 'Strona AI B (Treść)', 'Strona AI E (Treść)']
       .every((x) => opcje.includes(x)), json(opcje));

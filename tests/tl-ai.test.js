@@ -257,6 +257,8 @@ module.exports = async function (t) {
     p.on('pageerror', (x) => bledy.push(x.message));
     await serwerWp.zaloguj(p, serwer.baza);
     await p.goto(serwer.baza + '/wp-admin/options-general.php?page=evoke-tlumaczenia&tab=ai');
+    /* Tabela zakresu startuje pusta (1.272.0) — treść Bricksa stron zaznacza test. */
+    await p.check('.tl-ai-czesc[data-typ="page"][value="bricks"]');
     const html = await p.content();
     t.check('zakładka „Tłumaczenie AI” otwarta, klucza nie ma w stronie', html.includes('Przetłumacz strony') && !html.includes(KLUCZ),
       html.includes(KLUCZ) ? 'KLUCZ W STRONIE' : (html.includes('Przetłumacz strony') ? '' : 'brak zakładki: ' + p.url()));

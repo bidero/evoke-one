@@ -12,9 +12,12 @@
     var AI = window.evkAltAi || null;
     var trwa = false, pomin = false;
 
-    /* Polskie pole altu: okno mediów (`data-setting="alt"`) albo ekran obrazu. */
+    /* Polskie pole altu: okno mediów (`data-setting="alt"`) albo ekran obrazu.
+       Bez `form` w szukaniu (1.272.0): w oknie mediów nasze pola siedzą
+       w `form.compat-item`, a pole altu WordPressa jest poza nim — szukanie
+       od formularza nie znajdowało niczego. Pusty wynik: pola nie ma. */
     function altPl($w) {
-        var $f = $w.closest('.attachment-details, .media-modal-content, .media-frame-content, form')
+        var $f = $w.closest('.attachment-details, .media-sidebar, .media-modal')
             .find('[data-setting="alt"] textarea, [data-setting="alt"] input').first();
         return $f.length ? $f : $('#attachment_alt');
     }
@@ -72,6 +75,7 @@
     $(document).on('click', '.evk-alt-opisz', function () {
         if (!AI || trwa) return;
         var $b = $(this), $w = $b.closest('.evk-alt-ai'), $stan = $w.find('.evk-alt-ai-stan'), $f = altPl($w);
+        if (!$f.length) { $stan.text('Nie znalazłem pola tekstu alternatywnego.'); return; }
         var obecny = $.trim(String($f.val() || ''));
         if (obecny && !window.confirm('Zastąpić obecny tekst alternatywny?\n\n„' + obecny.slice(0, 200) + '”')) return;
         zajety(true, $b);

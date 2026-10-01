@@ -193,6 +193,10 @@ add_action('wp_ajax_evk_tl_el_sprawdzone', function (): void {
         if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
         $p = strrpos($klucz, '|');
         $ok = $p !== false && evk_fields_tl_sprawdzone($post_id, substr($klucz, 0, $p), substr($klucz, $p + 1));
+    } elseif (defined('EVK_TL_AI_POLA_OPCJI') && $meta_key === EVK_TL_AI_POLA_OPCJI) {
+        /* Pole strony ustawień Fields (1.272.0): klucz `{grupa}#{miejsce}|{język}`, prawo strony ustawień. */
+        if (evk_tl_ai_grupa_opcji((string) strstr($klucz, '#', true)) === null) wp_send_json_error('Brak uprawnień do tej strony ustawień.', 403);
+        $ok = evk_tl_ai_pola_opcji_sprawdzone($klucz);
     } elseif (defined('EVK_TL_AI_WPIS') && $meta_key === EVK_TL_AI_WPIS && function_exists('evk_tlw_sprawdzone')) {
         if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
         $p = strrpos($klucz, '|');
@@ -249,6 +253,8 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
     $lista = evk_tl_el_do_sprawdzenia();
     /* Pola Evoke FIELDS (1.267.0) — AI albo zmieniony oryginał, edycja w metaboksie wpisu. */
     if (function_exists('evk_tl_ai_pola_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_pola_do_sprawdzenia());
+    /* Pola stron ustawień Fields (1.272.0) — edycja na stronie ustawień; wiersz niesie tytuł i adres. */
+    if (function_exists('evk_tl_ai_pola_opcji_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_pola_opcji_do_sprawdzenia());
     /* Tytuły, treści i zajawki wpisów (1.268.0) — edycja wpisu. */
     if (function_exists('evk_tl_ai_wpisy_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_wpisy_do_sprawdzenia());
     /* Nazwy i opisy kategorii i tagów oraz ich pola Fields (1.270.0) — edycja termu; wiersz niesie tytuł i adres. */

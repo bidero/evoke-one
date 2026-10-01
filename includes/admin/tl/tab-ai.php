@@ -91,7 +91,7 @@ $evk_jezyki = tl_get_languages();
              każdy wiersz jest kartą (reguły w render.php). */
     $evk_wiersze = evk_tl_ai_wiersze_zakresu();
     $evk_tabele = [['wpis', 'Wpisy, strony i szablony', EVK_TL_AI_KOLUMNY_WPIS], ['term', 'Kategorie i tagi', EVK_TL_AI_KOLUMNY_TERM],
-        ['obrazy', 'Obrazy', EVK_TL_AI_KOLUMNY_OBRAZY]]; ?>
+        ['opcje', 'Strony ustawień', EVK_TL_AI_KOLUMNY_OPCJE], ['obrazy', 'Obrazy', EVK_TL_AI_KOLUMNY_OBRAZY]]; ?>
     <p class="evo-desc">Zaznacz, co tłumaczyć: wiersz to rodzaj treści, kolumna — część. Pole przy nazwie zaznacza cały wiersz.
     Tłumaczenia dostają znacznik „AI — do sprawdzenia” i trafiają na listę „Do sprawdzenia”.</p>
     <div class="tl-ai-zakres">
@@ -115,9 +115,9 @@ $evk_jezyki = tl_get_languages();
                     if (!in_array($evk_k, $evk_r['czesci'], true)): ?>
                 <td class="tl-ai-brak-czesci"><span aria-hidden="true">—</span></td>
                 <?php continue; endif;
-                    /* Domyślnie treść Bricksa — tak tłumaczył hurt przed tabelą. */ ?>
+                    /* Domyślnie nic — zaznacza tłumaczący (1.272.0). */ ?>
                 <td data-czesc="<?php echo esc_attr($evk_n); ?>"><label class="tl-ai-czesc-etykieta"><input type="checkbox" class="tl-ai-czesc"
-                    data-typ="<?php echo esc_attr($evk_typ); ?>" value="<?php echo esc_attr($evk_k); ?>"<?php checked($evk_k === 'bricks'); ?>
+                    data-typ="<?php echo esc_attr($evk_typ); ?>" value="<?php echo esc_attr($evk_k); ?>"
                     aria-label="<?php echo esc_attr($evk_r['nazwa'] . ': ' . $evk_n); ?>"><span class="tl-ai-czesc-nazwa" aria-hidden="true"><?php echo esc_html($evk_n); ?></span></label></td>
                 <?php endforeach; ?>
             </tr>
@@ -128,7 +128,7 @@ $evk_jezyki = tl_get_languages();
     </div>
     <p class="evo-desc">Bricks — teksty w elementach (Bricks i szablony: nagłówek, stopka). Tytuł, treść i zajawka — pola WordPressa
     (treść stron zbudowanych w Bricksie jest w elementach). Adres — człon z tłumaczenia tytułu albo nazwy do Slugów URL, tylko gdy
-    tego członu jeszcze nie przetłumaczono; adres innej strony — bez zapisu, z powodem w dzienniku. Pola Fields — wartości pól Evoke FIELDS.</p>
+    tego członu jeszcze nie przetłumaczono; adres innej strony — bez zapisu, z powodem w dzienniku. Pola Fields — wartości pól Evoke FIELDS, także na stronach ustawień.</p>
     <div class="evo-grid evo-pola-rowne tl-ai-wiersz" style="--evo-col:220px;--evo-gap:20px">
         <div>
             <div class="tl-ai-tryb" role="radiogroup" aria-labelledby="tl-ai-tryb-tytul">
@@ -368,6 +368,13 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         pole.indeterminate = n > 0 && n < w.length;
     }
     function pokazListe(zaznacz) {
+        /* Tabela startuje pusta (1.272.0) — bez zaznaczenia nie ma o co pytać serwera. */
+        if (!Object.keys(zakres()).length) {
+            lista.textContent = '';
+            start.disabled = true;
+            stan.textContent = 'Zaznacz, co tłumaczyć.';
+            return Promise.resolve();
+        }
         przyciskListy.disabled = true;
         stan.textContent = 'Liczę braki…';
         var trybListy = tryb();
@@ -486,7 +493,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
                     try {
                         r = await wyslij({ action: 'evk_tl_ai_krok', post_id: j.post_id, meta_key: j.meta_key, lang: lang, pomin: pomin,
                             tryb: przebieg.tryb, dostawca: przebieg.dostawca, model: przebieg.model, bez_pamieci: przebieg.bez_pamieci,
-                            czesci: przebieg.zakres[j.typ] || [], do: j.do || '' });
+                            czesci: przebieg.zakres[j.typ] || [], do: j.do || '', opcje: j.opcje || '' });
                     } catch (e) { r = { success: false, data: 'Błąd połączenia.' }; }
                     if (!r || !r.success) { wpisz(j.tytul + ' ' + lang.toUpperCase() + ': ' + ((r && r.data) || 'błąd')); break; }
                     var d = r.data;

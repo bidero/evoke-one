@@ -50,7 +50,9 @@ add_filter('attachment_fields_to_edit', function ($pola, $post) {
         $html = '<div class="evk-alt-ai" data-id="' . $id . '" data-lang="' . esc_attr((string) $kod) . '" data-pl="' . esc_attr($pl) . '"' . ($znak ? ' data-ai="1"' : '') . '>'
             . '<input type="text" class="text evk-alt-pole" id="' . esc_attr($pid) . '" name="' . esc_attr($n) . '" value="' . esc_attr($w) . '">'
             . '<input type="hidden" class="evk-alt-zrodlo" name="' . esc_attr('attachments[' . $id . '][evk_tl_alt_' . $kod . '__zrodlo]') . '" value="">';
-        if ($ai !== null && $pl !== '') {
+        /* Także bez polskiego altu (1.272.0): w oknie mediów „Opisz obraz” wpisuje go
+           bez przerysowania pól — skrypt czyta polski alt z pola przy kliknięciu. */
+        if ($ai !== null) {
             $html .= ' <button type="button" class="button button-small evk-alt-tlumacz" aria-label="' . esc_attr('Przetłumacz (AI) — tekst alternatywny ' . $K) . '">'
                 . $ikona . '<span>Przetłumacz</span></button>';
         }

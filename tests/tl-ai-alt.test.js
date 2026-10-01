@@ -102,7 +102,10 @@ module.exports = async function (t) {
       && s1.obrazy.O1._evk_tl_de__alt__zrodlo === 'ai-' + s1.skroty.O1, J(s1.obrazy.O1));
     await p.goto(serwer.baza + '/wp-admin/post.php?post=' + O.O3 + '&action=edit', { waitUntil: 'load' });
     const przyciskiO3 = await p.evaluate(() => Array.from(document.querySelectorAll('.evk-alt-tlumacz, .evk-alt-opisz')).map((b) => b.className.split(' ').pop()));
-    t.check('obraz bez polskiego altu: jest „Opisz obraz”, nie ma „Przetłumacz” (nie ma czego)', J(przyciskiO3) === J(['evk-alt-opisz']), J(przyciskiO3));
+    await p.click(POLE(O.O3, 'en') + ' .evk-alt-tlumacz').catch(() => {});
+    const bezPl = (await stanPola(O.O3, 'en') || {}).stan;
+    t.check('obraz bez polskiego altu: „Opisz obraz” i „Przetłumacz” (1.272.0 — alt może przyjść z opisu); klik bez altu: „Brak polskiego altu.”',
+      J(przyciskiO3) === J(['evk-alt-opisz', 'evk-alt-tlumacz', 'evk-alt-tlumacz']) && bezPl === 'Brak polskiego altu.', J([przyciskiO3, bezPl]));
     await p.click(POLE(O.O3, 'pl') + ' .evk-alt-opisz');
     await p.waitForFunction((s) => /Wpisane|Brak|odmówił|obejrzy/.test(document.querySelector(s + ' .evk-alt-ai-stan').textContent), POLE(O.O3, 'pl'), { timeout: 20000 }).catch(() => {});
     const o3 = await p.evaluate(() => (document.getElementById('attachment_alt') || {}).value);
@@ -120,6 +123,8 @@ module.exports = async function (t) {
     // ── Okno mediów ──────────────────────────────────────────────────────
     t.section('okno mediów: ✦ przy alcie DE zapisuje się samo (Chromium)');
     await p.goto(serwer.baza + '/wp-admin/upload.php?item=' + O.O2, { waitUntil: 'load' });
+    /* Okno dociąga dane załącznika i przerysowuje pola — klik dopiero po tym. */
+    await p.waitForLoadState('networkidle').catch(() => {});
     await p.waitForSelector(POLE(O.O2, 'de') + ' .evk-alt-tlumacz', { timeout: 15000 }).catch(() => {});
     const zapisOkna = p.waitForResponse((r) => r.url().includes('admin-ajax.php') && (r.request().postData() || '').includes('save-attachment-compat'), { timeout: 20000 }).catch(() => null);
     await p.click(POLE(O.O2, 'de') + ' .evk-alt-tlumacz').catch(() => {});
@@ -129,6 +134,48 @@ module.exports = async function (t) {
     console.log('      O2 po oknie: ' + J(s2.obrazy.O2));
     t.check('okno mediów: ✦ wpisuje i WordPress zapisuje pole (źródło „ai-”); ręczny EN nietknięty', s2.obrazy.O2._evk_tl_de__alt === 'DE:Biuro firmy'
       && s2.obrazy.O2._evk_tl_de__alt__zrodlo === 'ai-' + s2.skroty.O2 && s2.obrazy.O2._evk_tl_en__alt === 'Company office', J(s2.obrazy.O2));
+
+    /* „Opisz obraz (AI)” w oknie mediów (1.272.0): nasze pola są w `form.compat-item`,
+       pole altu WordPressa obok — opis ma trafić w nie i zapisać się samo. */
+    t.section('okno mediów: „Opisz obraz (AI)” wpisuje alt PL i WordPress go zapisuje (Chromium)');
+    p.on('dialog', (d) => d.accept());
+    const opiszWOknie = async (otworz, opis) => {
+      sonda('alt-pl', 'O3', '');
+      sonda('usun-meta', 'O3', '_evk_tl_en__alt');
+      await otworz();
+      await p.waitForLoadState('networkidle').catch(() => {});
+      await p.waitForSelector(POLE(O.O3, 'pl') + ' .evk-alt-opisz', { timeout: 15000 }).catch(() => {});
+      const zapis = p.waitForResponse((r) => r.url().includes('admin-ajax.php') && /action=save-attachment(&|$)/.test(r.request().postData() || ''), { timeout: 20000 }).catch(() => null);
+      await p.click(POLE(O.O3, 'pl') + ' .evk-alt-opisz').catch(() => {});
+      await zapis;
+      await p.waitForTimeout(300);
+      const pole = await p.evaluate(() => { const f = document.querySelector('.media-modal [data-setting="alt"] textarea, .media-modal [data-setting="alt"] input');
+        return f ? f.value : null; });
+      /* „Przetłumacz” EN w tym samym oknie: polski alt z pola, nie z atrybutu narysowanego przed opisem. */
+      await p.waitForSelector(POLE(O.O3, 'en') + ' .evk-alt-tlumacz', { timeout: 10000 }).catch(() => {});
+      const zapisEn = p.waitForResponse((r) => r.url().includes('admin-ajax.php') && (r.request().postData() || '').includes('save-attachment-compat'), { timeout: 20000 }).catch(() => null);
+      await p.click(POLE(O.O3, 'en') + ' .evk-alt-tlumacz').catch(() => {});
+      await zapisEn;
+      await p.waitForTimeout(300);
+      const s = sonda('stan');
+      console.log('      ' + opis + ': pole ' + J(pole) + ' | O3 ' + J(s.obrazy.O3));
+      return { pole, o3: s.obrazy.O3 };
+    };
+    const OPIS3 = 'Opis obrazu evk-t-alt-o3-768x480.jpg';
+    const siatka = await opiszWOknie(() => p.goto(serwer.baza + '/wp-admin/upload.php?item=' + O.O3, { waitUntil: 'load' }), 'siatka');
+    t.check('siatka (upload.php?item=): opis w polu altu okna, zapisany w bazie ze znacznikiem AI; EN przetłumaczony z tego opisu',
+      siatka.pole === OPIS3 && siatka.o3.pl === OPIS3 && siatka.o3.ai !== '' && siatka.o3._evk_tl_en__alt === 'EN:' + OPIS3, J(siatka));
+    const boczne = await opiszWOknie(async () => {
+      await p.goto(serwer.baza + '/wp-admin/upload.php?mode=grid', { waitUntil: 'load' });
+      await p.evaluate(() => { window.evkRamka = wp.media({ frame: 'select', multiple: false }); window.evkRamka.open(); });
+      /* Puste konto testowe otwiera okno na „Wgraj pliki” — przejście do biblioteki. */
+      await p.click('.media-modal .media-router button:has-text("Media Library"), .media-modal #menu-item-browse').catch(() => {});
+      await p.waitForSelector('.media-modal li.attachment[data-id="' + O.O3 + '"]', { timeout: 15000 }).catch(() => {});
+      await p.click('.media-modal li.attachment[data-id="' + O.O3 + '"]').catch(() => {});
+    }, 'okno wyboru');
+    t.check('okno wyboru z paskiem bocznym (wp.media): to samo — opis w polu, zapis, EN z opisu',
+      boczne.pole === OPIS3 && boczne.o3.pl === OPIS3 && boczne.o3._evk_tl_en__alt === 'EN:' + OPIS3, J(boczne));
+    sonda('usun-meta', 'O3', '_evk_tl_en__alt');
     await p.unroute('**/wp-admin/admin-ajax.php');
 
     // ── Hurt ─────────────────────────────────────────────────────────────
