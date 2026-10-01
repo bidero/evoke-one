@@ -75,6 +75,9 @@ module.exports = async function (t) {
       { opis: 'wyłączony DE', komponenty: baza, jezyki: ['en'], mapa: MAPA },
       { opis: 'zmieniona etykieta „Nagłówek” → „Tytuł”', komponenty: zmienionaEtykieta, jezyki: ['en', 'de'], mapa: MAPA },
       { opis: 'usunięta właściwość „Tekst”', komponenty: bezTekstu, jezyki: ['en', 'de'], mapa: MAPA },
+      /* 1.274.0, prawdziwy Bricks: przejście z pustą mapą kasowało bliźniaki razem z tłumaczeniami w instancjach. */
+      { opis: 'pusta mapa pól', komponenty: baza, jezyki: ['en', 'de'], mapa: {} },
+      { opis: 'mapa bez nagłówka', komponenty: baza, jezyki: ['en', 'de'], mapa: { 'text-basic': MAPA['text-basic'], button: MAPA.button } },
     ];
     const idy = [['kpkomp', 'kpwnag', 'en'], ['oxtyev', 'xjpsxa', 'en'], ['a', 'b', 'pt_br'], ['ąę', 'ż', 'de']];
     const plik = path.join(tmp, 'wektory.json');
@@ -105,6 +108,9 @@ module.exports = async function (t) {
     t.check('zmieniona etykieta — bliźniaki za nią (ten sam id); usunięta właściwość — jej bliźniaki znikają',
       J(etykiety(zJs[4][0])) === J(['Tekst', 'Tekst EN', 'Tekst DE', 'Tytuł', 'Tytuł EN', 'Tytuł DE']) && zJs[4][0].properties[4].id === en
       && J(etykiety(zJs[5][0])) === J(['Nagłówek', 'Nagłówek EN', 'Nagłówek DE']), J([etykiety(zJs[4][0]), etykiety(zJs[5][0])]));
+
+    t.check('pusta albo niepełna mapa pól: żaden bliźniak nie znika — para nie do rozpoznania to nie sierota',
+      J(wlasciwosci(zJs[6])) === J(wlasciwosci(baza)) && J(wlasciwosci(zJs[7])) === J(wlasciwosci(baza)), J([etykiety(zJs[6][0]), etykiety(zJs[7][0])]));
 
     // ── Serwer ───────────────────────────────────────────────────────────
     t.section('serwer: zapis komponentów, języki, hurt AI, listy, prawa');
@@ -255,8 +261,8 @@ module.exports = async function (t) {
         var li = document.createElement('li');
         li.innerHTML = '<div class="label"><div class="has-setting"><span class="indicator"></span></div><i class="ti-text"></i><span></span>'
           + '<span class="bricks-svg-wrapper edit" data-name="edit">✎</span></div><div class="control control-textarea no-label"><div class="control-inner">'
-          + '<div data-control="textarea" class="auto-height" style="position:relative"><textarea rows="2" style="width:100%;font-size:16px"></textarea>'
-          + '<div class="dynamic-tag-picker-button" style="position:absolute;top:4px;right:4px;width:20px;height:20px">⚡</div></div></div></div>';
+          + '<div data-control="textarea" class="auto-height" style="position:relative"><textarea rows="1" style="height:32px;padding:6px 8px;font-size:16px;line-height:20px"></textarea>'
+          + '<div class="dynamic-tag-picker-button" style="position:absolute;top:6px;right:4px;width:20px;height:20px">⚡</div></div></div></div>';
         li.querySelector('.label span:not(.indicator)').textContent = w.label;
         var ctl = li.querySelector('[data-control]');
         ctl.setAttribute('propertyid', w.id);
@@ -267,6 +273,8 @@ module.exports = async function (t) {
       });
       document.getElementById('bricks-panel').appendChild(p);
     };
+    /* Bliźniak języka spoza ustawień (FR; fixtura ma EN i DE) — zostaje w komponencie (51), ✦ przy nim nie ma. */
+    window.__stan.components[0].properties.push({ label: 'Nagłówek FR', type: 'text', id: 'kpwnfr', connections: { kpnagl: ['evk_tl_fr__text'] } });
     window.__panel();
     window.__stan.activeId = 'kpix';
   });
@@ -276,11 +284,24 @@ module.exports = async function (t) {
     return [b.getAttribute('aria-label'), b.getAttribute('data-balloon'), b.getAttribute('data-balloon-pos'), b.getAttribute('data-balloon-length'), Math.round(r.width) > 0];
   }));
   const ik = await ikony();
-  t.check('✦ tylko przy polach języków (nie przy „Tekst”, „Nagłówek”), z nazwą pola i dymkiem jak przy polach elementów', J(ik) === J([
+  t.check('✦ tylko przy polach języków z ustawień (nie przy „Tekst”, „Nagłówek” ani „Nagłówek FR”), z nazwą pola i dymkiem jak przy polach elementów', J(ik) === J([
     ['Przetłumacz (AI) — Tekst EN', 'Przetłumacz z polskiego używając atrapa/model', 'top-right', 'medium', true],
     ['Przetłumacz (AI) — Tekst DE', 'Przetłumacz z polskiego używając atrapa/model', 'top-right', 'medium', true],
     ['Przetłumacz (AI) — Nagłówek EN', 'Przetłumacz z polskiego używając atrapa/model', 'top-right', 'medium', true],
     ['Przetłumacz (AI) — Nagłówek DE', 'Przetłumacz z polskiego używając atrapa/model', 'top-right', 'medium', true]]), J(ik));
+  /* Pole jak w Bricksie 2.4.2 (prawdziwy builder, bricks-builder): jeden wiersz, ⚡ 20×20 w rogu.
+     ✦ pod ⚡ wisiało pod polem — ma stać na lewo od ⚡, w polu. */
+  const geo = await page.evaluate(() => {
+    const r = (e) => { const x = e.getBoundingClientRect(); return { l: Math.round(x.left), r: Math.round(x.right), t: Math.round(x.top), b: Math.round(x.bottom) }; };
+    return Array.from(document.querySelectorAll('#bricks-panel-component-instance .evk-tl-ai-ikona')).map((b) => {
+      const li = b.closest('li');
+      const ta = li.querySelector('textarea');
+      return { ik: r(b), bolt: r(li.querySelector('.dynamic-tag-picker-button')), pole: r(ta), pad: parseFloat(getComputedStyle(ta).paddingRight) };
+    });
+  });
+  t.check('jednowierszowe pole: ✦ w polu, na lewo od ⚡, w tym samym wierszu; tekst nie wchodzi pod ikonki',
+    geo.length === 4 && geo.every((g) => g.ik.t >= g.pole.t && g.ik.b <= g.pole.b && g.ik.r <= g.bolt.l && Math.abs(g.ik.t - g.bolt.t) <= 1
+      && g.pad >= g.pole.r - g.ik.l), J(geo[0]));
   const tN = KP.id('kpkomp', 'kpwnag', 'en'), tT = KP.id('kpkomp', 'kpwtek', 'en');
   const klik = async (tid) => {
     await page.click('[propertyid="' + tid + '"] .evk-tl-ai-ikona');
@@ -305,7 +326,7 @@ module.exports = async function (t) {
   await page.evaluate(() => window.__panel());
   await page.waitForTimeout(700);
   const poPrzer = await page.evaluate(() => Array.from(document.querySelectorAll('#bricks-panel-component-instance li')).map((li) => li.querySelectorAll('.evk-tl-ai-ikona').length));
-  t.check('przerysowany panel: znów po jednym ✦ przy każdym polu języka', J(poPrzer) === J([0, 1, 1, 0, 1, 1]), J(poPrzer));
+  t.check('przerysowany panel: znów po jednym ✦ przy każdym polu języka', J(poPrzer) === J([0, 1, 1, 0, 1, 1, 0]), J(poPrzer));
   await page.evaluate(() => { window.__stan.activeId = 'h2'; });
   await page.waitForTimeout(700);
   t.check('zaznaczony zwykły element: ✦ znikają z panelu właściwości', (await ikony()).length === 0, J(await ikony()));

@@ -2,6 +2,54 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.274.0] — 2026-10-01
+
+Poprawki ✦ we „Właściwościach” instancji (1.273.0) — sprawdzone pierwszy raz
+w PRAWDZIWYM builderze Bricksa: piąty testowy WordPress z licencją.
+
+### Naprawione
+
+- **✦ stało pod polem zamiast obok ⚡.** Klasa ⚡ jest ta sama co w panelu
+  elementu (`.dynamic-tag-picker-button`). Różni się pole: we „Właściwościach”
+  to jednowierszowa textarea (`auto-height`, `rows=1`), a ✦ szło „pod ⚡”, czyli
+  pod pole. Teraz ✦ idzie pod ⚡ tylko w polu, które ma na to miejsce. Liczy się
+  wysokość pola bez treści (liczba wierszy), więc ✦ nie skacze przy pisaniu.
+  W pozostałych polach ✦ stoi na lewo od ⚡, w tym samym wierszu, a tekst pola
+  nie wchodzi pod ikonki.
+- **„Nieznany język.” po kliknięciu ✦.** Bliźniak języka, którego nie ma
+  w ustawieniach (np. „Nagłówek DE” po wyłączeniu niemieckiego), zostaje
+  w komponencie celowo, bo tłumaczenia wpisane w instancjach wracają razem
+  z językiem. ✦ stało jednak także przy nim i wysyłało do serwera kod spoza
+  listy języków. Teraz ✦ jest tylko przy polach języków z ustawień.
+- **Utrata tłumaczeń w komponentach (znalezione w prawdziwym builderze).**
+  Jednorazowe przejście po komponentach (51) odpala się przy pierwszym
+  wejściu do panelu. Gdy mapa pól tłumaczonych była jeszcze pusta (świeża
+  instalacja, strona przed pierwszym renderem), żadna właściwość nie
+  wyglądała na tłumaczoną. Bliźniaki „… EN”, także ręczne, szły wtedy do
+  kosza jako osierocone, a tłumaczenia wpisane w instancjach zostawały bez
+  pola. Teraz bliźniak znika tylko wtedy, gdy mapa zna typy jego elementów
+  (PHP i builder liczą to tak samo), a przejście czeka, aż mapa się pojawi.
+
+### Testy
+
+- Piąty testowy WordPress (`bricks.test`) z prawdziwym motywem Bricks
+  z prywatnego `bidero/bricks-motyw`. Licencja przychodzi wyłącznie ze
+  zmiennej `EVK_BRICKS_KLUCZ` (stała `BRICKS_LICENSE_KEY`), więc klucz nie
+  trafia do plików ani do bazy.
+- `bricks-render`: render elementów i instancji komponentów na `/` i `/en/`.
+- `bricks-builder` (nowy): builder w Chromium. Sprawdza przejście z pustą
+  mapą przy logowaniu, ✦ tylko przy „Nagłówek EN” (bez DE spoza ustawień),
+  położenie ✦ w jednowierszowym polu obok ⚡ i klik ✦ przez prawdziwy punkt
+  AJAX z atrapą dostawcy.
+- `tl-komponenty`: fixtura pola „Właściwości” odwzorowuje teraz prawdziwe
+  pole, z bliźniakiem spoza ustawień. Doszły przypadki PHP = JS dla pustej
+  i niepełnej mapy.
+
+### Do sprawdzenia na testowej
+
+- ✦ przy „Nagłówek EN” w panelu instancji: obok ⚡, w polu.
+- Klik ✦ wpisuje tłumaczenie bez „Nieznany język.”.
+
 ## [1.273.0] — 2026-10-01
 
 ✦ przy polach tłumaczeń we „Właściwościach” instancji komponentu.

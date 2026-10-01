@@ -64,6 +64,11 @@
     return lang === null ? null : [lang, pl];
   }
 
+  /** Czy mapa pól zna typy wszystkich połączonych elementów (jak w PHP). */
+  function typyZnane(wl, typy, mapa) {
+    return Object.keys(obiekt(wl.connections) ? wl.connections : {}).every((el) => typy[el] === undefined || !!mapa[typy[el]]);
+  }
+
   function rowne(a, b) {
     const n = (c) => {
       const o = {};
@@ -159,7 +164,8 @@
     props.forEach((p) => {
       const pid = zId(p) ? String(p.id) : '';
       if (pid !== '' && uzyte[pid]) return;
-      if (jakoBlizniak(p) && / [A-Z0-9_]{2,}$/.test(String(p.label || ''))) return;
+      /* Osierocony bliźniak znika tylko przy mapie znającej jego elementy — jak w PHP (1.274.0). */
+      if (jakoBlizniak(p) && / [A-Z0-9_]{2,}$/.test(String(p.label || '')) && typyZnane(p, typy, mapa)) return;
       nowe.push(p);
       (blizniaki[pid] || []).forEach((b) => nowe.push(props[poId[b]]));
     });

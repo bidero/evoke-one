@@ -173,13 +173,13 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (135 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (136 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
 node tests/run.js backup-panel
 node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp
-node tests/run.js admin- anim animator aria bg-shift bricks-render bricks-required builder-context burger circular-menu controls
+node tests/run.js admin- anim animator aria bg-shift bricks-builder bricks-render bricks-required builder-context burger circular-menu controls
 node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee minifikacja motion
 node tests/run.js fields- newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
@@ -193,7 +193,7 @@ lista filtrów co wyżej:
 ```
 FILTRY="admin- anim animator aria backup-panel backup-baza backup-czytnik backup-drive
 backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize
-backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-render bricks-required builder-context
+backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-builder bricks-render bricks-required builder-context
 burger circular-menu controls darkmode drobiazgi fields- grain hscroll inbox ip-klienta
 konserwacja kursor loop marquee minifikacja motion newsletter odpornosc odswiezanie
 offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji
@@ -289,7 +289,11 @@ Motyw NIE leży w tym repozytorium (publiczne): skrypt bierze zip z
 prywatne `bidero/bricks-motyw`, w sesji zdalnej dołączone i sklonowane obok.
 Bez zipa test świeci na czerwono z instrukcją. Trzy rzeczy z pierwszych prób:
 - bez licencji Bricks przekierowuje BUILDER na stronę licencji — render
-  strony działa, panel i przyciski buildera dalej sprawdza zgłaszający;
+  strony działa. Z kluczem w zmiennej `EVK_BRICKS_KLUCZ` (sekret środowiska
+  sesji; nie wypisuj go) skrypt aktywuje licencję i pisze „licencja: aktywna”,
+  a builder otwiera się w Chromium (`bricks-builder`, od 1.274.0). Builder
+  działa tylko dla typów z `bricks_global_settings['postTypes']` — inaczej
+  odsyła na listę z `bricks_notice=error_post_type`; sonda ustawia `page`;
 - mapę pól tłumaczonych (`evk_tl_el_pola`) wypełnia już sam render strony:
   Bricks na froncie wczytuje kontrolki renderowanych elementów przez ten sam
   filtr co builder. Przejście po komponentach potrzebuje mapy, więc w teście
@@ -512,9 +516,12 @@ Cichy rozjazd wytworu ze źródłem wygląda zupełnie normalnie — stąd stra�
 - **Pytać jak najwięcej** o szczegóły.
 - **Żadnej optymalizacji bez pomiaru.**
 - Cel projektu: **mniej wtyczek zewnętrznych.**
-- Czego NIE da się sprawdzić na tej maszynie: **builder Bricksa** (bez licencji
-  się nie otwiera). Render z prawdziwym Bricksem jest od 1.274.0 (piąty testowy
-  WordPress, `bricks-render`). Atrapa w `tests/php/_bricks-stubs.php` dalej mówi
-  o sobie wprost, że nie odpowiada na pytania „czy Bricks przyjmie ten typ
+- Builder Bricksa da się sprawdzić na tej maszynie od 1.274.0 — piąty testowy
+  WordPress z licencją ze zmiennej `EVK_BRICKS_KLUCZ` (`bricks-builder`), render
+  w `bricks-render`. Bez zmiennej builder się nie otwiera, a test świeci na
+  czerwono z instrukcją. Fixtury buildera (`builder-ai.html`) odwzorowują panel
+  z opisu: 1.273.0 przeszło na nich, a w prawdziwym panelu ✦ stało pod polem.
+  Nowy kształt panelu sprawdzaj najpierw w prawdziwym builderze.
+  Atrapa w `tests/php/_bricks-stubs.php` dalej mówi o sobie wprost, że nie odpowiada na pytania „czy Bricks przyjmie ten typ
   kontrolki". Wnioski o zachowaniu buildera wymagają dowodu ze strony, nie
   rozumowania.

@@ -1180,6 +1180,14 @@
     b.remove();
   }
 
+  /** Wysokość textarea bez treści: wiersze (`rows`) z odstępami i ramką. */
+  function najnizsze(pole) {
+    const cs = pole.ownerDocument.defaultView.getComputedStyle(pole);
+    const n = (v) => parseFloat(v) || 0;
+    const wiersz = n(cs.lineHeight) || 1.2 * n(cs.fontSize);
+    return (pole.rows || 2) * wiersz + n(cs.paddingTop) + n(cs.paddingBottom) + n(cs.borderTopWidth) + n(cs.borderBottomWidth);
+  }
+
   /** Ustawia ✦ przy ⚡ (albo przy prawej krawędzi pola, gdy ⚡ nie ma). */
   function ulozIkone(b, pole, rodzaj, bolt) {
     const okno = pole.ownerDocument.defaultView;
@@ -1195,12 +1203,23 @@
         b.__evkPole = null;
         return;
       }
-      /* ⚡ absolutny: ✦ pod nim, ta sama odległość od prawej, 4 px przerwy. */
+      /* ⚡ absolutny: ✦ pod nim, ta sama odległość od prawej, 4 px przerwy —
+         o ile pole jest na to dość wysokie. Jednowierszowe pole „Właściwości”
+         instancji (textarea `auto-height`, rows=1) ma ⚡ w tym samym rogu, a ✦
+         pod nim wisiało pod polem (1.274.0, prawdziwy builder) — wtedy ✦ staje
+         na lewo od ⚡. O miejscu mówi wysokość pola BEZ treści (wiersze), nie
+         bieżąca: inaczej zawijanie po zmianie odstępu przestawiałoby ✦ w kółko. */
       if (b.parentNode !== bolt.parentNode) bolt.parentNode.appendChild(b);
       const op = bolt.offsetParent;
-      ustaw(b, { position: 'absolute', width: px(w), height: px(h), top: px(bolt.offsetTop + bolt.offsetHeight + 4),
-        right: px((op ? op.clientWidth : 0) - bolt.offsetLeft - bolt.offsetWidth) });
-      if (rodzaj === 'textarea') odsun(pole, 28);
+      const prawa = (op ? op.clientWidth : 0) - bolt.offsetLeft - bolt.offsetWidth;
+      const odGory = bolt.getBoundingClientRect().top - pole.getBoundingClientRect().top;
+      if (rodzaj !== 'textarea' || najnizsze(pole) >= odGory + h + 4 + h) {
+        ustaw(b, { position: 'absolute', width: px(w), height: px(h), top: px(bolt.offsetTop + bolt.offsetHeight + 4), right: px(prawa) });
+        if (rodzaj === 'textarea') odsun(pole, 28);
+      } else {
+        ustaw(b, { position: 'absolute', width: px(w), height: px(h), top: px(bolt.offsetTop), right: px(prawa + w + 4) });
+        odsun(pole, Math.ceil(prawa + 2 * w + 8));
+      }
       return;
     }
     /* Bez ⚡: tam, gdzie stałby ⚡ — róg textarea i edytora, prawa krawędź pola tekstowego. */
@@ -1292,8 +1311,10 @@
     const cele = {};
     Object.keys(pary).forEach((pid) => {
       Object.keys(pary[pid].blizniaki).forEach((kod) => {
-        const lang = OBCE.find((j) => String(j).toLowerCase().replace(/[^a-z0-9_]/g, '_') === kod) || kod;
-        cele[pary[pid].blizniaki[kod]] = { pid, lang, etykieta: pary[pid].etykieta };
+        /* Tylko języki z ustawień: bliźniak wyłączonego języka zostaje w komponencie
+           (51), ale serwer go nie zna — klik dawał „Nieznany język.” (1.274.0). */
+        const lang = OBCE.find((j) => String(j).toLowerCase().replace(/[^a-z0-9_]/g, '_') === kod);
+        if (lang) cele[pary[pid].blizniaki[kod]] = { pid, lang, etykieta: pary[pid].etykieta };
       });
     });
     return cele;

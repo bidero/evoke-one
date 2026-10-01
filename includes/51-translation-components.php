@@ -116,6 +116,21 @@ function evk_tl_kp_jako_blizniak(array $wl): ?array {
     return $lang === null ? null : [$lang, $pl];
 }
 
+/**
+ * Czy mapa pól zna typy wszystkich elementów, z którymi łączy się właściwość.
+ * Element, którego w komponencie już nie ma, nie przeszkadza — jego połączenie
+ * i tak nic nie znaczy.
+ *
+ * @param array<string,string>              $typy
+ * @param array<string,array<string,mixed>> $mapa
+ */
+function evk_tl_kp_typy_znane(array $wl, array $typy, array $mapa): bool {
+    foreach (array_keys((array) ($wl['connections'] ?? [])) as $el) {
+        if (isset($typy[(string) $el]) && !isset($mapa[$typy[(string) $el]])) return false;
+    }
+    return true;
+}
+
 /** Te same połączenia bez względu na kolejność. */
 function evk_tl_kp_rowne(array $a, array $b): bool {
     $n = static function (array $c): array {
@@ -231,12 +246,17 @@ function evk_tl_kp_uzupelnij(array $komponenty, array $jezyki, array $mapa): arr
             }
         }
         /* Nowa kolejność: każda właściwość PL, pod nią jej bliźniaki. Osierocony
-           bliźniak z naszą etykietą („… EN”) — bez właściwości PL nic nie znaczy. */
+           bliźniak z naszą etykietą („… EN”) — bez właściwości PL nic nie znaczy.
+           Ale tylko wtedy, gdy mapa pól zna typy jego elementów: przy pustej albo
+           niepełnej mapie właściwość PL też nie wygląda na tłumaczoną, a skasowany
+           bliźniak zabrałby tłumaczenia wpisane w instancjach (1.274.0, prawdziwy
+           Bricks: przejście z pustą mapą usuwało ręczny „Nagłówek EN”). */
         $nowe = [];
         foreach ($props as $p) {
             $id = is_scalar($p['id'] ?? null) ? (string) $p['id'] : '';
             if ($id !== '' && isset($uzyte[$id])) continue;
-            if (evk_tl_kp_jako_blizniak($p) && preg_match('/ [A-Z0-9_]{2,}$/', (string) ($p['label'] ?? ''))) continue;
+            if (evk_tl_kp_jako_blizniak($p) && preg_match('/ [A-Z0-9_]{2,}$/', (string) ($p['label'] ?? ''))
+                && evk_tl_kp_typy_znane($p, $typy, $mapa)) continue;
             $nowe[] = $p;
             foreach ($blizniaki[$id] ?? [] as $b) $nowe[] = $props[$po_id[$b]];
         }
@@ -290,6 +310,9 @@ add_action('add_option_tl_languages', static function ($nazwa, $nowe): void { ev
    przestają pokazywać tłumaczenie tekstu komponentu przy własnym tekście. */
 add_action('admin_init', static function (): void {
     if ((int) get_option('evk_tl_kp_przejscie', 0) >= EVK_TL_KP_WERSJA) return;
+    /* Bez mapy pól (świeża instalacja, przed pierwszym renderem) przejście nic
+       by nie rozpoznało, a zostałoby odhaczone — czeka na mapę. */
+    if (!evk_tl_el_mapa()) return;
     update_option('evk_tl_kp_przejscie', EVK_TL_KP_WERSJA, false);
     evk_tl_kp_przejscie();
 });
