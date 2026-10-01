@@ -2,6 +2,32 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.273.0] — 2026-10-01
+
+✦ przy polach tłumaczeń we „Właściwościach” instancji komponentu.
+
+Po 1.272.0 zgłaszający potwierdził, że „Nagłówek EN/DE” dodają się same
+i działają, i zapytał o ✦ przy tych polach (decyzja: przy każdym polu
+języka, osobne wydanie).
+
+### Dodane
+
+- **✦ przy polu „… EN” (i każdego języka) w panelu „Właściwości”
+  zaznaczonej instancji**: tłumaczy polską wartość tej instancji
+  („Nagłówek”) i wpisuje ją w to jedno pole — w stan buildera i w pole
+  panelu. Ta sama ikonka, nazwa i dymek co przy polach elementów
+  („Przetłumacz z polskiego używając {model}”); bez polskiego tekstu —
+  komunikat, wypełnione pole — pytanie przed zastąpieniem.
+- Pole rozpoznaje atrybut `propertyid` kontrolki (próba na testowej:
+  `#bricks-panel-component-instance › ul.properties › li`), a nie etykieta —
+  zmiana nazwy właściwości niczego nie psuje. Przy polach polskich i przy
+  zwykłych elementach ✦ nie ma.
+
+### Do sprawdzenia na testowej
+
+- ✦ przy „Nagłówek EN” w panelu instancji: miejsce przy ⚡, dymek, wpis
+  widoczny w polu od razu i po zapisie strony; kropka przy „Zapisz”.
+
 ## [1.272.0] — 2026-10-01
 
 Poprawki po 1.271.0 i komponenty Bricksa w tłumaczeniach.

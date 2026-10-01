@@ -114,3 +114,15 @@ Do sprawdzenia na testowej (atrapa Bricksa nie odpowie):
 - czy ✦ w trybie edycji komponentu zapisuje się z komponentem
   (`activeComponent` może być kopią `components[…]`);
 - czy wpis do `properties` instancji pokazuje się w panelu instancji od razu.
+
+## Panel „Właściwości” instancji (01.10, do 1.273.0)
+
+Zaznaczona instancja, konsola (top):
+
+- etykieta: `span` w `div.label` w `li` w `ul.properties` w
+  `div.group-wrapper[data-group-id=groupless]` w `div.bricks-panel-controls`
+  w `div.panel-content` w `div#bricks-panel-component-instance` w
+  `div#bricks-panel-element.instance`;
+- pole: `textarea` w `div.control.control-textarea.no-label`;
+  kontrolka `div[data-control="textarea"]` ma atrybut `propertyid` — id
+  właściwości, po nim ✦ poznaje bliźniaka „… EN”.

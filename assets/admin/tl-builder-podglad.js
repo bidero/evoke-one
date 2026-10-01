@@ -1279,12 +1279,118 @@
     });
   }
 
+  /* ✦ przy polach tłumaczeń we „Właściwościach” instancji komponentu (1.273.0).
+     Próba na testowej (01.10, Bricks 2.4.2): panel `#bricks-panel-component-instance`,
+     pole to `li` w `ul.properties` z etykietą w `.label span`, a kontrolka
+     `[data-control]` ma atrybut `propertyid` — id właściwości. Po nim (nie po
+     etykiecie) poznajemy bliźniaka „… EN” z par komponentu (tl-komponenty.js). */
+  function celWlasciwosci(a, st) {
+    if (!a || !a.el || !a.el.cid || !KP) return null;
+    const k = komponent(st, a.el.cid);
+    if (!k) return null;
+    const pary = KP.pary(k, MAPA);
+    const cele = {};
+    Object.keys(pary).forEach((pid) => {
+      Object.keys(pary[pid].blizniaki).forEach((kod) => {
+        const lang = OBCE.find((j) => String(j).toLowerCase().replace(/[^a-z0-9_]/g, '_') === kod) || kod;
+        cele[pary[pid].blizniaki[kod]] = { pid, lang, etykieta: pary[pid].etykieta };
+      });
+    });
+    return cele;
+  }
+
+  async function tlumaczWlasciwosc(przycisk, stanPola, lang, pid, tid) {
+    if (trwa) { stanPola.textContent = 'Trwa tłumaczenie — poczekaj na koniec.'; return; }
+    const a = aktywny();
+    if (!a || !a.el.cid) { stanPola.textContent = 'Zaznacz instancję komponentu.'; return; }
+    const obj = a.el.properties && typeof a.el.properties === 'object' ? a.el.properties : {};
+    const pl = obj[pid];
+    if (typeof pl !== 'string' || !niepusty(pl)) { stanPola.textContent = 'Brak polskiego tekstu w tej właściwości.'; return; }
+    if (!doTlumaczenia(pl)) { stanPola.textContent = 'Tego tekstu AI nie tłumaczy (sam tag danych dynamicznych albo bez liter).'; return; }
+    const surowe = obj[tid];
+    if (niepusty(surowe) && !powloka.confirm('Zastąpić obecne tłumaczenie ' + lang.toUpperCase() + '?\n\n„'
+      + tekstZHtml(surowe).trim().slice(0, 200) + '”')) return;
+    const x = { id: String(a.el.id), nazwa: 'Komponent', pole: 'prop:' + pid, klPl: pid, klTl: tid, kp: true,
+      lista: '', indeks: -1, idPoz: '', poz: 0, obj, pl, surowe };
+    zajety(true, przycisk);
+    stanPola.textContent = 'Tłumaczę na ' + lang.toUpperCase() + '…';
+    try {
+      const w = await przetlumacz(a.obszar, lang, [x], () => {});
+      stanPola.textContent = opisPola(w);
+      /* Pole panelu, które nie śledzi stanu (jak edytor przy polach elementów): wartość i `input`. */
+      const pole = przycisk.closest('li') && przycisk.closest('li').querySelector('.control textarea, .control input:not([type="hidden"])');
+      const teraz = a.el.properties && a.el.properties[tid];
+      if (w.wpisane && pole && typeof teraz === 'string' && pole.value !== teraz && pole.ownerDocument.activeElement !== pole) {
+        pole.value = teraz;
+        pole.dispatchEvent(new (pole.ownerDocument.defaultView.Event)('input', { bubbles: true }));
+      }
+    } finally {
+      zajety(false, przycisk);
+    }
+  }
+
+  function wstawPrzyciskiWlasciwosci() {
+    if (!AI || !powloka) return;
+    const pd = powloka.document;
+    const panel = pd.getElementById('bricks-panel-component-instance');
+    const nasze = panel ? panel.querySelectorAll('.evk-tl-ai-ikona, .evk-tl-ai-pole-stan') : [];
+    const a = aktywny();
+    const cele = panel ? celWlasciwosci(a, stanPowloki()) : null;
+    if (!cele) { nasze.forEach((x) => { if (x.__evkWlasciciel === window) (x.classList.contains('evk-tl-ai-ikona') ? usunIkone(x) : x.remove()); }); return; }
+    const widziane = new Set();
+    panel.querySelectorAll('[propertyid]').forEach((kontrolka) => {
+      const tid = kontrolka.getAttribute('propertyid') || '';
+      const li = kontrolka.closest('li') || kontrolka.parentElement;
+      const cel = cele[tid];
+      const pole = li && li.querySelector('.control textarea:not([hidden]), .control input:not([type="hidden"]):not([type="checkbox"])');
+      const dla = cel && pole ? a.el.id + '|prop|' + tid : '';
+      let b = null;
+      li.querySelectorAll('.evk-tl-ai-ikona').forEach((x) => {
+        if (!b && dla && !widziane.has(dla) && x.__evkWlasciciel === window && x.getAttribute('data-dla') === dla) b = x;
+        else if (x.__evkWlasciciel === window) usunIkone(x);
+      });
+      let s = null;
+      li.querySelectorAll('.evk-tl-ai-pole-stan').forEach((x) => {
+        if (!s && b && x.__evkWlasciciel === window) s = x;
+        else if (x.__evkWlasciciel === window) x.remove();
+      });
+      if (!dla || widziane.has(dla)) return;
+      widziane.add(dla);
+      if (!b) {
+        b = pd.createElement('button');
+        b.type = 'button';
+        b.className = 'evk-tl-ai-ikona';
+        b.setAttribute('data-dla', dla);
+        const et = li.querySelector('.label span:not(.indicator):not(.bricks-svg-wrapper)');
+        b.setAttribute('aria-label', 'Przetłumacz (AI) — ' + ((et && et.textContent.trim()) || cel.etykieta + ' ' + cel.lang.toUpperCase()));
+        b.setAttribute('data-balloon', 'Przetłumacz z polskiego używając ' + AI.model);
+        b.setAttribute('data-balloon-pos', 'top-right');
+        b.setAttribute('data-balloon-length', 'medium');
+        b.appendChild(ikonaAi(pd, pole.tagName === 'INPUT' ? 14 : 12));
+        b.addEventListener('click', () => {
+          const st = li.querySelector('.evk-tl-ai-pole-stan');
+          if (st) tlumaczWlasciwosc(b, st, cel.lang, cel.pid, tid);
+        });
+        b.__evkWlasciciel = window;
+      }
+      ulozIkone(b, pole, pole.tagName === 'INPUT' ? 'input' : 'textarea', li.querySelector('.dynamic-tag-picker-button'));
+      if (!s) {
+        s = pd.createElement('div');
+        s.className = 'evk-tl-ai-pole-stan';
+        s.setAttribute('role', 'status');
+        s.__evkWlasciciel = window;
+      }
+      const c = li.querySelector('.control') || li;
+      if (s.parentNode !== c) c.appendChild(s);
+    });
+  }
+
   /* Pasek rysuje Vue powłoki — po przerysowaniu grupy może nie być. Sprawdzenie
      co sekundę kosztuje mniej niż obserwowanie całej powłoki. */
   wstawPrzelacznik();
   wstawAi();
   const straz = setInterval(() => { wstawPrzelacznik(); wstawAi(); synchronizujKomponenty(); }, 1000);
-  const strazPol = AI ? setInterval(() => { wstawPrzyciskiPol(); odswiezAi(); }, 300) : 0;
+  const strazPol = AI ? setInterval(() => { wstawPrzyciskiPol(); wstawPrzyciskiWlasciwosci(); odswiezAi(); }, 300) : 0;
   window.addEventListener('pagehide', () => {
     clearInterval(straz);
     if (strazPol) clearInterval(strazPol);

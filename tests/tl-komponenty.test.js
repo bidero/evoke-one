@@ -230,4 +230,83 @@ module.exports = async function (t) {
   t.check('✦ w edycji komponentu: tłumaczy tekst stały, pomija pola z właściwościami (także w kontekście)',
     J(komp.el) === J([['kpkomp', null], ['kpnagl', 'KOMPONENT EN'], ['kptekst', null], ['kpstal', 'EN:Tekst stały komponentu']])
     && J(zap) === J([['Tekst stały komponentu']]) && komp.stan === 'EN: wpisane 1. Zapisz stronę w Bricksie.', J([komp, zap]));
+
+  /* ✦ we „Właściwościach” instancji (1.273.0). Panel jak w Bricksie 2.4.2 (wynik z konsoli 01.10):
+     #bricks-panel-component-instance › ul.properties › li: `.label span` z etykietą, kontrolka
+     `[data-control][propertyid]` z textarea i ⚡ w rogu. Vue przerysowuje panel — tu `__panel()`. */
+  t.section('builder: ✦ przy polach tłumaczeń we „Właściwościach” instancji');
+  const dialogi = [];
+  page.on('dialog', (d) => dialogi.push(d.message()));
+  await page.evaluate(() => {
+    window.__stan.activeComponent = null;
+    window.__stan.content.push({ id: 'kpix', name: 'block', parent: 0, children: [], settings: {}, cid: 'kpkomp', properties: { kpwnag: 'Nagłówek X' } });
+    window.__panel = function () {
+      var inst = window.__stan.content.find(function (e) { return e.id === 'kpix'; });
+      var k = window.__stan.components[0];
+      var stary = document.getElementById('bricks-panel-element');
+      if (stary) stary.remove();
+      var p = document.createElement('div');
+      p.id = 'bricks-panel-element';
+      p.className = 'instance';
+      p.innerHTML = '<div id="bricks-panel-component-instance"><div class="panel-content"><div class="bricks-panel-controls">'
+        + '<div class="group-wrapper" data-group-id="groupless"><ul class="properties"></ul></div></div></div></div>';
+      var ul = p.querySelector('ul');
+      k.properties.forEach(function (w) {
+        var li = document.createElement('li');
+        li.innerHTML = '<div class="label"><div class="has-setting"><span class="indicator"></span></div><i class="ti-text"></i><span></span>'
+          + '<span class="bricks-svg-wrapper edit" data-name="edit">✎</span></div><div class="control control-textarea no-label"><div class="control-inner">'
+          + '<div data-control="textarea" class="auto-height" style="position:relative"><textarea rows="2" style="width:100%;font-size:16px"></textarea>'
+          + '<div class="dynamic-tag-picker-button" style="position:absolute;top:4px;right:4px;width:20px;height:20px">⚡</div></div></div></div>';
+        li.querySelector('.label span:not(.indicator)').textContent = w.label;
+        var ctl = li.querySelector('[data-control]');
+        ctl.setAttribute('propertyid', w.id);
+        var ta = li.querySelector('textarea');
+        ta.value = (inst.properties || {})[w.id] || '';
+        ta.addEventListener('input', function () { inst.properties = inst.properties || {}; inst.properties[w.id] = ta.value; });
+        ul.appendChild(li);
+      });
+      document.getElementById('bricks-panel').appendChild(p);
+    };
+    window.__panel();
+    window.__stan.activeId = 'kpix';
+  });
+  await page.waitForTimeout(700);
+  const ikony = () => page.evaluate(() => Array.from(document.querySelectorAll('#bricks-panel-component-instance .evk-tl-ai-ikona')).map((b) => {
+    const r = b.getBoundingClientRect();
+    return [b.getAttribute('aria-label'), b.getAttribute('data-balloon'), b.getAttribute('data-balloon-pos'), b.getAttribute('data-balloon-length'), Math.round(r.width) > 0];
+  }));
+  const ik = await ikony();
+  t.check('✦ tylko przy polach języków (nie przy „Tekst”, „Nagłówek”), z nazwą pola i dymkiem jak przy polach elementów', J(ik) === J([
+    ['Przetłumacz (AI) — Tekst EN', 'Przetłumacz z polskiego używając atrapa/model', 'top-right', 'medium', true],
+    ['Przetłumacz (AI) — Tekst DE', 'Przetłumacz z polskiego używając atrapa/model', 'top-right', 'medium', true],
+    ['Przetłumacz (AI) — Nagłówek EN', 'Przetłumacz z polskiego używając atrapa/model', 'top-right', 'medium', true],
+    ['Przetłumacz (AI) — Nagłówek DE', 'Przetłumacz z polskiego używając atrapa/model', 'top-right', 'medium', true]]), J(ik));
+  const tN = KP.id('kpkomp', 'kpwnag', 'en'), tT = KP.id('kpkomp', 'kpwtek', 'en');
+  const klik = async (tid) => {
+    await page.click('[propertyid="' + tid + '"] .evk-tl-ai-ikona');
+    await page.waitForFunction((t) => { const s = document.querySelector('[propertyid="' + t + '"]').closest('li').querySelector('.evk-tl-ai-pole-stan');
+      return s && s.textContent && !/^Tłumaczę/.test(s.textContent); }, tid, { timeout: 15000 }).catch(() => {});
+    return page.evaluate((t) => { const li = document.querySelector('[propertyid="' + t + '"]').closest('li');
+      return { stan: li.querySelector('.evk-tl-ai-pole-stan').textContent, pole: li.querySelector('textarea').value,
+        wl: window.__stan.content.find((e) => e.id === 'kpix').properties[t] || null }; }, tid);
+  };
+  const przedW = zadania.length;
+  const w1 = await klik(tN);
+  t.check('klik ✦ przy „Nagłówek EN”: tłumaczenie polskiego „Nagłówek” tej instancji w jej `properties` i w polu panelu, jedno zapytanie',
+    w1.wl === 'EN:Nagłówek X' && w1.pole === 'EN:Nagłówek X' && w1.stan === 'Wpisane (AI · atrapa/model). Zapisz stronę w Bricksie.'
+    && zadania.length === przedW + 1, J([w1, zadania.length - przedW]));
+  const w2 = await klik(tT);
+  t.check('„Tekst EN” bez polskiego tekstu w instancji: komunikat, bez zapytania', w2.stan === 'Brak polskiego tekstu w tej właściwości.' && w2.wl === null
+    && zadania.length === przedW + 1, J([w2, zadania.length - przedW]));
+  const przedD = dialogi.length;
+  await klik(tN);
+  t.check('pole już wypełnione: pytanie „Zastąpić obecne tłumaczenie EN?”', dialogi.length === przedD + 1 && /^Zastąpić obecne tłumaczenie EN\?/.test(dialogi[przedD] || ''),
+    J(dialogi.slice(przedD)));
+  await page.evaluate(() => window.__panel());
+  await page.waitForTimeout(700);
+  const poPrzer = await page.evaluate(() => Array.from(document.querySelectorAll('#bricks-panel-component-instance li')).map((li) => li.querySelectorAll('.evk-tl-ai-ikona').length));
+  t.check('przerysowany panel: znów po jednym ✦ przy każdym polu języka', J(poPrzer) === J([0, 1, 1, 0, 1, 1]), J(poPrzer));
+  await page.evaluate(() => { window.__stan.activeId = 'h2'; });
+  await page.waitForTimeout(700);
+  t.check('zaznaczony zwykły element: ✦ znikają z panelu właściwości', (await ikony()).length === 0, J(await ikony()));
 };
