@@ -253,11 +253,32 @@ module.exports = async function (t) {
     t.check('bez klucza API: bez ✦ i danych AI, „Z tytułu” zostaje', J(bezKlucza) === J([0, 2, 'undefined']), J(bezKlucza));
     await p.goto(serwer.baza + '/wp-admin/term.php?taxonomy=category&tag_ID=1', { waitUntil: 'load' });
     const term = await p.evaluate(() => [document.querySelectorAll('.evk-tlw-pole').length > 0, document.querySelectorAll('.evk-tlw-ai').length]);
-    t.check('edycja kategorii: pola języków są, ✦ nie ma (termy — osobne wydanie)', J(term) === J([true, 0]), J(term));
+    /* Od 1.270.0 ✦ jest też w edycji termu (nazwa i opis, EN i DE) — szczegóły w tl-ai-termy. */
+    t.check('edycja kategorii: pola języków i ✦ przy nazwie i opisie (EN, DE)', J(term) === J([true, 4]), J(term));
     await p.unroute('**/wp-admin/admin-ajax.php');
 
     t.section('Tłumaczenia → AI: pola wyboru tekstów wpisów (Chromium)');
     await p.goto(serwer.baza + '/wp-admin/options-general.php?page=evoke-tlumaczenia&tab=ai', { waitUntil: 'load' });
+    /* Układ (1.270.0): krótkie pola w jednym wierszu, na telefonie jedno pod drugim. */
+    const kolumny = () => p.evaluate(() => {
+      const top = (sel) => { const e = document.querySelector(sel); return e ? Math.round(e.getBoundingClientRect().top) : null; };
+      const g = (lista) => lista.map(top);
+      return { ustawienia: g(['#tl-ai-dostawca', '#tl-ai-klucz', '#tl-ai-model']), wskazowki: g(['#tl-ai-wsk-en', '#tl-ai-wsk-de']),
+        przebieg: g(['#tl-ai-tryb-tytul', '#tl-ai-jezyki-tytul', 'label[for="tl-ai-przebieg-dostawca"]']),
+        dodatki: g(['.tl-ai-wpisy legend', '.tl-ai-pola-fields legend']), szer: Math.round(document.getElementById('tl-ai-klucz').getBoundingClientRect().width) };
+    });
+    const jeden = (a) => a.every((x) => x !== null && x === a[0]);
+    const rosnie = (a) => a.every((x, i) => x !== null && (i === 0 || x > a[i - 1]));
+    const k1280 = await kolumny();
+    await p.setViewportSize({ width: 360, height: 800 });
+    const k360 = await kolumny();
+    await p.setViewportSize({ width: 1280, height: 900 });
+    console.log('      kolumny 1280: ' + J(k1280) + '\n      telefon 360: ' + J(k360));
+    t.check('1280 px: Dostawca, Klucz API i Model w jednym wierszu, wskazówki EN i DE obok siebie, klucz szerszy niż 200 px',
+      jeden(k1280.ustawienia) && jeden(k1280.wskazowki) && k1280.szer > 200, J(k1280));
+    t.check('1280 px: „Co tłumaczyć”, „Języki” i dostawca przebiegu w jednym wierszu; pola wyboru wpisów obok', jeden(k1280.przebieg)
+      && k1280.dodatki[0] !== null && (k1280.dodatki[1] === null || k1280.dodatki[1] === k1280.dodatki[0]), J(k1280));
+    t.check('360 px: wszystko jedno pod drugim', rosnie(k360.ustawienia) && rosnie(k360.wskazowki) && rosnie(k360.przebieg), J(k360));
     const pw = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-wpisy input')).map((c) => [c.value === 'on' ? c.id : c.value, c.checked,
       (c.closest('label') || {}).textContent.trim()]));
     t.check('cztery pola wyboru, wszystkie odznaczone: Tytuł, Treść, Zajawka, Adres z tytułu', J(pw) === J([['post_title', false, 'Tytuł'],

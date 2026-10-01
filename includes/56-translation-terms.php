@@ -36,6 +36,16 @@ function evk_tlt_taksonomie(): array {
     return $cache = array_values(array_unique(array_map('strval', (array) apply_filters('evk_tl_termy_taksonomie', array_values($t)))));
 }
 
+/** „Sprawdzone” z listy „Do sprawdzenia” (1.270.0): źródło = bieżący polski tekst, bez znacznika AI. */
+function evk_tlt_sprawdzone(int $termId, string $lang, string $pole): bool {
+    $term = get_term($termId);
+    if (!($term instanceof WP_Term) || !in_array($pole, ['name', 'description'], true) || evk_tlw_pusty(evk_tlt_meta($termId, $lang, $pole))) return false;
+    $pl = (string) $term->{$pole};
+    if (evk_tlw_pusty($pl)) return false;
+    update_term_meta($termId, '_evk_tl_' . $lang . '__' . $pole . '__zrodlo', evk_tlw_zrodlo($pl));
+    return true;
+}
+
 /** Zapisane tłumaczenie pola termu (surowo, do panelu). */
 function evk_tlt_meta(int $termId, string $lang, string $pole): string {
     return (string) get_term_meta($termId, '_evk_tl_' . $lang . '__' . $pole, true);
@@ -102,6 +112,9 @@ add_action('admin_enqueue_scripts', function ($hook) {
     wp_enqueue_style('evk-tl-wpisy', EVOKE_ONE_URL . 'assets/admin/tl-wpisy.css', [], EVOKE_ONE_VERSION);
     wp_enqueue_script('evk-tl-wpisy', EVOKE_ONE_URL . 'assets/admin/tl-wpisy.js', ['jquery'], EVOKE_ONE_VERSION, true);
     wp_add_inline_style('evk-tl-wpisy', evk_tlw_css_jezykow());
+    /* ✦ w edycji termu (1.270.0) — dane jak w edycji wpisu (55, evk_tlw_ai_dane()). */
+    $ai = evk_tlw_ai_dane();
+    if ($ai !== null) wp_add_inline_script('evk-tl-wpisy', 'window.evkTlwAi = ' . wp_json_encode($ai) . ';', 'before');
 });
 
 /** Przełącznik języka (nad formularzem, którego selektor dostaje skrypt). */
@@ -141,6 +154,11 @@ function evk_tlt_pole(bool $wiersz, string $kod, string $pole, ?WP_Term $term, a
     if ($pole === 'slug') {
         $input = '<input type="text" id="' . esc_attr($id) . '" class="evk-tlw-slug" name="' . esc_attr($n . '[wartosc]') . '" value="' . esc_attr($wartosc) . '"'
             . ' placeholder="' . esc_attr($pl !== '' ? $pl : 'jak polski') . '" autocomplete="off" spellcheck="false">';
+        /* „Z nazwy” (1.270.0): człon z nazwy tego języka, bez AI — tylko w edycji (term już jest). */
+        if ($term) {
+            $input .= ' <button type="button" class="button button-small evk-tlw-z-tytulu" aria-label="' . esc_attr('Adres ' . $K . ' z nazwy ' . $K) . '">Z nazwy</button>'
+                . ' <span class="evk-tlw-adres-stan" role="status"></span>';
+        }
         $pod = '<p class="description evk-tlw-uwaga">Pusty = ten sam człon co po polsku' . ($pl !== '' ? ' („' . esc_html($pl) . '”)' : '') . '.';
         $inne = $term && $pl !== '' ? evk_tlw_inne_z_czlonem($pl, 0, (int) $term->term_id) : [];
         if ($inne) $pod .= ' Ten sam polski człon ma też: ' . esc_html(implode(', ', $inne)) . ' — tłumaczenie członu dotyczy wszystkich (mapa adresów jest wspólna).';
@@ -264,7 +282,10 @@ function evk_tlt_zapisz($termId, $ttId, $taxonomy): void {
             }
             $przed  = sanitize_key((string) ($dane[$pole]['przed'] ?? ''));
             $zrodlo = sanitize_key((string) ($dane[$pole]['zrodlo'] ?? ''));
-            if ($zrodlo === '' || $zrodlo === 'teraz' || evk_tlw_skrot($tekst) !== $przed) {
+            if ($zrodlo === 'ai') {
+                /* Pole wypełnił ✦ (1.270.0) i nikt go potem nie poprawiał — „AI — do sprawdzenia”. */
+                $zrodlo = 'ai-' . evk_tlw_zrodlo((string) $term->{$pole});
+            } elseif ($zrodlo === '' || $zrodlo === 'teraz' || evk_tlw_skrot($tekst) !== $przed) {
                 $zrodlo = evk_tlw_zrodlo((string) $term->{$pole});
             }
             update_term_meta($termId, '_evk_tl_' . $kod . '__' . $pole, wp_slash($tekst));

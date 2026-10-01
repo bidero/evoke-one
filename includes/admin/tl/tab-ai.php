@@ -31,6 +31,9 @@ $evk_jezyki = tl_get_languages();
     <p class="evo-desc">Ustawienia zmienia administrator. Dostawca: <?php echo esc_html($evk_d[$evk_u['dostawca']]['nazwa']); ?>,
     model: <code><?php echo esc_html(evk_tl_ai_model($evk_u)); ?></code>, klucz API: <?php echo evk_tl_ai_klucz($evk_u) !== '' ? 'zapisany' : 'brak'; ?>.</p>
     <?php else: ?>
+    <?php /* Układ (1.270.0): krótkie pola w jednym wierszu, wskazówki języków obok siebie —
+             siatka `evo-grid` sama schodzi do jednej kolumny, gdy kolumny się nie mieszczą. */ ?>
+    <div class="evo-grid evo-pola-rowne tl-ai-wiersz" style="--evo-col:200px;--evo-gap:16px">
     <div class="evo-field">
         <label for="tl-ai-dostawca">Dostawca</label>
         <select id="tl-ai-dostawca">
@@ -52,10 +55,12 @@ $evk_jezyki = tl_get_languages();
         <input type="text" id="tl-ai-model" spellcheck="false">
         <p class="evo-desc">Puste — model domyślny dostawcy (w podpowiedzi pola).</p>
     </div>
+    </div>
     <div class="evo-field">
         <label for="tl-ai-opis">Opis strony (branża, odbiorcy, ton)</label>
         <textarea id="tl-ai-opis" rows="3"><?php echo esc_textarea($evk_u['opis']); ?></textarea>
     </div>
+    <div class="evo-grid tl-ai-wiersz" style="--evo-col:280px;--evo-gap:16px">
     <?php foreach ($evk_jezyki as $evk_kod => $evk_j): ?>
     <div class="evo-field">
         <label for="tl-ai-wsk-<?php echo esc_attr((string) $evk_kod); ?>">Wskazówki: <?php echo esc_html(strtoupper((string) $evk_kod) . ' (' . ($evk_j['name'] ?? $evk_kod) . ')'); ?></label>
@@ -63,6 +68,7 @@ $evk_jezyki = tl_get_languages();
             placeholder="np. zwracaj się per Sie; angielski brytyjski"><?php echo esc_textarea((string) ($evk_u['wskazowki'][$evk_kod] ?? '')); ?></textarea>
     </div>
     <?php endforeach; ?>
+    </div>
     <div class="evo-field">
         <label for="tl-ai-slowniczek">Słowniczek</label>
         <textarea id="tl-ai-slowniczek" rows="5" spellcheck="false" placeholder="realizacje | projects | Projekte&#10;!Evoke Design Studio"><?php echo esc_textarea($evk_u['slowniczek']); ?></textarea>
@@ -79,55 +85,74 @@ $evk_jezyki = tl_get_languages();
 <?php $evk_dostepni = evk_tl_ai_dostepni($evk_u); ?>
 <div class="evo-box tl-ai-tlumacz">
     <h3>Przetłumacz strony</h3>
-    <div class="tl-ai-tryb" role="radiogroup" aria-labelledby="tl-ai-tryb-tytul">
-        <p id="tl-ai-tryb-tytul"><strong>Co tłumaczyć</strong></p>
-        <label class="evo-check-row"><input type="radio" name="tl-ai-tryb" value="puste" checked> Tylko puste pola</label>
-        <label class="evo-check-row"><input type="radio" name="tl-ai-tryb" value="ponownie"> Puste pola i tłumaczenia AI „Do sprawdzenia” — od nowa</label>
-    </div>
-    <p class="evo-desc">Od nowa AI tłumaczy tylko swoje niesprawdzone tłumaczenia; sprawdzone i wpisane ręcznie zostają.
-    Poprzednią wersję przywrócisz w liście „Teksty w elementach” albo w okienku sprawdzania na stronie. Ten sam model przy tych
-    samych ustawieniach daje ten sam wynik z pamięci — nowe zapytanie wyśle „Pytaj AI od nowa”, inny model albo zmiana opisu,
-    wskazówek lub słowniczka.</p>
-    <p><label class="evo-check-row"><input type="checkbox" id="tl-ai-bez-pamieci"> Pytaj AI od nowa (bez pamięci wyników)</label></p>
-    <p class="evo-desc">Zapytanie idzie do AI także wtedy, gdy ten sam model ma już wynik dla tego tekstu — zużywa limit dostawcy.
-    Sprawdzone tłumaczenie tego samego tekstu z innej strony dalej wraca bez pytania AI.</p>
-    <div class="evo-field">
-        <label for="tl-ai-przebieg-dostawca">Dostawca tego przebiegu</label>
-        <select id="tl-ai-przebieg-dostawca">
-            <?php foreach ($evk_dostepni as $evk_k => $evk_w): ?>
-            <option value="<?php echo esc_attr($evk_k); ?>" data-model="<?php echo esc_attr($evk_w['model']); ?>" <?php selected($evk_u['dostawca'], $evk_k); ?>><?php echo esc_html($evk_w['nazwa']); ?></option>
+    <?php /* Układ (1.270.0): trzy kolumny — co tłumaczyć, języki, dostawca i model
+             przebiegu — i pod nimi pola wyboru dodatkowych tekstów; siatka sama
+             schodzi do jednej kolumny na wąskim ekranie. */ ?>
+    <div class="evo-grid evo-pola-rowne tl-ai-wiersz" style="--evo-col:220px;--evo-gap:20px">
+        <div>
+            <div class="tl-ai-tryb" role="radiogroup" aria-labelledby="tl-ai-tryb-tytul">
+                <p id="tl-ai-tryb-tytul"><strong>Co tłumaczyć</strong></p>
+                <label class="evo-check-row"><input type="radio" name="tl-ai-tryb" value="puste" checked> Tylko puste pola</label>
+                <label class="evo-check-row"><input type="radio" name="tl-ai-tryb" value="ponownie"> Puste pola i tłumaczenia AI „Do sprawdzenia” — od nowa</label>
+            </div>
+            <p><label class="evo-check-row"><input type="checkbox" id="tl-ai-bez-pamieci"> Pytaj AI od nowa (bez pamięci wyników)</label></p>
+        </div>
+        <div class="tl-ai-jezyki" role="group" aria-labelledby="tl-ai-jezyki-tytul">
+            <p id="tl-ai-jezyki-tytul"><strong>Języki</strong></p>
+            <?php foreach ($evk_jezyki as $evk_kod => $evk_j): ?>
+            <label class="evo-check-row"><input type="checkbox" class="tl-ai-jezyk" value="<?php echo esc_attr((string) $evk_kod); ?>" checked>
+                <?php echo esc_html(strtoupper((string) $evk_kod) . ' — ' . ($evk_j['name'] ?? $evk_kod)); ?></label>
             <?php endforeach; ?>
-            <?php if (!$evk_dostepni): ?>
-            <option value="" data-model="">Brak zapisanego klucza API</option>
-            <?php endif; ?>
-        </select>
+        </div>
+        <div>
+            <div class="evo-field">
+                <label for="tl-ai-przebieg-dostawca">Dostawca tego przebiegu</label>
+                <select id="tl-ai-przebieg-dostawca">
+                    <?php foreach ($evk_dostepni as $evk_k => $evk_w): ?>
+                    <option value="<?php echo esc_attr($evk_k); ?>" data-model="<?php echo esc_attr($evk_w['model']); ?>" <?php selected($evk_u['dostawca'], $evk_k); ?>><?php echo esc_html($evk_w['nazwa']); ?></option>
+                    <?php endforeach; ?>
+                    <?php if (!$evk_dostepni): ?>
+                    <option value="" data-model="">Brak zapisanego klucza API</option>
+                    <?php endif; ?>
+                </select>
+            </div>
+            <div class="evo-field">
+                <label for="tl-ai-przebieg-model">Model tego przebiegu</label>
+                <input type="text" id="tl-ai-przebieg-model" spellcheck="false">
+            </div>
+        </div>
     </div>
-    <div class="evo-field">
-        <label for="tl-ai-przebieg-model">Model tego przebiegu</label>
-        <input type="text" id="tl-ai-przebieg-model" spellcheck="false">
-        <p class="evo-desc">Puste — model z ustawień (w podpowiedzi pola). Ustawienia zostają bez zmian.</p>
+    <p class="evo-desc">Od nowa AI tłumaczy tylko swoje niesprawdzone tłumaczenia; sprawdzone i wpisane ręcznie zostają, a poprzednią wersję
+    przywrócisz w liście „Teksty w elementach” albo w okienku sprawdzania na stronie. Ten sam model przy tych samych ustawieniach daje wynik
+    z pamięci — „Pytaj AI od nowa” wysyła zapytanie mimo to (zużywa limit dostawcy). Pusty model przebiegu — model z ustawień; ustawienia zostają bez zmian.</p>
+
+    <div class="evo-grid tl-ai-wiersz tl-ai-dodatki" style="--evo-col:220px;--evo-gap:20px">
+        <fieldset class="tl-ai-wpisy">
+            <legend><strong>Także teksty wpisów</strong></legend>
+            <label class="evo-check-row"><input type="checkbox" class="tl-ai-wpis-pole" value="post_title"> Tytuł</label>
+            <label class="evo-check-row"><input type="checkbox" class="tl-ai-wpis-pole" value="post_content"> Treść (edytor WordPressa)</label>
+            <label class="evo-check-row"><input type="checkbox" class="tl-ai-wpis-pole" value="post_excerpt"> Zajawka</label>
+            <label class="evo-check-row"><input type="checkbox" id="tl-ai-adres"> Adres z tytułu</label>
+        </fieldset>
+        <?php if (function_exists('evk_tl_ai_termy_dostepne') && evk_tl_ai_termy_dostepne()): ?>
+        <fieldset class="tl-ai-termy">
+            <legend><strong>Także kategorie i tagi</strong></legend>
+            <label class="evo-check-row"><input type="checkbox" class="tl-ai-term-pole" value="name"> Nazwa</label>
+            <label class="evo-check-row"><input type="checkbox" class="tl-ai-term-pole" value="description"> Opis</label>
+            <label class="evo-check-row"><input type="checkbox" id="tl-ai-term-adres"> Adres z nazwy</label>
+        </fieldset>
+        <?php endif; ?>
+        <?php if (function_exists('evk_tl_ai_pola_dostepne') && evk_tl_ai_pola_dostepne()): ?>
+        <fieldset class="tl-ai-pola-fields">
+            <legend><strong>Także Evoke FIELDS</strong></legend>
+            <label class="evo-check-row"><input type="checkbox" id="tl-ai-pola"> Pola Evoke FIELDS</label>
+        </fieldset>
+        <?php endif; ?>
     </div>
-    <fieldset class="tl-ai-wpisy">
-        <legend><strong>Także teksty wpisów (wpisy, strony, typy treści)</strong></legend>
-        <label class="evo-check-row"><input type="checkbox" class="tl-ai-wpis-pole" value="post_title"> Tytuł</label>
-        <label class="evo-check-row"><input type="checkbox" class="tl-ai-wpis-pole" value="post_content"> Treść (edytor WordPressa)</label>
-        <label class="evo-check-row"><input type="checkbox" class="tl-ai-wpis-pole" value="post_excerpt"> Zajawka</label>
-        <label class="evo-check-row"><input type="checkbox" id="tl-ai-adres"> Adres z tytułu</label>
-    </fieldset>
-    <p class="evo-desc">Osobna pozycja „Teksty wpisu” przy stronie. Treść stron zbudowanych w Bricksie jest w elementach — tu jej nie ma.
-    Adres: człon z przetłumaczonego tytułu trafia do Slugów URL, tylko gdy tego członu jeszcze nie przetłumaczono; ten sam adres innej strony — bez zapisu, z powodem w dzienniku.
-    Tłumaczenia dostają znacznik „AI — do sprawdzenia” w edycji wpisu.</p>
-    <?php if (function_exists('evk_tl_ai_pola_dostepne') && evk_tl_ai_pola_dostepne()): ?>
-    <p><label class="evo-check-row"><input type="checkbox" id="tl-ai-pola"> Także pola Evoke FIELDS (wpisy, strony, typy treści)</label></p>
-    <p class="evo-desc">Wartości pól z grup Evoke FIELDS — osobna pozycja „Pola Evoke FIELDS” przy stronie. Kontekstem są pola i treść tej strony.
-    Tłumaczenia dostają znacznik „AI — do sprawdzenia” w edycji wpisu.</p>
-    <?php endif; ?>
-    <p class="tl-ai-jezyki">
-        <?php foreach ($evk_jezyki as $evk_kod => $evk_j): ?>
-        <label class="evo-check-row"><input type="checkbox" class="tl-ai-jezyk" value="<?php echo esc_attr((string) $evk_kod); ?>" checked>
-            <?php echo esc_html(strtoupper((string) $evk_kod) . ' — ' . ($evk_j['name'] ?? $evk_kod)); ?></label>
-        <?php endforeach; ?>
-    </p>
+    <p class="evo-desc">Wpisy, strony i typy treści — osobne pozycje „Teksty wpisu” i „Pola Evoke FIELDS” przy stronie; treść stron zbudowanych
+    w Bricksie jest w elementach. Kategorie i tagi — pozycje „Nazwa i opis” (i „Pola Evoke FIELDS”, gdy termy mają pola) przy termie.
+    Adres z tytułu albo nazwy trafia do Slugów URL tylko wtedy, gdy tego członu jeszcze nie przetłumaczono; ten sam adres
+    innej strony — bez zapisu, z powodem w dzienniku. Tłumaczenia dostają znacznik „AI — do sprawdzenia” w edycji wpisu albo termu.</p>
     <p>
         <button type="button" class="button tl-ai-lista">Pokaż strony do tłumaczenia</button>
         <button type="button" class="button button-primary tl-ai-start" disabled>Przetłumacz zaznaczone</button>
@@ -150,6 +175,8 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
     <?php if (!$evk_strony): ?>
     <p class="evo-desc">Nie ma stron z danymi Bricksa, które możesz edytować.</p>
     <?php else: ?>
+    <?php /* Strona | Co usunąć | Języki w jednym wierszu (1.270.0). */ ?>
+    <div class="evo-grid evo-pola-rowne tl-ai-wiersz" style="--evo-col:220px;--evo-gap:20px">
     <div class="evo-field">
         <label for="tl-ai-czysc-strona">Strona</label>
         <select id="tl-ai-czysc-strona">
@@ -163,12 +190,14 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         <label class="evo-check-row"><input type="radio" name="tl-ai-czysc-zakres" value="ai" checked> Tylko tłumaczenia AI „Do sprawdzenia”</label>
         <label class="evo-check-row"><input type="radio" name="tl-ai-czysc-zakres" value="wszystkie"> Wszystkie tłumaczenia — także sprawdzone i wpisane ręcznie</label>
     </div>
-    <p class="tl-ai-czysc-jezyki" role="group" aria-label="Języki do wyczyszczenia">
+    <div class="tl-ai-czysc-jezyki" role="group" aria-label="Języki do wyczyszczenia">
+        <p aria-hidden="true"><strong>Języki</strong></p>
         <?php foreach ($evk_jezyki as $evk_kod => $evk_j): ?>
         <label class="evo-check-row"><input type="checkbox" class="tl-ai-czysc-jezyk" value="<?php echo esc_attr((string) $evk_kod); ?>" checked>
             <?php echo esc_html(strtoupper((string) $evk_kod) . ' — ' . ($evk_j['name'] ?? $evk_kod)); ?></label>
         <?php endforeach; ?>
-    </p>
+    </div>
+    </div>
     <p>
         <button type="button" class="button evo-btn-danger tl-ai-czysc-start">Wyczyść…</button>
         <button type="button" class="button tl-ai-czysc-przywroc" disabled>Przywróć wyczyszczone</button>
@@ -259,7 +288,10 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
     /* Teksty wpisów (1.268.0): pola wybrane osobno, adres z tytułu. */
     function wpisFlagi() {
         return { pola: Array.prototype.map.call(t.querySelectorAll('.tl-ai-wpis-pole:checked'), function (c) { return c.value; }),
-            adres: document.getElementById('tl-ai-adres') && document.getElementById('tl-ai-adres').checked ? '1' : '' };
+            adres: document.getElementById('tl-ai-adres') && document.getElementById('tl-ai-adres').checked ? '1' : '',
+            /* Kategorie i tagi (1.270.0): nazwa, opis, adres z nazwy. */
+            term_pola: Array.prototype.map.call(t.querySelectorAll('.tl-ai-term-pole:checked'), function (c) { return c.value; }),
+            term_adres: document.getElementById('tl-ai-term-adres') && document.getElementById('tl-ai-term-adres').checked ? '1' : '' };
     }
     function tryb() {
         var r = t.querySelector('input[name="tl-ai-tryb"]:checked');
@@ -273,7 +305,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
     przebiegDostawca.addEventListener('change', pokazPrzebieg);
     pokazPrzebieg();
     /* Liczby na liście zależą od trybu — po zmianie trzeba ją pokazać od nowa. */
-    t.querySelectorAll('input[name="tl-ai-tryb"], #tl-ai-pola, .tl-ai-wpis-pole, #tl-ai-adres').forEach(function (r) {
+    t.querySelectorAll('input[name="tl-ai-tryb"], #tl-ai-pola, .tl-ai-wpis-pole, #tl-ai-adres, .tl-ai-term-pole, #tl-ai-term-adres').forEach(function (r) {
         r.addEventListener('change', function () {
             jednostki = [];
             lista.textContent = '';
@@ -284,7 +316,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
     function wpisz(tekst) { dziennik.appendChild(el('li', tekst)); }
     function opisAdresu(a) {
         return { zapisany: '„' + a.czlon + '” zapisany w Slugach URL', jest: 'już przetłumaczony („' + a.czlon + '”)',
-            bez_tytulu: 'brak tłumaczenia tytułu', bez_adresu: 'wpis bez polskiego adresu', ten_sam: 'taki sam jak polski',
+            bez_tytulu: 'brak tłumaczenia tytułu (nazwy)', bez_adresu: 'bez polskiego adresu', ten_sam: 'taki sam jak polski',
             konflikt: 'bez zapisu — ' + a.powod }[a.stan] || a.stan;
     }
     function czekaj(s) { return new Promise(function (ok) { setTimeout(ok, s * 1000); }); }
@@ -299,7 +331,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         var polaFields = document.getElementById('tl-ai-pola');
         var wp = wpisFlagi();
         return wyslij({ action: 'evk_tl_ai_lista', tryb: trybListy, pola: polaFields && polaFields.checked ? '1' : '',
-            wpis_pola: wp.pola, adres: wp.adres }).then(function (r) {
+            wpis_pola: wp.pola, adres: wp.adres, term_pola: wp.term_pola, term_adres: wp.term_adres }).then(function (r) {
             przyciskListy.disabled = false;
             lista.textContent = '';
             if (!r || !r.success) { stan.textContent = (r && r.data) || 'Błąd.'; return; }
@@ -358,7 +390,8 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         /* Tryb, dostawca i model na cały przebieg — zmiana w trakcie go nie rusza. */
         var flagi = wpisFlagi();
         var przebieg = { tryb: tryb(), dostawca: przebiegDostawca.value, model: przebiegModel.value.trim(),
-            bez_pamieci: document.getElementById('tl-ai-bez-pamieci').checked ? '1' : '', wpis_pola: flagi.pola, adres: flagi.adres };
+            bez_pamieci: document.getElementById('tl-ai-bez-pamieci').checked ? '1' : '', wpis_pola: flagi.pola, adres: flagi.adres,
+            term_pola: flagi.term_pola, term_adres: flagi.term_adres };
         zatrzymaj = false; start.disabled = true; stop.disabled = false; dziennik.textContent = '';
         var suma = { zapisane: 0, z_ai: 0, z_pamieci: 0, odrzucone: 0, bez_zmian: 0 }, przerwane = '';
         petla:
@@ -374,7 +407,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
                     try {
                         r = await wyslij({ action: 'evk_tl_ai_krok', post_id: j.post_id, meta_key: j.meta_key, lang: lang, pomin: pomin,
                             tryb: przebieg.tryb, dostawca: przebieg.dostawca, model: przebieg.model, bez_pamieci: przebieg.bez_pamieci,
-                            wpis_pola: przebieg.wpis_pola, adres: przebieg.adres });
+                            wpis_pola: przebieg.wpis_pola, adres: przebieg.adres, term_pola: przebieg.term_pola, term_adres: przebieg.term_adres });
                     } catch (e) { r = { success: false, data: 'Błąd połączenia.' }; }
                     if (!r || !r.success) { wpisz(j.tytul + ' ' + lang.toUpperCase() + ': ' + ((r && r.data) || 'błąd')); break; }
                     var d = r.data;

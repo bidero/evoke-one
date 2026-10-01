@@ -564,10 +564,24 @@
     const stary = pd.getElementById('evk-tl-podglad');
     if (stary && stary.__evkWlasciciel === window && pasek.contains(stary)) return;
     if (stary) stary.remove();
+    /* Opakowanie (1.270.0): przełącznik i ✦ to w pasku Bricksa JEDEN element —
+       pasek rozkłada swoje grupy na całą szerokość, więc osobne grupy stały
+       daleko od siebie (uwaga zgłaszającego, zrzut z 1.269.0). */
+    let opak = pd.getElementById('evk-tl-pasek');
+    if (opak && opak.__evkWlasciciel !== window) { opak.remove(); opak = null; }
+    if (!opak) {
+      opak = pd.createElement('div');
+      opak.id = 'evk-tl-pasek';
+      opak.__evkWlasciciel = window;
+      const srodek = pasek.querySelector('.group-wrapper.center');
+      if (srodek && srodek.parentNode === pasek) srodek.insertAdjacentElement('afterend', opak);
+      else pasek.appendChild(opak);
+    }
     if (!pd.getElementById('evk-tl-podglad-styl')) {
       const s = pd.createElement('style');
       s.id = 'evk-tl-podglad-styl';
-      s.textContent = '#evk-tl-podglad{display:flex;align-items:center;gap:2px;margin:0 8px;padding:0;list-style:none}'
+      s.textContent = '#evk-tl-pasek{display:flex;align-items:center;gap:6px;margin:0 8px;padding:0}'
+        + '#evk-tl-podglad{display:flex;align-items:center;gap:2px;margin:0;padding:0;list-style:none}'
         + '#evk-tl-podglad li{margin:0;padding:0;list-style:none}'
         + '#evk-tl-podglad button{min-width:32px;border:0;border-radius:4px;background:transparent;color:inherit;font:600 12px/1 inherit;letter-spacing:.02em;cursor:pointer;opacity:.75}'
         + '#evk-tl-podglad button:hover{opacity:1}'
@@ -596,9 +610,7 @@
       ul.appendChild(li);
     });
     ul.__evkWlasciciel = window;
-    const srodek = pasek.querySelector('.group-wrapper.center');
-    if (srodek && srodek.parentNode === pasek) srodek.insertAdjacentElement('afterend', ul);
-    else pasek.appendChild(ul);
+    opak.prepend(ul);
   }
 
   // ── Przyciski AI (1.265.0) ──────────────────────────────────────────────
@@ -976,7 +988,7 @@
     if (!pd.getElementById('evk-tl-ai-styl')) {
       const s = pd.createElement('style');
       s.id = 'evk-tl-ai-styl';
-      s.textContent = '#evk-tl-ai{display:flex;align-items:center;margin:0 8px 0 0;padding:0;list-style:none}'
+      s.textContent = '#evk-tl-ai{display:flex;align-items:center;margin:0;padding:0;list-style:none}'
         + '#evk-tl-ai li{margin:0;padding:0;list-style:none}'
         + '#evk-tl-ai button{width:28px;height:28px;border-radius:4px;opacity:.85}'
         + '#evk-tl-ai button:hover,.evk-tl-ai-ikona:hover{opacity:1}'
@@ -1191,9 +1203,10 @@
         b.setAttribute('data-dla', dla);
         const etykieta = ctrl.querySelector('label');
         b.setAttribute('aria-label', 'Przetłumacz (AI) — ' + ((etykieta && etykieta.textContent.trim()) || 'Tłumaczenie ' + cel[0].toUpperCase()));
-        /* Dymek Bricksa (`.bricks-panel [data-balloon]`) — ✦ stoi przy prawej krawędzi panelu, więc dymek w lewo. */
+        /* Dymek Bricksa (`.bricks-panel [data-balloon]`) na prawo od ✦ — panel stoi
+           po lewej, więc dymek wychodzi na kanwę, nie pod panel (1.270.0, uwaga zgłaszającego). */
         b.setAttribute('data-balloon', 'Przetłumacz (AI) z polskiego tekstu tego pola (' + AI.model + ')');
-        b.setAttribute('data-balloon-pos', 'top-right');
+        b.setAttribute('data-balloon-pos', 'right');
         b.appendChild(ikonaAi(pd, rodzaj === 'input' ? 14 : 12));
         b.addEventListener('click', () => {
           const st = ctrl.querySelector('.evk-tl-ai-pole-stan');
@@ -1225,7 +1238,7 @@
     try {
       const pd = powloka && powloka.document;
       if (!pd) return;
-      ['evk-tl-podglad', 'evk-tl-ai', 'evk-tl-ai-dymek'].forEach((id) => {
+      ['evk-tl-podglad', 'evk-tl-ai', 'evk-tl-ai-dymek', 'evk-tl-pasek'].forEach((id) => {
         const u = pd.getElementById(id);
         if (u && u.__evkWlasciciel === window) u.remove();
       });

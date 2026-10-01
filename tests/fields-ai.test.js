@@ -173,10 +173,49 @@ module.exports = async function (t) {
     const przyPolu = pe.filter((b) => !/evk-tl-ai-grupa/.test(b.k));
     console.log('      przyciski EN: ' + J(pe.slice(0, 3)) + ' … (' + pe.length + ')');
     /* Przy każdym polu z wersjami językowymi (9 — także przy polu z pustym oryginałem: tam serwer odpowie „Brak tekstu”). */
-    t.check('widok EN: ✦ „Przetłumacz puste pola (AI)” w każdej grupie, ✦ „Przetłumacz” przy każdym polu z nazwą pola i języka',
-      grupy.length === 2 && grupy.every((b) => b.t === 'Przetłumacz puste pola (AI)' && b.svg) && przyPolu.length === 9
+    t.check('widok EN: ✦ „Tłumacz puste” (nazwa „Przetłumacz puste pola (AI)”) w każdej grupie, ✦ „Przetłumacz” przy każdym polu z nazwą pola i języka',
+      grupy.length === 2 && grupy.every((b) => b.t === 'Tłumacz puste' && b.n === 'Przetłumacz puste pola (AI)' && b.svg) && przyPolu.length === 9
       && przyPolu.every((b) => b.t === 'Przetłumacz' && b.svg && /^Przetłumacz \(AI\) — .+ — (etykieta )?EN$/.test(b.n)), J(pe));
     t.check('cele dotyku co najmniej 24 px wysokości', pe.every((b) => b.h >= 24), J(pe.map((b) => b.h)));
+
+    /* Układ pola (1.77.0): etykieta i przyciski w jednym wierszu, w wąskiej
+       kolumnie (jak boczna, 280 px) przyciski pod etykietą; przełącznik
+       PL | EN z „Tłumacz puste” w jednym wierszu także w wąskiej kolumnie. */
+    const uklad = () => p.evaluate((b) => {
+      const r = (e) => e.getBoundingClientRect();
+      /* Najszersze pole EN z ✦ — pola w kolumnach grupy (np. pół szerokości) mają swój układ. */
+      const pole = Array.from(document.querySelectorAll(b + ' .evk-tl-pole[data-lang="en"]')).filter((x) => x.querySelector('.evk-tl-ai'))
+        .sort((x, y) => r(y).width - r(x).width)[0];
+      const et = r(pole.querySelector('.evk-tl-etykieta')), kop = r(pole.querySelector('.evk-tl-kopiuj')), ai = r(pole.querySelector('.evk-tl-ai'));
+      const we = r(pole.querySelector('.evk-tl-wejscie'));
+      const przel = Array.from(document.querySelector(b + ' .evk-tl-przelacznik').querySelectorAll('.evk-tl-jezyk, .evk-tl-ai-grupa'))
+        .filter((x) => x.offsetParent !== null).map((x) => Math.round(r(x).top));
+      return { obok: Math.abs((kop.top + kop.bottom) / 2 - (et.top + et.bottom) / 2) < 6 && kop.left > et.right, pod: kop.top >= et.bottom - 1,
+        przedPolem: ai.bottom <= we.top, aiObokKopiuj: Math.abs(ai.top - kop.top) < 2, wiersze: [...new Set(przel)].length,
+        szer: [Math.round(r(pole).width), Math.round(r(pole.querySelector('.evk-tl-naglowek')).width), Math.round(r(pole.querySelector('.evk-tl-narzedzia')).width)] };
+    }, box);
+    const szer = await p.evaluate((b) => { const x = document.querySelector(b + ' .evk-tl-pole[data-lang="en"]');
+      const w = (e) => Math.round(e.getBoundingClientRect().width);
+      return { pole: w(x), kop: w(x.querySelector('.evk-tl-kopiuj')), ai: w(x.querySelector('.evk-tl-ai')),
+        przel: Array.from(document.querySelectorAll(b + ' .evk-tl-przelacznik > *')).filter((e) => e.offsetParent !== null).map(w),
+        pasek: w(document.querySelector(b + ' .evk-tl-przelacznik')) }; }, box);
+    console.log('      szerokości: ' + J(szer));
+    const u1 = await uklad();
+    /* Kolumna boczna edycji wpisu (jak „Dane klienta” u zgłaszającego): metaboks przeniesiony do #side-sortables.
+       Strona testu ma dwa języki obce; u zgłaszającego jeden — przycisk DE schowany na czas pomiaru przełącznika. */
+    await p.evaluate((b) => { const x = document.querySelector(b); x.__evkMiejsce = [x.parentNode, x.nextSibling];
+      document.getElementById('side-sortables').appendChild(x); }, box);
+    const u2 = await uklad();
+    const kol = await p.evaluate((b) => Math.round(document.querySelector(b).getBoundingClientRect().width), box);
+    await p.evaluate((b) => { document.querySelector(b + ' .evk-tl-przelacznik .evk-tl-jezyk[data-lang="de"]').style.display = 'none'; }, box);
+    const u3 = await uklad();
+    await p.evaluate((b) => { const x = document.querySelector(b); x.querySelector('.evk-tl-przelacznik .evk-tl-jezyk[data-lang="de"]').style.display = '';
+      x.__evkMiejsce[0].insertBefore(x, x.__evkMiejsce[1]); }, box);
+    console.log('      układ szeroko: ' + J(u1) + ' | kolumna boczna (' + kol + ' px): ' + J(u2) + ' | bez DE: ' + J(u3.wiersze));
+    t.check('szeroki metaboks: przyciski w wierszu etykiety, nad oryginałem i polem', u1.obok && !u1.pod && u1.przedPolem && u1.aiObokKopiuj, J(u1));
+    t.check('kolumna boczna: przyciski pod etykietą, razem w jednym wierszu', !u2.obok && u2.pod && u2.przedPolem && u2.aiObokKopiuj, J(u2));
+    t.check('przełącznik z „Tłumacz puste” w jednym wierszu: szeroko, a w kolumnie bocznej przy jednym języku obcym', u1.wiersze === 1 && u3.wiersze === 1,
+      J([u1.wiersze, u2.wiersze, u3.wiersze]));
 
     /* Pole wypełnione: pytanie z obecnym tekstem; „Anuluj” — bez żądania. */
     await p.click(poleJ('evk_single[evk_tl_en__tytul]', 'en') + ' .evk-tl-ai');
@@ -224,14 +263,14 @@ module.exports = async function (t) {
       return { z: x.querySelector('.evk-tl-zrodlo').value, ai: x.hasAttribute('data-ai') }; });
     t.check('ręczna poprawka wpisu AI przywraca poprzednie źródło i zdejmuje znacznik', popr.z === '' && popr.ai === false, J(popr));
 
-    /* Klawiatura: Tab na ✦ przy polu, Enter tłumaczy. */
+    /* Klawiatura: ✦ stoi w nagłówku pola, przed nim (1.77.0) — Shift+Tab z pola na ✦, Enter tłumaczy. */
     await p.focus('[name="evk_single[lista][0][evk_tl_de__tekst]"]');
     for (let i = 0; i < 6; i++) {
-      await p.keyboard.press('Tab');
+      await p.keyboard.press('Shift+Tab');
       if (await p.evaluate(() => document.activeElement && document.activeElement.classList.contains('evk-tl-ai'))) break;
     }
     const naAi = await p.evaluate(() => document.activeElement && document.activeElement.getAttribute('aria-label'));
-    t.check('z klawiatury: Tab z pola dochodzi do ✦ tego pola', naAi === 'Przetłumacz (AI) — Tekst — DE', naAi);
+    t.check('z klawiatury: Shift+Tab z pola dochodzi do ✦ tego pola (nagłówek pola)', naAi === 'Przetłumacz (AI) — Tekst — DE', naAi);
 
     t.section('metaboks: zapis wpisu, znacznik po przeładowaniu, „Sprawdzone”');
     await Promise.all([p.waitForNavigation({ waitUntil: 'load' }), p.click('#publish')]);
@@ -285,6 +324,51 @@ module.exports = async function (t) {
     t.check('zapis strony ustawień: slogan i etykieta w wierszu repeatera ze znacznikiem „ai-”', op.evk_tl_en__slogan === 'EN:Najlepsza oferta'
       && /^ai-/.test(op.evk_tl_en__slogan__zrodlo || '') && wiersz.evk_tl_en__etykieta === 'EN:Zadzwoń teraz' && /^ai-/.test(wiersz.evk_tl_en__etykieta__zrodlo || '')
       && op.slogan === 'Najlepsza oferta', J(op));
+
+    // ── Kategorie (1.270.0, Fields 1.77.0) ───────────────────────────────
+    t.section('kategoria: pola Fields termu — API, hurt, „Do sprawdzenia”, ✦ w edycji termu');
+    const tt = sonda('termy');
+    const pt = miejsce(tt.teksty, 'podpis_kat|');
+    t.check('Fields: API zna termy (obiekty, taksonomie), tekst pola kategorii z pustymi tłumaczeniami', J(tt.obiekty) === J(['post', 'term'])
+      && J(tt.taksonomie) === J(['category']) && pt.pl === 'Podpis kategorii AI' && J(pt.tl) === J({ en: '', de: '' }), J(tt));
+    const jt = (sonda('jednostki-term').jednostki || []).map((j) => [j.tytul, j.czesc, j.braki, /term\.php\?taxonomy=category/.test(j.adres)]);
+    t.check('hurt z polem „Pola Evoke FIELDS”: kategoria jako „Pola Evoke FIELDS”, odnośnik do edycji termu',
+      J(jt) === J([['Kategoria pól AI (Category)', 'Pola Evoke FIELDS', { en: 1, de: 1 }, true]]), J(jt));
+    const ktr = sonda('krok-term', 'en');
+    const pk = miejsce(ktr.teksty, 'podpis_kat|');
+    t.check('krok: tłumaczenie w meta termu ze znacznikiem AI; kontekst z nazwą kategorii', (ktr.kroki || [])[0].zapisane === 1 && pk.tl.en === 'EN:Podpis kategorii AI'
+      && pk.ai.en === true && /^Page: Kategoria pól AI \(Category\)/.test(ktr.wiadomosc || '') && (ktr.wiadomosc || '').includes('[Category · Nazwa] "Kategoria pól AI"'),
+      J([ktr.kroki, pk, (ktr.wiadomosc || '').slice(0, 160)]));
+    const lt = sonda('lista-term');
+    t.check('„Do sprawdzenia”: wiersz pola kategorii z nazwą termu i odnośnikiem do jego edycji', J((lt.wiersze || []).map((w) => [w.klucz, w.ai, w.tytul]))
+      === J([['podpis_kat||en', true, 'Kategoria pól AI']]) && (lt.html || '').includes('data-meta="evk_fields_term"')
+      && new RegExp('term\\.php\\?taxonomy=category&(amp;|#038;)tag_ID=' + tt.term).test(lt.html || ''), J(lt.wiersze));
+    const sk = sonda('ajax-sprawdzone-term', 'podpis_kat||en');
+    t.check('„Sprawdzone” (AJAX) dla pola termu zdejmuje znacznik', sk.odp && sk.odp.success === true && miejsce(sk.teksty, 'podpis_kat|').ai.en === false, J(sk.odp));
+    const dtA = sonda('dane-term', 'admin');
+    const dtC = sonda('dane-term', 'czytelnik');
+    t.check('dane ✦ dla termu: administrator — z identyfikatorem termu; bez prawa edycji termów — null', !!dtA.dane && dtA.dane.term === tt.term
+      && dtA.dane.post === 0 && dtC.dane === null, J([dtA.dane, dtC.dane]));
+    await p.goto(serwer.baza + '/wp-admin/term.php?taxonomy=category&tag_ID=' + tt.term, { waitUntil: 'load' });
+    const przedT = zadania.length;
+    await p.click('.evk-tl-grupa .evk-tl-jezyk[data-lang="de"]');
+    await p.waitForTimeout(300);
+    const ut = await p.evaluate(() => ({ term: (window.evkRepTlAi || {}).term,
+      pola: Array.from(document.querySelectorAll('.evk-tl-grupa .evk-tl-ai')).filter((b) => b.offsetParent !== null).map((b) => b.getAttribute('aria-label')) }));
+    /* Na tej stronie są też grupy kategorii z innych testów Fields (fields-panel) — liczy się pole tej grupy. */
+    t.check('edycja kategorii: dane z termem, ✦ przy polu Fields', ut.term === tt.term && ut.pola.includes('Przetłumacz (AI) — Podpis kategorii — DE'), J(ut));
+    const poleT = '.evk-tl-pole[data-lang="de"]:has([name$="[evk_tl_de__podpis_kat]"])';
+    await p.click(poleT + ' .evk-tl-ai');
+    await p.waitForFunction((s) => /Wpisane|Brak|odmówił/.test((document.querySelector(s + ' .evk-tl-ai-stan') || {}).textContent || ''),
+      poleT, { timeout: 20000 }).catch(() => {});
+    const zt = zadania[przedT] || {};
+    const wt = await p.evaluate((s) => { const x = document.querySelector(s);
+      return { wartosc: x.querySelector('.evk-tl-wejscie').value, stan: x.querySelector('.evk-tl-ai-stan').textContent }; }, poleT);
+    t.check('✦ w kategorii: żądanie z term_id (bez wpisu), wynik w polu, „zapisz term (Aktualizuj)”', zt.term_id === String(tt.term) && zt.post_id === '0'
+      && wt.wartosc === 'DE:Podpis kategorii AI' && /zapisz term \(Aktualizuj\)\.$/.test(wt.stan), J([zt.term_id, zt.post_id, wt]));
+    await Promise.all([p.waitForNavigation({ waitUntil: 'load' }), p.click('#edittag .edit-tag-actions input[type="submit"]')]);
+    const pz = miejsce(sonda('termy').teksty, 'podpis_kat|');
+    t.check('zapis kategorii: tłumaczenie DE ze znacznikiem AI', pz.tl.de === 'DE:Podpis kategorii AI' && pz.ai.de === true, J(pz));
 
     t.section('metaboks: telefon 360 px i bez klucza API');
     const km = await browser.newContext({ viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });

@@ -499,7 +499,7 @@ function evk_tlw_narzedzia(string $lang, string $pole, string $pl, string $warto
     if ($kopiuj) echo '<button type="button" class="button button-small evk-tlw-kopiuj">Kopiuj z polskiego</button>';
     /* ✦ (1.269.0): tylko w edycji wpisu, z kluczem API i prawem edycji — dane w evk_tlw_ai_dane(). */
     if (evk_tlw_ai_dane() !== null) {
-        $nazwy = ['post_title' => 'Tytuł', 'post_content' => 'Treść', 'post_excerpt' => 'Zajawka'];
+        $nazwy = ['post_title' => 'Tytuł', 'post_content' => 'Treść', 'post_excerpt' => 'Zajawka', 'name' => 'Nazwa', 'description' => 'Opis'];
         echo '<button type="button" class="button button-small evk-tlw-ai" aria-label="' . esc_attr('Przetłumacz (AI) — ' . ($nazwy[$pole] ?? $pole) . ' ' . strtoupper($lang)) . '">'
             . '<svg class="evk-tlw-ai-ikona" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C8.6 4.6 11.4 7.4 16 8C11.4 8.6 8.6 11.4 8 16C7.4 11.4 4.6 8.6 0 8C4.6 7.4 7.4 4.6 8 0Z"/></svg>'
             . '<span>Przetłumacz</span></button>';
@@ -522,10 +522,11 @@ function evk_tlw_narzedzia(string $lang, string $pole, string $pl, string $warto
 }
 
 /**
- * Tłumacz AI dla przycisków ✦ w edycji wpisu (1.269.0): te same dane i ten sam
- * AJAX co przyciski w metaboksie Evoke FIELDS (61, filtr `evk_fields_tl_ai`:
- * dostęp do Tłumaczeń, prawo edycji wpisu, klucz API). Tylko ekran wpisu
- * (termy bez przycisków); null — bez przycisków.
+ * Tłumacz AI dla przycisków ✦ w edycji wpisu (1.269.0) i — od 1.270.0 —
+ * w edycji termu (56): te same dane i ten sam AJAX co przyciski w metaboksie
+ * Evoke FIELDS (61, filtr `evk_fields_tl_ai`: dostęp do Tłumaczeń, prawo
+ * edycji wpisu albo termu, klucz API). Formularz dodawania termu — bez
+ * przycisków (termu jeszcze nie ma). null — bez przycisków.
  *
  * @return array<string,mixed>|null
  */
@@ -533,9 +534,19 @@ function evk_tlw_ai_dane(): ?array {
     static $dane = false;
     if ($dane !== false) return $dane;
     $dane = null;
-    $post = evk_tlw_ekran() ? get_post() : null;
-    if (!$post instanceof WP_Post) return $dane;
-    $d = apply_filters('evk_fields_tl_ai', null, (int) $post->ID, []);
+    $s = function_exists('get_current_screen') ? get_current_screen() : null;
+    if ($s && $s->base === 'term' && function_exists('evk_tlt_ekran') && evk_tlt_ekran() && isset($_GET['tag_ID'])) {
+        $term = get_term(absint($_GET['tag_ID']));
+        if (!$term instanceof WP_Term) return $dane;
+        $d = apply_filters('evk_fields_tl_ai', null, 0, ['term' => (int) $term->term_id]);
+        $tax = get_taxonomy($term->taxonomy);
+        if (is_array($d)) $d['element'] = $tax ? (string) $tax->labels->singular_name : 'Term';
+    } else {
+        $post = evk_tlw_ekran() ? get_post() : null;
+        if (!$post instanceof WP_Post) return $dane;
+        $d = apply_filters('evk_fields_tl_ai', null, (int) $post->ID, []);
+        if (is_array($d)) $d['element'] = 'Wpis';
+    }
     if (is_array($d) && is_string($d['ajax'] ?? null)) $dane = $d;
     return $dane;
 }
@@ -545,6 +556,18 @@ function evk_tlw_ai_dane(): ?array {
    i sprawdzenie konfliktu mapy adresów są tu. Bez zapisu — zapisuje formularz. */
 add_action('wp_ajax_evk_tlw_czlon', function (): void {
     check_ajax_referer('evk_tlw_zapis', 'nonce');
+    /* Term (1.270.0): „Z nazwy” przy adresie termu — konflikt jak przy zapisie termu (56). */
+    $tid = absint($_POST['term_id'] ?? 0);
+    if ($tid) {
+        $term = get_term($tid);
+        if (!($term instanceof WP_Term) || !current_user_can('edit_term', $tid)) wp_send_json_error('Brak uprawnień do tego termu.', 403);
+        $lang = sanitize_key((string) ($_POST['lang'] ?? ''));
+        if (!isset(evk_tlw_jezyki()[$lang])) wp_send_json_error('Nieznany język.');
+        $czlon = sanitize_title(wp_unslash((string) ($_POST['tytul'] ?? '')));
+        if ($czlon === '') wp_send_json_error('Brak nazwy w tym języku.');
+        wp_send_json_success(['czlon' => $czlon, 'konflikt' => $term->slug !== '' && $czlon !== $term->slug
+            ? evk_tlw_slug_konflikt($term->slug, $lang, $czlon, 0, '', $tid) : '']);
+    }
     $pid = absint($_POST['post_id'] ?? 0);
     if (!$pid || !current_user_can('edit_post', $pid)) wp_send_json_error('Brak uprawnień do tego wpisu.', 403);
     $lang = sanitize_key((string) ($_POST['lang'] ?? ''));

@@ -200,8 +200,11 @@
        i zajawka języka z obecnymi tłumaczeniami. ✦ przy tytule wypełnia też
        pusty adres języka członem z nowego tytułu. */
     var AI = window.evkTlwAi || null;
-    var NAZWY = { post_title: 'Tytuł', post_content: 'Treść', post_excerpt: 'Zajawka' };
+    var NAZWY = { post_title: 'Tytuł', post_content: 'Treść', post_excerpt: 'Zajawka', name: 'Nazwa', description: 'Opis' };
     var trwaAi = false;
+    /* Edycja termu (1.270.0, 56): nazwa zamiast tytułu, adres w polu `slug`, identyfikator z formularza. */
+    var TERM = $('#edittag input[name="tag_ID"]').val() || '';
+    function obiekt() { return TERM ? { term_id: TERM } : { post_id: $('#post_ID').val() }; }
 
     function wpiszPole($p, v) {
         var $w = $p.find('.evk-tlw-wejscie'), ed = edytor($w.attr('id'));
@@ -209,20 +212,21 @@
     }
 
     function czlonZTytulu($p, lang, tylkoPusty) {
-        var $a = $('.evk-tlw-adres[data-lang="' + lang + '"]'), $in = $a.find('.evk-tlw-slug'), $st = $a.find('.evk-tlw-adres-stan');
-        var tytul = wartosc($('.evk-tlw-pole[data-lang="' + lang + '"][data-pole="post_title"]'));
-        if (!$in.length || (tylkoPusty && $.trim($in.val()))) return $.Deferred().resolve().promise();
-        if (pusty(tytul)) { $st.text('Brak tytułu ' + lang.toUpperCase() + '.'); return $.Deferred().resolve().promise(); }
-        return $.post(window.ajaxurl, { action: 'evk_tlw_czlon', nonce: $('#evk_tlw_nonce').val(), post_id: $('#post_ID').val(), lang: lang, tytul: tytul })
+        var $a = $('.evk-tlw-pole[data-lang="' + lang + '"][data-pole="' + (TERM ? 'slug' : 'post_name') + '"]');
+        var $in = $a.find('.evk-tlw-slug'), $st = $a.find('.evk-tlw-adres-stan');
+        var tytul = wartosc($('.evk-tlw-pole[data-lang="' + lang + '"][data-pole="' + (TERM ? 'name' : 'post_title') + '"]'));
+        if (!$in.length || !$st.length || (tylkoPusty && $.trim($in.val()))) return $.Deferred().resolve().promise();
+        if (pusty(tytul)) { $st.text('Brak ' + (TERM ? 'nazwy ' : 'tytułu ') + lang.toUpperCase() + '.'); return $.Deferred().resolve().promise(); }
+        return $.post(window.ajaxurl, $.extend({ action: 'evk_tlw_czlon', nonce: $('#evk_tlw_nonce').val(), lang: lang, tytul: tytul }, obiekt()))
             .then(function (r) {
                 if (!r || !r.success) { $st.text((r && r.data) || 'Błąd.'); return; }
                 $in.val(r.data.czlon).trigger('input');
-                $st.text(r.data.konflikt ? r.data.konflikt : 'Adres z tytułu — zapisz wpis.');
+                $st.text(r.data.konflikt ? r.data.konflikt : (TERM ? 'Adres z nazwy — zapisz (Aktualizuj).' : 'Adres z tytułu — zapisz wpis.'));
             }, function () { $st.text('Brak połączenia z serwerem.'); });
     }
 
     $(document).on('click', '.evk-tlw-z-tytulu', function () {
-        czlonZTytulu($(this).closest('.evk-tlw-pole'), String($(this).closest('.evk-tlw-adres').attr('data-lang') || ''), false);
+        czlonZTytulu($(this).closest('.evk-tlw-pole'), String($(this).closest('.evk-tlw-pole').attr('data-lang') || ''), false);
     });
 
     $(document).on('click', '.evk-tlw-ai', function () {
@@ -237,7 +241,7 @@
         $('.evk-tlw-pole[data-lang="' + lang + '"]').each(function () {
             var $x = $(this), pl = polski($x), p = String($x.attr('data-pole') || '');
             if (!NAZWY[p] || pusty(pl)) return;
-            kontekst.push({ el: 'Wpis', opis: NAZWY[p], pole: '', poz: 0, pl: pl, tl: this === $p[0] ? '' : wartosc($x) });
+            kontekst.push({ el: AI.element || 'Wpis', opis: NAZWY[p], pole: '', poz: 0, pl: pl, tl: this === $p[0] ? '' : wartosc($x) });
             if (this === $p[0]) n = kontekst.length;
         });
         trwaAi = true;
@@ -245,8 +249,9 @@
         $b.attr('aria-busy', 'true');
         $stan.text('Tłumaczę na ' + L + '…');
         var pl0 = polski($p);
-        $.post(AI.ajax, { action: 'evk_tl_ai_pola', nonce: AI.nonce, post_id: AI.post || $('#post_ID').val(), lang: lang,
-            kontekst: JSON.stringify(kontekst), teksty: JSON.stringify({ k1: { n: n, bylo: pusty(obecny) ? '' : obecny } }) })
+        $.post(AI.ajax, $.extend({ action: 'evk_tl_ai_pola', nonce: AI.nonce, lang: lang,
+            kontekst: JSON.stringify(kontekst), teksty: JSON.stringify({ k1: { n: n, bylo: pusty(obecny) ? '' : obecny } }) },
+            AI.term ? { term_id: AI.term } : { post_id: AI.post || $('#post_ID').val() }))
             .then(function (r) {
                 if (r === -1 || r === '-1' || r === 0 || r === '0') return $stan.text('Sesja wygasła albo brak uprawnień — przeładuj stronę.');
                 if (!r || !r.success) return $stan.text((r && typeof r.data === 'string' && r.data) || 'Serwer odmówił.');
@@ -260,9 +265,10 @@
                     $z.val('ai');
                     $p.find('.evk-tlw-ai-znak, .evk-tlw-sprawdzone').prop('hidden', false);
                     $p.find('.evk-tlw-slownik').hide();
-                    $stan.text('Wpisane (' + ((d.zrodla || {}).k1 === 'ai' ? 'AI' : 'z pamięci') + (AI.model ? ' · ' + AI.model : '') + ') — sprawdź i zapisz wpis.');
+                    $stan.text('Wpisane (' + ((d.zrodla || {}).k1 === 'ai' ? 'AI' : 'z pamięci') + (AI.model ? ' · ' + AI.model : '') + ') — sprawdź i '
+                        + (TERM ? 'zapisz (Aktualizuj).' : 'zapisz wpis.'));
                     licz();
-                    if (pole === 'post_title') return czlonZTytulu($p, lang, true);
+                    if (pole === 'post_title' || pole === 'name') return czlonZTytulu($p, lang, true);
                     return;
                 }
                 if (d.blad) return $stan.text(d.czekaj ? 'Dostawca prosi o przerwę — spróbuj za ' + d.czekaj + ' s.' : String(d.blad));

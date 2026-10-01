@@ -2,6 +2,104 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.270.0] — 2026-10-01
+
+Poprawki po 1.269.0 (dymek ✦ w builderze, pasek, układ pól i zakładki AI)
+oraz kategorie i tagi z AI. Razem z Evoke FIELDS 1.77.0.
+
+Uwagi zgłaszającego po 1.269.0: „Ogólnie jest super.”
+- W panelu po lewej w Bricksie dymek ✦ ma być skierowany w prawo.
+- „Przetłumacz puste pola (AI)”: wystarczy ikona i „Tłumacz puste”, bo przy
+  dwóch językach przycisk spadał do drugiego wiersza (Fields).
+- Pola mają być ułożone ładniej: część w jednym wierszu, a na telefonie pod
+  spodem. Dotyczy pól Fields i całej zakładki Tłumaczenia → AI.
+- Ikony w pasku buildera mają stać bliżej siebie.
+
+### Zmienione
+
+- **Builder: dymek ✦ przy polu na prawo od przycisku**
+  (`data-balloon-pos="right"`). Panel stoi po lewej, więc dymek wychodzi na
+  kanwę.
+- **Builder: przełącznik PL | EN | DE i ✦ w jednym opakowaniu**
+  (`#evk-tl-pasek`). Pasek Bricksa rozkłada swoje grupy na całą szerokość,
+  więc osobne grupy stały daleko od siebie (w atrapie paska 165 px). Teraz
+  dzieli je 6 px.
+- **Tłumaczenia → AI: wiersze i kolumny** (siatka `evo-grid`, na wąskim
+  ekranie jedna kolumna):
+  - Ustawienia: Dostawca, Klucz API i Model w jednym wierszu, wskazówki
+    języków obok siebie;
+  - Przetłumacz strony: „Co tłumaczyć”, „Języki” i dostawca z modelem
+    przebiegu w trzech kolumnach, pod nimi pola wyboru: teksty wpisów,
+    kategorie i tagi, pola Evoke FIELDS. Opisy skrócone i zebrane pod
+    kolumnami;
+  - Wyczyść: Strona, Co usunąć i Języki w jednym wierszu.
+- Pola `password` w siatce `evo-pola-rowne` wypełniają kolumnę jak tekstowe
+  (`admin.css`).
+
+### Dodane
+
+- **Kategorie i tagi z AI**:
+  - **Tłumaczenia → AI: „Także kategorie i tagi”**: Nazwa, Opis, Adres z
+    nazwy, wszystkie domyślnie odznaczone (jak przy wpisach). Pozycja „Nazwa
+    i opis” (część `evk_term`) albo „Adres z nazwy” przy termie, odnośnik do
+    edycji termu. Zapis jak formularz modułu termów: sanityzacja rdzenia,
+    źródło `ai-{skrót}`. Adres z nazwy trafia do Slugów URL tylko bez
+    konfliktu (ten sam człon innej strony albo termu — bez zapisu, z powodem
+    w dzienniku).
+  - Krok hurtu termu wymaga prawa edycji termu (`edit_term`).
+  - **✦ w edycji termu** (nazwa i opis, każdy język) i **„Z nazwy”** przy
+    adresie — jak ✦ i „Z tytułu” w edycji wpisu. ✦ przy nazwie wypełnia też
+    pusty adres języka. Formularz dodawania termu — bez przycisków.
+  - **Pola Evoke FIELDS w termach** (Fields 1.77.0): ✦ przy polach grup
+    kategorii i w hurcie z polem „Pola Evoke FIELDS” (część
+    `evk_fields_term`). Kontekst: pola, nazwa i opis termu.
+  - **„Do sprawdzenia”**: nazwy, opisy i pola Fields termów z tłumaczeniem AI
+    albo po zmianie polskiego tekstu. Wiersz z nazwą termu i odnośnikiem do
+    jego edycji; „Sprawdzone” z prawem edycji termu.
+
+### Testy
+
+- Nowy `tl-ai-termy` (27 sprawdzeń): lista hurtu, kroki z adresem i
+  konfliktem, uprawnienie w AJAX-ie, „Do sprawdzenia”, ✦ i „Z nazwy”
+  w Chromium, formularz dodawania bez ✦, pola wyboru w zakładce AI.
+- `fields-ai`:
+  - pola Fields kategorii (API, hurt, „Do sprawdzenia”, ✦ w edycji termu);
+  - układ pola: szeroko przyciski w wierszu etykiety, w kolumnie bocznej
+    pod nią;
+  - „Tłumacz puste” w jednym wierszu z PL | EN.
+- `tl-ai-builder`: dymek `right` (po najechaniu na prawo od przycisku),
+  odstęp ✦ od przełącznika przy pasku rozkładającym grupy.
+- `tl-ai-wpisy`: kolumny zakładki AI przy 1280 px i jedna kolumna przy
+  360 px.
+- Mutacje (każda zapala swoje sprawdzenia):
+  - dymek `top-right`;
+  - ✦ poza opakowaniem;
+  - nagłówek pola bez zawijania;
+  - Ustawienia bez siatki;
+  - krok termu bez prawa;
+  - zapis termu bez źródła `ai-`;
+  - lista bez termów;
+  - Fields czyta meta wpisu zamiast termu;
+  - długi napis przycisku grupy.
+
+### Do sprawdzenia na testowej
+
+- Builder:
+  - najechanie na ✦ przy polu „Tłumaczenie EN” — dymek po prawej, nad
+    kanwą;
+  - pasek — ✦ zaraz za PL | EN.
+
+  Bricksa nie ma na maszynie testów, więc pasek i dymek sprawdzone są na
+  atrapie.
+- Tłumaczenia → AI: układ przy pełnej szerokości i na telefonie.
+- Kategoria albo tag:
+  - ✦ przy nazwie (pusty adres się wypełnia) i przy opisie;
+  - „Z nazwy” przy adresie;
+  - „Aktualizuj”, potem wiersz w „Do sprawdzenia”.
+- Tłumaczenia → AI → „Także kategorie i tagi” → „Pokaż listę” →
+  „Przetłumacz zaznaczone”.
+- Metaboks Fields w kolumnie bocznej i w głównej (Fields 1.77.0).
+
 ## [1.269.0] — 2026-10-01
 
 ✦ w edycji wpisu (tytuł, treść, zajawka), „Z tytułu” przy adresie języka,

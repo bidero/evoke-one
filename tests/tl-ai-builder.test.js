@@ -209,6 +209,16 @@ module.exports = async function (t) {
     });
     t.check('grupa „Tłumaczenie AI” zaraz za przełącznikiem PL | EN | DE', !!grupa && grupa.przed === 'evk-tl-podglad' && grupa.rola === 'group'
       && grupa.etykieta === 'Tłumaczenie AI' && grupa.ile === 1, J(grupa));
+    /* Pasek rozkłada grupy na całą szerokość (space-between, jak w fixturze) —
+       przełącznik i ✦ w jednym opakowaniu stoją przy sobie (1.270.0). */
+    const odstep = await page.evaluate(() => {
+      const en = document.querySelector('#evk-tl-podglad li:last-child button').getBoundingClientRect();
+      const ai = document.getElementById('evk-tl-ai-element').getBoundingClientRect();
+      const o = document.getElementById('evk-tl-pasek');
+      return { px: Math.round(ai.left - en.right), opak: !!o && o.parentElement.id === 'bricks-toolbar-top' && o.contains(document.getElementById('evk-tl-ai')) };
+    });
+    console.log('      odstęp DE → ✦: ' + J(odstep));
+    t.check('pasek: ✦ zaraz za przełącznikiem, w jednym opakowaniu (odstęp do 12 px)', odstep.opak && odstep.px >= 0 && odstep.px <= 12, J(odstep));
     const p0 = await przycisk();
     t.check('PL: ikonka ✦ „Przetłumacz zaznaczony element (AI)” nieaktywna, podpowiedź „Wybierz EN albo DE” (dymek i opis)', !!p0
       && p0.tekst === '' && p0.svg && p0.nazwa === 'Przetłumacz zaznaczony element (AI)' && p0.nieaktywny === 'true' && p0.tytul === 'Wybierz EN albo DE' && p0.podpowiedz === 'Wybierz EN albo DE', J(p0));
@@ -280,8 +290,14 @@ module.exports = async function (t) {
     t.check('nagłówek: ✦ przy polach EN i DE, z nazwą pola', J(ph1.map((x) => [x.klucz, x.nazwa])) === J([
       ['evk_tl_en__text', 'Przetłumacz (AI) — Tłumaczenie EN'], ['evk_tl_de__text', 'Przetłumacz (AI) — Tłumaczenie DE']])
       && ph1.every((x) => x.wys >= 24), J(ph1));
-    t.check('✦ przy polu: dymek Bricksa (w lewo, od prawej krawędzi), bez title', ph1.every((x) => x.balon === 'Przetłumacz (AI) z polskiego tekstu tego pola (' + MODEL + ')'
-      && x.pozycja === 'top-right' && x.title === false), J(ph1));
+    t.check('✦ przy polu: dymek Bricksa na prawo od przycisku (panel po lewej), bez title', ph1.every((x) => x.balon === 'Przetłumacz (AI) z polskiego tekstu tego pola (' + MODEL + ')'
+      && x.pozycja === 'right' && x.title === false), J(ph1));
+    /* Reguła `right` w fixturze jak w balloon.css Bricksa: dymek zaczyna się za prawą krawędzią przycisku. */
+    await page.hover('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
+    const balonPola = await page.evaluate(() => { const b = document.querySelector('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
+      const s = getComputedStyle(b, '::after'); return { left: parseFloat(s.left), szer: b.getBoundingClientRect().width, widoczny: s.opacity }; });
+    t.check('najechanie na ✦ przy polu: dymek na prawo od przycisku', balonPola.widoczny === '1' && balonPola.left >= balonPola.szer, J(balonPola));
+    await page.mouse.move(0, 0);
     await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
     await koniec('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole-stan');
     await page.waitForTimeout(300);
@@ -497,7 +513,7 @@ module.exports = async function (t) {
        w powłoce z obsługą z martwego okna), a straż ich nie odtwarza. */
     await kanwa().evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')));
     await page.waitForTimeout(1300);
-    const poZamknieciu = await page.evaluate(() => ['#evk-tl-podglad', '#evk-tl-ai', '#evk-tl-ai-dymek', '.evk-tl-ai-ikona, .evk-tl-ai-pole-stan']
+    const poZamknieciu = await page.evaluate(() => ['#evk-tl-podglad, #evk-tl-pasek', '#evk-tl-ai', '#evk-tl-ai-dymek', '.evk-tl-ai-ikona, .evk-tl-ai-pole-stan']
       .map((s) => document.querySelectorAll(s).length));
     t.check('pagehide kanwy: przełącznik, przycisk, komunikat oraz ikonki i komunikaty pól znikają i nie wracają', J(poZamknieciu) === J([0, 0, 0, 0]), J(poZamknieciu));
     await zaznacz('h2');

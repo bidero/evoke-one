@@ -743,12 +743,21 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         if (!empty($opcje['adres']) && empty($w['zostalo']) && empty($w['stop']) && empty($w['czekaj'])) $w['adres'] = evk_tl_ai_adres_z_tytulu($post_id, $lang);
         return $w;
     }
+    /* Term (1.270.0): adres z nazwy po ostatnim kroku, jak adres z tytułu wpisu. */
+    if ($meta_key === EVK_TL_AI_TERM && empty($opcje['_wpis'])) {
+        $w = evk_tl_ai_krok($post_id, $meta_key, $lang, $pomin, ['_wpis' => true] + $opcje);
+        if (!empty($opcje['term_adres']) && empty($w['zostalo']) && empty($w['stop']) && empty($w['czekaj'])) $w['adres'] = evk_tl_ai_adres_z_nazwy($post_id, $lang);
+        return $w;
+    }
     $u = evk_tl_ai_na_przebieg(evk_tl_ai_ustawienia(), (string) ($opcje['dostawca'] ?? ''), (string) ($opcje['model'] ?? ''));
-    $pola = $meta_key === EVK_TL_AI_POLA;
+    $pola = $meta_key === EVK_TL_AI_POLA || $meta_key === EVK_TL_AI_POLA_TERMU;
+    $obiekt = $meta_key === EVK_TL_AI_POLA_TERMU ? 'term' : 'post';
     $wpis = $meta_key === EVK_TL_AI_WPIS;
-    $t = $pola ? evk_tl_ai_teksty_pol($post_id, $lang, !empty($opcje['ponownie']))
+    $term = $meta_key === EVK_TL_AI_TERM;
+    $t = $pola ? evk_tl_ai_teksty_pol($post_id, $lang, !empty($opcje['ponownie']), $obiekt)
         : ($wpis ? evk_tl_ai_teksty_wpisu($post_id, $lang, (array) ($opcje['wpis_pola'] ?? []), !empty($opcje['ponownie']))
-        : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key)));
+        : ($term ? evk_tl_ai_teksty_termu($post_id, $lang, (array) ($opcje['term_pola'] ?? []), !empty($opcje['ponownie']))
+        : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key))));
     $braki = array_diff_key($t['braki'], array_flip($pomin));
     $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'bez_zmian' => 0, 'odrzucone' => [], 'pominiete' => [], 'zapisane_klucze' => [], 'zostalo' => 0];
     if (!$braki) return $wynik;
@@ -785,7 +794,7 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         foreach ($porcja as $k => $b) $krotkie['t' . (++$n)] = $k;
         $tresc = [];
         foreach ($krotkie as $kr => $k) $tresc[$kr] = $porcja[$k];
-        [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, (string) (get_the_title($post_id) ?: ('#' . $post_id)), $t['kontekst'], $tresc);
+        [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, evk_tl_ai_tytul_czesci($post_id, $meta_key), $t['kontekst'], $tresc);
         $r = evk_tl_ai_wyslij($u, $system, $wiadomosc);
         if (!$r['ok'] && (!empty($r['stop']) || !empty($r['czekaj']))) {
             /* Przejściowe (limit, przeciążenie) albo końcowe (klucz, limit
@@ -822,9 +831,10 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     foreach (array_keys($gotowe) as $k) {
         if ($braki[$k]['bylo'] !== '') $bylo[$k] = $braki[$k]['bylo'];
     }
-    $wynik['zapisane_klucze'] = $pola ? evk_tl_ai_zapisz_pola($post_id, $lang, $gotowe, $ai, $braki)
+    $wynik['zapisane_klucze'] = $pola ? evk_tl_ai_zapisz_pola($post_id, $lang, $gotowe, $ai, $braki, $obiekt)
         : ($wpis ? evk_tl_ai_zapisz_wpis($post_id, $lang, $gotowe, $ai, $braki)
-        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo));
+        : ($term ? evk_tl_ai_zapisz_term($post_id, $lang, $gotowe, $ai, $braki)
+        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo)));
     $wynik['zapisane'] = count($wynik['zapisane_klucze']);
     $wynik['bez_zmian'] = count($rowne);
     $wynik['pominiete'] = array_keys($rowne);
@@ -839,7 +849,7 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
  *
  * @return list<array<string,mixed>>
  */
-function evk_tl_ai_jednostki(bool $ponownie = false, bool $pola = false, array $wpis_pola = [], bool $adres = false): array {
+function evk_tl_ai_jednostki(bool $ponownie = false, bool $pola = false, array $wpis_pola = [], bool $adres = false, array $term_pola = [], bool $term_adres = false): array {
     $jezyki = array_map('strval', evk_tl_kody_jezykow());
     $out = [];
     foreach (evk_tl_el_wpisy_bricksa() as [$post_id, $meta_key]) {
@@ -861,6 +871,9 @@ function evk_tl_ai_jednostki(bool $ponownie = false, bool $pola = false, array $
     /* Pola Evoke FIELDS (1.267.0) i teksty wpisów (1.268.0) — tylko po zaznaczeniu pól wyboru. */
     if ($pola) $out = array_merge($out, evk_tl_ai_jednostki_pol($jezyki, $ponownie));
     if ($wpis_pola || $adres) $out = array_merge($out, evk_tl_ai_jednostki_wpisow($jezyki, $wpis_pola, $adres, $ponownie));
+    /* Kategorie i tagi (1.270.0): nazwa, opis i adres z nazwy; pola Fields termów razem z polami wpisów. */
+    if ($term_pola || $term_adres) $out = array_merge($out, evk_tl_ai_jednostki_termow($jezyki, $term_pola, $term_adres, $ponownie));
+    if ($pola) $out = array_merge($out, evk_tl_ai_jednostki_pol_termow($jezyki, $ponownie));
     return $out;
 }
 
@@ -1437,10 +1450,10 @@ function evk_tl_ai_pola_dostepne(): bool {
  *
  * @return array{kontekst:list<array{element:string,opis:string,pl:string,tl:string}>,braki:array<string,array<string,mixed>>}
  */
-function evk_tl_ai_teksty_pol(int $post_id, string $lang, bool $ponownie = false): array {
+function evk_tl_ai_teksty_pol(int $post_id, string $lang, bool $ponownie = false, string $obiekt = 'post'): array {
     $out = ['kontekst' => [], 'braki' => []];
-    if (!evk_tl_ai_pola_dostepne()) return $out;
-    foreach (evk_fields_tl_teksty($post_id) as $m) {
+    if (!evk_tl_ai_pola_dostepne() || ($obiekt === 'term' && !evk_tl_ai_pola_termow_dostepne())) return $out;
+    foreach ($obiekt === 'term' ? evk_fields_tl_teksty($post_id, 'term') : evk_fields_tl_teksty($post_id) as $m) {
         $pl = (string) ($m['pl'] ?? '');
         if (!evk_tl_ai_do_tlumaczenia($pl)) continue;
         $tl = (string) ($m['tl'][$lang] ?? '');
@@ -1452,8 +1465,10 @@ function evk_tl_ai_teksty_pol(int $post_id, string $lang, bool $ponownie = false
             'id' => '', 'sciezka' => (string) $m['klucz'], 'pole' => '', 'n' => count($out['kontekst']), 'bylo' => $ponow ? $tl : ''];
     }
     if ($out['braki']) {
-        /* Słownictwo reszty strony: teksty treści Bricksa z obecnymi tłumaczeniami. */
-        $tresc = evk_tl_ai_teksty(get_post_meta($post_id, evk_tl_el_klucze_meta()[0], true), $lang)['kontekst'];
+        /* Słownictwo reszty strony: teksty treści Bricksa z obecnymi tłumaczeniami;
+           przy termie (1.270.0) — jego nazwa i opis. */
+        $tresc = $obiekt === 'term' ? evk_tl_ai_teksty_termu($post_id, $lang, [])['kontekst']
+            : evk_tl_ai_teksty(get_post_meta($post_id, evk_tl_el_klucze_meta()[0], true), $lang)['kontekst'];
         $out['kontekst'] = array_merge($out['kontekst'], $tresc);
     }
     return $out;
@@ -1468,11 +1483,14 @@ function evk_tl_ai_teksty_pol(int $post_id, string $lang, bool $ponownie = false
  * @param array<string,array<string,mixed>>  $braki
  * @return list<string> Klucze zapisane.
  */
-function evk_tl_ai_zapisz_pola(int $post_id, string $lang, array $gotowe, array $ai, array $braki): array {
+function evk_tl_ai_zapisz_pola(int $post_id, string $lang, array $gotowe, array $ai, array $braki, string $obiekt = 'post'): array {
     $out = [];
     foreach ($gotowe as $k => $tl) {
         $miejsce = (string) ($braki[$k]['sciezka'] ?? '');
-        if ($miejsce !== '' && evk_fields_tl_wpisz($post_id, $miejsce, $lang, (string) $tl, !empty($ai[$k]))) $out[] = (string) $k;
+        if ($miejsce === '') continue;
+        $ok = $obiekt === 'term' ? evk_fields_tl_wpisz($post_id, $miejsce, $lang, (string) $tl, !empty($ai[$k]), 'term')
+            : evk_fields_tl_wpisz($post_id, $miejsce, $lang, (string) $tl, !empty($ai[$k]));
+        if ($ok) $out[] = (string) $k;
     }
     return $out;
 }
@@ -1513,11 +1531,16 @@ add_filter('evk_fields_tl_ai', function ($dane, $post_id = 0, $kontekst = []) {
     $post_id = (int) $post_id;
     /* Strona ustawień Fields (1.268.0, Fields 1.76.0): prawo do tej strony zamiast prawa edycji wpisu. */
     $strona = is_array($kontekst) && is_string($kontekst['strona'] ?? null) ? evk_tl_ai_strona_ustawien($kontekst['strona']) : null;
-    if ($strona === null && (!$post_id || !current_user_can('edit_post', $post_id))) return null;
+    /* Edycja termu (1.270.0): ✦ Tłumaczeń (56) i pól Fields (1.77.0) — prawo edycji termu. */
+    $term = is_array($kontekst) ? absint($kontekst['term'] ?? 0) : 0;
+    if ($term) {
+        if (!(get_term($term) instanceof WP_Term) || !current_user_can('edit_term', $term)) return null;
+        $post_id = 0;
+    } elseif ($strona === null && (!$post_id || !current_user_can('edit_post', $post_id))) return null;
     if (!current_user_can('manage_options') && !current_user_can('evk_access_translations')) return null;
     $u = evk_tl_ai_ustawienia();
     if (evk_tl_ai_klucz($u) === '') return null;
-    return ['ajax' => admin_url('admin-ajax.php'), 'nonce' => wp_create_nonce('evk_tl_ai_pola'), 'post' => $post_id,
+    return ['ajax' => admin_url('admin-ajax.php'), 'nonce' => wp_create_nonce('evk_tl_ai_pola'), 'post' => $post_id, 'term' => $term,
         'model' => evk_tl_ai_podpis($u), 'porcja' => EVK_TL_AI_PORCJA, 'znaki' => EVK_TL_AI_ZNAKI];
 }, 10, 3);
 
@@ -1561,6 +1584,275 @@ function evk_tl_ai_pola_do_sprawdzenia(int $limit = 200): array {
 }
 
 // =========================================================================
+// KATEGORIE I TAGI (1.270.0)
+// =========================================================================
+
+/*
+ * Nazwa i opis termu (moduł 56: meta termu `_evk_tl_{język}__{pole}` i źródło)
+ * oraz pola Evoke FIELDS w termach (Fields 1.77.0, `evk_fields_tl_teksty($id, 'term')`).
+ * W hurcie osobne części: `evk_term` (pola wyboru „Nazwa”, „Opis”, „Adres
+ * z nazwy” — domyślnie odznaczone, jak przy wpisach) i `evk_fields_term`
+ * (razem z polem „Pola Evoke FIELDS”). Identyfikatorem części jest id termu
+ * w `post_id` — kształt jednostki hurtu zostaje ten sam.
+ */
+const EVK_TL_AI_TERM = 'evk_term';
+const EVK_TL_AI_POLA_TERMU = 'evk_fields_term';
+const EVK_TL_AI_POLA_TERMOW = ['name', 'description'];
+
+/** @param mixed $raw @return list<string> */
+function evk_tl_ai_pola_termu_z($raw): array {
+    return array_values(array_intersect(EVK_TL_AI_POLA_TERMOW, array_map('strval', (array) wp_unslash($raw))));
+}
+
+/** Moduł termów (56) wczytany. */
+function evk_tl_ai_termy_dostepne(): bool {
+    return function_exists('evk_tlt_taksonomie') && function_exists('evk_tlt_meta');
+}
+
+/** Fields podaje teksty pól termów (1.77.0+). */
+function evk_tl_ai_pola_termow_dostepne(): bool {
+    return evk_tl_ai_pola_dostepne() && function_exists('evk_fields_tl_obiekty') && function_exists('evk_fields_tl_taksonomie')
+        && in_array('term', (array) evk_fields_tl_obiekty(), true);
+}
+
+/** Nazwa rodzaju termu („Kategoria”, „Tag”) — element w kontekście i w liście. */
+function evk_tl_ai_rodzaj_termu(WP_Term $t): string {
+    $tax = get_taxonomy($t->taxonomy);
+    return $tax ? (string) $tax->labels->singular_name : $t->taxonomy;
+}
+
+/** Podpis termu w liście hurtu i w dzienniku: „Nazwa (Kategoria)”. */
+function evk_tl_ai_tytul_termu(int $term_id): string {
+    $t = get_term($term_id);
+    return $t instanceof WP_Term ? $t->name . ' (' . evk_tl_ai_rodzaj_termu($t) . ')' : '#' . $term_id;
+}
+
+/** Tytuł części dla AI i dziennika: wpis albo term. */
+function evk_tl_ai_tytul_czesci(int $id, string $meta_key): string {
+    if ($meta_key === EVK_TL_AI_TERM || $meta_key === EVK_TL_AI_POLA_TERMU) return evk_tl_ai_tytul_termu($id);
+    return (string) (get_the_title($id) ?: ('#' . $id));
+}
+
+/**
+ * Teksty termu w kształcie evk_tl_ai_teksty(): kontekst (nazwa, opis, potem
+ * pola Fields termu) i braki — tylko pól z `$pola`. Klucz braku: `{pole}|{język}`.
+ *
+ * @param list<string> $pola
+ * @return array{kontekst:list<array{element:string,opis:string,pl:string,tl:string}>,braki:array<string,array<string,mixed>>}
+ */
+function evk_tl_ai_teksty_termu(int $term_id, string $lang, array $pola, bool $ponownie = false): array {
+    $out = ['kontekst' => [], 'braki' => []];
+    $t = get_term($term_id);
+    if (!($t instanceof WP_Term) || !evk_tl_ai_termy_dostepne()) return $out;
+    $element = evk_tl_ai_rodzaj_termu($t);
+    $nazwy = ['name' => 'Nazwa', 'description' => 'Opis'];
+    foreach (EVK_TL_AI_POLA_TERMOW as $pole) {
+        $pl = (string) $t->{$pole};
+        if (!evk_tl_ai_do_tlumaczenia($pl)) continue;
+        $tl = evk_tlt_meta($term_id, $lang, $pole);
+        $jest = !evk_tlw_pusty($tl);
+        $ponow = $ponownie && $jest && evk_tlw_ai((string) get_term_meta($term_id, '_evk_tl_' . $lang . '__' . $pole . '__zrodlo', true));
+        $out['kontekst'][] = ['element' => $element, 'opis' => $nazwy[$pole], 'pl' => $pl, 'tl' => $jest && !$ponow ? $tl : ''];
+        if (!in_array($pole, $pola, true) || ($jest && !$ponow)) continue;
+        $out['braki'][$pole . '|' . $lang] = ['pl' => $pl, 'element' => $element, 'opis' => $nazwy[$pole], 'id' => '', 'sciezka' => $pole,
+            'pole' => $pole, 'n' => count($out['kontekst']), 'bylo' => $ponow ? $tl : ''];
+    }
+    if ($out['braki'] && evk_tl_ai_pola_termow_dostepne()) {
+        foreach (evk_fields_tl_teksty($term_id, 'term') as $m) {
+            if (!evk_tl_ai_do_tlumaczenia((string) $m['pl'])) continue;
+            $out['kontekst'][] = ['element' => 'Evoke FIELDS · ' . (string) ($m['grupa'] ?? ''), 'opis' => (string) ($m['opis'] ?? ''),
+                'pl' => (string) $m['pl'], 'tl' => (string) ($m['tl'][$lang] ?? '')];
+        }
+    }
+    return $out;
+}
+
+/**
+ * Zapis kroku hurtu dla nazwy i opisu termu — jak formularz modułu 56:
+ * sanityzacja rdzenia dla pola termu, bez odstępów na brzegach; z AI —
+ * źródło ze znacznikiem.
+ *
+ * @param array<string,string>              $gotowe
+ * @param array<string,bool>                $ai
+ * @param array<string,array<string,mixed>> $braki
+ * @return list<string>
+ */
+function evk_tl_ai_zapisz_term(int $term_id, string $lang, array $gotowe, array $ai, array $braki): array {
+    $t = get_term($term_id);
+    if (!($t instanceof WP_Term)) return [];
+    $out = [];
+    foreach ($gotowe as $k => $tl) {
+        $pole = (string) ($braki[$k]['sciezka'] ?? '');
+        if (!in_array($pole, EVK_TL_AI_POLA_TERMOW, true)) continue;
+        $tekst = trim((string) wp_unslash(sanitize_term_field($pole, wp_slash((string) $tl), $term_id, $t->taxonomy, 'db')));
+        if (evk_tlw_pusty($tekst)) continue;
+        update_term_meta($term_id, '_evk_tl_' . $lang . '__' . $pole, wp_slash($tekst));
+        update_term_meta($term_id, '_evk_tl_' . $lang . '__' . $pole . '__zrodlo', (!empty($ai[$k]) ? 'ai-' : '') . evk_tlw_zrodlo((string) $t->{$pole}));
+        $out[] = (string) $k;
+    }
+    return $out;
+}
+
+/**
+ * Adres z nazwy: człon z tłumaczenia nazwy do mapy adresów — zasady jak
+ * evk_tl_ai_adres_z_tytulu() (konflikt jak przy zapisie termu w 56).
+ *
+ * @return array{stan:string,czlon:string,powod:string}
+ */
+function evk_tl_ai_adres_z_nazwy(int $term_id, string $lang): array {
+    $w = ['stan' => '', 'czlon' => '', 'powod' => ''];
+    $t = get_term($term_id);
+    $pl = $t instanceof WP_Term ? (string) $t->slug : '';
+    if ($pl === '') return ['stan' => 'bez_adresu'] + $w;
+    if (evk_tlw_slug($pl, $lang) !== '') return ['stan' => 'jest', 'czlon' => evk_tlw_slug($pl, $lang)] + $w;
+    $nazwa = evk_tlt_meta($term_id, $lang, 'name');
+    if (evk_tlw_pusty($nazwa)) return ['stan' => 'bez_tytulu'] + $w;
+    $czlon = sanitize_title($nazwa);
+    if ($czlon === '' || $czlon === $pl) return ['stan' => 'ten_sam', 'czlon' => $czlon] + $w;
+    $powod = evk_tlw_slug_konflikt($pl, $lang, $czlon, 0, '', $term_id);
+    if ($powod !== '') return ['stan' => 'konflikt', 'czlon' => $czlon, 'powod' => $powod];
+    evk_tlw_zapisz_slug($pl, $lang, $czlon);
+    return ['stan' => 'zapisany', 'czlon' => $czlon, 'powod' => ''];
+}
+
+/**
+ * Termy (lista hurtu): id termów z obsługiwanych taksonomii, najstarsze najpierw.
+ *
+ * @param list<string> $taksonomie
+ * @return list<int>
+ */
+function evk_tl_ai_id_termow(array $taksonomie): array {
+    if (!$taksonomie) return [];
+    $ids = get_terms(['taxonomy' => $taksonomie, 'hide_empty' => false, 'number' => 1000, 'orderby' => 'term_id', 'order' => 'ASC', 'fields' => 'ids']);
+    return is_array($ids) ? array_map('intval', $ids) : [];
+}
+
+/**
+ * Termy z brakami (lista hurtu): część `evk_term`. Sam „Adres z nazwy” liczy
+ * termy z tłumaczeniem nazwy, a bez członu w mapie adresów (1 na język).
+ *
+ * @param list<string> $jezyki
+ * @param list<string> $pola
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_jednostki_termow(array $jezyki, array $pola, bool $adres, bool $ponownie): array {
+    if (!evk_tl_ai_termy_dostepne()) return [];
+    $out = [];
+    foreach (evk_tl_ai_id_termow(evk_tlt_taksonomie()) as $id) {
+        $t = get_term($id);
+        if (!($t instanceof WP_Term)) continue;
+        $braki = [];
+        $ai = [];
+        foreach ($jezyki as $j) {
+            $b = $pola ? evk_tl_ai_teksty_termu($id, $j, $pola, $ponownie)['braki'] : [];
+            $n = count($b);
+            if (!$n && $adres && $t->slug !== '' && evk_tlw_slug($t->slug, $j) === '' && !evk_tlw_pusty(evk_tlt_meta($id, $j, 'name'))) $n = 1;
+            if ($n) $braki[$j] = $n;
+            $x = count(array_filter($b, static function ($y) { return $y['bylo'] !== ''; }));
+            if ($x) $ai[$j] = $x;
+        }
+        if (!$braki) continue;
+        $out[] = ['post_id' => $id, 'meta_key' => EVK_TL_AI_TERM, 'tytul' => evk_tl_ai_tytul_termu($id),
+            'czesc' => $pola ? 'Nazwa i opis' : 'Adres z nazwy', 'adres' => (string) get_edit_term_link($id, $t->taxonomy), 'braki' => $braki, 'ai' => (object) $ai];
+    }
+    return $out;
+}
+
+/**
+ * Termy z polami Fields z brakami (lista hurtu): część `evk_fields_term`.
+ *
+ * @param list<string> $jezyki
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_jednostki_pol_termow(array $jezyki, bool $ponownie): array {
+    if (!evk_tl_ai_pola_termow_dostepne()) return [];
+    $out = [];
+    foreach (evk_tl_ai_id_termow(evk_fields_tl_taksonomie()) as $id) {
+        $braki = [];
+        $ai = [];
+        foreach ($jezyki as $j) {
+            $b = evk_tl_ai_teksty_pol($id, $j, $ponownie, 'term')['braki'];
+            if ($b) $braki[$j] = count($b);
+            $n = count(array_filter($b, static function ($x) { return $x['bylo'] !== ''; }));
+            if ($n) $ai[$j] = $n;
+        }
+        if (!$braki) continue;
+        $t = get_term($id);
+        $out[] = ['post_id' => $id, 'meta_key' => EVK_TL_AI_POLA_TERMU, 'tytul' => evk_tl_ai_tytul_termu($id), 'czesc' => 'Pola Evoke FIELDS',
+            'adres' => $t instanceof WP_Term ? (string) get_edit_term_link($id, $t->taxonomy) : '', 'braki' => $braki, 'ai' => (object) $ai];
+    }
+    return $out;
+}
+
+/** Czy bieżący użytkownik może tłumaczyć tę część termu (krok hurtu). */
+function evk_tl_ai_term_do_kroku(int $term_id, string $meta_key): bool {
+    $t = get_term($term_id);
+    if (!($t instanceof WP_Term) || !current_user_can('edit_term', $term_id)) return false;
+    if ($meta_key === EVK_TL_AI_TERM) return evk_tl_ai_termy_dostepne() && in_array($t->taxonomy, evk_tlt_taksonomie(), true);
+    return $meta_key === EVK_TL_AI_POLA_TERMU && evk_tl_ai_pola_termow_dostepne() && in_array($t->taxonomy, evk_fields_tl_taksonomie(), true);
+}
+
+/**
+ * Lista „Do sprawdzenia” (52): nazwy i opisy termów z tłumaczeniem AI albo po
+ * zmianie polskiego tekstu — część `evk_term`, klucz `{pole}|{język}`;
+ * wiersz niesie tytuł i adres edycji termu.
+ *
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_termy_do_sprawdzenia(int $limit = 200): array {
+    global $wpdb;
+    if (!evk_tl_ai_termy_dostepne()) return [];
+    $wiersze = (array) $wpdb->get_results($wpdb->prepare(
+        "SELECT term_id, meta_key, meta_value FROM {$wpdb->termmeta} WHERE meta_key LIKE %s AND meta_key LIKE %s ORDER BY term_id DESC LIMIT %d",
+        $wpdb->esc_like('_evk_tl_') . '%', '%' . $wpdb->esc_like('__zrodlo'), $limit * 4));
+    $nazwy = ['name' => 'Nazwa', 'description' => 'Opis'];
+    $out = [];
+    foreach ($wiersze as $w) {
+        if (!preg_match('/^_evk_tl_([a-z0-9_]+?)__(name|description)__zrodlo$/', (string) $w->meta_key, $m)) continue;
+        $id = (int) $w->term_id;
+        $t = get_term($id);
+        if (!($t instanceof WP_Term) || !in_array($t->taxonomy, evk_tlt_taksonomie(), true)) continue;
+        [, $lang, $pole] = $m;
+        $tl = evk_tlt_meta($id, $lang, $pole);
+        $pl = (string) $t->{$pole};
+        $z = (string) $w->meta_value;
+        if (evk_tlw_pusty($tl) || evk_tlw_pusty($pl)) continue;
+        $stary = evk_tlw_nieaktualne($tl, $z, $pl);
+        if (!$stary && !evk_tlw_ai($z)) continue;
+        $out[] = ['post_id' => $id, 'meta_key' => EVK_TL_AI_TERM, 'klucz' => $pole . '|' . $lang, 'element' => evk_tl_ai_rodzaj_termu($t),
+            'pole' => $nazwy[$pole], 'jezyk' => $lang, 'oryginal' => $pl, 'tlumaczenie' => $tl, 'ai' => !$stary,
+            'tytul' => $t->name, 'edycja' => (string) get_edit_term_link($id, $t->taxonomy)];
+        if (count($out) >= $limit) break;
+    }
+    return $out;
+}
+
+/**
+ * Lista „Do sprawdzenia” (52): pola Fields termów — część `evk_fields_term`.
+ *
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_pola_termow_do_sprawdzenia(int $limit = 200): array {
+    if (!evk_tl_ai_pola_termow_dostepne()) return [];
+    $out = [];
+    foreach (array_reverse(evk_tl_ai_id_termow(evk_fields_tl_taksonomie())) as $id) {
+        $t = get_term($id);
+        if (!($t instanceof WP_Term)) continue;
+        foreach (evk_fields_tl_teksty($id, 'term') as $m) {
+            foreach ((array) ($m['tl'] ?? []) as $j => $tl) {
+                if ((string) $tl === '' || (empty($m['ai'][$j]) && empty($m['stale'][$j]))) continue;
+                $out[] = ['post_id' => $id, 'meta_key' => EVK_TL_AI_POLA_TERMU, 'klucz' => (string) $m['klucz'] . '|' . $j,
+                    'element' => 'Evoke FIELDS · ' . (string) ($m['grupa'] ?? ''), 'pole' => (string) ($m['opis'] ?? ''), 'jezyk' => (string) $j,
+                    'oryginal' => (string) $m['pl'], 'tlumaczenie' => (string) $tl, 'ai' => !empty($m['ai'][$j]) && empty($m['stale'][$j]),
+                    'tytul' => $t->name, 'edycja' => (string) get_edit_term_link($id, $t->taxonomy)];
+                if (count($out) >= $limit) return $out;
+            }
+        }
+    }
+    return $out;
+}
+
+// =========================================================================
 // AJAX
 // =========================================================================
 
@@ -1590,7 +1882,7 @@ add_action('wp_ajax_evk_tl_ai_ustawienia', function (): void {
 add_action('wp_ajax_evk_tl_ai_lista', function (): void {
     evk_tl_ajax_check('evk_tl_ai');
     wp_send_json_success(evk_tl_ai_jednostki(($_POST['tryb'] ?? '') === 'ponownie', !empty($_POST['pola']) && evk_tl_ai_pola_dostepne(),
-        evk_tl_ai_pola_wpisu_z($_POST['wpis_pola'] ?? []), !empty($_POST['adres'])));
+        evk_tl_ai_pola_wpisu_z($_POST['wpis_pola'] ?? []), !empty($_POST['adres']), evk_tl_ai_pola_termu_z($_POST['term_pola'] ?? []), !empty($_POST['term_adres'])));
 });
 
 /** Jeden krok tłumaczenia. */
@@ -1599,18 +1891,21 @@ add_action('wp_ajax_evk_tl_ai_krok', function (): void {
     $post_id = absint($_POST['post_id'] ?? 0);
     $meta_key = sanitize_text_field(wp_unslash((string) ($_POST['meta_key'] ?? '')));
     $lang = sanitize_key((string) ($_POST['lang'] ?? ''));
-    $czesc_ok = in_array($meta_key, evk_tl_el_klucze_meta(), true) || ($meta_key === EVK_TL_AI_POLA && evk_tl_ai_pola_dostepne())
+    /* Termy (1.270.0): identyfikator termu w `post_id`, prawo edycji termu. */
+    $term = $meta_key === EVK_TL_AI_TERM || $meta_key === EVK_TL_AI_POLA_TERMU;
+    $czesc_ok = $term || in_array($meta_key, evk_tl_el_klucze_meta(), true) || ($meta_key === EVK_TL_AI_POLA && evk_tl_ai_pola_dostepne())
         || ($meta_key === EVK_TL_AI_WPIS && function_exists('evk_tlw_typy') && in_array((string) get_post_type($post_id), evk_tlw_typy(), true));
     if (!$post_id || !$czesc_ok || !isset(tl_get_languages()[$lang])) {
         wp_send_json_error('Nieznana strona albo język.');
     }
-    if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
+    if ($term ? !evk_tl_ai_term_do_kroku($post_id, $meta_key) : !current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
     $pomin = array_values(array_filter(array_map('strval', (array) wp_unslash($_POST['pomin'] ?? []))));
     /* Dostawca i model przebiegu (1.262.0): tylko na to żądanie, ustawienia
        bez zmian. Dostawca bez klucza kończy się stopem „Brak klucza API”. */
     $opcje = ['ponownie' => ($_POST['tryb'] ?? '') === 'ponownie', 'dostawca' => sanitize_key((string) ($_POST['dostawca'] ?? '')),
         'model' => (string) wp_unslash($_POST['model'] ?? ''), 'bez_pamieci' => !empty($_POST['bez_pamieci']),
-        'wpis_pola' => evk_tl_ai_pola_wpisu_z($_POST['wpis_pola'] ?? []), 'adres' => !empty($_POST['adres'])];
+        'wpis_pola' => evk_tl_ai_pola_wpisu_z($_POST['wpis_pola'] ?? []), 'adres' => !empty($_POST['adres']),
+        'term_pola' => evk_tl_ai_pola_termu_z($_POST['term_pola'] ?? []), 'term_adres' => !empty($_POST['term_adres'])];
     if (function_exists('set_time_limit')) @set_time_limit(180);
     wp_send_json_success(evk_tl_ai_krok($post_id, $meta_key, $lang, $pomin, $opcje));
 });
@@ -1674,8 +1969,15 @@ function evk_tl_ai_ajax_bez_zapisu(string $nonce, bool $wymagaj_wpisu): void {
     evk_tl_ajax_check($nonce);
     $post_id = absint($_POST['post_id'] ?? 0);
     $slug = $wymagaj_wpisu ? sanitize_key(wp_unslash((string) ($_POST['strona'] ?? ''))) : '';
+    $term_id = $wymagaj_wpisu ? absint($_POST['term_id'] ?? 0) : 0;
     $tytul = '';
-    if ($slug !== '') {
+    if ($term_id) {
+        /* Edycja termu (1.270.0): prawo edycji termu, tytuł kontekstu — nazwa termu. */
+        $term = get_term($term_id);
+        if (!($term instanceof WP_Term) || !current_user_can('edit_term', $term_id)) wp_send_json_error('Brak uprawnień do tego termu.', 403);
+        $post_id = 0;
+        $tytul = $term->name;
+    } elseif ($slug !== '') {
         $strona = evk_tl_ai_strona_ustawien($slug);
         if ($strona === null) wp_send_json_error('Brak uprawnień do tej strony ustawień.', 403);
         $post_id = 0;

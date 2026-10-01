@@ -270,7 +270,7 @@ module.exports = async function (t) {
         .map((e) => e.tagName + '.' + String(e.className).slice(0, 30) + ' ' + Math.round(e.getBoundingClientRect().right));
       const male = [...document.querySelectorAll('.evk-tl-grupa .evk-tl-wejscie')].filter(vis)
         .filter((e) => parseFloat(getComputedStyle(e).fontSize) < 16).map((e) => e.name + ' ' + getComputedStyle(e).fontSize);
-      const cele = [...document.querySelectorAll('.evk-tl-grupa .evk-tl-jezyk, .evk-tl-grupa .evk-tl-narzedzia .button')].filter(vis)
+      const cele = [...document.querySelectorAll('.evk-tl-grupa .evk-tl-jezyk, .evk-tl-grupa .evk-tl-narzedzia .button, .evk-tl-grupa .evk-tl-znaczniki .button')].filter(vis)
         .filter((e) => { const r = e.getBoundingClientRect(); return r.width < 24 || r.height < 24; }).map((e) => e.textContent.trim().slice(0, 20));
       return { wystaje: wystaje.slice(0, 8), male: male.slice(0, 8), cele: cele.slice(0, 8), W };
     });

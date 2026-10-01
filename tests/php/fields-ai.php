@@ -20,6 +20,12 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/fields-ai.php dane KTO               filtr evk_fields_tl_ai (dane przycisków w metaboksie)
  *   php tests/php/fields-ai.php ajax-pola KTO PLIK [S] żądanie z metaboksu (ciało z pliku) przez prawdziwy AJAX
  *   php tests/php/fields-ai.php ai-klucz on|off        klucz API w ustawieniach
+ *   php tests/php/fields-ai.php termy                  pola Fields kategorii (1.270.0, Fields 1.77.0): API dla termu
+ *   php tests/php/fields-ai.php jednostki-term         lista hurtu z polami — część „evk_fields_term” tej kategorii
+ *   php tests/php/fields-ai.php krok-term L            kroki hurtu części „evk_fields_term” do końca
+ *   php tests/php/fields-ai.php lista-term             „Do sprawdzenia”: wiersze pól tej kategorii i HTML sekcji
+ *   php tests/php/fields-ai.php ajax-sprawdzone-term K „Sprawdzone” z listy przez prawdziwy AJAX
+ *   php tests/php/fields-ai.php dane-term KTO          filtr evk_fields_tl_ai z kontekstem termu
  *   php tests/php/fields-ai.php sprzataj               wszystko jak przed testem
  */
 $evk_czwarty = true;
@@ -47,6 +53,10 @@ function evk_fa_zapis(): array {
 function evk_fa_wpis(): int {
     return (int) (evk_fa_zapis()['wpis'] ?? 0);
 }
+function evk_fa_term(): int {
+    return (int) (evk_fa_zapis()['term'] ?? 0);
+}
+const EVK_FA_TERM = 'Kategoria pól AI';
 function evk_fa_kto(string $kto): int {
     $u = get_user_by('login', $kto === 'admin' ? 'admin' : 'evk-t-fa-' . $kto);
     return $u ? (int) $u->ID : 0;
@@ -137,7 +147,17 @@ case 'ustaw':
         'parent' => '', 'hide_title' => 0, 'tabs' => [['label' => 'Ogólne', 'groups' => ['ai_opcje']]]];
     update_option('evk_rep_settings_pages', $strony);
     update_option('evk_rep_opt_ai_opcje', ['slogan' => 'Najlepsza oferta', 'przyciski' => [['etykieta' => 'Zadzwoń teraz']]], false);
+    /* Grupa na kategoriach (1.270.0, Fields 1.77.0: teksty pól termów). */
+    $gt = $grupa('ai_term', 'Pola kategorii', ['podpis_kat' => ['type' => 'text', 'label' => 'Podpis kategorii']], false);
+    update_post_meta($gt, '_evk_object_type', 'term');
+    update_post_meta($gt, '_evk_taxonomies', ['category']);
     evk_groups_cache_clear();
+    $stary = get_term_by('name', EVK_FA_TERM, 'category');
+    if ($stary) wp_delete_term((int) $stary->term_id, 'category');
+    $nt = wp_insert_term(EVK_FA_TERM, 'category', ['slug' => 'kategoria-pol-ai']);
+    $tid = is_array($nt) ? (int) $nt['term_id'] : 0;
+    update_term_meta($tid, 'podpis_kat', 'Podpis kategorii AI');
+    $zapis['term'] = $tid;
 
     $id = (int) wp_insert_post(['post_title' => EVK_FA_TYTUL, 'post_type' => 'pola_ai', 'post_status' => 'publish']);
     update_post_meta($id, 'tytul', 'Nasza oferta');
@@ -167,7 +187,7 @@ case 'ustaw':
     $zapis['wpis'] = $id;
     $zapis['uzytkownicy'] = [$uid];
     file_put_contents($plik, wp_json_encode($zapis));
-    $out += ['wpis' => $id, 'wp' => rtrim(ABSPATH, '/'), 'gotowe' => true];
+    $out += ['wpis' => $id, 'term' => $tid, 'wp' => rtrim(ABSPATH, '/'), 'gotowe' => $tid > 0];
     break;
 
 case 'teksty':
@@ -199,7 +219,50 @@ case 'surowe':
 
 case 'jednostki':
     $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, ($argv[2] ?? '') === '1'),
-        static function ($j) use ($id) { return (int) $j['post_id'] === $id; }));
+        static function ($j) use ($id) { return (int) $j['post_id'] === $id && $j['meta_key'] !== 'evk_fields_term'; }));
+    break;
+
+/* Pola Fields kategorii (1.270.0, Fields 1.77.0). */
+case 'termy':
+    $out['obiekty'] = function_exists('evk_fields_tl_obiekty') ? evk_fields_tl_obiekty() : null;
+    $out['taksonomie'] = function_exists('evk_fields_tl_taksonomie') ? evk_fields_tl_taksonomie() : null;
+    $out['teksty'] = evk_fields_tl_teksty(evk_fa_term(), 'term');
+    $out['term'] = evk_fa_term();
+    break;
+
+case 'jednostki-term':
+    $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, true),
+        static function ($j) { return (int) $j['post_id'] === evk_fa_term() && $j['meta_key'] === EVK_TL_AI_POLA_TERMU; }));
+    break;
+
+case 'krok-term':
+    $lang = (string) ($argv[2] ?? 'en');
+    $GLOBALS['evk_t_ai_kod'] = $lang;
+    $w = evk_tl_ai_krok(evk_fa_term(), EVK_TL_AI_POLA_TERMU, $lang, []);
+    $out['kroki'] = [$w];
+    $out['zadania'] = count($GLOBALS['evk_t_ai_zadania']);
+    $z = end($GLOBALS['evk_t_ai_zadania']);
+    $out['wiadomosc'] = $z ? (string) ($z['body']['contents'][0]['parts'][0]['text'] ?? '') : '';
+    $out['teksty'] = evk_fields_tl_teksty(evk_fa_term(), 'term');
+    break;
+
+case 'lista-term':
+    $out['wiersze'] = array_values(array_filter(evk_tl_ai_pola_termow_do_sprawdzenia(),
+        static function ($m) { return (int) $m['post_id'] === evk_fa_term(); }));
+    ob_start();
+    evk_tl_el_sekcja_do_sprawdzenia();
+    $out['html'] = (string) ob_get_clean();
+    break;
+
+case 'ajax-sprawdzone-term':
+    $out['odp'] = evk_fa_ajax(['action' => 'evk_tl_el_sprawdzone', 'nonce' => wp_create_nonce('evk_tl_el_sprawdzone'),
+        'post_id' => (string) evk_fa_term(), 'meta_key' => EVK_TL_AI_POLA_TERMU, 'klucz' => (string) ($argv[2] ?? '')]);
+    $out['teksty'] = evk_fields_tl_teksty(evk_fa_term(), 'term');
+    break;
+
+case 'dane-term':
+    wp_set_current_user(evk_fa_kto((string) ($argv[2] ?? 'admin')));
+    $out['dane'] = apply_filters('evk_fields_tl_ai', null, 0, ['term' => evk_fa_term()]);
     break;
 
 case 'krok':
@@ -282,6 +345,7 @@ case 'sprzataj':
     foreach ((array) $wpdb->get_col($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_title = %s", EVK_FA_TYTUL)) as $stary) wp_delete_post((int) $stary, true);
     foreach (get_posts(['post_type' => 'evk_field_group', 'post_status' => 'any', 'numberposts' => -1, 'meta_key' => '_evk_test_ai', 'meta_value' => '1']) as $g) wp_delete_post($g->ID, true);
     evk_groups_cache_clear();
+    if (!empty($zapis['term'])) wp_delete_term((int) $zapis['term'], 'category');
     if (!empty($zapis['uzytkownicy'])) {
         require_once ABSPATH . 'wp-admin/includes/user.php';
         foreach ($zapis['uzytkownicy'] as $uid) wp_delete_user((int) $uid);

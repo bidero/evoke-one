@@ -43,6 +43,11 @@ function tl_render_page() {
         /* Toolbar / pasek zapisu */
         .tl-toolbar,.tl-footer,.tl-save-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
         .tl-footer { margin-top:12px; }
+        /* Tłumaczenia → AI (1.270.0): wiersze pól w siatce `evo-grid`. */
+        .tl-ai-wiersz { margin-bottom:16px; }
+        .tl-ai-wiersz p:first-child { margin-top:0; }
+        .tl-ai-wiersz fieldset { margin:0; padding:0; border:0; min-width:0; }
+        .tl-ai-wiersz legend { padding:0; margin-bottom:8px; }
         .tl-toolbar { margin-bottom:16px; padding:12px; border:1px solid #e5e7eb; border-radius:10px; background:var(--evo-surface); }
         .tl-search-wrap { display:flex; align-items:center; gap:6px; background:var(--evo-bg); border:1px solid var(--evo-border); border-radius:8px; padding:7px 12px; flex:1; min-width:200px; max-width:420px; }
         .tl-search-wrap input { flex:1; border:none; background:transparent; font-size:13px; outline:none; }

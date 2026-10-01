@@ -327,6 +327,7 @@
    Zgłoszone z użycia razem ze zrzutem edytora snippetów. Klasa jest opt-in,
    bo o tym, czy pola mają być równe, decyduje układ, a nie sam typ pola. */
 .evo-pola-rowne .evo-field input[type=text],
+.evo-pola-rowne .evo-field input[type=password],
 .evo-pola-rowne .evo-field input[type=number],
 .evo-pola-rowne .evo-field select {
     width: 100%;

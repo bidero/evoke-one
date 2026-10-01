@@ -197,6 +197,13 @@ add_action('wp_ajax_evk_tl_el_sprawdzone', function (): void {
         if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
         $p = strrpos($klucz, '|');
         $ok = $p !== false && evk_tlw_sprawdzone($post_id, sanitize_key(substr($klucz, $p + 1)), substr($klucz, 0, $p));
+    } elseif (defined('EVK_TL_AI_TERM') && in_array($meta_key, [EVK_TL_AI_TERM, EVK_TL_AI_POLA_TERMU], true)) {
+        /* Nazwa i opis termu, pola Fields termu (1.270.0): identyfikator termu w `post_id`, prawo edycji termu. */
+        if (!current_user_can('edit_term', $post_id)) wp_send_json_error('Brak uprawnień do tego termu.', 403);
+        $p = strrpos($klucz, '|');
+        $ok = $p !== false && ($meta_key === EVK_TL_AI_TERM
+            ? function_exists('evk_tlt_sprawdzone') && evk_tlt_sprawdzone($post_id, sanitize_key(substr($klucz, $p + 1)), substr($klucz, 0, $p))
+            : function_exists('evk_fields_tl_sprawdzone') && evk_fields_tl_sprawdzone($post_id, substr($klucz, 0, $p), substr($klucz, $p + 1), 'term'));
     } else {
         $ok = evk_tl_el_oznacz_sprawdzone($post_id, $meta_key, $klucz);
     }
@@ -234,6 +241,8 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
     if (function_exists('evk_tl_ai_pola_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_pola_do_sprawdzenia());
     /* Tytuły, treści i zajawki wpisów (1.268.0) — edycja wpisu. */
     if (function_exists('evk_tl_ai_wpisy_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_wpisy_do_sprawdzenia());
+    /* Nazwy i opisy kategorii i tagów oraz ich pola Fields (1.270.0) — edycja termu; wiersz niesie tytuł i adres. */
+    if (function_exists('evk_tl_ai_termy_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_termy_do_sprawdzenia(), evk_tl_ai_pola_termow_do_sprawdzenia());
     if (!$lista) return;
     $skrot = static function (string $t): string {
         // Ta sama funkcja co lista tekstów (53): akapity nie sklejają się w jeden wyraz.
@@ -251,11 +260,11 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
                 <th scope="col">Oryginał teraz</th><th scope="col">Tłumaczenie</th><th scope="col"><span class="screen-reader-text">Akcja</span></th></tr></thead>
             <tbody>
             <?php foreach ($lista as $m):
-                $tytul = get_the_title($m['post_id']) ?: ('#' . $m['post_id']);
+                $tytul = isset($m['tytul']) ? (string) $m['tytul'] : (get_the_title($m['post_id']) ?: ('#' . $m['post_id']));
                 $jezyk = strtoupper(str_replace('_', '-', $m['jezyk']));
-                $pole_fields = (defined('EVK_TL_AI_POLA') && $m['meta_key'] === EVK_TL_AI_POLA) || (defined('EVK_TL_AI_WPIS') && $m['meta_key'] === EVK_TL_AI_WPIS);
+                $pole_fields = isset($m['edycja']) || (defined('EVK_TL_AI_POLA') && $m['meta_key'] === EVK_TL_AI_POLA) || (defined('EVK_TL_AI_WPIS') && $m['meta_key'] === EVK_TL_AI_WPIS);
                 $naStronie = $pole_fields ? '' : evk_tl_el_adres_sprawdzania((int) $m['post_id'], (string) $m['meta_key'], (string) $m['jezyk'], (string) $m['klucz']);
-                $edycja = $pole_fields ? (string) get_edit_post_link((int) $m['post_id'], 'raw') : evk_tl_el_adres_edycji($m['post_id']); ?>
+                $edycja = isset($m['edycja']) ? (string) $m['edycja'] : ($pole_fields ? (string) get_edit_post_link((int) $m['post_id'], 'raw') : evk_tl_el_adres_edycji($m['post_id'])); ?>
                 <tr>
                     <td><a href="<?php echo esc_url($edycja); ?>"><?php echo esc_html($tytul); ?></a></td>
                     <td><?php echo esc_html($m['element'] . ': ' . $m['pole']); ?></td>

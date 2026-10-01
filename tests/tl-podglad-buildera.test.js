@@ -80,7 +80,10 @@ module.exports = async function (t) {
   const grupa = await page.evaluate(() => {
     const u = document.getElementById('evk-tl-podglad');
     if (!u) return null;
-    return { przed: u.previousElementSibling && u.previousElementSibling.className, rola: u.getAttribute('role'), etykieta: u.getAttribute('aria-label'),
+    /* Od 1.270.0 w opakowaniu `#evk-tl-pasek` (razem z ✦) — opakowanie zaraz za breakpointami. */
+    const o = u.parentElement;
+    return { przed: o && o.id === 'evk-tl-pasek' && o.firstElementChild === u && o.previousElementSibling && o.previousElementSibling.className,
+      rola: u.getAttribute('role'), etykieta: u.getAttribute('aria-label'),
       przyciski: Array.from(u.querySelectorAll('button')).map((b) => b.textContent + ':' + b.getAttribute('aria-pressed')) };
   });
   t.check('grupa PL | EN | DE zaraz za breakpointami, PL wciśnięty',
