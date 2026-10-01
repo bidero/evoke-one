@@ -2,6 +2,74 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.269.0] — 2026-10-01
+
+✦ w edycji wpisu (tytuł, treść, zajawka), „Z tytułu” przy adresie języka,
+„Zaznacz wszystkie” w hurcie AI i dymki Bricksa przy ✦ w builderze.
+
+Uwagi zgłaszającego po 1.268.0: hurt działa, ✦ jest w metaboksach Fields
+i na stronach ustawień, ale nie przy tytule i adresie wpisu (zwykłego i CPT).
+W Tłumaczenia → AI brakowało „zaznacz/odznacz wszystko”.
+
+### Dodane
+
+- **✦ „Przetłumacz” w edycji wpisu** (klasyczny edytor, każdy typ treści
+  z modułem wpisów), obok „Kopiuj z polskiego” przy tytule, treści i zajawce
+  każdego języka:
+  - te same dane i AJAX co ✦ w metaboksie Evoke FIELDS (`evk_tl_ai_pola`):
+    serwer tylko tłumaczy, a zapis robi „Zaktualizuj”;
+  - przycisk jest tylko z kluczem API, dostępem do Tłumaczeń i prawem edycji
+    wpisu; edycja kategorii i tagów ✦ jeszcze nie ma (osobne wydanie);
+  - kontekst: tytuł, treść i zajawka wpisu z tłumaczeniami tego języka;
+  - wypełnione pole: najpierw pytanie z obecnym tekstem;
+  - po wpisaniu: „AI — do sprawdzenia” i „Sprawdzone” przy polu. Zapis
+    zostawia źródło `ai-{skrót}`, więc pole trafia do listy „Do
+    sprawdzenia”. Ręczna poprawka przed zapisem zdejmuje znacznik;
+  - ✦ przy tytule wypełnia też PUSTY adres języka członem z nowego tytułu.
+- **„Z tytułu” przy adresie języka**: człon z tytułu tego języka, bez AI
+  (transliteracja i sprawdzenie konfliktu na serwerze, AJAX `evk_tlw_czlon`).
+  Przy konflikcie z polskim adresem innej strony albo z mapą adresów pokazuje
+  powód zamiast „zapisz wpis”.
+- **Tłumaczenia → AI: „Zaznacz wszystkie”** — pole w nagłówku tabeli listy
+  części, ze stanem częściowym, gdy zaznaczona jest tylko część wierszy.
+
+### Zmienione
+
+- **✦ w builderze: dymki Bricksa zamiast natywnego `title`** (próba
+  zgłaszającego w konsoli 30.09: `data-balloon` i `data-balloon-pos`):
+  - ✦ w pasku: dymek na `li`, pod paskiem;
+  - przełącznik PL | EN | DE: dymki, nazwa w `aria-label`;
+  - ✦ przy polu: dymek w lewo (przycisk stoi przy prawej krawędzi panelu).
+- **Lista „Do sprawdzenia”**: najnowsze wpisy najpierw (teksty wpisów i pola
+  Fields), żeby limit listy nie ucinał świeżo przetłumaczonych.
+
+### Testy
+
+- `tl-ai-wpisy`: ✦ w edycji wpisu w Chromium (tytuł z adresem, treść
+  w edytorze wizualnym, zajawka, pytanie przed nadpisaniem, poprawka przed
+  zapisem, zapis „Zaktualizuj”), „Z tytułu” z konfliktem, brak ✦ bez klucza
+  i w edycji kategorii, „Zaznacz wszystkie” ze stanem częściowym.
+  Żądanie ✦ idzie przez atrapę AI w sondzie (`ajax-pola`).
+- `tl-ai-builder`: dymki (`data-balloon` na `li`, bez `title`, dymek po
+  najechaniu według reguły Bricksa w fixturze).
+- Mutacje (każda zapala swoje sprawdzenie): zapis bez źródła `ai-`, ✦ tytułu
+  bez adresu, „Z tytułu” bez konfliktu, „Zaznacz wszystkie” bez stanu
+  częściowego, ✦ bez klucza API, poprawka bez zdjęcia źródła `ai`, `title`
+  w builderze.
+
+### Do sprawdzenia na testowej
+
+- Edycja wpisu i wpisu CPT z Fields, widok EN: ✦ przy tytule wpisuje
+  tłumaczenie i, gdy adres EN jest pusty, człon adresu. „Zaktualizuj” — pole
+  ma „AI — do sprawdzenia” i jest w „Do sprawdzenia” (zakładka Tłumaczenia).
+- ✦ przy treści (wizualny i tekstowy edytor) i przy zajawce.
+- „Z tytułu” przy adresie: człon bez AI; adres zajęty przez inną stronę —
+  powód pod polem.
+- Tłumaczenia → AI → „Pokaż listę”: pole w nagłówku tabeli zaznacza
+  i odznacza wszystkie wiersze.
+- Builder: najechanie na ✦ w pasku i na ✦ przy polu — dymek jak przy
+  przyciskach Bricksa, bez dymka przeglądarki.
+
 ## [1.268.0] — 2026-09-30
 
 Hurt AI tekstów wpisów (tytuł, treść, zajawka, adres z tytułu) i ✦ na

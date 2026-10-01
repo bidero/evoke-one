@@ -1386,7 +1386,8 @@ function evk_tl_ai_wpisy_do_sprawdzenia(int $limit = 200): array {
     global $wpdb;
     if (!function_exists('evk_tlw_nieaktualne')) return [];
     $wiersze = (array) $wpdb->get_results($wpdb->prepare(
-        "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE meta_key LIKE %s AND meta_key LIKE %s ORDER BY post_id LIMIT %d",
+        /* Najnowsze wpisy najpierw — limit nie ucina świeżo tłumaczonych (1.269.0). */
+        "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE meta_key LIKE %s AND meta_key LIKE %s ORDER BY post_id DESC LIMIT %d",
         $wpdb->esc_like('_evk_tl_') . '%', '%' . $wpdb->esc_like('__zrodlo'), $limit * 4));
     $nazwy = ['post_title' => 'Tytuł', 'post_content' => 'Treść', 'post_excerpt' => 'Zajawka'];
     $out = [];
@@ -1542,7 +1543,7 @@ function evk_tl_ai_strona_ustawien(string $slug): ?array {
 function evk_tl_ai_pola_do_sprawdzenia(int $limit = 200): array {
     if (!evk_tl_ai_pola_dostepne() || !($typy = evk_fields_tl_typy())) return [];
     $ids = array_map('intval', get_posts(['post_type' => $typy, 'post_status' => ['publish', 'draft', 'pending', 'private', 'future'],
-        'numberposts' => 1000, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'ASC', 'no_found_rows' => true, 'suppress_filters' => true]));
+        'numberposts' => 1000, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'DESC', 'no_found_rows' => true, 'suppress_filters' => true]));
     if ($ids) update_meta_cache('post', $ids);
     $out = [];
     foreach ($ids as $post_id) {

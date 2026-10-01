@@ -463,6 +463,8 @@ add_action('admin_enqueue_scripts', function ($hook) {
     /* Widok języka: pola języka zamiast oryginałów. Reguła na język — języki
        zna dopiero serwer. */
     wp_add_inline_style('evk-tl-wpisy', evk_tlw_css_jezykow());
+    $ai = evk_tlw_ai_dane();
+    if ($ai !== null) wp_add_inline_script('evk-tl-wpisy', 'window.evkTlwAi = ' . wp_json_encode($ai) . ';', 'before');
 });
 
 /** Widok języka: pola tego języka widoczne (wiersz tabeli jako wiersz). Reguła na język — języki zna dopiero serwer. */
@@ -495,6 +497,13 @@ function evk_tlw_narzedzia(string $lang, string $pole, string $pl, string $warto
         . ($podglad !== '' ? esc_html($podglad) : '—') . '</span></p>';
     echo '<div class="evk-tlw-narzedzia">';
     if ($kopiuj) echo '<button type="button" class="button button-small evk-tlw-kopiuj">Kopiuj z polskiego</button>';
+    /* ✦ (1.269.0): tylko w edycji wpisu, z kluczem API i prawem edycji — dane w evk_tlw_ai_dane(). */
+    if (evk_tlw_ai_dane() !== null) {
+        $nazwy = ['post_title' => 'Tytuł', 'post_content' => 'Treść', 'post_excerpt' => 'Zajawka'];
+        echo '<button type="button" class="button button-small evk-tlw-ai" aria-label="' . esc_attr('Przetłumacz (AI) — ' . ($nazwy[$pole] ?? $pole) . ' ' . strtoupper($lang)) . '">'
+            . '<svg class="evk-tlw-ai-ikona" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C8.6 4.6 11.4 7.4 16 8C11.4 8.6 8.6 11.4 8 16C7.4 11.4 4.6 8.6 0 8C4.6 7.4 7.4 4.6 8 0Z"/></svg>'
+            . '<span>Przetłumacz</span></button>';
+    }
     $ai = !evk_tlw_pusty($wartosc) && evk_tlw_ai($zrodlo);
     $stary = evk_tlw_nieaktualne($wartosc, $zrodlo, $pl);
     echo '<span class="evk-tlw-ai-znak"' . ($ai ? '' : ' hidden') . '>AI — do sprawdzenia</span>';
@@ -509,7 +518,42 @@ function evk_tlw_narzedzia(string $lang, string $pole, string $pl, string $warto
         }
     }
     echo '</div>';
+    if (evk_tlw_ai_dane() !== null) echo '<p class="evk-tlw-ai-stan" role="status"></p>';
 }
+
+/**
+ * Tłumacz AI dla przycisków ✦ w edycji wpisu (1.269.0): te same dane i ten sam
+ * AJAX co przyciski w metaboksie Evoke FIELDS (61, filtr `evk_fields_tl_ai`:
+ * dostęp do Tłumaczeń, prawo edycji wpisu, klucz API). Tylko ekran wpisu
+ * (termy bez przycisków); null — bez przycisków.
+ *
+ * @return array<string,mixed>|null
+ */
+function evk_tlw_ai_dane(): ?array {
+    static $dane = false;
+    if ($dane !== false) return $dane;
+    $dane = null;
+    $post = evk_tlw_ekran() ? get_post() : null;
+    if (!$post instanceof WP_Post) return $dane;
+    $d = apply_filters('evk_fields_tl_ai', null, (int) $post->ID, []);
+    if (is_array($d) && is_string($d['ajax'] ?? null)) $dane = $d;
+    return $dane;
+}
+
+/* Człon adresu z tytułu języka (1.269.0): „Z tytułu” przy adresie i ✦ przy
+   tytule (gdy adres języka pusty). Serwer, bo transliteracja (ą → a, ß → ss)
+   i sprawdzenie konfliktu mapy adresów są tu. Bez zapisu — zapisuje formularz. */
+add_action('wp_ajax_evk_tlw_czlon', function (): void {
+    check_ajax_referer('evk_tlw_zapis', 'nonce');
+    $pid = absint($_POST['post_id'] ?? 0);
+    if (!$pid || !current_user_can('edit_post', $pid)) wp_send_json_error('Brak uprawnień do tego wpisu.', 403);
+    $lang = sanitize_key((string) ($_POST['lang'] ?? ''));
+    if (!isset(evk_tlw_jezyki()[$lang])) wp_send_json_error('Nieznany język.');
+    $czlon = sanitize_title(wp_unslash((string) ($_POST['tytul'] ?? '')));
+    if ($czlon === '') wp_send_json_error('Brak tytułu w tym języku.');
+    $pl = (string) get_post_field('post_name', $pid, 'raw');
+    wp_send_json_success(['czlon' => $czlon, 'konflikt' => $pl !== '' ? evk_tlw_slug_konflikt($pl, $lang, $czlon, $pid) : '']);
+});
 
 /* Przełącznik nad tytułem. */
 add_action('edit_form_top', function ($post) {
@@ -564,6 +608,8 @@ function evk_tlw_pole_adresu(WP_Post $post, string $kod): void {
     echo '<span class="evk-tlw-adres-baza">' . esc_html($baza) . '</span>';
     echo '<input type="text" id="' . esc_attr($id) . '" class="evk-tlw-slug" name="evk_tlw[' . esc_attr($kod) . '][post_name][wartosc]"'
         . ' value="' . esc_attr($czlon) . '" placeholder="' . esc_attr($pl !== '' ? $pl : 'jak polski') . '" autocomplete="off" spellcheck="false">';
+    echo ' <button type="button" class="button button-small evk-tlw-z-tytulu" aria-label="' . esc_attr('Adres ' . $K . ' z tytułu ' . $K) . '">Z tytułu</button>';
+    echo ' <span class="evk-tlw-adres-stan" role="status"></span>';
     echo '<p class="evk-tlw-uwaga">Pusty = ten sam człon co po polsku' . ($pl !== '' ? ' („' . esc_html($pl) . '”)' : '') . '.';
     $inne = evk_tlw_inne_z_czlonem($pl, $post->ID);
     if ($inne) {
@@ -649,7 +695,10 @@ add_action('save_post', function ($pid, $post) {
             }
             $przed  = sanitize_key((string) ($dane[$pole]['przed'] ?? ''));
             $zrodlo = sanitize_key((string) ($dane[$pole]['zrodlo'] ?? ''));
-            if ($zrodlo === '' || $zrodlo === 'teraz' || evk_tlw_skrot($tekst) !== $przed) {
+            if ($zrodlo === 'ai') {
+                /* Pole wypełnił ✦ i nikt go potem nie poprawiał (tl-wpisy.js) — „AI — do sprawdzenia”. */
+                $zrodlo = 'ai-' . evk_tlw_zrodlo((string) $post->{$pole});
+            } elseif ($zrodlo === '' || $zrodlo === 'teraz' || evk_tlw_skrot($tekst) !== $przed) {
                 $zrodlo = evk_tlw_zrodlo((string) $post->{$pole});
             }
             update_post_meta($pid, '_evk_tl_' . $kod . '__' . $pole, wp_slash($tekst));

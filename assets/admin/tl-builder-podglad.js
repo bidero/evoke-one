@@ -586,7 +586,10 @@
       b.type = 'button';
       b.setAttribute('data-jezyk', j);
       b.setAttribute('aria-pressed', j === tryb ? 'true' : 'false');
-      b.title = NAPISY.przycisk.replace('%s', j.toUpperCase());
+      /* Dymek jak w całym builderze (1.269.0, próba 30.09): `data-balloon` na `li` paska. */
+      b.setAttribute('aria-label', NAPISY.przycisk.replace('%s', j.toUpperCase()));
+      li.setAttribute('data-balloon', NAPISY.przycisk.replace('%s', j.toUpperCase()));
+      li.setAttribute('data-balloon-pos', 'bottom');
       b.textContent = j.toUpperCase();
       b.addEventListener('click', () => ustawTryb(j));
       li.appendChild(b);
@@ -957,7 +960,10 @@
     const opis = powod || ('Zaznaczony element z dziećmi → ' + tryb.toUpperCase() + ' (' + AI.model + ')');
     if (b.getAttribute('aria-disabled') !== (powod ? 'true' : 'false')) b.setAttribute('aria-disabled', powod ? 'true' : 'false');
     if (b.getAttribute('aria-busy') !== (trwa ? 'true' : 'false')) b.setAttribute('aria-busy', trwa ? 'true' : 'false');
-    if (b.title !== opis) b.title = opis;
+    /* Dymek Bricksa na `li` przycisku (próba 30.09: `data-balloon`, `.bricks-toolbar li[data-balloon]`) zamiast `title`. */
+    const li = b.parentElement;
+    if (li && li.getAttribute('data-balloon') !== opis) li.setAttribute('data-balloon', opis);
+    if (b.hasAttribute('title')) b.removeAttribute('title');
     const p = pd.getElementById('evk-tl-ai-podpowiedz');
     if (p && p.textContent !== opis) p.textContent = opis;
   }
@@ -1027,6 +1033,7 @@
     ul.setAttribute('role', 'group');
     ul.setAttribute('aria-label', 'Tłumaczenie AI');
     const li = pd.createElement('li');
+    li.setAttribute('data-balloon-pos', 'bottom');
     const b = pd.createElement('button');
     b.type = 'button';
     b.id = 'evk-tl-ai-element';
@@ -1184,7 +1191,9 @@
         b.setAttribute('data-dla', dla);
         const etykieta = ctrl.querySelector('label');
         b.setAttribute('aria-label', 'Przetłumacz (AI) — ' + ((etykieta && etykieta.textContent.trim()) || 'Tłumaczenie ' + cel[0].toUpperCase()));
-        b.title = 'Przetłumacz (AI) z polskiego tekstu tego pola (' + AI.model + ')';
+        /* Dymek Bricksa (`.bricks-panel [data-balloon]`) — ✦ stoi przy prawej krawędzi panelu, więc dymek w lewo. */
+        b.setAttribute('data-balloon', 'Przetłumacz (AI) z polskiego tekstu tego pola (' + AI.model + ')');
+        b.setAttribute('data-balloon-pos', 'top-right');
         b.appendChild(ikonaAi(pd, rodzaj === 'input' ? 14 : 12));
         b.addEventListener('click', () => {
           const st = ctrl.querySelector('.evk-tl-ai-pole-stan');

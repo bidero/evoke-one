@@ -83,7 +83,11 @@
         }
         wp.editor.initialize(id, { tinymce: tiny, quicktags: true, mediaButtons: true });
         var ed = edytor(id);
-        if (ed) ed.on('change keyup undo redo', function () { oznaczZmiane($t.closest('.evk-tlw-pole')); licz(); });
+        if (ed) {
+            ed.on('change keyup undo redo', function () { oznaczZmiane($t.closest('.evk-tlw-pole')); licz(); });
+            /* Pisanie w edytorze po wpisie ✦ — tłumacz poprawiał (setContent tych zdarzeń nie daje). */
+            ed.on('keyup undo redo', function () { przejrzaneAi($t.closest('.evk-tlw-pole')); });
+        }
     }
 
     function licz() {
@@ -139,6 +143,8 @@
     function przejrzaneAi($pole) {
         $pole.find('.evk-tlw-ai-znak').prop('hidden', true);
         if ($pole.find('.evk-tlw-do-sprawdzenia').prop('hidden')) $pole.find('.evk-tlw-sprawdzone').prop('hidden', true);
+        var $z = $pole.find('.evk-tlw-zrodlo');
+        if ($z.val() === 'ai') $z.val($z.attr('data-pierwotne') || '');
     }
 
     $(document).on('input change', '.evk-tlw-pole .evk-tlw-wejscie', function () {
@@ -185,6 +191,87 @@
         $p.find('.evk-tlw-zrodlo').val('teraz');
         $p.find('.evk-tlw-do-sprawdzenia, .evk-tlw-sprawdzone, .evk-tlw-ai-znak').prop('hidden', true);
         $p.find('.evk-tlw-wejscie').trigger('focus');   // przycisk znika — fokus nie może przepaść
+    });
+
+    // ── ✦ Przetłumacz (AI) (1.269.0) ──
+    /* Te same dane i AJAX co ✦ w metaboksie Evoke FIELDS (window.evkTlwAi,
+       `evk_tl_ai_pola`): tylko tłumaczy, zapis zostaje w „Zaktualizuj”. Źródło
+       `ai` daje przy zapisie „AI — do sprawdzenia”. Kontekst: tytuł, treść
+       i zajawka języka z obecnymi tłumaczeniami. ✦ przy tytule wypełnia też
+       pusty adres języka członem z nowego tytułu. */
+    var AI = window.evkTlwAi || null;
+    var NAZWY = { post_title: 'Tytuł', post_content: 'Treść', post_excerpt: 'Zajawka' };
+    var trwaAi = false;
+
+    function wpiszPole($p, v) {
+        var $w = $p.find('.evk-tlw-wejscie'), ed = edytor($w.attr('id'));
+        if (ed && !ed.isHidden()) { ed.setContent(v); ed.save(); } else { $w.val(v); }
+    }
+
+    function czlonZTytulu($p, lang, tylkoPusty) {
+        var $a = $('.evk-tlw-adres[data-lang="' + lang + '"]'), $in = $a.find('.evk-tlw-slug'), $st = $a.find('.evk-tlw-adres-stan');
+        var tytul = wartosc($('.evk-tlw-pole[data-lang="' + lang + '"][data-pole="post_title"]'));
+        if (!$in.length || (tylkoPusty && $.trim($in.val()))) return $.Deferred().resolve().promise();
+        if (pusty(tytul)) { $st.text('Brak tytułu ' + lang.toUpperCase() + '.'); return $.Deferred().resolve().promise(); }
+        return $.post(window.ajaxurl, { action: 'evk_tlw_czlon', nonce: $('#evk_tlw_nonce').val(), post_id: $('#post_ID').val(), lang: lang, tytul: tytul })
+            .then(function (r) {
+                if (!r || !r.success) { $st.text((r && r.data) || 'Błąd.'); return; }
+                $in.val(r.data.czlon).trigger('input');
+                $st.text(r.data.konflikt ? r.data.konflikt : 'Adres z tytułu — zapisz wpis.');
+            }, function () { $st.text('Brak połączenia z serwerem.'); });
+    }
+
+    $(document).on('click', '.evk-tlw-z-tytulu', function () {
+        czlonZTytulu($(this).closest('.evk-tlw-pole'), String($(this).closest('.evk-tlw-adres').attr('data-lang') || ''), false);
+    });
+
+    $(document).on('click', '.evk-tlw-ai', function () {
+        if (!AI || trwaAi) return;
+        var $b = $(this), $p = $b.closest('.evk-tlw-pole');
+        var lang = String($p.attr('data-lang') || ''), pole = String($p.attr('data-pole') || ''), L = lang.toUpperCase();
+        var $stan = $p.find('.evk-tlw-ai-stan');
+        if (pusty(polski($p))) { $stan.text('Brak polskiego tekstu.'); return; }
+        var obecny = wartosc($p);
+        if (!pusty(obecny) && !window.confirm('Zastąpić obecne tłumaczenie ' + L + '?\n\n„' + podglad(obecny).slice(0, 200) + '”')) return;
+        var kontekst = [], n = 0;
+        $('.evk-tlw-pole[data-lang="' + lang + '"]').each(function () {
+            var $x = $(this), pl = polski($x), p = String($x.attr('data-pole') || '');
+            if (!NAZWY[p] || pusty(pl)) return;
+            kontekst.push({ el: 'Wpis', opis: NAZWY[p], pole: '', poz: 0, pl: pl, tl: this === $p[0] ? '' : wartosc($x) });
+            if (this === $p[0]) n = kontekst.length;
+        });
+        trwaAi = true;
+        $('.evk-tlw-ai').prop('disabled', true);
+        $b.attr('aria-busy', 'true');
+        $stan.text('Tłumaczę na ' + L + '…');
+        var pl0 = polski($p);
+        $.post(AI.ajax, { action: 'evk_tl_ai_pola', nonce: AI.nonce, post_id: AI.post || $('#post_ID').val(), lang: lang,
+            kontekst: JSON.stringify(kontekst), teksty: JSON.stringify({ k1: { n: n, bylo: pusty(obecny) ? '' : obecny } }) })
+            .then(function (r) {
+                if (r === -1 || r === '-1' || r === 0 || r === '0') return $stan.text('Sesja wygasła albo brak uprawnień — przeładuj stronę.');
+                if (!r || !r.success) return $stan.text((r && typeof r.data === 'string' && r.data) || 'Serwer odmówił.');
+                var d = r.data || {}, t = (d.tlumaczenia || {}).k1;
+                if (typeof t === 'string') {
+                    /* Oryginał albo pole zmienione w trakcie — pisanie wygrywa. */
+                    if (polski($p) !== pl0 || wartosc($p) !== obecny) return $stan.text('Tekst albo pole zmieniły się w trakcie — nic nie wpisuję.');
+                    var $z = $p.find('.evk-tlw-zrodlo');
+                    if ($z.attr('data-pierwotne') === undefined) $z.attr('data-pierwotne', $z.val());
+                    wpiszPole($p, t);
+                    $z.val('ai');
+                    $p.find('.evk-tlw-ai-znak, .evk-tlw-sprawdzone').prop('hidden', false);
+                    $p.find('.evk-tlw-slownik').hide();
+                    $stan.text('Wpisane (' + ((d.zrodla || {}).k1 === 'ai' ? 'AI' : 'z pamięci') + (AI.model ? ' · ' + AI.model : '') + ') — sprawdź i zapisz wpis.');
+                    licz();
+                    if (pole === 'post_title') return czlonZTytulu($p, lang, true);
+                    return;
+                }
+                if (d.blad) return $stan.text(d.czekaj ? 'Dostawca prosi o przerwę — spróbuj za ' + d.czekaj + ' s.' : String(d.blad));
+                if ((d.bez_zmian || []).length) return $stan.text('AI zwróciło ten sam tekst — bez zmian.');
+                if ((d.odrzucone || []).length) return $stan.text('Tłumaczenie odrzucone: znaczniki HTML, tagi {…} albo shortcody nie zgadzają się z oryginałem.');
+                if ((d.pominiete || []).length) return $stan.text('Tego tekstu AI nie tłumaczy (sam tag danych dynamicznych albo bez liter).');
+                $stan.text('Brak tłumaczenia.');
+            }, function () { $stan.text('Brak połączenia z serwerem.'); })
+            .always(function () { trwaAi = false; $('.evk-tlw-ai').prop('disabled', false); $b.attr('aria-busy', 'false'); });
     });
 
     $(document).on('click', '.evk-tlw-wstaw', function () {

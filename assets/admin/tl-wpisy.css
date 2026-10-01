@@ -45,6 +45,12 @@
 .evk-tlw-narzedzia [hidden] { display: none !important; }
 .evk-tlw-do-sprawdzenia { color: #8a4b00; font-size: 12px; font-weight: 600; }
 .evk-tlw-ai-znak { color: #6e00a5; font-size: 12px; font-weight: 600; }
+/* ✦ Przetłumacz (1.269.0) — jak w metaboksie Evoke FIELDS. */
+.wp-core-ui .evk-tlw-narzedzia .button.evk-tlw-ai { display: inline-flex; align-items: center; gap: 5px; }
+.evk-tlw-ai-ikona { display: block; flex: none; }
+.evk-tlw-ai-stan { margin: 6px 0 0; font-size: 12px; color: #3c434a; }
+.evk-tlw-ai-stan:empty, .evk-tlw-adres-stan:empty { display: none; }
+.evk-tlw-adres-stan { font-size: 12px; color: #3c434a; }
 .evk-tlw-slownik { font-size: 12px; color: #3c434a; }
 .evk-tlw-slownik-tekst { font-style: normal; font-weight: 600; }
 

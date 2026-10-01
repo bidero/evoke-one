@@ -312,6 +312,10 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
             stan.textContent = 'Części stron z brakami: ' + jednostki.length + '.';
             var wrap = el('div', null, 'evo-tbl-wrap'), tab = el('table', null, 'evo-table'), tr = el('tr');
             ['', 'Strona', 'Część', 'Do tłumaczenia'].forEach(function (n) { var th = el('th', n); th.setAttribute('scope', 'col'); tr.appendChild(th); });
+            /* Zaznacz / odznacz wszystkie (1.269.0): pole w nagłówku, stan częściowy przy części wierszy. */
+            var wszystkie = el('input');
+            wszystkie.type = 'checkbox'; wszystkie.className = 'tl-ai-wszystkie'; wszystkie.setAttribute('aria-label', 'Zaznacz wszystkie');
+            tr.firstChild.appendChild(wszystkie);
             var thead = el('thead'); thead.appendChild(tr); tab.appendChild(thead);
             var tbody = el('tbody');
             jednostki.forEach(function (j, i) {
@@ -328,6 +332,18 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
                 tbody.appendChild(w);
             });
             tab.appendChild(tbody); wrap.appendChild(tab); lista.appendChild(wrap);
+            var wiersze = tbody.querySelectorAll('.tl-ai-wybor');
+            function stanWszystkich() {
+                var n = Array.prototype.filter.call(wiersze, function (c) { return c.checked; }).length;
+                wszystkie.checked = n === wiersze.length;
+                wszystkie.indeterminate = n > 0 && n < wiersze.length;
+            }
+            wszystkie.addEventListener('change', function () {
+                Array.prototype.forEach.call(wiersze, function (c) { c.checked = wszystkie.checked; });
+                stanWszystkich();
+            });
+            tbody.addEventListener('change', stanWszystkich);
+            stanWszystkich();
             start.disabled = false;
         }).catch(function () { przyciskListy.disabled = false; stan.textContent = 'Błąd połączenia.'; });
     }

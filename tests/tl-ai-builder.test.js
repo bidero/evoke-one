@@ -183,7 +183,9 @@ module.exports = async function (t) {
       if (!b) return null;
       const r = b.getBoundingClientRect();
       const p = document.getElementById(b.getAttribute('aria-describedby') || '-');
-      return { tekst: b.textContent.trim(), nazwa: b.getAttribute('aria-label'), svg: !!b.querySelector('svg'), nieaktywny: b.getAttribute('aria-disabled'), zajety: b.getAttribute('aria-busy'), tytul: b.title,
+      return { tekst: b.textContent.trim(), nazwa: b.getAttribute('aria-label'), svg: !!b.querySelector('svg'), nieaktywny: b.getAttribute('aria-disabled'), zajety: b.getAttribute('aria-busy'),
+        /* 1.269.0: opis w dymku Bricksa na `li` (data-balloon), bez natywnego title. */
+        tytul: b.parentElement.getAttribute('data-balloon'), pozycja: b.parentElement.getAttribute('data-balloon-pos'), title: b.hasAttribute('title'),
         podpowiedz: p ? p.textContent : null, wys: r.height, szer: r.width };
     });
     const dymek = () => page.evaluate(() => {
@@ -210,6 +212,17 @@ module.exports = async function (t) {
     const p0 = await przycisk();
     t.check('PL: ikonka ✦ „Przetłumacz zaznaczony element (AI)” nieaktywna, podpowiedź „Wybierz EN albo DE” (dymek i opis)', !!p0
       && p0.tekst === '' && p0.svg && p0.nazwa === 'Przetłumacz zaznaczony element (AI)' && p0.nieaktywny === 'true' && p0.tytul === 'Wybierz EN albo DE' && p0.podpowiedz === 'Wybierz EN albo DE', J(p0));
+    t.check('opis w dymku Bricksa: data-balloon na li, pod paskiem, bez natywnego title', !!p0 && p0.pozycja === 'bottom' && p0.title === false,
+      J(p0 && [p0.tytul, p0.pozycja, p0.title]));
+    /* Reguła dymka z próby w konsoli (30.09) jest w fixturze — najechanie pokazuje opis. */
+    await page.hover('#evk-tl-ai-element');
+    const balon = await page.evaluate(() => { const s = getComputedStyle(document.getElementById('evk-tl-ai-element').parentElement, '::after');
+      return { tresc: s.content, widoczny: s.opacity }; });
+    t.check('najechanie: dymek z opisem przycisku', balon.tresc === '"Wybierz EN albo DE"' && balon.widoczny === '1', J(balon));
+    const przel = await page.evaluate(() => Array.from(document.querySelectorAll('#evk-tl-podglad button')).map((b) => [b.parentElement.getAttribute('data-balloon'),
+      b.hasAttribute('title'), b.getAttribute('aria-label')]));
+    t.check('przełącznik PL | EN | DE: dymki zamiast title, nazwa w aria-label', przel.length === 3 && przel.every(([d, tt, n]) => /^Podgląd: (PL|EN|DE)$/.test(d) && !tt && n === d),
+      J(przel));
     t.check('sama ikonka: szerokość do 32 px, cel dotyku co najmniej 24 px', !!p0 && p0.szer <= 32 && p0.szer >= 24 && p0.wys >= 24,
       J(p0 && [p0.szer, p0.wys]));
     /* `force`: Playwright bierze `aria-disabled` za wyłączenie i czekałby na włączenie. */
@@ -242,7 +255,8 @@ module.exports = async function (t) {
     const pola = () => page.evaluate(() => Array.from(document.querySelectorAll('.evk-tl-ai-ikona')).map((b) => {
       const c = b.closest('[data-controlkey]');
       return { klucz: c.getAttribute('data-controlkey'), w_liscie: !!c.parentElement.closest('[data-controlkey]'),
-        nazwa: b.getAttribute('aria-label'), wys: b.getBoundingClientRect().height };
+        nazwa: b.getAttribute('aria-label'), wys: b.getBoundingClientRect().height, balon: b.getAttribute('data-balloon'),
+        pozycja: b.getAttribute('data-balloon-pos'), title: b.hasAttribute('title') };
     }));
     /* Układ kontrolki: ✦, ⚡, pole, obszar pola i komunikat — w pikselach ekranu. */
     const uklad = (klucz) => page.evaluate((k) => {
@@ -266,6 +280,8 @@ module.exports = async function (t) {
     t.check('nagłówek: ✦ przy polach EN i DE, z nazwą pola', J(ph1.map((x) => [x.klucz, x.nazwa])) === J([
       ['evk_tl_en__text', 'Przetłumacz (AI) — Tłumaczenie EN'], ['evk_tl_de__text', 'Przetłumacz (AI) — Tłumaczenie DE']])
       && ph1.every((x) => x.wys >= 24), J(ph1));
+    t.check('✦ przy polu: dymek Bricksa (w lewo, od prawej krawędzi), bez title', ph1.every((x) => x.balon === 'Przetłumacz (AI) z polskiego tekstu tego pola (' + MODEL + ')'
+      && x.pozycja === 'top-right' && x.title === false), J(ph1));
     await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
     await koniec('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole-stan');
     await page.waitForTimeout(300);

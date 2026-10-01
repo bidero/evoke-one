@@ -16,6 +16,8 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/tl-ai-wpisy.php zmien W POLE WARTOŚĆ     polski tekst wpisu (wp_update_post)
  *   php tests/php/tl-ai-wpisy.php lista                    „Do sprawdzenia”: wiersze wpisów testu i HTML sekcji
  *   php tests/php/tl-ai-wpisy.php ajax-sprawdzone W KLUCZ  „Sprawdzone” z listy (prawdziwy AJAX)
+ *   php tests/php/tl-ai-wpisy.php ajax-pola PLIK             ✦ w edycji wpisu: żądanie z przeglądarki przez prawdziwy AJAX
+ *   php tests/php/tl-ai-wpisy.php ai-klucz on|off           klucz API w ustawieniach
  *   php tests/php/tl-ai-wpisy.php sprzataj
  *
  * Wpisy:
@@ -176,6 +178,22 @@ case 'lista':
 case 'ajax-sprawdzone':
     $out['odp'] = evk_taw_ajax(['action' => 'evk_tl_el_sprawdzone', 'nonce' => wp_create_nonce('evk_tl_el_sprawdzone'),
         'post_id' => (string) evk_taw_id((string) ($argv[2] ?? '')), 'meta_key' => EVK_TL_AI_WPIS, 'klucz' => (string) ($argv[3] ?? '')]);
+    break;
+
+/* ✦ w edycji wpisu (1.269.0): żądanie przeglądarki (ciało z pliku) przez prawdziwy AJAX, nonce świeży dla tego konta. */
+case 'ajax-pola':
+    parse_str((string) @file_get_contents((string) ($argv[2] ?? '')), $post);
+    if (($post['nonce'] ?? '') === 'auto') $post['nonce'] = wp_create_nonce('evk_tl_ai_pola');
+    $GLOBALS['evk_t_ai_kod'] = is_string($post['lang'] ?? null) ? $post['lang'] : 'en';
+    $out['odp'] = evk_taw_ajax($post);
+    $out['zadania'] = count($GLOBALS['evk_t_ai_zadania']);
+    break;
+
+case 'ai-klucz':
+    $u = (array) get_option('evk_tl_ai', []);
+    $u['klucze'] = ($argv[2] ?? 'on') === 'off' ? [] : ['gemini' => 'test-klucz-ai-123'];
+    update_option('evk_tl_ai', $u, false);
+    $out['ok'] = true;
     break;
 
 case 'sprzataj':
