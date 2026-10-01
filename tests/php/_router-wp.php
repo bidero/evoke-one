@@ -1,6 +1,7 @@
 <?php
 /**
- * Router serwera testowego `php -S` dla testowego WordPressa (backup-panel).
+ * Router serwera testowego `php -S` dla testowego WordPressa — wspólny dla
+ * wszystkich testów przez tests/lib/wp-serwer.js (backup-panel, zapis-wp-…).
  *
  * Działa WYŁĄCZNIE pod SAPI `cli-server`, które istnieje tylko we wbudowanym
  * serwerze PHP — na każdym prawdziwym serwerze (Apache, LiteSpeed, FPM) plik
@@ -18,4 +19,18 @@ define('WP_SITEURL', $evk_adres);
    porównywane token po tokenie). Przed WordPressem, który inaczej ustawi
    SCRIPT_DEBUG na false. */
 if (getenv('EVK_SCRIPT_DEBUG') === '1') define('SCRIPT_DEBUG', true);
+/* Plik, którego nie ma, idzie do WordPressa — jak reguła „!-f, !-d"
+   z .htaccess na prawdziwym serwerze. Wbudowany serwer sam podaje index.php
+   tylko adresom bez kropki w ostatnim członie; adres z kropką bez pliku na
+   dysku kończy gołym 404 serwera, zanim WordPress go zobaczy. Tak padała mapa
+   strony: przy ładnych adresach ?sitemap=… robi 301 na /wp-sitemap-….xml,
+   którego na dysku nie ma (zapis-wp-strony-techniczne). To samo dotyczy
+   arkusza mapy (.xsl) i robots.txt. */
+$evk_sciezka = rawurldecode((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+if (strpos(basename($evk_sciezka), '.') !== false && !file_exists($_SERVER['DOCUMENT_ROOT'] . $evk_sciezka)) {
+    $_SERVER['SCRIPT_NAME'] = $_SERVER['PHP_SELF'] = '/index.php';
+    $_SERVER['SCRIPT_FILENAME'] = $_SERVER['DOCUMENT_ROOT'] . '/index.php';
+    require $_SERVER['SCRIPT_FILENAME'];
+    return true;
+}
 return false;
