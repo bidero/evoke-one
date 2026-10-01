@@ -346,12 +346,45 @@ function evk_tl_el_przenies(bool $zapisz): array {
 function evk_tl_el_zapisz_pola(int $post_id, string $meta_key, string $lang, array $zmiany, bool $tylko_puste, array $nadpisz = []): array {
     $dane = get_post_meta($post_id, $meta_key, true);
     if (!is_array($dane) || !$zmiany) return [];
-    $kod = (string) preg_replace('/[^a-z0-9_]/', '_', strtolower($lang));
     $wykaz = evk_tl_el_dopisane($post_id, $meta_key);
+    $zmienione = evk_tl_el_wpisz_dane($dane, $lang, $zmiany, $tylko_puste, $nadpisz, $wykaz);
+    if (!$zmienione) return [];
+    ksort($wykaz);
+    evk_tl_el_zapisz_dopisane($post_id, $meta_key, $wykaz);
+    $GLOBALS['evk_tl_el_zapis_przycisku'] = true;
+    try {
+        update_post_meta($post_id, $meta_key, wp_slash($dane));
+    } finally {
+        $GLOBALS['evk_tl_el_zapis_przycisku'] = false;
+    }
+    return $zmienione;
+}
+
+/**
+ * Wpis tłumaczeń w tablicę elementów (treść strony albo elementy komponentu,
+ * 1.272.0) — bez zapisu. Klucz `{id}|prop:{właściwość}|{język}` to tekst
+ * właściwości instancji komponentu: wartość idzie do jej bliźniaka (51).
+ *
+ * @param array<int|string,mixed> $dane
+ * @param array<string,string> $zmiany
+ * @param array<string,mixed>  $nadpisz
+ * @param array<string,bool>   $wykaz Wykaz dopisanych pól (53), uzupełniany.
+ * @return list<string> Klucze, które naprawdę się zmieniły.
+ */
+function evk_tl_el_wpisz_dane(array &$dane, string $lang, array $zmiany, bool $tylko_puste, array $nadpisz, array &$wykaz): array {
+    $kod = (string) preg_replace('/[^a-z0-9_]/', '_', strtolower($lang));
     $zmienione = [];
     foreach ($zmiany as $klucz => $tekst) {
         $cz = explode('|', (string) $klucz);
         if (count($cz) !== 3 || $cz[2] !== $kod) continue;
+        if (strncmp($cz[1], 'prop:', 5) === 0) {
+            foreach ($dane as $i => $el) {
+                if (!is_array($el) || (string) ($el['id'] ?? '') !== $cz[0] || !isset($el['cid']) || !function_exists('evk_tl_kp_wpisz_instancji')) continue;
+                if (evk_tl_kp_wpisz_instancji($dane[$i], substr($cz[1], 5), $lang, (string) $tekst, $tylko_puste, isset($nadpisz[$klucz]))) $zmienione[] = (string) $klucz;
+                break;
+            }
+            continue;
+        }
         $sciezka = explode('.', $cz[1]);
         if (count($sciezka) !== 1 && count($sciezka) !== 3) continue;
         $pole = (string) end($sciezka);
@@ -388,15 +421,6 @@ function evk_tl_el_zapisz_pola(int $post_id, string $meta_key, string $lang, arr
             unset($ust);
             break;
         }
-    }
-    if (!$zmienione) return [];
-    ksort($wykaz);
-    evk_tl_el_zapisz_dopisane($post_id, $meta_key, $wykaz);
-    $GLOBALS['evk_tl_el_zapis_przycisku'] = true;
-    try {
-        update_post_meta($post_id, $meta_key, wp_slash($dane));
-    } finally {
-        $GLOBALS['evk_tl_el_zapis_przycisku'] = false;
     }
     return $zmienione;
 }
@@ -500,6 +524,14 @@ function evk_tl_el_teksty(): array {
         $stanWpisu = get_post_meta($post_id, EVK_TL_EL_STAN, true);
         $stan = is_array($stanWpisu) && is_array($stanWpisu[$meta_key] ?? null) ? $stanWpisu[$meta_key] : [];
         foreach ($dane as $el) {
+            /* Instancja komponentu (1.272.0): teksty właściwości z bliźniakami (51). */
+            if (is_array($el) && isset($el['cid'])) {
+                $v = function_exists('evk_tl_kp_instancja') ? evk_tl_kp_instancja($el) : null;
+                if ($v) foreach ($v['pola'] as $pole => $opis) {
+                    $dodaj($v['ustawienia'], $pole, $strona + ['element' => $v['nazwa'], 'id' => (string) ($el['id'] ?? ''), 'sciezka' => $pole, 'opis' => $opis], $stan);
+                }
+                continue;
+            }
             if (!is_array($el) || !is_array($el['settings'] ?? null)) continue;
             $nazwa = (string) ($el['name'] ?? '');
             $def = $mapa[$nazwa] ?? null;

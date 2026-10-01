@@ -265,6 +265,12 @@ function evk_tl_ai_teksty($dane, string $lang, ?array $stan = null, array $wymus
             'id' => $id, 'sciezka' => $sciezka, 'pole' => $pole, 'n' => count($out['kontekst']), 'bylo' => $ponownie ? (string) $tl : ''];
     };
     foreach ($dane as $el) {
+        /* Instancja komponentu (1.272.0): teksty jej właściwości, tłumaczenie do bliźniaka (51). */
+        if (is_array($el) && isset($el['cid'])) {
+            $v = function_exists('evk_tl_kp_instancja') ? evk_tl_kp_instancja($el, $lang) : null;
+            if ($v) foreach ($v['pola'] as $pole => $opis) $dodaj($v['ustawienia'], $pole, (string) ($el['id'] ?? ''), $v['nazwa'], $pole, $opis);
+            continue;
+        }
         if (!is_array($el) || !is_array($el['settings'] ?? null)) continue;
         $nazwa = (string) ($el['name'] ?? '');
         $def = $mapa[$nazwa] ?? null;
@@ -778,13 +784,16 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     $alt = $meta_key === EVK_TL_AI_ALT;
     /* Grupa strony ustawień (1.272.0): bez wpisu, klucz grupy w opcjach kroku. */
     $gk = $meta_key === EVK_TL_AI_POLA_OPCJI ? (string) ($opcje['opcje'] ?? '') : '';
-    $t = $gk !== '' ? evk_tl_ai_teksty_opcji($gk, $lang, !empty($opcje['ponownie']))
+    /* Teksty stałe komponentu (1.272.0): id komponentu w opcjach kroku. */
+    $kp = defined('EVK_TL_KP') && $meta_key === EVK_TL_KP ? evk_tl_kp_komponent((string) ($opcje['opcje'] ?? '')) : null;
+    $t = $kp ? evk_tl_ai_teksty(evk_tl_kp_elementy_stale($kp), $lang, empty($opcje['ponownie']) ? null : evk_tl_kp_stan((string) $kp['id']))
+        : ($gk !== '' ? evk_tl_ai_teksty_opcji($gk, $lang, !empty($opcje['ponownie']))
         : ($alt ? evk_tl_ai_teksty_alt($post_id, (int) ($opcje['do'] ?? $post_id), $lang, !empty($opcje['ponownie']))
         : ($pola ? evk_tl_ai_teksty_pol($post_id, $lang, !empty($opcje['ponownie']), $obiekt)
         : ($wpis ? evk_tl_ai_teksty_wpisu($post_id, $lang, (array) ($opcje['wpis_pola'] ?? []), !empty($opcje['ponownie']))
         : ($seo ? evk_tl_ai_teksty_seo($post_id, $lang, (array) ($opcje['seo_pola'] ?? []), !empty($opcje['ponownie']))
         : ($term ? evk_tl_ai_teksty_termu($post_id, $lang, (array) ($opcje['term_pola'] ?? []), !empty($opcje['ponownie']))
-        : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key)))))));
+        : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key))))))));
     $braki = array_diff_key($t['braki'], array_flip($pomin));
     $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'bez_zmian' => 0, 'odrzucone' => [], 'pominiete' => [], 'zapisane_klucze' => [], 'zostalo' => 0];
     if (!$braki) return $wynik;
@@ -821,7 +830,8 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         foreach ($porcja as $k => $b) $krotkie['t' . (++$n)] = $k;
         $tresc = [];
         foreach ($krotkie as $kr => $k) $tresc[$kr] = $porcja[$k];
-        [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, $gk !== '' ? evk_tl_ai_tytul_opcji($gk) : evk_tl_ai_tytul_czesci($post_id, $meta_key), $t['kontekst'], $tresc);
+        $tytul = $kp ? 'Komponent: ' . evk_tl_kp_nazwa($kp) : ($gk !== '' ? evk_tl_ai_tytul_opcji($gk) : evk_tl_ai_tytul_czesci($post_id, $meta_key));
+        [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, $tytul, $t['kontekst'], $tresc);
         $r = evk_tl_ai_wyslij($u, $system, $wiadomosc);
         if (!$r['ok'] && (!empty($r['stop']) || !empty($r['czekaj']))) {
             /* Przejściowe (limit, przeciążenie) albo końcowe (klucz, limit
@@ -858,11 +868,12 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     foreach (array_keys($gotowe) as $k) {
         if ($braki[$k]['bylo'] !== '') $bylo[$k] = $braki[$k]['bylo'];
     }
-    $wynik['zapisane_klucze'] = $gk !== '' ? evk_tl_ai_zapisz_pola_opcji($gk, $lang, $gotowe, $ai, $braki) : ($alt ? evk_tl_ai_zapisz_alt($lang, $gotowe, $ai, $braki) : ($pola ? evk_tl_ai_zapisz_pola($post_id, $lang, $gotowe, $ai, $braki, $obiekt)
+    $wynik['zapisane_klucze'] = $kp ? evk_tl_ai_zapisz_komponent((string) $kp['id'], $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo)
+        : ($gk !== '' ? evk_tl_ai_zapisz_pola_opcji($gk, $lang, $gotowe, $ai, $braki) : ($alt ? evk_tl_ai_zapisz_alt($lang, $gotowe, $ai, $braki) : ($pola ? evk_tl_ai_zapisz_pola($post_id, $lang, $gotowe, $ai, $braki, $obiekt)
         : ($wpis ? evk_tl_ai_zapisz_wpis($post_id, $lang, $gotowe, $ai, $braki)
         : ($term ? evk_tl_ai_zapisz_term($post_id, $lang, $gotowe, $ai, $braki)
         : ($seo ? evk_tl_ai_zapisz_seo($post_id, $lang, $gotowe, $ai, $braki)
-        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo))))));
+        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo)))))));
     $wynik['zapisane'] = count($wynik['zapisane_klucze']);
     $wynik['bez_zmian'] = count($rowne);
     $wynik['pominiete'] = array_keys($rowne);
@@ -922,6 +933,8 @@ function evk_tl_ai_wiersze_zakresu(): array {
         $out[$typ] = ['nazwa' => (string) $obj->labels->name, 'rodzaj' => 'wpis', 'czesci' => $cz];
     }
     if (in_array('bricks_template', $bricks, true)) $out['bricks_template'] = ['nazwa' => 'Szablony Bricksa', 'rodzaj' => 'wpis', 'czesci' => ['bricks']];
+    /* Teksty stałe komponentów (1.272.0) — teksty z właściwości tłumaczy treść strony z instancją. */
+    if (function_exists('evk_tl_kp_dostepne') && evk_tl_kp_dostepne()) $out['komponenty'] = ['nazwa' => 'Komponenty Bricksa', 'rodzaj' => 'wpis', 'czesci' => ['bricks']];
     $tax = evk_tl_ai_termy_dostepne() ? evk_tlt_taksonomie() : [];
     $tax_f = evk_tl_ai_pola_termow_dostepne() ? evk_fields_tl_taksonomie() : [];
     foreach (array_values(array_unique(array_merge($tax, $tax_f))) as $t) {
@@ -1019,6 +1032,7 @@ function evk_tl_ai_jednostki(bool $ponownie = false, ?array $zakres = null): arr
         $o = evk_tl_ai_opcje_czesci($cz);
         if ($w['rodzaj'] === 'wpis') {
             $dodaj($bricks[$typ] ?? [], $typ);
+            if ($typ === 'komponenty' && in_array('bricks', $cz, true)) $dodaj(evk_tl_ai_jednostki_komponentow($jezyki, $ponownie), $typ);
             if ($o['wpis_pola'] || $o['adres']) $dodaj(evk_tl_ai_jednostki_wpisow($jezyki, $o['wpis_pola'], $o['adres'], $ponownie, [$typ]), $typ);
             if ($o['seo_pola'] && function_exists('evk_tl_ai_jednostki_seo')) $dodaj(evk_tl_ai_jednostki_seo($jezyki, $ponownie, [$typ]), $typ);
             if (in_array('fields', $cz, true)) $dodaj(evk_tl_ai_jednostki_pol($jezyki, $ponownie, [$typ]), $typ);
@@ -1750,6 +1764,69 @@ function evk_tl_ai_pola_do_sprawdzenia(int $limit = 200): array {
         }
     }
     return $out;
+}
+
+// =========================================================================
+// KOMPONENTY BRICKSA: TEKSTY STAŁE (1.272.0)
+// =========================================================================
+
+/**
+ * Komponenty z tekstami stałymi bez tłumaczenia (lista hurtu): `post_id` 0,
+ * id komponentu w `opcje`, część `evk_komponent`.
+ *
+ * @param list<string> $jezyki
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_jednostki_komponentow(array $jezyki, bool $ponownie): array {
+    $out = [];
+    foreach (evk_tl_kp_komponenty() as $k) {
+        $cid = (string) ($k['id'] ?? '');
+        $el = evk_tl_kp_elementy_stale($k);
+        $stan = $ponownie ? evk_tl_kp_stan($cid) : null;
+        $braki = [];
+        $ai = [];
+        foreach ($jezyki as $j) {
+            $b = evk_tl_ai_teksty($el, $j, $stan)['braki'];
+            if ($b) $braki[$j] = count($b);
+            $n = count(array_filter($b, static function ($x) { return $x['bylo'] !== ''; }));
+            if ($n) $ai[$j] = $n;
+        }
+        if (!$braki) continue;
+        $out[] = ['post_id' => 0, 'meta_key' => EVK_TL_KP, 'opcje' => $cid, 'tytul' => 'Komponent: ' . evk_tl_kp_nazwa($k),
+            'czesc' => 'Teksty stałe', 'adres' => '', 'braki' => $braki, 'ai' => (object) $ai];
+    }
+    return $out;
+}
+
+/**
+ * Zapis kroku dla tekstów stałych komponentu — jak evk_tl_ai_zapisz(), stan
+ * w opcji `evk_tl_kp_stan` (51).
+ *
+ * @param array<string,string> $gotowe
+ * @param array<string,bool>   $ai
+ * @param array<string,string> $bylo
+ * @return list<string>
+ */
+function evk_tl_ai_zapisz_komponent(string $cid, string $lang, array $gotowe, array $ai, string $model, array $bylo): array {
+    $przed = evk_tl_kp_stan($cid);
+    foreach (array_keys($bylo) as $klucz) {
+        if (!evk_tl_ai_niesprawdzone($przed[$klucz] ?? null)) unset($gotowe[$klucz], $bylo[$klucz]);
+    }
+    $zapisane = evk_tl_kp_zapisz_pola($cid, $lang, $gotowe, true, $bylo);
+    if (!$zapisane) return [];
+    $stan = get_option(EVK_TL_KP_STAN, []);
+    if (is_array($stan)) {
+        foreach ($zapisane as $klucz) {
+            if (!isset($stan[$cid][$klucz])) continue;
+            if (isset($ai[$klucz])) {
+                $stan[$cid][$klucz]['src'] = 'ai';
+                if ($model !== '') $stan[$cid][$klucz]['model'] = $model;
+            }
+            if (isset($bylo[$klucz])) $stan[$cid][$klucz]['poprz'] = ['t' => $bylo[$klucz], 'm' => (string) ($przed[$klucz]['model'] ?? '')];
+        }
+        update_option(EVK_TL_KP_STAN, $stan, false);
+    }
+    return $zapisane;
 }
 
 // =========================================================================
@@ -2661,10 +2738,13 @@ add_action('wp_ajax_evk_tl_ai_krok', function (): void {
     $czesc_ok = $term || ($obrazy && evk_tl_ai_alt_dostepne()) || in_array($meta_key, evk_tl_el_klucze_meta(), true) || ($meta_key === EVK_TL_AI_POLA && evk_tl_ai_pola_dostepne())
         || (in_array($meta_key, [EVK_TL_AI_WPIS, EVK_TL_AI_SEO], true) && function_exists('evk_tlw_typy') && in_array((string) get_post_type($post_id), evk_tlw_typy(), true));
     /* Grupa strony ustawień (1.272.0): bez wpisu — klucz grupy w `opcje`, prawo strony ustawień. */
-    $gk = $meta_key === EVK_TL_AI_POLA_OPCJI ? sanitize_key(wp_unslash((string) ($_POST['opcje'] ?? ''))) : '';
+    $kpk = defined('EVK_TL_KP') && $meta_key === EVK_TL_KP;
+    $gk = $meta_key === EVK_TL_AI_POLA_OPCJI || $kpk ? sanitize_key(wp_unslash((string) ($_POST['opcje'] ?? ''))) : '';
     if ($gk !== '') {
         if (!isset(tl_get_languages()[$lang])) wp_send_json_error('Nieznana strona albo język.');
-        if (evk_tl_ai_grupa_opcji($gk) === null) wp_send_json_error('Brak uprawnień do tej strony ustawień.', 403);
+        /* Komponent (1.272.0): globalny dla strony — prawo administratora. */
+        if ($kpk && (!current_user_can('manage_options') || !evk_tl_kp_komponent($gk))) wp_send_json_error('Brak uprawnień do komponentów.', 403);
+        if ($meta_key === EVK_TL_AI_POLA_OPCJI && evk_tl_ai_grupa_opcji($gk) === null) wp_send_json_error('Brak uprawnień do tej strony ustawień.', 403);
         $post_id = 0;
     } elseif (!$post_id || !$czesc_ok || !isset(tl_get_languages()[$lang])) {
         wp_send_json_error('Nieznana strona albo język.');

@@ -302,7 +302,7 @@ module.exports = async function (t) {
     t.check('żadna część nie jest zaznaczona na starcie', zt0.every((r) => !r[2] && !r[3] && r[4].every((x) => x[0] !== '*')), J(zt0));
     /* Pusta tabela: „Pokaż listę” nie pyta serwera, tylko prosi o zaznaczenie. */
     let listy = 0;
-    const naListe = (r) => { if (/admin-ajax\.php/.test(r.url()) && /action=evk_tl_ai_lista/.test(r.postData() || '')) listy++; };
+    const naListe = (r) => { if (/admin-ajax\.php/.test(r.url()) && /evk_tl_ai_lista/.test(r.postData() || '')) listy++; };
     p.on('request', naListe);
     await p.click('.tl-ai-lista');
     await p.waitForTimeout(300);

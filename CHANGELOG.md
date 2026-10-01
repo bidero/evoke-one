@@ -2,6 +2,85 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.272.0] — 2026-10-01
+
+Poprawki po 1.271.0 i komponenty Bricksa w tłumaczeniach.
+
+Zgłoszenie po 1.271.0: w tabeli zakresu „Bricks” był zawsze zaznaczony,
+brakowało grup pól ze stron ustawień, a „Opisz obraz (AI)” w oknie mediów
+pisało „Wpisane…”, choć pole altu się nie zmieniało. Do tego komponenty
+(próba na testowej, docs/proby-komponenty.md).
+
+### Naprawione
+
+- **Tabela zakresu startuje pusta** — nic nie jest zaznaczone. „Pokaż listę”
+  bez zaznaczenia mówi „Zaznacz, co tłumaczyć.” i nie pyta serwera.
+  „Wyczyść tłumaczenia strony” dalej sam zaznacza treść Bricksa jej rodzaju.
+- **„Opisz obraz (AI)” w oknie mediów**: nasze pola leżą w okienku w
+  osobnym formularzu WordPressa (`form.compat-item`), a skrypt szukał pola
+  altu od tego formularza — nie znajdował niczego i mimo to pisał
+  „Wpisane”. Teraz szuka w szczegółach obrazu (siatka biblioteki i okno
+  wyboru z paskiem bocznym), WordPress zapisuje alt sam, a bez pola jest
+  komunikat o błędzie.
+- „Przetłumacz” przy alcie EN/DE jest też przy obrazie bez polskiego altu:
+  w oknie mediów alt może przyjść z „Opisz obraz” bez przerysowania pól.
+  Skrypt czyta polski alt z pola przy kliknięciu; pusty — „Brak polskiego altu.”
+- **Komponenty: instancja z własnym tekstem pokazywała na `/en/`
+  tłumaczenie tekstu komponentu** — czyli innego zdania (próba 1). Po
+  aktualizacji każdy komponent dostaje właściwości tłumaczeń (niżej), a
+  instancja bez tłumaczenia pokazuje swój polski tekst.
+
+### Dodane
+
+- **Strony ustawień Evoke FIELDS w „Przetłumacz strony”** (Fields 1.78.0):
+  - wiersz na każdą stronę ustawień, do której jest prawo (tabela „Strony
+    ustawień”, kolumna „Pola Fields”);
+  - na liście pozycja na grupę: „Strona › Grupa” z odnośnikiem do zakładki;
+  - grupa pojedyncza i grupa-repeater, zapis do opcji grupy ze znacznikiem
+    „ai-”; formularz strony ustawień zapisuje je dalej;
+  - „Do sprawdzenia” z odnośnikiem i „Sprawdzone”; krok i „Sprawdzone” z
+    uprawnieniem strony ustawień.
+- **Komponenty Bricksa** (decyzja zgłaszającego: tłumaczenia mają się
+  dodawać same, także po dodaniu języka):
+  - każda tekstowa właściwość połączona z polem tłumaczonym (np. „Nagłówek”)
+    dostaje tuż pod sobą „Nagłówek EN” (i każdy język), połączoną z polem
+    „Tłumaczenie EN” tych samych elementów. Tłumaczenie wpisuje się w
+    panelu instancji — Bricks podstawia je przed naszym filtrem (próba 2);
+  - w builderze od razu, bez zapisu i przeładowania; na serwerze przy
+    każdym zapisie komponentów, po zmianie listy języków (wszystkie
+    komponenty naraz) i raz po aktualizacji;
+  - stałe identyfikatory właściwości — zapis z buildera ich nie gubi;
+    ręczna właściwość połączona z tym samym polem (np. „Tłumaczenie”) jest
+    uznana i nie dostaje drugiej; wyłączony język zostawia swoje
+    właściwości (wpisane tłumaczenia nie giną); usunięta właściwość
+    polska zabiera swoje;
+  - teksty stałe (bez właściwości) nie dostają właściwości — tłumaczy się
+    je raz, w komponencie (próba 2C: właściwość bez wartości jest pusta);
+  - hurt AI, „Teksty w elementach”, „Do sprawdzenia” i ✦ na instancji:
+    teksty właściwości instancji tłumaczą się z treścią strony, do
+    właściwości „… EN” instancji;
+  - wiersz „Komponenty Bricksa” w tabeli zakresu (administrator): teksty
+    stałe komponentów do opcji komponentów, „Do sprawdzenia” z tytułem
+    „Komponent: …”;
+  - ✦ w trybie edycji komponentu tłumaczy teksty stałe, pola z
+    właściwościami pomija (tłumaczą się w instancji).
+
+### Do sprawdzenia na testowej
+
+- Okno mediów: „Opisz obraz (AI)” w bibliotece (siatka) i w oknie
+  „Dodaj media” wpisu — alt widać od razu i zostaje po zamknięciu okna.
+- Strona ustawień Fields po hurcie: tłumaczenia w polach EN/DE, zapis
+  strony ich nie kasuje.
+- Komponenty w builderze (atrapa Bricksa tego nie powie):
+  - „Nagłówek EN” pojawia się w panelu instancji po dodaniu właściwości
+    „Nagłówek” i zostaje po zapisie;
+  - Bricks widzi zmianę (kropka przy „Zapisz”);
+  - ✦ na instancji wpisuje w jej „Nagłówek EN”, a w trybie edycji
+    komponentu tłumaczenie tekstu stałego zapisuje się z komponentem;
+  - po dodaniu języka DE w Tłumaczeniach — „Nagłówek DE” w panelu;
+  - istniejący komponent „Testowy” na `/en/` instancji z własnym tekstem —
+    jej polski tekst, a po wpisaniu „Nagłówek EN” — tłumaczenie.
+
 ## [1.271.0] — 2026-10-01
 
 SEO i teksty alternatywne obrazów z AI, „Przetłumacz strony” jako tabela

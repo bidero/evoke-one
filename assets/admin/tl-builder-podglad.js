@@ -638,13 +638,40 @@
 
   function stanPowloki() { return powloka ? stanZ(powloka.document, '.brx-body.main') : null; }
 
+  /* Komponenty (1.272.0, próba na testowej): definicje w `components` stanu
+     powłoki, edytowany komponent w `activeComponent` (jego elementy to obszar
+     „komponent”), instancja na stronie — element z `cid` i `properties`.
+     Logika właściwości tłumaczeń: tl-komponenty.js (ta sama co w PHP, 51). */
+  const KP = window.evkTlKomponenty || null;
+  function elementyObszaru(st, obszar) {
+    if (obszar === 'komponent') return st && st.activeComponent && Array.isArray(st.activeComponent.elements) ? st.activeComponent.elements : [];
+    return st && Array.isArray(st[obszar]) ? st[obszar] : [];
+  }
+  function komponent(st, cid) {
+    return (st && Array.isArray(st.components) ? st.components : []).find((k) => k && String(k.id) === String(cid)) || null;
+  }
+  /** Pole elementu edytowanego komponentu połączone z właściwością — tłumaczy się w instancji. */
+  function polaczone(st, obszar, id, pole) {
+    if (obszar !== 'komponent' || !st.activeComponent) return false;
+    return (Array.isArray(st.activeComponent.properties) ? st.activeComponent.properties : []).some((p) => p && p.connections
+      && Array.isArray(p.connections[id]) && p.connections[id].indexOf(pole) !== -1);
+  }
+  /** Właściwości „… EN” w komponentach od razu w builderze — bez czekania na zapis. */
+  function synchronizujKomponenty() {
+    const st = stanPowloki();
+    if (!KP || !st || !OBCE.length) return;
+    const lista = Array.isArray(st.components) ? st.components : [];
+    KP.uzupelnij(lista, OBCE, MAPA);
+    if (st.activeComponent && lista.indexOf(st.activeComponent) === -1) KP.uzupelnij([st.activeComponent], OBCE, MAPA);
+  }
+
   /** Zaznaczony element w stanie powłoki: element, jego obszar i stan. */
   function aktywny() {
     const st = stanPowloki();
     const id = st && (st.activeId || (st.activeElement && st.activeElement.id));
     if (!id) return null;
-    for (const o of OBSZARY) {
-      const el = Array.isArray(st[o]) ? st[o].find((e) => e && String(e.id) === String(id)) : null;
+    for (const o of OBSZARY.concat(['komponent'])) {
+      const el = elementyObszaru(st, o).find((e) => e && String(e.id) === String(id));
       if (el) return { st, el, obszar: o };
     }
     return null;
@@ -656,14 +683,28 @@
   /** Teksty elementu z mapy pól — pola, potem pozycje list, jak w hurcie. Obiekt
       w stanie szukamy przy wpisie od nowa (`obiekt()`): cofnięcie w Bricksie
       mogło go w międzyczasie podmienić. */
-  function tekstyElementu(el) {
+  function tekstyElementu(el, lang, st) {
+    const w = [];
+    const pre = przedrostek(lang);
+    /* Instancja komponentu (1.272.0): teksty jej właściwości, tłumaczenie do bliźniaka „… EN”. */
+    if (el.cid) {
+      const k = KP ? komponent(st, el.cid) : null;
+      const pary = k ? KP.pary(k, MAPA) : {};
+      const obj = el.properties && typeof el.properties === 'object' ? el.properties : {};
+      const kod = String(lang).toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      Object.keys(pary).forEach((pid) => {
+        const tid = pary[pid].blizniaki[kod];
+        if (!tid || typeof obj[pid] !== 'string') return;
+        w.push({ id: String(el.id), nazwa: 'Komponent', pole: 'prop:' + pid, klPl: pid, klTl: tid, kp: true, lista: '', indeks: -1, idPoz: '', poz: 0, obj });
+      });
+      return w;
+    }
     const def = MAPA[el.name];
     const s = el.settings;
-    const w = [];
     if (!def || !s || typeof s !== 'object') return w;
     const baza = { id: String(el.id), nazwa: String(el.name) };
     (def.pola || []).forEach((pole) => {
-      if (typeof s[pole] === 'string') w.push(Object.assign({ pole, lista: '', indeks: -1, idPoz: '', poz: 0, obj: s }, baza));
+      if (typeof s[pole] === 'string') w.push(Object.assign({ pole, klPl: pole, klTl: pre + pole, lista: '', indeks: -1, idPoz: '', poz: 0, obj: s }, baza));
     });
     Object.keys(def.listy || {}).forEach((lista) => {
       const pozycje = s[lista];
@@ -672,7 +713,7 @@
         if (!p || typeof p !== 'object') return;
         (def.listy[lista] || []).forEach((pole) => {
           if (typeof p[pole] !== 'string') return;
-          w.push(Object.assign({ pole, lista, indeks: i, idPoz: p.id !== undefined && p.id !== null ? String(p.id) : '', poz: i + 1, obj: p }, baza));
+          w.push(Object.assign({ pole, klPl: pole, klTl: pre + pole, lista, indeks: i, idPoz: p.id !== undefined && p.id !== null ? String(p.id) : '', poz: i + 1, obj: p }, baza));
         });
       });
     });
@@ -684,9 +725,14 @@
     const st = stanPowloki();
     if (!st) return null;
     let el = null;
-    for (const o of OBSZARY) {
-      el = Array.isArray(st[o]) ? st[o].find((e) => e && String(e.id) === x.id) : null;
+    for (const o of OBSZARY.concat(['komponent'])) {
+      el = elementyObszaru(st, o).find((e) => e && String(e.id) === x.id) || null;
       if (el) break;
+    }
+    /* Instancja: wartości właściwości; puste `properties` (instancja wstawiona bez wartości) — nowe. */
+    if (el && x.kp) {
+      if (!el.properties || typeof el.properties !== 'object') el.properties = {};
+      return el.properties;
     }
     const s = el && el.settings;
     if (!s || typeof s !== 'object') return null;
@@ -701,7 +747,7 @@
   function potomkowie(st, obszar, el) {
     const dzieci = new Map();
     const dodaj = (r, d) => { if (!dzieci.has(r)) dzieci.set(r, new Set()); dzieci.get(r).add(d); };
-    (Array.isArray(st[obszar]) ? st[obszar] : []).forEach((e) => {
+    elementyObszaru(st, obszar).forEach((e) => {
       if (!e || e.id === undefined) return;
       (Array.isArray(e.children) ? e.children : []).forEach((c) => dodaj(String(e.id), String(c)));
       if (e.parent !== undefined && e.parent !== null && String(e.parent) !== '0' && e.parent !== '') dodaj(String(e.parent), String(e.id));
@@ -717,16 +763,16 @@
   /** Kontekst jak w hurcie: teksty obszaru w kolejności stanu, z obecnym
       tłumaczeniem — poza tłumaczonymi teraz (model ma przetłumaczyć po swojemu). */
   function kontekstObszaru(st, obszar, lang, tlumaczone) {
-    const pre = przedrostek(lang);
     const kontekst = [];
     const numer = new Map();
-    (Array.isArray(st[obszar]) ? st[obszar] : []).forEach((e) => {
-      if (!e || e.id === undefined || e.cid) return;
-      tekstyElementu(e).forEach((x) => {
-        const pl = x.obj[x.pole];
+    elementyObszaru(st, obszar).forEach((e) => {
+      if (!e || e.id === undefined) return;
+      tekstyElementu(e, lang, st).forEach((x) => {
+        if (polaczone(st, obszar, x.id, x.pole)) return;
+        const pl = x.obj[x.klPl];
         if (!doTlumaczenia(pl)) return;
         const k = kluczMiejsca(x);
-        const tl = x.obj[pre + x.pole];
+        const tl = x.obj[x.klTl];
         kontekst.push({ el: x.nazwa, pole: x.pole, poz: x.poz, pl, tl: !tlumaczone.has(k) && niepusty(tl) ? tl : '' });
         numer.set(k, kontekst.length);
       });
@@ -790,7 +836,6 @@
    * powłoki. `postep(zrobione, razem)` — do komunikatu.
    */
   async function przetlumacz(obszar, lang, lista, postep) {
-    const pre = przedrostek(lang);
     const w = { wpisane: 0, pamiec: 0, bezZmian: 0, odrzucone: 0, pominiete: 0, zmienione: 0, blad: '', zrodlo: '' };
     const st = stanPowloki();
     if (!st) { w.blad = 'Nie widzę stanu buildera — przeładuj builder.'; return w; }
@@ -813,9 +858,9 @@
         const x = miejsca[k];
         if (!x || typeof tl[k] !== 'string') return;
         const obj = obiekt(x);
-        if (!obj || obj[x.pole] !== x.pl || String(obj[pre + x.pole] ?? '') !== String(x.surowe ?? '')) { w.zmienione++; return; }
-        obj[pre + x.pole] = tl[k];
-        edytorPola(x, pre + x.pole, tl[k]);
+        if (!obj || obj[x.klPl] !== x.pl || String(obj[x.klTl] ?? '') !== String(x.surowe ?? '')) { w.zmienione++; return; }
+        obj[x.klTl] = tl[k];
+        if (!x.kp) edytorPola(x, x.klTl, tl[k]);
         ids.add(x.id);
         w.wpisane++;
         w.zrodlo = zr[k] || 'ai';
@@ -880,11 +925,16 @@
     const s = a && a.el.settings;
     const pl = s ? s[pole] : null;
     if (!a || typeof pl !== 'string' || !niepusty(pl)) { stanPola.textContent = 'Brak polskiego tekstu w tym polu elementu.'; return; }
+    /* Pole edytowanego komponentu z właściwością (1.272.0): tekst daje instancja, tłumaczenie też. */
+    if (polaczone(a.st, a.obszar, String(a.el.id), pole)) {
+      stanPola.textContent = 'To pole ma właściwość komponentu — tłumaczenie wpisuje się w instancji (właściwość „… ' + lang.toUpperCase() + '”).';
+      return;
+    }
     if (!doTlumaczenia(pl)) { stanPola.textContent = 'Tego tekstu AI nie tłumaczy (sam tag danych dynamicznych albo bez liter).'; return; }
     const surowe = s[przedrostek(lang) + pole];
     if (niepusty(surowe) && !powloka.confirm('Zastąpić obecne tłumaczenie ' + lang.toUpperCase() + '?\n\n„'
       + tekstZHtml(surowe).trim().slice(0, 200) + '”')) return;
-    const x = { id: String(a.el.id), nazwa: String(a.el.name), pole, lista: '', indeks: -1, idPoz: '', poz: 0, obj: s, pl, surowe };
+    const x = { id: String(a.el.id), nazwa: String(a.el.name), pole, klPl: pole, klTl: przedrostek(lang) + pole, lista: '', indeks: -1, idPoz: '', poz: 0, obj: s, pl, surowe };
     zajety(true, przycisk);
     stanPola.textContent = 'Tłumaczę na ' + lang.toUpperCase() + '…';
     try {
@@ -901,17 +951,18 @@
     if (!a) { pokazStan('Zaznacz element na kanwie albo w strukturze — przetłumaczę go razem z dziećmi.'); return; }
     const lang = tryb;
     const L = lang.toUpperCase();
-    const pre = przedrostek(lang);
     const ids = potomkowie(a.st, a.obszar, a.el);
     const lista = [];
     let komponenty = 0;
-    a.st[a.obszar].forEach((e) => {
+    elementyObszaru(a.st, a.obszar).forEach((e) => {
       if (!e || !ids.has(String(e.id))) return;
-      /* Instancja komponentu: jej teksty żyją w komponencie, nie w stanie strony. */
-      if (e.cid) { komponenty++; return; }
-      tekstyElementu(e).forEach((x) => {
-        x.pl = x.obj[x.pole];
-        x.surowe = x.obj[pre + x.pole];
+      const teksty = tekstyElementu(e, lang, a.st).filter((x) => !polaczone(a.st, a.obszar, x.id, x.pole));
+      /* Instancja komponentu (1.272.0): teksty właściwości z bliźniakiem „… EN”. Bez par
+         (komponent bez właściwości tłumaczeń) — pominięta, jej teksty żyją w komponencie. */
+      if (e.cid && !teksty.length) { komponenty++; return; }
+      teksty.forEach((x) => {
+        x.pl = x.obj[x.klPl];
+        x.surowe = x.obj[x.klTl];
         if (doTlumaczenia(x.pl)) lista.push(x);
       });
     });
@@ -1232,7 +1283,7 @@
      co sekundę kosztuje mniej niż obserwowanie całej powłoki. */
   wstawPrzelacznik();
   wstawAi();
-  const straz = setInterval(() => { wstawPrzelacznik(); wstawAi(); }, 1000);
+  const straz = setInterval(() => { wstawPrzelacznik(); wstawAi(); synchronizujKomponenty(); }, 1000);
   const strazPol = AI ? setInterval(() => { wstawPrzyciskiPol(); odswiezAi(); }, 300) : 0;
   window.addEventListener('pagehide', () => {
     clearInterval(straz);

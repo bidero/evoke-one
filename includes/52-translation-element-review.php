@@ -58,6 +58,8 @@ function evk_tl_el_miejsca($elementy): array {
     $out = [];
     if (!is_array($elementy)) return $out;
     foreach ($elementy as $el) {
+        /* Instancja komponentu (1.272.0): teksty jej właściwości i ich bliźniaki (51). */
+        if (is_array($el) && isset($el['cid']) && function_exists('evk_tl_kp_miejsca_instancji')) { evk_tl_kp_miejsca_instancji($el, $out); continue; }
         if (!is_array($el) || !is_array($el['settings'] ?? null)) continue;
         evk_tl_el_zbierz($el['settings'], (string) ($el['id'] ?? ''), (string) ($el['name'] ?? ''), '', $out);
     }
@@ -193,6 +195,10 @@ add_action('wp_ajax_evk_tl_el_sprawdzone', function (): void {
         if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
         $p = strrpos($klucz, '|');
         $ok = $p !== false && evk_fields_tl_sprawdzone($post_id, substr($klucz, 0, $p), substr($klucz, $p + 1));
+    } elseif (defined('EVK_TL_KP') && $meta_key === EVK_TL_KP) {
+        /* Tekst stały komponentu (1.272.0): klucz `{komponent}#{miejsce}`, prawo administratora. */
+        if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnień do komponentów.', 403);
+        $ok = evk_tl_kp_sprawdzone($klucz);
     } elseif (defined('EVK_TL_AI_POLA_OPCJI') && $meta_key === EVK_TL_AI_POLA_OPCJI) {
         /* Pole strony ustawień Fields (1.272.0): klucz `{grupa}#{miejsce}|{język}`, prawo strony ustawień. */
         if (evk_tl_ai_grupa_opcji((string) strstr($klucz, '#', true)) === null) wp_send_json_error('Brak uprawnień do tej strony ustawień.', 403);
@@ -253,6 +259,8 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
     $lista = evk_tl_el_do_sprawdzenia();
     /* Pola Evoke FIELDS (1.267.0) — AI albo zmieniony oryginał, edycja w metaboksie wpisu. */
     if (function_exists('evk_tl_ai_pola_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_pola_do_sprawdzenia());
+    /* Teksty stałe komponentów Bricksa (1.272.0) — edycja w builderze. */
+    if (function_exists('evk_tl_kp_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_kp_do_sprawdzenia());
     /* Pola stron ustawień Fields (1.272.0) — edycja na stronie ustawień; wiersz niesie tytuł i adres. */
     if (function_exists('evk_tl_ai_pola_opcji_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_pola_opcji_do_sprawdzenia());
     /* Tytuły, treści i zajawki wpisów (1.268.0) — edycja wpisu. */
@@ -283,10 +291,12 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
                 $tytul = isset($m['tytul']) ? (string) $m['tytul'] : (get_the_title($m['post_id']) ?: ('#' . $m['post_id']));
                 $jezyk = strtoupper(str_replace('_', '-', $m['jezyk']));
                 $pole_fields = isset($m['edycja']) || (defined('EVK_TL_AI_POLA') && $m['meta_key'] === EVK_TL_AI_POLA) || (defined('EVK_TL_AI_WPIS') && $m['meta_key'] === EVK_TL_AI_WPIS);
-                $naStronie = $pole_fields ? '' : evk_tl_el_adres_sprawdzania((int) $m['post_id'], (string) $m['meta_key'], (string) $m['jezyk'], (string) $m['klucz']);
+                /* Właściwość instancji komponentu (1.272.0) — okienko na stronie zna tylko pola elementów. */
+                $naStronie = $pole_fields || strpos((string) $m['klucz'], '|prop:') !== false ? ''
+                    : evk_tl_el_adres_sprawdzania((int) $m['post_id'], (string) $m['meta_key'], (string) $m['jezyk'], (string) $m['klucz']);
                 $edycja = isset($m['edycja']) ? (string) $m['edycja'] : ($pole_fields ? (string) get_edit_post_link((int) $m['post_id'], 'raw') : evk_tl_el_adres_edycji($m['post_id'])); ?>
                 <tr>
-                    <td><a href="<?php echo esc_url($edycja); ?>"><?php echo esc_html($tytul); ?></a></td>
+                    <td><?php if ($edycja !== ''): ?><a href="<?php echo esc_url($edycja); ?>"><?php echo esc_html($tytul); ?></a><?php else: echo esc_html($tytul); endif; ?></td>
                     <td><?php echo esc_html($m['element'] . ': ' . $m['pole']); ?></td>
                     <td><?php echo esc_html($jezyk); ?></td>
                     <td><?php echo !empty($m['ai']) ? 'AI' : 'Zmienił się oryginał'; ?></td>

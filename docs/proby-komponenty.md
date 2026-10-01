@@ -70,3 +70,47 @@ Po próbie wyczyść pole „Tłumaczenie EN” w komponencie.
     .map((k) => k + '=' + krotko(st[k])).join(' | ').slice(0, 1500));
 })();
 ```
+
+## Wyniki (01.10, Bricks 2.4.2) i co z nich wyszło w 1.272.0
+
+Krok A (zaznaczony nagłówek w edycji komponentu):
+
+- stan powłoki: `components` (lista), `activeComponent` (edytowany),
+  `activeId` — element WEWNĄTRZ komponentu, poza `content`/`header`/`footer`;
+- komponent: `{id, category, desc, elements, properties, _created, _user_id, _version}`,
+  nazwa w `label` elementu-korzenia (ten sam id co komponent);
+- właściwość: `{label, type, id, connections: {idElementu: [klucz ustawienia]}}`;
+- instancja na stronie: `{id, name, parent, children, settings, cid, properties: {idWłaściwości: wartość}}`;
+  wstawiona z panelu bez zmian — BEZ klucza `properties`;
+- pole „Tłumaczenie EN” w edycji komponentu jest i się zapisuje (`evk_tl_en__text`).
+
+Próby na stronie `/en/`:
+
+1. Komponent bez właściwości EN, instancja z własnym polskim tekstem
+   („Nagłówek testowy”) — na `/en/` „Próba komponent EN”, czyli tłumaczenie
+   tekstu komponentu. BŁĄD: odwiedzający widział tłumaczenie innego zdania.
+2. Właściwość „Nagłówek EN” połączona z `evk_tl_en__text` nagłówka:
+   - A (wartość „INSTANCJA EN”) — na `/en/` „INSTANCJA EN”: Bricks wpisuje
+     wartość właściwości w ustawienie przed naszym filtrem renderu;
+   - B (polski tekst, EN pusty) — na `/en/` polski „Nagłówek B”;
+   - C (wstawiona z panelu, bez wartości) — pola połączone puste, także EN.
+     Tekst stały (bez właściwości) — „STAŁY EN” w każdej instancji.
+
+Co z tego wyszło (51-translation-components.php, tl-komponenty.js):
+
+- właściwość tekstowa połączona z polem tłumaczonym dostaje sama
+  „{etykieta} EN” (i każdy język) tuż pod sobą — w builderze od razu,
+  na serwerze przy zapisie komponentów, po zmianie języków i raz po
+  aktualizacji; stały identyfikator (FNV-1a), ręczne połączenie uznane;
+- teksty stałe tłumaczy się raz, w komponencie — nie dostają właściwości
+  (wynik C: właściwość bez wartości wyłączyłaby tłumaczenie z komponentu);
+- hurt AI, lista tekstów, „Do sprawdzenia” i ✦ widzą teksty właściwości
+  instancji (`{instancja}|prop:{właściwość}|{język}`) i teksty stałe
+  (wiersz „Komponenty Bricksa”, opcja komponentów).
+
+Do sprawdzenia na testowej (atrapa Bricksa nie odpowie):
+
+- czy Bricks zapisuje właściwości dołożone w stanie (kropka przy „Zapisz”);
+- czy ✦ w trybie edycji komponentu zapisuje się z komponentem
+  (`activeComponent` może być kopią `components[…]`);
+- czy wpis do `properties` instancji pokazuje się w panelu instancji od razu.

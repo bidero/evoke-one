@@ -78,7 +78,9 @@ function evk_tl_podglad_wlaczony(): bool {
 
 add_action('wp_enqueue_scripts', function () {
     if (!evk_tl_podglad_wlaczony()) return;
-    wp_enqueue_script('evk-tl-podglad', EVOKE_ONE_URL . 'assets/admin/tl-builder-podglad.js', [], EVOKE_ONE_VERSION, true);
+    /* Właściwości tłumaczeń komponentów (1.272.0) — czysty moduł, ta sama logika co 51. */
+    wp_enqueue_script('evk-tl-komponenty', EVOKE_ONE_URL . 'assets/admin/tl-komponenty.js', [], EVOKE_ONE_VERSION, true);
+    wp_enqueue_script('evk-tl-podglad', EVOKE_ONE_URL . 'assets/admin/tl-builder-podglad.js', ['evk-tl-komponenty'], EVOKE_ONE_VERSION, true);
 }, 20);
 
 /* Dane przed skryptami stopki (`wp_print_footer_scripts` ma priorytet 20). JSON
