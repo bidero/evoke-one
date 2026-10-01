@@ -32,6 +32,12 @@
 # przez pozostałe zestawy. Fields to osobne repozytorium: EVK_FIELDS_REPO,
 # domyślnie katalog evoke-fields obok tego repozytorium. Bez niego testy
 # fields-* zapalają się na czerwono z instrukcją.
+# Piąty (1.274.0) ma prawdziwy motyw Bricks — do testów renderu (bricks-render):
+#   piąty     http://bricks.test, prefiks bricks_ (EVK_WP5_PATH)
+# Motyw NIE jest w tym repozytorium (publiczne): zip z EVK_BRICKS_ZIP, domyślnie
+# najnowszy bricks*.zip z katalogu bricks-motyw obok (prywatne repozytorium
+# bidero/bricks-motyw). Bez licencji Bricks nie otwiera buildera — render
+# strony działa. Bez zipa piąty stoi bez Bricksa, a bricks-render jest czerwony.
 #
 # Gdzie stawia — zmienne, wszystkie z wartościami domyślnymi:
 #   EVK_WP_PATH   katalog WordPressa   (~/.cache/evk-testowy-wp)
@@ -39,6 +45,10 @@
 #   EVK_WP3_PATH  katalog trzeciego    (~/.cache/evk-testowy-wp3)
 #   EVK_WP4_PATH  katalog czwartego    (~/.cache/evk-testowy-wp4)
 #   EVK_FIELDS_REPO  repozytorium Evoke FIELDS (../evoke-fields)
+#   EVK_WP5_PATH  katalog piątego      (~/.cache/evk-testowy-wp5)
+#   EVK_BRICKS_ZIP   zip motywu Bricks  (../bricks-motyw/bricks.X.Y.Z.zip)
+#   EVK_BRICKS_KLUCZ klucz licencji Bricksa — tylko jako zmienna środowiska
+#                    (sekret środowiska sesji), NIGDY w repozytorium ani w pliku
 #   EVK_WP_DB     baza                 (evk_test)
 #   EVK_WP_USER   użytkownik bazy      (evk)
 #   EVK_WP_PASS   hasło                (evk)
@@ -54,11 +64,15 @@ EVK_WP_PATH="${EVK_WP_PATH:-$HOME/.cache/evk-testowy-wp}"
 EVK_WP2_PATH="${EVK_WP2_PATH:-$HOME/.cache/evk-testowy-wp2}"
 EVK_WP3_PATH="${EVK_WP3_PATH:-$HOME/.cache/evk-testowy-wp3}"
 EVK_WP4_PATH="${EVK_WP4_PATH:-$HOME/.cache/evk-testowy-wp4}"
+EVK_WP5_PATH="${EVK_WP5_PATH:-$HOME/.cache/evk-testowy-wp5}"
 EVK_WP_DB="${EVK_WP_DB:-evk_test}"
 EVK_WP_USER="${EVK_WP_USER:-evk}"
 EVK_WP_PASS="${EVK_WP_PASS:-evk}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 EVK_FIELDS_REPO="${EVK_FIELDS_REPO:-$(dirname "$REPO")/evoke-fields}"
+# Tylko oryginalne paczki „bricks.X.Y.Z.zip” — bez przeróbek (np. z dopiskiem w nazwie).
+EVK_BRICKS_ZIP="${EVK_BRICKS_ZIP:-$(ls -1 "$(dirname "$REPO")"/bricks-motyw/ 2>/dev/null | grep -E '^bricks\.[0-9.]+\.zip$' | sort -V | tail -1 \
+    | sed "s|^|$(dirname "$REPO")/bricks-motyw/|" || true)}"
 CLI="$EVK_WP_PATH/../wp-cli.phar"
 
 krok() { printf '── %s\n' "$*"; }
@@ -81,7 +95,7 @@ fi
 if [ "${1:-}" = "--od-nowa" ]; then
     krok "czyszczę poprzednie środowisko"
     mysql -e "DROP DATABASE IF EXISTS \`$EVK_WP_DB\`" || true
-    rm -rf "$EVK_WP_PATH" "$EVK_WP2_PATH" "$EVK_WP3_PATH" "$EVK_WP4_PATH"
+    rm -rf "$EVK_WP_PATH" "$EVK_WP2_PATH" "$EVK_WP3_PATH" "$EVK_WP4_PATH" "$EVK_WP5_PATH"
 fi
 
 krok "baza $EVK_WP_DB i użytkownik $EVK_WP_USER"
@@ -185,10 +199,55 @@ else
     POLA="$EVK_WP4_PATH — BRAK Evoke FIELDS w $EVK_FIELDS_REPO (ustaw EVK_FIELDS_REPO), testy fields-* będą czerwone"
 fi
 
+# ── Piąty WordPress: Evoke ONE + motyw Bricks (testy bricks-*) ──────────
+wp5() { php "$CLI" --allow-root --path="$EVK_WP5_PATH" "$@"; }
+if [ ! -f "$EVK_WP5_PATH/wp-includes/version.php" ]; then
+    krok "piąty WordPress (bricks.test, prefiks bricks_)"
+    mkdir -p "$EVK_WP5_PATH"
+    ( cd "$EVK_WP_PATH" && tar --exclude=./wp-config.php --exclude='./wp-content/plugins/evoke-one' \
+        --exclude='./wp-content/evk-backups-*' --exclude='./wp-content/uploads' -cf - . ) | ( cd "$EVK_WP5_PATH" && tar -xf - )
+fi
+if [ ! -f "$EVK_WP5_PATH/wp-config.php" ]; then
+    wp5 config create --dbname="$EVK_WP_DB" --dbuser="$EVK_WP_USER" --dbpass="$EVK_WP_PASS" \
+        --dbhost=localhost --dbprefix=bricks_ --skip-check >/dev/null
+fi
+if ! wp5 core is-installed 2>/dev/null; then
+    wp5 core install --url=http://bricks.test --title="Evoke bricks" --admin_user=admin \
+        --admin_password=admin --admin_email=admin@bricks.test --skip-email >/dev/null
+fi
+ln -sfn "$REPO" "$EVK_WP5_PATH/wp-content/plugins/evoke-one"
+wp5 plugin activate evoke-one >/dev/null 2>&1 || true
+if [ -n "$EVK_BRICKS_ZIP" ] && [ -f "$EVK_BRICKS_ZIP" ]; then
+    MOTYW="$EVK_WP5_PATH/wp-content/themes/bricks"
+    SUMA="$(md5sum < "$EVK_BRICKS_ZIP" | cut -d' ' -f1)"
+    if [ "$(cat "$MOTYW/.evk-zip" 2>/dev/null || true)" != "$SUMA" ]; then
+        krok "motyw Bricks z $(basename "$EVK_BRICKS_ZIP")"
+        rm -rf "$MOTYW"
+        unzip -q "$EVK_BRICKS_ZIP" -d "$EVK_WP5_PATH/wp-content/themes/"
+        echo "$SUMA" > "$MOTYW/.evk-zip"
+    fi
+    wp5 theme activate bricks >/dev/null 2>&1 || true
+    # Licencja (builder): BRICKS_LICENSE_KEY (Bricks 2.4+) czytana ze zmiennej
+    # środowiska przy KAŻDYM uruchomieniu — klucz nie ląduje w wp-config.php
+    # ani w bazie. Bez zmiennej stała jest pusta, a Bricks działa jak bez licencji.
+    wp5 config set BRICKS_LICENSE_KEY "getenv('EVK_BRICKS_KLUCZ') ?: ''" --raw --type=constant >/dev/null
+    LICENCJA="bez licencji (builder zamknięty; ustaw EVK_BRICKS_KLUCZ)"
+    if [ -n "${EVK_BRICKS_KLUCZ:-}" ]; then
+        LICENCJA="licencja: $(wp5 eval '
+            \Bricks\License::$license_key = \Bricks\License::get_license_key();
+            if (get_transient("bricks_license_status") !== "active") \Bricks\License::activate_license();
+            echo \Bricks\License::license_is_valid() ? "aktywna" : "NIEAKTYWNA (" . get_transient("bricks_license_status") . ")";' 2>/dev/null || echo 'błąd aktywacji')"
+    fi
+    BRICKS="$EVK_WP5_PATH (Bricks $(wp5 theme get bricks --field=version 2>/dev/null || echo '?'), $LICENCJA)"
+else
+    BRICKS="$EVK_WP5_PATH — BRAK motywu Bricks (EVK_BRICKS_ZIP albo ../bricks-motyw/bricks*.zip), test bricks-render będzie czerwony"
+fi
+
 krok "gotowe"
 echo "   WordPress: $EVK_WP_PATH ($(wp core version))"
 echo "   drugi:     $EVK_WP2_PATH ($(wp2 option get home))"
 echo "   trzeci:    $EVK_WP3_PATH ($(wp3 option get home))"
 echo "   czwarty:   $POLA"
+echo "   piąty:     $BRICKS"
 echo "   wtyczka:   $(wp plugin get evoke-one --field=version) (dowiązanie do $REPO)"
 echo "   testy:     node tests/run.js backup-baza"
