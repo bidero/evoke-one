@@ -1203,10 +1203,12 @@
         b.setAttribute('data-dla', dla);
         const etykieta = ctrl.querySelector('label');
         b.setAttribute('aria-label', 'Przetłumacz (AI) — ' + ((etykieta && etykieta.textContent.trim()) || 'Tłumaczenie ' + cel[0].toUpperCase()));
-        /* Dymek Bricksa (`.bricks-panel [data-balloon]`) na prawo od ✦ — panel stoi
-           po lewej, więc dymek wychodzi na kanwę, nie pod panel (1.270.0, uwaga zgłaszającego). */
-        b.setAttribute('data-balloon', 'Przetłumacz (AI) z polskiego tekstu tego pola (' + AI.model + ')');
-        b.setAttribute('data-balloon-pos', 'right');
+        /* Dymek Bricksa (`.bricks-panel [data-balloon]`). Panel przycina wszystko,
+           co z niego wystaje — dymek na prawo (1.270.0) chował się pod kanwą —
+           więc w górę i w lewo od ✦, w kilku wierszach (1.271.0, decyzja zgłaszającego). */
+        b.setAttribute('data-balloon', 'Przetłumacz z polskiego używając ' + AI.model);
+        b.setAttribute('data-balloon-pos', 'top-right');
+        b.setAttribute('data-balloon-length', 'medium');
         b.appendChild(ikonaAi(pd, rodzaj === 'input' ? 14 : 12));
         b.addEventListener('click', () => {
           const st = ctrl.querySelector('.evk-tl-ai-pole-stan');

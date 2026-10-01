@@ -123,7 +123,11 @@ case 'ustaw':
 
 case 'jednostki':
     $ids = array_map('intval', (array) (evk_tat_zapis()['termy'] ?? []));
-    $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, false, [], false, evk_tat_pola((string) ($argv[2] ?? '-')), ($argv[3] ?? '') === 'adres'),
+    /* Zakres z tabeli (1.271.0): te same części przy każdej taksonomii. */
+    $cz = array_merge(evk_tat_pola((string) ($argv[2] ?? '-')), ($argv[3] ?? '') === 'adres' ? ['adres'] : []);
+    $zak = [];
+    foreach (evk_tl_ai_wiersze_zakresu() as $typ => $w) if ($w['rodzaj'] === 'term') $zak[$typ] = $cz;
+    $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, evk_tl_ai_zakres_z($zak)),
         static function ($j) use ($ids) { return in_array((int) $j['post_id'], $ids, true) && $j['meta_key'] === EVK_TL_AI_TERM; }));
     break;
 
@@ -155,7 +159,7 @@ case 'ajax-krok':
         wp_set_current_user($uid);
     }
     $out['odp'] = evk_tat_ajax(['action' => 'evk_tl_ai_krok', 'nonce' => wp_create_nonce('evk_tl_ai'), 'post_id' => (string) evk_tat_id((string) ($argv[2] ?? 'K1')),
-        'meta_key' => EVK_TL_AI_TERM, 'lang' => (string) ($argv[3] ?? 'en'), 'term_pola' => evk_tat_pola((string) ($argv[4] ?? '-'))]);
+        'meta_key' => EVK_TL_AI_TERM, 'lang' => (string) ($argv[3] ?? 'en'), 'czesci' => evk_tat_pola((string) ($argv[4] ?? '-'))]);
     break;
 
 case 'stan':

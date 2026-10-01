@@ -76,7 +76,9 @@ return [
                       '_evk_snippet_awaria', '_evk_snippet_ukosniki_ok',
                       // Tłumaczenia w elementach: stan „Do sprawdzenia" (1.242.0), wykaz dopisanych (1.246.0)
                       // i kopia „Wyczyść tłumaczenia strony” (1.264.0).
-                      '_evk_tl_el_stan', '_evk_tl_el_dopisane', '_evk_tl_ai_wyczyszczone'],
+                      '_evk_tl_el_stan', '_evk_tl_el_dopisane', '_evk_tl_ai_wyczyszczone',
+                      // Znacznik polskiego altu napisanego przez AI, „do sprawdzenia” (1.271.0).
+                      '_evk_alt_ai'],
     /* Wersje językowe pól wpisu: `_evk_tl_{język}__{pole}` — kod języka jest
        dynamiczny, więc przedrostek (1.251.0: pola SEO). Tylko z podkreślnikiem
        na początku: Evoke Fields trzyma swoje tłumaczenia pod `evk_tl_…`. */

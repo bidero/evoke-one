@@ -2,6 +2,115 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.271.0] — 2026-10-01
+
+SEO i teksty alternatywne obrazów z AI, „Przetłumacz strony” jako tabela
+„rodzaj × część” i poprawki po 1.270.0.
+
+Uwagi zgłaszającego po 1.270.0 (zrzuty):
+- dymek ✦ przy polu w builderze był pod kanwą;
+- pola w Ustawieniach AI nie były równe na szerokość;
+- „Przetłumacz strony” było nielogiczne: każdy element ma być polem wyboru,
+  a w nim wybór, co tłumaczyć.
+
+### Zmienione
+
+- **Builder: dymek ✦ przy polu** — „Przetłumacz z polskiego używając
+  {model}”, `data-balloon-pos="top-right"` i `data-balloon-length="medium"`
+  (decyzja zgłaszającego). Panel Bricksa przycina, co z niego wystaje, więc
+  dymek w prawo chował się pod kanwą. Teraz stoi nad przyciskiem, w panelu,
+  w kilku wierszach.
+- **Równe pola w zakładce AI**: siatka `auto-fit` zamiast `auto-fill`.
+  Pojedyncze pole (np. wskazówki przy jednym języku) zajmuje całą szerokość,
+  zamiast jednej z kilku pustych kolumn.
+- **„Przetłumacz strony”: tabela „rodzaj × część”** w miejsce pól wyboru:
+  - wiersze: każdy typ treści (Strony, Wpisy, typy z Fields), Szablony
+    Bricksa, każda taksonomia, Obrazy;
+  - kolumny: Bricks, Tytuł, Treść, Zajawka, Adres, SEO, Pola Fields (dla
+    taksonomii: Nazwa, Opis, Adres, Pola Fields; dla obrazów: tłumaczenie
+    altu i brakujący alt PL);
+  - tylko części, które rodzaj naprawdę ma (reszta „—”), każda z nazwą
+    „Rodzaj: część”;
+  - pole przy rodzaju zaznacza cały wiersz, ze stanem częściowym;
+  - domyślnie zaznaczona treść Bricksa — tak tłumaczył hurt dotąd;
+  - na telefonie każdy rodzaj to karta z nazwami części.
+- **Lista po „Pokaż listę”**:
+  - grupy po rodzaju (nagłówek z liczbą i polem „Zaznacz grupę”);
+  - szukajka po nazwie: „Zaznacz wszystkie”, grupa i start działają tylko
+    na widoczne wiersze.
+- Krok hurtu dostaje części swojego rodzaju (`czesci`) — parametry
+  `wpis_pola`, `term_pola`, `pola` i `adres` z 1.268–1.270 zastępuje zakres.
+
+### Dodane
+
+- **SEO z AI** (tytuł, opis, słowa kluczowe w wersjach językowych):
+  - kolumna „SEO” w tabeli zakresu (część `evk_seo`). Polski tekst to ten,
+    który działa na stronie: Bricks przed zakładką SEO. Pole ze znacznikiem
+    `{tl_…}` tłumaczy się samo — AI je pomija;
+  - **✦ w zakładce SEO** przy polach wersji językowej, „AI — do
+    sprawdzenia” i „Sprawdzone”; zapis przyciskiem wiersza;
+  - **nowy metaboks „SEO” w edycji wpisu** (decyzja zgłaszającego):
+    - polskie pola zakładki z wartością Bricksa pod spodem;
+    - przełącznik języków, wersje językowe z ✦;
+    - zapis z wpisem (nonce, prawo edycji);
+  - źródło tłumaczeń SEO (`…__zrodlo`): wiersze w „Do sprawdzenia” z
+    odnośnikiem do edycji wpisu.
+- **Alt obrazów z AI**:
+  - wiersz „Obrazy” w tabeli zakresu, pozycje po 25 obrazów:
+    - **„Tłumaczenie altu”** (część `evk_alt`) — z polskiego altu;
+    - **„Brakujący alt PL”** (część `evk_alt_pl`) — AI ogląda obraz
+      i pisze polski alt; w przebiegu najpierw opisy, potem tłumaczenia;
+  - do AI idzie najmniejsza miniatura z dłuższym bokiem ≥ 512 px (zwykle
+    768 px, kilka kB), nie oryginał. Obraz w zapytaniu u wszystkich
+    dostawców: Gemini, Claude, OpenAI;
+  - **✦ na ekranie obrazu i w oknie mediów**: „Przetłumacz” przy alcie EN/DE
+    i „Opisz obraz (AI)” przy polskim. Okno mediów zapisuje pole samo,
+    ekran obrazu — „Aktualizuj”;
+  - opis AI ma znacznik „AI — do sprawdzenia” (`_evk_alt_ai`), dopóki alt
+    jest tym tekstem. Alty języków mają źródło (`…__alt__zrodlo`). Oba trafiają
+    do „Do sprawdzenia” z „Sprawdzone”.
+
+### Testy
+
+- Nowe:
+  - `tl-ai-seo` (23): hurt, Bricks przed zakładką, `{tl_…}` pominięte,
+    „Do sprawdzenia”, metaboks w Chromium (✦, zapis, bez nonce — bez zmian),
+    zakładka SEO (✦, „Sprawdzone”);
+  - `tl-ai-alt` (17): rozmiar obrazu do AI, lista hurtu, ✦ na ekranie obrazu
+    i w oknie mediów, „Opisz obraz” z obrazem w zapytaniu, hurt opisów
+    i tłumaczeń, „Do sprawdzenia”.
+- `tl-ai-wpisy`: tabela zakresu (wiersze, części, stan częściowy, karty przy
+  360 px), lista pogrupowana z szukajką, równe pola przy jednym języku.
+- `tl-ai-termy`, `fields-ai`: zakres z tabeli.
+- `tl-ai-builder`: dymek `top-right` + `medium` mieści się w panelu.
+- Atrapa AI rozumie obrazy w zapytaniu (rozmiar, typ) i odpowiada opisem.
+- Atrapa zakładek: tabela zakresu z rodzajami Bricksa (strażnicy etykiet
+  i telefonu).
+- Mutacje (każda zapala swoje sprawdzenia):
+  - dymek bez `length`;
+  - `auto-fill`;
+  - wiersz bez zaznaczania części;
+  - szukajka zaznacza ukryte;
+  - SEO z zakładki przed Bricksem;
+  - zapis SEO bez `ai-`;
+  - opis bez obrazu;
+  - opis PL bez znacznika;
+  - metaboks bez nonce.
+
+### Do sprawdzenia na testowej
+
+- Builder: najechanie na ✦ przy polu — dymek nad przyciskiem, w panelu.
+- Tłumaczenia → AI:
+  - tabela (zaznaczenie wiersza, części);
+  - lista z grupami i szukajką;
+  - widok na telefonie.
+- Hurt z kolumną SEO i wierszem „Obrazy” (oba warianty) na prawdziwym
+  dostawcy. Jakość opisu obrazu atrapa nie sprawdzi.
+- Edycja wpisu: metaboks „SEO” (klasyczny i blokowy edytor), ✦ w wersji
+  językowej, „Zaktualizuj”.
+- Zakładka SEO: ✦ i „Sprawdzone” w wierszu.
+- Media: ✦ w oknie mediów i na ekranie obrazu, „Opisz obraz (AI)”.
+
 ## [1.270.0] — 2026-10-01
 
 Poprawki po 1.269.0 (dymek ✦ w builderze, pasek, układ pól i zakładki AI)

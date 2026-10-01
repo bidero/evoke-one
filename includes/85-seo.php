@@ -302,16 +302,31 @@ add_action('wp_ajax_evoke_save_seo_bulk', function () {
  */
 function evk_seo_zapisz_jezyki(int $pid, $jezyki): void {
     if (!is_array($jezyki)) return;
+    $pl = function_exists('evk_seo_pl_pola') ? evk_seo_pl_pola($pid) : [];
     foreach (array_keys(evk_seo_jezyki()) as $kod) {
         if (!isset($jezyki[$kod]) || !is_array($jezyki[$kod])) continue;
         foreach (evk_seo_pola_jezykowe() as $klucz => $pole) {
             if (!array_key_exists($klucz, $jezyki[$kod]) || !is_scalar($jezyki[$kod][$klucz])) continue;
             $v = (string) $jezyki[$kod][$klucz];
             $v = $klucz === 'desc' ? sanitize_textarea_field($v) : sanitize_text_field($v);
+            $meta = '_evk_tl_' . $kod . '__' . $pole;
             if ($v === '') {
-                delete_post_meta($pid, '_evk_tl_' . $kod . '__' . $pole);
-            } else {
-                update_post_meta($pid, '_evk_tl_' . $kod . '__' . $pole, wp_slash($v));
+                delete_post_meta($pid, $meta);
+                delete_post_meta($pid, $meta . '__zrodlo');
+                continue;
+            }
+            /* Źródło (1.271.0, „AI — do sprawdzenia” i „Do sprawdzenia”): `ai` z ✦ —
+               skrót polskiego tekstu ze znacznikiem; `teraz` („Sprawdzone”) albo
+               ręczna zmiana — sam skrót; bez zmiany — zostaje, jakie było. */
+            $z = isset($jezyki[$kod][$klucz . '__zrodlo']) && is_scalar($jezyki[$kod][$klucz . '__zrodlo']) ? (string) $jezyki[$kod][$klucz . '__zrodlo'] : '';
+            $przed = (string) get_post_meta($pid, $meta, true);
+            update_post_meta($pid, $meta, wp_slash($v));
+            if (!function_exists('evk_tlw_zrodlo')) continue;
+            $skrot = evk_tlw_zrodlo((string) ($pl[$klucz] ?? ''));
+            if ($z === 'ai') {
+                update_post_meta($pid, $meta . '__zrodlo', 'ai-' . $skrot);
+            } elseif ($z === 'teraz' || $v !== $przed) {
+                update_post_meta($pid, $meta . '__zrodlo', $skrot);
             }
         }
     }

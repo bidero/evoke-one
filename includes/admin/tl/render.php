@@ -45,6 +45,31 @@ function tl_render_page() {
         .tl-footer { margin-top:12px; }
         /* Tłumaczenia → AI (1.270.0): wiersze pól w siatce `evo-grid`. */
         .tl-ai-wiersz { margin-bottom:16px; }
+        /* auto-fit (1.271.0): kolumny bez pól znikają, więc pojedyncze pole (np. wskazówki
+           przy jednym języku) zajmuje całą szerokość — auto-fill zostawiał puste kolumny. */
+        .tl-ai-wiersz.evo-grid { grid-template-columns:repeat(auto-fit, minmax(var(--evo-col, 220px), 1fr)); }
+        /* Tabela zakresu „typ × część” (1.271.0): na telefonie każdy wiersz to karta z nazwami części. */
+        .tl-ai-zakres .evo-tbl-wrap { margin-bottom:14px; }
+        .tl-ai-zakres-tabela caption { text-align:left; font-weight:600; padding:0 0 6px; }
+        .tl-ai-zakres-tabela td, .tl-ai-zakres-tabela thead th { text-align:center; }
+        .tl-ai-zakres-tabela thead th:first-child, .tl-ai-zakres-tabela tbody th { text-align:left; }
+        .tl-ai-czesc-etykieta, .tl-ai-typ-etykieta { display:inline-flex; align-items:center; gap:6px; min-height:24px; min-width:24px; cursor:pointer; }
+        .tl-ai-czesc-etykieta { justify-content:center; }
+        .tl-ai-czesc-nazwa { display:none; }
+        .tl-ai-brak-czesci { color:var(--evo-text-faint); }
+        .tl-ai-grupa-naglowek th { text-align:left; background:var(--evo-surface); }
+        .tl-ai-grupa-naglowek label { display:inline-flex; align-items:center; gap:6px; min-height:24px; font-weight:600; }
+        .tl-ai-szukaj { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+        .tl-ai-szukaj input { min-width:0; flex:1 1 200px; max-width:360px; }
+        @media (max-width:782px) {
+            .tl-ai-zakres-tabela thead { display:none; }
+            .tl-ai-zakres-tabela, .tl-ai-zakres-tabela tbody, .tl-ai-zakres-tabela tr, .tl-ai-zakres-tabela th { display:block; }
+            .tl-ai-zakres-tabela caption { display:block; }
+            .tl-ai-zakres-tabela tr { padding:8px 0; border-bottom:1px solid var(--evo-border); }
+            .tl-ai-zakres-tabela td { display:inline-block; text-align:left; border:0; padding:4px 12px 4px 0; }
+            .tl-ai-zakres-tabela .tl-ai-brak-czesci { display:none; }
+            .tl-ai-czesc-nazwa { display:inline; }
+        }
         .tl-ai-wiersz p:first-child { margin-top:0; }
         .tl-ai-wiersz fieldset { margin:0; padding:0; border:0; min-width:0; }
         .tl-ai-wiersz legend { padding:0; margin-bottom:8px; }

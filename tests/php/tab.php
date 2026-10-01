@@ -1026,6 +1026,14 @@ require EVK_TEST_ROOT . '/includes/newsletter/' . $m;
     $GLOBALS['options']['tl_images']   = [['pl' => 5, 'en' => 6]];
     $GLOBALS['options']['tl_url_slugs'] = [['pl' => 'kontakt', 'en' => 'contact']];
     $GLOBALS['options']['tl_dd_keys']  = ['cennik' => 'Kontakt'];
+    /* Tabela zakresu w zakładce AI (1.271.0): rodzaje z treścią Bricksa — strażnicy
+       widzą wiersze i pola wyboru części. Klucze meta jak w module 52 (tu niewczytanym). */
+    if (($argv[1] ?? '') === 'tl-ai') {
+        if (!function_exists('evk_tl_el_klucze_meta')) {
+            function evk_tl_el_klucze_meta(): array { return ['_bricks_page_content_2', '_bricks_page_header_2', '_bricks_page_footer_2']; }
+        }
+        $GLOBALS['wpdb']->kolumny['postmeta'] = ['page', 'post'];
+    }
 } else {
     foreach ((array) $tab['module'] as $module) { require EVK_TEST_ROOT . '/' . $module; }
 }

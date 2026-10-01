@@ -197,6 +197,16 @@ add_action('wp_ajax_evk_tl_el_sprawdzone', function (): void {
         if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
         $p = strrpos($klucz, '|');
         $ok = $p !== false && evk_tlw_sprawdzone($post_id, sanitize_key(substr($klucz, $p + 1)), substr($klucz, 0, $p));
+    } elseif (defined('EVK_TL_AI_ALT') && in_array($meta_key, [EVK_TL_AI_ALT, EVK_TL_AI_ALT_PL], true)) {
+        /* Alt obrazu (1.271.0): klucz `alt|{język}` albo `alt|pl` (opis AI), prawo edycji obrazu. */
+        if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tego obrazu.', 403);
+        $p = strrpos($klucz, '|');
+        $ok = $p !== false && evk_tl_ai_alt_sprawdzone($post_id, sanitize_key(substr($klucz, $p + 1)));
+    } elseif (defined('EVK_TL_AI_SEO') && $meta_key === EVK_TL_AI_SEO && function_exists('evk_seo_sprawdzone')) {
+        /* Pole SEO (1.271.0): klucz `{pole}|{język}`, prawo edycji wpisu. */
+        if (!current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
+        $p = strrpos($klucz, '|');
+        $ok = $p !== false && evk_seo_sprawdzone($post_id, sanitize_key(substr($klucz, $p + 1)), substr($klucz, 0, $p));
     } elseif (defined('EVK_TL_AI_TERM') && in_array($meta_key, [EVK_TL_AI_TERM, EVK_TL_AI_POLA_TERMU], true)) {
         /* Nazwa i opis termu, pola Fields termu (1.270.0): identyfikator termu w `post_id`, prawo edycji termu. */
         if (!current_user_can('edit_term', $post_id)) wp_send_json_error('Brak uprawnień do tego termu.', 403);
@@ -243,6 +253,10 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
     if (function_exists('evk_tl_ai_wpisy_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_wpisy_do_sprawdzenia());
     /* Nazwy i opisy kategorii i tagów oraz ich pola Fields (1.270.0) — edycja termu; wiersz niesie tytuł i adres. */
     if (function_exists('evk_tl_ai_termy_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_termy_do_sprawdzenia(), evk_tl_ai_pola_termow_do_sprawdzenia());
+    /* Pola SEO (1.271.0) — edycja wpisu (metaboks SEO). */
+    if (function_exists('evk_tl_ai_seo_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_seo_do_sprawdzenia());
+    /* Alty obrazów (1.271.0) — edycja obrazu. */
+    if (function_exists('evk_tl_ai_alt_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_alt_do_sprawdzenia());
     if (!$lista) return;
     $skrot = static function (string $t): string {
         // Ta sama funkcja co lista tekstów (53): akapity nie sklejają się w jeden wyraz.

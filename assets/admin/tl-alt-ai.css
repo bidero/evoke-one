@@ -1,0 +1,15 @@
+/* ✦ przy tekście alternatywnym (1.271.0): okno mediów i ekran obrazu.
+   Znak AI i „Sprawdzone” chowa reguła z `display` (atrybut `data-ai`). */
+.evk-alt-ai { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.evk-alt-ai .evk-alt-pole { flex: 1 1 100%; width: 100%; box-sizing: border-box; }
+.wp-core-ui .evk-alt-ai .button { display: inline-flex; align-items: center; gap: 5px; }
+.evk-alt-ai-ikona { display: block; flex: none; }
+.evk-alt-ai-znak { color: #6e00a5; font-size: 12px; font-weight: 600; }
+.evk-alt-ai:not([data-ai]) .evk-alt-ai-znak,
+.wp-core-ui .evk-alt-ai:not([data-ai]) .button.evk-alt-sprawdzone { display: none; }
+.evk-alt-ai-stan { flex-basis: 100%; font-size: 12px; color: #3c434a; }
+.evk-alt-ai-stan:empty { display: none; }
+@media (max-width: 782px) {
+    .wp-core-ui .evk-alt-ai .button.button-small { min-height: 30px; line-height: 28px; padding: 0 10px; }
+    .evk-alt-ai .evk-alt-pole { font-size: 16px; }
+}

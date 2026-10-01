@@ -50,11 +50,12 @@ module.exports = async function (t) {
     const adr = lista('-', 'adres');
     console.log('      tytuł: ' + J(tyt) + '\n      wszystkie: ' + J(wsz) + '\n      adres: ' + J(adr));
     t.check('bez pól wyboru: teksty wpisów poza hurtem', bez.length === 0, J(bez));
+    /* Kolejność wierszy tabeli zakresu (1.271.0): najpierw Strony, potem Wpisy. */
     t.check('„Tytuł”: każdy wpis z brakującym tytułem; ręcznie przetłumaczony EN (P3, P5) — tylko DE', J(tyt) === J([
-      ['Nasza nowa oferta AI', 'Teksty wpisu', { en: 1, de: 1 }], ['Strona Bricks AI', 'Teksty wpisu', { en: 1, de: 1 }],
-      ['Kontakt AI', 'Teksty wpisu', { de: 1 }], ['Lista cen', 'Teksty wpisu', { en: 1, de: 1 }], ['Cennik AI', 'Teksty wpisu', { de: 1 }]]), J(tyt));
+      ['Strona Bricks AI', 'Teksty wpisu', { en: 1, de: 1 }], ['Kontakt AI', 'Teksty wpisu', { de: 1 }], ['Lista cen', 'Teksty wpisu', { en: 1, de: 1 }],
+      ['Cennik AI', 'Teksty wpisu', { de: 1 }], ['Nasza nowa oferta AI', 'Teksty wpisu', { en: 1, de: 1 }]]), J(tyt));
     t.check('tytuł, treść i zajawka: wpis — 3; strona w Bricksie — sam tytuł; strony bez zajawki i pustej treści — sam tytuł',
-      J(wsz[0]) === J(['Nasza nowa oferta AI', 'Teksty wpisu', { en: 3, de: 3 }]) && J(wsz[1]) === J(['Strona Bricks AI', 'Teksty wpisu', { en: 1, de: 1 }]), J(wsz));
+      J(wsz[4]) === J(['Nasza nowa oferta AI', 'Teksty wpisu', { en: 3, de: 3 }]) && J(wsz[0]) === J(['Strona Bricks AI', 'Teksty wpisu', { en: 1, de: 1 }]), J(wsz));
     t.check('sam „Adres z tytułu”: wpisy z tytułem EN, bez członu w mapie', J(adr) === J([['Kontakt AI', 'Adres wpisu', { en: 1 }], ['Cennik AI', 'Adres wpisu', { en: 1 }]]),
       J(adr));
 
@@ -265,50 +266,106 @@ module.exports = async function (t) {
       const g = (lista) => lista.map(top);
       return { ustawienia: g(['#tl-ai-dostawca', '#tl-ai-klucz', '#tl-ai-model']), wskazowki: g(['#tl-ai-wsk-en', '#tl-ai-wsk-de']),
         przebieg: g(['#tl-ai-tryb-tytul', '#tl-ai-jezyki-tytul', 'label[for="tl-ai-przebieg-dostawca"]']),
-        dodatki: g(['.tl-ai-wpisy legend', '.tl-ai-pola-fields legend']), szer: Math.round(document.getElementById('tl-ai-klucz').getBoundingClientRect().width) };
+        szer: Math.round(document.getElementById('tl-ai-klucz').getBoundingClientRect().width) };
     });
     const jeden = (a) => a.every((x) => x !== null && x === a[0]);
     const rosnie = (a) => a.every((x, i) => x !== null && (i === 0 || x > a[i - 1]));
     const k1280 = await kolumny();
+    /* Jeden język (1.271.0): drugie pole wskazówek usunięte — zostające zajmuje całą szerokość jak „Opis strony”. */
+    const jedenJezyk = await p.evaluate(() => { const de = document.getElementById('tl-ai-wsk-de').closest('.evo-field'); const rodzic = de.parentNode, po = de.nextSibling;
+      de.remove(); const w = [document.getElementById('tl-ai-wsk-en'), document.getElementById('tl-ai-opis')].map((e) => Math.round(e.getBoundingClientRect().width));
+      rodzic.insertBefore(de, po); return w; });
+    console.log('      jeden język — szerokość wskazówek i opisu: ' + J(jedenJezyk));
+    t.check('jeden język: pole wskazówek tak szerokie jak „Opis strony”', jedenJezyk[0] === jedenJezyk[1] && jedenJezyk[0] > 400, J(jedenJezyk));
     await p.setViewportSize({ width: 360, height: 800 });
     const k360 = await kolumny();
     await p.setViewportSize({ width: 1280, height: 900 });
     console.log('      kolumny 1280: ' + J(k1280) + '\n      telefon 360: ' + J(k360));
     t.check('1280 px: Dostawca, Klucz API i Model w jednym wierszu, wskazówki EN i DE obok siebie, klucz szerszy niż 200 px',
       jeden(k1280.ustawienia) && jeden(k1280.wskazowki) && k1280.szer > 200, J(k1280));
-    t.check('1280 px: „Co tłumaczyć”, „Języki” i dostawca przebiegu w jednym wierszu; pola wyboru wpisów obok', jeden(k1280.przebieg)
-      && k1280.dodatki[0] !== null && (k1280.dodatki[1] === null || k1280.dodatki[1] === k1280.dodatki[0]), J(k1280));
+    t.check('1280 px: „Co tłumaczyć”, „Języki” i dostawca przebiegu w jednym wierszu', jeden(k1280.przebieg), J(k1280));
     t.check('360 px: wszystko jedno pod drugim', rosnie(k360.ustawienia) && rosnie(k360.wskazowki) && rosnie(k360.przebieg), J(k360));
-    const pw = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-wpisy input')).map((c) => [c.value === 'on' ? c.id : c.value, c.checked,
-      (c.closest('label') || {}).textContent.trim()]));
-    t.check('cztery pola wyboru, wszystkie odznaczone: Tytuł, Treść, Zajawka, Adres z tytułu', J(pw) === J([['post_title', false, 'Tytuł'],
-      ['post_content', false, 'Treść (edytor WordPressa)'], ['post_excerpt', false, 'Zajawka'], ['tl-ai-adres', false, 'Adres z tytułu']]), J(pw));
-    await p.check('.tl-ai-wpis-pole[value="post_title"]');
+    /* Tabela „typ × część” (1.271.0): wiersz to rodzaj treści, kolumna to część; pole przy rodzaju — cały wiersz. */
+    const tabela = () => p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-zakres-tabela tbody tr')).map((r) => {
+      const w = r.querySelector('.tl-ai-typ');
+      return [r.getAttribute('data-typ'), r.querySelector('th').textContent.trim(), w.checked, w.indeterminate,
+        Array.from(r.querySelectorAll('.tl-ai-czesc')).map((c) => (c.checked ? '*' : '') + c.value + ':' + c.getAttribute('aria-label'))];
+    }));
+    const zt0 = await tabela();
+    console.log('      tabela zakresu: ' + J(zt0));
+    const wiersz = (z, typ) => z.find((r) => r[0] === typ) || [];
+    t.check('wiersze „Wpisy” i „Strony” z częściami (nazwy z rodzajem), domyślnie tylko treść Bricksa', J(wiersz(zt0, 'page')) === J(['page', 'Pages', false, true,
+      ['*bricks:Pages: Bricks', 'post_title:Pages: Tytuł', 'post_content:Pages: Treść', 'adres:Pages: Adres', 'seo:Pages: SEO']])
+      && J(wiersz(zt0, 'post')[4]) === J(['post_title:Posts: Tytuł', 'post_content:Posts: Treść', 'post_excerpt:Posts: Zajawka', 'adres:Posts: Adres', 'seo:Posts: SEO']), J(zt0));
+    t.check('kategorie i tagi w osobnej tabeli: Nazwa, Opis, Adres', J(wiersz(zt0, 'tax:category')[4]) === J(['name:Categories: Nazwa', 'description:Categories: Opis',
+      'adres:Categories: Adres']), J(wiersz(zt0, 'tax:category')));
+    await p.click('.tl-ai-typ[data-typ="post"]');
+    const zt1 = wiersz(await tabela(), 'post');
+    await p.click('.tl-ai-czesc[data-typ="post"][value="post_excerpt"]');
+    const zt2 = wiersz(await tabela(), 'post');
+    await p.click('.tl-ai-typ[data-typ="post"]');
+    await p.click('.tl-ai-typ[data-typ="post"]');
+    const zt3 = wiersz(await tabela(), 'post');
+    t.check('pole przy rodzaju zaznacza cały wiersz; odznaczona część — stan częściowy; dwa kliki — wiersz pusty',
+      zt1[2] === true && zt1[4].every((x) => x[0] === '*') && zt2[2] === false && zt2[3] === true && zt3[2] === false && zt3[3] === false && zt3[4].every((x) => x[0] !== '*'),
+      J([zt1, zt2, zt3]));
+    await p.check('.tl-ai-czesc[data-typ="page"][value="post_title"]');
     await p.click('.tl-ai-lista');
     await p.waitForFunction(() => /Części stron z brakami|Nie ma/.test((document.querySelector('.tl-ai-stan') || {}).textContent || ''), null, { timeout: 20000 }).catch(() => {});
-    const wiersze = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-jednostki tbody tr')).map((r) => [r.children[1].textContent, r.children[2].textContent]));
-    t.check('„Tytuł” zaznaczony: w liście „Teksty wpisu” wpisów testu', ['Strona Bricks AI', 'Kontakt zmieniony AI', 'Lista cen', 'Cennik AI']
+    const wiersze = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-jednostki tr.tl-ai-wiersz')).map((r) => [r.children[1].textContent, r.children[2].textContent]));
+    const grupy = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-jednostki .tl-ai-grupa-naglowek')).map((g) => [g.textContent.trim(),
+      g.querySelector('input').getAttribute('aria-label')]));
+    console.log('      grupy: ' + J(grupy));
+    t.check('„Strony: Tytuł”: w liście „Teksty wpisu” stron testu', ['Strona Bricks AI', 'Kontakt zmieniony AI', 'Lista cen', 'Cennik AI']
       .every((x) => wiersze.some((w) => w[0] === x && w[1] === 'Teksty wpisu')), J(wiersze));
+    t.check('lista pogrupowana po rodzaju: nagłówek z liczbą i polem „Zaznacz grupę”', grupy.length >= 1 && grupy.every((g) => /^\S.* \(\d+\)$/.test(g[0])
+      && g[1] === 'Zaznacz grupę: ' + g[0].replace(/ \(\d+\)$/, '')) && grupy.some((g) => /^Pages \(\d+\)$/.test(g[0])), J(grupy));
     /* Zaznacz / odznacz wszystkie (1.269.0): pole w nagłówku tabeli, stan częściowy. */
     const wszystkie = () => p.evaluate(() => { const g = document.querySelector('.tl-ai-jednostki thead .tl-ai-wszystkie');
-      const r = Array.from(document.querySelectorAll('.tl-ai-jednostki tbody .tl-ai-wybor'));
+      const r = Array.from(document.querySelectorAll('.tl-ai-jednostki tr.tl-ai-wiersz .tl-ai-wybor'));
       return g ? [g.checked, g.indeterminate, r.filter((c) => c.checked).length, r.length, g.getAttribute('aria-label')] : null; });
     const g0 = await wszystkie();
     await p.click('.tl-ai-wszystkie');
     const g1 = await wszystkie();
     await p.click('.tl-ai-wszystkie');
     const g2 = await wszystkie();
-    await p.click('.tl-ai-jednostki tbody tr:first-child .tl-ai-wybor');
+    await p.click('.tl-ai-jednostki tr.tl-ai-wiersz .tl-ai-wybor');
     const g3 = await wszystkie();
-    await p.click('.tl-ai-jednostki tbody tr:first-child .tl-ai-wybor');
+    await p.click('.tl-ai-jednostki tr.tl-ai-wiersz .tl-ai-wybor');
     const g4 = await wszystkie();
     console.log('      zaznacz wszystkie: ' + J([g0, g1, g2, g3, g4]));
     const n = g0 ? g0[3] : 0;
     t.check('„Zaznacz wszystkie” w nagłówku tabeli, z nazwą; na starcie zaznaczone jak wiersze', !!g0 && n > 1 && J(g0) === J([true, false, n, n, 'Zaznacz wszystkie']), J(g0));
     t.check('klik odznacza wszystkie wiersze, drugi klik zaznacza', J(g1) === J([false, false, 0, n, 'Zaznacz wszystkie']) && J(g2) === J(g0), J([g1, g2]));
     t.check('odznaczony jeden wiersz: stan częściowy; zaznaczony z powrotem — pełny', J(g3) === J([false, true, n - 1, n, 'Zaznacz wszystkie']) && J(g4) === J(g0), J([g3, g4]));
-    await p.check('#tl-ai-adres');
-    t.check('zmiana pola wyboru czyści listę', (await p.evaluate(() => document.querySelectorAll('.tl-ai-jednostki tbody tr').length)) === 0);
+    /* Szukajka (1.271.0): filtruje po nazwie; „Zaznacz wszystkie” i grupa działają tylko na widoczne, start bierze tylko widoczne. */
+    await p.fill('#tl-ai-szukaj', 'cennik');
+    const widac = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-jednostki tr.tl-ai-wiersz')).filter((r) => r.offsetParent !== null)
+      .map((r) => r.children[1].textContent));
+    await p.click('.tl-ai-wszystkie');
+    const poSzukaniu = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-jednostki tr.tl-ai-wiersz .tl-ai-wybor')).filter((c) => c.checked).length);
+    await p.fill('#tl-ai-szukaj', '');
+    const poWyczyszczeniu = await wszystkie();
+    console.log('      szukaj „cennik”: ' + J(widac) + ' | zaznaczone po „Zaznacz wszystkie”: ' + poSzukaniu + ' | po wyczyszczeniu: ' + J(poWyczyszczeniu));
+    t.check('szukajka: widać tylko pasujące; „Zaznacz wszystkie” odznacza tylko widoczne; po wyczyszczeniu stan częściowy',
+      widac.length >= 1 && widac.every((x) => /cennik/i.test(x)) && poSzukaniu === n - widac.length && J(poWyczyszczeniu) === J([false, true, n - widac.length, n, 'Zaznacz wszystkie']),
+      J([widac, poSzukaniu, poWyczyszczeniu]));
+    await p.check('.tl-ai-czesc[data-typ="page"][value="adres"]');
+    t.check('zmiana zakresu czyści listę', (await p.evaluate(() => document.querySelectorAll('.tl-ai-jednostki tr').length)) === 0);
+    /* Telefon: każdy rodzaj to karta z nazwami części; „—” znika; nic nie wystaje. */
+    await p.setViewportSize({ width: 360, height: 800 });
+    const karta = await p.evaluate(() => { const r = document.querySelector('.tl-ai-zakres-tabela tr[data-typ="page"]');
+      const W = document.documentElement.clientWidth;
+      return { nazwy: Array.from(r.querySelectorAll('.tl-ai-czesc-nazwa')).filter((e) => e.offsetParent !== null).map((e) => e.textContent),
+        kreski: Array.from(document.querySelectorAll('.tl-ai-brak-czesci')).filter((e) => e.offsetParent !== null).length,
+        wystaje: Array.from(document.querySelectorAll('.tl-ai-zakres *')).filter((e) => e.getBoundingClientRect().right > W + 0.5).length,
+        cele: Array.from(document.querySelectorAll('.tl-ai-czesc-etykieta, .tl-ai-typ-etykieta')).filter((e) => e.offsetParent !== null)
+          .filter((e) => e.getBoundingClientRect().height < 24).length };
+    });
+    await p.setViewportSize({ width: 1280, height: 900 });
+    console.log('      karta 360: ' + J(karta));
+    t.check('360 px: wiersz „Strony” jako karta z nazwami części, bez „—”, nic nie wystaje, cele ≥ 24 px', J(karta.nazwy) === J(['Bricks', 'Tytuł', 'Treść', 'Adres', 'SEO'])
+      && karta.kreski === 0 && karta.wystaje === 0 && karta.cele === 0, J(karta));
     t.check('bez błędów JS', bledy.length === 0, bledy.slice(0, 3).join(' | '));
   } finally {
     if (browser) await browser.close();

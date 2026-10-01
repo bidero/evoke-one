@@ -29,6 +29,10 @@
   [data-balloon]::after { content: attr(data-balloon); position: absolute; top: 100%; left: 0; opacity: 0; pointer-events: none;
     background: rgb(234, 236, 239); color: #1f2937; font-size: 12px; white-space: nowrap; }
   [data-balloon-pos="right"]::after { top: 50%; left: 100%; margin-left: 8px; transform: translateY(-50%); }
+  /* Jak balloon.css Bricksa: „top-right” — nad elementem, prawą krawędzią przy jego prawej krawędzi;
+     „medium” — stała szerokość, tekst łamie się w wiersze. */
+  [data-balloon-pos="top-right"]::after { top: auto; bottom: 100%; left: auto; right: 0; margin-bottom: 8px; }
+  [data-balloon-length="medium"]::after { width: 150px; white-space: normal; }
   [data-balloon]:hover::after { opacity: 1; }
   /* Bricks stylizuje przyciski panelu — wielkie litery i marginesy (uwaga zgłaszającego). */
   .bricks-panel-controls button { text-transform: uppercase; margin: 0 4px; padding: 2px 10px; background: #333; }

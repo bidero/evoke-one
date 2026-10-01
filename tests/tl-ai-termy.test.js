@@ -48,10 +48,11 @@ module.exports = async function (t) {
     console.log('      nazwa i opis: ' + J(oba) + '\n      adres: ' + J(adr));
     t.check('bez pól wyboru: termy poza hurtem', bez.length === 0, J(bez));
     t.check('„Nazwa” i „Opis”: kategoria z opisem — 2 na język; ręczna nazwa EN (K2, K3) — tylko DE; odnośnik do edycji termu',
-      J(oba) === J([['Usługi AI (Category)', 'Nazwa i opis', { en: 2, de: 2 }, true], ['Promocja AI (Tag)', 'Nazwa i opis', { de: 1 }, true],
-        ['Cennik kat AI (Category)', 'Nazwa i opis', { de: 1 }, true]]), J(oba));
-    t.check('sam „Adres z nazwy”: termy z nazwą EN, bez członu w mapie', J(adr) === J([['Promocja AI (Tag)', 'Adres z nazwy', { en: 1 }, true],
-      ['Cennik kat AI (Category)', 'Adres z nazwy', { en: 1 }, true]]), J(adr));
+      /* Kolejność wierszy tabeli zakresu (1.271.0): najpierw kategorie, potem tagi. */
+      J(oba) === J([['Usługi AI (Category)', 'Nazwa i opis', { en: 2, de: 2 }, true], ['Cennik kat AI (Category)', 'Nazwa i opis', { de: 1 }, true],
+        ['Promocja AI (Tag)', 'Nazwa i opis', { de: 1 }, true]]), J(oba));
+    t.check('sam „Adres z nazwy”: termy z nazwą EN, bez członu w mapie', J(adr) === J([['Cennik kat AI (Category)', 'Adres z nazwy', { en: 1 }, true],
+      ['Promocja AI (Tag)', 'Adres z nazwy', { en: 1 }, true]]), J(adr));
 
     // ── Kroki ────────────────────────────────────────────────────────────
     t.section('kroki: nazwa, opis, adres z nazwy');
@@ -172,17 +173,22 @@ module.exports = async function (t) {
     t.check('formularz dodawania kategorii: pola języków są, bez ✦ i „Z nazwy” (termu jeszcze nie ma)', J(dodaj) === J([true, 0, 'undefined']), J(dodaj));
     await p.unroute('**/wp-admin/admin-ajax.php');
 
-    t.section('Tłumaczenia → AI: pola wyboru kategorii i tagów (Chromium)');
+    t.section('Tłumaczenia → AI: kategorie i tagi w tabeli zakresu (Chromium)');
     await p.goto(serwer.baza + '/wp-admin/options-general.php?page=evoke-tlumaczenia&tab=ai', { waitUntil: 'load' });
-    const pw = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-termy input')).map((c) => [c.value === 'on' ? c.id : c.value, c.checked,
-      (c.closest('label') || {}).textContent.trim()]));
-    t.check('trzy pola wyboru, odznaczone: Nazwa, Opis, Adres z nazwy', J(pw) === J([['name', false, 'Nazwa'], ['description', false, 'Opis'],
-      ['tl-ai-term-adres', false, 'Adres z nazwy']]), J(pw));
-    await p.check('.tl-ai-term-pole[value="name"]');
+    /* Tabela „typ × część” (1.271.0): każda taksonomia to wiersz, domyślnie nic nie zaznaczone. */
+    const pw = await p.evaluate(() => ['tax:category', 'tax:post_tag'].map((typ) => { const r = document.querySelector('.tl-ai-zakres-tabela tr[data-typ="' + typ + '"]');
+      return r ? Array.from(r.querySelectorAll('.tl-ai-czesc')).map((c) => [c.value, c.checked, c.getAttribute('aria-label')]) : null; }));
+    t.check('wiersze „Categories” i „Tags”: Nazwa, Opis, Adres, odznaczone', J(pw) === J([
+      [['name', false, 'Categories: Nazwa'], ['description', false, 'Categories: Opis'], ['adres', false, 'Categories: Adres']],
+      [['name', false, 'Tags: Nazwa'], ['description', false, 'Tags: Opis'], ['adres', false, 'Tags: Adres']]]), J(pw));
+    await p.check('.tl-ai-czesc[data-typ="tax:post_tag"][value="name"]');
+    await p.check('.tl-ai-czesc[data-typ="tax:category"][value="name"]');
     await p.click('.tl-ai-lista');
     await p.waitForFunction(() => /Części stron z brakami|Nie ma/.test((document.querySelector('.tl-ai-stan') || {}).textContent || ''), null, { timeout: 20000 }).catch(() => {});
-    const wiersze = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-jednostki tbody tr')).map((r) => [r.children[1].textContent, r.children[2].textContent,
+    const wiersze = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-jednostki tr.tl-ai-wiersz')).map((r) => [r.children[1].textContent, r.children[2].textContent,
       r.children[1].querySelector('a').getAttribute('href')]));
+    const grupyT = await p.evaluate(() => Array.from(document.querySelectorAll('.tl-ai-jednostki .tl-ai-grupa-naglowek')).map((g) => g.textContent.trim().replace(/ \(\d+\)$/, '')));
+    t.check('grupy listy: osobno kategorie i tagi', grupyT.includes('Categories') && grupyT.includes('Tags'), J(grupyT));
     /* K1 przetłumaczona w obu językach, K3 ma nazwę DE z kroku AJAX — w liście zostaje tag K2 (brak nazwy DE). */
     t.check('„Nazwa” zaznaczona: term z brakiem w liście jako „Nazwa i opis”, z odnośnikiem do edycji termu; przetłumaczone — bez wierszy',
       wiersze.some((w) => w[0] === 'Promocja AI nowa (Tag)' && w[1] === 'Nazwa i opis' && /term\.php\?taxonomy=post_tag/.test(w[2]))

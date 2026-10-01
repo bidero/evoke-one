@@ -518,17 +518,28 @@ function evk_tl_ai_adresy(): array {
  * na model zapasowy po stronie serwera) i jawny `effort` (Opus 5.5 domyślnie
  * `medium`). Bez `temperature` — Opus 5.5 zwraca na nią 400.
  *
+ * Obrazy (1.271.0, alt z AI): `[{mime, dane (base64)}]` — Claude blok `image`,
+ * OpenAI `input_image`, Gemini `inline_data`.
+ *
+ * @param list<array{mime:string,dane:string}> $obrazy
  * @return array{0:string,1:array<string,string>,2:array<string,mixed>}
  */
-function evk_tl_ai_zadanie(array $u, string $system, string $wiadomosc): array {
+function evk_tl_ai_zadanie(array $u, string $system, string $wiadomosc, array $obrazy = []): array {
     $model = evk_tl_ai_model($u);
     $klucz = evk_tl_ai_klucz($u);
     $adres = (string) (evk_tl_ai_adresy()[$u['dostawca']] ?? '');
     $schemat = evk_tl_ai_schemat();
     if ($u['dostawca'] === 'claude') {
         $naglowki = ['Content-Type' => 'application/json', 'x-api-key' => $klucz, 'anthropic-version' => '2023-06-01'];
+        /* Obrazy (1.271.0, alt z AI): bloki `image` przed tekstem. */
+        $tresc = $wiadomosc;
+        if ($obrazy) {
+            $tresc = [];
+            foreach ($obrazy as $o) $tresc[] = ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $o['mime'], 'data' => $o['dane']]];
+            $tresc[] = ['type' => 'text', 'text' => $wiadomosc];
+        }
         $cialo = ['model' => $model, 'max_tokens' => 16000, 'system' => $system,
-            'messages' => [['role' => 'user', 'content' => $wiadomosc]],
+            'messages' => [['role' => 'user', 'content' => $tresc]],
             'output_config' => ['format' => ['type' => 'json_schema', 'schema' => $schemat]]];
         if (in_array($model, ['claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5', 'claude-fable-5-1'], true)) {
             $naglowki['anthropic-beta'] = 'server-side-fallback-2026-07-01';
@@ -538,14 +549,21 @@ function evk_tl_ai_zadanie(array $u, string $system, string $wiadomosc): array {
         return [$adres, $naglowki, $cialo];
     }
     if ($u['dostawca'] === 'openai') {
+        $wejscie = $wiadomosc;
+        if ($obrazy) {
+            $czesci = [['type' => 'input_text', 'text' => $wiadomosc]];
+            foreach ($obrazy as $o) $czesci[] = ['type' => 'input_image', 'image_url' => 'data:' . $o['mime'] . ';base64,' . $o['dane']];
+            $wejscie = [['role' => 'user', 'content' => $czesci]];
+        }
         return [$adres, ['Content-Type' => 'application/json', 'Authorization' => 'Bearer ' . $klucz], [
-            'model' => $model, 'instructions' => $system, 'input' => $wiadomosc,
+            'model' => $model, 'instructions' => $system, 'input' => $wejscie,
             'text' => ['format' => ['type' => 'json_schema', 'name' => 'translations', 'strict' => true, 'schema' => $schemat]],
         ]];
     }
     return [sprintf($adres, rawurlencode($model)), ['Content-Type' => 'application/json', 'x-goog-api-key' => $klucz], [
         'systemInstruction' => ['parts' => [['text' => $system]]],
-        'contents' => [['role' => 'user', 'parts' => [['text' => $wiadomosc]]]],
+        'contents' => [['role' => 'user', 'parts' => array_merge([['text' => $wiadomosc]],
+            array_map(static function ($o) { return ['inline_data' => ['mime_type' => $o['mime'], 'data' => $o['dane']]]; }, $obrazy))]],
         'generationConfig' => ['responseMimeType' => 'application/json', 'responseJsonSchema' => $schemat],
     ]];
 }
@@ -633,9 +651,9 @@ function evk_tl_ai_blad_http(string $dostawca, int $kod, array $naglowki, $o): a
  *
  * @return array{ok:bool,tlumaczenia?:array<string,string>,blad?:string,czekaj?:int,stop?:bool}
  */
-function evk_tl_ai_wyslij(array $u, string $system, string $wiadomosc): array {
+function evk_tl_ai_wyslij(array $u, string $system, string $wiadomosc, array $obrazy = []): array {
     if (evk_tl_ai_klucz($u) === '') return ['ok' => false, 'blad' => 'Brak klucza API tego dostawcy — wpisz go w ustawieniach Tłumaczenia AI.', 'czekaj' => 0, 'stop' => true];
-    [$adres, $naglowki, $cialo] = evk_tl_ai_zadanie($u, $system, $wiadomosc);
+    [$adres, $naglowki, $cialo] = evk_tl_ai_zadanie($u, $system, $wiadomosc, $obrazy);
     $odp = wp_remote_post($adres, ['headers' => $naglowki, 'body' => (string) wp_json_encode($cialo), 'timeout' => 120]);
     if (is_wp_error($odp)) return ['ok' => false, 'blad' => 'Brak połączenia z dostawcą: ' . $odp->get_error_message(), 'czekaj' => 15, 'stop' => false];
     $kod = (int) wp_remote_retrieve_response_code($odp);
@@ -743,6 +761,8 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         if (!empty($opcje['adres']) && empty($w['zostalo']) && empty($w['stop']) && empty($w['czekaj'])) $w['adres'] = evk_tl_ai_adres_z_tytulu($post_id, $lang);
         return $w;
     }
+    /* Brakujący alt PL (1.271.0): AI ogląda obrazy porcji, osobna droga. */
+    if ($meta_key === EVK_TL_AI_ALT_PL) return evk_tl_ai_krok_alt_pl($post_id, (int) ($opcje['do'] ?? $post_id), $pomin, $opcje);
     /* Term (1.270.0): adres z nazwy po ostatnim kroku, jak adres z tytułu wpisu. */
     if ($meta_key === EVK_TL_AI_TERM && empty($opcje['_wpis'])) {
         $w = evk_tl_ai_krok($post_id, $meta_key, $lang, $pomin, ['_wpis' => true] + $opcje);
@@ -754,10 +774,14 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     $obiekt = $meta_key === EVK_TL_AI_POLA_TERMU ? 'term' : 'post';
     $wpis = $meta_key === EVK_TL_AI_WPIS;
     $term = $meta_key === EVK_TL_AI_TERM;
-    $t = $pola ? evk_tl_ai_teksty_pol($post_id, $lang, !empty($opcje['ponownie']), $obiekt)
+    $seo = $meta_key === EVK_TL_AI_SEO;
+    $alt = $meta_key === EVK_TL_AI_ALT;
+    $t = $alt ? evk_tl_ai_teksty_alt($post_id, (int) ($opcje['do'] ?? $post_id), $lang, !empty($opcje['ponownie']))
+        : ($pola ? evk_tl_ai_teksty_pol($post_id, $lang, !empty($opcje['ponownie']), $obiekt)
         : ($wpis ? evk_tl_ai_teksty_wpisu($post_id, $lang, (array) ($opcje['wpis_pola'] ?? []), !empty($opcje['ponownie']))
+        : ($seo ? evk_tl_ai_teksty_seo($post_id, $lang, (array) ($opcje['seo_pola'] ?? []), !empty($opcje['ponownie']))
         : ($term ? evk_tl_ai_teksty_termu($post_id, $lang, (array) ($opcje['term_pola'] ?? []), !empty($opcje['ponownie']))
-        : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key))));
+        : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key))))));
     $braki = array_diff_key($t['braki'], array_flip($pomin));
     $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'bez_zmian' => 0, 'odrzucone' => [], 'pominiete' => [], 'zapisane_klucze' => [], 'zostalo' => 0];
     if (!$braki) return $wynik;
@@ -831,10 +855,11 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     foreach (array_keys($gotowe) as $k) {
         if ($braki[$k]['bylo'] !== '') $bylo[$k] = $braki[$k]['bylo'];
     }
-    $wynik['zapisane_klucze'] = $pola ? evk_tl_ai_zapisz_pola($post_id, $lang, $gotowe, $ai, $braki, $obiekt)
+    $wynik['zapisane_klucze'] = $alt ? evk_tl_ai_zapisz_alt($lang, $gotowe, $ai, $braki) : ($pola ? evk_tl_ai_zapisz_pola($post_id, $lang, $gotowe, $ai, $braki, $obiekt)
         : ($wpis ? evk_tl_ai_zapisz_wpis($post_id, $lang, $gotowe, $ai, $braki)
         : ($term ? evk_tl_ai_zapisz_term($post_id, $lang, $gotowe, $ai, $braki)
-        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo)));
+        : ($seo ? evk_tl_ai_zapisz_seo($post_id, $lang, $gotowe, $ai, $braki)
+        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo)))));
     $wynik['zapisane'] = count($wynik['zapisane_klucze']);
     $wynik['bez_zmian'] = count($rowne);
     $wynik['pominiete'] = array_keys($rowne);
@@ -843,16 +868,129 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
 }
 
 /**
+ * Kolumny tabeli zakresu w „Przetłumacz strony” (1.271.0): część => nazwa,
+ * osobno dla typów treści, taksonomii i obrazów.
+ */
+const EVK_TL_AI_KOLUMNY_WPIS = ['bricks' => 'Bricks', 'post_title' => 'Tytuł', 'post_content' => 'Treść', 'post_excerpt' => 'Zajawka',
+    'adres' => 'Adres', 'seo' => 'SEO', 'fields' => 'Pola Fields'];
+const EVK_TL_AI_KOLUMNY_TERM = ['name' => 'Nazwa', 'description' => 'Opis', 'adres' => 'Adres', 'fields' => 'Pola Fields'];
+const EVK_TL_AI_KOLUMNY_OBRAZY = ['alt' => 'Tłumaczenie altu', 'alt_pl' => 'Brakujący alt PL'];
+
+/** Typy treści z danymi Bricksa (bez wersji i kosza). @return list<string> */
+function evk_tl_ai_typy_bricksa(): array {
+    static $typy = null;
+    if ($typy !== null) return $typy;
+    if (!function_exists('evk_tl_el_klucze_meta')) return $typy = [];
+    global $wpdb;
+    $k = evk_tl_el_klucze_meta();
+    $typy = array_map('strval', (array) $wpdb->get_col($wpdb->prepare(
+        "SELECT DISTINCT p.post_type FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+         WHERE pm.meta_key IN (%s, %s, %s) AND p.post_type <> 'revision' AND p.post_status NOT IN ('trash', 'auto-draft')", $k[0], $k[1], $k[2])));
+    return $typy;
+}
+
+/**
+ * Wiersze tabeli zakresu (1.271.0, decyzja zgłaszającego: „każdy element jako
+ * pole wyboru, a w nim wybór części”): klucz typu => nazwa, rodzaj (`wpis`,
+ * `term`, `obrazy`) i części, które ten typ naprawdę ma. Klucz taksonomii ma
+ * przedrostek `tax:`, obrazy — `obrazy`, szablony Bricksa — `bricks_template`.
+ *
+ * @return array<string,array{nazwa:string,rodzaj:string,czesci:list<string>}>
+ */
+function evk_tl_ai_wiersze_zakresu(): array {
+    $out = [];
+    $bricks = evk_tl_ai_typy_bricksa();
+    $wpisy = function_exists('evk_tlw_typy') ? evk_tlw_typy() : [];
+    $fields = evk_tl_ai_pola_dostepne() ? evk_fields_tl_typy() : [];
+    $typy = array_values(array_unique(array_merge(array_diff($bricks, ['bricks_template']), $wpisy, $fields)));
+    foreach ($typy as $typ) {
+        $obj = get_post_type_object($typ);
+        if (!$obj) continue;
+        $cz = [];
+        if (in_array($typ, $bricks, true)) $cz[] = 'bricks';
+        if (in_array($typ, $wpisy, true)) {
+            $pola = evk_tlw_pola($typ);
+            foreach (['post_title', 'post_content', 'post_excerpt'] as $p) if (isset($pola[$p])) $cz[] = $p;
+            $cz[] = 'adres';
+            if (evk_tl_ai_seo_dostepne()) $cz[] = 'seo';
+        }
+        if (in_array($typ, $fields, true)) $cz[] = 'fields';
+        $out[$typ] = ['nazwa' => (string) $obj->labels->name, 'rodzaj' => 'wpis', 'czesci' => $cz];
+    }
+    if (in_array('bricks_template', $bricks, true)) $out['bricks_template'] = ['nazwa' => 'Szablony Bricksa', 'rodzaj' => 'wpis', 'czesci' => ['bricks']];
+    $tax = evk_tl_ai_termy_dostepne() ? evk_tlt_taksonomie() : [];
+    $tax_f = evk_tl_ai_pola_termow_dostepne() ? evk_fields_tl_taksonomie() : [];
+    foreach (array_values(array_unique(array_merge($tax, $tax_f))) as $t) {
+        $obj = get_taxonomy($t);
+        if (!$obj) continue;
+        $cz = in_array($t, $tax, true) ? ['name', 'description', 'adres'] : [];
+        if (in_array($t, $tax_f, true)) $cz[] = 'fields';
+        $out['tax:' . $t] = ['nazwa' => (string) $obj->labels->name, 'rodzaj' => 'term', 'czesci' => $cz];
+    }
+    if (evk_tl_ai_alt_dostepne()) $out['obrazy'] = ['nazwa' => 'Obrazy (biblioteka mediów)', 'rodzaj' => 'obrazy', 'czesci' => ['alt', 'alt_pl']];
+    return $out;
+}
+
+/**
+ * Zakres z żądania (`zakres[typ][]=część`) — tylko znane typy i części.
+ *
+ * @param mixed $raw
+ * @return array<string,list<string>>
+ */
+function evk_tl_ai_zakres_z($raw): array {
+    $out = [];
+    $raw = is_array($raw) ? wp_unslash($raw) : [];
+    foreach (evk_tl_ai_wiersze_zakresu() as $typ => $w) {
+        $cz = array_values(array_intersect($w['czesci'], array_map('strval', (array) ($raw[$typ] ?? []))));
+        if ($cz) $out[$typ] = $cz;
+    }
+    return $out;
+}
+
+/** Domyślny zakres: treść Bricksa każdego typu — tak tłumaczył hurt przed tabelą. @return array<string,list<string>> */
+function evk_tl_ai_zakres_domyslny(): array {
+    $out = [];
+    foreach (evk_tl_ai_wiersze_zakresu() as $typ => $w) if (in_array('bricks', $w['czesci'], true)) $out[$typ] = ['bricks'];
+    return $out;
+}
+
+/**
+ * Opcje kroku z części zaznaczonych przy typie jednostki: teksty i adres
+ * wpisu, nazwa, opis i adres termu, SEO, alt.
+ *
+ * @param list<string> $czesci
+ * @return array<string,mixed>
+ */
+function evk_tl_ai_opcje_czesci(array $czesci): array {
+    return ['wpis_pola' => array_values(array_intersect(EVK_TL_AI_POLA_WPISU, $czesci)), 'adres' => in_array('adres', $czesci, true),
+        'term_pola' => array_values(array_intersect(EVK_TL_AI_POLA_TERMOW, $czesci)), 'term_adres' => in_array('adres', $czesci, true),
+        'seo_pola' => in_array('seo', $czesci, true) ? ['seo_title', 'seo_desc', 'seo_keywords'] : []];
+}
+
+/**
  * Części stron z tekstami bez tłumaczenia: liczba braków w każdym języku.
  * W trybie ponownym (1.262.0) liczą się też niesprawdzone tłumaczenia AI —
  * `ai` mówi, ile ich jest wśród braków.
  *
+ * Zakres (1.271.0): typ => części (tabela „typ × część”); null — treść
+ * Bricksa każdego typu. Jednostka niesie `typ` i `grupa` (nazwa wiersza) —
+ * lista w panelu grupuje po nich, a krok dostaje części swojego typu.
+ *
+ * @param array<string,list<string>>|null $zakres
  * @return list<array<string,mixed>>
  */
-function evk_tl_ai_jednostki(bool $ponownie = false, bool $pola = false, array $wpis_pola = [], bool $adres = false, array $term_pola = [], bool $term_adres = false): array {
+function evk_tl_ai_jednostki(bool $ponownie = false, ?array $zakres = null): array {
     $jezyki = array_map('strval', evk_tl_kody_jezykow());
+    $wiersze = evk_tl_ai_wiersze_zakresu();
+    $zakres = $zakres ?? evk_tl_ai_zakres_domyslny();
     $out = [];
+    $dodaj = static function (array $lista, string $typ) use (&$out, $wiersze): void {
+        foreach ($lista as $j) $out[] = $j + ['typ' => $typ, 'grupa' => $wiersze[$typ]['nazwa'] ?? $typ];
+    };
+    $bricks = [];
     foreach (evk_tl_el_wpisy_bricksa() as [$post_id, $meta_key]) {
+        $typ = (string) get_post_type($post_id);
+        if (!in_array('bricks', $zakres[$typ] ?? [], true)) continue;
         $dane = get_post_meta($post_id, $meta_key, true);
         if (!is_array($dane)) continue;
         $stan = $ponownie ? evk_tl_ai_stan_czesci($post_id, $meta_key) : null;
@@ -865,15 +1003,27 @@ function evk_tl_ai_jednostki(bool $ponownie = false, bool $pola = false, array $
             if ($n) $ai[$j] = $n;
         }
         if (!$braki) continue;
-        $out[] = ['post_id' => $post_id, 'meta_key' => $meta_key, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
+        $bricks[$typ][] = ['post_id' => $post_id, 'meta_key' => $meta_key, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
             'czesc' => evk_tl_el_czesc($meta_key), 'adres' => evk_tl_el_adres_edycji($post_id), 'braki' => $braki, 'ai' => (object) $ai];
     }
-    /* Pola Evoke FIELDS (1.267.0) i teksty wpisów (1.268.0) — tylko po zaznaczeniu pól wyboru. */
-    if ($pola) $out = array_merge($out, evk_tl_ai_jednostki_pol($jezyki, $ponownie));
-    if ($wpis_pola || $adres) $out = array_merge($out, evk_tl_ai_jednostki_wpisow($jezyki, $wpis_pola, $adres, $ponownie));
-    /* Kategorie i tagi (1.270.0): nazwa, opis i adres z nazwy; pola Fields termów razem z polami wpisów. */
-    if ($term_pola || $term_adres) $out = array_merge($out, evk_tl_ai_jednostki_termow($jezyki, $term_pola, $term_adres, $ponownie));
-    if ($pola) $out = array_merge($out, evk_tl_ai_jednostki_pol_termow($jezyki, $ponownie));
+    /* Kolejność wierszy tabeli: w obrębie typu — Bricks, teksty wpisu, SEO, pola Fields. */
+    foreach ($wiersze as $typ => $w) {
+        $cz = $zakres[$typ] ?? [];
+        if (!$cz) continue;
+        $o = evk_tl_ai_opcje_czesci($cz);
+        if ($w['rodzaj'] === 'wpis') {
+            $dodaj($bricks[$typ] ?? [], $typ);
+            if ($o['wpis_pola'] || $o['adres']) $dodaj(evk_tl_ai_jednostki_wpisow($jezyki, $o['wpis_pola'], $o['adres'], $ponownie, [$typ]), $typ);
+            if ($o['seo_pola'] && function_exists('evk_tl_ai_jednostki_seo')) $dodaj(evk_tl_ai_jednostki_seo($jezyki, $ponownie, [$typ]), $typ);
+            if (in_array('fields', $cz, true)) $dodaj(evk_tl_ai_jednostki_pol($jezyki, $ponownie, [$typ]), $typ);
+        } elseif ($w['rodzaj'] === 'term') {
+            $tax = substr($typ, 4);
+            if ($o['term_pola'] || $o['term_adres']) $dodaj(evk_tl_ai_jednostki_termow($jezyki, $o['term_pola'], $o['term_adres'], $ponownie, [$tax]), $typ);
+            if (in_array('fields', $cz, true)) $dodaj(evk_tl_ai_jednostki_pol_termow($jezyki, $ponownie, [$tax]), $typ);
+        } elseif (function_exists('evk_tl_ai_jednostki_obrazow')) {
+            $dodaj(evk_tl_ai_jednostki_obrazow($jezyki, $cz, $ponownie), $typ);
+        }
+    }
     return $out;
 }
 
@@ -1263,11 +1413,6 @@ function evk_tl_ai_builder(int $post_id, string $lang, array $kontekst, array $t
 const EVK_TL_AI_WPIS = 'evk_wpis';
 const EVK_TL_AI_POLA_WPISU = ['post_title', 'post_content', 'post_excerpt'];
 
-/** @param mixed $raw @return list<string> */
-function evk_tl_ai_pola_wpisu_z($raw): array {
-    return array_values(array_intersect(EVK_TL_AI_POLA_WPISU, array_map('strval', (array) wp_unslash($raw))));
-}
-
 /**
  * Teksty wpisu w kształcie evk_tl_ai_teksty(): kontekst (tytuł, treść, zajawka,
  * potem pola Fields i treść Bricksa strony) i braki — tylko pól z `$pola`.
@@ -1362,8 +1507,10 @@ function evk_tl_ai_adres_z_tytulu(int $post_id, string $lang): array {
  * @param list<string> $pola
  * @return list<array<string,mixed>>
  */
-function evk_tl_ai_jednostki_wpisow(array $jezyki, array $pola, bool $adres, bool $ponownie): array {
+function evk_tl_ai_jednostki_wpisow(array $jezyki, array $pola, bool $adres, bool $ponownie, array $tylko = []): array {
     if (!function_exists('evk_tlw_typy') || !($typy = evk_tlw_typy())) return [];
+    if ($tylko) $typy = array_values(array_intersect($typy, $tylko));
+    if (!$typy) return [];
     $ids = array_map('intval', get_posts(['post_type' => $typy, 'post_status' => ['publish', 'draft', 'pending', 'private', 'future'],
         'numberposts' => 1000, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'ASC', 'no_found_rows' => true, 'suppress_filters' => true]));
     if ($ids) update_meta_cache('post', $ids);
@@ -1501,8 +1648,10 @@ function evk_tl_ai_zapisz_pola(int $post_id, string $lang, array $gotowe, array 
  * @param list<string> $jezyki
  * @return list<array<string,mixed>>
  */
-function evk_tl_ai_jednostki_pol(array $jezyki, bool $ponownie): array {
+function evk_tl_ai_jednostki_pol(array $jezyki, bool $ponownie, array $tylko = []): array {
     if (!evk_tl_ai_pola_dostepne() || !($typy = evk_fields_tl_typy())) return [];
+    if ($tylko) $typy = array_values(array_intersect($typy, $tylko));
+    if (!$typy) return [];
     $ids = get_posts(['post_type' => $typy, 'post_status' => ['publish', 'draft', 'pending', 'private', 'future'],
         'numberposts' => 1000, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'ASC', 'no_found_rows' => true, 'suppress_filters' => true]);
     $out = [];
@@ -1599,11 +1748,6 @@ const EVK_TL_AI_TERM = 'evk_term';
 const EVK_TL_AI_POLA_TERMU = 'evk_fields_term';
 const EVK_TL_AI_POLA_TERMOW = ['name', 'description'];
 
-/** @param mixed $raw @return list<string> */
-function evk_tl_ai_pola_termu_z($raw): array {
-    return array_values(array_intersect(EVK_TL_AI_POLA_TERMOW, array_map('strval', (array) wp_unslash($raw))));
-}
-
 /** Moduł termów (56) wczytany. */
 function evk_tl_ai_termy_dostepne(): bool {
     return function_exists('evk_tlt_taksonomie') && function_exists('evk_tlt_meta');
@@ -1630,6 +1774,7 @@ function evk_tl_ai_tytul_termu(int $term_id): string {
 /** Tytuł części dla AI i dziennika: wpis albo term. */
 function evk_tl_ai_tytul_czesci(int $id, string $meta_key): string {
     if ($meta_key === EVK_TL_AI_TERM || $meta_key === EVK_TL_AI_POLA_TERMU) return evk_tl_ai_tytul_termu($id);
+    if ($meta_key === EVK_TL_AI_ALT) return 'Biblioteka mediów — teksty alternatywne obrazów';
     return (string) (get_the_title($id) ?: ('#' . $id));
 }
 
@@ -1735,10 +1880,10 @@ function evk_tl_ai_id_termow(array $taksonomie): array {
  * @param list<string> $pola
  * @return list<array<string,mixed>>
  */
-function evk_tl_ai_jednostki_termow(array $jezyki, array $pola, bool $adres, bool $ponownie): array {
+function evk_tl_ai_jednostki_termow(array $jezyki, array $pola, bool $adres, bool $ponownie, array $tylko = []): array {
     if (!evk_tl_ai_termy_dostepne()) return [];
     $out = [];
-    foreach (evk_tl_ai_id_termow(evk_tlt_taksonomie()) as $id) {
+    foreach (evk_tl_ai_id_termow($tylko ? array_values(array_intersect(evk_tlt_taksonomie(), $tylko)) : evk_tlt_taksonomie()) as $id) {
         $t = get_term($id);
         if (!($t instanceof WP_Term)) continue;
         $braki = [];
@@ -1764,10 +1909,10 @@ function evk_tl_ai_jednostki_termow(array $jezyki, array $pola, bool $adres, boo
  * @param list<string> $jezyki
  * @return list<array<string,mixed>>
  */
-function evk_tl_ai_jednostki_pol_termow(array $jezyki, bool $ponownie): array {
+function evk_tl_ai_jednostki_pol_termow(array $jezyki, bool $ponownie, array $tylko = []): array {
     if (!evk_tl_ai_pola_termow_dostepne()) return [];
     $out = [];
-    foreach (evk_tl_ai_id_termow(evk_fields_tl_taksonomie()) as $id) {
+    foreach (evk_tl_ai_id_termow($tylko ? array_values(array_intersect(evk_fields_tl_taksonomie(), $tylko)) : evk_fields_tl_taksonomie()) as $id) {
         $braki = [];
         $ai = [];
         foreach ($jezyki as $j) {
@@ -1853,6 +1998,461 @@ function evk_tl_ai_pola_termow_do_sprawdzenia(int $limit = 200): array {
 }
 
 // =========================================================================
+// SEO (1.271.0)
+// =========================================================================
+
+/*
+ * Tytuł, opis i słowa kluczowe SEO wpisu (85-seo: `_evk_tl_{język}__seo_*`
+ * i źródło). Polski tekst — ten, który działa na stronie: Bricks przed zakładką
+ * SEO (evk_seo_pl_pola()). Pole ze znacznikiem `{tl_…}` tłumaczy się samo —
+ * AI go pomija. W hurcie część `evk_seo` (kolumna „SEO” tabeli zakresu).
+ */
+const EVK_TL_AI_SEO = 'evk_seo';
+const EVK_TL_AI_POLA_SEO = ['seo_title' => 'Tytuł SEO', 'seo_desc' => 'Opis SEO', 'seo_keywords' => 'Słowa kluczowe'];
+
+/** Moduł SEO z wersjami językowymi i moduł wpisów (źródło) — bez nich SEO poza AI. */
+function evk_tl_ai_seo_dostepne(): bool {
+    return function_exists('evk_seo_pl_pola') && function_exists('evk_seo_meta_jezyka') && function_exists('evk_tlw_zrodlo');
+}
+
+/**
+ * Teksty SEO wpisu w kształcie evk_tl_ai_teksty(): kontekst (tytuł wpisu
+ * z tłumaczeniem, pola SEO) i braki — tylko pól z `$pola`. Klucz `{pole}|{język}`.
+ *
+ * @param list<string> $pola
+ * @return array{kontekst:list<array{element:string,opis:string,pl:string,tl:string}>,braki:array<string,array<string,mixed>>}
+ */
+function evk_tl_ai_teksty_seo(int $post_id, string $lang, array $pola, bool $ponownie = false): array {
+    $out = ['kontekst' => [], 'braki' => []];
+    if (!evk_tl_ai_seo_dostepne() || !get_post($post_id)) return $out;
+    $tytul = (string) get_post_field('post_title', $post_id, 'raw');
+    if (evk_tl_ai_do_tlumaczenia($tytul)) {
+        $out['kontekst'][] = ['element' => 'Wpis', 'opis' => 'Tytuł', 'pl' => $tytul, 'tl' => function_exists('evk_tlw_meta') ? evk_tlw_meta($post_id, $lang, 'post_title') : ''];
+    }
+    $pl = evk_seo_pl_pola($post_id);
+    foreach (evk_seo_pola_jezykowe() as $klucz => $pole) {
+        $tekst = trim((string) ($pl[$klucz] ?? ''));
+        if (!evk_tl_ai_do_tlumaczenia($tekst) || evk_seo_ma_tl($tekst)) continue;
+        $tl = evk_seo_meta_jezyka($post_id, $lang, $pole);
+        $ponow = $ponownie && $tl !== '' && evk_tlw_ai(evk_seo_zrodlo_jezyka($post_id, $lang, $pole));
+        $opis = EVK_TL_AI_POLA_SEO[$pole] ?? $pole;
+        $out['kontekst'][] = ['element' => 'SEO', 'opis' => $opis, 'pl' => $tekst, 'tl' => $tl !== '' && !$ponow ? $tl : ''];
+        if (!in_array($pole, $pola, true) || ($tl !== '' && !$ponow)) continue;
+        $out['braki'][$pole . '|' . $lang] = ['pl' => $tekst, 'element' => 'SEO', 'opis' => $opis, 'id' => '', 'sciezka' => $pole,
+            'pole' => $pole, 'n' => count($out['kontekst']), 'bylo' => $ponow ? $tl : ''];
+    }
+    return $out;
+}
+
+/**
+ * Zapis kroku hurtu dla SEO — jak zakładka SEO: sanityzacja pola, źródło
+ * ze znacznikiem przy AI.
+ *
+ * @param array<string,string>              $gotowe
+ * @param array<string,bool>                $ai
+ * @param array<string,array<string,mixed>> $braki
+ * @return list<string>
+ */
+function evk_tl_ai_zapisz_seo(int $post_id, string $lang, array $gotowe, array $ai, array $braki): array {
+    $out = [];
+    foreach ($gotowe as $k => $tl) {
+        $pole = (string) ($braki[$k]['sciezka'] ?? '');
+        if (!isset(EVK_TL_AI_POLA_SEO[$pole])) continue;
+        $tekst = $pole === 'seo_desc' ? sanitize_textarea_field((string) $tl) : sanitize_text_field((string) $tl);
+        if ($tekst === '') continue;
+        update_post_meta($post_id, '_evk_tl_' . $lang . '__' . $pole, wp_slash($tekst));
+        update_post_meta($post_id, '_evk_tl_' . $lang . '__' . $pole . '__zrodlo', (!empty($ai[$k]) ? 'ai-' : '') . evk_tlw_zrodlo((string) $braki[$k]['pl']));
+        $out[] = (string) $k;
+    }
+    return $out;
+}
+
+/** Wpisy z polskim SEO (zakładka albo ustawienia strony Bricksa) wśród typów. @param list<string> $typy @return list<int> */
+function evk_tl_ai_id_wpisow_seo(array $typy): array {
+    global $wpdb;
+    if (!$typy) return [];
+    $in = implode(',', array_fill(0, count($typy), '%s'));
+    $ids = $wpdb->get_col($wpdb->prepare("SELECT DISTINCT pm.post_id FROM {$wpdb->postmeta} pm JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+        WHERE pm.meta_key IN ('_evoke_seo_title', '_evoke_seo_desc', '_evoke_seo_keywords', '_bricks_page_settings') AND pm.meta_value <> ''
+        AND p.post_type IN ($in) AND p.post_status IN ('publish', 'draft', 'pending', 'private', 'future') ORDER BY pm.post_id LIMIT 2000", ...$typy));
+    return array_map('intval', (array) $ids);
+}
+
+/**
+ * Wpisy z brakami SEO (lista hurtu): część `evk_seo`, wszystkie trzy pola.
+ *
+ * @param list<string> $jezyki
+ * @param list<string> $tylko
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_jednostki_seo(array $jezyki, bool $ponownie, array $tylko = []): array {
+    if (!evk_tl_ai_seo_dostepne() || !function_exists('evk_tlw_typy')) return [];
+    $typy = $tylko ? array_values(array_intersect(evk_tlw_typy(), $tylko)) : evk_tlw_typy();
+    $out = [];
+    foreach (evk_tl_ai_id_wpisow_seo($typy) as $post_id) {
+        $braki = [];
+        $ai = [];
+        foreach ($jezyki as $j) {
+            $b = evk_tl_ai_teksty_seo($post_id, $j, array_keys(EVK_TL_AI_POLA_SEO), $ponownie)['braki'];
+            if ($b) $braki[$j] = count($b);
+            $x = count(array_filter($b, static function ($y) { return $y['bylo'] !== ''; }));
+            if ($x) $ai[$j] = $x;
+        }
+        if (!$braki) continue;
+        $out[] = ['post_id' => $post_id, 'meta_key' => EVK_TL_AI_SEO, 'tytul' => get_the_title($post_id) ?: ('#' . $post_id),
+            'czesc' => 'SEO', 'adres' => (string) get_edit_post_link($post_id, 'raw'), 'braki' => $braki, 'ai' => (object) $ai];
+    }
+    return $out;
+}
+
+/**
+ * Lista „Do sprawdzenia” (52): pola SEO z tłumaczeniem AI albo po zmianie
+ * polskiego tekstu — część `evk_seo`, odnośnik do edycji wpisu (metaboks SEO).
+ *
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_seo_do_sprawdzenia(int $limit = 200): array {
+    global $wpdb;
+    if (!evk_tl_ai_seo_dostepne()) return [];
+    $wiersze = (array) $wpdb->get_results($wpdb->prepare(
+        "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE meta_key LIKE %s AND meta_key LIKE %s ORDER BY post_id DESC LIMIT %d",
+        $wpdb->esc_like('_evk_tl_') . '%', '%' . $wpdb->esc_like('__zrodlo'), $limit * 4));
+    $out = [];
+    foreach ($wiersze as $w) {
+        if (!preg_match('/^_evk_tl_([a-z0-9_]+?)__(seo_title|seo_desc|seo_keywords)__zrodlo$/', (string) $w->meta_key, $m)) continue;
+        $pid = (int) $w->post_id;
+        [, $lang, $pole] = $m;
+        $klucz = array_search($pole, evk_seo_pola_jezykowe(), true);
+        $tl = evk_seo_meta_jezyka($pid, $lang, $pole);
+        $pl = (string) (evk_seo_pl_pola($pid)[$klucz] ?? '');
+        $z = (string) $w->meta_value;
+        if ($tl === '' || trim($pl) === '') continue;
+        $stary = evk_tlw_nieaktualne($tl, $z, $pl);
+        if (!$stary && !evk_tlw_ai($z)) continue;
+        $out[] = ['post_id' => $pid, 'meta_key' => EVK_TL_AI_SEO, 'klucz' => $pole . '|' . $lang, 'element' => 'SEO', 'pole' => EVK_TL_AI_POLA_SEO[$pole],
+            'jezyk' => $lang, 'oryginal' => $pl, 'tlumaczenie' => $tl, 'ai' => !$stary, 'edycja' => (string) get_edit_post_link($pid, 'raw')];
+        if (count($out) >= $limit) break;
+    }
+    return $out;
+}
+
+// =========================================================================
+// ALT OBRAZÓW (1.271.0)
+// =========================================================================
+
+/*
+ * Tekst alternatywny obrazów z biblioteki (57: `_evk_tl_{język}__alt` i źródło):
+ *   — tłumaczenie polskiego altu (część `evk_alt`);
+ *   — brakujący polski alt — AI ogląda obraz (część `evk_alt_pl`, decyzja
+ *     zgłaszającego). Wynik idzie do `_wp_attachment_image_alt`, a skrót
+ *     opisu do `_evk_alt_ai`: „AI — do sprawdzenia”, dopóki alt jest tym
+ *     tekstem (poprawka albo „Sprawdzone” zdejmuje znacznik).
+ * W hurcie wiersz „Obrazy” tabeli zakresu, pozycje po EVK_TL_AI_ALT_PORCJA
+ * obrazów: identyfikator części to pierwszy obraz porcji, `do` — ostatni.
+ */
+const EVK_TL_AI_ALT = 'evk_alt';
+const EVK_TL_AI_ALT_PL = 'evk_alt_pl';
+const EVK_TL_AI_ALT_PORCJA = 25;
+/* Obraz do AI: najmniejszy rozmiar biblioteki z dłuższym bokiem co najmniej tyle (zgłaszający: „mniej niż 768”). */
+const EVK_TL_AI_ALT_BOK = 512;
+/* Opisów na jeden krok hurtu — każdy to osobne zapytanie z obrazem. */
+const EVK_TL_AI_ALT_NA_KROK = 3;
+
+/** Moduł altów (57) i wpisów (źródło) wczytane. */
+function evk_tl_ai_alt_dostepne(): bool {
+    return function_exists('evk_tlw_jezyki') && function_exists('evk_tlw_zrodlo');
+}
+
+/** Polski alt obrazu (surowo — w panelu filtr języka 57 i tak nie działa). */
+function evk_tl_ai_alt_pl(int $id): string {
+    return trim((string) get_post_meta($id, '_wp_attachment_image_alt', true));
+}
+
+/** Obrazy biblioteki, najstarsze najpierw. @return list<int> */
+function evk_tl_ai_id_obrazow(): array {
+    return array_map('intval', get_posts(['post_type' => 'attachment', 'post_mime_type' => 'image', 'post_status' => 'inherit',
+        'numberposts' => 5000, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'ASC', 'no_found_rows' => true, 'suppress_filters' => true]));
+}
+
+/**
+ * Plik obrazu dla AI: najmniejszy rozmiar z dłuższym bokiem ≥ EVK_TL_AI_ALT_BOK
+ * (zwykle `medium_large`, 768 px), a gdy takiego nie ma — oryginał. SVG i pliki
+ * powyżej 4 MB — null.
+ *
+ * @return array{mime:string,dane:string,plik:string,szer:int,wys:int}|null
+ */
+function evk_tl_ai_obraz_do_ai(int $id): ?array {
+    $plik = (string) get_attached_file($id);
+    $meta = wp_get_attachment_metadata($id);
+    if ($plik === '' || !is_array($meta)) return null;
+    $wybor = ['file' => $plik, 'width' => (int) ($meta['width'] ?? 0), 'height' => (int) ($meta['height'] ?? 0), 'mime' => (string) get_post_mime_type($id)];
+    $najlepszy = null;
+    foreach ((array) ($meta['sizes'] ?? []) as $r) {
+        $bok = max((int) $r['width'], (int) $r['height']);
+        if ($bok < EVK_TL_AI_ALT_BOK || empty($r['file'])) continue;
+        if ($najlepszy === null || $bok < max($najlepszy['width'], $najlepszy['height'])) {
+            $najlepszy = ['file' => dirname($plik) . '/' . $r['file'], 'width' => (int) $r['width'], 'height' => (int) $r['height'],
+                'mime' => (string) $r['mime-type']];
+        }
+    }
+    if ($najlepszy !== null && max($najlepszy['width'], $najlepszy['height']) < max($wybor['width'], $wybor['height'])) $wybor = $najlepszy;
+    if (!in_array($wybor['mime'], ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], true) || !is_readable($wybor['file'])) return null;
+    $rozmiar = (int) filesize($wybor['file']);
+    if ($rozmiar <= 0 || $rozmiar > 4 * 1024 * 1024) return null;
+    return ['mime' => $wybor['mime'], 'dane' => base64_encode((string) file_get_contents($wybor['file'])), 'plik' => wp_basename($wybor['file']),
+        'szer' => $wybor['width'], 'wys' => $wybor['height']];
+}
+
+/**
+ * Polski alt z obrazu (AI ogląda obraz). Kontekst: nazwa pliku, tytuł
+ * załącznika, wpis, do którego go wgrano, i opis strony z ustawień.
+ *
+ * @return array{ok:bool,tekst?:string,blad?:string,czekaj?:int,stop?:bool}
+ */
+function evk_tl_ai_opisz_obraz(int $id, array $u): array {
+    $o = evk_tl_ai_obraz_do_ai($id);
+    if ($o === null) return ['ok' => false, 'blad' => 'Tego pliku AI nie obejrzy (format albo rozmiar).'];
+    $s = "You write alt text in Polish for images on a website.\n\nRules:\n"
+       . "- Describe what matters in the image for someone who cannot see it, in one short sentence (at most 125 characters).\n"
+       . "- Do not start with \"Obraz przedstawia\", \"Zdjęcie\" or similar. No quotes, no file names, no hashtags.\n"
+       . "- If the image contains readable text that matters, include it.\n"
+       . "- Return JSON: {\"translations\":[{\"key\":\"t1\",\"text\":\"…\"}]}.\n";
+    if (trim((string) $u['opis']) !== '') $s .= "\nAbout the website:\n" . trim((string) $u['opis']) . "\n";
+    $rodzic = (int) wp_get_post_parent_id($id);
+    $m = 'File: ' . $o['plik'] . "\nTitle: " . (string) get_the_title($id) . ($rodzic ? "\nUsed on page: " . (string) get_the_title($rodzic) : '');
+    $r = evk_tl_ai_wyslij($u, $s, $m, [['mime' => $o['mime'], 'dane' => $o['dane']]]);
+    if (!$r['ok']) return ['ok' => false, 'blad' => (string) $r['blad'], 'czekaj' => (int) ($r['czekaj'] ?? 0), 'stop' => !empty($r['stop'])];
+    $tekst = trim(sanitize_text_field((string) ($r['tlumaczenia']['t1'] ?? '')));
+    if ($tekst === '') return ['ok' => false, 'blad' => 'AI nie zwróciło opisu.'];
+    return ['ok' => true, 'tekst' => mb_substr($tekst, 0, 200)];
+}
+
+/** Czy polski alt to wciąż nieprzejrzany opis AI (skrót w `_evk_alt_ai`). */
+function evk_tl_ai_alt_pl_z_ai(int $id): bool {
+    $z = (string) get_post_meta($id, '_evk_alt_ai', true);
+    $alt = evk_tl_ai_alt_pl($id);
+    return $z !== '' && $alt !== '' && evk_tlw_zrodlo($alt) === $z;
+}
+
+/** Zapis polskiego altu z AI ze znacznikiem „do sprawdzenia”. */
+function evk_tl_ai_zapisz_alt_pl(int $id, string $tekst): void {
+    update_post_meta($id, '_wp_attachment_image_alt', wp_slash($tekst));
+    update_post_meta($id, '_evk_alt_ai', evk_tlw_zrodlo($tekst));
+}
+
+/**
+ * Teksty altów porcji obrazów (identyfikatory od–do) w kształcie
+ * evk_tl_ai_teksty(): kontekst — polskie alty porcji, braki — puste
+ * (w trybie ponownym także niesprawdzone AI) alty języka. Klucz `{id}|{język}`.
+ *
+ * @return array{kontekst:list<array{element:string,opis:string,pl:string,tl:string}>,braki:array<string,array<string,mixed>>}
+ */
+function evk_tl_ai_teksty_alt(int $od, int $do, string $lang, bool $ponownie = false): array {
+    $out = ['kontekst' => [], 'braki' => []];
+    if (!evk_tl_ai_alt_dostepne()) return $out;
+    foreach (evk_tl_ai_id_obrazow() as $id) {
+        if ($id < $od || $id > $do) continue;
+        $pl = evk_tl_ai_alt_pl($id);
+        if (!evk_tl_ai_do_tlumaczenia($pl)) continue;
+        $tl = (string) get_post_meta($id, '_evk_tl_' . $lang . '__alt', true);
+        $ponow = $ponownie && $tl !== '' && evk_tlw_ai((string) get_post_meta($id, '_evk_tl_' . $lang . '__alt__zrodlo', true));
+        $plik = wp_basename((string) get_attached_file($id));
+        $out['kontekst'][] = ['element' => 'Obraz', 'opis' => 'Alt (' . $plik . ')', 'pl' => $pl, 'tl' => $tl !== '' && !$ponow ? $tl : ''];
+        if ($tl !== '' && !$ponow) continue;
+        $out['braki'][$id . '|' . $lang] = ['pl' => $pl, 'element' => 'Obraz', 'opis' => 'Alt', 'id' => '', 'sciezka' => (string) $id,
+            'pole' => 'alt', 'n' => count($out['kontekst']), 'bylo' => $ponow ? $tl : ''];
+    }
+    return $out;
+}
+
+/**
+ * Zapis kroku hurtu dla altów — jak pole w oknie mediów: tekst bez znaczników,
+ * źródło ze znacznikiem przy AI. Bez prawa edycji obrazu — pominięty.
+ *
+ * @param array<string,string>              $gotowe
+ * @param array<string,bool>                $ai
+ * @param array<string,array<string,mixed>> $braki
+ * @return list<string>
+ */
+function evk_tl_ai_zapisz_alt(string $lang, array $gotowe, array $ai, array $braki): array {
+    $out = [];
+    foreach ($gotowe as $k => $tl) {
+        $id = (int) ($braki[$k]['sciezka'] ?? 0);
+        $tekst = sanitize_text_field((string) $tl);
+        if (!$id || $tekst === '' || !current_user_can('edit_post', $id)) continue;
+        update_post_meta($id, '_evk_tl_' . $lang . '__alt', wp_slash($tekst));
+        update_post_meta($id, '_evk_tl_' . $lang . '__alt__zrodlo', (!empty($ai[$k]) ? 'ai-' : '') . evk_tlw_zrodlo((string) $braki[$k]['pl']));
+        $out[] = (string) $k;
+    }
+    return $out;
+}
+
+/**
+ * Obrazy z brakami (lista hurtu), porcjami: „Brakujący alt PL” (obrazy bez
+ * polskiego altu, braki pod kodem `pl`) i „Alt” (tłumaczenia; przy zaznaczonym
+ * tworzeniu altu PL liczą się też obrazy, które go dopiero dostaną).
+ *
+ * @param list<string> $jezyki
+ * @param list<string> $czesci
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_jednostki_obrazow(array $jezyki, array $czesci, bool $ponownie): array {
+    if (!evk_tl_ai_alt_dostepne()) return [];
+    $ids = evk_tl_ai_id_obrazow();
+    $tworz = in_array('alt_pl', $czesci, true);
+    $out = [];
+    $porcje = static function (array $lista): array { return array_chunk($lista, EVK_TL_AI_ALT_PORCJA); };
+    $adres = admin_url('upload.php?mode=list');
+    $nr = 0;
+    if ($tworz) {
+        $bez = array_values(array_filter($ids, static function ($id) { return evk_tl_ai_alt_pl($id) === ''; }));
+        foreach ($porcje($bez) as $p) {
+            $out[] = ['post_id' => $p[0], 'do' => end($p), 'meta_key' => EVK_TL_AI_ALT_PL, 'tytul' => 'Obrazy bez altu ' . ($nr * EVK_TL_AI_ALT_PORCJA + 1) . '–'
+                . ($nr * EVK_TL_AI_ALT_PORCJA + count($p)), 'czesc' => 'Alt PL (AI ogląda obraz)', 'adres' => $adres, 'braki' => ['pl' => count($p)], 'ai' => (object) []];
+            $nr++;
+        }
+    }
+    if (in_array('alt', $czesci, true)) {
+        $kandydaci = array_values(array_filter($ids, static function ($id) use ($tworz) { return $tworz || evk_tl_ai_alt_pl($id) !== ''; }));
+        $nr = 0;
+        foreach ($porcje($kandydaci) as $p) {
+            $braki = [];
+            $ai = [];
+            foreach ($jezyki as $j) {
+                $n = 0;
+                $x = 0;
+                foreach ($p as $id) {
+                    $tl = (string) get_post_meta($id, '_evk_tl_' . $j . '__alt', true);
+                    $z = (string) get_post_meta($id, '_evk_tl_' . $j . '__alt__zrodlo', true);
+                    if ($tl === '') $n++;
+                    elseif ($ponownie && evk_tlw_ai($z)) { $n++; $x++; }
+                }
+                if ($n) $braki[$j] = $n;
+                if ($x) $ai[$j] = $x;
+            }
+            $nr++;
+            if (!$braki) continue;
+            $out[] = ['post_id' => $p[0], 'do' => end($p), 'meta_key' => EVK_TL_AI_ALT, 'tytul' => 'Obrazy ' . (($nr - 1) * EVK_TL_AI_ALT_PORCJA + 1) . '–'
+                . (($nr - 1) * EVK_TL_AI_ALT_PORCJA + count($p)), 'czesc' => 'Alt', 'adres' => $adres, 'braki' => $braki, 'ai' => (object) $ai];
+        }
+    }
+    return $out;
+}
+
+/**
+ * Krok „Brakujący alt PL”: do EVK_TL_AI_ALT_NA_KROK obrazów porcji bez altu,
+ * każdy osobnym zapytaniem z obrazem. Nieudane idą do `odrzucone` (klucz
+ * `{id}|pl`) — przebieg ich nie ponawia.
+ *
+ * @param list<string>        $pomin
+ * @param array<string,mixed> $opcje
+ * @return array<string,mixed>
+ */
+function evk_tl_ai_krok_alt_pl(int $od, int $do, array $pomin, array $opcje): array {
+    $u = evk_tl_ai_na_przebieg(evk_tl_ai_ustawienia(), (string) ($opcje['dostawca'] ?? ''), (string) ($opcje['model'] ?? ''));
+    $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'bez_zmian' => 0, 'odrzucone' => [], 'pominiete' => [], 'zapisane_klucze' => [], 'zostalo' => 0];
+    $czeka = [];
+    foreach (evk_tl_ai_id_obrazow() as $id) {
+        if ($id < $od || $id > $do || evk_tl_ai_alt_pl($id) !== '' || in_array($id . '|pl', $pomin, true) || !current_user_can('edit_post', $id)) continue;
+        $czeka[] = $id;
+    }
+    foreach (array_slice($czeka, 0, EVK_TL_AI_ALT_NA_KROK) as $id) {
+        $r = evk_tl_ai_opisz_obraz($id, $u);
+        if (!$r['ok']) {
+            if (!empty($r['stop']) || !empty($r['czekaj'])) {
+                $wynik['zostalo'] = count($czeka) - $wynik['zapisane'] - count($wynik['odrzucone']);
+                return $wynik + ['blad' => (string) $r['blad'], 'czekaj' => (int) ($r['czekaj'] ?? 0), 'stop' => !empty($r['stop'])];
+            }
+            $wynik['odrzucone'][] = $id . '|pl';
+            $wynik['blad'] = (string) $r['blad'];
+            continue;
+        }
+        evk_tl_ai_zapisz_alt_pl($id, (string) $r['tekst']);
+        $wynik['zapisane_klucze'][] = $id . '|pl';
+        $wynik['zapisane']++;
+        $wynik['z_ai']++;
+    }
+    $wynik['zostalo'] = max(0, count($czeka) - $wynik['zapisane'] - count($wynik['odrzucone']));
+    return $wynik;
+}
+
+/**
+ * Lista „Do sprawdzenia” (52): alty języków z AI albo po zmianie polskiego
+ * altu (część `evk_alt`, klucz `alt|{język}`) i polskie alty z AI, jeszcze
+ * nieprzejrzane (część `evk_alt_pl`, klucz `alt|pl`). Odnośnik do edycji obrazu.
+ *
+ * @return list<array<string,mixed>>
+ */
+function evk_tl_ai_alt_do_sprawdzenia(int $limit = 200): array {
+    global $wpdb;
+    if (!evk_tl_ai_alt_dostepne()) return [];
+    $wiersze = (array) $wpdb->get_results($wpdb->prepare(
+        "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE (meta_key LIKE %s OR meta_key = '_evk_alt_ai') ORDER BY post_id DESC LIMIT %d",
+        $wpdb->esc_like('_evk_tl_') . '%' . $wpdb->esc_like('__alt__zrodlo'), $limit * 4));
+    $out = [];
+    foreach ($wiersze as $w) {
+        $id = (int) $w->post_id;
+        $pl = evk_tl_ai_alt_pl($id);
+        if ($pl === '') continue;
+        $wiersz = ['post_id' => $id, 'element' => 'Obraz', 'oryginal' => $pl, 'tytul' => (string) (get_the_title($id) ?: wp_basename((string) get_attached_file($id))),
+            'edycja' => (string) get_edit_post_link($id, 'raw')];
+        if ((string) $w->meta_key === '_evk_alt_ai') {
+            if (!evk_tl_ai_alt_pl_z_ai($id)) continue;
+            $out[] = $wiersz + ['meta_key' => EVK_TL_AI_ALT_PL, 'klucz' => 'alt|pl', 'pole' => 'Alt PL (AI)', 'jezyk' => 'pl', 'tlumaczenie' => $pl, 'ai' => true];
+        } elseif (preg_match('/^_evk_tl_([a-z0-9_]+?)__alt__zrodlo$/', (string) $w->meta_key, $m)) {
+            $tl = (string) get_post_meta($id, '_evk_tl_' . $m[1] . '__alt', true);
+            $z = (string) $w->meta_value;
+            if ($tl === '') continue;
+            $stary = evk_tlw_nieaktualne($tl, $z, $pl);
+            if (!$stary && !evk_tlw_ai($z)) continue;
+            $out[] = $wiersz + ['meta_key' => EVK_TL_AI_ALT, 'klucz' => 'alt|' . $m[1], 'pole' => 'Alt', 'jezyk' => $m[1], 'tlumaczenie' => $tl, 'ai' => !$stary];
+        }
+        if (count($out) >= $limit) break;
+    }
+    return $out;
+}
+
+/** „Sprawdzone” dla altu (52): język — źródło bez znacznika; `pl` — zdjęcie znacznika opisu AI. */
+function evk_tl_ai_alt_sprawdzone(int $id, string $lang): bool {
+    if (!evk_tl_ai_alt_dostepne() || evk_tl_ai_alt_pl($id) === '') return false;
+    if ($lang === 'pl') {
+        delete_post_meta($id, '_evk_alt_ai');
+        return true;
+    }
+    if ((string) get_post_meta($id, '_evk_tl_' . $lang . '__alt', true) === '') return false;
+    update_post_meta($id, '_evk_tl_' . $lang . '__alt__zrodlo', evk_tlw_zrodlo(evk_tl_ai_alt_pl($id)));
+    return true;
+}
+
+/* ✦ „Opisz obraz (AI)” przy polskim alcie (okno mediów, edycja obrazu): tylko
+   opis, bez zapisu — zapisuje WordPress z polem altu. Skrót opisu idzie do
+   `_evk_alt_ai`: zapisany bez zmian alt dostaje znacznik „do sprawdzenia”. */
+add_action('wp_ajax_evk_tl_ai_opisz', function (): void {
+    evk_tl_ajax_check('evk_tl_ai_pola');
+    $id = absint($_POST['post_id'] ?? 0);
+    if (!$id || !wp_attachment_is_image($id) || !current_user_can('edit_post', $id)) wp_send_json_error('Brak uprawnień do tego obrazu.', 403);
+    if (function_exists('set_time_limit')) @set_time_limit(120);
+    $r = evk_tl_ai_opisz_obraz($id, evk_tl_ai_ustawienia());
+    if (!$r['ok']) wp_send_json_error((string) $r['blad']);
+    update_post_meta($id, '_evk_alt_ai', evk_tlw_zrodlo((string) $r['tekst']));
+    wp_send_json_success(['tekst' => $r['tekst'], 'model' => evk_tl_ai_podpis(evk_tl_ai_ustawienia())]);
+});
+
+/**
+ * Dane przycisków ✦ poza edycją jednego wpisu (zakładka SEO, 1.271.0): adres,
+ * nonce `evk_tl_ai_pola` i model — dostęp do Tłumaczeń i klucz API. Prawo
+ * edycji wpisu sprawdza AJAX przy każdym żądaniu.
+ *
+ * @return array<string,mixed>|null
+ */
+function evk_tl_ai_dane_przyciskow(): ?array {
+    if (!current_user_can('manage_options') && !current_user_can('evk_access_translations')) return null;
+    $u = evk_tl_ai_ustawienia();
+    if (evk_tl_ai_klucz($u) === '') return null;
+    return ['ajax' => admin_url('admin-ajax.php'), 'nonce' => wp_create_nonce('evk_tl_ai_pola'), 'post' => 0, 'model' => evk_tl_ai_podpis($u)];
+}
+
+// =========================================================================
 // AJAX
 // =========================================================================
 
@@ -1881,8 +2481,8 @@ add_action('wp_ajax_evk_tl_ai_ustawienia', function (): void {
 /** Lista części stron z brakami (w trybie ponownym — także z niesprawdzonymi tłumaczeniami AI). */
 add_action('wp_ajax_evk_tl_ai_lista', function (): void {
     evk_tl_ajax_check('evk_tl_ai');
-    wp_send_json_success(evk_tl_ai_jednostki(($_POST['tryb'] ?? '') === 'ponownie', !empty($_POST['pola']) && evk_tl_ai_pola_dostepne(),
-        evk_tl_ai_pola_wpisu_z($_POST['wpis_pola'] ?? []), !empty($_POST['adres']), evk_tl_ai_pola_termu_z($_POST['term_pola'] ?? []), !empty($_POST['term_adres'])));
+    /* Zakres z tabeli „typ × część” (1.271.0). */
+    wp_send_json_success(evk_tl_ai_jednostki(($_POST['tryb'] ?? '') === 'ponownie', evk_tl_ai_zakres_z($_POST['zakres'] ?? [])));
 });
 
 /** Jeden krok tłumaczenia. */
@@ -1891,21 +2491,27 @@ add_action('wp_ajax_evk_tl_ai_krok', function (): void {
     $post_id = absint($_POST['post_id'] ?? 0);
     $meta_key = sanitize_text_field(wp_unslash((string) ($_POST['meta_key'] ?? '')));
     $lang = sanitize_key((string) ($_POST['lang'] ?? ''));
-    /* Termy (1.270.0): identyfikator termu w `post_id`, prawo edycji termu. */
+    /* Termy (1.270.0): identyfikator termu w `post_id`, prawo edycji termu.
+       Obrazy (1.271.0): porcja od `post_id` do `do`, prawo wgrywania plików
+       (każdy obraz — jeszcze prawo jego edycji przy zapisie). */
     $term = $meta_key === EVK_TL_AI_TERM || $meta_key === EVK_TL_AI_POLA_TERMU;
-    $czesc_ok = $term || in_array($meta_key, evk_tl_el_klucze_meta(), true) || ($meta_key === EVK_TL_AI_POLA && evk_tl_ai_pola_dostepne())
-        || ($meta_key === EVK_TL_AI_WPIS && function_exists('evk_tlw_typy') && in_array((string) get_post_type($post_id), evk_tlw_typy(), true));
+    $obrazy = in_array($meta_key, [EVK_TL_AI_ALT, EVK_TL_AI_ALT_PL], true);
+    if ($obrazy && $lang === 'pl' && $meta_key === EVK_TL_AI_ALT_PL) $lang = (string) array_key_first(tl_get_languages());
+    $czesc_ok = $term || ($obrazy && evk_tl_ai_alt_dostepne()) || in_array($meta_key, evk_tl_el_klucze_meta(), true) || ($meta_key === EVK_TL_AI_POLA && evk_tl_ai_pola_dostepne())
+        || (in_array($meta_key, [EVK_TL_AI_WPIS, EVK_TL_AI_SEO], true) && function_exists('evk_tlw_typy') && in_array((string) get_post_type($post_id), evk_tlw_typy(), true));
     if (!$post_id || !$czesc_ok || !isset(tl_get_languages()[$lang])) {
         wp_send_json_error('Nieznana strona albo język.');
     }
-    if ($term ? !evk_tl_ai_term_do_kroku($post_id, $meta_key) : !current_user_can('edit_post', $post_id)) wp_send_json_error('Brak uprawnień do tej strony.', 403);
+    if ($term ? !evk_tl_ai_term_do_kroku($post_id, $meta_key) : ($obrazy ? !current_user_can('upload_files') : !current_user_can('edit_post', $post_id))) {
+        wp_send_json_error('Brak uprawnień do tej strony.', 403);
+    }
     $pomin = array_values(array_filter(array_map('strval', (array) wp_unslash($_POST['pomin'] ?? []))));
     /* Dostawca i model przebiegu (1.262.0): tylko na to żądanie, ustawienia
        bez zmian. Dostawca bez klucza kończy się stopem „Brak klucza API”. */
     $opcje = ['ponownie' => ($_POST['tryb'] ?? '') === 'ponownie', 'dostawca' => sanitize_key((string) ($_POST['dostawca'] ?? '')),
-        'model' => (string) wp_unslash($_POST['model'] ?? ''), 'bez_pamieci' => !empty($_POST['bez_pamieci']),
-        'wpis_pola' => evk_tl_ai_pola_wpisu_z($_POST['wpis_pola'] ?? []), 'adres' => !empty($_POST['adres']),
-        'term_pola' => evk_tl_ai_pola_termu_z($_POST['term_pola'] ?? []), 'term_adres' => !empty($_POST['term_adres'])];
+        'model' => (string) wp_unslash($_POST['model'] ?? ''), 'bez_pamieci' => !empty($_POST['bez_pamieci']), 'do' => absint($_POST['do'] ?? 0) ?: $post_id]
+        /* Części typu tej jednostki z tabeli zakresu (1.271.0). */
+        + evk_tl_ai_opcje_czesci(array_values(array_filter(array_map('strval', (array) wp_unslash($_POST['czesci'] ?? [])))));
     if (function_exists('set_time_limit')) @set_time_limit(180);
     wp_send_json_success(evk_tl_ai_krok($post_id, $meta_key, $lang, $pomin, $opcje));
 });

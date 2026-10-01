@@ -126,7 +126,11 @@ case 'ustaw':
 
 case 'jednostki':
     $ids = array_map('intval', (array) (evk_taw_zapis()['wpisy'] ?? []));
-    $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, false, evk_taw_pola((string) ($argv[2] ?? '-')), ($argv[3] ?? '') === 'adres'),
+    /* Zakres z tabeli (1.271.0): te same części przy każdym rodzaju wpisu. */
+    $cz = array_merge(evk_taw_pola((string) ($argv[2] ?? '-')), ($argv[3] ?? '') === 'adres' ? ['adres'] : []);
+    $zak = [];
+    foreach (evk_tl_ai_wiersze_zakresu() as $typ => $w) if ($w['rodzaj'] === 'wpis') $zak[$typ] = $cz;
+    $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, evk_tl_ai_zakres_z($zak)),
         static function ($j) use ($ids) { return in_array((int) $j['post_id'], $ids, true) && $j['meta_key'] === EVK_TL_AI_WPIS; }));
     break;
 

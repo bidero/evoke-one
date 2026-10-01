@@ -266,7 +266,7 @@ module.exports = async function (t) {
       const c = b.closest('[data-controlkey]');
       return { klucz: c.getAttribute('data-controlkey'), w_liscie: !!c.parentElement.closest('[data-controlkey]'),
         nazwa: b.getAttribute('aria-label'), wys: b.getBoundingClientRect().height, balon: b.getAttribute('data-balloon'),
-        pozycja: b.getAttribute('data-balloon-pos'), title: b.hasAttribute('title') };
+        pozycja: b.getAttribute('data-balloon-pos'), dlugosc: b.getAttribute('data-balloon-length'), title: b.hasAttribute('title') };
     }));
     /* Układ kontrolki: ✦, ⚡, pole, obszar pola i komunikat — w pikselach ekranu. */
     const uklad = (klucz) => page.evaluate((k) => {
@@ -290,13 +290,19 @@ module.exports = async function (t) {
     t.check('nagłówek: ✦ przy polach EN i DE, z nazwą pola', J(ph1.map((x) => [x.klucz, x.nazwa])) === J([
       ['evk_tl_en__text', 'Przetłumacz (AI) — Tłumaczenie EN'], ['evk_tl_de__text', 'Przetłumacz (AI) — Tłumaczenie DE']])
       && ph1.every((x) => x.wys >= 24), J(ph1));
-    t.check('✦ przy polu: dymek Bricksa na prawo od przycisku (panel po lewej), bez title', ph1.every((x) => x.balon === 'Przetłumacz (AI) z polskiego tekstu tego pola (' + MODEL + ')'
-      && x.pozycja === 'right' && x.title === false), J(ph1));
-    /* Reguła `right` w fixturze jak w balloon.css Bricksa: dymek zaczyna się za prawą krawędzią przycisku. */
+    t.check('✦ przy polu: dymek Bricksa „Przetłumacz z polskiego używając {model}”, w górę i w lewo (top-right), w wierszach (medium), bez title',
+      ph1.every((x) => x.balon === 'Przetłumacz z polskiego używając ' + MODEL && x.pozycja === 'top-right' && x.dlugosc === 'medium' && x.title === false), J(ph1));
+    /* Panel Bricksa przycina, co z niego wystaje (1.270.0: dymek na prawo chował się pod kanwą) —
+       dymek po najechaniu ma się zmieścić w panelu. Reguły jak balloon.css w fixturze. */
     await page.hover('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
     const balonPola = await page.evaluate(() => { const b = document.querySelector('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
-      const s = getComputedStyle(b, '::after'); return { left: parseFloat(s.left), szer: b.getBoundingClientRect().width, widoczny: s.opacity }; });
-    t.check('najechanie na ✦ przy polu: dymek na prawo od przycisku', balonPola.widoczny === '1' && balonPola.left >= balonPola.szer, J(balonPola));
+      const s = getComputedStyle(b, '::after'); const r = b.getBoundingClientRect(); const pan = document.getElementById('bricks-panel').getBoundingClientRect();
+      const szer = parseFloat(s.width);
+      return { widoczny: s.opacity, prawa: Math.round(r.right - parseFloat(s.right)), lewa: Math.round(r.right - parseFloat(s.right) - szer), szer, nad: s.bottom,
+        panel: [Math.round(pan.left), Math.round(pan.right)], lamie: s.whiteSpace }; });
+    console.log('      dymek pola: ' + J(balonPola));
+    t.check('najechanie na ✦ przy polu: dymek nad przyciskiem, w całości w panelu, tekst w wierszach', balonPola.widoczny === '1' && balonPola.lewa >= balonPola.panel[0]
+      && balonPola.prawa <= balonPola.panel[1] && balonPola.lamie === 'normal', J(balonPola));
     await page.mouse.move(0, 0);
     await page.click('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-ikona');
     await koniec('[data-controlkey="evk_tl_en__text"] .evk-tl-ai-pole-stan');

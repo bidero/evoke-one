@@ -24,11 +24,17 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * $GLOBALS['evk_t_ai_w_trakcie']: funkcja wołana w środku zapytania, przed
  * odpowiedzią (np. „Sprawdzone” klikane w trakcie przebiegu).
  *
+ * Obraz w zapytaniu (1.271.0, alt z AI): treść wieloczęściowa u wszystkich
+ * trzech dostawców; $GLOBALS['evk_t_ai_obrazy'] — [szerokość, wysokość, mime,
+ * bajty] każdego wysłanego obrazu. Zapytanie z obrazem dostaje opis
+ * „Opis obrazu {plik}” (plik z wiersza „File:” wiadomości) pod kluczem t1.
+ *
  * Panel w przeglądarce (serwer `php -S`) dostaje tę atrapę jako mu-plugin
  * składany przez sondę z tego pliku — bramka CLI wyżej zatrzymałaby `require`.
  */
 
 $GLOBALS['evk_t_ai_zadania'] = [];
+$GLOBALS['evk_t_ai_obrazy'] = [];
 
 function evk_t_ai_tlumacz(string $pl): string {
     $model = (string) ($GLOBALS['evk_t_ai_model'] ?? '');
@@ -80,10 +86,36 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
     if ($s === 'odmowa') return evk_t_ai_odpowiedz(200, ['type' => 'message', 'content' => [], 'stop_reason' => 'refusal',
         'stop_details' => ['type' => 'refusal', 'category' => 'cyber']]);
 
-    $wiadomosc = $dostawca === 'claude' ? (string) ($cialo['messages'][0]['content'] ?? '')
-        : ($dostawca === 'gemini' ? (string) ($cialo['contents'][0]['parts'][0]['text'] ?? '') : (string) ($cialo['input'] ?? ''));
+    /* Wiadomość i obrazy — także z treści wieloczęściowej (obraz w zapytaniu). */
+    $obrazy = [];
+    if ($dostawca === 'claude') {
+        $c = $cialo['messages'][0]['content'] ?? '';
+        $wiadomosc = is_string($c) ? $c : '';
+        foreach (is_array($c) ? $c : [] as $b) {
+            if (($b['type'] ?? '') === 'text') $wiadomosc = (string) $b['text'];
+            if (($b['type'] ?? '') === 'image') $obrazy[] = (string) ($b['source']['data'] ?? '');
+        }
+    } elseif ($dostawca === 'gemini') {
+        $wiadomosc = (string) ($cialo['contents'][0]['parts'][0]['text'] ?? '');
+        foreach ((array) ($cialo['contents'][0]['parts'] ?? []) as $b) if (isset($b['inline_data']['data'])) $obrazy[] = (string) $b['inline_data']['data'];
+    } else {
+        $c = $cialo['input'] ?? '';
+        $wiadomosc = is_string($c) ? $c : '';
+        foreach ((array) (is_array($c) ? ($c[0]['content'] ?? []) : []) as $b) {
+            if (($b['type'] ?? '') === 'input_text') $wiadomosc = (string) $b['text'];
+            if (($b['type'] ?? '') === 'input_image') $obrazy[] = (string) preg_replace('~^data:[^,]*,~', '', (string) $b['image_url']);
+        }
+    }
     $tl = [];
-    foreach (evk_t_ai_do_tlumaczenia($wiadomosc) as $w) {
+    foreach ($obrazy as $b64) {
+        $bajty = (string) base64_decode($b64);
+        $wym = @getimagesizefromstring($bajty);
+        $GLOBALS['evk_t_ai_obrazy'][] = [(int) ($wym[0] ?? 0), (int) ($wym[1] ?? 0), (string) ($wym['mime'] ?? ''), strlen($bajty)];
+    }
+    if ($obrazy) {
+        $tl[] = ['key' => 't1', 'text' => 'Opis obrazu ' . (preg_match('/^File: (.+)$/m', $wiadomosc, $mm) ? trim($mm[1]) : '?')];
+    }
+    foreach ($obrazy ? [] : evk_t_ai_do_tlumaczenia($wiadomosc) as $w) {
         $tl[] = ['key' => (string) ($w['key'] ?? ''), 'text' => evk_t_ai_tlumacz((string) ($w['text'] ?? ''))];
     }
     $json = $s === 'zly-json' ? 'to nie jest JSON' : (string) wp_json_encode(['translations' => $tl], JSON_UNESCAPED_UNICODE);

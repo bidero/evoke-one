@@ -218,7 +218,10 @@ case 'surowe':
     break;
 
 case 'jednostki':
-    $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, ($argv[2] ?? '') === '1'),
+    /* Zakres z tabeli (1.271.0): treść Bricksa każdego typu, z „1” — także pola Fields typu wpisu testu. */
+    $zak = evk_tl_ai_zakres_domyslny();
+    if (($argv[2] ?? '') === '1') $zak['pola_ai'] = ['bricks', 'fields'];
+    $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, evk_tl_ai_zakres_z($zak)),
         static function ($j) use ($id) { return (int) $j['post_id'] === $id && $j['meta_key'] !== 'evk_fields_term'; }));
     break;
 
@@ -231,7 +234,7 @@ case 'termy':
     break;
 
 case 'jednostki-term':
-    $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, true),
+    $out['jednostki'] = array_values(array_filter(evk_tl_ai_jednostki(false, evk_tl_ai_zakres_z(['tax:category' => ['fields']])),
         static function ($j) { return (int) $j['post_id'] === evk_fa_term() && $j['meta_key'] === EVK_TL_AI_POLA_TERMU; }));
     break;
 

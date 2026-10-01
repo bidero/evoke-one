@@ -1049,6 +1049,10 @@
                 if (lang === 'pl') return;
                 var pola = {};
                 $(this).find('.evk-seo-pole').each(function () { pola[this.getAttribute('data-pole')] = this.value; });
+                // Źródło z paska ✦ (1.271.0, tl-seo-ai.js): `ai`, `teraz` albo pusto.
+                $(this).find('.evk-seo-ai-narzedzia').each(function () {
+                    pola[this.getAttribute('data-pole') + '__zrodlo'] = $(this).find('.evk-seo-zrodlo').val() || '';
+                });
                 jezyki[lang] = pola;
             });
             return {

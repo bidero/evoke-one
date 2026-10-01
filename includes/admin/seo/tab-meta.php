@@ -167,7 +167,7 @@ $seo_bricks = static function (array $wartosci, string $klucz): void {
                            esc_attr() niżej zakodowałby je drugi raz. */
                         $seo_wpis = trim(wp_strip_all_tags(html_entity_decode(get_the_title($pid), ENT_QUOTES, 'UTF-8'))) ?: 'ID ' . $pid;
                     ?>
-                    <tr class="evoke-seo-row" data-id="<?php echo esc_attr($pid); ?>">
+                    <tr class="evoke-seo-row" data-id="<?php echo esc_attr($pid); ?>" data-evk-seo-post="<?php echo esc_attr((string) $pid); ?>" data-tytul="<?php echo esc_attr($seo_wpis); ?>">
                         <td>
                             <strong class="evoke-seo-post-title"><?php the_title(); ?></strong><br>
                             <span class="evk-seo-id">ID: <?php echo $pid; ?></span><br>
@@ -205,6 +205,9 @@ $seo_bricks = static function (array $wartosci, string $klucz): void {
                                 <?php endif; ?>
                                 <p class="evk-seo-oryginal"><span class="evk-seo-oryginal-jezyk">PL<?php echo $seo_z_bricks ? ' (Bricks)' : ''; ?>:</span>
                                     <?php echo $seo_orig !== '' ? esc_html($seo_orig) : '—'; ?></p>
+                                <?php /* ✦, znak AI i „Sprawdzone” (1.271.0). */
+                                if (function_exists('evk_seo_narzedzia_pola')) evk_seo_narzedzia_pola($seo_kod, $seo_k, $seo_orig, $seo_wart,
+                                    evk_seo_zrodlo_jezyka($pid, $seo_kod, 'seo_' . $seo_k), $seo_et . ' ' . $seo_kod_d . ': ' . $seo_wpis); ?>
                                 <?php endforeach; ?>
                             </div>
                             </div>
