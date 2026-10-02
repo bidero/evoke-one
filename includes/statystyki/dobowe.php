@@ -126,3 +126,34 @@ function evk_stat_dane(string $wymiar, string $od, string $do, bool $po_dniach =
     if (!$po_dniach) uasort($out, static function ($a, $b) { return $b['odslony'] <=> $a['odslony']; });
     return $out;
 }
+
+// =========================================================================
+// KASOWANIE ZA OKRES (1.285.0)
+// =========================================================================
+
+/** Zakres „wszystko” — od początku świata do końca. */
+const EVK_STAT_WSZYSTKO = ['1970-01-01', '9999-12-31'];
+
+/** Data „Y-m-d” albo '' (zła). */
+function evk_stat_data(string $d): string {
+    return preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) && checkdate((int) substr($d, 5, 2), (int) substr($d, 8, 2), (int) substr($d, 0, 4)) ? $d : '';
+}
+
+/** Ile odsłon zniknie (z tabeli zbiorczej i surowej, jak w raporcie). */
+function evk_stat_do_usuniecia(string $od, string $do): int {
+    return (int) (evk_stat_dane('razem', $od, $do)['']['odslony'] ?? 0);
+}
+
+/**
+ * Kasuje statystyki dni od–do (włącznie): surowe odsłony i podsumowania
+ * dzienne. Bez cofania. Zwraca liczby skasowanych wierszy.
+ *
+ * @return array{surowe:int,dzienne:int}
+ */
+function evk_stat_usun_okres(string $od, string $do): array {
+    global $wpdb;
+    if ((int) get_option('evk_stat_db_version', 0) !== EVK_STAT_DB_WERSJA) return ['surowe' => 0, 'dzienne' => 0];
+    $s = (int) $wpdb->query($wpdb->prepare('DELETE FROM ' . evk_stat_tabela('odslony') . ' WHERE dzien BETWEEN %s AND %s', $od, $do));
+    $d = (int) $wpdb->query($wpdb->prepare('DELETE FROM ' . evk_stat_tabela('dni') . ' WHERE dzien BETWEEN %s AND %s', $od, $do));
+    return ['surowe' => $s, 'dzienne' => $d];
+}

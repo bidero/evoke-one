@@ -18,6 +18,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/statystyki.php funkcje                 źródło, przeglądarka, urządzenie, bot
  *   php tests/php/statystyki.php uprawnienia             kto czyta raporty
  *   php tests/php/statystyki.php stan                    ustawienia, tabele, cron
+ *   php tests/php/statystyki.php usun <json> [autor]     AJAX kasowania za okres (1.285.0), jako admin albo autor
  *   php tests/php/statystyki.php sprzataj
  */
 require __DIR__ . '/_testowy-wp.php';
@@ -139,6 +140,27 @@ case 'uprawnienia':
     }
     wp_set_current_user((int) get_user_by('login', 'admin')->ID);
     $out['admin'] = evk_stat_moze_czytac();
+    break;
+
+case 'usun':
+    if (($argv[3] ?? '') === 'autor') {
+        if (!($u = get_user_by('login', 'statyk_autor'))) {
+            $u = get_user_by('id', wp_insert_user(['user_login' => 'statyk_autor', 'user_pass' => wp_generate_password(), 'role' => 'author', 'user_email' => 'statyk_autor@example.test']));
+        }
+        $u->add_cap('evk_access_stats');
+        wp_set_current_user($u->ID);
+    }
+    $_POST = $_REQUEST = wp_slash(['action' => 'evk_stat_usun', 'nonce' => wp_create_nonce('evk_stat')] + (json_decode((string) ($argv[2] ?? '{}'), true) ?: []));
+    if (!defined('DOING_AJAX')) define('DOING_AJAX', true);
+    add_filter('wp_die_ajax_handler', static function () {
+        return static function ($k = '') { if (is_scalar($k)) echo $k; throw new RuntimeException('koniec'); };
+    });
+    ob_start();
+    try { do_action('wp_ajax_evk_stat_usun'); } catch (RuntimeException $e) { /* koniec */ }
+    $out['odp'] = json_decode((string) ob_get_clean(), true);
+    if (($argv[3] ?? '') === 'autor') { require_once ABSPATH . 'wp-admin/includes/user.php'; wp_delete_user((int) get_user_by('login', 'statyk_autor')->ID); }
+    $out['dni'] = $wpdb->get_col('SELECT DISTINCT dzien FROM ' . evk_stat_tabela('dni') . ' ORDER BY dzien');
+    $out['surowe_dni'] = $wpdb->get_col('SELECT DISTINCT dzien FROM ' . evk_stat_tabela('odslony') . ' ORDER BY dzien');
     break;
 
 case 'stan':

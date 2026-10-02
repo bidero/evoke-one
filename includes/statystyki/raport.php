@@ -100,7 +100,10 @@ function evk_stat_render_raport(): void {
             .evk-stat-wykres rect { fill: #2563eb; }
             .evk-stat-wykres line { stroke: #c3c4c7; }
             .evk-stat-siatka { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
-            .evk-stat-siatka .evo-box, .evk-stat .evo-box { margin: 0; }
+            /* Zero tylko w siatce list (odstęp daje gap). Do 1.284.0 reguła łapała też pudełko wykresu,
+               a jego `evo-mb` przegrywało — lista przylegała do wykresu (zgłoszenie z testowej). */
+            .evk-stat-siatka .evo-box { margin: 0; }
+            .evk-stat .evk-stat-wykres-box { margin: 0 0 16px; }
             .evk-stat table .num { text-align: right; white-space: nowrap; }
             .evk-stat td:first-child { word-break: break-word; }
         </style>
@@ -114,7 +117,7 @@ function evk_stat_render_raport(): void {
             <div class="evk-stat-liczba"><span><?php echo esc_html($etykieta); ?></span><strong><?php echo esc_html($wartosc); ?></strong></div>
             <?php endforeach; ?>
         </div>
-        <div class="evo-box evo-mb">
+        <div class="evo-box evk-stat-wykres-box">
             <h3>Odsłony dziennie</h3>
             <?php echo evk_stat_wykres(evk_stat_dane('razem', $od, $do, true), $od, $do); // phpcs:ignore — SVG składany z liczb i esc_* ?>
             <p class="evo-hint">Unikalni to suma dziennych: bez cookies tej samej osoby z dwóch dni nie da się połączyć.</p>

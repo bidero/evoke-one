@@ -97,4 +97,46 @@ $evk_on  = !empty($evk_st['enabled']);
     });
     </script>
     <?php endif; ?>
+
+    <?php /* Kasowanie za okres (1.285.0): widać je, gdy są tabele — także przy wyłączonym module. */ ?>
+    <?php if ((int) get_option('evk_stat_db_version', 0) > 0): ?>
+    <div class="evo-box evo-mt" id="evk-stat-usun">
+        <h3>Usuń statystyki</h3>
+        <p class="evo-desc">Kasuje odsłony i podsumowania dzienne z wybranych dni (włącznie). Tego nie da się cofnąć.</p>
+        <div class="evo-grid evo-pola-rowne" style="--evo-col:180px;--evo-gap:16px">
+            <div class="evo-field">
+                <label for="evk-stat-usun-od">Od</label>
+                <input type="date" id="evk-stat-usun-od" value="<?php echo esc_attr(wp_date('Y-m-d', time() - 6 * DAY_IN_SECONDS)); ?>">
+            </div>
+            <div class="evo-field">
+                <label for="evk-stat-usun-do">Do</label>
+                <input type="date" id="evk-stat-usun-do" value="<?php echo esc_attr(wp_date('Y-m-d')); ?>">
+            </div>
+        </div>
+        <p class="evo-toolbar">
+            <button type="button" class="button" data-evk-usun="okres">Usuń z tego okresu</button>
+            <button type="button" class="button button-link-delete" data-evk-usun="wszystko">Usuń wszystkie statystyki</button>
+        </p>
+        <p class="evk-stat-usun-stan" role="status"></p>
+    </div>
+    <script>
+    jQuery(function ($) {
+        var nonce = <?php echo wp_json_encode(wp_create_nonce('evk_stat')); ?>, stan = $('#evk-stat-usun .evk-stat-usun-stan');
+        $('#evk-stat-usun [data-evk-usun]').on('click', function () {
+            var wszystko = $(this).data('evk-usun') === 'wszystko', b = $(this);
+            var dane = { action: 'evk_stat_usun', nonce: nonce, wszystko: wszystko ? 1 : '', od: $('#evk-stat-usun-od').val(), 'do': $('#evk-stat-usun-do').val() };
+            b.prop('disabled', true);
+            $.post(ajaxurl, $.extend({ licz: 1 }, dane)).done(function (r) {
+                if (!r || !r.success) { b.prop('disabled', false); stan.text((r && r.data) || 'Błąd.'); return; }
+                var co = wszystko ? 'WSZYSTKIE statystyki' : 'statystyki z dni ' + dane.od + ' – ' + dane['do'];
+                if (!window.confirm('Usunąć ' + co + ' (' + r.data.ile + ' odsłon)? Tego nie da się cofnąć.')) { b.prop('disabled', false); stan.text('Anulowane.'); return; }
+                $.post(ajaxurl, dane).done(function (r2) {
+                    b.prop('disabled', false);
+                    stan.text(r2 && r2.success ? 'Usunięto ' + r2.data.ile + ' odsłon.' : ((r2 && r2.data) || 'Błąd.'));
+                });
+            });
+        });
+    });
+    </script>
+    <?php endif; ?>
 </div>

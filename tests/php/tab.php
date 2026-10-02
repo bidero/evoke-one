@@ -780,12 +780,13 @@ $TABS = [
     'stat' => [
         'module' => ['includes/security/ip-klienta.php', 'includes/statystyki/ustawienia.php'],
         'file'   => 'includes/admin/tab-statystyki.php',
-        'seed'   => function () { $GLOBALS['options']['evk_statystyki'] = ['enabled' => 0]; },
+        /* Wyłączony, ale z tabelami — widać kasowanie za okres (1.285.0). */
+        'seed'   => function () { $GLOBALS['options']['evk_statystyki'] = ['enabled' => 0]; $GLOBALS['options']['evk_stat_db_version'] = 1; },
     ],
     'stat-on' => [
         'module' => ['includes/security/ip-klienta.php', 'includes/statystyki/ustawienia.php'],
         'file'   => 'includes/admin/tab-statystyki.php',
-        'seed'   => function () { $GLOBALS['options']['evk_statystyki'] = ['enabled' => 1, 'wyklucz_ip' => "10.0.0.1\n192.168.0.0/16"]; },
+        'seed'   => function () { $GLOBALS['options']['evk_statystyki'] = ['enabled' => 1, 'wyklucz_ip' => "10.0.0.1\n192.168.0.0/16"]; $GLOBALS['options']['evk_stat_db_version'] = 1; },
     ],
 
     /* ── Panel admina ────────────────────────────────────────────────────

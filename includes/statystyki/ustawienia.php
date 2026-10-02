@@ -85,6 +85,25 @@ add_action('wp_ajax_evk_stat_zapisz', function (): void {
     wp_send_json_success($nowe);
 });
 
+/* Kasowanie statystyk za okres (1.285.0) — tylko administrator. Najpierw
+   `licz` (liczba do potwierdzenia), potem właściwe usunięcie. */
+add_action('wp_ajax_evk_stat_usun', function (): void {
+    check_ajax_referer('evk_stat', 'nonce');
+    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnień.');
+    if (!empty($_POST['wszystko'])) {
+        [$od, $do] = EVK_STAT_WSZYSTKO;
+    } else {
+        $od = evk_stat_data((string) wp_unslash($_POST['od'] ?? ''));
+        $do = evk_stat_data((string) wp_unslash($_POST['do'] ?? ''));
+        if ($od === '' || $do === '') wp_send_json_error('Podaj obie daty.');
+        if ($od > $do) wp_send_json_error('Data „od” jest późniejsza niż „do”.');
+    }
+    $ile = evk_stat_do_usuniecia($od, $do);
+    if (!empty($_POST['licz'])) wp_send_json_success(['ile' => $ile]);
+    $w = evk_stat_usun_okres($od, $do);
+    wp_send_json_success(['ile' => $ile, 'usuniete' => $w]);
+});
+
 // =========================================================================
 // MENU RAPORTÓW
 // =========================================================================

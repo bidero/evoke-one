@@ -165,6 +165,23 @@ module.exports = async function (t) {
     const zb2 = sonda('zbiorka');
     t.check('90 dni: surowe starsze niż 90 dni skasowane, dzienne zostają', zb2.surowe === 0 && (zb2.dni || []).length > 0, J({ surowe: zb2.surowe, dni: (zb2.dni || []).length }));
 
+    t.section('kasowanie za okres (1.285.0)');
+    sonda('przygotuj');
+    /* Dni: −3 (5 odsłon), −1 (3), dziś (2); −3 i −1 zebrane do tabeli dziennej. */
+    phpOutput('statystyki.php', 'zasiej x 5'); sonda('postarz', 2); phpOutput('statystyki.php', 'zasiej x 3'); sonda('postarz', 1);
+    phpOutput('statystyki.php', 'zasiej x 2'); sonda('zbiorka');
+    const razem = () => (sonda('dane', 'razem', dzien(30), dzien(0)).dane[''] || {}).odslony || 0;
+    t.check('warunek: 10 odsłon w trzech dniach, dwa zebrane', razem() === 10, razem());
+    const u1 = sonda('usun', J({ od: dzien(1), do: dzien(1), licz: 1 }));
+    t.check('„licz”: 3 odsłony z wczoraj, nic nie skasowane', ((u1.odp || {}).data || {}).ile === 3 && razem() === 10, J(u1.odp));
+    const u2 = sonda('usun', J({ od: dzien(1), do: dzien(1) }));
+    t.check('usunięte wczoraj: z tabeli dziennej i surowej; reszta (−3 i dziś) zostaje', ((u2.odp || {}).data || {}).ile === 3 && razem() === 7
+      && !u2.dni.includes(dzien(1)) && u2.dni.includes(dzien(3)) && !u2.surowe_dni.includes(dzien(1)) && u2.surowe_dni.includes(dzien(0)), J(u2));
+    const zle = [sonda('usun', J({ od: dzien(0), do: dzien(1) })), sonda('usun', J({ od: '2026-02-30', do: dzien(0) })), sonda('usun', J({ wszystko: 1 }), 'autor')]
+      .map((x) => (x.odp || {}).data);
+    t.check('odmowy: „od” po „do”, zła data, rola z uprawnieniem „Statystyki” (tylko czyta) — nic nie skasowane',
+      J(zle) === J(['Data „od” jest późniejsza niż „do”.', 'Podaj obie daty.', 'Brak uprawnień.']) && razem() === 7, J(zle));
+
     t.section('raport w panelu (Chromium)');
     await komp.close(); await tel.close(); await gpc.close(); await automat.close();
     const [A2, B2] = sonda('przygotuj').strony || [];
@@ -217,6 +234,22 @@ module.exports = async function (t) {
     await sa.goto(baza + '/wp-admin/index.php');
     t.check('menu raportów pod Kokpitem', await sa.locator('#menu-dashboard a[href*="index.php?page=evoke-statystyki"]').count() === 1);
     await sa.goto(baza + '/wp-admin/options-general.php?page=evoke-one&tab=statystyki');
+    /* Kasowanie z zakładki (1.285.0): potwierdzenie z liczbą; „Anuluj” nic nie rusza. */
+    const okna = [];
+    let odpowiedz = false;
+    const naOkno = async (d) => { okna.push(d.message()); if (odpowiedz) await d.accept(); else await d.dismiss(); };
+    sa.on('dialog', naOkno);
+    const przedUs = razem();
+    await sa.click('#evk-stat-usun [data-evk-usun="okres"]');
+    await sa.waitForFunction(() => /Anulowane/.test(document.querySelector('.evk-stat-usun-stan').textContent), null, { timeout: 10000 }).catch(() => {});
+    t.check('„Usuń z tego okresu” → okno z okresem i liczbą; „Anuluj” — nic nie skasowane',
+      /^Usunąć statystyki z dni \d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2} \(3 odsłon\)\?/.test(okna[0] || '') && razem() === przedUs && przedUs === 3, J({ okna, przedUs }));
+    odpowiedz = true;
+    await sa.click('#evk-stat-usun [data-evk-usun="wszystko"]');
+    await sa.waitForFunction(() => /Usunięto/.test(document.querySelector('.evk-stat-usun-stan').textContent), null, { timeout: 10000 }).catch(() => {});
+    t.check('„Usuń wszystkie statystyki” → potwierdzone, „Usunięto 3 odsłon.”, raport pusty',
+      /^Usunąć WSZYSTKIE statystyki \(3 odsłon\)/.test(okna[1] || '') && (await sa.textContent('.evk-stat-usun-stan')) === 'Usunięto 3 odsłon.' && razem() === 0, J(okna));
+    sa.off('dialog', naOkno);
     await sa.click('label.evo-toggle:has([data-option="evk_statystyki"]) .evo-slider');
     for (let i = 0; i < 30 && (sonda('stan').ust || {}).enabled !== 0; i++) await sa.waitForTimeout(150);
     const st2 = sonda('stan');
