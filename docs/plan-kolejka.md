@@ -107,6 +107,15 @@ wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną
    - cele: proste (zdarzenie albo wizyta na stronie), konwersja per źródło
      i kampania; bez lejków;
    - kolejność: ZARAZ PO 1.280.0 (przed logowaniem/2FA i resztą).
+   - etap 1 wydany jako 1.284.0. Etap 2 (1.285.0), decyzje z 02.10:
+     kraj z DB-IP Lite pobierany przez stronę co miesiąc (WP-Cron, import
+     porcjami do własnej tabeli, podpis CC BY w raporcie); widżet Kokpitu:
+     7 dni — liczby, porównanie z poprzednimi 7 dniami, mini wykres,
+     5 stron; zdarzenia automatyczne od razu: tel:/mailto:, pobrania plików,
+     linki wychodzące, wysłane formularze (każde z osobna do wyłączenia);
+     „teraz na stronie” = ostatnie 5 min; cele: zdarzenie albo wizyta na
+     adresie, konwersja = wizyty z celem / wszystkie, osobno dla źródła
+     i kampanii.
    Matomo odpada: heatmapy to płatna wtyczka premium (InnoCraft, nie GPL),
    a Matomo for WordPress waży kilkadziesiąt MB.
 9. **Język główny inny niż polski** — **tylko nowe strony** (wybór przy
