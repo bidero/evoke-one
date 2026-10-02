@@ -38,7 +38,11 @@
     var h = e.scrollHeight;
     if (h > 0) przew = Math.max(przew, Math.min(100, Math.round((window.scrollY + window.innerHeight) / h * 100)));
   }
+  var wyslane = 0;
   function wyslij() {
+    /* Schowanie karty i „pagehide” przychodzą razem przy wyjściu — drugi beacon tylko z czymś nowym. */
+    if (wyslane && !nowe.length) return;
+    wyslane = 1;
     mierz();
     n.sendBeacon(c.u, JSON.stringify({ t: 'h', k: c.k, s: location.pathname, q: location.search, w: window.innerWidth, h: e.scrollHeight, d: przew, c: nowe }));
     nowe = [];

@@ -76,6 +76,19 @@ function evk_stat_zrodlo(string $ref): string {
     return $host === $moj ? '' : substr($host, 0, 191);
 }
 
+/**
+ * Pełny adres odsyłający (1.286.0): domena bez „www” i ścieżka, BEZ części po
+ * „?” i „#” (tokeny, dane osobowe). Tylko obce strony i tylko z prawdziwą
+ * ścieżką — wyszukiwarki podają samą domenę, a ta jest już w źródłach.
+ */
+function evk_stat_odsylacz(string $ref): string {
+    $zrodlo = evk_stat_zrodlo($ref);
+    if ($zrodlo === '' || $zrodlo === '(bezpośrednio)') return '';
+    $sciezka = (string) wp_parse_url($ref, PHP_URL_PATH);
+    if ($sciezka === '' || $sciezka === '/') return '';
+    return substr($zrodlo . (string) preg_replace('/[^\x21-\x7e]/', '', $sciezka), 0, 191);
+}
+
 /** Parametry adresu, które wskazują stronę przy zwykłych adresach (bez „ładnych”). */
 const EVK_STAT_PARAMETRY_STRONY = ['p', 'page_id', 'cat', 'tag', 'author', 'post_type', 'paged', 'm', 'year', 'monthnum', 'day', 'attachment_id'];
 
@@ -146,12 +159,12 @@ function evk_stat_zapisz(array $d, array $serwer): string {
     [$przegl, $system] = evk_stat_przegladarka($ua);
     $utm = static function ($w): string { return substr(strtolower(trim(sanitize_text_field((string) $w))), 0, 100); };
     $wpdb->query($wpdb->prepare(
-        "INSERT IGNORE INTO $tab (czas, dzien, klucz, wizyta, sciezka, post_id, zrodlo, utm_source, utm_medium, utm_campaign, urzadzenie, przegladarka, system_op, jezyk, kraj)
-         VALUES (%s, %s, %s, %s, %s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        "INSERT IGNORE INTO $tab (czas, dzien, klucz, wizyta, sciezka, post_id, zrodlo, utm_source, utm_medium, utm_campaign, urzadzenie, przegladarka, system_op, jezyk, kraj, odsylacz)
+         VALUES (%s, %s, %s, %s, %s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         gmdate('Y-m-d H:i:s'), $dzien, $klucz, $wizyta, substr($sciezka, 0, 255), max(0, (int) ($d['p'] ?? 0)),
         evk_stat_zrodlo((string) ($d['r'] ?? '')), $utm($d['us'] ?? ''), $utm($d['um'] ?? ''), $utm($d['uc'] ?? ''),
         evk_stat_urzadzenie((int) ($d['w'] ?? 0)), $przegl, $system, substr(sanitize_key((string) ($d['j'] ?? '')), 0, 10),
-        function_exists('evk_stat_kraj') ? evk_stat_kraj($ip) : ''
+        function_exists('evk_stat_kraj') ? evk_stat_kraj($ip) : '', evk_stat_odsylacz((string) ($d['r'] ?? ''))
     ));
     return 'ok';
 }

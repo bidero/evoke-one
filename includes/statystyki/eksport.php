@@ -39,7 +39,7 @@ function evk_stat_csv(string $od, string $do): string {
         [$r, $e] = array_pad(explode(':', (string) $k, 2), 2, '');
         $nazwy['zdarzenie'][$k] = (EVK_STAT_ZDARZENIA[$r] ?? $r) . ': ' . $e;
     }
-    $sekcje = ['strona' => 'Strony', 'zrodlo' => 'Źródła', 'urzadzenie' => 'Urządzenia', 'przegladarka' => 'Przeglądarki', 'system' => 'Systemy',
+    $sekcje = ['strona' => 'Strony', 'zrodlo' => 'Źródła', 'odsylacz' => 'Adresy odsyłające', 'urzadzenie' => 'Urządzenia', 'przegladarka' => 'Przeglądarki', 'system' => 'Systemy',
                'jezyk' => 'Języki strony', 'kraj' => 'Kraje', 'zdarzenie' => 'Zdarzenia',
                'utm_source' => 'Kampanie: źródło', 'utm_medium' => 'Kampanie: medium', 'utm_campaign' => 'Kampanie: nazwa'];
     foreach ($sekcje as $wymiar => $sekcja) {

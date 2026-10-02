@@ -300,6 +300,10 @@ case 'hot-limit':
     $out['nagrania'] = evk_stat_hot_nagrania();
     break;
 
+case 'odsylacz':
+    $out['wyniki'] = array_map('evk_stat_odsylacz', ['', 'https://www.google.com/', 'https://www.example.org/blog/wpis?token=abc#x', home_url('/inna/'), 'https://l.facebook.com/l.php?u=https%3A%2F%2Fx']);
+    break;
+
 case 'polityka':
     $nowe = json_decode((string) ($argv[2] ?? '{}'), true) ?: [];
     add_filter('option_evk_statystyki', static function ($v) use ($nowe) { return array_merge(is_array($v) ? $v : [], $nowe); });

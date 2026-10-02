@@ -152,9 +152,11 @@ function evk_stat_hot_zapisz(array $d, string $wizyta): string {
         $wizyty = evk_stat_hot_wizyty($strona, (int) $n['od']);
         $juz = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $tab WHERE strona = %s AND wizyta = %s AND czas >= %s", $strona, $wizyta, gmdate('Y-m-d H:i:s', (int) $n['od'])));
         if (!$juz && $wizyty >= (int) $n['wizyty']) { evk_stat_hot_stop($strona); return 'limit'; }
-        $wpdb->insert($tab, ['klucz' => $klucz, 'strona' => $strona, 'czas' => gmdate('Y-m-d H:i:s'), 'wizyta' => $wizyta,
-            'urzadzenie' => evk_stat_urzadzenie($szer), 'szer' => $szer, 'wys' => $wys, 'przewiniecie' => $przew]);
-        $id = (int) $wpdb->insert_id;
+        /* INSERT IGNORE: przy wyjściu ze strony „visibilitychange” i „pagehide” wysyłają dwa beacony naraz —
+           drugi trafia na już wstawioną odsłonę i dopisuje się do niej, zamiast zgubić swoje kliknięcia. */
+        $wpdb->query($wpdb->prepare("INSERT IGNORE INTO $tab (klucz, strona, czas, wizyta, urzadzenie, szer, wys, przewiniecie) VALUES (%s, %s, %s, %s, %s, %d, %d, %d)",
+            $klucz, $strona, gmdate('Y-m-d H:i:s'), $wizyta, evk_stat_urzadzenie($szer), $szer, $wys, $przew));
+        $id = (int) $wpdb->insert_id ?: (int) $wpdb->get_var($wpdb->prepare("SELECT id FROM $tab WHERE klucz = %s", $klucz));
         if (!$id) return 'blad';
         if (!$juz && $wizyty + 1 >= (int) $n['wizyty']) evk_stat_hot_stop($strona);
     } else {

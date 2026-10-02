@@ -248,16 +248,35 @@ module.exports = async function (t) {
     const terazStrony = await sa.textContent('.evk-stat-teraz .evo-muted');
     t.check('raport: teraz na stronie 1 wizyta (ostatnie 5 min), z jej stronami', teraz === '1' && terazStrony.includes('/?page_id=' + A2 + ' 1'), teraz + ' ' + terazStrony);
     await sa.goto(baza + '/wp-admin/index.php');
-    const widzet = await sa.evaluate(() => {
+    /* Widżet (1.286.0): bez listy adresów; zakładki Dziś / 7 dni / 30 dni, wykres z przełącznikiem pod nim, przycisk „Pełny raport”. */
+    const widzet = () => sa.evaluate(() => {
       const w = document.querySelector('#evk_stat_widzet');
-      return w && { tytul: w.querySelector('h2')?.textContent.trim(), liczby: [...w.querySelectorAll('.evk-sw-liczby strong')].map((x) => x.textContent),
-        zmiana: w.querySelector('.evk-sw-liczby small')?.textContent, mini: w.querySelectorAll('.evk-stat-mini rect').length,
-        strony: [...w.querySelectorAll('.evk-sw-strony li')].map((li) => li.querySelector('span').textContent + ' ' + li.querySelector('strong').textContent), raport: !!w.querySelector('a[href*="page=evoke-statystyki"]') };
+      if (!w) return null;
+      const panel = w.querySelector('[role="tabpanel"]:not([hidden])');
+      return { tytul: w.querySelector('h2')?.textContent.trim(), teraz: w.querySelector('.evk-sw-teraz').textContent,
+        zakladka: w.querySelector('[role="tab"][aria-selected="true"]').textContent, panel: panel.id,
+        liczby: [...panel.querySelectorAll('.evk-sw-liczby strong')].map((x) => x.textContent), zmiana: panel.querySelector('.evk-sw-liczby small')?.textContent,
+        slupki: panel.querySelectorAll('.evk-stat-mini rect').length, os: [...panel.querySelectorAll('.evk-sw-os span')].map((x) => x.textContent).filter(Boolean),
+        linia: getComputedStyle(panel.querySelector('.evk-sw-linia')).display !== 'none', adresy: w.querySelectorAll('li').length,
+        szerWykresu: Math.round(panel.querySelector('.evk-stat-mini').getBoundingClientRect().width), szerWidzetu: Math.round(w.querySelector('.inside').getBoundingClientRect().width),
+        raport: w.querySelector('.evk-sw-raport').getAttribute('href') };
     });
-    console.log('      widżet: ' + J(widzet));
-    t.check('widżet Kokpitu: 3 odsłony (+50%), 1 unikalny, teraz 1; mini wykres; strony A ×2 i B ×1; odnośnik do raportu',
-      !!widzet && widzet.tytul === 'Statystyki — 7 dni' && J(widzet.liczby) === J(['3', '1', '1']) && widzet.zmiana === '+50% wobec poprzednich 7 dni'
-      && widzet.mini === 1 && J(widzet.strony) === J(['/?page_id=' + A2 + ' 2', '/?page_id=' + B2 + ' 1']) && widzet.raport, J(widzet));
+    const wz0 = await widzet();
+    await sa.click('#evk_stat_widzet [data-okres="dzis"]');
+    await sa.click('#evk_stat_widzet .evk-sw-tryby [data-tryb="linie"]');
+    const wz1 = await widzet();
+    await sa.reload();
+    const wz2 = await widzet();
+    await sa.click('#evk_stat_widzet [data-okres="7"]');
+    await sa.click('#evk_stat_widzet .evk-sw-tryby [data-tryb="slupki"]');
+    console.log('      widżet: ' + J({ wz0, wz1, wz2 }));
+    t.check('widżet: „Statystyki”, teraz 1; zakładka 7 dni: 3 odsłony (+50%), 1 unikalny, jeden słupek, 7 dni tygodnia pod wykresem; bez listy adresów; przycisk do raportu 7 dni',
+      !!wz0 && wz0.tytul === 'Statystyki' && wz0.teraz === '1' && wz0.zakladka === '7 dni' && J(wz0.liczby) === J(['3', '1']) && wz0.zmiana === '+50% wobec poprzednich 7 dni'
+      && wz0.slupki === 1 && wz0.os.length === 7 && wz0.adresy === 0 && /okres=7$/.test(wz0.raport) && !wz0.linia, J(wz0));
+    t.check('wykres na całą szerokość widżetu (±30 px)', !!wz0 && wz0.szerWykresu >= wz0.szerWidzetu - 30, J(wz0 && [wz0.szerWykresu, wz0.szerWidzetu]));
+    t.check('„Dziś”: godziny 0:00 / 6:00 / 12:00 / 18:00, 3 odsłony, przycisk do raportu „dzis”; „Linie” pokazuje linię; po przeładowaniu wybór zostaje',
+      !!wz1 && wz1.zakladka === 'Dziś' && J(wz1.os) === J(['0:00', '6:00', '12:00', '18:00']) && wz1.liczby[0] === '3' && /okres=dzis$/.test(wz1.raport) && wz1.linia
+      && !!wz2 && wz2.zakladka === 'Dziś' && wz2.linia, J({ wz1, wz2 }));
     const licznik = async () => { await sa.goto(baza + '/?page_id=' + A2); return sa.evaluate(() => {
       const n = document.querySelector('#wp-admin-bar-evk-statystyki'); return n && { tekst: n.querySelector('.ab-label').textContent, tytul: n.querySelector('a').getAttribute('title') }; }); };
     const l0 = await licznik();
@@ -348,7 +367,7 @@ module.exports = async function (t) {
       && cele.cele[2].wartosc === '/?page_id=' + A2 && cele.cele.every((c) => /^[a-z0-9]{8}$/.test(c.id)), J(cele));
     await sa.goto(baza + '/wp-admin/index.php?page=evoke-statystyki&okres=7');
     const rc = await sa.evaluate(() => ({
-      zd: [...document.querySelectorAll('.evk-stat-lista')].filter((b) => b.querySelector('h3').textContent === 'Zdarzenia').map((b) => [...b.querySelectorAll('tbody td:first-child')].map((x) => x.textContent))[0],
+      zd: [...document.querySelectorAll('.evk-stat-lista')].filter((b) => b.querySelector('h3').textContent === 'Zdarzenia').map((b) => [...b.querySelectorAll('tbody td:first-child')].map((x) => (x.querySelector('.evk-stat-rodzaj') || {}).textContent + ': ' + x.lastChild.textContent))[0],
       cele: [...document.querySelectorAll('.evk-stat-cel-raport')].map((b) => ({ nazwa: b.querySelector('h3').textContent, konw: b.querySelector('.evk-stat-konwersja').textContent,
         zrodla: [...b.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent).join('|')) })) }));
     console.log('      cele: ' + J(rc.cele));

@@ -91,22 +91,66 @@ function evk_stat_zmiana(float $teraz, float $przed): string {
     return ($p > 0 ? '+' : ($p < 0 ? '−' : '')) . abs($p) . '%';
 }
 
+/** Ile pozycji listy widać od razu; reszta pod „Pokaż wszystkie” (1.286.0 — pudełka równej wysokości). */
+const EVK_STAT_LISTA_WIDAC = 5;
+/** Najwięcej pozycji listy w raporcie (całość — w CSV). */
+const EVK_STAT_LISTA_MAX = 50;
+
 /**
- * Tabela jednego wymiaru (10 pierwszych wartości).
+ * Tabela jednego wymiaru: 5 pozycji, reszta (do 50) po „Pokaż wszystkie (N)”.
+ * Nazwa może mieć dwie linie: [rodzaj, tekst] — rodzaj małym szarym napisem
+ * nad tekstem (zdarzenia). `$pod` — wiersze rozwijane pod wartością
+ * (adresy odsyłające pod domeną), `$dopisek` — HTML pod tabelą.
  *
- * @param array<string,array<string,int>> $dane
- * @param array<string,string>            $nazwy wartość → etykieta
+ * @param array<string,array<string,int>>                 $dane
+ * @param array<string,string|array{0:string,1:string}>   $nazwy wartość → etykieta
+ * @param array<string,array<string,array<string,int>>>   $pod   wartość → [adres → liczby]
  */
-function evk_stat_tabela_html(string $tytul, string $kolumna, array $dane, array $nazwy = []): string {
+function evk_stat_tabela_html(string $tytul, string $kolumna, array $dane, array $nazwy = [], array $pod = [], string $dopisek = ''): string {
+    static $nr = 0;
     $html = '<div class="evo-box evk-stat-lista"><h3>' . esc_html($tytul) . '</h3>';
-    if (!$dane) return $html . '<p class="evo-muted">Brak danych w tym okresie.</p></div>';
+    if (!$dane) return $html . '<p class="evo-muted">Brak danych w tym okresie.</p>' . $dopisek . '</div>';
     $html .= '<div class="evo-tbl-wrap"><table class="evo-table"><thead><tr><th scope="col">' . esc_html($kolumna)
         . '</th><th scope="col" class="num">Odsłony</th><th scope="col" class="num">Unikalni</th></tr></thead><tbody>';
-    foreach (array_slice($dane, 0, 10, true) as $w => $l) {
-        $html .= '<tr><td>' . esc_html($nazwy[$w] ?? (string) $w) . '</td><td class="num">' . number_format_i18n($l['odslony'])
-            . '</td><td class="num">' . number_format_i18n($l['unikalni']) . '</td></tr>';
+    $i = 0;
+    $liczby = static function (array $l): string {
+        return '<td class="num">' . number_format_i18n($l['odslony']) . '</td><td class="num">' . number_format_i18n($l['unikalni']) . '</td>';
+    };
+    foreach (array_slice($dane, 0, EVK_STAT_LISTA_MAX, true) as $w => $l) {
+        $nazwa = $nazwy[$w] ?? (string) $w;
+        $tekst = is_array($nazwa) ? '<span class="evk-stat-rodzaj">' . esc_html($nazwa[0]) . '</span>' . esc_html($nazwa[1]) : esc_html($nazwa);
+        $ukryj = $i++ >= EVK_STAT_LISTA_WIDAC ? ' class="evk-stat-wiecej" hidden' : '';
+        $id = '';
+        if (!empty($pod[$w])) {
+            $id = 'evk-stat-pod-' . (++$nr);
+            $tekst = '<button type="button" class="button-link evk-stat-pod-przelacz" aria-expanded="false" aria-controls="' . $id . '">' . $tekst . '</button>';
+        }
+        $html .= '<tr' . $ukryj . '><td>' . $tekst . '</td>' . $liczby($l) . '</tr>';
+        if (!empty($pod[$w])) {
+            $html .= '</tbody><tbody id="' . esc_attr($id) . '" class="evk-stat-pod" hidden>';
+            foreach (array_slice($pod[$w], 0, 20, true) as $a => $la) $html .= '<tr><td><span aria-hidden="true">↳ </span>' . esc_html((string) $a) . '</td>' . $liczby($la) . '</tr>';
+            $html .= '</tbody><tbody>';
+        }
     }
-    return $html . '</tbody></table></div></div>';
+    $html .= '</tbody></table></div>';
+    $ile = min(count($dane), EVK_STAT_LISTA_MAX);
+    if ($ile > EVK_STAT_LISTA_WIDAC) {
+        $html .= '<p class="evk-stat-rozwin-wiersz"><button type="button" class="button-link evk-stat-rozwin" aria-expanded="false" data-n="' . $ile . '">Pokaż wszystkie (' . $ile . ')</button></p>';
+    }
+    return $html . $dopisek . '</div>';
+}
+
+/** Daty pod wykresem: pierwszy, środkowy i ostatni dzień (1.286.0). @param list<string> $dni */
+function evk_stat_os_dat(array $dni): string {
+    $n = count($dni);
+    if (!$n) return '';
+    $pokaz = array_unique([0, intdiv($n - 1, 2), $n - 1]);
+    $html = '<div class="evk-stat-os" aria-hidden="true" style="grid-template-columns:repeat(' . $n . ',1fr)">';
+    foreach ($dni as $i => $d) {
+        $kl = $i === 0 ? ' class="p"' : ($i === $n - 1 ? ' class="k"' : '');
+        $html .= '<span' . $kl . '>' . (in_array($i, $pokaz, true) ? esc_html(wp_date('j.m', (int) strtotime($d . ' 12:00'))) : '') . '</span>';
+    }
+    return $html . '</div>';
 }
 
 function evk_stat_render_raport(): void {
@@ -194,6 +238,14 @@ function evk_stat_render_raport(): void {
             .evk-stat-siatka .evo-box { margin: 0; }
             .evk-stat .evk-stat-wykres-box { margin: 0 0 16px; }
             .evk-stat table .num { text-align: right; white-space: nowrap; }
+            /* 1.286.0: oś dat, nazwy w dwóch liniach, rozwijanie list i adresów odsyłających. */
+            .evk-stat-os { display: grid; font-size: 12px; color: #50575e; margin-top: 4px; }
+            .evk-stat-os span { white-space: nowrap; text-align: center; overflow: visible; }
+            .evk-stat-os span.p { text-align: left; } .evk-stat-os span.k { text-align: right; }
+            .evk-stat-rodzaj { display: block; font-size: 12px; color: #50575e; }
+            .evk-stat-rozwin-wiersz { margin: 8px 0 0; }
+            .evk-stat .button-link.evk-stat-rozwin, .evk-stat .button-link.evk-stat-pod-przelacz { min-height: 24px; text-align: left; word-break: break-word; }
+            .evk-stat-pod td:first-child { padding-left: 20px; color: #50575e; }
             .evk-stat td:first-child { word-break: break-word; }
         </style>
         <div class="evk-stat-pasek">
@@ -227,6 +279,7 @@ function evk_stat_render_raport(): void {
             </ul>
             <p class="evk-stat-max">Najwięcej: <?php echo esc_html(number_format_i18n($evk_max)); ?></p>
             <?php echo evk_stat_wykres($seria); // phpcs:ignore — SVG składany z liczb i esc_* ?>
+            <?php echo evk_stat_os_dat(array_column($seria, 'dzien')); // phpcs:ignore — esc_html w środku ?>
             <div class="evk-stat-dymek" role="status" hidden></div>
             <details class="evk-stat-dni">
                 <summary>Tabela dzienna</summary>
@@ -269,10 +322,27 @@ function evk_stat_render_raport(): void {
             });
         })();
         </script>
+        <script>
+        document.addEventListener('click', function (e) {
+            var b = e.target.closest && e.target.closest('.evk-stat-rozwin, .evk-stat-pod-przelacz');
+            if (!b) return;
+            var otworz = b.getAttribute('aria-expanded') !== 'true';
+            b.setAttribute('aria-expanded', String(otworz));
+            if (b.classList.contains('evk-stat-rozwin')) {
+                b.closest('.evk-stat-lista').querySelectorAll('tr.evk-stat-wiecej').forEach(function (tr) { tr.hidden = !otworz; });
+                b.textContent = otworz ? 'Pokaż mniej' : 'Pokaż wszystkie (' + b.getAttribute('data-n') + ')';
+            } else {
+                document.getElementById(b.getAttribute('aria-controls')).hidden = !otworz;
+            }
+        });
+        </script>
         <div class="evk-stat-siatka">
             <?php
             echo evk_stat_tabela_html('Strony', 'Adres', evk_stat_dane('strona', $od, $do));
-            echo evk_stat_tabela_html('Źródła', 'Skąd', evk_stat_dane('zrodlo', $od, $do));
+            /* Pełne adresy odsyłające (1.286.0) rozwijane pod domeną źródła. */
+            $pod_zr = [];
+            foreach (evk_stat_dane('odsylacz', $od, $do) as $a => $l) $pod_zr[(string) preg_replace('~/.*$~', '', (string) $a)][(string) $a] = $l;
+            echo evk_stat_tabela_html('Źródła', 'Skąd', evk_stat_dane('zrodlo', $od, $do), [], $pod_zr);
             echo evk_stat_tabela_html('Urządzenia', 'Urządzenie', evk_stat_dane('urzadzenie', $od, $do), ['telefon' => 'Telefon', 'tablet' => 'Tablet', 'komputer' => 'Komputer']);
             echo evk_stat_tabela_html('Przeglądarki', 'Przeglądarka', evk_stat_dane('przegladarka', $od, $do));
             echo evk_stat_tabela_html('Systemy', 'System', evk_stat_dane('system', $od, $do));
@@ -282,13 +352,13 @@ function evk_stat_render_raport(): void {
                 $kr = evk_stat_dane('kraj', $od, $do);
                 $nazwy_kr = [];
                 foreach (array_keys($kr) as $kod) $nazwy_kr[$kod] = evk_stat_nazwa_kraju((string) $kod);
-                echo str_replace('</div></div>', '</div><p class="evo-hint evk-stat-dbip"><a href="https://db-ip.com" rel="noopener" target="_blank">IP Geolocation by DB-IP</a> (CC BY 4.0)</p></div>',
-                    evk_stat_tabela_html('Kraje', 'Kraj', $kr, $nazwy_kr));
+                echo evk_stat_tabela_html('Kraje', 'Kraj', $kr, $nazwy_kr, [],
+                    '<p class="evo-hint evk-stat-dbip"><a href="https://db-ip.com" rel="noopener" target="_blank">IP Geolocation by DB-IP</a> (CC BY 4.0)</p>');
             }
             /* Zdarzenia (1.285.0): „Telefon: +48…”, „Pobranie: cennik.pdf”. */
             $zd = evk_stat_dane('zdarzenie', $od, $do);
             $nazwy_zd = [];
-            foreach (array_keys($zd) as $k) { [$r, $e] = array_pad(explode(':', (string) $k, 2), 2, ''); $nazwy_zd[$k] = (EVK_STAT_ZDARZENIA[$r] ?? $r) . ': ' . $e; }
+            foreach (array_keys($zd) as $k) { [$r, $e] = array_pad(explode(':', (string) $k, 2), 2, ''); $nazwy_zd[$k] = [EVK_STAT_ZDARZENIA[$r] ?? $r, $e]; }
             echo evk_stat_tabela_html('Zdarzenia', 'Zdarzenie', $zd, $nazwy_zd);
             foreach (['utm_source' => 'Kampanie: źródło (utm_source)', 'utm_medium' => 'Kampanie: medium (utm_medium)', 'utm_campaign' => 'Kampanie: nazwa (utm_campaign)'] as $w => $t) {
                 $d = evk_stat_dane($w, $od, $do);

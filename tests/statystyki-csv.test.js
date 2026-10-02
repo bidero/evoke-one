@@ -103,13 +103,54 @@ module.exports = async function (t) {
     t.check('nagłówki: text/csv, załącznik, bez pamięci podręcznej', /^text\/csv; charset=utf-8$/i.test(rOk.headers()['content-type'] || '')
       && /^attachment; filename="statystyki-/.test(rOk.headers()['content-disposition'] || '') && /no-cache|no-store/.test(rOk.headers()['cache-control'] || ''), J(rOk.headers()));
 
+    t.section('raport: listy po 5 z rozwinięciem, zdarzenia w dwóch liniach, adresy odsyłające, oś dat (1.286.0)');
+    sonda('wstaw', J({ odslony: [
+      { sciezka: '/z-bloga', zrodlo: 'example.org', odsylacz: 'example.org/blog/wpis', wizyta: 'd'.repeat(16) },
+      { sciezka: '/z-bloga', zrodlo: 'example.org', odsylacz: 'example.org/blog/wpis', wizyta: 'e'.repeat(16) },
+      { sciezka: '/z-bloga', zrodlo: 'example.org', odsylacz: 'example.org/inny', wizyta: 'f'.repeat(16) }] }));
+    const odsylacze = sonda('odsylacz').wyniki;
+    t.check('adres odsyłający: obca strona — domena i ścieżka bez „?…” i „#…”; wyszukiwarka (sama domena), bezpośrednio i własna strona — pusto',
+      J(odsylacze) === J(['', '', 'example.org/blog/wpis', '', 'l.facebook.com/l.php']), J(odsylacze));
+    await s.goto(serwer.baza + '/wp-admin/admin.php?page=evoke-statystyki&okres=7');
+    const lista = (tytul) => s.evaluate((t) => {
+      const b = [...document.querySelectorAll('.evk-stat-lista')].find((x) => x.querySelector('h3').textContent === t);
+      if (!b) return null;
+      const widac = (el) => !!el.offsetParent;
+      return { wiersze: [...b.querySelectorAll('tbody:not(.evk-stat-pod) > tr')].filter(widac).map((tr) => tr.children[0].innerText.replace(/\s+/g, ' ').trim()),
+        przycisk: (b.querySelector('.evk-stat-rozwin') || {}).textContent || null, rozwiniety: (b.querySelector('.evk-stat-rozwin') || { getAttribute: () => null }).getAttribute('aria-expanded'),
+        pod: [...b.querySelectorAll('tbody.evk-stat-pod tr')].filter(widac).map((tr) => tr.children[0].textContent),
+        rodzaje: [...b.querySelectorAll('.evk-stat-rodzaj')].map((x) => x.textContent) };
+    }, tytul);
+    const st0 = await lista('Strony');
+    await s.click('.evk-stat-lista:has(h3:text-is("Strony")) .evk-stat-rozwin');
+    const st1 = await lista('Strony');
+    await s.click('.evk-stat-lista:has(h3:text-is("Strony")) .evk-stat-rozwin');
+    const st2 = await lista('Strony');
+    t.check('„Strony”: 5 widać, „Pokaż wszystkie (16)” rozwija 16 i zmienia się na „Pokaż mniej”, drugi klik zwija',
+      st0.wiersze.length === 5 && st0.przycisk === 'Pokaż wszystkie (16)' && st0.rozwiniety === 'false'
+      && st1.wiersze.length === 16 && st1.przycisk === 'Pokaż mniej' && st1.rozwiniety === 'true' && st2.wiersze.length === 5, J({ st0, st1, st2 }));
+    const zd2 = await lista('Zdarzenia');
+    t.check('„Zdarzenia”: rodzaj małym napisem nad etykietą, bez przycisku przy jednej pozycji', J(zd2.rodzaje) === J(['Telefon']) && zd2.wiersze[0] === 'Telefon +48 123' && zd2.przycisk === null, J(zd2));
+    const zr0 = await lista('Źródła');
+    await s.click('.evk-stat-lista:has(h3:text-is("Źródła")) .evk-stat-pod-przelacz');
+    const zr1 = await lista('Źródła');
+    const przel = await s.getAttribute('.evk-stat-pod-przelacz', 'aria-expanded');
+    t.check('„Źródła”: example.org rozwija swoje adresy (blog/wpis ×2 przed inny), inne źródła bez rozwijania',
+      zr0.pod.length === 0 && J(zr1.pod) === J(['↳ example.org/blog/wpis', '↳ example.org/inny']) && przel === 'true'
+      && (await s.$$('.evk-stat-pod-przelacz')).length === 1, J({ zr0, zr1 }));
+    const os = await s.$$eval('.evk-stat-os span', (x) => x.map((e) => e.textContent));
+    const jm = (d) => +d.slice(8, 10) + '.' + d.slice(5, 7);
+    t.check('pod wykresem daty: pierwszy, środkowy i ostatni dzień (7 kolumn)', os.length === 7 && J(os.filter(Boolean)) === J([jm(dzien(6)), jm(dzien(3)), jm(dzien(0))]), J(os));
+    const csv2 = sonda('csv', dzien(6), dzien(0)).csv || '';
+    t.check('CSV: sekcja „Adresy odsyłające” z pełnymi adresami', /\n"Adresy odsyłające";example\.org\/blog\/wpis;2;2;;\n/.test(csv2), J(csv2.split('\n').filter((x) => /odsyłające/.test(x))));
+
     t.section('kto pobiera');
     sonda('czytelnicy');
     const c = await (await browser.newContext({ acceptDownloads: true })).newPage();
     await serwerWp.zaloguj(c, serwer.baza, 'statyk_csv', 'test-haslo');
     await c.goto(serwer.baza + '/wp-admin/admin.php?page=evoke-statystyki&okres=7');
     const [pobC] = await Promise.all([c.waitForEvent('download', { timeout: 15000 }), c.click('a.evk-stat-csv')]);
-    t.check('rola z uprawnieniem „Statystyki” pobiera ten sam plik', fs.readFileSync(await pobC.path(), 'utf8') === csv);
+    t.check('rola z uprawnieniem „Statystyki” pobiera ten sam plik', fs.readFileSync(await pobC.path(), 'utf8') === sonda('csv', dzien(6), dzien(0)).csv);
     const bez = sonda('csv-pobierz', 'statyk_csv_bez');
     t.check('autor bez uprawnienia: odmowa 403, bez pliku', /^ODMOWA 403 Brak uprawnień\./.test(bez.odp || ''), J(bez));
   } finally {
