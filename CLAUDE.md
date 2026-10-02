@@ -207,8 +207,11 @@ node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram bac
 node tests/run.js admin- anim animator aria bg-shift bricks-builder bricks-render bricks-required builder-context burger circular-menu controls
 node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee minifikacja motion naglowki rest-api
 node tests/run.js fields- newsletter obrazy- odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
-node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
+node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs
+node tests/run.js wave-bg
 ```
+
+Partia 6 z `wave-bg` przekroczyła 600 s przy 1.282.0 (timeout uciął `wave-bg`), stąd siódma.
 
 **Od 1.281.0 pełny przebieg — TAM, GDZIE TABELA WYŻEJ GO WYMAGA (co piąte
 wydanie albo ruszony plik wspólny) — idzie w trzech osobnych sesjach**
@@ -222,9 +225,15 @@ w sesji głównej, jak dotąd. Sesja główna pracuje dalej, zamiast czekać ~65
    (decyzja zgłaszającego, 02.10); `source_revision`
    = gałąź kandydata), każda ze swoim kontenerem i środowiskiem
    (`apt-get install -y mariadb-server`, klony `../evoke-fields`
-   i `../bricks-motyw`, `tools/testowy-wp.sh`): A = partie 1 i 4,
+   i `../bricks-motyw`, `tools/testowy-wp.sh`): A = partie 1, 4 i 7,
    B = 2 i 5, C = 3 i 6. Sesja niczego nie commituje — odsyła wynik
-   (ostatnia linia każdej partii i wiersze „BŁĄD”).
+   (ostatnia linia każdej partii i wiersze „BŁĄD”). Z pierwszego takiego
+   przebiegu (1.282.0) w poleceniu dla sesji muszą być jeszcze:
+   `apt-get update` przed instalacją (inaczej 404 na `libheif-plugin-aomenc`),
+   `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci` (świeży kontener nie ma
+   `playwright-core`) oraz `git fetch --depth=400 origin main`
+   (`zapis-wp-dwie-kopie`). Gałąź robocza Fields musi być na GitHubie —
+   sesja klonuje ją po nazwie.
 3. Wszystkie zielone → gałąź robocza przesuwana na commit kandydata
    (`git push origin <commit>:claude/…`); czerwone → poprawka i nowy kandydat.
 Testy sesji głównej i sesji przebiegu nie dzielą bazy ani testowych
@@ -359,7 +368,11 @@ Cztery rzeczy z testów w PRAWDZIWYM builderze (`bricks-builder*`, 1.275.0):
   z Playwrighta do Bricksa nie dochodzi.
 
 **MCP (`tl-mcp`, 1.278.0)** idzie przez PRAWDZIWY MCP Adapter z paczki
-wydania: skrypt pobiera `mcp-adapter.zip` z GitHuba do `~/.cache`
+wydania. Zip leży w pamięci podręcznej, więc stary kontener testuje starszy
+adapter niż świeży: przy 1.282.0 sesja przebiegu pobrała 0.7.0, który bez
+nagłówka `MCP-Protocol-Version` odrzuca żądania sesji, a tu leżał 0.6.1
+i wszystko przechodziło. Test wysyła nagłówek jak prawdziwy klient
+(`mcp-wordpress-remote`). Skrypt pobiera `mcp-adapter.zip` z GitHuba do `~/.cache`
 (`EVK_MCP_ZIP`), a sonda instaluje go na pierwszym WordPressie tą samą
 funkcją co przycisk „Zainstaluj” w panelu i na końcu usuwa. Wywołania idą
 przez HTTP (`php -S`): `initialize` → nagłówek `Mcp-Session-Id` →

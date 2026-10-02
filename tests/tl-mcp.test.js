@@ -25,10 +25,14 @@ function klient(baza, login, haslo) {
   const url = baza + '/?rest_route=/mcp/mcp-adapter-default-server';
   const auth = 'Basic ' + Buffer.from(login + ':' + haslo).toString('base64');
   let sesja = '';
+  let wersja = '';
   let id = 0;
   const wyslij = async (metoda, params, powiadomienie) => {
     const h = { 'Content-Type': 'application/json', Authorization: auth };
     if (sesja) h['Mcp-Session-Id'] = sesja;
+    /* Wersja protokołu z `initialize` w każdym następnym żądaniu — tak robi prawdziwy klient
+       (`mcp-wordpress-remote`). MCP Adapter od 0.7.0 bez tego nagłówka odrzuca żądania sesji. */
+    if (wersja) h['MCP-Protocol-Version'] = wersja;
     const cialo = { jsonrpc: '2.0', method: metoda };
     if (!powiadomienie) cialo.id = ++id;
     if (params) cialo.params = params;
@@ -40,6 +44,7 @@ function klient(baza, login, haslo) {
   return {
     async start() {
       const r = await wyslij('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'evoke-test', version: '1' } });
+      wersja = String(((r || {}).result || {}).protocolVersion || '');
       await wyslij('notifications/initialized', null, true);
       return r;
     },
