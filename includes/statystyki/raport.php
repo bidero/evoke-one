@@ -57,7 +57,7 @@ function evk_stat_wykres(array $dni, string $od, string $do): string {
 function evk_stat_tabela_html(string $tytul, string $kolumna, array $dane, array $nazwy = []): string {
     $html = '<div class="evo-box evk-stat-lista"><h3>' . esc_html($tytul) . '</h3>';
     if (!$dane) return $html . '<p class="evo-muted">Brak danych w tym okresie.</p></div>';
-    $html .= '<div class="evo-tbl-wrap"><table class="widefat striped"><thead><tr><th scope="col">' . esc_html($kolumna)
+    $html .= '<div class="evo-tbl-wrap"><table class="evo-table"><thead><tr><th scope="col">' . esc_html($kolumna)
         . '</th><th scope="col" class="num">Odsłony</th><th scope="col" class="num">Unikalni</th></tr></thead><tbody>';
     foreach (array_slice($dane, 0, 10, true) as $w => $l) {
         $html .= '<tr><td>' . esc_html($nazwy[$w] ?? (string) $w) . '</td><td class="num">' . number_format_i18n($l['odslony'])
