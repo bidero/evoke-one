@@ -50,8 +50,9 @@ function evk_stat_kraj(string $ip): string {
 function evk_stat_nazwa_kraju(string $kod): string {
     if ($kod === '') return 'nieznany';
     if (class_exists('Locale')) {
-        $n = \Locale::getDisplayRegion('-' . $kod, 'pl');
-        if (is_string($n) && $n !== '' && $n !== $kod) return $n;
+        /* Bez danych ICU dla regionu intl oddaje sam kod — wtedy zostaje kod. */
+        $n = (string) \Locale::getDisplayRegion('-' . $kod, 'pl');
+        if ($n !== $kod) return $n;
     }
     return $kod;
 }
@@ -123,10 +124,6 @@ function evk_stat_dbip_krok(float $sekundy = 8.0): array {
     fseek($f, (int) $im['poz']);
     $porcja = (int) apply_filters('evk_stat_dbip_porcja', 2000);
     $wartosci = [];
-    $zapisz = static function () use (&$wartosci, $wpdb, $nowa): void {
-        if ($wartosci) $wpdb->query("INSERT IGNORE INTO $nowa (v, od_ip, do_ip, kraj) VALUES " . implode(',', $wartosci));
-        $wartosci = [];
-    };
     while (microtime(true) < $koniec && ($linia = fgets($f)) !== false) {
         $p = explode(',', trim($linia));
         if (count($p) !== 3) continue;
@@ -134,9 +131,9 @@ function evk_stat_dbip_krok(float $sekundy = 8.0): array {
         if ($a === false || $b === false || strlen($a) !== strlen($b) || !preg_match('/^[A-Z]{2}$/', $p[2])) continue;
         $wartosci[] = '(' . (strlen($a) === 4 ? 4 : 6) . ",UNHEX('" . bin2hex($a) . "'),UNHEX('" . bin2hex($b) . "'),'" . $p[2] . "')";
         $im['wiersze']++;
-        if (count($wartosci) >= $porcja) $zapisz();
+        if (count($wartosci) >= $porcja) { evk_stat_dbip_wstaw($nowa, $wartosci); $wartosci = []; }
     }
-    $zapisz();
+    if ($wartosci) evk_stat_dbip_wstaw($nowa, $wartosci);
     $koniec_pliku = feof($f);
     $im['poz'] = (int) ftell($f);
     fclose($f);
@@ -170,6 +167,12 @@ function evk_stat_dbip_krok(float $sekundy = 8.0): array {
     $s = ['wersja' => (string) $im['miesiac'], 'zakresy' => (int) $im['wiersze'], 'import' => null, 'blad' => '', 'kiedy' => time()];
     update_option('evk_stat_dbip', $s, false);
     return $wynik('gotowe', 100);
+}
+
+/** Jedno INSERT porcji wierszy importu (wartości już złożone z HEX i kodu kraju). @param list<string> $wartosci */
+function evk_stat_dbip_wstaw(string $tabela, array $wartosci): void {
+    global $wpdb;
+    $wpdb->query("INSERT IGNORE INTO $tabela (v, od_ip, do_ip, kraj) VALUES " . implode(',', $wartosci));
 }
 
 /* Cron: porcje importu jedna po drugiej, co 10 s, aż do końca. */
