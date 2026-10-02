@@ -26,6 +26,7 @@ function evoke_one_zakladki(): array {
         'newsletter'     => ['label' => 'Newsletter',      'icon' => 'dashicons-email-alt'],
         'forminbox'      => ['label' => 'Formularze',      'icon' => 'dashicons-feedback'],
         'backup'         => ['label' => 'Kopie zapasowe',  'icon' => 'dashicons-backup'],
+        'statystyki'     => ['label' => 'Statystyki',      'icon' => 'dashicons-chart-area'],
     ];
 }
 

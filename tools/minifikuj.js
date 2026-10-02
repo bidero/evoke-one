@@ -44,6 +44,7 @@ const PLIKI = [
   'assets/js/bg-shift.js',
   'assets/js/parallax.js',
   'assets/js/warstwy.js',
+  'assets/js/statystyki.js',
   'includes/bricks-elements/evoke-burger/assets/burger.css',
   'includes/bricks-elements/evoke-burger/assets/burger.js',
   'includes/bricks-elements/evoke-circular-menu/assets/circular-menu.css',

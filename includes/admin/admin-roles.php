@@ -124,6 +124,14 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
                     </div>
                 </label>
                 <label class="evo-check">
+                    <input type="checkbox" name="evk_stat_access" value="1"
+                           <?php checked($role->has_cap('evk_access_stats')); ?>>
+                    <div>
+                        <span class="evo-strong-500">Statystyki</span>
+                        <div class="evo-desc evo-m0">Rola może oglądać raporty statystyk (bez zmiany ustawień modułu).</div>
+                    </div>
+                </label>
+                <label class="evo-check">
                     <input type="checkbox" name="evk_maint_access" value="1"
                            <?php checked($role->has_cap('evk_access_maintenance')); ?>>
                     <div>

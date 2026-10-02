@@ -127,6 +127,13 @@ $evoke_one_modules = [
     '97-opengraph.php',
     '98-accessibility.php',
     '99-github-updater.php',
+    /* Statystyki bez cookies (1.283.0). Wyłączony moduł nie rejestruje trasy,
+       skryptu, crona ani menu — każdy plik sprawdza włącznik sam. */
+    'statystyki/ustawienia.php',
+    'statystyki/tabele.php',
+    'statystyki/zbieranie.php',
+    'statystyki/dobowe.php',
+    'statystyki/raport.php',
 ];
 
 foreach ($evoke_one_modules as $module) {

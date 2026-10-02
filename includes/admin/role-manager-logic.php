@@ -18,7 +18,7 @@ add_filter('user_has_cap', function (array $caps, array $cap_check, array $args)
     $cap = $cap_check[0];
     if (!in_array($cap, [
         'evk_access_translations', 'evk_access_newsletter',
-        'evk_access_messages', 'evk_access_maintenance', 'evk_access_fields',
+        'evk_access_messages', 'evk_access_maintenance', 'evk_access_fields', 'evk_access_stats',
     ], true)) return $caps;
     if (!empty($caps['manage_options'])) {
         $caps[$cap] = true;
@@ -188,6 +188,13 @@ add_action('admin_init', function () {
             $role->add_cap('evk_access_maintenance', true);
         } else {
             $role->remove_cap('evk_access_maintenance');
+        }
+
+        // Dostęp do Evoke ONE — Statystyki (raporty, bez ustawień modułu; 1.283.0)
+        if (!empty($_POST['evk_stat_access'])) {
+            $role->add_cap('evk_access_stats', true);
+        } else {
+            $role->remove_cap('evk_access_stats');
         }
 
         // Dostęp do Evoke FIELDS (osobna wtyczka — patrz komentarz przy `init`)
