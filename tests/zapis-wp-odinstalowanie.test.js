@@ -35,7 +35,7 @@ module.exports = async function (t) {
   t.check('warunek testu: przed deaktywacją trzy zadania w cronie', p0.cron_przed === true, JSON.stringify(p0.cron_przed));
   const c = p0.cron_po_deaktywacji || {};
   t.check('po deaktywacji w cronie nie ma kroków kopii, kopii nocnej ani wysyłki',
-    p0.aktywna_po_deaktywacji === false && c.tick === false && c.nocna === false && c.wysylka === false, JSON.stringify(p0.cron_po_deaktywacji));
+    p0.aktywna_po_deaktywacji === false && c.tick === false && c.nocna === false && c.wysylka === false && c.statystyki === false, JSON.stringify(p0.cron_po_deaktywacji));
   t.check('reguły adresów do przebudowania (bez naszych)', p0.reguly_po_deaktywacji === true, JSON.stringify(p0.reguly_po_deaktywacji));
 
   // ── Bez „Usuń dane" ─────────────────────────────────────────────────────
@@ -44,12 +44,12 @@ module.exports = async function (t) {
   const n0 = w0.nasze || {};
   t.check('warunek testu: kod wtyczki przy odinstalowaniu nie jest załadowany', w0.wtyczka_zaladowana === false, JSON.stringify(w0.wtyczka_zaladowana));
   t.check('ustawienia, transienty, tabele i wpisy zostają',
-    Object.keys(n0.opcje || {}).length === 11 && Object.keys(n0.transienty || {}).length === 3
-      && Object.keys(n0.tabele || {}).length === 2 && Object.keys(n0.wpisy || {}).length === 4,
+    Object.keys(n0.opcje || {}).length === 12 && Object.keys(n0.transienty || {}).length === 3
+      && Object.keys(n0.tabele || {}).length === 3 && Object.keys(n0.wpisy || {}).length === 4,
     JSON.stringify({ opcje: Object.keys(n0.opcje || {}).length, transienty: Object.keys(n0.transienty || {}).length,
       tabele: Object.keys(n0.tabele || {}).length, wpisy: Object.keys(n0.wpisy || {}).length }));
   t.check('meta, rola z Role Managera, uprawnienia i katalogi (kopie, import, OG) zostają',
-    Object.keys(n0.meta || {}).length === 7 && n0.rola === true && n0.uprawnienie === true && Object.keys(n0.katalogi || {}).length === 3,
+    Object.keys(n0.meta || {}).length === 7 && n0.rola === true && n0.uprawnienie === true && n0.uprawnienie_stat === true && Object.keys(n0.katalogi || {}).length === 3,
     JSON.stringify({ meta: n0.meta, rola: n0.rola, uprawnienie: n0.uprawnienie, katalogi: n0.katalogi }));
   t.check('wersje WebP/AVIF obrazu z biblioteki (oba pliki, oba rozmiary) i ich meta zostają', Object.keys(n0.obrazy || {}).length === 5,
     JSON.stringify(n0.obrazy));
@@ -66,7 +66,7 @@ module.exports = async function (t) {
   t.check('warunek testu: w katalogu wtyczek jest druga kopia Evoke ONE',
     JSON.stringify(wd.inne_kopie) === JSON.stringify(['evk-t-druga-kopia/evoke-one.php']), JSON.stringify(wd.inne_kopie));
   t.check('ustawienia, tabele, wpisy, meta, katalogi i rola zostają mimo „Usuń dane"',
-    Object.keys(nd.opcje || {}).length === 11 && Object.keys(nd.tabele || {}).length === 2 && Object.keys(nd.wpisy || {}).length === 4
+    Object.keys(nd.opcje || {}).length === 12 && Object.keys(nd.tabele || {}).length === 3 && Object.keys(nd.wpisy || {}).length === 4
       && Object.keys(nd.meta || {}).length === 7 && Object.keys(nd.katalogi || {}).length === 3 && nd.rola === true,
     JSON.stringify({ opcje: Object.keys(nd.opcje || {}).length, tabele: nd.tabele, wpisy: Object.keys(nd.wpisy || {}).length,
       meta: Object.keys(nd.meta || {}), katalogi: nd.katalogi, rola: nd.rola }));
@@ -87,7 +87,7 @@ module.exports = async function (t) {
   t.check('rola z Role Managera usunięta, jej użytkownik z rolą domyślną strony',
     n1.rola === false && JSON.stringify(w1.uzytkownik_role) === JSON.stringify([w1.domyslna_rola]),
     JSON.stringify({ rola: n1.rola, uzytkownik: w1.uzytkownik_role, domyslna: w1.domyslna_rola }));
-  t.check('nasze uprawnienia zdjęte z ról', n1.uprawnienie === false, JSON.stringify(n1.uprawnienie));
+  t.check('nasze uprawnienia zdjęte z ról (newsletter, statystyki)', n1.uprawnienie === false && n1.uprawnienie_stat === false, JSON.stringify([n1.uprawnienie, n1.uprawnienie_stat]));
   t.check('wersje WebP/AVIF obrazu (główny plik i rozmiar) i meta _evk_obrazy — usunięte', puste(n1.obrazy), JSON.stringify(n1.obrazy));
 
   t.section('odinstalowanie Z „Usuń dane": cudze dane nietknięte');

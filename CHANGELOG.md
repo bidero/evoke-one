@@ -2,6 +2,65 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.284.0] — 2026-10-02
+
+Statystyki bez cookies, etap 1 z trzech: ogólny włącznik, zbieranie,
+własne tabele i podstawowy raport. Etap 2 (1.285.0): porównanie okresów,
+„teraz na stronie”, CSV, widżet Kokpitu, licznik w pasku admina, kraj
+(DB-IP Lite), zdarzenia i cele. Etap 3: hotspoty.
+
+### Dodane
+
+- **Zakładka „Statystyki”** w panelu Evoke ONE (decyzje z 02.10):
+  - ogólny włącznik, domyślnie WYŁĄCZONY;
+  - wyłączony moduł nie dodaje do strony skryptu, trasy REST, crona,
+    menu ani tabel w bazie;
+  - ustawienia: kogo nie liczyć (zalogowanych redaktorów i administratorów,
+    odwiedzających z „nie śledź” — DNT / GPC, adresy i sieci IP), jak długo
+    trzymać szczegółowe wpisy (domyślnie 90 dni; podsumowania dzienne —
+    na zawsze) i gdzie stoi menu raportów (domyślnie osobna pozycja).
+- **Zbieranie bez cookies.**
+  - Skrypt (1,2 KB po minifikacji, `defer`) wysyła `sendBeacon` na trasę
+    `evoke/v1/stat` przy wczytaniu strony. Przy schowaniu karty wysyła
+    czas widoczności i największe przewinięcie. Liczy też strony podawane
+    z pamięci podręcznej serwera.
+  - Unikalni to skrót z dobowo zmienianej losowej soli, adresu IP
+    i przeglądarki. Pełnego adresu IP nie zapisujemy nigdzie, a wczorajsza
+    sól ginie.
+  - Odpadają: boty (nagłówek przeglądarki i `navigator.webdriver`),
+    prerender przed wejściem, ponad 300 odsłon jednej wizyty dziennie.
+  - Zapisywane: strona, źródło (domena odsyłacza, „(bezpośrednio)”,
+    przejścia wewnątrz strony nie są źródłem), kampanie UTM, urządzenie
+    z szerokości okna, przeglądarka, system, język wersji strony.
+- **Zbiórka dzienna** (WP-Cron o 03:10, a gdy cron nie chodzi — przy
+  otwarciu raportu). Zbiera zamknięte dni do tabeli zbiorczej i kasuje
+  surowe wpisy starsze niż ustawiony czas, ale tylko już zebrane. Raport
+  łączy dni zebrane i niezebrane tym samym zapytaniem, więc liczby są takie
+  same przed zbiórką i po niej.
+- **Menu „Statystyki”** dla administratora i ról z nowym uprawnieniem
+  „Statystyki” (Role Manager). Rola widzi raporty, ale nie ustawienia.
+  - Okres: dziś, 7, 30, 90 dni albo rok.
+  - Odsłony, unikalni (suma dziennych), średni czas, średnie przewinięcie.
+  - Wykres dzienny w SVG z opisem dla czytnika ekranu.
+  - Listy: strony, źródła, urządzenia, przeglądarki, systemy, języki
+    (przy kilku), kampanie UTM.
+- Odinstalowanie z „Usuń dane” kasuje tabele, opcje, uprawnienie i zadanie
+  crona statystyk. Deaktywacja zdejmuje zadanie crona.
+
+### Testy
+
+- `statystyki` (34 sprawdzenia): prawdziwy skrypt w Chromium (komputer,
+  telefon, GPC, automat), beacony do prawdziwej trasy, zbiórka i czas
+  trzymania, raport w panelu także na 360 px, zakładka i przełącznik.
+  15 mutacji, każda zapala swoje sprawdzenie.
+- Dwie usterki złapane przed wydaniem:
+  - skrót wizyty zawierał domenę, więc strona pod dwoma adresami (z „www”
+    i bez) liczyłaby jedną osobę dwa razy;
+  - przycisk bieżącego okresu nie był zaznaczony, bo PHP trzyma klucz
+    „7” jako liczbę.
+- `zapis-wp-odinstalowanie`: zasiewa dane statystyk i sprawdza, że znikają
+  (3 mutacje spisu danych). `admin-*`: zakładka wyłączona i włączona.
+
 ## [1.283.0] — 2026-10-02
 
 Tłumaczenie AI mówi wprost, który dostawca i model naprawdę tłumaczył.

@@ -44,6 +44,10 @@ case 'przygotuj':
     $lista = (int) evk_nl_create_list('Lista do odinstalowania');
     evk_nl_add_subscriber($lista, 'odinst@example.com');
     evk_backup_create_tables();
+    // Statystyki (1.284.0): włączone, tabele z wierszem.
+    update_option('evk_statystyki', ['enabled' => 1]);
+    evk_stat_utworz_tabele();
+    $wpdb->insert($wpdb->prefix . 'evk_stat_odslony', ['czas' => gmdate('Y-m-d H:i:s'), 'dzien' => gmdate('Y-m-d'), 'klucz' => bin2hex(random_bytes(8)), 'wizyta' => str_repeat('a', 16), 'sciezka' => '/']);
 
     // Opcje z różnych modułów, transienty (także dynamiczne nazwy).
     update_option('evk_smtp', ['enabled' => 1, 'host' => 'smtp.example.com', 'password' => 'test-haslo']);
@@ -90,6 +94,7 @@ case 'przygotuj':
                                         'user_email' => 'odinst' . wp_rand() . '@example.com', 'role' => 'evk_t_odinst']);
     add_role('obca_rola', 'Cudza rola', ['read' => true]);
     get_role('editor')->add_cap('evk_access_newsletter');
+    get_role('editor')->add_cap('evk_access_stats');
     get_role('editor')->add_cap('evk_access_fields');                        // CUDZE: wejście do Evoke Fields
 
     // Katalogi: kopie, import, obrazki OG — i cudzy katalog kopii Evoke Fields.
@@ -128,8 +133,9 @@ case 'przygotuj':
     wp_schedule_single_event(time() + 3600, 'evk_backup_tick', [5]);
     wp_schedule_event(time() + 3600, 'daily', 'evk_backup_nightly');
     wp_schedule_single_event(time() + 3600, 'evk_nl_process_batch');
+    wp_schedule_event(time() + 3600, 'daily', 'evk_stat_dobowy');
     $out['cron_przed'] = (bool) wp_next_scheduled('evk_backup_tick', [5]) && (bool) wp_next_scheduled('evk_backup_nightly')
-                         && (bool) wp_next_scheduled('evk_nl_process_batch');
+                         && (bool) wp_next_scheduled('evk_nl_process_batch') && (bool) wp_next_scheduled('evk_stat_dobowy');
 
     // Druga kopia wtyczki w innym katalogu — sam nagłówek wystarcza WordPressowi.
     $druga = '';
@@ -151,6 +157,7 @@ case 'przygotuj':
         'tick'     => (bool) wp_next_scheduled('evk_backup_tick', [5]),
         'nocna'    => (bool) wp_next_scheduled('evk_backup_nightly'),
         'wysylka'  => (bool) wp_next_scheduled('evk_nl_process_batch'),
+        'statystyki' => (bool) wp_next_scheduled('evk_stat_dobowy'),
     ];
     $out['reguly_po_deaktywacji'] = get_option('rewrite_rules', 'brak') === 'brak';
     break;
@@ -174,11 +181,13 @@ case 'wykonaj':
                          'maintenance_bypass_password' => $opcja('maintenance_bypass_password'), 'favicon_url' => $opcja('favicon_url'),
                          'evk_nl_backoff_7' => $opcja('evk_nl_backoff_7'), 'evoke_dashboard_active' => $opcja('evoke_dashboard_active'),
                          'evk_usun_dane' => $opcja('evk_usun_dane'), 'evk_role_utworzone' => $opcja('evk_role_utworzone'),
-                         'evk_backup_dir' => $opcja('evk_backup_dir'), 'evk_tl_fab_enabled' => $opcja('evk_tl_fab_enabled')]),
+                         'evk_backup_dir' => $opcja('evk_backup_dir'), 'evk_tl_fab_enabled' => $opcja('evk_tl_fab_enabled'),
+                         'evk_statystyki' => $opcja('evk_statystyki')]),
         'transienty' => array_filter(['evk_301_cache' => get_transient('evk_301_cache') !== false,
                          'evk_gdrive_msg_abc' => get_transient('evk_gdrive_msg_abc') !== false,
                          'tl_compiled_config' => get_transient('tl_compiled_config') !== false]),
-        'tabele'     => array_filter(['evk_nl_subscribers' => $tabela('evk_nl_subscribers'), 'evk_backup_jobs' => $tabela('evk_backup_jobs')]),
+        'tabele'     => array_filter(['evk_nl_subscribers' => $tabela('evk_nl_subscribers'), 'evk_backup_jobs' => $tabela('evk_backup_jobs'),
+                         'evk_stat_odslony' => $tabela('evk_stat_odslony')]),
         'wpisy'      => array_filter($wpisy),
         'meta'       => array_filter(['_evk_og_url' => get_post_meta((int) ($s['strona'] ?? 0), '_evk_og_url', true) !== '',
                          '_evoke_seo_title' => get_post_meta((int) ($s['strona'] ?? 0), '_evoke_seo_title', true) !== '',
@@ -189,6 +198,7 @@ case 'wykonaj':
                          'evk_avatar_id' => get_user_meta(1, 'evk_avatar_id', true) !== '']),
         'rola'       => get_role('evk_t_odinst') !== null,
         'uprawnienie'=> get_role('editor')->has_cap('evk_access_newsletter'),
+        'uprawnienie_stat' => get_role('editor')->has_cap('evk_access_stats'),
         'katalogi'   => array_filter(['kopie' => is_dir((string) ($s['kopie'] ?? '')), 'import' => is_dir((string) ($s['import'] ?? '')),
                          'og' => is_dir((string) ($s['og'] ?? ''))]),
     ];
@@ -228,6 +238,7 @@ case 'przywroc':
     remove_role('evk_t_odinst');
     get_role('editor')->remove_cap('evk_access_fields');
     get_role('editor')->remove_cap('evk_access_newsletter');
+    get_role('editor')->remove_cap('evk_access_stats');
     foreach (['evk_backup_tick', 'evk_backup_nightly', 'evk_nl_process_batch'] as $hak) wp_unschedule_hook($hak);
     $rm = static function (string $dir) use (&$rm) {
         if ($dir === '' || !is_dir($dir)) return;

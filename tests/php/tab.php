@@ -775,6 +775,19 @@ $TABS = [
         'seed'   => function () { $GLOBALS['options']['evk_newsletter'] = ['enabled' => 1]; },
     ],
 
+    /* Statystyki (1.284.0): zakładka najwyższego poziomu — wyłączona (stan
+       pusty) i włączona (formularz ustawień). */
+    'stat' => [
+        'module' => ['includes/security/ip-klienta.php', 'includes/statystyki/ustawienia.php'],
+        'file'   => 'includes/admin/tab-statystyki.php',
+        'seed'   => function () { $GLOBALS['options']['evk_statystyki'] = ['enabled' => 0]; },
+    ],
+    'stat-on' => [
+        'module' => ['includes/security/ip-klienta.php', 'includes/statystyki/ustawienia.php'],
+        'file'   => 'includes/admin/tab-statystyki.php',
+        'seed'   => function () { $GLOBALS['options']['evk_statystyki'] = ['enabled' => 1, 'wyklucz_ip' => "10.0.0.1\n192.168.0.0/16"]; },
+    ],
+
     /* ── Panel admina ────────────────────────────────────────────────────
        Podstrony ładuje `tab-admin.php` jawnym `require` w `switch`, ale
        zmienne ($evk_sec, $evk_iface) podaje im tak samo jak zakładka

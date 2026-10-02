@@ -192,6 +192,16 @@ module.exports = async function (t) {
     t.check('źródła: bing.com i (bezpośrednio); okres „7 dni” zaznaczony; pozycja w menu', J((rap.zrodla || []).sort()) === J(['(bezpośrednio)', 'bing.com'])
       && rap.okres === '7 dni' && rap.menu, J(rap));
 
+    /* Raport to osobna strona (nie przez tests/php/tab.php), więc admin-telefon jej nie widzi. */
+    await sa.setViewportSize({ width: 360, height: 740 });
+    await sa.reload();
+    const tel360 = await sa.evaluate(() => ({ szer: document.documentElement.scrollWidth, okno: innerWidth,
+      przyciski: [...document.querySelectorAll('.evk-stat-okresy a')].map((a) => Math.round(a.getBoundingClientRect().height)),
+      wystaje: [...document.querySelectorAll('.evk-stat *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1 && !e.closest('.evo-tbl-wrap')).length }));
+    t.check('raport na telefonie (360 px): bez przewijania w poziomie, nic nie wystaje, okresy ≥ 24 px',
+      tel360.szer <= tel360.okno && tel360.wystaje === 0 && tel360.przyciski.every((h) => h >= 24), J(tel360));
+    await sa.setViewportSize({ width: 1280, height: 900 });
+
     t.section('zakładka Statystyki w panelu Evoke ONE');
     await sa.goto(baza + '/wp-admin/options-general.php?page=evoke-one&tab=statystyki');
     await sa.selectOption('#evk-stat-retencja', '180');

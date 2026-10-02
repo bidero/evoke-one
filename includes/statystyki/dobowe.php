@@ -92,7 +92,7 @@ add_action('init', function (): void {
     $jest = wp_next_scheduled('evk_stat_dobowy');
     if (evk_stat_wlaczone()) {
         /* 03:10 czasu strony — po północy soli i z dala od pełnych godzin. */
-        if (!$jest) wp_schedule_event((int) strtotime('tomorrow 03:10', current_time('timestamp')) - (int) (get_option('gmt_offset') * HOUR_IN_SECONDS), 'daily', 'evk_stat_dobowy');
+        if (!$jest) wp_schedule_event((new DateTimeImmutable('tomorrow 03:10', wp_timezone()))->getTimestamp(), 'daily', 'evk_stat_dobowy');
     } elseif ($jest) {
         wp_clear_scheduled_hook('evk_stat_dobowy');
     }

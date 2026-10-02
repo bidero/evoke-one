@@ -20,7 +20,7 @@ const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               'adm-roles', 'adm-tlumaczenia',
               'fe-cursor', 'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-sierotki', 'fe-obrazy',
               'fe-themecolor', 'fe-parallax', 'fe-elementy', 'fe-newsletter', 'fe-newsletter-on',
-              'backup', 'backup-on',
+              'backup', 'backup-on', 'stat', 'stat-on',
               /* Tłumaczenia to osobny ekran, ale ładuje ten sam `admin.css`
                  (patrz `tl/bootstrap.php`), więc obowiązuje go ta sama skóra. */
               'tl-translations', 'tl-elementy', 'tl-ai', 'tl-mcp', 'tl-wpisy', 'tl-images', 'tl-slugs', 'tl-dd',
