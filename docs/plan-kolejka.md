@@ -116,6 +116,13 @@ wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną
      „teraz na stronie” = ostatnie 5 min; cele: zdarzenie albo wizyta na
      adresie, konwersja = wizyty z celem / wszystkie, osobno dla źródła
      i kampanii.
+     Dopisane 02.10 wieczorem: odstęp pod wykresem (zrobione), kasowanie
+     statystyk za okres w zakładce Statystyki — od–do i „Usuń wszystkie”,
+     tylko administrator, z potwierdzeniem (zrobione, gałąź
+     claude/statystyki); wykres z przełącznikiem Słupki / Linie (wybór
+     zapamiętany w przeglądarce; linie: odsłony i unikalni, z legendą);
+     porównanie okresów — poprzedni okres tej samej długości jako przerywana
+     linia odsłon, przy liczbach zmiana w %.
    Matomo odpada: heatmapy to płatna wtyczka premium (InnoCraft, nie GPL),
    a Matomo for WordPress waży kilkadziesiąt MB.
 9. **Język główny inny niż polski** — **tylko nowe strony** (wybór przy
