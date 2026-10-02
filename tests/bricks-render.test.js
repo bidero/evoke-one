@@ -41,7 +41,16 @@ module.exports = async function (t) {
   sonda('sprzataj');
   let serwer = null;
   try {
-    t.check('moduł Tłumaczeń, język EN', sonda('modul').gotowe === true);
+    t.check('moduł Tłumaczeń, język EN, elementy Evoke włączone', sonda('modul').gotowe === true);
+
+    t.section('elementy Evoke: pola „… EN” tylko przy treści (prawdziwe kontrolki)');
+    const tl = sonda('tlumaczalne').pola || {};
+    console.log('      ' + J(tl));
+    /* Przegląd w prawdziwym builderze (1.275.0): start/koniec ScrollTriggera, pozycja Wave BG,
+       ID panelu, zapas pod stosem dostawały pola „… EN” — oznaczone `evkTlPomin`. */
+    t.check('tłumaczone: napisy Burgera i tekst Circular Title; wartości techniczne (ScrollTrigger, pozycja, ID, odstęp) — bez pól',
+      J(tl) === J({ 'evk-burger': ['textClosed', 'textOpen', 'ariaLabel'], 'evk-circular-menu': [], 'evk-circular-title': ['inner_title'], 'evk-grain': [],
+        'evk-horizontal-scroll': [], 'evk-marquee': [], 'evk-offcanvas-menu': [], 'evk-scroll-reading': [], 'evk-stacking-cards': [], 'evk-wave-bg': [] }), J(tl));
     const u = sonda('ustaw');
     t.check('komponenty i strona testu', u.gotowe === true, J(u));
     if (!u.gotowe) return;

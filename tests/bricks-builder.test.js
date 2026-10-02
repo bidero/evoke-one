@@ -65,11 +65,14 @@ module.exports = async function (t) {
       if (/admin-ajax\.php/.test(r.url()) && /action=evk_tl_ai_builder/.test(r.request().postData() || '')) odpowiedzi.push(await r.text().catch(() => ''));
     });
 
-    t.section('przejście po komponentach przy pierwszym wejściu do panelu, z pustą mapą pól');
+    t.section('jednorazowe przejście po komponentach: pusta mapa pól, potem logowanie');
+    const s0 = sonda('przejscie-raz');
+    t.check('przejście (admin_init) z pustą mapą: bliźniaki EN i DE zostają, przejście czeka na mapę',
+      J(s0.wlasciwosci) === J(WLASCIWOSCI) && s0.przejscie === null, J(s0));
     await serwerWp.zaloguj(p, serwer.baza);
     const s1 = sonda('stan');
-    t.check('logowanie (admin_init) z pustą mapą: bliźniaki EN i DE zostają, przejście czeka na mapę',
-      J(s1.wlasciwosci) === J(WLASCIWOSCI) && s1.przejscie === null, J(s1));
+    t.check('po logowaniu (przejście już z mapą albo nadal czeka): bliźniaki EN i DE w bazie całe',
+      J(s1.wlasciwosci) === J(WLASCIWOSCI), J(s1));
 
     t.section('builder: ✦ we „Właściwościach” instancji');
     await p.goto(serwer.baza + '/?page_id=' + u.strona + '&bricks=run', { timeout: 60000 });

@@ -2,6 +2,80 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.275.0] — 2026-10-01
+
+Kopiowanie animacji Animatora z elementu na element i poprawki z przeglądu
+w prawdziwym builderze Bricksa.
+
+### Dodane
+
+- **Animacje Animatora przechodzą przez „Copy/Paste → Attributes” Bricksa.**
+  Pomiar w builderze (Bricks 2.4.2):
+  - „Copy → All styles” nie bierze listy Animatora;
+  - ikonka „Attributes” przy „Copy” pokazuje się tylko przy niepustych
+    Atrybutach, dlatego przy samej liście Animatora jej nie było.
+
+  Teraz builder trzyma listę także w Atrybutach, w wierszu `data-evk-anim`.
+  Robi to dla elementu zaznaczonego albo klikniętego prawym przyciskiem;
+  przy otwarciu strony nie rusza niczego.
+  - Prawy klik → przy „Copy” ikonka „Attributes”, na drugim elemencie przy
+    „Paste” ta sama ikonka.
+  - Lista drugiego elementu wypełnia się sama i **zastępuje** jego animacje
+    (decyzja zgłaszającego). Atrybuty drugiego elementu Bricks zastępuje
+    przy wklejeniu tak czy inaczej.
+  - Serwer czyta taki wiersz jak listę, więc front z lustrem wygląda tak
+    samo jak bez niego, łącznie z odpowiedzią dla zasłony.
+  - Ręczny wpis sprzed lustra (goła nazwa, pojedynczy obiekt) zostaje i
+    działa jak dotąd.
+
+### Naprawione
+
+- **Pola „… EN” przy wartościach technicznych elementów Evoke.** Grupa
+  „Tłumaczenia” dawała pola, a hurt AI tłumaczył wartości, które nie są
+  treścią: start, koniec, scrub i obrót ScrollTriggera (Scroll Reading,
+  Circular Title), ID panelu startowego (Offcanvas Menu), zapas pod stosem
+  (Stacking Cards) i pozycję (Wave BG). Takie kontrolki mają teraz
+  `'evkTlPomin' => true`. Pola tłumaczeń zostają przy treści: napisach
+  Burgera, tekście Circular Title i pozycjach Marquee.
+
+### Testy
+
+- `bricks-builder-animator` (nowy): w prawdziwym builderze prawy klik,
+  Copy/Paste → Attributes, ręczny wpis bez zmian, zapis przyciskiem „Save”
+  i front. `anim-lustro` (nowy): logika lustra w Node.
+- `bricks-render`: pola „… EN” elementów Evoke na prawdziwych definicjach
+  kontrolek.
+- Router testowego serwera (`tests/php/_router-wp.php`): brakujący plik
+  z kropką w ostatnim członie adresu idzie do WordPressa, jak „!-f, !-d”
+  z `.htaccess`. Wbudowany serwer podawał `index.php` tylko adresom bez
+  kropki, więc `/wp-sitemap-….xml` (tam WordPress przekierowuje
+  `?sitemap=…` przy ładnych adresach) kończył gołym 404.
+  `zapis-wp-strony-techniczne` („mapa strony także dla zalogowanego”)
+  przechodzi.
+- `bricks-builder`: jednorazowe przejście po komponentach (51, teraz nazwana
+  funkcja `evk_tl_kp_przejscie_raz()`) sprawdzane wprost przy pustej mapie.
+  Po poprawce routera pierwsze żądanie frontu przy logowaniu (`/favicon.ico`)
+  wypełnia mapę, zanim ruszy panel, jak na prawdziwym serwerze. Po logowaniu
+  test sprawdza już tylko, że bliźniaki są całe.
+- `fields-ai` i `fields-modyfikatory` same włączają moduł Tłumaczeń
+  i przywracają go po sobie. Do tej pory przechodziły tylko po
+  `fields-tlumaczenia`, który zostawia moduł włączony; na świeżym czwartym
+  WordPressie padały.
+
+### Przegląd buildera (bez zmian w kodzie)
+
+- Bez błędów JS przy wczytaniu, zaznaczaniu każdego elementu i zapisie.
+- Działają: przełącznik PL | EN, `{tl_…}` w kanwie, grupa „Tłumaczenia”,
+  kontrolki Animatora, tła i paralaksy oraz dodawanie wszystkich 10
+  elementów Evoke z panelu.
+- Scroll Reading (bez domyślnych dzieci) i Offcanvas Menu (zamknięty
+  w builderze) są po dodaniu niewidoczne w kanwie — do decyzji.
+
+### Do sprawdzenia na testowej
+
+- Prawy klik na elemencie z animacją → przy „Copy” ikonka „Attributes”,
+  wklejenie na inny element, zapis, animacja na stronie.
+
 ## [1.274.0] — 2026-10-01
 
 Poprawki ✦ we „Właściwościach” instancji (1.273.0) — sprawdzone pierwszy raz

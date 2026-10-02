@@ -37,6 +37,7 @@ const miejsce = (teksty, k) => (teksty || []).find((t) => t.klucz === k) || { tl
 module.exports = async function (t) {
   t.section('środowisko: pola.test z Evoke ONE i Evoke FIELDS 1.75.0');
   sonda('sprzataj');
+  sonda('modul');
   const u = sonda('ustaw');
   t.check('czwarty WordPress z obiema wtyczkami, grupy i wpis testu (tools/testowy-wp.sh)', !u.brak && u.gotowe === true && u.wpis > 0, u.brak || J(u));
   if (u.brak || !u.gotowe) return;

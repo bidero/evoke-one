@@ -308,14 +308,15 @@ add_action('add_option_tl_languages', static function ($nazwa, $nowe): void { ev
 
 /* Raz po aktualizacji: istniejące komponenty dostają bliźniaki — instancje
    przestają pokazywać tłumaczenie tekstu komponentu przy własnym tekście. */
-add_action('admin_init', static function (): void {
+function evk_tl_kp_przejscie_raz(): void {
     if ((int) get_option('evk_tl_kp_przejscie', 0) >= EVK_TL_KP_WERSJA) return;
     /* Bez mapy pól (świeża instalacja, przed pierwszym renderem) przejście nic
        by nie rozpoznało, a zostałoby odhaczone — czeka na mapę. */
     if (!evk_tl_el_mapa()) return;
     update_option('evk_tl_kp_przejscie', EVK_TL_KP_WERSJA, false);
     evk_tl_kp_przejscie();
-});
+}
+add_action('admin_init', 'evk_tl_kp_przejscie_raz');
 
 // =========================================================================
 // INSTANCJE W TREŚCI STRONY

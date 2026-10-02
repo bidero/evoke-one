@@ -12,6 +12,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/bricks-render.php modul        kopia opcji, moduł Tłumaczeń, język EN (osobny proces)
  *   php tests/php/bricks-render.php ustaw        komponenty i strona testu
  *   php tests/php/bricks-render.php stan         mapa pól, opcja komponentów, treść strony
+ *   php tests/php/bricks-render.php tlumaczalne  pola elementów Evoke z polami „… EN” (prawdziwe kontrolki)
  *   php tests/php/bricks-render.php przejscie    przejście po komponentach (jak po aktualizacji)
  *   php tests/php/bricks-render.php sprzataj
  *
@@ -27,7 +28,7 @@ $evk_piaty = true;
 require __DIR__ . '/_testowy-wp.php';
 
 $plik  = sys_get_temp_dir() . '/evk-t-bricks-render.json';
-$opcje = ['evk_tl_module_enabled', 'tl_languages', 'tl_translations', 'evk_tl_el_pola', 'bricks_components', 'evk_tl_kp_stan', 'evk_tl_kp_przejscie'];
+$opcje = ['evk_tl_module_enabled', 'tl_languages', 'tl_translations', 'evk_tl_el_pola', 'bricks_components', 'evk_tl_kp_stan', 'evk_tl_kp_przejscie', 'evk_elements'];
 $out   = ['krok' => $krok];
 const EVK_TBR_TYTUL = 'Render Bricks KP';
 
@@ -55,7 +56,22 @@ case 'modul':
     }
     update_option('evk_tl_module_enabled', 1);
     update_option('tl_languages', [['code' => 'en', 'name' => 'English', 'html' => 'en-US']]);
+    /* Wszystkie elementy Evoke (domyślnie wyłączone) — krok „tlumaczalne”. */
+    update_option('evk_elements', array_fill_keys(array_keys(evk_elements_registry()), 1));
     $out['gotowe'] = true;
+    break;
+
+/* Pola elementów Evoke z polami „… EN” — werdykt 51 na PRAWDZIWYCH definicjach
+   kontrolek z rejestracji w Bricksie (1.275.0: wartości techniczne z `evkTlPomin`). */
+case 'tlumaczalne':
+    $out['pola'] = [];
+    foreach ((array) \Bricks\Elements::$elements as $n => $el) {
+        if (strpos((string) $n, 'evk-') !== 0) continue;
+        \Bricks\Elements::get_element(['name' => $n]);   // kontrolki wczytują się leniwie
+        $c = (array) (\Bricks\Elements::$elements[$n]['controls'] ?? []);
+        $out['pola'][$n] = array_values(array_filter(array_keys($c), static function ($k) use ($c, $n) { return evk_tl_el_tlumaczalna((string) $k, $c[$k], (string) $n); }));
+    }
+    ksort($out['pola']);
     break;
 
 case 'ustaw':

@@ -49,6 +49,12 @@ function evk_tl_el_klucz(string $jezyk, string $kontrolka): string {
  * bez CSS i bez „technicznej" nazwy. Filtr `evk_tl_el_tlumaczalna` poprawia
  * werdykt dla konkretnego pola (klucz, definicja, nazwa elementu).
  *
+ * `'evkTlPomin' => true` w definicji kontrolki (1.275.0) — wartość techniczna
+ * w polu tekstowym, której nazwa tego nie zdradza: start ScrollTriggera
+ * („top 90%”), pozycja („0”), ID panelu. Przegląd w prawdziwym builderze
+ * pokazał dziewięć takich pól w elementach Evoke z polami „… EN”, a hurt AI
+ * tłumaczyłby je razem z treścią.
+ *
  * @param mixed $def Definicja kontrolki z tablicy Bricksa.
  */
 function evk_tl_el_tlumaczalna(string $klucz, $def, string $element = ''): bool {
@@ -57,6 +63,7 @@ function evk_tl_el_tlumaczalna(string $klucz, $def, string $element = ''): bool 
         && ($def['tab'] ?? 'content') !== 'style'
         && empty($def['css'])
         && $klucz !== '' && $klucz[0] !== '_' && strncmp($klucz, 'evk', 3) !== 0
+        && empty($def['evkTlPomin'])
         && !evk_tl_el_techniczna_nazwa($klucz, (string) ($def['label'] ?? ''));
     return (bool) apply_filters('evk_tl_el_tlumaczalna', $tak, $klucz, $def, $element);
 }

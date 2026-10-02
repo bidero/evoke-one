@@ -11,6 +11,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/bricks-builder.php modul        kopia opcji, moduł Tłumaczeń, język EN (osobny proces)
  *   php tests/php/bricks-builder.php mu           atrapa dostawców AI jako mu-plugin, ustawienia AI (Gemini)
  *   php tests/php/bricks-builder.php ustaw        komponent, strona, builder dla stron; mapa pól pusta
+ *   php tests/php/bricks-builder.php przejscie-raz  jednorazowe przejście (51) przy pustej mapie
  *   php tests/php/bricks-builder.php stan         właściwości komponentu w bazie, mapa, przejście
  *   php tests/php/bricks-builder.php sprzataj
  *
@@ -22,8 +23,8 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *
  * Krok `ustaw` zostawia stan jak po aktualizacji na świeżej stronie: mapa pól
  * (evk_tl_el_pola) pusta, jednorazowe przejście po komponentach (51) przed
- * nami — odpala się przy pierwszym żądaniu panelu, czyli przy logowaniu.
- * Do 1.273.0 kasowało wtedy oba bliźniaki: bez mapy wyglądały na osierocone.
+ * nami. Do 1.273.0 przejście z pustą mapą kasowało oba bliźniaki: bez mapy
+ * wyglądały na osierocone. Krok `przejscie-raz` woła je wprost.
  */
 
 $krok = $argv[1] ?? '';
@@ -123,6 +124,17 @@ case 'ustaw':
     $zapis['strona'] = $id;
     file_put_contents($plik, wp_json_encode($zapis));
     $out += ['strona' => $id, 'gotowe' => $id > 0];
+    break;
+
+/* Jednorazowe przejście po aktualizacji (51) wprost, przy pustej mapie — w przeglądarce
+   mapę wypełnia już pierwsze żądanie frontu (np. /favicon.ico przez router), zanim
+   ruszy panel, więc „pusta mapa przy logowaniu” nie jest warunkiem, który da się ustawić. */
+case 'przejscie-raz':
+    if (evk_tl_el_mapa()) { $out['brak'] = 'mapa pól nie jest pusta — najpierw krok „ustaw”'; break; }
+    evk_tl_kp_przejscie_raz();
+    $k = (array) get_option('bricks_components', []);
+    $out += ['wlasciwosci' => array_map(static function ($p) { return $p['label'] . ':' . $p['id']; }, (array) ($k[0]['properties'] ?? [])),
+        'przejscie' => get_option('evk_tl_kp_przejscie', null)];
     break;
 
 case 'stan':

@@ -158,6 +158,7 @@ class Evk_Stacking_Cards_Element extends \Bricks\Element {
 		];
 
 		$this->controls['bottom_space'] = [
+			'evkTlPomin' => true, // wartość techniczna — bez pól „Tłumaczenia” (51)
 			'group' => 'evk_efekt',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Zapas pod stosem', 'evk-stacking-cards' ),

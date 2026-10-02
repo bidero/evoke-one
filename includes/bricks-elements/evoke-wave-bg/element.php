@@ -113,8 +113,8 @@ class Evk_Wave_Bg_Element extends \Bricks\Element {
 			'default' => 0,
 		];
 
-		$this->controls['top']        = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Góra',       'type' => 'text', 'default' => '0'    ];
-		$this->controls['left']       = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Lewa',       'type' => 'text', 'default' => '0'    ];
+		$this->controls['top']        = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Góra',       'type' => 'text', 'evkTlPomin' => true, 'default' => '0'    ];
+		$this->controls['left']       = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Lewa',       'type' => 'text', 'evkTlPomin' => true, 'default' => '0'    ];
 		$this->controls['width']      = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Szerokość',  'type' => 'text', 'default' => '100%' ];
 		$this->controls['height']     = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Wysokość',   'type' => 'text', 'default' => '100%' ];
 		$this->controls['min_height'] = [ 'group' => 'evk_pozycja', 'tab' => 'content', 'label' => 'Min. wys.',  'type' => 'text', 'default' => '100vh', 'description' => 'Bez tego canvas może mieć 0px.' ];

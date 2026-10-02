@@ -67,6 +67,7 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 		// ── SCROLL TRIGGER ─────────────────────────────────────────────────
 
 		$this->controls['st_start'] = [
+			'evkTlPomin' => true, // wartość techniczna — bez pól „Tłumaczenia” (51)
 			'group' => 'evk_st',
 			'tab'     => 'content',
 			'label'   => 'Start',
@@ -75,6 +76,7 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 		];
 
 		$this->controls['st_end'] = [
+			'evkTlPomin' => true, // wartość techniczna — bez pól „Tłumaczenia” (51)
 			'group' => 'evk_st',
 			'tab'     => 'content',
 			'label'   => 'End',

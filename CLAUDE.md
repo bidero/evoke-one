@@ -60,6 +60,17 @@ Wpadło dwa razy: kopie zapasowe (stąd reguła w `admin.css` przy
 wierszu (1.234.1). `hidden` daje się na element bez klasy układu, a klasę
 na jego dziecko.
 
+### Kontrolka tekstowa elementu Evoke z wartością techniczną: `evkTlPomin`
+
+Grupa „Tłumaczenia” (51) dokłada pole „… EN” każdemu polu `text`,
+`textarea` i `editor` w zakładce treści, chyba że nazwa albo etykieta
+zdradza wartość techniczną (`evk_tl_el_techniczna_nazwa()`). Start
+ScrollTriggera („top 90%”), pozycja („0”) czy ID panelu tego nie zdradzają.
+Do 1.275.0 dziewięć takich pól miało „… EN”, a hurt AI je tłumaczył. Nowa
+kontrolka z wartością techniczną w elemencie Evoke dostaje
+`'evkTlPomin' => true`. Pilnuje `bricks-render` („pola … EN tylko przy
+treści”, prawdziwe definicje kontrolek).
+
 ### Nowa kontrolka w panelu musi mieć nazwę i działać z klawiatury
 
 Od 1.237.0 `tests/admin-etykiety.test.js` sprawdza, czy każda kontrolka
@@ -173,7 +184,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (136 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (138 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
@@ -300,6 +311,19 @@ Bez zipa test świeci na czerwono z instrukcją. Trzy rzeczy z pierwszych prób:
   idzie PO pierwszym renderze;
 - `/en/` działa przy zwykłych adresach: `/en/?page_id=ID` przez `php -S`.
 
+Cztery rzeczy z testów w PRAWDZIWYM builderze (`bricks-builder*`, 1.275.0):
+- **Treść strony zapisuje tylko zalogowany z prawem do buildera.**
+  `update_post_meta(…, '_bricks_page_content_2', …)` z `wp eval` bez
+  `--user=admin` zapisuje PUSTĄ wartość (Bricks pilnuje uprawnień), a builder
+  pokazuje pustą stronę. Sondy robią `wp_set_current_user()` przed zapisem.
+- **Elementy Evoke są domyślnie WYŁĄCZONE** (`evk_elements`). Bez włączenia
+  kanwa pokazuje zastępnik „Element „evk-…” not found”, a panel jest pusty.
+- **Schowek Bricksa to schowek systemowy.** „Copy/Paste → Attributes” bez
+  uprawnień `clipboard-read`/`clipboard-write` w kontekście Playwrighta
+  cicho nic nie wkleja.
+- **Zapis: przycisk `.save[data-balloon="Save"]`.** `Control+s`
+  z Playwrighta do Bricksa nie dochodzi.
+
 Dysk Google (`backup-drive`, `backup-panel-drive`) idzie przez **atrapę
 Google** — `tests/php/_google-atrapa.php` na `php -S` (`tests/lib/google-atrapa.js`),
 adresy podmienia filtr `evk_backup_gdrive_endpoints`. Prawdziwego Google
@@ -323,8 +347,10 @@ cichu — ta sama umowa co przy PHPStanie w `drobiazgi`.
 
 `backup-panel` idzie dalej: podaje testowego WordPressa przez `php -S`
 z routerem `tests/php/_router-wp.php` (adres strony z portu, baza bez zmian)
-i przeklikuje zakładkę w Chromium. Serwer musi mieć kilka procesów
-(`PHP_CLI_SERVER_WORKERS`) — kopia napędza się żądaniami serwera do samego
+i przeklikuje zakładkę w Chromium. Od 1.275.0 router podaje brakujące pliki
+z kropką WordPressowi (jak „!-f, !-d” z `.htaccess`). Wbudowany serwer robił
+to tylko dla adresów bez kropki, więc `/wp-sitemap-….xml` dawał 404.
+Serwer musi mieć kilka procesów (`PHP_CLI_SERVER_WORKERS`) — kopia napędza się żądaniami serwera do samego
 siebie, a jednoprocesowy `php -S` czekałby na samego siebie.
 
 **Logowanie w przeglądarce tylko przez `serwerWp.zaloguj()`.** Strona

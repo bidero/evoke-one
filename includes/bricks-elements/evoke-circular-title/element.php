@@ -194,6 +194,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['scrollstart'] = [
+            'evkTlPomin' => true, // wartość techniczna — bez pól „Tłumaczenia” (51)
             'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Start', 'evoke-circular-title' ),
@@ -204,6 +205,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['scrollend'] = [
+            'evkTlPomin' => true, // wartość techniczna — bez pól „Tłumaczenia” (51)
             'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Koniec', 'evoke-circular-title' ),
@@ -214,6 +216,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['scrub'] = [
+            'evkTlPomin' => true, // wartość techniczna — bez pól „Tłumaczenia” (51)
             'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Scrub', 'evoke-circular-title' ),
@@ -224,6 +227,7 @@ class Evk_Circular_Title extends \Bricks\Element {
         ];
 
         $this->controls['scrollrotation'] = [
+            'evkTlPomin' => true, // wartość techniczna — bez pól „Tłumaczenia” (51)
             'group' => 'evk_animacja',
             'tab'         => 'content',
             'label'       => esc_html__( 'Obrót (deg)', 'evoke-circular-title' ),

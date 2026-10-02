@@ -69,6 +69,13 @@ switch ($evk_tryb) {
 
 case 'ustaw':
     evk_gm_sprzataj($zapis);
+    /* Tag z „:2” po języku (krok „jezyk”) potrzebuje modułu Tłumaczeń z EN.
+       Bez tego test zależał od stanu po fields-tlumaczenia: po fields-ai
+       (sprząta moduł do stanu sprzed siebie) „en” wracało po polsku. Moduł
+       wczytuje się przy starcie procesu — działa od następnego kroku. */
+    $opcje_przed = $zapis['opcje'] ?? ['evk_tl_module_enabled' => get_option('evk_tl_module_enabled', null), 'tl_languages' => get_option('tl_languages', null)];
+    update_option('evk_tl_module_enabled', 1);
+    update_option('tl_languages', [['code' => 'en', 'name' => 'English', 'html' => 'en-US']]);
     evk_gm_grupa('gm_opcje', 'Opcje GM', ['haslo_gm' => ['type' => 'text', 'label' => 'Hasło GM']], 'options');
     evk_gm_grupa('gm_wpis', 'Wpis GM', [
         'opis_gm'  => ['type' => 'wysiwyg', 'label' => 'Opis GM'],
@@ -113,7 +120,7 @@ case 'ustaw':
     update_post_meta($wpis, 'autor_gm', [1]);
     update_option('evk_rep_opt_gm_opcje', ['haslo_gm' => 'Hasło Opcji'], false);
     evk_groups_cache_clear();
-    file_put_contents($plik, wp_json_encode(['wpis' => $wpis, 'pow' => $pow, 'term' => $tid, 'obrazy' => [$o1, $o2]]));
+    file_put_contents($plik, wp_json_encode(['wpis' => $wpis, 'pow' => $pow, 'term' => $tid, 'obrazy' => [$o1, $o2], 'opcje' => $opcje_przed]));
     $out['gotowe'] = $wpis && $pow && $tid && $o1 && $o2;
     break;
 
@@ -184,6 +191,9 @@ case 'jezyk':
 
 case 'sprzataj':
     evk_gm_sprzataj($zapis);
+    foreach ((array) ($zapis['opcje'] ?? []) as $o => $w) {
+        $w === null ? delete_option($o) : update_option($o, $w);
+    }
     @unlink($plik);
     break;
 }

@@ -26,6 +26,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/fields-ai.php lista-term             „Do sprawdzenia”: wiersze pól tej kategorii i HTML sekcji
  *   php tests/php/fields-ai.php ajax-sprawdzone-term K „Sprawdzone” z listy przez prawdziwy AJAX
  *   php tests/php/fields-ai.php dane-term KTO          filtr evk_fields_tl_ai z kontekstem termu
+ *   php tests/php/fields-ai.php modul                  kopia opcji, moduł Tłumaczeń (osobny proces przed „ustaw”)
  *   php tests/php/fields-ai.php sprzataj               wszystko jak przed testem
  */
 $evk_czwarty = true;
@@ -33,7 +34,12 @@ $evk_tryb    = $argv[1] ?? '';
 require __DIR__ . '/_testowy-wp.php';
 require __DIR__ . '/_ai-atrapa.php';
 
-if (!function_exists('evk_fields_tl_teksty') || !function_exists('evk_tl_ai_teksty_pol')) {
+/* Moduł Tłumaczeń włącza krok „modul” (działa od następnego procesu), więc
+   „modul” i „sprzataj” idą bez niego. Do 1.275.0 włączało go dopiero „ustaw”,
+   które samo go potrzebuje — test przechodził tylko po fields-tlumaczenia
+   (zostawia moduł włączony), a na świeżym czwartym WordPressie padał. */
+if (!function_exists('evk_fields_tl_teksty')
+    || (!in_array($evk_tryb, ['modul', 'sprzataj'], true) && !function_exists('evk_tl_ai_teksty_pol'))) {
     echo json_encode(['brak' => 'Evoke FIELDS 1.75.0+ albo moduł Tłumaczeń nieaktywny na ' . home_url()
         . ' — tools/testowy-wp.sh (repozytorium Fields: EVK_FIELDS_REPO, domyślnie ../evoke-fields)']);
     exit;
@@ -94,12 +100,17 @@ $id = evk_fa_wpis();
 
 switch ($evk_tryb) {
 
-case 'ustaw':
+case 'modul':
     if (!is_file($plik)) {
         $przed = [];
         foreach ($opcje as $o) $przed[$o] = get_option($o, null);
         file_put_contents($plik, wp_json_encode(['opcje' => $przed, 'mu_bylo' => is_file($mu)]));
     }
+    update_option('evk_tl_module_enabled', 1);
+    $out['gotowe'] = true;
+    break;
+
+case 'ustaw':
     $zapis = evk_fa_zapis();
     // Typ treści bez REST = klasyczny edytor (metabox w przeglądarce). Plik tylko w testowym WordPressie.
     wp_mkdir_p(dirname($mu));

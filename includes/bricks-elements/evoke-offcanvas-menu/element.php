@@ -206,6 +206,7 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		];
 
 		$this->controls['startPanel'] = [
+			'evkTlPomin' => true, // wartość techniczna — bez pól „Tłumaczenia” (51)
 			'group'       => 'evk_tryb',
 			'tab'         => 'content',
 			'label'       => esc_html__( 'Panel startowy (ID)', 'evoke-one' ),

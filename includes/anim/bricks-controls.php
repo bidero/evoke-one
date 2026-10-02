@@ -409,13 +409,14 @@ function evk_bricks_animator_controls(array $controls): array {
             'Każdy wiersz to jedna animacja; pusty wiersz nic nie robi. Wyjście '
             . 'z kadru to zwykła pozycja listy — wybierz preset z grupy „Wyjścia" '
             . 'i wyzwalacz „Wyjście z kadru". '
-            . 'PRZENIESIENIE NA INNY ELEMENT: prawy przycisk → „Kopiuj atrybuty" '
-            . 'bierze tylko listę Atrybuty poniżej, nie tę kontrolkę. Wpisz tam '
-            . 'atrybut data-evk-anim o wartości równej nazwie animacji (np. wjazd) '
-            . 'albo JSON z dopasowaniami: {"animation":"wjazd","delay":0.2}. '
-            . 'Kilka animacji naraz to tablica takich obiektów. Wpis ręczny '
-            . 'WYGRYWA z tą listą, więc wklejenie atrybutów zawsze działa. '
-            . 'Druga droga bez atrybutów: klasa evk-anim-nazwa na elemencie.',
+            . 'PRZENIESIENIE NA INNY ELEMENT: builder trzyma tę listę także '
+            . 'w Atrybutach poniżej (wiersz data-evk-anim). Prawy przycisk na '
+            . 'elemencie → przy „Copy” ikonka „Attributes”, potem na drugim '
+            . 'elemencie przy „Paste” ta sama ikonka — lista przechodzi razem '
+            . 'z Atrybutami i ZASTĘPUJE animacje oraz Atrybuty drugiego elementu. '
+            . 'Ręcznie: atrybut data-evk-anim z nazwą animacji (np. wjazd) albo '
+            . 'JSON {"animation":"wjazd","delay":0.2}; wpis ręczny WYGRYWA z tą '
+            . 'listą. Druga droga bez atrybutów: klasa evk-anim-nazwa na elemencie.',
             'evoke-one'
         ),
     ];
@@ -659,14 +660,44 @@ function evk_bricks_attr_declared(array $s, string $name): bool {
     return false;
 }
 
+/**
+ * Wiersze animacji z atrybutu `data-evk-anim` w kontrolce Atrybuty — gdy jego
+ * wartość to TABLICA obiektów z kluczem `animation`; inaczej null.
+ *
+ * Tak wygląda lustro listy Animatora (1.275.0): builder trzyma listę także
+ * w Atrybutach, bo „Copy → Attributes” Bricksa pokazuje się tylko przy
+ * niepustych Atrybutach i przenosi wyłącznie je (assets/admin/anim-lustro.js).
+ * Ten sam kształt ma ręczna „tablica takich obiektów” z opisu kontrolki.
+ * Takie wiersze idą przez tę samą białą listę co lista — z odpowiedzią dla
+ * zasłony. Goła nazwa i pojedynczy obiekt zostają drogą ręczną jak dotąd.
+ *
+ * @return list<array<string,mixed>>|null
+ */
+function evk_bricks_anim_lustro(array $s): ?array {
+    if (empty($s['_attributes']) || !is_array($s['_attributes'])) return null;
+    foreach ($s['_attributes'] as $row) {
+        if (!is_array($row) || ($row['name'] ?? '') !== 'data-evk-anim') continue;
+        $w = json_decode((string) ($row['value'] ?? ''), true);
+        if (!is_array($w) || !$w || array_keys($w) !== range(0, count($w) - 1)) return null;
+        foreach ($w as $r) {
+            if (!is_array($r) || !is_string($r['animation'] ?? null)) return null;
+        }
+        return $w;
+    }
+    return null;
+}
+
 add_filter('bricks/element/render_attributes', function ($attributes, $key, $element) {
     if ($key !== '_root' || !is_array($attributes)) return $attributes;
 
     $s = (array) ($element->settings ?? []);
 
     // ── Animator ──────────────────────────────────────────────────────────
-    if (evk_anim_controls_active() && !evk_bricks_attr_declared($s, 'data-evk-anim')) {
-        $cfgs = evk_bricks_anim_cfgs($s);
+    /* Lustro w Atrybutach wygrywa z listą jak każdy wpis ręczny — po
+       wklejeniu atrybutów element ma animować się tak, jak źródło. */
+    $lustro = evk_bricks_anim_lustro($s);
+    if (evk_anim_controls_active() && ($lustro !== null || !evk_bricks_attr_declared($s, 'data-evk-anim'))) {
+        $cfgs = evk_bricks_anim_cfgs($lustro !== null ? ['evkAnimList' => $lustro] : $s);
         if ($cfgs) {
             /*
              * Jedna animacja jedzie jako OBIEKT, nie jednoelementowa tablica.
@@ -745,3 +776,11 @@ add_filter('bricks/element/render_attributes', function ($attributes, $key, $ele
 
     return $attributes;
 }, 10, 3);
+
+/* Lustro listy w Atrybutach (1.275.0) — kopiowanie animacji natywnym
+   „Copy/Paste → Attributes” Bricksa. Tylko kanwa buildera i ktoś, kto może
+   edytować; logika i pomiar w assets/admin/anim-lustro.js. */
+add_action('wp_enqueue_scripts', function () {
+    if (!evk_anim_controls_active() || !evk_tl_kanwa_buildera() || !current_user_can('edit_posts')) return;
+    wp_enqueue_script('evk-anim-lustro', EVOKE_ONE_URL . 'assets/admin/anim-lustro.js', [], EVOKE_ONE_VERSION, true);
+}, 20);
