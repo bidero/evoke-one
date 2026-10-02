@@ -51,7 +51,10 @@ module.exports = async function (t) {
     const p = sonda('przygotuj');
     const [A, B] = p.strony || [];
     t.check('włączenie tworzy tabele od razu (zanim przyjdzie pierwszy beacon)', p.tabele_po_wlaczeniu === true, J(p));
-    const st0 = sonda('stan');
+    /* Zapis listy crona bywa przegrany z równoległym żądaniem serwera testowego („could_not_set”);
+       każde żądanie planuje zadanie od nowa, więc odczyt do trzech razy. */
+    let st0 = sonda('stan');
+    for (let i = 0; i < 2 && !st0.cron; i++) st0 = sonda('stan');
     t.check('domyślne: cron dobowy zaplanowany', st0.cron === true, J(st0));
     const html1 = await (await fetch(baza + '/?page_id=' + A)).text();
     const konf = (html1.match(/window\.evkStat=(\{[^<]*?\});/) || [])[1];
@@ -185,6 +188,8 @@ module.exports = async function (t) {
     t.section('raport w panelu (Chromium)');
     await komp.close(); await tel.close(); await gpc.close(); await automat.close();
     const [A2, B2] = sonda('przygotuj').strony || [];
+    /* Poprzedni okres (1.285.0): 2 odsłony sprzed 7 dni — dla „7 dni” to okres poprzedni. */
+    phpOutput('statystyki.php', 'zasiej x 2'); sonda('postarz', 7);
     const k2 = await browser.newContext({ userAgent: UA });
     await k2.addInitScript(CZLOWIEK);
     for (const [id, ref] of [[A2, 'https://www.bing.com/'], [B2, ''], [A2, '']]) {
@@ -197,15 +202,43 @@ module.exports = async function (t) {
     const rap = await sa.evaluate(() => ({
       h1: (document.querySelector('.evk-stat h1') || {}).textContent,
       liczby: [...document.querySelectorAll('.evk-stat-liczba')].map((x) => x.querySelector('span').textContent + '=' + x.querySelector('strong').textContent),
-      slupki: document.querySelectorAll('.evk-stat-wykres rect').length,
-      dzisiaj: [...document.querySelectorAll('.evk-stat-wykres rect title')].pop()?.textContent,
+      pasy: document.querySelectorAll('.evk-stat-wykres .evk-w-pas').length,
+      slupki: document.querySelectorAll('.evk-stat-wykres .evk-w-slupek').length,
+      dni: [...document.querySelectorAll('.evk-stat-dni tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent)),
+      zmiany: [...document.querySelectorAll('.evk-stat-liczba small')].map((x) => x.textContent),
       zrodla: [...document.querySelectorAll('.evk-stat-lista')].filter((b) => b.querySelector('h3').textContent === 'Źródła').map((b) => [...b.querySelectorAll('tbody td:first-child')].map((x) => x.textContent))[0],
       okres: document.querySelector('.evk-stat-okresy [aria-current]')?.textContent,
       menu: !!document.querySelector('#adminmenu a[href*="page=evoke-statystyki"]'),
     }));
     console.log('      raport: ' + J(rap));
-    t.check('raport: 7 słupków, dziś 3 odsłony, liczby: 3 odsłony i 1 unikalny', rap.slupki === 7 && /: 3 odsłon$/.test(rap.dzisiaj || '')
-      && rap.liczby[0] === 'Odsłony=3' && rap.liczby[1] === 'Unikalni=1', J(rap));
+    const ostatni = (rap.dni || [])[6] || [];
+    t.check('raport: 7 dni, jeden słupek (dziś), tabela dzienna: dziś 3 odsłony, 1 unikalny; liczby 3 i 1', rap.pasy === 7 && rap.slupki === 1
+      && (rap.dni || []).length === 7 && ostatni[1] === '3' && ostatni[2] === '1' && rap.liczby[0] === 'Odsłony=3' && rap.liczby[1] === 'Unikalni=1', J(rap));
+    /* Dzień do dnia: dziś porównuje się z tym samym dniem tydzień wcześniej (ostatni wiersz). */
+    t.check('porównanie z poprzednimi 7 dniami: odsłony +50% (3 wobec 2), unikalni 0%; poprzedni okres w tabeli dziennej',
+      rap.zmiany[0] === '+50% wobec: poprzednie 7 dni' && rap.zmiany[1] === '0% wobec: poprzednie 7 dni'
+      && (rap.dni || []).reduce((s, r) => s + +r[3], 0) === 2 && ostatni[3] === '2', J({ zmiany: rap.zmiany, dni: rap.dni }));
+    /* Przełącznik Słupki / Linie: domyślnie słupki, linie z legendą; wybór pamięta przeglądarka. */
+    const widok = () => sa.evaluate(() => ({
+      tryb: document.querySelector('.evk-stat-wykres-box').getAttribute('data-tryb'),
+      slupkiWidac: getComputedStyle(document.querySelector('.evk-w-slupki')).display !== 'none',
+      linieWidac: getComputedStyle(document.querySelector('.evk-w-linie')).display !== 'none',
+      legenda: getComputedStyle(document.querySelector('.evk-stat-legenda')).display !== 'none',
+      nacisniety: document.querySelector('.evk-stat-tryby [aria-pressed="true"]').textContent,
+      linie: [...document.querySelectorAll('.evk-w-linie polyline')].map((p) => p.getAttribute('class') + ':' + p.getAttribute('points').split(' ').length) }));
+    const w0 = await widok();
+    await sa.click('.evk-stat-tryby [data-tryb="linie"]');
+    const w1 = await widok();
+    await sa.reload();
+    const w2 = await widok();
+    t.check('domyślnie słupki; „Linie” → trzy linie po 7 punktów (odsłony, unikalni, poprzedni okres) z legendą; po przeładowaniu dalej linie',
+      w0.tryb === 'slupki' && w0.slupkiWidac && !w0.linieWidac && !w0.legenda && w1.tryb === 'linie' && !w1.slupkiWidac && w1.linieWidac && w1.legenda
+      && w1.nacisniety === 'Linie' && J(w1.linie) === J(['evk-w-poprz:7', 'evk-w-unikalni:7', 'evk-w-odslony:7']) && w2.tryb === 'linie' && w2.nacisniety === 'Linie', J({ w0, w1, w2 }));
+    await sa.hover('.evk-w-pas[data-i="6"]');
+    const dymek = await sa.evaluate(() => { const d = document.querySelector('.evk-stat-dymek'); return d.hidden ? null : [...d.children].map((x) => x.textContent); });
+    t.check('podpowiedź nad dniem: data, odsłony, unikalni, poprzednio', !!dymek && dymek.length === 4 && dymek[1] === 'Odsłony: 3' && dymek[2] === 'Unikalni: 1'
+      && /^Poprzednio \(\d{4}-\d{2}-\d{2}\): 2$/.test(dymek[3]), J(dymek));
+    await sa.click('.evk-stat-tryby [data-tryb="slupki"]');
     t.check('źródła: bing.com i (bezpośrednio); okres „7 dni” zaznaczony; pozycja w menu', J((rap.zrodla || []).sort()) === J(['(bezpośrednio)', 'bing.com'])
       && rap.okres === '7 dni' && rap.menu, J(rap));
 
@@ -243,12 +276,12 @@ module.exports = async function (t) {
     await sa.click('#evk-stat-usun [data-evk-usun="okres"]');
     await sa.waitForFunction(() => /Anulowane/.test(document.querySelector('.evk-stat-usun-stan').textContent), null, { timeout: 10000 }).catch(() => {});
     t.check('„Usuń z tego okresu” → okno z okresem i liczbą; „Anuluj” — nic nie skasowane',
-      /^Usunąć statystyki z dni \d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2} \(3 odsłon\)\?/.test(okna[0] || '') && razem() === przedUs && przedUs === 3, J({ okna, przedUs }));
+      /^Usunąć statystyki z dni \d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2} \(3 odsłon\)\?/.test(okna[0] || '') && razem() === przedUs && przedUs === 5, J({ okna, przedUs }));
     odpowiedz = true;
     await sa.click('#evk-stat-usun [data-evk-usun="wszystko"]');
     await sa.waitForFunction(() => /Usunięto/.test(document.querySelector('.evk-stat-usun-stan').textContent), null, { timeout: 10000 }).catch(() => {});
     t.check('„Usuń wszystkie statystyki” → potwierdzone, „Usunięto 3 odsłon.”, raport pusty',
-      /^Usunąć WSZYSTKIE statystyki \(3 odsłon\)/.test(okna[1] || '') && (await sa.textContent('.evk-stat-usun-stan')) === 'Usunięto 3 odsłon.' && razem() === 0, J(okna));
+      /^Usunąć WSZYSTKIE statystyki \(5 odsłon\)/.test(okna[1] || '') && (await sa.textContent('.evk-stat-usun-stan')) === 'Usunięto 5 odsłon.' && razem() === 0, J(okna));
     sa.off('dialog', naOkno);
     await sa.click('label.evo-toggle:has([data-option="evk_statystyki"]) .evo-slider');
     for (let i = 0; i < 30 && (sonda('stan').ust || {}).enabled !== 0; i++) await sa.waitForTimeout(150);
