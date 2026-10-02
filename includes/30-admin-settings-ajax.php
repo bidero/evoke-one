@@ -936,6 +936,7 @@ function evk_toggle_allowlist(): array {
         'evk_fonts'                 => ['enabled'],
         'evk_theme_color'           => ['enabled'],
         'evk_sierotki'              => ['enabled'],
+        'evk_obrazy'                => ['enabled'],
         'evk_rewizje'               => ['limit_on'],
         'evk_animator'              => ['enabled'],
         'evk_bgshift'               => ['enabled'],

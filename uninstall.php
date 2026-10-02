@@ -66,6 +66,22 @@ if (!function_exists('evk_odinstaluj_strone')) {
         foreach ((array) $wpdb->get_col("SELECT ID FROM {$wpdb->posts} WHERE post_type IN ($typy)") as $id) {
             wp_delete_post((int) $id, true);
         }
+        // ── Wersje WebP/AVIF obrazów z biblioteki (pliki obok oryginałów) —
+        // przed skasowaniem meta, bo to ona mówi, które załączniki je mają.
+        foreach ((array) $wpdb->get_col($wpdb->prepare("SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s", '_evk_obrazy')) as $id) {
+            $glowny = (string) get_attached_file((int) $id);
+            if ($glowny === '') continue;
+            $pliki = [$glowny];
+            $meta = wp_get_attachment_metadata((int) $id);
+            foreach ((array) ($meta['sizes'] ?? []) as $r) {
+                if (!empty($r['file'])) $pliki[] = trailingslashit(dirname($glowny)) . wp_basename((string) $r['file']);
+            }
+            foreach ($pliki as $p) {
+                foreach (['webp', 'avif'] as $fmt) {
+                    if (preg_match('/\.(jpe?g|png)$/i', $p) && is_file($p . '.' . $fmt)) @unlink($p . '.' . $fmt);
+                }
+            }
+        }
         foreach ($dane['meta_wpisow'] as $klucz) delete_post_meta_by_key($klucz);
         foreach (($dane['meta_wpisow_przedrostki'] ?? []) as $p) {
             $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE %s", $wpdb->esc_like($p) . '%'));

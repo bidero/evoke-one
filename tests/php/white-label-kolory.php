@@ -23,8 +23,13 @@ switch ($argv[1] ?? '') {
             update_option(EVK_TEST_WL_KOPIA, [
                 'wl'    => get_option('evk_white_label', null),
                 'items' => get_option('evk_wl_bar_items', null),
+                'kopie' => get_option(EVK_BACKUP_OPTION, null),
             ], false);
         }
+        /* Ekran kopii ma pasek zapisu tylko przy włączonym module. Na świeżym
+           WordPressie moduł jest wyłączony, a włączały go dotąd testy kopii
+           puszczane wcześniej w tej samej partii. */
+        update_option(EVK_BACKUP_OPTION, ['enabled' => 1] + (array) get_option(EVK_BACKUP_OPTION, []));
         $wl    = json_decode($argv[2] ?? '{}', true);
         $items = json_decode($argv[3] ?? '[]', true);
         update_option('evk_white_label', is_array($wl) ? $wl : []);
@@ -35,7 +40,8 @@ switch ($argv[1] ?? '') {
     case 'przywroc':
         $kopia = get_option(EVK_TEST_WL_KOPIA, null);
         if (is_array($kopia)) {
-            foreach (['wl' => 'evk_white_label', 'items' => 'evk_wl_bar_items'] as $k => $opcja) {
+            foreach (['wl' => 'evk_white_label', 'items' => 'evk_wl_bar_items', 'kopie' => EVK_BACKUP_OPTION] as $k => $opcja) {
+                if (!array_key_exists($k, $kopia)) continue;
                 if ($kopia[$k] === null) delete_option($opcja);
                 else update_option($opcja, $kopia[$k]);
             }

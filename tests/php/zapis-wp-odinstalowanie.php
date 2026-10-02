@@ -102,6 +102,21 @@ case 'przygotuj':
     $uploads = wp_upload_dir();
     wp_mkdir_p($uploads['basedir'] . '/og-images');
     file_put_contents($uploads['basedir'] . '/og-images/og-1.jpg', 'x');
+    /* Obraz z biblioteki z wersjami WebP/AVIF (91-obrazy.php): pliki obok
+       oryginału i jego rozmiaru, meta `_evk_obrazy`. Zawartość plików nie ma
+       znaczenia — odinstalowanie patrzy na nazwy. Oryginał jest CUDZY:
+       to plik strony, ma zostać. */
+    $obraz_kat = $uploads['basedir'] . '/evk-t-obrazy';
+    wp_mkdir_p($obraz_kat);
+    foreach (['zdjecie.jpg', 'zdjecie-300x200.jpg', 'zdjecie.jpg.webp', 'zdjecie.jpg.avif', 'zdjecie-300x200.jpg.webp', 'zdjecie-300x200.jpg.avif'] as $f) {
+        file_put_contents($obraz_kat . '/' . $f, 'x');
+    }
+    $obraz = (int) wp_insert_attachment(['post_title' => 'Obraz do odinstalowania', 'post_mime_type' => 'image/jpeg', 'post_status' => 'inherit'],
+        $obraz_kat . '/zdjecie.jpg');
+    wp_update_attachment_metadata($obraz, ['width' => 600, 'height' => 400, 'file' => 'evk-t-obrazy/zdjecie.jpg',
+        'sizes' => ['medium' => ['file' => 'zdjecie-300x200.jpg', 'width' => 300, 'height' => 200, 'mime-type' => 'image/jpeg']]]);
+    update_post_meta($obraz, '_evk_obrazy', ['avif' => 60, 'webp' => 80]);
+
     $obcy = WP_CONTENT_DIR . '/evk-backups-obcytest';
     wp_mkdir_p($obcy);
     file_put_contents($obcy . '/cudza-kopia.zip', 'x');
@@ -126,7 +141,8 @@ case 'przygotuj':
     }
 
     file_put_contents($stan_plik, wp_json_encode(['strona' => $strona, 'kategoria' => $katId, 'wpisy' => $wpisy, 'uzytkownik' => $uzytkownik,
-        'kopie' => $kopie, 'import' => $import, 'og' => $uploads['basedir'] . '/og-images', 'obcy' => $obcy, 'druga' => $druga]));
+        'kopie' => $kopie, 'import' => $import, 'og' => $uploads['basedir'] . '/og-images', 'obcy' => $obcy, 'druga' => $druga,
+        'obraz' => $obraz, 'obraz_kat' => $obraz_kat]));
 
     // Deaktywacja tak, jak robi ją WordPress.
     deactivate_plugins(EVK_T_WTYCZKA);
@@ -176,6 +192,10 @@ case 'wykonaj':
         'katalogi'   => array_filter(['kopie' => is_dir((string) ($s['kopie'] ?? '')), 'import' => is_dir((string) ($s['import'] ?? '')),
                          'og' => is_dir((string) ($s['og'] ?? ''))]),
     ];
+    $ok = (string) ($s['obraz_kat'] ?? '');
+    $out['nasze']['obrazy'] = array_filter(['zdjecie.jpg.webp' => is_file($ok . '/zdjecie.jpg.webp'), 'zdjecie.jpg.avif' => is_file($ok . '/zdjecie.jpg.avif'),
+        'zdjecie-300x200.jpg.webp' => is_file($ok . '/zdjecie-300x200.jpg.webp'), 'zdjecie-300x200.jpg.avif' => is_file($ok . '/zdjecie-300x200.jpg.avif'),
+        '_evk_obrazy' => get_post_meta((int) ($s['obraz'] ?? 0), '_evk_obrazy', true) !== '']);
     $out['uzytkownik_role'] = $u ? array_values($u->roles) : null;
     $out['domyslna_rola'] = get_option('default_role');
     $out['cudze'] = [
@@ -190,6 +210,7 @@ case 'wykonaj':
         'obca_rola'             => get_role('obca_rola') !== null,
         'strona'                => get_post((int) ($s['strona'] ?? 0)) !== null,
         'blogname'              => get_option('blogname') === 'Evoke usun',
+        'obraz_jpg'             => is_file($ok . '/zdjecie.jpg') && is_file($ok . '/zdjecie-300x200.jpg') && get_post((int) ($s['obraz'] ?? 0)) !== null,
     ];
     break;
 
@@ -199,6 +220,7 @@ case 'przywroc':
     $out['aktywna'] = is_plugin_active(EVK_T_WTYCZKA) && !is_wp_error($wynik);
     // Sprzątanie: cudze dane testu i to, czego odinstalowanie celowo nie rusza.
     wp_delete_post((int) ($s['strona'] ?? 0), true);
+    if (!empty($s['obraz'])) wp_delete_attachment((int) $s['obraz'], true);
     foreach (($s['wpisy'] ?? []) as $id) wp_delete_post((int) $id, true);
     if (!empty($s['uzytkownik'])) wp_delete_user((int) $s['uzytkownik']);
     foreach (['evk_custom_post_types', 'evk_backups_dir', 'obca_opcja', 'evk_role_utworzone'] as $n) delete_option($n);
@@ -215,7 +237,7 @@ case 'przywroc':
         }
         @rmdir($dir);
     };
-    foreach (['obcy', 'kopie', 'import', 'og', 'druga'] as $k) $rm((string) ($s['' . $k] ?? ''));
+    foreach (['obcy', 'kopie', 'import', 'og', 'druga', 'obraz_kat'] as $k) $rm((string) ($s['' . $k] ?? ''));
     wp_clean_plugins_cache(false);
     @unlink($stan_plik);
     break;

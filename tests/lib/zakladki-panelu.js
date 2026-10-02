@@ -18,7 +18,7 @@ const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               'tools-smtp', 'tools-redirect', 'tools-logs404', 'tools-io', 'tools-maintenance',
               'adm-interface', 'adm-dashboard', 'adm-avatar', 'adm-content',
               'adm-roles', 'adm-tlumaczenia',
-              'fe-cursor', 'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-sierotki',
+              'fe-cursor', 'fe-lenis', 'fe-bgshift', 'fe-fonts', 'fe-sierotki', 'fe-obrazy',
               'fe-themecolor', 'fe-parallax', 'fe-elementy', 'fe-newsletter', 'fe-newsletter-on',
               'backup', 'backup-on',
               /* Tłumaczenia to osobny ekran, ale ładuje ten sam `admin.css`
