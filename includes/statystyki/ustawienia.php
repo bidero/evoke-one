@@ -34,6 +34,11 @@ function evk_stat_domyslne(): array {
         'wyklucz_ip'   => '',    // adresy i sieci (CIDR), linia albo przecinek
         'menu'         => 'osobna',
         'licznik'      => 0,     // licznik odsłon tej strony w pasku admina (1.285.0)
+        /* Zdarzenia automatyczne (1.285.0) — wszystkie od razu, każde do wyłączenia. */
+        'zd_tel'        => 1,    // tel: i mailto:
+        'zd_pobrania'   => 1,
+        'zd_wychodzace' => 1,
+        'zd_formularze' => 1,
     ];
 }
 
@@ -68,6 +73,10 @@ function evk_stat_sanitize($wej): array {
         'wyklucz_ip'   => implode("\n", $ip),
         'menu'         => array_key_exists($menu, EVK_STAT_MIEJSCA_MENU) ? $menu : $d['menu'],
         'licznik'      => !empty($wej['licznik']) ? 1 : 0,
+        'zd_tel'        => !empty($wej['zd_tel']) ? 1 : 0,
+        'zd_pobrania'   => !empty($wej['zd_pobrania']) ? 1 : 0,
+        'zd_wychodzace' => !empty($wej['zd_wychodzace']) ? 1 : 0,
+        'zd_formularze' => !empty($wej['zd_formularze']) ? 1 : 0,
     ];
 }
 

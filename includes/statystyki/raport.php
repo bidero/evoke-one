@@ -151,6 +151,9 @@ function evk_stat_render_raport(): void {
             .evk-stat-liczba span { display: block; color: #50575e; font-size: 13px; }
             .evk-stat-liczba strong { font-size: 24px; line-height: 1.3; }
             .evk-stat-teraz { margin: 0 0 12px; font-size: 14px; }
+            .evk-stat-cele-tytul { margin: 24px 0 4px; }
+            .evk-stat-konwersja { font-size: 22px; margin-right: 6px; }
+            .evk-stat-cel-raport .evo-tbl-wrap + .evo-tbl-wrap { margin-top: 12px; }
             .evk-stat-kropka { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1baf7a; margin-right: 6px; vertical-align: middle; }
             .evk-stat-liczba small { display: block; color: #50575e; font-size: 12px; margin-top: 2px; }
             /* Wykres (1.285.0): seria 1 niebieska, seria 2 pomarańczowa, poprzedni okres — seria 1 przerywana. */
@@ -265,12 +268,49 @@ function evk_stat_render_raport(): void {
             echo evk_stat_tabela_html('Przeglądarki', 'Przeglądarka', evk_stat_dane('przegladarka', $od, $do));
             echo evk_stat_tabela_html('Systemy', 'System', evk_stat_dane('system', $od, $do));
             if (count($jezyki) > 1) echo evk_stat_tabela_html('Języki strony', 'Język', $jezyki, $nazwy_jezykow);
+            /* Zdarzenia (1.285.0): „Telefon: +48…”, „Pobranie: cennik.pdf”. */
+            $zd = evk_stat_dane('zdarzenie', $od, $do);
+            $nazwy_zd = [];
+            foreach (array_keys($zd) as $k) { [$r, $e] = array_pad(explode(':', (string) $k, 2), 2, ''); $nazwy_zd[$k] = (EVK_STAT_ZDARZENIA[$r] ?? $r) . ': ' . $e; }
+            echo evk_stat_tabela_html('Zdarzenia', 'Zdarzenie', $zd, $nazwy_zd);
             foreach (['utm_source' => 'Kampanie: źródło (utm_source)', 'utm_medium' => 'Kampanie: medium (utm_medium)', 'utm_campaign' => 'Kampanie: nazwa (utm_campaign)'] as $w => $t) {
                 $d = evk_stat_dane($w, $od, $do);
                 if ($d) echo evk_stat_tabela_html($t, 'Wartość', $d);
             }
             ?>
         </div>
+        <?php evk_stat_render_cele($od, $do); ?>
+    </div>
+    <?php
+}
+
+/** Sekcja celów raportu (1.285.0): konwersja razem, po źródle i po kampanii. */
+function evk_stat_render_cele(string $od, string $do): void {
+    $k = evk_stat_konwersje($od, $do);
+    if (!$k['cele']) return;
+    $ret = (int) evk_stat_ustawienia()['retencja'];
+    $proc = static function (int $z, int $w): string { return $w ? number_format_i18n($z / $w * 100, 1) . '%' : '—'; };
+    $tabela = static function (string $kol, array $wiersze) use ($proc): string {
+        $h = '<div class="evo-tbl-wrap"><table class="evo-table"><thead><tr><th scope="col">' . esc_html($kol) . '</th><th scope="col" class="num">Wizyty</th>'
+            . '<th scope="col" class="num">Z celem</th><th scope="col" class="num">Konwersja</th></tr></thead><tbody>';
+        foreach (array_slice($wiersze, 0, 10, true) as $n => [$w, $z]) {
+            $h .= '<tr><td>' . esc_html((string) $n) . '</td><td class="num">' . (int) $w . '</td><td class="num">' . (int) $z . '</td><td class="num">' . esc_html($proc($z, $w)) . '</td></tr>';
+        }
+        return $h . '</tbody></table></div>';
+    };
+    ?>
+    <h2 class="evk-stat-cele-tytul">Cele</h2>
+    <p class="evo-hint">Wizyta to jedna osoba w jednym dniu. Cele liczą się z danych szczegółowych — najdalej <?php echo (int) $ret; ?> dni wstecz.</p>
+    <div class="evk-stat-siatka">
+        <?php foreach ($k['cele'] as $c): ?>
+        <div class="evo-box evk-stat-cel-raport">
+            <h3><?php echo esc_html($c['cel']['nazwa']); ?></h3>
+            <p><strong class="evk-stat-konwersja"><?php echo esc_html($proc($c['z_celem'], $k['wizyty'])); ?></strong>
+                <span class="evo-muted"><?php echo esc_html(sprintf('%d z %d wizyt · %s', $c['z_celem'], $k['wizyty'], $c['cel']['typ'] === 'adres' ? 'adres ' . $c['cel']['wartosc'] : 'zdarzenie ' . $c['cel']['wartosc'])); ?></span></p>
+            <?php echo $tabela('Źródło wejścia', $c['zrodla']); // phpcs:ignore — esc_* w środku ?>
+            <?php if ($c['kampanie']) echo $tabela('Kampania', $c['kampanie']); // phpcs:ignore ?>
+        </div>
+        <?php endforeach; ?>
     </div>
     <?php
 }

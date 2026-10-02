@@ -130,6 +130,7 @@ $evoke_one_modules = [
     /* Statystyki bez cookies (1.283.0). Wyłączony moduł nie rejestruje trasy,
        skryptu, crona ani menu — każdy plik sprawdza włącznik sam. */
     'statystyki/ustawienia.php',
+    'statystyki/zdarzenia.php',  // zdarzenia i cele (1.285.0)
     'statystyki/tabele.php',
     'statystyki/zbieranie.php',
     'statystyki/dobowe.php',

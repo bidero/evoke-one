@@ -18,6 +18,9 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/statystyki.php funkcje                 źródło, przeglądarka, urządzenie, bot
  *   php tests/php/statystyki.php uprawnienia             kto czyta raporty
  *   php tests/php/statystyki.php stan                    ustawienia, tabele, cron
+ *   php tests/php/statystyki.php strona-zdarzen            strona z linkami tel/mailto/PDF/wychodzącym, formularzem i data-evk-zdarzenie
+ *   php tests/php/statystyki.php zdarzenia                 zapisane zdarzenia (rodzaj, etykieta)
+ *   php tests/php/statystyki.php cele <json>               AJAX zapisu celów (1.285.0)
  *   php tests/php/statystyki.php usun <json> [autor]     AJAX kasowania za okres (1.285.0), jako admin albo autor
  *   php tests/php/statystyki.php sprzataj
  */
@@ -32,7 +35,7 @@ global $wpdb;
 
 $odloz = static function () use ($plik, &$zap): void {
     if (isset($zap['opcje'])) return;
-    foreach (['evk_statystyki', 'evk_stat_db_version', 'evk_stat_sol', 'evk_stat_zebrane'] as $o) $zap['opcje'][$o] = get_option($o, null);
+    foreach (['evk_statystyki', 'evk_stat_db_version', 'evk_stat_sol', 'evk_stat_zebrane', 'evk_stat_cele'] as $o) $zap['opcje'][$o] = get_option($o, null);
     global $wpdb;
     $zap['tabele'] = (bool) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->prefix . 'evk_stat_odslony'));
     file_put_contents($plik, (string) wp_json_encode($zap));
@@ -91,11 +94,17 @@ case 'dane':
 
 case 'postarz':
     $n = (int) ($argv[2] ?? 1);
-    $wpdb->query($wpdb->prepare('UPDATE ' . evk_stat_tabela('odslony') . ' SET dzien = DATE_SUB(dzien, INTERVAL %d DAY), czas = DATE_SUB(czas, INTERVAL %d DAY)', $n, $n));
+    foreach (['odslony', 'zdarzenia'] as $t) {
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', evk_stat_tabela($t)))) {
+            $wpdb->query($wpdb->prepare('UPDATE ' . evk_stat_tabela($t) . ' SET dzien = DATE_SUB(dzien, INTERVAL %d DAY), czas = DATE_SUB(czas, INTERVAL %d DAY)', $n, $n));
+        }
+    }
     $out['ok'] = true;
     break;
 
 case 'zbiorka':
+    /* `od-nowa`: zapomina ostatni zebrany dzień — dla danych przesuniętych sondą w dni już zamknięte. */
+    if (($argv[2] ?? '') === 'od-nowa') delete_option('evk_stat_zebrane');
     $out['zebrane_dni'] = evk_stat_zbiorka();
     $out['zebrane_do'] = evk_stat_zebrane_do();
     $out['wczoraj'] = wp_date('Y-m-d', time() - DAY_IN_SECONDS);
@@ -140,6 +149,34 @@ case 'uprawnienia':
     }
     wp_set_current_user((int) get_user_by('login', 'admin')->ID);
     $out['admin'] = evk_stat_moze_czytac();
+    break;
+
+case 'strona-zdarzen':
+    foreach ((array) $wpdb->get_col("SELECT ID FROM {$wpdb->posts} WHERE post_title = 'Strona zdarzeń'") as $stary) wp_delete_post((int) $stary, true);
+    $id = (int) wp_insert_post(['post_title' => 'Strona zdarzeń', 'post_type' => 'page', 'post_status' => 'publish', 'post_content' =>
+        '<p><a id="z-tel" href="tel:+48 123 456 789">Zadzwoń</a> <a id="z-mail" href="mailto:Biuro@Example.com?subject=Pytanie">Napisz</a> '
+        . '<a id="z-pdf" href="/wp-content/uploads/cennik.pdf">Cennik</a> <a id="z-out" href="https://www.example.org/oferta">Partner</a> '
+        . '<a id="z-wew" href="/?page_id=1">Wewnętrzny</a> <button id="z-wl" type="button" data-evk-zdarzenie="zapis">Zapisz się</button></p>'
+        . '<form id="kontakt" action="#"><input name="x" aria-label="x"><button id="z-form" type="submit">Wyślij</button></form>']);
+    $zap['strony'][] = $id;
+    file_put_contents($plik, (string) wp_json_encode($zap));
+    $out['id'] = $id;
+    break;
+
+case 'zdarzenia':
+    $out['wiersze'] = $wpdb->get_results('SELECT rodzaj, etykieta, wizyta FROM ' . evk_stat_tabela('zdarzenia') . ' ORDER BY id', ARRAY_A);
+    break;
+
+case 'cele':
+    $_POST = $_REQUEST = wp_slash(['action' => 'evk_stat_cele', 'nonce' => wp_create_nonce('evk_stat'), 'cele' => (string) ($argv[2] ?? '[]')]);
+    if (!defined('DOING_AJAX')) define('DOING_AJAX', true);
+    add_filter('wp_die_ajax_handler', static function () {
+        return static function ($k = '') { if (is_scalar($k)) echo $k; throw new RuntimeException('koniec'); };
+    });
+    ob_start();
+    try { do_action('wp_ajax_evk_stat_cele'); } catch (RuntimeException $e) { /* koniec */ }
+    $out['odp'] = json_decode((string) ob_get_clean(), true);
+    $out['cele'] = evk_stat_cele();
     break;
 
 case 'usun':

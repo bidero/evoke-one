@@ -309,6 +309,62 @@ module.exports = async function (t) {
     t.check('„Usuń wszystkie statystyki” → potwierdzone, „Usunięto 3 odsłon.”, raport pusty',
       /^Usunąć WSZYSTKIE statystyki \(5 odsłon\)/.test(okna[1] || '') && (await sa.textContent('.evk-stat-usun-stan')) === 'Usunięto 5 odsłon.' && razem() === 0, J(okna));
     sa.off('dialog', naOkno);
+
+    t.section('zdarzenia i cele (1.285.0)');
+    const Z = sonda('strona-zdarzen').id;
+    const UA2 = UA.replace('Chrome/130.0', 'Chrome/131.0');
+    const ludz = await browser.newContext({ userAgent: UA, viewport: { width: 1280, height: 800 } });
+    await ludz.addInitScript(CZLOWIEK);
+    /* Linki nie mają nigdzie prowadzić — nasza obsługa idzie w fazie przechwytywania, więc beacon wychodzi przed tym. */
+    await ludz.addInitScript(() => document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('a')) e.preventDefault(); }));
+    await ludz.addInitScript(() => document.addEventListener('submit', (e) => e.preventDefault()));
+    const sz = await ludz.newPage();
+    await sz.goto(baza + '/?page_id=' + Z, { referer: 'https://www.bing.com/' });
+    for (const id of ['z-tel', 'z-mail', 'z-pdf', 'z-out', 'z-wew', 'z-wl', 'z-form']) await sz.click('#' + id);
+    const zdarzenia = async (n) => { for (let i = 0; i < 40; i++) { const w = sonda('zdarzenia').wiersze || []; if (w.length >= n) return w; await sz.waitForTimeout(150); } return sonda('zdarzenia').wiersze || []; };
+    const z1 = await zdarzenia(6);
+    t.check('sześć zdarzeń: telefon (cyfry), e-mail (bez parametrów, małe litery), plik, domena wychodząca, własne, formularz (id); link wewnętrzny nie',
+      J(z1.map((r) => r.rodzaj + ':' + r.etykieta)) === J(['tel:+48123456789', 'mail:biuro@example.com', 'pobranie:cennik.pdf', 'wychodzacy:example.org', 'wlasne:zapis', 'formularz:kontakt']), J(z1));
+    sonda('ustaw', J({ zd_wychodzace: 0 }));
+    await sz.reload();
+    await sz.click('#z-out');
+    await sz.click('#z-tel');
+    await zdarzenia(7);
+    await sz.waitForTimeout(500);
+    const z2 = sonda('zdarzenia').wiersze || [];
+    const bOut = await beacon({ t: 'z', k: 'bbbbbbbbbbbbbbb1', r: 'wychodzacy', e: 'example.org' });
+    t.check('„Linki wychodzące” wyłączone: skrypt ich nie wysyła, serwer odrzuca stary skrypt; telefon dalej liczony',
+      z2.length === 7 && z2[6].rodzaj === 'tel' && bOut.w === 'wylaczone', J({ z2: z2.slice(6), bOut }));
+    sonda('ustaw', J({ zd_wychodzace: 1 }));
+    /* Druga osoba: wejście wprost na stronę B — cel „adres”. */
+    const inny = await browser.newContext({ userAgent: UA2 });
+    await inny.addInitScript(CZLOWIEK);
+    const pB = sonda('stan') && (await (async () => { const pg = await inny.newPage(); await pg.goto(baza + '/?page_id=' + A2); return pg; })());
+    await pB.close();
+    for (let i = 0; i < 30 && odslony().length < 3; i++) await sa.waitForTimeout(150);
+    const cele = sonda('cele', J([{ nazwa: 'Kontakt', typ: 'zdarzenie', wartosc: 'formularz' }, { nazwa: 'Cennik', typ: 'zdarzenie', wartosc: 'pobranie:cennik.pdf' },
+      { nazwa: 'Strona A', typ: 'adres', wartosc: '/?page_id=' + A2 + '&utm_source=x' }, { nazwa: 'Zły', typ: 'cokolwiek', wartosc: 'x' }, { nazwa: '', typ: 'adres', wartosc: '/' }]));
+    t.check('zapis celów: trzy poprawne (adres bez UTM), zły rodzaj i pusta nazwa odrzucone', (cele.cele || []).length === 3
+      && cele.cele[2].wartosc === '/?page_id=' + A2 && cele.cele.every((c) => /^[a-z0-9]{8}$/.test(c.id)), J(cele));
+    await sa.goto(baza + '/wp-admin/index.php?page=evoke-statystyki&okres=7');
+    const rc = await sa.evaluate(() => ({
+      zd: [...document.querySelectorAll('.evk-stat-lista')].filter((b) => b.querySelector('h3').textContent === 'Zdarzenia').map((b) => [...b.querySelectorAll('tbody td:first-child')].map((x) => x.textContent))[0],
+      cele: [...document.querySelectorAll('.evk-stat-cel-raport')].map((b) => ({ nazwa: b.querySelector('h3').textContent, konw: b.querySelector('.evk-stat-konwersja').textContent,
+        zrodla: [...b.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((x) => x.textContent).join('|')) })) }));
+    console.log('      cele: ' + J(rc.cele));
+    t.check('raport: lista zdarzeń z nazwami („Telefon: +48123456789”, „Pobranie: cennik.pdf”…)', (rc.zd || []).includes('Telefon: +48123456789')
+      && rc.zd.includes('Pobranie: cennik.pdf') && rc.zd.includes('Własne: zapis') && rc.zd.includes('Formularz: kontakt'), J(rc.zd));
+    const pr = (x) => (x || '').replace(',', '.');
+    const [ck, cc, ca] = rc.cele;
+    t.check('cele: 2 wizyty; Kontakt i Cennik 50% (wejście z bing.com 1/1, wprost 0/1); Strona A 50% (wprost 1/1)',
+      rc.cele.length === 3 && pr(ck.konw) === '50.0%' && pr(cc.konw) === '50.0%' && pr(ca.konw) === '50.0%'
+      && J(ck.zrodla.map(pr)) === J(['bing.com|1|1|100.0%', '(bezpośrednio)|1|0|0.0%']) && J(ca.zrodla.map(pr)) === J(['(bezpośrednio)|1|1|100.0%', 'bing.com|1|0|0.0%']), J(rc.cele));
+    const zdPrzed = sonda('dane', 'zdarzenie', dzien(10), dzien(0)).dane;
+    sonda('postarz', 1); sonda('zbiorka', 'od-nowa');
+    const zdPo = sonda('dane', 'zdarzenie', dzien(10), dzien(0)).dane;
+    t.check('zdarzenia po zbiórce dziennej: te same liczby z tabeli dziennej', Object.keys(zdPrzed).length === 6 && zdPrzed['tel:+48123456789'].odslony === 2 && J(zdPrzed) === J(zdPo), J({ zdPrzed, zdPo }));
+    await ludz.close(); await inny.close();
+    await sa.goto(baza + '/wp-admin/options-general.php?page=evoke-one&tab=statystyki');
     await sa.click('label.evo-toggle:has([data-option="evk_statystyki"]) .evo-slider');
     for (let i = 0; i < 30 && (sonda('stan').ust || {}).enabled !== 0; i++) await sa.waitForTimeout(150);
     const st2 = sonda('stan');

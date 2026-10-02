@@ -21,6 +21,8 @@ const EVK_STAT_WYMIARY = [
     'razem' => '', 'strona' => 'sciezka', 'zrodlo' => 'zrodlo', 'urzadzenie' => 'urzadzenie',
     'przegladarka' => 'przegladarka', 'system' => 'system_op', 'jezyk' => 'jezyk',
     'utm_source' => 'utm_source', 'utm_medium' => 'utm_medium', 'utm_campaign' => 'utm_campaign',
+    /* Zdarzenia (1.285.0): wartość „rodzaj:etykieta”, `odslony` = liczba zdarzeń, z tabeli zdarzeń. */
+    'zdarzenie' => '@zdarzenia',
 ];
 
 /**
@@ -32,6 +34,14 @@ const EVK_STAT_WYMIARY = [
 function evk_stat_sql_surowe(string $wymiar, string $od, string $do): string {
     global $wpdb;
     $kol = EVK_STAT_WYMIARY[$wymiar];
+    if ($kol === '@zdarzenia') {
+        return $wpdb->prepare(
+            "SELECT dzien, %s AS wymiar, CONCAT(rodzaj, ':', etykieta) AS wartosc, COUNT(*) AS odslony, COUNT(DISTINCT wizyta) AS unikalni,
+                    0 AS czas_suma, 0 AS czas_ile, 0 AS przewiniecie_suma
+             FROM " . evk_stat_tabela('zdarzenia') . " WHERE dzien BETWEEN %s AND %s GROUP BY dzien, rodzaj, etykieta",
+            $wymiar, $od, $do
+        );
+    }
     $wart = $kol === '' ? "''" : $kol;
     $gdzie = $kol === '' ? '' : " AND $kol <> ''";
     return $wpdb->prepare(
@@ -82,6 +92,7 @@ function evk_stat_zbiorka(): int {
     if ($zeb !== '') {
         /* Kasujemy tylko dni już zebrane — surowe bez zbiórki byłyby stratą danych. */
         $wpdb->query($wpdb->prepare("DELETE FROM $odsl WHERE dzien < %s AND dzien <= %s", $prog, $zeb));
+        $wpdb->query($wpdb->prepare('DELETE FROM ' . evk_stat_tabela('zdarzenia') . ' WHERE dzien < %s AND dzien <= %s', $prog, $zeb));
     }
     return $ile;
 }
@@ -155,5 +166,6 @@ function evk_stat_usun_okres(string $od, string $do): array {
     if ((int) get_option('evk_stat_db_version', 0) !== EVK_STAT_DB_WERSJA) return ['surowe' => 0, 'dzienne' => 0];
     $s = (int) $wpdb->query($wpdb->prepare('DELETE FROM ' . evk_stat_tabela('odslony') . ' WHERE dzien BETWEEN %s AND %s', $od, $do));
     $d = (int) $wpdb->query($wpdb->prepare('DELETE FROM ' . evk_stat_tabela('dni') . ' WHERE dzien BETWEEN %s AND %s', $od, $do));
+    $s += (int) $wpdb->query($wpdb->prepare('DELETE FROM ' . evk_stat_tabela('zdarzenia') . ' WHERE dzien BETWEEN %s AND %s', $od, $do));
     return ['surowe' => $s, 'dzienne' => $d];
 }

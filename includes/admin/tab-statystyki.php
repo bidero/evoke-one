@@ -75,6 +75,17 @@ $evk_on  = !empty($evk_st['enabled']);
                 Licznik w pasku admina na stronie: odsłony tej strony dziś / 30 dni</label>
         </div>
 
+        <div class="evo-box">
+            <h3>Zdarzenia</h3>
+            <p class="evo-desc">Liczone automatycznie kliknięcia i wysłane formularze. Własne zdarzenie: atrybut <code>data-evk-zdarzenie="nazwa"</code> na elemencie albo formularzu — liczy się zawsze.</p>
+            <div class="evo-stack">
+                <?php foreach (['zd_tel' => 'Kliknięcia w telefon i e-mail (tel:, mailto:)', 'zd_pobrania' => 'Pobrania plików (PDF, ZIP, DOCX, XLSX…)',
+                                'zd_wychodzace' => 'Linki wychodzące (do innych domen)', 'zd_formularze' => 'Wysłane formularze (Bricks, Contact Form 7 i zwykłe)'] as $evk_k => $evk_n): ?>
+                <label class="evo-check-row"><input type="checkbox" name="<?php echo esc_attr($evk_k); ?>" value="1" <?php checked(1, $evk_st[$evk_k]); ?>> <?php echo esc_html($evk_n); ?></label>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
         <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
             Skrypt (ok. 1 KB) wysyła odsłonę przy wczytaniu strony, a przy jej opuszczeniu czas i przewinięcie.
             Unikalnych odwiedzających rozpoznaje skrót adresu IP i przeglądarki z losową solą zmienianą o północy —
@@ -95,6 +106,56 @@ $evk_on  = !empty($evk_st['enabled']);
                     if (r && r.success) { $(f).find('textarea[name=wyklucz_ip]').val(r.data.wyklucz_ip); $(f).find('.evk-stat-zapisano').addClass('is-widoczny'); }
                     else alert((r && r.data) || 'Błąd zapisu.');
                 });
+        });
+    });
+    </script>
+    <?php endif; ?>
+
+    <?php if ($evk_on): /* Cele (1.285.0): wiersze z PHP — po zapisie strona się przeładowuje z nową pustą linią. */
+        $evk_cele = evk_stat_cele();
+        $evk_cele[] = ['id' => '', 'nazwa' => '', 'typ' => 'zdarzenie', 'wartosc' => ''];
+    ?>
+    <div class="evo-box evo-mt" id="evk-stat-cele">
+        <h3>Cele</h3>
+        <p class="evo-desc">Cel to zdarzenie (np. <code>formularz</code>, <code>tel</code>, <code>pobranie:cennik.pdf</code>, <code>wlasne:zapis</code>) albo wejście na adres (np. <code>/dziekujemy/</code>).
+            Raport pokaże konwersję: ile wizyt osiągnęło cel, osobno dla źródła i kampanii. Pusta nazwa — wiersz pominięty.</p>
+        <?php foreach ($evk_cele as $evk_i => $evk_c): ?>
+        <div class="evo-grid evo-pola-rowne evk-stat-cel" style="--evo-col:180px;--evo-gap:12px" data-id="<?php echo esc_attr($evk_c['id']); ?>">
+            <div class="evo-field">
+                <label for="evk-cel-nazwa-<?php echo (int) $evk_i; ?>"><?php echo $evk_c['id'] === '' ? 'Nowy cel: nazwa' : 'Nazwa'; ?></label>
+                <input type="text" id="evk-cel-nazwa-<?php echo (int) $evk_i; ?>" class="evk-cel-nazwa" value="<?php echo esc_attr($evk_c['nazwa']); ?>">
+            </div>
+            <div class="evo-field">
+                <label for="evk-cel-typ-<?php echo (int) $evk_i; ?>">Rodzaj</label>
+                <select id="evk-cel-typ-<?php echo (int) $evk_i; ?>" class="evk-cel-typ">
+                    <option value="zdarzenie" <?php selected($evk_c['typ'], 'zdarzenie'); ?>>Zdarzenie</option>
+                    <option value="adres" <?php selected($evk_c['typ'], 'adres'); ?>>Wejście na adres</option>
+                </select>
+            </div>
+            <div class="evo-field">
+                <label for="evk-cel-wartosc-<?php echo (int) $evk_i; ?>">Zdarzenie albo adres</label>
+                <input type="text" id="evk-cel-wartosc-<?php echo (int) $evk_i; ?>" class="evk-cel-wartosc" value="<?php echo esc_attr($evk_c['wartosc']); ?>" spellcheck="false">
+            </div>
+            <?php if ($evk_c['id'] !== ''): ?>
+            <label class="evo-check-row"><input type="checkbox" class="evk-cel-usun"> Usuń ten cel</label>
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+        <p><button type="button" class="button button-primary" id="evk-stat-cele-zapisz">Zapisz cele</button> <span class="evk-stat-cele-stan" role="status"></span></p>
+    </div>
+    <script>
+    jQuery(function ($) {
+        $('#evk-stat-cele-zapisz').on('click', function () {
+            var cele = [];
+            $('#evk-stat-cele .evk-stat-cel').each(function () {
+                var w = $(this);
+                if (w.find('.evk-cel-usun').is(':checked')) return;
+                cele.push({ id: w.data('id') || '', nazwa: w.find('.evk-cel-nazwa').val(), typ: w.find('.evk-cel-typ').val(), wartosc: w.find('.evk-cel-wartosc').val() });
+            });
+            $.post(ajaxurl, { action: 'evk_stat_cele', nonce: <?php echo wp_json_encode(wp_create_nonce('evk_stat')); ?>, cele: JSON.stringify(cele) }).done(function (r) {
+                if (r && r.success) { $('.evk-stat-cele-stan').text('Zapisano celów: ' + r.data.length + '.'); window.location.reload(); }
+                else $('.evk-stat-cele-stan').text((r && r.data) || 'Błąd zapisu.');
+            });
         });
     });
     </script>

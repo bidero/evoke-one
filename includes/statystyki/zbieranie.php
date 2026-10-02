@@ -133,6 +133,7 @@ function evk_stat_zapisz(array $d, array $serwer): string {
         ));
         return 'ok';
     }
+    if (($d['t'] ?? '') === 'z') return evk_stat_zapisz_zdarzenie($d, evk_stat_wizyta($ip, $ua));
     if (($d['t'] ?? '') !== 'v') return 'typ';
 
     $dzien  = wp_date('Y-m-d');
@@ -186,5 +187,7 @@ add_action('wp_enqueue_scripts', function (): void {
         'p' => is_singular() ? (int) get_queried_object_id() : 0,
         'j' => function_exists('get_current_lang') ? get_current_lang() : '',
         'd' => !empty($s['dnt']) ? 1 : 0,
+        /* Rodzaje zdarzeń włączone w panelu (1.285.0). */
+        'z' => array_values(array_filter(EVK_STAT_ZD_PRZELACZNIKI, static function (string $k) use ($s): bool { return !empty($s['zd_' . $k]); })),
     ]) . ';', 'before');
 });

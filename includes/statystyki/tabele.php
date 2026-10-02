@@ -13,7 +13,8 @@ if (!defined('ABSPATH')) exit;
  * i przewinięcia. Raport za dni sprzed zbiórki czyta tylko tę tabelę.
  */
 
-const EVK_STAT_DB_WERSJA = 1;
+/* 2 (1.285.0): tabela zdarzeń. dbDelta dokłada ją do istniejących. */
+const EVK_STAT_DB_WERSJA = 2;
 
 function evk_stat_tabela(string $nazwa): string {
     global $wpdb;
@@ -57,6 +58,21 @@ function evk_stat_utworz_tabele(): void {
         czas_ile int(10) UNSIGNED NOT NULL DEFAULT 0,
         przewiniecie_suma bigint(20) UNSIGNED NOT NULL DEFAULT 0,
         PRIMARY KEY  (dzien,wymiar,wartosc)
+    ) $c;");
+    /* Zdarzenia (1.285.0): telefon, e-mail, pobranie, link wychodzący, formularz,
+       własne. `klucz` — odsłona, na której zaszło; źródło i kampania wizyty
+       liczą się z jej odsłon (cele). */
+    dbDelta("CREATE TABLE " . evk_stat_tabela('zdarzenia') . " (
+        id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        czas datetime NOT NULL,
+        dzien date NOT NULL,
+        klucz char(16) NOT NULL,
+        wizyta char(16) NOT NULL,
+        rodzaj varchar(20) NOT NULL,
+        etykieta varchar(191) NOT NULL DEFAULT '',
+        PRIMARY KEY  (id),
+        KEY dzien_wizyta (dzien,wizyta),
+        KEY czas (czas)
     ) $c;");
     update_option('evk_stat_db_version', EVK_STAT_DB_WERSJA, false);
 }

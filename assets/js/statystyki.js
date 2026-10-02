@@ -36,6 +36,32 @@
         wyslij({ t: 'k', c: Math.round(widoczny / 1000), d: przew });
       } else od = Date.now();
     });
+    /* Zdarzenia (1.285.0): rodzaje włączone w panelu przychodzą w c.z (lista). Beacon wychodzi
+       także przy opuszczaniu strony (link wychodzący, pobranie). Własne: data-evk-zdarzenie. */
+    var z = c.z || [];
+    function zd(r, e) { if (e) wyslij({ t: 'z', r: r, e: String(e).slice(0, 190) }); }
+    d.addEventListener('click', function (ev) {
+      var el = ev.target && ev.target.closest ? ev.target.closest('[data-evk-zdarzenie],a[href]') : null;
+      if (!el) return;
+      if (el.hasAttribute('data-evk-zdarzenie')) return zd('wlasne', el.getAttribute('data-evk-zdarzenie'));
+      var h = el.getAttribute('href') || '', u;
+      if (/^tel:/i.test(h)) { if (z.indexOf('tel') > -1) zd('tel', h.slice(4).replace(/[^\d+]/g, '')); return; }
+      if (/^mailto:/i.test(h)) { if (z.indexOf('tel') > -1) zd('mail', h.slice(7).split('?')[0].toLowerCase()); return; }
+      try { u = new URL(el.href, location.href); } catch (er) { return; }
+      if (!/^https?:$/.test(u.protocol)) return;
+      if (z.indexOf('pobrania') > -1 && /\.(pdf|zip|rar|7z|docx?|xlsx?|pptx?|csv|txt|odt|ods|odp|epub|mp3|mp4|mov|dmg|exe|apk)$/i.test(u.pathname)) {
+        var nazwa = u.pathname.split('/').pop();
+        try { nazwa = decodeURIComponent(nazwa); } catch (er) { /* zostaje zakodowana */ }
+        return zd('pobranie', nazwa);
+      }
+      if (z.indexOf('wychodzace') > -1 && u.hostname && u.hostname !== location.hostname) zd('wychodzacy', u.hostname.replace(/^www\./, ''));
+    }, true);
+    d.addEventListener('submit', function (ev) {
+      var f = ev.target;
+      if (z.indexOf('formularze') < 0 || !f || f.tagName !== 'FORM') return;
+      if (f.hasAttribute('data-evk-zdarzenie')) return zd('wlasne', f.getAttribute('data-evk-zdarzenie'));
+      zd('formularz', f.id || f.getAttribute('name') || f.getAttribute('aria-label') || 'formularz');
+    }, true);
   }
   /* Strona wczytana z wyprzedzeniem (prerender) liczy się dopiero, gdy ktoś na nią wejdzie. */
   if (d.prerendering) d.addEventListener('prerenderingchange', start, { once: true }); else start();
