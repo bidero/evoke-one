@@ -54,8 +54,10 @@ module.exports = async function (t) {
 
   /* Wyjątek od 1.247.0: ukryte znaczniki przełączników „Włącz…" chowają się
      warunkiem na nieistniejące `evk_nigdy` (jak w próbie z 1.243.0). Liczba
-     wpisana ręcznie: jeden znacznik na każdy przełącznik „Włącz…". */
-  t.check('wiszące celowo: tylko ukryte znaczniki „…_nowy", szesnaście (od 1.254.0)', (d.znaczniki || []).length === 16,
+     wpisana ręcznie: jeden znacznik na każdy przełącznik „Włącz…" i od 1.276.0
+     znacznik Offcanvasu `openInBuilder_nowy` (nowo dodane otwarte w builderze). */
+  t.check('wiszące celowo: tylko ukryte znaczniki „…_nowy", siedemnaście (od 1.276.0)', (d.znaczniki || []).length === 17
+    && (d.znaczniki || []).includes('evoke-offcanvas-menu/openInBuilder_nowy'),
     (d.znaczniki || []).join(', ') || 'brak');
 
   // ── Warunek pytający o wartość, której pole nie zapisuje ─────────────────

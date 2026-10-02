@@ -18,6 +18,21 @@ class Evk_Scroll_Reading_Element extends \Bricks\Element {
 		return [ 'evoke', 'scroll', 'reading', 'text', 'tekst', 'split', 'highlight' ];
 	}
 
+	/* Treść na start (1.276.0). Bez niej element dodany z panelu był pustym
+	   kontenerem 0×0 — w kanwie nic nie było widać ani czego kliknąć
+	   (przegląd w prawdziwym builderze, decyzja zgłaszającego). */
+	public function get_nestable_children() {
+		return [
+			[
+				'name'     => 'heading',
+				'settings' => [
+					'tag'  => 'h2',
+					'text' => esc_html__( 'Ten tekst rozjaśnia się słowo po słowie, gdy przewijasz stronę.', 'evoke-one' ),
+				],
+			],
+		];
+	}
+
 	public function enqueue_scripts() {
 		wp_enqueue_script( 'evk-scroll-reading' );
 		wp_enqueue_style( 'evk-scroll-reading' );

@@ -131,10 +131,32 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 		   zamyka się i każda poprawka treści zaczyna się od otwierania go od
 		   nowa. Zgłoszone z użycia, pilnuje tego tests/offcanvas.test.js. */
 		$this->controls['openInBuilder'] = [
-			'tab'     => 'content',
-			'label'   => esc_html__( 'Trzymaj otwarte w builderze', 'evoke-one' ),
-			'type'    => 'checkbox',
-			'default' => false,
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Trzymaj otwarte w builderze', 'evoke-one' ),
+			'type'     => 'checkbox',
+			'default'  => false,
+			'required' => [ 'openInBuilder_nowy', '!=', 2 ],
+		];
+		/* NOWO DODANE SĄ OTWARTE (1.276.0, decyzja zgłaszającego): zamknięte
+		   menu po dodaniu z panelu nic nie pokazywało w kanwie. Pole zaznaczenia
+		   z domyślną WŁĄCZONĄ jest tu nie do odznaczenia (flaga.php), a para
+		   evk_przelacznik_nowy() zakłada, że nowy działa jak stary nietknięty —
+		   tu celowo nie. Stąd ukryty znacznik (zapisuje się przy wstawieniu)
+		   i odwrotne „Zamknij w builderze”, domyślnie odznaczone. Elementy bez
+		   znacznika widzą dawne „Trzymaj otwarte” i zostają zamknięte. */
+		$this->controls['openInBuilder_nowy'] = [
+			'tab'      => 'content',
+			'label'    => 'Znacznik nowego elementu',
+			'type'     => 'number',
+			'default'  => 2,
+			'required' => [ 'evk_nigdy', '=', 'tak' ],
+		];
+		$this->controls['closedInBuilder'] = [
+			'tab'      => 'content',
+			'label'    => esc_html__( 'Zamknij w builderze', 'evoke-one' ),
+			'type'     => 'checkbox',
+			'default'  => false,
+			'required' => [ 'openInBuilder_nowy', '=', 2 ],
 		];
 
 		$this->controls['mode'] = [
@@ -715,7 +737,8 @@ class Evk_Offcanvas_Menu extends \Bricks\Element {
 			! empty( $s['raiseMode'] ) ? $s['raiseMode'] : 'przelacznik' );
 		$this->set_attribute( '_root', 'data-raise-selector',
 			! empty( $s['raiseSelector'] ) ? $s['raiseSelector'] : '' );
-		$this->set_attribute( '_root', 'data-open-builder', ! empty( $s['openInBuilder'] )  ? '1' : '0' );
+		$otwarte = evk_nowy_przelacznik( $s, 'openInBuilder' ) ? empty( $s['closedInBuilder'] ) : ! empty( $s['openInBuilder'] );
+		$this->set_attribute( '_root', 'data-open-builder', $otwarte ? '1' : '0' );
 
 		echo "<div {$this->render_attributes( '_root' )}>"
 		   . Frontend::render_children( $this )
