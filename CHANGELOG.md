@@ -2,6 +2,68 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.285.0] — 2026-10-02
+
+Statystyki, etap 2 z trzech: porównanie okresów, „teraz na stronie”,
+widżet Kokpitu, licznik w pasku admina, zdarzenia i cele, kraj z DB-IP
+Lite, eksport CSV i kasowanie za okres. Etap 3 (1.286.0): hotspoty.
+
+### Dodane
+
+- **Wykres: przełącznik „Słupki / Linie”.** Linie pokazują odsłony,
+  unikalnych i przerywaną linię odsłon z poprzedniego okresu tej samej
+  długości (dzień do dnia). Wybór pamięta przeglądarka. Podpowiedź nad
+  dniem, legenda i „Tabela dzienna” z liczbami pod wykresem.
+- **Zmiana wobec poprzedniego okresu** przy czterech liczbach raportu
+  („+12% wobec: poprzednie 30 dni”, przy „Dziś” — wobec wczoraj).
+- **„Teraz na stronie”**: wizyty z ostatnich 5 minut i ich strony.
+- **Widżet Kokpitu „Statystyki — 7 dni”**: liczby i mały wykres.
+- **Licznik w pasku admina** (domyślnie wyłączony): odsłony oglądanej
+  strony dziś i w 30 dni.
+- **Zdarzenia automatyczne**, każde do wyłączenia w zakładce: kliknięcia
+  w telefon i e-mail, pobrania plików, linki wychodzące, wysłanie
+  formularza (bez treści), do tego własne przez `data-evk-zdarzenie`.
+  Lista „Zdarzenia” w raporcie. Wyłączony rodzaj odrzuca też serwer.
+- **Cele z konwersją**: adres strony albo zdarzenie; raport liczy
+  konwersję wizyt razem, po źródle wejścia i po kampanii.
+- **Kraj odwiedzającego z bazy DB-IP Lite** (CC BY 4.0, podpis pod
+  listą „Kraje”). Strona sama pobiera bazę co miesiąc i wczytuje ją
+  porcjami do osobnej tabeli; stara baza działa do końca importu.
+  Odrzucony zostaje plik bez nagłówka gzip (np. strona HTML z kodem 200)
+  i plik ze zbyt małą liczbą zakresów. Przycisk „Pobierz bazę krajów
+  teraz” w zakładce. Pomiar na prawdziwym pliku: 710 834 zakresy, import
+  6 s, wyszukanie 0,19 ms.
+- **Eksport CSV** przyciskiem „Pobierz CSV” w raporcie: okres raportu,
+  „Razem”, „Dzień” i CAŁE listy (raport pokazuje 10). Średnik i BOM
+  UTF-8 dla polskiego Excela. Pola od odwiedzających zaczynające się od
+  „=”, „+”, „-”, „@” dostają apostrof — arkusz nie wykona ich jako formuły.
+  Pobiera administrator i rola z uprawnieniem „Statystyki”.
+- **Kasowanie statystyk** w zakładce (tylko administrator): za okres
+  od–do albo „Usuń wszystkie”, z potwierdzeniem i liczbą odsłon.
+- **Polityka prywatności**: tekst modułu RODO ma akapit „Statystyki
+  odwiedzin” — opisuje kraj (tylko z wczytaną bazą), włączone zdarzenia,
+  „nie śledź” i czas trzymania według ustawień.
+
+### Poprawione
+
+- Odstęp pod wykresem w raporcie — lista przylegała do pudełka wykresu
+  (zgłoszenie z testowej).
+- Przy zwykłych adresach (`?page_id=…`) wszystkie strony liczyły się
+  jako „/”. Ścieżka zachowuje teraz parametry wskazujące stronę.
+- Tłumaczenia AI: wiersz ustawień wyrównany. Etykieta „Opisy obrazów
+  (…)” łamała się na dwie linie i spychała pole niżej, a długie nazwy
+  dostawców były ucięte w polach. Krótka etykieta i nazwy, dopisek pod
+  polem (zgłoszenie 02.10).
+
+### Testy
+
+- `statystyki` (52), `statystyki-kraje` (14, prawdziwy import porcjami
+  z pliku przez serwer testowy, IPv4/IPv6, odrzucenie złego pliku),
+  `statystyki-csv` (16, pobranie w Chromium = plik z sondy, uprawnienia,
+  zły nonce). Każda nowa funkcja z mutacjami — wszystkie zapalają swoje
+  sprawdzenia.
+- `tl-ai`: wyrównanie wiersza ustawień przy 1280, 1600 i 1920 px.
+
 ## [1.284.0] — 2026-10-02
 
 Statystyki bez cookies, etap 1 z trzech: ogólny włącznik, zbieranie,
