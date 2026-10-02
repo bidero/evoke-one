@@ -22,7 +22,7 @@ return [
         // Moduły i ich ustawienia
         'evk_a11y', 'evk_animator', 'evk_bgshift', 'evk_cleanup', 'evk_cursor', 'evk_darkmode',
         'evk_draft_revision_enabled', 'evk_elements', 'evk_fonts', 'evk_forminbox', 'evk_forminbox_read',
-        'evk_interface', 'evk_lenis', 'evk_motion', 'evk_og', 'evk_parallax', 'evk_parallax_scale',
+        'evk_interface', 'evk_lenis', 'evk_motion', 'evk_obrazy', 'evk_obrazy_blokada', 'evk_obrazy_przebieg', 'evk_og', 'evk_parallax', 'evk_parallax_scale',
         'evk_parallax_value', 'evk_rewizje', 'evk_schema', 'evk_security', 'evk_sierotki',
         'evk_sitemap_rules_cleaned', 'evk_theme_color', 'evk_white_label', 'evk_wl_bar_items',
         'evoke_dashboard_active', 'evoke_dashboard_fit_content', 'evoke_dashboard_height', 'evoke_dashboard_mode',
@@ -78,7 +78,10 @@ return [
                       // i kopia „Wyczyść tłumaczenia strony” (1.264.0).
                       '_evk_tl_el_stan', '_evk_tl_el_dopisane', '_evk_tl_ai_wyczyszczone',
                       // Znacznik polskiego altu napisanego przez AI, „do sprawdzenia” (1.271.0).
-                      '_evk_alt_ai'],
+                      '_evk_alt_ai',
+                      // Wersje WebP/AVIF załącznika: format => jakość. Pliki `….jpg.webp`
+                      // i `….jpg.avif` kasuje odinstalowanie po tej liście (uninstall.php).
+                      '_evk_obrazy'],
     /* Wersje językowe pól wpisu: `_evk_tl_{język}__{pole}` — kod języka jest
        dynamiczny, więc przedrostek (1.251.0: pola SEO). Tylko z podkreślnikiem
        na początku: Evoke Fields trzyma swoje tłumaczenia pod `evk_tl_…`. */
@@ -93,5 +96,5 @@ return [
        w Role Managerze, ale sprawdza je tamta wtyczka. */
     'uprawnienia' => ['manage_evk_roles', 'evk_access_translations', 'evk_access_newsletter',
                       'evk_access_maintenance', 'evk_access_messages'],
-    'haki_crona' => ['evk_backup_tick', 'evk_backup_nightly', 'evk_nl_process_batch'],
+    'haki_crona' => ['evk_backup_tick', 'evk_backup_nightly', 'evk_nl_process_batch', 'evk_obrazy_tick'],
 ];

@@ -198,7 +198,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (142 pliki, sześć partii; testy kopii trwają
+Podział, który się mieści (143 pliki, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
@@ -206,7 +206,7 @@ node tests/run.js backup-panel
 node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp
 node tests/run.js admin- anim animator aria bg-shift bricks-builder bricks-render bricks-required builder-context burger circular-menu controls
 node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee minifikacja motion
-node tests/run.js fields- newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
+node tests/run.js fields- newsletter obrazy- odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
 ```
 
@@ -220,7 +220,7 @@ FILTRY="admin- anim animator aria backup-panel backup-baza backup-czytnik backup
 backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize
 backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-builder bricks-render bricks-required builder-context
 burger circular-menu controls darkmode drobiazgi fields- grain hscroll inbox ip-klienta
-konserwacja kursor loop marquee minifikacja motion newsletter odpornosc odswiezanie
+konserwacja kursor loop marquee minifikacja motion newsletter obrazy- odpornosc odswiezanie
 offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji
 przelaczniki rewizje schema-graf scroll-lock seo-meta settings-save sierotki
 sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs
@@ -353,6 +353,16 @@ zmiennej `EVK_WP_SRODOWISKO`. Dwie rzeczy z pierwszych prób:
 - **Słownik fraz siedzi też w transiencie** (`get_translation_config()`).
   `update_option('tl_translations', …)` w sondzie bez `tl_invalidate_cache()`
   nie zmienia pamięci tłumaczeń.
+
+**Obrazy WebP/AVIF (`obrazy-*`)** idą przez PRAWDZIWE edytory obrazów
+WordPressa. AVIF zapisuje tu tylko Imagick: GD z Ubuntu nie ma `imageavif`.
+Raz na sesję `apt-get install -y php8.3-imagick libheif-plugin-aomenc`, bez
+tego test świeci na czerwono z instrukcją. Ścieżkę serwera bez AVIF (sam GD)
+sonda wymusza filtrem `wp_image_editors` (`EVK_TEST_EDYTOR=GD`). Pułapka
+z pomiaru: ImageMagick 6.9.12 zapisuje WebP ze STAŁĄ jakością (q30 i q90
+dają ten sam plik, także `convert -quality`), więc moduł robi WebP przez GD.
+Przebieg biblioteki dokańcza PRAWDZIWY `wp-cron.php`, a minutę ciszy karty
+symuluje sonda (`postarz`), bez czekania.
 
 Dysk Google (`backup-drive`, `backup-panel-drive`) idzie przez **atrapę
 Google** — `tests/php/_google-atrapa.php` na `php -S` (`tests/lib/google-atrapa.js`),

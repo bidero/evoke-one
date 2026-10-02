@@ -51,6 +51,8 @@ module.exports = async function (t) {
   t.check('meta, rola z Role Managera, uprawnienia i katalogi (kopie, import, OG) zostają',
     Object.keys(n0.meta || {}).length === 7 && n0.rola === true && n0.uprawnienie === true && Object.keys(n0.katalogi || {}).length === 3,
     JSON.stringify({ meta: n0.meta, rola: n0.rola, uprawnienie: n0.uprawnienie, katalogi: n0.katalogi }));
+  t.check('wersje WebP/AVIF obrazu z biblioteki (oba pliki, oba rozmiary) i ich meta zostają', Object.keys(n0.obrazy || {}).length === 5,
+    JSON.stringify(n0.obrazy));
   sonda('przywroc');
 
   // ── Z „Usuń dane", ale na stronie zostaje druga kopia ───────────────────
@@ -68,6 +70,7 @@ module.exports = async function (t) {
       && Object.keys(nd.meta || {}).length === 7 && Object.keys(nd.katalogi || {}).length === 3 && nd.rola === true,
     JSON.stringify({ opcje: Object.keys(nd.opcje || {}).length, tabele: nd.tabele, wpisy: Object.keys(nd.wpisy || {}).length,
       meta: Object.keys(nd.meta || {}), katalogi: nd.katalogi, rola: nd.rola }));
+  t.check('wersje WebP/AVIF obrazów zostają mimo „Usuń dane"', Object.keys(nd.obrazy || {}).length === 5, JSON.stringify(nd.obrazy));
   sonda('przywroc');
 
   // ── Z „Usuń dane" ───────────────────────────────────────────────────────
@@ -85,6 +88,7 @@ module.exports = async function (t) {
     n1.rola === false && JSON.stringify(w1.uzytkownik_role) === JSON.stringify([w1.domyslna_rola]),
     JSON.stringify({ rola: n1.rola, uzytkownik: w1.uzytkownik_role, domyslna: w1.domyslna_rola }));
   t.check('nasze uprawnienia zdjęte z ról', n1.uprawnienie === false, JSON.stringify(n1.uprawnienie));
+  t.check('wersje WebP/AVIF obrazu (główny plik i rozmiar) i meta _evk_obrazy — usunięte', puste(n1.obrazy), JSON.stringify(n1.obrazy));
 
   t.section('odinstalowanie Z „Usuń dane": cudze dane nietknięte');
   const cz = w1.cudze || {};
@@ -96,6 +100,7 @@ module.exports = async function (t) {
      „dowolny znak", więc bez esc_like() wzorzec złapałby także je. */
   t.check('Evoke Fields: tłumaczenia pól (evk_tl_en__…) zostają — w wpisie i w termie', cz.evk_tl_en__opis === true && cz['term:evk_tl_en__opis'] === true,
     JSON.stringify(cz));
+  t.check('obraz z biblioteki: oryginał, jego rozmiar i załącznik zostają — usuwamy tylko nasze wersje', cz.obraz_jpg === true, JSON.stringify(cz.obraz_jpg));
   t.check('cudza rola, cudza opcja, zwykła strona i ustawienia WordPressa zostają',
     cz.obca_rola === true && cz.obca_opcja === true && cz.strona === true && cz.blogname === true, JSON.stringify(cz));
 

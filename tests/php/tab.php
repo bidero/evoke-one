@@ -311,6 +311,8 @@ $GLOBALS['wpdb'] = new class {
     // Snippety → tryb zaawansowany czytają swój kod wprost z tabeli opcji.
     public $options = 'wp_options';
     public $postmeta = 'wp_postmeta';
+    // Obrazy WebP/AVIF liczą załączniki w tabeli wpisów.
+    public $posts = 'wp_posts';
     /** @var array<string, array<int, array<string, mixed>>> */
     public $seed = [];
     /** @var array<string, array<int, mixed>> Wynik get_col() po nazwie tabeli (zakładka SEO: wpisy z {tl_…}). */
@@ -693,6 +695,19 @@ $TABS = [
         'module' => 'includes/91-sierotki.php',
         'file'   => 'includes/admin/tab-sierotki.php',
         'seed'   => function () { $GLOBALS['options']['evk_sierotki'] = ['enabled' => 1]; },
+    ],
+    /* Obrazy WebP/AVIF: serwer z samym WebP (GD bez AVIF — najczęstszy hosting),
+       więc ekran rysuje się z ostrzeżeniem o AVIF. Edytory obrazów i cache to
+       rdzeń WordPressa, tu atrapy; prawdziwe sprawdza obrazy-webp. */
+    'fe-obrazy' => [
+        'module' => 'includes/91-obrazy.php',
+        'file'   => 'includes/admin/tab-obrazy.php',
+        'seed'   => function () {
+            $GLOBALS['options']['evk_obrazy'] = ['enabled' => 1];
+            if (!function_exists('wp_image_editor_supports')) { function wp_image_editor_supports($a = []) { return ($a['mime_type'] ?? '') === 'image/webp'; } }
+            if (!function_exists('_wp_image_editor_choose')) { function _wp_image_editor_choose($a = []) { return ($a['mime_type'] ?? '') === 'image/webp' ? 'WP_Image_Editor_GD' : false; } }
+            if (!function_exists('wp_cache_delete')) { function wp_cache_delete($k, $g = '') { return true; } }
+        },
     ],
     'fe-themecolor' => [
         'module' => 'includes/91-theme-color.php',

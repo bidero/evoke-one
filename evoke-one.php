@@ -116,6 +116,7 @@ $evoke_one_modules = [
     '90-schema.php',
     '91-fonts.php',
     '91-sierotki.php',
+    '91-obrazy.php',       // WebP/AVIF przy wgrywaniu, <picture> na stronie
     '91-theme-color.php',
     '92-parallax.php',
     '93-darkmode.php',
