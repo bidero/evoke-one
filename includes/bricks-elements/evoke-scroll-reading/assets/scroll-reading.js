@@ -158,6 +158,12 @@
     if (window.matchMedia) {
       var mq = window.matchMedia('(prefers-color-scheme: dark)');
       if (mq.addEventListener) mq.addEventListener('change', scheduleRebuild);
+      /* Redukcja ruchu włączona przy otwartej stronie: tekst nad progiem
+         zostawał przygaszony, bo build() pytał o nią tylko przy starcie
+         (pomiar 1.276.0). Przebudowa daje od razu kolor docelowy — i z powrotem
+         oś czasu, gdy redukcję wyłączyć. */
+      var rm = window.matchMedia('(prefers-reduced-motion: reduce)');
+      if (rm.addEventListener) rm.addEventListener('change', scheduleRebuild);
     }
   }
 

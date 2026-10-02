@@ -49,6 +49,19 @@ module.exports = async function (t) {
     // Z redukcją musi dostać kolor DOCELOWY — przygaszony byłby nieczytelny.
     t.check(reduce ? 'redukcja → od razu kolor docelowy' : 'kontrola → kolor przygaszony',
       col === (reduce ? 'rgb(0, 0, 0)' : 'rgb(200, 200, 200)'), col);
+    if (!reduce) {
+      /* Preferencja zmieniona przy otwartej stronie (1.276.0): do tej pory tekst
+         zostawał przygaszony, bo redukcję sprawdzał tylko start. */
+      const kolor = () => page.evaluate(() => getComputedStyle(document.querySelector('.evk-sr-word')).color);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.waitForTimeout(400);
+      const wl = await kolor();
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.waitForTimeout(400);
+      const wyl = await kolor();
+      t.check('redukcja włączona po wczytaniu → od razu kolor docelowy; wyłączona → znów przygaszony',
+        wl === 'rgb(0, 0, 0)' && wyl === 'rgb(200, 200, 200)', wl + ' / ' + wyl);
+    }
     await page.close();
   }
 
