@@ -57,7 +57,7 @@ $evk_jezyki = tl_get_languages();
         </div>
         <?php /* Google (1.280.0): treść pliku JSON konta usługi zamiast klucza — pole puste, zapisany zostaje ukryty. */ ?>
         <div class="tl-ai-google-pole">
-        <label for="tl-ai-google-json">Plik JSON konta usługi <span class="tl-ai-klucz-stan evo-label-note"></span></label>
+        <label for="tl-ai-google-json">Plik JSON konta usługi <span class="tl-ai-json-stan evo-label-note"></span></label>
         <textarea id="tl-ai-google-json" rows="3" autocomplete="off" spellcheck="false" placeholder="wklej całą treść pliku .json — zapisany zostaje ukryty"></textarea>
         </div>
         <label class="evo-check-row"><input type="checkbox" id="tl-ai-usun-klucz"> Usuń zapisany klucz tego dostawcy</label>
@@ -311,7 +311,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
             document.querySelectorAll('.tl-ai-tylko-tlumacz').forEach(function (x) { x.hidden = !(deepl || google); });
             document.querySelectorAll('.tl-ai-google-pole').forEach(function (x) { x.hidden = !google; });
             document.querySelectorAll('.tl-ai-klucz-pole').forEach(function (x) { x.hidden = google; });
-            document.querySelectorAll('.tl-ai-klucz-stan').forEach(function (x) { x.textContent = kluczStan.textContent; });
+            document.querySelectorAll('.tl-ai-json-stan').forEach(function (x) { x.textContent = kluczStan.textContent; });
         };
         dostawca.addEventListener('change', pokazDostawce);
         pokazDostawce();
