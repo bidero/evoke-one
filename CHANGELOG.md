@@ -2,6 +2,41 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.276.0] — 2026-10-02
+
+Poprawki z przeglądu buildera i Scroll Reading przy redukcji ruchu.
+
+### Naprawione
+
+- **Scroll Reading, redukcja ruchu włączona przy otwartej stronie.** Tekst
+  nad progiem zostawał przygaszony, bo skrypt pytał o preferencję tylko przy
+  starcie. Teraz zmiana `prefers-reduced-motion` przebudowuje element, jak
+  zmiana motywu: od razu kolor docelowy, a po wyłączeniu redukcji wraca
+  rozjaśnianie przy przewijaniu. Z redukcją od wczytania strony było dobrze —
+  sprawdzone na prawdziwym froncie z Bricksem.
+
+### Zmienione (decyzje zgłaszającego)
+
+- **Scroll Reading dodany z panelu ma treść na start** — nagłówek z tekstem.
+  Do tej pory był pustym kontenerem, w kanwie niewidocznym.
+- **Offcanvas Menu dodany z panelu jest otwarty w builderze.** Do tej pory
+  po dodaniu nic nie było widać. Pole zaznaczenia z domyślną włączoną jest
+  w Bricksie nie do odznaczenia, więc nowy element dostaje ukryty znacznik
+  i „Zamknij w builderze”, domyślnie odznaczone. Elementy dodane wcześniej
+  widzą dawne „Trzymaj otwarte w builderze” i zostają zamknięte.
+
+### Testy
+
+- `bricks-builder-elementy` (nowy): w prawdziwym builderze dodanie wszystkich
+  dziesięciu elementów Evoke z panelu, treść Scroll Reading, znacznik
+  i „Zamknij w builderze” w obie strony, panel starego Offcanvasu.
+- `motion`: przełączenie redukcji ruchu przy otwartej stronie w obie strony.
+- `bricks-required`: siedemnaście ukrytych znaczników.
+
+### Do sprawdzenia na testowej
+
+- Dodanie Offcanvas Menu i Scroll Reading z panelu; „Zamknij w builderze”.
+
 ## [1.275.0] — 2026-10-01
 
 Kopiowanie animacji Animatora z elementu na element i poprawki z przeglądu
