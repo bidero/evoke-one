@@ -33,6 +33,7 @@ function evk_stat_domyslne(): array {
         'wyklucz_role' => 1,     // nie licz zalogowanych z edit_posts (redaktorzy, administratorzy)
         'wyklucz_ip'   => '',    // adresy i sieci (CIDR), linia albo przecinek
         'menu'         => 'osobna',
+        'licznik'      => 0,     // licznik odsłon tej strony w pasku admina (1.285.0)
     ];
 }
 
@@ -66,6 +67,7 @@ function evk_stat_sanitize($wej): array {
         'wyklucz_role' => !empty($wej['wyklucz_role']) ? 1 : 0,
         'wyklucz_ip'   => implode("\n", $ip),
         'menu'         => array_key_exists($menu, EVK_STAT_MIEJSCA_MENU) ? $menu : $d['menu'],
+        'licznik'      => !empty($wej['licznik']) ? 1 : 0,
     ];
 }
 

@@ -76,6 +76,24 @@ function evk_stat_zrodlo(string $ref): string {
     return $host === $moj ? '' : substr($host, 0, 191);
 }
 
+/** Parametry adresu, które wskazują stronę przy zwykłych adresach (bez „ładnych”). */
+const EVK_STAT_PARAMETRY_STRONY = ['p', 'page_id', 'cat', 'tag', 'author', 'post_type', 'paged', 'm', 'year', 'monthnum', 'day', 'attachment_id'];
+
+/**
+ * Ścieżka odsłony (1.285.0): ścieżka adresu plus parametry wskazujące stronę,
+ * posortowane. Przy zwykłych adresach (`/?page_id=12`) sama ścieżka „/”
+ * zlewała wszystkie strony w jedną; UTM i parametry śledzące odpadają.
+ */
+function evk_stat_sciezka(string $sciezka, string $zapytanie = ''): string {
+    $s = '/' . ltrim((string) wp_parse_url('/' . ltrim($sciezka, '/'), PHP_URL_PATH), '/');
+    parse_str(ltrim($zapytanie, '?'), $q);
+    $q = array_intersect_key($q, array_flip(EVK_STAT_PARAMETRY_STRONY));
+    $q = array_filter(array_map(static function ($v): string { return is_scalar($v) ? substr((string) preg_replace('/[^A-Za-z0-9_-]/', '', (string) $v), 0, 40) : ''; }, $q),
+        static function (string $v): bool { return $v !== ''; });
+    ksort($q);
+    return substr($q ? $s . '?' . http_build_query($q) : $s, 0, 255);
+}
+
 /** Czy adres IP jest na liście wykluczonych. */
 function evk_stat_ip_wykluczony(string $ip, string $lista): bool {
     if ($ip === '' || trim($lista) === '') return false;
@@ -122,7 +140,7 @@ function evk_stat_zapisz(array $d, array $serwer): string {
     $ile = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $tab WHERE dzien = %s AND wizyta = %s", $dzien, $wizyta));
     if ($ile >= EVK_STAT_LIMIT_WIZYTY) return 'limit';
 
-    $sciezka = '/' . ltrim((string) wp_parse_url('/' . ltrim((string) ($d['s'] ?? '/'), '/'), PHP_URL_PATH), '/');
+    $sciezka = evk_stat_sciezka((string) ($d['s'] ?? '/'), (string) ($d['q'] ?? ''));
     [$przegl, $system] = evk_stat_przegladarka($ua);
     $utm = static function ($w): string { return substr(strtolower(trim(sanitize_text_field((string) $w))), 0, 100); };
     $wpdb->query($wpdb->prepare(

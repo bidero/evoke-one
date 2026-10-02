@@ -150,6 +150,8 @@ function evk_stat_render_raport(): void {
             .evk-stat-liczba { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 14px 16px; }
             .evk-stat-liczba span { display: block; color: #50575e; font-size: 13px; }
             .evk-stat-liczba strong { font-size: 24px; line-height: 1.3; }
+            .evk-stat-teraz { margin: 0 0 12px; font-size: 14px; }
+            .evk-stat-kropka { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1baf7a; margin-right: 6px; vertical-align: middle; }
             .evk-stat-liczba small { display: block; color: #50575e; font-size: 12px; margin-top: 2px; }
             /* Wykres (1.285.0): seria 1 niebieska, seria 2 pomarańczowa, poprzedni okres — seria 1 przerywana. */
             .evk-stat-wykres-box { --s1: #2a78d6; --s2: #eb6834; --siatka: #dcdcde; position: relative; }
@@ -190,6 +192,9 @@ function evk_stat_render_raport(): void {
             <a class="button<?php echo $k === $okres ? ' button-primary' : ''; ?>" href="<?php echo esc_url(add_query_arg('okres', $k, $baza)); ?>"<?php echo $k === $okres ? ' aria-current="page"' : ''; ?>><?php echo esc_html($etykieta); ?></a>
             <?php endforeach; ?>
         </nav>
+        <?php $evk_teraz = evk_stat_teraz(); ?>
+        <p class="evk-stat-teraz"><span class="evk-stat-kropka" aria-hidden="true"></span>Teraz na stronie: <strong><?php echo (int) $evk_teraz['wizyty']; ?></strong>
+            <span class="evo-muted">(ostatnie <?php echo (int) EVK_STAT_TERAZ_MIN; ?> min<?php echo $evk_teraz['strony'] ? ': ' . esc_html(implode(', ', array_map(static function ($s, $l) { return $s . ' ' . $l; }, array_keys($evk_teraz['strony']), $evk_teraz['strony']))) : ''; ?>)</span></p>
         <div class="evk-stat-liczby">
             <?php foreach ($liczby as $etykieta => $wartosc): ?>
             <div class="evk-stat-liczba"><span><?php echo esc_html($etykieta); ?></span><strong><?php echo esc_html($wartosc); ?></strong>

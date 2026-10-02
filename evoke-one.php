@@ -134,6 +134,7 @@ $evoke_one_modules = [
     'statystyki/zbieranie.php',
     'statystyki/dobowe.php',
     'statystyki/raport.php',
+    'statystyki/kokpit.php',     // „teraz”, widżet Kokpitu, licznik w pasku admina (1.285.0)
 ];
 
 foreach ($evoke_one_modules as $module) {

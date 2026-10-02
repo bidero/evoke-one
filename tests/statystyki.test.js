@@ -76,8 +76,9 @@ module.exports = async function (t) {
     let w = odslony();
     const o1 = w[0] || {};
     console.log('      odsłona 1: ' + J(o1));
-    t.check('jedna odsłona: strona, ID, źródło google.com, kampania, komputer, Chrome, Linux',
-      w.length === 1 && o1.sciezka === '/' && +o1.post_id === A && o1.zrodlo === 'google.com' && o1.utm_source === 'newsletter'
+    /* Ścieżka (1.285.0): przy zwykłych adresach z `page_id`, bez UTM — do 1.284.0 każda strona była „/”. */
+    t.check('jedna odsłona: strona (/?page_id=…, bez UTM), ID, źródło google.com, kampania, komputer, Chrome, Linux',
+      w.length === 1 && o1.sciezka === '/?page_id=' + A && +o1.post_id === A && o1.zrodlo === 'google.com' && o1.utm_source === 'newsletter'
       && o1.utm_medium === 'email' && o1.utm_campaign === 'jesien' && o1.urzadzenie === 'komputer' && o1.przegladarka === 'Chrome' && o1.system_op === 'Linux', J(w));
     t.check('wizyta to skrót (16 znaków), nie adres IP', /^[0-9a-f]{16}$/.test(o1.wizyta || '') && !/127\.0\.0\.1/.test(J(o1)));
     /* Koniec odsłony: przewinięcie do połowy, 1,5 s widoczności, schowanie karty. */
@@ -241,6 +242,31 @@ module.exports = async function (t) {
     await sa.click('.evk-stat-tryby [data-tryb="slupki"]');
     t.check('źródła: bing.com i (bezpośrednio); okres „7 dni” zaznaczony; pozycja w menu', J((rap.zrodla || []).sort()) === J(['(bezpośrednio)', 'bing.com'])
       && rap.okres === '7 dni' && rap.menu, J(rap));
+
+    t.section('„teraz na stronie”, widżet Kokpitu, licznik w pasku admina (1.285.0)');
+    const teraz = await sa.textContent('.evk-stat-teraz strong');
+    const terazStrony = await sa.textContent('.evk-stat-teraz .evo-muted');
+    t.check('raport: teraz na stronie 1 wizyta (ostatnie 5 min), z jej stronami', teraz === '1' && terazStrony.includes('/?page_id=' + A2 + ' 1'), teraz + ' ' + terazStrony);
+    await sa.goto(baza + '/wp-admin/index.php');
+    const widzet = await sa.evaluate(() => {
+      const w = document.querySelector('#evk_stat_widzet');
+      return w && { tytul: w.querySelector('h2')?.textContent.trim(), liczby: [...w.querySelectorAll('.evk-sw-liczby strong')].map((x) => x.textContent),
+        zmiana: w.querySelector('.evk-sw-liczby small')?.textContent, mini: w.querySelectorAll('.evk-stat-mini rect').length,
+        strony: [...w.querySelectorAll('.evk-sw-strony li')].map((li) => li.querySelector('span').textContent + ' ' + li.querySelector('strong').textContent), raport: !!w.querySelector('a[href*="page=evoke-statystyki"]') };
+    });
+    console.log('      widżet: ' + J(widzet));
+    t.check('widżet Kokpitu: 3 odsłony (+50%), 1 unikalny, teraz 1; mini wykres; strony A ×2 i B ×1; odnośnik do raportu',
+      !!widzet && widzet.tytul === 'Statystyki — 7 dni' && J(widzet.liczby) === J(['3', '1', '1']) && widzet.zmiana === '+50% wobec poprzednich 7 dni'
+      && widzet.mini === 1 && J(widzet.strony) === J(['/?page_id=' + A2 + ' 2', '/?page_id=' + B2 + ' 1']) && widzet.raport, J(widzet));
+    const licznik = async () => { await sa.goto(baza + '/?page_id=' + A2); return sa.evaluate(() => {
+      const n = document.querySelector('#wp-admin-bar-evk-statystyki'); return n && { tekst: n.querySelector('.ab-label').textContent, tytul: n.querySelector('a').getAttribute('title') }; }); };
+    const l0 = await licznik();
+    sonda('ustaw', J({ licznik: 1 }));
+    const l1 = await licznik();
+    sonda('ustaw', J({ licznik: 0 }));
+    t.check('licznik w pasku: domyślnie brak; włączony — strona A: dziś 2 / 30 dni 2 (administrator nie liczony)',
+      l0 === null && !!l1 && l1.tekst === '2 / 2' && l1.tytul === 'Odsłony tej strony: dziś 2, 30 dni 2', J({ l0, l1 }));
+    await sa.goto(baza + '/wp-admin/admin.php?page=evoke-statystyki&okres=7');
 
     /* Raport to osobna strona (nie przez tests/php/tab.php), więc admin-telefon jej nie widzi. */
     await sa.setViewportSize({ width: 360, height: 740 });

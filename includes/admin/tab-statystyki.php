@@ -71,6 +71,8 @@ $evk_on  = !empty($evk_st['enabled']);
                 </select>
                 <p class="evo-desc">Raporty widzi administrator i role z uprawnieniem „Statystyki” (Panel admina → Role Manager).</p>
             </div>
+            <label class="evo-check-row"><input type="checkbox" name="licznik" value="1" <?php checked(1, $evk_st['licznik']); ?>>
+                Licznik w pasku admina na stronie: odsłony tej strony dziś / 30 dni</label>
         </div>
 
         <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">
