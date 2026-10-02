@@ -2,6 +2,42 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.283.0] — 2026-10-02
+
+Tłumaczenie AI mówi wprost, który dostawca i model naprawdę tłumaczył.
+Zgłoszenie: z błędnym plikiem JSON Google hurt „przeszedł”, a zakładka nie
+pozwalała sprawdzić, czy Google w ogóle odpowiedział.
+
+### Dodane
+
+- **„Sprawdź połączenie”** obok „Zapisz ustawienia AI”. Wysyła jedno
+  prawdziwe, krótkie zapytanie do wybranego dostawcy (z zapisanym kluczem)
+  i pokazuje wynik: dostawcę, model, czas i przetłumaczone zdanie próbne
+  albo dokładny błąd dostawcy. Próba pomija pamięć tłumaczeń i glosariusze
+  (niczego nie tworzy ani nie kasuje) i nic nie zapisuje.
+- **Sprawdzenie przy zapisie.** Nowy klucz, nowy plik JSON albo zmiana
+  dostawcy od razu przechodzi tę samą próbę. Zły klucz daje „Zapisano, ale
+  połączenie NIE działa (…): Google odrzucił konto usługi (400: Invalid JWT
+  Signature)”. Ustawienia zapisują się mimo błędu, bo sieć bywa chwilowa.
+- **Dziennik hurtu z podziałem.**
+  - Pierwszy wiersz: dostawca i model przebiegu.
+  - Wiersz każdej strony: „od dostawcy google/nmt: N, z pamięci: M”.
+    Podpis dostawcy i modelu podaje serwer, nie lista w panelu.
+  - Na końcu: kto naprawdę odpowiedział i ile tekstów przetłumaczył.
+    Gdy dostawca nie był pytany wcale, dziennik mówi to wprost: wszystkie
+    teksty przyszły z pamięci (ile ze sprawdzonych tłumaczeń, ile
+    z wcześniejszych wyników tego modelu).
+
+### Testy
+
+- `tl-google`: zapis dobrego pliku z próbą („Połączenie działa”), plik
+  o dobrym kształcie z obcym kluczem (zapis z ostrzeżeniem, „Sprawdź
+  połączenie” z tym samym błędem, hurt zatrzymany), próba bez glosariusza.
+  Pierwsza wersja próby czyściła słowniczek, a to kazało Google usunąć
+  istniejący glosariusz — złapał to test „nowy słowniczek”.
+- `tl-ai`, `tl-ai-ponownie`: nowy format dziennika, pierwszy i ostatni
+  wiersz przebiegu.
+
 ## [1.282.0] — 2026-10-02
 
 Obrazy WebP/AVIF: lżejsze wersje zdjęć z biblioteki, podawane przez `<picture>`.

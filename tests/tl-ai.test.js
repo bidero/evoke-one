@@ -290,7 +290,8 @@ module.exports = async function (t) {
     t.check('429 po drodze: wpis w dzienniku, krok powtórzony po czekaniu', dz.some((x) => /Limit zapytań dostawcy — czekam\./.test(x))
       && dz.filter((x) => /^Strona AI A \(Treść\) EN:/.test(x)).length === 2, json(dz));
     t.check('podsumowanie: 22 zapisane (AI 20, z pamięci 2), odrzucone 2',
-      dz[dz.length - 1] === 'Razem: zapisane 22 (AI: 20, z pamięci: 2), odrzucone: 2.', dz[dz.length - 1]);
+      dz[dz.length - 2] === 'Razem: zapisane 22 (od dostawcy: 20, z pamięci: 2), odrzucone: 2.'
+      && dz[dz.length - 1] === 'Odpowiedział dostawca: gemini/gemini-3.8-flash (20).', json(dz.slice(-2)));
     const zad = sonda('zadania').zadania || [];
     t.check('żądania do Gemini: A EN (429 i powtórka), A DE, C EN, C DE — B z pamięci wyników bez zapytania, odrzut nie wraca',
       zad.length === 5 && zad.every((x) => x.includes('generativelanguage.googleapis.com')), json(zad));

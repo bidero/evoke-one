@@ -119,6 +119,8 @@ $evk_jezyki = tl_get_languages();
     </div>
     <p class="tl-footer">
         <button type="button" class="button button-primary tl-ai-zapisz">Zapisz ustawienia AI</button>
+        <?php /* 1.283.0: prawdziwe krótkie zapytanie do wybranego dostawcy (zapisany klucz), bez pamięci tłumaczeń. */ ?>
+        <button type="button" class="button tl-ai-sprawdz">Sprawdź połączenie</button>
         <span class="tl-ai-zapis-stan" role="status"></span>
     </p>
     <?php endif; ?>
@@ -315,6 +317,14 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         };
         dostawca.addEventListener('change', pokazDostawce);
         pokazDostawce();
+        document.querySelector('.tl-ai-sprawdz').addEventListener('click', function (e) {
+            var b = e.currentTarget, st = document.querySelector('.tl-ai-zapis-stan');
+            b.disabled = true;
+            st.textContent = 'Sprawdzam połączenie…';
+            wyslij({ action: 'evk_tl_ai_sprawdz', dostawca: dostawca.value, model: model.value })
+                .then(function (r) { b.disabled = false; st.textContent = (r && r.success) ? r.data.komunikat : ((r && r.data) || 'Błąd.'); })
+                .catch(function () { b.disabled = false; st.textContent = 'Błąd połączenia z serwerem.'; });
+        });
         document.querySelector('.tl-ai-zapisz').addEventListener('click', function (e) {
             var b = e.currentTarget, stan = document.querySelector('.tl-ai-zapis-stan');
             var wsk = {};
@@ -536,7 +546,11 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         var przebieg = { tryb: tryb(), dostawca: przebiegDostawca.value, model: przebiegModel.value.trim(),
             bez_pamieci: document.getElementById('tl-ai-bez-pamieci').checked ? '1' : '', zakres: zakres() };
         zatrzymaj = false; start.disabled = true; stop.disabled = false; dziennik.textContent = '';
-        var suma = { zapisane: 0, z_ai: 0, z_pamieci: 0, odrzucone: 0, bez_zmian: 0 }, przerwane = '';
+        var suma = { zapisane: 0, z_ai: 0, z_pamieci: 0, z_wynikow: 0, odrzucone: 0, bez_zmian: 0 }, przerwane = '', podpisy = {};
+        /* 1.283.0: kto tłumaczy ten przebieg — z listy; kto NAPRAWDĘ tłumaczył — z odpowiedzi serwera (`podpis`). */
+        var wybranyDostawca = przebiegDostawca.options[przebiegDostawca.selectedIndex];
+        wpisz('Przebieg: ' + (wybranyDostawca ? wybranyDostawca.textContent.split(' — ')[0] : '?') + ' · model ' + (przebieg.model || przebiegModel.placeholder || 'domyślny')
+            + (przebieg.bez_pamieci ? ', bez pamięci wyników' : '') + '.');
         petla:
         for (var i = 0; i < wybrane.length; i++) {
             var j = wybrane[i];
@@ -560,9 +574,10 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
                        w trybie „od nowa” świeże tłumaczenie AI jest znów niesprawdzone. */
                     pomin = pomin.concat(d.odrzucone || [], d.pominiete || [], d.zapisane_klucze || []);
                     suma.zapisane += d.zapisane; suma.z_ai += d.z_ai; suma.z_pamieci += d.z_pamieci; suma.odrzucone += (d.odrzucone || []).length;
-                    suma.bez_zmian += d.bez_zmian || 0;
-                    wpisz(j.tytul + ' (' + j.czesc + ') ' + lang.toUpperCase() + ': zapisane ' + d.zapisane + ' (AI: ' + d.z_ai
-                        + ', z pamięci: ' + d.z_pamieci + '), odrzucone: ' + (d.odrzucone || []).length
+                    suma.bez_zmian += d.bez_zmian || 0; suma.z_wynikow += d.z_wynikow || 0;
+                    if (d.z_ai && d.podpis) podpisy[d.podpis] = (podpisy[d.podpis] || 0) + d.z_ai;
+                    wpisz(j.tytul + ' (' + j.czesc + ') ' + lang.toUpperCase() + ': zapisane ' + d.zapisane + ' (od dostawcy'
+                        + (d.podpis ? ' ' + d.podpis : '') + ': ' + d.z_ai + ', z pamięci: ' + d.z_pamieci + '), odrzucone: ' + (d.odrzucone || []).length
                         + (d.bez_zmian ? ', bez zmian: ' + d.bez_zmian : '') + ', zostało: ' + d.zostalo
                         + (d.blad ? ' — ' + d.blad : ''));
                     if (d.adres) wpisz(j.tytul + ' ' + lang.toUpperCase() + ', adres: ' + opisAdresu(d.adres));
@@ -580,8 +595,12 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
         }
         start.disabled = false; stop.disabled = true;
         stan.textContent = przerwane || (zatrzymaj ? 'Zatrzymane.' : 'Gotowe.');
-        wpisz('Razem: zapisane ' + suma.zapisane + ' (AI: ' + suma.z_ai + ', z pamięci: ' + suma.z_pamieci + '), odrzucone: ' + suma.odrzucone
+        wpisz('Razem: zapisane ' + suma.zapisane + ' (od dostawcy: ' + suma.z_ai + ', z pamięci: ' + suma.z_pamieci + '), odrzucone: ' + suma.odrzucone
             + (suma.bez_zmian ? ', bez zmian: ' + suma.bez_zmian : '') + '.');
+        var kto = Object.keys(podpisy);
+        if (kto.length) wpisz('Odpowiedział dostawca: ' + kto.map(function (p) { return p + ' (' + podpisy[p] + ')'; }).join(', ') + '.');
+        else if (suma.z_pamieci) wpisz('Dostawca NIE był pytany: wszystkie teksty przyszły z pamięci — ' + (suma.z_pamieci - suma.z_wynikow)
+            + ' ze sprawdzonych tłumaczeń, ' + suma.z_wynikow + ' z wcześniejszych wyników tego modelu. Działanie dostawcy sprawdzi „Sprawdź połączenie” w ustawieniach.');
         if (suma.bez_zmian) {
             wpisz(przebieg.bez_pamieci ? 'Bez zmian: model odpowiedział tym samym tekstem co obecny.'
                 : 'Bez zmian: ten sam model przy tych samych ustawieniach daje ten sam wynik z pamięci. Zaznacz „Pytaj AI od nowa”, '

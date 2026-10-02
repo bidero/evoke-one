@@ -213,7 +213,8 @@ function evk_tl_google_porcja(array $u, string $lang, string $tytul, array $kont
     if ($k === null) return ['ok' => false, 'blad' => 'Brak pliku JSON konta usługi Google — wklej go w ustawieniach Tłumaczenia AI.', 'czekaj' => 0, 'stop' => true];
     $t = evk_tl_google_token($k);
     if ($t['token'] === '') return ['ok' => false, 'blad' => $t['blad'], 'czekaj' => $t['kod'] === 0 ? 15 : 0, 'stop' => $t['kod'] !== 0 || strpos($t['blad'], 'OpenSSL') !== false || strpos($t['blad'], 'Klucz prywatny') !== false];
-    $g = evk_tl_google_glosariusz($u, $k, $t['token'], $lang);
+    /* Próba połączenia (1.283.0): bez glosariusza — niczego nie tworzy ani nie kasuje. */
+    $g = empty($u['_proba']) ? evk_tl_google_glosariusz($u, $k, $t['token'], $lang) : ['id' => '', 'czekaj' => 0, 'uwaga' => ''];
     if ($g['czekaj'] > 0) return ['ok' => false, 'blad' => 'Google przygotowuje glosariusz ze słowniczka — czekam.', 'czekaj' => $g['czekaj'], 'stop' => false, 'przygotowanie' => true];
     $klucze = array_keys($porcja);
     $cialo = ['contents' => array_map(static function ($w) { return evk_tl_deepl_zabezpiecz((string) $w['pl']); }, array_values($porcja)),

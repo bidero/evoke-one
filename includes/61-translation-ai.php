@@ -876,7 +876,10 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         : ($term ? evk_tl_ai_teksty_termu($post_id, $lang, (array) ($opcje['term_pola'] ?? []), !empty($opcje['ponownie']))
         : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key)))))))));
     $braki = array_diff_key($t['braki'], array_flip($pomin));
-    $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'bez_zmian' => 0, 'odrzucone' => [], 'pominiete' => [], 'zapisane_klucze' => [], 'zostalo' => 0];
+    /* `podpis` i `z_wynikow` (1.283.0): kto naprawdę tłumaczył i ile z pamięci to
+       wcześniejsze wyniki tego samego modelu (reszta `z_pamieci` — sprawdzone tłumaczenia). */
+    $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_wynikow' => 0, 'z_ai' => 0, 'bez_zmian' => 0, 'odrzucone' => [], 'pominiete' => [], 'zapisane_klucze' => [], 'zostalo' => 0,
+              'podpis' => $podpis];
     /* Licznik `zostalo` przy MCP: braki w trybie, w którym klient pobierał —
        zapis przyjmuje też niesprawdzone AI (poprawki), ale bez `ai` ich nie liczy. */
     $wszystkie = array_keys($mcp && empty($mcp['ai']) ? array_filter($braki, static function ($b) { return (string) $b['bylo'] === ''; }) : $braki);
@@ -906,7 +909,7 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         if ($z === null && $w === null) continue;
         $gotowe[$k] = $z ?? $w;
         if ($gotowe[$k] === $b['bylo']) { $rowne[$k] = true; continue; }
-        if ($z === null) $ai[$k] = true;
+        if ($z === null) { $ai[$k] = true; $wynik['z_wynikow']++; }
         $wynik['z_pamieci']++;
     }
 
@@ -2825,6 +2828,7 @@ add_action('wp_ajax_evk_tl_ai_ustawienia', function (): void {
     $u = evk_tl_ai_ustawienia();
     $p = wp_unslash($_POST);
     $d = evk_tl_ai_dostawcy();
+    $byl = $u['dostawca'];
     if (isset($d[$p['dostawca'] ?? ''])) $u['dostawca'] = (string) $p['dostawca'];
     /* Google (1.280.0): plik JSON konta usługi — sprawdzony i zapisany bez zbędnych pól. */
     if ($u['dostawca'] === 'google' && trim((string) ($p['klucz'] ?? '')) !== '' && empty($p['usun_klucz'])) {
@@ -2849,7 +2853,59 @@ add_action('wp_ajax_evk_tl_ai_ustawienia', function (): void {
     $u['opisy'] = in_array($p['opisy'] ?? '', EVK_TL_AI_LLM, true) ? (string) $p['opisy'] : '';
     if (in_array($u['dostawca'], ['deepl', 'google'], true)) unset($u['modele'][$u['dostawca']]);
     update_option(EVK_TL_AI_OPCJA, $u, false);
-    wp_send_json_success(['komunikat' => 'Zapisano.', 'klucz' => evk_tl_ai_klucz($u) !== '']);
+    /* Nowy klucz (plik JSON) albo inny dostawca — od razu prawdziwe zapytanie (1.283.0).
+       Ustawienia zapisują się mimo błędu: sieć bywa chwilowa, a klucz da się poprawić. */
+    $komunikat = 'Zapisano.';
+    $test = null;
+    if (evk_tl_ai_klucz($u) !== '' && ($klucz !== '' || $byl !== $u['dostawca'])) {
+        $test = evk_tl_ai_sprawdz_polaczenie($u);
+        $komunikat = $test['ok'] ? 'Zapisano. ' . evk_tl_ai_opis_sprawdzenia($test) : 'Zapisano, ale ' . lcfirst(evk_tl_ai_opis_sprawdzenia($test));
+    }
+    wp_send_json_success(['komunikat' => $komunikat, 'klucz' => evk_tl_ai_klucz($u) !== '', 'test' => $test]);
+});
+
+/**
+ * Sprawdzenie połączenia (1.283.0): jedno prawdziwe, krótkie zapytanie do
+ * dostawcy z ustawień — bez pamięci tłumaczeń i bez zapisu czegokolwiek.
+ * Zgłoszenie: hurt z błędnym plikiem JSON Google „przeszedł”, bo teksty
+ * przyszły z pamięci, a zakładka nie mówiła, czy dostawca w ogóle odpowiedział.
+ *
+ * @return array{ok:bool,podpis:string,nazwa:string,jezyk:string,ms:int,tekst?:string,blad?:string,uwaga?:string}
+ */
+function evk_tl_ai_sprawdz_polaczenie(array $u): array {
+    $jezyk = (string) (array_key_first(tl_get_languages()) ?? 'en');
+    $wynik = ['ok' => false, 'podpis' => evk_tl_ai_podpis($u), 'nazwa' => explode(' — ', (string) (evk_tl_ai_dostawcy()[$u['dostawca']]['nazwa'] ?? $u['dostawca']))[0], 'jezyk' => $jezyk, 'ms' => 0];
+    if (evk_tl_ai_klucz($u) === '') return $wynik + ['blad' => 'Brak zapisanego klucza tego dostawcy.'];
+    /* Próba: DeepL i Google pomijają glosariusz — nie tworzy go ani nie kasuje starego. */
+    $u['_proba'] = true;
+    $pl = 'Dzień dobry! To jest próba połączenia z tłumaczem.';
+    $w  = ['element' => 'Test', 'opis' => 'sprawdzenie połączenia', 'pl' => $pl, 'n' => 1, 'bylo' => ''];
+    $start = microtime(true);
+    $r = evk_tl_ai_porcja($u, $jezyk, 'Sprawdzenie połączenia', [['element' => 'Test', 'opis' => '', 'pl' => $pl, 'tl' => '']], ['t1' => $w]);
+    $wynik['ms'] = (int) round((microtime(true) - $start) * 1000);
+    /* Glosariusz Google w przygotowaniu: token i konto już przeszły — połączenie działa. */
+    if (!$r['ok'] && !empty($r['przygotowanie'])) return ['ok' => true, 'uwaga' => (string) $r['blad']] + $wynik;
+    if (!$r['ok']) return $wynik + ['blad' => (string) ($r['blad'] ?? 'Dostawca nie odpowiedział.')];
+    $tl = $r['tlumaczenia']['t1'] ?? null;
+    if (!is_string($tl) || trim($tl) === '') return $wynik + ['blad' => 'Dostawca odpowiedział, ale bez tłumaczenia.'];
+    return ['ok' => true, 'tekst' => $tl] + (!empty($r['uwaga']) ? ['uwaga' => (string) $r['uwaga']] : []) + $wynik;
+}
+
+/** Opis wyniku sprawdzenia dla panelu: jedno zdanie. */
+function evk_tl_ai_opis_sprawdzenia(array $s): string {
+    $kto = $s['nazwa'] . ' · ' . $s['podpis'];
+    if (!$s['ok']) return 'Połączenie NIE działa (' . $kto . '): ' . ($s['blad'] ?? '');
+    $czas = $s['ms'] < 1000 ? $s['ms'] . ' ms' : number_format_i18n($s['ms'] / 1000, 1) . ' s';
+    return 'Połączenie działa: ' . $kto . ', ' . $czas . (isset($s['tekst']) ? ' — ' . strtoupper($s['jezyk']) . ': „' . mb_substr($s['tekst'], 0, 80) . '”' : '')
+        . (!empty($s['uwaga']) ? ' (' . $s['uwaga'] . ')' : '');
+}
+
+/* Przycisk „Sprawdź połączenie” — dostawca z ustawień (albo wskazany), z zapisanym kluczem. */
+add_action('wp_ajax_evk_tl_ai_sprawdz', function (): void {
+    evk_tl_ajax_check('evk_tl_ai');
+    $u = evk_tl_ai_na_przebieg(evk_tl_ai_ustawienia(), (string) wp_unslash($_POST['dostawca'] ?? ''), (string) wp_unslash($_POST['model'] ?? ''));
+    $s = evk_tl_ai_sprawdz_polaczenie($u);
+    wp_send_json_success($s + ['komunikat' => evk_tl_ai_opis_sprawdzenia($s)]);
 });
 
 /** Lista części stron z brakami (w trybie ponownym — także z niesprawdzonymi tłumaczeniami AI). */

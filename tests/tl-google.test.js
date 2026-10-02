@@ -40,6 +40,17 @@ module.exports = async function (t) {
     t.check('zapis: tylko potrzebne pola pliku, zasobnik bez „gs://”, bez modelu, podpis google/nmt',
       u.odp && u.odp.success === true && J(u.pola_klucza) === J(['type', 'client_email', 'private_key', 'project_id', 'private_key_id'])
       && u.zasobnik === 'evoke-test' && u.model_google === null && u.podpis === 'google/nmt', J(u));
+    /* 1.283.0 (zgłoszenie: błędny plik JSON „przechodził”): zapis nowego pliku od razu pyta Google. */
+    t.check('zapis nowego pliku: prawdziwe zapytanie próbne — „Połączenie działa”, dostawca, model i przetłumaczone zdanie',
+      /^Zapisano\. Połączenie działa: Google Cloud Translation \(v3\) · google\/nmt, \d+ ms — EN: „G-EN:Dzień dobry/.test(((u.odp || {}).data || {}).komunikat || ''), J((u.odp || {}).data));
+    /* Próba poszła bez słowniczka (żadnego glosariusza); token z próby zapominamy, żeby pierwszy krok niżej był jak dotąd. */
+    sonda('wyczysc', 'token');
+
+    const sp = sonda('sprawdz');
+    t.check('„Sprawdź połączenie”: jedno tłumaczenie bez glosariusza i bez pamięci', sp.odp && sp.odp.success && sp.odp.data.ok === true
+      && J(sciezki(sp.zadania)) === J(['POST /token', 'POST /v3/projects/projekt-test/locations/us-central1:translateText'])
+      && !('glossaryConfig' in ((sp.zadania || [])[1] || { body: {} }).body), J(sp));
+    sonda('wyczysc', 'token');
 
     t.section('pierwszy krok: token, słowniczek do zasobnika, glosariusz w przygotowaniu');
     const k1 = sonda('krok', 'en');
@@ -120,6 +131,19 @@ module.exports = async function (t) {
     const o = sonda('opisy');
     t.check('opis obrazu: bez klucza AI — odmowa z wyjaśnieniem; z kluczem Claude — Claude', o.bez === 'google' && o.opisz && o.opisz.stop === true
       && /DeepL i Google Translation tylko tłumaczą/.test(o.opisz.blad || '') && o.z_claude === 'claude', J(o));
+
+    t.section('plik JSON z obcym kluczem (zgłoszenie z 02.10: „wszystko przeszło”)');
+    const ob = sonda('ajax-ustawienia', 'obcy', 'evoke-test', '');
+    t.check('zapis: ustawienia zapisane, ale komunikat mówi wprost, że Google odrzucił konto',
+      /^Zapisano, ale połączenie NIE działa \(Google Cloud Translation \(v3\) · google\/nmt\): Google odrzucił konto usługi \(400: Invalid JWT Signature/.test(((ob.odp || {}).data || {}).komunikat || '')
+      && ((ob.odp || {}).data || {}).klucz === true, J((ob.odp || {}).data));
+    const sp2 = sonda('sprawdz');
+    t.check('„Sprawdź połączenie”: ten sam błąd, bez tłumaczenia', sp2.odp && sp2.odp.data.ok === false && /Invalid JWT Signature/.test(sp2.odp.data.komunikat)
+      && tlumacz(sp2.zadania).length === 0, J(sp2.odp));
+    sonda('wyczysc');
+    const kob = sonda('krok', 'en');
+    t.check('hurt: stop z błędem Google, nic nie zapisane; krok podaje dostawcę i model (podpis)', kob.wynik.stop === true && kob.wynik.zapisane === 0
+      && /odrzucił konto usługi/.test(kob.wynik.blad || '') && kob.wynik.podpis === 'google/nmt' && kob.wynik.z_ai === 0, J(kob.wynik));
   } finally {
     sonda('sprzataj');
   }

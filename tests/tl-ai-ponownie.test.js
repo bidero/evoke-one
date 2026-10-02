@@ -197,22 +197,25 @@ module.exports = async function (t) {
     t.check('lista w trybie „od nowa”: ile z tekstów to tłumaczenia AI (A), same braki (D)',
       json(wiersz) === json(['EN: 8 (w tym AI od nowa: 7), DE: 10', 'EN: 28, DE: 28']), json(wiersz));
     const dz1 = await przebieg();
-    t.check('przebieg: na A 7 zapisanych z AI, „ZEPSUJ” odrzucony', dz1[0] === 'Strona AI A (Treść) EN: zapisane 7 (AI: 7, z pamięci: 0), odrzucone: 1, zostało: 0',
+    t.check('przebieg: na A 7 zapisanych z AI, „ZEPSUJ” odrzucony', dz1[1] === 'Strona AI A (Treść) EN: zapisane 7 (od dostawcy openai/gpt-test-f: 7, z pamięci: 0), odrzucone: 1, zostało: 0',
       json(dz1));
+    /* 1.283.0: dziennik mówi, kto miał tłumaczyć (pierwszy wiersz) i kto naprawdę odpowiedział (ostatni). */
+    t.check('dziennik: dostawca i model przebiegu na początku, odpowiedź dostawcy z liczbą na końcu', dz1[0] === 'Przebieg: OpenAI · model gpt-test-f.'
+      && dz1[dz1.length - 1] === 'Odpowiedział dostawca: openai/gpt-test-f (35).', json(dz1));
     /* D w trzech krokach (porcje). Świeże tłumaczenia AI z kroku 1 są w trybie
        „od nowa” znów niesprawdzone — bez pominięcia wracałyby w kroku 2 jako
        „bez zmian: 25”. */
-    t.check('na D trzy kroki porcjami, zapisane z kroku 1 nie wracają jako „bez zmian”', json(dz1.slice(1, 4)) === json([
-      'Strona AI D (Treść) EN: zapisane 25 (AI: 25, z pamięci: 0), odrzucone: 0, zostało: 3',
-      'Strona AI D (Treść) EN: zapisane 2 (AI: 2, z pamięci: 0), odrzucone: 0, zostało: 1',
-      'Strona AI D (Treść) EN: zapisane 1 (AI: 1, z pamięci: 0), odrzucone: 0, zostało: 0']), json(dz1));
+    t.check('na D trzy kroki porcjami, zapisane z kroku 1 nie wracają jako „bez zmian”', json(dz1.slice(2, 5)) === json([
+      'Strona AI D (Treść) EN: zapisane 25 (od dostawcy openai/gpt-test-f: 25, z pamięci: 0), odrzucone: 0, zostało: 3',
+      'Strona AI D (Treść) EN: zapisane 2 (od dostawcy openai/gpt-test-f: 2, z pamięci: 0), odrzucone: 0, zostało: 1',
+      'Strona AI D (Treść) EN: zapisane 1 (od dostawcy openai/gpt-test-f: 1, z pamięci: 0), odrzucone: 0, zostało: 0']), json(dz1));
     const pa = sonda('pola', 'A');
     t.check('pola strony A: tekst modelu przebiegu (OpenAI, gpt-test-f), ręczny nagłówek nietknięty',
       (pa.pola || {})['h1|evk_tl_en__text'] === 'EN[gpt-test-f]:Nasze usługi' && (pa.pola || {})['h2|evk_tl_en__text'] === 'Already translated', json(pa.pola));
     const dz2 = (await pokaz('A'), await przebieg());
     t.check('drugi przebieg tym samym modelem: „bez zmian: 7” i wyjaśnienie w dzienniku',
-      dz2[0] === 'Strona AI A (Treść) EN: zapisane 0 (AI: 0, z pamięci: 0), odrzucone: 1, bez zmian: 7, zostało: 0'
-      && dz2[dz2.length - 2] === 'Razem: zapisane 0 (AI: 0, z pamięci: 0), odrzucone: 1, bez zmian: 7.'
+      dz2[1] === 'Strona AI A (Treść) EN: zapisane 0 (od dostawcy openai/gpt-test-f: 0, z pamięci: 0), odrzucone: 1, bez zmian: 7, zostało: 0'
+      && dz2[dz2.length - 2] === 'Razem: zapisane 0 (od dostawcy: 0, z pamięci: 0), odrzucone: 1, bez zmian: 7.'
       && /^Bez zmian: ten sam model/.test(dz2[dz2.length - 1]), json(dz2));
     await p.check('input[name="tl-ai-tryb"][value="puste"]');
     t.check('zmiana trybu czyści listę (liczby zależą od trybu)', (await p.locator('.tl-ai-wybor').count()) === 0

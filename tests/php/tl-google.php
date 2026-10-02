@@ -11,7 +11,8 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/tl-google.php wp
  *   php tests/php/tl-google.php przygotuj                języki, para kluczy, strona A
  *   php tests/php/tl-google.php jezyki                   kod języka Google dla każdego języka
- *   php tests/php/tl-google.php ajax-ustawienia <json|zly> <zasobnik> <slowniczek>
+ *   php tests/php/tl-google.php ajax-ustawienia <json|zly|obcy> <zasobnik> <slowniczek>   obcy — dobry kształt, klucz spoza pary testu
+ *   php tests/php/tl-google.php sprawdz                  AJAX „Sprawdź połączenie” (1.283.0)
  *   php tests/php/tl-google.php krok <jezyk> [scenariusz]
  *   php tests/php/tl-google.php jeden <jezyk> <klucz>
  *   php tests/php/tl-google.php opisy                    model do opisów obrazów przy Google
@@ -112,8 +113,15 @@ case 'jezyki':
     break;
 
 case 'ajax-ustawienia':
+    $priv = (string) ($zapis['priv'] ?? '');
+    if (($argv[2] ?? '') === 'obcy') {
+        /* Plik, który wygląda dobrze, ale klucz nie pasuje do konta — tak wyglądał błędny JSON ze zgłoszenia. */
+        openssl_pkey_export(openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]), $priv);
+        global $wpdb;
+        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '\\_transient%evk\\_tl\\_google\\_token\\_%'");
+    }
     $json = ($argv[2] ?? '') === 'zly' ? '{"type":"authorized_user","client_id":"x"}'
-        : (string) wp_json_encode(['type' => 'service_account', 'project_id' => 'projekt-test', 'private_key_id' => 'kid-test', 'private_key' => (string) ($zapis['priv'] ?? ''),
+        : (string) wp_json_encode(['type' => 'service_account', 'project_id' => 'projekt-test', 'private_key_id' => 'kid-test', 'private_key' => $priv,
             'client_email' => $GLOBALS['evk_t_google_email'], 'client_id' => '123', 'auth_uri' => 'https://accounts.google.com/o/oauth2/auth',
             'token_uri' => 'https://oauth2.googleapis.com/token', 'universe_domain' => 'googleapis.com'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     $odp = evk_tgo_ajax(['action' => 'evk_tl_ai_ustawienia', 'nonce' => wp_create_nonce('evk_tl_ai'), 'dostawca' => 'google', 'klucz' => $json,
@@ -133,6 +141,12 @@ case 'krok':
     $out['pola'] = evk_tgo_pola($id);
     $out['glosariusze'] = get_option('evk_tl_google_glosariusze', null);
     $out['stan'] = evk_t_google_stan();
+    break;
+
+case 'sprawdz':
+    $GLOBALS['evk_t_ai_scenariusz'] = (string) ($argv[2] ?? 'ok');
+    $out['odp'] = evk_tgo_ajax(['action' => 'evk_tl_ai_sprawdz', 'nonce' => wp_create_nonce('evk_tl_ai'), 'dostawca' => 'google']);
+    $out['zadania'] = evk_tgo_zadania();
     break;
 
 case 'jeden':

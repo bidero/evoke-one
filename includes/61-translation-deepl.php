@@ -196,7 +196,8 @@ function evk_tl_deepl_blad(int $kod, $o, string $retry): array {
 function evk_tl_deepl_porcja(array $u, string $lang, string $tytul, array $kontekst, array $porcja): array {
     $klucz = evk_tl_ai_klucz($u);
     if ($klucz === '') return ['ok' => false, 'blad' => 'Brak klucza API DeepL — wpisz go w ustawieniach Tłumaczenia AI.', 'czekaj' => 0, 'stop' => true];
-    $g = evk_tl_deepl_glosariusz($u, $klucz, $lang);
+    /* Próba połączenia (1.283.0): bez glosariusza — niczego nie tworzy ani nie kasuje. */
+    $g = empty($u['_proba']) ? evk_tl_deepl_glosariusz($u, $klucz, $lang) : ['id' => '', 'uwaga' => ''];
     $klucze = array_keys($porcja);
     $cialo = ['text' => array_map(static function ($w) { return evk_tl_deepl_zabezpiecz((string) $w['pl']); }, array_values($porcja)),
         'source_lang' => 'PL', 'target_lang' => evk_tl_deepl_jezyk($lang), 'tag_handling' => 'html'];
