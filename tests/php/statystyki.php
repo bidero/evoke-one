@@ -24,6 +24,10 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/statystyki.php dbip <sekundy> [adres]   jeden krok importu bazy krajów (adres — podmiana pliku DB-IP)
  *   php tests/php/statystyki.php kraj <ip…>                kraje adresów
  *   php tests/php/statystyki.php usun <json> [autor]     AJAX kasowania za okres (1.285.0), jako admin albo autor
+ *   php tests/php/statystyki.php wstaw <json>              {odslony:[{pola}], zdarzenia:[{pola}]} — dziś, wizyta i klucz losowe, jeśli brak
+ *   php tests/php/statystyki.php csv <od> <do>             evk_stat_csv() (1.285.0)
+ *   php tests/php/statystyki.php csv-pobierz <login>       admin_post_evk_stat_csv jako <login> (z ważnym nonce) — odmowa albo początek pliku
+ *   php tests/php/statystyki.php czytelnicy [usun]         konta HTTP: statyk_csv (uprawnienie „Statystyki”) i statyk_csv_bez, hasło „test-haslo”
  *   php tests/php/statystyki.php sprzataj
  */
 require __DIR__ . '/_testowy-wp.php';
@@ -69,6 +73,7 @@ case 'przygotuj':
     if ($out['tabele_po_wlaczeniu']) {
         $wpdb->query('TRUNCATE ' . evk_stat_tabela('odslony'));
         $wpdb->query('TRUNCATE ' . evk_stat_tabela('dni'));
+        $wpdb->query('TRUNCATE ' . evk_stat_tabela('zdarzenia'));
     }
     foreach (['Strona statystyk A', 'Strona statystyk B'] as $i => $t) {
         foreach ((array) $wpdb->get_col($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_title = %s", $t)) as $stary) wp_delete_post((int) $stary, true);
@@ -225,6 +230,43 @@ case 'usun':
     $out['surowe_dni'] = $wpdb->get_col('SELECT DISTINCT dzien FROM ' . evk_stat_tabela('odslony') . ' ORDER BY dzien');
     break;
 
+case 'wstaw':
+    $wej = json_decode((string) ($argv[2] ?? '{}'), true) ?: [];
+    foreach (['odslony', 'zdarzenia'] as $t) {
+        foreach ((array) ($wej[$t] ?? []) as $w) {
+            $wpdb->insert(evk_stat_tabela($t), array_merge(['czas' => gmdate('Y-m-d H:i:s'), 'dzien' => wp_date('Y-m-d'), 'klucz' => bin2hex(random_bytes(8)),
+                'wizyta' => bin2hex(random_bytes(8))], $t === 'zdarzenia' ? ['rodzaj' => 'wlasne'] : [], (array) $w));
+            $out['bledy'][] = $wpdb->last_error;
+        }
+    }
+    break;
+
+case 'csv':
+    $out['csv'] = evk_stat_csv((string) ($argv[2] ?? ''), (string) ($argv[3] ?? ''));
+    break;
+
+case 'csv-pobierz':
+    wp_set_current_user((int) get_user_by('login', (string) ($argv[2] ?? 'admin'))->ID);
+    $_GET = $_REQUEST = ['action' => 'evk_stat_csv', 'okres' => '7', '_wpnonce' => wp_create_nonce('evk_stat_csv')];
+    add_filter('wp_die_handler', static function () {
+        return static function ($m = '', $t = '', $a = []) { echo 'ODMOWA ' . (is_array($a) ? ($a['response'] ?? '') : '') . ' ' . (is_string($m) ? $m : ''); throw new RuntimeException('koniec'); };
+    });
+    ob_start();
+    try { do_action('admin_post_evk_stat_csv'); } catch (RuntimeException $e) { /* koniec */ }
+    $out['odp'] = substr((string) ob_get_clean(), 0, 80);
+    break;
+
+case 'czytelnicy':
+    require_once ABSPATH . 'wp-admin/includes/user.php';
+    foreach (['statyk_csv' => true, 'statyk_csv_bez' => false] as $login => $cap) {
+        if ($u = get_user_by('login', $login)) wp_delete_user($u->ID);
+        if (($argv[2] ?? '') === 'usun') continue;
+        $id = wp_insert_user(['user_login' => $login, 'user_pass' => 'test-haslo', 'role' => 'author', 'user_email' => $login . '@example.test']);
+        if ($cap) (new WP_User($id))->add_cap('evk_access_stats');
+        $out[$login] = $id;
+    }
+    break;
+
 case 'stan':
     $out['ust'] = get_option('evk_statystyki', null);
     $out['tabele'] = $tabele();
@@ -235,7 +277,7 @@ case 'stan':
 case 'sprzataj':
     foreach ((array) ($zap['strony'] ?? []) as $id) wp_delete_post((int) $id, true);
     if (empty($zap['tabele']) && $tabele()) {
-        $wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'evk_stat_odslony, ' . $wpdb->prefix . 'evk_stat_dni');
+        $wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'evk_stat_odslony, ' . $wpdb->prefix . 'evk_stat_dni, ' . $wpdb->prefix . 'evk_stat_zdarzenia');
     }
     foreach ((array) ($zap['opcje'] ?? []) as $o => $v) {
         if ($v === null) delete_option($o); else update_option($o, $v);

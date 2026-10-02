@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) exit;
  * Okres, cztery liczby (odsłony, unikalni, średni czas, średnie przewinięcie),
  * wykres dzienny w SVG i listy: strony, źródła, urządzenia, przeglądarki,
  * systemy, języki, kampanie UTM. Porównanie okresów, „teraz na stronie”,
- * CSV, widżet Kokpitu i licznik w pasku admina — etap 2 (1.284.0).
+ * CSV (`eksport.php`), widżet Kokpitu i licznik w pasku admina — etap 2 (1.285.0).
  */
 
 /** Okresy raportu: klucz → [etykieta, liczba dni wstecz włącznie z dziś]. */
@@ -145,7 +145,8 @@ function evk_stat_render_raport(): void {
     <div class="wrap evk-stat">
         <h1>Statystyki</h1>
         <style>
-            .evk-stat-okresy { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 16px; }
+            .evk-stat-pasek { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 12px 0 16px; }
+            .evk-stat-okresy { display: flex; flex-wrap: wrap; gap: 6px; }
             .evk-stat-liczby { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
             .evk-stat-liczba { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 14px 16px; }
             .evk-stat-liczba span { display: block; color: #50575e; font-size: 13px; }
@@ -190,11 +191,14 @@ function evk_stat_render_raport(): void {
             .evk-stat table .num { text-align: right; white-space: nowrap; }
             .evk-stat td:first-child { word-break: break-word; }
         </style>
-        <nav class="evk-stat-okresy" aria-label="Okres raportu">
-            <?php foreach (EVK_STAT_OKRESY as $k => [$etykieta]): $k = (string) $k; /* klucz „7” PHP trzyma jako liczbę */ ?>
-            <a class="button<?php echo $k === $okres ? ' button-primary' : ''; ?>" href="<?php echo esc_url(add_query_arg('okres', $k, $baza)); ?>"<?php echo $k === $okres ? ' aria-current="page"' : ''; ?>><?php echo esc_html($etykieta); ?></a>
-            <?php endforeach; ?>
-        </nav>
+        <div class="evk-stat-pasek">
+            <nav class="evk-stat-okresy" aria-label="Okres raportu">
+                <?php foreach (EVK_STAT_OKRESY as $k => [$etykieta]): $k = (string) $k; /* klucz „7” PHP trzyma jako liczbę */ ?>
+                <a class="button<?php echo $k === $okres ? ' button-primary' : ''; ?>" href="<?php echo esc_url(add_query_arg('okres', $k, $baza)); ?>"<?php echo $k === $okres ? ' aria-current="page"' : ''; ?>><?php echo esc_html($etykieta); ?></a>
+                <?php endforeach; ?>
+            </nav>
+            <a class="button evk-stat-csv" href="<?php echo esc_url(evk_stat_adres_csv($okres)); ?>">Pobierz CSV</a>
+        </div>
         <?php $evk_teraz = evk_stat_teraz(); ?>
         <p class="evk-stat-teraz"><span class="evk-stat-kropka" aria-hidden="true"></span>Teraz na stronie: <strong><?php echo (int) $evk_teraz['wizyty']; ?></strong>
             <span class="evo-muted">(ostatnie <?php echo (int) EVK_STAT_TERAZ_MIN; ?> min<?php echo $evk_teraz['strony'] ? ': ' . esc_html(implode(', ', array_map(static function ($s, $l) { return $s . ' ' . $l; }, array_keys($evk_teraz['strony']), $evk_teraz['strony']))) : ''; ?>)</span></p>
