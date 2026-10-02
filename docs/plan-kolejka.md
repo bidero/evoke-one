@@ -136,6 +136,18 @@ wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną
        stronie, pod nimi wykres z przełącznikiem Słupki / Linie, zakładki
        okresu (Dziś / 7 dni / 30 dni) i przycisk „Pełny raport”;
        mini wykres na całą szerokość ze skrótami dni.
+   Hotspoty (1.286.0), decyzje z 02.10 wieczorem:
+     - włączanie: z paska admina na stronie („Nagrywaj tę stronę”)
+       i z listy w zakładce Statystyki (adres, czas, liczba wizyt, stan);
+       domyślnie 14 dni albo 1000 wizyt, co pierwsze;
+     - po zakończeniu dane ZOSTAJĄ do ręcznego usunięcia; nowe nagranie
+       dopisuje albo zaczyna od zera;
+     - nakładka: mapa ciepła kliknięć, mapa przewinięcia, złość i martwe
+       kliknięcia, lista najczęściej klikanych elementów;
+     - podgląd w ramce o szerokości urządzenia (telefon / tablet / komputer);
+     - dostęp: ogląda rola z „Statystyki”, włącza i kasuje administrator;
+     - polityka prywatności: zdanie o hotspotach, gdy nagranie trwa — tylko
+       na własne potrzeby, dane nie są nikomu przekazywane.
    Matomo odpada: heatmapy to płatna wtyczka premium (InnoCraft, nie GPL),
    a Matomo for WordPress waży kilkadziesiąt MB.
 9. **Język główny inny niż polski** — **tylko nowe strony** (wybór przy
