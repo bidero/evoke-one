@@ -123,6 +123,19 @@ wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną
      zapamiętany w przeglądarce; linie: odsłony i unikalni, z legendą);
      porównanie okresów — poprzedni okres tej samej długości jako przerywana
      linia odsłon, przy liczbach zmiana w %.
+   Poprawki do 1.286.0 (razem z hotspotami; decyzje z 02.10 po zrzutach 1.285.0):
+     - pudełka list w raporcie RÓWNE: po 5 pozycji + przycisk „Pokaż
+       wszystkie (N)” rozwijający listę w miejscu (aria-expanded);
+       edytowalna siatka kafli 1/1, 2/1, 1/2 — później, osobno;
+     - daty pod wykresem (pierwszy, środkowy, ostatni dzień);
+     - zdarzenia w dwóch liniach: rodzaj małym szarym napisem nad etykietą;
+     - źródła: także PEŁNE adresy odsyłające, bez części po „?” (tokeny,
+       dane osobowe) — rozwijane pod domeną; Google/Bing i tak dają samą
+       domenę;
+     - widżet Kokpitu: BEZ listy adresów; Odsłony, Unikalni, Teraz na
+       stronie, pod nimi wykres z przełącznikiem Słupki / Linie, zakładki
+       okresu (Dziś / 7 dni / 30 dni) i przycisk „Pełny raport”;
+       mini wykres na całą szerokość ze skrótami dni.
    Matomo odpada: heatmapy to płatna wtyczka premium (InnoCraft, nie GPL),
    a Matomo for WordPress waży kilkadziesiąt MB.
 9. **Język główny inny niż polski** — **tylko nowe strony** (wybór przy
