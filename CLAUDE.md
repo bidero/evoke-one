@@ -210,8 +210,10 @@ node tests/run.js fields- newsletter odpornosc odswiezanie offcanvas og-layers p
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
 ```
 
-**Od 1.281.0 pełny przebieg idzie w trzech osobnych sesjach** (decyzja
-zgłaszającego, 02.10) — sesja główna pracuje dalej, zamiast czekać ~65 min:
+**Od 1.281.0 pełny przebieg — TAM, GDZIE TABELA WYŻEJ GO WYMAGA (co piąte
+wydanie albo ruszony plik wspólny) — idzie w trzech osobnych sesjach**
+(decyzja zgłaszającego, 02.10). Pozostałe wydania: testy modułów i strażnicy
+w sesji głównej, jak dotąd. Sesja główna pracuje dalej, zamiast czekać ~65 min:
 1. Commit wydania (z podbitą wersją) idzie na gałąź KANDYDATA, np.
    `claude/kandydat-1.281.0` — aktualizator śledzi tylko gałąź roboczą,
    więc kandydat nie jedzie na strony.
