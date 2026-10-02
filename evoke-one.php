@@ -135,6 +135,7 @@ $evoke_one_modules = [
     'statystyki/zbieranie.php',
     'statystyki/dobowe.php',
     'statystyki/raport.php',
+    'statystyki/kraje.php',      // kraj z DB-IP Lite, import co miesiąc (1.285.0)
     'statystyki/kokpit.php',     // „teraz”, widżet Kokpitu, licznik w pasku admina (1.285.0)
 ];
 

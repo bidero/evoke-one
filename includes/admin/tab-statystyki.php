@@ -111,6 +111,34 @@ $evk_on  = !empty($evk_st['enabled']);
     </script>
     <?php endif; ?>
 
+    <?php if ($evk_on): $evk_db = evk_stat_dbip_stan(); /* Kraje z DB-IP Lite (1.285.0). */ ?>
+    <div class="evo-box evo-mt" id="evk-stat-dbip">
+        <h3>Kraje odwiedzających</h3>
+        <p class="evo-desc">Kraj z adresu IP według bazy <a href="https://db-ip.com" rel="noopener" target="_blank">DB-IP Lite</a> (CC BY 4.0). Strona pobiera ją sama raz w miesiącu (ok. 4,5 MB) i trzyma we własnej tabeli — adres IP nie wychodzi nigdzie.</p>
+        <p class="evk-stat-dbip-stan" role="status"><?php
+            if (is_array($evk_db['import'])) echo esc_html('Import w toku (' . $evk_db['import']['miesiac'] . ').');
+            elseif ($evk_db['wersja'] !== '') echo esc_html(sprintf('Baza z %s: %s zakresów adresów.', $evk_db['wersja'], number_format_i18n((int) $evk_db['zakresy'])));
+            else echo esc_html('Bazy jeszcze nie ma — pobierze się w nocy albo przyciskiem poniżej.');
+            if ($evk_db['blad'] !== '') echo ' ' . esc_html('Ostatnia próba: ' . $evk_db['blad']);
+        ?></p>
+        <p><button type="button" class="button" id="evk-stat-dbip-pobierz">Pobierz bazę krajów teraz</button></p>
+    </div>
+    <script>
+    jQuery(function ($) {
+        var b = $('#evk-stat-dbip-pobierz'), st = $('#evk-stat-dbip .evk-stat-dbip-stan');
+        function krok() {
+            $.post(ajaxurl, { action: 'evk_stat_dbip', nonce: <?php echo wp_json_encode(wp_create_nonce('evk_stat')); ?> }).done(function (r) {
+                if (!r || !r.success) { b.prop('disabled', false); st.text((r && r.data) || 'Błąd.'); return; }
+                if (r.data.stan === 'import') { st.text('Importuję bazę krajów… ' + r.data.procent + '%'); krok(); return; }
+                b.prop('disabled', false);
+                st.text(r.data.stan === 'gotowe' ? 'Baza z ' + r.data.wersja + ': ' + r.data.zakresy + ' zakresów adresów.' : 'Błąd: ' + r.data.blad);
+            }).fail(function () { b.prop('disabled', false); st.text('Błąd połączenia z serwerem.'); });
+        }
+        b.on('click', function () { b.prop('disabled', true); st.text('Pobieram bazę krajów…'); krok(); });
+    });
+    </script>
+    <?php endif; ?>
+
     <?php if ($evk_on): /* Cele (1.285.0): wiersze z PHP — po zapisie strona się przeładowuje z nową pustą linią. */
         $evk_cele = evk_stat_cele();
         $evk_cele[] = ['id' => '', 'nazwa' => '', 'typ' => 'zdarzenie', 'wartosc' => ''];

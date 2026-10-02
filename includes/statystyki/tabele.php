@@ -13,8 +13,8 @@ if (!defined('ABSPATH')) exit;
  * i przewinięcia. Raport za dni sprzed zbiórki czyta tylko tę tabelę.
  */
 
-/* 2 (1.285.0): tabela zdarzeń. dbDelta dokłada ją do istniejących. */
-const EVK_STAT_DB_WERSJA = 2;
+/* 2 (1.285.0): tabela zdarzeń; 3: kolumna `kraj` odsłon. dbDelta dokłada je do istniejących. */
+const EVK_STAT_DB_WERSJA = 3;
 
 function evk_stat_tabela(string $nazwa): string {
     global $wpdb;
@@ -41,6 +41,7 @@ function evk_stat_utworz_tabele(): void {
         przegladarka varchar(20) NOT NULL DEFAULT '',
         system_op varchar(20) NOT NULL DEFAULT '',
         jezyk varchar(10) NOT NULL DEFAULT '',
+        kraj char(2) NOT NULL DEFAULT '',
         czas_s int(10) UNSIGNED NOT NULL DEFAULT 0,
         przewiniecie tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
         PRIMARY KEY  (id),

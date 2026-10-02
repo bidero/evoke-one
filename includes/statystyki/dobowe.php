@@ -21,6 +21,7 @@ const EVK_STAT_WYMIARY = [
     'razem' => '', 'strona' => 'sciezka', 'zrodlo' => 'zrodlo', 'urzadzenie' => 'urzadzenie',
     'przegladarka' => 'przegladarka', 'system' => 'system_op', 'jezyk' => 'jezyk',
     'utm_source' => 'utm_source', 'utm_medium' => 'utm_medium', 'utm_campaign' => 'utm_campaign',
+    'kraj' => 'kraj',   // z DB-IP Lite (1.285.0)
     /* Zdarzenia (1.285.0): wartość „rodzaj:etykieta”, `odslony` = liczba zdarzeń, z tabeli zdarzeń. */
     'zdarzenie' => '@zdarzenia',
 ];

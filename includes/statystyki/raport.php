@@ -268,6 +268,14 @@ function evk_stat_render_raport(): void {
             echo evk_stat_tabela_html('Przeglądarki', 'Przeglądarka', evk_stat_dane('przegladarka', $od, $do));
             echo evk_stat_tabela_html('Systemy', 'System', evk_stat_dane('system', $od, $do));
             if (count($jezyki) > 1) echo evk_stat_tabela_html('Języki strony', 'Język', $jezyki, $nazwy_jezykow);
+            /* Kraje (1.285.0, DB-IP Lite, CC BY 4.0 — podpis pod listą). */
+            if (evk_stat_kraje_gotowe()) {
+                $kr = evk_stat_dane('kraj', $od, $do);
+                $nazwy_kr = [];
+                foreach (array_keys($kr) as $kod) $nazwy_kr[$kod] = evk_stat_nazwa_kraju((string) $kod);
+                echo str_replace('</div></div>', '</div><p class="evo-hint evk-stat-dbip"><a href="https://db-ip.com" rel="noopener" target="_blank">IP Geolocation by DB-IP</a> (CC BY 4.0)</p></div>',
+                    evk_stat_tabela_html('Kraje', 'Kraj', $kr, $nazwy_kr));
+            }
             /* Zdarzenia (1.285.0): „Telefon: +48…”, „Pobranie: cennik.pdf”. */
             $zd = evk_stat_dane('zdarzenie', $od, $do);
             $nazwy_zd = [];

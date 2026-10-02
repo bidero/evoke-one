@@ -21,6 +21,8 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/statystyki.php strona-zdarzen            strona z linkami tel/mailto/PDF/wychodzącym, formularzem i data-evk-zdarzenie
  *   php tests/php/statystyki.php zdarzenia                 zapisane zdarzenia (rodzaj, etykieta)
  *   php tests/php/statystyki.php cele <json>               AJAX zapisu celów (1.285.0)
+ *   php tests/php/statystyki.php dbip <sekundy> [adres]   jeden krok importu bazy krajów (adres — podmiana pliku DB-IP)
+ *   php tests/php/statystyki.php kraj <ip…>                kraje adresów
  *   php tests/php/statystyki.php usun <json> [autor]     AJAX kasowania za okres (1.285.0), jako admin albo autor
  *   php tests/php/statystyki.php sprzataj
  */
@@ -35,7 +37,7 @@ global $wpdb;
 
 $odloz = static function () use ($plik, &$zap): void {
     if (isset($zap['opcje'])) return;
-    foreach (['evk_statystyki', 'evk_stat_db_version', 'evk_stat_sol', 'evk_stat_zebrane', 'evk_stat_cele'] as $o) $zap['opcje'][$o] = get_option($o, null);
+    foreach (['evk_statystyki', 'evk_stat_db_version', 'evk_stat_sol', 'evk_stat_zebrane', 'evk_stat_cele', 'evk_stat_dbip'] as $o) $zap['opcje'][$o] = get_option($o, null);
     global $wpdb;
     $zap['tabele'] = (bool) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->prefix . 'evk_stat_odslony'));
     file_put_contents($plik, (string) wp_json_encode($zap));
@@ -179,6 +181,29 @@ case 'cele':
     $out['cele'] = evk_stat_cele();
     break;
 
+case 'dbip':
+    if (!empty($argv[3])) { $adr = (string) $argv[3]; add_filter('evk_stat_dbip_adres', static function () use ($adr) { return $adr; }); }
+    /* Plik testowy ma 30 tys. zakresów — próg „uszkodzonej bazy” w teście niżej niż 100 tys. */
+    add_filter('evk_stat_dbip_minimum', static function () { return (int) (getenv('EVK_TEST_DBIP_MIN') ?: 1000); });
+    if (!empty(getenv('EVK_TEST_DBIP_PORCJA'))) add_filter('evk_stat_dbip_porcja', static function () { return (int) getenv('EVK_TEST_DBIP_PORCJA'); });
+    $t0 = microtime(true);
+    $out['wynik'] = evk_stat_dbip_krok((float) ($argv[2] ?? 8));
+    $out['s'] = round(microtime(true) - $t0, 2);
+    $out['stan'] = evk_stat_dbip_stan();
+    break;
+
+case 'dbip-wersja':
+    $st = evk_stat_dbip_stan();
+    $st['wersja'] = (string) ($argv[2] ?? '');
+    update_option('evk_stat_dbip', $st, false);
+    $out['stan'] = $st;
+    break;
+
+case 'kraj':
+    $out['kraje'] = [];
+    foreach (array_slice($argv, 2) as $ip) $out['kraje'][$ip] = evk_stat_kraj((string) $ip);
+    break;
+
 case 'usun':
     if (($argv[3] ?? '') === 'autor') {
         if (!($u = get_user_by('login', 'statyk_autor'))) {
@@ -216,6 +241,13 @@ case 'sprzataj':
         if ($v === null) delete_option($o); else update_option($o, $v);
     }
     wp_clear_scheduled_hook('evk_stat_dobowy');
+    wp_clear_scheduled_hook('evk_stat_dbip');
+    /* Baza krajów (1.285.0): bez bazy przed testem — bez niej po teście. */
+    if (array_key_exists('evk_stat_dbip', (array) ($zap['opcje'] ?? [])) && $zap['opcje']['evk_stat_dbip'] === null) {
+        $wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'evk_stat_kraje, ' . $wpdb->prefix . 'evk_stat_kraje_nowe');
+    }
+    $u = wp_upload_dir(null, false);
+    foreach (['/evk-statystyki/dbip.csv', '/evk-statystyki/dbip.csv.gz', '/evk-test-dbip.csv.gz'] as $pl) @unlink($u['basedir'] . $pl);
     @unlink($plik);
     $out['ok'] = true;
     break;

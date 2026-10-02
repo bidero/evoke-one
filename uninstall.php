@@ -105,6 +105,8 @@ if (!function_exists('evk_odinstaluj_strone')) {
         evk_odinstaluj_rmdir(WP_CONTENT_DIR . '/evk-backups-import');
         $uploads = wp_upload_dir(null, false);
         if (!empty($uploads['basedir'])) evk_odinstaluj_rmdir($uploads['basedir'] . '/og-images');
+        // Pliki importu bazy krajów statystyk (1.285.0) — zostają tylko po przerwanym imporcie.
+        if (!empty($uploads['basedir'])) evk_odinstaluj_rmdir($uploads['basedir'] . '/evk-statystyki');
 
         // ── Opcje i transienty ────────────────────────────────────────────
         foreach ($dane['opcje'] as $opcja) delete_option($opcja);

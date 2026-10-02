@@ -145,11 +145,12 @@ function evk_stat_zapisz(array $d, array $serwer): string {
     [$przegl, $system] = evk_stat_przegladarka($ua);
     $utm = static function ($w): string { return substr(strtolower(trim(sanitize_text_field((string) $w))), 0, 100); };
     $wpdb->query($wpdb->prepare(
-        "INSERT IGNORE INTO $tab (czas, dzien, klucz, wizyta, sciezka, post_id, zrodlo, utm_source, utm_medium, utm_campaign, urzadzenie, przegladarka, system_op, jezyk)
-         VALUES (%s, %s, %s, %s, %s, %d, %s, %s, %s, %s, %s, %s, %s, %s)",
+        "INSERT IGNORE INTO $tab (czas, dzien, klucz, wizyta, sciezka, post_id, zrodlo, utm_source, utm_medium, utm_campaign, urzadzenie, przegladarka, system_op, jezyk, kraj)
+         VALUES (%s, %s, %s, %s, %s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         gmdate('Y-m-d H:i:s'), $dzien, $klucz, $wizyta, substr($sciezka, 0, 255), max(0, (int) ($d['p'] ?? 0)),
         evk_stat_zrodlo((string) ($d['r'] ?? '')), $utm($d['us'] ?? ''), $utm($d['um'] ?? ''), $utm($d['uc'] ?? ''),
-        evk_stat_urzadzenie((int) ($d['w'] ?? 0)), $przegl, $system, substr(sanitize_key((string) ($d['j'] ?? '')), 0, 10)
+        evk_stat_urzadzenie((int) ($d['w'] ?? 0)), $przegl, $system, substr(sanitize_key((string) ($d['j'] ?? '')), 0, 10),
+        function_exists('evk_stat_kraj') ? evk_stat_kraj($ip) : ''
     ));
     return 'ok';
 }
