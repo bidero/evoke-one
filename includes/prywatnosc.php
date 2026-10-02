@@ -317,5 +317,20 @@ function evk_rodo_tekst_polityki(): string {
             . 'Przechowujemy je na serwerze' . (get_option('evk_backup_gdrive') ? ' i na Dysku Google' : '') . ' przez okres wynikający '
             . 'z ustawień przechowywania kopii.</p>';
     }
+    /* Statystyki (1.285.0): opis tego, co naprawdę zbiera — przełączniki zdarzeń, kraj tylko z wczytaną bazą, DNT według ustawienia. */
+    if (function_exists('evk_stat_wlaczone') && evk_stat_wlaczone()) {
+        $st = evk_stat_ustawienia();
+        $zd = array_filter(['tel' => 'kliknięcia w numery telefonu i adresy e-mail', 'pobrania' => 'pobrania plików',
+                            'wychodzace' => 'przejścia do innych serwisów', 'formularze' => 'wysłanie formularza (bez jego treści)'],
+            static function ($k) use ($st) { return !empty($st['zd_' . $k]); }, ARRAY_FILTER_USE_KEY);
+        $kraj = function_exists('evk_stat_kraje_gotowe') && evk_stat_kraje_gotowe();
+        $akapity[] = '<h3>Statystyki odwiedzin</h3><p>Serwis liczy odwiedziny bez plików cookies. Przy odsłonie zapisujemy adres strony, '
+            . 'domenę strony, z której nastąpiło przejście, parametry kampanii (utm), rodzaj urządzenia, przeglądarkę, system, język strony'
+            . ($kraj ? ', kraj ustalony z adresu IP (baza DB-IP Lite, sprawdzana na serwerze serwisu)' : '') . ', czas na stronie i przewinięcie'
+            . ($zd ? ', a także ' . preg_replace('/, (?!.*, )/', ' i ', implode(', ', $zd)) : '') . '. Adresu IP nie zapisujemy: z adresu IP i przeglądarki powstaje jednokierunkowy '
+            . 'skrót z losowym kluczem zmienianym codziennie, więc odwiedzin tej samej osoby z dwóch dni nie da się połączyć.'
+            . (!empty($st['dnt']) ? ' Odwiedzin z przeglądarki wysyłającej sygnał „nie śledź” (DNT lub GPC) nie liczymy.' : '')
+            . ' Szczegółowe wpisy przechowujemy ' . (int) $st['retencja'] . ' dni, potem zostają wyłącznie podsumowania dzienne.</p>';
+    }
     return implode("\n", $akapity);
 }

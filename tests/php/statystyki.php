@@ -27,6 +27,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/statystyki.php wstaw <json>              {odslony:[{pola}], zdarzenia:[{pola}]} — dziś, wizyta i klucz losowe, jeśli brak
  *   php tests/php/statystyki.php csv <od> <do>             evk_stat_csv() (1.285.0)
  *   php tests/php/statystyki.php csv-pobierz <login>       admin_post_evk_stat_csv jako <login> (z ważnym nonce) — odmowa albo początek pliku
+ *   php tests/php/statystyki.php polityka [json]           akapit „Statystyki odwiedzin” z evk_rodo_tekst_polityki() (ustawienia scalane na czas wywołania)
  *   php tests/php/statystyki.php czytelnicy [usun]         konta HTTP: statyk_csv (uprawnienie „Statystyki”) i statyk_csv_bez, hasło „test-haslo”
  *   php tests/php/statystyki.php sprzataj
  */
@@ -254,6 +255,12 @@ case 'csv-pobierz':
     ob_start();
     try { do_action('admin_post_evk_stat_csv'); } catch (RuntimeException $e) { /* koniec */ }
     $out['odp'] = substr((string) ob_get_clean(), 0, 80);
+    break;
+
+case 'polityka':
+    $nowe = json_decode((string) ($argv[2] ?? '{}'), true) ?: [];
+    add_filter('option_evk_statystyki', static function ($v) use ($nowe) { return array_merge(is_array($v) ? $v : [], $nowe); });
+    $out['akapit'] = preg_match('~<h3>Statystyki odwiedzin</h3><p>.*?</p>~s', evk_rodo_tekst_polityki(), $m) ? $m[0] : null;
     break;
 
 case 'czytelnicy':

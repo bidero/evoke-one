@@ -57,6 +57,7 @@ module.exports = async function (t) {
     t.section('import porcjami');
     const przed = sonda(['kraj', '127.0.0.1']).kraje;
     t.check('bez bazy: kraj nieznany', przed['127.0.0.1'] === '', J(przed));
+    const polBez = sonda(['polityka']).akapit || '';
     const kroki = [];
     let k = null;
     for (let i = 0; i < 40; i++) {
@@ -77,6 +78,14 @@ module.exports = async function (t) {
     const kr = sonda(['kraj', '127.0.0.1', '1.0.0.7', '10.100.7.9', '2001:db8::42', '2001:db7::1', '32.1.2.3', '8.8.8.8', '0.0.0.5', 'nie-ip']).kraje;
     t.check('wyszukiwanie: IPv4 w zakresach, IPv6 osobno od IPv4 (zakres „::” ZZ nie łapie IPv4), poza bazą i ZZ — pusto',
       J(kr) === J({ '127.0.0.1': 'PL', '1.0.0.7': 'AU', '10.100.7.9': 'US', '2001:db8::42': 'DE', '2001:db7::1': '', '32.1.2.3': 'GB', '8.8.8.8': '', '0.0.0.5': '', 'nie-ip': '' }), J(kr));
+    /* Tekst do polityki prywatności (moduł RODO) opisuje to, co naprawdę zbierane: kraj dopiero z bazą, zdarzenia i DNT według ustawień. */
+    const polZ = sonda(['polityka']).akapit || '';
+    const polMin = sonda(['polityka', J({ zd_tel: 0, zd_pobrania: 0, zd_wychodzace: 0, zd_formularze: 0, dnt: 0, retencja: 30 })]).akapit || '';
+    console.log('      polityka: ' + J(polZ));
+    t.check('polityka prywatności: akapit „Statystyki odwiedzin”; kraj z IP dopiero z wczytaną bazą; zdarzenia, DNT i czas trzymania według ustawień',
+      /bez plików cookies/.test(polBez) && !/kraj/.test(polBez) && /kraj ustalony z adresu IP \(baza DB-IP Lite/.test(polZ)
+      && /kliknięcia w numery telefonu i adresy e-mail, pobrania plików, przejścia do innych serwisów i wysłanie formularza/.test(polZ) && /„nie śledź”/.test(polZ) && /przechowujemy 90 dni/.test(polZ)
+      && !/kliknięcia|pobrania|formularz|nie śledź/.test(polMin) && /przechowujemy 30 dni/.test(polMin), J({ polBez, polZ, polMin }));
     const k2 = sonda(['dbip', '5', adres]);
     t.check('ten sam miesiąc drugi raz: „gotowe” bez ponownego importu', k2.wynik.stan === 'gotowe' && k2.stan.zakresy === dobre, J(k2.wynik));
     /* Nowy miesiąc, a pod adresem strona HTML z kodem 200 (WordPress, CDN) albo za mały plik — stara baza zostaje. */
