@@ -131,6 +131,9 @@ function evoke_one_ekrany(): array {
             'hardening' => ['label' => 'Ochrona WP',    'icon' => 'dashicons-shield-alt', 'szukaj' => 'hardening wersja edytor plików',
                             'opis' => 'Ukrycie wersji WP i motywów z paczki.',
                             'przelaczniki' => [['evk_security', 'hide_wp_version'], ['evk_security', 'disable_bundled_themes']]],
+            /* Bez licznika: nagłówki są domyślnie włączone, a licznik czyta opcję bez wartości domyślnych. */
+            'naglowki'  => ['label' => 'Nagłówki',      'icon' => 'dashicons-privacy',    'szukaj' => 'nagłówki http hsts referrer permissions ramki iframe clickjacking nosniff',
+                            'opis' => 'Nagłówki HTTP chroniące przed osadzaniem w ramkach i wyciekiem adresów.'],
             'cleanup'   => ['label' => 'Czyszczenie',   'icon' => 'dashicons-trash',      'szukaj' => 'xml-rpc rss rewizje śmietnik',
                             'opis' => 'Wyłączenie XML-RPC i kanałów RSS.',
                             'przelaczniki' => [['evk_cleanup', 'disable_xmlrpc'], ['evk_cleanup', 'remove_rss']]],

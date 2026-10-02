@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Evoke ONE
  * Description: Zintegrowany zestaw narzędzi Evoke Design Studio — Tłumaczenia, Parallax, Konserwacja.
- * Version: 1.279.0
+ * Version: 1.280.0
  * Author: Evoke Design Studio
  * Text Domain: evoke-one
  */
@@ -46,7 +46,7 @@ define('EVOKE_ONE_URL',     plugin_dir_url(__FILE__));
    przeglądarkom podawać stare pliki z pamięci mimo aktualizacji wtyczki.
    Zgodności trzech miejsc (nagłówek, stała, changelog) pilnuje sekcja
    „numer wersji w trzech miejscach" w tests/drobiazgi.test.js. */
-define('EVOKE_ONE_VERSION', '1.279.0');
+define('EVOKE_ONE_VERSION', '1.280.0');
 
 /* DEAKTYWACJA: bez zadań w cronie i bez naszych reguł adresów. Do 1.231.x
    wyłączona wtyczka zostawiała zaplanowane kroki kopii i wysyłki newslettera,
@@ -157,6 +157,7 @@ if ($evk_tl_enabled) {
         '60-image-replacement.php',
         '61-translation-ai.php',       // tłumaczenie AI tekstów w elementach: Gemini, Claude, OpenAI (1.260.0)
         '61-translation-deepl.php',    // DeepL jako czwarty dostawca (1.277.0)
+        '61-translation-google.php',   // Google Cloud Translation v3 jako piąty dostawca (1.280.0)
         '62-translation-review-front.php', // sprawdzanie tłumaczeń wprost na stronie (1.261.0)
         '63-translation-mcp.php',      // Claude Desktop przez MCP: zdolności tłumaczeń (1.278.0)
         '64-translation-frazy-ai.php', // frazy słownika i etykiety menu w tłumaczeniu AI (1.279.0)
@@ -182,6 +183,7 @@ $evoke_security_modules = [
     'security/hide-version.php',
     'security/bundled-themes.php',
     'security/rest-api.php',
+    'security/naglowki.php',     // nagłówki bezpieczeństwa (1.280.0)
 ];
 foreach ($evoke_security_modules as $module) {
     require_once EVOKE_ONE_DIR . 'includes/' . $module;

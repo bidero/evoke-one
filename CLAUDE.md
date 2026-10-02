@@ -198,17 +198,33 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (142 pliki, sześć partii; testy kopii trwają
+Podział, który się mieści (145 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
 node tests/run.js backup-panel
 node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp
 node tests/run.js admin- anim animator aria bg-shift bricks-builder bricks-render bricks-required builder-context burger circular-menu controls
-node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee minifikacja motion
+node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee minifikacja motion naglowki
 node tests/run.js fields- newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
 ```
+
+**Od 1.281.0 pełny przebieg idzie w trzech osobnych sesjach** (decyzja
+zgłaszającego, 02.10) — sesja główna pracuje dalej, zamiast czekać ~65 min:
+1. Commit wydania (z podbitą wersją) idzie na gałąź KANDYDATA, np.
+   `claude/kandydat-1.281.0` — aktualizator śledzi tylko gałąź roboczą,
+   więc kandydat nie jedzie na strony.
+2. Trzy sesje w chmurze (`create_session`, ten sam model, `source_revision`
+   = gałąź kandydata), każda ze swoim kontenerem i środowiskiem
+   (`apt-get install -y mariadb-server`, klony `../evoke-fields`
+   i `../bricks-motyw`, `tools/testowy-wp.sh`): A = partie 1 i 4,
+   B = 2 i 5, C = 3 i 6. Sesja niczego nie commituje — odsyła wynik
+   (ostatnia linia każdej partii i wiersze „BŁĄD”).
+3. Wszystkie zielone → gałąź robocza przesuwana na commit kandydata
+   (`git push origin <commit>:claude/…`); czerwone → poprawka i nowy kandydat.
+Testy sesji głównej i sesji przebiegu nie dzielą bazy ani testowych
+WordPressów — dlatego osobne sesje, a nie agent w tym samym kontenerze.
 
 **Że partie pokrywają wszystko, trzeba SPRAWDZIĆ, a nie założyć** — dopisany
 plik testowy nie pasujący do żadnego filtra nie zgłosi się sam, a przebieg
@@ -221,7 +237,7 @@ backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serial
 backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-builder bricks-render bricks-required builder-context
 burger circular-menu controls darkmode drobiazgi fields- grain hscroll inbox ip-klienta
 konserwacja kursor loop marquee minifikacja motion newsletter odpornosc odswiezanie
-offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji
+offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji naglowki
 przelaczniki rewizje schema-graf scroll-lock seo-meta settings-save sierotki
 sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs
 wave-bg"
@@ -353,6 +369,14 @@ zmiennej `EVK_WP_SRODOWISKO`. Dwie rzeczy z pierwszych prób:
 - **Słownik fraz siedzi też w transiencie** (`get_translation_config()`).
   `update_option('tl_translations', …)` w sondzie bez `tl_invalidate_cache()`
   nie zmienia pamięci tłumaczeń.
+
+**Google Cloud Translation (`tl-google`, 1.280.0)** idzie przez atrapę
+w `_ai-atrapa.php`. Atrapa SPRAWDZA podpis JWT kluczem publicznym z pary RSA,
+którą sonda generuje przy przygotowaniu, więc żaden klucz nie leży
+w repozytorium. Operacja tworzenia glosariusza kończy się przy drugim
+odpytaniu, a stan między procesami sondy trzyma plik tymczasowy
+`evk-t-google-stan.json`. Pierwsze prawdziwe połączenie sprawdza się na
+testowej, z prawdziwym plikiem JSON wklejonym w panelu.
 
 Dysk Google (`backup-drive`, `backup-panel-drive`) idzie przez **atrapę
 Google** — `tests/php/_google-atrapa.php` na `php -S` (`tests/lib/google-atrapa.js`),

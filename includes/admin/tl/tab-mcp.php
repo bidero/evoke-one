@@ -63,6 +63,11 @@ $evk_m_hasla = wp_is_application_passwords_available_for_user($evk_m_user);
             <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>.</li>
         <li>Wklej konfigurację (gdy plik ma już <code>mcpServers</code>, dopisz tylko wpis serwera) i uruchom Claude Desktop ponownie.</li>
     </ol>
+    <div class="evo-field">
+        <label for="tl-mcp-npx">Pełna ścieżka do npx (gdy Claude Desktop nie znajduje Node)</label>
+        <input type="text" id="tl-mcp-npx" spellcheck="false" placeholder="np. /usr/local/bin/npx — wynik polecenia: which npx">
+        <p class="evo-desc">Puste — samo <code>npx</code>. Ze ścieżką konfiguracja dostaje ją w <code>command</code> i katalog Node w <code>PATH</code>.</p>
+    </div>
     <label for="tl-mcp-konfiguracja">Konfiguracja</label>
     <textarea id="tl-mcp-konfiguracja" class="large-text code tl-mcp-json" rows="14" readonly><?php
         echo esc_textarea(evk_tl_mcp_konfiguracja($evk_m_user->user_login, 'HASŁO APLIKACJI Z KROKU 2')); ?></textarea>
@@ -70,6 +75,20 @@ $evk_m_hasla = wp_is_application_passwords_available_for_user($evk_m_user);
     <span class="tl-mcp-wynik" id="tl-mcp-kopiuj-wynik" role="status"></span></p>
     <p class="evo-desc">Adres serwera: <code><?php echo esc_html(evk_tl_mcp_adres()); ?></code>. To ten sam serwer, którego używa Bricks
     (zakładka AI Bricksa) — gdy jest już w konfiguracji, nie dodawaj drugiego: narzędzia Evoke pojawią się w nim same.</p>
+
+    <details class="tl-mcp-pomoc">
+        <summary>Gdy serwer w Claude Desktop ma stan „Failed” albo „Server disconnected”</summary>
+        <p class="evo-desc">Log: <code>~/Library/Logs/Claude/mcp-server-wordpress-….log</code> (w Terminalu: <code>tail -40</code> i ścieżka).</p>
+        <ul class="tl-mcp-lista">
+            <li><code>Failed to spawn process: No such file or directory</code> — w <code>command</code> jest ścieżka, której nie ma.
+                W Terminalu <code>which npx</code> i wpisz wynik w polu wyżej.</li>
+            <li><code>dyld: Library not loaded … /usr/local/bin/node</code> — Node z Homebrew stracił bibliotekę po aktualizacji.
+                <code>brew reinstall node</code> albo instalator LTS z nodejs.org.</li>
+            <li><code>env: node: No such file or directory</code> — Claude Desktop nie widzi katalogu Node: wpisz pełną ścieżkę do npx w polu wyżej.</li>
+            <li>401 albo <code>rest_forbidden</code> — złe hasło aplikacji albo login; utwórz nowe hasło (krok 2).</li>
+            <li>Po każdej zmianie konfiguracji zamknij Claude Desktop całkiem (Cmd+Q) i otwórz ponownie.</li>
+        </ul>
+    </details>
 
     <h3>4. Polecenia</h3>
     <p class="evo-desc">W rozmowie: <strong>+ → Dodaj z „wordpress-…”</strong> — trzy gotowe polecenia: „Przetłumacz stronę”,
@@ -89,6 +108,8 @@ $evk_m_hasla = wp_is_application_passwords_available_for_user($evk_m_user);
     .tl-mcp-wym[data-ok="0"] { color:#b42318; }
     .tl-mcp-json { font-size:13px; white-space:pre; overflow-x:auto; }
     .tl-mcp-wynik { margin-left:8px; }
+    .tl-mcp-pomoc { margin:12px 0 16px; }
+    .tl-mcp-pomoc summary { cursor:pointer; font-weight:600; min-height:24px; }
     @media (max-width: 782px) { .tl-mcp-json { font-size:16px; } .tl-mcp-wynik { display:block; margin:8px 0 0; } }
 </style>
 
@@ -128,9 +149,25 @@ $evk_m_hasla = wp_is_application_passwords_available_for_user($evk_m_user);
         wyslij('evk_tl_mcp_haslo').then(function (r) {
             if (!r || !r.success) { haslo.disabled = false; wynik('tl-mcp-haslo-wynik', (r && r.data) || 'Błąd.', true); return; }
             document.getElementById('tl-mcp-konfiguracja').value = r.data.konfiguracja;
+            przepiszSciezke();
             wynik('tl-mcp-haslo-wynik', 'Hasło utworzone i wpisane w konfigurację (krok 3). Skopiuj ją teraz — drugi raz się nie pokaże.');
         }).catch(function () { haslo.disabled = false; wynik('tl-mcp-haslo-wynik', 'Błąd połączenia.', true); });
     });
+    /* Pełna ścieżka do npx (1.280.0): `command` i katalog Node na początku PATH. */
+    var npx = document.getElementById('tl-mcp-npx');
+    var konfiguracja = document.getElementById('tl-mcp-konfiguracja');
+    function przepiszSciezke() {
+        var d;
+        try { d = JSON.parse(konfiguracja.value); } catch (e) { return; }
+        var nazwa = Object.keys(d.mcpServers || {})[0];
+        if (!nazwa) return;
+        var s = d.mcpServers[nazwa], p = (npx.value || '').trim();
+        s.command = p || 'npx';
+        if (p && p.indexOf('/') !== -1) s.env.PATH = p.replace(/\/[^\/]*$/, '') + ':/usr/bin:/bin';
+        else delete s.env.PATH;
+        konfiguracja.value = JSON.stringify(d, null, 4);
+    }
+    if (npx) npx.addEventListener('input', przepiszSciezke);
     var kopiuj = document.getElementById('tl-mcp-kopiuj');
     if (kopiuj) kopiuj.addEventListener('click', function () {
         var pole = document.getElementById('tl-mcp-konfiguracja');

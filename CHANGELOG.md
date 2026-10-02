@@ -2,6 +2,48 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.280.0] — 2026-10-02
+
+Google Cloud Translation v3 jako piąty dostawca, nagłówki bezpieczeństwa
+i pomoc przy łączeniu Claude Desktop.
+
+### Dodane
+
+- **Google Cloud Translation (v3)** w Tłumaczeniu AI (decyzje z 02.10).
+  Darmowy limit to 500 tys. znaków miesięcznie, jak w v2.
+  - Zamiast klucza wklejasz plik JSON konta usługi. Zapisują się z niego
+    tylko potrzebne pola, a plik bez konta usługi panel odrzuca
+    z wyjaśnieniem.
+  - Token dostępu Evoke podpisuje sam (JWT RS256) i trzyma go w pamięci
+    przez czas ważności.
+  - Tłumaczenie idzie w trybie HTML (region us-central1). Tagi `{…}`
+    i shortcody zostają nietknięte, a wariant języka bierze się z kodu HTML:
+    `pt` daje europejski, `pt-BR` brazylijski.
+  - Słowniczek działa jako glosariusz: Evoke wgrywa go do zasobnika Cloud
+    Storage z ustawień i zleca utworzenie glosariusza. Hurt czeka, aż
+    glosariusz będzie gotowy. Bez zasobnika albo przy błędzie tłumaczy bez
+    glosariusza i podaje powód.
+  - Błędy: limit zapytań (czekanie) oraz brak dostępu, rola albo API
+    (stop z podpowiedzią).
+- **Nagłówki bezpieczeństwa** — Bezpieczeństwo → Nagłówki.
+  - Domyślnie włączone: `X-Content-Type-Options: nosniff`, `Referrer-Policy`
+    (wybór wartości), `Permissions-Policy` (kamera, mikrofon, geolokalizacja,
+    płatności — każdą można odznaczyć) i ramki tylko z tej strony
+    (`frame-ancestors 'self'`, `X-Frame-Options`).
+  - Przy WooCommerce płatności są domyślnie odznaczone, bo blokada
+    wyłączyłaby Apple Pay i Google Pay.
+  - HSTS jest domyślnie wyłączony. Do wyboru czas (od 5 minut do roku)
+    i subdomeny, bez `preload`; nagłówek idzie tylko przez HTTPS.
+- **Claude Desktop: pełna ścieżka do npx** — pole w zakładce przepisuje
+  konfigurację (`command` i `PATH`). Doszła też rozwijana pomoc „Gdy serwer
+  się nie łączy” z błędami z pierwszego połączenia: „Failed to spawn”,
+  zepsuty Node z Homebrew, 401.
+
+### Zmienione
+
+- „Przetłumacz ponownie” przy glosariuszu w przygotowaniu podaje powód
+  i czas, a nie ogólną przerwę.
+
 ## [1.279.0] — 2026-10-02
 
 Frazy słownika i etykiety menu w tłumaczeniu AI.

@@ -217,6 +217,13 @@ module.exports = async function (t) {
     const zKonfInit = await zKonf.start();
     const zKonfB = await zKonf.narzedzie('evoke-tlumaczenia-braki', { jezyk: 'de', szukaj: 'MCP A' });
     t.check('hasło z konfiguracji otwiera sesję MCP i woła narzędzie Evoke', zKonfInit.http === 200 && !zKonfB.blad && (zKonfB.czesci || []).length > 0, J(zKonfB).slice(0, 200));
+    await strona.fill('#tl-mcp-npx', '/usr/local/bin/npx');
+    const zSciezka = Object.values(JSON.parse(await strona.inputValue('#tl-mcp-konfiguracja')).mcpServers)[0];
+    await strona.fill('#tl-mcp-npx', '');
+    const bezSciezki = Object.values(JSON.parse(await strona.inputValue('#tl-mcp-konfiguracja')).mcpServers)[0];
+    t.check('pełna ścieżka do npx: command i katalog Node w PATH, hasło zostaje; puste pole — z powrotem samo npx',
+      zSciezka.command === '/usr/local/bin/npx' && zSciezka.env.PATH === '/usr/local/bin:/usr/bin:/bin' && zSciezka.env.WP_API_PASSWORD === wpis.env.WP_API_PASSWORD
+      && bezSciezki.command === 'npx' && !('PATH' in bezSciezki.env), J([zSciezka, bezSciezki]));
     t.check('bez błędów JS na stronie zakładki', bledy.length === 0, J(bledy));
     const bezHttps = sonda('ajax-haslo', 'http');
     t.check('strona bez HTTPS: hasło odmówione z wyjaśnieniem', bezHttps.odp && bezHttps.odp.success === false && /HTTPS/.test(bezHttps.odp.data), J(bezHttps.odp));

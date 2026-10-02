@@ -99,6 +99,101 @@ add_filter('pre_http_request', function ($pre, $args, $url) {
     return evk_t_ai_odpowiedz(200, ['translations' => $tl]);
 }, 9, 3);
 
+/*
+ * Google Cloud Translation v3 (1.280.0): punkt tokenów (SPRAWDZA podpis JWT
+ * RS256 kluczem publicznym z $GLOBALS['evk_t_google_pub'] — sonda generuje
+ * parę kluczy w teście), :translateText, wgrywanie do Cloud Storage,
+ * glosariusze i operacje. Stan między procesami sondy (operacja tworzenia
+ * glosariusza kończy się przy drugim odpytaniu) — w pliku tymczasowym.
+ * Tłumaczenie: przedrostek „G-{KOD}:”, z glosariuszem „G-{KOD}[gl]:”; jak
+ * prawdziwy Google w trybie HTML: `translate="no"` nietknięte, „&” → „&amp;”,
+ * „'” → „&#39;”.
+ * Scenariusze: google-429 | google-403 | google-token-blad | google-zasobnik-403 | google-glosariusz-blad.
+ */
+function evk_t_google_stan(?array $nowy = null): array {
+    $plik = sys_get_temp_dir() . '/evk-t-google-stan.json';
+    if ($nowy !== null) { file_put_contents($plik, (string) wp_json_encode($nowy)); return $nowy; }
+    return is_file($plik) ? (json_decode((string) file_get_contents($plik), true) ?: []) : [];
+}
+function evk_t_google_tlumacz(string $t, string $kod): string {
+    $chron = [];
+    $t = (string) preg_replace_callback('~<([a-z][a-z0-9]*)[^>]*translate="no"[^>]*>.*?</\1>~is', static function ($m) use (&$chron) {
+        $chron[] = $m[0];
+        return '<evk-chron-' . (count($chron) - 1) . '>';
+    }, $t);
+    $t = substr((string) preg_replace_callback('/>([^<]+)</u', static function ($m) use ($kod) {
+        return '>' . $kod . ':' . str_replace(['&', "'"], ['&amp;', '&#39;'], html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8')) . '<';
+    }, '>' . $t . '<'), 1, -1);
+    return (string) preg_replace_callback('~<evk-chron-(\d+)>~', static function ($m) use ($chron) { return $chron[(int) $m[1]]; }, $t);
+}
+add_filter('pre_http_request', function ($pre, $args, $url) {
+    $token = strpos($url, 'oauth2.googleapis.com/token') !== false;
+    if (!$token && strpos($url, 'translation.googleapis.com') === false && strpos($url, 'storage.googleapis.com') === false) return $pre;
+    $metoda = strtoupper((string) ($args['method'] ?? 'POST'));
+    $surowe = $args['body'] ?? '';
+    $cialo = is_array($surowe) ? $surowe : (json_decode((string) $surowe, true) ?? (string) $surowe);
+    $GLOBALS['evk_t_ai_zadania'][] = ['url' => $url, 'metoda' => $metoda, 'headers' => (array) ($args['headers'] ?? []), 'body' => $cialo];
+    $s = (string) ($GLOBALS['evk_t_ai_scenariusz'] ?? 'ok');
+    $stan = evk_t_google_stan();
+    if ($token) {
+        if ($s === 'google-token-blad') return evk_t_ai_odpowiedz(400, ['error' => 'invalid_grant', 'error_description' => 'Invalid JWT Signature.']);
+        $cz = explode('.', (string) ($cialo['assertion'] ?? ''));
+        $b64 = static function (string $x): string { return (string) base64_decode(strtr($x, '-_', '+/') . str_repeat('=', (4 - strlen($x) % 4) % 4)); };
+        $pub = (string) ($GLOBALS['evk_t_google_pub'] ?? '');
+        $ok = count($cz) === 3 && $pub !== '' && openssl_verify($cz[0] . '.' . $cz[1], $b64($cz[2]), $pub, OPENSSL_ALGO_SHA256) === 1;
+        $h = $ok ? json_decode($b64($cz[0]), true) : null;
+        $c = $ok ? json_decode($b64($cz[1]), true) : null;
+        $ok = $ok && ($cialo['grant_type'] ?? '') === 'urn:ietf:params:oauth:grant-type:jwt-bearer' && ($h['alg'] ?? '') === 'RS256'
+            && ($c['aud'] ?? '') === $url && strpos((string) ($c['scope'] ?? ''), 'cloud-translation') !== false
+            && (int) ($c['exp'] ?? 0) - (int) ($c['iat'] ?? 0) === 3600 && ($c['iss'] ?? '') === ($GLOBALS['evk_t_google_email'] ?? '');
+        if (!$ok) return evk_t_ai_odpowiedz(400, ['error' => 'invalid_grant', 'error_description' => 'Invalid JWT Signature.']);
+        $stan['tokeny'] = (int) ($stan['tokeny'] ?? 0) + 1;
+        evk_t_google_stan($stan);
+        return evk_t_ai_odpowiedz(200, ['access_token' => 'tok-' . $stan['tokeny'], 'expires_in' => 3599, 'token_type' => 'Bearer']);
+    }
+    if (strpos((string) (($args['headers'] ?? [])['Authorization'] ?? ''), 'Bearer tok-') !== 0) return evk_t_ai_odpowiedz(401, ['error' => ['code' => 401, 'message' => 'Request had invalid authentication credentials.']]);
+    if (strpos($url, 'storage.googleapis.com') !== false) {
+        if ($s === 'google-zasobnik-403') return evk_t_ai_odpowiedz(403, ['error' => ['code' => 403, 'message' => 'does not have storage.objects.create access']]);
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $q);
+        $stan['pliki'][(string) ($q['name'] ?? '')] = $cialo;
+        evk_t_google_stan($stan);
+        return evk_t_ai_odpowiedz(200, ['name' => (string) ($q['name'] ?? ''), 'bucket' => (string) (preg_match('~/b/([^/]+)/o~', $url, $m) ? rawurldecode($m[1]) : '')]);
+    }
+    if (preg_match('~/v3/(.+/operations/[^/?]+)$~', $url, $m)) {
+        $op = $m[1];
+        $stan['odpytania'][$op] = (int) ($stan['odpytania'][$op] ?? 0) + 1;
+        evk_t_google_stan($stan);
+        if ($stan['odpytania'][$op] < 2) return evk_t_ai_odpowiedz(200, ['name' => $op, 'done' => false]);
+        if ($s === 'google-glosariusz-blad') return evk_t_ai_odpowiedz(200, ['name' => $op, 'done' => true, 'error' => ['code' => 3, 'message' => 'Invalid glossary file']]);
+        return evk_t_ai_odpowiedz(200, ['name' => $op, 'done' => true, 'response' => ['name' => $stan['operacje'][$op] ?? '']]);
+    }
+    if (preg_match('~/v3/(.+/glossaries)$~', $url) && $metoda === 'POST') {
+        $op = preg_replace('~/glossaries$~', '', (string) preg_replace('~^.*/v3/~', '', $url)) . '/operations/op-' . substr(md5((string) wp_json_encode($cialo) . microtime()), 0, 8);
+        $stan['operacje'][$op] = (string) ($cialo['name'] ?? '');
+        evk_t_google_stan($stan);
+        return evk_t_ai_odpowiedz(200, ['name' => $op, 'metadata' => ['state' => 'RUNNING']]);
+    }
+    if (strpos($url, '/glossaries/') !== false && $metoda === 'DELETE') {
+        $stan['usuniete'][] = (string) preg_replace('~^.*/v3/~', '', $url);
+        evk_t_google_stan($stan);
+        return evk_t_ai_odpowiedz(200, ['name' => 'op-usun', 'done' => false]);
+    }
+    if (strpos($url, ':translateText') !== false) {
+        if (is_callable($GLOBALS['evk_t_ai_w_trakcie'] ?? null)) ($GLOBALS['evk_t_ai_w_trakcie'])();
+        if ($s === 'google-429') return evk_t_ai_odpowiedz(429, ['error' => ['code' => 429, 'status' => 'RESOURCE_EXHAUSTED', 'message' => 'Quota exceeded']], ['retry-after' => '11']);
+        if ($s === 'google-403') return evk_t_ai_odpowiedz(403, ['error' => ['code' => 403, 'status' => 'PERMISSION_DENIED', 'message' => 'Cloud Translation API has not been used in project']]);
+        $kod = 'G-' . strtoupper((string) ($cialo['targetLanguageCode'] ?? '?'));
+        $tl = [];
+        $gl = [];
+        foreach ((array) ($cialo['contents'] ?? []) as $t) {
+            $tl[] = ['translatedText' => evk_t_google_tlumacz((string) $t, $kod)];
+            $gl[] = ['translatedText' => evk_t_google_tlumacz((string) $t, $kod . '[gl]'), 'glossaryConfig' => $cialo['glossaryConfig'] ?? null];
+        }
+        return evk_t_ai_odpowiedz(200, ['translations' => $tl] + (isset($cialo['glossaryConfig']) ? ['glossaryTranslations' => $gl] : []));
+    }
+    return evk_t_ai_odpowiedz(404, ['error' => ['code' => 404, 'message' => 'atrapa: nieznany adres ' . $url]]);
+}, 8, 3);
+
 add_filter('pre_http_request', function ($pre, $args, $url) {
     $dostawca = strpos($url, 'api.anthropic.com') !== false ? 'claude'
         : (strpos($url, 'generativelanguage.googleapis.com') !== false ? 'gemini'

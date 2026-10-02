@@ -191,7 +191,7 @@ function evk_tl_deepl_blad(int $kod, $o, string $retry): array {
  * tłumaczenia pod kluczami krótkimi albo błąd z czasem czekania lub stopem.
  *
  * @param array<string,array<string,mixed>> $porcja klucz krótki → tekst (`pl`)
- * @return array{ok:bool,tlumaczenia?:array<string,string>,blad?:string,czekaj?:int,stop?:bool,uwaga?:string}
+ * @return array{ok:bool,tlumaczenia?:array<string,string>,blad?:string,czekaj?:int,stop?:bool,uwaga?:string,przygotowanie?:bool}
  */
 function evk_tl_deepl_porcja(array $u, string $lang, string $tytul, array $kontekst, array $porcja): array {
     $klucz = evk_tl_ai_klucz($u);

@@ -5,6 +5,11 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 
 ## Kolejność
 
+Stan po 1.280.0 (ustalone 02.10): **statystyki i hotspoty (1.281–1.283)
+→ logowanie + 2FA → WebP/AVIF → repeater w CSV → generowanie treści AI
+→ język główny**. Numery niżej to numery pozycji z pierwszego spisu.
+
+
 1. **DeepL** — czwarty dostawca tłumaczenia AI (1.277.0).
 2. **Zdolności MCP** (1.278.0) — tłumaczenie z Claude Desktop przez MCP Adapter
    (Abilities API w rdzeniu WordPressa). Trzy zdolności: strony z brakami,
@@ -28,55 +33,84 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
    dopisują się same do grupy „Menu” w słowniku fraz; fraza z AI ma znacznik
    „AI” (znika po poprawce albo „Sprawdzone”) i trafia na listę
    „Do sprawdzenia”.
-2a. **Google Cloud Translation v3 (Advanced)** — piąty dostawca, następny (1.280.0).
+2a. **Google Cloud Translation v3 (Advanced)** — piąty dostawca (1.280.0, zrobione).
    Darmowe 500 000 znaków/mies. (kredyt 10 $) jak w v2; v3 NIE przyjmuje
    klucza API — plik JSON konta usługi (rola „Cloud Translation API
    Editor”), token OAuth podpisywany na serwerze (JWT RS256). Glosariusz
    ze słowniczka jak w DeepL (tworzenie bez opłat).
-3. **Nagłówki bezpieczeństwa** — przełączniki w panelu. Domyślnie włączone:
+3. **Nagłówki bezpieczeństwa** (1.280.0, zrobione; Permissions-Policy: kamera, mikrofon,
+   geolokalizacja, płatności — bez płatności przy WooCommerce) — przełączniki w panelu. Domyślnie włączone:
    `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`,
    `frame-ancestors 'self'`. HSTS domyślnie wyłączony, z wyborem czasu,
    bez `preload`. Pełne CSP — później.
-4. **Logowanie (Bricks)**:
-   - adres: `wp-login.php` i `/wp-admin/` dla niezalogowanych zamknięte
-     (wyjątki: `admin-ajax.php`, `admin-post.php`, wylogowanie); tajny klucz
-     odsłania `wp-login.php`; `?brx_use_wp_login` bez klucza nie działa;
-   - reset hasła: na stronie Bricksa (wp-login.php zostaje zamknięty);
-   - 2FA: TOTP z aplikacji + kody zapasowe, **dobrowolne** (użytkownik
-     włącza w profilu), „zapamiętaj to urządzenie” na **30 dni** (zmiana
-     hasła unieważnia); formularz logowania Bricksa prosi o kod po haśle.
-5. **WebP/AVIF** — konwersja przy wgrywaniu, oryginał zostaje; opcja
-   przerobienia biblioteki; jakość w panelu; podawanie przez `<picture>`:
-   AVIF → WebP → oryginał (AVIF tylko, gdy serwer umie). Tła CSS — później.
+4. **Logowanie (Bricks)** — po statystykach. Decyzje (02.10):
+   - adres: `wp-login.php` i `/wp-admin/` dla niezalogowanych bez klucza —
+     **strona 404** (wyjątki: `admin-ajax.php`, `admin-post.php`,
+     wylogowanie); tajny klucz to **własny adres** (np. `/panel-xyz`,
+     ustawiany w panelu) — ustawia ciasteczko na 10 min i otwiera
+     `wp-login.php`; `?brx_use_wp_login` bez klucza nie działa;
+   - strona logowania: **z ustawień Bricksa** („Custom authentication
+     pages”: logowanie, rejestracja, reset hasła) — Evoke dokłada 2FA
+     i reset hasła na stronie Bricksa;
+   - 2FA: TOTP z aplikacji + kody zapasowe, **dobrowolne**; administrator
+     może je **wymusić dla wybranych ról** (włączenie przy następnym
+     logowaniu); „zapamiętaj to urządzenie” na **30 dni** (zmiana hasła
+     unieważnia); formularz Bricksa prosi o kod po haśle.
+5. **WebP/AVIF** — konwersja przy wgrywaniu, oryginał zostaje; jakość
+   w panelu, domyślnie **WebP 80, AVIF 60**; przy wgrywaniu także
+   **zmniejszanie zbyt dużych** (maks. bok w panelu, np. 2560 px); EXIF
+   bez zmian; przerobienie biblioteki **przyciskiem z paskiem postępu,
+   dokańczane w tle (cron)**; podawanie przez `<picture>`: AVIF → WebP →
+   oryginał (AVIF tylko, gdy serwer umie). Tła CSS — później, osobno.
 6. **Repeater w CSV Fields** — JSON w jednej komórce; „Zastąp dane”
    (zastępuje albo dopisuje wiersze); obrazy po ID albo dopasowanym adresie;
-   pola tłumaczeń wierszy.
-7. **Generowanie treści AI** — popup z długością, zarysem, tonem, stylem
-   i zapisanymi „przepisami”. Wynik do: treści wpisu (i CPT), pól Fields
-   (także wierszy repeatera) i elementów Bricksa. Dodatkowo: tytuł,
-   zajawka, SEO. Generują dostawcy AI, nie DeepL.
-
-   **Własne, nie wtyczka AI WordPressa** (02.10): jej funkcje nie działają
-   w klasycznym edytorze, którego używamy. Lista funkcji do odtworzenia
-   (priorytety do ustalenia):
-   - generowanie i edycja obrazów (modele obrazów: Gemini, OpenAI);
-   - tekst alternatywny z wizji — jest od 1.271.0 („Opisz obraz (AI)”);
-   - klasyfikacja: tagi i kategorie, nowe albo tylko z istniejących;
-   - zmiana długości: skróć, rozwiń, parafrazuj zaznaczony fragment;
-   - podsumowanie treści;
-   - notatki redakcyjne (dostępność, czytelność, gramatyka, SEO) i ich
-     zastosowanie;
-   - zajawka, metaopis (moduł SEO Evoke), uproszczona nazwa (slug), tytuł;
-   - autouzupełnianie szarym tekstem przy pisaniu (w klasycznym edytorze
-     TinyMCE — do sprawdzenia, czy warto).
-8. **Statystyki** — własne w Evoke, bez cookies (odsłony, strony, źródła,
-   urządzenia) i własne heatmapy (kliknięcia, głębokość przewinięcia,
-   osobno dla szerokości ekranu). Matomo odpada: heatmapy to płatna wtyczka
-   premium (InnoCraft, nie GPL), a Matomo for WordPress waży kilkadziesiąt MB.
-9. **Język główny inny niż polski** — tylko nowe strony (stare, jeśli
-   migracja będzie łatwa); główny bez prefiksu, pozostałe (polski też)
-   z prefiksem; polski jako zwykły język z polami „… PL” tylko po dodaniu;
-   jeden język główny, konfigurowalny; `hreflang` / `x-default` i mapa
-   strony. Bez tłumaczenia samych wtyczek. `'pl'` na sztywno: 192 miejsca
-   w `includes/` (stan 1.276.0).
+   pola tłumaczeń wierszy; **eksport w tym samym formacie** (da się od razu
+   zaimportować z powrotem).
+7. **Generowanie treści AI** — własne, nie wtyczka AI WordPressa (jej
+   funkcje nie działają w klasycznym edytorze). Generują dostawcy AI, nie
+   DeepL ani Google Translation.
+   - **Etap 1:** popup (długość, zarys, ton, styl, zapisane „przepisy”) →
+     treść wpisu (i CPT), pola Fields (także wiersze repeatera), elementy
+     Bricksa; tytuł, zajawka, metaopis (SEO Evoke), slug z treści;
+     skróć / rozwiń / parafrazuj zaznaczenie (klasyczny edytor i Bricks);
+     tagi i kategorie z treści (nowe albo tylko z istniejących).
+     **Razem z etapem 1 — te same funkcje jako zdolności MCP** (Claude
+     Desktop pisze, Evoke zapisuje jako szkic „Do sprawdzenia”).
+   - **Etap 2:** notatki redakcyjne (dostępność, czytelność, gramatyka, SEO)
+     + zastosowanie; podsumowanie treści; generowanie i edycja obrazów
+     (Gemini, OpenAI) do biblioteki mediów.
+   - Alt z wizji jest od 1.271.0. Autouzupełniania szarym tekstem nie robimy.
+8. **Statystyki i hotspoty** — własne w Evoke, bez cookies. Decyzje (02.10):
+   - zbieranie: skrypt ~2 KB, `sendBeacon` (działa przy cache stron);
+     unikalni z dobowo zmienianej soli (skrót IP + przeglądarka), bez cookies
+     i bez baneru zgody; boty odfiltrowane;
+   - dane: odsłony, unikalni, strony, źródła, urządzenia, języki, kampanie
+     UTM, zdarzenia automatyczne (tel:, mailto:, pobrania, linki wychodzące,
+     formularze; własne przez `data-evk-zdarzenie`), czas na stronie
+     i przewinięcie, kraj z własnej bazy IP (DB-IP Lite, CC BY — podpis
+     w panelu, aktualizacja co miesiąc);
+   - surowe wpisy: czas trzymania ustawiany w panelu (domyślnie 90 dni);
+     zbiorcze dzienne — na zawsze; własne tabele;
+   - nie liczyć: zalogowanych redaktorów i adminów, listy adresów IP;
+   - raporty: osobne menu „Statystyki” jak Tłumaczenia (wybór miejsca menu),
+     zakładka z wykresami, porównaniem okresów, „teraz na stronie”, CSV;
+     widżet na Kokpicie; licznik odsłon w pasku admina na stronie
+     (włączany/wyłączany);
+   - hotspoty: kliknięcia (względem elementu, osobno telefon/tablet/komputer),
+     głębokość przewinięcia, rage i martwe kliknięcia; nagrywane dla
+     WYBRANYCH stron na czas (np. 14 dni albo N wizyt); podgląd jako
+     nakładka na stronie; BEZ nagrań sesji i ruchu myszy;
+   - dostęp: administrator i rola z nowym uprawnieniem „Statystyki”
+     (moduł Uprawnienia);
+   - cele: proste (zdarzenie albo wizyta na stronie), konwersja per źródło
+     i kampania; bez lejków;
+   - kolejność: ZARAZ PO 1.280.0 (przed logowaniem/2FA i resztą).
+   Matomo odpada: heatmapy to płatna wtyczka premium (InnoCraft, nie GPL),
+   a Matomo for WordPress waży kilkadziesiąt MB.
+9. **Język główny inny niż polski** — **tylko nowe strony** (wybór przy
+   pierwszej konfiguracji; istniejące zostają z polskim); **główny bez
+   prefiksu** (`/` = główny, `/pl/` = polski); polski jako zwykły język
+   z polami „… PL” tylko po dodaniu; jeden język główny, konfigurowalny;
+   `hreflang` / `x-default` i mapa strony. Bez tłumaczenia samych wtyczek.
+   `'pl'` na sztywno: 192 miejsca w `includes/` (stan 1.276.0).
 10. **Przełącznik języków w popupie AJAX** — odłożone na zdecydowanie później.

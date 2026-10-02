@@ -723,6 +723,7 @@ add_action('wp_ajax_tl_import', function () {
             'slowniczek' => sanitize_textarea_field((string) ($ai['slowniczek'] ?? '')),
             'formalnosc' => array_map('sanitize_key', array_map('strval', array_filter((array) ($ai['formalnosc'] ?? []), 'is_scalar'))),
             'opisy'      => sanitize_key((string) ($ai['opisy'] ?? '')),
+            'zasobnik'   => function_exists('evk_tl_ai_czysty_zasobnik') ? evk_tl_ai_czysty_zasobnik((string) ($ai['zasobnik'] ?? '')) : '',
         ], false);
         $imported++;
     }

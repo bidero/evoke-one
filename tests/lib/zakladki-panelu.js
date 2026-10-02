@@ -14,7 +14,7 @@ const TABS = ['forminbox', 'a11y', 'darkmode', 'og', 'whitelabel',
               /* SEO z Tłumaczeniami (1.251.0): widok polski i angielski. */
               'seo-meta-jezyki', 'seo-meta-en',
               'nl-lists', 'nl-campaigns', 'nl-templates', 'nl-reports', 'nl-settings',
-              'sec-login', 'sec-rest', 'sec-hardening', 'sec-cleanup',
+              'sec-login', 'sec-rest', 'sec-hardening', 'sec-naglowki', 'sec-cleanup',
               'tools-smtp', 'tools-redirect', 'tools-logs404', 'tools-io', 'tools-maintenance',
               'adm-interface', 'adm-dashboard', 'adm-avatar', 'adm-content',
               'adm-roles', 'adm-tlumaczenia',

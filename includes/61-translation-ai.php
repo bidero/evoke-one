@@ -107,6 +107,9 @@ function evk_tl_ai_dostawcy(): array {
         /* DeepL (1.277.0, 61-translation-deepl.php): tylko tłumaczy — bez promptu i bez
            modelu; „model” to rodzaj klucza (free/pro), widoczny w podpisie. */
         'deepl'  => ['nazwa' => 'DeepL — klucz Free albo Pro', 'model' => 'pro'],
+        /* Google Cloud Translation v3 (1.280.0, 61-translation-google.php): tylko tłumaczy;
+           „klucz” to plik JSON konta usługi, model — NMT. */
+        'google' => ['nazwa' => 'Google Cloud Translation (v3) — plik JSON konta usługi', 'model' => 'nmt'],
     ];
 }
 
@@ -117,7 +120,7 @@ const EVK_TL_AI_LLM = ['gemini', 'claude', 'openai'];
  * `formalnosc` (DeepL, 1.277.0): język → formalna | nieformalna | '' (domyślna).
  * `opisy` (1.277.0): dostawca AI do opisów obrazów, gdy tłumaczy DeepL.
  *
- * @return array{dostawca:string,klucze:array<string,string>,modele:array<string,string>,opis:string,wskazowki:array<string,string>,slowniczek:string,formalnosc:array<string,string>,opisy:string}
+ * @return array{dostawca:string,klucze:array<string,string>,modele:array<string,string>,opis:string,wskazowki:array<string,string>,slowniczek:string,formalnosc:array<string,string>,opisy:string,zasobnik:string}
  */
 function evk_tl_ai_ustawienia(): array {
     $u = get_option(EVK_TL_AI_OPCJA, []);
@@ -136,7 +139,15 @@ function evk_tl_ai_ustawienia(): array {
         'formalnosc' => array_map('strval', array_filter(is_array($u['formalnosc'] ?? null) ? $u['formalnosc'] : [],
             static function ($f) { return in_array($f, ['formalna', 'nieformalna'], true); })),
         'opisy'      => in_array($u['opisy'] ?? '', EVK_TL_AI_LLM, true) ? (string) $u['opisy'] : '',
+        'zasobnik'   => evk_tl_ai_czysty_zasobnik((string) ($u['zasobnik'] ?? '')),
     ];
+}
+
+/** Nazwa zasobnika Cloud Storage (Google, 1.280.0): znaki dozwolone przez Google. */
+function evk_tl_ai_czysty_zasobnik(string $z): string {
+    $z = strtolower(trim($z));
+    if (strpos($z, 'gs://') === 0) $z = substr($z, 5);
+    return substr((string) preg_replace('/[^a-z0-9._-]/', '', rtrim($z, '/')), 0, 222);
 }
 
 /**
@@ -144,7 +155,7 @@ function evk_tl_ai_ustawienia(): array {
  * a bez niego pierwszy z kluczem. Bez żadnego zostaje DeepL (opis odmówi).
  */
 function evk_tl_ai_dla_opisow(array $u): array {
-    if ($u['dostawca'] !== 'deepl') return $u;
+    if (in_array($u['dostawca'], EVK_TL_AI_LLM, true)) return $u;
     $kolejka = array_values(array_unique(array_filter(array_merge([$u['opisy'] ?? ''], EVK_TL_AI_LLM))));
     foreach ($kolejka as $d) {
         if (trim((string) ($u['klucze'][$d] ?? '')) !== '') return ['dostawca' => $d] + $u;
@@ -154,6 +165,7 @@ function evk_tl_ai_dla_opisow(array $u): array {
 
 function evk_tl_ai_model(array $u): string {
     if ($u['dostawca'] === 'deepl') return evk_tl_deepl_rodzaj(evk_tl_ai_klucz($u));
+    if ($u['dostawca'] === 'google') return 'nmt';
     $m = trim((string) ($u['modele'][$u['dostawca']] ?? ''));
     return $m !== '' ? $m : evk_tl_ai_dostawcy()[$u['dostawca']]['model'];
 }
@@ -697,10 +709,11 @@ function evk_tl_ai_blad_http(string $dostawca, int $kod, array $naglowki, $o): a
  *
  * @param list<array<string,string>>        $kontekst
  * @param array<string,array<string,mixed>> $porcja klucz krótki → tekst
- * @return array{ok:bool,tlumaczenia?:array<string,string>,blad?:string,czekaj?:int,stop?:bool,uwaga?:string}
+ * @return array{ok:bool,tlumaczenia?:array<string,string>,blad?:string,czekaj?:int,stop?:bool,uwaga?:string,przygotowanie?:bool}
  */
 function evk_tl_ai_porcja(array $u, string $lang, string $tytul, array $kontekst, array $porcja): array {
     if ($u['dostawca'] === 'deepl') return evk_tl_deepl_porcja($u, $lang, $tytul, $kontekst, $porcja);
+    if ($u['dostawca'] === 'google') return evk_tl_google_porcja($u, $lang, $tytul, $kontekst, $porcja);
     [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, $tytul, $kontekst, $porcja);
     return evk_tl_ai_wyslij($u, $system, $wiadomosc);
 }
@@ -1173,6 +1186,8 @@ function evk_tl_ai_jeden(int $post_id, string $meta_key, string $lang, string $k
     if ($w !== null) return ['ok' => true, 'tekst' => $w, 'model' => $model, 'z_pamieci' => true];
     $r = evk_tl_ai_porcja($u, $lang, (string) (get_the_title($post_id) ?: ('#' . $post_id)), $t['kontekst'], ['t1' => $b]);
     if (!$r['ok']) {
+        /* Glosariusz Google w przygotowaniu (1.280.0) — powód zamiast ogólnej przerwy. */
+        if (!empty($r['czekaj']) && !empty($r['przygotowanie'])) return ['ok' => false, 'blad' => (string) $r['blad'] . ' Spróbuj za ' . (int) $r['czekaj'] . ' s.'];
         return ['ok' => false, 'blad' => !empty($r['czekaj']) ? 'Dostawca prosi o przerwę — spróbuj za ' . (int) $r['czekaj'] . ' s.' : (string) $r['blad']];
     }
     $tl = $r['tlumaczenia']['t1'] ?? null;
@@ -2554,8 +2569,8 @@ function evk_tl_ai_obraz_do_ai(int $id): ?array {
 function evk_tl_ai_opisz_obraz(int $id, array $u): array {
     /* DeepL tylko tłumaczy (1.277.0): opis obrazu idzie przez dostawcę AI z kluczem. */
     $u = evk_tl_ai_dla_opisow($u);
-    if ($u['dostawca'] === 'deepl') {
-        return ['ok' => false, 'blad' => 'Opis obrazu wymaga klucza Gemini, Claude albo OpenAI — DeepL tylko tłumaczy.', 'czekaj' => 0, 'stop' => true];
+    if (!in_array($u['dostawca'], EVK_TL_AI_LLM, true)) {
+        return ['ok' => false, 'blad' => 'Opis obrazu wymaga klucza Gemini, Claude albo OpenAI — DeepL i Google Translation tylko tłumaczą.', 'czekaj' => 0, 'stop' => true];
     }
     $o = evk_tl_ai_obraz_do_ai($id);
     if ($o === null) return ['ok' => false, 'blad' => 'Tego pliku AI nie obejrzy (format albo rozmiar).'];
@@ -2811,9 +2826,16 @@ add_action('wp_ajax_evk_tl_ai_ustawienia', function (): void {
     $p = wp_unslash($_POST);
     $d = evk_tl_ai_dostawcy();
     if (isset($d[$p['dostawca'] ?? ''])) $u['dostawca'] = (string) $p['dostawca'];
-    $klucz = trim(sanitize_text_field((string) ($p['klucz'] ?? '')));
+    /* Google (1.280.0): plik JSON konta usługi — sprawdzony i zapisany bez zbędnych pól. */
+    if ($u['dostawca'] === 'google' && trim((string) ($p['klucz'] ?? '')) !== '' && empty($p['usun_klucz'])) {
+        $klucz = (string) evk_tl_google_do_zapisu((string) $p['klucz']);
+        if ($klucz === '') wp_send_json_error('To nie jest plik JSON konta usługi Google (type „service_account”, client_email, private_key, project_id).');
+    } else {
+        $klucz = trim(sanitize_text_field((string) ($p['klucz'] ?? '')));
+    }
     if (!empty($p['usun_klucz'])) unset($u['klucze'][$u['dostawca']]);
     elseif ($klucz !== '') $u['klucze'][$u['dostawca']] = $klucz;
+    if (isset($p['zasobnik'])) $u['zasobnik'] = evk_tl_ai_czysty_zasobnik((string) $p['zasobnik']);
     $u['modele'][$u['dostawca']] = trim(sanitize_text_field((string) ($p['model'] ?? '')));
     $u['opis'] = sanitize_textarea_field((string) ($p['opis'] ?? ''));
     $u['slowniczek'] = sanitize_textarea_field((string) ($p['slowniczek'] ?? ''));
@@ -2825,7 +2847,7 @@ add_action('wp_ajax_evk_tl_ai_ustawienia', function (): void {
         if (in_array($f, ['formalna', 'nieformalna'], true)) $u['formalnosc'][(string) $j] = $f;
     }
     $u['opisy'] = in_array($p['opisy'] ?? '', EVK_TL_AI_LLM, true) ? (string) $p['opisy'] : '';
-    if ($u['dostawca'] === 'deepl') unset($u['modele']['deepl']);
+    if (in_array($u['dostawca'], ['deepl', 'google'], true)) unset($u['modele'][$u['dostawca']]);
     update_option(EVK_TL_AI_OPCJA, $u, false);
     wp_send_json_success(['komunikat' => 'Zapisano.', 'klucz' => evk_tl_ai_klucz($u) !== '']);
 });

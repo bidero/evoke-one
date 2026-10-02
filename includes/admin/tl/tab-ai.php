@@ -25,6 +25,9 @@ $evk_jezyki = tl_get_languages();
     wykorzystuje je do ulepszania swoich usług; na płatnym (Gemini, Claude, OpenAI) — nie. Warunki DeepL Free i Pro opisuje DeepL.</p>
     <p class="evo-desc"><strong>DeepL</strong> tylko tłumaczy: bierze kontekst części strony, słowniczek (jako glosariusz) i formalność języka,
     a opis strony i wskazówki dla języków pomija. Klucz Free kończy się na <code>:fx</code>. Opis obrazów (alt z AI) idzie wtedy przez model AI z kluczem.</p>
+    <p class="evo-desc"><strong>Google Cloud Translation (v3)</strong> tylko tłumaczy: 500 tys. znaków miesięcznie bez opłat, zamiast klucza plik JSON konta usługi
+    (role Cloud Translation API Editor i Storage Object Admin). Słowniczek idzie jako glosariusz przez zasobnik Cloud Storage (region us-central1);
+    opis strony, wskazówki i formalność Google pomija.</p>
 </div>
 
 <div class="evo-box tl-ai-ustawienia">
@@ -48,17 +51,29 @@ $evk_jezyki = tl_get_languages();
         </select>
     </div>
     <div class="evo-field">
+        <div class="tl-ai-klucz-pole">
         <label for="tl-ai-klucz">Klucz API <span class="tl-ai-klucz-stan evo-label-note"></span></label>
         <input type="password" id="tl-ai-klucz" autocomplete="off" spellcheck="false" placeholder="wklej klucz — zapisany zostaje ukryty">
+        </div>
+        <?php /* Google (1.280.0): treść pliku JSON konta usługi zamiast klucza — pole puste, zapisany zostaje ukryty. */ ?>
+        <div class="tl-ai-google-pole">
+        <label for="tl-ai-google-json">Plik JSON konta usługi <span class="tl-ai-klucz-stan evo-label-note"></span></label>
+        <textarea id="tl-ai-google-json" rows="3" autocomplete="off" spellcheck="false" placeholder="wklej całą treść pliku .json — zapisany zostaje ukryty"></textarea>
+        </div>
         <label class="evo-check-row"><input type="checkbox" id="tl-ai-usun-klucz"> Usuń zapisany klucz tego dostawcy</label>
+    </div>
+    <div class="evo-field tl-ai-google-pole">
+        <label for="tl-ai-zasobnik">Zasobnik Cloud Storage (słowniczek)</label>
+        <input type="text" id="tl-ai-zasobnik" spellcheck="false" value="<?php echo esc_attr($evk_u['zasobnik']); ?>" placeholder="np. evoke-tlumaczenia-nazwa">
+        <p class="evo-desc">Region us-central1. Bez zasobnika słowniczek nie działa jako glosariusz.</p>
     </div>
     <div class="evo-field tl-ai-model-pole">
         <label for="tl-ai-model">Model</label>
         <input type="text" id="tl-ai-model" spellcheck="false">
         <p class="evo-desc">Puste — model domyślny dostawcy (w podpowiedzi pola).</p>
     </div>
-    <div class="evo-field tl-ai-deepl-pole">
-        <label for="tl-ai-opisy">Opisy obrazów (DeepL tylko tłumaczy)</label>
+    <div class="evo-field tl-ai-tylko-tlumacz">
+        <label for="tl-ai-opisy">Opisy obrazów (DeepL i Google tylko tłumaczą)</label>
         <select id="tl-ai-opisy">
             <option value="">Pierwszy z kluczem</option>
             <?php foreach (EVK_TL_AI_LLM as $evk_k): ?>
@@ -288,10 +303,15 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
             model.placeholder = o.getAttribute('data-model');
             model.value = o.getAttribute('data-wlasny') || '';
             kluczStan.textContent = o.getAttribute('data-klucz') ? '(zapisany)' : '(brak)';
-            /* DeepL: bez modelu, z formalnością i wyborem modelu do opisów obrazów. */
-            var deepl = dostawca.value === 'deepl';
-            document.querySelectorAll('.tl-ai-model-pole').forEach(function (x) { x.hidden = deepl; });
+            /* DeepL: bez modelu, z formalnością i wyborem modelu do opisów obrazów.
+               Google (1.280.0): bez modelu, plik JSON zamiast klucza, zasobnik. */
+            var deepl = dostawca.value === 'deepl', google = dostawca.value === 'google';
+            document.querySelectorAll('.tl-ai-model-pole').forEach(function (x) { x.hidden = deepl || google; });
             document.querySelectorAll('.tl-ai-deepl-pole').forEach(function (x) { x.hidden = !deepl; });
+            document.querySelectorAll('.tl-ai-tylko-tlumacz').forEach(function (x) { x.hidden = !(deepl || google); });
+            document.querySelectorAll('.tl-ai-google-pole').forEach(function (x) { x.hidden = !google; });
+            document.querySelectorAll('.tl-ai-klucz-pole').forEach(function (x) { x.hidden = google; });
+            document.querySelectorAll('.tl-ai-klucz-stan').forEach(function (x) { x.textContent = kluczStan.textContent; });
         };
         dostawca.addEventListener('change', pokazDostawce);
         pokazDostawce();
@@ -303,7 +323,10 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
             document.querySelectorAll('.tl-ai-form').forEach(function (t) { form[t.getAttribute('data-jezyk')] = t.value; });
             b.disabled = true;
             stan.textContent = 'Zapisuję…';
-            wyslij({ action: 'evk_tl_ai_ustawienia', dostawca: dostawca.value, klucz: document.getElementById('tl-ai-klucz').value,
+            var google = dostawca.value === 'google';
+            wyslij({ action: 'evk_tl_ai_ustawienia', dostawca: dostawca.value,
+                klucz: google ? document.getElementById('tl-ai-google-json').value : document.getElementById('tl-ai-klucz').value,
+                zasobnik: document.getElementById('tl-ai-zasobnik').value,
                 usun_klucz: document.getElementById('tl-ai-usun-klucz').checked ? '1' : '', model: model.value,
                 opis: document.getElementById('tl-ai-opis').value, slowniczek: document.getElementById('tl-ai-slowniczek').value, wskazowki: wsk,
                 formalnosc: form, opisy: document.getElementById('tl-ai-opisy').value })
@@ -314,6 +337,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
                     o.setAttribute('data-klucz', r.data.klucz ? '1' : '');
                     o.setAttribute('data-wlasny', model.value);
                     document.getElementById('tl-ai-klucz').value = '';
+                    document.getElementById('tl-ai-google-json').value = '';
                     document.getElementById('tl-ai-usun-klucz').checked = false;
                     pokazDostawce();
                     stan.textContent = r.data.komunikat;

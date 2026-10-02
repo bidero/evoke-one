@@ -36,7 +36,7 @@ return [
         'maintenance_bypass_hours', 'maintenance_bypass_password', 'maintenance_excluded_paths',
         'maintenance_mode', 'maintenance_page_id',
         // Tłumaczenia
-        'evk_tl_ai', 'evk_tl_ai_pamiec', 'evk_tl_deepl_glosariusze', 'evk_tl_frazy_ai', 'evk_tl_el_pola', 'evk_tl_kp_stan', 'evk_tl_kp_przejscie', 'evk_tl_module_enabled', 'tl_dd_keys', 'tl_images', 'tl_languages',
+        'evk_tl_ai', 'evk_tl_ai_pamiec', 'evk_tl_deepl_glosariusze', 'evk_tl_google_glosariusze', 'evk_tl_frazy_ai', 'evk_tl_el_pola', 'evk_tl_kp_stan', 'evk_tl_kp_przejscie', 'evk_tl_module_enabled', 'tl_dd_keys', 'tl_images', 'tl_languages',
         'tl_menu_location', 'tl_pl_flag', 'tl_sitemap_settings', 'tl_translations', 'tl_url_slugs',
         // Snippety
         'evk_snippets_advanced_content', 'evk_snippets_advanced_enabled', 'evk_snippets_enabled',
@@ -68,7 +68,9 @@ return [
     'transienty_przedrostki' => ['evk_gdrive_msg_', 'evk_gdrive_pkce_', 'evk_wl_font_b64_', 'tl_compiled_tokens_',
                                  'evk_nl_rl_', 'evk_nl_pt_',
                                  // błędy adresu EN wpisu po zapisie, na użytkownika (1.252.0)
-                                 'evk_tlw_bledy_'],
+                                 'evk_tlw_bledy_',
+                                 // token dostępu Google Cloud Translation, na konto usługi (1.280.0)
+                                 'evk_tl_google_token_'],
     'typy_wpisow' => ['evk_code_snippet', 'evk_301_redirect', 'evk_301_log', 'evk_404_log'],
     'meta_wpisow' => ['_evk_og_disable', '_evk_og_url', '_evk_original_post_id',
                       '_evoke_seo_desc', '_evoke_seo_keywords', '_evoke_seo_robots', '_evoke_seo_title',

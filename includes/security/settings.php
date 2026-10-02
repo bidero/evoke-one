@@ -43,7 +43,46 @@ function evk_security_sanitize($input): array {
         'disabled_rest_endpoints' => isset($input['disabled_rest_endpoints']) && is_array($input['disabled_rest_endpoints'])
             ? array_map('sanitize_text_field', $input['disabled_rest_endpoints'])
             : [],
-    ] + evk_security_sanitize_proxy($input);
+    ] + evk_security_sanitize_proxy($input) + evk_security_sanitize_naglowki($input);
+}
+
+/* Nagłówki bezpieczeństwa (1.280.0): stałe i domyślne funkcje — tu, a nie
+   w security/naglowki.php, bo walidacja niżej potrzebuje ich także bez niego. */
+/** Funkcje Permissions-Policy do wyboru w panelu: klucz → opis. */
+const EVK_NAGLOWKI_UPRAWNIENIA = ['camera' => 'Kamera', 'microphone' => 'Mikrofon', 'geolocation' => 'Geolokalizacja', 'payment' => 'Płatności (Payment Request)'];
+const EVK_NAGLOWKI_REFERRER = ['strict-origin-when-cross-origin', 'strict-origin', 'same-origin', 'no-referrer'];
+/** HSTS: sekundy → opis. Rok to próg list preload, ale `preload` celowo nie idzie. */
+const EVK_NAGLOWKI_HSTS = [300 => '5 minut (próba)', 86400 => '1 dzień', 2592000 => '30 dni', 31536000 => '1 rok'];
+
+/** Domyślne funkcje blokowane: wszystkie cztery, bez płatności przy WooCommerce. @return list<string> */
+function evk_naglowki_uprawnienia_domyslne(): array {
+    $l = array_keys(EVK_NAGLOWKI_UPRAWNIENIA);
+    return class_exists('WooCommerce') ? array_values(array_diff($l, ['payment'])) : $l;
+}
+
+/**
+ * Nagłówki bezpieczeństwa (1.280.0, security/naglowki.php) — wspólne dla
+ * obu dróg zapisu, jak pośrednik niżej.
+ *
+ * @return array<string,mixed>
+ */
+function evk_security_sanitize_naglowki(array $input): array {
+    $d = evk_security_get();
+    $war = (string) ($input['hdr_referrer_wartosc'] ?? $d['hdr_referrer_wartosc']);
+    $wiek = (int) ($input['hdr_hsts_wiek'] ?? $d['hdr_hsts_wiek']);
+    $upr = isset($input['hdr_uprawnienia']) ? (array) $input['hdr_uprawnienia'] : (array) $d['hdr_uprawnienia'];
+    $b = static function (string $k) use ($input, $d): int { return array_key_exists($k, $input) ? (!empty($input[$k]) ? 1 : 0) : (int) $d[$k]; };
+    return [
+        'hdr_nosniff'          => $b('hdr_nosniff'),
+        'hdr_referrer'         => $b('hdr_referrer'),
+        'hdr_referrer_wartosc' => in_array($war, EVK_NAGLOWKI_REFERRER, true) ? $war : EVK_NAGLOWKI_REFERRER[0],
+        'hdr_permissions'      => $b('hdr_permissions'),
+        'hdr_uprawnienia'      => array_values(array_intersect(array_keys(EVK_NAGLOWKI_UPRAWNIENIA), array_map('strval', $upr))),
+        'hdr_ramki'            => $b('hdr_ramki'),
+        'hdr_hsts'             => $b('hdr_hsts'),
+        'hdr_hsts_wiek'        => isset(EVK_NAGLOWKI_HSTS[$wiek]) ? $wiek : 300,
+        'hdr_hsts_sub'         => $b('hdr_hsts_sub'),
+    ];
 }
 
 /**
@@ -74,6 +113,16 @@ function evk_security_get(): array {
         'disabled_rest_endpoints' => [],
         'proxy_tryb'              => 'brak',
         'proxy_zaufane'           => '',
+        /* Nagłówki (1.280.0): domyślnie włączone, poza HSTS. */
+        'hdr_nosniff'             => 1,
+        'hdr_referrer'            => 1,
+        'hdr_referrer_wartosc'    => 'strict-origin-when-cross-origin',
+        'hdr_permissions'         => 1,
+        'hdr_uprawnienia'         => evk_naglowki_uprawnienia_domyslne(),
+        'hdr_ramki'               => 1,
+        'hdr_hsts'                => 0,
+        'hdr_hsts_wiek'           => 300,
+        'hdr_hsts_sub'            => 0,
     ]);
 }
 
@@ -116,6 +165,9 @@ function evk_security_sanitize_section(string $section, array $raw): array {
                     ? array_map('sanitize_text_field', $raw['disabled_rest_endpoints'])
                     : [],
             ];
+        case 'naglowki':
+            /* Pola wyboru niezaznaczone przychodzą jako 0, lista funkcji — pusta lista. */
+            return evk_security_sanitize_naglowki(wp_unslash($raw) + ['hdr_uprawnienia' => []]);
         case 'hardening':
             return [
                 'hide_wp_version'        => !empty($raw['hide_wp_version']) ? 1 : 0,

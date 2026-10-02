@@ -823,6 +823,16 @@ $TABS = [
         'file'   => 'includes/admin/security-hardening.php',
         'seed'   => function () { $GLOBALS['options']['evk_security'] = ['hide_wp_version' => 1]; },
     ],
+    /* Nagłówki (1.280.0): wartości domyślne (bez zapisu) — wszystkie pola widoczne. */
+    'sec-naglowki' => [
+        'module' => ['includes/security/ip-klienta.php', 'includes/security/settings.php', 'includes/security/naglowki.php'],
+        'file'   => 'includes/admin/security-naglowki.php',
+        'seed'   => function () {
+            $GLOBALS['options']['evk_security'] = ['hdr_hsts' => 1];
+            /* Strona przez HTTP — zakładka dopisuje uwagę przy HSTS. */
+            if (!function_exists('is_ssl')) { function is_ssl() { return false; } }
+        },
+    ],
     'sec-cleanup' => [
         'module' => 'includes/97-security.php',
         'file'   => 'includes/admin/security-cleanup.php',
