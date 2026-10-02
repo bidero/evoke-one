@@ -57,7 +57,7 @@ if (!defined('ABSPATH')) exit;
                                     <span class="tl-row-pl-preview tl-row-toggle-trigger"><?php echo esc_html($row_pl ?: '- pusta -'); ?></span>
                                     <div class="tl-lang-pills tl-row-toggle-trigger">
                                         <?php foreach ($codes as $code): ?>
-                                        <span class="tl-pill <?php echo !empty($row[$code])?'filled':''; ?>"><?php echo esc_html(strtoupper($code)); ?></span>
+                                        <span class="tl-pill <?php echo !empty($row[$code])?'filled':''; ?><?php echo function_exists('evk_tl_frazy_ai') && evk_tl_frazy_ai($row_pl, evk_tl_ai_kod((string) $code), (string) ($row[$code] ?? '')) !== null ? ' tl-pill-ai' : ''; ?>"><?php echo esc_html(strtoupper($code)); ?></span>
                                         <?php endforeach; ?>
                                     </div>
                                     <button type="button" class="tl-chevron tl-row-toggle-trigger" aria-expanded="false" aria-label="<?php echo esc_attr('Fraza: ' . ($row_pl !== '' ? mb_strimwidth($row_pl, 0, 80, '…') : 'pusta')); ?>">▶</button>
@@ -75,9 +75,11 @@ if (!defined('ABSPATH')) exit;
                                         <label>Polski</label>
                                         <textarea aria-label="Polski" data-field="pl" data-gid="<?php echo esc_attr($group_id); ?>" data-rid="<?php echo esc_attr($row_id); ?>" oninput="tlUpdatePreview(this);tlMarkDirty();"><?php echo esc_textarea($row['pl'] ?? ''); ?></textarea>
                                     </div>
-                                    <?php foreach ($langs as $code => $lang): ?>
+                                    <?php foreach ($langs as $code => $lang):
+                                        /* Tłumaczenie AI (1.279.0, 64): znacznik do poprawki albo „Sprawdzone” na liście wyżej. */
+                                        $evk_ai = function_exists('evk_tl_frazy_ai') ? evk_tl_frazy_ai($row_pl, evk_tl_ai_kod((string) $code), (string) ($row[$code] ?? '')) : null; ?>
                                     <div class="tl-field">
-                                        <label><?php echo esc_html($lang['name']); ?></label>
+                                        <label><?php echo esc_html($lang['name']); ?><?php if ($evk_ai !== null): ?> <span class="tl-fraza-ai" title="<?php echo esc_attr($evk_ai); ?>">AI — do sprawdzenia</span><?php endif; ?></label>
                                         <textarea aria-label="<?php echo esc_attr($lang['name']); ?>" data-field="<?php echo esc_attr($code); ?>" data-gid="<?php echo esc_attr($group_id); ?>" data-rid="<?php echo esc_attr($row_id); ?>" oninput="tlUpdatePill(this);tlMarkDirty();"><?php echo esc_textarea($row[$code] ?? ''); ?></textarea>
                                     </div>
                                     <?php endforeach; ?>

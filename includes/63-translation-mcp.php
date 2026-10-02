@@ -290,7 +290,7 @@ add_action('wp_abilities_api_init', function (): void {
     };
     wp_register_ability('evoke/tlumaczenia-braki', [
         'label' => 'Tłumaczenia: części z brakami',
-        'description' => 'Lista części stron (treść Bricksa, teksty wpisu, SEO, pola Fields, kategorie, komponenty, alty) z liczbą tekstów bez '
+        'description' => 'Lista części stron (treść Bricksa, teksty wpisu, SEO, pola Fields, kategorie, komponenty, alty, frazy słownika z etykietami menu) z liczbą tekstów bez '
             . 'tłumaczenia w każdym języku, oraz lista języków witryny. Zaczynaj od tego narzędzia.',
         'category' => EVK_TL_MCP_KATEGORIA,
         'input_schema' => ['type' => 'object', 'default' => [], 'properties' => [

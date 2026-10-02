@@ -116,6 +116,9 @@ function tl_render_page() {
         .tl-lang-pills { display:flex; gap:4px; flex-shrink:0; }
         .tl-pill { font-size:10px; font-weight:700; padding:2px 6px; border-radius:999px; background:#f1f5f9; color:var(--evo-text-dim); border:1px solid #e2e8f0; }
         .tl-pill.filled { background:var(--evo-on-soft); color:var(--evo-on-dark); border-color:var(--evo-on-line); }
+        /* Tłumaczenie AI frazy do sprawdzenia (1.279.0). */
+        .tl-pill.tl-pill-ai { background:#fef3c7; color:#92400e; border-color:#fcd34d; }
+        .tl-fraza-ai { display:inline-block; margin-left:6px; font-size:11px; font-weight:600; padding:1px 6px; border-radius:999px; background:#fef3c7; color:#92400e; }
         .tl-chevron { color:var(--evo-text-faint); transition:transform .2s; font-size:11px; flex-shrink:0; }
         .tl-row-header.open .tl-chevron { transform:rotate(90deg); }
         .tl-row-body { display:none; padding:14px 16px; background:#fafafa; }

@@ -118,7 +118,8 @@ $evk_jezyki = tl_get_languages();
              każdy wiersz jest kartą (reguły w render.php). */
     $evk_wiersze = evk_tl_ai_wiersze_zakresu();
     $evk_tabele = [['wpis', 'Wpisy, strony i szablony', EVK_TL_AI_KOLUMNY_WPIS], ['term', 'Kategorie i tagi', EVK_TL_AI_KOLUMNY_TERM],
-        ['opcje', 'Strony ustawień', EVK_TL_AI_KOLUMNY_OPCJE], ['obrazy', 'Obrazy', EVK_TL_AI_KOLUMNY_OBRAZY]]; ?>
+        ['opcje', 'Strony ustawień', EVK_TL_AI_KOLUMNY_OPCJE], ['obrazy', 'Obrazy', EVK_TL_AI_KOLUMNY_OBRAZY],
+        ['frazy', 'Słownik fraz', EVK_TL_AI_KOLUMNY_FRAZY]]; ?>
     <p class="evo-desc">Zaznacz, co tłumaczyć: wiersz to rodzaj treści, kolumna — część. Pole przy nazwie zaznacza cały wiersz.
     Tłumaczenia dostają znacznik „AI — do sprawdzenia” i trafiają na listę „Do sprawdzenia”.</p>
     <div class="tl-ai-zakres">

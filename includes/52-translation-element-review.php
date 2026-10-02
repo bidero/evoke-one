@@ -199,6 +199,9 @@ add_action('wp_ajax_evk_tl_el_sprawdzone', function (): void {
         /* Tekst stały komponentu (1.272.0): klucz `{komponent}#{miejsce}`, prawo administratora. */
         if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnień do komponentów.', 403);
         $ok = evk_tl_kp_sprawdzone($klucz);
+    } elseif (defined('EVK_TL_AI_FRAZY') && $meta_key === EVK_TL_AI_FRAZY) {
+        /* Fraza słownika (1.279.0): klucz `{skrót frazy}|{język}`, prawo Tłumaczeń (wyżej). */
+        $ok = evk_tl_frazy_sprawdzone($klucz);
     } elseif (defined('EVK_TL_AI_POLA_OPCJI') && $meta_key === EVK_TL_AI_POLA_OPCJI) {
         /* Pole strony ustawień Fields (1.272.0): klucz `{grupa}#{miejsce}|{język}`, prawo strony ustawień. */
         if (evk_tl_ai_grupa_opcji((string) strstr($klucz, '#', true)) === null) wp_send_json_error('Brak uprawnień do tej strony ustawień.', 403);
@@ -271,6 +274,8 @@ function evk_tl_el_sekcja_do_sprawdzenia(): void {
     if (function_exists('evk_tl_ai_seo_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_seo_do_sprawdzenia());
     /* Alty obrazów (1.271.0) — edycja obrazu. */
     if (function_exists('evk_tl_ai_alt_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_alt_do_sprawdzenia());
+    /* Frazy słownika i etykiety menu (1.279.0) — edycja w zakładce fraz. */
+    if (function_exists('evk_tl_ai_frazy_do_sprawdzenia')) $lista = array_merge($lista, evk_tl_ai_frazy_do_sprawdzenia());
     if (!$lista) return;
     $skrot = static function (string $t): string {
         // Ta sama funkcja co lista tekstów (53): akapity nie sklejają się w jeden wyraz.

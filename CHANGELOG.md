@@ -2,6 +2,39 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.279.0] — 2026-10-02
+
+Frazy słownika i etykiety menu w tłumaczeniu AI.
+
+Decyzje zgłaszającego (02.10): frazy tłumaczy hurt (z wyborem dostawcy
+i modelu na przebieg) i Claude Desktop przez MCP; etykiety menu trafiają
+same do słownika; fraza z AI ma znacznik „AI” i jest na liście
+„Do sprawdzenia”.
+
+### Dodane
+
+- **„Słownik fraz” w tabeli zakresu** zakładki „Tłumaczenie AI”. Każda
+  grupa fraz to pozycja hurtu z kontekstem całej grupy, z tym samym
+  strażnikiem znaczników i z wyborem dostawcy i modelu na przebieg. Claude
+  Desktop widzi grupy fraz w `evoke-tlumaczenia-braki` jak każdą część.
+- **Etykiety menu do słownika.** Etykiety wszystkich menu WordPressa,
+  których słownik jeszcze nie ma, dopisują się same do grupy „Menu” przy
+  zapisie menu i przed listą hurtu albo MCP. Silnik fraz podmienia je na
+  stronie w innym języku.
+- **Znacznik „AI — do sprawdzenia”** przy tłumaczeniu frazy w zakładce
+  „EVOKE Tłumaczenia” (także na pigułce języka). Fraza trafia też na listę
+  „Do sprawdzenia” z przyciskiem „Sprawdzone”. Poprawka w zakładce gasi
+  znacznik sama, a zapis zakładki bez zmian go nie rusza.
+
+### Poprawione
+
+- Pamięć tłumaczeń hurtu nie bierze już fraz z niesprawdzonym tłumaczeniem
+  AI jako sprawdzonych. Bez tego takie tłumaczenie szłoby do tekstów
+  w elementach Bricksa bez znacznika, a „Przetłumacz ponownie” dawało je
+  z powrotem jako „bez zmian”.
+- Hurt nie nadpisuje frazy, której tłumaczenie ktoś zapisał w trakcie
+  zapytania do AI.
+
 ## [1.278.0] — 2026-10-02
 
 Tłumaczenie z Claude Desktop przez MCP — bez klucza API.

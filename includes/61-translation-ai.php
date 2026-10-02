@@ -362,7 +362,10 @@ function evk_tl_ai_pamiec_tlumaczen(string $lang): array {
             $pola[$m['oryginal']] = $m['tlumaczenie'];
         }
     }
-    return $pamiec[$lang] = ['pola' => $pola, 'slownik' => function_exists('tl_get_match_index') ? (array) tl_get_match_index($lang) : []];
+    $slownik = function_exists('tl_get_match_index') ? (array) tl_get_match_index($lang) : [];
+    /* Frazy z niesprawdzonym tłumaczeniem AI (1.279.0, 64) to nie pamięć. */
+    if (function_exists('evk_tl_frazy_klucze_ai')) $slownik = array_diff_key($slownik, evk_tl_frazy_klucze_ai($lang));
+    return $pamiec[$lang] = ['pola' => $pola, 'slownik' => $slownik];
 }
 
 /** Sprawdzone tłumaczenie z pamięci; null gdy go nie ma. */
@@ -846,16 +849,19 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     $alt = $meta_key === EVK_TL_AI_ALT;
     /* Grupa strony ustawień (1.272.0): bez wpisu, klucz grupy w opcjach kroku. */
     $gk = $meta_key === EVK_TL_AI_POLA_OPCJI ? (string) ($opcje['opcje'] ?? '') : '';
+    /* Grupa słownika fraz (1.279.0, 64): klucz grupy w opcjach kroku. */
+    $fg = defined('EVK_TL_AI_FRAZY') && $meta_key === EVK_TL_AI_FRAZY ? (string) ($opcje['opcje'] ?? '') : '';
     /* Teksty stałe komponentu (1.272.0): id komponentu w opcjach kroku. */
     $kp = defined('EVK_TL_KP') && $meta_key === EVK_TL_KP ? evk_tl_kp_komponent((string) ($opcje['opcje'] ?? '')) : null;
-    $t = $kp ? evk_tl_ai_teksty(evk_tl_kp_elementy_stale($kp), $lang, empty($opcje['ponownie']) ? null : evk_tl_kp_stan((string) $kp['id']))
+    $t = $fg !== '' ? evk_tl_ai_teksty_fraz($fg, $lang, !empty($opcje['ponownie']))
+        : ($kp ? evk_tl_ai_teksty(evk_tl_kp_elementy_stale($kp), $lang, empty($opcje['ponownie']) ? null : evk_tl_kp_stan((string) $kp['id']))
         : ($gk !== '' ? evk_tl_ai_teksty_opcji($gk, $lang, !empty($opcje['ponownie']))
         : ($alt ? evk_tl_ai_teksty_alt($post_id, (int) ($opcje['do'] ?? $post_id), $lang, !empty($opcje['ponownie']))
         : ($pola ? evk_tl_ai_teksty_pol($post_id, $lang, !empty($opcje['ponownie']), $obiekt)
         : ($wpis ? evk_tl_ai_teksty_wpisu($post_id, $lang, (array) ($opcje['wpis_pola'] ?? []), !empty($opcje['ponownie']))
         : ($seo ? evk_tl_ai_teksty_seo($post_id, $lang, (array) ($opcje['seo_pola'] ?? []), !empty($opcje['ponownie']))
         : ($term ? evk_tl_ai_teksty_termu($post_id, $lang, (array) ($opcje['term_pola'] ?? []), !empty($opcje['ponownie']))
-        : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key))))))));
+        : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key)))))))));
     $braki = array_diff_key($t['braki'], array_flip($pomin));
     $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'bez_zmian' => 0, 'odrzucone' => [], 'pominiete' => [], 'zapisane_klucze' => [], 'zostalo' => 0];
     /* Licznik `zostalo` przy MCP: braki w trybie, w którym klient pobierał —
@@ -909,7 +915,8 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     }
     if ($porcja && $mcp && ($mcp['tryb'] ?? '') !== 'zapisz') {
         /* Pobranie: porcja do klienta, zapis niżej tylko z pamięci. */
-        $tytul = $kp ? 'Komponent: ' . evk_tl_kp_nazwa($kp) : ($gk !== '' ? evk_tl_ai_tytul_opcji($gk) : evk_tl_ai_tytul_czesci($post_id, $meta_key));
+        $tytul = $fg !== '' ? 'Słownik fraz: ' . (string) (evk_tl_frazy_slownik()['groups'][$fg]['name'] ?? $fg)
+            : ($kp ? 'Komponent: ' . evk_tl_kp_nazwa($kp) : ($gk !== '' ? evk_tl_ai_tytul_opcji($gk) : evk_tl_ai_tytul_czesci($post_id, $meta_key)));
         $wynik['mcp'] = ['tytul' => $tytul, 'kontekst' => $t['kontekst'], 'porcja' => $porcja];
         $porcja = [];
     } elseif ($porcja) {
@@ -918,7 +925,8 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         foreach ($porcja as $k => $b) $krotkie['t' . (++$n)] = $k;
         $tresc = [];
         foreach ($krotkie as $kr => $k) $tresc[$kr] = $porcja[$k];
-        $tytul = $kp ? 'Komponent: ' . evk_tl_kp_nazwa($kp) : ($gk !== '' ? evk_tl_ai_tytul_opcji($gk) : evk_tl_ai_tytul_czesci($post_id, $meta_key));
+        $tytul = $fg !== '' ? 'Słownik fraz: ' . (string) (evk_tl_frazy_slownik()['groups'][$fg]['name'] ?? $fg)
+            : ($kp ? 'Komponent: ' . evk_tl_kp_nazwa($kp) : ($gk !== '' ? evk_tl_ai_tytul_opcji($gk) : evk_tl_ai_tytul_czesci($post_id, $meta_key)));
         $r = $od_klienta ? ['ok' => true, 'tlumaczenia' => array_map(static function ($k) use ($od_klienta) { return $od_klienta[$k]; }, $krotkie)]
             : evk_tl_ai_porcja($u, $lang, $tytul, $t['kontekst'], $tresc);
         /* Uwaga bez przerwy (glosariusz DeepL nie powstał) — do dziennika jak błąd porcji. */
@@ -958,12 +966,13 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     foreach (array_keys($gotowe) as $k) {
         if ($braki[$k]['bylo'] !== '') $bylo[$k] = $braki[$k]['bylo'];
     }
-    $wynik['zapisane_klucze'] = $kp ? evk_tl_ai_zapisz_komponent((string) $kp['id'], $lang, $gotowe, $ai, $podpis, $bylo)
+    $wynik['zapisane_klucze'] = $fg !== '' ? evk_tl_ai_zapisz_frazy($fg, $lang, $gotowe, $ai, $podpis, $braki)
+        : ($kp ? evk_tl_ai_zapisz_komponent((string) $kp['id'], $lang, $gotowe, $ai, $podpis, $bylo)
         : ($gk !== '' ? evk_tl_ai_zapisz_pola_opcji($gk, $lang, $gotowe, $ai, $braki) : ($alt ? evk_tl_ai_zapisz_alt($lang, $gotowe, $ai, $braki) : ($pola ? evk_tl_ai_zapisz_pola($post_id, $lang, $gotowe, $ai, $braki, $obiekt)
         : ($wpis ? evk_tl_ai_zapisz_wpis($post_id, $lang, $gotowe, $ai, $braki)
         : ($term ? evk_tl_ai_zapisz_term($post_id, $lang, $gotowe, $ai, $braki)
         : ($seo ? evk_tl_ai_zapisz_seo($post_id, $lang, $gotowe, $ai, $braki)
-        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, $podpis, $bylo)))))));
+        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, $podpis, $bylo))))))));
     $wynik['zapisane'] = count($wynik['zapisane_klucze']);
     $wynik['bez_zmian'] = count($rowne);
     $wynik['pominiete'] = array_keys($rowne);
@@ -982,6 +991,8 @@ const EVK_TL_AI_KOLUMNY_WPIS = ['bricks' => 'Bricks', 'post_title' => 'Tytuł', 
 const EVK_TL_AI_KOLUMNY_TERM = ['name' => 'Nazwa', 'description' => 'Opis', 'adres' => 'Adres', 'fields' => 'Pola Fields'];
 const EVK_TL_AI_KOLUMNY_OBRAZY = ['alt' => 'Tłumaczenie altu', 'alt_pl' => 'Brakujący alt PL'];
 const EVK_TL_AI_KOLUMNY_OPCJE = ['fields' => 'Pola Fields'];
+/* Słownik fraz z etykietami menu (1.279.0, 64). */
+const EVK_TL_AI_KOLUMNY_FRAZY = ['frazy' => 'Frazy i menu'];
 
 /** Typy treści z danymi Bricksa (bez wersji i kosza). @return list<string> */
 function evk_tl_ai_typy_bricksa(): array {
@@ -1039,6 +1050,7 @@ function evk_tl_ai_wiersze_zakresu(): array {
     /* Strony ustawień Fields (1.272.0): wiersz na stronę, do której jest prawo. */
     foreach (evk_tl_ai_strony_opcji() as $slug => $st) $out['opcje:' . $slug] = ['nazwa' => $st['nazwa'], 'rodzaj' => 'opcje', 'czesci' => ['fields']];
     if (evk_tl_ai_alt_dostepne()) $out['obrazy'] = ['nazwa' => 'Obrazy (biblioteka mediów)', 'rodzaj' => 'obrazy', 'czesci' => ['alt', 'alt_pl']];
+    if (function_exists('evk_tl_frazy_dostepne') && evk_tl_frazy_dostepne()) $out['frazy'] = ['nazwa' => 'Słownik fraz (z etykietami menu)', 'rodzaj' => 'frazy', 'czesci' => ['frazy']];
     return $out;
 }
 
@@ -1134,6 +1146,8 @@ function evk_tl_ai_jednostki(bool $ponownie = false, ?array $zakres = null): arr
             if (in_array('fields', $cz, true)) $dodaj(evk_tl_ai_jednostki_pol_termow($jezyki, $ponownie, [$tax]), $typ);
         } elseif ($w['rodzaj'] === 'opcje') {
             $dodaj(evk_tl_ai_jednostki_pol_opcji($jezyki, $ponownie, substr($typ, 6)), $typ);
+        } elseif ($w['rodzaj'] === 'frazy') {
+            $dodaj(evk_tl_ai_jednostki_fraz($jezyki, $ponownie), $typ);
         } elseif (function_exists('evk_tl_ai_jednostki_obrazow')) {
             $dodaj(evk_tl_ai_jednostki_obrazow($jezyki, $cz, $ponownie), $typ);
         }
@@ -2843,8 +2857,13 @@ function evk_tl_ai_jednostka_dozwolona(int $post_id, string $meta_key, string $l
     $czesc_ok = $term || ($obrazy && evk_tl_ai_alt_dostepne()) || in_array($meta_key, evk_tl_el_klucze_meta(), true) || ($meta_key === EVK_TL_AI_POLA && evk_tl_ai_pola_dostepne())
         || (in_array($meta_key, [EVK_TL_AI_WPIS, EVK_TL_AI_SEO], true) && function_exists('evk_tlw_typy') && in_array((string) get_post_type($post_id), evk_tlw_typy(), true));
     $kpk = defined('EVK_TL_KP') && $meta_key === EVK_TL_KP;
-    $gk = $meta_key === EVK_TL_AI_POLA_OPCJI || $kpk ? sanitize_key($opcje) : '';
-    if ($gk !== '') {
+    $fr = defined('EVK_TL_AI_FRAZY') && $meta_key === EVK_TL_AI_FRAZY;
+    $gk = $meta_key === EVK_TL_AI_POLA_OPCJI || $kpk || $fr ? sanitize_key($opcje) : '';
+    if ($fr) {
+        /* Grupa słownika fraz (1.279.0): prawo Tłumaczeń sprawdza wołający (AJAX, MCP). */
+        if (!isset(tl_get_languages()[$lang]) || !isset(evk_tl_frazy_slownik()['groups'][$gk])) return $nie('Nieznana grupa fraz albo język.');
+        $post_id = 0;
+    } elseif ($gk !== '') {
         if (!isset(tl_get_languages()[$lang])) return $nie('Nieznana strona albo język.');
         /* Komponent (1.272.0): globalny dla strony — prawo administratora. */
         if ($kpk && (!current_user_can('manage_options') || !evk_tl_kp_komponent($gk))) return $nie('Brak uprawnień do komponentów.', 403);

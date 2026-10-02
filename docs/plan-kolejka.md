@@ -22,7 +22,13 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
    hasło aplikacji, gotowy JSON); prompty MCP: „Przetłumacz stronę”,
    „Przetłumacz wszystkie braki”, „Sprawdź tłumaczenia AI”; „Sprawdzone”
    klika tylko człowiek.
-2a. **Google Cloud Translation v3 (Advanced)** — piąty dostawca, po MCP.
+2b. **Frazy i menu w tłumaczeniu AI** (1.279.0, zrobione; decyzje 02.10): frazy słownika
+   tłumaczy hurt w zakładce „Tłumaczenie AI” (wybór dostawcy i modelu na
+   przebieg) i Claude Desktop przez MCP; etykiety wszystkich menu WordPressa
+   dopisują się same do grupy „Menu” w słowniku fraz; fraza z AI ma znacznik
+   „AI” (znika po poprawce albo „Sprawdzone”) i trafia na listę
+   „Do sprawdzenia”.
+2a. **Google Cloud Translation v3 (Advanced)** — piąty dostawca, następny (1.280.0).
    Darmowe 500 000 znaków/mies. (kredyt 10 $) jak w v2; v3 NIE przyjmuje
    klucza API — plik JSON konta usługi (rola „Cloud Translation API
    Editor”), token OAuth podpisywany na serwerze (JWT RS256). Glosariusz
