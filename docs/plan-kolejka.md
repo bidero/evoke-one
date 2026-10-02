@@ -6,7 +6,7 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 ## Kolejność
 
 1. **DeepL** — czwarty dostawca tłumaczenia AI (1.277.0).
-2. **Zdolności MCP** — tłumaczenie z Claude Desktop przez MCP Adapter
+2. **Zdolności MCP** (1.278.0) — tłumaczenie z Claude Desktop przez MCP Adapter
    (Abilities API w rdzeniu WordPressa). Trzy zdolności: strony z brakami,
    teksty do przetłumaczenia z kontekstem, zapis ze znacznikiem
    „Do sprawdzenia” i strażnikiem szkieletu (tagi HTML, `{…}`, shortcody).
@@ -15,6 +15,18 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
    (`/wp-json/mcp/mcp-adapter-default-server`) + `@automattic/mcp-wordpress-remote`
    (npx) + hasło aplikacji WordPressa; Bricks 2.4 ma gotową instrukcję
    w swojej zakładce AI („Claude Desktop”, `claude_desktop_config.json`).
+   Decyzje (02.10): zakres — to co hurt AI, pola Fields, SEO i OG, menu
+   i frazy panelu (w przyszłości też generowanie treści); zapis ze znacznikiem
+   „Do sprawdzenia”; uprawnienie jak zakładka Tłumaczenia; własna instrukcja
+   w Evoke (macOS: stan adaptera, przycisk „Zainstaluj” z wydania na GitHubie,
+   hasło aplikacji, gotowy JSON); prompty MCP: „Przetłumacz stronę”,
+   „Przetłumacz wszystkie braki”, „Sprawdź tłumaczenia AI”; „Sprawdzone”
+   klika tylko człowiek.
+2a. **Google Cloud Translation v3 (Advanced)** — piąty dostawca, po MCP.
+   Darmowe 500 000 znaków/mies. (kredyt 10 $) jak w v2; v3 NIE przyjmuje
+   klucza API — plik JSON konta usługi (rola „Cloud Translation API
+   Editor”), token OAuth podpisywany na serwerze (JWT RS256). Glosariusz
+   ze słowniczka jak w DeepL (tworzenie bez opłat).
 3. **Nagłówki bezpieczeństwa** — przełączniki w panelu. Domyślnie włączone:
    `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`,
    `frame-ancestors 'self'`. HSTS domyślnie wyłączony, z wyborem czasu,

@@ -47,6 +47,7 @@
 #   EVK_FIELDS_REPO  repozytorium Evoke FIELDS (../evoke-fields)
 #   EVK_WP5_PATH  katalog piątego      (~/.cache/evk-testowy-wp5)
 #   EVK_BRICKS_ZIP   zip motywu Bricks  (../bricks-motyw/bricks.X.Y.Z.zip)
+#   EVK_MCP_ZIP   zip MCP Adaptera   (~/.cache/evk-mcp-adapter.zip, pobierany z GitHuba)
 #   EVK_BRICKS_KLUCZ klucz licencji Bricksa — tylko jako zmienna środowiska
 #                    (sekret środowiska sesji), NIGDY w repozytorium ani w pliku
 #   EVK_WP_DB     baza                 (evk_test)
@@ -243,11 +244,23 @@ else
     BRICKS="$EVK_WP5_PATH — BRAK motywu Bricks (EVK_BRICKS_ZIP albo ../bricks-motyw/bricks*.zip), test bricks-render będzie czerwony"
 fi
 
+# ── MCP Adapter (1.278.0): zip wydania dla tl-mcp ──────────────────────────
+# Nie instaluje go tu: sonda instaluje i aktywuje go tą samą funkcją co przycisk
+# „Zainstaluj” w panelu, a na końcu usuwa. Zip leży w pamięci podręcznej.
+EVK_MCP_ZIP="${EVK_MCP_ZIP:-$HOME/.cache/evk-mcp-adapter.zip}"
+if [ ! -s "$EVK_MCP_ZIP" ]; then
+    krok "MCP Adapter: zip wydania z GitHuba"
+    curl -fsSL -o "$EVK_MCP_ZIP.tmp" https://github.com/WordPress/mcp-adapter/releases/latest/download/mcp-adapter.zip \
+        && mv "$EVK_MCP_ZIP.tmp" "$EVK_MCP_ZIP" || rm -f "$EVK_MCP_ZIP.tmp"
+fi
+if [ -s "$EVK_MCP_ZIP" ]; then MCP="$EVK_MCP_ZIP"; else MCP="BRAK zipa MCP Adaptera (sieć), test tl-mcp będzie czerwony"; fi
+
 krok "gotowe"
 echo "   WordPress: $EVK_WP_PATH ($(wp core version))"
 echo "   drugi:     $EVK_WP2_PATH ($(wp2 option get home))"
 echo "   trzeci:    $EVK_WP3_PATH ($(wp3 option get home))"
 echo "   czwarty:   $POLA"
 echo "   piąty:     $BRICKS"
+echo "   MCP:       $MCP"
 echo "   wtyczka:   $(wp plugin get evoke-one --field=version) (dowiązanie do $REPO)"
 echo "   testy:     node tests/run.js backup-baza"

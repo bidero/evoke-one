@@ -141,19 +141,33 @@ sekcjami. Nie da się puścić jednej sekcji z pliku; jeśli plik jest za duży,
 iterować, właściwym ruchem jest **podzielić go na dwa pliki**, a nie kombinować
 z filtrowaniem.
 
-### Wąsko podczas pracy, PEŁNY przed wydaniem
+### Wąsko podczas pracy; przed wydaniem — moduł i strażnicy
 
 Puszczanie wszystkiego przy każdej iteracji to strata — i o to poszło zgłoszenie
-o „dużej ilości niepotrzebnych przebiegów". Ale wąski filtr przed **wydaniem**
-to co innego: wydanie jedzie aktualizatorem na żywe strony.
-
-Reguła przed `git push`:
+o „dużej ilości niepotrzebnych przebiegów". Przed **wydaniem** (jedzie
+aktualizatorem na żywe strony) obowiązuje od 1.278.0, decyzja zgłaszającego:
 
 | Co idzie na gałąź | Przebieg |
 |---|---|
-| **wydanie** (podbita wersja) | **pełny, zawsze** |
-| „(bez wydania)", ruszony **plik wspólny** (lista niżej) | **pełny** |
-| „(bez wydania)", zmiany wyłącznie w plikach modułu i jego testach | testy modułu + `drobiazgi` |
+| wydanie albo „(bez wydania)", ruszony **plik wspólny** (lista niżej) | **pełny** |
+| wydanie o numerze kończącym się na **0 albo 5** (1.280.0, 1.285.0…) | **pełny** — okresowy, łapie to, czego strażnicy nie widzą |
+| wydanie, zmiany tylko w plikach modułów i ich testach | testy ruszonych modułów + **strażnicy** |
+| „(bez wydania)", zmiany tylko w plikach modułu i jego testach | testy modułu + `drobiazgi` |
+
+**Strażnicy** (zawsze przy wydaniu bez pełnego przebiegu):
+`drobiazgi` (wersje, PHPStan, wytwory, korzeń paczki), `zapis-wp-odinstalowanie`
+(spis danych wtyczki — każda nowa opcja i meta), `zapis-wp-dwie-kopie`
+(nowe pliki i funkcje w `includes/`). Do tego według ruszonych miejsc:
+- panel (`includes/admin/**`, zakładki, JS i CSS panelu) → `admin-`;
+- elementy Bricksa i kontrolki → `bricks-render bricks-required controls`;
+- tłumaczenia (`includes/5*`, `includes/6*`) → `tl- fields-`.
+
+Podbicie wersji w `evoke-one.php` i dopisanie nowego pliku do listy modułów
+nie robi z wydania „ruszonego pliku wspólnego” — każde inne zmiany w nim tak.
+
+Dlaczego strażnicy, a nie sam moduł: przy 1.277.0 (DeepL) nowa opcja nie była
+w spisie danych — zapalił się `zapis-wp-odinstalowanie` z partii kopii, a filtr
+`tl-` by tego nie widział.
 
 Commit „(bez wydania)" nie zmienia numeru wersji, a aktualizator porównuje
 wersje (`99-github-updater.php`) — taki push na strony NIE jedzie. Ryzyko,
@@ -184,7 +198,7 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (140 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (141 plików, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
@@ -323,6 +337,22 @@ Cztery rzeczy z testów w PRAWDZIWYM builderze (`bricks-builder*`, 1.275.0):
   cicho nic nie wkleja.
 - **Zapis: przycisk `.save[data-balloon="Save"]`.** `Control+s`
   z Playwrighta do Bricksa nie dochodzi.
+
+**MCP (`tl-mcp`, 1.278.0)** idzie przez PRAWDZIWY MCP Adapter z paczki
+wydania: skrypt pobiera `mcp-adapter.zip` z GitHuba do `~/.cache`
+(`EVK_MCP_ZIP`), a sonda instaluje go na pierwszym WordPressie tą samą
+funkcją co przycisk „Zainstaluj” w panelu i na końcu usuwa. Wywołania idą
+przez HTTP (`php -S`): `initialize` → nagłówek `Mcp-Session-Id` →
+`tools/call`, z hasłem aplikacji. Hasła aplikacji WordPress daje tylko przez
+HTTPS albo w środowisku `local` — router stawia `WP_ENVIRONMENT_TYPE` ze
+zmiennej `EVK_WP_SRODOWISKO`. Dwie rzeczy z pierwszych prób:
+- **Nie próbuj MCP ręcznie na pierwszym WordPressie.** Zapis przez MCP to
+  prawdziwe tłumaczenie „Do sprawdzenia”. Ręczna próba zostawiła tytuł
+  „EN Sample Page” i `tl-do-sprawdzenia` liczył dwa wiersze zamiast jednego.
+  Sonda `tl-mcp.php` sprząta po sobie.
+- **Słownik fraz siedzi też w transiencie** (`get_translation_config()`).
+  `update_option('tl_translations', …)` w sondzie bez `tl_invalidate_cache()`
+  nie zmienia pamięci tłumaczeń.
 
 Dysk Google (`backup-drive`, `backup-panel-drive`) idzie przez **atrapę
 Google** — `tests/php/_google-atrapa.php` na `php -S` (`tests/lib/google-atrapa.js`),

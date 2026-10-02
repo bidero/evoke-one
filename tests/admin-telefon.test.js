@@ -127,7 +127,7 @@ module.exports = async function (t) {
       await d.goto(u);
       for (const s of await d.$$eval('.evo-sidebar-sublink', (a) => a.map((x) => x.href))) adresy.add(s);
     }
-    for (const tab of ['translations', 'elementy', 'wpisy', 'images', 'slugs', 'dd', 'languages', 'sitemap', 'io']) adresy.add(A + 'options-general.php?page=evoke-tlumaczenia&tab=' + tab);
+    for (const tab of ['translations', 'elementy', 'mcp', 'wpisy', 'images', 'slugs', 'dd', 'languages', 'sitemap', 'io']) adresy.add(A + 'options-general.php?page=evoke-tlumaczenia&tab=' + tab);
     for (const tab of ['lists', 'templates', 'campaigns', 'reports', 'settings']) adresy.add(A + 'admin.php?page=evoke-newsletter&subtab=' + tab);
     adresy.add(A + 'admin.php?page=evk-form-inbox');
     // Widok angielski zakładki SEO (1.251.0) — z menu prowadzi tylko polski.

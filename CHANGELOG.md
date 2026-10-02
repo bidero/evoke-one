@@ -2,6 +2,49 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.278.0] — 2026-10-02
+
+Tłumaczenie z Claude Desktop przez MCP — bez klucza API.
+
+Decyzje zgłaszającego (02.10): tłumaczy Claude z subskrypcji w Claude
+Desktop; zakres jak hurt AI; zapis z „Do sprawdzenia”; prawo jak zakładka
+Tłumaczenia; „Sprawdzone” zaznacza tylko człowiek; własna instrukcja
+w panelu (macOS) z przyciskiem „Zainstaluj” i hasłem aplikacji.
+
+### Dodane
+
+- **Zdolności Evoke dla MCP** (Abilities API w WordPressie + wtyczka
+  MCP Adapter, ta sama, którą zaleca Bricks). Claude Desktop widzi trzy
+  narzędzia wprost na domyślnym serwerze:
+  - `evoke-tlumaczenia-braki` — części stron z brakami w każdym języku
+    (treść Bricksa, teksty wpisu, SEO, pola Fields, kategorie, strony
+    ustawień, komponenty, alty) i lista języków;
+  - `evoke-tlumaczenia-pobierz` — porcja do 60 tekstów z kontekstem całej
+    części i instrukcjami (opis strony, wskazówki języka, słowniczek).
+    Teksty ze sprawdzonej pamięci tłumaczeń zapisują się same;
+  - `evoke-tlumaczenia-zapisz` — zapis ze znacznikiem „Do sprawdzenia”
+    i podpisem `mcp/…`. Odrzuca tłumaczenie ze zmienionymi znacznikami
+    HTML, tagami `{…}` albo shortcodami, tekst, którego oryginał zmienił
+    się od pobrania, i miejsca już sprawdzone albo wpisane ręcznie.
+- **Trzy gotowe polecenia** w Claude Desktop (menu „+”): „Przetłumacz
+  stronę”, „Przetłumacz wszystkie braki”, „Sprawdź tłumaczenia AI”.
+  Sprawdzanie przegląda tłumaczenia AI „Do sprawdzenia” (także z DeepL,
+  Gemini i OpenAI) i zapisuje tylko poprawki.
+- **Podzakładka „Claude Desktop”** w Tłumaczeniach:
+  - stan wymagań;
+  - przycisk „Zainstaluj MCP Adapter”, który pobiera paczkę wydania
+    z GitHuba i włącza ją;
+  - „Utwórz hasło aplikacji” — hasło pojawia się raz, od razu w gotowym
+    wpisie do `claude_desktop_config.json`;
+  - kroki dla macOS i przykładowe polecenia.
+
+### Zmienione
+
+- Sprawdzanie prawa do części strony przy kroku hurtu siedzi w jednej
+  funkcji, wspólnej dla panelu i MCP.
+- Przed wydaniem: testy ruszonych modułów i stały zestaw strażników,
+  a pełny przebieg przy pliku wspólnym i co piąte wydanie (CLAUDE.md).
+
 ## [1.277.0] — 2026-10-02
 
 DeepL jako czwarty dostawca tłumaczenia AI.

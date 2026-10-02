@@ -641,6 +641,7 @@ $TABS = [
     'tl-translations' => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-translations.php'],
     'tl-elementy'     => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-elementy.php'],
     'tl-ai'           => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-ai.php'],
+    'tl-mcp'          => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-mcp.php'],
     'tl-wpisy'        => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-wpisy.php'],
     'tl-images'       => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-images.php'],
     'tl-slugs'        => ['module' => 'TL', 'file' => 'includes/admin/tl/tab-slugs.php'],
@@ -1010,8 +1011,18 @@ require EVK_TEST_ROOT . '/includes/newsletter/' . $m;
        WordPressa z przyciskiem „Pobierz” — strażnicy panelu mają go widzieć.
        Atrapa: na serwerze nie ma żadnej paczki, więc oba języki mają przycisk. */
     if (!function_exists('get_available_languages')) { function get_available_languages($dir = null) { return []; } }
+    /* Claude Desktop (1.278.0, 63): bez MCP Adaptera i z hasłami aplikacji —
+       zakładka pokazuje przycisk „Zainstaluj” i aktywny przycisk hasła. */
+    if (!function_exists('get_plugins')) { function get_plugins($f = '') { return []; } }
+    if (!function_exists('is_plugin_active')) { function is_plugin_active($p) { return false; } }
+    if (!function_exists('wp_is_application_passwords_available_for_user')) { function wp_is_application_passwords_available_for_user($u) { return true; } }
+    if (!function_exists('wp_get_current_user')) { function wp_get_current_user() { return (object) ['ID' => 1, 'user_login' => 'admin']; } }
+    if (!function_exists('disabled')) { function disabled($a, $b = true, $echo = true) { $r = (string) $a === (string) $b ? ' disabled=\'disabled\'' : ''; if ($echo) echo $r; return $r; } }
+    if (!function_exists('esc_textarea')) { function esc_textarea($t) { return htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8'); } }
+    if (!function_exists('rest_url')) { function rest_url($p = '') { return 'https://strona.test/wp-json/' . ltrim((string) $p, '/'); } }
+    if (!function_exists('wp_parse_url')) { function wp_parse_url($u, $c = -1) { return parse_url((string) $u, $c); } }
     foreach (['includes/10-language-system.php', 'includes/13-jezyk-wordpressa.php', 'includes/30-admin-settings-ajax.php',
-              'includes/61-translation-ai.php', 'includes/admin/tl/bootstrap.php'] as $m) {
+              'includes/61-translation-ai.php', 'includes/63-translation-mcp.php', 'includes/admin/tl/bootstrap.php'] as $m) {
         require EVK_TEST_ROOT . '/' . $m;
     }
     $GLOBALS['options']['tl_languages'] = [

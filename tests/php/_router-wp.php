@@ -18,6 +18,9 @@ define('WP_SITEURL', $evk_adres);
    porównywane token po tokenie). Przed WordPressem, który inaczej ustawi
    SCRIPT_DEBUG na false. */
 if (getenv('EVK_SCRIPT_DEBUG') === '1') define('SCRIPT_DEBUG', true);
+/* Środowisko strony (tl-mcp, 1.278.0): hasła aplikacji WordPress daje tylko
+   przez HTTPS albo w środowisku „local” — a ten serwer mówi HTTP. */
+if (in_array(getenv('EVK_WP_SRODOWISKO'), ['local', 'development', 'staging'], true)) define('WP_ENVIRONMENT_TYPE', getenv('EVK_WP_SRODOWISKO'));
 /* Brakujący plik z kropką w ostatnim członie idzie do WordPressa, jak
    „!-f, !-d” z .htaccess. Wbudowany serwer podaje index.php tylko adresom
    BEZ kropki, więc /wp-sitemap-….xml (tam WordPress przekierowuje ?sitemap=…

@@ -85,6 +85,9 @@ const EVK_TL_AI_PORCJA = 25;
 const EVK_TL_AI_ZNAKI  = 6000;
 /** Kontekst: tyle tekstów wokół porcji (długie strony nie rosną bez końca). */
 const EVK_TL_AI_KONTEKST = 200;
+/** Porcja dla Claude Desktop przez MCP (1.278.0): mniej wywołań, większe okno modelu. */
+const EVK_TL_AI_MCP_PORCJA = 60;
+const EVK_TL_AI_MCP_ZNAKI  = 20000;
 /** Pamięć wyników: tyle ostatnich tłumaczeń. */
 const EVK_TL_AI_PAMIEC_MAX = 5000;
 /** Kopia wyczyszczonych tłumaczeń wpisu (1.264.0): klucz meta części →
@@ -468,6 +471,11 @@ function evk_tl_ai_szkielet(string $t): array {
     return [$tagi, $klamry, $kody];
 }
 
+/** Skrót oryginału przy pobraniu przez MCP (1.278.0) — zapis sprawdza, że tekst się nie zmienił. */
+function evk_tl_ai_skrot(string $pl): string {
+    return substr(md5($pl), 0, 8);
+}
+
 function evk_tl_ai_zgodne(string $pl, string $t): bool {
     return trim(wp_strip_all_tags($t)) !== '' && evk_tl_ai_szkielet($pl) === evk_tl_ai_szkielet($t);
 }
@@ -798,6 +806,15 @@ function evk_tl_ai_zapisz(int $post_id, string $meta_key, string $lang, array $g
  * ten sam model tłumaczy jeszcze raz, a nowy wynik zastępuje zapamiętany.
  * Pamięć tłumaczeń (sprawdzone tłumaczenie tego samego tekstu) działa dalej.
  *
+ * `mcp` (1.278.0, Claude Desktop przez MCP, 63): tłumaczy klient, nie API.
+ * Tryb `pobierz` — zapis tylko z pamięci tłumaczeń, a porcja (do
+ * EVK_TL_AI_MCP_PORCJA tekstów) wraca w `mcp` z kontekstem i instrukcjami.
+ * Tryb `zapisz` — `tlumaczenia` (klucz → `h` skrót oryginału, `t` tekst)
+ * zamiast odpowiedzi API, z tym samym strażnikiem szkieletu; oryginał
+ * zmieniony od pobrania (inny skrót) — `zmienione`, klucz spoza braków —
+ * `nieznane`. `od` — numer w kontekście, od którego dalej (pominięte przez
+ * klienta zostają za nim). Pamięci wyników tu nie ma: jest per dostawca API.
+ *
  * @param list<string>        $pomin
  * @param array<string,mixed> $opcje
  * @return array<string,mixed>
@@ -819,6 +836,8 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         return $w;
     }
     $u = evk_tl_ai_na_przebieg(evk_tl_ai_ustawienia(), (string) ($opcje['dostawca'] ?? ''), (string) ($opcje['model'] ?? ''));
+    $mcp = is_array($opcje['mcp'] ?? null) ? $opcje['mcp'] : null;
+    $podpis = $mcp ? 'mcp/' . (string) ($mcp['model'] ?? 'claude') : evk_tl_ai_podpis($u);
     $pola = $meta_key === EVK_TL_AI_POLA || $meta_key === EVK_TL_AI_POLA_TERMU;
     $obiekt = $meta_key === EVK_TL_AI_POLA_TERMU ? 'term' : 'post';
     $wpis = $meta_key === EVK_TL_AI_WPIS;
@@ -839,14 +858,32 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         : evk_tl_ai_teksty(get_post_meta($post_id, $meta_key, true), $lang, empty($opcje['ponownie']) ? null : evk_tl_ai_stan_czesci($post_id, $meta_key))))))));
     $braki = array_diff_key($t['braki'], array_flip($pomin));
     $wynik = ['zapisane' => 0, 'z_pamieci' => 0, 'z_ai' => 0, 'bez_zmian' => 0, 'odrzucone' => [], 'pominiete' => [], 'zapisane_klucze' => [], 'zostalo' => 0];
-    if (!$braki) return $wynik;
+    /* Licznik `zostalo` przy MCP: braki w trybie, w którym klient pobierał —
+       zapis przyjmuje też niesprawdzone AI (poprawki), ale bez `ai` ich nie liczy. */
+    $wszystkie = array_keys($mcp && empty($mcp['ai']) ? array_filter($braki, static function ($b) { return (string) $b['bylo'] === ''; }) : $braki);
+    $od_klienta = [];
+    if ($mcp) {
+        $od = (int) ($mcp['od'] ?? 0);
+        if ($od > 0) $braki = array_filter($braki, static function ($b) use ($od) { return (int) $b['n'] > $od; });
+        if (($mcp['tryb'] ?? '') === 'zapisz') {
+            $dane = is_array($mcp['tlumaczenia'] ?? null) ? $mcp['tlumaczenia'] : [];
+            $wynik['zmienione'] = [];
+            $wynik['nieznane'] = array_map('strval', array_keys(array_diff_key($dane, $braki)));
+            foreach ($braki as $k => $b) {
+                if (!isset($dane[$k])) { unset($braki[$k]); continue; }
+                if ((string) ($dane[$k]['h'] ?? '') !== evk_tl_ai_skrot($b['pl'])) { $wynik['zmienione'][] = $k; unset($braki[$k]); continue; }
+                $od_klienta[$k] = (string) ($dane[$k]['t'] ?? '');
+            }
+        }
+    }
+    if (!$braki) { $wynik['zostalo'] = $mcp ? count($wszystkie) : 0; return $wynik; }
 
     $gotowe = [];
     $ai = [];
     $rowne = [];
     foreach ($braki as $k => $b) {
         $z = evk_tl_ai_z_pamieci($b['pl'], $lang);
-        $w = $z === null && empty($opcje['bez_pamieci']) ? evk_tl_ai_wynik($u, $lang, $b['pl']) : null;
+        $w = $z === null && empty($opcje['bez_pamieci']) && !$mcp ? evk_tl_ai_wynik($u, $lang, $b['pl']) : null;
         if ($z === null && $w === null) continue;
         $gotowe[$k] = $z ?? $w;
         if ($gotowe[$k] === $b['bylo']) { $rowne[$k] = true; continue; }
@@ -862,19 +899,28 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     $porcja = [];
     $przerwa = null;
     $znaki = 0;
+    [$ile, $max] = $mcp ? [EVK_TL_AI_MCP_PORCJA, EVK_TL_AI_MCP_ZNAKI] : [EVK_TL_AI_PORCJA, EVK_TL_AI_ZNAKI];
     foreach ($reszta as $k => $b) {
-        if ($porcja && (count($porcja) >= EVK_TL_AI_PORCJA || $znaki + strlen($b['pl']) > EVK_TL_AI_ZNAKI)) break;
+        /* Zapis z MCP: wszystko, co przysłał klient — porcję wybrał przy pobraniu. */
+        if ($od_klienta) { $porcja[$k] = $b; continue; }
+        if ($porcja && (count($porcja) >= $ile || $znaki + strlen($b['pl']) > $max)) break;
         $porcja[$k] = $b;
         $znaki += strlen($b['pl']);
     }
-    if ($porcja) {
+    if ($porcja && $mcp && ($mcp['tryb'] ?? '') !== 'zapisz') {
+        /* Pobranie: porcja do klienta, zapis niżej tylko z pamięci. */
+        $tytul = $kp ? 'Komponent: ' . evk_tl_kp_nazwa($kp) : ($gk !== '' ? evk_tl_ai_tytul_opcji($gk) : evk_tl_ai_tytul_czesci($post_id, $meta_key));
+        $wynik['mcp'] = ['tytul' => $tytul, 'kontekst' => $t['kontekst'], 'porcja' => $porcja];
+        $porcja = [];
+    } elseif ($porcja) {
         $krotkie = [];
         $n = 0;
         foreach ($porcja as $k => $b) $krotkie['t' . (++$n)] = $k;
         $tresc = [];
         foreach ($krotkie as $kr => $k) $tresc[$kr] = $porcja[$k];
         $tytul = $kp ? 'Komponent: ' . evk_tl_kp_nazwa($kp) : ($gk !== '' ? evk_tl_ai_tytul_opcji($gk) : evk_tl_ai_tytul_czesci($post_id, $meta_key));
-        $r = evk_tl_ai_porcja($u, $lang, $tytul, $t['kontekst'], $tresc);
+        $r = $od_klienta ? ['ok' => true, 'tlumaczenia' => array_map(static function ($k) use ($od_klienta) { return $od_klienta[$k]; }, $krotkie)]
+            : evk_tl_ai_porcja($u, $lang, $tytul, $t['kontekst'], $tresc);
         /* Uwaga bez przerwy (glosariusz DeepL nie powstał) — do dziennika jak błąd porcji. */
         if (!empty($r['uwaga'])) $wynik['blad'] = (string) $r['uwaga'];
         if (!$r['ok'] && (!empty($r['stop']) || !empty($r['czekaj']))) {
@@ -902,7 +948,7 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
                 $ai[$k] = true;
                 $wynik['z_ai']++;
             }
-            evk_tl_ai_zapamietaj($pamiec);
+            if (!$mcp) evk_tl_ai_zapamietaj($pamiec);
         }
     }
     /* Wynik równy obecnemu tekstowi nie ma czego zapisać. Zastępowane
@@ -912,16 +958,18 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
     foreach (array_keys($gotowe) as $k) {
         if ($braki[$k]['bylo'] !== '') $bylo[$k] = $braki[$k]['bylo'];
     }
-    $wynik['zapisane_klucze'] = $kp ? evk_tl_ai_zapisz_komponent((string) $kp['id'], $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo)
+    $wynik['zapisane_klucze'] = $kp ? evk_tl_ai_zapisz_komponent((string) $kp['id'], $lang, $gotowe, $ai, $podpis, $bylo)
         : ($gk !== '' ? evk_tl_ai_zapisz_pola_opcji($gk, $lang, $gotowe, $ai, $braki) : ($alt ? evk_tl_ai_zapisz_alt($lang, $gotowe, $ai, $braki) : ($pola ? evk_tl_ai_zapisz_pola($post_id, $lang, $gotowe, $ai, $braki, $obiekt)
         : ($wpis ? evk_tl_ai_zapisz_wpis($post_id, $lang, $gotowe, $ai, $braki)
         : ($term ? evk_tl_ai_zapisz_term($post_id, $lang, $gotowe, $ai, $braki)
         : ($seo ? evk_tl_ai_zapisz_seo($post_id, $lang, $gotowe, $ai, $braki)
-        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, evk_tl_ai_podpis($u), $bylo)))))));
+        : evk_tl_ai_zapisz($post_id, $meta_key, $lang, $gotowe, $ai, $podpis, $bylo)))))));
     $wynik['zapisane'] = count($wynik['zapisane_klucze']);
     $wynik['bez_zmian'] = count($rowne);
     $wynik['pominiete'] = array_keys($rowne);
-    $wynik['zostalo'] = count($reszta) - count($porcja);
+    /* MCP: wszystko, co po tym wywołaniu zostaje bez tłumaczenia w tej części
+       (pominięte przez klienta i odrzucone też) — zero kończy część. */
+    $wynik['zostalo'] = $mcp ? count(array_diff($wszystkie, $wynik['zapisane_klucze'], $wynik['pominiete'])) : count($reszta) - count($porcja);
     return $przerwa ? $wynik + $przerwa : $wynik;
 }
 
@@ -2775,35 +2823,50 @@ add_action('wp_ajax_evk_tl_ai_lista', function (): void {
     wp_send_json_success(evk_tl_ai_jednostki(($_POST['tryb'] ?? '') === 'ponownie', evk_tl_ai_zakres_z($_POST['zakres'] ?? [])));
 });
 
-/** Jeden krok tłumaczenia. */
-add_action('wp_ajax_evk_tl_ai_krok', function (): void {
-    evk_tl_ajax_check('evk_tl_ai');
-    $post_id = absint($_POST['post_id'] ?? 0);
-    $meta_key = sanitize_text_field(wp_unslash((string) ($_POST['meta_key'] ?? '')));
-    $lang = sanitize_key((string) ($_POST['lang'] ?? ''));
-    /* Termy (1.270.0): identyfikator termu w `post_id`, prawo edycji termu.
-       Obrazy (1.271.0): porcja od `post_id` do `do`, prawo wgrywania plików
-       (każdy obraz — jeszcze prawo jego edycji przy zapisie). */
+/**
+ * Czy bieżący użytkownik może tłumaczyć tę część w tym języku — wspólne dla
+ * kroku z panelu i zdolności MCP (63, 1.278.0). Termy (1.270.0): identyfikator
+ * termu w `post_id`, prawo edycji termu. Obrazy (1.271.0): porcja od `post_id`
+ * do `do`, prawo wgrywania plików (każdy obraz — jeszcze prawo jego edycji
+ * przy zapisie). Grupa strony ustawień i komponent (1.272.0): bez wpisu —
+ * klucz w `opcje`.
+ *
+ * @return array{ok:bool,blad:string,kod:int,post_id:int,lang:string,gk:string}
+ */
+function evk_tl_ai_jednostka_dozwolona(int $post_id, string $meta_key, string $lang, string $opcje): array {
+    $nie = static function (string $blad, int $kod = 400) use ($post_id, $lang): array {
+        return ['ok' => false, 'blad' => $blad, 'kod' => $kod, 'post_id' => $post_id, 'lang' => $lang, 'gk' => ''];
+    };
     $term = $meta_key === EVK_TL_AI_TERM || $meta_key === EVK_TL_AI_POLA_TERMU;
     $obrazy = in_array($meta_key, [EVK_TL_AI_ALT, EVK_TL_AI_ALT_PL], true);
     if ($obrazy && $lang === 'pl' && $meta_key === EVK_TL_AI_ALT_PL) $lang = (string) array_key_first(tl_get_languages());
     $czesc_ok = $term || ($obrazy && evk_tl_ai_alt_dostepne()) || in_array($meta_key, evk_tl_el_klucze_meta(), true) || ($meta_key === EVK_TL_AI_POLA && evk_tl_ai_pola_dostepne())
         || (in_array($meta_key, [EVK_TL_AI_WPIS, EVK_TL_AI_SEO], true) && function_exists('evk_tlw_typy') && in_array((string) get_post_type($post_id), evk_tlw_typy(), true));
-    /* Grupa strony ustawień (1.272.0): bez wpisu — klucz grupy w `opcje`, prawo strony ustawień. */
     $kpk = defined('EVK_TL_KP') && $meta_key === EVK_TL_KP;
-    $gk = $meta_key === EVK_TL_AI_POLA_OPCJI || $kpk ? sanitize_key(wp_unslash((string) ($_POST['opcje'] ?? ''))) : '';
+    $gk = $meta_key === EVK_TL_AI_POLA_OPCJI || $kpk ? sanitize_key($opcje) : '';
     if ($gk !== '') {
-        if (!isset(tl_get_languages()[$lang])) wp_send_json_error('Nieznana strona albo język.');
+        if (!isset(tl_get_languages()[$lang])) return $nie('Nieznana strona albo język.');
         /* Komponent (1.272.0): globalny dla strony — prawo administratora. */
-        if ($kpk && (!current_user_can('manage_options') || !evk_tl_kp_komponent($gk))) wp_send_json_error('Brak uprawnień do komponentów.', 403);
-        if ($meta_key === EVK_TL_AI_POLA_OPCJI && evk_tl_ai_grupa_opcji($gk) === null) wp_send_json_error('Brak uprawnień do tej strony ustawień.', 403);
+        if ($kpk && (!current_user_can('manage_options') || !evk_tl_kp_komponent($gk))) return $nie('Brak uprawnień do komponentów.', 403);
+        if ($meta_key === EVK_TL_AI_POLA_OPCJI && evk_tl_ai_grupa_opcji($gk) === null) return $nie('Brak uprawnień do tej strony ustawień.', 403);
         $post_id = 0;
     } elseif (!$post_id || !$czesc_ok || !isset(tl_get_languages()[$lang])) {
-        wp_send_json_error('Nieznana strona albo język.');
+        return $nie('Nieznana strona albo język.');
     }
     if ($gk === '' && ($term ? !evk_tl_ai_term_do_kroku($post_id, $meta_key) : ($obrazy ? !current_user_can('upload_files') : !current_user_can('edit_post', $post_id)))) {
-        wp_send_json_error('Brak uprawnień do tej strony.', 403);
+        return $nie('Brak uprawnień do tej strony.', 403);
     }
+    return ['ok' => true, 'blad' => '', 'kod' => 200, 'post_id' => $post_id, 'lang' => $lang, 'gk' => $gk];
+}
+
+/** Jeden krok tłumaczenia. */
+add_action('wp_ajax_evk_tl_ai_krok', function (): void {
+    evk_tl_ajax_check('evk_tl_ai');
+    $meta_key = sanitize_text_field(wp_unslash((string) ($_POST['meta_key'] ?? '')));
+    $j = evk_tl_ai_jednostka_dozwolona(absint($_POST['post_id'] ?? 0), $meta_key, sanitize_key((string) ($_POST['lang'] ?? '')),
+        (string) wp_unslash($_POST['opcje'] ?? ''));
+    if (!$j['ok']) wp_send_json_error($j['blad'], $j['kod'] === 403 ? 403 : null);
+    [$post_id, $lang, $gk] = [$j['post_id'], $j['lang'], $j['gk']];
     $pomin = array_values(array_filter(array_map('strval', (array) wp_unslash($_POST['pomin'] ?? []))));
     /* Dostawca i model przebiegu (1.262.0): tylko na to żądanie, ustawienia
        bez zmian. Dostawca bez klucza kończy się stopem „Brak klucza API”. */
