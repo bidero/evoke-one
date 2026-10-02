@@ -198,14 +198,14 @@ stacking-cards i całego panelu nie widziały tych zmian ani razu. Wyszło na
 zielono, ale to był łut szczęścia, nie wynik.
 
 Pełny przebieg idzie **partiami po ~600 s**, bo kontener usypia między turami.
-Podział, który się mieści (145 plików, sześć partii; testy kopii trwają
+Podział, który się mieści (144 pliki, sześć partii; testy kopii trwają
 razem ok. 11 min, więc idą w dwóch osobnych — panelowe w przeglądarce osobno):
 
 ```
 node tests/run.js backup-panel
 node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp
 node tests/run.js admin- anim animator aria bg-shift bricks-builder bricks-render bricks-required builder-context burger circular-menu controls
-node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee minifikacja motion naglowki
+node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee minifikacja motion naglowki rest-api
 node tests/run.js fields- newsletter odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs wave-bg
 ```
@@ -217,7 +217,9 @@ w sesji głównej, jak dotąd. Sesja główna pracuje dalej, zamiast czekać ~65
 1. Commit wydania (z podbitą wersją) idzie na gałąź KANDYDATA, np.
    `claude/kandydat-1.281.0` — aktualizator śledzi tylko gałąź roboczą,
    więc kandydat nie jedzie na strony.
-2. Trzy sesje w chmurze (`create_session`, ten sam model, `source_revision`
+2. Trzy sesje w chmurze (`create_session`, model **Sonnet 5.5** — przebieg
+   to puszczenie partii i odczyt wyniku, nie potrzeba modelu sesji głównej
+   (decyzja zgłaszającego, 02.10); `source_revision`
    = gałąź kandydata), każda ze swoim kontenerem i środowiskiem
    (`apt-get install -y mariadb-server`, klony `../evoke-fields`
    i `../bricks-motyw`, `tools/testowy-wp.sh`): A = partie 1 i 4,
@@ -239,7 +241,7 @@ backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serial
 backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-builder bricks-render bricks-required builder-context
 burger circular-menu controls darkmode drobiazgi fields- grain hscroll inbox ip-klienta
 konserwacja kursor loop marquee minifikacja motion newsletter odpornosc odswiezanie
-offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji naglowki
+offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji naglowki rest-api
 przelaczniki rewizje schema-graf scroll-lock seo-meta settings-save sierotki
 sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs
 wave-bg"

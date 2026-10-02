@@ -40,10 +40,59 @@ function evk_security_sanitize($input): array {
         'hide_wp_version'         => !empty($input['hide_wp_version'])         ? 1 : 0,
         'disable_bundled_themes'  => !empty($input['disable_bundled_themes'])  ? 1 : 0,
         'rest_block_all'          => !empty($input['rest_block_all'])          ? 1 : 0,
-        'disabled_rest_endpoints' => isset($input['disabled_rest_endpoints']) && is_array($input['disabled_rest_endpoints'])
-            ? array_map('sanitize_text_field', $input['disabled_rest_endpoints'])
-            : [],
+        'disabled_rest_endpoints' => evk_security_trasy_rest($input['disabled_rest_endpoints'] ?? []),
+        'rest_uzytkownicy'        => array_key_exists('rest_uzytkownicy', $input) ? (!empty($input['rest_uzytkownicy']) ? 1 : 0) : 1,
+        'rest_wyjatki'            => evk_security_wyjatki_rest($input['rest_wyjatki'] ?? EVK_REST_WYJATKI),
     ] + evk_security_sanitize_proxy($input) + evk_security_sanitize_naglowki($input);
+}
+
+/**
+ * REST (1.281.0): przestrzenie tras dostępne dla gości mimo blokady całego
+ * REST API — front ich potrzebuje: AJAX-owe pętle, filtry i stronicowanie
+ * Bricksa, koszyk WooCommerce (Store API), formularze Contact Form 7, oEmbed,
+ * statystyki Evoke.
+ */
+const EVK_REST_WYJATKI = ['bricks/v1', 'wc/store', 'contact-form-7/v1', 'oembed/1.0', 'evoke/v1'];
+
+/**
+ * Trasy REST do blokowania — w DOKŁADNYM brzmieniu z serwera REST. Do 1.280.0
+ * szły przez sanitize_text_field() bez zdjęcia ukośników: „(?P<id>[\d]+)”
+ * tracił „<id>” i dostawał podwójne ukośniki, więc trasa z parametrem
+ * (np. /wp/v2/users/(?P<id>[\d]+) — wyliczanie użytkowników) NIGDY nie była
+ * blokowana, a panel pokazywał ją jako odznaczoną.
+ *
+ * @param mixed $trasy Lista już bez ukośników magic quotes.
+ * @return list<string>
+ */
+function evk_security_trasy_rest($trasy): array {
+    /* Po `init` serwer REST zna trasy wszystkich wtyczek (rest_get_server() sam odpala rest_api_init);
+       wcześniej — bez sprawdzania istnienia, tylko kształt. */
+    $znane = function_exists('rest_get_server') && did_action('init') ? array_keys(rest_get_server()->get_routes()) : null;
+    $out = [];
+    foreach ((array) $trasy as $t) {
+        $t = (string) $t;
+        if ($t === '' || strlen($t) > 300 || $t[0] !== '/' || preg_match('/[\x00-\x1f]/', $t)) continue;
+        if ($znane !== null && !in_array($t, $znane, true)) continue;
+        $out[] = $t;
+    }
+    return array_values(array_unique($out));
+}
+
+/**
+ * Wyjątki blokady REST: przestrzenie tras (np. „bricks/v1”), z pola tekstowego
+ * (linia na przestrzeń) albo listy.
+ *
+ * @param mixed $w
+ * @return list<string>
+ */
+function evk_security_wyjatki_rest($w): array {
+    $linie = is_array($w) ? $w : preg_split('/[\r\n,]+/', (string) $w);
+    $out = [];
+    foreach ((array) $linie as $l) {
+        $l = trim(strtolower((string) $l), " \t/");
+        if ($l !== '' && preg_match('#^[a-z0-9._-]+(/[a-z0-9._-]+)*$#', $l)) $out[] = $l;
+    }
+    return array_values(array_unique($out));
 }
 
 /* Nagłówki bezpieczeństwa (1.280.0): stałe i domyślne funkcje — tu, a nie
@@ -111,6 +160,9 @@ function evk_security_get(): array {
         'disable_bundled_themes'  => 0,
         'rest_block_all'          => 0,
         'disabled_rest_endpoints' => [],
+        /* REST (1.281.0): wyliczanie użytkowników zablokowane domyślnie (decyzja 02.10). */
+        'rest_uzytkownicy'        => 1,
+        'rest_wyjatki'            => EVK_REST_WYJATKI,
         'proxy_tryb'              => 'brak',
         'proxy_zaufane'           => '',
         /* Nagłówki (1.280.0): domyślnie włączone, poza HSTS. */
@@ -159,11 +211,12 @@ function evk_security_sanitize_section(string $section, array $raw): array {
                 'limit_login_message' => evk_security_sanitize_message($raw['limit_login_message'] ?? ''),
             ] + (isset($raw['proxy_tryb']) ? evk_security_sanitize_proxy(wp_unslash($raw)) : []);
         case 'rest':
+            $raw = wp_unslash($raw);
             return [
                 'rest_block_all'          => !empty($raw['rest_block_all']) ? 1 : 0,
-                'disabled_rest_endpoints' => isset($raw['disabled_rest_endpoints']) && is_array($raw['disabled_rest_endpoints'])
-                    ? array_map('sanitize_text_field', $raw['disabled_rest_endpoints'])
-                    : [],
+                'disabled_rest_endpoints' => evk_security_trasy_rest(is_array($raw['disabled_rest_endpoints'] ?? null) ? $raw['disabled_rest_endpoints'] : []),
+                'rest_uzytkownicy'        => !empty($raw['rest_uzytkownicy']) ? 1 : 0,
+                'rest_wyjatki'            => evk_security_wyjatki_rest($raw['rest_wyjatki'] ?? ''),
             ];
         case 'naglowki':
             /* Pola wyboru niezaznaczone przychodzą jako 0, lista funkcji — pusta lista. */

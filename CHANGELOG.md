@@ -2,6 +2,43 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.281.0] — 2026-10-02
+
+Poprawka bezpieczeństwa REST API: zaznaczone trasy z parametrem nie były
+blokowane, blokada całości ma wyjątki, a wyliczanie kont jest zablokowane
+domyślnie.
+
+### Naprawione
+
+- **Trasy z parametrem w Bezpieczeństwo → REST API.** Zapis przepuszczał
+  trasy przez `sanitize_text_field()`, który traktuje `<id>` jak znacznik
+  HTML. Z `/wp/v2/users/(?P<id>[\d]+)` zostawało `(?P[\\d]+)`, więc wzór
+  przestawał pasować i gość dalej dostawał konto z `/wp/v2/users/1`. Pole
+  po przeładowaniu było odznaczone. Teraz trasa zapisuje się dokładnie,
+  a zapis przyjmuje tylko trasy, które serwer REST zna. Stare, zepsute
+  wpisy znikają przy pierwszym zapisie zakładki.
+
+### Dodane
+
+- **Wyjątki od blokady całości.** Pole w zakładce, przestrzeń tras
+  w linii. Domyślnie: `bricks/v1` (pętle, filtry i stronicowanie AJAX),
+  `wc/store` (koszyk), `contact-form-7/v1`, `oembed/1.0` i `evoke/v1`.
+  Bez nich te funkcje nie działały dla gości przy włączonej blokadzie.
+- **Blokuj wyliczanie użytkowników**, domyślnie włączone (decyzja z 02.10).
+  Działa tylko dla gości, zalogowani i hasła aplikacji przechodzą.
+  - `/wp/v2/users` i `/wp/v2/users/ID` odpowiadają 401.
+  - `?author=N` daje 404 zamiast przekierowania na `/author/login`.
+  - Mapa strony WordPressa nie wymienia autorów.
+
+### Testy
+
+- `rest-api` (24 sprawdzenia): prawdziwe odpowiedzi testowego WordPressa
+  przez `php -S`, zapis AJAX-em i z zakładki w Chromium. Sprawdzenie, że
+  trasa z parametrem jest dalej zaznaczona po przeładowaniu, zapala się na
+  kodzie sprzed poprawki. Sonda włącza autorów w module mapy strony, bo ten
+  domyślnie sam ich wyklucza, a wtedy sprawdzenie mapy przechodziłoby na
+  pusto.
+
 ## [1.280.0] — 2026-10-02
 
 Google Cloud Translation v3 jako piąty dostawca, nagłówki bezpieczeństwa

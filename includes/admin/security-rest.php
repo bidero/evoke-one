@@ -22,6 +22,30 @@ if (!defined('ABSPATH')) exit;
         </div>
     </div>
 
+    <?php /* Wyjątki blokady (1.281.0): front potrzebuje tych przestrzeni także dla gości. */ ?>
+    <div class="evo-field evo-mb">
+        <label for="evk-rest-wyjatki">Wyjątki od blokady całości (przestrzeń tras w linii)</label>
+        <textarea id="evk-rest-wyjatki" name="evk_security[rest_wyjatki]" rows="4" spellcheck="false"><?php echo esc_textarea(implode("\n", (array) ($evk_sec['rest_wyjatki'] ?? []))); ?></textarea>
+        <p class="evo-desc">Domyślnie: <code><?php echo esc_html(implode('</code>, <code>', EVK_REST_WYJATKI)); ?></code> — AJAX-owe pętle, filtry
+        i stronicowanie Bricksa, koszyk WooCommerce, formularze Contact Form 7, osadzanie (oEmbed), statystyki Evoke. Bez nich te funkcje nie działają dla gości.</p>
+    </div>
+
+    <div class="evo-status-card evo-mb">
+        <div class="evo-status-icon <?php echo !empty($evk_sec['rest_uzytkownicy']) ? 'on' : 'off'; ?>">
+            <span class="dashicons dashicons-admin-users evo-ico-lg"></span>
+        </div>
+        <div class="evo-status-text">
+            <h3>Blokuj wyliczanie użytkowników</h3>
+            <p>Gość nie pobierze listy kont (<code>/wp/v2/users</code>, <code>/wp/v2/users/ID</code>), <code>?author=N</code> daje 404, a mapa strony WordPressa nie wymienia autorów.</p>
+        </div>
+        <div class="evo-status-actions">
+            <label class="evo-toggle">
+                <input aria-label="Blokuj wyliczanie użytkowników" type="checkbox" name="evk_security[rest_uzytkownicy]" value="1" <?php checked(1, $evk_sec['rest_uzytkownicy'] ?? 1); ?>>
+                <span class="evo-slider"></span>
+            </label>
+        </div>
+    </div>
+
     <details class="evo-note"><summary>Jak to działa</summary><div class="evo-note-body">Lub zaznacz konkretne endpointy. Zalogowani użytkownicy zawsze mają dostęp.</div></details>
 
     <?php

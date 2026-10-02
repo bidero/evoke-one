@@ -8,65 +8,56 @@ if (!defined('ABSPATH')) exit;
  */
 
 // =========================================================================
-// SANITIZE — dodane do evk_security_sanitize w settings.php
-// =========================================================================
-
-add_filter('evk_security_sanitize_extra', function (array $clean, array $input): array {
-    $clean['rest_block_all']       = !empty($input['rest_block_all'])       ? 1 : 0;
-    $clean['disabled_rest_endpoints'] = isset($input['disabled_rest_endpoints']) && is_array($input['disabled_rest_endpoints'])
-        ? array_map('sanitize_text_field', $input['disabled_rest_endpoints'])
-        : [];
-    return $clean;
-}, 10, 2);
-
-// =========================================================================
 // BLOKOWANIE
 // =========================================================================
 
-// Używamy rest_pre_dispatch — odpala się dla każdego requestu REST po routingu
-// Działa też dla /wp-json (index) i wszystkich endpointów
-add_filter('rest_pre_dispatch', function ($result, $server, $request) {
-    // Pomiń zalogowanych
-    if (is_user_logged_in()) return $result;
-
-    $s = evk_security_get();
-
-    // Opcja 1: zablokuj cały REST API
+/**
+ * Czy trasa jest zablokowana dla gościa — kod błędu albo null (1.281.0).
+ * Kolejność: wyliczanie użytkowników, blokada całości (poza wyjątkami),
+ * wybrane trasy. Trasy z listy dopasowane jak w rdzeniu (`@^…$@i`).
+ *
+ * @param array<string,mixed> $s Ustawienia z evk_security_get().
+ */
+function evk_rest_zablokowany(string $trasa, array $s): ?string {
+    if (!empty($s['rest_uzytkownicy']) && preg_match('#^/wp/v2/users(/|$)#i', $trasa)) return 'evk_rest_users';
     if (!empty($s['rest_block_all'])) {
-        return new WP_Error(
-            'evk_rest_disabled',
-            'Access Denied',
-            ['status' => 401]
-        );
-    }
-
-    // Opcja 2: zablokuj wybrane endpointy
-    $disabled = $s['disabled_rest_endpoints'] ?? [];
-    if (empty($disabled)) return $result;
-
-    $route = $request->get_route();
-
-    foreach ($disabled as $pattern) {
-        // Exact match
-        if ($route === $pattern) {
-            return new WP_Error(
-                'evk_rest_forbidden',
-                'Access Denied',
-                ['status' => 401]
-            );
+        foreach ((array) ($s['rest_wyjatki'] ?? []) as $ns) {
+            $ns = '/' . trim((string) $ns, '/');
+            if ($ns !== '/' && ($trasa === $ns || strpos($trasa, $ns . '/') === 0)) return null;
         }
-        // Pattern match — endpointy z parametrami np. /wp/v2/posts/(?P<id>\d+)
-        if (!empty($pattern) && @preg_match('#^' . $pattern . '$#', $route)) {
-            return new WP_Error(
-                'evk_rest_forbidden',
-                'Access Denied',
-                ['status' => 401]
-            );
-        }
+        return 'evk_rest_disabled';
     }
+    foreach ((array) ($s['disabled_rest_endpoints'] ?? []) as $wzor) {
+        $wzor = (string) $wzor;
+        if ($wzor === '') continue;
+        if ($trasa === $wzor || @preg_match('@^' . $wzor . '$@i', $trasa)) return 'evk_rest_forbidden';
+    }
+    return null;
+}
 
-    return $result;
+/* rest_pre_dispatch — po rozpoznaniu użytkownika (także hasłem aplikacji),
+   dla każdej trasy i indeksu /wp-json. Zalogowani — zawsze przechodzą. */
+add_filter('rest_pre_dispatch', function ($result, $server, $request) {
+    if (is_user_logged_in()) return $result;
+    $kod = evk_rest_zablokowany((string) $request->get_route(), evk_security_get());
+    return $kod === null ? $result : new WP_Error($kod, 'Access Denied', ['status' => 401]);
 }, 10, 3);
+
+/* Wyliczanie użytkowników poza REST (1.281.0): `?author=N` przekierowuje
+   na /author/login — dla gościa 404; mapa strony WordPressa bez autorów. */
+add_action('template_redirect', function (): void {
+    if (is_user_logged_in() || !isset($_GET['author']) || !is_numeric($_GET['author'])) return;
+    $s = evk_security_get();
+    if (empty($s['rest_uzytkownicy'])) return;
+    global $wp_query;
+    $wp_query->set_404();
+    status_header(404);
+    nocache_headers();
+}, 1);
+add_filter('wp_sitemaps_add_provider', function ($provider, $name) {
+    if ($name === 'users' && !empty(evk_security_get()['rest_uzytkownicy'])) return false;
+    return $provider;
+}, 10, 2);
 
 // =========================================================================
 // HELPER — pobierz endpointy pogrupowane po namespace (dla UI ustawień)
