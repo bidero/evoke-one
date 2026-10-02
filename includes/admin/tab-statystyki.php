@@ -181,7 +181,7 @@ $evk_on  = !empty($evk_st['enabled']);
                 cele.push({ id: w.data('id') || '', nazwa: w.find('.evk-cel-nazwa').val(), typ: w.find('.evk-cel-typ').val(), wartosc: w.find('.evk-cel-wartosc').val() });
             });
             $.post(ajaxurl, { action: 'evk_stat_cele', nonce: <?php echo wp_json_encode(wp_create_nonce('evk_stat')); ?>, cele: JSON.stringify(cele) }).done(function (r) {
-                if (r && r.success) { $('.evk-stat-cele-stan').text('Zapisano celów: ' + r.data.length + '.'); window.location.reload(); }
+                if (r && r.success) { $('.evk-stat-cele-stan').text('✓ Zapisano celów: ' + r.data.length + '.'); window.location.reload(); }
                 else $('.evk-stat-cele-stan').text((r && r.data) || 'Błąd zapisu.');
             });
         });
