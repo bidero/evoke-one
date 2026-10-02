@@ -2,6 +2,56 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.277.0] — 2026-10-02
+
+DeepL jako czwarty dostawca tłumaczenia AI.
+
+Decyzje zgłaszającego (02.10): klucz Free i Pro, formalność dla każdego
+języka, słowniczek jako glosariusz, `tag_handling=html`, wariant języka
+z kodu HTML. DeepL stoi w tym samym wyborze co Gemini, Claude i OpenAI.
+
+### Dodane
+
+- **DeepL w Tłumaczeniu AI.** Hurt („Przetłumacz strony”), „Przetłumacz
+  ponownie”, okienko sprawdzania na stronie i ✦ w builderze idą przez
+  DeepL tak samo jak przez modele AI, z tym samym strażnikiem znaczników
+  i z pamięcią wyników.
+  - Klucz kończący się na `:fx` idzie na `api-free.deepl.com`, każdy inny
+    na `api.deepl.com`. W „Do sprawdzenia” podpis to `deepl/free` albo
+    `deepl/pro`.
+  - Wariant języka bierze się z kodu HTML (`en-US` → EN-US, `pt-BR` →
+    PT-BR). Kod bez regionu daje odmianę europejską: EN-GB, PT-PT.
+  - Formalność ustawiasz osobno dla każdego języka (domyślna, formalna,
+    nieformalna). DeepL stosuje ją tam, gdzie język ją zna.
+  - Słowniczek idzie jako glosariusz DeepL: pary i nazwy „!” (nie
+    tłumaczyć). Glosariusz powstaje raz, a przy zmianie słowniczka stary
+    jest usuwany i powstaje nowy. Gdy DeepL go odrzuci, tłumaczenie idzie
+    bez glosariusza, z uwagą w dzienniku.
+  - `tag_handling=html`. Tagi `{…}` i shortcody DeepL zostawia nietknięte,
+    a nowe linie wracają na swoje miejsce. W tekście bez znaczników
+    (tytuł, przycisk) `&` nie zamienia się na `&amp;`.
+  - Kontekst części strony idzie w parametrze `context`, który DeepL nie
+    liczy do limitu znaków. Opis strony i wskazówki dla języków DeepL
+    pomija, bo nie bierze promptu.
+  - Błędy: limit znaków (456) i zły klucz zatrzymują przebieg, przy
+    limicie zapytań przebieg czeka.
+- **„Opisy obrazów”** — przy DeepL opis obrazu (alt z AI) idzie przez model
+  AI wybrany w tym polu, a bez wyboru przez pierwszy z kluczem. Bez żadnego
+  klucza AI pojawia się komunikat.
+
+### Testy
+
+- `tl-deepl` (nowy): warianty, zapis ustawień przez AJAX, Free i Pro,
+  formalność, glosariusz (utworzenie, ponowne użycie, wymiana, błąd),
+  ochrona tagów i nowych linii, encje, kontekst, błędy 456, 403 i 429,
+  jeden tekst, builder, opis obrazu. DeepL działa przez atrapę na
+  prawdziwych adresach API.
+
+### Do sprawdzenia na testowej
+
+- Pierwsze prawdziwe połączenie z DeepL twoim kluczem (Free albo Pro):
+  przetłumacz jedną stronę i sprawdź glosariusz i formalność.
+
 ## [1.276.0] — 2026-10-02
 
 Poprawki z przeglądu buildera i Scroll Reading przy redukcji ruchu.

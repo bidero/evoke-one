@@ -57,6 +57,48 @@ function evk_t_ai_odpowiedz(int $kod, $cialo, array $naglowki = []): array {
         'response' => ['code' => $kod, 'message' => $kod === 200 ? 'OK' : 'Error'], 'cookies' => [], 'filename' => null];
 }
 
+/*
+ * DeepL (1.277.0): /v2/translate, /v2/glossaries (POST, DELETE). Tłumaczenie
+ * atrapy dostaje przedrostek z kodem DOCELOWYM („EN-GB:”) — test widzi wariant.
+ * Jak prawdziwy DeepL w trybie HTML: elementy z `translate="no"` zostają
+ * nietknięte, a „&” w tekście wraca jako „&amp;”.
+ * Scenariusze: deepl-456 | deepl-403 | deepl-429 | deepl-glosariusz-blad.
+ */
+function evk_t_ai_deepl_tlumacz(string $t, string $kod): string {
+    $chron = [];
+    $t = (string) preg_replace_callback('~<([a-z][a-z0-9]*)[^>]*translate="no"[^>]*>.*?</\1>~is', static function ($m) use (&$chron) {
+        $chron[] = $m[0];
+        return '<evk-chron-' . (count($chron) - 1) . '>';
+    }, $t);
+    $t = substr((string) preg_replace_callback('/>([^<]+)</u', static function ($m) use ($kod) {
+        return '>' . $kod . ':' . str_replace('&', '&amp;', html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8')) . '<';
+    }, '>' . $t . '<'), 1, -1);
+    return (string) preg_replace_callback('~<evk-chron-(\d+)>~', static function ($m) use ($chron) { return $chron[(int) $m[1]]; }, $t);
+}
+
+add_filter('pre_http_request', function ($pre, $args, $url) {
+    if (strpos($url, 'deepl.com/') === false) return $pre;
+    $cialo = json_decode((string) ($args['body'] ?? ''), true);
+    $metoda = strtoupper((string) ($args['method'] ?? 'POST'));
+    $GLOBALS['evk_t_ai_zadania'][] = ['url' => $url, 'metoda' => $metoda, 'headers' => (array) ($args['headers'] ?? []), 'body' => $cialo];
+    $s = (string) ($GLOBALS['evk_t_ai_scenariusz'] ?? 'ok');
+    if (strpos($url, '/v2/glossaries') !== false) {
+        if ($metoda === 'DELETE') return evk_t_ai_odpowiedz(204, '');
+        if ($s === 'deepl-glosariusz-blad') return evk_t_ai_odpowiedz(400, ['message' => 'Unsupported glossary language pair']);
+        $GLOBALS['evk_t_ai_glosariusze'] = (int) ($GLOBALS['evk_t_ai_glosariusze'] ?? 0) + 1;
+        return evk_t_ai_odpowiedz(201, ['glossary_id' => 'gl-' . md5((string) ($cialo['entries'] ?? '') . microtime()), 'ready' => true,
+            'name' => (string) ($cialo['name'] ?? ''), 'source_lang' => 'pl', 'target_lang' => (string) ($cialo['target_lang'] ?? ''),
+            'entry_count' => substr_count((string) ($cialo['entries'] ?? ''), "\n")]);
+    }
+    if ($s === 'deepl-456') return evk_t_ai_odpowiedz(456, ['message' => 'Quota exceeded']);
+    if ($s === 'deepl-403') return evk_t_ai_odpowiedz(403, ['message' => 'Wrong endpoint']);
+    if ($s === 'deepl-429') return evk_t_ai_odpowiedz(429, ['message' => 'Too many requests'], ['retry-after' => '9']);
+    $kod = (string) ($cialo['target_lang'] ?? '?');
+    $tl = [];
+    foreach ((array) ($cialo['text'] ?? []) as $t) $tl[] = ['detected_source_language' => 'PL', 'text' => evk_t_ai_deepl_tlumacz((string) $t, $kod)];
+    return evk_t_ai_odpowiedz(200, ['translations' => $tl]);
+}, 9, 3);
+
 add_filter('pre_http_request', function ($pre, $args, $url) {
     $dostawca = strpos($url, 'api.anthropic.com') !== false ? 'claude'
         : (strpos($url, 'generativelanguage.googleapis.com') !== false ? 'gemini'

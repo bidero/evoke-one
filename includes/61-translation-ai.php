@@ -101,11 +101,20 @@ function evk_tl_ai_dostawcy(): array {
         'gemini' => ['nazwa' => 'Gemini (Google) — darmowy poziom', 'model' => 'gemini-3.8-flash'],
         'claude' => ['nazwa' => 'Claude (Anthropic) — płatny klucz', 'model' => 'claude-opus-5-5'],
         'openai' => ['nazwa' => 'OpenAI — płatny klucz', 'model' => 'gpt-6-astra'],
+        /* DeepL (1.277.0, 61-translation-deepl.php): tylko tłumaczy — bez promptu i bez
+           modelu; „model” to rodzaj klucza (free/pro), widoczny w podpisie. */
+        'deepl'  => ['nazwa' => 'DeepL — klucz Free albo Pro', 'model' => 'pro'],
     ];
 }
 
+/** Dostawcy AI (z modelem językowym): opis obrazów i inne zadania poza tłumaczeniem. */
+const EVK_TL_AI_LLM = ['gemini', 'claude', 'openai'];
+
 /**
- * @return array{dostawca:string,klucze:array<string,string>,modele:array<string,string>,opis:string,wskazowki:array<string,string>,slowniczek:string}
+ * `formalnosc` (DeepL, 1.277.0): język → formalna | nieformalna | '' (domyślna).
+ * `opisy` (1.277.0): dostawca AI do opisów obrazów, gdy tłumaczy DeepL.
+ *
+ * @return array{dostawca:string,klucze:array<string,string>,modele:array<string,string>,opis:string,wskazowki:array<string,string>,slowniczek:string,formalnosc:array<string,string>,opisy:string}
  */
 function evk_tl_ai_ustawienia(): array {
     $u = get_option(EVK_TL_AI_OPCJA, []);
@@ -121,10 +130,27 @@ function evk_tl_ai_ustawienia(): array {
         'opis'       => (string) ($u['opis'] ?? ''),
         'wskazowki'  => array_map('strval', is_array($u['wskazowki'] ?? null) ? $u['wskazowki'] : []),
         'slowniczek' => (string) ($u['slowniczek'] ?? ''),
+        'formalnosc' => array_map('strval', array_filter(is_array($u['formalnosc'] ?? null) ? $u['formalnosc'] : [],
+            static function ($f) { return in_array($f, ['formalna', 'nieformalna'], true); })),
+        'opisy'      => in_array($u['opisy'] ?? '', EVK_TL_AI_LLM, true) ? (string) $u['opisy'] : '',
     ];
 }
 
+/**
+ * Ustawienia do opisu obrazu: przy DeepL — dostawca AI z wyboru „opisy”,
+ * a bez niego pierwszy z kluczem. Bez żadnego zostaje DeepL (opis odmówi).
+ */
+function evk_tl_ai_dla_opisow(array $u): array {
+    if ($u['dostawca'] !== 'deepl') return $u;
+    $kolejka = array_values(array_unique(array_filter(array_merge([$u['opisy'] ?? ''], EVK_TL_AI_LLM))));
+    foreach ($kolejka as $d) {
+        if (trim((string) ($u['klucze'][$d] ?? '')) !== '') return ['dostawca' => $d] + $u;
+    }
+    return $u;
+}
+
 function evk_tl_ai_model(array $u): string {
+    if ($u['dostawca'] === 'deepl') return evk_tl_deepl_rodzaj(evk_tl_ai_klucz($u));
     $m = trim((string) ($u['modele'][$u['dostawca']] ?? ''));
     return $m !== '' ? $m : evk_tl_ai_dostawcy()[$u['dostawca']]['model'];
 }
@@ -356,8 +382,10 @@ function evk_tl_ai_klucz_tekstu(string $lang, string $pl): string {
  * wszystkich modeli dla jej tekstów po pierwszej części.
  */
 function evk_tl_ai_klucz_wyniku(array $u, string $lang, string $pl): string {
-    return evk_tl_ai_klucz_tekstu($lang, $pl) . '.' . md5((string) wp_json_encode([EVK_TL_AI_WERSJA, $u['dostawca'], evk_tl_ai_model($u),
-        $u['opis'], $u['wskazowki'][$lang] ?? '', $u['slowniczek']]));
+    $ust = [EVK_TL_AI_WERSJA, $u['dostawca'], evk_tl_ai_model($u), $u['opis'], $u['wskazowki'][$lang] ?? '', $u['slowniczek']];
+    /* DeepL: formalność zmienia wynik. Tylko u niego — klucze wyników modeli AI zostają, jakie były. */
+    if ($u['dostawca'] === 'deepl') $ust[] = $u['formalnosc'][$lang] ?? '';
+    return evk_tl_ai_klucz_tekstu($lang, $pl) . '.' . md5((string) wp_json_encode($ust));
 }
 
 function evk_tl_ai_wynik(array $u, string $lang, string $pl): ?string {
@@ -652,6 +680,21 @@ function evk_tl_ai_blad_http(string $dostawca, int $kod, array $naglowki, $o): a
 }
 
 /**
+ * Tłumaczenie porcji (1.277.0) — wspólne dla hurtu, jednego tekstu i buildera.
+ * DeepL dostaje teksty wprost (61-translation-deepl.php), modele AI —
+ * zapytanie z kontekstem, opisem strony, wskazówkami i słowniczkiem.
+ *
+ * @param list<array<string,string>>        $kontekst
+ * @param array<string,array<string,mixed>> $porcja klucz krótki → tekst
+ * @return array{ok:bool,tlumaczenia?:array<string,string>,blad?:string,czekaj?:int,stop?:bool,uwaga?:string}
+ */
+function evk_tl_ai_porcja(array $u, string $lang, string $tytul, array $kontekst, array $porcja): array {
+    if ($u['dostawca'] === 'deepl') return evk_tl_deepl_porcja($u, $lang, $tytul, $kontekst, $porcja);
+    [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, $tytul, $kontekst, $porcja);
+    return evk_tl_ai_wyslij($u, $system, $wiadomosc);
+}
+
+/**
  * Jedno zapytanie. Wynik: tłumaczenia pod kluczami krótkimi albo błąd
  * (z czasem czekania albo stopem).
  *
@@ -831,8 +874,9 @@ function evk_tl_ai_krok(int $post_id, string $meta_key, string $lang, array $pom
         $tresc = [];
         foreach ($krotkie as $kr => $k) $tresc[$kr] = $porcja[$k];
         $tytul = $kp ? 'Komponent: ' . evk_tl_kp_nazwa($kp) : ($gk !== '' ? evk_tl_ai_tytul_opcji($gk) : evk_tl_ai_tytul_czesci($post_id, $meta_key));
-        [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, $tytul, $t['kontekst'], $tresc);
-        $r = evk_tl_ai_wyslij($u, $system, $wiadomosc);
+        $r = evk_tl_ai_porcja($u, $lang, $tytul, $t['kontekst'], $tresc);
+        /* Uwaga bez przerwy (glosariusz DeepL nie powstał) — do dziennika jak błąd porcji. */
+        if (!empty($r['uwaga'])) $wynik['blad'] = (string) $r['uwaga'];
         if (!$r['ok'] && (!empty($r['stop']) || !empty($r['czekaj']))) {
             /* Przejściowe (limit, przeciążenie) albo końcowe (klucz, limit
                dzienny): ta sama porcja wraca w następnym kroku. */
@@ -1065,8 +1109,7 @@ function evk_tl_ai_jeden(int $post_id, string $meta_key, string $lang, string $k
     $model = evk_tl_ai_podpis($u);
     $w = evk_tl_ai_wynik($u, $lang, $b['pl']);
     if ($w !== null) return ['ok' => true, 'tekst' => $w, 'model' => $model, 'z_pamieci' => true];
-    [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, (string) (get_the_title($post_id) ?: ('#' . $post_id)), $t['kontekst'], ['t1' => $b]);
-    $r = evk_tl_ai_wyslij($u, $system, $wiadomosc);
+    $r = evk_tl_ai_porcja($u, $lang, (string) (get_the_title($post_id) ?: ('#' . $post_id)), $t['kontekst'], ['t1' => $b]);
     if (!$r['ok']) {
         return ['ok' => false, 'blad' => !empty($r['czekaj']) ? 'Dostawca prosi o przerwę — spróbuj za ' . (int) $r['czekaj'] . ' s.' : (string) $r['blad']];
     }
@@ -1386,8 +1429,7 @@ function evk_tl_ai_builder(int $post_id, string $lang, array $kontekst, array $t
     }
     /* Tytuł strony w zapytaniu — albo nazwa strony ustawień Fields (bez wpisu). */
     if ($tytul === '') $tytul = (string) (get_the_title($post_id) ?: ('#' . $post_id));
-    [$system, $wiadomosc] = evk_tl_ai_tresc($u, $lang, $tytul, $kontekst, $porcja);
-    $r = evk_tl_ai_wyslij($u, $system, $wiadomosc);
+    $r = evk_tl_ai_porcja($u, $lang, $tytul, $kontekst, $porcja);
     if (!$r['ok']) {
         $wynik['blad'] = (string) $r['blad'];
         $wynik['czekaj'] = (int) ($r['czekaj'] ?? 0);
@@ -2448,6 +2490,11 @@ function evk_tl_ai_obraz_do_ai(int $id): ?array {
  * @return array{ok:bool,tekst?:string,blad?:string,czekaj?:int,stop?:bool}
  */
 function evk_tl_ai_opisz_obraz(int $id, array $u): array {
+    /* DeepL tylko tłumaczy (1.277.0): opis obrazu idzie przez dostawcę AI z kluczem. */
+    $u = evk_tl_ai_dla_opisow($u);
+    if ($u['dostawca'] === 'deepl') {
+        return ['ok' => false, 'blad' => 'Opis obrazu wymaga klucza Gemini, Claude albo OpenAI — DeepL tylko tłumaczy.', 'czekaj' => 0, 'stop' => true];
+    }
     $o = evk_tl_ai_obraz_do_ai($id);
     if ($o === null) return ['ok' => false, 'blad' => 'Tego pliku AI nie obejrzy (format albo rozmiar).'];
     $s = "You write alt text in Polish for images on a website.\n\nRules:\n"
@@ -2709,9 +2756,14 @@ add_action('wp_ajax_evk_tl_ai_ustawienia', function (): void {
     $u['opis'] = sanitize_textarea_field((string) ($p['opis'] ?? ''));
     $u['slowniczek'] = sanitize_textarea_field((string) ($p['slowniczek'] ?? ''));
     $u['wskazowki'] = [];
+    $u['formalnosc'] = [];
     foreach (array_keys(tl_get_languages()) as $j) {
         $u['wskazowki'][(string) $j] = sanitize_textarea_field((string) ($p['wskazowki'][$j] ?? ''));
+        $f = (string) ($p['formalnosc'][$j] ?? '');
+        if (in_array($f, ['formalna', 'nieformalna'], true)) $u['formalnosc'][(string) $j] = $f;
     }
+    $u['opisy'] = in_array($p['opisy'] ?? '', EVK_TL_AI_LLM, true) ? (string) $p['opisy'] : '';
+    if ($u['dostawca'] === 'deepl') unset($u['modele']['deepl']);
     update_option(EVK_TL_AI_OPCJA, $u, false);
     wp_send_json_success(['komunikat' => 'Zapisano.', 'klucz' => evk_tl_ai_klucz($u) !== '']);
 });

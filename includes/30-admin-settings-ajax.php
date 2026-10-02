@@ -721,6 +721,8 @@ add_action('wp_ajax_tl_import', function () {
             'opis'       => sanitize_textarea_field((string) ($ai['opis'] ?? '')),
             'wskazowki'  => array_map('sanitize_textarea_field', array_map('strval', array_filter((array) ($ai['wskazowki'] ?? []), 'is_scalar'))),
             'slowniczek' => sanitize_textarea_field((string) ($ai['slowniczek'] ?? '')),
+            'formalnosc' => array_map('sanitize_key', array_map('strval', array_filter((array) ($ai['formalnosc'] ?? []), 'is_scalar'))),
+            'opisy'      => sanitize_key((string) ($ai['opisy'] ?? '')),
         ], false);
         $imported++;
     }

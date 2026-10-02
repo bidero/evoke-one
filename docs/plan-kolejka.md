@@ -10,6 +10,11 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
    (Abilities API w rdzeniu WordPressa). Trzy zdolności: strony z brakami,
    teksty do przetłumaczenia z kontekstem, zapis ze znacznikiem
    „Do sprawdzenia” i strażnikiem szkieletu (tagi HTML, `{…}`, shortcody).
+   **Najważniejsze dla zgłaszającego: Claude Desktop OPRÓCZ API** — tłumaczy
+   sam Claude z subskrypcji, bez klucza. Droga: MCP Adapter
+   (`/wp-json/mcp/mcp-adapter-default-server`) + `@automattic/mcp-wordpress-remote`
+   (npx) + hasło aplikacji WordPressa; Bricks 2.4 ma gotową instrukcję
+   w swojej zakładce AI („Claude Desktop”, `claude_desktop_config.json`).
 3. **Nagłówki bezpieczeństwa** — przełączniki w panelu. Domyślnie włączone:
    `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`,
    `frame-ancestors 'self'`. HSTS domyślnie wyłączony, z wyborem czasu,
@@ -32,6 +37,20 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
    i zapisanymi „przepisami”. Wynik do: treści wpisu (i CPT), pól Fields
    (także wierszy repeatera) i elementów Bricksa. Dodatkowo: tytuł,
    zajawka, SEO. Generują dostawcy AI, nie DeepL.
+
+   **Własne, nie wtyczka AI WordPressa** (02.10): jej funkcje nie działają
+   w klasycznym edytorze, którego używamy. Lista funkcji do odtworzenia
+   (priorytety do ustalenia):
+   - generowanie i edycja obrazów (modele obrazów: Gemini, OpenAI);
+   - tekst alternatywny z wizji — jest od 1.271.0 („Opisz obraz (AI)”);
+   - klasyfikacja: tagi i kategorie, nowe albo tylko z istniejących;
+   - zmiana długości: skróć, rozwiń, parafrazuj zaznaczony fragment;
+   - podsumowanie treści;
+   - notatki redakcyjne (dostępność, czytelność, gramatyka, SEO) i ich
+     zastosowanie;
+   - zajawka, metaopis (moduł SEO Evoke), uproszczona nazwa (slug), tytuł;
+   - autouzupełnianie szarym tekstem przy pisaniu (w klasycznym edytorze
+     TinyMCE — do sprawdzenia, czy warto).
 8. **Statystyki** — własne w Evoke, bez cookies (odsłony, strony, źródła,
    urządzenia) i własne heatmapy (kliknięcia, głębokość przewinięcia,
    osobno dla szerokości ekranu). Matomo odpada: heatmapy to płatna wtyczka

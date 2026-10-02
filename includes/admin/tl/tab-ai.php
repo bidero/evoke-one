@@ -22,7 +22,9 @@ $evk_jezyki = tl_get_languages();
     <p class="evo-desc">Model widzi wszystkie teksty tej części strony naraz, opis strony, wskazówki dla języka i słowniczek.
     Ten sam polski tekst ze sprawdzonym tłumaczeniem dostaje je bez pytania AI, a ponowne tłumaczenie tego samego tekstu daje ten sam wynik.</p>
     <p class="evo-desc"><strong>Prywatność:</strong> teksty stron idą do wybranego dostawcy. Na darmowym poziomie Gemini Google
-    wykorzystuje je do ulepszania swoich usług; na płatnym (Gemini, Claude, OpenAI) — nie.</p>
+    wykorzystuje je do ulepszania swoich usług; na płatnym (Gemini, Claude, OpenAI) — nie. Warunki DeepL Free i Pro opisuje DeepL.</p>
+    <p class="evo-desc"><strong>DeepL</strong> tylko tłumaczy: bierze kontekst części strony, słowniczek (jako glosariusz) i formalność języka,
+    a opis strony i wskazówki dla języków pomija. Klucz Free kończy się na <code>:fx</code>. Opis obrazów (alt z AI) idzie wtedy przez model AI z kluczem.</p>
 </div>
 
 <div class="evo-box tl-ai-ustawienia">
@@ -50,10 +52,19 @@ $evk_jezyki = tl_get_languages();
         <input type="password" id="tl-ai-klucz" autocomplete="off" spellcheck="false" placeholder="wklej klucz — zapisany zostaje ukryty">
         <label class="evo-check-row"><input type="checkbox" id="tl-ai-usun-klucz"> Usuń zapisany klucz tego dostawcy</label>
     </div>
-    <div class="evo-field">
+    <div class="evo-field tl-ai-model-pole">
         <label for="tl-ai-model">Model</label>
         <input type="text" id="tl-ai-model" spellcheck="false">
         <p class="evo-desc">Puste — model domyślny dostawcy (w podpowiedzi pola).</p>
+    </div>
+    <div class="evo-field tl-ai-deepl-pole">
+        <label for="tl-ai-opisy">Opisy obrazów (DeepL tylko tłumaczy)</label>
+        <select id="tl-ai-opisy">
+            <option value="">Pierwszy z kluczem</option>
+            <?php foreach (EVK_TL_AI_LLM as $evk_k): ?>
+            <option value="<?php echo esc_attr($evk_k); ?>" <?php selected($evk_u['opisy'], $evk_k); ?>><?php echo esc_html($evk_d[$evk_k]['nazwa']); ?></option>
+            <?php endforeach; ?>
+        </select>
     </div>
     </div>
     <div class="evo-field">
@@ -68,6 +79,22 @@ $evk_jezyki = tl_get_languages();
             placeholder="np. zwracaj się per Sie; angielski brytyjski"><?php echo esc_textarea((string) ($evk_u['wskazowki'][$evk_kod] ?? '')); ?></textarea>
     </div>
     <?php endforeach; ?>
+    </div>
+    <?php /* Formalność DeepL (1.277.0) — osobno dla każdego języka; DeepL stosuje ją tam, gdzie język ją zna.
+             `hidden` na opakowaniu bez klasy układu: na `.evo-grid` przegrałby z `display: grid` (CLAUDE.md). */ ?>
+    <div class="tl-ai-deepl-pole">
+    <div class="evo-grid tl-ai-wiersz" style="--evo-col:200px;--evo-gap:16px">
+    <?php foreach ($evk_jezyki as $evk_kod => $evk_j): ?>
+    <div class="evo-field">
+        <label for="tl-ai-form-<?php echo esc_attr((string) $evk_kod); ?>">Formalność DeepL: <?php echo esc_html(strtoupper((string) $evk_kod)); ?></label>
+        <select id="tl-ai-form-<?php echo esc_attr((string) $evk_kod); ?>" class="tl-ai-form" data-jezyk="<?php echo esc_attr((string) $evk_kod); ?>">
+            <option value="">Domyślna</option>
+            <option value="formalna" <?php selected($evk_u['formalnosc'][$evk_kod] ?? '', 'formalna'); ?>>Formalna (Sie, vous, Pan/Pani)</option>
+            <option value="nieformalna" <?php selected($evk_u['formalnosc'][$evk_kod] ?? '', 'nieformalna'); ?>>Nieformalna (du, tu, Ty)</option>
+        </select>
+    </div>
+    <?php endforeach; ?>
+    </div>
     </div>
     <div class="evo-field">
         <label for="tl-ai-slowniczek">Słowniczek</label>
@@ -260,6 +287,10 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
             model.placeholder = o.getAttribute('data-model');
             model.value = o.getAttribute('data-wlasny') || '';
             kluczStan.textContent = o.getAttribute('data-klucz') ? '(zapisany)' : '(brak)';
+            /* DeepL: bez modelu, z formalnością i wyborem modelu do opisów obrazów. */
+            var deepl = dostawca.value === 'deepl';
+            document.querySelectorAll('.tl-ai-model-pole').forEach(function (x) { x.hidden = deepl; });
+            document.querySelectorAll('.tl-ai-deepl-pole').forEach(function (x) { x.hidden = !deepl; });
         };
         dostawca.addEventListener('change', pokazDostawce);
         pokazDostawce();
@@ -267,11 +298,14 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
             var b = e.currentTarget, stan = document.querySelector('.tl-ai-zapis-stan');
             var wsk = {};
             document.querySelectorAll('.tl-ai-wsk').forEach(function (t) { wsk[t.getAttribute('data-jezyk')] = t.value; });
+            var form = {};
+            document.querySelectorAll('.tl-ai-form').forEach(function (t) { form[t.getAttribute('data-jezyk')] = t.value; });
             b.disabled = true;
             stan.textContent = 'Zapisuję…';
             wyslij({ action: 'evk_tl_ai_ustawienia', dostawca: dostawca.value, klucz: document.getElementById('tl-ai-klucz').value,
                 usun_klucz: document.getElementById('tl-ai-usun-klucz').checked ? '1' : '', model: model.value,
-                opis: document.getElementById('tl-ai-opis').value, slowniczek: document.getElementById('tl-ai-slowniczek').value, wskazowki: wsk })
+                opis: document.getElementById('tl-ai-opis').value, slowniczek: document.getElementById('tl-ai-slowniczek').value, wskazowki: wsk,
+                formalnosc: form, opisy: document.getElementById('tl-ai-opisy').value })
                 .then(function (r) {
                     b.disabled = false;
                     if (!r || !r.success) { stan.textContent = (r && r.data) || 'Błąd zapisu.'; return; }
