@@ -46,9 +46,12 @@ $evk_jezyki = tl_get_languages();
             <option value="<?php echo esc_attr($evk_k); ?>" <?php selected($evk_u['dostawca'], $evk_k); ?>
                 data-model="<?php echo esc_attr($evk_w['model']); ?>"
                 data-wlasny="<?php echo esc_attr((string) ($evk_u['modele'][$evk_k] ?? '')); ?>"
-                data-klucz="<?php echo (string) ($evk_u['klucze'][$evk_k] ?? '') !== '' ? '1' : ''; ?>"><?php echo esc_html($evk_w['nazwa']); ?></option>
+                data-klucz="<?php echo (string) ($evk_u['klucze'][$evk_k] ?? '') !== '' ? '1' : ''; ?>"
+                data-opis="<?php echo esc_attr(explode(' — ', $evk_w['nazwa'], 2)[1] ?? ''); ?>"><?php echo esc_html(explode(' — ', $evk_w['nazwa'], 2)[0]); ?></option>
             <?php endforeach; ?>
         </select>
+        <?php /* Nazwa w polu krótka, dopisek („plik JSON konta usługi”) pod nim — pełna nazwa nie mieściła się w kolumnie (zgłoszenie 02.10). */ ?>
+        <p class="evo-desc tl-ai-dostawca-opis"></p>
     </div>
     <div class="evo-field">
         <div class="tl-ai-klucz-pole">
@@ -73,13 +76,15 @@ $evk_jezyki = tl_get_languages();
         <p class="evo-desc">Puste — model domyślny dostawcy (w podpowiedzi pola).</p>
     </div>
     <div class="evo-field tl-ai-tylko-tlumacz">
-        <label for="tl-ai-opisy">Opisy obrazów (DeepL i Google tylko tłumaczą)</label>
+        <?php /* Etykieta w jednej linii jak w sąsiednich polach — dwuwierszowa spychała pole niżej niż w reszcie wiersza (zgłoszenie 02.10). */ ?>
+        <label for="tl-ai-opisy">Opisy obrazów</label>
         <select id="tl-ai-opisy">
             <option value="">Pierwszy z kluczem</option>
             <?php foreach (EVK_TL_AI_LLM as $evk_k): ?>
-            <option value="<?php echo esc_attr($evk_k); ?>" <?php selected($evk_u['opisy'], $evk_k); ?>><?php echo esc_html($evk_d[$evk_k]['nazwa']); ?></option>
+            <option value="<?php echo esc_attr($evk_k); ?>" <?php selected($evk_u['opisy'], $evk_k); ?>><?php echo esc_html(explode(' — ', $evk_d[$evk_k]['nazwa'], 2)[0]); ?></option>
             <?php endforeach; ?>
         </select>
+        <p class="evo-desc">DeepL i Google tylko tłumaczą, więc opisy obrazów pisze model językowy.</p>
     </div>
     </div>
     <div class="evo-field">
@@ -305,6 +310,7 @@ $evk_strony = function_exists('evk_tl_el_wpisy_bricksa') ? evk_tl_ai_strony_do_c
             model.placeholder = o.getAttribute('data-model');
             model.value = o.getAttribute('data-wlasny') || '';
             kluczStan.textContent = o.getAttribute('data-klucz') ? '(zapisany)' : '(brak)';
+            document.querySelector('.tl-ai-dostawca-opis').textContent = o.getAttribute('data-opis') || '';
             /* DeepL: bez modelu, z formalnością i wyborem modelu do opisów obrazów.
                Google (1.280.0): bez modelu, plik JSON zamiast klucza, zasobnik. */
             var deepl = dostawca.value === 'deepl', google = dostawca.value === 'google';

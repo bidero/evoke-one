@@ -332,6 +332,34 @@ module.exports = async function (t) {
     const html2 = await p.content();
     t.check('po odświeżeniu: dostawca OpenAI wybrany, klucza w stronie nie ma',
       (await p.inputValue('#tl-ai-dostawca')) === 'openai' && !html2.includes('klucz-z-panelu-789'));
+
+    t.section('panel: wiersz ustawień wyrównany (zgłoszenie 02.10)');
+    /* Google: dostawca, plik JSON, zasobnik i opisy obrazów w jednym wierszu. Dwuwierszowa etykieta
+       „Opisy obrazów (…)” spychała pole niżej niż sąsiednie, a nazwy dostawców były ucięte w polu. */
+    await p.selectOption('#tl-ai-dostawca', 'google');
+    const uklad = [];
+    for (const szer of [1280, 1600, 1920]) {
+      await p.setViewportSize({ width: szer, height: 900 });
+      uklad.push(await p.evaluate((szer) => {
+        const widac = (x) => x.offsetParent !== null;
+        const pola = [...document.querySelector('.tl-ai-wiersz').children].filter(widac);
+        const gory = pola.map((f) => {
+          const k = [...f.querySelectorAll('select, input:not([type=checkbox]), textarea')].find(widac);
+          return Math.round(k.getBoundingClientRect().top);
+        });
+        const wiersze = {};
+        pola.forEach((f, i) => { const g = Math.round(f.getBoundingClientRect().top); (wiersze[g] = wiersze[g] || []).push(gory[i]); });
+        return { szer, wiersze: Object.values(wiersze) };
+      }, szer));
+    }
+    console.log('      układ: ' + json(uklad));
+    t.check('w każdym wierszu siatki pola zaczynają się na tej samej wysokości (1280, 1600, 1920 px)',
+      uklad.every((u) => u.wiersze.every((w) => Math.max(...w) - Math.min(...w) <= 1)) && uklad.some((u) => u.wiersze.some((w) => w.length >= 3)), json(uklad));
+    const nazwy = await p.evaluate(() => ({ dostawca: document.querySelector('#tl-ai-dostawca').selectedOptions[0].textContent,
+      opis: document.querySelector('.tl-ai-dostawca-opis').textContent, opisy: [...document.querySelectorAll('#tl-ai-opisy option')].map((o) => o.textContent) }));
+    t.check('w polach krótkie nazwy dostawców, dopisek pod polem', nazwy.dostawca === 'Google Cloud Translation (v3)' && nazwy.opis === 'plik JSON konta usługi'
+      && nazwy.opisy.every((x) => !x.includes(' — ')), json(nazwy));
+    await p.setViewportSize({ width: 1280, height: 720 });
     t.check('bez błędów JS', bledy.length === 0, bledy.slice(0, 3).join(' | '));
   } finally {
     if (browser) await browser.close();
