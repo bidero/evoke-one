@@ -134,6 +134,7 @@ function evk_stat_zapisz(array $d, array $serwer): string {
         return 'ok';
     }
     if (($d['t'] ?? '') === 'z') return evk_stat_zapisz_zdarzenie($d, evk_stat_wizyta($ip, $ua));
+    if (($d['t'] ?? '') === 'h') return function_exists('evk_stat_hot_zapisz') ? evk_stat_hot_zapisz($d, evk_stat_wizyta($ip, $ua)) : 'typ';
     if (($d['t'] ?? '') !== 'v') return 'typ';
 
     $dzien  = wp_date('Y-m-d');
@@ -174,6 +175,7 @@ add_action('rest_api_init', function (): void {
 /** Czy na tej stronie drukować skrypt statystyk. */
 function evk_stat_liczyc_strone(): bool {
     if (!evk_stat_wlaczone() || is_admin() || is_feed() || is_404() || is_preview() || is_customize_preview()) return false;
+    if (isset($_GET['evk_hot_podglad'])) return false;   // ramka podglądu hotspotów (1.286.0)
     if (function_exists('bricks_is_builder') && (bricks_is_builder() || (function_exists('bricks_is_builder_iframe') && bricks_is_builder_iframe()))) return false;
     if (!empty(evk_stat_ustawienia()['wyklucz_role']) && current_user_can('edit_posts')) return false;
     return true;
@@ -190,5 +192,10 @@ add_action('wp_enqueue_scripts', function (): void {
         'd' => !empty($s['dnt']) ? 1 : 0,
         /* Rodzaje zdarzeń włączone w panelu (1.285.0). */
         'z' => array_values(array_filter(EVK_STAT_ZD_PRZELACZNIKI, static function (string $k) use ($s): bool { return !empty($s['zd_' . $k]); })),
+        /* Hotspoty (1.286.0): lista nagrywanych stron z pliku (nie z HTML-a — strona bywa z pamięci
+           podręcznej), skrypt zbierający i parametry adresu wskazujące stronę (jak evk_stat_sciezka). */
+        'h'  => function_exists('evk_stat_hot_plik') && is_file(evk_stat_hot_plik()) ? evk_stat_hot_adres_pliku() : '',
+        'hs' => evk_zasob_url(EVOKE_ONE_URL . 'assets/js/hotspoty.js') . '?ver=' . EVOKE_ONE_VERSION,
+        'hp' => EVK_STAT_PARAMETRY_STRONY,
     ]) . ';', 'before');
 });

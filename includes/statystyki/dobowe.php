@@ -168,5 +168,10 @@ function evk_stat_usun_okres(string $od, string $do): array {
     $s = (int) $wpdb->query($wpdb->prepare('DELETE FROM ' . evk_stat_tabela('odslony') . ' WHERE dzien BETWEEN %s AND %s', $od, $do));
     $d = (int) $wpdb->query($wpdb->prepare('DELETE FROM ' . evk_stat_tabela('dni') . ' WHERE dzien BETWEEN %s AND %s', $od, $do));
     $s += (int) $wpdb->query($wpdb->prepare('DELETE FROM ' . evk_stat_tabela('zdarzenia') . ' WHERE dzien BETWEEN %s AND %s', $od, $do));
+    /* Hotspoty (1.286.0) z tych dni — czas w UTC, granice dni w strefie strony. */
+    $g = static function (string $dzien, string $godz): string { return get_gmt_from_date(min($dzien, '9000-01-01') . ' ' . $godz); };
+    foreach (['hot_kliki', 'hot_odslony'] as $t) {
+        $s += (int) $wpdb->query($wpdb->prepare('DELETE FROM ' . evk_stat_tabela($t) . ' WHERE czas BETWEEN %s AND %s', $g($od, '00:00:00'), $g($do, '23:59:59')));
+    }
     return ['surowe' => $s, 'dzienne' => $d];
 }

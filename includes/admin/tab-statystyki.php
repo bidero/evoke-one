@@ -189,6 +189,66 @@ $evk_on  = !empty($evk_st['enabled']);
     </script>
     <?php endif; ?>
 
+    <?php if ($evk_on): /* Hotspoty (1.286.0): lista nagrań i nowe nagranie — włącza i kasuje administrator. */
+        $evk_hot = evk_stat_hot_nagrania();
+    ?>
+    <div class="evo-box evo-mt" id="evk-stat-hot">
+        <h3>Hotspoty</h3>
+        <p class="evo-desc">Mapa kliknięć i przewinięcia wybranych stron: gdzie odwiedzający klikają (osobno telefon, tablet i komputer), jak daleko przewijają,
+            gdzie klikają ze złości i w co klikają bez skutku. Bez ruchu myszy i bez treści pól. Nagranie włączysz też z paska admina na stronie
+            („Hotspoty → Nagrywaj tę stronę”). Dane zostają po zakończeniu — do usunięcia tutaj.</p>
+        <?php if ($evk_hot): ?>
+        <div class="evo-tbl-wrap"><table class="evo-table evk-hot-lista">
+            <thead><tr><th scope="col">Strona</th><th scope="col">Stan</th><th scope="col" class="num">Wizyty</th><th scope="col">Akcje</th></tr></thead>
+            <tbody>
+            <?php foreach (array_keys($evk_hot) as $evk_s): $evk_s = (string) $evk_s; $evk_st = evk_stat_hot_stan($evk_s); if (!$evk_st) continue; ?>
+            <tr data-strona="<?php echo esc_attr($evk_s); ?>">
+                <td><code><?php echo esc_html($evk_s); ?></code></td>
+                <td><?php echo esc_html($evk_st['nagrywa'] ? 'Nagrywa do ' . wp_date('j.m.Y', $evk_st['do']) : 'Zakończone ' . wp_date('j.m.Y', $evk_st['koniec'])); ?></td>
+                <td class="num"><?php echo esc_html($evk_st['wizyty'] . ' / ' . $evk_st['limit']); ?></td>
+                <td class="evk-hot-akcje">
+                    <a class="button" href="<?php echo esc_url(evk_stat_hot_adres_podgladu($evk_s)); ?>">Pokaż</a>
+                    <?php if ($evk_st['nagrywa']): ?>
+                    <a class="button" href="<?php echo esc_url(evk_stat_hot_adres_akcji('stop', $evk_s)); ?>">Zatrzymaj</a>
+                    <?php endif; ?>
+                    <a class="button button-link-delete evk-hot-usun" href="<?php echo esc_url(evk_stat_hot_adres_akcji('usun', $evk_s)); ?>">Usuń dane</a>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table></div>
+        <?php endif; ?>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="evk-hot-nowe">
+            <input type="hidden" name="action" value="evk_stat_hot">
+            <input type="hidden" name="akcja" value="start">
+            <?php wp_nonce_field('evk_stat_hot'); ?>
+            <div class="evo-grid evo-pola-rowne" style="--evo-col:180px;--evo-gap:12px">
+                <div class="evo-field">
+                    <label for="evk-hot-strona">Adres strony</label>
+                    <input type="text" id="evk-hot-strona" name="strona" placeholder="/oferta/" spellcheck="false" required>
+                </div>
+                <div class="evo-field">
+                    <label for="evk-hot-dni">Dni</label>
+                    <input type="number" id="evk-hot-dni" name="dni" min="1" max="365" value="<?php echo (int) EVK_STAT_HOT_DNI; ?>">
+                </div>
+                <div class="evo-field">
+                    <label for="evk-hot-wizyty">Albo wizyt</label>
+                    <input type="number" id="evk-hot-wizyty" name="wizyty" min="1" value="<?php echo (int) EVK_STAT_HOT_WIZYTY; ?>">
+                </div>
+            </div>
+            <label class="evo-check-row"><input type="checkbox" name="od_nowa" value="1"> Zacznij od zera (usuń dotychczasowe dane tej strony)</label>
+            <p><button type="submit" class="button button-primary">Nagrywaj</button></p>
+        </form>
+    </div>
+    <script>
+    jQuery(function ($) {
+        $('#evk-stat-hot .evk-hot-usun').on('click', function (e) {
+            if (!window.confirm('Usunąć hotspoty strony ' + $(this).closest('tr').data('strona') + '? Tego nie da się cofnąć.')) e.preventDefault();
+        });
+    });
+    </script>
+    <?php endif; ?>
+
     <?php /* Kasowanie za okres (1.285.0): widać je, gdy są tabele — także przy wyłączonym module. */ ?>
     <?php if ((int) get_option('evk_stat_db_version', 0) > 0): ?>
     <div class="evo-box evo-mt" id="evk-stat-usun">

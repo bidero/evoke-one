@@ -13,8 +13,9 @@ if (!defined('ABSPATH')) exit;
  * i przewinięcia. Raport za dni sprzed zbiórki czyta tylko tę tabelę.
  */
 
-/* 2 (1.285.0): tabela zdarzeń; 3: kolumna `kraj` odsłon. dbDelta dokłada je do istniejących. */
-const EVK_STAT_DB_WERSJA = 3;
+/* 2 (1.285.0): tabela zdarzeń; 3: kolumna `kraj` odsłon; 4 (1.286.0): hotspoty i pełny adres
+   odsyłający. dbDelta dokłada je do istniejących. */
+const EVK_STAT_DB_WERSJA = 4;
 
 function evk_stat_tabela(string $nazwa): string {
     global $wpdb;
@@ -42,6 +43,7 @@ function evk_stat_utworz_tabele(): void {
         system_op varchar(20) NOT NULL DEFAULT '',
         jezyk varchar(10) NOT NULL DEFAULT '',
         kraj char(2) NOT NULL DEFAULT '',
+        odsylacz varchar(191) NOT NULL DEFAULT '',
         czas_s int(10) UNSIGNED NOT NULL DEFAULT 0,
         przewiniecie tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
         PRIMARY KEY  (id),
@@ -75,7 +77,45 @@ function evk_stat_utworz_tabele(): void {
         KEY dzien_wizyta (dzien,wizyta),
         KEY czas (czas)
     ) $c;");
+    /* Hotspoty (1.286.0): odsłona nagrywanej strony (przewinięcie, wysokość dokumentu)
+       i jej kliknięcia — element (selektor), miejsce w nim (0–1000), miejsce na stronie
+       i szerokość okna. Żyją do ręcznego usunięcia (decyzja z 02.10). */
+    dbDelta("CREATE TABLE " . evk_stat_tabela('hot_odslony') . " (
+        id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        klucz char(16) NOT NULL,
+        strona varchar(191) NOT NULL,
+        czas datetime NOT NULL,
+        wizyta char(16) NOT NULL,
+        urzadzenie varchar(10) NOT NULL DEFAULT '',
+        szer smallint(5) UNSIGNED NOT NULL DEFAULT 0,
+        wys int(10) UNSIGNED NOT NULL DEFAULT 0,
+        przewiniecie tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+        PRIMARY KEY  (id),
+        UNIQUE KEY klucz (klucz),
+        KEY strona_czas (strona,czas)
+    ) $c;");
+    dbDelta("CREATE TABLE " . evk_stat_tabela('hot_kliki') . " (
+        id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        odslona bigint(20) UNSIGNED NOT NULL,
+        strona varchar(191) NOT NULL,
+        urzadzenie varchar(10) NOT NULL DEFAULT '',
+        czas datetime NOT NULL,
+        selektor varchar(255) NOT NULL DEFAULT '',
+        etykieta varchar(100) NOT NULL DEFAULT '',
+        rx smallint(5) UNSIGNED NOT NULL DEFAULT 0,
+        ry smallint(5) UNSIGNED NOT NULL DEFAULT 0,
+        px int(10) UNSIGNED NOT NULL DEFAULT 0,
+        py int(10) UNSIGNED NOT NULL DEFAULT 0,
+        szer smallint(5) UNSIGNED NOT NULL DEFAULT 0,
+        zlosc tinyint(1) UNSIGNED NOT NULL DEFAULT 0,
+        martwe tinyint(1) UNSIGNED NOT NULL DEFAULT 0,
+        PRIMARY KEY  (id),
+        KEY strona_urz (strona,urzadzenie),
+        KEY odslona (odslona)
+    ) $c;");
     update_option('evk_stat_db_version', EVK_STAT_DB_WERSJA, false);
+    /* Plik listy nagrywanych stron istnieje od włączenia — skrypt statystyk nie pyta o brakujący plik (404 przez WordPressa). */
+    if (function_exists('evk_stat_hot_zapisz_plik') && !is_file(evk_stat_hot_plik())) evk_stat_hot_zapisz_plik();
 }
 
 /* Włączenie przełącznikiem (AJAX) tworzy tabele od razu — zanim przyjdzie

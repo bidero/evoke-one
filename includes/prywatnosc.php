@@ -330,7 +330,11 @@ function evk_rodo_tekst_polityki(): string {
             . ($zd ? ', a także ' . preg_replace('/, (?!.*, )/', ' i ', implode(', ', $zd)) : '') . '. Adresu IP nie zapisujemy: z adresu IP i przeglądarki powstaje jednokierunkowy '
             . 'skrót z losowym kluczem zmienianym codziennie, więc odwiedzin tej samej osoby z dwóch dni nie da się połączyć.'
             . (!empty($st['dnt']) ? ' Odwiedzin z przeglądarki wysyłającej sygnał „nie śledź” (DNT lub GPC) nie liczymy.' : '')
-            . ' Szczegółowe wpisy przechowujemy ' . (int) $st['retencja'] . ' dni, potem zostają wyłącznie podsumowania dzienne.</p>';
+            . ' Szczegółowe wpisy przechowujemy ' . (int) $st['retencja'] . ' dni, potem zostają wyłącznie podsumowania dzienne.'
+            /* Hotspoty (1.286.0): zdanie, gdy jakieś nagranie trwa (decyzja z 02.10). */
+            . (function_exists('evk_stat_hot_nagrania') && array_filter(evk_stat_hot_nagrania(), static function ($n) { return !(int) $n['koniec'] && (int) $n['do'] > time(); })
+                ? ' Na wybranych stronach zapisujemy też miejsca kliknięć i głębokość przewinięcia, bez treści pól i bez ruchu myszy — wyłącznie na własne potrzeby; tych danych nikomu nie przekazujemy.' : '')
+            . '</p>';
     }
     return implode("\n", $akapity);
 }

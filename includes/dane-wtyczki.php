@@ -46,7 +46,7 @@ return [
         'evk_newsletter', 'evk_nl_db_version', 'evk_nl_rewrite_version', 'evk_nl_zablokowane', 'evk_nl_skrot_klucz',
         'evk_nl_wykluczenia',
         // Statystyki (1.283.0)
-        'evk_statystyki', 'evk_stat_db_version', 'evk_stat_sol', 'evk_stat_zebrane', 'evk_stat_cele', 'evk_stat_dbip',
+        'evk_statystyki', 'evk_stat_db_version', 'evk_stat_sol', 'evk_stat_zebrane', 'evk_stat_cele', 'evk_stat_dbip', 'evk_stat_hotspoty',
         // Kopie zapasowe
         'evk_backup', 'evk_backup_alert', 'evk_backup_db_version', 'evk_backup_dir', 'evk_backup_gdrive',
         'evk_backup_key', 'evk_backup_probe', 'evk_backup_sched', 'evk_gdrive_czekanie',
@@ -97,7 +97,7 @@ return [
     'tabele' => ['evk_nl_lists', 'evk_nl_subscribers', 'evk_nl_templates', 'evk_nl_campaigns',
                  'evk_nl_queue', 'evk_nl_logs', 'evk_backup_jobs', 'evk_404',
                  'evk_stat_odslony', 'evk_stat_dni', 'evk_stat_zdarzenia',
-                 'evk_stat_kraje', 'evk_stat_kraje_nowe'],
+                 'evk_stat_kraje', 'evk_stat_kraje_nowe', 'evk_stat_hot_odslony', 'evk_stat_hot_kliki'],
     /* `evk_access_fields` NIE — to wejście do Evoke Fields, które nadaje się
        w Role Managerze, ale sprawdza je tamta wtyczka. */
     'uprawnienia' => ['manage_evk_roles', 'evk_access_translations', 'evk_access_newsletter',

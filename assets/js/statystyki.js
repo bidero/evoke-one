@@ -63,6 +63,26 @@
       zd('formularz', f.id || f.getAttribute('name') || f.getAttribute('aria-label') || 'formularz');
     }, true);
   }
+  /* Hotspoty (1.286.0): czy ta strona jest nagrywana, mówi plik z serwera (świeży co 5 min),
+     nie HTML — strona z pamięci podręcznej nagrywa od chwili włączenia. Ścieżka jak w evk_stat_sciezka. */
+  function hotspoty() {
+    if (!c.h || !window.fetch) return;
+    var q = new URLSearchParams(location.search), o = [];
+    (c.hp || []).forEach(function (p) {
+      var v = q.get(p);
+      if (v !== null && (v = v.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40))) o.push(p + '=' + v);
+    });
+    var s = location.pathname + (o.length ? '?' + o.sort().join('&') : '');
+    fetch(c.h + '?t=' + Math.floor(Date.now() / 3e5), { credentials: 'omit' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      var koniec = j && j.strony && j.strony[s];
+      if (!koniec || koniec * 1000 < Date.now()) return;
+      window.evkHot = { u: c.u, k: k };
+      var sc = d.createElement('script');
+      sc.src = c.hs; sc.async = true;
+      d.head.appendChild(sc);
+    }).catch(function () { /* brak pliku — nic nie nagrywamy */ });
+  }
   /* Strona wczytana z wyprzedzeniem (prerender) liczy się dopiero, gdy ktoś na nią wejdzie. */
-  if (d.prerendering) d.addEventListener('prerenderingchange', start, { once: true }); else start();
+  function wejscie() { start(); hotspoty(); }
+  if (d.prerendering) d.addEventListener('prerenderingchange', wejscie, { once: true }); else wejscie();
 })();

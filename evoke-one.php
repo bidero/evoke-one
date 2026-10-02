@@ -137,6 +137,8 @@ $evoke_one_modules = [
     'statystyki/raport.php',
     'statystyki/eksport.php',    // CSV okresu raportu (1.285.0)
     'statystyki/kraje.php',      // kraj z DB-IP Lite, import co miesiąc (1.285.0)
+    'statystyki/hotspoty.php',   // hotspoty: nagrywanie wybranych stron (1.286.0)
+    'statystyki/podglad.php',    // podgląd hotspotów w ramce (1.286.0)
     'statystyki/kokpit.php',     // „teraz”, widżet Kokpitu, licznik w pasku admina (1.285.0)
 ];
 

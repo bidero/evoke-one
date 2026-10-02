@@ -29,6 +29,10 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/statystyki.php csv-pobierz <login>       admin_post_evk_stat_csv jako <login> (z ważnym nonce) — odmowa albo początek pliku
  *   php tests/php/statystyki.php polityka [json]           akapit „Statystyki odwiedzin” z evk_rodo_tekst_polityki() (ustawienia scalane na czas wywołania)
  *   php tests/php/statystyki.php czytelnicy [usun]         konta HTTP: statyk_csv (uprawnienie „Statystyki”) i statyk_csv_bez, hasło „test-haslo”
+ *   php tests/php/statystyki.php strona-hot                strona do hotspotów: przycisk, akapit, element z reakcją JS, długa treść
+ *   php tests/php/statystyki.php hot-stan <strona>         stan nagrania, plik listy, opcja
+ *   php tests/php/statystyki.php hot-dane <strona>         wiersze odsłon i kliknięć hotspotów
+ *   php tests/php/statystyki.php hot-limit <strona> <n>    limit wizyt bieżącego nagrania
  *   php tests/php/statystyki.php sprzataj
  */
 require __DIR__ . '/_testowy-wp.php';
@@ -42,7 +46,7 @@ global $wpdb;
 
 $odloz = static function () use ($plik, &$zap): void {
     if (isset($zap['opcje'])) return;
-    foreach (['evk_statystyki', 'evk_stat_db_version', 'evk_stat_sol', 'evk_stat_zebrane', 'evk_stat_cele', 'evk_stat_dbip'] as $o) $zap['opcje'][$o] = get_option($o, null);
+    foreach (['evk_statystyki', 'evk_stat_db_version', 'evk_stat_sol', 'evk_stat_zebrane', 'evk_stat_cele', 'evk_stat_dbip', 'evk_stat_hotspoty'] as $o) $zap['opcje'][$o] = get_option($o, null);
     global $wpdb;
     $zap['tabele'] = (bool) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->prefix . 'evk_stat_odslony'));
     file_put_contents($plik, (string) wp_json_encode($zap));
@@ -75,7 +79,11 @@ case 'przygotuj':
         $wpdb->query('TRUNCATE ' . evk_stat_tabela('odslony'));
         $wpdb->query('TRUNCATE ' . evk_stat_tabela('dni'));
         $wpdb->query('TRUNCATE ' . evk_stat_tabela('zdarzenia'));
+        $wpdb->query('TRUNCATE ' . evk_stat_tabela('hot_odslony'));
+        $wpdb->query('TRUNCATE ' . evk_stat_tabela('hot_kliki'));
     }
+    delete_option('evk_stat_hotspoty');
+    evk_stat_hot_zapisz_plik();
     foreach (['Strona statystyk A', 'Strona statystyk B'] as $i => $t) {
         foreach ((array) $wpdb->get_col($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_title = %s", $t)) as $stary) wp_delete_post((int) $stary, true);
         $id = (int) wp_insert_post(['post_title' => $t, 'post_type' => 'page', 'post_status' => 'publish',
@@ -257,6 +265,41 @@ case 'csv-pobierz':
     $out['odp'] = substr((string) ob_get_clean(), 0, 80);
     break;
 
+case 'strona-hot':
+    foreach ((array) $wpdb->get_col("SELECT ID FROM {$wpdb->posts} WHERE post_title = 'Strona hotspotów'") as $stary) wp_delete_post((int) $stary, true);
+    $id = (int) wp_insert_post(['post_title' => 'Strona hotspotów', 'post_type' => 'page', 'post_status' => 'publish', 'post_content' =>
+        '<p><button id="h-btn" type="button" style="width:200px;height:60px">Zamów</button></p>'
+        . '<p id="h-tekst" style="padding:20px 0">Zwykły akapit, w który nie da się kliknąć z żadnym skutkiem.</p>'
+        . '<div id="h-dyn" style="padding:20px;background:#eee">Kliknij, a coś się pojawi</div>'
+        . '<script>document.getElementById("h-dyn").addEventListener("click", function () { this.appendChild(document.createTextNode(" — pojawiło się")); });</script>'
+        . str_repeat('<p>Dalsza treść strony do przewijania, akapit za akapitem.</p>', 80)]);
+    $zap['strony'][] = $id;
+    file_put_contents($plik, (string) wp_json_encode($zap));
+    $out['id'] = $id;
+    break;
+
+case 'hot-stan':
+    $st = (string) ($argv[2] ?? '');
+    $out['stan'] = evk_stat_hot_stan($st);
+    $out['nagrania'] = evk_stat_hot_nagrania();
+    $out['plik'] = is_file(evk_stat_hot_plik()) ? json_decode((string) file_get_contents(evk_stat_hot_plik()), true) : null;
+    $out['adres_pliku'] = evk_stat_hot_adres_pliku();
+    break;
+
+case 'hot-dane':
+    $st = (string) ($argv[2] ?? '');
+    $out['odslony'] = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . evk_stat_tabela('hot_odslony') . ' WHERE strona = %s ORDER BY id', $st), ARRAY_A);
+    $out['kliki'] = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . evk_stat_tabela('hot_kliki') . ' WHERE strona = %s ORDER BY id', $st), ARRAY_A);
+    $out['razem'] = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . evk_stat_tabela('hot_kliki')) + (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . evk_stat_tabela('hot_odslony'));
+    break;
+
+case 'hot-limit':
+    $n = evk_stat_hot_nagrania();
+    $n[(string) $argv[2]]['wizyty'] = (int) $argv[3];
+    update_option('evk_stat_hotspoty', $n, false);
+    $out['nagrania'] = evk_stat_hot_nagrania();
+    break;
+
 case 'polityka':
     $nowe = json_decode((string) ($argv[2] ?? '{}'), true) ?: [];
     add_filter('option_evk_statystyki', static function ($v) use ($nowe) { return array_merge(is_array($v) ? $v : [], $nowe); });
@@ -284,7 +327,8 @@ case 'stan':
 case 'sprzataj':
     foreach ((array) ($zap['strony'] ?? []) as $id) wp_delete_post((int) $id, true);
     if (empty($zap['tabele']) && $tabele()) {
-        $wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'evk_stat_odslony, ' . $wpdb->prefix . 'evk_stat_dni, ' . $wpdb->prefix . 'evk_stat_zdarzenia');
+        $wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'evk_stat_odslony, ' . $wpdb->prefix . 'evk_stat_dni, ' . $wpdb->prefix . 'evk_stat_zdarzenia, '
+            . $wpdb->prefix . 'evk_stat_hot_odslony, ' . $wpdb->prefix . 'evk_stat_hot_kliki');
     }
     foreach ((array) ($zap['opcje'] ?? []) as $o => $v) {
         if ($v === null) delete_option($o); else update_option($o, $v);

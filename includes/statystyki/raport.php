@@ -114,6 +114,11 @@ function evk_stat_render_raport(): void {
     /* Zbiórka przy otwarciu raportu, gdy WP-Cron nie zdążył albo nie chodzi. */
     if (evk_stat_zebrane_do() < wp_date('Y-m-d', time() - DAY_IN_SECONDS)) evk_stat_zbiorka();
 
+    /* Podgląd hotspotów strony (1.286.0) — ten sam ekran raportu, te same uprawnienia. */
+    if (isset($_GET['hotspoty']) && function_exists('evk_stat_hot_render_podglad')) {
+        evk_stat_hot_render_podglad(evk_stat_hot_strona((string) wp_unslash($_GET['hotspoty'])));
+        return;
+    }
     $okres = sanitize_key($_GET['okres'] ?? '30');
     if (!isset(EVK_STAT_OKRESY[$okres])) $okres = '30';
     [$od, $do] = evk_stat_zakres($okres);
