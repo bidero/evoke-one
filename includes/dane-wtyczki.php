@@ -49,6 +49,8 @@ return [
         'evk_statystyki', 'evk_stat_db_version', 'evk_stat_sol', 'evk_stat_zebrane', 'evk_stat_cele', 'evk_stat_dbip', 'evk_stat_hotspoty',
         // Logowanie dwuetapowe (1.287.0)
         'evk_2fa', 'evk_2fa_dziennik',
+        // Ukryty adres logowania (1.288.0)
+        'evk_ukryty_adres',
         // Kopie zapasowe
         'evk_backup', 'evk_backup_alert', 'evk_backup_db_version', 'evk_backup_dir', 'evk_backup_gdrive',
         'evk_backup_key', 'evk_backup_probe', 'evk_backup_sched', 'evk_gdrive_czekanie',

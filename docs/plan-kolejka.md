@@ -5,7 +5,7 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 
 ## Kolejność
 
-Stan po 1.286.0 (ustalone 02.10): **statystyki i hotspoty (1.284 etap 1, 1.285 etap 2, 1.286 hotspoty i 404 — zrobione; później: edytowalna siatka kafli raportu 1/1, 2/1, 1/2;
+Stan po 1.288.0: 2FA (1.287.0) i ukryty adres logowania (1.288.0) zrobione, dalej menu „Evoke” w pasku (1.289.0). Stan po 1.286.0 (ustalone 02.10): **statystyki i hotspoty (1.284 etap 1, 1.285 etap 2, 1.286 hotspoty i 404 — zrobione; później: edytowalna siatka kafli raportu 1/1, 2/1, 1/2;
 szczegóły etapów: DNT/GPC przełącznikiem, domyślnie szanowane; licznik w pasku: ta strona dziś / 30 dni;
 wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną pozycją)
 → logowanie + 2FA → WebP/AVIF → repeater w CSV → generowanie treści AI
@@ -85,6 +85,21 @@ wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną
    - panel: nowa zakładka **„Logowanie”** (włącznik, role z wymuszeniem,
      zapamiętywanie, później ukryty adres, lista kont z 2FA i reset);
      limit logowań zostaje w Bezpieczeństwie.
+   **Ukryty adres (1.288.0, zrobione).** Rozstrzygnięte przy pracy, DO
+   POTWIERDZENIA przez zgłaszającego:
+   - `/wp-admin/` niezalogowanego → przekierowanie na 404 strony
+     (`/?error=404`): kokpit nie wyrenderuje strony motywu w miejscu
+     (WP_ADMIN), a przekierowanie na wp-login.php zdradzałoby logowanie;
+   - klucz po zalogowaniu żyje tyle, co sesja logowania (także logowanie
+     stroną Bricksa) — inaczej wylogowanie i „Sesja wygasła” dawały 404;
+   - wylogowanie niezalogowanego (`action=logout`) → 404: zalogowanego
+     blokada nie dotyczy, więc wylogowanie działa zawsze;
+   - wyjątki z e-maili (reset hasła, potwierdzenie prośby o dane) — tylko
+     z ważnym kluczem z e-maila; hasło wpisu — tylko wysłany formularz;
+   - linki „Zaloguj”, „Nie pamiętasz hasła?”, „Zarejestruj się” → strony
+     Bricksa, gdy są w jego ustawieniach;
+   - przy zwykłych adresach WordPressa klucz to `/?adres`;
+   - awaryjnie stała `EVK_UKRYTY_ADRES_WYLACZ`.
    Menu „Evoke” w pasku admina na stronie (1.289.0): jedno rozwijane menu
    z grupami Statystyki (licznik w tytule), Hotspoty, Tłumaczenia, link do
    panelu; przełącznik konserwacji zostaje osobno na wierzchu; widoczne

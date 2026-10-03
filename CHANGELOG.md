@@ -2,6 +2,47 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.288.0] — 2026-10-03
+
+Ukryty adres logowania — decyzje z 02.10 (docs/plan-kolejka.md, punkt 4).
+Zakładka „Logowanie”, druga sekcja; domyślnie WYŁĄCZONY.
+
+### Dodane
+
+- **Ukryty adres logowania**: `wp-login.php` dla niezalogowanego bez klucza
+  odpowiada stroną 404 motywu (ten sam adres, kod 404 — także z Bricksem,
+  także POST z prawdziwym hasłem i `?brx_use_wp_login`); `/wp-admin/`
+  przekierowuje na 404 strony (`/?error=404`), bez zdradzania wp-login.php.
+- **Adres-klucz** ustawiany w panelu (np. `/panel-x7k2q9`, „Losuj”,
+  „Kopiuj adres”; przy zwykłych adresach WordPressa `/?panel-x7k2q9`):
+  podpisane ciasteczko na 10 minut i formularz WordPressa — także gdy Bricks
+  ma własną stronę logowania. Po zalogowaniu klucz żyje tyle co sesja, więc
+  wylogowanie i okno „Sesja wygasła” w kokpicie nie kończą się na 404.
+  Zmiana adresu unieważnia wszystkie wydane klucze.
+- Bez wyjątku działają: `admin-ajax.php` i `admin-post.php` (w tym
+  logowanie formularzem Bricksa), hasło wpisu chronionego, link resetu
+  hasła i potwierdzenia prośby o dane z e-maila — te dwa tylko z WAŻNYM
+  kluczem z e-maila. Zalogowanego blokada nie dotyczy.
+- Linki „Zaloguj”, „Nie pamiętasz hasła?” i „Zarejestruj się” prowadzą na
+  strony z ustawień Bricksa („Custom authentication pages”), gdy są.
+- Awaryjnie: `define('EVK_UKRYTY_ADRES_WYLACZ', true);` w wp-config.php
+  (czerwone ostrzeżenie w zakładce, dopóki jest).
+
+### Testy
+
+- `logowanie-adres` (37): żądania jak od skanera (bez podążania za
+  przekierowaniem) i Chromium — 404 bez klucza, podrobione ciasteczka (zły
+  podpis, minięty termin, inny adres), adres-klucz w obu postaciach, wyjątki
+  z e-maili z dobrym i złym kluczem, sesja po zalogowaniu, wylogowanie,
+  zmiana adresu, linki Bricksa, stała awaryjna, zakładka.
+- `logowanie-adres-bricks` (9): prawdziwy Bricks 2.4 — najpierw kontrola,
+  że Bricks sam przekierowuje wp-login.php na swoją stronę; potem 404 przed
+  nim, `?brx_use_wp_login` bez klucza, klucz otwiera formularz WordPressa,
+  logowanie formularzem Bricksa daje klucz.
+- Usterka złapana przed wydaniem: podmiana `wp_login_url()` na stronę
+  Bricksa przed `wp_loaded` zapętlała tę stronę (Bricks rozpoznaje po niej
+  swoją stronę logowania) — filtry linków idą teraz po `wp_loaded`.
+
 ## [1.287.0] — 2026-10-03
 
 Logowanie dwuetapowe (2FA) — własne w Evoke, bez wtyczki. Decyzje z 02–03.10
