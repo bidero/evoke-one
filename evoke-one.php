@@ -198,6 +198,9 @@ $evoke_security_modules = [
     'security/bundled-themes.php',
     'security/rest-api.php',
     'security/naglowki.php',     // nagłówki bezpieczeństwa (1.280.0)
+    'logowanie/2fa.php',         // logowanie dwuetapowe: rdzeń (1.287.0)
+    'logowanie/2fa-profil.php',  // 2FA w Profilu kokpitu
+    'logowanie/2fa-logowanie.php', // drugi krok: wp-login.php i formularz Bricksa
 ];
 foreach ($evoke_security_modules as $module) {
     require_once EVOKE_ONE_DIR . 'includes/' . $module;

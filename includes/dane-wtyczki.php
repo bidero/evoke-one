@@ -47,6 +47,8 @@ return [
         'evk_nl_wykluczenia',
         // Statystyki (1.283.0)
         'evk_statystyki', 'evk_stat_db_version', 'evk_stat_sol', 'evk_stat_zebrane', 'evk_stat_cele', 'evk_stat_dbip', 'evk_stat_hotspoty',
+        // Logowanie dwuetapowe (1.287.0)
+        'evk_2fa', 'evk_2fa_dziennik',
         // Kopie zapasowe
         'evk_backup', 'evk_backup_alert', 'evk_backup_db_version', 'evk_backup_dir', 'evk_backup_gdrive',
         'evk_backup_key', 'evk_backup_probe', 'evk_backup_sched', 'evk_gdrive_czekanie',
@@ -72,7 +74,9 @@ return [
                                  // błędy adresu EN wpisu po zapisie, na użytkownika (1.252.0)
                                  'evk_tlw_bledy_',
                                  // token dostępu Google Cloud Translation, na konto usługi (1.280.0)
-                                 'evk_tl_google_token_'],
+                                 'evk_tl_google_token_',
+                                 // token drugiego kroku logowania 2FA (1.287.0)
+                                 'evk_2fa_t_'],
     'typy_wpisow' => ['evk_code_snippet', 'evk_301_redirect', 'evk_301_log', 'evk_404_log'],
     'meta_wpisow' => ['_evk_og_disable', '_evk_og_url', '_evk_original_post_id',
                       '_evoke_seo_desc', '_evoke_seo_keywords', '_evoke_seo_robots', '_evoke_seo_title',
@@ -93,7 +97,7 @@ return [
     /* Wersje językowe nazw i opisów termów (1.253.0): `_evk_tl_{język}__name`,
        `…__description` — ten sam przedrostek, w metadanych termów. */
     'meta_termow_przedrostki' => ['_evk_tl_'],
-    'meta_uzytkownikow' => ['evk_avatar_id'],
+    'meta_uzytkownikow' => ['evk_avatar_id', 'evk_2fa'],
     'tabele' => ['evk_nl_lists', 'evk_nl_subscribers', 'evk_nl_templates', 'evk_nl_campaigns',
                  'evk_nl_queue', 'evk_nl_logs', 'evk_backup_jobs', 'evk_404',
                  'evk_stat_odslony', 'evk_stat_dni', 'evk_stat_zdarzenia',

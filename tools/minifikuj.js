@@ -46,6 +46,7 @@ const PLIKI = [
   'assets/js/warstwy.js',
   'assets/js/statystyki.js',
   'assets/js/hotspoty.js',
+  'assets/js/2fa-bricks.js',
   'includes/bricks-elements/evoke-burger/assets/burger.css',
   'includes/bricks-elements/evoke-burger/assets/burger.js',
   'includes/bricks-elements/evoke-circular-menu/assets/circular-menu.css',

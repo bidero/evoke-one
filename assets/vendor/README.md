@@ -118,3 +118,16 @@ z `node_modules` — inaczej sprawdzałyby coś innego, niż jedzie na stronę.
 * **three.js** — MIT (Three.js Authors). Licencja dopuszcza rozpowszechnianie
   także w postaci zbudowanej; paczka zawiera fragmenty `three` i trzech klas
   z `examples/jsm/postprocessing`.
+
+## qrcode-generator (kod QR w Profilu, 2FA — 1.287.0)
+
+`qrcode/qrcode.js` — niezmieniony `dist/qrcode.js` z paczki npm
+`qrcode-generator` (Kazuhiko Arase, licencja MIT, nagłówek w pliku). Ładowany
+WYŁĄCZNIE na stronie Profilu w kokpicie, gdy konto włącza logowanie
+dwuetapowe: kod QR z kluczem TOTP rysuje przeglądarka — sekret nie wychodzi
+do żadnego zewnętrznego generatora kodów.
+
+```sh
+npm install --save-dev --save-exact qrcode-generator@latest
+cp node_modules/qrcode-generator/dist/qrcode.js assets/vendor/qrcode/
+```
