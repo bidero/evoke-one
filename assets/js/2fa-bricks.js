@@ -39,7 +39,13 @@
     pole.setAttribute('autocomplete', 'one-time-code');
     pole.setAttribute('maxlength', '9');
     pole.removeAttribute('aria-describedby');
-    pole.style.letterSpacing = '.25em';
+    /* Odstęp liter tylko dla wpisanych cyfr — podpowiedź („Kod z aplikacji”) zostaje jak w polach formularza. */
+    if (!document.getElementById('evk-2fa-styl')) {
+      var st = document.createElement('style');
+      st.id = 'evk-2fa-styl';
+      st.textContent = 'input[name="evk_2fa_kod"]:not(:placeholder-shown){letter-spacing:.25em}';
+      document.head.appendChild(st);
+    }
     /* Formularz z etykietami — etykieta; formularz z samymi podpowiedziami w polach (bez <label>) — podpowiedź, jak jego pola. */
     pole.setAttribute('aria-label', 'Kod z aplikacji');
     if (et) { et.textContent = 'Kod z aplikacji'; et.setAttribute('for', pole.id); pole.setAttribute('placeholder', '123 456'); } else pole.setAttribute('placeholder', 'Kod z aplikacji');

@@ -75,7 +75,8 @@ function evk_2fa_render_profil(WP_User $u): void {
         #evk-2fa-box .evk-2fa-krok > div { flex: 1 1 280px; min-width: 0; }
         #evk-2fa-box .evk-2fa-qr { flex: 0 0 auto; width: 200px; height: 200px; background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 4px; box-sizing: border-box; }
         #evk-2fa-box .evk-2fa-qr svg { width: 100%; height: 100%; display: block; }
-        #evk-2fa-box .evk-2fa-klucz { font: 600 16px/1.6 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; word-break: break-all; }
+        /* Łamanie tylko między grupami po 4 znaki (spacje) — „6XA / O F5PP” przepisywało się źle. */
+        #evk-2fa-box .evk-2fa-klucz { font: 600 16px/1.6 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; word-break: normal; overflow-wrap: normal; }
         #evk-2fa-box .evk-2fa-kod { font: 600 24px/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .3em; width: 11ch; max-width: 100%; padding: 6px 10px; }
         #evk-2fa-box .evk-2fa-wiersz { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
         #evk-2fa-box .evk-2fa-kody { display: grid; grid-template-columns: repeat(2, max-content); gap: 6px 28px; font: 600 16px/1.6 ui-monospace, Menlo, Consolas, monospace; margin: 10px 0; }
