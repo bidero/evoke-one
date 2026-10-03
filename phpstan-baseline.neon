@@ -82,19 +82,19 @@ parameters:
 			message: '#^File ends with a trailing whitespace\. This may cause problems when running the code in the web browser\. Remove the closing \?\> mark or remove the whitespace\.$#'
 			identifier: whitespace.fileEnd
 			count: 1
-			path: includes/admin/security-login.php
+			path: includes/admin/logowanie-limit.php
 
 		-
 			message: '#^Variable \$evk_sec might not be defined\.$#'
 			identifier: variable.undefined
 			count: 4
-			path: includes/admin/security-login.php
+			path: includes/admin/logowanie-limit.php
 
 		-
 			message: '#^Variable \$sec_nonce might not be defined\.$#'
 			identifier: variable.undefined
 			count: 2
-			path: includes/admin/security-login.php
+			path: includes/admin/logowanie-limit.php
 
 		-
 			message: '#^Parameter \#1 \$text of function esc_attr expects string, int\|false given\.$#'

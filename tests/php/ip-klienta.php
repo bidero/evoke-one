@@ -197,7 +197,7 @@ $ekran = static function (): string {
     $evk_sec   = evk_security_get();
     $sec_nonce = wp_create_nonce('evk_security_nonce');
     ob_start();
-    require EVK_TEST_ROOT_WTYCZKI . '/includes/admin/security-login.php';
+    require EVK_TEST_ROOT_WTYCZKI . '/includes/admin/logowanie-limit.php';
     return (string) ob_get_clean();
 };
 define('EVK_TEST_ROOT_WTYCZKI', getenv('EVK_TEST_ROOT') ?: dirname(__DIR__, 2));

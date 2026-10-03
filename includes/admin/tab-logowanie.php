@@ -9,12 +9,10 @@ $sub  = sanitize_key($_GET['sub'] ?? '');
 $subs = evoke_one_ekrany()['logowanie'];
 if (!array_key_exists($sub, $subs)) $sub = (string) array_key_first($subs);
 
+/* Limit logowań to opcja `evk_security` — te same zmienne i ten sam zapis co w Bezpieczeństwie. */
 if ($sub === 'limit') {
-    /* Podstrona Bezpieczeństwa — te same zmienne i ten sam zapis co tam. */
     $evk_sec   = evk_security_get();
     $sec_nonce = wp_create_nonce('evk_security_nonce');
-    require EVOKE_ONE_DIR . 'includes/admin/security-login.php';
-    require EVOKE_ONE_DIR . 'includes/admin/security-zapis.php';
-} else {
-    require EVOKE_ONE_DIR . 'includes/admin/logowanie-' . $sub . '.php';
 }
+require EVOKE_ONE_DIR . 'includes/admin/logowanie-' . $sub . '.php';
+if ($sub === 'limit') require EVOKE_ONE_DIR . 'includes/admin/security-zapis.php';

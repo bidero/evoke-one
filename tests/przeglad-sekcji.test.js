@@ -62,10 +62,11 @@ const paryZnacznika = (html) => {
 
 /* Plik ekranu modułu — tymi samymi drogami, którymi dobierają go routery
    zakładek: `tab-{klucz}.php`, `security-{klucz}.php`, `tools-{klucz}.php`,
-   `seo/tab-{klucz}.php`, `other-{klucz}.php`, `admin-{klucz}.php`. Lista
+   `seo/tab-{klucz}.php`, `other-{klucz}.php`, `admin-{klucz}.php`,
+   `logowanie-{klucz}.php` (1.289.0). Lista
    prefiksów, nie mapa „ekran → plik": mapa byłaby trzecim spisem do
    utrzymywania obok mapy ekranów i samych routerów. */
-const PREFIKSY = ['tab-', 'security-', 'tools-', 'seo/tab-', 'other-', 'admin-'];
+const PREFIKSY = ['tab-', 'security-', 'tools-', 'seo/tab-', 'other-', 'admin-', 'logowanie-'];
 
 const plikEkranu = (sub) => {
   const kat = path.join(__dirname, '..', 'includes', 'admin');

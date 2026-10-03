@@ -873,7 +873,7 @@ $TABS = [
        które ta zakładka im podaje ($evk_sec, $sec_nonce). */
     'sec-login' => [
         'module' => ['includes/security/ip-klienta.php', 'includes/security/settings.php', 'includes/security/login-limit.php'],
-        'file'   => 'includes/admin/security-login.php',
+        'file'   => 'includes/admin/logowanie-limit.php',
         'seed'   => function () {
             $GLOBALS['options']['evk_security'] = ['limit_login_enabled' => 1];
             /* Z pustą listą blokad tabela w ogóle się nie rysuje, a to ona

@@ -234,14 +234,15 @@ module.exports = async function (t) {
      Sama zgodność nazw nic nie znaczy, jeśli lista i pasek podzakładek czytają
      tę samą mapę — takie sprawdzenie potwierdza samo siebie. Rozstrzyga dopiero
      to, czy klucz prowadzi do PLIKU, który się wyrenderuje: zakładki dobierają
-     ekran albo po nazwie pliku (`tab-{klucz}.php`, `security-{klucz}.php`),
+     ekran albo po nazwie pliku (`tab-{klucz}.php`, `security-{klucz}.php`,
+     od 1.289.0 `logowanie-{klucz}.php`),
      albo gałęzią `if ($sub === '{klucz}')` u siebie. Klucz, którego nie łapie
      żadna z tych dróg, daje pusty ekran — i tak właśnie zachował się Animator
      przy mutacji, którą to sprawdzenie dołożyło. */
   const rendererZakladki = {
     wydajnosc: 'tab-wydajnosc.php', strona: 'tab-seo.php',
     bezpieczenstwo: 'tab-bezpieczenstwo.php', narzedzia: 'tab-narzedzia.php',
-    admin_panel: 'tab-admin.php',
+    admin_panel: 'tab-admin.php', logowanie: 'tab-logowanie.php',
   };
   const nieosiagalne = [];
   for (const [tabKey, ekrany] of Object.entries(mapa.ekrany)) {
@@ -249,7 +250,7 @@ module.exports = async function (t) {
       path.join(__dirname, '..', 'includes', 'admin', rendererZakladki[tabKey]), 'utf8');
     for (const sub of Object.keys(ekrany)) {
       const wGalezi = src.includes("'" + sub + "'");
-      const poPliku = ['tab-', 'security-', 'tools-'].some((prefiks) =>
+      const poPliku = ['tab-', 'security-', 'tools-', 'logowanie-'].some((prefiks) =>
         fs.existsSync(path.join(__dirname, '..', 'includes', 'admin', prefiks + sub + '.php')));
       if (!wGalezi && !poPliku) nieosiagalne.push(tabKey + '/' + sub);
     }
