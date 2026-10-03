@@ -56,6 +56,8 @@ function check_ajax_referer($action, $field = false, $die = true) {
     return 1;
 }
 
+/* Zapisy SEO pytają evk_moze('seo') (1.292.0, panel dla roli z dostępem SEO) — jak we wtyczce, przed modułem. */
+require_once EVK_TEST_ROOT . '/includes/interface/dostep.php';
 require_once EVK_TEST_ROOT . '/includes/85-seo.php';
 
 /** Woła punkt zapisu i mówi, czym się skończył. */
