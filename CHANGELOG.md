@@ -2,6 +2,63 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.289.0] — 2026-10-03
+
+Decyzje zgłaszającego z 03.10: limit logowań do zakładki „Logowanie”
+(trzy podstrony), wygląd i teksty kroku kodu 2FA z kontrolek formularza
+Bricksa. Menu „Evoke” w pasku admina przechodzi na 1.290.0.
+
+### Zmienione
+
+- **Zakładka „Logowanie” z trzema podstronami**: Logowanie dwuetapowe,
+  Ukryty adres, Limit logowań (przeniesiony z Bezpieczeństwa, ustawienia
+  i blokady bez zmian). Stary adres `?tab=bezpieczenstwo&sub=login`
+  przekierowuje na nowy. Przegląd sekcji jak w Bezpieczeństwie; włącznik
+  ukrytego adresu tylko na jego podstronie (wymaga sprawdzonego adresu
+  i potwierdzenia). Pulpit: „Logowanie — N z 3 włączonych”.
+- **Krok kodu 2FA w formularzu Bricksa — wygląd z formularza.** Linki pod
+  polem („Nie masz telefonu?…”, „← Wróć”) domyślnie wyglądają jak etykiety
+  tego formularza (kolor, krój, grubość; rozmiar 0,9), obok siebie,
+  podkreślenie po najechaniu — zamiast stylów wpisanych w element.
+
+### Dodane
+
+- **Grupa „Logowanie dwuetapowe (Evoke)” w elemencie Formularz** (przy
+  akcji „Login”):
+  - teksty: etykieta i podpowiedź pola, oba linki, etykieta kodu
+    zapasowego, „Zapamiętaj to urządzenie…”, komunikat po złej próbie
+    z `{proby}` — z polami „… EN” Tłumaczeń;
+  - wygląd: typografia linków, kolor po najechaniu, kierunek, wyrównanie,
+    odstępy, typografia komunikatu, klasy CSS linków (np. klasy
+    frameworka); linki pod polem albo pod przyciskiem;
+  - „Podgląd kroku kodu w builderze” — krok pojawia się dopiero po haśle,
+    więc podgląd na kanwie pozwala go ostylować (na stronie nic nie
+    zmienia; wraca po każdej zmianie w panelu).
+- Zmienne CSS do ustawienia globalnie: `--evk-2fa-link-color`, `-size`,
+  `-font`, `-weight`, `-hover`, `--evk-2fa-blad-color`, `-size`,
+  `--evk-2fa-odstep-pion`, `-poziom`. Klasy: `.evk-2fa-nawig`,
+  `.evk-2fa-link`, `.evk-2fa-blad`.
+- **Komunikat po złej próbie** pod polem kodu (`role="alert"`), zamiast
+  komunikatu Bricksa na dole formularza.
+
+### Testy
+
+- `logowanie-2fa-bricks` (17): domyślny wygląd linków = etykieta
+  formularza, obok siebie, cel dotyku ≥ 24 px; własny komunikat; trzecia
+  strona z kontrolkami (teksty, typografia, kierunek, położenie pod
+  przyciskiem, klasy bez szarego tła przycisku); które kontrolki dostają
+  pola „… EN”.
+- `logowanie-2fa-builder` (9, nowy): PRAWDZIWY builder z licencją — podgląd
+  na kanwie z wyglądem z kontrolek, grupa w panelu, zmiana tekstu w panelu
+  (element przerysowany, podgląd wraca), zmiana typografii, brak podglądu
+  na stronie dla gościa.
+- `logowanie-adres`: przegląd Logowania z trzema ekranami, przekierowanie
+  i zapis limitu w nowym miejscu.
+- Złapane przed wydaniem: tekst zmieniony w panelu nie przerysowywał
+  elementu (kontrolki bez `rerender`), a przerysowanie gubiło podgląd
+  (zapytanie buildera to nie kanwa); domyślnie linki stały w kolumnie
+  (`.form-group` Bricksa).
+
 ## [1.288.2] — 2026-10-03
 
 ### Naprawione
