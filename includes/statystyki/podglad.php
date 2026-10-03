@@ -50,12 +50,12 @@ function evk_stat_hot_render_podglad(string $strona): void {
         <h1>Hotspoty: <code><?php echo esc_html($strona); ?></code></h1>
         <p><a href="<?php echo esc_url(evk_stat_adres_raportu()); ?>">← Raport</a>
             <?php if ($st): ?> · <?php echo esc_html($st['nagrywa']
-                ? sprintf('Nagrywanie do %s albo %d wizyt (jest %d)', wp_date('j.m.Y', $st['do']), $st['limit'], $st['wizyty'])
-                : sprintf('Nagrywanie zakończone %s (%d wizyt)', wp_date('j.m.Y', $st['koniec']), $st['wizyty'])); ?><?php endif; ?></p>
+                ? sprintf('Nagrywanie do %s albo %d odwiedzających (jest %d)', wp_date('j.m.Y', $st['do']), $st['limit'], $st['wizyty'])
+                : sprintf('Nagrywanie zakończone %s (%s)', wp_date('j.m.Y', $st['koniec']), evk_stat_hot_ile($st['wizyty'], EVK_STAT_HOT_ODWIEDZAJACY))); ?><?php endif; ?></p>
         <div class="evk-hot-gora">
             <nav class="evk-hot-grupa" aria-label="Urządzenie">
                 <?php foreach ($nazwy as $k => $n): ?>
-                <a class="button" href="<?php echo esc_url(evk_stat_hot_adres_podgladu($strona, $k)); ?>"<?php echo $k === $urz ? ' aria-current="page"' : ''; ?>><?php echo esc_html($n . ' (' . (int) $dane['urzadzenia'][$k] . ')'); ?></a>
+                <a class="button" href="<?php echo esc_url(evk_stat_hot_adres_podgladu($strona, $k)); ?>"<?php echo $k === $urz ? ' aria-current="page"' : ''; ?>><?php echo esc_html($n . ' · ' . evk_stat_hot_ile((int) $dane['urzadzenia'][$k], EVK_STAT_HOT_ODSLONY)); ?></a>
                 <?php endforeach; ?>
             </nav>
             <div class="evk-hot-grupa" role="group" aria-label="Widok">
@@ -78,7 +78,8 @@ function evk_stat_hot_render_podglad(string $strona): void {
                 </div>
                 <div class="evo-box">
                     <h3>Podsumowanie</h3>
-                    <p class="evk-hot-podsumowanie"><?php echo esc_html(sprintf('%d odsłon · %d kliknięć', count($dane['przewiniecia']), count($dane['kliki']))); ?></p>
+                    <p class="evk-hot-podsumowanie"><?php echo esc_html(evk_stat_hot_ile(count($dane['przewiniecia']), EVK_STAT_HOT_ODSLONY) . ' · ' . evk_stat_hot_ile($dane['odwiedzajacy'], EVK_STAT_HOT_ODWIEDZAJACY)
+                        . ' · ' . evk_stat_hot_ile(count($dane['kliki']), ['kliknięcie', 'kliknięcia', 'kliknięć'])); ?></p>
                     <p class="evo-hint">Martwe kliknięcie: poza linkiem i przyciskiem, a przez 1 s nic się na stronie nie zmieniło. Na stronach z ciągłą animacją (suwaki) martwych prawie nie będzie.</p>
                 </div>
                 <div class="evo-box">

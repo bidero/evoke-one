@@ -64,9 +64,18 @@
     }, true);
   }
   /* Hotspoty (1.286.0): czy ta strona jest nagrywana, mówi plik z serwera (świeży co 5 min),
-     nie HTML — strona z pamięci podręcznej nagrywa od chwili włączenia. Ścieżka jak w evk_stat_sciezka. */
+     nie HTML — strona z pamięci podręcznej nagrywa od chwili włączenia. Ścieżka jak w evk_stat_sciezka.
+     Od 1.293.0 kliknięcia z czasu, gdy plik i skrypt hotspotów jeszcze idą, czekają w buforze (element,
+     jego prostokąt i miejsce W CHWILI kliknięcia) — szybkie kliknięcie w menu zaraz po wejściu przepadało. */
   function hotspoty() {
     if (!c.h || !window.fetch) return;
+    var bufor = [];
+    function naKlik(ev) {
+      var el = ev.target;
+      if (bufor && el && el.nodeType === 1 && bufor.length < 100) bufor.push({ el: el, r: el.getBoundingClientRect(), cx: ev.clientX, cy: ev.clientY, px: ev.pageX, py: ev.pageY, t: Date.now() });
+    }
+    function bezBufora() { d.removeEventListener('click', naKlik, true); var b = bufor; bufor = null; return b || []; }
+    d.addEventListener('click', naKlik, true);
     var q = new URLSearchParams(location.search), o = [];
     (c.hp || []).forEach(function (p) {
       var v = q.get(p);
@@ -75,12 +84,13 @@
     var s = location.pathname + (o.length ? '?' + o.sort().join('&') : '');
     fetch(c.h + '?t=' + Math.floor(Date.now() / 3e5), { credentials: 'omit' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
       var koniec = j && j.strony && j.strony[s];
-      if (!koniec || koniec * 1000 < Date.now()) return;
-      window.evkHot = { u: c.u, k: k };
+      if (!koniec || koniec * 1000 < Date.now()) return bezBufora();
+      /* b: oddaje bufor i kończy jego zbieranie; p: przewinięcie liczone od wejścia. */
+      window.evkHot = { u: c.u, k: k, b: bezBufora, p: function () { mierz(); return przew; } };
       var sc = d.createElement('script');
       sc.src = c.hs; sc.async = true;
       d.head.appendChild(sc);
-    }).catch(function () { /* brak pliku — nic nie nagrywamy */ });
+    }).catch(function () { bezBufora(); /* brak pliku — nic nie nagrywamy */ });
   }
   /* Strona wczytana z wyprzedzeniem (prerender) liczy się dopiero, gdy ktoś na nią wejdzie. */
   function wejscie() { start(); hotspoty(); }

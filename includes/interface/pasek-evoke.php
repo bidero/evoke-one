@@ -93,6 +93,8 @@ add_action('wp_head', function (): void {
         . '#wpadminbar #wp-admin-bar-evk-menu>.ab-item .ab-icon{margin:0;padding:0;width:36px;height:46px}'
         . '#wpadminbar #wp-admin-bar-evk-menu>.ab-item .ab-icon:before{font:normal 28px/1 dashicons;top:9px;display:block;text-align:center}'
         . '#wpadminbar #wp-admin-bar-evk-menu .ab-submenu li{display:block}'
+        /* Długie pozycje („Nagrywaj tę stronę (14 dni albo 1000 odwiedzających)”, 1.293.0) zawijają się zamiast poszerzać menu poza ekran. */
+        . '#wpadminbar #wp-admin-bar-evk-menu .ab-submenu .ab-item{white-space:normal;height:auto;line-height:1.4;padding-top:10px;padding-bottom:10px}'
         . '#wpadminbar #wp-admin-bar-evk-menu .evk-pasek-naglowek>.ab-item{font-size:12px;padding:10px 16px 2px}'
         . '}'
         . '</style>';

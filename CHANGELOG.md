@@ -2,6 +2,43 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.293.0] — 2026-10-03
+
+Zgłoszenie z 03.10 („Hotspoty chyba nie zapisują się dobrze”, „Komputer 5,
+a jest 2”) i decyzje zgłaszającego.
+
+### Zmienione
+
+- **Hotspoty: odsłony i odwiedzający nazwane wprost.** Limit nagrania liczy
+  różnych odwiedzających (wizyty: IP i przeglądarka na dzień), a przyciski
+  urządzeń — odsłony; oba nazywały się dotąd „wizytami” albo samą liczbą.
+  Teraz „Nagrywanie do … albo 1000 odwiedzających (jest 2)”, „Komputer ·
+  5 odsłon”, w analizie „5 odsłon · 2 odwiedzających · 12 kliknięć”, w menu
+  „Evoke” i w zakładce tak samo, z odmianą (1 odsłona, 2 odsłony, 5 odsłon).
+- **Kliknięcia z pierwszej chwili po wejściu** nie przepadają: skrypt
+  statystyk zbiera je od wczytania strony (element, jego położenie i miejsce
+  w chwili kliknięcia) i oddaje skryptowi hotspotów, gdy ten się wczyta.
+  Dotąd szybkie kliknięcie, np. w menu na telefonie, zanim przyszła lista
+  nagrywanych stron, nie zapisywało się wcale. Przewinięcie też liczy się od
+  wejścia. Kliknięcie z bufora nie dostaje oceny „martwe” — wtedy nikt
+  jeszcze nie patrzył na zmiany w dokumencie.
+- Menu „Evoke” na telefonie zawija długie pozycje zamiast poszerzać się
+  poza ekran.
+
+### Sprawdzone na testowa.evoke.pl
+
+- Nagrywanie `/oferta/` działa: dwie wizyty z kliknięciami bez logowania,
+  serwer przyjął zapis („ok”).
+
+### Testy
+
+- `statystyki-hotspoty` (37): kliknięcie i przewinięcie, zanim skrypt
+  hotspotów się wczyta (lista nagrań opóźniona o 1,5 s) — zapisane raz,
+  z miejscem z chwili kliknięcia, przewinięcie ok. 80%; napisy odsłon
+  i odwiedzających z odmianą.
+- `pasek-evoke`: pozycja „Nagrywaj tę stronę (… odwiedzających)”; na 360 px
+  menu dalej w ekranie.
+
 ## [1.292.0] — 2026-10-03
 
 Decyzje zgłaszającego z 03.10.

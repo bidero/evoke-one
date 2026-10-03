@@ -60,7 +60,7 @@ module.exports = async function (t) {
     await serwerWp.zaloguj(adm, baza);
     await adm.goto(baza + strona);
     const startTekst = await adm.textContent('#wp-admin-bar-evk-hotspoty-start a').catch(() => null);
-    t.check('pasek: „Nagrywaj tę stronę (14 dni albo 1000 wizyt)”', startTekst === 'Nagrywaj tę stronę (14 dni albo 1000 wizyt)', startTekst);
+    t.check('pasek: „Nagrywaj tę stronę (14 dni albo 1000 odwiedzających)”', startTekst === 'Nagrywaj tę stronę (14 dni albo 1000 odwiedzających)', startTekst);
     await Promise.all([adm.waitForNavigation(), adm.evaluate(() => { location.href = document.querySelector('#wp-admin-bar-evk-hotspoty-start a').href; })]);
     const st1 = sonda('hot-stan', strona);
     const tytul = await adm.textContent('#wp-admin-bar-evk-hotspoty > .ab-item').catch(() => null);
@@ -156,6 +156,13 @@ module.exports = async function (t) {
       };
     });
     console.log('      podgląd: ' + J(pod));
+    /* 1.293.0 (zgłoszenie „Komputer 5, a jest 2”): odsłony i odwiedzający nazwane wprost, z odmianą. */
+    const napisy = await adm.evaluate(() => ({ podsumowanie: document.querySelector('.evk-hot-podsumowanie').textContent.trim(),
+      stan: document.querySelector('.evk-hot h1 + p').textContent.replace(/\s+/g, ' ').trim(),
+      urz: [...document.querySelectorAll('.evk-hot-grupa a')].map((a) => a.textContent) }));
+    t.check('napisy: „1 odsłona · 1 odwiedzający · 6 kliknięć”, „Komputer · 1 odsłona”, „Tablet · 0 odsłon”, zakończone „(2 odwiedzających)”',
+      napisy.podsumowanie === '1 odsłona · 1 odwiedzający · 6 kliknięć' && J(napisy.urz) === J(['Telefon · 1 odsłona', 'Tablet · 0 odsłon', 'Komputer · 1 odsłona'])
+      && /Nagrywanie zakończone \d+\.\d+\.\d+ \(2 odwiedzających\)$/.test(napisy.stan), J(napisy));
     t.check('ramka bez paska admina; nakładka z 6 kliknięciami komputera', !!pod && pod.pasek === false && pod.punkty === '6', J(pod));
     t.check('mapa ciepła: kolor na przycisku i w miejscu serii, pusto daleko od kliknięć', !!pod && pod.naPrzycisku > 0 && pod.wCwiartce > 0 && pod.daleko === 0, J(pod));
     t.check('znaczniki: jedna „złość”, jedno „martwe”', !!pod && J(pod.znaczniki) === J(['martwe', 'zlosc']), J(pod && pod.znaczniki));
@@ -190,7 +197,7 @@ module.exports = async function (t) {
     const tel = await adm.evaluate(() => ({ szer: document.querySelector('.evk-hot-ramka').getBoundingClientRect().width,
       punkty: document.querySelector('.evk-hot-ramka').contentDocument.getElementById('evk-hot-nakladka')?.getAttribute('data-punkty'),
       biezace: document.querySelector('.evk-hot-grupa [aria-current]').textContent }));
-    t.check('„Telefon (1)”: ramka 390 px, nakładka z kliknięciem z telefonu', Math.round(tel.szer) === 390 && tel.punkty === '1' && tel.biezace === 'Telefon (1)', J(tel));
+    t.check('„Telefon · 1 odsłona”: ramka 390 px, nakładka z kliknięciem z telefonu', Math.round(tel.szer) === 390 && tel.punkty === '1' && tel.biezace === 'Telefon · 1 odsłona', J(tel));
 
     t.section('zakładka: lista nagrań, uprawnienia, polityka, kasowanie');
     await adm.goto(baza + '/wp-admin/options-general.php?page=evoke-one&tab=statystyki');
@@ -221,6 +228,36 @@ module.exports = async function (t) {
     const przedUsun = daneHot().razem;
     sonda('usun', J({ wszystko: 1 }));
     t.check('„Usuń wszystkie statystyki” kasuje też odsłony i kliknięcia hotspotów', przedUsun === 2 && daneHot().razem === 0, J({ przedUsun, po: daneHot().razem }));
+
+    t.section('kliknięcie, zanim skrypt hotspotów się wczyta (bufor, 1.293.0)');
+    /* Plik listy przychodzi 1,5 s później — przez ten czas działa tylko skrypt statystyk. */
+    const p4 = await gosc();
+    await p4.context().route('**/hotspoty.json*', async (r) => { await czekaj(1500); await r.continue(); });
+    await p4.goto(baza + strona, { waitUntil: 'domcontentloaded' });
+    await p4.waitForFunction(() => window.evkStat, null, { timeout: 5000 }).catch(() => {});
+    const wczesnie = await p4.evaluate(() => ({ start: window.evkHotStart || 0 }));
+    const btn4 = await p4.locator('#h-btn').boundingBox();
+    await p4.mouse.click(btn4.x + btn4.width / 4, btn4.y + btn4.height / 2);
+    /* Głęboko i z powrotem, też przed startem: przewinięcie liczy się od wejścia. */
+    const docH4 = await p4.evaluate(() => { window.scrollTo(0, document.documentElement.scrollHeight * 0.8 - window.innerHeight); return document.documentElement.scrollHeight; });
+    await p4.waitForTimeout(200);
+    await p4.evaluate(() => window.scrollTo(0, 0));
+    const poKliku = await p4.evaluate(() => window.evkHotStart || 0);
+    const ruszyl = await p4.waitForFunction(() => window.evkHotStart === 1, null, { timeout: 8000 }).then(() => true, () => false);
+    await p4.waitForTimeout(300);
+    /* Przechwytywanie zdjęte przed wyjściem: przy aktywnym route() Chromium gubi część beaconów wysłanych w pagehide (1 na 3 przebiegi). */
+    await p4.context().unrouteAll();
+    await p4.goto('about:blank');
+    const d4 = await poczekajNa((d) => (d.kliki || []).length >= 1);
+    console.log('      wczesne: ' + J({ wczesnie, poKliku, ruszyl, docH4, odslony: d4.odslony, kliki: (d4.kliki || []).map((k) => [k.selektor, k.rx, k.ry, k.martwe]) }));
+    t.check('kliknięcie i przewinięcie przed startem skryptu hotspotów (sprawdzone: jeszcze nie działał)', wczesnie.start === 0 && poKliku === 0 && ruszyl, J({ wczesnie, poKliku, ruszyl }));
+    const k4 = d4.kliki || [];
+    t.check('wczesne kliknięcie zapisane raz: #h-btn, miejsce z chwili kliknięcia (250/500), bez oceny „martwe”',
+      k4.length === 1 && k4[0].selektor === '#h-btn' && Math.abs(k4[0].rx - 250) <= 10 && Math.abs(k4[0].ry - 500) <= 20 && +k4[0].martwe === 0, J(k4));
+    t.check('przewinięcie od wejścia: ok. 80%, choć przy starcie skryptu hotspotów strona była na górze',
+      (d4.odslony || []).length === 1 && +d4.odslony[0].przewiniecie >= 77 && +d4.odslony[0].przewiniecie <= 82, J(d4.odslony));
+    await p4.context().close();
+
     adm.on('dialog', (d) => d.accept());
     await Promise.all([adm.waitForNavigation(), adm.click('#evk-stat-hot tr[data-strona="' + strona + '"] .evk-hot-usun')]);
     t.check('„Usuń dane” (po potwierdzeniu): strona znika z listy i z pliku', !(strona in sonda('hot-stan', strona).nagrania)

@@ -8,6 +8,10 @@
  * Martwe: kliknięcie poza linkiem, przyciskiem i polem, po którym przez 1 s
  * nic się w dokumencie nie zmieniło (zaznaczanie tekstu się nie liczy).
  * Bez ruchu myszy i bez wartości pól. Wysyłka przy każdym schowaniu karty.
+ *
+ * Kliknięcia sprzed wczytania (1.293.0) przychodzą z bufora skryptu statystyk
+ * (c.b) — z prostokątem elementu z chwili kliknięcia. Bez oceny „martwe”:
+ * wtedy nikt jeszcze nie patrzył na zmiany w dokumencie.
  */
 (function () {
   var c = window.evkHot, n = navigator, d = document, e = d.documentElement;
@@ -37,6 +41,7 @@
   function mierz() {
     var h = e.scrollHeight;
     if (h > 0) przew = Math.max(przew, Math.min(100, Math.round((window.scrollY + window.innerHeight) / h * 100)));
+    if (c.p) przew = Math.max(przew, c.p());
   }
   var wyslane = 0;
   function wyslij() {
@@ -49,27 +54,31 @@
   }
   new MutationObserver(function () { zmiany++; }).observe(e, { subtree: true, childList: true, attributes: true, characterData: true });
 
-  d.addEventListener('click', function (ev) {
-    var el = ev.target;
+  /** Jedno kliknięcie: element, jego prostokąt i miejsce w chwili kliknięcia; `wczesne` — z bufora. */
+  function klik(el, r, cx, cy, px, py, teraz, wczesne) {
     if (!el || el.nodeType !== 1 || kliki.length >= LIMIT) return;
-    var r = el.getBoundingClientRect(), teraz = Date.now();
     var k = { s: selektor(el), l: etykieta(el),
-      x: r.width ? Math.max(0, Math.min(1000, Math.round((ev.clientX - r.left) / r.width * 1000))) : 0,
-      y: r.height ? Math.max(0, Math.min(1000, Math.round((ev.clientY - r.top) / r.height * 1000))) : 0,
-      px: Math.round(ev.pageX), py: Math.round(ev.pageY), z: 0, m: 0 };
+      x: r.width ? Math.max(0, Math.min(1000, Math.round((cx - r.left) / r.width * 1000))) : 0,
+      y: r.height ? Math.max(0, Math.min(1000, Math.round((cy - r.top) / r.height * 1000))) : 0,
+      px: Math.round(px), py: Math.round(py), z: 0, m: 0 };
     if (!k.s) return;
     /* Złość: trzecie (i dalsze) szybkie kliknięcie w to samo miejsce; jedna seria — jeden znacznik. */
-    seria = seria.filter(function (p) { return teraz - p.t < 1000 && Math.abs(p.x - ev.clientX) < 30 && Math.abs(p.y - ev.clientY) < 30; });
-    seria.push({ t: teraz, x: ev.clientX, y: ev.clientY });
+    seria = seria.filter(function (p) { return teraz - p.t < 1000 && Math.abs(p.x - cx) < 30 && Math.abs(p.y - cy) < 30; });
+    seria.push({ t: teraz, x: cx, y: cy });
     if (seria.length === 3) k.z = 1;
     kliki.push(k); nowe.push(k);
-    if (!el.closest(AKTYWNE)) {
+    if (!wczesne && !el.closest(AKTYWNE)) {
       var przed = zmiany, adres = location.href;
       setTimeout(function () {
         var zaznaczenie = window.getSelection && String(window.getSelection());
         if (zmiany === przed && location.href === adres && !zaznaczenie && d.visibilityState === 'visible') k.m = 1;
       }, 1000);
     }
+  }
+  /* Najpierw bufor (oddanie kończy jego zbieranie), w tej samej chwili własna obsługa — bez luki i bez podwójnych. */
+  (c.b ? c.b() : []).forEach(function (b) { klik(b.el, b.r, b.cx, b.cy, b.px, b.py, b.t, true); });
+  d.addEventListener('click', function (ev) {
+    klik(ev.target, ev.target && ev.target.nodeType === 1 ? ev.target.getBoundingClientRect() : null, ev.clientX, ev.clientY, ev.pageX, ev.pageY, Date.now(), false);
   }, true);
   window.addEventListener('scroll', mierz, { passive: true });
   d.addEventListener('visibilitychange', function () { if (d.visibilityState === 'hidden') wyslij(); });

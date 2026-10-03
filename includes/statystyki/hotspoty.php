@@ -32,6 +32,18 @@ const EVK_STAT_HOT_LIMIT_KLIKOW = 100;
  */
 const EVK_STAT_HOT_SZEROKOSCI = ['telefon' => 390, 'tablet' => 820, 'komputer' => 1440];
 
+/**
+ * Liczba z rzeczownikiem w dobrej formie: 1 odsłona, 2 odsłony, 5 odsłon (1.293.0).
+ * @param array{0:string,1:string,2:string} $formy jeden, kilka (2–4), wiele
+ */
+function evk_stat_hot_ile(int $n, array $formy): string {
+    $d = $n % 10; $s = $n % 100;
+    return $n . ' ' . ($n === 1 ? $formy[0] : ($d >= 2 && $d <= 4 && ($s < 12 || $s > 14) ? $formy[1] : $formy[2]));
+}
+const EVK_STAT_HOT_ODSLONY = ['odsłona', 'odsłony', 'odsłon'];
+/* Limit nagrania liczy RÓŻNYCH odwiedzających (wizyty: IP i przeglądarka na dzień), nie odsłony — zgłoszenie 03.10: „Komputer 5, a jest 2”. */
+const EVK_STAT_HOT_ODWIEDZAJACY = ['odwiedzający', 'odwiedzających', 'odwiedzających'];
+
 /** @return array<string,array{od:int,do:int,wizyty:int,koniec:int}> nagrania po stronie */
 function evk_stat_hot_nagrania(): array {
     $n = get_option(EVK_STAT_HOT_OPCJA, []);
@@ -241,9 +253,9 @@ add_action('admin_bar_menu', function (WP_Admin_Bar $pasek): void {
     evk_pasek_naglowek($pasek, 'hot', 'evk-hotspoty', $st && $st['nagrywa'] ? 'Hotspoty: nagrywanie' : 'Hotspoty');
     if ($st) {
         /* Podgląd jest w raporcie — tylko z dostępem „Statystyki”. */
-        if (evk_stat_moze_czytac()) $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-pokaz', 'title' => 'Pokaż hotspoty (' . (int) $st['odslony'] . ' odsłon)', 'href' => evk_stat_hot_adres_podgladu($strona)]);
+        if (evk_stat_moze_czytac()) $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-pokaz', 'title' => 'Pokaż hotspoty (' . evk_stat_hot_ile((int) $st['odslony'], EVK_STAT_HOT_ODSLONY) . ')', 'href' => evk_stat_hot_adres_podgladu($strona)]);
         $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-stan', 'title' => $st['nagrywa']
-            ? sprintf('Do %s albo %d wizyt (jest %d)', wp_date('j.m.Y', $st['do']), $st['limit'], $st['wizyty'])
+            ? sprintf('Do %s albo %d odwiedzających (jest %d)', wp_date('j.m.Y', $st['do']), $st['limit'], $st['wizyty'])
             : 'Nagrywanie zakończone ' . wp_date('j.m.Y', $st['koniec'])]);
     }
     if (!$admin) return;
@@ -253,7 +265,7 @@ add_action('admin_bar_menu', function (WP_Admin_Bar $pasek): void {
         /* Zakończone nagranie: usunięcie z paska (1.291.0) — dotąd tylko w panelu, czyli dla administratora. */
         if ($st) $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-usun', 'title' => 'Usuń nagranie tej strony', 'href' => evk_stat_hot_adres_akcji('usun', $strona),
             'meta' => ['onclick' => "return confirm('Usunąć nagranie hotspotów tej strony? Kliknięć nie da się przywrócić.');"]]);
-        $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-start', 'title' => sprintf('Nagrywaj tę stronę (%d dni albo %d wizyt)', EVK_STAT_HOT_DNI, EVK_STAT_HOT_WIZYTY),
+        $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-start', 'title' => sprintf('Nagrywaj tę stronę (%d dni albo %d odwiedzających)', EVK_STAT_HOT_DNI, EVK_STAT_HOT_WIZYTY),
             'href' => add_query_arg(['dni' => EVK_STAT_HOT_DNI, 'wizyty' => EVK_STAT_HOT_WIZYTY], evk_stat_hot_adres_akcji('start', $strona))]);
     }
 }, 101);
@@ -269,17 +281,18 @@ add_action('init', function (): void {
 
 /**
  * Dane nakładki dla strony i urządzenia: kliknięcia (do 20 000 najnowszych),
- * przewinięcia odsłon i liczby na urządzenie.
+ * przewinięcia odsłon, odwiedzający (różne wizyty) i liczby odsłon na urządzenie.
  *
- * @return array{kliki:list<array<int,int|string>>,przewiniecia:list<int>,urzadzenia:array<string,int>}
+ * @return array{kliki:list<array<int,int|string>>,przewiniecia:list<int>,odwiedzajacy:int,urzadzenia:array<string,int>}
  */
 function evk_stat_hot_dane(string $strona, string $urz): array {
     global $wpdb;
-    $out = ['kliki' => [], 'przewiniecia' => [], 'urzadzenia' => ['telefon' => 0, 'tablet' => 0, 'komputer' => 0]];
+    $out = ['kliki' => [], 'przewiniecia' => [], 'odwiedzajacy' => 0, 'urzadzenia' => ['telefon' => 0, 'tablet' => 0, 'komputer' => 0]];
     if ((int) get_option('evk_stat_db_version', 0) !== EVK_STAT_DB_WERSJA) return $out;
     foreach ((array) $wpdb->get_results($wpdb->prepare('SELECT urzadzenie, COUNT(*) AS n FROM ' . evk_stat_tabela('hot_odslony') . ' WHERE strona = %s GROUP BY urzadzenie', $strona), ARRAY_A) as $w) {
         if (isset($out['urzadzenia'][$w['urzadzenie']])) $out['urzadzenia'][$w['urzadzenie']] = (int) $w['n'];
     }
+    $out['odwiedzajacy'] = (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(DISTINCT wizyta) FROM ' . evk_stat_tabela('hot_odslony') . ' WHERE strona = %s AND urzadzenie = %s', $strona, $urz));
     $out['przewiniecia'] = array_map('intval', (array) $wpdb->get_col($wpdb->prepare('SELECT przewiniecie FROM ' . evk_stat_tabela('hot_odslony') . ' WHERE strona = %s AND urzadzenie = %s', $strona, $urz)));
     foreach ((array) $wpdb->get_results($wpdb->prepare('SELECT selektor, etykieta, rx, ry, px, py, szer, zlosc, martwe FROM ' . evk_stat_tabela('hot_kliki')
         . ' WHERE strona = %s AND urzadzenie = %s ORDER BY id DESC LIMIT 20000', $strona, $urz), ARRAY_A) as $w) {

@@ -63,7 +63,7 @@ module.exports = async function (t) {
     t.check('jedno menu „Evoke” z licznikiem tej strony w tytule (dziś / 30 dni) i opisem po najechaniu',
       m1.jest && m1.etykieta === 'Evoke' && /^\d+ \/ \d+$/.test(m1.licznik || '') && /^Odsłony tej strony: dziś \d+, 30 dni \d+$/.test(m1.opis || ''), J(m1));
     t.check('grupy w kolejności: Statystyki, Hotspoty, Tłumaczenia (EN, DE), panel — każda z nagłówkiem',
-      J(m1.pozycje.map((x) => x.replace(/\d+/g, 'N'))) === J(['# Statystyki', 'Odsłony tej strony: dziś N, N dni N', 'Raport statystyk', '# Hotspoty', 'Nagrywaj tę stronę (N dni albo N wizyt)',
+      J(m1.pozycje.map((x) => x.replace(/\d+/g, 'N'))) === J(['# Statystyki', 'Odsłony tej strony: dziś N, N dni N', 'Raport statystyk', '# Hotspoty', 'Nagrywaj tę stronę (N dni albo N odwiedzających)',
         '# Tłumaczenia', 'Sprawdź tłumaczenia (EN)', 'Sprawdź tłumaczenia (DE)', 'Panel Evoke ONE']), J(m1.pozycje));
     t.check('pozycje modułów tylko w menu — nie osobno w pasku; po najechaniu menu rozwinięte', m1.poza.length === 0 && m1.widac, J(m1.poza));
     const wierzch = await a.evaluate(() => ({ konserwacja: !!document.querySelector('#wp-admin-bar-root-default > #wp-admin-bar-maintenance_toggle_node'),
@@ -91,7 +91,7 @@ module.exports = async function (t) {
       if (href) await Promise.all([h.waitForNavigation(), h.evaluate((u) => { location.href = u; }, href)]); return href; };
     const mh0 = await menu(h);
     t.check('rola z samym dostępem „Hotspoty”: w menu tylko Hotspoty z „Nagrywaj tę stronę”', mh0.jest
-      && J(mh0.pozycje.map((x) => x.replace(/\d+/g, 'N'))) === J(['# Hotspoty', 'Nagrywaj tę stronę (N dni albo N wizyt)']), J(mh0));
+      && J(mh0.pozycje.map((x) => x.replace(/\d+/g, 'N'))) === J(['# Hotspoty', 'Nagrywaj tę stronę (N dni albo N odwiedzających)']), J(mh0));
     await idz('evk-hotspoty-start');
     const hs1 = sonda('hot').stan;
     const mh1 = await menu(h);

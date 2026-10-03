@@ -199,7 +199,7 @@ $evk_on  = !empty($evk_st['enabled']);
             („Hotspoty → Nagrywaj tę stronę”). Dane zostają po zakończeniu — do usunięcia tutaj.</p>
         <?php if ($evk_hot): ?>
         <div class="evo-tbl-wrap"><table class="evo-table evk-hot-lista">
-            <thead><tr><th scope="col">Strona</th><th scope="col">Stan</th><th scope="col" class="num">Wizyty</th><th scope="col">Akcje</th></tr></thead>
+            <thead><tr><th scope="col">Strona</th><th scope="col">Stan</th><th scope="col" class="num">Odwiedzający</th><th scope="col">Akcje</th></tr></thead>
             <tbody>
             <?php foreach (array_keys($evk_hot) as $evk_s): $evk_s = (string) $evk_s; $evk_st = evk_stat_hot_stan($evk_s); if (!$evk_st) continue; ?>
             <tr data-strona="<?php echo esc_attr($evk_s); ?>">
@@ -232,7 +232,7 @@ $evk_on  = !empty($evk_st['enabled']);
                     <input type="number" id="evk-hot-dni" name="dni" min="1" max="365" value="<?php echo (int) EVK_STAT_HOT_DNI; ?>">
                 </div>
                 <div class="evo-field">
-                    <label for="evk-hot-wizyty">Albo wizyt</label>
+                    <label for="evk-hot-wizyty">Albo odwiedzających</label>
                     <input type="number" id="evk-hot-wizyty" name="wizyty" min="1" value="<?php echo (int) EVK_STAT_HOT_WIZYTY; ?>">
                 </div>
             </div>
