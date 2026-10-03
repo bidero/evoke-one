@@ -339,6 +339,14 @@ function evk_stat_render_raport(): void {
         <div class="evk-stat-siatka">
             <?php
             echo evk_stat_tabela_html('Strony', 'Adres', evk_stat_dane('strona', $od, $do));
+            /* Nieistniejące strony (1.286.0): wejścia ludzi na 404, poza odsłonami; pod adresem — skąd przyszli. */
+            $d404 = evk_stat_dane('404', $od, $do);
+            if ($d404) {
+                $pod404 = [];
+                foreach (evk_stat_dane('404_skad', $od, $do) as $a => $l) { [$adr, $skad] = array_pad(explode("\t", (string) $a, 2), 2, ''); $pod404[$adr][$skad] = $l; }
+                echo evk_stat_tabela_html('Nieistniejące strony (404)', 'Adres', $d404, [], $pod404,
+                    '<p class="evo-hint">Wejścia ludzi (bez botów), poza odsłonami. Pod adresem: skąd przyszli — „ta strona: …” to zepsuty link we własnej treści.</p>');
+            }
             /* Pełne adresy odsyłające (1.286.0) rozwijane pod domeną źródła. */
             $pod_zr = [];
             foreach (evk_stat_dane('odsylacz', $od, $do) as $a => $l) $pod_zr[(string) preg_replace('~/.*$~', '', (string) $a)][(string) $a] = $l;

@@ -24,7 +24,7 @@
   }
   function start() {
     var q = new URLSearchParams(location.search);
-    wyslij({ t: 'v', s: location.pathname, q: location.search, r: d.referrer, w: window.innerWidth, p: c.p, j: c.j,
+    wyslij({ t: 'v', s: location.pathname, q: location.search, r: d.referrer, w: window.innerWidth, p: c.p, j: c.j, e: c.e || 0,
       us: q.get('utm_source') || '', um: q.get('utm_medium') || '', uc: q.get('utm_campaign') || '' });
     od = d.visibilityState === 'visible' ? Date.now() : 0;
     mierz();

@@ -23,6 +23,10 @@ const EVK_STAT_WYMIARY = [
     'utm_source' => 'utm_source', 'utm_medium' => 'utm_medium', 'utm_campaign' => 'utm_campaign',
     'kraj' => 'kraj',   // z DB-IP Lite (1.285.0)
     'odsylacz' => 'odsylacz',   // pełny adres odsyłający bez parametrów (1.286.0)
+    /* Wejścia na nieistniejące strony (1.286.0) — wiersze z `blad = 404`, poza wszystkimi wymiarami wyżej.
+       `404_skad`: „adres TAB skąd” (adres odsyłający, także z tej strony, albo źródło). */
+    '404' => 'sciezka',
+    '404_skad' => "LEFT(CONCAT(sciezka, CHAR(9), IF(odsylacz <> '', odsylacz, zrodlo)), 191)",
     /* Zdarzenia (1.285.0): wartość „rodzaj:etykieta”, `odslony` = liczba zdarzeń, z tabeli zdarzeń. */
     'zdarzenie' => '@zdarzenia',
 ];
@@ -45,7 +49,7 @@ function evk_stat_sql_surowe(string $wymiar, string $od, string $do): string {
         );
     }
     $wart = $kol === '' ? "''" : $kol;
-    $gdzie = $kol === '' ? '' : " AND $kol <> ''";
+    $gdzie = ($kol === '' ? '' : " AND $kol <> ''") . ' AND blad = ' . (in_array($wymiar, ['404', '404_skad'], true) ? 404 : 0);
     return $wpdb->prepare(
         "SELECT dzien, %s AS wymiar, $wart AS wartosc, COUNT(*) AS odslony, COUNT(DISTINCT wizyta) AS unikalni,
                 SUM(czas_s) AS czas_suma, SUM(przewiniecie > 0) AS czas_ile, SUM(przewiniecie) AS przewiniecie_suma

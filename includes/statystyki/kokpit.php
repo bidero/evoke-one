@@ -23,9 +23,9 @@ function evk_stat_teraz(): array {
     if ((int) get_option('evk_stat_db_version', 0) !== EVK_STAT_DB_WERSJA) return ['wizyty' => 0, 'strony' => []];
     $od  = gmdate('Y-m-d H:i:s', time() - EVK_STAT_TERAZ_MIN * MINUTE_IN_SECONDS);
     $tab = evk_stat_tabela('odslony');
-    $ile = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(DISTINCT wizyta) FROM $tab WHERE czas >= %s", $od));
+    $ile = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(DISTINCT wizyta) FROM $tab WHERE czas >= %s AND blad = 0", $od));
     $strony = [];
-    foreach ((array) $wpdb->get_results($wpdb->prepare("SELECT sciezka, COUNT(DISTINCT wizyta) AS ile FROM $tab WHERE czas >= %s GROUP BY sciezka ORDER BY ile DESC LIMIT 5", $od), ARRAY_A) as $w) {
+    foreach ((array) $wpdb->get_results($wpdb->prepare("SELECT sciezka, COUNT(DISTINCT wizyta) AS ile FROM $tab WHERE czas >= %s AND blad = 0 GROUP BY sciezka ORDER BY ile DESC LIMIT 5", $od), ARRAY_A) as $w) {
         $strony[(string) $w['sciezka']] = (int) $w['ile'];
     }
     return ['wizyty' => $ile, 'strony' => $strony];
@@ -46,7 +46,7 @@ function evk_stat_odslony_strony(string $sciezka, string $od, string $do): int {
     }
     $od_sur = $zeb !== '' && $zeb >= $od ? gmdate('Y-m-d', strtotime($zeb . ' +1 day')) : $od;
     if ($od_sur <= $do) {
-        $ile += (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . evk_stat_tabela('odslony') . ' WHERE sciezka = %s AND dzien BETWEEN %s AND %s', $sciezka, $od_sur, $do));
+        $ile += (int) $wpdb->get_var($wpdb->prepare('SELECT COUNT(*) FROM ' . evk_stat_tabela('odslony') . ' WHERE sciezka = %s AND dzien BETWEEN %s AND %s AND blad = 0', $sciezka, $od_sur, $do));
     }
     return $ile;
 }
@@ -72,7 +72,7 @@ function evk_stat_godziny(): array {
     global $wpdb;
     $out = array_fill(0, 24, 0);
     if ((int) get_option('evk_stat_db_version', 0) !== EVK_STAT_DB_WERSJA) return $out;
-    foreach ((array) $wpdb->get_results($wpdb->prepare('SELECT czas FROM ' . evk_stat_tabela('odslony') . ' WHERE dzien = %s', wp_date('Y-m-d')), ARRAY_A) as $w) {
+    foreach ((array) $wpdb->get_results($wpdb->prepare('SELECT czas FROM ' . evk_stat_tabela('odslony') . ' WHERE dzien = %s AND blad = 0', wp_date('Y-m-d')), ARRAY_A) as $w) {
         $out[(int) wp_date('G', (int) strtotime($w['czas'] . ' UTC'))]++;
     }
     return $out;

@@ -310,6 +310,20 @@ case 'polityka':
     $out['akapit'] = preg_match('~<h3>Statystyki odwiedzin</h3><p>.*?</p>~s', evk_rodo_tekst_polityki(), $m) ? $m[0] : null;
     break;
 
+case 'hot-akcja':
+    /* admin-post sterowania nagraniem jako <login>, z WŁASNYM ważnym nonce — odmowa ma wynikać z uprawnień, nie z nonce. */
+    wp_set_current_user((int) get_user_by('login', (string) ($argv[2] ?? 'admin'))->ID);
+    $_GET = $_REQUEST = ['action' => 'evk_stat_hot', 'akcja' => (string) ($argv[3] ?? 'stop'), 'strona' => (string) ($argv[4] ?? '/'), '_wpnonce' => wp_create_nonce('evk_stat_hot')];
+    add_filter('wp_die_handler', static function () {
+        return static function ($m = '', $t = '', $a = []) { echo 'ODMOWA ' . (is_array($a) ? ($a['response'] ?? '') : '') . ' ' . (is_string($m) ? $m : ''); throw new RuntimeException('koniec'); };
+    });
+    add_filter('wp_redirect', static function () { echo 'PRZEKIEROWANIE'; throw new RuntimeException('koniec'); });
+    ob_start();
+    try { do_action('admin_post_evk_stat_hot'); } catch (RuntimeException $e) { /* koniec */ }
+    $out['odp'] = substr((string) ob_get_clean(), 0, 80);
+    $out['stan'] = evk_stat_hot_stan((string) ($argv[4] ?? '/'));
+    break;
+
 case 'czytelnicy':
     require_once ABSPATH . 'wp-admin/includes/user.php';
     foreach (['statyk_csv' => true, 'statyk_csv_bez' => false] as $login => $cap) {

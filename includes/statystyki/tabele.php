@@ -13,8 +13,8 @@ if (!defined('ABSPATH')) exit;
  * i przewinięcia. Raport za dni sprzed zbiórki czyta tylko tę tabelę.
  */
 
-/* 2 (1.285.0): tabela zdarzeń; 3: kolumna `kraj` odsłon; 4 (1.286.0): hotspoty i pełny adres
-   odsyłający. dbDelta dokłada je do istniejących. */
+/* 2 (1.285.0): tabela zdarzeń; 3: kolumna `kraj` odsłon; 4 (1.286.0): hotspoty, pełny adres
+   odsyłający i `blad` (404 — wejście na nieistniejącą stronę, poza odsłonami). dbDelta dokłada je do istniejących. */
 const EVK_STAT_DB_WERSJA = 4;
 
 function evk_stat_tabela(string $nazwa): string {
@@ -44,6 +44,7 @@ function evk_stat_utworz_tabele(): void {
         jezyk varchar(10) NOT NULL DEFAULT '',
         kraj char(2) NOT NULL DEFAULT '',
         odsylacz varchar(191) NOT NULL DEFAULT '',
+        blad smallint(5) UNSIGNED NOT NULL DEFAULT 0,
         czas_s int(10) UNSIGNED NOT NULL DEFAULT 0,
         przewiniecie tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
         PRIMARY KEY  (id),

@@ -190,8 +190,9 @@ module.exports = async function (t) {
     await serwerWp.zaloguj(cz, baza, 'statyk_csv', 'test-haslo');
     await cz.goto(baza + '/wp-admin/admin.php?page=evoke-statystyki&hotspoty=' + encodeURIComponent(strona));
     const czH1 = await cz.textContent('.evk-hot h1').catch(() => null);
-    const czStop = await cz.request.get(await adm.evaluate((s) => document.querySelector('#evk-stat-hot tr[data-strona="' + s + '"] a[href*="akcja=stop"]').href, strona));
-    t.check('rola z uprawnieniem „Statystyki”: podgląd tak, zatrzymanie nie (403, nadal nagrywa)', /^Hotspoty: /.test(czH1 || '') && czStop.status() === 403 && sonda('hot-stan', strona).stan.nagrywa === true, J({ czH1, s: czStop.status() }));
+    const czStop = sonda('hot-akcja', 'statyk_csv', 'stop', strona);
+    t.check('rola z uprawnieniem „Statystyki” (z własnym ważnym nonce): podgląd tak, zatrzymanie nie (403, nadal nagrywa)',
+      /^Hotspoty: /.test(czH1 || '') && /^ODMOWA 403 Brak uprawnień\./.test(czStop.odp || '') && czStop.stan.nagrywa === true, J({ czH1, czStop }));
     await cz.context().close();
     /* „Usuń wszystkie statystyki” kasuje też hotspoty. */
     await beacon({ t: 'h', k: 'aaaaaaaaaaaaaaa3', s: '/', q: '?page_id=' + H, w: 1280, h: 2000, d: 50, c: [{ s: '#h-btn', l: 'x', x: 1, y: 1, px: 1, py: 1 }] });

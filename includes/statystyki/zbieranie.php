@@ -81,10 +81,12 @@ function evk_stat_zrodlo(string $ref): string {
  * „?” i „#” (tokeny, dane osobowe). Tylko obce strony i tylko z prawdziwą
  * ścieżką — wyszukiwarki podają samą domenę, a ta jest już w źródłach.
  */
-function evk_stat_odsylacz(string $ref): string {
+function evk_stat_odsylacz(string $ref, bool $wlasne = false): string {
     $zrodlo = evk_stat_zrodlo($ref);
-    if ($zrodlo === '' || $zrodlo === '(bezpośrednio)') return '';
+    if ($zrodlo === '(bezpośrednio)') return '';
     $sciezka = (string) wp_parse_url($ref, PHP_URL_PATH);
+    /* Przy 404 także własna strona (zepsuty link w treści) — wtedy ścieżka z parametrami strony, bez domeny. */
+    if ($zrodlo === '') return $wlasne ? 'ta strona: ' . evk_stat_sciezka($sciezka, (string) wp_parse_url($ref, PHP_URL_QUERY)) : '';
     if ($sciezka === '' || $sciezka === '/') return '';
     return substr($zrodlo . (string) preg_replace('/[^\x21-\x7e]/', '', $sciezka), 0, 191);
 }
@@ -156,15 +158,16 @@ function evk_stat_zapisz(array $d, array $serwer): string {
     if ($ile >= EVK_STAT_LIMIT_WIZYTY) return 'limit';
 
     $sciezka = evk_stat_sciezka((string) ($d['s'] ?? '/'), (string) ($d['q'] ?? ''));
+    $blad = (int) ($d['e'] ?? 0) === 404 ? 404 : 0;
     [$przegl, $system] = evk_stat_przegladarka($ua);
     $utm = static function ($w): string { return substr(strtolower(trim(sanitize_text_field((string) $w))), 0, 100); };
     $wpdb->query($wpdb->prepare(
-        "INSERT IGNORE INTO $tab (czas, dzien, klucz, wizyta, sciezka, post_id, zrodlo, utm_source, utm_medium, utm_campaign, urzadzenie, przegladarka, system_op, jezyk, kraj, odsylacz)
-         VALUES (%s, %s, %s, %s, %s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+        "INSERT IGNORE INTO $tab (czas, dzien, klucz, wizyta, sciezka, post_id, zrodlo, utm_source, utm_medium, utm_campaign, urzadzenie, przegladarka, system_op, jezyk, kraj, odsylacz, blad)
+         VALUES (%s, %s, %s, %s, %s, %d, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d)",
         gmdate('Y-m-d H:i:s'), $dzien, $klucz, $wizyta, substr($sciezka, 0, 255), max(0, (int) ($d['p'] ?? 0)),
         evk_stat_zrodlo((string) ($d['r'] ?? '')), $utm($d['us'] ?? ''), $utm($d['um'] ?? ''), $utm($d['uc'] ?? ''),
         evk_stat_urzadzenie((int) ($d['w'] ?? 0)), $przegl, $system, substr(sanitize_key((string) ($d['j'] ?? '')), 0, 10),
-        function_exists('evk_stat_kraj') ? evk_stat_kraj($ip) : '', evk_stat_odsylacz((string) ($d['r'] ?? ''))
+        function_exists('evk_stat_kraj') ? evk_stat_kraj($ip) : '', evk_stat_odsylacz((string) ($d['r'] ?? ''), $blad === 404), $blad
     ));
     return 'ok';
 }
@@ -187,7 +190,8 @@ add_action('rest_api_init', function (): void {
 
 /** Czy na tej stronie drukować skrypt statystyk. */
 function evk_stat_liczyc_strone(): bool {
-    if (!evk_stat_wlaczone() || is_admin() || is_feed() || is_404() || is_preview() || is_customize_preview()) return false;
+    /* Strona 404 liczy się od 1.286.0 — jako `blad = 404`, poza odsłonami (lista „Nieistniejące strony”). */
+    if (!evk_stat_wlaczone() || is_admin() || is_feed() || is_preview() || is_customize_preview()) return false;
     if (isset($_GET['evk_hot_podglad'])) return false;   // ramka podglądu hotspotów (1.286.0)
     if (function_exists('bricks_is_builder') && (bricks_is_builder() || (function_exists('bricks_is_builder_iframe') && bricks_is_builder_iframe()))) return false;
     if (!empty(evk_stat_ustawienia()['wyklucz_role']) && current_user_can('edit_posts')) return false;
@@ -203,6 +207,7 @@ add_action('wp_enqueue_scripts', function (): void {
         'p' => is_singular() ? (int) get_queried_object_id() : 0,
         'j' => function_exists('get_current_lang') ? get_current_lang() : '',
         'd' => !empty($s['dnt']) ? 1 : 0,
+        'e' => is_404() ? 404 : 0,
         /* Rodzaje zdarzeń włączone w panelu (1.285.0). */
         'z' => array_values(array_filter(EVK_STAT_ZD_PRZELACZNIKI, static function (string $k) use ($s): bool { return !empty($s['zd_' . $k]); })),
         /* Hotspoty (1.286.0): lista nagrywanych stron z pliku (nie z HTML-a — strona bywa z pamięci

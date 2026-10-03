@@ -41,9 +41,10 @@ function evk_stat_csv(string $od, string $do): string {
     }
     $sekcje = ['strona' => 'Strony', 'zrodlo' => 'Źródła', 'odsylacz' => 'Adresy odsyłające', 'urzadzenie' => 'Urządzenia', 'przegladarka' => 'Przeglądarki', 'system' => 'Systemy',
                'jezyk' => 'Języki strony', 'kraj' => 'Kraje', 'zdarzenie' => 'Zdarzenia',
+               '404' => 'Nieistniejące strony (404)', '404_skad' => 'Nieistniejące strony: skąd',
                'utm_source' => 'Kampanie: źródło', 'utm_medium' => 'Kampanie: medium', 'utm_campaign' => 'Kampanie: nazwa'];
     foreach ($sekcje as $wymiar => $sekcja) {
-        foreach (evk_stat_dane($wymiar, $od, $do) as $w => $l) $wiersz($sekcja, (string) ($nazwy[$wymiar][$w] ?? $w), $l);
+        foreach (evk_stat_dane($wymiar, $od, $do) as $w => $l) $wiersz($sekcja, str_replace("\t", ' ← ', (string) ($nazwy[$wymiar][$w] ?? $w)), $l);
     }
     rewind($f);
     $csv = (string) stream_get_contents($f);

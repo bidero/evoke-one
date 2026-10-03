@@ -95,7 +95,7 @@ function evk_stat_konwersje(string $od, string $do): array {
     foreach ((array) $wpdb->get_results($wpdb->prepare(
         "SELECT dzien, wizyta, SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(zrodlo, '') ORDER BY czas SEPARATOR '\n'), '\n', 1) AS zrodlo,
                 SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(utm_campaign, '') ORDER BY czas SEPARATOR '\n'), '\n', 1) AS kampania
-         FROM $odsl WHERE dzien BETWEEN %s AND %s GROUP BY dzien, wizyta", $od, $do), ARRAY_A) as $w) {
+         FROM $odsl WHERE dzien BETWEEN %s AND %s AND blad = 0 GROUP BY dzien, wizyta", $od, $do), ARRAY_A) as $w) {
         $wiz[$w['dzien'] . '|' . $w['wizyta']] = [(string) ($w['zrodlo'] ?? '') ?: '(bezpośrednio)', (string) ($w['kampania'] ?? '')];
     }
     $out = ['wizyty' => count($wiz), 'cele' => []];
