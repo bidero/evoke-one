@@ -25,8 +25,8 @@
     });
     var wzor = grupy.filter(function (g) { return g.querySelector('input:not([type=checkbox]):not([type=hidden])'); })[0];
     if (!wzor) return;
-    grupy.forEach(function (g) { g.setAttribute('data-evk2fa-ukryte', ''); g.style.display = 'none'; });
-    /* Pole kodu: klon pierwszego pola formularza — ten sam wygląd. */
+    /* Pole kodu: klon pierwszego pola formularza — ten sam wygląd. Klon PRZED schowaniem pól,
+       inaczej przejąłby ich `display: none`. */
     var g = wzor.cloneNode(true), pole = g.querySelector('input:not([type=checkbox]):not([type=hidden])'), et = g.querySelector('label');
     g.setAttribute('data-evk2fa', '');
     g.querySelectorAll('input:not([type=checkbox]):not([type=hidden])').forEach(function (x) { if (x !== pole) x.remove(); });
@@ -38,10 +38,12 @@
     pole.setAttribute('inputmode', 'numeric');
     pole.setAttribute('autocomplete', 'one-time-code');
     pole.setAttribute('maxlength', '9');
-    pole.setAttribute('placeholder', '123 456');
     pole.removeAttribute('aria-describedby');
     pole.style.letterSpacing = '.25em';
-    if (et) { et.textContent = 'Kod z aplikacji'; et.setAttribute('for', pole.id); } else pole.setAttribute('aria-label', 'Kod z aplikacji');
+    /* Formularz z etykietami — etykieta; formularz z samymi podpowiedziami w polach (bez <label>) — podpowiedź, jak jego pola. */
+    pole.setAttribute('aria-label', 'Kod z aplikacji');
+    if (et) { et.textContent = 'Kod z aplikacji'; et.setAttribute('for', pole.id); pole.setAttribute('placeholder', '123 456'); } else pole.setAttribute('placeholder', 'Kod z aplikacji');
+    grupy.forEach(function (x) { x.setAttribute('data-evk2fa-ukryte', ''); x.style.display = 'none'; });
     var ukryty = document.createElement('input');
     ukryty.type = 'hidden'; ukryty.name = 'evk_2fa_token'; ukryty.value = d.token; ukryty.setAttribute('data-evk2fa', '');
     var pierwsza = grupy[0];
@@ -78,8 +80,9 @@
     nawig.setAttribute('data-evk2fa', '');
     nawig.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.875em';
     [['Nie masz telefonu? Użyj kodu zapasowego', function () {
-      if (et) et.textContent = 'Kod zapasowy'; else pole.setAttribute('aria-label', 'Kod zapasowy');
-      pole.setAttribute('inputmode', 'text'); pole.setAttribute('autocomplete', 'off'); pole.setAttribute('placeholder', 'xxxx-xxxx'); pole.value = ''; pole.focus();
+      if (et) et.textContent = 'Kod zapasowy';
+      pole.setAttribute('aria-label', 'Kod zapasowy');
+      pole.setAttribute('inputmode', 'text'); pole.setAttribute('autocomplete', 'off'); pole.setAttribute('placeholder', et ? 'xxxx-xxxx' : 'Kod zapasowy (xxxx-xxxx)'); pole.value = ''; pole.focus();
       this.remove();
     }], ['← Wróć', function () { wroc(f); var m = f.querySelector('.message'); if (m) m.remove(); }]].forEach(function (p) {
       var b = document.createElement('button');
