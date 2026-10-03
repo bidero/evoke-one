@@ -164,11 +164,16 @@ module.exports = async function (t) {
     await p5.fill('#evk-2fa-kod', kody[0]);
     await Promise.all([p5.waitForNavigation(), p5.click('#evk-2fa-form [type=submit]')]);
     t.check('ten sam kod zapasowy drugi raz: odrzucony', !!(await p5.$('#evk-2fa-form')) && konto('dwa_admin').kody === 9);
+    const tokenP5 = await p5.getAttribute('#evk-2fa-form input[name="evk_2fa_token"]', 'value');
     for (let i = 0; i < 4; i++) {
       await p5.fill('#evk-2fa-kod', '999999');
       await Promise.all([p5.waitForNavigation(), p5.click('#evk-2fa-form [type=submit]')]);
     }
     t.check('5 złych kodów: koniec tokenu — z powrotem do logowania z komunikatem', /evk_2fa=proby/.test(p5.url()) && /Za dużo nieudanych kodów/.test(await p5.textContent('#login_error').catch(() => '')), p5.url());
+    /* Wyczerpany token nie ożywa: ten sam token z DOBRYM kodem — nadal odmowa, bez ciasteczka logowania. */
+    const poWyczerpaniu = await p5.request.post(baza + '/wp-login.php?action=evk_2fa', { form: { evk_2fa_token: tokenP5, evk_2fa_kod: await kodPo(sekret, konto('dwa_admin').licznik) }, maxRedirects: 0 });
+    t.check('wyczerpany token z dobrym kodem: odesłanie do logowania („wygasl”), nie zalogowany', /evk_2fa=wygasl/.test(poWyczerpaniu.headers().location || '')
+      && !(await p5.context().cookies()).some((c) => /^wordpress_logged_in_/.test(c.name)), J(poWyczerpaniu.headers().location));
 
     t.section('API: hasło konta nie, hasło aplikacji tak');
     const xml = await fetch(baza + '/xmlrpc.php', { method: 'POST', headers: { 'Content-Type': 'text/xml' },
@@ -178,6 +183,10 @@ module.exports = async function (t) {
     const rest = await fetch(baza + '/?rest_route=/wp/v2/users/me&context=edit', { headers: { Authorization: 'Basic ' + Buffer.from('dwa_admin:' + haslo).toString('base64') } });
     const ja = await rest.json().catch(() => ({}));
     t.check('REST hasłem aplikacji (MCP z Claude Desktop): działa', rest.status === 200 && ja.username === 'dwa_admin', rest.status + ' ' + J(ja).slice(0, 200));
+    /* W XML-RPC hasło aplikacji przechodzi przez filtr „authenticate” — 2FA musi je przepuścić. */
+    const xmlApl = await fetch(baza + '/xmlrpc.php', { method: 'POST', headers: { 'Content-Type': 'text/xml' },
+      body: '<?xml version="1.0"?><methodCall><methodName>wp.getProfile</methodName><params><param><value>1</value></param><param><value>dwa_admin</value></param><param><value>' + haslo + '</value></param></params></methodCall>' }).then((r) => r.text());
+    t.check('XML-RPC hasłem aplikacji: działa (profil dwa_admin)', !/faultCode/.test(xml && xmlApl) && /<name>username<\/name><value><string>dwa_admin<\/string>/.test(xmlApl.replace(/\s+/g, '')), xmlApl.slice(0, 300));
 
     t.section('wymuszenie dla roli');
     sonda('ustaw', J({ role: ['editor'] }));

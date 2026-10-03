@@ -331,11 +331,10 @@ function evk_2fa_odpowiedz_bricks(string $komunikat, array $evk): void {
  */
 add_filter('authenticate', function ($user, $login = '', $haslo = '') {
     if (!($user instanceof WP_User) || !evk_2fa_wlaczone() || !evk_2fa_ma($user->ID)) return $user;
-    /* Hasło aplikacji (Claude Desktop, MCP) — osobny, odwoływalny klucz tylko do API. */
+    /* Hasło aplikacji (Claude Desktop, MCP) — osobny, odwoływalny klucz tylko do API. Przez ten filtr
+       przechodzi w XML-RPC; w REST rdzeń sprawdza je poza nim. Zwykłe hasło w API kończy się niżej
+       błędem „zaloguj się na stronie logowania” — kodu tam nie ma gdzie podać. */
     if (did_action('application_password_did_authenticate')) return $user;
-    if ((defined('XMLRPC_REQUEST') && XMLRPC_REQUEST) || (defined('REST_REQUEST') && REST_REQUEST)) {
-        return new WP_Error('evk_2fa_api', 'To konto ma logowanie dwuetapowe. W API użyj hasła aplikacji (Profil → Hasła aplikacji).');
-    }
     if (evk_2fa_urzadzenie_zaufane($user->ID)) return $user;
     $bricks = evk_2fa_z_bricksa();
     $token = sanitize_key((string) ($_POST['evk_2fa_token'] ?? ''));

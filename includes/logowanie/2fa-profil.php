@@ -3,8 +3,9 @@ if (!defined('ABSPATH')) exit;
 /**
  * Evoke ONE — 2FA w Profilu kokpitu (1.287.0).
  *
- * Własny profil: trzy kroki na jednym ekranie — kod QR (rysowany w
- * przeglądarce biblioteką z assets/vendor/qrcode, bez zewnętrznych serwisów)
+ * Własny profil: trzy kroki na jednym ekranie — kod QR (SVG z własnego
+ * kodera ISO/IEC 18004 z opengraph/qr.php, bez zewnętrznych serwisów i bez
+ * skryptu w przeglądarce)
  * z kluczem do przepisania, pole kodu i „Włącz”, potem 10 kodów zapasowych
  * pokazanych raz (Pobierz .txt / Kopiuj / Drukuj). Po włączeniu: nowe kody,
  * zapamiętane urządzenia, wyłączenie (kodem — nie samym zalogowaniem; przy
@@ -30,11 +31,23 @@ function evk_2fa_ile_kodow(int $id): int {
     return count(evk_2fa_konto($id)['kody']);
 }
 
-add_action('admin_enqueue_scripts', function (string $hook): void {
-    if ($hook !== 'profile.php' || !evk_2fa_wlaczone() || evk_2fa_ma(get_current_user_id())) return;
-    /* W nagłówku: skrypt sekcji rysuje kod w treści strony, przed stopką. */
-    wp_enqueue_script('evk-qrcode', EVOKE_ONE_URL . 'assets/vendor/qrcode/qrcode.js', [], '2.0.4', false);
-});
+/**
+ * Kod QR jako SVG — koder z modułu OpenGraph (ten sam, który rysuje warstwę QR
+ * obrazka OG; poprawności pilnuje og-layers-qr). Moduły ciemne jednym
+ * <path>, strefa ciszy 4 moduły, ostre krawędzie przy każdym powiększeniu.
+ */
+function evk_2fa_qr_svg(string $dane): string {
+    if (!function_exists('evk_qr_koduj')) require_once dirname(__DIR__) . '/opengraph/qr.php';
+    $kod = evk_qr_koduj($dane, 'M');
+    if (!$kod) return '';
+    $n = count($kod['moduly']);
+    $d = '';
+    foreach ($kod['moduly'] as $y => $wiersz) {
+        foreach ($wiersz as $x => $v) if ($v) $d .= 'M' . ($x + 4) . ' ' . ($y + 4) . 'h1v1h-1z';
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' . ($n + 8) . ' ' . ($n + 8) . '" shape-rendering="crispEdges" aria-hidden="true" focusable="false">'
+        . '<rect width="100%" height="100%" fill="#fff"/><path fill="#000" d="' . $d . '"/></svg>';
+}
 
 add_action('admin_notices', function (): void {
     global $pagenow;
@@ -60,7 +73,7 @@ function evk_2fa_render_profil(WP_User $u): void {
         #evk-2fa-box { max-width: 760px; }
         #evk-2fa-box .evk-2fa-krok { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: flex-start; margin: 0 0 18px; }
         #evk-2fa-box .evk-2fa-krok > div { flex: 1 1 280px; min-width: 0; }
-        #evk-2fa-box .evk-2fa-qr { flex: 0 0 auto; width: 200px; height: 200px; background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 8px; box-sizing: border-box; }
+        #evk-2fa-box .evk-2fa-qr { flex: 0 0 auto; width: 200px; height: 200px; background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 4px; box-sizing: border-box; }
         #evk-2fa-box .evk-2fa-qr svg { width: 100%; height: 100%; display: block; }
         #evk-2fa-box .evk-2fa-klucz { font: 600 16px/1.6 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; word-break: break-all; }
         #evk-2fa-box .evk-2fa-kod { font: 600 24px/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .3em; width: 11ch; max-width: 100%; padding: 6px 10px; }
@@ -81,7 +94,7 @@ function evk_2fa_render_profil(WP_User $u): void {
     <?php elseif (!$ma): $sekret = evk_2fa_oczekujacy($u->ID); ?>
         <p>Drugi krok po haśle: 6 cyfr z aplikacji w telefonie. Nawet ktoś, kto zna hasło, bez telefonu się nie zaloguje.</p>
         <div class="evk-2fa-krok">
-            <div class="evk-2fa-qr" role="img" aria-label="Kod QR do zeskanowania aplikacją uwierzytelniającą" data-otpauth="<?php echo esc_attr(evk_2fa_adres_otpauth($sekret, $u)); ?>"></div>
+            <div class="evk-2fa-qr" role="img" aria-label="Kod QR do zeskanowania aplikacją uwierzytelniającą"><?php echo evk_2fa_qr_svg(evk_2fa_adres_otpauth($sekret, $u)); // phpcs:ignore — SVG z liczb ?></div>
             <div>
                 <p><strong>1. Zeskanuj kod aplikacją</strong> (Google Authenticator, Microsoft Authenticator, 1Password, Bitwarden…) albo wpisz klucz ręcznie:</p>
                 <p class="evk-2fa-wiersz"><span class="evk-2fa-klucz"><?php echo esc_html(trim(chunk_split($sekret, 4, ' '))); ?></span>
@@ -128,13 +141,7 @@ function evk_2fa_render_profil(WP_User $u): void {
     (function () {
         var box = document.getElementById('evk-2fa-box');
         if (!box) return;
-        var qr = box.querySelector('.evk-2fa-qr'), kom = box.querySelector('.evk-2fa-komunikat'), kody = [];
-        if (qr && window.qrcode) {
-            var q = window.qrcode(0, 'M');
-            q.addData(qr.getAttribute('data-otpauth'));
-            q.make();
-            qr.innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
-        }
+        var kom = box.querySelector('.evk-2fa-komunikat'), kody = [];
         function napisz(t) { if (kom) kom.textContent = t; }
         function kopiuj(t, b) {
             (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { b.textContent = 'Skopiowano'; }, function () { window.prompt('Skopiuj:', t); });
