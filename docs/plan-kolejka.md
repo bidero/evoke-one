@@ -58,6 +58,37 @@ wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną
      może je **wymusić dla wybranych ról** (włączenie przy następnym
      logowaniu); „zapamiętaj to urządzenie” na **30 dni** (zmiana hasła
      unieważnia); formularz Bricksa prosi o kod po haśle.
+   Doprecyzowane 03.10 (kolejność wydań: **1.287.0 2FA → 1.288.0 ukryty adres
+   logowania → 1.289.0 menu „Evoke” w pasku**):
+   - 2FA włącza się w **Profilu** kokpitu, sekcja „Logowanie dwuetapowe” —
+     trzy kroki na jednym ekranie: kod QR rysowany na miejscu (bez
+     zewnętrznych serwisów) z kluczem do przepisania, pole kodu i „Włącz”,
+     potem kody zapasowe;
+   - pole kodu: JEDNO pole, duże cyfry z odstępem (`inputmode=numeric`,
+     `autocomplete=one-time-code`, wklejanie działa);
+   - drugi krok na stronie logowania Bricksa: w tym samym miejscu, bez
+     przeładowania, zbudowany z elementów TEGO formularza (sklonowane pole
+     i przycisk Bricksa — te same klasy, ten sam wygląd); sprawdzane
+     w prawdziwym builderze i na stronie; hasło nie wraca do przeglądarki;
+     na `wp-login.php` — wygląd WordPressa;
+   - kody zapasowe: 10, jednorazowe, pokazane raz, Pobierz .txt / Kopiuj /
+     Drukuj, w bazie tylko skróty, „Nowe kody” unieważnia stare;
+   - wymuszenie dla ról: bez 2FA po zalogowaniu tylko Profil, dopóki nie
+     włączy (każda inna strona kokpitu i strona z paskiem odsyła na Profil);
+   - odzyskanie: inny administrator resetuje (Użytkownicy i profil, wpis
+     w dzienniku) + awaryjna stała `EVK_2FA_WYLACZ` w wp-config.php (czerwone
+     ostrzeżenie w panelu, dopóki jest); BEZ linku e-mailem;
+   - hasła aplikacji (MCP z Claude Desktop) działają jak dziś; zwykłe hasło
+     konta z 2FA przez XML-RPC i REST odrzucone;
+   - „Zapamiętaj to urządzenie na 30 dni” domyślnie ODZNACZONE; w profilu
+     lista zapamiętanych urządzeń i „Zapomnij wszystkie”;
+   - panel: nowa zakładka **„Logowanie”** (włącznik, role z wymuszeniem,
+     zapamiętywanie, później ukryty adres, lista kont z 2FA i reset);
+     limit logowań zostaje w Bezpieczeństwie.
+   Menu „Evoke” w pasku admina na stronie (1.289.0): jedno rozwijane menu
+   z grupami Statystyki (licznik w tytule), Hotspoty, Tłumaczenia, link do
+   panelu; przełącznik konserwacji zostaje osobno na wierzchu; widoczne
+   także na telefonie.
 5. **WebP/AVIF** — konwersja przy wgrywaniu, oryginał zostaje; jakość
    w panelu, domyślnie **WebP 80, AVIF 60**; przy wgrywaniu także
    **zmniejszanie zbyt dużych** (maks. bok w panelu, np. 2560 px); EXIF
