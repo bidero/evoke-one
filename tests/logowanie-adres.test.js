@@ -158,6 +158,28 @@ module.exports = async function (t) {
     t.check('wyłączony: strony Bricksa w ustawieniach, ale linki nietknięte', /wp-login\.php/.test(l2.login) && /wp-login\.php/.test(l2.haslo), J(l2));
     sonda('ustaw', J({ enabled: 1, adres: ADRES }));
 
+    t.section('błąd krytyczny: link trybu odzyskiwania z e-maila');
+    const rod = sonda('odzyskiwanie');
+    const ro1 = await daj(rod.sciezka);
+    const roc = (ro1.ciastka.find((c) => /^wordpress_rec_/.test(c)) || '').split(';')[0];
+    t.check('link z e-maila (generate_url rdzenia): wejście w tryb odzyskiwania, przekierowanie na wp-login.php?action=entered_recovery_mode', /^\/wp-login\.php\?action=enter_recovery_mode&/.test(rod.sciezka)
+      && ro1.kod === 302 && /wp-login\.php\?action=entered_recovery_mode$/.test(ro1.dokad) && !!roc, J({ kod: ro1.kod, dokad: ro1.dokad, ciastko: !!roc }));
+    const ro2 = await daj('/wp-login.php?action=entered_recovery_mode', { ciastka: roc });
+    const ro3 = await daj('/wp-login.php?action=entered_recovery_mode');
+    t.check('w trybie odzyskiwania (bez klucza adresu): formularz logowania 200; bez sesji odzyskiwania ten sam adres — 404', ro2.kod === 200 && ro2.formularz && ro3.kod === 404, J([ro2.kod, ro3.kod]));
+    const zKluczem = await daj('/wp-login.php', { ciastka: kc });
+    const linkHasla = (h) => ((h.match(/href="([^"]*)"[^>]*>\s*(Lost your password|Nie pamiętasz hasła)/) || [])[1] || '').replace(/&amp;/g, '&');
+    t.check('w trybie odzyskiwania „Nie pamiętasz hasła?” zostaje przy wp-login.php (strona Bricksa może być zepsuta); z samym kluczem — strona Bricksa',
+      /wp-login\.php\?action=lostpassword/.test(linkHasla(ro2.html)) && linkHasla(zKluczem.html) === (l1.strony || {}).lost_password_page.replace('http://stara.test', baza), J([linkHasla(ro2.html), linkHasla(zKluczem.html)]));
+    const ro4 = await daj(rod.sciezka);
+    t.check('link z e-maila jest jednorazowy: drugie użycie nie daje sesji odzyskiwania', !ro4.ciastka.some((c) => /^wordpress_rec_/.test(c)), J([ro4.kod]));
+    const rpo = await (await browser.newContext()).newPage();
+    if (roc) await rpo.context().addCookies([{ name: roc.split('=')[0], value: roc.slice(roc.indexOf('=') + 1), url: baza }]);
+    await rpo.goto(baza + '/wp-login.php?action=entered_recovery_mode');
+    await serwerWp.zaloguj(rpo, baza, 'admin', 'admin');
+    t.check('logowanie w trybie odzyskiwania bez klucza adresu: kokpit', /\/wp-admin\//.test(rpo.url()), rpo.url());
+    await rpo.context().close();
+
     t.section('stała awaryjna');
     sonda('awaryjnie', 1);
     const e1 = await daj('/wp-login.php');

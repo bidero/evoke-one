@@ -166,7 +166,7 @@ $evk_ua_br = evk_ua_strona_bricks('login_page');
         <?php if ($evk_ua_br): ?>
         <p class="evo-hint">Strona logowania z ustawień Bricksa: <a href="<?php echo esc_url((string) get_permalink($evk_ua_br)); ?>"><?php echo esc_html(get_the_title($evk_ua_br)); ?></a> — działa jak dotąd, a linki „Zaloguj”, „Nie pamiętasz hasła?” i „Zarejestruj się” prowadzą na strony Bricksa.</p>
         <?php endif; ?>
-        <p class="evo-hint">Bez wyjątku działają: formularze (admin-ajax.php, admin-post.php), hasło strony chronionej i linki z e-maili (reset hasła, potwierdzenie prośby o dane). Gdy adres zginie — w wp-config.php dopisz <code>define('EVK_UKRYTY_ADRES_WYLACZ', true);</code>, zaloguj się przez wp-login.php i usuń stałą.</p>
+        <p class="evo-hint">Bez wyjątku działają: formularze (admin-ajax.php, admin-post.php), hasło strony chronionej i linki z e-maili (reset hasła, potwierdzenie prośby o dane, tryb odzyskiwania po błędzie krytycznym). Gdy adres zginie — w wp-config.php dopisz <code>define('EVK_UKRYTY_ADRES_WYLACZ', true);</code>, zaloguj się przez wp-login.php i usuń stałą.</p>
         <?php evoke_one_pasek_zapisu('Zapisz', false, 'evk-ua-zapisano'); ?>
         <p class="evo-desc evk-ua-blad" role="alert"></p>
     </form>

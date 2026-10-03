@@ -2,6 +2,30 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.288.1] — 2026-10-03
+
+### Naprawione
+
+- **Ukryty adres a błąd krytyczny.** Link trybu odzyskiwania z e-maila
+  WordPressa („Twoja strona ma błąd krytyczny”) wpuszczał w tryb
+  odzyskiwania, ale ekran logowania po nim dawał 404 — bez klucza adresu nie
+  dało się zalogować i naprawić strony. Ważna sesja trybu odzyskiwania
+  (ciasteczko podpisane przez WordPress) działa teraz jak klucz.
+- Przy stronie logowania Bricksa sam link w e-mailu wskazywał tę stronę,
+  a rdzeń obsługuje go tylko na wp-login.php — link był martwy. Zostaje
+  przy wp-login.php; w trybie odzyskiwania „Nie pamiętasz hasła?” też (strona
+  Bricksa może być tym, co się zepsuło).
+- Zakładka „Logowanie”: tryb odzyskiwania na liście wyjątków.
+- Błąd krytyczny w samym Evoke wyłącza blokadę (wtyczka się nie ładuje);
+  bez dostępu do e-maila zostaje stała `EVK_UKRYTY_ADRES_WYLACZ`.
+
+### Testy
+
+- `logowanie-adres` (44): link z e-maila budowany funkcją rdzenia
+  (`generate_url`), wejście w tryb odzyskiwania, ekran logowania bez klucza
+  adresu, jednorazowość linku, logowanie w trybie odzyskiwania. Mutacje: 4,
+  każda zapala swoje sprawdzenia.
+
 ## [1.288.0] — 2026-10-03
 
 Ukryty adres logowania — decyzje z 02.10 (docs/plan-kolejka.md, punkt 4).

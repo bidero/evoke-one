@@ -30,6 +30,14 @@ if (!defined('ABSPATH')) exit;
  * nie pokazał.
  *
  * Awaryjnie: stała `EVK_UKRYTY_ADRES_WYLACZ` w wp-config.php.
+ *
+ * Błąd krytyczny (1.288.1): WordPress wysyła e-mailem link trybu
+ * odzyskiwania. Sam link obsługuje rdzeń jeszcze przed wtyczkami, ale potem
+ * odsyła na `wp-login.php?action=entered_recovery_mode` — a tam blokada już
+ * stoi. Ważna sesja trybu odzyskiwania (ciasteczko podpisane przez
+ * WordPress) działa więc jak klucz, a linki zostają przy wp-login.php:
+ * strona logowania Bricksa może być właśnie tym, co się zepsuło. Błąd
+ * krytyczny w SAMYM Evoke wyłącza też blokadę — wtyczka się nie ładuje.
  */
 
 const EVK_UA_OPCJA    = 'evk_ukryty_adres';
@@ -85,6 +93,11 @@ function evk_ua_url(string $adres = ''): string {
 /** Podpis: termin i adres — zmiana adresu unieważnia wszystkie wydane klucze. */
 function evk_ua_podpis(int $termin, string $adres): string {
     return hash_hmac('sha256', $termin . '|' . $adres . '|evk-ukryty-adres', wp_salt('auth'));
+}
+
+/** Ważna sesja trybu odzyskiwania po błędzie krytycznym (link z e-maila WordPressa). */
+function evk_ua_odzyskiwanie(): bool {
+    return function_exists('wp_is_recovery_mode') && wp_is_recovery_mode();
 }
 
 function evk_ua_klucz_wazny(): bool {
@@ -187,7 +200,7 @@ add_action('wp_loaded', function () {
     $kokpit = is_admin() && !wp_doing_ajax() && !in_array($teraz, ['admin-ajax.php', 'admin-post.php'], true);
     if (!$logowanie && !$kokpit) return;
 
-    if (evk_ua_klucz_wazny()) {
+    if (evk_ua_klucz_wazny() || evk_ua_odzyskiwanie()) {
         /* Z kluczem wp-login.php jest wp-login.php — także gdy Bricks ma własną stronę logowania. */
         if ($logowanie) $_COOKIE['brx_use_wp_login'] = '1';
         return;
@@ -222,19 +235,29 @@ function evk_ua_strona_bricks(string $klucz): int {
  */
 add_action('wp_loaded', function () {
     add_filter('login_url', function ($url, $cel = '') {
-        if (!evk_ua_wlaczony() || !($id = evk_ua_strona_bricks('login_page'))) return $url;
+        if (!evk_ua_wlaczony() || evk_ua_odzyskiwanie() || !($id = evk_ua_strona_bricks('login_page'))) return $url;
         $nowy = (string) get_permalink($id);
         return $cel !== '' ? add_query_arg('redirect_to', rawurlencode((string) $cel), $nowy) : $nowy;
     }, 20, 2);
     add_filter('lostpassword_url', function ($url) {
-        if (!evk_ua_wlaczony() || !($id = evk_ua_strona_bricks('lost_password_page'))) return $url;
+        if (!evk_ua_wlaczony() || evk_ua_odzyskiwanie() || !($id = evk_ua_strona_bricks('lost_password_page'))) return $url;
         return (string) get_permalink($id);
     }, 20);
     add_filter('register_url', function ($url) {
-        if (!evk_ua_wlaczony() || !($id = evk_ua_strona_bricks('registration_page'))) return $url;
+        if (!evk_ua_wlaczony() || evk_ua_odzyskiwanie() || !($id = evk_ua_strona_bricks('registration_page'))) return $url;
         return (string) get_permalink($id);
     }, 20);
 }, 20);
+
+/*
+ * Link trybu odzyskiwania w e-mailu o błędzie krytycznym rdzeń buduje przez
+ * `wp_login_url()` — po podmianie wyżej wskazywałby stronę Bricksa, a rdzeń
+ * obsługuje go WYŁĄCZNIE na wp-login.php (`handle_begin_link`). Link byłby
+ * martwy dokładnie wtedy, gdy jest potrzebny.
+ */
+add_filter('recovery_mode_begin_url', function ($url, $token, $klucz) {
+    return add_query_arg(['action' => 'enter_recovery_mode', 'rm_token' => $token, 'rm_key' => $klucz], site_url('wp-login.php', 'login'));
+}, 20, 3);
 
 // =========================================================================
 // ZAPIS Z PANELU

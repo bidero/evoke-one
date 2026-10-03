@@ -15,6 +15,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/logowanie-adres.php prosba                 prośba o eksport danych + klucz potwierdzenia
  *   php tests/php/logowanie-adres.php chroniona              wpis chroniony hasłem „test-haslo”
  *   php tests/php/logowanie-adres.php linki <0|1>            strony logowania „Bricksa” w opcji bricks_global_settings + linki WordPressa
+ *   php tests/php/logowanie-adres.php odzyskiwanie            link trybu odzyskiwania (jak w e-mailu o błędzie krytycznym)
  *   php tests/php/logowanie-adres.php awaryjnie <0|1>        mu-plugin ze stałą EVK_UKRYTY_ADRES_WYLACZ
  *   php tests/php/logowanie-adres.php sprzataj
  */
@@ -109,6 +110,13 @@ case 'linki':
     $out['login'] = wp_login_url('http://cel.test/x');
     $out['haslo'] = wp_lostpassword_url();
     $out['rejestracja'] = wp_registration_url();
+    break;
+
+case 'odzyskiwanie':
+    /* Link z e-maila „Twoja strona ma błąd krytyczny” — ta sama usługa kluczy, której używa WordPress. */
+    $svc = new WP_Recovery_Mode_Link_Service(new WP_Recovery_Mode_Cookie_Service(), new WP_Recovery_Mode_Key_Service());
+    $out['url'] = $svc->generate_url();
+    $out['sciezka'] = (string) wp_parse_url($out['url'], PHP_URL_PATH) . '?' . (string) wp_parse_url($out['url'], PHP_URL_QUERY);
     break;
 
 case 'awaryjnie':
