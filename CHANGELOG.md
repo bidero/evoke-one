@@ -2,6 +2,37 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.291.0] — 2026-10-03
+
+Decyzje zgłaszającego z 03.10 po 1.290.0.
+
+### Dodane
+
+- **Dostęp „Hotspoty” w edycji roli** (Ustawienia → Evoke ONE → Role):
+  włączanie i zatrzymywanie nagrywania hotspotów strony oraz usuwanie
+  nagrań — z menu „Evoke” w pasku, bez praw administratora (np. rola
+  Manager). Podgląd hotspotów jest w raporcie, więc do niego potrzebny jest
+  też dostęp „Statystyki”; rola bez niego nie dostaje „Pokaż hotspoty”.
+- W menu „Evoke” po zakończonym nagraniu: „Usuń nagranie tej strony”
+  (z potwierdzeniem) — dotąd tylko w panelu, czyli dla administratora.
+
+### Zmienione
+
+- **Konserwacja na telefonie**: przełącznik zostaje w pasku jako sam suwak
+  (pomarańczowy przy włączonej); napis „Konserwacja: włączona/wyłączona”
+  czyta czytnik ekranu. Dotąd WordPress chował go na wąskim ekranie.
+- „Evoke” na telefonie to sama ikona (licznik jest w menu) — z konserwacją
+  obok konto (wylogowanie) zostaje w ekranie.
+
+### Testy
+
+- `pasek-evoke` (23): rola z samym dostępem „Hotspoty” — nagrywa,
+  zatrzymuje i usuwa przez prawdziwy admin-post, bez podglądu; czytelnik
+  statystyk bez „Hotspotów” nie nagrywa; konserwacja na telefonie (widoczna,
+  ≥ 24 px, napis dla czytnika, dotknięcie przełącza); cały pasek telefonu
+  w jednym wierszu z kontem. Mutacje: 9, każda zapala swoje sprawdzenia.
+- `uprawnienia-panel`: zapis i odznaczenie dostępu „Hotspoty”.
+
 ## [1.290.0] — 2026-10-03
 
 Menu „Evoke” w pasku admina — decyzje z 02–03.10 (docs/plan-kolejka.md).

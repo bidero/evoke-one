@@ -5,7 +5,7 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 
 ## Kolejność
 
-Stan po 1.290.0: 2FA (1.287.0), ukryty adres (1.288.0), Logowanie z limitem i wygląd 2FA w Bricksie (1.289.0), menu „Evoke” w pasku (1.290.0) zrobione; dalej repeater w CSV Fields. Stan po 1.286.0 (ustalone 02.10): **statystyki i hotspoty (1.284 etap 1, 1.285 etap 2, 1.286 hotspoty i 404 — zrobione; później: edytowalna siatka kafli raportu 1/1, 2/1, 1/2;
+Stan po 1.291.0: 2FA (1.287.0), ukryty adres (1.288.0), Logowanie z limitem i wygląd 2FA w Bricksie (1.289.0), menu „Evoke” w pasku (1.290.0), dostęp „Hotspoty” i konserwacja na telefonie (1.291.0) zrobione; dalej 1.292.0 — panel Evoke ONE dla roli Manager (decyzje 03.10: SEO, kopie zapasowe bez przywracania, przekierowania i 404, 2FA kont); potem repeater w CSV Fields. Do przegadania: szablony maili. Stan po 1.286.0 (ustalone 02.10): **statystyki i hotspoty (1.284 etap 1, 1.285 etap 2, 1.286 hotspoty i 404 — zrobione; później: edytowalna siatka kafli raportu 1/1, 2/1, 1/2;
 szczegóły etapów: DNT/GPC przełącznikiem, domyślnie szanowane; licznik w pasku: ta strona dziś / 30 dni;
 wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną pozycją)
 → logowanie + 2FA → WebP/AVIF → repeater w CSV → generowanie treści AI
