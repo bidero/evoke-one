@@ -92,7 +92,9 @@ add_filter('login_message', function ($m) {
 
 /* Skrypt drugiego kroku dla formularzy Bricksa — tylko dla niezalogowanych, gdy 2FA działa. */
 add_action('wp_enqueue_scripts', function (): void {
-    if (is_user_logged_in() || !evk_2fa_wlaczone()) return;
+    /* Kanwa buildera (1.289.0): podgląd kroku kodu do stylowania — tam administrator jest zalogowany. */
+    $kanwa = function_exists('bricks_is_builder_iframe') && bricks_is_builder_iframe();
+    if ((is_user_logged_in() && !$kanwa) || !evk_2fa_wlaczone()) return;
     wp_enqueue_script('evk-2fa-bricks', evk_zasob_url(EVOKE_ONE_URL . 'assets/js/2fa-bricks.js'), [], EVOKE_ONE_VERSION, ['in_footer' => true, 'strategy' => 'defer']);
     wp_add_inline_script('evk-2fa-bricks', 'window.evk2fa=' . wp_json_encode(['dni' => EVK_2FA_URZADZENIE_DNI]) . ';', 'before');
 });

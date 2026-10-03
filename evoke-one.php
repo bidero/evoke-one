@@ -201,6 +201,7 @@ $evoke_security_modules = [
     'logowanie/2fa.php',         // logowanie dwuetapowe: rdzeń (1.287.0)
     'logowanie/2fa-profil.php',  // 2FA w Profilu kokpitu
     'logowanie/2fa-logowanie.php', // drugi krok: wp-login.php i formularz Bricksa
+    'logowanie/2fa-bricks.php',    // krok kodu w Bricksie: kontrolki wyglądu i tekstów (1.289.0)
     'logowanie/ukryty-adres.php',  // ukryty adres logowania (1.288.0)
 ];
 foreach ($evoke_security_modules as $module) {

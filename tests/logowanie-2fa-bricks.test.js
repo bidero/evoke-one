@@ -42,7 +42,7 @@ module.exports = async function (t) {
   let browser = null;
   try {
     const prz = sonda('przygotuj', SEKRET);
-    const [S1, S2] = prz.strony || [];
+    const [S1, S2, S3] = prz.strony || [];
     serwer = await serwerWp.start(wp.wp);
     browser = await chromium.launch({ executablePath: chromiumPath() });
     const p = await (await browser.newContext()).newPage();
@@ -54,6 +54,7 @@ module.exports = async function (t) {
     const wzor = await styl(F + ' input[name="form-field-lgn001"]');
     const klasy = await p.evaluate((f) => document.querySelector(f + ' input[name="form-field-lgn001"]').className, F);
     const etykietaKlasy = await p.evaluate((f) => { const l = document.querySelector(f + ' input[name="form-field-lgn001"]').closest('.form-group').querySelector('label'); return l && l.className; }, F);
+    const etStyl = await p.evaluate((f) => { const c = getComputedStyle(document.querySelector(f + ' .form-group label')); return { color: c.color, font: c.fontFamily, size: parseFloat(c.fontSize), weight: c.fontWeight }; }, F);
     console.log('      pole loginu: ' + J(wzor));
     t.check('warunek: formularz Bricksa ma własne style pól (tło #fff3d6, ramka 2 px)', !!wzor && wzor['background-color'] === 'rgb(255, 243, 214)' && wzor['border-top-width'] === '2px', J(wzor));
 
@@ -75,7 +76,10 @@ module.exports = async function (t) {
         przyciski: [...form.querySelectorAll('button[type=submit]')].filter(widac).map((b) => b.textContent.trim()),
         pamietaj: [...form.querySelectorAll('input[name="evk_2fa_pamietaj"]')].map((c) => ({ zaznaczone: c.checked, tekst: c.closest('.form-group').textContent.trim(), grupa: c.closest('.form-group').className })),
         komunikat: (form.querySelector('.message') || {}).textContent || null,
-        nawig: [...form.querySelectorAll('[data-evk2fa] button[type=button]')].map((b) => b.textContent),
+        nawig: [...form.querySelectorAll('.evk-2fa-nawig .evk-2fa-link')].map((b) => b.textContent),
+        link: (() => { const b = form.querySelector('.evk-2fa-link'); if (!b) return null; const c = getComputedStyle(b);
+          return { color: c.color, font: c.fontFamily, size: parseFloat(c.fontSize), weight: c.fontWeight, deco: c.textDecorationLine, tlo: c.backgroundColor, ramka: c.borderTopWidth, wys: b.getBoundingClientRect().height }; })(),
+        pod: (() => { const n = form.querySelector('.evk-2fa-nawig'), w = form.querySelector('.submit-button-wrapper'); return n && w ? !!(w.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_PRECEDING) : null; })(),
       };
     }, F);
     const kodStyl = await styl(F + ' input[name="evk_2fa_kod"]');
@@ -93,17 +97,24 @@ module.exports = async function (t) {
       k1.pamietaj.length === 1 && !k1.pamietaj[0].zaznaczone && k1.pamietaj[0].tekst === 'Zapamiętaj to urządzenie na 30 dni' && /form-group/.test(k1.pamietaj[0].grupa)
       && J(k1.nawig) === J(['Nie masz telefonu? Użyj kodu zapasowego', '← Wróć']), J(k1.pamietaj));
 
+    t.check('linki domyślnie jak etykiety formularza (1.289.0): kolor, krój i grubość etykiety, rozmiar 0,9 etykiety, bez podkreślenia, bez tła i ramki, cel dotyku ≥ 24 px, pod polem (nad przyciskiem)',
+      !!k1.link && k1.link.color === etStyl.color && k1.link.font === etStyl.font && k1.link.weight === etStyl.weight && Math.abs(k1.link.size - etStyl.size * 0.9) < 0.1
+      && k1.link.deco === 'none' && k1.link.tlo === 'rgba(0, 0, 0, 0)' && k1.link.ramka === '0px' && k1.link.wys >= 24 && k1.pod === true, J({ link: k1.link, etykieta: etStyl, pod: k1.pod }));
+
     t.section('zły kod, „Wróć”, dobry kod');
     const licznik = Math.floor(Date.now() / 30000);
     await p.fill(F + ' input[name="evk_2fa_kod"]', totp(licznik) === '000000' ? '111111' : '000000');
     const odp2 = p.waitForResponse((r) => /admin-ajax\.php/.test(r.url()));
     await p.click(F + ' button[type=submit]');
     await odp2;
-    await p.waitForFunction((f) => /Nieprawidłowy kod/.test((document.querySelector(f + ' .message') || {}).textContent || ''), F, { timeout: 5000 }).catch(() => {});
-    const k2 = await p.evaluate((f) => ({ komunikat: (document.querySelector(f + ' .message') || {}).textContent, pole: !!document.querySelector(f + ' input[name="evk_2fa_kod"]'),
-      wartosc: (document.querySelector(f + ' input[name="evk_2fa_kod"]') || {}).value }), F);
-    t.check('zły kod: komunikat Bricksa „Nieprawidłowy kod. Zostało prób: 4.”, nadal krok kodu, pole wyczyszczone', /Nieprawidłowy kod\. Zostało prób: 4\./.test(k2.komunikat || '') && k2.pole && k2.wartosc === '', J(k2));
-    await p.click(F + ' [data-evk2fa] button:has-text("Wróć")');
+    await p.waitForFunction((f) => /Nieprawidłowy kod/.test((document.querySelector(f + ' .evk-2fa-blad') || {}).textContent || ''), F, { timeout: 5000 }).catch(() => {});
+    await p.waitForTimeout(100);
+    const k2 = await p.evaluate((f) => { const b = document.querySelector(f + ' .evk-2fa-blad'), pole = document.querySelector(f + ' input[name="evk_2fa_kod"]');
+      return { komunikat: b && b.textContent, rola: b && b.getAttribute('role'), podPolem: !!b && !!pole && b.closest('.form-group') === pole.closest('.form-group'),
+        bricks: (document.querySelector(f + ' .message') || {}).textContent || null, pole: !!pole, wartosc: pole && pole.value }; }, F);
+    t.check('zły kod: własny komunikat pod polem „Nieprawidłowy kod. Zostało prób: 4.” (role=alert), bez komunikatu Bricksa; pole wyczyszczone',
+      k2.komunikat === 'Nieprawidłowy kod. Zostało prób: 4.' && k2.rola === 'alert' && k2.podPolem && k2.bricks === null && k2.pole && k2.wartosc === '', J(k2));
+    await p.click(F + ' .evk-2fa-link--wroc');
     const k3 = await p.evaluate((f) => ({ pole: !!document.querySelector(f + ' input[name="evk_2fa_kod"]'), login: document.querySelector(f + ' input[name="form-field-lgn001"]').offsetParent !== null,
       haslo: document.querySelector(f + ' input[name="form-field-pwd001"]').value }), F);
     t.check('„Wróć”: formularz jak przed chwilą (login widać, hasło zostało w polu, krok kodu zniknął)', !k3.pole && k3.login && k3.haslo === 'test-haslo', J(k3));
@@ -134,6 +145,36 @@ module.exports = async function (t) {
     await q.waitForSelector(F + ' input[name="evk_2fa_kod"]', { timeout: 10000 }).catch(() => {});
     t.check('złe hasło: własny komunikat Bricksa, bez kroku kodu; dobre hasło: krok kodu mimo własnego komunikatu', /Błędne dane logowania/.test(zleHaslo.komunikat || '') && !zleHaslo.kod
       && !!(await q.$(F + ' input[name="evk_2fa_kod"]')), J(zleHaslo));
+
+    t.section('kontrolki „Logowanie dwuetapowe (Evoke)” (1.289.0)');
+    const kt = sonda('kontrolki');
+    const tl = kt.tlumaczone || {};
+    t.check('grupa tylko przy akcji „Login”; pola „… EN” (Tłumaczenia) dostają WYŁĄCZNIE teksty, nie klasy ani wygląd',
+      !!kt.grupa && J(kt.grupa.required) === J(['actions', '=', 'login']) && Object.keys(tl).filter((k) => tl[k]).sort().join() === 'tfaBlad,tfaEtykieta,tfaPamietaj,tfaPodpowiedz,tfaWroc,tfaZapasowy,tfaZapasowyEtykieta', J(kt));
+    const r = await (await browser.newContext()).newPage();
+    r.on('pageerror', (e) => bledy.push(e.message));
+    await r.goto(serwer.baza + '/?page_id=' + S3);
+    await r.fill(F + ' input[name="form-field-lgn001"]', 'dwa_bricks');
+    await r.fill(F + ' input[name="form-field-pwd001"]', 'test-haslo');
+    await r.click(F + ' button[type=submit]');
+    await r.waitForSelector(F + ' input[name="evk_2fa_kod"]', { timeout: 10000 }).catch(() => {});
+    const w1 = await r.evaluate((f) => {
+      const form = document.querySelector(f), pole = form.querySelector('input[name="evk_2fa_kod"]'), n = form.querySelector('.evk-2fa-nawig'), w = form.querySelector('.submit-button-wrapper');
+      const l = [...form.querySelectorAll('.evk-2fa-link')], c = l[0] && getComputedStyle(l[0]);
+      return { etykieta: pole && ((form.querySelector('label[for="' + pole.id + '"]') || {}).textContent || pole.getAttribute('placeholder')), linki: l.map((b) => b.textContent), klasy: l[0] && l[0].className,
+        kolor: c && c.color, rozmiar: c && c.fontSize, kierunek: n && getComputedStyle(n).flexDirection,
+        podPrzyciskiem: !!(n && w && (w.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING)),
+        pamietaj: (form.querySelector('input[name="evk_2fa_pamietaj"]') || { closest: () => ({ textContent: '' }) }).closest('.form-group').textContent.trim() };
+    }, F);
+    t.check('teksty z kontrolek: etykieta pola, oba linki, „Zapamiętaj…”', w1.etykieta === 'Kod jednorazowy' && J(w1.linki) === J(['Zapasowy', 'Cofnij']) && w1.pamietaj === 'Pamiętaj mnie tutaj', J(w1));
+    t.check('wygląd z kontrolek: typografia linków (kolor #0a7d3b, 13 px), kierunek kolumna, linki POD przyciskiem; klasy CSS dołożone, bez domyślnego wyglądu (--goly)',
+      w1.kolor === 'rgb(10, 125, 59)' && w1.rozmiar === '13px' && w1.kierunek === 'column' && w1.podPrzyciskiem && /\bmoja-klasa\b/.test(w1.klasy || '') && /\bdruga\b/.test(w1.klasy || '')
+      && !/--goly/.test(w1.klasy || ''), J(w1));
+    await r.fill(F + ' input[name="evk_2fa_kod"]', totp(Math.floor(Date.now() / 30000)) === '000000' ? '111111' : '000000');
+    await r.click(F + ' button[type=submit]');
+    await r.waitForFunction((f) => /Zły kod/.test((document.querySelector(f + ' .evk-2fa-blad') || {}).textContent || ''), F, { timeout: 10000 }).catch(() => {});
+    const w2 = await r.evaluate((f) => { const b = document.querySelector(f + ' .evk-2fa-blad'); return b && { tekst: b.textContent, kolor: getComputedStyle(b).color }; }, F);
+    t.check('komunikat po złej próbie z kontrolek: własny tekst z {proby} i własna typografia (#123456)', !!w2 && w2.tekst === 'Zły kod, prób: 4' && w2.kolor === 'rgb(18, 52, 86)', J(w2));
     t.check('bez błędów JS na stronie', bledy.length === 0, bledy.slice(0, 3).join(' | '));
   } finally {
     if (browser) await browser.close();

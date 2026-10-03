@@ -8,7 +8,9 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * pól (tło, ramka, odstępy), żeby test widział, czy pole kodu je przejmuje.
  *
  *   php tests/php/logowanie-2fa-bricks.php wp
- *   php tests/php/logowanie-2fa-bricks.php przygotuj <sekret>   2FA włączone, konto dwa_bricks z sekretem, dwie strony z formularzem
+ *   php tests/php/logowanie-2fa-bricks.php przygotuj <sekret>   2FA włączone, konto dwa_bricks z sekretem, trzy strony z formularzem (trzecia z kontrolkami wyglądu)
+ *   php tests/php/logowanie-2fa-bricks.php builder             podgląd kroku kodu na trzeciej stronie, builder dla stron; licencja
+ *   php tests/php/logowanie-2fa-bricks.php kontrolki           grupa kontrolek i które pola dostają „… EN”
  *   php tests/php/logowanie-2fa-bricks.php konto               licznik, kody
  *   php tests/php/logowanie-2fa-bricks.php sprzataj
  */
@@ -61,17 +63,54 @@ case 'przygotuj':
     evk_2fa_zapisz_konto($id, $k);
     $out['kody'] = evk_2fa_nowe_kody($id);
     global $wpdb;
-    foreach (['2FA Bricks', '2FA Bricks — własny błąd'] as $i => $tytul) {
+    /* Trzecia (1.289.0): wygląd i teksty kroku kodu z kontrolek „Logowanie dwuetapowe (Evoke)”. */
+    $wlasne = ['tfaEtykieta' => 'Kod jednorazowy', 'tfaZapasowy' => 'Zapasowy', 'tfaWroc' => 'Cofnij', 'tfaPamietaj' => 'Pamiętaj mnie tutaj',
+        'tfaBlad' => 'Zły kod, prób: {proby}', 'evk2faPolozenie' => 'przycisk', 'evk2faKierunek' => 'column', 'evk2faKlasy' => 'moja-klasa druga',
+        'evk2faTypografia' => ['color' => ['hex' => '#0a7d3b'], 'font-size' => '13px'], 'evk2faBladTypografia' => ['color' => ['hex' => '#123456']]];
+    foreach (['2FA Bricks', '2FA Bricks — własny błąd', '2FA Bricks — wygląd'] as $i => $tytul) {
         foreach ((array) $wpdb->get_col($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_title = %s", $tytul)) as $stary) wp_delete_post((int) $stary, true);
         $p = (int) wp_insert_post(['post_title' => $tytul, 'post_type' => 'page', 'post_status' => 'publish']);
         update_post_meta($p, '_bricks_editor_mode', 'bricks');
-        update_post_meta($p, '_bricks_page_content_2', wp_slash(evk_t2b_formularz($i ? ['loginErrorMessage' => 'Błędne dane logowania.'] : [])));
+        update_post_meta($p, '_bricks_page_content_2', wp_slash(evk_t2b_formularz($i === 1 ? ['loginErrorMessage' => 'Błędne dane logowania.'] : ($i === 2 ? $wlasne : []))));
         $zap['strony'][] = $p;
         $out['strony'][] = $p;
     }
     $zap['konto'] = $id;
     file_put_contents($plik, (string) wp_json_encode($zap));
     $out['id'] = $id;
+    break;
+
+case 'builder':
+    /* Prawdziwy builder (1.289.0): podgląd kroku kodu na trzeciej stronie; builder tylko dla typów z ustawień Bricksa. */
+    if (!array_key_exists('bricks_global_settings', $zap['opcje'] ?? [])) $zap['opcje']['bricks_global_settings'] = get_option('bricks_global_settings', null);
+    $g = get_option('bricks_global_settings', []);
+    $g = is_array($g) ? $g : [];
+    $g['postTypes'] = ['page'];
+    update_option('bricks_global_settings', $g);
+    $s3 = (int) (($zap['strony'] ?? [])[2] ?? 0);
+    $tresc = get_post_meta($s3, '_bricks_page_content_2', true);
+    foreach ($tresc as &$el) if ($el['id'] === 'b2f001') $el['settings']['evk2faPodglad'] = true;
+    unset($el);
+    update_post_meta($s3, '_bricks_page_content_2', wp_slash($tresc));
+    file_put_contents($plik, (string) wp_json_encode($zap));
+    $licencja = null;
+    if (class_exists('\Bricks\License')) {
+        \Bricks\License::$license_key = \Bricks\License::get_license_key();
+        $licencja = \Bricks\License::license_is_valid();
+    }
+    $out += ['strona' => $s3, 'licencja' => $licencja, 'podglad' => !empty(get_post_meta($s3, '_bricks_page_content_2', true)[1]['settings']['evk2faPodglad'])];
+    break;
+
+case 'kontrolki':
+    /* Które kontrolki grupy dostają pola „… EN” (Tłumaczenia, 51) — te same definicje, które widzi builder. */
+    /* Werdykt „treść czy wartość techniczna” — ta sama funkcja co w module Tłumaczeń (ładowany tylko przy włączonych). */
+    if (!function_exists('evk_tl_el_tlumaczalna')) require_once dirname(__DIR__, 2) . '/includes/51-translation-element-fields.php';
+    $k = apply_filters('bricks/elements/form/controls', ['actions' => ['options' => []]]);
+    foreach ($k as $klucz => $def) {
+        if (($def['group'] ?? '') === 'evk2fa' && function_exists('evk_tl_el_tlumaczalna')) $out['tlumaczone'][$klucz] = evk_tl_el_tlumaczalna((string) $klucz, $def, 'form');
+    }
+    $g = apply_filters('bricks/elements/form/control_groups', []);
+    $out['grupa'] = $g['evk2fa'] ?? null;
     break;
 
 case 'konto':

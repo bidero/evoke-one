@@ -349,7 +349,7 @@ add_filter('authenticate', function ($user, $login = '', $haslo = '') {
             $zostalo = evk_2fa_token_proba($token);
             do_action('wp_login_failed', $user->user_login, new WP_Error('evk_2fa_kod', 'Zły kod 2FA'));
             $kom = $zostalo ? sprintf('Nieprawidłowy kod. Zostało prób: %d.', $zostalo) : 'Nieprawidłowy kod. Zaloguj się jeszcze raz.';
-            if ($bricks) evk_2fa_odpowiedz_bricks($kom, $zostalo ? ['token' => $token, 'blad' => true] : ['wygasl' => true]);
+            if ($bricks) evk_2fa_odpowiedz_bricks($kom, $zostalo ? ['token' => $token, 'blad' => true, 'proby' => $zostalo] : ['wygasl' => true]);
             return new WP_Error('evk_2fa_kod', $kom);
         }
         evk_2fa_token_usun($token);
