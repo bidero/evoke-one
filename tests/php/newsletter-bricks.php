@@ -105,9 +105,14 @@ case 'stary':
     ]);
     $grupy = apply_filters('bricks/elements/form/control_groups', ['email' => ['title' => 'Email']]);
     $out['opcje_akcji'] = $kontrolki['actions']['options'] ?? null;
+    /* Tylko kontrolki i grupa newslettera: od 1.289.0 ten sam filtr dokłada też
+       grupę 2FA (`evk2fa`, sprawdza ją logowanie-2fa-bricks) — niezależną od akcji
+       newslettera i od wersji Bricksa z własnymi akcjami. */
+    $kontrolki = array_filter($kontrolki, static function ($k) { return strpos((string) $k, 'evkNl') === 0; }, ARRAY_FILTER_USE_KEY);
+    unset($grupy['evk2fa']);
     $out['kontrolki'] = array_map(static function ($k) {
         return array_intersect_key($k, array_flip(['group', 'type', 'multiple', 'map_fields', 'options']));
-    }, array_diff_key($kontrolki, ['actions' => 1]));
+    }, $kontrolki);
     $out['grupy'] = $grupy;
     $out['lista'] = (string) $lista;
     break;
