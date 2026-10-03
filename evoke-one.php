@@ -212,6 +212,7 @@ foreach ($evoke_security_modules as $module) {
 $evoke_interface_modules = [
     'interface/thumbnails.php',
     'interface/white-label.php',
+    'interface/pasek-evoke.php',   // menu „Evoke” w pasku admina na stronie (1.290.0)
 ];
 foreach ($evoke_interface_modules as $module) {
     require_once EVOKE_ONE_DIR . 'includes/' . $module;

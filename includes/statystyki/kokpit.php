@@ -212,16 +212,17 @@ function evk_stat_render_widzet(): void {
 // =========================================================================
 
 add_action('admin_bar_menu', function (WP_Admin_Bar $pasek): void {
-    if (is_admin() || !evk_stat_wlaczone() || empty(evk_stat_ustawienia()['licznik']) || !evk_stat_moze_czytac()) return;
-    $sciezka = evk_stat_sciezka((string) wp_parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH), (string) wp_parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_QUERY));
-    $dzis = wp_date('Y-m-d');
-    $d = evk_stat_odslony_strony($sciezka, $dzis, $dzis);
-    $m = evk_stat_odslony_strony($sciezka, wp_date('Y-m-d', time() - 29 * DAY_IN_SECONDS), $dzis);
-    $pasek->add_node([
-        'id'    => 'evk-statystyki',
-        'title' => '<span class="ab-icon dashicons dashicons-chart-area" style="top:2px" aria-hidden="true"></span><span class="ab-label">'
-            . esc_html(number_format_i18n($d) . ' / ' . number_format_i18n($m)) . '</span>',
-        'href'  => evk_stat_adres_raportu(),
-        'meta'  => ['title' => sprintf('Odsłony tej strony: dziś %d, 30 dni %d', $d, $m)],
-    ]);
+    /* Od 1.290.0 grupa „Statystyki” w menu „Evoke” (includes/interface/pasek-evoke.php); licznik — w tytule menu. */
+    if (is_admin() || !evk_stat_wlaczone() || !evk_stat_moze_czytac() || !function_exists('evk_pasek_grupa')) return;
+    evk_pasek_naglowek($pasek, 'stat', 'evk-statystyki-tytul', 'Statystyki');
+    if (!empty(evk_stat_ustawienia()['licznik'])) {
+        $sciezka = evk_stat_sciezka((string) wp_parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH), (string) wp_parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_QUERY));
+        $dzis = wp_date('Y-m-d');
+        $d = evk_stat_odslony_strony($sciezka, $dzis, $dzis);
+        $m = evk_stat_odslony_strony($sciezka, wp_date('Y-m-d', time() - 29 * DAY_IN_SECONDS), $dzis);
+        $opis = sprintf('Odsłony tej strony: dziś %d, 30 dni %d', $d, $m);
+        evk_pasek_licznik(number_format_i18n($d) . ' / ' . number_format_i18n($m), $opis);
+        $pasek->add_node(['parent' => evk_pasek_grupa('stat'), 'id' => 'evk-statystyki', 'title' => esc_html($opis), 'href' => evk_stat_adres_raportu()]);
+    }
+    $pasek->add_node(['parent' => evk_pasek_grupa('stat'), 'id' => 'evk-statystyki-raport', 'title' => 'Raport statystyk', 'href' => evk_stat_adres_raportu()]);
 }, 90);

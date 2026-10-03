@@ -278,7 +278,9 @@ module.exports = async function (t) {
       !!wz1 && wz1.zakladka === 'Dziś' && J(wz1.os) === J(['0:00', '6:00', '12:00', '18:00']) && wz1.liczby[0] === '3' && /okres=dzis$/.test(wz1.raport) && wz1.linia
       && !!wz2 && wz2.zakladka === 'Dziś' && wz2.linia, J({ wz1, wz2 }));
     const licznik = async () => { await sa.goto(baza + '/?page_id=' + A2); return sa.evaluate(() => {
-      const n = document.querySelector('#wp-admin-bar-evk-statystyki'); return n && { tekst: n.querySelector('.ab-label').textContent, tytul: n.querySelector('a').getAttribute('title') }; }); };
+      /* Od 1.290.0 licznik w tytule menu „Evoke”, pozycja z opisem w grupie Statystyki. */
+      const n = document.querySelector('#wp-admin-bar-evk-menu .evk-pasek-licznik'), poz = document.querySelector('#wp-admin-bar-evk-statystyki a');
+      return n && { tekst: n.textContent, tytul: poz && poz.textContent }; }); };
     const l0 = await licznik();
     sonda('ustaw', J({ licznik: 1 }));
     const l1 = await licznik();

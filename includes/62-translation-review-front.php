@@ -401,11 +401,14 @@ function evk_tl_sprawdz_ai_dane(): ?array {
 // =========================================================================
 
 add_action('admin_bar_menu', function ($bar) {
-    if (!($bar instanceof WP_Admin_Bar) || is_admin() || evk_w_builderze() || !is_user_logged_in() || !evk_tl_sprawdz_dostep()) return;
+    if (!($bar instanceof WP_Admin_Bar) || is_admin() || evk_w_builderze() || !is_user_logged_in() || !evk_tl_sprawdz_dostep() || !function_exists('evk_pasek_grupa')) return;
     $jezyki = array_keys(tl_get_languages());
     if (!$jezyki) return;
+    /* Od 1.290.0 grupa „Tłumaczenia” w menu „Evoke”. */
+    $g = evk_pasek_grupa('tl');
+    evk_pasek_naglowek($bar, 'tl', 'evk-tl-tytul', 'Tłumaczenia');
     if (evk_tl_sprawdz_aktywny()) {
-        $bar->add_node(['id' => 'evk-tl-sprawdz', 'title' => 'Zakończ sprawdzanie tłumaczeń', 'href' => remove_query_arg(EVK_TL_SPRAWDZ_PARAM)]);
+        $bar->add_node(['parent' => $g, 'id' => 'evk-tl-sprawdz', 'title' => 'Zakończ sprawdzanie tłumaczeń', 'href' => remove_query_arg(EVK_TL_SPRAWDZ_PARAM)]);
         return;
     }
     $lang = get_current_lang();
@@ -414,10 +417,10 @@ add_action('admin_bar_menu', function ($bar) {
         $url = $j === $lang ? (string) add_query_arg([]) : (function_exists('lang_switch_url_with_translated_slug') ? lang_switch_url_with_translated_slug($j) : '');
         return $url !== '' ? add_query_arg(EVK_TL_SPRAWDZ_PARAM, '1', $url) : '';
     };
-    $bar->add_node(['id' => 'evk-tl-sprawdz', 'title' => 'Sprawdź tłumaczenia (' . strtoupper($cel) . ')', 'href' => $adres($cel)]);
+    $bar->add_node(['parent' => $g, 'id' => 'evk-tl-sprawdz', 'title' => 'Sprawdź tłumaczenia (' . strtoupper($cel) . ')', 'href' => $adres($cel)]);
     foreach ($jezyki as $j) {
         if ($j === $cel) continue;
-        $bar->add_node(['id' => 'evk-tl-sprawdz-' . sanitize_key($j), 'parent' => 'evk-tl-sprawdz', 'title' => 'Sprawdź ' . strtoupper($j), 'href' => $adres((string) $j)]);
+        $bar->add_node(['parent' => $g, 'id' => 'evk-tl-sprawdz-' . sanitize_key($j), 'title' => 'Sprawdź tłumaczenia (' . strtoupper($j) . ')', 'href' => $adres((string) $j)]);
     }
 }, 90);
 

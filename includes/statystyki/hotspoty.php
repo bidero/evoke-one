@@ -219,23 +219,25 @@ add_action('admin_post_evk_stat_hot', function (): void {
 // =========================================================================
 
 add_action('admin_bar_menu', function (WP_Admin_Bar $pasek): void {
-    if (is_admin() || !evk_stat_wlaczone() || !evk_stat_moze_czytac() || isset($_GET['evk_hot_podglad'])) return;
+    if (is_admin() || !evk_stat_wlaczone() || !evk_stat_moze_czytac() || isset($_GET['evk_hot_podglad']) || !function_exists('evk_pasek_grupa')) return;
     $strona = evk_stat_sciezka((string) wp_parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH), (string) ($_SERVER['QUERY_STRING'] ?? ''));
     $st = evk_stat_hot_stan($strona);
     $admin = current_user_can('manage_options');
     if (!$st && !$admin) return;
-    $pasek->add_node(['id' => 'evk-hotspoty', 'title' => $st && $st['nagrywa'] ? 'Hotspoty: nagrywanie' : 'Hotspoty', 'href' => $st ? evk_stat_hot_adres_podgladu($strona) : false]);
+    /* Od 1.290.0 grupa „Hotspoty” w menu „Evoke”: nagłówek ze stanem, pod nim pozycje (jeden poziom — wygodny także na telefonie). */
+    $g = evk_pasek_grupa('hot');
+    evk_pasek_naglowek($pasek, 'hot', 'evk-hotspoty', $st && $st['nagrywa'] ? 'Hotspoty: nagrywanie' : 'Hotspoty');
     if ($st) {
-        $pasek->add_node(['parent' => 'evk-hotspoty', 'id' => 'evk-hotspoty-pokaz', 'title' => 'Pokaż hotspoty (' . (int) $st['odslony'] . ' odsłon)', 'href' => evk_stat_hot_adres_podgladu($strona)]);
-        $pasek->add_node(['parent' => 'evk-hotspoty', 'id' => 'evk-hotspoty-stan', 'title' => $st['nagrywa']
+        $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-pokaz', 'title' => 'Pokaż hotspoty (' . (int) $st['odslony'] . ' odsłon)', 'href' => evk_stat_hot_adres_podgladu($strona)]);
+        $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-stan', 'title' => $st['nagrywa']
             ? sprintf('Do %s albo %d wizyt (jest %d)', wp_date('j.m.Y', $st['do']), $st['limit'], $st['wizyty'])
             : 'Nagrywanie zakończone ' . wp_date('j.m.Y', $st['koniec'])]);
     }
     if (!$admin) return;
     if ($st && $st['nagrywa']) {
-        $pasek->add_node(['parent' => 'evk-hotspoty', 'id' => 'evk-hotspoty-stop', 'title' => 'Zatrzymaj nagrywanie', 'href' => evk_stat_hot_adres_akcji('stop', $strona)]);
+        $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-stop', 'title' => 'Zatrzymaj nagrywanie', 'href' => evk_stat_hot_adres_akcji('stop', $strona)]);
     } else {
-        $pasek->add_node(['parent' => 'evk-hotspoty', 'id' => 'evk-hotspoty-start', 'title' => sprintf('Nagrywaj tę stronę (%d dni albo %d wizyt)', EVK_STAT_HOT_DNI, EVK_STAT_HOT_WIZYTY),
+        $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-start', 'title' => sprintf('Nagrywaj tę stronę (%d dni albo %d wizyt)', EVK_STAT_HOT_DNI, EVK_STAT_HOT_WIZYTY),
             'href' => add_query_arg(['dni' => EVK_STAT_HOT_DNI, 'wizyty' => EVK_STAT_HOT_WIZYTY], evk_stat_hot_adres_akcji('start', $strona))]);
     }
 }, 101);
