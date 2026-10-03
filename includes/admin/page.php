@@ -544,8 +544,13 @@ function evoke_one_render_control_center(string $base): void {
 
     $security = evk_security_get();
     $cleanup  = get_option('evk_cleanup', []);
+    /* Logowanie (1.289.0): 2FA, ukryty adres, limit logowań — limit nie liczy się już w Bezpieczeństwie. */
+    $logowanie_active = count(array_filter([
+        function_exists('evk_2fa_wlaczone') && evk_2fa_wlaczone(), function_exists('evk_ua_wlaczony') && evk_ua_wlaczony(),
+        !empty($security['limit_login_enabled']),
+    ]));
     $security_active = count(array_filter([
-        !empty($security['limit_login_enabled']), !empty($security['hide_wp_version']),
+        !empty($security['hide_wp_version']),
         !empty($security['rest_block_all']), !empty($cleanup['disable_xmlrpc']), !empty($cleanup['remove_rss']),
     ]));
     /* Mapa strony liczy się jako aktywny obszar SEO wtedy, gdy WordPress ją
@@ -583,7 +588,7 @@ function evoke_one_render_control_center(string $base): void {
     $checks = [
         ['label' => 'HTTPS',   'ok' => is_ssl()],
         ['label' => 'XML-RPC', 'ok' => !empty($cleanup['disable_xmlrpc']), 'url' => add_query_arg(['tab' => 'bezpieczenstwo', 'sub' => 'cleanup'], $base)],
-        ['label' => 'Limit logowań', 'ok' => !empty($security['limit_login_enabled']), 'url' => add_query_arg(['tab' => 'bezpieczenstwo', 'sub' => 'login'], $base)],
+        ['label' => 'Limit logowań', 'ok' => !empty($security['limit_login_enabled']), 'url' => add_query_arg(['tab' => 'logowanie', 'sub' => 'limit'], $base)],
         ['label' => 'SMTP',    'ok' => !empty(get_option('evk_smtp', [])['enabled']), 'url' => add_query_arg(['tab' => 'narzedzia', 'sub' => 'smtp'], $base)],
         ['label' => 'Schema',  'ok' => !empty(get_option('evk_schema', [])['enabled']), 'url' => add_query_arg(['tab' => 'strona', 'sub' => 'schema'], $base)],
         ['label' => 'Sitemap', 'ok' => $mapa_wystawiana, 'url' => add_query_arg(['tab' => 'strona', 'sub' => 'sitemap'], $base)],
@@ -603,7 +608,7 @@ function evoke_one_render_control_center(string $base): void {
         ['tab' => 'wydajnosc', 'icon' => 'dashicons-desktop',       'name' => 'Frontend',      'meta' => $frontend_active . ' aktywnych z ' . count($frontend)],
         ['tab' => 'strona', 'icon' => 'dashicons-search',            'name' => 'SEO',           'meta' => $seo_active . ' aktywne obszary'],
         ['tab' => 'bezpieczenstwo', 'icon' => 'dashicons-shield',    'name' => 'Bezpieczeństwo','meta' => $security_active . ' aktywnych zabezpieczeń'],
-        ['tab' => 'logowanie', 'icon' => 'dashicons-lock',           'name' => 'Logowanie',     'meta' => function_exists('evk_2fa_wlaczone') && evk_2fa_wlaczone() ? '2FA włączone' : '2FA wyłączone'],
+        ['tab' => 'logowanie', 'icon' => 'dashicons-lock',           'name' => 'Logowanie',     'meta' => $logowanie_active . ' z 3 włączonych'],
         ['tab' => 'narzedzia', 'icon' => 'dashicons-admin-tools',    'name' => 'Narzędzia',     'meta' => $tool_active . ' aktywne narzędzia'],
         ['tab' => 'newsletter', 'icon' => 'dashicons-email-alt',     'name' => 'Newsletter',    'meta' => $newsletter_active ? 'moduł aktywny' : 'moduł wyłączony'],
         ['tab' => 'forminbox', 'icon' => 'dashicons-feedback',       'name' => 'Formularze',    'meta' => $inbox_active ? 'skrzynka aktywna' : 'skrzynka wyłączona'],

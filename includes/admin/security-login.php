@@ -1,7 +1,7 @@
 <?php
 if (!defined('ABSPATH')) exit;
 /**
- * Evoke ONE — Bezpieczeństwo: Limit logowań
+ * Evoke ONE — Logowanie › Limit logowań (do 1.288 w Bezpieczeństwie)
  */
 
 $active_blocks = evk_login_active_blocks();

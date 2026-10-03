@@ -207,6 +207,19 @@ module.exports = async function (t) {
     const pz = await (await browser.newContext()).newPage();
     await serwerWp.zaloguj(pz, baza, 'admin', 'admin');
     await pz.goto(baza + '/wp-admin/options-general.php?page=evoke-one&tab=logowanie');
+    const przeglad = await pz.$$eval('.evo-panel a[href*="tab=logowanie"]', (a) => [...new Set(a.map((x) => (x.href.match(/sub=([a-z0-9]+)/) || [])[1]).filter(Boolean))]);
+    await pz.goto(baza + '/wp-admin/options-general.php?page=evoke-one&tab=bezpieczenstwo');
+    const boczne = await pz.$$eval('.evo-panel a[href*="tab=bezpieczenstwo&sub="]', (a) => [...new Set(a.map((x) => (x.href.match(/sub=([a-z0-9]+)/) || [])[1]))]);
+    t.check('Logowanie (1.289.0): przegląd z trzema ekranami — 2FA, ukryty adres, limit logowań; w Bezpieczeństwie limitu już nie ma',
+      J(przeglad) === J(['2fa', 'adres', 'limit']) && boczne.length > 0 && !boczne.includes('login'), J({ przeglad, boczne }));
+    await pz.goto(baza + '/wp-admin/options-general.php?page=evoke-one&tab=bezpieczenstwo&sub=login');
+    const limitUrl = pz.url();
+    const limitForm = !!(await pz.$('#evk-sec-form-login'));
+    await pz.click('#evk-sec-form-login [type=submit]');
+    await pz.waitForSelector('#evk-sec-form-login .evk-sec-saved', { state: 'visible', timeout: 10000 }).catch(() => {});
+    t.check('stary adres limitu (Bezpieczeństwo › login) prowadzi do Logowanie › Limit logowań; formularz zapisuje się jak dotąd',
+      /tab=logowanie&sub=limit/.test(limitUrl) && limitForm && await pz.isVisible('#evk-sec-form-login .evk-sec-saved'), limitUrl);
+    await pz.goto(baza + '/wp-admin/options-general.php?page=evoke-one&tab=logowanie&sub=adres');
     const pole = await pz.inputValue('#evk-ua-adres').catch(() => '');
     t.check('sekcja „Ukryty adres logowania”: WYŁĄCZONY, pole z losowym adresem na start', /WYŁĄCZONY/.test(await pz.textContent('#evk-ua h3').catch(() => '')) && /^panel-[a-z2-9]{6}$/.test(pole), pole);
     await pz.fill('#evk-ua-adres', 'wp-admin');

@@ -204,7 +204,7 @@ module.exports = async function (t) {
     t.section('administrator: zakładka Logowanie, reset, dziennik');
     const pa = await nowa();
     await serwerWp.zaloguj(pa, baza);
-    await pa.goto(baza + '/wp-admin/options-general.php?page=evoke-one&tab=logowanie');
+    await pa.goto(baza + '/wp-admin/options-general.php?page=evoke-one&tab=logowanie&sub=2fa');
     const wiersze = await pa.$$eval('#evk-2fa-konta tbody tr', (x) => x.map((tr) => [...tr.children].map((td) => td.textContent.trim())));
     t.check('lista kont: dwa_admin „Włączone od …, kodów zapasowych: 9”, dwa_red „Wymagane — jeszcze nie włączone”',
       wiersze.some((w) => /dwa_admin/.test(w[0]) && /^Włączone od .*kodów zapasowych: 9$/.test(w[1])) && wiersze.some((w) => /dwa_red/.test(w[0]) && w[1] === 'Wymagane — jeszcze nie włączone'), J(wiersze));

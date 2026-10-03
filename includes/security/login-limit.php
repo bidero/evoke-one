@@ -285,3 +285,11 @@ add_action('wp_ajax_evk_clear_all_blocks', function () {
     delete_option('evk_failed_logins');
     wp_send_json_success('Wyczyszczono wszystkie blokady.');
 });
+
+/* Limit logowań przeszedł z Bezpieczeństwa do zakładki Logowanie (1.289.0).
+   Stary adres (zakładki w przeglądarce, linki w notatkach) prowadzi na nowy. */
+add_action('admin_init', function () {
+    if (($_GET['page'] ?? '') !== 'evoke-one' || ($_GET['tab'] ?? '') !== 'bezpieczenstwo' || ($_GET['sub'] ?? '') !== 'login') return;
+    wp_safe_redirect(admin_url('options-general.php?page=evoke-one&tab=logowanie&sub=limit'));
+    exit;
+});

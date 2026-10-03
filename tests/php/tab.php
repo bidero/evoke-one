@@ -789,17 +789,27 @@ $TABS = [
     ],
 
     /* Logowanie (1.287.0): 2FA — wyłączone (stan pusty) i włączone (role, konta, dziennik).
-       Od 1.288.0 z sekcją ukrytego adresu: wyłączony (losowy adres w polu) i włączony. */
+       Od 1.289.0 podstrony: ukryty adres wyłączony (losowy adres w polu) i włączony;
+       limit logowań to `sec-login` niżej (ten sam plik co w Bezpieczeństwie do 1.288). */
+    'login-adres' => [
+        'module' => ['includes/logowanie/ukryty-adres.php'],
+        'file'   => 'includes/admin/logowanie-adres.php',
+        'seed'   => function () { $GLOBALS['options']['evk_ukryty_adres'] = ['enabled' => 0, 'adres' => '']; },
+    ],
+    'login-adres-on' => [
+        'module' => ['includes/logowanie/ukryty-adres.php'],
+        'file'   => 'includes/admin/logowanie-adres.php',
+        'seed'   => function () { $GLOBALS['options']['evk_ukryty_adres'] = ['enabled' => 1, 'adres' => 'panel-test12']; },
+    ],
     'login' => [
-        'module' => ['includes/logowanie/2fa.php', 'includes/logowanie/ukryty-adres.php'],
-        'file'   => 'includes/admin/tab-logowanie.php',
+        'module' => ['includes/logowanie/2fa.php'],
+        'file'   => 'includes/admin/logowanie-2fa.php',
         'seed'   => function () { $GLOBALS['options']['evk_2fa'] = ['enabled' => 0]; },
     ],
     'login-on' => [
-        'module' => ['includes/logowanie/2fa.php', 'includes/logowanie/ukryty-adres.php'],
-        'file'   => 'includes/admin/tab-logowanie.php',
+        'module' => ['includes/logowanie/2fa.php'],
+        'file'   => 'includes/admin/logowanie-2fa.php',
         'seed'   => function () { $GLOBALS['options']['evk_2fa'] = ['enabled' => 1, 'role' => ['administrator'], 'pamietaj' => 1];
-            $GLOBALS['options']['evk_ukryty_adres'] = ['enabled' => 1, 'adres' => 'panel-test12'];
             $GLOBALS['options']['evk_2fa_dziennik'] = [['czas' => time(), 'co' => 'wlaczenie', 'konto' => 1, 'kto' => 1]]; },
     ],
 

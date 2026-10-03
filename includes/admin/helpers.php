@@ -124,9 +124,6 @@ function evoke_one_ekrany(): array {
                           'przelaczniki' => [['evk_og', 'enabled']]],
         ],
         'bezpieczenstwo' => [
-            'login'     => ['label' => 'Limit logowań', 'icon' => 'dashicons-lock',       'szukaj' => 'brute force blokada ip',
-                            'opis' => 'Blokada adresu po serii nieudanych logowań.',
-                            'przelaczniki' => [['evk_security', 'limit_login_enabled']]],
             'rest'      => ['label' => 'REST API',      'icon' => 'dashicons-rest-api',   'szukaj' => 'api json wp-json',
                             'opis' => 'Ograniczenie dostępu do REST API.',
                             'przelaczniki' => [['evk_security', 'rest_block_all']]],
@@ -142,6 +139,20 @@ function evoke_one_ekrany(): array {
             'cleanup'   => ['label' => 'Czyszczenie',   'icon' => 'dashicons-trash',      'szukaj' => 'xml-rpc rss rewizje śmietnik',
                             'opis' => 'Wyłączenie XML-RPC i kanałów RSS.',
                             'przelaczniki' => [['evk_cleanup', 'disable_xmlrpc'], ['evk_cleanup', 'remove_rss']]],
+        ],
+        /* Od 1.289.0 wszystko, co pilnuje wejścia do panelu. Ukryty adres BEZ
+           przełącznika na przeglądzie: włączenie wymaga sprawdzonego adresu,
+           potwierdzenia i klucza dla włączającego — goły zapis opcji z listy
+           odciąłby administratora od wp-login.php po wylogowaniu. */
+        'logowanie' => [
+            '2fa'   => ['label' => 'Logowanie dwuetapowe', 'icon' => 'dashicons-smartphone', 'szukaj' => '2fa totp kod aplikacja authenticator weryfikacja',
+                        'opis' => 'Po haśle 6 cyfr z aplikacji w telefonie; obowiązkowe dla wybranych ról.',
+                        'przelaczniki' => [['evk_2fa', 'enabled']]],
+            'adres' => ['label' => 'Ukryty adres',         'icon' => 'dashicons-hidden',     'szukaj' => 'wp-login wp-admin 404 własny adres logowania',
+                        'opis' => 'wp-login.php i /wp-admin/ dla niezalogowanych to strona 404; logowanie przez własny adres.'],
+            'limit' => ['label' => 'Limit logowań',        'icon' => 'dashicons-lock',       'szukaj' => 'brute force blokada ip',
+                        'opis' => 'Blokada adresu po serii nieudanych logowań.',
+                        'przelaczniki' => [['evk_security', 'limit_login_enabled']]],
         ],
         'narzedzia' => [
             'snippets'    => ['label' => 'Fragmenty kodu',    'icon' => 'dashicons-editor-code',     'szukaj' => 'snippety skrypty php kod functions.php css js',
