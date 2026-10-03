@@ -16,6 +16,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/logowanie-adres.php chroniona              wpis chroniony hasłem „test-haslo”
  *   php tests/php/logowanie-adres.php linki <0|1>            strony logowania „Bricksa” w opcji bricks_global_settings + linki WordPressa
  *   php tests/php/logowanie-adres.php odzyskiwanie            link trybu odzyskiwania (jak w e-mailu o błędzie krytycznym)
+ *   php tests/php/logowanie-adres.php ladne <0|1>            ładne adresy /%postname%/ albo stan sprzed testu
  *   php tests/php/logowanie-adres.php awaryjnie <0|1>        mu-plugin ze stałą EVK_UKRYTY_ADRES_WYLACZ
  *   php tests/php/logowanie-adres.php sprzataj
  */
@@ -117,6 +118,15 @@ case 'odzyskiwanie':
     $svc = new WP_Recovery_Mode_Link_Service(new WP_Recovery_Mode_Cookie_Service(), new WP_Recovery_Mode_Key_Service());
     $out['url'] = $svc->generate_url();
     $out['sciezka'] = (string) wp_parse_url($out['url'], PHP_URL_PATH) . '?' . (string) wp_parse_url($out['url'], PHP_URL_QUERY);
+    break;
+
+case 'ladne':
+    /* Ładne adresy (/%postname%/) — przepłukanie reguł tu wystarcza: test potrzebuje tylko strony głównej i stron. */
+    $zachowaj('permalink_structure');
+    $zachowaj('rewrite_rules');
+    $GLOBALS['wp_rewrite']->set_permalink_structure(($argv[2] ?? '') === '1' ? '/%postname%/' : (string) ($zap['opcje']['permalink_structure'] ?? ''));
+    flush_rewrite_rules(false);
+    $out['struktura'] = get_option('permalink_structure');
     break;
 
 case 'awaryjnie':

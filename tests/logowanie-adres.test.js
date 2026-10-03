@@ -180,6 +180,21 @@ module.exports = async function (t) {
     t.check('logowanie w trybie odzyskiwania bez klucza adresu: kokpit', /\/wp-admin\//.test(rpo.url()), rpo.url());
     await rpo.context().close();
 
+    t.section('ładne adresy: 404 z kokpitu');
+    sonda('ladne', 1);
+    sonda('ustaw', J({ enabled: 0, adres: ADRES }));
+    const n0 = await daj('/?error=404');
+    sonda('ustaw', J({ enabled: 1, adres: ADRES }));
+    const n1 = await daj('/wp-admin/');
+    const n2 = await daj('/?error=404');
+    const n3 = await daj('/');
+    const n4 = await daj('/' + ADRES);
+    sonda('ladne', 0);
+    t.check('kontrola: przy ładnych adresach rdzeń sam pokazuje pod /?error=404 stronę główną (200)', n0.kod === 200 && !n0.e404, n0.kod);
+    t.check('ładne adresy: /wp-admin/ → /?error=404 → strona 404 (kod 404); sama strona główna dalej 200; adres-klucz /' + ADRES + ' wpuszcza',
+      n1.kod === 302 && /\/\?error=404$/.test(n1.dokad) && n2.kod === 404 && n2.e404 && n3.kod === 200 && !n3.e404 && n4.kod === 302 && /wp-login\.php$/.test(n4.dokad),
+      J([n1.kod, n2.kod, n3.kod, n4.kod, n4.dokad]));
+
     t.section('stała awaryjna');
     sonda('awaryjnie', 1);
     const e1 = await daj('/wp-login.php');

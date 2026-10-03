@@ -214,6 +214,19 @@ add_action('wp_loaded', function () {
     evk_ua_strona_404();
 }, 0);
 
+/*
+ * Cel przekierowania z kokpitu: `/?error=404`. Przy ZWYKŁYCH adresach
+ * WordPress sam robi z tego 404, ale przy ładnych dla strony głównej kasuje
+ * parametr (`unset($_GET['error'])` w WP::parse_request) i pokazuje stronę
+ * główną (zgłoszenie z testowa.evoke.pl, 1.288.2). Filtr `request` idzie po
+ * tym kasowaniu, a oryginał zostaje w QUERY_STRING.
+ */
+add_filter('request', function ($zmienne) {
+    if (!evk_ua_wlaczony() || evk_ua_sciezka() !== '') return $zmienne;
+    parse_str((string) ($_SERVER['QUERY_STRING'] ?? ''), $q);
+    return ($q['error'] ?? '') === '404' ? ['error' => '404'] : $zmienne;
+});
+
 // =========================================================================
 // LINKI NA STRONY LOGOWANIA BRICKSA
 // =========================================================================

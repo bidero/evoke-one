@@ -2,6 +2,22 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.288.2] — 2026-10-03
+
+### Naprawione
+
+- **Ukryty adres: `/wp-admin/` pokazywał stronę główną zamiast 404**
+  (zgłoszenie z testowa.evoke.pl). Przekierowanie idzie na `/?error=404`,
+  a przy ładnych adresach WordPress dla strony głównej kasuje ten parametr
+  (`WP::parse_request`). Testowy WordPress ma zwykłe adresy, więc test tego
+  nie widział. Teraz filtr `request` przywraca 404 po rdzeniu.
+
+### Testy
+
+- `logowanie-adres` (44): sekcja z ładnymi adresami — najpierw kontrola, że
+  rdzeń sam pokazuje pod `/?error=404` stronę główną, potem 404 z kokpitu,
+  strona główna dalej 200, adres-klucz `/panel-…`. Mutacja zapala.
+
 ## [1.288.1] — 2026-10-03
 
 ### Naprawione
