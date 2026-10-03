@@ -68,7 +68,8 @@ add_filter('bricks/elements/form/controls', function ($k) {
         'css' => [['property' => 'font', 'selector' => '.evk-2fa-link']]];
     $k['evk2faNajechanie'] = $g + ['label' => 'Linki: kolor po najechaniu', 'type' => 'color',
         'css' => [['property' => 'color', 'selector' => '.evk-2fa-link:hover'], ['property' => 'color', 'selector' => '.evk-2fa-link:focus-visible']]];
-    $k['evk2faKlasy'] = $g + ['label' => 'Linki: klasy CSS', 'type' => 'text', 'inline' => false, 'evkTlPomin' => true, 'placeholder' => 'np. btn--link', 'rerender' => true,
+    /* Klucz z przedrostkiem `evk` — Tłumaczenia (51) i tak go pomijają, `evkTlPomin` zbędne. */
+    $k['evk2faKlasy'] = $g + ['label' => 'Linki: klasy CSS', 'type' => 'text', 'inline' => false, 'placeholder' => 'np. btn--link', 'rerender' => true,
         'description' => 'Dokładane do obu linków, oddzielone spacją (np. klasy frameworka).'];
     $k['evk2faBladTypografia'] = $g + ['label' => 'Komunikat po złej próbie: typografia', 'type' => 'typography',
         'css' => [['property' => 'font', 'selector' => '.evk-2fa-blad']]];

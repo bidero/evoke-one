@@ -28,10 +28,13 @@
     tfaPamietaj: 'Zapamiętaj to urządzenie na ' + (cfg.dni || 30) + ' dni',
     tfaBlad: 'Nieprawidłowy kod. Zostało prób: {proby}.'
   };
-  /* Specyficzność klasy: wygrywa z gołym `button` motywu, przegrywa z kontrolkami
-     elementu (#brxe-…). Pełny wygląd tylko przy linkach BEZ własnych klas
-     (.evk-2fa-link--goly) — klasy frameworka ustawiają go same. */
-  var STYL = '.evk-2fa-nawig{display:flex;flex-wrap:wrap;row-gap:var(--evk-2fa-odstep-pion,4px);column-gap:var(--evk-2fa-odstep-poziom,16px)}'
+  /* Specyficzność klasy: wygrywa z gołym `button` motywu i z `.form-group` Bricksa
+     (kolumna, w warstwie @layer bricks), przegrywa z kontrolkami elementu (#brxe-…).
+     Pełny wygląd tylko przy linkach BEZ własnych klas (.evk-2fa-link--goly) —
+     klasy frameworka ustawiają go same. */
+  var STYL = '.evk-2fa-nawig{display:flex;flex-direction:row;flex-wrap:wrap;row-gap:var(--evk-2fa-odstep-pion,4px);column-gap:var(--evk-2fa-odstep-poziom,16px)}'
+    /* Zerowa baza (:where — każda klasa z nią wygrywa): bez tła i ramki przycisku przeglądarki także przy własnych klasach. */
+    + ':where(.evk-2fa-link){background:none;border:0;padding:0;font:inherit;color:inherit;text-align:inherit}'
     + '.evk-2fa-link{min-height:24px;cursor:pointer}'
     + '.evk-2fa-link--goly{background:none;border:0;padding:0;margin:0;text-align:inherit;text-decoration:none;line-height:inherit;'
     + 'font-family:var(--evk-2fa-link-font,var(--evk-2fa-et-font,inherit));font-weight:var(--evk-2fa-link-weight,var(--evk-2fa-et-weight,inherit));'

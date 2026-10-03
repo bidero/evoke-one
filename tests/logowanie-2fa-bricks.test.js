@@ -80,6 +80,7 @@ module.exports = async function (t) {
         link: (() => { const b = form.querySelector('.evk-2fa-link'); if (!b) return null; const c = getComputedStyle(b);
           return { color: c.color, font: c.fontFamily, size: parseFloat(c.fontSize), weight: c.fontWeight, deco: c.textDecorationLine, tlo: c.backgroundColor, ramka: c.borderTopWidth, wys: b.getBoundingClientRect().height }; })(),
         pod: (() => { const n = form.querySelector('.evk-2fa-nawig'), w = form.querySelector('.submit-button-wrapper'); return n && w ? !!(w.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_PRECEDING) : null; })(),
+        obok: (() => { const l = form.querySelectorAll('.evk-2fa-link'); return l.length === 2 ? Math.abs(l[0].getBoundingClientRect().top - l[1].getBoundingClientRect().top) < 2 : null; })(),
       };
     }, F);
     const kodStyl = await styl(F + ' input[name="evk_2fa_kod"]');
@@ -97,9 +98,9 @@ module.exports = async function (t) {
       k1.pamietaj.length === 1 && !k1.pamietaj[0].zaznaczone && k1.pamietaj[0].tekst === 'Zapamiętaj to urządzenie na 30 dni' && /form-group/.test(k1.pamietaj[0].grupa)
       && J(k1.nawig) === J(['Nie masz telefonu? Użyj kodu zapasowego', '← Wróć']), J(k1.pamietaj));
 
-    t.check('linki domyślnie jak etykiety formularza (1.289.0): kolor, krój i grubość etykiety, rozmiar 0,9 etykiety, bez podkreślenia, bez tła i ramki, cel dotyku ≥ 24 px, pod polem (nad przyciskiem)',
+    t.check('linki domyślnie jak etykiety formularza (1.289.0): kolor, krój i grubość etykiety, rozmiar 0,9 etykiety, bez podkreślenia, bez tła i ramki, cel dotyku ≥ 24 px, pod polem (nad przyciskiem), obok siebie',
       !!k1.link && k1.link.color === etStyl.color && k1.link.font === etStyl.font && k1.link.weight === etStyl.weight && Math.abs(k1.link.size - etStyl.size * 0.9) < 0.1
-      && k1.link.deco === 'none' && k1.link.tlo === 'rgba(0, 0, 0, 0)' && k1.link.ramka === '0px' && k1.link.wys >= 24 && k1.pod === true, J({ link: k1.link, etykieta: etStyl, pod: k1.pod }));
+      && k1.link.deco === 'none' && k1.link.tlo === 'rgba(0, 0, 0, 0)' && k1.link.ramka === '0px' && k1.link.wys >= 24 && k1.pod === true && k1.obok === true, J({ link: k1.link, etykieta: etStyl, pod: k1.pod, obok: k1.obok }));
 
     t.section('zły kod, „Wróć”, dobry kod');
     const licznik = Math.floor(Date.now() / 30000);
@@ -161,15 +162,15 @@ module.exports = async function (t) {
     const w1 = await r.evaluate((f) => {
       const form = document.querySelector(f), pole = form.querySelector('input[name="evk_2fa_kod"]'), n = form.querySelector('.evk-2fa-nawig'), w = form.querySelector('.submit-button-wrapper');
       const l = [...form.querySelectorAll('.evk-2fa-link')], c = l[0] && getComputedStyle(l[0]);
-      return { etykieta: pole && ((form.querySelector('label[for="' + pole.id + '"]') || {}).textContent || pole.getAttribute('placeholder')), linki: l.map((b) => b.textContent), klasy: l[0] && l[0].className,
+      return { tlo: c && c.backgroundColor, etykieta: pole && ((form.querySelector('label[for="' + pole.id + '"]') || {}).textContent || pole.getAttribute('placeholder')), linki: l.map((b) => b.textContent), klasy: l[0] && l[0].className,
         kolor: c && c.color, rozmiar: c && c.fontSize, kierunek: n && getComputedStyle(n).flexDirection,
         podPrzyciskiem: !!(n && w && (w.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING)),
         pamietaj: (form.querySelector('input[name="evk_2fa_pamietaj"]') || { closest: () => ({ textContent: '' }) }).closest('.form-group').textContent.trim() };
     }, F);
     t.check('teksty z kontrolek: etykieta pola, oba linki, „Zapamiętaj…”', w1.etykieta === 'Kod jednorazowy' && J(w1.linki) === J(['Zapasowy', 'Cofnij']) && w1.pamietaj === 'Pamiętaj mnie tutaj', J(w1));
-    t.check('wygląd z kontrolek: typografia linków (kolor #0a7d3b, 13 px), kierunek kolumna, linki POD przyciskiem; klasy CSS dołożone, bez domyślnego wyglądu (--goly)',
+    t.check('wygląd z kontrolek: typografia linków (kolor #0a7d3b, 13 px), kierunek kolumna, linki POD przyciskiem; klasy CSS dołożone, bez domyślnego wyglądu (--goly), bez szarego tła przycisku przeglądarki',
       w1.kolor === 'rgb(10, 125, 59)' && w1.rozmiar === '13px' && w1.kierunek === 'column' && w1.podPrzyciskiem && /\bmoja-klasa\b/.test(w1.klasy || '') && /\bdruga\b/.test(w1.klasy || '')
-      && !/--goly/.test(w1.klasy || ''), J(w1));
+      && !/--goly/.test(w1.klasy || '') && w1.tlo === 'rgba(0, 0, 0, 0)', J(w1));
     await r.fill(F + ' input[name="evk_2fa_kod"]', totp(Math.floor(Date.now() / 30000)) === '000000' ? '111111' : '000000');
     await r.click(F + ' button[type=submit]');
     await r.waitForFunction((f) => /Zły kod/.test((document.querySelector(f + ' .evk-2fa-blad') || {}).textContent || ''), F, { timeout: 10000 }).catch(() => {});
