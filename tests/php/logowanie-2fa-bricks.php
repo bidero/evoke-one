@@ -36,6 +36,8 @@ function evk_t2b_formularz(array $dodatki = []): array {
             ],
             'actions' => ['login'], 'loginName' => 'lgn001', 'loginPassword' => 'pwd001', 'loginRemember' => 'rem001',
             'submitButtonText' => 'Zaloguj się', 'successMessage' => 'Zalogowano.',
+            /* Własna typografia etykiet (1.289.0) — linki kroku kodu mają ją przejąć; domyślna byłaby nie do odróżnienia od dziedziczonej. */
+            'labelTypography' => ['color' => ['hex' => '#5b2a86'], 'font-weight' => '700', 'font-size' => '18px'],
             'fieldBackgroundColor' => ['hex' => '#fff3d6'],
             'fieldPadding' => ['top' => '14px', 'right' => '18px', 'bottom' => '14px', 'left' => '18px'],
             'fieldBorder' => ['width' => ['top' => 2, 'right' => 2, 'bottom' => 2, 'left' => 2], 'style' => 'solid', 'color' => ['hex' => '#7a3cff'],

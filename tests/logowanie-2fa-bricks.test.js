@@ -98,8 +98,8 @@ module.exports = async function (t) {
       k1.pamietaj.length === 1 && !k1.pamietaj[0].zaznaczone && k1.pamietaj[0].tekst === 'Zapamiętaj to urządzenie na 30 dni' && /form-group/.test(k1.pamietaj[0].grupa)
       && J(k1.nawig) === J(['Nie masz telefonu? Użyj kodu zapasowego', '← Wróć']), J(k1.pamietaj));
 
-    t.check('linki domyślnie jak etykiety formularza (1.289.0): kolor, krój i grubość etykiety, rozmiar 0,9 etykiety, bez podkreślenia, bez tła i ramki, cel dotyku ≥ 24 px, pod polem (nad przyciskiem), obok siebie',
-      !!k1.link && k1.link.color === etStyl.color && k1.link.font === etStyl.font && k1.link.weight === etStyl.weight && Math.abs(k1.link.size - etStyl.size * 0.9) < 0.1
+    t.check('linki domyślnie jak etykiety formularza (1.289.0; etykiety z własną typografią #5b2a86, 700, 18 px): kolor, krój i grubość etykiety, rozmiar 0,9 etykiety, bez podkreślenia, bez tła i ramki, cel dotyku ≥ 24 px, pod polem (nad przyciskiem), obok siebie',
+      etStyl.color === 'rgb(91, 42, 134)' && etStyl.weight === '700' && etStyl.size === 18 && !!k1.link && k1.link.color === etStyl.color && k1.link.font === etStyl.font && k1.link.weight === etStyl.weight && Math.abs(k1.link.size - etStyl.size * 0.9) < 0.1
       && k1.link.deco === 'none' && k1.link.tlo === 'rgba(0, 0, 0, 0)' && k1.link.ramka === '0px' && k1.link.wys >= 24 && k1.pod === true && k1.obok === true, J({ link: k1.link, etykieta: etStyl, pod: k1.pod, obok: k1.obok }));
 
     t.section('zły kod, „Wróć”, dobry kod');

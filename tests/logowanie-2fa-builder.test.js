@@ -74,7 +74,9 @@ module.exports = async function (t) {
     await p.fill('[data-controlkey="tfaWroc"] input', 'Wstecz');
     await k.waitForFunction(() => [...document.querySelectorAll('form.brxe-form .evk-2fa-link')].some((x) => x.textContent === 'Wstecz'), null, { timeout: 15000 }).catch(() => {});
     const o2 = await odczyt();
-    t.check('zmiana tekstu w builderze: element przerysowany, podgląd wraca sam z nowym tekstem', J(o2.linki) === J(['Zapasowy', 'Wstecz']) && o2.pole && !o2.login, J(o2));
+    const fokusPanel = await p.evaluate(() => !!document.activeElement && !!document.activeElement.closest('[data-controlkey="tfaWroc"]'));
+    t.check('zmiana tekstu w builderze: element przerysowany, podgląd wraca sam z nowym tekstem, fokus zostaje w polu panelu (podgląd go nie zabiera)',
+      J(o2.linki) === J(['Zapasowy', 'Wstecz']) && o2.pole && !o2.login && fokusPanel, J({ o2, fokusPanel }));
 
     await stan(p, (st) => { const el = st.content.find((e) => e.id === 'b2f001'); el.settings.evk2faTypografia = { color: { hex: '#aa0000' }, 'font-size': '13px' }; });
     await k.waitForFunction(() => { const l = document.querySelector('form.brxe-form .evk-2fa-link'); return l && getComputedStyle(l).color === 'rgb(170, 0, 0)'; }, null, { timeout: 15000 }).catch(() => {});

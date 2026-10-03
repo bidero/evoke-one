@@ -45,14 +45,14 @@ add_filter('bricks/elements/form/control_groups', function ($grupy) {
 add_filter('bricks/elements/form/controls', function ($k) {
     if (!is_array($k)) return $k;
     $g = ['group' => 'evk2fa'];
-    $k['evk2faPodglad'] = $g + ['label' => 'Podgląd kroku kodu w builderze', 'type' => 'checkbox', 'rerender' => true,
+    $k['evk2faPodglad'] = $g + ['label' => 'Podgląd kroku kodu w builderze', 'type' => 'checkbox',
         'description' => 'Krok kodu pojawia się na stronie dopiero po haśle. Podgląd pokazuje go tutaj, żeby dało się go ostylować; na stronie nic nie zmienia.'];
     foreach (evk_2fa_bricks_teksty() as $klucz => [$etykieta, $domyslny]) {
-        /* `rerender` — teksty idą atrybutem z PHP, więc builder musi przerysować element (sprawdzone w prawdziwym builderze). */
-        $k[$klucz] = $g + ['label' => $etykieta, 'type' => 'text', 'inline' => false, 'placeholder' => $domyslny, 'rerender' => true];
+        /* Bez `rerender`: builder przerysowuje formularz po każdej zmianie w panelu (mutacja w logowanie-2fa-builder). */
+        $k[$klucz] = $g + ['label' => $etykieta, 'type' => 'text', 'inline' => false, 'placeholder' => $domyslny];
     }
     $k['tfaBlad']['description'] = '{proby} — ile prób zostało (z 5).';
-    $k['evk2faPolozenie'] = $g + ['label' => 'Linki', 'type' => 'select', 'inline' => true, 'placeholder' => 'Pod polem', 'rerender' => true,
+    $k['evk2faPolozenie'] = $g + ['label' => 'Linki', 'type' => 'select', 'inline' => true, 'placeholder' => 'Pod polem',
         'options' => ['pole' => 'Pod polem', 'przycisk' => 'Pod przyciskiem']];
     $k['evk2faKierunek'] = $g + ['label' => 'Linki: kierunek', 'type' => 'direction', 'inline' => true,
         'css' => [['property' => 'flex-direction', 'selector' => '.evk-2fa-nawig']]];
@@ -69,7 +69,7 @@ add_filter('bricks/elements/form/controls', function ($k) {
     $k['evk2faNajechanie'] = $g + ['label' => 'Linki: kolor po najechaniu', 'type' => 'color',
         'css' => [['property' => 'color', 'selector' => '.evk-2fa-link:hover'], ['property' => 'color', 'selector' => '.evk-2fa-link:focus-visible']]];
     /* Klucz z przedrostkiem `evk` — Tłumaczenia (51) i tak go pomijają, `evkTlPomin` zbędne. */
-    $k['evk2faKlasy'] = $g + ['label' => 'Linki: klasy CSS', 'type' => 'text', 'inline' => false, 'placeholder' => 'np. btn--link', 'rerender' => true,
+    $k['evk2faKlasy'] = $g + ['label' => 'Linki: klasy CSS', 'type' => 'text', 'inline' => false, 'placeholder' => 'np. btn--link',
         'description' => 'Dokładane do obu linków, oddzielone spacją (np. klasy frameworka).'];
     $k['evk2faBladTypografia'] = $g + ['label' => 'Komunikat po złej próbie: typografia', 'type' => 'typography',
         'css' => [['property' => 'font', 'selector' => '.evk-2fa-blad']]];
