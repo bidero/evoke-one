@@ -260,7 +260,7 @@ add_filter('bricks/frontend/disable_opengraph', '__return_true');
    ukośniki, więc bez tego „\" z tytułu znikał przy zapisie (do 1.250.0). */
 add_action('wp_ajax_evoke_save_seo_ajax', function () {
     check_ajax_referer('evoke_seo_nonce', 'nonce');
-    if (!current_user_can('manage_options') || empty($_POST['post_id'])) wp_send_json_error();
+    if (!evk_moze('seo') || empty($_POST['post_id'])) wp_send_json_error();
     $pid = absint($_POST['post_id']);
     update_post_meta($pid, '_evoke_seo_title',    wp_slash(sanitize_text_field(wp_unslash($_POST['seo_title']    ?? ''))));
     update_post_meta($pid, '_evoke_seo_desc',     wp_slash(sanitize_textarea_field(wp_unslash($_POST['seo_desc'] ?? ''))));
@@ -274,7 +274,7 @@ add_action('wp_ajax_evoke_save_seo_ajax', function () {
 
 add_action('wp_ajax_evoke_save_seo_bulk', function () {
     check_ajax_referer('evoke_seo_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error();
+    if (!evk_moze('seo')) wp_send_json_error();
     $rows = json_decode(wp_unslash($_POST['rows'] ?? '[]'), true);
     $count = 0;
     foreach ((array)$rows as $row) {

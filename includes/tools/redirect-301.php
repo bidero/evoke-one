@@ -282,7 +282,7 @@ function evk_301_dodaj(string $from, string $to) {
 
 add_action('wp_ajax_evk_301_save', function () {
     check_ajax_referer('evk_tools_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error();
+    if (!evk_moze('przekierowania')) wp_send_json_error();
 
     $id = absint($_POST['id'] ?? 0);
     if ($id) {
@@ -302,7 +302,7 @@ add_action('wp_ajax_evk_301_save', function () {
 
 add_action('wp_ajax_evk_301_delete', function () {
     check_ajax_referer('evk_tools_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error();
+    if (!evk_moze('przekierowania')) wp_send_json_error();
     $id = absint($_POST['id'] ?? 0);
     if ($id) wp_delete_post($id, true);
     evk_301_clear_cache();
@@ -311,7 +311,7 @@ add_action('wp_ajax_evk_301_delete', function () {
 
 add_action('wp_ajax_evk_301_clear_logs', function () {
     check_ajax_referer('evk_tools_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error();
+    if (!evk_moze('przekierowania')) wp_send_json_error();
     global $wpdb;
     $wpdb->query("DELETE pm FROM {$wpdb->postmeta} pm INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID WHERE p.post_type = 'evk_301_log'");
     $wpdb->query("DELETE FROM {$wpdb->posts} WHERE post_type = 'evk_301_log'");

@@ -316,7 +316,7 @@ add_action('template_redirect', function () {
 
 add_action('wp_ajax_evk_clear_404_logs', function () {
     check_ajax_referer('evk_tools_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error();
+    if (!evk_moze('przekierowania')) wp_send_json_error();
     global $wpdb;
     if (evk_404_tabela_gotowa()) $wpdb->query('DELETE FROM ' . evk_404_table());
     evk_404_usun_stare_wpisy();
@@ -330,7 +330,7 @@ add_action('wp_ajax_evk_clear_404_logs', function () {
  */
 add_action('wp_ajax_evk_404_przekieruj', function () {
     check_ajax_referer('evk_tools_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnień.', 403);
+    if (!evk_moze('przekierowania')) wp_send_json_error('Brak uprawnień.', 403);
     global $wpdb;
     $id  = absint($_POST['id'] ?? 0);
     $url = ($id && evk_404_tabela_gotowa())

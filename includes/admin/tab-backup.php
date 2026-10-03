@@ -26,8 +26,12 @@ $bk_ikony  = [
     'err'  => 'dashicons-dismiss',
     'info' => 'dashicons-info-outline',
 ];
+/* Rola z dostępem „Kopia zapasowa” (1.292.0): TYLKO „Utwórz kopię teraz” — bez włącznika, listy kopii
+   (pobieranie, usuwanie, przywracanie), Dysku Google, ustawień i środowiska. */
+$bk_admin = current_user_can('manage_options');
 ?>
 
+<?php if ($bk_admin): ?>
 <!-- STATUS CARD -->
 <div class="evo-status-card">
     <div class="evo-status-icon <?php echo $bk_on ? 'on' : 'off'; ?>">
@@ -53,6 +57,8 @@ $bk_ikony  = [
         </label>
     </div>
 </div>
+
+<?php endif; ?>
 
 <?php if ($bk_block): ?>
 <div class="evo-info-box is-err evo-mt">
@@ -98,6 +104,7 @@ $bk_ikony  = [
     <div data-evk-backup-msg-slot></div>
 </div>
 
+<?php if ($bk_admin): ?>
 <!-- LISTA KOPII -->
 <div class="evo-box evo-mt">
     <h3>Kopie na serwerze</h3>
@@ -275,13 +282,16 @@ $bk_ikony  = [
     </div>
     <?php evoke_one_pasek_zapisu(); ?>
 </form>
+<?php endif; /* $bk_admin */ ?>
 <?php else: ?>
 <div class="evo-info-box evo-mt">
     <span class="dashicons dashicons-info-outline"></span>
-    <div>Włącz moduł powyżej — pojawi się przycisk kopii, lista kopii z przywracaniem, kopia nocna i ustawienia.</div>
+    <div><?php echo $bk_admin ? 'Włącz moduł powyżej — pojawi się przycisk kopii, lista kopii z przywracaniem, kopia nocna i ustawienia.'
+        : 'Kopie zapasowe są wyłączone — włącza je administrator.'; ?></div>
 </div>
 <?php endif; ?>
 
+<?php if ($bk_admin): ?>
 <!-- ŚRODOWISKO — zwinięte; otwarte, gdy coś blokuje moduł -->
 <?php
 $bk_uwag = count(array_filter($bk_checks, static function ($c) { return in_array($c['status'], ['warn', 'err'], true); }));
@@ -317,3 +327,4 @@ $bk_podsum = $bk_block ? 'blokuje moduł' : ($bk_uwag ? $bk_uwag . ' ' . ($bk_uw
     <?php endif; ?>
     </div>
 </details>
+<?php endif; /* $bk_admin: środowisko */ ?>

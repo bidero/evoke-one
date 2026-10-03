@@ -207,7 +207,8 @@ add_action('admin_menu', function () {
     add_options_page(
         'Evoke ONE',
         'Evoke ONE',
-        'manage_options',
+        /* Administrator — manage_options; rola z dostępem do części panelu (1.292.0) — ten dostęp. */
+        function_exists('evk_panel_uprawnienie') ? evk_panel_uprawnienie() : 'manage_options',
         'evoke-one',
         'evoke_one_render_settings'
     );
@@ -218,7 +219,8 @@ add_action('admin_menu', function () {
 // =========================================================================
 
 function evoke_one_render_settings(): void {
-    if (!current_user_can('manage_options')) return;
+    $przyciety = function_exists('evk_panel_przyciety') && evk_panel_przyciety();
+    if (!current_user_can('manage_options') && !($przyciety && evk_dostepy_panelu())) return;
 
     $tab  = sanitize_key($_GET['tab'] ?? 'dashboard');
     $sub  = sanitize_key($_GET['sub'] ?? '');
@@ -226,7 +228,15 @@ function evoke_one_render_settings(): void {
 
     $tabs = evoke_one_zakladki();
 
-    if (!array_key_exists($tab, $tabs)) $tab = 'wydajnosc';
+    if (!array_key_exists($tab, $tabs)) {
+        /* Panel przycięty do dostępów roli: zakładki spoza nich nie ma — także po adresie. */
+        if ($przyciety && isset($_GET['tab']) && $tab !== 'dashboard') wp_die('Brak dostępu do tej części panelu.', 'Evoke ONE', ['response' => 403, 'back_link' => true]);
+        $tab = isset($tabs['wydajnosc']) ? 'wydajnosc' : (string) array_key_first($tabs);
+    }
+    /* Ekran spoza dostępów w dozwolonej zakładce (np. Narzędzia → SMTP przy samych przekierowaniach). */
+    if ($przyciety && $sub !== '' && !empty(evoke_one_ekrany_wszystkie()[$tab][$sub]) && empty(evoke_one_ekrany()[$tab][$sub])) {
+        wp_die('Brak dostępu do tej części panelu.', 'Evoke ONE', ['response' => 403, 'back_link' => true]);
+    }
 
     // Mapowanie zakładki → plik
     $tab_files = [
@@ -265,14 +275,18 @@ function evoke_one_render_settings(): void {
                     <span class="dashicons dashicons-search"></span><span>Szukaj ustawień</span><kbd>⌘ K</kbd>
                 </button>
                 <nav class="evo-navigation" aria-label="Evoke ONE">
+                    <?php if (isset($tabs['dashboard'])): ?>
                     <p class="evo-nav-label">Przegląd</p>
                     <?php evoke_one_render_sidebar_link('dashboard', $tabs['dashboard'], $tab, $base, $sub); ?>
+                    <?php endif; ?>
                     <p class="evo-nav-label">Moduły</p>
                     <?php foreach (['wydajnosc', 'strona', 'bezpieczenstwo', 'logowanie', 'narzedzia', 'newsletter', 'forminbox', 'backup', 'statystyki'] as $key): ?>
-                        <?php evoke_one_render_sidebar_link($key, $tabs[$key], $tab, $base, $sub); ?>
+                        <?php if (isset($tabs[$key])) evoke_one_render_sidebar_link($key, $tabs[$key], $tab, $base, $sub); ?>
                     <?php endforeach; ?>
+                    <?php if (isset($tabs['admin_panel'])): ?>
                     <p class="evo-nav-label">System</p>
                     <?php evoke_one_render_sidebar_link('admin_panel', $tabs['admin_panel'], $tab, $base, $sub); ?>
+                    <?php endif; ?>
                     <?php /* „Pomoc" prowadziła na https://evoke.one — adres, pod którym
                              nie ma czego czytać. Pozycja w pasku, która nigdzie nie
                              prowadzi, jest gorsza niż jej brak: kosztuje kliknięcie

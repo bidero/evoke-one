@@ -7,6 +7,8 @@ if (!defined('ABSPATH')) exit;
  */
 $evk_u  = evk_2fa_ustawienia();
 $evk_on = !empty($evk_u['enabled']);
+/* Rola z dostępem „Logowanie” (1.292.0): TYLKO lista kont i „Wyłącz 2FA” — bez włącznika, wymuszeń i dziennika. */
+$evk_admin = current_user_can('manage_options');
 ?>
 <div class="evk-2fa-panel">
     <div class="evo-status-card">
@@ -17,12 +19,14 @@ $evk_on = !empty($evk_u['enabled']);
             <h3>Logowanie dwuetapowe: <?php echo $evk_on ? 'WŁĄCZONE' : 'WYŁĄCZONE'; ?></h3>
             <p>Po haśle 6 cyfr z aplikacji w telefonie. Konto włącza je samo w swoim Profilu; dla wybranych ról jest obowiązkowe.</p>
         </div>
+        <?php if ($evk_admin): ?>
         <div class="evo-status-actions">
             <label class="evo-toggle">
                 <input aria-label="Logowanie dwuetapowe" type="checkbox" data-option="evk_2fa" data-field="enabled" value="1" <?php checked($evk_on); ?>>
                 <span class="evo-slider"></span>
             </label>
         </div>
+        <?php endif; ?>
     </div>
 
     <?php if (evk_2fa_awaryjnie()): ?>
@@ -36,6 +40,7 @@ $evk_on = !empty($evk_u['enabled']);
         <p class="evo-muted evo-m0 evo-mt-xs">Po włączeniu każde konto znajdzie w swoim Profilu sekcję „Logowanie dwuetapowe” (kod QR, kody zapasowe). Konta bez 2FA logują się jak dotąd, dopóki ich roli nie obejmie wymuszenie.</p>
     </div>
     <?php else: ?>
+    <?php if ($evk_admin): ?>
     <form id="evk-2fa-form" class="evo-mt">
         <div class="evo-box">
             <h3>Wymuszenie i urządzenia</h3>
@@ -62,6 +67,7 @@ $evk_on = !empty($evk_u['enabled']);
         });
     });
     </script>
+    <?php endif; ?>
 
     <?php
     $evk_konta = get_users(['meta_key' => EVK_2FA_META, 'fields' => 'all']);
@@ -81,7 +87,7 @@ $evk_on = !empty($evk_u['enabled']);
             <tr data-konto="<?php echo (int) $evk_k->ID; ?>">
                 <td><?php echo esc_html($evk_k->display_name . ' (' . $evk_k->user_login . ')'); ?></td>
                 <td><?php echo esc_html($evk_ma ? 'Włączone od ' . wp_date('j.m.Y', $evk_kk['od']) . ', kodów zapasowych: ' . count($evk_kk['kody']) : (evk_2fa_wymagane($evk_k) ? 'Wymagane — jeszcze nie włączone' : 'Wyłączone')); ?></td>
-                <td><?php if ($evk_ma && $evk_k->ID !== get_current_user_id()): ?>
+                <td><?php if ($evk_ma && $evk_k->ID !== get_current_user_id() && ($evk_admin || !user_can($evk_k->ID, 'manage_options'))): ?>
                     <button type="button" class="button evk-2fa-reset" data-user="<?php echo (int) $evk_k->ID; ?>" data-nonce="<?php echo esc_attr(wp_create_nonce('evk_2fa_' . $evk_k->ID)); ?>">Wyłącz 2FA</button>
                 <?php elseif ($evk_k->ID === get_current_user_id()): ?><a href="<?php echo esc_url(admin_url('profile.php#evk-2fa')); ?>">Twój profil</a><?php endif; ?></td>
             </tr>
@@ -104,7 +110,7 @@ $evk_on = !empty($evk_u['enabled']);
     });
     </script>
 
-    <?php $evk_dz = array_slice((array) get_option(EVK_2FA_DZIENNIK, []), 0, 10); if ($evk_dz): ?>
+    <?php $evk_dz = array_slice((array) get_option(EVK_2FA_DZIENNIK, []), 0, 10); if ($evk_dz && $evk_admin): ?>
     <div class="evo-box evo-mt" id="evk-2fa-dziennik">
         <h3>Dziennik</h3>
         <div class="evo-tbl-wrap"><table class="evo-table">

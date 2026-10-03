@@ -16,6 +16,18 @@ if (!defined('ABSPATH')) exit;
  * w środku.
  */
 function evoke_one_zakladki(): array {
+    $zakladki = evoke_one_zakladki_wszystkie();
+    if (!function_exists('evk_panel_przyciety') || !evk_panel_przyciety()) return $zakladki;
+    /* Panel bez praw administratora (1.292.0): tylko zakładki z dozwolonymi ekranami, bez pulpitu. */
+    $dozwolone = evk_panel_ekrany_dozwolone();
+    $ekrany = evoke_one_ekrany();
+    return array_filter($zakladki, static function ($k) use ($dozwolone, $ekrany) {
+        return in_array($k, $dozwolone, true) || !empty($ekrany[$k]);
+    }, ARRAY_FILTER_USE_KEY);
+}
+
+/** Wszystkie zakładki — bez przycinania do dostępów roli. */
+function evoke_one_zakladki_wszystkie(): array {
     return [
         'dashboard'      => ['label' => 'Pulpit',          'icon' => 'dashicons-dashboard'],
         'wydajnosc'      => ['label' => 'Frontend',        'icon' => 'dashicons-desktop'],
@@ -60,6 +72,20 @@ function evoke_one_zakladki(): array {
  * wszystkich sekcjach.
  */
 function evoke_one_ekrany(): array {
+    $ekrany = evoke_one_ekrany_wszystkie();
+    if (!function_exists('evk_panel_przyciety') || !evk_panel_przyciety()) return $ekrany;
+    /* Panel bez praw administratora (1.292.0): tylko ekrany z dostępów roli — pasek boczny,
+       przegląd, wyszukiwarka i routery zakładek czytają tę samą przyciętą mapę. */
+    $dozwolone = evk_panel_ekrany_dozwolone();
+    $wynik = [];
+    foreach ($ekrany as $tab => $lista) {
+        foreach ($lista as $sub => $ekran) if (in_array($tab . '/' . $sub, $dozwolone, true)) $wynik[$tab][$sub] = $ekran;
+    }
+    return $wynik;
+}
+
+/** Wszystkie ekrany — bez przycinania do dostępów roli. */
+function evoke_one_ekrany_wszystkie(): array {
     return [
         'wydajnosc' => [
             'parallax'    => ['label' => 'Parallax',           'icon' => 'dashicons-image-flip-vertical', 'szukaj' => 'paralaksa scroll tło',

@@ -139,6 +139,22 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
                         <div class="evo-desc evo-m0">Rola może włączać i zatrzymywać nagrywanie hotspotów strony i usuwać nagrania (menu „Evoke” w pasku). Podgląd jest w raporcie — potrzebny też dostęp „Statystyki”.</div>
                     </div>
                 </label>
+                <?php /* Części panelu Evoke ONE (1.292.0) — rola widzi w Ustawieniach → Evoke ONE tylko te ekrany. */
+                foreach ([
+                    ['evk_seo_access', 'evk_access_seo', 'SEO (panel)', 'Meta SEO, mapa strony, schema i OpenGraph w panelu Evoke ONE.'],
+                    ['evk_przekier_access', 'evk_access_przekierowania', 'Przekierowania i 404 (panel)', 'Przekierowania 301 i logi 404 w panelu Evoke ONE.'],
+                    ['evk_kopie_access', 'evk_access_kopie', 'Kopia zapasowa (panel)', 'Tylko „Utwórz kopię teraz” — bez pobierania, usuwania, przywracania i ustawień kopii.'],
+                    ['evk_logow_access', 'evk_access_logowanie', 'Logowanie dwuetapowe kont (panel)', 'Lista kont z 2FA i „Wyłącz 2FA” innemu kontu (nie administratorowi) — bez ustawień logowania.'],
+                ] as [$evk_pole, $evk_cap, $evk_nazwa, $evk_opis]): ?>
+                <label class="evo-check">
+                    <input type="checkbox" name="<?php echo esc_attr($evk_pole); ?>" value="1"
+                           <?php checked($role->has_cap($evk_cap)); ?>>
+                    <div>
+                        <span class="evo-strong-500"><?php echo esc_html($evk_nazwa); ?></span>
+                        <div class="evo-desc evo-m0"><?php echo esc_html($evk_opis); ?></div>
+                    </div>
+                </label>
+                <?php endforeach; ?>
                 <label class="evo-check">
                     <input type="checkbox" name="evk_maint_access" value="1"
                            <?php checked($role->has_cap('evk_access_maintenance')); ?>>

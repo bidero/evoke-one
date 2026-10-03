@@ -10,8 +10,12 @@ if (!defined('ABSPATH')) exit;
  * jedynym poświadczeniem jest podpis HMAC kluczem z opcji `evk_backup_key`.
  */
 
-function evk_backup_ajax_guard(): void {
-    if (!current_user_can('manage_options')) wp_send_json_error(['msg' => 'Brak uprawnień.'], 403);
+/**
+ * @param bool $kopia_teraz true w czterech akcjach „Utwórz kopię teraz” (start, stan, popchnięcie, anulowanie) —
+ *                          tam wpuszcza też rolę z dostępem „Kopia zapasowa” (1.292.0). Reszta: tylko administrator.
+ */
+function evk_backup_ajax_guard(bool $kopia_teraz = false): void {
+    if (!current_user_can('manage_options') && !($kopia_teraz && function_exists('evk_moze') && evk_moze('kopie'))) wp_send_json_error(['msg' => 'Brak uprawnień.'], 403);
     if (!check_ajax_referer('evk_backup', 'nonce', false)) wp_send_json_error(['msg' => 'Sesja wygasła — odśwież stronę.'], 403);
 }
 
@@ -98,7 +102,7 @@ function evk_backup_job_detail(array $job): string {
 }
 
 add_action('wp_ajax_evk_backup_start', function () {
-    evk_backup_ajax_guard();
+    evk_backup_ajax_guard(true);
     $id = evk_backup_start('manual');
     if (is_wp_error($id)) wp_send_json_error(['msg' => $id->get_error_message()]);
     wp_send_json_success(['job' => evk_backup_job_public(evk_backup_job_get($id))]);
@@ -137,13 +141,13 @@ function evk_backup_status_payload(?array $job): array {
 }
 
 add_action('wp_ajax_evk_backup_status', function () {
-    evk_backup_ajax_guard();
+    evk_backup_ajax_guard(true);
     $id = absint($_POST['id'] ?? 0);
     wp_send_json_success(evk_backup_status_payload($id ? evk_backup_job_get($id) : evk_backup_job_active()));
 });
 
 add_action('wp_ajax_evk_backup_nudge', function () {
-    evk_backup_ajax_guard();
+    evk_backup_ajax_guard(true);
     $id = absint($_POST['id'] ?? 0);
     evk_backup_nudge($id ? evk_backup_job_get($id) : evk_backup_job_active());
     wp_send_json_success();
@@ -220,7 +224,7 @@ add_action('wp_ajax_nopriv_evk_backup_restore_nudge', 'evk_restore_nudge_handler
 add_action('wp_ajax_evk_backup_restore_nudge', 'evk_restore_nudge_handler');
 
 add_action('wp_ajax_evk_backup_cancel', function () {
-    evk_backup_ajax_guard();
+    evk_backup_ajax_guard(true);
     if (!evk_backup_cancel(absint($_POST['id'] ?? 0))) wp_send_json_error(['msg' => 'Tego zadania nie da się już anulować.']);
     wp_send_json_success();
 });

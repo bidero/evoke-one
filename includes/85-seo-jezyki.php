@@ -239,13 +239,13 @@ function evk_seo_tl_przenies(): array {
 /* Ten sam nonce co zapis wierszy zakładki (`evoSeoAjax` w includes/admin/page.php). */
 add_action('wp_ajax_evoke_seo_tl_podglad', function () {
     check_ajax_referer('evoke_seo_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error();
+    if (!evk_moze('seo')) wp_send_json_error();
     wp_send_json_success(['wiersze' => evk_seo_tl_kandydaci(), 'jezyki' => evk_seo_jezyki()]);
 });
 
 add_action('wp_ajax_evoke_seo_tl_przenies', function () {
     check_ajax_referer('evoke_seo_nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error();
+    if (!evk_moze('seo')) wp_send_json_error();
     wp_send_json_success(evk_seo_tl_przenies());
 });
 

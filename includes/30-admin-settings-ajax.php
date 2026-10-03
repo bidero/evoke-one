@@ -478,7 +478,9 @@ add_action('wp_ajax_tl_save_slugs', function () {
 });
 
 add_action('wp_ajax_tl_save_sitemap_settings', function () {
-    evk_tl_ajax_check();
+    /* Ekran „Mapa strony” to też dostęp SEO (1.292.0). */
+    if (function_exists('evk_moze') && evk_moze('seo')) check_ajax_referer('tl_ajax_nonce', 'nonce');
+    else evk_tl_ajax_check();
     $raw  = isset($_POST['payload']) ? wp_unslash($_POST['payload']) : '';
     $data = json_decode($raw, true);
     if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) wp_send_json_error('Nieprawidlowy JSON.');
@@ -984,9 +986,11 @@ function evk_toggle_allowlist(): array {
 
 add_action('wp_ajax_evk_ajax_toggle', function () {
     check_ajax_referer('evk-toggle-nonce', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('forbidden');
-
     $option = sanitize_key($_POST['option'] ?? '');
+    /* Bez praw administratora — tylko przełączniki modułów z dostępów roli (1.292.0). */
+    $dostep = function_exists('evk_dostep_przelacznika') ? evk_dostep_przelacznika($option) : '';
+    if (!current_user_can('manage_options') && !($dostep !== '' && evk_moze($dostep))) wp_send_json_error('forbidden');
+
     $field  = sanitize_key($_POST['field']  ?? '');
     $value  = absint($_POST['value'] ?? 0) ? 1 : 0;
 

@@ -204,6 +204,13 @@ add_action('admin_init', function () {
             $role->remove_cap('evk_access_hotspoty');
         }
 
+        // Dostępy do części panelu Evoke ONE bez praw administratora (1.292.0, includes/interface/dostep.php)
+        foreach (['evk_seo_access' => 'evk_access_seo', 'evk_przekier_access' => 'evk_access_przekierowania',
+                  'evk_kopie_access' => 'evk_access_kopie', 'evk_logow_access' => 'evk_access_logowanie'] as $pole => $cap) {
+            if (!empty($_POST[$pole])) $role->add_cap($cap, true);
+            else $role->remove_cap($cap);
+        }
+
         // Dostęp do Evoke FIELDS (osobna wtyczka — patrz komentarz przy `init`)
         if (!empty($_POST['evk_fields_access'])) {
             $role->add_cap('evk_access_fields', true);

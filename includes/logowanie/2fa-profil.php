@@ -214,7 +214,10 @@ add_action('wp_ajax_evk_2fa', function (): void {
     $kod = (string) wp_unslash($_POST['kod'] ?? '');
     $ja = get_current_user_id();
     if ($akcja === 'reset') {
-        if (!current_user_can('manage_options') || $id === $ja || !current_user_can('edit_user', $id)) wp_send_json_error('Brak uprawnień.');
+        /* Administrator: każde cudze konto, które może edytować. Rola z dostępem „Logowanie” (1.292.0): cudze, ale nie administratora. */
+        $moze = current_user_can('manage_options') ? current_user_can('edit_user', $id)
+            : (function_exists('evk_moze') && evk_moze('logowanie') && !user_can($id, 'manage_options'));
+        if (!$moze || $id === $ja) wp_send_json_error('Brak uprawnień.');
         evk_2fa_wylacz($id);
         evk_2fa_dziennik('reset', $id);
         wp_send_json_success(['komunikat' => 'Wyłączono.']);

@@ -192,7 +192,7 @@ add_action('wp_ajax_evk_og_regenerate', function () {
 
 add_action('wp_ajax_evk_og_regenerate_all', function () {
     check_ajax_referer('evk_og_regen', 'nonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnień.');
+    if (!evk_moze('seo')) wp_send_json_error('Brak uprawnień.');
 
     $s     = evk_og_get_settings();
     $types = (array)($s['post_types'] ?? ['post']);
