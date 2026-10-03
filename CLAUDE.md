@@ -617,6 +617,13 @@ Cichy rozjazd wytworu ze źródłem wygląda zupełnie normalnie — stąd stra�
 
 ---
 
+## Plan i decyzje zgłaszającego
+
+**`docs/plan-kolejka.md`** — kolejka prac, decyzje zgłaszającego (z datami)
+i otwarte wątki („Otwarte” na górze). Nowa rozmowa zaczyna od niego; po
+każdym wydaniu i każdej nowej decyzji aktualizuje się go w tym samym
+commicie. Rozmowa ginie, plik zostaje.
+
 ## Zasady pracy, które obowiązują
 
 - Rozmowa **po polsku**, do zgłaszającego w liczbie pojedynczej.

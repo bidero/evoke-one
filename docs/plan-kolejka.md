@@ -3,6 +3,24 @@
 Spisane 02.10.2026, po 1.276.0. Poprzednia lista zginęła razem z rozmową —
 ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 
+## Otwarte (stan 03.10, po 1.293.0)
+
+- **Następne w kolejce:** repeater w CSV Fields (pkt 6) — przed startem
+  dopytać zgłaszającego o format pliku.
+- **Poprawki do zgłoszenia przez zgłaszającego:** po sprawdzeniu przy
+  komputerze 1.288–1.291 (ukryty adres, 2FA w Bricksie, menu „Evoke”,
+  konserwacja na telefonie) — zapowiedział, że zgłosi później.
+- **Do przegadania — szablony maili** (pomysł zgłaszającego z 03.10).
+  Wstępnie: builder Bricksa się nie nadaje (HTML maila to tabele i style
+  w atrybutach, bez CSS strony); raczej prosty edytor bloków (nagłówek,
+  tekst, przycisk, obraz, stopka) ze zmiennymi `{imie}` itp.; obrazy jako
+  adresy z biblioteki mediów (nie załączniki). Pytania otwarte: których
+  maili dotyczy (newsletter, formularze, maile WordPressa — reset hasła,
+  nowe konto), jeden wspólny szablon czy osobne.
+- Wydanie testowa: dwie wizyty z sesji Claude na `/oferta/` (03.10 ok.
+  18:50) siedzą w danych hotspotów — do usunięcia „Usuń dane”, jeśli
+  przeszkadzają.
+
 ## Kolejność
 
 Stan po 1.293.0: 2FA (1.287.0), ukryty adres (1.288.0), Logowanie z limitem i wygląd 2FA w Bricksie (1.289.0), menu „Evoke” w pasku (1.290.0), dostęp „Hotspoty” i konserwacja na telefonie (1.291.0), panel Evoke ONE dla roli Manager oraz podgląd Hotspotów z wysuwaną analizą i ramką 1440 px (1.292.0), odsłony i odwiedzający w Hotspotach oraz kliknięcia z pierwszej chwili (1.293.0) zrobione; dalej repeater w CSV Fields. Do przegadania: szablony maili.
