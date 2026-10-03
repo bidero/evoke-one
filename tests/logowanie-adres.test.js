@@ -189,11 +189,15 @@ module.exports = async function (t) {
     const n2 = await daj('/?error=404');
     const n3 = await daj('/');
     const n4 = await daj('/' + ADRES);
+    const n5 = await daj('/wp-login.php');
+    const n6 = await daj('/wp-login.php', { metoda: 'POST', cialo: 'log=admin&pwd=admin' });
     sonda('ladne', 0);
     t.check('kontrola: przy ładnych adresach rdzeń sam pokazuje pod /?error=404 stronę główną (200)', n0.kod === 200 && !n0.e404, n0.kod);
     t.check('ładne adresy: /wp-admin/ → /?error=404 → strona 404 (kod 404); sama strona główna dalej 200; adres-klucz /' + ADRES + ' wpuszcza',
       n1.kod === 302 && /\/\?error=404$/.test(n1.dokad) && n2.kod === 404 && n2.e404 && n3.kod === 200 && !n3.e404 && n4.kod === 302 && /wp-login\.php$/.test(n4.dokad),
       J([n1.kod, n2.kod, n3.kod, n4.kod, n4.dokad]));
+    t.check('ładne adresy: /wp-login.php bez klucza — 404 w miejscu, BEZ przekierowania (rdzeń przy 404 odsyła /wp-login.php na wp_login_url(): pętla na testowa.evoke.pl, 1.291.1); POST też',
+      n5.kod === 404 && n5.e404 && n5.dokad === '' && n6.kod === 404 && n6.dokad === '', J([n5.kod, n5.dokad, n6.kod, n6.dokad]));
 
     t.section('stała awaryjna');
     sonda('awaryjnie', 1);

@@ -176,6 +176,9 @@ function evk_ua_strona_404(): void {
     if (!defined('WP_USE_THEMES')) define('WP_USE_THEMES', true);
     /* Odgadywanie adresu przy 404 (redirect_canonical) przekierowałoby na podobny wpis. */
     remove_action('template_redirect', 'redirect_canonical');
+    /* Rdzeń przy 404 pod „/wp-login.php” (ładne adresy) przekierowuje na wp_login_url(), czyli tu z powrotem —
+       pętla „zbyt wiele przekierowań” na testowa.evoke.pl (1.291.1). Testowy WordPress ma zwykłe adresy, więc test jej nie widział. */
+    remove_action('template_redirect', 'wp_redirect_admin_locations', 1000);
     $GLOBALS['pagenow'] = 'index.php';
     wp(['error' => '404']);
     require ABSPATH . WPINC . '/template-loader.php';

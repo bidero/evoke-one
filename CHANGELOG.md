@@ -2,6 +2,24 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.291.1] — 2026-10-03
+
+### Naprawione
+
+- **Ukryty adres: „zbyt wiele przekierowań” na wp-login.php** (zgłoszenie
+  z testowa.evoke.pl). Strona 404 w miejscu wp-login.php uruchamia
+  `template_redirect`, a tam rdzeń WordPressa (`wp_redirect_admin_locations`)
+  przy 404 pod adresem `/wp-login.php` przekierowuje na `wp_login_url()` —
+  czyli z powrotem. Tylko przy ładnych adresach, a testowy WordPress ma
+  zwykłe, więc test tego nie widział. Ten hak jest teraz zdjęty przy
+  stronie 404 ukrytego adresu. Z kluczem (własny adres) logowanie działało.
+
+### Testy
+
+- `logowanie-adres` (47): w sekcji z ładnymi adresami `/wp-login.php` bez
+  klucza (GET i POST) — 404 w miejscu, bez przekierowania. Mutacja
+  (bez poprawki) odtwarza pętlę i zapala to sprawdzenie.
+
 ## [1.291.0] — 2026-10-03
 
 Decyzje zgłaszającego z 03.10 po 1.290.0.
