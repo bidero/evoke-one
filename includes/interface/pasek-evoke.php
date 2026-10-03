@@ -75,7 +75,8 @@ add_action('admin_bar_menu', function (WP_Admin_Bar $pasek): void {
 /*
  * Wygląd: nagłówki grup, licznik, telefon. WordPress na wąskim ekranie
  * chowa w pasku wszystko poza kilkoma pozycjami rdzenia — „Evoke” zostaje
- * (ikona; licznik obok), a rozwinięte menu zajmuje całą szerokość ekranu.
+ * (ikona; licznik obok). Rozwinięte menu na całą szerokość ekranu daje już
+ * sam WordPress (sprawdzone mutacją w pasek-evoke).
  */
 add_action('wp_head', function (): void {
     if (!evk_pasek_tutaj() || !is_admin_bar_showing()) return;
@@ -90,7 +91,6 @@ add_action('wp_head', function (): void {
         . '#wpadminbar #wp-admin-bar-evk-menu>.ab-item .ab-icon{margin:0;padding:0;width:36px;height:46px}'
         . '#wpadminbar #wp-admin-bar-evk-menu>.ab-item .ab-icon:before{font:normal 28px/1 dashicons;top:9px;display:block;text-align:center}'
         . '#wpadminbar #wp-admin-bar-evk-menu .evk-pasek-licznik{vertical-align:top;margin-top:13px}'
-        . '#wpadminbar #wp-admin-bar-evk-menu>.ab-sub-wrapper{position:fixed;left:0;right:0;top:46px;width:auto;max-height:calc(100vh - 46px);overflow-y:auto}'
         . '#wpadminbar #wp-admin-bar-evk-menu .ab-submenu li{display:block}'
         . '#wpadminbar #wp-admin-bar-evk-menu .evk-pasek-naglowek>.ab-item{font-size:12px;padding:10px 16px 2px}'
         . '}'

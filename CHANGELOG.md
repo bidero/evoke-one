@@ -2,6 +2,34 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.290.0] — 2026-10-03
+
+Menu „Evoke” w pasku admina — decyzje z 02–03.10 (docs/plan-kolejka.md).
+
+### Zmienione
+
+- **Jedno menu „Evoke” w pasku admina na stronie** zamiast osobnych
+  pozycji modułów. Grupy z nagłówkami: Statystyki (odsłony tej strony,
+  raport), Hotspoty (stan, pokaż, nagrywaj/zatrzymaj), Tłumaczenia
+  (sprawdź EN, DE…), „Panel Evoke ONE”. Licznik odsłon tej strony
+  (dziś / 30 dni) stoi w tytule menu, gdy jest włączony w Statystykach.
+- Każda rola widzi tylko swoje grupy: czytelnik statystyk — Statystyki
+  (i Hotspoty nagrywanej strony), tłumacz — Tłumaczenia, administrator —
+  wszystko i panel. Konto bez żadnego z tych uprawnień menu nie dostaje.
+- Przełącznik konserwacji zostaje osobno na wierzchu paska. W kokpicie
+  menu nie ma (pozycje dotyczą oglądanej strony).
+- **Telefon**: „Evoke” zostaje w pasku (WordPress na wąskim ekranie chowa
+  resztę); dotknięcie rozwija menu na całą szerokość, pismo 16 px.
+
+### Testy
+
+- `pasek-evoke` (15, nowy): komputer i telefon 360 px z dotykiem —
+  kolejność grup i nagłówki, licznik w tytule, nic poza menu, konserwacja
+  osobno, link do panelu, kokpit bez menu, trzy role, licznik wyłączony,
+  rozwijanie i zwijanie dotykiem, pozycje w ekranie i ≥ 24 px. Mutacje: 10
+  (jedna wykazała zbędną regułę CSS — usunięta).
+- `statystyki`: licznik czytany z tytułu menu.
+
 ## [1.289.0] — 2026-10-03
 
 Decyzje zgłaszającego z 03.10: limit logowań do zakładki „Logowanie”

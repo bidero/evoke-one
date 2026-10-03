@@ -5,7 +5,7 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 
 ## Kolejność
 
-Stan po 1.289.0: 2FA (1.287.0), ukryty adres (1.288.0), Logowanie z limitem i wygląd 2FA w Bricksie (1.289.0) zrobione, dalej menu „Evoke” w pasku (1.290.0). Stan po 1.286.0 (ustalone 02.10): **statystyki i hotspoty (1.284 etap 1, 1.285 etap 2, 1.286 hotspoty i 404 — zrobione; później: edytowalna siatka kafli raportu 1/1, 2/1, 1/2;
+Stan po 1.290.0: 2FA (1.287.0), ukryty adres (1.288.0), Logowanie z limitem i wygląd 2FA w Bricksie (1.289.0), menu „Evoke” w pasku (1.290.0) zrobione; dalej repeater w CSV Fields. Stan po 1.286.0 (ustalone 02.10): **statystyki i hotspoty (1.284 etap 1, 1.285 etap 2, 1.286 hotspoty i 404 — zrobione; później: edytowalna siatka kafli raportu 1/1, 2/1, 1/2;
 szczegóły etapów: DNT/GPC przełącznikiem, domyślnie szanowane; licznik w pasku: ta strona dziś / 30 dni;
 wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną pozycją)
 → logowanie + 2FA → WebP/AVIF → repeater w CSV → generowanie treści AI
@@ -105,6 +105,11 @@ wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną
    w elemencie Formularz (teksty z EN, typografia, hover, układ, położenie
    pod polem/przyciskiem, klasy, komunikat złej próby, podgląd w builderze),
    domyślnie linki jak etykiety formularza; zmienne CSS `--evk-2fa-…`.
+   **Menu „Evoke” (1.290.0, zrobione)** — przyjęte bez odpowiedzi
+   zgłaszającego, DO POTWIERDZENIA: licznik jak dotąd (ta strona dziś /
+   30 dni) w tytule menu; każda rola widzi tylko swoje grupy; Tłumaczenia =
+   dotychczasowe „Sprawdź tłumaczenia (EN/DE…)”; na telefonie samo „Evoke”
+   z rozwijaną listą.
    Menu „Evoke” w pasku admina na stronie (1.290.0): jedno rozwijane menu
    z grupami Statystyki (licznik w tytule), Hotspoty, Tłumaczenia, link do
    panelu; przełącznik konserwacji zostaje osobno na wierzchu; widoczne
