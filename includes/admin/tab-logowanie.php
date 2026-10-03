@@ -157,7 +157,7 @@ $evk_ua_br = evk_ua_strona_bricks('login_page');
             <label for="evk-ua-adres">Adres</label>
             <div class="evo-inline evk-ua-wiersz" style="--evo-gap:6px">
                 <span class="evo-mono evk-ua-przed"><?php echo esc_html(preg_replace('#^https?://#', '', get_option('permalink_structure') ? home_url('/') : home_url('/?'))); ?></span>
-                <input type="text" id="evk-ua-adres" name="adres" class="evo-mono evo-w" style="--evo-w:220px" value="<?php echo esc_attr($evk_ua_a); ?>" maxlength="50" autocomplete="off" spellcheck="false" pattern="[a-z0-9][a-z0-9\-]{2,49}">
+                <input type="text" id="evk-ua-adres" name="adres" class="evo-mono" style="width:auto;flex:0 1 240px;min-width:0" value="<?php echo esc_attr($evk_ua_a); ?>" maxlength="50" autocomplete="off" spellcheck="false" pattern="[a-z0-9][a-z0-9\-]{2,49}">
                 <button type="button" class="button" id="evk-ua-losuj">Losuj</button>
                 <button type="button" class="button" id="evk-ua-kopiuj">Kopiuj adres</button>
             </div>
@@ -166,7 +166,7 @@ $evk_ua_br = evk_ua_strona_bricks('login_page');
         <?php if ($evk_ua_br): ?>
         <p class="evo-hint">Strona logowania z ustawień Bricksa: <a href="<?php echo esc_url((string) get_permalink($evk_ua_br)); ?>"><?php echo esc_html(get_the_title($evk_ua_br)); ?></a> — działa jak dotąd, a linki „Zaloguj”, „Nie pamiętasz hasła?” i „Zarejestruj się” prowadzą na strony Bricksa.</p>
         <?php endif; ?>
-        <p class="evo-hint">Bez wyjątku działają: formularze (admin-ajax.php, admin-post.php), wylogowanie, hasło strony chronionej i linki z e-maili (reset hasła, potwierdzenie prośby o dane). Gdy adres zginie — w wp-config.php dopisz <code>define('EVK_UKRYTY_ADRES_WYLACZ', true);</code>, zaloguj się przez wp-login.php i usuń stałą.</p>
+        <p class="evo-hint">Bez wyjątku działają: formularze (admin-ajax.php, admin-post.php), hasło strony chronionej i linki z e-maili (reset hasła, potwierdzenie prośby o dane). Gdy adres zginie — w wp-config.php dopisz <code>define('EVK_UKRYTY_ADRES_WYLACZ', true);</code>, zaloguj się przez wp-login.php i usuń stałą.</p>
         <?php evoke_one_pasek_zapisu('Zapisz', false, 'evk-ua-zapisano'); ?>
         <p class="evo-desc evk-ua-blad" role="alert"></p>
     </form>

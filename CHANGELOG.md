@@ -39,6 +39,7 @@ Zakładka „Logowanie”, druga sekcja; domyślnie WYŁĄCZONY.
   że Bricks sam przekierowuje wp-login.php na swoją stronę; potem 404 przed
   nim, `?brx_use_wp_login` bez klucza, klucz otwiera formularz WordPressa,
   logowanie formularzem Bricksa daje klucz.
+- Mutacje: 21, każda zapala swoje sprawdzenia.
 - Usterka złapana przed wydaniem: podmiana `wp_login_url()` na stronę
   Bricksa przed `wp_loaded` zapętlała tę stronę (Bricks rozpoznaje po niej
   swoją stronę logowania) — filtry linków idą teraz po `wp_loaded`.
