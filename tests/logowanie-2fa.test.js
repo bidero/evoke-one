@@ -144,6 +144,14 @@ module.exports = async function (t) {
     await p2.context().addCookies([urz]);
     await serwerWp.zaloguj(p2, baza, 'dwa_admin', 'test-haslo');
     t.check('zapamiętane urządzenie: samo hasło, bez kodu', /\/wp-admin\//.test(p2.url()) && !(await p2.$('#evk-2fa-form')), p2.url());
+    /* Zmiana hasła unieważnia zapamiętane urządzenia (ktoś mógł przejąć i hasło, i komputer). */
+    sonda('haslo', 'dwa_admin', 'test-haslo-2');
+    await p2.context().clearCookies();
+    await p2.context().addCookies([urz]);
+    await serwerWp.zaloguj(p2, baza, 'dwa_admin', 'test-haslo-2');
+    const poZmianie = !!(await p2.$('#evk-2fa-form'));
+    sonda('haslo', 'dwa_admin', 'test-haslo');
+    t.check('po zmianie hasła to samo urządzenie znowu prosi o kod', poZmianie);
     const p4 = await nowa();
     await serwerWp.zaloguj(p4, baza, 'dwa_admin', 'test-haslo');
     await p4.click('.evk-2fa-zapasowy button');

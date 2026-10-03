@@ -206,7 +206,7 @@ node tests/run.js backup-panel
 node tests/run.js backup-baza backup-czytnik backup-drive backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp
 node tests/run.js admin- anim animator aria bg-shift bricks-builder bricks-render bricks-required builder-context burger circular-menu controls
 node tests/run.js darkmode drobiazgi grain hscroll inbox ip-klienta konserwacja kursor loop marquee minifikacja motion naglowki rest-api statystyki
-node tests/run.js fields- newsletter obrazy- odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
+node tests/run.js fields- logowanie newsletter obrazy- odpornosc odswiezanie offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji przelaczniki rewizje
 node tests/run.js schema-graf scroll-lock seo-meta settings-save sierotki sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs
 node tests/run.js wave-bg
 ```
@@ -249,7 +249,7 @@ FILTRY="admin- anim animator aria backup-panel backup-baza backup-czytnik backup
 backup-harmonogram backup-katalog backup-pliki backup-przywracanie backup-serialize
 backup-silnik backup-srodowisko backup-wgrywanie backup-zip zapis-wp bg-shift bricks-builder bricks-render bricks-required builder-context
 burger circular-menu controls darkmode drobiazgi fields- grain hscroll inbox ip-klienta
-konserwacja kursor loop marquee minifikacja motion newsletter obrazy- odpornosc odswiezanie
+konserwacja kursor logowanie loop marquee minifikacja motion newsletter obrazy- odpornosc odswiezanie
 offcanvas og-layers panel-start parallax potwierdzenie presets przeglad-sekcji naglowki rest-api statystyki
 przelaczniki rewizje schema-graf scroll-lock seo-meta settings-save sierotki
 sitemap snippety splide stacking-cards svg theme-color tl- uprawnienia vendor-libs

@@ -73,7 +73,7 @@ module.exports = async function (t) {
     powod = String(e.stderr || e.stdout || e.message).trim().split('\n').slice(0, 3).join(' | ');
   }
   t.check('każdy plik .min aktualny (node tools/minifikuj.js)', swieze, powod);
-  t.check('lista: 25 plików frontu (25. — hotspoty, 1.286.0)', lista.length === 25, String(lista.length));
+  t.check('lista: 26 plików frontu (26. — 2fa-bricks, 1.287.0)', lista.length === 26, String(lista.length));
 
   t.section('pliki .min: bez komentarzy, parsują się');
   const zleJs = [], zleCss = [];

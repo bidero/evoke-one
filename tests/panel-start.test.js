@@ -105,8 +105,8 @@ module.exports = async function (t) {
      przestałby cokolwiek pilnować. */
   const mapa = JSON.parse(phpOutput('panel-start.php', '--mapa'));
   const zakladki = Object.keys(mapa.zakladki);
-  /* Dziesiąta od 1.284.0: Statystyki. */
-  t.check('zakładek jest dziesięć', zakladki.length === 10, zakladki.join(', '));
+  /* Dziesiąta od 1.284.0: Statystyki; jedenasta od 1.287.0: Logowanie. */
+  t.check('zakładek jest jedenaście', zakladki.length === 11, zakladki.join(', '));
 
   const podzakladki = {};
   for (const [tabKey, ekrany] of Object.entries(mapa.ekrany)) podzakladki[tabKey] = Object.keys(ekrany);

@@ -14,6 +14,7 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  *   php tests/php/logowanie-2fa.php totp <rfc>            funkcje: wektory RFC 6238, base32, okno i powtórka
  *   php tests/php/logowanie-2fa.php haslo-aplikacji <login>   nowe hasło aplikacji (REST)
  *   php tests/php/logowanie-2fa.php awaryjnie <0|1>       mu-plugin ze stałą EVK_2FA_WYLACZ
+ *   php tests/php/logowanie-2fa.php haslo <login> <nowe>   zmiana hasła (unieważnia zapamiętane urządzenia)
  *   php tests/php/logowanie-2fa.php dziennik
  *   php tests/php/logowanie-2fa.php sprzataj
  */
@@ -92,6 +93,12 @@ case 'awaryjnie':
         @unlink($mu);
     }
     $out['jest'] = is_file($mu);
+    break;
+
+case 'haslo':
+    $u = get_user_by('login', (string) ($argv[2] ?? ''));
+    wp_set_password((string) ($argv[3] ?? ''), $u->ID);
+    $out['ok'] = true;
     break;
 
 case 'dziennik':
