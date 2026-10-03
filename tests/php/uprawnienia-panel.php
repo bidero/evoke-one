@@ -40,6 +40,9 @@ case 'stan':
     $panel = get_role('evk_t_panel');
     $out['panel_edit_posts'] = $panel ? $panel->has_cap('edit_posts') : null;
     $out['panel_hotspoty'] = $panel ? $panel->has_cap('evk_access_hotspoty') : null;
+    /* Dostępy części panelu (1.292.0). */
+    $out['panel_dostepy'] = $panel ? array_values(array_filter(['evk_access_seo', 'evk_access_przekierowania', 'evk_access_kopie', 'evk_access_logowanie'],
+        static function ($c) use ($panel) { return $panel->has_cap($c); })) : null;
     $out['nowa_jest']        = get_role('evk_t_nowa') !== null;
     break;
 

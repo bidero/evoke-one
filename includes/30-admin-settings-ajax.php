@@ -1150,7 +1150,8 @@ add_action('wp_ajax_evk_settings_save', function () {
     if ($page === '') wp_send_json_error('brak grupy ustawień', 400);
 
     check_ajax_referer($page . '-options', '_wpnonce');
-    if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
+    /* To samo uprawnienie, którego pyta options.php — grupa z dostępem roli (1.292.0, Schema i OG) przechodzi tak jak tam. */
+    if (!current_user_can((string) apply_filters('option_page_capability_' . $page, 'manage_options'))) wp_send_json_error('forbidden', 403);
 
     $allowed = $GLOBALS['new_allowed_options'] ?? $GLOBALS['new_whitelist_options'] ?? [];
     if (empty($allowed[$page])) wp_send_json_error('nieznana grupa ustawień', 400);

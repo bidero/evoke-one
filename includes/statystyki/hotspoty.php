@@ -25,8 +25,12 @@ const EVK_STAT_HOT_DNI = 14;
 const EVK_STAT_HOT_WIZYTY = 1000;
 /** Najwięcej kliknięć jednej odsłony. */
 const EVK_STAT_HOT_LIMIT_KLIKOW = 100;
-/** Ramka podglądu: szerokość okna dla urządzenia (0 — pełna szerokość). */
-const EVK_STAT_HOT_SZEROKOSCI = ['telefon' => 390, 'tablet' => 820, 'komputer' => 0];
+/**
+ * Ramka podglądu: szerokość okna dla urządzenia. Komputer to stałe 1440 px
+ * (1.292.0): przy pełnej szerokości ramki laptop z panelem obok dawał stronie
+ * ok. 760 px, czyli jej układ MOBILNY. Węższe miejsce pomniejsza ramkę.
+ */
+const EVK_STAT_HOT_SZEROKOSCI = ['telefon' => 390, 'tablet' => 820, 'komputer' => 1440];
 
 /** @return array<string,array{od:int,do:int,wizyty:int,koniec:int}> nagrania po stronie */
 function evk_stat_hot_nagrania(): array {

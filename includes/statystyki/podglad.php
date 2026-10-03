@@ -9,6 +9,12 @@ if (!defined('ABSPATH')) exit;
  * przewija się razem ze stroną. Kliknięcie trafia w element z selektora
  * i miejsce w nim (0–1000); gdy elementu już nie ma — w miejsce na stronie
  * przeskalowane do szerokości ramki.
+ *
+ * 1.292.0 (zgłoszenie: na mniejszym ekranie komputera podgląd pokazywał wersję
+ * mobilną): ramka ma STAŁĄ szerokość urządzenia i pomniejsza się (transform)
+ * do miejsca, które jest — strona w środku dalej widzi 1440 px. Analiza
+ * (podsumowanie, lista) nie zabiera już ramce miejsca: wysuwa się z prawej
+ * na przycisk „Analiza” i zamyka ✕ albo Esc.
  */
 
 function evk_stat_hot_render_podglad(string $strona): void {
@@ -25,11 +31,17 @@ function evk_stat_hot_render_podglad(string $strona): void {
             .evk-hot-gora { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 12px 0; }
             .evk-hot-grupa { display: flex; flex-wrap: wrap; gap: 4px; }
             .evk-hot-grupa .button[aria-pressed="true"], .evk-hot-grupa .button[aria-current="page"] { background: #2271b1; border-color: #2271b1; color: #fff; }
-            .evk-hot-uklad { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
-            .evk-hot-ramka-box { flex: 1 1 600px; min-width: 0; overflow-x: auto; background: #f0f0f1; border: 1px solid #dcdcde; border-radius: 8px; padding: 12px; }
-            .evk-hot-ramka { display: block; margin: 0 auto; height: 80vh; min-height: 480px; border: 0; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
-            .evk-hot-panel { flex: 0 1 320px; min-width: 260px; }
+            .evk-hot-uklad { position: relative; }
+            .evk-hot-ramka-box { min-width: 0; overflow-x: auto; background: #f0f0f1; border: 1px solid #dcdcde; border-radius: 8px; padding: 12px; }
+            .evk-hot-ramka { display: block; margin: 0 auto; height: 80vh; min-height: 480px; border: 0; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.15); transform-origin: 0 0; }
+            /* Wysuwana analiza: klasa, nie atrybut hidden — ten przegrywa z każdą regułą display (CLAUDE.md). */
+            .evk-hot-panel { display: none; position: absolute; top: 12px; right: 12px; z-index: 5; width: 360px; max-width: calc(100% - 24px); max-height: calc(100% - 24px);
+                overflow: auto; box-sizing: border-box; padding: 12px; background: #fff; border: 1px solid #dcdcde; border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.2); }
+            .evk-hot-panel.is-otwarty { display: block; }
+            .evk-hot-panel-gora { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 8px; }
+            .evk-hot-panel-gora h2 { margin: 0; font-size: 15px; }
             .evk-hot-panel .evo-box { margin: 0 0 12px; }
+            .evk-hot-panel .evo-box:last-child { margin-bottom: 0; }
             .evk-hot-panel table tr.is-aktywny td { background: #f0f6fc; }
             .evk-hot-panel .num { text-align: right; white-space: nowrap; }
             .evk-hot-legenda { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #50575e; }
@@ -52,13 +64,18 @@ function evk_stat_hot_render_podglad(string $strona): void {
             </div>
             <label class="evo-check-row"><input type="checkbox" class="evk-hot-znaczniki" checked> Złość i martwe kliknięcia</label>
             <span class="evk-hot-legenda" aria-hidden="true">mało <i></i> dużo</span>
+            <button type="button" class="button evk-hot-analiza" aria-expanded="false" aria-controls="evk-hot-panel">Analiza</button>
         </div>
         <div class="evk-hot-uklad">
             <div class="evk-hot-ramka-box">
                 <iframe class="evk-hot-ramka" title="Strona z nakładką hotspotów" src="<?php echo esc_url($adres); ?>"
-                    style="width:<?php echo EVK_STAT_HOT_SZEROKOSCI[$urz] ? (int) EVK_STAT_HOT_SZEROKOSCI[$urz] . 'px' : '100%'; ?>"></iframe>
+                    data-szer="<?php echo (int) EVK_STAT_HOT_SZEROKOSCI[$urz]; ?>" style="width:<?php echo (int) EVK_STAT_HOT_SZEROKOSCI[$urz]; ?>px"></iframe>
             </div>
-            <div class="evk-hot-panel">
+            <div class="evk-hot-panel" id="evk-hot-panel" role="region" aria-labelledby="evk-hot-panel-tytul">
+                <div class="evk-hot-panel-gora">
+                    <h2 id="evk-hot-panel-tytul">Analiza</h2>
+                    <button type="button" class="button evk-hot-zamknij" aria-label="Zamknij analizę">✕</button>
+                </div>
                 <div class="evo-box">
                     <h3>Podsumowanie</h3>
                     <p class="evk-hot-podsumowanie"><?php echo esc_html(sprintf('%d odsłon · %d kliknięć', count($dane['przewiniecia']), count($dane['kliki']))); ?></p>
@@ -193,6 +210,31 @@ function evk_stat_hot_render_podglad(string $strona): void {
             }
             var czas;
             function pozniej() { clearTimeout(czas); czas = setTimeout(rysuj, 200); }
+
+            /* Stała szerokość urządzenia, pomniejszona do miejsca w ramce. Ujemne marginesy
+               oddają miejsce, które transform zostawia w układzie, więc nic nie przewija się w bok. */
+            var box = document.querySelector('.evk-hot-ramka-box'), SZER = Number(ramka.getAttribute('data-szer')) || 0;
+            function dopasuj() {
+                var st = getComputedStyle(box), miejsce = box.clientWidth - parseFloat(st.paddingLeft) - parseFloat(st.paddingRight);
+                var s = SZER && miejsce > 0 ? Math.min(1, miejsce / SZER) : 1, h = Math.max(480, Math.round(window.innerHeight * 0.8));
+                ramka.style.height = Math.round(h / s) + 'px';
+                ramka.style.transform = s < 1 ? 'scale(' + s + ')' : '';
+                ramka.style.margin = s < 1 ? '0 ' + (SZER * s - SZER) + 'px ' + (h - h / s) + 'px 0' : '0 auto';
+                ramka.setAttribute('data-skala', s.toFixed(3));
+            }
+            dopasuj();
+            if (window.ResizeObserver) new ResizeObserver(dopasuj).observe(box); else window.addEventListener('resize', dopasuj);
+
+            /* Wysuwana analiza: przycisk ze stanem aria-expanded, ✕ i Esc zamykają i oddają fokus przyciskowi. */
+            var panel = document.getElementById('evk-hot-panel'), przycisk = document.querySelector('.evk-hot-analiza');
+            function analiza(otworz, fokus) {
+                panel.classList.toggle('is-otwarty', otworz);
+                przycisk.setAttribute('aria-expanded', String(otworz));
+                if (fokus) (otworz ? panel.querySelector('.evk-hot-zamknij') : przycisk).focus();
+            }
+            przycisk.addEventListener('click', function () { analiza(!panel.classList.contains('is-otwarty'), true); });
+            panel.querySelector('.evk-hot-zamknij').addEventListener('click', function () { analiza(false, true); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && panel.classList.contains('is-otwarty')) analiza(false, true); });
             ramka.addEventListener('load', function () {
                 rysuj();
                 setTimeout(rysuj, 1500); /* późny układ (pisma, obrazy, animacje wejścia) */

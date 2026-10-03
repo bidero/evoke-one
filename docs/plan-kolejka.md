@@ -5,8 +5,8 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 
 ## Kolejność
 
-Stan po 1.291.0: 2FA (1.287.0), ukryty adres (1.288.0), Logowanie z limitem i wygląd 2FA w Bricksie (1.289.0), menu „Evoke” w pasku (1.290.0), dostęp „Hotspoty” i konserwacja na telefonie (1.291.0) zrobione; dalej 1.292.0 — panel Evoke ONE dla roli Manager (decyzje 03.10: SEO, kopie zapasowe bez przywracania, przekierowania i 404, 2FA kont); potem repeater w CSV Fields. Do przegadania: szablony maili.
-**1.292.0 — panel dla roli Manager (decyzje 03.10):** wejście przez
+Stan po 1.292.0: 2FA (1.287.0), ukryty adres (1.288.0), Logowanie z limitem i wygląd 2FA w Bricksie (1.289.0), menu „Evoke” w pasku (1.290.0), dostęp „Hotspoty” i konserwacja na telefonie (1.291.0), panel Evoke ONE dla roli Manager oraz podgląd Hotspotów z wysuwaną analizą i ramką 1440 px (1.292.0) zrobione; dalej repeater w CSV Fields. Do przegadania: szablony maili.
+**1.292.0 — panel dla roli Manager (decyzje 03.10, zrobione):** wejście przez
 Ustawienia → Evoke ONE, ta sama strona panelu, ale pasek boczny, pulpit
 i wyszukiwarka pokazują tylko moduły z dostępów roli, reszta zablokowana
 także po adresie. Nowe dostępy w edycji roli: SEO (cała sekcja: Meta SEO,

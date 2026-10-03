@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) exit;
  * od nagłówka (`evk_pasek_naglowek()`). Grupa bez pozycji nie powstaje,
  * a menu bez grup też nie — każdy widzi tylko to, do czego ma prawo
  * (czytelnik statystyk: Statystyki i Hotspoty, tłumacz: Tłumaczenia,
- * administrator: wszystko i panel).
+ * Manager z dostępami panelu: panel, administrator: wszystko i panel).
  */
 
 const EVK_PASEK = 'evk-menu';
@@ -43,9 +43,9 @@ function evk_pasek_tutaj(): bool {
     return !is_admin() && is_user_logged_in() && !(function_exists('evk_w_builderze') && evk_w_builderze());
 }
 
-/* Link do panelu — tylko administrator. */
+/* Link do panelu — administrator i rola z dostępem do części panelu (1.292.0). */
 add_action('admin_bar_menu', function (WP_Admin_Bar $pasek): void {
-    if (!evk_pasek_tutaj() || !current_user_can('manage_options')) return;
+    if (!evk_pasek_tutaj() || !(current_user_can('manage_options') || (function_exists('evk_dostepy_panelu') && evk_dostepy_panelu()))) return;
     $pasek->add_node(['parent' => evk_pasek_grupa('panel'), 'id' => 'evk-panel', 'title' => 'Panel Evoke ONE',
         'href' => admin_url('options-general.php?page=evoke-one')]);
 }, 100);

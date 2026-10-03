@@ -2,6 +2,56 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.292.0] — 2026-10-03
+
+Decyzje zgłaszającego z 03.10.
+
+### Dodane
+
+- **Panel Evoke ONE dla roli bez praw administratora** (np. Manager).
+  W edycji roli cztery nowe dostępy: **SEO** (Meta SEO, mapa strony,
+  Schema, OpenGraph), **Przekierowania i 404**, **Kopia zapasowa** (TYLKO
+  „Utwórz kopię teraz” — bez listy, pobierania, usuwania, przywracania
+  i ustawień) i **Logowanie dwuetapowe kont** (lista kont i „Wyłącz 2FA”
+  innemu kontu, nigdy administratorowi — bez włącznika, wymuszeń, ukrytego
+  adresu i limitu). Rola z którymkolwiek z nich wchodzi przez Ustawienia →
+  Evoke ONE; pasek boczny, przeglądy sekcji i wyszukiwarka pokazują tylko
+  jej ekrany, a reszta panelu odpowiada 403 także po wpisaniu adresu.
+- Granica jest po stronie serwera: każdy zapis tych ekranów (AJAX
+  i `options.php`) pyta o dostęp roli zamiast samego `manage_options`.
+  Przełączniki modułów — tylko Schema, OpenGraph, przekierowania i logi
+  404; przegląd sekcji pokazuje przy pozostałych sam stan, bez przełącznika.
+- W menu „Evoke” na stronie „Panel Evoke ONE” także dla roli z tymi
+  dostępami.
+
+### Zmienione
+
+- **Podgląd Hotspotów** (zgłoszenie: na mniejszym ekranie komputera
+  pokazywał wersję mobilną strony). Ramka „Komputer” ma stałe 1440 px
+  i pomniejsza się do miejsca na ekranie, więc strona w środku zawsze ma
+  układ komputerowy; telefon i tablet bez zmian (390 i 820 px, pomniejszone
+  tylko na węższym ekranie). Prawy panel nie zabiera już ramce miejsca:
+  „Analiza” (podsumowanie i najczęściej klikane) wysuwa się z prawej na
+  przycisk, zamyka ✕ albo Esc.
+- Zapis ustawień panelu przez AJAX pyta o to samo uprawnienie co
+  `options.php` (`option_page_capability_…`) — dla administratora bez
+  zmian.
+
+### Testy
+
+- `uprawnienia-manager` (nowy): macierz prawdziwych zapisów AJAX jako
+  administrator, Manager, rola z samym SEO i subskrybent (przełączniki,
+  Meta SEO, przekierowanie, stan i lista kopii, usuwanie kopii, „Wyłącz 2FA”
+  administratorowi i zwykłemu kontu, uprawnienie `options.php`); w Chromium
+  pasek boczny każdego konta, 403 po adresie, ekrany sekcji, zapis Schema
+  przez AJAX, dodanie przekierowania, kopia bez listy i ustawień, „Wyłącz
+  2FA” tylko przy redaktorze, link w menu „Evoke”.
+- `uprawnienia-panel`: cztery nowe dostępy zapisują się i odznaczają
+  w edycji roli.
+- `statystyki-hotspoty`: przy oknie 1280 px strona w ramce ma 1440 px,
+  ramka mieści się w polu bez przewijania w bok; analiza schowana na
+  starcie, „Analiza” ją wysuwa (fokus na ✕), Esc i ✕ chowają.
+
 ## [1.291.1] — 2026-10-03
 
 ### Naprawione

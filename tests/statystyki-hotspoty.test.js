@@ -160,6 +160,28 @@ module.exports = async function (t) {
     t.check('mapa ciepła: kolor na przycisku i w miejscu serii, pusto daleko od kliknięć', !!pod && pod.naPrzycisku > 0 && pod.wCwiartce > 0 && pod.daleko === 0, J(pod));
     t.check('znaczniki: jedna „złość”, jedno „martwe”', !!pod && J(pod.znaczniki) === J(['martwe', 'zlosc']), J(pod && pod.znaczniki));
     t.check('lista: „Zamów” 4 (67%), złość 1, martwe 0 na pierwszym miejscu', !!pod && J(pod.lista[0]) === J(['Zamów', '4 (67%)', '1', '0']), J(pod && pod.lista));
+    /* 1.292.0: na ekranie 1280 px (z menu kokpitu) strona w ramce dalej widzi 1440 px — układ komputerowy, pomniejszony. */
+    const uk = await adm.evaluate(() => {
+      const ram = document.querySelector('.evk-hot-ramka'), box = document.querySelector('.evk-hot-ramka-box'), r = ram.getBoundingClientRect(), b = box.getBoundingClientRect();
+      return { okno: ram.contentWindow.innerWidth, skala: Number(ram.getAttribute('data-skala')), szer: Math.round(r.width), prawa: Math.round(r.right), boxPrawa: Math.round(b.right),
+        przewijaBok: box.scrollWidth > box.clientWidth, dol: Math.round(r.bottom), boxDol: Math.round(b.bottom) };
+    });
+    t.check('komputer na ekranie 1280 px: strona w ramce ma 1440 px, ramka pomniejszona i mieści się w polu bez przewijania w bok',
+      uk.okno === 1440 && uk.skala < 1 && uk.skala > 0.5 && uk.prawa <= uk.boxPrawa && !uk.przewijaBok && uk.dol <= uk.boxDol, J(uk));
+    const panelStan = () => adm.evaluate(() => ({ widoczny: document.getElementById('evk-hot-panel').getBoundingClientRect().height > 0,
+      rozwiniety: document.querySelector('.evk-hot-analiza').getAttribute('aria-expanded'), fokus: document.activeElement && document.activeElement.className }));
+    const pz = await panelStan();
+    t.check('analiza schowana na starcie (ramka ma całą szerokość), przycisk „Analiza” aria-expanded=false', !pz.widoczny && pz.rozwiniety === 'false', J(pz));
+    await adm.click('.evk-hot-analiza');
+    const po = await panelStan();
+    t.check('„Analiza” wysuwa panel z listą, aria-expanded=true, fokus na ✕', po.widoczny && po.rozwiniety === 'true' && /evk-hot-zamknij/.test(po.fokus)
+      && await adm.isVisible('.evk-hot-elementy tbody tr'), J(po));
+    await adm.keyboard.press('Escape');
+    const pe = await panelStan();
+    t.check('Esc chowa panel i oddaje fokus przyciskowi', !pe.widoczny && pe.rozwiniety === 'false' && /evk-hot-analiza/.test(pe.fokus), J(pe));
+    await adm.click('.evk-hot-analiza');
+    await adm.click('.evk-hot-zamknij');
+    t.check('✕ chowa panel', !(await panelStan()).widoczny);
     await adm.click('[data-widok="przewiniecie"]');
     const linie = await ramka.locator('.evk-hot-linia').allTextContents();
     t.check('przewinięcie: linie zasięgu z „Połowa odwiedzających dociera tutaj”', linie.some((x) => /^Połowa odwiedzających dociera tutaj/.test(x)), J(linie));

@@ -214,6 +214,21 @@ add_action('admin_menu', function () {
     );
 });
 
+/*
+ * Panel przycięty do dostępów roli (1.292.0): zakładka albo ekran spoza nich
+ * — 403 także po adresie. Na „load-…”, czyli PRZED nagłówkiem kokpitu:
+ * wp_die() z wnętrza renderu oddałby 200, bo nagłówki już poszły.
+ */
+add_action('load-settings_page_evoke-one', function (): void {
+    if (!function_exists('evk_panel_przyciety') || !evk_panel_przyciety()) return;
+    $tab = sanitize_key($_GET['tab'] ?? '');
+    $sub = sanitize_key($_GET['sub'] ?? '');
+    $odmowa = ($tab !== '' && !array_key_exists($tab, evoke_one_zakladki()))
+        /* Ekran spoza dostępów w dozwolonej zakładce (np. Narzędzia → SMTP przy samych przekierowaniach). */
+        || ($sub !== '' && !empty(evoke_one_ekrany_wszystkie()[$tab][$sub]) && empty(evoke_one_ekrany()[$tab][$sub]));
+    if ($odmowa) wp_die('Brak dostępu do tej części panelu.', 'Evoke ONE', ['response' => 403, 'back_link' => true]);
+});
+
 // =========================================================================
 // RENDER — główna funkcja (router)
 // =========================================================================
@@ -229,13 +244,7 @@ function evoke_one_render_settings(): void {
     $tabs = evoke_one_zakladki();
 
     if (!array_key_exists($tab, $tabs)) {
-        /* Panel przycięty do dostępów roli: zakładki spoza nich nie ma — także po adresie. */
-        if ($przyciety && isset($_GET['tab']) && $tab !== 'dashboard') wp_die('Brak dostępu do tej części panelu.', 'Evoke ONE', ['response' => 403, 'back_link' => true]);
         $tab = isset($tabs['wydajnosc']) ? 'wydajnosc' : (string) array_key_first($tabs);
-    }
-    /* Ekran spoza dostępów w dozwolonej zakładce (np. Narzędzia → SMTP przy samych przekierowaniach). */
-    if ($przyciety && $sub !== '' && !empty(evoke_one_ekrany_wszystkie()[$tab][$sub]) && empty(evoke_one_ekrany()[$tab][$sub])) {
-        wp_die('Brak dostępu do tej części panelu.', 'Evoke ONE', ['response' => 403, 'back_link' => true]);
     }
 
     // Mapowanie zakładki → plik
@@ -486,6 +495,13 @@ function evoke_one_render_command_palette(string $base): void {
  * więc nie ma czego uzgadniać — po wejściu na ekran modułu stan i tak przychodzi
  * z bazy.
  */
+/** Czy zalogowany może przełączyć moduł tej opcji — administrator zawsze, rola z dostępem tylko swoje (jak evk_ajax_toggle). */
+function evoke_one_moze_przelaczyc(string $opcja): bool {
+    if (current_user_can('manage_options')) return true;
+    $dostep = function_exists('evk_dostep_przelacznika') ? evk_dostep_przelacznika($opcja) : '';
+    return $dostep !== '' && evk_moze($dostep);
+}
+
 function evoke_one_render_przeglad(string $tab, string $base): void {
     $ekrany = evoke_one_ekrany()[$tab] ?? [];
     ?>
@@ -508,7 +524,10 @@ function evoke_one_render_przeglad(string $tab, string $base): void {
                 </span>
             </a>
             <div class="evo-przeglad-akcja">
-                <?php if (count($pary) === 1): ?>
+                <?php if (count($pary) === 1 && !evoke_one_moze_przelaczyc($pary[0][0])): ?>
+                    <?php /* Rola bez tego dostępu (1.292.0): sam stan — serwer i tak odrzuciłby zmianę. */ ?>
+                    <span class="evo-przeglad-licznik"><?php echo evoke_one_wlaczony($pary[0][0], $pary[0][1]) ? 'Włączone' : 'Wyłączone'; ?></span>
+                <?php elseif (count($pary) === 1): ?>
                     <label class="evo-toggle">
                         <?php /* Nazwa dla czytnika ekranu: sam przełącznik w wierszu nie ma
                                  nagłówka obok, jak na karcie modułu, więc bez tego jest to

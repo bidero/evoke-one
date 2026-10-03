@@ -60,15 +60,22 @@ module.exports = async function (t) {
     await p.goto(role + '&role_action=edit&edit_role=evk_t_panel');
     await p.check('input[name="capabilities[edit_posts]"]');
     await p.check('input[name="evk_hot_access"]');
+    for (const pole of ['evk_seo_access', 'evk_przekier_access', 'evk_kopie_access', 'evk_logow_access']) await p.check('input[name="' + pole + '"]');
     await wyslij('input[type="submit"][value="Zapisz rolę"]');
     const edycja = await komunikaty(p, 'Rola zaktualizowana.');
     t.check('jeden komunikat „Rola zaktualizowana."', edycja.ile === 1, JSON.stringify(edycja));
     const st1 = sonda('stan');
     t.check('uprawnienie zapisane (edit_posts) i dostęp „Hotspoty” (1.291.0)', st1.panel_edit_posts === true && st1.panel_hotspoty === true, JSON.stringify(st1));
+    t.check('dostępy panelu zapisane: SEO, przekierowania, kopia, logowanie (1.292.0)',
+      JSON.stringify(st1.panel_dostepy) === JSON.stringify(['evk_access_seo', 'evk_access_przekierowania', 'evk_access_kopie', 'evk_access_logowanie']), JSON.stringify(st1.panel_dostepy));
     await p.goto(role + '&role_action=edit&edit_role=evk_t_panel');
     await p.uncheck('input[name="evk_hot_access"]');
+    await p.uncheck('input[name="evk_kopie_access"]');
     await wyslij('input[type="submit"][value="Zapisz rolę"]');
-    t.check('odznaczony dostęp „Hotspoty” znika z roli', sonda('stan').panel_hotspoty === false, JSON.stringify(sonda('stan')));
+    const st1b = sonda('stan');
+    t.check('odznaczony dostęp „Hotspoty” znika z roli', st1b.panel_hotspoty === false, JSON.stringify(st1b));
+    t.check('odznaczona „Kopia zapasowa (panel)” znika, reszta dostępów zostaje',
+      JSON.stringify(st1b.panel_dostepy) === JSON.stringify(['evk_access_seo', 'evk_access_przekierowania', 'evk_access_logowanie']), JSON.stringify(st1b.panel_dostepy));
 
     // ── Dodanie ─────────────────────────────────────────────────────────
     t.section('dodanie roli: jeden komunikat, rola jest');
