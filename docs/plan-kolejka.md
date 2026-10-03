@@ -5,8 +5,18 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 
 ## Otwarte (stan 03.10, po 1.293.0)
 
-- **Następne w kolejce:** repeater w CSV Fields (pkt 6) — przed startem
-  dopytać zgłaszającego o format pliku.
+- **W toku: repeater w CSV Fields (pkt 6)** — decyzje 03.10: komórka to JSON
+  z listą wierszy, KLUCZE pól (import przyjmie też etykiety, eksport daje
+  klucze); tłumaczenia jako obiekt języka w wierszu
+  (`{"tytul":"Pakiet S","en":{"tytul":"Package S"}}`); obraz/galeria/plik
+  po ID albo adresie z biblioteki (też rozmiar `-300x200`), brak → puste
+  i ostrzeżenie w raporcie (bez pobierania); relacje (wpisy, termy,
+  użytkownicy) po ID albo nazwie/slugu/loginie/e-mailu, eksport daje ID;
+  przy aktualizacji wybór na kolumnę „Zastąp wiersze” / „Dopisz na końcu”,
+  pusta komórka zostawia wiersze bez zmian. Zakres: wpisy i CPT (grupa-
+  repeater i pole repeater w grupie) oraz IMPORT stron ustawień w formacie
+  eksportu (grupa-repeater: tabela; grupa zwykła: „Pole | Wartość”, pole-
+  repeater jako JSON w Wartości) — plik z eksportu wraca 1:1. Termy — nie.
 - **Poprawki do zgłoszenia przez zgłaszającego:** po sprawdzeniu przy
   komputerze 1.288–1.291 (ukryty adres, 2FA w Bricksie, menu „Evoke”,
   konserwacja na telefonie) — zapowiedział, że zgłosi później.
