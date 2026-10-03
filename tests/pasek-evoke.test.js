@@ -118,8 +118,10 @@ module.exports = async function (t) {
     t.section('telefon 360 px');
     const f = await nowa(TELEFON);
     const przed = await f.evaluate(() => { const e = document.querySelector('#wp-admin-bar-evk-menu > .ab-item'); const r = e && e.getBoundingClientRect();
-      return r && { l: r.left, p: r.right, w: r.width, h: r.height, widac: getComputedStyle(e.parentNode).display !== 'none' }; });
-    t.check('na telefonie „Evoke” jest w pasku: widoczne, w ekranie, cel dotyku ≥ 24 px', !!przed && przed.widac && przed.l >= 0 && przed.p <= 360 && przed.w >= 24 && przed.h >= 24, J(przed));
+      const lic = e && e.querySelector('.evk-pasek-licznik');
+      return r && { l: r.left, p: r.right, w: r.width, h: r.height, widac: getComputedStyle(e.parentNode).display !== 'none', licznik: lic ? lic.getBoundingClientRect().width : 0 }; });
+    t.check('na telefonie „Evoke” jest w pasku: widoczne, w ekranie, cel dotyku ≥ 24 px; sama ikona — licznik tylko w menu (nie wylewa się na sąsiada)',
+      !!przed && przed.widac && przed.l >= 0 && przed.p <= 360 && przed.w >= 24 && przed.h >= 24 && przed.licznik === 0, J(przed));
     const gora = await f.evaluate(() => [...document.querySelectorAll('#wpadminbar .ab-top-menu > li')].filter((li) => getComputedStyle(li).display !== 'none')
       .map((li) => { const r = li.getBoundingClientRect(); return { id: li.id.replace('wp-admin-bar-', ''), l: Math.round(r.left), p: Math.round(r.right), t: Math.round(r.top) }; }));
     t.check('na telefonie cały pasek w jednym wierszu i w ekranie — z kontem (wylogowanie) mimo „Evoke” i konserwacji', gora.some((x) => x.id === 'my-account')
