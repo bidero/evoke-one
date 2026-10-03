@@ -5,7 +5,7 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 
 ## Kolejność
 
-Stan po 1.285.0 (ustalone 02.10): **statystyki i hotspoty (1.284 etap 1 i 1.285 etap 2 — zrobione, 1.286 hotspoty;
+Stan po 1.286.0 (ustalone 02.10): **statystyki i hotspoty (1.284 etap 1, 1.285 etap 2, 1.286 hotspoty i 404 — zrobione; później: edytowalna siatka kafli raportu 1/1, 2/1, 1/2;
 szczegóły etapów: DNT/GPC przełącznikiem, domyślnie szanowane; licznik w pasku: ta strona dziś / 30 dni;
 wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną pozycją)
 → logowanie + 2FA → WebP/AVIF → repeater w CSV → generowanie treści AI
