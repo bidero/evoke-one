@@ -5,7 +5,9 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 
 ## Otwarte (stan 03.10, po 1.293.0)
 
-- **W toku: repeater w CSV Fields (pkt 6)** — decyzje 03.10: komórka to JSON
+- **Następne w kolejce:** generowanie treści AI, etap 1 razem ze zdolnościami MCP (pkt 7) —
+  przed startem dopytać zgłaszającego o szczegóły popupu i „przepisów”.
+- **Zrobione: repeater w CSV — Fields 1.79.0 (pkt 6)**, test `fields-csv`; decyzje 03.10: komórka to JSON
   z listą wierszy, KLUCZE pól (import przyjmie też etykiety, eksport daje
   klucze); tłumaczenia jako obiekt języka w wierszu
   (`{"tytul":"Pakiet S","en":{"tytul":"Package S"}}`); obraz/galeria/plik
@@ -33,7 +35,7 @@ ta leży w repozytorium (`docs/` nie jedzie w paczce wtyczki).
 
 ## Kolejność
 
-Stan po 1.293.0: 2FA (1.287.0), ukryty adres (1.288.0), Logowanie z limitem i wygląd 2FA w Bricksie (1.289.0), menu „Evoke” w pasku (1.290.0), dostęp „Hotspoty” i konserwacja na telefonie (1.291.0), panel Evoke ONE dla roli Manager oraz podgląd Hotspotów z wysuwaną analizą i ramką 1440 px (1.292.0), odsłony i odwiedzający w Hotspotach oraz kliknięcia z pierwszej chwili (1.293.0) zrobione; dalej repeater w CSV Fields. Do przegadania: szablony maili.
+Stan po 1.293.0: 2FA (1.287.0), ukryty adres (1.288.0), Logowanie z limitem i wygląd 2FA w Bricksie (1.289.0), menu „Evoke” w pasku (1.290.0), dostęp „Hotspoty” i konserwacja na telefonie (1.291.0), panel Evoke ONE dla roli Manager oraz podgląd Hotspotów z wysuwaną analizą i ramką 1440 px (1.292.0), odsłony i odwiedzający w Hotspotach oraz kliknięcia z pierwszej chwili (1.293.0) zrobione; repeater w CSV — Fields 1.79.0; dalej generowanie treści AI (etap 1 + MCP). Do przegadania: szablony maili.
 **1.292.0 — panel dla roli Manager (decyzje 03.10, zrobione):** wejście przez
 Ustawienia → Evoke ONE, ta sama strona panelu, ale pasek boczny, pulpit
 i wyszukiwarka pokazują tylko moduły z dostępów roli, reszta zablokowana
@@ -157,7 +159,7 @@ wykresy własne SVG; zakładka „Statystyki” w panelu, menu raportów osobną
    bez zmian; przerobienie biblioteki **przyciskiem z paskiem postępu,
    dokańczane w tle (cron)**; podawanie przez `<picture>`: AVIF → WebP →
    oryginał (AVIF tylko, gdy serwer umie). Tła CSS — później, osobno.
-6. **Repeater w CSV Fields** — JSON w jednej komórce; „Zastąp dane”
+6. **Repeater w CSV Fields** (Fields 1.79.0, zrobione) — JSON w jednej komórce; „Zastąp dane”
    (zastępuje albo dopisuje wiersze); obrazy po ID albo dopasowanym adresie;
    pola tłumaczeń wierszy; **eksport w tym samym formacie** (da się od razu
    zaimportować z powrotem).
