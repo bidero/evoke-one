@@ -788,16 +788,18 @@ $TABS = [
         'seed'   => function () { $GLOBALS['options']['evk_newsletter'] = ['enabled' => 1]; },
     ],
 
-    /* Logowanie (1.287.0): 2FA — wyłączone (stan pusty) i włączone (role, konta, dziennik). */
+    /* Logowanie (1.287.0): 2FA — wyłączone (stan pusty) i włączone (role, konta, dziennik).
+       Od 1.288.0 z sekcją ukrytego adresu: wyłączony (losowy adres w polu) i włączony. */
     'login' => [
-        'module' => ['includes/logowanie/2fa.php'],
+        'module' => ['includes/logowanie/2fa.php', 'includes/logowanie/ukryty-adres.php'],
         'file'   => 'includes/admin/tab-logowanie.php',
         'seed'   => function () { $GLOBALS['options']['evk_2fa'] = ['enabled' => 0]; },
     ],
     'login-on' => [
-        'module' => ['includes/logowanie/2fa.php'],
+        'module' => ['includes/logowanie/2fa.php', 'includes/logowanie/ukryty-adres.php'],
         'file'   => 'includes/admin/tab-logowanie.php',
         'seed'   => function () { $GLOBALS['options']['evk_2fa'] = ['enabled' => 1, 'role' => ['administrator'], 'pamietaj' => 1];
+            $GLOBALS['options']['evk_ukryty_adres'] = ['enabled' => 1, 'adres' => 'panel-test12'];
             $GLOBALS['options']['evk_2fa_dziennik'] = [['czas' => time(), 'co' => 'wlaczenie', 'konto' => 1, 'kto' => 1]]; },
     ],
 
