@@ -2,6 +2,77 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.286.0] — 2026-10-03
+
+Statystyki, etap 3 z trzech: hotspoty. Do tego poprawki raportu i widżetu
+po pierwszym oglądaniu 1.285.0 (decyzje z 02.10).
+
+### Dodane
+
+- **Hotspoty wybranych stron** — mapa kliknięć i przewinięcia, bez cookies,
+  bez ruchu myszy, bez treści pól i bez nagrań sesji.
+  - Nagrywanie włącza administrator z paska admina na stronie („Hotspoty →
+    Nagrywaj tę stronę”) albo z listy w zakładce Statystyki (adres, dni,
+    liczba wizyt, „zacznij od zera”). Domyślnie 14 dni albo 1000 wizyt,
+    co nastąpi pierwsze. Po zakończeniu dane zostają do ręcznego usunięcia.
+  - Zapisywane: kliknięty element (selektor) i miejsce w nim, miejsce na
+    stronie, szerokość okna, największe przewinięcie i wysokość strony.
+    Osobno telefon, tablet i komputer.
+  - **Złość**: 3 kliknięcia w ciągu 1 s w promieniu 30 px. **Martwe**:
+    kliknięcie poza linkiem, przyciskiem i polem, po którym przez 1 s nic
+    się na stronie nie zmieniło (zaznaczanie tekstu się nie liczy).
+  - O tym, czy strona nagrywa, decyduje plik listy na serwerze, nie HTML —
+    strona z pamięci podręcznej zaczyna nagrywać od razu. Skrypt hotspotów
+    (1 KB) ładuje się tylko na nagrywanych stronach.
+  - **Podgląd** (raport → „Pokaż”, albo „Pokaż hotspoty” w pasku): strona
+    w ramce o szerokości urządzenia (390 / 820 px / pełna), nakładka
+    z mapą ciepła kliknięć, mapą przewinięcia (linie 100 / 75 / 50 / 25%
+    odwiedzających), znacznikami złości i martwych kliknięć oraz listą
+    najczęściej klikanych elementów (najechanie podświetla element).
+  - Ogląda także rola z uprawnieniem „Statystyki”; włącza, zatrzymuje
+    i kasuje tylko administrator.
+  - „Usuń statystyki” za okres i „Usuń wszystkie” kasują też hotspoty.
+  - Polityka prywatności: zdanie o hotspotach, gdy nagranie trwa —
+    „wyłącznie na własne potrzeby; tych danych nikomu nie przekazujemy”.
+- **Nieistniejące strony (404)** w statystykach: wejścia LUDZI (skrypt
+  w przeglądarce, boty odpadają — w odróżnieniu od Logów 404, które toną
+  w skanerach) liczone osobno, poza odsłonami, źródłami, „teraz na stronie”
+  i celami. Lista w raporcie z rozwijanym „skąd”: obca strona, wejście
+  bezpośrednie albo „ta strona: /…” — zepsuty link we własnej treści.
+  Także w CSV (decyzje z 03.10).
+- **Adresy odsyłające**: pełny adres obcej strony (domena i ścieżka, BEZ
+  części po „?” i „#”) — w „Źródłach” do rozwinięcia pod domeną i w CSV.
+  Wyszukiwarki podają tylko domenę, więc dla nich nic nie dochodzi.
+
+### Zmienione
+
+- **Raport**: każda lista pokazuje 5 pozycji i przycisk „Pokaż wszystkie
+  (N)” — pudełka mają równą wysokość. Pod wykresem daty (pierwszy,
+  środkowy i ostatni dzień). Zdarzenia w dwóch liniach: rodzaj małym
+  szarym napisem nad etykietą.
+- **Widżet Kokpitu** „Statystyki”: bez listy adresów. Teraz na stronie,
+  zakładki Dziś / 7 dni / 30 dni (Dziś — godzina po godzinie), wykres na
+  całą szerokość z przełącznikiem Słupki / Linie pod nim, przycisk „Pełny
+  raport” z okresem zakładki. Wybór pamięta przeglądarka.
+
+### Testy
+
+- `statystyki-hotspoty` (28 sprawdzeń): włączenie z paska, prawdziwe
+  kliknięcia w Chromium (komputer i telefon), złość, martwe, przewinięcie,
+  limit wizyt, nakładka w ramce (piksele mapy na przycisku i pusto daleko),
+  lista, urządzenia, uprawnienia, polityka, kasowanie.
+- Usterka złapana przed wydaniem: przy wyjściu ze strony dwa beacony
+  („visibilitychange” i „pagehide”) wstawiały tę samą odsłonę naraz,
+  a przegrany gubił kliknięcia — raz na kilka przebiegów. Serwer dopisuje
+  teraz do odsłony wstawionej przez drugi beacon, a skrypt nie wysyła
+  drugi raz bez nowych kliknięć.
+- `statystyki-404` (11): prawdziwe 404 WordPressa w Chromium, osobno od
+  odsłon, zbiórka dzienna, „teraz”, raport z rozwinięciem, CSV.
+- Mutacja wyścigu beaconów zapala tylko wtedy, gdy wyścig zajdzie (raz na
+  kilka przebiegów) — nie ma pewnego sprawdzenia, jest opis wyżej.
+- `statystyki-csv`: listy po 5 z rozwinięciem, zdarzenia w dwóch liniach,
+  adresy odsyłające, oś dat. `statystyki`: nowy widżet.
+
 ## [1.285.0] — 2026-10-02
 
 Statystyki, etap 2 z trzech: porównanie okresów, „teraz na stronie”,
