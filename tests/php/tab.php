@@ -84,13 +84,26 @@ function delete_transient($k) { unset($GLOBALS['transients'][$k]); return true; 
 function wp_strip_all_tags($s, $br = false) { return strip_tags((string) $s); }
 /* Dwóch użytkowników: jeden z własnym avatarem, jeden z Gravatarem — obie
    gałęzie kafelka mają się wyrenderować, bo różnią się klasą stanu. */
+/* WP_User (1.287.0): zakładka Logowanie pyta o role konta funkcjami z typem WP_User. */
+if (!class_exists('WP_User')) {
+    class WP_User {
+        public $ID = 0; public $display_name = ''; public $user_login = ''; public $roles = [];
+        public function __construct(array $p = []) { foreach ($p as $k => $v) $this->$k = $v; }
+    }
+}
 function get_users($args = []) {
     return [
-        (object) ['ID' => 1, 'display_name' => 'Anna Kowalska'],
-        (object) ['ID' => 2, 'display_name' => 'Jan Nowak'],
+        new WP_User(['ID' => 1, 'display_name' => 'Anna Kowalska', 'user_login' => 'anna', 'roles' => ['administrator']]),
+        new WP_User(['ID' => 2, 'display_name' => 'Jan Nowak', 'user_login' => 'jan', 'roles' => ['editor']]),
     ];
 }
-function wp_roles() { return new class { public $roles = []; }; }
+if (!function_exists('get_userdata')) { function get_userdata($id) { foreach (get_users() as $u) if ($u->ID === (int) $id) return $u; return false; } }
+function wp_roles() {
+    return new class {
+        public $roles = [];
+        public function get_names() { return ['administrator' => 'Administrator', 'editor' => 'Editor', 'author' => 'Author']; }
+    };
+}
 function get_editable_roles() {
     return [
         'editor'   => ['name' => 'Redaktor', 'capabilities' => ['edit_posts' => true, 'read' => true]],
@@ -773,6 +786,19 @@ $TABS = [
                      'includes/tools/smtp.php', 'includes/newsletter/mailer.php'],
         'file'   => 'includes/admin/tab-newsletter.php',
         'seed'   => function () { $GLOBALS['options']['evk_newsletter'] = ['enabled' => 1]; },
+    ],
+
+    /* Logowanie (1.287.0): 2FA — wyłączone (stan pusty) i włączone (role, konta, dziennik). */
+    'login' => [
+        'module' => ['includes/logowanie/2fa.php'],
+        'file'   => 'includes/admin/tab-logowanie.php',
+        'seed'   => function () { $GLOBALS['options']['evk_2fa'] = ['enabled' => 0]; },
+    ],
+    'login-on' => [
+        'module' => ['includes/logowanie/2fa.php'],
+        'file'   => 'includes/admin/tab-logowanie.php',
+        'seed'   => function () { $GLOBALS['options']['evk_2fa'] = ['enabled' => 1, 'role' => ['administrator'], 'pamietaj' => 1];
+            $GLOBALS['options']['evk_2fa_dziennik'] = [['czas' => time(), 'co' => 'wlaczenie', 'konto' => 1, 'kto' => 1]]; },
     ],
 
     /* Statystyki (1.284.0): zakładka najwyższego poziomu — wyłączona (stan

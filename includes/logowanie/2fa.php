@@ -390,3 +390,15 @@ add_action('template_redirect', function (): void {
     wp_safe_redirect(admin_url('profile.php?evk_2fa=wymagane#evk-2fa'));
     exit;
 });
+
+/* Zapis z zakładki „Logowanie” (AJAX) — role z wymuszeniem i zapamiętywanie; włącznik ma własny zapis. */
+add_action('wp_ajax_evk_2fa_ustawienia', function (): void {
+    check_ajax_referer('evk_2fa_ustawienia', 'nonce');
+    if (!current_user_can('manage_options')) wp_send_json_error('Brak uprawnień.');
+    $u = evk_2fa_ustawienia();
+    $role = array_map('sanitize_key', (array) wp_unslash($_POST['role'] ?? []));
+    $u['role'] = array_values(array_intersect($role, array_keys(wp_roles()->get_names())));
+    $u['pamietaj'] = !empty($_POST['pamietaj']) ? 1 : 0;
+    update_option(EVK_2FA_OPCJA, $u);
+    wp_send_json_success($u);
+});

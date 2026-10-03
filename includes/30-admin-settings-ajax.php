@@ -943,6 +943,7 @@ function evk_toggle_allowlist(): array {
         'evk_white_label'           => ['enabled'],
         'evk_newsletter'            => ['enabled'],
         'evk_statystyki'            => ['enabled'],
+        'evk_2fa'                   => ['enabled'],
         'evk_security'              => ['limit_login_enabled', 'hide_wp_version', 'rest_block_all', 'disable_bundled_themes'],
         // Scalar (flat) options
         'maintenance_mode'          => ['_scalar'],

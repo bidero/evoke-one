@@ -240,6 +240,7 @@ function evoke_one_render_settings(): void {
         'forminbox'      => 'tab-forminbox.php',
         'backup'         => 'tab-backup.php',
         'statystyki'     => 'tab-statystyki.php',
+        'logowanie'      => 'tab-logowanie.php',
     ];
 
     ?>
@@ -267,7 +268,7 @@ function evoke_one_render_settings(): void {
                     <p class="evo-nav-label">Przegląd</p>
                     <?php evoke_one_render_sidebar_link('dashboard', $tabs['dashboard'], $tab, $base, $sub); ?>
                     <p class="evo-nav-label">Moduły</p>
-                    <?php foreach (['wydajnosc', 'strona', 'bezpieczenstwo', 'narzedzia', 'newsletter', 'forminbox', 'backup', 'statystyki'] as $key): ?>
+                    <?php foreach (['wydajnosc', 'strona', 'bezpieczenstwo', 'logowanie', 'narzedzia', 'newsletter', 'forminbox', 'backup', 'statystyki'] as $key): ?>
                         <?php evoke_one_render_sidebar_link($key, $tabs[$key], $tab, $base, $sub); ?>
                     <?php endforeach; ?>
                     <p class="evo-nav-label">System</p>
@@ -602,6 +603,7 @@ function evoke_one_render_control_center(string $base): void {
         ['tab' => 'wydajnosc', 'icon' => 'dashicons-desktop',       'name' => 'Frontend',      'meta' => $frontend_active . ' aktywnych z ' . count($frontend)],
         ['tab' => 'strona', 'icon' => 'dashicons-search',            'name' => 'SEO',           'meta' => $seo_active . ' aktywne obszary'],
         ['tab' => 'bezpieczenstwo', 'icon' => 'dashicons-shield',    'name' => 'Bezpieczeństwo','meta' => $security_active . ' aktywnych zabezpieczeń'],
+        ['tab' => 'logowanie', 'icon' => 'dashicons-lock',           'name' => 'Logowanie',     'meta' => function_exists('evk_2fa_wlaczone') && evk_2fa_wlaczone() ? '2FA włączone' : '2FA wyłączone'],
         ['tab' => 'narzedzia', 'icon' => 'dashicons-admin-tools',    'name' => 'Narzędzia',     'meta' => $tool_active . ' aktywne narzędzia'],
         ['tab' => 'newsletter', 'icon' => 'dashicons-email-alt',     'name' => 'Newsletter',    'meta' => $newsletter_active ? 'moduł aktywny' : 'moduł wyłączony'],
         ['tab' => 'forminbox', 'icon' => 'dashicons-feedback',       'name' => 'Formularze',    'meta' => $inbox_active ? 'skrzynka aktywna' : 'skrzynka wyłączona'],

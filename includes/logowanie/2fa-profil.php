@@ -32,7 +32,8 @@ function evk_2fa_ile_kodow(int $id): int {
 
 add_action('admin_enqueue_scripts', function (string $hook): void {
     if ($hook !== 'profile.php' || !evk_2fa_wlaczone() || evk_2fa_ma(get_current_user_id())) return;
-    wp_enqueue_script('evk-qrcode', EVOKE_ONE_URL . 'assets/vendor/qrcode/qrcode.js', [], '2.0.4', true);
+    /* W nagłówku: skrypt sekcji rysuje kod w treści strony, przed stopką. */
+    wp_enqueue_script('evk-qrcode', EVOKE_ONE_URL . 'assets/vendor/qrcode/qrcode.js', [], '2.0.4', false);
 });
 
 add_action('admin_notices', function (): void {
