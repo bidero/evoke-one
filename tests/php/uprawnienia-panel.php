@@ -39,6 +39,7 @@ case 'przygotuj':
 case 'stan':
     $panel = get_role('evk_t_panel');
     $out['panel_edit_posts'] = $panel ? $panel->has_cap('edit_posts') : null;
+    $out['panel_hotspoty'] = $panel ? $panel->has_cap('evk_access_hotspoty') : null;
     $out['nowa_jest']        = get_role('evk_t_nowa') !== null;
     break;
 

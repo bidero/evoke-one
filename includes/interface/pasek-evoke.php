@@ -87,10 +87,11 @@ add_action('wp_head', function (): void {
         . '#wpadminbar #wp-admin-bar-evk-menu .ab-sub-wrapper>.ab-submenu+.ab-submenu{border-top:1px solid rgba(240,246,252,.12)}'
         . '@media screen and (max-width:782px){'
         . '#wpadminbar li#wp-admin-bar-evk-menu{display:block;position:static}'
-        . '#wpadminbar #wp-admin-bar-evk-menu>.ab-item{padding:0 8px;min-width:52px;text-align:center}'
+        /* Wąsko (1.291.0): sama ikona, 44 px — z konserwacją obok konto (wylogowanie) musi zostać w ekranie; licznik jest w menu. */
+        . '#wpadminbar #wp-admin-bar-evk-menu>.ab-item{padding:0 4px;width:36px;text-align:center}'
+        . '#wpadminbar #wp-admin-bar-evk-menu>.ab-item .evk-pasek-licznik{display:none}'
         . '#wpadminbar #wp-admin-bar-evk-menu>.ab-item .ab-icon{margin:0;padding:0;width:36px;height:46px}'
         . '#wpadminbar #wp-admin-bar-evk-menu>.ab-item .ab-icon:before{font:normal 28px/1 dashicons;top:9px;display:block;text-align:center}'
-        . '#wpadminbar #wp-admin-bar-evk-menu .evk-pasek-licznik{vertical-align:top;margin-top:13px}'
         . '#wpadminbar #wp-admin-bar-evk-menu .ab-submenu li{display:block}'
         . '#wpadminbar #wp-admin-bar-evk-menu .evk-pasek-naglowek>.ab-item{font-size:12px;padding:10px 16px 2px}'
         . '}'

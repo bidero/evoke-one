@@ -18,7 +18,7 @@ add_filter('user_has_cap', function (array $caps, array $cap_check, array $args)
     $cap = $cap_check[0];
     if (!in_array($cap, [
         'evk_access_translations', 'evk_access_newsletter',
-        'evk_access_messages', 'evk_access_maintenance', 'evk_access_fields', 'evk_access_stats',
+        'evk_access_messages', 'evk_access_maintenance', 'evk_access_fields', 'evk_access_stats', 'evk_access_hotspoty',
     ], true)) return $caps;
     if (!empty($caps['manage_options'])) {
         $caps[$cap] = true;
@@ -195,6 +195,13 @@ add_action('admin_init', function () {
             $role->add_cap('evk_access_stats', true);
         } else {
             $role->remove_cap('evk_access_stats');
+        }
+
+        // Dostęp do Evoke ONE — Hotspoty (nagrywanie, zatrzymanie, usuwanie; oglądanie — „Statystyki”; 1.291.0)
+        if (!empty($_POST['evk_hot_access'])) {
+            $role->add_cap('evk_access_hotspoty', true);
+        } else {
+            $role->remove_cap('evk_access_hotspoty');
         }
 
         // Dostęp do Evoke FIELDS (osobna wtyczka — patrz komentarz przy `init`)

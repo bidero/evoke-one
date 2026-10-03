@@ -107,6 +107,6 @@ return [
     /* `evk_access_fields` NIE — to wejście do Evoke Fields, które nadaje się
        w Role Managerze, ale sprawdza je tamta wtyczka. */
     'uprawnienia' => ['manage_evk_roles', 'evk_access_translations', 'evk_access_newsletter',
-                      'evk_access_maintenance', 'evk_access_messages', 'evk_access_stats'],
+                      'evk_access_maintenance', 'evk_access_messages', 'evk_access_stats', 'evk_access_hotspoty'],
     'haki_crona' => ['evk_backup_tick', 'evk_backup_nightly', 'evk_nl_process_batch', 'evk_obrazy_tick', 'evk_stat_dobowy', 'evk_stat_dbip'],
 ];

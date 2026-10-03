@@ -132,6 +132,14 @@ if ($action === 'edit' && $edit_role && $edit_role !== 'administrator' && isset(
                     </div>
                 </label>
                 <label class="evo-check">
+                    <input type="checkbox" name="evk_hot_access" value="1"
+                           <?php checked($role->has_cap('evk_access_hotspoty')); ?>>
+                    <div>
+                        <span class="evo-strong-500">Hotspoty</span>
+                        <div class="evo-desc evo-m0">Rola może włączać i zatrzymywać nagrywanie hotspotów strony i usuwać nagrania (menu „Evoke” w pasku). Podgląd jest w raporcie — potrzebny też dostęp „Statystyki”.</div>
+                    </div>
+                </label>
+                <label class="evo-check">
                     <input type="checkbox" name="evk_maint_access" value="1"
                            <?php checked($role->has_cap('evk_access_maintenance')); ?>>
                     <div>

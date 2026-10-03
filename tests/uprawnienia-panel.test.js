@@ -59,10 +59,16 @@ module.exports = async function (t) {
     t.section('edycja roli: jeden komunikat, zmiana zapisana');
     await p.goto(role + '&role_action=edit&edit_role=evk_t_panel');
     await p.check('input[name="capabilities[edit_posts]"]');
+    await p.check('input[name="evk_hot_access"]');
     await wyslij('input[type="submit"][value="Zapisz rolę"]');
     const edycja = await komunikaty(p, 'Rola zaktualizowana.');
     t.check('jeden komunikat „Rola zaktualizowana."', edycja.ile === 1, JSON.stringify(edycja));
-    t.check('uprawnienie zapisane (edit_posts)', sonda('stan').panel_edit_posts === true, JSON.stringify(sonda('stan')));
+    const st1 = sonda('stan');
+    t.check('uprawnienie zapisane (edit_posts) i dostęp „Hotspoty” (1.291.0)', st1.panel_edit_posts === true && st1.panel_hotspoty === true, JSON.stringify(st1));
+    await p.goto(role + '&role_action=edit&edit_role=evk_t_panel');
+    await p.uncheck('input[name="evk_hot_access"]');
+    await wyslij('input[type="submit"][value="Zapisz rolę"]');
+    t.check('odznaczony dostęp „Hotspoty” znika z roli', sonda('stan').panel_hotspoty === false, JSON.stringify(sonda('stan')));
 
     // ── Dodanie ─────────────────────────────────────────────────────────
     t.section('dodanie roli: jeden komunikat, rola jest');

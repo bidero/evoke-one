@@ -47,7 +47,7 @@ add_action('admin_bar_menu', function ($wp_admin_bar) {
     $text_color = $status === 1 ? '#000' : '#fff';
 
     $title = '<div style="display:flex;align-items:center;gap:10px;padding:0 5px;color:' . $text_color . '">'
-        . 'Konserwacja'
+        . '<span class="evk-konserwacja-napis">Konserwacja' . ($status === 1 ? '<span class="evk-konserwacja-stan">: włączona</span>' : '<span class="evk-konserwacja-stan">: wyłączona</span>') . '</span>'
         . '<span style="display:inline-block;width:34px;height:18px;border-radius:18px;background:' . $bg_color . ';position:relative;transition:background 0.3s;">'
         . '<span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;' . $dot_pos . 'transition:left 0.3s;"></span>'
         . '</span></div>';
@@ -94,6 +94,12 @@ function evoke_one_maintenance_bar_js(): void {
         x.send('action=toggle_maintenance_status&nonce=<?php echo wp_create_nonce('maintenance_bar_nonce'); ?>');
     }
     </script>
+    <?php /* Telefon (1.291.0): WordPress chowa w wąskim pasku prawie wszystko — przełącznik zostaje jako sam suwak,
+             napis tylko dla czytnika ekranu. Na komputerze stan („: włączona”) czyta tylko czytnik — widać go po kolorze. */ ?>
+    <style id="evk-konserwacja-pasek">#wpadminbar .evk-konserwacja-stan{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+    @media screen and (max-width:782px){#wpadminbar li#wp-admin-bar-maintenance_toggle_node{display:block}
+    #wpadminbar #wp-admin-bar-maintenance_toggle_node>.ab-item{height:46px;padding:0;display:flex;align-items:center}
+    #wpadminbar #wp-admin-bar-maintenance_toggle_node .evk-konserwacja-napis{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}}</style>
     <?php if ((int) get_option('maintenance_mode', 0) === 1): ?>
     <style>#wpadminbar #wp-admin-bar-maintenance_toggle_node>.ab-item{background:#ffd64f!important;}#wpadminbar #wp-admin-bar-maintenance_toggle_node:hover>.ab-item{background:#ffd13b!important;}</style>
     <?php endif;

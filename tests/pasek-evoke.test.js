@@ -84,6 +84,30 @@ module.exports = async function (t) {
     const n = await nowa(null, 'pasek_nikt', 'test-haslo');
     t.check('konto bez żadnego z tych uprawnień: menu „Evoke” nie ma', !(await menu(n)).jest);
 
+    t.section('dostęp „Hotspoty” (1.291.0): nagrywanie, zatrzymanie, usunięcie — bez podglądu');
+    const h = await nowa(null, 'pasek_hot', 'test-haslo');
+    h.on('dialog', (d) => d.accept());
+    const idz = async (id) => { const href = await h.getAttribute('#wp-admin-bar-' + id + ' a', 'href').catch(() => null);
+      if (href) await Promise.all([h.waitForNavigation(), h.evaluate((u) => { location.href = u; }, href)]); return href; };
+    const mh0 = await menu(h);
+    t.check('rola z samym dostępem „Hotspoty”: w menu tylko Hotspoty z „Nagrywaj tę stronę”', mh0.jest
+      && J(mh0.pozycje.map((x) => x.replace(/\d+/g, 'N'))) === J(['# Hotspoty', 'Nagrywaj tę stronę (N dni albo N wizyt)']), J(mh0));
+    await idz('evk-hotspoty-start');
+    const hs1 = sonda('hot').stan;
+    const mh1 = await menu(h);
+    t.check('„Nagrywaj” działa (admin-post z jej uprawnieniem): nagrywanie 14 dni / 1000 wizyt; w menu stan i „Zatrzymaj”, bez „Pokaż hotspoty” (podgląd z „Statystyk”)',
+      !!hs1 && hs1.nagrywa === true && hs1.limit === 1000 && mh1.pozycje[0] === '# Hotspoty: nagrywanie' && mh1.pozycje.includes('Zatrzymaj nagrywanie')
+      && !mh1.pozycje.some((x) => /^Pokaż hotspoty/.test(x)), J({ hs1, mh1: mh1.pozycje }));
+    await idz('evk-hotspoty-stop');
+    const hs2 = sonda('hot').stan;
+    const mh2 = await menu(h);
+    t.check('„Zatrzymaj”: nagranie zakończone; w menu „Usuń nagranie tej strony” i ponowne „Nagrywaj”', !!hs2 && hs2.nagrywa === false
+      && mh2.pozycje.includes('Usuń nagranie tej strony') && mh2.pozycje.some((x) => /^Nagrywaj tę stronę/.test(x)), J({ hs2, mh2: mh2.pozycje }));
+    await idz('evk-hotspoty-usun');
+    t.check('„Usuń nagranie” (z potwierdzeniem): nagrania nie ma', sonda('hot').stan === null, J(sonda('hot')));
+    const czyt = await menu(c);
+    t.check('czytelnik statystyk bez „Hotspotów” nie nagrywa: brak „Nagrywaj” w menu', !czyt.pozycje.some((x) => /^Nagrywaj/.test(x)), J(czyt.pozycje));
+
     t.section('licznik wyłączony');
     sonda('licznik', 0);
     await a.goto(strona);
@@ -96,6 +120,10 @@ module.exports = async function (t) {
     const przed = await f.evaluate(() => { const e = document.querySelector('#wp-admin-bar-evk-menu > .ab-item'); const r = e && e.getBoundingClientRect();
       return r && { l: r.left, p: r.right, w: r.width, h: r.height, widac: getComputedStyle(e.parentNode).display !== 'none' }; });
     t.check('na telefonie „Evoke” jest w pasku: widoczne, w ekranie, cel dotyku ≥ 24 px', !!przed && przed.widac && przed.l >= 0 && przed.p <= 360 && przed.w >= 24 && przed.h >= 24, J(przed));
+    const gora = await f.evaluate(() => [...document.querySelectorAll('#wpadminbar .ab-top-menu > li')].filter((li) => getComputedStyle(li).display !== 'none')
+      .map((li) => { const r = li.getBoundingClientRect(); return { id: li.id.replace('wp-admin-bar-', ''), l: Math.round(r.left), p: Math.round(r.right), t: Math.round(r.top) }; }));
+    t.check('na telefonie cały pasek w jednym wierszu i w ekranie — z kontem (wylogowanie) mimo „Evoke” i konserwacji', gora.some((x) => x.id === 'my-account')
+      && gora.every((x) => x.t === 0 && x.l >= 0 && x.p <= 360), J(gora));
     await f.tap('#wp-admin-bar-evk-menu > .ab-item');
     await f.waitForTimeout(500);
     const mf = await menu(f);
@@ -110,6 +138,16 @@ module.exports = async function (t) {
     await f.tap('#wp-admin-bar-evk-menu > .ab-item');
     await f.waitForTimeout(400);
     t.check('drugie dotknięcie zwija menu', !(await menu(f)).widac);
+    const ks = await f.evaluate(() => { const a = document.querySelector('#wp-admin-bar-maintenance_toggle_node > .ab-item'); const r = a && a.getBoundingClientRect();
+      return r && { l: r.left, p: r.right, w: r.width, h: r.height, widac: getComputedStyle(a.parentNode).display !== 'none', nazwa: a.textContent.trim(), napisWidac: a.querySelector('.evk-konserwacja-napis').getBoundingClientRect().width > 1 }; });
+    t.check('konserwacja na telefonie (1.291.0): przełącznik widoczny w pasku, w ekranie, cel ≥ 24 px; napis tylko dla czytnika („Konserwacja: wyłączona”)',
+      !!ks && ks.widac && ks.l >= 0 && ks.p <= 360 && ks.w >= 24 && ks.h >= 24 && ks.nazwa === 'Konserwacja: wyłączona' && !ks.napisWidac, J(ks));
+    await Promise.all([f.waitForNavigation(), f.tap('#wp-admin-bar-maintenance_toggle_node > .ab-item')]);
+    const k1 = sonda('konserwacja').stan;
+    const kNazwa = await f.textContent('#wp-admin-bar-maintenance_toggle_node > .ab-item').catch(() => '');
+    await Promise.all([f.waitForNavigation(), f.tap('#wp-admin-bar-maintenance_toggle_node > .ab-item')]);
+    const k2 = sonda('konserwacja').stan;
+    t.check('dotknięcie przełącza konserwację (włączona → „Konserwacja: włączona”), drugie wyłącza', k1 === 1 && kNazwa.trim() === 'Konserwacja: włączona' && k2 === 0, J({ k1, kNazwa, k2 }));
     t.check('bez błędów JS', bledy.length === 0, bledy.slice(0, 3).join(' | '));
   } finally {
     if (browser) await browser.close();

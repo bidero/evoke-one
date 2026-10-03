@@ -7,8 +7,10 @@ if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
  * test ogląda przez serwer (php -S) w Chromium.
  *
  *   php tests/php/pasek-evoke.php wp
- *   php tests/php/pasek-evoke.php przygotuj     statystyki z licznikiem, Tłumaczenia (EN, DE), strona, konta pasek_czyt (Statystyki), pasek_tlum (Tłumaczenia), pasek_nikt
+ *   php tests/php/pasek-evoke.php przygotuj     statystyki z licznikiem, Tłumaczenia (EN, DE), strona, konta pasek_czyt (Statystyki), pasek_tlum (Tłumaczenia), pasek_hot (Hotspoty), pasek_nikt
  *   php tests/php/pasek-evoke.php licznik <0|1>
+ *   php tests/php/pasek-evoke.php konserwacja [0|1]   stan trybu konserwacji (z argumentem — ustawia)
+ *   php tests/php/pasek-evoke.php hot                 nagranie hotspotów strony testu
  *   php tests/php/pasek-evoke.php sprzataj
  */
 require __DIR__ . '/_testowy-wp.php';
@@ -18,8 +20,9 @@ $krok = $argv[1] ?? '';
 $plik = sys_get_temp_dir() . '/evk-t-pasek.json';
 $zap  = is_file($plik) ? (json_decode((string) file_get_contents($plik), true) ?: []) : [];
 $out  = ['krok' => $krok];
-$opcje = ['evk_statystyki', 'tl_languages', 'evk_tl_module_enabled'];
-$konta = ['pasek_czyt' => ['author', 'evk_access_stats'], 'pasek_tlum' => ['editor', 'evk_access_translations'], 'pasek_nikt' => ['author', '']];
+$opcje = ['evk_statystyki', 'tl_languages', 'evk_tl_module_enabled', 'maintenance_mode'];
+$konta = ['pasek_czyt' => ['author', 'evk_access_stats'], 'pasek_tlum' => ['editor', 'evk_access_translations'], 'pasek_nikt' => ['author', ''],
+    'pasek_hot' => ['author', 'evk_access_hotspoty']];
 
 switch ($krok) {
 case 'wp':
@@ -51,7 +54,19 @@ case 'licznik':
     $out['ust'] = get_option('evk_statystyki');
     break;
 
+case 'konserwacja':
+    if (($argv[2] ?? '') !== '') update_option('maintenance_mode', (int) $argv[2]);
+    $out['stan'] = (int) get_option('maintenance_mode', 0);
+    break;
+
+case 'hot':
+    $sciezka = evk_stat_sciezka('/', 'page_id=' . (int) ($zap['strona'] ?? 0));
+    $out['sciezka'] = $sciezka;
+    $out['stan'] = evk_stat_hot_stan($sciezka);
+    break;
+
 case 'sprzataj':
+    if (!empty($zap['strona']) && function_exists('evk_stat_hot_usun')) evk_stat_hot_usun(evk_stat_sciezka('/', 'page_id=' . (int) $zap['strona']));
     foreach ($konta as $login => $x) if ($u = get_user_by('login', $login)) wp_delete_user($u->ID);
     if (!empty($zap['strona'])) wp_delete_post((int) $zap['strona'], true);
     foreach ((array) ($zap['opcje'] ?? []) as $o => $v) { if ($v === null) delete_option($o); else update_option($o, $v); }

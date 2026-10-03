@@ -184,6 +184,14 @@ function evk_stat_hot_zapisz(array $d, string $wizyta): string {
 // STEROWANIE: admin-post (pasek admina, lista w zakładce)
 // =========================================================================
 
+/**
+ * Kto zarządza nagraniami (1.291.0): administrator i rola z dostępem „Hotspoty”
+ * (edycja roli). Oglądanie idzie przez raport — dostęp „Statystyki”.
+ */
+function evk_stat_hot_moze(): bool {
+    return current_user_can('manage_options') || current_user_can('evk_access_hotspoty');
+}
+
 /** Adres akcji nagrania (GET z paska, z nonce). */
 function evk_stat_hot_adres_akcji(string $akcja, string $strona): string {
     return wp_nonce_url(admin_url('admin-post.php?action=evk_stat_hot&akcja=' . $akcja . '&strona=' . rawurlencode($strona)), 'evk_stat_hot');
@@ -197,7 +205,7 @@ function evk_stat_hot_adres_podgladu(string $strona, string $urz = ''): string {
 
 add_action('admin_post_evk_stat_hot', function (): void {
     check_admin_referer('evk_stat_hot');
-    if (!current_user_can('manage_options')) wp_die('Brak uprawnień.', '', ['response' => 403]);
+    if (!evk_stat_hot_moze()) wp_die('Brak uprawnień.', '', ['response' => 403]);
     $akcja = sanitize_key($_REQUEST['akcja'] ?? '');
     $strona = evk_stat_hot_strona((string) wp_unslash($_REQUEST['strona'] ?? ''));
     if ($strona === '') wp_die('Podaj adres strony.', '', ['response' => 400, 'back_link' => true]);
@@ -219,16 +227,17 @@ add_action('admin_post_evk_stat_hot', function (): void {
 // =========================================================================
 
 add_action('admin_bar_menu', function (WP_Admin_Bar $pasek): void {
-    if (is_admin() || !evk_stat_wlaczone() || !evk_stat_moze_czytac() || isset($_GET['evk_hot_podglad']) || !function_exists('evk_pasek_grupa')) return;
+    if (is_admin() || !evk_stat_wlaczone() || (!evk_stat_moze_czytac() && !evk_stat_hot_moze()) || isset($_GET['evk_hot_podglad']) || !function_exists('evk_pasek_grupa')) return;
     $strona = evk_stat_sciezka((string) wp_parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH), (string) ($_SERVER['QUERY_STRING'] ?? ''));
     $st = evk_stat_hot_stan($strona);
-    $admin = current_user_can('manage_options');
+    $admin = evk_stat_hot_moze();
     if (!$st && !$admin) return;
     /* Od 1.290.0 grupa „Hotspoty” w menu „Evoke”: nagłówek ze stanem, pod nim pozycje (jeden poziom — wygodny także na telefonie). */
     $g = evk_pasek_grupa('hot');
     evk_pasek_naglowek($pasek, 'hot', 'evk-hotspoty', $st && $st['nagrywa'] ? 'Hotspoty: nagrywanie' : 'Hotspoty');
     if ($st) {
-        $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-pokaz', 'title' => 'Pokaż hotspoty (' . (int) $st['odslony'] . ' odsłon)', 'href' => evk_stat_hot_adres_podgladu($strona)]);
+        /* Podgląd jest w raporcie — tylko z dostępem „Statystyki”. */
+        if (evk_stat_moze_czytac()) $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-pokaz', 'title' => 'Pokaż hotspoty (' . (int) $st['odslony'] . ' odsłon)', 'href' => evk_stat_hot_adres_podgladu($strona)]);
         $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-stan', 'title' => $st['nagrywa']
             ? sprintf('Do %s albo %d wizyt (jest %d)', wp_date('j.m.Y', $st['do']), $st['limit'], $st['wizyty'])
             : 'Nagrywanie zakończone ' . wp_date('j.m.Y', $st['koniec'])]);
@@ -237,6 +246,9 @@ add_action('admin_bar_menu', function (WP_Admin_Bar $pasek): void {
     if ($st && $st['nagrywa']) {
         $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-stop', 'title' => 'Zatrzymaj nagrywanie', 'href' => evk_stat_hot_adres_akcji('stop', $strona)]);
     } else {
+        /* Zakończone nagranie: usunięcie z paska (1.291.0) — dotąd tylko w panelu, czyli dla administratora. */
+        if ($st) $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-usun', 'title' => 'Usuń nagranie tej strony', 'href' => evk_stat_hot_adres_akcji('usun', $strona),
+            'meta' => ['onclick' => "return confirm('Usunąć nagranie hotspotów tej strony? Kliknięć nie da się przywrócić.');"]]);
         $pasek->add_node(['parent' => $g, 'id' => 'evk-hotspoty-start', 'title' => sprintf('Nagrywaj tę stronę (%d dni albo %d wizyt)', EVK_STAT_HOT_DNI, EVK_STAT_HOT_WIZYTY),
             'href' => add_query_arg(['dni' => EVK_STAT_HOT_DNI, 'wizyty' => EVK_STAT_HOT_WIZYTY], evk_stat_hot_adres_akcji('start', $strona))]);
     }
