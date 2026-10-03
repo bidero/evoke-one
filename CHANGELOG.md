@@ -2,6 +2,76 @@
 
 Format wg [Keep a Changelog](https://keepachangelog.com/), wersjonowanie [SemVer](https://semver.org/).
 
+## [1.287.0] — 2026-10-03
+
+Logowanie dwuetapowe (2FA) — własne w Evoke, bez wtyczki. Decyzje z 02–03.10
+(docs/plan-kolejka.md). Ukryty adres logowania — 1.288.0, menu „Evoke”
+w pasku admina — 1.289.0.
+
+### Dodane
+
+- **Zakładka „Logowanie”** w panelu (domyślnie WYŁĄCZONA): włącznik, role
+  z wymuszonym 2FA, zgoda na „zapamiętaj to urządzenie”, lista kont
+  (stan, kody zapasowe, „Wyłącz 2FA” dla innego konta) i dziennik
+  (włączenie, wyłączenie, reset, nowe kody).
+- **Profil → „Logowanie dwuetapowe”**, trzy kroki na jednym ekranie:
+  - kod QR jako SVG z WŁASNEGO kodera (ten sam, który rysuje warstwę QR
+    obrazka OG — bez obcej biblioteki i bez zewnętrznych generatorów, sekret
+    nie wychodzi z serwera) i klucz do przepisania z przyciskiem „Kopiuj”;
+  - pole kodu (jedno, duże cyfry, `one-time-code`) i „Włącz”;
+  - 10 jednorazowych kodów zapasowych pokazanych raz: Pobierz .txt,
+    Kopiuj, Drukuj; „Gotowe” dopiero po „Zapisałem kody”.
+  - Po włączeniu: nowe kody, zapamiętane urządzenia („Zapomnij
+    wszystkie”), wyłączenie (kodem; przy wymuszonej roli niemożliwe).
+- **Drugi krok na wp-login.php**: osobny ekran w wyglądzie WordPressa;
+  wysyła token i kod — hasło nie wraca do strony. Zły kod: „Nieprawidłowy
+  kod. Zostało prób: N.”, po 5 — od nowa. „Nie masz telefonu? Użyj kodu
+  zapasowego”.
+- **Drugi krok w formularzu logowania Bricksa** — w tym samym miejscu, bez
+  przeładowania: pola formularza znikają, wchodzi KLON jego pola (te same
+  klasy, więc ten sam wygląd — test porównuje obliczone style z polem
+  formularza o własnym tle i ramce), jego przycisk zostaje. Wysłanie idzie
+  zwykłą drogą Bricksa, więc przekierowania i akcje po logowaniu działają
+  jak bez 2FA; własny komunikat błędu formularza nie przykrywa kroku kodu.
+- „Zapamiętaj to urządzenie na 30 dni” — domyślnie odznaczone; zmiana
+  hasła unieważnia zapamiętane urządzenia.
+- Wymuszenie dla ról: konto bez 2FA po zalogowaniu widzi tylko Profil
+  (kokpit i strony z paskiem admina odsyłają na Profil z komunikatem).
+- API: hasła aplikacji (MCP z Claude Desktop) działają jak dotąd; zwykłe
+  hasło konta z 2FA przez XML-RPC — odmowa (w REST rdzeń nie przyjmuje
+  zwykłego hasła wcale).
+- Odzyskanie: inny administrator wyłącza 2FA konta (zakładka i profil,
+  wpis w dzienniku); awaryjnie stała `EVK_2FA_WYLACZ` w wp-config.php
+  (czerwone ostrzeżenie w kokpicie, dopóki jest).
+- Lista Użytkownicy: kolumna „2FA” (włączone / wymagane, brak / —).
+
+### Bezpieczeństwo
+
+- TOTP wg RFC 6238 (SHA-1, 30 s, 6 cyfr), okno ±30 s, raz przyjęty kod
+  nie wchodzi drugi raz. Sekret zaszyfrowany w bazie (sodium, klucz z soli
+  WordPressa); kody zapasowe i urządzenia — tylko skróty. Zły kod liczy
+  się do limitu logowań.
+
+### Testy
+
+- `logowanie-2fa` (29): kod QR z profilu ODCZYTANY jak telefonem (jsQR),
+  kody liczone osobną implementacją TOTP w Node, wektory RFC, drugi krok
+  na wp-login.php, powtórka kodu, urządzenie i zmiana hasła, kody
+  zapasowe, limit prób (wyczerpany token nie ożywa z dobrym kodem),
+  XML-RPC hasłem konta i hasłem aplikacji, REST hasłem aplikacji, wymuszenie, reset
+  przez administratora, stała awaryjna.
+- `logowanie-2fa-bricks` (12): prawdziwy Bricks 2.4 w Chromium — krok
+  kodu w tym samym formularzu, style pola kodu = style pola formularza,
+  zły kod, „Wróć”, dobry kod, formularz z własnym komunikatem błędu.
+- Mutacje: 20. Pierwsza runda zostawiła cztery żywe — dwie dopisane
+  sprawdzenia (hasło aplikacji w XML-RPC, wyczerpany token), jedna martwa
+  gałąź usunięta (osobny komunikat dla API), jedna pusta mutacja zastąpiona.
+  Przesunięty jeden wiersz kodu QR przeżywa słusznie (mieści się w korekcji
+  błędów poziomu M — telefon też go odczyta); rozciągnięty rysunek zapala.
+- Usterki złapane przed wydaniem: pole kodu klonowane z już schowanej grupy
+  było niewidoczne (formularz bez etykiet); kod QR nie rysował się, gdy
+  skrypt sekcji ruszał przed biblioteką (zniknęło razem z biblioteką).
+
 ## [1.286.0] — 2026-10-03
 
 Statystyki, etap 3 z trzech: hotspoty. Do tego poprawki raportu i widżetu
